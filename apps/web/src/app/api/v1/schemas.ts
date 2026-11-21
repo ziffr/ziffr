@@ -294,6 +294,7 @@ export const FeedOverview = z.object({
 /** GET /api/v1/workspace answers this. */
 export const ApiWorkspace = z.object({
   year_start_month: z.number().int().min(1).max(12).describe("The month the workspace's fiscal year starts in, 1 (January) to 12. Quarters and years, of Metrics and Comparisons, start from it."),
+  number_style: z.enum(["1,234.5", "1.234,5", "1 234,5", "1'234.5"]).describe("How the workspace writes numbers, each style named by 1234.5 written in it: the mark between groups of three digits and the decimal mark. A program that shows values writes them the same way."),
 });
 
 /** A batch item: one value for one Metric and period. */

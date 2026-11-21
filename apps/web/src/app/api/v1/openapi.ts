@@ -188,7 +188,7 @@ const ENDPOINTS: Endpoint[] = [
   {
     method: "get", path: "/workspace", scope: "metrics:read", ok: { status: 200, name: "Workspace", schema: S.ApiWorkspace },
     summary: "Describe the workspace",
-    description: "The month the workspace's fiscal year starts in, which every quarterly and yearly Metric's periods start from: with April, a quarterly Metric's periods start on 1 April, 1 July, 1 October and 1 January, and its year is named FY 2026/27.",
+    description: "The month the workspace's fiscal year starts in, which every quarterly and yearly Metric's periods start from: with April, a quarterly Metric's periods start on 1 April, 1 July, 1 October and 1 January, and its year is named FY 2026/27. And how it writes numbers (Number Style), so a program shows values as the app does.",
   },
   {
     method: "get", path: "/schedule", scope: "metrics:read", query: S.scheduleQuery, ok: { status: 200, name: "Schedule", schema: S.ScheduleAnswer },

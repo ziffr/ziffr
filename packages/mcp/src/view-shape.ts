@@ -1,44 +1,13 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
+import { writeNumber, writePeriod } from "@ziffr/figures";
 // What the inline views of `get_metric`, `get_dashboard` and `period_status` (ticket #539; GLOSSARY: Metric, Dashboard,
 // Period Timeline) draw, shaped from the tool's own structured answer and nothing else. These functions are plain JS
 // without outside references on purpose: the page embeds their source (`.toString()`), so what the tests check is what
 // runs in the chat. They read only fields the tool already returned for this key (Rule 3): no fetching, no new rights.
+// Numbers and periods are written by @ziffr/figures, the same code the app and the emails use: the page embeds its two
+// functions beside these, and the tool's answer carries the Workspace's Number Style and Fiscal Year start for them.
 // The parameters are loose on purpose: they read the tool's JSON and check every field before use.
 // Words from the workspace stay data: they are cut to a length and the page draws them with textContent.
-
-/** A number written the way Ziffr's default Number Style does ("1,234.5", the minus "−"), whatever the viewer's locale, so one
- * value never mixes two locales; the Metric's unit stands on its side as in the app (before without a space, after with one).
- * The tool's answer does not carry the Workspace's Number Style, so the default is the one rule that is the same everywhere. */
-export function formatValue(value: any, metric: any): string {
-  if (typeof value !== "number" || !isFinite(value)) return "";
-  const decimals = Math.min(Math.max(Number.isInteger(metric.decimals) ? metric.decimals : 0, 0), 6);
-  const body = Math.abs(value).toLocaleString("en-US", { minimumFractionDigits: decimals, maximumFractionDigits: decimals });
-  const sign = value < 0 && /[1-9]/.test(body) ? "\u2212" : "";
-  const unit = typeof metric.unit === "string" ? metric.unit.slice(0, 12) : "";
-  if (!unit) return sign + body;
-  return metric.unit_position === "before" ? sign + unit + body : sign + body + "\u00a0" + unit;
-}
-
-/** A period named from its first day by the Metric's period, in words that hold for any fiscal year start: "Oct 26", "Wk of 16 Nov",
- * "Apr\u2013Jun 26" for a quarter. A Condensed Value names its whole span. */
-export function periodName(start: string, kind: any, end?: string): string {
-  const M = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-  const parts = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(start));
-  if (!parts) return String(start).slice(0, 40);
-  const y = Number(parts[1]), mo = Number(parts[2]) - 1, d = Number(parts[3]);
-  const yy = (n: number) => String(n % 100).padStart(2, "0");
-  const month = (m: number, yr: number) => M[((m % 12) + 12) % 12] + " " + yy(yr + Math.floor(m / 12));
-  if (end) { const e = /^(\d{4})-(\d{2})/.exec(String(end)); return e ? month(mo, y) + "\u2013" + month(Number(e[2]) - 1, Number(e[1])) : month(mo, y); }
-  if (kind === "day") return d + " " + M[mo % 12];
-  if (kind === "week") return "Wk of " + d + " " + M[mo % 12];
-  if (kind === "quarter" || kind === "year") {
-    const n = kind === "quarter" ? 3 : 12;
-    if (kind === "year" && mo === 0) return String(y);
-    const last = month(mo + n - 1, y);
-    return kind === "quarter" ? M[mo % 12] + "\u2013" + last : month(mo, y) + "\u2013" + last;
-  }
-  return month(mo, y);
-}
 
 /** A Metric and its values as a card: latest value, change to the one before, Target Range, sparkline and last periods. */
 export function shapeMetric(data: any) {
@@ -50,15 +19,24 @@ export function shapeMetric(data: any) {
   let status: string | null = null;
   if (last && (min !== null || max !== null)) status = min !== null && last.value < min ? "below" : max !== null && last.value > max ? "above" : "within";
   const change = last && before && before.value !== 0 ? (last.value - before.value) / Math.abs(before.value) : null;
-  const span = (v: any) => periodName(v.period, m.period, v.condensed_from && v.period_end ? v.period_end : undefined);
+  const style = typeof data.number_style === "string" ? data.number_style : "1,234.5", yearStart = Number(data.year_start_month);
+  // A value as the app writes it: the Workspace's Number Style, the Metric's unit on its side, the minus sign.
+  const decimals = Math.min(Math.max(Number.isInteger(m.decimals) ? m.decimals : 0, 0), 6), unit = typeof m.unit === "string" ? m.unit.slice(0, 12) : "";
+  const formatValue = (n: number) => writeNumber(n, decimals, style, { unit, side: m.unit_position });
+  // A period named from its first day by the Metric's period ("Q3 26" for a quarter of a Fiscal Year that starts in January),
+  // or, for a Condensed Value, by its whole span.
+  const span = (v: any) => {
+    const name = (day: string, kind: string) => writePeriod(day, kind, yearStart, true).slice(0, 40);
+    return v.condensed_from && /^\d{4}-\d{2}/.test(String(v.period_end)) ? name(v.period, "month") + "\u2013" + name(v.period_end, "month") : name(v.period, v.condensed_from ? "month" : m.period);
+  };
   return {
     name: m.name.slice(0, 200),
     description: typeof m.description === "string" ? m.description.slice(0, 300) : "",
-    latest: last ? { period: span(last), text: formatValue(last.value, m), state: last.state } : null,
-    change: change === null ? null : { text: (change >= 0 ? "+" : "\u2212") + Math.abs(change * 100).toFixed(1) + " %", better: m.polarity === "lower" ? change < 0 : m.polarity === "higher" ? change > 0 : null },
-    target: min === null && max === null ? null : { text: min !== null && max !== null ? formatValue(min, m) + " to " + formatValue(max, m) : min !== null ? "at least " + formatValue(min, m) : "at most " + formatValue(max, m), status },
+    latest: last ? { period: span(last), text: formatValue(last.value), state: last.state } : null,
+    change: change === null ? null : { text: writeNumber(change * 100, 1, style, { unit: "%", side: "after", change: true }), better: m.polarity === "lower" ? change < 0 : m.polarity === "higher" ? change > 0 : null },
+    target: min === null && max === null ? null : { text: min !== null && max !== null ? formatValue(min) + " to " + formatValue(max) : min !== null ? "at least " + formatValue(min) : "at most " + formatValue(max), status },
     points: values.slice(-24).map((v: any) => v.value),
-    rows: values.slice(-6).reverse().map((v: any) => ({ period: span(v), text: formatValue(v.value, m), state: v.state })),
+    rows: values.slice(-6).reverse().map((v: any) => ({ period: span(v), text: formatValue(v.value), state: v.state })),
   };
 }
 

@@ -5,27 +5,17 @@
 // Metric's unit, the side it stands on and its decimals. `format` adds nothing of its own. Every writer takes the
 // style as a required argument, so a caller that forgets it does not compile.
 import { format as fmtDate, parseISO } from "date-fns";
-import { NUMBER_STYLE_MARKS, type NumberStyle } from "./number-style";
+import { writeNumber } from "@ziffr/figures";
+import type { NumberStyle } from "./number-style";
 import type { Metric, MetricDescription, Polarity, SourceId, SubmissionRule } from "./types";
 
 /** What writing a value needs from its Metric: the unit, which side it stands on and the decimals. */
 export type ValueUnit = Pick<MetricDescription, "decimals" | "unit" | "unit_position">;
 
-// The space a "1 234,5" style groups with: a no-break space, so a value never breaks across lines.
-const STYLE_SPACE = " ";
-
 /** The minus sign every number shown to people is written with: values, absolute and percentage changes alike
  * ("−1.200 €", "−3,5 %"). Files and programs read numbers, so CSV, chart data and anything parsed back keep the
  * ASCII "-" (`formatNumber` with `group: false`), and the number readers accept both (ticket #184). */
 export const MINUS = "−";
-
-// Digits only: grouped in the style unless `group` is false, rounded to `decimals`, without a sign.
-function digits(abs: number, decimals: number, style: NumberStyle, group = true): string {
-  const marks = NUMBER_STYLE_MARKS[style];
-  const g = marks.group === " " ? STYLE_SPACE : marks.group;
-  const en = new Intl.NumberFormat("en-US", { minimumFractionDigits: decimals, maximumFractionDigits: decimals, useGrouping: group }).format(abs);
-  return en.replace(/[,.]/g, (c) => (c === "," ? g : marks.decimal));
-}
 
 // Whether there is a number to write. Number.isFinite is false for null and undefined as well as for NaN and ±∞; as a
 // guard it also tells TypeScript that what passes is a number.
@@ -33,38 +23,18 @@ function isNumber(v: number | null | undefined): v is number {
   return Number.isFinite(v);
 }
 
-// The digits and whether a minus goes in front: a value that rounds to zero has none, so −0.4 is written 0. Grouped
-// unless `group` is false, as `digits` does.
-function signed(v: number, decimals: number, style: NumberStyle, group?: boolean): { minus: boolean; body: string } {
-  const body = digits(Math.abs(v), decimals, style, group);
-  // Stryker disable next-line EqualityOperator: v <= 0 differs only at 0, whose digits have no 1-9, so no minus either way.
-  return { minus: v < 0 && /[1-9]/.test(body), body };
-}
-
-// The unit on its side: before without a space ("$1,200"; "CHF " keeps the space it ends with), after with one.
-// A Metric kept before units had a side (in an old Snapshot) has none, and its unit stands after, as it did.
-function withUnit(m: Pick<ValueUnit, "unit" | "unit_position">, minus: boolean, body: string): string {
-  const sign = minus ? MINUS : "";
-  if (!m.unit) return sign + body;
-  return m.unit_position === "before" ? `${sign}${m.unit}${body}` : `${sign}${body} ${m.unit}`;
-}
-
 /** A number in the Number Style with `decimals` places and no unit, e.g. "1.234,5" or "−5"; `group: false` writes
  * it for files a spreadsheet or program reads: no group marks and the ASCII "-" as its minus. A dash for a value that
  * is not a finite number. */
 export function formatNumber(v: number | null | undefined, decimals: number, style: NumberStyle, opts: { group?: boolean } = {}): string {
-  if (!isNumber(v)) return "–";
-  const { minus, body } = signed(v, decimals, style, opts.group);
-  if (!minus) return body;
-  return (opts.group === false ? "-" : MINUS) + body;
+  return writeNumber(v, decimals, style, opts.group === false ? { group: false, minus: "-" } : {});
 }
 
 /** A value in the Number Style with its Metric's unit, side and decimals, e.g. "1.200 €" or "$1,200"; a dash when
- * there is none or it is not finite. */
+ * there is none or it is not finite. The unit stands on its side as in a Metric Description; a Metric kept before units
+ * had a side has none, and its unit stands after, as it did. */
 export function formatValue(m: ValueUnit, v: number | null | undefined, style: NumberStyle): string {
-  if (!isNumber(v)) return "–";
-  const { minus, body } = signed(v, m.decimals, style);
-  return withUnit(m, minus, body);
+  return writeNumber(v, m.decimals, style, { unit: m.unit, side: m.unit_position });
 }
 
 /** A value shortened for tight spaces such as chart labels: from 10,000 on as k or M, with one decimal below 100
@@ -82,8 +52,7 @@ export function compactValue(m: ValueUnit, v: number, style: NumberStyle): strin
     n = short(abs / 1_000_000);
     suffix = "M";
   }
-  // Stryker disable next-line EqualityOperator: here |v| is at least 10,000, so v is never 0 and v <= 0 is the same.
-  return withUnit(m, v < 0, digits(n, Number.isInteger(n) ? 0 : 1, style) + suffix);
+  return writeNumber(v < 0 ? -n : n, Number.isInteger(n) ? 0 : 1, style, { unit: m.unit, side: m.unit_position, suffix });
 }
 
 /** A value axis from `lo` to `hi`: about `count` ticks a nice step apart (1, 2, 2.5 or 5 times a power of ten), and
@@ -138,20 +107,14 @@ export function axisLabels(m: ValueUnit, ticks: number[], step: number, style: N
   }
   const [div, suffix] = top >= 1_000_000 ? [1_000_000, "M"] : [1000, "k"];
   const decimals = placesFor(step / div);
-  return ticks.map((t) => {
-    const { minus, body } = signed(t / div, decimals, style);
-    return withUnit(m, minus, /[1-9]/.test(body) ? body + suffix : body);
-  });
+  return ticks.map((t) => writeNumber(t / div, decimals, style, { unit: m.unit, side: m.unit_position, suffix }));
 }
 
 /** A percentage change, the one way Ziffr writes them: one decimal, a space and "%", signed "+", `MINUS` or "±"
  * ("+12.0 %", "−3.5 %"); `signed: false` writes the size only, for "up 12.0 %". A dash for none. */
 export function formatChange(pct: number | null | undefined, style: NumberStyle, opts: { signed?: boolean } = {}): string {
   if (!isNumber(pct)) return "–";
-  const body = digits(Math.abs(pct), 1, style);
-  // Stryker disable next-line EqualityOperator: a change of 0 has no 1-9 in its digits and is "±" before pct > 0 is asked.
-  const sign = opts.signed === false ? "" : !/[1-9]/.test(body) ? "±" : pct > 0 ? "+" : MINUS;
-  return `${sign}${body} %`;
+  return writeNumber(opts.signed === false ? Math.abs(pct) : pct, 1, style, { unit: "%", side: "after", change: opts.signed !== false });
 }
 
 /** A share in percent, such as Attainment or a breakdown row's part of its total, e.g. "96.4 %". */

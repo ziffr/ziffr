@@ -2,6 +2,7 @@
 // half-year or year starts and ends, how to step between them and what each is called. Pure. Weeks are ISO weeks;
 // quarters, half-years and years start from the workspace's year start, January unless it sets another month.
 import { addDays, addMonths, differenceInCalendarDays, differenceInCalendarISOWeeks, differenceInCalendarMonths, format, isValid, parseISO, startOfISOWeek } from "date-fns";
+import { writePeriod } from "@ziffr/figures";
 import type { Period, YearStart } from "./types";
 
 export type { YearStart };
@@ -94,28 +95,9 @@ export function periodStartsIn(span: Span, from: string, to: string, yearStart: 
   return out;
 }
 
-// A Fiscal Year that does not start in January is named by both calendar years it spans ("2026/27"), so it cannot
-// be mistaken for a calendar year; `first` is the calendar year it starts in.
-function fiscalYear(d: Date, yearStart: YearStart) {
-  const first = d.getMonth() >= yearStart - 1 ? d.getFullYear() : d.getFullYear() - 1;
-  const next = String((first + 1) % 100).padStart(2, "0");
-  return { first, long: `${first}/${next}`, short: `${String(first % 100).padStart(2, "0")}/${next}` };
-}
-
 /** A span's name, long ("October 2026", "Q3 2026", "FY 2026/27") or short ("Oct 26", "Q3 26", "FY26/27"), from its
- * first day. Months, weeks and days keep their calendar names; quarters, halves and years follow the year start. */
+ * first day. Months, weeks and days keep their calendar names; quarters, halves and years follow the year start. The
+ * words come from @ziffr/figures, which the MCP views and the emails write with too. */
 export function periodLabel(start: string, span: Span, yearStart: YearStart, short = false): string {
-  const d = parseISO(start);
-  if (span === "day") return format(d, short ? "d MMM" : "EEE d MMM yyyy");
-  if (span === "week") return `Week of ${format(d, "d MMM yyyy")}`;
-  if (span === "month") return format(d, short ? "MMM yy" : "MMMM yyyy");
-  const calendar = yearStart === JANUARY;
-  const fy = fiscalYear(d, yearStart);
-  const calendarYear = short ? format(d, "yy") : format(d, "yyyy");
-  if (span === "year") return calendar ? format(d, "yyyy") : short ? `FY${fy.short}` : `FY ${fy.long}`;
-  const len = MONTHS[span]!;
-  const n = Math.floor(((d.getMonth() - (yearStart - 1) + 12) % 12) / len) + 1;
-  const name = `${span === "quarter" ? "Q" : "H"}${n}`;
-  if (calendar) return `${name} ${calendarYear}`;
-  return short ? `${name} ${fy.short}` : `${name} FY ${fy.long}`;
+  return writePeriod(start, span, yearStart, short);
 }

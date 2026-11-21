@@ -985,13 +985,14 @@ The key's own Workspace's Usage figures as counts (spec 0031), for a program's k
 
 `GET /workspace` · scope `metrics:read`
 
-The month the workspace's fiscal year starts in, which every quarterly and yearly Metric's periods start from: with April, a quarterly Metric's periods start on 1 April, 1 July, 1 October and 1 January, and its year is named FY 2026/27.
+The month the workspace's fiscal year starts in, which every quarterly and yearly Metric's periods start from: with April, a quarterly Metric's periods start on 1 April, 1 July, 1 October and 1 January, and its year is named FY 2026/27. And how it writes numbers (Number Style), so a program shows values as the app does.
 
 **Answer** (200)
 
 | Field | Type | Required | What it is |
 | --- | --- | --- | --- |
 | `year_start_month` | integer, 1 to 12 | yes | The month the workspace's fiscal year starts in, 1 (January) to 12. Quarters and years, of Metrics and Comparisons, start from it. |
+| `number_style` | `"1,234.5"`, `"1.234,5"`, `"1 234,5"`, `"1'234.5"` | yes | How the workspace writes numbers, each style named by 1234.5 written in it: the mark between groups of three digits and the decimal mark. A program that shows values writes them the same way. |
 
 **Errors**
 

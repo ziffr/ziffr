@@ -117,7 +117,7 @@ Between releases, the pre-release **Preview** on the releases page shows what `m
 
 ### The MIT packages
 
-`@ziffr/sdk`, `@ziffr/mcp`, `@ziffr/feed-kit` and `@ziffr/feed-sql` carry the product's version from 0.12.0 on and are published to npm with every release (ADR 0014). The Release workflow writes the version into each package without committing it, packs them in a job with no way to publish, and publishes them with npm provenance in the environment `release`, each before the packages that depend on it. Nothing else publishes them. main's CI tested each against the running app on that commit already.
+`@ziffr/sdk`, `@ziffr/figures`, `@ziffr/mcp`, `@ziffr/feed-kit` and `@ziffr/feed-sql` carry the product's version from 0.12.0 on and are published to npm with every release (ADR 0014). The Release workflow writes the version into each package without committing it, packs them in a job with no way to publish, and publishes them with npm provenance in the environment `release`, each before the packages that depend on it. Nothing else publishes them. main's CI tested each against the running app on that commit already.
 
 Publishing needs no token: each package has trusted publishing set up on npmjs.com (repository `ziffr/ziffr`, workflow `release.yml`, environment `release`; the environment deploys only from `main`). A new package is published once by hand or with a short-lived token, then gets the same setup.
 
