@@ -4,8 +4,22 @@
 // uploaded picture, drawn as an image (never inline markup), so nothing in it can run.
 import type { ThemeLook } from "@ziffr/core/theme-look";
 
-/** The brand strip (smaller when `compact`): a bar in the accent, the logo (or the Workspace's name), and the Theme's footer line when `footer`. */
-export function BrandBar({ look, footer = false, compact = false, className }: { look: ThemeLook; footer?: boolean; compact?: boolean; className?: string }) {
+/** The brand strip (smaller when `compact`; a bare header row when `plain`): a bar in the accent, the logo (or the Workspace's name), and the Theme's footer line when `footer`. */
+export function BrandBar({ look, footer = false, compact = false, plain = false, className }: { look: ThemeLook; footer?: boolean; compact?: boolean; plain?: boolean; className?: string }) {
+  // `plain`: one header row with no frame of its own, for inside a card: the logo, the name, an accent rule beneath.
+  if (plain) {
+    return (
+      <div className={className} style={{ borderBottom: `2px solid ${look.accent}`, paddingBottom: 12 }}>
+        <div className="flex items-center gap-2.5">
+          {look.logo && (
+            // eslint-disable-next-line @next/next/no-img-element -- the Workspace's own uploaded picture, served cached
+            <img src={look.logo} alt="" style={{ height: 28, width: "auto", maxWidth: 120 }} />
+          )}
+          <span className="text-sm font-semibold" style={{ fontFamily: "var(--font-heading)" }}>{look.name}</span>
+        </div>
+      </div>
+    );
+  }
   const height = Math.max(16, Math.min(compact ? 28 : 48, Math.round(Math.min(look.logoWidth, 200) / look.logoRatio)));
   return (
     <div className={className} style={{ background: look.surface, color: look.ink, border: `1px solid ${look.rule}`, borderTop: `4px solid ${look.accent}`, borderRadius: 8 }}>

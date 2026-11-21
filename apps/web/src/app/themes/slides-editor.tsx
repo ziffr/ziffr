@@ -35,15 +35,16 @@ export function SlidePreview({ design }: { design: SlideDesign }) {
   );
 }
 
-function readImage(file: File, max: number): Promise<{ url: string; ratio: number }> {
+function readImage(file: File, max: number, logo = false): Promise<{ url: string; ratio: number }> {
   return new Promise((resolve, reject) => {
-    if (!/^image\/(png|jpeg|webp|svg\+xml)$/.test(file.type)) return reject(new Refused("Use a PNG, JPEG, WebP or SVG image."));
-    if (file.size > max) return reject(new Refused(`Use an image under ${Math.round(max / 1_000_000)} MB.`));
+    // A logo goes into emails and onto public pages: smaller and without WebP (the server holds it to the same limits).
+    if (!(logo ? /^image\/(png|jpeg|svg\+xml)$/ : /^image\/(png|jpeg|webp|svg\+xml)$/).test(file.type)) return reject(new Refused(logo ? "Use a PNG, JPEG or SVG image for the logo." : "Use a PNG, JPEG, WebP or SVG image."));
+    if (file.size > max) return reject(new Refused(`Use an image under ${max >= 1_000_000 ? `${Math.round(max / 1_000_000)} MB` : `${Math.round(max / 1000)} KB`}.`));
     const r = new FileReader();
     r.onload = () => {
       const url = String(r.result);
       const img = new Image();
-      img.onload = () => resolve({ url, ratio: img.naturalWidth / Math.max(1, img.naturalHeight) || 3 });
+      img.onload = () => (logo && file.type !== "image/svg+xml" && Math.max(img.naturalWidth, img.naturalHeight) > 512 ? reject(new Refused("Use a logo of at most 512 × 512 pixels.")) : resolve({ url, ratio: img.naturalWidth / Math.max(1, img.naturalHeight) || 3 }));
       img.onerror = () => resolve({ url, ratio: 3 });
       img.src = url;
     };
@@ -59,7 +60,7 @@ export function SlidesEditor({ s, onChange }: { s: ThemeSlides; onChange: (s: Th
     e.target.value = "";
     if (!f) return;
     try {
-      const { url, ratio } = await readImage(f, kind === "logo" ? 1_000_000 : 2_000_000);
+      const { url, ratio } = await readImage(f, kind === "logo" ? 256_000 : 2_000_000, kind === "logo");
       onChange(kind === "logo" ? { ...s, logo: url, logo_ratio: ratio } : { ...s, background_image: url });
     } catch (err) {
       toast.error("Image not added", { description: shown(err) });

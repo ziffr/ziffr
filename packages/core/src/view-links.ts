@@ -45,6 +45,8 @@ export type ViewPayload = {
   asOf: string;
   /** The Workspace's name, for the frame of the page a View Link opens on (ticket #542); set only by openViewLink. */
   workspaceName?: string;
+  /** The Workspace, for the address of its logo (brand-logo.ts); set only by openViewLink, and never sent to a browser. */
+  workspaceId?: string;
 };
 
 const pick = <T extends Record<string, unknown>>(o: T, keep: Set<number>) => Object.fromEntries(Object.entries(o).filter(([k]) => keep.has(Number(k)))) as T;
@@ -162,8 +164,8 @@ export async function openViewLink(token: string, opts: { count?: boolean } = {}
   if (!view) return null;
   // The page's frame says whose numbers these are: the Workspace's name, and (in the Themes it already carries) its
   // logo and colours. Nothing else about the Workspace leaves with it (AGENTS.md rule 3).
-  const { data: link } = await db().from("view_links").select("workspaces(name)").eq("token", token).maybeSingle();
-  return { ...view, workspaceName: (link?.workspaces as unknown as { name: string } | null)?.name ?? undefined };
+  const { data: link } = await db().from("view_links").select("workspace_id, workspaces(name)").eq("token", token).maybeSingle();
+  return { ...view, workspaceName: (link?.workspaces as unknown as { name: string } | null)?.name ?? undefined, workspaceId: link?.workspace_id as string | undefined };
 }
 
 async function openLinkContent(token: string, opts: { count?: boolean }): Promise<ViewPayload | null> {

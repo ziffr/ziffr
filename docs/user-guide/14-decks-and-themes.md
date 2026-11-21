@@ -165,11 +165,11 @@ If you are not an Owner or Admin, the page says "Only owners and admins of the w
 
 The team default Theme also dresses what Ziffr sends and shows outside the app (it is not the same as a person's **Appearance**, which only changes Ziffr's own screens):
 
-- **Emails** (Prompts, reminders, Alerts, invitations, the usage digest, Share Proposals) get the Theme's logo or the Workspace's name, a bar in its accent, its footer and its fonts, in a layout that stays readable when the reader's mail app is dark. Only a PNG or JPEG logo of up to about 150 KB is attached; for any other, the Workspace's name stands in its place. The plain text is always sent too.
+- **Emails** (Prompts, reminders, Alerts, invitations, the usage digest, Share Proposals) get the Theme's logo or the Workspace's name, a bar in its accent, its footer and its fonts, in a layout that stays readable when the reader's mail app is dark. Only a PNG or JPEG logo of up to about 150 KB is attached; for any other, the Workspace's name stands in its place. The plain text is always sent too. The brand never replaces Ziffr's own identity: the From name is always "<Workspace> via Ziffr", and the footer always says "Sent by Ziffr for …"; in an invitation or a shared dashboard it names the person who sent it and their email address. Sign-in emails are never branded.
 - **The form link** and **View Link** pages show the logo or name under a bar in the accent (see [The personal form link](10-metrics.md#the-personal-form-link) and [View Links](12-dashboards.md#view-links)).
 - **Slack** messages get a side bar in the accent. Block Kit has no other colours.
 
-Every colour is checked for contrast (WCAG AA) when it is used: an accent that is too pale to read on the cards is replaced by a darker shade of it. Under the sample Widgets, the **Email** preview shows the layout in light and dark colours and changes as you edit. A logo that is an SVG is accepted only when it is a plain drawing: one with a script, an event handler, a link to another site or embedded content is not kept.
+Every colour is checked for contrast (WCAG AA) when it is used: an accent that is too pale to read on the cards is replaced by a darker shade of it. Under the sample Widgets, the **Email** preview shows the layout in light and dark colours and changes as you edit. A logo may be at most 256 KB and 512 × 512 pixels, as a PNG, JPEG or SVG (not WebP); Ziffr refuses a bigger one. An SVG is accepted only when it is a plain drawing: one with a script, an event handler, a link to another site or embedded content is not kept.
 
 ### Name and colours
 

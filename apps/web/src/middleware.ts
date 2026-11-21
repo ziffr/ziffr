@@ -63,7 +63,7 @@ export async function middleware(req: NextRequest) {
     return NextResponse.next({ request: { headers } });
   }
   // Only the API itself: a page added elsewhere under /api would still need sign-in.
-  if (path.startsWith("/api/v1/") || path.startsWith("/api/cloud/") || path.startsWith("/api/jobs/") || path.startsWith("/api/inbound/") || /^\/api\/webhooks\/[0-9a-fA-F-]{36}\/in$/.test(path) || path.startsWith("/api/unsubscribe/") || path.startsWith("/api/confirm-reply/") || path === "/api/health" || path === "/api/slack/events" || path === "/api/slack/interactions" || path === "/api/telegram/updates" || path === "/api/auth/send-email" || path === "/mcp" || /^\/cal\/[A-Za-z0-9_-]{43}\.ics$/.test(path) || OAUTH_OPEN.has(path)) return NextResponse.next({ request: { headers } });
+  if (path.startsWith("/api/v1/") || path.startsWith("/api/cloud/") || path.startsWith("/api/jobs/") || path.startsWith("/api/inbound/") || /^\/api\/webhooks\/[0-9a-fA-F-]{36}\/in$/.test(path) || path.startsWith("/api/unsubscribe/") || /^\/api\/brand\/logo\/[0-9a-fA-F-]{36}\/[0-9a-f]{16}$/.test(path) || path.startsWith("/api/confirm-reply/") || path === "/api/health" || path === "/api/slack/events" || path === "/api/slack/interactions" || path === "/api/telegram/updates" || path === "/api/auth/send-email" || path === "/mcp" || /^\/cal\/[A-Za-z0-9_-]{43}\.ics$/.test(path) || OAUTH_OPEN.has(path)) return NextResponse.next({ request: { headers } });
   // The app layout (docs/specs/0036-app-layout.md): `?layout=sidebar` or `?layout=top` sets the browser's choice
   // and drops the parameter. A preference only: it grants and shows nothing.
   const wanted = req.nextUrl.searchParams.get("layout");

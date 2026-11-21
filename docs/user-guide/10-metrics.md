@@ -432,7 +432,7 @@ Anyone answering a question or task about a value can also propose a Correction 
 
 Every Submitter who is a person or a Contact has a personal form link for each Metric they submit. It arrives with the first request and with every **Prompt**, and it opens without signing in: the link itself says who is sending. Keep it to yourself: anyone with it can submit.
 
-The page is drawn in the look of the Workspace's team default Theme: a strip at the top with its logo (or the Workspace's name) under a bar in its accent colour, its colours and fonts, and its footer line at the bottom. If the Theme's accent is too pale to read on its cards, Ziffr uses a darker shade of it. Only that look reaches the page, never the Theme itself.
+The page is drawn in the look of the Workspace's team default Theme: a header row inside the form's card with its logo and the Workspace's name above an accent line, its colours and fonts, and its footer line at the bottom. If the Theme's accent is too pale to read on its cards, Ziffr uses a darker shade of it. Only that look reaches the page, never the Theme itself.
 
 The form shows:
 

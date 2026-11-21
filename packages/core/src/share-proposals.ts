@@ -11,7 +11,8 @@
 import { assertCan, Forbidden, Refused, type Actor } from "./actor";
 import { db } from "./db";
 import { audit } from "./audit-log";
-import { brandedParts, headerSafe, isAddress, mailboxKey, mailOn, sendMail, type MailTransport } from "./mail";
+import { workspaceLook } from "./workspace-look";
+import { brandedParts, headerSafe, sentByLine, isAddress, mailboxKey, mailOn, sendMail, type MailTransport } from "./mail";
 import { linkTo } from "./deliveries";
 import { refuseInDemo } from "./demo";
 import { assertNotTrial } from "./trials";
@@ -309,12 +310,15 @@ export async function confirmShareProposal(actor: Actor, id: number, seen: strin
     const token = await createViewLink(actor, "dashboard", row.dashboard_id, { label: `Shared by email (proposal ${id})`, expires: String(row.ends_on), frozen: row.frozen && row.snapshot_id === null, snapshotId: row.snapshot_id }, { view: row.snapshot_id === null ? view ?? undefined : undefined });
     made = true;
     const { data: link } = await db().from("view_links").select("id").eq("token", token).eq("workspace_id", actor.workspaceId).maybeSingle();
-    const { data: who } = await db().from("profiles").select("id, name").eq("id", actor.personId).maybeSingle();
+    const { data: who } = await db().from("profiles").select("id, name, email").eq("id", actor.personId).maybeSingle();
     const sender = (await openNames(actor.workspaceId, who ? [who] : []))[0]?.name as string | undefined;
     let emailState: "sent" | "failed" = "sent";
     try {
+      const by = { name: named(sender ?? "someone"), email: (who as { email?: string | null } | null)?.email, did: "shared a dashboard with you from" };
       const mail = viewLinkEmail({ sender: sender ?? "someone", dashboard: dashboard.name, url: linkTo(`/v/${token}`), endsOn: String(row.ends_on), message: row.message });
-      await sendMail({ to: String(row.recipient_email), ...mail, ...(await brandedParts(actor.workspaceId, { text: mail.text })) }, transport);
+      // Ziffr's own line about who is behind it, in the plain text and the HTML alike.
+      const text = `${mail.text}\n\n${sentByLine(by, (await workspaceLook(actor.workspaceId)).name)}`;
+      await sendMail({ to: String(row.recipient_email), subject: mail.subject, text, ...(await brandedParts(actor.workspaceId, { text: mail.text }, by)) }, transport);
     } catch {
       emailState = "failed";
     }

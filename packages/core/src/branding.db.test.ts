@@ -11,6 +11,8 @@ import { submissionForm } from "./page-data";
 import { workspaceLook } from "./workspace-look";
 import { STARTER_THEME } from "./themes";
 import { cleanSlides } from "./theme-tokens";
+import { brandLogo } from "./brand-logo";
+import { inviteByEmail } from "./invitations";
 import { workspace } from "./test/db-fixtures";
 
 const MAILPIT = process.env.MAILPIT_URL ?? "http://127.0.0.1:55424";
@@ -91,7 +93,15 @@ describe("the Theme outside the app", () => {
     const m = await w.metric(sara, { name: "Field visits" });
     const t = await w.token(m.id, ann);
     const form = await submissionForm(t);
-    expect(form!.look).toMatchObject({ name: "Acme Co", logo: PNG });
+    // The logo goes as a cacheable address, not inline, and the address serves exactly that picture.
+    const [, , , , wsId, hash] = form!.look.logo!.split("/");
+    expect(form!.look.logo).toMatch(/^\/api\/brand\/logo\/[0-9a-f-]{36}\/[0-9a-f]{16}$/);
+    expect(form!.look.name).toBe("Acme Co");
+    expect((await brandLogo(wsId, hash))!.contentType).toBe("image/png");
+    expect(await brandLogo(wsId, "0".repeat(16))).toBeNull();
+    expect(await brandLogo("not-a-uuid", hash)).toBeNull();
+    const other = await workspace("Other"); cleanups.push(other.cleanup);
+    expect(await brandLogo(other.id, hash)).toBeNull();
     // Not the Theme row: no data colours, no stored ids, nothing but what draws the page.
     expect(Object.keys(form!.look).sort()).toEqual(["accent", "canvas", "fontBody", "fontHeading", "footer", "ink", "logo", "logoRatio", "logoWidth", "muted", "name", "rule", "surface"]);
     const d = await createDashboard(w.actor(sara), "Board");
@@ -101,6 +111,17 @@ describe("the Theme outside the app", () => {
     expect((await openViewLink(link))!.workspaceName).toBe("Acme Co");
     expect((await openViewLink(frozen))!.workspaceName).toBe("Acme Co");
     expect(await openViewLink("x".repeat(30))).toBeNull();
+  });
+
+  it("sends invitations from \"<Workspace> via Ziffr\" and always names who is really behind them", async () => {
+    const { w, sara } = await branded("Acme Co");
+    await db().from("profiles").update({ email: "sara@example.test" }).eq("id", sara);
+    const to = `new-${randomUUID().slice(0, 8)}@example.test`;
+    await inviteByEmail(w.actor(sara), { email: to, role: "member" });
+    const { messages } = await (await fetch(`${MAILPIT}/api/v1/search?query=${encodeURIComponent(`to:"${to}"`)}`)).json() as { messages: { ID: string }[] };
+    const mail = await (await fetch(`${MAILPIT}/api/v1/message/${messages[0].ID}`)).json() as { Text: string; HTML: string; From: { Name: string; Address: string } };
+    expect(mail.From).toMatchObject({ Name: "Acme Co via Ziffr", Address: "ziffr@example.test" });
+    for (const body of [mail.Text, mail.HTML]) expect(body).toMatch(/Sent by Ziffr for owner \w+ \(sara@example\.test\), who invited you to Acme Co\./);
   });
 
   it("refuses an SVG logo that holds a script, a handler or a link out, and keeps a plain one", () => {
@@ -115,7 +136,8 @@ describe("the Theme outside the app", () => {
       '<svg xmlns="http://www.w3.org/2000/svg"><image href="https://evil.example/x.png"/></svg>',
       "<html><body>not an svg</body></html>",
     ]) expect(slides(b64(bad))).toBeNull();
-    expect(slides("data:image/png;base64,AAAA")).not.toBeNull();
+    expect(slides("data:image/png;base64,AAAA")).toBeNull();
+    expect(slides(PNG)).toBe(PNG);
     expect(slides("https://evil.example/logo.png")).toBeNull();
   });
 });

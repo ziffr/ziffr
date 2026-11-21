@@ -6,6 +6,7 @@ import { PublicSlideshow } from "./slideshow";
 import { DashboardReader } from "@/components/dashboard-reader";
 import { formatDate } from "@ziffr/core/format";
 import { themeLook } from "@ziffr/core/theme-look";
+import { publicLook } from "@ziffr/core/brand-logo";
 import { themeFor } from "@ziffr/core/themes";
 import { BrandBar } from "@/components/brand-bar";
 
@@ -25,7 +26,10 @@ export default async function ViewLinkPage({ params }: { params: Promise<{ token
   }
   // A Snapshot says which period it keeps (spec 0013); anything else when its numbers are from.
   // The frame says whose numbers these are, in the dashboard's own Theme (ticket #542): its logo and accent, and the Workspace's name.
-  const look = themeLook(themeFor(view.data.themes, view.themeId), view.workspaceName ?? "");
+  // The logo goes as an address on this site, not inline, so the page stays light and the picture is cached.
+  const look = view.workspaceId ? publicLook(view.workspaceId, themeLook(themeFor(view.data.themes, view.themeId), view.workspaceName ?? "")) : themeLook(undefined, view.workspaceName ?? "");
+  // A dashboard draws no logo of its own; only a deck's slides do. Its Themes go without the inline picture.
+  if (view.type === "dashboard") view.data = { ...view.data, themes: view.data.themes.map((t) => ({ ...t, slides: { ...t.slides, logo: null } })) };
   const note = view.snapshot ? `Snapshot of ${view.snapshot.label}, taken ${formatDate(view.snapshot.takenAt)}` : view.asOf ? `Numbers as of ${formatDate(view.asOf)}` : "";
   // A dashboard with an introduction was written to be read, and so is a Snapshot: they open in the Read view, top to
   // bottom, with only the cards and their numbers (spec 0013). Frozen links from when stories were their own thing keep theirs.

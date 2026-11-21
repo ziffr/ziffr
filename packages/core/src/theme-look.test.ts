@@ -1,8 +1,33 @@
 // The Theme outside the app (ticket #542): contrast, the look, the plain-SVG check.
 import { describe, expect, it } from "vitest";
-import { contrastRatio, lookTheme, onFill, readableOn, svgIsPlain, themeLook } from "./theme-look";
+import { contrastRatio, logoOk, lookTheme, onFill, readableOn, svgIsPlain, themeLook, LOGO_MAX_BYTES } from "./theme-look";
 import { STANDARD_THEMES } from "./standard-themes";
 import { STARTER_THEME } from "./themes";
+
+/** A PNG header of this size (not a whole picture: the check reads the header). */
+const png = (w: number, h: number) => {
+  const b = new Uint8Array(33); b.set([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0, 0, 0, 13, 0x49, 0x48, 0x44, 0x52]);
+  new DataView(b.buffer).setUint32(16, w); new DataView(b.buffer).setUint32(20, h);
+  return "data:image/png;base64," + Buffer.from(b).toString("base64");
+};
+const jpeg = (w: number, h: number) => "data:image/jpeg;base64," + Buffer.from([0xff, 0xd8, 0xff, 0xe0, 0, 4, 0, 0, 0xff, 0xc0, 0, 11, 8, h >> 8, h & 255, w >> 8, w & 255, 1, 1, 0x11, 0]).toString("base64");
+
+describe("logoOk", () => {
+  it("takes a PNG or JPEG of at most 512 px each side and a plain SVG, and nothing bigger or of another kind", () => {
+    expect(logoOk(png(512, 512))).toBe(true);
+    expect(logoOk(png(513, 100))).toBe(false);
+    expect(logoOk(png(0, 10))).toBe(false);
+    expect(logoOk(jpeg(300, 200))).toBe(true);
+    expect(logoOk(jpeg(600, 200))).toBe(false);
+    expect(logoOk("data:image/jpeg;base64," + Buffer.from([0xff, 0xd8, 0xff, 0xd9, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]).toString("base64"))).toBe(false);
+    expect(logoOk("data:image/svg+xml;base64," + Buffer.from("<svg><rect/></svg>").toString("base64"))).toBe(true);
+    expect(logoOk("data:image/webp;base64,AAAA")).toBe(false);
+    expect(logoOk("data:image/png;base64,AAAA")).toBe(false);
+    expect(logoOk("data:image/png;base64,%%%")).toBe(false);
+    expect(logoOk(null)).toBe(false);
+    expect(logoOk("data:image/svg+xml;base64," + Buffer.from("<svg>" + " ".repeat(LOGO_MAX_BYTES) + "</svg>").toString("base64"))).toBe(false);
+  });
+});
 
 describe("contrast", () => {
   it("measures black on white as 21 : 1 and a colour on itself as 1 : 1", () => {
@@ -42,7 +67,7 @@ describe("the look", () => {
     expect(themeLook(t, "A")).toMatchObject({ accent: "#2F5BEA", fontBody: "arial", footer: "a b", logo: null, logoWidth: 400, logoRatio: 3 });
   });
   it("keeps only an inline picture as the logo", () => {
-    expect(themeLook({ tokens: STARTER_THEME.tokens, slides: { ...STARTER_THEME.slides, logo: "data:image/png;base64,AAAA" } }, "A").logo).toBe("data:image/png;base64,AAAA");
+    expect(themeLook({ tokens: STARTER_THEME.tokens, slides: { ...STARTER_THEME.slides, logo: png(64, 32) } }, "A").logo).toBe(png(64, 32));
     expect(themeLook({ tokens: STARTER_THEME.tokens, slides: { ...STARTER_THEME.slides, logo: "data:text/html;base64,AAAA" } }, "A").logo).toBeNull();
   });
   it("also refuses an SVG logo that is not plain, whatever stored it", () => {

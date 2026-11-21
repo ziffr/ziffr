@@ -41,15 +41,23 @@ export const OPT_OUT_KINDS = ["prompt", "reminder"];
 
 /** An email ready to go out: always the plain text, and with the Workspace's Theme also the same words as HTML (branded-email.ts)
  * and its logo as a picture to attach (shown as cid:ziffr-logo). `replyTo` is the Delivery's own reply address, when replies come back. */
-export type OutgoingMail = { to: string; subject: string; text: string; html?: string; logo?: { content: Buffer; contentType: string }; replyTo?: string; unsubscribe?: string };
+export type OutgoingMail = { to: string; subject: string; text: string; html?: string; logo?: { content: Buffer; contentType: string }; fromName?: string; replyTo?: string; unsubscribe?: string };
 
-/** The HTML part and logo of an email in a Workspace's Theme (GLOSSARY: Theme), for the words in `text`. */
-export async function brandedParts(workspaceId: string, content: { text: string; stop?: { label: string; url: string }; preheader?: string }): Promise<Pick<OutgoingMail, "html" | "logo">> {
+/** Who really stands behind a message that goes to someone outside the Workspace, for its footer: the person, how to
+ * reach them, and what they did ("invited you to", "shared a dashboard with you from"). */
+export type SentBy = { name: string; email?: string | null; did: string };
+
+/** The line that says so, in Ziffr's own words (also added to the plain text): the Workspace's brand never replaces it. */
+export const sentByLine = (by: SentBy, workspace: string) => `Sent by Ziffr for ${headerSafe(by.name)}${by.email ? ` (${headerSafe(by.email)})` : ""}, who ${by.did} ${headerSafe(workspace)}.`;
+
+/** The HTML part, logo and sender name of an email in a Workspace's Theme (GLOSSARY: Theme), for the words in `text`. The
+ * From name is always "<Workspace> via <Installation's sender name>", so the brand never passes for Ziffr itself. */
+export async function brandedParts(workspaceId: string, content: { text: string; stop?: { label: string; url: string } }, by?: SentBy): Promise<Pick<OutgoingMail, "html" | "logo" | "fromName">> {
   // A Theme that cannot be read never holds a message back: it goes out as plain text.
   try {
     const look = await workspaceLook(workspaceId);
     const logo = emailLogo(look) ?? undefined;
-    return { html: emailHtml(look, content, { logo: Boolean(logo) }), ...(logo ? { logo } : {}) };
+    return { html: emailHtml(look, { ...content, ...(by ? { sentBy: sentByLine(by, look.name) } : {}) }, { logo: Boolean(logo) }), ...(logo ? { logo } : {}), fromName: look.name };
   } catch {
     return {};
   }
@@ -139,7 +147,8 @@ export function smtpTransportWith(settings: Settings): MailTransport {
     const from = settings.ZIFFR_MAIL_FROM!;
     const name = from.match(/^\s*([^<]+?)\s*</)?.[1];
     const info = await transporter.t.sendMail({
-      from: name ? { name: headerSafe(name), address: fromAddress(settings) } : fromAddress(settings),
+      // "<Workspace> via Ziffr": the Workspace's name is a label, Ziffr's own sender name stays in it.
+      from: mail.fromName ? { name: headerSafe(`${mail.fromName.replace(/["<>@]/g, "")} via ${name ?? "Ziffr"}`), address: fromAddress(settings) } : name ? { name: headerSafe(name), address: fromAddress(settings) } : fromAddress(settings),
       to: mail.to, subject: mail.subject, text: mail.text, ...(mail.replyTo ? { replyTo: mail.replyTo } : {}),
       ...(mail.html ? { html: mail.html } : {}),
       ...(mail.html && mail.logo ? { attachments: [{ filename: mail.logo.contentType === "image/png" ? "logo.png" : "logo.jpg", cid: LOGO_CID, content: mail.logo.content, contentType: mail.logo.contentType, contentDisposition: "inline" as const }] } : {}),
@@ -161,7 +170,7 @@ export const smtpTransport: MailTransport = async (mail) => smtpTransportWith(aw
 export async function sendMail(mail: OutgoingMail, transport: MailTransport = smtpTransport): Promise<string> {
   if (!(await mailOn())) throw new Error("Email is not set up.");
   if (!isAddress(mail.to)) throw new Error("Not one plain email address.");
-  return (await transport({ to: mail.to, subject: headerSafe(mail.subject), text: String(mail.text), ...(mail.html ? { html: mail.html } : {}), ...(mail.logo ? { logo: mail.logo } : {}) })).messageId;
+  return (await transport({ to: mail.to, subject: headerSafe(mail.subject), text: String(mail.text), ...(mail.html ? { html: mail.html } : {}), ...(mail.logo ? { logo: mail.logo } : {}), ...(mail.fromName ? { fromName: mail.fromName } : {}) })).messageId;
 }
 
 /** Whether replies by email come back into Ziffr with these settings (spec 0004, ticket #73): sending works,

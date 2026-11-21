@@ -9,7 +9,7 @@ import { openNames } from "./sealed-columns";
 import { assertCan, Forbidden, type Actor, type WorkspaceRoleName } from "./actor";
 import { DEMO_WORKSPACE_ID } from "./team";
 import { linkTo } from "./deliveries";
-import { brandedParts, headerSafe, isAddress, mailboxKey, mailOn, sendMail, type MailTransport } from "./mail";
+import { brandedParts, headerSafe, sentByLine, isAddress, mailboxKey, mailOn, sendMail, type MailTransport } from "./mail";
 import { audit, recordAudit } from "./audit-log";
 import { assertNotTrial } from "./trials";
 import { refuseInDemo } from "./demo";
@@ -61,7 +61,7 @@ export const INVITATION_EMAILS_PER_SENDER = 50;
  * invitation stands either way, and the Team page says whether it went out. A send is claimed first, in one
  * database transaction with the limits (claim_invitation_email), so sends at once cannot pass them. */
 async function emailInvitation(id: number, sender: string, transport?: MailTransport): Promise<boolean> {
-  const { data: inv } = await db().from("invitations").select("id, workspace_id, token, email, role, expires_at, email_sends, workspaces(name), profiles!invitations_created_by_fkey(name)").eq("id", id).maybeSingle();
+  const { data: inv } = await db().from("invitations").select("id, workspace_id, token, email, role, expires_at, email_sends, workspaces(name), profiles!invitations_created_by_fkey(name, email)").eq("id", id).maybeSingle();
   if (!inv?.email || inv.email_sends >= MAX_SENDS) return false;
   // Claimed in the database under locks on the address and the workspace, counting the day's real sends there.
   const { data: claim, error } = await db().rpc("claim_invitation_email", {
@@ -78,7 +78,10 @@ async function emailInvitation(id: number, sender: string, transport?: MailTrans
   // Each on one line, at most 80 characters, without quote marks of its own, and always inside quotes after fixed text.
   const named = (s: string) => headerSafe(s).replace(/[“”"«»„]/g, "'").slice(0, 80);
   const workspace = named((inv.workspaces as unknown as { name: string } | null)?.name ?? "a workspace");
-  const inviter = named((inv.profiles as unknown as { name: string } | null)?.name ?? "someone");
+  const inviterRow = inv.profiles as unknown as { name: string; email: string | null } | null;
+  const inviter = named(inviterRow?.name ?? "someone");
+  // Ziffr's own line about who is behind it, in the plain text and the HTML alike: the Workspace's brand never replaces it.
+  const by = { name: inviter, email: inviterRow?.email, did: "invited you to" };
   const until = new Date(inv.expires_at).toISOString().slice(0, 10);
   try {
     const text = [
@@ -87,8 +90,9 @@ async function emailInvitation(id: number, sender: string, transport?: MailTrans
         `Join here: ${linkTo(`/invite/${inv.token}`)}`, "",
         `The invitation works until ${until}, and only for this address (${inv.email}).`,
         "The names above were chosen by the people in that workspace. If you did not expect this, you can ignore it.",
+      "", sentByLine(by, workspace),
       ].join("\n");
-    await sendMail({ to: inv.email, subject: "You are invited to a workspace on Ziffr", text, ...(await brandedParts(inv.workspace_id, { text })) }, transport);
+    await sendMail({ to: inv.email, subject: "You are invited to a workspace on Ziffr", text, ...(await brandedParts(inv.workspace_id, { text }, by)) }, transport);
     return true;
   } catch (e) {
     // Only the kind of failure: the server's own words may hold addresses or settings.
