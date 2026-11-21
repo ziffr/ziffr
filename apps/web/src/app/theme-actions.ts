@@ -29,6 +29,24 @@ export async function duplicateTheme(fromId: number) {
   });
 }
 
+/** Adds one of Ziffr's standard Themes to the Workspace as a Theme of its own. */
+export async function addStandardTheme(key: string) {
+  return attempt(async () => {
+    const id = await themes.addStandardTheme(await currentActor(), String(key ?? ""));
+    done();
+    return id;
+  });
+}
+
+/** Adds a Theme from a Theme file's text; the core checks the file again, and answers the problems with their lines. */
+export async function importTheme(text: string) {
+  return attempt(async () => {
+    const res = await themes.importTheme(await currentActor(), String(text ?? ""));
+    if (res.ok) done();
+    return res;
+  });
+}
+
 /** Deletes a Theme (not the default). */
 export async function deleteTheme(id: number) {
   return attempt(async () => {

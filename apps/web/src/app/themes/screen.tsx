@@ -2,17 +2,23 @@
 // Themes (GLOSSARY: Theme): pick one on the left, change it on the right and see real widgets in it.
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState, useTransition } from "react";
+import { useMemo, useRef, useState, useTransition } from "react";
 import { toast } from "sonner";
 import { shown, unwrap } from "@/lib/action-error";
-import { Copy, GitBranch, Star, Trash2 } from "lucide-react";
+import { Copy, FileDown, GitBranch, Plus, Star, Trash2, Upload } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
+import { Textarea } from "@/components/ui/textarea";
 import { ThemeScope } from "@/components/theme-scope";
 import { WidgetFrame, type FrameWidget } from "@/components/widget-frame";
 import { VersionsPanel } from "@/components/versions-panel";
-import { deleteTheme, duplicateTheme, saveTheme, setDefaultTheme } from "@/app/theme-actions";
+import { addStandardTheme, deleteTheme, duplicateTheme, importTheme, saveTheme, setDefaultTheme } from "@/app/theme-actions";
+import { downloadTheme } from "@/lib/theme-download";
+import { isActionError } from "@/lib/action-error";
+import { checkThemeFile, THEME_FILE_LIMITS } from "@ziffr/core/theme-file";
+import { STANDARD_THEMES } from "@ziffr/core/standard-themes";
+import type { Problem } from "@ziffr/core/json-check";
 import { FONTS, slideDesign } from "@ziffr/core/themes";
 import { SlidePreview, SlidesEditor } from "./slides-editor";
 import type { CanvasData, FontId, Theme, ThemeSlides, ThemeTokens } from "@ziffr/core/types";
@@ -31,7 +37,8 @@ const COLOURS: { key: Exclude<keyof ThemeTokens, "data" | "fontHeading" | "fontB
   { key: "band", label: "Target band" },
 ];
 
-export function ThemesScreen({ data, current }: { data: CanvasData; current: Theme }) {
+/** Themes: the Workspace's own, Ziffr's standard ones to add, and Theme files to import and export. `standardKey` is set when a standard Theme is being looked at before it is added. */
+export function ThemesScreen({ data, current, standardKey }: { data: CanvasData; current: Theme; standardKey: string | null }) {
   const router = useRouter();
   const [t, setT] = useState<ThemeTokens>(current.tokens);
   const [slides, setSlides] = useState<ThemeSlides>(current.slides);
@@ -39,7 +46,10 @@ export function ThemesScreen({ data, current }: { data: CanvasData; current: The
   const [versions, setVersions] = useState(false);
   const [pending, start] = useTransition();
   const { confirm, dialog } = useConfirm();
-  const can = data.canEditThemes;
+  const manages = data.canEditThemes;
+  // A standard Theme is only looked at: it becomes editable once it is added to the Workspace.
+  const can = manages && !standardKey;
+  const [importing, setImporting] = useState(false);
   const dirty = name !== current.name || JSON.stringify(t) !== JSON.stringify(current.tokens) || JSON.stringify(slides) !== JSON.stringify(current.slides);
   const set = <K extends keyof ThemeTokens>(k: K, v: ThemeTokens[K]) => setT((x) => ({ ...x, [k]: v }));
   const draft: Theme = { ...current, name, tokens: t, slides };
@@ -64,15 +74,16 @@ export function ThemesScreen({ data, current }: { data: CanvasData; current: The
       {dialog}
       <nav aria-label="Themes" className="space-y-1">
         {data.themes.map((x) => (
-          <Link key={x.id} href={`/themes?id=${x.id}`} aria-current={x.id === current.id ? "page" : undefined} className={cn("flex min-h-12 items-center gap-2.5 rounded-[var(--radius-input)] px-2.5 text-sm hover:bg-muted", x.id === current.id && "stock font-medium")}>
-            <span aria-hidden className="flex overflow-hidden rounded-[3px] shadow-[0_0_0_1px_var(--color-rule)]">
-              {[x.tokens.surface, x.tokens.ink, x.tokens.accent, x.tokens.data[0]].map((c, i) => <span key={i} className="block size-3.5" style={{ background: c }} />)}
-            </span>
-            <span className="flex-1">{x.name}</span>
+          <ThemeLink key={x.id} href={`/themes?id=${x.id}`} on={x.id === current.id && !standardKey} name={x.name} tokens={x.tokens}>
             {x.is_default && <span className="text-xs text-muted-foreground">team default</span>}
-          </Link>
+          </ThemeLink>
         ))}
-        {!can && <p className="px-2.5 pt-2 text-xs text-muted-foreground">Only owners and admins of the workspace change themes. You can pick one for your dashboards and decks.</p>}
+        {manages && <Button type="button" variant="outline" size="sm" className="mt-2 w-full justify-start" onClick={() => setImporting(true)}><Upload aria-hidden /> Import a Theme file</Button>}
+        {!manages && <p className="px-2.5 pt-2 text-xs text-muted-foreground">Only owners and admins of the workspace change themes. You can pick one for your dashboards and decks.</p>}
+        <h2 className="px-2.5 pt-4 text-xs font-medium text-muted-foreground">Standard Themes</h2>
+        {STANDARD_THEMES.map((x) => (
+          <ThemeLink key={x.key} href={`/themes?standard=${x.key}`} on={x.key === standardKey} name={x.name} tokens={x.tokens} />
+        ))}
       </nav>
 
       <div className="grid min-w-0 gap-6 xl:grid-cols-[20rem_minmax(0,1fr)]">
@@ -135,6 +146,13 @@ export function ThemesScreen({ data, current }: { data: CanvasData; current: The
               <SlidesEditor s={slides} onChange={setSlides} />
             </div>
           </fieldset>
+          {standardKey && (
+            <div className="space-y-2 rounded-[var(--radius-input)] border border-border p-3 text-xs">
+              <p>{STANDARD_THEMES.find((x) => x.key === standardKey)?.about}</p>
+              <p className="text-muted-foreground">A standard Theme comes with Ziffr. Add it to this Workspace to pick it for dashboards and decks, and to change it.</p>
+              {manages && <Button type="button" size="sm" disabled={pending} onClick={() => act(async () => { const id = unwrap(await addStandardTheme(standardKey)); router.push(`/themes?id=${id}`); }, `${current.name} added to this Workspace`)}><Plus aria-hidden /> Add to this Workspace</Button>}
+            </div>
+          )}
           {can && (
             <div className="flex flex-wrap gap-2">
               <Button type="submit" disabled={pending || !dirty}>Save theme</Button>
@@ -144,7 +162,8 @@ export function ThemesScreen({ data, current }: { data: CanvasData; current: The
           <div className="flex flex-wrap gap-1 border-t border-border pt-3">
             {can && !current.is_default && <Button type="button" variant="ghost" size="sm" disabled={pending} onClick={() => act(() => setDefaultTheme(current.id), `${current.name} is now the team default`)}><Star aria-hidden /> Make team default</Button>}
             {can && <Button type="button" variant="ghost" size="sm" disabled={pending} onClick={() => act(async () => { const id = unwrap(await duplicateTheme(current.id)); router.push(`/themes?id=${id}`); })}><Copy aria-hidden /> Duplicate</Button>}
-            <Button type="button" variant="ghost" size="sm" onClick={() => setVersions(true)}><GitBranch aria-hidden /> Versions</Button>
+            <Button type="button" variant="ghost" size="sm" onClick={() => downloadTheme(draft.name, draft.tokens, draft.slides)}><FileDown aria-hidden /> Export as file</Button>
+            {!standardKey && <Button type="button" variant="ghost" size="sm" onClick={() => setVersions(true)}><GitBranch aria-hidden /> Versions</Button>}
             {can && !current.is_default && <Button type="button" variant="ghost" size="sm" className="text-destructive" disabled={pending} onClick={async () => { if (await confirm({ title: `Delete the theme ${current.name}?`, description: "Dashboards and decks that use it switch to the team default.", confirmLabel: "Delete theme" })) act(async () => { unwrap(await deleteTheme(current.id)); router.push("/themes"); }); }}><Trash2 aria-hidden /> Delete</Button>}
           </div>
         </form>
@@ -161,6 +180,7 @@ export function ThemesScreen({ data, current }: { data: CanvasData; current: The
         </ThemeScope>
       </div>
 
+      {importing && <ImportDialog onClose={() => setImporting(false)} onImported={(id) => { setImporting(false); toast.success("Theme imported"); router.push(`/themes?id=${id}`); router.refresh(); }} />}
       {versions && (
         <Dialog open onOpenChange={(o) => { if (!o) setVersions(false); }}>
           <DialogContent className="sm:max-w-lg">
@@ -170,5 +190,61 @@ export function ThemesScreen({ data, current }: { data: CanvasData; current: The
         </Dialog>
       )}
     </div>
+  );
+}
+
+/** Importing a Theme file: checked as it is pasted, then again by the core on the server, whatever this page checked. */
+function ImportDialog({ onClose, onImported }: { onClose: () => void; onImported: (id: number) => void }) {
+  const [text, setText] = useState("");
+  const [refused, setRefused] = useState<Problem[] | null>(null);
+  const [busy, run] = useTransition();
+  const picker = useRef<HTMLInputElement>(null);
+  const check = useMemo(() => (text.trim() ? checkThemeFile(text) : null), [text]);
+  const problems = refused ?? (check && !check.ok ? check.problems : []);
+  const read = async (f: File | undefined) => {
+    if (!f) return;
+    if (f.size > THEME_FILE_LIMITS.bytes) { toast.error(`That file is ${f.size.toLocaleString("en")} bytes; a Theme file has at most ${THEME_FILE_LIMITS.bytes.toLocaleString("en")}.`); return; }
+    const content = await f.text();
+    setRefused(null);
+    setText(content);
+  };
+  return (
+    <Dialog open onOpenChange={(o) => { if (!o) onClose(); }}>
+      <DialogContent className="sm:max-w-xl">
+        <DialogTitle>Import a Theme file</DialogTitle>
+        <p className="text-sm text-muted-foreground">Paste the file or upload it. It holds colours, fonts and slide settings only, never a logo or an image; set those after importing.</p>
+        <Textarea aria-label="The Theme file" value={text} onChange={(e) => { setRefused(null); setText(e.target.value); }} rows={10} spellCheck={false} className="font-mono text-xs" placeholder='{ "format": "ziffr.theme/1", … }' />
+        {problems.length > 0 && (
+          <ul aria-live="polite" className="space-y-0.5 text-xs text-destructive">
+            {problems.slice(0, 20).map((p, i) => <li key={i}>{p.line ? `Line ${p.line}: ` : ""}{p.path ? <code>{p.path}</code> : null}{p.path ? " " : ""}{p.message}</li>)}
+            {problems.length > 20 && <li>…and {problems.length - 20} more.</li>}
+          </ul>
+        )}
+        {check?.ok && <p aria-live="polite" className="text-xs text-muted-foreground">“{check.value.name}” passes the checks.</p>}
+        <div className="flex gap-2">
+          <input ref={picker} type="file" accept="application/json,.json" className="hidden" onChange={(e) => read(e.target.files?.[0])} />
+          <Button type="button" variant="outline" size="sm" onClick={() => picker.current?.click()}><Upload aria-hidden /> Upload a file</Button>
+          <Button type="button" size="sm" disabled={!check?.ok || busy} onClick={() => run(async () => {
+            const res = await importTheme(text);
+            if (isActionError(res)) toast.error("Not done", { description: res.error });
+            else if (res.ok) onImported(res.id);
+            else setRefused(res.problems);
+          })}><Plus aria-hidden /> Add to the Workspace</Button>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+/** One Theme in the list: its four colours, its name and what else is worth saying about it. */
+function ThemeLink({ href, on, name, tokens, children }: { href: string; on: boolean; name: string; tokens: ThemeTokens; children?: React.ReactNode }) {
+  return (
+    <Link href={href} aria-current={on ? "page" : undefined} className={cn("flex min-h-12 items-center gap-2.5 rounded-[var(--radius-input)] px-2.5 text-sm hover:bg-muted", on && "stock font-medium")}>
+      <span aria-hidden className="flex overflow-hidden rounded-[3px] shadow-[0_0_0_1px_var(--color-rule)]">
+        {[tokens.surface, tokens.ink, tokens.accent, tokens.data[0]].map((c, i) => <span key={i} className="block size-3.5" style={{ background: c }} />)}
+      </span>
+      <span className="flex-1">{name}</span>
+      {children}
+    </Link>
   );
 }

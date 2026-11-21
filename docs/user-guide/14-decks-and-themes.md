@@ -155,6 +155,8 @@ Sharing a deck works like sharing a dashboard. [Dashboards and Findings](12-dash
 
 The page shows every Theme of the Workspace on the left. The one marked **team default** is used everywhere a dashboard or deck has not picked another. Choose a theme to see and change it.
 
+Below your Themes, **Standard Themes** lists the six that come with Ziffr: Ziffr Light, Ziffr Dark, Tokyo (dark, vivid colours), Paris (warm, serif headlines), Oslo (cool and restrained) and Print (black on white, for PDF and PowerPoint). Choose one to see it on real Widgets, then **Add to this Workspace**: it becomes a Theme of your own, which you can pick for dashboards and decks and change like any other. Every standard Theme keeps text readable on cards (WCAG AA) and keeps Good and Bad apart for people with red-green colour blindness. A standard Theme you added never changes when Ziffr improves the original.
+
 On the right, a preview shows a sample slide and real Widgets drawn with the first Metrics you can see, so you judge a theme on what it will really show. The preview changes as you edit, before you save.
 
 If you are not an Owner or Admin, the page says "Only owners and admins of the workspace change themes. You can pick one for your dashboards and decks." You can still look at every theme and its Versions.
@@ -212,10 +214,12 @@ The type sizes apply to new slides you add. Slides that already exist keep the s
 | **Discard** | Throws away the changes you have not saved. |
 | **Make team default** | Makes this theme the one used everywhere nothing else was picked. |
 | **Duplicate** | Makes a copy of this theme. This is how you start a new theme. |
+| **Export as file** | Downloads the theme as a `.ziffr-theme.json` file: colours, fonts, cards and slide settings, never a logo or an image. Open to everyone, and for standard Themes too. |
+| **Import a Theme file** | Above the list of standard Themes. Paste a file or upload it; problems are shown with their line, and the file is checked again on Ziffr's side. **Add to the Workspace** makes it a new Theme. It is written in the Audit Log. |
 | **Versions** | Shows earlier states of the theme and lets you go back to one. Open to everyone. |
 | **Delete** | Deletes the theme after you confirm. Dashboards and decks that used it switch to the team default. The team default itself cannot be deleted: make another theme the default first. |
 
-Only Owners and Admins see **Save theme**, **Make team default**, **Duplicate** and **Delete**.
+Only Owners and Admins see **Save theme**, **Make team default**, **Duplicate**, **Delete**, **Add to this Workspace** and **Import a Theme file**. A Workspace keeps at most 50 Themes. How to write a Theme file by hand, and how to share Themes as a Pack, is in the [Themes guide](../guides/themes.md).
 
 Ziffr's own screens, such as menus, settings and this guide, keep their look whatever theme you pick.
 

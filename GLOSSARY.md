@@ -291,8 +291,12 @@ One 16:9 page of a deck. Its order follows its position on the deck canvas, left
 _Avoid_: Page, frame, board
 
 **Theme**:
-A named look for everything that shows numbers: colours for text, surfaces, data, good, bad and the target band, the fonts for headlines, text and figures, how cards are drawn, and what every slide shows (logo, footer, slide number, background image, type sizes). The team has one default theme; a dashboard or deck may use another, and a deck may set its own footer. A slide may hide the logo, footer and number. Ziffr's own screens keep their look. Only the workspace owner changes themes.
+A named look for everything that shows numbers: colours for text, surfaces, data, good, bad and the target band, the fonts for headlines, text and figures, how cards are drawn, and what every slide shows (logo, footer, slide number, background image, type sizes). The team has one default theme; a dashboard or deck may use another, and a deck may set its own footer. A slide may hide the logo, footer and number. Ziffr's own screens keep their look. Only the workspace owner changes themes. A Theme can be written as a file and read back from one.
 _Avoid_: Master, skin, style, brand kit, palette
+
+**Standard Theme**:
+One of the Themes Ziffr delivers (Ziffr Light, Ziffr Dark, Tokyo, Paris, Oslo, Print). It is part of Ziffr, not of a Workspace: an Owner or Admin looks at it on the Themes page and adds it, which makes a Theme of the Workspace's own that can be changed like any other. Ziffr changing a Standard Theme later never changes a Theme already added.
+_Avoid_: Preset, built-in theme, template theme
 
 **Snapshot**:
 What something showed, fixed so it never changes when observations do. A dashboard's Snapshot keeps the dashboard as it stood for one week, month, quarter, half-year or year (quarters, half-years and years of the Fiscal Year, such as "Q1 FY 2026/27", "H2 2026" or "2026"): its layout and the values of every Metric period complete by the period's last day. Its numbers never change, and a value corrected since is shown with a note of what it is now; its words (the introduction, each Finding's headline and sentences) are written after it is taken, and every change is a Version. It is a draft for the dashboard's owner and Editors until one of them shows it; then whoever may open the dashboard may open it, and sees in it only the Metrics they may see now. Its owner may have the dashboard take one of every week, month, quarter, half-year or year by itself, once every Metric on it is Locked for each of its periods inside it (for a year of a monthly Metric, all twelve months) or a set number of days after it ends. A deck's Snapshot is the values its widgets show at the moment it is exported, stamped with that date.
