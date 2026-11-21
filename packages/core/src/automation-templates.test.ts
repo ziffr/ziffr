@@ -13,6 +13,8 @@ type Workflow = { nodes: N8nNode[]; connections: Record<string, { main: { node: 
 const dir = new URL("../../../docs/automations/", import.meta.url);
 const load = (file: string) => JSON.parse(readFileSync(new URL(file, dir), "utf8")) as Workflow;
 const fixture = (name: string) => JSON.parse(readFileSync(new URL(`fixtures/${name}.json`, dir), "utf8"));
+/** A fixture whose linked external tasks belong to `system` (the fixtures link microsoft-todo). */
+const linkedTo = (name: string, system: string) => { const f = fixture(name); f.data.external_ids = f.data.external_ids.map((e: Param) => ({ ...e, system })); return f; };
 const files = readdirSync(dir).filter((f) => f.endsWith(".json"));
 
 const ALLOWED = new Set(["n8n-nodes-base.webhook", "n8n-nodes-base.respondToWebhook", "n8n-nodes-base.scheduleTrigger", "n8n-nodes-base.set", "n8n-nodes-base.code", "n8n-nodes-base.switch", "n8n-nodes-base.if", "n8n-nodes-base.httpRequest", "n8n-nodes-base.stickyNote"]);
@@ -154,18 +156,18 @@ for (const spec of SPECS) {
     });
     it("handles each delivery once, and what is older than what it has seen not at all", async () => {
       const state: Param = {};
-      const m = delivered(fixture("action-updated-reply"));
+      const m = delivered(linkedTo("action-updated-reply", spec.system));
       expect((await verify(m, state)).action).toBe("patch");
       expect(await verify(m, state)).toMatchObject({ httpStatus: 200, action: "none", why: "repeat" });
-      const older = { ...fixture("action-updated-reply"), id: "evt_older", data: { ...fixture("action-updated-reply").data, updated_at: "2026-11-19T00:00:00.000Z" } };
+      const older = { ...linkedTo("action-updated-reply", spec.system), id: "evt_older", data: { ...linkedTo("action-updated-reply", spec.system).data, updated_at: "2026-11-19T00:00:00.000Z" } };
       expect(await verify(delivered(older), state)).toMatchObject({ httpStatus: 200, action: "none", why: "older" });
     });
     it("updates the linked task, using the id in external_ids, and keeps the state of the Action", async () => {
-      const r = await verify(delivered(fixture("action-updated-reply")));
+      const r = await verify(delivered(linkedTo("action-updated-reply", spec.system)));
       expect(r).toMatchObject({ action: "patch", taskId: "AAMkAGI2TGuLAAA=", patchBody: spec.patchOpenBody });
     });
     it("closes the linked task on action.done, and ignores the Webhook's own echo", async () => {
-      const m = delivered(fixture("action-done"));
+      const m = delivered(linkedTo("action-done", spec.system));
       expect(await verify(m)).toMatchObject({ action: "patch", taskId: "AAMkAGI2TGuLAAA=", patchBody: spec.closeBody });
       expect(await verify(m, {}, OWN_WEBHOOK)).toMatchObject({ httpStatus: 200, action: "none", why: "echo" });
     });
