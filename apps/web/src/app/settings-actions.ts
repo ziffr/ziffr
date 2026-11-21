@@ -14,6 +14,8 @@ import * as workspace from "@ziffr/core/workspace-settings";
 import * as fiscalYear from "@ziffr/core/fiscal-year";
 import * as quiet from "@ziffr/core/quiet-hours";
 
+import * as limits from "@ziffr/core/limits";
+
 /** Changes your own name and colour. */
 export async function updateMyProfile(input: { name?: string; color?: string }) {
   return attempt(async () => {
@@ -120,5 +122,19 @@ export async function setWorkspaceQuietHours(rule: { fromHour: number; toHour: n
     await quiet.setWorkspaceQuietHours(await currentActor(), rule === null ? null : { fromHour: Number(rule?.fromHour), toHour: Number(rule?.toHour), days: Array.isArray(rule?.days) ? rule.days.map(Number) : [], timeZone: null });
     revalidatePath("/settings/workspace");
     revalidatePath("/settings/deliveries");
+
+/** Sets or clears one limit of the workspace (Owners and Admins); the core checks the key and the range again. */
+export async function setWorkspaceSettableLimit(key: string, value: number | null) {
+  return attempt(async () => {
+    await limits.setWorkspaceSettableLimit(await currentActor(), key, value);
+    revalidatePath("/", "layout");
+  });
+}
+
+/** Sets or clears one limit of your own; the core checks the key and the range again. */
+export async function setMySettableLimit(key: string, value: number | null) {
+  return attempt(async () => {
+    await limits.setMySettableLimit(await currentActor(), key, value);
+    revalidatePath("/", "layout");
   });
 }

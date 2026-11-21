@@ -48,14 +48,14 @@ export default async function UsagePage() {
       <div className="max-w-3xl space-y-8">
         {u.countingSince ? (
           <p className="text-sm text-[var(--color-ink-2)]">
-            Counting since {day(u.countingSince)}.{u.fillsInOn ? ` Ziffr suggests nothing before 90 days of counting: the lists of what is not opened fill in on ${day(u.fillsInOn)}.` : ""}
+            Counting since {day(u.countingSince)}.{u.fillsInOn ? ` Ziffr suggests nothing before ${u.unusedDays} days of counting: the lists of what is not opened fill in on ${day(u.fillsInOn)}.` : ""}
           </p>
-        ) : <p className="text-sm text-[var(--color-ink-2)]">Ziffr has not counted anything yet. The lists of what is not opened fill in 90 days after it starts.</p>}
+        ) : <p className="text-sm text-[var(--color-ink-2)]">Ziffr has not counted anything yet. The lists of what is not opened fill in {u.unusedDays} days after it starts.</p>}
 
-        <List title="Dashboards not opened for 90 days" empty={u.fillsInOn || !u.countingSince ? "Nothing is listed until 90 days have been counted." : "Every dashboard was opened."} items={u.notOpened.dashboards} href={(i) => `/dashboards/${i.id}`} />
-        <List title="Decks not opened for 90 days" empty={u.fillsInOn || !u.countingSince ? "Nothing is listed until 90 days have been counted." : "Every deck was opened."} items={u.notOpened.decks} href={(i) => `/decks/${i.id}`} />
+        <List title={`Dashboards not opened for ${u.unusedDays} days`} empty={u.fillsInOn || !u.countingSince ? `Nothing is listed until ${u.unusedDays} days have been counted.` : "Every dashboard was opened."} items={u.notOpened.dashboards} href={(i) => `/dashboards/${i.id}`} />
+        <List title={`Decks not opened for ${u.unusedDays} days`} empty={u.fillsInOn || !u.countingSince ? `Nothing is listed until ${u.unusedDays} days have been counted.` : "Every deck was opened."} items={u.notOpened.decks} href={(i) => `/decks/${i.id}`} />
         <section className="space-y-3">
-          <List title="Metrics not opened for 90 days" empty={u.fillsInOn || !u.countingSince ? "Nothing is listed until 90 days have been counted." : "Every Metric was opened, or is on a dashboard or deck that was."} items={u.notOpened.metrics} href={metricHref} />
+          <List title={`Metrics not opened for ${u.unusedDays} days`} empty={u.fillsInOn || !u.countingSince ? `Nothing is listed until ${u.unusedDays} days have been counted.` : "Every Metric was opened, or is on a dashboard or deck that was."} items={u.notOpened.metrics} href={metricHref} />
           {u.suggested.length > 0 && (
             <div className="space-y-2">
               <h3 className="text-sm font-semibold">Archive these {u.suggested.length} Metric{u.suggested.length === 1 ? "" : "s"}?</h3>
@@ -73,7 +73,7 @@ export default async function UsagePage() {
         {u.retentionSuggestions.length > 0 && (
           <section className="space-y-2">
             <h2 className="text-base font-semibold">Metrics that could keep less</h2>
-            <p className="text-sm text-muted-foreground">Many old values and nobody opened them for 90 days. <strong className="font-medium">Set a Retention</strong> opens the Metric&rsquo;s page with the suggestion filled in and what it would do in counts. Nothing is set, condensed or deleted until you turn it on there.</p>
+            <p className="text-sm text-muted-foreground">Many old values and nobody opened them for {u.unusedDays} days. <strong className="font-medium">Set a Retention</strong> opens the Metric&rsquo;s page with the suggestion filled in and what it would do in counts. Nothing is set, condensed or deleted until you turn it on there.</p>
             <ul className="divide-y divide-border rounded-[var(--radius-card)] border border-border text-sm">
               {u.retentionSuggestions.map((r) => (
                 <li key={r.id} className="flex flex-wrap items-baseline gap-x-3 gap-y-1 px-3 py-2">

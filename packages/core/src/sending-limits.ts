@@ -10,7 +10,7 @@
 export type SendingLimitKey =
   | "mailPerWorkspace" | "chatPerWorkspace" | "mailPerPerson" | "sendAttempts" | "alertsPerWorkspace" | "alertMessagesPerWorkspace"
   | "invitationsPerWorkspace" | "valuesPerKey" | "valuesPerFeed" | "callsPerKey" | "webhooksPerWorkspace" | "webhookSendsPerWorkspace"
-  | "signInLinksPerNetwork" | "contactsPerWorkspace" | "snapshotsPerDashboard";
+  | "signInLinksPerNetwork" | "contactsPerWorkspace" | "snapshotsPerDashboard" | "alertsPerPerson" | "alertMessagesPerPerson";
 
 /** One sending limit: its environment variable, its words on the page, its range and its default (today's value). */
 export type SendingLimit = { key: SendingLimitKey; name: string; label: string; help: string; min: number; max: number; default: number };
@@ -47,6 +47,10 @@ export const SENDING_LIMITS: SendingLimit[] = [
     help: "The Contacts one Workspace keeps at most." },
   { key: "snapshotsPerDashboard", name: "ZIFFR_LIMIT_SNAPSHOTS_PER_DASHBOARD", label: "Snapshots per dashboard", min: 100, max: 50_000, default: 500,
     help: "The Snapshots one dashboard keeps at most." },
+  { key: "alertsPerPerson", name: "ZIFFR_LIMIT_ALERTS_PER_PERSON", label: "Alerts per person", min: 1, max: 200, default: 20,
+    help: "The most Alerts one person may hold in one Workspace. This is the ceiling: a Workspace's Owners may lower it for their Workspace, never raise it. Alerts held above a lowered number stay." },
+  { key: "alertMessagesPerPerson", name: "ZIFFR_LIMIT_ALERT_MESSAGES_PER_PERSON_PER_DAY", label: "Alert messages per person per day", min: 1, max: 200, default: 20,
+    help: "The Alert messages one person is sent in a day; after it Alerts still fire into the list. This is the ceiling: a Workspace's Owners may lower it, and each person may lower it for themselves, never raise it." },
 ];
 
 /** The limit with this key. */

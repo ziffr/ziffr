@@ -24,6 +24,9 @@ import { defaultRetention } from "@ziffr/core/retention-setting";
 import { SizeAndUsage } from "./size-usage";
 import { sizeAndUsage } from "@ziffr/core/workspace-usage";
 import { handoverOffered } from "@ziffr/core/cloud-api";
+import { workspaceSettableLimits } from "@ziffr/core/limits";
+import { LimitsForm } from "@/components/limits-form";
+import { setWorkspaceSettableLimit } from "@/app/settings-actions";
 
 // Names for country and currency codes, in English like the rest of the app; the code itself where none is known.
 const named = (codes: readonly string[], type: "region" | "currency") => {
@@ -36,6 +39,8 @@ export default async function WorkspaceSettingsPage() {
   const [name, time, profile, demo, year, numbers, answers, attainment, usage, quiet] = await Promise.all([workspaceName(actor), workspaceClock(actor), workspaceProfile(actor), isDemo(), yearStartChoices(actor), workspaceNumberStyle(actor), workspaceAnswerLanguages(actor), workspaceAttainmentMethod(actor), sizeAndUsage(actor).catch(() => null), quietHours(actor)]);
   // The default Retention is for Owners and Admins to read, and for Owners to set (spec 0033); everyone else sees no section.
   const retention = actor.role === "owner" || actor.role === "admin" ? await defaultRetention(actor) : null;
+  // The limits Owners and Admins may lower for the Workspace (ticket #518); the demo shows none.
+  const limits = (actor.role === "owner" || actor.role === "admin") && !demo ? await workspaceSettableLimits(actor) : null;
   const countryName = (c: string | null) => c && (new Intl.DisplayNames(["en"], { type: "region" }).of(c) ?? c);
   // The demo is shared by every visitor, so nobody changes it; the core refuses it too.
   const canEdit = !demo && (actor.role === "owner" || actor.role === "admin");
@@ -62,6 +67,7 @@ export default async function WorkspaceSettingsPage() {
         <AnswerLanguagesForm languages={answers.languages} options={Object.values(ANSWER_LANGUAGES).map(({ code, name }) => ({ code, name }))} chosen={answers.chosen} country={countryName(answers.fromCountry)} canEdit={canEdit} />
         <AttainmentMethodForm method={attainment} canEdit={canEdit} />
         {(actor.role === "owner" || actor.role === "admin") && !demo && <WorkspaceRetention retention={retention} canSet={actor.role === "owner"} />}
+        {limits && <LimitsForm title="Limits" intro="What the people of this Workspace may do in a day or at most, within what this Installation allows. Lowering a limit never deletes or stops what exists: only what is new waits. Empty follows the Installation." limits={limits} canEdit save={setWorkspaceSettableLimit} />}
         <WorkspaceProfileForm profile={profile} canEdit={canEdit} countries={named(COUNTRIES, "region").sort((a, b) => a.name.localeCompare(b.name, "en"))} currencies={named(CURRENCIES, "currency")} />
       </div>
     </>

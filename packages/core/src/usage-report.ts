@@ -12,6 +12,7 @@ import { inUse } from "./metric-row";
 import { formulaInputs } from "./formula";
 import { keptFrom, type Retention } from "./retention-rules";
 import { storedPending, storedRetention, SUGGEST_KEEP_MONTHS, SUGGEST_MIN_VALUES, suggestedRetention } from "./retention-words";
+import { effectiveLimit } from "./limits";
 import { workspaceToday } from "./retention-setting";
 import { peopleIn } from "./submissions";
 import { allRows, getMetrics, getRecentObservations } from "./workspace-data";
@@ -19,7 +20,7 @@ import { widgetMetricIds } from "./widget-metrics";
 import { deckMetricIds } from "./visibility";
 import type { Metric, Period, WidgetSettings } from "./types";
 
-/** Days without being opened, or without values, before something is listed. */
+/** Days without being opened, or without values, before something is listed: the default; a Workspace may set 30 to 365 (limits.ts). */
 export const UNUSED_DAYS = 90;
 /** Days the "most looked at" lists count. */
 export const LOOKED_DAYS = 30;
@@ -39,7 +40,9 @@ export type RetentionSuggestion = { id: number; name: string; slug: string; valu
 export type UsageReport = {
   /** The first day Ziffr counted in this Workspace (yyyy-mm-dd), or null while nothing is counted. */
   countingSince: string | null;
-  /** When the lists of what is not opened fill in (counting since + 90 days), or null when they have. */
+  /** The days without a look or a value after which something is listed, as this Workspace sets them. */
+  unusedDays: number;
+  /** When the lists of what is not opened fill in (counting since + the unused days), or null when they have. */
   fillsInOn: string | null;
   notOpened: { dashboards: UsageItem[]; decks: UsageItem[]; metrics: UsageItem[] };
   /** Metrics nobody opened that only a program reads: kept apart, never suggested. */
@@ -73,7 +76,8 @@ export async function workspaceUsage(actor: Actor, now: Date = new Date()): Prom
   assertMay(actor);
   const ws = actor.workspaceId;
   const today = isoDay(now.getTime());
-  const cutoff = isoDay(now.getTime() - UNUSED_DAYS * DAY);
+  const unusedDays = await effectiveLimit("unusedDays", ws);
+  const cutoff = isoDay(now.getTime() - unusedDays * DAY);
   const looked30 = isoDay(now.getTime() - LOOKED_DAYS * DAY);
   const [allMetrics, dashboards, decks, { data: wsRow }] = await Promise.all([
     getMetrics(ws), visibleDashboards(ws, actor.personId), visibleDecks(ws, actor.personId),
@@ -81,8 +85,8 @@ export async function workspaceUsage(actor: Actor, now: Date = new Date()): Prom
   ]);
   const seen = await visibleMetricIds(ws, actor.personId, allMetrics);
   const countingSince = (wsRow?.usage_since as string | null) ?? null;
-  const ready = countingSince !== null && today >= isoDay(Date.parse(`${countingSince}T00:00:00Z`) + UNUSED_DAYS * DAY);
-  const fillsInOn = countingSince && !ready ? isoDay(Date.parse(`${countingSince}T00:00:00Z`) + UNUSED_DAYS * DAY) : null;
+  const ready = countingSince !== null && today >= isoDay(Date.parse(`${countingSince}T00:00:00Z`) + unusedDays * DAY);
+  const fillsInOn = countingSince && !ready ? isoDay(Date.parse(`${countingSince}T00:00:00Z`) + unusedDays * DAY) : null;
 
   // Every dashboard and deck of the Workspace (not only the visible ones) with its widgets: what a hidden dashboard
   // shows is still looked at, and only ever makes a Metric look more used.
@@ -130,8 +134,8 @@ export async function workspaceUsage(actor: Actor, now: Date = new Date()): Prom
   const notOpened = { dashboards: [] as UsageItem[], decks: [] as UsageItem[], metrics: [] as UsageItem[] };
   const readByProgram: UsageItem[] = [];
   if (ready) {
-    for (const d of dashboards) if (!lastOpen.has(`dashboard:${d.id}`) && old(dashById.get(d.id)?.created_at ?? today)) notOpened.dashboards.push({ id: d.id, name: d.name, why: "Not opened for 90 days" });
-    for (const d of decks) if (!lastOpen.has(`deck:${d.id}`) && old(deckById.get(d.id)?.created_at ?? today)) notOpened.decks.push({ id: d.id, name: d.name, why: "Not opened for 90 days" });
+    for (const d of dashboards) if (!lastOpen.has(`dashboard:${d.id}`) && old(dashById.get(d.id)?.created_at ?? today)) notOpened.dashboards.push({ id: d.id, name: d.name, why: `Not opened for ${unusedDays} days` });
+    for (const d of decks) if (!lastOpen.has(`deck:${d.id}`) && old(deckById.get(d.id)?.created_at ?? today)) notOpened.decks.push({ id: d.id, name: d.name, why: `Not opened for ${unusedDays} days` });
   }
 
   const visible = inUse(allMetrics).filter((m) => seen.has(m.id));
@@ -140,7 +144,7 @@ export async function workspaceUsage(actor: Actor, now: Date = new Date()): Prom
       if (metricLooked.has(m.id) || !old(m.created_at)) continue;
       const reads = programReads.get(m.id);
       if (reads) readByProgram.push({ id: m.id, name: m.name, slug: m.slug, why: `Read by a program ${reads} time${reads === 1 ? "" : "s"}` });
-      else notOpened.metrics.push({ id: m.id, name: m.name, slug: m.slug, why: "Not opened for 90 days" });
+      else notOpened.metrics.push({ id: m.id, name: m.name, slug: m.slug, why: `Not opened for ${unusedDays} days` });
     }
   }
 
@@ -156,7 +160,7 @@ export async function workspaceUsage(actor: Actor, now: Date = new Date()): Prom
   const noValues: UsageItem[] = [];
   const projectionOnly: UsageItem[] = [];
   for (const m of own) {
-    const days = Math.max(UNUSED_DAYS, 2 * CADENCE[m.period]);
+    const days = Math.max(unusedDays, 2 * CADENCE[m.period]);
     if (m.created_at.slice(0, 10) > isoDay(now.getTime() - days * DAY)) continue;
     const at = latest.get(m.id);
     if (at && at >= isoDay(now.getTime() - days * DAY)) continue;
@@ -218,13 +222,13 @@ export async function workspaceUsage(actor: Actor, now: Date = new Date()): Prom
     const because = m.target_min !== null || m.target_max !== null || withTargetSeries.has(m.id) ? "It has a Target"
       : inputs.has(m.id) || analysed.has(m.id) ? "Something still depends on it" : null;
     if (because) kept.push({ id: m.id, name: m.name, because });
-    else suggested.push({ id: m.id, name: m.name, slug: m.slug, why: noValueIds.has(m.id) ? "Not opened for 90 days and no recent values" : "Not opened for 90 days" });
+    else suggested.push({ id: m.id, name: m.name, slug: m.slug, why: noValueIds.has(m.id) ? `Not opened for ${unusedDays} days and no recent values` : `Not opened for ${unusedDays} days` });
   }
 
   return {
-    countingSince, fillsInOn, notOpened, readByProgram, noValues, projectionOnly, submitters: idle,
+    countingSince, unusedDays, fillsInOn, notOpened, readByProgram, noValues, projectionOnly, submitters: idle,
     mostLooked: { dashboards: top(dashboards, "dashboard"), metrics: top(visible, "metric") },
-    suggested, kept, retentionSuggestions: await retentionSuggestions(ws, notOpened.metrics, byMetric, await workspaceToday(ws, now)),
+    suggested, kept, retentionSuggestions: await retentionSuggestions(ws, notOpened.metrics, byMetric, await workspaceToday(ws, now), unusedDays),
   };
 }
 
@@ -236,7 +240,7 @@ const COUNT_AT_A_TIME = 10;
  * force or waiting, holding at least a year of values older than the suggested keep time, most values first. `candidates`
  * are Metrics the actor sees (the caller filtered them); a program's reads keep a Metric off the list, as they do for
  * archiving. Reads counts only, never a value. */
-async function retentionSuggestions(ws: string, candidates: UsageItem[], byMetric: Map<number, Metric>, today: string): Promise<RetentionSuggestion[]> {
+async function retentionSuggestions(ws: string, candidates: UsageItem[], byMetric: Map<number, Metric>, today: string, unusedDays: number): Promise<RetentionSuggestion[]> {
   const fitting = candidates.flatMap((c) => {
     const m = byMetric.get(c.id);
     const suggestion = m && !m.archived_at ? suggestedRetention({ period: m.period, aggregation: m.aggregation, formula: m.formula }) : null;
@@ -252,7 +256,7 @@ async function retentionSuggestions(ws: string, candidates: UsageItem[], byMetri
   for (let i = 0; i < open.length; i += COUNT_AT_A_TIME) {
     await Promise.all(open.slice(i, i + COUNT_AT_A_TIME).map(async ({ m, suggestion }) => {
       const { count } = await db().from("observations").select("id", { count: "exact", head: true }).eq("workspace_id", ws).eq("metric_id", m.id).lt("period_start", cutoff);
-      if ((count ?? 0) >= SUGGEST_MIN_VALUES) out.push({ id: m.id, name: m.name, slug: m.slug, values: count ?? 0, suggestion, why: `${(count ?? 0).toLocaleString("en-GB")} values older than ${SUGGEST_KEEP_MONTHS / 12} years, not opened for 90 days` });
+      if ((count ?? 0) >= SUGGEST_MIN_VALUES) out.push({ id: m.id, name: m.name, slug: m.slug, values: count ?? 0, suggestion, why: `${(count ?? 0).toLocaleString("en-GB")} values older than ${SUGGEST_KEEP_MONTHS / 12} years, not opened for ${unusedDays} days` });
     }));
   }
   return out.sort((a, b) => b.values - a.values || a.id - b.id).slice(0, MAX_RETENTION_SUGGESTIONS);
