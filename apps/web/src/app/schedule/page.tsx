@@ -61,9 +61,10 @@ const duty = (e: ScheduleEntry): Duty => ({ key: `${e.kind}-${e.metric.id}-${e.p
 export default async function MySchedulePage() {
   const actor = await currentActor();
   // Today is the Workspace's, as the core counts it.
-  const today = localTime(new Date(), (await workspaceClock(actor)).timeZone).day;
+  const { timeZone, weekStart } = await workspaceClock(actor);
+  const today = localTime(new Date(), timeZone).day;
   // One fetch serves the list (its next 14 days) and the week and month views (from this week on): the same function.
-  const span = calendarSpan(today);
+  const span = calendarSpan(today, weekStart);
   const [s, link, demo] = await Promise.all([schedule(actor, span), myCalendarLink(actor), isDemo()]);
   const listDays = s.days.filter((d) => d.date <= format(addDays(parseISO(today), DAYS_SHOWN - 1), "yyyy-MM-dd"));
   const nothing = !s.overdue.length && !listDays.length && !s.undated.length;
@@ -75,6 +76,7 @@ export default async function MySchedulePage() {
           person={s.personId}
           today={s.today}
           span={span}
+          weekStart={weekStart}
           overdue={s.overdue.map(duty)}
           days={s.days.map((d) => ({ date: d.date, entries: d.entries.map(duty) }))}
           list={

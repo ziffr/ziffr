@@ -80,7 +80,7 @@ describe("recording", () => {
     expect(rows[4]).toMatchObject({ actor_id: newcomer, details: { role: "member" } });
     expect(rows[5].details).toEqual({ domain: "company-audit.test" });
     expect(rows[9]).toMatchObject({ object_name: "Sales DACH", details: { from: "Sales", to: "Sales DACH" } });
-    expect(rows[15].details).toEqual({ from_time_zone: "UTC", to_time_zone: "Europe/Berlin", from_run_hour: 8, to_run_hour: 7 });
+    expect(rows[15].details).toEqual({ from_time_zone: "UTC", to_time_zone: "Europe/Berlin", from_run_hour: 8, to_run_hour: 7, from_week_start: 1, to_week_start: 1 });
     expect(rows[16]).toMatchObject({ object_id: ann, details: { role: "member", successor_id: sara } });
     expect(rows[17].details).toMatchObject({ to: "Audit Co" });
     expect(rows[18].details).toEqual({ from_industry: null, to_industry: "saas" });

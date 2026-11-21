@@ -114,8 +114,9 @@ Ziffr counts days, working days and Due Dates in the Workspace's own time.
 | --- | --- |
 | **Time zone** | Which day it is for this team. A value that is due "on the 3rd working day" is due by that day here. |
 | **Workflows run at** | The hour of the morning, in that time zone, at which Workflows ask for values, remind and escalate. |
+| **Week starts on** | Monday (the default) or Sunday: the first day of the week in the **Schedule**'s week and month views and the week it opens on. Metric periods do not move: a weekly value still covers Monday to Sunday and is named by its Monday. |
 
-Choose **Save** after changing either. Members and Guests see a single line, such as "Europe/Berlin, Workflows run at 07:00".
+Choose **Save** after changing any of them. Members and Guests see a single line, such as "Europe/Berlin, Workflows run at 07:00, weeks start on Monday".
 
 ### Fiscal year
 

@@ -158,7 +158,7 @@ A value due leaves the list as soon as the value is in. While a colleague is Awa
 
 Above the schedule a switch chooses how it is shown: **List** (the lines above), **Week** or **Month**. Ziffr remembers your choice in this browser. The week and the month show the same duties on their days, nothing more; use the arrows to move to other weeks and months, up to about three months ahead, and **Today** to come back.
 
-- **Week** has a column for each day, Monday to Sunday, with today marked. Each duty is a small card in its kind's colour, with its words as in the list; click it to open what the list line opens. On a phone the week becomes an agenda, one day under the other.
+- **Week** has a column for each day, from the Workspace's first day of the week (Monday, unless an Owner or Admin chose Sunday in **Workspace → General**), with today marked. Each duty is a small card in its kind's colour, with its words as in the list; click it to open what the list line opens. On a phone the week becomes an agenda, one day under the other.
 - **Month** shows up to three cards per day, and **+ 2 more** opens that day's whole list below the grid. On a phone each day shows dots for its duties instead; touch a day to read its duties below the grid.
 - Something **Overdue** sits on today, marked as late, with the day it was originally due. Tasks without a due date and Questions stay under **No date**, in every view.
 - With the keyboard, the arrow keys move between days, Enter opens a day, and a screen reader reads each day with its duties as a list.
