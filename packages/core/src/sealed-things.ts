@@ -5,6 +5,7 @@
 // is bound to the place it lives in, so the job seals each one for the same place the core would; a row holding a
 // sealed word that does not open is left alone entirely (counted by the job), never half rewritten.
 import { mapBreakdownLabels, mapSettingsWords, mapVersionWords, mapViewWords } from "./sealed-words";
+import { mapConfigNumbers } from "./sealed-workflow";
 import { isSealed, sealedVersion, type WorkspaceCipher } from "./workspace-keys";
 
 /** The JSON columns that hold sealed words, by table. The job, its progress and the drift test read this list, and
@@ -16,6 +17,8 @@ export const SEALED_THINGS = [
   { table: "versions", column: "snapshot" },
   { table: "view_links", column: "frozen" },
   { table: "view_links", column: "snapshot_words" },
+  // A Workflow's Check percentage and Tell levels (step 2, ticket #248).
+  { table: "workflows", column: "config" },
 ] as const;
 
 /** One of those columns. */
@@ -61,6 +64,31 @@ function moveObject(cipher: WorkspaceCipher, table: string, column: string, row:
   return { sealed: cipher.seal(at, JSON.stringify(stored)) };
 }
 
+/** A kept copy's `data` (a Snapshot's, a frozen View Link's) sealed as one text for its row, or moved to the current key
+ * version, with the Breakdown labels inside it moved too (they are words of their own, bound to the same row). A
+ * Snapshot also gets the plain list of the Metrics it kept beside it, which the checks on who may open a draft read. */
+function moveFrozenData(cipher: WorkspaceCipher, table: string, id: string | number, kept: Obj, state: { changed: boolean; unopenable: boolean }, listMetrics: boolean): Obj {
+  const data = kept.data;
+  if (!isObj(data)) return kept;
+  const at = { table, column: "frozen.data", row: id };
+  const wrapped = Object.keys(data).length === 1 && typeof data.sealed === "string" && isSealed(data.sealed);
+  let inner: unknown = data;
+  let older = !wrapped;
+  if (wrapped) {
+    const text = cipher.open(at, data.sealed as string);
+    try { inner = text === null ? null : JSON.parse(text); } catch { inner = null; }
+    if (!isObj(inner)) { state.unopenable = true; return kept; }
+    older = (sealedVersion(data.sealed as string) ?? 0) < (cipher.version as number);
+  }
+  const labels = { changed: false, unopenable: false };
+  const moved = mapBreakdownLabels(inner as { breakdowns?: unknown }, mover(cipher, table, id, labels), "frozen.data.");
+  if (labels.unopenable) { state.unopenable = true; return kept; }
+  const ids = listMetrics && !Array.isArray(kept.metricIds) && Array.isArray((moved as Obj).metrics) ? ((moved as Obj).metrics as Obj[]).map((m) => Number(m.id)) : null;
+  if (!older && !labels.changed && ids === null) return kept;
+  state.changed = true;
+  return { ...kept, ...(ids ? { metricIds: ids } : {}), data: { sealed: cipher.seal(at, JSON.stringify(moved)) } };
+}
+
 /** The new value of one row of a sealed JSON column: every word sealed under the current key version, for the place
  * the core seals it for. Nothing changes where the Workspace does not seal. */
 export function resealThing(cipher: WorkspaceCipher, thing: SealedThing, row: ThingRow): Resealed {
@@ -71,12 +99,14 @@ export function resealThing(cipher: WorkspaceCipher, thing: SealedThing, row: Th
   if (thing.table === "widgets") value = mapSettingsWords(row.value, mover(cipher, "widgets", id, state));
   else if (thing.table === "dashboard_snapshots" && thing.column === "words") value = moveObject(cipher, "dashboard_snapshots", "words", id, row.value, state);
   else if (thing.table === "dashboard_snapshots") {
-    // Only the Breakdown labels it froze are words: the widgets' own words are kept apart.
-    const frozen = row.value;
-    if (isObj(frozen) && isObj(frozen.data)) value = { ...frozen, data: mapBreakdownLabels(frozen.data as { breakdowns?: unknown }, mover(cipher, "dashboard_snapshots", id, state), "frozen.data.") };
+    // The widgets' own words are kept apart; what is frozen is the data (step 2: sealed as one text, with the Metrics it
+    // kept listed beside it), whose Breakdown labels are words of their own inside it.
+    if (isObj(row.value)) value = moveFrozenData(cipher, "dashboard_snapshots", id, row.value, state, true);
   } else if (thing.table === "view_links" && thing.column === "snapshot_words") value = moveObject(cipher, "view_links", "snapshot_words", id, row.value, state);
   else if (thing.table === "view_links") {
-    if (isObj(row.value)) value = mapViewWords(row.value, mover(cipher, "view_links", id, state));
+    if (isObj(row.value)) value = mapViewWords(moveFrozenData(cipher, "view_links", id, row.value, state, false), mover(cipher, "view_links", id, state));
+  } else if (thing.table === "workflows") {
+    value = mapConfigNumbers(row.value, mover(cipher, "workflows", id, state), "config.");
   } else if (isObj(row.value) && row.object_type !== undefined) {
     // A Version: its words are bound to `<type>-<object>-<version>`, the Version's own place.
     const place = `${row.object_type}-${row.object_id}-${row.version}`;

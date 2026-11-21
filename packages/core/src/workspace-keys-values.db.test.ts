@@ -6,7 +6,11 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { db } from "./db";
 import { archiveMetric } from "./archived-metrics";
+import { createDashboard, placeWidget } from "./dashboards";
 import { createMetric, saveSeriesRows } from "./metrics";
+import { listSnapshots, openSnapshot, takeSnapshot } from "./snapshots";
+import { saveWorkflow } from "./workflows";
+import { openWorkflowRow } from "./workflow-rows";
 import { reencryptionJob, sealCandidate } from "./workspace-key-job";
 import { submitValue, type SubmissionEffects } from "./submissions";
 import { getBreakdowns, getMetrics, getObservations, getSeriesValues } from "./workspace-data";
@@ -198,6 +202,36 @@ describe("rows written before sealing", () => {
     const [m] = await rows("metrics", "name", { id: w.metricId });
     expect(isSealed(m.name as string)).toBe(true);
     expect(m.target_min).toBeNull();
+  });
+
+  it("a Snapshot's data and a Workflow's Check level are sealed by the job too, the draft stays as private, and the database refuses any other change to a frozen part", async () => {
+    // Written without a key, as before the upgrade.
+    delete process.env.ZIFFR_SECRETS_KEY;
+    const w = await setup();
+    await w.value(w.metricId, "2026-08-01", 321.5, w.owner);
+    const dash = await createDashboard(w.actor(w.owner), "Plain dashboard");
+    await placeWidget(w.actor(w.owner), dash, { type: "spec", template: "table", metricIds: [w.metricId], settings: {} });
+    const snap = await takeSnapshot(w.actor(w.owner), dash, { kind: "month", start: "2026-08-01" });
+    const flow = await saveWorkflow(w.actor(w.owner), null, "Close", { dueWorkingDays: 2, steps: [{ type: "check", changePct: 437, outsideTarget: false }, { type: "publish", lock: false }] });
+    const plainFrozen = (await db().from("dashboard_snapshots").select("frozen").eq("id", snap).single()).data!.frozen as { data: { metrics?: unknown }; metricIds?: number[] };
+    expect(plainFrozen.data.metrics).toBeTruthy();
+    // The key arrives; the job runs.
+    process.env.ZIFFR_SECRETS_KEY = Buffer.alloc(32, 77).toString("base64");
+    expect((await reencryptionJob({ only: [w.id], seconds: 30 })).errors).toBe(0);
+    const frozen = (await db().from("dashboard_snapshots").select("frozen").eq("id", snap).single()).data!.frozen as { data: { sealed?: string; metrics?: unknown }; metricIds: number[] };
+    expect(isSealed(frozen.data.sealed)).toBe(true);
+    expect(frozen.data.metrics).toBeUndefined();
+    expect(frozen.metricIds).toEqual([w.metricId]);
+    const [read] = await listSnapshots(w.actor(w.owner), dash);
+    expect(read.id).toBe(snap);
+    expect((await openSnapshot(w.actor(w.owner), snap)).data.metrics.map((m) => m.slug)).toHaveLength(1);
+    const { data: config } = await db().from("workflows").select("config").eq("id", flow).single();
+    expect(JSON.stringify(config)).not.toContain("437");
+    expect((await openWorkflowRow(w.id, { id: flow, config: config!.config }))!.config).toMatchObject({ steps: [{ type: "check", changePct: 437 }, { type: "publish" }] });
+    // A write of the frozen part through seal_json that changes anything but the sealing is refused by the database.
+    const tampered = { ...frozen, name: "Another name" };
+    const refused = await db().rpc("seal_json", { p_workspace: w.id, p_table: "dashboard_snapshots", p_column: "frozen", p_id: snap, p_was: frozen, p_new: tampered });
+    expect(refused.error?.code).toBe("ZF403");
   });
 
   it("are not overwritten when they changed after the job read them", async () => {

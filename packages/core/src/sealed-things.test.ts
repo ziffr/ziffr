@@ -59,19 +59,47 @@ describe("resealThing", () => {
     expect(resealThing(one, thing("dashboard_snapshots", "words"), { id: 4, value: plain.value })).toMatchObject({ changed: false, unopenable: true });
   });
 
-  it("seals the Breakdown labels a Snapshot or a View Link froze, and the words of a frozen dashboard", () => {
-    const data = { breakdowns: { "5": { "2026-10-01": [{ label: "Shop", value: 1 }, { label: "", value: 2 }] } } };
+  it("seals the data a Snapshot or a View Link froze as one text, Breakdown labels inside it first, and the words of a frozen dashboard", () => {
+    const data = { metrics: [{ id: 5 }, { id: 7 }], breakdowns: { "5": { "2026-10-01": [{ label: "Shop", value: 1 }, { label: "", value: 2 }] } } };
     const snapshot = resealThing(one, thing("dashboard_snapshots", "frozen"), { id: 3, value: { name: "D", data } });
-    const labels = (snapshot.value as { data: typeof data }).data.breakdowns["5"]["2026-10-01"];
+    const frozen = snapshot.value as { data: { sealed: string }; metricIds: number[] };
+    expect(snapshot.changed).toBe(true);
+    // The Metrics it kept are listed beside the data, ids only.
+    expect(frozen.metricIds).toEqual([5, 7]);
+    const inner = JSON.parse(one.open({ table: "dashboard_snapshots", column: "frozen.data", row: 3 }, frozen.data.sealed)!) as typeof data;
+    const labels = inner.breakdowns["5"]["2026-10-01"];
     expect(isSealed(labels[0].label)).toBe(true);
     expect(one.open({ table: "dashboard_snapshots", column: "frozen.data.breakdowns.5.2026_10_01.0.label", row: 3 }, labels[0].label)).toBe("Shop");
+    // Sealed once, it is left alone under the same key version, and moved under a newer one, labels included.
+    expect(resealThing(one, thing("dashboard_snapshots", "frozen"), { id: 3, value: snapshot.value }).changed).toBe(false);
+    const moved = resealThing(two, thing("dashboard_snapshots", "frozen"), { id: 3, value: snapshot.value });
+    expect(moved.changed).toBe(true);
+    expect(sealedVersion((moved.value as typeof frozen).data.sealed)).toBe(2);
+    const movedInner = JSON.parse(two.open({ table: "dashboard_snapshots", column: "frozen.data", row: 3 }, (moved.value as typeof frozen).data.sealed)!) as typeof data;
+    expect(sealedVersion(movedInner.breakdowns["5"]["2026-10-01"][0].label)).toBe(2);
+    expect((moved.value as typeof frozen).metricIds).toEqual([5, 7]);
+    // Data that does not open (another row) is counted, never rewritten.
+    expect(resealThing(one, thing("dashboard_snapshots", "frozen"), { id: 4, value: snapshot.value })).toMatchObject({ changed: false, unopenable: true });
     expect(resealThing(one, thing("dashboard_snapshots", "frozen"), { id: 3, value: { name: "no data" } }).changed).toBe(false);
     const link = resealThing(one, thing("view_links", "frozen"), { id: 9, value: { intro: "Intro", widgets: [{ id: 4, title: "T", settings: { headline: "H" } }], data } });
-    const v = link.value as { intro: string; widgets: { title: string }[] };
+    const v = link.value as { intro: string; widgets: { title: string }[]; data: { sealed: string } };
     expect(link.changed).toBe(true);
     expect(one.open({ table: "view_links", column: "frozen.intro", row: 9 }, v.intro)).toBe("Intro");
     expect(one.open({ table: "view_links", column: "frozen.widgets.4.title", row: 9 }, v.widgets[0].title)).toBe("T");
+    expect(isSealed(v.data.sealed)).toBe(true);
     expect(resealThing(one, thing("view_links", "frozen"), { id: 9, value: "not an object" }).changed).toBe(false);
+  });
+
+  it("seals a Workflow's Check percentage and Tell level for the Workflow", () => {
+    const config = { dueWorkingDays: 2, steps: [{ type: "check", changePct: 40, outsideTarget: false }, { type: "tell", id: "a", condition: { kind: "at_or_above", value: "12.5" }, people: [], groups: [] }] };
+    const done = resealThing(one, thing("workflows", "config"), { id: 11, value: config });
+    const steps = (done.value as typeof config).steps as { changePct?: string; condition?: { value: string } }[];
+    expect(done.changed).toBe(true);
+    expect(one.open({ table: "workflows", column: "config.steps.0.change_pct", row: 11 }, steps[0].changePct!)).toBe("40");
+    expect(one.open({ table: "workflows", column: "config.steps.1.condition.value", row: 11 }, steps[1].condition!.value)).toBe("12.5");
+    expect(resealThing(one, thing("workflows", "config"), { id: 11, value: done.value }).changed).toBe(false);
+    expect(resealThing(two, thing("workflows", "config"), { id: 11, value: done.value }).changed).toBe(true);
+    expect(resealThing(one, thing("workflows", "config"), { id: 12, value: done.value }).unopenable).toBe(true);
   });
 
   it("seals a Version's words for the Version, by kind", () => {

@@ -216,3 +216,64 @@ begin
   perform touch_workspace(new.workspace_id);
   return null;
 end $$;
+
+-- The data a Snapshot freezes is sealed as one text (`frozen.data` = {"sealed": "w1..."}) beside the plain list of the
+-- Metrics it kept (`frozen.metricIds`, ids only, which the checks on who may open a draft read). The job seals the data
+-- of a Snapshot frozen before, and moves a sealed one to a newer key version, through seal_json: the one change to a
+-- frozen part it may make besides Breakdown labels. Everything else about the frozen part must stay as it is, the data
+-- must come back as a text in the sealed format (never older than the one it replaces), and the list of Metrics must be
+-- the one the data names.
+create function frozen_data_resealed(old jsonb, new jsonb) returns boolean language sql immutable as $$
+  select (old - 'data' - 'metricIds') = (new - 'data' - 'metricIds')
+    and jsonb_typeof(new -> 'data') = 'object' and (select count(*) from jsonb_object_keys(new -> 'data')) = 1
+    and sealed_format(new #>> '{data,sealed}')
+    and (case when jsonb_typeof(old -> 'data') = 'object' and (select count(*) from jsonb_object_keys(old -> 'data')) = 1 and sealed_format(old #>> '{data,sealed}')
+           then sealed_version(new #>> '{data,sealed}') >= sealed_version(old #>> '{data,sealed}') else true end)
+    and (new -> 'metricIds') is not distinct from (case
+           when old ? 'metricIds' then old -> 'metricIds'
+           when jsonb_typeof(old #> '{data,metrics}') = 'array' then (select coalesce(jsonb_agg(m -> 'id' order by n), '[]'::jsonb) from jsonb_array_elements(old #> '{data,metrics}') with ordinality as t(m, n))
+           else null end)
+$$;
+revoke all on function frozen_data_resealed(jsonb, jsonb) from public, anon, authenticated;
+
+create or replace function dashboard_snapshots_keep_frozen() returns trigger language plpgsql as $$
+begin
+  if new.workspace_id is distinct from old.workspace_id or new.dashboard_id is distinct from old.dashboard_id
+    or new.period_kind is distinct from old.period_kind or new.period_start is distinct from old.period_start
+    or new.period_end is distinct from old.period_end or new.taken_by is distinct from old.taken_by
+    or new.taken_at is distinct from old.taken_at or new.automatic is distinct from old.automatic then
+    raise exception 'A Snapshot keeps its period and who took it.' using errcode = 'ZF403';
+  end if;
+  if old.deleted_at is not null and (new.deleted_at is null or new.frozen is not null) then
+    raise exception 'A deleted Snapshot stays deleted.' using errcode = 'ZF403';
+  end if;
+  if new.frozen is distinct from old.frozen and not (new.frozen is null and new.deleted_at is not null)
+     and not (
+       current_setting('ziffr.sealing_json', true) = 'on'
+       and current_user = (select pg_get_userbyid(proowner) from pg_proc where oid = 'seal_json(uuid,text,text,bigint,jsonb,jsonb)'::regprocedure)
+       and old.frozen is not null and new.frozen is not null
+       and ((frozen_without_labels(new.frozen) = frozen_without_labels(old.frozen) and frozen_labels_resealed(old.frozen, new.frozen))
+            or frozen_data_resealed(old.frozen, new.frozen))
+     ) then
+    raise exception 'A Snapshot''s numbers never change.' using errcode = 'ZF403';
+  end if;
+  return new;
+end;
+$$;
+
+-- seal_json also takes a Workflow's settings, whose Check percentage and Tell levels are sealed (ticket #248).
+create or replace function seal_json(p_workspace uuid, p_table text, p_column text, p_id bigint, p_was jsonb, p_new jsonb)
+returns boolean language plpgsql security definer set search_path = public as $$
+declare
+  n integer;
+begin
+  if (p_table, p_column) not in (('widgets', 'settings'), ('dashboard_snapshots', 'words'), ('dashboard_snapshots', 'frozen'), ('versions', 'snapshot'), ('view_links', 'frozen'), ('view_links', 'snapshot_words'), ('workflows', 'config')) then
+    raise exception 'Not a column with sealed words: %.%', p_table, p_column;
+  end if;
+  perform set_config('ziffr.sealing_json', 'on', true);
+  execute format('update %1$I set %2$I = $1 where id = $2 and workspace_id = $3 and %2$I = $4', p_table, p_column) using p_new, p_id, p_workspace, p_was;
+  get diagnostics n = row_count;
+  perform set_config('ziffr.sealing_json', 'off', true);
+  return n = 1;
+end;
+$$;
