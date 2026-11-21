@@ -12,6 +12,7 @@ Decks, Themes, View Designs, the canvas, Packs and the pages that edit them are 
 - `metricQuickLook` (quick-look.ts): the slide-over beside a list or Widget in the app; a program reads a Metric through the API
 - `recordDeckExport` (audit-log.ts): Deck export is noted in the Audit Log
 - `saveLayout` (dashboards.ts): the dashboard canvas
+- `setViewLinkNames` (view-links.ts): the View links window; a program's View Links always show no names (ticket #590)
 - `applyTemplate` (dashboards.ts): the dashboard canvas
 - `saveToPool` (dashboards.ts): the dashboard canvas
 - `deleteSavedWidget` (dashboards.ts): the dashboard canvas

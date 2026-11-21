@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { nameHider } from "./hide-names";
+import { mentionsPerson, nameHider } from "./hide-names";
 
 const sara = { name: "Sara Lindqvist", email: "sara@example.test", slack_handle: "@sara" };
 
@@ -15,5 +15,24 @@ describe("nameHider", () => {
   it("changes nothing when there is no one to hide", () => {
     expect(nameHider([])("Sara asks")).toBe("Sara asks");
     expect(nameHider([{ name: "Al", email: "", slack_handle: "" }])("Al")).toBe("Al");
+  });
+});
+
+describe("nameHider, contact details", () => {
+  it("matches an email or handle in any capitalisation, a name only as written", () => {
+    const hide = nameHider([sara]);
+    expect(hide("Mail Sara@Example.Test or @SARA, not SARA LINDQVIST.")).toBe("Mail Someone or Someone, not SARA LINDQVIST.");
+  });
+});
+
+describe("mentionsPerson", () => {
+  it("finds a name, email or handle anywhere in a text, in any case", () => {
+    const mentions = mentionsPerson([sara]);
+    expect(mentions("revenue-sara")).toBe(true);
+    expect(mentions("A + SARA LINDQVIST")).toBe(true);
+    expect(mentions("revenue")).toBe(false);
+  });
+  it("finds no one when there is no one", () => {
+    expect(mentionsPerson([])("sara")).toBe(false);
   });
 });

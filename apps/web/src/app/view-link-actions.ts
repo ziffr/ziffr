@@ -12,9 +12,9 @@ export async function listViewLinks(type: "dashboard" | "deck", id: number) {
 }
 
 /** Makes a View Link; returns its token. */
-export async function createViewLink(type: "dashboard" | "deck", id: number, input: { label: string; expires: string; frozen: boolean; snapshotId?: number | null }) {
+export async function createViewLink(type: "dashboard" | "deck", id: number, input: { label: string; expires: string; frozen: boolean; snapshotId?: number | null; showNames?: boolean }) {
   return attempt(async () => {
-    const token = await links.createViewLink(await currentActor(), type, Number(id), { label: String(input?.label ?? ""), expires: String(input?.expires ?? ""), frozen: Boolean(input?.frozen), snapshotId: input?.snapshotId === null || input?.snapshotId === undefined ? null : Number(input.snapshotId) });
+    const token = await links.createViewLink(await currentActor(), type, Number(id), { label: String(input?.label ?? ""), expires: String(input?.expires ?? ""), frozen: Boolean(input?.frozen), snapshotId: input?.snapshotId === null || input?.snapshotId === undefined ? null : Number(input.snapshotId), showNames: input?.showNames === true });
     revalidatePath("/", "layout");
     return token;
   });
@@ -23,6 +23,14 @@ export async function createViewLink(type: "dashboard" | "deck", id: number, inp
 /** A dashboard's Snapshots a View Link may show: those already shown (spec 0013). */
 export async function shownSnapshots(dashboardId: number) {
   return (await listSnapshots(await currentActor(), Number(dashboardId))).filter((s) => s.shownAt).map((s) => ({ id: s.id, label: s.label }));
+}
+
+/** Switches whether a View Link shows people's names (ticket #590). */
+export async function setViewLinkNames(linkId: number, showNames: boolean) {
+  return attempt(async () => {
+    await links.setViewLinkNames(await currentActor(), Number(linkId), showNames === true);
+    revalidatePath("/", "layout");
+  });
 }
 
 /** Revokes a View Link. */

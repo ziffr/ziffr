@@ -20,7 +20,7 @@ import { visibleDashboards } from "./access";
 import { openNames } from "./sealed-columns";
 import { assertMembersIn, share, shareWithGroup } from "./sharing";
 import { createHash } from "node:crypto";
-import { createViewLink, endDate, previewViewLink, type ViewPayload } from "./view-links";
+import { createViewLink, endDate, previewViewLink, viewForLink, type ViewPayload } from "./view-links";
 
 /** Days a Share Proposal can be confirmed. */
 export const PROPOSAL_DAYS = 7;
@@ -218,7 +218,9 @@ async function mine(actor: Actor, id: number): Promise<Row | null> {
 export async function previewShareProposal(actor: Actor, id: number): Promise<ViewPayload | null> {
   const row = Number.isInteger(id) ? await mine(actor, id) : null;
   if (!row || row.kind !== "view_link" || row.status !== "open") return null;
-  return previewViewLink(actor, row.dashboard_id, row.snapshot_id);
+  const view = await previewViewLink(actor, row.dashboard_id, row.snapshot_id);
+  // A link made from a proposal shows no names (ticket #590): the preview is what its recipient will see.
+  return view && viewForLink(view, actor.workspaceId, false);
 }
 
 /** Refuses a key: deciding is a person's act, whatever scopes an assistant holds. */
@@ -306,7 +308,8 @@ export async function confirmShareProposal(actor: Actor, id: number, seen: strin
     // Read once, after the claim: this payload is compared with what the person saw and is the one the link is made from, so a
     // change made meanwhile cannot slip in. (A Snapshot's content does not change; it is compared right before it is read again.)
     const view = await previewViewLink(actor, row.dashboard_id, row.snapshot_id);
-    if (previewFingerprint(view) !== seen) throw new Refused(CHANGED);
+    // The person looked at the preview without names (previewShareProposal), so that is what is compared.
+    if (previewFingerprint(view && await viewForLink(view, actor.workspaceId, false)) !== seen) throw new Refused(CHANGED);
     const token = await createViewLink(actor, "dashboard", row.dashboard_id, { label: `Shared by email (proposal ${id})`, expires: String(row.ends_on), frozen: row.frozen && row.snapshot_id === null, snapshotId: row.snapshot_id }, { view: row.snapshot_id === null ? view ?? undefined : undefined });
     made = true;
     const { data: link } = await db().from("view_links").select("id").eq("token", token).eq("workspace_id", actor.workspaceId).maybeSingle();

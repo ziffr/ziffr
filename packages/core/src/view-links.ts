@@ -12,6 +12,8 @@ import { assertSeesMetrics } from "./sharing";
 import { deckMetricIds } from "./visibility";
 import { widgetMetricIds } from "./widget-metrics";
 import { audit } from "./audit-log";
+import { mentionsPerson, nameHider } from "./hide-names";
+import { peopleIn } from "./submissions";
 import { recordView } from "./usage";
 import { stripOutsideContent, widgetWithoutOutside } from "./deck-content";
 import { forReader, snapshotForLink, type SnapshotWords } from "./snapshots";
@@ -72,7 +74,8 @@ export function shownData(full: CanvasData, ids: Set<number>, themeId: number | 
     condensed: pick(full.condensed ?? {}, ids),
     breakdowns: pick(full.breakdowns, ids),
     templates: [],
-    themes: full.themes.filter((t) => t.id === themeId || t.is_default),
+    // A Theme goes out as it looks, without the id of the person who made it (rule 3).
+    themes: full.themes.filter((t) => t.id === themeId || t.is_default).map((t) => ({ ...t, owner_id: "" })),
     canEditThemes: false,
     groups: [],
     pending: pick(full.pending, ids),
@@ -156,6 +159,41 @@ export function deckAsOf(document: unknown): Map<number, string> {
   return ends;
 }
 
+/** Every string of a value through `change`. */
+function mapStrings(value: unknown, change: (text: string) => string): unknown {
+  if (typeof value === "string") return change(value);
+  if (Array.isArray(value)) return value.map((v) => mapStrings(v, change));
+  if (value && typeof value === "object") return Object.fromEntries(Object.entries(value).map(([k, v]) => [k, mapStrings(v, change)]));
+  return value;
+}
+
+/** The one rule for people's names on a View Link (ticket #590; GLOSSARY: View Link, Guest): someone with the link is
+ * signed out and is no one the Workspace knows, so unless the link's maker ticked "Show names" the page carries no
+ * person at all: no list of people, no Metric owner, and in every word of it (dashboard, widgets, slides, Snapshot
+ * words) the names, first names, emails and handles of the Workspace's people, and of those a frozen copy kept,
+ * read "Someone" (hide-names.ts, as for a Guest). Rule 3: what is not sent cannot leak, so the people are dropped
+ * rather than hidden by the page (contact details are loaded only to find them in words, never sent). With names on, the list is what shownData keeps: names and colours, no contact details. */
+export async function viewForLink(view: ViewPayload, workspaceId: string, showNames: boolean): Promise<ViewPayload> {
+  // A Theme is drawn by its looks: never the id of whoever made it, also in a frozen copy made before that was left out.
+  const themes = view.data.themes.map((t) => ({ ...t, owner_id: "" }));
+  if (showNames) return { ...view, data: { ...view.data, themes } };
+  const people = [...(await peopleIn(workspaceId, { contactDetails: true })), ...view.data.people];
+  const hide = nameHider(people);
+  const mentions = mentionsPerson(people);
+  const words = mapStrings({ ...view, data: { ...view.data, people: [], series: {}, themes } }, hide) as ViewPayload;
+  // A slug and a formula are not words but keys: kept as they are so the series still match, unless one names a person
+  // (anywhere, in any case), then it becomes an opaque key and its series follow. Matched by Metric id, not by place.
+  const original = new Map(view.data.metrics.map((m) => [m.id, m]));
+  const series: ViewPayload["data"]["series"] = {};
+  const metrics = words.data.metrics.map((m) => {
+    const o = original.get(m.id)!;
+    const slug = mentions(o.slug) ? `metric-${m.id}` : o.slug;
+    if (view.data.series[o.slug]) series[slug] = view.data.series[o.slug];
+    return { ...m, slug, formula: o.formula && mentions(o.formula) ? null : o.formula, owner_id: "" };
+  });
+  return { ...words, data: { ...words.data, people: [], series, metrics }, workspaceName: view.workspaceName };
+}
+
 /** A link's content for whoever opens it, or null when it does not exist, was revoked or has expired. With
  * `count`, a link that works also adds to its dashboard's or deck's View Count (spec 0031): once, a number and no
  * visitor, in the background, never delayed or stopped by it. The page passes false for a prefetch or a HEAD. */
@@ -164,8 +202,10 @@ export async function openViewLink(token: string, opts: { count?: boolean } = {}
   if (!view) return null;
   // The page's frame says whose numbers these are: the Workspace's name, and (in the Themes it already carries) its
   // logo and colours. Nothing else about the Workspace leaves with it (AGENTS.md rule 3).
-  const { data: link } = await db().from("view_links").select("workspace_id, workspaces(name)").eq("token", token).maybeSingle();
-  return { ...view, workspaceName: (link?.workspaces as unknown as { name: string } | null)?.name ?? undefined, workspaceId: link?.workspace_id as string | undefined };
+  const { data: link } = await db().from("view_links").select("workspace_id, show_names, workspaces(name)").eq("token", token).maybeSingle();
+  if (!link) return null;
+  const named = await viewForLink(view, String(link.workspace_id), Boolean(link.show_names));
+  return { ...named, workspaceName: (link.workspaces as unknown as { name: string } | null)?.name ?? undefined, workspaceId: link.workspace_id as string };
 }
 
 async function openLinkContent(token: string, opts: { count?: boolean }): Promise<ViewPayload | null> {
@@ -242,18 +282,18 @@ async function assertOwner(actor: Actor, type: "dashboard" | "deck", id: number)
 /** The View Links of a dashboard or deck, for its owner. */
 export async function listViewLinks(actor: Actor, type: "dashboard" | "deck", id: number) {
   await assertOwner(actor, type, id);
-  const { data } = await db().from("view_links").select("id, token, label, expires_at, revoked_at, created_at, frozen, snapshot_id, dashboard_snapshots(label, deleted_at)").eq("workspace_id", actor.workspaceId).eq("object_type", type).eq("object_id", id).order("id", { ascending: false });
+  const { data } = await db().from("view_links").select("id, token, label, expires_at, revoked_at, created_at, frozen, show_names, snapshot_id, dashboard_snapshots(label, deleted_at)").eq("workspace_id", actor.workspaceId).eq("object_type", type).eq("object_id", id).order("id", { ascending: false });
   return (data ?? []).map((l) => {
     const s = l.dashboard_snapshots as unknown as { label: string; deleted_at: string | null } | null;
     // A link to a deleted Snapshot no longer works: it reads as revoked.
-    return { id: l.id, token: l.token, label: l.label, expires_at: l.expires_at, revoked: Boolean(l.revoked_at) || Boolean(s?.deleted_at), created_at: l.created_at, frozen: Boolean(l.frozen), snapshotId: (l.snapshot_id as number | null) ?? null, snapshotLabel: s?.label ?? null };
+    return { id: l.id, token: l.token, label: l.label, expires_at: l.expires_at, revoked: Boolean(l.revoked_at) || Boolean(s?.deleted_at), created_at: l.created_at, frozen: Boolean(l.frozen), showNames: Boolean(l.show_names), snapshotId: (l.snapshot_id as number | null) ?? null, snapshotLabel: s?.label ?? null };
   });
 }
 
 /** Makes a View Link to the actor's dashboard or deck, live or frozen, ending on a day within MAX_DAYS; for a
  * dashboard, `snapshotId` makes it show one of its shown Snapshots (spec 0013). A View Link is sharing, so Guests
  * make none. `opts.view` makes a live or frozen link from that very payload (for a dashboard or deck, not a Snapshot). Returns the token. */
-export async function createViewLink(actor: Actor, type: "dashboard" | "deck", id: number, input: { label: string; expires: string; frozen: boolean; snapshotId?: number | null }, opts: { accessKeyId?: number; view?: ViewPayload } = {}): Promise<string> {
+export async function createViewLink(actor: Actor, type: "dashboard" | "deck", id: number, input: { label: string; expires: string; frozen: boolean; snapshotId?: number | null; showNames?: boolean }, opts: { accessKeyId?: number; view?: ViewPayload } = {}): Promise<string> {
   if (input?.snapshotId !== undefined && input?.snapshotId !== null) return createSnapshotLink(actor, id, Number(input.snapshotId), input, opts);
   await assertOwner(actor, type, id);
   assertCan(actor, "share");
@@ -271,12 +311,12 @@ export async function createViewLink(actor: Actor, type: "dashboard" | "deck", i
   const [linkId] = await reserveIds("view_links", 1);
   const cipher = await workspaceCipher(actor.workspaceId);
   const frozen = input?.frozen ? sealFrozenData(cipher, "view_links", linkId, mapViewWords(view, sealing(cipher, "view_links", linkId))) : null;
-  const { data: made } = await db().from("view_links").insert({ id: linkId, token, object_type: type, object_id: id, created_by: actor.personId, label: String(input?.label ?? "").slice(0, 80), expires_at: expires, frozen, metric_ids: view.data.metrics.map((m) => m.id), widget_ids: view.widgets?.map((w) => w.id) ?? null,
+  const { data: made } = await db().from("view_links").insert({ id: linkId, token, object_type: type, object_id: id, created_by: actor.personId, label: String(input?.label ?? "").slice(0, 80), expires_at: expires, frozen, show_names: input?.showNames === true, metric_ids: view.data.metrics.map((m) => m.id), widget_ids: view.widgets?.map((w) => w.id) ?? null,
     // Every record the deck has now, not only shapes: anything added later stays out of a live link.
     shape_ids: type === "deck" ? Object.keys((view.document as { store?: object } | null)?.store ?? {}) : null,
     workspace_id: actor.workspaceId }).select("id").single();
   // Never the token: whoever reads the record must not be able to open the link from it.
-  await audit(actor, { kind: "view_link.created", object: { type, id, name: view.name }, accessKeyId: opts.accessKeyId, details: { link_id: made?.id ?? null, frozen: Boolean(input?.frozen), expires_on: expires, metrics: view.data.metrics.length } });
+  await audit(actor, { kind: "view_link.created", object: { type, id, name: view.name }, accessKeyId: opts.accessKeyId, details: { link_id: made?.id ?? null, frozen: Boolean(input?.frozen), show_names: input?.showNames === true, expires_on: expires, metrics: view.data.metrics.length } });
   return token;
 }
 
@@ -291,7 +331,7 @@ export function endDate(expires: unknown): string {
 
 /** A View Link to one of the actor's dashboard's Snapshots, once it is shown: what it kept and its words, read when
  * the link is opened. Like any View Link, only its dashboard's owner makes one, and only of Metrics they see. */
-async function createSnapshotLink(actor: Actor, dashboardId: number, snapshotId: number, input: { label: string; expires: string }, opts: { accessKeyId?: number } = {}): Promise<string> {
+async function createSnapshotLink(actor: Actor, dashboardId: number, snapshotId: number, input: { label: string; expires: string; showNames?: boolean }, opts: { accessKeyId?: number } = {}): Promise<string> {
   if (!Number.isInteger(dashboardId) || !Number.isInteger(snapshotId)) throw new Forbidden();
   await assertOwner(actor, "dashboard", dashboardId);
   assertCan(actor, "share");
@@ -302,12 +342,26 @@ async function createSnapshotLink(actor: Actor, dashboardId: number, snapshotId:
   await assertSeesMetrics(actor, s.data.metrics.map((m) => m.id));
   const token = randomBytes(24).toString("base64url");
   const [linkId] = await reserveIds("view_links", 1);
-  const { data: made } = await db().from("view_links").insert({ id: linkId, token, object_type: "dashboard", object_id: dashboardId, created_by: actor.personId, label: String(input?.label ?? "").slice(0, 80), expires_at: expires, frozen: null, snapshot_id: snapshotId,
+  const { data: made } = await db().from("view_links").insert({ id: linkId, token, object_type: "dashboard", object_id: dashboardId, created_by: actor.personId, label: String(input?.label ?? "").slice(0, 80), expires_at: expires, frozen: null, show_names: input?.showNames === true, snapshot_id: snapshotId,
     // The words as the owner sees them now: someone outside reads these, whatever is written in Ziffr later. Sealed for
     // the link with the Workspace Key (spec 0028).
     snapshot_words: sealObject(await workspaceCipher(actor.workspaceId), { table: "view_links", column: "snapshot_words", row: linkId }, s.words), metric_ids: s.data.metrics.map((m) => m.id), widget_ids: null, shape_ids: null, workspace_id: actor.workspaceId }).select("id").single();
-  await audit(actor, { kind: "view_link.created", object: { type: "dashboard", id: dashboardId, name: s.name }, accessKeyId: opts.accessKeyId, details: { link_id: made?.id ?? null, frozen: true, snapshot_id: snapshotId, period: s.label, expires_on: expires, metrics: s.data.metrics.length } });
+  await audit(actor, { kind: "view_link.created", object: { type: "dashboard", id: dashboardId, name: s.name }, accessKeyId: opts.accessKeyId, details: { link_id: made?.id ?? null, frozen: true, show_names: input?.showNames === true, snapshot_id: snapshotId, period: s.label, expires_on: expires, metrics: s.data.metrics.length } });
   return token;
+}
+
+/** Switches "Show names" of a View Link on or off (ticket #590), also for one already made: only its owner, only while
+ * their role may share, and never for a revoked one. Takes effect the next time the link is opened. */
+export async function setViewLinkNames(actor: Actor, linkId: number, showNames: boolean, opts: { accessKeyId?: number } = {}) {
+  if (!Number.isInteger(linkId) || typeof showNames !== "boolean") throw new Forbidden();
+  const { data: l } = await db().from("view_links").select("object_type, object_id").eq("id", linkId).eq("workspace_id", actor.workspaceId).maybeSingle();
+  if (!l) throw new Forbidden();
+  await assertOwner(actor, l.object_type, l.object_id);
+  assertCan(actor, "share");
+  const { data: changed } = await db().from("view_links").update({ show_names: showNames }).eq("id", linkId).eq("workspace_id", actor.workspaceId).is("revoked_at", null).select("id");
+  if (!changed?.length) return;
+  const { data: obj } = await db().from(table(l.object_type)).select("name").eq("id", l.object_id).eq("workspace_id", actor.workspaceId).maybeSingle();
+  await audit(actor, { kind: "view_link.names_changed", object: { type: l.object_type, id: l.object_id, name: obj?.name ?? null }, accessKeyId: opts.accessKeyId, details: { link_id: linkId, show_names: showNames } });
 }
 
 /** Revokes a View Link; its owner may, whatever their role now. */
