@@ -2,18 +2,28 @@
 // needs its scope, acts only for the key's creator and only on their own Workflows (another person's, or another
 // Workspace's, is not there), and who approves or who is told is chosen only by a program's key with its own scope,
 // never an assistant's.
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { actorForSecret, checkKeyRequest, createAccessKey } from "./access-keys";
 import { Forbidden, type KeyActor, type Scope } from "./actor";
 import { createWorkflowWithKey, deleteWorkflowWithKey, getWorkflowWithKey, updateWorkflowWithKey, WorkflowRefused } from "./api-workflows";
 import { requestedScopes } from "./assistant-connections";
 import { db } from "./db";
+import { mailHostResolver } from "./mail-hosts";
+import { createWebhook } from "./webhooks";
 import { workspace } from "./test/db-fixtures";
 import { saveWorkflow } from "./workflows";
 
 vi.setConfig({ testTimeout: 120_000, hookTimeout: 60_000 });
 const cleanups: (() => Promise<void>)[] = [];
-afterEach(async () => { for (const c of cleanups.splice(0)) await c().catch(() => {}); });
+const saved = process.env.ZIFFR_SECRETS_KEY;
+const realLookup = mailHostResolver.lookup;
+beforeEach(() => {
+  process.env.ZIFFR_SECRETS_KEY = Buffer.alloc(32, 81).toString("base64");
+  mailHostResolver.lookup = async () => [{ address: "93.184.216.34", family: 4 }];
+});
+afterEach(async () => {
+  mailHostResolver.lookup = realLookup;
+  if (saved === undefined) delete process.env.ZIFFR_SECRETS_KEY; else process.env.ZIFFR_SECRETS_KEY = saved; for (const c of cleanups.splice(0)) await c().catch(() => {}); });
 const inDays = (n: number) => new Date(Date.now() + n * 86400000).toISOString().slice(0, 10);
 type W = Awaited<ReturnType<typeof workspace>>;
 
@@ -88,6 +98,29 @@ describe("making, reading, changing and deleting a Workflow with a key", () => {
     expect((await db().from("workflows").select("name").eq("id", made.id).single()).data?.name).toBe("Mine");
   });
 
+  it("leaves the Webhooks of a Tell step as the editor set them, and cannot name any", async () => {
+    const { w, sara, ann } = await setup();
+    const hook = await createWebhook(w.actor(sara), { name: "Chat", url: "https://chat.example.test/hook", events: ["action.created"] });
+    const other = await createWebhook(w.actor(sara), { name: "Other", url: "https://other.example.test/hook", events: ["action.created"] });
+    const step = { type: "tell" as const, id: "tell-step-0001", condition: { kind: "below" as const, value: "5" }, people: [ann], groups: [], webhooks: [hook.id] };
+    const id = await saveWorkflow(w.actor(sara), null, "Alerts", { dueWorkingDays: 1, steps: [step, { type: "publish", lock: false }] });
+    const stored = async () => ((await db().from("workflows").select("config").eq("id", id).single()).data?.config as { steps: { type: string; webhooks?: string[] }[] }).steps.find((x) => x.type === "tell")?.webhooks;
+    expect(await stored()).toEqual([hook.id]);
+    // An Owner's key with every scope changes the Workflow and sends the Tell step back as read (the API has no Webhooks in it): they stay.
+    const programs = await keyOf(w, sara, "owner", PEOPLE);
+    const read = await getWorkflowWithKey(programs, id);
+    expect(JSON.stringify(read)).not.toContain(hook.id);
+    await updateWorkflowWithKey(programs, id, { due_working_days: 3, steps: read.steps });
+    expect(await stored()).toEqual([hook.id]);
+    // Naming a Webhook through the API is not possible: the schema has no such field and the core ignores one smuggled in.
+    const smuggled = read.steps.map((x) => (x.type === "tell" ? { ...x, webhooks: [other.id] } : x)) as never;
+    await updateWorkflowWithKey(programs, id, { steps: smuggled });
+    expect(await stored()).toEqual([hook.id]);
+    // A Tell step made through the API starts with none.
+    const made = await createWorkflowWithKey(programs, { name: "New", steps: [{ type: "tell", condition: { kind: "below", value: "5" }, people: [ann], groups: [] }, { type: "publish", lock: false }] });
+    expect(((await db().from("workflows").select("config").eq("id", made.id).single()).data?.config as { steps: { webhooks?: string[] }[] }).steps[0].webhooks).toBeUndefined();
+  });
+
   it("refuses a step that cannot be, in words", async () => {
     const { w, sara } = await setup();
     const key = await keyOf(w, sara, "owner", PEOPLE);
@@ -147,6 +180,10 @@ describe("who approves and who is told", () => {
     expect(held?.message).toMatch(/access_keys_assistant_never_approves/);
     const { error } = await db().from("access_keys").update({ kind: "assistant", oauth_client_id: client, scopes: WRITE }).eq("id", Number(key.key.id));
     expect(error).toBeNull();
+    for (const scope of ["values:approve", "view-links:write", "workflows:people", "shares:write", "groups:write", "people:write"]) {
+      const { error: refused } = await db().from("access_keys").update({ scopes: [scope] }).eq("id", Number(key.key.id));
+      expect(refused?.message, scope).toMatch(/access_keys_assistant_never_approves/);
+    }
     const { error: backstop } = await db().from("access_keys").update({ scopes: PEOPLE }).eq("id", Number(key.key.id));
     expect(backstop?.message).toMatch(/access_keys_assistant_never_approves/);
     // An assistant's key that somehow carried the scope in memory still names nobody: the key's kind is read from its row.
