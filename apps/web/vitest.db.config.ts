@@ -5,5 +5,5 @@ import { defineConfig } from "vitest/config";
 // (spec 0002, testing decisions). They check the HTTP layer: status, error shape, paging and headers.
 export default defineConfig({
   resolve: { alias: { "@": fileURLToPath(new URL("./src", import.meta.url)) } },
-  test: { globals: true, include: ["src/**/*.db.test.ts"], setupFiles: ["../../packages/core/src/test/db-env.ts"], fileParallelism: false, testTimeout: 60_000 },
+  test: { globals: true, include: ["src/**/*.db.test.ts"], globalSetup: ["../../packages/core/src/test/db-ready.ts"], setupFiles: ["../../packages/core/src/test/db-env.ts"], fileParallelism: false, testTimeout: 60_000 },
 });
