@@ -131,7 +131,7 @@ describe("making Metrics under a limit", () => {
 
   it("refuses at once through every way in while the last grace is under 90 days old", async () => {
     const { w, sara } = await withMetrics(10, 10);
-    await db().from("workspaces").update({ last_grace_started_at: days(5).toISOString() }).eq("id", w.id);
+    await db().from("workspaces").update({ last_grace_started_at: days(20).toISOString() }).eq("id", w.id);
     const key = { ...w.actor(sara), key: { id: "1", scopes: ["metrics:write"] } };
     await expect(createMetricWithKey(key, { name: "By key" }, quiet())).rejects.toBeInstanceOf(LimitReached);
     const { error } = await db().from("metrics").insert({ slug: `raw-${w.id.slice(0, 8)}`, name: "Raw", owner_id: sara, workspace_id: w.id, format: "number", period: "month", submission_rule: "overwrite", polarity: "higher" });
