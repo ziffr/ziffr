@@ -56,7 +56,7 @@ describe("resolveLimit", () => {
 
   it("lets a Workspace move a limit that is not lower-only both ways within its range, and ignores levels it does not have", () => {
     const share = limitDefinition("alertMailShare");
-    expect(resolveLimit(share, {}, 70, 5)).toBe(70);
+    expect(resolveLimit(share, {}, 45, 5)).toBe(45);
     expect(resolveLimit(share, {}, 10, null)).toBe(10);
     expect(resolveLimit(limitDefinition("overdueDaysBack"), {}, 5, null)).toBe(90);
     expect(resolveLimit(limitDefinition("overdueDaysBack"), {}, 5, 14)).toBe(14);
@@ -79,7 +79,7 @@ describe("limitProblem", () => {
     expect(limitProblem(d, NaN, 20)).toMatch(/whole number/);
   });
   it("lets a limit that is not lower-only go up to its own maximum whatever the ceiling says", () => {
-    expect(limitProblem(limitDefinition("alertMailShare"), 90, 40)).toBeNull();
-    expect(limitProblem(limitDefinition("alertMailShare"), 91, 40)).toMatch(/10 to 90/);
+    expect(limitProblem(limitDefinition("alertMailShare"), 50, 40)).toBeNull();
+    expect(limitProblem(limitDefinition("alertMailShare"), 51, 40)).toMatch(/10 to 50/);
   });
 });

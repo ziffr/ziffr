@@ -54,7 +54,7 @@ describe("the Workspace level", () => {
   it("refuses values outside the range, above the Installation's ceiling, and limits that are not the Workspace's", async () => {
     const w = await ws(); const sara = await w.person("owner"); const a = w.actor(sara);
     for (const bad of [0, 91, -5, 2.5, "30", NaN, undefined, {}]) expect(await refusal(setWorkspaceSettableLimit(a, "viewLinkDays", bad)), String(bad)).toBeInstanceOf(LimitRefused);
-    for (const bad of [9, 91]) expect(await refusal(setWorkspaceSettableLimit(a, "alertMailShare", bad))).toBeInstanceOf(LimitRefused);
+    for (const bad of [9, 51]) expect(await refusal(setWorkspaceSettableLimit(a, "alertMailShare", bad))).toBeInstanceOf(LimitRefused);
     for (const bad of [29, 366]) expect(await refusal(setWorkspaceSettableLimit(a, "unusedDays", bad))).toBeInstanceOf(LimitRefused);
     for (const key of ["overdueDaysBack", "calendarDaysBack", "nope", "", null, 7, "__proto__"]) expect(await refusal(setWorkspaceSettableLimit(a, key, 10)), String(key)).toBeInstanceOf(LimitRefused);
     // The Installation's ceiling for Alerts per person: a Workspace may lower it, never raise it.
@@ -83,7 +83,7 @@ describe("the Workspace level", () => {
     }
     expect(await refusal(setWorkspaceSettableLimit({ personId: "sara", workspaceId: DEMO_WORKSPACE_ID, role: "owner" }, "viewLinkDays", 10))).toBeInstanceOf(DemoReadOnly);
     expect(await effectiveLimit("viewLinkDays", w.id)).toBe(90);
-    for (const [col, v] of [["view_link_days", 0], ["view_link_days", 91], ["alert_mail_share", 5], ["alerts_per_person", 201], ["unused_days", 10]] as const) {
+    for (const [col, v] of [["view_link_days", 0], ["view_link_days", 91], ["alert_mail_share", 5], ["alert_mail_share", 51], ["alerts_per_person", 201], ["unused_days", 10]] as const) {
       expect((await db().from("workspace_settable_limits").insert({ workspace_id: w.id, [col]: v })).error, `${col}=${v}`).not.toBeNull();
     }
     expect(await auditRowsOf(w.id, "workspace.settable_limit_changed")).toEqual([]);
