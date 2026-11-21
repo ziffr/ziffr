@@ -84,7 +84,7 @@ export default async function NewMetricPage({ searchParams }: { searchParams: Pr
   }
 
   // A new Metric takes values every way Ziffr knows (web form, email, Slack), so each submitter can use what suits
-  // them; a duplicate keeps its original's. The owner can narrow it here or later on the Metric's Settings tab.
+  // them; a duplicate keeps its original's. The owner can narrow it here or later on the Metric's Description tab.
   const [people, viewer, demo, profile, numberStyle, attainmentMethod, refusal] = await Promise.all([getProfiles(), viewerId(), isDemo(), workspaceProfile(await currentActor()), getNumberStyle(), getAttainmentMethod(), newMetricRefusal(await currentActor())]);
   // A new money Metric starts with the unit of the Workspace Profile's currency (spec 0022), one from the catalog too.
   const money = moneyUnit(profile.currency);

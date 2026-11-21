@@ -8,7 +8,7 @@ A Feed belongs to the workspace, not to a person. Its values show up under its n
 
 1. **Create the Feed.** In Settings, Feeds (Owners and Admins only), create a Feed named after the system it reads, such as "HubSpot".
 2. **Make a Feed Key.** On the same page, create a key for the Feed with an end date within a year. Copy it: it is shown once. Set it as `ZIFFR_FEED_KEY` where the Feed runs, next to `ZIFFR_URL` (where Ziffr runs).
-3. **Choose the Feed on each Metric.** On a Metric's Settings tab, under "Who submits", pick the Feed in "Values from a Feed" and press Add. That turns on the Metric's API Source ("API and Feeds"). A Metric's owner and its Editors can do this.
+3. **Choose the Feed on each Metric.** On a Metric's Description tab, under "Who submits", pick the Feed in "Values from a Feed" and press Add. That turns on the Metric's API Source ("API and Feeds"). A Metric's owner and its Editors can do this.
 4. **Run it.** Pick one of the three ways below.
 
 The Feeds page shows, for each Feed, its keys and their recent calls, the Metrics it submits to, when it last called, and how many values it recorded and had refused in the last 24 hours.

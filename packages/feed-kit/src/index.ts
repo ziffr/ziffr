@@ -85,7 +85,7 @@ export async function runFeed(feed: FeedDefinition, options: RunOptions = {}): P
   const listed = new Map<string, FeedMetric>();
   for await (const m of client.feed.metrics()) listed.set(m.slug, m);
   const unknown = Object.keys(feed.metrics).filter((s) => !listed.has(s));
-  for (const s of unknown) log(`${s}: Ziffr does not list this Metric for the Feed (choose the Feed under the Metric's Settings, and keep its API Source on).`);
+  for (const s of unknown) log(`${s}: Ziffr does not list this Metric for the Feed (choose the Feed on the Metric's Description tab, and keep its API Source on).`);
 
   // What to fetch: the current period always (its value may still change), earlier ones only while they are empty.
   const plan: FetchContext[] = [];
