@@ -15,6 +15,8 @@ create table share_proposals (
   -- A View Link that keeps the numbers as they are when it is made, or shows them live.
   frozen boolean not null default true,
   recipient_email text check (char_length(recipient_email) <= 254),
+  -- The address in one spelling (mail.ts mailboxKey), so the limit per address counts every spelling of it, in every Workspace.
+  recipient_key text check (char_length(recipient_key) <= 254),
   recipient_person_id text references profiles(id) on delete cascade,
   recipient_group_id bigint references groups(id) on delete cascade,
   -- The last day a View Link works.
@@ -34,6 +36,21 @@ create table share_proposals (
         and ((recipient_person_id is null) <> (recipient_group_id is null)))
   )
 );
+create index share_proposals_address_idx on share_proposals (recipient_key, decided_at) where status = 'confirmed' and recipient_key is not null;
 create index share_proposals_person_idx on share_proposals (workspace_id, proposer_id, status, expires_at);
+-- The limits, held here so that requests at the same moment cannot pass them (the core checks first, for words): a person has at
+-- most 10 open proposals and makes at most 30 in 24 hours, counted under a lock on the person.
+create or replace function share_proposals_limits() returns trigger language plpgsql set search_path = public as $$
+begin
+  perform pg_advisory_xact_lock(hashtext('share_proposals:' || new.workspace_id::text || ':' || new.proposer_id));
+  if (select count(*) from share_proposals where workspace_id = new.workspace_id and proposer_id = new.proposer_id and status = 'open' and expires_at > now()) >= 10 then
+    raise exception 'Too many open Share Proposals.' using errcode = 'ZF538';
+  end if;
+  if (select count(*) from share_proposals where workspace_id = new.workspace_id and proposer_id = new.proposer_id and created_at > now() - interval '24 hours') >= 30 then
+    raise exception 'Too many Share Proposals today.' using errcode = 'ZF539';
+  end if;
+  return new;
+end $$;
+create trigger share_proposals_limits before insert on share_proposals for each row execute function share_proposals_limits();
 alter table share_proposals enable row level security;
 select attach_demo_guard('share_proposals');

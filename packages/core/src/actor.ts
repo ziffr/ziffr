@@ -88,7 +88,7 @@ export const SCOPE_LABEL: Record<Scope, string> = { "metrics:read": "Read metric
 export const scopeRefusal = (scope: Scope) => `This key lacks the scope "${SCOPE_LABEL[scope]}" (${scope}).`;
 
 /** Scopes only a creator whose role may create can give a key. */
-export const CREATING_SCOPES: Scope[] = ["metrics:write", "metrics:edit", "dashboards:write", "view-links:write", "workflows:write", "workflows:people"];
+export const CREATING_SCOPES: Scope[] = ["metrics:write", "metrics:edit", "dashboards:write", "view-links:write", "workflows:write", "workflows:people", "shares:propose"];
 
 /** Refuses an Access Key without the scope; a signed-in person passes (their role decides elsewhere). */
 export function assertScope(actor: Actor | KeyActor, scope: Scope): void {

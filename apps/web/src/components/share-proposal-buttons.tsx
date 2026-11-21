@@ -8,8 +8,8 @@ import { Button } from "@/components/ui/button";
 import { shown, unwrap } from "@/lib/action-error";
 import { confirmProposal, declineProposal } from "@/app/share-proposal-actions";
 
-/** The two choices, then what happened. `showConfirm` is false in lists, where the person first looks at the preview; `closed` says why there is nothing to choose any more. */
-export function ShareProposalButtons({ id, showConfirm = true, closed = null }: { id: number; showConfirm?: boolean; closed?: string | null }) {
+/** The two choices, then what happened. `showConfirm` is false in lists, where the person first looks at the preview; `seen` is the fingerprint of the preview the page showed, which confirming a View Link must still match; `closed` says why there is nothing to choose any more. */
+export function ShareProposalButtons({ id, seen = "", showConfirm = true, closed = null }: { id: number; seen?: string; showConfirm?: boolean; closed?: string | null }) {
   const router = useRouter();
   const [pending, start] = useTransition();
   const [result, setResult] = useState<{ message: string; linkPath?: string | null } | null>(null);
@@ -31,7 +31,7 @@ export function ShareProposalButtons({ id, showConfirm = true, closed = null }: 
   return (
     <div>
       <div className="flex flex-wrap gap-2">
-        {showConfirm && <Button disabled={pending} onClick={() => run(() => confirmProposal(id))}><Check aria-hidden /> Confirm</Button>}
+        {showConfirm && <Button disabled={pending} onClick={() => run(() => confirmProposal(id, seen))}><Check aria-hidden /> Confirm</Button>}
         <Button variant="outline" disabled={pending} onClick={() => run(() => declineProposal(id))}><X aria-hidden /> Decline</Button>
       </div>
       {error && <p role="alert" className="mt-2 text-sm text-[var(--color-danger,#b00020)]">{error}</p>}

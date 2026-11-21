@@ -10,7 +10,7 @@ import { createDashboard, placeWidget } from "./dashboards";
 import { db } from "./db";
 import type { MailTransport } from "./mail";
 import {
-  confirmShareProposal, declineShareProposal, getShareProposal, listShareProposals, MAX_OPEN_PROPOSALS, previewShareProposal, PROPOSAL_EMAILS_PER_ADDRESS,
+  confirmShareProposal, declineShareProposal, getShareProposal, listShareProposals, MAX_OPEN_PROPOSALS, previewFingerprint, previewShareProposal, PROPOSAL_EMAILS_PER_ADDRESS,
 } from "./share-proposals";
 import { DEMO_WORKSPACE_ID } from "./team";
 import { auditRowsOf, changeRows, insertRow, rowsOf, workspace } from "./test/db-fixtures";
@@ -25,6 +25,9 @@ async function ws(name?: string) { const w = await workspace(name); cleanups.pus
 const inDays = (n: number) => new Date(Date.now() + n * 86400000).toISOString().slice(0, 10);
 const forbidden = expect.any(Forbidden);
 const refused = expect.any(Refused);
+
+/** What the confirm page would have shown, as its fingerprint. */
+const seen = async (w: Awaited<ReturnType<typeof ws>>, person: string, id: number) => previewFingerprint(await previewShareProposal(w.actor(person), id));
 
 /** A stub transport that keeps what would have been sent. */
 function outbox() {
@@ -121,7 +124,7 @@ describe("confirming a View Link", () => {
     const p = await proposeShareWithKey(key, viewLink(dash, { message: "Hi Jenny,\nthe coffee numbers." }));
     const mail = outbox();
     expect(mail.sent).toEqual([]);
-    const done = await confirmShareProposal(w.actor(sara), p.id, mail.transport);
+    const done = await confirmShareProposal(w.actor(sara), p.id, await seen(w, sara, p.id), mail.transport);
     expect(done).toMatchObject({ kind: "view_link", emailState: "sent", linkPath: expect.stringMatching(/^\/v\/[A-Za-z0-9_-]{20,}$/) });
     expect(mail.sent).toHaveLength(1);
     expect(mail.sent[0]).toMatchObject({ to: "jenny@example.test", subject: "Numbers were shared with you on Ziffr" });
@@ -141,7 +144,7 @@ describe("confirming a View Link", () => {
     const p = await proposeShareWithKey(key, viewLink(dash, { live: true }));
     expect(p.live).toBe(true);
     const failing: MailTransport = async () => { throw new Error("down"); };
-    expect(await confirmShareProposal(w.actor(sara), p.id, failing)).toMatchObject({ emailState: "failed", linkPath: expect.any(String) });
+    expect(await confirmShareProposal(w.actor(sara), p.id, await seen(w, sara, p.id), failing)).toMatchObject({ emailState: "failed", linkPath: expect.any(String) });
     expect((await rowsOf("view_links", { workspace_id: w.id }))[0]).toMatchObject({ frozen: null });
   });
   it("previews what the recipient sees, only for the person", async () => {
@@ -156,10 +159,11 @@ describe("confirming a View Link", () => {
     const { w, sara, dash, key } = await setup();
     const a = await proposeShareWithKey(key, viewLink(dash)); const b = await proposeShareWithKey(key, viewLink(dash));
     const mail = outbox();
-    await confirmShareProposal(w.actor(sara), a.id, mail.transport);
-    await expect(confirmShareProposal(w.actor(sara), a.id, mail.transport)).rejects.toEqual(refused);
+    await confirmShareProposal(w.actor(sara), a.id, await seen(w, sara, a.id), mail.transport);
+    await expect(confirmShareProposal(w.actor(sara), a.id, await seen(w, sara, a.id), mail.transport)).rejects.toEqual(refused);
+    const before = await seen(w, sara, b.id);
     await declineShareProposal(w.actor(sara), b.id);
-    await expect(confirmShareProposal(w.actor(sara), b.id, mail.transport)).rejects.toEqual(refused);
+    await expect(confirmShareProposal(w.actor(sara), b.id, before, mail.transport)).rejects.toEqual(refused);
     expect(mail.sent).toHaveLength(1);
     expect(await auditRowsOf(w.id, "share_proposal.declined")).toHaveLength(1);
   });
@@ -168,7 +172,7 @@ describe("confirming a View Link", () => {
     const p = await proposeShareWithKey(key, viewLink(dash));
     await changeRows("share_proposals", { id: p.id }, { expires_at: new Date(Date.now() - 1000).toISOString() });
     const mail = outbox();
-    await expect(confirmShareProposal(w.actor(sara), p.id, mail.transport)).rejects.toEqual(refused);
+    await expect(confirmShareProposal(w.actor(sara), p.id, await seen(w, sara, p.id), mail.transport)).rejects.toEqual(refused);
     await expect(declineShareProposal(w.actor(sara), p.id)).rejects.toEqual(refused);
     expect(await listShareProposals(w.actor(sara))).toEqual([]);
     expect(await getShareProposal(w.actor(sara), p.id)).toMatchObject({ status: "expired" });
@@ -180,12 +184,12 @@ describe("confirming a View Link", () => {
     const other = await setup();
     const p = await proposeShareWithKey(key, viewLink(dash));
     const mail = outbox();
-    await expect(confirmShareProposal(w.actor(ben, "member"), p.id, mail.transport)).rejects.toEqual(forbidden);
-    await expect(confirmShareProposal(w.actor(w.id === other.w.id ? sara : other.sara), p.id, mail.transport)).rejects.toEqual(forbidden);
+    await expect(confirmShareProposal(w.actor(ben, "member"), p.id, "", mail.transport)).rejects.toEqual(forbidden);
+    await expect(confirmShareProposal(w.actor(w.id === other.w.id ? sara : other.sara), p.id, "", mail.transport)).rejects.toEqual(forbidden);
     await expect(declineShareProposal(w.actor(ben, "member"), p.id)).rejects.toEqual(forbidden);
     // The key itself, as an Actor carrying its key, is refused whatever it holds.
     const asKey = { ...w.actor(sara), key: { id: String(keyId), scopes: ["shares:propose", "dashboards:read", "shares:write", "view-links:write"] } } as unknown as Actor;
-    await expect(confirmShareProposal(asKey, p.id, mail.transport)).rejects.toEqual(forbidden);
+    await expect(confirmShareProposal(asKey, p.id, "", mail.transport)).rejects.toEqual(forbidden);
     await expect(declineShareProposal(asKey, p.id)).rejects.toEqual(forbidden);
     expect(await getShareProposal(w.actor(ben, "member"), p.id)).toBeNull();
     expect(mail.sent).toEqual([]);
@@ -195,26 +199,27 @@ describe("confirming a View Link", () => {
   it("checks again at confirmation: a dashboard that changed hands makes nothing and stays open", async () => {
     const { w, sara, ben, dash, key } = await setup();
     const p = await proposeShareWithKey(key, viewLink(dash));
+    const before = await seen(w, sara, p.id);
     await changeRows("dashboards", { id: dash }, { owner_id: ben });
     const mail = outbox();
-    await expect(confirmShareProposal(w.actor(sara), p.id, mail.transport)).rejects.toEqual(forbidden);
+    await expect(confirmShareProposal(w.actor(sara), p.id, before, mail.transport)).rejects.toEqual(forbidden);
     expect((await getShareProposal(w.actor(sara), p.id))?.status).toBe("open");
     expect(mail.sent).toEqual([]);
   });
   it("limits links to one address in a day", async () => {
     const { w, sara, dash, key } = await setup();
     const mail = outbox();
-    const day = { workspace_id: w.id, proposer_id: sara, kind: "view_link", dashboard_id: dash, recipient_email: "Jenny+x@Example.test", ends_on: inDays(5), status: "confirmed", decided_at: new Date().toISOString(), expires_at: inDays(5) };
+    const day = { workspace_id: w.id, proposer_id: sara, kind: "view_link", dashboard_id: dash, recipient_email: "Jenny+x@Example.test", recipient_key: "jenny@example.test", ends_on: inDays(5), status: "confirmed", decided_at: new Date().toISOString(), expires_at: inDays(5) };
     for (let i = 0; i < PROPOSAL_EMAILS_PER_ADDRESS; i++) await insertRow("share_proposals", day);
     const extra = await proposeShareWithKey(key, viewLink(dash, { email: "jenny@example.test" }));
-    await expect(confirmShareProposal(w.actor(sara), extra.id, mail.transport)).rejects.toEqual(refused);
+    await expect(confirmShareProposal(w.actor(sara), extra.id, await seen(w, sara, extra.id), mail.transport)).rejects.toEqual(refused);
     expect(mail.sent).toEqual([]);
   });
   it("refuses without email set up and leaves the proposal open", async () => {
     const { w, sara, dash, key } = await setup();
     const p = await proposeShareWithKey(key, viewLink(dash));
     const smtp = process.env.ZIFFR_SMTP_URL; delete process.env.ZIFFR_SMTP_URL;
-    try { await expect(confirmShareProposal(w.actor(sara), p.id, outbox().transport)).rejects.toEqual(refused); } finally { process.env.ZIFFR_SMTP_URL = smtp; }
+    try { await expect(confirmShareProposal(w.actor(sara), p.id, await seen(w, sara, p.id), outbox().transport)).rejects.toEqual(refused); } finally { process.env.ZIFFR_SMTP_URL = smtp; }
     expect((await getShareProposal(w.actor(sara), p.id))?.status).toBe("open");
   });
 });
@@ -224,13 +229,13 @@ describe("confirming a Share", () => {
     const { w, sara, ben, dash, key } = await setup();
     const p = await proposeShareWithKey(key, { dashboard: dash, person: ben });
     expect(p).toMatchObject({ how: "share", ends: null });
-    const done = await confirmShareProposal(w.actor(sara), p.id);
+    const done = await confirmShareProposal(w.actor(sara), p.id, "");
     expect(done).toEqual({ kind: "share", emailState: null, linkPath: null });
     expect(await rowsOf("shares", { workspace_id: w.id, object_id: dash, user_id: ben })).toMatchObject([{ role: "viewer" }]);
     const { data: g } = await db().from("groups").insert({ workspace_id: w.id, name: "Sales" }).select("id").single();
     const q = await proposeShareWithKey(key, { dashboard: dash, group: g!.id });
     expect(q.recipient).toBe("Sales");
-    await confirmShareProposal(w.actor(sara), q.id);
+    await confirmShareProposal(w.actor(sara), q.id, "");
     expect(await rowsOf("shares", { workspace_id: w.id, object_id: dash, group_id: g!.id })).toMatchObject([{ role: "viewer" }]);
     expect(await auditRowsOf(w.id, "share_proposal.confirmed")).toHaveLength(2);
   });
@@ -238,8 +243,67 @@ describe("confirming a Share", () => {
     const { w, sara, ben, dash, key } = await setup();
     const p = await proposeShareWithKey(key, { dashboard: dash, person: ben });
     await w.dropMember(ben);
-    await expect(confirmShareProposal(w.actor(sara), p.id)).rejects.toEqual(forbidden);
+    await expect(confirmShareProposal(w.actor(sara), p.id, "")).rejects.toEqual(forbidden);
     expect(await rowsOf("shares", { workspace_id: w.id, user_id: ben })).toEqual([]);
     expect((await getShareProposal(w.actor(sara), p.id))?.status).toBe("open");
+  });
+
+});
+
+describe("what the person confirms is what goes out, and what only an assistant could cause", () => {
+  it("refuses a View Link when the dashboard gained a widget after the preview was drawn", async () => {
+    const { w, sara, dash, key } = await setup();
+    const p = await proposeShareWithKey(key, viewLink(dash));
+    const before = await seen(w, sara, p.id);
+    const extra = await w.metric(sara, { name: "Payroll" });
+    await placeWidget(w.actor(sara), dash, { type: "metric", id: extra.id });
+    const mail = outbox();
+    await expect(confirmShareProposal(w.actor(sara), p.id, before, mail.transport)).rejects.toEqual(refused);
+    await expect(confirmShareProposal(w.actor(sara), p.id, "", mail.transport)).rejects.toEqual(refused);
+    expect(mail.sent).toEqual([]);
+    expect(await rowsOf("view_links", { workspace_id: w.id })).toEqual([]);
+    // Looking again shows the new widget, and then it can be confirmed.
+    await confirmShareProposal(w.actor(sara), p.id, await seen(w, sara, p.id), mail.transport);
+    expect(mail.sent).toHaveLength(1);
+  });
+  it("does not replace someone's existing access, when proposing or when confirming", async () => {
+    const { w, sara, ben, dash, key } = await setup();
+    await insertRow("shares", { workspace_id: w.id, object_type: "dashboard", object_id: dash, user_id: ben, role: "editor" });
+    await expect(proposeShareWithKey(key, { dashboard: dash, person: ben })).rejects.toEqual(refused);
+    const gone = await setup();
+    const p = await proposeShareWithKey(gone.key, { dashboard: gone.dash, person: gone.ben });
+    await insertRow("shares", { workspace_id: gone.w.id, object_type: "dashboard", object_id: gone.dash, user_id: gone.ben, role: "editor" });
+    await expect(confirmShareProposal(gone.w.actor(gone.sara), p.id, "")).rejects.toEqual(refused);
+    expect(await rowsOf("shares", { workspace_id: gone.w.id, user_id: gone.ben })).toMatchObject([{ role: "editor" }]);
+    void sara;
+  });
+  it("cannot be confirmed once the assistant that prepared it is disconnected", async () => {
+    const { w, sara, dash, key, keyId } = await setup();
+    const p = await proposeShareWithKey(key, viewLink(dash));
+    const before = await seen(w, sara, p.id);
+    await changeRows("access_keys", { id: keyId }, { revoked_at: new Date().toISOString() });
+    const mail = outbox();
+    await expect(confirmShareProposal(w.actor(sara), p.id, before, mail.transport)).rejects.toEqual(refused);
+    expect(mail.sent).toEqual([]);
+    await declineShareProposal(w.actor(sara), p.id);
+  });
+  it("keeps the database's cap when proposals arrive at the same moment", async () => {
+    const { w, sara, dash, key } = await setup();
+    const results = await Promise.allSettled(Array.from({ length: MAX_OPEN_PROPOSALS + 6 }, (_, i) => proposeShareWithKey(key, viewLink(dash, { email: `q${i}@example.test` }))));
+    expect(results.filter((r) => r.status === "fulfilled")).toHaveLength(MAX_OPEN_PROPOSALS);
+    expect((await listShareProposals(w.actor(sara)))).toHaveLength(MAX_OPEN_PROPOSALS);
+  });
+  it("labels the View Link without the address, and counts an address in every Workspace", async () => {
+    const a = await setup(); const b = await setup();
+    const mail = outbox();
+    const day = (x: Awaited<ReturnType<typeof setup>>) => ({ workspace_id: x.w.id, proposer_id: x.sara, kind: "view_link", dashboard_id: x.dash, recipient_email: "jenny@example.test", recipient_key: "jenny@example.test", ends_on: inDays(5), status: "confirmed", decided_at: new Date().toISOString(), expires_at: inDays(5) });
+    for (let i = 0; i < PROPOSAL_EMAILS_PER_ADDRESS; i++) await insertRow("share_proposals", day(a));
+    const p = await proposeShareWithKey(b.key, viewLink(b.dash));
+    await expect(confirmShareProposal(b.w.actor(b.sara), p.id, await seen(b.w, b.sara, p.id), mail.transport)).rejects.toEqual(refused);
+    const c = await setup();
+    const q = await proposeShareWithKey(c.key, viewLink(c.dash, { email: "someone@example.test" }));
+    await confirmShareProposal(c.w.actor(c.sara), q.id, await seen(c.w, c.sara, q.id), mail.transport);
+    const [link] = await rowsOf("view_links", { workspace_id: c.w.id });
+    expect(String(link.label)).not.toContain("someone");
   });
 });

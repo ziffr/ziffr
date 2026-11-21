@@ -6,10 +6,10 @@ import { currentActor } from "@/lib/viewer";
 import { attempt } from "@/lib/action-result";
 import { confirmShareProposal, declineShareProposal } from "@ziffr/core/share-proposals";
 
-/** Confirms a proposal: makes the View Link or gives the Share, and emails the recipient of a View Link. Answers what happened in words. */
-export async function confirmProposal(id: number) {
+/** Confirms a proposal, given the fingerprint of what the page showed: makes the View Link or gives the Share, and emails the recipient of a View Link. Answers what happened in words. */
+export async function confirmProposal(id: number, seen: string) {
   return attempt(async () => {
-    const done = await confirmShareProposal(await currentActor(), Number(id));
+    const done = await confirmShareProposal(await currentActor(), Number(id), typeof seen === "string" ? seen : null);
     revalidatePath("/", "layout");
     if (done.kind === "share") return { message: "Shared. They can look at the dashboard in Ziffr now.", linkPath: null };
     return done.emailState === "sent"

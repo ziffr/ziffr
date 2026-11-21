@@ -2,7 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
 import { currentActor } from "@/lib/viewer";
-import { getShareProposal, previewShareProposal } from "@ziffr/core/share-proposals";
+import { getShareProposal, previewFingerprint, previewShareProposal } from "@ziffr/core/share-proposals";
 import { PageHeader } from "@/components/page-header";
 import { DashboardReader } from "@/components/dashboard-reader";
 import { ShareProposalButtons } from "@/components/share-proposal-buttons";
@@ -25,7 +25,7 @@ export default async function ShareProposalPage({ params }: { params: Promise<{ 
       <PageHeader title={proposalTitle(p)} sub="An assistant or program prepared this. Nothing is shared and nothing is sent until you confirm here." />
       <div className="stock space-y-4 rounded-[var(--radius-card)] p-5">
         <ProposalFacts p={p} />
-        <ShareProposalButtons id={p.id} closed={p.status === "open" ? null : p.status === "expired" ? "This proposal ran out after 7 days. Ask the assistant to prepare it again." : p.status === "confirmed" ? (p.emailState === "failed" ? "You confirmed this, but the email could not be sent." : "You confirmed this.") : "You declined this."} />
+        <ShareProposalButtons id={p.id} seen={previewFingerprint(preview)} closed={p.status === "open" ? null : p.status === "expired" ? "This proposal ran out after 7 days. Ask the assistant to prepare it again." : p.status === "confirmed" ? (p.emailState === "failed" ? "You confirmed this, but the email could not be sent." : "You confirmed this.") : "You declined this."} />
       </div>
       {p.status === "open" && p.kind === "view_link" && (
         <section className="mt-6">

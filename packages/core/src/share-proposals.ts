@@ -18,6 +18,7 @@ import { assertNotTrial } from "./trials";
 import { visibleDashboards } from "./access";
 import { openNames } from "./sealed-columns";
 import { assertMembersIn, share, shareWithGroup } from "./sharing";
+import { createHash } from "node:crypto";
 import { createViewLink, endDate, previewViewLink, type ViewPayload } from "./view-links";
 
 /** Days a Share Proposal can be confirmed. */
@@ -30,6 +31,8 @@ export const PROPOSAL_MESSAGE_MAX = 500;
 export const PROPOSAL_EMAILS_PER_PERSON = 20;
 /** View Link emails to one address (spelled alike) in 24 hours. */
 export const PROPOSAL_EMAILS_PER_ADDRESS = 3;
+/** Share Proposals one person may make in 24 hours (the database holds it too). */
+export const PROPOSALS_PER_DAY = 30;
 
 const DAY = 86400000;
 
@@ -58,10 +61,10 @@ export const proposalPath = (id: number) => `/actions/share/${id}`;
 
 type Row = {
   id: number; workspace_id: string; proposer_id: string; access_key_id: number | null; kind: "view_link" | "share"; dashboard_id: number; snapshot_id: number | null; frozen: boolean;
-  recipient_email: string | null; recipient_person_id: string | null; recipient_group_id: number | null; ends_on: string | null; message: string | null;
+  recipient_email: string | null; recipient_key: string | null; recipient_person_id: string | null; recipient_group_id: number | null; ends_on: string | null; message: string | null;
   status: "open" | "confirmed" | "declined"; created_at: string; expires_at: string; email_state: "sent" | "failed" | "not_sent" | null;
 };
-const COLUMNS = "id, workspace_id, proposer_id, access_key_id, kind, dashboard_id, snapshot_id, frozen, recipient_email, recipient_person_id, recipient_group_id, ends_on, message, status, created_at, expires_at, email_state";
+const COLUMNS = "id, workspace_id, proposer_id, access_key_id, kind, dashboard_id, snapshot_id, frozen, recipient_email, recipient_key, recipient_person_id, recipient_group_id, ends_on, message, status, created_at, expires_at, email_state";
 
 /** A message as it is kept: control characters out, blank lines collapsed, at most PROPOSAL_MESSAGE_MAX characters. */
 export function cleanMessage(raw: unknown): string | null {
@@ -77,6 +80,24 @@ export async function ownDashboard(actor: Pick<Actor, "workspaceId" | "personId"
   const d = Number.isInteger(id) ? (await visibleDashboards(actor.workspaceId, actor.personId)).find((x) => x.id === id) : undefined;
   if (!d || d.owner_id !== actor.personId) throw new Forbidden("That dashboard was not found.");
   return { id: d.id, name: d.name };
+}
+
+/** What a View Link would show, as a short fingerprint: its name and introduction, the Metrics and each widget with the Metrics
+ * it draws. The confirm page sends the one it showed; confirming refuses when the dashboard holds anything else by then, so
+ * nothing added after the person looked goes out to a stranger unseen. */
+export function previewFingerprint(view: ViewPayload | null): string {
+  if (!view) return "";
+  const shape = { name: view.name, intro: view.intro ?? "", snapshot: view.snapshot?.label ?? null, metrics: view.data.metrics.map((m) => m.id).sort((a, b) => a - b), widgets: (view.widgets ?? []).map((w) => [w.id, w.template, w.title ?? "", [...(w.metric_ids ?? [])].sort((a, b) => a - b)]) };
+  return createHash("sha256").update(JSON.stringify(shape)).digest("hex").slice(0, 32);
+}
+
+/** Refuses a Share to someone who already has access to the dashboard: confirming would replace their role, and could take
+ * Editor away. */
+async function assertNoShareYet(workspaceId: string, dashboardId: number, to: { person?: string | null; group?: number | null }): Promise<void> {
+  let q = db().from("shares").select("id", { count: "exact", head: true }).eq("workspace_id", workspaceId).eq("object_type", "dashboard").eq("object_id", dashboardId);
+  q = to.person ? q.eq("user_id", to.person) : q.eq("group_id", Number(to.group));
+  const { count } = await q;
+  if (count) throw new Refused("They already have access to that dashboard. Change it in Ziffr if you want to.");
 }
 
 /** Open proposals the person has, not counting those that ran out. */
@@ -111,7 +132,7 @@ export async function createShareProposal(actor: Actor, accessKeyId: number, inp
     if (snapshot !== null && !Number.isInteger(snapshot)) throw new Refused("The Snapshot was not found.");
     // The preview is what the recipient would see; none means nothing to show (a Snapshot not shown yet, an empty dashboard).
     if (!(await previewViewLink(actor, dashboard.id, snapshot))) throw new Refused(snapshot === null ? "The dashboard has nothing to show yet." : "Show the Snapshot to everyone with access first, then propose a link to it.");
-    Object.assign(row, { kind: "view_link", recipient_email: email, ends_on: endDate(input.ends), message: cleanMessage(input.message), snapshot_id: snapshot, frozen: snapshot !== null || input.live !== true });
+    Object.assign(row, { kind: "view_link", recipient_email: email, recipient_key: mailboxKey(email), ends_on: endDate(input.ends), message: cleanMessage(input.message), snapshot_id: snapshot, frozen: snapshot !== null || input.live !== true });
     recipient = "email";
   } else {
     if (input.message !== undefined && input.message !== null && input.message !== "") throw new Refused("A message goes only with a View Link.");
@@ -120,16 +141,21 @@ export async function createShareProposal(actor: Actor, accessKeyId: number, inp
     if (input.person !== undefined) {
       if (typeof input.person !== "string" || input.person === actor.personId) throw new Forbidden();
       await assertMembersIn(actor, [input.person]);
+      await assertNoShareYet(actor.workspaceId, dashboard.id, { person: input.person });
       Object.assign(row, { kind: "share", recipient_person_id: input.person });
     } else {
       const { data: g } = await db().from("groups").select("id").eq("id", Number(input.group)).eq("workspace_id", actor.workspaceId).maybeSingle();
       if (!g) throw new Forbidden();
+      await assertNoShareYet(actor.workspaceId, dashboard.id, { group: g.id });
       Object.assign(row, { kind: "share", recipient_group_id: g.id });
     }
     recipient = "share";
   }
   if ((await openCount(actor)) >= MAX_OPEN_PROPOSALS) throw new Refused(`You have ${MAX_OPEN_PROPOSALS} Share Proposals waiting. Confirm or decline some in Ziffr first.`);
   const { data: made, error } = await db().from("share_proposals").insert(row).select("id").single();
+  // The database's own limits, for requests made at the same moment.
+  if (error?.code === "ZF538") throw new Refused(`You have ${MAX_OPEN_PROPOSALS} Share Proposals waiting. Confirm or decline some in Ziffr first.`);
+  if (error?.code === "ZF539") throw new Refused(`At most ${PROPOSALS_PER_DAY} Share Proposals a day. Try again tomorrow.`);
   if (error || !made) throw new Error("The proposal could not be made.");
   // Never the address or the message: the log says that one was asked for, by which connection, and about what.
   await audit(actor, { kind: "share_proposal.proposed", accessKeyId, object: { type: "dashboard", id: dashboard.id, name: dashboard.name }, details: { proposal_id: made.id, how: recipient === "email" ? "view_link" : "share" } });
@@ -207,9 +233,16 @@ async function claim(actor: Actor, id: number, status: "confirmed" | "declined")
   return row;
 }
 
+/** Whether a View Link to the proposal's dashboard was made by the person since the proposal was claimed. */
+async function linkMadeSince(actor: Actor, row: Row, since: string): Promise<boolean> {
+  if (row.kind !== "view_link") return false;
+  const { count } = await db().from("view_links").select("id", { count: "exact", head: true }).eq("workspace_id", actor.workspaceId).eq("object_id", row.dashboard_id).eq("created_by", actor.personId).gte("created_at", since);
+  return Boolean(count);
+}
+
 /** Hands a claimed proposal back as open again, when what it was to do failed. */
 async function release(actor: Actor, id: number): Promise<void> {
-  await db().from("share_proposals").update({ status: "open", decided_at: null }).eq("id", id).eq("workspace_id", actor.workspaceId);
+  await db().from("share_proposals").update({ status: "open", decided_at: null }).eq("id", id).eq("workspace_id", actor.workspaceId).eq("status", "confirmed");
 }
 
 /** The name of the connection that proposed, for the Audit Log. */
@@ -232,19 +265,27 @@ export function viewLinkEmail(o: { sender: string; dashboard: string; url: strin
 
 /** Confirms a proposal as the person themselves: makes the View Link or gives the Share through the core's own operations,
  * which check once more that they own it and may share it, then emails the recipient of a View Link. Never through a key.
+ * `seen` is the fingerprint of what the person was shown (previewFingerprint); a View Link is made only if it is still what would go out.
  * Returns what happened; the link's address is given so the person can send it themselves when the email could not go. */
-export async function confirmShareProposal(actor: Actor, id: number, transport?: MailTransport): Promise<{ kind: "view_link" | "share"; emailState: "sent" | "failed" | null; linkPath: string | null }> {
+export async function confirmShareProposal(actor: Actor, id: number, seen: string | null, transport?: MailTransport): Promise<{ kind: "view_link" | "share"; emailState: "sent" | "failed" | null; linkPath: string | null }> {
   onlyAPerson(actor);
   refuseInDemo(actor);
   assertCan(actor, "share");
   const peek = Number.isInteger(id) ? await mine(actor, id) : null;
   if (!peek) throw new Forbidden();
+  // An assistant that was disconnected prepared nothing the person should still act on without asking again.
+  const { data: key } = peek.access_key_id === null ? { data: null } : await db().from("access_keys").select("revoked_at").eq("id", peek.access_key_id).eq("workspace_id", actor.workspaceId).maybeSingle();
+  if (!key || key.revoked_at) throw new Refused("The assistant or program that prepared this is no longer connected. Decline it, and ask again if you still want it.");
+  if (peek.kind === "share") await assertNoShareYet(actor.workspaceId, peek.dashboard_id, { person: peek.recipient_person_id, group: peek.recipient_group_id });
   if (peek.kind === "view_link") {
+    // What goes out is what the person looked at: anything added to the dashboard since must be looked at too.
+    if (!seen || previewFingerprint(await previewViewLink(actor, peek.dashboard_id, peek.snapshot_id)) !== seen) throw new Refused("The dashboard changed since you looked at it. Look at it again, then confirm.");
     await assertNotTrial(actor.workspaceId, "Sharing by email");
     if (!(await mailOn())) throw new Refused("Email is not set up on this Ziffr, so the recipient cannot be told. Make the View Link yourself on the dashboard and send it.");
-    await assertEmailLimits(actor, peek.recipient_email ?? "");
+    await assertEmailLimits(actor, peek.recipient_key ?? "");
   }
   const row = await claim(actor, id, "confirmed");
+  const claimedAt = new Date().toISOString();
   const dashboard = await ownDashboard(actor, row.dashboard_id).catch(async (e) => { await release(actor, id); throw e; });
   // Once the View Link exists the proposal stays confirmed whatever follows, so that it cannot be confirmed again into a second link.
   let made = false;
@@ -256,7 +297,7 @@ export async function confirmShareProposal(actor: Actor, id: number, transport?:
       await audit(actor, { kind: "share_proposal.confirmed", object: { type: "dashboard", id: dashboard.id, name: dashboard.name }, details: { proposal_id: id, how: "share", proposed_through: await connectionName(row) } });
       return { kind: "share", emailState: null, linkPath: null };
     }
-    const token = await createViewLink(actor, "dashboard", row.dashboard_id, { label: `For ${String(row.recipient_email).slice(0, 60)}`, expires: String(row.ends_on), frozen: row.frozen && row.snapshot_id === null, snapshotId: row.snapshot_id });
+    const token = await createViewLink(actor, "dashboard", row.dashboard_id, { label: `Shared by email (proposal ${id})`, expires: String(row.ends_on), frozen: row.frozen && row.snapshot_id === null, snapshotId: row.snapshot_id });
     made = true;
     const { data: link } = await db().from("view_links").select("id").eq("token", token).eq("workspace_id", actor.workspaceId).maybeSingle();
     const { data: who } = await db().from("profiles").select("id, name").eq("id", actor.personId).maybeSingle();
@@ -272,19 +313,22 @@ export async function confirmShareProposal(actor: Actor, id: number, transport?:
     return { kind: "view_link", emailState, linkPath: `/v/${token}` };
   } catch (e) {
     // Nothing was made when the core refused (the dashboard changed hands, a Metric is no longer seen): the proposal stays open.
-    if (!made) await release(actor, id);
+    // A View Link that was made before the failure (its record may have failed after) is not made again: the proposal stays confirmed.
+    if (!made && !(await linkMadeSince(actor, row, claimedAt))) await release(actor, id);
     throw e;
   }
 }
 
-/** Counts the View Link emails already sent in 24 hours by this person and to this address; confirmations at the very same moment may overshoot by one. */
-async function assertEmailLimits(actor: Actor, address: string): Promise<void> {
+/** Counts the View Link emails already sent in 24 hours by this person, and to this address in every Workspace (by its one
+ * spelling), so that no number of Workspaces gets past the limit; confirmations at the very same moment may overshoot by one. */
+async function assertEmailLimits(actor: Actor, addressKey: string): Promise<void> {
   const since = new Date(Date.now() - DAY).toISOString();
-  const { data } = await db().from("share_proposals").select("proposer_id, recipient_email").eq("workspace_id", actor.workspaceId).eq("kind", "view_link").eq("status", "confirmed").gte("decided_at", since);
-  const sent = data ?? [];
-  const key = mailboxKey(address);
-  if (sent.filter((r) => r.proposer_id === actor.personId).length >= PROPOSAL_EMAILS_PER_PERSON) throw new Refused("You have shared a lot by email today. Try again tomorrow.");
-  if (sent.filter((r) => r.recipient_email && mailboxKey(String(r.recipient_email)) === key).length >= PROPOSAL_EMAILS_PER_ADDRESS) throw new Refused("That address was sent links several times today. Try again tomorrow.");
+  const [{ count: mine }, { count: toAddress }] = await Promise.all([
+    db().from("share_proposals").select("id", { count: "exact", head: true }).eq("workspace_id", actor.workspaceId).eq("proposer_id", actor.personId).eq("kind", "view_link").eq("status", "confirmed").gte("decided_at", since),
+    db().from("share_proposals").select("id", { count: "exact", head: true }).eq("recipient_key", addressKey).eq("kind", "view_link").eq("status", "confirmed").gte("decided_at", since),
+  ]);
+  if ((mine ?? 0) >= PROPOSAL_EMAILS_PER_PERSON) throw new Refused("You have shared a lot by email today. Try again tomorrow.");
+  if ((toAddress ?? 0) >= PROPOSAL_EMAILS_PER_ADDRESS) throw new Refused("That address was sent links several times today. Try again tomorrow.");
 }
 
 /** Declines a proposal as the person themselves; nothing was shared or sent. Never through a key. */

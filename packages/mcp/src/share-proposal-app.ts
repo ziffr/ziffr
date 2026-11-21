@@ -3,7 +3,7 @@
 // before they open Ziffr. It is read-only and holds nothing to act with: its one button, "Confirm in Ziffr", opens the page
 // in Ziffr where the person confirms with their own sign-in. Confirming is never possible from here or with the assistant's
 // token. The page loads nothing from outside (its policy says so, and the host enforces it), draws every word with
-// textContent, never as markup, and only opens an address on Ziffr's own origin that the tool's answer names. Hosts that
+// textContent, never as markup, and only opens the confirm page's address (https, or http on this computer, path /actions/share/<number>) that the tool's answer names. Hosts that
 // do not show apps get the tool's text instead.
 
 /** The address of the page's resource, which `propose_share` names in its metadata. */
@@ -71,7 +71,7 @@ button:disabled { opacity: .5; cursor: default; }
       if (w.metrics && w.metrics.length) add(t, "small", w.metrics.slice(0, 3).join(", "));
     });
     el("after").textContent = viewLink ? "The numbers show when the page opens; the page in Ziffr shows exactly what the recipient will see." : "";
-    try { var u = new URL(String(data.url)); link = (u.protocol === "https:" || u.protocol === "http:") ? u.href : null; } catch (e) { link = null; }
+    try { var u = new URL(String(data.url)); var local = u.hostname === "localhost" || u.hostname === "127.0.0.1"; link = ((u.protocol === "https:" || (u.protocol === "http:" && local)) && /^\/actions\/share\/[0-9]+$/.test(u.pathname) && !u.search && !u.hash) ? u.href : null; } catch (e) { link = null; }
     el("confirm").disabled = !link;
     size();
   }
