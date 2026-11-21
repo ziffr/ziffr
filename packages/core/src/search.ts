@@ -15,7 +15,6 @@ import { peopleIn } from "./submissions";
 import { answerReadingOf } from "./workspace-settings";
 import { getMetrics } from "./workspace-data";
 import { tellApart } from "./metric-names";
-import { peopleIn } from "./submissions";
 import type { Metric } from "./types";
 
 /** One thing found. A `period` result is one Metric's value for one period: `period` is its first day, `label` its
