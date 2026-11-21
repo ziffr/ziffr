@@ -11,7 +11,7 @@ export function AskToJoin({ workspaces }: { workspaces: { id: string; name: stri
   const [asked, setAsked] = useState(new Set(workspaces.filter((w) => w.asked).map((w) => w.id)));
   const [error, setError] = useState<string | null>(null);
   return (
-    <section aria-labelledby="join-heading" className="mb-10 space-y-3">
+    <section aria-labelledby="join-heading" className="mb-8 space-y-3 border-b border-border pb-8">
       <h2 id="join-heading" className="text-sm font-medium">Your colleagues already use Ziffr</h2>
       {workspaces.map((w) => (
         <div key={w.id} className="flex items-center gap-3 text-sm">
