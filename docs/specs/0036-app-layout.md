@@ -78,7 +78,7 @@ More slide-overs (Share, Version history, Add to deck) and moving each into a Sh
 ## Open questions for the owner
 
 1. **Which frame?** Sidebar with inset card (built), or the sidebar flat with no card? Recommendation: inset; it separates the frame from the numbers.
-2. **Workspace pages**: a collapsible group, closed unless you are in it (built), or one **Settings** entry that opens a page listing them? Recommendation: the collapsible group; it keeps one click to every page without the clutter.
+2. **Workspace pages**: a collapsible group, closed unless you are in it (built), or one **Settings** entry that opens a page listing them? Recommendation: the collapsible group, closed by default for everyone unless the current page is in it; Owners and Admins open it with one click.
 3. **Pinned dashboards in the sidebar** (a list under Dashboards)? Recommendation: yes, in the step after the preview; it replaces the dashboard switcher on the page.
 4. **Which details become slide-overs next?** Recommendation: Alert me…, Share, Version history and a Metric's quick look first (all keep the reader on the page); forms that create something stay dialogs.
 5. **Dark mode:** the app is light only today. Make a dark set of tokens as part of this move, or later? Recommendation: later, as its own ticket; the frame already uses tokens only.
