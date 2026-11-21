@@ -28,10 +28,12 @@ type Stored = { span: Span; start: string; snapshot?: number };
 
 // Quarterly and yearly Metrics' values and Target Series, and the Snapshots of quarters, half-years and years. Each
 // starts a span under the year start it was stored with; a new year start must keep every one a start.
-async function storedSpans(ws: string): Promise<{ stored: Stored[]; metrics: boolean; snapshots: boolean }> {
-  const [{ data: metrics }, { data: snaps }] = await Promise.all([
+async function storedSpans(ws: string): Promise<{ stored: Stored[]; metrics: boolean; snapshots: boolean; condensed: boolean }> {
+  const [{ data: metrics }, { data: snaps }, { data: condensed }] = await Promise.all([
     db().from("metrics").select("id, period").eq("workspace_id", ws).in("period", ["quarter", "year"]),
     db().from("dashboard_snapshots").select("id, period_kind, period_start").eq("workspace_id", ws).is("deleted_at", null).in("period_kind", ["quarter", "half", "year"]),
+    // Condensed Values of quarters and years (spec 0033) start spans of their own, whatever their Metric's period.
+    db().from("condensed_values").select("span, period_start").eq("workspace_id", ws).in("span", ["quarter", "year"]),
   ]);
   const stored: Stored[] = (snaps ?? []).map((s) => ({ span: s.period_kind as Span, start: String(s.period_start), snapshot: Number(s.id) }));
   const periodOf = new Map((metrics ?? []).map((m) => [Number(m.id), m.period as Span]));
@@ -52,7 +54,8 @@ async function storedSpans(ws: string): Promise<{ stored: Stored[]; metrics: boo
     }
     hasValues = seen.size > 0;
   }
-  return { stored, metrics: hasValues, snapshots: Boolean(snaps?.length) };
+  for (const c of condensed ?? []) stored.push({ span: c.span as Span, start: String(c.period_start) });
+  return { stored, metrics: hasValues, snapshots: Boolean(snaps?.length), condensed: Boolean(condensed?.length) };
 }
 
 /** The year start, which months it may move to, and why the others are out. */
@@ -68,9 +71,9 @@ export async function yearStartChoices(actor: Pick<Actor, "workspaceId">): Promi
 }
 
 async function choicesIn(ws: string): Promise<YearStartChoices & { stored: Stored[] }> {
-  const [yearStart, { stored, metrics, snapshots }] = await Promise.all([yearStartOf(ws), storedSpans(ws)]);
+  const [yearStart, { stored, metrics, snapshots, condensed }] = await Promise.all([yearStartOf(ws), storedSpans(ws)]);
   const allowed = MONTHS.filter((m) => m === yearStart || stored.every((s) => isPeriodStart(s.start, s.span, m)));
-  const what = [metrics && "quarterly or yearly Metrics' values", snapshots && "Snapshots of quarters, half-years or years"].filter(Boolean).join(" and ");
+  const what = [metrics && "quarterly or yearly Metrics' values", condensed && "Condensed Values of quarters or years", snapshots && "Snapshots of quarters, half-years or years"].filter(Boolean).join(" and ");
   return { yearStart, allowed, why: allowed.length < 12 ? `Some months are out: the ${what} kept so far would no longer start a quarter, half-year or year.` : null, stored };
 }
 

@@ -149,6 +149,7 @@ const OUTCOME: Record<string, { label: string; ok: boolean }> = {
   rejected_source: { label: "Rejected: wrong Source", ok: false },
   rejected_derived: { label: "Rejected: derived metric", ok: false },
   rejected_archived: { label: "Rejected: archived metric", ok: false },
+  rejected_period_condensed: { label: "Rejected: period condensed", ok: false },
   rejected_period: { label: "Rejected: no such period", ok: false },
   rejected_several_numbers: { label: "Asked back: which number?", ok: false },
   rejected_several_periods: { label: "Asked back: which period?", ok: false },

@@ -246,6 +246,7 @@ Plumbing the core's other operations use, jobs the schedule runs, and the demo.
 - `applyWebhookAction` (webhook-inbound.ts): a Webhook's own signed route, `POST /api/webhooks/{id}/in`, not an Access Key's
 - `askMeNowBy` (ask-now.ts): used by the Connectors' reply handling
 - `handover` (cloud-api.ts): hands a Workspace over, for Ziffr Cloud
+- `storeCondensed` (condensed-values.ts): the Retention job makes Condensed Values (spec 0033); a program never does
 - `simulateMessage` (demo-channels.ts): the demo's pretend channels
 - `simulatePromptAnswer` (demo-channels.ts): the demo's pretend channels
 - `sendDueReminders` (questions.ts): what the schedule runs; the button asks for it now

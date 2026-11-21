@@ -288,6 +288,8 @@ export type CanvasData = {
   /** Target Series and Projections per metric id (GLOSSARY). */
   targets: Record<number, Point[]>;
   projections: Record<number, Point[]>;
+  /** Condensed Values per metric id (GLOSSARY: Condensed Value); a missing key means none, or not sent. */
+  condensed?: Record<number, import("./condensed-parts").CondensedPoint[]>;
   /** Breakdowns per metric id, then per period (GLOSSARY: Breakdown). */
   breakdowns: Record<number, Record<string, BreakdownRow[]>>;
   /** The team's Widget Templates (GLOSSARY: Widget Template). */

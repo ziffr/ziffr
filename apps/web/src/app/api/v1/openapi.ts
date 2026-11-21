@@ -76,7 +76,7 @@ const ENDPOINTS: Endpoint[] = [
   {
     method: "get", path: "/metrics/{slug}/observations", scope: "metrics:read", query: S.observationsQuery, ok: { status: 200, name: "ObservationList", schema: S.ObservationList },
     summary: "List a Metric's values",
-    description: "The Metric's values for the periods from `from` to `to` (first days, both included), oldest first, with state, who submitted it (id and name), when and through which Source, whether a Thread the key's creator may read exists (`has_thread`), and the Breakdown. A Derived Metric's values are computed.",
+    description: "The Metric's values for the periods from `from` to `to` (first days, both included), oldest first, with state, who submitted it (id and name), when and through which Source, whether a Thread the key's creator may read exists (`has_thread`), and the Breakdown. A Derived Metric's values are computed. Periods a Retention condensed are listed as one item for the span, marked with `condensed_from` (how many periods it was made from) and `period_end`.",
   },
   {
     method: "get", path: "/metrics/{slug}/thread", scope: "metrics:read", query: S.threadQuery, ok: { status: 200, name: "Thread", schema: S.ThreadAnswer },
@@ -89,7 +89,7 @@ const ENDPOINTS: Endpoint[] = [
     description: "Records a value for the current period, or the one named, through the Metric's Submission Rule, Locks and Approvals, as the key's creator. Each key may submit 1,000 values in any 24 hours.",
     errors: [
       { status: 403, description: "Or the key's creator does not submit values for this Metric." },
-      { status: 409, description: "The Idempotency-Key was used with another body, or its first submission is still running." },
+      { status: 409, description: "`period_condensed`: the period was condensed by a Retention and takes no more values. Or the Idempotency-Key was used with another body, or its first submission is still running." },
       { status: 422, description: "`locked`: the period is locked, and the value went to the Metric's owner as a proposed Correction. `unprocessable`: the Submission Rule, a Derived Metric, an Archived Metric or the period refused it." },
     ],
   },

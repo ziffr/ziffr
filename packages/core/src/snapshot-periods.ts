@@ -57,13 +57,14 @@ export function cutPoints(points: readonly Point[], period: Period, end: string)
  * whose widgets of a Metric all draw it as of a day: only that is sent (spec 0013). */
 export function dataAsOfEach(data: CanvasData, ends: ReadonlyMap<number, string>): CanvasData {
   if (!ends.size) return data;
-  const out = { ...data, series: { ...data.series }, breakdowns: { ...data.breakdowns }, pending: { ...data.pending }, locked: { ...data.locked } };
+  const out = { ...data, series: { ...data.series }, ...(data.condensed ? { condensed: { ...data.condensed } } : {}), breakdowns: { ...data.breakdowns }, pending: { ...data.pending }, locked: { ...data.locked } };
   for (const m of data.metrics) {
     const end = ends.get(m.id);
     if (!end) continue;
-    const one = dataAsOf({ ...data, metrics: [m], series: { [m.slug]: data.series[m.slug] ?? [] }, breakdowns: { [m.id]: data.breakdowns?.[m.id] ?? {} }, pending: { [m.id]: data.pending?.[m.id] ?? [] }, locked: { [m.id]: data.locked?.[m.id] ?? [] } }, end);
+    const one = dataAsOf({ ...data, metrics: [m], series: { [m.slug]: data.series[m.slug] ?? [] }, breakdowns: { [m.id]: data.breakdowns?.[m.id] ?? {} }, ...(data.condensed ? { condensed: { [m.id]: data.condensed[m.id] ?? [] } } : {}), pending: { [m.id]: data.pending?.[m.id] ?? [] }, locked: { [m.id]: data.locked?.[m.id] ?? [] } }, end);
     out.series[m.slug] = one.series[m.slug];
     out.breakdowns[m.id] = one.breakdowns[m.id];
+    if (out.condensed) out.condensed[m.id] = one.condensed?.[m.id] ?? [];
     out.pending[m.id] = one.pending[m.id];
     out.locked[m.id] = one.locked[m.id];
   }
@@ -80,6 +81,8 @@ export function dataAsOf(data: CanvasData, end: string): CanvasData {
     ...data,
     series: Object.fromEntries(Object.entries(data.series).map(([slug, pts]) => [slug, cutPoints(pts, periodOf.get(slug) ?? "day", end)])),
     breakdowns: Object.fromEntries(Object.entries(data.breakdowns ?? {}).map(([id, byPeriod]) => [id, Object.fromEntries(Object.entries(byPeriod).filter(([p]) => inSnapshot(periodById.get(Number(id)) ?? "day", p, end)))])),
+    // A Condensed Value is part of the data once its whole span is over by `end`.
+    ...(data.condensed ? { condensed: Object.fromEntries(Object.entries(data.condensed).map(([id, cs]) => [id, cs.filter((c) => c.periodEnd <= end)])) } : {}),
     pending: keepPeriods(data.pending),
     locked: keepPeriods(data.locked),
   };

@@ -11,7 +11,7 @@ import type { CanvasData } from "@ziffr/core/types";
 type Ensure = (ids: number[]) => Promise<void>;
 
 const EnsureContext = createContext<Ensure | null>(null);
-const EMPTY: CanvasSeries = { series: {}, breakdowns: {}, targets: {}, projections: {} };
+const EMPTY: CanvasSeries = { series: {}, breakdowns: {}, targets: {}, projections: {}, condensed: {} };
 
 /** The page's data with the series fetched since, and `ensure` to fetch more. What the server sends wins over what
  * was fetched before: it is the newer. */
@@ -23,6 +23,7 @@ export function useCanvasSeries(data: CanvasData): { data: CanvasData; ensure: E
     breakdowns: { ...extra.breakdowns, ...data.breakdowns },
     targets: { ...extra.targets, ...data.targets },
     projections: { ...extra.projections, ...data.projections },
+    condensed: { ...extra.condensed, ...data.condensed },
   }), [data, extra]);
   const latest = useRef(merged);
   latest.current = merged;
@@ -45,6 +46,7 @@ export function useCanvasSeries(data: CanvasData): { data: CanvasData; ensure: E
           breakdowns: { ...e.breakdowns, ...got.breakdowns },
           targets: { ...e.targets, ...got.targets },
           projections: { ...e.projections, ...got.projections },
+          condensed: { ...e.condensed, ...got.condensed },
         }));
       }
     } catch {

@@ -50,6 +50,8 @@ const ApiObservation = z.object({
   source: z.string().nullable().describe("The Source it arrived through, such as web_form, mail, slack, telegram or api; null for a Derived Metric."),
   has_thread: z.boolean().describe("A Thread on this period that the key's creator may read exists: read it with GET /metrics/{slug}/thread. False also when the only Threads are ones they may not read."),
   breakdown: z.array(BreakdownRow).nullable().describe("The value's parts (GLOSSARY: Breakdown), or null."),
+  condensed_from: z.number().int().optional().describe("Only on a Condensed Value (GLOSSARY: Condensed Value): how many of the Metric's periods it was made from. It is not one period: `period` is the span's first day and `period_end` its last."),
+  period_end: z.string().optional().describe("Only on a Condensed Value: the span's last day, YYYY-MM-DD."),
 });
 
 /** GET /api/v1/metrics/{slug}/thread takes this. */
