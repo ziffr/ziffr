@@ -6,16 +6,14 @@
 // the ones the viewer sees; writing is for the Metric's owner and Owners and Admins, never a key, never the demo.
 import { randomUUID } from "node:crypto";
 import { format } from "date-fns";
-import { Forbidden, type Actor } from "./actor";
 import { type CondensedPoint, type CondensedSpan, type TargetPart } from "./condensed-parts";
 import { latestOfEach } from "./display-periods";
 import { db } from "./db";
-import { refuseInDemo } from "./demo";
 import { yearStartFor } from "./fiscal-year";
 import { condense, condensedTarget, keptFrom, MIN_KEEP_MONTHS, retentionProblem, type CondenseInto } from "./retention-rules";
 import { isPeriodStart, periodEnd } from "./periods";
 import { openRows, sealRow } from "./sealed-columns";
-import { allRows, getMetrics } from "./workspace-data";
+import { allRows } from "./workspace-data";
 import type { Metric } from "./types";
 
 /** The database's code for a value refused because its period was condensed (trigger observations_not_condensed). */
@@ -116,28 +114,13 @@ export type CondensedInput = { metricId: number; into: CondenseInto; span: strin
 /** Why a Condensed Value was not stored. */
 export class NotCondensed extends Error {}
 
-/** Stores the Condensed Value of one span of a Metric, the one Retention's job (a later ticket) makes before it
- * deletes the originals: made by the rule of retention-rules.ts from the values the Metric holds now, with the span's
- * Targets kept beside it and locked when every period in it was. Allowed to the Metric's owner, Owners and Admins; the
- * span must be over for at least the shortest keep time (13 months), must not overlap one condensed already (also
- * refused by the database), and must start a span of its kind. A rate, a Derived Metric, a span without values and a
- * Metric of another Workspace are refused. It writes the one row and nothing else: the originals are deleted by the job
- * after it has checked that the numbers come out the same. Returns the id. */
-export async function storeCondensed(actor: Actor, input: CondensedInput): Promise<string> {
-  if (actor.key) throw new Forbidden("A key cannot condense values.");
-  refuseInDemo(actor);
-  if (!Number.isInteger(input.metricId)) throw new Forbidden("That Metric was not found.");
-  const metrics = await getMetrics(actor.workspaceId);
-  const metric = metrics.find((m) => m.id === input.metricId);
-  const may = actor.role === "owner" || actor.role === "admin" || (actor.role !== "guest" && metric?.owner_id === actor.personId);
-  // A Metric of another Workspace and a missing one are refused alike.
-  if (!metric || !may) throw new Forbidden("That Metric was not found, or its values are not yours to condense.");
-  return storeCondensedFor(actor.workspaceId, metric, input);
-}
-
-/** The Condensed Value of one span of a Metric of this Workspace (`metric` was read from it), as storeCondensed makes it,
- * for a caller that has checked who asks: the Actor-first `storeCondensed`, and the Retention job, which acts for no one
- * and holds a Metric to what a person confirmed. Everything else it checks is the same, and it never touches an original. */
+/** The Condensed Value of one span of a Metric of this Workspace (`metric` was read from it), the one the Retention job
+ * makes before it deletes the originals: by the rule of retention-rules.ts from the values the Metric holds now, with the
+ * span's Targets kept beside it and locked when every period in it was. Deliberately not Actor-first and used by the job
+ * only (tests go through the `storeCondensed` fixture): the job holds a Metric to a Retention a person confirmed, and no
+ * one may freeze a span without one. The span must be over for at least the shortest keep time (13 months), must not
+ * overlap one condensed already (also refused by the database) and must start a span of its kind. A rate, a Derived
+ * Metric and a span without values are refused. It writes the one row and never touches an original. Returns the id. */
 export async function storeCondensedFor(ws: string, metric: Metric, input: CondensedInput): Promise<string> {
   const ys = await yearStartFor(ws, input.into);
   const problem = retentionProblem({ keep_months: MIN_KEEP_MONTHS, then: "condense", into: input.into }, metric);

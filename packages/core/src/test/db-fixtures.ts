@@ -2,6 +2,8 @@
 // each other's rows or the demo's.
 import { randomUUID } from "node:crypto";
 import { db } from "../db";
+import { storeCondensedFor, type CondensedInput } from "../condensed-values";
+import { getMetrics } from "../workspace-data";
 import { openRows, type OpenedTable } from "../sealed-columns";
 import type { Actor } from "../actor";
 import { openVersionSnapshot, type VersionType } from "../versions";
@@ -177,4 +179,12 @@ export async function changeRows(table: string, match: Record<string, unknown>, 
   let q = db().from(table).update(change);
   for (const [column, value] of Object.entries(match)) q = q.eq(column, value as string);
   await must(q);
+}
+
+/** Stores the Condensed Value of one span of a Metric as the Retention job does, without a Retention: only for tests,
+ * since no operation lets a person freeze a span that way. */
+export async function storeCondensed(workspace: { workspaceId: string }, input: CondensedInput): Promise<string> {
+  const metric = (await getMetrics(workspace.workspaceId)).find((m) => m.id === input.metricId);
+  if (!metric) throw new Error(`No Metric ${input.metricId} in this Workspace.`);
+  return storeCondensedFor(workspace.workspaceId, metric, input);
 }
