@@ -40,7 +40,7 @@ export async function archivedMetricHolds(d: AboutMetric): Promise<string | null
   if (d.kind === "alert" && d.alert_metric_id) {
     const metrics = await getMetrics(ws);
     const m = metrics.find((x) => x.id === d.alert_metric_id);
-    if (!m || m.archived_at || !d.recipient_id || !(await visibleMetricIds(ws, d.recipient_id, metrics)).has(m.id)) return "Not sent: the Metric is no longer open to this person.";
+    if (!m || m.archived_at || !d.recipient_id || !(await visibleMetricIds(ws, d.recipient_id, metrics)).has(m.id)) return "Not sent.";
     // A Tell message (GLOSSARY: Tell) also stops when the person said "stop telling me" after it was queued.
     if (d.tell_workflow_id) {
       const { data: stopped } = await db().from("tell_stops").select("person_id").eq("workflow_id", d.tell_workflow_id).eq("person_id", d.recipient_id).eq("workspace_id", ws).maybeSingle();
