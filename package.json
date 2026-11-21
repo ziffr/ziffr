@@ -14,7 +14,7 @@
     "typecheck": "pnpm -r --if-present typecheck",
     "lint": "pnpm -r --if-present lint && pnpm -s guards",
     "guards": "node .github/scripts/client-imports.mjs && node .github/scripts/app-db-access.mjs",
-    "test": "pnpm -r --if-present test && node --test scripts/*.test.mjs",
+    "test": "pnpm -r --if-present test && node --test scripts/*.test.mjs .github/scripts/*.test.mjs",
     "health": "knip && node scripts/code-health.mjs",
     "health:worst": "node scripts/code-health.mjs --worst",
     "changeset": "changeset",
