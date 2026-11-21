@@ -41,6 +41,14 @@ function ownOrigins(req: NextRequest): Set<string> {
   return own;
 }
 
+/** The signed-in person's token claims, checked locally against Supabase's published keys; null when there is none
+ * or it cannot be read. Only reads: a refreshed session is written by the full check further down. */
+async function sessionClaims(req: NextRequest) {
+  const { url, anonKey } = authSettings();
+  const supabase = createServerClient(url, anonKey, { cookies: { getAll: () => req.cookies.getAll(), setAll: () => {} } });
+  return supabase.auth.getClaims().then(({ data }) => data?.claims ?? null, () => null);
+}
+
 export async function middleware(req: NextRequest) {
   const headers = new Headers(req.headers);
   headers.delete("x-ziffr-view-link");
@@ -65,7 +73,11 @@ export async function middleware(req: NextRequest) {
     // A signed-in person enters the shared demo, where they might type real numbers, only by its confirm page's
     // button (spec 0009): a link opens that page, and the button's POST counts only from this app's own pages. Every
     // browser sends Origin with a form post, so another site's link or form switches no one.
-    const signedIn = req.cookies.getAll().some((c) => c.name.startsWith("sb-") && c.name.includes("auth-token"));
+    // A session cookie alone is not enough: an expired or ended session would send the person to the confirm page,
+    // which asks for a valid one and sends them to sign in, whose "Try the demo" leads here again (a loop). So the
+    // token is checked as for every other page; a stale cookie counts as signed out.
+    const hasCookie = req.cookies.getAll().some((c) => c.name.startsWith("sb-") && c.name.includes("auth-token"));
+    const signedIn = hasCookie && (await sessionClaims(req)) !== null;
     // Every POST is checked, signed in or not: a browser leaves the session cookie (SameSite=Lax) off a post from
     // another site, so such a post would look like a visitor's, and the GET after it would carry the session.
     if (path === "/demo" && req.method === "POST" && !ownOrigins(req).has(req.headers.get("origin") ?? "")) return new NextResponse("Not from this site.", { status: 403 });
