@@ -34,11 +34,11 @@ describe("the Workspace level", () => {
     const w = await ws(); const sara = await w.person("owner"); const ann = await w.person("admin");
     expect(await effectiveLimit("viewLinkDays", w.id)).toBe(90);
     await setWorkspaceSettableLimit(w.actor(sara), "viewLinkDays", 30);
-    await setWorkspaceSettableLimit(w.actor(ann, "admin"), "alertMailShare", 60);
+    await setWorkspaceSettableLimit(w.actor(ann, "admin"), "alertMailShare", 45);
     // The same value again changes nothing and records nothing.
     await setWorkspaceSettableLimit(w.actor(sara), "viewLinkDays", 30);
     expect(await effectiveLimit("viewLinkDays", w.id)).toBe(30);
-    expect(await effectiveLimit("alertMailShare", w.id)).toBe(60);
+    expect(await effectiveLimit("alertMailShare", w.id)).toBe(45);
     const view = await workspaceSettableLimits(w.actor(sara));
     expect(view.map((v) => v.key)).toEqual(["alertsPerPerson", "alertMessagesPerPerson", "viewLinkDays", "alertMailShare", "unusedDays"]);
     expect(view.find((v) => v.key === "viewLinkDays")).toMatchObject({ set: 30, effective: 30, min: 1, max: 90 });
@@ -46,7 +46,7 @@ describe("the Workspace level", () => {
     expect(await effectiveLimit("viewLinkDays", w.id)).toBe(90);
     expect(await auditRowsOf(w.id, "workspace.settable_limit_changed")).toEqual([
       { kind: "workspace.settable_limit_changed", access_key_id: null, details: { limit: "viewLinkDays", from: null, to: 30 } },
-      { kind: "workspace.settable_limit_changed", access_key_id: null, details: { limit: "alertMailShare", from: null, to: 60 } },
+      { kind: "workspace.settable_limit_changed", access_key_id: null, details: { limit: "alertMailShare", from: null, to: 45 } },
       { kind: "workspace.settable_limit_changed", access_key_id: null, details: { limit: "viewLinkDays", from: 30, to: null } },
     ]);
   });
