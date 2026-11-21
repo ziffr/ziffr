@@ -179,7 +179,7 @@ The top of the page shows the Metric's name, a **Derived** badge if it is calcul
 
 Then come five tabs: **Overview**, **Analysis**, **Targets**, **History** and **Description**.
 
-If a Metric is not shared with you, its page says "… isn't shared with you", names its owner, and offers **Ask … for access**. The owner sees your request under **Who can see this** and can let you in as a Viewer.
+If a Metric is not shared with you, its page says "… isn't shared with you", names its owner (for a Guest who is not shown the owner: "Its owner can share it with you"), and offers **Ask … for access**. The owner sees your request under **Who can see this** and can let you in as a Viewer.
 
 ### The buttons at the top
 
@@ -194,7 +194,7 @@ If a Metric is not shared with you, its page says "… isn't shared with you", n
 | **Bring back** | On an Archived Metric: makes it a Metric in use again (see below). | Owners, Admins and the Metric Owner, outside the demo |
 | **Delete…** | Deletes the Metric (see below). | The Metric Owner, outside the demo |
 | **Share** | Gives people or Groups access (see below). | The Metric Owner |
-| **⋯** → **Who can see this** | Lists everyone with access and why: owner, a Share, a Group, a shared dashboard, or sending in values. | Everyone who sees the Metric |
+| **⋯** → **Who can see this** | Lists everyone with access and why: owner, a Share, a Group, a shared dashboard, or sending in values. For a Guest, people outside what is shared with them show as "Someone". | Everyone who sees the Metric |
 | **⋯** → **Versions** | Shows earlier states of the description (see below). | Everyone who sees the Metric |
 
 ## The Overview tab
