@@ -230,6 +230,12 @@ Plumbing the core's other operations use, jobs the schedule runs, and the demo.
 - `askMeNowBy` (ask-now.ts): used by the Connectors' reply handling
 - `handover` (cloud-api.ts): hands a Workspace over, for Ziffr Cloud
 - `storeCondensed` (condensed-values.ts): the Retention job makes Condensed Values (spec 0033); a program never does
+- `retentionPreview` (retention-setting.ts): the Metric page's preview; setting a Retention needs the page, the counts and a confirmation, so a program only reads it (spec 0033)
+- `retentionPreviewAll` (retention-setting.ts): the Workspace settings' preview of Apply to existing Metrics (spec 0033)
+- `setRetention` (retention-setting.ts): a Metric's Retention is set on its page, never by a program (spec 0033)
+- `cancelRetention` (retention-setting.ts): cancels a confirmed Retention on the Metric page (spec 0033)
+- `setDefaultRetention` (retention-setting.ts): the Workspace default, Owners only, on the Workspace settings page (spec 0033)
+- `applyRetentionToExisting` (retention-setting.ts): Apply to existing Metrics, Owners only, on the Workspace settings page (spec 0033)
 - `simulateMessage` (demo-channels.ts): the demo's pretend channels
 - `simulatePromptAnswer` (demo-channels.ts): the demo's pretend channels
 - `sendDueReminders` (questions.ts): what the schedule runs; the button asks for it now

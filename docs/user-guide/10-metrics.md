@@ -288,7 +288,7 @@ You see the page only for a Metric you see. A Thread you may not read, and the C
 
 ## The Settings tab
 
-The Settings tab has three boxes: the description, the Workflow, and who submits. A Derived Metric shows only its description.
+The Settings tab has four boxes: the description, the Retention, the Workflow, and who submits. A Derived Metric shows only its description.
 
 ### Description
 
@@ -314,6 +314,24 @@ The box lists the **Metric Description**: owner, period, format and decimals, wh
 Ziffr has no screen yet for creating a Derived Metric or changing its formula. A Derived Metric's formula is shown here, but not edited.
 
 A formula is read whole or not at all. It may hold `+ - * /`, brackets, numbers such as `12` or `0.5`, and other Metrics. Ziffr refuses a formula with anything else, such as `^`, `%`, `1e3`, `.5` or two values without a sign between them, rather than compute a number from the part it could read. It also refuses inputs counted by different periods, or by another period than the Derived Metric, and inputs set to Aggregation none. If a Derived Metric's inputs are changed later so that they no longer fit, its page and its Widgets say why ("Its inputs are counted by different periods") instead of showing an empty chart.
+
+### Retention
+
+A **Retention** says how long the Metric keeps its values, and what then happens to older ones. The box shows what is in force ("none: values are kept for ever" until someone sets one). Nothing is ever condensed or deleted unless a person turns it on here.
+
+The Metric Owner, Owners and Admins see the form. Choose **Keep values for** 2, 3, 5, 7 or 10 years (or **Other**, in months, at least 13 so that a comparison with last year always has its whole span), and **Then**:
+
+- **Nothing: keep every value**, which turns a Retention off.
+- **Condense into longer periods**: values older than the keep time become one **Condensed Value** per week, month, quarter or year (the choice depends on the Metric's period), made with the Metric's Aggregation. Widgets that show the longer period, or any longer one, show the same numbers as before; only the detail below it goes. Quarters and years are those of the fiscal year. A Metric with Aggregation none cannot be condensed, and the form says why; it can be deleted or kept.
+- **Delete**: values older than the keep time are deleted with their history.
+
+**Show what it would do** counts what the setting would do today, without changing anything: how many periods and values, how many Condensed Values would be made, from which period to which, the Breakdown rows, earlier values (Superseded Values), Targets and Projections of those periods, locked periods, and how many Snapshots and frozen View Links already show them (named where you may open them). A period that an open question, task, Correction or approval still holds is left alone and counted as held back. Snapshots, decks and View Links keep what they showed, also after a delete; delete those first if they must go too. Ziffr refuses a delete while another Metric is derived from this one, and a condensing into a longer period than a Derived Metric reads by.
+
+**Turn on…** is enabled once the numbers are shown. Turning it on, keeping values for less time, condensing into another period, or going from condensing to deleting needs this confirmation: a dialog repeats the counts, and for a delete you type the Metric's name. If the numbers changed since you looked (new open work, a Lock), Ziffr refuses with "The numbers changed; look again." and you show them again. Making the keep time longer, going from deleting to condensing, and turning it off need no confirmation and take effect at once.
+
+A confirmed Retention does not start at once. It starts on the 8th day, and the box says so, such as "Values before 1 November 2024 will be condensed into months from 28 November 2026." Until then anyone who may set it can press **Cancel**, and nothing has been changed. The Metric's owner and the person who set it get a message when it is scheduled and one the day before. Cancelling and every setting are written in the Audit Log. Ziffr does not condense or delete anything yet in this version: the daily run that does it comes next.
+
+A Workspace can have a default Retention, copied into each new Metric when it is made (see [Workspace settings](16-workspace-settings.md#retention)); it waits its 7 days too, and can be cancelled here. The Retention cannot be set through the API or an assistant: they can only read it. Not available in the demo. A Derived Metric has none: it stores no values.
 
 ### Workflow
 

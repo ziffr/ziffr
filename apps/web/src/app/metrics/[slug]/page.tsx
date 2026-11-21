@@ -12,6 +12,7 @@ import { TargetsEditor } from "./series-form";
 import { DeleteMetric } from "./delete-metric";
 import { ArchiveControl } from "./archive-metric";
 import { ArchivedNote } from "./archived-note";
+import { RetentionBox } from "./retention-box";
 import { canArchiveMetric } from "@ziffr/core/archived-metrics";
 import { canEditMetric } from "@ziffr/core/metrics";
 import { SourcesEditor } from "./sources-editor";
@@ -139,8 +140,7 @@ export default async function MetricPage({ params, searchParams }: { params: Pro
   const tSeries = targets[metric.id] ?? [];
   const pSeries = projections[metric.id] ?? [];
   const { bdPeriods, bdPeriod, bdRows, bdSum, bdTotal, bdAdds } = breakdownShown(bdByPeriod, sp.bp, all);
-  // Tables on this page read like the chart: oldest on top, newest at the bottom.
-  // Which of them were pasted, for "pasted by" in the History tab (spec 0026).
+  // Tables on this page read like the chart: oldest on top, newest at the bottom. Which were pasted shows in History (spec 0026).
   const obs = (await getLastValues(metric.id, 12)).reverse(), pasted = new Set(await pastedValueIds(actor, metric.id, obs.map((o) => o.id)));
   // Feeds are Submitters but nobody's colleague: the names of only those this page shows, as its Submitters or as
   // the senders of its values, so both say where a value came from.
@@ -417,9 +417,8 @@ export default async function MetricPage({ params, searchParams }: { params: Pro
               )}
             </dl>
           </section>
-          {!metric.formula && (
-            <MetricWorkflow metric={metric} yearStart={yearStart} workflowId={workflowId} workflows={workflows as Workflow[]} period={wfPeriod} state={(wfState as PeriodState | null) ?? null} tokens={tokens.filter((t) => !t.stands_in_for && !t.feed).map((t) => ({ submitter_id: t.submitter_id, stand_in_id: t.stand_in_id }))} people={people} isOwner={isOwner} />
-          )}
+          {!metric.formula && <RetentionBox metric={metric} demo={demo} />}
+          {!metric.formula && <MetricWorkflow metric={metric} yearStart={yearStart} workflowId={workflowId} workflows={workflows as Workflow[]} period={wfPeriod} state={(wfState as PeriodState | null) ?? null} tokens={tokens.filter((t) => !t.stands_in_for && !t.feed).map((t) => ({ submitter_id: t.submitter_id, stand_in_id: t.stand_in_id }))} people={people} isOwner={isOwner} />}
           {!metric.formula && (
             <section className="stock rounded-[var(--radius-card)] p-5 text-sm">
               <h2 className="mb-1 flex items-center gap-2 font-medium"><KeyRound className="size-4" /> Who submits</h2>

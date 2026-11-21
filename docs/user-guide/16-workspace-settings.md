@@ -139,6 +139,14 @@ A word in a language that is not ticked is simply not understood. The rules stil
 
 Every Workspace computes by ratio until an Owner or Admin changes it, as Ziffr did up to version 0.9.0. A Metric can still choose its own method under **Edit details…**. Snapshots and frozen View Links keep the method they were made with, so their numbers do not change. Choose **Save** after picking one. The change shows in the Audit Log. Members and Guests see a single line, such as "Attainment is computed by ratio".
 
+### Retention
+
+**Retention** sets the **default** for new Metrics: keep values for 2, 3, 5, 7 or 10 years (or a number of months, at least 13), then condense them into longer periods or delete them. Without one, every value is kept for ever. Only Owners set it, since it decides what every Metric made afterwards starts with and deleting cannot be undone; Admins see it, Members and Guests do not see the section. The demo has none.
+
+The default is **copied** into a new Metric when it is made, with no link back: changing it later changes no Metric that exists. A Metric it does not fit (a rate cannot be condensed) gets none, and the copy waits 7 days like any confirmed Retention, so it can be cancelled on the Metric's page. Choose **Save as the default**.
+
+**Apply to existing Metrics…** shows what the setting would do to every Metric you may see that has no Retention yet, in counts: how many Metrics get it, how many periods and values would be condensed or deleted, and which Metrics are left out and why. **Turn on for N Metrics…** repeats the counts; for a delete you type "delete". If the numbers changed since you looked, Ziffr refuses with "The numbers changed; look again." and you show them again. Each Metric then waits 7 days, and its owner gets a message now and one the day before. See [A Metric's Retention](10-metrics.md#retention) for what a Retention does. The Audit Log records the default and each Metric it was applied to.
+
 ### Workspace Profile
 
 The **Workspace Profile** says what kind of business this is, so Ziffr can suggest the Metrics such teams track. Each part is picked from a list; **Not set** leaves it open.
@@ -499,7 +507,7 @@ Owners (not Admins) get one plain-text email a month about the same lists, in th
 
 ### What is recorded
 
-Role changes and removals, Invitations, requests to join, Domain Joining, Contacts, Shares, Groups, View Links, Access Keys, Feeds and Feed Keys, Webhooks (added, changed, given a new secret, switched on or off, deleted), new dashboards, new, deleted, archived and brought back Metrics, a Metric's Workflow, Locks, Workflow runs, Approvals (and values counted without one because nobody else could approve them), Self-checks, Corrections, the Workspace's name, time, fiscal year and profile, its Workspace Limit (old and new, and who set it), Slack, Snapshots taken, shown and deleted, exports, sign-ins, and each time an Owner or Admin reads a teammate's Schedule through the API or an assistant (whose, and for which days).
+Role changes and removals, Invitations, requests to join, Domain Joining, Contacts, Shares, Groups, View Links, Access Keys, Feeds and Feed Keys, Webhooks (added, changed, given a new secret, switched on or off, deleted), new dashboards, new, deleted, archived and brought back Metrics, a Metric's Workflow, a Metric's Retention (set or cancelled) and the Workspace's default Retention, Locks, Workflow runs, Approvals (and values counted without one because nobody else could approve them), Self-checks, Corrections, the Workspace's name, time, fiscal year and profile, its Workspace Limit (old and new, and who set it), Slack, Snapshots taken, shown and deleted, exports, sign-ins, and each time an Owner or Admin reads a teammate's Schedule through the API or an assistant (whose, and for which days).
 
 Each event names the person, what happened, what it was about (as it was named then), the time and a few details, such as the old and new role. It never holds a value or a message. A Metric, dashboard or deck you may not see appears without its name, as "a Metric you do not see".
 
