@@ -144,6 +144,8 @@ People answer by replying to that email, Slack or Telegram message. In Telegram,
 
 When the Installation has no email provider that vouches for senders, a reply by email is **held** first: Ziffr emails you a link, a page shows your reply and what it would do, and pressing **Confirm** records it. The link works once and for 48 hours. If you did not send the reply, ignore the email and nothing happens.
 
+A Prompt asking you for a number is not an Action, but it can come by several ways at once (see [Your settings](17-your-settings.md#where-you-get-what)). Answer on whichever is handiest: the first value Ziffr accepts counts. The other messages are then updated where the app allows it, on Slack and Telegram to "Answered on Telegram: 3" and so on, while an email cannot be changed, so its form link says **Already answered**. If you answer a second time on another way, Ziffr does not drop it: it follows the Metric's Submission Rule, as a second value always does (it may replace the first, be added to it, or be refused), and the reply tells you which and that the request was already answered.
+
 In the demo, to answer as someone else, switch **Viewing as** at the bottom of the sidebar to that person; the Action page reminds you with "switch “Viewing as” (at the bottom of the sidebar)". Outside the demo there is no Viewing as: the page only says whom the Action waits for.
 
 ## The Changes page

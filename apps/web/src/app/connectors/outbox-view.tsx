@@ -19,11 +19,13 @@ import { ICON } from "./channels";
 
 export type DeliveryRow = {
   id: number; connector: ConnectorId; recipient_id: string; sender_id: string | null; kind: string; action_id: number | null;
+  /** The Prompt it asks for; Deliveries with the same one are one request by several ways (#613). */
+  prompt_id: number | null; answer_source: string | null;
   subject: string; body: string; external_ref: string | null; status: "sent" | "answered" | "closed"; created_at: string;
   /** Whether an email really went out (spec 0004); "outbox" is recorded only, as for the simulated Connectors. */
   mail_state: "outbox" | "queued" | "sending" | "sent" | "failed"; last_error: string | null;
   actions: { kind: "question" | "task"; status: string; question: string } | null;
-  prompts: { source: string; answered_at: string | null; submitter_id: string; metric_id: number } | null;
+  prompts: { source: string; answered_at: string | null; answered_source: string | null; submitter_id: string; metric_id: number } | null;
 };
 type TokenRow = { code: string; metric_id: number; submitter_id: string };
 
@@ -64,7 +66,7 @@ export function Outbox({ isOwner, people, deliveries, tokens, demo }: { isOwner:
       <p className="mt-4 rounded-[var(--radius-card)] border border-dashed border-[var(--color-rule-2)] p-6 text-sm text-muted-foreground">Nothing sent yet. On a dashboard, open a widget&rsquo;s ⋯ menu to ask a question or assign a task.</p>
     ) : (
       <ol className="mt-4 space-y-3">
-        {deliveries.map((d) => <DeliveryCard key={d.id} d={d} demo={demo} to={name(d.recipient_id)} formCode={d.prompts ? tokens.find((t) => t.metric_id === d.prompts!.metric_id && t.submitter_id === d.prompts!.submitter_id)?.code : undefined} />)}
+        {deliveries.map((d) => <DeliveryCard key={d.id} d={d} demo={demo} ways={d.prompt_id ? deliveries.filter((x) => x.prompt_id === d.prompt_id).length : 1} to={name(d.recipient_id)} formCode={d.prompts ? tokens.find((t) => t.metric_id === d.prompts!.metric_id && t.submitter_id === d.prompts!.submitter_id)?.code : undefined} />)}
       </ol>
     )}
   </section>
@@ -72,14 +74,15 @@ export function Outbox({ isOwner, people, deliveries, tokens, demo }: { isOwner:
 }
 
 /** One Delivery, drawn the way its system shows it. */
-function DeliveryCard({ d, to, formCode, demo }: { d: DeliveryRow; to: string; formCode?: string; demo: boolean }) {
+function DeliveryCard({ d, to, formCode, demo, ways }: { d: DeliveryRow; to: string; formCode?: string; demo: boolean; ways: number }) {
   const [reply, setReply] = useState("");
   const [open, setOpen] = useState(false);
   const [pending, start] = useTransition();
   const c = CONNECTORS[d.connector];
   const Icon = ICON[d.connector];
   const isPrompt = d.kind === "prompt" && d.prompts;
-  const answerHere = isPrompt && (d.prompts!.source === "slack" || d.prompts!.source === "mail" || d.prompts!.source === "telegram") && !d.prompts!.answered_at;
+  const takes = d.answer_source ?? d.prompts?.source;
+  const answerHere = isPrompt && (takes === "slack" || takes === "mail" || takes === "telegram") && !d.prompts!.answered_at;
   // Playing the recipient works in the demo only; the core refuses it elsewhere, so the buttons stay away too.
   const canReply = demo && ((c.capabilities.includes("replies") && d.action_id) || answerHere);
   const canClose = demo && d.connector === "tickets" && d.actions?.kind === "task" && d.actions.status === "open";
@@ -93,7 +96,9 @@ function DeliveryCard({ d, to, formCode, demo }: { d: DeliveryRow; to: string; f
         <span className="font-medium text-foreground">{c.label}</span>
         <span>to {to}</span>
         <RelativeTime at={d.created_at} />
-        {d.status !== "sent" && <span className="rounded-[var(--radius-input)] border border-border px-1.5">{d.status === "answered" ? "Answered" : "Closed"}</span>}
+        {/* One request by several ways: each is a Delivery of its own, and the first answer closes them all (#613). */}
+        {ways > 1 && <span className="rounded-[var(--radius-input)] border border-border px-1.5">One request, {ways} ways</span>}
+        {d.status !== "sent" && <span className="rounded-[var(--radius-input)] border border-border px-1.5">{d.status === "answered" ? (ways > 1 && d.prompts?.answered_source && d.prompts.answered_source in ANSWERED_ON ? `Answered on ${ANSWERED_ON[d.prompts.answered_source]}` : "Answered") : "Closed"}</span>}
         {d.mail_state !== "outbox" && <MailState state={d.mail_state} error={d.last_error} connector={d.connector} />}
         {/* What never left Ziffr says so, with the reason a trial kept it back when there is one (spec 0021). */}
         {d.mail_state === "outbox" && <span title={d.last_error ?? undefined} className="rounded-[var(--radius-input)] border border-border px-1.5">{d.last_error ?? "Simulated, not sent"}</span>}
@@ -138,6 +143,8 @@ function DeliveryCard({ d, to, formCode, demo }: { d: DeliveryRow; to: string; f
   );
 }
 
+/** Where an answer came from, in words. */
+const ANSWERED_ON: Record<string, string> = { slack: "Slack", telegram: "Telegram", mail: "email", web_form: "the form", api: "the API" };
 const MAIL_STATE: Record<Exclude<DeliveryRow["mail_state"], "outbox">, string> = { queued: "Waiting to send", sending: "Sending", sent: "Emailed", failed: "Not sent" };
 
 /** Whether an email, Slack or Telegram Delivery really went out, and why not when it failed. */

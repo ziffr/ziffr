@@ -209,10 +209,12 @@ Your **Delivery Preference** for each kind of message:
 | --- | --- |
 | **Questions** | Questions someone assigns to you |
 | **Tasks** | Tasks someone assigns to you |
-| **Reminders** | Prompts asking you for a value (only by a way the Metric accepts values by, otherwise the first of Slack, Telegram and email that reaches you), and reminders of tasks that are due |
+| **Prompts and reminders** | Prompts asking you for a value (only by ways the Metric accepts values by, otherwise the first of Slack, Telegram and email that reaches you), and reminders of tasks that are due. This is the one kind you can give up to three ways, see below |
 | **Replies and updates** | Replies in a Thread, proposed Corrections, decisions and tasks that were closed |
 
 For each, pick **Email**, **Slack**, **Telegram**, **WhatsApp** or **Ticket system**, or leave it at **Team default** (which shows what the team default is). Owners and Admins set the team default on the Connectors page. A change is saved at once.
+
+**Prompts and reminders** can go by up to three ways at once, for example Slack, Telegram and email. Pick the first way, then **Also by** a second and a third. The order matters: a Prompt goes by every way in your list at the same time, and the first answer on any of them counts. The other messages are updated where the app allows it ("Answered on Telegram: 3" on Slack and Telegram; an email's form link says **Already answered**), and an answer that comes later on another way follows the Metric's Submission Rule and is never dropped without a word. Reminders of a missing value go by your first way only, so you are not pinged three times. A way the Metric does not accept answers by, or that cannot reach you, is left out of that Prompt, and the rest still go. Quiet Hours hold every way: a message that waits is not sent afterwards if you answered meanwhile.
 
 Whoever asks you a question can still pick another way for that one message. WhatsApp and ticket systems are not live yet: Ziffr only records what it would send there, in the Outbox. See [Connecting Ziffr](04-connecting.md) for what each Connector does.
 

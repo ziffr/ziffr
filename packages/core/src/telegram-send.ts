@@ -12,6 +12,7 @@ import { forgetStaleTelegramTests } from "./installation-telegram-test";
 import { callTelegram, TelegramError } from "./telegram-api";
 import { telegramOnIn } from "./telegram-connection";
 import { forgetTelegramUser, telegramChatOf } from "./telegram-people";
+import { tellIfAnswered } from "./prompt-ways";
 import { DEMO_WORKSPACE_ID } from "./team";
 import { claimTrialSend, keepInOutbox, trialHoldsBack } from "./trials";
 
@@ -95,6 +96,7 @@ export async function sendTelegramDelivery(id: number): Promise<SendResult> {
     const messageId = typeof sent?.message_id === "number" && Number.isSafeInteger(sent.message_id) && sent.message_id > 0 ? sent.message_id : null;
     if (!messageId) throw new TelegramError("no_message_id");
     await db().from("deliveries").update({ mail_state: "sent", attempts: Number(d.attempts) + 1, sent_at: new Date().toISOString(), provider_id: String(messageId), telegram_chat_id: chat.chatId, telegram_message_id: messageId, last_error: null }).eq("id", id);
+    await tellIfAnswered(d.workspace_id, id);
     return "sent";
   } catch (e) {
     return trouble(e, id, Number(d.attempts), chat.userId);

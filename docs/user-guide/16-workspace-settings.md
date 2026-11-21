@@ -333,18 +333,19 @@ If you stopped Prompts and reminders by email, a note at the top of **Channels**
 
 ### Who gets what, where
 
-The **Who gets what** tab: a table of **Delivery Preferences**: one row per person and one column each for **Questions**, **Tasks**, **Reminders** (which includes Prompts) and **Replies and updates**.
+The **Who gets what** tab: a table of **Delivery Preferences**: one row per person and one column each for **Questions**, **Tasks**, **Prompts and reminders** and **Replies and updates**.
 
 - The first row, **Team default**, covers everyone who leaves a column open. Only Owners and Admins change it. Without a team default, Ziffr uses email.
 - Your own row is marked "you". Change it here or under **Your Deliveries**. Everyone else's row is greyed out.
-- A Prompt (under **Reminders**) goes by your choice only where the Metric accepts answers: its **Values arrive by** list decides. Otherwise it goes by the first way both allow where you can be reached, in the order Slack, Telegram, email, and nothing is sent elsewhere if none reaches you: the Prompt waits in the **Outbox** as "Not sent" and the Metric's owner is told once. The Metric page shows where each person's next Prompt goes.
+- Under **Prompts and reminders** a person can pick up to three ways, in order: the first select is the first way, the others are **Also by**. A Prompt goes by every way in the list at once and the first answer counts; reminders go by the first way only. The team default can be a list too.
+- A Prompt goes by your choice only where the Metric accepts answers: its **Values arrive by** list decides. Otherwise it goes by the first way both allow where you can be reached, in the order Slack, Telegram, email, and nothing is sent elsewhere if none reaches you: the Prompt waits in the **Outbox** as "Not sent" and the Metric's owner is told once. The Metric page shows where each person's next Prompt goes ("By Slack and email").
 - Replies about a question or task stay where it started, so a ticket collects its comments. Whoever asks a question can pick another way for that one message.
 
 ### Outbox
 
 The **Outbox** tab lists every **Delivery** you may see, newest first, drawn the way it looks on the other side. Each one shows the Connector, who it went to, when, whether it was answered or closed, and **Open thread** for a question or task.
 
-A Delivery that never left Ziffr is marked **Simulated, not sent**, or with the reason it was kept back, such as "Kept in the Outbox: a trial sends only to its Owner". For email, Slack and Telegram, a small label says whether it really went out: **Waiting to send**, **Sending**, **Emailed**, **Sent on Slack**, **Sent on Telegram** or **Not sent** with the reason, such as "Not connected to Telegram" for someone who has not connected theirs. A Prompt you have not answered yet may offer **Open the form as** you, which opens your form.
+A Delivery that never left Ziffr is marked **Simulated, not sent**, or with the reason it was kept back, such as "Kept in the Outbox: a trial sends only to its Owner". For email, Slack and Telegram, a small label says whether it really went out: **Waiting to send**, **Sending**, **Emailed**, **Sent on Slack**, **Sent on Telegram** or **Not sent** with the reason, such as "Not connected to Telegram" for someone who has not connected theirs. A Prompt you have not answered yet may offer **Open the form as** you, which opens your form. A Prompt that went by several ways shows one Delivery per way, each marked **One request, 3 ways**; once it is answered they all read **Answered on** and the way the answer came by, and one that was still waiting (for quiet hours, say) is not sent any more.
 
 You see Deliveries about Threads you may read, and Prompts and notices you sent or received. The personal form link in someone else's Prompt is hidden.
 

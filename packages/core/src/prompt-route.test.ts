@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { allowedWays, describeRoute, isNotSentReason, notSentReason, routePrompt, type RouteInput } from "./prompt-route";
+import { allowedWays, describeRoute, describeRoutes, isNotSentReason, notSentReason, routePrompt, routePrompts, type RouteInput, type RoutesInput } from "./prompt-route";
 import type { SourceId } from "./types";
 
 const all = { slack: true, telegram: true, email: true };
@@ -80,5 +80,51 @@ describe("isNotSentReason", () => {
     for (const a of [["slack"], ["slack", "telegram"], ["api"]] as SourceId[][]) expect(isNotSentReason(notSentReason(a, true, none))).toBe(true);
     expect(isNotSentReason("Not sent: <b>anything</b>")).toBe(false);
     expect(isNotSentReason("It could not be delivered.")).toBe(false);
+  });
+});
+
+describe("routePrompts: several ways, in the person's order", () => {
+  const many = (o: Partial<RoutesInput>): RoutesInput => ({ chosen: ["slack", "telegram", "email"], accepts: ["slack", "telegram", "mail", "web_form"], mailReplies: true, reach: all, ...o });
+  const vias = (o: Partial<RoutesInput>) => routePrompts(many(o)).map((r) => r.via);
+
+  it("goes by every chosen way, in their order", () => {
+    expect(vias({})).toEqual(["slack", "telegram", "email"]);
+    expect(vias({ chosen: ["email", "slack"] })).toEqual(["email", "slack"]);
+    expect(routePrompts(many({})).every((r) => r.chosen)).toBe(true);
+  });
+  it("leaves out a way the Metric refuses or that cannot reach the person", () => {
+    expect(vias({ accepts: ["slack", "web_form"] })).toEqual(["slack", "email"]);
+    expect(vias({ reach: { ...all, telegram: false } })).toEqual(["slack", "email"]);
+  });
+  it("names a way once, and ignores ones that are not ways", () => {
+    expect(vias({ chosen: ["slack", "slack", "whatsapp", "telegram"] })).toEqual(["slack", "telegram"]);
+  });
+  it("falls back to the first allowed way, not the person's own, when none of theirs works", () => {
+    const r = routePrompts(many({ chosen: ["slack"], reach: { ...all, slack: false } }));
+    expect(r).toHaveLength(1);
+    expect(r[0]).toMatchObject({ via: "telegram", chosen: false });
+    expect(vias({ chosen: [] })).toEqual(["slack"]);
+  });
+  it("is empty when no allowed way reaches the person", () => {
+    expect(vias({ reach: none })).toEqual([]);
+    expect(vias({ accepts: ["api"] })).toEqual([]);
+  });
+  it("offers a form link only by email, and a reply by email only when replies come back", () => {
+    const r = routePrompts(many({ accepts: ["slack", "web_form"] }));
+    expect(r.map((x) => [x.via, x.answerHere, x.formLink])).toEqual([["slack", true, false], ["email", false, true]]);
+  });
+  it("is the same as one way for a list of one", () => {
+    for (const chosen of ["slack", "email", "whatsapp"]) expect(routePrompts(many({ chosen: [chosen], reach: { ...all, slack: false } }))[0]).toEqual(routePrompt(input({ chosen, reach: { ...all, slack: false } })));
+  });
+  it("says them all in words", () => {
+    const i = many({});
+    expect(describeRoutes(i, routePrompts(i)).text).toBe("By Slack, Telegram and email");
+    const two = many({ chosen: ["slack", "email"] });
+    expect(describeRoutes(two, routePrompts(two)).text).toBe("By Slack and email");
+    const one = many({ chosen: ["slack"] });
+    expect(describeRoutes(one, routePrompts(one)).text).toBe("By Slack");
+    const nothing = many({ reach: none });
+    expect(describeRoutes(nothing, routePrompts(nothing)).ok).toBe(false);
+    expect(describeRoutes(many({ chosen: [], reach: none }), []).ok).toBe(false);
   });
 });

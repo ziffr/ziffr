@@ -8,7 +8,7 @@ import { slackUserFor } from "./slack-people";
 import { telegramSends } from "./telegram-send";
 import { telegramChatOf } from "./telegram-people";
 import { settingsInEffect } from "./settings-in-effect";
-import { allowedWays, routePrompt, type PromptWay, type Route } from "./prompt-route";
+import { allowedWays, routePrompts, type PromptWay, type Route } from "./prompt-route";
 import type { SourceId } from "./types";
 
 /** Whether an email asking for a reply is answered in Ziffr: inbound mail is set up, or mail is only simulated here. */
@@ -35,16 +35,18 @@ export async function reachOf(workspaceId: string, personId: string, resolve = f
   return { slack, telegram: Boolean(telegramLink), email: true };
 }
 
-/** The decision for one person and Metric, with what it was made from (for a stored reason). With `resolve`, Slack is
- * asked about a person not linked yet only when it could change the outcome: the Metric accepts Slack, and the person's
- * own way did not already decide it (Slack comes first among the others). */
-export async function planPrompt(workspaceId: string, personId: string, accepts: readonly SourceId[], chosen: string, resolve = false): Promise<{ route: Route; mailReplies: boolean; reach: Record<PromptWay, boolean> }> {
+/** The decision for one person and Metric: every way the Prompt goes by, in the person's order (`routes`; `route` is the
+ * first, or none), with what it was made from (for a stored reason). With `resolve`, Slack is asked about a person not
+ * linked yet only when it could change the outcome: the Metric accepts Slack, and the person's own ways did not already
+ * decide it (Slack is named in their list, or comes first among the others). */
+export async function planPrompt(workspaceId: string, personId: string, accepts: readonly SourceId[], chosen: string | readonly string[], resolve = false): Promise<{ route: Route; routes: Extract<Route, { via: PromptWay }>[]; mailReplies: boolean; reach: Record<PromptWay, boolean> }> {
+  const list = typeof chosen === "string" ? [chosen] : chosen;
   const [mailReplies, first] = await Promise.all([mailRepliesReturn(workspaceId), reachOf(workspaceId, personId)]);
   let reach = first;
-  let route = routePrompt({ chosen, accepts, mailReplies, reach });
-  if (resolve && allowedWays(accepts, mailReplies).slack && !reach.slack && !(route.via && route.chosen)) {
+  let routes = routePrompts({ chosen: list, accepts, mailReplies, reach });
+  if (resolve && allowedWays(accepts, mailReplies).slack && !reach.slack && (list.includes("slack") || !routes.some((r) => r.chosen))) {
     reach = await reachOf(workspaceId, personId, true);
-    route = routePrompt({ chosen, accepts, mailReplies, reach });
+    routes = routePrompts({ chosen: list, accepts, mailReplies, reach });
   }
-  return { route, mailReplies, reach };
+  return { route: routes[0] ?? { via: null }, routes, mailReplies, reach };
 }

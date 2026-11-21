@@ -1,6 +1,7 @@
 // Questions and tasks (GLOSSARY: Action, Question, Task, Thread, Delivery Preference): asking about a value or assigning
 // work on it, replying in its Thread, closing it, and where each person hears about it. Every function takes the Actor
 // first and works only inside the actor's Workspace.
+import { MAX_PROMPT_WAYS } from "./prompt-route";
 import { remindDueTasks } from "./scheduled-runs";
 import { format } from "date-fns";
 import { db } from "./db";
@@ -82,17 +83,24 @@ export async function markTaskDone(actor: Actor, actionId: number, source: Chang
 }
 
 /** Where a person hears about each kind of message. A person sets their own; the team default (personId null) is
- * set by owners and admins. A null Connector removes the preference, so the team's applies. */
-export async function setPreference(actor: Actor, personId: string | null, kind: PreferenceKind, connector: ConnectorId | null) {
-  if (!KINDS.includes(kind) || (connector !== null && !CONNECTOR_IDS.includes(connector))) throw new Forbidden();
+ * set by owners and admins. A null or empty choice removes the preference, so the team's applies. Prompts (kind
+ * "reminder") take a list of ways in order, each once: the Prompt goes by all of them and only the first sends
+ * reminders; every other kind has one way. */
+export async function setPreference(actor: Actor, personId: string | null, kind: PreferenceKind, connector: ConnectorId | ConnectorId[] | null) {
+  const ways = connector === null ? [] : Array.isArray(connector) ? connector : [connector];
+  const valid = ways.every((c) => CONNECTOR_IDS.includes(c)) && new Set(ways).size === ways.length && ways.length <= (kind === "reminder" ? MAX_PROMPT_WAYS : 1);
+  if (!KINDS.includes(kind) || !valid) throw new Forbidden();
   if (personId === null) {
     assertCan(actor, "manage-members");
-    if (!connector) throw new Forbidden();
+    if (!ways.length) throw new Forbidden();
   } else if (personId !== actor.personId) throw new Forbidden();
   const ws = actor.workspaceId;
   if (personId === null) await db().from("delivery_preferences").delete().is("user_id", null).eq("kind", kind).eq("workspace_id", ws);
   else await db().from("delivery_preferences").delete().eq("user_id", personId).eq("kind", kind).eq("workspace_id", ws);
-  if (connector) await db().from("delivery_preferences").insert({ user_id: personId, kind, connector, workspace_id: ws });
+  if (ways.length) {
+    const { error } = await db().from("delivery_preferences").insert(ways.map((c, position) => ({ user_id: personId, kind, connector: c, position, workspace_id: ws })));
+    if (error) throw new Error("Your choice could not be saved. Try again.");
+  }
 }
 
 /** Starting the scheduled run by hand messages the whole workspace: outside the demo only Owners and Admins may. */

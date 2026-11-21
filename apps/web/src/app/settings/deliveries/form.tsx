@@ -6,12 +6,13 @@ import { toast } from "sonner";
 import { setPreference } from "@/app/connector-actions";
 import { setEmailReminders, setUsageDigestOn } from "@/app/settings-actions";
 import { AwayDates } from "@/app/team/screen";
+import { PromptWays } from "@/app/connectors/prompt-ways";
 import { CONNECTORS, CONNECTOR_IDS, type ConnectorId, type PreferenceKind } from "@ziffr/core/connectors/index";
 
 const KINDS: { id: PreferenceKind; label: string }[] = [
   { id: "question", label: "Questions" },
   { id: "task", label: "Tasks" },
-  { id: "reminder", label: "Reminders" },
+  { id: "reminder", label: "Prompts and reminders" },
   { id: "update", label: "Replies and updates" },
 ];
 
@@ -31,7 +32,17 @@ export function DeliveriesForm({ viewer, mine, team, optedOut, away, email, usag
           <p className="text-sm text-muted-foreground">The team default covers what you leave open. Whoever asks can pick another way for one message.</p>
         </div>
         <div className="grid gap-3 sm:grid-cols-2">
-          {KINDS.map((k) => (
+          {KINDS.map((k) => k.id === "reminder" ? (
+            <div key={k.id} className="block text-sm font-medium">
+              {k.label}
+              <div className="mt-1">
+                <PromptWays
+                  label={k.label} list={mine.filter((p) => p.kind === k.id).map((p) => p.connector as ConnectorId)} teamDefault={team.some((p) => p.kind === k.id) ? team.filter((p) => p.kind === k.id).map((p) => p.connector as ConnectorId) : ["email"]} disabled={pending}
+                  onChange={(next) => start(async () => { try { unwrap(await setPreference(viewer, k.id, next)); toast.success("Saved"); } catch (err) { toast.error("Not saved", { description: shown(err) }); } })}
+                />
+              </div>
+            </div>
+          ) : (
             <label key={k.id} className="block text-sm font-medium">
               {k.label}
               <select
@@ -46,6 +57,7 @@ export function DeliveriesForm({ viewer, mine, team, optedOut, away, email, usag
             </label>
           ))}
         </div>
+        <p className="text-sm text-muted-foreground">A Prompt can go by up to three ways at once. The first answer counts; the other messages say where it was answered, and reminders go by the first way only.</p>
       </section>
 
       <section aria-labelledby="email-heading" className="space-y-2 border-t border-border pt-6">

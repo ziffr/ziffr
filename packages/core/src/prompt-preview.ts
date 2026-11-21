@@ -4,9 +4,9 @@ import { db } from "./db";
 import type { Actor } from "./actor";
 import { editableMetric } from "./metrics";
 import { feedIdsAmong } from "./feed-people";
-import { connectorFor } from "./deliveries";
+import { waysFor } from "./deliveries";
 import { mailRepliesReturn, reachOf } from "./prompt-reach";
-import { describeRoute, routePrompt, type RouteView } from "./prompt-route";
+import { describeRoutes, routePrompts, type RouteView } from "./prompt-route";
 import type { SourceId } from "./types";
 
 /** Per submitter (a person's id): where their next Prompt for the Metric goes. A Feed is never asked, so has none. */
@@ -22,9 +22,9 @@ export async function nextPromptWays(actor: Actor, metricId: number): Promise<Re
   const mailReplies = await mailRepliesReturn(actor.workspaceId);
   const out: Record<string, RouteView> = {};
   for (const id of ids.filter((i) => !feeds.has(i))) {
-    const [chosen, reach] = await Promise.all([connectorFor(actor.workspaceId, id, "prompt", null), reachOf(actor.workspaceId, id)]);
+    const [chosen, reach] = await Promise.all([waysFor(actor.workspaceId, id, "prompt"), reachOf(actor.workspaceId, id)]);
     const input = { chosen, accepts: m.sources as SourceId[], mailReplies, reach };
-    const view = describeRoute(input, routePrompt(input));
+    const view = describeRoutes(input, routePrompts(input));
     // The way to fix it is the person's own to take: for anyone else the line only says what is wrong.
     out[id] = id === actor.personId ? view : { ...view, fix: null };
   }

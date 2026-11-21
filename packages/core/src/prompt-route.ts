@@ -5,6 +5,8 @@ import type { SourceId } from "./types";
 
 /** The ways a Prompt can go: by chat on Slack or Telegram (the answer is a reply), or by email (a reply, a form link). */
 export type PromptWay = "slack" | "telegram" | "email";
+/** The most ways one person's Prompts go by at once (GLOSSARY: Delivery Preference). */
+export const MAX_PROMPT_WAYS = 3;
 /** The order tried when the person's own choice is not allowed or cannot reach them. */
 export const PROMPT_WAYS: readonly PromptWay[] = ["slack", "telegram", "email"];
 
@@ -30,20 +32,36 @@ export function allowedWays(accepts: readonly SourceId[], mailReplies: boolean):
   };
 }
 
-/** The decision: the way, whether it is the person's own choice, and what the message may offer; or no way. */
+/** The decision for one way: the way, whether it is the person's own choice, and what the message may offer; or no way. */
 export type Route =
   | { via: PromptWay; chosen: boolean; answerHere: boolean; formLink: boolean }
   | { via: null };
 
-/** Decides where a Prompt goes. Never a form link for a Metric that refuses the Web form, never a request to reply by
- * email when Mail is off (or replies do not come back); nothing sent elsewhere when no allowed way reaches the person. */
-export function routePrompt(i: RouteInput): Route {
+/** What the decision needs when the person chose several ways, in their order. */
+export type RoutesInput = Omit<RouteInput, "chosen"> & { chosen: readonly string[] };
+
+/** How a Prompt goes by one way: whether the answer is a reply there, or a form link in an email. */
+function routeVia(way: PromptWay, chosen: boolean, i: Pick<RouteInput, "accepts" | "mailReplies">): Route {
+  const replyByMail = way === "email" && i.accepts.includes("mail") && i.mailReplies;
+  return { via: way, chosen, answerHere: way !== "email" || replyByMail, formLink: way === "email" && !replyByMail };
+}
+
+/** Decides where a Prompt goes when the person chose several ways (GLOSSARY: Delivery Preference): every way of their
+ * list, in their order, that the Metric allows and that reaches them, once each. When none of their own works, the first
+ * way both allow in the fixed order, as for one way. Never a form link for a Metric that refuses the Web form, never a
+ * request to reply by email when Mail is off (or replies do not come back); an empty list when no allowed way reaches
+ * the person: nothing is sent elsewhere. */
+export function routePrompts(i: RoutesInput): Extract<Route, { via: PromptWay }>[] {
   const allowed = allowedWays(i.accepts, i.mailReplies);
   const usable = (w: PromptWay) => allowed[w] && i.reach[w];
-  const way = (PROMPT_WAYS as readonly string[]).includes(i.chosen) && usable(i.chosen as PromptWay) ? i.chosen as PromptWay : PROMPT_WAYS.find(usable);
-  if (!way) return { via: null };
-  const replyByMail = way === "email" && i.accepts.includes("mail") && i.mailReplies;
-  return { via: way, chosen: way === i.chosen, answerHere: way !== "email" || replyByMail, formLink: way === "email" && !replyByMail };
+  const own = [...new Set(i.chosen)].filter((c): c is PromptWay => (PROMPT_WAYS as readonly string[]).includes(c) && usable(c as PromptWay));
+  const ways = own.length ? own : PROMPT_WAYS.filter(usable).slice(0, 1);
+  return ways.map((w) => routeVia(w, own.length > 0, i) as Extract<Route, { via: PromptWay }>);
+}
+
+/** Decides where a Prompt goes for one chosen way: the first of `routePrompts`, or no way. */
+export function routePrompt(i: RouteInput): Route {
+  return routePrompts({ ...i, chosen: [i.chosen] })[0] ?? { via: null };
 }
 
 /** Whether a stored reason is one `notSentReason` wrote (and so may be shown as it is). */
@@ -96,4 +114,15 @@ export function describeRoute(i: RouteInput, route: Route): RouteView {
     : !allowed[i.chosen as PromptWay] ? `They chose ${own}, but this Metric does not take values by ${own}.`
     : `They chose ${own}, but it does not reach them.`;
   return { ok: true, text, why, fix: known && allowed[i.chosen as PromptWay] ? { label: FIX_LABEL[i.chosen as PromptWay], href: FIX_HREF[i.chosen as PromptWay] } : null };
+}
+
+/** The next Prompt as the Metric page says it when it goes by several ways at once: "By Slack and Telegram". One way is
+ * described as `describeRoute` does; for several, the first way's reason or fix stays, and the text names them all. */
+export function describeRoutes(i: RoutesInput, routes: readonly Route[]): RouteView {
+  const first = routes[0] ?? { via: null };
+  const one = { ...i, chosen: i.chosen[0] ?? "" };
+  const view = describeRoute(one, first);
+  if (routes.length < 2) return view;
+  const labels = routes.map((r) => WAY_LABEL[r.via as PromptWay]);
+  return { ...view, text: `By ${labels.slice(0, -1).join(", ")} and ${labels[labels.length - 1]}` };
 }

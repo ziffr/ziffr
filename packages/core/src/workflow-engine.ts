@@ -130,7 +130,7 @@ export async function runWorkflows(workspaceId: string, asOf: string, actorId: s
     for (const [i, step] of ctx.wf.config.steps.entries()) {
       if (done.has(i)) continue;
       if (step.type === "remind" && asOf >= shiftPeriod(due, "day", -step.daysBefore)) {
-        for (const p of people) await deliverPrompt({ metricId: m.id, submitterId: p.ask, senderId: ctx.wf.owner_id, period, queue, note: `Reminder, due ${due}.` });
+        for (const p of people) await deliverPrompt({ metricId: m.id, submitterId: p.ask, senderId: ctx.wf.owner_id, period, queue, note: `Reminder, due ${due}.`, reminder: true });
         done.add(i);
         log.push(`${label}: reminded`);
       }
