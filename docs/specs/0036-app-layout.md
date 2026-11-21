@@ -1,0 +1,85 @@
+# 0036 App layout: sidebar, inset page, slide-overs
+
+**Status:** draft. **Ticket:** #502. A preview behind a switch; the top bar stays the default until the owner decides from the screenshots.
+
+## Problem Statement
+
+The top bar holds a wordmark, four destinations, a Workspace menu, search, Actions, help and the account menu. It works, but:
+
+- the Workspace's own pages (up to a dozen for an Owner) hide in one dropdown, so people who live in them click twice for everything;
+- the Workspace switcher is mixed into the account menu, so it is hard to see which Workspace you are in;
+- a detail (a Metric's Alerts, a quick look at a number) either leaves the page or opens a centred dialog that covers what you were reading;
+- on a phone the whole bar becomes one hamburger menu, so the two places people use most are two taps away;
+- the demo's controls take a row of their own above every page.
+
+## Solution
+
+One frame, chosen per browser: a collapsible **sidebar** with the page as a raised card beside it, search first, details sliding in from the right, and a tab bar on phones. Same pages, same links, same permissions; only the frame changes.
+
+Decisions (agreed with the owner):
+
+- shadcn `sidebar-07` (collapses to icons) in the **inset** style: the page is a card on a tinted ground. Written for Base UI like our other components (`components/ui/sidebar.tsx`); no Radix is added.
+- Top of the sidebar: the **Workspace switcher** (today's Workspace list, **The demo** below a line, **New workspace**), then a visible **Search ⌘K** field. Bottom: **User guide** and the **user menu** (Your settings, Installation settings for Installation Admins, Sign out).
+- Middle: **Actions** with its count first, then **Dashboards, Decks, Metrics, Analyze**, then **Workspace** with the pages `workspaceLinks(role)` gives this role.
+- ⌘K (#412) stays the main way to find anything. Ctrl+B collapses the sidebar.
+- **Slide-overs** (a Sheet from the right) for details instead of page changes. The preview does two: **Details** on a Metrics list row (latest value, target, recent values, then **Open the Metric**), and **Alert me…** on a Metric's page.
+- A quiet, dense look: 13px rows, tabular figures, colour only for status (the existing target chips), all from today's tokens, so Themes keep working.
+- The demo's controls (**Viewing as**, **Leave the demo**) sit in a slim bar at the top of the page card.
+
+## What moves where
+
+| Today (top bar) | Sidebar layout |
+| --- | --- |
+| Wordmark | Workspace switcher tile at the top; the wordmark on phones |
+| Dashboards, Decks, Metrics, Analyze | Sidebar, under Actions |
+| Workspace menu (dropdown) | **Workspace** group in the sidebar, always visible |
+| Search button | **Search ⌘K** field at the top of the sidebar; Search tab on phones |
+| Actions icon with count | **Actions** row with count, first in the list; Actions tab on phones |
+| User guide icon | **User guide** row at the bottom |
+| Account menu: Workspace list, New workspace | Workspace switcher at the top |
+| Account menu: your pages, Installation settings, Sign out | User menu at the bottom |
+| Demo controls row | Slim bar at the top of the page card |
+| Phone hamburger | Bottom tab bar: Dashboards, Metrics, Actions, Search, More |
+| Alert me… dialog | Slide-over |
+
+## Phone layout
+
+Below 768px there is no sidebar. A bar fixed at the bottom has **Dashboards, Metrics, Actions** (with its count), **Search** (opens the same search) and **More**, which opens everything else from the bottom: Decks, Analyze, the Workspace pages, Your settings, the Workspace switcher, Sign out. Each tab is at least 44px wide and tall. The page keeps room under it, also with the home-bar inset on phones.
+
+## Demo controls
+
+**Viewing as** and **Leave the demo** stay in view on every page, in a 40px bar at the top of the card, beside the sidebar toggle. The line "Look around as anyone…" stays under it. On a phone the bar wraps.
+
+## Themes
+
+The frame uses only the app's tokens (`--sidebar*`, `--background`, `--border`, `--ring`), which are already defined from the Coral tokens. A Theme colours the content a dashboard shows, not the frame, so Themes work unchanged. The app has no dark mode today (`color-scheme: light`); see question 5.
+
+## Accessibility
+
+- Every sidebar row is a link or button with a visible focus ring; a "Skip to the page" link comes first.
+- Landmarks: the sidebar is a labelled region with a `nav` named Main; the phone's tabs are a `nav` named Tabs; the current page has `aria-current="page"`.
+- Collapsed to icons, each row keeps its name for screen readers and shows a **tooltip** on hover and on keyboard focus. Actions keeps its count in its name ("Actions, 3 waiting for you").
+- A slide-over is a Base UI dialog: focus moves in, Esc closes, focus returns to the button that opened it, the page behind is inert.
+- Motion: the width change and slide-over use 150 to 200 ms and are off with `prefers-reduced-motion`.
+- Touch targets on phones are at least 44px; rows in the sidebar are 28px for the pointer (a dense, desktop-only choice).
+
+## Rollout
+
+1. **Preview** (this pull request): the switch in **Your profile → Try the new layout (preview)**, or `?layout=sidebar` and `?layout=top` for a link. A cookie in this browser; nothing is stored on the server. The top bar is the default.
+2. **Default:** once the owner agrees, the sidebar becomes the default and the switch offers **Use the classic top bar**. Every screen is checked in both frames; screens that assume the top bar's width are fixed.
+3. **Remove** the top bar and the switch one release later.
+
+## Not in this spec
+
+More slide-overs (Share, Version history, Add to deck) and moving each into a Sheet; a customisable sidebar (pinned dashboards in it); dark mode.
+
+## Open questions for the owner
+
+1. **Which frame?** Sidebar with inset card (built), or the sidebar flat with no card? Recommendation: inset; it separates the frame from the numbers.
+2. **Workspace group**: always open (built) or collapsible, closed by default for Members? Recommendation: always open for Owners and Admins, who live there; collapsed for Members and Guests, who have few pages.
+3. **Pinned dashboards in the sidebar** (a list under Dashboards)? Recommendation: yes, in the step after the preview; it replaces the dashboard switcher on the page.
+4. **Which details become slide-overs next?** Recommendation: Alert me…, Share, Version history and a Metric's quick look first (all keep the reader on the page); forms that create something stay dialogs.
+5. **Dark mode:** the app is light only today. Make a dark set of tokens as part of this move, or later? Recommendation: later, as its own ticket; the frame already uses tokens only.
+6. **Phone tabs:** are Dashboards, Metrics, Actions, Search, More the right five? Recommendation: yes; Decks and Analyze are reading and analysing on a larger screen.
+7. **Collapsed by default** for new people? Recommendation: expanded; it remembers the person's last choice.
+8. **Name of the switch** when it becomes the default: "Use the classic top bar" for one release, then removed. Recommendation: as written in Rollout.
