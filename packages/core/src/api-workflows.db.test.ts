@@ -180,7 +180,7 @@ describe("who approves and who is told", () => {
     expect(held?.message).toMatch(/access_keys_assistant_never_approves/);
     const { error } = await db().from("access_keys").update({ kind: "assistant", oauth_client_id: client, scopes: WRITE }).eq("id", Number(key.key.id));
     expect(error).toBeNull();
-    for (const scope of ["values:approve", "view-links:write", "workflows:people", "shares:write", "groups:write", "people:write"]) {
+    for (const scope of ["values:approve", "view-links:write", "usage:read", "workflows:people", "shares:write", "groups:write", "people:write"]) {
       const { error: refused } = await db().from("access_keys").update({ scopes: [scope] }).eq("id", Number(key.key.id));
       expect(refused?.message, scope).toMatch(/access_keys_assistant_never_approves/);
     }
