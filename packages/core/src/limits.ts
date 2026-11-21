@@ -21,12 +21,15 @@ async function installationValues(): Promise<InstallationValues> {
 }
 
 async function workspaceRow(workspaceId: string): Promise<Row> {
-  const { data } = await db().from("workspace_settable_limits").select("*").eq("workspace_id", workspaceId).maybeSingle();
+  const { data, error } = await db().from("workspace_settable_limits").select("*").eq("workspace_id", workspaceId).maybeSingle();
+  // A failed read must not look like "nothing set": that would put the Installation's higher value in effect.
+  if (error) throw new Error("The limits could not be read.");
   return (data as Row) ?? null;
 }
 
 async function personRow(workspaceId: string, personId: string): Promise<Row> {
-  const { data } = await db().from("person_settable_limits").select("*").eq("workspace_id", workspaceId).eq("person_id", personId).maybeSingle();
+  const { data, error } = await db().from("person_settable_limits").select("*").eq("workspace_id", workspaceId).eq("person_id", personId).maybeSingle();
+  if (error) throw new Error("The limits could not be read.");
   return (data as Row) ?? null;
 }
 
