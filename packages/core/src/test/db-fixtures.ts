@@ -145,3 +145,8 @@ export async function insertAssistantKey(workspaceId: string, createdBy: string,
   const { error } = await db().from("access_keys").insert({ workspace_id: workspaceId, created_by: createdBy, name: "Assistant", kind: "assistant", scopes, expires_on: new Date(Date.now() + 30 * 86400000).toISOString().slice(0, 10), prefix: "test00000000", secret_hash: "x".repeat(64) });
   return error?.code ?? null;
 }
+
+/** Marks an Action as sent to a Webhook (as the deliveries job does), so the Webhook may answer for it. */
+export async function markSentToWebhook(workspaceId: string, webhookId: string, actionId: number, metricId: number) {
+  await must(db().from("webhook_sends").insert({ workspace_id: workspaceId, webhook_id: webhookId, type: "action.created", action_id: actionId, metric_id: metricId, period_start: "2026-10-01", source_type: "app", state: "delivered" }));
+}

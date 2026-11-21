@@ -170,18 +170,18 @@ describe("the system's closes and a Webhook's own change", () => {
     expect(ofType(await sends(openTask), "action.done")).toHaveLength(1);
     expect(await statusOf(openTask)).toBe("closed");
   });
-  it("a change that came from a Webhook goes to every Webhook, its own included, marked with its id", async () => {
+  it("a change that came from a Webhook goes to every other Webhook, marked with its id, and never back to it", async () => {
     const c = await setup();
     await updateWebhook(c.a, c.creations, { events: ["action.created", "action.done"] });
     const id = await c.task();
     const r = await changeActionState(c.w.id, id, { to: "answered", from: ["open"], reason: "done", guard: { assigneeId: c.ann, kind: "task" } }, { type: "webhook", webhookId: c.all });
     expect(r).toEqual({ changed: true, status: "answered", refused: false });
     const done = ofType(await sends(id), "action.done");
-    expect(done.map((x) => x.webhook_id).sort()).toEqual([c.all, c.creations].sort());
+    expect(done.map((x) => x.webhook_id)).toEqual([c.creations]);
     for (const row of done) expect(row).toMatchObject({ source_type: "webhook", source_webhook_id: c.all });
     // Replayed: the same state is no error and no second event.
     expect(await changeActionState(c.w.id, id, { to: "answered", from: ["open"], guard: { assigneeId: c.ann } }, { type: "webhook", webhookId: c.all })).toMatchObject({ changed: false, status: "answered", refused: false });
-    expect(ofType(await sends(id), "action.done")).toHaveLength(2);
+    expect(ofType(await sends(id), "action.done")).toHaveLength(1);
   });
   it("refuses an Action of another Workspace as one that is not there, and writes nothing", async () => {
     const c = await setup();

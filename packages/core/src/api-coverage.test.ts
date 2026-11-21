@@ -25,7 +25,7 @@ function sources(dir: string): string[] {
 }
 
 /** Where the actor is the first parameter: the mark of an operation (rule 2 of AGENTS.md). */
-const ACTOR = /^(Actor|KeyActor|InstallationActor|FeedActor)(\s*\|\s*(Actor|KeyActor|InstallationActor|FeedActor))*$/;
+const ACTOR = /^(Actor|KeyActor|InstallationActor|FeedActor|WebhookActor)(\s*\|\s*(Actor|KeyActor|InstallationActor|FeedActor|WebhookActor))*$/;
 /** A permission check: named as one and answering yes or no, or nothing. A guard is not an operation. */
 const GUARD_NAME = /^(assert|require|can|may|is|has|ensure|check)[A-Z]/;
 /** Calls that change a row (a database function called with `rpc` may too; the operations that only do that are few). */

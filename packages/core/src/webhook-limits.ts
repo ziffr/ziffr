@@ -13,6 +13,12 @@ export const WEBHOOK_LOG_DAYS = 14;
 export const WEBHOOK_URL_MAX = 2_000;
 /** The longest name, in characters. */
 export const WEBHOOK_NAME_MAX = 80;
+/** The longest request body a Webhook may send back, in bytes. */
+export const WEBHOOK_INBOUND_MAX_BYTES = 16 * 1024;
+/** Requests a Webhook may make back per minute; past it they answer 429. */
+export const WEBHOOK_INBOUND_PER_MINUTE = 60;
+/** External tasks one Action may be linked to. */
+export const WEBHOOK_EXTERNAL_IDS_PER_ACTION = 10;
 /** How long the old secret still signs after a replacement, in hours. */
 export const WEBHOOK_SECRET_OVERLAP_HOURS = 24;
 /** Failed sends in a row after which a Webhook is switched off. */

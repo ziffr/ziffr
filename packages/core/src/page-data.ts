@@ -280,12 +280,15 @@ export async function actionThread(actor: Actor, id: number) {
   const metric = metrics.find((m) => m.id === action.metric_id);
   if (!metric || !can(action as Action & { workspace_id: string })) return null;
   const seesMetric = visible.has(metric.id);
-  const [{ data: messages }, { data: deliveries }, observation, series] = await Promise.all([
+  const [{ data: messages }, { data: deliveries }, observation, series, { data: links }] = await Promise.all([
     db().from("thread_messages").select("*").eq("workspace_id", ws).eq("action_id", id).order("created_at"),
     db().from("deliveries").select("id, connector, recipient_id, kind, external_ref, created_at").eq("workspace_id", ws).eq("action_id", id).order("id"),
     getObservation(ws, action.observation_id),
     seesMetric ? getSeriesOf(ws, metrics, [metric.id]) : Promise.resolve({} as Record<string, Point[]>),
+    db().from("webhook_external_ids").select("id, system, url").eq("workspace_id", ws).eq("action_id", id).order("created_at").limit(10),
   ]);
+  // "Also in Microsoft To Do" (spec 0034): the system's label and an https address a Webhook's recipe gave; never the external id.
+  const externalLinks = (await openRows("webhook_external_ids", ws, (links ?? []) as Record<string, unknown>[])).map((l) => ({ system: String(l.system), url: typeof l.url === "string" && /^https:\/\//.test(l.url) ? l.url : null }));
   const around = metric.period === "day" ? CHART_AROUND.day : CHART_AROUND.other;
   const pts = series[metric.slug] ?? [];
   const at = pts.findIndex((p) => p.period === action.period_start);
@@ -295,7 +298,7 @@ export async function actionThread(actor: Actor, id: number) {
   // Security: someone on the Action who does not see its Metric gets only these few fields of it, never its
   // description, settings or Workflow; the whole Metric, for the chart, only goes to a viewer who sees it.
   const named: ActionMetric = { id: metric.id, name: metric.name, slug: metric.slug, period: metric.period, owner_id: metric.owner_id, decimals: metric.decimals, unit: metric.unit, unit_position: metric.unit_position };
-  return { action, metric: named, chartMetric: seesMetric ? metric : null, seesMetric, observation: value, chart, messages: await openRows("thread_messages", ws, messages), deliveries: deliveries ?? [] };
+  return { action, metric: named, chartMetric: seesMetric ? metric : null, seesMetric, observation: value, chart, messages: await openRows("thread_messages", ws, messages), deliveries: deliveries ?? [], externalLinks };
 }
 
 /** A personal form link's page, for anyone holding the code: the Metric, whose form it is, and this period's value.

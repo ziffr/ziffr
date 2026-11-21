@@ -161,6 +161,8 @@ export type ThreadMessage = {
   correction_value: number | null;
   correction_status: "proposed" | "accepted" | "declined" | null;
   created_at: string;
+  /** The name of the Webhook the message came through, when it did (spec 0034). */
+  via?: string | null;
 };
 
 /** A dashboard and the Theme it uses (null: the team default). */
