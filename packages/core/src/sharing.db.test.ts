@@ -6,7 +6,7 @@ import { createMetric, deleteMetric, removeSeriesRows, saveSeriesRows, setMetric
 import { decideAccess, requestAccess, share, shareWithGroup, whoCanSee } from "./sharing";
 import { addContact, createGroup, deleteGroup, removeContact, renameGroup, setGroupMember } from "./team";
 import { canSee } from "./sharing";
-import { workspace } from "./test/db-fixtures";
+import { opened, workspace } from "./test/db-fixtures";
 
 const cleanups: (() => Promise<void>)[] = [];
 afterEach(async () => { for (const c of cleanups.splice(0)) await c(); });
@@ -49,9 +49,9 @@ describe("creating Metrics", () => {
     await expect(saveSeriesRows(w.actor(sara), m.id, "target", [{ period: "Dec", value: 1 }], "")).rejects.toThrow();
     await expect(saveSeriesRows(w.actor(sara), m.id, "target", "2026-12 10", "")).rejects.toThrow();
     expect(await saveSeriesRows(w.actor(sara), m.id, "target", rows, "Budget 2027")).toEqual({ saved: 2 });
-    const { data } = await db().from("series_values").select("period_start, value").eq("metric_id", m.id).order("period_start");
+    const data = await opened("series_values", w.id, (await db().from("series_values").select("metric_id, kind, period_start, value, value_sealed").eq("metric_id", m.id).order("period_start")).data);
     // A day inside a month is that month, and a value with three decimals stays what it was.
-    expect(data!.map((r) => [r.period_start, Number(r.value)])).toEqual([["2026-12-01", 0.125], ["2027-01-01", 140000]]);
+    expect(data.map((r) => [r.period_start, Number(r.value)])).toEqual([["2026-12-01", 0.125], ["2027-01-01", 140000]]);
     // Removing: the owner only, real days only, and only the periods named.
     await expect(removeSeriesRows(w.actor(ben, "member"), m.id, "target", ["2026-12-01"])).rejects.toEqual(forbidden);
     await expect(removeSeriesRows(w.actor(sara), m.id, "target", ["2026-12-01,period_start.neq.x"])).rejects.toThrow();
@@ -86,7 +86,7 @@ describe("changing a Metric's description", () => {
     await expect(updateMetricDetails(w.actor(sara), m.id, { name: "  " })).rejects.toThrow(/name/);
     await expect(updateMetricDetails(w.actor(sara), m.id, { targetMin: 10, targetMax: 5 })).rejects.toThrow(/above/);
     await updateMetricDetails(w.actor(sara), m.id, { name: "Store visits", unit: "visits", format: "fax", decimals: 99, polarity: "lower", targetMin: 100, targetMax: null, period: "week" });
-    const { data: after } = await db().from("metrics").select("slug, name, unit, format, decimals, polarity, target_min, target_max, period").eq("id", m.id).single();
+    const [after] = await opened("metrics", w.id, (await db().from("metrics").select("id, slug, name, unit, format, decimals, polarity, target_min, target_min_sealed, target_max, target_max_sealed, period").eq("id", m.id)).data);
     expect(after).toMatchObject({ slug: m.slug, name: "Store visits", unit: "visits", format: "number", decimals: 6, polarity: "lower", target_max: null, period: "week" });
     expect(Number(after!.target_min)).toBe(100);
     await w.value(m.id, "2026-10-05", 3);
@@ -240,8 +240,8 @@ describe("after the review", () => {
   it("keeps the last value when rows name a period twice", async () => {
     const w = await ws(); const sara = await w.person("owner"); const m = await w.metric(sara);
     expect(await saveSeriesRows(w.actor(sara), m.id, "target", [{ period: "2026-12-01", value: 10 }, { period: "2026-12-01", value: 12 }], "")).toEqual({ saved: 1 });
-    const { data } = await db().from("series_values").select("value").eq("metric_id", m.id);
-    expect(data!.map((r) => Number(r.value))).toEqual([12]);
+    const data = await opened("series_values", w.id, (await db().from("series_values").select("metric_id, kind, period_start, value, value_sealed").eq("metric_id", m.id)).data);
+    expect(data.map((r) => Number(r.value))).toEqual([12]);
   });
   it("adds no Contacts to the demo, whoever asks", async () => {
     await expect(addContact({ personId: "sara", workspaceId: "d3e00000-0000-4000-8000-000000000001", role: "owner" }, { name: "X", email: "x@t.test" })).rejects.toEqual(forbidden);

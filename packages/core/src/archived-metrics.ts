@@ -3,6 +3,7 @@
 // or Escalation) and takes no values. It shows only under the Archived filter of the Metrics page, never in the Pool
 // or a picker; a widget that shows it keeps drawing its history. Bringing it back makes it an ordinary Metric again.
 import { db } from "./db";
+import { openOne } from "./sealed-columns";
 import { Forbidden, type Actor } from "./actor";
 import { audit } from "./audit-log";
 import { closeActions } from "./action-state";
@@ -24,7 +25,7 @@ export const ARCHIVED_CODE = "ZF440";
  * visitor shares. A Metric of another workspace and a missing one are refused alike. */
 export async function archivableMetric(actor: Actor, metricId: number) {
   if (actor.key || !Number.isInteger(metricId)) throw new Forbidden();
-  const { data: m } = await db().from("metrics").select("id, name, owner_id, archived_at").eq("id", metricId).eq("workspace_id", actor.workspaceId).maybeSingle();
+  const m = await openOne("metrics", actor.workspaceId, (await db().from("metrics").select("id, name, owner_id, archived_at").eq("id", metricId).eq("workspace_id", actor.workspaceId).maybeSingle()).data);
   // Only a Metric the actor sees: an Owner or Admin does not see every Metric, and a hidden one is refused like a
   // missing one, so nobody learns which ids exist.
   if (!m || !(await visibleMetricIds(actor.workspaceId, actor.personId, await getMetrics(actor.workspaceId))).has(m.id)) throw new Forbidden();

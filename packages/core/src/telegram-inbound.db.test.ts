@@ -9,7 +9,7 @@ import { ask } from "./questions";
 import { setTelegramEnabled } from "./telegram-connection";
 import { MAX_TELEGRAM_REPLIES_PER_DELIVERY, receiveTelegramUpdate } from "./telegram-inbound";
 import { fakeTelegram } from "./test/fake-telegram";
-import { workspace } from "./test/db-fixtures";
+import { valuesOf, workspace } from "./test/db-fixtures";
 
 let tg: Awaited<ReturnType<typeof fakeTelegram>>;
 beforeAll(async () => { tg = await fakeTelegram(); });
@@ -45,7 +45,7 @@ describe("answers by Telegram", () => {
     await deliverPrompt({ metricId: m.id, submitterId: ann, senderId: sara, via: "telegram" });
     const d = await latest(w.id, ann);
     expect(await receiveTelegramUpdate(text(user, "42", d.telegram_message_id))).toBe("recorded");
-    const { data: obs } = await db().from("observations").select("value, source, submitter_id").eq("metric_id", m.id);
+    const obs = (await valuesOf(m.id)).map(({ value, source, submitter_id }) => ({ value, source, submitter_id }));
     expect(obs).toEqual([{ value: 42, source: "telegram", submitter_id: ann }]);
     expect(lastSaid()).toMatch(/^Recorded: /);
     expect((await latest(w.id, ann)).status).toBe("answered");
@@ -62,8 +62,7 @@ describe("answers by Telegram", () => {
     expect(await receiveTelegramUpdate(text(user, "letzten Monat 4", d.telegram_message_id))).toBe("refused");
     expect(lastSaid()).toMatch(/This Prompt asks for/);
     expect(await receiveTelegramUpdate(text(user, "diesen Monat hatten wir 3 Besuche", d.telegram_message_id))).toBe("recorded");
-    const { data: obs } = await db().from("observations").select("value").eq("metric_id", m.id);
-    expect(obs).toEqual([{ value: 3 }]);
+    expect((await valuesOf(m.id)).map((o) => ({ value: o.value }))).toEqual([{ value: 3 }]);
   });
 
   it("sends the form link when the Metric does not take values by Telegram", async () => {

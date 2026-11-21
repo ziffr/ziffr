@@ -11,7 +11,7 @@
   "scripts": {
     "typecheck": "tsc --noEmit",
     "test": "vitest run --coverage",
-    "test:numbers": "NUMBERS_RUNS=${NUMBERS_RUNS:-1000} NUMBERS_SEED=${NUMBERS_SEED:-random} vitest run src/aggregations src/test/reference src/changes src/writing src/derived src/numbers.test src/analyses src/recipe-functions",
+    "test:numbers": "NUMBERS_RUNS=${NUMBERS_RUNS:-1000} NUMBERS_SEED=${NUMBERS_SEED:-random} vitest run src/aggregations src/adding-up src/test/reference src/changes src/writing src/derived src/numbers.test src/analyses src/recipe-functions",
     "test:mutation": "NUMBERS_RUNS=${NUMBERS_RUNS:-30} stryker run --incremental --force",
     "lint": "eslint",
     "test:db": "vitest run --config vitest.db.config.ts"

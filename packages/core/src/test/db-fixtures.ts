@@ -101,8 +101,11 @@ export async function feedBatch(feedId: string, items: number, over: { taken?: n
 
 /** The values recorded for a Metric, oldest first. */
 export async function valuesOf(metricId: number) {
-  const { data } = await db().from("observations").select("value, submitter_id, source, original_value").eq("metric_id", metricId).order("created_at");
-  return (data ?? []).map((o) => ({ ...o, value: Number(o.value), original_value: o.original_value === null ? null : Number(o.original_value) }));
+  const { data } = await db().from("observations").select("id, workspace_id, value, value_sealed, submitter_id, source, original_value, original_value_sealed").eq("metric_id", metricId).order("created_at");
+  const ws = data?.[0]?.workspace_id as string | undefined;
+  // Values are sealed with the Workspace Key: read them as the core does (spec 0028).
+  const rows = ws ? await opened("observations", ws, data, { dropId: true }) : [];
+  return rows.map((o) => ({ value: Number(o.value), original_value: o.original_value === null ? null : Number(o.original_value), submitter_id: o.submitter_id, source: o.source }));
 }
 
 async function must<T extends { error: unknown }>(p: PromiseLike<T>): Promise<T> {

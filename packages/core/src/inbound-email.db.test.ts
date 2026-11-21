@@ -87,7 +87,7 @@ describe("replies by email", () => {
     const benMail = await emailOf(ben);
     expect(await receiveEmail(await parseInbound(reply({ from: benMail, token: d!.reply_token!, text: "Yes, checked with the bank.\r\n\r\n-- \r\nBen, Finance" })))).toBe("replied");
     expect(await receiveEmail(await parseInbound(reply({ from: benMail, token: d!.reply_token!, text: "Actually not.\r\nCorrection: 1250" })))).toBe("corrected");
-    const thread = await openRows("thread_messages", w.id, (await db().from("thread_messages").select("id, author_id, body, correction_value").eq("action_id", actionId).order("id")).data);
+    const thread = await openRows("thread_messages", w.id, (await db().from("thread_messages").select("id, author_id, body, correction_value, correction_value_sealed").eq("action_id", actionId).order("id")).data);
     expect(thread).toEqual(expect.arrayContaining([
       expect.objectContaining({ author_id: ben, body: "Yes, checked with the bank.", correction_value: null }),
       expect.objectContaining({ author_id: ben, body: "Actually not.", correction_value: 1250 }),

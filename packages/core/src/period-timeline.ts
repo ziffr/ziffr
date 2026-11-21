@@ -169,12 +169,14 @@ export async function periodTimeline(actor: Actor | KeyActor, workflowId: number
   const base = { workflow: wf, period, label };
   if (!ids.length) return { ...base, in: 0, of: 0, published: 0, locked: 0, events: [] };
 
-  const [{ data: prompts }, { data: values }, { data: actions }, { data: states }] = await Promise.all([
+  const [{ data: prompts }, { data: valueRows }, { data: actions }, { data: states }] = await Promise.all([
     db().from("prompts").select("id, metric_id, submitter_id, sent_at").eq("workspace_id", ws).in("metric_id", ids).eq("period_start", period).order("sent_at").order("id"),
-    db().from("observations").select("metric_id, value, submitter_id, created_at").eq("workspace_id", ws).in("metric_id", ids).eq("period_start", period).order("created_at").order("id"),
+    db().from("observations").select("id, metric_id, value, value_sealed, submitter_id, created_at").eq("workspace_id", ws).in("metric_id", ids).eq("period_start", period).order("created_at").order("id"),
     db().from("actions").select("id, metric_id, asker_id, assignee_id, read_group_id, purpose, kind, question, created_at, workspace_id").eq("workspace_id", ws).in("metric_id", ids).eq("period_start", period).order("id"),
     db().from("period_states").select("metric_id, state, updated_at").eq("workspace_id", ws).in("metric_id", ids).eq("period_start", period),
   ]);
+  // Values are sealed with the Workspace Key: one that does not open still counts as in, but is not shown.
+  const values = await openRows("observations", ws, (valueRows ?? []) as Record<string, unknown>[]);
   const promptIds = (prompts ?? []).map((p) => p.id as number);
   const [{ data: deliveries }, groups] = await Promise.all([
     promptIds.length ? db().from("deliveries").select("prompt_id, connector").eq("workspace_id", ws).in("prompt_id", promptIds) : Promise.resolve({ data: [] }),
@@ -209,7 +211,7 @@ export async function periodTimeline(actor: Actor | KeyActor, workflowId: number
   // Names of the people on visible lines only.
   const peopleIds = new Set<string>();
   for (const p of prompts ?? []) if (visible.has(p.metric_id as number)) peopleIds.add(p.submitter_id as string);
-  for (const v of values ?? []) if (visible.has(v.metric_id as number) && v.submitter_id) peopleIds.add(v.submitter_id as string);
+  for (const v of values) if (visible.has(v.metric_id as number) && v.submitter_id) peopleIds.add(v.submitter_id as string);
   for (const a of opened) if (mayRead.has(a.id as number)) { peopleIds.add(a.asker_id as string); peopleIds.add(a.assignee_id as string); }
   for (const m of messages) peopleIds.add(m.author_id as string);
   const { data: profileRows } = await db().from("profiles").select("id, name").in("id", [...peopleIds]);
@@ -227,10 +229,10 @@ export async function periodTimeline(actor: Actor | KeyActor, workflowId: number
     raw.push({ at: new Date(p.sent_at as string), kind: again ? "reminded" : "asked", metric: seen ? named(p.metric_id as number) : null, person: p.submitter_id as string, channel: channelOf.get(p.id as number), metricId: p.metric_id as number });
   }
   // Values: the Metric's own formatting, for Metrics the viewer sees.
-  for (const v of values ?? []) {
+  for (const v of values) {
     const m = byId.get(v.metric_id as number)!;
     const seen = visible.has(m.id);
-    raw.push({ at: new Date(v.created_at as string), kind: "in", metric: seen ? m.name : null, person: seen && v.submitter_id ? (v.submitter_id as string) : undefined, detail: seen ? formatValue(m, Number(v.value), numberStyle) : undefined, metricId: m.id });
+    raw.push({ at: new Date(v.created_at as string), kind: "in", metric: seen ? m.name : null, person: seen && v.submitter_id ? (v.submitter_id as string) : undefined, detail: seen && typeof v.value === "number" ? formatValue(m, v.value, numberStyle) : undefined, metricId: m.id });
   }
   const counted = new Set<number>();
   for (const r of raw) if (r.kind === "in") { r.again = counted.has(r.metricId!); counted.add(r.metricId!); }
@@ -275,7 +277,7 @@ export async function periodTimeline(actor: Actor | KeyActor, workflowId: number
   raw.sort((a, b) => a.at.getTime() - b.at.getTime());
   const totalOf = countable.length;
   const events = group(raw, totalOf, zone, new Set(countable.map((m) => m.id)), nameOf);
-  const inNow = new Set((values ?? []).map((v) => v.metric_id as number).filter((id) => countable.some((m) => m.id === id))).size;
+  const inNow = new Set(values.map((v) => v.metric_id as number).filter((id) => countable.some((m) => m.id === id))).size;
   const stateOf = (s: string) => (states ?? []).filter((r) => r.state === s && countable.some((m) => m.id === r.metric_id)).length;
   return { ...base, in: inNow, of: totalOf, published: stateOf("published") + stateOf("locked"), locked: stateOf("locked"), events };
 }

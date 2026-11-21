@@ -6,6 +6,7 @@
 // missing, never as its ciphertext. Security: the words of one place never open in another, so a copy of a sealed
 // column in another row, Workspace or copy of a Version stays unreadable.
 import { isSealed, type SealedAt, type WorkspaceCipher } from "./workspace-keys";
+import { mapConfigNumbers } from "./sealed-workflow";
 
 /** The words a widget keeps in its settings: a Finding's kicker, headline, subline, footnote and source. A widget's
  * title is a column of its own (`widgets.title`). Callouts and annotations are not in this list yet. */
@@ -102,6 +103,20 @@ export function openObject(cipher: WorkspaceCipher, at: SealedAt, stored: unknow
   }
 }
 
+/** A kept copy (a Snapshot's frozen part, a frozen View Link) with its `data` sealed as one text, bound to the row and
+ * the column `frozen.data`: the values, names, Targets and Breakdowns it froze are not readable beside the row. Plain where
+ * nothing is sealed. Apply after the Breakdown labels are sealed (they stay inside, opened with the rest). */
+export function sealFrozenData<T extends { data?: unknown }>(cipher: WorkspaceCipher, table: string, row: string | number, kept: T): T {
+  return { ...kept, data: sealObject(cipher, { table, column: "frozen.data", row }, kept.data) };
+}
+
+/** A kept copy with its `data` opened; one frozen before sealing passes as it is. Null when the data does not open
+ * (another row, changed, key destroyed): it reads as missing, never as its ciphertext. */
+export function openFrozenData<T extends { data?: unknown }>(cipher: WorkspaceCipher, table: string, row: string | number, kept: T): T | null {
+  const data = openObject(cipher, { table, column: "frozen.data", row }, kept.data);
+  return Array.isArray(data.metrics) ? { ...kept, data } : null;
+}
+
 /** A View Link's frozen dashboard (or a Snapshot-free copy of one) with its words passed through a change: the
  * introduction and each widget's title and settings words, bound to the link and, for a widget, its id. */
 export function mapViewWords<T extends { intro?: unknown; widgets?: unknown }>(view: T, change: Change): T {
@@ -112,8 +127,30 @@ export function mapViewWords<T extends { intro?: unknown; widgets?: unknown }>(v
   return out as T;
 }
 
+/** A Metric Version's name, description and Targets passed through a change, by their place in the Version. A Target is a
+ * number: it goes through as text and comes back a number, or stays a number where the change leaves it plain; one that
+ * does not open is left out, and so is a name that does not open, so a restore never writes a placeholder back. */
+function mapMetricVersion(snapshot: Obj, change: Change): Obj {
+  const out: Obj = { ...snapshot };
+  if (typeof out.name === "string") {
+    const name = change("snapshot.name", out.name);
+    if (name === undefined) delete out.name; else out.name = name;
+  }
+  if (typeof out.description === "string") out.description = change("snapshot.description", out.description) ?? "";
+  for (const column of ["target_min", "target_max"]) {
+    const v = out[column];
+    if (typeof v !== "number" && typeof v !== "string") continue;
+    const text = String(v);
+    const next = change(`snapshot.${column}`, text);
+    const n = next === undefined || next.trim() === "" ? NaN : Number(next);
+    const value = next === undefined ? undefined : next === text && typeof v === "number" ? v : isSealed(next) ? next : Number.isFinite(n) ? n : undefined;
+    if (value === undefined) delete out[column]; else out[column] = value;
+  }
+  return out;
+}
+
 /** What a Version keeps of an object, with its words passed through a change: a widget's, a dashboard's and its
- * widgets', a Snapshot's (whole) and a Metric's description. Other kinds hold no words of this ticket. The places are
+ * widgets', a Snapshot's (whole), a Metric's name, description and Targets and a Workflow's numbers. Other kinds hold no words of this ticket. The places are
  * the Version's own (`snapshot.<path>`), so a copy of a sealed Version elsewhere does not open. */
 export function mapVersionWords(type: string, snapshot: Obj, change: Change): Obj {
   if (type === "widget") return mapWidgetWords(snapshot, change, "snapshot.");
@@ -123,6 +160,7 @@ export function mapVersionWords(type: string, snapshot: Obj, change: Change): Ob
     if (Array.isArray(out.widgets)) out.widgets = out.widgets.map((w, i) => (isObj(w) ? mapWidgetWords(w, change, `snapshot.widgets.${i}.`) : w));
     return out;
   }
-  if (type === "metric" && typeof snapshot.description === "string") return { ...snapshot, description: change("snapshot.description", snapshot.description) ?? "" };
+  if (type === "metric") return mapMetricVersion(snapshot, change);
+  if (type === "workflow") return { ...snapshot, config: mapConfigNumbers(snapshot.config, change, "snapshot.config.") };
   return snapshot;
 }

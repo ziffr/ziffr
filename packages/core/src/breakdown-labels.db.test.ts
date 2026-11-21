@@ -37,7 +37,7 @@ async function setup(rule = "add") {
   const key = (await actorForKey(secret)) as KeyActor;
   const obsId = async () => (await db().from("observations").select("id").eq("metric_id", m.id).single()).data!.id as number;
   const rows = async () => {
-    const { data } = await db().from("breakdown_rows").select("id, label, label_index, value, position").eq("observation_id", await obsId()).order("position");
+    const { data } = await db().from("breakdown_rows").select("id, label, label_index, value, value_sealed, position").eq("observation_id", await obsId()).order("position");
     return data ?? [];
   };
   return { ...w, ben, m, code, key, rows, obsId };
@@ -69,7 +69,7 @@ describe("Breakdown labels", () => {
     const stored = await w.rows();
     expect(stored).toHaveLength(2);
     expect(stored[0].label).toBe("Old Shop");
-    expect(Number(stored[0].value)).toBe(3);
+    expect((await opened("breakdown_rows", w.id, stored))[0].value).toBe(3);
     expect((await getBreakdowns(w.id, [w.m.id]))[w.m.id][month()]).toEqual([{ label: "Old Shop", value: 3 }, { label: "New", value: 1 }]);
     // The next one finds the new row by its index.
     await submitObservation(w.key, w.m.slug, { value: 1, breakdown: [{ label: "NEW", value: 4 }] }, quiet());

@@ -5,6 +5,9 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { db } from "./db";
 import { createDashboard, placeWidget, saveDashboardText, updateWidget } from "./dashboards";
 import { createMetric, updateMetricDetails } from "./metrics";
+import { saveWorkflow, setWorkflowCheck } from "./workflows";
+import { saveNamedVersion } from "./version-history";
+import { workflowsView } from "./page-data";
 import { dashboardWidgets, savedWidgets } from "./page-data";
 import { visibleDashboards } from "./access";
 import { editSnapshotWords, openSnapshot, showSnapshot, snapshotDeckSeed, takeSnapshot } from "./snapshots";
@@ -200,6 +203,23 @@ describe("a Snapshot's words", () => {
     expect(labels((await openViewLink(link))!.data)).toContain(`Shop ${marker}`);
   });
 
+  it("freeze their data sealed as a whole, in the Snapshot and in a frozen View Link, with only the Metric ids in clear", async () => {
+    const { w, actor, dash, rev } = await setup();
+    const id = await takeSnapshot(actor, dash, october);
+    await showSnapshot(actor, id);
+    const link = await createViewLink(actor, "dashboard", dash, { label: "Frozen", expires: inAMonth(), frozen: true });
+    const { data: snap } = await db().from("dashboard_snapshots").select("frozen").eq("id", id).single();
+    const { data: links } = await db().from("view_links").select("frozen").eq("workspace_id", w.id);
+    const kept = snap!.frozen as { data: { sealed?: string; metrics?: unknown }; metricIds: number[] };
+    expect(Object.keys(kept.data)).toEqual(["sealed"]);
+    expect(kept.metricIds).toContain(rev.id);
+    expect(JSON.stringify(snap)).not.toContain("Revenue");
+    expect(JSON.stringify(links)).not.toContain("Revenue");
+    forgetWorkspaceKey(w.id);
+    expect((await openSnapshot(actor, id)).data.metrics.map((m) => m.name)).toContain("Revenue");
+    expect((await openViewLink(link))!.data.metrics.map((m) => m.name)).toContain("Revenue");
+  });
+
   it("taken without a key and read after one is set, still read, and are sealed when edited", async () => {
     delete process.env.ZIFFR_SECRETS_KEY;
     const { w, actor, dash, marker } = await setup();
@@ -256,8 +276,9 @@ describe("a View Link's copies of the words", () => {
     await db().from("view_links").update({ frozen: first!.frozen }).eq("token", two);
     forgetWorkspaceKey(w.id);
     const copy = await openViewLink(two);
-    expect(copy?.intro).not.toContain(marker);
-    expect(copy?.widgets?.[0].settings.headline).toBeUndefined();
+    // The frozen data is bound to its link: a copy does not open, so the link reads as not there.
+    expect(copy).toBeNull();
+    expect(JSON.stringify(copy ?? {})).not.toContain(marker);
   });
 });
 
@@ -340,5 +361,48 @@ describe("a dump of the Workspace's rows", () => {
     delete process.env.ZIFFR_SECRETS_KEY;
     const { w, marker } = await setup();
     expect(await dump(w.id)).toContain(marker);
+  });
+});
+
+describe("a Workflow's numbers and a Metric Version's name and Targets", () => {
+  const steps = (level: number, share: string) => [
+    { type: "check" as const, changePct: level, outsideTarget: true },
+    { type: "tell" as const, id: "t1", condition: { kind: "share_of_target" as const, share }, people: [], groups: [] },
+    { type: "publish" as const, lock: false },
+  ];
+
+  it("are sealed in the config, read as set, and sealed again in its Versions, which restore", async () => {
+    const { w, actor } = await setup();
+    const id = await saveWorkflow(actor, null, "Weekly", { dueWorkingDays: 2, steps: steps(37, "81") });
+    const { data: row } = await db().from("workflows").select("config, updated_at").eq("id", id).single();
+    const raw = row!.config as { steps: { changePct?: unknown; condition?: { share?: string } }[] };
+    expect(isSealed(raw.steps[0].changePct as string)).toBe(true);
+    expect(isSealed(raw.steps[1].condition!.share)).toBe(true);
+    forgetWorkspaceKey(w.id);
+    const read = async () => (await workflowsView(actor)).workflows.find((x) => x.id === id)!.config as unknown as { steps: { changePct?: number; condition?: { share?: string } }[] };
+    expect((await read()).steps[0].changePct).toBe(37);
+    expect((await read()).steps[1].condition?.share).toBe("81");
+    expect(await setWorkflowCheck(actor, id, { changePct: 55 }, row!.updated_at as string)).toBe(true);
+    expect((await read()).steps[0].changePct).toBe(55);
+    await saveWorkflow(actor, id, "Weekly", { dueWorkingDays: 2, steps: steps(60, "90") });
+    const { data: kept } = await db().from("versions").select("snapshot").eq("object_type", "workflow").eq("object_id", id);
+    const text = JSON.stringify(kept);
+    expect(text).not.toContain('"changePct":55');
+    expect(text).not.toContain('"share":"81"');
+    expect(text).toContain("w1.");
+    const first = (await db().from("versions").select("id").eq("object_type", "workflow").eq("object_id", id).order("version").limit(1).single()).data!.id;
+    await restoreVersion(actor, first);
+    expect((await read()).steps[0].changePct).toBe(37);
+    expect((await read()).steps[1].condition?.share).toBe("81");
+  });
+
+  it("keep a Metric Version's name sealed, and bring it back", async () => {
+    const { w, actor, rev } = await setup();
+    await saveNamedVersion(actor, "metric", rev.id, "before");
+    const { data: kept } = await db().from("versions").select("snapshot").eq("object_type", "metric").eq("object_id", rev.id);
+    expect(JSON.stringify(kept)).not.toContain("Revenue");
+    forgetWorkspaceKey(w.id);
+    const { versions } = await listVersions(actor, "metric", rev.id);
+    expect(versions.length).toBeGreaterThan(0);
   });
 });

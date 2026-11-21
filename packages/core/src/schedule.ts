@@ -1,6 +1,7 @@
 // The Schedule (spec 0027, ticket #240; GLOSSARY: Schedule, Due Date, Stand-in, Away, Approval, Task, Question,
 // Escalation): what one person has to do in a Workspace, day by day. The API, the MCP Server, the My schedule page and
 // the Calendar Link all read this one function and add no rules of their own.
+import { openWorkflowRows } from "./workflow-rows";
 import { addDays, differenceInCalendarDays, format, isValid, isWeekend, parseISO } from "date-fns";
 import { assertScope, Forbidden, type Actor, type KeyActor } from "./actor";
 import { getGroups, threadReader, visibleMetricIds } from "./access";
@@ -133,7 +134,7 @@ async function loadContext(ws: string, now: Date) {
     db().from("workspaces").select("time_zone").eq("id", ws).single(),
     yearStartOf(ws),
     db().from("workflows").select("id, config").eq("workspace_id", ws),
-  ]);
+  ]).then(async ([a, b, c]) => [a, b, { data: await openWorkflowRows(ws, c.data) }] as const);
   const timeZone = String(wsRow?.time_zone ?? "UTC");
   return { timeZone, today: localTime(now, timeZone).day, yearStart, workflows: new Map((flows ?? []).map((w) => [w.id as number, w.config as WorkflowConfig])) };
 }

@@ -12,6 +12,7 @@
 //    retention_runs before work starts, and a run that stopped is taken over once its lease has run out.
 // It acts for no person (the route is the job secret's); everything it reads is of the Workspace the Metric belongs to.
 import { db } from "./db";
+import { openRows } from "./sealed-columns";
 import { recordAudit } from "./audit-log";
 import { condensedBetween, condensedPointById, discardCondensed, NotCondensed, storeCondensedFor } from "./condensed-values";
 import { displayPeriodsFor, isLonger, shownSeries, type Shown } from "./display-periods";
@@ -111,11 +112,15 @@ async function sameAsBefore(ws: string, metric: Metric, point: CondensedPoint, y
   const windows = displayPeriodsFor(metric.period).filter((d) => !isLonger(point.into, d)).map((d) => ({ d, from: periodStart(point.period, d, ys), to: periodEnd(point.periodEnd, d) }));
   const from = windows.reduce((a, w) => (w.from < a ? w.from : a), point.period);
   const to = windows.reduce((a, w) => (w.to > a ? w.to : a), point.periodEnd);
-  const [values, targets, beside] = await Promise.all([
-    allRows<{ period_start: string; value: unknown }>((a, b) => db().from("observations").select("period_start, value").eq("workspace_id", ws).eq("metric_id", metric.id).gte("period_start", from).lte("period_start", to).order("period_start").order("created_at").order("id").range(a, b)),
-    allRows<{ period_start: string; value: unknown }>((a, b) => db().from("series_values").select("period_start, value").eq("workspace_id", ws).eq("metric_id", metric.id).eq("kind", "target").gte("period_start", from).lte("period_start", to).order("period_start").order("id").range(a, b)),
+  const [valuesRead, targetsRead, beside] = await Promise.all([
+    allRows<Record<string, unknown>>((a, b) => db().from("observations").select("id, period_start, value, value_sealed").eq("workspace_id", ws).eq("metric_id", metric.id).gte("period_start", from).lte("period_start", to).order("period_start").order("created_at").order("id").range(a, b)),
+    allRows<Record<string, unknown>>((a, b) => db().from("series_values").select("metric_id, kind, period_start, value, value_sealed").eq("workspace_id", ws).eq("metric_id", metric.id).eq("kind", "target").gte("period_start", from).lte("period_start", to).order("period_start").order("id").range(a, b)),
     condensedBetween(ws, metric.id, from, to),
   ]);
+  // Values are sealed with the Workspace Key (spec 0028). One that does not open cannot be shown to equal itself: the
+  // span is not the same as before, and nothing of it is removed.
+  const [values, targets] = await Promise.all([openRows("observations", ws, valuesRead), openRows("series_values", ws, targetsRead)]) as [{ period_start: string; value: unknown }[], { period_start: string; value: unknown }[]];
+  if ([...values, ...targets].some((r) => typeof r.value !== "number")) return { same: false, originals: 0 };
   const toPoint = (r: { period_start: string; value: unknown }): Point => ({ period: String(r.period_start), value: Number(r.value) });
   const series = values.map(toPoint);
   const allTargets = targets.map(toPoint);

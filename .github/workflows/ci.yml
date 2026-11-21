@@ -161,6 +161,14 @@ jobs:
         run: |
           export ZIFFR_SECRETS_KEY="$(openssl rand -base64 32)"
           pnpm --filter @ziffr/core test:db --shard=${{ matrix.shard }}/3
+      # What a database dump holds (spec 0028): a test fills a sealed Workspace with words and numbers nobody could guess,
+      # and the dump of this shard's database must not hold any of them (the control, which is not sealed, must be there).
+      - name: The dump holds nothing that is sealed
+        run: |
+          export ZIFFR_SECRETS_KEY="$(openssl rand -base64 32)"
+          export DUMP_NEEDLES_FILE="$RUNNER_TEMP/dump-needles.json"
+          pnpm --filter @ziffr/core test:db src/workspace-keys-dump.db.test.ts
+          DUMP_REQUIRE=1 node .github/scripts/dump-test.mjs
 
   core-db-app:
     runs-on: ubuntu-latest

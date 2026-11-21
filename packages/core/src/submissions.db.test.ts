@@ -3,7 +3,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { decideCorrection, submitValue, type SubmissionEffects } from "./submissions";
 import { Forbidden } from "./actor";
 import { db } from "./db";
-import { valuesOf, workspace } from "./test/db-fixtures";
+import { opened, valuesOf, workspace } from "./test/db-fixtures";
 import { JANUARY, periodStart, shiftPeriod } from "./periods";
 
 const effects = (): SubmissionEffects & { notifyCorrection: ReturnType<typeof vi.fn>; afterValue: ReturnType<typeof vi.fn> } => ({
@@ -100,8 +100,8 @@ describe("values that arrive", () => {
     expect(await valuesOf(add.id)).toMatchObject([{ value: 15.3 }]);
     expect(more.map((r) => r.detail).filter((d) => d.includes("= 15.30"))).toHaveLength(1);
     // The version history holds every value the observation had, in order, and each reply matches one step of it.
-    const { data: hist } = await db().from("observation_history").select("value").eq("metric_id", add.id).order("id");
-    const steps = (hist ?? []).map((h) => Number(h.value));
+    const { data: hist } = await db().from("observation_history").select("id, observation_id, value, value_sealed").eq("metric_id", add.id).order("id");
+    const steps = (await opened("observation_history", w.id, hist)).map((h) => Number(h.value));
     expect(steps).toHaveLength(6);
     expect(steps[0]).toBeCloseTo(first.find((r) => r.outcome === "recorded")!.detail.startsWith("0.10") ? 0.1 : 0.2, 9);
     for (const r of more) {

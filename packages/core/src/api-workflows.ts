@@ -9,6 +9,7 @@
 // Workflow. Deleting a Workflow that has such a step needs the same scope, since it would drop the Approvals.
 // The Asking Schedule (spec 0035, when the Workflow asks: an hour and the days) is a field of the Workflow like the
 // others and is checked by the same function as in the editor; it names nobody, so it needs no scope of its own.
+import { openWorkflowRow } from "./workflow-rows";
 import { assertCan, assertScope, Forbidden, type Actor, type KeyActor } from "./actor";
 import { visibleMetricIds } from "./access";
 import { db } from "./db";
@@ -85,7 +86,7 @@ async function refusing<T>(run: () => Promise<T>): Promise<T> {
 /** One Workflow of the creator's own as stored, or Forbidden: the same for one that is not there, one of another
  * Workspace and one of someone else's. */
 async function load(actor: KeyActor, id: number) {
-  const { data } = await db().from("workflows").select("id, name, owner_id, config, updated_at").eq("id", Number(id)).eq("workspace_id", actor.workspaceId).maybeSingle();
+  const data = await openWorkflowRow(actor.workspaceId, (await db().from("workflows").select("id, name, owner_id, config, updated_at").eq("id", Number(id)).eq("workspace_id", actor.workspaceId).maybeSingle()).data);
   if (!data || data.owner_id !== actor.personId) throw new Forbidden();
   return data as { id: number; name: string; owner_id: string; config: WorkflowConfig; updated_at: string };
 }

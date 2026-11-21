@@ -2,9 +2,10 @@
 // Lock, Feed).
 // Entry points that take an id from outside look it up in one Workspace only. Time-based steps run once a day by the
 // clock (scheduled-runs.ts, spec 0005), or as of a pretended day in the demo.
+import { openWorkflowRow, openWorkflowRows } from "./workflow-rows";
 import { format } from "date-fns";
 import { db } from "./db";
-import { insertSealed, openOne, openRows } from "./sealed-columns";
+import { insertSealed, openOne, openRows, sealRow } from "./sealed-columns";
 import { formatValue } from "./format";
 import { normalizeMetric } from "./metric-row";
 import { deliver, deliverPrompt } from "./deliveries";
@@ -34,7 +35,7 @@ async function metricCtx(metricId: number, period: string): Promise<Ctx | null> 
   const { data: sealedRow } = await db().from("metrics").select("*").eq("id", metricId).single();
   const row = await openOne("metrics", String(sealedRow?.workspace_id), sealedRow);
   if (!row?.workflow_id) return null;
-  const { data: wf } = await db().from("workflows").select("*").eq("id", row.workflow_id).single();
+  const wf = await openWorkflowRow(String(row.workspace_id), (await db().from("workflows").select("*").eq("id", row.workflow_id).single()).data);
   const m = normalizeMetric(row) as Metric;
   return wf ? { m, wf: wf as Workflow, period, ws: String(row.workspace_id), yearStart: await yearStartFor(String(row.workspace_id), m.period), numberStyle: await numberStyleOf(String(row.workspace_id)) } : null;
 }
@@ -70,9 +71,11 @@ async function whoToAsk(metricId: number, day: string) {
 }
 
 /** The latest value of a period. */
-async function latestValue(metricId: number, period: string) {
-  const { data } = await db().from("observations").select("id, value, submitter_id").eq("metric_id", metricId).eq("period_start", period).order("created_at", { ascending: false }).limit(1);
-  return data?.[0] ?? null;
+async function latestValue(ws: string, metricId: number, period: string) {
+  const { data } = await db().from("observations").select("id, value, value_sealed, submitter_id").eq("workspace_id", ws).eq("metric_id", metricId).eq("period_start", period).order("created_at", { ascending: false }).limit(1);
+  // The value is sealed with the Workspace Key; one that does not open counts as no value, never as 0.
+  const [row] = await openRows("observations", ws, (data ?? []) as Record<string, unknown>[]);
+  return row && typeof row.value === "number" ? (row as { id: number; value: number; submitter_id: string | null }) : null;
 }
 
 /** Which Workflows a run covers (GLOSSARY: Asking Schedule): all of them (the demo, which ignores schedules), only
@@ -83,12 +86,13 @@ export type RunScope = "all" | "unscheduled" | { workflowId: number };
  * checks values that came in. Returns what happened, in words. With `queue`, emails wait for the deliveries job.
  */
 export async function runWorkflows(workspaceId: string, asOf: string, actorId: string, { queue = false, scope = "all" }: { queue?: boolean; scope?: RunScope } = {}) {
-  const [{ data: sealedRows }, { data: flows }] = await Promise.all([
+  const [{ data: sealedRows }, { data: sealedFlows }] = await Promise.all([
     db().from("metrics").select("*").eq("workspace_id", workspaceId).not("workflow_id", "is", null),
     // The workspace's Workflows once, not again for each Metric.
     db().from("workflows").select("*").eq("workspace_id", workspaceId),
   ]);
   const rows = await openRows("metrics", workspaceId, sealedRows);
+  const flows = await openWorkflowRows(workspaceId, sealedFlows);
   const workflows = new Map((flows ?? []).map((w) => [w.id as number, w as Workflow]));
   const [yearStart, numberStyle] = await Promise.all([yearStartOf(workspaceId), numberStyleOf(workspaceId)]);
   const log: string[] = [];
@@ -106,7 +110,7 @@ export async function runWorkflows(workspaceId: string, asOf: string, actorId: s
     if (!wf) continue;
     const ctx: Ctx = { m, wf, period, yearStart, numberStyle, ws: workspaceId };
     const label = `${m.name}, ${periodLabel(period, m.period, yearStart)}`;
-    const [state, value] = await Promise.all([getState(m.id, period), latestValue(m.id, period)]);
+    const [state, value] = await Promise.all([getState(m.id, period), latestValue(workspaceId, m.id, period)]);
     if (value) {
       if (!state || state.state === "asked") log.push(...(await onValue(m.id, period, value.submitter_id ?? actorId)).map((x) => `${label}: ${x}`));
       continue;
@@ -247,7 +251,7 @@ export async function onValue(metricId: number, period: string, submitterId: str
 async function workflowStep(metricId: number, period: string, submitterId: string, opts: { imported?: boolean; selfChecked?: number }): Promise<string[]> {
   const ctx = await metricCtx(metricId, period);
   if (!ctx) return [];
-  const value = await latestValue(metricId, period);
+  const value = await latestValue(ctx.ws, metricId, period);
   if (!value) return [];
   const steps = ctx.wf.config.steps;
   const check = steps.find((s): s is Extract<WorkflowStep, { type: "check" }> => s.type === "check");
@@ -255,9 +259,10 @@ async function workflowStep(metricId: number, period: string, submitterId: strin
   let reasons: string[] = [];
   if (check && !opts.imported) {
     const before = shiftPeriod(period, ctx.m.period, -1);
-    const prev = await latestValue(metricId, before);
-    const { data: targets } = await db().from("series_values").select("period_start, value").eq("metric_id", metricId).eq("kind", "target");
-    const t = targetFor(ctx.m, period, (targets ?? []).map((x) => ({ period: x.period_start, value: Number(x.value) })));
+    const prev = await latestValue(ctx.ws, metricId, before);
+    const { data: targetRows } = await db().from("series_values").select("metric_id, kind, period_start, value, value_sealed").eq("workspace_id", ctx.ws).eq("metric_id", metricId).eq("kind", "target");
+    const targets = (await openRows("series_values", ctx.ws, targetRows)) as { period_start: string; value: number | null }[];
+    const t = targetFor(ctx.m, period, targets.filter((x) => typeof x.value === "number").map((x) => ({ period: x.period_start, value: x.value as number })));
     reasons = unusualReasons(ctx.m, Number(value.value), prev ? Number(prev.value) : undefined, before, check, ctx.yearStart, ctx.numberStyle, t);
   }
   // A new value restarts approval: approval and Self-check tasks from an earlier round can no longer decide anything.
@@ -394,13 +399,19 @@ export async function correctSelfCheck(ws: string, actionId: number, by: string,
   const { a } = await openSelfCheck(ws, actionId, by);
   // Only the value this check is about, of this Metric in this workspace.
   const { data: obs } = a.observation_id
-    ? await db().from("observations").select("id, value, original_value").eq("id", a.observation_id).eq("workspace_id", ws).eq("metric_id", a.metric_id).maybeSingle()
+    ? await db().from("observations").select("id, value, value_sealed, original_value, original_value_sealed").eq("id", a.observation_id).eq("workspace_id", ws).eq("metric_id", a.metric_id).maybeSingle()
     : { data: null };
   if (!obs) throw new Error("This value is not waiting for this check.");
+  const [was] = await openRows("observations", ws, [obs as Record<string, unknown>]);
+  const original = was.original_value ?? was.value;
+  if (typeof original !== "number") throw new Error("This value could not be read.");
   await claimTask(ws, actionId, by, source);
-  await db().from("observations").update({ value, original_value: obs.original_value ?? obs.value }).eq("id", obs.id).eq("workspace_id", ws).eq("metric_id", a.metric_id);
+  // The new value and the original are sealed for this value's row (the row keeps its id).
+  const patch = await sealRow("observations", ws, { id: obs.id, value, original_value: original });
+  delete patch.id;
+  await db().from("observations").update(patch).eq("id", obs.id).eq("workspace_id", ws).eq("metric_id", a.metric_id);
   await insertSealed("thread_messages", ws, [{ action_id: actionId, author_id: by, body: "Corrected by the submitter.", correction_value: value, correction_status: "accepted" }]);
-  const { data: m } = await db().from("metrics").select("name").eq("id", a.metric_id).eq("workspace_id", ws).maybeSingle();
+  const m = await openOne("metrics", ws, (await db().from("metrics").select("id, name").eq("id", a.metric_id).eq("workspace_id", ws).maybeSingle()).data);
   await recordAudit(ws, by, { kind: "self_check.corrected", object: { type: "metric", id: a.metric_id, name: m?.name ?? null }, details: { period: a.period_start, action_id: actionId } });
   await setState(a.metric_id, a.period_start, { state: "submitted", approval_step: null, approval_action_id: null });
   return (await onValue(a.metric_id, a.period_start, by, { selfChecked: obs.id as number })).join("; ");
@@ -415,7 +426,7 @@ export async function approve(ws: string, actionId: number, by: string, source: 
   if (!ctx || state?.state !== "approval" || state.approval_action_id !== actionId) throw new Error("This value is not waiting for this approval.");
   // Whoever holds the task now (a successor's tasks are handed over when someone leaves) must not be the one the
   // value is from.
-  const value = await latestValue(a.metric_id, a.period_start);
+  const value = await latestValue(ws, a.metric_id, a.period_start);
   const from = state.approval_for ?? value?.submitter_id ?? a.asker_id;
   if (by === from) throw new Error("Nobody approves their own value. Ask someone else to approve it.");
   // Closed only while still open, in one statement: two presses at once (a double tap on a button, a reply and a
@@ -451,7 +462,7 @@ export async function sendBack(ws: string, actionId: number, by: string, comment
   await insertSealed("thread_messages", ws, [{ action_id: actionId, author_id: by, body: `Sent back: ${comment || "please check this value."}` }]);
   await setState(a.metric_id, a.period_start, { state: "submitted", approval_step: null, approval_action_id: null, note: `Sent back by ${by}: ${comment}` });
   // The period only: the comment is a message and stays in the Thread.
-  const { data: m } = await db().from("metrics").select("name").eq("id", a.metric_id).eq("workspace_id", ws).maybeSingle();
+  const m = await openOne("metrics", ws, (await db().from("metrics").select("id, name").eq("id", a.metric_id).eq("workspace_id", ws).maybeSingle()).data);
   await recordAudit(ws, by, { kind: "approval.sent_back", object: { type: "metric", id: a.metric_id, name: m?.name ?? null }, details: { period: a.period_start } });
   await deliver({ kind: "reply", actionId, senderId: by, recipientId: a.asker_id, text: `Sent back: ${comment}. Reply with “Correction: <value>” if it needs changing.` });
 }
@@ -483,7 +494,7 @@ export async function closePeriod(ws: string, workflowId: number, asOf: string, 
   for (const row of rows ?? []) {
     const m = normalizeMetric(row) as Metric;
     const period = workingPeriod(asOf, m.period as Period, yearStart);
-    if (!(await latestValue(m.id, period))) continue;
+    if (!(await latestValue(ws, m.id, period))) continue;
     // A value still waiting for Approval, or sent back, stays open: closing the period approves nothing.
     const st = await getState(m.id, period);
     if (st?.state === "approval" || st?.state === "submitted") continue;

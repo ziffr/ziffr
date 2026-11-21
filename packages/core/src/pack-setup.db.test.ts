@@ -9,7 +9,7 @@ import { createFeed, deleteFeed } from "./feeds";
 import { installPackFile } from "./packs";
 import { packSetupOptions, setUpFromPack } from "./pack-setup";
 import { repoFile } from "./test/repo-file";
-import { workspace } from "./test/db-fixtures";
+import { opened, workspace } from "./test/db-fixtures";
 
 const cleanups: (() => Promise<void>)[] = [];
 afterEach(async () => { for (const c of cleanups.splice(0)) await c(); });
@@ -21,7 +21,7 @@ async function withPack(name: string) {
   const install = await installPackFile(w.actor(sara), pack(name), { unsigned: true, assistantTexts: true });
   return { w, sara, install };
 }
-const metricsOf = async (ws: string) => (await db().from("metrics").select("id, slug, name, formula, sources, from_catalog_id, workflow_id").eq("workspace_id", ws).order("id")).data ?? [];
+const metricsOf = async (ws: string) => opened("metrics", ws, (await db().from("metrics").select("id, slug, name, formula, sources, from_catalog_id, workflow_id").eq("workspace_id", ws).order("id")).data);
 const count = async (table: string, ws: string) => (await db().from(table).select("id", { count: "exact", head: true }).eq("workspace_id", ws)).count ?? 0;
 
 describe("setting up Metrics from a Pack", () => {

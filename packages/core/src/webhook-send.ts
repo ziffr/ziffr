@@ -5,11 +5,12 @@
 // hear now (webhookMayHear: nothing, the structure, or all); the secret signs the timestamp and the body and never
 // leaves; the answer's body is read to a small size, thrown away and never stored; the log holds only a status code and
 // a word from a fixed list. A failing Webhook never fails the change that made the send: those rows were written after it.
+import { openWorkflowRow } from "./workflow-rows";
 import { createHmac, timingSafeEqual } from "node:crypto";
 import { db } from "./db";
 import { deliverNotice, linkTo, refFor } from "./deliveries";
 import { operatorPrivateHosts, outboundRequest, outboundUrlProblem } from "./outbound-request";
-import { openNames, openRows } from "./sealed-columns";
+import { openNames, openOne, openRows } from "./sealed-columns";
 import { metricSeenByEveryone, webhookMayHear } from "./visibility";
 import { buildActionMessage, buildAlertFiredMessage, buildPingMessage, buildValueUnusualMessage, type ActionFacts, type MessageEnvelope, type PersonFacts, type WebhookMessage } from "./webhook-messages";
 import { WEBHOOK_DAYS_FAILING_BEFORE_OFF, WEBHOOK_FAILURES_BEFORE_OFF, WEBHOOK_LOG_DAYS, WEBHOOK_MESSAGE_MAX_BYTES, WEBHOOK_RETRY_AFTER_MAX_MS, WEBHOOK_RETRY_WAITS_MS, WEBHOOK_SEND_CONCURRENCY, WEBHOOK_SEND_NOW_BUDGET_MS, WEBHOOK_SENDS_PER_WORKSPACE_PER_DAY } from "./webhook-limits";
@@ -83,7 +84,7 @@ const systemTitle = (purpose: unknown) => purpose === "approval" ? "Approve a va
 async function alertFired(send: Send, env: Omit<MessageEnvelope, "replyText">, metric: { id: number; name: string }, period: string): Promise<{ full: WebhookMessage; redacted: null } | null> {
   const ws = send.workspace_id;
   if (send.workflow_id === null || !send.tell_step_id || !period) return null;
-  const { data: wf } = await db().from("workflows").select("config, owner_id").eq("id", send.workflow_id).eq("workspace_id", ws).maybeSingle();
+  const wf = await openWorkflowRow(ws, (await db().from("workflows").select("id, config, owner_id").eq("id", send.workflow_id).eq("workspace_id", ws).maybeSingle()).data);
   // Only an Owner or Admin names a Webhook: a Workflow whose owner no longer is one tells none until someone who is saves it again.
   const { data: owner } = wf ? await db().from("memberships").select("role").eq("workspace_id", ws).eq("user_id", wf.owner_id as string).maybeSingle() : { data: null };
   if (owner?.role !== "owner" && owner?.role !== "admin") return null;
@@ -124,7 +125,7 @@ async function buildMessage(send: Send, webhookName: string): Promise<{ full: We
     env.externalIds = (await openRows("webhook_external_ids", ws, (links ?? []) as Record<string, unknown>[])).filter((l) => typeof l.external_id === "string").map((l) => ({ system: String(l.system), external_id: String(l.external_id), url: typeof l.url === "string" ? l.url : null }));
   }
   if (metricId === null) return null;
-  const { data: metric } = await db().from("metrics").select("id, name").eq("id", metricId).eq("workspace_id", ws).maybeSingle();
+  const metric = await openOne("metrics", ws, (await db().from("metrics").select("id, name").eq("id", metricId).eq("workspace_id", ws).maybeSingle()).data);
   if (!metric) return null;
   const everyone = await seenByEveryone(ws, metric.id as number);
   const hearing = webhookMayHear(ws, send.type, { workspace_id: ws, metricSeenByEveryone: everyone, readGroupId: (action?.read_group_id as number | null | undefined) ?? null });

@@ -102,7 +102,7 @@ describe("what a fetch shows", () => {
     const { w, ben } = await withDuties();
     const a = w.actor(ben, "member");
     const { secret } = await makeCalendarLink(a, { noNames: true });
-    const { data: metrics } = await db().from("metrics").select("name, slug").eq("workspace_id", w.id);
+    const metrics = await opened("metrics", w.id, (await db().from("metrics").select("id, name, slug").eq("workspace_id", w.id)).data);
     const flat = (await ok(secret)).ics.replace(/\r\n /g, "");
     for (const m of metrics!) { expect(flat).not.toContain(m.name); expect(flat).not.toContain(m.slug); }
     expect(flat).not.toContain("confidential");

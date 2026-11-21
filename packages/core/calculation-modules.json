@@ -4,6 +4,7 @@
   "src/snapshot-periods.ts",
   "src/compare.ts",
   "src/exact.ts",
+  "src/adding-up.ts",
   "src/format.ts",
   "src/workflow-rules.ts",
   "src/alert-rules.ts",

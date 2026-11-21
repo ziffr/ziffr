@@ -5,6 +5,7 @@ import { db } from "./db";
 import { openRows } from "./sealed-columns";
 import { mapVersionWords, opening, openObject, sealing, sealObject } from "./sealed-words";
 import { workspaceCipher } from "./workspace-keys";
+import { openWorkflowRow } from "./workflow-rows";
 
 // Changes a program makes through an Access Key go through the same core functions as people's (spec 0014), and those
 // record Versions deep inside. Rather than thread a note through every signature, the key's call runs inside
@@ -52,7 +53,11 @@ async function loadSnapshot(type: VersionType, id: number): Promise<{ snapshot: 
     return { snapshot: { name: dash.name, theme_id: dash.theme_id, intro: dash.intro ?? "", widgets }, ws };
   }
   if (type === "deck") return loaded((await db().from("decks").select("workspace_id, name, theme_id, footer, document").eq("id", id).single()).data);
-  if (type === "workflow") return loaded((await db().from("workflows").select("workspace_id, name, config").eq("id", id).single()).data);
+  if (type === "workflow") {
+    // The config is opened here (its numbers are sealed in the row) and sealed again for the Version when stored.
+    const { data } = await db().from("workflows").select("id, workspace_id, name, config").eq("id", id).single();
+    return loaded(await openWorkflowRow(String(data?.workspace_id), data), ["id"]);
+  }
   if (type === "snapshot") {
     // Only a Snapshot's words keep Versions: its numbers never change (spec 0013).
     const { data } = await db().from("dashboard_snapshots").select("workspace_id, words").eq("id", id).is("deleted_at", null).maybeSingle();
@@ -63,7 +68,7 @@ async function loadSnapshot(type: VersionType, id: number): Promise<{ snapshot: 
   if (type === "theme") return loaded((await db().from("themes").select("workspace_id, name, tokens, slides").eq("id", id).single()).data);
   if (type === "template") return loaded((await db().from("team_templates").select("workspace_id, kind, name, description, view, slots, body, w, h").eq("id", id).single()).data);
   if (type !== "metric") throw new Error(`Unknown version type: ${String(type)}`);
-  const { data } = await db().from("metrics").select("id, workspace_id, name, description, unit, unit_position, format, decimals, period, submission_rule, polarity, target_min, target_max, attainment_method, sources, aggregation, formula").eq("id", id).single();
+  const { data } = await db().from("metrics").select("id, workspace_id, name, description, unit, unit_position, format, decimals, period, submission_rule, polarity, target_min, target_max, target_min_sealed, target_max_sealed, attainment_method, sources, aggregation, formula").eq("id", id).single();
   return loaded(data ? (await openRows("metrics", String(data.workspace_id), [data]))[0] : null, ["id"]);
 }
 

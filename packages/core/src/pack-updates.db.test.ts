@@ -170,7 +170,7 @@ describe("uninstalling a Pack", () => {
     expect((await db().from("team_templates").select("name, pack_install_id").eq("id", tpl!.id).single()).data).toEqual({ name: "Our close", pack_install_id: null });
     expect((await db().from("themes").select("pack_install_id").eq("id", theme!.id).single()).data).toEqual({ pack_install_id: null });
     expect(await db().from("catalog_metrics").select("id").eq("workspace_id", w.id).then((r) => r.data)).toEqual([]);
-    expect((await db().from("metrics").select("name, from_catalog_id").eq("id", metric.id).single()).data).toEqual({ name: "MRR", from_catalog_id: null });
+    expect(await opened("metrics", w.id, (await db().from("metrics").select("id, name, from_catalog_id").eq("id", metric.id)).data, { dropId: true })).toEqual([{ name: "MRR", from_catalog_id: null }]);
     const events = await opened("audit_events", w.id, (await db().from("audit_events").select("id, details").eq("workspace_id", w.id).eq("kind", "pack.uninstalled")).data, { dropId: true });
     expect(events).toEqual([{ details: { pack: "ziffr/saas-metrics", version: "1.2.0", removed: 7, kept: 2 } }]);
   });

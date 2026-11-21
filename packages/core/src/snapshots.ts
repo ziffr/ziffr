@@ -13,7 +13,7 @@ import { getCanvasData, visibleDashboards, visibleMetricIds } from "./access";
 import { getMetrics } from "./workspace-data";
 import { audit } from "./audit-log";
 import { db } from "./db";
-import { mapBreakdownLabels, openObject, opening, sealing, sealObject, mapSettingsWords, WORD_KEYS } from "./sealed-words";
+import { mapBreakdownLabels, openFrozenData, openObject, opening, sealFrozenData, sealing, sealObject, mapSettingsWords, WORD_KEYS } from "./sealed-words";
 import { openRows, reserveIds } from "./sealed-columns";
 import { workspaceCipher } from "./workspace-keys";
 import { widgetWithoutOutside } from "./deck-content";
@@ -41,8 +41,19 @@ export type WidgetWords = Partial<Record<WordKey, string>>;
 /** What people write about a Snapshot: its introduction, and each widget's words by widget id. */
 export type SnapshotWords = { intro?: string; widgets?: Record<string, WidgetWords> };
 
-/** The frozen part of a Snapshot: the dashboard's name, theme and widgets, and the data drawn, cut at the period. */
-type Frozen = { name: string; themeId: number | null; widgets: Widget[]; data: CanvasData };
+/** The frozen part of a Snapshot: the dashboard's name, theme and widgets, and the data drawn, cut at the period. `data`
+ * is sealed as a whole where the Workspace seals (spec 0028); `metricIds` is the plain list of the Metrics it kept (ids
+ * only, no names), so who may open a draft can be asked without opening it. Snapshots frozen before have neither a
+ * sealed `data` nor `metricIds`: their Metrics are read from `data.metrics`. */
+type Frozen = { name: string; themeId: number | null; widgets: Widget[]; data: CanvasData; metricIds?: number[] };
+
+/** The Metric ids a Snapshot kept, from what SQL reads of its frozen part (`ids`, and the older `legacy` data.metrics).
+ * Null when it says neither: a Snapshot that does not say what it kept is not opened by anyone who has not seen it, never
+ * read as one that kept nothing (which every viewer would pass). */
+export function keptIds(row: { ids?: unknown; legacy?: unknown } | null | undefined): number[] | null {
+  const list = Array.isArray(row?.ids) ? row.ids : Array.isArray(row?.legacy) ? (row.legacy as { id?: unknown }[]).map((m) => m?.id) : null;
+  return list === null ? null : list.map(Number);
+}
 
 /** The longest introduction, and the longest single word field, a Snapshot keeps. */
 const MAX_INTRO = 4000;
@@ -135,7 +146,10 @@ export async function takeSnapshot(actor: Actor, dashboardId: number, period: { 
   // The words are bound to their Snapshot, so its id is taken first.
   const [snapshotId] = await reserveIds("dashboard_snapshots", 1);
   // The Breakdown labels it froze are words too: sealed for this Snapshot, at their place in its data.
-  const sealedFrozen: Frozen = { ...frozen, data: mapBreakdownLabels(frozen.data, sealing(await workspaceCipher(ws), "dashboard_snapshots", snapshotId), "frozen.data.") };
+  const cipher = await workspaceCipher(ws);
+  const labelled: Frozen = { ...frozen, metricIds: data.metrics.map((m) => m.id), data: mapBreakdownLabels(frozen.data, sealing(cipher, "dashboard_snapshots", snapshotId), "frozen.data.") };
+  // Then the whole data, with its values, names and Targets, as one sealed text.
+  const sealedFrozen = sealFrozenData(cipher, "dashboard_snapshots", snapshotId, labelled);
   if (JSON.stringify(sealedFrozen).length > MAX_FROZEN) throw new Refused("This dashboard holds too much to keep as a Snapshot. Take one of a smaller dashboard.");
   const { data: made, error } = await db().from("dashboard_snapshots").insert({
     id: snapshotId, workspace_id: ws, dashboard_id: dashboardId, period_kind: p.kind, period_start: p.start, period_end: p.end, label: p.label,
@@ -164,13 +178,13 @@ export async function listSnapshots(actor: Actor, dashboardId: number): Promise<
   const drafts = rows.filter((r) => !r.shown_at).map((r) => r.id);
   if (!drafts.length) return rows.map(summary);
   const [{ data: kept, error }, visible] = await Promise.all([
-    db().from("dashboard_snapshots").select("id, metrics:frozen->data->metrics").eq("workspace_id", actor.workspaceId).in("id", drafts),
+    db().from("dashboard_snapshots").select("id, ids:frozen->metricIds, legacy:frozen->data->metrics").eq("workspace_id", actor.workspaceId).in("id", drafts),
     visibleMetricIds(actor.workspaceId, actor.personId, await getMetrics(actor.workspaceId)),
   ]);
   if (error) throw error;
   // Allowed ones are listed, so a draft that did not come back is left out rather than shown.
-  const allowed = new Set(((kept ?? []) as unknown as { id: number; metrics?: { id: number }[] | null }[])
-    .filter((k) => (k.metrics ?? []).every((m) => visible.has(Number(m.id)))).map((k) => k.id));
+  const allowed = new Set(((kept ?? []) as unknown as { id: number; ids?: unknown; legacy?: unknown }[])
+    .filter((k) => (keptIds(k) ?? [-1]).every((m) => visible.has(m))).map((k) => k.id));
   return rows.filter((r) => r.shown_at || allowed.has(r.id)).map(summary);
 }
 
@@ -180,7 +194,12 @@ async function readable(actor: Actor, snapshotId: number, columns: string) {
   const { data } = await db().from("dashboard_snapshots").select(columns).eq("id", snapshotId).eq("workspace_id", actor.workspaceId).is("deleted_at", null).maybeSingle();
   const row = data as unknown as Row | null;
   if (!row) throw new Forbidden();
-  if (row.frozen) row.frozen = await openedFrozen(actor.workspaceId, row.id, row.frozen);
+  if (row.frozen) {
+    // Data that does not open reads as a Snapshot that is not there.
+    const opened = await openedFrozen(actor.workspaceId, row.id, row.frozen);
+    if (!opened) throw new Forbidden();
+    row.frozen = opened;
+  }
   const dash = await roleOn(actor, row.dashboard_id);
   if (!dash) throw new Forbidden();
   const writer = dash.role === "owner" || dash.role === "editor";
@@ -206,8 +225,9 @@ export async function snapshotAccess(actor: Actor, snapshotId: number): Promise<
 
 /** Refuses anyone who does not see every Metric a Snapshot kept. */
 async function assertSeesKept(actor: Actor, snapshotId: number) {
-  const { data } = await db().from("dashboard_snapshots").select("metrics:frozen->data->metrics").eq("id", snapshotId).eq("workspace_id", actor.workspaceId).maybeSingle();
-  const kept = ((data as { metrics?: { id: number }[] | null } | null)?.metrics ?? []).map((m) => Number(m.id));
+  const { data } = await db().from("dashboard_snapshots").select("ids:frozen->metricIds, legacy:frozen->data->metrics").eq("id", snapshotId).eq("workspace_id", actor.workspaceId).maybeSingle();
+  const kept = keptIds(data as { ids?: unknown; legacy?: unknown } | null);
+  if (kept === null) throw new Forbidden();
   await assertSeesMetrics(actor, kept);
 }
 
@@ -217,9 +237,12 @@ function keptDay(data: CanvasData, row: Pick<Row, "period_end">): CanvasData {
   return { ...data, today: dayAfter(row.period_end) };
 }
 
-/** A Snapshot's frozen part with its Breakdown labels opened; labels frozen before sealing pass as they are. */
-async function openedFrozen(ws: string, snapshotId: number, frozen: Frozen): Promise<Frozen> {
-  return { ...frozen, data: mapBreakdownLabels(frozen.data, opening(await workspaceCipher(ws), "dashboard_snapshots", snapshotId), "frozen.data.") };
+/** A Snapshot's frozen part with its data and Breakdown labels opened; ones frozen before sealing pass as they are. Null
+ * when the data does not open: the Snapshot then reads as missing. */
+async function openedFrozen(ws: string, snapshotId: number, frozen: Frozen): Promise<Frozen | null> {
+  const cipher = await workspaceCipher(ws);
+  const opened = openFrozenData(cipher, "dashboard_snapshots", snapshotId, frozen);
+  return opened && { ...opened, data: mapBreakdownLabels(opened.data, opening(cipher, "dashboard_snapshots", snapshotId), "frozen.data.") };
 }
 
 /** A Snapshot's words sealed for it, as they are stored (spec 0028): bound to the Workspace and the Snapshot. */
@@ -278,7 +301,9 @@ export async function snapshotForLink(snapshotId: number, dashboardId: number, k
   const { data } = await db().from("dashboard_snapshots").select(`${SUMMARY}, workspace_id, frozen, words`).eq("id", snapshotId).eq("dashboard_id", dashboardId).is("deleted_at", null).not("shown_at", "is", null).maybeSingle();
   const row = data as unknown as Row | null;
   if (!row?.frozen) return null;
-  row.frozen = await openedFrozen(String(row.workspace_id), row.id, row.frozen);
+  const frozen = await openedFrozen(String(row.workspace_id), row.id, row.frozen);
+  if (!frozen) return null;
+  row.frozen = frozen;
   // A link shows the words as they were when its owner made it, if it kept them; changed since, they stay in Ziffr.
   const words = keptWords ?? await readWords(String(row.workspace_id), row);
   const widgets = withWords(row.frozen.widgets, words);
@@ -366,12 +391,14 @@ export async function editSnapshotWords(actor: Actor, snapshotId: number, words:
 export async function restorableWords(actor: Actor, snapshotId: number, old: unknown): Promise<SnapshotWords> {
   const { data } = await db().from("dashboard_snapshots").select("id, frozen, words").eq("id", snapshotId).eq("workspace_id", actor.workspaceId).is("deleted_at", null).maybeSingle();
   const row = data as { id: number; frozen: Frozen | null; words: SnapshotWords | null } | null;
-  if (!row?.frozen) throw new Forbidden();
-  const seen = new Set((await forReader(actor, row.frozen.widgets, row.frozen.data, row.frozen.themeId)).widgets.map((w) => String(w.id)));
+  const kept = row?.frozen ? await openedFrozen(actor.workspaceId, snapshotId, row.frozen) : null;
+  if (!row || !kept) throw new Forbidden();
+  row.frozen = kept;
+  const seen = new Set((await forReader(actor, kept.widgets, kept.data, kept.themeId)).widgets.map((w) => String(w.id)));
   const before = (old && typeof old === "object" && !Array.isArray(old) ? old : {}) as SnapshotWords;
   const now = await readWords(actor.workspaceId, row);
   const widgets: Record<string, WidgetWords> = {};
-  for (const w of row.frozen.widgets) {
+  for (const w of kept.widgets) {
     const id = String(w.id);
     const pick = seen.has(id) ? before.widgets?.[id] : now.widgets?.[id];
     if (pick && typeof pick === "object") widgets[id] = pick;

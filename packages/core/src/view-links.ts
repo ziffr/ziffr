@@ -4,7 +4,7 @@
 import { randomBytes } from "node:crypto";
 import { db } from "./db";
 import { openOne, openRows, reserveIds } from "./sealed-columns";
-import { mapViewWords, opening, openObject, sealing, sealObject } from "./sealed-words";
+import { mapViewWords, openFrozenData, opening, openObject, sealFrozenData, sealing, sealObject } from "./sealed-words";
 import { workspaceCipher } from "./workspace-keys";
 import { assertCan, Forbidden, Refused, type Actor } from "./actor";
 import { getCanvasData } from "./access";
@@ -165,7 +165,11 @@ export async function openViewLink(token: string, opts: { count?: boolean } = {}
   }
   if (link.frozen) {
     // A frozen link keeps its values; its quarters follow the workspace's year start as everywhere else (spec 0017).
-    const frozen = mapViewWords(link.frozen as ViewPayload, opening(await workspaceCipher(String(link.workspace_id)), "view_links", link.id));
+    const cipher = await workspaceCipher(String(link.workspace_id));
+    // The data is opened first (it is sealed as a whole), then the words in it; data that does not open ends the link.
+    const sealedData = openFrozenData(cipher, "view_links", link.id, link.frozen as ViewPayload);
+    if (!sealedData) return null;
+    const frozen = mapViewWords(sealedData, opening(cipher, "view_links", link.id));
     // A quarter it showed as "to date" stays so: counted as of the day the link was made (spec 0018).
     // Its numbers are written in the workspace's Number Style now, and a Metric kept before units had a side shows
     // the unit its format used to add (spec 0022). Its Attainment keeps the methods it was made with (#130).
@@ -226,7 +230,8 @@ export async function createViewLink(actor: Actor, type: "dashboard" | "deck", i
   const token = randomBytes(24).toString("base64url");
   // A frozen link keeps the words it shows, sealed for it with the Workspace Key (spec 0028), so its id is taken first.
   const [linkId] = await reserveIds("view_links", 1);
-  const frozen = input?.frozen ? mapViewWords(view, sealing(await workspaceCipher(actor.workspaceId), "view_links", linkId)) : null;
+  const cipher = await workspaceCipher(actor.workspaceId);
+  const frozen = input?.frozen ? sealFrozenData(cipher, "view_links", linkId, mapViewWords(view, sealing(cipher, "view_links", linkId))) : null;
   const { data: made } = await db().from("view_links").insert({ id: linkId, token, object_type: type, object_id: id, created_by: actor.personId, label: String(input?.label ?? "").slice(0, 80), expires_at: expires, frozen, metric_ids: view.data.metrics.map((m) => m.id), widget_ids: view.widgets?.map((w) => w.id) ?? null,
     // Every record the deck has now, not only shapes: anything added later stays out of a live link.
     shape_ids: type === "deck" ? Object.keys((view.document as { store?: object } | null)?.store ?? {}) : null,

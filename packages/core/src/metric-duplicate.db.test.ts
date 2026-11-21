@@ -6,7 +6,7 @@ import { db } from "./db";
 import { createMetric, metricDraftFrom, metricEffects, saveSeriesRows, type MetricEffects } from "./metrics";
 import { share } from "./sharing";
 import { saveWorkflow } from "./workflows";
-import { workspace } from "./test/db-fixtures";
+import { opened, workspace } from "./test/db-fixtures";
 
 const cleanups: (() => Promise<void>)[] = [];
 afterEach(async () => { for (const c of cleanups.splice(0)) await c(); });
@@ -70,7 +70,7 @@ describe("createMetric as a duplicate", () => {
       submissionRule: draft.submission_rule, polarity: draft.polarity, aggregation: draft.aggregation, targetMin: draft.target_min, targetMax: draft.target_max,
       sources: draft.sources, submitters: draft.submitters, workflowId: draft.workflow?.id, duplicateOf: draft.duplicateOf,
     }, effects);
-    const { data: row } = await db().from("metrics").select("*").eq("id", copy.id).single();
+    const [row] = await opened("metrics", w.id, (await db().from("metrics").select("*").eq("id", copy.id)).data);
     expect(row).toMatchObject({
       workspace_id: w.id, owner_id: dan, name: "Cash (copy)", slug: "cash-copy", unit: "EUR", format: "currency", decimals: 2, submission_rule: "reject",
       polarity: "target", aggregation: "last", target_min: 1000, target_max: 5000, attainment_method: null, sources: ["mail", "web_form"], workflow_id: workflowId, from_catalog_id: null, formula: null,

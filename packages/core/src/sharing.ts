@@ -2,6 +2,7 @@
 // a Group, "who can see this", and asking for access. Every function takes the Actor first; only the owner shares
 // their own things, only with members of the same Workspace, and Guests share nothing.
 import { db } from "./db";
+import { openOne } from "./sealed-columns";
 import { assertCan, Forbidden, type Actor } from "./actor";
 import { audience, visibleDashboards, visibleDecks, visibleMetricIds, type ObjectType } from "./access";
 import { deckMetricIds } from "./visibility";
@@ -12,6 +13,11 @@ import { audit } from "./audit-log";
 
 const TYPES: ObjectType[] = ["metric", "dashboard", "deck"];
 const table = (t: ObjectType) => (t === "metric" ? "metrics" : t === "deck" ? "decks" : "dashboards");
+/** The object of a Workspace that is shared, with a Metric's sealed name opened (the other kinds keep theirs in clear). */
+async function sharedObject(ws: string, type: ObjectType, id: number) {
+  const { data } = await db().from(table(type)).select("*").eq("id", id).eq("workspace_id", ws).maybeSingle();
+  return type === "metric" ? openOne("metrics", ws, data) : data;
+}
 const path = (t: ObjectType, id: number, slug?: string) => (t === "metric" ? `/metrics/${slug}` : `/${t}s/${id}`);
 
 /** What asking for access sets off: a notice through the recipient's Connector. */
@@ -57,7 +63,7 @@ async function ownedForSharing(actor: Actor, type: ObjectType, id: number, role:
   assertType(type);
   assertCan(actor, "share");
   if (role !== null && role !== "viewer" && role !== "editor") throw new Forbidden();
-  const { data: obj } = await db().from(table(type)).select("*").eq("id", id).eq("workspace_id", actor.workspaceId).maybeSingle();
+  const obj = await sharedObject(actor.workspaceId, type, id);
   if (!obj || obj.owner_id !== actor.personId) throw new Forbidden();
   if (type === "deck" && role) await assertSeesMetrics(actor, deckMetricIds(obj.document));
   return obj;
@@ -106,7 +112,7 @@ export async function whoCanSee(actor: Actor, type: ObjectType, id: number) {
 /** Asks the owner for access to something in the actor's workspace; the owner hears about it. Returns what happened. */
 export async function requestAccess(actor: Actor, type: ObjectType, id: number, effects: NoticeEffects = noticeEffectsFor(actor)): Promise<string> {
   assertType(type);
-  const { data: obj } = await db().from(table(type)).select("*").eq("id", id).eq("workspace_id", actor.workspaceId).maybeSingle();
+  const obj = await sharedObject(actor.workspaceId, type, id);
   if (!obj) throw new Forbidden();
   if (await canSee(actor, type, id)) return "You can see it already.";
   const { data: open } = await db().from("access_requests").select("id").eq("workspace_id", actor.workspaceId).eq("requester_id", actor.personId).eq("object_type", type).eq("object_id", id).eq("status", "open").maybeSingle();
@@ -122,7 +128,7 @@ export async function requestAccess(actor: Actor, type: ObjectType, id: number, 
 export async function decideAccess(actor: Actor, requestId: number, grant: boolean, effects: NoticeEffects = noticeEffectsFor(actor)) {
   const { data: r } = await db().from("access_requests").select("*").eq("id", requestId).eq("status", "open").eq("workspace_id", actor.workspaceId).maybeSingle();
   if (!r) throw new Forbidden();
-  const { data: obj } = await db().from(table(r.object_type)).select("*").eq("id", r.object_id).eq("workspace_id", actor.workspaceId).maybeSingle();
+  const obj = await sharedObject(actor.workspaceId, r.object_type, r.object_id);
   if (!obj || obj.owner_id !== actor.personId) throw new Forbidden();
   // Someone who has left the workspace since asking gets no access: the request is declined, not left open.
   const { data: stillHere } = await db().from("memberships").select("user_id").eq("workspace_id", actor.workspaceId).eq("user_id", r.requester_id).maybeSingle();

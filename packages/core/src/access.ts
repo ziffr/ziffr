@@ -216,10 +216,12 @@ export async function getCanvasData(ws: string, viewer: string, opts: { seriesOf
  * own them, don't submit to them, and they were not shared with them directly. Keys: person id, or "g<id>". */
 export async function revealedBy(ws: string, metricIds: number[], ownerId: string): Promise<Record<string, string[]>> {
   metricIds = metricIds.filter(Number.isInteger); // a malformed marker names no Metric
-  const [people, groups, raw, tokens, { data: metrics }] = await Promise.all([
+  const [people, groups, raw, tokens, { data: metricRows }] = await Promise.all([
     peopleIn(ws), getGroups(ws), getRawShares(ws), tokenFacts(ws),
     db().from("metrics").select("id, name, owner_id").eq("workspace_id", ws).in("id", metricIds),
   ]);
+  // A Metric's name is sealed: opened here, never read from SQL.
+  const metrics = await openRows("metrics", ws, metricRows);
   const shares = expandGroupShares(ws, raw, groups);
   // Who sees each Metric on their own, collected once and looked up per person and Metric: searching every Token and
   // share for each pair took people × Metrics × (Tokens + shares) steps.
@@ -229,8 +231,8 @@ export async function revealedBy(ws: string, metricIds: number[], ownerId: strin
   for (const s of shares) if (s.object_type === "metric") seen.add(key(s.user_id, s.object_id));
   const own = (person: string, m: { id: number; owner_id: string }) => m.owner_id === person || seen.has(key(person, m.id));
   const out: Record<string, string[]> = {};
-  for (const p of people) if (p.id !== ownerId) out[p.id] = (metrics ?? []).filter((m) => !own(p.id, m)).map((m) => m.name);
-  for (const g of groups) out[`g${g.id}`] = (metrics ?? []).filter((m) => g.members.some((u) => u !== ownerId && !own(u, m))).map((m) => m.name);
+  for (const p of people) if (p.id !== ownerId) out[p.id] = metrics.filter((m) => !own(p.id, m)).map((m) => m.name as string);
+  for (const g of groups) out[`g${g.id}`] = metrics.filter((m) => g.members.some((u) => u !== ownerId && !own(u, m))).map((m) => m.name);
   return out;
 }
 

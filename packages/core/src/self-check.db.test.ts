@@ -10,7 +10,7 @@ import { JANUARY, periodStart, shiftPeriod } from "./periods";
 import { setActionStatus } from "./questions";
 import { openRows } from "./sealed-columns";
 import { finishTask, postReply } from "./threads";
-import { workspace } from "./test/db-fixtures";
+import { opened, workspace } from "./test/db-fixtures";
 import { approve, claimTask, closePeriod, confirmSelfCheck, correctSelfCheck, getState, onValue, setLock } from "./workflow-engine";
 import { confirmOwnValue, saveWorkflow, setMetricWorkflow } from "./workflows";
 import type { NobodyElse, WorkflowConfig } from "./types";
@@ -27,7 +27,7 @@ const tasks = async (metricId: number, purpose: string) => {
 const openCheck = async (metricId: number) => (await tasks(metricId, "self_check")).find((t) => t.status === "open")!;
 const auditKinds = async (ws: string) => ((await db().from("audit_events").select("kind").eq("workspace_id", ws).order("id")).data ?? []).map((e) => e.kind as string);
 const thread = async (actionId: number) => {
-  const { data } = await db().from("thread_messages").select("id, workspace_id, author_id, body, correction_value, correction_status").eq("action_id", actionId).order("id");
+  const { data } = await db().from("thread_messages").select("id, workspace_id, author_id, body, correction_value, correction_value_sealed, correction_status").eq("action_id", actionId).order("id");
   return data?.length ? openRows("thread_messages", data[0].workspace_id as string, data) : [];
 };
 
@@ -108,8 +108,9 @@ describe("the Self-check", () => {
     expect(check.observation_id).toBe(obs);
     await expect(correctSelfCheck(w.id, check.id, sara, Number.NaN)).rejects.toThrow(/as a number/);
     expect(await correctSelfCheck(w.id, check.id, sara, 100)).toBe("corrected and confirmed by the submitter; published");
-    const { data: row } = await db().from("observations").select("value, original_value").eq("id", obs).single();
-    expect({ value: Number(row!.value), original: Number(row!.original_value) }).toEqual({ value: 100, original: 1000 });
+    const { data: row } = await db().from("observations").select("id, value, value_sealed, original_value, original_value_sealed").eq("id", obs).single();
+    const [was] = await opened("observations", w.id, [row!]);
+    expect({ value: Number(was.value), original: Number(was.original_value) }).toEqual({ value: 100, original: 1000 });
     expect(await getState(m.id, thisMonth())).toMatchObject({ state: "published", note: expect.stringMatching(/^Confirmed by the submitter/) });
     expect(await thread(check.id)).toEqual([expect.objectContaining({ correction_status: "accepted" })]);
     expect(Number((await thread(check.id))[0].correction_value)).toBe(100);
