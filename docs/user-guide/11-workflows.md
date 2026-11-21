@@ -95,7 +95,7 @@ The right side lists every Metric that uses this Workflow and that you may see. 
 - a note when there is one, such as why a value is unusual, who sent it back, or who unlocked the period and why,
 - who submits it (a **Feed** by its name) and, where chosen, their Stand-in.
 
-You do not add Metrics here. "A metric's owner picks its workflow on the metric's page." See [A Metric's Workflow box](#a-metrics-workflow-box).
+**Add Metrics…** under the list picks Metrics for this Workflow right here. It offers the Metrics you own (not Derived Metrics); one already on another Workflow says which, and adding it moves it. **Remove** takes a Metric you own off this Workflow. For a Metric you do not own, its owner picks the Workflow on the Metric's page: see [A Metric's Workflow box](#a-metrics-workflow-box).
 
 ### Asking Schedule
 

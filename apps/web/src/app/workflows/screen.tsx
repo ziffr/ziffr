@@ -10,7 +10,7 @@ import { ArrowDown, ArrowUp, BellRing, CheckCheck, CircleUserRound, Lock, Megaph
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { closeWorkflowPeriod, deleteWorkflow, runTodayNow, runWorkflowsNow, saveWorkflow } from "@/app/workflow-actions";
+import { closeWorkflowPeriod, deleteWorkflow, runTodayNow, runWorkflowsNow, saveWorkflow, setMetricWorkflow } from "@/app/workflow-actions";
 import type { RunInfo } from "@ziffr/core/workflows";
 import { dueDate, stepLabel, STEP_TITLE, workingPeriod } from "@ziffr/core/workflow-rules";
 import { TELL_GROUPS_PER_STEP, TELL_PEOPLE_PER_STEP, TELL_STEPS_PER_WORKFLOW, TELL_WEBHOOKS_PER_STEP } from "@ziffr/core/alert-limits";
@@ -56,7 +56,7 @@ export function WorkflowsScreen({ viewer, people, feeds = [], metrics, workflows
   templates?: WorkflowTemplateSummary[];
   /** May make Workflows and templates: not a Guest. */
   canCreate?: boolean;
-  yearStart: YearStart; schedule: Schedule | null; canRun: boolean; viewer: string; people: Profile[]; feeds?: { id: string; name: string }[]; metrics: (Pick<Metric, "id" | "name" | "slug" | "period"> & { workflow_id: number | null })[]; workflows: Workflow[]; current: Workflow | null; states: PeriodState[]; tokens: Tok[]; asOf: string }) {
+  yearStart: YearStart; schedule: Schedule | null; canRun: boolean; viewer: string; people: Profile[]; feeds?: { id: string; name: string }[]; metrics: (Pick<Metric, "id" | "name" | "slug" | "period"> & { workflow_id: number | null; mine: boolean })[]; workflows: Workflow[]; current: Workflow | null; states: PeriodState[]; tokens: Tok[]; asOf: string }) {
   const router = useRouter();
   const isNew = !current;
   const [name, setName] = useState(current?.name ?? "New workflow");
@@ -163,7 +163,10 @@ export function WorkflowsScreen({ viewer, people, feeds = [], metrics, workflows
                   const toks = tokens.filter((t) => t.metric_id === m.id);
                   return (
                     <li key={m.id} className="stock rounded-[var(--radius-card)] p-3 text-sm">
-                      <Link href={`/metrics/${m.slug}`} className="font-medium hover:underline">{m.name}</Link>
+                      <div className="flex items-start justify-between gap-2">
+                        <Link href={`/metrics/${m.slug}`} className="font-medium hover:underline">{m.name}</Link>
+                        {m.mine && <Button variant="ghost" size="sm" className="h-6 px-1.5 text-xs" disabled={pending} aria-label={`Take ${m.name} off this workflow`} onClick={() => run(async () => { unwrap(await setMetricWorkflow(m.id, null)); toast.success(`${m.name} is off this workflow`); router.refresh(); })}>Remove</Button>}
+                      </div>
                       <div className="text-xs text-muted-foreground">{periodLabel(period, m.period, yearStart)}, due {formatDate(dueDate(period, m.period, cfg))}</div>
                       <div className="mt-1.5 flex items-center gap-1.5 text-xs">
                         <span className={cn("rounded-[var(--radius-input)] border px-1.5 py-0.5", st?.state === "locked" ? "border-[var(--color-ink)]" : st?.state === "approval" ? "border-[var(--color-accent-2)] text-[var(--color-accent-2)]" : "border-border")}>{st ? STATE_LABEL[st.state] : "Not started"}</span>
@@ -173,8 +176,9 @@ export function WorkflowsScreen({ viewer, people, feeds = [], metrics, workflows
                     </li>
                   );
                 })}
-                {onIt.length === 0 && <p className="text-xs text-muted-foreground">No metrics yet. A metric&rsquo;s owner picks its workflow on the metric&rsquo;s page.</p>}
+                {onIt.length === 0 && <p className="text-xs text-muted-foreground">No metrics yet.</p>}
               </ul>
+              {current && <AddMetrics workflow={current} metrics={metrics} workflows={workflows} pending={pending} onAdd={(ids) => run(async () => { for (const id of ids) unwrap(await setMetricWorkflow(id, current.id)); toast.success(ids.length === 1 ? "Metric added" : `${ids.length} metrics added`); router.refresh(); })} />}
             </div>
             <div className="space-y-2 border-t border-border pt-4">
               {schedule && current.config.asking && (
@@ -377,5 +381,34 @@ function TellFields({ s, people, tellFacts, onChange, field }: { s: Extract<Work
       <span className="basis-full">Once per crossing, for approved values only, and never more than {TELL_PEOPLE_PER_STEP} people. Each person is told by their Delivery Preference, only about Metrics they can see, and can stop it in Your settings.</span>
       {[...byPerson].map(([person, metrics]) => <span key={person} role="note" className="basis-full text-[var(--color-ink)]">{name(person)} cannot see {metrics.join(", ")} and will not be told about {metrics.length === 1 ? "it" : "them"}.</span>)}
     </>
+  );
+}
+
+/** Picks Metrics onto a Workflow. Only Metrics the person owns are offered (the core checks the same on every one);
+ * one already on another Workflow says so, because adding it moves it. */
+function AddMetrics({ workflow, metrics, workflows, pending, onAdd }: { workflow: Workflow; metrics: { id: number; name: string; workflow_id: number | null; mine: boolean }[]; workflows: Workflow[]; pending: boolean; onAdd: (ids: number[]) => void }) {
+  const [open, setOpen] = useState(false);
+  const [picked, setPicked] = useState<number[]>([]);
+  const offered = metrics.filter((m) => m.mine && m.workflow_id !== workflow.id);
+  if (offered.length === 0) return <p className="mt-2 text-xs text-muted-foreground">Metrics you own can be added here.</p>;
+  if (!open) return <Button variant="outline" size="sm" className="mt-2" onClick={() => setOpen(true)}><Plus aria-hidden /> Add Metrics…</Button>;
+  return (
+    <div className="mt-2 space-y-2 rounded-[var(--radius-card)] border border-border p-3 text-sm">
+      <p className="text-xs text-muted-foreground">Metrics you own. One already on another workflow moves here.</p>
+      <ul className="max-h-60 space-y-1 overflow-auto">
+        {offered.map((m) => (
+          <li key={m.id}>
+            <label className="flex items-start gap-2">
+              <input type="checkbox" className="mt-1" checked={picked.includes(m.id)} onChange={(e) => setPicked(e.target.checked ? [...picked, m.id] : picked.filter((x) => x !== m.id))} />
+              <span>{m.name}{m.workflow_id !== null && <span className="text-xs text-muted-foreground"> (now on {workflows.find((w) => w.id === m.workflow_id)?.name ?? "another workflow"})</span>}</span>
+            </label>
+          </li>
+        ))}
+      </ul>
+      <div className="flex gap-2">
+        <Button size="sm" disabled={pending || picked.length === 0} onClick={() => { onAdd(picked); setPicked([]); setOpen(false); }}>Add {picked.length || ""}</Button>
+        <Button size="sm" variant="ghost" onClick={() => { setPicked([]); setOpen(false); }}>Cancel</Button>
+      </div>
+    </div>
   );
 }

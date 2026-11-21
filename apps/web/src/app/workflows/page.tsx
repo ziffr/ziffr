@@ -20,7 +20,8 @@ export default async function WorkflowsPage({ searchParams }: { searchParams: Pr
   const [people, { workflows, states, tokens, feeds, metrics: seen, assigned }, demo, yearStart] = await Promise.all([getProfiles(), workflowsView(actor), isDemo(), getYearStart()]);
   // A real workspace runs on the clock; the demo pretends a day instead.
   const schedule = demo ? null : await workflowSchedule(actor);
-  const metrics = seen.map((m) => ({ id: m.id, name: m.name, slug: m.slug, period: m.period }));
+  // "mine" is what setMetricWorkflow checks in the core (the owner, not a Derived Metric); the screen only offers those.
+  const metrics = seen.map((m) => ({ id: m.id, name: m.name, slug: m.slug, period: m.period, mine: m.owner_id === viewer && !m.formula }));
   const list = workflows as Workflow[];
   const current = list.find((w) => w.id === Number(sp.id)) ?? list[0] ?? null;
   // The periods of the Workflow, each as this viewer may see it; the core leaves out what they may not.
