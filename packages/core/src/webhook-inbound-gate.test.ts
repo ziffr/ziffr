@@ -100,6 +100,21 @@ describe("past the Webhook's failure ceiling", () => {
   });
 });
 
+describe("a known sender behind a shared address", () => {
+  it("keeps passing while another client on the same /56 floods other ids, and failures count since its last success", () => {
+    sender(A, "2001:db8:1:a700::/64", 0);
+    for (let i = 0; i < ANY * 2; i++) fail(`00000000-0000-4000-8000-${String(i).padStart(12, "0")}`, "2001:db8:1:a7ff::/64", 1);
+    expect(admit(A, "2001:db8:1:a701::/64", 2)).toBe(true);
+    expect(admit(B, "2001:db8:1:a701::/64", 2)).toBe(false);
+    for (let i = 0; i < PER_ADDRESS - 1; i++) fail(A, "2001:db8:1:a700::/64", 3);
+    sender(A, "2001:db8:1:a700::/64", 4);
+    for (let i = 0; i < PER_ADDRESS - 1; i++) fail(A, "2001:db8:1:a700::/64", 5);
+    expect(admit(A, "2001:db8:1:a700::/64", 6)).toBe(true);
+    fail(A, "2001:db8:1:a700::/64", 6);
+    expect(admit(A, "2001:db8:1:a700::/64", 7)).toBe(false);
+  });
+});
+
 describe("trying made-up ids", () => {
   it("made-up ids do not count against a Webhook, only against their address; a clock set back never keeps a stale counter", () => {
     for (let i = 0; i < PER_ID; i++) failOn(A, ip(i), false, 0);

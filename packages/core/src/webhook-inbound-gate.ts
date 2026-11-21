@@ -5,7 +5,7 @@
 //  - an address (IPv4 address, IPv6 /56) with 20 failures in a minute to one Webhook, or 100 to all Webhooks together, is
 //    refused (429) before the secret is opened;
 //  - a Webhook with 600 failures in a minute from anywhere refuses everyone except known senders and, at most 60 a minute,
-//    addresses with no failures of their own (a real new sender); a known sender is still refused if its own address fails;
+//    addresses with no failures of their own (a real new sender); a known sender is still refused if its own address keeps failing against that Webhook (counted since its last success), but not for failures against other Webhooks;
 //  - a known sender is a network address that sent a valid signed request to that Webhook in the last day (16 per
 //    Webhook, held on this process only): it skips the Webhook's ceiling (not its own address's failures), so a real sender keeps working through any flood from other addresses.
 // Remaining trade-off: past the ceiling, a sender that is neither known (on this process, in the last day) nor lucky in the
@@ -42,6 +42,9 @@ class Table<V extends { at: number }> {
     if (this.m.size >= this.max) this.m.delete(this.m.keys().next().value as string);
     this.m.set(key, v);
   }
+  delete(key: string): void {
+    this.m.delete(key);
+  }
   clear(): void {
     this.m.clear();
   }
@@ -77,9 +80,13 @@ export function admitWebhookInbound(webhookId: string, network: string | null, n
   if (!id) return true;
   const unit = unitOf(network);
   const own = unit ? addressFailures.get(`${id}:${unit}`, now)?.n ?? 0 : 0;
-  // An address that keeps failing is refused whoever it is, a known sender included.
-  if (unit && (own >= WEBHOOK_INBOUND_FAILURES_PER_ADDRESS || (anyIdFailures.get(unit, now)?.n ?? 0) >= WEBHOOK_INBOUND_FAILURES_PER_ADDRESS_ANY_ID)) return false;
+  // 1. An address that keeps failing against this Webhook since its last success is refused, a known sender included.
+  if (unit && own >= WEBHOOK_INBOUND_FAILURES_PER_ADDRESS) return false;
+  // 2. A known sender of this Webhook is let in ahead of the cross-Webhook count: others behind the same NAT or /56 failing against other ids must not revoke it.
   if (unit && known.get(id, now)?.units.some((u) => u.unit === unit && now - u.at < DAY)) return true;
+  // 3. An address failing against many Webhooks.
+  if (unit && (anyIdFailures.get(unit, now)?.n ?? 0) >= WEBHOOK_INBOUND_FAILURES_PER_ADDRESS_ANY_ID) return false;
+  // 4. The Webhook's ceiling, with the budget below.
   if ((idFailures.get(id, now)?.n ?? 0) < WEBHOOK_INBOUND_FAILURES_PER_ID) return true;
   // Past the ceiling: only an address with no failures of its own, and only 60 of those a minute, so a real new sender
   // can still get in. A flood of fresh addresses uses the budget up, and each one that then fails counts against itself.
@@ -118,6 +125,8 @@ export function recordWebhookInboundSender(webhookId: string, network: string | 
   if (!id || !unit) return;
   const units = (known.get(id, now)?.units ?? []).filter((u) => u.unit !== unit && now - u.at < DAY);
   units.push({ unit, at: now });
+  // Failures count "since the last success": a taken request clears this address's own count for this Webhook.
+  addressFailures.delete(`${id}:${unit}`);
   known.put(id, { at: now, units: units.slice(-WEBHOOK_INBOUND_KNOWN_SENDERS) });
 }
 
