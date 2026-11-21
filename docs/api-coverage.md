@@ -230,7 +230,6 @@ Plumbing the core's other operations use, jobs the schedule runs, and the demo.
 - `applyWebhookAction` (webhook-inbound.ts): a Webhook's own signed route, `POST /api/webhooks/{id}/in`, not an Access Key's
 - `askMeNowBy` (ask-now.ts): used by the Connectors' reply handling
 - `handover` (cloud-api.ts): hands a Workspace over, for Ziffr Cloud
-- `storeCondensed` (condensed-values.ts): the Retention job makes Condensed Values (spec 0033); a program never does
 - `retentionPreview` (retention-setting.ts): the Metric page's preview; setting a Retention needs the page, the counts and a confirmation, so a program only reads it (spec 0033)
 - `retentionPreviewAll` (retention-setting.ts): the Workspace settings' preview of Apply to existing Metrics (spec 0033)
 - `setRetention` (retention-setting.ts): a Metric's Retention is set on its page, never by a program (spec 0033)

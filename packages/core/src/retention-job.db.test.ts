@@ -6,7 +6,7 @@
 import { randomUUID } from "node:crypto";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { changeActionState } from "./action-state";
-import { condensedFor, discardCondensed, storeCondensed } from "./condensed-values";
+import { condensedFor, discardCondensed } from "./condensed-values";
 import { db, seedingDemo } from "./db";
 import { shownSeries, type DisplayPeriod } from "./display-periods";
 import { DEMO_WORKSPACE_ID } from "./team";
@@ -14,7 +14,7 @@ import { retentionJob, MAX_VALUES_PER_RUN } from "./retention-job";
 import * as setting from "./retention-setting";
 import { cancelRetention, retentionFor, retentionPreview, retentionValuesCsv, setRetention } from "./retention-setting";
 import { getMetrics } from "./workspace-data";
-import { auditRowsOf, workspace } from "./test/db-fixtures";
+import { auditRowsOf, storeCondensed, workspace } from "./test/db-fixtures";
 
 // The job's planning is wrapped so one test can make a run fail; every other call is the real thing.
 vi.mock("./retention-setting", async (orig) => {

@@ -4,18 +4,17 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { actorForKey, createAccessKey } from "./access-keys";
 import { getCanvasData } from "./access";
-import { Forbidden, type KeyActor } from "./actor";
+import { type KeyActor } from "./actor";
 import { listObservations } from "./api";
 import { submitObservation } from "./api-submissions";
-import { CONDENSED_CODE, condensedFor, condensedOn, condensedRefusal, condensedSpans, NotCondensed, storeCondensed } from "./condensed-values";
+import { CONDENSED_CODE, condensedFor, condensedOn, condensedRefusal, condensedSpans, NotCondensed } from "./condensed-values";
 import { db } from "./db";
 import { setYearStart } from "./fiscal-year";
 import { previewValues } from "./paste-values";
 import { decideCorrection, submitValue, type SubmissionEffects } from "./submissions";
 import { shownData } from "./view-links";
-import { DEMO_WORKSPACE_ID } from "./team";
 import { valuesCsv } from "./trial-end";
-import { workspace } from "./test/db-fixtures";
+import { storeCondensed, workspace } from "./test/db-fixtures";
 
 vi.setConfig({ testTimeout: 120_000, hookTimeout: 60_000 });
 const cleanups: (() => Promise<void>)[] = [];
@@ -69,19 +68,6 @@ describe("storing a Condensed Value", () => {
     expect((await condensedFor(w.id, [m.id]))[m.id][0].sum).toBe("123456.789");
   });
 
-  it("refuses what is not theirs, a key, a Guest, another Workspace's Metric and the demo", async () => {
-    const { w, ben, dan, m } = await setup();
-    await hold(w, m.id, ben);
-    const input = { metricId: m.id, into: "quarter" as const, span: "2024-01-01" };
-    expect(await refusal(storeCondensed(w.actor(dan, "member"), input))).toBeInstanceOf(Forbidden);
-    expect(await refusal(storeCondensed(w.actor(ben, "guest"), input))).toBeInstanceOf(Forbidden);
-    expect(await refusal(storeCondensed({ ...w.actor(ben, "member"), key: { id: 1, scopes: ["values:submit"] } } as never, input))).toBeInstanceOf(Forbidden);
-    const other = await ws(); const eve = await other.person("owner");
-    expect(await refusal(storeCondensed(other.actor(eve), input))).toBeInstanceOf(Forbidden);
-    expect(await refusal(storeCondensed(w.actor(ben, "member"), { ...input, metricId: 0.5 }))).toBeInstanceOf(Forbidden);
-    expect(await refusal(storeCondensed({ personId: ben, workspaceId: DEMO_WORKSPACE_ID, role: "owner" }, input))).toMatchObject({ name: "DemoReadOnly" });
-    expect((await db().from("condensed_values").select("id", { count: "exact", head: true }).eq("workspace_id", w.id)).count).toBe(0);
-  });
 
   it("refuses a rate, a Derived Metric, a span that is not one, an empty span and an overlap", async () => {
     const { w, ben, m } = await setup();
