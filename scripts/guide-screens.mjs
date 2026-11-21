@@ -7,11 +7,24 @@ import path from "node:path";
 /** The guide's folder, relative to the repository root. */
 export const GUIDE_DIR = "docs/user-guide";
 
-/** Pages that are no screen of their own, each with the reason. Everything else under apps/web/src/app needs a chapter. */
-export const NOT_SCREENS = {
-  "apps/web/src/app/guide/page.tsx": "the user guide itself",
-  "apps/web/src/app/guide/[chapter]/page.tsx": "the user guide itself",
-};
+/** Pages that are no screen of their own, each with its kind and reason, kept in guide-not-screens.json. Everything
+ * else under apps/web/src/app needs a chapter that names it. */
+export const NOT_SCREENS = Object.fromEntries(
+  Object.entries(JSON.parse(readFileSync(new URL("./guide-not-screens.json", import.meta.url), "utf8"))).filter(([k]) => !k.startsWith("_")),
+);
+
+/** Problems with the allow-list: entries with no kind or reason, pages that no longer exist, or pages a chapter names
+ * anyway (then the entry is dead weight). */
+export function badNotScreens(root, chapters = readChapters(root)) {
+  const kinds = JSON.parse(readFileSync(new URL("./guide-not-screens.json", import.meta.url), "utf8"))._kinds;
+  const pages = listFiles(root, "apps/web/src/app").filter((f) => f.endsWith("/page.tsx"));
+  return Object.entries(NOT_SCREENS).flatMap(([file, e]) => {
+    if (!kinds.includes(e.kind) || !e.reason?.trim()) return [`${file}: needs a kind (${kinds.join(", ")}) and a reason`];
+    if (!pages.includes(file)) return [`${file}: is no page any more, remove it`];
+    if (chapters.some((c) => covers(c, file))) return [`${file}: a chapter names it, remove it from the list`];
+    return [];
+  });
+}
 
 const CHAPTER = /^\d+-[a-z0-9-]+\.md$/;
 const SCREENS = /^<!--\s*screens:\s*([\s\S]*?)-->/m;
