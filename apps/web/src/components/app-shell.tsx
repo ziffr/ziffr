@@ -1,12 +1,12 @@
 "use client";
 // The app frame of the layout preview (docs/specs/0036-app-layout.md; GLOSSARY: Workspace, Action, Demo Mode): a
 // sidebar that collapses to icons, the page as a raised card, ⌘K search in the sidebar, and a tab bar on phones.
-// It draws the same links, counts and menus as the top bar (top-bar.tsx) from the same lists, so both always agree.
+// It is the only layout of the app.
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Fragment, useEffect, useState, useTransition } from "react";
 import { Activity, BarChart3, Blocks, Building2, CalendarClock, ChevronRight, ChevronsUpDown, CircleHelp, Database, FlaskConical, Hash, Inbox, KeyRound, LayoutDashboard, LogOut, MoreHorizontal, Package, Plug, Plus, Presentation, Rss, ScrollText, Search, Settings2, ShieldCheck, Users, Webhook, Workflow } from "lucide-react";
-import { GuideLink, INSTALLATION, MAIN, PhoneAccount, WorkspaceChoices, YOU, type Account, type NavItem } from "@/components/top-bar";
+import { GuideLink, INSTALLATION, MAIN, PhoneAccount, WorkspaceChoices, YOU, type Account, type NavItem } from "@/components/nav-parts";
 import { PinnedDashboards, type Pinned } from "@/components/pinned-dashboards";
 import { SettingsNav } from "@/components/settings-nav";
 import { inSettings, onPage, type TreeLink } from "@/lib/settings-links";
@@ -41,10 +41,10 @@ const ICONS: Record<string, React.ReactNode> = {
   "/audit": <ScrollText aria-hidden />,
 };
 
-/** The user menu's pages (#529): the top bar's list without My schedule, which has a row of its own, plus Connected assistants. */
+/** The user menu's pages (#529): the person's own pages without My schedule, which has a row of its own, plus Connected assistants. */
 const YOUR_PAGES: NavItem[] = [...YOU.filter((l) => l.href !== "/schedule"), { href: "/settings/assistants", label: "Connected assistants" }];
 
-/** The top rows after Actions and Schedule, in the sidebar's order (the top bar keeps its own). */
+/** The top rows after Actions and Schedule, in the sidebar's order. */
 const TOP_ORDER = ["/dashboards", "/metrics", "/decks", "/analyze"];
 
 /** Whether `path` is on the page `href` or below it; Home is a dashboard, so Dashboards covers it. */

@@ -2,8 +2,7 @@
 // Record a value from the Metric's page (GLOSSARY: Submitter, Submission Rule, Lock, Approval, Breakdown; ticket #521):
 // the page's one main action for someone who submits the Metric. The form goes through the same intake as their form
 // link, so the Metric's rule, Locks, Workflow and Retention apply, and what comes back is the intake's own words. The
-// core checks again who may record; this only asks for the number. A slide-over in the sidebar layout, a dialog
-// in the top-bar layout (docs/specs/0036-app-layout.md).
+// core checks again who may record; this only asks for the number. A slide-over (docs/specs/0036-app-layout.md).
 import { useState, useTransition } from "react";
 import { Plus } from "lucide-react";
 import { UNEXPECTED, isActionError } from "@/lib/action-error";
@@ -11,36 +10,23 @@ import { recordValue } from "@/app/series-actions";
 import { BreakdownField } from "@/app/submit/[code]/breakdown-field";
 import type { RecordingOffer } from "@ziffr/core/record-own-value";
 import { Button, buttonVariants } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogDescription, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 
-/** The Record a value button with its form. `slideOver` is the sidebar layout. */
-export function RecordValue({ offer, slideOver, wide }: { offer: RecordingOffer; slideOver: boolean; /** Fills its row, as in the list's slide-over. */ wide?: boolean }) {
+/** The Record a value button with its form. */
+export function RecordValue({ offer, wide }: { offer: RecordingOffer; /** Fills its row, as in the list's slide-over. */ wide?: boolean }) {
   const [open, setOpen] = useState(false);
   const trigger = <><Plus aria-hidden /> Record a value</>;
   const intro = `Goes the way a value sent by your form link does: ${offer.rule.toLowerCase()}, and the Metric's checks and approvals apply.`;
   const body = <RecordForm offer={offer} />;
-  if (slideOver) {
-    return (
-      <Sheet open={open} onOpenChange={setOpen}>
-        <SheetTrigger className={buttonVariants({ className: wide ? "w-full" : undefined })}>{trigger}</SheetTrigger>
-        <SheetContent>
-          <SheetHeader><SheetTitle>Record a value for {offer.name}</SheetTitle><SheetDescription>{intro}</SheetDescription></SheetHeader>
-          <div className="flex flex-col gap-3 overflow-y-auto px-4 pb-4">{body}</div>
-        </SheetContent>
-      </Sheet>
-    );
-  }
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger className={buttonVariants({ className: wide ? "w-full" : undefined })}>{trigger}</DialogTrigger>
-      <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-md">
-        <DialogTitle>Record a value for {offer.name}</DialogTitle>
-        <DialogDescription>{intro}</DialogDescription>
-        {body}
-      </DialogContent>
-    </Dialog>
+    <Sheet open={open} onOpenChange={setOpen}>
+      <SheetTrigger className={buttonVariants({ className: wide ? "w-full" : undefined })}>{trigger}</SheetTrigger>
+      <SheetContent>
+        <SheetHeader><SheetTitle>Record a value for {offer.name}</SheetTitle><SheetDescription>{intro}</SheetDescription></SheetHeader>
+        <div className="flex flex-col gap-3 overflow-y-auto px-4 pb-4">{body}</div>
+      </SheetContent>
+    </Sheet>
   );
 }
 

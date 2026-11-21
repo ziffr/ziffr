@@ -1,5 +1,5 @@
 "use client";
-// The search in the top bar (tickets #412, #530; GLOSSARY: Search, Metric, Archived Metric, Period Record, Workflow,
+// The search in the sidebar (tickets #412, #530; GLOSSARY: Search, Metric, Archived Metric, Period Record, Workflow,
 // Group): opened with ⌘K or Ctrl+K, it finds Metrics, dashboards, decks, Workflows, people and Groups by name,
 // "Metric + period" for words such as "churn march 2026", every page by name and plain words ("invite", "webhook"), and
 // commands: New metric, Record a value for a Metric you submit, Switch Workspace, Toggle sidebar. Opened empty it shows
@@ -13,7 +13,7 @@ import { Search } from "lucide-react";
 import { searchEverything, searchStart, type SearchRow } from "@/app/search-actions";
 import { switchWorkspace } from "@/app/auth-actions";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
-import type { Account } from "@/components/top-bar";
+import type { Account } from "@/components/nav-parts";
 import { isActionError, UNEXPECTED } from "@/lib/action-error";
 import { told } from "@/lib/action-toast";
 import { matchEntries, type Entry } from "@/lib/search-entries";
@@ -81,8 +81,8 @@ function browserCommands(account: Account | null | undefined, toggleSidebar: (()
   ];
 }
 
-/** The search button for the top bar, and the dialog it opens (also by ⌘K / Ctrl+K from anywhere). `account` adds
- * Switch Workspace and Open the demo; `toggleSidebar` adds Toggle sidebar (only the sidebar layout has one). */
+/** The search button for the sidebar, and the dialog it opens (also by ⌘K / Ctrl+K from anywhere). `account` adds
+ * Switch Workspace and Open the demo; `toggleSidebar` adds Toggle sidebar. */
 export function SearchDialog({ className, hideButton, account, toggleSidebar }: { className?: string; hideButton?: boolean; account?: Account | null; toggleSidebar?: () => void }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);

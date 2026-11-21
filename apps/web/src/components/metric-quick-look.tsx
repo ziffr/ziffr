@@ -37,7 +37,7 @@ function Panel({ slug }: { slug: string }) {
       </SheetHeader>
       <div className="flex flex-1 flex-col gap-4 overflow-y-auto px-4 pb-4">{body}</div>
       <div className="flex flex-col gap-2 border-t border-border p-3">
-        {look.state === "ready" && look.look.record && <RecordValue offer={look.look.record} slideOver wide />}
+        {look.state === "ready" && look.look.record && <RecordValue offer={look.look.record} wide />}
         <Link href={`/metrics/${encodeURIComponent(slug)}`} className={buttonVariants({ variant: look.state === "ready" && look.look.record ? "outline" : "default", className: "w-full" })}>Open the Metric</Link>
       </div>
     </>

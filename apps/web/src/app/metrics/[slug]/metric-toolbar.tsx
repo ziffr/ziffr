@@ -23,7 +23,6 @@ export type MetricToolbarProps = Pick<ObjectToolbarProps, "id" | "people" | "sha
   metric: { id: number; name: string; slug: string };
   /** Set when they submit the Metric: the form behind Record a value. */
   record: RecordingOffer | null;
-  slideOver: boolean;
   askable: boolean;
   alert: { mine: MyAlert[]; choices: AlertChoices } | null;
   canDuplicate: boolean;
@@ -58,7 +57,7 @@ export function MetricToolbar(p: MetricToolbarProps) {
   }
   return (
     <>
-      <ObjectToolbar type="metric" id={p.id} people={p.people} share={p.share} menu={menu} lead={p.record ? <RecordValue offer={p.record} slideOver={p.slideOver} /> : undefined} />
+      <ObjectToolbar type="metric" id={p.id} people={p.people} share={p.share} menu={menu} lead={p.record ? <RecordValue offer={p.record} /> : undefined} />
       {p.alert && <AlertMe metric={p.metric} mine={p.alert.mine} choices={p.alert.choices} controlled />}
       {p.archive.allowed && !p.archive.archived && <ArchiveMetric metricId={p.metric.id} name={p.metric.name} open={open === "archive"} onOpenChange={(o) => setOpen(o ? "archive" : null)} />}
       {p.canDelete && <DeleteMetric metricId={p.metric.id} name={p.metric.name} open={open === "delete"} onOpenChange={(o) => setOpen(o ? "delete" : null)} />}

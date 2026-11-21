@@ -43,7 +43,7 @@ async function run(f: (actor: admins.InstallationActor) => Promise<string | void
 /** Claims the Installation with the setup code from the server log. */
 export async function claimInstallation(code: string): Promise<Result> {
   const result = await run((a) => admins.claimInstallation(a, String(code ?? "")));
-  // The top bar shows the Installation's menu item from now on.
+  // The sidebar's menu shows the Installation's menu item from now on.
   if ("ok" in result) revalidatePath("/", "layout");
   return result;
 }

@@ -22,12 +22,10 @@ Ziffr is in its `0.x` releases: used and tested, but names and settings may stil
 - **Teams.** Workspaces with Owners, Admins, Members and Guests; sharing with people and Groups; invitations by email or link; handover when someone leaves; View Links for people outside.
 - **For programs.** A versioned REST API with Access Keys, limits and an Access Log, a TypeScript SDK ([`@ziffr/sdk`](https://www.npmjs.com/package/@ziffr/sdk)) and a local MCP server ([`@ziffr/mcp`](https://www.npmjs.com/package/@ziffr/mcp)). Feeds send values from your own systems with [`@ziffr/feed-kit`](https://www.npmjs.com/package/@ziffr/feed-kit) and [`@ziffr/feed-sql`](https://www.npmjs.com/package/@ziffr/feed-sql).
 
-| | |
-| --- | --- |
-| ![A Metric's page: revenue over 18 months against its target range, with a forecast](docs/images/metric.webp) | ![A Workflow: ask, remind, escalate, check unusual values, approve, and close the period](docs/images/workflow.webp) |
-| **A Metric** with its target range, history and forecast | **A Workflow** that asks for each value, reminds, checks and has it approved |
-| ![A dashboard in its Read view: an introduction, then a chart of revenue, orders and cost against the previous year](docs/images/snapshot-read.webp) | ![The Analysis Canvas: the drivers of cost ranked by correlation, with a scatter plot](docs/images/analyze.webp) |
-| **The Read view** of a dashboard, to explain what happened | **The Analysis Canvas**: forecast, correlation and drivers |
+| | | |
+| --- | --- | --- |
+| ![A Metric's page: revenue over 18 months against its target range, with a forecast](docs/images/metric.webp) | ![A Workflow: ask, remind, escalate, check unusual values, approve, and close the period](docs/images/workflow.webp) | ![A dashboard in its Read view: an introduction, then a chart of revenue, orders and cost against the previous year](docs/images/snapshot-read.webp) |
+| **A Metric** with its target range, history and forecast | **A Workflow** that asks for each value, reminds, checks and has it approved | **The Read view** of a dashboard, to explain what happened |
 
 The screenshots show the demo's made-up online shop.
 
