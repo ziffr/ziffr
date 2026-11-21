@@ -44,7 +44,8 @@ const setSince = (id: string, at: Date | null) => db().from("workspaces").update
 
 describe("the rule over the limit", () => {
   // count, limit, days since it went over (null: not over), expected.
-  const cases: [number, number | null, number | null, "allow" | "over" | "refuse"][] = [
+  // The last case's fifth item: days since the last grace started (null: never).
+  const cases: [number, number | null, number | null, "allow" | "over" | "refuse", (number | null)?][] = [
     [0, null, null, "allow"], [500, null, null, "allow"],
     [8, 10, null, "allow"], [9, 10, null, "allow"],
     [10, 10, null, "over"], [10, 10, 3, "over"], [11, 10, 3, "refuse"],
@@ -55,15 +56,19 @@ describe("the rule over the limit", () => {
     [1, 1, null, "over"], [2, 1, 1, "refuse"], [9, 9, null, "over"], [10, 9, 1, "refuse"], [15, 15, null, "over"], [16, 15, 1, "refuse"],
     // A limit set below the count: beyond the room, nothing new.
     [25, 10, 0, "refuse"],
+    // One grace per 90 days: going over again within 90 days of the last grace's start gets none.
+    [10, 10, null, "refuse", 20], [10, 10, null, "refuse", 89.9], [10, 10, null, "over", 13.9], [10, 10, null, "refuse", GRACE_DAYS], [10, 10, null, "over", 90], [10, 10, null, "over", 200], [9, 10, null, "allow", 20],
+    [10, 10, 3, "over", 3],
   ];
   it("gives the same answer in the core and in the database for every case", async () => {
     const now = new Date();
-    for (const [count, limit, ago, want] of cases) {
+    for (const [count, limit, ago, want, lastAgo = null] of cases) {
       const at = ago === null ? null : new Date(now.getTime() - ago * 86_400_000);
-      expect(limitRule(count, limit, at, now), `core ${count}/${limit}/${ago}`).toBe(want);
-      const { data, error } = await db().rpc("workspace_limit_rule", { p_count: count, p_limit: limit, p_since: at?.toISOString() ?? null, p_now: now.toISOString() });
+      const last = lastAgo === null ? null : new Date(now.getTime() - lastAgo * 86_400_000);
+      expect(limitRule(count, limit, at, now, last), `core ${count}/${limit}/${ago}/${lastAgo}`).toBe(want);
+      const { data, error } = await db().rpc("workspace_limit_rule", { p_count: count, p_limit: limit, p_since: at?.toISOString() ?? null, p_now: now.toISOString(), p_last_grace: last?.toISOString() ?? null });
       expect(error).toBeNull();
-      expect(data, `database ${count}/${limit}/${ago}`).toBe(want);
+      expect(data, `database ${count}/${limit}/${ago}/${lastAgo}`).toBe(want);
     }
   });
 });
@@ -81,19 +86,65 @@ describe("making Metrics under a limit", () => {
     expect(await metricCount(w.id)).toBe(11);
   });
 
-  it("after the grace waits while it holds as many as its limit, and starts a new grace once back under", async () => {
+  it("after the grace waits while it holds as many as its limit; archiving down and restoring renews nothing (#457)", async () => {
     const { w, sara, make } = await withMetrics(10, 10);
     await setSince(w.id, days(GRACE_DAYS + 1));
     await expect(make()).rejects.toThrow("This Workspace holds 10 Metrics, as many as its limit allows. Archive a Metric, or ask whoever runs this Ziffr to raise the limit.");
-    // Archiving one makes room and ends the grace; the next step over starts a new one.
+    // Archiving one makes room and ends the grace; the grace's start is remembered.
+    const { data: one } = await db().from("metrics").select("id").eq("workspace_id", w.id).limit(1).single();
+    await db().from("workspaces").update({ last_grace_started_at: days(GRACE_DAYS + 1).toISOString() }).eq("id", w.id);
+    await archiveMetric(w.actor(sara), one!.id);
+    expect(await since(w.id)).toBeNull();
+    // Within 90 days of that grace the next step over gets no new one: refused at once, with the date in the words.
+    const refused = await make("Back to ten").then(() => null, (e) => e);
+    expect(refused).toBeNull(); // 9 held, the tenth fits the limit
+    const second = await make("Over again").catch((e) => e);
+    expect(second).toBeInstanceOf(LimitReached);
+    expect(second.message).toMatch(/the next ones are possible from \d+ \w+ \d{4}\./);
+    expect(await since(w.id)).toBeNull();
+    // Bringing the Archived Metric back counts like a new one.
+    await expect(restoreMetric(w.actor(sara), one!.id)).rejects.toBeInstanceOf(LimitReached);
+  });
+
+  it("archiving down during the grace and going over again before the 14 days end resumes that grace, not a new one", async () => {
+    const { w, sara, make } = await withMetrics(10, 10);
+    await make("Over");
+    const start = (await since(w.id))!;
     const { data: one } = await db().from("metrics").select("id").eq("workspace_id", w.id).limit(1).single();
     await archiveMetric(w.actor(sara), one!.id);
     expect(await since(w.id)).toBeNull();
-    await make("Back to ten");
-    await make("Over again");
-    expect(new Date((await since(w.id))!).getTime()).toBeGreaterThan(Date.now() - 60_000);
-    // Bringing the Archived Metric back counts again: 11 is the room, so it waits.
-    await expect(restoreMetric(w.actor(sara), one!.id)).rejects.toBeInstanceOf(LimitReached);
+    await restoreMetric(w.actor(sara), one!.id);
+    expect(await since(w.id)).toBe(start);
+    const { data } = await db().from("workspaces").select("last_grace_started_at").eq("id", w.id).single();
+    expect(new Date(data!.last_grace_started_at as string).getTime()).toBe(new Date(start).getTime());
+  });
+
+  it("gives a new grace once 90 days have passed since the last one started", async () => {
+    const { w, make } = await withMetrics(10, 10);
+    await db().from("workspaces").update({ last_grace_started_at: days(91).toISOString() }).eq("id", w.id);
+    await make("Over");
+    const s = new Date((await since(w.id))!).getTime();
+    expect(s).toBeGreaterThan(Date.now() - 60_000);
+    const { data } = await db().from("workspaces").select("last_grace_started_at").eq("id", w.id).single();
+    expect(new Date(data!.last_grace_started_at as string).getTime()).toBe(s);
+  });
+
+  it("refuses at once through every way in while the last grace is under 90 days old", async () => {
+    const { w, sara } = await withMetrics(10, 10);
+    await db().from("workspaces").update({ last_grace_started_at: days(20).toISOString() }).eq("id", w.id);
+    const key = { ...w.actor(sara), key: { id: "1", scopes: ["metrics:write"] } };
+    await expect(createMetricWithKey(key, { name: "By key" }, quiet())).rejects.toBeInstanceOf(LimitReached);
+    const { error } = await db().from("metrics").insert({ slug: `raw-${w.id.slice(0, 8)}`, name: "Raw", owner_id: sara, workspace_id: w.id, format: "number", period: "month", submission_rule: "overwrite", polarity: "higher" });
+    expect(error?.code).toBe("ZF441");
+    expect(await since(w.id)).toBeNull();
+  });
+
+  it("a limit set below the count within 90 days of the last grace shares that grace instead of starting one", async () => {
+    const { w } = await withMetrics(10);
+    await db().from("workspaces").update({ last_grace_started_at: days(20).toISOString() }).eq("id", w.id);
+    await db().from("workspace_limits").insert({ workspace_id: w.id, metrics: 5, set_by: "installation_admin" });
+    const { data } = await db().from("workspaces").select("over_limit_since, last_grace_started_at").eq("id", w.id).single();
+    expect(new Date(data!.over_limit_since as string).getTime()).toBe(new Date(data!.last_grace_started_at as string).getTime());
   });
 
   it("holds the API, Duplicate and the Metric Catalog to it too, and the API says the count and limit", async () => {

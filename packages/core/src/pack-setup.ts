@@ -22,7 +22,7 @@ import { fromWorkflowTemplate } from "./team-templates";
 import { recordVersion } from "./versions";
 import { getMetrics } from "./workspace-data";
 import { peopleIn } from "./submissions";
-import { LimitReached, limitOf, limitRefusal, limitRule, metricCount } from "./workspace-limits";
+import { GRACE_DAYS, LimitReached, limitOf, limitRefusal, limitRule, metricCount, nextGraceOn } from "./workspace-limits";
 import { TRIAL_METRICS_MAX } from "./metrics";
 import type { Slot, WorkflowTemplateBody } from "./types";
 
@@ -109,18 +109,20 @@ const approversWanted = (body: WorkflowTemplateBody) => body.steps.reduce((n, s)
  * counted one Metric at a time as the database will. Checked first, so a set-up does not stop half-way. */
 async function roomFor(actor: Actor, n: number): Promise<string | null> {
   const ws = actor.workspaceId;
-  const [{ data: space }, limit, count] = await Promise.all([db().from("workspaces").select("trial_ends_at, over_limit_since").eq("id", ws).maybeSingle(), limitOf(ws), metricCount(ws)]);
+  const [{ data: space }, limit, count] = await Promise.all([db().from("workspaces").select("trial_ends_at, over_limit_since, last_grace_started_at").eq("id", ws).maybeSingle(), limitOf(ws), metricCount(ws)]);
   if (space?.trial_ends_at) {
     const { count: all } = await db().from("metrics").select("id", { count: "exact", head: true }).eq("workspace_id", ws);
     return (all ?? 0) + n > TRIAL_METRICS_MAX ? `A trial holds at most ${TRIAL_METRICS_MAX} Metrics; it has ${all ?? 0}, and this makes ${n}. Pick fewer.` : null;
   }
   if (!limit) return null;
   let since = space?.over_limit_since ? new Date(space.over_limit_since as string) : null;
+  const last = space?.last_grace_started_at ? new Date(space.last_grace_started_at as string) : null;
   const now = new Date();
   for (let i = 0; i < n; i++) {
-    const rule = limitRule(count + i, limit.metrics, since, now);
-    if (rule === "refuse") return n === 1 || i === 0 ? limitRefusal(count + i, limit) : `${limitRefusal(count + i, limit)} This makes ${n} Metrics, room is left for ${i}.`;
-    if (rule === "over" && !since) since = now;
+    const rule = limitRule(count + i, limit.metrics, since, now, last);
+    const refusal = () => limitRefusal(count + i, limit, since ? null : nextGraceOn(last, now));
+    if (rule === "refuse") return n === 1 || i === 0 ? refusal() : `${refusal()} This makes ${n} Metrics, room is left for ${i}.`;
+    if (rule === "over" && !since) since = last && now.getTime() < last.getTime() + GRACE_DAYS * 86_400_000 ? last : now;
   }
   return null;
 }

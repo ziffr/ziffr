@@ -5,7 +5,7 @@ import { Forbidden } from "./actor";
 import { db } from "./db";
 import { opened, workspace } from "./test/db-fixtures";
 import { GRACE_DAYS } from "./workspace-limits";
-import { metricsOfLimit, nearLimitNote, overLimitBanner, sendLimitNotices, sizeAndUsage } from "./workspace-usage";
+import { dayWords, metricsOfLimit, nearLimitNote, overLimitBanner, sendLimitNotices, sizeAndUsage } from "./workspace-usage";
 
 const cleanups: (() => Promise<void>)[] = [];
 afterEach(async () => { for (const c of cleanups.splice(0)) await c(); });
@@ -36,7 +36,8 @@ describe("Size and usage", () => {
     expect(await metricsOfLimit(w.actor(gus, "guest"))).toEqual({ metrics: 0, limit: null });
     expect(overLimitBanner(u)).toMatch(/^This Workspace holds 21 Metrics, more than the 20 its Size Small allows\. New Metrics can be made until \d+ \w+ \d{4}\./);
     await db().from("workspaces").update({ over_limit_since: new Date(Date.now() - (GRACE_DAYS + 1) * DAY).toISOString() }).eq("id", w.id);
-    expect(overLimitBanner(await sizeAndUsage(w.actor(sara)))).toBe("This Workspace holds 21 Metrics, more than the 20 its Size Small allows. New Metrics wait now. Everything else keeps working.");
+    const u2 = await sizeAndUsage(w.actor(sara));
+    expect(overLimitBanner(u2)).toBe("This Workspace holds 21 Metrics, more than the 20 its Size Small allows. New Metrics wait now; the next 14 days over the limit are possible from " + dayWords(u2.nextGraceOn!) + ". Everything else keeps working.");
   });
 
   it("without a limit shows only the count, and says nothing near or over", async () => {
@@ -71,7 +72,8 @@ describe("the Owners' emails", () => {
     await sendLimitNotices(new Date(Date.now() + (GRACE_DAYS + 1) * DAY));
     await sendLimitNotices(new Date(Date.now() + (GRACE_DAYS + 2) * DAY));
     expect((await notices(w.id)).filter((n) => n.subject === "New Metrics now wait in your Workspace")).toHaveLength(2);
-    // Back under, then over again: told again.
+    // Back under, then over again 90 days after the grace started: a new grace, told again (within 90 days there is none).
+    await db().from("workspaces").update({ last_grace_started_at: new Date(Date.now() - 91 * DAY).toISOString() }).eq("id", w.id);
     await db().from("workspace_limits").update({ metrics: 20 }).eq("workspace_id", w.id);
     await db().from("workspace_limits").update({ metrics: 10 }).eq("workspace_id", w.id);
     await sendLimitNotices();
