@@ -58,5 +58,5 @@ export async function setWorkspaceLimit(actor: InstallationActor, workspaceId: s
     kind: "workspace.limit_changed", object: { type: "workspace", id: workspaceId },
     details: { from_limit: before?.metrics ?? null, from_label: before?.label ?? null, to_limit: next?.metrics ?? null, to_label: next?.label ?? null, by: "installation_admin", default: next === null },
   });
-  await recordInstallationEvent(actor.personId, next === null ? "workspace_limit.removed" : "workspace_limit.set", ws.name as string);
+  await recordInstallationEvent(actor.personId, next === null ? "workspace_limit.removed" : "workspace_limit.set", workspaceId);
 }

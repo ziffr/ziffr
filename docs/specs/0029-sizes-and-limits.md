@@ -1,6 +1,6 @@
 # 0029 Sizes and limits: a Size per Workspace on hosted Ziffr, and Workspace Limits in the open code
 
-**Status:** draft. **Tracking issue:** #258 (label `tracking`); its tickets become sub-issues labelled `spec:0029` once the owner has read this spec. The decisions that are hard to reverse, and the options weighed, are in [ADR 0013](../adr/0013-hosted-ziffr-priced-by-size-billing-outside-marketplace-without-code.md).
+**Status:** done. **Tracking issue:** #258 (label `tracking`); tickets #264 to #272 carry `spec:0029`. Its security review is in #272. The decisions that are hard to reverse, and the options weighed, are in [ADR 0013](../adr/0013-hosted-ziffr-priced-by-size-billing-outside-marketplace-without-code.md).
 
 ## Problem Statement
 
@@ -61,8 +61,8 @@ The work splits in two:
 - **The Installation's default:** two new Installation Settings in a section "Workspace Limits", `ZIFFR_DEFAULT_METRICS_LIMIT` (unset means no limit) and `ZIFFR_DEFAULT_LIMIT_LABEL` (such as "Free"). Hosted Ziffr sets 10 and "Free". A self-hoster sets nothing and sees no limit anywhere.
 - **Who sets one:** an Installation Admin on the Installation Settings page, or Ziffr Cloud through its API (below). Both write the same row; the last write wins, and the page says when the limit it overrides was set by Ziffr Cloud. A Workspace Owner never sets their own limit.
 - **What the Installation Admin sees:** the Workspace Limits section lists Workspaces by name with their Metric count, limit, label and who set it, and nothing else of them. Being an Installation Admin still shows no Workspace's data (spec 0025); a name and a count are what they need to pick the right Workspace.
-- **Where it is enforced:** in the database, as the trial's 25 Metrics are today (`metrics_per_trial`). A trigger on `metrics`, before insert and before an Archived Metric is brought back, locks the Workspace's row, counts its Metrics and refuses with `ZF431` when the rule below says so. Every way a Metric is made goes through it: the form, the Metric Catalog, Duplicate, the API, the MCP Server, a Pack (spec 0030) and the trial's sample data.
-- **What a refusal says:** the core turns `ZF431` into one message, "This Workspace holds 50 Metrics, as many as its Size Small allows. Archive a Metric, or ask an Owner to change the Size." The API answers 403 with the code `workspace_limit` and the count and limit; the MCP Server's tools return the same words.
+- **Where it is enforced:** in the database, as the trial's 25 Metrics are today (`metrics_per_trial`). A trigger on `metrics`, before insert and before an Archived Metric is brought back, locks the Workspace's row, counts its Metrics and refuses with `ZF441` when the rule below says so. Every way a Metric is made goes through it: the form, the Metric Catalog, Duplicate, the API, the MCP Server, a Pack (spec 0030) and the trial's sample data.
+- **What a refusal says:** the core turns `ZF441` into one message, "This Workspace holds 50 Metrics, as many as its Size Small allows. Archive a Metric, or ask an Owner to change the Size." The API answers 403 with the code `workspace_limit` and the count and limit; the MCP Server's tools return the same words.
 - **The demo** has no limit.
 
 ### Over the limit: 14 days and 10 % more

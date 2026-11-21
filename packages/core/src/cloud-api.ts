@@ -196,11 +196,13 @@ export async function handover(actor: Actor, purpose: HandoverPurpose, env: Env 
   if (m?.role !== "owner" || !w) throw new Forbidden("Only Owners change the Size.");
   // Only an address a way of signing in proved: Ziffr Cloud sends invoices there.
   if (!p?.auth_user_id || !p.email) throw new Forbidden("Sign in with your email address to change the Size.");
+  const aud = siteOrigin(env);
+  if (!aud) throw new Forbidden("This Installation has no address set (ZIFFR_SITE_URL).");
   const payload = {
     v: 1, purpose, workspace: { id: w.id as string, name: String(w.name).slice(0, 80) }, person: { id: p.id as string, email: String(p.email).toLowerCase() },
     role: "owner", nonce: randomBytes(16).toString("base64url"),
     // Which Installation made it (its address), so a key shared by mistake between two cannot carry a token across.
-    aud: siteOrigin(env), iat: Math.floor(Date.now() / 1000), exp: Math.floor(Date.now() / 1000) + HANDOVER_SECONDS,
+    aud, iat: Math.floor(Date.now() / 1000), exp: Math.floor(Date.now() / 1000) + HANDOVER_SECONDS,
   };
   const body = Buffer.from(JSON.stringify(payload), "utf8").toString("base64url");
   const mac = createHmac("sha256", key).update(body).digest("base64url");

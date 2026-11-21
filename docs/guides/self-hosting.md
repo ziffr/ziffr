@@ -143,6 +143,15 @@ Some of what an Installation talks to can be set on a page instead of in the set
 
 Installation Admins can read daily totals across all Workspaces (counts only, never a name) on the Installation settings page, and bring them into a Workspace of their own as Metrics with the Usage Feed, which is off until you set its two keys. Setup, the settings and what happens when the Installation is down are in the [Usage guide](usage.md).
 
+## Limits per Workspace
+
+Self-hosted Ziffr has no limits unless you set one (spec 0029). A **Workspace Limit** is the most Metrics a Workspace may hold (Archived Metrics and the demo do not count). Set a default for every Workspace with `ZIFFR_DEFAULT_METRICS_LIMIT` and `ZIFFR_DEFAULT_LIMIT_LABEL` (such as 10 and "Free"), or in the **Workspace Limits** section of the Installation settings page, where an Installation Admin also gives one Workspace a limit of its own. Nothing else is limited, and nothing about it is a price: Ziffr itself knows only a number and a name.
+
+- **Over the limit** a Workspace keeps working and every value keeps arriving. The first Metric over the limit starts 14 days in which it may hold 10 % more (at least one); after that no new Metric can be made until it holds fewer than the limit. The database enforces it for every way a Metric is made, so the API, the MCP Server, Feeds, Packs and the forms are all refused alike.
+- **`ZIFFR_DEFAULT_LIMIT_PER_PERSON`** (default 3, unset where you do not set a default limit) caps how many Workspaces on the default limit one person may own.
+- **Hosted Ziffr only:** `ZIFFR_CLOUD_KEY` and `ZIFFR_CLOUD_URL` let a billing service set limits through a signed API and hand Owners over to it. Leave both unset and neither exists: the endpoints answer 404 and no screen mentions a Size or a price. The API is in the [reference](../reference/cloud-api.md); set `ZIFFR_SITE_URL` too, since the Owners' handover names it.
+- Trials that stay, and Workspaces deleted for being unused, are in their own sections below.
+
 ## Deleting unused Workspaces
 
 With a default Workspace Limit (spec 0029) and working email, `ZIFFR_DELETE_UNUSED_AFTER_DAYS` (30 to 3650, also on the Installation Settings page) deletes Workspaces on that default that nobody used for that many days: no sign-in and no value by any Source. Their Owners get one warning first; 14 days later, still unused, the Workspace is deleted with its key destroyed, and members whose only Workspace it was go with their sign-in. One sign-in or one value stops it. Trials, the demo and Workspaces with a limit of their own are never touched. The scheduler calls `POST /api/jobs/unused-workspaces` daily ([jobs](jobs.md)); Docker Compose does it at 04:10 UTC. Unset, nothing is deleted.
