@@ -51,6 +51,12 @@ describe("changing a Metric's description with a key", () => {
     await share(w.actor(sara, "owner"), "metric", saras.id, ben, "viewer");
     await expect(updateMetricWithKey(key, saras.slug, { name: "x" })).rejects.toThrow(/owner and its Editors/);
     await expect(updateMetricWithKey({ ...key, role: "guest" }, mine.slug, { name: "x" })).rejects.toThrow(/may not change Metrics/);
+    // The Audit Log records it, naming the key and the fields but not the words.
+    const { data: keyed } = await db().from("audit_events").select("access_key_id").eq("workspace_id", w.id).eq("kind", "metric.details_changed");
+    expect(keyed?.[0]).toMatchObject({ access_key_id: expect.any(Number) });
+    const changed = await opened("audit_events", w.id, (await db().from("audit_events").select("id, details").eq("workspace_id", w.id).eq("kind", "metric.details_changed")).data, { dropId: true });
+    expect(JSON.stringify(changed)).toContain("submission_rule");
+    expect(JSON.stringify(changed)).not.toContain("After refunds");
     // The history names the key.
     const { data: versions } = await db().from("versions").select("message").eq("object_type", "metric").eq("object_id", mine.id);
     expect(versions?.map((v) => v.message).join(" ")).toContain("key “Assistant”");

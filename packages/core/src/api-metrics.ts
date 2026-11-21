@@ -18,7 +18,7 @@ import { archiveMetric, restoreMetric } from "./archived-metrics";
 import { yearStartFor } from "./fiscal-year";
 import { withVersionNote } from "./versions";
 import { setMetricWorkflow, setWorkflowCheck } from "./workflows";
-import { auditedAsKey } from "./audit-log";
+import { audit, auditedAsKey } from "./audit-log";
 import type { WorkflowConfig, WorkflowStep } from "./types";
 import { isPeriodStart, periodStart } from "./periods";
 import { normalizeMetric } from "./metric-row";
@@ -260,6 +260,10 @@ export async function updateMetricWithKey(actor: Actor | KeyActor, slug: string,
   await asKey(actor, () => withVersionNote(keyName ? `Changed through the API (key “${keyName}”)` : "Changed through the API", async () => {
     // The editor's own refusals (a period that has values, a Retention that would not fit) are plain errors: said as 422.
     await updateMetricDetails(creator, metric.id as number, details).catch(refusedWithReason);
+    // A key's change of what a Metric is called or says is read by other people and their assistants: the Audit Log names
+    // the key and the fields (never the words, which are sealed).
+    const fields = (["name", "description", "unit", "format", "period", "submission_rule"] as const).filter((f) => p[f] !== undefined);
+    if (fields.length && actor.key) await audit(creator, { kind: "metric.details_changed", object: { type: "metric", id: metric.id as number, name: metric.name }, details: { fields } });
     if (sources) await setMetricSources(creator, metric.id as number, sources);
     if (workflow !== undefined) await setMetricWorkflow(creator, metric.id as number, workflow.id, { from: workflow.from });
   }));

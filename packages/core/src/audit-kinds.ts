@@ -72,6 +72,7 @@ export const AUDIT_KINDS = {
   "retention.needs_confirmation": "held back the Retention of, as it would take more than was confirmed,",
   "retention.stopped": "stopped the Retention of, after three failed runs,",
   "metric.workflow_set": "chose the Workflow of",
+  "metric.details_changed": "changed the description of",
   "period.locked": "locked a period of",
   "period.unlocked": "unlocked a period of",
   "period.closed": "closed a period of the Workflow",
