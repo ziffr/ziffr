@@ -165,6 +165,19 @@ describe("the people a page is given", () => {
   });
 });
 
+describe("a Metric's owner who is not an Admin", () => {
+  it("is given every Token code of their Metric, a member who only submits only their own", async () => {
+    const { w, sara, ben, member } = await setUp();
+    const cleo = await w.person("member");
+    const mine = await w.metric(ben, { name: "Ben's own" });
+    await w.token(mine.id, sara);
+    await w.token(mine.id, cleo);
+    const codes = async (a: typeof member, id: number) => (await metricExtras(a, id, "month")).tokens.filter((t) => t.code).map((t) => t.submitter_id).sort();
+    expect(await codes(member, mine.id)).toEqual([sara, cleo].sort());
+    expect(await codes(w.actor(cleo, "member"), mine.id)).toEqual([cleo]);
+  });
+});
+
 describe("the demo, viewed as each Role (ticket #609)", () => {
   it("shows a form link under Who submits only to its person, the Metric's owner; the Guest sees none", async () => {
     const { error } = await db().rpc("demo_reset", { min_gap: "0 seconds" });

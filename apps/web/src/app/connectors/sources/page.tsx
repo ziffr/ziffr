@@ -20,7 +20,7 @@ export default async function SourcesPage() {
   const profiles = demo ? await getPeopleIn(actor.workspaceId, { contactDetails: true }) : shown;
   const metricNames = Object.fromEntries(metrics.map((m) => [m.id, m.name]));
   const peopleById = Object.fromEntries(profiles.map((p) => [p.id, p]));
-  // Token codes open submission forms: the core passes only the viewer's own (all of them in the demo).
+  // Token codes open submission forms: the core passes only the viewer's own, also in the demo.
   const forms = tokens.filter((t) => metrics.find((m) => m.id === t.metric_id)?.sources.includes("web_form"));
   const by = (s: string) => ({
     prompts: ((prompts ?? []) as Prompt[]).filter((p) => p.source === s),
