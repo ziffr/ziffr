@@ -61,10 +61,10 @@ describe("Ask me now", () => {
     const w = await ws(); const sara = await w.person("owner", { email: address() });
     const m = await w.metric(sara, { sources: ["web_form", "mail", "telegram"] }); await w.token(m.id, sara);
     const results = await askMeNowBy(w.actor(sara), m.id, ["email", "telegram"]);
-    expect(results.map((r) => r.connector)).toEqual(["email", "telegram"]);
+    // Telegram is not set up here, so that Prompt goes by the way that reaches the person (email), and says so.
+    expect(results.map((r) => r.connector)).toEqual(["email", "email"]);
+    expect(results.map((r) => r.chosen)).toEqual([true, false]);
     expect(results[0].state).toBe("sent");
-    // Telegram is not set up here: it says so per way instead of stopping the email.
-    expect(["outbox", "failed", "queued"]).toContain(results[1].state);
     await expect(askMeNowBy(w.actor(sara), m.id, ["nope" as never])).rejects.toBeInstanceOf(Forbidden);
     expect(shownReason(TRIAL_HOLDS_BACK.notOwner)).toBe(TRIAL_HOLDS_BACK.notOwner);
     expect(shownReason("550 5.1.1 <x@y>: Recipient address rejected by smtp.example")).toBe(NOT_DELIVERED);

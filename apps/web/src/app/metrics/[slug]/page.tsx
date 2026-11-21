@@ -15,6 +15,7 @@ import { RetentionBox } from "./retention-box";
 import { canArchiveMetric } from "@ziffr/core/archived-metrics";
 import { canEditMetric } from "@ziffr/core/metrics";
 import { firstAsksFor } from "@ziffr/core/first-asks";
+import { NextPrompt } from "./next-prompt";
 import { SourcesEditor } from "./sources-editor";
 import { EditDetails } from "./edit-details";
 import { countryCode } from "@/lib/countries";
@@ -38,6 +39,7 @@ import { MetricWorkspace } from "./workspace";
 import { MetricToolbar } from "./metric-toolbar";
 import { recordingOffer } from "@ziffr/core/record-own-value";
 import { canAskNow } from "@ziffr/core/ask-now";
+import { nextPromptWays } from "@ziffr/core/prompt-preview";
 import { MetricWorkflow } from "@/components/metric-workflow";
 import { alertMeData } from "./alert-me";
 import { RequestAccess } from "@/components/who-can-see";
@@ -153,6 +155,8 @@ export default async function MetricPage({ params, searchParams }: { params: Pro
   const isOwner = metric.owner_id === viewer;
   // Its owner and its Editors change targets, description and Sources; deleting and sharing stay the owner's.
   const canEdit = isOwner || (await canEditMetric(actor, metric.id));
+  // Where each submitter's next Prompt goes and why (owner and Editors see everyone's, others only their own).
+  const promptWays = metric.formula ? {} : await nextPromptWays(actor, metric.id);
   // Which target counts for the latest period: its own Target Series value if there is one, else the Target Range.
   const periodTarget = last ? tSeries.find((t) => t.period === last.period) : undefined;
   // Says nothing of the inputs but that their periods differ: it may be read by someone who cannot see them.
@@ -414,7 +418,7 @@ export default async function MetricPage({ params, searchParams }: { params: Pro
                 <Row k="Formula"><code className="rounded bg-muted px-1 py-0.5 text-xs">{metric.formula.replace(/\{([a-z-]+)\}/g, (_, s) => metrics.find((m) => m.slug === s)?.name ?? s)}</code></Row>
               ) : (
                 <>
-                  <Row k="Values arrive by">{canEdit ? <SourcesEditor metricId={metric.id} sources={metric.sources} /> : metric.sources.map((s) => SOURCE_LABEL[s]).join(", ") || "None"}</Row>
+                  <Row k="Values arrive by">{canEdit ? <SourcesEditor metricId={metric.id} sources={metric.sources} /> : metric.sources.map((s) => SOURCE_LABEL[s]).join(", ") || "None"}<p className="mt-1 text-xs text-muted-foreground">The ways an answer is accepted. A request for a value goes only by a way ticked here; which of them is each person’s choice under <Link href="/connectors/who-gets-what" className="underline">Who gets what, where</Link>.</p></Row>
                   <Row k="A second value">{RULE_LABEL[metric.submission_rule]}</Row>
                 </>
               )}
@@ -428,13 +432,14 @@ export default async function MetricPage({ params, searchParams }: { params: Pro
               <p className="mb-3 text-xs text-muted-foreground">Who may send values for this metric. Ziffr recognises them by their Slack name or mail address, or by their personal form link.</p>
               <ul className="space-y-2">
                 {tokens.map((t) => (
-                  <li key={t.id} className="flex items-center justify-between gap-2">
+                  <li key={t.id} className="flex flex-wrap items-center justify-between gap-x-2 gap-y-0.5">
                     <Person p={peopleById[t.submitter_id]} />
                     {t.feed ? (
                       <span className="flex items-center gap-2 text-xs text-muted-foreground">Feed{canEdit && <RemoveFeed metricId={metric.id} feedId={t.submitter_id} name={peopleById[t.submitter_id]?.name ?? "this Feed"} />}</span>
                     ) : !t.code ? null : metric.sources.includes("web_form") ? (
                       <Link href={`/submit/${t.code}`} className="text-xs underline">Open form link</Link>
                     ) : <code className="fig text-xs text-muted-foreground">{t.code}</code>}
+                    {!t.feed && promptWays[t.submitter_id] && <NextPrompt view={promptWays[t.submitter_id]} />}
                   </li>
                 ))}
                 {!tokens.length && <li className="text-muted-foreground">Nobody yet.</li>}

@@ -66,10 +66,11 @@ describe("answers by Telegram", () => {
   });
 
   it("sends the form link when the Metric does not take values by Telegram", async () => {
-    const { w, sara, ann, user, m } = await setup(["web_form"]);
-    // Asked by Telegram, but the Metric takes values only through the form: the Prompt says to use the form.
+    const { w, sara, ann, user, m } = await setup(["web_form", "telegram"]);
     await deliverPrompt({ metricId: m.id, submitterId: ann, senderId: sara, via: "telegram" });
     const d = await latest(w.id, ann);
+    // A Prompt made before Prompts followed the Metric's Sources (it asked for the form): a reply says to use the form.
+    await db().from("prompts").update({ source: "web_form" }).eq("metric_id", m.id);
     expect(await receiveTelegramUpdate(text(user, "42", d.telegram_message_id))).toBe("form_link");
     expect(lastSaid()).toContain("/submit/");
     const { count } = await db().from("observations").select("id", { count: "exact", head: true }).eq("metric_id", m.id);

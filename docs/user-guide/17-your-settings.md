@@ -199,7 +199,7 @@ Your **Delivery Preference** for each kind of message:
 | --- | --- |
 | **Questions** | Questions someone assigns to you |
 | **Tasks** | Tasks someone assigns to you |
-| **Reminders** | Prompts asking you for a value, and reminders of tasks that are due |
+| **Reminders** | Prompts asking you for a value (only by a way the Metric accepts values by, otherwise the first of Slack, Telegram and email that reaches you), and reminders of tasks that are due |
 | **Replies and updates** | Replies in a Thread, proposed Corrections, decisions and tasks that were closed |
 
 For each, pick **Email**, **Slack**, **Telegram**, **WhatsApp** or **Ticket system**, or leave it at **Team default** (which shows what the team default is). Owners and Admins set the team default on the Connectors page. A change is saved at once.

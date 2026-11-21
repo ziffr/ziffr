@@ -28,10 +28,10 @@ async function setUp(trialDays: number | null = null) {
   await w.token(m.id, owner);
   return { w, owner, m };
 }
-/** What the queue did with a Prompt by `via`: sent, or kept in the Outbox. */
+/** What the queue did with a Prompt asked for by `via`: sent, or kept in the Outbox (a way that does not reach the person goes by email). */
 async function promptBy(s: Awaited<ReturnType<typeof setUp>>, via: "email" | "slack" | "telegram") {
   await deliverPrompt({ metricId: s.m.id, submitterId: s.owner, via });
-  const { data } = await db().from("deliveries").select("mail_state").eq("workspace_id", s.w.id).eq("connector", via).order("id", { ascending: false }).limit(1).single();
+  const { data } = await db().from("deliveries").select("mail_state").eq("workspace_id", s.w.id).order("id", { ascending: false }).limit(1).single();
   return data!.mail_state as string;
 }
 const expected = (state: WayState["state"]) => (state === "real" ? "sent" : "outbox");

@@ -325,6 +325,7 @@ The **Who gets what** tab: a table of **Delivery Preferences**: one row per pers
 
 - The first row, **Team default**, covers everyone who leaves a column open. Only Owners and Admins change it. Without a team default, Ziffr uses email.
 - Your own row is marked "you". Change it here or under **Your Deliveries**. Everyone else's row is greyed out.
+- A Prompt (under **Reminders**) goes by your choice only where the Metric accepts answers: its **Values arrive by** list decides. Otherwise it goes by the first way both allow where you can be reached, in the order Slack, Telegram, email, and nothing is sent elsewhere if none reaches you: the Prompt waits in the **Outbox** as "Not sent" and the Metric's owner is told once. The Metric page shows where each person's next Prompt goes.
 - Replies about a question or task stay where it started, so a ticket collects its comments. Whoever asks a question can pick another way for that one message.
 
 ### Outbox
