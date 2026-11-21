@@ -84,16 +84,25 @@ export async function saveWorkflow(actor: Actor, id: number | null, name: string
   if (id) stored = await ownWorkflow(actor, id);
   const row = { name: String(name ?? "").trim().slice(0, 80) || "Untitled workflow", config: await cleanConfig(actor, config, stored, opts.keepWebhooks), updated_at: new Date().toISOString() };
   let before: string | undefined;
+  let seen: string | null = null;
   if (opts.keepPeople) {
     // The caller (an Access Key without "workflows:people") may not decide who approves or who is told: the Approve and
     // Tell steps must be exactly those stored (none for a new Workflow). Checked here, where every save passes.
     const was = stored ? await cleanConfig(actor, stored, stored, true) : { dueWorkingDays: 0, steps: [] };
+    if (id) seen = ((await db().from("workflows").select("updated_at").eq("id", id).eq("workspace_id", actor.workspaceId).single()).data?.updated_at as string | undefined) ?? null;
     if (peopleSteps(row.config) !== peopleSteps(was)) throw new WorkflowRefused("This key cannot choose who approves or who is told: send the Approve and Tell steps exactly as they were read, or none for a new Workflow.");
+    // An Approve step that holds back only Unusual Values holds nothing without the check that finds them.
+    const holdsUnusual = was.steps.some((x) => x.type === "approve" && x.values !== "every");
+    if (holdsUnusual && was.steps.some((x) => x.type === "check") && !row.config.steps.some((x) => x.type === "check")) throw new WorkflowRefused("This Workflow's Approve step holds back Unusual Values, so its check step stays; change the check instead.");
   }
   if (id) {
     before = JSON.stringify(stored?.asking);
     await ensureBaseline("workflow", id, actor.personId);
-    await db().from("workflows").update(row).eq("id", id).eq("workspace_id", actor.workspaceId);
+    // For a key: only if nobody changed it (the editor, say, giving it other Approvers) since the Approve and Tell steps were compared.
+    let q = db().from("workflows").update(row).eq("id", id).eq("workspace_id", actor.workspaceId);
+    if (seen) q = q.eq("updated_at", seen);
+    const { data: done } = await q.select("id");
+    if (!done?.length) throw new WorkflowRefused("The Workflow changed meanwhile. Read it again and retry.");
   } else {
     assertCan(actor, "create");
     const { data, error } = await db().from("workflows").insert({ ...row, owner_id: actor.personId, workspace_id: actor.workspaceId }).select("id").single();
@@ -134,11 +143,17 @@ export async function setWorkflowCheck(actor: Actor, id: number, check: { change
  * Approve or Tell step is refused: deleting it would drop its Approvals. */
 export async function deleteWorkflow(actor: Actor, id: number, opts: { keepPeople?: boolean } = {}) {
   await ownWorkflow(actor, id);
+  let seen: string | null = null;
   if (opts.keepPeople) {
-    const { data } = await db().from("workflows").select("config").eq("id", id).eq("workspace_id", actor.workspaceId).single();
+    const { data } = await db().from("workflows").select("config, updated_at").eq("id", id).eq("workspace_id", actor.workspaceId).single();
     if (((data?.config as WorkflowConfig | undefined)?.steps ?? []).some((s) => s.type === "approve" || s.type === "tell")) throw new WorkflowRefused("This key cannot delete a Workflow that has an Approve or Tell step: that decides who approves.");
+    seen = data!.updated_at as string;
   }
-  await db().from("workflows").delete().eq("id", id).eq("workspace_id", actor.workspaceId);
+  let q = db().from("workflows").delete().eq("id", id).eq("workspace_id", actor.workspaceId);
+  // For a key: not if the Workflow gained an Approve step since it was read.
+  if (seen) q = q.eq("updated_at", seen);
+  const { data: gone } = await q.select("id");
+  if (seen && !gone?.length) throw new WorkflowRefused("The Workflow changed meanwhile. Read it again and retry.");
 }
 
 /** A Metric's owner decides which Workflow its values take (none for Derived Metrics). */

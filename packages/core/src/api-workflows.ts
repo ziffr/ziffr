@@ -9,8 +9,10 @@
 // Workflow. Deleting a Workflow that has such a step needs the same scope, since it would drop the Approvals.
 // TODO(#361): the asking schedule (a time and days per Workflow) is built apart and is not on main yet; add its
 // fields to ApiWorkflow and the two inputs once its core type exists, rather than guessing its shape here.
-import { assertScope, Forbidden, type Actor, type KeyActor } from "./actor";
+import { assertCan, assertScope, Forbidden, type Actor, type KeyActor } from "./actor";
+import { visibleMetricIds } from "./access";
 import { db } from "./db";
+import { getMetrics } from "./workspace-data";
 import { deleteWorkflow, saveWorkflow, WorkflowRefused } from "./workflows";
 import type { ApprovalScope, NobodyElse, TellCondition, WorkflowConfig, WorkflowStep } from "./types";
 
@@ -57,6 +59,9 @@ const fromStep = (s: WorkflowStep): ApiWorkflowStep => {
   }
 };
 
+/** At most this many Workflows may be owned by one person through the API: a program cannot fill the Workspace. */
+const MAX_OWN_WORKFLOWS = 100;
+
 /** The key's creator as the Actor every core function takes: Workflows are always theirs, whatever the key holds. */
 const creatorOf = (actor: KeyActor): Actor => ({ personId: actor.personId, workspaceId: actor.workspaceId, role: actor.role });
 
@@ -87,8 +92,10 @@ async function load(actor: KeyActor, id: number) {
 
 async function detail(actor: KeyActor, id: number): Promise<ApiWorkflowDetail> {
   const w = await load(actor, id);
-  const { count } = await db().from("metrics").select("id", { count: "exact", head: true }).eq("workspace_id", actor.workspaceId).eq("workflow_id", id);
-  return { id: w.id, name: w.name, due_working_days: w.config.dueWorkingDays, lock_summary: w.config.lockSummary === true, steps: w.config.steps.map(fromStep), metrics: count ?? 0, updated_at: w.updated_at };
+  // Only the Metrics the creator sees are counted, so a program learns nothing of hidden ones.
+  const { data: users } = await db().from("metrics").select("id").eq("workspace_id", actor.workspaceId).eq("workflow_id", id);
+  const seen = await visibleMetricIds(actor.workspaceId, actor.personId, await getMetrics(actor.workspaceId));
+  return { id: w.id, name: w.name, due_working_days: w.config.dueWorkingDays, lock_summary: w.config.lockSummary === true, steps: w.config.steps.map(fromStep), metrics: (users ?? []).filter((u) => seen.has(u.id as number)).length, updated_at: w.updated_at };
 }
 
 /** Approvers are members of this Workspace; the editor would drop others without a word, a program is told (scope workflows:write). */
@@ -109,6 +116,8 @@ export async function getWorkflowWithKey(actor: KeyActor, id: number): Promise<A
  * "workflows:people" it has no Approve or Tell step. */
 export async function createWorkflowWithKey(actor: KeyActor, input: NewApiWorkflow): Promise<ApiWorkflowDetail> {
   assertScope(actor, "workflows:write");
+  const { count } = await db().from("workflows").select("id", { count: "exact", head: true }).eq("workspace_id", actor.workspaceId).eq("owner_id", actor.personId);
+  if ((count ?? 0) >= MAX_OWN_WORKFLOWS) throw new WorkflowRefused(`You already own ${MAX_OWN_WORKFLOWS} Workflows; delete one you do not use first.`);
   const steps = input.steps ?? [];
   const people = await mayNamePeople(actor);
   await assertMembers(actor, steps);
@@ -120,6 +129,7 @@ export async function createWorkflowWithKey(actor: KeyActor, input: NewApiWorkfl
 /** Changes a Workflow the key's creator owns (scope workflows:write). The parts left out stay; the Workflow's history names the key. */
 export async function updateWorkflowWithKey(actor: KeyActor, id: number, patch: ApiWorkflowPatch): Promise<ApiWorkflowDetail> {
   assertScope(actor, "workflows:write");
+  assertCan(creatorOf(actor), "create");
   const w = await load(actor, id);
   const people = await mayNamePeople(actor);
   if (patch.steps) await assertMembers(actor, patch.steps);
@@ -135,7 +145,8 @@ export async function updateWorkflowWithKey(actor: KeyActor, id: number, patch: 
 /** Deletes a Workflow the key's creator owns (scope workflows:write); its Metrics are then asked for nothing by it. */
 export async function deleteWorkflowWithKey(actor: KeyActor, id: number): Promise<void> {
   assertScope(actor, "workflows:write");
+  assertCan(creatorOf(actor), "create");
   await load(actor, id);
   const people = await mayNamePeople(actor);
-  await refusing(() => deleteWorkflow(creatorOf(actor), id, { keepPeople: !people, keepWebhooks: true }));
+  await refusing(() => deleteWorkflow(creatorOf(actor), id, { keepPeople: !people }));
 }

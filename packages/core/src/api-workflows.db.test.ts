@@ -70,6 +70,16 @@ describe("making, reading, changing and deleting a Workflow with a key", () => {
     await expect(deleteWorkflowWithKey(eves, own)).rejects.toBeInstanceOf(Forbidden);
   });
 
+  it("is checked again against the creator's role on every change", async () => {
+    const { w, sara } = await setup();
+    const key = await keyOf(w, sara, "owner", WRITE);
+    const made = await createWorkflowWithKey(key, { name: "Mine" });
+    const demoted: KeyActor = { ...key, role: "guest" };
+    await expect(updateWorkflowWithKey(demoted, made.id, { name: "Still mine" })).rejects.toBeInstanceOf(Forbidden);
+    await expect(deleteWorkflowWithKey(demoted, made.id)).rejects.toBeInstanceOf(Forbidden);
+    expect((await db().from("workflows").select("name").eq("id", made.id).single()).data?.name).toBe("Mine");
+  });
+
   it("refuses a step that cannot be, in words", async () => {
     const { w, sara } = await setup();
     const key = await keyOf(w, sara, "owner", PEOPLE);
@@ -103,6 +113,10 @@ describe("who approves and who is told", () => {
     await expect(updateWorkflowWithKey(plain, made.id, { steps: [check, asked, { type: "publish", lock: true }] })).rejects.toThrow(refused);
     await expect(updateWorkflowWithKey(plain, made.id, { steps: [{ type: "publish", lock: true }] })).rejects.toThrow(refused);
     await expect(updateWorkflowWithKey(plain, made.id, { steps: [check, asked, { ...tell!, people: [] } as never, { type: "publish", lock: true }] })).rejects.toThrow(refused);
+    // An Approve step that holds back only Unusual Values holds nothing without its check: that step stays.
+    const unusual = await createWorkflowWithKey(programs, { name: "Unusual", steps: [check, { ...asked, values: "unusual" }, { type: "publish", lock: false }] });
+    await expect(updateWorkflowWithKey(plain, unusual.id, { steps: [{ ...asked, values: "unusual" }, { type: "publish", lock: false }] })).rejects.toThrow(/check step stays/);
+    expect((await updateWorkflowWithKey(plain, unusual.id, { steps: [{ ...check, change_pct: 50 }, { ...asked, values: "unusual" }, { type: "publish", lock: false }] })).steps[0]).toMatchObject({ change_pct: 50 });
     // Parts left out change nothing of them; and deleting one that holds an Approval gate needs the scope too.
     expect((await updateWorkflowWithKey(plain, made.id, { name: "Renamed" })).steps).toEqual(changed.steps);
     await expect(deleteWorkflowWithKey(plain, made.id)).rejects.toThrow(/cannot delete a Workflow that has an Approve/);
