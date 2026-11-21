@@ -149,7 +149,20 @@ export async function listSnapshots(actor: Actor, dashboardId: number): Promise<
   // Newest first by the period's last day; of those ending on the same day the longer first: 2026, H2 2026, Q4
   // 2026, December 2026.
   const { data } = await q.order("period_end", { ascending: false }).order("period_start").order("id", { ascending: false }).limit(200);
-  return ((data ?? []) as Row[]).map(summary);
+  const rows = (data ?? []) as Row[];
+  // A draft is listed only to those who could open it: its label and period say what it covers, so an owner or Editor
+  // who does not see every Metric it kept gets neither (#448, the same rule as `readable`).
+  const drafts = rows.filter((r) => !r.shown_at).map((r) => r.id);
+  if (!drafts.length) return rows.map(summary);
+  const [{ data: kept, error }, visible] = await Promise.all([
+    db().from("dashboard_snapshots").select("id, metrics:frozen->data->metrics").eq("workspace_id", actor.workspaceId).in("id", drafts),
+    visibleMetricIds(actor.workspaceId, actor.personId, await getMetrics(actor.workspaceId)),
+  ]);
+  if (error) throw error;
+  // Allowed ones are listed, so a draft that did not come back is left out rather than shown.
+  const allowed = new Set(((kept ?? []) as unknown as { id: number; metrics?: { id: number }[] | null }[])
+    .filter((k) => (k.metrics ?? []).every((m) => visible.has(Number(m.id)))).map((k) => k.id));
+  return rows.filter((r) => r.shown_at || allowed.has(r.id)).map(summary);
 }
 
 /** The Snapshot with its dashboard role, if the actor may open it; Forbidden otherwise. */
