@@ -3,7 +3,7 @@
 import { afterEach, describe, expect, it } from "vitest";
 import { Forbidden } from "./actor";
 import { db } from "./db";
-import { workspace } from "./test/db-fixtures";
+import { opened, workspace } from "./test/db-fixtures";
 import { GRACE_DAYS } from "./workspace-limits";
 import { metricsOfLimit, nearLimitNote, overLimitBanner, sendLimitNotices, sizeAndUsage } from "./workspace-usage";
 
@@ -19,7 +19,7 @@ async function setup(n: number, limit: number | null, label: string | null = "Sm
   await db().from("workspace_limits").insert({ workspace_id: w.id, metrics: limit, label, set_by: "installation_admin", next_label: "Team", next_on: "2026-12-01" });
   return { w, sara, olga, adam, ben };
 }
-const notices = async (wsId: string) => ((await db().from("deliveries").select("recipient_id, subject").eq("workspace_id", wsId).eq("kind", "notice").order("id")).data ?? []);
+const notices = async (wsId: string) => opened("deliveries", wsId, (await db().from("deliveries").select("id, recipient_id, subject").eq("workspace_id", wsId).eq("kind", "notice").order("id")).data, { dropId: true });
 
 describe("Size and usage", () => {
   it("shows Owners and Admins the Size, the count, the grace and a coming change; never Members or Guests", async () => {
