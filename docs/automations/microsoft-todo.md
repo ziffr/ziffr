@@ -39,3 +39,5 @@ To Do to Ziffr: every five minutes the list's tasks are read, and for each task 
 - Editing the title in To Do does not change it in Ziffr, and a due date set in To Do is not sent either.
 - Ziffr's rules win: a Task Ziffr closed itself (a Metric archived) cannot be reopened from To Do, and the answer `409` is written down.
 - **Notes are written safely.** Every value Ziffr sends (a name, the link) has line breaks and other control characters stripped before it goes into the notes, and only a `Reply:` line **after** the closing marker line is read, so no name can forge a reply.
+- **A task speaks only for its own Action.** Ticks and replies name the Action by the task's id (the link made when it was created), never by a ref written in a task, so someone who can edit the list cannot act on other Actions by typing a ref.
+- **The secret is in n8n's saved runs.** The Settings node's output is stored with each execution. In the workflow's settings, set **Save successful production executions** to *Do not save* (and failed ones too, if you can spare them), and keep who may open executions small.
