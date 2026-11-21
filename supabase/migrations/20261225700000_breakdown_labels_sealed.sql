@@ -35,7 +35,8 @@ end;
 $$;
 revoke all on function reserve_row_ids(text, integer) from public, anon, authenticated;
 
--- A row's id may be given only as reserve_row_ids handed it out, never one ahead of the sequence.
+-- A row's id may be given only as reserve_row_ids handed it out, never one ahead of the sequence. A guard against
+-- mistakes, not a security boundary: whoever can write to the database can write plain rows anyway.
 create or replace function breakdown_rows_id_reserved() returns trigger language plpgsql as $$
 begin
   if new.id > (select last_value from breakdown_rows_id_seq) then
@@ -119,7 +120,7 @@ begin
       -- A row with an index is matched by it; a row without one (written before sealing) by its plain label.
       select r.id into v_hit from breakdown_rows r where r.observation_id = v_id and (
           (r.label_index is not null and r.label_index = any (v_row.indexes))
-          or (v_row.legacy is not null and r.label_index is null and lower(r.label) = v_row.legacy)
+          or (v_row.legacy is not null and r.label_index is null and lower(btrim(r.label)) = v_row.legacy)
         ) order by r.position, r.id limit 1;
     end if;
     if v_hit is null then

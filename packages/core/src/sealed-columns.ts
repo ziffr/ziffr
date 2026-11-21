@@ -11,7 +11,8 @@ import { isSealed, workspaceCipher, type WorkspaceCipher } from "./workspace-key
  * that one Workspace; members' own profiles belong to the person and stay in clear (spec 0028). */
 export const SEALED_COLUMNS = {
   thread_messages: ["body"],
-  // A Question's text and the label of the Breakdown row it points at (a copy of that row's sealed label).
+  // A Question's text and the label of the Breakdown row it points at (sealed again for the Action's own row, so that
+  // it opens with the Action, not with the Breakdown).
   actions: ["question", "breakdown_label"],
   contacts: ["email", "slack_handle", "phone"],
   profiles: ["name"],
@@ -40,12 +41,13 @@ const ROW_KEY: Record<SealedTable, string> = { thread_messages: "id", actions: "
 export type SealedTable = keyof typeof SEALED_COLUMNS;
 
 /** A table whose new rows insertSealed writes, ids taken from its sequence first. */
-type InsertedTable = "thread_messages" | "actions" | "deliveries" | "intake_log" | "audit_events" | "alerts" | "breakdown_rows";
+type InsertedTable = "thread_messages" | "actions" | "deliveries" | "intake_log" | "audit_events" | "alerts";
 
 type Row = Record<string, unknown>;
 
-/** Takes the ids the next rows of a table will have, from its own sequence. */
-export async function reserveIds(table: InsertedTable, count: number): Promise<number[]> {
+/** Takes the ids the next rows of a table will have, from its own sequence. Breakdown rows take theirs here but are
+ * written only by record_observation, which needs each row's blind index too (breakdown-labels.ts). */
+export async function reserveIds(table: InsertedTable | "breakdown_rows", count: number): Promise<number[]> {
   const { data, error } = await db().rpc("reserve_row_ids", { p_table: table, p_count: count });
   if (error || !Array.isArray(data) || data.length !== count) throw new Error("The row could not be prepared.");
   return (data as (number | string)[]).map(Number);

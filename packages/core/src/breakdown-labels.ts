@@ -6,7 +6,7 @@
 // plain rows written before sealing (until the re-encryption job, #247, has sealed them).
 import { db } from "./db";
 import { reserveIds } from "./sealed-columns";
-import { isSealed, workspaceCipher, type WorkspaceCipher } from "./workspace-keys";
+import { isSealed, normaliseForIndex, workspaceCipher, type WorkspaceCipher } from "./workspace-keys";
 
 /** The purpose a Breakdown label's blind index is made for. */
 const PURPOSE = "breakdown_rows.label";
@@ -37,9 +37,9 @@ export async function breakdownRowsToWrite(workspaceId: string, metricId: number
   }));
 }
 
-/** What a plain row's lower(label) is compared with in the database. */
+/** What a plain row's lower(btrim(label)) is compared with in the database: trimmed and lower-cased like the index. */
 function normaliseLegacy(label: string): string {
-  return label.toLowerCase();
+  return normaliseForIndex(label);
 }
 
 /** A history entry's label opened: it is the sealed label of the row it was copied from, bound to that row's id. */

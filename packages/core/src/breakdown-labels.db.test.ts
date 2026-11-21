@@ -65,7 +65,7 @@ describe("Breakdown labels", () => {
     // As written before sealing existed: plain label, no index.
     const first = await w.rows();
     await db().from("breakdown_rows").update({ label: "Old Shop", label_index: null }).eq("id", first[0].id);
-    await submitObservation(w.key, w.m.slug, { value: 2, breakdown: [{ label: "old shop", value: 2 }, { label: "New", value: 1 }] }, quiet());
+    await submitObservation(w.key, w.m.slug, { value: 2, breakdown: [{ label: "  old shop ", value: 2 }, { label: "New", value: 1 }] }, quiet());
     const stored = await w.rows();
     expect(stored).toHaveLength(2);
     expect(stored[0].label).toBe("Old Shop");
