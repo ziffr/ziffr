@@ -203,7 +203,7 @@ Every call that is understood answers `200` with the result, so any call may be 
 | Status | Meaning |
 |---|---|
 | `400` | The body is not JSON, or a field is missing or wrong (`message` says which). |
-| `404` | Unknown, unsigned, old, replayed or switched off; or the Action was never sent to this Webhook. |
+| `404` | Unknown, unsigned, old, replayed or switched off; or the Action was never sent to this Webhook and never linked by it. |
 | `409` | Ziffr's rules do not allow it: a Question marked done, a Task Ziffr closed reopened, an Approval or Self-check, an external task already linked to another Action, too many links. |
 | `413` | Over 16 KB. |
 | `429` | More than 60 requests in a minute. Wait for `Retry-After`. |
@@ -225,7 +225,7 @@ Webhooks are available on Free and every paid Size. The demo and a trial have no
 
 ## Templates
 
-Ready-made n8n workflows, both directions, are in [`docs/automations/`](../automations/): [Microsoft To Do](../automations/microsoft-todo.md) and [Google Tasks](../automations/google-tasks.md). Import them, fill in the Settings node and they do what this guide describes: verify, dedupe, link and report back. Ziffr does not support the other system.
+Ready-made n8n workflows, both directions, are in [`docs/automations/`](../automations/): [Microsoft To Do](../automations/microsoft-todo.md), [Google Tasks](../automations/google-tasks.md), [Planner](../automations/planner.md), [Asana](../automations/asana.md), [Todoist](../automations/todoist.md) and [Slack](../automations/slack.md). A Webhook is sent every Action of the Workspace, so the task-list workflows take only the Tasks of the person whose address you put in their `assigneeEmail` setting. Import them, fill in the Settings node and they do what this guide describes: verify, dedupe, link and report back. Ziffr does not support the other system.
 
 ## Trying it
 

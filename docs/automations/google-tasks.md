@@ -26,7 +26,8 @@ The secret sits in the Settings node of your n8n, so only people who may edit wo
 
 The limits of the To Do templates apply, with these differences:
 
-- **Tasks only**, in the one list you chose, in the account of the credential; no lookup of the assignee. A redacted message becomes a task titled "A Ziffr task for you (ZIF-12)" with a link.
+- **Tasks only**, in the one list you chose, in the account of the credential. A redacted message becomes a task titled "A Ziffr task for you (ZIF-12)" with a link.
+- **One person's list.** The workflow takes only Tasks whose assignee email is the one in **assigneeEmail** (Settings); with none filled in it takes nothing. The Webhook is sent every Action of the Workspace, and without this a task of someone else would land in this list and could be ticked off in their name. For several people, import the pair once per person and list, each with their own address.
 - **The date only.** Google Tasks keeps a due date without a time, so a due date reaches it as a day.
 - **Five minutes** until a tick reaches Ziffr (Google Tasks does not push). The workflow asks for tasks changed in the last seven days, at most 100, including completed and hidden ones (a task cleared from the completed list is hidden, not gone); a list with more changes than that in a week may miss some.
 - **Replies** are a line `Reply:` below the line `--- end of Ziffr text ---` followed by text in the task's details, up to 1,000 characters.

@@ -237,6 +237,8 @@ export async function setWebhookEnabled(actor: Actor, id: string, enabled: boole
   const { data: changed, error } = await db().from("webhooks").update({ ...patch, updated_at: new Date().toISOString() }).eq("id", String(row.id)).eq("workspace_id", actor.workspaceId).select("id");
   if (error) throw new Error("The Webhook could not be saved. Try again in a moment.");
   if (!changed?.length) throw new Forbidden(NOT_FOUND);
+  // Off drops what waits to be sent, so that switching on again resends nothing.
+  if (!enabled) await db().from("webhook_sends").update({ state: "dropped", claimed_at: null }).eq("webhook_id", String(row.id)).eq("workspace_id", actor.workspaceId).in("state", ["queued", "retrying"]);
   await audit(actor, { kind: enabled ? "webhook.switched_on" : "webhook.switched_off", object: { type: "webhook", id: String(row.id), name: String(row.name) }, details: { address } });
   await tellOwners(actor, enabled ? "switched on" : "switched off", String(row.name), address);
 }

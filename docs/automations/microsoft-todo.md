@@ -31,7 +31,7 @@ To Do to Ziffr: every five minutes the list's tasks are read, and for each task 
 ## Limits
 
 - **Tasks only.** A Question is ignored: it is answered in Ziffr, not ticked off. A redacted message (a Metric not shared with Everyone) becomes a task titled "A Ziffr task for you (ZIF-12)" with a link, and nothing else.
-- **A person, not an assignee.** The task lands in the one list you chose, in the account of the credential. It does not look up the assignee by email; one workflow serves one list. For several people, import the pair once per person and list.
+- **One person's list.** The workflow takes only Tasks whose assignee email is the one in **assigneeEmail** (Settings); with none filled in it takes nothing. The Webhook is sent every Action of the Workspace, and without this a task of someone else would land in this list and could be ticked off in their name. For several people, import the pair once per person and list, each with their own address.
 - **Five minutes** until a tick in To Do reaches Ziffr (To Do does not push). The workflow reads the first 100 tasks of the list: keep the list short, or the newest tasks may not be seen.
 - **Replies are one line.** Below the line `--- end of Ziffr text ---` that the workflow writes, `Reply:` followed by text in the notes, up to 1,000 characters; a changed line is sent again as a new message. To Do shows no Thread back.
 - **Memory is n8n's static data**, which holds only while the workflow is active. Deactivating and reactivating keeps it; deleting the workflow loses it, and the worst case is a `done` sent twice, which Ziffr takes as `changed: false`.

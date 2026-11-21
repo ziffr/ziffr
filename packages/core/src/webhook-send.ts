@@ -297,7 +297,12 @@ async function settle(send: Send, o: Outcome): Promise<void> {
   if (o.state === "dropped") await db().from("webhook_sends").update({ state: "dropped", claimed_at: null }).eq("id", send.id);
   else if (o.state === "deferred") await db().from("webhook_sends").update({ state: "queued", claimed_at: null, next_attempt_at: new Date(dayStart().getTime() + 86_400_000).toISOString() }).eq("id", send.id);
   else if (o.state === "delivered") await db().from("webhook_sends").update({ ...base, state: "delivered", delivered_at: now.toISOString(), claimed_at: null }).eq("id", send.id);
-  else if (o.state === "retrying") await db().from("webhook_sends").update({ ...base, state: "retrying", claimed_at: null, next_attempt_at: new Date(now.getTime() + (o.waitMs ?? 0)).toISOString() }).eq("id", send.id);
+  else if (o.state === "retrying") {
+    await db().from("webhook_sends").update({ ...base, state: "retrying", claimed_at: null, next_attempt_at: new Date(now.getTime() + (o.waitMs ?? 0)).toISOString() }).eq("id", send.id);
+    // A Webhook switched off while this send was in flight keeps nothing waiting: switching on again resends nothing.
+    const { data: hook } = await db().from("webhooks").select("disabled_at").eq("id", send.webhook_id).eq("workspace_id", send.workspace_id).maybeSingle();
+    if (hook?.disabled_at) await db().from("webhook_sends").update({ state: "dropped" }).eq("id", send.id).eq("state", "retrying");
+  }
   else await db().from("webhook_sends").update({ ...base, state: "failed", claimed_at: null }).eq("id", send.id);
   if (o.state === "dropped" || o.state === "deferred") return;
   if (o.state === "delivered") {

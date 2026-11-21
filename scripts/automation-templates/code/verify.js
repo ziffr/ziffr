@@ -27,6 +27,11 @@ try { event = JSON.parse(raw); } catch (e) { return out(400); }
 const d = event && event.data;
 if (!event || typeof event.type !== 'string' || !event.type.startsWith('action.') || !d || typeof d.ref !== 'string') return out(200);
 
+// Only the Tasks of the person whose list this is: a Webhook is sent every Action of the Workspace, and a task of someone else in
+// this list could be ticked off here in their name. No address filled in, nothing is taken.
+const mine = String(input.assigneeEmail || '').trim().toLowerCase();
+if (!mine || mine.startsWith('replace') || !d.assignee || String(d.assignee.email || '').trim().toLowerCase() !== mine) return out(200, { why: 'not for this list' });
+
 // 2. Once per delivery: Ziffr sends at least once. Static data only lasts while the workflow is active.
 const state = $getWorkflowStaticData('global');
 state.seen = state.seen || {};
