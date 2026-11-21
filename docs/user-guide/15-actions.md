@@ -144,7 +144,7 @@ People answer by replying to that email, Slack or Telegram message. In Telegram,
 
 When the Installation has no email provider that vouches for senders, a reply by email is **held** first: Ziffr emails you a link, a page shows your reply and what it would do, and pressing **Confirm** records it. The link works once and for 48 hours. If you did not send the reply, ignore the email and nothing happens.
 
-In the demo, to answer as someone else, switch **Viewing as** in the sidebar's footer to that person, as the Action page reminds you. Outside the demo there is no Viewing as: the page only says whom the Action waits for.
+In the demo, to answer as someone else, switch **Viewing as** at the bottom of the sidebar to that person; the Action page reminds you with "switch “Viewing as” (at the bottom of the sidebar)". Outside the demo there is no Viewing as: the page only says whom the Action waits for.
 
 ## The Changes page
 
