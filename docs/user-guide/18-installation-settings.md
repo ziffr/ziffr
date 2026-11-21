@@ -105,23 +105,23 @@ Every Workspace, person and API key has a daily or hourly ceiling on what it can
 Generated from the code, with the range each may be set to and its normal value (`pnpm test` fails when this table is out of date):
 
 <!-- generated:sending-limits -->
-| Setting | Safeguard | Range | Normal |
-| --- | --- | --- | --- |
-| `ZIFFR_LIMIT_EMAILS_PER_WORKSPACE_PER_DAY` | Emails per Workspace per day | 50 to 100,000 | 500 |
-| `ZIFFR_LIMIT_CHAT_MESSAGES_PER_WORKSPACE_PER_DAY` | Telegram and Slack messages per Workspace per day | 50 to 50,000 | 500 |
-| `ZIFFR_LIMIT_EMAILS_PER_PERSON_PER_DAY` | Emails per person per day | 20 to 5,000 | 300 |
-| `ZIFFR_LIMIT_SEND_ATTEMPTS` | Tries per message | 1 to 10 | 5 |
-| `ZIFFR_LIMIT_ALERTS_PER_WORKSPACE` | Alerts per Workspace | 50 to 10,000 | 500 |
-| `ZIFFR_LIMIT_ALERT_MESSAGES_PER_WORKSPACE_PER_DAY` | Alert messages per Workspace per day | 100 to 100,000 | 2,000 |
-| `ZIFFR_LIMIT_INVITATION_EMAILS_PER_WORKSPACE_PER_DAY` | Invitation emails per Workspace per day | 10 to 2,000 | 50 |
-| `ZIFFR_LIMIT_VALUES_PER_KEY_PER_DAY` | Values per API key per day | 100 to 1,000,000 | 1,000 |
-| `ZIFFR_LIMIT_VALUES_PER_FEED_PER_DAY` | Values per Feed per day | 1,000 to 10,000,000 | 10,000 |
-| `ZIFFR_LIMIT_CALLS_PER_KEY_PER_MINUTE` | Calls per API key per minute | 30 to 6,000 | 60 |
-| `ZIFFR_LIMIT_WEBHOOKS_PER_WORKSPACE` | Webhooks per Workspace | 1 to 50 | 5 |
-| `ZIFFR_LIMIT_WEBHOOK_SENDS_PER_WORKSPACE_PER_DAY` | Webhook sends per Workspace per day | 100 to 1,000,000 | 10,000 |
-| `ZIFFR_LIMIT_SIGN_IN_LINKS_PER_NETWORK_PER_HOUR` | Sign-in links per network address per hour | 5 to 500 | 20 |
-| `ZIFFR_LIMIT_CONTACTS_PER_WORKSPACE` | Contacts per Workspace | 100 to 100,000 | 1,000 |
-| `ZIFFR_LIMIT_SNAPSHOTS_PER_DASHBOARD` | Snapshots per dashboard | 100 to 50,000 | 500 |
+| Setting | Safeguard | Range | Normal | What it does, and when to change it |
+| --- | --- | --- | --- | --- |
+| `ZIFFR_LIMIT_EMAILS_PER_WORKSPACE_PER_DAY` | Emails per Workspace per day | 50 to 100,000 | 500 | The emails one Workspace may send in 24 hours; the rest wait in the queue. A small mail provider may allow a few hundred in all. |
+| `ZIFFR_LIMIT_CHAT_MESSAGES_PER_WORKSPACE_PER_DAY` | Telegram and Slack messages per Workspace per day | 50 to 50,000 | 500 | The same cap for each of the two: a Workspace may send this many Telegram messages and this many Slack messages in 24 hours. The providers' own limits stay below it. |
+| `ZIFFR_LIMIT_EMAILS_PER_PERSON_PER_DAY` | Emails per person per day | 20 to 5,000 | 300 | The emails one person may cause in 24 hours as the sender of requests, questions and notices, over all their Workspaces. |
+| `ZIFFR_LIMIT_SEND_ATTEMPTS` | Tries per message | 1 to 10 | 5 | How often a queued email, Telegram or Slack message is tried before it counts as failed. A flaky mail server may need more. |
+| `ZIFFR_LIMIT_ALERTS_PER_WORKSPACE` | Alerts per Workspace | 50 to 10,000 | 500 | The most Alerts one Workspace may hold in all. Those it holds above a lowered number stay. |
+| `ZIFFR_LIMIT_ALERT_MESSAGES_PER_WORKSPACE_PER_DAY` | Alert messages per Workspace per day | 100 to 100,000 | 2,000 | The messages Alerts may send for one Workspace in a day, over all channels. After it Alerts still fire into the list; only the messages wait for tomorrow. |
+| `ZIFFR_LIMIT_INVITATION_EMAILS_PER_WORKSPACE_PER_DAY` | Invitation emails per Workspace per day | 10 to 2,000 | 50 | The invitation emails one Workspace may send in 24 hours. Each person may still send at most 50 a day. |
+| `ZIFFR_LIMIT_VALUES_PER_KEY_PER_DAY` | Values per API key per day | 100 to 1,000,000 | 1,000 | The values one API key may submit in 24 hours. A program that sends every minute for 20 Metrics sends 28,800 a day. |
+| `ZIFFR_LIMIT_VALUES_PER_FEED_PER_DAY` | Values per Feed per day | 1,000 to 10,000,000 | 10,000 | The values one Feed may record in 24 hours over all its keys. A person pasting values is held to the same number. |
+| `ZIFFR_LIMIT_CALLS_PER_KEY_PER_MINUTE` | Calls per API key per minute | 30 to 6,000 | 60 | The calls one API key may make in any 60 seconds. |
+| `ZIFFR_LIMIT_WEBHOOKS_PER_WORKSPACE` | Webhooks per Workspace | 1 to 50 | 5 | The Webhooks one Workspace may hold. A Workspace that holds more than a lowered number keeps them; only new ones wait. |
+| `ZIFFR_LIMIT_WEBHOOK_SENDS_PER_WORKSPACE_PER_DAY` | Webhook sends per Workspace per day | 100 to 1,000,000 | 10,000 | The sends a Workspace's Webhooks make in a day; past it they wait for tomorrow. |
+| `ZIFFR_LIMIT_SIGN_IN_LINKS_PER_NETWORK_PER_HOUR` | Sign-in links per network address per hour | 5 to 500 | 20 | The sign-in links one network address may ask for in an hour, for any addresses. A company or school behind one address, all signing in at nine on Monday, needs more. |
+| `ZIFFR_LIMIT_CONTACTS_PER_WORKSPACE` | Contacts per Workspace | 100 to 100,000 | 1,000 | The Contacts one Workspace keeps at most. |
+| `ZIFFR_LIMIT_SNAPSHOTS_PER_DASHBOARD` | Snapshots per dashboard | 100 to 50,000 | 500 | The Snapshots one dashboard keeps at most. |
 <!-- /generated:sending-limits -->
 
 None of them can be switched off: a number outside the range is refused with its range, and a wrong value on the server is ignored in favour of the normal one. They are the same for every Workspace, whatever its Metrics limit, and Ziffr Cloud never changes them. Lowering one never deletes or stops what already exists: a Workspace with more Webhooks than you now allow keeps them and only cannot add new ones; messages already waiting are sent as the new limit allows. A change takes effect within seconds, without a restart. Limits the database itself enforces, such as how many values a Metric takes in a day, are not set here.

@@ -170,7 +170,7 @@ Generated from the Installation Settings catalogue (`packages/core/src/installat
 | --- | --- | --- | --- |
 | `ZIFFR_INBOUND_DOMAIN` | Domain for replies | `in.ziffr.example.com` | The domain replies go to; its MX record points at your inbound mail provider. |
 | `ZIFFR_INBOUND_SECRET` | Signing secret | secret | Signs what the provider forwards to Ziffr; 32 characters or more. |
-| `ZIFFR_INBOUND_AUTHSERV_ID` | Provider that vouches for senders | `mx.example.com` | The name your provider writes in Authentication-Results; with it, only vouched-for senders are taken. |
+| `ZIFFR_INBOUND_AUTHSERV_ID` | Provider that vouches for senders | `mx.example.com` | The name your provider writes in Authentication-Results; with it, replies from vouched-for senders are taken at once; any other reply waits for the person to confirm it by a link. |
 
 **Telegram**
 
@@ -193,6 +193,9 @@ Generated from the Installation Settings catalogue (`packages/core/src/installat
 | `ZIFFR_DEFAULT_METRICS_LIMIT` | Default limit | `No limit` | The most Metrics a Workspace may hold unless it has a limit of its own. Empty: no limit. Over it, a Workspace keeps everything and keeps collecting values; only new Metrics wait, after 14 days with room for 10 % more. |
 | `ZIFFR_DEFAULT_LIMIT_LABEL` | Name of the default | `Free` | What Owners and Admins see the default called, such as Free. At most 30 characters. |
 | `ZIFFR_DELETE_UNUSED_AFTER_DAYS` | Delete unused Workspaces after | `Never` | Days without a sign-in and without values after which a Workspace on the default limit is warned; 14 days after the warning, still unused, it is deleted with its key. 30 to 3650; empty: never. Never a trial, the demo or a Workspace with a limit of its own. |
+| `ZIFFR_LIMIT_GRACE_DAYS` | Days over the limit | `14` | 0 to 90. How long a Workspace may stay over its limit, within 10 % more, before new Metrics wait. 0: the limit holds at once. |
+| `ZIFFR_LIMIT_GRACE_EVERY_DAYS` | Days between two such periods | `90` | 0 to 730. After a Workspace's days over the limit started, this many days must pass before it gets others. 0: a Workspace gets them again whenever it comes back under its limit. |
+| `ZIFFR_UNUSED_WAIT_DAYS` | Days from warning to deletion | `14` | 7 to 90. How long after its warning an unused Workspace is deleted. The days promised in a warning that went out stay as they were told. |
 
 **Sending limits**
 
@@ -213,6 +216,16 @@ Generated from the Installation Settings catalogue (`packages/core/src/installat
 | `ZIFFR_LIMIT_SIGN_IN_LINKS_PER_NETWORK_PER_HOUR` | Sign-in links per network address per hour | `20` | The sign-in links one network address may ask for in an hour, for any addresses. A company or school behind one address, all signing in at nine on Monday, needs more. 5 to 500; empty: 20. |
 | `ZIFFR_LIMIT_CONTACTS_PER_WORKSPACE` | Contacts per Workspace | `1000` | The Contacts one Workspace keeps at most. 100 to 100,000; empty: 1,000. |
 | `ZIFFR_LIMIT_SNAPSHOTS_PER_DASHBOARD` | Snapshots per dashboard | `500` | The Snapshots one dashboard keeps at most. 100 to 50,000; empty: 500. |
+
+**How long logs are kept**
+
+| Setting | On the page | Example or choices | What it does |
+| --- | --- | --- | --- |
+| `ZIFFR_KEEP_AUDIT_DAYS` | Days the Audit Log is kept | `730` | 365 to 3,650 (730 is two years). The Audit Log says who changed who may see or do what; below 730 days it is a weaker record. Never shorter than the age of an event that a Retention or an Approval still refers to. |
+| `ZIFFR_KEEP_ACCESS_LOG_DAYS` | Days the log of calls by key is kept | `90` | 7 to 730. Which key called which address, and when. Shorter is more private; longer lets you answer for access a year back. |
+| `ZIFFR_KEEP_WEBHOOK_LOG_DAYS` | Days the Webhook send log is kept | `14` | 1 to 90. The log an Owner reads to find out why a Webhook did not arrive. Shorter saves disk; longer gives time to find out why a partner stopped answering. |
+| `ZIFFR_KEEP_VIEW_COUNT_DAYS` | Days View Counts are kept | `400` | 90 to 800. How often a dashboard, a deck or a Metric was opened per day, never by whom. Over a year lets you compare a quarter with last year's. |
+| `ZIFFR_RETENTION_VALUES_PER_RUN` | Values one Retention takes a night | `5000` | 500 to 100,000. The most original values one Metric's Retention condenses in a night. Years of values take weeks to catch up at 5,000; more is more work for the database at night. |
 
 **Marketplace**
 
@@ -235,6 +248,7 @@ Generated from the Installation Settings catalogue (`packages/core/src/installat
 | `ZIFFR_TRIAL_DAYS` | Days a trial lasts | `7` | 1 to 30. Set, it turns trials on: whoever signs in may start a Trial Workspace, and every Workspace made here is one. Remove it to turn trials off; trials that run go on until they end. |
 | `ZIFFR_TRIAL_MAX` | Trials at once | `200` | The most trials that may run at the same time. Empty: 200. |
 | `ZIFFR_TRIAL_THEN` | When a trial ends | `delete`, `keep` | Keep turns an ended trial into an ordinary Workspace on the default Workspace Limit (set one under Workspace Limits): invitations open and every Connector reaches everyone. Empty: delete. |
+| `ZIFFR_TRIAL_GRACE_DAYS` | Days a trial's data stays after it ends | `7` | 1 to 60. After the trial ends nothing can be added, and its Owner can still download everything; then it is deleted. Applies to every trial that has ended and is waiting, too: a smaller number deletes them sooner. |
 
 **Usage**
 

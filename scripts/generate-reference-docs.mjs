@@ -82,10 +82,9 @@ export async function blocks() {
     return `**${sec.title}**\n\n| Setting | On the page | Example or choices | What it does |\n| --- | --- | --- | --- |\n${rows.join("\n")}`;
   }).join("\n\n");
 
-  const sendingTable = `| Setting | Safeguard | Range | Normal |\n| --- | --- | --- | --- |\n` + st.all.filter((s) => s.section === "sending").map((s) => {
-    const [, lo, hi] = /([\d,]+) to ([\d,]+); empty: ([\d,]+)\.$/.exec(s.help) ?? [];
-    const dflt = /empty: ([\d,]+)\.$/.exec(s.help)?.[1];
-    return `| \`${s.name}\` | ${cell(s.label)} | ${lo} to ${hi} | ${dflt} |`;
+  const sendingTable = `| Setting | Safeguard | Range | Normal | What it does, and when to change it |\n| --- | --- | --- | --- | --- |\n` + st.all.filter((s) => s.section === "sending").map((s) => {
+    const [, lo, hi, dflt] = /([\d,]+) to ([\d,]+); empty: ([\d,]+)\.$/.exec(s.help) ?? [];
+    return `| \`${s.name}\` | ${cell(s.label)} | ${lo} to ${hi} | ${dflt} | ${cell(s.help.replace(/ [\d,]+ to [\d,]+; empty: [\d,]+\.$/, ""))} |`;
   }).join("\n");
 
   const scopeTable = `| Scope | Label on the key form | Who may hold it | Needs a creator whose role may create |\n| --- | --- | --- | --- |\n` + sc.all.map((s) =>
