@@ -87,10 +87,10 @@ export async function sendValueBack(actionId: number, comment: string) {
   });
 }
 
-/** The approver proposes a corrected value instead of approving: a Correction in the Thread (the Metric's owner accepts it, and it goes through approval again). */
+/** Someone on the Thread (the approver on an Approval) proposes a corrected value instead of approving: a Correction in the Thread (the Metric's owner accepts it, and it goes through approval again). */
 export async function proposeValueCorrection(actionId: number, value: number, why: string) {
   return attempt(async () => {
-    const n = Number(value);
+    const n = typeof value === "number" ? value : NaN;
     if (!Number.isFinite(n)) throw new Error("Enter the corrected value as a number.");
     await questions.reply(await currentActor(), Number(actionId), String(why ?? "").slice(0, 1000), n);
     done();

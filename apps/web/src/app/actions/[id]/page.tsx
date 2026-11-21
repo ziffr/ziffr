@@ -74,7 +74,7 @@ export default async function ActionPage({ params }: { params: Promise<{ id: str
               <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1">
                 <dt className="text-muted-foreground">Value</dt><dd className="fig text-base font-semibold">{formatValue(m, obs.value, numberStyle)}</dd>
                 <dt className="text-muted-foreground">Period</dt><dd>{periodLabel(a.period_start, m.period, yearStart)}</dd>
-                {before && <><dt className="text-muted-foreground">Last period</dt><dd><span className="fig">{formatValue(m, before.value, numberStyle)}</span>{change !== null && <span className="ml-2 text-muted-foreground">{change >= 0 ? "up" : "down"} {Math.abs(change * 100).toFixed(1)} %</span>}</dd></>}
+                {before && <><dt className="text-muted-foreground">Period before</dt><dd><span className="fig">{formatValue(m, before.value, numberStyle)}</span>{change !== null && <span className="ml-2 text-muted-foreground">{change >= 0 ? "up" : "down"} {Math.abs(change * 100).toFixed(1)} %</span>}</dd></>}
                 <dt className="text-muted-foreground">Submitted by</dt><dd>{obs.submitter_id ? people[obs.submitter_id]?.name ?? "Someone who left" : "A program"}</dd>
               </dl>
             ) : null}
