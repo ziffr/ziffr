@@ -59,8 +59,8 @@ const used = new Set<string>();
 function signed(secret: string, payload: unknown, over: Partial<InboundRequest> & { at?: number } = {}): InboundRequest {
   const body = typeof payload === "string" ? payload : JSON.stringify(payload);
   let at = over.at ?? Math.floor(Date.now() / 1000);
-  while (over.at === undefined && used.has(`${secret}.${body}.${at}`)) at--;
-  used.add(`${secret}.${body}.${at}`);
+  while (over.at === undefined && used.has(`${body}.${at}`)) at--;
+  used.add(`${body}.${at}`);
   return { timestamp: String(at), signature: signWebhookBody([secret], at, body), body, ...over };
 }
 
@@ -123,6 +123,20 @@ describe("a request judged from outside", () => {
     expect(await authenticateWebhookRequest(c.todo.id, { ...req })).toEqual({ ok: false, why: "not_found" });
     // Each retry is signed anew, with a timestamp of its own.
     expect(await authenticateWebhookRequest(c.todo.id, signed(c.todo.secret, { op: "done", ref: "ZIF-1" }))).toMatchObject({ ok: true });
+  });
+
+  it("refuses a captured request replayed with a padded, reordered or extended signature header", async () => {
+    const c = await setup();
+    const req = signed(c.todo.secret, { op: "done", ref: "ZIF-1" });
+    expect(await authenticateWebhookRequest(c.todo.id, req)).toMatchObject({ ok: true });
+    const no = { ok: false, why: "not_found" };
+    expect(await authenticateWebhookRequest(c.todo.id, { ...req, signature: ` ${req.signature} ` })).toEqual(no);
+    expect(await authenticateWebhookRequest(c.todo.id, { ...req, signature: `${req.signature}, x` })).toEqual(no);
+    expect(await authenticateWebhookRequest(c.todo.id, { ...req, signature: `${req.signature},${req.signature}` })).toEqual(no);
+    // Junk in the header is refused even on a request never seen before.
+    const fresh = signed(c.todo.secret, { op: "done", ref: "ZIF-2" });
+    expect(await authenticateWebhookRequest(c.todo.id, { ...fresh, signature: `${fresh.signature}, x` })).toEqual(no);
+    expect(await authenticateWebhookRequest(c.todo.id, fresh)).toMatchObject({ ok: true });
   });
 
   it("does not let a captured request act again: the same signature cannot be replayed for the same change", async () => {
