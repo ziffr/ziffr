@@ -183,6 +183,23 @@ describe("a Snapshot's words", () => {
     expect((await openSnapshot(actor, id)).intro).toBe(`Intro ${marker}`);
   });
 
+  it("freeze the Breakdown labels sealed too, in the Snapshot and in a frozen View Link, and read them as they were", async () => {
+    const { w, actor, dash, rev, marker } = await setup();
+    const { data: obs } = await db().from("observations").select("id").eq("metric_id", rev.id).eq("period_start", "2026-10-01").single();
+    await db().from("breakdown_rows").insert({ observation_id: obs!.id, label: `Shop ${marker}`, value: 60, position: 0, workspace_id: w.id });
+    const id = await takeSnapshot(actor, dash, october);
+    await showSnapshot(actor, id);
+    const link = await createViewLink(actor, "dashboard", dash, { label: "Frozen", expires: inAMonth(), frozen: true });
+    const { data: rows } = await db().from("dashboard_snapshots").select("frozen").eq("id", id).single();
+    const { data: links } = await db().from("view_links").select("frozen").eq("workspace_id", w.id);
+    expect(JSON.stringify(rows)).not.toContain(marker);
+    expect(JSON.stringify(links)).not.toContain(marker);
+    forgetWorkspaceKey(w.id);
+    const labels = (d: { breakdowns: Record<number, Record<string, { label: string }[]>> }) => Object.values(d.breakdowns[rev.id] ?? {}).flat().map((r) => r.label);
+    expect(labels((await openSnapshot(actor, id)).data)).toContain(`Shop ${marker}`);
+    expect(labels((await openViewLink(link))!.data)).toContain(`Shop ${marker}`);
+  });
+
   it("taken without a key and read after one is set, still read, and are sealed when edited", async () => {
     delete process.env.ZIFFR_SECRETS_KEY;
     const { w, actor, dash, marker } = await setup();

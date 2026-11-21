@@ -52,6 +52,24 @@ export function openText(cipher: WorkspaceCipher, at: SealedAt, stored: unknown)
   return isSealed(stored) ? cipher.open(at, stored) : stored;
 }
 
+/** A copy of kept data (a Snapshot's, a frozen View Link's) with each Breakdown row's label passed through a change, at
+ * `<base>breakdowns.<metric>.<period>.<row>.label` (a period's dashes become underscores: a place has none). */
+export function mapBreakdownLabels<T extends { breakdowns?: unknown }>(data: T, change: Change, base: string): T {
+  if (!isObj(data.breakdowns)) return data;
+  const breakdowns: Obj = {};
+  for (const [metric, byPeriod] of Object.entries(data.breakdowns)) {
+    if (!isObj(byPeriod)) { breakdowns[metric] = byPeriod; continue; }
+    const periods: Obj = {};
+    for (const [period, rows] of Object.entries(byPeriod)) {
+      periods[period] = Array.isArray(rows)
+        ? rows.map((r, i) => (isObj(r) && typeof r.label === "string" ? { ...r, label: change(`${base}breakdowns.${metric.replace(/\W/g, "_")}.${period.replace(/\W/g, "_")}.${i}.label`, r.label) ?? "" } : r))
+        : rows;
+    }
+    breakdowns[metric] = periods;
+  }
+  return { ...data, breakdowns };
+}
+
 /** A widget-like thing (a row, a kept copy) with its title and settings words passed through a change. The title is
  * at `<base>title`, the settings words below `<base>settings.`. */
 export function mapWidgetWords<T extends { title?: unknown; settings?: unknown }>(w: T, change: Change, base = ""): T {
@@ -90,6 +108,7 @@ export function mapViewWords<T extends { intro?: unknown; widgets?: unknown }>(v
   const out: Obj = { ...view };
   if (typeof out.intro === "string") out.intro = change("frozen.intro", out.intro) ?? "";
   if (Array.isArray(out.widgets)) out.widgets = out.widgets.map((w) => (isObj(w) ? mapWidgetWords(w, change, `frozen.widgets.${String(w.id)}.`) : w));
+  if (isObj(out.data)) out.data = mapBreakdownLabels(out.data, change, "frozen.data.");
   return out as T;
 }
 

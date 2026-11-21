@@ -13,7 +13,7 @@ import { getCanvasData, visibleDashboards, visibleMetricIds } from "./access";
 import { getMetrics } from "./workspace-data";
 import { audit } from "./audit-log";
 import { db } from "./db";
-import { openObject, sealObject, mapSettingsWords, WORD_KEYS } from "./sealed-words";
+import { mapBreakdownLabels, openObject, opening, sealing, sealObject, mapSettingsWords, WORD_KEYS } from "./sealed-words";
 import { openRows, reserveIds } from "./sealed-columns";
 import { workspaceCipher } from "./workspace-keys";
 import { widgetWithoutOutside } from "./deck-content";
@@ -132,12 +132,14 @@ export async function takeSnapshot(actor: Actor, dashboardId: number, period: { 
   // never holds them, so it is not a second, readable copy.
   const words: SnapshotWords = { intro: String(dash.intro ?? ""), widgets: Object.fromEntries(kept.map((w) => [String(w.id), wordsOf(w)])) };
   const frozen: Frozen = { name: dash.name, themeId: dash.theme_id ?? null, widgets: kept.map((w) => ({ ...w, title: null, settings: mapSettingsWords(w.settings, () => undefined) as WidgetSettings })), data };
-  if (JSON.stringify(frozen).length > MAX_FROZEN) throw new Refused("This dashboard holds too much to keep as a Snapshot. Take one of a smaller dashboard.");
   // The words are bound to their Snapshot, so its id is taken first.
   const [snapshotId] = await reserveIds("dashboard_snapshots", 1);
+  // The Breakdown labels it froze are words too: sealed for this Snapshot, at their place in its data.
+  const sealedFrozen: Frozen = { ...frozen, data: mapBreakdownLabels(frozen.data, sealing(await workspaceCipher(ws), "dashboard_snapshots", snapshotId), "frozen.data.") };
+  if (JSON.stringify(sealedFrozen).length > MAX_FROZEN) throw new Refused("This dashboard holds too much to keep as a Snapshot. Take one of a smaller dashboard.");
   const { data: made, error } = await db().from("dashboard_snapshots").insert({
     id: snapshotId, workspace_id: ws, dashboard_id: dashboardId, period_kind: p.kind, period_start: p.start, period_end: p.end, label: p.label,
-    taken_by: actor.personId, automatic: Boolean(opts.automatic), frozen, words: await sealedWords(ws, snapshotId, words),
+    taken_by: actor.personId, automatic: Boolean(opts.automatic), frozen: sealedFrozen, words: await sealedWords(ws, snapshotId, words),
   }).select("id").single();
   if (error?.code === "23505") throw new Refused(`There is a Snapshot of ${p.label} already. Open it, or delete it first.`);
   if (error || !made) throw new Error("The Snapshot could not be taken.");
@@ -178,6 +180,7 @@ async function readable(actor: Actor, snapshotId: number, columns: string) {
   const { data } = await db().from("dashboard_snapshots").select(columns).eq("id", snapshotId).eq("workspace_id", actor.workspaceId).is("deleted_at", null).maybeSingle();
   const row = data as unknown as Row | null;
   if (!row) throw new Forbidden();
+  if (row.frozen) row.frozen = await openedFrozen(actor.workspaceId, row.id, row.frozen);
   const dash = await roleOn(actor, row.dashboard_id);
   if (!dash) throw new Forbidden();
   const writer = dash.role === "owner" || dash.role === "editor";
@@ -212,6 +215,11 @@ async function assertSeesKept(actor: Actor, snapshotId: number) {
  * what it showed then, a quarter still running then marked so, however long ago that was. */
 function keptDay(data: CanvasData, row: Pick<Row, "period_end">): CanvasData {
   return { ...data, today: dayAfter(row.period_end) };
+}
+
+/** A Snapshot's frozen part with its Breakdown labels opened; labels frozen before sealing pass as they are. */
+async function openedFrozen(ws: string, snapshotId: number, frozen: Frozen): Promise<Frozen> {
+  return { ...frozen, data: mapBreakdownLabels(frozen.data, opening(await workspaceCipher(ws), "dashboard_snapshots", snapshotId), "frozen.data.") };
 }
 
 /** A Snapshot's words sealed for it, as they are stored (spec 0028): bound to the Workspace and the Snapshot. */
@@ -270,6 +278,7 @@ export async function snapshotForLink(snapshotId: number, dashboardId: number, k
   const { data } = await db().from("dashboard_snapshots").select(`${SUMMARY}, workspace_id, frozen, words`).eq("id", snapshotId).eq("dashboard_id", dashboardId).is("deleted_at", null).not("shown_at", "is", null).maybeSingle();
   const row = data as unknown as Row | null;
   if (!row?.frozen) return null;
+  row.frozen = await openedFrozen(String(row.workspace_id), row.id, row.frozen);
   // A link shows the words as they were when its owner made it, if it kept them; changed since, they stay in Ziffr.
   const words = keptWords ?? await readWords(String(row.workspace_id), row);
   const widgets = withWords(row.frozen.widgets, words);
