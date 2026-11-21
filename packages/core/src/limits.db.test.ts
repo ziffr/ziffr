@@ -189,5 +189,7 @@ describe("where the limits are used", () => {
     const few = await calendar();
     expect(few.length).toBeLessThan(all.length);
     expect(few.every((d) => d >= "2026-11-19" && d <= "2026-11-26")).toBe(true);
+    // An Owner reading Ben's Schedule sees everything overdue, whatever look-back Ben chose.
+    expect((await schedule(w.actor(sara), { from: "2026-11-16", to: "2026-11-22", personId: ben }, now)).overdue.length).toBe(wide);
   });
 });

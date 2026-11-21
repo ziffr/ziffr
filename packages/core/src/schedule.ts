@@ -286,8 +286,9 @@ export async function schedule(actor: Actor | KeyActor, span: { from?: unknown; 
   assertScope(actor, "metrics:read");
   const person = await whose(actor, span.personId);
   const base = await loadContext(actor.workspaceId, now);
-  // The look-back of the person whose Schedule it is (their own choice, ticket #518).
-  const lookBack = await effectiveLimit("overdueDaysBack", actor.workspaceId, person);
+  // The look-back is the person's own choice (ticket #518) and shapes only their own view: an Owner or Admin reading a
+  // teammate's Schedule sees everything overdue, so nobody hides work from them by choosing a short one.
+  const lookBack = person === actor.personId ? await effectiveLimit("overdueDaysBack", actor.workspaceId, person) : OVERDUE_DAYS_BACK;
   const week = weekOf(base.today, base.weekStart);
   const { from, to } = checkSpan({ from: span.from ?? week.from, to: span.to ?? week.to }, base.today);
   const entries = await entriesOf(actor, person, base, from, to, lookBack);
