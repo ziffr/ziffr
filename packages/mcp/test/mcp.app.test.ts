@@ -59,7 +59,7 @@ describe("@ziffr/mcp against the app", () => {
     const people = json(await client.callTool({ name: "list_people", arguments: {} })).people;
     expect(people).toHaveLength(2);
     expect(people).toContainEqual({ id: ben, name: expect.any(String), contact: false });
-    expect(json(await client.callTool({ name: "get_workspace", arguments: {} }))).toEqual({ workspace: { year_start_month: 1 } });
+    expect(json(await client.callTool({ name: "get_workspace", arguments: {} }))).toEqual({ workspace: { year_start_month: 1, number_style: "1,234.5" } });
     // Orders is new: no period of it ended yet, so nothing is due.
     const schedule = await client.callTool({ name: "my_schedule", arguments: {} });
     expect(schedule.isError).toBeFalsy();
