@@ -1,14 +1,14 @@
 -- The words of dashboards, Findings and Snapshots, and Metric descriptions sealed (spec 0028, ticket #334; GLOSSARY:
 -- Workspace Key, Finding, Snapshot). The core seals them with the Workspace Key and binds each to its row, so it takes
--- a new row's id first: reserve_row_ids now hands out ids for these tables too. A Snapshot's id may be given (it was
--- always generated), only as reserve_row_ids handed it out. A sealed text is longer than the words it holds, so the
+-- a new row's id first: reserve_word_row_ids hands out ids for these tables (a function of its own: reserve_row_ids is redefined by other tickets' migrations, which would drop these tables from its list). A Snapshot's id may be given (it was
+-- always generated), only as reserve_word_row_ids handed it out. A sealed text is longer than the words it holds, so the
 -- length checks that guarded the plain words allow for that; the core still limits the words themselves.
-create or replace function reserve_row_ids(p_table text, p_count integer) returns bigint[] language plpgsql security definer set search_path = public as $$
+create function reserve_word_row_ids(p_table text, p_count integer) returns bigint[] language plpgsql security definer set search_path = public as $$
 declare
   seq text;
 begin
-  if p_table not in ('thread_messages', 'actions', 'deliveries', 'intake_log', 'audit_events', 'alerts', 'widgets', 'dashboards', 'metrics', 'dashboard_snapshots', 'view_links') then
-    raise exception 'Not a table with sealed columns: %', p_table;
+  if p_table not in ('widgets', 'dashboards', 'metrics', 'dashboard_snapshots', 'view_links') then
+    raise exception 'Not a table with sealed words: %', p_table;
   end if;
   if p_count is null or p_count < 1 or p_count > 1000 then
     raise exception 'Between 1 and 1000 ids at a time.';
@@ -17,7 +17,7 @@ begin
   return array(select nextval(seq) from generate_series(1, p_count));
 end;
 $$;
-revoke all on function reserve_row_ids(text, integer) from public, anon, authenticated;
+revoke all on function reserve_word_row_ids(text, integer) from public, anon, authenticated;
 
 -- 4000 characters of any script sealed: up to 16000 bytes, a third more as text, and the format around it.
 alter table dashboards drop constraint if exists dashboards_intro_length;

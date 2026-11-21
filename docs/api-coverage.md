@@ -169,7 +169,6 @@ Reads for a screen that also note that something was seen or logged; the API has
 - `calendarEntries` (schedule.ts): the schedule page
 - `search` (search.ts): the search page
 - `submittingKeyNames` (access-keys.ts): reads Workspace words, which opening needs the Workspace's key for (spec 0028); the API has its own reads
-- `canvasSeries` (access.ts): reads Workspace words, which opening needs the Workspace's key for (spec 0028); the API has its own reads
 - `alertChoices` (alerts.ts): reads Workspace words, which opening needs the Workspace's key for (spec 0028); the API has its own reads
 - `archivableMetric` (archived-metrics.ts): reads Workspace words, which opening needs the Workspace's key for (spec 0028); the API has its own reads
 - `deckSeed` (conversions.ts): reads Workspace words, which opening needs the Workspace's key for (spec 0028); the API has its own reads

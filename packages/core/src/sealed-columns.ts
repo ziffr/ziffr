@@ -46,7 +46,7 @@ export const SEALED_COLUMNS = {
 export const INDEXED_COLUMNS = { breakdown_rows: ["label"] } as const;
 
 /** The sealed columns the database never leaves null: unreadable ones read empty, not missing. */
-const NEVER_NULL: Partial<Record<SealedTable, readonly string[]>> = { dashboards: ["intro"], metrics: ["description"] };
+const NEVER_NULL: Partial<Record<OpenedTable, readonly string[]>> = { dashboards: ["intro"], metrics: ["description"] };
 
 const COLUMNS = { ...SEALED_COLUMNS, ...INDEXED_COLUMNS } as const;
 
@@ -70,7 +70,8 @@ type Row = Record<string, unknown>;
 /** Takes the ids the next rows of a table will have, from its own sequence. Breakdown rows take theirs here but are
  * written only by record_observation, which needs each row's blind index too (breakdown-labels.ts). */
 export async function reserveIds(table: ReservedTable | "breakdown_rows", count: number): Promise<number[]> {
-  const { data, error } = await db().rpc("reserve_row_ids", { p_table: table, p_count: count });
+  const words = table === "widgets" || table === "dashboards" || table === "metrics" || table === "dashboard_snapshots" || table === "view_links";
+  const { data, error } = await db().rpc(words ? "reserve_word_row_ids" : "reserve_row_ids", { p_table: table, p_count: count });
   if (error || !Array.isArray(data) || data.length !== count) throw new Error("The row could not be prepared.");
   return (data as (number | string)[]).map(Number);
 }
