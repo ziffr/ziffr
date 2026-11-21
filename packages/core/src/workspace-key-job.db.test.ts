@@ -228,6 +228,18 @@ describe("the re-encryption job", () => {
     expect(isSealed(data!.name as string)).toBe(false);
   });
 
+  it("leaves old plain Breakdown labels plain, as they merge only while plain, and seals the rest", async () => {
+    const w = await plainWorkspace();
+    const obs = await w.value(w.m.id, "2026-10-01", 10, w.owner);
+    await db().from("breakdown_rows").insert([{ observation_id: obs, label: "Hamburg", value: 6, position: 0 }, { observation_id: obs, label: "Berlin", value: 4, position: 1 }]);
+    const run = await reencryptionJob(only(w));
+    expect(run.errors).toBe(0);
+    const { data: rows } = await db().from("breakdown_rows").select("label, label_index").eq("observation_id", obs);
+    expect(rows!.map((r) => r.label).sort()).toEqual(["Berlin", "Hamburg"]);
+    expect(rows!.every((r) => r.label_index === null)).toBe(true);
+    for (const id of w.messages) expect(isSealed(await body(id))).toBe(true);
+  });
+
   it("waits without ZIFFR_SECRETS_KEY", async () => {
     const w = await plainWorkspace();
     delete process.env.ZIFFR_SECRETS_KEY;

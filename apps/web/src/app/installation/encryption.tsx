@@ -12,7 +12,7 @@ const WHAT: Record<string, string> = {
   "thread_messages.body": "Thread messages", "actions.question": "Questions and Tasks", "contacts.email": "Contacts' addresses", "contacts.slack_handle": "Contacts' Slack handles",
   "contacts.phone": "Contacts' phone numbers", "profiles.name": "Contacts' names", "deliveries.subject": "Outbox subjects", "deliveries.body": "Outbox texts",
   "intake_log.sender": "Intake senders", "intake_log.raw": "Intake texts", "intake_log.detail": "Intake details", "audit_events.object_name": "Audit Log names",
-  "audit_events.details": "Audit Log details", "alerts.level": "Alert levels", "webhooks.url": "Webhook addresses", "webhooks.secret": "Webhook secrets", "webhooks.secret_previous": "Webhook previous secrets",
+  "audit_events.details": "Audit Log details", "alerts.level": "Alert levels", "webhooks.url": "Webhook addresses", "webhooks.secret": "Webhook secrets", "webhooks.secret_previous": "Webhook previous secrets", "webhook_external_ids.external_id": "External task ids", "webhook_external_ids.url": "External task addresses",
 };
 
 /** What is encrypted and how far the job is. */
