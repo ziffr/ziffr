@@ -1,11 +1,11 @@
 import { headers } from "next/headers";
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
-import { getProfiles, openActionCount } from "@/lib/data";
+import { dueValueCount, getProfiles, openActionCount } from "@/lib/data";
 import { currentActor, currentWorkspaceId, myWorkspaces, viewerId } from "@/lib/viewer";
 import { isDemo, personFor, sessionUser } from "@/lib/auth";
 import { demoEnabled } from "@/lib/demo-mode";
-import { workspaceLinks } from "@/lib/settings-links";
+import { settingsGroups, workspaceLinks, workspaceTree } from "@/lib/settings-links";
 import { GuideLink, TopBar } from "@/components/top-bar";
 import { AppShell } from "@/components/app-shell";
 import { layoutChoice, sidebarCollapsed } from "@/lib/layout-choice";
@@ -85,6 +85,7 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
   const installationAdmin = person ? await isInstallationAdmin({ personId: person }) : false;
   // The layout preview (docs/specs/0036-app-layout.md): the browser's cookie decides the frame; the pages are the same.
   const sidebar = (await layoutChoice()) === "sidebar";
+  const due = sidebar ? await dueValueCount() : 0;
   const accountOf = demo ? null : { name: profiles.find((p) => p.id === viewer)?.name ?? "", workspaces, current: workspaceId, installationAdmin, demo: await demoEnabled() };
   const demoControls = demo ? (
     <>
@@ -117,7 +118,7 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
       </head>
       <body className="min-h-screen bg-background font-sans antialiased">
         {sidebar ? (
-          <AppShell workspace={workspaceLinks(role)} open={open} guide={guideHref()} account={accountOf} demo={demoControls} people={demo ? { profiles: profiles.filter((p) => !p.contact), current: viewer } : undefined} collapsed={await sidebarCollapsed()} banners={<>{demoNote}{banners}</>}>
+          <AppShell workspace={workspaceTree(role)} settings={settingsGroups(role)} due={due} open={open} guide={guideHref()} account={accountOf} demo={demoControls} people={demo ? { profiles: profiles.filter((p) => !p.contact), current: viewer } : undefined} collapsed={await sidebarCollapsed()} banners={<>{demoNote}{banners}</>}>
             {trial?.ended ? <TrialEnded deletedAt={trial.deletedAt} /> : children}
           </AppShell>
         ) : (

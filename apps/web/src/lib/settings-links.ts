@@ -25,3 +25,44 @@ export function workspaceLinks(role: WorkspaceRoleName): { href: string; label: 
     ...(admin ? [{ href: "/audit", label: "Audit log" }] : []),
   ];
 }
+
+/** A link of the sidebar's trees. */
+export type TreeLink = { href: string; label: string };
+
+/** The sidebar's Workspace group (spec 0036, ticket #529): the pages people open daily, then Settings. Guests get no
+ * Workspace group at all (#504 Q1); every row is one the role can use, so none leads to a refusal. */
+export function workspaceTree(role: WorkspaceRoleName): TreeLink[] {
+  if (role === "guest") return [];
+  return [
+    { href: "/team", label: "Members and Groups" },
+    { href: "/workflows", label: "Workflows" },
+    // Sources joins Connectors as a tab of its own (#532); until then it keeps a row beside it.
+    { href: "/connectors", label: "Connectors" },
+    { href: "/sources", label: "Sources" },
+    { href: "/settings/workspace", label: "Settings" },
+  ];
+}
+
+/** The one Settings page's grouped list (#529): what Owners and Admins set up, in three groups. Rows only for roles that
+ * can use them: Feeds, Webhooks, Size and Retention, Usage and the Audit log are for Owners and Admins (specs 0012,
+ * 0029, 0031, 0033, 0034); Guests have none of it. */
+export function settingsGroups(role: WorkspaceRoleName): { label: string; links: TreeLink[] }[] {
+  if (role === "guest") return [];
+  const admin = role === "owner" || role === "admin";
+  return [
+    { label: "Workspace", links: [{ href: "/settings/workspace", label: "General" }, ...(admin ? [{ href: "/settings/workspace#size", label: "Size and Retention" }] : []), { href: "/themes", label: "Themes" }, { href: "/settings/packs", label: "Packs" }] },
+    { label: "Programs", links: [{ href: "/settings/keys", label: "Access Keys" }, ...(admin ? [{ href: "/settings/feeds", label: "Feeds" }, { href: "/settings/webhooks", label: "Webhooks" }] : [])] },
+    { label: "Records", links: [{ href: "/changes", label: "Changes" }, ...(admin ? [{ href: "/settings/usage", label: "Usage" }, { href: "/audit", label: "Audit log" }] : [])] },
+  ];
+}
+
+/** Whether `path` is on `href` (its hash ignored) or below it. */
+export function onPage(path: string, href: string): boolean {
+  const page = href.split("#")[0];
+  return path === page || path.startsWith(page + "/");
+}
+
+/** Whether `path` is a page of the Settings list, so the page shows it beside its content. */
+export function inSettings(path: string, groups: { links: TreeLink[] }[]): boolean {
+  return groups.some((g) => g.links.some((l) => onPage(path, l.href)));
+}

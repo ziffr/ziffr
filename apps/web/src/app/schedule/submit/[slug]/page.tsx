@@ -8,5 +8,5 @@ import { currentActor } from "@/lib/viewer";
 export default async function OpenValueDue({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
   const code = await ownFormCode(await currentActor(), slug);
-  redirect(code ? `/submit/${code}` : /^[a-z0-9][a-z0-9-]{0,99}$/.test(slug) ? `/metrics/${slug}` : "/settings/schedule");
+  redirect(code ? `/submit/${code}` : /^[a-z0-9][a-z0-9-]{0,99}$/.test(slug) ? `/metrics/${slug}` : "/schedule");
 }

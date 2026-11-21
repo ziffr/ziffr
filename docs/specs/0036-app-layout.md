@@ -20,11 +20,28 @@ Decisions (agreed with the owner):
 
 - shadcn `sidebar-07` (collapses to icons) in the **inset** style: the page is a card on a tinted ground. Written for Base UI like our other components (`components/ui/sidebar.tsx`); no Radix is added.
 - Top of the sidebar: the **Workspace switcher** (today's Workspace list, **The demo** below a line, **New workspace**), then a visible **Search ⌘K** field. Bottom: **User guide** and the **user menu** (Your settings, Installation settings for Installation Admins, Sign out).
-- Middle: **Actions** with its count first, then **Dashboards, Decks, Metrics, Analyze**, then one **Workspace** row that opens the pages `workspaceLinks(role)` gives this role. It is closed unless the current page is one of them (up to 13 rows at once read like an admin panel); with the sidebar shrunk to icons it is a single icon to the first page.
+- Middle: **Actions** with its count first, then **Dashboards, Decks, Metrics, Analyze**, then one **Workspace** row that opens the pages `workspaceTree(role)` gives this role (see *The tree* below). It is closed unless the current page is one of them (up to 13 rows at once read like an admin panel); with the sidebar shrunk to icons it is a single icon to the first page.
 - ⌘K (#412) stays the main way to find anything. Ctrl+B collapses the sidebar.
 - **Slide-overs** (a Sheet from the right) for details instead of page changes. The preview does two: **Details** on a Metrics list row (latest value, target, recent values, then **Open the Metric**), and **Alert me…** on a Metric's page.
 - A quiet, dense look: 13px rows, tabular figures, colour only for status (the existing target chips), all from today's tokens, so Themes keep working.
 - The demo's controls (**Viewing as**, **Leave the demo**) sit in a slim bar at the top of the page card.
+
+## The tree (ticket #529, from the usability review #504)
+
+```
+Workspace switcher          Search ⌘K
+Actions (count)             Schedule (values due)
+Dashboards (pinned: #509)   Metrics   Decks   Analyze
+Workspace (closed unless you are in it)
+  Members and Groups · Workflows · Connectors · Sources (joins Connectors with #532) · Settings
+User guide
+You menu: Your profile · Your Deliveries · Your Alerts · Connected assistants · Installation settings (Installation Admins) · Sign out
+```
+
+- **Schedule** is a row of its own with the count of values due (overdue and due today), linking to `/schedule`; it moved out from under settings, and `/settings/schedule` redirects.
+- **Settings** is one page with a grouped list beside it (`settingsGroups(role)`): Workspace (General, Size and Retention, Themes, Packs), Programs (Access Keys, Feeds, Webhooks), Records (Changes, Usage, Audit log). It is drawn only on those pages, by the frame, so the page's own side list is gone in this layout; the top bar's layout keeps today's list.
+- **Guests** get no Workspace group (#504 Q1). Every row appears only for roles that can use the page: Feeds, Webhooks, Size and Retention, Usage and the Audit log are for Owners and Admins.
+- **Phone:** the tabs stay; More no longer repeats them and shows Schedule, Decks, Analyze, **Workspace** as one expandable row, the guide, your own pages and switching.
 
 ## What moves where
 
@@ -69,7 +86,7 @@ The frame uses only the app's tokens (`--sidebar*`, `--background`, `--border`, 
 2. **Default:** once the owner agrees, the sidebar becomes the default and the switch offers **Use the classic top bar**. Every screen is checked in both frames; screens that assume the top bar's width are fixed.
 3. **Remove** the top bar and the switch one release later.
 
-The Workspace settings pages keep their own side list inside the page (`settings-nav`); next to the sidebar's Workspace group it says the same thing twice. In the default step it goes, and the page header carries the tabs it needs.
+In the sidebar layout the Settings pages carry only the grouped Settings list (#529); the top bar's layout keeps its single side list (`settings-nav`) until the top bar is removed.
 
 ## Not in this spec
 

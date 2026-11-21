@@ -35,6 +35,10 @@ Choose **Workspace** in the top bar to open the menu. It holds:
 
 General, Packs, Access Keys, Feeds and Usage open inside the settings area. It has a side list with two parts: **You** (**My schedule**, your **Profile**, your **Deliveries**, your **Alerts** and your **Connected assistants**, see [Signing in and your own settings](17-your-settings.md)) and **Workspace**, the same pages as the menu. On a phone the side list becomes one row that you scroll sideways.
 
+### In the sidebar layout
+
+With the preview sidebar (see [Signing in and your own settings](17-your-settings.md#preview-the-new-layout)) the **Workspace** row opens four places: **Members and Groups**, **Workflows**, **Connectors** (with **Sources** beside it) and **Settings**. Guests have no Workspace row. **Settings** is one page with its own list, shown beside whichever of its pages is open, in three groups: **Workspace** (**General**, **Size and Retention** for Owners and Admins, **Themes**, **Packs**), **Programs** (**Access Keys**, and **Feeds** and **Webhooks** for Owners and Admins) and **Records** (**Changes**, and **Usage** and **Audit log** for Owners and Admins). Your own pages are not in that list: they are in the menu under your name, and **My schedule** is the **Schedule** row.
+
 ## Starting a Workspace
 
 After you sign in for the first time and belong to no Workspace yet, Ziffr opens **Start a workspace**.

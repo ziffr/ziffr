@@ -117,13 +117,13 @@ Ziffr works best on a phone once you install it: it then opens from the home scr
 
 ### Preview: the new layout
 
-Under **Your profile**, **Try the new layout (preview)** swaps the top bar for a sidebar: the Workspace switcher at its top, then a **Search** field (Ctrl+K), **Actions** with its count, Dashboards, Decks, Metrics, Analyze and the Workspace's pages; **User guide** and your own menu sit at its bottom. The page becomes a card beside it, and in the demo, **Viewing as** and **Leave the demo** sit in the footer where your own menu is. Ctrl+B (or the button at the top of the card) shrinks the sidebar to icons; hover or focus an icon to see its name. Details open beside the page instead of replacing it: **Details** on a row of the Metrics list, and **Alert me…** on a Metric's page. On a phone, a bar at the bottom has Dashboards, Metrics, Actions, Search and More.
+Under **Your profile**, **Try the new layout (preview)** swaps the top bar for a sidebar: the Workspace switcher at its top, then a **Search** field (Ctrl+K), **Actions** and **Schedule**, each with its count, Dashboards, Metrics, Decks, Analyze and one **Workspace** row that opens **Members and Groups**, **Workflows**, **Connectors**, **Sources** and **Settings** (closed unless you are on one of them; Guests do not see it); **User guide** and your own menu (**Your profile**, **Your Deliveries**, **Your Alerts**, **Connected assistants**, and **Installation settings** for Installation Admins) sit at its bottom. The page becomes a card beside it, and in the demo, **Viewing as** and **Leave the demo** sit in the footer where your own menu is. Ctrl+B (or the button at the top of the card) shrinks the sidebar to icons; hover or focus an icon to see its name. Details open beside the page instead of replacing it: **Details** on a row of the Metrics list, and **Alert me…** on a Metric's page. On a phone, a bar at the bottom has Dashboards, Metrics, Actions, Search and More; **More** lists only what the bar does not: Schedule, Decks, Analyze, the Workspace as one row that opens its pages, the guide and your own pages.
 
 The choice is kept in this browser only. Untick it to go back to the top bar.
 
 ## My schedule and your calendar
 
-Open **My schedule** from the menu under your name, or from the side list of the settings area. It lists what you have to do in the current Workspace, and only that:
+Open **My schedule** from the **Schedule** row of the sidebar (with the number of values due), or, in the top bar, from the menu under your name. Its address is `/schedule`; the old `/settings/schedule` still lands on it. It lists what you have to do in the current Workspace, and only that:
 
 | Part | What it lists |
 | --- | --- |
@@ -178,7 +178,7 @@ Anyone who has the address sees what it shows, like a View Link. A link ends whe
 
 ## Your profile
 
-Open it from the menu under your name, or from **Profile** in the side list of the settings area. Your profile is how others see you in every Workspace you belong to: a change shows in all of them.
+Open it from the menu under your name, or, in the top bar, from **Profile** in the side list of the settings area. Your profile is how others see you in every Workspace you belong to: a change shows in all of them.
 
 | Option | What it does |
 | --- | --- |

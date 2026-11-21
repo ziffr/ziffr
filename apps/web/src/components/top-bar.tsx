@@ -26,7 +26,7 @@ export const MAIN: NavItem[] = [
 
 /** The person's own settings. */
 export const YOU: NavItem[] = [
-  { href: "/settings/schedule", label: "My schedule" },
+  { href: "/schedule", label: "My schedule" },
   { href: "/settings/profile", label: "Your profile" },
   { href: "/settings/deliveries", label: "Your Deliveries" },
   { href: "/settings/alerts", label: "Your Alerts" },
@@ -104,8 +104,7 @@ export function TopBar({ workspace, open, account, guide, demo }: { workspace: N
 }
 
 /** Everything in the bar, as one list, for screens too narrow for the bar. */
-export function PhoneMenu({ workspace, account, guide }: { workspace: NavItem[]; account: Account | null; guide: string }) {
-  const [pending, start] = useTransition();
+function PhoneMenu({ workspace, account, guide }: { workspace: NavItem[]; account: Account | null; guide: string }) {
   const group = (label: string, items: NavItem[]) => (
     <div>
       <h2 className="px-2 pb-1 text-xs font-medium text-muted-foreground">{label}</h2>
@@ -120,22 +119,28 @@ export function PhoneMenu({ workspace, account, guide }: { workspace: NavItem[];
         {account && group(account.name, account.installationAdmin ? [...YOU, INSTALLATION] : YOU)}
       </div>
       <GuideLink href={guide} className="mt-3 inline-flex h-9 items-center gap-1 rounded-[var(--radius-input)] px-2 text-sm hover:bg-muted"><CircleHelp aria-hidden className="size-4" /> User guide</GuideLink>
-      {account && (
-        <div className="mt-4 flex flex-wrap items-center gap-2 border-t border-border pt-3 text-sm">
-          {(account.workspaces.length > 1 || account.demo) && (
-            <label className="flex items-center gap-1.5">
-              <span className="text-muted-foreground">Workspace</span>
-              <select value={account.current} disabled={pending} onChange={(e) => { const id = e.target.value; if (id === DEMO_ENTRY.href) { window.location.assign(DEMO_ENTRY.href); return; } start(async () => { told(await switchWorkspace(id)); }); }} className="h-9 rounded-[var(--radius-input)] border border-input bg-card px-2">
-                {account.workspaces.map((w) => <option key={w.id} value={w.id}>{w.name}</option>)}
-                {account.demo && <><option disabled>──────────</option><option value={DEMO_ENTRY.href}>{DEMO_ENTRY.label} ({DEMO_ENTRY.hint})</option></>}
-              </select>
-            </label>
-          )}
-          <Link href="/welcome?another=1" className="flex h-9 items-center gap-1 rounded-[var(--radius-input)] px-2 hover:bg-muted"><Plus aria-hidden className="size-4" /> New workspace</Link>
-          <button type="button" disabled={pending} onClick={() => start(() => signOut())} className="flex h-9 items-center gap-1 rounded-[var(--radius-input)] px-2 hover:bg-muted"><LogOut aria-hidden className="size-4" /> Sign out</button>
-        </div>
-      )}
+      {account && <PhoneAccount account={account} />}
     </nav>
+  );
+}
+
+/** The phone menus' last row: switch Workspace, start a new one, sign out. Shared by the top bar's menu and the sidebar's More sheet. */
+export function PhoneAccount({ account }: { account: Account }) {
+  const [pending, start] = useTransition();
+  return (
+        <div className="mt-4 flex flex-wrap items-center gap-2 border-t border-border pt-3 text-sm">
+        {(account.workspaces.length > 1 || account.demo) && (
+          <label className="flex items-center gap-1.5">
+            <span className="text-muted-foreground">Workspace</span>
+            <select value={account.current} disabled={pending} onChange={(e) => { const id = e.target.value; if (id === DEMO_ENTRY.href) { window.location.assign(DEMO_ENTRY.href); return; } start(async () => { told(await switchWorkspace(id)); }); }} className="h-9 rounded-[var(--radius-input)] border border-input bg-card px-2">
+              {account.workspaces.map((w) => <option key={w.id} value={w.id}>{w.name}</option>)}
+              {account.demo && <><option disabled>──────────</option><option value={DEMO_ENTRY.href}>{DEMO_ENTRY.label} ({DEMO_ENTRY.hint})</option></>}
+            </select>
+          </label>
+        )}
+        <Link href="/welcome?another=1" className="flex h-9 items-center gap-1 rounded-[var(--radius-input)] px-2 hover:bg-muted"><Plus aria-hidden className="size-4" /> New workspace</Link>
+        <button type="button" disabled={pending} onClick={() => start(() => signOut())} className="flex h-9 items-center gap-1 rounded-[var(--radius-input)] px-2 hover:bg-muted"><LogOut aria-hidden className="size-4" /> Sign out</button>
+      </div>
   );
 }
 

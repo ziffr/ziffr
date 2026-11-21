@@ -12,7 +12,7 @@ import { SITE_URL } from "@/lib/sign-in";
 export async function makeCalendarLink(input: { noNames?: boolean }) {
   return attempt(async () => {
     const { secret } = await links.makeCalendarLink(await currentActor(), { noNames: typeof input?.noNames === "boolean" ? input.noNames : undefined });
-    revalidatePath("/settings/schedule");
+    revalidatePath("/schedule");
     // The Installation's own address, as in sign-in links: never one a request's Host header could choose.
     return `${SITE_URL}/cal/${secret}.ics`;
   });
@@ -22,7 +22,7 @@ export async function makeCalendarLink(input: { noNames?: boolean }) {
 export async function setCalendarNoNames(noNames: boolean) {
   return attempt(async () => {
     await links.setCalendarNoNames(await currentActor(), noNames === true);
-    revalidatePath("/settings/schedule");
+    revalidatePath("/schedule");
   });
 }
 
@@ -31,7 +31,7 @@ export async function revokeCalendarLink(personId?: string) {
   return attempt(async () => {
     const actor = await currentActor();
     await links.revokeCalendarLink(actor, typeof personId === "string" ? personId : actor.personId);
-    revalidatePath("/settings/schedule");
+    revalidatePath("/schedule");
     revalidatePath("/settings/keys");
   });
 }
