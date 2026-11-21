@@ -10,6 +10,7 @@ import { sendWebhooksNow } from "./webhook-send";
 export async function closeForSystem(workspaceId: string, where: CloseWhere, reason: DoneReason, opts: { beforeDelete?: boolean } = {}): Promise<number> {
   if (where.ids && !where.ids.length) return 0;
   const closed = await closeActions(workspaceId, where, { type: "system" }, reason);
-  if (opts.beforeDelete && closed) await sendWebhooksNow(workspaceId, where.metricId ?? null);
+  // Always, even when no Action was open: earlier queued events of the Metric would go with its rows.
+  if (opts.beforeDelete) await sendWebhooksNow(workspaceId, where.metricId ?? null);
   return closed;
 }

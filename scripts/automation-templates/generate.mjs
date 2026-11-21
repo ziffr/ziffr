@@ -65,6 +65,8 @@ class WF {
   file() { return { name: this.name, nodes: this.nodes, connections: this.conn, settings: { executionOrder: "v1" }, pinData: {}, active: false, tags: [] }; }
 }
 
+/** The task-list workflows also name whose list this is: they take only that person's Tasks (a Webhook is sent every Action of the Workspace). */
+const ASSIGNEE_FIELD = ["assigneeEmail", "REPLACE-WITH-THE-EMAIL-OF-THE-LIST-OWNER"];
 const BASE_FIELDS = [["ziffrUrl", "https://REPLACE-WITH-YOUR-ZIFFR-ADDRESS"], ["webhookId", "REPLACE-WITH-THE-WEBHOOK-ID"], ["secret", "REPLACE-WITH-THE-WEBHOOK-SECRET"]];
 const SELF_HOSTED = "Self-hosted n8n: set NODE_FUNCTION_ALLOW_BUILTIN=crypto.";
 
@@ -94,13 +96,13 @@ function sharedTo(w, s, fields, steps, noteText, { gettasks, refcheck, whole, he
 }
 
 const FROM_EVENTS = "(events: action.created, action.updated, action.done)";
-const sticky = (s, listIds, nodes) => `Ziffr to ${s.label}\n\n1. Fill in the Settings node: your Ziffr address, the Webhook's id and secret, and ${listIds}.\n2. ${s.credNote(nodes)}\n3. Replace the Webhook path with a long random string, activate the workflow and put its production URL into the Webhook in Ziffr ${FROM_EVENTS}.\n\n${SELF_HOSTED} Details: docs/automations/${s.file}.md`;
+const sticky = (s, listIds, nodes) => `Ziffr to ${s.label}\n\n1. Fill in the Settings node: your Ziffr address, the Webhook's id and secret, the email address you have in Ziffr (assigneeEmail) and ${listIds}.\n2. ${s.credNote(nodes)}\n3. Replace the Webhook path with a long random string, activate the workflow and put its production URL into the Webhook in Ziffr ${FROM_EVENTS}.\n\n${SELF_HOSTED} Details: docs/automations/${s.file}.md`;
 
 /** A task list with a create, an update and a list call (To Do, Google Tasks, Asana): the same graph. */
 function listFrom(s) {
   const w = new WF(`${s.key}-from`, `Ziffr to ${s.label}`);
   w.note(sticky(s, s.listIds, "the three HTTP Request nodes"), s.noteHeight ?? 300);
-  w.copy(BASE.hook, 0, 300); w.settings([...BASE_FIELDS, ...s.fields], 220, 300);
+  w.copy(BASE.hook, 0, 300); w.settings([...BASE_FIELDS, ASSIGNEE_FIELD, ...s.fields], 220, 300);
   w.code("Verify and filter", verifyCode(s, { helperFile: s.helper }), 440, 300);
   w.copy(BASE.answer, 660, 300); w.copy(BASE.switch, 880, 300);
   w.http("List tasks", "GET", s.listUrl, s.cred, 1100, 200, { query: s.listQuery });
@@ -164,8 +166,8 @@ const TODOIST = { key: "todoist", system: "todoist", label: "Todoist", file: "to
 function todoistFrom() {
   const s = TODOIST;
   const w = new WF("todoist-from", "Ziffr to Todoist");
-  w.note("Ziffr to Todoist\n\n1. Fill in the Settings node: your Ziffr address, the Webhook's id and secret, and the id of the Todoist project.\n2. Add the Todoist credential to the HTTP Request nodes.\n3. Replace the Webhook path with a long random string, activate the workflow and put its production URL into the Webhook in Ziffr " + FROM_EVENTS + ".\n\n" + SELF_HOSTED + " Details: docs/automations/todoist.md");
-  w.copy(BASE.hook, 0, 300); w.settings([...BASE_FIELDS, ...s.fields], 220, 300);
+  w.note("Ziffr to Todoist\n\n1. Fill in the Settings node: your Ziffr address, the Webhook's id and secret, the email address you have in Ziffr (assigneeEmail) and the id of the Todoist project.\n2. Add the Todoist credential to the HTTP Request nodes.\n3. Replace the Webhook path with a long random string, activate the workflow and put its production URL into the Webhook in Ziffr " + FROM_EVENTS + ".\n\n" + SELF_HOSTED + " Details: docs/automations/todoist.md");
+  w.copy(BASE.hook, 0, 300); w.settings([...BASE_FIELDS, ASSIGNEE_FIELD, ...s.fields], 220, 300);
   w.code("Verify and filter", verifyCode(s, { helperFile: "todoist", close: "close" }), 440, 300);
   w.copy(BASE.answer, 660, 300);
   const sw = clone(BASE.switch);
@@ -201,8 +203,8 @@ const PLANNER = { key: "planner", system: "planner", label: "Planner", file: "pl
 function plannerFrom() {
   const s = PLANNER;
   const w = new WF("planner-from", "Ziffr to Planner");
-  w.note("Ziffr to Planner\n\n1. Fill in the Settings node: your Ziffr address, the Webhook's id and secret, and the id of the plan and of the bucket new tasks go into (Microsoft Graph: GET /me/planner/plans, GET /planner/plans/{id}/buckets).\n2. Add a credential \"OAuth2 API\" for Microsoft Graph (scope Tasks.ReadWrite) to the HTTP Request nodes.\n3. Replace the Webhook path with a long random string, activate the workflow and put its production URL into the Webhook in Ziffr " + FROM_EVENTS + ".\n\n" + SELF_HOSTED + " Details: docs/automations/planner.md", 340);
-  w.copy(BASE.hook, 0, 300); w.settings([...BASE_FIELDS, ["planId", "REPLACE-WITH-THE-PLAN-ID"], ["bucketId", "REPLACE-WITH-THE-BUCKET-ID"]], 220, 300);
+  w.note("Ziffr to Planner\n\n1. Fill in the Settings node: your Ziffr address, the Webhook's id and secret, the email address you have in Ziffr (assigneeEmail) and the id of the plan and of the bucket new tasks go into (Microsoft Graph: GET /me/planner/plans, GET /planner/plans/{id}/buckets).\n2. Add a credential \"OAuth2 API\" for Microsoft Graph (scope Tasks.ReadWrite) to the HTTP Request nodes.\n3. Replace the Webhook path with a long random string, activate the workflow and put its production URL into the Webhook in Ziffr " + FROM_EVENTS + ".\n\n" + SELF_HOSTED + " Details: docs/automations/planner.md", 340);
+  w.copy(BASE.hook, 0, 300); w.settings([...BASE_FIELDS, ASSIGNEE_FIELD, ["planId", "REPLACE-WITH-THE-PLAN-ID"], ["bucketId", "REPLACE-WITH-THE-BUCKET-ID"]], 220, 300);
   w.code("Verify and filter", verifyCode(s, { helperFile: "planner", extra: "(notes) => ({ detailsBody: { description: notes } })", title: "clean(d.title || d.ref)" }), 440, 300);
   w.copy(BASE.answer, 660, 300); w.copy(BASE.switch, 880, 300);
   w.http("List tasks", "GET", `=${PLAN_API}/plans/{{ $('Settings').first().json.planId }}/tasks`, s.cred, 1100, 200);

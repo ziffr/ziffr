@@ -55,7 +55,8 @@ export async function postReply(ws: string, actionId: number, authorId: string, 
     await queueWebhookEvent(ws, "action.updated", source, { actionId, metricId: a.metric_id, period: a.period_start, threadMessageId: messageId });
   }
   const other = authorId === a.assignee_id ? a.asker_id : a.assignee_id;
-  await deliver({ kind: "reply", actionId, senderId: authorId, recipientId: other, text: body, correction });
+  // A reply that came through a Webhook says so to the asker too: the author is the assignee, the words may be another person's.
+  await deliver({ kind: "reply", actionId, senderId: authorId, recipientId: other, text: opts.via ? `(via ${opts.via}) ${body}` : body, correction });
   if (correction !== null && a.owner_id !== other) await deliver({ kind: "correction", actionId, senderId: authorId, recipientId: a.owner_id, text: body, correction });
 }
 

@@ -109,8 +109,12 @@ async function actionOf(actor: WebhookActor, input: Record<string, unknown>): Pr
   const { data } = await db().from("actions").select("id, kind, status, purpose, asker_id, assignee_id, metric_id").eq("id", id).eq("workspace_id", ws).maybeSingle();
   if (!data) throw gone;
   // Only what was sent to this Webhook: a leaked secret reaches no further (a send still in flight counts: the recipe may answer first).
-  const { data: sent } = await db().from("webhook_sends").select("id").eq("webhook_id", actor.webhookId).eq("workspace_id", ws).eq("action_id", id).in("state", ["delivered", "sending"]).limit(1);
-  if (!sent?.length) throw gone;
+  // A link this Webhook made counts as proof too: the log of sends is pruned after 14 days, the link is not.
+  const [{ data: sent }, { data: linked }] = await Promise.all([
+    db().from("webhook_sends").select("id").eq("webhook_id", actor.webhookId).eq("workspace_id", ws).eq("action_id", id).in("state", ["delivered", "sending"]).limit(1),
+    db().from("webhook_external_ids").select("action_id").eq("webhook_id", actor.webhookId).eq("workspace_id", ws).eq("action_id", id).limit(1),
+  ]);
+  if (!sent?.length && !linked?.length) throw gone;
   const row = data as ActionRow;
   // The assignee is still a Member or a Contact of this Workspace and still sees the Metric.
   const [{ data: member }, { data: contact }] = await Promise.all([

@@ -188,6 +188,35 @@ describe("link: an Action is an external task, per Webhook and system", () => {
     expect(await c.call(c.todo, { op: "link", ref, system: "sys-3", external_id: "E3b" })).toMatchObject({ changed: true });
   });
 
+  it("counts the links of an Action over all its Webhooks, not per Webhook", async () => {
+    const c = await setup();
+    const id = await c.task(); await c.sent(id, c.todo, c.planner);
+    const ref = `ZIF-${id}`;
+    for (let i = 0; i < 6; i++) await c.call(c.todo, { op: "link", ref, system: `a-${i}`, external_id: `A${i}` });
+    for (let i = 0; i < 4; i++) await c.call(c.planner, { op: "link", ref, system: `b-${i}`, external_id: `B${i}` });
+    expect(await c.refused(c.call(c.planner, { op: "link", ref, system: "b-9", external_id: "B9" }))).toBe("conflict");
+  });
+
+  it("still answers for an Action it linked after the log of sends was pruned, and for nothing it never linked", async () => {
+    const c = await setup();
+    const id = await c.task(), other = await c.task(); await c.sent(id, c.todo); await c.sent(other, c.todo);
+    await c.call(c.todo, { op: "link", ref: `ZIF-${id}`, system: "microsoft-todo", external_id: "AAA" });
+    await db().from("webhook_sends").delete().eq("workspace_id", c.w.id);
+    expect(await c.refused(c.call(c.todo, { op: "done", ref: `ZIF-${other}` }))).toBe("not_found");
+    expect(await c.call(c.todo, { op: "done", system: "microsoft-todo", external_id: "AAA" })).toEqual({ changed: true, status: "answered" });
+  });
+
+  it("drops what waits to be sent when a Webhook is switched off, so switching on resends nothing", async () => {
+    const c = await setup();
+    const id = await c.task();
+    const row = (state: string) => ({ workspace_id: c.w.id, webhook_id: c.todo.id, type: "action.updated", action_id: id, metric_id: c.m.id, period_start: "2026-10-01", source_type: "app", state });
+    await db().from("webhook_sends").insert([row("retrying"), row("queued"), row("delivered")]);
+    await setWebhookEnabled(c.a, c.todo.id, false);
+    await setWebhookEnabled(c.a, c.todo.id, true);
+    const { data } = await db().from("webhook_sends").select("state").eq("webhook_id", c.todo.id).eq("type", "action.updated");
+    expect(data!.map((r) => r.state).sort()).toEqual(["delivered", "dropped", "dropped"]);
+  });
+
   it("refuses an external task that is already another Action, a shape that is wrong, and an Action never sent to this Webhook", async () => {
     const c = await setup();
     const one = await c.task(), two = await c.task(), three = await c.task();

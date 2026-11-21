@@ -31,7 +31,7 @@ Asana to Ziffr: every five minutes the project is read, and for each task with a
 ## Limits
 
 - **Tasks only.** A Question is ignored: it is answered in Ziffr. A redacted message (a Metric not shared with Everyone) becomes a task titled "A Ziffr task for you (ZIF-12)" with a link, and nothing else.
-- **One project.** Tasks land in the one project you chose, in the account of the credential; the workflow does not look up the assignee. For several people, import the pair once per person.
+- **One person's list.** The workflow takes only Tasks whose assignee email is the one in **assigneeEmail** (Settings); with none filled in it takes nothing. The Webhook is sent every Action of the Workspace, and without this a task of someone else would land in this list and could be ticked off in their name. For several people, import the pair once per person and list, each with their own address.
 - **Five minutes** until a change in Asana reaches Ziffr (Asana is read, not pushed). The workflow reads the first 100 tasks of the project: keep it short, or the newest tasks may not be seen.
 - **Replies are one line.** Below the line `--- end of Ziffr text ---` that the workflow writes, `Reply:` followed by text in the description, up to 1,000 characters; a changed line is sent again as a new message.
 - **Memory is n8n's static data**, which holds only while the workflow is active. The worst case after losing it is a `done` sent twice, which Ziffr takes as `changed: false`.

@@ -192,7 +192,7 @@ function delivered(body: unknown, over: { secret?: string; timestamp?: number; e
   const timestamp = over.timestamp ?? T0;
   const sig = signWebhookBody([over.secret ?? SECRET], timestamp, JSON.stringify(body));
   const evt = body as { id: string };
-  return { raw, json: { headers: { "x-ziffr-timestamp": String(timestamp), "x-ziffr-signature": sig, "x-ziffr-delivery": evt.id }, body, secret: SECRET, webhookId: "someone-else", listId: "L1", ...over.settings } as Param };
+  return { raw, json: { headers: { "x-ziffr-timestamp": String(timestamp), "x-ziffr-signature": sig, "x-ziffr-delivery": evt.id }, body, secret: SECRET, webhookId: "someone-else", listId: "L1", assigneeEmail: "Ana@Example.test", ...over.settings } as Param };
 }
 
 for (const spec of SPECS) {
@@ -210,6 +210,12 @@ for (const spec of SPECS) {
       const r = await verify(delivered(fixture("action-created")));
       expect(r).toMatchObject({ httpStatus: 200, action: "create", ref: "ZIF-12" });
       expect(r.createBody).toEqual(spec.createBody);
+    });
+    it("takes only the Tasks of the person whose list this is: another assignee, no address or the placeholder takes nothing", async () => {
+      for (const assigneeEmail of ["bob@example.test", "", "REPLACE-WITH-THE-EMAIL-OF-THE-LIST-OWNER"]) {
+        expect(await verify(delivered(fixture("action-created"), { settings: { assigneeEmail } }))).toMatchObject({ httpStatus: 200, action: "none", why: "not for this list" });
+      }
+      expect(await verify(delivered({ ...fixture("action-created"), data: { ...fixture("action-created").data, assignee: undefined } }))).toMatchObject({ action: "none", why: "not for this list" });
     });
     it("refuses a wrong signature, a changed body, an old timestamp and a missing header", async () => {
       expect(await verify(delivered(fixture("action-created"), { secret: "whsec_other" }))).toMatchObject({ httpStatus: 401, action: "none" });
