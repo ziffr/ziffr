@@ -47,20 +47,34 @@ describe("POST /api/inbound/email", () => {
     expect(sent).toBeLessThan(40);
     expect((await post(MESSAGE, { ...sign(MESSAGE), "content-length": "12abc" })).status).toBe(413);
   });
-  it("records the value from a reply to a real Prompt email", async () => {
+  /** A real Prompt email from Mailpit and a reply to it as the person's mail client writes one, with or without the provider's vouching header. */
+  async function promptAndReply(vouched: boolean) {
     const w = await workspace(); cleanups.push(w.cleanup);
     const sara = await w.person("owner", { email: `sara-${randomUUID().slice(0, 8)}@example.test` });
     const annMail = `ann-${randomUUID().slice(0, 8)}@example.test`;
     const ann = await w.person("member", { email: annMail });
     const m = await w.metric(sara, { name: "Orders", sources: ["web_form", "mail"] }); await w.token(m.id, ann);
     await deliverPrompt({ metricId: m.id, submitterId: ann, senderId: sara });
-    // The email as Ann's mail client got it, and a reply to it as her client would write one.
     const { messages } = await (await fetch(`${MAILPIT}/api/v1/search?query=${encodeURIComponent(`to:"${annMail}"`)}`)).json() as { messages: { ID: string }[] };
     const prompt = await (await fetch(`${MAILPIT}/api/v1/message/${messages[0].ID}`)).json() as { ReplyTo: { Address: string }[]; Subject: string; Text: string };
     const quoted = prompt.Text.split("\n").map((l) => `> ${l}`).join("\r\n");
-    const body = [`From: Ann <${annMail}>`, `To: ${prompt.ReplyTo[0].Address}`, `Subject: Re: ${prompt.Subject}`, `Message-ID: <${randomUUID()}@client.test>`, "Content-Type: text/plain; charset=utf-8", "", "17", "", "On Tuesday, Ziffr wrote:", quoted].join("\r\n");
-    const res = await post(body, sign(body));
-    expect(await res.json()).toEqual({ outcome: "recorded" });
-    expect(await valuesOf(m.id)).toMatchObject([{ value: 17, submitter_id: ann, source: "mail" }]);
+    const body = [...(vouched ? [`Authentication-Results: mx.provider.test; dmarc=pass header.from=example.test`] : []), `From: Ann <${annMail}>`, `To: ${prompt.ReplyTo[0].Address}`, `Subject: Re: ${prompt.Subject}`, `Message-ID: <${randomUUID()}@client.test>`, "Content-Type: text/plain; charset=utf-8", "", "17", "", "On Tuesday, Ziffr wrote:", quoted].join("\r\n");
+    return { m, ann, body };
+  }
+  it("records the value from a vouched-for reply to a real Prompt email", async () => {
+    process.env.ZIFFR_INBOUND_AUTHSERV_ID = "mx.provider.test";
+    try {
+      const { m, ann, body } = await promptAndReply(true);
+      expect(await (await post(body, sign(body))).json()).toEqual({ outcome: "recorded" });
+      expect(await valuesOf(m.id)).toMatchObject([{ value: 17, submitter_id: ann, source: "mail" }]);
+    } finally {
+      delete process.env.ZIFFR_INBOUND_AUTHSERV_ID;
+    }
+  });
+  it("holds the value from an unvouched reply and records nothing (ticket #513)", async () => {
+    delete process.env.ZIFFR_INBOUND_AUTHSERV_ID;
+    const { m, body } = await promptAndReply(false);
+    expect(await (await post(body, sign(body))).json()).toEqual({ outcome: "held" });
+    expect(await valuesOf(m.id)).toEqual([]);
   });
 });
