@@ -156,3 +156,25 @@ export async function insertAssistantKey(workspaceId: string, createdBy: string,
 export async function markSentToWebhook(workspaceId: string, webhookId: string, actionId: number, metricId: number) {
   await must(db().from("webhook_sends").insert({ workspace_id: workspaceId, webhook_id: webhookId, type: "action.created", action_id: actionId, metric_id: metricId, period_start: "2026-10-01", source_type: "app", state: "delivered" }));
 }
+
+/** Inserts one row into a table, as a test sets up what the core has no operation for (another workspace's thing, an
+ * open request); returns the row as stored. */
+export async function insertRow(table: string, row: Record<string, unknown>): Promise<{ id: number; [column: string]: unknown }> {
+  const { data } = await must(db().from(table).insert(row).select("*").single());
+  return data as { id: number; [column: string]: unknown };
+}
+
+/** The rows of a table that match every column in `match`, for tests that check what an operation stored. */
+export async function rowsOf(table: string, match: Record<string, unknown>): Promise<Record<string, unknown>[]> {
+  let q = db().from(table).select("*");
+  for (const [column, value] of Object.entries(match)) q = q.eq(column, value as string);
+  const { data } = await must(q);
+  return (data ?? []) as Record<string, unknown>[];
+}
+
+/** Changes the rows of a table that match every column in `match`, to set a test up (a role changed, a thing handed on). */
+export async function changeRows(table: string, match: Record<string, unknown>, change: Record<string, unknown>): Promise<void> {
+  let q = db().from(table).update(change);
+  for (const [column, value] of Object.entries(match)) q = q.eq(column, value as string);
+  await must(q);
+}

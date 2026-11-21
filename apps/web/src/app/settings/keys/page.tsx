@@ -29,7 +29,7 @@ export default async function KeysPage() {
   return (
     <>
       <PageHeader title="Access Keys" />
-      <AccessKeys keys={keys} logs={logs} people={Object.fromEntries(people.map((p) => [p.id, p.name]))} viewer={actor.personId} isOwner={actor.role === "owner"} canCreate={actor.role !== "guest"} canReadUsage={actor.role === "owner" || actor.role === "admin"} />
+      <AccessKeys keys={keys} logs={logs} people={Object.fromEntries(people.map((p) => [p.id, p.name]))} viewer={actor.personId} isOwner={actor.role === "owner"} canCreate={actor.role !== "guest"} canReadUsage={actor.role === "owner" || actor.role === "admin"} role={actor.role} />
       {calendarLinks && <CalendarLinks links={calendarLinks} />}
     </>
   );

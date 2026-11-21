@@ -86,8 +86,9 @@ export const ROUTES: [pattern: string, module: RouteModule][] = [
 ];
 
 /** Route folders under /api/v1 that are deliberately not reachable from inside: Approvals (a person's check, never an
- * assistant's: ticket #427), View Links (they publish data outside the workspace: ticket #435), the Workspace's usage figures (ticket #370: a program's key only), a Feed's own endpoints, the public OpenAPI document and the catch-all. A test fails when a new route is in neither list. */
-export const NOT_IN_PROCESS = ["actions/[id]/approval", "dashboards/[id]/view-links", "view-links/[id]", "feed", "feed/observations", "installation/usage", "usage", "openapi.json", "[...rest]"];
+ * assistant's: ticket #427), View Links (they publish data outside the workspace: ticket #435), the Workspace's usage figures (ticket #370: a program's key only), a Feed's own endpoints, what changes who sees what (ticket #434: Shares, Groups' members, people, invitations and join requests; the POST of /groups and /people is refused there too), the public OpenAPI document and the catch-all. A test fails when a new route is in neither list. */
+export const NOT_IN_PROCESS = ["actions/[id]/approval", "dashboards/[id]/view-links", "view-links/[id]", "feed", "feed/observations", "installation/usage", "usage", "openapi.json", "[...rest]",
+  "shares", "shares/requests/[id]", "groups/[id]", "groups/[id]/members", "groups/[id]/members/[personId]", "invitations", "invitations/[id]", "invitations/[id]/resend", "invitations/links", "join-requests", "join-requests/[id]", "people/[id]"];
 
 /** The handler and path parameters for a path under /api/v1, or null. Segments are matched as given, never decoded
  * into a pattern, so a crafted path cannot reach another route. */

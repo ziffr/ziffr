@@ -380,10 +380,13 @@ In a **Trial Workspace**, at most two Access Keys work at a time, and none works
 | **Read usage figures** | Only for Owners and Admins. It may read counts of how the Workspace is used: views of dashboards, decks and Metrics per day, values by Source, and how many Metrics, dashboards and Submitters go unused. Never a name, an id or a value, and never who looked. Not offered to assistants. The [Usage Feed](#usage) can send them into the Workspace as Metrics. |
 | **Build workflows** | It may make, change and delete **your own Workflows** and their steps (reminders, escalation, the Unusual Value check, publishing, the asking schedule). Needs Read metrics too. |
 | **Name who approves and who is told** | On top of Build workflows: it may choose the Approvers of a Workflow and who a Tell step tells. Never ticked for you: tick it only for a program you trust with that. Not offered to assistants. |
+| **Share and answer access requests** | It may share what you own with people and Groups, take Shares away, and answer requests for access to your things. Not offered to Guests. |
+| **Manage groups** | It may create, rename and delete Groups and put people in and out of them. Only for Owners and Admins. |
+| **Invite and remove people** | It may invite people, make invite links, change roles, add and remove Contacts and members, and answer requests to join. Only for Owners and Admins. |
 | **Until** | The last day the key works, through the end of that day in UTC. At most a year ahead. |
 | **Create key** | Makes the key |
 
-The secret is shown once: copy it now, it is not shown again. Give it only to the program that needs it.
+The last three change who sees what, so only a key you make here can hold them: a connected assistant is never offered them. The secret is shown once: copy it now, it is not shown again. Give it only to the program that needs it.
 
 ### The list of keys
 

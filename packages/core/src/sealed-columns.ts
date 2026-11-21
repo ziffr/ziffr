@@ -6,6 +6,7 @@
 import { db } from "./db";
 import { mapSettingsWords, opening, sealing } from "./sealed-words";
 import { isSealed, workspaceCipher, type WorkspaceCipher } from "./workspace-keys";
+import { ServerFault } from "./server-fault";
 
 /** The columns sealed with the Workspace Key, by table (step 1: free text and personal data). The re-encryption job
  * and its done check read this list too. A Contact's name is sealed in their person row (`profiles`), which belongs to
@@ -72,7 +73,7 @@ type Row = Record<string, unknown>;
 export async function reserveIds(table: ReservedTable | "breakdown_rows", count: number): Promise<number[]> {
   const words = table === "widgets" || table === "dashboards" || table === "metrics" || table === "dashboard_snapshots" || table === "view_links";
   const { data, error } = await db().rpc(words ? "reserve_word_row_ids" : "reserve_row_ids", { p_table: table, p_count: count });
-  if (error || !Array.isArray(data) || data.length !== count) throw new Error("The row could not be prepared.");
+  if (error || !Array.isArray(data) || data.length !== count) throw new ServerFault("The row could not be prepared.");
   return (data as (number | string)[]).map(Number);
 }
 
@@ -99,13 +100,13 @@ export async function insertSealed(table: InsertedTable, workspaceId: string, ro
   const columns = select.split(",").map((c) => c.trim());
   const wanted = ["id", "workspace_id", ...columns.filter((c) => c !== "id" && c !== "workspace_id")].join(", ");
   const { data, error } = await db().from(table).insert(prepared).select(wanted);
-  if (error || !data) throw new Error("It could not be saved.");
+  if (error || !data) throw new ServerFault("It could not be saved.");
   // The database sets a row's Workspace from its parent (workspace_from_parent): one that differs from the Workspace
   // it was sealed for would never open, so the caller's mistake is refused here rather than stored.
   const rowsBack = data as unknown as Row[];
   if (rowsBack.some((r) => String(r.workspace_id).toLowerCase() !== workspaceId.toLowerCase())) {
     await db().from(table).delete().in("id", rowsBack.map((r) => r.id as number));
-    throw new Error("It could not be saved.");
+    throw new ServerFault("It could not be saved.");
   }
   const byId = new Map(rowsBack.map((r) => [Number(r.id), r]));
   return ids.map((id) => openRow(cipher, table, byId.get(id) ?? { id }));

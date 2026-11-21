@@ -59,5 +59,8 @@ A key sees exactly what the person who made it sees, no more. A Metric it may no
 | `viewLinks.list(dashboardId)`, `viewLinks.create(dashboardId, { expires, label, frozen, snapshot })`, `viewLinks.revoke(id)` | `GET`, `POST /api/v1/dashboards/{id}/view-links`, `DELETE /api/v1/view-links/{id}`: scope Manage View Links (`view-links:write`, a program's key only); `create` answers with the `token` and `url` once |
 | `workflows.get(id)`, `workflows.create(input)`, `workflows.update(id, patch)`, `workflows.remove(id)` | `GET`, `PATCH`, `DELETE /api/v1/workflows/{id}`, `POST /api/v1/workflows`: the key's creator's own Workflows and their steps; reading needs Read metrics, the rest Build workflows, and an Approve or Tell step also Name who approves and who is told (programs' keys only) |
 | `alerts.list({ metric })`, `alerts.create(input)`, `alerts.update(id, patch)`, `alerts.remove(id)` | `GET`, `POST /api/v1/alerts`, `PATCH`, `DELETE /api/v1/alerts/{id}`: the key's creator's own Alerts only; listing needs Read metrics, the rest Manage alerts |
+| `shares.who(target)`, `shares.set(target, to, role)`, `shares.decide(id, grant)` | `GET`, `POST /api/v1/shares`, `POST /api/v1/shares/requests/{id}`: scope `shares:write` |
+| `groups.create`, `rename`, `remove`, `addMember`, `removeMember` | `POST /api/v1/groups`, `PATCH`, `DELETE /api/v1/groups/{id}`, `/members`: scope `groups:write` |
+| `people.addContact`, `setRole`, `remove`; `invitations.list`, `invite`, `link`, `revoke`, `resend`; `joinRequests.list`, `decide` | `/api/v1/people`, `/invitations`, `/join-requests`: scope `people:write` |
 
 Fields, limits and errors of each are in the [API reference](https://github.com/ziffr/ziffr/blob/next/docs/reference/api.md).

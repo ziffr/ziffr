@@ -9,7 +9,7 @@
 // RFC 8252), a code works once for ten minutes, and a refresh token or code presented twice ends the connection.
 import { createHash, randomBytes, timingSafeEqual } from "node:crypto";
 import { db } from "./db";
-import { ASSISTANT_SCOPES, Forbidden, type Actor, type KeyActor, type Scope } from "./actor";
+import { ASSISTANT_SCOPES, Forbidden, KEY_ONLY_SCOPES, type Actor, type KeyActor, type Scope } from "./actor";
 import { actorOfKey, checkKeyRequest, hash, KEY_ROW, revokeAccessKey } from "./access-keys";
 import { DEMO_WORKSPACE_ID } from "./team";
 import { audit } from "./audit-log";
@@ -331,5 +331,7 @@ export async function actorForAssistantToken(token: string): Promise<KeyActor | 
   if (!row || new Date(row.expires_at).getTime() < Date.now()) return null;
   const key = await connectionKey(row.access_key_id);
   const actor = key ? await actorOfKey(key) : null;
-  return actor && !("feed" in actor) ? actor : null;
+  if (!actor || "feed" in actor) return null;
+  // Whatever the key row holds, an assistant never acts with the scopes only a program's key may hold (#427, #434).
+  return { ...actor, key: { ...actor.key, scopes: actor.key.scopes.filter((s) => !KEY_ONLY_SCOPES.includes(s as Scope)) } };
 }

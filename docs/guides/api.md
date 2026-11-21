@@ -167,3 +167,23 @@ curl -X POST https://your-ziffr.example/api/v1/actions/42/approval \
   -H "Authorization: Bearer $ZIFFR_ACCESS_KEY" -H "Content-Type: application/json" \
   -d '{ "decision": "send_back", "comment": "Please check March" }'
 ```
+
+## Sharing, Groups and people
+
+A program can share what its key's creator owns, manage Groups, and invite or remove people. These change who sees what, so they are kept apart from everything else:
+
+- Each area has a scope of its own, never ticked by default: `shares:write` ("Share and answer access requests"), `groups:write` ("Manage groups") and `people:write` ("Invite and remove people"). A key holds one only while its creator's role has the right: Members may hold `shares:write`; `groups:write` and `people:write` need an Owner or Admin. The role is checked again on every call, so a key of a demoted person stops working at once.
+- **Only a program's own Access Key.** An assistant connected through OAuth or the MCP Server never gets these scopes, is refused on these endpoints, and has no tools for them: text in a Thread must not be able to talk an assistant into widening who sees what.
+- The rules are the app's: only the owner of a Metric, dashboard or deck shares it, only with members of this workspace or its Groups, a deck only with Metrics its owner sees; Owners and Admins manage Groups and people, and only Owners make or remove Owners. Something the creator cannot see, or that belongs to another workspace, is answered `404`, the same as one that does not exist. Every change is in the Audit Log under the key's creator.
+
+| What | Call |
+| --- | --- |
+| Who can see it, and open requests for access | `GET /api/v1/shares?type=metric&id=<slug>` (`dashboard` and `deck` by number id) |
+| Share, change or take away a Share | `POST /api/v1/shares` with `type`, `id`, `person` or `group`, and `role` (`viewer`, `editor`, or `null` to take it away) |
+| Grant or decline a request for access | `POST /api/v1/shares/requests/{id}` with `grant` |
+| Groups | `POST /api/v1/groups`, `PATCH` and `DELETE /api/v1/groups/{id}`, `POST /api/v1/groups/{id}/members`, `DELETE /api/v1/groups/{id}/members/{personId}` |
+| Contacts, roles, removal | `POST /api/v1/people`, `PATCH /api/v1/people/{id}` (`role`), `DELETE /api/v1/people/{id}?successor=` (a member's things go to the successor) |
+| Invitations | `GET` and `POST /api/v1/invitations`, `POST /api/v1/invitations/links`, `DELETE /api/v1/invitations/{id}`, `POST /api/v1/invitations/{id}/resend` |
+| Requests to join | `GET /api/v1/join-requests`, `POST /api/v1/join-requests/{id}` with `approve` |
+
+An invite link (`POST /api/v1/invitations/links`) is shown once and lets anyone who has it join: keep it as you would a password. Lists never contain an invitation's secret.

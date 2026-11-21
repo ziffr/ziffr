@@ -1,6 +1,7 @@
 // The Audit Log (spec 0008, GLOSSARY: Audit Log): one add-only record of the governance events of a Workspace, written
 // by the core next to each action, read and exported by the workspace's Owners and Admins. It keeps who, what kind,
 // which object (with its name at the time) and when, plus small details; never values, message bodies or secrets.
+import { AsyncLocalStorage } from "node:async_hooks";
 import { db } from "./db";
 import { touchWorkspace } from "./unused-workspaces";
 import { insertSealed, openNames, openRows, sealDetails } from "./sealed-columns";
@@ -71,9 +72,15 @@ export async function recordAudit(workspaceId: string, by: string | null, event:
   }
 }
 
+const viaKey = new AsyncLocalStorage<number>();
+
+/** Runs work that a program does as its key's creator through the app's own functions: every event they record names
+ * the key (`accessKeyId`), so the Audit Log tells a person's change from their key's. */
+export const auditedAsKey = <T>(keyId: number, work: () => Promise<T>): Promise<T> => viaKey.run(keyId, work);
+
 /** recordAudit for an Actor in their workspace. */
 export async function audit(actor: Actor, event: AuditInput): Promise<void> {
-  await recordAudit(actor.workspaceId, actor.personId, event);
+  await recordAudit(actor.workspaceId, actor.personId, { ...event, accessKeyId: event.accessKeyId ?? viaKey.getStore() ?? null });
 }
 
 /** Records a sign-in in every workspace the person belongs to (not the demo), for their Owners and Admins. */
