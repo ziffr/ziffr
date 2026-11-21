@@ -46,6 +46,10 @@ node .github/scripts/guide-touched.mjs
 
 $quick && { echo; echo "Quick checks passed."; exit 0; }
 
+step "Upgrade test: the last release's database with the demo and a trial, then this branch's migrations"
+# Its own Supabase on other ports (564xx), so the local one keeps running.
+UPGRADE_PORT_PREFIX="${UPGRADE_PORT_PREFIX:-564}" scripts/upgrade-test.sh
+
 step "The core and the API against the local database"
 # The database's port, not `supabase status`, which also fails when optional services are stopped.
 nc -z 127.0.0.1 55422 2>/dev/null || { echo "Local Supabase is not running: start it with 'supabase start'."; exit 1; }

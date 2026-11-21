@@ -131,9 +131,9 @@ jobs:
 
   # Core operations against a real Postgres with the migrations applied (spec 0001, testing decisions), in the merge
   # queue and on main only: a pull request gets the quick checks, and its group is tested in full before it lands.
-  # Four jobs side by side, each with its own local Supabase: the core's database tests in three shards, and the app
-  # (its API over HTTP, its production build, and the SDK, MCP server and Feeds against it). The job named core-db,
-  # the required check, waits for all four and passes only if each did.
+  # Five jobs side by side, each with its own local Supabase: the core's database tests in three shards, the app
+  # (its API over HTTP, its production build, and the SDK, MCP server and Feeds against it), and the upgrade test.
+  # The job named core-db, the required check, waits for all five and passes only if each did.
   core-db-shard:
     runs-on: ubuntu-latest
     timeout-minutes: 20
@@ -214,11 +214,29 @@ jobs:
           pnpm --filter @ziffr/feed-sql test:app
           pnpm --filter @ziffr/feed-usage test:app
 
+  # The upgrade test (#602): the newest release's migrations and demo seed plus a trial Workspace, then this branch's
+  # migrations pushed the way the image does (scripts/upgrade-test.sh). A migration that touches demo rows without
+  # `ziffr.demo_seed` passes on an empty database and fails on every Installation (#601); here it fails. Its own
+  # Supabase, started by the script, on a release's schema, so the other jobs' stacks cannot be reused.
+  core-db-upgrade:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    name: core-db (upgrade from the last release)
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          fetch-depth: 0
+      - uses: supabase/setup-cli@1dedf2c611547ede7232d26866dd3c56ab903bbb # v1
+        with:
+          version: 2.116.0
+      - name: Upgrade the last release's database to this version
+        run: sudo sysctl -w net.ipv4.ip_local_port_range="60000 65535" >/dev/null; scripts/upgrade-test.sh
+
   # The required check: skipped on a pull request (which counts as passed), and in the merge queue and on main passed
   # only if every database job above passed. Its name stays core-db, so the ruleset and the release need no change.
   core-db:
     if: always()
-    needs: [core-db-shard, core-db-app]
+    needs: [core-db-shard, core-db-app, core-db-upgrade]
     runs-on: ubuntu-latest
     timeout-minutes: 2
     steps:

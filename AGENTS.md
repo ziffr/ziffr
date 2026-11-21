@@ -16,7 +16,7 @@ Ziffr is a metric tracker: anyone, one person, a team or a business, defines the
 2. **One core:** reading data that depends on who is asking, and every change to data, go through `packages/core` functions that take the acting person (an `Actor`) first and check the Workspace and permissions. UI, API and MCP never query the database directly; server actions only call the core. New operations get a test against the database (`*.db.test.ts`).
 3. **Visibility is the product:** whatever you return must be something the person may see (Shares, Groups, Tokens, Stand-ins, View Links). Anything sent to a browser, a Connector or a View Link carries only what is needed. Say so in a comment where it matters.
 4. **Data from browsers, Connectors and links is untrusted:** validate shapes, sizes and ids on the server; never build query filters from strings.
-5. **Migrations are add-only.** New file, never edit one that exists.
+5. **Migrations are add-only.** New file, never edit one that exists. A migration that touches demo rows sets `ziffr.demo_seed` on for its transaction, or the demo guard refuses it on every Installation that has the demo; the upgrade test (`scripts/upgrade-test.sh`, part of `pnpm ci:local` and core-db) catches it.
 6. **Never read or write `.env*`** (except `.env.example`), never commit secrets; push only when the person asks for it.
 7. **Documentation:** module header comment naming the glossary term; a one-line doc comment on every export; comments say why. Generated reference is never edited by hand. Details: `docs/guides/documentation.md`.
 8. **ADR** only for decisions that are hard to reverse, surprising and a real trade-off (`docs/adr/`).
