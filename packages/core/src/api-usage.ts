@@ -59,15 +59,11 @@ async function assertMay(actor: KeyActor): Promise<void> {
   if (!key || key.kind !== "program" || key.revoked_at) throw new Forbidden();
 }
 
-/** Refuses past the hour's calls, counted from the Access Log over every key of the Workspace that may read usage, so
- * making more keys raises nothing. */
+/** Takes one of the Workspace's calls this hour, atomically in the database, so calls at once cannot pass the limit. */
 async function assertWithinLimit(actor: KeyActor): Promise<void> {
-  const { data: keys } = await db().from("access_keys").select("id").eq("workspace_id", actor.workspaceId).contains("scopes", ["usage:read"]);
-  const ids = (keys ?? []).map((k) => Number(k.id));
-  if (!ids.length) return;
-  const since = new Date(Date.now() - 3_600_000).toISOString();
-  const { count } = await db().from("access_log").select("id", { count: "exact", head: true }).in("key_id", ids).eq("route", "/api/v1/usage").eq("status", 200).gt("at", since);
-  if ((count ?? 0) >= WORKSPACE_USAGE_CALLS_PER_HOUR) throw new UsageLimit();
+  const { data, error } = await db().rpc("claim_workspace_usage_call", { p_ws: actor.workspaceId, p_max: WORKSPACE_USAGE_CALLS_PER_HOUR });
+  if (error) throw new Error("The call could not be counted.");
+  if (data !== true) throw new UsageLimit();
 }
 
 /** The figures of the key's own Workspace (scope usage:read) for the days asked for (at most 400, not after yesterday;

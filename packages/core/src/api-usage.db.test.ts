@@ -133,13 +133,17 @@ describe("workspaceUsageFigures", () => {
     expect(got.state).toMatchObject({ workspace_metrics: 1 });
   });
 
-  it(`allows ${WORKSPACE_USAGE_CALLS_PER_HOUR} calls an hour across all the Workspace's keys, and then says so`, async () => {
+  it(`grants exactly ${WORKSPACE_USAGE_CALLS_PER_HOUR} calls an hour to calls made at once, across all the Workspace's keys`, async () => {
     const { w, sara, keyFor } = await setup();
-    const a = await keyFor(sara, "owner"); const b = await keyFor(sara, "owner");
-    const rows = Array.from({ length: WORKSPACE_USAGE_CALLS_PER_HOUR }, (_, i) => ({ key_id: Number(i % 2 ? a.key.id : b.key.id), method: "GET", route: "/api/v1/usage", status: 200 }));
-    await db().from("access_log").insert(rows);
-    await expect(workspaceUsageFigures(a)).rejects.toThrow(UsageLimit);
-    await expect(workspaceUsageFigures(b)).rejects.toThrow(UsageLimit);
+    const keys = [await keyFor(sara, "owner"), await keyFor(sara, "owner")];
+    const results = await Promise.allSettled(Array.from({ length: WORKSPACE_USAGE_CALLS_PER_HOUR + 5 }, (_, i) => workspaceUsageFigures(keys[i % 2], { from: dayAgo(1), to: dayAgo(1) })));
+    expect(results.filter((r) => r.status === "fulfilled")).toHaveLength(WORKSPACE_USAGE_CALLS_PER_HOUR);
+    const refused = results.filter((r) => r.status === "rejected") as PromiseRejectedResult[];
+    expect(refused).toHaveLength(5);
+    expect(refused.every((r) => r.reason instanceof UsageLimit)).toBe(true);
+    // Another Workspace is not held back by this one's calls.
+    const other = await setup();
+    await expect(workspaceUsageFigures(await other.keyFor(other.sara, "owner"))).resolves.toBeTruthy();
     expect(w.id).toBeTruthy();
   });
 

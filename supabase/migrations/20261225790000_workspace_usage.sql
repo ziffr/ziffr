@@ -22,3 +22,30 @@ language sql stable security definer set search_path = public, pg_temp as $$
 $$;
 revoke all on function workspace_usage_values(uuid, bigint[], date, date) from public, anon, authenticated;
 grant execute on function workspace_usage_values(uuid, bigint[], date, date) to service_role;
+
+-- Calls to a Workspace's usage figures, counted per hour (ticket #370): one row per Workspace and hour, holding a number
+-- and nothing else. It goes with its Workspace.
+create table workspace_usage_calls (
+  workspace_id uuid not null references workspaces(id) on delete cascade,
+  hour timestamptz not null,
+  n integer not null default 0,
+  primary key (workspace_id, hour)
+);
+alter table workspace_usage_calls enable row level security;
+revoke all on table workspace_usage_calls from public, anon, authenticated;
+select attach_demo_guard('workspace_usage_calls');
+
+-- Takes one call of the hour: true when fewer than p_max were taken, false otherwise. One statement, so calls at once
+-- cannot pass the limit together: the increment happens only while the count is below p_max.
+create or replace function claim_workspace_usage_call(p_ws uuid, p_max int) returns boolean
+language plpgsql security definer set search_path = public, pg_temp as $$
+declare got int;
+begin
+  delete from workspace_usage_calls where workspace_id = p_ws and hour < date_trunc('hour', now());
+  insert into workspace_usage_calls as c (workspace_id, hour, n) values (p_ws, date_trunc('hour', now()), 1)
+    on conflict (workspace_id, hour) do update set n = c.n + 1 where c.n < p_max;
+  get diagnostics got = row_count;
+  return got > 0;
+end $$;
+revoke all on function claim_workspace_usage_call(uuid, int) from public, anon, authenticated;
+grant execute on function claim_workspace_usage_call(uuid, int) to service_role;
