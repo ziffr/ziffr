@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 import { ArrowLeft, BookOpen, PenLine } from "lucide-react";
 import { metricCatalog } from "@ziffr/core/page-data";
 import { metricDraftFrom, type MetricDraft } from "@ziffr/core/metrics";
-import { Forbidden } from "@ziffr/core/actor";
+import { can, Forbidden } from "@ziffr/core/actor";
 import { getNumberStyle, getProfiles, getAttainmentMethod } from "@/lib/data";
 import { moneyUnit } from "@ziffr/core/units";
 import { AttainmentMethodField } from "../attainment-method-field";
@@ -54,6 +54,8 @@ const field = "h-9 w-full rounded-[var(--radius-input)] border border-input bg-c
 
 export default async function NewMetricPage({ searchParams }: { searchParams: Promise<{ catalog?: string; scratch?: string; copy?: string }> }) {
   const sp = await searchParams;
+  // The Metric Catalog and the form are for people who may create; the core refuses a Guest too.
+  if (!can(await currentActor(), "create")) notFound();
   const items = (await metricCatalog(await currentActor())) as unknown as CatalogMetric[];
   const picked = sp.catalog ? items.find((c) => c.id === Number(sp.catalog)) : undefined;
   // A duplicate starts from a Metric the person sees; the core refuses Guests and Metrics hidden from them.

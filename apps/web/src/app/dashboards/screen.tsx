@@ -170,9 +170,9 @@ function DashboardCanvas({ data, dashboards, current, widgets, saved, shares, re
         ) : !current ? (
           <div className="desk rounded-[var(--radius-card)] p-12 text-center">
             <LayoutDashboard className="mx-auto mb-3 size-8 text-muted-foreground" />
-            <p className="font-medium">No dashboards yet</p>
-            <p className="mt-1 text-sm text-muted-foreground">Create one, or ask a colleague to share theirs with you.</p>
-            <Button onClick={newDashboard} className="mt-4">Create dashboard</Button>
+            <p className="font-medium">{canCreate ? "No dashboards yet" : "Nothing has been shared with you yet"}</p>
+            <p className="mt-1 text-sm text-muted-foreground">{canCreate ? "Create one, or ask a colleague to share theirs with you." : "Ask whoever invited you."}</p>
+            {canCreate && <Button onClick={newDashboard} className="mt-4">Create dashboard</Button>}
           </div>
         ) : (
           <>

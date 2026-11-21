@@ -12,6 +12,7 @@ import { layoutChoice, sidebarCollapsed } from "@/lib/layout-choice";
 import { guideHref } from "@/lib/user-guide";
 import { ViewAs } from "@/components/view-as";
 import { demoRoles } from "@ziffr/core/team";
+import { can } from "@ziffr/core/actor";
 import { Tour } from "@/components/tour";
 import { pinnedDashboards } from "@ziffr/core/pinned-dashboards";
 import { whatThisZiffrOffers } from "@ziffr/core/what-works-here";
@@ -77,7 +78,8 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
     );
   }
   const [shown, viewer] = await Promise.all([getProfiles(), viewerId()]);
-  const [open, workspaceId, { role }] = await Promise.all([openActionCount(viewer), currentWorkspaceId(), currentActor()]);
+  const [open, workspaceId, actor] = await Promise.all([openActionCount(viewer), currentWorkspaceId(), currentActor()]);
+  const { role } = actor;
   // The demo's Viewing as picker offers all its made-up people, also while viewing as its Guest.
   const profiles = demo ? await getPeopleIn(workspaceId) : shown;
   // A Trial Workspace (spec 0021): its days left on every page, and once it has ended, only the screen that says so.
@@ -137,7 +139,7 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
             <main className="mx-auto max-w-7xl px-4 py-8 pb-32 sm:px-6">{trial?.ended ? <TrialEnded deletedAt={trial.deletedAt} /> : children}</main>
           </>
         )}
-        {demo && <Tour />}
+        {demo && <Tour key={can(actor, "create") ? "member" : "guest"} guest={!can(actor, "create")} />}
         <Toaster />
         <ServiceWorker />
       </body>

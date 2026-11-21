@@ -68,6 +68,8 @@ In the demo, the **Guided tour** sits at the bottom right. Choose it to open the
 6. **Make a deck** and export it.
 7. **Share** your dashboard and see what the other person gets.
 
+A Guest gets a shorter tour of three steps, since they create nothing: **Look at what is shared**, **Submit a value** and **Answer a question**.
+
 The circle in front of a step marks it done. The header shows how many are done and which comes next. The **−** button folds the tour down to a small round button that shows your progress; choose it to open the tour again. Your browser remembers where you are.
 
 ## The sidebar

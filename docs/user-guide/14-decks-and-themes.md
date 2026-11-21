@@ -4,7 +4,7 @@
 
 A **Deck** is a set of slides you build from your Widgets, text, arrows and shapes. You can present it in Ziffr, or export it as PowerPoint or PDF for a board meeting. A **Theme** decides how your dashboards and decks look: colours, fonts, cards and what every slide shows.
 
-Open **Decks** in the sidebar. Owners, Admins and Members can make decks. Guests only see decks that someone shared with them. The **Themes** page opens from the **Themes** link on the Decks page, or next to the theme picker on any deck or dashboard. Everyone can look at it, but only Owners and Admins change themes.
+Open **Decks** in the sidebar. Owners, Admins and Members can make decks. Guests only see decks that someone shared with them: they get no **New deck** and no **Themes** link, and an empty list says "Nothing has been shared with you yet. Ask whoever invited you." The **Themes** page opens from the **Themes** link on the Decks page, or next to the theme picker on any deck or dashboard. Everyone can look at it, but only Owners and Admins change themes.
 
 ## The Decks page
 
