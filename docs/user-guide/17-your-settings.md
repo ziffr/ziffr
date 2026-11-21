@@ -136,6 +136,15 @@ Each line links to where you do it:
 
 A value due leaves the list as soon as the value is in. While a colleague is Away on a Due Date, their value is in their Stand-in's schedule, marked "standing in for …", and not in theirs. Only values of Metrics you may see are listed; an Approval, Task or Question you are assigned is listed even on a Metric you do not see, as on the Actions page. Values a Feed sends are never anyone's to do.
 
+### List, Week and Month
+
+Above the schedule a switch chooses how it is shown: **List** (the lines above), **Week** or **Month**. Ziffr remembers your choice in this browser. The week and the month show the same duties on their days, nothing more; use the arrows to move to other weeks and months, up to about three months ahead, and **Today** to come back.
+
+- **Week** has a column for each day, Monday to Sunday, with today marked. Each duty is a small card in its kind's colour, with its words as in the list; click it to open what the list line opens. On a phone the week becomes an agenda, one day under the other.
+- **Month** shows up to three cards per day, and **+ 2 more** opens that day's whole list below the grid. On a phone each day shows dots for its duties instead; touch a day to read its duties below the grid.
+- Something **Overdue** sits on today, marked as late, with the day it was originally due. Tasks without a due date and Questions stay under **No date**, in every view.
+- With the keyboard, the arrow keys move between days, Enter opens a day, and a screen reader reads each day with its duties as a list.
+
 Your assistant can read the same list: ask it "What do I have to do in Ziffr this week?" (see [Working with an assistant](#working-with-an-assistant)).
 
 Owners and Admins can read a teammate's Schedule through the API or an assistant, for example to cover for them. It lists only Metrics they may see themselves. A Task or Question whose Thread is kept to a Group they are not in is still listed, with its date and link, but without its words. Each such read is in the Audit Log, naming whose Schedule it was and for which days; reading your own is not.
