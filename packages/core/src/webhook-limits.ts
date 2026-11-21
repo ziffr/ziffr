@@ -36,3 +36,15 @@ export const WEBHOOK_SEND_CONCURRENCY = 3;
 
 /** How long the sends made just before a Metric or a Workspace is deleted may take in all, so a stalling address cannot hold the delete back. */
 export const WEBHOOK_SEND_NOW_BUDGET_MS = 15_000;
+/** Failed requests per minute to one Webhook's inbound address from one network address (an IPv6 /56) before more are refused (429) without opening the secret. */
+export const WEBHOOK_INBOUND_FAILURES_PER_ADDRESS = 20;
+/** Failed requests per minute to one Webhook's inbound address from anywhere before only known senders are let through. */
+export const WEBHOOK_INBOUND_FAILURES_PER_ID = 600;
+/** Network addresses remembered per Webhook as having sent a valid signed request in the last day; they are never refused by the gate. */
+export const WEBHOOK_INBOUND_KNOWN_SENDERS = 16;
+/** Failed requests per minute from one network address (an IPv6 /56) to all Webhook ids together before more are refused (429), so made-up ids cannot be tried freely. */
+export const WEBHOOK_INBOUND_FAILURES_PER_ADDRESS_ANY_ID = 100;
+/** Addresses with no failures of their own that are still let through per minute to a Webhook that is past its failure ceiling, so a real new sender (a moved recipe, a rotated secret) can get in during a flood. */
+export const WEBHOOK_INBOUND_NEW_SENDERS_PER_MINUTE = 60;
+/** Failed requests per minute to one Webhook from one network address (an IPv6 /56) that a success never resets: a hard cap, known senders included. */
+export const WEBHOOK_INBOUND_RAW_FAILURES_PER_ADDRESS = 200;

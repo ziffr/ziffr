@@ -206,7 +206,7 @@ Every call that is understood answers `200` with the result, so any call may be 
 | `404` | Unknown, unsigned, old, replayed or switched off; or the Action was never sent to this Webhook and never linked by it. |
 | `409` | Ziffr's rules do not allow it: a Question marked done, a Task Ziffr closed reopened, an Approval or Self-check, an external task already linked to another Action, too many links. |
 | `413` | Over 16 KB. |
-| `429` | More than 60 requests in a minute. Wait for `Retry-After`. |
+| `429` | More than 60 signed requests in a minute, or too many failed requests from your address (see Limits). Wait for `Retry-After`. |
 
 ## Limits
 
@@ -218,8 +218,11 @@ Every call that is understood answers `200` with the result, so any call may be 
 | Log | 14 days |
 | Answer within | 10 seconds |
 | Requests back | 60 a minute per Webhook, 16 KB each |
+| Failed requests, before the secret is opened | 20 a minute per Webhook and network address (an IPv6 sender counts by its /56) or 100 a minute to all Webhooks together, then 429; past 600 a minute for the Webhook as a whole only known senders pass, plus up to 60 new addresses a minute that have not failed (an address whose valid signed request was taken in the last day, 16 per Webhook, remembered by the Ziffr process that saw it). A known sender whose address keeps failing against that Webhook (counted since its last success) is refused too, and an address with 200 failures a minute to one Webhook is refused whatever its successes, but failures by others behind the same address against other Webhooks do not revoke it. A sender that is neither known nor lucky in the new-address budget waits until a flood eases. Signed requests are never counted by it, and made-up Webhook ids count only against their sender's address. A gate in memory, per Ziffr process |
 | Links per Action | 10 |
 | Secret overlap after a replacement | 24 hours |
+
+Self-hosting: the gate counts per network address only when `ZIFFR_PROXY_HOPS` is set. Without it no sender can be known or admitted as new, so a flood of failed requests past 600 a minute locks out the real sender until it stops.
 
 Webhooks are available on Free and every paid Size. The demo and a trial have none, since they would send a Workspace's data to an address outside Ziffr.
 

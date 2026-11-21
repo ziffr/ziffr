@@ -52,11 +52,13 @@ export type InboundRequest = { timestamp: string | null; signature: string | nul
 /** Judges one request to a Webhook's address and, when it is signed, fresh, not a replay and within the rate, names who
  * is calling. Everything else answers `not_found`, so the route says 404 alike for an unknown id, an off Webhook, a
  * missing or wrong signature, an old timestamp and a replay; `limit` only for a caller that proved the secret. */
-export async function authenticateWebhookRequest(webhookId: string, req: InboundRequest): Promise<{ ok: true; actor: WebhookActor } | { ok: false; why: "not_found" | "limit" }> {
+export async function authenticateWebhookRequest(webhookId: string, req: InboundRequest): Promise<{ ok: true; actor: WebhookActor } | { ok: false; why: "not_found" | "no_such" | "limit" }> {
   const no = { ok: false, why: "not_found" } as const;
-  if (!UUID.test(webhookId)) return no;
+  // `no_such`: no Webhook that is on has this id. The route answers it 404 like the rest; it only keeps the gate from counting made-up ids against a real Webhook.
+  const noSuch = { ok: false, why: "no_such" } as const;
+  if (!UUID.test(webhookId)) return noSuch;
   const { data } = await db().from("webhooks").select("id, workspace_id, name, url, secret, secret_previous, secret_previous_until, disabled_at").eq("id", webhookId.toLowerCase()).maybeSingle();
-  if (!data || data.disabled_at) return no;
+  if (!data || data.disabled_at) return noSuch;
   const ws = data.workspace_id as string;
   const [hook] = await openRows("webhooks", ws, [data as Record<string, unknown>]);
   const secrets: string[] = [];

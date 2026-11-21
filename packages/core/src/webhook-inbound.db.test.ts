@@ -101,8 +101,9 @@ describe("a request judged from outside", () => {
     const id = await c.task(); await c.sent(id, c.todo);
     const p = { op: "done", ref: `ZIF-${id}` };
     const no = { ok: false, why: "not_found" };
-    expect(await authenticateWebhookRequest("00000000-0000-4000-8000-000000000000", signed(c.todo.secret, p))).toEqual(no);
-    expect(await authenticateWebhookRequest("not-an-id", signed(c.todo.secret, p))).toEqual(no);
+    const noSuch = { ok: false, why: "no_such" };
+    expect(await authenticateWebhookRequest("00000000-0000-4000-8000-000000000000", signed(c.todo.secret, p))).toEqual(noSuch);
+    expect(await authenticateWebhookRequest("not-an-id", signed(c.todo.secret, p))).toEqual(noSuch);
     expect(await authenticateWebhookRequest(c.todo.id, { ...signed(c.todo.secret, p), signature: null })).toEqual(no);
     expect(await authenticateWebhookRequest(c.todo.id, { ...signed(c.todo.secret, p), timestamp: null })).toEqual(no);
     expect(await authenticateWebhookRequest(c.todo.id, signed(`whsec_${"x".repeat(43)}`, p))).toEqual(no);
@@ -112,7 +113,7 @@ describe("a request judged from outside", () => {
     expect(await authenticateWebhookRequest(c.todo.id, { ...signed(c.todo.secret, p), body: JSON.stringify({ ...p, ref: "ZIF-999999999" }) })).toEqual(no);
     expect(await authenticateWebhookRequest(c.todo.id.toUpperCase(), signed(c.todo.secret, p))).toMatchObject({ ok: true });
     await setWebhookEnabled(c.a, c.todo.id, false);
-    expect(await authenticateWebhookRequest(c.todo.id, signed(c.todo.secret, p))).toEqual(no);
+    expect(await authenticateWebhookRequest(c.todo.id, signed(c.todo.secret, p))).toEqual(noSuch);
     expect(await c.status(id)).toBe("open");
   });
 
