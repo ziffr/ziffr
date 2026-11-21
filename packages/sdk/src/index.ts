@@ -163,8 +163,8 @@ export type FeedMetric = {
 /** The Feed a Feed Key acts for, the month the workspace's year starts in, and its Metrics. */
 export type FeedOverview = { name: string; year_start_month: number; metrics: Page<FeedMetric> };
 
-/** What GET /workspace answers: the month the workspace's fiscal year starts in, 1 (January) to 12. */
-export type Workspace = { year_start_month: number };
+/** What GET /workspace answers: the month the workspace's fiscal year starts in, 1 (January) to 12, and how it writes numbers. */
+export type Workspace = { year_start_month: number; number_style: "1,234.5" | "1.234,5" | "1 234,5" | "1'234.5" };
 
 /** One thing `find` found: a Metric, or its value for one period (`period` is the period's first day, null for the Metric alone). */
 export type Found = { slug: string; name: string; archived: boolean; period: string | null; period_label: string | null };

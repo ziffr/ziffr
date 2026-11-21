@@ -1,0 +1,46 @@
+{
+  "name": "@ziffr/figures",
+  "version": "0.0.0-dev",
+  "description": "How Ziffr writes a number and a period: Number Styles, units, the minus, percentages and fiscal period labels, with no dependencies.",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ziffr/ziffr.git",
+    "directory": "packages/figures"
+  },
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "publishConfig": {
+    "access": "public",
+    "exports": {
+      ".": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      }
+    }
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint",
+    "test": "vitest run"
+  },
+  "devDependencies": {
+    "@types/node": "^20",
+    "eslint": "^9.39.5",
+    "eslint-plugin-jsdoc": "^65.4.5",
+    "typescript": "^5",
+    "typescript-eslint": "^8.72.2",
+    "vitest": "^4.1.12"
+  }
+}

@@ -6,7 +6,7 @@ import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
 import { Ziffr } from "@ziffr/sdk";
 import { createServer } from "../src/server.js";
 import { VIEW_APPS, viewAppHtml } from "../src/views-app.js";
-import { formatValue, periodName, shapeDashboard, shapeMetric, shapePeriodStatus } from "../src/view-shape.js";
+import { shapeDashboard, shapeMetric, shapePeriodStatus } from "../src/view-shape.js";
 
 const cleanups: (() => Promise<void>)[] = [];
 afterEach(async () => { for (const c of cleanups.splice(0)) await c(); });
@@ -17,11 +17,11 @@ const value = (period: string, v: number, state = "recorded") => ({ period, valu
 describe("shapeMetric", () => {
   it("gives the latest value, the change, the Target Range, the points and the last periods, newest first", () => {
     const s = shapeMetric({ metric: METRIC, values: [value("2026-11-02", 80), value("2026-11-09", 100), value("2026-11-16", 1250, "locked")] })!;
-    expect(s.latest).toEqual({ period: "Wk of 16 Nov", text: "1,250", state: "locked" });
-    expect(s.change).toEqual({ text: "+1150.0 %", better: true });
+    expect(s.latest).toEqual({ period: "Week of 16 Nov 2026", text: "1,250", state: "locked" });
+    expect(s.change).toEqual({ text: "+1,150.0 %", better: true });
     expect(s.target).toEqual({ text: "at least 100", status: "within" });
     expect(s.points).toEqual([80, 100, 1250]);
-    expect(s.rows.map((r) => r.period)).toEqual(["Wk of 16 Nov", "Wk of 9 Nov", "Wk of 2 Nov"]);
+    expect(s.rows.map((r) => r.period)).toEqual(["Week of 16 Nov 2026", "Week of 9 Nov 2026", "Week of 2 Nov 2026"]);
   });
   it("says below, above and lower-is-better, shows a Condensed Value as its span, and cuts long words", () => {
     const lower = { ...METRIC, polarity: "lower", target_min: 10, target_max: 20, description: "x".repeat(900), name: "n".repeat(900) };
@@ -53,30 +53,31 @@ describe("order", () => {
   });
 });
 
-describe("formatValue", () => {
-  it("writes one style whatever the viewer's locale: unit on its side, the minus sign, and nothing for what is not a number", () => {
-    expect(formatValue(11200, { decimals: 0, unit: "$", unit_position: "before", format: "currency" })).toBe("$11,200");
-    expect(formatValue(12.5, { decimals: 1, unit: "%", unit_position: "after", format: "percent" })).toBe("12.5\u00a0%");
-    expect(formatValue(-1200, { decimals: 0, unit: "EUR", unit_position: "after" })).toBe("\u22121,200\u00a0EUR");
-    expect(formatValue(-0.2, { decimals: 0, unit: "" })).toBe("0");
-    expect(formatValue(1, { decimals: 99, unit: "" })).toBe("1.000000");
-    expect(formatValue(1, {})).toBe("1");
-    expect(formatValue(Number.NaN, {})).toBe("");
+describe("numbers and periods in the card", () => {
+  const card = (m: object, values: object[], more: object = {}) => shapeMetric({ metric: { ...METRIC, ...m }, values, ...more })!;
+  it("writes values in the Workspace's Number Style with the unit on its side and the minus sign", () => {
+    expect(card({ unit: "$", unit_position: "before" }, [value("2026-11-16", 11200)]).latest?.text).toBe("$11,200");
+    expect(card({ unit: "\u20ac" }, [value("2026-11-16", -1200)], { number_style: "1.234,5" }).latest?.text).toBe("\u22121.200 \u20ac");
+    expect(card({ decimals: 1 }, [value("2026-11-16", 1234.5)], { number_style: "1 234,5" }).latest?.text).toBe("1\u00a0234,5");
+    expect(card({ decimals: 99 }, [value("2026-11-16", 1)]).latest?.text).toBe("1.000000");
+    expect(card({ decimals: undefined, unit: undefined }, [value("2026-11-16", -0.2)]).latest?.text).toBe("0");
+    expect(card({}, [value("a", 1), value("b", 1250)], { number_style: "1'234.5" }).change?.text).toBe("+124'900.0 %");
   });
-});
-
-describe("periodName", () => {
-  it("names a period from its first day by the Metric's period, in words that hold for any fiscal year", () => {
-    expect(periodName("2026-10-01", "month")).toBe("Oct 26");
-    expect(periodName("2026-11-16", "week")).toBe("Wk of 16 Nov");
-    expect(periodName("2026-11-16", "day")).toBe("16 Nov");
-    expect(periodName("2026-07-01", "quarter")).toBe("Jul\u2013Sep 26");
-    expect(periodName("2026-11-01", "quarter")).toBe("Nov\u2013Jan 27");
-    expect(periodName("2026-01-01", "year")).toBe("2026");
-    expect(periodName("2026-04-01", "year")).toBe("Apr 26\u2013Mar 27");
-    expect(periodName("2025-01-06", "week", "2025-02-02")).toBe("Jan 25\u2013Feb 25");
-    expect(periodName("2025-01-06", "week", "later")).toBe("Jan 25");
-    expect(periodName("nonsense", "month")).toBe("nonsense");
+  it("names periods as the app does, by the Fiscal Year start the answer carries", () => {
+    const at = (period: string, day: string, more: object = {}) => card({ period }, [value(day, 1)], more).latest?.period;
+    expect(at("month", "2026-10-01")).toBe("Oct 26");
+    expect(at("week", "2026-11-16")).toBe("Week of 16 Nov 2026");
+    expect(at("day", "2026-11-16")).toBe("16 Nov");
+    expect(at("quarter", "2026-07-01")).toBe("Q3 26");
+    expect(at("quarter", "2026-04-01", { year_start_month: 4 })).toBe("Q1 26/27");
+    expect(at("year", "2026-04-01", { year_start_month: 4 })).toBe("FY26/27");
+    expect(at("year", "2026-01-01")).toBe("2026");
+    expect(at("month", "nonsense")).toBe("nonsense");
+  });
+  it("names a Condensed Value by its whole span", () => {
+    const span = (end: string) => card({ period: "week" }, [{ ...value("2025-01-06", 1), condensed_from: 4, period_end: end }]).latest?.period;
+    expect(span("2025-02-02")).toBe("Jan 25\u2013Feb 25");
+    expect(span("later")).toBe("Jan 25");
   });
 });
 

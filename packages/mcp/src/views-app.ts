@@ -5,7 +5,8 @@
 // nothing from outside (its policy says so, and the host enforces it), draws every word with textContent, never as
 // markup, and holds nothing to act with; the one link, "Open in Ziffr", only opens the dashboard's own address (https, or
 // http on this computer) in the person's browser. Colours follow the host's theme variables, with light and dark fallbacks.
-import { formatValue, periodName, shapeDashboard, shapeMetric, shapePeriodStatus } from "./view-shape.js";
+import { writeNumber, writePeriod } from "@ziffr/figures";
+import { shapeDashboard, shapeMetric, shapePeriodStatus } from "./view-shape.js";
 import { SHARE_PROPOSAL_APP_META } from "./share-proposal-app.js";
 
 /** Nothing may be fetched, framed or connected to: the same policy as the Share Proposal preview. */
@@ -89,8 +90,8 @@ button { font: inherit; margin-top: 4px; padding: 7px 12px; border-radius: 6px; 
 <p id="waiting" class="note">Waiting for the answer…</p>
 <div id="view" hidden></div>
 <script>
-${formatValue.toString()}
-${periodName.toString()}
+${writeNumber.toString()}
+${writePeriod.toString()}
 ${shapeMetric.toString()}
 ${shapeDashboard.toString()}
 ${shapePeriodStatus.toString()}

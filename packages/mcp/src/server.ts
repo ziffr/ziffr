@@ -502,8 +502,9 @@ export function createServer(ziffr: Ziffr): McpServer {
     annotations: { readOnlyHint: true, openWorldHint: false },
     _meta: viewMeta("metric"),
   }, ({ slug, from, to }) => guarded(async () => {
-    const [metric, values] = await Promise.all([ziffr.metrics.get(slug), collect(ziffr.observations.all(slug, { from, to }), MAX_VALUES)]);
-    return answer({ metric, values });
+    // The Workspace's Number Style and Fiscal Year start ride along, so the inline view writes values and periods as the app does.
+    const [metric, values, { number_style, year_start_month }] = await Promise.all([ziffr.metrics.get(slug), collect(ziffr.observations.all(slug, { from, to }), MAX_VALUES), ziffr.workspace()]);
+    return answer({ metric, values, number_style, year_start_month });
   }));
 
   server.registerTool("get_thread", {

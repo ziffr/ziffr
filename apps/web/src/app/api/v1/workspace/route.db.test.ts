@@ -16,11 +16,11 @@ describe("GET /api/v1/workspace", () => {
     const w = await workspace(); cleanups.push(w.cleanup);
     const sara = await w.person("owner"); const ben = await w.person("member");
     const { secret } = await createAccessKey(w.actor(ben, "member"), { name: "Read", scopes: ["metrics:read"], expiresOn: inDays(30) });
-    expect(await (await get(secret)).json()).toEqual({ year_start_month: 1 });
+    expect(await (await get(secret)).json()).toEqual({ year_start_month: 1, number_style: "1,234.5" });
     await setYearStart(w.actor(sara), 4);
     const res = await get(secret);
     expect(res.status).toBe(200);
-    expect(await res.json()).toEqual({ year_start_month: 4 });
+    expect(await res.json()).toEqual({ year_start_month: 4, number_style: "1,234.5" });
     const { secret: submitOnly } = await createAccessKey(w.actor(ben, "member"), { name: "Submit", scopes: ["values:submit"], expiresOn: inDays(30) });
     expect((await get(submitOnly)).status).toBe(403);
   });

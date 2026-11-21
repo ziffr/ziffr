@@ -193,7 +193,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: gh workflow run docs.yml -R "$GITHUB_REPOSITORY" --ref main -f tag="$TAG"
 
-  # The MIT packages others build on (@ziffr/sdk, @ziffr/feed-kit, @ziffr/mcp, @ziffr/feed-sql) carry the product's
+  # The MIT packages others build on (@ziffr/sdk, @ziffr/figures, @ziffr/feed-kit, @ziffr/mcp, @ziffr/feed-sql) carry the product's
   # version from 0.12.0 on, written into them here and never committed (their package.json says 0.0.0-dev). main's CI
   # tested each against the running app on this commit. Packed in a job of its own, with no OIDC token and no
   # environment while dependencies install and build.
@@ -219,8 +219,8 @@ jobs:
           VERSION: ${{ needs.tag.outputs.version }}
         # Every package gets the version first, so pnpm pack writes it where a package says workspace:* of another.
         run: |
-          for p in sdk feed-kit mcp feed-sql; do (cd "packages/$p" && npm pkg set "version=$VERSION"); done
-          for p in sdk feed-kit mcp feed-sql; do
+          for p in sdk figures feed-kit mcp feed-sql; do (cd "packages/$p" && npm pkg set "version=$VERSION"); done
+          for p in sdk figures feed-kit mcp feed-sql; do
             pnpm --filter "@ziffr/$p" build
             (cd "packages/$p" && pnpm pack --pack-destination "$RUNNER_TEMP/pack/$p")
           done
@@ -265,7 +265,7 @@ jobs:
         # no token to store or leak. No registry-url above, as setup-node would write an .npmrc that asks for a token.
         # A version npm has already (a job run again) is left as it is: npm never takes the same version twice.
         run: |
-          for p in sdk feed-kit mcp feed-sql; do
+          for p in sdk figures feed-kit mcp feed-sql; do
             if npm view "@ziffr/$p@$VERSION" version > /dev/null 2>&1; then echo "@ziffr/$p@$VERSION is published already."; continue; fi
             npx -y npm@11.6.2 publish "$RUNNER_TEMP/pack/$p"/*.tgz --provenance --access public
           done

@@ -6,11 +6,9 @@
 // writer prints is the writer's choice. `workspaces.number_style` is null until an Owner or Admin picks one, and the
 // style then follows the Workspace Profile's country, so a Workspace whose country is set later still gets it.
 
-/** The four Number Styles, each named by 1234.5 written in it; the first is the default. */
-export const NUMBER_STYLES = ["1,234.5", "1.234,5", "1 234,5", "1'234.5"] as const;
+import { NUMBER_STYLES, type NumberStyle } from "@ziffr/figures";
 
-/** One Number Style, such as "1.234,5". */
-export type NumberStyle = (typeof NUMBER_STYLES)[number];
+export { NUMBER_STYLES, type NumberStyle };
 
 /** The style of a Workspace with neither a chosen style nor a country with a style of its own. */
 export const DEFAULT_NUMBER_STYLE: NumberStyle = "1,234.5";
