@@ -5,7 +5,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState, useTransition } from "react";
-import { Activity, BarChart3, Blocks, ChevronsUpDown, CircleHelp, Database, FlaskConical, Hash, Inbox, KeyRound, LayoutDashboard, LogOut, MoreHorizontal, Package, Plug, Plus, Presentation, Rss, ScrollText, Search, Settings2, ShieldCheck, Users, Webhook, Workflow } from "lucide-react";
+import { Activity, BarChart3, Blocks, ChevronRight, ChevronsUpDown, CircleHelp, Database, FlaskConical, Hash, Inbox, KeyRound, LayoutDashboard, LogOut, MoreHorizontal, Package, Plug, Plus, Presentation, Rss, ScrollText, Search, Settings2, ShieldCheck, Users, Webhook, Workflow } from "lucide-react";
 import { GuideLink, INSTALLATION, MAIN, PhoneMenu, WorkspaceChoices, YOU, type Account, type NavItem } from "@/components/top-bar";
 import { OPEN_SEARCH, SearchDialog } from "@/components/search-dialog";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuGroup, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
@@ -61,9 +61,7 @@ export function AppShell({ workspace, open, account, guide, demo, banners, colla
                 <SidebarItem render={<Link href="/actions" />} icon={<Inbox aria-hidden />} label="Actions" active={path.startsWith("/actions")} badge={open > 0 ? open : undefined} tooltip={open ? `Actions, ${open} waiting for you` : "Actions"} aria-label={open ? `Actions, ${open} waiting for you` : "Actions"} />
                 {MAIN.map((l) => <SidebarItem key={l.href} render={<Link href={l.href} />} icon={ICONS[l.href]} label={l.label} active={isOn(path, l.href)} />)}
               </SidebarGroup>
-              <SidebarGroup label="Workspace">
-                {workspace.map((l) => <SidebarItem key={l.href} render={<Link href={l.href} />} icon={ICONS[l.href] ?? <Blocks aria-hidden />} label={l.label} active={isOn(path, l.href)} />)}
-              </SidebarGroup>
+              <WorkspaceGroup workspace={workspace} path={path} />
             </nav>
           </SidebarContent>
           <SidebarFooter>
@@ -83,6 +81,29 @@ export function AppShell({ workspace, open, account, guide, demo, banners, colla
         <TabBar open={open} workspace={workspace} account={account} guide={guide} />
       </SidebarProvider>
     </TooltipProvider>
+  );
+}
+
+/** The Workspace's own pages: one row that opens the list, closed unless the current page is in it (up to a dozen
+ * rows would read like an admin panel). With the sidebar shrunk to icons it is one icon to the first page. */
+function WorkspaceGroup({ workspace, path }: { workspace: NavItem[]; path: string }) {
+  const { collapsed } = useSidebar();
+  const inside = workspace.some((l) => isOn(path, l.href));
+  const [chosen, setChosen] = useState<boolean | null>(null);
+  const open = chosen ?? inside;
+  if (!workspace.length) return null;
+  if (collapsed) return <SidebarGroup><SidebarItem render={<Link href={workspace[0].href} />} icon={<Settings2 aria-hidden />} label="Workspace" active={inside} /></SidebarGroup>;
+  return (
+    <SidebarGroup>
+      <SidebarItem icon={<Settings2 aria-hidden />} label="Workspace" aria-expanded={open} aria-controls="workspace-pages" onClick={() => setChosen(!open)} active={inside && !open}>
+        <ChevronRight aria-hidden className={cn("ml-auto !size-3.5 transition-transform motion-reduce:transition-none", open && "rotate-90", collapsed && "hidden")} />
+      </SidebarItem>
+      {open && (
+        <div id="workspace-pages" className="ml-3.5 flex flex-col gap-0.5 border-l border-sidebar-border pl-1.5">
+          {workspace.map((l) => <SidebarItem key={l.href} render={<Link href={l.href} />} icon={ICONS[l.href] ?? <Blocks aria-hidden />} label={l.label} active={isOn(path, l.href)} />)}
+        </div>
+      )}
+    </SidebarGroup>
   );
 }
 

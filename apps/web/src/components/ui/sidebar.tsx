@@ -120,7 +120,7 @@ export function SidebarTrigger({ className }: { className?: string }) {
 export function SidebarInset({ className, ...props }: React.ComponentProps<"div">) {
   return (
     <div data-slot="sidebar-inset" className="flex min-w-0 flex-1 flex-col md:py-2 md:pr-2">
-      <div className={cn("flex min-w-0 flex-1 flex-col bg-background md:rounded-xl md:shadow-sm md:ring-1 md:ring-border", className)} {...props} />
+      <div className={cn("flex min-w-0 flex-1 flex-col bg-background md:rounded-xl md:border md:border-[var(--color-rule-2)] md:shadow-[0_1px_2px_oklch(20%_0.01_35/0.06),0_4px_14px_-6px_oklch(20%_0.01_35/0.14)]", className)} {...props} />
     </div>
   )
 }

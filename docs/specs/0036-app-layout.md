@@ -20,7 +20,7 @@ Decisions (agreed with the owner):
 
 - shadcn `sidebar-07` (collapses to icons) in the **inset** style: the page is a card on a tinted ground. Written for Base UI like our other components (`components/ui/sidebar.tsx`); no Radix is added.
 - Top of the sidebar: the **Workspace switcher** (today's Workspace list, **The demo** below a line, **New workspace**), then a visible **Search ⌘K** field. Bottom: **User guide** and the **user menu** (Your settings, Installation settings for Installation Admins, Sign out).
-- Middle: **Actions** with its count first, then **Dashboards, Decks, Metrics, Analyze**, then **Workspace** with the pages `workspaceLinks(role)` gives this role.
+- Middle: **Actions** with its count first, then **Dashboards, Decks, Metrics, Analyze**, then one **Workspace** row that opens the pages `workspaceLinks(role)` gives this role. It is closed unless the current page is one of them (up to 13 rows at once read like an admin panel); with the sidebar shrunk to icons it is a single icon to the first page.
 - ⌘K (#412) stays the main way to find anything. Ctrl+B collapses the sidebar.
 - **Slide-overs** (a Sheet from the right) for details instead of page changes. The preview does two: **Details** on a Metrics list row (latest value, target, recent values, then **Open the Metric**), and **Alert me…** on a Metric's page.
 - A quiet, dense look: 13px rows, tabular figures, colour only for status (the existing target chips), all from today's tokens, so Themes keep working.
@@ -32,7 +32,7 @@ Decisions (agreed with the owner):
 | --- | --- |
 | Wordmark | Workspace switcher tile at the top; the wordmark on phones |
 | Dashboards, Decks, Metrics, Analyze | Sidebar, under Actions |
-| Workspace menu (dropdown) | **Workspace** group in the sidebar, always visible |
+| Workspace menu (dropdown) | **Workspace** row in the sidebar that expands its pages |
 | Search button | **Search ⌘K** field at the top of the sidebar; Search tab on phones |
 | Actions icon with count | **Actions** row with count, first in the list; Actions tab on phones |
 | User guide icon | **User guide** row at the bottom |
@@ -69,6 +69,8 @@ The frame uses only the app's tokens (`--sidebar*`, `--background`, `--border`, 
 2. **Default:** once the owner agrees, the sidebar becomes the default and the switch offers **Use the classic top bar**. Every screen is checked in both frames; screens that assume the top bar's width are fixed.
 3. **Remove** the top bar and the switch one release later.
 
+The Workspace settings pages keep their own side list inside the page (`settings-nav`); next to the sidebar's Workspace group it says the same thing twice. In the default step it goes, and the page header carries the tabs it needs.
+
 ## Not in this spec
 
 More slide-overs (Share, Version history, Add to deck) and moving each into a Sheet; a customisable sidebar (pinned dashboards in it); dark mode.
@@ -76,7 +78,7 @@ More slide-overs (Share, Version history, Add to deck) and moving each into a Sh
 ## Open questions for the owner
 
 1. **Which frame?** Sidebar with inset card (built), or the sidebar flat with no card? Recommendation: inset; it separates the frame from the numbers.
-2. **Workspace group**: always open (built) or collapsible, closed by default for Members? Recommendation: always open for Owners and Admins, who live there; collapsed for Members and Guests, who have few pages.
+2. **Workspace pages**: a collapsible group, closed unless you are in it (built), or one **Settings** entry that opens a page listing them? Recommendation: the collapsible group; it keeps one click to every page without the clutter.
 3. **Pinned dashboards in the sidebar** (a list under Dashboards)? Recommendation: yes, in the step after the preview; it replaces the dashboard switcher on the page.
 4. **Which details become slide-overs next?** Recommendation: Alert me…, Share, Version history and a Metric's quick look first (all keep the reader on the page); forms that create something stay dialogs.
 5. **Dark mode:** the app is light only today. Make a dark set of tokens as part of this move, or later? Recommendation: later, as its own ticket; the frame already uses tokens only.
