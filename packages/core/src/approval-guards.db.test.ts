@@ -6,6 +6,7 @@ import { JANUARY, periodStart } from "./periods";
 import { workspace } from "./test/db-fixtures";
 import { approve, closePeriod, getState, onValue, setLock } from "./workflow-engine";
 import { saveWorkflow, setMetricWorkflow } from "./workflows";
+import { setActionStatus } from "./questions";
 
 const cleanups: (() => Promise<void>)[] = [];
 afterEach(async () => { for (const c of cleanups.splice(0)) await c(); });
@@ -47,5 +48,16 @@ describe("Approval guards", () => {
     await db().from("actions").update({ assignee_id: ann }).eq("id", task!.id);
     await expect(approve(w.id, task!.id, ann)).rejects.toThrow(/Nobody approves their own value/);
     expect((await getState(m.id, thisMonth()))?.state).toBe("approval");
+  });
+
+  // #444: an open Approval is closed only by deciding it; its submitter (the task's asker) cannot close it in the app.
+  it("refuses closing an open Approval by hand, and deciding it closes it", async () => {
+    const { w, ada, ann, m } = await waiting();
+    const task = await openTask(m.id);
+    await expect(setActionStatus(w.actor(ann), task!.id, "closed")).rejects.toThrow(/closed by deciding it/);
+    expect((await db().from("actions").select("status").eq("id", task!.id).single()).data?.status).toBe("open");
+    expect((await getState(m.id, thisMonth()))?.state).toBe("approval");
+    await approve(w.id, task!.id, ada);
+    expect((await db().from("actions").select("status").eq("id", task!.id).single()).data?.status).toBe("closed");
   });
 });

@@ -122,7 +122,7 @@ export default async function ActionPage({ params }: { params: Promise<{ id: str
             <div className="ml-auto flex gap-2">
               {/* An Approval or Self-check is decided by its own buttons: marking it done would leave the value waiting. */}
               {isAssignee && a.kind === "task" && a.status === "open" && a.purpose !== "approval" && a.purpose !== "self_check" && <AnsweredButton action={markTaskDone.bind(null, a.id)} variant="outline">Mark done</AnsweredButton>}
-              {canCloseOrReopen && <Button formAction={setActionStatus.bind(null, a.id, "closed")} variant="outline" type="submit">Close Action</Button>}
+              {canCloseOrReopen && !(a.purpose === "approval" && a.status === "open") && <Button formAction={setActionStatus.bind(null, a.id, "closed")} variant="outline" type="submit">Close Action</Button>}
               <Button type="submit">Reply</Button>
             </div>
           </div>
