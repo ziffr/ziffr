@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { approvalQuestionForWeb } from "@ziffr/core/approval-question";
 import { getMetrics, getProfileMap, getYearStart } from "@/lib/data";
 import { viewerId } from "@/lib/viewer";
 import { readableActions } from "@/lib/access";
@@ -32,7 +33,7 @@ export default async function ActionsPage() {
                       <Link href={`/actions/${a.id}`} className="flex flex-wrap items-center gap-3 px-4 py-3 hover:bg-[var(--color-paper-2)]">
                         <StatusBadge status={a.status} kind={a.kind} />
                         {a.kind === "task" && <span className="rounded-[var(--radius-input)] border border-[var(--color-rule-2)] px-1.5 text-xs text-[var(--color-ink-2)]">Task{a.due_date ? `, due ${a.due_date.slice(5)}` : ""}</span>}
-                        <span className="min-w-[12rem] flex-1 font-medium">{a.question}</span>
+                        <span className="min-w-[12rem] flex-1 font-medium">{approvalQuestionForWeb(a.question)}</span>
                         <span className="text-xs text-muted-foreground">{m?.name}, {m && periodLabel(a.period_start, m.period, yearStart, true)}</span>
                         <span className="flex items-center gap-1 text-xs"><Person p={people[a.asker_id]} /> asked <Person p={people[a.assignee_id]} /></span>
                       </Link>

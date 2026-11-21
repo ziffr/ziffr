@@ -1,5 +1,6 @@
 // A Metric's page (GLOSSARY: Metric, Comparison, Target Series, Observation, Action, Workflow): its numbers first,
 // then one tab each for analyses, targets, history and how values arrive, instead of one long scroll.
+import { approvalQuestionForWeb } from "@ziffr/core/approval-question";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Copy, KeyRound, Lock, MessageSquare, Sigma, Sparkles } from "lucide-react";
@@ -388,7 +389,7 @@ export default async function MetricPage({ params, searchParams }: { params: Pro
                   <li key={a.id}>
                     <Link href={`/actions/${a.id}`} className="flex items-center gap-3 py-2.5 text-sm hover:bg-muted/40">
                       <StatusDot status={a.status} />
-                      <span className="flex-1">{a.question}{a.breakdown_label && <span className="ml-1.5 text-xs text-muted-foreground">on {a.breakdown_label}</span>}</span>
+                      <span className="flex-1">{approvalQuestionForWeb(a.question)}{a.breakdown_label && <span className="ml-1.5 text-xs text-muted-foreground">on {a.breakdown_label}</span>}</span>
                       <span className="text-xs text-muted-foreground">{periodLabel(a.period_start, metric.period, yearStart, true)}</span>
                       <Person p={peopleById[a.assignee_id]} />
                     </Link>

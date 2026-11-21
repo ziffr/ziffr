@@ -262,6 +262,7 @@ const CASES: Record<string, Case> = {
   "workflow-actions:runTodayNow": { args: () => [] },
   "workflow-actions:approveValue": { nothing: "no Approval in the demo waits for Sara", args: (i) => [i.approval] },
   "workflow-actions:sendValueBack": { nothing: "no Approval in the demo waits for Sara", args: (i) => [i.approval, "Please check"] },
+  "workflow-actions:proposeValueCorrection": { nothing: "no Approval in the demo waits for Sara", args: (i) => [i.approval, 1, "Please check"] },
   "workflow-actions:confirmOwnValue": { nothing: "no Self-check in the demo waits for Sara", args: (i) => [i.approval] },
   "workflow-actions:correctOwnValue": { nothing: "no Self-check in the demo waits for Sara", args: (i) => [i.approval, 1] },
   "workflow-actions:lockPeriod": { args: (i) => [i.ownMetric, i.twoMonthsAgo, false, "Reopening"] },
