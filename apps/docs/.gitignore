@@ -1,0 +1,7 @@
+# Written by scripts/sync.mjs and scripts/openapi.mjs on every build: the repository's docs are the only copy.
+/src/content/docs/*/
+/src/assets/docs-images/
+/generated/
+/dist/
+/.astro/
+/src/content/docs/index.mdx
