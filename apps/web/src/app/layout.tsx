@@ -30,7 +30,7 @@ import { appearanceFor, browserAppearance } from "@/lib/appearance";
 
 export const metadata: Metadata = {
   title: "Ziffr",
-  description: "A metric tracker for anyone: define any number you care about, collect its values from people and systems, and see, share and discuss them over time.",
+  description: "Ziffr keeps the record of your numbers: define any number you care about, collect its values from people and systems, and see, share and discuss them over time. A metric tracker for anyone.",
   // Installable (#143): manifest.ts is linked by Next itself; iOS reads its own tags for "Add to Home Screen".
   icons: { icon: [{ url: "/icons/icon.svg", type: "image/svg+xml" }], apple: "/icons/apple-touch-icon.png" },
   appleWebApp: { capable: true, title: "Ziffr", statusBarStyle: "default" },

@@ -1,6 +1,6 @@
 # Ziffr
 
-A metric tracker. Define any number you care about. Ziffr asks people for its values when they are due, or people and systems send them in on their own. Then see, share and discuss them over time. For one person, a team or a business.
+The record of your numbers. Define any number you care about. Ziffr asks people for its values when they are due, or people and systems send them in on their own. Every value is kept with its history and the discussion about it, so people and AI assistants can look it up, share it and discuss it over time. For one person, a team or a business.
 
 ## Language
 

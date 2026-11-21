@@ -4,34 +4,39 @@
 [![License: BSL 1.1](https://img.shields.io/badge/license-BSL%201.1-blue)](LICENSE)
 [![Good first issues](https://img.shields.io/github/issues/ziffr/ziffr/good%20first%20issue?label=good%20first%20issues)](https://github.com/ziffr/ziffr/labels/good%20first%20issue)
 
-**Ziffr is a metric tracker.** Define any number you care about. Ziffr asks people for its values when they are due, or people and systems send them in on their own. Then see, share and discuss them over time. For one person, a team or a business.
+**Ziffr keeps the record of your numbers.** Paperless keeps your documents; Ziffr keeps your numbers. Define the numbers you care about. Ziffr asks people for them when they are due, or people and systems send them in on their own. Every value is kept with its history, where it came from and what people said about it, so a person or an AI assistant can look up any number from any month, without a data warehouse or a BI system. For one person, a team or a business.
 
-What that includes: values captured where people already work (a form link, email, Slack, Telegram, an API, an AI assistant), dashboards, decks and comparisons, and Workflows that ask for each number, remind, check unusual values and lock a period when it is done. Everyone sees what was shared with them, nothing more.
+- **Ask once, keep it.** A Workflow asks the right people each period, reminds whoever forgets, has unusual values approved and locks the period. People answer where they already are: a form link, an email reply, Slack or Telegram. No account needed.
+- **Look it up, also for agents.** Search for "cost august" and get the value, how it came to be and the discussion about it. An AI assistant reads the same numbers through the MCP server, with the rights of its person, instead of running a live query on every question.
+- **Yours to run.** Two commands start it with Docker. Source-available, with every version turning AGPL after three years.
 
 Ziffr is in its `0.x` releases: used and tested, but names and settings may still change between versions. See the [releases](https://github.com/ziffr/ziffr/releases) for what each version brought, and the [Preview](https://github.com/ziffr/ziffr/releases/tag/preview) for what is coming in the next one.
 
-![A dashboard in Ziffr: revenue, margin, support tickets and cost for October, each against its target, with a cost trend and forecast](docs/images/dashboard.webp)
+![A dashboard in Ziffr: revenue, margin, cost and support tickets for October, each against its target, with a cost trend and forecast](docs/images/dashboard.webp)
 
 ## What it does
 
-- **Metrics and values.** Define Metrics from scratch or from the Metric Catalog, with targets, Polarity and a Submission Rule. Values come in through each Submitter's personal form link, by email replies, by replying in [Telegram](docs/guides/telegram.md) or Slack, through the [API](docs/guides/api.md), from another system such as a CRM or a data warehouse through a [Feed](docs/guides/feeds.md), or from an AI assistant, such as Claude.ai, through the [MCP server](docs/guides/mcp.md). Contacts without an account submit too.
-- **Workflows.** Ask Submitters when a period closes, remind before the Due Date, escalate after it, have Unusual Values approved, and lock the period. They run on their own each morning in the workspace's time zone ([scheduled jobs](docs/guides/jobs.md)).
-- **Asking without leaving.** Questions and tasks on a value, answered in a Thread or by replying to the email, with Corrections the Metric owner accepts.
-- **Seeing the numbers.** Drag-and-drop dashboards of Widgets and Findings, read as a grid or top to bottom, an Analysis Canvas (forecast, correlation, drivers), comparisons against earlier periods and targets, and decks exported to PowerPoint or PDF.
-- **Your own Views and Analyses, without code.** [View Designs](docs/guides/view-designs.md) and [Analysis Recipes](docs/guides/analysis-recipes.md) are plain files Ziffr checks and draws with its own renderer and verified functions. Every built-in View for Metrics and Analyses is one, so you can export it, change it in the Playground and bring it back.
-- **Teams.** Workspaces with Owners, Admins, Members and Guests; sharing with people and Groups; invitations by email or link; handover when someone leaves; View Links for people outside.
-- **For programs.** A versioned REST API with Access Keys, limits and an Access Log, a TypeScript SDK ([`@ziffr/sdk`](https://www.npmjs.com/package/@ziffr/sdk)) and a local MCP server ([`@ziffr/mcp`](https://www.npmjs.com/package/@ziffr/mcp)). Feeds send values from your own systems with [`@ziffr/feed-kit`](https://www.npmjs.com/package/@ziffr/feed-kit) and [`@ziffr/feed-sql`](https://www.npmjs.com/package/@ziffr/feed-sql).
+- **Collecting.** Define Metrics from scratch or from the Metric Catalog, with targets, Polarity and a Submission Rule. Values come in through each Submitter's personal form link, by email replies, by replying in [Telegram](docs/guides/telegram.md) or Slack, in a sentence such as "KW 46: 2" (in six languages), from a pasted or dropped spreadsheet, through the [API](docs/guides/api.md), from another system such as a CRM or a data warehouse through a [Feed](docs/guides/feeds.md), or from an AI assistant, such as Claude.ai, through the [MCP server](docs/guides/mcp.md). Contacts without an account submit too.
+- **Workflows.** Ask Submitters when a period closes, remind before the Due Date, ask a Stand-in or tell the owner when a value is late, have Unusual Values approved, and lock the period. They run on their own each morning in the workspace's time zone ([scheduled jobs](docs/guides/jobs.md)).
+- **The record.** Every value keeps who sent it, when, through which Source and what happened to it: replaced, Correction proposed and accepted, approved, locked. Questions and tasks on a value are answered in a Thread or by replying to the email. Search (⌘K) finds a value by words such as "churn march 2026". By default nothing is ever deleted; a Retention per Metric can condense or delete old values, only when you turn it on.
+- **Seeing the numbers.** Drag-and-drop dashboards of Widgets and Findings, read as a grid or top to bottom, Snapshots that fix a dashboard to one period, an Analysis Canvas (forecast, correlation, drivers), comparisons against earlier periods and targets, and decks exported to PowerPoint or PDF.
+- **Telling you.** Alerts tell a person when a value reaches a share of its target, crosses a number, changes more than expected or is not in on time. Signed Webhooks and ready-made n8n templates carry questions and tasks to other tools.
+- **Your own Views and Analyses, without code.** [View Designs](docs/guides/view-designs.md) and [Analysis Recipes](docs/guides/analysis-recipes.md) are plain files Ziffr checks and draws with its own renderer and verified functions. [Packs](docs/guides/packs.md) bundle Metrics, dashboards, Workflows and more for others to install.
+- **Teams.** Workspaces with Owners, Admins, Members and Guests; sharing with people and Groups; invitations by email or link; handover when someone leaves; View Links for people outside; an Audit Log of who changed who sees what.
+- **For programs and assistants.** A versioned REST API with Access Keys, limits and an Access Log, a TypeScript SDK ([`@ziffr/sdk`](https://www.npmjs.com/package/@ziffr/sdk)) and an MCP server ([`@ziffr/mcp`](https://www.npmjs.com/package/@ziffr/mcp), or `/mcp` on your own Ziffr for Claude.ai). Feeds send values from your own systems with [`@ziffr/feed-kit`](https://www.npmjs.com/package/@ziffr/feed-kit) and [`@ziffr/feed-sql`](https://www.npmjs.com/package/@ziffr/feed-sql).
 
-| | | |
-| --- | --- | --- |
-| ![A Metric's page: revenue over 18 months against its target range, with a forecast](docs/images/metric.webp) | ![A Workflow: ask, remind, escalate, check unusual values, approve, and close the period](docs/images/workflow.webp) | ![A dashboard in its Read view: an introduction, then a chart of revenue, orders and cost against the previous year](docs/images/snapshot-read.webp) |
-| **A Metric** with its target range, history and forecast | **A Workflow** that asks for each value, reminds, checks and has it approved | **The Read view** of a dashboard, to explain what happened |
+| | |
+| --- | --- |
+| ![A Period Record: Cost for August 2026, submitted by email, corrected after a question and locked, with the Thread about it](docs/images/record.webp) | ![A Workflow: ask, remind, escalate, check unusual values, approve, and close the period](docs/images/workflow.webp) |
+| **The record of one value**: who sent it, the Correction, the lock and the Thread | **A Workflow** that asks for each value, reminds, checks and has it approved |
+| ![Search finds the value of a Metric for a period by words](docs/images/search.webp) | ![The Analysis Canvas: the drivers of cost ranked by correlation, with a scatter plot](docs/images/analyze.webp) |
+| **Search** finds a value by words, such as "cost august" | **The Analysis Canvas**: forecast, correlation and drivers |
 
 The screenshots show the demo's made-up online shop.
 
 ## Try it
 
-**The demo.** Try it at **[demo.ziffr.net](https://demo.ziffr.net)**, nothing to install; everyone shares it, and it starts fresh every night. "Try the demo" opens a made-up 15-person online shop, without an account. Its data is generated relative to today, so last month's cost spike stays last month. Switch between its people with "View as" and reset it with ↺ in the header. The guided tour (bottom right) walks through defining a Metric, capturing a value, building a dashboard, asking a question, analysing, and making a deck.
+**The demo.** Try it at **[demo.ziffr.net](https://demo.ziffr.net)**, nothing to install. "Try the demo" opens a made-up 15-person online shop, without an account; everyone shares it, and it starts fresh every night. "Try it for real" on the same page makes a trial Workspace of your own for 14 days, where requests for values reach you by email. Its data is generated relative to today, so last month's cost spike stays last month. Switch between its people with "View as" and reset it with ↺ in the header. The guided tour (bottom right) walks through defining a Metric, capturing a value, building a dashboard, asking a question, analysing, and making a deck.
 
 **Locally.** Needs Node 22, pnpm 10 (`corepack enable` sets up the version this repository names), Docker, and the [Supabase CLI](https://supabase.com/docs/guides/local-development/cli/getting-started) (`brew install supabase/tap/supabase` on macOS; CI uses 2.116).
 
