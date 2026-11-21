@@ -38,7 +38,7 @@ export function WhoCanSeeDialog({ type, id, people, onClose }: { type: ObjectTyp
         <Dialog open onOpenChange={(o) => { if (!o) onClose(); }}>
           <DialogContent className="sm:max-w-md">
             <DialogTitle>Who can see this</DialogTitle>
-            <DialogDescription>Everyone with access, and why.</DialogDescription>
+            <DialogDescription>{data?.owner === "" ? "How this is shared with you." : "Everyone with access, and why."}</DialogDescription>
             {!data ? <p className="text-sm text-muted-foreground">Loading…</p> : (
               <div className="space-y-4 text-sm">
                 {data.requests.length > 0 && (

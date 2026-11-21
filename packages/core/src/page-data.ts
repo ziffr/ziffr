@@ -6,7 +6,7 @@ import { feedIdsAmong } from "./feed-people";
 import { db } from "./db";
 import { openNames, openOne, openRows } from "./sealed-columns";
 import { Forbidden, type Actor } from "./actor";
-import { readableActions, threadReader, getGroups, visibleDashboards, visibleDecks, visibleMetricIds } from "./access";
+import { readableActions, systemTextFor, threadReader, getGroups, visibleDashboards, visibleDecks, visibleMetricIds } from "./access";
 import { getMetrics, getObservation, getSeriesOf } from "./workspace-data";
 import { peopleIn } from "./submissions";
 import { assertSeesMetrics } from "./sharing";
@@ -20,6 +20,7 @@ import { createTrialWorkspace, trialSettingsInEffect } from "./trials";
 import { assertMayOwnDefault } from "./workspace-limits";
 import { stripOutsideContent, widgetWithoutOutside } from "./deck-content";
 import { snapshotAccess } from "./snapshots";
+import { nameHider } from "./hide-names";
 import type { Action, Metric, Period, Point, Widget } from "./types";
 import { periodStart } from "./periods";
 import { yearStartFor, yearStartOf } from "./fiscal-year";
@@ -39,6 +40,15 @@ async function recentDeliveries(actor: Actor) {
   const rows = new Map<number, NonNullable<typeof mine.data>[number]>();
   for (const r of [...(mine.data ?? []), ...(sent.data ?? []), ...(threads.data ?? [])]) rows.set(r.id as number, r);
   return { data: [...rows.values()].sort((a, b) => (b.id as number) - (a.id as number)).slice(0, 80) };
+}
+
+/** What a Guest was written is shown them without the other people's names: a Prompt's subject and text carry its
+ * sender's, and a Guest does not see who else is in the Workspace (peopleFor, ticket #560). */
+async function withoutOthersNames<T extends { subject?: unknown; body?: unknown }>(actor: Actor, rows: T[]): Promise<T[]> {
+  if (actor.role !== "guest" || !rows.length) return rows;
+  const hide = nameHider((await peopleIn(actor.workspaceId, { contactDetails: true })).filter((p) => p.id !== actor.personId));
+  const hidden = (v: unknown) => (typeof v === "string" ? hide(v) : v);
+  return rows.map((r) => ({ ...r, subject: hidden(r.subject), body: hidden(r.body) }));
 }
 
 /** The Connectors page: preferences, the Deliveries the person may read, and the Token codes that are theirs. */
@@ -69,7 +79,7 @@ export async function connectorsView(actor: Actor) {
   const shown = visible.map((d) => (inDemo(actor) || d.recipient_id === actor.personId ? d : { ...d, body: String(d.body).replace(/\S*\/submit\/tk-[A-Za-z0-9_-]+/g, "[their personal form link]") }));
   // A Guest sees their own Delivery Preferences and the team default, not every member's (rule 3).
   const prefsShown = (prefs ?? []).filter((p) => actor.role !== "guest" || p.user_id === null || p.user_id === actor.personId);
-  return { prefs: prefsShown, deliveries: shown, tokens: own, isAdmin: await isAdmin(actor) };
+  return { prefs: prefsShown, deliveries: await withoutOthersNames(actor, shown), tokens: own, isAdmin: await isAdmin(actor) };
 }
 
 /** How many of the latest Prompts and incoming messages the Sources page shows. */
@@ -239,7 +249,8 @@ export async function deckView(actor: Actor, id: number) {
   if (!deck) return null;
   const role = (await visibleDecks(actor.workspaceId, actor.personId)).find((d) => d.id === id)?.role ?? null;
   if (!role) {
-    const { data: owner } = await db().from("profiles").select("name").eq("id", deck.owner_id).single();
+    // Whom to ask: not told to a Guest, who does not see who else is in the Workspace (peopleFor).
+    const { data: owner } = actor.role === "guest" ? { data: null } : await db().from("profiles").select("name").eq("id", deck.owner_id).single();
     return { role: null, ownerFirstName: (owner?.name as string | undefined)?.split(" ")[0] ?? "the owner", deck: null };
   }
   // Saved before content from other sites was refused, a deck still loads nothing from them (spec 0009).
@@ -265,7 +276,8 @@ export async function dashboardWidgets(actor: Actor, dashboardId: number): Promi
 export async function closedDashboardOwner(actor: Actor, dashboardId: number): Promise<string | null> {
   const { data: d } = await db().from("dashboards").select("owner_id").eq("id", dashboardId).eq("workspace_id", actor.workspaceId).maybeSingle();
   if (!d) return null;
-  const { data: p } = await db().from("profiles").select("name").eq("id", d.owner_id).single();
+  // Not told to a Guest, who does not see who else is in the Workspace (peopleFor).
+  const { data: p } = actor.role === "guest" ? { data: null } : await db().from("profiles").select("name").eq("id", d.owner_id).single();
   return (p?.name as string | undefined)?.split(" ")[0] ?? "the owner";
 }
 
@@ -298,7 +310,9 @@ export async function actionThread(actor: Actor, id: number) {
   const ws = actor.workspaceId;
   const { data: found } = await db().from("actions").select("*").eq("id", id).eq("workspace_id", ws).maybeSingle();
   if (!found) return null;
-  const [action] = (await openRows("actions", ws, [found])) as Action[];
+  const [opened] = (await openRows("actions", ws, [found])) as Action[];
+  const hideSystem = await systemTextFor(actor);
+  const action = { ...opened, question: hideSystem(opened.question, Boolean(opened.purpose)) } as Action;
   const [groups, metrics] = await Promise.all([getGroups(ws), getMetrics(ws)]);
   const visible = await visibleMetricIds(ws, actor.personId, metrics);
   const can = threadReader(actor.personId, groups, (m) => metrics.find((x) => x.id === m)?.owner_id, ws, visible);

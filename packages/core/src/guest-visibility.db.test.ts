@@ -99,27 +99,27 @@ describe("a Guest", () => {
 });
 
 describe("a Guest, by name and template", () => {
-  it("is shown only the people on what is shared with them, in pages and through the API", async () => {
+  it("is shown no one but themselves, in pages and through the API (owner decision on #549; the walk is guest-people.db.test.ts)", async () => {
     const { w, sara, ben, gus, guest, member } = await setUp();
     const stranger = await w.person("member");
-    // Sara owns the shared Metric; Ben submits only the hidden one; the stranger is on nothing the Guest sees.
-    expect((await peopleFor(guest)).map((p) => p.id).sort()).toEqual([gus, sara].sort());
-    expect((await listPeople(guest, { limit: 50 })).items.map((p) => p.id).sort()).toEqual([gus, sara].sort());
+    // Sara owns the shared Metric, and still a Guest is not shown her: nobody but themselves.
+    expect((await peopleFor(guest)).map((p) => p.id)).toEqual([gus]);
+    expect((await listPeople(guest, { limit: 50 })).items.map((p) => p.id)).toEqual([gus]);
+    expect(sara).not.toBe(gus);
     expect((await getCanvasData(w.id, gus)).people.map((p) => p.id)).not.toContain(ben);
     expect((await peopleFor(member)).map((p) => p.id)).toEqual(expect.arrayContaining([sara, ben, gus, stranger]));
   });
 
-  it("is shown the people on the Workflow of their Metric, and nobody from another one", async () => {
+  it("is shown nobody on the Workflow of their Metric either: Approvers and people told read Someone", async () => {
     const { w, sara, gus, guest, seen, shared } = await setUp();
     const approver = await w.person("member");
     const told = await w.person("member");
     const stranger = await w.person("member");
     await saveWorkflow(w.actor(sara), seen, "Shared close", { dueWorkingDays: 1, steps: [{ type: "approve", approvers: [approver], values: "every" }, { type: "tell", id: "step-tell-aaaa", condition: { kind: "at_or_above", value: "100" }, people: [told], groups: [] }, publish] });
-    const names = (await peopleFor(guest)).map((p) => p.id).sort();
-    expect(names).toEqual([approver, gus, sara, told].sort());
-    // The canvas a Guest's pages draw from names exactly these people and no Group's other members.
+    expect((await peopleFor(guest)).map((p) => p.id)).toEqual([gus]);
+    // The canvas a Guest's pages draw from names nobody else and no Group's other members.
     const canvas = await getCanvasData(w.id, gus);
-    expect(canvas.people.map((p) => p.id).sort()).toEqual(names);
+    expect(canvas.people.map((p) => p.id)).toEqual([gus]);
     expect(canvas.people.map((p) => p.id)).not.toContain(stranger);
     expect(canvas.groups.every((g) => g.members.every((m) => m === gus))).toBe(true);
     expect(canvas.metrics.map((m) => m.id)).toEqual([shared.id]);

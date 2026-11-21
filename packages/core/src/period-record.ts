@@ -4,10 +4,9 @@
 // where they may read the Thread (GLOSSARY: Thread). Words are opened (sealed columns); nothing else is sent.
 import { db } from "./db";
 import type { Actor } from "./actor";
-import { getGroups, threadReader, visibleMetricIds } from "./access";
+import { getGroups, peopleFor, systemTextFor, threadReader, visibleMetricIds } from "./access";
 import { getMetrics, getSeriesOf } from "./workspace-data";
 import { openRows } from "./sealed-columns";
-import { peopleIn } from "./submissions";
 import { yearStartOf } from "./fiscal-year";
 import { periodStart } from "./periods";
 import { SOURCE_LABEL } from "./format";
@@ -103,16 +102,18 @@ export async function periodRecord(actor: Actor, slug: string, period: string): 
   for (const o of obsRows ?? []) if (o.submitter_id) people.add(String(o.submitter_id));
   for (const m of messages) people.add(m.author_id);
   for (const e of events) if (e.actor_id) people.add(e.actor_id);
+  // A Guest is told only their own name (peopleFor), and no Feed's: everyone else is "Someone".
+  const guest = actor.role === "guest";
   const [inWorkspace, { data: feeds }] = await Promise.all([
-    peopleIn(ws),
-    db().from("feeds").select("person_id, name").eq("workspace_id", ws).in("person_id", [...people]),
+    peopleFor(actor),
+    guest ? Promise.resolve({ data: [] }) : db().from("feeds").select("person_id, name").eq("workspace_id", ws).in("person_id", [...people]),
   ]);
   const names = new Map<string, string>();
   for (const f of feeds ?? []) names.set(f.person_id as string, f.name as string);
   for (const p of inWorkspace) if (people.has(p.id)) names.set(p.id, p.name);
-  const who = (id: unknown): string | null => (id ? names.get(String(id)) ?? "A former member" : null);
+  const who = (id: unknown): string | null => (id ? names.get(String(id)) ?? (guest ? "Someone" : "A former member") : null);
   // An Audit Log event keeps the name it was written with: a person who has left is a former member, not that name.
-  const actorOf = (e: Event): string => (e.actor_id ? who(e.actor_id)! : e.actor_name);
+  const actorOf = (e: Event): string => (e.actor_id ? who(e.actor_id)! : guest ? "Someone" : e.actor_name);
 
   const drafts: Draft[] = [];
   const push = (d: Partial<PeriodStep> & Pick<PeriodStep, "kind" | "at" | "person">) => drafts.push({ channel: null, value: null, superseded: false, reason: null, ...d, sort: drafts.length });
@@ -177,11 +178,12 @@ export async function periodRecord(actor: Actor, slug: string, period: string): 
   const steps: PeriodStep[] = timed.map(({ d }) => ({ kind: d.kind, at: d.at, person: d.person, channel: d.channel, value: d.value, superseded: d.superseded, reason: d.reason }));
 
   // The Threads: the first message and how many replies follow, words as opened above.
+  const hideSystem = await systemTextFor(actor);
   const threads: PeriodThread[] = readable.map((a) => {
     const mine = messages.filter((m) => m.action_id === a.id);
     const first = mine[0];
     return {
-      id: a.id, question: a.question, kind: a.kind, status: a.status,
+      id: a.id, question: hideSystem(a.question, Boolean(a.purpose)), kind: a.kind, status: a.status,
       first: first ? { person: who(first.author_id) ?? "A former member", at: first.created_at, body: (first.body ?? "").length > FIRST_WORDS ? `${first.body.slice(0, FIRST_WORDS - 1)}…` : first.body ?? "" } : null,
       replies: Math.max(0, mine.length - 1),
     };

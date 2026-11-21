@@ -8,7 +8,7 @@
 // words, opened from their seal here and nowhere else.
 import { db } from "./db";
 import { assertScope, Forbidden, type Actor, type KeyActor } from "./actor";
-import { getGroups, threadReader, visibleDashboards, visibleMetricIds } from "./access";
+import { getGroups, peopleFor, threadReader, visibleDashboards, visibleMetricIds } from "./access";
 import { getMetrics } from "./workspace-data";
 import { openNames, openRows } from "./sealed-columns";
 import { CONNECTORS, type ConnectorId } from "./connectors/index";
@@ -229,7 +229,9 @@ export async function periodTimeline(actor: Actor | KeyActor, workflowId: number
   for (const a of opened) if (mayRead.has(a.id as number)) { peopleIds.add(a.asker_id as string); peopleIds.add(a.assignee_id as string); }
   for (const m of messages) peopleIds.add(m.author_id as string);
   const { data: profileRows } = await db().from("profiles").select("id, name").in("id", [...peopleIds]);
-  const names = new Map((await openNames(ws, profileRows)).map((p) => [p.id as string, String(p.name)]));
+  // A Guest is told only their own name (peopleFor): everyone else reads "Someone".
+  const shown = await peopleFor(actor);
+  const names = new Map((await openNames(ws, profileRows)).filter((p) => shown.some((s) => s.id === p.id)).map((p) => [p.id as string, String(p.name)]));
   const nameOf = (id: string) => names.get(id) ?? "Someone";
 
   const raw: Raw[] = [];

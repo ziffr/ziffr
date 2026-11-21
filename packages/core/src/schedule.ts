@@ -172,7 +172,7 @@ function askedOn(t: TokenFact, day: string, away: Map<string, { starts: string; 
 }
 
 /** The values the person must submit: their own Tokens' Metrics, and those they stand in for on the day asked. */
-async function valuesDue(ws: string, person: string, metrics: Map<number, Metric>, ctx: Ctx): Promise<ScheduleEntry[]> {
+async function valuesDue(ws: string, person: string, metrics: Map<number, Metric>, ctx: Ctx, guest = false): Promise<ScheduleEntry[]> {
   const cols = "metric_id, submitter_id, stand_in_id, created_at";
   const [own, standIn] = await Promise.all([
     allRows<TokenFact>((from, to) => db().from("tokens").select(cols).eq("workspace_id", ws).eq("submitter_id", person).is("stands_in_for", null).order("id").range(from, to)),
@@ -205,7 +205,8 @@ async function valuesDue(ws: string, person: string, metrics: Map<number, Metric
       const mineToo = out.get(key);
       // Their own Token wins over standing in for someone else for the same value.
       if (mineToo && !mineToo.standingInFor) continue;
-      const standingInFor = t.submitter_id === person ? null : { id: t.submitter_id, name: nameOf.get(t.submitter_id) ?? "a colleague" };
+      // A Guest does not see who else is in the Workspace (peopleFor): they stand in for "a colleague", unnamed.
+      const standingInFor = t.submitter_id === person ? null : guest ? { id: "", name: "a colleague" } : { id: t.submitter_id, name: nameOf.get(t.submitter_id) ?? "a colleague" };
       out.set(key, valueDue(m, start, due, ctx, cfg, standingInFor));
     }
   }
@@ -318,7 +319,7 @@ async function entriesOf(actor: Actor | KeyActor, person: string, base: Awaited<
     const can = threadReader(actor.personId, groups, (id) => all.find((m) => m.id === id)?.owner_id, ws, asker);
     readable = (a) => can(a);
   }
-  return [...(await valuesDue(ws, person, metrics, ctx)), ...(await actionEntries(ws, person, onActions, ctx, readable))];
+  return [...(await valuesDue(ws, person, metrics, ctx, actor.role === "guest")), ...(await actionEntries(ws, person, onActions, ctx, readable))];
 }
 
 /** How far back a Calendar Link's events reach, in days. */

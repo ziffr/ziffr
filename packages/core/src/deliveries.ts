@@ -3,6 +3,8 @@
 // also sent once mail is set up (spec 0004, mail.ts), Slack ones once the workspace connects Slack (spec 0007,
 // slack-send.ts); WhatsApp and tickets are still simulated.
 import { feedIdsAmong } from "./feed-people";
+import { nameHider } from "./hide-names";
+import { peopleIn } from "./submissions";
 import { randomBytes } from "node:crypto";
 import { db } from "./db";
 import { insertSealed, openNames, openOne, openRows } from "./sealed-columns";
@@ -65,9 +67,13 @@ export async function deliver(input: { kind: DeliveryKind; actionId: number; sen
   // A question that does not open (changed in the database, or under a destroyed key) is not sent at all.
   if (a.question === null) return;
   const people = await openNames(a.workspace_id, (await db().from("profiles").select("*").in("id", [input.senderId, input.recipientId])).data);
-  const sender = people?.find((p) => p.id === input.senderId) as Profile | undefined;
+  const named = people?.find((p) => p.id === input.senderId) as Profile | undefined;
   const recipient = people?.find((p) => p.id === input.recipientId) as Profile | undefined;
-  if (!sender || !recipient) return;
+  if (!named || !recipient) return;
+  // A Guest does not see who else is in the Workspace (GLOSSARY: Guest), also not in what is sent to them: the message,
+  // as written and kept, reads "Someone" for the sender.
+  const { data: member } = await db().from("memberships").select("role").eq("workspace_id", a.workspace_id).eq("user_id", recipient.id).maybeSingle();
+  const sender: Profile = member?.role === "guest" ? { ...named, name: "Someone" } : named;
   const via = input.via && CONNECTOR_IDS.includes(input.via) ? input.via : await connectorFor(a.workspace_id, recipient.id, input.kind, a.id);
   const c = CONNECTORS[via];
   // The Metric's name is sealed, so it is read on its own and opened rather than embedded in the Action.
@@ -173,6 +179,12 @@ export async function deliverAlert(ws: string, input: { recipientId: string; sub
 /** One plain message of a kind that is not about an Action: a notice or an Alert. */
 async function deliverPlain(ws: string, kind: "notice" | "alert", input: { recipientId: string; senderId: string | null; subject: string; text: string; link: string; via?: ConnectorId; alertMetricId?: number | null; alertId?: number | null; tellWorkflowId?: number; queue?: boolean }): Promise<number | null> {
   const via = input.via ?? await connectorFor(ws, input.recipientId, "reply", null);
+  // A Guest does not see who else is in the Workspace: a notice's text names no one else to them.
+  const { data: member } = await db().from("memberships").select("role").eq("workspace_id", ws).eq("user_id", input.recipientId).maybeSingle();
+  if (member?.role === "guest") {
+    const hide = nameHider((await peopleIn(ws, { contactDetails: true })).filter((p) => p.id !== input.recipientId));
+    input = { ...input, subject: hide(input.subject), text: hide(input.text) };
+  }
   const mail_state = await initialDeliveryState(via, ws, input.recipientId);
   const d = await insertDelivery(ws, {
     connector: via, recipient_id: input.recipientId, sender_id: input.senderId, kind,

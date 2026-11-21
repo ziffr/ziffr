@@ -2,12 +2,11 @@
 // takes a KeyActor (or a person's Actor, for tests and tools), checks its scope, and returns only what the key's
 // creator sees, in plain shapes made for programs: no contact details, no internal rows.
 import { assertScope, Forbidden, type Actor, type KeyActor } from "./actor";
-import { getGroups, peopleFor, threadReader, visibleMetricIds } from "./access";
+import { getGroups, peopleFor, systemTextFor, threadReader, visibleMetricIds } from "./access";
 import { inCondensed, partOfCondensed, valueOfParts, type CondensedPoint } from "./condensed-parts";
 import { condensedFor } from "./condensed-values";
 import { db } from "./db";
 import { retentionForApi, type ApiRetention } from "./retention-words";
-import { peopleIn } from "./submissions";
 import { openRows } from "./sealed-columns";
 import { recordView } from "./usage";
 import { buildSeries, getBreakdowns, getLatestObservations, getMetrics, withInputs } from "./workspace-data";
@@ -126,7 +125,7 @@ export async function listObservations(actor: Actor | KeyActor, slug: string, ra
   const latest = new Map<string, (typeof own)[number]>();
   for (const o of own) latest.set(o.period_start, o); // one value per period: the latest
   const [names, threads] = await Promise.all([
-    namesOf(ws, [...latest.values()].map((o) => o.submitter_id)),
+    namesOf(actor, [...latest.values()].map((o) => o.submitter_id)),
     readableThreads(actor, metric, page.map((p) => p.period)),
   ]);
   const withThread = new Set(threads.map((t) => t.period_start));
@@ -141,10 +140,13 @@ export async function listObservations(actor: Actor | KeyActor, slug: string, ra
 /** Names by id of people who are in this Workspace now (members and Contacts, as /people lists them, a Contact's sealed
  * name opened) and of its Feeds. Anyone else, such as a former member, has no name here, as in the app. Only `id` and
  * `name` ever leave: never contact details. */
-async function namesOf(ws: string, ids: readonly (string | null)[]): Promise<Map<string, string>> {
+async function namesOf(actor: Actor | KeyActor, ids: readonly (string | null)[]): Promise<Map<string, string>> {
+  const ws = actor.workspaceId;
   const wanted = new Set(ids.filter((i): i is string => Boolean(i)));
   if (!wanted.size) return new Map();
-  const [people, { data: feeds }] = await Promise.all([peopleIn(ws), db().from("feeds").select("person_id, name").eq("workspace_id", ws).in("person_id", [...wanted])]);
+  // A Guest is told only their own name (peopleFor); a Feed is no one of theirs to know either.
+  const guest = actor.role === "guest";
+  const [people, { data: feeds }] = await Promise.all([peopleFor(actor), guest ? Promise.resolve({ data: [] }) : db().from("feeds").select("person_id, name").eq("workspace_id", ws).in("person_id", [...wanted])]);
   const names = new Map<string, string>();
   for (const f of feeds ?? []) names.set(f.person_id as string, String(f.name));
   for (const p of people) if (wanted.has(p.id)) names.set(p.id, p.name);
@@ -191,14 +193,15 @@ export async function getThreads(actor: Actor | KeyActor, slug: string, period: 
   if (!actions.length) return { metric: metric.slug, period, threads: [] };
   const { data } = await db().from("thread_messages").select("*").eq("workspace_id", ws).in("action_id", actions.map((a) => a.id)).order("created_at").order("id");
   const messages = await openRows("thread_messages", ws, data as { action_id: number; author_id: string; body: string; created_at: string; correction_value: number | null; correction_status: "proposed" | "accepted" | "declined" | null }[] | null);
-  const names = await namesOf(ws, [...actions.map((a) => a.asker_id), ...messages.map((m) => m.author_id)]);
+  const hideSystem = await systemTextFor(actor);
+  const names = await namesOf(actor, [...actions.map((a) => a.asker_id), ...messages.map((m) => m.author_id)]);
   return {
     metric: metric.slug, period,
     threads: actions.map((a) => {
       const all = messages.filter((m) => m.action_id === a.id);
       const shown = all.slice(-MAX_THREAD_MESSAGES);
       return {
-        kind: a.kind, status: a.status, asked_by: a.asker_id, asked_by_name: names.get(a.asker_id) ?? null, asked_at: a.created_at, question: a.question,
+        kind: a.kind, status: a.status, asked_by: a.asker_id, asked_by_name: names.get(a.asker_id) ?? null, asked_at: a.created_at, question: hideSystem(a.question, Boolean(a.purpose)),
         messages: shown.map((m) => ({ author: m.author_id, author_name: names.get(m.author_id) ?? null, sent_at: m.created_at, words: m.body, correction: m.correction_status && m.correction_value !== null ? { value: Number(m.correction_value), status: m.correction_status } : null })),
         truncated: shown.length < all.length,
       };

@@ -11,7 +11,7 @@
 import { assertCan, Forbidden, Refused, type Actor } from "./actor";
 import { sendingLimit } from "./sending-limit";
 import { sendingLimitDefault } from "./sending-limits";
-import { getCanvasData, visibleDashboards, visibleMetricIds } from "./access";
+import { getCanvasData, peopleFor, visibleDashboards, visibleMetricIds } from "./access";
 import { getMetrics } from "./workspace-data";
 import { audit } from "./audit-log";
 import { db } from "./db";
@@ -281,8 +281,9 @@ export async function openSnapshot(actor: Actor, snapshotId: number): Promise<Op
 
 /** What of a Snapshot one reader gets (spec 0013, decided on #193): visibility carries all the way through, so only
  * the Metrics they may see now, as on the live dashboard. A widget that draws any other Metric stays out whole: its
- * title and settings can name it. `hidden` counts the widgets left out. */
-export async function forReader(actor: Pick<Actor, "personId" | "workspaceId">, widgets: Widget[], data: CanvasData, themeId: number | null, allowed?: readonly number[]): Promise<{ widgets: Widget[]; data: CanvasData; hidden: number }> {
+ * title and settings can name it. `hidden` counts the widgets left out. A Guest is shown no one else of the people it
+ * kept (the Workspace's, as its taker saw them). */
+export async function forReader(actor: Pick<Actor, "personId" | "workspaceId"> & { role?: Actor["role"] }, widgets: Widget[], data: CanvasData, themeId: number | null, allowed?: readonly number[]): Promise<{ widgets: Widget[]; data: CanvasData; hidden: number }> {
   const [seen, yearStart, numberStyle] = await Promise.all([visibleMetricIds(actor.workspaceId, actor.personId, await getMetrics(actor.workspaceId)), yearStartOf(actor.workspaceId), numberStyleOf(actor.workspaceId)]);
   // A View Link also keeps to the Metrics agreed when it was made.
   const visible = allowed ? new Set([...seen].filter((m) => allowed.includes(m))) : seen;
@@ -293,7 +294,9 @@ export async function forReader(actor: Pick<Actor, "personId" | "workspaceId">, 
   // Metric kept before units had a side shows the unit its format used to add (spec 0022). Attainment is not only
   // written but computed differently by each method, so it keeps the Workspace's method and each Metric's own as they
   // were when it was taken; one taken before there was a choice keeps Ratio (#130).
-  const kept = { ...data, metrics: data.metrics.map((m) => normalizeMetric(keptUnit(m))), yearStart, numberStyle, attainmentMethod: keptMethod(data.attainmentMethod) };
+  // The people frozen in it are those the person who took it saw: a Guest reads only themselves (peopleFor).
+  const people = await peopleFor({ workspaceId: actor.workspaceId, personId: actor.personId, role: actor.role ?? "member" }, data.people);
+  const kept = { ...data, people, metrics: data.metrics.map((m) => normalizeMetric(keptUnit(m))), yearStart, numberStyle, attainmentMethod: keptMethod(data.attainmentMethod) };
   return { widgets: shown, data: shownData(kept, ids, themeId), hidden: widgets.length - shown.length };
 }
 

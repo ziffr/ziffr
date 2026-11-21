@@ -100,7 +100,7 @@ export async function shareWithGroup(actor: Actor, type: ObjectType, id: number,
 export async function whoCanSee(actor: Actor, type: ObjectType, id: number) {
   assertType(type);
   if (!(await canSee(actor, type, id))) throw new Forbidden();
-  const a = await audience(actor.workspaceId, type, id, actor.personId);
+  const a = await audience(actor.workspaceId, type, id, actor.personId, actor.role);
   if (!a) throw new Forbidden();
   const isOwner = a.owner === actor.personId;
   const requests = isOwner
