@@ -16,6 +16,7 @@ import { slackEnabled } from "./slack-api";
 import { slackCreateAppLink, slackEventsCheckedAt } from "./slack-setup";
 import { defaultLimitFrom, limitLabel, limitNumber, syncDefaultLimit } from "./workspace-limits";
 import { marketplaceConfig, marketplaceUrlProblem, MARKETPLACE_DEFAULT_URL } from "./marketplace";
+import { SENDING_LIMITS, sendingLimitFrom, sendingLimitProblem } from "./sending-limits";
 import { forgetStoredSettings, settingContext, settingSources, settingsInEffect, settingsInEffectStrict, storedSettings, type SettingSource } from "./settings-in-effect";
 
 /** One setting as the page shows it. `value` only for a setting that is not secret; `hint` (the last four
@@ -108,6 +109,7 @@ const CHECKS: Record<string, (v: string) => string | null> = {
   ZIFFR_MARKETPLACE: (v) => (/^(on|off)$/i.test(v) ? null : "The connection is on or off."),
   ZIFFR_MARKETPLACE_URL: (v) => marketplaceUrlProblem(v),
   ZIFFR_DELETE_UNUSED_AFTER_DAYS: (v) => (/^\d{1,4}$/.test(v) && Number(v) >= 30 && Number(v) <= 3650 ? null : "Unused Workspaces are deleted after a whole number of days from 30 to 3650, or never (empty)."),
+  ...Object.fromEntries(SENDING_LIMITS.map((l) => [l.name, (v: string) => sendingLimitProblem(l, v)])),
   ZIFFR_INBOUND_AUTHSERV_ID: (v) => (/^[a-z0-9.-]{1,200}$/i.test(v) ? null : "The provider's name looks like mx.example.com."),
 };
 
@@ -194,6 +196,11 @@ async function sectionWorks(id: SettingsSectionId, settings: Record<string, stri
     return d.metrics === null
       ? { working: false, detail: "No default: a Workspace has no limit unless it has one of its own below." }
       : { working: true, detail: `A Workspace without a limit of its own may hold ${d.metrics.toLocaleString("en-US")} Metrics${d.label ? ` (${d.label})` : ""}.` };
+  }
+  if (id === "sending") {
+    // Always on: the limits have normal values. The dot says how many were moved.
+    const moved = SENDING_LIMITS.filter((l) => sendingLimitFrom(settings, l.key) !== l.default).length;
+    return { working: true, detail: moved === 0 ? "All at their normal values." : `${moved} of ${SENDING_LIMITS.length} moved from their normal value.` };
   }
   if (id === "marketplace") {
     const c = marketplaceConfig(settings);

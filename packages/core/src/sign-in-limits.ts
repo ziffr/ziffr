@@ -6,13 +6,15 @@
 // links; the address alone has a higher ceiling, and so does one network address (a team behind one office address).
 import { createHash } from "node:crypto";
 import { db } from "./db";
+import { sendingLimit } from "./sending-limit";
+import { sendingLimitDefault } from "./sending-limits";
 
 /** Sign-in links per address from one network address in an hour. */
 export const LINKS_PER_PLACE = 5;
 /** Sign-in links per address in an hour, from anywhere: high enough that others cannot lock a person out easily. */
 export const LINKS_PER_ADDRESS = 30;
 /** Sign-in links per network address in an hour, to any addresses. */
-export const LINKS_PER_NETWORK = 20;
+export const LINKS_PER_NETWORK = sendingLimitDefault("signInLinksPerNetwork");
 
 const hash = (kind: string, value: string) => createHash("sha256").update(`ziffr-sign-in:${kind}:${value}`).digest("hex");
 
@@ -37,7 +39,7 @@ export async function claimSignInLink(address: string, network: string | null): 
     p_network_key: place ? hash("network", place) : null,
     p_per_pair: LINKS_PER_PLACE,
     p_per_address: LINKS_PER_ADDRESS,
-    p_per_network: LINKS_PER_NETWORK,
+    p_per_network: await sendingLimit("signInLinksPerNetwork"),
   });
   // A database that does not answer sends no link either: failing open would turn the limit off when it is needed.
   if (error) throw new Error("Sign-in is not available right now. Try again in a minute.");

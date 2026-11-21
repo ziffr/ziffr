@@ -7,6 +7,7 @@ import { db } from "./db";
 import { deliverPrompt } from "./deliveries";
 import { claimInstallation, prepareSetupCode } from "./installation-admins";
 import { installationSettingsView, privateMailHost, saveInstallationSettings, sendTestEmail, TEST_EMAIL_ERRORS, TEST_EMAILS_PER_HOUR, turnstileVerifier } from "./installation-settings";
+import { sendingLimit } from "./sending-limit";
 import { trialSettingsInEffect, trialsOpen } from "./trials";
 import { demoReadOnlyWords } from "./demo";
 import { DEMO_READ_ONLY, DEMO_READ_ONLY_TRIAL } from "./demo-words";
@@ -103,7 +104,7 @@ describe("who may see and change Installation Settings", () => {
     await expect(installationSettingsView(owner)).rejects.toThrow(/Only Installation Admins/);
     await expect(saveInstallationSettings(owner, "mail", { ZIFFR_MAIL_FROM: "Ziffr <z@example.test>" })).rejects.toThrow(/Only Installation Admins/);
     await expect(sendTestEmail(owner)).rejects.toThrow(/Only Installation Admins/);
-    expect((await installationSettingsView(a)).sections.map((s) => s.id)).toEqual(["mail", "replies", "telegram", "slack", "limits", "marketplace", "bots", "trials", "usage", "demo"]);
+    expect((await installationSettingsView(a)).sections.map((s) => s.id)).toEqual(["mail", "replies", "telegram", "slack", "limits", "sending", "marketplace", "bots", "trials", "usage", "demo"]);
   });
 
   it("refuses names of other sections, unknown names, bad values and sections that are not ready", async () => {
@@ -533,5 +534,33 @@ describe("the check against bots, trials and the demo on the page (#201)", () =>
     process.env.ZIFFR_DEMO = "1";
     await expect(saveInstallationSettings(a, "demo", { ZIFFR_DEMO: "0" })).rejects.toThrow(/set on the server/);
     expect((await whatThisZiffrOffers()).demo).toBe(true);
+  });
+
+  it("saves a sending limit within its range, refuses one outside it, and the code reads the value in effect", async () => {
+    const a = await admin();
+    const name = "ZIFFR_LIMIT_CALLS_PER_KEY_PER_MINUTE";
+    delete process.env[name];
+    expect(await sendingLimit("callsPerKey")).toBe(60);
+    for (const bad of ["0", "29", "6001", "-5", "1e3", "sixty", "60.5"]) {
+      await expect(saveInstallationSettings(a, "sending", { [name]: bad })).rejects.toThrow(/Calls per API key per minute/);
+    }
+    await expect(saveInstallationSettings(a, "sending", { [name]: "0" })).rejects.toThrow(/cannot be switched off/);
+    const sending = async () => (await installationSettingsView(a)).sections.find((x) => x.id === "sending")!;
+    expect(await sending()).toMatchObject({ working: true, detail: "All at their normal values." });
+    await saveInstallationSettings(a, "sending", { [name]: "120" });
+    expect(await sending()).toMatchObject({ working: true, detail: "1 of 15 moved from their normal value." });
+    expect((await sending()).settings.find((x) => x.name === name)).toMatchObject({ value: "120", source: "page" });
+    expect(await sendingLimit("callsPerKey")).toBe(120);
+    expect((await settingSources())[name]).toBe("page");
+    // The server's value wins, and the page cannot change it.
+    process.env[name] = "90";
+    expect(await sendingLimit("callsPerKey")).toBe(90);
+    await expect(saveInstallationSettings(a, "sending", { [name]: "100" })).rejects.toThrow(/set on the server/);
+    // A mistyped one on the server never switches the safeguard off: the default holds.
+    process.env[name] = "0";
+    expect(await sendingLimit("callsPerKey")).toBe(60);
+    delete process.env[name];
+    await saveInstallationSettings(a, "sending", { [name]: null });
+    expect(await sendingLimit("callsPerKey")).toBe(60);
   });
 });

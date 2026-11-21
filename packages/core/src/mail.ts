@@ -9,25 +9,27 @@ import { db } from "./db";
 import { openRows } from "./sealed-columns";
 import { archivedMetricHolds, failForGood, FORM_LINK, withFormLink } from "./internal/delivery-send";
 import { checkedMailHost } from "./mail-hosts";
+import { sendingLimit } from "./sending-limit";
+import { sendingLimitDefault } from "./sending-limits";
 import { settingsInEffect, type Settings } from "./settings-in-effect";
 import { DEMO_WORKSPACE_ID } from "./team";
 import { signDigestToken } from "./usage-digest-token";
 import { claimTrialSend, keepInOutbox, trialHoldsBack } from "./trials";
 
-/** How often a message is tried before it counts as failed. */
-export const MAX_ATTEMPTS = 5;
+/** How often a message is tried before it counts as failed, unless ZIFFR_LIMIT_SEND_ATTEMPTS says otherwise (the default). */
+export const MAX_ATTEMPTS = sendingLimitDefault("sendAttempts");
 
 /** What a send did: sent, failed (and will be retried, or not after MAX_ATTEMPTS), or nothing to do. */
 export type SendResult = "sent" | "failed" | "skipped" | "waiting";
 
-/** Emails one workspace may send in 24 hours; the rest wait in the queue. */
-export const MAIL_PER_WORKSPACE_PER_DAY = 500;
+/** Emails one workspace may send in 24 hours, unless ZIFFR_LIMIT_EMAILS_PER_WORKSPACE_PER_DAY says otherwise (the default); the rest wait in the queue. */
+export const MAIL_PER_WORKSPACE_PER_DAY = sendingLimitDefault("mailPerWorkspace");
 /** The share of a Workspace's daily emails that Alert messages may use (spec 0032); the rest is kept for Prompts, tasks and the like. */
 export const MAIL_ALERT_SHARE = 0.4;
 /** Emails one inbox may get in an hour, from all workspaces together (counted by mailboxKey); the rest wait. */
 export const MAIL_PER_RECIPIENT_PER_HOUR = 20;
-/** Emails one person may cause in 24 hours (as the sender of Prompts, questions, notices), from all their workspaces. */
-export const MAIL_PER_SENDER_PER_DAY = 300;
+/** Emails one person may cause in 24 hours (as the sender of Prompts, questions, notices), from all their workspaces, unless ZIFFR_LIMIT_EMAILS_PER_PERSON_PER_DAY says otherwise (the default). */
+export const MAIL_PER_SENDER_PER_DAY = sendingLimitDefault("mailPerPerson");
 
 /** Stands in a Prompt's stored text for the recipient's personal form link, which is added only when it is sent. */
 export { FORM_LINK };
@@ -179,9 +181,10 @@ export async function addressIn(workspaceId: string, personId: string): Promise<
 
 /** Sends one queued Delivery. It is claimed first, so the immediate send and the retry job never both send it. */
 export async function sendDelivery(id: number, transport: MailTransport = smtpTransport): Promise<SendResult> {
+  const maxAttempts = await sendingLimit("sendAttempts");
   const { data: found } = await db().from("deliveries").select("id, workspace_id, recipient_id, kind, subject, body, attempts, reply_token, unsubscribe_token, form_token_id, prompt_id, action_id, alert_metric_id, alert_id, tell_workflow_id")
     // Email only: a queued Slack Delivery is sent by slack-send.ts, never as an email.
-    .eq("id", id).eq("connector", "email").eq("mail_state", "queued").lt("attempts", MAX_ATTEMPTS).maybeSingle();
+    .eq("id", id).eq("connector", "email").eq("mail_state", "queued").lt("attempts", maxAttempts).maybeSingle();
   if (!found) return "skipped";
   const [claimed] = await openRows("deliveries", found.workspace_id, [found]);
   // What never goes out, whatever the limits: it is marked failed for good, if it is still queued.
@@ -220,15 +223,16 @@ export async function sendDelivery(id: number, transport: MailTransport = smtpTr
   const trial = await claimTrialSend(id);
   if (trial === "wait") return "waiting";
   if (trial === "gone") return "skipped";
+  const perWorkspace = await sendingLimit("mailPerWorkspace");
   const { data: claim, error } = await db().rpc("claim_delivery_send", {
-    p_id: id, p_address_key: mailboxKey(to), p_per_workspace: MAIL_PER_WORKSPACE_PER_DAY, p_per_address: MAIL_PER_RECIPIENT_PER_HOUR, p_per_sender: MAIL_PER_SENDER_PER_DAY, p_max_attempts: MAX_ATTEMPTS, p_alerts_per_workspace: Math.floor(MAIL_PER_WORKSPACE_PER_DAY * MAIL_ALERT_SHARE),
+    p_id: id, p_address_key: mailboxKey(to), p_per_workspace: perWorkspace, p_per_address: MAIL_PER_RECIPIENT_PER_HOUR, p_per_sender: await sendingLimit("mailPerPerson"), p_max_attempts: maxAttempts, p_alerts_per_workspace: Math.floor(perWorkspace * MAIL_ALERT_SHARE),
   });
   if (error) throw new Error("The email could not be claimed for sending.");
   if (claim === "wait") return "waiting";
   if (claim !== "ok") return "skipped";
   const attempts = Number(claimed.attempts) + 1;
   const fail = async (why: string) => {
-    await db().from("deliveries").update({ mail_state: attempts >= MAX_ATTEMPTS ? "failed" : "queued", attempts, last_error: why.slice(0, 200) }).eq("id", id);
+    await db().from("deliveries").update({ mail_state: attempts >= maxAttempts ? "failed" : "queued", attempts, last_error: why.slice(0, 200) }).eq("id", id);
     return "failed" as const;
   };
   let unsubscribe: string | undefined;
@@ -277,7 +281,7 @@ export async function sendWaiting(limit = 50, transport: MailTransport = smtpTra
   await db().from("deliveries").update({ mail_state: "queued" }).eq("mail_state", "sending").lt("last_attempt_at", tenMinutesAgo);
   // Chosen in the database: ones waiting out a limit (not_before) or a failed attempt's wait are left out before the
   // run's limit, so however many must wait, they hold up nobody else's.
-  const { data: ids, error } = await db().rpc("due_deliveries", { p_limit: limit, p_max_attempts: MAX_ATTEMPTS });
+  const { data: ids, error } = await db().rpc("due_deliveries", { p_limit: limit, p_max_attempts: await sendingLimit("sendAttempts") });
   if (error) throw new Error("The waiting emails could not be read.");
   const due = ((ids ?? []) as (number | { due_deliveries: number })[]).map((r) => ({ id: typeof r === "number" ? r : r.due_deliveries }));
   let sent = 0;

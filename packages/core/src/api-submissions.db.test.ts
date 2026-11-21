@@ -146,6 +146,19 @@ describe("the daily limit and idempotency keys", () => {
     expect(!refused.ok && refused.retryAfter).toBeGreaterThan(3000);
     expect(!refused.ok && refused.retryAfter).toBeLessThanOrEqual(3600);
   });
+  it("count past one page of rows when ZIFFR_LIMIT_VALUES_PER_KEY_PER_DAY is raised, and say the limit in effect", async () => {
+    const w = await ws(); const ben = await w.person("member"); const { id, key } = await keyFor(w, ben);
+    try {
+      process.env.ZIFFR_LIMIT_VALUES_PER_KEY_PER_DAY = "3000";
+      const rows = Array.from({ length: 2999 }, () => ({ key_id: id, method: "POST", route: "/api/v1/metrics/m/observations", status: 201, submitted: 1 }));
+      await db().from("access_log").insert(rows);
+      expect(await admitValues(key)).toEqual({ ok: true });
+      await db().from("access_log").insert({ key_id: id, method: "POST", route: "/x", status: 201, submitted: 1 });
+      expect(await admitValues(key)).toMatchObject({ ok: false, limit: 3000 });
+    } finally {
+      delete process.env.ZIFFR_LIMIT_VALUES_PER_KEY_PER_DAY;
+    }
+  });
   it("answer a repeat with the first answer, a different body with a conflict, and keep no refusal for the limit", async () => {
     const w = await ws(); const ben = await w.person("member"); const { key } = await keyFor(w, ben);
     const run = vi.fn(async () => ({ status: 201, body: { status: "recorded" } }));

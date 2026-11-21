@@ -5,6 +5,8 @@ import { createHash } from "node:crypto";
 import { assertScope, Forbidden, type Actor, type KeyActor, type FeedActor } from "./actor";
 import { visibleMetricIds } from "./access";
 import { db } from "./db";
+import { sendingLimit } from "./sending-limit";
+import { sendingLimitDefault } from "./sending-limits";
 import { openRows } from "./sealed-columns";
 import { submitValue, submissionEffects, type SubmissionEffects } from "./submissions";
 import { getMetrics } from "./workspace-data";
@@ -22,8 +24,8 @@ export const REFUSED: Record<string, string> = {
   rejected_no_value: "The value is not a number.",
 };
 
-/** Values one key may submit in any 24 hours. */
-export const VALUES_PER_DAY = 1000;
+/** Values one key may submit in any 24 hours, unless ZIFFR_LIMIT_VALUES_PER_KEY_PER_DAY says otherwise (the default). */
+export const VALUES_PER_DAY = sendingLimitDefault("valuesPerKey");
 /** How long an idempotency key's first answer is kept. */
 export const IDEMPOTENCY_HOURS = 24;
 
@@ -76,20 +78,19 @@ export async function submitObservation(actor: Actor | KeyActor, slug: string, i
 
 /** Whether the key may submit another value now; if not, the seconds until it may (scope values:submit). Counted from
  * the Access Log's submitted values of the last 24 hours. */
-export async function admitValues(actor: KeyActor, count = 1): Promise<{ ok: true } | { ok: false; retryAfter: number }> {
-  const since = Date.now() - 86_400_000;
-  const { data } = await db().from("access_log").select("at, submitted").eq("key_id", Number(actor.key.id)).gt("submitted", 0).gt("at", new Date(since).toISOString()).order("at", { ascending: true }).limit(VALUES_PER_DAY + 1);
-  const rows = data ?? [];
-  let total = rows.reduce((a, r) => a + Number(r.submitted), 0);
-  if (total + count <= VALUES_PER_DAY) return { ok: true };
+export async function admitValues(actor: KeyActor, count = 1): Promise<{ ok: true } | { ok: false; retryAfter: number; limit: number }> {
+  const perDay = await sendingLimit("valuesPerKey");
+  const key = Number(actor.key.id);
+  const since = new Date(Date.now() - 86_400_000).toISOString();
+  // Counted in the database: with the limit raised on the Installation Settings page the log holds too many rows to read
+  // here. A count that cannot be made refuses the call, never lets it through.
+  const { data: total, error } = await db().rpc("key_values_total", { p_key: key, p_since: since });
+  if (error || total === null || total === undefined) throw new Error("The day's values could not be counted. Try again in a moment.");
+  if (Number(total) + count <= perDay) return { ok: true };
   // The limit frees up as the oldest submissions pass 24 hours.
-  let at = Date.now();
-  for (const r of rows) {
-    total -= Number(r.submitted);
-    at = new Date(r.at).getTime();
-    if (total + count <= VALUES_PER_DAY) break;
-  }
-  return { ok: false, retryAfter: Math.max(1, Math.ceil((at + 86_400_000 - Date.now()) / 1000)) };
+  const { data: freeAt } = await db().rpc("key_values_free_at", { p_key: key, p_since: since, p_need: Number(total) + count - perDay });
+  const at = freeAt ? new Date(String(freeAt)).getTime() : Date.now();
+  return { ok: false, retryAfter: Math.max(1, Math.ceil((at + 86_400_000 - Date.now()) / 1000)), limit: perDay };
 }
 
 /** A stored answer: its HTTP status and body. `keep: false` answers once without storing (a refusal for the limit,

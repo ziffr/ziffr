@@ -3,6 +3,8 @@
 // Joining by domain is off until an Owner sets the domain, and every request is approved by an Owner or Admin.
 import { randomBytes } from "node:crypto";
 import { db } from "./db";
+import { sendingLimit } from "./sending-limit";
+import { sendingLimitDefault } from "./sending-limits";
 import { openNames } from "./sealed-columns";
 import { assertCan, Forbidden, type Actor, type WorkspaceRoleName } from "./actor";
 import { DEMO_WORKSPACE_ID } from "./team";
@@ -47,9 +49,9 @@ const RESEND_AFTER = 60_000;
 
 const ROLE_LABEL: Record<WorkspaceRoleName, string> = { owner: "an Owner", admin: "an Admin", member: "a Member", guest: "a Guest" };
 
-/** Invitation emails one workspace may send in 24 hours. With the next, it keeps an invitation from being a way to
+/** Invitation emails one workspace may send in 24 hours, unless ZIFFR_LIMIT_INVITATION_EMAILS_PER_WORKSPACE_PER_DAY says otherwise (the default). With the next, it keeps an invitation from being a way to
  * mail strangers: anyone who may invite could otherwise send any address mail. */
-export const INVITATION_EMAILS_PER_WORKSPACE = 50;
+export const INVITATION_EMAILS_PER_WORKSPACE = sendingLimitDefault("invitationsPerWorkspace");
 /** Invitation emails one address may get in 24 hours, from all workspaces together. */
 export const INVITATION_EMAILS_PER_ADDRESS = 3;
 /** Invitation emails one person may cause in 24 hours (by inviting or resending), from all their workspaces. */
@@ -64,7 +66,7 @@ async function emailInvitation(id: number, sender: string, transport?: MailTrans
   // Claimed in the database under locks on the address and the workspace, counting the day's real sends there.
   const { data: claim, error } = await db().rpc("claim_invitation_email", {
     p_invitation: inv.id, p_sender: sender, p_address_key: mailboxKey(inv.email),
-    p_per_workspace: INVITATION_EMAILS_PER_WORKSPACE, p_per_address: INVITATION_EMAILS_PER_ADDRESS, p_per_sender: INVITATION_EMAILS_PER_SENDER,
+    p_per_workspace: await sendingLimit("invitationsPerWorkspace"), p_per_address: INVITATION_EMAILS_PER_ADDRESS, p_per_sender: INVITATION_EMAILS_PER_SENDER,
   });
   if (error) return false;
   if (claim === "limit") {

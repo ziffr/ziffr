@@ -9,6 +9,8 @@
 // as on the live dashboard; until then they are drafts for the dashboard's owner and Editors who see all they kept.
 // Losing access to the dashboard loses its Snapshots; losing a Metric loses it in every Snapshot too.
 import { assertCan, Forbidden, Refused, type Actor } from "./actor";
+import { sendingLimit } from "./sending-limit";
+import { sendingLimitDefault } from "./sending-limits";
 import { getCanvasData, visibleDashboards, visibleMetricIds } from "./access";
 import { getMetrics } from "./workspace-data";
 import { audit } from "./audit-log";
@@ -61,7 +63,7 @@ const MAX_WORD = 600;
 /** The largest frozen part a Snapshot may keep, in characters of JSON (the database allows a little more). */
 const MAX_FROZEN = 7_500_000;
 /** How many Snapshots a dashboard keeps at most, and how far back one may be taken, in years. */
-export const MAX_SNAPSHOTS = 500;
+export const MAX_SNAPSHOTS = sendingLimitDefault("snapshotsPerDashboard");
 const MAX_YEARS_BACK = 10;
 
 /** Today in the workspace's own time zone, as yyyy-mm-dd. */
@@ -127,7 +129,8 @@ export async function takeSnapshot(actor: Actor, dashboardId: number, period: { 
   if (p.end >= today) throw new Refused(`${p.label} is not over yet. Take its Snapshot once it is.`);
   if (Number(p.start.slice(0, 4)) < Number(today.slice(0, 4)) - MAX_YEARS_BACK) throw new Refused(`Snapshots go back ${MAX_YEARS_BACK} years at most.`);
   const { count } = await db().from("dashboard_snapshots").select("id", { count: "exact", head: true }).eq("workspace_id", ws).eq("dashboard_id", dashboardId).is("deleted_at", null);
-  if ((count ?? 0) >= MAX_SNAPSHOTS) throw new Refused(`A dashboard keeps ${MAX_SNAPSHOTS} Snapshots at most. Delete old ones first.`);
+  const most = await sendingLimit("snapshotsPerDashboard");
+  if ((count ?? 0) >= most) throw new Refused(`A dashboard keeps ${most} Snapshots at most. Delete old ones first.`);
   const { data: rows } = await db().from("widgets").select("*").eq("workspace_id", ws).eq("dashboard_id", dashboardId).order("y").order("x");
   // Nothing in a free layout may load from another site when shown (spec 0009).
   const widgets = ((await openRows("widgets", ws, rows)) as Widget[]).map(widgetWithoutOutside);

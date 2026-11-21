@@ -16,7 +16,8 @@ import { mailHostResolver, privateAddress } from "./mail-hosts";
 import { operatorPrivateHosts, outboundUrlProblem } from "./outbound-request";
 import { openRows, sealRow } from "./sealed-columns";
 import { trialEndsAt } from "./trials";
-import { WEBHOOKS_PER_WORKSPACE, WEBHOOK_NAME_MAX, WEBHOOK_SECRET_OVERLAP_HOURS, WEBHOOK_URL_MAX } from "./webhook-limits";
+import { sendingLimit } from "./sending-limit";
+import { WEBHOOK_NAME_MAX, WEBHOOK_SECRET_OVERLAP_HOURS, WEBHOOK_URL_MAX } from "./webhook-limits";
 import { isIP } from "node:net";
 
 /** The events a Webhook may choose (spec 0034, "Events").  `alert.fired` is sent only for a Workflow's Tell step that names the Webhook, never for a personal Alert. */
@@ -162,13 +163,14 @@ export async function createWebhook(actor: Actor, input: { name: string; url: st
   const id = randomUUID();
   const secret = newSecret();
   const sealed = await sealRow("webhooks", actor.workspaceId, { id, url, secret });
-  const { data, error } = await db().rpc("create_webhook", { p_id: id, p_ws: actor.workspaceId, p_name: name, p_url: sealed.url, p_secret: sealed.secret, p_events: events, p_by: actor.personId, p_max: WEBHOOKS_PER_WORKSPACE });
+  const most = await sendingLimit("webhooksPerWorkspace");
+  const { data, error } = await db().rpc("create_webhook", { p_id: id, p_ws: actor.workspaceId, p_name: name, p_url: sealed.url, p_secret: sealed.secret, p_events: events, p_by: actor.personId, p_max: most });
   if (error || typeof data !== "string") {
     console.error("create_webhook failed:", error?.message ?? "no answer");
     throw new Error("The Webhook could not be saved. Try again in a moment.");
   }
   if (data === "trial") throw new Forbidden("A trial cannot have Webhooks: they send Workspace data to addresses outside Ziffr.");
-  if (data === "limit") throw new Error(`This Workspace already has ${WEBHOOKS_PER_WORKSPACE} Webhooks, the most it may. Delete one to add another.`);
+  if (data === "limit") throw new Error(`This Workspace already has ${most} Webhooks, the most it may. Delete one to add another.`);
   const address = maskedHost(url);
   await audit(actor, { kind: "webhook.created", object: { type: "webhook", id, name }, details: { address, events } });
   await tellOwners(actor, "added", name, address);

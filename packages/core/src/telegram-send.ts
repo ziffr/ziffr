@@ -5,7 +5,9 @@
 import { db } from "./db";
 import { archivedMetricHolds, failForGood, withFormLink } from "./internal/delivery-send";
 import { openRows } from "./sealed-columns";
-import { MAX_ATTEMPTS, OPT_OUT_KINDS, type SendResult } from "./mail";
+import { OPT_OUT_KINDS, type SendResult } from "./mail";
+import { sendingLimit } from "./sending-limit";
+import { sendingLimitDefault } from "./sending-limits";
 import { forgetStaleTelegramTests } from "./installation-telegram-test";
 import { callTelegram, TelegramError } from "./telegram-api";
 import { telegramOnIn } from "./telegram-connection";
@@ -13,8 +15,8 @@ import { forgetTelegramUser, telegramChatOf } from "./telegram-people";
 import { DEMO_WORKSPACE_ID } from "./team";
 import { claimTrialSend, keepInOutbox, trialHoldsBack } from "./trials";
 
-/** Telegram messages one workspace may send in 24 hours; the rest wait in the queue. */
-export const TELEGRAM_PER_WORKSPACE_PER_DAY = 500;
+/** Telegram messages one workspace may send in 24 hours, unless ZIFFR_LIMIT_CHAT_MESSAGES_PER_WORKSPACE_PER_DAY says otherwise (the default); the rest wait in the queue. */
+export const TELEGRAM_PER_WORKSPACE_PER_DAY = sendingLimitDefault("chatPerWorkspace");
 /** Telegram messages one chat may get in an hour; the rest wait. */
 export const TELEGRAM_PER_RECIPIENT_PER_HOUR = 20;
 /** Telegram messages one person may cause in 24 hours (as the sender of Prompts, questions, notices). */
@@ -46,8 +48,9 @@ export async function telegramSends(workspaceId: string): Promise<boolean> {
 
 /** Sends one queued Telegram Delivery. It is claimed first, so the immediate send and the retry job never both send it. */
 export async function sendTelegramDelivery(id: number): Promise<SendResult> {
+  const maxAttempts = await sendingLimit("sendAttempts");
   const { data: found } = await db().from("deliveries").select("id, workspace_id, recipient_id, kind, action_id, body, attempts, form_token_id, prompt_id, alert_metric_id, tell_workflow_id")
-    .eq("id", id).eq("connector", "telegram").eq("mail_state", "queued").lt("attempts", MAX_ATTEMPTS).maybeSingle();
+    .eq("id", id).eq("connector", "telegram").eq("mail_state", "queued").lt("attempts", maxAttempts).maybeSingle();
   if (!found) return "skipped";
   const [d] = await openRows("deliveries", found.workspace_id, [found]);
   // What never goes out, whatever the limits: it is marked failed for good, if it is still queued.
@@ -73,8 +76,8 @@ export async function sendTelegramDelivery(id: number): Promise<SendResult> {
   if (trial === "wait") return "waiting";
   if (trial === "gone") return "skipped";
   const { data: claim, error } = await db().rpc("claim_telegram_send", {
-    p_id: id, p_chat: chat.chatId, p_per_workspace: TELEGRAM_PER_WORKSPACE_PER_DAY, p_per_recipient: TELEGRAM_PER_RECIPIENT_PER_HOUR,
-    p_per_sender: TELEGRAM_PER_SENDER_PER_DAY, p_per_bot_second: TELEGRAM_PER_BOT_PER_SECOND, p_max_attempts: MAX_ATTEMPTS,
+    p_id: id, p_chat: chat.chatId, p_per_workspace: await sendingLimit("chatPerWorkspace"), p_per_recipient: TELEGRAM_PER_RECIPIENT_PER_HOUR,
+    p_per_sender: TELEGRAM_PER_SENDER_PER_DAY, p_per_bot_second: TELEGRAM_PER_BOT_PER_SECOND, p_max_attempts: maxAttempts,
   });
   if (error) throw new Error("The Telegram message could not be claimed for sending.");
   if (claim === "wait") return "waiting";
@@ -115,7 +118,7 @@ async function trouble(e: unknown, id: number, attempts: number, userId: number)
     return "failed";
   }
   const next = attempts + 1;
-  await db().from("deliveries").update({ mail_state: next >= MAX_ATTEMPTS ? "failed" : "queued", attempts: next, last_attempt_at: new Date().toISOString(), last_error: `Telegram refused it (${code}).`.slice(0, 200) }).eq("id", id);
+  await db().from("deliveries").update({ mail_state: next >= (await sendingLimit("sendAttempts")) ? "failed" : "queued", attempts: next, last_attempt_at: new Date().toISOString(), last_error: `Telegram refused it (${code}).`.slice(0, 200) }).eq("id", id);
   return "failed";
 }
 
@@ -129,7 +132,7 @@ export async function sendWaitingTelegram(limit = 50): Promise<{ sent: number; f
   await forgetStaleTelegramTests();
   const tenMinutesAgo = new Date(Date.now() - 600_000).toISOString();
   await db().from("deliveries").update({ mail_state: "queued" }).eq("connector", "telegram").eq("mail_state", "sending").lt("last_attempt_at", tenMinutesAgo);
-  const { data: ids, error } = await db().rpc("due_deliveries_via", { p_connector: "telegram", p_limit: limit, p_max_attempts: MAX_ATTEMPTS });
+  const { data: ids, error } = await db().rpc("due_deliveries_via", { p_connector: "telegram", p_limit: limit, p_max_attempts: await sendingLimit("sendAttempts") });
   if (error) throw new Error("The waiting Telegram messages could not be read.");
   let sent = 0;
   let failed = 0;

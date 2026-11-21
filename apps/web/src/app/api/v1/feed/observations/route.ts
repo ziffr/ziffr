@@ -1,9 +1,9 @@
 // /api/v1/feed/observations (spec 0012, GLOSSARY: Feed, Import). POST: up to 500 values in one call, each through the
-// same core path as any value, with one result per item. Only for Feed Keys; at most 10,000 values a day per Feed,
+// same core path as any value, with one result per item. Only for Feed Keys; at most ZIFFR_LIMIT_VALUES_PER_FEED_PER_DAY values a day per Feed (10,000 unless set),
 // counted over all its keys, and a batch that would cross that is refused whole, so a run never half-succeeds silently.
 // One batch runs at a time per Feed; the claim is one locked database step, so parallel requests cannot pass it.
 import { once, type StoredAnswer } from "@ziffr/core/api-submissions";
-import { claimFeedBatch, FEED_VALUES_PER_DAY, finishFeedBatch, submitFeedObservations } from "@ziffr/core/feeds";
+import { claimFeedBatch, finishFeedBatch, submitFeedObservations } from "@ziffr/core/feeds";
 import { errorBody, feedRoute, jsonBody } from "@/lib/api";
 import { idempotencyKey, idempotentAnswer } from "@/lib/api-idempotency";
 import { FeedBatch, FeedBatchAnswer } from "../../schemas";
@@ -24,7 +24,7 @@ export const POST = feedRoute(async (feed, req) => {
       retryAfter = claim.retryAfter;
       const message = claim.reason === "busy"
         ? "Another batch of this Feed is still running; send the next when it is done."
-        : `This Feed may record ${FEED_VALUES_PER_DAY} values in 24 hours, and this batch would cross that; try again in ${claim.retryAfter} seconds.`;
+        : `This Feed may record ${claim.limit} values in 24 hours, and this batch would cross that; try again in ${claim.retryAfter} seconds.`;
       return { ...errorBody("rate_limited", message), keep: false };
     }
     try {

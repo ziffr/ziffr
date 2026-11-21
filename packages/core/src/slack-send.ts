@@ -5,15 +5,17 @@
 import { db } from "./db";
 import { archivedMetricHolds, failForGood, withFormLink } from "./internal/delivery-send";
 import { openRows } from "./sealed-columns";
-import { MAX_ATTEMPTS, OPT_OUT_KINDS, type SendResult } from "./mail";
+import { OPT_OUT_KINDS, type SendResult } from "./mail";
+import { sendingLimit } from "./sending-limit";
+import { sendingLimitDefault } from "./sending-limits";
 import { callSlack, slackOn, SlackError, TOKEN_GONE } from "./slack-api";
 import { slackBot, slackConnectionEnded, type SlackBot } from "./slack-connection";
 import { slackUserFor } from "./slack-people";
 import { DEMO_WORKSPACE_ID } from "./team";
 import { claimTrialSend, keepInOutbox, trialHoldsBack } from "./trials";
 
-/** Slack messages one workspace may send in 24 hours; the rest wait in the queue. */
-export const SLACK_PER_WORKSPACE_PER_DAY = 500;
+/** Slack messages one workspace may send in 24 hours, unless ZIFFR_LIMIT_CHAT_MESSAGES_PER_WORKSPACE_PER_DAY says otherwise (the default); the rest wait in the queue. */
+export const SLACK_PER_WORKSPACE_PER_DAY = sendingLimitDefault("chatPerWorkspace");
 /** Slack messages one person may get in an hour from one Slack workspace; the rest wait. */
 export const SLACK_PER_RECIPIENT_PER_HOUR = 20;
 /** Slack messages one person may cause in 24 hours (as the sender of Prompts, questions, notices). */
@@ -44,8 +46,9 @@ async function buttons(d: { id: number; workspace_id: string; kind: string; acti
 
 /** Sends one queued Slack Delivery. It is claimed first, so the immediate send and the retry job never both send it. */
 export async function sendSlackDelivery(id: number): Promise<SendResult> {
+  const maxAttempts = await sendingLimit("sendAttempts");
   const { data: found } = await db().from("deliveries").select("id, workspace_id, recipient_id, kind, action_id, body, attempts, form_token_id, prompt_id, alert_metric_id, tell_workflow_id")
-    .eq("id", id).eq("connector", "slack").eq("mail_state", "queued").lt("attempts", MAX_ATTEMPTS).maybeSingle();
+    .eq("id", id).eq("connector", "slack").eq("mail_state", "queued").lt("attempts", maxAttempts).maybeSingle();
   if (!found) return "skipped";
   const [d] = await openRows("deliveries", found.workspace_id, [found]);
   // What never goes out, whatever the limits: it is marked failed for good, if it is still queued.
@@ -79,8 +82,8 @@ export async function sendSlackDelivery(id: number): Promise<SendResult> {
   if (trial === "wait") return "waiting";
   if (trial === "gone") return "skipped";
   const { data: claim, error } = await db().rpc("claim_slack_send", {
-    p_id: id, p_team_id: bot.teamId, p_recipient: `${bot.teamId}:${user}`, p_per_workspace: SLACK_PER_WORKSPACE_PER_DAY,
-    p_per_recipient: SLACK_PER_RECIPIENT_PER_HOUR, p_per_sender: SLACK_PER_SENDER_PER_DAY, p_per_team_minute: SLACK_PER_TEAM_PER_MINUTE, p_max_attempts: MAX_ATTEMPTS,
+    p_id: id, p_team_id: bot.teamId, p_recipient: `${bot.teamId}:${user}`, p_per_workspace: await sendingLimit("chatPerWorkspace"),
+    p_per_recipient: SLACK_PER_RECIPIENT_PER_HOUR, p_per_sender: SLACK_PER_SENDER_PER_DAY, p_per_team_minute: SLACK_PER_TEAM_PER_MINUTE, p_max_attempts: maxAttempts,
   });
   if (error) throw new Error("The Slack message could not be claimed for sending.");
   if (claim === "wait") return "waiting";
@@ -118,7 +121,7 @@ async function trouble(e: unknown, bot: SlackBot, id: number, attempts: number, 
     return "failed";
   }
   const next = attempts + 1;
-  await db().from("deliveries").update({ mail_state: next >= MAX_ATTEMPTS ? "failed" : "queued", attempts: next, last_attempt_at: new Date().toISOString(), last_error: `Slack refused it (${code}).`.slice(0, 200) }).eq("id", id);
+  await db().from("deliveries").update({ mail_state: next >= (await sendingLimit("sendAttempts")) ? "failed" : "queued", attempts: next, last_attempt_at: new Date().toISOString(), last_error: `Slack refused it (${code}).`.slice(0, 200) }).eq("id", id);
   return "failed";
 }
 
@@ -126,7 +129,7 @@ async function trouble(e: unknown, bot: SlackBot, id: number, attempts: number, 
 export async function sendWaitingSlack(limit = 50): Promise<{ sent: number; failed: number }> {
   const tenMinutesAgo = new Date(Date.now() - 600_000).toISOString();
   await db().from("deliveries").update({ mail_state: "queued" }).eq("connector", "slack").eq("mail_state", "sending").lt("last_attempt_at", tenMinutesAgo);
-  const { data: ids, error } = await db().rpc("due_deliveries_via", { p_connector: "slack", p_limit: limit, p_max_attempts: MAX_ATTEMPTS });
+  const { data: ids, error } = await db().rpc("due_deliveries_via", { p_connector: "slack", p_limit: limit, p_max_attempts: await sendingLimit("sendAttempts") });
   if (error) throw new Error("The waiting Slack messages could not be read.");
   let sent = 0;
   let failed = 0;

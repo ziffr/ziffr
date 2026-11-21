@@ -3,10 +3,12 @@
 // Postgres: no other store. Counting and recording are not one transaction, so a burst may pass a few calls over the
 // limit; the limit is "about 60 a minute", which is enough to stop a flood.
 import { db } from "./db";
+import { sendingLimit } from "./sending-limit";
+import { sendingLimitDefault } from "./sending-limits";
 import { Forbidden, type Actor, type FeedActor, type KeyActor } from "./actor";
 
 /** Calls one key may make in any 60 seconds. */
-export const REQUESTS_PER_MINUTE = 60;
+export const REQUESTS_PER_MINUTE = sendingLimitDefault("callsPerKey");
 /** How long the log keeps a call. */
 export const LOG_DAYS = 90;
 
@@ -26,7 +28,7 @@ export async function limitedKeyIds(actor: KeyActor | FeedActor): Promise<number
 export async function admitCall(actor: KeyActor | FeedActor): Promise<{ ok: true } | { ok: false; retryAfter: number }> {
   const since = new Date(Date.now() - 60_000).toISOString();
   const { data, count } = await db().from("access_log").select("at", { count: "exact" }).in("key_id", await limitedKeyIds(actor)).gt("at", since).neq("status", 429).order("at", { ascending: true }).limit(1);
-  if ((count ?? 0) < REQUESTS_PER_MINUTE) return { ok: true };
+  if ((count ?? 0) < (await sendingLimit("callsPerKey"))) return { ok: true };
   const oldest = data?.[0] ? new Date(data[0].at).getTime() : Date.now();
   return { ok: false, retryAfter: Math.max(1, Math.ceil((oldest + 60_000 - Date.now()) / 1000)) };
 }
