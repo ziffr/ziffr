@@ -234,7 +234,7 @@ function registerMetricCreation(server: McpServer, ziffr: Ziffr): void {
 function registerMetricEditing(server: McpServer, ziffr: Ziffr): void {
   server.registerTool("update_metric", {
     title: "Change a Metric",
-    description: "Changes a Metric's name, description, unit, format, period (only while it has no values and no targets or projections by period: later its values would sit in the wrong periods), Submission Rule, Target Range (target_min, target_max; null clears an end), Polarity, Attainment method or Sources (\"Values arrive by\": list all of them, api included if programs and this assistant should keep submitting; the ones left out are turned off), replacing what was set. Use it for any change to how a Metric is described, measured or how values arrive; for its schedule use set_metric_workflow, for who sends values set_submitters. Only what the user asked to change, only after they confirmed the values. Only the Metric's owner and its Editors may; needs a key that may change metrics. Answers the Metric as it is now.",
+    description: "Changes a Metric's name, description, unit, format, period (only while it has no values and no targets or projections by period: later its values would sit in the wrong periods), Submission Rule, Target Range (target_min, target_max; null clears an end), Polarity, Attainment method, the formula of a calculated Metric or Sources (\"Values arrive by\": list all of them, api included if programs and this assistant should keep submitting; the ones left out are turned off), replacing what was set. Use it for any change to how a Metric is described, measured or how values arrive; for its schedule use set_metric_workflow, for who sends values set_submitters. Only what the user asked to change, only after they confirmed the values. Only the Metric's owner and its Editors may; needs a key that may change metrics. Answers the Metric as it is now.",
     inputSchema: {
       slug,
       name: z.string().trim().min(1).max(120).optional().describe("What it is called; its slug stays."),
@@ -248,6 +248,7 @@ function registerMetricEditing(server: McpServer, ziffr: Ziffr): void {
       polarity: z.enum(["higher", "lower", "target"]).optional().describe("Whether higher or lower is better, or a range (target)."),
       attainment_method: z.enum(["ratio", "distance"]).nullable().optional().describe("How Attainment is computed; null follows the workspace."),
       sources: sources.optional().describe("How values may arrive, all of them: web_form, mail, slack, telegram, api."),
+      formula: z.string().min(1).max(500).optional().describe("Only for a calculated Metric: its new formula, as in create_metric (slugs in curly brackets, + - * /, change({slug}), prev({slug})). Same checks as creating one."),
     },
     // It replaces what was set before, so a client asks before running it.
     annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: true, openWorldHint: false },

@@ -81,6 +81,17 @@ describe("createMetricWithKey", () => {
     await w.share(odo.id, lena);
     expect(await getMetric(lenasKey, m.slug)).toMatchObject({ formula: "change({odometer}) / 7" });
   });
+  it("changes a Derived Metric's formula through the key, refusing a bad one before any other field changes", async () => {
+    const w = await ws(); const ben = await w.person("member");
+    const { key } = await keyFor(w, ben, "member", ["metrics:write", "metrics:read", "metrics:edit"]);
+    await w.metric(ben, { name: "A", slug: "a" });
+    const m = await createMetricWithKey(key, { name: "Twice", formula: "{a} * 2" }, fx());
+    expect(await updateMetricWithKey(key, m.slug, { formula: "{a} * 3", description: "Three times" })).toMatchObject({ formula: "{a} * 3", description: "Three times" });
+    await expect(updateMetricWithKey(key, m.slug, { formula: "{nonesuch}", description: "Nope" })).rejects.toBeInstanceOf(MetricChangeRefused);
+    expect(await updateMetricWithKey(key, m.slug, {})).toMatchObject({ formula: "{a} * 3", description: "Three times" });
+    const { key: noRead } = await keyFor(w, ben, "member", ["metrics:write", "metrics:edit"]);
+    await expect(updateMetricWithKey(noRead, m.slug, { formula: "{a}" })).rejects.toEqual(forbidden);
+  });
   it("needs metrics:read as well to make a Derived Metric, and makes nothing without it", async () => {
     const w = await ws(); const ben = await w.person("member");
     const { key } = await keyFor(w, ben, "member", ["metrics:write"]);

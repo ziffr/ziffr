@@ -545,6 +545,7 @@ Sets or removes 1 to 500 periods: a number sets the period's value, null removes
 | `items` | array of object (at most 500) | yes | 1 to 500 periods; all are checked before anything is written, a later item for the same period wins. |
 | `items[].period` | string | yes | The period's first day, YYYY-MM-DD, as in the Metric's values. |
 | `items[].value` | number, -1000000000000000 to 1000000000000000 or null | yes | The value, at most 10^15 either way; null removes the period's value. |
+| `formula` | string, at most 500 characters | no | A Derived Metric's new formula, checked as when creating one; only its owner and Editors. Needs metrics:read as well. |
 
 **Answer** (200)
 
@@ -611,6 +612,7 @@ Sets or removes 1 to 500 periods of the current period or later: a number sets t
 | `items` | array of object (at most 500) | yes | 1 to 500 periods; all are checked before anything is written, a later item for the same period wins. |
 | `items[].period` | string | yes | The period's first day, YYYY-MM-DD, as in the Metric's values. |
 | `items[].value` | number, -1000000000000000 to 1000000000000000 or null | yes | The value, at most 10^15 either way; null removes the period's value. |
+| `formula` | string, at most 500 characters | no | A Derived Metric's new formula, checked as when creating one; only its owner and Editors. Needs metrics:read as well. |
 
 **Answer** (200)
 

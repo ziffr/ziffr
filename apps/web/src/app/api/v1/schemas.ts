@@ -178,6 +178,7 @@ export const SetSeries = z.object({
     period: periodDateOf().describe("The period's first day, YYYY-MM-DD, as in the Metric's values."),
     value: seriesValue.nullable().describe("The value, at most 10^15 either way; null removes the period's value."),
   }).strict()).min(1).max(500).describe("1 to 500 periods; all are checked before anything is written, a later item for the same period wins."),
+  formula: z.string().min(1).max(500).optional().describe("A Derived Metric's new formula, checked as when creating one; only its owner and Editors. Needs metrics:read as well."),
 }).strict();
 
 /** What setting a Target Series or Projections did. */

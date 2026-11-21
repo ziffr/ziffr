@@ -3,7 +3,7 @@
 // behind when it is refused.
 import { afterEach, describe, expect, it } from "vitest";
 import { Forbidden, Refused } from "./actor";
-import { createDerivedMetric, formulaChoices } from "./derived-metrics";
+import { createDerivedMetric, formulaChoices, setMetricFormula } from "./derived-metrics";
 import { db } from "./db";
 import { buildSeries } from "./series";
 import { opened, workspace } from "./test/db-fixtures";
@@ -130,5 +130,31 @@ describe("createDerivedMetric", () => {
     await createDerivedMetric(as, { name: "Twice", formula: "{visits} * 2" });
     expect(await formulaChoices(as)).toEqual([{ slug: "visits", name: "Visits", period: "week", unit: "visits" }]);
     await expect(formulaChoices(w.actor(await w.person("guest"), "guest"))).rejects.toBeInstanceOf(Forbidden);
+  });
+
+  it("changes a Derived Metric's formula with the checks of making one, for its owner and Editors only", async () => {
+    const { w, sara, as } = await setup();
+    const lena = await w.person("member");
+    await w.metric(sara, { name: "A", slug: "a" });
+    await w.metric(sara, { name: "W", slug: "w", period: "week" });
+    const secret = await w.metric(lena, { name: "Salaries", slug: "salaries" });
+    const plain = await w.metric(sara, { name: "Plain", slug: "plain" });
+    const d = await createDerivedMetric(as, { name: "Twice", formula: "{a} * 2" });
+    await setMetricFormula(as, d.id, "change({a}) + 1");
+    expect((await row(w.id, d.id)).formula).toBe("change({a}) + 1");
+    const refused = async (id: number, f: string) => (await setMetricFormula(as, id, f).catch((e) => e)) as Error;
+    expect((await refused(d.id, "{salaries} * 2")).message).toBe("{salaries} is not a Metric of this Workspace.");
+    expect((await refused(d.id, "{w} * 2")).message).toMatch(/counted by week, it by month/);
+    expect((await refused(d.id, "{twice} * 2")).message).toMatch(/itself/);
+    expect((await refused(d.id, "  ")).message).toMatch(/Write the formula/);
+    expect((await refused(plain.id, "{a} * 2")).message).toBe("Only a Derived Metric has a formula.");
+    expect((await row(w.id, d.id)).formula).toBe("change({a}) + 1");
+    // Not its owner or an Editor: refused. Once a Metric is shared with the owner, it can be an input.
+    await expect(setMetricFormula(w.actor(lena, "member"), d.id, "{a} * 3")).rejects.toBeInstanceOf(Forbidden);
+    await w.share(secret.id, sara);
+    await setMetricFormula(as, d.id, "{salaries} * 3");
+    expect((await row(w.id, d.id)).formula).toBe("{salaries} * 3");
+    const { data: versions } = await db().from("versions").select("message").eq("object_type", "metric").eq("object_id", d.id);
+    expect(versions!.map((v) => v.message)).toContain("Changed its formula");
   });
 });

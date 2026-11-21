@@ -7,7 +7,8 @@ import { assertCan, Refused, type Actor } from "./actor";
 import { db } from "./db";
 import { visibleMetricIds } from "./access";
 import { checkFormula, formulaInputs, FORMULA_MAX_LENGTH, type FormulaInput } from "./formula";
-import { createMetric, deleteMetric, metricEffects, type MetricEffects } from "./metrics";
+import { createMetric, deleteMetric, editableMetric, metricEffects, type MetricEffects } from "./metrics";
+import { audit } from "./audit-log";
 import { recordVersion } from "./versions";
 import { getMetrics } from "./workspace-data";
 import type { Metric, Period } from "./types";
@@ -102,4 +103,23 @@ export async function formulaChoices(actor: Actor): Promise<FormulaChoice[]> {
   const all = await getMetrics(actor.workspaceId);
   const seen = await visibleMetricIds(actor.workspaceId, actor.personId, all);
   return all.filter((m) => seen.has(m.id) && !m.formula && !m.archived_at).map((m) => ({ slug: m.slug, name: m.name, period: m.period, unit: m.unit }));
+}
+
+/** Changes the formula of a Derived Metric the actor may edit (its owner and Editors), with the checks of creating one:
+ * only Metrics the actor sees, read whole, the Metric's own period, no Derived input, never itself. Refused with
+ * `Refused`; a Metric that is not derived is not given a formula here. The Metric's history and the Audit Log say it. */
+export async function setMetricFormula(actor: Actor, metricId: number, formula: string, origin: { accessKeyId?: number } = {}): Promise<void> {
+  assertCan(actor, "create");
+  const m = await editableMetric(actor, metricId, "its formula");
+  if (!m.formula) throw new Refused("Only a Derived Metric has a formula.");
+  const next = typeof formula === "string" ? formula.trim() : "";
+  if (!next) throw new Refused("Write the formula, such as {revenue} / {orders}.");
+  const all = await getMetrics(actor.workspaceId);
+  const seen = await visibleMetricIds(actor.workspaceId, actor.personId, all);
+  const why = checkFormula(next, all.filter((x) => seen.has(x.id) && x.id !== m.id).map((x): FormulaInput => x), { slug: m.slug, period: m.period });
+  if (why) throw new Refused(why);
+  const { error } = await db().from("metrics").update({ formula: next }).eq("id", m.id).eq("workspace_id", actor.workspaceId);
+  if (error) throw new Error("The formula could not be saved.");
+  await recordVersion("metric", m.id, actor.personId, { message: "Changed its formula" });
+  await audit(actor, { kind: "metric.details_changed", object: { type: "metric", id: m.id, name: m.name }, accessKeyId: Number.isInteger(origin.accessKeyId) ? origin.accessKeyId : null, details: { fields: ["formula"] } });
 }

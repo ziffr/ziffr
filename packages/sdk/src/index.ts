@@ -157,6 +157,8 @@ export type MetricPatch = {
   target_min?: number | null;
   target_max?: number | null;
   attainment_method?: "ratio" | "distance" | null;
+  /** A Derived Metric's new formula (scope metrics:read too); only its owner and Editors. */
+  formula?: string;
 };
 
 /** A Metric's Unusual Value check: the check step of its Workflow, which several Metrics may share. */
