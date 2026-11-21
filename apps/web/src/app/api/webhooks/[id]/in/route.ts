@@ -5,7 +5,7 @@
 // and no further, and the core decides the rest. Answers only `{ changed, status }`.
 import { applyWebhookAction, authenticateWebhookRequest, WebhookRequestError } from "@ziffr/core/webhook-inbound";
 import { WEBHOOK_INBOUND_MAX_BYTES } from "@ziffr/core/webhook-limits";
-import { readLimited } from "@/lib/read-limited";
+import { readLimited } from "@/lib/limited-body";
 
 const answer = (status: number, body?: unknown, extra: Record<string, string> = {}) =>
   Response.json(body ?? { error: status === 404 ? "not_found" : "error" }, { status, headers: { "cache-control": "no-store", ...extra } });
@@ -13,15 +13,9 @@ const answer = (status: number, body?: unknown, extra: Record<string, string> = 
 /** Takes one report from a Webhook's recipe. */
 export async function POST(req: Request, ctx: { params: Promise<{ id: string }> }) {
   const { id } = await ctx.params;
-  const bytes = await readLimited(req, WEBHOOK_INBOUND_MAX_BYTES);
-  if (!bytes) return answer(413, { error: "too_large" });
-  let body: string;
-  try {
-    // The exact text that was signed: a byte order mark is kept, bytes that are not text are refused.
-    body = new TextDecoder("utf-8", { fatal: true, ignoreBOM: true }).decode(bytes);
-  } catch {
-    return answer(404);
-  }
+  // The text the signature was taken over, read to 16 KB and no further.
+  const body = await readLimited(req, WEBHOOK_INBOUND_MAX_BYTES);
+  if (body === null) return answer(413, { error: "too_large" });
   const who = await authenticateWebhookRequest(id, { timestamp: req.headers.get("x-ziffr-timestamp"), signature: req.headers.get("x-ziffr-signature"), body });
   if (!who.ok) return who.why === "limit" ? answer(429, { error: "too_many_requests" }, { "retry-after": "60" }) : answer(404);
   let input: unknown;
