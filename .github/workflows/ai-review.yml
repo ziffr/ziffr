@@ -1,0 +1,39 @@
+# An advisory AI review of every pull request (#578): GLOSSARY terms, the user guide chapters the change touches, and
+# the rules of AGENTS.md, in one comment per pull request that each push updates. It never blocks a merge: it is no
+# required check, the job may fail, and the script exits 0 on every error.
+#
+# Trust: the job holds ANTHROPIC_API_KEY (environment `ai-review`, which the owner creates; without it the job says so
+# and does nothing), so it runs the BASE branch's script and docs, never the pull request's: no checkout of its head,
+# no credentials kept, the diff comes through the API and goes into the prompt as marked data. The token can only read
+# the repository and write a comment; a fork's pull request gets a read-only token, so there it posts nothing.
+# CODEOWNERS covers this file, so a pull request that changes it needs the owner's review.
+name: AI review
+on:
+  pull_request:
+    types: [opened, synchronize]
+permissions:
+  contents: read
+  pull-requests: write
+concurrency:
+  group: ai-review-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+jobs:
+  review:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    continue-on-error: true
+    environment: ai-review
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: ${{ github.event.pull_request.base.sha }}
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 22
+      - name: Review
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          AI_REVIEW_MODEL: ${{ vars.AI_REVIEW_MODEL }}
+          GITHUB_TOKEN: ${{ github.token }}
+        run: node .github/scripts/ai-review.mjs
