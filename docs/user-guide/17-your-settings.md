@@ -287,6 +287,7 @@ You do not need a Starter. Some examples:
 #### What the assistant cannot do
 
 - It cannot approve a value or send it back, and the connection screen does not offer it: Approval is a person's check. Only a program's Access Key can be given that ("Approve values"). The same goes for choosing who approves or who a Tell step tells in a Workflow ("Name who approves and who is told"): an assistant with "Build workflows" can make and change your own Workflows, but leaves their Approvers as they are.
+- It cannot share anything, manage Groups, or invite, remove or change people, and the connection screen does not offer it: these change who sees what, so a message in a Thread must never be able to talk an assistant into them. Only a program's own Access Key can be given them ("Share and answer access requests", "Manage groups", "Invite and remove people"), and only as far as your role allows.
 - It sees no more than you do, and only what you let it when you connected it: if you ticked only reading, it cannot record, change or build anything, whatever it tries. As a Guest, you cannot let it create or change anything.
 - It cannot make, list or revoke a View Link, and the connection screen does not offer it ("Manage View Links"): a View Link publishes data outside the Workspace. Only a program's Access Key can be given that.
 - It cannot read the Workspace's usage figures ("Read usage figures"); that, too, is only for a program's Access Key made by an Owner or Admin.

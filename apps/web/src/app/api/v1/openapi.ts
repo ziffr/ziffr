@@ -306,6 +306,168 @@ const ENDPOINTS: Endpoint[] = [
     summary: "List Groups", description: "The workspace's Groups: id and name.",
   },
   {
+    method: "get", path: "/shares", scope: "shares:write", query: S.sharesQuery, ok: { status: 200, name: "Audience", schema: S.Audience },
+    summary: "Who can see a Metric, dashboard or deck",
+    description: "Who can see a Metric (by slug), dashboard or deck (by number id) the key's creator sees, and why: owner, shared as Viewer or Editor, through a Group, on a dashboard or deck. People by id and name only. When the creator owns it, the open requests for access are listed too (answer them with POST /shares/requests/{id}). Only a program's own Access Key may hold this scope: an assistant connected through OAuth or MCP never gets it and is refused, and there is no MCP tool for it, so text in a Thread cannot talk an assistant into widening who sees what.",
+    errors: [
+      { status: 404, description: "Or the Metric, dashboard or deck is not one the key's creator sees; the answer is the same whether it exists or not." },
+    ],
+  },
+  {
+    method: "post", path: "/shares", scope: "shares:write", body: S.SetShare, ok: { status: 200, name: "ShareSet", schema: S.ShareSet },
+    summary: "Share, or take a Share away",
+    description: "Shares a Metric, dashboard or deck the key's creator owns with one member of the workspace or one Group as Viewer or Editor, or with `role: null` takes that Share away. The same checks as the app: only the owner shares, never with oneself, never with a Contact or someone from another workspace, never as a Guest's own, and a deck only with Metrics its owner sees. Sharing a Metric lets that person see its values. Setting it again changes the role. The Audit Log names the key. Only a program's own Access Key may hold this scope: an assistant connected through OAuth or MCP never gets it and is refused, and there is no MCP tool for it, so text in a Thread cannot talk an assistant into widening who sees what.",
+    errors: [
+      { status: 403, description: "Or the key's creator's role may not do this (see the description)." },
+      { status: 404, description: "Or the thing is not one the key's creator sees or owns, the person is not a member of this workspace, or the Group is not one of this workspace's." },
+      { status: 422, description: "Neither or both of `person` and `group` were given." },
+    ],
+  },
+  {
+    method: "post", path: "/shares/requests/{id}", scope: "shares:write", body: S.DecideAccess, ok: { status: 200, name: "AccessDecided", schema: S.AccessDecided },
+    summary: "Answer a request for access",
+    description: "The owner of a Metric, dashboard or deck grants Viewer access to an open request listed by GET /shares, or declines it. The requester is told either way. Someone who has left the workspace since asking is never granted. Only a program's own Access Key may hold this scope: an assistant connected through OAuth or MCP never gets it and is refused, and there is no MCP tool for it, so text in a Thread cannot talk an assistant into widening who sees what.",
+    errors: [
+      { status: 404, description: "Or the request is not open, or the thing is not the key's creator's." },
+    ],
+  },
+  {
+    method: "post", path: "/groups", scope: "groups:write", body: S.GroupName, ok: { status: 201, name: "ChangedGroup", schema: S.ChangedGroup },
+    summary: "Create a Group",
+    description: "Makes a Group in the workspace; Owners and Admins only, as in the app. Up to 40 characters, unique in the workspace. Only a program's own Access Key may hold this scope: an assistant connected through OAuth or MCP never gets it and is refused, and there is no MCP tool for it, so text in a Thread cannot talk an assistant into widening who sees what.",
+    errors: [
+      { status: 403, description: "Or the key's creator's role may not do this (see the description)." },
+      { status: 422, description: "The name is empty or taken." },
+    ],
+  },
+  {
+    method: "patch", path: "/groups/{id}", scope: "groups:write", body: S.GroupName, ok: { status: 200, name: "ChangedGroup", schema: S.ChangedGroup },
+    summary: "Rename a Group",
+    description: "Renames a Group; Owners and Admins only. Everyone cannot be renamed. Only a program's own Access Key may hold this scope: an assistant connected through OAuth or MCP never gets it and is refused, and there is no MCP tool for it, so text in a Thread cannot talk an assistant into widening who sees what.",
+    errors: [
+      { status: 403, description: "Or the key's creator's role may not do this (see the description)." },
+      { status: 404, description: "Or the Group is missing, in another workspace, or Everyone." },
+      { status: 422, description: "The name is empty or taken." },
+    ],
+  },
+  {
+    method: "delete", path: "/groups/{id}", scope: "groups:write", ok: { status: 200, name: "RemovedGroup", schema: S.RemovedGroup },
+    summary: "Delete a Group",
+    description: "Deletes a Group; what was shared with it stops being shared, and Threads limited to it become readable by everyone. Owners and Admins only. Everyone cannot be deleted. Only a program's own Access Key may hold this scope: an assistant connected through OAuth or MCP never gets it and is refused, and there is no MCP tool for it, so text in a Thread cannot talk an assistant into widening who sees what.",
+    errors: [
+      { status: 403, description: "Or the key's creator's role may not do this (see the description)." },
+      { status: 404, description: "Or the Group is missing, in another workspace, or Everyone." },
+    ],
+  },
+  {
+    method: "post", path: "/groups/{id}/members", scope: "groups:write", body: S.AddGroupMember, ok: { status: 200, name: "GroupMemberChanged", schema: S.GroupMemberChanged },
+    summary: "Add a member to a Group",
+    description: "Puts a member of the workspace into a Group (everything shared with the Group becomes visible to them). Owners and Admins only; Contacts cannot be members; adding one who is in already changes nothing. Everyone cannot be changed. Only a program's own Access Key may hold this scope: an assistant connected through OAuth or MCP never gets it and is refused, and there is no MCP tool for it, so text in a Thread cannot talk an assistant into widening who sees what.",
+    errors: [
+      { status: 403, description: "Or the key's creator's role may not do this (see the description)." },
+      { status: 404, description: "Or the Group or the person is not one of this workspace's." },
+    ],
+  },
+  {
+    method: "delete", path: "/groups/{id}/members/{personId}", scope: "groups:write", ok: { status: 200, name: "GroupMemberChanged", schema: S.GroupMemberChanged },
+    summary: "Take a member out of a Group",
+    description: "Takes a member out of a Group. Owners and Admins only. Only a program's own Access Key may hold this scope: an assistant connected through OAuth or MCP never gets it and is refused, and there is no MCP tool for it, so text in a Thread cannot talk an assistant into widening who sees what.",
+    errors: [
+      { status: 403, description: "Or the key's creator's role may not do this (see the description)." },
+      { status: 404, description: "Or the Group or the person is not one of this workspace's." },
+    ],
+  },
+  {
+    method: "post", path: "/people", scope: "people:write", body: S.CreateContact, ok: { status: 201, name: "ContactCreated", schema: S.ContactCreated },
+    summary: "Add a Contact",
+    description: "Adds a Contact: a person without a sign-in who only submits values, known by the details given here. Owners and Admins only; at most 1000 Contacts; an email address or Slack handle another person here uses is refused. The answer holds the id and name, never the details. Only a program's own Access Key may hold this scope: an assistant connected through OAuth or MCP never gets it and is refused, and there is no MCP tool for it, so text in a Thread cannot talk an assistant into widening who sees what.",
+    errors: [
+      { status: 403, description: "Or the key's creator's role may not do this (see the description)." },
+      { status: 422, description: "A detail is not valid or is taken, or the workspace holds as many Contacts as it may." },
+    ],
+  },
+  {
+    method: "patch", path: "/people/{id}", scope: "people:write", body: S.ChangeRole, ok: { status: 200, name: "RoleChanged", schema: S.RoleChanged },
+    summary: "Change a member's role",
+    description: "Changes a member's Workspace Role. Owners and Admins; only Owners make or change Owners; the last Owner stays. Only a program's own Access Key may hold this scope: an assistant connected through OAuth or MCP never gets it and is refused, and there is no MCP tool for it, so text in a Thread cannot talk an assistant into widening who sees what.",
+    errors: [
+      { status: 403, description: "Or the key's creator's role may not do this (see the description)." },
+      { status: 404, description: "Or the person is not a member of this workspace." },
+      { status: 422, description: "The workspace would be left without an Owner." },
+    ],
+  },
+  {
+    method: "delete", path: "/people/{id}", scope: "people:write", query: S.removePersonQuery, ok: { status: 200, name: "RemovedPerson", schema: S.RemovedPerson },
+    summary: "Remove a Contact or a member",
+    description: "Removes a Contact (their values stay, their form links stop), or a member, whose Metrics, dashboards, decks and the rest are handed to `successor` in one step; their Shares, Group memberships and Access Keys end at once. Owners and Admins; only Owners remove Owners; nobody removes themselves. Only a program's own Access Key may hold this scope: an assistant connected through OAuth or MCP never gets it and is refused, and there is no MCP tool for it, so text in a Thread cannot talk an assistant into widening who sees what.",
+    errors: [
+      { status: 403, description: "Or the key's creator's role may not do this (see the description)." },
+      { status: 404, description: "Or the person is not in this workspace." },
+      { status: 422, description: "`successor` is missing, a Guest, or not another member; or the last Owner would go. Nothing was changed." },
+    ],
+  },
+  {
+    method: "get", path: "/invitations", scope: "people:write", ok: { status: 200, name: "InvitationList", schema: S.InvitationList },
+    summary: "List open invitations",
+    description: "The workspace's invitations that still work, by address, role and end date, never with the secret link. Owners and Admins only. Only a program's own Access Key may hold this scope: an assistant connected through OAuth or MCP never gets it and is refused, and there is no MCP tool for it, so text in a Thread cannot talk an assistant into widening who sees what.",
+    errors: [
+      { status: 403, description: "Or the key's creator's role may not do this (see the description)." },
+    ],
+  },
+  {
+    method: "post", path: "/invitations", scope: "people:write", body: S.CreateInvitation, ok: { status: 201, name: "Invitation", schema: S.ApiInvitation },
+    summary: "Invite an address",
+    description: "Invites an address with a Workspace Role for 14 days and emails the link, as the app does; the link works only for that address. Only Owners invite Owners. Not in the demo or a Trial Workspace. At most 50 invitation emails a day for the workspace and 3 for one address. Only a program's own Access Key may hold this scope: an assistant connected through OAuth or MCP never gets it and is refused, and there is no MCP tool for it, so text in a Thread cannot talk an assistant into widening who sees what.",
+    errors: [
+      { status: 403, description: "Or the key's creator's role may not do this (see the description)." },
+      { status: 422, description: "The address is not valid, or the demo or a trial forbids it." },
+    ],
+  },
+  {
+    method: "post", path: "/invitations/links", scope: "people:write", body: S.CreateInviteLink, ok: { status: 201, name: "InviteLink", schema: S.InviteLink },
+    summary: "Make an invite link",
+    description: "Makes a link anyone can join the workspace by, as Member or Guest, for 7 days. The answer is the link and it is not shown again: keep it as you would a password. Not in the demo or a Trial Workspace. Only a program's own Access Key may hold this scope: an assistant connected through OAuth or MCP never gets it and is refused, and there is no MCP tool for it, so text in a Thread cannot talk an assistant into widening who sees what.",
+    errors: [
+      { status: 403, description: "Or the key's creator's role may not do this (see the description)." },
+    ],
+  },
+  {
+    method: "delete", path: "/invitations/{id}", scope: "people:write", ok: { status: 200, name: "RemovedInvitation", schema: S.RemovedInvitation },
+    summary: "Revoke an invitation",
+    description: "Revokes an invitation or invite link of the workspace. Only a program's own Access Key may hold this scope: an assistant connected through OAuth or MCP never gets it and is refused, and there is no MCP tool for it, so text in a Thread cannot talk an assistant into widening who sees what.",
+    errors: [
+      { status: 403, description: "Or the key's creator's role may not do this (see the description)." },
+      { status: 404, description: "Or the invitation is in another workspace." },
+    ],
+  },
+  {
+    method: "post", path: "/invitations/{id}/resend", scope: "people:write", ok: { status: 200, name: "Resent", schema: S.Resent },
+    summary: "Email an invitation again",
+    description: "Emails an open invitation again: at most three sends, a minute apart. Only a program's own Access Key may hold this scope: an assistant connected through OAuth or MCP never gets it and is refused, and there is no MCP tool for it, so text in a Thread cannot talk an assistant into widening who sees what.",
+    errors: [
+      { status: 403, description: "Or the key's creator's role may not do this (see the description)." },
+      { status: 404, description: "Or the invitation is not open." },
+      { status: 422, description: "Email is not set up, it was sent a moment ago or three times already." },
+    ],
+  },
+  {
+    method: "get", path: "/join-requests", scope: "people:write", ok: { status: 200, name: "JoinRequestList", schema: S.JoinRequestList },
+    summary: "List requests to join",
+    description: "The open requests to join the workspace by its domain, each with the address the person proved by signing in. Owners and Admins only. Only a program's own Access Key may hold this scope: an assistant connected through OAuth or MCP never gets it and is refused, and there is no MCP tool for it, so text in a Thread cannot talk an assistant into widening who sees what.",
+    errors: [
+      { status: 403, description: "Or the key's creator's role may not do this (see the description)." },
+    ],
+  },
+  {
+    method: "post", path: "/join-requests/{id}", scope: "people:write", body: S.DecideJoin, ok: { status: 200, name: "JoinDecided", schema: S.JoinDecided },
+    summary: "Approve or decline a request to join",
+    description: "Lets the person in as a Member, or declines. Owners and Admins only. Only a program's own Access Key may hold this scope: an assistant connected through OAuth or MCP never gets it and is refused, and there is no MCP tool for it, so text in a Thread cannot talk an assistant into widening who sees what.",
+    errors: [
+      { status: 403, description: "Or the key's creator's role may not do this (see the description)." },
+      { status: 404, description: "Or the request is not open." },
+    ],
+  },
+  {
     method: "get", path: "/dashboards", scope: "dashboards:read", query: S.pageQuery, ok: { status: 200, name: "DashboardList", schema: S.DashboardList },
     summary: "List dashboards", description: "The dashboards the key's creator sees, by id, with their role on each and the link to open it.",
   },
@@ -412,7 +574,11 @@ const PATH_PARAMS: Record<string, { description: string; schema: z.ZodType }> = 
   id: { description: "The dashboard's id.", schema: S.idParam },
   widgetId: { description: "The widget's or Finding's id.", schema: S.idParam },
   findingId: { description: "The Finding's id.", schema: S.idParam },
+  personId: { description: "The person's id, as GET /people lists them.", schema: S.personIdParam },
 };
+
+/** What the `id` in a path names, by the path's first part. */
+const ID_TEXT: Record<string, string> = { "/alerts": "The Alert's id.", "/actions": "The Action's id.", "/workflows": "The Workflow's id.", "/snapshots": "The Snapshot's id.", "/view-links": "The View Link's id.", "/groups": "The Group's id.", "/invitations": "The invitation's id.", "/join-requests": "The request's id.", "/shares": "The request's id.", "/people": "The person's id, as GET /people lists them." };
 
 /** Answers every endpoint may give. */
 const COMMON_ERRORS = [
@@ -437,7 +603,7 @@ export function openApiDocument() {
   for (const e of ENDPOINTS) {
     schemas[e.ok.name] = json(e.ok.schema);
     const parameters: unknown[] = [];
-    for (const [, name] of e.path.matchAll(/\{(\w+)\}/g)) parameters.push({ name, in: "path", required: true, description: name === "id" && e.path.startsWith("/alerts") ? "The Alert's id." : name === "id" && e.path.startsWith("/actions") ? "The Action's id." : name === "id" && e.path.startsWith("/workflows") ? "The Workflow's id." : name === "id" && e.path.startsWith("/snapshots") ? "The Snapshot's id." : name === "id" && e.path.startsWith("/view-links") ? "The View Link's id." : PATH_PARAMS[name].description, schema: json(PATH_PARAMS[name].schema, "input") });
+    for (const [, name] of e.path.matchAll(/\{(\w+)\}/g)) parameters.push({ name, in: "path", required: true, description: (name === "id" && ID_TEXT["/" + e.path.split("/")[1]]) || PATH_PARAMS[name].description, schema: json(name === "id" && e.path.startsWith("/people") ? S.personIdParam : PATH_PARAMS[name].schema, "input") });
     if (e.query) {
       const q = json(e.query, "input") as { properties?: Record<string, Record<string, unknown>>; required?: string[] };
       for (const [name, schema] of Object.entries(q.properties ?? {})) {

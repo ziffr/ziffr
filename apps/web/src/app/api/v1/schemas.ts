@@ -807,3 +807,120 @@ export const CreateViewLink = z.object({
 
 /** DELETE /view-links/{id} answers this. */
 export const RevokedViewLink = z.object({ revoked: z.number().int() });
+// Sharing, Groups and people (ticket #434): keys only, behind shares:write, groups:write and people:write.
+const ShareType = z.enum(["metric", "dashboard", "deck"]);
+const PersonId = z.string().regex(/^[A-Za-z0-9_-]{1,64}$/, "Not a person id.").describe("A person's or Contact's id, as GET /people lists them.");
+const WorkspaceRole = z.enum(["owner", "admin", "member", "guest"]);
+const ObjectRef = z.union([z.string().min(1).max(120), z.number().int().positive().max(2 ** 31 - 1)]).describe("A Metric's slug, or a dashboard's or deck's number id.");
+
+/** POST /shares takes this. */
+export const SetShare = z.object({
+  type: ShareType,
+  id: ObjectRef,
+  person: PersonId.optional().describe("Share with this member of the workspace. Give this or `group`."),
+  group: z.number().int().positive().max(2 ** 31 - 1).optional().describe("Share with this Group (everyone in it, now and later). Give this or `person`."),
+  role: z.enum(["viewer", "editor"]).nullable().describe("`viewer` or `editor`; null takes the Share away."),
+}).strict();
+
+/** POST /shares answers this. */
+export const ShareSet = z.object({ type: ShareType, id: ObjectRef, person: z.string().nullable(), group: z.number().int().nullable(), role: z.enum(["viewer", "editor"]).nullable() });
+
+/** GET /shares takes this. */
+export const sharesQuery = z.object({ type: ShareType.describe("metric, dashboard or deck."), id: z.string().min(1).max(120).describe("A Metric's slug, or a dashboard's or deck's number id.") });
+
+/** GET /shares answers this: who can see it and why, and, for its owner, the open requests for access. */
+export const Audience = z.object({
+  owner: z.string().describe("The owner's person id."),
+  is_owner: z.boolean().describe("Whether the key's creator owns it; only then are `requests` filled."),
+  people: z.array(z.object({ id: z.string(), name: z.string(), how: z.array(z.string()).describe("Why this person sees it: owner, shared, through a Group, on a dashboard…") })),
+  requests: z.array(z.object({ id: z.number().int(), person: z.string(), name: z.string(), requested_at: z.string() })),
+});
+
+/** POST /shares/requests/{id} takes this. */
+export const DecideAccess = z.object({ grant: z.boolean().describe("true shares it with the requester as Viewer; false declines.") }).strict();
+
+/** POST /shares/requests/{id} answers this. */
+export const AccessDecided = z.object({ id: z.number().int(), granted: z.boolean() });
+
+/** POST /groups and PATCH /groups/{id} take this. */
+export const GroupName = z.object({ name: z.string().trim().min(1).max(40) }).strict();
+
+/** What a Group change answers. */
+export const ChangedGroup = z.object({ id: z.number().int(), name: z.string(), everyone: z.literal(false) });
+
+/** POST /groups/{id}/members takes this. */
+export const AddGroupMember = z.object({ person: PersonId }).strict();
+
+/** What a Group member change answers. */
+export const GroupMemberChanged = z.object({ group: z.number().int(), person: z.string(), member: z.boolean() });
+
+/** What DELETE /groups/{id} answers. */
+export const RemovedGroup = z.object({ removed: z.number().int() });
+
+/** What DELETE /invitations/{id} answers. */
+export const RemovedInvitation = z.object({ removed: z.number().int() });
+
+/** POST /people takes this: a Contact, a person without a sign-in who only submits values. */
+export const CreateContact = z.object({
+  name: z.string().trim().min(1).max(80),
+  email: z.string().max(254).optional(),
+  slack_handle: z.string().max(80).optional(),
+  phone: z.string().max(40).optional(),
+}).strict();
+
+/** POST /people answers this. */
+export const ContactCreated = z.object({ id: z.string(), name: z.string(), contact: z.literal(true) });
+
+/** PATCH /people/{id} takes this. */
+export const ChangeRole = z.object({ role: WorkspaceRole }).strict();
+
+/** PATCH /people/{id} answers this. */
+export const RoleChanged = z.object({ id: z.string(), role: WorkspaceRole });
+
+/** DELETE /people/{id} takes this. */
+export const removePersonQuery = z.object({ successor: PersonId.optional().describe("Who takes over what a removed member owns: another member, not a Guest. Not needed for a Contact.") });
+
+/** DELETE /people/{id} answers this. */
+export const RemovedPerson = z.object({ removed: z.string() });
+
+/** POST /invitations takes this. */
+export const CreateInvitation = z.object({
+  email: z.string().min(3).max(254),
+  role: WorkspaceRole,
+  contact: PersonId.optional().describe("A Contact this invitation turns into a member, who keeps their history."),
+}).strict();
+
+/** An invitation: never its token. */
+export const ApiInvitation = z.object({
+  id: z.number().int(), email: z.string().nullable(), role: WorkspaceRole, expires_at: z.string(), created_at: z.string(),
+  emailed: z.boolean().describe("Whether it was emailed."), email_error: z.string().nullable(),
+});
+
+/** GET /invitations answers this. */
+export const InvitationList = z.object({ items: z.array(ApiInvitation) });
+
+/** POST /invitations/links takes this. */
+export const CreateInviteLink = z.object({ role: z.enum(["member", "guest"]) }).strict();
+
+/** POST /invitations/links answers this. */
+export const InviteLink = z.object({ url: z.string().describe("Anyone with this link joins; it works for 7 days."), role: z.enum(["member", "guest"]) });
+
+/** POST /invitations/{id}/resend answers this. */
+export const Resent = z.object({ id: z.number().int() });
+
+/** GET /join-requests answers this. */
+export const JoinRequestList = z.object({
+  items: z.array(z.object({ id: z.number().int(), requested_at: z.string(), person: z.object({ id: z.string(), name: z.string(), email: z.string().nullable().describe("The address they proved by signing in.") }) })),
+});
+
+/** POST /join-requests/{id} takes this. */
+export const DecideJoin = z.object({ approve: z.boolean().describe("true lets them in as a Member; false declines.") }).strict();
+
+/** POST /join-requests/{id} answers this. */
+export const JoinDecided = z.object({ id: z.number().int(), approved: z.boolean() });
+
+/** A number id in a path: digits only (no exponent, hex or spaces), as many as an id has. */
+export const pathId = z.string().regex(/^\d{1,10}$/, "Not an id.").transform(Number).pipe(z.number().int().positive().max(2 ** 31 - 1));
+
+/** The id in a path that names a person. */
+export const personIdParam = z.string().regex(/^[A-Za-z0-9_-]{1,64}$/, "Not a person id.");

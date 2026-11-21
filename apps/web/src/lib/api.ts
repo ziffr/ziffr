@@ -6,6 +6,7 @@ import { actorForSecret } from "@ziffr/core/access-keys";
 import { actorForAssistantToken } from "@ziffr/core/assistant-connections";
 import { calledFromMcp } from "@/lib/mcp-context";
 import { LimitReached } from "@ziffr/core/workspace-limits";
+import { TrialRefused } from "@ziffr/core/trials";
 import { admitCall, recordCall } from "@ziffr/core/access-log";
 import { callKind, countCall } from "@ziffr/core/usage-calls";
 import { Forbidden, scopeRefusal, type FeedActor, type KeyActor, type Scope } from "@ziffr/core/actor";
@@ -61,6 +62,24 @@ export function keyRoute<C>(scope: Scope | null, handler: (actor: KeyActor, req:
     if ("feed" in actor) return scope ? apiError("forbidden", "A Feed Key works only with /api/v1/feed.") : apiError("not_found", "Not found.");
     if (scope && !actor.key.scopes.includes(scope)) return apiError("forbidden", scopeRefusal(scope));
     return run(actor, req, ctx, handler);
+  });
+}
+
+/** Wraps an endpoint that changes who sees what (ticket #434: Shares, Groups, people, invitations). Like keyRoute, and
+ * more careful: it never runs for an assistant's token, even one that somehow held the scope (text in a Thread must not
+ * talk an assistant into widening visibility), and the core's refusals are answered in their words: a role that may not
+ * do it is 403, a plain refusal 422, and what the key's creator cannot see stays 404. */
+export function sensitiveRoute<C>(scope: Scope, handler: (actor: KeyActor, req: Request, ctx: C) => Promise<Response>) {
+  return keyRoute<C>(scope, async (actor, req, ctx) => {
+    if (calledFromMcp()) return apiError("forbidden", "This is for a program's own Access Key, not for an assistant.");
+    try {
+      return await handler(actor, req, ctx);
+    } catch (e) {
+      if (e instanceof Forbidden) return e.message === "Forbidden" || e.message === "That was not found." ? apiError("not_found", "Not found.") : apiError("forbidden", e.message);
+      // Exactly Error: the core's own words for what a person can act on, never a provider's or a programming error.
+      if (e instanceof TrialRefused || (e instanceof Error && Object.getPrototypeOf(e) === Error.prototype && e.message)) return apiError("unprocessable", (e as Error).message);
+      throw e;
+    }
   });
 }
 

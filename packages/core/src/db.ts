@@ -3,6 +3,7 @@
 import { AsyncLocalStorage } from "node:async_hooks";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { DEMO_READ_ONLY_CODE, DemoReadOnly } from "./demo";
+import { ServerFault } from "./server-fault";
 
 let client: SupabaseClient | null = null;
 let seedClient: SupabaseClient | null = null;
@@ -46,7 +47,7 @@ function guarded<T extends object>(target: T): T {
 function make(headers?: Record<string, string>): SupabaseClient {
   const url = process.env.SUPABASE_URL;
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
-  if (!url || !key) throw new Error("SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY must be set for the core.");
+  if (!url || !key) throw new ServerFault("SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY must be set for the core.");
   const raw = createClient(url, key, { auth: { persistSession: false }, ...(headers ? { global: { headers } } : {}) });
   return new Proxy(raw, {
     get(obj, prop) {
@@ -62,7 +63,7 @@ function make(headers?: Record<string, string>): SupabaseClient {
  * is the one client that may write the demo. */
 export function db(): SupabaseClient {
   // The service role never runs in a browser: a client component importing this fails at once.
-  if (typeof window !== "undefined") throw new Error("The core's database access runs on the server only.");
+  if (typeof window !== "undefined") throw new ServerFault("The core's database access runs on the server only.");
   if (seeding.getStore()) return (seedClient ??= make({ "x-ziffr-demo-seed": "on" }));
   return (client ??= make());
 }

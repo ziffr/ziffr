@@ -30,13 +30,15 @@ const nameError = (e: { code?: string; message: string } | null) => {
   if (e) throw new Error(e.code === "23505" ? "A group with that name exists." : "The group could not be saved.");
 };
 
-/** Creates a Group in the actor's workspace. */
-export async function createGroup(actor: Actor, name: string) {
+/** Creates a Group in the actor's workspace and returns its id. */
+export async function createGroup(actor: Actor, name: string): Promise<number> {
   assertCan(actor, "manage-groups");
   if (!groupName(name)) throw new Error("Give the group a name.");
   const { data, error } = await db().from("groups").insert({ name: groupName(name), workspace_id: actor.workspaceId }).select("id").single();
   nameError(error);
-  if (data) await audit(actor, { kind: "group.created", object: { type: "group", id: data.id, name: groupName(name) } });
+  if (!data) throw new Error("The group could not be saved.");
+  await audit(actor, { kind: "group.created", object: { type: "group", id: data.id, name: groupName(name) } });
+  return data.id as number;
 }
 
 /** Renames a Group. */

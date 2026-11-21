@@ -10,18 +10,20 @@ import { createKey, revokeKey } from "@/app/key-actions";
 import type { AccessKeyInfo } from "@ziffr/core/access-keys";
 import type { AccessLogEntry } from "@ziffr/core/access-log";
 import { RecentCalls } from "@/components/recent-calls";
-import { CREATING_SCOPES, type Scope } from "@ziffr/core/actor";
+import { can, CREATING_SCOPES, type Scope, type WorkspaceRoleName } from "@ziffr/core/actor";
 import { formatDate } from "@ziffr/core/format";
 
-const SCOPE_LABEL: Record<Scope, string> = { "metrics:read": "Read metrics", "values:submit": "Submit values", "metrics:write": "Create metrics", "metrics:edit": "Change metrics", "dashboards:read": "Read dashboards", "dashboards:write": "Build dashboards", "alerts:write": "Manage alerts", "actions:read": "Read questions and tasks", "actions:write": "Answer questions and tasks", "values:approve": "Approve values", "view-links:write": "Manage View Links", "usage:read": "Read usage figures", "workflows:write": "Build workflows", "workflows:people": "Name who approves and who is told" };
+const SCOPE_LABEL: Record<Scope, string> = { "metrics:read": "Read metrics", "values:submit": "Submit values", "metrics:write": "Create metrics", "metrics:edit": "Change metrics", "dashboards:read": "Read dashboards", "dashboards:write": "Build dashboards", "alerts:write": "Manage alerts", "actions:read": "Read questions and tasks", "actions:write": "Answer questions and tasks", "values:approve": "Approve values", "view-links:write": "Manage View Links", "usage:read": "Read usage figures", "workflows:write": "Build workflows", "workflows:people": "Name who approves and who is told", "shares:write": "Share and answer access requests", "groups:write": "Manage groups", "people:write": "Invite and remove people" };
 /** What a scope covers, where its label alone does not say. */
 const SCOPE_HINT: Partial<Record<Scope, string>> = { "metrics:edit": "targets, Target Series, Projections, the Unusual Value check, how values come in and who sends them, for the Metrics you own or edit", "values:approve": "approve a value or send it back, as you: only for programs, never for an assistant, and never for your own values", "usage:read": "read counts of how your Workspace is used (views, values by Source, what goes unused), never a name or a value: only for Owners and Admins, only for programs, never for an assistant", "view-links:write": "make, list and revoke View Links to your dashboards, which publish data outside the workspace: only for programs, never for an assistant", "workflows:people": "choose the Approvers of a Workflow and who a Tell step tells: only for programs, never for an assistant; needs Build workflows" };
+/** The scopes only a program's own key may hold (ticket #434) need a role with the matching right, as the core checks. */
+const ROLE_SCOPE: Partial<Record<Scope, "share" | "manage-groups" | "manage-members">> = { "shares:write": "share", "groups:write": "manage-groups", "people:write": "manage-members" };
 const inDays = (n: number) => new Date(Date.now() + n * 86400000).toISOString().slice(0, 10);
 
 
 /** The keys the viewer may see with their recent calls (the Access Log), a form to make one, and the new secret once.
  * Admins see every key but may revoke only their own; Owners may revoke any (the core checks this again). */
-export function AccessKeys({ keys, logs, people, viewer, isOwner, canCreate, canReadUsage }: { keys: AccessKeyInfo[]; logs: Record<number, AccessLogEntry[]>; people: Record<string, string>; viewer: string; isOwner: boolean; canCreate: boolean; canReadUsage: boolean }) {
+export function AccessKeys({ keys, logs, people, viewer, isOwner, canCreate, canReadUsage, role }: { keys: AccessKeyInfo[]; logs: Record<number, AccessLogEntry[]>; people: Record<string, string>; viewer: string; isOwner: boolean; canCreate: boolean; canReadUsage: boolean; role: WorkspaceRoleName }) {
   const [pending, start] = useTransition();
   const [name, setName] = useState("");
   const [scopes, setScopes] = useState<Scope[]>(["metrics:read"]);
@@ -55,7 +57,7 @@ export function AccessKeys({ keys, logs, people, viewer, isOwner, canCreate, can
       <form className="flex flex-wrap items-end gap-3" onSubmit={(e) => { e.preventDefault(); run(async () => { setSecret(unwrap(await createKey({ name, scopes, expiresOn: expires }))); setName(""); }, "Key created"); }}>
         <label className="text-xs text-muted-foreground">Name<Input value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Shop export" className="mt-1 w-48" /></label>
         {/* A key may create Metrics or build dashboards only if its creator may (Guests may not); the core refuses it too. */}
-        {(Object.keys(SCOPE_LABEL) as Scope[]).filter((s) => (canCreate || !CREATING_SCOPES.includes(s)) && (canReadUsage || s !== "usage:read")).map((s) => (
+        {(Object.keys(SCOPE_LABEL) as Scope[]).filter((s) => (canCreate || !CREATING_SCOPES.includes(s)) && (canReadUsage || s !== "usage:read") && (!ROLE_SCOPE[s] || can({ personId: "", workspaceId: "", role }, ROLE_SCOPE[s]!))).map((s) => (
           <label key={s} className="flex items-center gap-1.5 text-sm">
             <input type="checkbox" checked={scopes.includes(s)} onChange={(e) => setScopes(e.target.checked ? [...scopes, s] : scopes.filter((x) => x !== s))} className="size-4 accent-[var(--color-ink)]" />
             {SCOPE_LABEL[s]}

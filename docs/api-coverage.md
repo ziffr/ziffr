@@ -89,6 +89,7 @@ Acts as the person, with their own sign-in, Slack or Telegram account or email a
 - `startTelegramLink` (telegram-people.ts): linking oneself to Telegram
 - `telegramOptBackIn` (telegram-people.ts): linking oneself to Telegram
 - `unlinkTelegram` (telegram-people.ts): linking oneself to Telegram
+- `requestAccess` (sharing.ts): asking an owner for access is a person's own request; through a key it would show which things exist
 - `setUsageDigest` (usage-digest.ts): one's own usage digest
 
 ## app-only: Workspace and Installation administration
@@ -97,6 +98,7 @@ Settings an Owner or Installation Admin makes at the screen. Programs with a key
 
 - `createAccessKey` (access-keys.ts): Access Keys: a key must not make or end keys
 - `revokeAccessKey` (access-keys.ts): Access Keys: a key must not make or end keys
+- `setJoinDomain` (invitations.ts): domain joining rests on the Owner's own verified address, which only a sign-in proves
 - `setAutoSnapshots` (auto-snapshots.ts): Workspace settings
 - `createFeed` (feeds.ts): Feeds and their keys are set up by a person in Settings
 - `renameFeed` (feeds.ts): Feeds and their keys are set up by a person in Settings
@@ -205,26 +207,7 @@ Reads for a screen that also note that something was seen or logged; the API has
 
 To come through the API only, behind a scope of their own, never ticked by default and not offered through MCP: text in a Thread must not talk an assistant into approving, sharing or publishing.
 
-- `removeMember` (handover.ts): removing people, #434
-- `inviteByEmail` (invitations.ts): inviting and managing people, #434
-- `resendInvitation` (invitations.ts): inviting and managing people, #434
-- `createInviteLink` (invitations.ts): inviting and managing people, #434
-- `revokeInvitation` (invitations.ts): inviting and managing people, #434
-- `setRole` (invitations.ts): inviting and managing people, #434
-- `setJoinDomain` (invitations.ts): inviting and managing people, #434
-- `decideJoinRequest` (invitations.ts): inviting and managing people, #434
-- `share` (sharing.ts): Shares, access requests, #434
-- `shareWithGroup` (sharing.ts): Shares, access requests, #434
-- `whoCanSee` (sharing.ts): who can see an item, a person's question, #434
-- `requestAccess` (sharing.ts): Shares, access requests, #434
-- `decideAccess` (sharing.ts): Shares, access requests, #434
 - `decideCorrection` (submissions.ts): deciding a proposed Correction is an approval, #427
-- `createGroup` (team.ts): Groups and contacts, #434
-- `renameGroup` (team.ts): Groups and contacts, #434
-- `deleteGroup` (team.ts): Groups and contacts, #434
-- `setGroupMember` (team.ts): Groups and contacts, #434
-- `addContact` (team.ts): Groups and contacts, #434
-- `removeContact` (team.ts): Groups and contacts, #434
 - `lockPeriod` (workflows.ts): locking a period, #427
 - `setStandIn` (workflows.ts): Stand-ins decide who approves, #427
 - `setAway` (workflows.ts): being away hands approvals to a Stand-in, #427

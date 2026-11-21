@@ -284,6 +284,29 @@ export type AlertCondition =
 /** The way an Alert's message is sent: the person's Delivery Preference (usual) or one way. */
 export type AlertDelivery = "usual" | "email" | "slack" | "telegram";
 
+/** Where Shares apply: a Metric (named by its slug), a dashboard or a deck (named by number id). */
+export type ShareTarget = { type: "metric"; id: string } | { type: "dashboard" | "deck"; id: number };
+
+/** Who a Share is with: one member of the workspace, or one Group. */
+export type ShareWith = { person: string } | { group: number };
+
+/** Who can see something and why, and for its owner the open requests for access. */
+export type Audience = {
+  owner: string;
+  is_owner: boolean;
+  people: { id: string; name: string; how: string[] }[];
+  requests: { id: number; person: string; name: string; requested_at: string }[];
+};
+
+/** A Workspace Role. */
+export type WorkspaceRole = "owner" | "admin" | "member" | "guest";
+
+/** An invitation as a list shows it: never its token. */
+export type Invitation = { id: number; email: string | null; role: WorkspaceRole; expires_at: string; created_at: string; emailed: boolean; email_error: string | null };
+
+/** A request to join the workspace by its domain, with the address the person proved. */
+export type JoinRequest = { id: number; requested_at: string; person: { id: string; name: string; email: string | null } };
+
 /** One of the key's creator's own Alerts: its Metric, condition, state and when it last fired; never a value. */
 export type Alert = {
   id: number;
@@ -535,6 +558,49 @@ export class Ziffr {
     list: (options: PageOptions = {}) => this.get<Page<Person>>("/people", options),
     /** Everyone, page by page. */
     all: () => this.every<Person>((cursor) => this.people.list({ cursor, limit: 100 })),
+    /** Adds a Contact: a person without a sign-in who only submits values (scope people:write; Owners and Admins).
+     * Answers with their id and name, never the details. */
+    addContact: async (input: { name: string; email?: string; slack_handle?: string; phone?: string }): Promise<{ id: string; name: string; contact: true }> =>
+      (await this.request<{ id: string; name: string; contact: true }>("POST", "/people", undefined, input)).body,
+    /** Changes a member's Workspace Role (scope people:write); only Owners make or change Owners. */
+    setRole: async (id: string, role: WorkspaceRole): Promise<{ id: string; role: WorkspaceRole }> =>
+      (await this.request<{ id: string; role: WorkspaceRole }>("PATCH", `/people/${encodeURIComponent(id)}`, undefined, { role })).body,
+    /** Removes a Contact, or a member whose things go to `successor` (another member, not a Guest). Scope people:write. */
+    remove: async (id: string, options: { successor?: string } = {}): Promise<{ removed: string }> =>
+      (await this.request<{ removed: string }>("DELETE", `/people/${encodeURIComponent(id)}`, options.successor ? { successor: options.successor } : undefined)).body,
+  };
+
+  /** Inviting people (scope people:write, Owners and Admins; only a program's own key, never an assistant's). */
+  readonly invitations = {
+    /** The open invitations, never with their secret links. */
+    list: async (): Promise<Invitation[]> => (await this.get<{ items: Invitation[] }>("/invitations")).items,
+    /** Invites an address with a role and emails it the link. */
+    invite: async (input: { email: string; role: WorkspaceRole; contact?: string }): Promise<Invitation> => (await this.request<Invitation>("POST", "/invitations", undefined, input)).body,
+    /** Makes a link anyone can join by, as Member or Guest, for 7 days. Keep it as you would a password. */
+    link: async (role: "member" | "guest"): Promise<{ url: string; role: "member" | "guest" }> => (await this.request<{ url: string; role: "member" | "guest" }>("POST", "/invitations/links", undefined, { role })).body,
+    /** Revokes an invitation or invite link. */
+    revoke: async (id: number): Promise<{ removed: number }> => (await this.request<{ removed: number }>("DELETE", `/invitations/${id}`)).body,
+    /** Emails an open invitation again. */
+    resend: async (id: number): Promise<{ id: number }> => (await this.request<{ id: number }>("POST", `/invitations/${id}/resend`)).body,
+  };
+
+  /** Requests to join the workspace by its domain (scope people:write, Owners and Admins). */
+  readonly joinRequests = {
+    /** The open requests. */
+    list: async (): Promise<JoinRequest[]> => (await this.get<{ items: JoinRequest[] }>("/join-requests")).items,
+    /** Lets the person in as a Member (true) or declines (false). */
+    decide: async (id: number, approve: boolean): Promise<{ id: number; approved: boolean }> => (await this.request<{ id: number; approved: boolean }>("POST", `/join-requests/${id}`, undefined, { approve })).body,
+  };
+
+  /** Shares (scope shares:write; only a program's own key, never an assistant's). Only the owner shares. */
+  readonly shares = {
+    /** Who can see a Metric, dashboard or deck the key's creator sees, and why. */
+    who: (target: ShareTarget): Promise<Audience> => this.get<Audience>("/shares", { type: target.type, id: String(target.id) }),
+    /** Shares it with a member or a Group as viewer or editor; a null role takes the Share away. */
+    set: async (target: ShareTarget, to: ShareWith, role: "viewer" | "editor" | null): Promise<{ type: string; id: string | number; person: string | null; group: number | null; role: "viewer" | "editor" | null }> =>
+      (await this.request<{ type: string; id: string | number; person: string | null; group: number | null; role: "viewer" | "editor" | null }>("POST", "/shares", undefined, { ...target, ...to, role })).body,
+    /** The owner grants Viewer access to a request listed by `who` (true) or declines it (false). */
+    decide: async (requestId: number, grant: boolean): Promise<{ id: number; granted: boolean }> => (await this.request<{ id: number; granted: boolean }>("POST", `/shares/requests/${requestId}`, undefined, { grant })).body,
   };
 
   /** The workspace's live Feeds by id and name, to name one as a Submitter (scope metrics:edit). */
@@ -546,6 +612,16 @@ export class Ziffr {
     list: (options: PageOptions = {}) => this.get<Page<Group>>("/groups", options),
     /** Every Group, page by page. */
     all: () => this.every<Group>((cursor) => this.groups.list({ cursor, limit: 100 })),
+    /** Makes a Group (scope groups:write; Owners and Admins; only a program's own key, never an assistant's). */
+    create: async (name: string): Promise<Group> => (await this.request<Group>("POST", "/groups", undefined, { name })).body,
+    /** Renames a Group; never Everyone. */
+    rename: async (id: number, name: string): Promise<Group> => (await this.request<Group>("PATCH", `/groups/${id}`, undefined, { name })).body,
+    /** Deletes a Group; what was shared with it stops being shared. */
+    remove: async (id: number): Promise<{ removed: number }> => (await this.request<{ removed: number }>("DELETE", `/groups/${id}`)).body,
+    /** Puts a member of the workspace into a Group. */
+    addMember: async (id: number, person: string): Promise<{ group: number; person: string; member: boolean }> => (await this.request<{ group: number; person: string; member: boolean }>("POST", `/groups/${id}/members`, undefined, { person })).body,
+    /** Takes a member out of a Group. */
+    removeMember: async (id: number, person: string): Promise<{ group: number; person: string; member: boolean }> => (await this.request<{ group: number; person: string; member: boolean }>("DELETE", `/groups/${id}/members/${encodeURIComponent(person)}`)).body,
   };
 
   /** For a Feed Key (spec 0012): the Feed's Metrics, and recording values for them in batches. */
