@@ -34,7 +34,7 @@ for (const [k, t] of Object.entries(state.seen)) if (now - t > 86400000) delete 
 for (const [k, v] of Object.entries(state.latest)) if (now - v.t > 30 * 86400000) delete state.latest[k];
 // The id in the signed body is the delivery id; the header is not signed, so it is not trusted.
 const delivery = typeof event.id === 'string' ? event.id : '';
-if (!delivery) return out(200);
+if (!delivery) return out(200, { why: 'no id' });
 if (state.seen[delivery]) return out(200, { why: 'repeat' });
 state.seen[delivery] = now;
 

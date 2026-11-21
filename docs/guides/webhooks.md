@@ -155,7 +155,7 @@ A Webhook that fails 20 sends in a row, or has had no success for three days, is
 
 At least once is the promise, in no particular order. So:
 
-- **Dedupe on `X-Ziffr-Delivery`** (the message `id`). Keep the ids you have handled for a day and skip a repeat.
+- **Dedupe on the message `id` in the signed body** (`X-Ziffr-Delivery` carries the same value, but only the body is signed). Keep the ids you have handled for a day and skip a repeat.
 - **Apply the newest.** Compare `updated_at` with the last one you saw for that `ref` and ignore what is older.
 - **Check before you change.** Closing an external task that is closed is a no-op; creating one that exists is a lookup. Find the task by `external_ids`, and for a first event by the `ref` in its notes.
 - **Ignore your own echo:** an event whose `source.webhook_id` is this Webhook's own id.
