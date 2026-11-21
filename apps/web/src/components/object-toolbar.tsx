@@ -27,7 +27,7 @@ export type ObjectToolbarProps = {
   children?: React.ReactNode;
   /** On a phone only this stays in the row (with Share and ⋯), and `children` move into the ⋯ sheet (#535). */
   phone?: React.ReactNode;
-  share?: { name: string; ownerId: string; shares: Share[]; groups?: Group[]; reveals?: Record<string, string[]> } | null;
+  share?: { name: string; ownerId: string; shares: Share[]; groups?: Group[]; reveals?: Record<string, string[]>; canInvite?: boolean } | null;
   viewLinks?: boolean;
   theme?: { themes: Theme[]; value: number | null; onChange: (id: number | null) => Promise<unknown> } | null;
   /** This page's own entries at the top of the ⋯ menu, such as Make a deck. An entry with `sub` opens a submenu of

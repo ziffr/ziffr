@@ -1,16 +1,18 @@
 "use client";
 import { useState, useTransition } from "react";
-import { Share2 } from "lucide-react";
+import { Share2, UserPlus } from "lucide-react";
 import { setGroupShare, setShare } from "@/app/canvas-actions";
+import { inviteMember } from "@/app/team-actions";
 import { told } from "@/lib/action-toast";
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { usePanel } from "@/lib/panel-param";
 import { Button, buttonVariants } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import type { Group, Profile, Share } from "@ziffr/core/types";
 
 /** GLOSSARY: Share, Slide-over. Opens beside the page (`?panel=share` is its direct URL). Dashboards can be shared as Viewer or Editor; metrics as Viewer. */
-export function ShareSheet({ objectType, objectId, name, ownerId, people, shares, groups = [], reveals = {}, primary, more = [] }: { objectType: "metric" | "dashboard" | "deck"; objectId: number; name: string; ownerId: string; people: Profile[]; shares: Share[]; groups?: Group[]; reveals?: Record<string, string[]>; /** The page's main button. */ primary?: boolean; /** Related dialogs offered at the bottom ("Who can see this", "View links"); the share panel closes first. */ more?: { label: string; icon: React.ReactNode; onClick: () => void }[] }) {
+export function ShareSheet({ objectType, objectId, name, ownerId, people, shares, groups = [], reveals = {}, canInvite = false, primary, more = [] }: { objectType: "metric" | "dashboard" | "deck"; objectId: number; name: string; ownerId: string; people: Profile[]; shares: Share[]; groups?: Group[]; reveals?: Record<string, string[]>; /** May invite people (Owners and Admins, decided in the core): the panel offers to invite someone. Others are told whom to ask. */ canInvite?: boolean; /** The page's main button. */ primary?: boolean; /** Related dialogs offered at the bottom ("Who can see this", "View links"); the share panel closes first. */ more?: { label: string; icon: React.ReactNode; onClick: () => void }[] }) {
   const [pending, start] = useTransition();
   const [open, setOpen] = usePanel("share");
   // Contacts have no login: nothing is shared with them.
@@ -88,6 +90,7 @@ export function ShareSheet({ objectType, objectId, name, ownerId, people, shares
             </ul>
           </>
         )}
+        <InviteSomeone alone={others.length === 0} canInvite={canInvite} objectType={objectType} />
         </div>
         {more.length > 0 && (
           <div className="flex flex-wrap gap-2 border-t bg-muted/50 p-3">
@@ -105,4 +108,41 @@ export function ShareSheet({ objectType, objectId, name, ownerId, people, shares
 function Reveals({ names }: { names?: string[] }) {
   if (!names?.length) return null;
   return <span className="block text-xs text-[var(--color-accent-2)]">Also shows {names.length > 3 ? `${names.slice(0, 3).join(", ")} and ${names.length - 3} more` : names.join(", ")}</span>;
+}
+
+/** For a Workspace with nobody to share with, or anyone not in it yet (GLOSSARY: Invitation, Share): Owners and Admins
+ * invite by email through the same call as the Members page, as Member or Guest; they are shared with once they have
+ * joined, because an invitation carries no Share. Everyone else is told to ask an Owner or Admin. */
+function InviteSomeone({ alone, canInvite, objectType }: { alone: boolean; canInvite: boolean; objectType: "metric" | "dashboard" | "deck" }) {
+  const [open, setOpen] = useState(false);
+  const [email, setEmail] = useState("");
+  const [role, setRole] = useState<"member" | "guest">("member");
+  const [made, setMade] = useState<{ link: string; emailed: boolean } | null>(null);
+  const [pending, start] = useTransition();
+  if (!canInvite) {
+    return alone ? <p className="text-sm text-muted-foreground">Nobody else is in this workspace yet. Ask an Owner or Admin to invite them{objectType === "metric" ? "." : ", or make a View link to show this to someone outside."}</p> : null;
+  }
+  if (!open && !made) {
+    return <Button type="button" variant={alone ? "default" : "outline"} size="sm" onClick={() => setOpen(true)}><UserPlus aria-hidden /> Invite someone…</Button>;
+  }
+  return (
+    <div className="space-y-2 rounded-[var(--radius-card)] border border-border p-3 text-sm">
+      {made ? (
+        <>
+          <p>{made.emailed ? "Invited by email. You can also send this link yourself:" : "Not emailed. Send this link yourself:"}</p>
+          <input readOnly value={made.link} onFocus={(e) => e.target.select()} aria-label="Invitation link" className="h-9 w-full rounded-[var(--radius-input)] border border-input bg-card px-2 font-mono text-xs" />
+          <p className="text-xs text-muted-foreground">Once they have joined, they appear in the list above: share it with them there.</p>
+        </>
+      ) : (
+        <form className="flex flex-wrap items-end gap-2" onSubmit={(e) => {
+          e.preventDefault();
+          start(async () => { const r = await inviteMember({ email, role }); if (!told(r, "Not invited")) setMade(r as { link: string; emailed: boolean }); });
+        }}>
+          <label className="text-xs text-muted-foreground">Email address<Input type="email" required value={email} onChange={(e) => setEmail(e.target.value)} placeholder="name@company.com" className="mt-1 w-56" /></label>
+          <label className="text-xs text-muted-foreground">as<select value={role} onChange={(e) => setRole(e.target.value as "member" | "guest")} className="mt-1 block h-9 rounded-[var(--radius-input)] border border-input bg-card px-2 text-sm"><option value="member">Member</option><option value="guest">Guest (sees only what is shared)</option></select></label>
+          <Button type="submit" disabled={pending}>Invite</Button>
+        </form>
+      )}
+    </div>
+  );
 }
