@@ -13,6 +13,7 @@ import { guideHref } from "@/lib/user-guide";
 import { ViewAs } from "@/components/view-as";
 import { demoRoles } from "@ziffr/core/team";
 import { Tour } from "@/components/tour";
+import { pinnedDashboards } from "@ziffr/core/pinned-dashboards";
 import { whatThisZiffrOffers } from "@ziffr/core/what-works-here";
 import { isInstallationAdmin } from "@ziffr/core/installation-admins";
 import { keptWords, trialStatus } from "@ziffr/core/trial-end";
@@ -89,6 +90,8 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
   // The app layout (docs/specs/0036-app-layout.md): the browser's cookie decides the frame; the pages are the same.
   const sidebar = (await layoutChoice()) === "sidebar";
   const due = sidebar ? await dueValueCount() : 0;
+  // Pinned dashboards (#509): only those this person may open now, with nothing but id and name.
+  const pinned = sidebar ? await pinnedDashboards(await currentActor()) : [];
   const accountOf = demo ? null : { name: profiles.find((p) => p.id === viewer)?.name ?? "", workspaces, current: workspaceId, installationAdmin, demo: await demoEnabled() };
   const demoControls = demo ? (
     <>
@@ -121,7 +124,7 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
       </head>
       <body className="min-h-screen bg-background font-sans antialiased">
         {sidebar ? (
-          <AppShell workspace={workspaceTree(role)} settings={settingsGroups(role)} due={due} open={open} guide={guideHref()} account={accountOf} demo={demoControls} people={demo ? { profiles: profiles.filter((p) => !p.contact), current: viewer } : undefined} collapsed={await sidebarCollapsed()} banners={<>{demoNote}{banners}</>}>
+          <AppShell workspace={workspaceTree(role)} settings={settingsGroups(role)} pinned={pinned} due={due} open={open} guide={guideHref()} account={accountOf} demo={demoControls} people={demo ? { profiles: profiles.filter((p) => !p.contact), current: viewer } : undefined} collapsed={await sidebarCollapsed()} banners={<>{demoNote}{banners}</>}>
             {trial?.ended ? <TrialEnded deletedAt={trial.deletedAt} /> : children}
           </AppShell>
         ) : (

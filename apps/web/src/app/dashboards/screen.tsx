@@ -28,6 +28,7 @@ import { setDashboardTheme } from "@/app/theme-actions";
 import { themeFor } from "@ziffr/core/themes";
 import { FirstRun } from "@/components/first-run";
 import { DashboardSwitcher } from "@/components/dashboard-switcher";
+import { PinButton } from "@/components/pinned-dashboards";
 import { setHome } from "@/app/home-actions";
 import { makeDeck } from "@/app/convert-actions";
 import { DashboardReader } from "@/components/dashboard-reader";
@@ -50,6 +51,8 @@ type Props = {
   closed?: { id: number; owner: string } | null;
   /** The dashboard Home opens for this person (their choice, or the default), for the switcher's mark. */
   homeId: number | null;
+  /** Whether the viewer pinned this dashboard to the sidebar. */
+  pinned: boolean;
   /** The Dashboard Templates a new dashboard can start from (empty for a Guest). */
   dashboardTemplates: DashboardTemplateSummary[];
   /** May start new dashboards (not a Guest). */
@@ -83,7 +86,7 @@ export function DashboardScreen(props: Props) {
   return <SeriesProvider ensure={ensure}><DashboardCanvas {...props} data={data} /></SeriesProvider>;
 }
 
-function DashboardCanvas({ data, dashboards, current, widgets, saved, shares, reveals, closed, firstRun, homeId, canCreate, dashboardTemplates, reading = false, snapshots = [] }: Props) {
+function DashboardCanvas({ data, dashboards, current, widgets, saved, shares, reveals, closed, firstRun, homeId, pinned, canCreate, dashboardTemplates, reading = false, snapshots = [] }: Props) {
   const router = useRouter();
   const [, start] = useTransition();
   // A refusal says why in a toast; anything unforeseen says only that it went wrong (lib/action-error.ts).
@@ -197,6 +200,7 @@ function DashboardCanvas({ data, dashboards, current, widgets, saved, shares, re
                 >
                   <Home aria-hidden className={cn(current.id === homeId && "fill-current")} /> {current.id === homeId ? "Home" : "Make this my home"}
                 </button>
+                <PinButton dashboardId={current.id} name={current.name} pinned={pinned} />
                 <div role="group" aria-label="View" className="flex gap-0.5 rounded-[var(--radius-input)] border border-[var(--border)] p-0.5">
                   <Link href={`/dashboards/${current.id}`} aria-current={!reading ? "page" : undefined} className={cn(buttonVariants({ variant: "ghost", size: "sm" }), !reading && "bg-[var(--muted)] font-medium")}><LayoutGrid aria-hidden /> Grid</Link>
                   <Link href={`/dashboards/${current.id}?view=read`} aria-current={reading ? "page" : undefined} className={cn(buttonVariants({ variant: "ghost", size: "sm" }), reading && "bg-[var(--muted)] font-medium")}><BookOpen aria-hidden /> Read</Link>
