@@ -57,6 +57,8 @@ type Props = {
   dashboardTemplates: DashboardTemplateSummary[];
   /** May start new dashboards (not a Guest). */
   canCreate: boolean;
+  /** May invite people (Owners and Admins): the Share panel then offers to invite someone. */
+  canInvite?: boolean;
   /** Set when the workspace has no dashboards yet: what the viewer may do about it (outside the demo). */
   firstRun?: { canCreate: boolean; canManage: boolean; clockSet: boolean; hasValue: boolean } | null;
   /** Shows the Read view (spec 0013): the introduction, then the widgets top to bottom. Else the grid. */
@@ -86,7 +88,7 @@ export function DashboardScreen(props: Props) {
   return <SeriesProvider ensure={ensure}><DashboardCanvas {...props} data={data} /></SeriesProvider>;
 }
 
-function DashboardCanvas({ data, dashboards, current, widgets, saved, shares, reveals, closed, firstRun, homeId, pinned, canCreate, dashboardTemplates, reading = false, snapshots = [] }: Props) {
+function DashboardCanvas({ data, dashboards, current, widgets, saved, shares, reveals, closed, firstRun, homeId, pinned, canCreate, canInvite, dashboardTemplates, reading = false, snapshots = [] }: Props) {
   const router = useRouter();
   const [, start] = useTransition();
   // A refusal says why in a toast; anything unforeseen says only that it went wrong (lib/action-error.ts).
@@ -190,7 +192,7 @@ function DashboardCanvas({ data, dashboards, current, widgets, saved, shares, re
                 id={current.id}
                 people={data.people}
                 phone={<div className="md:hidden">{viewToggle}</div>}
-                share={current.role === "owner" ? { name: current.name, ownerId: current.owner_id, shares, groups: data.groups, reveals } : null}
+                share={current.role === "owner" ? { name: current.name, ownerId: current.owner_id, shares, groups: data.groups, reveals, canInvite } : null}
                 viewLinks={current.role === "owner"}
                 theme={editable ? { themes: data.themes, value: current.theme_id, onChange: (id) => setDashboardTheme(current.id, id) } : null}
                 menu={canCreate ? [

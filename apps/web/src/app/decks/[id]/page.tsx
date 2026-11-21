@@ -1,4 +1,5 @@
 import { notFound, redirect } from "next/navigation";
+import { can } from "@ziffr/core/actor";
 import { RequestAccess } from "@/components/who-can-see";
 import { deckMetricIds, getGroups, getRawShares, revealedBy } from "@/lib/access";
 import { currentActor, viewerId } from "@/lib/viewer";
@@ -66,7 +67,7 @@ export default async function DeckPage({ params, searchParams }: { params: Promi
       templateSeed={templateSeed}
       addition={addition}
       deckTemplates={(await listDeckTemplates(actor)).filter((t) => t.owner_id === actor.personId).map(({ id, name, description, slots }) => ({ id, name, description, slots }))}
-      sharing={role === "owner" ? { shares, groups, ownerId: deck.owner_id, reveals: await revealedBy(deckMetricIds(deck.document), deck.owner_id) } : null}
+      sharing={role === "owner" ? { shares, groups, ownerId: deck.owner_id, canInvite: can(actor, "manage-members"), reveals: await revealedBy(deckMetricIds(deck.document), deck.owner_id) } : null}
     />
   );
 }

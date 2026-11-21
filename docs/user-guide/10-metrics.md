@@ -373,6 +373,8 @@ People are chosen as Submitters when the Metric is created or duplicated. This b
 
 **Share** belongs to the Metric Owner. For each person, and for each Group ("including whoever joins later"), choose **No access**, **Viewer** or **Editor**.
 
+**Invite someone…** at the bottom of the Share window is for someone who is not in the Workspace yet, such as when you are the only one in it. Owners and Admins enter an email address and choose **Member** or **Guest** (a Guest sees only what is shared with them), and Ziffr invites them the same way as the **Members and Groups** page: it emails the link when mail is set up and shows it to send yourself. A person is shared with once they have joined and appear in the list. Everyone else sees "Ask an Owner or Admin to invite them" (for a dashboard or deck).
+
 | Role | What they can do |
 | --- | --- |
 | **Viewer** | See the Metric, its history and comparisons, use it on their own dashboards and analyses, and assign questions and tasks about it. |
