@@ -18,6 +18,15 @@ if [ "$tool" = "Grep" ] || [ "$tool" = "Glob" ]; then
   while IFS= read -r v; do
     [ -z "$v" ] && continue
     v=$(printf '%s' "$v" | tr '[:upper:]' '[:lower:]')
+    # Each part of a list or brace group on its own: a name that starts with .env is a secret unless it is exactly
+    # .env.example (so .env.example* or .env.example.local count too). Then, wherever .env.example stands, any
+    # other .env left in the value counts.
+    set -f  # the parts are patterns: never expand them against the files here
+    for part in $(printf '%s' "$v" | tr ',{}' '   '); do
+      b=${part##*/}
+      if [[ "$b" == .env* && "$b" != ".env.example" ]]; then secret; fi
+    done
+    set +f
     if [[ "${v//.env.example/}" == *".env"* ]]; then secret; fi
   done < <(jq -r '.tool_input.path // empty, .tool_input.glob // empty, (if .tool_name == "Glob" then .tool_input.pattern // empty else empty end)' <<<"$input")
   exit 0
