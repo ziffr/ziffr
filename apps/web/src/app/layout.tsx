@@ -14,6 +14,8 @@ import { ViewAs } from "@/components/view-as";
 import { demoRoles } from "@ziffr/core/team";
 import { can } from "@ziffr/core/actor";
 import { Tour } from "@/components/tour";
+import { FeedbackPrompt } from "@/components/feedback-prompt";
+import { feedbackPromptFor } from "@ziffr/core/feedback-prompt";
 import { pinnedDashboards } from "@ziffr/core/pinned-dashboards";
 import { whatThisZiffrOffers } from "@ziffr/core/what-works-here";
 import { isInstallationAdmin } from "@ziffr/core/installation-admins";
@@ -95,6 +97,8 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
   const trial = demo ? null : await trialStatus(workspaceId);
   // Over the Workspace Limit (spec 0029): Owners and Admins see it on every page, with a way to Size and usage.
   const overLimit = !demo && (role === "owner" || role === "admin") ? overLimitBanner(await sizeAndUsage(await currentActor())) : null;
+  // The Feedback Prompt (ticket #722): only a signed-in member, never the demo; the core decides, the page gets one flag.
+  const feedback = demo ? null : await feedbackPromptFor(actor).catch(() => null);
   const offersTrials = demo && Boolean((await whatThisZiffrOffers()).trial);
   // Only the real person behind the session, never a demo visitor.
   const installationAdmin = person ? await isInstallationAdmin({ personId: person }) : false;
@@ -138,6 +142,7 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
           {trial?.ended ? <TrialEnded deletedAt={trial.deletedAt} /> : children}
         </AppShell>
         {demo && offersTrials && <DemoRefusalLinks />}
+        {feedback && <FeedbackPrompt askForStar={feedback.askForStar} />}
         {demo && <Tour key={can(actor, "create") ? "member" : "guest"} guest={!can(actor, "create")} />}
         <Toaster />
         <Suspense fallback={null}><QuickLookHost /></Suspense>

@@ -18,7 +18,8 @@ import { defaultLimitFrom, limitLabel, limitNumber, syncDefaultLimit } from "./w
 import { marketplaceConfig, marketplaceUrlProblem, MARKETPLACE_DEFAULT_URL } from "./marketplace";
 import { SENDING_LIMITS, sendingLimitFrom, sendingLimitProblem } from "./sending-limits";
 import { auditKeepRefusal, forgetAuditReference } from "./audit-retention";
-import { AUDIT_WARN_BELOW_DAYS, DAYS_SETTINGS, daysOutOfRange, daysProblem, daysSetting } from "./installation-days";
+import { AUDIT_WARN_BELOW_DAYS, DAYS_SETTINGS, daysOutOfRange, daysProblem, daysSetting, hostedByCloud } from "./installation-days";
+import { feedbackPromptOn } from "./feedback-prompt-rules";
 import { forgetStoredSettings, settingContext, settingSources, settingsInEffect, settingsInEffectStrict, storedSettings, type SettingSource } from "./settings-in-effect";
 
 /** One setting as the page shows it. `value` only for a setting that is not secret; `hint` (the last four
@@ -107,6 +108,7 @@ const CHECKS: Record<string, (v: string) => string | null> = {
   ZIFFR_TRIAL_THEN: (v) => (v === "delete" || v === "keep" ? null : "Pick what happens when a trial ends."),
   ZIFFR_TRIAL_MAX: (v) => (/^\d+$/.test(v) && Number(v) >= 1 && Number(v) <= 1_000_000 ? null : "Trials at once is a whole number from 1."),
   ZIFFR_TRIAL_WEBHOOKS: (v) => (v === "true" || v === "false" ? null : "Pick whether trials may have Webhooks."),
+  ZIFFR_FEEDBACK_PROMPT: (v) => (v === "true" || v === "false" ? null : "Pick whether people are asked."),
   ZIFFR_DEMO: (v) => (v === "1" || v === "0" ? null : "Pick whether the demo is offered."),
   ZIFFR_USAGE_EXCLUDE_WORKSPACE: (v) => (/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(v) ? null : "Pick a Workspace by name."),
   ZIFFR_MARKETPLACE: (v) => (/^(on|off)$/i.test(v) ? null : "The connection is on or off."),
@@ -199,6 +201,10 @@ async function sectionWorks(id: SettingsSectionId, settings: Record<string, stri
   if (id === "demo") {
     if (settings.ZIFFR_DEMO_ONLY === "1") return { working: true, detail: "This Ziffr is a public demo and nothing else (ZIFFR_DEMO_ONLY on the server): nobody signs in here." };
     return settings.ZIFFR_DEMO !== "0" ? { working: true, detail: "The login page offers Try the demo." } : { working: false, detail: "The login page does not offer the demo." };
+  }
+  if (id === "feedback") {
+    const on = feedbackPromptOn(settings, hostedByCloud(settings));
+    return on ? { working: true, detail: "Signed-in people are asked now and then whether they like Ziffr." } : { working: false, detail: "Nobody is asked." };
   }
   if (id === "keep") {
     const wrong = daysOutOfRange(settings);

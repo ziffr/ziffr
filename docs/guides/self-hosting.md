@@ -88,6 +88,7 @@ Set these where the app runs. `.env.example` has them all with a comment each.
 | `ZIFFR_SITE_URL` | Where Ziffr is reached, with `https://`; links in emails and sign-in lead here |
 | `ZIFFR_AUTH_PROVIDERS` | Sign-in providers besides the email link, if any |
 | `ZIFFR_DEMO` | `0` to offer no demo, `1` to offer it; or choose on the Installation settings page |
+| `ZIFFR_FEEDBACK_PROMPT` | `true` to ask signed-in people now and then whether they like Ziffr (with a link to the repository on GitHub), `false` never; off unless set, on for hosted Ziffr; or choose on the Installation settings page |
 | `ZIFFR_USER_GUIDE_URL` | Where the app's "User guide" link leads, if your team keeps its guide elsewhere; without it, Ziffr's own guide at `/guide` ([user guide](../user-guide/README.md)) |
 | `ZIFFR_USER_GUIDE_DIR` | A folder of guide chapters other than `docs/user-guide`, such as a translated copy, optional |
 | `ZIFFR_SMTP_URL`, `ZIFFR_MAIL_FROM` | Sending email ([email](email.md)); or set them on the [Installation settings](#installation-settings) page |
@@ -258,6 +259,12 @@ Generated from the Installation Settings catalogue (`packages/core/src/installat
 | Setting | On the page | Example or choices | What it does |
 | --- | --- | --- | --- |
 | `ZIFFR_USAGE_EXCLUDE_WORKSPACE` | Workspace left out | `None` | One Workspace, usually your own for the numbers, that is left out of every figure and of the count of Workspaces. Pick it by name; the setting holds its id. |
+
+**Feedback**
+
+| Setting | On the page | Example or choices | What it does |
+| --- | --- | --- | --- |
+| `ZIFFR_FEEDBACK_PROMPT` | Ask people whether they like Ziffr | `true`, `false` | A small card, at most three times per person, after they have submitted values on a few different days; never in the demo, for Guests or on View Links. Empty: on for hosted Ziffr, off everywhere else. |
 
 **Demo**
 

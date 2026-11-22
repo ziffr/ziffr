@@ -98,6 +98,10 @@ Acts as the person, with their own sign-in, Slack or Telegram account or email a
 - `makeCalendarLink` (calendar-links.ts): one's own Calendar Link
 - `setCalendarNoNames` (calendar-links.ts): one's own Calendar Link
 - `revokeCalendarLink` (calendar-links.ts): one's own Calendar Link
+- `feedbackPromptFor` (feedback-prompt.ts): the card in the app that asks a signed-in person whether they like Ziffr (ticket #722); a program has no screen to show it on
+- `markFeedbackPromptShown` (feedback-prompt.ts): the same card, noting that it was shown
+- `stopFeedbackPrompt` (feedback-prompt.ts): the same card, "Star on GitHub" and "Don't ask again"
+- `sayWhatIsMissing` (feedback-prompt.ts): the same card, what the person says is missing
 - `optOutOfEmail` (email-opt-out.ts): one's own email choices
 - `optBackIn` (email-opt-out.ts): one's own email choices
 - `setTellStopped` (tell.ts): one's own "stop telling me" setting
