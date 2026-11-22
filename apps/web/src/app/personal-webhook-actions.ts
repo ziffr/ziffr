@@ -35,6 +35,15 @@ export async function updatePersonalWebhook(id: string, change: { name?: string;
   });
 }
 
+/** Drops the picked Metrics the person can no longer see from one's own Personal Webhook. */
+export async function forgetHiddenPersonalMetrics(id: string) {
+  return attempt(async () => {
+    const n = await mine.forgetHiddenPersonalMetrics(await currentActor(), String(id));
+    refresh();
+    return n;
+  });
+}
+
 /** Replaces the secret of one's own Personal Webhook; the new one is returned this once. */
 export async function replacePersonalWebhookSecret(id: string) {
   return attempt(async () => {

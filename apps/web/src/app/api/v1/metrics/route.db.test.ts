@@ -3,6 +3,7 @@
 import { afterEach, describe, expect, it } from "vitest";
 import { createAccessKey } from "@ziffr/core/access-keys";
 import { accessLogOf, logCalls, workspace } from "@ziffr/core/test/db-fixtures";
+import { setMetricTags } from "@ziffr/core/tags";
 import { GET } from "./route";
 import { GET as unknownEndpoint } from "../[...rest]/route";
 
@@ -48,6 +49,21 @@ describe("GET /api/v1/metrics", () => {
       expect(res.status, q).toBe(400);
       expect((await res.json()).error.code).toBe("invalid_request");
     }
+  });
+  it("filters by a repeated tag parameter, all of them must match, and rejects more than ten", async () => {
+    process.env.ZIFFR_SECRETS_KEY ??= Buffer.alloc(32, 59).toString("base64");
+    const w = await workspace(); cleanups.push(w.cleanup);
+    const ben = await w.person("member");
+    const a = await w.metric(ben, { name: "A" });
+    const b = await w.metric(ben, { name: "B" });
+    await setMetricTags(w.actor(ben, "member"), a.id, ["finance", "monthly"]);
+    await setMetricTags(w.actor(ben, "member"), b.id, ["finance"]);
+    const { secret } = await createAccessKey(w.actor(ben, "member"), { name: "Script", scopes: ["metrics:read"], expiresOn: inDays(30) });
+    const names = async (q: string) => (await (await call(`/api/v1/metrics?${q}`, secret)).json()).items.map((m: { name: string }) => m.name);
+    expect(await names("tag=finance")).toEqual(["A", "B"]);
+    expect(await names("tag=finance&tag=monthly")).toEqual(["A"]);
+    expect(await names("tag=finance&tag=nope")).toEqual([]);
+    expect((await call(`/api/v1/metrics?${Array.from({ length: 11 }, (_, i) => `tag=t${i}`).join("&")}`, secret)).status).toBe(400);
   });
   it("answers 404 in the API's shape for unknown endpoints", async () => {
     const res = await unknownEndpoint(new Request("http://ziffr.test/api/v1/nope"));

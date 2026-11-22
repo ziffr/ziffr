@@ -223,6 +223,15 @@ describe("the clean SVG", () => {
     const a = svgClean(messy);
     expect(a.ok && svgClean(a.svg)).toEqual(a);
   });
+  it("weighs the SVG as it is written out, so what it keeps passes the check again", () => {
+    // 80 KB in: ">" is written out as "&gt;" and "€" weighs three bytes, so the written form weighs 140 KB.
+    const heavy = svg(`<svg xmlns="http://www.w3.org/2000/svg"><text>${">".repeat(20_000)}${"€".repeat(20_000)}</text></svg>`);
+    expect(logoProblem(heavy, PACK_LOGO_MAX_BYTES)).toMatch(/larger than the 128,000 bytes/);
+    expect(cleanLogo(heavy, PACK_LOGO_MAX_BYTES)).toBeNull();
+    const kept = cleanLogo(heavy)!;
+    expect(kept).not.toBeNull();
+    expect(cleanLogo(kept)).toBe(kept);
+  });
   it("gives a raster picture as it came and nothing for what is refused", () => {
     expect(cleanLogo(png(10, 10))).toBe(png(10, 10));
     expect(cleanLogo(svg("<svg><script/></svg>"))).toBeNull();

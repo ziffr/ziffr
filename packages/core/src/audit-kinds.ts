@@ -65,6 +65,7 @@ export const AUDIT_KINDS = {
   "view_design.removed": "removed the View Design",
   "theme.added": "added the standard Theme",
   "theme.imported": "imported the Theme",
+  "workspace.imported": "finished importing a Workspace Export into",
   "pack.installed": "installed the Pack",
   "pack.updated": "updated the Pack",
   "pack.uninstalled": "uninstalled the Pack",

@@ -36,7 +36,7 @@ export default async function WebhooksPage() {
     <>
       <PageHeader title="Webhooks" />
       <Webhooks webhooks={webhooks} logs={logs} limits={{ most: rules.maxWebhooks, days: await daysNow("ZIFFR_KEEP_WEBHOOK_LOG_DAYS"), perDay: rules.sendsPerDay, trial: rules.trial }} />
-      <PersonalWebhooks allowed={allowed} webhooks={personal} logs={personalLogs} />
+      <PersonalWebhooks allowed={allowed} webhooks={personal.map((w) => ({ ...w, ownerId: undefined }))} logs={personalLogs} />
     </>
   );
 }

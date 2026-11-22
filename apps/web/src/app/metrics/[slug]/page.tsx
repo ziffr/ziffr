@@ -385,7 +385,7 @@ export default async function MetricPage({ params, searchParams }: { params: Pro
                           <ValueMarks pastedBy={pasted.has(o.id) ? (peopleById[o.submitter_id ?? ""]?.name ?? "someone") : null} imported={Boolean(o.imported)} />
                         </td>
                         <td className="py-2 pl-3 text-muted-foreground">{SOURCE_LABEL[o.source as keyof typeof SOURCE_LABEL] ?? o.source}{o.access_key_id && keyNames[o.access_key_id] ? ` · ${keyNames[o.access_key_id]}` : null}</td>
-                        <td className="py-2"><Person p={o.submitter_id ? peopleById[o.submitter_id] : undefined} /></td>
+                        <td className="py-2">{actor.role !== "guest" && !o.submitter_id && o.submitted_by_name ? <span>{o.submitted_by_name} <span className="text-muted-foreground">(imported)</span></span> : <Person p={o.submitter_id ? peopleById[o.submitter_id] : undefined} />}</td>
                       </tr>
                     ))}
                   </tbody>

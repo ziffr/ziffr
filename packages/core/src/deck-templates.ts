@@ -55,6 +55,14 @@ export function readFills(text: unknown): number[][] {
 /** Writes the fills of a template's Slots for a link; `readFills` reads them back. */
 export const writeFills = (fills: number[][]) => fills.map((f) => f.join(",")).join(";");
 
+/** The Deck Template and fills a deck imported from a Workspace Export waits to be laid out with (its document holds
+ * only that, until the editor first saves it), or null for any other deck. Only whole numbers are read from it. */
+export function importSeedOf(document: unknown): { template: number; fills: number[][] } | null {
+  const seed = (document as { importSeed?: { template?: unknown; fills?: unknown } } | null)?.importSeed;
+  if (!seed || !Number.isSafeInteger(seed.template) || (seed.template as number) <= 0 || !Array.isArray(seed.fills)) return null;
+  return { template: seed.template as number, fills: seed.fills.slice(0, 50).map((f) => (Array.isArray(f) ? f.map(Number).filter(Number.isSafeInteger).slice(0, 50) : [])) };
+}
+
 /** Checks a template's Slots filled with Metrics the actor sees, and answers the Metrics each widget would draw. */
 async function checkedFills(actor: Actor, t: DeckTemplate, fills: number[][]) {
   if (!fillsComplete(t.slots, fills)) throw new Forbidden();

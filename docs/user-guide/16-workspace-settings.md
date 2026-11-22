@@ -49,6 +49,23 @@ After you sign in for the first time and belong to no Workspace yet, Ziffr opens
 
 You can start another Workspace at any time from the Workspace switcher at the top of the sidebar, with **New workspace**. Everything in one Workspace stays in it; nothing is shared between Workspaces.
 
+### From a Workspace Export
+
+On a Ziffr that you or your company run (not on hosted Ziffr, where a new Workspace is a trial), **Start a workspace** also says "Coming from another Ziffr?" with a link, **Start from a Workspace Export**. Choose the file the Owner of the other Workspace downloaded and select **Import**. The file becomes a **new** Workspace and you are its Owner; nothing is merged into a Workspace you already have.
+
+Ziffr first checks the whole file and writes nothing. If anything is wrong, such as a line that is not allowed, a number that is too large, a name the file never listed, a time zone this Ziffr does not know, or more Metrics than this Ziffr's Workspace Limit allows, the page says which line and why, and no Workspace is made. Only when the file is sound does it create the Workspace and fill it, with a progress bar that you can leave and come back to. If the import stops half-way, for any reason, the half-made Workspace is deleted together with its key. You can only run one import at a time.
+
+The new Workspace has its own key: everything private in it is sealed again under that key, whatever it was sealed with before. What arrives: the Workspace's name, time zone and year start, Groups, Themes, Metrics with their Tags, Target Ranges, Target Series and Projections, every value with its Breakdown and the day it was recorded, dashboards, decks, Workflows and Shares. Values come in as imports, so they count as history. Things to know:
+
+- **You own every Metric.** The people who owned them get them when they join.
+- **People are not invited yet.** They are on the **Members and Groups** page as invitations that are on hold, with the name, address and role the file gave. Nothing is sent. Change a person's role with the list beside their name if the old one no longer fits, then choose **Invite everyone** when you are ready, within this Ziffr's sending limits; each person's Groups, Shares, the Metrics they owned and the Metrics they send values for are applied when they join. You are not invited yourself: if your own address is in the file, you are the person it names.
+- **Workflows** ask the Owner to approve until people join, since the file holds how many Approvers there are, never who.
+- **Decks** are laid out when you first open each one, from today's values, as a deck made from a Deck Template. A Deck Template for each also appears in the Workspace.
+- **Computed Metrics** (Derived Metrics) arrive with their formulas but no values: Ziffr computes them again.
+- **Who sent a value** stays as a name and shows in the history as "Ana (imported)".
+
+An Installation can lower or raise the size the import accepts with `ZIFFR_IMPORT_MAX_FILE_MB` (200 by default, the size of the file) and `ZIFFR_IMPORT_MAX_TEXT_MB` (1,024 by default, the size once unpacked).
+
 ### On a Ziffr that offers trials
 
 Hosted Ziffr offers **Trial Workspaces** instead; a Ziffr that somebody else runs has none, and every Workspace made there is an ordinary one. What the page then says works in a trial, email first, follows what this Ziffr is set up with, also on its [Installation settings](18-installation-settings.md) page. The sign-in page then shows two choices one above the other: **Try it for real** (a Trial Workspace of your own, with **What works in a trial** and its limits) and, below the form, **No account? Look around first** (the shared demo). Where the Ziffr has set it up, a short check against bots by Cloudflare sits above **Send me a sign-in link**; the button works once it has passed. After signing in, **Start your trial** makes one Trial Workspace for you alone. It starts with one Metric, **Cups of coffee**, a Workflow that asks you for it each day and a small dashboard, **Your coffee**; nothing in it is made up, so the first value is yours. Add the Metrics you really track as in any Workspace; once you have recorded a value of your own, you can invite colleagues by email (see below), nothing is sent to a Contact for real, and the trial is deleted after the number of days the page names.
@@ -250,6 +267,8 @@ After either, the page shows the link so you can send it yourself, for example i
 - A link works for 7 days, for anyone who has it, until it ends or you revoke it.
 
 Below the form, open Invitations are listed with their address (or "Link"), their role and the day they end. Where Ziffr sends email, each line also says whether it was emailed, or why not. **Resend** emails it again; an Invitation can be emailed at most three times. The bin icon revokes it.
+
+People from an imported Workspace Export are listed here too, with "not invited yet" instead of a day: they are on hold and cannot accept anything. **Invite everyone**, shown to the Owner above the list, releases all of them for 14 days and emails each the link where Ziffr sends email. Pressing it again does nothing for people already released.
 
 There are no Invitations in the demo.
 
@@ -535,7 +554,7 @@ Below the Workspace's own Webhooks, **Workspace → Webhooks** has a second list
 
 The switch is **off** until an Owner or Admin switches it on, for every Workspace. Switching it off **pauses** every Personal Webhook: nothing is sent to them, what happens in the meantime is not sent later, and each person's page says why. Switching it on again resumes them. Both are in the [Audit log](#audit-log).
 
-The list shows every Personal Webhook of the Workspace: whose it is, its name, the address masked (the host and the first characters of the path), what it hears, whether it is on, and when it last sent. Under each, **Log** shows the statuses and times of its sends, never the messages: what was sent is the person's. **Remove** deletes one after asking; its person is told, naming who removed it, and the Audit log records it. A Personal Webhook also ends when its person leaves the Workspace.
+The list shows every Personal Webhook of the Workspace: whose it is, its name, the address as its host only (the rest may be a secret, and is the person's), what it hears, whether it is on, and when it last sent. Under each, **Log** shows the statuses and times of its sends, never the messages: what was sent is the person's. **Remove** deletes one after asking; its person is told, naming who removed it, and the Audit log records it. A Personal Webhook also ends when its person leaves the Workspace.
 ## Usage
 
 **Workspace → Usage** is for Owners and Admins; Members and Guests do not see it, and the demo has none, because it counts nothing. It shows what could be tidied up, as lists with the reason beside each name:
