@@ -161,11 +161,11 @@ function tagsChecked(input: unknown): string[] {
 
 /** Puts the Tags of a request on a Metric just made. The Metric exists already, so a limit that refuses them (the
  * Workspace's 200) does not undo it: the answer names the words left out, as a Pack's Set up does. */
-async function tagNewMetric(creator: Actor, metricId: number, tags: string[]): Promise<{ tags_left_out?: string[] }> {
+async function tagNewMetric(creator: Actor, metricId: number, tags: string[]): Promise<{ tags?: string[]; tags_left_out?: string[] }> {
   if (!tags.length) return {};
   try {
-    await setMetricTags(creator, metricId, tags);
-    return {};
+    // The answer is setMetricTags' own: the creator's spelling, never a hidden Tag's first spelling.
+    return { tags: await setMetricTags(creator, metricId, tags) };
   } catch (e) {
     if (e instanceof Refused) return { tags_left_out: tags };
     throw e;
@@ -317,9 +317,8 @@ export async function updateMetricWithKey(actor: Actor | KeyActor, slug: string,
   // Tag words are untrusted: checked before the first change.
   const tags = p.tags === undefined ? undefined : tagsChecked(p.tags);
   const keyName = actor.key ? await nameOf(actor) : null;
+  let kept: string[] | undefined;
   await asKey(actor, () => withVersionNote(keyName ? `Changed through the API (key “${keyName}”)` : "Changed through the API", async () => {
-    // First, since a limit (the Workspace's 200 Tags) is what most likely refuses: nothing else has changed by then.
-    if (tags !== undefined) await setMetricTags(creator, metric.id as number, tags).catch((e) => { throw e instanceof Refused ? new MetricChangeRefused(e.message) : e; });
     if (p.formula !== undefined) await setMetricFormula(creator, metric.id as number, p.formula, { accessKeyId: actor.key ? Number(actor.key.id) : undefined }).catch((e) => { throw e instanceof Refused ? new MetricChangeRefused(e.message) : e; });
     // The editor's own refusals (a period that has values, a Retention that would not fit) are plain errors: said as 422.
     await updateMetricDetails(creator, metric.id as number, details).catch(refusedWithReason);
@@ -329,9 +328,20 @@ export async function updateMetricWithKey(actor: Actor | KeyActor, slug: string,
     if (fields.length && actor.key) await audit(creator, { kind: "metric.details_changed", object: { type: "metric", id: metric.id as number, name: metric.name }, details: { fields } });
     if (sources) await setMetricSources(creator, metric.id as number, sources);
     if (workflow !== undefined) await setMetricWorkflow(creator, metric.id as number, workflow.id, { from: workflow.from });
+    // Last, so that every other refusal (422 "nothing was changed") comes before the Tags are touched. Only a Tag limit can refuse here,
+    // and the answer then says that the rest was changed.
+    if (tags !== undefined) {
+      const others = Object.entries(p).some(([k, v]) => k !== "tags" && v !== undefined);
+      kept = await setMetricTags(creator, metric.id as number, tags).catch((e) => {
+        if (e instanceof Refused) throw new MetricChangeRefused(others ? `The other changes were made, but not the Tags: ${e.message}` : e.message);
+        throw e;
+      });
+    }
   }));
   const data = await openOne("metrics", actor.workspaceId, (await db().from("metrics").select("*").eq("id", metric.id).eq("workspace_id", actor.workspaceId).single()).data);
-  return describeMetric(actor, normalizeMetric(data as Metric) as Metric);
+  const described = await describeMetric(actor, normalizeMetric(data as Metric) as Metric);
+  // The creator's own spelling of the words they just set (see tagNewMetric).
+  return kept ? { ...described, tags: kept } : described;
 }
 
 /** Runs work so that every Audit Log event it records names the key, as for a person's own change through a key. */

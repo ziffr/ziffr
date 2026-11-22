@@ -144,16 +144,30 @@ describe("setting Tags through a key", () => {
     expect((await getMetric(t.miaKey, "viewed")).tags).toEqual(["finance", "monthly"]);
     await expect(updateMetricWithKey(t.miaKey, "private", { tags: ["x"] })).rejects.toMatchObject({ message: "Forbidden" });
   });
-  it("attaches a word that exists only out of sight, silently, and then shows it as the Workspace first wrote it", async () => {
+  it("attaches a word that exists only out of sight, silently, and answers in the creator's own spelling", async () => {
     const t = await setup();
-    // Accepted in spec 0038: the word is the same Tag Workspace-wide, shown in its first spelling once on a Metric Mia sees; no word about where else it is used.
-    expect((await updateMetricWithKey(t.miaKey, "edited", { tags: ["SECRET"] })).tags).toEqual(["secret"]);
+    // The answer never tells that the word exists out of sight, nor how it was first written; a later read shows the Workspace's spelling (spec 0038).
+    expect((await updateMetricWithKey(t.miaKey, "edited", { tags: ["SECRET"] })).tags).toEqual(["SECRET"]);
+    expect((await createMetricWithKey(t.miaKey, { name: "Mias", tags: ["FINANCE", "brand new"] }, fx())).tags).toEqual(["brand new", "finance"]);
   });
   it("needs metrics:edit to change and refuses a key whose creator is a Guest", async () => {
     const t = await setup();
     await expect(updateMetricWithKey(await keyFor(t.w, t.sara, "owner", ["metrics:write"]), "private", { tags: ["x"] })).rejects.toBeInstanceOf(Forbidden);
     const gus = await t.w.person("guest");
     await expect(updateMetricWithKey({ personId: gus, workspaceId: t.w.id, role: "guest", key: { id: "0", scopes: ["metrics:edit"] } }, "private", { tags: ["x"] })).rejects.toBeInstanceOf(Forbidden);
+  });
+  it("leaves the Tags as they were when the rest of an update is refused", async () => {
+    const t = await setup();
+    await expect(updateMetricWithKey(t.saraKey, "private", { tags: ["changed"], target_min: 10, target_max: 1 })).rejects.toBeInstanceOf(MetricChangeRefused);
+    expect((await getMetric(t.saraKey, "private")).tags).toEqual(["finance", "secret"]);
+  });
+  it("needs the scope for each way in and the creator's right to edit", async () => {
+    const t = await setup();
+    await expect(createMetricWithKey(await keyFor(t.w, t.sara, "owner", ["metrics:edit"]), { name: "X", tags: ["a"] }, fx())).rejects.toBeInstanceOf(Forbidden);
+    await expect(updateMetricWithKey(await keyFor(t.w, t.mia, "member", ["metrics:read"]), "edited", { tags: ["a"] })).rejects.toBeInstanceOf(Forbidden);
+    // Mia only views `viewed`: her key with every scope still cannot tag it.
+    await expect(updateMetricWithKey(t.miaKey, "viewed", { tags: ["a"] })).rejects.toBeInstanceOf(Forbidden);
+    expect((await getMetric(t.saraKey, "viewed")).tags).toEqual(["finance", "monthly"]);
   });
   it("refuses a bad word on update without changing anything else", async () => {
     const t = await setup();
