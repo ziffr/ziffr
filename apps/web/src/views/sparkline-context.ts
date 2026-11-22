@@ -9,7 +9,7 @@ export const CONTEXT_SCALE = 1.3;
 type Point = { period: string; value: number };
 
 /** Where the target is drawn: inside the plot, or out of its reach, named at the edge it lies beyond. */
-export type TargetReference = { min: number | null; max: number | null; drawn: true } | { min: number | null; max: number | null; drawn: false; side: "above" | "below" };
+type TargetReference = { min: number | null; max: number | null; drawn: true } | { min: number | null; max: number | null; drawn: false; side: "above" | "below" };
 
 /** The context a sparkline shows, and the value range it is drawn on. */
 export type SparklineContext = {
