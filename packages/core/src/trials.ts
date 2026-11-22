@@ -102,7 +102,13 @@ export async function keepTrial(workspaceId: string): Promise<boolean> {
  * keep), one that has ended becomes ordinary the first time anything asks, so nobody meets a closed trial between
  * its end and the hourly job. */
 export async function trialEndsAt(workspaceId: string): Promise<Date | null> {
-  const { data } = await db().from("workspaces").select("trial_ends_at").eq("id", workspaceId).maybeSingle();
+  return trialEndsAtRead(workspaceId, false);
+}
+
+/** trialEndsAt, but a failed read throws instead of reading as "not a trial": for what must fail closed. */
+async function trialEndsAtRead(workspaceId: string, strict: boolean): Promise<Date | null> {
+  const { data, error } = await db().from("workspaces").select("trial_ends_at").eq("id", workspaceId).maybeSingle();
+  if (error && strict) throw new Error("The trial could not be read.");
   const ends = data?.trial_ends_at ? new Date(data.trial_ends_at as string) : null;
   if (ends && ends.getTime() <= Date.now() && trialThen(await settingsInEffect()) === "keep") {
     await keepTrial(workspaceId);
@@ -147,19 +153,41 @@ export function trialLimitMessage(code: string | undefined): string | null {
 
 /** Why a trial keeps a Delivery in the Outbox, in words for the Outbox. */
 export const TRIAL_HOLDS_BACK = {
-  notOwner: "Kept in the Outbox: a trial sends only to its Owner.",
+  contact: "Kept in the Outbox: a trial never sends to a Contact.",
+  notAccepted: "Kept in the Outbox: a trial sends only to people who accepted their invitation.",
   ended: "Kept in the Outbox: this trial has ended.",
+  unreadable: "Kept in the Outbox: Ziffr could not check whether this is a trial.",
 } as const;
 
 /** Why a Delivery to this recipient may not leave the workspace for real, or null when it may (always outside a
- * trial). A trial reaches only its Owner (ADR 0010), and nobody once it has ended. Checked when a Delivery is made
- * and again by each Connector right before it sends, so one queued by any other path is still held back. */
+ * trial). A trial reaches the people who accepted: its Owner and every Member, Admin and Guest, whose address they
+ * proved by signing in (ADR 0015, which replaces ADR 0010's "only its Owner"). It never reaches a Contact, whose
+ * details someone only typed, nor anyone without a membership (an invitation that is still open), nor anybody once it
+ * has ended. Checked when a Delivery is made and again by each Connector right before it sends, so one queued by any
+ * other path is still held back. */
 export async function trialHoldsBack(workspaceId: string, recipientId: string): Promise<string | null> {
-  const ends = await trialEndsAt(workspaceId);
+  // Fails closed: if the Workspace cannot be read, nothing is sent (it stays in the Outbox).
+  let ends: Date | null;
+  try { ends = await trialEndsAtRead(workspaceId, true); } catch { return TRIAL_HOLDS_BACK.unreadable; }
   if (!ends) return null;
   if (ends.getTime() <= Date.now()) return TRIAL_HOLDS_BACK.ended;
-  const { data } = await db().from("memberships").select("role").eq("workspace_id", workspaceId).eq("user_id", recipientId).maybeSingle();
-  return data?.role === "owner" ? null : TRIAL_HOLDS_BACK.notOwner;
+  const [{ data: contact }, { data: member }] = await Promise.all([
+    db().from("contacts").select("person_id").eq("workspace_id", workspaceId).eq("person_id", recipientId).maybeSingle(),
+    db().from("memberships").select("role").eq("workspace_id", workspaceId).eq("user_id", recipientId).maybeSingle(),
+  ]);
+  // A Contact row wins: the address Ziffr would use is then the typed one, even for someone who is also a member.
+  if (contact) return TRIAL_HOLDS_BACK.contact;
+  return member ? null : TRIAL_HOLDS_BACK.notAccepted;
+}
+
+/** The last day (UTC, "YYYY-MM-DD") a View Link made now may end on: the trial's last day, or null outside a trial. A trial
+ * that has ended makes none. The database clamps the same way (view_links_in_trial), so this is for the words and the
+ * Audit Log to say the date the link really has. */
+export async function trialLastDay(workspaceId: string): Promise<string | null> {
+  const ends = await trialEndsAtRead(workspaceId, true);
+  if (!ends) return null;
+  if (ends.getTime() <= Date.now()) throw new Forbidden("This trial has ended: nothing can be shared any more.");
+  return ends.toISOString().slice(0, 10);
 }
 
 /** Whether a workspace is a Trial Workspace that has ended: it takes no replies and sends nothing any more. */
