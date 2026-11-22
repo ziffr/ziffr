@@ -1,6 +1,8 @@
 // Workspace Export in the workspace settings (spec 0040, ticket 8; GLOSSARY: Workspace Export): the Workspace as one
 // file, for its Owner to keep or to run on another Ziffr. Shows what the file will hold and what it leaves out before
 // the download; the download itself is /settings/export/download. Owner only, and never the demo.
+import { notFound } from "next/navigation";
+import { sessionStartedAt } from "@/lib/session-start";
 import { PageHeader } from "@/components/page-header";
 import { WorkspaceExportButton } from "@/components/workspace-export-button";
 import { isDemo } from "@/lib/auth";
@@ -16,10 +18,11 @@ const WHAT: [keyof Awaited<ReturnType<typeof previewWorkspaceExport>>["counts"],
 
 export default async function WorkspaceExportPage() {
   if (await isDemo()) return (<><PageHeader title="Workspace Export" sub={SUB} /><p className="text-sm text-muted-foreground">The demo can&apos;t be exported.</p></>);
-  const actor = await currentActor();
+  // Someone who is not a member of this Workspace finds nothing here.
+  const actor = await currentActor().catch(() => notFound());
   let preview, state;
   try {
-    [preview, state] = await Promise.all([previewWorkspaceExport(actor), workspaceExportState(actor)]);
+    [preview, state] = await Promise.all([previewWorkspaceExport(actor), workspaceExportState(actor, { sessionStartedAt: await sessionStartedAt() })]);
   } catch (e) {
     if (!(e instanceof Forbidden)) throw e;
     return (<><PageHeader title="Workspace Export" sub={SUB} /><p className="text-sm text-muted-foreground">Only the Workspace&apos;s Owner downloads a Workspace Export.</p></>);

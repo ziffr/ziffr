@@ -304,6 +304,25 @@ describe("who may download, and after which sign-in", () => {
   });
 });
 
+describe("what the sign-in service dates", () => {
+  it("does not move the account's last sign-in or the session's authentication time when a token is refreshed", async () => {
+    const email = `refresh-${randomUUID().slice(0, 8)}@example.test`;
+    const password = `pw-${randomUUID()}`;
+    const { data } = await db().auth.admin.createUser({ email, password, email_confirm: true });
+    cleanups.push(async () => { await db().auth.admin.deleteUser(data.user!.id); });
+    const client = createClient(process.env.SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!, { auth: { persistSession: false, autoRefreshToken: false } });
+    const first = (await client.auth.signInWithPassword({ email, password })).data.session!;
+    const stamp = (token: string) => (JSON.parse(Buffer.from(token.split(".")[1], "base64url").toString()) as { amr: { timestamp: number }[] }).amr.map((a) => a.timestamp);
+    const lastSignIn = async () => (await db().auth.admin.getUserById(data.user!.id)).data.user!.last_sign_in_at;
+    const before = await lastSignIn();
+    await new Promise((r) => setTimeout(r, 2200));
+    const refreshed = (await client.auth.refreshSession({ refresh_token: first.refresh_token })).data.session!;
+    expect(refreshed.access_token).not.toBe(first.access_token);
+    expect(stamp(refreshed.access_token)).toEqual(stamp(first.access_token));
+    expect(await lastSignIn()).toBe(before);
+  });
+});
+
 describe("the Audit Log", () => {
   it("records that it started and how it ended, with the size and never what it held", async () => {
     const s = await seed();

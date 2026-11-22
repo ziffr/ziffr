@@ -11,7 +11,7 @@
 // never cut short; the Audit Log records that it started and how it ended, never what it held.
 import { can, Forbidden, type Actor } from "./actor";
 import { db } from "./db";
-import { audit } from "./audit-log";
+import { audit, auditOrRefuse } from "./audit-log";
 import { DEMO_WORKSPACE_ID } from "./team";
 import { ZIFFR_VERSION } from "./ziffr-version";
 import { allRows, getMetrics } from "./workspace-data";
@@ -112,10 +112,10 @@ async function lastSignIn(personId: string): Promise<Date | null> {
 
 /** Whether the Owner has signed in recently enough to download now, for the page that then offers the download or asks
  * them to sign in again. Owner only; the download itself checks again. */
-export async function workspaceExportState(actor: Actor): Promise<{ signedInRecently: boolean }> {
+export async function workspaceExportState(actor: Actor, options: { sessionStartedAt?: Date | null } = {}): Promise<{ signedInRecently: boolean }> {
   await assertOwner(actor);
-  const at = await lastSignIn(actor.personId);
-  return { signedInRecently: Boolean(at) && Date.now() - at!.getTime() <= SIGN_IN_WINDOW_MS };
+  const recent = (at: Date | null | undefined) => Boolean(at) && Date.now() - at!.getTime() <= SIGN_IN_WINDOW_MS;
+  return { signedInRecently: recent(await lastSignIn(actor.personId)) && (options.sessionStartedAt === undefined || recent(options.sessionStartedAt)) };
 }
 
 // -----------------------------------------------------------------------------------------------------------------------
@@ -585,7 +585,7 @@ export async function exportWorkspace(actor: Actor, options: { now?: Date; gzip?
   // signed in long ago does not become fresh because the Owner signed in on another device a moment ago.
   if (!recent(await lastSignIn(actor.personId)) || (options.sessionStartedAt !== undefined && !recent(options.sessionStartedAt))) throw new SignInTooOld();
   // The start is recorded before the limit is counted, so requests that arrive together count each other.
-  await audit(actor, { kind: "export.workspace", object: { type: "workspace", id: actor.workspaceId }, details: { format: WORKSPACE_EXPORT_FORMAT, gzip: options.gzip !== false } });
+  await auditOrRefuse(actor, { kind: "export.workspace", object: { type: "workspace", id: actor.workspaceId }, details: { format: WORKSPACE_EXPORT_FORMAT, gzip: options.gzip !== false } });
   const { count } = await db().from("audit_events").select("id", { count: "exact", head: true }).eq("workspace_id", actor.workspaceId).eq("kind", "export.workspace").gte("at", new Date(now.getTime() - 3_600_000).toISOString());
   if ((count ?? 0) > WORKSPACE_EXPORTS_PER_HOUR) throw new WorkspaceExportLimit();
   const p = await plan(actor);
