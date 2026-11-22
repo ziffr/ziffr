@@ -317,15 +317,17 @@ async function workflowStep(metricId: number, period: string, submitterId: strin
     }
     if (opts.selfChecked !== undefined && opts.selfChecked === value.id) return [`corrected and confirmed by the submitter; ${await publish(ctx, CONFIRMED_NOTE)}`];
     const actionId = await requestSelfCheck(ctx, submitterId, reasons, Number(value.value), value.id as number);
-    if (reasons.length) await queueWebhookEvent(ctx.ws, "value.unusual", { type: "workflow" }, { metricId, period });
     await setState(metricId, period, { state: "approval", approval_step: null, approval_action_id: actionId, approval_for: submitterId, note: `Waits for its submitter to check it: nobody else can approve it.${reasons.length ? ` ${reasons.join("; ")}` : ""}` });
+    // Queued after the state is set, so a send can never see the value as published.
+    if (reasons.length) await queueWebhookEvent(ctx.ws, "value.unusual", { type: "workflow" }, { metricId, period });
     return ["nobody else can approve it: its submitter checks it"];
   }
   if ((reasons.length || every) && approvers.length) {
     const actionId = await requestApproval(ctx, approvers[0], submitterId, reasons, Number(value.value));
     // An Unusual Value waits for Approval: the Webhooks that chose it hear of the Metric and period, never of the value.
-    if (reasons.length) await queueWebhookEvent(ctx.ws, "value.unusual", { type: "workflow" }, { metricId, period });
     await setState(metricId, period, { state: "approval", approval_step: 0, approval_action_id: actionId, approval_for: submitterId, note: reasons.join("; ") });
+    // Queued after the state is set, so a send can never see the value as published.
+    if (reasons.length) await queueWebhookEvent(ctx.ws, "value.unusual", { type: "workflow" }, { metricId, period });
     return [reasons.length ? `unusual (${reasons.join("; ")}), approval asked from ${approvers[0]}` : `every value is approved, approval asked from ${approvers[0]}`];
   }
   return [await publish(ctx)];

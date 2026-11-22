@@ -23,16 +23,16 @@ export type PersonalEvent =
   | { type: "value.recorded" | "value.unusual"; metricId: number; period: string };
 
 /** What the person may hear of an event: the Action (opened) given to them or asked by them, or the Metric of a value
- * event with whether the person may see a value that waits for Approval. */
+ * event (whether they may see a waiting value is asked after the value is read: mayPeekWaitingValue). */
 export type Hearing =
   | { kind: "action"; action: Record<string, unknown>; metric: Metric }
-  | { kind: "value"; metric: Metric; period: string; mayPeekWaiting: boolean };
+  | { kind: "value"; metric: Metric; period: string };
 
 const ACTION_EVENTS = ["action.created", "action.updated", "action.answered", "action.done"];
 
 /** Whether the person may see a value of this Metric that waits for Approval (or was sent back): the Metric's Owner, its
  * Approvers, and the one who submitted it. Anyone else who sees the Metric hears of the value without the number. */
-async function mayPeekWaitingValue(ws: string, person: string, metric: Metric, period: string): Promise<boolean> {
+export async function mayPeekWaitingValue(ws: string, person: string, metric: Metric, period: string): Promise<boolean> {
   if (metric.owner_id === person) return true;
   const { data: state } = await db().from("period_states").select("approval_for, approval_action_id").eq("workspace_id", ws).eq("metric_id", metric.id).eq("period_start", period).maybeSingle();
   if (state?.approval_for === person) return true;
@@ -77,7 +77,7 @@ export async function personalWebhookMayHear(person: Actor, event: PersonalEvent
   const metric = metrics.find((m) => m.id === metricId);
   if (!metric || metric.archived_at || metric.formula) return null;
   if (!(await visibleMetricIds(ws, person.personId, metrics)).has(metric.id)) return null;
-  return { kind: "value", metric, period, mayPeekWaiting: await mayPeekWaitingValue(ws, person.personId, metric, period) };
+  return { kind: "value", metric, period };
 }
 
 /** The Metrics a person picks for the value events, as stored: whole numbers, no more than the limit, no repeats. Each
@@ -97,7 +97,7 @@ export async function checkedPickedMetrics(person: Actor, raw: unknown, current:
   if (fresh.length) {
     const metrics = await getMetrics(person.workspaceId);
     const seen = await visibleMetricIds(person.workspaceId, person.personId, metrics);
-    for (const id of fresh) if (!seen.has(id) || !metrics.some((m) => m.id === id && !m.archived_at)) throw new Forbidden("That Metric was not found.");
+    for (const id of fresh) if (!seen.has(id) || !metrics.some((m) => m.id === id && !m.archived_at && !m.formula)) throw new Forbidden("That Metric was not found.");
   }
   return ids;
 }

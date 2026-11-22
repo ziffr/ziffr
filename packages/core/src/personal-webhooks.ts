@@ -21,6 +21,8 @@ import { PERSONAL_WEBHOOKS_PER_PERSON } from "./webhook-limits";
 import { type WebhookInfo } from "./webhooks";
 import { assertManagesWebhooks, checkedAddress, cleanEvents, cleanName, findWebhook, maskedHost, newSecret, rotateSecret, switchWebhook, WEBHOOK_COLUMNS, webhookInfo } from "./webhooks";
 import { daysNow } from "./keep-days";
+import { readableActions, visibleMetricIds } from "./access";
+import { getMetrics } from "./workspace-data";
 import { checkedPickedMetrics } from "./personal-webhook-hearing";
 import { queueTestPing, type WebhookLogEntry } from "./webhook-log";
 
@@ -184,11 +186,24 @@ export async function sendTestPersonalWebhook(actor: Actor, id: string): Promise
 }
 
 /** The log of one Webhook's sends, newest first, for the days it is kept. `about` (what a send was about) is for the person only: Admins read statuses and times. */
-async function logOf(workspaceId: string, webhookId: string, limit: number, withAbout: boolean): Promise<WebhookLogEntry[]> {
+async function logOf(workspaceId: string, webhookId: string, limit: number, withAbout: boolean, person?: string): Promise<WebhookLogEntry[]> {
   const n = Number.isInteger(limit) ? Math.min(Math.max(limit, 1), 200) : 50;
   const since = new Date(Date.now() - (await daysNow("ZIFFR_KEEP_WEBHOOK_LOG_DAYS")) * 86_400_000).toISOString();
   const { data } = await db().from("webhook_sends").select("id, type, action_id, metric_id, created_at, state, status_code, failure, attempts").eq("webhook_id", webhookId).eq("workspace_id", workspaceId).gte("created_at", since).order("created_at", { ascending: false }).limit(n);
-  return (data ?? []).map((r) => ({
+  // For the person: what a send was about is shown only for what they may see now, and a send that never went out for
+  // something they may not see is left out, so the log cannot hint at it (spec 0037).
+  let rowsOf = data ?? [];
+  if (person) {
+    const metrics = await getMetrics(workspaceId);
+    const seen = await visibleMetricIds(workspaceId, person, metrics);
+    const readable = new Set((await readableActions(workspaceId, person)).map((a) => a.id));
+    rowsOf = rowsOf.flatMap((r) => {
+      const ok = r.action_id !== null ? readable.has(Number(r.action_id)) : r.metric_id !== null ? seen.has(Number(r.metric_id)) : true;
+      if (ok) return [r];
+      return r.state === "delivered" || r.state === "failed" ? [{ ...r, action_id: null, metric_id: null }] : [];
+    });
+  }
+  return rowsOf.map((r) => ({
     id: String(r.id), type: String(r.type), at: String(r.created_at), state: r.state as WebhookLogEntry["state"], statusCode: (r.status_code as number | null) ?? null,
     failure: (r.failure as string | null) ?? null, attempts: Number(r.attempts),
     about: withAbout ? (r.action_id !== null ? refFor(Number(r.action_id)) : r.metric_id !== null ? `Metric ${r.metric_id}` : null) : null,
@@ -199,7 +214,7 @@ async function logOf(workspaceId: string, webhookId: string, limit: number, with
 export async function ownPersonalWebhookLog(actor: Actor, id: string, limit = 50): Promise<WebhookLogEntry[]> {
   await assertOwnsPersonal(actor);
   const { row } = await findOwn(actor, id);
-  return logOf(actor.workspaceId, String(row.id), limit, true);
+  return logOf(actor.workspaceId, String(row.id), limit, true, actor.personId);
 }
 
 /** Every Personal Webhook of the Workspace for Owners and Admins: whose, the name, the address masked, the events, the state and the last send. No secret, no message. */

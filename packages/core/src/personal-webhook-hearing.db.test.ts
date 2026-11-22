@@ -12,7 +12,7 @@ import { join } from "node:path";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { db } from "./db";
 import { outboundTls } from "./outbound-request";
-import { personalWebhookMayHear } from "./personal-webhook-hearing";
+import { mayPeekWaitingValue, personalWebhookMayHear } from "./personal-webhook-hearing";
 import { createPersonalWebhook, ownPersonalWebhookLog, setPersonalWebhooksAllowed, updatePersonalWebhook } from "./personal-webhooks";
 import { Forbidden } from "./actor";
 import { queueWebhookEvent } from "./webhook-events";
@@ -123,7 +123,7 @@ describe("personalWebhookMayHear: a value event", () => {
     for (const p of [ana, bo, cy]) await w.share(metric.id, p);
     const task = await w.action({ metric_id: metric.id, period_start: PERIOD, asker_id: bo, assignee_id: cy, purpose: "approval", kind: "task" });
     await db().from("period_states").insert({ workspace_id: w.id, metric_id: metric.id, period_start: PERIOD, state: "approval", approval_action_id: task, approval_for: bo });
-    const peek = async (p: string) => ((await value(w, p, metric.id)) as { mayPeekWaiting: boolean }).mayPeekWaiting;
+    const peek = (p: string) => mayPeekWaitingValue(w.id, p, metric as never, PERIOD);
     expect(await peek(owner)).toBe(true);
     expect(await peek(cy)).toBe(true);
     expect(await peek(bo)).toBe(true);
@@ -255,6 +255,30 @@ describe.skipIf(!openssl)("what a Personal Webhook is sent", () => {
   });
 });
 
+describe.skipIf(!openssl)("what the person's log and the database keep", () => {
+  it("shows nothing about a Metric the person no longer sees, neither queued nor sent as about", async () => {
+    const { w, owner, ana, A, metric } = await setup();
+    await w.share(metric.id, ana);
+    await w.value(metric.id, PERIOD, 5, owner);
+    const { id } = await createPersonalWebhook(A, { name: "Mine", url: `https://localhost:${port}/mine`, events: ["value.recorded"], metricIds: [metric.id] });
+    await queueWebhookEvent(w.id, "value.recorded", { type: "api" }, { metricId: metric.id, period: PERIOD });
+    await sendWaitingWebhooks(50, w.id);
+    await queueWebhookEvent(w.id, "value.recorded", { type: "api" }, { metricId: metric.id, period: PERIOD });
+    expect((await ownPersonalWebhookLog(A, id)).map((e) => e.about)).toEqual([`Metric ${metric.id}`, `Metric ${metric.id}`]);
+    await w.unshare(metric.id, ana);
+    const after = await ownPersonalWebhookLog(A, id);
+    expect(after.map((e) => e.state)).toEqual(["delivered"]);
+    expect(after[0].about).toBeNull();
+  });
+
+  it("leaves no row of an ended Personal Webhook behind a deleted Workspace", async () => {
+    const { w, ana } = await setup();
+    await db().from("personal_webhook_ends").insert({ webhook_id: crypto.randomUUID(), workspace_id: w.id, owner_id: ana, name: "x", reason: "left" });
+    await w.cleanup();
+    expect((await db().from("personal_webhook_ends").select("webhook_id").eq("workspace_id", w.id)).data).toEqual([]);
+  });
+});
+
 describe("the Metrics a Personal Webhook picks", () => {
   it("are stored when they are the person's to see, in the Workspace, whole and no more than 50", async () => {
     const { w, owner, ana, A, metric } = await setup();
@@ -266,6 +290,9 @@ describe("the Metrics a Personal Webhook picks", () => {
     for (const bad of [[1.5], ["1"], [0], "1", null, Array.from({ length: 51 }, (_, i) => i + 1)]) expect(await refused(createPersonalWebhook(A, { name: "X", url, metricIds: bad as never }))).toBeInstanceOf(Error);
     expect((await db().from("webhooks").select("id").eq("workspace_id", w.id).eq("owner_id", ana)).data).toEqual([]);
     await w.share(metric.id, ana);
+    const derived = await w.metric(owner, { name: "Ratio", formula: "{churn} / 2" });
+    await w.share(derived.id, ana);
+    expect(await refused(createPersonalWebhook(A, { name: "X", url, metricIds: [derived.id] }))).toBeInstanceOf(Forbidden);
     const { id } = await createPersonalWebhook(A, { name: "X", url, events: ["value.recorded"], metricIds: [metric.id, metric.id] });
     expect((await db().from("webhooks").select("metric_ids").eq("id", id).single()).data?.metric_ids).toEqual([metric.id]);
     // A Metric of another Workspace is no Metric here.

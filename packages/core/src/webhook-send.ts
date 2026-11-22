@@ -18,7 +18,7 @@ import { daysStrict } from "./keep-days";
 import { WEBHOOK_DAYS_FAILING_BEFORE_OFF, WEBHOOK_FAILURES_BEFORE_OFF, PERSONAL_WEBHOOK_SENDS_PER_PERSON_PER_DAY, WEBHOOK_MESSAGE_MAX_BYTES, WEBHOOK_RETRY_AFTER_MAX_MS, WEBHOOK_RETRY_WAITS_MS, WEBHOOK_SEND_CONCURRENCY, WEBHOOK_SEND_NOW_BUDGET_MS } from "./webhook-limits";
 import { maskedHost } from "./webhooks";
 import { personalWebhookMayRun, tellPersonSwitchedOff } from "./personal-webhook-state";
-import { personalWebhookMayHear } from "./personal-webhook-hearing";
+import { mayPeekWaitingValue, personalWebhookMayHear } from "./personal-webhook-hearing";
 import { recordPersonalWebhookEnds } from "./personal-webhooks";
 import { alertContext, viewAt } from "./alert-firing";
 import { alertHolds } from "./alert-rules";
@@ -117,7 +117,7 @@ type Personal = { personId: string; metricIds: readonly number[] };
 /** `value.recorded` or `value.unusual` for a Personal Webhook, built now from the value as it counts now. `value.recorded`
  * only for a value that counts (not one waiting for Approval or sent back); `value.unusual` carries the number only where
  * the person may see a value waiting for Approval. Null, so nothing is sent, when the value is gone. */
-async function personalValueMessage(send: Send, env: Omit<MessageEnvelope, "replyText">, metric: { id: number; name: string }, period: string, mayPeekWaiting: boolean): Promise<WebhookMessage | null> {
+async function personalValueMessage(send: Send, env: Omit<MessageEnvelope, "replyText">, metric: { id: number; name: string }, period: string, personId: string): Promise<WebhookMessage | null> {
   const ctx = await alertContext(send.workspace_id);
   const m = ctx.metrics.find((x) => x.id === metric.id);
   if (!m) return null;
@@ -128,7 +128,9 @@ async function personalValueMessage(send: Send, env: Omit<MessageEnvelope, "repl
     if (!view || view.pending || view.value === null) return null;
     return buildValueRecordedMessage({ metric, period, value: at(view.value) ?? "", target: at(view.target.value), link }, env);
   }
-  const shown = view && view.value !== null && (!view.pending || mayPeekWaiting) ? at(view.value) : null;
+  // The number only where the person may see a waiting value, asked after the value was read, so a value that arrived
+  // in between is judged by the state it came with. Never because a value merely looks published.
+  const shown = view && view.value !== null && (await mayPeekWaitingValue(send.workspace_id, personId, m, period)) ? at(view.value) : null;
   return buildValueUnusualMessage({ metric, period, link, ...(shown !== null ? { value: shown } : {}) }, env);
 }
 
@@ -156,17 +158,14 @@ async function buildMessage(send: Send, webhookName: string, personal?: Personal
   const metricFacts = { id: metric.id as number, name: String(metric.name) };
   const period = String(send.period_start ?? action?.period_start ?? "");
   let hearing: "full" | "redacted" | "none" = "full";
-  let mayPeekWaiting = false;
   if (personal) {
     // A Personal Webhook hears as its person, in full or not at all (spec 0037); never an Alert until its own ticket.
     if (send.type === "alert.fired") return null;
+    // The role here is never read: personalWebhookMayHear judges the person's place in the database.
     const actor = { personId: personal.personId, workspaceId: ws, role: "member" as const };
     const heard = await personalWebhookMayHear(actor, action ? { type: send.type as "action.created", actionId: send.action_id as number } : { type: send.type as "value.recorded", metricId: metricFacts.id, period });
     if (!heard) return null;
-    if (heard.kind === "value") {
-      if (!personal.metricIds.includes(metricFacts.id)) return null;
-      mayPeekWaiting = heard.mayPeekWaiting;
-    }
+    if (heard.kind === "value" && !personal.metricIds.includes(metricFacts.id)) return null;
   } else {
     const everyone = await seenByEveryone(ws, metric.id as number);
     hearing = webhookMayHear(ws, send.type, { workspace_id: ws, metricSeenByEveryone: everyone, readGroupId: (action?.read_group_id as number | null | undefined) ?? null });
@@ -174,7 +173,7 @@ async function buildMessage(send: Send, webhookName: string, personal?: Personal
   }
   if (!action && send.type === "alert.fired") return alertFired(send, env, metricFacts, period);
   if (!action && personal) {
-    const m = await personalValueMessage(send, env, metricFacts, period, mayPeekWaiting);
+    const m = await personalValueMessage(send, env, metricFacts, period, personal.personId);
     return m ? { full: m, redacted: null } : null;
   }
   if (!action) {
