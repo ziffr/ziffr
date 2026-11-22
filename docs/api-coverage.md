@@ -164,6 +164,9 @@ Settings an Owner or Installation Admin makes at the screen. Programs with a key
 - `webhookLog` (webhook-log.ts): Webhooks settings (#401); a read that only seems to write, since reading the settings may seal one again
 - `sendTestWebhook` (webhook-log.ts): Webhooks settings (#401)
 - `resendWebhookSend` (webhook-log.ts): Webhooks settings (#401)
+- `findWebhook` (webhooks.ts): a helper of the Webhooks settings (#401) and of the Personal Webhook operations below, with no route of its own
+- `rotateSecret` (webhooks.ts): a helper of the Webhooks settings (#401) and of the Personal Webhook operations below, with no route of its own
+- `switchWebhook` (webhooks.ts): a helper of the Webhooks settings (#401) and of the Personal Webhook operations below, with no route of its own
 - `setPersonalWebhooksAllowed` (personal-webhooks.ts): Personal Webhooks pages (spec 0037, ticket 5); never the API or MCP on purpose, since changing where data leaves is what a prompt-injected assistant would be asked to do
 - `createPersonalWebhook` (personal-webhooks.ts): Personal Webhooks pages (spec 0037, ticket 5); never the API or MCP on purpose, since changing where data leaves is what a prompt-injected assistant would be asked to do
 - `listOwnPersonalWebhooks` (personal-webhooks.ts): Personal Webhooks pages (spec 0037, ticket 5); never the API or MCP on purpose, since changing where data leaves is what a prompt-injected assistant would be asked to do
