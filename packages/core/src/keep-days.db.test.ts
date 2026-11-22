@@ -10,7 +10,7 @@ import { auditKeepDays, auditKeepRefusal, referencedAuditAgeDays, forgetAuditRef
 import { claimInstallation, prepareSetupCode } from "./installation-admins";
 import { DAYS_SETTINGS, daysProblem } from "./installation-days";
 import { installationSettingsView, saveInstallationSettings } from "./installation-settings";
-import { isTrialSetting, settingNamed } from "./installation-catalogue";
+import { settingNamed } from "./installation-catalogue";
 import { forgetStoredSettings, settingsInEffect } from "./settings-in-effect";
 import { closeEndedTrials, deleteExpiredTrials, remindEndingTrials } from "./trial-end";
 import { pruneViewCounts } from "./usage";
@@ -67,7 +67,7 @@ describe("the ranges on the page", () => {
     process.env.ZIFFR_SECRETS_KEY ??= Buffer.alloc(32, 7).toString("base64");
     for (const [name, d] of Object.entries(DAYS_SETTINGS)) {
       // Trial settings are hosted Ziffr's and Ziffr Cloud pins this one: the page does not save it (spec 0040).
-      if (isTrialSetting(name)) { expect(daysProblem(name, String(d.min - 1))).not.toBeNull(); expect(daysProblem(name, String(d.max))).toBeNull(); continue; }
+      if (name === "ZIFFR_TRIAL_GRACE_DAYS") { expect(daysProblem(name, String(d.min - 1))).not.toBeNull(); expect(daysProblem(name, String(d.max))).toBeNull(); continue; }
       const section = settingNamed(name)!.section;
       for (const bad of [String(d.min - 1), String(d.max + 1), "abc", "1.5"]) {
         await expect(saveInstallationSettings(a, section, { [name]: bad }), `${name}=${bad}`).rejects.toThrow(/Write a whole number of (days|values) from/);

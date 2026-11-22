@@ -512,13 +512,16 @@ describe("the check against bots, trials and the demo on the page (#201)", () =>
     await expect(saveInstallationSettings(a, "trials", { ZIFFR_TRIAL_DAYS: "14" })).rejects.toThrow(/only on hosted Ziffr/);
     // A row an older version saved, and the server's own value, count for nothing.
     await db().from("installation_settings").upsert({ name: "ZIFFR_TRIAL_DAYS", value: "14", sealed: false }).throwOnError();
+    await db().from("installation_settings").upsert({ name: "ZIFFR_TRIAL_MAX", value: "5", sealed: false }).throwOnError();
     await db().from("installation_settings").upsert({ name: "ZIFFR_TRIAL_WEBHOOKS", value: "false", sealed: false }).throwOnError();
     forgetStoredSettings();
     try {
       process.env.ZIFFR_TRIAL_DAYS = "7";
       const s = await settingsInEffect();
       expect(s.ZIFFR_TRIAL_DAYS).toBe("7");
-      expect(s.ZIFFR_TRIAL_WEBHOOKS).toBeUndefined();
+      expect(s.ZIFFR_TRIAL_MAX).toBeUndefined();
+      // What only governs trials that exist already is still read, so a stored "false" is not forgotten.
+      expect(s.ZIFFR_TRIAL_WEBHOOKS).toBe("false");
       expect(await trialSettingsInEffect()).toBeNull();
       expect(trialsOffered(s)).toBe(false);
       expect(await trialsOpen()).toBe(false);
@@ -528,7 +531,7 @@ describe("the check against bots, trials and the demo on the page (#201)", () =>
       process.env.ZIFFR_CLOUD_KEY = "short";
       expect(await trialSettingsInEffect()).toBeNull();
     } finally {
-      await db().from("installation_settings").delete().in("name", ["ZIFFR_TRIAL_DAYS", "ZIFFR_TRIAL_WEBHOOKS"]);
+      await db().from("installation_settings").delete().in("name", ["ZIFFR_TRIAL_DAYS", "ZIFFR_TRIAL_MAX", "ZIFFR_TRIAL_WEBHOOKS"]);
       forgetStoredSettings();
     }
   });
