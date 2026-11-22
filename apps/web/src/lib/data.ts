@@ -44,8 +44,6 @@ export const getLastValues = async (metricId: number, n: number) => data.getLast
 /** The current workspace's Metrics and series; with `points`, only each series' last periods. */
 export const getAllSeries = (opts?: { points?: number }) => allSeries(opts?.points ?? 0);
 const allSeries = cache(async (points: number) => data.getAllSeries(await currentWorkspaceId(), points ? { points } : {}));
-/** How many Actions wait for the person in the current workspace. */
-export const openActionCount = cache(async (viewer: string) => data.openActionCount(await currentWorkspaceId(), viewer));
 /** Target Series and Projections of the current workspace. */
 export const getSeriesValues = async (metricIds: number[]) => data.getSeriesValues(await currentWorkspaceId(), metricIds);
 /** Breakdowns of the current workspace. */
