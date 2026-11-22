@@ -219,7 +219,7 @@ These settings decide what every slide of a deck in this theme shows. A slide ca
 
 | Option | What it does |
 |---|---|
-| **Add logo** / **Replace logo** | Puts your logo on every slide. Use a PNG, JPEG, WebP or SVG image under 1 MB. The bin icon removes it. |
+| **Add logo** / **Replace logo** | Puts your logo on every slide. Use a PNG, JPEG or plain SVG of at most 256 KB and 512 × 512 pixels (not WebP). The bin icon removes it. |
 | Logo position | **Top left**, **Top right**, **Bottom left** or **Bottom right**. Shown once there is a logo. A logo at the bottom left takes the footer's place, and a logo at the bottom right takes the slide number's place. |
 | **Logo width** | How wide the logo is, from 40 to 400 pixels. |
 | **Background image** / **Replace background** | An image behind every slide, filling it. Use a PNG, JPEG, WebP or SVG image under 2 MB. The bin icon removes it. |
