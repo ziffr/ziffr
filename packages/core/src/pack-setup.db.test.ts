@@ -84,7 +84,7 @@ describe("setting up Metrics from a Pack", () => {
     const { w, sara, install } = await withPack("saas-metrics");
     const ada = await w.person("admin");
     const contact = await w.contact({ email: "c@example.test" });
-    expect((await packSetupOptions(w.actor(sara), install)).workflows).toEqual([expect.objectContaining({ key: "monthly-close", approvers: 1 })]);
+    expect((await packSetupOptions(w.actor(sara), install)).workflows).toEqual([expect.objectContaining({ key: "monthly-close", approvers: 1 }), expect.objectContaining({ key: "quarter-close", approvers: 1 })]);
     await expect(setUpFromPack(w.actor(sara), install, { metrics: ["mrr"], workflow: { key: "monthly-close", approvers: [] } })).rejects.toThrow(/Pick each Approver/);
     await expect(setUpFromPack(w.actor(sara), install, { metrics: ["mrr"], workflow: { key: "monthly-close", approvers: [contact] } })).rejects.toThrow();
     expect(await count("metrics", w.id)).toBe(0);

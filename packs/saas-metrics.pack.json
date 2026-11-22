@@ -2,13 +2,14 @@
   "format": "ziffr.pack/1",
   "id": "ziffr/saas-metrics",
   "name": "SaaS metrics",
-  "version": "1.0.0",
-  "summary": "MRR, its new, expansion and churned parts, customers, churn, net revenue retention and CAC, with a monthly dashboard and the Workflow for the monthly close.",
+  "version": "2.0.0",
+  "summary": "MRR and its movements, customers, churn, retention, CAC, cash and runway, with a monthly management report as dashboard and deck, a quarterly board deck, and the Workflows for the monthly and quarterly close.",
   "author": {
     "name": "Ziffr"
   },
   "license": "CC-BY-4.0",
   "ziffr": ">=0.11",
+  "logo": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA2NCA2NCIgd2lkdGg9IjY0IiBoZWlnaHQ9IjY0Ij48dGl0bGU+U2FhUyBtZXRyaWNzPC90aXRsZT48cmVjdCB3aWR0aD0iNjQiIGhlaWdodD0iNjQiIHJ4PSIxMiIgZmlsbD0iIzBGNUM1NCIvPjxyZWN0IHg9IjEyIiB5PSIzOCIgd2lkdGg9IjkiIGhlaWdodD0iMTQiIHJ4PSIyIiBmaWxsPSIjOUZFMEQ1Ii8+PHJlY3QgeD0iMjcuNSIgeT0iMjgiIHdpZHRoPSI5IiBoZWlnaHQ9IjI0IiByeD0iMiIgZmlsbD0iIzlGRTBENSIvPjxyZWN0IHg9IjQzIiB5PSIxNCIgd2lkdGg9IjkiIGhlaWdodD0iMzgiIHJ4PSIyIiBmaWxsPSIjRkZGRkZGIi8+PC9zdmc+",
   "listing": {
     "homepage": "https://github.com/ziffr/ziffr/tree/main/packs"
   },
@@ -38,7 +39,39 @@
             "slack",
             "telegram",
             "api"
+          ],
+          "tags": [
+            "SaaS",
+            "Revenue",
+            "Monthly report",
+            "Board"
           ]
+        }
+      },
+      {
+        "key": "arr",
+        "metric": {
+          "format": "ziffr.metric/1",
+          "name": "Annual recurring revenue",
+          "description": "Monthly recurring revenue at month end times twelve.",
+          "category": "Sales",
+          "industries": [
+            "saas"
+          ],
+          "tags": [
+            "SaaS",
+            "Revenue",
+            "Board"
+          ],
+          "period": "month",
+          "aggregation": "none",
+          "polarity": "higher",
+          "unit": "€",
+          "unitPosition": "after",
+          "valueFormat": "currency",
+          "decimals": 0,
+          "submissionRule": "overwrite",
+          "formula": "{mrr} * 12"
         }
       },
       {
@@ -65,6 +98,11 @@
             "slack",
             "telegram",
             "api"
+          ],
+          "tags": [
+            "SaaS",
+            "Revenue",
+            "Monthly report"
           ]
         }
       },
@@ -92,6 +130,11 @@
             "slack",
             "telegram",
             "api"
+          ],
+          "tags": [
+            "SaaS",
+            "Revenue",
+            "Monthly report"
           ]
         }
       },
@@ -119,6 +162,11 @@
             "slack",
             "telegram",
             "api"
+          ],
+          "tags": [
+            "SaaS",
+            "Customers",
+            "Monthly report"
           ]
         }
       },
@@ -143,6 +191,12 @@
             "slack",
             "telegram",
             "api"
+          ],
+          "tags": [
+            "SaaS",
+            "Customers",
+            "Monthly report",
+            "Board"
           ]
         }
       },
@@ -171,6 +225,12 @@
             "slack",
             "telegram",
             "api"
+          ],
+          "tags": [
+            "SaaS",
+            "Customers",
+            "Monthly report",
+            "Board"
           ]
         }
       },
@@ -199,6 +259,12 @@
             "slack",
             "telegram",
             "api"
+          ],
+          "tags": [
+            "SaaS",
+            "Customers",
+            "Monthly report",
+            "Board"
           ]
         }
       },
@@ -223,6 +289,45 @@
             "slack",
             "telegram",
             "api"
+          ],
+          "tags": [
+            "SaaS",
+            "Efficiency",
+            "Monthly report"
+          ]
+        }
+      },
+      {
+        "key": "cac-payback",
+        "metric": {
+          "format": "ziffr.metric/1",
+          "name": "CAC payback",
+          "description": "Months of a new customer's gross margin it takes to earn back what it cost to win them: customer acquisition cost divided by monthly gross margin per new account.",
+          "category": "Marketing",
+          "industries": [
+            "saas"
+          ],
+          "period": "month",
+          "aggregation": "none",
+          "polarity": "lower",
+          "unit": "months",
+          "unitPosition": "after",
+          "valueFormat": "number",
+          "decimals": 1,
+          "submissionRule": "overwrite",
+          "tags": [
+            "SaaS",
+            "Efficiency",
+            "Monthly report",
+            "Board"
+          ],
+          "targetMax": 18,
+          "sources": [
+            "web_form",
+            "mail",
+            "slack",
+            "telegram",
+            "api"
           ]
         }
       },
@@ -241,7 +346,80 @@
           "valueFormat": "currency",
           "decimals": 0,
           "submissionRule": "overwrite",
-          "formula": "{mrr} / {customers}"
+          "formula": "{mrr} / {customers}",
+          "tags": [
+            "SaaS",
+            "Revenue",
+            "Monthly report"
+          ]
+        }
+      },
+      {
+        "key": "cash",
+        "metric": {
+          "format": "ziffr.metric/1",
+          "name": "Cash balance",
+          "description": "Cash across all bank accounts at period end.",
+          "category": "Finance",
+          "period": "month",
+          "aggregation": "last",
+          "polarity": "higher",
+          "unit": "€",
+          "unitPosition": "after",
+          "valueFormat": "currency",
+          "decimals": 0,
+          "submissionRule": "overwrite",
+          "targetMin": 50000,
+          "sources": [
+            "web_form",
+            "mail",
+            "slack",
+            "telegram",
+            "api"
+          ],
+          "tags": [
+            "SaaS",
+            "Finance",
+            "Monthly report",
+            "Board"
+          ],
+          "industries": [
+            "saas"
+          ]
+        }
+      },
+      {
+        "key": "runway",
+        "metric": {
+          "format": "ziffr.metric/1",
+          "name": "Cash runway",
+          "description": "Months the cash balance lasts at the average net burn of the last three months.",
+          "category": "Finance",
+          "period": "month",
+          "aggregation": "last",
+          "polarity": "higher",
+          "unit": "months",
+          "unitPosition": "after",
+          "valueFormat": "number",
+          "decimals": 1,
+          "submissionRule": "overwrite",
+          "targetMin": 12,
+          "sources": [
+            "web_form",
+            "mail",
+            "slack",
+            "telegram",
+            "api"
+          ],
+          "tags": [
+            "SaaS",
+            "Finance",
+            "Monthly report",
+            "Board"
+          ],
+          "industries": [
+            "saas"
+          ]
         }
       }
     ],
@@ -250,8 +428,8 @@
         "key": "saas-monthly",
         "template": {
           "format": "ziffr.dashboard-template/1",
-          "name": "SaaS monthly",
-          "description": "Recurring revenue, its movements, customers and retention, month by month.",
+          "name": "Monthly management report",
+          "description": "The month for the management team: recurring revenue and how it moved, churn and retention, CAC and payback, cash and runway.",
           "slots": [
             {
               "label": "Monthly recurring revenue",
@@ -262,6 +440,10 @@
               "suggests": "new-mrr"
             },
             {
+              "label": "Expansion revenue",
+              "suggests": "expansion-mrr"
+            },
+            {
               "label": "Churned MRR",
               "suggests": "churned-mrr"
             },
@@ -270,8 +452,28 @@
               "suggests": "customers"
             },
             {
+              "label": "Churn rate",
+              "suggests": "logo-churn"
+            },
+            {
               "label": "Net revenue retention",
               "suggests": "nrr"
+            },
+            {
+              "label": "Customer acquisition cost",
+              "suggests": "cac"
+            },
+            {
+              "label": "CAC payback",
+              "suggests": "cac-payback"
+            },
+            {
+              "label": "Cash balance",
+              "suggests": "cash"
+            },
+            {
+              "label": "Cash runway",
+              "suggests": "runway"
             }
           ],
           "widgets": [
@@ -288,7 +490,7 @@
             {
               "view": "number",
               "slots": [
-                3
+                6
               ],
               "x": 3,
               "y": 0,
@@ -306,9 +508,9 @@
               "h": 4
             },
             {
-              "view": "gauge",
+              "view": "number",
               "slots": [
-                4
+                10
               ],
               "x": 9,
               "y": 0,
@@ -346,7 +548,7 @@
               ],
               "x": 0,
               "y": 10,
-              "w": 6,
+              "w": 4,
               "h": 6,
               "settings": {
                 "window": 12
@@ -357,8 +559,62 @@
               "slots": [
                 2
               ],
-              "x": 6,
+              "x": 4,
               "y": 10,
+              "w": 4,
+              "h": 6,
+              "settings": {
+                "window": 12
+              }
+            },
+            {
+              "view": "bars",
+              "slots": [
+                3
+              ],
+              "x": 8,
+              "y": 10,
+              "w": 4,
+              "h": 6,
+              "settings": {
+                "window": 12
+              }
+            },
+            {
+              "view": "line",
+              "slots": [
+                5
+              ],
+              "x": 0,
+              "y": 16,
+              "w": 6,
+              "h": 6,
+              "settings": {
+                "window": 12,
+                "showTarget": true
+              }
+            },
+            {
+              "view": "line",
+              "slots": [
+                6
+              ],
+              "x": 6,
+              "y": 16,
+              "w": 6,
+              "h": 6,
+              "settings": {
+                "window": 12,
+                "showTarget": true
+              }
+            },
+            {
+              "view": "line",
+              "slots": [
+                7
+              ],
+              "x": 0,
+              "y": 22,
               "w": 6,
               "h": 6,
               "settings": {
@@ -366,12 +622,50 @@
               }
             },
             {
+              "view": "bars",
+              "slots": [
+                8
+              ],
+              "x": 6,
+              "y": 22,
+              "w": 6,
+              "h": 6,
+              "settings": {
+                "window": 12,
+                "showTarget": true
+              }
+            },
+            {
+              "view": "line",
+              "slots": [
+                9
+              ],
+              "x": 0,
+              "y": 28,
+              "w": 8,
+              "h": 6,
+              "settings": {
+                "window": 12,
+                "showTarget": true
+              }
+            },
+            {
+              "view": "number",
+              "slots": [
+                10
+              ],
+              "x": 8,
+              "y": 28,
+              "w": 4,
+              "h": 6
+            },
+            {
               "view": "design",
               "slots": [
                 0
               ],
               "x": 0,
-              "y": 16,
+              "y": 34,
               "w": 12,
               "h": 7,
               "settings": {
@@ -516,6 +810,805 @@
         }
       }
     ],
+    "themes": [
+      {
+        "key": "saas",
+        "theme": {
+          "format": "ziffr.theme/1",
+          "name": "SaaS metrics",
+          "colors": {
+            "canvas": "#F3F7F6",
+            "surface": "#FFFFFF",
+            "ink": "#1A1A1A",
+            "muted": "#6B6B6B",
+            "rule": "#D3DEDB",
+            "accent": "#0F5C54",
+            "good": "#2E7D32",
+            "bad": "#C62828",
+            "band": "#E1ECE9",
+            "data": [
+              "#0F5C54",
+              "#C2692B",
+              "#4F6FA8",
+              "#8A7A3B"
+            ]
+          },
+          "fonts": {
+            "heading": "inter",
+            "body": "inter",
+            "figures": "ibm-plex-mono"
+          },
+          "radius": 8,
+          "cards": "flat",
+          "slides": {
+            "logoPosition": "top-right",
+            "logoWidth": 64,
+            "footer": "SaaS metrics",
+            "showSlideNumber": true,
+            "titleSize": 48,
+            "bodySize": 22,
+            "logo": "pack"
+          }
+        }
+      }
+    ],
+    "decks": [
+      {
+        "key": "monthly-report",
+        "template": {
+          "format": "ziffr.deck-template/1",
+          "name": "Monthly management report",
+          "description": "A slide per question for the month: key figures, the MRR bridge, churn, CAC and payback, cash and runway, highlights and risks.",
+          "slots": [
+            {
+              "label": "Monthly recurring revenue",
+              "suggests": "mrr"
+            },
+            {
+              "label": "New MRR",
+              "suggests": "new-mrr"
+            },
+            {
+              "label": "Expansion revenue",
+              "suggests": "expansion-mrr"
+            },
+            {
+              "label": "Churned MRR",
+              "suggests": "churned-mrr"
+            },
+            {
+              "label": "Customers",
+              "suggests": "customers"
+            },
+            {
+              "label": "Churn rate",
+              "suggests": "logo-churn"
+            },
+            {
+              "label": "Net revenue retention",
+              "suggests": "nrr"
+            },
+            {
+              "label": "Customer acquisition cost",
+              "suggests": "cac"
+            },
+            {
+              "label": "CAC payback",
+              "suggests": "cac-payback"
+            },
+            {
+              "label": "Cash balance",
+              "suggests": "cash"
+            },
+            {
+              "label": "Cash runway",
+              "suggests": "runway"
+            }
+          ],
+          "theme": "saas",
+          "slides": [
+            {
+              "shapes": [
+                {
+                  "shape": "text",
+                  "x": 64,
+                  "y": 250,
+                  "w": 1152,
+                  "text": [
+                    "Monthly management report"
+                  ],
+                  "size": "xl",
+                  "scale": 1.4
+                },
+                {
+                  "shape": "text",
+                  "x": 64,
+                  "y": 380,
+                  "w": 1152,
+                  "text": [
+                    "For the management team"
+                  ],
+                  "size": "m"
+                }
+              ]
+            },
+            {
+              "shapes": [
+                {
+                  "shape": "text",
+                  "x": 64,
+                  "y": 56,
+                  "w": 1152,
+                  "text": [
+                    "Key figures"
+                  ],
+                  "size": "xl"
+                },
+                {
+                  "shape": "widget",
+                  "view": "number",
+                  "slots": [
+                    0
+                  ],
+                  "x": 64,
+                  "y": 160,
+                  "w": 270,
+                  "h": 200
+                },
+                {
+                  "shape": "widget",
+                  "view": "number",
+                  "slots": [
+                    6
+                  ],
+                  "x": 354,
+                  "y": 160,
+                  "w": 270,
+                  "h": 200
+                },
+                {
+                  "shape": "widget",
+                  "view": "number",
+                  "slots": [
+                    4
+                  ],
+                  "x": 644,
+                  "y": 160,
+                  "w": 270,
+                  "h": 200
+                },
+                {
+                  "shape": "widget",
+                  "view": "number",
+                  "slots": [
+                    10
+                  ],
+                  "x": 934,
+                  "y": 160,
+                  "w": 270,
+                  "h": 200
+                },
+                {
+                  "shape": "text",
+                  "x": 64,
+                  "y": 400,
+                  "w": 1152,
+                  "text": [
+                    "{metric} is {change prev} on the period before."
+                  ],
+                  "size": "m"
+                }
+              ]
+            },
+            {
+              "shapes": [
+                {
+                  "shape": "text",
+                  "x": 64,
+                  "y": 56,
+                  "w": 1152,
+                  "text": [
+                    "MRR bridge"
+                  ],
+                  "size": "xl"
+                },
+                {
+                  "shape": "widget",
+                  "view": "line",
+                  "slots": [
+                    0
+                  ],
+                  "x": 64,
+                  "y": 150,
+                  "w": 1152,
+                  "h": 240,
+                  "settings": {
+                    "window": 12,
+                    "showTarget": true
+                  }
+                },
+                {
+                  "shape": "widget",
+                  "view": "bars",
+                  "slots": [
+                    1
+                  ],
+                  "x": 64,
+                  "y": 410,
+                  "w": 370,
+                  "h": 250,
+                  "settings": {
+                    "window": 6
+                  }
+                },
+                {
+                  "shape": "widget",
+                  "view": "bars",
+                  "slots": [
+                    2
+                  ],
+                  "x": 455,
+                  "y": 410,
+                  "w": 370,
+                  "h": 250,
+                  "settings": {
+                    "window": 6
+                  }
+                },
+                {
+                  "shape": "widget",
+                  "view": "bars",
+                  "slots": [
+                    3
+                  ],
+                  "x": 846,
+                  "y": 410,
+                  "w": 370,
+                  "h": 250,
+                  "settings": {
+                    "window": 6
+                  }
+                }
+              ]
+            },
+            {
+              "shapes": [
+                {
+                  "shape": "text",
+                  "x": 64,
+                  "y": 56,
+                  "w": 1152,
+                  "text": [
+                    "Churn and retention"
+                  ],
+                  "size": "xl"
+                },
+                {
+                  "shape": "widget",
+                  "view": "line",
+                  "slots": [
+                    5
+                  ],
+                  "x": 64,
+                  "y": 150,
+                  "w": 560,
+                  "h": 500,
+                  "settings": {
+                    "window": 12,
+                    "showTarget": true
+                  }
+                },
+                {
+                  "shape": "widget",
+                  "view": "line",
+                  "slots": [
+                    6
+                  ],
+                  "x": 656,
+                  "y": 150,
+                  "w": 560,
+                  "h": 500,
+                  "settings": {
+                    "window": 12,
+                    "showTarget": true
+                  }
+                }
+              ]
+            },
+            {
+              "shapes": [
+                {
+                  "shape": "text",
+                  "x": 64,
+                  "y": 56,
+                  "w": 1152,
+                  "text": [
+                    "CAC and payback"
+                  ],
+                  "size": "xl"
+                },
+                {
+                  "shape": "widget",
+                  "view": "line",
+                  "slots": [
+                    7
+                  ],
+                  "x": 64,
+                  "y": 150,
+                  "w": 700,
+                  "h": 500,
+                  "settings": {
+                    "window": 12
+                  }
+                },
+                {
+                  "shape": "widget",
+                  "view": "number",
+                  "slots": [
+                    8
+                  ],
+                  "x": 800,
+                  "y": 150,
+                  "w": 416,
+                  "h": 240
+                },
+                {
+                  "shape": "text",
+                  "x": 800,
+                  "y": 420,
+                  "w": 416,
+                  "text": [
+                    "Payback is the months a new customer takes to earn back their cost."
+                  ],
+                  "size": "s"
+                }
+              ]
+            },
+            {
+              "shapes": [
+                {
+                  "shape": "text",
+                  "x": 64,
+                  "y": 56,
+                  "w": 1152,
+                  "text": [
+                    "Cash and runway"
+                  ],
+                  "size": "xl"
+                },
+                {
+                  "shape": "widget",
+                  "view": "line",
+                  "slots": [
+                    9
+                  ],
+                  "x": 64,
+                  "y": 150,
+                  "w": 700,
+                  "h": 500,
+                  "settings": {
+                    "window": 12,
+                    "showTarget": true
+                  }
+                },
+                {
+                  "shape": "widget",
+                  "view": "number",
+                  "slots": [
+                    10
+                  ],
+                  "x": 800,
+                  "y": 150,
+                  "w": 416,
+                  "h": 240
+                }
+              ]
+            },
+            {
+              "shapes": [
+                {
+                  "shape": "text",
+                  "x": 64,
+                  "y": 56,
+                  "w": 1152,
+                  "text": [
+                    "Highlights and risks"
+                  ],
+                  "size": "xl"
+                },
+                {
+                  "shape": "box",
+                  "x": 64,
+                  "y": 150,
+                  "w": 560,
+                  "h": 500,
+                  "geo": "rectangle",
+                  "fill": "semi",
+                  "color": "light-green",
+                  "text": [
+                    "Highlights"
+                  ]
+                },
+                {
+                  "shape": "box",
+                  "x": 656,
+                  "y": 150,
+                  "w": 560,
+                  "h": 500,
+                  "geo": "rectangle",
+                  "fill": "semi",
+                  "color": "light-red",
+                  "text": [
+                    "Risks"
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "key": "quarterly-board",
+        "template": {
+          "format": "ziffr.deck-template/1",
+          "name": "Quarterly board meeting",
+          "description": "The quarter for the board: ARR and growth, retention, efficiency, cash and runway, highlights, risks and decisions.",
+          "slots": [
+            {
+              "label": "Annual recurring revenue",
+              "suggests": "arr"
+            },
+            {
+              "label": "Monthly recurring revenue",
+              "suggests": "mrr"
+            },
+            {
+              "label": "Net revenue retention",
+              "suggests": "nrr"
+            },
+            {
+              "label": "Customers",
+              "suggests": "customers"
+            },
+            {
+              "label": "Churn rate",
+              "suggests": "logo-churn"
+            },
+            {
+              "label": "CAC payback",
+              "suggests": "cac-payback"
+            },
+            {
+              "label": "Cash balance",
+              "suggests": "cash"
+            },
+            {
+              "label": "Cash runway",
+              "suggests": "runway"
+            }
+          ],
+          "theme": "saas",
+          "slides": [
+            {
+              "shapes": [
+                {
+                  "shape": "text",
+                  "x": 64,
+                  "y": 250,
+                  "w": 1152,
+                  "text": [
+                    "Board meeting"
+                  ],
+                  "size": "xl",
+                  "scale": 1.4
+                },
+                {
+                  "shape": "text",
+                  "x": 64,
+                  "y": 380,
+                  "w": 1152,
+                  "text": [
+                    "Quarterly report to the board"
+                  ],
+                  "size": "m"
+                }
+              ]
+            },
+            {
+              "shapes": [
+                {
+                  "shape": "text",
+                  "x": 64,
+                  "y": 56,
+                  "w": 1152,
+                  "text": [
+                    "Key figures"
+                  ],
+                  "size": "xl"
+                },
+                {
+                  "shape": "widget",
+                  "view": "number",
+                  "slots": [
+                    0
+                  ],
+                  "x": 64,
+                  "y": 160,
+                  "w": 270,
+                  "h": 200
+                },
+                {
+                  "shape": "widget",
+                  "view": "number",
+                  "slots": [
+                    2
+                  ],
+                  "x": 354,
+                  "y": 160,
+                  "w": 270,
+                  "h": 200
+                },
+                {
+                  "shape": "widget",
+                  "view": "number",
+                  "slots": [
+                    3
+                  ],
+                  "x": 644,
+                  "y": 160,
+                  "w": 270,
+                  "h": 200
+                },
+                {
+                  "shape": "widget",
+                  "view": "number",
+                  "slots": [
+                    7
+                  ],
+                  "x": 934,
+                  "y": 160,
+                  "w": 270,
+                  "h": 200
+                },
+                {
+                  "shape": "text",
+                  "x": 64,
+                  "y": 400,
+                  "w": 1152,
+                  "text": [
+                    "{metric} is {change prev} on the period before."
+                  ],
+                  "size": "m"
+                }
+              ]
+            },
+            {
+              "shapes": [
+                {
+                  "shape": "text",
+                  "x": 64,
+                  "y": 56,
+                  "w": 1152,
+                  "text": [
+                    "Growth"
+                  ],
+                  "size": "xl"
+                },
+                {
+                  "shape": "widget",
+                  "view": "line",
+                  "slots": [
+                    0
+                  ],
+                  "x": 64,
+                  "y": 150,
+                  "w": 700,
+                  "h": 500,
+                  "settings": {
+                    "window": 12,
+                    "display": "quarter"
+                  }
+                },
+                {
+                  "shape": "widget",
+                  "view": "design",
+                  "slots": [
+                    1
+                  ],
+                  "x": 790,
+                  "y": 150,
+                  "w": 426,
+                  "h": 360,
+                  "settings": {
+                    "design": "growth-trend"
+                  }
+                }
+              ]
+            },
+            {
+              "shapes": [
+                {
+                  "shape": "text",
+                  "x": 64,
+                  "y": 56,
+                  "w": 1152,
+                  "text": [
+                    "Retention"
+                  ],
+                  "size": "xl"
+                },
+                {
+                  "shape": "widget",
+                  "view": "line",
+                  "slots": [
+                    2
+                  ],
+                  "x": 64,
+                  "y": 150,
+                  "w": 700,
+                  "h": 500,
+                  "settings": {
+                    "window": 12,
+                    "showTarget": true
+                  }
+                },
+                {
+                  "shape": "widget",
+                  "view": "line",
+                  "slots": [
+                    4
+                  ],
+                  "x": 790,
+                  "y": 150,
+                  "w": 426,
+                  "h": 360,
+                  "settings": {
+                    "window": 12,
+                    "showTarget": true
+                  }
+                }
+              ]
+            },
+            {
+              "shapes": [
+                {
+                  "shape": "text",
+                  "x": 64,
+                  "y": 56,
+                  "w": 1152,
+                  "text": [
+                    "Efficiency"
+                  ],
+                  "size": "xl"
+                },
+                {
+                  "shape": "widget",
+                  "view": "bars",
+                  "slots": [
+                    5
+                  ],
+                  "x": 64,
+                  "y": 150,
+                  "w": 1152,
+                  "h": 500,
+                  "settings": {
+                    "window": 12,
+                    "showTarget": true
+                  }
+                }
+              ]
+            },
+            {
+              "shapes": [
+                {
+                  "shape": "text",
+                  "x": 64,
+                  "y": 56,
+                  "w": 1152,
+                  "text": [
+                    "Cash and runway"
+                  ],
+                  "size": "xl"
+                },
+                {
+                  "shape": "widget",
+                  "view": "line",
+                  "slots": [
+                    6
+                  ],
+                  "x": 64,
+                  "y": 150,
+                  "w": 700,
+                  "h": 500,
+                  "settings": {
+                    "window": 12,
+                    "showTarget": true
+                  }
+                },
+                {
+                  "shape": "widget",
+                  "view": "number",
+                  "slots": [
+                    7
+                  ],
+                  "x": 800,
+                  "y": 150,
+                  "w": 416,
+                  "h": 240
+                }
+              ]
+            },
+            {
+              "shapes": [
+                {
+                  "shape": "text",
+                  "x": 64,
+                  "y": 56,
+                  "w": 1152,
+                  "text": [
+                    "Highlights and risks"
+                  ],
+                  "size": "xl"
+                },
+                {
+                  "shape": "box",
+                  "x": 64,
+                  "y": 150,
+                  "w": 560,
+                  "h": 500,
+                  "geo": "rectangle",
+                  "fill": "semi",
+                  "color": "light-green",
+                  "text": [
+                    "Highlights"
+                  ]
+                },
+                {
+                  "shape": "box",
+                  "x": 656,
+                  "y": 150,
+                  "w": 560,
+                  "h": 500,
+                  "geo": "rectangle",
+                  "fill": "semi",
+                  "color": "light-red",
+                  "text": [
+                    "Risks"
+                  ]
+                }
+              ]
+            },
+            {
+              "shapes": [
+                {
+                  "shape": "text",
+                  "x": 64,
+                  "y": 56,
+                  "w": 1152,
+                  "text": [
+                    "Decisions for the board"
+                  ],
+                  "size": "xl"
+                },
+                {
+                  "shape": "box",
+                  "x": 64,
+                  "y": 150,
+                  "w": 1152,
+                  "h": 500,
+                  "geo": "rectangle",
+                  "fill": "semi",
+                  "color": "light-blue",
+                  "text": [
+                    "What we ask the board to decide"
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      }
+    ],
     "workflows": [
       {
         "key": "monthly-close",
@@ -543,6 +1636,40 @@
               "type": "approve",
               "approvers": 1,
               "values": "unusual"
+            },
+            {
+              "type": "publish",
+              "lock": true
+            }
+          ]
+        }
+      },
+      {
+        "key": "quarter-close",
+        "template": {
+          "format": "ziffr.workflow-template/1",
+          "name": "Quarter close",
+          "description": "Values due on the fifth working day after the quarter, checked, approved by one person, then locked.",
+          "dueWorkingDays": 5,
+          "steps": [
+            {
+              "type": "remind",
+              "daysBefore": 1
+            },
+            {
+              "type": "escalate",
+              "to": "stand-in",
+              "daysAfter": 1
+            },
+            {
+              "type": "check",
+              "changePct": 30,
+              "outsideTarget": true
+            },
+            {
+              "type": "approve",
+              "approvers": 1,
+              "values": "every"
             },
             {
               "type": "publish",

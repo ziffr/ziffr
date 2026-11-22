@@ -3,6 +3,7 @@
 import { afterEach, describe, expect, it } from "vitest";
 import { db } from "./db";
 import { installPackFile, listInstalledPacks } from "./packs";
+import { setUpFromPack } from "./pack-setup";
 import { metricCatalog } from "./page-data";
 import { STARTING_PACKS, startingPack } from "./starting-packs.test";
 import { workspace } from "./test/db-fixtures";
@@ -21,6 +22,19 @@ describe("installing the starting Packs", () => {
     const own = (await metricCatalog(w.actor(ann))).filter((c) => c.pack_install_id);
     expect(own.filter((c) => c.name === "Revenue")).toHaveLength(2);
     for (const t of ["metrics", "dashboards", "decks", "workflows"]) expect((await db().from(t).select("id", { count: "exact", head: true }).eq("workspace_id", w.id)).count, t).toBe(0);
-    expect((await db().from("team_templates").select("kind").eq("workspace_id", w.id)).data!.map((r) => r.kind).sort()).toEqual(["dashboard", "dashboard", "dashboard", "dashboard", "dashboard", "dashboard", "deck", "workflow", "workflow", "workflow", "workflow", "workflow"]);
+    expect((await db().from("team_templates").select("kind").eq("workspace_id", w.id)).data!.map((r) => r.kind).sort()).toEqual(["dashboard", "dashboard", "dashboard", "dashboard", "dashboard", "dashboard", "deck", "deck", "deck", "workflow", "workflow", "workflow", "workflow", "workflow", "workflow"]);
+  });
+
+  it("sets up SaaS metrics 2.0 whole: its Metrics, the monthly dashboard and the quarter's Workflow", async () => {
+    const w = await workspace(); cleanups.push(w.cleanup);
+    const ann = await w.person("owner");
+    const install = await installPackFile(w.actor(ann), startingPack("saas-metrics.pack.json"), { unsigned: true, assistantTexts: true });
+    const keys = ["mrr", "arr", "new-mrr", "expansion-mrr", "churned-mrr", "customers", "logo-churn", "nrr", "cac", "cac-payback", "arpa", "cash", "runway"];
+    const made = await setUpFromPack(w.actor(ann), install, { metrics: keys, dashboard: { key: "saas-monthly" }, workflow: { key: "quarter-close", approvers: [ann] } });
+    expect(made.metrics).toHaveLength(keys.length);
+    expect(made.tagsLeftOut).toEqual([]);
+    const { data: widgets } = await db().from("widgets").select("id").eq("dashboard_id", made.dashboardId!);
+    expect(widgets!.length).toBe(16);
+    expect(made.workflowId).not.toBeNull();
   });
 });
