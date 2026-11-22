@@ -29,7 +29,7 @@ The Trial Limits are the numbers that bound every Trial Workspace (spec 0040). Z
 
 | Call | What it does |
 | --- | --- |
-| `GET /api/cloud/v1/trial-limits` | `{ "limits": { ... }, "sources": { ... } }`: each limit in effect, and where it comes from (`cloud`, `page`, `server` or `default`). `days` is null while trials are off. |
+| `GET /api/cloud/v1/trial-limits` | `{ "limits": { ... }, "sources": { ... } }`: each limit in effect, and where it comes from (`cloud`, `page`, `server`, `default`, or `invalid` for days the server holds wrongly, which also make `days` null). `days` is null while trials are off. |
 | `PUT /api/cloud/v1/trial-limits` | Changes the limits it names, answering as GET does. The body is an object, at most 4 KB, and unknown names are refused. A whole number sets a limit; `null` gives it back to its default (`days`: `null` switches trials off, explicitly); a limit left out stays as it is. |
 
 - `days`: Days a trial lasts, 1 to 30, default 14; `null` means 0, trials off. Applies to trials made afterwards.

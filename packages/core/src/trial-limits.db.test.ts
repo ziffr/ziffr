@@ -2,17 +2,20 @@
 // a change applies to running trials at once, lowering deletes nothing, and every limit the database guards holds when
 // requests come at once (Metrics, keys, Feed keys, Feeds, assistants, View Links, messages a day).
 import { randomUUID } from "node:crypto";
-import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { Forbidden } from "./actor";
 import { approveConnection, mcpResource, registerClient } from "./assistant-connections";
 import { createAccessKey } from "./access-keys";
 import { cloudTrialLimits, setCloudTrialLimits } from "./cloud-api";
+import * as dbModule from "./db";
 import { db } from "./db";
 import { createFeed, createFeedKey } from "./feeds";
 import { createMetric } from "./metrics";
 import { createViewLink } from "./view-links";
 import { forgetStoredSettings, settingsInEffect } from "./settings-in-effect";
-import { trialSettings } from "./trials";
+import { trialSettings, trialSettingsInEffect, trialsOpen } from "./trials";
+import { createWorkspace } from "./page-data";
+import { whatThisZiffrOffers } from "./what-works-here";
 import { resetTrialLimits, workspace } from "./test/db-fixtures";
 import { TRIAL_LIMITS, trialLimitsFrom } from "./trial-limits";
 import { syncTrialLimits, trialLimitsInEffect } from "./trial-limits-in-effect";
@@ -310,5 +313,49 @@ describe("a change applies to a running trial at once, and lowering deletes noth
     const owner = await w.person("owner");
     await setCloudTrialLimits(caller, { metrics: 5 });
     for (let i = 0; i < 8; i++) await createMetric(w.actor(owner), { name: `M${i}` });
+  });
+});
+
+describe("trials fail closed", () => {
+  /** Makes the read of the Installation Settings fail, as a database hiccup would. */
+  function settingsUnreadable() {
+    const real = dbModule.db;
+    return vi.spyOn(dbModule, "db").mockImplementation(() => new Proxy(real(), {
+      get: (target, prop, receiver) => (prop === "from"
+        ? (table: string) => (table === "installation_settings" ? { select: () => ({ in: async () => ({ data: null, error: { code: "XX000" } }) }) } : target.from(table))
+        : Reflect.get(target, prop, receiver)),
+    }));
+  }
+
+  it("offers and makes no trial while Ziffr Cloud's off cannot be read, and makes no ordinary Workspace either", async () => {
+    await setCloudTrialLimits(caller, { days: null });
+    forgetStoredSettings();
+    expect(await trialSettingsInEffect()).toBeNull();
+    expect(await trialsOpen()).toBe(false);
+    forgetStoredSettings();
+    const spy = settingsUnreadable();
+    try {
+      await expect(trialSettingsInEffect()).rejects.toThrow(/cannot be made here/);
+      expect(await trialsOpen()).toBe(false);
+      expect((await whatThisZiffrOffers()).trial).toBeNull();
+      const w = await workspace();
+      cleanups.push(w.cleanup);
+      const sara = await w.person("owner");
+      const before = (await db().from("memberships").select("workspace_id").eq("user_id", sara)).data!.length;
+      await expect(createWorkspace(sara, "Nowhere")).rejects.toThrow(/cannot be made here/);
+      expect((await db().from("memberships").select("workspace_id").eq("user_id", sara)).data!.length).toBe(before);
+    } finally {
+      spy.mockRestore();
+    }
+    forgetStoredSettings();
+  });
+
+  it("reports days null with the source invalid when the server holds a wrong value", async () => {
+    process.env.ZIFFR_TRIAL_DAYS = "31";
+    const got = await cloudTrialLimits(caller);
+    expect(got.limits.days).toBeNull();
+    expect(got.sources.days).toBe("invalid");
+    expect(() => trialSettings({ ...process.env })).toThrow(/ZIFFR_TRIAL_DAYS/);
+    delete process.env.ZIFFR_TRIAL_DAYS;
   });
 });

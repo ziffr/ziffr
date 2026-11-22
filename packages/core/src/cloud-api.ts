@@ -13,7 +13,7 @@ import { recordServiceEvent } from "./installation-admins";
 import { DEMO_WORKSPACE_ID } from "./team";
 import { keepTrial } from "./trials";
 import { forgetStoredSettings, settingSources, settingsInEffectStrict } from "./settings-in-effect";
-import { TRIAL_LIMITS, trialLimitNumberProblem, trialLimitsFrom, type TrialLimitKey } from "./trial-limits";
+import { TRIAL_LIMITS, trialLimitNumberProblem, trialLimitOf, trialLimitProblem, trialLimitsFrom, type TrialLimitKey } from "./trial-limits";
 import { trialLimitEnvironment } from "./trial-limits-in-effect";
 import { LABEL_MAX, LIMIT_MAX, limitLabel, limitOf, metricCount, roomOf, syncDefaultLimit } from "./workspace-limits";
 
@@ -227,7 +227,7 @@ export function handoverOffered(actor: Pick<Actor, "role" | "workspaceId">, env:
 
 /** The Trial Limits as Ziffr Cloud sees them: each number in effect, where it comes from (Ziffr Cloud, the Installation's
  * page, the server's environment or the default), and `days` as null while trials are switched off. Numbers only: nothing of a trial. */
-export type CloudTrialLimits = { limits: Record<TrialLimitKey, number | null>; sources: Record<TrialLimitKey, "cloud" | "page" | "server" | "default"> };
+export type CloudTrialLimits = { limits: Record<TrialLimitKey, number | null>; sources: Record<TrialLimitKey, "cloud" | "page" | "server" | "default" | "invalid"> };
 
 /** The Trial Limits now, for Ziffr Cloud. */
 export async function cloudTrialLimits(caller: CloudCaller): Promise<CloudTrialLimits> {
@@ -236,9 +236,13 @@ export async function cloudTrialLimits(caller: CloudCaller): Promise<CloudTrialL
   const [settings, sources] = await Promise.all([settingsInEffectStrict(), settingSources()]);
   const limits = { ...trialLimitsFrom(settings) } as Record<TrialLimitKey, number | null>;
   // Days of 0 switch trials off explicitly: null.
-  if (settings.ZIFFR_TRIAL_DAYS?.trim() === "0") limits.days = null;
+  const rawDays = settings.ZIFFR_TRIAL_DAYS?.trim();
+  // A value that is there but wrong makes no Workspace at all (trials.ts): not 14, and its source says so.
+  const daysInvalid = !!rawDays && rawDays !== "0" && trialLimitProblem(trialLimitOf("days"), rawDays) !== null;
+  if (rawDays === "0" || daysInvalid) limits.days = null;
   // The days and grace days are pinned to Ziffr Cloud, so their source says "cloud" even when nothing is set: only a value counts.
   const source = (l: (typeof TRIAL_LIMITS)[number]) => {
+    if (l.key === "days" && daysInvalid) return "invalid";
     if (process.env[l.name]?.trim()) return "server";
     const s = sources[l.name];
     return s === "cloud" ? (settings[l.name] === undefined ? "default" : "cloud") : s === "page" ? "page" : "default";
