@@ -1,4 +1,5 @@
 // Handing a Metric over, through the core, against the real database (ticket #798).
+import { vi } from "vitest";
 import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
 import { Forbidden } from "./actor";
 import { db } from "./db";
@@ -97,6 +98,24 @@ describe("handing a Metric over", () => {
     await handOverMetric(w.actor(ben, "member"), m.id, ann);
     const { deleteMetric } = await import("./metrics");
     await expect(deleteMetric(w.actor(ben, "member"), m.id, "x")).rejects.toEqual(forbidden);
+  });
+});
+
+describe("a hand-over the database refuses", () => {
+  it("leaves no audit row, changes no owner or Share, and does not change what the next hand-over does", async () => {
+    const w = await ws(); await w.person("owner"); const ad = await w.person("admin"); const ben = await w.person("member"); const ann = await w.person("member");
+    const m = await w.metric(ben);
+    const client = db(); const real = client.rpc.bind(client);
+    const spy = vi.spyOn(client, "rpc").mockImplementation(((name: string, args: never) => (name === "hand_over_metric" ? Promise.resolve({ data: null, error: { message: "boom" } }) : (real as (n: string, a: never) => unknown)(name, args))) as never);
+    await expect(handOverMetric(w.actor(ad, "admin"), m.id, ad)).rejects.toThrow(/did not work/);
+    spy.mockRestore();
+    expect(await ownerOf(m.id)).toBe(ben);
+    expect(await sharesOf(w.id, m.id)).toEqual([]);
+    expect((await db().from("audit_events").select("id").eq("workspace_id", w.id).eq("kind", "metric.handed_over")).data).toEqual([]);
+    // The next one behaves as if the failed one never happened: the Admin took it for real now, and hands it on without a Share.
+    await handOverMetric(w.actor(ad, "admin"), m.id, ad);
+    await handOverMetric(w.actor(ad, "admin"), m.id, ann);
+    expect((await sharesOf(w.id, m.id)).map((x) => x.user_id)).toEqual([ben]);
   });
 });
 

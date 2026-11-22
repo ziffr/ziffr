@@ -34,7 +34,7 @@ export async function removeMember(actor: Actor, personId: string, successorId: 
   // The Actions waiting on them: noted before the handover moves them to the successor, who is then named in `action.updated`.
   const { data: waiting } = await db().from("actions").select("id, metric_id, period_start").eq("workspace_id", ws).eq("assignee_id", personId).in("status", ["open", "answered"]);
   // The acting role goes along: the database checks it in the same step, so a promotion in between changes nothing.
-  const { error } = await db().rpc("hand_over", { ws, leaving: personId, successor: successorId, actor_role: actor.role });
+  const { error } = await db().rpc("hand_over", { ws, leaving: personId, successor: successorId, actor_role: actor.role, actor_id: actor.personId });
   if (error) {
     if (/only Owners remove an Owner/.test(error.message)) throw new Forbidden("Only Owners remove an Owner.");
     throw new Error(/at least one Owner/.test(error.message) ? "A workspace keeps at least one Owner. Make someone else Owner first." : "The handover did not work; nothing was changed.");
