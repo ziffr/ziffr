@@ -20,6 +20,9 @@ export type RuleName =
   | "reach-by-property"
   | "any-type"
   | "outside-assignment"
+  | "locale"
+  | "this-keyword"
+  | "module-state"
   | "forbidden-word";
 
 /** One thing a rule found: its reason, the line (1-based) and what is wrong, in plain words. */
@@ -30,6 +33,9 @@ export const ALLOWED_IMPORTS = ["@ziffr/extension-kit", "@ziffr/figures"] as con
 
 const IDENTIFIERS: Record<string, RuleName> = {
   Date: "clock",
+  performance: "clock",
+  crypto: "random",
+  Intl: "locale",
   process: "ambient-global",
   globalThis: "ambient-global",
   window: "ambient-global",
@@ -43,6 +49,22 @@ const IDENTIFIERS: Record<string, RuleName> = {
   setInterval: "timer",
   setImmediate: "timer",
 };
+/** The only names an Extension may use that it did not declare or import: everything else global is refused (an allowlist,
+ * since a denylist always misses something). `Math` may be used only as `Math.name` and never `Math.random`, `Object` only as
+ * `Object.keys`, `values`, `entries`, `freeze` and `fromEntries`. The rest are type names the compiler provides. */
+export const ALLOWED_GLOBALS: ReadonlySet<string> = new Set([
+  "Math", "Number", "String", "Boolean", "Array", "JSON", "Map", "Set", "BigInt", "Infinity", "NaN", "undefined", "isFinite", "isNaN",
+  "parseFloat", "parseInt", "Symbol", "Error", "RangeError", "TypeError",
+  "ReadonlyArray", "ReadonlyMap", "ReadonlySet", "Record", "Partial", "Required", "Readonly", "Pick", "Omit", "Exclude", "Extract", "NonNullable",
+  "ReturnType", "Parameters", "Awaited", "ArrayLike", "Iterable", "Iterator", "IterableIterator", "Generator", "PropertyKey", "const",
+]);
+const OBJECT_MEMBERS = new Set(["keys", "values", "entries", "freeze", "fromEntries"]);
+/** Methods whose result depends on the machine's language settings, which would make a number or a sort order differ between machines. */
+const LOCALE_METHODS = new Set(["localeCompare", "toLocaleString", "toLocaleDateString", "toLocaleTimeString", "toLocaleUpperCase", "toLocaleLowerCase"]);
+/** Methods that change the value they are called on. */
+const MUTATORS = new Set(["push", "pop", "shift", "unshift", "splice", "sort", "reverse", "fill", "copyWithin", "set", "add", "delete", "clear"]);
+/** Files that hold code that runs: a variable at the top of these that can change is state shared between calls. */
+const CODE_FILES = new Set(["method.ts", "mark.ts", "reference.ts"]);
 /** Property names that reach the `Function` constructor or the prototype chain from any value. */
 const REACHING = new Set(["constructor", "prototype", "__proto__"]);
 /** The words a Takeaway never says (spec 0041): cause, because, significant, p-value, regression, R², coefficient, confidence. */
@@ -86,7 +108,7 @@ function scopeOf(fn: ts.FunctionLikeDeclaration): Scope {
 
 /** Whether an expression builds a text out of pieces (a literal, a template, or `+` with one in it). */
 function textBuilt(e: ts.Expression, texts: Set<string>): boolean {
-  if (ts.isParenthesizedExpression(e)) return textBuilt(e.expression, texts);
+  if (ts.isParenthesizedExpression(e) || ts.isAsExpression(e) || ts.isNonNullExpression(e) || ts.isTypeAssertionExpression(e) || ts.isSatisfiesExpression(e)) return textBuilt(e.expression, texts);
   if (ts.isStringLiteralLike(e) || ts.isTemplateExpression(e)) return true;
   if (ts.isIdentifier(e)) return texts.has(e.text);
   if (ts.isBinaryExpression(e) && e.operatorToken.kind === ts.SyntaxKind.PlusToken) return textBuilt(e.left, texts) || textBuilt(e.right, texts);
@@ -104,7 +126,35 @@ function rootOf(e: ts.Expression): { name: string | null; direct: boolean } {
       direct = false;
     } else break;
   }
-  return { name: ts.isIdentifier(cur) ? cur.text : null, direct };
+  return { name: ts.isIdentifier(cur) ? cur.text : cur.kind === ts.SyntaxKind.ThisKeyword ? "this" : null, direct };
+}
+
+/** Records every name the file declares itself: variables, parameters, functions, classes, types, type parameters and imports. */
+function declaredNames(sf: ts.SourceFile): Set<string> {
+  const names = new Set<string>();
+  const visit = (n: ts.Node): void => {
+    if (ts.isVariableDeclaration(n) || ts.isParameter(n) || ts.isBindingElement(n)) bindingNames(n.name, names);
+    else if ((ts.isFunctionDeclaration(n) || ts.isClassDeclaration(n) || ts.isInterfaceDeclaration(n) || ts.isTypeAliasDeclaration(n) || ts.isEnumDeclaration(n) || ts.isModuleDeclaration(n) || ts.isFunctionExpression(n) || ts.isClassExpression(n)) && n.name && ts.isIdentifier(n.name)) names.add(n.name.text);
+    else if (ts.isTypeParameterDeclaration(n) || ts.isImportSpecifier(n) || ts.isNamespaceImport(n) || ts.isImportEqualsDeclaration(n)) names.add(n.name.text);
+    else if (ts.isImportClause(n) && n.name) names.add(n.name.text);
+    ts.forEachChild(n, visit);
+  };
+  visit(sf);
+  return names;
+}
+
+/** Whether a top-level `const`'s value cannot change: a plain value, a function, `as const`, `Object.freeze(…)` or a readonly type. */
+function fixedValue(d: ts.VariableDeclaration): boolean {
+  const t = d.type;
+  if (t && ((ts.isTypeOperatorNode(t) && t.operator === ts.SyntaxKind.ReadonlyKeyword) || (ts.isTypeReferenceNode(t) && ts.isIdentifier(t.typeName) && /^Readonly/.test(t.typeName.text)))) return true;
+  let e = d.initializer;
+  while (e && (ts.isParenthesizedExpression(e) || ts.isSatisfiesExpression(e))) e = e.expression;
+  if (!e) return false;
+  if (ts.isAsExpression(e) && ts.isTypeReferenceNode(e.type) && e.type.typeName.getText() === "const") return true;
+  if (ts.isPrefixUnaryExpression(e)) return ts.isNumericLiteral(e.operand);
+  if (ts.isCallExpression(e)) return ts.isPropertyAccessExpression(e.expression) && e.expression.getText() === "Object.freeze";
+  return ts.isNumericLiteral(e) || ts.isStringLiteralLike(e) || ts.isBigIntLiteral(e) || e.kind === ts.SyntaxKind.TrueKeyword || e.kind === ts.SyntaxKind.FalseKeyword || e.kind === ts.SyntaxKind.NullKeyword
+    || ts.isArrowFunction(e) || ts.isFunctionExpression(e) || ts.isIdentifier(e) || ts.isPropertyAccessExpression(e);
 }
 
 /** Every name a destructuring assignment target writes to, as expressions. */
@@ -123,6 +173,17 @@ function targetsOf(e: ts.Expression): ts.Expression[] {
   return [e];
 }
 
+/** Whether an identifier only names something (a label, the new name in `export { a as b }`) and refers to no variable. */
+function isNotReference(n: ts.Identifier): boolean {
+  const p = n.parent;
+  if ((ts.isLabeledStatement(p) || ts.isBreakOrContinueStatement(p)) && p.label === n) return true;
+  if (ts.isImportTypeNode(p) && p.qualifier === n) return true;
+  if (ts.isImportSpecifier(p) && p.propertyName === n) return true;
+  if (ts.isMetaProperty(p) && p.name === n) return true;
+  if (ts.isExportSpecifier(p) && p.parent.parent.moduleSpecifier !== undefined) return true;
+  return ts.isExportSpecifier(p) && p.propertyName !== undefined && p.name === n;
+}
+
 /** Whether `n` is a property's name rather than a reference to a variable (`row.fetch`, `{ fetch: 1 }`, `{ fetch() {} }`). */
 function isPropertyName(n: ts.Identifier): boolean {
   const p = n.parent;
@@ -133,9 +194,11 @@ function isPropertyName(n: ts.Identifier): boolean {
   return false;
 }
 
-/** Runs the rules on one TypeScript file's text; `wording` also holds the file to the words a Takeaway never says. */
-export function checkRules(file: string, text: string, options: { wording?: boolean } = {}): RuleProblem[] {
+/** Runs the rules on one TypeScript file's text; `wording` also holds the file to the words a Takeaway never says, and `code`
+ * (the default for method.ts, mark.ts and reference.ts) to having no variable at the top of the file that can change. */
+export function checkRules(file: string, text: string, options: { wording?: boolean; code?: boolean } = {}): RuleProblem[] {
   const out: RuleProblem[] = [];
+  const code = options.code ?? CODE_FILES.has(file);
   const syntax = ts.transpileModule(text, { fileName: file, reportDiagnostics: true, compilerOptions: { target: ts.ScriptTarget.ES2022 } }).diagnostics ?? [];
   const sf = ts.createSourceFile(file, text, ts.ScriptTarget.ES2022, true, ts.ScriptKind.TS);
   const lineOf = (n: ts.Node) => sf.getLineAndCharacterOfPosition(n.getStart(sf)).line + 1;
@@ -153,6 +216,17 @@ export function checkRules(file: string, text: string, options: { wording?: bool
     ts.forEachChild(n, collect);
   };
   collect(sf);
+  const declared = declaredNames(sf);
+  if (code) {
+    for (const s of sf.statements) {
+      if (!ts.isVariableStatement(s)) continue;
+      const isConst = (s.declarationList.flags & ts.NodeFlags.Const) !== 0;
+      for (const d of s.declarationList.declarations) {
+        if (!isConst) add("module-state", d, "is a variable at the top of the file that can change: state shared between calls. Use const.");
+        else if (!fixedValue(d)) add("module-state", d, "is a top-level value that can change (a list, object, Map or Set): write it `as const`, with a readonly type or in Object.freeze(…).");
+      }
+    }
+  }
 
   const checkModule = (n: ts.Node, spec: ts.Expression | undefined): void => {
     const name = spec && ts.isStringLiteralLike(spec) ? spec.text : null;
@@ -171,9 +245,14 @@ export function checkRules(file: string, text: string, options: { wording?: bool
 
     if (n.kind === ts.SyntaxKind.AnyKeyword) add("any-type", n, "uses the type any: write the type.");
 
-    if (ts.isIdentifier(n) && !isPropertyName(n)) {
+    if (n.kind === ts.SyntaxKind.ThisKeyword || n.kind === ts.SyntaxKind.ThisType || (ts.isIdentifier(n) && n.text === "this")) add("this-keyword", n, "uses this: what a value is depends on how it is called. Write a function over its arguments.");
+    else if (ts.isIdentifier(n) && !isPropertyName(n)) {
       const rule = Object.prototype.hasOwnProperty.call(IDENTIFIERS, n.text) ? IDENTIFIERS[n.text] : undefined;
       if (rule) add(rule, n, `uses “${n.text}”, which an Extension may not.`);
+      else if (!declared.has(n.text) && !ALLOWED_GLOBALS.has(n.text) && !isNotReference(n)) {
+        const p = n.parent;
+        if (n.text !== "Object" || !(ts.isPropertyAccessExpression(p) && p.expression === n && OBJECT_MEMBERS.has(p.name.text))) add("ambient-global", n, `uses “${n.text}”, which is neither declared in the file nor on the short list of what an Extension may use.`);
+      }
       // Math is allowed except its random numbers, so it must be used as Math.name and never handed around or taken apart.
       if (n.text === "Math") {
         const p = n.parent;
@@ -185,6 +264,7 @@ export function checkRules(file: string, text: string, options: { wording?: bool
       const name = n.name.text;
       if (ts.isIdentifier(n.expression) && n.expression.text === "Math" && name === "random") add("random", n, "uses Math.random: an Extension is deterministic.");
       if (REACHING.has(name)) add("reach-by-property", n, `reaches “${name}”, which leads to the Function constructor or the prototype chain.`);
+      if (LOCALE_METHODS.has(name)) add("locale", n, `uses ${name}, whose result depends on the machine's language settings.`);
     }
     if (ts.isElementAccessExpression(n)) {
       const a = n.argumentExpression;
@@ -192,12 +272,24 @@ export function checkRules(file: string, text: string, options: { wording?: bool
       if (onMath || textBuilt(a, texts)) add("string-access", n, "reaches a property by a string: write the name after a dot.");
     }
 
+    const find = (name: string | null): "local" | "param" | null => {
+      let found: "local" | "param" | null = null;
+      for (let i = scopes.length - 1; i >= 0 && !found; i--) found = scopes[i].locals.has(name ?? "") ? "local" : scopes[i].params.has(name ?? "") ? "param" : null;
+      return found;
+    };
+    // A call that changes what it is called on, when that is the input or something outside the function.
+    if (ts.isCallExpression(n) && ts.isPropertyAccessExpression(n.expression) && MUTATORS.has(n.expression.name.text)) {
+      const { name } = rootOf(n.expression.expression);
+      if (name !== null && name !== "this" && find(name) !== "local") add("outside-assignment", n, `calls ${n.expression.name.text} on “${name}”, which changes it; it is not a variable of the function (copy it first).`);
+    }
     const target = (e: ts.Expression): void => {
       for (const t of targetsOf(e)) {
         const { name, direct } = rootOf(t);
-        let found: "local" | "param" | null = null;
-        for (let i = scopes.length - 1; i >= 0 && !found; i--) found = scopes[i].locals.has(name ?? "") ? "local" : scopes[i].params.has(name ?? "") ? "param" : null;
+        const found = find(name);
+        if (name === "this") continue;
         if (name === null) add("outside-assignment", t, "assigns to something that is not a variable of the function.");
+        // A name declared nowhere in the file is reported once, as a global that is not on the list.
+        else if (found === null && !declared.has(name)) continue;
         else if (found === null) add("outside-assignment", t, `assigns to “${name}”, which is not declared inside the function.`);
         else if (found === "param" && !direct) add("outside-assignment", t, `changes what “${name}” holds, which the caller handed in: an Extension never changes its input.`);
       }

@@ -40,7 +40,10 @@ Each problem names its file and line, and the command ends with 1:
 They run on the TypeScript syntax tree, not on text patterns, in every `.ts` file of the folder:
 
 - **Imports:** only `@ziffr/extension-kit` and `@ziffr/figures`, by exactly those names. No relative file, no Node module, no dynamic `import()`, no `require`.
-- **Forbidden identifiers:** `Date`, `Math.random` (the rest of `Math` is fine), `process`, `globalThis`, `window`, `document`, `fetch`, `XMLHttpRequest`, `eval`, `Function`, `require`, `setTimeout` (and `setInterval`, `setImmediate`). They are refused however they are written: aliased, taken out of an object, as a type, or with an escape.
+- **Only a short list of globals:** a name the file did not declare or import is refused unless it is `Math` (not `Math.random`), `Number`, `String`, `Boolean`, `Array`, `Object` (only `keys`, `values`, `entries`, `freeze` and `fromEntries`), `JSON`, `Map`, `Set`, `BigInt`, `Infinity`, `NaN`, `undefined`, `isFinite`, `isNaN`, `parseFloat`, `parseInt`, `Symbol`, `Error`, `RangeError`, `TypeError` or a type name the compiler provides. So `Date`, `performance`, `crypto`, `process`, `globalThis`, `window`, `document`, `fetch`, `XMLHttpRequest`, `eval`, `Function`, `require`, `setTimeout`, `WebAssembly`, `Worker` and everything else are refused, however they are written: aliased, taken out of an object, as a type, or with an escape.
+- **Nothing that depends on the machine's language settings:** `Intl`, `localeCompare`, `toLocaleString` and the other `toLocale…` methods.
+- **No `this`.** An Extension is a function of its arguments.
+- **No state at the top of `method.ts`, `mark.ts` and `reference.ts`:** no `let` or `var`, and a top-level `const` holding a list, object, Map or Set must be `as const`, `Object.freeze(…)` or have a readonly type. Calling `push`, `sort`, `set` and the like on the input or on anything outside the function is refused (copy first).
 - **No property reached by a string:** `x["name"]`, a key built from pieces or kept in a constant, and `constructor`, `prototype` and `__proto__`, which lead back to `Function`.
 - **No `any`:** not as a type, in a generic or in an assertion.
 - **No assignment outside the function:** to a name the function did not declare, to a module variable or object, to `this`, or to what the caller handed in.

@@ -1,5 +1,5 @@
 {
-  "rule": "outside-assignment",
+  "rule": "ambient-global",
   "why": "assigns to a name it never declared",
   "remove": []
 }

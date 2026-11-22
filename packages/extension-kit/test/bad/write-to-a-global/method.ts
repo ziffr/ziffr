@@ -2,7 +2,7 @@
 import { refuse, type Refusal, type Series } from "@ziffr/extension-kit";
 
 /** The highest value minus the lowest; a refusal for fewer than two values, a value that is not a number, or a flat series. */
-const state = { calls: 0 };
+const state = Object.freeze({ calls: 0 });
 export function spread(series: Series): number | Refusal {
   state.calls += 1;
   if (series.length < 2) return refuse("needs at least two values");

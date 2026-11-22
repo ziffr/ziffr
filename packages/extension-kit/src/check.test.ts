@@ -13,7 +13,7 @@ const BAD = join(TEST, "bad");
 const REASONS = [
   "syntax", "import-not-allowed", "clock", "random", "ambient-global", "network", "dynamic-code", "timer", "string-access",
   "reach-by-property", "any-type", "outside-assignment", "forbidden-word", "missing-file", "empty-file", "wrong-implementation",
-  "too-long", "bad-manifest", "license-mismatch",
+  "too-long", "bad-manifest", "license-mismatch", "locale", "this-keyword", "module-state",
 ] as const;
 
 /** A bad Extension is the good example with the files of its folder laid over it, and the files `remove` names taken away. */

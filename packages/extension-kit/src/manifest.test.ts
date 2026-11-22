@@ -1,11 +1,11 @@
-import { readFileSync, writeFileSync } from "node:fs";
+import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 import { checkManifest, EXTENSION_SCHEMA } from "./manifest.js";
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "../../..");
-const GOOD = readFileSync(join(ROOT, "packages/extension-kit/test/good/example/extension.json"), "utf8");
+const GOOD = readFileSync(join(dirname(fileURLToPath(import.meta.url)), "../test/good/example/extension.json"), "utf8");
 const change = (fn: (m: Record<string, any>) => void) => { // eslint-disable-line @typescript-eslint/no-explicit-any
   const m = JSON.parse(GOOD);
   fn(m);
@@ -15,8 +15,9 @@ const change = (fn: (m: Record<string, any>) => void) => { // eslint-disable-lin
 describe("the published schema", () => {
   // The schema in docs/reference is generated from the definition the checks run, never written by hand.
   // UPDATE_REFERENCE=1 writes it.
-  it("docs/reference/extension.schema.json is the one the checks run", () => {
-    const path = join(ROOT, "docs/reference/extension.schema.json");
+  const path = join(ROOT, "docs/reference/extension.schema.json");
+  // Mutation testing runs the tests from a copy of the package, where the repository's docs are not.
+  it.skipIf(!existsSync(join(ROOT, "docs/reference")))("docs/reference/extension.schema.json is the one the checks run", () => {
     const generated = `${JSON.stringify(EXTENSION_SCHEMA, null, 2)}\n`;
     if (process.env.UPDATE_REFERENCE) writeFileSync(path, generated);
     expect(readFileSync(path, "utf8")).toBe(generated);

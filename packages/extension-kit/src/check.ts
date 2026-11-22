@@ -17,7 +17,7 @@ export type ExtensionProblem = { rule: RuleName | ShapeRule; file: string; line:
 export type ExtensionFiles = ReadonlyMap<string, string>;
 
 /** Counts the lines of a text the way an editor does: a final line break does not start another. */
-const lineCount = (text: string) => (text === "" ? 0 : text.replace(/\n$/, "").split("\n").length);
+const lineCount = (text: string) => text.replace(/\n$/, "").split("\n").length;
 
 /** The manifest's problems as Extension problems, each with its line of `extension.json`, and the manifest when it is sound. */
 function manifestProblems(text: string): { problems: ExtensionProblem[]; manifest?: ExtensionManifest } {
@@ -62,8 +62,10 @@ function shapeProblems(files: ExtensionFiles): { problems: ExtensionProblem[]; i
   }
   if (!mText && !has("method.ts") && !has("mark.ts")) add("missing-file", "method.ts", null, "is missing: an Extension has method.ts or mark.ts.");
   if (implementation) {
-    const n = lineCount(files.get(implementation) ?? "");
-    if (n > IMPLEMENTATION_MAX_LINES) add("too-long", implementation, IMPLEMENTATION_MAX_LINES + 1, `has ${n} lines; at most ${IMPLEMENTATION_MAX_LINES} are allowed, so that a person can read it all.`);
+    const text = files.get(implementation) ?? "";
+    const n = lineCount(text);
+    if (text.trim() === "") add("empty-file", implementation, 1, "is empty.");
+    else if (n > IMPLEMENTATION_MAX_LINES) add("too-long", implementation, IMPLEMENTATION_MAX_LINES + 1, `has ${n} lines; at most ${IMPLEMENTATION_MAX_LINES} are allowed, so that a person can read it all.`);
   }
   return { problems, implementation };
 }

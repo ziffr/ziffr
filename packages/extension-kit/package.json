@@ -44,14 +44,19 @@
     "build": "tsc -p tsconfig.build.json",
     "typecheck": "tsc --noEmit",
     "lint": "eslint",
-    "test": "vitest run"
+    "test": "vitest run",
+    "test:mutation": "stryker run"
   },
   "dependencies": {
     "@ziffr/pack": "workspace:*",
     "typescript": "^5"
   },
   "devDependencies": {
+    "@stryker-mutator/api": "10.1.1",
+    "@stryker-mutator/core": "10.1.1",
+    "@stryker-mutator/vitest-runner": "10.1.1",
     "@types/node": "^20",
+    "@vitest/coverage-v8": "4.1.12",
     "eslint": "^9.39.5",
     "eslint-plugin-jsdoc": "^65.4.5",
     "typescript-eslint": "^8.72.2",

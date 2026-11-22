@@ -1,0 +1,5 @@
+{
+  "rule": "random",
+  "why": "draws a random number with crypto",
+  "remove": []
+}

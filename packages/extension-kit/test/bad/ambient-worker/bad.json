@@ -1,0 +1,5 @@
+{
+  "rule": "ambient-global",
+  "why": "starts a Worker",
+  "remove": []
+}
