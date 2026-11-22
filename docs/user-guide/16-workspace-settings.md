@@ -1,5 +1,5 @@
 <!-- part: Screen by screen -->
-<!-- screens: apps/web/src/app/settings/workspace/**, apps/web/src/app/settings/keys/**, apps/web/src/app/settings/feeds/**, apps/web/src/app/settings/webhooks/**, apps/web/src/app/settings/your-webhooks/**, apps/web/src/app/settings/size/**, apps/web/src/app/settings/usage/**, apps/web/src/app/settings/page.tsx, apps/web/src/components/app-shell.tsx, apps/web/src/app/team/**, apps/web/src/app/connectors/**, apps/web/src/app/try/**, apps/web/src/app/sources/**, apps/web/src/app/audit/**, apps/web/src/app/welcome/**, apps/web/src/app/invite/**, apps/web/src/components/settings-nav.tsx, apps/web/src/lib/settings-links.ts -->
+<!-- screens: apps/web/src/app/settings/workspace/**, apps/web/src/app/settings/keys/**, apps/web/src/app/settings/feeds/**, apps/web/src/app/settings/webhooks/**, apps/web/src/app/settings/your-webhooks/**, apps/web/src/app/settings/size/**, apps/web/src/app/settings/usage/**, apps/web/src/app/settings/tags/**, apps/web/src/app/settings/page.tsx, apps/web/src/components/app-shell.tsx, apps/web/src/app/team/**, apps/web/src/app/connectors/**, apps/web/src/app/try/**, apps/web/src/app/sources/**, apps/web/src/app/audit/**, apps/web/src/app/welcome/**, apps/web/src/app/invite/**, apps/web/src/components/settings-nav.tsx, apps/web/src/lib/settings-links.ts -->
 # Workspace settings
 
 A **Workspace** is your team's own space in Ziffr. This chapter goes through its pages one by one: how a Workspace starts, how people join it, and every page behind the **Workspace** row of the sidebar.
@@ -392,6 +392,18 @@ In the demo, a **Demo controls** box shows two pretend inboxes, one for Slack an
 ## Packs
 
 Packs, ready-made Metric Catalog entries, templates, designs and Themes, have a chapter of their own: [Packs](19-packs.md). Open them with **Workspace → Packs**.
+
+## Tags
+
+**Workspace → Tags** lists the Workspace's **Tags**, the free words people put on Metrics, each with how many Metrics carry it; the count links to the Metrics list filtered by that Tag. You see a Tag, and count its Metrics, only through Metrics you may see: a Tag that only Metrics out of your sight carry is not listed to you. Members see the list and change nothing. Guests have no Tags page.
+
+Owners and Admins change the words for the whole Workspace:
+
+- **Rename** changes a Tag's spelling on every Metric. If another Tag you can see already has the name, Ziffr asks you to merge the two instead.
+- **Merge into…** moves every Metric of a Tag to another Tag and removes the first. A Metric that carries both keeps one.
+- **Delete** removes the Tag from every Metric. The confirmation says from how many Metrics you can see it goes, and "and any you cannot" when Metrics out of your sight carry it too. The Metrics themselves stay.
+
+Each of these is written to the **Audit log** (`tag.renamed`, `tag.merged`, `tag.deleted`). They are not available to programs or AI assistants. Adding a Tag to a Metric is done on the Metric's page (see [The Metrics screens](10-metrics.md#description)).
 
 ## Access Keys
 

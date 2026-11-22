@@ -1,5 +1,5 @@
 <!-- part: Screen by screen -->
-<!-- screens: apps/web/src/app/metrics/**, apps/web/src/app/paste-values/**, apps/web/src/app/submit/**, apps/web/src/components/target-chip.tsx, apps/web/src/components/metric-quick-look.tsx, apps/web/src/components/compare-strip.tsx, apps/web/src/components/compare-table.tsx, apps/web/src/components/status.tsx -->
+<!-- screens: apps/web/src/app/metrics/**, apps/web/src/app/paste-values/**, apps/web/src/app/submit/**, apps/web/src/components/target-chip.tsx, apps/web/src/components/metric-quick-look.tsx, apps/web/src/components/compare-strip.tsx, apps/web/src/components/compare-table.tsx, apps/web/src/components/status.tsx, apps/web/src/components/tag-chips.tsx, apps/web/src/lib/tag-filter.ts -->
 # The Metrics screens
 
 Every number your team tracks is a **Metric**. This chapter walks through every screen about Metrics: the list, describing a new one, a Metric's own page with its tabs, and the small form a Submitter opens to send in a value. Open them with **Metrics** in the sidebar.
@@ -29,6 +29,8 @@ The list shows every Metric you may see, one row each.
 | **Trend** | A small line of the last 30 periods, on wider screens. |
 | **Target** | Its **Target Range**, such as "≥ 80,000 €", "≤ 5 %", "40 – 60" or "No target". |
 | **Owner** | The **Metric Owner**, on wide screens. |
+
+Under a Metric's name, its **Tags** show as small chips, at most three and then "+2". Above the list, the **Tag** row offers the Tags of the Metrics you may see, each with how many Metrics of this view carry it (Archived Metrics count under **Archived** only). Click a Tag to show only the Metrics that carry it; click a second one to narrow further, so "finance" and "monthly" show the Metrics that carry both. **Clear** shows all again. The picked Tags are in the page address, so a filtered list can be bookmarked or sent to someone, who sees only the Metrics they may see themselves. You are offered a Tag only through a Metric you may see; a Tag that only Metrics out of your sight carry is not in the row.
 
 Click a row to open the Metric's page. **New metric** (top right) starts a new one. **Paste values** opens a page that records many values at once from a spreadsheet (see [Paste values from a spreadsheet](#paste-values-from-a-spreadsheet)). With no Metrics yet, the list says "No metrics yet" and offers **New metric**.
 
@@ -300,6 +302,8 @@ The Description tab has four boxes: the Metric Description, the Retention, the W
 The box lists the **Metric Description**: owner, period, format and decimals, which way is good, target and, for a Derived Metric, its **Formula**, written with the names of the Metrics it uses. For other Metrics it also shows how values arrive and what happens to a second value.
 
 **Values arrive by** can be changed right here by the owner and Editors: tick or untick **Web form**, **Mail**, **Slack**, **Telegram** and **API and Feeds**, then **Save**. At least one must stay ticked. From then on, values arriving another way are refused. The note under it says it is about the ways an answer is accepted: a request for a value goes only by one of them, and which of them a person gets is their own choice under **Who gets what, where**.
+
+**Tags** are free words such as `finance` or `weekly review` that group Metrics. The Metric Owner and Editors add them in the **Tags** row of this box: type a word and press **Enter** or **Add** (several words may be separated by commas); the Tags of the Workspace that you can see are offered as you type, and a new word is accepted as it is. Click the **×** on a chip to take a Tag off. A Metric has at most 10 Tags and a Workspace at most 200, and the page says what to do when a limit is reached. A Guest who is an Editor uses only Tags they can already see. People who may not change the Metric see its Tags as chips. A Tag is shown to you only through a Metric you may see and never shares anything or changes who sees a Metric. Adding or removing a Tag is a change in the Metric's **Versions**. Owners and Admins rename, merge and delete Tags under **Workspace → Tags** (see [Workspace settings](16-workspace-settings.md#tags)).
 
 **Edit details…** opens the description as a form, for the Metric Owner and Editors:
 

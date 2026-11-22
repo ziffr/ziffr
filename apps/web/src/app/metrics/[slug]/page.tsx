@@ -19,6 +19,7 @@ import { firstAsksFor } from "@ziffr/core/first-asks";
 import { NextPrompt } from "./next-prompt";
 import { SourcesEditor } from "./sources-editor";
 import { EditDetails } from "./edit-details";
+import { MetricTagChips, MetricTagsRow } from "./metric-tags";
 import { countryCode } from "@/lib/countries";
 import { currentActor, viewerId } from "@/lib/viewer";
 import { metricExtras } from "@ziffr/core/page-data";
@@ -177,10 +178,8 @@ export default async function MetricPage({ params, searchParams }: { params: Pro
   const periodTarget = last ? tSeries.find((t) => t.period === last.period) : undefined;
   // Says nothing of the inputs but that their periods differ: it may be read by someone who cannot see them.
   const derivedProblem = inputsProblem(metric, metrics);
-
-  // What the first requests really did, read from the Outbox's own records (only for its owner and Editors).
+  // The first requests as the Outbox recorded them (owner and Editors); the entry Tags it lacks are recomputed, never read from the address.
   const createdNote = await createdNoteFor(sp.created, canEdit, actor, metric.id);
-  // Recomputed here, never read from the address: the Tags of the entry this Metric came from that it does not carry.
   const tagsLeftOff = sp.created && canEdit ? await tagsLeftOffEntry(actor, metric.id) : [];
 
   return (
@@ -203,7 +202,7 @@ export default async function MetricPage({ params, searchParams }: { params: Pro
           archive={{ allowed: archivable && !demo, archived: Boolean(metric.archived_at) }} canDelete={isOwner && !demo}
         />
       </PageHeader>
-      <ArchivedNote archivedAt={metric.archived_at ?? null} />
+      <ArchivedNote archivedAt={metric.archived_at ?? null} /><MetricTagChips actor={actor} metricId={metric.id} />
 
       <div className="mb-4 grid gap-3 sm:grid-cols-3">
         <Stat label={last ? `Latest, ${periodLabel(last.period, metric.period, yearStart)}` : "Latest"}>
@@ -423,6 +422,7 @@ export default async function MetricPage({ params, searchParams }: { params: Pro
             </div>
             <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-2">
               <Row k="Owner"><Person p={peopleById[metric.owner_id]} /></Row>
+              <Row k="Tags"><MetricTagsRow actor={actor} metricId={metric.id} /></Row>
               <Row k="Period">{PERIOD_LABEL[metric.period]}</Row>
               <Row k="Format">{metric.format}{metric.unit && metric.format === "number" ? ` (${metric.unit})` : ""}, {metric.decimals} decimals</Row>
               <Row k="Which way is good">{POLARITY_LABEL[metric.polarity]}</Row>
