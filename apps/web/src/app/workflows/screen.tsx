@@ -333,7 +333,7 @@ function ChecklistFields({ s, people, tellFacts, onChange, field }: { s: Extract
   );
   const text = (
     <label className="block basis-full">
-      <span className="mb-1 block">Its words ({[...s.text].length} of {CHECKLIST_TEXT_MAX} characters)</span>
+      <span className="mb-1 block">Its words ({[...s.text].length} of {CHECKLIST_TEXT_MAX} characters; plain words, no line breaks or web addresses)</span>
       <textarea aria-label="Checklist item words" value={s.text} maxLength={CHECKLIST_TEXT_MAX} rows={2} onChange={(e) => onChange({ ...s, text: e.target.value })} className="w-full rounded-[var(--radius-input)] border border-input bg-card p-2 text-xs text-foreground" />
     </label>
   );

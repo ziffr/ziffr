@@ -251,6 +251,9 @@ describe("saving Checklist Items", () => {
     expect(config.steps.filter((s) => s.type === "remind")).toHaveLength(12);
     await expect(saveWorkflow(w.actor(sara), flow, "Month-end close", { dueWorkingDays: 2, steps: [item({ text: "   " }), publish] })).rejects.toThrow(/needs its words/);
     await expect(saveWorkflow(w.actor(sara), flow, "Month-end close", { dueWorkingDays: 2, steps: [item({ text: "x".repeat(CHECKLIST_TEXT_MAX + 1) }), publish] })).rejects.toThrow(/at most 500/);
+    for (const text of ["Two\nlines", "Pay at https://evil.example now", "See evil.com", "<b>bold</b>", "{metric}"]) {
+      await expect(saveWorkflow(w.actor(sara), flow, "Month-end close", { dueWorkingDays: 2, steps: [item({ text }), publish] })).rejects.toThrow(/plain words only/);
+    }
     await saveWorkflow(w.actor(sara), flow, "Month-end close", { dueWorkingDays: 2, steps: [item({ text: "é".repeat(CHECKLIST_TEXT_MAX) }), publish] });
     expect((await savedItems(flow))[0].text).toHaveLength(CHECKLIST_TEXT_MAX);
   });
