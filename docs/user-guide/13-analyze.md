@@ -52,7 +52,7 @@ A **Recipe** is a ready-made Analysis that runs with one click. Ziffr offers:
 | **Will we reach the Target?** | Puts Revenue on the canvas and runs **Forecast**; when Revenue has a Target, the Takeaway says how likely it is to be reached ("about 7 in 10"). |
 | **Do support tickets drive returns?** | Puts Return rate and Support tickets on the canvas and runs **Correlation**. |
 
-A Forecast says where the Metric is expected to be, with the range it is likely between, and which Method worked it out: a plain trend, or the trend with the yearly pattern when the Metric has two seasons of values and the pattern would have missed less on the last third of its history. It also says how that Method did on the periods already known ("within its range 10 of 12 times"). Show the numbers has the details. A forecast is not a promise; it assumes the pattern of the past carries on.
+A Forecast says where the Metric is expected to be, with the range it is likely between, and which Method worked it out: a plain trend, or the trend with the yearly pattern when the Metric has two seasons of values and the pattern would have missed less on the last third of its history. It also says how that Method did on the periods already known ("the range for the next month would have held 10 of 12 times"). Show the numbers has the details. A forecast is not a promise; it assumes the pattern of the past carries on.
 
 A Recipe replaces what is on the canvas with its own Metrics. Each one appears only when you can see the Metrics it needs. When none fits, the screen says "Recipes appear once the metrics they need are shared with you."
 
@@ -74,7 +74,7 @@ A dot for each period, placed by the two Metrics' values, and a **Takeaway** und
 
 - The word in brackets says how clear the link is: **strong**, **moderate**, **weak**, or **can't tell from chance**. The last one means the pattern is no clearer than what luck alone could give, so do not lean on it. Read more in [Reading a Takeaway](../guides/reading-a-takeaway.md).
 - Above the sentence, a plain line appears when something about the data makes the reading rough: a few periods far from the rest that pull the result ("without them it reads moderate"), values that are very uneven or repeat a lot, periods with no value that were left out, or a link that was stronger earlier than it has been since. A result with such a line is never called strong.
-- Under it, the same footer on every Takeaway: "This shows what has gone together, not what caused what."
+- Under it, a footer: "This shows what has gone together, not what caused what." for a link between Metrics, and "This carries the past forward; it is not a promise." for a Forecast.
 - **Show the numbers** opens the details for those who want them: the Method, r, how many pairs of periods and which, and what the Metrics were compared on. The choice of comparing the values as they are, not their change, is there too.
 
 Only periods where both Metrics have a value count, and at least six are needed. Where Ziffr cannot give a result it says why, in words and with no number: "Not enough months in common (4 of 6).", or that a Metric has hardly changed, so there is nothing to compare. It never turns a refusal into a number because you ask again.

@@ -189,3 +189,29 @@ export function referenceNormalCdf(z: number): number {
   const num = z >= 0 ? SCALE + erf : SCALE - erf;
   return nearestDoubleOf(fraction(num, 2n * SCALE));
 }
+
+/** Holt's spread factor from the recurrences themselves: a unit shock at time 1 (level α, trend α · β with β = 3/10), then no more misses; the
+ * prediction for time i + 1 is level + trend, which is the shock's effect c(i). The factor is 1 + Σ c(i)² for i from 1 to h − 1. */
+export function referenceHoltFactor(h: number): Exact {
+  const beta = fraction(3n, 10n);
+  let factor = whole(1);
+  for (let i = 1; i < h; i++) {
+    let level = α;
+    const trend = times(α, beta);
+    for (let t = 2; t <= i; t++) level = plus(level, trend);
+    const c = plus(level, trend);
+    factor = plus(factor, times(c, c));
+  }
+  return factor;
+}
+
+/** The same factor in its closed form, 1 + Σ (α · (1 + i · β))². */
+export function referenceHoltFactorClosed(h: number): Exact {
+  const beta = fraction(3n, 10n);
+  let factor = whole(1);
+  for (let i = 1; i < h; i++) {
+    const c = times(α, plus(whole(1), times(whole(i), beta)));
+    factor = plus(factor, times(c, c));
+  }
+  return factor;
+}

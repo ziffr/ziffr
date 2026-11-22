@@ -2,7 +2,7 @@
 // one writer, so a dashboard widget, a View Link, a deck, an email and the API all show the same sentence. English is the
 // only language so far. Numbers are written through the Workspace's Number Style and each Metric's unit (format.ts),
 // never by hand. No text here may hold a word a non-analyst would have to look up (the forbidden-word test lists them);
-// the footer is the one line that says "caused", because it says that nothing here is a cause.
+// the footer of a link between Metrics is the one line that says "caused", because it says that nothing here is a cause; a forecast has its own footer.
 import { formatNumber, formatValue, type ValueUnit } from "../format";
 import type { NumberStyle } from "../number-style";
 import type { StrengthWord } from "./strength";
@@ -19,6 +19,7 @@ const EN = {
   "strength-weak": "weak",
   "strength-cant-tell": "can't tell from chance",
   footer: "This shows what has gone together, not what caused what.",
+  "footer-forecast": "This carries the past forward; it is not a promise.",
   "basis-values": "compared by value",
   "basis-changes": "compared by change, growth removed",
   "basis-over": "{basis}, over {n} {periodsOf|n}",
@@ -55,19 +56,19 @@ const EN = {
   "caution-spread": "The misses grow as the level grows, so the ranges are rough.",
   "switch-percent": "The misses grow as the level grows, so ranges are worked out as a share of the level.",
   "switch-first-pass": "{drivers} Metrics are more than {have} {periods} can weigh, so the {allowed} that matter most were chosen first and the others left out.",
-  "fc-expected": "{name} is expected to be {value} by {from} (likely between {lo} and {hi}).",
-  "fc-reach-min": "At this pace {name} reaches {min} or more by {from}: {chance}.",
-  "fc-reach-max": "At this pace {name} stays at {max} or less by {from}: {chance}.",
-  "fc-reach-between": "At this pace {name} lands between {min} and {max} by {from}: {chance}.",
+  "fc-expected": "{name} is expected to be {value} in {from} (likely between {lo} and {hi}).",
+  "fc-reach-min": "At this pace {name} reaches {min} or more in {from}: {chance}.",
+  "fc-reach-max": "At this pace {name} stays at {max} or less in {from}: {chance}.",
+  "fc-reach-between": "At this pace {name} lands between {min} and {max} in {from}: {chance}.",
   "chance-about": "about {k} in 10",
   "chance-under": "under 1 in 20",
-  "chance-over": "over 19 in 20",
+  "chance-over": "at least 19 in 20",
   "fc-method-holt": "a plain trend (Holt)",
   "fc-method-holt-winters": "the trend and the yearly pattern (Holt-Winters)",
   "fc-method-holt-winters-weekly": "the trend and the weekly pattern (Holt-Winters)",
   "fc-basis": "worked out with {method}, over {n} {periodsOf|n}",
-  "fc-track": "Over the last {tested} {periodsOf|tested} this Method would have been within its range {inside} of {tested} times.",
-  "fc-track-none": "Too few {periods} yet to check how this Method did on the past.",
+  "fc-track": "Over the last {tested} {periodsOf|tested}, the range for the next {period} would have held {inside} of {tested} times.",
+  "fc-track-none": "Too few {periods} yet to check how this forecast did on the past.",
   "fc-assumes": "This assumes the pattern of the past carries on.",
   "fc-note-holt-better": "A plain trend missed no more than the {pattern} pattern on the last third of the {periods}, so the plain trend is used.",
   "fc-note-too-few": "Too few {periods} to check the {pattern} pattern against a plain trend, so a plain trend is used.",
@@ -78,6 +79,7 @@ const EN = {
   "refuse-too-far": "{name} cannot be looked at {ahead} {periodsOf|ahead} ahead; at most {most} {periodsOf|most}.",
   "refuse-by-past": "That date is not ahead: the latest value is for {from}.",
   "refuse-no-target": "{name} has no Target to reach.",
+  "refuse-target-ends": "The Target of {name} cannot be read: its lower end is above its upper end, or an end is not a number.",
   "refuse-huge": "The values of {name} are too large to look ahead from.",
   "numbers-method": "Method",
   "numbers-method-holt": "Holt's linear trend",

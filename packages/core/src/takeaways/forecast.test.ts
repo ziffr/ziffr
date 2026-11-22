@@ -14,14 +14,14 @@ import { metric, months } from "../test/fixtures";
 import { runs } from "../test/reference/check";
 import { referenceNormalCdf } from "../test/reference/forecast";
 import type { Point } from "../types";
-import { CHANCE, chanceCase, forecastTakeaway, limitsOf, maxAhead, TRACK_PERIODS } from "./forecast";
+import { CHANCE, chanceCase, forecastTakeaway, endsOf, maxAhead, TRACK_PERIODS } from "./forecast";
 import { WORDING, type Language } from "./wording";
 
 const { numRuns, seed } = runs();
 const fixture = JSON.parse(readFileSync(new URL("../test/reference/fixtures/forecast.json", import.meta.url), "utf8"));
 const suitability = JSON.parse(readFileSync(new URL("../test/reference/fixtures/suitability.json", import.meta.url), "utf8"));
 const FORBIDDEN = /cause|because|significan|p-value|regression|r²|\br2\b|coefficient|confiden/i;
-const FOOTER = "This shows what has gone together, not what caused what.";
+const FOOTER = "This carries the past forward; it is not a promise.";
 const ctx = { style: "1,234.5" as const };
 const euro = metric({ slug: "revenue", name: "Revenue", unit: "€", unit_position: "after", decimals: 0, period: "month" });
 type Case = { season: number; values: (number | null)[]; periods: string[] };
@@ -33,12 +33,12 @@ const texts = (t: ReturnType<typeof forecastTakeaway>) => [t.sentence, t.refusal
 const money = (v: number, style: (typeof NUMBER_STYLES)[number] = "1,234.5") => formatValue(euro, v, style);
 
 describe("what a Target asks for", () => {
-  it("is the lower limit where higher is better, the upper where lower is better, both where closer is better, none without a limit", () => {
-    expect(limitsOf({ polarity: "higher", target_min: 100, target_max: 200 })).toEqual({ min: 100, max: null });
-    expect(limitsOf({ polarity: "lower", target_min: 100, target_max: 200 })).toEqual({ min: null, max: 200 });
-    expect(limitsOf({ polarity: "target", target_min: 100, target_max: 200 })).toEqual({ min: 100, max: 200 });
-    expect(limitsOf({ polarity: "higher", target_min: null, target_max: 200 })).toEqual({ min: null, max: null });
-    expect(limitsOf({ polarity: "lower", target_min: 100, target_max: null })).toEqual({ min: null, max: null });
+  it("is the lower end where higher is better, the upper where lower is better, both where closer is better, none without a end", () => {
+    expect(endsOf({ polarity: "higher", target_min: 100, target_max: 200 })).toEqual({ min: 100, max: null });
+    expect(endsOf({ polarity: "lower", target_min: 100, target_max: 200 })).toEqual({ min: null, max: 200 });
+    expect(endsOf({ polarity: "target", target_min: 100, target_max: 200 })).toEqual({ min: 100, max: 200 });
+    expect(endsOf({ polarity: "higher", target_min: null, target_max: 200 })).toEqual({ min: null, max: null });
+    expect(endsOf({ polarity: "lower", target_min: 100, target_max: null })).toEqual({ min: null, max: null });
   });
   it("lets a forecast look a season ahead, and at least the span's default", () => {
     expect(["day", "week", "month", "quarter", "half", "year"].map((s) => maxAhead(s as "day"))).toEqual([14, 52, 12, 4, 2, 1]);
@@ -46,25 +46,29 @@ describe("what a Target asks for", () => {
 });
 
 describe("how a chance is said", () => {
-  it("is under 1 in 20 below 5 %, over 19 in 20 from 95 %, else in tenths, one step either side of each", () => {
-    expect(CHANCE).toEqual({ under: 0.05, over: 0.95 });
-    const next = (x: number) => x + Number.EPSILON;
-    expect(chanceCase(0)).toMatchObject({ key: "chance-under" });
-    expect(chanceCase(0.05 - 1e-12)).toMatchObject({ key: "chance-under" });
-    expect(chanceCase(0.05)).toEqual({ key: "chance-about", k: 1 });
-    expect(chanceCase(0.95 - 1e-12)).toEqual({ key: "chance-about", k: 10 - 1 });
-    expect(chanceCase(0.95)).toMatchObject({ key: "chance-over" });
-    expect(chanceCase(1)).toMatchObject({ key: "chance-over" });
-    // Tenths round half up: 0.45 is 5 in 10 (as 0.45 × 10 is 4.5 exactly in a double), 0.449… is 4.
-    expect(chanceCase(0.5)).toEqual({ key: "chance-about", k: 5 });
-    expect(chanceCase(0.44999)).toEqual({ key: "chance-about", k: 4 });
-    expect(chanceCase(0.45).k).toBe(Math.round(0.45 * 10));
-    expect(chanceCase(next(0.7)).k).toBe(7);
+  it("is under 1 in 20 below 5 %, at least 19 in 20 from 95 %, else in tenths of the percentage shown, one step either side of each", () => {
+    expect(CHANCE).toEqual({ under: 5, over: 95 });
+    expect(chanceCase(0)).toEqual({ key: "chance-under", k: 0, percent: 1 });
+    expect(chanceCase(0.0449)).toEqual({ key: "chance-under", k: 0, percent: 4 });
+    // 4.5 % rounds to the 5 % it is shown as, and the words follow the percentage: "about 1 in 10" beside 5 %.
+    expect(chanceCase(0.045)).toEqual({ key: "chance-about", k: 1, percent: 5 });
+    expect(chanceCase(0.05)).toEqual({ key: "chance-about", k: 1, percent: 5 });
+    expect(chanceCase(0.9449)).toEqual({ key: "chance-about", k: 9, percent: 94 });
+    // 94.5 % is shown as 95 % and is said "at least 19 in 20", which 95 % is.
+    expect(chanceCase(0.945)).toEqual({ key: "chance-over", k: 10, percent: 95 });
+    expect(chanceCase(0.95)).toEqual({ key: "chance-over", k: 10, percent: 95 });
+    expect(chanceCase(1)).toEqual({ key: "chance-over", k: 10, percent: 99 });
+    expect(chanceCase(0.5)).toEqual({ key: "chance-about", k: 5, percent: 50 });
+    expect(chanceCase(0.44)).toEqual({ key: "chance-about", k: 4, percent: 44 });
+    expect(chanceCase(0.45)).toEqual({ key: "chance-about", k: 5, percent: 45 });
   });
-  it("never says 0 in 10 or 10 in 10: the tenths between the two limits are 1 to 9", () => {
+  it("never shows 0 % or 100 %, and the words always agree with the percentage", () => {
     fc.assert(
       fc.property(fc.double({ min: 0, max: 1, noNaN: true }), (p) => {
         const c = chanceCase(p);
+        expect(c.percent >= 1 && c.percent <= 99).toBe(true);
+        expect(c.key === "chance-under").toBe(c.percent < 5);
+        expect(c.key === "chance-over").toBe(c.percent >= 95);
         if (c.key === "chance-about") expect(c.k >= 1 && c.k <= 9).toBe(true);
       }),
       { numRuns, seed },
@@ -80,7 +84,7 @@ describe("a forecast's Takeaway", () => {
     const [value, sd] = [py[2].double, py[2].sd];
     const [lo, hi] = [value - Z80 * sd, value + Z80 * sd];
     expect(t.kind).toBe("answer");
-    expect(t.sentence).toBe(`Revenue is expected to be ${money(value)} by March 2023 (likely between ${money(lo)} and ${money(hi)}).`);
+    expect(t.sentence).toBe(`Revenue is expected to be ${money(value)} in March 2023 (likely between ${money(lo)} and ${money(hi)}).`);
     expect(t.range).toEqual({ lo, hi, text: `${money(lo)} – ${money(hi)}` });
     expect(t.figures).toEqual([{ label: "Expected", value, text: money(value) }, { label: "Likely between (low)", value: lo, text: money(lo) }, { label: "Likely between (high)", value: hi, text: money(hi) }]);
     expect(t.strength).toBeNull();
@@ -96,7 +100,7 @@ describe("a forecast's Takeaway", () => {
     const t = forecastTakeaway(euro, points36, ctx);
     const record = backtest(points36, "month", 12, "holtWinters", TRACK_PERIODS)!;
     expect(record.tested).toBe(12);
-    expect(t.track).toBe(`Over the last 12 months this Method would have been within its range ${record.inBand} of 12 times.`);
+    expect(t.track).toBe(`Over the last 12 months, the range for the next month would have held ${record.inBand} of 12 times.`);
     const row = (label: string) => t.numbers.find((n) => n.label === label)?.text;
     expect(row("Periods tested")).toBe("12");
     expect(row("Inside the range")).toBe(String(record.inBand));
@@ -153,7 +157,7 @@ describe("a forecast's Takeaway", () => {
   });
   it("says the Method, the range and the numbers it leaves out: no track record where nothing could be tested (four values)", () => {
     const t = forecastTakeaway(euro, months("2025-01", [10, 12, 11, 15]), ctx);
-    expect(t.track).toBe("Too few months yet to check how this Method did on the past.");
+    expect(t.track).toBe("Too few months yet to check how this forecast did on the past.");
     expect(t.numbers.map((n) => n.label)).toEqual(["Method", "Smoothing (level, trend, pattern)", "Expected", "Likely between"]);
     expect(t.numbers[0].text).toBe("Holt's linear trend");
     expect(t.numbers[3].text).toBe(t.range!.text);
@@ -165,7 +169,15 @@ describe("a forecast's Takeaway", () => {
     const t = forecastTakeaway(daily, pts, ctx);
     expect(t.method).toBe("Holt-Winters, additive");
     expect(t.basis).toBe("worked out with the trend and the weekly pattern (Holt-Winters), over 35 days");
-    expect(t.sentence).toMatch(/ by Tue 18 Feb 2025 \(likely between /);
+    expect(t.sentence).toMatch(/ in Tue 18 Feb 2025 \(likely between /);
+  });
+  it("has the footer of a forecast, not the one of a link between Metrics, and looks at the latest 120 periods only", () => {
+    const t = forecastTakeaway(euro, points36, ctx);
+    expect(t.footer).toBe("This carries the past forward; it is not a promise.");
+    expect(t.footer).not.toContain("gone together");
+    const long = months("1990-01", Array.from({ length: 200 }, (_, i) => 100 + ((i * 7) % 11) + 2 * i));
+    expect(forecastTakeaway(euro, long, ctx)).toEqual(forecastTakeaway(euro, long.slice(-120), ctx));
+    expect(forecastTakeaway(euro, long, ctx)).not.toEqual(forecastTakeaway(euro, long.slice(-119), ctx));
   });
   it("is the same twice, and does not change what it is given", () => {
     const before = JSON.stringify(points36);
@@ -185,50 +197,56 @@ describe("a forecast's Takeaway", () => {
 describe("the chance of reaching the Target", () => {
   const pts = points("airline-last-36");
   const [value, sd] = [fixture.cases["airline-last-36"].holtWinters.ahead[2].double, fixture.cases["airline-last-36"].holtWinters.ahead[2].sd];
-  const chanceOf = (limit: number, side: "min" | "max") => referenceNormalCdf(side === "min" ? (value - limit) / sd : (limit - value) / sd);
+  const chanceOf = (end: number, side: "min" | "max") => referenceNormalCdf(side === "min" ? (value - end) / sd : (end - value) / sd);
   it("says it in tenths: a Target at the expected value is about 5 in 10, and the figure is the tenths", () => {
-    const t = forecastTakeaway(euro, pts, ctx, { limits: { min: value, max: null } });
-    expect(t.sentence).toBe(`At this pace Revenue reaches ${money(value)} or more by March 2023: about 5 in 10.`);
+    const t = forecastTakeaway(euro, pts, ctx, { ends: { min: value, max: null } });
+    expect(t.sentence).toBe(`At this pace Revenue reaches ${money(value)} or more in March 2023: about 5 in 10.`);
     expect(t.figures).toEqual([{ label: "Target, at least", value, text: money(value) }, { label: "In ten", value: 5, text: "5" }]);
     expect(t.numbers.find((n) => n.label === "Chance of reaching the Target")?.text).toBe("50 %");
     expect(t.range).not.toBeNull();
   });
   it("reads the chance from SciPy's normal curve: the Target 0.5244 spreads below the expected value is 7 in 10, and the number shown is the percentage", () => {
-    const limit = value - 0.5244005101 * sd;
-    const t = forecastTakeaway(euro, pts, ctx, { limits: { min: limit, max: null } });
+    const end = value - 0.5244005101 * sd;
+    const t = forecastTakeaway(euro, pts, ctx, { ends: { min: end, max: null } });
     expect(t.sentence).toContain(": about 7 in 10.");
     const shown = Number(t.numbers.find((n) => n.label === "Chance of reaching the Target")!.text.replace(" %", ""));
-    expect(shown).toBe(Math.round(100 * chanceOf(limit, "min")));
+    expect(shown).toBe(Math.round(100 * chanceOf(end, "min")));
   });
-  it("says under 1 in 20 and over 19 in 20 with no tenth, at 2 spreads away; and an upper limit and a band in their own words", () => {
-    const far = forecastTakeaway(euro, pts, ctx, { limits: { min: value + 2 * sd, max: null } });
-    expect(far.sentence).toBe(`At this pace Revenue reaches ${money(value + 2 * sd)} or more by March 2023: under 1 in 20.`);
+  it("says under 1 in 20 and at least 19 in 20 with no tenth, at 2 spreads away; and an upper end and a band in their own words", () => {
+    const far = forecastTakeaway(euro, pts, ctx, { ends: { min: value + 2 * sd, max: null } });
+    expect(far.sentence).toBe(`At this pace Revenue reaches ${money(value + 2 * sd)} or more in March 2023: under 1 in 20.`);
     expect(far.figures.map((f) => f.label)).toEqual(["Target, at least"]);
-    expect(forecastTakeaway(euro, pts, ctx, { limits: { min: value - 2 * sd, max: null } }).sentence).toMatch(/: over 19 in 20\.$/);
-    const upper = forecastTakeaway(euro, pts, ctx, { limits: { min: null, max: value + 0.2533 * sd } });
-    expect(upper.sentence).toBe(`At this pace Revenue stays at ${money(value + 0.2533 * sd)} or less by March 2023: about 6 in 10.`);
-    const band = forecastTakeaway(euro, pts, ctx, { limits: { min: value - sd, max: value + sd } });
-    expect(band.sentence).toBe(`At this pace Revenue lands between ${money(value - sd)} and ${money(value + sd)} by March 2023: about 7 in 10.`);
+    expect(forecastTakeaway(euro, pts, ctx, { ends: { min: value - 2 * sd, max: null } }).sentence).toMatch(/: at least 19 in 20\.$/);
+    const upper = forecastTakeaway(euro, pts, ctx, { ends: { min: null, max: value + 0.2533 * sd } });
+    expect(upper.sentence).toBe(`At this pace Revenue stays at ${money(value + 0.2533 * sd)} or less in March 2023: about 6 in 10.`);
+    const band = forecastTakeaway(euro, pts, ctx, { ends: { min: value - sd, max: value + sd } });
+    expect(band.sentence).toBe(`At this pace Revenue lands between ${money(value - sd)} and ${money(value + sd)} in March 2023: about 7 in 10.`);
     expect(band.figures.map((f) => f.label)).toEqual(["Target, at least", "Target, at most", "In ten"]);
     expect(upper.figures.map((f) => f.label)).toEqual(["Target, at most", "In ten"]);
   });
   it("looks at the period asked for, up to a season ahead, and refuses one past it, and one that is not ahead", () => {
-    const ok = forecastTakeaway(euro, pts, ctx, { limits: { min: 400, max: null }, by: "2023-12-01" });
+    const ok = forecastTakeaway(euro, pts, ctx, { ends: { min: 400, max: null }, by: "2023-12-01" });
     expect(ok.kind).toBe("answer");
-    expect(ok.sentence).toContain("by December 2023");
-    expect(forecastTakeaway(euro, pts, ctx, { limits: { min: 400, max: null }, by: "2024-01-01" }).refusal).toBe("Revenue cannot be looked at 13 months ahead; at most 12 months.");
+    expect(ok.sentence).toContain("in December 2023");
+    expect(forecastTakeaway(euro, pts, ctx, { ends: { min: 400, max: null }, by: "2024-01-01" }).refusal).toBe("Revenue cannot be looked at 13 months ahead; at most 12 months.");
     expect(forecastTakeaway(euro, pts, ctx, { by: "2022-12-01" }).refusal).toBe("That date is not ahead: the latest value is for December 2022.");
     expect(forecastTakeaway(euro, pts, ctx, { by: "2023-01-01" }).kind).toBe("answer");
-    expect(forecastTakeaway(euro, pts, ctx, { by: "2023-01-01" }).sentence).toContain("by January 2023");
+    expect(forecastTakeaway(euro, pts, ctx, { by: "2023-01-01" }).sentence).toContain("in January 2023");
   });
   it("matches the plain forecast: asking for a Target changes the sentence, not the numbers", () => {
     const plain = forecastTakeaway(euro, pts, ctx);
-    const asked = forecastTakeaway(euro, pts, ctx, { limits: { min: 400, max: null } });
+    const asked = forecastTakeaway(euro, pts, ctx, { ends: { min: 400, max: null } });
     expect(asked.range).toEqual(plain.range);
     expect(asked.numbers.filter((n) => n.label !== "Chance of reaching the Target")).toEqual(plain.numbers);
   });
+  it("is a refusal in words, not a chance, for a Target whose lower end is above its upper end or that is not a number", () => {
+    for (const ends of [{ min: 200, max: 100 }, { min: NaN, max: null }, { min: null, max: Infinity }]) {
+      expect(forecastTakeaway(euro, pts, ctx, { ends }), JSON.stringify(ends)).toMatchObject({ kind: "refusal", refusal: "The Target of Revenue cannot be read: its lower end is above its upper end, or an end is not a number.", sentence: null, figures: [], numbers: [] });
+    }
+    expect(forecastTakeaway(euro, pts, ctx, { ends: { min: 100, max: 100 } }).kind).toBe("answer");
+  });
   it("is a refusal, with its words, for a Metric with no Target", () => {
-    expect(forecastTakeaway(euro, pts, ctx, { limits: { min: null, max: null } })).toMatchObject({ kind: "refusal", refusal: "Revenue has no Target to reach.", sentence: null, track: null, figures: [], numbers: [] });
+    expect(forecastTakeaway(euro, pts, ctx, { ends: { min: null, max: null } })).toMatchObject({ kind: "refusal", refusal: "Revenue has no Target to reach.", sentence: null, track: null, figures: [], numbers: [] });
   });
   it("says what the past fit with no miss makes too sure: a series that is exactly a line and a pattern, and gives chance 1 or 0 exactly", () => {
     const q = metric({ ...euro, period: "quarter" });
@@ -236,8 +254,8 @@ describe("the chance of reaching the Target", () => {
     const t = forecastTakeaway(q, exact, ctx);
     expect(t.cautions).toEqual(["The past values fit this pattern with no miss at all, so the range and the chance may be too sure."]);
     expect(t.range!.lo).toBe(t.range!.hi);
-    expect(forecastTakeaway(q, exact, ctx, { limits: { min: 0, max: null } }).sentence).toMatch(/: over 19 in 20\.$/);
-    expect(forecastTakeaway(q, exact, ctx, { limits: { min: 1000, max: null } }).sentence).toMatch(/: under 1 in 20\.$/);
+    expect(forecastTakeaway(q, exact, ctx, { ends: { min: 0, max: null } }).sentence).toMatch(/: at least 19 in 20\.$/);
+    expect(forecastTakeaway(q, exact, ctx, { ends: { min: 1000, max: null } }).sentence).toMatch(/: under 1 in 20\.$/);
   });
 });
 
@@ -311,7 +329,7 @@ describe("the invariants over generated series", () => {
       fc.property(series, fc.option(fc.integer({ min: -20, max: 300 }), { nil: null }), fc.constantFrom("month", "quarter", "week" as const), (vs, goal, period) => {
         const m = metric({ ...euro, period: period as "month" });
         const pts = vs.map((value, i) => ({ period: shiftPeriod(period === "week" ? "2024-01-01" : "2024-01-01", period as "month", i), value }));
-        const t = forecastTakeaway(m, pts, ctx, goal === null ? {} : { limits: { min: goal, max: null } });
+        const t = forecastTakeaway(m, pts, ctx, goal === null ? {} : { ends: { min: goal, max: null } });
         expect(forecastTakeaway(m, pts, ctx)).toEqual(forecastTakeaway(m, pts, ctx));
         for (const text of texts(t)) expect(text.replace(FOOTER, ""), text).not.toMatch(FORBIDDEN);
         if (t.kind === "refusal") {

@@ -4,15 +4,15 @@
 // how that Method did on the periods already known. After the suitability checks, in words, never a quiet number. Pure.
 //
 // What a forecast Takeaway does not say: a strength word (nothing here is a link between Metrics), and any promise: it says what it
-// assumes. The chance is the share of a normal curve around the forecast that lies within the Target's limits, with the spread the
-// Method showed on the past; the track record says how well such ranges held. Shown as a percentage it is never 0 or 100: a forecast is not certain. "Likely between" is the 80 % range (1.2816 spreads).
+// assumes. The chance is the share of a normal curve around the forecast that lies within the Target's ends, with the spread the
+// Method showed on the past; the track record says how well such ranges held. The percentage shown is never 0 or 100: a forecast is not certain. "Likely between" is the 80 % range (1.2816 spreads).
 import { readSeries } from "../basis";
 import { formatNumber, formatValue } from "../format";
 import { HORIZON } from "../forecast";
-import { bestForecast } from "../methods/forecast-choice";
+import { bestForecast, LATEST_PERIODS } from "../methods/forecast-choice";
 import { SMOOTHING } from "../methods/holt-winters";
 import { Z80 } from "../methods/normal-curve";
-import { reachChance, type Limits } from "../methods/reach-chance";
+import { reachChance, type TargetEnds } from "../methods/reach-chance";
 import { backtest, type Candidate } from "../methods/track-record";
 import { periodsBetween, type Span } from "../periods";
 import { checkSuitability, minimumPeriods, SEASON_LENGTH, type Finding, type Rerun, type SuitabilityInputs } from "../suitability";
@@ -22,30 +22,32 @@ import { say, type CaseKey, type Slots } from "./wording";
 
 /** How many of the latest periods the track record looks at. */
 export const TRACK_PERIODS = 12;
-/** A chance below `under` is said "under 1 in 20" and one from `over` "over 19 in 20"; between, in tenths, rounded. */
-export const CHANCE = { under: 0.05, over: 0.95 } as const;
+/** A chance (in %) below `under` is said "under 1 in 20" and one from `over` "at least 19 in 20"; between, in tenths, rounded. */
+export const CHANCE = { under: 5, over: 95 } as const;
 
-/** What a Metric's Target asks for, from its Polarity and Target Range: higher is better, at least the lower limit; lower is better, at most the upper
- * limit; closer to target, within both. A limit that is not set is null; with none set there is no Target. */
-export function limitsOf(metric: Pick<Metric, "polarity" | "target_min" | "target_max">): Limits {
+/** What a Metric's Target asks for, from its Polarity and Target Range: higher is better, at least the lower end; lower is better, at most the upper
+ * end; closer to target, within both. A end that is not set is null; with none set there is no Target. */
+export function endsOf(metric: Pick<Metric, "polarity" | "target_min" | "target_max">): TargetEnds {
   if (metric.polarity === "higher") return { min: metric.target_min, max: null };
   if (metric.polarity === "lower") return { min: null, max: metric.target_max };
   return { min: metric.target_min, max: metric.target_max };
 }
 
-/** How a chance is said: "under 1 in 20" below 5 %, "over 19 in 20" from 95 %, else "about k in 10" with k the chance in tenths, rounded. */
-export function chanceCase(p: number): { key: "chance-under" | "chance-about" | "chance-over"; k: number } {
-  const k = Math.round(p * 10);
-  return { key: p < CHANCE.under ? "chance-under" : p >= CHANCE.over ? "chance-over" : "chance-about", k };
+/** How a chance is said and shown: the percentage is the chance rounded, never below 1 or above 99 (a forecast is not certain); "under 1 in 20" is below
+ * 5 %, "at least 19 in 20" from 95 %, else "about k in 10" with k that percentage in tenths, rounded. The words and the percentage never disagree. */
+export function chanceCase(p: number): { key: "chance-under" | "chance-about" | "chance-over"; k: number; percent: number } {
+  const percent = Math.min(99, Math.max(1, Math.round(p * 100)));
+  const key = percent < CHANCE.under ? "chance-under" : percent >= CHANCE.over ? "chance-over" : "chance-about";
+  return { key, k: Math.round(percent / 10), percent };
 }
 
 /** How far ahead a forecast is asked: a whole season, and at least the default of the span. */
 export const maxAhead = (span: Span): number => Math.max(HORIZON[span], SEASON_LENGTH[span]);
 
-/** What is asked of a forecast Takeaway: the Target's limits (the Recipe "Will we reach the Target?") and the period to look at (the end of the default horizon where not given). */
-export type ForecastAsk = { limits?: Limits; by?: string };
+/** What is asked of a forecast Takeaway: the Target's ends (the Recipe "Will we reach the Target?") and the period to look at (the end of the default horizon where not given). */
+export type ForecastAsk = { ends?: TargetEnds; by?: string };
 
-/** The Takeaway of a Metric's forecast: the expected value and range, or with `ask.limits` the chance of reaching the Target, the Method used and why, its track
+/** The Takeaway of a Metric's forecast: the expected value and range, or with `ask.ends` the chance of reaching the Target, the Method used and why, its track
  * record, and the numbers. A refusal says what is missing. The points are only read. */
 export function forecastTakeaway(metric: Metric, points: Point[], ctx: TakeawayContext, ask: ForecastAsk = {}): Takeaway {
   const span = metric.period;
@@ -53,12 +55,12 @@ export function forecastTakeaway(metric: Metric, points: Point[], ctx: TakeawayC
   const text = (key: CaseKey, slots: Slots = {}) => say(key, { span, ...slots }, { style: ctx.style, language: ctx.language, yearStart: ctx.yearStart, result: (v) => formatValue(metric, v, ctx.style) });
   const value = (v: number) => ({ value: v, unit: metric });
   const refuse = (...lines: string[]) => refusalTakeaway(text("numbers-method-holt"), lines);
-  const rows = readSeries(points);
+  const rows = readSeries(points).slice(-LATEST_PERIODS);
   const series = [{ name: metric.name, points: rows }];
   const check = (method: "forecast" | "seasonal", more: Partial<SuitabilityInputs> = {}) => checkSuitability(method, { series, span, seasonLength: season, ...more });
   const lines = (found: Finding[]) => found.map((f) => text(f.case, f.slots));
 
-  if (ask.limits && ask.limits.min === null && ask.limits.max === null) return refuse(text("refuse-no-target", { name: metric.name }));
+  if (ask.ends && ask.ends.min === null && ask.ends.max === null) return refuse(text("refuse-no-target", { name: metric.name }));
   const base = check("forecast");
   if (base.refusals.length > 0) return refuse(...lines(base.refusals));
   const last = rows[rows.length - 1].period;
@@ -99,10 +101,11 @@ export function forecastTakeaway(metric: Metric, points: Point[], ctx: TakeawayC
   let sentence: string;
   let figures: Takeaway["figures"];
   let chance: number | null = null;
-  if (ask.limits) {
-    const { min, max } = ask.limits;
-    // The limits are finite numbers and the forecast and its spread were checked to be, so there is a chance.
-    chance = reachChance({ value: target.value, sd: target.sd }, ask.limits)!;
+  if (ask.ends) {
+    const { min, max } = ask.ends;
+    chance = reachChance({ value: target.value, sd: target.sd }, ask.ends);
+    // The forecast and its spread were checked to be numbers, so no chance means a Target that cannot be read (its lower end above its upper).
+    if (chance === null) return refuse(text("refuse-target-ends", { name: metric.name }));
     const { key: wording, k: tenths } = chanceCase(chance);
     const inTenths = wording === "chance-about";
     const said = text(wording, { k: tenths });
@@ -128,7 +131,7 @@ export function forecastTakeaway(metric: Metric, points: Point[], ctx: TakeawayC
     { label: text("numbers-smoothing"), text: [SMOOTHING.level, SMOOTHING.trend, SMOOTHING.season].slice(0, method === "holt" ? 2 : 3).map((f) => formatNumber(Number(f.num) / Number(f.den), 1, ctx.style)).join(", ") },
     { label: expected, text: written(target.value) },
     { label: range, text: `${written(lo)} – ${written(hi)}` },
-    ...(chance === null ? [] : [{ label: text("numbers-chance"), text: `${formatNumber(Math.min(99, Math.max(1, Math.round(chance * 100))), 0, ctx.style)} %` }]),
+    ...(chance === null ? [] : [{ label: text("numbers-chance"), text: `${formatNumber(chanceCase(chance).percent, 0, ctx.style)} %` }]),
     ...(record ? [{ label: text("numbers-tested"), text: formatNumber(record.tested, 0, ctx.style) }, { label: text("numbers-inside"), text: formatNumber(record.inBand, 0, ctx.style) }, { label: text("numbers-miss"), text: written(record.typicalMiss) }] : []),
     ...(third ? [{ label: text("numbers-third-holt"), text: written(third.holt!.typicalMiss) }, { label: text("numbers-third-holt-winters"), text: written(third.seasonal!.typicalMiss) }, { label: text("numbers-third-n"), text: formatNumber(third.holt!.tested, 0, ctx.style) }] : []),
   ];
@@ -141,7 +144,7 @@ export function forecastTakeaway(metric: Metric, points: Point[], ctx: TakeawayC
     cautions,
     notes,
     track: record ? text("fc-track", { tested: record.tested, inside: record.inBand }) : text("fc-track-none"),
-    footer: text("footer"),
+    footer: text("footer-forecast"),
     figures,
     numbers,
   };

@@ -48,6 +48,17 @@ export function holtFit(ys: Fraction[]): { level: Fraction; trend: Fraction; squ
   return { level, trend, squares, steps };
 }
 
+/** The factor the one-step variance is multiplied by `h` periods ahead under Holt's own model, exactly: 1 + Σ c(j)² for j from 1 to h − 1, with c(j) = α · (1 + j · β)
+ * (a miss moves the level by α and the trend by α · β, and the trend works for each later period). The band drawn below keeps √h, as it always did. */
+export function holtSpreadFactor(h: number): Fraction {
+  let factor = ONE;
+  for (let j = 1; j < h; j++) {
+    const c = times(ALPHA, plus(ONE, times(BETA, f(j, 1))));
+    factor = lowestTerms(plus(factor, times(c, c)));
+  }
+  return factor;
+}
+
 /** Holt's linear trend (double exponential smoothing) with a widening ~95% band, for the points in their order. */
 export function forecast(points: Point[], period: Span, horizon = HORIZON[period]) {
   if (points.length < FORECAST_MIN_POINTS) return null;
@@ -60,5 +71,5 @@ export function forecast(points: Point[], period: Span, horizon = HORIZON[period
     const spread = 1.96 * sd * Math.sqrt(h);
     out.push({ period: shiftPeriod(last, period, h), value, lo: value - spread, hi: value + spread });
   }
-  return { points: out, trendPerPeriod: nearest(trend), sd };
+  return { points: out, trendPerPeriod: nearest(trend), sd, meanSquare: { num: squares.num, den: squares.den * BigInt(points.length - 1) } };
 }
