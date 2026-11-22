@@ -74,19 +74,22 @@ export async function settingsInEffect(env: Settings = process.env): Promise<Set
 /** Whether Ziffr Cloud pins this setting here: a hosted deployment, and one of the settings it keeps fixed. */
 export const pinned = (env: Settings, name: string): boolean => CLOUD_PINNED.has(name) && hostedByCloud(env);
 
+/** Puts into `out` the value an Installation Setting has when the environment leaves it unset: what the page saved
+ * (`stored`, undefined where it may not be read), else its `_DEFAULT`; removes it when there is none. */
+function putSetting(out: Settings, env: Settings, name: string, stored: string | undefined): void {
+  if (isSet(env[name])) return;
+  // Trial settings that make trials exist only on hosted Ziffr (spec 0040): nothing stored or defaulted is put in elsewhere.
+  // Pinned by Ziffr Cloud: only the server's environment gives a value, never a row of the page.
+  const v = (isTrialSetting(name) && !hostedByCloud(env)) ? undefined : ((pinned(env, name) ? undefined : stored) ?? (isSet(env[`${name}_DEFAULT`]) ? env[`${name}_DEFAULT`] : undefined));
+  if (v === undefined) delete out[name];
+  else out[name] = v;
+}
+
 /** The environment with the stored values put in for every Installation Setting it leaves unset. */
 function merge(env: Settings, values: Map<string, string>): Settings {
   last = { values, at: Date.now() };
   const out: Settings = { ...env };
-  for (const { name } of INSTALLATION_SETTINGS) {
-    if (isSet(env[name])) continue;
-    // Trial settings exist only on hosted Ziffr (spec 0040): nothing stored or defaulted is put in elsewhere.
-    if (isTrialSetting(name) && !hostedByCloud(env)) { delete out[name]; continue; }
-    // Pinned by Ziffr Cloud: only the server's environment gives it a value, never a row of the page.
-    const v = (pinned(env, name) ? undefined : values.get(name)) ?? (isSet(env[`${name}_DEFAULT`]) ? env[`${name}_DEFAULT`] : undefined);
-    if (v === undefined) delete out[name];
-    else out[name] = v;
-  }
+  for (const { name } of INSTALLATION_SETTINGS) putSetting(out, env, name, values.get(name));
   return out;
 }
 
@@ -103,13 +106,8 @@ let last: { values: Map<string, string>; at: number } | null = null;
  * in a call): the environment always, with what the page saved as of the last read a few seconds ago at most. */
 export function settingsInEffectNow(env: Settings = process.env): Settings {
   const out: Settings = { ...env };
-  for (const { name } of INSTALLATION_SETTINGS) {
-    if (isSet(env[name])) continue;
-    if (isTrialSetting(name) && !hostedByCloud(env)) { delete out[name]; continue; }
-    const v = (last && Date.now() - last.at < 60_000 && !pinned(env, name) ? last.values.get(name) : undefined) ?? (isSet(env[`${name}_DEFAULT`]) ? env[`${name}_DEFAULT`] : undefined);
-    if (v === undefined) delete out[name];
-    else out[name] = v;
-  }
+  const fresh = last && Date.now() - last.at < 60_000 ? last.values : null;
+  for (const { name } of INSTALLATION_SETTINGS) putSetting(out, env, name, fresh?.get(name));
   return out;
 }
 
