@@ -46,7 +46,7 @@ export function LoginForm({ next, providers, turnstileSiteKey = null }: { next?:
           <Input type="email" name="email" autoComplete="email" spellCheck={false} placeholder="you@company.com" required value={email} onChange={(e) => setEmail(e.target.value)} />
         </label>
         {turnstileSiteKey && <Turnstile siteKey={turnstileSiteKey} onAnswer={onAnswer} resetKey={round} />}
-        <Button type="submit" className="w-full" disabled={pending || Boolean(turnstileSiteKey && !check)}><Mail aria-hidden /> Send me a sign-in link</Button>
+        <Button type="submit" size="lg" className="w-full" disabled={pending || Boolean(turnstileSiteKey && !check)}><Mail aria-hidden /> Send me a sign-in link</Button>
         {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
       </form>
       {providers.length > 0 && (
