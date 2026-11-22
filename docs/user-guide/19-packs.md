@@ -55,7 +55,7 @@ Owners and Admins see **Update from a file…** on each installed Pack (an Owner
 - an item the new version drops is removed, or kept without being marked as from the Pack when you changed it or something uses it;
 - an item you removed is not added again.
 
-When the new version has another logo, or none, the update page says **The logo changed** and shows the old and the new one side by side. A Theme nobody changed here gets the new logo with the replacement; one you changed keeps what it has, and a logo you set yourself is never replaced, also when you take the new version.
+When the new version has another logo, or none, the update page says **The logo changed** and shows the old and the new one side by side. A Theme nobody changed here gets the new logo with the replacement; one you changed keeps what it has, and a logo you set yourself is never replaced, also when you take the new version. Where you removed the Pack's logo, it stays removed.
 
 A new major version, such as 2.0.0 after 1.4.0, says first that it may change how things look or work. Confirm the same warnings as when installing and choose **Update to …**. The update happens whole or not at all, and the Audit log records it. Metrics, dashboards, decks and Workflows made from the Pack never change.
 
