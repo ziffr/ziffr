@@ -295,6 +295,7 @@ Ticketed. MCP follows where the ticket says so.
 Plumbing the core's other operations use, jobs the schedule runs, and the demo.
 
 - `resolveTagWidgets` (tag-widgets.ts): works out the Metrics of a widget of all Metrics tagged X for one viewer when a dashboard is drawn; read by the pages
+- `followMergedTag` (tag-lists.ts): part of merging Tags, which is not in the API or the MCP Server on purpose (spec 0038)
 - `recordedWidgets` (tag-widgets.ts): the same, for a deck or Snapshot that records the Metrics of the moment
 - `applyWebhookAction` (webhook-inbound.ts): a Webhook's own signed route, `POST /api/webhooks/{id}/in`, not an Access Key's
 - `askMeNowBy` (ask-now.ts): used by the Connectors' reply handling
