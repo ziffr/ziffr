@@ -78,7 +78,7 @@ export function laggedTakeaway(aName: string, bName: string, a: Point[], b: Poin
   const opposite = r < 0;
   const key = strength === "cant-tell" ? "lag-cant-tell" : lag === 0 ? (opposite ? "lag-same-opposite" : "lag-same") : opposite ? "lag-leads-opposite" : "lag-leads";
   const basisPhrase = sayIn(basis === "changes" ? "basis-changes" : "basis-values", {}, ctx);
-  const answer = pairsAnswer(method, ctx, { sentence: sayIn(key, { a: aName, b: bName, lag, max: MAX_LAG, n, span, strength: strengthText }, ctx), strength, basis: sayIn("basis-over", { basis: basisPhrase, n, span }, ctx), lines, n });
+  const answer = pairsAnswer(method, ctx, { sentence: sayIn(key, { a: aName, b: bName, lag, longest: MAX_LAG, n, span, strength: strengthText }, ctx), strength, basis: sayIn("basis-over", { basis: basisPhrase, n, span }, ctx), lines, n });
   return {
     ...answer,
     figures: [{ label: sayIn("numbers-lag", {}, ctx), value: lag, text: formatNumber(lag, 0, ctx.style) }, ...answer.figures],

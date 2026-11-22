@@ -103,7 +103,7 @@ export function topShareTakeaway(name: string, rows: Row[], n: number, ctx: Take
   const result = topShare(rows, n);
   if (!result.ok) return refusalFor(result.why, name, rows.length, ctx);
   const method = sayIn("numbers-method-share", {}, ctx);
-  return shareAnswer(method, sayIn("share-top", { name, k: n, rows: result.rows, share: shareText(result.percent, ctx), names: listOf(result.top.map((r) => r.label), ctx) }, ctx), result, ctx);
+  return shareAnswer(method, sayIn("share-top", { name, top: n, rows: result.rows, share: shareText(result.percent, ctx), names: listOf(result.top.map((r) => r.label), ctx) }, ctx), result, ctx);
 }
 
 /** The Takeaway of a Pareto: "Worked out: 3 of 8 rows make up 71.0 % of Revenue, the fewest that reach 70.0 %: A, B and C." */
@@ -111,5 +111,5 @@ export function paretoTakeaway(name: string, rows: Row[], ctx: TakeawayContext, 
   const result = pareto(rows, target);
   if (!result.ok) return refusalFor(result.why, name, rows.length, ctx);
   const method = sayIn("numbers-method-pareto", {}, ctx);
-  return shareAnswer(method, sayIn("share-pareto", { name, k: result.count, rows: result.rows, share: shareText(result.percent, ctx), target: shareText(result.target * 100, ctx), names: listOf(result.top.map((r) => r.label), ctx) }, ctx), result, ctx);
+  return shareAnswer(method, sayIn("share-pareto", { name, top: result.count, rows: result.rows, share: shareText(result.percent, ctx), target: shareText(result.target * 100, ctx), names: listOf(result.top.map((r) => r.label), ctx) }, ctx), result, ctx);
 }

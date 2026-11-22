@@ -20,6 +20,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { createServerClient } from "@supabase/ssr";
 import { authSettings } from "@/lib/auth-settings";
+import { ownOrigins } from "@/lib/own-origins";
 
 // The same name as DEMO_COOKIE in lib/auth.ts, which is server-only and cannot be imported here.
 const DEMO_COOKIE = "ziffr-demo";
@@ -29,17 +30,6 @@ const OPEN = [/^\/login(\/|$)/, /^\/auth\//, /^\/v\//, /^\/submit\//, /^\/guide(
 
 // What assistants call without a session (spec 0023): exactly these paths, nothing under them.
 const OAUTH_OPEN = new Set(["/oauth/register", "/oauth/token", "/oauth/revoke", "/.well-known/oauth-protected-resource", "/.well-known/oauth-protected-resource/mcp", "/.well-known/oauth-authorization-server"]);
-
-/** This app's own origins: the one the request reached, and the public one (ZIFFR_SITE_URL) when a proxy is in front. */
-function ownOrigins(req: NextRequest): Set<string> {
-  const own = new Set([req.nextUrl.origin]);
-  try {
-    if (process.env.ZIFFR_SITE_URL) own.add(new URL(process.env.ZIFFR_SITE_URL).origin);
-  } catch {
-    // A malformed setting adds nothing.
-  }
-  return own;
-}
 
 /** The signed-in person's token claims, checked locally against Supabase's published keys; null when there is none
  * or it cannot be read. Only reads: a refreshed session is written by the full check further down. */
@@ -80,7 +70,7 @@ export async function middleware(req: NextRequest) {
     const signedIn = hasCookie && (await sessionClaims(req)) !== null;
     // Every POST is checked, signed in or not: a browser leaves the session cookie (SameSite=Lax) off a post from
     // another site, so such a post would look like a visitor's, and the GET after it would carry the session.
-    if (path === "/demo" && req.method === "POST" && !ownOrigins(req).has(req.headers.get("origin") ?? "")) return new NextResponse("Not from this site.", { status: 403 });
+    if (path === "/demo" && req.method === "POST" && !ownOrigins(req.nextUrl.origin).has(req.headers.get("origin") ?? "")) return new NextResponse("Not from this site.", { status: 403 });
     if (path === "/demo" && signedIn && req.method !== "POST") return NextResponse.redirect(new URL("/demo/confirm", req.url));
     const visit = path === "/demo" && demoOffered;
     // 303 so a POST is followed by a GET of the page.

@@ -35,5 +35,11 @@
   "src/methods/lagged-correlation.ts",
   "src/methods/quantiles.ts",
   "src/methods/concentration.ts",
-  "src/methods/bridge.ts"
+  "src/methods/bridge.ts",
+  "src/methods/normal-curve.ts",
+  "src/methods/holt-winters.ts",
+  "src/methods/track-record.ts",
+  "src/methods/reach-chance.ts",
+  "src/methods/forecast-choice.ts",
+  "src/takeaways/forecast.ts"
 ]

@@ -45,8 +45,8 @@ export type AuditEvent = {
  * as Ziffr Cloud). Best effort by design: the action it
  * describes has already happened, so a failure here is logged with its kind and never undoes or fails the action
  * (spec 0008). The demo is not recorded: its made-up people are anyone. Never pass a value or a message body. */
-export async function recordAudit(workspaceId: string, by: string | null, event: AuditInput, system = "Ziffr"): Promise<void> {
-  if (workspaceId === DEMO_WORKSPACE_ID) return;
+export async function recordAudit(workspaceId: string, by: string | null, event: AuditInput, system = "Ziffr"): Promise<boolean> {
+  if (workspaceId === DEMO_WORKSPACE_ID) return true;
   try {
     const [{ data: person }, { data: key }] = await Promise.all([
       // A Contact approving through a Connector has a sealed name: opened, so the log never keeps its ciphertext.
@@ -69,7 +69,7 @@ export async function recordAudit(workspaceId: string, by: string | null, event:
   } catch (e) {
     // Only the kind and the error's code: the details may name people.
     console.error(`Audit Log: could not record ${event.kind} (${(e as { code?: string }).code ?? "error"})`);
-    return;
+    return false;
   }
   // Older events go once they pass the days the Installation keeps them (never fewer than a Retention or an Approval
   // still refers to); the database allows nothing younger than a year to be removed. A day's margin keeps a server
@@ -81,6 +81,7 @@ export async function recordAudit(workspaceId: string, by: string | null, event:
   } catch {
     console.error("Audit Log: old events were not removed this time (the setting could not be read).");
   }
+  return true;
 }
 
 const viaKey = new AsyncLocalStorage<number>();
@@ -92,6 +93,12 @@ export const auditedAsKey = <T>(keyId: number, work: () => Promise<T>): Promise<
 /** recordAudit for an Actor in their workspace. */
 export async function audit(actor: Actor, event: AuditInput): Promise<void> {
   await recordAudit(actor.workspaceId, actor.personId, { ...event, accessKeyId: event.accessKeyId ?? viaKey.getStore() ?? null });
+}
+
+/** Records an event, or throws when it could not be recorded: for an action that must not happen unrecorded (a Workspace
+ * Export counts its starts from the log, so one that could not be counted is refused). */
+export async function auditOrRefuse(actor: Actor, event: AuditInput): Promise<void> {
+  if (!(await recordAudit(actor.workspaceId, actor.personId, { ...event, accessKeyId: event.accessKeyId ?? viaKey.getStore() ?? null }))) throw new Error("This could not be recorded in the Audit Log, so it was not done. Try again in a moment.");
 }
 
 /** Records a sign-in in every workspace the person belongs to (not the demo), for their Owners and Admins. */

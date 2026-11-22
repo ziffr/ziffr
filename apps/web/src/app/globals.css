@@ -122,6 +122,12 @@
  * Inside a Theme the figures font is the theme's choice; ids and codes (code.fig, .mono) stay monospace. */
 .fig { font-variant-numeric: tabular-nums; }
 .themed .fig, code.fig, .mono { font-family: var(--font-outlier); }
+/* A widget's words grow with its card (#763): the type scale's step times the card's widget scale (views/widget-scale.tsx),
+ * which is 1 in a usual Widget and outside cards, so they read as text-xs, text-sm, text-xl there. Line height is a ratio,
+ * so it grows along; spacing next to these words is set in em for the same reason. */
+@utility widget-text-xs { font-size: calc(var(--text-xs) * var(--widget-scale, 1)); line-height: var(--tw-leading, var(--text-xs--line-height)); }
+@utility widget-text-sm { font-size: calc(var(--text-sm) * var(--widget-scale, 1)); line-height: var(--tw-leading, var(--text-sm--line-height)); }
+@utility widget-text-xl { font-size: calc(var(--text-xl) * var(--widget-scale, 1)); line-height: var(--tw-leading, var(--text-xl--line-height)); }
 
 /* The settled state, pressed into the stock in coral (Coral § Surfaces) */
 .pressed {

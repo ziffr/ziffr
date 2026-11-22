@@ -189,6 +189,33 @@ Function: `bridge` in `packages/core/src/methods/bridge.ts`; its Takeaway is `br
 **Worked example.** Revenue in Germany 120 → 85, Austria 40 → 31, France 22 → 24: −35, −9 and +2, a change of −42. Ziffr says "Worked out: Revenue fell by 42 €: Germany −35 €, Austria −9 €, France +2 €." In doubles 0.3 − 0.1 is 0.19999999999999998; here 0.1 → 0.3 is exactly 0.2.
 
 **Reference.** `referenceBridge` in `packages/core/src/test/reference/methods.ts` works out the whole change another way, as the later values summed less the earlier ones, and the code's parts add up to it exactly. NumPy's differences (`fixtures/methods.py`) agree to a relative 1e-12.
+## Seasonal forecast (Holt-Winters)
+
+Functions: `holtWinters`, `fitHoltWinters` in `packages/core/src/methods/holt-winters.ts`; the choice is `chooseMethod` and `bestForecast`; its Takeaway is `forecastTakeaway` in `packages/core/src/takeaways/forecast.ts`.
+
+**What it answers.** Where is this Metric heading, with its yearly (for daily Metrics, weekly) pattern?
+
+**How it is worked out.** Holt-Winters, additive, as Hyndman and Athanasopoulos write it (section 8.3): a level, a trend and a pattern, each updated after every value from what the last prediction missed by. The smoothing is fixed (level 1/2, trend 1/10, pattern 3/10), not fitted: with two seasons to learn from a fit would learn the noise, and the same series always gives the same numbers. It starts from the first two seasons (their means give the level and trend, the first season's distance to its straight line gives the pattern), so a series that is exactly a line plus a repeating pattern is recovered with no miss. Everything is exact on the values' text except the square root of the spread. The spread h periods ahead is the root of the mean squared one-step miss times 1 + Σ c(i)², with c(i) = α(1 + iβ), plus γ where i is a whole number of seasons. "Likely between" is the value plus and minus 1.2816 spreads (an 80 % range). A period without a value is not filled in: the level moves on by the trend and no miss is counted. Known limitation: the one-step spread includes the misses of the second season, on which the start was also built, so for a series of little more than two seasons it is a little small (the simulation holds an 80 % range to 77 to 84 % at 24 values). The track record shows how the range held. The plain trend's spread h periods ahead is its own model's, the one-step spread times √(1 + Σ α²(1 + jβ)²), not √h.
+
+**Which Method is used.** Holt-Winters only with two full seasons, and only if on the last third of the series its typical miss is smaller than the plain trend's on the same periods (and at least 3 periods can be compared); otherwise the plain trend (Holt), and the Takeaway says why. A pattern that did not repeat between the first and second half rules it out. This is a written rule, not a search.
+
+**Use it when.** The Metric has a pattern that repeats every year (every week for days) and at least two seasons of values.
+
+**Don't use it when.** There are fewer than two seasons, or a gap in the first two (the plain trend is used and says so); the pattern changes from year to year (the plain trend is used); the level jumped (the checks caution). A forecast can be wrong in ways its range does not show: the track record says how often the range held on the past.
+
+**Minimums and checks.** Two seasons (24 months, 8 quarters, 14 days, 104 weeks); to be chosen over the plain trend, 3 more periods. Checks: enough periods, enough that vary, gaps, far-off values (the forecast without them is run again), seasonality that does not repeat.
+
+**Worked example.** Two values per season, 10, 20, 12, 24, 14, 28. Means 15 and 18, trend starts at 1.5, level at 15.75, pattern −4.25 and +4.25. The misses are −1, 1.55, −1.9525 and 2.328875; the level ends at 22.1205625, the trend at 1.54631875, the pattern at −5.13575 and 5.4136625. One ahead is 22.1205625 + 1.54631875 − 5.13575 = 18.53113125. The spread is √(12.638415015625 ÷ 4) = 1.7777; two ahead it is √(4.1153838894628906) because 1 + 0.55² = 1.3025.
+
+**Reference.** `referenceSeasonal` in `test/reference/forecast.ts` runs the error-correction form (level += α·miss) where the code uses the component form; the spread factor is worked out by running one shock through the recurrences. Python's fractions (`fixtures/forecast.py`) are a third way, NumPy's floats a fourth. Equal exactly (the nearest double), NumPy to 1e-9. A simulation checks that the 80 % range one period ahead holds for 74 to 86 % of 600 simulated series (measured 81 % and 84 %).
+
+## Track record
+
+Function: `backtest`. **What it answers.** How often would this forecast have been right on the periods we already know? Each of the last 12 periods is forecast from the values before it only, one period ahead; the answer is how many fell inside that one-period-ahead 80 % range ("the range for the next month would have held 10 of 12 times") and the typical miss (the mean size of the misses, exact). **Use it when** you want to know how far to trust a forecast. **Don't use it when** you take it for a promise: a forecast cannot be proven by a test, and the past is not the future. **Minimums.** Holt needs 4 values before the first period tested, Holt-Winters two seasons; only values whose period before has a value count. **Reference.** The reference forecasts every prefix again from scratch; the code does it in one pass; they agree exactly.
+
+## Reach chance
+
+Function: `reachChance`. **What it answers.** How likely is the forecast to land where the Target wants it? The share of a normal curve around the forecast value, with its spread, between the Target's two ends (at least the lower end where higher is better, at most the upper where lower is better, both for closer to target). Shown in tenths ("about 7 in 10"), "under 1 in 20" below 5 % and "at least 19 in 20" from 95 %. **Don't use it when** you read it as the chance the Metric really gets there: it is as good as the track record says. A past that fitted with no miss at all gives exactly 1 or 0, and the Takeaway says the chance may be too sure. **Reference.** SciPy's `norm.cdf` and a 150-digit series, to a relative 1e-9.
 
 ## The suitability checks
 
