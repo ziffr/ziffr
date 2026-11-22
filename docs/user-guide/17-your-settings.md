@@ -6,7 +6,7 @@ This chapter covers what is yours rather than the team's: signing in, the demo, 
 
 ## Signing in
 
-The page **Sign in to Ziffr** opens whenever you are not signed in. It is a card with the form on one side and, beside it, a short line on what Ziffr is with a picture of the demo's Monthly overview dashboard; on a phone the form comes first and the picture is left out. Under its heading it says what Ziffr is: a metric tracker for anyone.
+The page **Sign in to Ziffr** opens whenever you are not signed in. It is a card with the form on one side and, beside it, a short line on what Ziffr is with a picture of the demo's Monthly overview dashboard; on a phone the form comes first and the picture is left out. Under its heading it says what Ziffr is: the record of your numbers.
 
 On a Ziffr that is only a public demo, the same page is called **Try Ziffr**. It has no sign-in, only **Try the demo** and a link to run Ziffr yourself. Everyone there shares the demo, and nothing anyone does there is saved.
 

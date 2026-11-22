@@ -17,7 +17,7 @@ export default async function LoginPage({ searchParams }: { searchParams: Promis
   if (demoOnly()) {
     return (
       <AuthShell>
-        <AuthHeading title="Try Ziffr">A metric tracker for anyone.</AuthHeading>
+        <AuthHeading title="Try Ziffr">The record of your numbers.</AuthHeading>
         <p className="text-sm">Look around a made-up online shop: its metrics, dashboards, Workflows and decks. No account needed. Switch between its people to see what each one sees; nothing you do there is saved.</p>
         {/* A plain link, so a full page load: /demo sets the cookie in the middleware, and the root layout's header must be drawn again for it (#14). */}
         <a href="/demo" className={cn(buttonVariants({ variant: "default" }), "mt-4 w-full")}>Try the demo</a>
@@ -37,7 +37,7 @@ export default async function LoginPage({ searchParams }: { searchParams: Promis
   if (offers.trial) {
     return (
       <AuthShell>
-        <AuthHeading title="Try Ziffr">A metric tracker for anyone.</AuthHeading>
+        <AuthHeading title="Try Ziffr">The record of your numbers.</AuthHeading>
         {failed}
         <TrialIntro days={offers.trial.days} ways={offers.trial.ways} open={await trialsOpen()} />
         {form}
@@ -47,7 +47,7 @@ export default async function LoginPage({ searchParams }: { searchParams: Promis
   }
   return (
     <AuthShell>
-      <AuthHeading title="Sign in to Ziffr">A metric tracker for anyone.</AuthHeading>
+      <AuthHeading title="Sign in to Ziffr">The record of your numbers.</AuthHeading>
       {failed}
       {form}
       {offers.demo && <DemoChoice detailed={false} />}
