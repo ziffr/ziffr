@@ -9,6 +9,7 @@ import { setRole as changeRole } from "./invitations";
 import { share } from "./sharing";
 import { setMyQuietHours } from "./quiet-hours";
 import { createAccessKey, actorForKey } from "./access-keys";
+import { applyImportPlan } from "./workspace-import-people";
 import { setPreference } from "./questions";
 import { finishSlackInstall, startSlackInstall } from "./slack-connection";
 import { fakeSlack } from "./test/fake-slack";
@@ -129,6 +130,17 @@ describe("a stale mark of taking by role", () => {
     await db().from("metrics").update({ owner_id: ann }).eq("id", m.id);
     await handOverMetric(w.actor(ann, "member"), m.id, ben);
     expect((await sharesOf(w.id, m.id)).filter((x) => x.user_id === ann)).toEqual([{ user_id: ann, role: "editor" }]);
+    expect((await db().from("metrics").select("owner_taken_by").eq("id", m.id).single()).data!.owner_taken_by).toBeNull();
+  });
+});
+
+describe("an import's ownership move", () => {
+  it("gives the Metric to the person who joined and clears any mark of taking by role", async () => {
+    const w = await ws(); const sara = await w.person("owner"); const ben = await w.person("member");
+    const m = await w.metric(sara);
+    await db().from("metrics").update({ owner_taken_by: sara }).eq("id", m.id);
+    await applyImportPlan(w.id, ben, "member", { name: "Ben", groups: [], shares: [], submits: [], owns: [m.id] });
+    expect(await ownerOf(m.id)).toBe(ben);
     expect((await db().from("metrics").select("owner_taken_by").eq("id", m.id).single()).data!.owner_taken_by).toBeNull();
   });
 });

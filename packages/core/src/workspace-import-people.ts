@@ -78,5 +78,5 @@ export async function applyImportPlan(workspaceId: string, personId: string, rol
   for (const part of chunks(submits.map((m) => ({ code: `tk-${randomBytes(18).toString("base64url")}`, metric_id: m, submitter_id: personId })))) await db().from("tokens").insert(part);
   // Ownership moves only from the Owner who imported (never from someone who took a Metric over since).
   const { data: owner } = await db().from("memberships").select("user_id").eq("workspace_id", ws).eq("role", "owner").order("created_at").limit(1).maybeSingle();
-  if (owner && owns.length) for (const part of chunks(owns)) await db().from("metrics").update({ owner_id: personId }).eq("workspace_id", ws).eq("owner_id", owner.user_id as string).in("id", part);
+  if (owner && owns.length) for (const part of chunks(owns)) await db().from("metrics").update({ owner_id: personId, owner_taken_by: null }).eq("workspace_id", ws).eq("owner_id", owner.user_id as string).in("id", part);
 }
