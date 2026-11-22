@@ -1,5 +1,5 @@
 <!-- part: Screen by screen -->
-<!-- screens: apps/web/src/app/settings/appearance/**, apps/web/src/app/login/**, apps/web/src/app/demo/**, apps/web/src/app/settings/schedule/**, apps/web/src/app/schedule/**, apps/web/src/app/settings/profile/**, apps/web/src/app/settings/deliveries/**, apps/web/src/app/settings/alerts/**, apps/web/src/components/alerts.tsx, apps/web/src/app/settings/assistants/**, apps/web/src/app/oauth/authorize/**, apps/web/src/components/app-shell.tsx, apps/web/src/components/nav-parts.tsx, apps/web/src/components/view-as.tsx, apps/web/src/components/demo-controls.tsx, apps/web/src/components/tour.tsx -->
+<!-- screens: apps/web/src/app/settings/appearance/**, apps/web/src/app/login/**, apps/web/src/app/demo/**, apps/web/src/app/settings/schedule/**, apps/web/src/app/schedule/**, apps/web/src/app/settings/profile/**, apps/web/src/app/settings/deliveries/**, apps/web/src/app/settings/alerts/**, apps/web/src/components/alerts.tsx, apps/web/src/app/settings/assistants/**, apps/web/src/app/settings/your-webhooks/**, apps/web/src/app/oauth/authorize/**, apps/web/src/components/app-shell.tsx, apps/web/src/components/nav-parts.tsx, apps/web/src/components/view-as.tsx, apps/web/src/components/demo-controls.tsx, apps/web/src/components/tour.tsx -->
 # Signing in and your own settings
 
 This chapter covers what is yours rather than the team's: signing in, the demo, the sidebar, and your own pages: **My schedule**, **Your profile**, **Appearance**, **Your Deliveries** and **Your Alerts**. Everyone has them, whatever their role. The team's pages are in [Workspace settings](16-workspace-settings.md).
@@ -338,3 +338,25 @@ You do not need a Starter. Some examples:
 - It never shares anything, deletes a dashboard, makes a View Link, changes who may see what, changes a Metric's name, description, period or Workflow, adds or removes a Workflow's steps, or changes settings.
 - Everything it does shows in the Access Log.
 - It answers from what Ziffr gives it, but it can still misread a number. Check what it says before you pass it on, and ask it to show the values it used.
+
+## Your Webhooks
+
+**You → Your Webhooks** lists the **Personal Webhooks** you added for yourself in this Workspace: an address outside Ziffr, such as your own n8n flow, that gets a signed message when something happens. Yours hears only what you may see here, checked at the moment it is sent, and acts as you: ticking a task off in your own list marks it done in Ziffr as you. Without the Workspace's switch the page says "Your Workspace does not allow personal Webhooks; ask an Owner or Admin" and shows none; an Owner or Admin switches it on under **Workspace → Webhooks** ([Workspace settings](16-workspace-settings.md#personal-webhooks)). Owners, Admins and Members have it; Guests and the demo do not.
+
+You can have three, up to 1,000 messages a day (a trial has fewer, and only public addresses). Type a **name**, the **address**, which must start with `https://`, and tick what it hears, none by default:
+
+- the tasks and questions **given to you or asked by you**: given, changed, answered, done;
+- **values** recorded or unusual, for the **Metrics you pick**, up to 50, from those you see. A value waiting for approval is carried only if you may see it;
+- **your own Alerts** that name this Webhook (**Also send to** on the Alert).
+
+**Add Webhook** shows the **secret** once. Copy it: the receiver uses it to check each message's signature, and it is not shown again. Each Webhook shows its name, the address masked, what it hears and, for values, the Metrics picked; a picked Metric you no longer see is counted, never named, and nothing is sent for it.
+
+| Button | What it does |
+| --- | --- |
+| **Change** | Changes the name, the events and Metrics, or the address |
+| **Send test event** | Sends a `ping` now, at most once a minute |
+| **Replace secret** | Makes a new secret, shown once; the old one still signs for 24 hours, so the receiver can switch without a gap |
+| **Switch off** / **Switch on** | A switched-off Webhook gets nothing; switching on again resends nothing |
+| The bin icon | Deletes it after asking, also while the Workspace's switch is off |
+
+Under each, **Log** lists its sends of the last 14 days: when, the event, what it is about, the state and the answer. A Webhook that keeps failing is switched off by Ziffr and you are told. An Owner or Admin sees that you have a Webhook, whose it is, the address masked and when it last sent, never what it sent, and can remove it; you are then told who did. It ends when you leave the Workspace. Messages leave Ziffr in clear text over TLS and the receiving system keeps them as it sees fit.

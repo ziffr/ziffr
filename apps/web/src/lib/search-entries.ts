@@ -40,10 +40,11 @@ const PAGES: Entry[] = [
   page("/settings/alerts", "Your Alerts", "Your settings", "alerts alert notify threshold"),
   page("/settings/appearance", "Appearance", "Your settings", "appearance dark mode light theme night contrast display colours"),
   page("/settings/assistants", "Connected assistants", "Your settings", "assistant ai claude chatgpt mcp connect"),
+  page("/settings/your-webhooks", "Your Webhooks", "Your settings", "personal webhook webhooks own address n8n automation tasks"),
 ];
 
 /** Pages that no menu lists under the Workspace: who may open them. */
-const NOT_FOR_GUESTS = new Set(["/themes"]);
+const NOT_FOR_GUESTS = new Set(["/themes", "/settings/your-webhooks"]);
 /** Pages only Owners and Admins have (a section of General, so no menu link lists it). */
 const ADMINS_ONLY = new Set(["/settings/workspace#size"]);
 /** Pages everyone has. */

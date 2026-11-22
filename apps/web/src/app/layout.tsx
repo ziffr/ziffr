@@ -105,7 +105,7 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
   const due = await dueValueCount();
   // Pinned dashboards (#509): only those this person may open now, with nothing but id and name.
   const pinned = await pinnedDashboards(await currentActor());
-  const accountOf = demo ? null : { name: profiles.find((p) => p.id === viewer)?.name ?? "", workspaces, current: workspaceId, installationAdmin, demo: await demoEnabled() };
+  const accountOf = demo ? null : { name: profiles.find((p) => p.id === viewer)?.name ?? "", workspaces, current: workspaceId, installationAdmin, guest: role === "guest", demo: await demoEnabled() };
   const demoControls = demo ? (
     <>
       <ViewAs profiles={profiles.filter((p) => !p.contact)} current={viewer} roles={await demoRoles()} />
