@@ -49,12 +49,14 @@ async function cleanConfig(actor: Actor, c: WorkflowConfig, stored: WorkflowConf
   const steps: WorkflowStep[] = [];
   let others = 0;
   let items = 0;
+  // The day an item is added is the Workspace's own day, the one the Workflows run by.
+  const today = localTime(new Date(), (await workspaceClock(actor)).timeZone).day;
   const list = <T,>(v: unknown, ok: (x: unknown) => x is T, max: number) => [...new Set((Array.isArray(v) ? v : []).filter(ok))].slice(0, max);
   const idOk = (id: unknown): id is string => typeof id === "string" && /^[A-Za-z0-9-]{8,40}$/.test(id) && !steps.some((x) => "id" in x && x.id === id);
   for (const s of Array.isArray(c?.steps) ? c.steps : []) {
     // Checklist Items count apart: the other steps stop at 12, the items at 20 (spec 0045).
     if (s?.type === "checklist") {
-      if (items < CHECKLIST_ITEMS_PER_WORKFLOW) { steps.push(cleanItem(s as ChecklistItem, idOk, { ids, groupIds, list, stored })); items++; }
+      if (items < CHECKLIST_ITEMS_PER_WORKFLOW) { steps.push(cleanItem(s as ChecklistItem, idOk, { ids, groupIds, list, stored, today })); items++; }
       continue;
     }
     if (++others > 12) continue;
@@ -81,7 +83,7 @@ async function cleanConfig(actor: Actor, c: WorkflowConfig, stored: WorkflowConf
 /** One Checklist Item as it may be stored (spec 0045): words of 1 to 500 characters, plain; days in range; people, Groups
  * and the Group that may read it only of this Workspace. The id is kept when well formed and unused. A text that is
  * empty or too long is refused in words (the editor and the API show them); a person who is no member is left out. */
-function cleanItem(s: ChecklistItem, idOk: (id: unknown) => id is string, known: { ids: Set<string>; groupIds: Set<number>; list: <T>(v: unknown, ok: (x: unknown) => x is T, max: number) => T[]; stored: WorkflowConfig | null }): ChecklistItem {
+function cleanItem(s: ChecklistItem, idOk: (id: unknown) => id is string, known: { ids: Set<string>; groupIds: Set<number>; list: <T>(v: unknown, ok: (x: unknown) => x is T, max: number) => T[]; stored: WorkflowConfig | null; today: string }): ChecklistItem {
   // Plain text: control characters other than a line break go, and so do the characters that make words read other than
   // they are written (bidi overrides, zero-width characters, line and paragraph separators); no markup is rendered where it is shown.
   const text = (typeof s.text === "string" ? s.text : "").replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f\u200b-\u200f\u2028-\u202e\u2060-\u2064\u2066-\u2069\ufeff]/g, "").trim();
@@ -90,8 +92,8 @@ function cleanItem(s: ChecklistItem, idOk: (id: unknown) => id is string, known:
   if (!new RegExp(PLAIN, "u").test(text)) throw new Error("A checklist item holds plain words only: no line breaks, web addresses, markup or brackets. Letters, digits and everyday punctuation are fine.");
   if ([...text].length > CHECKLIST_TEXT_MAX) throw new Error(`A checklist item holds at most ${CHECKLIST_TEXT_MAX} characters.`);
   const id = idOk(s.id) ? s.id : randomUUID();
-  // The day it was first saved: kept from the stored item, never taken from what was sent.
-  const addedOn = (known.stored?.steps ?? []).find((x): x is ChecklistItem => x.type === "checklist" && x.id === id)?.addedOn ?? new Date().toISOString().slice(0, 10);
+  // The Workspace's day it was first saved: kept from the stored item, never taken from what was sent.
+  const addedOn = (known.stored?.steps ?? []).find((x): x is ChecklistItem => x.type === "checklist" && x.id === id)?.addedOn ?? known.today;
   const readGroup = typeof s.readGroup === "number" && known.groupIds.has(s.readGroup) ? { readGroup: s.readGroup } : {};
   if (s.kind === "tick") {
     const assignee = typeof s.assignee === "string" && known.ids.has(s.assignee) ? s.assignee : null;

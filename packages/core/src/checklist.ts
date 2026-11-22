@@ -91,19 +91,23 @@ export async function runChecklistItems(ws: string, wf: Workflow, metrics: Metri
     if (!item.people.length && !item.groups.length) continue;
     // The period that has just ended, and the earlier ones whose day for this item has only now come (a monthly item
     // with day 25 is due in the next-but-one month; a weekly one with day 6, a week later). An older period counts only
-    // when its day falls on or after the day the item was added, so a new item never sends the past.
+    // when its day falls on or after the day the item was added, so a new item never sends the past; and only the
+    // latest such period goes in one run.
     let period = when.period;
     for (let n = 0; n < MAX_PERIODS_BACK; n++, period = shiftPeriod(period, when.span, -1)) {
       const sendOn = addWorkingDays(periodEnd(period, when.span), item.day);
       if (addWorkingDays(periodEnd(period, when.span), CHECKLIST_DAYS_MAX) < asOf) break;
       if (asOf < sendOn || (n > 0 && item.addedOn !== undefined && sendOn < item.addedOn)) continue;
+      // The latest period whose day has come and that was not sent yet, and no more: an older one was handled in its
+      // time (or is left alone), so a pause or new recipients never bring a pile of old messages.
       const claimed = await claim(ws, wf.id, item.id, period);
-      if (claimed === null) continue;
+      if (claimed === null) break;
       const label = periodLabel(period, when.span, yearStart);
       let counts = { sent: 0, skipped: 0 };
       // The claim is made, so the counts are written whatever happens while sending.
       try { counts = await sendItem(ws, wf, item, label); } finally { await db().from("workflow_step_runs").update(counts).eq("id", claimed); }
       log.push(`${wf.name}, ${label}: checklist item sent to ${counts.sent}`);
+      break;
     }
   }
   return log;

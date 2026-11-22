@@ -198,8 +198,25 @@ describe("an item whose day is longer than the period", () => {
     await addedOn(w, flow, "2026-03-10");
     await runWorkflows(w.id, "2026-03-10", sara);
     const periods = (await stepRuns(flow)).map((r) => r.period_start);
-    expect(periods).toContain("2026-03-06");
-    expect(periods).not.toContain("2026-03-09");
+    // Only the latest period whose day has come goes: Sunday 8 March, not the Friday and Saturday before it.
+    expect(periods).toEqual(["2026-03-08"]);
+  });
+  it("sends one message, not a pile, after a gap of ten days", async () => {
+    const { w, sara, ann, flow } = await setup([(p) => item({ day: 2, people: [p.ann] })], {}, "day");
+    await addedOn(w, flow, "2026-03-10");
+    await runWorkflows(w.id, "2026-03-20", sara);
+    expect((await stepRuns(flow)).map((r) => r.period_start)).toEqual(["2026-03-18"]);
+    expect(await messages(w, ann)).toHaveLength(1);
+    await runWorkflows(w.id, "2026-03-20", sara);
+    expect(await messages(w, ann)).toHaveLength(1);
+  });
+  it("gives a new item the Workspace's own day as the day it was added", async () => {
+    const { w, flow } = await setup([(p) => item({ people: [p.ann] })]);
+    await db().from("workspaces").update({ time_zone: "Pacific/Kiritimati" }).eq("id", w.id);
+    await saveWorkflow(w.actor((await db().from("workflows").select("owner_id").eq("id", flow).single()).data!.owner_id as string), flow, "Month-end close", { dueWorkingDays: 2, steps: [item({ id: "item-new-aaaa" }), publish] });
+    const added = (await storedConfig(flow)).steps.find((x): x is ChecklistItem => x.type === "checklist")!.addedOn;
+    const zone = new Intl.DateTimeFormat("en-CA", { timeZone: "Pacific/Kiritimati" }).format(new Date());
+    expect(added).toBe(zone);
   });
 });
 
