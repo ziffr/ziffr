@@ -53,7 +53,7 @@ export const WORKSPACE_EXPORT_LIMITS = {
   workflowMetrics: 1_000,
   submitters: 100,
   groupsOfPerson: 50,
-  magnitude: 1e30,
+  magnitude: 1e15,
   decimals: 8,
   /** What a Metric's name and description may hold in the app: its own limits, not the Pack's. */
   metricDescription: 2000,
@@ -106,9 +106,9 @@ export type WorkspaceExportRecord = HeaderRecord | GroupRecord | ThemeRecord | P
 // ---------------------------------------------------------------------------------------------------------------------
 // The schema.
 
-// What a person typed into the app: any text but control characters, line and paragraph separators and the characters
-// that reverse the direction of text. Markup and web addresses are data here, never rendered or followed as such.
-const LOOSE = "^[^\\p{Cc}\\u2028\\u2029\\u061C\\u200E\\u200F\\u202A-\\u202E\\u2066-\\u2069]*$";
+// What a person typed into the app: any text but control characters, line and paragraph separators, characters that
+// reverse the direction of text and invisible ones (zero-width spaces, soft hyphens, tag characters, lone surrogates). Markup and web addresses are data here, never rendered or followed as such.
+const LOOSE = "^[^\\p{Cc}\\p{Cs}\\u00AD\\u200B\\u2060\\uFEFF\\u{E0000}-\\u{E007F}\\u2028\\u2029\\u061C\\u200E\\u200F\\u202A-\\u202E\\u2066-\\u2069]*$";
 const looseText = (max: number, description = "text without control characters, line breaks or characters that reverse its direction"): Schema => ({ type: "string", maxLength: max, pattern: LOOSE, description });
 
 const ID = "^[A-Za-z0-9][A-Za-z0-9_-]{0,63}$";
@@ -174,7 +174,7 @@ export const WORKSPACE_EXPORT_SCHEMA: Schema = {
     record("metric", "A Metric: its Description, Tags, owner and Submitters. Its values are separate records.", {
       id: id("this Metric"),
       key: itemKey("the Metric's key, which a Derived Metric's formula names as {key}: lower-case letters, digits and dashes, unique in the file"),
-      metric: { type: "object", description: "A ziffr.metric/1 document, checked by its schema with the text rules of the app instead of the Pack's: any text without control or direction characters, a description of up to 2000 characters and Target bounds up to 10^30." },
+      metric: { type: "object", description: "A ziffr.metric/1 document, checked by its schema with the text rules of the app instead of the Pack's: any text without control or direction characters, a description of up to 2000 characters and Target bounds up to 10^15." },
       tags: { type: "array", maxItems: L.tags, items: { ...looseText(L.tag), minLength: 1 }, description: "The Tags put on the Metric." },
       owner: ref("the person who owns it"),
       submitters: refs("the people who send its values", L.submitters),

@@ -39,7 +39,7 @@ Every `id` is a **label** of up to 64 letters, digits, dashes and underscores th
 | `value` | One observation: period, number, when it was recorded, its Source, who submitted it **as a name**, and its Breakdown. | `metric` |
 | `end` | How many records of each kind the file holds, so a file cut off is noticed. | |
 
-A period is the first day of the period as `YYYY-MM-DD`: a Monday for a weekly Metric, and for a monthly, quarterly or yearly Metric the first day of one, quarters and years counted from `yearStart`. `target` records are listed by Metric label and then period, and so are `projection` records, each pair once. Numbers are finite, at most 10^30 in size and have at most eight decimals. Moments are in UTC (`...Z`). Years run from 1900 to 2200.
+A period is the first day of the period as `YYYY-MM-DD`: a Monday for a weekly Metric, and for a monthly, quarterly or yearly Metric the first day of one, quarters and years counted from `yearStart`. `target` records are listed by Metric label and then period, and so are `projection` records, each pair once. Numbers are finite, at most 10^15 in size (the most the core keeps) and have at most eight decimals. Moments are in UTC (`...Z`). Years run from 1900 to 2200.
 
 ## What is never carried
 
@@ -47,7 +47,7 @@ Access Keys, Feed Keys, Webhook addresses and secrets, Connector links (Slack, T
 
 Later versions may add Threads, Findings, Snapshots, Alerts, Retentions and Delivery Preferences; each addition is a new version number. A reader of version 1 refuses a record kind it does not know rather than skip it.
 
-Names, descriptions, Tags, Groups, people and Breakdown labels hold whatever a person typed in Ziffr (markup and web addresses are data here, never rendered or followed as such): only control characters, line and paragraph separators and characters that reverse the direction of text are refused. A Metric's description may have 2,000 characters. The documents of dashboards, decks, Workflows and Themes keep the Pack's plain-text rules, so a writer that finds a word they refuse leaves it out and says so; it never truncates silently. A file's text may reach 1 GB and the file 200 MB (a reader may set other limits): Ziffr's writer gzips by default and refuses to write a file over the limits, so what it writes is always read.
+Names, descriptions, Tags, Groups, people and Breakdown labels hold whatever a person typed in Ziffr (markup and web addresses are data here, never rendered or followed as such): only control characters, line and paragraph separators, characters that reverse the direction of text and invisible characters (zero-width spaces, soft hyphens, tag characters) are refused. A Metric's description may have 2,000 characters. The documents of dashboards, decks, Workflows and Themes keep the Pack's plain-text rules, so a writer that finds a word they refuse leaves it out and says so; it never truncates silently. A file's text may reach 1 GB and the file 200 MB (a reader may set other limits): Ziffr's writer gzips by default and refuses to write a file over the limits, so what it writes is always read.
 
 ## Checks on an untrusted file
 

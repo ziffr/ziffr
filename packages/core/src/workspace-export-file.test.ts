@@ -77,8 +77,8 @@ describe("write and read", () => {
       { kind: "header", format: "ziffr.workspace-export/1", ziffr: "0.40.0", exportedAt: "2026-11-22T10:00:00Z", workspace: { name: "Müller & Söhne <GmbH> 🚀", yearStart: 2 } },
       { kind: "group", id: "g1", name: "R&D [core] ~ 100%" },
       { kind: "person", id: "p1", name: "ada@example.com", email: "ada@example.com", role: "guest" },
-      { kind: "metric", id: "m1", key: "orders", metric: { ...metric, period: "quarter", name: "Orders @ shop | “net” 🚀", description: "x ".repeat(900), unit: "€/Kg", targetMax: 1e20 }, tags: ["q&a", "日本語"] },
-      { kind: "value", metric: "m1", period: "2026-05-01", value: 0.12345678, submittedBy: "Zoë O'Neil <zoe>", breakdown: [{ label: "A/B", value: 1e25 }] },
+      { kind: "metric", id: "m1", key: "orders", metric: { ...metric, period: "quarter", name: "Orders @ shop | “net” 🚀", description: "x ".repeat(900), unit: "€/Kg", targetMax: 1e14 }, tags: ["q&a", "日本語"] },
+      { kind: "value", metric: "m1", period: "2026-05-01", value: 0.12345678, submittedBy: "Zoë O'Neil <zoe>", breakdown: [{ label: "A/B", value: 1e14 }] },
       { kind: "value", metric: "m1", period: "2026-02-01", value: -123456789012.5 },
     ];
     for (const gzip of [false, true]) expect((await readWorkspaceExportAll(await writeWorkspaceExportAll(awkward, { gzip }))).map((r) => r.record).slice(0, -1)).toEqual(awkward);

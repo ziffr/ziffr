@@ -142,7 +142,7 @@ describe("what is never carried", () => {
   });
   it("takes any text a person typed as data, but no control or direction characters, and holds a Pack's items to the Pack's rules", () => {
     for (const name of ["<b>x</b>", "https://evil.example/x", "{{x}}", "R&D @ home 🚀"]) expect(problems(text(edit(at("group"), (r) => ({ ...r, name })))), name).toHaveLength(0);
-    for (const bad of ["line\nbreak", "tab\there", "a\u0000b", "a\u202Eb", "a\u2028b", "a\u2067b", "a\u200Fb"]) {
+    for (const bad of ["line\nbreak", "tab\there", "a\u0000b", "a\u202Eb", "a\u2028b", "a\u2067b", "a\u200Fb", "a\u200Bb", "a\u00ADb", "a\uFEFFb", "a\ud800b", "a\u{E0041}b"]) {
       expect(problems(text(edit(at("group"), (r) => ({ ...r, name: bad })))), JSON.stringify(bad)).not.toHaveLength(0);
       expect(problems(text(edit(at("value"), (r) => ({ ...r, submittedBy: bad })))), JSON.stringify(bad)).not.toHaveLength(0);
     }
@@ -176,7 +176,7 @@ describe("hostile files", () => {
   });
   it("refuses huge, infinite and over-precise numbers, and numbers that are not numbers", () => {
     const v = (value: unknown) => text(edit(at("value"), (r) => ({ ...r, value })));
-    expect(problems(v(1e31))).not.toHaveLength(0);
+    expect(problems(v(1e16))).not.toHaveLength(0);
     expect(problems(v(-1e300))).not.toHaveLength(0);
     expect(problems(text(RECORDS.map((r) => JSON.stringify(r)).map((l) => (l.includes('"value":14') ? l.replace('"value":14', '"value":1e999') : l))))).not.toHaveLength(0);
     expect(problems(text(RECORDS.map((r) => JSON.stringify(r)).map((l) => (l.includes('"value":14') ? l.replace('"value":14', '"value":9' + "9".repeat(80)) : l))))).not.toHaveLength(0);
