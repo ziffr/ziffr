@@ -30,7 +30,7 @@ Read from the code on `main` (2026-11-22):
 2. **Who may fill in:** the submitter's Stand-in when Ziffr asked them for that period, the Metric's owner, and the owner of the Metric's Workflow. Only once the period's Due Date has passed, or at any time while the submitter is Away. Never a Guest, never an Access Key, the API or the MCP Server (for now).
 3. **The submitter is told** through their Delivery Preference, waiting out their Quiet Hours, and can replace the value with their own until the period locks. The Filled-in Value stays in the history as a Superseded Value, with who entered it.
 4. **Checks as for any value:** the Unusual Value check and the Workflow's Approve step apply. Nobody approves a value they entered, nor a value entered for them.
-5. **A Stand-in's answer becomes a Filled-in Value** (recommended below, for the owner to confirm): when a Stand-in answers the Prompt Ziffr sent them in someone's place, the value is the submitter's, entered by the Stand-in.
+5. **A Stand-in's answer becomes a Filled-in Value** (decided by the owner, 2026-11-22): when a Stand-in answers the Prompt Ziffr sent them in someone's place, the value is the submitter's, entered by the Stand-in.
 
 ## User Stories
 
@@ -142,13 +142,12 @@ Nothing new travels. Filling in is not a step or a setting; a Workflow Template 
 
 The demo stays read-only. A new migration (setting `ziffr.demo_seed` for its transaction) adds, in the monthly finance Workflow, one past period where Ben, Sara's Stand-in, entered her value while she was Away (an Away row for those dates, the Prompt with `stands_in_for`, the value with `entered_by`), and one where the Workflow's owner filled in after the Due Date and the submitter later replaced it (a Superseded Value with `entered_by`), with the matching Audit Log rows. The upgrade test proves it on an Installation with the demo. Nothing is sent from the demo.
 
-### Today's Stand-in answers: recommendation (for the owner)
+### Today's Stand-in answers: decided
 
-**Recommended:** from this spec on, a Stand-in's answer to a Prompt asked in someone's place is a Filled-in Value for that submitter. A Stand-in is, by definition, asked for someone else's number; recording it as theirs is exactly what the owner wants to stop. It needs no new step for the Stand-in, and it fixes the Approval gap above (the person it was for could approve it).
+**Decided by the owner (2026-11-22):** a Stand-in's answer to a Prompt asked in someone's place is a Filled-in Value for that submitter. If Mia stands in for Jonas, the value is Jonas's number, and it always shows who really entered it: "Entered by Mia for Jonas". A Stand-in is asked for someone else's number by definition, so recording it as theirs is what this spec stops. It needs no new step for the Stand-in, and it closes the Approval gap above (the person it was for could approve it).
 
-- **Existing values are not rewritten.** Values Stand-ins recorded before this change stay recorded as theirs. A Stand-in Token's `stands_in_for` would let a migration guess, but a guess about whose number it was must not change the record; the Period Record keeps showing them as before.
-- **Narrower than today:** a Stand-in's Token then takes values only for the periods they were asked about, and no longer through the API or MCP. Both follow from the owner's decisions (asked, in the app or the Prompt), and both are flagged here.
-- **The alternative,** if the owner prefers: keep Stand-in answers as their own value and let only the Metric's and the Workflow's owners fill in. That leaves two ways to put a number in for someone, one marked and one not.
+- **What follows from it:** a Stand-in's Token takes values only for the periods they were asked about, and no longer through the API or MCP, as decisions 1 and 6 say (the Stand-in fills in when asked; no Access Key fills in).
+- **Existing values are not rewritten** (proposed, open to change). Values Stand-ins recorded before this change stay recorded as theirs. A Stand-in Token's `stands_in_for` would let a migration guess, but a guess about whose number it was must not change the record; the Period Record keeps showing them as before.
 
 ## Testing Decisions
 
@@ -184,8 +183,9 @@ The demo stays read-only. A new migration (setting `ziffr.demo_seed` for its tra
 3. The submitter is told through their Delivery Preference, with Quiet Hours respected, and can replace it with their own until the period locks. The Filled-in Value stays in the history.
 4. Unusual Value and Approval apply as for any value. Nobody approves a value they entered themselves, including values entered for someone else.
 5. Who may see the "entered by" name follows the existing rules for submitter names.
+6. A Stand-in's answer becomes a Filled-in Value for the absent submitter: it is their number, and it always shows who really entered it ("Entered by Mia for Jonas").
 
-Proposed in this spec, open to change: the name Filled-in Value; a Stand-in's answer becoming a Filled-in Value, with Stand-in Tokens narrowed to asked periods and the app; Guests no longer chosen as Stand-ins; the Self-check going to the submitter; "add up" and "keep both" left out; existing Stand-in values left as they are; the Usage page's "entered by others" count.
+Proposed in this spec, open to change: the name Filled-in Value; Guests no longer chosen as Stand-ins; the Self-check going to the submitter; "add up" and "keep both" left out; existing Stand-in values left as they are; the Usage page's "entered by others" count.
 
 ## Tickets
 
