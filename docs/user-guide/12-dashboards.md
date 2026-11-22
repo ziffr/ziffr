@@ -54,7 +54,7 @@ For the dashboards you open every day, press **Pin** in the row of buttons above
 - **A shrunk sidebar** shows each pin as a small tile with its first letter; hover or focus it to see the name.
 - **On a phone**, the pinned dashboards are the first thing **More** lists.
 - Pins are yours alone, in each Workspace. If a pinned dashboard stops being shared with you, it leaves your sidebar without a message, and it comes back if it is shared with you again and you are still within the eight.
-- In the demo nothing is saved, so pinning says so.
+- In the demo nothing is saved, so the Pin button shows as off and says "Pinning is off in the demo" when you hover or tap it. The demo's sidebar already has a few pinned dashboards, so you can see what pinning does; they cannot be moved or unpinned there.
 
 ### Switching dashboards
 
@@ -365,6 +365,8 @@ A dashboard reads two ways. Switch with **Grid** and **Read** in the toolbar.
 | **One at a time** | One Widget at a time, as large as the screen allows, with **Previous**, **Next** and a count such as "3 / 8". |
 | **Full screen** / **Leave full screen** | Uses the whole screen, without the browser around it. |
 | **Close** | Goes back to the dashboard. |
+
+A Widget grows with the space it has: when it is large on a dashboard, and when presenting, its value, the gauge, the table rows, the chart axes and the line under it get larger, so a Widget shown on a big screen reads from across the room. Its parts share the room: the small trend line under a number grows into the free height, a table spreads its rows, and what does not grow sits in the middle rather than in a corner. Widgets of the usual size and phones show it at its normal size.
 
 To step through Widgets, use the arrow keys, the space bar, Page Up and Page Down, or swipe. **Home** and **End** jump to the first and last. **Escape** closes presenting (or first leaves full screen).
 

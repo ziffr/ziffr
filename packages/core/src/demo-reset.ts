@@ -15,6 +15,9 @@ export async function resetDemoWorkspace(): Promise<boolean> {
   const { data: done, error } = await db().rpc("demo_reset");
   if (error) throw new Error("The demo could not be reset. Try again in a minute.");
   if (!done) return false;
+  // The pins are seeded by a function of their own, so no other migration has to carry them (#764).
+  const pins = await db().rpc("prototype_seed_pins");
+  if (pins.error) console.error("Demo: no pinned dashboards", pins.error.message);
   await seedDemoSnapshots();
   await seedDemoOutbox();
   return true;

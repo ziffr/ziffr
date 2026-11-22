@@ -102,7 +102,7 @@ function usePlot(draw: (width: number, height: number, el: HTMLElement) => Eleme
   return box;
 }
 
-const STYLE = { fontFamily: "var(--font-body)", fontSize: "clamp(12px, 1.2cqw, 18px)", color: "var(--color-muted)", background: "transparent", overflow: "visible" };
+const STYLE = { fontFamily: "var(--font-body)", fontSize: "clamp(12px, 1.2cqw, calc(18px * var(--widget-scale, 1)))", color: "var(--color-muted)", background: "transparent", overflow: "visible" };
 
 /** How wide each text is in the chart's own type, measured in `el` so the container's font size counts. */
 function textWidths(el: HTMLElement, texts: string[], fontWeight: number): number[] {
@@ -157,7 +157,7 @@ function PeriodBars({ m, data, panel, domain }: { m: Metric; data: CanvasData; p
   return (
     <figure className="flex h-full min-w-0 flex-col">
       <div ref={box} className="min-h-0 flex-1" role="img" aria-label={`${m.name}, ${MEASURE_LABEL[panel.measure ?? "value"]}: ${rows.map((r) => `${r.label} ${fmt(m, panel, r.value, data.numberStyle)}${r.projected ? " (projection)" : ""}`).join(", ")}`} />
-      {rows.some((r) => r.projected) && <figcaption className="text-xs text-muted-foreground">Highlighted bars after the last actual are projections.</figcaption>}
+      {rows.some((r) => r.projected) && <figcaption className="widget-text-xs text-muted-foreground">Highlighted bars after the last actual are projections.</figcaption>}
     </figure>
   );
 }
@@ -268,14 +268,14 @@ function Bridge({ m, data, panel }: { m: Metric; data: CanvasData; panel: Panel 
       }),
     [JSON.stringify(steps), ref?.value, variance, JSON.stringify(panel.annotations)],
   );
-  if (note) return <p className="flex h-full items-center justify-center text-center text-xs text-muted-foreground">{note}</p>;
+  if (note) return <p className="flex h-full items-center justify-center text-center widget-text-xs text-muted-foreground">{note}</p>;
   return <div ref={box} className="h-full min-w-0" role="img" aria-label={`${m.name} bridge: ${steps.map((s) => `${s.label} ${compactValue(m, s.end - (s.kind === "total" ? 0 : s.start), data.numberStyle)}`).join(", ")}`} />;
 }
 
 /** One panel, repeated per metric as small multiples; titles name the metric when there are several. */
 export function PanelView({ panel, data, render }: { panel: Panel; data: CanvasData; render: (m: Metric, domain?: [number, number]) => React.ReactNode }) {
   const ms = panel.metricIds.map((id) => data.metrics.find((x) => x.id === id)).filter((x): x is Metric => !!x);
-  if (!ms.length) return <p className="text-xs text-muted-foreground">Choose a metric for this panel.</p>;
+  if (!ms.length) return <p className="widget-text-xs text-muted-foreground">Choose a metric for this panel.</p>;
   let domain: [number, number] | undefined;
   if (panel.sharedScale && panel.type === "period-bars") {
     const vals = ms.flatMap((m) => measureSeries(m, data, panel).map((r) => r.value));
@@ -285,7 +285,7 @@ export function PanelView({ panel, data, render }: { panel: Panel; data: CanvasD
     <div className="grid h-full min-h-0 gap-4" style={{ gridTemplateColumns: `repeat(${ms.length}, minmax(0, 1fr))` }}>
       {ms.map((m) => (
         <div key={m.id} className="flex min-h-0 min-w-0 flex-col">
-          {(ms.length > 1 || panel.title) && <div className="mb-1 text-center text-sm font-semibold text-[var(--color-print)]">{ms.length > 1 ? m.name : panel.title}</div>}
+          {(ms.length > 1 || panel.title) && <div className="mb-1 text-center widget-text-sm font-semibold text-[var(--color-print)]">{ms.length > 1 ? m.name : panel.title}</div>}
           <div className="min-h-0 flex-1">{render(m, domain)}</div>
         </div>
       ))}

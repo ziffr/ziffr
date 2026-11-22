@@ -216,7 +216,7 @@ Owners see one line at the end of the page: **Encrypted with a key of its own. D
 
 ### In the demo
 
-The demo's sidebar has the same user menu at the bottom as any Workspace: **My schedule**, **Profile**, **Deliveries** and **Alerts** open from it, so a visitor does not have to find them in the side list. A change the demo refuses says "The demo can't be changed." with **Try it with a trial of your own** beside it.
+The demo's sidebar has the same user menu at the bottom as any Workspace: **My schedule**, **Profile**, **Deliveries** and **Alerts** open from it, so a visitor does not have to find them in the side list. Under **Dashboards** the demo's sidebar shows a few pinned dashboards (pinning is off there, so they stay as they are). A change the demo refuses says "The demo can't be changed." with **Try it with a trial of your own** beside it.
 
 In the demo nobody changes these settings: the page shows them without the controls and says "The demo can't be changed." The demo has no Workspace time: its date is the pretend date on the Workflows page. Its year starts in January, it writes numbers as 1,234.5, and it computes Attainment by ratio.
 
