@@ -150,6 +150,16 @@ export async function resendInvitation(actor: Actor, id: number, transport?: Mai
   if (!(await emailInvitation(inv.id, actor.personId, transport))) throw new Error("The email could not be sent; try again later.");
 }
 
+/** Changes the Workspace Role a held invitation will be sent with (Owner only, Admin, Member or Guest): the roles the
+ * file gave are the old Workspace's, and the new Owner decides before anyone is invited. Only a held one. */
+export async function setHeldRole(actor: Actor, id: number, role: WorkspaceRoleName): Promise<void> {
+  notDemo(actor);
+  if (actor.role !== "owner") throw new Forbidden("Only the Owner changes the role of a person of an imported file.");
+  if (role !== "admin" && role !== "member" && role !== "guest") throw new Forbidden();
+  const { data } = await db().from("invitations").update({ role }).eq("id", Number(id)).eq("workspace_id", actor.workspaceId).not("held_at", "is", null).is("revoked_at", null).is("accepted_at", null).select("id");
+  if (!data?.length) throw new Forbidden();
+}
+
 /** Releases every held invitation of the Workspace and emails each its link, as the new Owner pressed "Invite
  * everyone": the people of an imported file are invited only now, within the Installation's sending limits (an
  * invitation the limits hold back stays open, with the reason, to send by hand). Returns how many were released and
@@ -158,7 +168,7 @@ export async function inviteEveryone(actor: Actor, transport?: MailTransport): P
   notDemo(actor);
   await assertNotTrial(actor.workspaceId, "Inviting people");
   if (actor.role !== "owner") throw new Forbidden("Only the Owner invites the people of an imported file.");
-  const { data: held } = await db().from("invitations").select("id").eq("workspace_id", actor.workspaceId).not("held_at", "is", null).is("revoked_at", null).is("accepted_at", null).order("id");
+  const { data: held } = await db().from("invitations").select("id").eq("workspace_id", actor.workspaceId).not("held_at", "is", null).is("revoked_at", null).is("accepted_at", null).gt("expires_at", new Date().toISOString()).order("id");
   let released = 0;
   let emailed = 0;
   const canMail = await mailOn();

@@ -58,11 +58,11 @@ Ziffr first checks the whole file and writes nothing. If anything is wrong, such
 The new Workspace has its own key: everything private in it is sealed again under that key, whatever it was sealed with before. What arrives: the Workspace's name, time zone and year start, Groups, Themes, Metrics with their Tags, Target Ranges, Target Series and Projections, every value with its Breakdown and the day it was recorded, dashboards, decks, Workflows and Shares. Values come in as imports, so they count as history. Things to know:
 
 - **You own every Metric.** The people who owned them get them when they join.
-- **People are not invited yet.** They are on the **Members and Groups** page as invitations that are on hold, with the name, address and role the file gave. Nothing is sent. Choose **Invite everyone** there when you are ready, within this Ziffr's sending limits; each person's Groups, Shares, the Metrics they owned and the Metrics they send values for are applied when they join. You are not invited yourself: if your own address is in the file, you are the person it names.
+- **People are not invited yet.** They are on the **Members and Groups** page as invitations that are on hold, with the name, address and role the file gave. Nothing is sent. Change a person's role with the list beside their name if the old one no longer fits, then choose **Invite everyone** when you are ready, within this Ziffr's sending limits; each person's Groups, Shares, the Metrics they owned and the Metrics they send values for are applied when they join. You are not invited yourself: if your own address is in the file, you are the person it names.
 - **Workflows** ask the Owner to approve until people join, since the file holds how many Approvers there are, never who.
 - **Decks** are laid out when you first open each one, from today's values, as a deck made from a Deck Template. A Deck Template for each also appears in the Workspace.
 - **Computed Metrics** (Derived Metrics) arrive with their formulas but no values: Ziffr computes them again.
-- **Who sent a value** is not carried over.
+- **Who sent a value** stays as a name and shows in the history as "Ana (imported)".
 
 An Installation can lower or raise the size the import accepts with `ZIFFR_IMPORT_MAX_FILE_MB` (200 by default, the size of the file) and `ZIFFR_IMPORT_MAX_TEXT_MB` (1,024 by default, the size once unpacked).
 

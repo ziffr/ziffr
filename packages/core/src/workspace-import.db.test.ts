@@ -2,7 +2,7 @@
 // the core's ordinary operations, sealed under its own key; a bad file or a stopped job leaves nothing; people are
 // held invitations that send nothing until the Owner invites them; nothing of the file is an id or reaches HTML raw.
 import { randomUUID } from "node:crypto";
-import { writeFile } from "node:fs/promises";
+import { stat, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
@@ -15,8 +15,8 @@ import { db } from "./db";
 import { openRows } from "./sealed-columns";
 import { workspaceCipher } from "./workspace-keys";
 import { writeWorkspaceExportAll } from "./workspace-export-file";
-import { importLimits, importStatus, ImportProblem, Labels, startWorkspaceImport, STALE_SECONDS } from "./workspace-import";
-import { acceptInvitation, inviteEveryone, invitationFor, openInvitations } from "./invitations";
+import { assertMayImport, importLimits, importStatus, ImportProblem, Labels, startWorkspaceImport, STALE_SECONDS } from "./workspace-import";
+import { acceptInvitation, inviteEveryone, invitationFor, openInvitations, setHeldRole } from "./invitations";
 import { workspace } from "./test/db-fixtures";
 
 const cleanups: (() => Promise<void>)[] = [];
@@ -108,12 +108,18 @@ describe("a sound file", () => {
     expect(JSON.stringify(flows![0].config)).toContain(person);
     // The values, sealed under the new key, with their Breakdown and recording time; none for the Derived Metric.
     const cipher = await workspaceCipher(ws);
-    const { data: obs } = await db().from("observations").select("id, metric_id, period_start, value, value_sealed, imported, source, created_at, submitter_id").eq("workspace_id", ws).order("period_start");
+    const { data: obs } = await db().from("observations").select("id, metric_id, period_start, value, value_sealed, imported, source, created_at, submitter_id, submitted_by_name").eq("workspace_id", ws).order("period_start");
     expect(obs).toHaveLength(2);
     expect(obs!.every((o) => o.imported && o.submitter_id === null)).toBe(true);
     if (cipher.sealing) expect(obs!.every((o) => o.value === null && typeof o.value_sealed === "string")).toBe(true);
     const opened = await openRows("observations", ws, obs!);
     expect(opened.map((o) => o.value)).toEqual([14, 21.25]);
+    // Who sent it stays as a name, sealed for its row (opened only with this Workspace's key); a value without one has none.
+    expect(opened.map((o) => o.submitted_by_name)).toEqual(["Ada", null]);
+    if (cipher.sealing) {
+      expect(obs![0].submitted_by_name).not.toBe("Ada");
+      expect((await openRows("observations", w.id, obs!)).map((o) => o.submitted_by_name)).toEqual([null, null]);
+    }
     // Sealed under this Workspace's own key: another Workspace's key (the importer's own) opens none of it.
     if (cipher.sealing) expect((await openRows("observations", w.id, obs!)).map((o) => o.value)).toEqual([null, null]);
     expect(new Date(obs![0].created_at as string).toISOString()).toBe("2026-05-01T08:00:00.000Z");
@@ -145,7 +151,7 @@ describe("a sound file", () => {
     const held = await openInvitations(actor);
     expect(held.map((i) => [i.email, i.role, i.name, Boolean(i.held_at)]).sort()).toEqual([["ada@example.com", "member", "Ada <i>Lovelace</i>", true], ["gus@example.com", "guest", "Gus", true]]);
     expect(JSON.stringify(held)).not.toMatch(/token|import_plan|groups/);
-    const { data: raw } = await db().from("invitations").select("token, email, email_sends").eq("workspace_id", ws);
+    const { data: raw } = await db().from("invitations").select("id, token, email, email_sends").eq("workspace_id", ws);
     expect(raw!.every((r) => r.email_sends === 0)).toBe(true);
     const ada = raw!.find((r) => r.email === "ada@example.com")!;
     // Not usable while held: its page says so, and joining is refused.
@@ -154,7 +160,12 @@ describe("a sound file", () => {
     await expect(acceptInvitation({ personId: stranger, verifiedEmail: "ada@example.com" }, ada.token as string)).rejects.toThrow(/does not work any more/);
     // Only the Owner invites everyone; mail is off here, so nothing goes out but every invitation is released.
     await expect(inviteEveryone({ ...actor, role: "admin" })).rejects.toThrow(/Only the Owner/);
+    // The Owner may change a role before anyone is invited; nobody else may, and a released one is no longer held.
+    await expect(setHeldRole({ ...actor, role: "admin" }, raw![0].id as number, "guest")).rejects.toThrow(/Only the Owner/);
+    await setHeldRole(actor, (await db().from("invitations").select("id").eq("token", ada.token).single()).data!.id as number, "admin");
+    expect((await db().from("invitations").select("role").eq("token", ada.token).single()).data?.role).toBe("admin");
     expect(await inviteEveryone(actor)).toEqual({ released: 2, emailed: 0 });
+    await expect(setHeldRole(actor, (await db().from("invitations").select("id").eq("token", ada.token).single()).data!.id as number, "guest")).rejects.toThrow();
     expect(await inviteEveryone(actor)).toEqual({ released: 0, emailed: 0 });
     expect((await invitationFor(ada.token as string))!.usable).toBe(true);
     // Joining applies what the file said of Ada: her Group, what was shared with her, the Metric she owned and sent values for.
@@ -237,6 +248,15 @@ describe("a file that is refused", () => {
     await expect(writeFile(path, "", { flag: "wx" })).resolves.toBeUndefined();
   });
 
+  it("is refused before any file is taken when the person may not import now", async () => {
+    const { person } = await importer();
+    await expect(assertMayImport(person)).resolves.toBeUndefined();
+    await db().from("workspace_imports").insert({ created_by: person, status: "importing" });
+    await expect(assertMayImport(person)).rejects.toThrow(/importing a Workspace already/);
+    process.env.ZIFFR_CLOUD_KEY = "k".repeat(40);
+    await expect(assertMayImport(person)).rejects.toThrow(/hosted Ziffr/);
+  });
+
   it("is one import at a time per person", async () => {
     const { person, email } = await importer();
     const first = await startWorkspaceImport(person, await fileOf(records(email)));
@@ -258,10 +278,14 @@ describe("a job that stopped", () => {
     await db().from("memberships").insert({ workspace_id: ws!.id, user_id: person, role: "owner" });
     await workspaceCipher(ws!.id as string);
     const old = new Date(Date.now() - (STALE_SECONDS + 5) * 1000).toISOString();
-    const { data: job } = await db().from("workspace_imports").insert({ created_by: person, workspace_id: ws!.id, status: "importing", updated_at: old }).select("id").single();
+    const upload = join(tmpdir(), `ziffr-import-${randomUUID()}`);
+    await writeFile(upload, "left behind");
+    const { data: job } = await db().from("workspace_imports").insert({ created_by: person, workspace_id: ws!.id, status: "importing", updated_at: old, temp_path: upload }).select("id").single();
     const status = await importStatus(person, job!.id as string);
     expect(status).toMatchObject({ status: "failed" });
     expect(status!.problem).toMatch(/Nothing was kept/);
+    // Its upload is removed too.
+    await expect(stat(upload)).rejects.toThrow();
     expect((await db().from("workspaces").select("id").eq("id", ws!.id)).data).toHaveLength(0);
     expect((await db().from("workspace_keys").select("workspace_id").eq("workspace_id", ws!.id)).data).toHaveLength(0);
     // The key's end is on the Installation's audit, by id.

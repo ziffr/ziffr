@@ -99,6 +99,14 @@ export async function inviteEveryone() {
   });
 }
 
+/** Changes the role a held invitation of an imported file will be sent with (Owner only). */
+export async function setHeldRole(id: number, role: WorkspaceRoleName) {
+  return attempt(async () => {
+    await inv.setHeldRole(await currentActor(), Number(id), role);
+    done();
+  });
+}
+
 /** A link anyone with it can join by, as Member or Guest, for 7 days. */
 export async function createInviteLink(role: "member" | "guest") {
   return attempt(async () => {

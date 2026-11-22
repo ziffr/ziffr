@@ -19,6 +19,7 @@ Decks, Themes, View Designs, the canvas, Packs and the pages that edit them are 
 - `createDashboardFromBody` (dashboard-templates.ts): the same as making a dashboard from a template, for a template that is not stored; only a Workspace import uses it
 - `writeFormula` (pack-setup.ts): sets the formula of a Derived Metric made from a Pack entry or a Workspace Export; a program writes a formula through the API's
 - `addThemeFromFile` (workspace-themes.ts): Themes, which are built at the screen
+- `setHeldRole` (invitations.ts): the Members page, for the people of an imported Workspace Export before they are invited
 - `inviteEveryone` (invitations.ts): the Members page's button for the people of an imported Workspace Export; a program invites through the API's invitations
 - `setViewLinkNames` (view-links.ts): the View links window; a program's View Links always show no names (ticket #590)
 - `applyTemplate` (dashboards.ts): the dashboard canvas

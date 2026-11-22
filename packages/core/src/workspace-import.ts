@@ -13,6 +13,8 @@
 // upload route wrote within the size limit, which is deleted however the job ends.
 import { createReadStream } from "node:fs";
 import { rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { basename, dirname } from "node:path";
 import { db } from "./db";
 import type { Actor } from "./actor";
 import { audit } from "./audit-log";
@@ -164,10 +166,12 @@ export async function startWorkspaceImport(personId: string, path: string, optio
     await rm(path, { force: true });
     throw e;
   }
-  const { data, error } = await db().from("workspace_imports").insert({ created_by: personId, status: "checking", step: "Checking the file" }).select("id").single();
-  if (error?.code === "23505") return refuse("You are importing a Workspace already. Wait for it to finish.");
-  if (error || !data) return refuse("The import could not be started.");
-  const id = data.id as string;
+  // Claimed in one locked database step with the limits, so people starting at once cannot all pass them.
+  const { data, error } = await db().rpc("start_workspace_import", { p_person: personId, p_max: MAX_RUNNING_IMPORTS, p_temp: path.slice(0, 300) }).single<{ job: string | null; refused: string | null }>();
+  if (error) return refuse("The import could not be started.");
+  if (data.refused === "mine") return refuse("You are importing a Workspace already. Wait for it to finish.");
+  if (data.refused === "busy" || !data.job) return refuse("This Ziffr is importing as many Workspaces as it does at once. Try again in a few minutes.");
+  const id = data.job;
   return { id, done: runImport(id, personId, path, options.limits ?? importLimits()) };
 }
 
@@ -187,15 +191,27 @@ export async function latestImport(personId: string): Promise<ImportStatus | nul
   return data ? statusOf(data as JobRow) : null;
 }
 
-/** Ends imports of any person whose process stopped (no sign of life for STALE_SECONDS) and undoes what they made. */
+/** Removes the upload of a job, only when its path has the form this module gives them, under the temporary folder. */
+async function removeUpload(path: unknown): Promise<void> {
+  if (typeof path !== "string" || dirname(path) !== tmpdir() || !/^ziffr-import-[0-9a-f-]{36}$/.test(basename(path))) return;
+  await rm(path, { force: true });
+}
+
+/** Ends imports of any person whose process stopped (no sign of life for STALE_SECONDS), undoes what they made and
+ * removes their upload; and tries again to undo a failed import whose half-made Workspace is still there (its key could
+ * not be destroyed then). */
 async function endStaleImports(): Promise<void> {
   const before = new Date(Date.now() - STALE_SECONDS * 1000).toISOString();
-  const { data } = await db().from("workspace_imports").select("id, workspace_id").in("status", ["checking", "importing"]).lt("updated_at", before);
+  const { data } = await db().from("workspace_imports").select("id, workspace_id, temp_path").in("status", ["checking", "importing"]).lt("updated_at", before);
   for (const j of data ?? []) {
     // Claimed by the update, so two readers do not both undo it.
     const { data: claimed } = await db().from("workspace_imports").update({ status: "failed", problem: "The import stopped before it finished (the server was restarted). Nothing was kept.", finished_at: new Date().toISOString() }).eq("id", j.id).in("status", ["checking", "importing"]).lt("updated_at", before).select("id");
-    if (claimed?.length && j.workspace_id) await undoWorkspace(j.workspace_id as string).catch((e) => console.error("A stopped import could not be undone:", (e as Error).message));
+    if (!claimed?.length) continue;
+    await removeUpload(j.temp_path);
+    if (j.workspace_id) await undoWorkspace(j.workspace_id as string).catch((e) => console.error("A stopped import could not be undone:", (e as Error)?.name));
   }
+  const { data: left } = await db().from("workspace_imports").select("workspace_id").eq("status", "failed").not("workspace_id", "is", null).limit(20);
+  for (const j of left ?? []) await undoWorkspace(j.workspace_id as string).catch((e) => console.error("A failed import could not be undone:", (e as Error)?.name));
 }
 
 /** Deletes a Workspace that is being imported, with its key and the person rows made for it. Only one marked importing. */
@@ -245,7 +261,7 @@ async function runImport(id: string, personId: string, path: string, limits: Wor
   } catch (e) {
     const words = wordsOf(e);
     if (!words) console.error("A Workspace import stopped on something unexpected:", (e as Error)?.name, (e as { code?: string })?.code);
-    if (workspaceId) await undoWorkspace(workspaceId).catch((u) => console.error("A failed import could not be undone:", (u as Error).message));
+    if (workspaceId) await undoWorkspace(workspaceId).catch((u) => console.error("A failed import could not be undone:", (u as Error)?.name));
     await db().from("workspace_imports").update({ status: "failed", problem: (words ?? "The import stopped on something unexpected. Nothing was kept.").slice(0, 600), finished_at: new Date().toISOString(), updated_at: new Date().toISOString() }).eq("id", id).in("status", ["checking", "importing"]);
   } finally {
     clearInterval(beat);
@@ -525,8 +541,10 @@ class ValueWriter {
     let next = 0;
     const observations = batch.map((b, i) => ({
       id: ids[i], metric_id: b.metric, period_start: b.r.period, ...written(cipher, "observations", ids[i], b.r.value),
-      // Every value is an Import (history), whatever Source the file says; who sent it is not kept (a name is no one's account).
+      // Every value is an Import (history), whatever Source the file says.
       submitter_id: null, source: "web_form", imported: true, created_at: b.r.recordedAt ?? new Date().toISOString(),
+      // Who sent it stays as a name, sealed for the value's row (an id of the old Workspace would mean nothing here).
+      submitted_by_name: b.r.submittedBy === undefined ? null : cipher.seal({ table: "observations", column: "submitted_by_name", row: ids[i] }, b.r.submittedBy),
     }));
     const { error } = await db().from("observations").insert(observations);
     if (error) throw new Error("Values could not be written.");
