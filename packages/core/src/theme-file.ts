@@ -1,6 +1,7 @@
 // The Theme file format, ziffr.theme/1 (GLOSSARY: Theme): the format lives in @ziffr/pack (MIT), so a creator checks a file exactly as Ziffr does;
 // this module adds how a checked file becomes what a Theme stores.
 import { COLOR_NAMES, type ThemeFile } from "@ziffr/pack/theme-file";
+import { logoRatio } from "@ziffr/pack/logo";
 import { checkSchema, type Schema } from "./json-check";
 import { PLAIN } from "./file-text";
 import type { ThemeSlides, ThemeTokens } from "./types";
@@ -8,9 +9,11 @@ import type { ThemeSlides, ThemeTokens } from "./types";
 export * from "@ziffr/pack/theme-file";
 
 /** A checked Theme file as the tokens and slide settings a Theme stores: colours in capitals as the editor keeps them,
- * and never a logo or background image. */
-export function themeFromFile(t: ThemeFile): { name: string; tokens: ThemeTokens; slides: ThemeSlides } {
+ * never a background image, and a logo only when the file says `"logo": "pack"` and `packLogo` is the Pack's logo, as
+ * `cleanLogo` wrote it (spec 0039): the caller passes nothing else, so a Theme file on its own never carries a picture. */
+export function themeFromFile(t: ThemeFile, packLogo: string | null = null): { name: string; tokens: ThemeTokens; slides: ThemeSlides } {
   const s = t.slides ?? {};
+  const logo = s.logo === "pack" && packLogo ? packLogo : null;
   return {
     name: t.name,
     tokens: {
@@ -19,7 +22,7 @@ export function themeFromFile(t: ThemeFile): { name: string; tokens: ThemeTokens
       fontHeading: t.fonts.heading, fontBody: t.fonts.body, fontFigures: t.fonts.figures, radius: t.radius, cards: t.cards,
     },
     slides: {
-      background_image: null, logo: null, logo_ratio: 3,
+      background_image: null, logo, logo_ratio: logo ? logoRatio(logo) : 3,
       logo_position: s.logoPosition ?? "top-right", logo_width: s.logoWidth ?? 140, footer: s.footer ?? "",
       show_slide_number: s.showSlideNumber ?? false, title_size: s.titleSize ?? 56, body_size: s.bodySize ?? 24,
     },

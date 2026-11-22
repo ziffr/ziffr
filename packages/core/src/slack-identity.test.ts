@@ -1,5 +1,5 @@
 // What a Slack message carries as its sender (ticket #650): the Workspace's name and logo address, only with the scope.
-import { describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { canCustomize, slackIdentity } from "./slack-identity";
 import { themeLook } from "./theme-look";
 import { STARTER_THEME } from "./themes";
@@ -9,6 +9,10 @@ const PNG = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJA
 const WS = "11111111-2222-3333-4444-555555555555";
 const withLogo = themeLook({ tokens: STARTER_THEME.tokens, slides: { ...STARTER_THEME.slides, logo: PNG } }, "Acme Co");
 const noLogo = themeLook({ tokens: STARTER_THEME.tokens, slides: { ...STARTER_THEME.slides, logo: "" } }, "Acme Co");
+
+// The logo address is keyed with the Installation's secret; with none, no address is made.
+beforeEach(() => { vi.stubEnv("ZIFFR_SECRETS_KEY", ""); vi.stubEnv("SUPABASE_SERVICE_ROLE_KEY", "test-service-key"); });
+afterEach(() => vi.unstubAllEnvs());
 
 describe("slackIdentity", () => {
   it("knows the scope from Slack's comma-separated list", () => {
@@ -22,6 +26,11 @@ describe("slackIdentity", () => {
     const who = slackIdentity("chat:write,chat:write.customize", WS, withLogo, "https://ziffr.example.test/");
     expect(who.username).toBe("Acme Co");
     expect(who.icon_url).toMatch(new RegExp(`^https://ziffr\\.example\\.test/api/brand/logo/${WS}/[0-9a-f]{16}$`));
+  });
+
+  it("sends only the name when the Installation has no secret to key the address with", () => {
+    vi.stubEnv("SUPABASE_SERVICE_ROLE_KEY", "");
+    expect(slackIdentity("chat:write,chat:write.customize", WS, withLogo, "https://ziffr.example.test")).toEqual({ username: "Acme Co" });
   });
 
   it("sends only the name when there is no logo, or no usable site address", () => {

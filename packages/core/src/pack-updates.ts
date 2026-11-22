@@ -8,7 +8,8 @@ import { db } from "./db";
 import { Forbidden, type Actor } from "./actor";
 import { audit } from "./audit-log";
 import { checkPack, versionBelow, type Pack } from "./pack";
-import { assertManages, itemHash, itemKeys, manifestOf, PACK_CAPS, storedItems, type PackOrigin } from "./packs";
+import { cleanLogo, PACK_LOGO_MAX_BYTES } from "@ziffr/pack/logo";
+import { assertManages, itemHash, packLogoOf, themeHashInput, itemKeys, manifestOf, PACK_CAPS, storedItems, type PackOrigin } from "./packs";
 import { ensureBaseline, recordVersion } from "./versions";
 
 /** Where an installed item lives. */
@@ -20,10 +21,10 @@ const CATALOG_FIELDS = ["category", "name", "description", "unit", "unit_positio
 export type ItemKind = "metric" | "dashboard" | "deck" | "workflow" | "view" | "theme";
 
 /** One copy of an installed item in the Workspace: where it is, the hash it was installed with, and its hash now. */
-type Copy = { table: Table; id: number; key: string; kind: ItemKind; name: string; installedHash: string; currentHash: string; offer: unknown; updatedAt: string | null };
+type Copy = { table: Table; id: number; key: string; kind: ItemKind; name: string; installedHash: string; currentHash: string; offer: unknown; updatedAt: string | null; };
 
 /** What is hashed of a stored row: exactly what installing hashed (packs.ts storedItems), read back from the database. */
-function stored(table: Table, r: Record<string, unknown>, ownThemes: ReadonlySet<number>): unknown {
+function stored(table: Table, r: Record<string, unknown>, ownThemes: ReadonlySet<number>, packLogo: string | null): unknown {
   if (table === "catalog") {
     const n = (v: unknown) => (v === null || v === undefined ? null : Number(v));
     const row = Object.fromEntries(CATALOG_FIELDS.map((f) => [f, f === "target_min" || f === "target_max" ? n(r[f]) : f === "decimals" ? Number(r[f]) : r[f] ?? null]));
@@ -38,7 +39,7 @@ function stored(table: Table, r: Record<string, unknown>, ownThemes: ReadonlySet
     return { kind: r.kind, name: r.name, description: r.description, slots: r.slots, body };
   }
   if (table === "designs") return { name: r.name, body: r.body };
-  return { name: r.name, tokens: r.tokens, slides: r.slides };
+  return themeHashInput(r.name, r.tokens, r.slides as Record<string, unknown> | null, packLogo);
 }
 
 const kindOf = (table: Table, r: Record<string, unknown>): ItemKind => (table === "catalog" ? "metric" : table === "designs" ? "view" : table === "themes" ? "theme" : (r.kind as ItemKind));
@@ -61,13 +62,17 @@ async function copiesOf(actor: Actor, installId: number): Promise<Copy[]> {
   };
   const out: Copy[] = [];
   const ownThemes = new Set<number>();
+  // The Pack's logo as installed, from the install's own record, checked again as it is read.
+  const { data: inst } = await db().from("pack_installs").select("manifest").eq("id", installId).eq("workspace_id", actor.workspaceId).maybeSingle();
+  const kept = (inst?.manifest as { logo?: unknown } | null)?.logo;
+  const packLogo = kept === undefined ? null : cleanLogo(kept, PACK_LOGO_MAX_BYTES);
   // Themes first: whether a Deck Template still uses the Theme installed with it depends on them.
   for (const table of ["themes", "catalog", "templates", "designs"] as Table[]) {
     const { data, error } = await db().from(TABLE[table]).select(cols[table]).eq("workspace_id", actor.workspaceId).eq("pack_install_id", installId);
     if (error) throw new Error("The Pack's items could not be read.");
     for (const r of (data ?? []) as unknown as Record<string, unknown>[]) {
       if (table === "themes") ownThemes.add(Number(r.id));
-      out.push({ table, id: Number(r.id), key: String(r.pack_key), kind: kindOf(table, r), name: String(r.name), installedHash: String(r.pack_hash), currentHash: itemHash(stored(table, r, ownThemes)), offer: r.pack_offer ?? null, updatedAt: (r.updated_at as string | null) ?? null });
+      out.push({ table, id: Number(r.id), key: String(r.pack_key), kind: kindOf(table, r), name: String(r.name), installedHash: String(r.pack_hash), currentHash: itemHash(stored(table, r, ownThemes, packLogo)), offer: r.pack_offer ?? null, updatedAt: (r.updated_at as string | null) ?? null });
     }
   }
   return out;
@@ -205,9 +210,14 @@ export async function updatePack(actor: Actor, installId: number, text: string, 
   if (res.plan.blocked) throw new Forbidden(res.plan.blocked);
   if (!origin.signed && !confirmed?.unsigned) throw new Error("Confirm that you install a file the Marketplace did not check.");
   if (res.plan.assistantTexts.length && !confirmed.assistantTexts) throw new Error("Confirm that you read the texts aimed at assistants first.");
+  // The Audit Log notes that the logo was added, changed or removed, never its bytes.
+  const before = await db().from("pack_installs").select("manifest").eq("id", Number(installId)).eq("workspace_id", actor.workspaceId).maybeSingle();
+  const was = cleanLogo((before.data?.manifest as { logo?: unknown } | null)?.logo, PACK_LOGO_MAX_BYTES);
+  const now = packLogoOf(res.pack);
+  const logoChange = was === now ? "same" : !was ? "added" : !now ? "removed" : "changed";
   const { error } = await db().rpc("update_pack", {
     p_workspace: actor.workspaceId, p_install: Number(installId), p_by: actor.personId,
-    p_install_row: { version: res.pack.version, license: res.pack.license, manifest: manifestOf(res.pack), item_keys: itemKeys(res.stored), source: origin.source, signed: origin.signed },
+    p_install_row: { version: res.pack.version, license: res.pack.license, manifest: { ...manifestOf(res.pack), ...(res.pack.logo === undefined ? {} : { logo: packLogoOf(res.pack) }) }, item_keys: itemKeys(res.stored), source: origin.source, signed: origin.signed },
     p_ops: res.ops,
   });
   if (error?.code === "40001") throw new Error("Something of this Pack changed meanwhile; choose the file again to see what an update does now.");
@@ -215,7 +225,7 @@ export async function updatePack(actor: Actor, installId: number, text: string, 
   const sameName = error?.code === "23505" && /catalog_metrics_workspace_name_key/.test(error.message ?? "");
   if (sameName) throw new Error("This Workspace's Metric Catalog has an entry of the same name as one this version adds; nothing was changed.");
   if (error) throw new Error("The Pack could not be updated; nothing was changed.");
-  await audit(actor, { kind: "pack.updated", object: { type: "pack", id: Number(installId), name: res.pack.name }, details: { pack: res.pack.id, from: res.plan.from, version: res.plan.to, source: origin.source } });
+  await audit(actor, { kind: "pack.updated", object: { type: "pack", id: Number(installId), name: res.pack.name }, details: { pack: res.pack.id, from: res.plan.from, version: res.plan.to, source: origin.source, ...(logoChange === "same" ? {} : { logo: logoChange }) } });
   return res.plan;
 }
 
