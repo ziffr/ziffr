@@ -11,12 +11,12 @@
 // are finite and bounded, dates real and in range; text follows the Pack's plain-text rules; "__proto__" and its kin
 // are data (ids are held in Maps, keys are refused by pattern). Nothing here runs or queries what it reads.
 import { checkSchema, MAX_PROBLEMS, parseJson, under, type Problem, type Schema } from "./json-check.js";
-import { itemKey } from "./file-text.js";
+import { itemKey, PLAIN, WORDS } from "./file-text.js";
 import { checkMetricFileValue, METRIC_FILE_SCHEMA, type MetricFile } from "./metric-file.js";
-import { checkDashboardTemplateFileValue, DASHBOARD_TEMPLATE_LIMITS, dashboardTemplateReferences, refusedOutsidePack, type DashboardTemplateFile } from "./dashboard-template-file.js";
-import { checkDeckTemplateFileValue, DECK_TEMPLATE_LIMITS, deckTemplateReferences, type DeckTemplateFile } from "./deck-template-file.js";
-import { checkWorkflowTemplateFileValue, WORKFLOW_TEMPLATE_LIMITS, type WorkflowTemplateFile } from "./workflow-template-file.js";
-import { checkThemeFileValue, THEME_FILE_LIMITS, type ThemeFile } from "./theme-file.js";
+import { checkDashboardTemplateFileValue, DASHBOARD_TEMPLATE_LIMITS, DASHBOARD_TEMPLATE_SCHEMA, dashboardTemplateReferences, refusedOutsidePack, type DashboardTemplateFile } from "./dashboard-template-file.js";
+import { checkDeckTemplateFileValue, DECK_TEMPLATE_LIMITS, DECK_TEMPLATE_SCHEMA, deckTemplateReferences, type DeckTemplateFile } from "./deck-template-file.js";
+import { checkWorkflowTemplateFileValue, WORKFLOW_TEMPLATE_LIMITS, WORKFLOW_TEMPLATE_SCHEMA, type WorkflowTemplateFile } from "./workflow-template-file.js";
+import { checkThemeFileValue, THEME_FILE_LIMITS, THEME_FILE_SCHEMA, type ThemeFile } from "./theme-file.js";
 import { checkPackFormula, type FormulaEntry } from "./formula-check.js";
 import type { Period, SourceId } from "./kinds.js";
 
@@ -122,6 +122,24 @@ const INSTANT = { type: "string", maxLength: 24, pattern: "^[0-9]{4}-[0-9]{2}-[0
 const record = (kind: WorkspaceExportKind, description: string, properties: Record<string, Schema>, required: string[]): Schema =>
   obj({ kind: { const: kind, description: "Which record this line is." }, ...properties }, ["kind", ...required], description);
 const slots: Schema = { type: "array", minItems: 1, maxItems: DASHBOARD_TEMPLATE_LIMITS.slots, items: refs("the Metrics that fill one Slot", L.slotMetrics, 1), description: "The Metrics that fill each Slot of the template, in order." };
+
+/** A Pack format's schema with its plain-text rule swapped for the app's (`LOOSE`) wherever it stands, so a title a person
+ * typed in the app, with an "@", an emoji or an address, travels; a Pack file keeps the Pack's rule. */
+function loosened(schema: Schema): Schema {
+  const walk = (s: Schema): Schema => {
+    const out: Schema = s.pattern === PLAIN || s.pattern === WORDS ? { ...s, pattern: LOOSE, description: looseText(1).description } : { ...s };
+    if (s.properties) out.properties = Object.fromEntries(Object.entries(s.properties).map(([k, v]) => [k, walk(v)]));
+    if (s.items) out.items = walk(s.items);
+    if (s.oneOf) out.oneOf = s.oneOf.map(walk);
+    if (s.$defs) out.$defs = Object.fromEntries(Object.entries(s.$defs).map(([k, v]) => [k, walk(v)]));
+    return out;
+  };
+  return walk(schema);
+}
+const EXPORT_DASHBOARD_SCHEMA = loosened(DASHBOARD_TEMPLATE_SCHEMA);
+const EXPORT_DECK_SCHEMA = loosened(DECK_TEMPLATE_SCHEMA);
+const EXPORT_WORKFLOW_SCHEMA = loosened(WORKFLOW_TEMPLATE_SCHEMA);
+const EXPORT_THEME_SCHEMA = loosened(THEME_FILE_SCHEMA);
 
 /** The Metric document's schema in a Workspace Export: the Metric file's, with the app's text rules (a Pack is held to
  * stricter ones because it is shown to strangers; a Workspace's own Metrics are what they typed). */
@@ -392,7 +410,7 @@ export class WorkspaceExportChecker {
         return fresh("group", r.id);
       case "theme": {
         fresh("theme", r.id);
-        if (doc("theme", "Theme", THEME_FILE_LIMITS.bytes, r.theme)) merge("theme", checkThemeFileValue(r.theme, new Map(), "standalone"));
+        if (doc("theme", "Theme", THEME_FILE_LIMITS.bytes, r.theme)) merge("theme", checkThemeFileValue(r.theme, new Map(), "standalone", EXPORT_THEME_SCHEMA));
         return;
       }
       case "person": {
@@ -423,7 +441,7 @@ export class WorkspaceExportChecker {
       case "dashboard": {
         fresh("dashboard", r.id);
         if (doc("dashboard", "dashboard", DASHBOARD_TEMPLATE_LIMITS.bytes, r.dashboard)) {
-          const res = checkDashboardTemplateFileValue(r.dashboard);
+          const res = checkDashboardTemplateFileValue(r.dashboard, undefined, EXPORT_DASHBOARD_SCHEMA);
           // Outside a Pack nothing can be named: a suggested entry or a View Design key has nothing to point to.
           merge("dashboard", res.ok ? refusedOutsidePack(res, Object.values(dashboardTemplateReferences(res.value)).flat(), new Map()) : res);
           this.slots(r.slots, res.ok ? res.value.slots : undefined, at, known);
@@ -433,7 +451,7 @@ export class WorkspaceExportChecker {
       case "deck": {
         fresh("deck", r.id);
         if (doc("deck", "deck", DECK_TEMPLATE_LIMITS.bytes, r.deck)) {
-          const res = checkDeckTemplateFileValue(r.deck);
+          const res = checkDeckTemplateFileValue(r.deck, undefined, EXPORT_DECK_SCHEMA);
           const refs = res.ok ? Object.values(deckTemplateReferences(res.value)).flat() : [];
           merge("deck", res.ok ? refusedOutsidePack(res, refs, new Map()) : res);
           this.slots(r.slots, res.ok ? res.value.slots : undefined, at, known);
@@ -443,7 +461,7 @@ export class WorkspaceExportChecker {
       }
       case "workflow": {
         fresh("workflow", r.id);
-        if (doc("workflow", "Workflow", WORKFLOW_TEMPLATE_LIMITS.bytes, r.workflow)) merge("workflow", checkWorkflowTemplateFileValue(r.workflow));
+        if (doc("workflow", "Workflow", WORKFLOW_TEMPLATE_LIMITS.bytes, r.workflow)) merge("workflow", checkWorkflowTemplateFileValue(r.workflow, undefined, EXPORT_WORKFLOW_SCHEMA));
         r.metrics.forEach((m, i) => known("metric", m, `metrics[${i}]`));
         distinct("metrics", r.metrics, "Metric");
         return;

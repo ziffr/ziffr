@@ -185,6 +185,6 @@ export function refusedOutsidePack<T>(res: FormatCheck<T>, refs: { path: string;
 }
 
 /** Checks a Dashboard Template file already read from JSON; which Pack items it names is checked by its Pack. */
-export function checkDashboardTemplateFileValue(value: unknown, lines: Map<string, number> = new Map()): FormatCheck<DashboardTemplateFile> {
-  return checkFormat({ family: "ziffr.dashboard-template", reads: DASHBOARD_TEMPLATE_FORMATS, schema: DASHBOARD_TEMPLATE_SCHEMA, meaning }, value, lines);
+export function checkDashboardTemplateFileValue(value: unknown, lines: Map<string, number> = new Map(), schema: Schema = DASHBOARD_TEMPLATE_SCHEMA): FormatCheck<DashboardTemplateFile> {
+  return checkFormat({ family: "ziffr.dashboard-template", reads: DASHBOARD_TEMPLATE_FORMATS, schema, meaning }, value, lines);
 }

@@ -98,8 +98,8 @@ function meaning(t: DeckTemplateFile, at: (path: string, message: string) => voi
 }
 
 /** Checks a Deck Template file already read from JSON; which Pack items it names is checked by its Pack. */
-export function checkDeckTemplateFileValue(value: unknown, lines: Map<string, number> = new Map()): FormatCheck<DeckTemplateFile> {
-  return checkFormat({ family: "ziffr.deck-template", reads: DECK_TEMPLATE_FORMATS, schema: DECK_TEMPLATE_SCHEMA, meaning }, value, lines);
+export function checkDeckTemplateFileValue(value: unknown, lines: Map<string, number> = new Map(), schema: Schema = DECK_TEMPLATE_SCHEMA): FormatCheck<DeckTemplateFile> {
+  return checkFormat({ family: "ziffr.deck-template", reads: DECK_TEMPLATE_FORMATS, schema, meaning }, value, lines);
 }
 
 /** The keys of the Pack items a Deck Template names: the entries its Slots suggest, its widgets' View Designs, its Theme. */

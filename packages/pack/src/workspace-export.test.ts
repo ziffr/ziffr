@@ -146,7 +146,15 @@ describe("what is never carried", () => {
       expect(problems(text(edit(at("group"), (r) => ({ ...r, name: bad })))), JSON.stringify(bad)).not.toHaveLength(0);
       expect(problems(text(edit(at("value"), (r) => ({ ...r, submittedBy: bad })))), JSON.stringify(bad)).not.toHaveLength(0);
     }
-    expect(problems(text(edit(at("dashboard"), (r) => ({ ...r, dashboard: { ...dashDoc, name: "<b>x</b>" } }))))).not.toHaveLength(0);
+    // The documents of dashboards, decks, Workflows and Themes take the same text, so none is lost for a title typed in the app.
+    const odd = "Q3 @ shop 🚀 <b> https://x.example {not a placeholder}";
+    const wid = { ...dashDoc.widgets[0], title: odd, settings: { headline: odd, footnote: odd } };
+    expect(problems(text(edit(at("dashboard"), (r) => ({ ...r, dashboard: { ...dashDoc, name: odd, slots: [{ label: odd }], widgets: [wid] } }))))).toEqual([]);
+    expect(problems(text(edit(at("deck"), (r) => ({ ...r, deck: { ...deckDoc, name: odd, slots: [{ label: odd }], slides: [{ shapes: [{ shape: "text", x: 1, y: 1, w: 100, text: [odd] }] }] } }))))).toEqual([]);
+    expect(problems(text(edit(at("workflow"), (r) => ({ ...r, workflow: { ...flowDoc, name: odd, description: odd } }))))).toEqual([]);
+    expect(problems(text(edit(at("theme"), (r) => ({ ...r, theme: { ...themeDoc, name: odd } }))))).toEqual([]);
+    expect(problems(text(edit(at("dashboard"), (r) => ({ ...r, dashboard: { ...dashDoc, name: "a\u202Eb" } }))))).not.toHaveLength(0);
+    expect(problems(text(edit(at("workflow"), (r) => ({ ...r, workflow: { ...flowDoc, name: "a\nb" } }))))).not.toHaveLength(0);
   });
   it("refuses a Theme that brings a logo, and a dashboard that names an item of a Pack", () => {
     expect(messages(text(edit(at("theme"), (r) => ({ ...r, theme: { ...themeDoc, slides: { logo: "pack" } } })))).join()).toContain("theme.slides.logo");

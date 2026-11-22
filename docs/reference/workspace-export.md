@@ -8,7 +8,7 @@ A Workspace Export is as private as the Workspace was: it holds every value in t
 
 JSON Lines in UTF-8: one record per line, each a JSON object with a `kind`. The file may be gzipped (it then starts with the gzip mark; the usual name is `.jsonl.gz`). A line is at most 640 KiB and an object is nested at most 20 levels deep.
 
-The first line is the **header**, the last is the **end** record, and in between the records come in this order: `group` and `theme`, then `person`, then `metric`, then `dashboard`, `deck` and `workflow`, then `share`, then `target`, `projection` and `value`. Within one step any order is fine; the file never goes back a step. A record may name only records read before it, so a reader checks every reference while it streams and holds only the labels of what it has read, never the values.
+The first line is the **header**, the last is the **end** record, and in between the records come in this order: `group` and `theme`, then `person`, then `metric`, then `dashboard`, `deck` and `workflow`, then `share`, then `target`, `projection` and `value`. Within one step any order is fine (except that `target` records and `projection` records are each sorted, below); the file never goes back a step. A record may name only records read before it, so a reader checks every reference while it streams and holds only the labels of what it has read, never the values.
 
 ```text
 {"kind":"header","format":"ziffr.workspace-export/1","ziffr":"0.40.0","exportedAt":"2026-11-22T10:00:00Z","workspace":{"name":"Acme"}}
@@ -49,7 +49,7 @@ Later versions may add Threads, Findings, Snapshots, Alerts, Retentions and Deli
 
 A writer lists `target` and `projection` records sorted by Metric label and then period, comparing labels by JavaScript code units (in SQL, `COLLATE "C"`), so “m10” comes before “m9”.
 
-Names, descriptions, Tags, Groups, people and Breakdown labels hold whatever a person typed in Ziffr (markup and web addresses are data here, never rendered or followed as such): only control characters, line and paragraph separators, characters that reverse the direction of text and invisible characters (zero-width spaces, soft hyphens, tag characters) are refused. A Metric's description may have 2,000 characters. The documents of dashboards, decks, Workflows and Themes keep the Pack's plain-text rules, so a writer that finds a word they refuse leaves it out and says so; it never truncates silently. A file's text may reach 1 GB and the file 200 MB (a reader may set other limits): Ziffr's writer gzips by default and refuses to write a file over the limits, so what it writes is always read.
+Names, descriptions, Tags, Groups, people and Breakdown labels hold whatever a person typed in Ziffr (markup and web addresses are data here, never rendered or followed as such): only control characters, line and paragraph separators, characters that reverse the direction of text and invisible characters (zero-width spaces, soft hyphens, tag characters) are refused. A Metric's description may have 2,000 characters. The text inside the documents of dashboards, decks, Workflows and Themes follows the same rule, so no dashboard is lost for a title typed in Ziffr; a Pack file keeps the Pack's plain-text rules. A writer never truncates silently: text over a limit is an error it reports. A file's text may reach 1 GB and the file 200 MB (a reader may set other limits): Ziffr's writer gzips by default and refuses to write a file over the limits, so what it writes is always read.
 
 ## Checks on an untrusted file
 
