@@ -1,0 +1,6 @@
+{
+  "rule": "bad-cases",
+  "why": "has a case with neither the answer worked out (expected) nor the words of a refusal (refused)",
+  "remove": [],
+  "stage": "run"
+}

@@ -33,6 +33,9 @@
     },
     "packages/extension-kit": {
       // test/ holds Extensions, good and bad, as files the checks read; the bad ones import what they must not.
+      // The two files in sandbox/ are started as programs of their own: child.js runs an Extension's code in a
+      // process of its own, and mutant.js is the command Stryker runs for each change it makes.
+      "entry": ["src/sandbox/child.js", "src/sandbox/mutant.js"],
       "ignore": ["test/**"]
     },
     "packages/*": {}

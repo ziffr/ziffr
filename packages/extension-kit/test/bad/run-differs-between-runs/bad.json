@@ -1,0 +1,6 @@
+{
+  "rule": "nondeterministic",
+  "why": "gives another answer each time it runs, because it reads where it is run from",
+  "remove": [],
+  "stage": "run"
+}

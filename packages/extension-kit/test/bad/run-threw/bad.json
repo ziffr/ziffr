@@ -1,0 +1,6 @@
+{
+  "rule": "threw",
+  "why": "throws an error for an empty series instead of refusing in words",
+  "remove": [],
+  "stage": "run"
+}

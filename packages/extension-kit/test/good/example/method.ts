@@ -8,8 +8,8 @@ export function spread(series: Series): number | Refusal {
   let high = series[0];
   for (const v of series) {
     if (!Number.isFinite(v)) return refuse("a value is not a number");
-    if (v < low) low = v;
-    if (v > high) high = v;
+    low = Math.min(low, v);
+    high = Math.max(high, v);
   }
   if (low === high) return refuse("every value is the same, so there is no spread");
   return high - low;

@@ -5,3 +5,4 @@ export { checkManifest, EXTENSION_FORMAT, EXTENSION_FORMATS, EXTENSION_LICENSES,
 export { ALLOWED_IMPORTS, checkRules, type RuleName, type RuleProblem } from "./rules.js";
 export { checkExtensionFiles, IMPLEMENTATION_MAX_LINES, problemLine, REQUIRED_FILES, type ExtensionFiles, type ExtensionProblem, type ShapeRule } from "./check.js";
 export { readExtensionFolder } from "./run.js";
+export { RUN_RULES, runChecks, type RunOptions, type RunRule } from "./run-checks.js";

@@ -163,6 +163,22 @@
       ],
       "additionalProperties": false
     },
+    "equality": {
+      "type": "object",
+      "description": "How the checks compare the Method's answer with its reference's. Left out, they must be exactly equal; a Method that draws on a distribution may name a relative tolerance instead.",
+      "properties": {
+        "relative": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 0.000001,
+          "description": "the largest relative difference accepted, above 0 and at most 1e-6"
+        }
+      },
+      "required": [
+        "relative"
+      ],
+      "additionalProperties": false
+    },
     "ziffr": {
       "type": "string",
       "maxLength": 20,

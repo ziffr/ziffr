@@ -1,0 +1,6 @@
+{
+  "rule": "uncovered-code",
+  "why": "has a line that no case, refusal or generated input ever runs",
+  "remove": [],
+  "stage": "run"
+}

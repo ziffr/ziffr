@@ -248,9 +248,18 @@ importers:
 
   packages/extension-kit:
     dependencies:
+      '@stryker-mutator/core':
+        specifier: 10.1.1
+        version: 10.1.1(@types/node@20.19.43)
+      '@ziffr/figures':
+        specifier: workspace:*
+        version: link:../figures
       '@ziffr/pack':
         specifier: workspace:*
         version: link:../pack
+      fast-check:
+        specifier: ^4.10.2
+        version: 4.10.2
       typescript:
         specifier: ^5
         version: 5.9.3
@@ -258,9 +267,6 @@ importers:
       '@stryker-mutator/api':
         specifier: 10.1.1
         version: 10.1.1
-      '@stryker-mutator/core':
-        specifier: 10.1.1
-        version: 10.1.1(@types/node@20.19.43)
       '@stryker-mutator/vitest-runner':
         specifier: 10.1.1
         version: 10.1.1(@stryker-mutator/core@10.1.1(@types/node@20.19.43))(vitest@4.1.12)
