@@ -12,8 +12,7 @@ import { cleanLogo, PACK_LOGO_MAX_BYTES } from "@ziffr/pack/logo";
 import { assertManages, itemHash, packLogoOf, safeLogo, themeHashInput, itemKeys, manifestOf, PACK_CAPS, storedItems, type PackOrigin } from "./packs";
 import { packLogoAddress } from "./brand-logo";
 import { ensureBaseline, recordVersion } from "./versions";
-import { saveTheme } from "./workspace-themes";
-import type { ThemeSlides, ThemeTokens } from "./types";
+import type { ThemeSlides } from "./types";
 
 /** Where an installed item lives. */
 type Table = "catalog" | "templates" | "designs" | "themes";
@@ -287,10 +286,15 @@ export async function uninstallPack(actor: Actor, installId: number, opts: { rem
     const packLogo = cleanLogo(install.manifest.logo, PACK_LOGO_MAX_BYTES);
     for (const t of logoThemes) {
       // Read again just before: only a logo that still equals the Pack's goes, whatever happened since the plan.
-      const { data } = await db().from("themes").select("name, tokens, slides").eq("id", t.id).eq("workspace_id", actor.workspaceId).maybeSingle();
+      const { data } = await db().from("themes").select("slides, updated_at").eq("id", t.id).eq("workspace_id", actor.workspaceId).maybeSingle();
       const slides = data?.slides as ThemeSlides | null;
       if (!data || !packLogo || !slides || slides.logo !== packLogo) continue;
-      try { await saveTheme(actor, t.id, String(data.name), data.tokens as ThemeTokens, { ...slides, logo: null, logo_ratio: 3 }); logoRemoved++; } catch { /* the Theme stays as it is */ }
+      // Only if nobody saved the Theme since it was read: an edit made meanwhile is never overwritten.
+      try {
+        await ensureBaseline("theme", t.id, actor.personId);
+        const { data: done } = await db().from("themes").update({ slides: { ...slides, logo: null, logo_ratio: 3 }, updated_at: new Date().toISOString() }).eq("id", t.id).eq("workspace_id", actor.workspaceId).eq("updated_at", data.updated_at as string).select("id");
+        if (done?.length) { await recordVersion("theme", t.id, actor.personId, { message: "Removed the uninstalled Pack's logo" }); logoRemoved++; }
+      } catch { /* the Theme stays as it is */ }
     }
   }
   await audit(actor, { kind: "pack.uninstalled", object: { type: "pack", id: Number(installId), name: plan.name }, details: { pack: install.pack_id, version: install.version, removed: plan.remove.length, kept: plan.keep.length, ...(opts.removeLogo === true && logoThemes.length ? { logo_removed_from: logoRemoved } : {}) } });
@@ -323,8 +327,8 @@ export async function takeNewVersion(actor: Actor, table: "templates" | "themes"
   assertManages(actor);
   if (table === "themes" && actor.role !== "owner") throw new Forbidden("Only Owners change Themes.");
   if (table !== "templates" && table !== "themes") throw new Forbidden();
-  const { data } = await db().from(TABLE[table]).select(table === "templates" ? "id, owner_id, pack_install_id, pack_offer" : "id, pack_install_id, pack_offer, slides").eq("id", Number(id)).eq("workspace_id", actor.workspaceId).maybeSingle();
-  const row = data as { owner_id?: string; pack_install_id: number | null; pack_offer: unknown; slides?: { logo?: unknown; logo_ratio?: unknown } | null } | null;
+  const { data } = await db().from(TABLE[table]).select(table === "templates" ? "id, owner_id, pack_install_id, pack_offer" : "id, pack_install_id, pack_offer, slides, updated_at").eq("id", Number(id)).eq("workspace_id", actor.workspaceId).maybeSingle();
+  const row = data as { owner_id?: string; pack_install_id: number | null; pack_offer: unknown; slides?: { logo?: unknown; logo_ratio?: unknown } | null; updated_at?: string | null } | null;
   if (!row?.pack_offer || !row.pack_install_id) throw new Forbidden();
   // Only a template's creator changes it (or an Owner): an Admin does not overwrite someone else's edit.
   if (table === "templates" && row.owner_id !== actor.personId && actor.role !== "owner") throw new Forbidden("Only whoever installed the Pack, or an Owner, takes a new version of its templates.");
@@ -350,7 +354,10 @@ export async function takeNewVersion(actor: Actor, table: "templates" | "themes"
     }
     update = { name: o.name, description: o.description, slots: o.slots, body };
   }
-  const { error } = await db().from(TABLE[table]).update({ ...update, pack_hash: o.hash, pack_offer: null, updated_at: new Date().toISOString() }).eq("id", Number(id)).eq("workspace_id", actor.workspaceId).eq("pack_install_id", row.pack_install_id).not("pack_offer", "is", null);
-  if (error) throw new Error("The new version could not be taken.");
+  let q = db().from(TABLE[table]).update({ ...update, pack_hash: o.hash, pack_offer: null, updated_at: new Date().toISOString() }).eq("id", Number(id)).eq("workspace_id", actor.workspaceId).eq("pack_install_id", row.pack_install_id).not("pack_offer", "is", null);
+  // A Theme saved since it was read (its logo included) is not overwritten.
+  if (table === "themes" && row.updated_at) q = q.eq("updated_at", row.updated_at);
+  const { error, data: done } = await q.select("id");
+  if (error || (table === "themes" && !done?.length)) throw new Error("The new version could not be taken.");
   await recordVersion(type, Number(id), actor.personId, { message: "Took the Pack's new version" });
 }
