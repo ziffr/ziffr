@@ -275,6 +275,19 @@ describe("a period's note and a Slack bot token", () => {
     expect((await progressOf(w.id, "slack_installations", "bot_token"))?.done_at).not.toBeNull();
   });
 
+  it("keep no token of an ended connection, so it blocks nothing", async () => {
+    const w = await plainWorkspace();
+    await db().from("slack_installations").insert({ workspace_id: w.id, team_id: `T${Date.now()}`, team_name: "Team", app_id: "A0001", bot_user_id: "U0001", bot_token: sealSecret("xoxb-gone", "slack-bot:elsewhere"), scopes: "chat:write", installed_by: w.owner });
+    cleanups.push(async () => { await db().from("slack_installations").delete().eq("workspace_id", w.id); });
+    await db().from("slack_installations").update({ revoked_at: new Date().toISOString() }).eq("workspace_id", w.id);
+    const { data: stored } = await db().from("slack_installations").select("bot_token").eq("workspace_id", w.id).single();
+    expect(stored!.bot_token).not.toContain("xoxb");
+    expect(String(stored!.bot_token).startsWith("v1.")).toBe(false);
+    const result = await reencryptionJob(only(w));
+    expect(result.unopenable).toBe(0);
+    expect((await progressOf(w.id, "slack_installations", "bot_token")).plain).toBe(0);
+  });
+
   it("count a token that does not open apart and leave it alone", async () => {
     const w = await plainWorkspace();
     const wrong = sealSecret("xoxb-other", "slack-bot:another-workspace");

@@ -36,8 +36,8 @@ begin
     when 'series_values' then key := 'id'; cols := array[]::text[]; ncols := array['value']; extra := array['metric_id', 'kind', 'period_start']; scope := 'workspace_id = $1';
     -- A period's note, named by its Metric and period through the generated row_key.
     when 'period_states' then key := 'row_key'; cols := array['note']; scope := 'workspace_id = $1';
-    -- A Slack connection's bot token, named by its Workspace.
-    when 'slack_installations' then key := 'workspace_id'; cols := array['bot_token']; scope := 'workspace_id = $1';
+    -- A Slack connection's bot token, named by its Workspace; a revoked connection keeps no token (see below), so it is not listed.
+    when 'slack_installations' then key := 'workspace_id'; cols := array['bot_token']; scope := 'workspace_id = $1 and revoked_at is null';
     else raise exception 'Not a table with sealed columns: %', p_table;
   end case;
 end;
@@ -90,3 +90,14 @@ begin
 end;
 $$;
 revoke all on function seal_counts(uuid, integer) from public, anon, authenticated;
+
+-- A connection that ended (a disconnect, an uninstall, a revoked token, the end of a trial) keeps no token: it is of no use
+-- any more, and an old one that no longer opens would otherwise keep a retired Workspace Key alive for ever.
+create function slack_forget_revoked_token() returns trigger language plpgsql as $$
+begin
+  if new.revoked_at is not null then new.bot_token := 'revoked-token-is-no-longer-kept'; end if;
+  return new;
+end;
+$$;
+create trigger slack_installations_forget_token before insert or update on slack_installations for each row execute function slack_forget_revoked_token();
+update slack_installations set bot_token = 'revoked-token-is-no-longer-kept' where revoked_at is not null;
