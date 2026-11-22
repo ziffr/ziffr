@@ -50,7 +50,9 @@ export function logoProblem(v: unknown, maxBytes: number = LOGO_MAX_BYTES): stri
   if (kind === "svg+xml") {
     const res = svgClean(utf8(raw));
     if (!res.ok) return `is an SVG that is not plain: ${res.reason}.`;
-    return res.svg.length > maxBytes ? `is larger than the ${maxBytes.toLocaleString("en")} bytes a logo may weigh here.` : null;
+    // The SVG as Ziffr writes it out is what is kept, so it is that form's bytes that are weighed: escaping and
+    // characters outside ASCII make it heavier than its length in characters, and heavier than what came in.
+    return new TextEncoder().encode(res.svg).length > maxBytes ? `is larger than the ${maxBytes.toLocaleString("en")} bytes a logo may weigh here, as Ziffr writes it out.` : null;
   }
   const size = pixelSize(Uint8Array.from(raw, (c) => c.charCodeAt(0)), kind);
   if (!size) return `is not a ${kind === "png" ? "PNG" : "JPEG"}: its bytes say otherwise.`;
