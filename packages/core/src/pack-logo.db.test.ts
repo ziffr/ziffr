@@ -5,8 +5,8 @@ import { afterEach, describe, expect, it } from "vitest";
 import { db } from "./db";
 import { installPackFile, itemHash, packLogoOf, storedItems, themeHashInput } from "./packs";
 import { readPackUpdate, updatePackFile, uninstallPack } from "./pack-updates";
-import { brandLogo } from "./brand-logo";
-import { saveTheme } from "./workspace-themes";
+import { brandLogo, hashOf } from "./brand-logo";
+import { saveTheme, setDefaultTheme } from "./workspace-themes";
 import { PACK } from "./pack.test";
 import { workspace, opened } from "./test/db-fixtures";
 import type { Pack } from "./pack";
@@ -97,7 +97,10 @@ describe("a Pack's logo at install", () => {
     const w = await ws(); const o = await ws(); const ann = await w.person("owner");
     await installPackFile(w.actor(ann), file(withLogo(LOGO)), yes);
     const { createHash } = await import("node:crypto");
-    const hash = createHash("sha256").update(LOGO).digest("hex").slice(0, 16);
+    const plain = createHash("sha256").update(LOGO).digest("hex").slice(0, 16);
+    const hash = hashOf(w.id, LOGO);
+    expect(await brandLogo(w.id, plain)).toBeNull(); // the plain hash of the picture no longer opens it
+    expect(hash).not.toBe(hashOf(o.id, LOGO));
     const got = await brandLogo(w.id, hash);
     expect(got).toMatchObject({ contentType: "image/png" });
     expect(await brandLogo(o.id, hash)).toBeNull();
@@ -116,11 +119,13 @@ describe("the item hash with a logo", () => {
     return res.plan.items.find((i) => i.key === "board")!;
   };
 
-  it("does not count an Owner's own logo as a change, but counts replacing or removing the Pack's", async () => {
+  it("counts an Owner's own logo, replacing or removing the Pack's, as a change", async () => {
     const { actor, id, t } = await installed();
     const save = (logo: string | null) => saveTheme(actor, t.id, t.name, t.tokens as ThemeTokens, { ...(t.slides as ThemeSlides), logo, logo_ratio: 3 });
     expect((await changed(actor, id, withLogo(LOGO, true, "1.2.1"))).changedHere).toBe(false);
     await save(OTHER);
+    expect((await changed(actor, id, withLogo(LOGO, true, "1.2.1"))).changedHere).toBe(true);
+    await save(png(9, 9));
     expect((await changed(actor, id, withLogo(LOGO, true, "1.2.1"))).changedHere).toBe(true);
     await save(null);
     expect((await changed(actor, id, withLogo(LOGO, true, "1.2.1"))).changedHere).toBe(true);
@@ -142,17 +147,22 @@ describe("the item hash with a logo", () => {
 });
 
 describe("an Owner's own logo through an update", () => {
-  it("survives the replacement of an otherwise unchanged Theme, and the Pack's logo does not land on it", async () => {
+  it("counts as a change: the Theme stays as the Owner made it, also as the team default, and the new version is offered", async () => {
     const w = await ws(); const ann = await w.person("owner"); const actor = w.actor(ann);
-    await installPackFile(actor, file(withLogo(undefined, false)), yes);
+    const id = await installPackFile(actor, file(withLogo(undefined, false)), yes);
     const t = (await theme(w.id))!;
     await saveTheme(actor, t.id, t.name, t.tokens as ThemeTokens, { ...(t.slides as ThemeSlides), logo: OTHER, logo_ratio: 3 });
+    await setDefaultTheme(actor, t.id);
     const next = withLogo(LOGO, true, "1.3.0");
     next.contents.themes![0].theme = { ...next.contents.themes![0].theme, name: "Board, new" };
-    await updatePackFile(actor, (await db().from("pack_installs").select("id").eq("workspace_id", w.id).single()).data!.id, file(next), yes);
-    const after = (await theme(w.id))!;
-    expect(after.name).toBe("Board, new");
+    await updatePackFile(actor, id, file(next), yes);
+    const after = (await db().from("themes").select("name, slides, is_default, pack_offer").eq("id", t.id).single()).data!;
+    expect(after.name).toBe(t.name);
     expect((after.slides as { logo: string }).logo).toBe(OTHER);
+    expect(after.is_default).toBe(true);
+    expect(after.pack_offer).not.toBeNull();
+    const events = await opened("audit_events", w.id, (await db().from("audit_events").select("id, details").eq("workspace_id", w.id).eq("kind", "pack.updated")).data, { dropId: true });
+    expect(events).toEqual([{ details: { pack: "ziffr/saas-metrics", from: "1.2.0", version: "1.3.0", source: "upload", logo: "added" } }]);
   });
 });
 

@@ -21,7 +21,7 @@ const CATALOG_FIELDS = ["category", "name", "description", "unit", "unit_positio
 export type ItemKind = "metric" | "dashboard" | "deck" | "workflow" | "view" | "theme";
 
 /** One copy of an installed item in the Workspace: where it is, the hash it was installed with, and its hash now. */
-type Copy = { table: Table; id: number; key: string; kind: ItemKind; name: string; installedHash: string; currentHash: string; offer: unknown; updatedAt: string | null; ownLogo?: { logo: string; ratio: unknown } | null };
+type Copy = { table: Table; id: number; key: string; kind: ItemKind; name: string; installedHash: string; currentHash: string; offer: unknown; updatedAt: string | null; };
 
 /** What is hashed of a stored row: exactly what installing hashed (packs.ts storedItems), read back from the database. */
 function stored(table: Table, r: Record<string, unknown>, ownThemes: ReadonlySet<number>, packLogo: string | null): unknown {
@@ -52,13 +52,6 @@ async function installOf(actor: Actor, installId: number) {
   return data as { id: number; pack_id: string; version: string; item_keys: string[]; manifest: Omit<Pack, "contents"> };
 }
 
-/** A logo a Theme holds that is not the Pack's: the Owner's own (spec 0039). An update never takes it away, whatever it
- * replaces, because it is not part of the hash (a logo of their own is not a change of the Pack's Theme). */
-function ownLogoOf(slides: unknown, packLogo: string | null): { logo: string; ratio: unknown } | null {
-  const s = (slides ?? {}) as { logo?: unknown; logo_ratio?: unknown };
-  return typeof s.logo === "string" && s.logo !== packLogo ? { logo: s.logo, ratio: s.logo_ratio } : null;
-}
-
 /** Every copy still marked as from this install, with its hash as installed and now. */
 async function copiesOf(actor: Actor, installId: number): Promise<Copy[]> {
   const cols: Record<Table, string> = {
@@ -79,7 +72,7 @@ async function copiesOf(actor: Actor, installId: number): Promise<Copy[]> {
     if (error) throw new Error("The Pack's items could not be read.");
     for (const r of (data ?? []) as unknown as Record<string, unknown>[]) {
       if (table === "themes") ownThemes.add(Number(r.id));
-      out.push({ table, id: Number(r.id), key: String(r.pack_key), kind: kindOf(table, r), name: String(r.name), installedHash: String(r.pack_hash), currentHash: itemHash(stored(table, r, ownThemes, packLogo)), offer: r.pack_offer ?? null, updatedAt: (r.updated_at as string | null) ?? null, ...(table === "themes" ? { ownLogo: ownLogoOf(r.slides, packLogo) } : {}) });
+      out.push({ table, id: Number(r.id), key: String(r.pack_key), kind: kindOf(table, r), name: String(r.name), installedHash: String(r.pack_hash), currentHash: itemHash(stored(table, r, ownThemes, packLogo)), offer: r.pack_offer ?? null, updatedAt: (r.updated_at as string | null) ?? null });
     }
   }
   return out;
@@ -181,9 +174,7 @@ async function planUpdate(actor: Actor, installId: number, text: string) {
     if (n.hash === c.installedHash) {
       items.push({ key: n.key, kind: n.kind, name: c.name, change: "same", changedHere, outcome: "none" });
     } else if (!changedHere) {
-      // The Owner's own logo survives the replacement (it is the Pack's logo, or nothing, that the new version brings).
-      const row = c.ownLogo && n.table === "themes" ? { ...n.row, slides: { ...(n.row.slides as object), logo: c.ownLogo.logo, logo_ratio: c.ownLogo.ratio } } : n.row;
-      ops[n.table].replace.push({ ...row, id: c.id });
+      ops[n.table].replace.push({ ...n.row, id: c.id });
       ops.guard.push(...guardOf(c));
       items.push({ key: n.key, kind: n.kind, name: n.name, change: "changed", changedHere, outcome: "replace" });
     } else {
@@ -219,6 +210,11 @@ export async function updatePack(actor: Actor, installId: number, text: string, 
   if (res.plan.blocked) throw new Forbidden(res.plan.blocked);
   if (!origin.signed && !confirmed?.unsigned) throw new Error("Confirm that you install a file the Marketplace did not check.");
   if (res.plan.assistantTexts.length && !confirmed.assistantTexts) throw new Error("Confirm that you read the texts aimed at assistants first.");
+  // The Audit Log notes that the logo was added, changed or removed, never its bytes.
+  const before = await db().from("pack_installs").select("manifest").eq("id", Number(installId)).eq("workspace_id", actor.workspaceId).maybeSingle();
+  const was = cleanLogo((before.data?.manifest as { logo?: unknown } | null)?.logo, PACK_LOGO_MAX_BYTES);
+  const now = packLogoOf(res.pack);
+  const logoChange = was === now ? "same" : !was ? "added" : !now ? "removed" : "changed";
   const { error } = await db().rpc("update_pack", {
     p_workspace: actor.workspaceId, p_install: Number(installId), p_by: actor.personId,
     p_install_row: { version: res.pack.version, license: res.pack.license, manifest: { ...manifestOf(res.pack), ...(res.pack.logo === undefined ? {} : { logo: packLogoOf(res.pack) }) }, item_keys: itemKeys(res.stored), source: origin.source, signed: origin.signed },
@@ -229,7 +225,7 @@ export async function updatePack(actor: Actor, installId: number, text: string, 
   const sameName = error?.code === "23505" && /catalog_metrics_workspace_name_key/.test(error.message ?? "");
   if (sameName) throw new Error("This Workspace's Metric Catalog has an entry of the same name as one this version adds; nothing was changed.");
   if (error) throw new Error("The Pack could not be updated; nothing was changed.");
-  await audit(actor, { kind: "pack.updated", object: { type: "pack", id: Number(installId), name: res.pack.name }, details: { pack: res.pack.id, from: res.plan.from, version: res.plan.to, source: origin.source } });
+  await audit(actor, { kind: "pack.updated", object: { type: "pack", id: Number(installId), name: res.pack.name }, details: { pack: res.pack.id, from: res.plan.from, version: res.plan.to, source: origin.source, ...(logoChange === "same" ? {} : { logo: logoChange }) } });
   return res.plan;
 }
 

@@ -73,12 +73,14 @@ export function packLogoOf(pack: Pick<Pack, "logo">): string | null {
 }
 
 /** What is hashed of a Theme (spec 0039): its name, tokens and slide settings, with the logo as the word "pack" where it
- * is exactly the Pack's logo and as nothing where it is another or none, so an Owner's own logo is not a change of the
- * Pack's Theme and replacing or removing the Pack's logo is. A Theme without a logo hashes as it always did. */
+ * is exactly the Pack's logo, "other" where it is any other, and nothing where there is none. So a Theme whose logo the
+ * Workspace set, replaced or removed counts as changed, and an update keeps it as it is. A Theme without a logo hashes
+ * as it always did. */
 export function themeHashInput(name: unknown, tokens: unknown, slides: Record<string, unknown> | null, packLogo: string | null): unknown {
   const own = slides ?? {};
   const isPack = packLogo !== null && own.logo === packLogo;
-  return { name, tokens, slides: { ...own, logo: isPack ? "pack" : null, logo_ratio: isPack ? logoRatio(packLogo) : 3 } };
+  const has = typeof own.logo === "string" && own.logo !== "";
+  return { name, tokens, slides: { ...own, logo: isPack ? "pack" : has ? "other" : null, logo_ratio: isPack ? logoRatio(packLogo) : 3 } };
 }
 
 /** Every item of a checked Pack as it would be stored, in the order of its kinds. View Designs, and Analysis Recipes

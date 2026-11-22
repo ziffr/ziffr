@@ -89,7 +89,9 @@ export function logoRatio(v: unknown): number {
   let raw: string;
   try { raw = atob(m[2]); } catch { return 3; }
   if (m[1] === "svg+xml") {
-    const root = /<svg\b[^>]*>/.exec(utf8(raw))?.[0] ?? "";
+    const text = utf8(raw);
+    const at = text.indexOf("<svg");
+    const root = at < 0 ? "" : text.slice(at, (text.indexOf(">", at) + 1) || at);
     const num = (n: string) => { const a = new RegExp(`\\s${n}="([0-9.]+)(?:px)?"`).exec(root); return a ? Number(a[1]) : NaN; };
     const vb = /\sviewBox="\s*[-0-9.e]+[\s,]+[-0-9.e]+[\s,]+([0-9.e]+)[\s,]+([0-9.e]+)\s*"/.exec(root);
     if (vb) return clamp(Number(vb[1]) / Number(vb[2]));
