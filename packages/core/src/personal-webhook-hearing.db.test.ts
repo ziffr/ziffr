@@ -12,6 +12,7 @@ import { join } from "node:path";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { db } from "./db";
 import { outboundTls } from "./outbound-request";
+import * as hearing from "./personal-webhook-hearing";
 import { mayPeekWaitingValue, personalWebhookMayHear } from "./personal-webhook-hearing";
 import { createPersonalWebhook, ownPersonalWebhookLog, setPersonalWebhooksAllowed, updatePersonalWebhook } from "./personal-webhooks";
 import { Forbidden } from "./actor";
@@ -231,6 +232,22 @@ describe.skipIf(!openssl)("what a Personal Webhook is sent", () => {
     expect(bodies.filter((d) => d.value === "900")).toHaveLength(1);
     expect(bodies.filter((d) => d.value === undefined)).toHaveLength(1);
     expect(plain).not.toBe(owners);
+  });
+
+  it("drops the number of an unusual value when a newer value arrives while the check for a waiting value runs", async () => {
+    const { w, owner, bo, metric } = await setup();
+    await w.value(metric.id, PERIOD, 900, bo);
+    await hook(w.actor(owner), ["value.unusual"], [metric.id]);
+    // The Owner may see a waiting value, so the number would go out; a newer value lands in between, so it must not.
+    const real = hearing.mayPeekWaitingValue;
+    const spy = vi.spyOn(hearing, "mayPeekWaitingValue").mockImplementation(async (...a) => { const r = await real(...a); await w.value(metric.id, PERIOD, 901, bo); return r; });
+    try {
+      await queueWebhookEvent(w.id, "value.unusual", { type: "workflow" }, { metricId: metric.id, period: PERIOD });
+      await run(w);
+      expect(spy).toHaveBeenCalled();
+    } finally { spy.mockRestore(); }
+    expect(seen).toHaveLength(1);
+    expect(JSON.parse(seen[0].body).data.value).toBeUndefined();
   });
 
   it("never sends a plain viewer the number of an unusual value, even if the send runs before the value is marked waiting", async () => {

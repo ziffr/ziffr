@@ -12,7 +12,9 @@ import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } 
 import { changeActionState, closeActions } from "./action-state";
 import { db } from "./db";
 import { outboundTls } from "./outbound-request";
+import { createPersonalWebhook, setPersonalWebhookEnabled, setPersonalWebhooksAllowed } from "./personal-webhooks";
 import { ask } from "./questions";
+import { openRows } from "./sealed-columns";
 import { workspace } from "./test/db-fixtures";
 import { applyWebhookAction, authenticateWebhookRequest, WebhookRequestError, type InboundRequest } from "./webhook-inbound";
 import { WEBHOOK_INBOUND_PER_MINUTE } from "./webhook-limits";
@@ -456,5 +458,117 @@ describe.skipIf(!openssl)("the next message carries only the links its own Webho
     const msg = JSON.parse(seen[0].body).data;
     expect(msg.source).toEqual({ type: "webhook", webhook_id: c.todo.id });
     expect(msg.external_ids).toEqual([{ system: "planner", external_id: "P-1", url: null }]);
+  });
+});
+
+describe("a Personal Webhook's status back, as its person", () => {
+  /** The Workspace of `setup` with the switch on and Ann's own Webhook; Bo is another Member who sees the Metric. */
+  async function personal() {
+    const c = await setup();
+    const bo = await c.w.person("member"); await c.w.share(c.m.id, bo);
+    await setPersonalWebhooksAllowed(c.a, true);
+    const A = c.w.actor(c.ann, "member");
+    const mine = await createPersonalWebhook(A, { name: "My Tasks", url: `https://localhost:${port}/mine`, events: ["action.created"] });
+    const theirs = await createPersonalWebhook(c.w.actor(bo, "member"), { name: "Bo's", url: `https://localhost:${port}/bo`, events: ["action.created"] });
+    const forBo = () => ask(c.a, { metricId: c.m.id, period: "2026-10-01", assigneeId: bo, text: "Bo's report", kind: "task" });
+    return { ...c, bo, A, mine, theirs, forBo };
+  }
+  const authors = async (id: number) => openRows("thread_messages", scope, ((await db().from("thread_messages").select("id, author_id, via, body").eq("action_id", id).order("id")).data ?? []) as Record<string, unknown>[]);
+
+  it("marks a task done as the person, with the Webhook named in the Thread and the Audit Log, and the event marked as its", async () => {
+    const c = await personal();
+    const id = await c.task(); await c.sent(id, c.mine);
+    expect(await c.call(c.mine, { op: "done", ref: `ZIF-${id}` })).toEqual({ changed: true, status: "answered" });
+    expect(await c.call(c.mine, { op: "done", ref: `ZIF-${id}` })).toEqual({ changed: false, status: "answered" });
+    expect(await authors(id)).toMatchObject([{ author_id: c.ann, via: expect.stringMatching(/^My Tasks \(.+ Webhook\)$/), body: expect.stringMatching(/^Marked done in My Tasks \(.+ Webhook\)$/) }]);
+    expect((await c.rows(id, "action.done")).map((r) => [r.source_type, r.source_webhook_id])).toContainEqual(["webhook", c.mine.id]);
+    const { data: log } = await db().from("audit_events").select("object_id, actor_name").eq("workspace_id", c.w.id).eq("kind", "webhook.marked_done");
+    expect(log).toEqual([{ object_id: c.mine.id, actor_name: expect.stringMatching(/^Webhook My Tasks \(/) }]);
+  });
+
+  it("links, replies, answers and reopens for the person's own Actions sent to it", async () => {
+    const c = await personal();
+    const id = await c.task(); await c.sent(id, c.mine);
+    expect(await c.call(c.mine, { op: "link", ref: `ZIF-${id}`, system: "todo", external_id: "T-1" })).toMatchObject({ changed: true });
+    expect(await c.call(c.mine, { op: "reply", system: "todo", external_id: "T-1", text: "Working on it" })).toMatchObject({ changed: true, status: "open" });
+    await c.call(c.mine, { op: "done", ref: `ZIF-${id}` });
+    expect(await c.call(c.mine, { op: "reopen", ref: `ZIF-${id}` })).toEqual({ changed: true, status: "open" });
+    const q = await c.task("question"); await c.sent(q, c.mine);
+    expect(await c.call(c.mine, { op: "answer", ref: `ZIF-${q}`, text: "Yes" })).toMatchObject({ changed: true });
+    expect((await authors(q)).every((m) => m.author_id === c.ann)).toBe(true);
+  });
+
+  it("answers another person's Action, and one that was never sent to this Webhook, like an unknown one", async () => {
+    const c = await personal();
+    const bos = await c.forBo(); await c.sent(bos, c.mine, c.theirs);
+    expect(await c.refused(c.call(c.mine, { op: "done", ref: `ZIF-${bos}` }))).toBe("not_found");
+    expect(await c.refused(c.call(c.mine, { op: "reply", ref: `ZIF-${bos}`, text: "hi" }))).toBe("not_found");
+    expect(await c.refused(c.call(c.mine, { op: "link", ref: `ZIF-${bos}`, system: "todo", external_id: "B-1" }))).toBe("not_found");
+    const unsent = await c.task();
+    expect(await c.refused(c.call(c.mine, { op: "done", ref: `ZIF-${unsent}` }))).toBe("not_found");
+    // Sent to the person's Workspace Webhook only, not to this one.
+    await c.sent(unsent, c.todo);
+    expect(await c.refused(c.call(c.mine, { op: "done", ref: `ZIF-${unsent}` }))).toBe("not_found");
+    expect(await c.status(bos)).toBe("open"); expect(await c.status(unsent)).toBe("open");
+  });
+
+  it("lets the person who only asked reply, but not finish or answer for the assignee", async () => {
+    const c = await personal();
+    const id = await ask(c.w.actor(c.ann, "member"), { metricId: c.m.id, period: "2026-10-01", assigneeId: c.bo, text: "Please", kind: "task" });
+    await c.sent(id, c.mine);
+    expect(await c.call(c.mine, { op: "reply", ref: `ZIF-${id}`, text: "Thanks" })).toMatchObject({ changed: true });
+    expect(await c.refused(c.call(c.mine, { op: "done", ref: `ZIF-${id}` }))).toBe("not_found");
+    expect(await c.status(id)).toBe("open");
+  });
+
+  it("stops at once for a person demoted to Guest, a Metric they no longer see, and the switch off", async () => {
+    const c = await personal();
+    const id = await c.task(); await c.sent(id, c.mine);
+    await c.w.unshare(c.m.id, c.ann);
+    expect(await c.refused(c.call(c.mine, { op: "done", ref: `ZIF-${id}` }))).toBe("not_found");
+    await c.w.share(c.m.id, c.ann);
+    const p = { op: "done", ref: `ZIF-${id}` };
+    expect(await c.call(c.mine, p)).toMatchObject({ changed: true });
+    // The switch off: nothing is taken, even with a good signature.
+    await setPersonalWebhooksAllowed(c.a, false);
+    expect(await authenticateWebhookRequest(c.mine.id, signed(c.mine.secret, { op: "reopen", ref: `ZIF-${id}` }))).toEqual({ ok: false, why: "no_such" });
+    await setPersonalWebhooksAllowed(c.a, true);
+    // A person made a Guest has no Personal Webhook any more (and the role is judged again at every request besides).
+    await c.w.setRole(c.ann, "guest");
+    expect(await authenticateWebhookRequest(c.mine.id, signed(c.mine.secret, { op: "reopen", ref: `ZIF-${id}` }))).toEqual({ ok: false, why: "no_such" });
+    expect(await c.status(id)).toBe("answered");
+  });
+
+  it("answers the Webhook switched off like an unknown id, and takes a request once", async () => {
+    const c = await personal();
+    const id = await c.task(); await c.sent(id, c.mine);
+    const req = signed(c.mine.secret, { op: "done", ref: `ZIF-${id}` });
+    expect(await authenticateWebhookRequest(c.mine.id, req)).toMatchObject({ ok: true });
+    expect(await authenticateWebhookRequest(c.mine.id, { ...req })).toEqual({ ok: false, why: "not_found" });
+    // Bo's secret never signs for Ann's Webhook.
+    expect(await authenticateWebhookRequest(c.mine.id, signed(c.theirs.secret, { op: "done", ref: `ZIF-${id}` }))).toEqual({ ok: false, why: "not_found" });
+    await setPersonalWebhookEnabled(c.A, c.mine.id, false);
+    expect(await authenticateWebhookRequest(c.mine.id, signed(c.mine.secret, { op: "done", ref: `ZIF-${id}` }))).toEqual({ ok: false, why: "no_such" });
+  });
+
+  it("counts and de-duplicates by Webhook, so a Personal Webhook named like a Workspace Webhook cannot block it", async () => {
+    const c = await personal();
+    const twin = await createPersonalWebhook(c.w.actor(c.ann, "member"), { name: "To Do", url: `https://localhost:${port}/twin`, events: ["action.created"] });
+    const id = await c.task(); await c.sent(id, c.todo, twin);
+    for (let n = 0; n < 10; n++) await c.call(twin, { op: "reply", ref: `ZIF-${id}`, text: `note ${n}` });
+    expect(await c.refused(c.call(twin, { op: "reply", ref: `ZIF-${id}`, text: "one more" }))).toBe("conflict");
+    expect(await c.call(c.todo, { op: "done", ref: `ZIF-${id}` })).toMatchObject({ changed: true });
+  });
+
+  it("keeps markup in a reply as plain text and refuses what only a person's own words decide", async () => {
+    const c = await personal();
+    const id = await c.task(); await c.sent(id, c.mine);
+    const text = `<script>alert(1)</script> <b>hi</b>\u0007`;
+    await c.call(c.mine, { op: "reply", ref: `ZIF-${id}`, text });
+    expect((await authors(id)).map((m) => m.body)).toEqual(["<script>alert(1)</script> <b>hi</b>"]);
+    const approval = await c.w.action({ metric_id: c.m.id, period_start: "2026-10-01", asker_id: c.sara, assignee_id: c.ann, kind: "task", purpose: "approval" });
+    await c.sent(approval, c.mine);
+    expect(await c.refused(c.call(c.mine, { op: "reply", ref: `ZIF-${approval}`, text: "approved" }))).toBe("conflict");
+    expect(await c.refused(c.call(c.mine, { op: "done", ref: `ZIF-${approval}` }))).toBe("conflict");
   });
 });
