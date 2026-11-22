@@ -15,11 +15,16 @@ export const DEFAULT_TRIAL_MAX = 200;
 export async function trialSettingsInEffect(): Promise<{ days: number; max: number } | null> {
   // A row an older version saved on the Installation settings page counts as "set" too: without a Ziffr Cloud key it
   // makes no trial, and must not quietly turn sign-ins into ordinary Workspaces either.
-  if (!hostedByCloud(process.env) && (await storedSettings()).values.get("ZIFFR_TRIAL_DAYS")?.trim()) throw new Error(TRIAL_DAYS_WITHOUT_CLOUD);
+  if (!hostedByCloud(process.env) && (await storedSettings()).values.get("ZIFFR_TRIAL_DAYS")?.trim()) throw trialDaysWithoutCloud();
   return trialSettings(await settingsInEffect());
 }
 
-const TRIAL_DAYS_WITHOUT_CLOUD = "ZIFFR_TRIAL_DAYS is set, but trials exist only on hosted Ziffr (ZIFFR_CLOUD_KEY); no workspace is made until it is removed.";
+/** The refusal for trial days set without a Ziffr Cloud key: in the words of a person who signs in, who has no use for
+ * setting names; the server's log names them for the operator. */
+function trialDaysWithoutCloud(): Error {
+  console.error("ZIFFR_TRIAL_DAYS is set, but trials exist only on hosted Ziffr (ZIFFR_CLOUD_KEY is not set): no Workspace is made until the days are removed.");
+  return new Error("New Workspaces cannot be made here right now; ask whoever runs this Ziffr.");
+}
 
 /** The one rule for trials (spec 0040): true only on hosted Ziffr (a ZIFFR_CLOUD_KEY) with a valid number of trial days.
  * Everything that makes a trial, shows trial words or reads a ZIFFR_TRIAL_* setting asks this or trialSettings, which
@@ -36,7 +41,7 @@ export function trialSettings(env: Record<string, string | undefined> = process.
   if (!hostedByCloud(env)) {
     // Fails closed: an operator who set the days meant to offer trials, and must never end up handing strangers ordinary
     // Workspaces, with invitations, instead. Nothing is made until the setting is removed or a Ziffr Cloud key is set.
-    if (env.ZIFFR_TRIAL_DAYS?.trim() || env.ZIFFR_TRIAL_DAYS_DEFAULT?.trim()) throw new Error(TRIAL_DAYS_WITHOUT_CLOUD);
+    if (env.ZIFFR_TRIAL_DAYS?.trim() || env.ZIFFR_TRIAL_DAYS_DEFAULT?.trim()) throw trialDaysWithoutCloud();
     return null;
   }
   const rawDays = env.ZIFFR_TRIAL_DAYS?.trim();

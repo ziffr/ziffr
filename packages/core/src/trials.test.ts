@@ -29,7 +29,7 @@ describe("trialsOffered (spec 0040)", () => {
       expect(trialsOffered(env), `${key} ${d}`).toBe(expected);
       // Without the key no trial is made; days that are set anyway throw, so no ordinary Workspace is made instead.
       if (key !== "k".repeat(32)) {
-        if (d) expect(() => trialSettings(env)).toThrow(/only on hosted Ziffr/);
+        if (d) expect(() => trialSettings(env)).toThrow(/cannot be made here/);
         else expect(trialSettings(env)).toBeNull();
       }
     }
