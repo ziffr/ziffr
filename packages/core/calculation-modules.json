@@ -41,5 +41,9 @@
   "src/methods/track-record.ts",
   "src/methods/reach-chance.ts",
   "src/methods/forecast-choice.ts",
-  "src/takeaways/forecast.ts"
+  "src/takeaways/forecast.ts",
+  "src/takeaways/sizes.ts",
+  "src/methods/t-curve.ts",
+  "src/methods/before-after.ts",
+  "src/methods/change-point.ts"
 ]
