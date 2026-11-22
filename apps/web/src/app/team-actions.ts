@@ -90,6 +90,15 @@ export async function resendInvitation(id: number) {
   });
 }
 
+/** Invites the people of an imported Workspace Export (Owner only): releases their held invitations and emails each. */
+export async function inviteEveryone() {
+  return attempt(async () => {
+    const r = await inv.inviteEveryone(await currentActor());
+    done();
+    return r;
+  });
+}
+
 /** A link anyone with it can join by, as Member or Guest, for 7 days. */
 export async function createInviteLink(role: "member" | "guest") {
   return attempt(async () => {

@@ -14,6 +14,7 @@ import { audit, recordAudit } from "./audit-log";
 import { assertNotTrial, trialEnded, trialInvitationMessage, trialLimitMessage } from "./trials";
 import { refuseInDemo } from "./demo";
 import { recordPersonalWebhookEnds } from "./personal-webhooks";
+import { applyImportPlan } from "./workspace-import-people";
 
 const ROLES: WorkspaceRoleName[] = ["owner", "admin", "member", "guest"];
 const DAY = 86_400_000;
@@ -142,11 +143,34 @@ export async function resendInvitation(actor: Actor, id: number, transport?: Mai
   assertCan(actor, "manage-members");
   if (await trialEnded(actor.workspaceId)) throw new Forbidden("This trial has ended: nothing is sent any more.");
   if (!(await mailOn())) throw new Error("Email is not set up on this Ziffr.");
-  const { data: inv } = await db().from("invitations").select("id, email, email_sends, email_sent_at, revoked_at, accepted_at, expires_at").eq("id", Number(id)).eq("workspace_id", actor.workspaceId).maybeSingle();
-  if (!inv || !inv.email || inv.revoked_at || inv.accepted_at || new Date(inv.expires_at).getTime() < Date.now()) throw new Forbidden();
+  const { data: inv } = await db().from("invitations").select("id, email, email_sends, email_sent_at, revoked_at, accepted_at, expires_at, held_at").eq("id", Number(id)).eq("workspace_id", actor.workspaceId).maybeSingle();
+  if (!inv || !inv.email || inv.held_at || inv.revoked_at || inv.accepted_at || new Date(inv.expires_at).getTime() < Date.now()) throw new Forbidden();
   if (inv.email_sends >= MAX_SENDS) throw new Error("This invitation was emailed three times already; send the link yourself.");
   if (inv.email_sent_at && Date.now() - new Date(inv.email_sent_at).getTime() < RESEND_AFTER) throw new Error("It was emailed a moment ago.");
   if (!(await emailInvitation(inv.id, actor.personId, transport))) throw new Error("The email could not be sent; try again later.");
+}
+
+/** Releases every held invitation of the Workspace and emails each its link, as the new Owner pressed "Invite
+ * everyone": the people of an imported file are invited only now, within the Installation's sending limits (an
+ * invitation the limits hold back stays open, with the reason, to send by hand). Returns how many were released and
+ * how many emails really went out. Owners only: it mails people the file named. */
+export async function inviteEveryone(actor: Actor, transport?: MailTransport): Promise<{ released: number; emailed: number }> {
+  notDemo(actor);
+  await assertNotTrial(actor.workspaceId, "Inviting people");
+  if (actor.role !== "owner") throw new Forbidden("Only the Owner invites the people of an imported file.");
+  const { data: held } = await db().from("invitations").select("id").eq("workspace_id", actor.workspaceId).not("held_at", "is", null).is("revoked_at", null).is("accepted_at", null).order("id");
+  let released = 0;
+  let emailed = 0;
+  const canMail = await mailOn();
+  for (const h of held ?? []) {
+    // Released first, claimed by the update itself, so two presses at once release each invitation once.
+    const { data: now } = await db().from("invitations").update({ held_at: null, expires_at: new Date(Date.now() + 14 * DAY).toISOString() }).eq("id", h.id).eq("workspace_id", actor.workspaceId).not("held_at", "is", null).select("id");
+    if (!now?.length) continue;
+    released++;
+    if (canMail && (await emailInvitation(h.id as number, actor.personId, transport))) emailed++;
+  }
+  if (released) await audit(actor, { kind: "invitation.created", object: { type: "invitation", id: 0, name: "Invite everyone" }, details: { role: "various", by: "import", released, emailed } });
+  return { released, emailed };
 }
 
 /** A link anyone with it can join by, as Member or Guest, for 7 days. Returns its token. */
@@ -166,8 +190,9 @@ export async function createInviteLink(actor: Actor, role: "member" | "guest"): 
 export async function openInvitations(actor: Actor) {
   assertCan(actor, "manage-members");
   // Never the token: whoever sees the list must not be able to use or pass on an invitation from it.
-  const { data } = await db().from("invitations").select("id, email, role, expires_at, created_at, email_sent_at, email_sends, email_error").eq("workspace_id", actor.workspaceId).is("revoked_at", null).is("accepted_at", null).gt("expires_at", new Date().toISOString()).order("id", { ascending: false });
-  return data ?? [];
+  const { data } = await db().from("invitations").select("id, email, role, expires_at, created_at, email_sent_at, email_sends, email_error, held_at, import_plan").eq("workspace_id", actor.workspaceId).is("revoked_at", null).is("accepted_at", null).gt("expires_at", new Date().toISOString()).order("id", { ascending: false });
+  // A held invitation (a person of an imported file) shows the name the file gave, never the ids of its plan.
+  return (data ?? []).map(({ import_plan, ...i }) => ({ ...i, name: import_plan ? String((import_plan as { name?: unknown }).name ?? "").slice(0, 120) : null }));
 }
 
 /** Revokes an invitation of the workspace. */
@@ -181,9 +206,9 @@ export async function revokeInvitation(actor: Actor, id: number) {
 /** What an invitation offers, for its page: the workspace, the role and whether it still works. Nothing else. */
 export async function invitationFor(t: string) {
   if (!/^[A-Za-z0-9_-]{20,64}$/.test(String(t))) return null;
-  const { data: inv } = await db().from("invitations").select("email, role, expires_at, revoked_at, accepted_at, workspaces(name)").eq("token", t).maybeSingle();
+  const { data: inv } = await db().from("invitations").select("email, role, expires_at, revoked_at, accepted_at, held_at, workspaces(name)").eq("token", t).maybeSingle();
   if (!inv) return null;
-  const usable = !inv.revoked_at && !inv.accepted_at && inv.expires_at > new Date().toISOString();
+  const usable = !inv.revoked_at && !inv.accepted_at && !inv.held_at && inv.expires_at > new Date().toISOString();
   return { workspace: (inv.workspaces as unknown as { name: string }).name, role: inv.role as WorkspaceRoleName, forEmail: inv.email as string | null, usable };
 }
 
@@ -192,7 +217,8 @@ export async function invitationFor(t: string) {
 export async function acceptInvitation(who: SignedIn, t: string): Promise<string> {
   if (!/^[A-Za-z0-9_-]{20,64}$/.test(String(t))) throw new Forbidden();
   const { data: inv } = await db().from("invitations").select("*").eq("token", t).maybeSingle();
-  if (!inv || inv.revoked_at || inv.accepted_at || inv.expires_at <= new Date().toISOString()) throw new Error("This invitation does not work any more. Ask for a new one.");
+  // A held invitation (a person of an imported file) works only once the new Owner has pressed "Invite everyone".
+  if (!inv || inv.held_at || inv.revoked_at || inv.accepted_at || inv.expires_at <= new Date().toISOString()) throw new Error("This invitation does not work any more. Ask for a new one.");
   // In a trial only an invitation by email works, while it runs: a link cannot be counted or limited by address.
   if (await trialEnded(inv.workspace_id as string)) throw new Error("This invitation does not work any more. The trial has ended.");
   if (!inv.email) await assertNotTrial(inv.workspace_id as string, "Joining by a link");
@@ -215,6 +241,8 @@ export async function acceptInvitation(who: SignedIn, t: string): Promise<string
       if (error) throw new Error("Joining did not work. Try again.");
     }
   }
+  // What an imported file said of this person (Groups, Shares, Metrics): applied once, now that they are in.
+  if (inv.import_plan) await applyImportPlan(inv.workspace_id as string, who.personId, existing ? (existing.role as string) : (inv.role as string), inv.import_plan);
   if (inv.contact_person_id && inv.contact_person_id !== who.personId) {
     const { error } = await db().rpc("merge_contact", { ws: inv.workspace_id, contact: inv.contact_person_id, person: who.personId });
     if (error) throw new Error("Joining worked, but the contact's history could not be moved.");

@@ -33,7 +33,8 @@ export const viewerId = cache(async (): Promise<string> => {
 /** The workspaces the person belongs to, with their role in each. */
 export async function myWorkspaces(personId: string) {
   // The demo is visited, never joined: it is not one of anyone's own workspaces.
-  const { data } = await db.from("memberships").select("role, workspaces(id, name)").eq("user_id", personId).neq("workspace_id", DEMO_WORKSPACE_ID).order("created_at");
+  // A Workspace still being filled by an import (spec 0040) is nobody's yet: its Owner reaches it when the job is done.
+  const { data } = await db.from("memberships").select("role, workspaces!inner(id, name, importing_at)").eq("user_id", personId).neq("workspace_id", DEMO_WORKSPACE_ID).is("workspaces.importing_at", null).order("created_at");
   return (data ?? []).map((m) => ({ ...(m.workspaces as unknown as { id: string; name: string }), role: m.role as WorkspaceRoleName }));
 }
 

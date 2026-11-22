@@ -9,7 +9,7 @@ import { DeckEditorLoader } from "./loader";
 import { countView } from "@/lib/count-view";
 import { deckSeed } from "@ziffr/core/conversions";
 import { snapshotDeckSeed } from "@ziffr/core/snapshots";
-import { deckTemplateSeed, listDeckTemplates, readFills } from "@ziffr/core/deck-templates";
+import { deckTemplateSeed, importSeedOf, listDeckTemplates, readFills } from "@ziffr/core/deck-templates";
 import { widgetMetricIds } from "@ziffr/core/widget-metrics";
 import { deckAddition } from "@ziffr/core/deck-additions";
 import { cookies } from "next/headers";
@@ -45,7 +45,10 @@ export default async function DeckPage({ params, searchParams }: { params: Promi
     : Number.isInteger(from) && from > 0 ? await deckSeed(actor, from).catch(() => null) : null;
   // Made from a Deck Template (spec 0030): its slides with its Slots filled; the core checks every Metric again.
   const fromTemplate = Number(sp.template);
-  const templateSeed = empty && !seed && Number.isInteger(fromTemplate) && fromTemplate > 0 ? await deckTemplateSeed(actor, fromTemplate, readFills(sp.fills)).catch(() => null) : null;
+  // A deck imported from a Workspace Export (spec 0040) waits with its template and fills in its document: laid out now.
+  const waiting = empty ? importSeedOf(deck.document) : null;
+  const templateSeed = empty && !seed && Number.isInteger(fromTemplate) && fromTemplate > 0 ? await deckTemplateSeed(actor, fromTemplate, readFills(sp.fills)).catch(() => null)
+    : empty && !seed && waiting ? await deckTemplateSeed(actor, waiting.template, waiting.fills).catch(() => null) : null;
   // A widget added from its menu (ticket #1), only when the person's own menu asked for it (deck-add-intent.ts): the
   // core checks again that they may change the deck, open the widget and see its Metrics; the editor places the
   // copy on that slide or a new one and saves.
@@ -60,7 +63,7 @@ export default async function DeckPage({ params, searchParams }: { params: Promi
   ]);
   return (
     <DeckEditorLoader
-      deck={{ id: deck.id, name: deck.name, document: deck.document, theme_id: deck.theme_id, footer: deck.footer }}
+      deck={{ id: deck.id, name: deck.name, document: waiting ? null : deck.document, theme_id: deck.theme_id, footer: deck.footer }}
       data={data}
       saved={saved}
       seed={seed}

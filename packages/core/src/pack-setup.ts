@@ -274,7 +274,7 @@ export async function setUpFromPack(actor: Actor, installId: number, input: Pack
 }
 
 /** A formula of a Pack's entries ({key}) with each key replaced by a Metric's slug. */
-function withSlugs(formula: string, slug: (key: string) => string): string {
+export function withSlugs(formula: string, slug: (key: string) => string): string {
   return formula.replace(/\{([a-z0-9-]+)\}/g, (_all, k: string) => `{${slug(k)}}`);
 }
 
@@ -290,7 +290,7 @@ async function assertMembers(actor: Actor, ids: string[]) {
 // The formula of a Derived Metric just made, checked again against the Workspace's Metrics as they are now. Refused,
 // the Metric goes again (it was made a moment ago and holds nothing), so no Metric that looks derived is left
 // without its formula.
-async function writeFormula(actor: Actor, m: { id: number; name: string }, formula: string) {
+export async function writeFormula(actor: Actor, m: { id: number; name: string }, formula: string) {
   const metrics = await getMetrics(actor.workspaceId);
   const self = metrics.find((x) => x.id === m.id);
   const why = self ? checkFormula(formula, metrics, self) : "it is gone";
