@@ -10,6 +10,9 @@ import { setMyQuietHours } from "./quiet-hours";
 import { listTellSubscriptions, setTellStopped } from "./tell";
 import { runWorkflows } from "./workflow-engine";
 import { saveWorkflow, WorkflowRefused } from "./workflows";
+import { archivedMetricHolds } from "./internal/delivery-send";
+import { openWorkflowRow, sealedWorkflowConfig } from "./workflow-rows";
+import { addWorkingDays } from "./workflow-rules";
 import { auditRowsOf, opened, workspace } from "./test/db-fixtures";
 import type { ChecklistItem, WorkflowConfig, WorkflowStep } from "./types";
 
@@ -38,14 +41,14 @@ async function messages(w: W, person: string) {
 const stepRuns = async (workflowId: number) => (await db().from("workflow_step_runs").select("step_id, period_start, kind, sent, skipped").eq("workflow_id", workflowId).order("id")).data ?? [];
 
 /** Sara owns a monthly Workflow with Ann (and Cora, in the Group Finance) to tell; Bob is a member the item does not name. */
-async function setup(steps: (WorkflowStep | ((p: { ann: string; bob: string; cora: string; group: number }) => WorkflowStep))[], over: Partial<WorkflowConfig> = {}) {
+async function setup(steps: (WorkflowStep | ((p: { ann: string; bob: string; cora: string; group: number }) => WorkflowStep))[], over: Partial<WorkflowConfig> = {}, period = "month") {
   const w = await ws();
   const sara = await w.person("owner", { email: address("sara") }); const ann = await w.person("member", { email: address("ann") }); const bob = await w.person("member", { email: address("bob") }); const cora = await w.person("member", { email: address("cora") });
   const { data: g } = await db().from("groups").insert({ workspace_id: w.id, name: "Finance" }).select("id").single();
   await db().from("group_members").insert({ workspace_id: w.id, group_id: g!.id, user_id: cora });
   const who = { ann, bob, cora, group: g!.id as number };
   const flow = await saveWorkflow(w.actor(sara), null, "Month-end close", { dueWorkingDays: 2, steps: [...steps.map((s) => (typeof s === "function" ? s(who) : s)), publish], ...over });
-  const m = await w.metric(sara, { name: "Secret revenue", workflow_id: flow });
+  const m = await w.metric(sara, { name: "Secret revenue", workflow_id: flow, period });
   return { w, sara, ...who, flow, m };
 }
 
@@ -120,8 +123,7 @@ describe("an item for information", () => {
     await db().from("group_members").insert({ workspace_id: w.id, group_id: group, user_id: contact });
     // Naming one directly is dropped when the Workflow is saved; one in a Group is dropped when it is sent.
     const flow2 = await saveWorkflow(w.actor(sara), null, "Other", { dueWorkingDays: 0, steps: [item({ id: "item-two-aaaa", people: [contact, ann] }), publish] });
-    const { data: stored } = await db().from("workflows").select("config").eq("id", flow2).single();
-    expect(JSON.stringify(stored?.config)).not.toContain(contact);
+    expect(JSON.stringify(await storedConfig(flow2))).not.toContain(contact);
     await runWorkflows(w.id, "2026-04-01", sara);
     expect(await messages(w, contact)).toHaveLength(0);
     expect(await messages(w, ann)).toHaveLength(1);
@@ -159,8 +161,68 @@ describe("an item for information", () => {
   });
 });
 
+/** A Workflow's stored config, opened as the core reads it (the Workspace may seal its words). */
+async function storedConfig(flow: number): Promise<WorkflowConfig> {
+  const { data } = await db().from("workflows").select("id, workspace_id, config").eq("id", flow).single();
+  return (await openWorkflowRow(String(data!.workspace_id), data))!.config as WorkflowConfig;
+}
+
+/** Says the day an item was added, as it was when its first runs began (saving gives it today's date). */
+async function addedOn(w: W, flow: number, day: string) {
+  const config = await storedConfig(flow);
+  const steps = config.steps.map((x) => (x.type === "checklist" ? { ...x, addedOn: day } : x));
+  await db().from("workflows").update({ config: await sealedWorkflowConfig(w.id, flow, { ...config, steps }) }).eq("id", flow);
+}
+
+describe("an item whose day is longer than the period", () => {
+  it("sends a monthly item with day 25 in the second month after, once, and not the past of a new item", async () => {
+    const { w, sara, ann, flow } = await setup([(p) => item({ day: 25, people: [p.ann] })]);
+    await addedOn(w, flow, "2026-04-10");
+    const due = addWorkingDays("2026-03-31", 25);
+    await runWorkflows(w.id, addWorkingDays("2026-03-31", 24), sara);
+    expect(await messages(w, ann)).toHaveLength(0);
+    await runWorkflows(w.id, due, sara);
+    await runWorkflows(w.id, due, sara);
+    expect((await stepRuns(flow)).map((r) => r.period_start)).toEqual(["2026-03-01"]);
+    expect(await messages(w, ann)).toHaveLength(1);
+  });
+  it("sends a weekly item with day 6 a week later", async () => {
+    const { w, sara, ann, flow } = await setup([(p) => item({ day: 6, people: [p.ann] })], {}, "week");
+    await addedOn(w, flow, "2026-03-10");
+    await runWorkflows(w.id, addWorkingDays("2026-03-08", 6), sara);
+    expect((await stepRuns(flow)).map((r) => r.period_start)).toEqual(["2026-03-02"]);
+    expect(await messages(w, ann)).toHaveLength(1);
+  });
+  it("sends a daily item with day 2 two working days later, not the day just ended", async () => {
+    const { w, sara, flow } = await setup([(p) => item({ day: 2, people: [p.ann] })], {}, "day");
+    await addedOn(w, flow, "2026-03-10");
+    await runWorkflows(w.id, "2026-03-10", sara);
+    const periods = (await stepRuns(flow)).map((r) => r.period_start);
+    expect(periods).toContain("2026-03-06");
+    expect(periods).not.toContain("2026-03-09");
+  });
+});
+
+describe("what is left of an item when it is saved and sent", () => {
+  it("strips characters that make words read other than written", async () => {
+    const { w, sara, flow } = await setup([]);
+    await saveWorkflow(w.actor(sara), flow, "Month-end close", { dueWorkingDays: 2, steps: [item({ text: "Pay\u202Etxt.exe\u200B now\u2028ok" }), publish] });
+    const [saved] = (await storedConfig(flow)).steps.filter((x): x is ChecklistItem => x.type === "checklist");
+    expect(saved.text).toBe("Paytxt.exe nowok");
+  });
+  it("is not sent to someone who has left the Workspace since it was queued", async () => {
+    const { w, sara, ann, flow } = await setup([(p) => item({ people: [p.ann] })]);
+    await runWorkflows(w.id, "2026-04-01", sara);
+    const [d] = await messages(w, ann);
+    const about = { id: d.id as number, workspace_id: w.id, kind: "checklist", recipient_id: ann, tell_workflow_id: flow };
+    expect(await archivedMetricHolds(about)).toBeNull();
+    await w.dropMember(ann);
+    expect(await archivedMetricHolds(about)).toMatch(/no longer in the Workspace/);
+  });
+});
+
 describe("saving Checklist Items", () => {
-  const savedItems = async (flow: number) => ((await db().from("workflows").select("config").eq("id", flow).single()).data?.config as WorkflowConfig).steps.filter((s): s is ChecklistItem => s.type === "checklist");
+  const savedItems = async (flow: number) => (await storedConfig(flow)).steps.filter((s): s is ChecklistItem => s.type === "checklist");
 
   it("keeps people and Groups of the Workspace only, trims the words, keeps the id, and limits days", async () => {
     const { w, sara, ann, flow, group } = await setup([item()]);
@@ -169,7 +231,7 @@ describe("saving Checklist Items", () => {
     const { data: foreign } = await db().from("groups").insert({ workspace_id: other.id, name: "Elsewhere" }).select("id").single();
     await saveWorkflow(w.actor(sara), flow, "Month-end close", { dueWorkingDays: 2, steps: [item({ id: "item-one-aaaa", text: "  Close the books.  ", day: 99, people: [ann, stranger, ann], groups: [group, foreign!.id as number], readGroup: foreign!.id as number }), publish] });
     const [saved] = await savedItems(flow);
-    expect(saved).toEqual({ type: "checklist", id: "item-one-aaaa", kind: "info", text: "Close the books.", day: 30, people: [ann], groups: [group] });
+    expect(saved).toEqual({ type: "checklist", id: "item-one-aaaa", kind: "info", text: "Close the books.", day: 30, people: [ann], groups: [group], addedOn: expect.stringMatching(/^\d{4}-\d{2}-\d{2}$/) });
     await saveWorkflow(w.actor(sara), flow, "Month-end close", { dueWorkingDays: 2, steps: [{ ...saved, readGroup: group }, publish] });
     expect((await savedItems(flow))[0]).toMatchObject({ id: "item-one-aaaa", readGroup: group });
     // A new item, or one with a malformed id, is given one.
@@ -184,7 +246,7 @@ describe("saving Checklist Items", () => {
     const many = Array.from({ length: CHECKLIST_ITEMS_PER_WORKFLOW + 3 }, (_, i) => item({ id: `item-number-${String(i).padStart(2, "0")}` }));
     const others: WorkflowStep[] = Array.from({ length: 14 }, () => ({ type: "remind", daysBefore: 1 }));
     await saveWorkflow(w.actor(sara), flow, "Month-end close", { dueWorkingDays: 2, steps: [...others, ...many, publish] });
-    const config = (await db().from("workflows").select("config").eq("id", flow).single()).data?.config as WorkflowConfig;
+    const config = await storedConfig(flow);
     expect(config.steps.filter((s) => s.type === "checklist")).toHaveLength(CHECKLIST_ITEMS_PER_WORKFLOW);
     expect(config.steps.filter((s) => s.type === "remind")).toHaveLength(12);
     await expect(saveWorkflow(w.actor(sara), flow, "Month-end close", { dueWorkingDays: 2, steps: [item({ text: "   " }), publish] })).rejects.toThrow(/needs its words/);

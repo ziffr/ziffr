@@ -315,7 +315,8 @@ export function toWorkflowTemplate(c: WorkflowConfig): WorkflowTemplateBody {
       switch (s.type) {
         case "tell": return [];
         case "approve": return [{ type: "approve", approvers: Math.min(3, s.approvers.length), values: s.values ?? "unusual", ...(s.nobodyElse ? { nobodyElse: s.nobodyElse } : {}) }];
-        case "checklist": return [s.kind === "tick" ? { type: "checklist", kind: "tick", text: s.text, dueWorkingDays: s.dueWorkingDays } : { type: "checklist", kind: "info", text: s.text, day: s.day }];
+        // An item kept to a Group stays behind: a template is read by the whole team, a Pack or an export by more.
+        case "checklist": if (s.readGroup !== undefined) return []; return [s.kind === "tick" ? { type: "checklist", kind: "tick", text: s.text, dueWorkingDays: s.dueWorkingDays } : { type: "checklist", kind: "info", text: s.text, day: s.day }];
         case "send_snapshot": return [{ type: "send_snapshot" }];
         default: return [s];
       }

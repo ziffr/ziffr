@@ -40,7 +40,9 @@ export async function archivedMetricHolds(d: AboutMetric): Promise<string | null
   const ws = d.workspace_id;
   // A Checklist Item's message (spec 0045) stops when the person said "stop telling me" after it was queued; it names no Metric.
   if (d.kind === "checklist") {
-    if (d.tell_workflow_id && d.recipient_id) {
+    // Nor does it leave for someone who has left the Workspace since it was queued.
+    if (!d.recipient_id || !(await db().from("memberships").select("user_id").eq("workspace_id", ws).eq("user_id", d.recipient_id).maybeSingle()).data) return "Not sent: the person is no longer in the Workspace.";
+    if (d.tell_workflow_id) {
       const { data: stopped } = await db().from("tell_stops").select("person_id").eq("workflow_id", d.tell_workflow_id).eq("person_id", d.recipient_id).eq("workspace_id", ws).maybeSingle();
       if (stopped) return "Not sent: the person asked not to be told by this Workflow.";
     }

@@ -9,6 +9,7 @@ import { periodTimeline } from "./period-timeline";
 import { setTellStopped } from "./tell";
 import { runWorkflows } from "./workflow-engine";
 import { saveWorkflow } from "./workflows";
+import { saveWorkflowTemplate } from "./templates";
 import { opened, workspace } from "./test/db-fixtures";
 import type { ChecklistItem, WorkflowConfig } from "./types";
 
@@ -68,7 +69,7 @@ describe("what a recipient is sent", () => {
     const s = await setup();
     await runWorkflows(s.w.id, "2026-04-01", s.sara);
     for (const person of [s.ann, s.cora, s.hal]) {
-      const { data } = await db().from("deliveries").select("subject, body, kind").eq("workspace_id", s.w.id).eq("recipient_id", person).eq("kind", "checklist");
+      const { data } = await db().from("deliveries").select("id, workspace_id, subject, body, kind").eq("workspace_id", s.w.id).eq("recipient_id", person).eq("kind", "checklist");
       const rows = await opened("deliveries", s.w.id, data);
       expect(rows.length).toBeGreaterThan(0);
       for (const r of rows) {
@@ -77,7 +78,7 @@ describe("what a recipient is sent", () => {
       }
     }
     // A Guest's message names no one else: Hal is told by "Someone", whoever the owner is.
-    const { data: hal } = await db().from("deliveries").select("body, subject").eq("workspace_id", s.w.id).eq("recipient_id", s.hal).eq("kind", "checklist");
+    const { data: hal } = await db().from("deliveries").select("id, workspace_id, body, subject").eq("workspace_id", s.w.id).eq("recipient_id", s.hal).eq("kind", "checklist");
     const ownerName = (await db().from("profiles").select("name").eq("id", s.sara).single()).data!.name as string;
     for (const r of await opened("deliveries", s.w.id, hal)) expect(`${r.subject} ${r.body}`).not.toContain(ownerName);
     // Dan is not named, so is sent nothing; Gus either.
@@ -104,5 +105,18 @@ describe("the Period Timeline line of a sent item", () => {
     // Nothing of the Metric they may not see reaches Dan's timeline.
     const all = JSON.stringify((await periodTimeline(as(s, s.dan, "member"), s.flow, "2026-03-01")).events);
     expect(all).not.toMatch(/Secret revenue|777/);
+  });
+});
+
+describe("a Workflow Template saved from a Workflow with Checklist Items", () => {
+  it("holds the words of the items the person may read and none kept to a Group", async () => {
+    const s = await setup();
+    // Dan is not named and not in Finance: he reads item A, not item B; and item B is kept to a Group.
+    const id = await saveWorkflowTemplate(as(s, s.dan, "member"), { workflowId: s.flow, name: "Close", description: "" });
+    const body = (await db().from("team_templates").select("body").eq("id", id).single()).data!.body as { steps: { type: string; text?: string }[] };
+    expect(body.steps.filter((x) => x.type === "checklist").map((x) => x.text)).toEqual([OPEN]);
+    // Even the owner, who reads item B, leaves it behind: a template is read by the whole team.
+    const own = await saveWorkflowTemplate(as(s, s.sara, "owner"), { workflowId: s.flow, name: "Close", description: "" });
+    expect(JSON.stringify((await db().from("team_templates").select("body").eq("id", own).single()).data!.body)).not.toContain("accrual");
   });
 });

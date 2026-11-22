@@ -295,6 +295,7 @@ export async function periodTimeline(actor: Actor | KeyActor, workflowId: number
   // Checklist Items sent for this period (spec 0045): the claim says when and to how many, the config says what. The
   // words are shown only to someone who may read the item; everyone else reads that an item was sent. The count of
   // people left out is the owner's alone.
+  // The words are the item's current ones, not the ones it had when it went out: the claim keeps no words (rule 3).
   const { data: stepRuns } = await db().from("workflow_step_runs").select("step_id, ran_at, sent, skipped").eq("workspace_id", ws).eq("workflow_id", workflowId).eq("period_start", period).eq("kind", "checklist").order("ran_at");
   if (stepRuns?.length) {
     const flow = await openWorkflowRow(ws, (await db().from("workflows").select("id, owner_id, config").eq("id", workflowId).eq("workspace_id", ws).maybeSingle()).data);

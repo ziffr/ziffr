@@ -13,9 +13,11 @@ import { infoItems, mayReadItem, workflowPeriod, type InfoItem } from "./checkli
 import { db } from "./db";
 import { deliverChecklist, deliverNotice } from "./deliveries";
 import { getGroups } from "./access";
+import { CHECKLIST_DAYS_MAX } from "./alert-limits";
+import { DEMO_WORKSPACE_ID } from "./team";
 import { effectiveLimit } from "./limits";
 import { sendingLimit } from "./sending-limit";
-import { periodEnd, periodLabel, type YearStart } from "./periods";
+import { periodEnd, periodLabel, shiftPeriod, type YearStart } from "./periods";
 import { tellRecipients } from "./tell-firing";
 import { guestWorkflowIds } from "./period-timeline";
 import type { Actor } from "./actor";
@@ -24,6 +26,8 @@ import type { ChecklistItem, Metric, Workflow } from "./types";
 /** The day a Workflow's "paused" note is filed under: a pause has no period. */
 const PAUSE_DAY = "1970-01-01";
 const PAUSE_STEP = "paused";
+/** How many periods back an item may still be due: enough for a daily Metric and the longest day (30 working days). */
+const MAX_PERIODS_BACK = 60;
 
 /** Workflows as the actor may be shown them in a browser (rule 3): of a Checklist Item, the words only where they may
  * read them, and the people it names only for the Workflow's owner, who edits them. Everything else stays as it is. */
@@ -68,6 +72,8 @@ async function claim(ws: string, workflowId: number, step: string, period: strin
 /** Runs the Checklist Items of one Workflow as of a day: each item for information whose day has come, once per period.
  * A Workflow whose Metrics share no period waits, and its owner is told once. Returns what happened, in words. */
 export async function runChecklistItems(ws: string, wf: Workflow, metrics: Metric[], asOf: string, yearStart: YearStart): Promise<string[]> {
+  // Nothing is sent from the demo (as for Tell steps).
+  if (ws === DEMO_WORKSPACE_ID) return [];
   const items = infoItems(wf.config.steps);
   if (!wf.config.steps.some((s) => s.type === "checklist")) return [];
   const when = workflowPeriod(metrics.filter((m) => (m as Metric & { workflow_id?: number | null }).workflow_id === wf.id), asOf, yearStart);
@@ -80,17 +86,25 @@ export async function runChecklistItems(ws: string, wf: Workflow, metrics: Metri
   }
   await db().from("workflow_step_runs").delete().eq("workflow_id", wf.id).eq("workspace_id", ws).eq("kind", "paused");
   const log: string[] = [];
-  const label = periodLabel(when.period, when.span, yearStart);
-  const end = periodEnd(when.period, when.span);
   for (const item of items) {
     // An item that names nobody yet sends nothing and does not use up the period.
     if (!item.people.length && !item.groups.length) continue;
-    if (asOf < addWorkingDays(end, item.day)) continue;
-    const claimed = await claim(ws, wf.id, item.id, when.period);
-    if (claimed === null) continue;
-    const { sent, skipped } = await sendItem(ws, wf, item, label);
-    await db().from("workflow_step_runs").update({ sent, skipped }).eq("id", claimed);
-    log.push(`${wf.name}, ${label}: checklist item sent to ${sent}`);
+    // The period that has just ended, and the earlier ones whose day for this item has only now come (a monthly item
+    // with day 25 is due in the next-but-one month; a weekly one with day 6, a week later). An older period counts only
+    // when its day falls on or after the day the item was added, so a new item never sends the past.
+    let period = when.period;
+    for (let n = 0; n < MAX_PERIODS_BACK; n++, period = shiftPeriod(period, when.span, -1)) {
+      const sendOn = addWorkingDays(periodEnd(period, when.span), item.day);
+      if (addWorkingDays(periodEnd(period, when.span), CHECKLIST_DAYS_MAX) < asOf) break;
+      if (asOf < sendOn || (n > 0 && item.addedOn !== undefined && sendOn < item.addedOn)) continue;
+      const claimed = await claim(ws, wf.id, item.id, period);
+      if (claimed === null) continue;
+      const label = periodLabel(period, when.span, yearStart);
+      let counts = { sent: 0, skipped: 0 };
+      // The claim is made, so the counts are written whatever happens while sending.
+      try { counts = await sendItem(ws, wf, item, label); } finally { await db().from("workflow_step_runs").update(counts).eq("id", claimed); }
+      log.push(`${wf.name}, ${label}: checklist item sent to ${counts.sent}`);
+    }
   }
   return log;
 }

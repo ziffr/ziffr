@@ -477,7 +477,8 @@ export type WorkflowStep =
   // Takes and sends the period's Snapshot of a dashboard once the period is finished (GLOSSARY: Send Snapshot; ticket #793).
   | { type: "send_snapshot"; id: string; dashboardId: number; people: string[]; groups: number[] };
 /** A Checklist Item as stored: for information, or to tick off. */
-export type ChecklistItem = { type: "checklist"; id: string; text: string; readGroup?: number } & (
+/** `addedOn` (yyyy-mm-dd) is the day the item was first saved: an item sends no period whose day came before it. */
+export type ChecklistItem = { type: "checklist"; id: string; text: string; readGroup?: number; addedOn?: string } & (
   | { kind: "info"; day: number; people: string[]; groups: number[] }
   | { kind: "tick"; assignee: string | null; standIn?: string | null; dueWorkingDays: number }
 );
