@@ -380,8 +380,12 @@ Ziffr's catalogue of Packs, checked before they are listed, and of programs outs
 _Avoid_: Store, app store, gallery, hub
 
 **Webhook**:
-An address that a Workspace's Owner or Admin sets so that Ziffr sends it signed messages about what happens there, such as a task given, a task done or a value recorded, for a program to pass on to another system. It belongs to the Workspace, like a Feed, and sees only what every Member sees; other things reach it with their words left out. It can mark a task done, reply to a thread or answer a question, as the Webhook, but only for tasks that were sent to it, and it can say which task in the other system an Action is (an _external id_, kept per Webhook, with an optional link shown on the Action as "Also in"). Not a Connector, which reaches a person.
+An address that a Workspace's Owner or Admin sets so that Ziffr sends it signed messages about what happens there, such as a task given, a task done or a value recorded, for a program to pass on to another system. It belongs to the Workspace, like a Feed, and sees only what every Member sees; other things reach it with their words left out. It can mark a task done, reply to a thread or answer a question, as the Webhook, but only for tasks that were sent to it, and it can say which task in the other system an Action is (an _external id_, kept per Webhook, with an optional link shown on the Action as "Also in"). Not a Connector, which reaches a person. The app heads these **Workspace Webhooks** where it also lists Personal Webhooks; "Webhook" alone means this kind.
 _Avoid_: Callback, trigger, integration, subscription
+
+**Personal Webhook**:
+A Webhook that one person adds for themselves in one Workspace, once an Owner or Admin allows it, and that acts as that person: it hears the Tasks and Questions given to or asked by them, the values of Metrics they pick and their own Alerts, each in full and only if they may see it at the moment it is sent, and it can mark their tasks done as them. It ends when they leave the Workspace. Not a Delivery Preference way, which reaches the person, not a program (spec 0037).
+_Avoid_: My webhook, user webhook, private webhook
 
 **Automation Template**:
 An importable file for an automation tool such as n8n that joins a Webhook to another system, such as Microsoft To Do, Google Tasks, Slack, Asana or Todoist. It lives in the repository; Ziffr never runs it or holds the other system's credentials.
