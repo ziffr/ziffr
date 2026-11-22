@@ -38,6 +38,9 @@ export type ObjectToolbarProps = {
   lead?: React.ReactNode;
 };
 
+/** A row of the phone sheet: the same entries as the ⋯ menu. */
+type SheetRow = { label: string; icon: React.ReactNode; checked?: boolean; go: () => void };
+
 /** One entry of a page's ⋯ menu. */
 export type MenuEntry = { label: string; icon: React.ReactNode; onSelect?: () => void; sub?: { key: string | number; label: string; onSelect: () => void }[]; danger?: boolean; separated?: boolean; checked?: boolean; dimmed?: boolean; hint?: string };
 
@@ -75,12 +78,12 @@ export function ObjectToolbar({ type, id, people, children, phone, share, viewLi
               {/* The page's own buttons stacked one under the other, then the same entries as the menu on a bigger screen. */}
               <div className="flex flex-col items-stretch gap-2 px-4 pb-2 [&>*]:w-full [&>*]:justify-start">{children}</div>
               <ul className="px-2 pb-3">
-                {[...(menu ?? []).flatMap((m) => m.sub ? m.sub.map((c) => ({ label: `${m.label}: ${c.label}`, icon: m.icon, go: () => { setSheet(false); c.onSelect(); } })) : [{ label: m.label, icon: m.icon, checked: m.checked, go: () => { setSheet(false); m.onSelect?.(); } }]),
+                {([...(menu ?? []).flatMap((m) => m.sub ? m.sub.map((c) => ({ label: `${m.label}: ${c.label}`, icon: m.icon, go: () => { setSheet(false); c.onSelect(); } })) : [{ label: m.label, icon: m.icon, checked: m.checked, go: () => { setSheet(false); m.onSelect?.(); } }]),
                   { label: "Who can see this", icon: <Eye aria-hidden />, go: () => { setSheet(false); setOpen("who"); } },
                   ...(viewLinks ? [{ label: "View links…", icon: <Link2 aria-hidden />, go: () => { setSheet(false); setOpen("links"); } }] : []),
                   ...(theme ? [{ label: "Theme…", icon: <Palette aria-hidden />, go: () => { setSheet(false); setOpen("theme"); } }] : []),
-                  { label: "Versions", icon: <History aria-hidden />, go: () => { setSheet(false); setTimeout(() => openVersions(true), 0); } }].map((r) => (
-                  <li key={r.label}><button type="button" onClick={r.go} aria-pressed={"checked" in r && r.checked !== undefined ? r.checked : undefined} className="flex h-11 w-full items-center gap-3 rounded-md px-2 text-left text-sm hover:bg-muted focus-visible:outline-2 focus-visible:outline-ring [&_svg]:size-4 [&_svg]:text-muted-foreground">{r.icon}{r.label}{"checked" in r && r.checked && <Check aria-hidden className="ml-auto" />}</button></li>
+                  { label: "Versions", icon: <History aria-hidden />, go: () => { setSheet(false); setTimeout(() => openVersions(true), 0); } }] as SheetRow[]).map((r) => (
+                  <li key={r.label}><button type="button" onClick={r.go} aria-pressed={r.checked} className="flex h-11 w-full items-center gap-3 rounded-md px-2 text-left text-sm hover:bg-muted focus-visible:outline-2 focus-visible:outline-ring [&_svg]:size-4 [&_svg]:text-muted-foreground">{r.icon}{r.label}{r.checked && <Check aria-hidden className="ml-auto" />}</button></li>
                 ))}
               </ul>
             </SheetContent>
