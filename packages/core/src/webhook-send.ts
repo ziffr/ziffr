@@ -18,6 +18,7 @@ import { daysStrict } from "./keep-days";
 import { WEBHOOK_DAYS_FAILING_BEFORE_OFF, WEBHOOK_FAILURES_BEFORE_OFF, PERSONAL_WEBHOOK_SENDS_PER_PERSON_PER_DAY, WEBHOOK_MESSAGE_MAX_BYTES, WEBHOOK_RETRY_AFTER_MAX_MS, WEBHOOK_RETRY_WAITS_MS, WEBHOOK_SEND_CONCURRENCY, WEBHOOK_SEND_NOW_BUDGET_MS } from "./webhook-limits";
 import { maskedHost } from "./webhooks";
 import { personalWebhookMayRun, tellPersonSwitchedOff } from "./personal-webhook-state";
+import { recordPersonalWebhookEnds } from "./personal-webhooks";
 import { alertContext, viewAt } from "./alert-firing";
 import { alertHolds } from "./alert-rules";
 import { tellCondition, type TellStep } from "./tell-firing";
@@ -261,6 +262,8 @@ export async function sendWaitingWebhooks(limit = 50, onlyWorkspaceId?: string):
   const keep = await daysStrict("ZIFFR_KEEP_WEBHOOK_LOG_DAYS").catch(() => null);
   if (keep !== null) await db().from("webhook_sends").delete().in("state", ["delivered", "failed", "dropped"]).lt("created_at", new Date(Date.now() - keep * 86_400_000).toISOString());
   await db().from("webhook_send_days").delete().lt("day", new Date(Date.now() - 2 * 86_400_000).toISOString().slice(0, 10));
+  // Personal Webhooks the database ended (a deleted account, a membership gone another way) get their Audit Log entry here.
+  await recordPersonalWebhookEnds().catch(() => {});
   await db().from("webhook_person_send_days").delete().lt("day", new Date(Date.now() - 2 * 86_400_000).toISOString().slice(0, 10));
   // `onlyWorkspaceId` is for tests that share a database with others: only that Workspace's due sends are taken.
   const { data: claimed, error } = onlyWorkspaceId ? await db().rpc("claim_webhook_sends_for", { p_workspace: onlyWorkspaceId, p_metric: null, p_limit: limit }) : await db().rpc("claim_webhook_sends", { p_limit: limit });
