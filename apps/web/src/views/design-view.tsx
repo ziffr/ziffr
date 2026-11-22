@@ -20,6 +20,7 @@ import { TargetChip } from "@/components/target-chip";
 import { cn } from "@/lib/utils";
 import { ApprovalMark } from "./approval-mark";
 import { DesignPlot } from "./design-plot";
+import { useWidgetScale } from "./widget-scale";
 
 type Props = {
   design: ViewDesign;
@@ -31,7 +32,11 @@ type Props = {
 };
 
 /** Everything a design can show, worked out by the core for one widget. Only what the design uses is computed. */
-export type DesignValues = ReturnType<typeof designValues> & { setBasis: (basis: BasisChoice) => void };
+export type DesignValues = ReturnType<typeof designValues> & {
+  setBasis: (basis: BasisChoice) => void;
+  /** The widget has more room than a usual one (its widget scale is above 1): its parts share the space (#778). */
+  roomy: boolean;
+};
 
 /** The numbers and words a design draws for a widget, each from the core's functions. */
 function designValues(design: ViewDesign, widget: Pick<Widget, "settings">, metrics: Metric[], data: CanvasData, basis: BasisChoice) {
@@ -99,7 +104,8 @@ function usage(d: ViewDesign) {
 export function DesignView({ design, widget, metrics, data, onPointContext }: Props) {
   // Show the numbers: "values" is the older comparison on the values as they are, never growth removed.
   const [basis, setBasis] = useState<BasisChoice>("auto");
-  const v: DesignValues = { ...designValues(design, widget, metrics, data, basis), setBasis };
+  const roomy = useWidgetScale() > 1;
+  const v: DesignValues = { ...designValues(design, widget, metrics, data, basis), setBasis, roomy };
   const { m } = v;
   // What the design needs and does not have says why, in the core's words where it has them.
   if (v.matrix && metrics.length < 2) return <Empty>{design.empty ?? "Needs at least two Metrics."}</Empty>;
@@ -117,7 +123,8 @@ export function DesignView({ design, widget, metrics, data, onPointContext }: Pr
   // A point of a combined series is a span, not one of the Metric's periods: there is no single value to ask about.
   const ctx = onPointContext && !v.combined ? (p: string) => onPointContext(m.id, p) : undefined;
   return (
-    <div className={cn("flex h-full flex-col", design.kind === "analysis" && "gap-2")}>
+    // With room to spare, what does not grow is centred rather than pinned to the top (#778).
+    <div className={cn("flex h-full flex-col", design.kind === "analysis" && "gap-2", v.roomy && "justify-center")}>
       {design.parts.map((p, i) => <PartView key={i} part={p} v={v} ctx={ctx} />)}
       {v.correlationTake && <TakeawayView takeaway={v.correlationTake}><BasisButton v={v} /></TakeawayView>}
     </div>
@@ -142,7 +149,9 @@ function PartView({ part, v, ctx }: { part: Part; v: DesignValues; ctx?: (period
         // A plot without axes is a sparkline: a fixed, small height, so a tall card on a phone does not stretch small dips
         // into dramatic ones (#16). In a short card it gives way (min-h-0, clipped to its box) rather than drawing over the
         // comparison line under the widget (#568).
-        <div className={part.axes === "none" ? "mt-auto h-[calc(3rem*var(--widget-scale,1))] min-h-0 shrink overflow-hidden pt-2" : "min-h-0 flex-1"}>
+        // With room to spare it takes the free height instead (#778), between a strip of 1:12 and one of 1:2.2, so it
+        // neither stays a hairline under a large number nor turns into a cliff.
+        <div className={part.axes !== "none" ? "min-h-0 flex-1" : v.roomy ? "max-h-[45cqw] min-h-[max(calc(3rem*var(--widget-scale,1)),8cqw)] flex-1 overflow-hidden pt-[1em]" : "mt-auto h-[calc(3rem*var(--widget-scale,1))] min-h-0 shrink overflow-hidden pt-2"}>
           <DesignPlot part={part} v={v} onPointContext={ctx} />
         </div>
       );
@@ -166,6 +175,8 @@ const STYLE: Record<TextStyle, string> = {
   note: "widget-text-xs mt-0.5 text-muted-foreground",
 };
 
+const ROOMY_VALUE = "text-[length:clamp(calc(var(--text-xl)*var(--widget-scale,1)),6cqw,calc(var(--text-xl)*var(--widget-scale,1)*2.2))]";
+
 function TextView({ style, pieces, v }: { style?: TextStyle; pieces: Piece[]; v: DesignValues }) {
   // Words are React text: markup in them is shown as the characters it is made of, never run.
   const body = pieces.map((p, i) => {
@@ -182,6 +193,8 @@ function TextView({ style, pieces, v }: { style?: TextStyle; pieces: Piece[]; v:
   });
   if (style === "headline") return <div className="flex items-baseline gap-2"><span className={STYLE.headline}>{body}</span></div>;
   if (style === "body" || style === "note") return <p className={STYLE[style]}>{body}</p>;
+  // A value under a gauge that fills a large card grows with the card's width, so it stays in proportion (#778).
+  if (style === "value" && v.roomy) return <div className={cn(STYLE.value, ROOMY_VALUE)}>{body}</div>;
   return <div className={style ? STYLE[style] : undefined}>{body}</div>;
 }
 
@@ -278,8 +291,9 @@ function GaugeMark({ v }: { v: DesignValues }) {
 function ValueRows({ v, limit, ctx }: { v: DesignValues; limit: number; ctx?: (period: string) => void }) {
   const { m, data } = v;
   const rows = v.all.slice(-limit).reverse();
-  return (
-    <table className="widget-text-sm w-full">
+  // With room to spare the rows share the free height, each at most 3em, and the table is centred (#778).
+  const table = (
+    <table className="widget-text-sm w-full" style={v.roomy ? { height: `min(100%, ${rows.length * 3}em)` } : undefined}>
       <tbody>
         {rows.map((r) => (
           <tr key={r.period} className="border-b border-border last:border-0" onContextMenu={ctx ? () => ctx(r.period) : undefined}>
@@ -290,6 +304,7 @@ function ValueRows({ v, limit, ctx }: { v: DesignValues; limit: number; ctx?: (p
       </tbody>
     </table>
   );
+  return v.roomy ? <div className="flex min-h-0 flex-1 flex-col justify-center">{table}</div> : table;
 }
 
 /** Why Metrics are kept to their own period, once each (Aggregation none), so a missing pair is never silent. */
@@ -307,7 +322,8 @@ function MatrixRows({ v }: { v: DesignValues }) {
   const ns = data.numberStyle;
   // Each pair on its common period: the longer of the two, the shorter combined by its Aggregation.
   return (
-    <div className="h-full overflow-auto">
+    // With room to spare the matrix sits in the middle of the card, not in its top-left corner (#778).
+    <div className={cn("h-full overflow-auto", v.roomy && "flex flex-col items-center justify-center")}>
       <table className="widget-text-xs">
         <thead>
           <tr>

@@ -12,6 +12,7 @@ import { Bridge, bridgeSteps, measureSeries, MEASURE_LABEL, PanelView, PeriodBar
 import type { Annotation } from "@ziffr/core/types";
 import { cn } from "@/lib/utils";
 import { periodLabel } from "@ziffr/core/periods";
+import { useWidgetScale } from "./widget-scale";
 
 type W = Pick<Widget, "template" | "metric_ids" | "settings">;
 
@@ -138,13 +139,13 @@ function Ranked({ rows, m, highlight, sum, onRowContext, annotations, numberStyl
     if (t) marks.set(t.label, [...(marks.get(t.label) ?? []), a]);
   }
   return (
-    <ol className="flex h-full flex-col justify-center gap-1.5" aria-label={`${m.name}, largest first`}>
+    <ol className="flex h-full flex-col justify-center gap-[0.5em] widget-text-xs" aria-label={`${m.name}, largest first`}>
       {rows.slice(0, 12).map((r) => {
         const on = r.label === highlight;
         return (
           <li key={r.label} className={cn("grid grid-cols-[minmax(0,9.33em)_minmax(4em,1fr)_auto] items-center gap-[0.67em] rounded-[4px] widget-text-xs", marks.get(r.label)?.some((a) => a.kind === "ring") && "outline-2 outline-offset-2 outline-[var(--color-accent-2)]")} onContextMenu={onRowContext ? () => onRowContext(r.label) : undefined}>
             <span className={cn("flex min-w-0 items-center gap-1.5", on && "font-semibold")}><Flag label={r.label} /><span className="truncate">{r.label}</span></span>
-            <span className="h-4 rounded-r-[3px]" style={{ width: `${Math.max(2, (r.value / max) * 100)}%`, background: on ? "var(--color-data)" : "var(--color-rule-2)" }} />
+            <span className="h-[1.33em] rounded-r-[3px]" style={{ width: `${Math.max(2, (r.value / max) * 100)}%`, background: on ? "var(--color-data)" : "var(--color-rule-2)" }} />
             <span className={cn("fig text-right", on && "font-semibold")}>
               {compactValue(m, r.value, numberStyle)}
               {sum ? <span className="ml-1.5 text-muted-foreground">{pct(r.value, sum)}%</span> : null}
@@ -164,13 +165,13 @@ function Share({ rows, m, highlight, sum, onRowContext, numberStyle }: { numberS
   const ordered = [...rows].sort((a, b) => (a.label === highlight ? -1 : b.label === highlight ? 1 : b.value - a.value));
   return (
     <div className="flex h-full flex-col justify-center gap-4">
-      <div className="flex h-8 w-full overflow-hidden rounded-[4px]" role="img" aria-label={ordered.map((r) => `${r.label} ${pct(r.value, sum)} %`).join(", ")}>
+      <div className="flex h-[calc(2rem*var(--widget-scale,1))] w-full overflow-hidden rounded-[4px]" role="img" aria-label={ordered.map((r) => `${r.label} ${pct(r.value, sum)} %`).join(", ")}>
         {ordered.map((r, i) => <div key={r.label} style={{ width: `${(r.value / (sum || 1)) * 100}%`, background: tones[Math.min(i, tones.length - 1)] }} />)}
       </div>
       <ul className="grid grid-cols-2 gap-x-4 gap-y-1.5 widget-text-xs">
         {ordered.map((r, i) => (
           <li key={r.label} className={cn("flex items-center gap-1.5", r.label === highlight && "font-semibold")} onContextMenu={onRowContext ? () => onRowContext(r.label) : undefined}>
-            <span aria-hidden className="size-2.5 shrink-0 rounded-[2px]" style={{ background: tones[Math.min(i, tones.length - 1)] }} />
+            <span aria-hidden className="size-[0.83em] shrink-0 rounded-[2px]" style={{ background: tones[Math.min(i, tones.length - 1)] }} />
             <Flag label={r.label} />
             <span className="truncate">{r.label}</span>
             <span className="fig ml-auto">{pct(r.value, sum)} %</span>
@@ -188,7 +189,7 @@ function Pictogram({ rows, highlight, sum }: { rows: BreakdownRow[]; highlight: 
     <div className="flex h-full flex-col items-center justify-center gap-3">
       <div className="grid grid-cols-5 gap-x-2 gap-y-1" role="img" aria-label={`${n} in 10`}>
         {Array.from({ length: 10 }, (_, i) => (
-          <User key={i} aria-hidden className="size-8" strokeWidth={1.75} style={{ color: i < n ? "var(--color-data)" : "var(--color-rule-2)", fill: i < n ? "var(--color-data)" : "none" }} />
+          <User key={i} aria-hidden className="size-[calc(2rem*var(--widget-scale,1))]" strokeWidth={1.75} style={{ color: i < n ? "var(--color-data)" : "var(--color-rule-2)", fill: i < n ? "var(--color-data)" : "none" }} />
         ))}
       </div>
       <div className="text-center widget-text-xs text-muted-foreground">
@@ -201,6 +202,8 @@ function Pictogram({ rows, highlight, sum }: { rows: BreakdownRow[]; highlight: 
 /** The trend, drawn with Observable Plot, with callouts at chosen periods. */
 function StoryLine({ widget, data, m }: { widget: W; data: CanvasData; m: Metric }) {
   const box = useRef<HTMLDivElement>(null);
+  // The line, its dots and margins grow with the card, so a presented story is not drawn in hairlines (#778).
+  const s = useWidgetScale();
   const pts = (data.series[m.slug] ?? []).slice(-(widget.settings.window ?? 12)).map((p) => ({ date: new Date(p.period), value: p.value, period: p.period }));
   // A callout from a template follows a rule (highest, latest, …) instead of a fixed period.
   const items = pts.map((p, i) => ({ ...p, label: p.period, delta: i ? p.value - pts[i - 1].value : undefined }));
@@ -217,21 +220,21 @@ function StoryLine({ widget, data, m }: { widget: W; data: CanvasData; m: Metric
       const chart = Plot.plot({
         width,
         height,
-        marginLeft: 8,
-        marginRight: 56,
-        marginTop: 24,
-        marginBottom: 24,
+        marginLeft: 8 * s,
+        marginRight: 56 * s,
+        marginTop: 24 * s,
+        marginBottom: 24 * s,
         style: { fontFamily: "var(--font-body)", fontSize: "clamp(11px, 1.2cqw, calc(17px * var(--widget-scale, 1)))", color: "var(--color-muted)", background: "transparent" },
         x: { type: "utc", ticks: 4, tickFormat: (d: Date) => periodLabel(d.toISOString().slice(0, 10), m.period, data.yearStart, true), label: null },
         y: { axis: null, nice: true, zero: false },
         marks: [
           Plot.ruleY([Math.min(...pts.map((p) => p.value))], { stroke: "var(--color-rule)" }),
-          Plot.lineY(pts, { x: "date", y: "value", stroke: "var(--color-data)", strokeWidth: 2, curve: "monotone-x" }),
-          Plot.dot([last], { x: "date", y: "value", fill: "var(--color-data)", r: 3.5 }),
-          Plot.text([last], { x: "date", y: "value", text: (d) => compactValue(m, d.value, data.numberStyle), dx: 8, textAnchor: "start", fill: "var(--color-print)", fontWeight: 600 }),
+          Plot.lineY(pts, { x: "date", y: "value", stroke: "var(--color-data)", strokeWidth: 2 * s, curve: "monotone-x" }),
+          Plot.dot([last], { x: "date", y: "value", fill: "var(--color-data)", r: 3.5 * s }),
+          Plot.text([last], { x: "date", y: "value", text: (d) => compactValue(m, d.value, data.numberStyle), dx: 8 * s, textAnchor: "start", fill: "var(--color-print)", fontWeight: 600 }),
           Plot.ruleX(callouts, { x: (c) => c.point!.date, stroke: "var(--color-muted)", strokeDasharray: "2 3" }),
-          Plot.dot(callouts, { x: (c) => c.point!.date, y: (c) => c.point!.value, r: 4, fill: "var(--color-cotton)", stroke: "var(--color-data)" }),
-          Plot.text(callouts, { x: (c) => c.point!.date, frameAnchor: "top", text: "text", dy: -14, lineWidth: 14, fill: "var(--color-print)", fontWeight: 500 }),
+          Plot.dot(callouts, { x: (c) => c.point!.date, y: (c) => c.point!.value, r: 4 * s, strokeWidth: 1.5 * s, fill: "var(--color-cotton)", stroke: "var(--color-data)" }),
+          Plot.text(callouts, { x: (c) => c.point!.date, frameAnchor: "top", text: "text", dy: -14 * s, lineWidth: 14, fill: "var(--color-print)", fontWeight: 500 }),
         ],
       });
       el.replaceChildren(chart);
@@ -240,7 +243,7 @@ function StoryLine({ widget, data, m }: { widget: W; data: CanvasData; m: Metric
     const ro = new ResizeObserver(draw);
     ro.observe(el);
     return () => ro.disconnect();
-  }, [JSON.stringify(pts.map((p) => [p.period, p.value])), JSON.stringify(callouts.map((c) => [c.point?.period, c.text])), m.id]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [JSON.stringify(pts.map((p) => [p.period, p.value])), JSON.stringify(callouts.map((c) => [c.point?.period, c.text])), m.id, s]); // eslint-disable-line react-hooks/exhaustive-deps
   return <div ref={box} className="h-full w-full" role="img" aria-label={`${m.name} over time${callouts.length ? `, ${callouts.map((c) => c.text).join("; ")}` : ""}`} />;
 }
 

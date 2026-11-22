@@ -3,7 +3,7 @@
 // core worked out (design-view.tsx). The look of each mark comes from Theme tokens; how a span still running or one
 // with gaps is drawn (dotted, open, hatched, spec 0018) is Ziffr's rule, the same in every design.
 import { useId, useRef } from "react";
-import { Area, Bar, CartesianGrid, Cell, ComposedChart, Line, ReferenceArea, ReferenceLine, ResponsiveContainer, Scatter, Tooltip, XAxis, YAxis } from "recharts";
+import { Area, Bar, CartesianGrid, Cell, ComposedChart, Line, ReferenceArea, ReferenceLine, ResponsiveContainer, Scatter, Tooltip, XAxis, YAxis, ZAxis } from "recharts";
 import { axisLabels, compactValue, formatValue, health, niceAxis } from "@ziffr/core/format";
 import { formatOutput } from "@ziffr/core/design-analysis";
 import { commonPeriod } from "@ziffr/core/correlation";
@@ -143,14 +143,15 @@ function PeriodPlot({ part, marks, v, onPointContext }: { part: Plot; marks: Plo
                 );
               case "line": {
                 const stroke = lineTone(k.tone);
-                const weight = k.weight === "strong" ? { strokeWidth: 1.75 } : k.weight === "light" ? { strokeWidth: 1, strokeOpacity: 0.8 } : {};
+                // Lines and dots grow with the card too, so a presented line is not a hairline (#778).
+                const weight = k.weight === "strong" ? { strokeWidth: 1.75 * s } : k.weight === "light" ? { strokeWidth: 1 * s, strokeOpacity: 0.8 } : { strokeWidth: 1 * s };
                 const dash = k.dash ? "5 4" : undefined;
                 if (k.show === "forecast") return fc ? <Line key={i} dataKey="fc" stroke={stroke} strokeDasharray={dash} {...weight} dot={false} isAnimationActive={false} /> : null;
                 if (k.show === "target.line") return targetLine?.length ? <Line key={i} dataKey="target" stroke={stroke} {...weight} strokeDasharray={dash} dot={false} isAnimationActive={false} connectNulls /> : null;
                 if (k.show.startsWith("recipe.")) return <Line key={i} dataKey={`recipe:${k.show.slice("recipe.".length)}`} stroke={stroke} {...weight} strokeDasharray={dash} dot={false} isAnimationActive={false} connectNulls />;
                 if (k !== full) return <Line key={i} dataKey="value" stroke={stroke} {...weight} strokeDasharray={dash} dot={false} isAnimationActive={false} />;
                 return [
-                  toDate ? <Line key={`${i}-to-date`} dataKey="partial" stroke={stroke} {...weight} strokeDasharray="2 3" isAnimationActive={false} activeDot={false} dot={(p: { cx?: number; cy?: number; index?: number; payload?: Row }) => (p.cx === undefined || p.cy === undefined || p.payload?.value !== undefined || p.payload?.partial === undefined ? <g key={p.index} /> : <circle key={p.index} data-to-date cx={p.cx} cy={p.cy} r={3} fill="var(--color-cotton)" stroke={stroke} strokeWidth={1.5} strokeDasharray="2 1.5" />)} /> : null,
+                  toDate ? <Line key={`${i}-to-date`} dataKey="partial" stroke={stroke} {...weight} strokeDasharray="2 3" isAnimationActive={false} activeDot={false} dot={(p: { cx?: number; cy?: number; index?: number; payload?: Row }) => (p.cx === undefined || p.cy === undefined || p.payload?.value !== undefined || p.payload?.partial === undefined ? <g key={p.index} /> : <circle key={p.index} data-to-date cx={p.cx} cy={p.cy} r={3 * s} fill="var(--color-cotton)" stroke={stroke} strokeWidth={1.5 * s} strokeDasharray="2 1.5" />)} /> : null,
                   <Line
                     key={i}
                     dataKey="value"
@@ -165,10 +166,10 @@ function PeriodPlot({ part, marks, v, onPointContext }: { part: Plot; marks: Plo
                       const x = byPeriod.get(period);
                       return (
                         <g key={p.index} data-period={period} onContextMenu={onPointContext ? () => onPointContext(period) : undefined}>
-                          {onPointContext && <circle cx={p.cx} cy={p.cy} r={12} fill="transparent" />}
+                          {onPointContext && <circle cx={p.cx} cy={p.cy} r={12 * s} fill="transparent" />}
                           {x && isPartial(x) ? (
-                            <circle data-partial cx={p.cx} cy={p.cy} r={4} fill="var(--color-cotton)" stroke={stroke} strokeWidth={1.5} strokeDasharray="2 2" />
-                          ) : pts.length < 40 && <circle cx={p.cx} cy={p.cy} r={3} fill="var(--color-cotton)" stroke={stroke} strokeWidth={1.5} />}
+                            <circle data-partial cx={p.cx} cy={p.cy} r={4 * s} fill="var(--color-cotton)" stroke={stroke} strokeWidth={1.5 * s} strokeDasharray="2 2" />
+                          ) : pts.length < 40 && <circle cx={p.cx} cy={p.cy} r={3 * s} fill="var(--color-cotton)" stroke={stroke} strokeWidth={1.5 * s} />}
                         </g>
                       );
                     }}
@@ -249,6 +250,8 @@ function PairsPlot({ marks, v }: { part: Plot; marks: PlotMark[]; v: DesignValue
               );
             }}
           />
+          {/* Recharts' own dot is 64 square px; it grows with the card (#778). */}
+          <ZAxis range={[64 * s * s, 64 * s * s]} />
           {point && <Scatter data={pairs} fill={point.tone && point.tone !== "status" ? TONE[point.tone] : TONE.data} isAnimationActive={false} />}
         </ComposedChart>
       </ResponsiveContainer>
