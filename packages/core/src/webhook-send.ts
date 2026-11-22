@@ -161,8 +161,9 @@ async function buildMessage(send: Send, webhookName: string, personal?: Personal
   if (personal) {
     // A Personal Webhook hears as its person, in full or not at all (spec 0037); never an Alert until its own ticket.
     if (send.type === "alert.fired") return null;
-    // The role here is never read: personalWebhookMayHear judges the person's place in the database.
-    const actor = { personId: personal.personId, workspaceId: ws, role: "member" as const };
+    const { data: seat } = await db().from("memberships").select("role").eq("workspace_id", ws).eq("user_id", personal.personId).maybeSingle();
+    if (!seat) return null;
+    const actor = { personId: personal.personId, workspaceId: ws, role: seat.role as "owner" | "admin" | "member" | "guest" };
     const heard = await personalWebhookMayHear(actor, action ? { type: send.type as "action.created", actionId: send.action_id as number } : { type: send.type as "value.recorded", metricId: metricFacts.id, period });
     if (!heard) return null;
     if (heard.kind === "value" && !personal.metricIds.includes(metricFacts.id)) return null;

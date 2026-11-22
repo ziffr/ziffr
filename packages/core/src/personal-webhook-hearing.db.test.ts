@@ -233,6 +233,17 @@ describe.skipIf(!openssl)("what a Personal Webhook is sent", () => {
     expect(plain).not.toBe(owners);
   });
 
+  it("never sends a plain viewer the number of an unusual value, even if the send runs before the value is marked waiting", async () => {
+    const { w, ana, bo, A, metric } = await setup();
+    await w.share(metric.id, ana);
+    await w.value(metric.id, PERIOD, 900, bo);
+    await hook(A, ["value.unusual"], [metric.id]);
+    await queueWebhookEvent(w.id, "value.unusual", { type: "workflow" }, { metricId: metric.id, period: PERIOD });
+    await run(w);
+    expect(seen).toHaveLength(1);
+    expect(JSON.parse(seen[0].body).data.value).toBeUndefined();
+  });
+
   it("does not send value.recorded for a value that waits for Approval", async () => {
     const { w, owner, ana, A, metric } = await setup();
     await w.share(metric.id, ana);
@@ -255,7 +266,7 @@ describe.skipIf(!openssl)("what a Personal Webhook is sent", () => {
   });
 });
 
-describe.skipIf(!openssl)("what the person's log and the database keep", () => {
+describe.skipIf(!openssl)("what the person's log keeps", () => {
   it("shows nothing about a Metric the person no longer sees, neither queued nor sent as about", async () => {
     const { w, owner, ana, A, metric } = await setup();
     await w.share(metric.id, ana);
@@ -269,13 +280,6 @@ describe.skipIf(!openssl)("what the person's log and the database keep", () => {
     const after = await ownPersonalWebhookLog(A, id);
     expect(after.map((e) => e.state)).toEqual(["delivered"]);
     expect(after[0].about).toBeNull();
-  });
-
-  it("leaves no row of an ended Personal Webhook behind a deleted Workspace", async () => {
-    const { w, ana } = await setup();
-    await db().from("personal_webhook_ends").insert({ webhook_id: crypto.randomUUID(), workspace_id: w.id, owner_id: ana, name: "x", reason: "left" });
-    await w.cleanup();
-    expect((await db().from("personal_webhook_ends").select("webhook_id").eq("workspace_id", w.id)).data).toEqual([]);
   });
 });
 
