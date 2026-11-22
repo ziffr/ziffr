@@ -296,7 +296,7 @@ function prepare(input: FitInput): Prepared {
   const common = series[0].points.map((p) => p.period).filter((p) => by.every((m) => m.has(p))).slice(-MOST_PERIODS);
   const rows = common.map((period) => ({ period, y: by[0].get(period)!, x: by.slice(1).map((m) => m.get(period)!) }));
   // Nothing in common: no rows, and the checks say how many periods that is.
-  // Stryker disable next-line ArrayDeclaration,ObjectLiteral: with no rows the checks refuse before the series or the last levels are read
+  // Stryker disable next-line ArrayDeclaration,ObjectLiteral,ConditionalExpression: with no rows the checks refuse before the series or the last levels are read, so leaving this return out gives the same refusal
   if (common.length === 0) return { basis, rows, series, last: { y: NaN, x: [] } };
   // The checks judge the series over the periods all of them have, first to last (the latest 120): a gap is a period inside that
   // none of them is allowed to lack, and values outside it are nobody's to judge.
