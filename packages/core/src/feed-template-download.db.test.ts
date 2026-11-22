@@ -8,7 +8,7 @@ import { db } from "./db";
 import { automationTemplateFor, feedTemplates } from "./feed-template-download";
 import { createFeed, listFeeds } from "./feeds";
 import { DEMO_WORKSPACE_ID } from "./team";
-import { workspace } from "./test/db-fixtures";
+import { opened, workspace } from "./test/db-fixtures";
 
 const SITE = "https://ziffr.example.org";
 const cleanups: (() => Promise<void>)[] = [];
@@ -49,9 +49,10 @@ describe("the n8n template for some Metrics and a Feed", () => {
     expect(r.key!.expiresOn <= new Date(Date.now() + 365 * 86_400_000).toISOString().slice(0, 10)).toBe(true);
     // The key acts for that Feed: it may record values for the Metric and nothing else.
     expect(((await actorForSecret(r.key!.secret)) as FeedActor).feed).toBeTruthy();
-    const { data: events } = await db().from("audit_events").select("kind, details").eq("workspace_id", w.id).eq("kind", "feed.template_downloaded");
+    // The details are sealed at rest: read them as the app does.
+    const events = await opened("audit_events", w.id, (await db().from("audit_events").select("id, kind, details").eq("workspace_id", w.id).eq("kind", "feed.template_downloaded")).data);
     expect(events).toHaveLength(1);
-    expect(events![0].details).toEqual({ template: "google-sheets", metrics: 1, key: true });
+    expect(events[0].details).toEqual({ template: "google-sheets", metrics: 1, key: true });
     expect(JSON.stringify(events)).not.toContain(r.key!.secret);
     expect(JSON.stringify(events)).not.toContain("ziffrUrl");
   });

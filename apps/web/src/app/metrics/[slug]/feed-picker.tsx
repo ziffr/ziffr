@@ -10,7 +10,7 @@ import { Button } from "@/components/ui/button";
 import { FillFromN8n } from "@/components/fill-from-n8n";
 
 /** A select of the workspace's Feeds not yet submitting to this Metric, with an Add button. */
-export function FeedPicker({ metricId, choices }: { metricId: number; choices: { id: string; name: string }[] }) {
+function FeedPicker({ metricId, choices }: { metricId: number; choices: { id: string; name: string }[] }) {
   const [feed, setFeed] = useState(choices[0]?.id ?? "");
   const [pending, start] = useTransition();
   const router = useRouter();
