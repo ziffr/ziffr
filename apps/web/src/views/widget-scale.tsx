@@ -7,7 +7,7 @@
 import { createContext, useContext, useLayoutEffect, useState, type RefObject } from "react";
 
 /** The card size at which a widget is drawn as it always was; bigger cards grow from here. */
-export const WIDGET_BASE = { width: 520, height: 300 } as const;
+const WIDGET_BASE = { width: 520, height: 300 } as const;
 /** The most a widget grows: a widget presented one at a time on a wall screen reads from across a room. */
 export const WIDGET_SCALE_MAX = 3;
 
