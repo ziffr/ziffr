@@ -10,6 +10,7 @@ import { TRIAL_WEBHOOKS_MAX, TRIAL_WEBHOOK_SENDS_PER_DAY, trialWebhooksOn, webho
 import { createWebhook, deleteWebhook, listWebhooks } from "./webhooks";
 import { sendTestWebhook } from "./webhook-log";
 import { authenticateWebhookRequest } from "./webhook-inbound";
+import { signWebhookBody } from "./webhook-send";
 
 vi.setConfig({ testTimeout: 120_000, hookTimeout: 60_000 });
 const NAMES = ["ZIFFR_SECRETS_KEY", "ZIFFR_WEBHOOK_PRIVATE_HOSTS", "ZIFFR_TRIAL_WEBHOOKS", "ZIFFR_LIMIT_WEBHOOKS_PER_WORKSPACE", "ZIFFR_LIMIT_WEBHOOK_SENDS_PER_WORKSPACE_PER_DAY"];
@@ -114,10 +115,14 @@ describe("making Webhooks in a trial", () => {
 describe("a trial's Webhooks answer nothing while they are off", () => {
   it("takes no request back where the operator switched trial Webhooks off", async () => {
     const t = await trial();
-    const { id } = await createWebhook(t.a, { name: "Back", url: URL1 });
+    const made = await createWebhook(t.a, { name: "Back", url: URL1 }); const id = made.id;
+    const body = "{}"; const timestamp = String(Math.floor(Date.now() / 1000));
+    const signed = { timestamp, body, signature: signWebhookBody([made.secret], Number(timestamp), body) };
+    expect((await authenticateWebhookRequest(id, signed)).ok).toBe(true);
     process.env.ZIFFR_TRIAL_WEBHOOKS = "false";
-    expect(await authenticateWebhookRequest(id, { timestamp: null, signature: null, body: "{}" })).toEqual({ ok: false, why: "no_such" });
+    expect(await authenticateWebhookRequest(id, { ...signed, body: "{}" })).toEqual({ ok: false, why: "no_such" });
+    // Unsigned requests are judged on the signature first.
+    expect(await authenticateWebhookRequest(id, { timestamp: null, signature: null, body })).toEqual({ ok: false, why: "not_found" });
     delete process.env.ZIFFR_TRIAL_WEBHOOKS;
-    expect(await authenticateWebhookRequest(id, { timestamp: null, signature: null, body: "{}" })).toEqual({ ok: false, why: "not_found" });
   });
 });
