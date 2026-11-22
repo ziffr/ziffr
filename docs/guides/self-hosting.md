@@ -244,6 +244,22 @@ Generated from the Installation Settings catalogue (`packages/core/src/installat
 | `ZIFFR_TURNSTILE_SITE_KEY` | Site key | `0x4AAAAAAA…` | In the Cloudflare dashboard, under Turnstile, add a widget for this Ziffr's domain (mode Managed) and copy its site key. It must be the same widget's as the secret key: a wrong one stops every sign-in until it is removed. |
 | `ZIFFR_TURNSTILE_SECRET` | Secret key | secret | The widget's secret key. Ziffr asks Cloudflare whether it knows it before saving it. |
 
+**Trial Limits**
+
+| Setting | On the page | Example or choices | What it does |
+| --- | --- | --- | --- |
+| `ZIFFR_TRIAL_DAYS` | Days a trial lasts | `14` | Set, it turns trials on: whoever signs in may start a Trial Workspace, and every Workspace made here is one. Hosted Ziffr offers trials with 14 days unless set; Ziffr Cloud sets 0 (null in its API) to switch trials off, and trials that run go on until they end. Applies to trials made afterwards. 1 to 30; empty: 14. |
+| `ZIFFR_TRIAL_GRACE_DAYS` | Days a trial's data stays after it ends | `7` | After the trial ends nothing can be added, and its Owner can still download everything; then it is deleted. Applies to every trial that has ended and is waiting, too: a smaller number deletes them sooner. 1 to 60; empty: 7. |
+| `ZIFFR_TRIAL_MAX` | Trials at once | `500` | The most trials that may run at the same time. 1 to 100,000; empty: 500. |
+| `ZIFFR_TRIAL_LIMIT_METRICS` | Metrics | `25` | The Metrics one trial may hold, Archived Metrics included. 5 to 100; empty: 25. |
+| `ZIFFR_TRIAL_LIMIT_MESSAGES_PER_DAY` | Messages a trial sends a day | `100` | The real messages one trial sends in 24 hours, over email, Slack and Telegram together. The rest wait in the Outbox. 10 to 500; empty: 100. |
+| `ZIFFR_TRIAL_LIMIT_KEYS` | Access Keys that work | `2` | The Access Keys of people that work at the same time in one trial, never past the trial's last day. 1 to 10; empty: 2. |
+| `ZIFFR_TRIAL_LIMIT_FEEDS` | Feeds, and Feed Keys per Feed | `2` | The Feeds one trial may have, and the Feed Keys that work on each of them. 1 to 10; empty: 2. |
+| `ZIFFR_TRIAL_LIMIT_ASSISTANTS` | Connected assistants | `1` | The assistants (Claude and others, through the MCP Server) that may work at the same time in one trial. 1 to 5; empty: 1. |
+| `ZIFFR_TRIAL_LIMIT_WEBHOOKS` | Webhooks | `2` | The Webhooks one trial may hold, Workspace and personal together. 0: trials cannot add any. 0 to 10; empty: 2. |
+| `ZIFFR_TRIAL_LIMIT_WEBHOOK_SENDS_PER_DAY` | Webhook sends a trial makes a day | `200` | The sends a trial's Webhooks make in 24 hours; past it they wait for tomorrow. 10 to 1,000; empty: 200. |
+| `ZIFFR_TRIAL_LIMIT_VIEW_LINKS` | View Links that work | `5` | The View Links that work at the same time in one trial. 0: trials cannot make any. 0 to 20; empty: 5. |
+
 **Usage**
 
 | Setting | On the page | Example or choices | What it does |
