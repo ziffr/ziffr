@@ -16,63 +16,66 @@
 "Revenue"
 <td>
 "1.00"
-<td title=r = 1.00, over 24 months>
-"1.00"
-<td title=r = 1.00, over 24 months>
-"1.00"
-<td title=r = −0.90, over 24 months>
-"−0.90"
-<td title=r = 0.99, over 24 months>
-"0.99"
+<td title=r = 0.95, Compared by change, growth removed, over 23 months>
+"0.95"
+<td title=r = 0.87, Compared by change, growth removed, over 23 months>
+"0.87"
+<td title=r = 0.75, Compared by change, growth removed, over 23 months>
+"0.75"
+<td title=r = 0.88, Compared by change, growth removed, over 23 months>
+"0.88"
 <tr>
 <th>
 "Orders"
-<td title=r = 1.00, over 24 months>
-"1.00"
+<td title=r = 0.95, Compared by change, growth removed, over 23 months>
+"0.95"
 <td>
 "1.00"
-<td title=r = 1.00, over 24 months>
-"1.00"
-<td title=r = −0.91, over 24 months>
-"−0.91"
-<td title=r = 0.99, over 24 months>
-"0.99"
+<td title=r = 0.89, Compared by change, growth removed, over 23 months>
+"0.89"
+<td title=r = 0.84, Compared by change, growth removed, over 23 months>
+"0.84"
+<td title=r = 0.93, Compared by change, growth removed, over 23 months>
+"0.93"
 <tr>
 <th>
 "Active customers"
-<td title=r = 1.00, over 24 months>
-"1.00"
-<td title=r = 1.00, over 24 months>
-"1.00"
+<td title=r = 0.87, Compared by change, growth removed, over 23 months>
+"0.87"
+<td title=r = 0.89, Compared by change, growth removed, over 23 months>
+"0.89"
 <td>
 "1.00"
-<td title=r = −0.91, over 24 months>
-"−0.91"
-<td title=r = 0.99, over 24 months>
-"0.99"
+<td title=r = 0.82, Compared by change, growth removed, over 23 months>
+"0.82"
+<td title=r = 0.87, Compared by change, growth removed, over 23 months>
+"0.87"
 <tr>
 <th>
 "Churn rate"
-<td title=r = −0.90, over 24 months>
-"−0.90"
-<td title=r = −0.91, over 24 months>
-"−0.91"
-<td title=r = −0.91, over 24 months>
-"−0.91"
+<td title=r = 0.75, Compared by change, growth removed, over 23 months>
+"0.75"
+<td title=r = 0.84, Compared by change, growth removed, over 23 months>
+"0.84"
+<td title=r = 0.82, Compared by change, growth removed, over 23 months>
+"0.82"
 <td>
 "1.00"
-<td title=r = −0.85, over 24 months>
-"−0.85"
+<td title=r = 0.87, Compared by change, growth removed, over 23 months>
+"0.87"
 <tr>
 <th>
 "Operating cost"
-<td title=r = 0.99, over 24 months>
-"0.99"
-<td title=r = 0.99, over 24 months>
-"0.99"
-<td title=r = 0.99, over 24 months>
-"0.99"
-<td title=r = −0.85, over 24 months>
-"−0.85"
+<td title=r = 0.88, Compared by change, growth removed, over 23 months>
+"0.88"
+<td title=r = 0.93, Compared by change, growth removed, over 23 months>
+"0.93"
+<td title=r = 0.87, Compared by change, growth removed, over 23 months>
+"0.87"
+<td title=r = 0.87, Compared by change, growth removed, over 23 months>
+"0.87"
 <td>
 "1.00"
+"Compared by change, growth removed."
+"Show the numbers"
+"Two Metrics that both grow look related even when nothing links them, so by default growth is removed. Compare on the values as they are"

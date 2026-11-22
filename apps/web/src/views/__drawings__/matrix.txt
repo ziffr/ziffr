@@ -12,25 +12,28 @@
 "Revenue"
 <td>
 "1.00"
-<td title=r = 1.00, over 24 months>
-"1.00"
-<td title=r = −0.90, over 24 months>
-"−0.90"
+<td title=r = 0.95, Compared by change, growth removed, over 23 months>
+"0.95"
+<td title=r = 0.75, Compared by change, growth removed, over 23 months>
+"0.75"
 <tr>
 <th>
 "Orders"
-<td title=r = 1.00, over 24 months>
-"1.00"
+<td title=r = 0.95, Compared by change, growth removed, over 23 months>
+"0.95"
 <td>
 "1.00"
-<td title=r = −0.91, over 24 months>
-"−0.91"
+<td title=r = 0.84, Compared by change, growth removed, over 23 months>
+"0.84"
 <tr>
 <th>
 "Churn rate"
-<td title=r = −0.90, over 24 months>
-"−0.90"
-<td title=r = −0.91, over 24 months>
-"−0.91"
+<td title=r = 0.75, Compared by change, growth removed, over 23 months>
+"0.75"
+<td title=r = 0.84, Compared by change, growth removed, over 23 months>
+"0.84"
 <td>
 "1.00"
+"Compared by change, growth removed."
+"Show the numbers"
+"Two Metrics that both grow look related even when nothing links them, so by default growth is removed. Compare on the values as they are"

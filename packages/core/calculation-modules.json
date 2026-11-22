@@ -19,6 +19,7 @@
   "src/numbers/period-words.ts",
   "src/numbers/languages.ts",
   "src/parse.ts",
+  "src/basis.ts",
   "src/correlation.ts",
   "src/forecast.ts",
   "src/export-values.ts",

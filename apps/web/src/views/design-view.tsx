@@ -4,9 +4,9 @@
 // Style), worked out once in `designValues`; the design only says which of them each mark shows and how it looks.
 // Security: a design is data. Its words are drawn as React text, never as markup, and it reaches no Metric outside
 // the widget's own.
-import type { ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import { compactValue, formatNumber, formatValue, health } from "@ziffr/core/format";
-import { comparedBy, correlate, periodCountLabel, periodWord, rankCorrelations, strength, type Correlation } from "@ziffr/core/correlation";
+import { basisLabel, comparedBy, correlate, periodCountLabel, periodWord, rankCorrelations, strength, type BasisChoice, type Correlation } from "@ziffr/core/correlation";
 import { resolverFrom } from "@ziffr/core/compare";
 import { dayAfter, heldText, isPartial, pointName, shownSeries, type DisplayPoint } from "@ziffr/core/display-periods";
 import { periodLabel } from "@ziffr/core/periods";
@@ -29,10 +29,10 @@ type Props = {
 };
 
 /** Everything a design can show, worked out by the core for one widget. Only what the design uses is computed. */
-export type DesignValues = ReturnType<typeof designValues>;
+export type DesignValues = ReturnType<typeof designValues> & { setBasis: (basis: BasisChoice) => void };
 
 /** The numbers and words a design draws for a widget, each from the core's functions. */
-function designValues(design: ViewDesign, widget: Pick<Widget, "settings">, metrics: Metric[], data: CanvasData) {
+function designValues(design: ViewDesign, widget: Pick<Widget, "settings">, metrics: Metric[], data: CanvasData, basis: BasisChoice) {
   const uses = usage(design);
   const m = metrics[0];
   const s = widget.settings;
@@ -56,14 +56,14 @@ function designValues(design: ViewDesign, widget: Pick<Widget, "settings">, metr
   const fc = uses.forecast(flags) ? forecast(last?.toDate ? pts.slice(0, -1) : pts, by)?.points ?? null : null;
   flags.hasForecast = !!fc?.length;
   const resolve = resolverFrom(data.metrics, data.series);
-  const correlation: Correlation | null = uses.pairs && metrics[1] ? correlate(m, metrics[1], resolve, { yearStart: data.yearStart }) : null;
-  const drivers = uses.drivers ? rankCorrelations(m, metrics.slice(1), resolve, { yearStart: data.yearStart }) : null;
-  const matrix = uses.matrix ? metrics.map((a) => metrics.map((b) => (a.id === b.id ? null : correlate(a, b, resolve, { yearStart: data.yearStart })))) : null;
+  const correlation: Correlation | null = uses.pairs && metrics[1] ? correlate(m, metrics[1], resolve, { yearStart: data.yearStart, basis }) : null;
+  const drivers = uses.drivers ? rankCorrelations(m, metrics.slice(1), resolve, { yearStart: data.yearStart, basis }) : null;
+  const matrix = uses.matrix ? metrics.map((a) => metrics.map((b) => (a.id === b.id ? null : correlate(a, b, resolve, { yearStart: data.yearStart, basis })))) : null;
   // The target band shows when there is a range, and, for a combined series, when its spans have one.
   const band = (!combined || !!targets?.range) && (m.target_min !== null || m.target_max !== null);
   // The design's Analysis Recipe, on the series the widget shows of its own Metrics, by the library's functions.
   const recipe = designRecipe(design, metrics, data, s);
-  return { m, metrics, by, all, pts, last, combined, targets, note, flags, fc, correlation, drivers, matrix, band, goal, name, data, settings: s, recipe, analysis: design.analysis ?? null };
+  return { basis, m, metrics, by, all, pts, last, combined, targets, note, flags, fc, correlation, drivers, matrix, band, goal, name, data, settings: s, recipe, analysis: design.analysis ?? null };
 }
 
 /** Which of the core's results a design needs, so a number widget never runs a correlation. */
@@ -91,7 +91,9 @@ function usage(d: ViewDesign) {
 
 /** A widget drawn from its View Design. */
 export function DesignView({ design, widget, metrics, data, onPointContext }: Props) {
-  const v = designValues(design, widget, metrics, data);
+  // Show the numbers: "values" is the older comparison on the values as they are, never growth removed.
+  const [basis, setBasis] = useState<BasisChoice>("auto");
+  const v: DesignValues = { ...designValues(design, widget, metrics, data, basis), setBasis };
   const { m } = v;
   // What the design needs and does not have says why, in the core's words where it has them.
   if (v.matrix && metrics.length < 2) return <Empty>{design.empty ?? "Needs at least two Metrics."}</Empty>;
@@ -205,13 +207,13 @@ function textValue(show: TextShow, v: DesignValues): ReactNode {
     case "correlation.r":
       return c?.ok ? <span className="fig">{formatNumber(c.r, 2, ns)}</span> : null;
     case "correlation.over":
-      return c?.ok ? (comparedBy(c) ? `· ${comparedBy(c)}` : `over ${periodCountLabel(c.period, c.n)}`) : null;
+      return c?.ok ? `· ${basisLabel(c)}, ${comparedBy(c) ?? `over ${periodCountLabel(c.period, c.n)}`}` : null;
     case "drivers.name":
       return top?.metric.name ?? null;
     case "drivers.strength":
       return top ? strength(top.result.r) : null;
     case "drivers.over":
-      return top ? comparedBy(top.result) : null;
+      return top ? [basisLabel(top.result), comparedBy(top.result)].filter(Boolean).join(", ") : null;
   }
 }
 
@@ -303,7 +305,7 @@ function MatrixRows({ v }: { v: DesignValues }) {
               {metrics.map((b, j) => {
                 const c = matrix?.[i][j];
                 const r = a.id === b.id ? 1 : c?.ok ? c.r : null;
-                const title = a.id === b.id ? undefined : !c ? undefined : c.ok ? [`r = ${formatNumber(c.r, 2, ns)}`, comparedBy(c) ?? `over ${periodCountLabel(c.period, c.n)}`].join(", ") : c.reason;
+                const title = a.id === b.id ? undefined : !c ? undefined : c.ok ? [`r = ${formatNumber(c.r, 2, ns)}`, basisLabel(c), comparedBy(c) ?? `over ${periodCountLabel(c.period, c.n)}`].join(", ") : c.reason;
                 const bg = r === null ? "var(--color-paper-2)" : r >= 0 ? `color-mix(in oklch, var(--color-data) ${Math.abs(r) * 55}%, var(--color-cotton))` : `color-mix(in oklch, var(--color-error) ${Math.abs(r) * 55}%, var(--color-cotton))`;
                 return (
                   <td key={b.id} title={title} className={cn("fig size-11 text-center text-xs", r !== null && Math.abs(r) > 0.6 && "text-[var(--color-board-type)]")} style={{ background: bg }}>
@@ -315,6 +317,26 @@ function MatrixRows({ v }: { v: DesignValues }) {
           ))}
         </tbody>
       </table>
+      <BasisNote v={v} results={(matrix ?? []).flat().flatMap((c) => (c?.ok ? [c] : []))} />
+    </div>
+  );
+}
+
+/** Which basis the comparisons were made on, in words, and Show the numbers: the older comparison on the values as they are. */
+function BasisNote({ v, results }: { v: DesignValues; results: Extract<Correlation, { ok: true }>[] }) {
+  const words = [...new Set(results.map((r) => basisLabel(r)))];
+  return (
+    <div className="mt-1 text-xs text-muted-foreground">
+      {words.length > 0 && <p>{words.length === 1 ? words[0] : "Compared by change where both grow, by value otherwise"}.</p>}
+      <details>
+        <summary className="cursor-pointer">Show the numbers</summary>
+        <p className="mt-1">
+          Two Metrics that both grow look related even when nothing links them, so by default growth is removed. {v.basis === "values" ? "Now compared on the values as they are. " : ""}
+          <button type="button" className="underline" onClick={() => v.setBasis(v.basis === "values" ? "auto" : "values")}>
+            {v.basis === "values" ? "Remove growth again" : "Compare on the values as they are"}
+          </button>
+        </p>
+      </details>
     </div>
   );
 }
@@ -322,9 +344,10 @@ function MatrixRows({ v }: { v: DesignValues }) {
 function DriverRows({ v }: { v: DesignValues }) {
   const ns = v.data.numberStyle;
   return (
+    <>
     <ul className="space-y-1">
       {(v.drivers?.ranked ?? []).map(({ metric: o, result: res }) => (
-        <li key={o.id} title={comparedBy(res) ?? undefined} className="grid grid-cols-[minmax(0,8rem)_1fr_3rem] items-center gap-2 text-xs">
+        <li key={o.id} title={[basisLabel(res), comparedBy(res)].filter(Boolean).join(", ")} className="grid grid-cols-[minmax(0,8rem)_1fr_3rem] items-center gap-2 text-xs">
           <span className="truncate">{o.name}{res.combined && <span className="text-muted-foreground"> · by {periodWord(res.period)}</span>}</span>
           <span className="h-2 rounded-full bg-[var(--color-paper-3)]">
             <span className="block h-2 rounded-full" style={{ width: `${Math.abs(res.r) * 100}%`, background: res.r >= 0 ? "var(--color-data)" : "var(--color-error)" }} />
@@ -333,5 +356,7 @@ function DriverRows({ v }: { v: DesignValues }) {
         </li>
       ))}
     </ul>
+    <BasisNote v={v} results={(v.drivers?.ranked ?? []).map((r) => r.result)} />
+    </>
   );
 }

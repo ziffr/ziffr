@@ -213,7 +213,7 @@ Press **Send question** or **Assign task**. A note says "Question put to …" or
 
 How many periods a View shows comes with its Widget Template: the last 12 periods for Number + sparkline, Line chart and Bars per period, and the last 6 values for History table. There is no setting to change it.
 
-Each of these Views, and the Analyses (Forecast, Correlation, Correlation matrix, Drivers), is a **View Design**: a file that says what the View draws, which Ziffr draws with one renderer of its own. They look as they always did. The Drivers template now asks for two Slots when you place it: the Metric, and the Metrics to compare it with. A View Design of the Workspace can also draw an Analysis Recipe: its results show as lines, bars, a line across the chart or numbers in its words, and in the tooltip (see [Analysis Recipes](13-analyze.md#analysis-recipes)).
+Each of these Views, and the Analyses (Forecast, Correlation, Correlation matrix, Drivers), is a **View Design**: a file that says what the View draws, which Ziffr draws with one renderer of its own. They look as they always did, except that Drivers, Correlation and the Correlation matrix now say what they compared ("Compared by change, growth removed" where both Metrics grow, otherwise "Compared by value") and have a **Show the numbers** switch that compares the values as they are. The Drivers template now asks for two Slots when you place it: the Metric, and the Metrics to compare it with. A View Design of the Workspace can also draw an Analysis Recipe: its results show as lines, bars, a line across the chart or numbers in its words, and in the tooltip (see [Analysis Recipes](13-analyze.md#analysis-recipes)).
 
 ### Comparisons
 
