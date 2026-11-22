@@ -154,7 +154,9 @@ async function personalAlertFired(send: Send, env: Omit<MessageEnvelope, "replyT
   if (!m || m.archived_at) return null;
   const view = await viewAt(ctx, m, period);
   if (!view || view.value === null) return null;
-  if (view.pending && !(alert.include_unapproved === true && (await mayPeekWaitingValue(ws, personId, m, period)))) return null;
+  // A Derived Metric waits when any input waits, and who may see that input is not who owns the Derived Metric: its
+  // waiting value is never sent out.
+  if (view.pending && (m.formula || !(alert.include_unapproved === true && (await mayPeekWaitingValue(ws, personId, m, period))))) return null;
   if (!alertHolds(c, { metric: m, workspaceMethod: ctx.method, value: view.value, previous: view.previous, target: view.target })) return null;
   const at = (n: number | string | null) => (n === null ? null : formatValue(m, Number(n), ctx.style));
   const level = c.kind === "at_or_above" || c.kind === "below" ? c.value : c.share;
