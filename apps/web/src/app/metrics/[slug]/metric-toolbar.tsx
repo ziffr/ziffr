@@ -8,7 +8,7 @@ import { toast } from "sonner";
 import { Archive, ArchiveRestore, Bell, Copy, LayoutDashboard, Send, Sigma, Trash2 } from "lucide-react";
 import { placeWidget } from "@/app/canvas-actions";
 import { told } from "@/lib/action-toast";
-import { AlertMe } from "@/components/alerts";
+import { AlertMe, type WebhookChoice } from "@/components/alerts";
 import { usePanel } from "@/lib/panel-param";
 import { ObjectToolbar, type ObjectToolbarProps, type MenuEntry } from "@/components/object-toolbar";
 import { askNow } from "./ask-now";
@@ -24,7 +24,7 @@ export type MetricToolbarProps = Pick<ObjectToolbarProps, "id" | "people" | "sha
   /** Set when they submit the Metric: the form behind Record a value. */
   record: RecordingOffer | null;
   askable: boolean;
-  alert: { mine: MyAlert[]; choices: AlertChoices } | null;
+  alert: { mine: MyAlert[]; choices: AlertChoices; webhooks: WebhookChoice[] } | null;
   canDuplicate: boolean;
   dashboards: { id: number; name: string }[];
   archive: { allowed: boolean; archived: boolean };
@@ -58,7 +58,7 @@ export function MetricToolbar(p: MetricToolbarProps) {
   return (
     <>
       <ObjectToolbar type="metric" id={p.id} people={p.people} share={p.share} menu={menu} lead={p.record ? <RecordValue offer={p.record} /> : undefined} />
-      {p.alert && <AlertMe metric={p.metric} mine={p.alert.mine} choices={p.alert.choices} controlled />}
+      {p.alert && <AlertMe metric={p.metric} mine={p.alert.mine} choices={p.alert.choices} webhooks={p.alert.webhooks} controlled />}
       {p.archive.allowed && !p.archive.archived && <ArchiveMetric metricId={p.metric.id} name={p.metric.name} open={open === "archive"} onOpenChange={(o) => setOpen(o ? "archive" : null)} />}
       {p.canDelete && <DeleteMetric metricId={p.metric.id} name={p.metric.name} open={open === "delete"} onOpenChange={(o) => setOpen(o ? "delete" : null)} />}
     </>

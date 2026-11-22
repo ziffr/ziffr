@@ -20,7 +20,7 @@ import { maskedHost } from "./webhooks";
 import { personalWebhookMayRun, tellPersonSwitchedOff } from "./personal-webhook-state";
 import { mayPeekWaitingValue, personalWebhookMayHear } from "./personal-webhook-hearing";
 import { recordPersonalWebhookEnds } from "./personal-webhooks";
-import { alertContext, viewAt } from "./alert-firing";
+import { alertConditionOf, alertContext, viewAt } from "./alert-firing";
 import { alertHolds } from "./alert-rules";
 import { tellCondition, type TellStep } from "./tell-firing";
 import { formatValue } from "./format";
@@ -29,7 +29,7 @@ import type { DoneReason } from "./webhook-events";
 /** One row of `webhook_sends` as the job reads it. */
 type Send = {
   id: string; workspace_id: string; webhook_id: string; type: string; action_id: number | null; thread_message_id: number | null; metric_id: number | null;
-  period_start: string | null; workflow_id: number | null; tell_step_id: string | null; source_type: string; source_webhook_id: string | null; reason: DoneReason | null; attempts: number; created_at: string;
+  period_start: string | null; workflow_id: number | null; tell_step_id: string | null; alert_id: number | null; source_type: string; source_webhook_id: string | null; reason: DoneReason | null; attempts: number; created_at: string;
 };
 
 /** What became of one send, for the log and for the job's counts. */
@@ -110,7 +110,6 @@ async function alertFired(send: Send, env: Omit<MessageEnvelope, "replyText">, m
   return { full: buildAlertFiredMessage({ metric, period, value: at(view.value) ?? "", target: at(view.target.value), condition: { kind: c.kind, level }, link: linkTo(`/metrics/${metric.id}`) }, env), redacted: null };
 }
 
-/** The message for one send as the Webhook may hear it now, or null when it may hear nothing (or the thing is gone). */
 /** A Personal Webhook's person and the Metrics they picked (spec 0037): what makes a message theirs and in full. */
 type Personal = { personId: string; metricIds: readonly number[] };
 
@@ -138,6 +137,31 @@ async function personalValueMessage(send: Send, env: Omit<MessageEnvelope, "repl
   return buildValueUnusualMessage({ metric, period, link, ...(shown !== null ? { value: shown } : {}) }, env);
 }
 
+/** `alert.fired` for a Personal Webhook, built now from the person's own Alert that names this Webhook and the value as it
+ * counts now (spec 0037): null, so nothing is sent, when the Alert is gone, paused, no longer names this Webhook, is not
+ * the person's, when the value is gone, no longer meets its condition, or waits for Approval (told only if the Alert asked
+ * for such values and the person may see them). The person's sight of the Metric was judged before this. */
+async function personalAlertFired(send: Send, env: Omit<MessageEnvelope, "replyText">, metric: { id: number; name: string }, period: string, personId: string): Promise<{ full: WebhookMessage; redacted: null } | null> {
+  const ws = send.workspace_id;
+  if (send.alert_id === null || !period) return null;
+  const { data } = await db().from("alerts").select("id, person_id, metric_id, kind, level, include_unapproved, paused, paused_by_person, webhook_ids").eq("id", send.alert_id).eq("workspace_id", ws).eq("person_id", personId).maybeSingle();
+  if (!data || data.metric_id !== metric.id || data.paused !== null || data.paused_by_person || !((data.webhook_ids as string[] | null) ?? []).includes(send.webhook_id)) return null;
+  const [alert] = await openRows("alerts", ws, [data as Record<string, unknown>]);
+  const c = alertConditionOf({ kind: alert.kind as never, level: (alert.level as string | null) ?? null });
+  if (!c || c.kind === "missing_after_due") return null;
+  const ctx = await alertContext(ws);
+  const m = ctx.metrics.find((x) => x.id === metric.id);
+  if (!m || m.archived_at) return null;
+  const view = await viewAt(ctx, m, period);
+  if (!view || view.value === null) return null;
+  if (view.pending && !(alert.include_unapproved === true && (await mayPeekWaitingValue(ws, personId, m, period)))) return null;
+  if (!alertHolds(c, { metric: m, workspaceMethod: ctx.method, value: view.value, previous: view.previous, target: view.target })) return null;
+  const at = (n: number | string | null) => (n === null ? null : formatValue(m, Number(n), ctx.style));
+  const level = c.kind === "at_or_above" || c.kind === "below" ? c.value : c.share;
+  return { full: buildAlertFiredMessage({ metric, period, value: at(view.value) ?? "", target: at(view.target.value), condition: { kind: c.kind, level }, link: linkTo(`/metrics/${metric.id}`) }, env), redacted: null };
+}
+
+/** The message for one send as the Webhook may hear it now, or null when it may hear nothing (or the thing is gone). */
 async function buildMessage(send: Send, webhookName: string, personal?: Personal): Promise<{ full: WebhookMessage; redacted: WebhookMessage | null } | null> {
   const eventId = `evt_${send.id.replace(/-/g, "")}`;
   const createdAt = new Date(send.created_at).toISOString();
@@ -163,20 +187,19 @@ async function buildMessage(send: Send, webhookName: string, personal?: Personal
   const period = String(send.period_start ?? action?.period_start ?? "");
   let hearing: "full" | "redacted" | "none" = "full";
   if (personal) {
-    // A Personal Webhook hears as its person, in full or not at all (spec 0037); never an Alert until its own ticket.
-    if (send.type === "alert.fired") return null;
     const { data: seat } = await db().from("memberships").select("role").eq("workspace_id", ws).eq("user_id", personal.personId).maybeSingle();
     if (!seat) return null;
     const actor = { personId: personal.personId, workspaceId: ws, role: seat.role as "owner" | "admin" | "member" | "guest" };
     const heard = await personalWebhookMayHear(actor, action ? { type: send.type as "action.created", actionId: send.action_id as number } : { type: send.type as "value.recorded", metricId: metricFacts.id, period });
     if (!heard) return null;
-    if (heard.kind === "value" && !personal.metricIds.includes(metricFacts.id)) return null;
+    // The Metrics a person picked are for the value events; an Alert names its Metric itself (and its own Webhook).
+    if (heard.kind === "value" && send.type !== "alert.fired" && !personal.metricIds.includes(metricFacts.id)) return null;
   } else {
     const everyone = await seenByEveryone(ws, metric.id as number);
     hearing = webhookMayHear(ws, send.type, { workspace_id: ws, metricSeenByEveryone: everyone, readGroupId: (action?.read_group_id as number | null | undefined) ?? null });
     if (hearing === "none") return null;
   }
-  if (!action && send.type === "alert.fired") return alertFired(send, env, metricFacts, period);
+  if (!action && send.type === "alert.fired") return personal ? personalAlertFired(send, env, metricFacts, period, personal.personId) : alertFired(send, env, metricFacts, period);
   if (!action && personal) {
     const m = await personalValueMessage(send, env, metricFacts, period, personal.personId);
     return m ? { full: m, redacted: null } : null;
