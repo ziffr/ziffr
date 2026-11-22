@@ -30,6 +30,8 @@ Installing makes no Metric, Workflow, dashboard or deck, sends nothing and chang
 
 Installing adds only entries and templates. **Set up from this Pack**, under an installed Pack, turns them into things you use. It is for Owners and Admins.
 
+The form opens with the whole Pack chosen: every Metric ticked, the dashboard and the Workflow picked when the Pack has exactly one of each, and, when you are the only member of the Workspace, you as the Approver of each Approve step. Press **Set up** to take it all, or untick and change what you do not want. When the Workspace has other members, Approvers start empty: you pick them.
+
 | Control | What it does |
 | --- | --- |
 | **Metrics to make** | One box per Metric Catalog entry of the Pack. A Derived Metric, such as Average order value, is computed from other entries; ticking it ticks those too, and they are made first. |
