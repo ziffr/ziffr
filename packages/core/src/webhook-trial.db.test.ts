@@ -9,6 +9,7 @@ import { workspace } from "./test/db-fixtures";
 import { TRIAL_WEBHOOKS_MAX, TRIAL_WEBHOOK_SENDS_PER_DAY, trialWebhooksOn, webhookRules } from "./webhook-trial";
 import { createWebhook, deleteWebhook, listWebhooks } from "./webhooks";
 import { sendTestWebhook } from "./webhook-log";
+import { authenticateWebhookRequest } from "./webhook-inbound";
 
 vi.setConfig({ testTimeout: 120_000, hookTimeout: 60_000 });
 const NAMES = ["ZIFFR_SECRETS_KEY", "ZIFFR_WEBHOOK_PRIVATE_HOSTS", "ZIFFR_TRIAL_WEBHOOKS", "ZIFFR_LIMIT_WEBHOOKS_PER_WORKSPACE", "ZIFFR_LIMIT_WEBHOOK_SENDS_PER_WORKSPACE_PER_DAY"];
@@ -107,5 +108,16 @@ describe("making Webhooks in a trial", () => {
     const t = await trial();
     await w_end(t.w.id);
     expect(await refusal(createWebhook(t.a, { name: "Late", url: URL1 }))).toBeInstanceOf(Forbidden);
+  });
+});
+
+describe("a trial's Webhooks answer nothing while they are off", () => {
+  it("takes no request back where the operator switched trial Webhooks off", async () => {
+    const t = await trial();
+    const { id } = await createWebhook(t.a, { name: "Back", url: URL1 });
+    process.env.ZIFFR_TRIAL_WEBHOOKS = "false";
+    expect(await authenticateWebhookRequest(id, { timestamp: null, signature: null, body: "{}" })).toEqual({ ok: false, why: "no_such" });
+    delete process.env.ZIFFR_TRIAL_WEBHOOKS;
+    expect(await authenticateWebhookRequest(id, { timestamp: null, signature: null, body: "{}" })).toEqual({ ok: false, why: "not_found" });
   });
 });

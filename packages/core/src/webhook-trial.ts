@@ -4,7 +4,7 @@
 // creating, testing and sending (and Personal Webhooks, spec 0037 ticket 1) all apply the same rules.
 import { operatorPrivateHosts } from "./outbound-request";
 import { sendingLimit } from "./sending-limit";
-import { settingsInEffect, type Settings } from "./settings-in-effect";
+import { settingsInEffectStrict, type Settings } from "./settings-in-effect";
 import { trialEndsAt } from "./trials";
 
 /** Webhooks of both kinds together that a Trial Workspace may hold. */
@@ -30,11 +30,13 @@ const TRIAL_ENDED = "This trial has ended: nothing is sent any more.";
 /** The rules for one Workspace by its trial and the settings in effect unless others are given. Never reads a person's
  * data: a Workspace id and the Installation's settings only. */
 export async function webhookRules(workspaceId: string, given?: Settings): Promise<WebhookRules> {
-  const settings = given ?? (await settingsInEffect());
   // trialEndsAt turns a trial that has ended into an ordinary Workspace first where trials are kept (spec 0029).
   const [ends, perWorkspace, sendsPerDay] = await Promise.all([trialEndsAt(workspaceId), sendingLimit("webhooksPerWorkspace"), sendingLimit("webhookSendsPerWorkspace")]);
   if (!ends) return { trial: false, allowed: true, why: null, maxWebhooks: perWorkspace, sendsPerDay, privateHosts: operatorPrivateHosts() };
-  const why = ends.getTime() <= Date.now() ? TRIAL_ENDED : trialWebhooksOn(settings) ? null : TRIAL_WEBHOOKS_OFF;
+  // Only a trial reads the operator's switch, and it fails closed: settings that cannot be read count as off.
+  let on = false;
+  try { on = trialWebhooksOn(given ?? (await settingsInEffectStrict())); } catch { on = false; }
+  const why = ends.getTime() <= Date.now() ? TRIAL_ENDED : on ? null : TRIAL_WEBHOOKS_OFF;
   // The operator's private hosts never apply in a trial: a trial reaches public addresses only.
   return { trial: true, allowed: why === null, why, maxWebhooks: Math.min(perWorkspace, TRIAL_WEBHOOKS_MAX), sendsPerDay: Math.min(sendsPerDay, TRIAL_WEBHOOK_SENDS_PER_DAY), privateHosts: [] };
 }

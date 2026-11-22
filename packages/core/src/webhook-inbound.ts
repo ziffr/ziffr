@@ -10,6 +10,7 @@
 // Webhook, whose Metric the assignee can still see; it reads nothing back but `changed` and `status`, creates, reassigns
 // and records no value. Words it sends are plain text: never a command (an Approval or Self-check is refused), never a
 // value or a Correction. Nothing in a refusal repeats what was sent.
+import { webhookRules } from "./webhook-trial";
 import { createHash, randomUUID } from "node:crypto";
 import type { WebhookActor } from "./actor";
 import { visibleMetricIds } from "./access";
@@ -60,6 +61,8 @@ export async function authenticateWebhookRequest(webhookId: string, req: Inbound
   const { data } = await db().from("webhooks").select("id, workspace_id, name, url, secret, secret_previous, secret_previous_until, disabled_at").eq("id", webhookId.toLowerCase()).maybeSingle();
   if (!data || data.disabled_at) return noSuch;
   const ws = data.workspace_id as string;
+  // A trial whose Webhooks are switched off, or that has ended, takes nothing back either (spec 0037).
+  if (!(await webhookRules(ws)).allowed) return noSuch;
   const [hook] = await openRows("webhooks", ws, [data as Record<string, unknown>]);
   const secrets: string[] = [];
   if (typeof hook.secret === "string" && hook.secret.startsWith("whsec_")) secrets.push(hook.secret);
