@@ -6,7 +6,7 @@
 import type { Actor } from "./actor";
 import { db } from "./db";
 import { inboundEnabled, mailEnabled } from "./mail";
-import { settingsInEffect, type Settings } from "./settings-in-effect";
+import { settingsInEffect, settingsInEffectStrict, type Settings } from "./settings-in-effect";
 import { slackEnabled } from "./slack-api";
 import { slackSends } from "./slack-send";
 import { telegramEnabled } from "./telegram-api";
@@ -77,8 +77,10 @@ export async function whatWorksHere(actor: Pick<Actor, "workspaceId">, given?: S
  * one), by the settings in effect unless others are given. No workspace data, so the login page may show it to anyone. */
 export async function whatThisZiffrOffers(given?: Settings): Promise<{ demo: boolean; trial: { days: number; ways: WayState[] } | null }> {
   const env = given ?? (await settingsInEffect());
+  // Whether trials are offered comes from the strict read: settings that cannot be read mean none (fail closed).
+  const trialEnv = given ?? (await settingsInEffectStrict().catch(() => null));
   let settings: { days: number; max: number } | null = null;
-  try { settings = trialSettings(env); } catch { settings = null; }
+  try { settings = trialEnv ? trialSettings(trialEnv) : null; } catch { settings = null; }
   const demo = env.ZIFFR_DEMO_ONLY === "1" || env.ZIFFR_DEMO !== "0";
   if (!settings) return { demo, trial: null };
   const limits = trialLimitsFrom(env);

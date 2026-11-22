@@ -5,7 +5,7 @@
 import { db } from "./db";
 import { Forbidden } from "./actor";
 import { hostedByCloud } from "./installation-days";
-import { settingsInEffect, storedSettings } from "./settings-in-effect";
+import { settingsInEffect, settingsInEffectStrict, storedSettings } from "./settings-in-effect";
 import { trialLimitFrom, trialLimitOf } from "./trial-limits";
 import { trialLimitsInEffect, trialLimitsNow } from "./trial-limits-in-effect";
 
@@ -18,7 +18,9 @@ export async function trialSettingsInEffect(): Promise<{ days: number; max: numb
   // A row an older version saved on the Installation settings page counts as "set" too: without a Ziffr Cloud key it
   // makes no trial, and must not quietly turn sign-ins into ordinary Workspaces either.
   if (!hostedByCloud(process.env) && (await storedSettings()).values.get("ZIFFR_TRIAL_DAYS")?.trim()) throw trialDaysWithoutCloud();
-  return trialSettings(await settingsInEffect());
+  // The strict read: if the stored settings cannot be read, this throws and no trial is made. On hosted Ziffr "trials
+  // off" lives only in a row Ziffr Cloud wrote, so falling back to the environment alone would switch trials back on.
+  return trialSettings(await settingsInEffectStrict());
 }
 
 /** The refusal for trial days set without a Ziffr Cloud key: in the words of a person who signs in, who has no use for
@@ -169,7 +171,9 @@ export async function claimTrialSend(deliveryId: number): Promise<"ok" | "wait" 
 /** Whether a new trial can be made right now on this Installation: false when trials are off or the cap is reached.
  * A count only, never which workspaces, so the login page may ask it for anyone. */
 export async function trialsOpen(given?: Record<string, string | undefined>): Promise<boolean> {
-  const env = given ?? (await settingsInEffect());
+  // Unreadable settings mean no trial is offered (fail closed, as trialSettingsInEffect).
+  const env = given ?? (await settingsInEffectStrict().catch(() => null));
+  if (!env) return false;
   let settings: { days: number; max: number } | null = null;
   try { settings = trialSettings(env); } catch { return false; }
   if (!settings) return false;
