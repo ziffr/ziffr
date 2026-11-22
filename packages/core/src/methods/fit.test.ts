@@ -582,27 +582,61 @@ describe("the checks of a fit, one step either side of each threshold", () => {
 
 describe("drivers that cannot be told apart", () => {
   const rng = lcg(17);
+  const free = (n: number) => Array.from({ length: n }, () => hundredths(rng() * 100));
   const base = Array.from({ length: 30 }, () => hundredths(rng() * 100));
   const other = Array.from({ length: 30 }, () => hundredths(rng() * 100));
   const y = base.map((v, i) => hundredths(4 * v + 2 * other[i] + gauss(rng) * 5));
-  it("treats two drivers exactly in step as one: the one with the weaker link to the target is left out, and it says so", () => {
+  it("treats two drivers exactly in step as one, and says so: the same whichever way round they are listed", () => {
     const twin = base.map((v) => hundredths(2 * v + 1));
-    const f = made(fit(input(y, [base, twin, other])));
-    expect(f.merged).toEqual([{ kept: "Visits", with: ["Price"] }]);
-    expect(f.drivers.map((d) => d.name)).toEqual(["Visits", "Tickets"]);
-    expect(f.rows[0].x).toHaveLength(2);
-    // The same fit as without the twin: nothing was changed but the driver left out.
+    const cols = [{ name: "Visits", points: pts(base) }, { name: "Price", points: pts(twin) }, { name: "Tickets", points: pts(other) }];
+    const results = [[0, 1, 2], [1, 0, 2], [2, 1, 0], [1, 2, 0], [0, 2, 1], [2, 0, 1]].map((o) => made(fit({ ...input(y, []), drivers: o.map((i) => cols[i]) })));
+    for (const f of results) {
+      // Exactly in step with equal links to the target: the name decides (no ids), the same one every time.
+      expect(f.merged).toEqual([{ kept: "Price", with: ["Visits"] }]);
+      expect(f.drivers.map((d) => d.name).sort()).toEqual(["Price", "Tickets"]);
+      expect(f.rows[0].x).toHaveLength(2);
+    }
+    const byName = (f: Fit) => Object.fromEntries(f.drivers.map((d) => [d.name, [d.effect, d.lo, d.hi, d.share, d.partial, d.inflation]]));
+    for (const f of results) {
+      expect(byName(f)).toEqual(byName(results[0]));
+      expect(f.explained).toBe(results[0].explained);
+      expect(f.intercept).toBe(results[0].intercept);
+    }
+    // One is the other's half: the effect of the kept driver is the effect of the other times two.
     const without = made(fit(input(y, [base, other])));
-    expect(f.drivers.map((d) => d.effect)).toEqual(without.drivers.map((d) => d.effect));
-    expect(f.explained).toBe(without.explained);
+    expect(results[0].drivers.find((d) => d.name === "Price")!.effect).toBeCloseTo(without.drivers[0].effect / 2, 10);
+    expect(results[0].explained).toBe(without.explained);
   });
-  it("keeps the earlier driver when the links to the target are equal, and the other way round when the later one links closer", () => {
+  it("tells drivers exactly in step apart by the Metric's id, the lower one kept, before the name", () => {
     const twin = base.map((v) => v);
-    const equal = made(fit(input(y, [base, twin, other])));
-    expect(equal.merged).toEqual([{ kept: "Visits", with: ["Price"] }]);
-    const closer = made(fit(input(base.map((v) => v), [y, base.map((v) => hundredths(v + 1)), other].slice(0, 2).concat([other]))));
-    // Price (= Visits + 1) and the target "Revenue" (= Visits): Price is exactly in step with another driver; whichever is kept, one is.
-    expect(closer.merged.length).toBe(1);
+    const at = (idV: number, idP: number) => made(fit({ ...input(y, []), drivers: [{ name: "Visits", points: pts(base), id: idV }, { name: "Price", points: pts(twin), id: idP }, { name: "Tickets", points: pts(other), id: 9 }] }));
+    expect(at(1, 2).merged).toEqual([{ kept: "Visits", with: ["Price"] }]);
+    expect(at(2, 1).merged).toEqual([{ kept: "Price", with: ["Visits"] }]);
+  });
+  it("merges two close pairs, the closer first, in whatever order they are listed", () => {
+    const [a, c] = [free(30), free(30)];
+    const tight = a.map((v) => hundredths(v * 2 + gauss(rng) * 3));
+    const loose = c.map((v) => hundredths(v * 2 + gauss(rng) * 25));
+    const yy = a.map((v, i) => hundredths(v + c[i] + gauss(rng) * 6));
+    for (const cols of [[a, tight, c, loose], [c, loose, a, tight], [loose, c, tight, a]]) {
+      const f = made(fit(input(yy, cols)));
+      expect(f.merged).toHaveLength(2);
+      expect(f.drivers).toHaveLength(2);
+    }
+  });
+  it("refuses drivers whose inflation is high only together (one is about the sum of two others), naming exactly those", () => {
+    const [x1, x2, free4] = [free(36), free(36), free(36)];
+    const x3 = x1.map((v, i) => hundredths(v + x2[i] + gauss(rng) * 3));
+    const yy = x1.map((v, i) => hundredths(0.5 * v + x2[i] * 0.5 + free4[i] + gauss(rng) * 5));
+    const r = fit(input(yy, [x1, x2, x3, free4]));
+    expect(r).toEqual({ ok: false, refusals: [{ case: "refuse-drivers-mix", slots: { names: "Visits, Price, Tickets" } }] });
+    // Each pair alone is far from the 4/5 that makes a pair one driver, and the inflation of each of the three is above 5.
+    const rows = rowsOf(yy, [x1, x2, x3]);
+    const refs = refRowsOf(yy, [x1, x2, x3]);
+    for (let j = 0; j < 3; j++) expect(referenceInflation(refs, 3, j)!.num > 5n * referenceInflation(refs, 3, j)!.den).toBe(true);
+    expect(rows).toHaveLength(36);
+    // Without the third, the same two are an ordinary fit.
+    expect(fit(input(yy, [x1, x2, free4])).ok).toBe(true);
   });
   it("refuses a mix of three or more drivers that is exactly one, naming them, and does not name one that is free", () => {
     const [a, b, c] = [base, other, base.map((v, i) => hundredths(v + other[i]))];

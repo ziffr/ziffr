@@ -263,7 +263,8 @@ export type Refused = { ok: false; refusals: Finding[] };
  * mixed-periods check). */
 export type FitInput = {
   target: { name: string; points: Point[] };
-  drivers: { name: string; points: Point[] }[];
+  /** `id` (a Metric's) breaks a tie between drivers exactly in step, so that their order in the list changes nothing. */
+  drivers: { name: string; points: Point[]; id?: number }[];
   span: Span;
   basis?: Basis;
   metrics?: SuitabilityInputs["metrics"];
@@ -313,7 +314,7 @@ function prepare(input: FitInput): Prepared {
 // The drivers that stay, and the ones left out as one with another, until none has a variance inflation above 5.
 type Reduced = { cols: number[]; mo: Moments; sol: Solved; merged: Merged[] } | { refusals: Finding[] };
 
-function reduce(rows: FitRow[], names: string[], k: number): Reduced {
+function reduce(rows: FitRow[], names: string[], k: number, ranks: number[]): Reduced {
   let cols = Array.from({ length: k }, (_, i) => i);
   const withs: string[][] = names.map(() => []);
   for (;;) {
@@ -337,16 +338,21 @@ function reduce(rows: FitRow[], names: string[], k: number): Reduced {
       }
     } else {
       const inflation = idx.map((i) => mul(sol.m[i][i], mo.sxx[i][i]));
-      // Stryker disable next-line EqualityOperator: two drivers with the same inflation are a tie, and either is the one whose closest partner goes with it
-      const worst = idx.reduce((a, b) => (cmp(inflation[b], inflation[a]) > 0 ? b : a));
-      if (cmp(inflation[worst], whole(MOST_INFLATION)) <= 0) return { cols, mo, sol, merged: names.flatMap((n, i) => (withs[i].length > 0 ? [{ kept: n, with: withs[i] }] : [])) };
-      // Stryker disable next-line EqualityOperator: two partners at the same closeness are a tie, and either is the one that goes with it
-      const partner = idx.filter((i) => i !== worst).reduce((a, b) => (cmp(link(worst, b), link(worst, a)) > 0 ? b : a));
-      pair = [Math.min(worst, partner), Math.max(worst, partner)];
+      const high = idx.filter((i) => cmp(inflation[i], whole(MOST_INFLATION)) > 0);
+      if (high.length === 0) return { cols, mo, sol, merged: names.flatMap((n, i) => (withs[i].length > 0 ? [{ kept: n, with: withs[i] }] : [])) };
+      // A pair is one driver where their link alone is as close as an inflation of 5: r² above 4/5. Drivers whose inflation is high
+      // only together (one is about the sum of two others, each pair linked by r² of 0.67) are a mix that no pair describes: no
+      // effect of any of them can be told from the others', so the fit says so and names them all.
+      const close = idx.flatMap((i) => idx.filter((j) => j > i && cmp(link(i, j), { num: BigInt(4), den: BigInt(5) }) > 0).map((j): [number, number] => [i, j]));
+      if (close.length === 0) return { refusals: [{ case: "refuse-drivers-mix", slots: { names: high.map((i) => names[cols[i]]).join(", ") } }] };
+      // Stryker disable next-line EqualityOperator: two pairs at the same closeness are a tie, and the other is merged next
+      pair = close.reduce((x, y) => (cmp(link(y[0], y[1]), link(x[0], x[1])) > 0 ? y : x));
     }
-    // The pair's driver with the weaker link to the target goes; the earlier one stays on a tie: r² to the target is S_iy² ÷ (S_ii·Syy).
+    // The pair's driver with the weaker link to the target goes; on a tie (exactly in step) the one first in `ranks` (the Metric with the
+    // lower id) stays, so the order the drivers were listed in changes nothing: r² to the target is S_iy² ÷ (S_ii·Syy).
     const [a, b] = pair;
-    const [keep, drop] = cmp(mul(mul(mo.sxy[a], mo.sxy[a]), mo.sxx[b][b]), mul(mul(mo.sxy[b], mo.sxy[b]), mo.sxx[a][a])) >= 0 ? [a, b] : [b, a];
+    const stronger = cmp(mul(mul(mo.sxy[a], mo.sxy[a]), mo.sxx[b][b]), mul(mul(mo.sxy[b], mo.sxy[b]), mo.sxx[a][a]));
+    const [keep, drop] = (stronger === 0 ? ranks[cols[a]] < ranks[cols[b]] : stronger > 0) ? [a, b] : [b, a];
     withs[cols[keep]] = [...withs[cols[keep]], names[cols[drop]], ...withs[cols[drop]]];
     withs[cols[drop]] = [];
     cols = cols.filter((_, i) => i !== drop);
@@ -385,8 +391,8 @@ export type Core = Pick<Fit, "drivers" | "merged" | "rows" | "n" | "df" | "from"
 /** The numbers of a fit on rows, with no checks (the references and the textbook datasets are held to this; every Method
  * goes through `fit`, which runs the checks first): `names` are the drivers' then the target's, `k` the number of drivers.
  * `cols` are the drivers that stayed and `misses` the fit's misses with the level they belong to. */
-export function fitNumbers(rows: FitRow[], names: string[], k: number): { core: Core; cols: number[]; misses: { level: number; miss: number }[] } | Refused {
-  const red = reduce(rows, names, k);
+export function fitNumbers(rows: FitRow[], names: string[], k: number, ranks: number[] = names.map((_, i) => i)): { core: Core; cols: number[]; misses: { level: number; miss: number }[] } | Refused {
+  const red = reduce(rows, names, k, ranks);
   if ("refusals" in red) return { ok: false, refusals: red.refusals };
   const { cols, mo, sol, merged } = red;
   const { df, t, sigma2 } = spreadOf(mo, sol);
@@ -442,6 +448,10 @@ export function fitNumbers(rows: FitRow[], names: string[], k: number): { core: 
   return { core, cols, misses };
 }
 
+// The words about gaps for series of changes.
+const CHANGE_CASES: Record<string, Finding["case"]> = { "caution-gaps": "caution-gaps-change", "refuse-gaps": "refuse-gaps-change", "refuse-gap-run": "refuse-gap-run-change" };
+const aboutChanges = (f: Finding): Finding => ({ ...f, case: CHANGE_CASES[f.case] ?? f.case });
+
 /** Fits a line through several Metrics at once, with the other drivers held the same for each effect; runs the suitability
  * checks of a fit first and says what is found. An effect is per one unit of its driver. */
 export function fit(input: FitInput): Fit | Refused {
@@ -451,14 +461,19 @@ export function fit(input: FitInput): Fit | Refused {
   if (k === 0) return { ok: false, refusals: [{ case: "refuse-no-drivers", slots: { target: input.target.name } }] };
   const prep = prepare(input);
   const base: SuitabilityInputs = { series: prep.series, span, periods: prep.rows.length, drivers: k, metrics: input.metrics };
-  const early = checkSuitability("fit", base);
+  // Where compared by change, a missing value costs two changes: the findings about gaps count changes, and say so.
+  const inChanges = (v: Verdict): Verdict => (prep.basis === "changes" ? { ...v, refusals: v.refusals.map(aboutChanges), cautions: v.cautions.map(aboutChanges) } : v);
+  const early = inChanges(checkSuitability("fit", base));
   if (early.refusals.length > 0) return { ok: false, refusals: early.refusals };
-  const made = fitNumbers(prep.rows, names, k);
+  // Drivers exactly in step are told apart by the Metric's id, then its name: the same fit whatever order they are listed in.
+  const order = input.drivers.map((d, i) => i).sort((x, y) => (input.drivers[x].id ?? Infinity) - (input.drivers[y].id ?? Infinity) || (input.drivers[x].name < input.drivers[y].name ? -1 : 1));
+  const ranks = [...order.keys()].map((_, i) => order.indexOf(i));
+  const made = fitNumbers(prep.rows, names, k, ranks);
   if ("refusals" in made) return made;
   const { core, cols, misses } = made;
   // Stryker disable next-line EqualityOperator: two drivers with exactly the same share are a tie, and the earlier is the top
   const top = core.drivers.reduce((a, b, i) => (b.share > core.drivers[a].share ? i : a), 0);
-  const verdict = checkSuitability("fit", { ...base, misses, rerun: (left) => without(prep.rows, cols, left, top) });
+  const verdict = inChanges(checkSuitability("fit", { ...base, misses, rerun: (left) => without(prep.rows, cols, left, top) }));
   return { ok: true, basis: prep.basis, span, target: input.target.name, ...core, last: { y: prep.last.y, x: cols.map((c) => prep.last.x[c]) }, verdict };
 }
 
