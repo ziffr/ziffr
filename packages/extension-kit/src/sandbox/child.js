@@ -3,7 +3,7 @@
 // long. It answers on file descriptor 3 only, one line of JSON at a time. This file is a safety net and not a sandbox:
 // a person reads every line of an Extension before it ships, and the static rules refuse what it must not use. The net
 // below stops an honest mistake (a clock read, a random number, a network call) from passing unseen.
-import { readFileSync, realpathSync, writeSync } from "node:fs";
+import { readFileSync, writeSync } from "node:fs";
 import inspector from "node:inspector";
 import { createRequire, syncBuiltinESMExports } from "node:module";
 import { join } from "node:path";
@@ -55,7 +55,12 @@ function lockDown() {
   // Only in a run of the mutation check does one variable stay: the one that tells Stryker's instrumentation which change is on.
   for (const k of Object.keys(process.env)) if (!(job.stryker === true && k === "__STRYKER_ACTIVE_MUTANT__")) delete process.env[k];
   // The modules are loaded first, all of them: they load each other and the clock, and a stub in one would break the next.
-  const loaded = ["net", "tls", "http", "https", "http2", "dns", "dns/promises", "dgram", "child_process", "cluster", "worker_threads", "vm", "inspector", "repl", "v8"].map((name) => [name, require(`node:${name}`)]);
+  // `fs` and `tty` are here because they can write on descriptor 3 and forge an answer; `crypto`, `perf_hooks`, `timers` and
+  // `os` because they hold a clock, a random generator or a timer of their own.
+  const loaded = [
+    "net", "tls", "http", "https", "http2", "dns", "dns/promises", "dgram", "child_process", "cluster", "worker_threads", "vm", "inspector", "repl", "v8",
+    "fs", "fs/promises", "tty", "crypto", "perf_hooks", "timers", "timers/promises", "os",
+  ].map((name) => [name, require(`node:${name}`)]);
   const Date = function Date() {
     throw new Error("ZIFFR-STUB: the clock is not available to an Extension");
   };
@@ -63,17 +68,40 @@ function lockDown() {
   globalThis.Date = Date;
   Math.random = thrower("the random generator");
   const everything = (what) => new Proxy({}, { get: thrower(what), has: thrower(what) });
-  for (const [name, what] of [["performance", "the clock"], ["crypto", "the random generator"]]) Object.defineProperty(globalThis, name, { value: everything(what), configurable: true });
-  for (const name of ["hrtime", "uptime", "cpuUsage", "resourceUsage", "memoryUsage", "binding", "dlopen", "kill", "chdir"]) process[name] = thrower(`process.${name}`);
+  // Temporal.Now, a date format with no date, an event's time stamp and a performance mark each read the clock too.
+  for (const [name, what] of [["performance", "the clock"], ["crypto", "the random generator"], ["Temporal", "the clock"]]) Object.defineProperty(globalThis, name, { value: everything(what), configurable: true });
+  Intl.DateTimeFormat = thrower("the clock");
+  for (const name of Object.getOwnPropertyNames(globalThis)) if (/Event$|^Performance/.test(name)) Object.defineProperty(globalThis, name, { value: thrower("the clock"), configurable: true });
+  // Defined rather than assigned: some of what is replaced is read-only, or a getter that an assignment would not reach.
+  const replace = (obj, key, value) => {
+    try {
+      Object.defineProperty(obj, key, { value, configurable: true, writable: true, enumerable: true });
+    } catch {
+      // A property that cannot be replaced stays; the static rules refuse every import of a Node module anyway.
+    }
+  };
+  for (const name of ["hrtime", "uptime", "cpuUsage", "resourceUsage", "memoryUsage", "availableMemory", "constrainedMemory", "binding", "_linkedBinding", "dlopen", "kill", "chdir", "execve"]) replace(process, name, thrower(`process.${name}`));
+  // The report carries the time, and the standard streams' classes can be pointed at descriptor 3.
+  for (const name of ["report", "stdin", "stdout", "stderr"]) Object.defineProperty(process, name, { get: thrower(`process.${name}`), configurable: true });
   for (const name of ["setTimeout", "setInterval", "setImmediate", "queueMicrotask"]) globalThis[name] = thrower("a timer");
   for (const name of ["fetch", "WebSocket", "EventSource", "XMLHttpRequest", "Worker", "SharedWorker", "BroadcastChannel", "MessageChannel", "WebAssembly"]) Object.defineProperty(globalThis, name, { value: thrower(name), configurable: true });
+  // `crypto.webcrypto` is a getter that cannot be replaced, so what it hands out goes instead.
+  const webcrypto = Object.getPrototypeOf(require("node:crypto").webcrypto);
+  for (const name of ["getRandomValues", "randomUUID"]) replace(webcrypto, name, thrower("the random generator"));
   for (const [name, mod] of loaded) {
-    for (const k of Object.keys(mod)) {
+    for (const k of Object.getOwnPropertyNames(mod)) {
+      // Node's module loader calls these on the `fs` object when it loads the Extension's files, so they stay; reading is
+      // what the permission model limits to the Extension's own directory, and none of them writes.
+      if (name === "fs" && ["readFileSync", "realpathSync", "openSync", "readSync", "closeSync"].includes(k)) continue;
+      let v;
       try {
-        if (typeof mod[k] === "function") mod[k] = thrower(`node:${name}`);
+        v = mod[k];
       } catch {
-        // A property that cannot be replaced stays; the static rules refuse every import of a Node module anyway.
+        continue;
       }
+      // An object (`crypto.webcrypto`, `perf_hooks.performance`, `fs.promises`) reaches what its functions do, so it goes too.
+      if (typeof v === "function") replace(mod, k, thrower(`node:${name}`));
+      else if (typeof v === "object" && v !== null) replace(mod, k, everything(`node:${name}`));
     }
   }
   syncBuiltinESMExports();
@@ -119,7 +147,7 @@ function neverRan(scripts, url) {
 const [dir, jobFile] = process.argv.slice(2);
 const job = JSON.parse(readFileSync(join(dir, jobFile), "utf8"));
 // The real path: on macOS the temporary directory is a link, and V8 names the script by where the file really is.
-const fileUrl = pathToFileURL(realpathSync(join(dir, job.file))).href;
+const fileUrl = pathToFileURL(join(dir, job.file)).href;
 
 let session;
 const post = (method, params) => {

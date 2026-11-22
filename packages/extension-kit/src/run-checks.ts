@@ -13,7 +13,7 @@ import fc from "fast-check";
 import ts from "typescript";
 import type { ExtensionManifest } from "./manifest.js";
 import { decode, encode, isRefusal, same } from "./sandbox/wire.js";
-import { LIMITS, prepareExtension, runChild } from "./sandbox/spawn.js";
+import { killTree, LIMITS, prepareExtension, runChild } from "./sandbox/spawn.js";
 import { position, sourceLine } from "./sourcemap.js";
 import type { ExtensionFiles, ExtensionProblem } from "./check.js";
 
@@ -267,7 +267,8 @@ async function mutation(files: ExtensionFiles, implementation: string, job: obje
     let tail = "";
     const code = await new Promise<number | null>((resolve) => {
       const child = spawn(process.execPath, [bin, "run"], { cwd: project, env: { PATH: process.env.PATH ?? "" }, stdio: ["ignore", "pipe", "pipe"] });
-      const timer = setTimeout(() => child.kill("SIGKILL"), options.mutationMs ?? 20 * 60_000);
+      // The whole tree: Stryker's workers, the command it runs for each change and the process that command starts.
+      const timer = setTimeout(() => killTree(child.pid), options.mutationMs ?? 20 * 60_000);
       for (const s of [child.stdout, child.stderr]) s.on("data", (d: Buffer) => void (tail = (tail + d.toString()).slice(-1500)));
       child.on("error", () => resolve(null));
       child.on("close", (c) => {

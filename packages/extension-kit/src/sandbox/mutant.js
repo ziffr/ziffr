@@ -22,7 +22,7 @@ try {
       onEvent(ev) {
         if (!("i" in ev)) return undefined;
         const want = job.expect[ev.i];
-        if (!("out" in ev)) wrong = true;
+        if (want === undefined || !("out" in ev)) wrong = true;
         else if (want.refused !== undefined) wrong = !same({ refused: "" }, decode(ev.out)) || (want.refused !== "" && decode(ev.out).refused !== want.refused);
         else wrong = !same(decode(want.answer), decode(ev.out), job.relative);
         return wrong;

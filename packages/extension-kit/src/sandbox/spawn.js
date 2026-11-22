@@ -2,8 +2,8 @@
 // compiled from TypeScript by the checker, into a fresh temporary directory; `runChild` starts `child.js` there with a
 // hard time limit, a memory limit, no environment, no input and one result channel, and reads what it sends back.
 // The checker never loads, evaluates or imports an Extension's code itself. This is a safety net and not a sandbox.
-import { execFile, spawn } from "node:child_process";
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { execFile, execFileSync, spawn } from "node:child_process";
+import { mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import { createRequire } from "node:module";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
@@ -30,6 +30,13 @@ export const LIMITS = {
 };
 
 const GRACE_MS = 500;
+const FLAGS = process.allowedNodeEnvironmentFlags;
+// Node's permission model, where this Node has it with the inspector switch the coverage run needs:
+// the process may then read only its own directory and this one, and may not write a file, start a process or a worker,
+// load an addon or, where Node knows `--allow-net`, open a connection. Older Nodes rely on the stubs alone.
+const PERMISSION = FLAGS.has("--permission") && FLAGS.has("--allow-inspector");
+// Real paths throughout: on macOS the temporary directory is a link, and both V8 and the permission model go by where a file really is.
+const REAL_HERE = realpathSync(HERE);
 const FILES = ["method.ts", "mark.ts", "reference.ts", "cases.ts"];
 /** What `@ziffr/extension-kit` is at run time: `refuse` and nothing else, written the way `types.ts` writes it. */
 const KIT_STUB = "export const refuse = (reason) => ({ refused: reason });\n";
@@ -59,7 +66,7 @@ function figuresSource() {
  * @returns {{ dir: string, compiled: Map<string, { js: string, map: string }>, cleanup: () => void }}
  */
 export function prepareExtension(files) {
-  const dir = mkdtempSync(join(tmpdir(), "ziffr-ext-"));
+  const dir = realpathSync(mkdtempSync(join(tmpdir(), "ziffr-ext-")));
   const compiled = new Map();
   try {
     writeFileSync(join(dir, "kit.js"), KIT_STUB);
@@ -83,21 +90,26 @@ export function prepareExtension(files) {
  * `onEvent` sees each line as it arrives and may return true to stop the run at once.
  * @param {{ dir: string }} prepared what `prepareExtension` returned
  * @param {object} job what to run
- * @param {Partial<typeof LIMITS> & { onEvent?: (event: any) => boolean | void }} [options] limits and the watcher
+ * @param {Partial<typeof LIMITS> & { onEvent?: (event: any) => boolean | void, maxEvents?: number, mutant?: string }} [options] limits, the watcher, the most lines (two per input and four by default) and Stryker's active change
  * @returns {Promise<{ end: "done" | "fatal" | "timeout" | "memory" | "output" | "garbage" | "crash" | "aborted", at: number | null, events: any[], detail: string }>}
  */
 export function runChild(prepared, job, options = {}) {
   const limits = { ...LIMITS, ...options };
   const jobFile = `job-${jobs++}.json`;
   writeFileSync(join(prepared.dir, jobFile), JSON.stringify(job));
+  // A begin and an answer for each input, then the end: a process that sends more lines is not the child.js this file wrote.
+  const maxEvents = options.maxEvents ?? 2 * (Array.isArray(job.inputs) ? job.inputs.length : 0) + 4;
+  const permission = PERMISSION
+    ? ["--permission", ...[prepared.dir, REAL_HERE].map((p) => `--allow-fs-read=${p}`), ...(job.coverage ? ["--allow-inspector"] : [])]
+    : [];
   return new Promise((resolve) => {
-    // No environment, no input, nothing printed: the only way out is descriptor 3, which this function reads.
+    // No environment, no input, nothing printed: the only way out is descriptor 3, which this function reads. Code made
+    // from a string stays off in the mutation run too: Stryker's header reaches for `new Function` only where there is no
+    // `globalThis`, and Node always has one.
     const child = spawn(
       process.execPath,
-      [`--max-old-space-size=${limits.heapMb}`, ...(job.stryker === true ? [] : ["--disallow-code-generation-from-strings"]), "--no-warnings", CHILD, prepared.dir, jobFile],
-      // The environment is empty, except in a run of the mutation check, which needs to tell Stryker's instrumentation
-      // which change is on (and its header makes a function from a string, so that one run may do that too: the code in it
-      // has passed every other check, and Stryker only swaps its operators).
+      [`--max-old-space-size=${limits.heapMb}`, "--disallow-code-generation-from-strings", ...permission, "--no-warnings", CHILD, prepared.dir, jobFile],
+      // The environment is empty, except in a run of the mutation check, which needs to tell Stryker's instrumentation which change is on.
       { cwd: prepared.dir, env: job.stryker === true && limits.mutant ? { __STRYKER_ACTIVE_MUTANT__: limits.mutant } : {}, stdio: ["ignore", "ignore", "pipe", "pipe"], windowsHide: true },
     );
     /** @type {any[]} */
@@ -115,8 +127,13 @@ export function runChild(prepared, job, options = {}) {
       child.kill("SIGKILL");
     };
     const overall = setTimeout(() => kill("timeout"), limits.totalMs);
+    // One `ps` at a time: on a busy machine a slow one must not pile up behind the next.
+    let asking = false;
     const poll = process.platform === "win32" ? undefined : setInterval(() => {
+      if (asking || killedFor) return;
+      asking = true;
       execFile("/bin/ps", ["-o", "rss=", "-p", String(child.pid)], { env: {}, timeout: 2000 }, (err, out) => {
+        asking = false;
         if (!err && Number.parseInt(out, 10) / 1024 > limits.rssMb) kill("memory");
       });
     }, 100);
@@ -139,7 +156,15 @@ export function runChild(prepared, job, options = {}) {
         seen = ev.i;
       }
       events.push(ev);
-      if (limits.onEvent?.(ev) === true) kill("aborted");
+      if (events.length > maxEvents) return kill("output");
+      // A watcher that throws on a line it did not expect must not leave the process running behind it.
+      let stop;
+      try {
+        stop = limits.onEvent?.(ev);
+      } catch {
+        return kill("garbage");
+      }
+      if (stop === true) kill("aborted");
     };
 
     const channel = /** @type {import("node:stream").Readable} */ (child.stdio[3]);
@@ -183,4 +208,45 @@ export function runChild(prepared, job, options = {}) {
       resolve({ end: /** @type {any} */ (end), at: end === "done" ? null : at, events, detail });
     });
   });
+}
+
+/** The process ids under `pid`, `pid` among them, from one listing of every process. */
+function treeOf(pid) {
+  const under = new Map();
+  for (const row of execFileSync("/bin/ps", ["-A", "-o", "pid=,ppid="], { env: {}, timeout: 5000, encoding: "utf8" }).split("\n")) {
+    const [p, pp] = row.trim().split(/\s+/).map(Number);
+    if (p > 0) under.set(pp, [...(under.get(pp) ?? []), p]);
+  }
+  const out = [pid];
+  for (let i = 0; i < out.length; i++) out.push(...(under.get(out[i]) ?? []).filter((p) => !out.includes(p)));
+  return out;
+}
+
+/**
+ * Kills a process and every process it started, however deep: SIGKILL to one process leaves its children running, and a
+ * test runner (Stryker) has a child per change, each with a child of its own. The tree is stopped first so that nothing in
+ * it can start another process between the listing and the kill.
+ * @param {number | undefined} pid the process at the top
+ */
+export function killTree(pid) {
+  if (!pid) return;
+  const signal = (pids, sig) => {
+    for (const p of pids) {
+      try {
+        process.kill(p, sig);
+      } catch {
+        // Gone already.
+      }
+    }
+  };
+  if (process.platform === "win32") return signal([pid], "SIGKILL");
+  let pids = [pid];
+  try {
+    pids = treeOf(pid);
+    signal(pids, "SIGSTOP");
+    pids = [...new Set([...pids, ...treeOf(pid)])];
+  } catch {
+    // Without a listing, the top process at least.
+  }
+  signal(pids, "SIGKILL");
 }

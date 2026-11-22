@@ -1,3 +1,4 @@
+import { spawn } from "node:child_process";
 import { readdirSync, readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -7,7 +8,7 @@ import { checkManifest } from "./manifest.js";
 import { RUN_RULES, runChecks, type RunOptions } from "./run-checks.js";
 import { readExtensionFolder, run } from "./run.js";
 import { decode, encode, isRefusal, same } from "./sandbox/wire.js";
-import { prepareExtension, runChild } from "./sandbox/spawn.js";
+import { killTree, prepareExtension, runChild } from "./sandbox/spawn.js";
 import { position, sourceLine } from "./sourcemap.js";
 
 const TEST = join(dirname(fileURLToPath(import.meta.url)), "../test");
@@ -142,8 +143,25 @@ describe("the process that runs an Extension", () => {
     ["the network: dns", "return dns.lookup('example.com', () => 1);", /node:dns/],
     ["a child process", "return child_process.execSync('echo hi');", /node:child_process/],
     ["a worker", "return new Worker('x');", /Worker/],
+    ["the clock: Temporal.Now", "return String(Temporal.Now.instant());", /clock/],
+    ["the clock: a date format with no date", "return new Intl.DateTimeFormat('en', { timeStyle: 'full' }).format();", /clock/],
+    ["the clock: an event's time stamp", "return new Event('x').timeStamp;", /clock/],
+    ["the clock: a performance mark", "return new PerformanceMark('x').startTime;", /clock/],
+    ["the clock: node:perf_hooks", "return perf_hooks.performance.now();", /node:perf_hooks/],
+    ["the clock: node:os", "return os.uptime();", /node:os/],
+    ["the clock: the process report", "return process.report.getReport();", /process\.report/],
+    ["the random generator: node:crypto", "return nodeCrypto.randomBytes(4).toString('hex');", /node:crypto/],
+    ["the random generator: node:crypto's webcrypto", "return nodeCrypto.webcrypto.getRandomValues(new Uint8Array(1))[0];", /random/],
+    ["a timer: node:timers", "return timers.setTimeout(() => 1, 1);", /node:timers/],
+    ["another program in its place: process.execve", "return process.execve('/bin/sh', ['sh', '-c', 'true'], {});", /process\.execve/],
+    ["writing a file", "fs.writeFileSync('ziffr-written', 'x'); return 1;", /node:fs/],
+    ["a forged answer on descriptor 3", "fs.writeSync(3, JSON.stringify({ done: true }) + '\\n'); return 1;", /node:fs/],
+    ["a forged answer through the standard streams", "return process.stdout.constructor;", /process\.stdout/],
   ])("stops %s with a stub that throws", async (_what, body, message) => {
-    const imports = 'import net from "node:net";\nimport http from "node:http";\nimport dns from "node:dns";\nimport child_process from "node:child_process";';
+    const imports = [
+      'import net from "node:net";\nimport http from "node:http";\nimport dns from "node:dns";\nimport child_process from "node:child_process";',
+      'import perf_hooks from "node:perf_hooks";\nimport os from "node:os";\nimport nodeCrypto from "node:crypto";\nimport timers from "node:timers";\nimport fs from "node:fs";',
+    ].join("\n");
     const res = await answerOf(code(body, imports));
     expect(res.end).toBe("done");
     expect(thrown(res)).toContain("ZIFFR-STUB");
@@ -185,13 +203,66 @@ describe("the process that runs an Extension", () => {
     expect(res.end).toBe("memory");
   }, 60_000);
 
-  it("stops a process that floods its channel, and one that answers with too much", async () => {
-    const flood = await answerOf(code("for (;;) writeSync(3, 'x'.repeat(100000));", 'import { writeSync } from "node:fs";'), { perCallMs: 5000, maxLineBytes: 500_000 });
-    expect(flood.end).toBe("output");
+  it("stops a process that sends a line longer than it may, or more lines than it may, and one that answers with too much", async () => {
+    const long = await answerOf(code("return 'x'.repeat(600_000);"), { maxLineBytes: 500_000 });
+    expect(long.end).toBe("output");
+    // Two lines for each input and the end: the child.js this file wrote sends no more, so a process that does is stopped.
+    const many = await answerOf(code("return 1;"), { maxEvents: 2 }, [[1, 2, 3]]);
+    expect(many.end).toBe("output");
     const big = await answerOf(code("return 'x'.repeat(5_000_000);"));
     expect(big.events.find((e) => "tooBig" in e)).toBeTruthy();
-    const garbage = await answerOf(code("writeSync(3, 'not json\\n'); return 1;", 'import { writeSync } from "node:fs";'));
-    expect(garbage.end).toBe("garbage");
+  });
+
+  it("stops the process when the watcher of its lines throws, rather than leaving it running", async () => {
+    const res = await answerOf(code("for (;;) { series.length; }"), {
+      perCallMs: 20_000,
+      totalMs: 30_000,
+      onEvent() {
+        throw new Error("a line the watcher did not expect");
+      },
+    });
+    expect(res.end).toBe("garbage");
+  });
+
+  it.runIf(process.allowedNodeEnvironmentFlags.has("--permission") && process.allowedNodeEnvironmentFlags.has("--allow-inspector"))(
+    "may read nothing outside its own directory, where Node has the permission model",
+    async () => {
+      const res = await answerOf(code("return fs.readFileSync('/etc/hosts', 'utf8').length;", 'import fs from "node:fs";'));
+      expect(thrown(res)).toMatch(/restricted|ERR_ACCESS_DENIED|allow-fs-read/i);
+    },
+  );
+
+  it("keeps code made from a string off in a run of the mutation check too", async () => {
+    const prepared = prepareExtension(code("return new Function('return 1')();"));
+    try {
+      const res = await runChild(prepared, { op: "run", file: "method.js", prefer: "", inputs: [encode([[1]])], coverage: false, stryker: true }, { mutant: "1", totalMs: 10_000 });
+      expect(String(res.events.find((e) => "threw" in e)?.threw)).toMatch(/code generation|EvalError|disallowed/i);
+    } finally {
+      prepared.cleanup();
+    }
+  });
+
+  it.skipIf(process.platform === "win32")("kills a process and the processes it started, however deep", async () => {
+    // A parent that starts a child that starts a grandchild, each waiting for ever; the grandchild's pid comes back on stdout.
+    const inner = "setInterval(() => {}, 1000)";
+    const middle = `const c = require('child_process').spawn(process.execPath, ['-e', ${JSON.stringify(inner)}], { stdio: 'ignore' }); console.log(c.pid); setInterval(() => {}, 1000);`;
+    const top = `const c = require('child_process').spawn(process.execPath, ['-e', ${JSON.stringify(middle)}], { stdio: ['ignore', 'inherit', 'ignore'] }); setInterval(() => {}, 1000);`;
+    const parent = spawn(process.execPath, ["-e", top], { stdio: ["ignore", "pipe", "ignore"] });
+    const grandchild = await new Promise<number>((resolve) => parent.stdout.once("data", (d: Buffer) => resolve(Number(d.toString().trim()))));
+    const alive = (pid: number) => {
+      try {
+        process.kill(pid, 0);
+        return true;
+      } catch {
+        return false;
+      }
+    };
+    expect(alive(grandchild)).toBe(true);
+    const closed = new Promise((resolve) => parent.on("close", resolve));
+    killTree(parent.pid);
+    await closed;
+    for (let i = 0; i < 50 && alive(grandchild); i++) await new Promise((r) => setTimeout(r, 20));
+    expect(alive(grandchild)).toBe(false);
   });
 
   it("reports a process that dies without answering, and a file that cannot be loaded", async () => {
