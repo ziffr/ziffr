@@ -132,5 +132,17 @@ const steps: Scenario = {
   },
 };
 
+// Spec 0038: a newcomer groups a number the way they would say it; the assistant reuses or makes the word, no questions about "tags".
+const tagged: Scenario = {
+  id: "finance-tag-en",
+  language: "en",
+  opening: "I want to keep track of my shop's monthly revenue, and file it under finance so I find it with my other money numbers.",
+  replies: ["Euros, and it is the total for the month.", "Higher is better, just do it."],
+  checks: (s) => {
+    const m = only(s);
+    return [...common(s), check("exactly one Metric", s.metrics.length === 1, `${s.metrics.length} Metrics`), check("period is month", m?.period === "month", m?.period), check("it carries the Tag finance", Boolean(m?.tags.some((t) => t.toLowerCase() === "finance")), JSON.stringify(m?.tags))];
+  },
+};
+
 /** Every scenario, in the order the report lists them. */
-export const SCENARIOS: Scenario[] = [buses("de"), buses("en"), kmDaily("de"), kmDaily("en"), coffee, salesMonday("de"), salesMonday("en"), odometer, steps];
+export const SCENARIOS: Scenario[] = [buses("de"), buses("en"), kmDaily("de"), kmDaily("en"), coffee, salesMonday("de"), salesMonday("en"), odometer, steps, tagged];
