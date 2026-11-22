@@ -19,6 +19,7 @@ import { firstAsksFor } from "@ziffr/core/first-asks";
 import { NextPrompt } from "./next-prompt";
 import { SourcesEditor } from "./sources-editor";
 import { EditDetails } from "./edit-details";
+import { MetricTagChips, MetricTagsRow } from "./metric-tags";
 import { countryCode } from "@/lib/countries";
 import { currentActor, viewerId } from "@/lib/viewer";
 import { metricExtras } from "@ziffr/core/page-data";
@@ -204,6 +205,7 @@ export default async function MetricPage({ params, searchParams }: { params: Pro
         />
       </PageHeader>
       <ArchivedNote archivedAt={metric.archived_at ?? null} />
+      <MetricTagChips actor={actor} metricId={metric.id} />
 
       <div className="mb-4 grid gap-3 sm:grid-cols-3">
         <Stat label={last ? `Latest, ${periodLabel(last.period, metric.period, yearStart)}` : "Latest"}>
@@ -423,6 +425,7 @@ export default async function MetricPage({ params, searchParams }: { params: Pro
             </div>
             <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-2">
               <Row k="Owner"><Person p={peopleById[metric.owner_id]} /></Row>
+              <Row k="Tags"><MetricTagsRow actor={actor} metricId={metric.id} canEdit={canEdit} /></Row>
               <Row k="Period">{PERIOD_LABEL[metric.period]}</Row>
               <Row k="Format">{metric.format}{metric.unit && metric.format === "number" ? ` (${metric.unit})` : ""}, {metric.decimals} decimals</Row>
               <Row k="Which way is good">{POLARITY_LABEL[metric.polarity]}</Row>

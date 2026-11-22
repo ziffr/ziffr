@@ -14,8 +14,11 @@ import { PERIOD_LABEL, periodLabel } from "@ziffr/core/periods";
 import { inUse, isArchived } from "@ziffr/core/metric-row";
 import { cn } from "@/lib/utils";
 import { QuickLookButton } from "@/components/metric-quick-look";
+import { TagChips } from "@/components/tag-chips";
+import { metricIdsWithTags, tagSight } from "@ziffr/core/tag-sight";
+import { tagFilterHref, tagsFromParam } from "@/lib/tag-filter";
 
-export default async function MetricsPage({ searchParams }: { searchParams: Promise<{ show?: string }> }) {
+export default async function MetricsPage({ searchParams }: { searchParams: Promise<{ show?: string; tag?: string | string[] }> }) {
   // The list shows the latest value, the change and a trend line of 30 periods: only those are read.
   const [{ metrics: all, series }, people, viewer, yearStart, numberStyle, sp, actor] = await Promise.all([getAllSeries({ points: 30 }), getProfileMap(), viewerId(), getYearStart(), getNumberStyle(), searchParams, currentActor()]);
   // One source for who may start things: the core's `can`. A Guest sees no button that would be refused.
@@ -25,7 +28,17 @@ export default async function MetricsPage({ searchParams }: { searchParams: Prom
   // Archived Metrics (GLOSSARY: Archived Metric) are listed only under their own filter.
   const showArchived = sp.show === "archived";
   const archivedCount = seen.filter(isArchived).length;
-  const metrics = showArchived ? seen.filter(isArchived) : inUse(seen);
+  const byView = showArchived ? seen.filter(isArchived) : inUse(seen);
+  // The Tag filter (GLOSSARY: Tag): Metrics that carry all the picked Tags; the Tags offered and their counts are only those of
+  // Metrics this person may see, so a word never shows what is out of their sight. A word that is none of them matches nothing.
+  const picked = tagsFromParam(sp.tag);
+  const sight = await tagSight(actor);
+  const tagged = picked.length ? new Set(await metricIdsWithTags(actor, picked)) : null;
+  const metrics = tagged ? byView.filter((m) => tagged.has(m.id)) : byView;
+  const pickedKeys = new Set(picked.map((t) => t.toLowerCase()));
+  // A Tag's count is what this view lists: Archived Metrics count under Archived only.
+  const offered = sight.tags.map((t) => ({ name: t.name, n: showArchived ? t.archived : t.metrics - t.archived })).filter((t) => t.n > 0 || pickedKeys.has(t.name.toLowerCase()));
+  const toggled = (name: string) => (pickedKeys.has(name.toLowerCase()) ? picked.filter((p) => p.toLowerCase() !== name.toLowerCase()) : [...picked, name]);
   const filter = (archived: boolean) => cn("rounded-[var(--radius-input)] px-2.5 py-1 no-underline", archived === showArchived ? "stock font-medium" : "text-muted-foreground hover:bg-muted");
   return (
     <>
@@ -44,12 +57,29 @@ export default async function MetricsPage({ searchParams }: { searchParams: Prom
 
       {(archivedCount > 0 || showArchived) && (
         <nav aria-label="Which Metrics" className="mb-3 flex flex-wrap gap-1 text-sm">
-          <Link href="/metrics" aria-current={!showArchived ? "true" : undefined} className={filter(false)}>In use</Link>
-          <Link href="/metrics?show=archived" aria-current={showArchived ? "true" : undefined} className={filter(true)}>Archived ({archivedCount})</Link>
+          <Link href={tagFilterHref(picked)} aria-current={!showArchived ? "true" : undefined} className={filter(false)}>In use</Link>
+          <Link href={tagFilterHref(picked, true)} aria-current={showArchived ? "true" : undefined} className={filter(true)}>Archived ({archivedCount})</Link>
         </nav>
       )}
 
-      {showArchived && metrics.length === 0 ? (
+      {offered.length > 0 && (
+        <nav aria-label="Tags" className="mb-3 flex flex-wrap items-center gap-1 text-sm">
+          <span className="mr-1 text-xs text-muted-foreground">Tag</span>
+          {offered.map((t) => {
+            const on = pickedKeys.has(t.name.toLowerCase());
+            return (
+              <Link key={t.name} href={tagFilterHref(toggled(t.name), showArchived)} aria-current={on ? "true" : undefined} className={cn("rounded-full border px-2.5 py-0.5 text-xs no-underline", on ? "stock border-[var(--color-ink-2)] font-medium" : "border-border text-muted-foreground hover:bg-muted")}>
+                {t.name} <span className="fig">{t.n}</span>
+              </Link>
+            );
+          })}
+          {picked.length > 0 && <Link href={tagFilterHref([], showArchived)} className="ml-1 text-xs text-muted-foreground underline">Clear</Link>}
+        </nav>
+      )}
+
+      {picked.length > 0 && metrics.length === 0 ? (
+        <p className="rounded-[var(--radius-card)] border border-dashed border-[var(--color-rule-2)] p-10 text-center text-sm text-muted-foreground">No Metric carries {picked.length > 1 ? "all of these Tags" : "this Tag"}. <Link href={tagFilterHref([], showArchived)} className="underline">Show all Metrics</Link></p>
+      ) : showArchived && metrics.length === 0 ? (
         <p className="rounded-[var(--radius-card)] border border-dashed border-[var(--color-rule-2)] p-10 text-center text-sm text-muted-foreground">No Archived Metrics. Archiving a Metric keeps its values and history and stops asking for it.</p>
       ) : metrics.length === 0 ? (
         <div className="rounded-[var(--radius-card)] border border-dashed border-[var(--color-rule-2)] p-10 text-center">
@@ -91,6 +121,7 @@ export default async function MetricsPage({ searchParams }: { searchParams: Prom
                         {PERIOD_LABEL[m.period]}, {m.formula ? "derived from other metrics" : `via ${m.sources.map((s) => SOURCE_LABEL[s]).join(" or ")}`}
                       </div>
                       <div className="fig mt-0.5 text-xs text-[var(--color-ink-2)] sm:hidden">Target {targetText(m, numberStyle)}</div>
+                      <TagChips names={sight.namesByMetric.get(m.id) ?? []} className="mt-1" />
                     </td>
                     <td className="px-4 py-3 text-right">
                       <div className="fig whitespace-nowrap">{last ? formatValue(m, last.value, numberStyle) : "–"}</div>
