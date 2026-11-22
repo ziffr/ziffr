@@ -154,6 +154,28 @@ describe("Ziffr Cloud's cancel", () => {
     expect(await closeCancelledWorkspace("d3e00000-0000-4000-8000-000000000001")).toBe("refused");
   });
 
+  it("is not reopened once the grace days have passed or the deletion has claimed it, and a claimed one is not subscribed to", async () => {
+    const late = await trial(48);
+    await setCloudLimit({ cloud: true }, late.w.id, { metrics: 50, label: "Small", endTrial: true });
+    await cancelCloudWorkspace({ cloud: true }, late.w.id);
+    await db().from("workspaces").update({ trial_ends_at: new Date(Date.now() - 8 * 86_400_000).toISOString() }).eq("id", late.w.id);
+    await expect(reopenCloudWorkspace({ cloud: true }, late.w.id)).rejects.toBeInstanceOf(CloudConflict);
+    const claimed = await trial(48);
+    await setCloudLimit({ cloud: true }, claimed.w.id, { metrics: 50, label: "Small", endTrial: true });
+    await cancelCloudWorkspace({ cloud: true }, claimed.w.id);
+    expect((await db().rpc("claim_trial_for_deletion", { p_workspace: claimed.w.id })).data).toBe(true);
+    await expect(reopenCloudWorkspace({ cloud: true }, claimed.w.id)).rejects.toBeInstanceOf(CloudConflict);
+    // A running trial the deletion has claimed cannot be subscribed to either.
+    const running = await trial(48);
+    expect((await db().rpc("claim_trial_for_deletion", { p_workspace: running.w.id })).data).toBe(true);
+    expect(await keepTrialNow(running.w.id)).toBe(false);
+    // A subscribed Workspace is never claimed for deletion.
+    const subscribed = await trial(48);
+    await keepTrialNow(subscribed.w.id);
+    expect((await db().rpc("claim_trial_for_deletion", { p_workspace: subscribed.w.id })).data).toBe(false);
+    await db().from("installation_audit_events").delete().in("subject", [late.w.id, claimed.w.id]);
+  });
+
   it("can be undone during the grace days, keeps its data, leaves keys revoked, and refuses what was not cancelled", async () => {
     const { w, owner, keyId } = await trial(48);
     const m = await w.metric(owner, { name: "Kept" });

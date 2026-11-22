@@ -43,7 +43,7 @@ export function TrialEnded({ deletedAt, cancelled, isOwner, workspaceExport }: {
       <p className="mt-2 text-muted-foreground">
         {cancelled ? "Its Size was cancelled. " : ""}Nothing is sent or taken any more, and its keys have stopped. On {deletedAt.slice(0, 10)} it is deleted with everything in it{isOwner ? ", and your account with it" : ""}.
       </p>
-      <p className="mt-4">To keep your numbers, download them now. To use Ziffr for real, run it yourself: <a href="https://github.com/ziffr/ziffr" className="underline">github.com/ziffr/ziffr</a>.</p>
+      <p className="mt-4">{isOwner ? "To keep your numbers, download them now. " : "The Owner can download the numbers. "}To use Ziffr for real, run it yourself: <a href="https://github.com/ziffr/ziffr" className="underline">github.com/ziffr/ziffr</a>.</p>
       {/* The Owner's whole Workspace as one file a Ziffr you run can import (spec 0040): the file holds every value in the clear. */}
       {workspaceExport && (
         <div className="mt-4 space-y-2">
@@ -52,7 +52,7 @@ export function TrialEnded({ deletedAt, cancelled, isOwner, workspaceExport }: {
         </div>
       )}
       <div className="mt-6 flex flex-wrap gap-3">
-        <a href="/try/download" className="inline-flex h-9 items-center rounded-[var(--radius-input)] border border-input px-3 font-medium hover:bg-muted">Download your values</a>
+        {isOwner && <a href="/try/download" className="inline-flex h-9 items-center rounded-[var(--radius-input)] border border-input px-3 font-medium hover:bg-muted">Download your values</a>}
         {isOwner && <EndTrialButton label="Delete it now" />}
       </div>
     </div>

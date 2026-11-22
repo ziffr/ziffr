@@ -156,14 +156,15 @@ export async function closeEndedTrials(now = new Date()): Promise<number> {
  * workspace (its rows go with it), the person rows of its Contacts and Feeds, and its Owner with their sign-in when
  * they are in no other workspace. A trial that is already gone is left as it is. */
 async function deleteTrial(workspaceId: string): Promise<void> {
-  const [{ data: members }, { data: contacts }, { data: feeds }, { data: trial }] = await Promise.all([
+  const [{ data: members }, { data: contacts }, { data: feeds }] = await Promise.all([
     db().from("memberships").select("user_id").eq("workspace_id", workspaceId),
     db().from("contacts").select("person_id").eq("workspace_id", workspaceId),
     db().from("feeds").select("person_id").eq("workspace_id", workspaceId),
-    db().from("workspaces").select("id").eq("id", workspaceId).not("trial_ends_at", "is", null).is("trial_kept_at", null).maybeSingle(),
   ]);
-  // Only a trial is deleted here: its key is destroyed only once that is certain.
-  if (!trial) return;
+  // Only a trial or a cancelled Workspace is deleted here, and it is claimed in one statement first: a reopening (Ziffr
+  // Cloud undoing a cancellation) can no longer win, so the two never interleave. The key is destroyed only after that.
+  const { data: claimed } = await db().rpc("claim_trial_for_deletion", { p_workspace: workspaceId });
+  if (claimed !== true) return;
   // What is still open is closed, and everything queued is sent now: the send rows go with the Workspace, its key next.
   await closeForSystem(workspaceId, { statuses: ["open", "answered"] }, "workspace_closing");
   await sendWebhooksNow(workspaceId);
@@ -227,7 +228,12 @@ async function tellMembersWhoWouldGo(workspaceId: string, deletedAt: string): Pr
     ]);
     // Only someone who would be deleted with it: this is the only Workspace they belong to.
     if (count !== 1 || admin) continue;
-    await deliverNotice(workspaceId, { recipientId: id, senderId: null, subject: "A Ziffr Workspace of yours is closing", text: membersGoingWords(m.role === "guest" ? null : owner, deletedAt), link: "/" });
+    // Each on its own: one that fails is logged and never keeps the others from being told.
+    try {
+      await deliverNotice(workspaceId, { recipientId: id, senderId: null, subject: "A Ziffr Workspace of yours is closing", text: membersGoingWords(m.role === "guest" ? null : owner, deletedAt), link: "/" });
+    } catch (e) {
+      console.error(`A member of ${workspaceId} could not be told it is closing: ${(e as Error).message}`);
+    }
   }
 }
 

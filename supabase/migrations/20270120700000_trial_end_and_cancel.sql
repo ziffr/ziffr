@@ -10,7 +10,8 @@
 alter table workspaces
   add column trial_reminded_3_at timestamptz,
   add column trial_reminded_end_at timestamptz,
-  add column closed_because text check (closed_because = 'cancelled');
+  add column closed_because text check (closed_because = 'cancelled'),
+  add column deleting_at timestamptz;
 
 alter table view_links add column requested_expires_at date;
 
@@ -38,7 +39,7 @@ declare
   v_id uuid;
 begin
   update workspaces set trial_ended_at = least(trial_ends_at, now()), trial_ends_at = null, trial_kept_at = now()
-    where id = p_workspace and trial_ends_at is not null and trial_closed_at is null
+    where id = p_workspace and trial_ends_at is not null and trial_closed_at is null and deleting_at is null
     returning id into v_id;
   if v_id is null then return false; end if;
   update access_keys set expires_on = requested_expires_on
@@ -80,18 +81,34 @@ begin
   return v_id is not null;
 end $$;
 
--- Undoes a cancellation during the grace days, once: true for the call that did it. The Workspace is ordinary again;
--- what the closing revoked (keys, Slack, Telegram and Calendar Links) stays gone, and closed Actions stay closed.
+-- The deletion of a closed Workspace claims it first, in one statement, so that it and a reopening (below) cannot both
+-- happen: once claimed, a Workspace is no longer reopened; a claim that stopped half-way is made again by the next run.
+-- True when it is a trial or cancelled Workspace that is not kept.
+create or replace function claim_trial_for_deletion(p_workspace uuid) returns boolean
+language plpgsql security definer set search_path = public as $$
+declare
+  v_id uuid;
+begin
+  update workspaces set deleting_at = now()
+    where id = p_workspace and trial_ends_at is not null and trial_kept_at is null
+    returning id into v_id;
+  return v_id is not null;
+end $$;
+
+-- Undoes a cancellation during the grace days, once: true for the call that did it. Refused once the grace days have
+-- passed or the deletion has claimed the Workspace. The Workspace is ordinary again; what the closing revoked (keys, Slack,
+-- Telegram and Calendar Links) stays gone, and closed Actions stay closed.
 create or replace function reopen_cancelled_workspace(p_workspace uuid) returns boolean
 language plpgsql security definer set search_path = public as $$
 declare
   v_id uuid;
 begin
   update workspaces set trial_ends_at = null, trial_closed_at = null, trial_grace_days = null, closed_because = null, trial_kept_at = now()
-    where id = p_workspace and closed_because = 'cancelled'
+    where id = p_workspace and closed_because = 'cancelled' and deleting_at is null
+      and now() < trial_ends_at + make_interval(days => coalesce(trial_grace_days, 7))
     returning id into v_id;
   return v_id is not null;
 end $$;
 
-revoke execute on function keep_trial(uuid), claim_cancelled_workspace(uuid), close_cancelled_workspace(uuid), reopen_cancelled_workspace(uuid) from public, anon, authenticated;
-grant execute on function keep_trial(uuid), claim_cancelled_workspace(uuid), close_cancelled_workspace(uuid), reopen_cancelled_workspace(uuid) to service_role;
+revoke execute on function keep_trial(uuid), claim_cancelled_workspace(uuid), close_cancelled_workspace(uuid), claim_trial_for_deletion(uuid), reopen_cancelled_workspace(uuid) from public, anon, authenticated;
+grant execute on function keep_trial(uuid), claim_cancelled_workspace(uuid), close_cancelled_workspace(uuid), claim_trial_for_deletion(uuid), reopen_cancelled_workspace(uuid) to service_role;
