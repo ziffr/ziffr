@@ -35,6 +35,8 @@ export type SetupEntry = { key: string; name: string; period: string; unit: stri
  * Metrics this person sees to fill a Slot no entry fills. Names and ids only. */
 export type PackSetupOptions = {
   install: { id: number; name: string; version: string };
+  /** The Automation Templates the Pack says fill its entries (spec 0043), by template id and entry key. */
+  suggestedFeeds: { template: string; fills: string[] }[];
   entries: SetupEntry[];
   dashboards: { key: string; name: string; slots: Pick<Slot, "label" | "multiple" | "suggests">[] }[];
   workflows: { key: string; name: string; approvers: number }[];
@@ -60,7 +62,7 @@ export type PackSetupInput = {
 };
 
 /** What was made. */
-export type PackSetupResult = { metrics: { id: number; slug: string; name: string; /** False for a Derived Metric, which a Feed cannot fill. */ takesValues: boolean }[]; dashboardId: number | null; workflowId: number | null;
+export type PackSetupResult = { metrics: { id: number; slug: string; name: string; /** The Pack's key of the entry it was made from. */ key: string; /** False for a Derived Metric, which a Feed cannot fill. */ takesValues: boolean }[]; dashboardId: number | null; workflowId: number | null;
   /** The Tags of an entry that a limit kept off its Metric (the Metric is made either way), by Metric: the page says so. */
   tagsLeftOut: { metric: string; tags: string[] }[] };
 
@@ -103,10 +105,20 @@ async function installed(actor: Actor, installId: number) {
   const tpl = (templates ?? []) as TemplateRow[];
   return {
     install: { id: Number(install.id), name: String((install.manifest as { name?: unknown })?.name ?? ""), version: String(install.version) },
+    feeds: feedsOf((install.manifest as { feeds?: unknown })?.feeds),
     entries: byKey((entries ?? []) as EntryRow[]),
     dashboards: byKey(tpl.filter((t) => t.kind === "dashboard")),
     workflows: byKey(tpl.filter((t) => t.kind === "workflow")),
   };
+}
+
+/** The templates a Pack's manifest names, read defensively: it was checked when installed, but it is a stored document. */
+function feedsOf(raw: unknown): { template: string; fills: string[] }[] {
+  if (!Array.isArray(raw)) return [];
+  return raw.flatMap((f): { template: string; fills: string[] }[] => {
+    const x = f as { template?: unknown; fills?: unknown } | null;
+    return x && typeof x.template === "string" && Array.isArray(x.fills) ? [{ template: x.template, fills: x.fills.filter((k): k is string => typeof k === "string") }] : [];
+  });
 }
 
 const approversWanted = (body: WorkflowTemplateBody) => body.steps.reduce((n, s) => (s.type === "approve" ? n + s.approvers : n), 0);
@@ -147,6 +159,7 @@ export async function packSetupOptions(actor: Actor, installId: number): Promise
   const memberIds = new Set((members ?? []).map((m) => m.user_id as string));
   return {
     install: p.install,
+    suggestedFeeds: p.feeds,
     entries: [...p.entries.values()].map((e) => ({ key: e.pack_key, name: e.name, period: e.period, unit: e.unit, derived: Boolean(e.formula), inputs: e.formula ? formulaInputs(e.formula) : [], tags: tagNamesOf(e.tags, TAGS_PER_ENTRY) })),
     dashboards: [...p.dashboards.values()].map((t) => ({ key: t.pack_key, name: t.name, slots: (t.slots ?? []).map((s) => ({ label: s.label, multiple: s.multiple, ...(s.suggests ? { suggests: s.suggests } : {}) })) })),
     workflows: [...p.workflows.values()].map((t) => ({ key: t.pack_key, name: t.name, approvers: approversWanted(t.body as WorkflowTemplateBody) })),
@@ -259,7 +272,7 @@ export async function setUpFromPack(actor: Actor, installId: number, input: Pack
       // The entry's Tags were put on it by createMetric, as this person; a limit leaves words out, never the Metric.
       if (m.tagsLeftOut.length) tagsLeftOut.push({ metric: e.name, tags: m.tagsLeftOut });
       if (e.formula) await writeFormula(actor, { ...m, name: e.name }, withSlugs(e.formula, (k) => made.get(k)!.slug));
-      made.set(e.pack_key, { id: m.id, slug: m.slug, name: e.name, takesValues: !e.formula });
+      made.set(e.pack_key, { id: m.id, slug: m.slug, name: e.name, key: e.pack_key, takesValues: !e.formula });
     }
     if (submitters.length) for (const e of plain) await addSubmitters(actor, made.get(e.pack_key)!.id, submitters);
     if (feed) for (const e of plain) await addFeedToMetric(actor, made.get(e.pack_key)!.id, feed);
