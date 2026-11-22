@@ -184,6 +184,7 @@ const CASES: Record<string, Case> = {
   "key-actions:createKey": { args: () => [{ name: "Visitor key", scopes: ["metrics:read"], expiresOn: day(30) }] },
   "key-actions:revokeKey": { nothing: "the demo has no Access Keys", args: () => [1] },
   "oauth/authorize/actions:answerConsent": { outside: "connects an assistant to one's own Workspace; refused during a demo visit" },
+  "observation-actions:observationDetailsAction": { reads: () => ["revenue", "2026-03-01"] },
   "paste-actions:previewPaste": { reads: () => [{ text: "Revenue\t42" }] },
   "paste-actions:recordPaste": { args: () => [{ text: "Revenue\t42" }] },
   "quick-look-actions:metricQuickLook": { reads: () => ["revenue"] },

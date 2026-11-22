@@ -10,7 +10,7 @@ const nextConfig: NextConfig = {
   // `next start` runs from the checkout, which standalone output does not support.
   ...(process.env.NEXT_OUTPUT === "standalone" ? { output: "standalone" as const, outputFileTracingRoot: path.join(__dirname, "../..") } : {}),
   // The core, the SDK and the MCP Server (served at /mcp) ship as TypeScript source inside the monorepo.
-  transpilePackages: ["@ziffr/core", "@ziffr/mcp", "@ziffr/figures", "@ziffr/pack", "@ziffr/sdk"],
+  transpilePackages: ["@ziffr/core", "@ziffr/extensions", "@ziffr/mcp", "@ziffr/figures", "@ziffr/pack", "@ziffr/sdk"],
   // No image optimizer: Ziffr does not use next/image, and /_next/image would run sharp on request (docs/security).
   images: { unoptimized: true },
   // The user guide's chapters and the glossary are read from the checkout when a page is asked for; a traced build takes them along.

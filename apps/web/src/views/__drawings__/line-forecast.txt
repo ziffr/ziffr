@@ -6,8 +6,8 @@
 <line fill=none height=198 stroke=var(--color-rule) width=392 x1=76 x2=468 x=76 y1=12 y2=12 y=12>
 <rect height=198 width=392 x=76 y=12>
 <path d=M 76,135.75 h 392 v 74.25 h -392 Z fill-opacity=0.6 fill=var(--color-band) height=74.25 radius=0 stroke-width=1 stroke=none width=392 x=76 y1=100000 y2=130000 y=135.75>
-<path d=M384,106.72320000000002L412,81.72258531654566L440,67.55344883597458L468,55.057229060743154L468,115.18770126270879L440,116.64977379844917L412,116.4389296288498L384,106.72320000000002Z fill-opacity=0.07 fill=var(--color-data) height=198 stroke-width=1 stroke=none width=392>
-<path d=M384,106.72320000000002L412,99.08075747269774L440,92.1016113172119L468,85.12246516172598 fill=none height=198 stroke-dasharray=5 4 stroke-width=1 stroke=var(--color-muted) width=392>
+<path d=M384,106.72320000000002L412,84.54223860333258L440,71.59182727169251L468,60.036475588184445L468,110.17979421507043L440,112.5336754869144L412,113.49249711062639L384,106.72320000000002Z fill-opacity=0.07 fill=var(--color-data) height=198 stroke-width=1 stroke=none width=392>
+<path d=M384,106.72320000000002L412,99.01736785697949L440,92.06275137930346L468,85.10813490162744 fill=none height=198 stroke-dasharray=5 4 stroke-width=1 stroke=var(--color-muted) width=392>
 <path d=M76,180.39900000000003L104,174.2214L132,177.02310000000003L160,169.724325L188,164.5491L216,148.69920000000002L244,149.94907500000002L272,125.16195000000002L300,128.22105000000002L328,109.953075L356,120.31590000000001L384,106.72320000000002 fill=none height=198 stroke-width=1.75 stroke=var(--color-data) width=392>
 <line angle=0 fill=none height=30 orientation=bottom stroke=var(--color-rule-2) width=392 x1=76 x2=468 x=76 y1=210 y2=210 y=210>
 <line angle=0 fill=none height=30 orientation=bottom stroke=var(--color-rule-2) width=392 x1=76 x2=76 x=76 y1=216 y2=210 y=210>
@@ -115,3 +115,18 @@
 <text fill=var(--color-muted) font-family=var(--font-outlier) font-size=12 height=198 orientation=left stroke=none text-anchor=end width=68 x=68 y=12>
 <tspan dy=0.355em x=68>
 "180k €"
+"At this pace Revenue reaches 100,000 € or more in September 2026: at least 19 in 20."
+"Too few months to check the yearly pattern against a plain trend, so a plain trend is used."
+"Worked out with a plain trend (Holt), over 24 months."
+"This assumes the pattern of the past carries on."
+"Over the last 12 months, the range for the next month would have held 7 of 12 times."
+"This carries the past forward; it is not a promise."
+"Show the numbers"
+"MethodHolt's linear trend"
+"Smoothing (level, trend, pattern)0.5, 0.1"
+"Expected150,461 €"
+"Likely between144,969 € – 155,953 €"
+"Chance of reaching the Target99 %"
+"Periods tested12"
+"Inside the range7"
+"Typical miss2,882 €"

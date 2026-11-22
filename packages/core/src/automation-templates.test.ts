@@ -16,6 +16,9 @@ const fixture = (name: string) => JSON.parse(readFileSync(new URL(`fixtures/${na
 /** A fixture whose linked external tasks belong to `system` (the fixtures link microsoft-todo). */
 const linkedTo = (name: string, system: string, id?: string) => { const f = fixture(name); f.data.external_ids = f.data.external_ids.map((e: Param) => ({ ...e, system, ...(id !== undefined ? { external_id: id } : {}) })); return f; };
 const files = readdirSync(dir).filter((f) => f.endsWith(".json"));
+/** The bridges between a Webhook and a task system (spec 0034); the Feed templates (spec 0043) have their own checks below. */
+const bridges = files.filter((f) => /-(from|to)-ziffr\.json$/.test(f));
+const feedFiles = files.filter((f) => f.endsWith("-feed.json"));
 
 const ALLOWED = new Set(["n8n-nodes-base.webhook", "n8n-nodes-base.respondToWebhook", "n8n-nodes-base.scheduleTrigger", "n8n-nodes-base.set", "n8n-nodes-base.code", "n8n-nodes-base.switch", "n8n-nodes-base.if", "n8n-nodes-base.httpRequest", "n8n-nodes-base.stickyNote"]);
 const TRIGGERS = new Set(["n8n-nodes-base.webhook", "n8n-nodes-base.scheduleTrigger"]);
@@ -31,10 +34,13 @@ describe("every template in docs/automations: generated", () => {
 
 describe("every template in docs/automations: shape", () => {
   it("has two files for each system", () => {
-    expect(files.length).toBeGreaterThanOrEqual(2);
-    for (const f of files) expect(f).toMatch(/^[a-z-]+-(from|to)-ziffr\.json$/);
+    expect(bridges.length).toBeGreaterThanOrEqual(2);
+    for (const f of bridges) expect(f).toMatch(/^[a-z-]+-(from|to)-ziffr\.json$/);
   });
-  for (const file of files) {
+  it("holds nothing else but the Feed templates and their index", () => {
+    expect([...files].sort()).toEqual([...bridges, ...feedFiles, "feed-templates.json"].sort());
+  });
+  for (const file of bridges) {
     const wf = load(file);
     it(`${file}: ids and names are unique, connections name real nodes, only allowed node types`, () => {
       expect(new Set(wf.nodes.map((n) => n.id)).size).toBe(wf.nodes.length);
@@ -73,6 +79,101 @@ describe("every template in docs/automations: shape", () => {
       for (const n of wf.nodes.filter((x) => x.type === "n8n-nodes-base.code")) expect(() => new vm.Script(`(async function(){${n.parameters.jsCode}})`), n.name).not.toThrow();
     });
   }
+});
+
+// ---- Feed templates (spec 0043) ----
+
+const FEED_ALLOWED = new Set([...ALLOWED, "n8n-nodes-base.googleSheets"]);
+type FeedIndex = { templates: { id: string; label: string; file: string; guide: string; reads: string; needs: string }[] };
+
+describe("Feed templates in docs/automations (spec 0043)", () => {
+  const index = JSON.parse(readFileSync(new URL("feed-templates.json", dir), "utf8")) as FeedIndex;
+  it("are listed, once each, with a guide", () => {
+    expect(index.templates.map((t) => t.file).sort()).toEqual([...feedFiles].sort());
+    expect(new Set(index.templates.map((t) => t.id)).size).toBe(index.templates.length);
+    for (const t of index.templates) {
+      expect(t.id).toMatch(/^[a-z][a-z0-9-]{0,39}$/);
+      expect(readFileSync(new URL(t.guide, dir), "utf8").length, t.guide).toBeGreaterThan(200);
+    }
+  });
+  for (const file of feedFiles) {
+    const wf = load(file);
+    it(`${file}: sound graph, one schedule trigger, only allowed nodes, every node reached`, () => {
+      expect(new Set(wf.nodes.map((n) => n.id)).size).toBe(wf.nodes.length);
+      const names = new Set(wf.nodes.map((n) => n.name));
+      expect(names.size).toBe(wf.nodes.length);
+      for (const [from, out] of Object.entries(wf.connections)) { expect(names.has(from)).toBe(true); for (const l of out.main.flat()) expect(names.has(l.node)).toBe(true); }
+      for (const n of wf.nodes) expect(FEED_ALLOWED.has(n.type), `${n.name}: ${n.type}`).toBe(true);
+      const triggers = wf.nodes.filter((n) => TRIGGERS.has(n.type));
+      expect(triggers.map((n) => n.type)).toEqual(["n8n-nodes-base.scheduleTrigger"]);
+      const reached = new Set([triggers[0].name]);
+      for (let grew = true; grew; ) { grew = false; for (const [from, out] of Object.entries(wf.connections)) if (reached.has(from)) for (const l of out.main.flat()) if (!reached.has(l.node)) { reached.add(l.node); grew = true; } }
+      for (const n of wf.nodes) if (n.type !== "n8n-nodes-base.stickyNote") expect(reached.has(n.name), n.name).toBe(true);
+    });
+    it(`${file}: holds no key and only placeholders, sends to the Feed endpoint with the key in a credential`, () => {
+      const text = JSON.stringify(wf);
+      expect(text).not.toMatch(/whsec_[A-Za-z0-9]{8,}|zk_[A-Za-z0-9_]{8,}|sk-[A-Za-z0-9]{10,}|Bearer [A-Za-z0-9]|eyJ[A-Za-z0-9]{10,}/);
+      const settings = wf.nodes.find((n) => n.name === "Settings")!;
+      for (const a of (settings.parameters.assignments as { assignments: { value: string }[] }).assignments) expect(a.value).toMatch(/^(https:\/\/)?REPLACE-WITH-/);
+      const send = wf.nodes.find((n) => n.name === "Send to Ziffr")!;
+      expect(String(send.parameters.url)).toContain("/api/v1/feed/observations");
+      expect(send.parameters).toMatchObject({ method: "POST", authentication: "genericCredentialType", genericAuthType: "httpHeaderAuth" });
+      expect(JSON.stringify(send.parameters.headerParameters)).not.toMatch(/authorization/i);
+      expect(JSON.stringify(send)).toContain("Ziffr Feed Key");
+    });
+    it(`${file}: every Code node is valid JavaScript`, () => {
+      for (const n of wf.nodes.filter((x) => x.type === "n8n-nodes-base.code")) expect(() => new vm.Script(`(async function(){${n.parameters.jsCode}})`), n.name).not.toThrow();
+    });
+  }
+});
+
+describe("google-sheets-feed.json: from rows to the items a Feed takes", () => {
+  const wf = load("google-sheets-feed.json");
+  const shape = (rows: Param[]) => runNode(wf, "Shape values", { items: rows.map((json) => ({ json })) }).then((x) => x[0].json as { items: Param[]; skipped: { row: number; why: string }[]; key: string });
+  // What POST /api/v1/feed/observations takes (apps/web/src/app/api/v1/schemas.ts FeedItem): a slug, an optional first day, a number.
+  const accepted = (i: Param) => Object.keys(i).every((k) => ["metric", "period", "value"].includes(k)) && /^[a-z0-9][a-z0-9-]{0,99}$/.test(String(i.metric)) && typeof i.value === "number" && Number.isFinite(i.value) && (i.period === undefined || /^\d{4}-\d{2}-\d{2}$/.test(String(i.period)));
+
+  it("sends a Metric's number for the current period, or for the period named, and nothing else of a row", async () => {
+    const out = await shape([
+      { metric: "headcount", value: "42", note: "left out", secret: "left out" },
+      { metric: " attrition ", value: 3.5, period: "2026-10-01" },
+    ]);
+    expect(out.items).toEqual([{ metric: "headcount", value: 42 }, { metric: "attrition", period: "2026-10-01", value: 3.5 }]);
+    for (const i of out.items) expect(accepted(i)).toBe(true);
+    expect(out.skipped).toEqual([]);
+  });
+  it("skips, and says why by row, what a Feed would refuse; empty rows are not mistakes", async () => {
+    const out = await shape([
+      { metric: "ok", value: "1" },
+      { metric: "", value: "" },
+      { metric: "Not A Slug", value: "1" },
+      { metric: "words", value: "twelve" },
+      { metric: "percent", value: "12%" },
+      { metric: "late", value: "1", period: "1 October" },
+      { metric: "ok", value: "2" },
+    ]);
+    expect(out.items).toEqual([{ metric: "ok", value: 1 }]);
+    expect(out.skipped.map((x) => x.row)).toEqual([4, 5, 6, 7, 8]);
+    expect(out.skipped.map((x) => x.why).join("|")).toMatch(/Metric slug.*plain number.*plain number.*YYYY-MM-DD.*twice/);
+  });
+  it("takes at most 500 items, and fails the run when there is nothing to send", async () => {
+    const many = await shape(Array.from({ length: 502 }, (_, i) => ({ metric: `m-${i}`, value: String(i) })));
+    expect(many.items).toHaveLength(500);
+    expect(many.skipped).toHaveLength(2);
+    await expect(shape([{ metric: "", value: "" }])).rejects.toThrow(/No row holds a Metric slug and a number/);
+  });
+  it("gives the same key for the same rows and another for other rows, so a retry records nothing twice", async () => {
+    const a = await shape([{ metric: "x", value: "1" }]);
+    expect((await shape([{ metric: "x", value: "1" }])).key).toBe(a.key);
+    expect((await shape([{ metric: "x", value: "2" }])).key).not.toBe(a.key);
+    expect(a.key.length).toBeLessThan(100);
+  });
+  it("fails the run on a refused item, and counts the others", async () => {
+    const nodes = { "Shape values": [{ json: { skipped: [] } }] };
+    const ok = await runNode(wf, "Check the answers", { items: [{ json: { results: [{ status: "recorded" }, { status: "awaiting_approval" }, { status: "locked" }] } }], nodes });
+    expect(ok[0].json).toMatchObject({ recorded: 1, waitingForApproval: 1, proposedAsCorrection: 1 });
+    await expect(runNode(wf, "Check the answers", { items: [{ json: { results: [{ status: "recorded" }, { status: "refused", metric: "nope", period: null, code: "not_found", detail: "No such Metric." }] } }], nodes })).rejects.toThrow(/refused 1 of 2.*nope.*not_found/);
+  });
 });
 
 // ---- the fixture run ----

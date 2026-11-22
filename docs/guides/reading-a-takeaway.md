@@ -8,7 +8,7 @@ When Ziffr looks at your numbers (which Metrics move together, what a Metric is 
 - **A strength word** in brackets: strong, moderate, weak, or can't tell from chance.
 - **What it is based on**: how many months (or weeks, or days) it looked at, and whether it compared the numbers themselves or how much they changed from one period to the next.
 - **A plain line above the sentence** when something about your data makes the reading rough. This is a caution.
-- **A footer**: "This shows what has gone together, not what caused what."
+- **A footer**: for a link between Metrics, "This shows what has gone together, not what caused what."; for a forecast, "This carries the past forward; it is not a promise." A Takeaway about one Metric's own values, or a sum worked out exactly, has none.
 - **Show the numbers**, a fold-out for people who want to check: the method, the exact figures and the periods used.
 
 ## The four strength words

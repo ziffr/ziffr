@@ -3,7 +3,7 @@ import { approvalQuestionForWeb } from "@ziffr/core/approval-question";
 import { RelativeTime } from "@/components/relative-time";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useRef, useState, useTransition } from "react";
+import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import dynamic from "next/dynamic";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { toast } from "sonner";
@@ -39,6 +39,8 @@ import { CONNECTORS, CONNECTOR_IDS, type ConnectorId } from "@ziffr/core/connect
 import { useSlotFill } from "@/components/slot-dialog";
 import { ReadOnlyFrame, frameTitle, type FrameWidget } from "./read-only-frame";
 import { WidgetScaleProvider, widgetScaleStyle, useMeasuredWidgetScale } from "@/views/widget-scale";
+import { ObservationDetailsProvider, cachedLoader } from "@/views/observation-tip";
+import { observationDetailsAction } from "@/app/observation-actions";
 import { designOf, duplicateAsDesign } from "@ziffr/core/design-files";
 import { downloadDesign } from "@/lib/design-download";
 import { Preview, TemplatePreview } from "./preview";
@@ -84,6 +86,9 @@ function InteractiveFrame({ widget, data, targets, editable = false, className, 
   const frame = useRef<HTMLDivElement>(null);
   // Its words, rows and axes grow with the card, from a usual Widget up to presenting size (#763).
   const scale = useMeasuredWidgetScale(frame);
+  // A point's popup asks the core for its Source, submitter and open Threads (#789), as the signed-in person; a widget of
+  // a Snapshot's deck (asOf) shows only what its data carries, like a View Link (read-only cards provide no loader).
+  const details = useMemo(() => (widget.settings.asOf ? null : cachedLoader(observationDetailsAction)), [widget.settings.asOf]);
   const [panel, setPanel] = useState<Panel>(null);
   const [period, setPeriod] = useState<string | null>(null);
   const [kind, setKind] = useState<ActionKind>("question");
@@ -290,6 +295,7 @@ function InteractiveFrame({ widget, data, targets, editable = false, className, 
           onContextMenuCapture={() => { setPeriod(null); setRow(null); }}
         >
           <WidgetScaleProvider value={scale}>
+          <ObservationDetailsProvider value={details}>
           <div className={cn("flex items-center gap-2 px-4 pt-3 pb-1", dragHandle && "widget-drag cursor-grab active:cursor-grabbing")}>
             {dragHandle && <GripVertical aria-hidden className="-ml-2 size-3.5 text-muted-foreground opacity-0 group-hover/widget:opacity-100" />}
             <span className="widget-text-sm truncate font-semibold">{title}</span>
@@ -318,6 +324,7 @@ function InteractiveFrame({ widget, data, targets, editable = false, className, 
             )}
             {m && templateOf(widget).kind === "metric" && <CompareStrip metric={m} data={data} keys={widget.settings.compare ?? DEFAULT_COMPARE} full={widget.settings.fullPeriods} />}
           </div>
+          </ObservationDetailsProvider>
           </WidgetScaleProvider>
         </ContextMenuTrigger>
         <ContextMenuContent className="w-56">{items(CM)}</ContextMenuContent>
