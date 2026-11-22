@@ -14,7 +14,7 @@ import { db } from "./db";
 import { outboundTls } from "./outbound-request";
 import * as hearing from "./personal-webhook-hearing";
 import { mayPeekWaitingValue, personalWebhookMayHear } from "./personal-webhook-hearing";
-import { createPersonalWebhook, listOwnPersonalWebhooks, ownPersonalWebhookLog, setPersonalWebhooksAllowed, updatePersonalWebhook } from "./personal-webhooks";
+import { createPersonalWebhook, forgetHiddenPersonalMetrics, listOwnPersonalWebhooks, ownPersonalWebhookLog, setPersonalWebhooksAllowed, updatePersonalWebhook } from "./personal-webhooks";
 import { Forbidden } from "./actor";
 import { queueWebhookEvent } from "./webhook-events";
 import { workspace } from "./test/db-fixtures";
@@ -328,6 +328,11 @@ describe("the Metrics a Personal Webhook picks", () => {
     expect(own?.metricIds).toEqual([]);
     expect(own?.hiddenMetrics).toBe(1);
     expect((await db().from("webhooks").select("metric_ids").eq("id", id).single()).data?.metric_ids).toEqual([metric.id]);
+    // The person can drop them on purpose: the server does it, and they do not come back if sight returns.
+    expect(await forgetHiddenPersonalMetrics(A, id)).toBe(1);
+    expect(await forgetHiddenPersonalMetrics(A, id)).toBe(0);
+    await w.share(metric.id, ana);
+    expect((await db().from("webhooks").select("metric_ids").eq("id", id).single()).data?.metric_ids).toEqual([]);
     expect(owner).toBeTruthy();
   });
 

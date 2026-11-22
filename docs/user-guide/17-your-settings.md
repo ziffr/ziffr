@@ -351,7 +351,7 @@ You can have three, up to 1,000 messages a day (a trial has fewer, and only publ
 - **values** recorded or unusual, for the **Metrics you pick**, up to 50, from those you see. A value waiting for approval is carried only if you may see it;
 - **your own Alerts** that name this Webhook (**Also send to** on the Alert).
 
-**Add Webhook** shows the **secret** once. Copy it: the receiver uses it to check each message's signature, and it is not shown again. Each Webhook shows its name, the address masked, what it hears and, for values, the Metrics picked; a picked Metric you no longer see is counted, never named, and nothing is sent for it.
+**Add Webhook** shows the **secret** once. Copy it: the receiver uses it to check each message's signature, and it is not shown again. Each Webhook shows its name, the address masked, what it hears and, for values, the Metrics picked; a picked Metric you no longer see is counted, never named, and nothing is sent for it. If you picked Metrics you can no longer see, the page counts them and offers **Remove the N Metrics you can no longer see**; nothing is sent for them either way, and until you remove them they come back if you see the Metric again. While your Workspace does not allow personal Webhooks, you cannot change one.
 
 | Button | What it does |
 | --- | --- |

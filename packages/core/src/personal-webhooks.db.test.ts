@@ -75,6 +75,7 @@ describe("the Workspace's switch", () => {
     // Paused, not gone: it comes back with the switch, and while off it is neither listed nor tested nor switched on.
     expect((await listOwnPersonalWebhooks(A)).webhooks).toEqual([]);
     expect(await refusal(sendTestPersonalWebhook(A, id))).toBeInstanceOf(Forbidden);
+    expect(await refusal(updatePersonalWebhook(A, id, { name: "Changed" }))).toBeInstanceOf(Forbidden);
     expect(await refusal(createPersonalWebhook(A, { name: "Another", url: URL1 }))).toBeInstanceOf(Forbidden);
     await setPersonalWebhooksAllowed(O, true);
     expect((await listOwnPersonalWebhooks(A)).webhooks.map((x) => x.id)).toEqual([id]);
