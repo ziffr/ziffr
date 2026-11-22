@@ -20,7 +20,7 @@ export const PERSONAL_WEBHOOK_PICKED_METRICS_MAX = 50;
 /** What happened, as ids: an Action event, or a value event of one Metric and period. */
 export type PersonalEvent =
   | { type: "action.created" | "action.updated" | "action.answered" | "action.done"; actionId: number }
-  | { type: "value.recorded" | "value.unusual"; metricId: number; period: string };
+  | { type: "value.recorded" | "value.unusual" | "alert.fired"; metricId: number; period: string };
 
 /** What the person may hear of an event: the Action (opened) given to them or asked by them, or the Metric of a value
  * event (whether they may see a waiting value is asked after the value is read: mayPeekWaitingValue). */
@@ -75,7 +75,8 @@ export async function personalWebhookMayHear(person: Actor, event: PersonalEvent
   const { metricId, period } = event as { metricId: number; period: string };
   if (!Number.isInteger(metricId) || typeof period !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(period)) return null;
   const metric = metrics.find((m) => m.id === metricId);
-  if (!metric || metric.archived_at || metric.formula) return null;
+  // An Alert may be on a Derived Metric (it fires when its inputs change); the value events are for the Metrics themselves.
+  if (!metric || metric.archived_at || (metric.formula && event.type !== "alert.fired")) return null;
   if (!(await visibleMetricIds(ws, person.personId, metrics)).has(metric.id)) return null;
   return { kind: "value", metric, period };
 }

@@ -28,6 +28,7 @@ import { periodStart } from "./periods";
 import { yearStartFor, yearStartOf } from "./fiscal-year";
 import { numberStyleOf } from "./workspace-settings";
 import { ensureWorkspaceKey } from "./workspace-keys";
+import { resolveTagWidgets } from "./tag-widgets";
 
 const inDemo = (actor: Actor) => actor.workspaceId === DEMO_WORKSPACE_ID;
 const isAdmin = async (actor: Actor) => actor.role === "owner" || actor.role === "admin";
@@ -243,7 +244,7 @@ export async function metricExtras(actor: Actor, metricId: number, period: Perio
 /** The actor's saved widgets (their Pool). */
 export async function savedWidgets(actor: Actor): Promise<Widget[]> {
   const { data } = await db().from("widgets").select("*").eq("workspace_id", actor.workspaceId).eq("owner_id", actor.personId).eq("saved", true).order("id");
-  return ((await openRows("widgets", actor.workspaceId, data)) as Widget[]).map(widgetWithoutOutside);
+  return resolveTagWidgets(actor, ((await openRows("widgets", actor.workspaceId, data)) as Widget[]).map(widgetWithoutOutside), true);
 }
 
 /** A deck of the workspace with the actor's role on it; for one not shared with them, only who to ask. */
@@ -270,9 +271,11 @@ export async function deckDocuments(actor: Actor) {
 
 /** The widgets of a dashboard the actor sees, in reading order; Forbidden otherwise. */
 export async function dashboardWidgets(actor: Actor, dashboardId: number): Promise<Widget[]> {
-  if (!(await visibleDashboards(actor.workspaceId, actor.personId)).some((d) => d.id === dashboardId)) throw new Forbidden();
+  const dash = (await visibleDashboards(actor.workspaceId, actor.personId)).find((d) => d.id === dashboardId);
+  if (!dash) throw new Forbidden();
   const { data } = await db().from("widgets").select("*").eq("workspace_id", actor.workspaceId).eq("dashboard_id", dashboardId).order("y").order("x");
-  return ((await openRows("widgets", actor.workspaceId, data)) as Widget[]).map(widgetWithoutOutside);
+  // A widget of "all Metrics tagged X" draws what this viewer sees on their own, not what the dashboard's Share opens (spec 0038).
+  return resolveTagWidgets(actor, ((await openRows("widgets", actor.workspaceId, data)) as Widget[]).map(widgetWithoutOutside), dash.role === "owner" || dash.role === "editor");
 }
 
 /** For a dashboard of the workspace that is not shared with the actor: whom to ask. Null when there is none here. */

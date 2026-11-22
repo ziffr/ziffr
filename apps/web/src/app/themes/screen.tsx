@@ -13,7 +13,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { ThemeScope } from "@/components/theme-scope";
 import { WidgetFrame, type FrameWidget } from "@/components/widget-frame";
 import { VersionsPanel } from "@/components/versions-panel";
-import { addStandardTheme, deleteTheme, duplicateTheme, importTheme, saveTheme, setDefaultTheme } from "@/app/theme-actions";
+import { addStandardTheme, deleteTheme, duplicateTheme, importTheme, saveTheme, setDefaultTheme, themeLogoSource } from "@/app/theme-actions";
 import { downloadTheme } from "@/lib/theme-download";
 import { isActionError } from "@/lib/action-error";
 import { checkThemeFile, THEME_FILE_LIMITS } from "@ziffr/core/theme-file";
@@ -181,7 +181,13 @@ export function ThemesScreen({ data, current, standardKey, workspaceName }: { da
             </div>
           )}
           <div className="flex flex-wrap gap-1 border-t border-border pt-3">
-            {can && !current.is_default && <Button type="button" variant="ghost" size="sm" disabled={pending} onClick={() => act(() => setDefaultTheme(current.id), `${current.name} is now the team default`)}><Star aria-hidden /> Make team default</Button>}
+            {can && !current.is_default && <Button type="button" variant="ghost" size="sm" disabled={pending} onClick={() => act(async () => {
+              // A Theme that shows a Pack's logo asks once: the team default dresses what the Workspace sends.
+              const from = unwrap(await themeLogoSource(current.id));
+              if (from && !(await confirm({ title: `Make ${current.name} the team default?`, description: `This Theme shows ${from.author || "the author"}\u2019s logo, from the Pack ${from.pack}. The team default Theme also dresses your emails, forms, View Link pages and Slack messages.`, confirmLabel: "Make team default" }))) return;
+              unwrap(await setDefaultTheme(current.id));
+              toast.success(`${current.name} is now the team default`);
+            })}><Star aria-hidden /> Make team default</Button>}
             {can && <Button type="button" variant="ghost" size="sm" disabled={pending} onClick={() => act(async () => { const id = unwrap(await duplicateTheme(current.id)); router.push(`/themes?id=${id}`); })}><Copy aria-hidden /> Duplicate</Button>}
             <Button type="button" variant="ghost" size="sm" onClick={() => downloadTheme(draft.name, draft.tokens, draft.slides)}><FileDown aria-hidden /> Export as file</Button>
             {!standardKey && <Button type="button" variant="ghost" size="sm" onClick={() => setVersions(true)}><GitBranch aria-hidden /> Versions</Button>}

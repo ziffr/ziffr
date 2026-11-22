@@ -14,7 +14,7 @@ import { db } from "./db";
 import { outboundTls } from "./outbound-request";
 import * as hearing from "./personal-webhook-hearing";
 import { mayPeekWaitingValue, personalWebhookMayHear } from "./personal-webhook-hearing";
-import { createPersonalWebhook, ownPersonalWebhookLog, setPersonalWebhooksAllowed, updatePersonalWebhook } from "./personal-webhooks";
+import { createPersonalWebhook, listOwnPersonalWebhooks, ownPersonalWebhookLog, setPersonalWebhooksAllowed, updatePersonalWebhook } from "./personal-webhooks";
 import { Forbidden } from "./actor";
 import { queueWebhookEvent } from "./webhook-events";
 import { workspace } from "./test/db-fixtures";
@@ -323,6 +323,11 @@ describe("the Metrics a Personal Webhook picks", () => {
     // One already picked stays when the person no longer sees it; a new one must be seen.
     await updatePersonalWebhook(A, id, { metricIds: [metric.id] });
     expect(await refused(updatePersonalWebhook(A, id, { metricIds: [] }))).toBeNull();
+    // The page gets a count, never the id of a Metric the person lost sight of, and saving keeps that pick.
+    const own = (await listOwnPersonalWebhooks(A)).webhooks.find((h) => h.id === id);
+    expect(own?.metricIds).toEqual([]);
+    expect(own?.hiddenMetrics).toBe(1);
+    expect((await db().from("webhooks").select("metric_ids").eq("id", id).single()).data?.metric_ids).toEqual([metric.id]);
     expect(owner).toBeTruthy();
   });
 

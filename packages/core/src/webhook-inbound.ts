@@ -83,8 +83,10 @@ export async function authenticateWebhookRequest(webhookId: string, req: Inbound
   let name = String(data.name).slice(0, 80);
   if (owner) {
     const { data: p } = await db().from("profiles").select("id, name").eq("id", owner).maybeSingle();
-    const who = p ? String((await openNames(ws, [p]))[0].name ?? "").trim().slice(0, 40) : "";
-    name = `${name} (${who ? `${who}'s` : "personal"} Webhook)`;
+    const who = p ? String((await openNames(ws, [p]))[0].name ?? "").trim().slice(0, 20) : "";
+    // Fits the Thread's 80 characters whatever the name, and ends in the Webhook's own id so two of the same name never share a label or an hourly count.
+    const suffix = ` (${who ? `${who}'s` : "personal"} Webhook ${String(data.id).slice(0, 4)})`;
+    name = String(data.name).slice(0, Math.max(1, 80 - suffix.length)) + suffix;
   }
   return { ok: true, actor: { webhookId: String(data.id), workspaceId: ws, webhook: true, name, ...(owner ? { owner } : {}) } };
 }
@@ -241,7 +243,7 @@ export async function applyWebhookAction(actor: WebhookActor, input: unknown): P
     plainOnly(row);
     if (row.status !== "open") return { changed: false, status: row.status };
     const changed = await finishTask(ws, row.id, by, source);
-    if (changed) { await note(ws, row, by, `Marked done in ${actor.name}`, actor.name); await audited(actor, "webhook.marked_done", ref(row)); }
+    if (changed) { await audited(actor, "webhook.marked_done", ref(row)); await note(ws, row, by, `Marked done in ${actor.name}`, actor.name); }
     return { changed, status: await statusOf(ws, row.id) };
   }
 
@@ -253,7 +255,7 @@ export async function applyWebhookAction(actor: WebhookActor, input: unknown): P
     if (await closedBySystem(ws, row)) throw new WebhookRequestError("conflict", "Ziffr closed this Task itself; it cannot be reopened from outside.");
     const r = await changeActionState(ws, row.id, { to: "open", from: ["answered"], guard: { kind: "task", assigneeId: row.assignee_id, purpose: "plain_or_escalation" } }, source);
     if (r.refused) throw new WebhookRequestError("conflict", "This Task cannot be reopened.");
-    if (r.changed) { await note(ws, row, by, `Reopened in ${actor.name}`, actor.name); await audited(actor, "webhook.reopened", ref(row)); }
+    if (r.changed) { await audited(actor, "webhook.reopened", ref(row)); await note(ws, row, by, `Reopened in ${actor.name}`, actor.name); }
     return { changed: r.changed, status: r.status ?? row.status };
   }
 

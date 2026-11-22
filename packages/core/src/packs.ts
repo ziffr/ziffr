@@ -16,6 +16,7 @@ import { dashboardTemplateFromFile, templateSlots } from "./dashboard-template-f
 import { deckTemplateFromFile } from "./deck-template-file";
 import { workflowTemplateFromFile } from "./workflow-template-file";
 import { themeFromFile } from "./theme-file";
+import { packLogoAddress } from "./brand-logo";
 import { cleanLogo, logoRatio, PACK_LOGO_MAX_BYTES } from "@ziffr/pack/logo";
 import { checkViewDesignValue, type ViewDesign } from "./view-design";
 import { tagNamesOf, TAGS_PER_ENTRY } from "./tag-names";
@@ -31,12 +32,15 @@ export type PackPreviewItem =
   | { kind: "deck"; key: string; name: string; description: string; slots: Slot[]; slides: number }
   | { kind: "workflow"; key: string; name: string; description: string; body: WorkflowTemplateBody }
   | { kind: "view"; key: string; name: string; description: string; body: ViewDesign }
-  | { kind: "theme"; key: string; name: string; tokens: ThemeTokens };
+  | { kind: "theme"; key: string; name: string; tokens: ThemeTokens; /** The Theme comes with the Pack's logo (`"logo": "pack"`). */ logo: boolean };
 
 /** What a person sees of a Pack before installing it: its manifest, every item, and what to know first. */
 export type PackPreview = {
   manifest: Omit<Pack, "contents">;
   items: PackPreviewItem[];
+  /** The Pack's logo, checked again and written out as Ziffr keeps it (a data address), or null. It is drawn only in an
+   * `img` in a bordered box (spec 0039); the file is not installed yet, so it has no address of its own. */
+  logo: string | null;
   /** The file came from outside the Marketplace: shown as UNSIGNED_WARNING, and installing asks to confirm it. */
   unsigned: boolean;
   /** Texts that address an AI assistant, by where they are, for a person to read before installing. */
@@ -70,6 +74,11 @@ export function packLogoOf(pack: Pick<Pack, "logo">): string | null {
   const clean = cleanLogo(pack.logo, PACK_LOGO_MAX_BYTES);
   if (!clean) throw new Error("The Pack's logo is not a picture Ziffr keeps; nothing was added.");
   return clean;
+}
+
+/** The Pack's logo for showing, or null when it has none or none that passes (never throws). */
+export function safeLogo(pack: Pick<Pack, "logo">): string | null {
+  try { return packLogoOf(pack); } catch { return null; }
 }
 
 /** What is hashed of a Theme (spec 0039): its name, tokens and slide settings, with the logo as the word "pack" where it
@@ -176,9 +185,9 @@ export async function previewPack(actor: Actor, text: string, origin: PackOrigin
     ...(pack.contents.decks ?? []).map(({ key }): PackPreviewItem => { const t = templates.get(key)!; return { kind: "deck", key, name: t.name, description: t.description, slots: t.slots, slides: (t.body as DeckTemplateBody).slides.length }; }),
     ...(pack.contents.workflows ?? []).map(({ key }): PackPreviewItem => { const t = templates.get(key)!; return { kind: "workflow", key, name: t.name, description: t.description, body: t.body as WorkflowTemplateBody }; }),
     ...[...(pack.contents.views ?? []), ...(pack.contents.analyses ?? [])].map(({ key }): PackPreviewItem => { const v = views.get(key)!; return { kind: "view", key, name: v.name, description: v.body.description ?? "", body: v.body }; }),
-    ...stored.themes.map((t): PackPreviewItem => ({ kind: "theme", key: t.key, name: t.name, tokens: t.tokens })),
+    ...stored.themes.map((t): PackPreviewItem => ({ kind: "theme", key: t.key, name: t.name, tokens: t.tokens, logo: Boolean(t.slides.logo) })),
   ];
-  return { ok: true, preview: { manifest: manifestOf(pack), items, unsigned: !origin.signed, assistantTexts: res.assistantTexts.map(({ path, text: t }) => ({ path, text: t })), blocked: await blockedFor(actor, pack) } };
+  return { ok: true, preview: { manifest: { ...manifestOf(pack), logo: undefined }, items, logo: safeLogo(pack), unsigned: !origin.signed, assistantTexts: res.assistantTexts.map(({ path, text: t }) => ({ path, text: t })), blocked: await blockedFor(actor, pack) } };
 }
 
 /** Installs an uploaded Pack file (Owners and Admins; Owners for one with Themes; never in the demo), after the person
@@ -226,6 +235,8 @@ export type InstalledPack = {
   id: number; packId: string; name: string; version: string; license: string; author: string; summary: string;
   source: "upload" | "marketplace"; signed: boolean; installedAt: string; installedBy: string | null;
   listing: { homepage?: string; support?: string };
+  /** The address of its logo on this site (signed-in people of the Workspace only), or null. */
+  logo: string | null;
   added: { kind: "metric" | "dashboard" | "deck" | "workflow" | "view" | "theme"; name: string }[];
 };
 
@@ -256,7 +267,7 @@ export async function listInstalledPacks(actor: Actor): Promise<InstalledPack[]>
     return {
       id: Number(r.id), packId: String(r.pack_id), name: m.name, version: String(r.version), license: String(r.license), author: m.author?.name ?? "", summary: m.summary ?? "",
       source: r.source as "upload" | "marketplace", signed: Boolean(r.signed), installedAt: String(r.installed_at), installedBy: (r.installed_by as string | null) ?? null,
-      listing: m.listing ?? {}, added: added.get(Number(r.id)) ?? [],
+      listing: m.listing ?? {}, logo: packLogoAddress(ws, Number(r.id), (r.manifest as { logo?: unknown } | null)?.logo), added: added.get(Number(r.id)) ?? [],
     };
   });
 }

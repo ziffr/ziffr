@@ -29,6 +29,8 @@ export default async function PacksPage() {
         installed={installed.map((p) => ({ ...p, installedBy: p.installedBy ? people[p.installedBy]?.name ?? null : null }))}
         manages={manages}
         exportable={options}
+        // The exporter's own name, as the editable Author of the Pack they export.
+        authorName={people[actor.personId]?.name ?? ""}
         offers={offers}
         marketplace={market}
         updates={updates}

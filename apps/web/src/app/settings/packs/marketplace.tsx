@@ -15,6 +15,7 @@ import type { MarketplaceListing } from "@ziffr/core/marketplace";
 import type { PackPreview } from "@ziffr/core/packs";
 import type { UpdatePlan } from "@ziffr/core/pack-updates";
 import type { NumberStyle } from "@ziffr/core/number-style";
+import { LogoChange } from "./pack-logo";
 import { PackPreviewCard } from "./screen";
 
 /** Searching the Marketplace and installing a Pack from it. */
@@ -88,6 +89,7 @@ export function MarketplaceUpdate({ installId, name, version }: { installId: num
           <DialogContent className="max-h-[90vh] max-w-2xl overflow-y-auto">
             <DialogTitle>Update {name} from {plan.from} to {plan.to}</DialogTitle>
             <DialogDescription>From the Marketplace: its signature holds. What you changed stays as you made it; the new version is offered beside it.{plan.major ? " A new major version: it may change how things look or work." : ""}</DialogDescription>
+            <LogoChange logo={plan.logo} author={plan.author} />
             <ul className="space-y-1 text-sm">
               {plan.items.map((i) => <li key={i.key}>{i.name}: <span className="text-muted-foreground">{i.change}{i.changedHere ? ", changed here" : ""}</span></li>)}
             </ul>

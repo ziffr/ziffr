@@ -178,6 +178,9 @@ Like Trials, this section exists only on hosted Ziffr. It lists the Trial Limits
 - **Days a trial lasts** (1 to 30; empty: 14). Applies to trials made afterwards.
 - **Days a trial's data stays after it ends** (1 to 60; empty: 7).
 - **Trials at once** (1 to 100,000; empty: 500).
+- **People in a trial** (1 to 25; empty: 5). Members, Admins and Guests, the Owner and the invitations that are still open included.
+- **Invitation emails a trial sends a day** (0 to 50; empty: 10). Resends count; 0 means trials send none.
+- **Invitation emails all trials send a day** (0 to 5,000; empty: 500). The lever against a campaign that mails strangers; 0 means trials send none.
 - **Metrics** (5 to 100; empty: 25).
 - **Messages a trial sends a day** (10 to 500; empty: 100). Over email, Slack and Telegram together.
 - **Access Keys that work** (1 to 10; empty: 2).

@@ -19,7 +19,7 @@ import { webhookRules } from "./webhook-trial";
 import { WEBHOOK_NAME_MAX, WEBHOOK_SECRET_OVERLAP_HOURS, WEBHOOK_URL_MAX } from "./webhook-limits";
 import { isIP } from "node:net";
 
-/** The events a Webhook may choose (spec 0034, "Events").  `alert.fired` is sent only for a Workflow's Tell step that names the Webhook, never for a personal Alert. */
+/** The events a Webhook may choose (spec 0034, "Events").  `alert.fired` is sent to a Workspace Webhook only for a Workflow's Tell step that names it, and to a Personal Webhook only for its person's own Alert that names it (spec 0037). */
 export const WEBHOOK_EVENTS = ["action.created", "action.updated", "action.answered", "action.done", "value.recorded", "value.unusual", "alert.fired"] as const;
 /** One event a Webhook may choose. */
 export type WebhookEvent = (typeof WEBHOOK_EVENTS)[number];

@@ -2,7 +2,7 @@
 
 A **Pack** is one file of things to add to a Workspace: Metric Catalog entries, Dashboard and Deck Templates, View Designs, Analysis Recipes, Workflow Templates and Themes. It holds no code. Each thing in it is a document in a format Ziffr already checks, and Ziffr checks it exactly as it would on its own. The Pack only wraps them, with a manifest that names the Pack, its version, its author and its license.
 
-The quickest start is **Export as Pack** in Ziffr (below). Check a Pack on your own computer with the same checks Ziffr runs, from [`@ziffr/pack`](../../packages/pack/README.md) (MIT):
+For the logo, sizes and the checks in one place, see [For Pack creators](pack-creators.md). The quickest start is **Export as Pack** in Ziffr (below). Check a Pack on your own computer with the same checks Ziffr runs, from [`@ziffr/pack`](../../packages/pack/README.md) (MIT):
 
 ```sh skip="installs a package and needs a Pack file of your own"
 npx @ziffr/pack check saas.pack.json
@@ -113,7 +113,7 @@ Under **Workspace → Packs**, **Export as Pack…** makes a Pack of things you 
 
 - It holds Metric Descriptions only, never a value, an owner, a Submitter or a Token, and only of Metrics you see.
 - A Slot suggests the catalog entry of the Metric the template was made with, when that Metric is in the Pack too. A Derived Metric goes in only with the Metrics it is computed from.
-- Words that a Pack may not hold, such as a description with a web address, stay out of the file. Images, logos and drawings on slides stay out as well. Ziffr lists everything that stayed out, and why.
+- Words that a Pack may not hold, such as a description with a web address, stay out of the file. Drawings on slides stay out, and so does every logo but the one you choose: under **Logo** you take the logo of one of your Themes or upload a picture, and Themes that use it say `"logo": "pack"`. The **Author** starts as your name and is the publisher the logo is shown with. Ziffr lists everything that stayed out, and why.
 - Things a Pack installed keep their keys, so exporting what a Pack added gives the same file again.
 
 ## Licenses

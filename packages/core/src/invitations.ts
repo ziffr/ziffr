@@ -11,7 +11,7 @@ import { DEMO_WORKSPACE_ID } from "./team";
 import { linkTo } from "./deliveries";
 import { brandedParts, headerSafe, sentByLine, isAddress, mailboxKey, mailOn, sendMail, type MailTransport } from "./mail";
 import { audit, recordAudit } from "./audit-log";
-import { assertNotTrial } from "./trials";
+import { assertNotTrial, trialEnded, trialInvitationMessage, trialLimitMessage } from "./trials";
 import { refuseInDemo } from "./demo";
 import { recordPersonalWebhookEnds } from "./personal-webhooks";
 
@@ -69,7 +69,11 @@ async function emailInvitation(id: number, sender: string, transport?: MailTrans
     p_invitation: inv.id, p_sender: sender, p_address_key: mailboxKey(inv.email),
     p_per_workspace: await sendingLimit("invitationsPerWorkspace"), p_per_address: INVITATION_EMAILS_PER_ADDRESS, p_per_sender: INVITATION_EMAILS_PER_SENDER,
   });
-  if (error) return false;
+  if (error) {
+    // A trial's own limit (ZF436): kept on the invitation, never dropped; the Owner sends the link themselves.
+    if (error.code === "ZF436") await db().from("invitations").update({ email_error: trialInvitationMessage(error) }).eq("id", id);
+    return false;
+  }
   if (claim === "limit") {
     await db().from("invitations").update({ email_error: "Too many invitation emails today; send the link yourself." }).eq("id", id);
     return false;
@@ -106,7 +110,8 @@ async function emailInvitation(id: number, sender: string, transport?: MailTrans
  * Contact makes them a member who keeps their history. Returns the token for the link the invitee follows, and whether the email really went out (false when mail is not set up, the daily limit held it back, or the mail server refused it). */
 export async function inviteByEmail(actor: Actor, input: { email: string; role: WorkspaceRoleName; contactPersonId?: string | null }, transport?: MailTransport): Promise<{ token: string; emailed: boolean }> {
   notDemo(actor);
-  await assertNotTrial(actor.workspaceId, "Inviting people");
+  // A trial may invite (ADR 0015) while it runs, within the Trial Limits the database keeps.
+  if (await trialEnded(actor.workspaceId)) throw new Forbidden("This trial has ended: nobody can be invited.");
   assertMayGrant(actor, input.role);
   const email = String(input.email ?? "").trim().toLowerCase();
   // The same check as sending, so an invitation is never made for an address mail cannot go to.
@@ -118,8 +123,11 @@ export async function inviteByEmail(actor: Actor, input: { email: string; role: 
   const t = token();
   const { data: made, error } = await db().from("invitations").insert({
     workspace_id: actor.workspaceId, token: t, email, role: input.role, contact_person_id: input.contactPersonId ?? null,
-    created_by: actor.personId, expires_at: new Date(Date.now() + 14 * DAY).toISOString(),
+    created_by: actor.personId, expires_at: new Date(Date.now() + 14 * DAY).toISOString(), address_key: mailboxKey(email),
   }).select("id").single();
+  // The trial's limits (people, one open invitation per address, no invitation before the Owner's first value) are the database's.
+  if (error?.code === "ZF436") throw new Error(trialInvitationMessage(error));
+  if (error?.code === "ZF435" || error?.code === "ZF439") throw new Error(trialLimitMessage(error.code)!);
   if (error || !made) throw new Error("The invitation could not be made.");
   // A Contact is named, not addressed: their address is a contact detail and stays out of the record.
   const name = input.contactPersonId ? await personName(input.contactPersonId, actor.workspaceId) : email;
@@ -131,8 +139,8 @@ export async function inviteByEmail(actor: Actor, input: { email: string; role: 
 /** Emails an open invitation again, for Owners and Admins: at most three sends in all, a minute apart. */
 export async function resendInvitation(actor: Actor, id: number, transport?: MailTransport): Promise<void> {
   notDemo(actor);
-  await assertNotTrial(actor.workspaceId, "Inviting people");
   assertCan(actor, "manage-members");
+  if (await trialEnded(actor.workspaceId)) throw new Forbidden("This trial has ended: nothing is sent any more.");
   if (!(await mailOn())) throw new Error("Email is not set up on this Ziffr.");
   const { data: inv } = await db().from("invitations").select("id, email, email_sends, email_sent_at, revoked_at, accepted_at, expires_at").eq("id", Number(id)).eq("workspace_id", actor.workspaceId).maybeSingle();
   if (!inv || !inv.email || inv.revoked_at || inv.accepted_at || new Date(inv.expires_at).getTime() < Date.now()) throw new Forbidden();
@@ -185,21 +193,26 @@ export async function acceptInvitation(who: SignedIn, t: string): Promise<string
   if (!/^[A-Za-z0-9_-]{20,64}$/.test(String(t))) throw new Forbidden();
   const { data: inv } = await db().from("invitations").select("*").eq("token", t).maybeSingle();
   if (!inv || inv.revoked_at || inv.accepted_at || inv.expires_at <= new Date().toISOString()) throw new Error("This invitation does not work any more. Ask for a new one.");
-  // An invitation made before the workspace became a trial cannot exist, but a trial never takes a second person.
-  await assertNotTrial(inv.workspace_id as string, "Joining");
+  // In a trial only an invitation by email works, while it runs: a link cannot be counted or limited by address.
+  if (await trialEnded(inv.workspace_id as string)) throw new Error("This invitation does not work any more. The trial has ended.");
+  if (!inv.email) await assertNotTrial(inv.workspace_id as string, "Joining by a link");
   if (inv.email && inv.email !== who.verifiedEmail?.toLowerCase()) throw new Error(`This invitation is for ${inv.email}. Sign in with that address.`);
+  let existing: { role: string } | null = null;
   if (inv.email) {
-    // Claimed first, so the same email invitation cannot be used twice at once.
-    const { data: claimed } = await db().from("invitations").update({ accepted_at: new Date().toISOString(), accepted_by: who.personId }).eq("id", inv.id).is("accepted_at", null).select("id");
-    if (!claimed?.length) throw new Error("This invitation was used already.");
-  }
-  const { data: existing } = await db().from("memberships").select("role").eq("workspace_id", inv.workspace_id).eq("user_id", who.personId).maybeSingle();
-  if (!existing) {
-    const { error } = await db().from("memberships").insert({ workspace_id: inv.workspace_id, user_id: who.personId, role: inv.role });
-    if (error) {
-      // Not used up by a failed join: the invitation works again.
-      if (inv.email) await db().from("invitations").update({ accepted_at: null, accepted_by: null }).eq("id", inv.id);
-      throw new Error("Joining did not work. Try again.");
+    // One database step: the Workspace's row is locked, the invitation re-checked as open, marked accepted and the
+    // person made a member, so accepts and invitations at once cannot pass a trial's people limit or reuse it.
+    const { data: ex } = await db().from("memberships").select("role").eq("workspace_id", inv.workspace_id).eq("user_id", who.personId).maybeSingle();
+    existing = ex;
+    const { data: result, error } = await db().rpc("accept_email_invitation", { p_invitation: inv.id, p_person: who.personId });
+    if (error) throw new Error("Joining did not work. Try again.");
+    if (result === "full") throw new Error("This trial already holds as many people as it may. Ask whoever invited you.");
+    if (result !== "ok") throw new Error("This invitation does not work any more. Ask for a new one.");
+  } else {
+    const { data: ex } = await db().from("memberships").select("role").eq("workspace_id", inv.workspace_id).eq("user_id", who.personId).maybeSingle();
+    existing = ex;
+    if (!existing) {
+      const { error } = await db().from("memberships").insert({ workspace_id: inv.workspace_id, user_id: who.personId, role: inv.role });
+      if (error) throw new Error("Joining did not work. Try again.");
     }
   }
   if (inv.contact_person_id && inv.contact_person_id !== who.personId) {

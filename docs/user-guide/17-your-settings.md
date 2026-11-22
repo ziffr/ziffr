@@ -1,5 +1,5 @@
 <!-- part: Screen by screen -->
-<!-- screens: apps/web/src/app/settings/appearance/**, apps/web/src/app/login/**, apps/web/src/app/demo/**, apps/web/src/app/settings/schedule/**, apps/web/src/app/schedule/**, apps/web/src/app/settings/profile/**, apps/web/src/app/settings/deliveries/**, apps/web/src/app/settings/alerts/**, apps/web/src/components/alerts.tsx, apps/web/src/app/settings/assistants/**, apps/web/src/app/oauth/authorize/**, apps/web/src/components/app-shell.tsx, apps/web/src/components/nav-parts.tsx, apps/web/src/components/view-as.tsx, apps/web/src/components/demo-controls.tsx, apps/web/src/components/tour.tsx -->
+<!-- screens: apps/web/src/app/settings/appearance/**, apps/web/src/app/login/**, apps/web/src/app/demo/**, apps/web/src/app/settings/schedule/**, apps/web/src/app/schedule/**, apps/web/src/app/settings/profile/**, apps/web/src/app/settings/deliveries/**, apps/web/src/app/settings/alerts/**, apps/web/src/components/alerts.tsx, apps/web/src/app/settings/assistants/**, apps/web/src/app/settings/your-webhooks/**, apps/web/src/app/oauth/authorize/**, apps/web/src/components/app-shell.tsx, apps/web/src/components/nav-parts.tsx, apps/web/src/components/view-as.tsx, apps/web/src/components/demo-controls.tsx, apps/web/src/components/tour.tsx -->
 # Signing in and your own settings
 
 This chapter covers what is yours rather than the team's: signing in, the demo, the sidebar, and your own pages: **My schedule**, **Your profile**, **Appearance**, **Your Deliveries** and **Your Alerts**. Everyone has them, whatever their role. The team's pages are in [Workspace settings](16-workspace-settings.md).
@@ -251,6 +251,8 @@ Now and then, where an Installation Admin has turned it on (hosted Ziffr does), 
 
 Open it from your own menu at the bottom of the sidebar, or from **Alerts** in the settings area. An **Alert** is your own standing request to be told when a Metric you see reaches a level; you set one with **Alert me…** on the Metric's page (see [The Metrics screens](10-metrics.md#the-buttons-at-the-top)). This page lists every Alert you hold in the current Workspace on a Metric you can still see, with its condition, the way it is delivered, and where it stands: **waiting**, **fired** (quiet until the condition has been false again) and when it last fired. The page says the limits: the Alerts you may hold in a Workspace (20 unless the Workspace or Installation sets fewer), at most 5 on one Metric, and the Alert messages a day (20 unless set lower, which you can do under [Your limits](#your-limits)).
 
+If you have a **Personal Webhook** (your Workspace allows them and you added one under Your Webhooks), the Alert form has **Also send to** with your Webhooks as tick boxes, none ticked at first. You are still told the usual way; a ticked Webhook also gets an `alert.fired` message, once each time the Alert fires, with the Metric, period, value, target, the condition and a link. It is your own Webhook receiving your own Alert, so only a Metric you see is sent, checked again when the message goes out: if you lose sight of the Metric, pause the Alert, take the Webhook off it, switch the Webhook off or delete it, or the value no longer meets the condition by then, nothing is sent and nothing in the log says so. A Webhook must have ticked the event `alert.fired` to be offered (the form says so beside one that has not), and an Alert on "has no value the day after its Due Date" cannot name one, since there is no value to send. Up to 3 Webhooks per Alert. An assistant or program cannot name a Webhook on your Alert; only you can, here.
+
 On a Metric's page, **Alert me…** opens the same list and the form for another Alert in a panel on the right, over the page; its address ends in `?panel=alert`.
 
 Each Alert has three buttons: **Pause** (or **Resume**), **Edit** and **Delete**. Besides your own pause, Ziffr can hold an Alert back and says why: **you cannot see this Metric now**, **the Metric is archived**, **the Metric has no target now** or **the Metric has no Workflow now**. It resumes by itself when the reason ends (except for no target or no Workflow, which you end by editing the condition). An Alert on a Metric you can no longer see is not listed at all, and nothing is sent for it. Alerts are only yours: nobody sets one for you or sees yours. In the demo the page is read-only.
@@ -338,3 +340,25 @@ You do not need a Starter. Some examples:
 - It never shares anything, deletes a dashboard, makes a View Link, changes who may see what, changes a Metric's name, description, period or Workflow, adds or removes a Workflow's steps, or changes settings.
 - Everything it does shows in the Access Log.
 - It answers from what Ziffr gives it, but it can still misread a number. Check what it says before you pass it on, and ask it to show the values it used.
+
+## Your Webhooks
+
+**You → Your Webhooks** lists the **Personal Webhooks** you added for yourself in this Workspace: an address outside Ziffr, such as your own n8n flow, that gets a signed message when something happens. Yours hears only what you may see here, checked at the moment it is sent, and acts as you: ticking a task off in your own list marks it done in Ziffr as you. Without the Workspace's switch the page says "Your Workspace does not allow personal Webhooks; ask an Owner or Admin" and shows none; an Owner or Admin switches it on under **Workspace → Webhooks** ([Workspace settings](16-workspace-settings.md#personal-webhooks)). Owners, Admins and Members have it; Guests and the demo do not.
+
+You can have three, up to 1,000 messages a day (a trial has fewer, and only public addresses). Type a **name**, the **address**, which must start with `https://`, and tick what it hears, none by default:
+
+- the tasks and questions **given to you or asked by you**: given, changed, answered, done;
+- **values** recorded or unusual, for the **Metrics you pick**, up to 50, from those you see. A value waiting for approval is carried only if you may see it;
+- **your own Alerts** that name this Webhook (**Also send to** on the Alert).
+
+**Add Webhook** shows the **secret** once. Copy it: the receiver uses it to check each message's signature, and it is not shown again. Each Webhook shows its name, the address masked, what it hears and, for values, the Metrics picked; a picked Metric you no longer see is counted, never named, and nothing is sent for it.
+
+| Button | What it does |
+| --- | --- |
+| **Change** | Changes the name, the events and Metrics, or the address |
+| **Send test event** | Sends a `ping` now, at most once a minute |
+| **Replace secret** | Makes a new secret, shown once; the old one still signs for 24 hours, so the receiver can switch without a gap |
+| **Switch off** / **Switch on** | A switched-off Webhook gets nothing; switching on again resends nothing |
+| The bin icon | Deletes it after asking, also while the Workspace's switch is off |
+
+Under each, **Log** lists its sends of the last 14 days: when, the event, what it is about, the state and the answer. A Webhook that keeps failing is switched off by Ziffr and you are told. An Owner or Admin sees that you have a Webhook, whose it is, the address masked and when it last sent, never what it sent, and can remove it; you are then told who did. It ends when you leave the Workspace. Messages leave Ziffr in clear text over TLS and the receiving system keeps them as it sees fit.

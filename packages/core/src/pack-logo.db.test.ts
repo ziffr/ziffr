@@ -4,7 +4,7 @@
 import { afterEach, describe, expect, it } from "vitest";
 import { db } from "./db";
 import { installPackFile, itemHash, packLogoOf, storedItems, themeHashInput } from "./packs";
-import { readPackUpdate, updatePackFile, uninstallPack } from "./pack-updates";
+import { readPackUpdate, readUninstall, takeNewVersion, updatePackFile, uninstallPack } from "./pack-updates";
 import { brandLogo, hashOf } from "./brand-logo";
 import { saveTheme, setDefaultTheme } from "./workspace-themes";
 import { PACK } from "./pack.test";
@@ -177,5 +177,68 @@ describe("uninstalling with a logo", () => {
     const kept = (await db().from("themes").select("slides, pack_install_id").eq("id", t.id).single()).data!;
     expect(kept.pack_install_id).toBeNull();
     expect((kept.slides as { logo: string }).logo).toBe(LOGO);
+  });
+});
+
+describe("a new version without a logo, or with another, for the Themes", () => {
+  it("takes the logo away from an unchanged Theme, and leaves a changed one as it is", async () => {
+    const w = await ws(); const ann = await w.person("owner"); const actor = w.actor(ann);
+    const id = await installPackFile(actor, file(withLogo(LOGO)), yes);
+    await updatePackFile(actor, id, file(withLogo(undefined, false, "1.3.0")), yes);
+    expect(((await theme(w.id))!.slides as { logo: unknown }).logo).toBeNull();
+
+    const w2 = await ws(); const bea = await w2.person("owner"); const actor2 = w2.actor(bea);
+    const id2 = await installPackFile(actor2, file(withLogo(LOGO)), yes);
+    const t = (await theme(w2.id))!;
+    await saveTheme(actor2, t.id, "Ours", t.tokens as ThemeTokens, t.slides as ThemeSlides);
+    await updatePackFile(actor2, id2, file(withLogo(undefined, false, "1.3.0")), yes);
+    expect(((await theme(w2.id))!.slides as { logo: string }).logo).toBe(LOGO);
+  });
+
+  it("Take the new version gives the Pack's new logo to a Theme that still has the old one, and never replaces the Owner's own", async () => {
+    const make = async (own: string | null | undefined) => {
+      const w = await ws(); const ann = await w.person("owner"); const actor = w.actor(ann);
+      const id = await installPackFile(actor, file(withLogo(LOGO)), yes);
+      const t = (await theme(w.id))!;
+      await saveTheme(actor, t.id, "Ours", t.tokens as ThemeTokens, { ...(t.slides as ThemeSlides), ...(own === undefined ? {} : { logo: own, logo_ratio: 3 }) });
+      const next = withLogo(OTHER, true, "1.3.0");
+      await updatePackFile(actor, id, file(next), yes);
+      await takeNewVersion(actor, "themes", t.id);
+      return (await theme(w.id))!;
+    };
+    const kept = await make(undefined);
+    expect((kept.slides as { logo: string }).logo).toBe(OTHER);
+    expect(kept.name).toBe(THEME.name);
+    expect(((await make(png(50, 50))).slides as { logo: string }).logo).toBe(png(50, 50));
+    expect(((await make(null)).slides as { logo: unknown }).logo).toBeNull();
+  });
+});
+
+const byId = async (id: number) => (await db().from("themes").select("slides").eq("id", id).single()).data!;
+describe("uninstalling and the Pack's logo in kept Themes", () => {
+  async function kept(own?: string) {
+    const w = await ws(); const ann = await w.person("owner"); const actor = w.actor(ann);
+    const id = await installPackFile(actor, file(withLogo(LOGO)), yes);
+    const t = (await theme(w.id))!;
+    await saveTheme(actor, t.id, "Ours", t.tokens as ThemeTokens, { ...(t.slides as ThemeSlides), ...(own ? { logo: own, logo_ratio: 3 } : {}) });
+    return { w, actor, id, t };
+  }
+  it("lists the Themes that still show it, and removes it only when asked", async () => {
+    const a = await kept();
+    expect((await readUninstall(a.actor, a.id)).logo).toEqual({ author: PACK.author.name, themes: ["Ours"] });
+    await uninstallPack(a.actor, a.id);
+    expect(((await byId(a.t.id)).slides as { logo: string }).logo).toBe(LOGO);
+
+    const b = await kept();
+    await uninstallPack(b.actor, b.id, { removeLogo: true });
+    expect((await byId(b.t.id)).slides).toMatchObject({ logo: null, logo_ratio: 3 });
+    const events = await opened("audit_events", b.w.id, (await db().from("audit_events").select("id, details").eq("workspace_id", b.w.id).eq("kind", "pack.uninstalled")).data, { dropId: true });
+    expect(events).toEqual([{ details: { pack: "ziffr/saas-metrics", version: "1.2.0", removed: 8, kept: 1, logo_removed_from: 1 } }]);
+  });
+  it("never touches a logo the Owner chose", async () => {
+    const c = await kept(OTHER);
+    expect((await readUninstall(c.actor, c.id)).logo).toBeNull();
+    await uninstallPack(c.actor, c.id, { removeLogo: true });
+    expect(((await byId(c.t.id)).slides as { logo: string }).logo).toBe(OTHER);
   });
 });

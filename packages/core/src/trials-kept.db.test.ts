@@ -28,11 +28,11 @@ async function keepOnFree() {
   forgetStoredSettings(); await syncDefaultLimit(true);
 }
 
-/** A Trial Workspace ending `hours` from now, with an Owner, a Member, three Metrics and a key asking for 90 days. */
+/** A Trial Workspace ending `hours` from now, with an Owner, a Contact, three Metrics and a key asking for 90 days. */
 async function trial(hours: number) {
   const w = await workspace("Trial");
   cleanups.push(async () => { await db().from("access_keys").delete().eq("workspace_id", w.id); await w.cleanup(); });
-  const owner = await w.person("owner"); const ben = await w.person("member");
+  const owner = await w.person("owner"); const ben = await w.contact({ email: `ben-${randomUUID().slice(0, 8)}@example.test` });
   for (let i = 0; i < 3; i++) await w.metric(owner, { name: `M${i}` });
   await db().from("workspaces").update({ trial_ends_at: new Date(Date.now() + 2 * HOUR).toISOString() }).eq("id", w.id);
   const { id: keyId } = await createAccessKey(w.actor(owner), { name: "Script", scopes: ["metrics:read"], expiresOn: day(90) });

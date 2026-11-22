@@ -89,7 +89,7 @@ describe.skipIf(!openssl)("alert.fired through a Tell step", () => {
     // The row holds ids only: no value, no name.
     // Ids and timestamps are random or move, so the columns themselves are checked: none can hold a value or a name.
     const row = (await sends(c.w))[0];
-    expect(Object.keys(row).sort()).toEqual(["action_id", "attempts", "claimed_at", "created_at", "delivered_at", "failure", "id", "last_attempt_at", "metric_id", "next_attempt_at", "period_start", "reason", "source_type", "source_webhook_id", "state", "status_code", "tell_step_id", "thread_message_id", "type", "webhook_id", "workflow_id", "workspace_id"]);
+    expect(Object.keys(row).sort()).toEqual(["action_id", "alert_id", "attempts", "claimed_at", "created_at", "delivered_at", "failure", "id", "last_attempt_at", "metric_id", "next_attempt_at", "period_start", "reason", "source_type", "source_webhook_id", "state", "status_code", "tell_step_id", "thread_message_id", "type", "webhook_id", "workflow_id", "workspace_id"]);
     expect(row.tell_step_id).toBe("step-one-aaaa");
     // Every other column, apart from ids and timestamps, is checked as a whole word for the value and the name.
     const free: Record<string, unknown> = { ...row };

@@ -21,6 +21,7 @@ Decks, Themes, View Designs, the canvas, Packs and the pages that edit them are 
 - `saveToPool` (dashboards.ts): the dashboard canvas
 - `deleteSavedWidget` (dashboards.ts): the dashboard canvas
 - `setDashboardTheme` (dashboards.ts): Themes
+- `fixTagLists` (tag-lists.ts): the View links window's Fix the list; a Tag source on a widget is not in the API yet (spec 0038)
 - `canvasAdd` (dashboards.ts): the dashboard canvas
 - `canvasRemove` (dashboards.ts): the dashboard canvas
 - `canvasSet` (dashboards.ts): the dashboard canvas
@@ -55,6 +56,8 @@ Decks, Themes, View Designs, the canvas, Packs and the pages that edit them are 
 - `previewPack` (packs.ts): Packs
 - `installPackFile` (packs.ts): Packs
 - `installPack` (packs.ts): Packs
+- `listInstalledPacks` (packs.ts): Packs
+- `packLogo` (brand-logo.ts): Packs
 - `previewValues` (paste-values.ts): pasting a table of values (the API takes values one by one)
 - `recordPastedValues` (paste-values.ts): pasting a table of values (the API takes values one by one)
 - `recordingOffer` (record-own-value.ts): the Metric page's Record a value form; a program submits through the API's own path
@@ -187,6 +190,7 @@ Settings an Owner or Installation Admin makes at the screen. Programs with a key
 - `ownPersonalWebhookLog` (personal-webhooks.ts): Personal Webhooks pages (spec 0037, ticket 5); never the API or MCP on purpose, since changing where data leaves is what a prompt-injected assistant would be asked to do
 - `listPersonalWebhooksForAdmin` (personal-webhooks.ts): Personal Webhooks pages (spec 0037, ticket 5); never the API or MCP on purpose, since changing where data leaves is what a prompt-injected assistant would be asked to do
 - `personalWebhookLogForAdmin` (personal-webhooks.ts): Personal Webhooks pages (spec 0037, ticket 5); never the API or MCP on purpose, since changing where data leaves is what a prompt-injected assistant would be asked to do
+- `alertWebhookChoices` (alerts.ts): the Alert form (spec 0037, ticket 4); never the API or MCP on purpose, since changing where data leaves is what a prompt-injected assistant would be asked to do
 - `removePersonalWebhook` (personal-webhooks.ts): Personal Webhooks pages (spec 0037, ticket 5); never the API or MCP on purpose, since changing where data leaves is what a prompt-injected assistant would be asked to do
 - `personalWebhookMayHear` (personal-webhook-hearing.ts): what a Personal Webhook is sent at send time (spec 0037); never the API or MCP on purpose, it decides what leaves for a Webhook
 - `checkedPickedMetrics` (personal-webhook-hearing.ts): checks the Metrics picked on the Personal Webhooks pages (spec 0037, ticket 5); never the API or MCP on purpose, since changing where data leaves is what a prompt-injected assistant would be asked to do
@@ -263,6 +267,7 @@ Reads for a screen that also note that something was seen or logged; the API has
 - `workspaceValuesCsv` (unused-workspaces.ts): reads Workspace words, which opening needs the Workspace's key for (spec 0028); the API has its own reads
 - `versionAccess` (version-history.ts): reads Workspace words, which opening needs the Workspace's key for (spec 0028); the API has its own reads
 - `listVersions` (version-history.ts): reads Workspace words, which opening needs the Workspace's key for (spec 0028); the API has its own reads
+- `trialUsage` (trial-usage.ts): the trial bar and Try it show an Owner or Admin what the trial has used; the API has no such page
 
 ## keys-only: needs a person's check
 
@@ -288,6 +293,9 @@ Plumbing the core's other operations use, jobs the schedule runs, and the demo.
 
 - `tagSight` (tag-sight.ts): the one reading of who sees which Tag that the app and the API both use; it changes nothing itself
 - `changeMetricTags` (tags.ts): the one change behind setMetricTags, addMetricTags and removeMetricTags; the API reaches it through `tags` on create and update
+- `resolveTagWidgets` (tag-widgets.ts): works out the Metrics of a widget of all Metrics tagged X for one viewer when a dashboard is drawn; read by the pages
+- `followMergedTag` (tag-lists.ts): part of merging Tags, which is not in the API or the MCP Server on purpose (spec 0038)
+- `recordedWidgets` (tag-widgets.ts): the same, for a deck or Snapshot that records the Metrics of the moment
 - `applyWebhookAction` (webhook-inbound.ts): a Webhook's own signed route, `POST /api/webhooks/{id}/in`, not an Access Key's
 - `askMeNowBy` (ask-now.ts): used by the Connectors' reply handling
 - `handover` (cloud-api.ts): hands a Workspace over, for Ziffr Cloud

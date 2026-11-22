@@ -475,12 +475,23 @@ describe("a Personal Webhook's status back, as its person", () => {
   }
   const authors = async (id: number) => openRows("thread_messages", scope, ((await db().from("thread_messages").select("id, author_id, via, body").eq("action_id", id).order("id")).data ?? []) as Record<string, unknown>[]);
 
+  it("takes a Webhook with the longest name: the Thread line and the Audit entry are written, and the hourly limit counts it", async () => {
+    const c = await personal();
+    const long = await createPersonalWebhook(c.A, { name: "N".repeat(80), url: `https://localhost:${port}/long`, events: ["action.created"] });
+    const id = await c.task(); await c.sent(id, long);
+    expect(await c.call(long, { op: "done", ref: `ZIF-${id}` })).toEqual({ changed: true, status: "answered" });
+    const lines = await authors(id);
+    expect(lines).toHaveLength(1);
+    expect(String(lines[0].via).length).toBeLessThanOrEqual(80);
+    expect((await db().from("audit_events").select("kind").eq("workspace_id", c.w.id).eq("kind", "webhook.marked_done")).data?.length).toBeGreaterThan(0);
+  });
+
   it("marks a task done as the person, with the Webhook named in the Thread and the Audit Log, and the event marked as its", async () => {
     const c = await personal();
     const id = await c.task(); await c.sent(id, c.mine);
     expect(await c.call(c.mine, { op: "done", ref: `ZIF-${id}` })).toEqual({ changed: true, status: "answered" });
     expect(await c.call(c.mine, { op: "done", ref: `ZIF-${id}` })).toEqual({ changed: false, status: "answered" });
-    expect(await authors(id)).toMatchObject([{ author_id: c.ann, via: expect.stringMatching(/^My Tasks \(.+ Webhook\)$/), body: expect.stringMatching(/^Marked done in My Tasks \(.+ Webhook\)$/) }]);
+    expect(await authors(id)).toMatchObject([{ author_id: c.ann, via: expect.stringMatching(/^My Tasks \(.+ Webhook [0-9a-f]{4}\)$/), body: expect.stringMatching(/^Marked done in My Tasks \(.+ Webhook [0-9a-f]{4}\)$/) }]);
     expect((await c.rows(id, "action.done")).map((r) => [r.source_type, r.source_webhook_id])).toContainEqual(["webhook", c.mine.id]);
     const { data: log } = await db().from("audit_events").select("object_id, actor_name").eq("workspace_id", c.w.id).eq("kind", "webhook.marked_done");
     expect(log).toEqual([{ object_id: c.mine.id, actor_name: expect.stringMatching(/^Webhook My Tasks \(/) }]);

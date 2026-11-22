@@ -13,7 +13,7 @@ import { shown, unwrap } from "@/lib/action-error";
 import { createWebhook, deleteWebhook, replaceWebhookSecret, resendWebhookSend, sendTestWebhook, setWebhookEnabled, updateWebhook } from "@/app/webhook-actions";
 
 /** The events a Webhook may choose, in words (the same list as the core's WEBHOOK_EVENTS). */
-const EVENTS: { id: string; label: string }[] = [
+export const EVENTS: { id: string; label: string }[] = [
   { id: "action.created", label: "A task or question is given" },
   { id: "action.updated", label: "A task or question changes" },
   { id: "action.answered", label: "A question is answered" },
@@ -25,10 +25,10 @@ const EVENTS: { id: string; label: string }[] = [
 
 const STATE: Record<string, string> = { queued: "waiting", sending: "sending", retrying: "will try again", delivered: "delivered", failed: "failed", dropped: "not sent" };
 const FAILURE: Record<string, string> = { timeout: "no answer in time", network: "could not connect", refused: "address refused", too_big: "message too big", status: "the address refused it", gone: "the address is gone (410)", key: "secret missing" };
-const when = (iso: string) => new Date(iso).toLocaleString(undefined, { dateStyle: "short", timeStyle: "short" });
-const OFF: Record<string, string> = { owner: "switched off", failing: "switched off because it kept failing", gone: "switched off because its address is gone" };
+export const when = (iso: string) => new Date(iso).toLocaleString(undefined, { dateStyle: "short", timeStyle: "short" });
+export const OFF: Record<string, string> = { owner: "switched off", failing: "switched off because it kept failing", gone: "switched off because its address is gone" };
 
-type Run = (f: () => Promise<unknown>, ok?: string) => void;
+export type Run = (f: () => Promise<unknown>, ok?: string) => void;
 
 /** The workspace's Webhooks and a form to add one. */
 export function Webhooks({ webhooks, logs, limits }: { webhooks: WebhookInfo[]; logs: Record<string, WebhookLogEntry[]>; limits: { most: number; days: number; perDay: number; trial: boolean } }) {
@@ -38,7 +38,7 @@ export function Webhooks({ webhooks, logs, limits }: { webhooks: WebhookInfo[]; 
   return (
     <section aria-labelledby="webhooks-heading" className="space-y-4 border-t border-border pt-6">
       <div>
-        <h2 id="webhooks-heading" className="font-medium">Webhooks</h2>
+        <h2 id="webhooks-heading" className="font-medium">Workspace Webhooks</h2>
         <p className="max-w-prose text-sm text-muted-foreground">
           A Webhook is an address outside Ziffr that gets a signed message when something happens here, such as a task given or done. A program there, such as n8n, passes it on to another system. It belongs to the workspace and keeps working when the person who set it up leaves. A Workspace can have {limits.most} Webhooks, up to {limits.perDay.toLocaleString()} messages a day; the log below keeps {limits.days} days.{limits.trial && " In a trial the address has to be public: one inside a private network is refused."}
         </p>
@@ -62,11 +62,11 @@ export function Webhooks({ webhooks, logs, limits }: { webhooks: WebhookInfo[]; 
   );
 }
 
-function Events({ chosen, onChange, disabled }: { chosen: string[]; onChange: (events: string[]) => void; disabled?: boolean }) {
+export function Events({ chosen, onChange, disabled, list = EVENTS }: { chosen: string[]; onChange: (events: string[]) => void; disabled?: boolean; list?: { id: string; label: string }[] }) {
   return (
     <fieldset className="space-y-1" disabled={disabled}>
       <legend className="text-xs text-muted-foreground">Events it gets</legend>
-      {EVENTS.map((e) => (
+      {list.map((e) => (
         <label key={e.id} className="flex items-center gap-2 text-sm">
           <input type="checkbox" checked={chosen.includes(e.id)} onChange={(ev) => onChange(ev.target.checked ? [...chosen, e.id] : chosen.filter((x) => x !== e.id))} />
           {e.label}
@@ -125,7 +125,7 @@ function WebhookCard({ hook: w, log, pending, run, onSecret }: { hook: WebhookIn
   );
 }
 
-function Log({ log, name, pending, run, canResend }: { log: WebhookLogEntry[]; name: string; pending: boolean; run: Run; canResend: boolean }) {
+export function Log({ log, name, pending, run, canResend }: { log: WebhookLogEntry[]; name: string; pending: boolean; run: Run; canResend: boolean }) {
   if (!log.length) return <p className="text-muted-foreground">Nothing sent yet.</p>;
   return (
     <details>

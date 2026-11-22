@@ -5,14 +5,31 @@
 import type { Slot } from "@ziffr/core/types";
 
 /** One field per Slot: a list to pick one Metric from, or boxes to tick for a Slot of several. */
-export function SlotFills({ slots, metrics, fills, onChange }: { slots: Pick<Slot, "label" | "multiple">[]; metrics: { id: number; name: string }[]; fills: number[][]; onChange: (fills: number[][]) => void }) {
+export function SlotFills({ slots, metrics, fills, onChange, tags = [], tagFillable = [], tagFills = [], onTagFills }: {
+  slots: Pick<Slot, "label" | "multiple">[]; metrics: { id: number; name: string }[]; fills: number[][]; onChange: (fills: number[][]) => void;
+  /** The Tags this person sees, and which Slots one may fill ("All Metrics tagged…", GLOSSARY: Tag); the choice per Slot. */
+  tags?: { id: string; name: string }[]; tagFillable?: boolean[]; tagFills?: (string | null)[]; onTagFills?: (tags: (string | null)[]) => void;
+}) {
   const setFills = onChange;
   return (
     <>
     {slots.map((slot, i) => (
       <fieldset key={i} className="space-y-1">
         <legend className="text-sm font-medium">{slot.label}{slot.multiple && <span className="font-normal text-muted-foreground">, one or more</span>}</legend>
-        {slot.multiple ? (
+        {slot.multiple && onTagFills && tagFillable[i] && tags.length > 0 && (
+          <select
+            aria-label={`${slot.label}: which Metrics`}
+            value={tagFills[i] ?? ""}
+            onChange={(e) => onTagFills(slots.map((_, j) => (j === i ? e.target.value || null : tagFills[j] ?? null)))}
+            className="h-9 w-full rounded-[var(--radius-input)] border border-input bg-card px-2 text-sm"
+          >
+            <option value="">Pick Metrics by hand</option>
+            {tags.map((t) => <option key={t.id} value={t.id}>All Metrics tagged {t.name}</option>)}
+          </select>
+        )}
+        {tagFills[i] ? (
+          <p className="text-sm text-muted-foreground">Shows every Metric with this Tag that the person looking may see. A Metric tagged later appears by itself.</p>
+        ) : slot.multiple ? (
           <ul className="max-h-40 space-y-0.5 overflow-y-auto rounded-[var(--radius-input)] border border-input p-1.5">
             {metrics.map((m) => {
               const on = fills[i]?.includes(m.id) ?? false;

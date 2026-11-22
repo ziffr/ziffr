@@ -31,7 +31,7 @@ const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const COLUMNS = `${WEBHOOK_COLUMNS}, owner_id, metric_ids`;
 
 /** A Personal Webhook as its person reads it: the address masked, never the secret. `paused` when the Workspace's switch is off. */
-export type PersonalWebhookInfo = WebhookInfo & { paused: boolean; /** The Metrics picked for the value events (spec 0037). */ metricIds: number[] };
+export type PersonalWebhookInfo = WebhookInfo & { paused: boolean; /** The picked Metrics the person sees now (spec 0037). */ metricIds: number[]; /** How many more were picked that they no longer see: counted, never named or numbered. */ hiddenMetrics: number };
 
 /** A Personal Webhook as an Owner or Admin reads it: whose it is, the address masked, and when it last sent. */
 export type PersonalWebhookAdminInfo = WebhookInfo & { ownerId: string; ownerName: string; lastSendAt: string | null };
@@ -121,7 +121,14 @@ export async function listOwnPersonalWebhooks(actor: Actor): Promise<{ allowed: 
   const { data } = await db().from("webhooks").select(COLUMNS).eq("workspace_id", actor.workspaceId).eq("owner_id", actor.personId).order("created_at", { ascending: false });
   const rows = await openRows("webhooks", actor.workspaceId, (data ?? []) as Record<string, unknown>[]);
   const now = Date.now();
-  return { allowed, webhooks: rows.map((r) => ({ ...webhookInfo(r, now), paused: !allowed, metricIds: ((r.metric_ids as number[] | null) ?? []).map(Number) })) };
+  // Only picks the person sees now leave the core; the rest are a count (rule 3: carry only what is needed).
+  const picks = rows.flatMap((r) => ((r.metric_ids as number[] | null) ?? []).map(Number));
+  const seen = picks.length ? await visibleMetricIds(actor.workspaceId, actor.personId, await getMetrics(actor.workspaceId)) : new Set<number>();
+  return { allowed, webhooks: rows.map((r) => {
+    const all = ((r.metric_ids as number[] | null) ?? []).map(Number);
+    const metricIds = all.filter((id) => seen.has(id));
+    return { ...webhookInfo(r, now), paused: !allowed, metricIds, hiddenMetrics: all.length - metricIds.length };
+  }) };
 }
 
 /** The Metrics already picked on the actor's own Webhook. */
@@ -139,7 +146,13 @@ export async function updatePersonalWebhook(actor: Actor, id: string, change: { 
   const patch: Record<string, unknown> = { updated_at: new Date().toISOString() };
   if (change.name !== undefined) patch.name = cleanName(change.name);
   if (change.events !== undefined) patch.events = cleanEvents(change.events);
-  if (change.metricIds !== undefined) patch.metric_ids = await checkedPickedMetrics(actor, change.metricIds, await currentPicks(actor, String(row.id)));
+  if (change.metricIds !== undefined) {
+    // The page only knows the picks the person sees now: the ones they lost sight of stay on the Webhook until they are dropped by the person's own sight (never sent), so the list the person submits is merged with them.
+    const current = await currentPicks(actor, String(row.id));
+    const seen = current.length ? await visibleMetricIds(actor.workspaceId, actor.personId, await getMetrics(actor.workspaceId)) : new Set<number>();
+    const keptHidden = current.filter((id) => !seen.has(id));
+    patch.metric_ids = await checkedPickedMetrics(actor, [...new Set([...(Array.isArray(change.metricIds) ? change.metricIds : []), ...keptHidden])].slice(0, 100), current);
+  }
   if (change.url !== undefined) patch.url = (await sealRow("webhooks", actor.workspaceId, { id: String(row.id), url: await checkedAddress(change.url, rules?.privateHosts ?? []) })).url;
   const { data: changed, error } = await db().from("webhooks").update(patch).eq("id", String(row.id)).eq("workspace_id", actor.workspaceId).eq("owner_id", actor.personId).select("id");
   if (error) throw new Error("The Webhook could not be saved. Try again in a moment.");
@@ -233,7 +246,8 @@ export async function listPersonalWebhooksForAdmin(actor: Actor): Promise<Person
   const names = new Map((await openNames(actor.workspaceId, people ?? [])).map((p) => [String(p.id), String(p.name ?? "")]));
   const last = new Map(lasts.filter(([, at]) => at).map(([id, at]) => [id, String(at)]));
   const now = Date.now();
-  return rows.map((r) => ({ ...webhookInfo(r, now), ownerId: String(r.owner_id), ownerName: names.get(String(r.owner_id)) ?? "", lastSendAt: last.get(String(r.id)) ?? null }));
+  // Admins get the host only: some tools make a subdomain or the start of the path the secret, and what was sent is the person's.
+  return rows.map((r) => ({ ...webhookInfo(r, now), address: maskedHost(String(r.url ?? "")), ownerId: String(r.owner_id), ownerName: names.get(String(r.owner_id)) ?? "", lastSendAt: last.get(String(r.id)) ?? null }));
 }
 
 /** The statuses and times of one Personal Webhook's sends, for Owners and Admins: never what was sent. */

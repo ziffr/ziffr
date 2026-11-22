@@ -270,7 +270,7 @@ describe("the Admins' list and removal", () => {
     for (const a of [D, O]) {
       const list = await listPersonalWebhooksForAdmin(a);
       expect(list.map((x) => [x.ownerId, x.name]).sort()).toEqual([[ana, "Ana's"], [bo, "Bo's"]].sort());
-      expect(list.find((x) => x.ownerId === ana)).toMatchObject({ ownerName: expect.stringContaining("member"), events: ["action.done"], enabled: true, address: "https://n8n.example.test/webhook/……" });
+      expect(list.find((x) => x.ownerId === ana)).toMatchObject({ ownerName: expect.stringContaining("member"), events: ["action.done"], enabled: true, address: expect.not.stringContaining("/webhook") });
       expect(list.find((x) => x.ownerId === ana)!.lastSendAt).toBeTruthy();
       expect(list.find((x) => x.ownerId === bo)!.lastSendAt).toBeNull();
       expect(JSON.stringify(list)).not.toMatch(/s3cret|whsec_|secret-path/);

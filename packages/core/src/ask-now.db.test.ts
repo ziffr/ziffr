@@ -66,7 +66,7 @@ describe("Ask me now", () => {
     expect(results.map((r) => r.chosen)).toEqual([true, false]);
     expect(results[0].state).toBe("sent");
     await expect(askMeNowBy(w.actor(sara), m.id, ["nope" as never])).rejects.toBeInstanceOf(Forbidden);
-    expect(shownReason(TRIAL_HOLDS_BACK.notOwner)).toBe(TRIAL_HOLDS_BACK.notOwner);
+    expect(shownReason(TRIAL_HOLDS_BACK.contact)).toBe(TRIAL_HOLDS_BACK.contact);
     expect(shownReason("550 5.1.1 <x@y>: Recipient address rejected by smtp.example")).toBe(NOT_DELIVERED);
     expect(shownReason(null)).toBeNull();
   });
