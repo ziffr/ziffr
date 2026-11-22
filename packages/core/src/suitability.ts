@@ -11,12 +11,12 @@ import { builtFrom, MIN_PAIRS, pearson } from "./correlation";
 import { fractionOf, lowestTerms, minus, nearest, over, plus, times, type Fraction } from "./exact";
 import { FORECAST_MIN_POINTS } from "./forecast";
 import { periodsBetween, type Span } from "./periods";
-import { strengthOf } from "./takeaways/strength";
+import { RANK_SPREAD, strengthOf } from "./takeaways/strength";
 import type { CaseKey, Slots } from "./takeaways/wording";
 import type { Metric, Point } from "./types";
 
 /** The Methods that run the checks; a Method's entry in `APPLIES` says which. */
-export type MethodId = "correlation" | "drivers" | "lag" | "fit" | "predict" | "needs" | "whatIf" | "forecast" | "trend" | "seasonal" | "changePoint" | "afterDate" | "usualRange";
+export type MethodId = "correlation" | "spearman" | "partial" | "drivers" | "lag" | "fit" | "predict" | "needs" | "whatIf" | "forecast" | "trend" | "seasonal" | "changePoint" | "afterDate" | "usualRange";
 /** Another Method a check may ask for instead: the Method says which it can use through `canSwitchTo`. */
 export type SwitchTo = "rank-correlation" | "data-after" | "holt" | "percent-ranges" | "first-pass";
 /** The checks, in the order they are run. */
@@ -62,6 +62,9 @@ export const SUITABILITY = {
 /** Which checks each Method runs ("Applies to" in the spec's table); periods, variation and gaps apply to every Method. */
 export const APPLIES: Record<MethodId, readonly CheckId[]> = {
   correlation: ["periods", "vary", "gaps", "far-off", "skew-ties", "changing"],
+  // Ranks are not pulled by a far-off value or skew, so only what is left of the checks applies to a rank correlation.
+  spearman: ["periods", "vary", "gaps", "far-off", "changing"],
+  partial: ["periods", "vary", "gaps", "far-off", "too-many"],
   drivers: ["periods", "vary", "gaps", "far-off", "skew-ties", "changing"],
   lag: ["periods", "vary", "gaps", "far-off", "skew-ties", "changing"],
   fit: ["periods", "vary", "gaps", "mixed", "far-off", "skew-ties", "straight-line", "changing", "spread", "too-many"],
@@ -98,6 +101,8 @@ export type SuitabilityInputs = {
   seasonLength?: number;
   /** The Method's result with these periods left out (empty: the result itself); null where it cannot say. Without it, far-off values are not judged. */
   rerun?: (left: ReadonlySet<string>) => Rerun;
+  /** That the Method's answer is a rank correlation, so a link that changed is judged by ranks too. */
+  rank?: boolean;
   /** The width of the scale of a result that has no range of its own (for r, 1). */
   scale?: number;
   /** A fit's misses with the level they belong to (the fitted value), for the straight-line and spread checks. */
@@ -121,10 +126,13 @@ export function minimumPeriods(method: MethodId, opts: { drivers?: number; seaso
   const m = SUITABILITY.minimum;
   switch (method) {
     case "correlation":
+    case "spearman":
     case "drivers":
       return m.correlation;
     case "lag":
       return m.lag;
+    // Held-the-same Metrics count as drivers of a fit with the pair's second Metric: one more than the Metrics held the same.
+    case "partial":
     case "fit":
     case "predict":
     case "needs":
@@ -351,17 +359,19 @@ function changing(inputs: SuitabilityInputs): Finding[] {
   const both = x.filter((p) => ys.has(p.period)).map((p) => p.period);
   const h = both.length >> 1;
   if (h < SUITABILITY.changing.half) return [];
-  // Pairing x with only the periods of a half leaves just that half's pairs.
+  // The link in a half is the Method's own statistic: Pearson's r, or the rank correlation where the answer is one.
+  const [mx, my] = [new Map(x.map((p) => [p.period, p.value])), new Map(y.map((p) => [p.period, p.value]))];
   const halfR = (periods: string[]) => {
-    const keep = new Set(periods);
     // Each half has at least the 6 pairs a correlation needs.
-    return pearson(x, y.filter((p) => keep.has(p.period)))!.r;
+    if (!inputs.rank) return pearson(periods.map((p) => ({ period: p, value: mx.get(p)! })), periods.map((p) => ({ period: p, value: my.get(p)! })))!.r;
+    const found = rankAssociation(periods.map((p) => mx.get(p)!), periods.map((p) => my.get(p)!));
+    return found ? (found.negative ? -1 : 1) * Math.sqrt(nearest(found.rho2)) : NaN;
   };
   // A half that does not vary has no r (NaN), and linkChange says nothing of it.
   const [first, last] = [halfR(both.slice(0, h)), halfR(both.slice(both.length - h))];
   const change = linkChange(first, last);
   const cases = { flipped: "caution-link-flipped", weaker: "caution-link-weaker", stronger: "caution-link-stronger" } as const;
-  return change ? [{ case: cases[change], slots: { latest: strengthOf(last, h) } }] : [];
+  return change ? [{ case: cases[change], slots: { latest: strengthOf(last, inputs.rank ? 3 + (h - 3) / RANK_SPREAD : h) } }] : [];
 }
 
 /** How a link changed between the first and the last half of the history, from the two r: "flipped" (opposite signs, both at
