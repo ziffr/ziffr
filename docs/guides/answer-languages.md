@@ -10,7 +10,7 @@ No migration is needed: the database stores a Workspace's Answer Languages as co
 
 ## 1. Start the file
 
-```sh
+```sh skip="writes a file in this repository"
 node scripts/answer-words.mjs pt
 ```
 
@@ -41,7 +41,7 @@ Leave out number words ("deux", "a dozen"): "one of our customers" would otherwi
 
 Each row in `SENTENCES` is an answer with what `readAnswer` must find for a weekly, monthly, quarterly and yearly Metric (today is 18 November 2026, the Fiscal Year starts in April), or why it must ask back. Give your language at least the common shapes:
 
-```ts
+```ts skip="a fragment of a test table, not a program"
 { lang: "pt", text: "na semana passada tivemos 2 inscrições", week: v(2, "2026-11-09"), month: NOT, quarter: NOT, year: NOT },
 { lang: "pt", text: "outubro: 12,5", week: NOT, month: v(12.5, "2026-10-01"), quarter: NOT, year: NOT },
 { lang: "pt", text: "ontem 340", ...now(340) },

@@ -11,7 +11,7 @@ Both end with the same [checklist](#before-you-invite-anyone). The [scheduled jo
 
 You need Docker with Compose 2.24 or newer, and about 1 GB of free memory.
 
-```sh
+```sh skip="installs Ziffr with Docker"
 curl -fsSL https://github.com/ziffr/ziffr/releases/latest/download/compose.yml -o compose.yml
 docker compose up -d
 ```
@@ -22,7 +22,7 @@ On a server, point a domain at it, open ports 80 and 443, and put `ZIFFR_DOMAIN=
 
 Or let the installer ask for the folder, the domain and the mail server:
 
-```sh
+```sh skip="installs Ziffr with Docker"
 curl -fsSL https://github.com/ziffr/ziffr/releases/latest/download/install.sh | sh
 ```
 
@@ -51,7 +51,7 @@ Ziffr keeps everything in Postgres. The server makes outgoing connections only t
 1. Create a Supabase project (or run Supabase yourself).
 2. Apply Ziffr's migrations from a checkout of the release you run:
 
-   ```sh
+   ```sh skip="needs a Supabase project of your own"
    supabase link --project-ref <your project ref>
    supabase db push
    ```
@@ -110,7 +110,7 @@ Keep the secrets in your platform's secret store, never in the repository.
 
 With pnpm and Node 22, from the repository root:
 
-```sh
+```sh skip="builds and starts the app; CI already does this before the examples run"
 pnpm install --frozen-lockfile
 pnpm --filter @ziffr/web build
 pnpm --filter @ziffr/web start        # listens on port 3000; set PORT to change it

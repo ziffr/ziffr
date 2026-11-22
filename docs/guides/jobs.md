@@ -2,7 +2,7 @@
 
 Things in Ziffr happen on a clock, and something outside Ziffr has to call them: your platform's scheduler, a cron line on the server, or any service that can make an HTTP request. They all take the same secret and are safe to call as often as you like.
 
-```sh
+```sh skip="a setting for the server"
 ZIFFR_JOB_SECRET=$(openssl rand -hex 32)   # at least 32 characters; without it every job is off
 ```
 
@@ -17,7 +17,7 @@ ZIFFR_JOB_SECRET=$(openssl rand -hex 32)   # at least 32 characters; without it 
 | `POST /api/jobs/retention` | daily | Lets confirmed Retentions start on their day (and sends the reminder the day before), then condenses or deletes the old values of every Metric with a Retention in force, in small steps: at most 5,000 original values and 60 seconds for each Metric a day, carrying on the next day. It takes no more than the counts a person confirmed, checks every Condensed Value against the original values before deleting them, and leaves periods that open work holds. Each Metric runs once a day however many calls come, also from two servers at once. Answers counts only. Docker Compose calls it at 02:40 UTC. See [Retention](#retention) |
 | `POST /api/jobs/deliveries` | every few minutes | Sends emails, Slack and Telegram messages that are waiting: the day's Prompts, reminders and Escalations from the Workflow run, reminders and requests for missing values sent from the Connectors page, retries after a failure, and ones held back by the sending limits ([email](email.md), [Slack](slack.md)) |
 
-```sh
+```sh skip="a crontab line with the job secret, which the test app does not set"
 # crontab, for example
 0 * * * *    curl -fsS -X POST -H "Authorization: Bearer $ZIFFR_JOB_SECRET" https://ziffr.example.com/api/jobs/workflows
 */5 * * * *  curl -fsS -X POST -H "Authorization: Bearer $ZIFFR_JOB_SECRET" https://ziffr.example.com/api/jobs/deliveries

@@ -52,7 +52,7 @@ The nightly run keeps its results in the Actions cache (`reports/stryker-increme
 
 A failure names the combination ("week by quarter, average, year from month 4, today 2026-05-13") and the difference ("span 2026-04-01: 0.30000000000000004 is not the double nearest to 0.3"). It also names fast-check's seed and the shrunk counterexample. Run it again with that seed:
 
-```sh
+```sh skip="a long test run of this repository"
 NUMBERS_SEED=1234 NUMBERS_RUNS=1000 pnpm --filter @ziffr/core exec vitest run src/aggregations-generated-week.test.ts
 ```
 
@@ -62,7 +62,7 @@ Then decide which side is wrong. If the code is, fix the code. If the reference 
 
 The report (`packages/core/reports/mutation/mutation.json`, and the "Survived" lines of the run) shows the change and the tests that ran it. Run one module:
 
-```sh
+```sh skip="a long mutation run of this repository"
 pnpm --filter @ziffr/core exec stryker run --mutate src/compare.ts
 ```
 

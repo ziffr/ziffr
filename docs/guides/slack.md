@@ -62,7 +62,7 @@ To connect Slack workspaces other than the one that owns the app, turn on **Mana
 
 From the app's **Basic Information** page, set these where Ziffr runs (or the three Slack values on the Installation settings page, as above):
 
-```sh
+```sh skip="settings from a Slack app"
 ZIFFR_SITE_URL=https://ziffr.example.com
 ZIFFR_SLACK_CLIENT_ID=1234567890.1234567890
 ZIFFR_SLACK_CLIENT_SECRET=<Client Secret>

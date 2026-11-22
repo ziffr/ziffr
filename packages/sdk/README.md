@@ -7,11 +7,11 @@ Call the [Ziffr](https://github.com/ziffr/ziffr) API from TypeScript or JavaScri
 1. In Ziffr, open the Team page and create an Access Key. Give it "Read metrics", and "Submit values" if your program records values. Copy the key: it is shown once.
 2. Install and call:
 
-```sh
+```sh skip="installs a package"
 npm install @ziffr/sdk
 ```
 
-```ts
+```ts run
 import { Ziffr } from "@ziffr/sdk";
 
 const ziffr = new Ziffr({ url: "https://ziffr.example.com", accessKey: process.env.ZIFFR_ACCESS_KEY! });

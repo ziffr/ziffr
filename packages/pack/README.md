@@ -4,7 +4,7 @@ Write and check a [Ziffr](https://github.com/ziffr/ziffr) Pack: Metric Catalog e
 
 ## Check a Pack
 
-```sh
+```sh skip="installs a package and needs a Pack file of your own"
 npx @ziffr/pack check saas.pack.json
 ```
 
@@ -24,7 +24,7 @@ saas.pack.json:64: contents.dashboards[0].template.slots[1].suggests names “cu
 
 ## In a program
 
-```js
+```js skip="a fragment: text is the Pack's file"
 import { checkPack } from "@ziffr/pack";
 
 const res = checkPack(text);

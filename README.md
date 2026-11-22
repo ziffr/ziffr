@@ -40,7 +40,7 @@ The screenshots show the demo's made-up online shop.
 
 **Locally.** Needs Node 22, pnpm 10 (`corepack enable` sets up the version this repository names), Docker, and the [Supabase CLI](https://supabase.com/docs/guides/local-development/cli/getting-started) (`brew install supabase/tap/supabase` on macOS; CI uses 2.116).
 
-```sh
+```sh skip="starts the whole development setup"
 pnpm install
 cp .env.example .env.local   # then fill in SUPABASE_SERVICE_ROLE_KEY from `supabase status -o env`
 pnpm prototype               # local Supabase (ports 554xx) and the app on http://localhost:3000
@@ -54,7 +54,7 @@ Local Supabase also runs Mailpit at http://127.0.0.1:55424, where every email Zi
 
 **On your own servers.** Ziffr is source-available, and you can run it yourself with Docker:
 
-```sh
+```sh skip="installs Ziffr with Docker"
 curl -fsSL https://github.com/ziffr/ziffr/releases/latest/download/compose.yml -o compose.yml
 docker compose up -d                       # http://localhost; set ZIFFR_DOMAIN in .env for https on your domain
 ```
@@ -72,7 +72,7 @@ docker compose up -d                       # http://localhost; set ZIFFR_DOMAIN 
 
 [CONTRIBUTING.md](CONTRIBUTING.md) and [AGENTS.md](AGENTS.md) are the standards; [GLOSSARY.md](GLOSSARY.md) is the vocabulary. Bigger changes start as a spec in [docs/specs](docs/specs/README.md); hard-to-reverse decisions are in [docs/adr](docs/adr). How Ziffr is secured: [docs/security/threat-model.md](docs/security/threat-model.md).
 
-```sh
+```sh skip="runs CI's checks"
 pnpm typecheck && pnpm lint && pnpm test   # what CI runs on every pull request
 pnpm --filter @ziffr/core test:db          # the core against the local database
 ```

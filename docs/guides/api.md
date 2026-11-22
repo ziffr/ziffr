@@ -7,7 +7,7 @@ Programs reach a workspace's numbers through a REST API at `/api/v1`, acting wit
 1. On the Team page, create an Access Key with the scope "read metrics". Copy it: it is shown once.
 2. Call the API with the key in the `Authorization` header:
 
-```sh
+```sh run
 curl -H "Authorization: Bearer $ZIFFR_ACCESS_KEY" https://your-ziffr.example/api/v1/metrics
 ```
 
@@ -39,7 +39,7 @@ Every endpoint, its parameters, answers and errors are in the [API reference](..
 
 ## Submitting values
 
-```sh
+```sh run
 curl -X POST https://your-ziffr.example/api/v1/metrics/orders/observations \
   -H "Authorization: Bearer $ZIFFR_ACCESS_KEY" -H "Content-Type: application/json" \
   -H "Idempotency-Key: orders-2026-11" \
@@ -58,7 +58,7 @@ curl -X POST https://your-ziffr.example/api/v1/metrics/orders/observations \
 
 A key with the scope "Create metrics" (`metrics:write`) can make new Metrics, owned by the person who made the key and checked as in the web form:
 
-```sh
+```sh run
 curl -X POST https://your-ziffr.example/api/v1/metrics \
   -H "Authorization: Bearer $ZIFFR_ACCESS_KEY" -H "Content-Type: application/json" \
   -H "Idempotency-Key: setup-weekly-signups" \
@@ -75,7 +75,7 @@ curl -X POST https://your-ziffr.example/api/v1/metrics \
 
 A key with the scope "Change metrics" (`metrics:edit`) changes a Metric's **Target Range**, **Target Series** and **Projections**, as the key's creator and only for a Metric they own or are an Editor of, as on the Metric's page. It is a scope of its own, so a key made to create Metrics cannot change them:
 
-```sh
+```sh run
 curl -X PATCH https://your-ziffr.example/api/v1/metrics/revenue \
   -H "Authorization: Bearer $ZIFFR_ACCESS_KEY" -H "Content-Type: application/json" \
   -d '{ "target_min": 40000, "target_max": 60000, "polarity": "target" }'
@@ -165,7 +165,7 @@ Each change goes through the one place an Action's state changes, so it sends on
 
 **Approving is a person's check.** The scope "Approve values" (`values:approve`) is never ticked by default, only a program's Access Key can hold it, and the MCP Server has no tool for it: an assistant cannot be given it on the consent screen, and text in a Thread could otherwise talk it into approving. As in the app, nobody approves their own value, and only the Approver the Workflow names approves; the key acts as that person.
 
-```sh
+```sh skip="needs a value waiting for Approval from another person"
 curl -X POST https://your-ziffr.example/api/v1/actions/42/approval \
   -H "Authorization: Bearer $ZIFFR_ACCESS_KEY" -H "Content-Type: application/json" \
   -d '{ "decision": "send_back", "comment": "Please check March" }'

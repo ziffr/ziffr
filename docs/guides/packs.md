@@ -4,7 +4,7 @@ A **Pack** is one file of things to add to a Workspace: Metric Catalog entries, 
 
 The quickest start is **Export as Pack** in Ziffr (below). Check a Pack on your own computer with the same checks Ziffr runs, from [`@ziffr/pack`](../../packages/pack/README.md) (MIT):
 
-```sh
+```sh skip="installs a package and needs a Pack file of your own"
 npx @ziffr/pack check saas.pack.json
 ```
 

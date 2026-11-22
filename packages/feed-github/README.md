@@ -4,7 +4,7 @@ The GitHub Feed for [Ziffr](https://github.com/ziffr/ziffr): reads a repository'
 
 The download counts are requests GitHub served for release assets, bots and retries included. They are not running Installations. Setup, the Metrics and what GitHub does not offer: [GitHub Feed guide](../../docs/guides/github-feed.md).
 
-```sh
+```sh skip="needs a Feed Key and reaches GitHub"
 export ZIFFR_GITHUB_FEED_KEY=zk_...                    # Settings, Feeds, in the Workspace that holds the numbers
 export ZIFFR_GITHUB_FEED_URL=https://app.ziffr.net     # where that Workspace runs
 export ZIFFR_GITHUB_REPO=ziffr/ziffr                   # the default

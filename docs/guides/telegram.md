@@ -20,7 +20,7 @@ Optional, in BotFather: `/setdescription` and `/setuserpic`, so people recognise
 
 **Or in the server's settings**, which win over the page:
 
-```sh
+```sh skip="settings from a Telegram bot"
 ZIFFR_SITE_URL=https://ziffr.example.com
 ZIFFR_TELEGRAM_BOT_TOKEN=<the token from BotFather>
 ZIFFR_SECRETS_KEY=$(openssl rand -base64 32)
