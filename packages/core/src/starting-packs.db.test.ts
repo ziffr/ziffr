@@ -21,6 +21,6 @@ describe("installing the starting Packs", () => {
     const own = (await metricCatalog(w.actor(ann))).filter((c) => c.pack_install_id);
     expect(own.filter((c) => c.name === "Revenue")).toHaveLength(2);
     for (const t of ["metrics", "dashboards", "decks", "workflows"]) expect((await db().from(t).select("id", { count: "exact", head: true }).eq("workspace_id", w.id)).count, t).toBe(0);
-    expect((await db().from("team_templates").select("kind").eq("workspace_id", w.id)).data!.map((r) => r.kind).sort()).toEqual(["dashboard", "dashboard", "dashboard", "dashboard", "dashboard", "dashboard", "deck", "workflow", "workflow", "workflow", "workflow", "workflow"]);
+    expect((await db().from("team_templates").select("kind").eq("workspace_id", w.id)).data!.map((r) => r.kind).sort()).toEqual(["dashboard", "dashboard", "dashboard", "dashboard", "dashboard", "dashboard", "deck", "deck", "deck", "workflow", "workflow", "workflow", "workflow", "workflow", "workflow"]);
   });
 });

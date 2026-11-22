@@ -23,4 +23,16 @@ describe("the starting Packs", () => {
     expect([res.pack.author.name, res.pack.license]).toEqual(["Ziffr", "CC-BY-4.0"]);
     expect(res.assistantTexts).toEqual([]);
   });
+
+  it("SaaS metrics 2.0 brings a logo, Tags on every entry, both decks and both close Workflows", () => {
+    const res = checkPack(startingPack("saas-metrics.pack.json"));
+    if (!res.ok) throw new Error("does not pass");
+    const c = res.pack.contents;
+    expect(res.pack.version).toBe("2.0.0");
+    expect(res.pack.logo).toMatch(/^data:image\/svg\+xml;base64,/);
+    expect(c.metrics!.every((e) => (e.metric.tags ?? []).length > 0)).toBe(true);
+    expect(c.decks!.map((d) => d.key)).toEqual(["monthly-report", "quarterly-board"]);
+    expect(c.workflows!.map((d) => d.key)).toEqual(["monthly-close", "quarter-close"]);
+    expect(c.themes![0].theme.slides?.logo).toBe("pack");
+  });
 });

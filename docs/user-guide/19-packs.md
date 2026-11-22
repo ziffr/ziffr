@@ -12,6 +12,8 @@ A **Pack** is a file of ready-made things for a Workspace: Metric Catalog entrie
 
 Ziffr makes five starting Packs: SaaS metrics, Online shop, Agency or freelancer, Sports club, and a Board meeting deck. Their files are in the `packs` folder of Ziffr's repository; download one and install it as below.
 
+**SaaS metrics** is the fullest: 13 Metrics with Tags, a monthly management report (a dashboard and a deck), a quarterly board deck, Workflows for the monthly and the quarterly close, an Analysis Recipe with its View Design, and a Theme that shows the Pack's logo. It holds a Theme, so an Owner installs it. **Set up from this Pack** makes its Metrics, the monthly dashboard and a close Workflow in one go; the decks start from **New deck** with the Theme already chosen.
+
 **Install a Pack from a file** is for Owners and Admins. A Pack that holds Themes needs an Owner, since only Owners change Themes. The demo installs no Packs and opens none.
 
 1. Choose **Choose a Pack file…** and pick the Pack's file (at most 1 MiB). Ziffr checks the whole file before it shows anything. If something in it is wrong, it lists every problem with its line, and installs nothing.
