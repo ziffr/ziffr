@@ -163,5 +163,20 @@ describe("the Timeline for others", () => {
     expect(await toCloseCount(benActor())).toBe(1);
     expect(await toCloseCount(w.actor(mia, "member"))).toBe(0);
   });
-});
 
+  it("does not let a hidden Metric's activity change the order of Workflows", async () => {
+    // Two Workflows: Ben sees a Metric of the first only. Fresh activity on a Metric of the second that he does not see
+    // must not lift it above the first for him, though it does for the owner.
+    const first = await saveWorkflow(w.actor(sara), null, "First flow", { dueWorkingDays: 3, steps: [{ type: "publish", lock: true }] });
+    const second = await saveWorkflow(w.actor(sara), null, "Second flow", { dueWorkingDays: 3, steps: [{ type: "publish", lock: true }] });
+    const a = await w.metric(sara, { name: "Order A", period: "week", workflow_id: first }); await w.token(a.id, ben);
+    const b = await w.metric(sara, { name: "Order B", period: "week", workflow_id: second });
+    await db().from("period_states").insert([
+      { workspace_id: w.id, metric_id: a.id, period_start: PERIOD, state: "published", updated_at: "2026-11-20T09:00:00Z" },
+      { workspace_id: w.id, metric_id: b.id, period_start: PERIOD, state: "published", updated_at: "2026-11-21T09:00:00Z" },
+    ]);
+    const names = (t: Awaited<ReturnType<typeof actionsTimeline>>) => t.items.filter((i) => ["First flow", "Second flow"].includes(i.workflowName ?? "")).map((i) => i.workflowName);
+    expect(names(await actionsTimeline(benActor()))).toEqual(["First flow"]);
+    expect(names(await actionsTimeline(w.actor(sara, "owner")))[0]).toBe("Second flow");
+  });
+});

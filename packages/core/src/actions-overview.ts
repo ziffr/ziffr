@@ -197,9 +197,8 @@ export async function actionsTimeline(actor: Actor, filter: TimelineFilter = {})
   return { items: shown.slice(0, MOST_ITEMS), ...offered };
 }
 
-/** How many Actions the person asked that were answered and wait for them to close: a number for the sidebar (their own
- * Actions only). */
+/** How many Actions the person asked that were answered and wait for them to close: a number for the sidebar. */
 export async function toCloseCount(actor: Actor): Promise<number> {
-  const { count } = await db().from("actions").select("id", { count: "exact", head: true }).eq("workspace_id", actor.workspaceId).eq("asker_id", actor.personId).eq("status", "answered");
-  return count ?? 0;
+  // The same Actions the list shows: readable ones, so the badge and "To close" always agree.
+  return (await readableActions(actor.workspaceId, actor.personId)).filter((a) => a.asker_id === actor.personId && a.status === "answered").length;
 }

@@ -115,6 +115,9 @@ function viewerOf(actor: Actor | KeyActor): string {
 
 /** What one viewer's timelines all start from, read once so that a page of many periods does not redo it. */
 export type TimelineContext = {
+  /** Whose facts these are: a context is used only for the same person in the same Workspace. */
+  personId: string;
+  workspaceId: string;
   metrics: Metric[];
   visible: Set<number>;
   groups: Awaited<ReturnType<typeof getGroups>>;
@@ -138,11 +141,13 @@ export async function timelineContext(actor: Actor | KeyActor): Promise<Timeline
   const guestSees = actor.role === "guest"
     ? new Set(metrics.flatMap((m) => { const id = (m as Metric & { workflow_id?: number | null }).workflow_id; return visible.has(m.id) && typeof id === "number" ? [id] : []; }))
     : null;
-  return { metrics, visible, groups, dashboards, guestSees, yearStart: yearStart as YearStart, numberStyle, zone: (clock?.time_zone as string | undefined) ?? "UTC", shown };
+  return { personId: viewer, workspaceId: ws, metrics, visible, groups, dashboards, guestSees, yearStart: yearStart as YearStart, numberStyle, zone: (clock?.time_zone as string | undefined) ?? "UTC", shown };
 }
 
 /** The Workflow, if it is in the actor's Workspace: Forbidden otherwise (the same for missing and other Workspaces). */
 async function workflowOf(actor: Actor | KeyActor, workflowId: number, ctx?: TimelineContext) {
+  // Another person's or Workspace's facts are never used for this actor.
+  if (ctx && (ctx.personId !== actor.personId || ctx.workspaceId !== actor.workspaceId)) throw new Forbidden();
   if (!Number.isInteger(workflowId)) throw new Forbidden();
   const { data } = await db().from("workflows").select("id, name").eq("id", workflowId).eq("workspace_id", actor.workspaceId).maybeSingle();
   if (!data) throw new Forbidden();

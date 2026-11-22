@@ -108,7 +108,7 @@ async function ToDo({ sp }: { sp: Params }) {
             </ul>
           </section>
         )}
-        {toClose.length > 0 && <Section title="To close" hint={`${toClose.length}: answered or done, close them`}><AskedRows rows={toClose} people={people} /></Section>}
+        {toClose.length > 0 && <Section title="To close" hint={`${toClose.length}: answered, close them`}><AskedRows rows={toClose} people={people} /></Section>}
         <ScheduleViews
           person={s.personId}
           today={s.today}
