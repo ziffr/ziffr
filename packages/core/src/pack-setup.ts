@@ -17,6 +17,7 @@ import { liveFeed, feedChoices, addFeedToMetric } from "./feeds";
 import { addSubmitters, createMetric, deleteMetric, MetricKept } from "./metrics";
 import { checkFormula, formulaInputs, type FormulaInput } from "./formula";
 import { createDashboardFromTemplate, metricChoices } from "./dashboard-templates";
+import { feedTemplates, type FeedTemplateInfo } from "./feed-template-download";
 import { createWorkflowFromTemplate } from "./workflow-templates";
 import { fromWorkflowTemplate } from "./team-templates";
 import { recordVersion } from "./versions";
@@ -40,6 +41,8 @@ export type PackSetupOptions = {
   people: { id: string; name: string }[];
   /** The Workspace's live Feeds (names and ids), one of which may be the Submitter of every Metric made. */
   feeds: { id: string; name: string }[];
+  /** The n8n templates that fill Metrics from another system (spec 0043), for the page after Set up. */
+  templates: FeedTemplateInfo[];
   metrics: { id: number; name: string }[];
   /** Why no Metric can be made now (the Workspace Limit), or null. */
   refusal: string | null;
@@ -57,7 +60,7 @@ export type PackSetupInput = {
 };
 
 /** What was made. */
-export type PackSetupResult = { metrics: { id: number; slug: string; name: string }[]; dashboardId: number | null; workflowId: number | null;
+export type PackSetupResult = { metrics: { id: number; slug: string; name: string; /** False for a Derived Metric, which a Feed cannot fill. */ takesValues: boolean }[]; dashboardId: number | null; workflowId: number | null;
   /** The Tags of an entry that a limit kept off its Metric (the Metric is made either way), by Metric: the page says so. */
   tagsLeftOut: { metric: string; tags: string[] }[] };
 
@@ -151,6 +154,7 @@ export async function packSetupOptions(actor: Actor, installId: number): Promise
     // person themselves or their team, and Contacts are added on each Metric's page.
     people: people.filter((x) => memberIds.has(x.id)).map((x) => ({ id: x.id, name: x.name })),
     feeds: await feedChoices(actor),
+    templates: feedTemplates(),
     metrics: choices,
     refusal: await roomFor(actor, 1),
   };
@@ -239,7 +243,7 @@ export async function setUpFromPack(actor: Actor, installId: number, input: Pack
   // Made in order: the Workflow, the Metrics (inputs first), their Submitters, the dashboard. All of it was checked;
   // only a Metric made by someone else at the same moment can still meet the limit, and then the words say what was
   // made before it stopped.
-  const made = new Map<string, { id: number; slug: string; name: string }>();
+  const made = new Map<string, PackSetupResult["metrics"][number]>();
   const tagsLeftOut: PackSetupResult["tagsLeftOut"] = [];
   let workflowId: number | null = null;
   let dashboardId: number | null = null;
@@ -255,7 +259,7 @@ export async function setUpFromPack(actor: Actor, installId: number, input: Pack
       // The entry's Tags were put on it by createMetric, as this person; a limit leaves words out, never the Metric.
       if (m.tagsLeftOut.length) tagsLeftOut.push({ metric: e.name, tags: m.tagsLeftOut });
       if (e.formula) await writeFormula(actor, { ...m, name: e.name }, withSlugs(e.formula, (k) => made.get(k)!.slug));
-      made.set(e.pack_key, { id: m.id, slug: m.slug, name: e.name });
+      made.set(e.pack_key, { id: m.id, slug: m.slug, name: e.name, takesValues: !e.formula });
     }
     if (submitters.length) for (const e of plain) await addSubmitters(actor, made.get(e.pack_key)!.id, submitters);
     if (feed) for (const e of plain) await addFeedToMetric(actor, made.get(e.pack_key)!.id, feed);

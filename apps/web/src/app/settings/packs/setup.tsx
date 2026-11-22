@@ -11,6 +11,7 @@ import { toast } from "sonner";
 import { shown, unwrap } from "@/lib/action-error";
 import { Button } from "@/components/ui/button";
 import { approversStart, setupStart } from "./setup-defaults";
+import { FillFromN8n } from "@/components/fill-from-n8n";
 import { packSetup, setUpPack } from "@/app/pack-setup-actions";
 import type { PackSetupOptions, PackSetupResult } from "@ziffr/core/pack-setup";
 
@@ -84,6 +85,7 @@ function SetUpForm({ options, viewer, onClose }: { options: PackSetupOptions; vi
         {made.tagsLeftOut.length > 0 && (
           <p role="status" className="mt-2 text-xs">Some Tags stayed off their Metrics because of the Tag limits (10 per Metric, 200 in the Workspace): {made.tagsLeftOut.map((l) => `${l.metric}: ${l.tags.join(", ")}`).join("; ")}. Merge or delete Tags that are not needed, then add these by hand.</p>
         )}
+        {made.metrics.some((m) => m.takesValues) && <FillFromN8n metrics={made.metrics.filter((m) => m.takesValues)} feeds={options.feeds} templates={options.templates} />}
         <Button variant="ghost" size="sm" className="mt-2" onClick={onClose}>Done</Button>
       </div>
     );
