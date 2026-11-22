@@ -48,11 +48,11 @@ export function SaveDashboardTemplateDialog({ dashboardId, dashboardName, metric
             <label className="block text-sm font-medium">What it is for<Input value={description} onChange={(e) => setDescription(e.target.value)} maxLength={300} placeholder="e.g. The monthly numbers for one region" className="mt-1" /></label>
             <fieldset className="space-y-2">
               <legend className="mb-1 text-sm font-medium">Places to fill</legend>
-              <p className="text-xs text-muted-foreground">Your whole team reads these names, also people who cannot see the Metrics here now.</p>
+              <p className="text-xs text-muted-foreground">Everyone in the Workspace reads these names, also people who cannot see the Metrics or Tags here now. Do not name a Tag you were not meant to share; a place that follows a Tag starts as &ldquo;Tagged Metrics&rdquo;.</p>
               {draft.slots.map((s, i) => (
                 <label key={i} className="block text-xs text-muted-foreground">
-                  Now: {(s.exampleIds ?? []).map(metricName).filter(Boolean).join(", ") || "a Metric"}
-                  <Input value={labels[i] ?? ""} onChange={(e) => setLabels(labels.map((l, j) => (j === i ? e.target.value : l)))} maxLength={40} placeholder={`Metric ${i + 1}`} className="mt-1" aria-label={`Name of place ${i + 1}`} />
+                  Now: {(s.exampleIds ?? []).map(metricName).filter(Boolean).join(", ") || (s.multiple ? "all Metrics of a Tag" : "a Metric")}
+                  <Input value={labels[i] ?? ""} onChange={(e) => setLabels(labels.map((l, j) => (j === i ? e.target.value : l)))} maxLength={40} placeholder={draft.slots[i].label && !(draft.slots[i].exampleIds ?? []).length ? draft.slots[i].label : `Metric ${i + 1}`} className="mt-1" aria-label={`Name of place ${i + 1}`} />
                 </label>
               ))}
               {!draft.slots.length && <p className="text-sm text-muted-foreground">No Metrics on this dashboard.</p>}

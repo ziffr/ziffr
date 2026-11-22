@@ -17,7 +17,7 @@ import { assertNoOutsideContent } from "./deck-content";
 import { firstFreePlace } from "./free-place";
 import { isDisplayPeriod, SHOWN_BY } from "./display-periods";
 import { checkTagSource } from "./tag-widgets";
-import { tagSourceId, takesTagSource } from "./tag-source";
+import { tagSourceId, takesTagSource, withoutNestedTagSources } from "./tag-source";
 import type { TeamTemplate, TemplateId, Widget, WidgetSettings, WidgetTemplate } from "./types";
 
 /** What can be dropped onto a dashboard or saved to the Pool. */
@@ -45,8 +45,10 @@ function settings(s: unknown): WidgetSettings {
   // a file brought in (spec 0024), at every depth.
   if (v.design !== undefined) v.design = checkedDesignSetting(v.design);
   assertSettingsDesigns(v);
-  // What drawing adds for one viewer (spec 0038) is never kept.
+  // What drawing adds for one viewer (spec 0038) is never kept. Inside a free layout or its seed a widget has a list, never a Tag.
   delete v.tagView;
+  if (v.canvas) v.canvas = withoutNestedTagSources(v.canvas);
+  if (v.canvasSeed) v.canvasSeed = withoutNestedTagSources(v.canvasSeed);
   return v;
 }
 

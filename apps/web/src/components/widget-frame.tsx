@@ -230,7 +230,7 @@ function InteractiveFrame({ widget, data, targets, editable = false, className, 
             {widget.settings.tagSource && widget.metric_ids.length > 0 && (
               <>
                 <K.Separator />
-                <K.Item onClick={() => change({ settings: withoutTagSource(widget.settings), metricIds: widget.metric_ids })}>Keep today&apos;s Metrics, stop following the Tag</K.Item>
+                <K.Item title="These Metrics will be shown to everyone this dashboard is shared with." onClick={() => { if (window.confirm("These Metrics will be shown to everyone this dashboard is shared with. Keep today's Metrics and stop following the Tag?")) change({ settings: withoutTagSource(widget.settings), metricIds: widget.metric_ids }); }}>Keep today&apos;s Metrics, stop following the Tag</K.Item>
               </>
             )}
           </K.SubContent>

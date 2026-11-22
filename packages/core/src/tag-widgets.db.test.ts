@@ -5,6 +5,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { Forbidden, Refused } from "./actor";
 import { deckSeed } from "./conversions";
 import { createDashboard, placeWidget, updateWidget } from "./dashboards";
+import { createDeck, saveDeck } from "./decks";
 import { createDashboardFromTemplate, listDashboardTemplates } from "./dashboard-templates";
 import { visibleMetricIds } from "./access";
 import { dashboardWidgets } from "./page-data";
@@ -135,11 +136,15 @@ describe("a View Link, a deck and a template", () => {
     expect(seed.widgets[0].settings.tagSource).toBeUndefined();
   });
 
-  it("becomes a Slot named after the Tag, which a person fills with a Tag again", async () => {
+  it("becomes a Slot with a neutral name that no one reads the Tag in, which a person fills with a Tag again", async () => {
     const t = await setup();
-    const id = await saveDashboardTemplate(t.as.sara, { dashboardId: t.dashboard, name: "Shops", description: "", labels: [] });
+    const id = await saveDashboardTemplate(t.as.sara, { dashboardId: t.dashboard, name: "Weekly", description: "", labels: [] });
     const [tpl] = (await listDashboardTemplates(t.as.sara)).filter((x) => x.id === id);
-    expect(tpl.slots).toEqual([{ label: "shop", multiple: true, exampleIds: [] }]);
+    expect(tpl.slots).toEqual([{ label: "Tagged Metrics", multiple: true, exampleIds: [] }]);
+    // A Member who sees no Metric with the Tag reads the template and finds neither its name nor its id.
+    const nia = t.actor(await t.person("member"), "member");
+    expect(JSON.stringify(await listDashboardTemplates(nia))).not.toMatch(/shop/i);
+    expect(JSON.stringify(await listDashboardTemplates(nia))).not.toContain(t.shop);
     expect(tpl.tagFillable).toEqual([true]);
     // Filled by a Tag: a Tag widget. Filled by hand: a list. A Tag the person does not see is refused.
     const viaTag = await createDashboardFromTemplate(t.as.mia, { template: id, name: "By Tag", fills: [[]], tagFills: [t.shop] });
@@ -151,5 +156,21 @@ describe("a View Link, a deck and a template", () => {
     expect(w2?.[0].metric_ids).toEqual([t.b.id]);
     expect(w2?.[0].settings.tagSource).toBeUndefined();
     await expect(createDashboardFromTemplate(t.as.mia, { template: id, name: "x", fills: [[]], tagFills: ["00000000-0000-4000-8000-000000000000"] })).rejects.toBeInstanceOf(Forbidden);
+  });
+});
+
+describe("a Tag widget placed inside another thing", () => {
+  it("keeps no Tag and no Tag name when it sits in a free layout or on a deck slide", async () => {
+    const t = await setup();
+    const inner = { template: "matrix", metricIds: [t.b.id], settings: JSON.stringify({ tagSource: { id: t.shop }, tagView: { name: "shop", more: 0, removed: false } }) };
+    const layout = { canvas: { document: { store: { "shape:w": { type: "ziffr-widget", props: inner } } }, stamp: {} } };
+    const mine = await createDashboard(t.as.mia, "Layouts");
+    const canvasWidget = await placeWidget(t.as.mia, mine, { type: "spec", template: "canvas", metricIds: [], settings: layout as never });
+    const { data } = await db().from("widgets").select("settings").eq("id", canvasWidget).single();
+    expect(JSON.stringify(data?.settings)).not.toMatch(/tagSource|tagView|shop/);
+    const deck = await createDeck(t.as.mia, "Deck");
+    await saveDeck(t.as.mia, deck, layout.canvas.document);
+    const { data: stored } = await db().from("decks").select("document").eq("id", deck).single();
+    expect(JSON.stringify(stored?.document)).not.toMatch(/tagSource|tagView|shop/);
   });
 });

@@ -83,7 +83,7 @@ export function ViewLinksDialog({ type, id, snapshot, onClose }: { type: "dashbo
               </label>
               {type === "dashboard" && shows === "live" && toFix > 0 && (
                 <div role="status" className="space-y-2 rounded-[var(--radius-input)] border border-input bg-muted/40 p-2.5 text-xs">
-                  <p>{toFix === 1 ? "A widget on this dashboard shows" : `${toFix} widgets on this dashboard show`} all Metrics with a Tag. A link shows a list you chose, so the list is fixed first: each such widget keeps the Metrics you see now and no longer follows the Tag.</p>
+                  <p>{toFix === 1 ? "A widget on this dashboard shows" : `${toFix} widgets on this dashboard show`} all Metrics with a Tag. A link shows a list you chose, so the list is fixed first: each such widget keeps the Metrics you see now and no longer follows the Tag. These Metrics will be shown to everyone this dashboard is shared with.</p>
                   <Button type="button" size="sm" variant="outline" disabled={pending} onClick={() => start(async () => { if (told(await fixListsForLink(id), "Not fixed")) return; setToFix(0); toast.success("The list is fixed"); })}>Fix the list</Button>
                 </div>
               )}

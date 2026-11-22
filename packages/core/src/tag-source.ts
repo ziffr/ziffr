@@ -28,3 +28,18 @@ export function withoutTagSource(settings: WidgetSettings): WidgetSettings {
   void _s; void _v;
   return rest;
 }
+
+/** A copy of any stored JSON (a free layout's drawing, a deck's document) with every Tag source and Tag name drawing added taken out, at every depth and also
+ * inside widget settings kept as JSON text. A widget placed inside another thing has a fixed list, never a Tag: its Metrics are then opened by that thing's Share and its
+ * Tag's name must not travel with it (spec 0038). */
+export function withoutNestedTagSources<T>(value: T): T {
+  const walk = (v: unknown): unknown => {
+    if (Array.isArray(v)) return v.map(walk);
+    if (v && typeof v === "object") return Object.fromEntries(Object.entries(v).filter(([k]) => k !== "tagSource" && k !== "tagView").map(([k, x]) => [k, walk(x)]));
+    if (typeof v === "string" && v.startsWith("{") && /tag(Source|View)/.test(v)) {
+      try { return JSON.stringify(walk(JSON.parse(v))); } catch { return v; }
+    }
+    return v;
+  };
+  return walk(value) as T;
+}

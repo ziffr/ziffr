@@ -61,7 +61,7 @@ export type Choices = Record<string, AnchorRule | "drop">;
 /** Slots shared by everything in one template: the same metric (or list of metrics) is one slot. */
 type SlotCtx = { slots: Slot[]; slotIds: number[][]; tagSlots: Map<string, number> };
 const newCtx = (): SlotCtx => ({ slots: [], slotIds: [], tagSlots: new Map() });
-/** The "one or more" Slot a Tag widget becomes, named after the Tag: a template names no Tag, since Tags belong to a Workspace (spec 0038). */
+/** The "one or more" Slot a Tag widget becomes, with a neutral name: a template is read by the whole Workspace and a Tag's name is shown only through Metrics a person sees, so it names no Tag (spec 0038). */
 function tagSlot(ctx: SlotCtx, tagId: string, name: string) {
   let i = ctx.tagSlots.get(tagId);
   if (i === undefined) {
@@ -87,7 +87,7 @@ function nameSlots(ctx: SlotCtx, labels: string[]) {
 }
 
 /** One widget with its metrics turned into slots of ctx. Keys of choices carry the prefix of this widget. */
-function templatize(widget: W, metrics: Metric[], choices: Choices, ctx: SlotCtx, prefix = "", tagNames: ReadonlyMap<string, string> = new Map()) {
+function templatize(widget: W, metrics: Metric[], choices: Choices, ctx: SlotCtx, prefix = "") {
   const s = widget.settings;
   const ms = metricsInOrder(widget, metrics);
   const notices: string[] = [];
@@ -97,7 +97,7 @@ function templatize(widget: W, metrics: Metric[], choices: Choices, ctx: SlotCtx
   const panelIds = new Set((s.panels ?? []).flatMap((x) => x.metricIds));
   const fromPanels = widget.template === "story" && panelIds.size > 0 && widget.metric_ids.every((id) => panelIds.has(id));
   const tagId = tagSourceId(s);
-  const metricSlots = fromPanels ? [] : tagId ? [tagSlot(ctx, tagId, tagNames.get(tagId) ?? "Tagged Metrics")] : widget.metric_ids.map((id) => slotFor(ctx, [id]));
+  const metricSlots = fromPanels ? [] : tagId ? [tagSlot(ctx, tagId, "Tagged Metrics")] : widget.metric_ids.map((id) => slotFor(ctx, [id]));
   const callouts = (s.callouts ?? []).flatMap((c, i) => {
     if (c.rule) return [{ ...c, text: p(c.text) ?? "" }];
     const choice = choices[`${prefix}callout:${i}`] ?? "drop";
@@ -277,7 +277,7 @@ export function toDashboardTemplate(widgets: (W & Pick<Widget, "x" | "y" | "w" |
     // A Tag widget needs its Tag's name for its Slot; one the person cannot see is left out, as nothing of it may be read.
     const tag = tagSourceId(w.settings);
     if (tag && !tagNames.has(tag)) { leftOut.push(w.title || "A widget of a Tag"); return; }
-    const { notices: n, ...body } = templatize(w, metrics, {}, ctx, `w${i}:`, tagNames);
+    const { notices: n, ...body } = templatize(w, metrics, {}, ctx, `w${i}:`);
     notices.push(...n);
     out.push({ view: w.template, ...body, x: w.x, y: w.y, w: w.w, h: w.h });
   });

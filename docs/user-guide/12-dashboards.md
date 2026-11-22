@@ -247,7 +247,7 @@ A Widget that takes a list of Metrics, such as the Correlation matrix, can show 
 
 **Everyone sees only the tagged Metrics they may see themselves.** The dashboard's Share does not open a Metric through a Tag: if you tag a private Metric, the people the dashboard is shared with still do not see it, and two people may see different Metrics in the same Widget. Nobody is told how many they cannot see. Without any, the Widget says "No Metric tagged … that you can see." If the Tag was removed, the owner and Editors are told so, and the Widget keeps its place until its Tag is changed.
 
-**Keep today's Metrics, stop following the Tag** in the same menu turns the Widget back into a fixed list of the Metrics shown now. Adding such a Widget to a deck, taking a Snapshot and starting a deck from the dashboard record the Metrics you see at that moment, and do not follow the Tag afterwards. Copying the Widget to another dashboard keeps the Tag.
+**Keep today's Metrics, stop following the Tag** in the same menu turns the Widget back into a fixed list of the Metrics shown now, and asks first, because those Metrics are then shown to everyone the dashboard is shared with (**Fix the list** in the View links window says the same). Adding such a Widget to a deck, taking a Snapshot and starting a deck from the dashboard record the Metrics you see at that moment, and do not follow the Tag afterwards. Copying the Widget to another dashboard keeps the Tag.
 
 ### Saving a widget
 
@@ -376,7 +376,7 @@ To step through Widgets, use the arrow keys, the space bar, Page Up and Page Dow
 | --- | --- |
 | **Name** | Required; starts with the dashboard's name. |
 | **What it is for** | One line, such as "The monthly numbers for one region". |
-| **Places to fill** | One Slot for each Metric, however many Widgets show it; a Widget of all Metrics tagged X becomes one "one or more" Slot named after the Tag, since a template names no Tag. "Now:" says which Metric it holds. Give each a name, such as "Revenue metric"; an empty one is called "Metric 1", "Metric 2" and so on. The whole Workspace reads these names, also people who cannot see the Metrics, so the fields start empty. |
+| **Places to fill** | One Slot for each Metric, however many Widgets show it; a Widget of all Metrics tagged X becomes one "one or more" Slot called "Tagged Metrics" (rename it if you like, but everyone in the Workspace reads the name), since a template names no Tag. "Now:" says which Metric it holds. Give each a name, such as "Revenue metric"; an empty one is called "Metric 1", "Metric 2" and so on. The whole Workspace reads these names, also people who cannot see the Metrics, so the fields start empty. |
 
 A Widget whose Tag you cannot see is left out as well. Free layouts are left out, and the window lists them. Press **Save template**. Anyone in the Workspace can then pick it under **Start from** in the New dashboard window.
 

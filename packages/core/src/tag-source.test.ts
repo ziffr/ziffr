@@ -27,9 +27,9 @@ describe("a Tag as a widget's source", () => {
 
 describe("a Tag widget in a Dashboard Template", () => {
   const tagged = widget("matrix", { settings: { tagSource: { id: TAG } } });
-  it("becomes a Slot of one or more named after the Tag, with no Metric of the original", () => {
+  it("becomes a Slot of one or more with a neutral name, with no Metric of the original", () => {
     const t = toDashboardTemplate([tagged, widget("number", { metric_ids: [1], x: 4 })], [metric()], [], new Map([[TAG, "shop"]]));
-    expect(t.slots).toEqual([{ label: "shop", multiple: true, exampleIds: [] }, { label: "Metric 2", multiple: false, exampleIds: [1] }]);
+    expect(t.slots).toEqual([{ label: "Tagged Metrics", multiple: true, exampleIds: [] }, { label: "Metric 2", multiple: false, exampleIds: [1] }]);
     expect(JSON.stringify(t.body)).not.toContain(TAG);
     expect(tagFillable(t.slots, t.body)).toEqual([true, false]);
   });
