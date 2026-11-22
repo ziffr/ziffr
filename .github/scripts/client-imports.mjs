@@ -9,7 +9,7 @@ const PURE = new Set([
   "appearance", "branded-email", "theme-look", "theme-dark",
   "actor", "attainment-method", "built-in-designs", "compare", "design-export", "correlation", "display-periods", "exact", "export-values", "forecast", "format", "formula", "metric-row", "metric-names", "number-style", "numbers", "parse", "paste-reader", "people", "periods", "placeholders", "sample-data", "series-lines", "snapshot-periods", "team-templates", "theme-tokens", "standard-themes", "view-design", "json-check", "design-files", "widget-designs", "analysis-recipe", "recipe-run", "recipe-functions", "built-in-recipes", "design-analysis",
   "themes", "tokens", "types", "pack", "metric-file", "theme-file", "dashboard-template-file", "deck-template-file", "workflow-template-file", "file-text", "assistant-words", "visibility", "widget-metrics", "widget-templates", "workflow-rules", "workspace-profile", "trial-guide-ways", "n8n-workflow", "units",
-  "approval-question", "tag-names", "demo-words", "sealed-labels", "retention-rules", "retention-words", "alert-rules", "alert-limits", "asking-schedule", "schedule-calendar", "quiet-rules", "prompt-route",
+  "approval-question", "demo-words", "sealed-labels", "retention-rules", "retention-words", "alert-rules", "alert-limits", "asking-schedule", "schedule-calendar", "quiet-rules", "prompt-route",
   "connectors/index", "connectors/types", "connectors/email", "connectors/slack", "connectors/tickets", "connectors/whatsapp",
 ]);
 
