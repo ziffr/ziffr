@@ -3,8 +3,9 @@ import { describe, expect, it } from "vitest";
 import { CONTEXT_SCALE, sparklineContext } from "./sparkline-context";
 
 const series = (...values: number[]) => values.map((value, i) => ({ period: `2026-0${i + 1}-01`, value }));
-const none = { target_min: null, target_max: null };
-const at = (scale: number, values: number[], target = none, bars = false) => sparklineContext({ scale, points: series(...values), target, bars });
+type Target = { target_min: number | null; target_max: number | null };
+const none: Target = { target_min: null, target_max: null };
+const at = (scale: number, values: number[], target: Target = none, bars = false) => sparklineContext({ scale, points: series(...values), target, bars });
 
 describe("sparklineContext", () => {
   it("stays bare in a usual Widget and on a phone, and below the threshold", () => {
