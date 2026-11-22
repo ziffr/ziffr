@@ -3,44 +3,37 @@
 //
 // `quantile` is the linear-interpolation quantile (Hyndman and Fan's type 7, NumPy's default): of n sorted values the p-quantile
 // sits at position h = (n − 1)·p, and is the value there, or between its two neighbours in proportion. Worked out exactly on
-// the values' text: only the final step is a double, the one nearest to the exact result.
+// the values' text: only the final step is a double, the one nearest to the exact result. The arithmetic is the Extension
+// ziffr/quantile (extensions/ziffr/quantile), read through the registry; this module reads the series, takes the case the
+// Extension refuses (values that are all the same), and says what the quantiles mean for a Metric.
 //
 // `usualRange` is the middle 80 % of the Metric's own history: the 10th to the 90th percentile, with the median and the
 // quartiles beside it (the same choice as the 80 % range of every other Method: "likely between"). With a season it takes
 // only the values at the same place in the season as the period asked about.
 import { readSeries } from "../basis";
-import { fractionOf, lowestTerms, minus, nearest, plus, times, type Fraction } from "../exact";
+import { builtInMethod } from "../extensions";
 import { formatNumber, formatValue, type ValueUnit } from "../format";
 import { periodsBetween, type Span } from "../periods";
 import { checkSuitability, levelShift } from "../suitability";
 import { emptyTakeaway, refusalTakeaway, sayIn, verdictLines, type Takeaway, type TakeawayContext } from "../takeaways/takeaway";
 import type { Point } from "../types";
 
-const whole = (n: number | bigint): Fraction => ({ num: BigInt(n), den: BigInt(1) });
-
-// The exact p-quantile of sorted fractions, p a fraction between 0 and 1: position (n − 1)·p, the floor and the rest.
-function quantileOf(sorted: Fraction[], p: Fraction): Fraction {
-  const h = times(whole(sorted.length - 1), p);
-  const index = h.num / h.den;
-  const lo = sorted[Number(index)];
-  // At the top (p = 1) there is no neighbour above and no rest.
-  const hi = sorted[Math.min(Number(index) + 1, sorted.length - 1)];
-  const rest = minus(h, whole(index));
-  return lowestTerms(plus(lo, times(rest, minus(hi, lo))));
+// The p-quantile (0 to 1) of values already read: at least one, all of them numbers. The Extension has no answer for values
+// that are all the same (one value included: a flat series has no spread to place a share in), and every quantile of those is
+// that value, so it is given here; + 0 makes a minus zero the 0 that its text, "0", says.
+function quantileOf(values: number[], p: number): number {
+  if (values.every((v) => v === values[0])) return values[0] + 0;
+  // With two different numbers and a p from 0 to 1 the Extension does not refuse; the type has to allow for it.
+  return builtInMethod("ziffr/quantile")(values, p) as number;
 }
-
-// Smaller first: the sign of the exact difference.
-const ascending = (a: Fraction, b: Fraction) => Number(a.num * b.den - b.num * a.den);
-
-const sortedFractions = (points: Point[]) => readSeries(points).map((p) => fractionOf(p.value)).sort(ascending);
 
 /** The p-quantile (0 to 1) of a series' values, type 7: the value at position (n − 1)·p, interpolating between neighbours.
  * Null for no values, or a p that is not a number from 0 to 1. A value that is not a number is no value; a period twice
  * counts once. */
 export function quantile(points: Point[], p: number): number | null {
   if (!(p >= 0 && p <= 1)) return null;
-  const sorted = sortedFractions(points);
-  return sorted.length === 0 ? null : nearest(quantileOf(sorted, fractionOf(p)));
+  const values = readSeries(points).map((x) => x.value);
+  return values.length === 0 ? null : quantileOf(values, p);
 }
 
 /** What is normal for a Metric: the median, the quartiles and the usual range (10th to 90th percentile) of the values it
@@ -60,8 +53,8 @@ export function usualRange(points: Point[], span: Span, opts: { least?: number; 
   if (season !== undefined && !(Number.isInteger(season) && season >= 1)) return null;
   const used = season !== undefined && at !== undefined ? rows.filter((p) => periodsBetween(at, p.period, span) % season === 0) : rows;
   if (used.length === 0 || used.length < (opts.least ?? 1)) return null;
-  const sorted = used.map((p) => fractionOf(p.value)).sort(ascending);
-  const at_ = (p: number) => nearest(quantileOf(sorted, fractionOf(p)));
+  const values = used.map((p) => p.value);
+  const at_ = (p: number) => quantileOf(values, p);
   return { n: used.length, median: at_(0.5), q1: at_(0.25), q3: at_(0.75), low: at_(0.1), high: at_(0.9) };
 }
 

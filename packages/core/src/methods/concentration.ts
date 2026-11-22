@@ -3,9 +3,11 @@
 // otherwise). Both are arithmetic, not an estimate, so they are worked out exactly on the rows' text (exact.ts) and the
 // Takeaway says "worked out". Pure.
 //
-// Rows are never dropped or fixed: a row that is not a number or is below zero, a whole that adds up to nothing and fewer than
+// `topShare` is the Extension ziffr/top-share (extensions/ziffr/top-share), read through the registry; `pareto` and the Takeaways are
+// here. Rows are never dropped or fixed: a row that is not a number or is below zero, a whole that adds up to nothing and fewer than
 // two rows each give no result, in words. Rows of the same size keep the order they were given in.
 import { fractionOf, lowestTerms, minus, nearest, over, plus, times, type Fraction } from "../exact";
+import { builtInMethod } from "../extensions";
 import { formatPercent } from "../format";
 import { emptyTakeaway, listOf, refusalTakeaway, sayIn, type Takeaway, type TakeawayContext } from "../takeaways/takeaway";
 
@@ -44,20 +46,25 @@ function order(rows: Row[]): { sorted: Sorted; total: Fraction } | NoShare {
 }
 const isNoShare = (x: ReturnType<typeof order>): x is NoShare => typeof x === "string";
 
-const sum = (rs: Sorted) => rs.reduce((t, r) => lowestTerms(plus(t, r.exact)), { num: BigInt(0), den: BigInt(1) });
 const percentOf = (part: Fraction, total: Fraction) => nearest(times(over(part, total), { num: BigInt(100), den: BigInt(1) }));
 const named = (rs: Sorted, total: Fraction) => rs.map((r) => ({ label: r.label, value: r.value, share: nearest(over(r.exact, total)), percent: percentOf(r.exact, total) }));
 // Whether a row of the size of the last one taken is left out as well.
 const tiedAt = (sorted: Sorted, count: number) => count < sorted.length && sorted[count].exact.num * sorted[count - 1].exact.den === sorted[count - 1].exact.num * sorted[count].exact.den;
 
+// The words the Extension refuses with, and the reason each is: what the Method says and what this module's result says.
+const REASONS: Record<string, NoShare> = {
+  "needs at least two rows to say how much of the whole the largest make up": "few",
+  "a row is not a number, so nothing is worked out": "not-a-number",
+  "a row is below zero, so the rows are not parts of one whole": "negative",
+  "the rows add up to nothing, so there is no share to give": "nothing",
+  "n must be a whole number from 1 to one fewer than the rows": "ask",
+};
+
 /** The share of the `n` largest rows of the whole: `n` a whole number from 1 to one fewer than the rows (all of them is 100 %,
- * and says nothing). Exact; `share` is the double nearest to it. */
+ * and says nothing). Exact; `share` is the double nearest to it. The work is the Extension ziffr/top-share's. */
 export function topShare(rows: Row[], n: number): TopShare {
-  const found = order(rows);
-  if (isNoShare(found)) return { ok: false, why: found };
-  if (!Number.isInteger(n) || n < 1 || n >= rows.length) return { ok: false, why: "ask" };
-  const top = found.sorted.slice(0, n);
-  return { ok: true, share: nearest(over(sum(top), found.total)), percent: percentOf(sum(top), found.total), top: named(top, found.total), rows: rows.length, total: nearest(found.total), tied: tiedAt(found.sorted, n) };
+  const found = builtInMethod("ziffr/top-share")(rows, n);
+  return "refused" in found ? { ok: false, why: REASONS[found.refused] } : { ok: true, ...found };
 }
 
 /** The fewest rows, largest first, whose share of the whole reaches `target` (above 0 and at most 1; 80 % unless told otherwise): exactly, so

@@ -53,6 +53,9 @@ describe("topShare and pareto against NumPy and their reference", () => {
     // Decimals of different size are never tied, however small their whole parts.
     expect(topShare(rows([0.3, 0.2, 0.1]), 1)).toMatchObject({ tied: false });
     expect(topShare(rows([0.2, 0.2, 0.1]), 1)).toMatchObject({ tied: true });
+    // The Pareto decides the same way for decimals (the tie is read off the rows' text, not their doubles): 0.2 of 0.5 is reached by the first 0.2, and the second is the same size.
+    expect(pareto(rows([0.2, 0.2, 0.1]), 0.4)).toMatchObject({ count: 1, tied: true });
+    expect(pareto(rows([0.3, 0.2, 0.1]), 0.5)).toMatchObject({ count: 1, tied: false });
     // Everything taken: nothing is left out at the cut.
     expect(pareto(rows([10, 10]), 1)).toMatchObject({ count: 2, tied: false });
   });
