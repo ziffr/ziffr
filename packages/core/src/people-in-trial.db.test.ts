@@ -14,7 +14,8 @@ import { resetTrialLimits, workspace } from "./test/db-fixtures";
 import { reachedWords, trialUsage, usageLine } from "./trial-usage";
 
 const caller = { cloud: true } as const;
-const SETTINGS = { ZIFFR_SMTP_URL: "smtp://127.0.0.1:1", ZIFFR_MAIL_FROM: "Ziffr <ziffr@example.test>", ZIFFR_SITE_URL: "https://ziffr.example.test" };
+// The secrets key signs the "Do not invite me again" link a trial's invitation email must carry.
+const SETTINGS = { ZIFFR_SECRETS_KEY: Buffer.alloc(32, 5).toString("base64"), ZIFFR_SMTP_URL: "smtp://127.0.0.1:1", ZIFFR_MAIL_FROM: "Ziffr <ziffr@example.test>", ZIFFR_SITE_URL: "https://ziffr.example.test" };
 const saved: Record<string, string | undefined> = {};
 const sent: string[] = [];
 // Mail that goes nowhere: the claim in the database is what is tested, not delivery.

@@ -34,7 +34,7 @@ describe("email invitations", () => {
     expect(mail.Text).toMatch(/the workspace “Acme Shop” on Ziffr as a Member, by “owner \w+”/);
     expect(mail.Text).toContain(`https://ziffr.example.test/invite/${t}`);
     expect(mail.Text).toMatch(/as a Member/);
-    expect(await invitationFor(t)).toEqual({ workspace: "Acme Shop", role: "member", forEmail: to, usable: true });
+    expect(await invitationFor(t)).toEqual({ workspace: "Acme Shop", role: "member", forEmail: to, usable: true, trial: null });
     expect(await row(t)).toMatchObject({ email_sent_at: expect.any(String), email_sends: 1, email_error: null });
     expect((await openInvitations(w.actor(sara)))[0]).toMatchObject({ email_sends: 1, email_error: null });
   });

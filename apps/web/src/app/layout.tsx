@@ -22,7 +22,7 @@ import { isInstallationAdmin } from "@ziffr/core/installation-admins";
 import { keptWords, trialStatus } from "@ziffr/core/trial-end";
 import { workspaceExportState } from "@ziffr/core/workspace-export";
 import { sessionStartedAt } from "@/lib/session-start";
-import { TrialBar, TrialEnded } from "@/components/trial-bar";
+import { TrialBar, TrialBarForMembers, TrialEnded, TrialEndedForMembers } from "@/components/trial-bar";
 import { reachedWords, trialUsage, usageLine } from "@ziffr/core/trial-usage";
 import { OverLimitBar } from "@/components/over-limit-bar";
 import { overLimitBanner, sizeAndUsage } from "@ziffr/core/workspace-usage";
@@ -97,7 +97,7 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
   // The demo's Viewing as picker offers all its made-up people, also while viewing as its Guest.
   const profiles = demo ? await getPeopleIn(workspaceId) : shown;
   // A Trial Workspace (spec 0021): its days left on every page, and once it has ended, only the screen that says so.
-  const trial = demo ? null : await trialStatus(workspaceId);
+  const trial = demo ? null : await trialStatus(workspaceId, actor.role);
   // What the trial has used of its limits (spec 0040): Owners and Admins only, counts of this Workspace alone.
   const usageRows = trial && !trial.ended ? await trialUsage(actor) : null;
   const usage = usageRows ? { line: usageLine(usageRows), reached: usageRows.map(reachedWords).filter((w): w is string => w !== null) } : null;
@@ -130,7 +130,10 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
   ) : null;
   const banners = (
     <>
-      {trial && !trial.ended && <TrialBar daysLeft={trial.daysLeft} endsAt={trial.endsAt} kept={trial.keptAs ? keptWords(trial.endsAt, trial.keptAs) : null} usage={usage} />}
+      {/* Owners and Admins get the bar with counts and links; everyone else the plain words (spec 0040). */}
+      {trial && !trial.ended && (role === "owner" || role === "admin"
+        ? <TrialBar daysLeft={trial.daysLeft} endsAt={trial.endsAt} kept={trial.keptAs ? keptWords(trial.endsAt, trial.keptAs) : null} usage={usage} />
+        : <TrialBarForMembers owner={trial.ownerName} endsAt={trial.endsAt} />)}
       {overLimit && <OverLimitBar words={overLimit} />}
     </>
   );
@@ -145,7 +148,7 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
       </head>
       <body className="min-h-screen bg-background font-sans antialiased">
         <AppShell workspace={workspaceTree(role)} settings={settingsGroups(role)} pinned={pinned} due={due} open={open} guide={guideHref()} account={accountOf} demo={demoControls} people={demo ? { profiles: profiles.filter((p) => !p.contact), current: viewer } : undefined} collapsed={await sidebarCollapsed()} banners={<>{demoNote}{banners}</>}>
-          {trial?.ended ? <TrialEnded deletedAt={trial.deletedAt} workspaceExport={role === "owner" ? await workspaceExportState(actor, { sessionStartedAt: await sessionStartedAt() }).catch(() => null) : null} /> : children}
+          {trial?.ended ? (role === "owner" || role === "admin" ? <TrialEnded deletedAt={trial.deletedAt} workspaceExport={role === "owner" ? await workspaceExportState(actor, { sessionStartedAt: await sessionStartedAt() }).catch(() => null) : null} /> : <TrialEndedForMembers owner={trial.ownerName} />) : children}
         </AppShell>
         {demo && offersTrials && <DemoRefusalLinks />}
         {feedback && <FeedbackPrompt askForStar={feedback.askForStar} />}

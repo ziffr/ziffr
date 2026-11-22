@@ -1,10 +1,17 @@
 // The bar of a Trial Workspace (spec 0021, ticket 9): on every page, how long the trial has left, with the Trial Guide
 // (ticket 193), Try it and the download of its values; and the screen that replaces the app once it has ended.
 import Link from "next/link";
+import { trialEndedMemberWords, trialMemberWords } from "@ziffr/core/trial-words";
 import { EndTrialButton } from "./end-trial-button";
 import { WorkspaceExportButton } from "./workspace-export-button";
 
-/** The line above the page while the trial runs. */
+/** The line above the page while the trial runs, for a Member or Guest: whose trial it is, until when and what follows (the
+ * same words as the invitation). No counts and no links to what only Owners and Admins use. */
+export function TrialBarForMembers({ owner, endsAt }: { owner: string | null; endsAt: string }) {
+  return <p className="mx-auto max-w-7xl px-4 pt-3 text-xs text-muted-foreground sm:px-6">{trialMemberWords(owner, endsAt)}</p>;
+}
+
+/** The line above the page while the trial runs, for its Owner and Admins. */
 export function TrialBar({ daysLeft, endsAt, kept, usage }: { daysLeft: number; endsAt: string; kept?: string | null; usage?: { line: string; reached: string[] } | null }) {
   return (
     <p className="mx-auto flex max-w-7xl flex-wrap items-center gap-x-3 gap-y-1 px-4 pt-3 text-xs text-muted-foreground sm:px-6">
@@ -19,7 +26,17 @@ export function TrialBar({ daysLeft, endsAt, kept, usage }: { daysLeft: number; 
   );
 }
 
-/** What a person sees instead of the app once their trial has ended. */
+/** What a Member or Guest sees instead of the app once the trial has ended: that it has, and who decides. Nothing to download or delete. */
+export function TrialEndedForMembers({ owner }: { owner: string | null }) {
+  return (
+    <div className="mx-auto mt-16 max-w-md text-sm">
+      <h1 className="text-[length:var(--text-2xl)] leading-tight">This trial has ended</h1>
+      <p className="mt-2 text-muted-foreground">{trialEndedMemberWords(owner)}</p>
+    </div>
+  );
+}
+
+/** What an Owner or Admin sees instead of the app once their trial has ended. */
 export function TrialEnded({ deletedAt, workspaceExport }: { deletedAt: string; workspaceExport?: { signedInRecently: boolean } | null }) {
   return (
     <div className="mx-auto mt-16 max-w-md text-sm">

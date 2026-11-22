@@ -11,7 +11,9 @@ import { DEMO_WORKSPACE_ID } from "./team";
 import { linkTo } from "./deliveries";
 import { brandedParts, headerSafe, sentByLine, isAddress, mailboxKey, mailOn, sendMail, type MailTransport } from "./mail";
 import { audit, recordAudit } from "./audit-log";
-import { assertNotTrial, trialEnded, trialInvitationMessage, trialLimitMessage } from "./trials";
+import { assertNotTrial, trialEnded, trialEndsAt, trialInvitationMessage, trialLimitMessage } from "./trials";
+import { trialInvitedWords } from "./trial-words";
+import { signInvitationStopToken } from "./invitation-stop";
 import { refuseInDemo } from "./demo";
 import { recordPersonalWebhookEnds } from "./personal-webhooks";
 import { applyImportPlan } from "./workspace-import-people";
@@ -63,8 +65,17 @@ export const INVITATION_EMAILS_PER_SENDER = 50;
  * invitation stands either way, and the Team page says whether it went out. A send is claimed first, in one
  * database transaction with the limits (claim_invitation_email), so sends at once cannot pass them. */
 async function emailInvitation(id: number, sender: string, transport?: MailTransport): Promise<boolean> {
-  const { data: inv } = await db().from("invitations").select("id, workspace_id, token, email, role, expires_at, email_sends, workspaces(name), profiles!invitations_created_by_fkey(name, email)").eq("id", id).maybeSingle();
+  const { data: inv } = await db().from("invitations").select("id, workspace_id, token, email, role, expires_at, email_sends, workspaces(name), created_by, profiles!invitations_created_by_fkey(name, email)").eq("id", id).maybeSingle();
   if (!inv?.email || inv.email_sends >= MAX_SENDS) return false;
+  // A trial says so, until when and what follows (spec 0040), and its mail must carry the one-click stop: an address
+  // nobody proved gets this one email, and may end any more from every Workspace here. Where no key can sign the link,
+  // a trial sends nothing (the Owner sends the link themselves); an ordinary Workspace sends without it.
+  const trialEnds = await trialEndsAt(inv.workspace_id);
+  const stopToken = signInvitationStopToken(mailboxKey(inv.email));
+  if (trialEnds && !stopToken) {
+    await db().from("invitations").update({ email_error: "Ziffr cannot send this email right now; send the link yourself." }).eq("id", id);
+    return false;
+  }
   // Claimed in the database under locks on the address and the workspace, counting the day's real sends there.
   const { data: claim, error } = await db().rpc("claim_invitation_email", {
     p_invitation: inv.id, p_sender: sender, p_address_key: mailboxKey(inv.email),
@@ -84,21 +95,27 @@ async function emailInvitation(id: number, sender: string, transport?: MailTrans
   // Each on one line, at most 80 characters, without quote marks of its own, and always inside quotes after fixed text.
   const named = (s: string) => headerSafe(s).replace(/[“”"«»„]/g, "'").slice(0, 80);
   const workspace = named((inv.workspaces as unknown as { name: string } | null)?.name ?? "a workspace");
-  const inviterRow = inv.profiles as unknown as { name: string; email: string | null } | null;
-  const inviter = named(inviterRow?.name ?? "someone");
+  const inviterRow = inv.profiles as unknown as { id?: string; name: string; email: string | null } | null;
+  // Read through openNames, as the accept page does, so a sealed name is never mailed as its sealed form.
+  const inviter = named((inviterRow ? (await openNames(inv.workspace_id, [{ id: inv.created_by, name: inviterRow.name }]))[0]?.name as string | undefined : undefined) ?? "someone");
   // Ziffr's own line about who is behind it, in the plain text and the HTML alike: the Workspace's brand never replaces it.
   const by = { name: inviter, email: inviterRow?.email, did: "invited you to" };
   const until = new Date(inv.expires_at).toISOString().slice(0, 10);
+  const stopUrl = stopToken ? linkTo(`/api/unsubscribe/invitations/${stopToken}`) : undefined;
+  const stop = stopUrl ? { label: "Do not invite me again (from any workspace on this Ziffr)", url: stopUrl } : undefined;
   try {
-    const text = [
+    const words = [
         "Hi,", "",
-        `You are invited to join the workspace “${workspace}” on Ziffr as ${ROLE_LABEL[inv.role as WorkspaceRoleName] ?? "a Member"}, by “${inviter}”.`, "",
+        trialEnds ? `${trialInvitedWords(`“${inviter}”`, trialEnds.toISOString())} You are invited to join it as ${ROLE_LABEL[inv.role as WorkspaceRoleName] ?? "a Member"}.`
+          : `You are invited to join the workspace “${workspace}” on Ziffr as ${ROLE_LABEL[inv.role as WorkspaceRoleName] ?? "a Member"}, by “${inviter}”.`, "",
         `Join here: ${linkTo(`/invite/${inv.token}`)}`, "",
         `The invitation works until ${until}, and only for this address (${inv.email}).`,
         "The names above were chosen by the people in that workspace. If you did not expect this, you can ignore it.",
       "", sentByLine(by, workspace),
       ].join("\n");
-    await sendMail({ to: inv.email, subject: "You are invited to a workspace on Ziffr", text, ...(await brandedParts(inv.workspace_id, { text }, by)) }, transport);
+    // The HTML shows the stop link as its own line (brandedParts), so the words it is made from do not hold it twice.
+    const text = stop ? `${words}\n\n${stop.label}: ${stop.url}` : words;
+    await sendMail({ to: inv.email, subject: trialEnds ? "You are invited to a trial of Ziffr" : "You are invited to a workspace on Ziffr", text, ...(stopUrl ? { unsubscribe: stopUrl } : {}), ...(await brandedParts(inv.workspace_id, { text: words, ...(stop ? { stop } : {}) }, by)) }, transport);
     return true;
   } catch (e) {
     // Only the kind of failure: the server's own words may hold addresses or settings.
@@ -213,13 +230,25 @@ export async function revokeInvitation(actor: Actor, id: number) {
   await audit(actor, { kind: "invitation.revoked", object: { type: "invitation", id: data[0].id, name: await invitationName(data[0], actor.workspaceId) }, details: { role: data[0].role } });
 }
 
+/** A person's name as the Workspace seals it, or null. */
+async function nameOf(workspaceId: string, personId: string): Promise<string | null> {
+  const { data } = await db().from("profiles").select("id, name").eq("id", personId).maybeSingle();
+  return data ? ((await openNames(workspaceId, [data]))[0]?.name as string | undefined) || null : null;
+}
+
 /** What an invitation offers, for its page: the workspace, the role and whether it still works. Nothing else. */
 export async function invitationFor(t: string) {
   if (!/^[A-Za-z0-9_-]{20,64}$/.test(String(t))) return null;
-  const { data: inv } = await db().from("invitations").select("email, role, expires_at, revoked_at, accepted_at, held_at, workspaces(name)").eq("token", t).maybeSingle();
+  const { data: inv } = await db().from("invitations").select("workspace_id, email, role, expires_at, revoked_at, accepted_at, held_at, workspaces(name), created_by").eq("token", t).maybeSingle();
   if (!inv) return null;
   const usable = !inv.revoked_at && !inv.accepted_at && !inv.held_at && inv.expires_at > new Date().toISOString();
-  return { workspace: (inv.workspaces as unknown as { name: string }).name, role: inv.role as WorkspaceRoleName, forEmail: inv.email as string | null, usable };
+  // A trial says so (spec 0040): who invited, until when and what follows, the words the email has. Only what the email itself told.
+  const ends = usable ? await trialEndsAt(inv.workspace_id as string) : null;
+  // The email names the inviter for every role (the invitee should know who is mailing them), but this page is open to
+  // anyone who holds the link, so it names them only for a named address that joins as a Member: a Guest never sees
+  // who else is in the Workspace.
+  const inviter = ends && inv.email && inv.role === "member" && inv.created_by ? await nameOf(inv.workspace_id as string, inv.created_by as string) : null;
+  return { workspace: (inv.workspaces as unknown as { name: string }).name, role: inv.role as WorkspaceRoleName, forEmail: inv.email as string | null, usable, trial: ends && ends.getTime() > Date.now() ? { words: trialInvitedWords(inviter, ends.toISOString()) } : null };
 }
 
 /** The signed-in person accepts an invitation and becomes a member with its role (one already a member keeps their

@@ -295,6 +295,10 @@ _Avoid_: Editor, sandbox, studio
 A statistical method run on one or more metrics, such as forecast, correlation, clustering or impact analysis. Its result can be saved as a widget. Ziffr ships its own Analyses; more can be written as Analysis Recipes.
 _Avoid_: Stats, model, insight
 
+**Takeaway**:
+The result of an Analysis as Ziffr says it: one sentence in the Metrics' own words and units, a strength in four words (strong, moderate, weak, "can't tell from chance"), what it was compared on, and the one footer line "This shows what has gone together, not what caused what." Where the data does not suit the Method it carries one plain line above the sentence (a caution; a result with one is never strong) or, with too little data, is a refusal in words with no number. **Show the numbers** opens the numbers behind it. Every place a result is shown writes the same Takeaway.
+_Avoid_: Answer (an Answer is what someone replies to a Prompt), insight, verdict
+
 **Analysis Recipe**:
 An Analysis written as steps of Ziffr's verified functions over the Metrics in its Slots. It holds no code, so every number it gives is verified.
 _Avoid_: Script, model, custom analysis, formula
@@ -432,7 +436,7 @@ What a person may do in a Workspace as a whole. A Workspace Owner manages settin
 _Avoid_: Permission level, admin rights
 
 **Invitation**:
-An offer to join a Workspace with a Workspace Role, made by an Owner or Admin. One sent to an email address is accepted once, by that address; a link works for anyone who has it until it ends or is revoked. Inviting a Contact makes them a member who keeps their history.
+An offer to join a Workspace with a Workspace Role, made by an Owner or Admin. One sent to an email address is accepted once, by that address; a link works for anyone who has it until it ends or is revoked. Inviting a Contact makes them a member who keeps their history. In a Trial Workspace the email and the accept page say it is a trial, until when and what follows. Every invitation email has a one-click **Do not invite me again** link that stops invitation emails to that address from every Workspace on the Installation.
 _Avoid_: Invite code, access grant
 
 **Domain Joining**:
