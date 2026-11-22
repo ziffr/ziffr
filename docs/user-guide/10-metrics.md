@@ -149,7 +149,7 @@ The form has three parts. The panel on the right says that you become the **Owne
 | **A second value for the same period** | The **Submission Rule**: what happens when another value arrives for a period that already has one. See the table below. |
 | **Aggregation** | How values combine into a longer period, for comparisons such as QoQ or YoY and for Widgets shown by quarter or year (**Show by**, see the Dashboards chapter): **Sum** (counts and amounts, such as revenue or deals), **Average** (levels, such as a score or a delivery time), **Last value** (stocks, such as a balance or headcount) or **Does not combine** (rates and ratios). |
 | **Sources** | The ways values may arrive: **Slack**, **Mail**, **Telegram**, **Web form** and **API and Feeds**. All are ticked for a new Metric, so each Submitter can use what suits them. A value that arrives another way is refused. In the demo, Slack and Mail are marked "(played in the demo)": nothing is really sent. |
-| **Who submits** | The people who send in its values, members and Contacts alike. Each one gets a personal form link for this Metric and a first request for the value. |
+| **Who submits** | The people who send in its values, members and Contacts alike. Each one gets a personal form link for this Metric and a first request for the value. You are ticked to start with when you create a Metric; a copy starts with the original's Submitters. |
 
 The four Submission Rules:
 
@@ -212,7 +212,7 @@ The chart draws the Metric's values over time. A daily Metric shows its last 90 
 
 | Option | What it does |
 | --- | --- |
-| **Assign to** | The colleague who should answer. Contacts are not listed. |
+| **Assign to** | The colleague who should answer. Contacts are not listed. The first other person is suggested. |
 | The question | Filled in for you, such as "Why is cost so high in March?" when the value is off target. Change it as you like. |
 | **Assign Action** | Sends the **Question** and opens its page, where the **Thread** continues. |
 
