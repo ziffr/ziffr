@@ -18,6 +18,12 @@ describe("the sidebar's Workspace tree and Settings list", () => {
     for (const role of ["owner", "admin", "member"] as const) expect(hrefs(role)).toContain("/settings/tags");
     expect(workspaceLinks("guest").map((l) => l.href)).not.toContain("/settings/tags");
   });
+  it("offers the Workspace Export to the Owner only", () => {
+    expect(hrefs("owner")).toContain("/settings/export");
+    for (const role of ["admin", "member", "guest"] as const) expect(hrefs(role)).not.toContain("/settings/export");
+    expect(workspaceLinks("owner").map((l) => l.href)).toContain("/settings/export");
+    expect(workspaceLinks("admin").map((l) => l.href)).not.toContain("/settings/export");
+  });
   it("matches pages ignoring a hash, and finds Settings pages", () => {
     expect(onPage("/settings/workspace", "/settings/workspace#size")).toBe(true);
     expect(onPage("/audit/x", "/audit")).toBe(true);

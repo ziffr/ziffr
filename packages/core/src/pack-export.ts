@@ -39,6 +39,10 @@ export type ExportManifest = { id: string; name: string; version: string; summar
 /** The Pack's file and what could not go into it, with why. */
 export type ExportResult = { text: string; fileName: string; leftOut: { name: string; why: string }[] };
 
+/** How text is fitted into a file: a Pack keeps the Pack's plain-text rules; a Workspace Export (workspace-export.ts)
+ * the app's own. Both say "does not fit" by an empty answer, and the caller says what was left out. */
+export type TextFit = { plain: (s: unknown, max: number) => string | null; words: (s: unknown, max: number) => string | undefined };
+
 const plain = (s: unknown, max: number) => {
   const t = String(s ?? "").replace(/\s+/g, " ").trim().slice(0, max);
   return checkSchema({ type: "string", pattern: PLAIN } as Schema, t).length ? null : t;
@@ -47,6 +51,8 @@ const wordsOk = (s: unknown, max: number) => {
   const t = String(s ?? "").replace(/\s+/g, " ").trim().slice(0, max);
   return t && !checkSchema({ type: "string", pattern: WORDS } as Schema, t).length ? t : undefined;
 };
+/** A Pack's text rules. */
+const PACK_FIT: TextFit = { plain, words: wordsOk };
 const slug = (name: string) => {
   const s = name.toLowerCase().normalize("NFKD").replace(/\p{M}/gu, "").replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 36);
   return /^[a-z]/.test(s) ? s : `x-${s || "item"}`.slice(0, 40);
@@ -274,11 +280,12 @@ function keep(_file: unknown, res: FormatCheck<unknown>, name: string, leftOut: 
   return false;
 }
 
-const titleOf = (t: string | null | undefined) => { const w = wordsOk(t, 200); return w ? { title: w } : {}; };
+/** A widget's title as a file keeps it: only when it fits. */
+export const titleOf = (t: string | null | undefined, fit: TextFit = PACK_FIT) => { const w = fit.words(t, 200); return w ? { title: w } : {}; };
 
 /** A widget's settings as a template file keeps them: only what the format has, words that fit, a View Design by its
  * key in the Pack when it is in it, written out otherwise. */
-function settingsOf(s: WidgetSettings | undefined, designKey: ReadonlyMap<string, string>): { settings?: WidgetSettingsFile } {
+export function settingsOf(s: WidgetSettings | undefined, designKey: ReadonlyMap<string, string>, fit: TextFit = PACK_FIT): { settings?: WidgetSettingsFile } {
   if (!s) return {};
   const out: WidgetSettingsFile = {};
   if (s.window !== undefined) out.window = s.window;
@@ -286,24 +293,24 @@ function settingsOf(s: WidgetSettings | undefined, designKey: ReadonlyMap<string
   for (const k of ["showTarget", "showForecast", "fullPeriods"] as const) if (s[k] !== undefined) out[k] = s[k];
   if (s.rows !== undefined) out.rows = s.rows;
   if (s.compare?.length) out.compare = s.compare;
-  for (const k of ["kicker", "headline", "subline", "footnote", "source"] as const) { const w = wordsOk(s[k], 200); if (w) out[k] = w; }
-  const callouts = (s.callouts ?? []).filter((c) => c.rule).map((c) => ({ rule: c.rule!, ...(wordsOk(c.text, 200) ? { text: wordsOk(c.text, 200) } : {}) }));
+  for (const k of ["kicker", "headline", "subline", "footnote", "source"] as const) { const w = fit.words(s[k], 200); if (w) out[k] = w; }
+  const callouts = (s.callouts ?? []).filter((c) => c.rule).map((c) => ({ rule: c.rule!, ...(fit.words(c.text, 200) ? { text: fit.words(c.text, 200) } : {}) }));
   if (callouts.length) out.callouts = callouts;
   if (s.panels?.length) out.panels = s.panels.map((p) => ({
     type: p.type, ...(p.slot !== undefined ? { slot: p.slot } : {}), ...(p.measure ? { measure: p.measure } : {}), ...(p.periods ? { periods: p.periods } : {}),
     ...(p.highlight === "last" || p.highlight === "projection" ? { highlight: p.highlight } : {}), ...(p.projections !== undefined ? { projections: p.projections } : {}), ...(p.sharedScale !== undefined ? { sharedScale: p.sharedScale } : {}),
-    ...(p.refLine ? { refLine: { kind: p.refLine.kind, ...(p.refLine.value !== undefined ? { value: p.refLine.value } : {}), ...(plain(p.refLine.label, 60) ? { label: plain(p.refLine.label, 60)! } : {}) } } : {}),
-    ...(p.bridge ? { bridge: { mode: p.bridge.mode } } : {}), ...(wordsOk(p.title, 200) ? { title: wordsOk(p.title, 200) } : {}),
-    ...(p.annotations?.length ? { annotations: p.annotations.flatMap((a) => (a.anchor.type === "rule" ? [{ kind: a.kind, rule: a.anchor.rule, ...(wordsOk(a.text, 200) ? { text: wordsOk(a.text, 200) } : {}), ...(a.arrow !== undefined ? { arrow: a.arrow } : {}) }] : [])) } : {}),
+    ...(p.refLine ? { refLine: { kind: p.refLine.kind, ...(p.refLine.value !== undefined ? { value: p.refLine.value } : {}), ...(fit.plain(p.refLine.label, 60) ? { label: fit.plain(p.refLine.label, 60)! } : {}) } } : {}),
+    ...(p.bridge ? { bridge: { mode: p.bridge.mode } } : {}), ...(fit.words(p.title, 200) ? { title: fit.words(p.title, 200) } : {}),
+    ...(p.annotations?.length ? { annotations: p.annotations.flatMap((a) => (a.anchor.type === "rule" ? [{ kind: a.kind, rule: a.anchor.rule, ...(fit.words(a.text, 200) ? { text: fit.words(a.text, 200) } : {}), ...(a.arrow !== undefined ? { arrow: a.arrow } : {}) }] : [])) } : {}),
   }));
   if (s.design?.body) out.design = designKey.get(canonical(s.design.body)) ?? s.design.body;
   return Object.keys(out).length ? { settings: out } : {};
 }
 
 /** Paragraphs of a shape's words, from the rich text the deck editor keeps. */
-function paragraphsOf(rich: unknown): string[] {
+function paragraphsOf(rich: unknown, fit: TextFit = PACK_FIT): string[] {
   const doc = rich as { content?: { content?: { text?: string }[] }[] } | undefined;
-  return (doc?.content ?? []).map((p) => (p.content ?? []).map((t) => t.text ?? "").join("")).slice(0, 20).map((t) => wordsOk(t, 300) ?? "").filter((t, i, all) => t || i < all.length - 1);
+  return (doc?.content ?? []).map((p) => (p.content ?? []).map((t) => t.text ?? "").join("")).slice(0, 20).map((t) => fit.words(t, 300) ?? "").filter((t, i, all) => t || i < all.length - 1);
 }
 
 const COLORS = ["black", "grey", "light-violet", "violet", "blue", "light-blue", "yellow", "orange", "green", "light-green", "light-red", "red", "white"];
@@ -311,20 +318,20 @@ const GEOS = ["rectangle", "ellipse", "oval", "triangle", "diamond", "hexagon", 
 const clamp = (v: unknown, lo: number, hi: number) => Math.min(hi, Math.max(lo, Math.round(Number(v) || 0)));
 
 /** A slide's shape as a Deck Template file keeps it: widgets, words and simple boxes; anything else stays behind. */
-function slideShapeOf(sh: SlideShape, designKey: ReadonlyMap<string, string>): DeckTemplateFile["slides"][number]["shapes"] {
+export function slideShapeOf(sh: SlideShape, designKey: ReadonlyMap<string, string>, fit: TextFit = PACK_FIT): DeckTemplateFile["slides"][number]["shapes"] {
   const p = sh.props as Record<string, unknown>;
   const x = clamp(sh.x, 0, 1279), y = clamp(sh.y, 0, 719);
   const color = COLORS.includes(String(p.color)) ? { color: p.color as "black" } : {};
   if (sh.type === "ziffr-widget" && sh.widget && (TEMPLATE_VIEWS as readonly string[]).includes(String(p.template))) {
-    return [{ shape: "widget", view: p.template as "line", slots: sh.widget.metricSlots, ...titleOf(sh.widget.title), x, y, w: clamp(p.w, 40, 1280 - x), h: clamp(p.h, 40, 720 - y), ...settingsOf(sh.widget.settings, designKey) }];
+    return [{ shape: "widget", view: p.template as "line", slots: sh.widget.metricSlots, ...titleOf(sh.widget.title, fit), x, y, w: clamp(p.w, 40, 1280 - x), h: clamp(p.h, 40, 720 - y), ...settingsOf(sh.widget.settings, designKey, fit) }];
   }
   if (sh.type === "text") {
-    const text = paragraphsOf(p.richText);
+    const text = paragraphsOf(p.richText, fit);
     if (!text.length) return [];
     return [{ shape: "text", x, y, w: clamp(p.w, 20, 1280 - x), text, ...(["s", "m", "l", "xl"].includes(String(p.size)) ? { size: p.size as "m" } : {}), ...(typeof p.scale === "number" ? { scale: Math.min(4, Math.max(0.25, p.scale)) } : {}), ...(["start", "middle", "end"].includes(String(p.textAlign)) ? { align: p.textAlign as "start" } : {}), ...color }];
   }
   if (sh.type === "geo") {
-    const text = paragraphsOf(p.richText);
+    const text = paragraphsOf(p.richText, fit);
     return [{ shape: "box", x, y, w: clamp(p.w, 4, 1280 - x), h: clamp(p.h, 4, 720 - y), geo: (GEOS.includes(String(p.geo)) ? p.geo : "rectangle") as "rectangle", ...(["none", "semi", "solid"].includes(String(p.fill)) ? { fill: p.fill as "none" } : {}), ...color, ...(text.length ? { text } : {}) }];
   }
   return [];

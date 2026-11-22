@@ -1,5 +1,6 @@
 // The Workspace Export format's checks (GLOSSARY: Workspace Export): a sound file, what it carries, and hostile files.
 import { describe, expect, it } from "vitest";
+import { checkDashboardTemplateFileValue } from "./dashboard-template-file.js";
 import { checkWorkspaceExport, WORKSPACE_EXPORT_LIMITS, WORKSPACE_EXPORT_SCHEMA, WorkspaceExportChecker } from "./workspace-export.js";
 
 const metricDoc = { format: "ziffr.metric/1", name: "Orders", period: "month", aggregation: "sum", polarity: "higher" };
@@ -155,6 +156,17 @@ describe("what is never carried", () => {
     expect(problems(text(edit(at("theme"), (r) => ({ ...r, theme: { ...themeDoc, name: odd } }))))).toEqual([]);
     expect(problems(text(edit(at("dashboard"), (r) => ({ ...r, dashboard: { ...dashDoc, name: "a\u202Eb" } }))))).not.toHaveLength(0);
     expect(problems(text(edit(at("workflow"), (r) => ({ ...r, workflow: { ...flowDoc, name: "a\nb" } }))))).not.toHaveLength(0);
+  });
+  it("takes a View Design inside a widget with the same loose text, in a dashboard and in a deck, and a Pack still does not", () => {
+    const odd = "R&D @ home 🚀 https://x.example";
+    const design = { format: "ziffr.view/1", name: odd, description: odd, kind: "metric", slots: [{ label: odd, metrics: "one" }], size: { w: 6, h: 6 }, empty: odd, parts: [{ mark: "text", content: [odd, { show: "latest.value", before: odd, after: "@" }] }] };
+    const widget = { view: "design", slots: [0], x: 0, y: 0, w: 6, h: 6, settings: { design } };
+    expect(problems(text(edit(at("dashboard"), (r) => ({ ...r, dashboard: { ...dashDoc, widgets: [widget] } }))))).toEqual([]);
+    expect(problems(text(edit(at("deck"), (r) => ({ ...r, deck: { ...deckDoc, slides: [{ shapes: [{ shape: "widget", view: "design", slots: [0], x: 10, y: 10, w: 400, h: 300, settings: widget.settings }] }] } }))))).toEqual([]);
+    // The reasons not to carry markup or control characters hold in a design too.
+    const bad = { ...widget, settings: { design: { ...design, name: "a\u202Eb" } } };
+    expect(problems(text(edit(at("dashboard"), (r) => ({ ...r, dashboard: { ...dashDoc, widgets: [bad] } }))))).not.toHaveLength(0);
+    expect(checkDashboardTemplateFileValue({ ...dashDoc, widgets: [widget] }).ok).toBe(false);
   });
   it("refuses a Theme that brings a logo, and a dashboard that names an item of a Pack", () => {
     expect(messages(text(edit(at("theme"), (r) => ({ ...r, theme: { ...themeDoc, slides: { logo: "pack" } } })))).join()).toContain("theme.slides.logo");
