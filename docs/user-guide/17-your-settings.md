@@ -29,6 +29,10 @@ Your address counts as proven when you signed in with the email link or a provid
 
 After signing in for the first time, you start a Workspace or join one; see [Workspace settings](16-workspace-settings.md#starting-a-workspace).
 
+## Imprint, Privacy notice and Terms
+
+On hosted Ziffr (the Ziffr you reach at ziffr.net) three links sit at the foot of every page: **Imprint**, **Privacy notice** and **Terms**. They are on the sign-in page, in the app, in the demo and on View Link pages, and each opens Ziffr's own page in a new tab. Where an account can be created, the sign-in page also says "By signing up you agree to the Terms and the Privacy notice." under the button. A Ziffr that someone runs themselves shows none of this and has no setting for it.
+
 ## The demo
 
 **Demo Mode** is a visit to a made-up online shop with its own made-up people. Every visitor shares it, and nothing done there is saved or reaches a real Workspace. It is the place to look around before you start; see also [Getting started](07-getting-started.md).
