@@ -120,7 +120,8 @@ export async function assertNotTrial(workspaceId: string, what = "This"): Promis
 
 /** The words for an invitation email a trial may not send, by the message the claim raises with ZF436 (the daily number of
  * the trial, or of all trials together), and for a second open invitation to one address. */
-export function trialInvitationMessage(message: string | undefined): string {
+export function trialInvitationMessage(refusal: { message?: string } | undefined): string {
+  const message = refusal?.message;
   const n = trialLimitsNow();
   if (message === "invitation_open_for_address") return "This address has an open invitation already. Revoke it first to invite it again.";
   if (message === "invitations_all_trials_day") return "Ziffr is not sending invitation emails for trials right now; send the link yourself, or try again tomorrow.";

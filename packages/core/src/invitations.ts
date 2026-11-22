@@ -71,7 +71,7 @@ async function emailInvitation(id: number, sender: string, transport?: MailTrans
   });
   if (error) {
     // A trial's own limit (ZF436): kept on the invitation, never dropped; the Owner sends the link themselves.
-    if (error.code === "ZF436") await db().from("invitations").update({ email_error: trialInvitationMessage(error.message) }).eq("id", id);
+    if (error.code === "ZF436") await db().from("invitations").update({ email_error: trialInvitationMessage(error) }).eq("id", id);
     return false;
   }
   if (claim === "limit") {
@@ -126,7 +126,7 @@ export async function inviteByEmail(actor: Actor, input: { email: string; role: 
     created_by: actor.personId, expires_at: new Date(Date.now() + 14 * DAY).toISOString(), address_key: mailboxKey(email),
   }).select("id").single();
   // The trial's limits (people, one open invitation per address, no invitation before the Owner's first value) are the database's.
-  if (error?.code === "ZF436") throw new Error(trialInvitationMessage(error.message));
+  if (error?.code === "ZF436") throw new Error(trialInvitationMessage(error));
   if (error?.code === "ZF435" || error?.code === "ZF439") throw new Error(trialLimitMessage(error.code)!);
   if (error || !made) throw new Error("The invitation could not be made.");
   // A Contact is named, not addressed: their address is a contact detail and stays out of the record.
