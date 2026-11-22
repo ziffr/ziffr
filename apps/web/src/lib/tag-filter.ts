@@ -1,7 +1,7 @@
 // The Tag filter of the Metrics list lives in the address (GLOSSARY: Tag; spec 0038): `?tag=finance&tag=monthly` shows the
 // Metrics that carry all of them, so a filtered list can be bookmarked and shared. The address is untrusted input: it is
 // cut to a few short words here and compared by the core against the Tags the person sees, never built into a query.
-import { TAG_NAME_MAX, TAGS_PER_METRIC, normaliseTagName } from "@ziffr/core/tag-names";
+import { TAG_NAME_MAX, TAGS_PER_METRIC, normaliseTagName } from "@ziffr/pack/tag-names";
 
 /** The Tag words of an address's `tag` parameter: normalised, without repeats (ignoring case), at most as many as a Metric carries. */
 export function tagsFromParam(param: string | string[] | undefined): string[] {

@@ -21,6 +21,7 @@
     "@supabase/supabase-js": "^2.119.0",
     "@ziffr/core": "workspace:*",
     "@ziffr/mcp": "workspace:*",
+    "@ziffr/pack": "workspace:*",
     "@ziffr/sdk": "workspace:*",
     "class-variance-authority": "^0.7.1",
     "cn": "^0.5.2",

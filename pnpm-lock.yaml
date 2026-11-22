@@ -78,6 +78,9 @@ importers:
       '@ziffr/mcp':
         specifier: workspace:*
         version: link:../../packages/mcp
+      '@ziffr/pack':
+        specifier: workspace:*
+        version: link:../../packages/pack
       '@ziffr/sdk':
         specifier: workspace:*
         version: link:../../packages/sdk

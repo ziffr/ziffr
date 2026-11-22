@@ -4,7 +4,7 @@
 import { redirect } from "next/navigation";
 import { PageHeader } from "@/components/page-header";
 import { visibleTags } from "@ziffr/core/tag-sight";
-import { TAGS_PER_WORKSPACE } from "@ziffr/core/tag-names";
+import { TAGS_PER_WORKSPACE } from "@ziffr/pack/tag-names";
 import { currentActor } from "@/lib/viewer";
 import { TagsList } from "./form";
 

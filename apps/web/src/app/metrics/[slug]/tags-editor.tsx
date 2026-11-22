@@ -9,7 +9,7 @@ import { X } from "lucide-react";
 import { addTags, removeTag } from "@/app/tag-actions";
 import { isActionError, UNEXPECTED } from "@/lib/action-error";
 import { Button } from "@/components/ui/button";
-import { TAGS_PER_METRIC } from "@ziffr/core/tag-names";
+import { TAGS_PER_METRIC } from "@ziffr/pack/tag-names";
 
 /** The chips with a remove button each, and a field to add words (separated by commas, or Enter). `suggestions` are the Tags
  * the person sees, so nothing is offered that they could not already see through a Metric. */
