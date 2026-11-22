@@ -123,6 +123,16 @@ A ready workflow to start from: [n8n-feed-workflow.json](n8n-feed-workflow.json)
 
 Leave out `period` to record the current period, or give a period's first day (`2026-10-01`) to fill an earlier one. Each result says `recorded`, `awaiting_approval`, `locked` or `refused`, with a `code` (such as `duplicate` or `period`) for a refusal. `imported: true` marks an Import. One refused item does not stop the rest, so check the results, not only the HTTP status.
 
+### A webhook that other systems call
+
+When the other system can call a URL but not Ziffr's API (a form tool, a shop, a script that only knows webhooks), put an n8n automation in between (not a Ziffr [Webhook](webhooks.md), which only sends messages out). [`n8n-webhook-workflow.json`](n8n-webhook-workflow.json) is a ready one: import it in n8n (Workflows, Import from File), then
+
+1. make a Header Auth credential **Ziffr webhook secret** with the name `X-Webhook-Secret` and a long random value, and give that header to whoever calls the webhook;
+2. make a Header Auth credential **Ziffr Feed Key** with the name `Authorization` and the value `Bearer zk_…`;
+3. set `ZIFFR_URL` at the top of the **Check and shape** node, and publish the automation.
+
+The webhook takes one value, `{ "metric": "sign-ups", "value": 1 }`, with an optional `period` and `breakdown`, or `{ "items": [ … ] }` with up to 500. It refuses calls without the secret (403) and bodies that are not values (400) before anything reaches Ziffr, passes an `Idempotency-Key` header on, and answers with Ziffr's results. Whoever knows the secret can send values for every Metric the Feed submits to, so give the Feed only the Metrics the webhook is meant for. For a Metric that counts events, such as one sign-up per call, use the Submission Rule "add up".
+
 ## Limits
 
 - About 60 calls a minute and 10,000 values a day per Feed, counted over all its keys. Every value sent counts, refused ones too. A batch that would go over the day's limit is refused as a whole with 429 and `Retry-After`.
