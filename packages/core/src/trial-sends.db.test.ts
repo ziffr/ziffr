@@ -1,5 +1,5 @@
 // What a Trial Workspace really sends, against the real database and the local Mailpit (spec 0021, ticket 3, ADR
-// 0010): only to its Owner, nothing once it has ended, at most 50 a day over all Connectors, and at most 25 Metrics.
+// 0010): only to people who accepted (never a Contact), nothing once it has ended, at most 100 a day over all Connectors, and at most 25 Metrics.
 import { randomUUID } from "node:crypto";
 import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
 import { db } from "./db";
@@ -8,7 +8,7 @@ import { sendDelivery } from "./mail";
 import { createMetric } from "./metrics";
 import { sendSlackDelivery } from "./slack-send";
 import { sendTelegramDelivery } from "./telegram-send";
-import { claimTrialSend, TRIAL_HOLDS_BACK } from "./trials";
+import { claimTrialSend, TRIAL_HOLDS_BACK, trialHoldsBack } from "./trials";
 import { trialLimitOf } from "./trial-limits";
 import { receiveEmail } from "./inbound-email";
 import { workspace } from "./test/db-fixtures";
@@ -39,7 +39,7 @@ async function queued(wsId: string, recipient: string, connector: string) {
   return data!.id as number;
 }
 
-describe("a Trial Workspace sends only to its Owner", () => {
+describe("a Trial Workspace sends only to people who accepted", () => {
   it("emails a Prompt to its Owner for real", async () => {
     const t = await trial();
     const m = await t.metric(t.owner, { sources: ["web_form", "mail"] });
@@ -57,13 +57,54 @@ describe("a Trial Workspace sends only to its Owner", () => {
     expect(await latest(t.id, dana)).toMatchObject({ mail_state: "outbox" });
   });
 
-  it("holds back a queued Delivery to anyone else on every Connector, whatever is set up", async () => {
+  it("emails a Prompt to a Member, an Admin and a Guest who accepted, for real", async () => {
+    const t = await trial();
+    const m = await t.metric(t.owner, { sources: ["web_form", "mail"] });
+    for (const role of ["member", "admin", "guest"] as const) {
+      const who = await t.person(role, { email: address(role) });
+      await t.token(m.id, who);
+      expect(await deliverPrompt({ metricId: m.id, submitterId: who, senderId: t.owner, via: "email" })).toBeTruthy();
+      expect(await latest(t.id, who)).toMatchObject({ mail_state: "sent" });
+    }
+  });
+
+  it("keeps a Delivery to someone with no membership (an open invitation) in the Outbox", async () => {
+    const t = await trial();
+    const stranger = `t-${randomUUID()}`;
+    await db().from("profiles").insert({ id: stranger, name: "Invited", role: "", color: "#000", email: address("invited") });
+    cleanups.push(async () => { await db().from("profiles").delete().eq("id", stranger); });
+    expect(await trialHoldsBack(t.id, stranger)).toBe(TRIAL_HOLDS_BACK.notAccepted);
+    const id = await queued(t.id, stranger, "email");
+    expect(await sendDelivery(id)).toBe("skipped");
+    expect((await db().from("deliveries").select("mail_state, last_error").eq("id", id).single()).data).toEqual({ mail_state: "outbox", last_error: TRIAL_HOLDS_BACK.notAccepted });
+  });
+
+  it("keeps a Contact in the Outbox even when the same person is also a member", async () => {
+    const t = await trial();
+    const both = await t.person("member", { email: address("both") });
+    await db().from("contacts").insert({ workspace_id: t.id, person_id: both, email: address("typed") });
+    expect(await trialHoldsBack(t.id, both)).toBe(TRIAL_HOLDS_BACK.contact);
+    const id = await queued(t.id, both, "email");
+    expect(await sendDelivery(id)).toBe("skipped");
+  });
+
+  it("takes a Member's Delivery into the day's limit with the Owner's and every other's", async () => {
+    const t = await trial();
+    const ben = await t.person("member", { email: address("ben") });
+    const ids: number[] = [];
+    for (let i = 0; i < TRIAL_DELIVERIES_PER_DAY + 4; i++) ids.push(await queued(t.id, i % 2 ? ben : t.owner, ["email", "slack", "telegram"][i % 3]));
+    const answers = await Promise.all(ids.map((id) => claimTrialSend(id)));
+    expect(answers.filter((a) => a === "ok")).toHaveLength(TRIAL_DELIVERIES_PER_DAY);
+    expect(answers.filter((a) => a === "wait")).toHaveLength(4);
+  });
+
+  it("holds back a queued Delivery to a Contact on every Connector, whatever is set up", async () => {
     const t = await trial();
     const dana = await t.contact({ email: address("dana"), slack_handle: "dana" });
     for (const [connector, send] of [["email", sendDelivery], ["slack", sendSlackDelivery], ["telegram", sendTelegramDelivery]] as const) {
       const id = await queued(t.id, dana, connector);
       expect(await send(id)).toBe("skipped");
-      expect((await db().from("deliveries").select("mail_state, last_error").eq("id", id).single()).data).toEqual({ mail_state: "outbox", last_error: TRIAL_HOLDS_BACK.notOwner });
+      expect((await db().from("deliveries").select("mail_state, last_error").eq("id", id).single()).data).toEqual({ mail_state: "outbox", last_error: TRIAL_HOLDS_BACK.contact });
     }
   });
 

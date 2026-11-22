@@ -27,7 +27,7 @@ import { keptMethod } from "./attainment-method";
 import { normalizeMetric } from "./metric-row";
 import { numberStyleOf } from "./workspace-settings";
 import { effectiveLimit } from "./limits";
-import { trialLimitMessage } from "./trials";
+import { trialEnded, trialLastDay, trialLimitMessage } from "./trials";
 import type { CanvasData, Widget } from "./types";
 
 /** How long a View Link may live at most, in days: the ceiling; a Workspace may set a shorter life (limits.ts). */
@@ -219,6 +219,8 @@ async function openLinkContent(token: string, opts: { count?: boolean }): Promis
   if (!/^[A-Za-z0-9_-]{20,64}$/.test(String(token))) return null;
   const { data: link } = await db().from("view_links").select("*").eq("token", token).maybeSingle();
   if (!link || link.revoked_at || link.expires_at < new Date().toISOString().slice(0, 10)) return null;
+  // A link of a trial that has ended shows nothing, though its last day may run to midnight (never outlives the trial).
+  if (await trialEnded(String(link.workspace_id))) return null;
   // A Snapshot's link counts for its dashboard (object_id); recordView ignores an id that is gone.
   if (opts.count && (link.object_type === "dashboard" || link.object_type === "deck")) {
     void recordView({ workspaceId: String(link.workspace_id) }, { kind: link.object_type, id: Number(link.object_id) }, "link");
@@ -309,8 +311,11 @@ export async function createViewLink(actor: Actor, type: "dashboard" | "deck", i
   const today = new Date().toISOString().slice(0, 10);
   const maxDays = await effectiveLimit("viewLinkDays", actor.workspaceId);
   const latest = new Date(Date.now() + maxDays * 86400000).toISOString().slice(0, 10);
-  const expires = String(input?.expires ?? "");
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(expires) || expires < today || expires > latest) throw new Refused(`Pick an end date within ${maxDays} days.`);
+  const asked = String(input?.expires ?? "");
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(asked) || asked < today || asked > latest) throw new Refused(`Pick an end date within ${maxDays} days.`);
+  // In a trial a link ends with the trial at the latest (the database clamps too).
+  const trialEnd = await trialLastDay(actor.workspaceId);
+  const expires = trialEnd && trialEnd < asked ? trialEnd : asked;
   // `opts.view` is a payload the caller already checked (a Share Proposal's): the link is made from exactly it, with no second read in between.
   const view = opts.view ?? await buildView(type, id);
   if (!view) throw new Forbidden();
@@ -347,7 +352,10 @@ async function createSnapshotLink(actor: Actor, dashboardId: number, snapshotId:
   if (!Number.isInteger(dashboardId) || !Number.isInteger(snapshotId)) throw new Forbidden();
   await assertOwner(actor, "dashboard", dashboardId);
   assertCan(actor, "share");
-  const expires = endDate(input?.expires, await effectiveLimit("viewLinkDays", actor.workspaceId));
+  const asked = endDate(input?.expires, await effectiveLimit("viewLinkDays", actor.workspaceId));
+  // In a trial a link ends with the trial at the latest (the database clamps too).
+  const trialEnd = await trialLastDay(actor.workspaceId);
+  const expires = trialEnd && trialEnd < asked ? trialEnd : asked;
   const s = await snapshotForLink(snapshotId, dashboardId);
   // Only a shown Snapshot of this dashboard: a draft is not for anyone else yet.
   if (!s) throw new Refused("Show the Snapshot to everyone with access first, then make a link to it.");

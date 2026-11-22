@@ -61,7 +61,7 @@ export async function sendSlackDelivery(id: number): Promise<SendResult> {
   // Nothing goes out for an Archived Metric, also when it was archived after this was queued.
   const archived = await archivedMetricHolds(d);
   if (archived) return never(archived);
-  // A trial reaches only its Owner, whatever is set up (ADR 0010).
+  // A trial reaches only people who accepted, never a Contact, whatever is set up (ADR 0015).
   const held = await trialHoldsBack(d.workspace_id, d.recipient_id);
   if (held) return keepInOutbox(id, held);
   if (d.workspace_id === DEMO_WORKSPACE_ID || !(await slackOn())) return never("Slack is not set up.");

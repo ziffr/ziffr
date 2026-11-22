@@ -411,7 +411,7 @@ Open **View links…** in the **⋯** menu:
 | Field | What it does |
 | --- | --- |
 | **For** | Who the link is for, such as "Advisory board, Q4", so you recognise it later. |
-| **Works until** | The last day it works: 30 days from today unless you change it, at most 90 days. |
+| **Works until** | The last day it works: 30 days from today unless you change it, at most 90 days. In a trial it is never later than the trial's last day, and a later date you pick is shortened to it, and it keeps that date if you subscribe: give the link a new end by making a new one. |
 | **Freeze today's numbers** | The link keeps the values of today. Otherwise it shows live values until it ends. |
 | **Show names** | Off by default. Without it the link shows no one's name: owners, submitters, authors and the people of a Snapshot are left out, and a name written in a title or an introduction reads "Someone". Tick it for an internal link. |
 
