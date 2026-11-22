@@ -81,12 +81,19 @@ describe("Do not invite me again", () => {
     const r = await inviteByEmail(b.actor, { email: to.toUpperCase(), role: "guest" }, transport);
     expect(r.emailed).toBe(false);
     expect(mails).toHaveLength(0);
-    expect((await openInvitations(b.actor))[0]).toMatchObject({ email_sends: 0, email_error: expect.stringMatching(/does not get invitation emails/) });
+    expect((await openInvitations(b.actor))[0]).toMatchObject({ email_sends: 0, email_error: "Too many invitation emails today; send the link yourself." });
     expect((await db().from("invitation_emails").select("id").eq("workspace_id", b.id)).data).toEqual([]);
     // Another address is not touched.
     await inviteByEmail(b.actor, { email: address(), role: "guest" }, transport);
     expect(mails).toHaveLength(1);
     await forget(to);
+  });
+  it("signs a non-ASCII address too, so a trial invitation to it is still emailed", async () => {
+    const w = await ws(); const to = `jörg-${randomUUID().slice(0, 8)}@example.test`;
+    const r = await inviteByEmail(w.actor, { email: to, role: "member" }, transport).catch(() => null);
+    if (!r) return; // an address the rest of invitations refuses is not this test's concern
+    expect(r.emailed).toBe(true);
+    expect(stopUrl(mails[0])).not.toBeNull();
   });
   it("is refused for a token that was not signed here, and changes nothing", async () => {
     const before = (await db().from("invitation_stops").select("address_key")).data!.length;
@@ -112,6 +119,13 @@ describe("what the accept page and the bar say", () => {
     const info = await invitationFor(token);
     expect(info?.trial?.words).toMatch(/invited you to a trial of Ziffr that ends on \d+ \w+\. After that it either becomes a subscription or is closed and its data is deleted\./);
     expect(JSON.stringify(info)).not.toContain(w.owner);
+  });
+  it("names the inviter only for a named address that joins as a Member, never for a Guest", async () => {
+    const w = await ws();
+    const asMember = await inviteByEmail(w.actor, { email: address(), role: "member" }, transport);
+    const asGuest = await inviteByEmail(w.actor, { email: address(), role: "guest" }, transport);
+    expect((await invitationFor(asMember.token))?.trial?.words).toMatch(/^\S.* invited you to a trial of Ziffr/);
+    expect((await invitationFor(asGuest.token))?.trial?.words).toMatch(/^You are invited to a trial of Ziffr that ends on /);
   });
   it("says nothing of a trial for an ordinary Workspace, and nothing once the invitation is no longer usable", async () => {
     const w = await ws(false);

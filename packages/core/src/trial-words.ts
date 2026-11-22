@@ -8,7 +8,7 @@ export const trialDay = (endsAt: string): string => new Date(endsAt).toLocaleDat
 export const TRIAL_AFTER = "After that it either becomes a subscription or is closed and its data is deleted.";
 
 /** For an invitation (email and accept page): who invited, that it is a trial, until when, and what follows. */
-export const trialInvitedWords = (inviter: string, endsAt: string): string => `${inviter} invited you to a trial of Ziffr that ends on ${trialDay(endsAt)}. ${TRIAL_AFTER}`;
+export const trialInvitedWords = (inviter: string | null, endsAt: string): string => `${inviter ? `${inviter} invited` : "You are invited"}${inviter ? " you" : ""} to a trial of Ziffr that ends on ${trialDay(endsAt)}. ${TRIAL_AFTER}`;
 
 /** For the bar a Member, Admin or Guest sees: the Owner's trial, its end, what follows. No counts: those are for Owners and Admins. */
 export const trialMemberWords = (owner: string | null, endsAt: string): string => `You are in ${owner ? `${owner}'s` : "a"} trial of Ziffr, which ends on ${trialDay(endsAt)}. ${TRIAL_AFTER}`;

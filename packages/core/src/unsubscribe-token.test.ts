@@ -22,6 +22,12 @@ describe("signed unsubscribe tokens of different labels", () => {
     expect(signInvitationStopToken(long, KEY)).not.toBeNull();
     for (const bad of ["", "ab", "has space@x.test", "x".repeat(255), "line\nbreak@x.test"]) expect(signInvitationStopToken(bad, KEY)).toBeNull();
   });
+  it("round-trip a non-ASCII address", () => {
+    const t = signInvitationStopToken("jörg@exämple.test", KEY)!;
+    expect(t).not.toBeNull();
+    process.env.ZIFFR_SECRETS_KEY = KEY.ZIFFR_SECRETS_KEY;
+    try { expect(invitationStopTokenValid(t)).toBe(true); } finally { delete process.env.ZIFFR_SECRETS_KEY; }
+  });
   it("are not made without a key", () => {
     expect(signInvitationStopToken("nia@example.test", {})).toBeNull();
   });

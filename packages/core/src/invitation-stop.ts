@@ -6,7 +6,8 @@
 import { db } from "./db";
 import { unsubscribeSigner } from "./unsubscribe-token";
 
-const signer = unsubscribeSigner("ziffr/invitation-stop/v1", /^[\x21-\x7e]{3,254}$/, 254);
+const signer = // Any address an invitation may go to (not only ASCII), so none fails to get its stop link; no control characters, no spaces.
+unsubscribeSigner("ziffr/invitation-stop/v1", /^[^\s\u0000-\u001f\u007f-\u009f\u2028\u2029]{3,254}$/u, 254 * 4);
 
 /** The token for the stop link of an address (its mailboxKey), or null when this Installation has no key to sign with. */
 export const signInvitationStopToken = signer.sign;

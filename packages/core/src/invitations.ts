@@ -90,8 +90,9 @@ async function emailInvitation(id: number, sender: string, transport?: MailTrans
     return false;
   }
   if (claim === "stopped") {
-    // The address used "Do not invite me again": no mail, and the words say only that, not who or when.
-    await db().from("invitations").update({ email_error: "This address does not get invitation emails from this Ziffr. Send the link yourself." }).eq("id", id);
+    // The address used "Do not invite me again": no mail, and the words are the daily limit's, so nobody who invites can
+    // learn that an address stopped them.
+    await db().from("invitations").update({ email_error: "Too many invitation emails today; send the link yourself." }).eq("id", id);
     return false;
   }
   if (claim !== "ok") return false;
@@ -199,15 +200,23 @@ export async function revokeInvitation(actor: Actor, id: number) {
   await audit(actor, { kind: "invitation.revoked", object: { type: "invitation", id: data[0].id, name: await invitationName(data[0], actor.workspaceId) }, details: { role: data[0].role } });
 }
 
+/** A person's name as the Workspace seals it, or null. */
+async function nameOf(workspaceId: string, personId: string): Promise<string | null> {
+  const { data } = await db().from("profiles").select("id, name").eq("id", personId).maybeSingle();
+  return data ? ((await openNames(workspaceId, [data]))[0]?.name as string | undefined) || null : null;
+}
+
 /** What an invitation offers, for its page: the workspace, the role and whether it still works. Nothing else. */
 export async function invitationFor(t: string) {
   if (!/^[A-Za-z0-9_-]{20,64}$/.test(String(t))) return null;
-  const { data: inv } = await db().from("invitations").select("workspace_id, email, role, expires_at, revoked_at, accepted_at, workspaces(name), profiles!invitations_created_by_fkey(name)").eq("token", t).maybeSingle();
+  const { data: inv } = await db().from("invitations").select("workspace_id, email, role, expires_at, revoked_at, accepted_at, workspaces(name), created_by").eq("token", t).maybeSingle();
   if (!inv) return null;
   const usable = !inv.revoked_at && !inv.accepted_at && inv.expires_at > new Date().toISOString();
   // A trial says so (spec 0040): who invited, until when and what follows, the words the email has. Only what the email itself told.
   const ends = usable ? await trialEndsAt(inv.workspace_id as string) : null;
-  const inviter = (inv.profiles as unknown as { name: string } | null)?.name ?? "Someone";
+  // The inviter is named only where the email already did: an invitation to a named address that joins as a Member. A link
+  // works for anyone who has it and may join as a Guest, who never sees who else is in the Workspace.
+  const inviter = ends && inv.email && inv.role === "member" && inv.created_by ? await nameOf(inv.workspace_id as string, inv.created_by as string) : null;
   return { workspace: (inv.workspaces as unknown as { name: string }).name, role: inv.role as WorkspaceRoleName, forEmail: inv.email as string | null, usable, trial: ends && ends.getTime() > Date.now() ? { words: trialInvitedWords(inviter, ends.toISOString()) } : null };
 }
 

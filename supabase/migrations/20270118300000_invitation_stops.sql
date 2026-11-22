@@ -26,7 +26,8 @@ begin
   perform pg_advisory_xact_lock(hashtext('invitation-address:' || p_address_key));
   perform pg_advisory_xact_lock(hashtext('invitation-workspace:' || inv.workspace_id::text));
   perform pg_advisory_xact_lock(hashtext('invitation-sender:' || p_sender));
-  -- Checked again under the address's lock, so a stop that lands while a send is claimed still holds.
+  -- Checked again once the address's lock is held, so a stop made before the claim finishes is honoured. An email already
+  -- claimed and being sent may still arrive: a stop ends later invitation emails, it cannot recall one in flight.
   if exists (select 1 from invitation_stops where address_key = p_address_key) then return 'stopped'; end if;
   if ends is not null then
     -- One lock for all trials, always taken last, so no two sends can pass the shared number together.
