@@ -89,7 +89,7 @@ const HOSTILE: [string, string, string, Where][] = [
   ["a mailto address", withMetric({ description: "Write to mailto:x" }), "without markup or web addresses", '"description"'],
   ["an address in a View Design", withContents({ views: [{ key: "v", design: { ...VIEW, name: "https://evil.example" } }] }), "without markup or web addresses", '"https://evil.example"'],
   ["HTML in a Theme's footer", withContents({ themes: [{ key: "t", theme: { ...THEME, slides: { footer: "<img src=x onerror=alert(1)>" } } }] }), "without markup or web addresses", '"footer"'],
-  ["an image in a Theme", withContents({ themes: [{ key: "t", theme: { ...THEME, slides: { logo: "data:image/png;base64,AAAA" } } }] }), "is not a field here", '"logo"'],
+  ["an image in a Theme", withContents({ themes: [{ key: "t", theme: { ...THEME, slides: { logo: "data:image/png;base64,AAAA" } } }] }), "must be “pack”", '"logo"'],
   ["a font file in a Theme", withContents({ themes: [{ key: "t", theme: { ...THEME, fonts: { ...THEME.fonts, heading: "https://evil.example/font.woff2" } } }] }), "must be one of “general-sans”", '"heading"'],
   ["a View Design its own checks refuse", withContents({ views: [{ key: "v", design: { ...VIEW, parts: [{ mark: "iframe", src: "x" }] } }] }), "must be one of “text”, “group”, “plot”, “gauge”, “rows”", '"iframe"'],
   ["a recipe its own checks refuse", withContents({ analyses: [{ key: "a", recipe: { ...WITH_RECIPE.analysis!, steps: [{ id: "x", fn: "fetch", of: "slot1" }] } }] }), "must be one of “movingAverage”", '"fetch"'],

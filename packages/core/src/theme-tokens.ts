@@ -1,7 +1,7 @@
 // Theme checks (GLOSSARY: Theme): a theme's tokens and slide settings before they are stored. Colours are hex,
 // fonts are known, sizes are sane, images are inline pictures of a limited size.
 import { FONTS, HEX } from "./themes";
-import { logoOk, svgIsPlain } from "./theme-look";
+import { cleanLogo } from "./theme-look";
 import { cleanDark } from "./theme-dark";
 import type { FontId, LogoPosition, ThemeSlides, ThemeTokens } from "./types";
 
@@ -36,12 +36,12 @@ const MAX_IMAGE = 3_000_000; // characters of data URL
 /** The slide part of a theme: images must be inline pictures of a sane size, numbers within range. */
 export function cleanSlides(s: ThemeSlides): ThemeSlides {
   // An SVG must also be plain (no script, handler or link out): it is drawn on pages and in files people open.
-  const img = (v: string | null) => (v && DATA_IMAGE.test(v) && v.length <= MAX_IMAGE && (!v.startsWith("data:image/svg+xml") || svgIsPlain(Buffer.from(v.slice(v.indexOf(",") + 1), "base64").toString("utf8"))) ? v : null);
+  const img = (v: string | null) => (v && DATA_IMAGE.test(v) && v.length <= MAX_IMAGE && (!v.startsWith("data:image/svg+xml") || cleanLogo(v, MAX_IMAGE)) ? (v.startsWith("data:image/svg+xml") ? cleanLogo(v, MAX_IMAGE) : v) : null);
   const int = (v: number, lo: number, hi: number, d: number) => (Number.isFinite(Number(v)) ? Math.min(hi, Math.max(lo, Math.round(Number(v)))) : d);
   return {
     background_image: img(s?.background_image ?? null),
     // A logo is held tighter than a background: 256 KB, 512 px, no WebP, a plain SVG (theme-look.ts).
-    logo: logoOk(s?.logo) ? s.logo : null,
+    logo: cleanLogo(s?.logo),
     logo_ratio: Number(s?.logo_ratio) > 0 ? Math.min(20, Number(s.logo_ratio)) : 3,
     logo_position: POSITIONS.includes(s?.logo_position) ? s.logo_position : "top-right",
     logo_width: int(s?.logo_width, 40, 400, 140),

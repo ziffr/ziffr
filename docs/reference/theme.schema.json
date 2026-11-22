@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://ziffr.net/schemas/ziffr.theme-1.json",
   "title": "Ziffr Theme (ziffr.theme/1)",
-  "description": "A named look for everything that shows numbers: colours, fonts, cards and what every slide shows. It holds no image, font file or web address.",
+  "description": "A named look for everything that shows numbers: colours, fonts, cards and what every slide shows. It holds no image of its own, font file or web address.",
   "type": "object",
   "properties": {
     "format": {
@@ -163,8 +163,12 @@
     },
     "slides": {
       "type": "object",
-      "description": "What every slide shows. A logo and a background image are set in Ziffr, never in the file.",
+      "description": "What every slide shows. A background image is set in Ziffr, never in the file; the logo is only “pack”, the logo of the Pack the Theme is in.",
       "properties": {
+        "logo": {
+          "const": "pack",
+          "description": "Use the logo of the Pack this Theme is in. Only inside a Pack that has a logo."
+        },
         "logoPosition": {
           "enum": [
             "top-left",
