@@ -21,6 +21,7 @@ Decks, Themes, View Designs, the canvas, Packs and the pages that edit them are 
 - `saveToPool` (dashboards.ts): the dashboard canvas
 - `deleteSavedWidget` (dashboards.ts): the dashboard canvas
 - `setDashboardTheme` (dashboards.ts): Themes
+- `fixTagLists` (tag-lists.ts): the View links window's Fix the list; a Tag source on a widget is not in the API yet (spec 0038)
 - `canvasAdd` (dashboards.ts): the dashboard canvas
 - `canvasRemove` (dashboards.ts): the dashboard canvas
 - `canvasSet` (dashboards.ts): the dashboard canvas
@@ -293,6 +294,8 @@ Ticketed. MCP follows where the ticket says so.
 
 Plumbing the core's other operations use, jobs the schedule runs, and the demo.
 
+- `resolveTagWidgets` (tag-widgets.ts): works out the Metrics of a widget of all Metrics tagged X for one viewer when a dashboard is drawn; read by the pages
+- `recordedWidgets` (tag-widgets.ts): the same, for a deck or Snapshot that records the Metrics of the moment
 - `applyWebhookAction` (webhook-inbound.ts): a Webhook's own signed route, `POST /api/webhooks/{id}/in`, not an Access Key's
 - `askMeNowBy` (ask-now.ts): used by the Connectors' reply handling
 - `handover` (cloud-api.ts): hands a Workspace over, for Ziffr Cloud

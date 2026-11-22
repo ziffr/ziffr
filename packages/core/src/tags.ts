@@ -7,7 +7,7 @@
 // Workspace. Renaming, merging and deleting are not in the API or the MCP Server: they change many Metrics at once.
 // A Tag's name is sealed with the Workspace Key and found by its blind index; the counts and limits are kept by the
 // database in one step under a lock of the Workspace, so requests at once cannot pass a limit together.
-import { followMergedTag } from "./tag-widgets";
+import { followMergedTag } from "./tag-lists";
 import { randomUUID } from "node:crypto";
 import { Forbidden, Refused, type Actor } from "./actor";
 import { getShares } from "./access";

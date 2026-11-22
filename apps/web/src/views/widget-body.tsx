@@ -42,10 +42,10 @@ export function WidgetBody({ widget, data: live, onPointContext, onRowContext }:
   // A widget of a deck made from a Snapshot draws the values of that period only (spec 0013).
   const data = widget.settings.asOf ? dataAsOf(live, widget.settings.asOf) : live;
   const ms = widgetMetrics(widget, data);
-  // A widget of "all Metrics tagged X" with nothing this viewer may see says so, and nothing about what they may not (spec 0038).
-  if (widget.settings.tagSource && widget.metric_ids.length === 0) return <TagEmpty view={widget.settings.tagView} />;
   // A page sends only the series it draws; one placed or picked since is fetched, with a quiet placeholder meanwhile.
   const ready = useSeriesReady(widgetMetricIds(widget.metric_ids, widget.settings), data);
+  // A widget of "all Metrics tagged X" with nothing this viewer may see says so, and nothing about what they may not (spec 0038).
+  if (widget.settings.tagSource && widget.metric_ids.length === 0) return <TagEmpty view={widget.settings.tagView} />;
   if (!ready) return <div aria-busy="true" aria-label="Loading values" className="h-full min-h-16 w-full animate-pulse rounded-[var(--radius-input)] bg-muted/40" />;
   if (widget.template === "canvas") return <LayoutView settings={widget.settings} data={data} />;
   if (ms.length < widget.metric_ids.length) {

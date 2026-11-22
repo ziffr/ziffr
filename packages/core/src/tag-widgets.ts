@@ -8,7 +8,7 @@ import { db } from "./db";
 import { inUse } from "./metric-row";
 import { TAG_WIDGET_MAX, tagSourceId, takesTagSource, withoutTagSource } from "./tag-source";
 import { tagSight } from "./tag-sight";
-import { openRows, sealedPatch } from "./sealed-columns";
+import { openRows } from "./sealed-columns";
 import { getMetrics } from "./workspace-data";
 import type { Widget, WidgetSettings } from "./types";
 
@@ -54,15 +54,6 @@ export async function checkTagSource(actor: Actor, template: Widget["template"],
   // A Tag the actor does not see is refused as one that does not exist: its name alone says nothing (spec 0038).
   if (!(await tagSight(actor)).tags.some((t) => t.id === id)) throw new Forbidden();
   return true;
-}
-
-/** After a merge: the widgets that showed the first Tag follow the Tag it was merged into (a rename needs nothing: the id stays). */
-export async function followMergedTag(workspaceId: string, from: string, into: string): Promise<void> {
-  const { data } = await db().from("widgets").select("*").eq("workspace_id", workspaceId).not("settings->tagSource", "is", null);
-  for (const w of (await openRows("widgets", workspaceId, data)) as Widget[]) {
-    if (tagSourceId(w.settings) !== from) continue;
-    await db().from("widgets").update(await sealedPatch("widgets", workspaceId, w.id, { settings: { ...w.settings, tagSource: { id: into } } })).eq("id", w.id).eq("workspace_id", workspaceId);
-  }
 }
 
 /** The Tag widgets of a dashboard, as stored. */

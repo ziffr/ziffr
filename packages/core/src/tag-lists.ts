@@ -2,10 +2,11 @@
 import { Forbidden, Refused, type Actor } from "./actor";
 import { assertCanEditDashboard } from "./dashboards";
 import { db } from "./db";
-import { sealedPatch } from "./sealed-columns";
-import { withoutTagSource } from "./tag-source";
+import { openRows, sealedPatch } from "./sealed-columns";
+import { tagSourceId, withoutTagSource } from "./tag-source";
 import { resolveTagWidgets, tagWidgetsOf } from "./tag-widgets";
 import { ensureBaseline, recordVersion } from "./versions";
+import type { Widget } from "./types";
 
 /** How many widgets of a dashboard show a Tag: a View Link needs none of them (it shows what its maker chose, a fixed list). */
 export async function tagWidgetCount(workspaceId: string, dashboardId: number): Promise<number> {
@@ -32,3 +33,12 @@ export async function fixTagLists(actor: Actor, dashboardId: number): Promise<nu
   return resolved.length;
 }
 
+
+/** After a merge: the widgets that showed the first Tag follow the Tag it was merged into (a rename needs nothing: the id stays). */
+export async function followMergedTag(workspaceId: string, from: string, into: string): Promise<void> {
+  const { data } = await db().from("widgets").select("*").eq("workspace_id", workspaceId).not("settings->tagSource", "is", null);
+  for (const w of (await openRows("widgets", workspaceId, data)) as Widget[]) {
+    if (tagSourceId(w.settings) !== from) continue;
+    await db().from("widgets").update(await sealedPatch("widgets", workspaceId, w.id, { settings: { ...w.settings, tagSource: { id: into } } })).eq("id", w.id).eq("workspace_id", workspaceId);
+  }
+}
