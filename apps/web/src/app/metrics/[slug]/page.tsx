@@ -328,7 +328,6 @@ export default async function MetricPage({ params, searchParams }: { params: Pro
               <h3 className="text-sm font-medium">Correlation</h3>
               {partner ? (
                 <>
-                  {/* The Takeaway (spec 0041): the sentence, its strength, cautions and the footer, with the numbers under Show the numbers. */}
                   <TakeawayView takeaway={correlationTakeaway(metric, partner.metric, partner.result, { style: numberStyle, yearStart })}>
                     <BasisToggle byValue={byValue} at={at} partner={partner} />
                   </TakeawayView>
