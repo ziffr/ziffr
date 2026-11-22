@@ -15,7 +15,7 @@ Thank you for helping. This page says how we work; `CLAUDE.md` says the same for
 
 ## Domain language
 
-`GLOSSARY.md` is the vocabulary of Ziffr: a Metric, an Observation, a Prompt, a Delivery, a Workflow. Code, UI text, docs, issues and pull requests use these words and never the ones listed under _Avoid_. A new concept, or a sharper meaning for an existing one, updates the glossary in the same pull request. The glossary holds definitions only, no implementation.
+`GLOSSARY.md` is the vocabulary of Ziffr: a Metric, an Observation, a Prompt, a Delivery, a Workflow. Code, UI text, docs, issues and pull requests use these words and never the ones listed under _Avoid_. A new concept, or a sharper meaning for an existing one, updates the glossary in the same pull request. The glossary holds definitions only, no implementation. CI warns about a new capitalised name in UI text that the glossary lacks (`scripts/glossary-names.mjs`).
 
 ## How the code is organised
 
