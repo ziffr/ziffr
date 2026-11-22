@@ -10,7 +10,7 @@ import { Wand2 } from "lucide-react";
 import { toast } from "sonner";
 import { shown, unwrap } from "@/lib/action-error";
 import { Button } from "@/components/ui/button";
-import { setupStart } from "./setup-defaults";
+import { approversStart, setupStart } from "./setup-defaults";
 import { packSetup, setUpPack } from "@/app/pack-setup-actions";
 import type { PackSetupOptions, PackSetupResult } from "@ziffr/core/pack-setup";
 
@@ -148,7 +148,7 @@ function SetUpForm({ options, viewer, onClose }: { options: PackSetupOptions; vi
         <div className="space-y-1.5">
           <label className="flex flex-wrap items-center gap-2">
             <span className="text-xs font-medium">Workflow</span>
-            <select value={workflow} onChange={(e) => { setWorkflow(e.target.value); setApprovers(Array.from({ length: options.workflows.find((w) => w.key === e.target.value)?.approvers ?? 0 }, () => (options.people.length === 1 && options.people[0]!.id === viewer ? viewer : ""))); }} className={field} aria-label="Workflow">
+            <select value={workflow} onChange={(e) => { setWorkflow(e.target.value); setApprovers(approversStart(options, viewer, options.workflows.find((w) => w.key === e.target.value)?.approvers ?? 0)); }} className={field} aria-label="Workflow">
               <option value="">None</option>
               {options.workflows.map((w) => <option key={w.key} value={w.key}>{w.name}</option>)}
             </select>

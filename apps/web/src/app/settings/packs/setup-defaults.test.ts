@@ -17,8 +17,11 @@ describe("setupStart", () => {
     expect(s.dashboard).toBe("d");
     expect(s.workflow).toBe("w");
   });
-  it("makes the viewer every Approver when they are the only person", () => {
-    expect(setupStart(options(), "me").approvers).toEqual(["me", "me"]);
+  it("makes the viewer the Approver when they are the only person and one is asked for", () => {
+    expect(setupStart(options({ workflows: [{ key: "w", approvers: 1 }] } as never), "me").approvers).toEqual(["me"]);
+  });
+  it("leaves Approvers empty when several are asked for, since each person may approve once", () => {
+    expect(setupStart(options(), "me").approvers).toEqual(["", ""]);
   });
   it("leaves Approvers empty when others could approve or the only person is someone else", () => {
     expect(setupStart(options({ people: [{ id: "me", name: "Me" }, { id: "x", name: "X" }] }), "me").approvers).toEqual(["", ""]);
