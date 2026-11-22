@@ -246,7 +246,8 @@ export async function listPersonalWebhooksForAdmin(actor: Actor): Promise<Person
   const names = new Map((await openNames(actor.workspaceId, people ?? [])).map((p) => [String(p.id), String(p.name ?? "")]));
   const last = new Map(lasts.filter(([, at]) => at).map(([id, at]) => [id, String(at)]));
   const now = Date.now();
-  return rows.map((r) => ({ ...webhookInfo(r, now), ownerId: String(r.owner_id), ownerName: names.get(String(r.owner_id)) ?? "", lastSendAt: last.get(String(r.id)) ?? null }));
+  // Admins get the host only: some tools make a subdomain or the start of the path the secret, and what was sent is the person's.
+  return rows.map((r) => ({ ...webhookInfo(r, now), address: maskedHost(String(r.url ?? "")), ownerId: String(r.owner_id), ownerName: names.get(String(r.owner_id)) ?? "", lastSendAt: last.get(String(r.id)) ?? null }));
 }
 
 /** The statuses and times of one Personal Webhook's sends, for Owners and Admins: never what was sent. */
