@@ -143,6 +143,22 @@ describe("a Workspace Export of a Workflow with a checklist item kept to a Group
   });
 });
 
+describe("a Workspace Export of an item the exporting Owner may not read", () => {
+  it("leaves its words behind, counted and never named", async () => {
+    const s = await seed();
+    // A Member, who is in the Group, owns a Workflow whose item is kept to it; the Owner is not in that Group.
+    const flow = await saveWorkflow(s.actor(s.member, "member"), null, "Theirs", { dueWorkingDays: 1, steps: [{ type: "checklist", id: "item-kept-aaaa", kind: "info", text: "Accrual file is on the drive.", day: 1, people: [], groups: [], readGroup: s.group }, { type: "checklist", id: "item-open-aaaa", kind: "info", text: "Cut-off is Friday.", day: 1, people: [], groups: [] }, { type: "publish", lock: false }] });
+    await db().from("metrics").update({ workflow_id: flow }).eq("id", s.lower.id);
+    const { records } = await download(s.as);
+    const rec = of(records, "workflow").find((r) => r.workflow.name === "Theirs");
+    expect(JSON.stringify(rec)).toContain("Cut-off is Friday.");
+    expect(JSON.stringify(rec)).not.toContain("Accrual");
+    const why = (await previewWorkspaceExport(s.as)).leftOut.find((l) => l.name === "Theirs")?.why;
+    expect(why).toMatch(/1 checklist item you may not read/);
+    expect(why).not.toContain("Accrual");
+  });
+});
+
 describe("a Workspace Export of awkward data", () => {
   it("reads back through the format's own reader with everything the format carries, as the app stored it", async () => {
     const s = await seed();

@@ -109,16 +109,16 @@ describe("the Period Timeline line of a sent item", () => {
 });
 
 describe("a Workflow Template saved from a Workflow with Checklist Items", () => {
-  it("holds the words of the items the person may read and none kept to a Group", async () => {
+  it("holds the words of the items the person may read, and never those of an item kept to a Group", async () => {
     const s = await setup();
     // Dan is not named and not in Finance: he reads item A, not item B; and item B is kept to a Group.
     const id = await saveWorkflowTemplate(as(s, s.dan, "member"), { workflowId: s.flow, name: "Close", description: "" });
     const body = (await db().from("team_templates").select("body").eq("id", id).single()).data!.body as { steps: { type: string; text?: string }[] };
     expect(body.steps.filter((x) => x.type === "checklist").map((x) => x.text)).toEqual([OPEN]);
-    // The owner reads item B, so it comes along; the Group it is kept to does not travel.
+    // Nor does it come along when the owner saves it: a team template is read by every Member.
     const own = await saveWorkflowTemplate(as(s, s.sara, "owner"), { workflowId: s.flow, name: "Close", description: "" });
     const ownBody = JSON.stringify((await db().from("team_templates").select("body").eq("id", own).single()).data!.body);
-    expect(ownBody).toContain("accrual");
-    expect(ownBody).not.toContain("readGroup");
+    expect(ownBody).toContain(OPEN);
+    expect(ownBody).not.toContain("accrual");
   });
 });

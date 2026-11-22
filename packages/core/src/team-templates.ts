@@ -305,18 +305,19 @@ export function fromSlideLayout(body: SlideBody, fills: number[][], fillWords: (
 // Workflow Templates (GLOSSARY: Workflow Template): a Workflow's steps without its people.
 
 /** A Workflow's Due Date and steps as a template: each Approve step keeps how many Approvers it has, never who; a
- * Checklist Item keeps its words, kind and day or Due Date, and Send Snapshot only that it is there, with who gets it,
+ * Checklist Item keeps its words, kind and day or Due Date (`forTeam`: but not an item kept to a Group), and Send Snapshot only that it is there, with who gets it,
  * who ticks it off, which Group may read it and which dashboard left open. A Tell step names people, so a template
  * leaves it out. */
-export function toWorkflowTemplate(c: WorkflowConfig): WorkflowTemplateBody {
+export function toWorkflowTemplate(c: WorkflowConfig, opts: { forTeam?: boolean } = {}): WorkflowTemplateBody {
   return {
     dueWorkingDays: c.dueWorkingDays,
     steps: c.steps.flatMap((s): WorkflowTemplateStep[] => {
       switch (s.type) {
         case "tell": return [];
         case "approve": return [{ type: "approve", approvers: Math.min(3, s.approvers.length), values: s.values ?? "unusual", ...(s.nobodyElse ? { nobodyElse: s.nobodyElse } : {}) }];
-        // The Group an item is kept to cannot travel; who may save its words is decided by the caller (saveWorkflowTemplate).
-        case "checklist": return [s.kind === "tick" ? { type: "checklist", kind: "tick", text: s.text, dueWorkingDays: s.dueWorkingDays } : { type: "checklist", kind: "info", text: s.text, day: s.day }];
+        // A team template is read by every Member, so an item kept to a Group stays out of it, whoever saves it; the
+        // Workspace Export (an Owner's own file) keeps the words, and the Group does not travel.
+        case "checklist": if (opts.forTeam && s.readGroup !== undefined) return []; return [s.kind === "tick" ? { type: "checklist", kind: "tick", text: s.text, dueWorkingDays: s.dueWorkingDays } : { type: "checklist", kind: "info", text: s.text, day: s.day }];
         case "send_snapshot": return [{ type: "send_snapshot" }];
         default: return [s];
       }
