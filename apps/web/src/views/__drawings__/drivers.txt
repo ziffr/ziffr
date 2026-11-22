@@ -14,8 +14,14 @@
 "Churn rate"
 <span style=width: 74.56217509036536%; background: var(--color-data);>
 "0.75"
-"Compared by change, growth removed."
+"Over 23 months, Orders, Operating cost and Active customers moved with Revenue the most."
+"Compared by change, growth removed, over 23 months."
+"This shows what has gone together, not what caused what."
 "Show the numbers"
+"Ordersr 0.95, compared by change, growth removed, over 23 months"
+"Operating costr 0.88, compared by change, growth removed, over 23 months"
+"Active customersr 0.87, compared by change, growth removed, over 23 months"
+"Churn rater 0.75, compared by change, growth removed, over 23 months"
 "Two Metrics that both grow look related even when nothing links them, so by default growth is removed. Compare on the values as they are"
 "Orders moves most with Revenue (strong positive). Compared by change, growth removed."
 <svg style=width: 100%; height: 100%; display: block;>

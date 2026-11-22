@@ -25,6 +25,12 @@ const sum = (fs: Fraction[]) => fs.reduce((a, b) => lowestTerms(plus(a, b)), who
 // Stryker disable next-line EqualityOperator: the periods are unique once the Map has kept one value each, so `<` and `<=` never differ.
 const sorted = (a: Point[]) => [...new Map(a.filter((p) => Number.isFinite(p.value)).map((p) => [p.period, p])).values()].sort((x, y) => (x.period < y.period ? -1 : 1));
 
+/** A series as every Method reads it: a value that is not a number is no value, a period given twice counts once with
+ * the value given last, and the periods run oldest first. The input is never changed. */
+export function readSeries(points: Point[]): Point[] {
+  return sorted(points);
+}
+
 /** Each value's change on the period before, as a series of the later period: 12 after 10 is 2, and 0.3 after 0.1
  * is exactly 0.2. A value whose period before is missing has no change, so it is left out; the first value has none. */
 export function changes(points: Point[], span: Span): Point[] {

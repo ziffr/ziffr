@@ -31,7 +31,9 @@ import { feedChoices, feedNames } from "@ziffr/core/feeds";
 import { FeedPicker, RemoveFeed } from "./feed-picker";
 import { formatNumber, formatPercent, formatValue, POLARITY_LABEL, RULE_LABEL, SOURCE_LABEL, targetText } from "@ziffr/core/format";
 import { FORECAST_MIN_POINTS, forecast } from "@ziffr/core/forecast";
-import { basisLabel, comparedBy, periodCountLabel, periodWord, rankCorrelations, strength } from "@ziffr/core/correlation";
+import { basisLabel, periodWord, rankCorrelations } from "@ziffr/core/correlation";
+import { correlationTakeaway } from "@ziffr/core/takeaways/takeaway";
+import { TakeawayView } from "@/components/takeaway-view";
 import { ANALYSES } from "@/analyses";
 import { ScatterView } from "@/views/scatter";
 import { PageHeader } from "@/components/page-header";
@@ -326,9 +328,10 @@ export default async function MetricPage({ params, searchParams }: { params: Pro
               <h3 className="text-sm font-medium">Correlation</h3>
               {partner ? (
                 <>
-                  <p className="mt-1 text-sm text-muted-foreground">
-                    Moves most with <span className="font-medium text-foreground">{partner.metric.name}</span>: {strength(partner.result.r)} (r = {formatNumber(partner.result.r, 2, numberStyle)}{partner.result.combined ? "" : `, ${periodCountLabel(partner.result.period, partner.result.n)}`}). {basisLabel(partner.result)}.{comparedBy(partner.result) && <> {comparedBy(partner.result)}.</>}
-                  </p>
+                  {/* The Takeaway (spec 0041): the sentence, its strength, cautions and the footer, with the numbers under Show the numbers. */}
+                  <TakeawayView takeaway={correlationTakeaway(metric, partner.metric, partner.result, { style: numberStyle, yearStart })}>
+                    <BasisToggle byValue={byValue} at={at} partner={partner} />
+                  </TakeawayView>
                   <div className="mt-2 flex flex-wrap gap-1.5">
                     {correlations.slice(0, 5).map((c) => (
                       <Link key={c.metric.id} href={at({ vs: c.metric.slug, ...keepBasis })} scroll={false} title={basisLabel(c.result)} className={cn("rounded-md border px-2 py-0.5 text-xs", c.metric.id === partner.metric.id ? "stock" : "hover:bg-muted")}>
@@ -339,7 +342,7 @@ export default async function MetricPage({ params, searchParams }: { params: Pro
                 </>
               ) : <p className="mt-1 text-sm text-muted-foreground">No other metric with enough shared history.</p>}
               {notCombined.map((r) => <p key={r} className="mt-1 text-xs text-muted-foreground">{r}</p>)}
-              <ShowTheNumbers byValue={byValue} at={at} partner={partner} />
+              {!partner && <ShowTheNumbers byValue={byValue} at={at} partner={partner} />}
             </div>
           </div>
           {partner && (
@@ -486,16 +489,23 @@ function Row({ k, children }: { k: string; children: React.ReactNode }) {
   );
 }
 
-/** Show the numbers for Correlation: the older comparison on the values as they are, a link that sets `?basis=values`. */
-function ShowTheNumbers({ byValue, at, partner }: { byValue: boolean; at: (extra: Record<string, string>) => string; partner?: { metric: { slug: string } } }) {
+/** The older comparison on the values as they are, a link that sets `?basis=values`; it goes inside a Takeaway's Show the numbers. */
+function BasisToggle({ byValue, at, partner }: { byValue: boolean; at: (extra: Record<string, string>) => string; partner?: { metric: { slug: string } } }) {
   const href = at({ ...(partner ? { vs: partner.metric.slug } : {}), ...(byValue ? {} : { basis: "values" }) });
+  return (
+    <p className="mt-1">
+      Two Metrics that both grow look related even when nothing links them, so by default growth is removed. {byValue ? "Now compared on the values as they are. " : ""}
+      <Link href={href} scroll={false} className="underline">{byValue ? "Remove growth again" : "Compare on the values as they are"}</Link>
+    </p>
+  );
+}
+
+/** Show the numbers for a Correlation that has no partner yet: only the choice of what it is compared on. */
+function ShowTheNumbers({ byValue, at, partner }: { byValue: boolean; at: (extra: Record<string, string>) => string; partner?: { metric: { slug: string } } }) {
   return (
     <details className="mt-2 text-xs text-muted-foreground">
       <summary className="cursor-pointer">Show the numbers</summary>
-      <p className="mt-1">
-        Two Metrics that both grow look related even when nothing links them, so by default growth is removed. {byValue ? "Now compared on the values as they are. " : ""}
-        <Link href={href} scroll={false} className="underline">{byValue ? "Remove growth again" : "Compare on the values as they are"}</Link>
-      </p>
+      <BasisToggle byValue={byValue} at={at} partner={partner} />
     </details>
   );
 }

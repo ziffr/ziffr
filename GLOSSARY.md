@@ -295,6 +295,10 @@ _Avoid_: Editor, sandbox, studio
 A statistical method run on one or more metrics, such as forecast, correlation, clustering or impact analysis. Its result can be saved as a widget. Ziffr ships its own Analyses; more can be written as Analysis Recipes.
 _Avoid_: Stats, model, insight
 
+**Takeaway**:
+The result of an Analysis as Ziffr says it: one sentence in the Metrics' own words and units, a strength in four words (strong, moderate, weak, "can't tell from chance"), what it was compared on, and the one footer line "This shows what has gone together, not what caused what." Where the data does not suit the Method it carries one plain line above the sentence (a caution; a result with one is never strong) or, with too little data, is a refusal in words with no number. **Show the numbers** opens the numbers behind it. Every place a result is shown writes the same Takeaway.
+_Avoid_: Answer (an Answer is what someone replies to a Prompt), insight, verdict
+
 **Analysis Recipe**:
 An Analysis written as steps of Ziffr's verified functions over the Metrics in its Slots. It holds no code, so every number it gives is verified.
 _Avoid_: Script, model, custom analysis, formula

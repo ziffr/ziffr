@@ -76,3 +76,14 @@
 <text fill=var(--color-muted) font-family=var(--font-outlier) font-size=12 height=194 name=Revenue orientation=left stroke=none text-anchor=end width=68 x=68 y=8>
 <tspan dy=0.355em x=68>
 "13.5k €"
+"Revenue and Orders tend to move together over 23 months (strong)."
+"Compared by change, growth removed, over 23 months."
+"This shows what has gone together, not what caused what."
+"Show the numbers"
+"MethodPearson's r"
+"r0.95"
+"Pairs of periods23"
+"Periods2024-08-01 – 2026-06-01"
+"Compared oncompared by change, growth removed"
+"Strengthstrong"
+"Two Metrics that both grow look related even when nothing links them, so by default growth is removed. Compare on the values as they are"
