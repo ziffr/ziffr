@@ -1,0 +1,5 @@
+{
+  "rule": "import-not-allowed",
+  "why": "its reference imports the code it is meant to check",
+  "remove": []
+}

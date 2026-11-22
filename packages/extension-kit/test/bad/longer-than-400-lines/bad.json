@@ -1,0 +1,5 @@
+{
+  "rule": "too-long",
+  "why": "its implementation has 401 lines",
+  "remove": []
+}

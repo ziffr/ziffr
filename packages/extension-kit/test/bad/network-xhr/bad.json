@@ -1,0 +1,5 @@
+{
+  "rule": "network",
+  "why": "builds an XMLHttpRequest",
+  "remove": []
+}

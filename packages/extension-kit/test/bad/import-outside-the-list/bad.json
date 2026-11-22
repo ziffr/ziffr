@@ -1,0 +1,5 @@
+{
+  "rule": "import-not-allowed",
+  "why": "imports a package other than the two allowed",
+  "remove": []
+}

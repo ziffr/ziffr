@@ -1,0 +1,5 @@
+{
+  "rule": "outside-assignment",
+  "why": "changes a variable of the module",
+  "remove": []
+}

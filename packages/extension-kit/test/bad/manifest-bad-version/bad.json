@@ -1,0 +1,5 @@
+{
+  "rule": "bad-manifest",
+  "why": "has a version that is not three numbers",
+  "remove": []
+}

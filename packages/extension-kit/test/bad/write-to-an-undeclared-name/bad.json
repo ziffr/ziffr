@@ -1,0 +1,5 @@
+{
+  "rule": "outside-assignment",
+  "why": "assigns to a name it never declared",
+  "remove": []
+}

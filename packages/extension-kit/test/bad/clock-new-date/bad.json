@@ -1,0 +1,5 @@
+{
+  "rule": "clock",
+  "why": "reads the clock with new Date",
+  "remove": []
+}

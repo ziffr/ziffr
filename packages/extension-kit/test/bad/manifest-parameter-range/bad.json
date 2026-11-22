@@ -1,0 +1,5 @@
+{
+  "rule": "bad-manifest",
+  "why": "has a parameter whose range is upside down",
+  "remove": []
+}

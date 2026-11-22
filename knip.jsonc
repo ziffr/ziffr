@@ -31,6 +31,10 @@
       "entry": ["scripts/*.mjs"],
       "ignore": ["landing.mdx"]
     },
+    "packages/extension-kit": {
+      // test/ holds Extensions, good and bad, as files the checks read; the bad ones import what they must not.
+      "ignore": ["test/**"]
+    },
     "packages/*": {}
   }
 }

@@ -1,0 +1,5 @@
+{
+  "rule": "wrong-implementation",
+  "why": "is a Method but also has a mark.ts",
+  "remove": []
+}

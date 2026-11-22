@@ -1,0 +1,5 @@
+{
+  "rule": "empty-file",
+  "why": "its catalogue entry is empty",
+  "remove": []
+}

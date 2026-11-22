@@ -1,0 +1,5 @@
+{
+  "rule": "bad-manifest",
+  "why": "names a licence that is not on the list",
+  "remove": []
+}
