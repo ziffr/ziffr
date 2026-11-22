@@ -30,7 +30,8 @@ import { ValueMarks } from "./value-marks";
 import { can } from "@ziffr/core/actor";
 import { submittingKeyNames } from "@ziffr/core/access-keys";
 import { feedChoices, feedNames } from "@ziffr/core/feeds";
-import { FeedPicker, RemoveFeed } from "./feed-picker";
+import { feedTemplates } from "@ziffr/core/feed-template-download";
+import { FeedControls, RemoveFeed } from "./feed-picker";
 import { formatNumber, formatPercent, formatValue, POLARITY_LABEL, RULE_LABEL, SOURCE_LABEL, targetText } from "@ziffr/core/format";
 import { FORECAST_MIN_POINTS } from "@ziffr/core/forecast";
 import { bestForecast } from "@ziffr/core/methods/forecast-choice";
@@ -464,7 +465,7 @@ export default async function MetricPage({ params, searchParams }: { params: Pro
                 ))}
                 {!tokens.length && <li className="text-muted-foreground">Nobody yet.</li>}
               </ul>
-              {canEdit && <FeedPicker metricId={metric.id} choices={choices.filter((c) => !tokens.some((t) => t.submitter_id === c.id))} />}
+              {canEdit && <FeedControls metric={{ id: metric.id, name: metric.name }} choices={choices} taken={tokens.map((t) => t.submitter_id)} role={actor.role} demo={demo} templates={feedTemplates()} />}
             </section>
           )}
         </div>

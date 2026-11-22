@@ -144,6 +144,7 @@ const CASES: Record<string, Case> = {
   "feed-actions:createFeedKey": { args: () => ["feed-x", { name: "k", expiresOn: day(30) }] },
   "feed-actions:revokeFeedKey": { args: () => [1] },
   "feed-actions:addFeedToMetric": { nothing: "the demo has no Feeds", args: (i) => [i.metric, "feed-x"] },
+  "feed-template-actions:downloadFeedTemplate": { nothing: "the demo has no Feeds", args: (i) => [{ template: "google-sheets", metrics: [i.metric], feedId: null, newFeedName: "x", makeKey: false }] },
   "feed-actions:removeFeedFromMetric": { nothing: "the demo has no Feeds", args: (i) => [i.metric, "feed-x"] },
   "feedback-prompt-actions:feedbackPromptShown": { nothing: "the card is never shown in the demo, and the core refuses a demo actor", args: () => [] },
   "feedback-prompt-actions:stopFeedbackPrompt": { nothing: "the card is never shown in the demo, and the core refuses a demo actor", args: () => ["never"] },

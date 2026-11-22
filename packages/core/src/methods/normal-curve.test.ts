@@ -13,7 +13,7 @@ const fixture = JSON.parse(readFileSync(new URL("../test/reference/fixtures/fore
 const relative = (a: number, b: number) => Math.abs(a - b) / Math.max(Math.abs(b), Number.MIN_VALUE);
 
 describe("the normal curve", () => {
-  it("equals SciPy's norm.cdf to a relative 1e-9 at every fixture point, in both tails and across the switch at |z| = 3.54 (below −30 a double's tail is a denormal and says nothing)", () => {
+  it("equals SciPy's norm.cdf to a relative 1e-9 at every fixture point, in both tails and across the switch at |z| = 2.12 (below −30 a double's tail is a denormal and says nothing)", () => {
     expect(fixture.normal.length).toBeGreaterThan(150);
     for (const { z, cdf } of fixture.normal as { z: number; cdf: number }[]) expect(relative(normalCdf(z), cdf), `z=${z}`).toBeLessThan(1e-9);
   });
@@ -38,6 +38,14 @@ describe("the normal curve", () => {
     expect(Z80).toBe(fixture.z80);
     expect(Math.abs(normalCdf(Z80) - 0.9)).toBeLessThan(1e-15);
     expect(Math.abs(normalCdf(-Z80) - 0.1)).toBeLessThan(1e-15);
+  });
+  it("is accurate to a relative 2e-14 on every point of a fine scan from −8 to 8, the worst of them just below the switch (it was 1.6e-12 at |z| = 3.5 when the series reached that far)", () => {
+    let worst = 0;
+    for (let z = -8; z <= 8; z += 0.0031) worst = Math.max(worst, relative(normalCdf(z), referenceNormalCdf(z)));
+    expect(worst).toBeLessThan(2e-14);
+    // The point fast-check found: −999.98 ÷ 295.17.
+    const z = -999.98 / 295.17;
+    expect(relative(normalCdf(z), referenceNormalCdf(z))).toBeLessThan(2e-14);
   });
   it("keeps the digits of a tiny chance: Φ(−8) is 6.22e-16, not 0 and not a rounded 1 − Φ(8)", () => {
     expect(relative(normalCdf(-8), 6.220960574271785e-16)).toBeLessThan(1e-9);
