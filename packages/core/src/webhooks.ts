@@ -46,7 +46,7 @@ const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 export const WEBHOOK_COLUMNS = "id, name, url, events, disabled_at, disabled_reason, secret_previous_until, created_at";
 
 /** Refuses anyone but a signed-in Owner or Admin, and the demo (read-only). */
-function assertManagesWebhooks(actor: Actor): void {
+export function assertManagesWebhooks(actor: Actor): void {
   if (actor.key) throw new Forbidden("A key cannot manage Webhooks.");
   if (actor.role !== "owner" && actor.role !== "admin") throw new Forbidden("Only Owners and Admins manage Webhooks.");
   refuseInDemo(actor);
@@ -141,10 +141,11 @@ async function tellOwners(actor: Actor, what: string, name: string, address: str
   }
 }
 
-/** One Webhook of the Workspace, its address opened and masked, or the refusal that does not say whether it exists. */
-async function find(actor: Actor, id: unknown): Promise<{ row: Record<string, unknown>; address: string }> {
+/** One Webhook of the Workspace (a Workspace Webhook, or the Personal one of `owner`), its address opened and masked, or the refusal that does not say whether it exists. */
+export async function findWebhook(actor: Actor, id: unknown, owner: string | null = null): Promise<{ row: Record<string, unknown>; address: string }> {
   if (typeof id !== "string" || !UUID.test(id)) throw new Forbidden(NOT_FOUND);
-  const { data } = await db().from("webhooks").select(WEBHOOK_COLUMNS).eq("id", id.toLowerCase()).eq("workspace_id", actor.workspaceId).is("owner_id", null).maybeSingle();
+  const q = db().from("webhooks").select(WEBHOOK_COLUMNS).eq("id", id.toLowerCase()).eq("workspace_id", actor.workspaceId);
+  const { data } = await (owner === null ? q.is("owner_id", null) : q.eq("owner_id", owner)).maybeSingle();
   if (!data) throw new Forbidden(NOT_FOUND);
   const [row] = await openRows("webhooks", actor.workspaceId, [data as Record<string, unknown>]);
   return { row, address: maskedHost(String(row.url ?? "")) };
@@ -183,19 +184,25 @@ export async function listWebhooks(actor: Actor): Promise<WebhookInfo[]> {
   const { data } = await db().from("webhooks").select(WEBHOOK_COLUMNS).eq("workspace_id", actor.workspaceId).is("owner_id", null).order("created_at", { ascending: false });
   const rows = await openRows("webhooks", actor.workspaceId, (data ?? []) as Record<string, unknown>[]);
   const now = Date.now();
-  return rows.map((r) => ({
+  return rows.map((r) => webhookInfo(r, now));
+}
+
+/** One stored Webhook as people read it: the address masked, never the secret. */
+export function webhookInfo(r: Record<string, unknown>, now: number): WebhookInfo {
+  return {
     id: String(r.id), name: String(r.name), address: maskAddress(String(r.url ?? "")), events: (r.events as WebhookEvent[]) ?? [],
     enabled: !r.disabled_at, disabledReason: (r.disabled_reason as WebhookInfo["disabledReason"]) ?? null, disabledAt: (r.disabled_at as string | null) ?? null,
     replacingSecret: !!r.secret_previous_until && new Date(String(r.secret_previous_until)).getTime() > now,
     createdAt: String(r.created_at),
-  }));
+  };
 }
+
 
 /** Changes a Webhook's name or the events it gets (Owners and Admins). */
 export async function updateWebhook(actor: Actor, id: string, change: { name?: string; events?: string[] }): Promise<void> {
   assertManagesWebhooks(actor);
   if (typeof change !== "object" || change === null) throw new Error("That is not a change to a Webhook.");
-  const { row, address } = await find(actor, id);
+  const { row, address } = await findWebhook(actor, id);
   const patch: Record<string, unknown> = { updated_at: new Date().toISOString() };
   if (change.name !== undefined) patch.name = cleanName(change.name);
   if (change.events !== undefined) patch.events = cleanEvents(change.events);
@@ -207,12 +214,11 @@ export async function updateWebhook(actor: Actor, id: string, change: { name?: s
   await tellOwners(actor, "changed", name, address);
 }
 
-/** Replaces a Webhook's secret (Owners and Admins) and returns the new one, shown this once. For 24 hours the old one
- * still signs beside it, so the receiver switches without a gap; replacing again within them ends the older one at
- * once, since only one previous secret is kept. */
-export async function replaceWebhookSecret(actor: Actor, id: string): Promise<{ secret: string }> {
-  assertManagesWebhooks(actor);
-  const { row, address } = await find(actor, id);
+/** Gives a Webhook a new secret (a Workspace Webhook, or the Personal one of `owner`) and returns it with the Webhook, shown this
+ * once. For 24 hours the old one still signs beside it, so the receiver switches without a gap; replacing again within them
+ * ends the older one at once, since only one previous secret is kept. */
+export async function rotateSecret(actor: Actor, id: string, owner: string | null): Promise<{ secret: string; row: Record<string, unknown>; address: string }> {
+  const { row, address } = await findWebhook(actor, id, owner);
   const { data } = await db().from("webhooks").select("secret").eq("id", String(row.id)).eq("workspace_id", actor.workspaceId).maybeSingle();
   const [current] = await openRows("webhooks", actor.workspaceId, data ? [{ id: String(row.id), secret: data.secret as string }] : []);
   // A secret that does not open cannot go on signing: the new one stands alone.
@@ -220,35 +226,50 @@ export async function replaceWebhookSecret(actor: Actor, id: string): Promise<{ 
   const secret = newSecret();
   const sealed = await sealRow("webhooks", actor.workspaceId, { id: String(row.id), secret, secret_previous: old });
   const until = new Date(Date.now() + WEBHOOK_SECRET_OVERLAP_HOURS * 3_600_000).toISOString();
-  const { data: updated, error } = await db().from("webhooks").update({ secret: sealed.secret, secret_previous: old ? sealed.secret_previous : null, secret_previous_until: old ? until : null, updated_at: new Date().toISOString() }).eq("id", String(row.id)).eq("workspace_id", actor.workspaceId).eq("secret", String(data?.secret)).select("id");
+  const q = db().from("webhooks").update({ secret: sealed.secret, secret_previous: old ? sealed.secret_previous : null, secret_previous_until: old ? until : null, updated_at: new Date().toISOString() }).eq("id", String(row.id)).eq("workspace_id", actor.workspaceId).eq("secret", String(data?.secret));
+  const { data: updated, error } = await (owner === null ? q.is("owner_id", null) : q.eq("owner_id", owner)).select("id");
   if (error) throw new Error("The secret could not be replaced. Try again in a moment.");
   // Replaced at the same moment by someone else (or deleted): the secret shown here would never sign, so none is shown.
   if (!updated?.length) throw new Error("The Webhook changed at the same moment. Look at it again and replace the secret once more.");
+  return { secret, row, address };
+}
+
+/** Replaces a Webhook's secret (Owners and Admins) and returns the new one, shown this once. */
+export async function replaceWebhookSecret(actor: Actor, id: string): Promise<{ secret: string }> {
+  assertManagesWebhooks(actor);
+  const { secret, row, address } = await rotateSecret(actor, id, null);
   await audit(actor, { kind: "webhook.secret_replaced", object: { type: "webhook", id: String(row.id), name: String(row.name) }, details: { address } });
   await tellOwners(actor, "given a new secret", String(row.name), address);
   return { secret };
 }
 
+/** Switches a Webhook on or off (a Workspace Webhook, or the Personal one of `owner`); null when it was so already. Off drops what waits to be sent, so that switching on again resends nothing. */
+export async function switchWebhook(actor: Actor, id: string, enabled: boolean, owner: string | null = null): Promise<{ row: Record<string, unknown>; address: string } | null> {
+  if (typeof enabled !== "boolean") throw new Error("A Webhook is switched on or off.");
+  const { row, address } = await findWebhook(actor, id, owner);
+  if (!!row.disabled_at === !enabled) return null;
+  const patch = enabled ? { disabled_at: null, disabled_reason: null, failing_since: null, failure_count: 0 } : { disabled_at: new Date().toISOString(), disabled_reason: "owner" };
+  const q = db().from("webhooks").update({ ...patch, updated_at: new Date().toISOString() }).eq("id", String(row.id)).eq("workspace_id", actor.workspaceId);
+  const { data: changed, error } = await (owner === null ? q.is("owner_id", null) : q.eq("owner_id", owner)).select("id");
+  if (error) throw new Error("The Webhook could not be saved. Try again in a moment.");
+  if (!changed?.length) throw new Forbidden(NOT_FOUND);
+  if (!enabled) await db().from("webhook_sends").update({ state: "dropped", claimed_at: null }).eq("webhook_id", String(row.id)).eq("workspace_id", actor.workspaceId).in("state", ["queued", "retrying"]);
+  return { row, address };
+}
+
 /** Switches a Webhook on or off (Owners and Admins). Off keeps it and stops what is sent; on again resends nothing. */
 export async function setWebhookEnabled(actor: Actor, id: string, enabled: boolean): Promise<void> {
   assertManagesWebhooks(actor);
-  if (typeof enabled !== "boolean") throw new Error("A Webhook is switched on or off.");
-  const { row, address } = await find(actor, id);
-  if (!!row.disabled_at === !enabled) return;
-  const patch = enabled ? { disabled_at: null, disabled_reason: null, failing_since: null, failure_count: 0 } : { disabled_at: new Date().toISOString(), disabled_reason: "owner" };
-  const { data: changed, error } = await db().from("webhooks").update({ ...patch, updated_at: new Date().toISOString() }).eq("id", String(row.id)).eq("workspace_id", actor.workspaceId).select("id");
-  if (error) throw new Error("The Webhook could not be saved. Try again in a moment.");
-  if (!changed?.length) throw new Forbidden(NOT_FOUND);
-  // Off drops what waits to be sent, so that switching on again resends nothing.
-  if (!enabled) await db().from("webhook_sends").update({ state: "dropped", claimed_at: null }).eq("webhook_id", String(row.id)).eq("workspace_id", actor.workspaceId).in("state", ["queued", "retrying"]);
-  await audit(actor, { kind: enabled ? "webhook.switched_on" : "webhook.switched_off", object: { type: "webhook", id: String(row.id), name: String(row.name) }, details: { address } });
-  await tellOwners(actor, enabled ? "switched on" : "switched off", String(row.name), address);
+  const done = await switchWebhook(actor, id, enabled);
+  if (!done) return;
+  await audit(actor, { kind: enabled ? "webhook.switched_on" : "webhook.switched_off", object: { type: "webhook", id: String(done.row.id), name: String(done.row.name) }, details: { address: done.address } });
+  await tellOwners(actor, enabled ? "switched on" : "switched off", String(done.row.name), done.address);
 }
 
 /** Deletes a Webhook (Owners and Admins): nothing more is sent to it. */
 export async function deleteWebhook(actor: Actor, id: string): Promise<void> {
   assertManagesWebhooks(actor);
-  const { row, address } = await find(actor, id);
+  const { row, address } = await findWebhook(actor, id);
   const { data, error } = await db().from("webhooks").delete().eq("id", String(row.id)).eq("workspace_id", actor.workspaceId).select("id");
   if (error) throw new Error("The Webhook could not be removed. Try again in a moment.");
   if (!data?.length) throw new Forbidden(NOT_FOUND);

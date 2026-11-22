@@ -17,12 +17,11 @@ import { refuseInDemo } from "./demo";
 import { PERSONAL_WEBHOOK_ROLES, personalWebhooksAllowed } from "./personal-webhook-state";
 import { openNames, openRows, sealRow } from "./sealed-columns";
 import { webhookRules } from "./webhook-trial";
-import { PERSONAL_WEBHOOKS_PER_PERSON, WEBHOOK_SECRET_OVERLAP_HOURS } from "./webhook-limits";
+import { PERSONAL_WEBHOOKS_PER_PERSON } from "./webhook-limits";
 import { type WebhookInfo } from "./webhooks";
-import { checkedAddress, cleanEvents, cleanName, maskAddress, maskedHost, newSecret, WEBHOOK_COLUMNS } from "./webhooks";
-import { sendWebhookNow } from "./webhook-send";
+import { assertManagesWebhooks, checkedAddress, cleanEvents, cleanName, findWebhook, maskedHost, newSecret, rotateSecret, switchWebhook, WEBHOOK_COLUMNS, webhookInfo } from "./webhooks";
 import { daysNow } from "./keep-days";
-import type { WebhookLogEntry } from "./webhook-log";
+import { queueTestPing, type WebhookLogEntry } from "./webhook-log";
 
 const NOT_FOUND = "That Webhook was not found.";
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -42,13 +41,6 @@ async function assertOwnsPersonal(actor: Actor): Promise<void> {
   if (!(PERSONAL_WEBHOOK_ROLES as readonly string[]).includes(String(data?.role)) || !(PERSONAL_WEBHOOK_ROLES as readonly string[]).includes(actor.role)) throw new Forbidden("Only Owners, Admins and Members have their own Webhooks.");
 }
 
-/** Refuses anyone but a signed-in Owner or Admin, and the demo. */
-function assertAdmin(actor: Actor): void {
-  if (actor.key) throw new Forbidden("A key cannot manage Webhooks.");
-  if (actor.role !== "owner" && actor.role !== "admin") throw new Forbidden("Only Owners and Admins manage Webhooks.");
-  refuseInDemo(actor);
-}
-
 /** The rules of the Workspace's Webhooks (trial limits, no private hosts in a trial, the operator's switch), refusing where none are allowed. */
 async function rulesOrRefuse(workspaceId: string) {
   const rules = await webhookRules(workspaceId);
@@ -58,28 +50,14 @@ async function rulesOrRefuse(workspaceId: string) {
 
 const OFF = "Your Workspace does not allow personal Webhooks; ask an Owner or Admin.";
 
-/** The actor's own Personal Webhook with this id, its address opened and masked for the Audit Log, or the refusal that does not say whether it exists. */
-async function findOwn(actor: Actor, id: unknown): Promise<{ row: Record<string, unknown>; address: string }> {
-  if (typeof id !== "string" || !UUID.test(id)) throw new Forbidden(NOT_FOUND);
-  const { data } = await db().from("webhooks").select(COLUMNS).eq("id", id.toLowerCase()).eq("workspace_id", actor.workspaceId).eq("owner_id", actor.personId).maybeSingle();
-  if (!data) throw new Forbidden(NOT_FOUND);
-  const [row] = await openRows("webhooks", actor.workspaceId, [data as Record<string, unknown>]);
-  return { row, address: maskedHost(String(row.url ?? "")) };
-}
-
-function info(r: Record<string, unknown>, now: number): WebhookInfo {
-  return {
-    id: String(r.id), name: String(r.name), address: maskAddress(String(r.url ?? "")), events: (r.events as WebhookInfo["events"]) ?? [],
-    enabled: !r.disabled_at, disabledReason: (r.disabled_reason as WebhookInfo["disabledReason"]) ?? null, disabledAt: (r.disabled_at as string | null) ?? null,
-    replacingSecret: !!r.secret_previous_until && new Date(String(r.secret_previous_until)).getTime() > now, createdAt: String(r.created_at),
-  };
-}
+/** The actor's own Personal Webhook with this id: another person's, a Workspace Webhook and another Workspace's answer like one that is not there. */
+const findOwn = (actor: Actor, id: unknown) => findWebhook(actor, id, actor.personId);
 
 /** Switches the Workspace's "People may add their own Webhooks" (Owners and Admins). Off pauses every Personal Webhook:
  * what waits to be sent is dropped (events in that time are dropped, nothing is queued for later) and each person's
  * page says why; on again resumes them. Both are in the Audit Log. */
 export async function setPersonalWebhooksAllowed(actor: Actor, allowed: boolean): Promise<void> {
-  assertAdmin(actor);
+  assertManagesWebhooks(actor);
   if (typeof allowed !== "boolean") throw new Error("People may add their own Webhooks, or may not.");
   const before = await personalWebhooksAllowed(actor.workspaceId);
   const { error } = await db().from("workspaces").update({ personal_webhooks_allowed: allowed }).eq("id", actor.workspaceId);
@@ -127,7 +105,7 @@ export async function listOwnPersonalWebhooks(actor: Actor): Promise<{ allowed: 
   const { data } = await db().from("webhooks").select(COLUMNS).eq("workspace_id", actor.workspaceId).eq("owner_id", actor.personId).order("created_at", { ascending: false });
   const rows = await openRows("webhooks", actor.workspaceId, (data ?? []) as Record<string, unknown>[]);
   const now = Date.now();
-  return { allowed, webhooks: rows.map((r) => ({ ...info(r, now), paused: !allowed })) };
+  return { allowed, webhooks: rows.map((r) => ({ ...webhookInfo(r, now), paused: !allowed })) };
 }
 
 /** Changes the actor's own Webhook's name, events or address. */
@@ -150,16 +128,7 @@ export async function updatePersonalWebhook(actor: Actor, id: string, change: { 
 /** Replaces the actor's own Webhook's secret and returns the new one, shown this once; the old one still signs beside it for 24 hours, as for a Workspace Webhook. */
 export async function replacePersonalWebhookSecret(actor: Actor, id: string): Promise<{ secret: string }> {
   await assertOwnsPersonal(actor);
-  const { row, address } = await findOwn(actor, id);
-  const { data } = await db().from("webhooks").select("secret").eq("id", String(row.id)).eq("workspace_id", actor.workspaceId).eq("owner_id", actor.personId).maybeSingle();
-  const [current] = await openRows("webhooks", actor.workspaceId, data ? [{ id: String(row.id), secret: data.secret as string }] : []);
-  const old = typeof current?.secret === "string" && current.secret.startsWith("whsec_") ? current.secret : null;
-  const secret = newSecret();
-  const sealed = await sealRow("webhooks", actor.workspaceId, { id: String(row.id), secret, secret_previous: old });
-  const until = new Date(Date.now() + WEBHOOK_SECRET_OVERLAP_HOURS * 3_600_000).toISOString();
-  const { data: updated, error } = await db().from("webhooks").update({ secret: sealed.secret, secret_previous: old ? sealed.secret_previous : null, secret_previous_until: old ? until : null, updated_at: new Date().toISOString() }).eq("id", String(row.id)).eq("workspace_id", actor.workspaceId).eq("owner_id", actor.personId).eq("secret", String(data?.secret)).select("id");
-  if (error) throw new Error("The secret could not be replaced. Try again in a moment.");
-  if (!updated?.length) throw new Error("The Webhook changed at the same moment. Look at it again and replace the secret once more.");
+  const { secret, row, address } = await rotateSecret(actor, id, actor.personId);
   await audit(actor, { kind: "webhook.personal_secret_replaced", object: { type: "webhook", id: String(row.id), name: String(row.name) }, details: { address } });
   return { secret };
 }
@@ -167,16 +136,10 @@ export async function replacePersonalWebhookSecret(actor: Actor, id: string): Pr
 /** Switches the actor's own Webhook on or off. Off keeps it and drops what waits; on again resends nothing, and needs the Workspace's switch on. */
 export async function setPersonalWebhookEnabled(actor: Actor, id: string, enabled: boolean): Promise<void> {
   await assertOwnsPersonal(actor);
-  if (typeof enabled !== "boolean") throw new Error("A Webhook is switched on or off.");
-  const { row, address } = await findOwn(actor, id);
-  if (!!row.disabled_at === !enabled) return;
   if (enabled && !(await personalWebhooksAllowed(actor.workspaceId))) throw new Forbidden(OFF);
-  const patch = enabled ? { disabled_at: null, disabled_reason: null, failing_since: null, failure_count: 0 } : { disabled_at: new Date().toISOString(), disabled_reason: "owner" };
-  const { data: changed, error } = await db().from("webhooks").update({ ...patch, updated_at: new Date().toISOString() }).eq("id", String(row.id)).eq("workspace_id", actor.workspaceId).eq("owner_id", actor.personId).select("id");
-  if (error) throw new Error("The Webhook could not be saved. Try again in a moment.");
-  if (!changed?.length) throw new Forbidden(NOT_FOUND);
-  if (!enabled) await db().from("webhook_sends").update({ state: "dropped", claimed_at: null }).eq("webhook_id", String(row.id)).eq("workspace_id", actor.workspaceId).in("state", ["queued", "retrying"]);
-  await audit(actor, { kind: enabled ? "webhook.personal_switched_on" : "webhook.personal_switched_off", object: { type: "webhook", id: String(row.id), name: String(row.name) }, details: { address } });
+  const done = await switchWebhook(actor, id, enabled, actor.personId);
+  if (!done) return;
+  await audit(actor, { kind: enabled ? "webhook.personal_switched_on" : "webhook.personal_switched_off", object: { type: "webhook", id: String(done.row.id), name: String(done.row.name) }, details: { address: done.address } });
 }
 
 /** Deletes the actor's own Webhook: nothing more is sent to it. Allowed also while the Workspace's switch is off. */
@@ -196,16 +159,7 @@ export async function sendTestPersonalWebhook(actor: Actor, id: string): Promise
   await rulesOrRefuse(actor.workspaceId);
   const { row } = await findOwn(actor, id);
   if (row.disabled_at) throw new Forbidden("Switch the Webhook on to send a test.");
-  const wait = "A test was sent a moment ago. Wait a minute before sending another.";
-  const recent = () => db().from("webhook_sends").select("id").eq("webhook_id", String(row.id)).eq("type", "ping").gte("created_at", new Date(Date.now() - 60_000).toISOString()).order("created_at").order("id").limit(1);
-  if ((await recent()).data?.length) throw new Error(wait);
-  const { data: made, error } = await db().from("webhook_sends").insert({ workspace_id: actor.workspaceId, webhook_id: String(row.id), type: "ping", source_type: "app" }).select("id").single();
-  if (error || !made) throw new Error("The test could not be queued. Try again in a moment.");
-  if ((await recent()).data?.[0]?.id !== made.id) {
-    await db().from("webhook_sends").delete().eq("id", made.id);
-    throw new Error(wait);
-  }
-  await sendWebhookNow(actor.workspaceId, String(made.id));
+  await queueTestPing(actor.workspaceId, String(row.id));
 }
 
 /** The log of one Webhook's sends, newest first, for the days it is kept. `about` (what a send was about) is for the person only: Admins read statuses and times. */
@@ -229,7 +183,7 @@ export async function ownPersonalWebhookLog(actor: Actor, id: string, limit = 50
 
 /** Every Personal Webhook of the Workspace for Owners and Admins: whose, the name, the address masked, the events, the state and the last send. No secret, no message. */
 export async function listPersonalWebhooksForAdmin(actor: Actor): Promise<PersonalWebhookAdminInfo[]> {
-  assertAdmin(actor);
+  assertManagesWebhooks(actor);
   const { data } = await db().from("webhooks").select(COLUMNS).eq("workspace_id", actor.workspaceId).not("owner_id", "is", null).order("created_at", { ascending: false });
   const rows = await openRows("webhooks", actor.workspaceId, (data ?? []) as Record<string, unknown>[]);
   if (!rows.length) return [];
@@ -242,12 +196,12 @@ export async function listPersonalWebhooksForAdmin(actor: Actor): Promise<Person
   const last = new Map<string, string>();
   for (const s of sends ?? []) if (!last.has(String(s.webhook_id))) last.set(String(s.webhook_id), String(s.last_attempt_at));
   const now = Date.now();
-  return rows.map((r) => ({ ...info(r, now), ownerId: String(r.owner_id), ownerName: names.get(String(r.owner_id)) ?? "", lastSendAt: last.get(String(r.id)) ?? null }));
+  return rows.map((r) => ({ ...webhookInfo(r, now), ownerId: String(r.owner_id), ownerName: names.get(String(r.owner_id)) ?? "", lastSendAt: last.get(String(r.id)) ?? null }));
 }
 
 /** The statuses and times of one Personal Webhook's sends, for Owners and Admins: never what was sent. */
 export async function personalWebhookLogForAdmin(actor: Actor, id: string, limit = 50): Promise<WebhookLogEntry[]> {
-  assertAdmin(actor);
+  assertManagesWebhooks(actor);
   if (typeof id !== "string" || !UUID.test(id)) throw new Forbidden(NOT_FOUND);
   const { data } = await db().from("webhooks").select("id").eq("id", id.toLowerCase()).eq("workspace_id", actor.workspaceId).not("owner_id", "is", null).maybeSingle();
   if (!data) throw new Forbidden(NOT_FOUND);
@@ -256,7 +210,7 @@ export async function personalWebhookLogForAdmin(actor: Actor, id: string, limit
 
 /** Removes someone's Personal Webhook (Owners and Admins). Its person is told through their Delivery Preference, naming who removed it, and the Audit Log has it. */
 export async function removePersonalWebhook(actor: Actor, id: string): Promise<void> {
-  assertAdmin(actor);
+  assertManagesWebhooks(actor);
   if (typeof id !== "string" || !UUID.test(id)) throw new Forbidden(NOT_FOUND);
   const { data } = await db().from("webhooks").select(COLUMNS).eq("id", id.toLowerCase()).eq("workspace_id", actor.workspaceId).not("owner_id", "is", null).maybeSingle();
   if (!data) throw new Forbidden(NOT_FOUND);
