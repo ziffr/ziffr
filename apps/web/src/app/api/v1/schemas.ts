@@ -235,6 +235,7 @@ export const SubmissionAnswer = z.object({
   period: z.string().describe("The period it was recorded for, YYYY-MM-DD."),
   value: z.number().describe("The period's value now: the Submission Rule may have added it to an earlier one. For a key that may not read metrics, the value sent."),
   detail: z.string().describe("What happened, in words. For a key that may not read metrics, without earlier values."),
+  unusual: z.object({ reasons: z.array(z.string()), expected: z.string() }).optional().describe("Only for a key that may read metrics, when the value looks unusual: why, and what was expected. A warning, never a refusal."),
 });
 
 /** A person or Contact (GLOSSARY: Contact): id and name only, never contact details. */

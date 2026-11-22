@@ -180,7 +180,7 @@ export const SERIES_ITEMS_MAX = 500;
 export type SubmitValue = { value: number; period?: string; breakdown?: BreakdownRow[] };
 
 /** What became of a value that was taken. */
-export type Submission = { status: "recorded" | "awaiting_approval"; period: string; value: number; detail: string; replayed: boolean };
+export type Submission = { status: "recorded" | "awaiting_approval"; period: string; value: number; detail: string; replayed: boolean; unusual?: { reasons: string[]; expected: string } };
 
 /** A Metric as its Feed sees it (spec 0012): what to fetch and which periods already have a value, never a value. */
 export type FeedMetric = {

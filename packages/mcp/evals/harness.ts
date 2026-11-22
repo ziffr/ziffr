@@ -80,7 +80,7 @@ export async function runScenario(sc: Scenario, o: { url: string; model: string;
       if (!asked || reply >= REPLIES_MAX || out.note) break;
       messages.push({ role: "user", content: sc.replies[reply] ?? fallbackReply(sc.language) });
     }
-    out.checks = sc.checks({ personId, teammateIds, metrics: await readMetrics(w.id), toolErrors: out.toolErrors });
+    out.checks = sc.checks({ personId, teammateIds, metrics: await readMetrics(w.id), toolErrors: out.toolErrors, lastWords: out.lastWords });
   } catch (e) {
     out.note = `crashed: ${(e as Error).message}`;
     out.checks = [{ name: "the scenario ran", ok: false, detail: out.note }];

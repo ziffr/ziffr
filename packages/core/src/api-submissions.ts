@@ -13,6 +13,7 @@ import { getMetrics } from "./workspace-data";
 import { periodStart } from "./periods";
 import { SOURCE_LABEL } from "./format";
 import { yearStartFor } from "./fiscal-year";
+import { unusualWarning } from "./workflow-engine";
 
 /** Refusals in words that hold nothing but the rule, for keys that may not read values (and Feeds, which never do). */
 export const REFUSED: Record<string, string> = {
@@ -39,7 +40,7 @@ export type ApiSubmissionInput = { value: number; period?: string | null; breakd
  * Correction), because the key's creator does not submit to the Metric, or by another rule (the Submission Rule, a
  * Derived Metric, a bad period). */
 export type ApiSubmissionResult =
-  | { ok: true; status: "recorded" | "awaiting_approval"; period: string; value: number; detail: string }
+  | { ok: true; status: "recorded" | "awaiting_approval"; period: string; value: number; detail: string; unusual?: { reasons: string[]; expected: string } }
   | { ok: false; reason: "locked" | "not_submitter" | "period_condensed" | "refused"; detail: string };
 
 /** Submits a value for the Metric with this slug (scope values:submit). A Metric the key's creator does not see is
@@ -80,7 +81,9 @@ export async function submitObservation(actor: Actor | KeyActor, slug: string, i
   const [latest] = await openRows("observations", actor.workspaceId, (latestRows ?? []) as Record<string, unknown>[]);
   const status = state?.state === "approval" ? "awaiting_approval" : "recorded";
   if (!reads) return { ok: true, status, period, value, detail: status === "recorded" ? "Recorded." : "Recorded; it waits for Approval." };
-  return { ok: true, status, period, value: typeof latest?.value === "number" ? latest.value : value, detail: result.detail };
+  // A warning, never a refusal: the value is in (or waits for Approval); a key that reads learns why it looks unusual.
+  const unusual = await unusualWarning(metric.id, period);
+  return { ok: true, status, period, value: typeof latest?.value === "number" ? latest.value : value, detail: result.detail, ...(unusual ? { unusual } : {}) };
 }
 
 /** Whether the key may submit another value now; if not, the seconds until it may (scope values:submit). Counted from
