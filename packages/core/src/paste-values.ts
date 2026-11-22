@@ -380,7 +380,8 @@ export async function recordPastedValues(actor: Actor, input: PasteInput, effect
     if (there !== undefined && ["replaces", "adds_up", "kept_beside", "duplicate"].includes(row.outcome)) row.before = formatValue(m, there, s.style);
     if (r.ok) {
       now.set(key, row.outcome === "adds_up" && there !== undefined ? there + v.value! : v.value!);
-      const { data: state } = await db().from("period_states").select("state, note").eq("metric_id", m.id).eq("period_start", v.period!).maybeSingle();
+      const { data: found } = await db().from("period_states").select("row_key, state, note").eq("metric_id", m.id).eq("period_start", v.period!).maybeSingle();
+      const state = found ? (await openRows("period_states", s.ws, [found]))[0] : null;
       if (state?.state === "approval") {
         const { data: task } = await db().from("actions").select("assignee_id").eq("metric_id", m.id).eq("period_start", v.period!).eq("purpose", "approval").eq("kind", "task").eq("status", "open").order("id", { ascending: false }).limit(1);
         row.approval = { reasons: String(state.note ?? "").startsWith("Waits for Approval") ? [] : String(state.note ?? "").split("; ").filter(Boolean), approver: (task?.[0]?.assignee_id as string | undefined) ?? null };

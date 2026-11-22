@@ -80,7 +80,7 @@ export async function periodRecord(actor: Actor, slug: string, period: string): 
 
   const [{ data: obsRows }, { data: stateRow }, { data: actionRows }, { data: auditRows }] = await Promise.all([
     db().from("observations").select("id, value, value_sealed, submitter_id, source, original_value, original_value_sealed, imported, created_at").eq("workspace_id", ws).eq("metric_id", metric.id).eq("period_start", period).order("created_at").order("id"),
-    db().from("period_states").select("state, note, updated_at").eq("workspace_id", ws).eq("metric_id", metric.id).eq("period_start", period).maybeSingle(),
+    db().from("period_states").select("row_key, state, note, updated_at").eq("workspace_id", ws).eq("metric_id", metric.id).eq("period_start", period).maybeSingle().then(async (r) => ({ data: r.data ? (await openRows("period_states", ws, [r.data]))[0] : null })),
     db().from("actions").select("*").eq("workspace_id", ws).eq("metric_id", metric.id).eq("period_start", period).order("id"),
     // The few events of this Metric that belong to a period's story; their details are opened below.
     db().from("audit_events").select("id, at, actor_id, actor_name, kind, details").eq("workspace_id", ws).eq("object_type", "metric").eq("object_id", String(metric.id))

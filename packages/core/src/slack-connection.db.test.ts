@@ -9,6 +9,7 @@ import { DEMO_WORKSPACE_ID } from "./team";
 import type { Actor } from "./actor";
 import { fakeSlack } from "./test/fake-slack";
 import { workspace, opened } from "./test/db-fixtures";
+import { forgetWorkspaceKey, isSealed, workspaceCipher } from "./workspace-keys";
 
 let slack: Awaited<ReturnType<typeof fakeSlack>>;
 beforeAll(async () => { slack = await fakeSlack(); });
@@ -36,9 +37,14 @@ describe("connecting Slack", () => {
     expect(exchange.params).toMatchObject({ client_id: "111.222", client_secret: "client-secret-for-tests", code: "code-1234567890", redirect_uri: "https://ziffr.example.test/api/slack/oauth" });
     const { data: row } = await db().from("slack_installations").select("*").eq("workspace_id", w.id).single();
     expect(row.bot_token).not.toContain("xoxb-");
-    expect(openSecret(row.bot_token, `slack-bot:${w.id}`)).toBe(slack.install.access_token);
+    // Sealed with the Workspace Key (spec 0028), so it dies with the Workspace; not with ZIFFR_SECRETS_KEY any more.
+    expect(isSealed(row.bot_token)).toBe(true);
+    expect(openSecret(row.bot_token, `slack-bot:${w.id}`)).toBeNull();
+    expect((await slackBot(w.id))?.token).toBe(slack.install.access_token);
     // Copied to another workspace's row, it does not open.
-    expect(openSecret(row.bot_token, `slack-bot:${DEMO_WORKSPACE_ID}`)).toBeNull();
+    const other = await workspace(); cleanups.push(other.cleanup);
+    expect((await workspaceCipher(other.id)).open({ table: "slack_installations", column: "bot_token", row: other.id }, row.bot_token)).toBeNull();
+    expect((await workspaceCipher(DEMO_WORKSPACE_ID)).open({ table: "slack_installations", column: "bot_token", row: w.id }, row.bot_token)).toBeNull();
     expect(openSecret(sealSecret("x", "a", Buffer.alloc(32, 1)), "a", Buffer.alloc(32, 2))).toBeNull();
     // The page learns the name, never the token.
     const view = await slackConnection(w.actor(sara));
@@ -99,12 +105,39 @@ describe("connecting Slack", () => {
     try {
       expect((await slackBot(w.id))?.token).toBe(slack.install.access_token);
       const { data } = await db().from("slack_installations").select("bot_token").eq("workspace_id", w.id).single();
+      // Sealed again, now with the Workspace Key.
       expect(data!.bot_token).not.toBe(sealedOld);
-      expect(openSecret(data!.bot_token, `slack-bot:${w.id}`)).toBe(slack.install.access_token);
+      expect(isSealed(data!.bot_token)).toBe(true);
     } finally {
       delete process.env.ZIFFR_SECRETS_KEY_PREVIOUS;
     }
     // Sealed again, it opens without the previous key.
+    expect((await slackBot(w.id))?.token).toBe(slack.install.access_token);
+  });
+
+  it("asks Slack for no token when the Workspace Key cannot be opened, and still disconnects such a Workspace", async () => {
+    const w = await workspace(); cleanups.push(w.cleanup);
+    const sara = await w.person("owner");
+    expect(await connect(w.actor(sara))).toBe("connected");
+    await db().from("workspace_keys").delete().eq("workspace_id", w.id);
+    forgetWorkspaceKey(w.id);
+    const exchanges = slack.of("oauth.v2.access").length;
+    expect(await connect(w.actor(sara))).toBe("failed");
+    expect(slack.of("oauth.v2.access")).toHaveLength(exchanges);
+    await disconnectSlack(w.actor(sara));
+    const { data } = await db().from("slack_installations").select("revoked_at").eq("workspace_id", w.id).single();
+    expect(data!.revoked_at).not.toBeNull();
+  });
+
+  it("moves a token sealed before spec 0028 with ZIFFR_SECRETS_KEY to the Workspace Key on its next use", async () => {
+    const w = await workspace(); cleanups.push(w.cleanup);
+    const sara = await w.person("owner");
+    expect(await connect(w.actor(sara))).toBe("connected");
+    const before = sealSecret(slack.install.access_token, `slack-bot:${w.id}`);
+    await db().from("slack_installations").update({ bot_token: before }).eq("workspace_id", w.id);
+    expect((await slackBot(w.id))?.token).toBe(slack.install.access_token);
+    const { data } = await db().from("slack_installations").select("bot_token").eq("workspace_id", w.id).single();
+    expect(isSealed(data!.bot_token)).toBe(true);
     expect((await slackBot(w.id))?.token).toBe(slack.install.access_token);
   });
 

@@ -41,6 +41,12 @@ export const SEALED_COLUMNS = {
   metrics: ["description", "name"],
   // A Condensed Value's numbers (the sum or last value, and the Target), as JSON (spec 0033); its id (a uuid) is made first.
   condensed_values: ["payload"],
+  // A period's note (Approval reasons, a send-back comment, why it was unlocked), bound to its Metric and period: the table has
+  // no id, so its generated `row_key` ("<metric>_<yyyy-mm-dd>") names the row (spec 0028, ticket #246).
+  period_states: ["note"],
+  // A Slack connection's bot token, bound to its Workspace (slack-connection.ts seals it; a token sealed before, with
+  // ZIFFR_SECRETS_KEY, is sealed again by the re-encryption job, which opens it first: see sealTexts).
+  slack_installations: ["bot_token"],
 } as const;
 
 /** Columns sealed together with a blind index, beside the table above on purpose: the re-encryption job seals every
@@ -98,7 +104,20 @@ const COLUMNS: Record<string, readonly string[]> = ALL_SEALED_COLUMNS;
 const NUMBERS: Record<string, readonly string[] | undefined> = SEALED_NUMBERS;
 
 /** The column that names a row of each table, which a sealed value is bound to. */
-export const ROW_KEY: Record<OpenedTable, string> = { thread_messages: "id", actions: "id", contacts: "person_id", profiles: "id", deliveries: "id", prompts: "id", intake_log: "id", audit_events: "id", alerts: "id", webhooks: "id", webhook_external_ids: "id", condensed_values: "id", breakdown_rows: "id", breakdown_history: "id", dashboards: "id", widgets: "id", metrics: "id", observations: "id", observation_history: "id", series_values: "id" };
+export const ROW_KEY: Record<OpenedTable, string> = { thread_messages: "id", actions: "id", contacts: "person_id", profiles: "id", deliveries: "id", prompts: "id", intake_log: "id", audit_events: "id", alerts: "id", webhooks: "id", webhook_external_ids: "id", condensed_values: "id", period_states: "row_key", slack_installations: "workspace_id", breakdown_rows: "id", breakdown_history: "id", dashboards: "id", widgets: "id", metrics: "id", observations: "id", observation_history: "id", series_values: "id" };
+
+/** The name of a row that its sealed values are bound to: the row's key column, which a period's state has only as the
+ * generated `row_key`, made here from its Metric and period when the row is not read from the table yet; a Slack
+ * connection's is its Workspace's id in lower case. Null when the row does not say. */
+export function rowKeyOf(table: OpenedTable, row: Row): string | number | null {
+  if (table === "period_states" && (row.row_key === undefined || row.row_key === null)) {
+    // Only the spelling the database stores a date in, so a note sealed for a period opens for it.
+    return row.metric_id != null && typeof row.period_start === "string" && /^\d{4}-\d{2}-\d{2}/.test(row.period_start) ? `${Number(row.metric_id)}_${row.period_start.slice(0, 10)}` : null;
+  }
+  const v = row[ROW_KEY[table]];
+  if (v === undefined || v === null) return null;
+  return table === "slack_installations" ? String(v).toLowerCase() : (v as string | number);
+}
 
 /** A table whose columns the re-encryption job seals. */
 export type SealedTable = keyof typeof SEALED_COLUMNS;
@@ -128,7 +147,11 @@ function sealed(cipher: WorkspaceCipher, table: OpenedTable, row: Row): Row {
   const out: Row = { ...row };
   for (const column of COLUMNS[table] ?? []) {
     const v = row[column];
-    if (typeof v === "string") out[column] = cipher.seal({ table, column, row: row[ROW_KEY[table]] as string | number }, v);
+    if (typeof v !== "string") continue;
+    const key = rowKeyOf(table, row);
+    // Never bound to a made-up row: a value sealed without its row could never be opened again.
+    if (key === null) throw new ServerFault("The row could not be prepared.");
+    out[column] = cipher.seal({ table, column, row: key }, v);
   }
   sealNumbers(cipher, table, row, out);
   // A widget's Finding words sit in its settings, each sealed for its place there.
@@ -193,7 +216,7 @@ export async function sealedPatch(table: SealedTable, workspaceId: string, id: n
  * returned as they are: nothing sealed can be opened without knowing its row. */
 export function openRow<T extends Row>(cipher: WorkspaceCipher, table: OpenedTable, row: T): T {
   if (row === null || row === undefined) return row;
-  const key = row[ROW_KEY[table]];
+  const key = rowKeyOf(table, row);
   const out: Row = { ...row };
   openNumbers(cipher, table, row, out);
   // Without its row nothing sealed can be opened, and it must not pass on as it is either: it reads as missing.

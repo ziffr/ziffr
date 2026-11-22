@@ -9,6 +9,7 @@ import { db } from "./db";
 import { previousSecretsKey, secretsKey } from "./secrets";
 import { DEMO_WORKSPACE_ID } from "./team";
 import { ServerFault } from "./server-fault";
+import type { Actor } from "./actor";
 
 /** HKDF labels: each use of a key gets bytes of its own, so learning one derived key tells nothing of another. */
 const LABEL = { wrap: "ziffr/workspace-key-wrap/v1", fingerprint: "ziffr/installation-key-id/v1", blind: "ziffr/blind-index/v1" } as const;
@@ -474,4 +475,12 @@ export async function workspaceCipher(workspaceId: string): Promise<WorkspaceCip
   // Not kept when its key was destroyed while it loaded (see `destroyed`).
   if ((destroyed.get(id) ?? 0) === generation) cache.set(id, cipher);
   return cipher;
+}
+
+/** Whether the actor's Workspace is encrypted with a key of its own, for the one line Owners see under Workspace
+ * settings (spec 0028). Only Owners learn it, and only that: never a key, a version or how far the work is. */
+export async function workspaceEncrypted(actor: Actor): Promise<boolean> {
+  if (actor.role !== "owner" || actor.workspaceId === DEMO_WORKSPACE_ID) return false;
+  const { count } = await db().from("workspace_keys").select("version", { count: "exact", head: true }).eq("workspace_id", actor.workspaceId).is("retired_at", null).is("pending_until", null);
+  return (count ?? 0) > 0;
 }

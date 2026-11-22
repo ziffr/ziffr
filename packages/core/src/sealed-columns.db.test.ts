@@ -13,7 +13,8 @@ import { DEMO_WORKSPACE_ID } from "./team";
 import { opened, workspace } from "./test/db-fixtures";
 import { getActions } from "./workspace-data";
 import { forgetWorkspaceKey, isSealed } from "./workspace-keys";
-import { insertSealed, openNames, SEALED_COLUMNS } from "./sealed-columns";
+import { insertSealed, openNames, SEALED_COLUMNS, sealRow } from "./sealed-columns";
+import { getState } from "./workflow-engine";
 
 const saved = process.env.ZIFFR_SECRETS_KEY;
 const cleanups: (() => Promise<void>)[] = [];
@@ -261,6 +262,30 @@ describe("the Audit Log, sealed, in every script and with given ids", () => {
     const w = await setup();
     const { error } = await db().from("audit_events").insert({ id: 9_000_000_000, workspace_id: w.id, actor_id: null, actor_name: "Ziffr", kind: "contact.removed", details: {} });
     expect(error).not.toBeNull();
+  });
+});
+
+describe("a period's note", () => {
+  it("is sealed for its Metric and period, and read back", async () => {
+    const w = await setup();
+    const row = await sealRow("period_states", w.id, { metric_id: w.m.id, period_start: "2026-10-01", note: "Sent back: the depot closed" });
+    expect(isSealed(row.note as string)).toBe(true);
+    await db().from("period_states").insert({ ...row, state: "submitted", workspace_id: w.id });
+    const { data: raw } = await db().from("period_states").select("note").eq("metric_id", w.m.id).eq("period_start", "2026-10-01").single();
+    expect(isSealed(raw!.note as string)).toBe(true);
+    const state = await getState(w.m.id, "2026-10-01");
+    expect(state?.note).toBe("Sent back: the depot closed");
+    // The key that names its row is no part of the state.
+    expect(state).not.toHaveProperty("row_key");
+    // Under another period of the same Metric it does not open.
+    await db().from("period_states").insert({ metric_id: w.m.id, period_start: "2026-11-01", state: "submitted", workspace_id: w.id, note: row.note });
+    expect((await getState(w.m.id, "2026-11-01"))?.note).toBeNull();
+  });
+
+  it("is refused without its Metric or period, never sealed for a made-up row", async () => {
+    const w = await setup();
+    await expect(sealRow("period_states", w.id, { metric_id: w.m.id, note: "No period" })).rejects.toThrow();
+    await expect(sealRow("period_states", w.id, { period_start: "2026-10-01", note: "No Metric" })).rejects.toThrow();
   });
 });
 

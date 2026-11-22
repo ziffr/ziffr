@@ -45,6 +45,10 @@ export function openSecret(sealed: string, context: string, key = secretsKey()):
   }
 }
 
+/** What a Slack bot token sealed with ZIFFR_SECRETS_KEY is bound to (its Workspace); read by slack-connection.ts and by
+ * the re-encryption job, which seals such a token again with the Workspace Key. */
+export const slackBotContext = (workspaceId: string): string => `slack-bot:${workspaceId}`;
+
 /** The key being retired (ZIFFR_SECRETS_KEY_PREVIOUS), read like ZIFFR_SECRETS_KEY; null when unset. */
 export function previousSecretsKey(env: Record<string, string | undefined> = process.env): Buffer | null {
   return secretsKey(env, "ZIFFR_SECRETS_KEY_PREVIOUS");

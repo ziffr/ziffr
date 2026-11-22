@@ -186,6 +186,10 @@ The **Workspace Profile** says what kind of business this is, so Ziffr can sugge
 
 Choose **Save** when you are done. Teams within your company, such as Sales or Finance, are not part of the profile: make them Groups on **Members and Groups**.
 
+### Encryption
+
+Owners see one line at the end of the page: **Encrypted with a key of its own. Deleting this Workspace destroys it.** The Workspace's words and numbers (Thread replies, questions and tasks, Contacts' details, Metric names, values, notes on a period, the Outbox, the Audit Log and the Slack connection's token) are encrypted with that key as they are written, and what was written before is encrypted as Ziffr gets to it, so a copy of the database alone does not show what is already encrypted. Ziffr itself still reads them to do its work: this is not end-to-end encryption. When a Workspace is deleted (today: a trial), its key goes first, so what is left of it can no longer be opened; backups made before then become unreadable once their retention period is over.
+
 ### In the demo
 
 The demo's sidebar has the same user menu at the bottom as any Workspace: **My schedule**, **Profile**, **Deliveries** and **Alerts** open from it, so a visitor does not have to find them in the side list. A change the demo refuses says "The demo can't be changed." with **Try it with a trial of your own** beside it.

@@ -43,12 +43,23 @@ async function metricCtx(metricId: number, period: string): Promise<Ctx | null> 
 /** The Workflow state of one period of a Metric. */
 export async function getState(metricId: number, period: string): Promise<PeriodState | null> {
   const { data } = await db().from("period_states").select("*").eq("metric_id", metricId).eq("period_start", period).maybeSingle();
-  return (data as PeriodState | null) ?? null;
+  if (!data) return null;
+  // Its note (reasons, a send-back comment) is sealed with the Workspace Key (spec 0028); the key column that names its
+  // row is no part of the state.
+  const state = (await openRows("period_states", String(data.workspace_id), [data]))[0] as Record<string, unknown>;
+  delete state.row_key;
+  return state as unknown as PeriodState;
 }
 
-/** Writes the Workflow state of one period. */
+/** Writes the Workflow state of one period, its note sealed for its Workspace. */
 async function setState(metricId: number, period: string, patch: Partial<PeriodState>) {
-  await db().from("period_states").upsert({ metric_id: metricId, period_start: period, state: "asked", ...patch, updated_at: new Date().toISOString() }, { onConflict: "metric_id,period_start", ignoreDuplicates: false });
+  let row: Record<string, unknown> = { metric_id: metricId, period_start: period, state: "asked", ...patch, updated_at: new Date().toISOString() };
+  if (typeof patch.note === "string") {
+    const { data: m } = await db().from("metrics").select("workspace_id").eq("id", metricId).single();
+    if (!m) throw new Error("No such Metric.");
+    row = await sealRow("period_states", String(m.workspace_id), row);
+  }
+  await db().from("period_states").upsert(row, { onConflict: "metric_id,period_start", ignoreDuplicates: false });
 }
 
 /** The Feeds among some submitters (GLOSSARY: Feed): they are never asked, and their missing values go to the owner. */
@@ -348,8 +359,10 @@ function publishedLabel(ctx: Ctx) {
 /** Publishes a period only while it still waits on this task, in one statement: a value that came in after the task
  * was decided started a round of its own, which this decision must not overwrite. False when it did. */
 async function publishDecided(ctx: Ctx, actionId: number, note?: string): Promise<boolean> {
+  // The note is sealed for its row, like every period's note (spec 0028).
+  const sealedNote = note ? (await sealRow("period_states", ctx.ws, { metric_id: ctx.m.id, period_start: ctx.period, note })).note : null;
   const { data } = await db().from("period_states")
-    .update({ state: publishedState(ctx), approval_step: null, approval_action_id: null, ...(note ? { note } : {}), updated_at: new Date().toISOString() })
+    .update({ state: publishedState(ctx), approval_step: null, approval_action_id: null, ...(note ? { note: sealedNote } : {}), updated_at: new Date().toISOString() })
     .eq("metric_id", ctx.m.id).eq("period_start", ctx.period).eq("state", "approval").eq("approval_action_id", actionId).select("metric_id");
   if (data?.length && publishedState(ctx) === "locked") await sendLockSummary(ctx.ws, ctx.wf.id, ctx.period);
   return Boolean(data?.length);

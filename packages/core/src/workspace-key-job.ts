@@ -10,7 +10,7 @@
 import { db } from "./db";
 import { ALL_SEALED_COLUMNS, numberPlace, ROW_KEY, SEALED_NUMBERS, sealDetails, sealedNumberColumn, type NumberTable, type OpenedTable } from "./sealed-columns";
 import { resealThing, SEALED_THINGS, type SealedThing } from "./sealed-things";
-import { secretsKey } from "./secrets";
+import { openSecretRotating, secretsKey, slackBotContext } from "./secrets";
 import { DEMO_WORKSPACE_ID } from "./team";
 import { activateWorkspaceKeys, ensureWorkspaceKey, forgetWorkspaceKey, isSealed, KEY_SETTLE_SECONDS, keyVersions, rewrapInstallationKeys, sealedVersion, takeRewrapFailures, workspaceCipher, type WorkspaceCipher } from "./workspace-keys";
 
@@ -119,9 +119,13 @@ async function sealTexts(cipher: WorkspaceCipher, workspaceId: string, table: Op
     const v = row[column];
     if (typeof v !== "string") continue;
     if (!isSealed(v)) {
-      set[column] = cipher.seal(at(column), v);
+      // A Slack bot token written before sealing with the Workspace Key is sealed with ZIFFR_SECRETS_KEY (or the previous
+      // one): opened first, so what is sealed again is the token, never the other ciphertext.
+      const text = table === "slack_installations" ? (openSecretRotating(v, slackBotContext(workspaceId))?.plain ?? null) : v;
+      if (text === null) { unopenable = true; unopenableColumns.push(column); continue; }
+      set[column] = cipher.seal(at(column), text);
       was.push([column, v]);
-      opened[column] = v;
+      opened[column] = text;
       plainRow = true;
     } else {
       const text = cipher.open(at(column), v);

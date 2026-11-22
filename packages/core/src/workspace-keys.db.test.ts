@@ -7,7 +7,7 @@ import { db } from "./db";
 import { createWorkspace } from "./page-data";
 import { DEMO_WORKSPACE_ID } from "./team";
 import { workspace } from "./test/db-fixtures";
-import { ensureWorkspaceKey, forgetWorkspaceKey, installationKeyFingerprint, workspaceCipher } from "./workspace-keys";
+import { ensureWorkspaceKey, forgetWorkspaceKey, installationKeyFingerprint, workspaceCipher, workspaceEncrypted } from "./workspace-keys";
 
 const installationKey = Buffer.alloc(32, 41);
 const newInstallationKey = Buffer.alloc(32, 42);
@@ -197,6 +197,19 @@ describe("changing the Installation's key (spec 0009)", () => {
     await db().from("workspace_keys").insert({ workspace_id: a, version: 2, wrapped: row.wrapped, wrapper: "installation", wrapped_under: row.wrapped_under });
     forgetWorkspaceKey(a);
     await expect(workspaceCipher(a)).rejects.toThrow(/cannot be unwrapped/);
+  });
+});
+
+describe("the Owners' line in Workspace settings", () => {
+  it("is shown to Owners of a Workspace with a key, to nobody else, and never in the demo", async () => {
+    const id = await bareWorkspace();
+    const actor = (role: "owner" | "admin" | "member") => ({ personId: "t-someone", workspaceId: id, role });
+    expect(await workspaceEncrypted(actor("owner"))).toBe(false);
+    await ensureWorkspaceKey(id);
+    expect(await workspaceEncrypted(actor("owner"))).toBe(true);
+    expect(await workspaceEncrypted(actor("admin"))).toBe(false);
+    expect(await workspaceEncrypted(actor("member"))).toBe(false);
+    expect(await workspaceEncrypted({ personId: "t-someone", workspaceId: DEMO_WORKSPACE_ID, role: "owner" })).toBe(false);
   });
 });
 
