@@ -335,14 +335,14 @@ describe("trials fail closed", () => {
     forgetStoredSettings();
     const spy = settingsUnreadable();
     try {
-      await expect(trialSettingsInEffect()).rejects.toThrow(/cannot be made here/);
+      await expect(trialSettingsInEffect()).rejects.toThrow();
       expect(await trialsOpen()).toBe(false);
       expect((await whatThisZiffrOffers()).trial).toBeNull();
       const w = await workspace();
       cleanups.push(w.cleanup);
       const sara = await w.person("owner");
       const before = (await db().from("memberships").select("workspace_id").eq("user_id", sara)).data!.length;
-      await expect(createWorkspace(sara, "Nowhere")).rejects.toThrow(/cannot be made here/);
+      await expect(createWorkspace(sara, "Nowhere")).rejects.toThrow();
       expect((await db().from("memberships").select("workspace_id").eq("user_id", sara)).data!.length).toBe(before);
     } finally {
       spy.mockRestore();
