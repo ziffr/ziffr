@@ -122,7 +122,7 @@ export async function exportPack(actor: Actor, manifest: ExportManifest, choice:
   const wanted = manifest?.logo as { themeId?: unknown; data?: unknown } | undefined;
   if (wanted && typeof wanted === "object") {
     let raw: unknown;
-    if (wanted.themeId !== undefined) raw = ((await rows("themes", [Number(wanted.themeId)].filter(Number.isInteger), "id, slides"))[0]?.slides as { logo?: unknown } | undefined)?.logo;
+    if (wanted.themeId !== undefined) raw = ((await rows("themes", (typeof wanted.themeId === "number" && Number.isInteger(wanted.themeId) ? [wanted.themeId] : []), "id, slides"))[0]?.slides as { logo?: unknown } | undefined)?.logo;
     else raw = wanted.data;
     logo = cleanLogo(raw, PACK_LOGO_MAX_BYTES);
     if (!logo) leftOut.push({ name: "Logo", why: logoProblem(raw, PACK_LOGO_MAX_BYTES) ?? "There is no picture to use." });
