@@ -20,7 +20,7 @@ import { pinnedDashboards } from "@ziffr/core/pinned-dashboards";
 import { whatThisZiffrOffers } from "@ziffr/core/what-works-here";
 import { isInstallationAdmin } from "@ziffr/core/installation-admins";
 import { keptWords, trialStatus } from "@ziffr/core/trial-end";
-import { TrialBar, TrialEnded } from "@/components/trial-bar";
+import { TrialBar, TrialBarForMembers, TrialEnded, TrialEndedForMembers } from "@/components/trial-bar";
 import { reachedWords, trialUsage, usageLine } from "@ziffr/core/trial-usage";
 import { OverLimitBar } from "@/components/over-limit-bar";
 import { overLimitBanner, sizeAndUsage } from "@ziffr/core/workspace-usage";
@@ -128,7 +128,10 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
   ) : null;
   const banners = (
     <>
-      {trial && !trial.ended && <TrialBar daysLeft={trial.daysLeft} endsAt={trial.endsAt} kept={trial.keptAs ? keptWords(trial.endsAt, trial.keptAs) : null} usage={usage} />}
+      {/* Owners and Admins get the bar with counts and links; everyone else the plain words (spec 0040). */}
+      {trial && !trial.ended && (role === "owner" || role === "admin"
+        ? <TrialBar daysLeft={trial.daysLeft} endsAt={trial.endsAt} kept={trial.keptAs ? keptWords(trial.endsAt, trial.keptAs) : null} usage={usage} />
+        : <TrialBarForMembers owner={trial.ownerName} endsAt={trial.endsAt} />)}
       {overLimit && <OverLimitBar words={overLimit} />}
     </>
   );
@@ -143,7 +146,7 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
       </head>
       <body className="min-h-screen bg-background font-sans antialiased">
         <AppShell workspace={workspaceTree(role)} settings={settingsGroups(role)} pinned={pinned} due={due} open={open} guide={guideHref()} account={accountOf} demo={demoControls} people={demo ? { profiles: profiles.filter((p) => !p.contact), current: viewer } : undefined} collapsed={await sidebarCollapsed()} banners={<>{demoNote}{banners}</>}>
-          {trial?.ended ? <TrialEnded deletedAt={trial.deletedAt} /> : children}
+          {trial?.ended ? (role === "owner" || role === "admin" ? <TrialEnded deletedAt={trial.deletedAt} /> : <TrialEndedForMembers owner={trial.ownerName} />) : children}
         </AppShell>
         {demo && offersTrials && <DemoRefusalLinks />}
         {feedback && <FeedbackPrompt askForStar={feedback.askForStar} />}

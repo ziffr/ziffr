@@ -6,7 +6,7 @@
 import { closeForSystem } from "./system-closes";
 import { sendWebhooksNow } from "./webhook-send";
 import { db } from "./db";
-import { openRows } from "./sealed-columns";
+import { openNames, openRows } from "./sealed-columns";
 import { Forbidden, type Actor } from "./actor";
 import { deliverNotice } from "./deliveries";
 import { keepTrial, trialEndsAt, trialThen } from "./trials";
@@ -31,7 +31,7 @@ export type KeptAs = { label: string | null; metrics: number | null };
 
 /** Where a trial stands, for the bar on every page: null outside a trial. `keptAs` where trials are kept as ordinary
  * Workspaces (ZIFFR_TRIAL_THEN=keep), with what they then stay on. */
-export async function trialStatus(workspaceId: string): Promise<{ endsAt: string; daysLeft: number; ended: boolean; deletedAt: string; keptAs: KeptAs | null } | null> {
+export async function trialStatus(workspaceId: string): Promise<{ endsAt: string; daysLeft: number; ended: boolean; deletedAt: string; keptAs: KeptAs | null; ownerName: string } | null> {
   const ends = await trialEndsAt(workspaceId);
   if (!ends) return null;
   const settings = await settingsInEffect();
@@ -39,7 +39,16 @@ export async function trialStatus(workspaceId: string): Promise<{ endsAt: string
   return {
     endsAt: ends.toISOString(), daysLeft: Math.max(0, Math.ceil(left / DAY)), ended: left <= 0, deletedAt: new Date(ends.getTime() + daysSetting("ZIFFR_TRIAL_GRACE_DAYS", settings) * DAY).toISOString(),
     keptAs: await keptAs(settings),
+    ownerName: await ownerName(workspaceId),
   };
+}
+
+/** The trial Owner's name, for the words Members are told; "the Owner" when it cannot be read. Members of the Workspace may see who its Owner is. */
+async function ownerName(workspaceId: string): Promise<string> {
+  const id = await ownerOf(workspaceId);
+  if (!id) return "the Owner";
+  const { data } = await db().from("profiles").select("id, name").eq("id", id).maybeSingle();
+  return data ? ((await openNames(workspaceId, [data]))[0]?.name || "the Owner") : "the Owner";
 }
 
 /** What a trial becomes at its end where trials are kept, else null. */
