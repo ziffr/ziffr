@@ -76,6 +76,9 @@ Decks, Themes, View Designs, the canvas, Packs and the pages that edit them are 
 - `nameVersion` (version-history.ts): a page's version history
 - `saveNamedVersion` (version-history.ts): a page's version history
 - `restoreVersion` (version-history.ts): a page's version history
+- `addMetricTags` (tags.ts): the Tags field on the Metric page adds one word; a program sends the whole set with `tags` on create and update (spec 0038)
+- `removeMetricTags` (tags.ts): the Tags field on the Metric page takes one word off; a program sends the whole set with `tags` (spec 0038)
+- `restoreMetricTags` (tags.ts): restoring a Metric's Version in the app puts its Tags back; a program has no Versions to restore
 - `addViewDesign` (view-designs.ts): View Designs
 - `removeViewDesign` (view-designs.ts): View Designs
 - `saveTheme` (workspace-themes.ts): Themes
@@ -283,20 +286,13 @@ Ticketed. MCP follows where the ticket says so.
 - `createWorkflowFromTemplate` (workflow-templates.ts): Workflows for programs, #433
 - `runTodayNow` (workflows.ts): running a Workflow now, with Workflows for programs, #433
 - `closeWorkflowPeriod` (workflows.ts): closing a period, with Workflows for programs, #433
-- `visibleTags` (tag-sight.ts): API and MCP: spec 0038 ticket #659
-- `tagSight` (tag-sight.ts): API and MCP: spec 0038 ticket #659
-- `metricTagNames` (tag-sight.ts): API and MCP: spec 0038 ticket #659
-- `metricIdsWithTags` (tag-sight.ts): API and MCP: spec 0038 ticket #659
-- `changeMetricTags` (tags.ts): API and MCP: spec 0038 ticket #659
-- `setMetricTags` (tags.ts): API and MCP: spec 0038 ticket #659
-- `addMetricTags` (tags.ts): API and MCP: spec 0038 ticket #659
-- `removeMetricTags` (tags.ts): API and MCP: spec 0038 ticket #659
-- `restoreMetricTags` (tags.ts): API and MCP: spec 0038 ticket #659
 
 ## internal: not for programs
 
 Plumbing the core's other operations use, jobs the schedule runs, and the demo.
 
+- `tagSight` (tag-sight.ts): the one reading of who sees which Tag that the app and the API both use; it changes nothing itself
+- `changeMetricTags` (tags.ts): the one change behind setMetricTags, addMetricTags and removeMetricTags; the API reaches it through `tags` on create and update
 - `resolveTagWidgets` (tag-widgets.ts): works out the Metrics of a widget of all Metrics tagged X for one viewer when a dashboard is drawn; read by the pages
 - `followMergedTag` (tag-lists.ts): part of merging Tags, which is not in the API or the MCP Server on purpose (spec 0038)
 - `recordedWidgets` (tag-widgets.ts): the same, for a deck or Snapshot that records the Metrics of the moment

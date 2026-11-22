@@ -39,7 +39,7 @@ describe("@ziffr/mcp against the app", () => {
     const tools = (await client.listTools()).tools;
     expect(tools.map((t) => t.name).sort()).toEqual([
       "add_finding", "add_widget", "archive_metric", "create_alert", "create_dashboard", "create_dashboard_from_template", "create_metric", "create_workflow", "delete_alert", "delete_metric", "delete_workflow", "find", "get_dashboard", "get_metric", "get_snapshot", "get_thread", "get_unusual_value_check", "get_workflow", "get_workspace",
-      "list_actions", "list_alerts", "list_dashboards", "list_feeds", "list_metrics", "list_people", "list_projections", "list_snapshots", "list_submitters", "list_target_series", "list_templates", "list_workflows", "mark_task_done", "my_schedule", "period_status", "propose_share", "remove_widget", "reply_to_action", "restore_metric", "self_check", "set_action_status", "set_metric_workflow", "set_projections", "set_submitters", "set_target_series", "set_unusual_value_check",
+      "list_actions", "list_alerts", "list_dashboards", "list_feeds", "list_metrics", "list_people", "list_projections", "list_snapshots", "list_submitters", "list_tags", "list_target_series", "list_templates", "list_workflows", "mark_task_done", "my_schedule", "period_status", "propose_share", "remove_widget", "reply_to_action", "restore_metric", "self_check", "set_action_status", "set_metric_workflow", "set_projections", "set_submitters", "set_target_series", "set_unusual_value_check",
       "submit_value", "take_snapshot", "update_alert", "update_dashboard", "update_finding", "update_metric", "update_widget", "update_workflow",
     ]);
     // Deleting cannot be undone: assistants are told so, and to confirm with the person first.
