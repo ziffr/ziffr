@@ -178,9 +178,8 @@ export default async function MetricPage({ params, searchParams }: { params: Pro
   const periodTarget = last ? tSeries.find((t) => t.period === last.period) : undefined;
   // Says nothing of the inputs but that their periods differ: it may be read by someone who cannot see them.
   const derivedProblem = inputsProblem(metric, metrics);
-  // What the first requests really did, read from the Outbox's own records (only for its owner and Editors).
+  // The first requests as the Outbox recorded them (owner and Editors); the entry Tags it lacks are recomputed, never read from the address.
   const createdNote = await createdNoteFor(sp.created, canEdit, actor, metric.id);
-  // Recomputed here, never read from the address: the Tags of the entry this Metric came from that it does not carry.
   const tagsLeftOff = sp.created && canEdit ? await tagsLeftOffEntry(actor, metric.id) : [];
 
   return (
