@@ -1,4 +1,4 @@
-"Expected 150,458 € in September 2026 (likely 140k €–161k €)"
+"Expected 150,461 € by September 2026 (likely 140k €–161k €)"
 <svg style=width: 100%; height: 100%; display: block;>
 <line fill=none height=198 stroke=var(--color-rule) width=392 x1=76 x2=468 x=76 y1=210 y2=210 y=12>
 <line fill=none height=198 stroke=var(--color-rule) width=392 x1=76 x2=468 x=76 y1=170.4 y2=170.4 y=12>
@@ -8,8 +8,8 @@
 <line fill=none height=198 stroke=var(--color-rule) width=392 x1=76 x2=468 x=76 y1=12 y2=12 y=12>
 <rect height=198 width=392 x=76 y=12>
 <path d=M 76,111 h 392 v 59.4 h -392 Z fill-opacity=0.6 fill=var(--color-band) height=59.4 radius=0 stroke-width=1 stroke=none width=392 x=76 y1=100000 y2=130000 y=111>
-<path d=M409.20000000000005,87.77855999999998L428.8,69.95892059037233L448.40000000000003,59.56927893595757L468,50.30309037369892L468,90.68392028142117L448.40000000000003,92.54008849063676L428.8,93.27280360769622L409.20000000000005,87.77855999999998Z fill-opacity=0.07 fill=var(--color-data) height=198 stroke-width=1 stroke=none width=392>
-<path d=M409.20000000000005,87.77855999999998L428.8,81.61586209903429L448.40000000000003,76.05468371329717L468,70.49350532756003 fill=none height=198 stroke-dasharray=5 4 stroke-width=1 stroke=var(--color-muted) width=392>
+<path d=M409.20000000000005,87.77855999999998L428.8,70.03379088266607L448.40000000000003,59.67346181735402L468,50.42918047054755L468,90.54383537205634L448.40000000000003,92.42694038953152L428.8,93.1939976885011L409.20000000000005,87.77855999999998Z fill-opacity=0.07 fill=var(--color-data) height=198 stroke-width=1 stroke=none width=392>
+<path d=M409.20000000000005,87.77855999999998L428.8,81.6138942855836L448.40000000000003,76.05020110344276L468,70.48650792130194 fill=none height=198 stroke-dasharray=5 4 stroke-width=1 stroke=var(--color-muted) width=392>
 <path d=M76,180.0624L95.6,176.23506L115.2,171.45336L134.8,164.94114L154.4,164.80056L174,158.62098L193.60000000000002,146.7192L213.20000000000002,141.77712L232.8,144.01848L252.4,138.17945999999998L272,134.03928L291.6,121.35935999999998L311.20000000000005,122.35925999999998L330.8,102.52956L350.40000000000003,104.97684000000001L370,90.36245999999998L389.6,98.65272000000002L409.20000000000005,87.77855999999998 fill=none height=198 stroke-width=1.75 stroke=var(--color-data) width=392>
 <line angle=0 fill=none height=30 orientation=bottom stroke=var(--color-rule-2) width=392 x1=76 x2=468 x=76 y1=210 y2=210 y=210>
 <line angle=0 fill=none height=30 orientation=bottom stroke=var(--color-rule-2) width=392 x1=76 x2=76 x=76 y1=216 y2=210 y=210>
@@ -118,16 +118,17 @@
 <tspan dy=0.355em x=68>
 "180k €"
 "At this pace Revenue reaches 100,000 € or more in September 2026: at least 19 in 20."
-"Worked out with a plain trend (Holt), over 18 months."
+"Too few months to check the yearly pattern against a plain trend, so a plain trend is used."
+"Worked out with a plain trend (Holt), over 24 months."
 "This assumes the pattern of the past carries on."
 "Over the last 12 months, the range for the next month would have held 7 of 12 times."
 "This carries the past forward; it is not a promise."
 "Show the numbers"
 "MethodHolt's linear trend"
 "Smoothing (level, trend, pattern)0.5, 0.1"
-"Expected150,458 €"
-"Likely between143,790 € – 157,125 €"
+"Expected150,461 €"
+"Likely between144,969 € – 155,953 €"
 "Chance of reaching the Target99 %"
 "Periods tested12"
 "Inside the range7"
-"Typical miss2,900 €"
+"Typical miss2,882 €"
