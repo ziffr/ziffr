@@ -95,7 +95,7 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
   // The demo's Viewing as picker offers all its made-up people, also while viewing as its Guest.
   const profiles = demo ? await getPeopleIn(workspaceId) : shown;
   // A Trial Workspace (spec 0021): its days left on every page, and once it has ended, only the screen that says so.
-  const trial = demo ? null : await trialStatus(workspaceId);
+  const trial = demo ? null : await trialStatus(workspaceId, actor.role);
   // What the trial has used of its limits (spec 0040): Owners and Admins only, counts of this Workspace alone.
   const usageRows = trial && !trial.ended ? await trialUsage(actor) : null;
   const usage = usageRows ? { line: usageLine(usageRows), reached: usageRows.map(reachedWords).filter((w): w is string => w !== null) } : null;

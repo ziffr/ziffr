@@ -126,6 +126,8 @@ describe("what the accept page and the bar say", () => {
     const w = await ws();
     const { data } = await db().from("profiles").select("name").eq("id", w.owner).single();
     expect((await trialStatus(w.id))?.ownerName).toBe(data!.name);
+    // A Guest never sees who else is in the Workspace: no name.
+    expect((await trialStatus(w.id, "guest"))?.ownerName).toBeNull();
     expect(await trialStatus((await ws(false)).id)).toBeNull();
   });
 });

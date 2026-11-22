@@ -6,7 +6,7 @@ import { EndTrialButton } from "./end-trial-button";
 
 /** The line above the page while the trial runs, for a Member or Guest: whose trial it is, until when and what follows (the
  * same words as the invitation). No counts and no links to what only Owners and Admins use. */
-export function TrialBarForMembers({ owner, endsAt }: { owner: string; endsAt: string }) {
+export function TrialBarForMembers({ owner, endsAt }: { owner: string | null; endsAt: string }) {
   return <p className="mx-auto max-w-7xl px-4 pt-3 text-xs text-muted-foreground sm:px-6">{trialMemberWords(owner, endsAt)}</p>;
 }
 
@@ -26,7 +26,7 @@ export function TrialBar({ daysLeft, endsAt, kept, usage }: { daysLeft: number; 
 }
 
 /** What a Member or Guest sees instead of the app once the trial has ended: that it has, and who decides. Nothing to download or delete. */
-export function TrialEndedForMembers({ owner }: { owner: string }) {
+export function TrialEndedForMembers({ owner }: { owner: string | null }) {
   return (
     <div className="mx-auto mt-16 max-w-md text-sm">
       <h1 className="text-[length:var(--text-2xl)] leading-tight">This trial has ended</h1>
