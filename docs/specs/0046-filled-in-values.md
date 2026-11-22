@@ -147,7 +147,7 @@ The demo stays read-only. A new migration (setting `ziffr.demo_seed` for its tra
 **Decided by the owner (2026-11-22):** a Stand-in's answer to a Prompt asked in someone's place is a Filled-in Value for that submitter. If Mia stands in for Jonas, the value is Jonas's number, and it always shows who really entered it: "Entered by Mia for Jonas". A Stand-in is asked for someone else's number by definition, so recording it as theirs is what this spec stops. It needs no new step for the Stand-in, and it closes the Approval gap above (the person it was for could approve it).
 
 - **What follows from it:** a Stand-in's Token takes values only for the periods they were asked about, and no longer through the API or MCP, as decisions 1 and 6 say (the Stand-in fills in when asked; no Access Key fills in).
-- **Existing values are not rewritten** (proposed, open to change). Values Stand-ins recorded before this change stay recorded as theirs. A Stand-in Token's `stands_in_for` would let a migration guess, but a guess about whose number it was must not change the record; the Period Record keeps showing them as before.
+- **Existing values are not rewritten** (decided by the lead, 2026-11-22, following the owner's rule that values are not rewritten). Values Stand-ins recorded before this change stay recorded as the Stand-in's own. The link to the absent submitter lives only on the Stand-in's Token and is lost once that Token lapses or another Stand-in is chosen, so a rewrite could not be done reliably for all of them, and doing it only for some would be inconsistent. The Period Record keeps showing them as before.
 
 ## Testing Decisions
 
@@ -185,7 +185,9 @@ The demo stays read-only. A new migration (setting `ziffr.demo_seed` for its tra
 5. Who may see the "entered by" name follows the existing rules for submitter names.
 6. A Stand-in's answer becomes a Filled-in Value for the absent submitter: it is their number, and it always shows who really entered it ("Entered by Mia for Jonas").
 
-Proposed in this spec, open to change: the name Filled-in Value; Guests no longer chosen as Stand-ins; the Self-check going to the submitter; "add up" and "keep both" left out; existing Stand-in values left as they are; the Usage page's "entered by others" count.
+Decided by the lead (2026-11-22), following the owner's rule that values are not rewritten: values Stand-ins recorded before this change stay recorded as the Stand-in's own (see "Today's Stand-in answers").
+
+Proposed in this spec, open to change: the name Filled-in Value; Guests no longer chosen as Stand-ins; the Self-check going to the submitter; "add up" and "keep both" left out; the Usage page's "entered by others" count.
 
 ## Tickets
 
