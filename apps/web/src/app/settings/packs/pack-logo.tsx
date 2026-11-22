@@ -4,7 +4,7 @@
 import { packVoucher } from "@ziffr/core/pack-voucher";
 
 /** The logo in its box, 48 pixels high and 160 wide at most, with the words for people who cannot see it. */
-export function PackLogo({ src, author, label }: { src: string | null; author: string; label?: string }) {
+function PackLogo({ src, author, label }: { src: string | null; author: string; label?: string }) {
   if (!src) return null;
   return (
     <span className="inline-flex h-12 w-40 max-w-full shrink-0 items-center justify-center overflow-hidden rounded-[var(--radius-input)] border border-input bg-white p-1">
