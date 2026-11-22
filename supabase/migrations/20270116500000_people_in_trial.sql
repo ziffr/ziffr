@@ -46,7 +46,7 @@ create index on invitation_emails (sent_at) where in_trial;
 
 -- The Owner's first value: a value of their own, recorded by hand, in a form, by key or by an assistant for them, never
 -- one that came in through a Feed or an Import. Until then nobody can be invited: a bot that signs in cannot answer a
--- Prompt, so it cannot reach the invitations cheaply.
+-- Prompt, so it cannot reach the invitations cheaply (a person who signs in and posts a form does; the gate raises the cost, it is not a proof).
 create or replace function trial_owner_has_a_value(p_workspace uuid) returns boolean
 language sql stable security definer set search_path = public as $$
   select exists (
@@ -58,27 +58,34 @@ revoke execute on function trial_owner_has_a_value(uuid) from public, anon, auth
 
 -- The people a trial holds for its limit: everyone who is a member, and every invitation that is still open (not
 -- revoked, not accepted, not past its last day), because each of them will take a place the moment it is used.
-create or replace function trial_people(p_workspace uuid) returns int
+create or replace function trial_people(p_workspace uuid, p_joining text default null) returns int
 language sql stable security definer set search_path = public as $$
   select (select count(*) from memberships where workspace_id = p_workspace)::int
        + (select count(*) from invitations where workspace_id = p_workspace and revoked_at is null and accepted_at is null and expires_at > now())::int
+       -- An invitation accepted a moment ago whose person has not joined yet (the core accepts, then inserts the membership
+       -- in a second statement) still holds its place, so nobody can take it in that gap; p_joining is the one joining now.
+       + (select count(*) from invitations i where i.workspace_id = p_workspace and i.accepted_at > now() - interval '2 minutes'
+            and i.accepted_by is distinct from p_joining
+            and not exists (select 1 from memberships m where m.workspace_id = p_workspace and m.user_id = i.accepted_by))::int
 $$;
 -- The core reads it for the Owner's view of usage; the public keys cannot.
-revoke execute on function trial_people(uuid) from public, anon, authenticated;
-grant execute on function trial_people(uuid) to service_role;
+revoke execute on function trial_people(uuid, text) from public, anon, authenticated;
+grant execute on function trial_people(uuid, text) to service_role;
 
 -- Before a person joins a Trial Workspace, or an invitation is made for one: the Workspace's row is locked first, so
 -- parallel joins and invitations wait for each other. Refused with ZF435 (people), ZF436 (a second open invitation for
 -- one address) or ZF439 (no value of the Owner's own yet). Outside a trial, nothing here applies.
 create or replace function people_in_trial() returns trigger
 language plpgsql security definer set search_path = public as $$
-declare ends timestamptz;
+declare ends timestamptz; joining text;
 begin
-  select trial_ends_at into ends from workspaces where id = new.workspace_id for update;
+  -- The row is locked only for a trial: other Workspaces' joins and invitations never wait here.
+  select trial_ends_at into ends from workspaces where id = new.workspace_id and trial_ends_at is not null for update;
   if ends is null then return new; end if;
   if tg_table_name = 'memberships' then
     -- A person who is a member already takes no second place (an upsert of the same row).
     if exists (select 1 from memberships where workspace_id = new.workspace_id and user_id = new.user_id) then return new; end if;
+    joining := new.user_id;
   else
     if not trial_owner_has_a_value(new.workspace_id) then
       raise exception using errcode = 'ZF439', message = 'invitations_after_first_value';
@@ -89,7 +96,7 @@ begin
       raise exception using errcode = 'ZF436', message = 'invitation_open_for_address';
     end if;
   end if;
-  if trial_people(new.workspace_id) >= (trial_limit_numbers()).people then
+  if trial_people(new.workspace_id, joining) >= (trial_limit_numbers()).people then
     raise exception using errcode = 'ZF435', message = 'people_per_trial';
   end if;
   return new;

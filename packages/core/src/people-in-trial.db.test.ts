@@ -110,6 +110,17 @@ describe("the people limit", () => {
     expect(count).toBeLessThanOrEqual(5);
     expect(count).toBeGreaterThanOrEqual(4);
   });
+  it("keeps the place of an invitation that was accepted but whose person has not joined yet", async () => {
+    const t = await trial();
+    const emails = [address(), address(), address(), address()];
+    for (const e of emails) await invite(t, e);
+    const joiner = await stranger(emails[0]);
+    // The gap inside an accept: marked accepted, membership not inserted yet. Nobody else may take the place.
+    await db().from("invitations").update({ accepted_at: new Date().toISOString(), accepted_by: joiner.personId }).eq("email", emails[0]);
+    await expect(invite(t)).rejects.toThrow(/at most 5 people/);
+    const { error } = await db().from("memberships").insert({ workspace_id: t.id, user_id: joiner.personId, role: "member" });
+    expect(error).toBeNull();
+  });
   it("takes a lowered limit without deleting anyone: a full trial refuses the next join", async () => {
     const t = await trial();
     const a = address(); const b = address();
