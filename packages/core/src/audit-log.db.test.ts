@@ -221,7 +221,7 @@ describe("recording", () => {
   it("never fails the action when recording fails", async () => {
     const w = await ws(); const sara = await w.person("owner");
     const spy = vi.spyOn(console, "error").mockImplementation(() => {});
-    await expect(recordAudit(w.id, sara, { kind: "Not A Kind" as never })).resolves.toBeUndefined();
+    await expect(recordAudit(w.id, sara, { kind: "Not A Kind" as never })).resolves.toBe(false);
     expect(spy).toHaveBeenCalledWith(expect.stringMatching(/could not record Not A Kind/));
     spy.mockRestore();
     expect(await stored(w.id)).toEqual([]);

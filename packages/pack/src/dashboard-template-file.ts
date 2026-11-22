@@ -5,7 +5,7 @@
 // Workspace's data), every word is plain text, and a widget's View Design is checked as any other design.
 import { checkFormat, parseJson, under, type FormatCheck, type Schema } from "./json-check.js";
 import { itemKey, plainText, words } from "./file-text.js";
-import { checkViewDesignValue, VIEW_LIMITS, type ViewDesign } from "./view-design.js";
+import { checkViewDesignValue, VIEW_DESIGN_SCHEMA, VIEW_LIMITS, type ViewDesign } from "./view-design.js";
 import { TEMPLATE_VIEWS, type AnchorRule, type CompareKey, type DisplayPeriod, type MeasureId, type PanelType, type TemplateView } from "./kinds.js";
 
 /** The format this Ziffr writes; it reads every version in `DASHBOARD_TEMPLATE_FORMATS`. */
@@ -133,7 +133,7 @@ export type At = (path: string, message: string) => void;
 
 /** What the schema cannot say of one widget of a template: Slots that exist, at least one that fills it, and its View
  * Design, held to a design's own size and checks as if it were pasted on its own. */
-export function checkTemplateWidget(w: Pick<TemplateWidgetFile, "view" | "slots" | "settings">, slots: number, here: string, at: At) {
+export function checkTemplateWidget(w: Pick<TemplateWidgetFile, "view" | "slots" | "settings">, slots: number, here: string, at: At, designSchema: Schema = VIEW_DESIGN_SCHEMA) {
   const bad = (n: number) => n >= slots;
   w.slots.forEach((n, k) => bad(n) && at(`${here}.slots[${k}]`, `is Slot ${n}, but the template has Slots 0 to ${slots - 1}.`));
   w.settings?.panels?.forEach((p, k) => p.slot !== undefined && bad(p.slot) && at(`${here}.settings.panels[${k}].slot`, `is Slot ${p.slot}, but the template has Slots 0 to ${slots - 1}.`));
@@ -143,16 +143,16 @@ export function checkTemplateWidget(w: Pick<TemplateWidgetFile, "view" | "slots"
   if (design && typeof design === "object") {
     const path = `${here}.settings.design`;
     const size = new TextEncoder().encode(JSON.stringify(design)).length;
-    const res = size > VIEW_LIMITS.bytes ? { ok: false as const, problems: [{ path: "", line: null, message: `is ${size.toLocaleString("en")} bytes; a View Design may have at most ${VIEW_LIMITS.bytes.toLocaleString("en")}.` }] } : checkViewDesignValue(design, new Map());
+    const res = size > VIEW_LIMITS.bytes ? { ok: false as const, problems: [{ path: "", line: null, message: `is ${size.toLocaleString("en")} bytes; a View Design may have at most ${VIEW_LIMITS.bytes.toLocaleString("en")}.` }] } : checkViewDesignValue(design, new Map(), designSchema);
     if (!res.ok) for (const p of res.problems) at(under(path, p).path, p.message);
   }
 }
 
 /** What the schema cannot say: each widget as above, on the grid, and no two in one place. */
-function meaning(t: DashboardTemplateFile, at: At) {
+function meaning(t: DashboardTemplateFile, at: At, designSchema: Schema = VIEW_DESIGN_SCHEMA) {
   t.widgets.forEach((w, i) => {
     const here = `widgets[${i}]`;
-    checkTemplateWidget(w, t.slots.length, here, at);
+    checkTemplateWidget(w, t.slots.length, here, at, designSchema);
     if (w.x + w.w > 12) at(here, `reaches column ${w.x + w.w}; the grid has 12.`);
     for (let j = 0; j < i; j++) {
       const o = t.widgets[j];
@@ -185,6 +185,6 @@ export function refusedOutsidePack<T>(res: FormatCheck<T>, refs: { path: string;
 }
 
 /** Checks a Dashboard Template file already read from JSON; which Pack items it names is checked by its Pack. */
-export function checkDashboardTemplateFileValue(value: unknown, lines: Map<string, number> = new Map(), schema: Schema = DASHBOARD_TEMPLATE_SCHEMA): FormatCheck<DashboardTemplateFile> {
-  return checkFormat({ family: "ziffr.dashboard-template", reads: DASHBOARD_TEMPLATE_FORMATS, schema, meaning }, value, lines);
+export function checkDashboardTemplateFileValue(value: unknown, lines: Map<string, number> = new Map(), schema: Schema = DASHBOARD_TEMPLATE_SCHEMA, designSchema: Schema = VIEW_DESIGN_SCHEMA): FormatCheck<DashboardTemplateFile> {
+  return checkFormat({ family: "ziffr.dashboard-template", reads: DASHBOARD_TEMPLATE_FORMATS, schema, meaning: (t: DashboardTemplateFile, at: At) => meaning(t, at, designSchema) }, value, lines);
 }

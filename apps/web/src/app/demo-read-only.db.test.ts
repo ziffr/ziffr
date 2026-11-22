@@ -64,6 +64,7 @@ const CASES: Record<string, Case> = {
   "assistant-actions:disconnectAssistant": { nothing: "the demo has no connected assistants", args: () => [1] },
   "auth-actions:sendSignInLink": { outside: "signing in, not the demo Workspace" },
   "auth-actions:signInWith": { outside: "signing in, not the demo Workspace" },
+  "auth-actions:signInAgainForExport": { outside: "signs the Owner out to sign in again before a Workspace Export; the demo cannot be exported" },
   "auth-actions:signOut": { outside: "signing out, not the demo Workspace" },
   "workspace-import-actions:openImported": { outside: "opens a Workspace of one's own that an import made, never the demo" },
   "auth-actions:createWorkspace": { outside: "a Workspace of one's own, never the demo; refused during a demo visit" },
