@@ -27,7 +27,9 @@ language plpgsql security definer set search_path = public as $$
 begin
   perform pg_advisory_xact_lock(hashtext('personal-webhooks:' || p_ws::text || ':' || p_owner));
   if not exists (select 1 from workspaces where id = p_ws and personal_webhooks_allowed) then return 'off'; end if;
-  if not exists (select 1 from memberships where workspace_id = p_ws and user_id = p_owner and role in ('owner', 'admin', 'member')) then return 'role'; end if;
+  -- The membership row is locked until the insert is done, so a removal or a change to Guest at the same moment waits (and its trigger then removes this row).
+  perform 1 from memberships where workspace_id = p_ws and user_id = p_owner and role in ('owner', 'admin', 'member') for share;
+  if not found then return 'role'; end if;
   if (select count(*) from webhooks where workspace_id = p_ws and owner_id = p_owner) >= p_max then return 'limit'; end if;
   insert into webhooks (id, workspace_id, name, url, secret, events, created_by, owner_id) values (p_id, p_ws, p_name, p_url, p_secret, p_events, p_owner, p_owner);
   return 'ok';
@@ -56,10 +58,14 @@ begin
   select n into mine from webhook_person_send_days where workspace_id = p_workspace and person_id = p_person and day = d;
   select n into ours from webhook_send_days where workspace_id = p_workspace and day = d;
   if coalesce(mine, 0) >= p_person_cap or coalesce(ours, 0) >= p_workspace_cap then return false; end if;
+  -- The Workspace's day is also taken by sends of Workspace Webhooks, which take no lock: the guarded update keeps the cap exact.
+  -- Taken first; the person's own count is only ever raised here, under the lock, so it cannot fail after it.
+  insert into webhook_send_days (workspace_id, day, n) values (p_workspace, d, 1)
+    on conflict (workspace_id, day) do update set n = webhook_send_days.n + 1 where webhook_send_days.n < p_workspace_cap
+    returning n into ours;
+  if ours is null then return false; end if;
   insert into webhook_person_send_days (workspace_id, person_id, day, n) values (p_workspace, p_person, d, 1)
     on conflict (workspace_id, person_id, day) do update set n = webhook_person_send_days.n + 1;
-  insert into webhook_send_days (workspace_id, day, n) values (p_workspace, d, 1)
-    on conflict (workspace_id, day) do update set n = webhook_send_days.n + 1;
   return true;
 end $$;
 revoke execute on function take_personal_webhook_send_slot(uuid, text, int, int) from public, anon, authenticated;

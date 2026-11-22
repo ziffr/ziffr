@@ -261,6 +261,7 @@ export async function sendWaitingWebhooks(limit = 50, onlyWorkspaceId?: string):
   const keep = await daysStrict("ZIFFR_KEEP_WEBHOOK_LOG_DAYS").catch(() => null);
   if (keep !== null) await db().from("webhook_sends").delete().in("state", ["delivered", "failed", "dropped"]).lt("created_at", new Date(Date.now() - keep * 86_400_000).toISOString());
   await db().from("webhook_send_days").delete().lt("day", new Date(Date.now() - 2 * 86_400_000).toISOString().slice(0, 10));
+  await db().from("webhook_person_send_days").delete().lt("day", new Date(Date.now() - 2 * 86_400_000).toISOString().slice(0, 10));
   // `onlyWorkspaceId` is for tests that share a database with others: only that Workspace's due sends are taken.
   const { data: claimed, error } = onlyWorkspaceId ? await db().rpc("claim_webhook_sends_for", { p_workspace: onlyWorkspaceId, p_metric: null, p_limit: limit }) : await db().rpc("claim_webhook_sends", { p_limit: limit });
   if (error || !Array.isArray(claimed) || !claimed.length) return { sent: 0, failed: 0 };
