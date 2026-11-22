@@ -118,7 +118,7 @@ export function PackActions({ installId, name }: { installId: number; name: stri
             {leaving.logo && (
               <label className="flex items-start gap-2 rounded-[var(--radius-input)] border border-input p-2.5 text-sm">
                 <input type="checkbox" checked={dropLogo} onChange={(e) => setDropLogo(e.target.checked)} className="mt-0.5 accent-[var(--color-ink)]" />
-                <span>Also remove {leaving.logo.author}&rsquo;s logo from {leaving.logo.themes.length === 1 ? "this Theme" : "these Themes"}: {leaving.logo.themes.join(", ")}. A Theme whose logo is exactly the same picture counts as the Pack's; a different logo you chose stays.</span>
+                <span>Also remove {leaving.logo.author}&rsquo;s logo from {leaving.logo.themes.length === 1 ? "this Theme" : "these Themes"}: {leaving.logo.themes.join(", ")}. A Theme whose logo is exactly the same picture counts as the Pack&rsquo;s; a different logo you chose stays.</span>
               </label>
             )}
             {leaving.blocked && <p role="alert" className="text-sm font-medium">{leaving.blocked}</p>}
