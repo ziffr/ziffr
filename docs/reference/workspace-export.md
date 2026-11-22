@@ -51,6 +51,19 @@ A writer lists `target` and `projection` records sorted by Metric label and then
 
 Names, descriptions, Tags, Groups, people and Breakdown labels hold whatever a person typed in Ziffr (markup and web addresses are data here, never rendered or followed as such): only control characters, line and paragraph separators, characters that reverse the direction of text and invisible characters (zero-width spaces, soft hyphens, tag characters) are refused. A Metric's description may have 2,000 characters. The text inside the documents of dashboards, decks, Workflows and Themes follows the same rule, so no dashboard is lost for a title typed in Ziffr; a Pack file keeps the Pack's plain-text rules. A writer never truncates silently: text over a limit is an error it reports. A file's text may reach 1 GB and the file 200 MB (a reader may set other limits): Ziffr's writer gzips by default and refuses to write a file over the limits, so what it writes is always read.
 
+## What Ziffr's writer carries
+
+`exportWorkspace` in the core writes the file for a Workspace's Owner, after a sign-in from the last 10 minutes, as the Owner reads it: their Metrics, dashboards and decks, as everywhere in Ziffr (a Workspace Role grants no Metric), and the Workspace's Groups, Themes, Workflows and people. The Metrics it does not carry are counted and said. Where the format has less than the app stores, the writer says what stays out and never cuts it short:
+
+- A dashboard or deck is written as a template whose Slots are filled with the Metrics it draws; words that name a Metric become Placeholders, and a note tied to one period or row follows a rule instead or stays out. Free layouts, stories, images, arrows, lines, notes and drawings, a dashboard's introduction and a Theme's logo and background image stay behind.
+- A Workflow keeps its Due Date, reminders, escalations, check and publish steps, and how many Approvers there are; who approves, its Tell steps, its own asking days and its lock summary stay behind. A Workflow no Metric uses has no record.
+- A Share is of a dashboard, deck or Metric with a person or Group of the file; editing rights become viewing, and Shares with Everyone, or with someone or something not in the file, stay out.
+- A Target Series point is one number: the upper end of the range for a Metric where lower is better, the lower end otherwise. Condensed Values, Archived Metrics' state, period states, Threads, Findings and Snapshots stay behind (later versions).
+- A Contact and a person without an email address are no invitation, so a Metric's Submitters are only the people of the file; an owner or Submitter who is a Guest is a `guest` person, for the importer to decide.
+- Text keeps what was typed but control and direction characters, which are removed, and line breaks become spaces. Text longer than a field allows, a value with more than eight decimals or of 10^15 or more, or a period that starts no period of its Metric leaves that item out and is counted; a Breakdown that does not fit leaves only the Breakdown off its value.
+
+Metric keys are the Metric's slug, or `metric-` and a number when the slug is not a key of the format; a formula names Metrics by them. A Derived Metric whose formula or inputs are not in the file is left out with them. Targets, projections and values are written Metric by Metric, in the order of their labels as text.
+
 ## Checks on an untrusted file
 
 A reader checks, in this order and while it reads:

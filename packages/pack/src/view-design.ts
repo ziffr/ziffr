@@ -233,12 +233,12 @@ export function checkViewDesign(textIn: string): DesignCheck {
 }
 
 /** Checks a View Design already read from JSON (`lines` names where each path starts, when known). */
-export function checkViewDesignValue(value: unknown, lines: Map<string, number> = new Map()): DesignCheck {
+export function checkViewDesignValue(value: unknown, lines: Map<string, number> = new Map(), schema: Schema = VIEW_DESIGN_SCHEMA): DesignCheck {
   const fmt = value && typeof value === "object" && !Array.isArray(value) ? (value as { format?: unknown }).format : undefined;
   // An unknown version is named as one, not as a list of fields that do not fit.
   if (typeof fmt === "string" && fmt.startsWith("ziffr.view/") && !(VIEW_FORMATS as readonly string[]).includes(fmt))
     return { ok: false, problems: [{ path: "format", line: lines.get("format") ?? null, message: `This file is in format ${fmt}; this Ziffr reads ${VIEW_FORMATS.join(", ")}. Update Ziffr, or save the design again in ${VIEW_FORMAT}.` }] };
-  const problems = checkSchema(VIEW_DESIGN_SCHEMA, value, lines);
+  const problems = checkSchema(schema, value, lines);
   if (problems.length) return { ok: false, problems };
   const design = value as ViewDesign;
   const more = meaning(design, lines);
