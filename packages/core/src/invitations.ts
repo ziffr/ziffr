@@ -197,19 +197,22 @@ export async function acceptInvitation(who: SignedIn, t: string): Promise<string
   if (await trialEnded(inv.workspace_id as string)) throw new Error("This invitation does not work any more. The trial has ended.");
   if (!inv.email) await assertNotTrial(inv.workspace_id as string, "Joining by a link");
   if (inv.email && inv.email !== who.verifiedEmail?.toLowerCase()) throw new Error(`This invitation is for ${inv.email}. Sign in with that address.`);
+  let existing: { role: string } | null = null;
   if (inv.email) {
-    // Claimed first, so the same email invitation cannot be used twice at once.
-    const { data: claimed } = await db().from("invitations").update({ accepted_at: new Date().toISOString(), accepted_by: who.personId }).eq("id", inv.id).is("accepted_at", null).select("id");
-    if (!claimed?.length) throw new Error("This invitation was used already.");
-  }
-  const { data: existing } = await db().from("memberships").select("role").eq("workspace_id", inv.workspace_id).eq("user_id", who.personId).maybeSingle();
-  if (!existing) {
-    const { error } = await db().from("memberships").insert({ workspace_id: inv.workspace_id, user_id: who.personId, role: inv.role });
-    if (error) {
-      // Not used up by a failed join: the invitation works again.
-      if (inv.email) await db().from("invitations").update({ accepted_at: null, accepted_by: null }).eq("id", inv.id);
-      // A full trial (ZF435) says so; the invitation works again once there is room.
-      throw new Error(error.code === "ZF435" ? "This trial already holds as many people as it may. Ask whoever invited you." : "Joining did not work. Try again.");
+    // One database step: the Workspace's row is locked, the invitation re-checked as open, marked accepted and the
+    // person made a member, so accepts and invitations at once cannot pass a trial's people limit or reuse it.
+    const { data: ex } = await db().from("memberships").select("role").eq("workspace_id", inv.workspace_id).eq("user_id", who.personId).maybeSingle();
+    existing = ex;
+    const { data: result, error } = await db().rpc("accept_email_invitation", { p_invitation: inv.id, p_person: who.personId });
+    if (error) throw new Error("Joining did not work. Try again.");
+    if (result === "full") throw new Error("This trial already holds as many people as it may. Ask whoever invited you.");
+    if (result !== "ok") throw new Error("This invitation does not work any more. Ask for a new one.");
+  } else {
+    const { data: ex } = await db().from("memberships").select("role").eq("workspace_id", inv.workspace_id).eq("user_id", who.personId).maybeSingle();
+    existing = ex;
+    if (!existing) {
+      const { error } = await db().from("memberships").insert({ workspace_id: inv.workspace_id, user_id: who.personId, role: inv.role });
+      if (error) throw new Error("Joining did not work. Try again.");
     }
   }
   if (inv.contact_person_id && inv.contact_person_id !== who.personId) {

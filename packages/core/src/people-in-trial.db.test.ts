@@ -105,10 +105,22 @@ describe("the people limit", () => {
     // Everyone accepts at once, and the Owner tries to invite meanwhile: never more than five people in all (an invitation made in the gap
     // between a claim and its join may leave one joiner out: the limit is for people, and it holds).
     const people = await Promise.all(first.map((f) => stranger(f.email)));
-    await Promise.allSettled([...first.map((f, i) => acceptInvitation(people[i], f.made.token)), invite(t), invite(t)]);
+    const r = await Promise.allSettled([...first.map((f, i) => acceptInvitation(people[i], f.made.token)), invite(t), invite(t), invite(t)]);
+    // Accepting turns an open invitation into a member in one step: all four join, the three new invitations find no room.
+    expect(fulfilled(r.slice(0, 4))).toBe(4);
+    expect(fulfilled(r.slice(4))).toBe(0);
     const { count } = await db().from("memberships").select("user_id", { count: "exact", head: true }).eq("workspace_id", t.id);
-    expect(count).toBeLessThanOrEqual(5);
-    expect(count).toBeGreaterThanOrEqual(4);
+    expect(count).toBe(5);
+    expect(await openInvitations(t.actor)).toHaveLength(0);
+  });
+  it("takes an invitation that was revoked or has run out at the same moment as nothing", async () => {
+    const t = await trial();
+    const a = address(); const b = address();
+    const ta = (await invite(t, a)).token; const tb = (await invite(t, b)).token;
+    await db().from("invitations").update({ revoked_at: new Date().toISOString() }).eq("token", ta);
+    await db().from("invitations").update({ expires_at: new Date(Date.now() - 1000).toISOString() }).eq("token", tb);
+    await expect(acceptInvitation(await stranger(a), ta)).rejects.toThrow(/does not work any more/);
+    await expect(acceptInvitation(await stranger(b), tb)).rejects.toThrow(/does not work any more/);
   });
   it("keeps the place of an invitation that was accepted but whose person has not joined yet", async () => {
     const t = await trial();

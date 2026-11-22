@@ -145,3 +145,28 @@ begin
 end $$;
 revoke execute on function claim_invitation_email(bigint, text, text, int, int, int) from public, anon, authenticated;
 grant execute on function claim_invitation_email(bigint, text, text, int, int, int) to service_role;
+
+-- Accepting an invitation by email, in one transaction: the Workspace's row is locked, the invitation is checked to be
+-- open now (not revoked, not expired, not accepted), it is marked accepted and the membership inserted. Two accepts, or
+-- an accept and an invitation, at once cannot pass the people limit or leave a place half taken. 'ok' (also for someone who
+-- is a member already), 'gone' (not open any more) or 'full' (a trial holds as many people as it may: nothing changed).
+create or replace function accept_email_invitation(p_invitation bigint, p_person text) returns text
+language plpgsql security definer set search_path = public as $$
+declare inv record;
+begin
+  select id, workspace_id, role, email, revoked_at, accepted_at, expires_at into inv from invitations where id = p_invitation for update;
+  if not found or inv.email is null or inv.revoked_at is not null or inv.accepted_at is not null or inv.expires_at <= now() then return 'gone'; end if;
+  perform 1 from workspaces where id = inv.workspace_id for update;
+  -- Inside one block, so a refusal takes the mark back with it.
+  begin
+    update invitations set accepted_at = now(), accepted_by = p_person where id = inv.id;
+    if not exists (select 1 from memberships where workspace_id = inv.workspace_id and user_id = p_person) then
+      insert into memberships (workspace_id, user_id, role) values (inv.workspace_id, p_person, inv.role);
+    end if;
+  exception when sqlstate 'ZF435' then
+    return 'full';
+  end;
+  return 'ok';
+end $$;
+revoke execute on function accept_email_invitation(bigint, text) from public, anon, authenticated;
+grant execute on function accept_email_invitation(bigint, text) to service_role;
