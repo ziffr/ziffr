@@ -106,6 +106,7 @@ const CHECKS: Record<string, (v: string) => string | null> = {
   ZIFFR_TRIAL_DAYS: (v) => (/^\d+$/.test(v) && Number(v) >= 1 && Number(v) <= 30 ? null : "A trial lasts 1 to 30 days."),
   ZIFFR_TRIAL_THEN: (v) => (v === "delete" || v === "keep" ? null : "Pick what happens when a trial ends."),
   ZIFFR_TRIAL_MAX: (v) => (/^\d+$/.test(v) && Number(v) >= 1 && Number(v) <= 1_000_000 ? null : "Trials at once is a whole number from 1."),
+  ZIFFR_TRIAL_WEBHOOKS: (v) => (v === "true" || v === "false" ? null : "Pick whether trials may have Webhooks."),
   ZIFFR_DEMO: (v) => (v === "1" || v === "0" ? null : "Pick whether the demo is offered."),
   ZIFFR_USAGE_EXCLUDE_WORKSPACE: (v) => (/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(v) ? null : "Pick a Workspace by name."),
   ZIFFR_MARKETPLACE: (v) => (/^(on|off)$/i.test(v) ? null : "The connection is on or off."),

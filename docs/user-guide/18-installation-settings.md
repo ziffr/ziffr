@@ -171,6 +171,7 @@ With trials on, anyone who signs in may start a **Trial Workspace** of their own
 - **Days a trial lasts**: 1 to 30. Setting it turns trials on; **Remove** turns them off, and trials that run go on until they end.
 - **Trials at once**: the most trials that may run at the same time; empty means 200.
 - **Days a trial's data stays after it ends**: 1 to 60, default 7. After its end a trial can add nothing and its Owner can still download everything; then it is deleted. It applies to every trial that has ended and waits, so a smaller number deletes them sooner.
+- **Webhooks in trials**: on by default. A trial may then add 2 Webhooks and send 200 a day, to public addresses only; the hosts you list in `ZIFFR_WEBHOOK_PRIVATE_HOSTS` never apply to a trial, so a trial cannot reach your network. Off, or `ZIFFR_TRIAL_WEBHOOKS=false` in the environment (the environment wins over the page), a trial cannot add a Webhook and the ones it has send nothing; ordinary Workspaces are not affected.
 - **When a trial ends**: close it and delete it a week later (the default), or keep it as an ordinary Workspace on the default Workspace Limit (see Workspace Limits): invitations open, every Connector reaches everyone, and its keys keep the end date they were made with.
 
 The section then says, for example, "Trials of 14 days, at most 200 at once. Every Workspace made here is one." The sign-in page shows the trial next to the demo, with what works in a trial on this Ziffr. Set up the check against bots too.

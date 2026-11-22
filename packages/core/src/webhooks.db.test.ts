@@ -1,5 +1,5 @@
 // Webhooks against the real database (spec 0034, ticket #399; GLOSSARY: Webhook): who may manage them, the address
-// checks, the limit also when several are made at once, no Webhook in a trial or the demo, the sealed address and
+// checks, the limit also when several are made at once, none in the demo, the sealed address and
 // secrets, the secret's replacement, the Audit Log, another Workspace, and that no read gives the secret back.
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { Forbidden } from "./actor";
@@ -165,12 +165,10 @@ describe("limits, trials and the demo", () => {
     await createWebhook(w2.actor(await w2.person("owner")), { name: "Elsewhere", url: URL1 });
   });
 
-  it("allows Webhooks on a Workspace with a limit of its own, and none in a Trial Workspace", async () => {
+  it("allows Webhooks on a Workspace with a limit of its own (a trial's own rules are in webhook-trial.db.test.ts)", async () => {
     const w = await ws(); const a = w.actor(await w.person("owner"));
     await w.limit(10);
     await createWebhook(a, { name: "On a Size", url: URL1 });
-    await w.trial(new Date(Date.now() + 5 * 86_400_000).toISOString().slice(0, 10));
-    expect(await refusal(createWebhook(a, { name: "Trial", url: URL1 }))).toBeInstanceOf(Forbidden);
     expect(await listWebhooks(a)).toHaveLength(1);
   });
 

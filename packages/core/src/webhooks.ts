@@ -1,7 +1,7 @@
 // Webhooks (GLOSSARY: Webhook; spec 0034, ticket #399): an https address that a Workspace's Owner or Admin sets, with
 // the events it gets. This module makes, lists, changes, switches and deletes them, Actor first; nothing is sent here
-// (ticket 3). Security: only a signed-in Owner or Admin, never an Access Key, never the demo, never a Trial Workspace
-// (a free trial that can make the server call any address is an abuse path). The address is checked as the shared
+// (ticket 3). Security: only a signed-in Owner or Admin, never an Access Key, never the demo; a Trial Workspace within smaller limits
+// and without private hosts (webhook-trial.ts; a trial that can make the server call any address would be an abuse path). The address is checked as the shared
 // outbound request checks it (outbound-request.ts; ZIFFR_WEBHOOK_PRIVATE_HOSTS is the operator's, never a Workspace's)
 // and sealed with the Workspace Key with the secret (spec 0028); the secret is shown once and read back by nobody:
 // every read here is masked. A Webhook of another Workspace is answered like one that is not there. Every change goes
@@ -13,10 +13,9 @@ import { db } from "./db";
 import { deliverNotice } from "./deliveries";
 import { refuseInDemo } from "./demo";
 import { mailHostResolver, privateAddress } from "./mail-hosts";
-import { operatorPrivateHosts, outboundUrlProblem } from "./outbound-request";
+import { outboundUrlProblem } from "./outbound-request";
 import { openRows, sealRow } from "./sealed-columns";
-import { trialEndsAt } from "./trials";
-import { sendingLimit } from "./sending-limit";
+import { webhookRules } from "./webhook-trial";
 import { WEBHOOK_NAME_MAX, WEBHOOK_SECRET_OVERLAP_HOURS, WEBHOOK_URL_MAX } from "./webhook-limits";
 import { isIP } from "node:net";
 
@@ -53,7 +52,7 @@ function assertManagesWebhooks(actor: Actor): void {
 }
 
 /** Whether the actor may manage Webhooks, and so name one in a Workflow's Tell step: a signed-in Owner or Admin, not an
- * Access Key, not in the demo. A trial has none to name (they cannot be made there). */
+ * Access Key, not in the demo. A trial may have some (spec 0037). */
 export function mayManageWebhooks(actor: Actor): boolean {
   try { assertManagesWebhooks(actor); return true; } catch { return false; }
 }
@@ -103,14 +102,13 @@ function cleanEvents(raw: unknown): WebhookEvent[] {
 /** The address, checked as the shared outbound request judges it, in words for people: https only, no user or
  * password, no fragment, at most 2,000 characters, and a name that resolves only to public addresses unless the
  * operator named that exact host. Judged again at every send (ticket 3). */
-async function checkedAddress(raw: unknown): Promise<string> {
+async function checkedAddress(raw: unknown, privateHosts: readonly string[]): Promise<string> {
   if (typeof raw !== "string") throw new Error("That is not an address.");
   const text = raw.trim();
   if (!text) throw new Error("Give the address to send to.");
   if (text.length > WEBHOOK_URL_MAX) throw new Error(`The address can have at most ${WEBHOOK_URL_MAX} characters.`);
   // Control characters and spaces are never part of an address; a URL parser would quietly drop some of them.
   if (/[\u0000- \u007f]/.test(text)) throw new Error("That is not an address.");
-  const privateHosts = operatorPrivateHosts();
   const problem = outboundUrlProblem(text, { privateHosts });
   if (problem) throw new Error(problem);
   const url = new URL(text);
@@ -151,26 +149,27 @@ async function find(actor: Actor, id: unknown): Promise<{ row: Record<string, un
   return { row, address: maskedHost(String(row.url ?? "")) };
 }
 
-/** Makes a Webhook (Owners and Admins; not in a Trial Workspace or the demo) and returns its id and its secret, which
+/** Makes a Webhook (Owners and Admins; not in the demo; in a trial within its limits) and returns its id and its secret, which
  * is shown this once and never read back. The limit is checked in the database under a lock. */
 export async function createWebhook(actor: Actor, input: { name: string; url: string; events?: string[] }): Promise<{ id: string; secret: string }> {
   assertManagesWebhooks(actor);
   if (typeof input !== "object" || input === null) throw new Error("That is not a Webhook.");
-  if (await trialEndsAt(actor.workspaceId)) throw new Forbidden("A trial cannot have Webhooks: they send Workspace data to addresses outside Ziffr.");
+  // A trial has smaller limits and no private hosts, and none at all where the operator switched them off (spec 0037).
+  const rules = await webhookRules(actor.workspaceId);
+  if (!rules.allowed) throw new Forbidden(rules.why ?? "Webhooks are not possible here.");
   const name = cleanName(input.name);
   const events = cleanEvents(input.events ?? []);
-  const url = await checkedAddress(input.url);
+  const url = await checkedAddress(input.url, rules.privateHosts);
   const id = randomUUID();
   const secret = newSecret();
   const sealed = await sealRow("webhooks", actor.workspaceId, { id, url, secret });
-  const most = await sendingLimit("webhooksPerWorkspace");
+  const most = rules.maxWebhooks;
   const { data, error } = await db().rpc("create_webhook", { p_id: id, p_ws: actor.workspaceId, p_name: name, p_url: sealed.url, p_secret: sealed.secret, p_events: events, p_by: actor.personId, p_max: most });
   if (error || typeof data !== "string") {
     console.error("create_webhook failed:", error?.message ?? "no answer");
     throw new Error("The Webhook could not be saved. Try again in a moment.");
   }
-  if (data === "trial") throw new Forbidden("A trial cannot have Webhooks: they send Workspace data to addresses outside Ziffr.");
-  if (data === "limit") throw new Error(`This Workspace already has ${most} Webhooks, the most it may. Delete one to add another.`);
+  if (data === "limit") throw new Error(`This ${rules.trial ? "trial" : "Workspace"} already has ${most} Webhooks, the most it may. Delete one to add another.`);
   const address = maskedHost(url);
   await audit(actor, { kind: "webhook.created", object: { type: "webhook", id, name }, details: { address, events } });
   await tellOwners(actor, "added", name, address);

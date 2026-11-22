@@ -12,6 +12,7 @@
 // value or a Correction. Nothing in a refusal repeats what was sent.
 import { createHash, randomUUID } from "node:crypto";
 import type { WebhookActor } from "./actor";
+import { webhookRules } from "./webhook-trial";
 import { visibleMetricIds } from "./access";
 import { recordAudit } from "./audit-log";
 import { db } from "./db";
@@ -65,6 +66,10 @@ export async function authenticateWebhookRequest(webhookId: string, req: Inbound
   if (typeof hook.secret === "string" && hook.secret.startsWith("whsec_")) secrets.push(hook.secret);
   if (hook.secret_previous_until && new Date(String(hook.secret_previous_until)).getTime() > Date.now() && typeof hook.secret_previous === "string" && hook.secret_previous.startsWith("whsec_")) secrets.push(hook.secret_previous);
   if (!secrets.length || !verifyWebhookSignature(secrets, req.timestamp, req.body, req.signature)) return no;
+  // A trial whose Webhooks are switched off, or that has ended, takes nothing back either (spec 0037). Asked only of a
+  // signed request, so strangers cost nothing; a failed read answers like the rest.
+  const allowed = await webhookRules(ws).then((r) => r.allowed, () => false);
+  if (!allowed) return noSuch;
   const { data: claim, error } = await db().rpc("claim_webhook_inbound", { p_ws: ws, p_webhook: data.id, p_delivery: createHash("sha256").update(`${req.timestamp}.${req.body}`).digest("hex"), p_max: WEBHOOK_INBOUND_PER_MINUTE });
   if (error || typeof claim !== "string") throw new Error("The request could not be taken. Try again in a moment.");
   if (claim === "limit") return { ok: false, why: "limit" };

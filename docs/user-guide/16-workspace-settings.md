@@ -473,7 +473,7 @@ Only Owners and Admins see Feed Keys and their Access Logs.
 
 ## Webhooks
 
-**Workspace → Webhooks** is for Owners and Admins only. Others see a note to ask an Owner or Admin. The demo and a trial have no Webhooks: they send a Workspace's data to addresses outside Ziffr.
+**Workspace → Webhooks** is for Owners and Admins only. Others see a note to ask an Owner or Admin. The demo has no Webhooks. A trial may add Webhooks within smaller limits: 2 Webhooks and 200 sends a day, and only to public addresses (the private hosts an operator allows for other Workspaces never apply to a trial). Whoever runs this Ziffr can switch Webhooks off for trials (Installation settings, Trials); then a trial cannot add one and those it has send nothing.
 
 A **Webhook** is an address outside Ziffr that gets a signed message when something happens here, such as a task given or done. A program at that address, such as n8n, passes it on to another system. It belongs to the Workspace and keeps working when the person who set it up leaves. A Workspace can have five Webhooks and they send at most 10,000 messages a day, unless the person who runs this Ziffr has set other numbers under **Sending limits** in the [Installation settings](18-installation-settings.md); the page shows the numbers in force. Lowering them never removes a Webhook that exists.
 

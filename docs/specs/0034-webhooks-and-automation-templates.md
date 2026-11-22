@@ -52,7 +52,7 @@ Slack's Connector, which reaches a person by direct message, stays native. Jira,
 - **SSRF, as the Marketplace connection has it** (`packages/core/src/marketplace.ts`, spec 0030): the shared piece, `pinnedRequest` with `mailHostResolver`, `privateAddress` and `privateMailHost`, moves to `outbound-request.ts` and both use it. The name is resolved, every address must be public, the connection goes only to an address that was checked (so a name that changes its answer between check and use, DNS rebinding, gets nowhere), TLS checks the name, no redirect is followed, the answer is read to at most 64 KB and then thrown away (never stored, never shown), and the whole send ends within 10 seconds. The check runs when the Webhook is saved **and at every send**. An address written as an IP, `localhost`, link-local and the cloud metadata addresses, IPv6 forms that map to any of those, and any name that resolves to one, are refused.
 - **A self-hoster's own n8n** on a private network is a real need: the operator, not a Workspace Admin, may name exact hosts in `ZIFFR_WEBHOOK_PRIVATE_HOSTS` (comma-separated host names, never ranges). Only those pass the private-address check; `http` stays refused. The Installation Settings page lists them read-only.
 - **Test:** a **Send test event** button sends `ping` (id, time, the Webhook's name, nothing of the Workspace) at most once a minute, and the log shows what came back.
-- **Where not:** the demo has no Webhooks (it is read-only, spec 0029); Trial Workspaces cannot add one (a free trial that can make the server call any address is an abuse path); every other Workspace can, on Free and on every paid Size (every Size includes every feature).
+- **Where not:** the demo has no Webhooks (it is read-only, spec 0029); Trial Workspaces may add one, within smaller limits and without private hosts (spec 0037); every other Workspace can, on Free and on every paid Size (every Size includes every feature).
 
 ### Events
 
@@ -210,7 +210,7 @@ The owner accepted every recommendation of the draft, with one change to the sev
 4. `alert.fired` is sent only through a Workflow's Tell step, never for personal Alerts.
 5. Status comes back by the Webhook's own secret, acting as the assignee, limited to Actions sent to it.
 6. The words are Automation Template and `docs/automations/`, not "Recipe".
-7. Every Size includes every feature (spec 0029, ADR 0013), so Webhooks are allowed on Free (the default limit) and on every paid Size. Only Trial Workspaces and the demo have none.
+7. Every Size includes every feature (spec 0029, ADR 0013), so Webhooks are allowed on Free (the default limit) and on every paid Size. Trial Workspaces may have them too, within smaller limits and without the operator's private hosts, unless the operator turns that off (spec 0037, owner decision of 2026-11-22, which replaces this spec's earlier "none in a trial"); only the demo has none.
 8. Microsoft To Do and Google Tasks come first; Planner is its own template after Google Tasks.
 9. #7 stays open and is not started until the templates have been used for a while.
 10. A reopen from outside reopens a Task in Ziffr (Tasks only, never one the system closed), as an event to every Webhook.

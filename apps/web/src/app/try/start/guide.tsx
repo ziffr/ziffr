@@ -32,7 +32,7 @@ const POLL_MS = 3000;
 const HINT_MS = 20_000;
 
 /** The guide, starting at the step the core kept. */
-export function Guide({ guide, askEveryMinutes, siteUrl, mcpUrl }: { guide: TrialGuide; askEveryMinutes: number; siteUrl: string; mcpUrl: string | null }) {
+export function Guide({ guide, askEveryMinutes, siteUrl, mcpUrl, webhooks }: { guide: TrialGuide; askEveryMinutes: number; siteUrl: string; mcpUrl: string | null; webhooks: number | null }) {
   const [step, setStep] = useState<GuideStep>(guide.step);
   const [ways, setWays] = useState<GuideWay[]>(guide.ways);
   const [pending, start] = useTransition();
@@ -66,7 +66,7 @@ export function Guide({ guide, askEveryMinutes, siteUrl, mcpUrl }: { guide: Tria
       {step === "where" && <Where guide={guide} ways={ways} setWays={setWays} />}
       {step === "connect" && <Connect guide={guide} ways={ways} />}
       {step === "ask" && <Ask guide={guide} ways={ways} askEveryMinutes={askEveryMinutes} onArrived={() => go("done")} />}
-      {step === "done" && <Done guide={guide} ways={ways} siteUrl={siteUrl} mcpUrl={mcpUrl} />}
+      {step === "done" && <Done guide={guide} ways={ways} siteUrl={siteUrl} mcpUrl={mcpUrl} webhooks={webhooks} />}
 
       <div className="mt-8 flex flex-wrap items-center gap-2 border-t border-border pt-5">
         {at > 0 && <Button variant="ghost" onClick={back} disabled={pending}>Back</Button>}
@@ -259,7 +259,7 @@ function Ask({ guide, ways, askEveryMinutes, onArrived }: { guide: TrialGuide; w
 }
 
 /** Where the value shows up and what to do next. */
-function Done({ guide, ways, siteUrl, mcpUrl }: { guide: TrialGuide; ways: GuideWay[]; siteUrl: string; mcpUrl: string | null }) {
+function Done({ guide, ways, siteUrl, mcpUrl, webhooks }: { guide: TrialGuide; ways: GuideWay[]; siteUrl: string; mcpUrl: string | null; webhooks: number | null }) {
   const [value, setValue] = useState<GuideValue | null>(null);
   useEffect(() => { guideValue().then(setValue).catch(() => {}); }, []);
   return (
@@ -275,7 +275,7 @@ function Done({ guide, ways, siteUrl, mcpUrl }: { guide: TrialGuide; ways: Guide
         <li><Link href="/dashboards" className="underline">See the dashboards</Link></li>
         <li><Link href="/try" className="underline">Try it</Link>: every way in and out of Ziffr, and how to try each one.</li>
       </ul>
-      {guide.testMetric && <OtherWays siteUrl={siteUrl} mcpUrl={mcpUrl} metric={guide.testMetric} feedKey={guide.feedKey} />}
+      {guide.testMetric && <OtherWays siteUrl={siteUrl} mcpUrl={mcpUrl} metric={guide.testMetric} feedKey={guide.feedKey} webhooks={webhooks} />}
     </section>
   );
 }

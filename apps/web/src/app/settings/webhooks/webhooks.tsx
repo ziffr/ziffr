@@ -31,7 +31,7 @@ const OFF: Record<string, string> = { owner: "switched off", failing: "switched 
 type Run = (f: () => Promise<unknown>, ok?: string) => void;
 
 /** The workspace's Webhooks and a form to add one. */
-export function Webhooks({ webhooks, logs, limits }: { webhooks: WebhookInfo[]; logs: Record<string, WebhookLogEntry[]>; limits: { most: number; days: number; perDay: number } }) {
+export function Webhooks({ webhooks, logs, limits }: { webhooks: WebhookInfo[]; logs: Record<string, WebhookLogEntry[]>; limits: { most: number; days: number; perDay: number; trial: boolean } }) {
   const [pending, start] = useTransition();
   const [secret, setSecret] = useState<{ name: string; value: string } | null>(null);
   const run: Run = (f, ok) => start(async () => { try { await f(); if (ok) toast.success(ok); } catch (err) { toast.error("Not done", { description: shown(err) }); } });
@@ -40,7 +40,7 @@ export function Webhooks({ webhooks, logs, limits }: { webhooks: WebhookInfo[]; 
       <div>
         <h2 id="webhooks-heading" className="font-medium">Webhooks</h2>
         <p className="max-w-prose text-sm text-muted-foreground">
-          A Webhook is an address outside Ziffr that gets a signed message when something happens here, such as a task given or done. A program there, such as n8n, passes it on to another system. It belongs to the workspace and keeps working when the person who set it up leaves. A Workspace can have {limits.most} Webhooks, up to {limits.perDay.toLocaleString()} messages a day; the log below keeps {limits.days} days.
+          A Webhook is an address outside Ziffr that gets a signed message when something happens here, such as a task given or done. A program there, such as n8n, passes it on to another system. It belongs to the workspace and keeps working when the person who set it up leaves. A Workspace can have {limits.most} Webhooks, up to {limits.perDay.toLocaleString()} messages a day; the log below keeps {limits.days} days.{limits.trial && " In a trial the address has to be public: one inside a private network is refused."}
         </p>
         <p role="note" className="mt-2 max-w-prose rounded-[var(--radius-input)] border border-border p-3 text-sm">
           Messages leave Ziffr in clear text over TLS, opened for sending: Workspace Keys seal data in the database, not on its way out, and the receiving system keeps what it gets as it sees fit. This is not end-to-end encryption. A message holds only what everyone in the Workspace may see; other things reach it with their words left out.

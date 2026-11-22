@@ -8,7 +8,7 @@ import { db } from "./db";
 import { refuseInDemo } from "./demo";
 import { refFor } from "./deliveries";
 import { audit } from "./audit-log";
-import { trialEndsAt } from "./trials";
+import { webhookRules } from "./webhook-trial";
 import { sendWebhookNow } from "./webhook-send";
 import { daysNow } from "./keep-days";
 
@@ -37,9 +37,10 @@ function assertReadsWebhookLog(actor: Actor): void {
   refuseInDemo(actor);
 }
 
-/** A Trial Workspace has no Webhooks (create refuses one); a send from one is refused too, whatever it holds. */
-async function assertNotTrial(actor: Actor): Promise<void> {
-  if (await trialEndsAt(actor.workspaceId)) throw new Forbidden("A trial cannot have Webhooks: they send Workspace data to addresses outside Ziffr.");
+/** A trial whose Webhooks are switched off by the operator, or that has ended, sends nothing, whatever it holds. */
+async function assertMaySend(actor: Actor): Promise<void> {
+  const rules = await webhookRules(actor.workspaceId);
+  if (!rules.allowed) throw new Forbidden(rules.why ?? "Webhooks are not possible here.");
 }
 
 /** The Webhook's id if it is one of this Workspace's, else the refusal that does not say whether it exists. */
@@ -68,7 +69,7 @@ export async function webhookLog(actor: Actor, webhookId: string, limit = 50): P
  * back. It holds the Webhook's name and nothing of the Workspace. A switched-off Webhook gets none. */
 export async function sendTestWebhook(actor: Actor, webhookId: string): Promise<void> {
   assertReadsWebhookLog(actor);
-  await assertNotTrial(actor);
+  await assertMaySend(actor);
   const hook = await ownWebhook(actor, webhookId);
   if (hook.disabled) throw new Forbidden("Switch the Webhook on to send a test.");
   const wait = "A test was sent a moment ago. Wait a minute before sending another.";
@@ -91,7 +92,7 @@ export async function sendTestWebhook(actor: Actor, webhookId: string): Promise<
 export async function resendWebhookSend(actor: Actor, sendId: string): Promise<void> {
   assertReadsWebhookLog(actor);
   if (typeof sendId !== "string" || !UUID.test(sendId)) throw new Forbidden(NOT_FOUND);
-  await assertNotTrial(actor);
+  await assertMaySend(actor);
   const { data: send } = await db().from("webhook_sends").select("id, webhook_id, state, last_attempt_at").eq("id", sendId.toLowerCase()).eq("workspace_id", actor.workspaceId).maybeSingle();
   if (!send) throw new Forbidden(NOT_FOUND);
   const hook = await ownWebhook(actor, String(send.webhook_id));
