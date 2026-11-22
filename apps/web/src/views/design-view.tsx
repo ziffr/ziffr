@@ -124,7 +124,8 @@ export function DesignView({ design, widget, metrics, data, onPointContext }: Pr
   const ctx = onPointContext && !v.combined ? (p: string) => onPointContext(m.id, p) : undefined;
   return (
     // With room to spare, what does not grow is centred rather than pinned to the top (#778).
-    <div className={cn("flex h-full flex-col", design.kind === "analysis" && "gap-2", v.roomy && "justify-center")}>
+    // A design with nothing that grows (a number without its sparkline) is centred both ways (#789).
+    <div className={cn("flex h-full flex-col", design.kind === "analysis" && "gap-2", v.roomy && "justify-center", v.roomy && !growing(design.parts, v) && "items-center text-center")}>
       {design.parts.map((p, i) => <PartView key={i} part={p} v={v} ctx={ctx} />)}
       {v.correlationTake && <TakeawayView takeaway={v.correlationTake}><BasisButton v={v} /></TakeawayView>}
     </div>
@@ -132,6 +133,9 @@ export function DesignView({ design, widget, metrics, data, onPointContext }: Pr
 }
 
 const drawn = (when: Flag[] | undefined, v: DesignValues) => (when ?? []).every((f) => v.flags[f]);
+
+/** Whether any part drawn takes the free space: a plot, a gauge or rows. */
+const growing = (parts: Part[], v: DesignValues): boolean => parts.some((p) => drawn(p.when, v) && (p.mark === "group" ? growing(p.parts, v) : p.mark === "plot" || p.mark === "gauge" || p.mark === "rows"));
 
 function PartView({ part, v, ctx }: { part: Part; v: DesignValues; ctx?: (period: string) => void }): ReactNode {
   if (!drawn(part.when, v)) return null;
