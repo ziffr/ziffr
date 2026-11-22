@@ -1,0 +1,22 @@
+# Sign-in through a company's own identity provider is the first paid feature, in `ee/`
+
+**Proposed on 2026-11-22; the owner decides by merging this pull request.** Hosted Ziffr's price stays flat per Workspace by Size, and every Size keeps every feature of the open code (ADR 0013). **Sign-in through a company's own identity provider (SAML and OpenID Connect, with automatic provisioning later) does not exist yet, and is the one thing proposed to be sold separately:** an add-on for hosted Workspaces whose price Ziffr Cloud sets, and for self-hosted Installations a licence file under the Ziffr Business License (ADR 0002), in `ee/`. Everything Ziffr does today stays free for everyone: sign-in by email link and with Google, Microsoft, GitHub or LinkedIn, Domain Joining, two-factor, the Audit Log and its export to a file, Workspace Exports, every Connector, Feed and Pack. This amends ADR 0013's "`ee/` stays empty for now", which said it would be revisited by a new ADR when a feature is worth selling on its own.
+
+## Considered Options
+
+- **Keep every feature in the open code and sell only hosting (the status quo).** The honest alternative. It is the simplest message and costs no goodwill. Rejected as the long-term position, because the teams that need a company identity provider are the ones that pay for it without a second thought, they pay for time saved and risk avoided and not for a count of Metrics, and a flat price per Size leaves that money unasked. Not urgent: nothing here needs to be built until a customer asks.
+- **Feature switches by Size (sign-in only from Business).** Rejected again for the reasons of ADR 0013: it splits the guide, the tests and the support answers by Size, and a company that needs it is not a Business-Size company by Metric count.
+- **Charge per person who signs in through it.** Rejected for the reason ADR 0013 gave against any price per person: it makes every Owner ask whether a person is worth a seat before inviting them.
+- **Sell a support contract instead of a feature.** Compatible and not exclusive; it brings no way for a self-hoster to run the feature, and it is not repeatable. Left open as an offer alongside.
+- **Also sell the Audit Log's export to a SIEM, retention beyond a set time or other "enterprise" extras.** Not proposed. The Audit Log and its file export already exist for everyone and stay free; anything else needs its own ADR when a customer asks.
+- **Put it in the open code but behind a switch the licensor's key unlocks.** Rejected: the open code is source-available, so a switch is an invitation to remove it, and ADR 0002 already says what the folder is for: code the licensor sells lives in `ee/` and is licensed separately, so no code published under BSL ever has to be relicensed.
+
+## Consequences
+
+- **Nothing free today is taken away.** The feature does not exist yet; no earlier Ziffr had it.
+- **`ee/` gets its first content, and with it a licence check.** A licence for a self-hosted Installation is a small signed file, checked offline with a public key that ships in the open code, the same mechanism as the Purchase Receipt of spec 0044 (one piece of code, one list of trusted keys). A hosted Workspace's add-on is a setting Ziffr Cloud sets through the same narrow API as its Size (ADR 0013); Ziffr Cloud still never reads a Workspace's data.
+- **`ee/` only adds.** The rest must work without it (AGENTS rule 9): an Installation with no licence behaves exactly as today, and an expired licence turns the feature off for new sign-ins without locking anyone out; people who already have a way to sign in keep it.
+- **Security basics are never sold.** Two-factor, the Audit Log, exports and everything that protects a Workspace by default stay in the open code. This is a promise, and is why the first paid feature is one that only a company with an identity provider needs.
+- **The first sale needs the lawyer's review of the Ziffr Business License text** that ADR 0002 already requires, and a spec for the feature itself. Its name goes in the glossary there; "SSO" is an _Avoid_ word of Domain Joining and must not be used for that.
+- **Price is not in the open code.** It is set by Ziffr Cloud and on request, as for a Size larger than Business.
+- **Changing any of this is a new ADR:** a second paid feature, any feature that exists today becoming paid, a price in the open code, or a feature held back by Size.
