@@ -4,26 +4,15 @@ import { useEffect, useState, useTransition } from "react";
 import { toast } from "sonner";
 import { shown, unwrap } from "@/lib/action-error";
 import { told } from "@/lib/action-toast";
-import { Copy, Link2 } from "lucide-react";
+import { Copy } from "lucide-react";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
-import { Button, buttonVariants } from "@/components/ui/button";
+import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { createViewLink, fixListsForLink, listViewLinks, revokeViewLink, setViewLinkNames, shownSnapshots, tagListsToFix } from "@/app/view-link-actions";
 import { formatDate } from "@ziffr/core/format";
 
 type Link = Awaited<ReturnType<typeof listViewLinks>>[number];
 const inDays = (n: number) => new Date(Date.now() + n * 86400000).toISOString().slice(0, 10);
-
-/** A "View link" button that opens the owner's View Links dialog. */
-export function ViewLinks({ type, id }: { type: "dashboard" | "deck"; id: number }) {
-  const [open, setOpen] = useState(false);
-  return (
-    <>
-      <button type="button" onClick={() => setOpen(true)} className={buttonVariants({ variant: "outline" })}><Link2 aria-hidden /> View link</button>
-      {open && <ViewLinksDialog type={type} id={id} onClose={() => setOpen(false)} />}
-    </>
-  );
-}
 
 /** The View Links dialog on its own, for menus that open it; it loads the links when it opens. Owner only. A
  * dashboard's link shows live numbers or one of its shown Snapshots (spec 0013); `snapshot` picks that one first. */
