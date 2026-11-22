@@ -5,6 +5,7 @@ import { db } from "./db";
 import { assertCan, Forbidden, type Actor } from "./actor";
 import { recordVersion, type VersionType } from "./versions";
 import { audit } from "./audit-log";
+import { getMetrics } from "./workspace-data";
 import { queueWebhookEvent } from "./webhook-events";
 import { recordPersonalWebhookEnds } from "./personal-webhooks";
 
@@ -44,6 +45,11 @@ export async function removeMember(actor: Actor, personId: string, successorId: 
   const to = (successor.profiles as unknown as { name: string } | null)?.name ?? "a member";
   // Automatic Snapshots are taken in the owner's name, with what they see (spec 0013): the successor chooses again.
   if (owned.dashboard.length) await db().from("dashboards").update({ snapshot_every: null }).eq("workspace_id", ws).in("id", owned.dashboard);
+  // Taking someone's Metrics for oneself by one's role is a hand-over like any other: audited, so a round trip is seen.
+  if (successorId === actor.personId && owned.metric.length) {
+    const names = new Map((await getMetrics(ws)).map((m) => [m.id, m.name]));
+    for (const id of owned.metric) await audit(actor, { kind: "metric.handed_over", object: { type: "metric", id, name: names.get(id) ?? "" }, details: { from_id: personId, from_name: from, to_id: successorId, to_name: to } });
+  }
   for (const [type, ids] of Object.entries(owned) as [VersionType, number[]][]) {
     for (const id of ids) await recordVersion(type, id, actor.personId, { message: `Handed over from ${from} to ${to}`, always: true });
   }

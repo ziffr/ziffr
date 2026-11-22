@@ -101,6 +101,14 @@ describe("handing a Metric over", () => {
 });
 
 describe("a Metric never stays with someone who is gone", () => {
+  it("records taking a removed person's Metrics for oneself, so a round trip is seen", async () => {
+    const w = await ws(); const sara = await w.person("owner"); const ben = await w.person("member"); const ann = await w.person("member");
+    const m = await w.metric(ben);
+    await removeMember(w.actor(sara), ben, sara);
+    await handOverMetric(w.actor(sara), m.id, ann);
+    // Sara took it by her role: she keeps no Editor Share from handing it on.
+    expect(await sharesOf(w.id, m.id)).toEqual([]);
+  });
   it("leaves a removed person owning no Metric", async () => {
     const w = await ws(); const sara = await w.person("owner"); const ben = await w.person("member");
     const a = await w.metric(ben); const b = await w.metric(ben);
@@ -151,9 +159,10 @@ describe("what follows the hand-over", () => {
     const esc = await w.action({ ...row, purpose: "escalation", question: "q" } as never);
     const plain = await w.action({ ...row, question: "other" } as never);
     const task = await w.action({ ...row, kind: "task", purpose: "approval", question: "t" } as never);
+    const approval = await w.action({ ...row, purpose: "approval", question: "a" } as never);
     await handOverMetric(w.actor(ben, "member"), m.id, ann);
     const who = async (id: number) => (await db().from("actions").select("assignee_id").eq("id", id).single()).data!.assignee_id;
-    expect([await who(esc), await who(plain), await who(task)]).toEqual([ann, ben, ben]);
+    expect([await who(esc), await who(plain), await who(task), await who(approval)]).toEqual([ann, ben, ben, ben]);
   });
   it("is enforced by the database: no Guest owns a Metric, and no owner is a non-member", async () => {
     const w = await ws(); const sara = await w.person("owner"); const ben = await w.person("member"); const gus = await w.person("guest");
