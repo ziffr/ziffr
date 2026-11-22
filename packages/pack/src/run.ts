@@ -2,11 +2,13 @@
 // before it shows or installs a Pack, and says what is wrong, with each problem's line. It reads only the file named.
 import { readFileSync } from "node:fs";
 import { checkPack } from "./pack.js";
+import { checkWorkspaceExport } from "./workspace-export.js";
 
 /** What the command prints and the code it ends with, for the arguments it was given. */
 export function run(args: string[], read: (path: string) => string = (p) => readFileSync(p, "utf8")): { out: string[]; code: number } {
   const [command, file, ...rest] = args;
-  if (command !== "check" || !file) return { out: ["Usage: ziffr-pack check <file.pack.json> [--ziffr <version>]", "Checks a Pack as Ziffr does before installing it. --ziffr also checks the Ziffr it needs."], code: 2 };
+  if (command === "check-export" && file) return runExport(file, read);
+  if (command !== "check" || !file) return { out: ["Usage: ziffr-pack check <file.pack.json> [--ziffr <version>]", "Checks a Pack as Ziffr does before installing it. --ziffr also checks the Ziffr it needs.", "       ziffr-pack check-export <file.jsonl>", "Checks a Workspace Export (unzipped) as Ziffr does before importing it."], code: 2 };
   const z = rest.indexOf("--ziffr");
   const ziffr = z >= 0 ? rest[z + 1] : undefined;
   if (ziffr !== undefined && !/^\d+\.\d+\.\d+$/.test(ziffr)) return { out: ["--ziffr takes a version such as 0.12.0."], code: 2 };
@@ -21,4 +23,17 @@ export function run(args: string[], read: (path: string) => string = (p) => read
   const out = [`${file}: ${res.pack.name} ${res.pack.version} is a valid Pack, ${res.items} item${res.items === 1 ? "" : "s"}.${res.needsOwner ? " It holds Themes: an Owner installs it." : ""}`];
   for (const t of res.assistantTexts) out.push(`${file}${t.line ? `:${t.line}` : ""}: ${t.path} reads like an instruction to an AI assistant; Ziffr shows it to whoever installs the Pack: “${t.text}”`);
   return { out, code: 0 };
+}
+
+/** `check-export`: a Workspace Export's lines, each problem with its line, and its counts when it is sound. */
+function runExport(file: string, read: (path: string) => string): { out: string[]; code: number } {
+  let text: string;
+  try {
+    text = read(file);
+  } catch {
+    return { out: [`${file}: cannot be read.`], code: 2 };
+  }
+  const res = checkWorkspaceExport(text);
+  if (!res.ok) return { out: res.problems.map((p) => `${file}${p.line ? `:${p.line}` : ""}: ${p.path ? `${p.path} ` : ""}${p.message}`), code: 1 };
+  return { out: [`${file}: a valid Workspace Export of “${res.header.workspace.name}”, ${res.records.toLocaleString("en")} records, ${res.counts.metric} Metrics and ${res.counts.value.toLocaleString("en")} values.`], code: 0 };
 }

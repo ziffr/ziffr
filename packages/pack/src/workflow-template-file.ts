@@ -73,6 +73,6 @@ export function checkWorkflowTemplateFile(textIn: string): FormatCheck<WorkflowT
 }
 
 /** Checks a Workflow Template file already read from JSON (`lines` names where each path starts, when known). */
-export function checkWorkflowTemplateFileValue(value: unknown, lines: Map<string, number> = new Map()): FormatCheck<WorkflowTemplateFile> {
-  return checkFormat(FORMAT, value, lines);
+export function checkWorkflowTemplateFileValue(value: unknown, lines: Map<string, number> = new Map(), schema: Schema = WORKFLOW_TEMPLATE_SCHEMA): FormatCheck<WorkflowTemplateFile> {
+  return checkFormat(schema === WORKFLOW_TEMPLATE_SCHEMA ? FORMAT : { ...FORMAT, schema }, value, lines);
 }

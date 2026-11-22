@@ -11,3 +11,4 @@ export { checkAnalysisRecipe, ANALYSIS_RECIPE_SCHEMA, type AnalysisRecipe } from
 export { aimsAtAssistant } from "./assistant-words.js";
 export type { Problem } from "./json-check.js";
 export { LOGO_MAX_BYTES, LOGO_MAX_PIXELS, PACK_LOGO_MAX_BYTES, cleanLogo, logoOk, logoProblem, svgClean, svgIsPlain } from "./logo.js";
+export { checkWorkspaceExport, WorkspaceExportChecker, WORKSPACE_EXPORT_FORMAT, WORKSPACE_EXPORT_FORMATS, WORKSPACE_EXPORT_KINDS, WORKSPACE_EXPORT_LIMITS, WORKSPACE_EXPORT_SCHEMA, type WorkspaceExportCheck, type WorkspaceExportRecord, type WorkspaceExportKind, type WorkspaceExportReaderLimits } from "./workspace-export.js";

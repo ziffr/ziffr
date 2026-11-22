@@ -42,7 +42,8 @@ const key = (parent: string, k: string) => (/^[A-Za-z_][A-Za-z0-9_]*$/.test(k) ?
 
 /** Reads a JSON text, refusing it when it is larger or nested deeper than `limits`, and notes every value's line. */
 export function parseJson(text: string, limits: TextLimits): Parsed {
-  const bytes = new TextEncoder().encode(text).length;
+  // A UTF-8 byte is at least one UTF-16 unit, so a text with more units than the limit is over it: refused before it is copied.
+  const bytes = text.length > limits.maxBytes ? text.length : new TextEncoder().encode(text).length;
   if (bytes > limits.maxBytes) return { ok: false, problems: [{ path: "", line: null, message: `The file is ${bytes.toLocaleString("en")} bytes; at most ${limits.maxBytes.toLocaleString("en")} are allowed.` }] };
   const lines = new Map<string, number>();
   let i = 0;

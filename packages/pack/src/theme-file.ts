@@ -91,6 +91,6 @@ export function checkThemeFile(textIn: string): FormatCheck<ThemeFile> {
 }
 
 /** Checks a Theme file already read from JSON (`lines` names where each path starts, when known). */
-export function checkThemeFileValue(value: unknown, lines: Map<string, number> = new Map(), context: ThemeLogoContext = "standalone"): FormatCheck<ThemeFile> {
-  return checkFormat({ family: "ziffr.theme", reads: THEME_FILE_FORMATS, schema: THEME_FILE_SCHEMA, meaning: logoMeaning(context) }, value, lines);
+export function checkThemeFileValue(value: unknown, lines: Map<string, number> = new Map(), context: ThemeLogoContext = "standalone", schema: Schema = THEME_FILE_SCHEMA): FormatCheck<ThemeFile> {
+  return checkFormat({ family: "ziffr.theme", reads: THEME_FILE_FORMATS, schema, meaning: logoMeaning(context) }, value, lines);
 }

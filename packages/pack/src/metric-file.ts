@@ -98,8 +98,9 @@ export function checkMetricFile(textIn: string): FormatCheck<MetricFile> {
   return checkMetricFileValue(parsed.value, parsed.lines);
 }
 
-/** Checks a Metric file already read from JSON (`lines` names where each path starts, when known). */
-export function checkMetricFileValue(value: unknown, lines: Map<string, number> = new Map()): FormatCheck<MetricFile> {
-  return checkFormat(FORMAT, value, lines);
+/** Checks a Metric file already read from JSON (`lines` names where each path starts, when known). `schema` is the
+ * Workspace Export's looser variant of the schema; every other check is the same. */
+export function checkMetricFileValue(value: unknown, lines: Map<string, number> = new Map(), schema: Schema = METRIC_FILE_SCHEMA): FormatCheck<MetricFile> {
+  return checkFormat(schema === METRIC_FILE_SCHEMA ? FORMAT : { ...FORMAT, schema }, value, lines);
 }
 
