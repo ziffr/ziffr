@@ -26,7 +26,7 @@ If there is no dashboard yet, the list says "No dashboards yet" and suggests nam
 
 ### Your Home dashboard
 
-Ziffr opens on your Home dashboard. You choose it yourself: open the dashboard and press **Make this my home**. The button then reads **Home** and cannot be pressed until you choose another. If you never chose one, Ziffr opens on the first dashboard you made, or else the first one shared with you. If your Home is no longer shared with you, the same rule picks another. In a new Trial Workspace, Ziffr opens on the Trial Guide instead until you finish or skip it.
+Ziffr opens on your Home dashboard. You choose it yourself: open the dashboard, open its **⋯** menu and choose **Home dashboard**. The entry then shows a tick until you choose another. If you never chose one, Ziffr opens on the first dashboard you made, or else the first one shared with you. If your Home is no longer shared with you, the same rule picks another. In a new Trial Workspace, Ziffr opens on the Trial Guide instead until you finish or skip it.
 
 ### The first-run checklist
 
@@ -54,7 +54,7 @@ For the dashboards you open every day, press **Pin** in the row of buttons above
 - **A shrunk sidebar** shows each pin as a small tile with its first letter; hover or focus it to see the name.
 - **On a phone**, the pinned dashboards are the first thing **More** lists.
 - Pins are yours alone, in each Workspace. If a pinned dashboard stops being shared with you, it leaves your sidebar without a message, and it comes back if it is shared with you again and you are still within the eight.
-- In the demo nothing is saved, so the Pin button shows as off and says "Pinning is off in the demo" when you hover or tap it. The demo's sidebar already has a few pinned dashboards, so you can see what pinning does; they cannot be moved or unpinned there.
+- In the demo nothing is saved, so the **Pinned** entry in the ⋯ menu (and the Pin button on the list of dashboards) shows as off and says "Pinning is off in the demo" when you hover or tap it. The demo's sidebar already has a few pinned dashboards, so you can see what pinning does; they cannot be moved or unpinned there.
 
 ### Switching dashboards
 
@@ -75,11 +75,13 @@ The buttons to the right of the name are:
 
 | Button | Who sees it | What it does |
 | --- | --- | --- |
-| **Make this my home** / **Home** | Everyone | Makes this your Home dashboard. |
 | **Grid** / **Read** | Everyone | Switches between the two ways a dashboard reads (see [Grid and Read](#grid-and-read)). |
 | **Snapshots** | Everyone, once there is a Snapshot; the owner and Editors always | The dashboard as it stood for a past period (see [Snapshots](#snapshots)). |
 | **Present** | Everyone | Shows the dashboard on the whole screen (see [Presenting](#presenting)). |
 | **Edit** / **Done** | The owner and Editors, in Grid | Switches edit mode on and off. |
+| **⋯** (More for this dashboard) | Everyone | Home dashboard and Pinned, then the page's other entries (see below). |
+
+**Home dashboard** and **Pinned** are in the ⋯ menu, each with a tick while it is on. **Home dashboard** makes this your Home dashboard (it cannot be switched off here: choose another dashboard as your Home instead). **Pinned** puts the dashboard in the sidebar or takes it out. In the demo, **Pinned** shows as off and says "Pinning is off in the demo". The switcher's list shows both marks too.
 | **Share** | The owner | Opens the Share panel beside the dashboard. The number on it says how many people and Groups have access. |
 | **⋯** (More) | Everyone | The menu below. |
 
@@ -123,7 +125,7 @@ A value that waits for **Approval** shows, marked "not approved yet" next to it,
 
 Changes are saved for everyone who opens the dashboard. Each one is recorded as a Version.
 
-On a narrow screen, such as a phone, the dashboard becomes one column in reading order, top to bottom and left to right. Widgets cannot be moved there. The toolbar is one row there: **Grid** and **Read**, **Share** and **⋯**; **⋯** opens a sheet from the bottom with the rest (**Home**, **Pin**, **Snapshots**, **Present**, **Edit**, and the entries of the ⋯ menu), and the hint about a widget's ⋯ menu is left out.
+On a narrow screen, such as a phone, the dashboard becomes one column in reading order, top to bottom and left to right. Widgets cannot be moved there. The toolbar is one row there: **Grid** and **Read**, **Share** and **⋯**; **⋯** opens a sheet from the bottom with the rest (**Home dashboard**, **Pinned**, **Snapshots**, **Present**, **Edit**, and the entries of the ⋯ menu), and the hint about a widget's ⋯ menu is left out.
 
 ### The Pool
 
@@ -155,9 +157,9 @@ When a template lands, a window named after it asks for each Slot, such as "Metr
 
 ## A widget's menu
 
-Every **Widget** has a **⋯** button in its title bar. Right-clicking the Widget opens the same menu. A line under the dashboard's name reminds you of this.
+Every **Widget** has a **⋯** button in its title bar. Right-clicking the Widget opens the same menu. A line under the dashboard's name reminds you of this until you have opened a Widget's menu once.
 
-If a Widget's Metric has open questions or tasks, its title bar shows how many are open.
+If a Widget's Metric has open questions or tasks, its title bar shows how many are open.  The reminder is remembered in your browser and is not shown on an empty dashboard.
 
 | Option | Who sees it | What it does |
 | --- | --- | --- |
@@ -170,12 +172,27 @@ If a Widget's Metric has open questions or tasks, its title bar shows how many a
 | **Edit Finding…** | The owner and Editors, in edit mode, for Findings | Opens the Finding editor (see [Findings](#findings)). |
 | **Edit layout…** | The owner and Editors, in edit mode, for a Free layout | Opens the layout editor (see [Free layout](#free-layout)). |
 | **Versions…** | Everyone | The Widget's own history of changes. |
+| **Copy to…** | Everyone | Opens a submenu of the ways to keep a copy of the Widget, below. |
+| **For View Designs** | Everyone, for a Widget drawn with a View Design | Opens a submenu with the two entries below. |
+
+Under **Copy to…**:
+
+| Option | Who sees it | What it does |
+| --- | --- | --- |
+| **Add to dashboard** | When you may change another dashboard | Places a copy on one of your other dashboards. |
+| **Add to deck…** | Everyone except Guests | Places a copy on a slide of a deck you own or may edit, or of a new deck named after the Widget: pick the deck, then a slide or **New slide at the end**. The deck opens on that slide; **Go back** in the message returns here. The copy draws only Metrics you see, and changing it leaves this Widget as it is. Also on a Finding of a story. |
 | **Save as Widget** | Everyone except Guests | Saves a copy to your Pool. |
 | **Save as template…** | The owner and Editors | Saves the Widget as a team Widget Template. Not offered for a Free layout. |
-| **Export View Design** | Everyone | Downloads the View Design the Widget is drawn with, and a Sample Data file to try it with. Not offered for Findings and Free layouts. |
-| **Duplicate as View Design** | Everyone | The same, with this Widget's settings (how many periods, target band, forecast) as the design's defaults, named after the Widget. |
-| **Add to deck…** | Everyone except Guests | Places a copy on a slide of a deck you own or may edit, or of a new deck named after the Widget: pick the deck, then a slide or **New slide at the end**. The deck opens on that slide; **Go back** in the message returns here. The copy draws only Metrics you see, and changing it leaves this Widget as it is. Also on a Finding of a story. |
-| **Add to dashboard** | When you may change another dashboard | Places a copy on one of your other dashboards. |
+
+Under **For View Designs**:
+
+| Option | What it does |
+| --- | --- |
+| **Export View Design** | Downloads the View Design the Widget is drawn with, and a Sample Data file to try it with. Not offered for Findings and Free layouts. |
+| **Duplicate as View Design** | The same, with this Widget's settings (how many periods, target band, forecast) as the design's defaults, named after the Widget. |
+
+| Option | Who sees it | What it does |
+| --- | --- | --- |
 | **Open metric** | Everyone | Opens the Metric's page. With several Metrics, there is one **Open** entry per Metric, with its name. |
 | **Quick look** | Everyone | Opens the Widget's Metric in a panel on the right: its latest value, target, trend and owner, with **Open the Metric** at the bottom. A Widget with one Metric also shows a small button for it beside its title. |
 | **Remove from dashboard** | The owner and Editors, in edit mode | Takes the Widget off the dashboard, at once. **Versions** of the dashboard keep it. |

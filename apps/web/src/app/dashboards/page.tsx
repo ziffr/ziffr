@@ -40,7 +40,7 @@ export default async function DashboardsPage() {
   );
   return (
     <>
-      <PageHeader title="Dashboards" sub="Watch your numbers as they come in. Ziffr opens on your Home dashboard; choose it on any dashboard with Make this my home.">
+      <PageHeader title="Dashboards" sub="Watch your numbers as they come in. Ziffr opens on your Home dashboard; choose it from a dashboard’s ⋯ menu, Home dashboard.">
         {can(actor, "create") && (
           <AnsweredForm action={newDashboard} className="flex gap-2 max-md:w-full">
             <Input name="name" required maxLength={120} placeholder="Name of the new dashboard" aria-label="Name of the new dashboard" className="min-w-0 flex-1 md:w-60 md:flex-none" />
