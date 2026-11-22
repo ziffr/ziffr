@@ -183,7 +183,7 @@ export async function workflowsView(actor: Actor) {
   const workflows = await openWorkflowRows(ws, guestSees ? (sealedWorkflows ?? []).filter((w) => guestSees.has(w.id as number)) : sealedWorkflows);
   const ids = [...(await visibleMetricIds(ws, actor.personId, all))];
   const [{ data: states }, { data: tokens }] = await Promise.all([
-    db().from("period_states").select("*").eq("workspace_id", ws).in("metric_id", ids),
+    db().from("period_states").select("*").eq("workspace_id", ws).in("metric_id", ids).then(async (r) => ({ data: await openRows("period_states", ws, r.data) })),
     db().from("tokens").select("metric_id, submitter_id, stand_in_id").eq("workspace_id", ws).in("metric_id", ids).is("stands_in_for", null),
   ]);
   const metrics = all.filter((m) => ids.includes(m.id));
@@ -222,7 +222,7 @@ export async function metricExtras(actor: Actor, metricId: number, period: Perio
     db().from("tokens").select("id, code, metric_id, submitter_id, stand_in_id, stands_in_for").eq("workspace_id", ws).eq("metric_id", metricId),
     db().from("workflows").select("*").eq("workspace_id", ws).order("id").then(async (r) => ({ data: await openWorkflowRows(ws, r.data) })),
     db().from("metrics").select("workflow_id, owner_id").eq("id", metricId).eq("workspace_id", ws).single(),
-    db().from("period_states").select("*").eq("workspace_id", ws).eq("metric_id", metricId).eq("period_start", current).maybeSingle(),
+    db().from("period_states").select("*").eq("workspace_id", ws).eq("metric_id", metricId).eq("period_start", current).maybeSingle().then(async (r) => ({ data: r.data ? (await openRows("period_states", ws, [r.data]))[0] : null })),
     // Every period whose value waits for Approval, not only the Workflow's: the page marks those values as not
     // approved yet, as widgets do (GLOSSARY: Approval).
     db().from("period_states").select("period_start").eq("workspace_id", ws).eq("metric_id", metricId).eq("state", "approval"),

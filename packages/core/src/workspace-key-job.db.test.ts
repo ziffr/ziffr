@@ -9,6 +9,7 @@ import { Forbidden } from "./actor";
 import { db } from "./db";
 import { ALL_SEALED_COLUMNS, openRows, SEALED_NUMBERS } from "./sealed-columns";
 import { SEALED_THINGS } from "./sealed-things";
+import { sealSecret, slackBotContext } from "./secrets";
 import { installationAdmin, workspace } from "./test/db-fixtures";
 import { sealCandidate, reencryptionJob } from "./workspace-key-job";
 import { SEALED_LABELS } from "./sealed-labels";
@@ -249,6 +250,40 @@ describe("the re-encryption job", () => {
     delete process.env.ZIFFR_SECRETS_KEY;
     expect((await reencryptionJob(only(w))).waiting).toBe(true);
     expect(isSealed(await body(w.messages[0]))).toBe(false);
+  });
+});
+
+describe("a period's note and a Slack bot token", () => {
+  it("are sealed by the job, the token opened first, and read back as before", async () => {
+    const w = await plainWorkspace();
+    await db().from("period_states").insert({ workspace_id: w.id, metric_id: w.m.id, period_start: "2026-10-01", state: "submitted", note: "Waits for Approval: a big jump" });
+    const token = "xoxb-test-token-1";
+    await db().from("slack_installations").insert({ workspace_id: w.id, team_id: `T${Date.now()}`, team_name: "Team", app_id: "A0001", bot_user_id: "U0001", bot_token: sealSecret(token, slackBotContext(w.id)), scopes: "chat:write", installed_by: w.owner });
+    cleanups.push(async () => { await db().from("slack_installations").delete().eq("workspace_id", w.id); });
+    const result = await reencryptionJob(only(w));
+    expect(result.errors).toBe(0);
+    expect(result.unopenable).toBe(0);
+    const { data: note } = await db().from("period_states").select("note").eq("metric_id", w.m.id).single();
+    expect(isSealed(note!.note as string)).toBe(true);
+    const { data: stored } = await db().from("slack_installations").select("bot_token").eq("workspace_id", w.id).single();
+    expect(isSealed(stored!.bot_token as string)).toBe(true);
+    expect(await (await workspaceCipher(w.id)).open({ table: "slack_installations", column: "bot_token", row: w.id.toLowerCase() }, stored!.bot_token as string)).toBe(token);
+    // A second run changes nothing, and both columns are checked off.
+    const again = await reencryptionJob(only(w));
+    expect(again.rowsSealed).toBe(0);
+    expect((await progressOf(w.id, "period_states", "note"))?.done_at).not.toBeNull();
+    expect((await progressOf(w.id, "slack_installations", "bot_token"))?.done_at).not.toBeNull();
+  });
+
+  it("count a token that does not open apart and leave it alone", async () => {
+    const w = await plainWorkspace();
+    const wrong = sealSecret("xoxb-other", "slack-bot:another-workspace");
+    await db().from("slack_installations").insert({ workspace_id: w.id, team_id: `T${Date.now()}`, team_name: "Team", app_id: "A0001", bot_user_id: "U0001", bot_token: wrong, scopes: "chat:write", installed_by: w.owner });
+    cleanups.push(async () => { await db().from("slack_installations").delete().eq("workspace_id", w.id); });
+    const result = await reencryptionJob(only(w));
+    expect(result.unopenable).toBeGreaterThanOrEqual(1);
+    const { data: stored } = await db().from("slack_installations").select("bot_token").eq("workspace_id", w.id).single();
+    expect(stored!.bot_token).toBe(wrong);
   });
 });
 

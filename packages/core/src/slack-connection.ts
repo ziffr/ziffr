@@ -5,7 +5,7 @@ import { randomBytes } from "node:crypto";
 import { assertCan, type Actor } from "./actor";
 import { audit } from "./audit-log";
 import { db } from "./db";
-import { openSecretRotating, sealSecret } from "./secrets";
+import { openSecretRotating, sealSecret, slackBotContext } from "./secrets";
 import { isSealed, workspaceCipher } from "./workspace-keys";
 import { settingsInEffect } from "./settings-in-effect";
 import { callSlack, slackApiBase, slackEnabled, slackOn, SlackError } from "./slack-api";
@@ -24,7 +24,7 @@ export type SlackConnectionView = { enabled: boolean; canManage: boolean; team: 
  * when nothing is connected, it was disconnected, or the token does not open (another ZIFFR_SECRETS_KEY). */
 export type SlackBot = { workspaceId: string; teamId: string; appId: string; botUserId: string; token: string };
 
-const sealContext = (workspaceId: string) => `slack-bot:${workspaceId}`;
+const sealContext = slackBotContext;
 
 /** Where a Workspace's bot token is sealed with its Workspace Key (spec 0028): the token dies with the Workspace. */
 const tokenAt = (workspaceId: string) => ({ table: "slack_installations", column: "bot_token", row: workspaceId.toLowerCase() });

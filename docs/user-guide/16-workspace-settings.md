@@ -188,7 +188,7 @@ Choose **Save** when you are done. Teams within your company, such as Sales or F
 
 ### Encryption
 
-Owners see one line at the end of the page: **Encrypted with a key of its own. Deleting this Workspace destroys it.** The Workspace's words (Thread replies, questions and tasks, Contacts' details, the Outbox and the Audit Log) are encrypted with that key as they are written, and words written before are encrypted as Ziffr gets to them, so a copy of the database alone does not show the ones already encrypted. Values and Metric names follow later. Ziffr itself still reads them to do its work: this is not end-to-end encryption. When a Workspace is deleted (today: a trial), its key goes first, so what is left of it can no longer be opened; backups made before then become unreadable once their retention period is over.
+Owners see one line at the end of the page: **Encrypted with a key of its own. Deleting this Workspace destroys it.** The Workspace's words and numbers (Thread replies, questions and tasks, Contacts' details, Metric names, values, notes on a period, the Outbox, the Audit Log and the Slack connection's token) are encrypted with that key as they are written, and what was written before is encrypted as Ziffr gets to it, so a copy of the database alone does not show what is already encrypted. Ziffr itself still reads them to do its work: this is not end-to-end encryption. When a Workspace is deleted (today: a trial), its key goes first, so what is left of it can no longer be opened; backups made before then become unreadable once their retention period is over.
 
 ### In the demo
 
