@@ -480,10 +480,10 @@ describe("a Personal Webhook's status back, as its person", () => {
     const id = await c.task(); await c.sent(id, c.mine);
     expect(await c.call(c.mine, { op: "done", ref: `ZIF-${id}` })).toEqual({ changed: true, status: "answered" });
     expect(await c.call(c.mine, { op: "done", ref: `ZIF-${id}` })).toEqual({ changed: false, status: "answered" });
-    expect(await authors(id)).toMatchObject([{ author_id: c.ann, via: "My Tasks", body: "Marked done in My Tasks" }]);
+    expect(await authors(id)).toMatchObject([{ author_id: c.ann, via: expect.stringMatching(/^My Tasks \(.+ Webhook\)$/), body: expect.stringMatching(/^Marked done in My Tasks \(.+ Webhook\)$/) }]);
     expect((await c.rows(id, "action.done")).map((r) => [r.source_type, r.source_webhook_id])).toContainEqual(["webhook", c.mine.id]);
     const { data: log } = await db().from("audit_events").select("object_id, actor_name").eq("workspace_id", c.w.id).eq("kind", "webhook.marked_done");
-    expect(log).toEqual([{ object_id: c.mine.id, actor_name: "Webhook My Tasks" }]);
+    expect(log).toEqual([{ object_id: c.mine.id, actor_name: expect.stringMatching(/^Webhook My Tasks \(/) }]);
   });
 
   it("links, replies, answers and reopens for the person's own Actions sent to it", async () => {
@@ -549,6 +549,15 @@ describe("a Personal Webhook's status back, as its person", () => {
     expect(await authenticateWebhookRequest(c.mine.id, signed(c.theirs.secret, { op: "done", ref: `ZIF-${id}` }))).toEqual({ ok: false, why: "not_found" });
     await setPersonalWebhookEnabled(c.A, c.mine.id, false);
     expect(await authenticateWebhookRequest(c.mine.id, signed(c.mine.secret, { op: "done", ref: `ZIF-${id}` }))).toEqual({ ok: false, why: "no_such" });
+  });
+
+  it("counts and de-duplicates by Webhook, so a Personal Webhook named like a Workspace Webhook cannot block it", async () => {
+    const c = await personal();
+    const twin = await createPersonalWebhook(c.w.actor(c.ann, "member"), { name: "To Do", url: `https://localhost:${port}/twin`, events: ["action.created"] });
+    const id = await c.task(); await c.sent(id, c.todo, twin);
+    for (let n = 0; n < 10; n++) await c.call(twin, { op: "reply", ref: `ZIF-${id}`, text: `note ${n}` });
+    expect(await c.refused(c.call(twin, { op: "reply", ref: `ZIF-${id}`, text: "one more" }))).toBe("conflict");
+    expect(await c.call(c.todo, { op: "done", ref: `ZIF-${id}` })).toMatchObject({ changed: true });
   });
 
   it("keeps markup in a reply as plain text and refuses what only a person's own words decide", async () => {

@@ -20,7 +20,7 @@ import { recordAudit } from "./audit-log";
 import { db } from "./db";
 import { refFor } from "./deliveries";
 import { changeActionState } from "./action-state";
-import { insertSealed, openRows, sealRow } from "./sealed-columns";
+import { insertSealed, openNames, openRows, sealRow } from "./sealed-columns";
 import { finishTask, postReply } from "./threads";
 import { workspaceCipher } from "./workspace-keys";
 import { getMetrics } from "./workspace-data";
@@ -79,7 +79,14 @@ export async function authenticateWebhookRequest(webhookId: string, req: Inbound
   if (error || typeof claim !== "string") throw new Error("The request could not be taken. Try again in a moment.");
   if (claim === "limit") return { ok: false, why: "limit" };
   if (claim !== "ok") return no;
-  return { ok: true, actor: { webhookId: String(data.id), workspaceId: ws, webhook: true, name: String(data.name).slice(0, 80), ...(owner ? { owner } : {}) } };
+  // A Personal Webhook's name carries its person's: the Thread, the hourly limit and the repeat check all go by this label, so one that is named like a Workspace Webhook neither blocks it nor passes for it.
+  let name = String(data.name).slice(0, 80);
+  if (owner) {
+    const { data: p } = await db().from("profiles").select("id, name").eq("id", owner).maybeSingle();
+    const who = p ? String((await openNames(ws, [p]))[0].name ?? "").trim().slice(0, 40) : "";
+    name = `${name} (${who ? `${who}'s` : "personal"} Webhook)`;
+  }
+  return { ok: true, actor: { webhookId: String(data.id), workspaceId: ws, webhook: true, name, ...(owner ? { owner } : {}) } };
 }
 
 type ActionRow = { id: number; kind: "task" | "question"; status: "open" | "answered" | "closed"; purpose: string | null; asker_id: string; assignee_id: string; metric_id: number };
