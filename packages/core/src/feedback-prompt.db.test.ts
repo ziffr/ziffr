@@ -123,6 +123,26 @@ describe("answers", () => {
     await expect(sayWhatIsMissing(a, "second")).rejects.toThrow(/told us already/);
     expect((await db().from("feedback_prompt_words").select("id")).data).toHaveLength(1);
   });
+  it("keeps one answer when two are sent at once", async () => {
+    const w = await ws(); const ben = await w.person("member"); await activeOn(w, ben, 3);
+    const a = w.actor(ben, "member");
+    await markFeedbackPromptShown(a);
+    const results = await Promise.allSettled([sayWhatIsMissing(a, "one"), sayWhatIsMissing(a, "two"), sayWhatIsMissing(a, "three")]);
+    expect(results.filter((r) => r.status === "fulfilled")).toHaveLength(1);
+    expect((await db().from("feedback_prompt_words").select("id")).data).toHaveLength(1);
+  });
+  it("refuses by hand what the card could not do: when it is off, or before three active days", async () => {
+    const w = await ws(); const ben = await w.person("member"); const eva = await w.person("member");
+    await activeOn(w, ben, 3); await activeOn(w, eva, 2);
+    await expect(markFeedbackPromptShown(w.actor(eva, "member"))).rejects.toEqual(expect.any(Forbidden));
+    expect(await stateOf(eva)).toBeNull();
+    await markFeedbackPromptShown(w.actor(ben, "member"));
+    process.env.ZIFFR_FEEDBACK_PROMPT = "false"; forgetStoredSettings();
+    await expect(markFeedbackPromptShown(w.actor(ben, "member"), later(40))).rejects.toEqual(expect.any(Forbidden));
+    await expect(sayWhatIsMissing(w.actor(ben, "member"), "words")).rejects.toEqual(expect.any(Forbidden));
+    expect((await db().from("feedback_prompt_words").select("id")).data).toHaveLength(0);
+    expect((await stateOf(ben))?.shown_count).toBe(1);
+  });
   it("keeps only the newest 500 words", async () => {
     await db().from("feedback_prompt_words").insert(Array.from({ length: 505 }, (_, i) => ({ words: `old ${i}` })));
     const w = await ws(); const ben = await w.person("member"); await activeOn(w, ben, 3);

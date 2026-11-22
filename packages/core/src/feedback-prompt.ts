@@ -28,6 +28,7 @@ const SHOW_WORDS = 50;
 // Who has too few active days is asked about again only after a while, so the count is not made on every page.
 const fewDays = new Map<string, number>();
 const FEW_DAYS_MS = 10 * 60_000;
+const TOLD_US = "Thank you, you have told us already.";
 
 // Only a signed-in member (Owner, Admin or Member) of a real Workspace is asked: not a key, a Contact, a Guest, or anyone
 // in the demo. Returns false rather than throwing, so the caller decides whether that is a refusal.
@@ -37,13 +38,21 @@ async function isAskable(actor: Actor): Promise<boolean> {
   return ["owner", "admin", "member"].includes(String(data?.role));
 }
 
-async function readState(personId: string): Promise<PromptState> {
-  const { data } = await db().from("feedback_prompts").select("shown_count, next_ask_at, stopped, answer").eq("person_id", personId).maybeSingle();
-  if (!data) return FRESH_STATE;
+// The one gate in front of the card and of every write that follows from it: the setting is on, and the person may be
+// asked. Showing it and saying what is missing check it again, so a call made by hand cannot do what the card could not.
+async function gate(actor: Actor): Promise<boolean> {
+  const settings = await settingsInEffect();
+  return feedbackPromptOn(settings, hostedByCloud(settings)) && (await isAskable(actor));
+}
+
+async function readState(personId: string): Promise<PromptState & { updatedAt: string }> {
+  const { data } = await db().from("feedback_prompts").select("shown_count, next_ask_at, stopped, answer, updated_at").eq("person_id", personId).maybeSingle();
+  if (!data) return { ...FRESH_STATE, updatedAt: "" };
   return {
     shownCount: Number(data.shown_count), stopped: data.stopped === true,
     nextAskAt: data.next_ask_at ? new Date(data.next_ask_at as string) : null,
     answer: data.answer === "no" || data.answer === "starred" || data.answer === "never" ? data.answer : null,
+    updatedAt: data.updated_at as string,
   };
 }
 
@@ -62,9 +71,7 @@ async function activeDays(personId: string): Promise<number> {
 /** Whether Ziffr should show the card to the actor now, and how: null when not. Reads only; showing it is recorded by
  * markFeedbackPromptShown. Off unless the Installation turned it on (or is hosted Ziffr). */
 export async function feedbackPromptFor(actor: Actor, now: Date = new Date()): Promise<FeedbackPromptView | null> {
-  const settings = await settingsInEffect();
-  if (!feedbackPromptOn(settings, hostedByCloud(settings))) return null;
-  if (!(await isAskable(actor))) return null;
+  if (!(await gate(actor))) return null;
   const state = await readState(actor.personId);
   if (!isDue(state, now)) return null;
   const seen = fewDays.get(actor.personId);
@@ -79,7 +86,7 @@ export async function feedbackPromptFor(actor: Actor, now: Date = new Date()): P
 /** Records that the card was shown to the actor, which starts the wait before it may come again. Does nothing when it
  * was not due (a second tab, a repeated call), so showing it twice never counts twice. */
 export async function markFeedbackPromptShown(actor: Actor, now: Date = new Date()): Promise<void> {
-  if (!(await isAskable(actor))) throw new Forbidden();
+  if (!(await gate(actor)) || (await activeDays(actor.personId)) < FEEDBACK_MIN_DAYS) throw new Forbidden();
   const before = await readState(actor.personId);
   if (!isDue(before, now)) return;
   const next = afterShown(before, now);
@@ -100,14 +107,21 @@ export async function stopFeedbackPrompt(actor: Actor, answer: unknown): Promise
 /** The actor says what is missing. The words are kept without their name; the card comes back only after a long while,
  * and without a request for a star. A person who has just said it cannot say it again at once. */
 export async function sayWhatIsMissing(actor: Actor, input: unknown, now: Date = new Date()): Promise<void> {
-  if (!(await isAskable(actor))) throw new Forbidden();
+  if (!(await gate(actor))) throw new Forbidden();
   const clean = cleanWords(input);
   if (!clean.ok) throw new Error(clean.reason);
   const state = await readState(actor.personId);
   // Only someone who was shown the card, and not twice in the same wait: the table cannot be filled by one account.
   if (state.shownCount < 1) throw new Forbidden();
-  if (state.answer === "no" && state.nextAskAt && state.nextAskAt.getTime() > now.getTime()) throw new Error("Thank you, you have told us already.");
-  await writeState(actor.personId, afterNo(state, now));
+  if (state.answer === "no" && state.nextAskAt && state.nextAskAt.getTime() > now.getTime()) throw new Error(TOLD_US);
+  const next = afterNo(state, now);
+  // The change only lands while the row is still as it was read, and the words are kept only when it did: two answers
+  // sent at once cannot both pass the check above.
+  const { data: won, error: stateError } = await db().from("feedback_prompts").update({
+    next_ask_at: next.nextAskAt?.toISOString() ?? null, answer: next.answer, updated_at: now.toISOString(),
+  }).eq("person_id", actor.personId).eq("updated_at", state.updatedAt).select("person_id");
+  if (stateError) throw new Error("Your answer could not be saved.");
+  if (!won?.length) throw new Error(TOLD_US);
   const { error } = await db().from("feedback_prompt_words").insert({ words: clean.words, created_at: now.toISOString() });
   if (error) throw new Error("Your answer could not be saved.");
   // Keeps the newest ones only; best effort, the next answer prunes again.
