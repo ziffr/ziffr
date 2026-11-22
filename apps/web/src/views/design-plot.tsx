@@ -11,6 +11,7 @@ import { isPartial, spanCount } from "@ziffr/core/display-periods";
 import { periodLabel } from "@ziffr/core/periods";
 import type { Part, PlotMark, Tone } from "@ziffr/core/view-design";
 import type { DesignValues } from "./design-view";
+import { useWidgetScale } from "./widget-scale";
 
 type Plot = Extract<Part, { mark: "plot" }>;
 // A recipe output is kept on its row under "recipe:" and the step, never under a name a value could have.
@@ -19,6 +20,7 @@ type Row = { period: string; value?: number; fc?: number; band?: [number, number
 // Theme tokens only: a design names a role, the Theme gives it a colour.
 const TONE: Record<Exclude<Tone, "status">, string> = { data: "var(--color-data)", muted: "var(--color-muted)", ink: "var(--color-ink)", good: "var(--color-success)", bad: "var(--color-error)", accent: "var(--color-accent)" };
 
+// Axis words grow with the card (widget scale, #763): 1 in a usual Widget, so they read as they always did.
 const tick = (size: number, figures = false) => ({ fontSize: size, fill: "var(--color-muted)", ...(figures ? { fontFamily: "var(--font-outlier)" } : {}) });
 
 /** A plot of a View Design: lines, areas, bars, bands and rules over the periods, or points of two Metrics. */
@@ -29,6 +31,7 @@ export function DesignPlot({ part, v, onPointContext }: { part: Plot; v: DesignV
 
 function PeriodPlot({ part, marks, v, onPointContext }: { part: Plot; marks: PlotMark[]; v: DesignValues; onPointContext?: (period: string) => void }) {
   const { m, pts, last, data } = v;
+  const s = useWidgetScale();
   const hovered = useRef<string | null>(null);
   // A span still running is hatched, so it is not read as a drop (spec 0018).
   const hatch = `hatch-${useId().replace(/:/g, "")}`;
@@ -96,7 +99,7 @@ function PeriodPlot({ part, marks, v, onPointContext }: { part: Plot; marks: Plo
   const lineTone = (t: Tone | undefined) => (t === "status" ? (status(last) === "bad" ? TONE.bad : status(last) === "good" ? TONE.good : TONE.data) : TONE[t ?? "data"]);
   const compact = part.axes === "compact";
   const none = part.axes === "none";
-  const margin = none ? undefined : compact ? { top: 4, right: 4, bottom: 0, left: 0 } : { top: 12, right: 12, bottom: 0, left: 8 };
+  const margin = none ? undefined : compact ? { top: 4 * s, right: 4 * s, bottom: 0, left: 0 } : { top: 12 * s, right: 12 * s, bottom: 0, left: 8 * s };
   const aria = none ? undefined : `${m.name}, ${spanCount(pts.length, v.by)}${pts.length ? `, latest ${formatValue(m, pts[pts.length - 1].value, data.numberStyle)}` : ""}`;
 
   return (
@@ -113,8 +116,8 @@ function PeriodPlot({ part, marks, v, onPointContext }: { part: Plot; marks: Plo
           )}
           {part.grid === "horizontal" && <CartesianGrid vertical={false} stroke="var(--color-rule)" />}
           {part.grid === "both" && <CartesianGrid stroke="var(--color-rule)" />}
-          {!none && <XAxis dataKey="period" tickFormatter={(p) => periodLabel(p, v.by, data.yearStart, true)} tick={tick(compact ? 11 : 12)} minTickGap={compact ? 16 : 24} stroke="var(--color-rule-2)" />}
-          {none ? <YAxis hide domain={domain} /> : <YAxis domain={domain} ticks={axis?.ticks.length ? axis.ticks : undefined} interval={axis?.ticks.length ? 0 : undefined} tickFormatter={(x) => axisText(x)} tick={tick(compact ? 11 : 12, true)} width={compact ? 56 : 68} stroke="var(--color-rule-2)" />}
+          {!none && <XAxis dataKey="period" tickFormatter={(p) => periodLabel(p, v.by, data.yearStart, true)} tick={tick((compact ? 11 : 12) * s)} minTickGap={(compact ? 16 : 24) * s} height={30 * s} stroke="var(--color-rule-2)" />}
+          {none ? <YAxis hide domain={domain} /> : <YAxis domain={domain} ticks={axis?.ticks.length ? axis.ticks : undefined} interval={axis?.ticks.length ? 0 : undefined} tickFormatter={(x) => axisText(x)} tick={tick((compact ? 11 : 12) * s, true)} width={(compact ? 56 : 68) * s} stroke="var(--color-rule-2)" />}
           {!none && <Tooltip content={({ active, payload }) => <PeriodTip active={active} row={payload?.[0]?.payload as Row | undefined} v={v} label={label} />} cursor={bars ? { fill: "var(--color-paper-3)" } : undefined} />}
           {marks.map((k, i) => {
             switch (k.mark) {
@@ -195,7 +198,7 @@ function PeriodTip({ active, row: r, v, label }: { active?: boolean; row?: Row; 
   const { m, data } = v;
   const ns = data.numberStyle;
   return (
-    <div className="stock rounded-[var(--radius-input)] px-2.5 py-1.5 text-xs">
+    <div className="stock widget-text-xs rounded-[var(--radius-input)] px-[0.83em] py-[0.5em]">
       <div className="font-medium">{label(r.period)}</div>
       {r.value !== undefined || r.partial !== undefined ? (
         <>
@@ -216,6 +219,7 @@ function PeriodTip({ active, row: r, v, label }: { active?: boolean; row?: Row; 
 /** Two Metrics against each other, one dot per common period: the longer of their periods (spec 0019). */
 function PairsPlot({ marks, v }: { part: Plot; marks: PlotMark[]; v: DesignValues }) {
   const { m: y, data } = v;
+  const s = useWidgetScale();
   const ns = data.numberStyle;
   const point = marks.find((k): k is Extract<PlotMark, { mark: "point" }> => k.mark === "point");
   const top = v.drivers?.ranked[0];
@@ -228,16 +232,16 @@ function PairsPlot({ marks, v }: { part: Plot; marks: PlotMark[]; v: DesignValue
     <div style={{ height: "100%" }} role="img" aria-label={`${y.name} against ${x.name}, ${pairs.length} points`}>
       <ResponsiveContainer width="100%" height="100%">
         {/* Room on the right for half of the last x label, which is centred on the edge (#16). */}
-        <ComposedChart accessibilityLayer={false} margin={{ top: 8, right: 28, bottom: 8, left: 8 }}>
+        <ComposedChart accessibilityLayer={false} margin={{ top: 8 * s, right: 28 * s, bottom: 8 * s, left: 8 * s }}>
           <CartesianGrid stroke="var(--color-rule)" />
-          <XAxis type="number" dataKey="x" name={x.name} domain={["auto", "auto"]} tickFormatter={(n) => compactValue(x, n, ns)} tick={tick(12, true)} stroke="var(--color-rule-2)" />
-          <YAxis type="number" dataKey="y" name={y.name} domain={["auto", "auto"]} tickFormatter={(n) => compactValue(y, n, ns)} tick={tick(12, true)} width={68} stroke="var(--color-rule-2)" />
+          <XAxis type="number" dataKey="x" name={x.name} domain={["auto", "auto"]} tickFormatter={(n) => compactValue(x, n, ns)} tick={tick(12 * s, true)} height={30 * s} stroke="var(--color-rule-2)" />
+          <YAxis type="number" dataKey="y" name={y.name} domain={["auto", "auto"]} tickFormatter={(n) => compactValue(y, n, ns)} tick={tick(12 * s, true)} width={68 * s} stroke="var(--color-rule-2)" />
           <Tooltip
             content={({ payload }) => {
               const p = payload?.[0]?.payload as { period: string; x: number; y: number } | undefined;
               if (!p) return null;
               return (
-                <div className="stock rounded-[var(--radius-input)] px-2.5 py-1.5 text-xs">
+                <div className="stock widget-text-xs rounded-[var(--radius-input)] px-[0.83em] py-[0.5em]">
                   <div className="font-medium">{periodLabel(p.period, commonPeriod(x.period, y.period), data.yearStart)}</div>
                   <div>{x.name}: <span className="fig">{formatValue(x, p.x, ns)}</span></div>
                   <div>{y.name}: <span className="fig">{formatValue(y, p.y, ns)}</span></div>

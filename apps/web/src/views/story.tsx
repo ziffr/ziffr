@@ -102,11 +102,11 @@ export function StoryBody({ widget, data, m, onRowContext }: { widget: W; data: 
   if (widget.template === "story") return <ComposedStory widget={widget} data={data} headline={headline} subline={subline} source={source} />;
   return (
     <div className="flex h-full flex-col">
-      <div className="text-[length:clamp(var(--text-lg),3.4cqw,2.8rem)] leading-tight font-semibold tracking-[-0.02em] text-[var(--color-print)] font-[family-name:var(--font-heading)]">{headline}</div>
-      {subline && <div className="mt-1 text-[length:clamp(0.75rem,1.5cqw,1.2rem)] text-muted-foreground">{subline}</div>}
+      <div className="text-[length:clamp(var(--text-lg),3.4cqw,calc(2.8rem*var(--widget-scale,1)))] leading-tight font-semibold tracking-[-0.02em] text-[var(--color-print)] font-[family-name:var(--font-heading)]">{headline}</div>
+      {subline && <div className="mt-1 text-[length:clamp(0.75rem,1.5cqw,calc(1.2rem*var(--widget-scale,1)))] text-muted-foreground">{subline}</div>}
       <div className="mt-3 min-h-0 flex-1">
         {empty ? (
-          <div className="flex h-full items-center justify-center text-center text-xs text-muted-foreground">Upload a breakdown with this metric’s next value: paste rows on its web form, or send label and value lines.</div>
+          <div className="flex h-full items-center justify-center text-center widget-text-xs text-muted-foreground">Upload a breakdown with this metric’s next value: paste rows on its web form, or send label and value lines.</div>
         ) : widget.template === "ranked" ? (
           <Ranked numberStyle={data.numberStyle} rows={b.rows} m={m} highlight={b.highlight?.label} sum={b.additive ? b.sum : null} onRowContext={onRowContext && b.period ? (l) => onRowContext(l, b.period!) : undefined} />
         ) : widget.template === "share" ? (
@@ -117,7 +117,7 @@ export function StoryBody({ widget, data, m, onRowContext }: { widget: W; data: 
           <StoryLine widget={widget} data={data} m={m} />
         )}
       </div>
-      <div className="mt-2 truncate text-[length:clamp(11px,1.1cqw,15px)] leading-snug text-muted-foreground">{source}</div>
+      <div className="mt-2 truncate text-[length:clamp(11px,1.1cqw,calc(15px*var(--widget-scale,1)))] leading-snug text-muted-foreground">{source}</div>
     </div>
   );
 }
@@ -142,7 +142,7 @@ function Ranked({ rows, m, highlight, sum, onRowContext, annotations, numberStyl
       {rows.slice(0, 12).map((r) => {
         const on = r.label === highlight;
         return (
-          <li key={r.label} className={cn("grid grid-cols-[minmax(0,7rem)_minmax(3rem,1fr)_auto] items-center gap-2 rounded-[4px] text-xs", marks.get(r.label)?.some((a) => a.kind === "ring") && "outline-2 outline-offset-2 outline-[var(--color-accent-2)]")} onContextMenu={onRowContext ? () => onRowContext(r.label) : undefined}>
+          <li key={r.label} className={cn("grid grid-cols-[minmax(0,9.33em)_minmax(4em,1fr)_auto] items-center gap-[0.67em] rounded-[4px] widget-text-xs", marks.get(r.label)?.some((a) => a.kind === "ring") && "outline-2 outline-offset-2 outline-[var(--color-accent-2)]")} onContextMenu={onRowContext ? () => onRowContext(r.label) : undefined}>
             <span className={cn("flex min-w-0 items-center gap-1.5", on && "font-semibold")}><Flag label={r.label} /><span className="truncate">{r.label}</span></span>
             <span className="h-4 rounded-r-[3px]" style={{ width: `${Math.max(2, (r.value / max) * 100)}%`, background: on ? "var(--color-data)" : "var(--color-rule-2)" }} />
             <span className={cn("fig text-right", on && "font-semibold")}>
@@ -150,7 +150,7 @@ function Ranked({ rows, m, highlight, sum, onRowContext, annotations, numberStyl
               {sum ? <span className="ml-1.5 text-muted-foreground">{pct(r.value, sum)}%</span> : null}
             </span>
             {marks.get(r.label)?.filter((a) => a.text && a.kind !== "ring").map((a, i) => (
-              <span key={i} className={cn("col-span-3 -mt-1 pl-[7.5rem] text-xs", a.kind === "callout" ? "font-semibold text-[var(--color-accent-2)]" : "text-muted-foreground")}>{a.kind === "callout" && a.arrow !== false ? "↑ " : ""}{a.text}</span>
+              <span key={i} className={cn("col-span-3 -mt-1 pl-[10em] widget-text-xs", a.kind === "callout" ? "font-semibold text-[var(--color-accent-2)]" : "text-muted-foreground")}>{a.kind === "callout" && a.arrow !== false ? "↑ " : ""}{a.text}</span>
             ))}
           </li>
         );
@@ -167,7 +167,7 @@ function Share({ rows, m, highlight, sum, onRowContext, numberStyle }: { numberS
       <div className="flex h-8 w-full overflow-hidden rounded-[4px]" role="img" aria-label={ordered.map((r) => `${r.label} ${pct(r.value, sum)} %`).join(", ")}>
         {ordered.map((r, i) => <div key={r.label} style={{ width: `${(r.value / (sum || 1)) * 100}%`, background: tones[Math.min(i, tones.length - 1)] }} />)}
       </div>
-      <ul className="grid grid-cols-2 gap-x-4 gap-y-1.5 text-xs">
+      <ul className="grid grid-cols-2 gap-x-4 gap-y-1.5 widget-text-xs">
         {ordered.map((r, i) => (
           <li key={r.label} className={cn("flex items-center gap-1.5", r.label === highlight && "font-semibold")} onContextMenu={onRowContext ? () => onRowContext(r.label) : undefined}>
             <span aria-hidden className="size-2.5 shrink-0 rounded-[2px]" style={{ background: tones[Math.min(i, tones.length - 1)] }} />
@@ -191,7 +191,7 @@ function Pictogram({ rows, highlight, sum }: { rows: BreakdownRow[]; highlight: 
           <User key={i} aria-hidden className="size-8" strokeWidth={1.75} style={{ color: i < n ? "var(--color-data)" : "var(--color-rule-2)", fill: i < n ? "var(--color-data)" : "none" }} />
         ))}
       </div>
-      <div className="text-center text-xs text-muted-foreground">
+      <div className="text-center widget-text-xs text-muted-foreground">
         {highlight?.label} <span className="fig text-foreground">{pct(highlight?.value ?? 0, sum)} %</span>, the rest {rows.length - 1} others
       </div>
     </div>
@@ -221,7 +221,7 @@ function StoryLine({ widget, data, m }: { widget: W; data: CanvasData; m: Metric
         marginRight: 56,
         marginTop: 24,
         marginBottom: 24,
-        style: { fontFamily: "var(--font-body)", fontSize: "clamp(11px, 1.2cqw, 17px)", color: "var(--color-muted)", background: "transparent" },
+        style: { fontFamily: "var(--font-body)", fontSize: "clamp(11px, 1.2cqw, calc(17px * var(--widget-scale, 1)))", color: "var(--color-muted)", background: "transparent" },
         x: { type: "utc", ticks: 4, tickFormat: (d: Date) => periodLabel(d.toISOString().slice(0, 10), m.period, data.yearStart, true), label: null },
         y: { axis: null, nice: true, zero: false },
         marks: [
@@ -256,11 +256,11 @@ function ComposedStory({ widget, data, headline, subline, source }: { widget: W;
   };
   return (
     <div className="flex h-full flex-col">
-      {s.kicker && <div className="mb-1 text-[length:clamp(0.75rem,1.3cqw,1.05rem)] font-medium text-[var(--color-accent-2)]">{s.kicker}</div>}
-      <div className="text-[length:clamp(var(--text-xl),3.6cqw,3.2rem)] leading-tight font-semibold tracking-[-0.02em] text-[var(--color-print)] font-[family-name:var(--font-heading)]">{headline}</div>
-      {subline && <div className="mt-1 text-[length:clamp(0.875rem,1.6cqw,1.3rem)] text-muted-foreground">{subline}</div>}
+      {s.kicker && <div className="mb-1 text-[length:clamp(0.75rem,1.3cqw,calc(1.05rem*var(--widget-scale,1)))] font-medium text-[var(--color-accent-2)]">{s.kicker}</div>}
+      <div className="text-[length:clamp(var(--text-xl),3.6cqw,calc(3.2rem*var(--widget-scale,1)))] leading-tight font-semibold tracking-[-0.02em] text-[var(--color-print)] font-[family-name:var(--font-heading)]">{headline}</div>
+      {subline && <div className="mt-1 text-[length:clamp(0.875rem,1.6cqw,calc(1.3rem*var(--widget-scale,1)))] text-muted-foreground">{subline}</div>}
       <div className="mt-3 flex min-h-0 flex-1 flex-col gap-4">
-        {panels.length === 0 && <p className="m-auto text-xs text-muted-foreground">Edit the story to add a panel: period bars, a bridge, ranked bars or a line.</p>}
+        {panels.length === 0 && <p className="m-auto widget-text-xs text-muted-foreground">Edit the story to add a panel: period bars, a bridge, ranked bars or a line.</p>}
         {panels.map((panel, i) => (
           <div key={i} className="min-h-0 flex-1">
             <PanelView
@@ -278,7 +278,7 @@ function ComposedStory({ widget, data, headline, subline, source }: { widget: W;
           </div>
         ))}
       </div>
-      <div className="mt-3 flex flex-wrap items-end justify-between gap-x-4 gap-y-1 border-t border-border pt-2 text-[length:clamp(11px,1.1cqw,15px)] leading-snug text-muted-foreground">
+      <div className="mt-3 flex flex-wrap items-end justify-between gap-x-4 gap-y-1 border-t border-border pt-2 text-[length:clamp(11px,1.1cqw,calc(15px*var(--widget-scale,1)))] leading-snug text-muted-foreground">
         {s.footnote && <span className="max-w-[70%]">{s.footnote}</span>}
         <span className="ml-auto">{source}</span>
       </div>
