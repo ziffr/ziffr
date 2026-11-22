@@ -12,6 +12,7 @@ import { WayLine } from "@/components/way-state";
 import { trialEndsAt } from "@ziffr/core/trials";
 import { trialGuidePending } from "@ziffr/core/trial-guide";
 import { waysTried, whatWorksHere, type Way } from "@ziffr/core/what-works-here";
+import { reachedWords, trialUsage } from "@ziffr/core/trial-usage";
 import { EndTrialButton } from "@/components/end-trial-button";
 
 const FEEDS_GUIDE = "https://github.com/ziffr/ziffr/blob/main/docs/guides/feeds.md#from-n8n-zapier-or-any-http-client";
@@ -30,7 +31,8 @@ const STEPS: Partial<Record<Way, { how: string; link?: { href: string; label: st
 
 /** What a trial never does, said once so nobody waits for it. */
 const NEVER = [
-  "Invite anyone, or reach anyone but you: messages to Contacts stay in the Outbox.",
+  "Reach a Contact: messages to Contacts stay in the Outbox.",
+  "Invite more people than its limit allows, or by a link: colleagues are invited by email, within the numbers above.",
   "Run past its last day: then it closes, and a week later it is deleted with everything in it.",
   "Move to another Ziffr. You can download its Metrics and values before it ends.",
   "Send WhatsApp messages or open tickets.",
@@ -45,6 +47,7 @@ export default async function TryItPage() {
   // Until the Trial Guide is finished or skipped, it is where a new trial starts (ticket 193).
   if (await trialGuidePending(actor)) redirect("/try/start");
   const [ways, tried] = await Promise.all([whatWorksHere(actor), waysTried(actor)]);
+  const usage = await trialUsage(actor);
   const done = ways.filter((w) => tried[w.way]).length;
   return (
     <>
@@ -68,6 +71,18 @@ export default async function TryItPage() {
           );
         })}
       </ul>
+      {usage && (
+        <section aria-labelledby="limits-h" className="mt-8 max-w-prose text-sm">
+          <h2 id="limits-h" className="text-[length:var(--text-lg)]">Your trial&rsquo;s limits</h2>
+          <ul className="mt-2 space-y-1">
+            {usage.map((r) => (
+              <li key={r.key}>
+                {r.words}{reachedWords(r) && <span className="text-muted-foreground"> {reachedWords(r)}</span>}
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
       <section aria-labelledby="never-h" className="mt-8 max-w-prose text-sm">
         <h2 id="never-h" className="text-[length:var(--text-lg)]">What a trial never does</h2>
         <ul className="mt-2 list-disc space-y-1 pl-5 text-muted-foreground">

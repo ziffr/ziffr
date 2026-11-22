@@ -233,8 +233,11 @@ The database and the core refuse some changes with a code of their own (ZFnnn), 
 | `ZF432` | feed_keys_per_feed |
 | `ZF433` | feeds_per_trial |
 | `ZF434` | assistants_per_trial |
+| `ZF435` | people_per_trial |
+| `ZF436` | invitation_open_for_address; invitations_all_trials_day; invitations_per_trial_day |
 | `ZF437` | view_links_per_trial |
 | `ZF438` | trial_limit_set_by_cloud |
+| `ZF439` | invitations_after_first_value |
 | `ZF440` | This Metric is archived |
 | `ZF441` | This period was condensed; workspace_limit |
 | `ZF442` | This span overlaps one condensed already |

@@ -36,6 +36,8 @@ export function Members(props: {
   joinDomain: string | null;
   myDomain: string | null;
   contacts: Profile[];
+  /** A Trial Workspace: invitations go by email only, and Domain Joining is off (spec 0040). */
+  trial?: boolean;
 }) {
   const { members, canEdit, isOwner } = props;
   const [pending, start] = useTransition();
@@ -87,7 +89,7 @@ export function Members(props: {
               <label className="text-xs text-muted-foreground">who is the Contact<select value={contact} onChange={(e) => setContact(e.target.value)} className={`${field} mt-1 block`}><option value="">nobody yet</option>{props.contacts.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}</select></label>
             )}
             <Button type="submit" variant="outline" disabled={pending}>Invite</Button>
-            <Button type="button" variant="ghost" disabled={pending} onClick={() => run(async () => setLink({ url: unwrap(await createInviteLink("member")), emailed: null }), "Link made: nobody was emailed, send it yourself")}><Link2 aria-hidden /> Link for Members</Button>
+            {!props.trial && <Button type="button" variant="ghost" disabled={pending} onClick={() => run(async () => setLink({ url: unwrap(await createInviteLink("member")), emailed: null }), "Link made: nobody was emailed, send it yourself")}><Link2 aria-hidden /> Link for Members</Button>}
           </form>
           {link && (
             <p className="text-sm">{link.emailed === null ? "Send this link:" : link.emailed ? "Emailed. You can also send this link yourself:" : "Not emailed. Send this link yourself:"} <input readOnly value={link.url} onFocus={(e) => e.target.select()} aria-label="Invitation link" className={`${field} w-full max-w-xl font-mono`} /></p>
@@ -115,7 +117,7 @@ export function Members(props: {
               ))}
             </ul>
           )}
-          {isOwner && (
+          {isOwner && !props.trial && (
             <label className="flex items-center gap-2 text-sm">
               <input type="checkbox" checked={Boolean(props.joinDomain)} disabled={pending || (!props.joinDomain && !props.myDomain)} onChange={(e) => run(() => setDomainJoining(e.target.checked))} className="size-4 accent-[var(--color-ink)]" />
               {props.joinDomain ? `People with an address at ${props.joinDomain} may ask to join` : props.myDomain ? `Let people with an address at ${props.myDomain} ask to join` : "Domain joining needs a verified company address"}

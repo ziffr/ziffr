@@ -26,7 +26,7 @@ describe("the ranges", () => {
   }
 
   it("has the spec's defaults", () => {
-    expect(trialLimitsFrom({})).toEqual({ days: 14, graceDays: 7, max: 500, metrics: 25, messagesPerDay: 100, keys: 2, feeds: 2, assistants: 1, webhooks: 2, webhookSendsPerDay: 200, viewLinks: 5 });
+    expect(trialLimitsFrom({})).toEqual({ days: 14, graceDays: 7, max: 500, people: 5, invitationsPerDay: 10, invitationsAllPerDay: 500, metrics: 25, messagesPerDay: 100, keys: 2, feeds: 2, assistants: 1, webhooks: 2, webhookSendsPerDay: 200, viewLinks: 5 });
   });
 
   it("is a setting of the Installation catalogue, one each, in the Trial Limits section", () => {
@@ -36,7 +36,7 @@ describe("the ranges", () => {
 
   it("keeps the database row inside its checks: every number the triggers read has the same range there", () => {
     // trial_limits' check constraints (migration 20270115000000) are the ranges of these limits.
-    const migration = doc("supabase/migrations/20270115000000_trial_limits.sql");
+    const migration = doc("supabase/migrations/20270115000000_trial_limits.sql") + doc("supabase/migrations/20270116500000_people_in_trial.sql");
     for (const [key, column] of Object.entries(TRIAL_LIMIT_COLUMNS)) {
       const l = TRIAL_LIMITS.find((x) => x.key === key)!;
       expect(migration, column).toContain(`${column} int not null default ${l.default} check (${column} between ${l.min} and ${l.max})`);

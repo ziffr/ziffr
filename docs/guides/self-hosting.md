@@ -251,6 +251,9 @@ Generated from the Installation Settings catalogue (`packages/core/src/installat
 | `ZIFFR_TRIAL_DAYS` | Days a trial lasts | `14` | Set, it turns trials on: whoever signs in may start a Trial Workspace, and every Workspace made here is one. Hosted Ziffr offers trials with 14 days unless set; Ziffr Cloud sets 0 (null in its API) to switch trials off, and trials that run go on until they end. Applies to trials made afterwards. 1 to 30; empty: 14. |
 | `ZIFFR_TRIAL_GRACE_DAYS` | Days a trial's data stays after it ends | `7` | After the trial ends nothing can be added, and its Owner can still download everything; then it is deleted. Applies to every trial that has ended and is waiting, too: a smaller number deletes them sooner. 1 to 60; empty: 7. |
 | `ZIFFR_TRIAL_MAX` | Trials at once | `500` | The most trials that may run at the same time. 1 to 100,000; empty: 500. |
+| `ZIFFR_TRIAL_LIMIT_PEOPLE` | People in a trial | `5` | The people one trial holds: Members, Admins and Guests, the Owner and the invitations that are still open included. 1 to 25; empty: 5. |
+| `ZIFFR_TRIAL_LIMIT_INVITATIONS_PER_DAY` | Invitation emails a trial sends a day | `10` | The invitation emails one trial sends in 24 hours, resends included. The rest of the invitations stay as links the Owner sends themselves. 0: trials send none. 0 to 50; empty: 10. |
+| `ZIFFR_TRIAL_LIMIT_INVITATIONS_ALL_PER_DAY` | Invitation emails all trials send a day | `500` | The invitation emails all trials together send in 24 hours: the lever against a campaign that mails strangers. 0: trials send none. 0 to 5,000; empty: 500. |
 | `ZIFFR_TRIAL_LIMIT_METRICS` | Metrics | `25` | The Metrics one trial may hold, Archived Metrics included. 5 to 100; empty: 25. |
 | `ZIFFR_TRIAL_LIMIT_MESSAGES_PER_DAY` | Messages a trial sends a day | `100` | The real messages one trial sends in 24 hours, over email, Slack and Telegram together. The rest wait in the Outbox. 10 to 500; empty: 100. |
 | `ZIFFR_TRIAL_LIMIT_KEYS` | Access Keys that work | `2` | The Access Keys of people that work at the same time in one trial, never past the trial's last day. 1 to 10; empty: 2. |
@@ -301,6 +304,9 @@ A Trial Workspace is something hosted Ziffr (ziffr.net) offers, not something an
 | `ZIFFR_TRIAL_DAYS` | Days a trial lasts | 1 to 30 | 14 (0 switches trials off) |
 | `ZIFFR_TRIAL_GRACE_DAYS` | Days a trial's data stays after it ends | 1 to 60 | 7 |
 | `ZIFFR_TRIAL_MAX` | Trials at once | 1 to 100,000 | 500 |
+| `ZIFFR_TRIAL_LIMIT_PEOPLE` | People in a trial | 1 to 25 | 5 |
+| `ZIFFR_TRIAL_LIMIT_INVITATIONS_PER_DAY` | Invitation emails a trial sends a day | 0 to 50 | 10 |
+| `ZIFFR_TRIAL_LIMIT_INVITATIONS_ALL_PER_DAY` | Invitation emails all trials send a day | 0 to 5,000 | 500 |
 | `ZIFFR_TRIAL_LIMIT_METRICS` | Metrics | 5 to 100 | 25 |
 | `ZIFFR_TRIAL_LIMIT_MESSAGES_PER_DAY` | Messages a trial sends a day | 10 to 500 | 100 |
 | `ZIFFR_TRIAL_LIMIT_KEYS` | Access Keys that work | 1 to 10 | 2 |

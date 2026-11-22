@@ -35,6 +35,9 @@ The Trial Limits are the numbers that bound every Trial Workspace (spec 0040). Z
 - `days`: Days a trial lasts, 1 to 30, default 14; `null` means 0, trials off. Applies to trials made afterwards.
 - `graceDays`: Days a trial's data stays after it ends, 1 to 60, default 7.
 - `max`: Trials at once, 1 to 100,000, default 500.
+- `people`: People in a trial (Members, Admins and Guests, the Owner and the invitations still open included), 1 to 25, default 5.
+- `invitationsPerDay`: Invitation emails a trial sends a day, 0 to 50, default 10. Resends count; 0 means trials send none.
+- `invitationsAllPerDay`: Invitation emails all trials together send a day, 0 to 5,000, default 500. 0 means trials send none.
 - `metrics`: Metrics, 5 to 100, default 25.
 - `messagesPerDay`: Messages a trial sends a day, 10 to 500, default 100. Over email, Slack and Telegram together.
 - `keys`: Access Keys that work, 1 to 10, default 2.
