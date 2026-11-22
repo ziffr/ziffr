@@ -13,7 +13,7 @@ import { recordServiceEvent } from "./installation-admins";
 import { DEMO_WORKSPACE_ID } from "./team";
 import { keepTrial } from "./trials";
 import { forgetStoredSettings, settingSources, settingsInEffectStrict } from "./settings-in-effect";
-import { TRIAL_LIMITS, trialLimitNumberProblem, trialLimitOf, trialLimitProblem, trialLimitsFrom, type TrialLimitKey } from "./trial-limits";
+import { TRIAL_LIMITS, trialLimitNumberProblem, trialLimitsFrom, type TrialLimitKey } from "./trial-limits";
 import { trialLimitEnvironment } from "./trial-limits-in-effect";
 import { LABEL_MAX, LIMIT_MAX, limitLabel, limitOf, metricCount, roomOf, syncDefaultLimit } from "./workspace-limits";
 
