@@ -17,6 +17,7 @@ import { deckTemplateFromFile } from "./deck-template-file";
 import { workflowTemplateFromFile } from "./workflow-template-file";
 import { themeFromFile } from "./theme-file";
 import { checkViewDesignValue, type ViewDesign } from "./view-design";
+import { tagNamesOf, TAGS_PER_ENTRY } from "./tag-names";
 import { designWithRecipe } from "./design-files";
 import { MAX_WORKSPACE_DESIGNS } from "./view-designs";
 import type { DashboardTemplateBody, DeckTemplateBody, Slot, ThemeSlides, ThemeTokens, WorkflowTemplateBody } from "./types";
@@ -73,6 +74,8 @@ export function storedItems(pack: Pack) {
       format: m.valueFormat ?? "number", decimals: m.decimals ?? 0, period: m.period, submission_rule: m.submissionRule ?? "overwrite", polarity: m.polarity,
       target_min: m.targetMin ?? null, target_max: m.targetMax ?? null, sources: m.formula ? [] : (m.sources ?? ["web_form", "mail", "slack", "telegram", "api"]),
       aggregation: m.aggregation, industries: m.industries ?? null, segments: m.segments ?? null, formula: m.formula ?? null,
+      // Only an entry that brings Tags has the field, so the hash of every entry installed before Tags existed stays what it was.
+      ...(m.tags?.length ? { tags: tagNamesOf(m.tags, TAGS_PER_ENTRY) } : {}),
     };
     return { key, ...row, hash: itemHash(row) };
   });

@@ -7,6 +7,8 @@ import { db } from "./db";
 import { can, Forbidden, type Actor } from "./actor";
 import { ZIFFR_VERSION } from "./ziffr-version";
 import { visibleMetricIds } from "./access";
+import { tagSight } from "./tag-sight";
+import { normaliseTagName, tagKey, tagNameProblem, TAGS_PER_ENTRY } from "./tag-names";
 import { getMetrics } from "./workspace-data";
 import { checkPack, PACK_FORMAT, PACK_LICENSES, type Pack } from "./pack";
 import { checkSchema, type Schema } from "./json-check";
@@ -82,10 +84,13 @@ export async function exportOptions(actor: Actor): Promise<ExportOptions> {
 
 type Row = Record<string, unknown>;
 
+/** What else the person chose about the file: `tags: false` leaves the Tags of Metrics out (they go in by default). */
+export type ExportOptionsChosen = { tags?: boolean };
+
 /** Makes a Pack of what the person picked: each item as its format writes it, keyed by its key in the Pack it came
  * from or by its name, in the order of their keys, so exporting what a Pack installed gives the same file again.
  * Checked as any Pack before it is given out. */
-export async function exportPack(actor: Actor, manifest: ExportManifest, choice: ExportChoice): Promise<ExportResult> {
+export async function exportPack(actor: Actor, manifest: ExportManifest, choice: ExportChoice, chosen: ExportOptionsChosen = {}): Promise<ExportResult> {
   assertMayExport(actor);
   const ws = actor.workspaceId;
   const ids = (k: keyof ExportOptions) => [...new Set((Array.isArray(choice?.[k]) ? choice[k]! : []).map(Number).filter(Number.isInteger))].slice(0, 50);
@@ -115,11 +120,14 @@ export async function exportPack(actor: Actor, manifest: ExportManifest, choice:
   // Metrics and catalog entries: the entries a Pack holds. A formula names others by their key in this Pack.
   const metricRows = ids("metrics").filter((id) => seen.has(id)).map((id) => seen.get(id)!);
   for (const id of ids("metrics")) if (!seen.has(id)) leftOut.push({ name: `Metric ${id}`, why: "You do not see it." });
-  const catRows = await rows("catalog_metrics", ids("catalog"), "id, category, name, description, unit, unit_position, format, decimals, period, submission_rule, polarity, target_min, target_max, sources, aggregation, industries, segments, formula, pack_key, pack_install_id");
+  const catRows = await rows("catalog_metrics", ids("catalog"), "id, category, name, description, unit, unit_position, format, decimals, period, submission_rule, polarity, target_min, target_max, sources, aggregation, industries, segments, formula, tags, pack_key, pack_install_id");
   const entries = [
     ...metricRows.map((m) => ({ src: "metric" as const, m: m as unknown as Row, key: keyFor(null, m.name), slugOrKey: m.slug })),
     ...catRows.map((r) => ({ src: "catalog" as const, m: r, key: keyFor(r.pack_key, String(r.name)), slugOrKey: String(r.pack_key ?? "") })),
   ];
+  // The Tags a Metric carries, as this person sees them (only Metrics they see are in the file, so only Tags they see through
+  // one of those): never a Tag of a Metric that was not picked, and nothing of a Tag only hidden Metrics carry.
+  const seenTags = chosen?.tags === false || !metricRows.length ? new Map<number, string[]>() : (await tagSight(actor)).namesByMetric;
   const keyOfInput = new Map(entries.map((e) => [e.slugOrKey, e.key]));
   const metrics: Pack["contents"]["metrics"] = [];
   for (const e of entries) {
@@ -136,12 +144,14 @@ export async function exportPack(actor: Actor, manifest: ExportManifest, choice:
     const description = plain(m.description, 1000);
     const unit = plain(m.unit, 20);
     const category = e.src === "catalog" && m.category !== installs.get(Number(m.pack_install_id)) ? plain(m.category, 60) : null;
+    const tags = chosen?.tags === false ? [] : packTags(e.src === "metric" ? seenTags.get(Number(m.id)) : m.tags, name, leftOut);
     const file: MetricFile = {
       format: "ziffr.metric/1", name,
       ...(description ? { description } : {}),
       ...(category ? { category } : {}),
       ...(Array.isArray(m.industries) && m.industries.length ? { industries: m.industries as string[] } : {}),
       ...(Array.isArray(m.segments) && m.segments.length ? { segments: m.segments as string[] } : {}),
+      ...(tags.length ? { tags } : {}),
       period: m.period as MetricFile["period"], aggregation: m.aggregation as MetricFile["aggregation"], polarity: m.polarity as MetricFile["polarity"],
       ...(unit ? { unit } : {}),
       unitPosition: m.unit_position as MetricFile["unitPosition"], valueFormat: m.format as MetricFile["valueFormat"], decimals: Number(m.decimals), submissionRule: m.submission_rule as MetricFile["submissionRule"],
@@ -212,6 +222,20 @@ export async function exportPack(actor: Actor, manifest: ExportManifest, choice:
   const res = checkPack(text);
   if (!res.ok) throw new Error(`The Pack cannot be made: ${res.problems[0].path ? `${res.problems[0].path} ` : ""}${res.problems[0].message}`);
   return { text, fileName: `${pack.id.split("/").pop() || "pack"}.pack.json`, leftOut };
+}
+
+/** Tags for an entry of a Pack: those that meet the Pack's rules (plain text, the Tag rules), at most 5; what stays out is said. */
+function packTags(raw: unknown, name: string, leftOut: ExportResult["leftOut"]): string[] {
+  const kept: string[] = [];
+  const out: string[] = [];
+  for (const r of Array.isArray(raw) ? raw : []) {
+    const t = normaliseTagName(r);
+    if (kept.some((k) => tagKey(k) === tagKey(t))) continue;
+    if (tagNameProblem(t) || !plain(t, 128) || kept.length >= TAGS_PER_ENTRY) out.push(t);
+    else kept.push(t);
+  }
+  if (out.length) leftOut.push({ name: `Tags of ${name}`, why: `A Pack entry carries at most ${TAGS_PER_ENTRY} Tags of plain words: ${out.map((t) => `“${t}”`).join(", ")} stayed out.` });
+  return kept;
 }
 
 /** Whether an item passed its format's checks; if not, it is left out with the first problem. */

@@ -20,12 +20,13 @@ export function ExportPack({ options }: { options: ExportOptions }) {
   const [picked, setPicked] = useState<ExportChoice>({});
   const [m, setM] = useState({ id: "", name: "", version: "1.0.0", summary: "", author: "", license: "CC-BY-4.0" });
   const [leftOut, setLeftOut] = useState<{ name: string; why: string }[]>([]);
+  const [withTags, setWithTags] = useState(true);
   const [pending, start] = useTransition();
   const count = Object.values(picked).reduce((n, xs) => n + (xs?.length ?? 0), 0);
   const toggle = (k: keyof ExportOptions, id: number) => setPicked({ ...picked, [k]: (picked[k] ?? []).includes(id) ? picked[k]!.filter((x) => x !== id) : [...(picked[k] ?? []), id] });
   const make = () => start(async () => {
     try {
-      const res = unwrap(await exportAsPack(m, picked));
+      const res = unwrap(await exportAsPack(m, picked, withTags));
       const url = URL.createObjectURL(new Blob([res.text], { type: "application/json" }));
       const a = Object.assign(document.createElement("a"), { href: url, download: res.fileName });
       a.click();
@@ -71,6 +72,9 @@ export function ExportPack({ options }: { options: ExportOptions }) {
                 </ul>
               </fieldset>
             ))}
+            {options.metrics.length > 0 && (
+              <label className="flex items-start gap-2 text-xs"><input type="checkbox" checked={withTags} onChange={(e) => setWithTags(e.target.checked)} className="mt-0.5 accent-[var(--color-ink)]" /><span>Carry the Tags of the Metrics you pick<span className="block text-muted-foreground">Up to 5 per entry, only Tags you see on those Metrics. Untick to leave them out.</span></span></label>
+            )}
             {leftOut.length > 0 && (
               <div role="status" className="rounded-[var(--radius-input)] bg-muted p-2.5 text-xs">
                 <p className="font-medium">Stayed out of the last file</p>

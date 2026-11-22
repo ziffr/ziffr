@@ -69,6 +69,7 @@ export function CatalogBrowser({ items, fit, money, numberStyle }: { items: Cata
                       <span className="rounded bg-muted px-1.5 py-0.5">{PERIOD_LABEL[c.period]}</span>
                       <span className="rounded bg-muted px-1.5 py-0.5">{POLARITY_LABEL[c.polarity]}</span>
                       <span className="rounded bg-muted px-1.5 py-0.5">Target {targetText({ ...c, ...(c.format === "currency" ? money : {}), target_min: c.target_min === null ? null : Number(c.target_min), target_max: c.target_max === null ? null : Number(c.target_max) }, numberStyle)}</span>
+                      {(c.tags ?? []).map((t) => <span key={t} className="rounded-full border border-[var(--color-rule-2)] px-1.5 py-0.5">{t}</span>)}
                     </div>
                   </Link>
                 ))}

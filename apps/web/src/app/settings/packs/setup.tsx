@@ -79,6 +79,9 @@ function SetUpForm({ options, viewer, onClose }: { options: PackSetupOptions; vi
           {made.dashboardId !== null && <li><Link href={`/dashboards/${made.dashboardId}`} className="underline">The dashboard</Link></li>}
           {made.workflowId !== null && <li><Link href={`/workflows?id=${made.workflowId}`} className="underline">The Workflow</Link></li>}
         </ul>
+        {made.tagsLeftOut.length > 0 && (
+          <p role="status" className="mt-2 text-xs">Some Tags stayed off their Metrics because of the Tag limits (10 per Metric, 200 in the Workspace): {made.tagsLeftOut.map((l) => `${l.metric}: ${l.tags.join(", ")}`).join("; ")}. Merge or delete Tags that are not needed, then add these by hand.</p>
+        )}
         <Button variant="ghost" size="sm" className="mt-2" onClick={onClose}>Done</Button>
       </div>
     );
@@ -98,7 +101,7 @@ function SetUpForm({ options, viewer, onClose }: { options: PackSetupOptions; vi
           return (
             <label key={e.key} className="flex items-start gap-2">
               <input type="checkbox" checked={making.has(e.key)} disabled={needed} onChange={(ev) => toggle(e.key, ev.target.checked)} className="mt-0.5 accent-[var(--color-ink)]" />
-              <span>{e.name} <span className="text-xs text-muted-foreground">by {e.period}{e.unit ? `, in ${e.unit}` : ""}{e.derived ? `, a Derived Metric computed from ${e.inputs.map((i) => byKey.get(i)?.name ?? i).join(" and ")}, made too` : ""}{needed ? ", made for a Derived Metric" : ""}</span></span>
+              <span>{e.name} <span className="text-xs text-muted-foreground">by {e.period}{e.unit ? `, in ${e.unit}` : ""}{e.derived ? `, a Derived Metric computed from ${e.inputs.map((i) => byKey.get(i)?.name ?? i).join(" and ")}, made too` : ""}{needed ? ", made for a Derived Metric" : ""}</span>{e.tags.length > 0 && <span className="mt-0.5 flex flex-wrap gap-1">{e.tags.map((t) => <span key={t} className="rounded-full bg-muted px-1.5 py-0.5 text-[11px]">{t}</span>)}</span>}</span>
             </label>
           );
         })}

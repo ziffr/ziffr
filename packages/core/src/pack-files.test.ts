@@ -123,6 +123,22 @@ const METRIC_HOSTILE: Case[] = [
   ["a formula with other characters", { ...METRIC, sources: undefined, formula: "{a}; drop table" }, "a formula of + - * /"],
   ["a formula with Sources", { ...METRIC, formula: "{a} * 2" }, "has no Sources"],
   ["an industry that is not a key", { ...METRIC, industries: ["SaaS Companies"] }, "a key in lower case"],
+  // Tags (spec 0038): the same rules as a Tag typed in the app, one copy of them.
+  ["more than 5 Tags", { ...METRIC, tags: ["a", "b", "c", "d", "e", "f"] }, "has 6 entries; at most 5"],
+  ["11 Tags", { ...METRIC, tags: Array.from({ length: 11 }, (_, i) => `t${i}`) }, "has 11 entries; at most 5"],
+  ["a Tag that is not a word", { ...METRIC, tags: [7] }, "must be a text"],
+  ["an empty Tag", { ...METRIC, tags: [""] }, "must not be empty"],
+  ["a Tag of only a hash", { ...METRIC, tags: ["#"] }, "A Tag needs a word"],
+  ["a Tag of 33 characters", { ...METRIC, tags: ["x".repeat(33)] }, "A Tag is at most 32 characters"],
+  ["a Tag with a comma", { ...METRIC, tags: ["a,b"] }, "has no comma"],
+  ["a Tag with markup", { ...METRIC, tags: ["<img src=x onerror=alert(1)>"] }, "without markup"],
+  ["a Tag with a web address", { ...METRIC, tags: ["evil.com"] }, "without markup or web addresses"],
+  ["a Tag with a control character", { ...METRIC, tags: ["a\u0007b"] }, "without markup or web addresses"],
+  ["a Tag with a line break", { ...METRIC, tags: ["a\nb"] }, "without markup or web addresses"],
+  ["a Tag twice, in other capitals", { ...METRIC, tags: ["Finance", "finance"] }, "names a Tag twice"],
+  ["a Tag as the same word with a hash", { ...METRIC, tags: ["finance", "#finance"] }, "names a Tag twice"],
+  ["Tags as one text", { ...METRIC, tags: "finance, weekly" }, "must be a list"],
+  ["Tags as an object", { ...METRIC, tags: { 0: "finance" } }, "must be a list"],
 ];
 
 const widget = (extra: Record<string, unknown>) => ({ ...DASHBOARD, widgets: [{ view: "number", slots: [0], x: 0, y: 0, w: 6, h: 4, ...extra }] });

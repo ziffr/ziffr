@@ -85,6 +85,8 @@ export type CatalogMetric = Omit<MetricDescription, "attainment_method"> & {
   industries: string[] | null;
   /** Customer segments it suits ("b2b", "b2c"); null means any. */
   segments: string[] | null;
+  /** Tags a Metric made from the entry gets (spec 0038): free words, up to 5, from a Pack; null for none. */
+  tags?: string[] | null;
 };
 
 /** One value of a metric for one period (GLOSSARY: Observation). */

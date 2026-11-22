@@ -1,5 +1,6 @@
 // A Metric's page (GLOSSARY: Metric, Comparison, Target Series, Observation, Action, Workflow): its numbers first,
 // then one tab each for analyses, targets, history and how values arrive, instead of one long scroll.
+import { normaliseTagName, tagNameProblem } from "@ziffr/core/tag-names";
 import { approvalQuestionForWeb } from "@ziffr/core/approval-question";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -82,18 +83,22 @@ function breakdownShown<R extends { value: number }>(byPeriod: Record<string, R[
 /** The sentence under a just-created Metric: only for its owner and Editors, and only right after creating it. */
 const createdNoteFor = (created: string | undefined, canEdit: boolean, actor: Parameters<typeof firstAsksFor>[0], id: number) => (created && canEdit ? firstAsksFor(actor, id) : Promise.resolve(null));
 
+/** The Tags a Pack entry could not put on a just-made Metric, read from the address: at most 5 words that pass the Tag rules, shown as text only. */
+const leftOutTags = (raw: string | undefined): string[] => (raw ?? "").split(",").slice(0, 5).map(normaliseTagName).filter((t) => !tagNameProblem(t));
+
 /** The sentence over a just-created Metric: a Derived Metric needs no values, so it says so instead of "no values yet". */
-function CreatedNote({ derived, note, demo }: { derived: boolean; note: string | null; demo: boolean }) {
+function CreatedNote({ derived, note, demo, tagsLeftOut }: { derived: boolean; note: string | null; demo: boolean; tagsLeftOut: string[] }) {
   return (
     <div className="mb-4 stock rounded-[var(--radius-card)] p-4 text-sm">
       <span className="font-medium">Metric created.</span>{" "}
       {derived ? "It is calculated from other Metrics, so nobody is asked for it: it has a value in each period its inputs do." : <>It has no values yet. {note}</>}
       {demo && !derived && <>{" "}<Link href="/connectors/sources" className="font-medium underline">Go to Sources</Link> to answer it.</>}
+      {tagsLeftOut.length > 0 && <p className="mt-1">The Tag limits (10 per Metric, 200 in the Workspace) kept {tagsLeftOut.map((t) => `“${t}”`).join(", ")} off it. Merge or delete Tags that are not needed, then add them by hand.</p>}
     </div>
   );
 }
 
-export default async function MetricPage({ params, searchParams }: { params: Promise<{ slug: string }>; searchParams: Promise<{ vs?: string; created?: string; bp?: string; full?: string; tab?: string; suggest?: string }> }) {
+export default async function MetricPage({ params, searchParams }: { params: Promise<{ slug: string }>; searchParams: Promise<{ vs?: string; created?: string; bp?: string; full?: string; tab?: string; suggest?: string; tags_left_out?: string }> }) {
   const { slug } = await params;
   const sp = await searchParams;
   const tab: Tab = TABS.some((t) => t.id === sp.tab) ? (sp.tab as Tab) : "overview";
@@ -178,7 +183,7 @@ export default async function MetricPage({ params, searchParams }: { params: Pro
 
   return (
     <>
-      {sp.created && <CreatedNote derived={Boolean(metric.formula)} note={createdNote} demo={demo} />}
+      {sp.created && <CreatedNote derived={Boolean(metric.formula)} note={createdNote} demo={demo} tagsLeftOut={leftOutTags(sp.tags_left_out)} />}
       <PageHeader
         title={
           <span className="flex items-center gap-2">
