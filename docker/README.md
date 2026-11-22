@@ -62,7 +62,7 @@ All go in `.env` next to `compose.yml`, and all are optional. After changing one
 | `ZIFFR_ONE_DEFAULT_PER_PERSON` | `1`: each person may own only one Workspace on the default Workspace Limit |
 | `ZIFFR_DEFAULT_METRICS_LIMIT` | The most Metrics a Workspace may hold unless it has a limit of its own (Archived Metrics not counted); unset means no limit. Also on the Installation Settings page |
 | `ZIFFR_MARKETPLACE` | `on` connects to the Marketplace for Packs (spec 0030); off unless set. `ZIFFR_MARKETPLACE_URL` names another Marketplace (https). Also on the Installation Settings page |
-| `ZIFFR_DEFAULT_LIMIT_LABEL` | What the default limit is called, such as Free; at most 30 characters |
+| `ZIFFR_DEFAULT_LIMIT_LABEL` | What the default limit is called, such as Standard; at most 30 characters |
 | `ZIFFR_CLOUD_KEY`, `ZIFFR_CLOUD_URL` | Hosted Ziffr only: the secret that signs Ziffr Cloud's API calls and the Owners' handover (at least 32 characters, environment only), and where Owners are handed over to. Self-hosters leave them unset |
 | `ZIFFR_LIMIT_*` (15 variables, listed in `.env.example`) | Sending limits (ticket #516): emails, chat messages, Alerts, values, calls, Webhooks, sign-in links, Contacts and Snapshots per day, hour or minute, each moved within a range and never switched off. Also on the Installation Settings page |
 | `ZIFFR_DELETE_UNUSED_AFTER_DAYS` | With a default limit: days without a sign-in or a value after which a Workspace on it is warned, and deleted 14 days later (30 to 3650; unset: never). Also on the Installation Settings page |

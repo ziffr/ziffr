@@ -2,6 +2,8 @@
 
 **Status:** done. **Tracking issue:** #258 (label `tracking`); tickets #264 to #272 carry `spec:0029`. Its security review is in #272. The decisions that are hard to reverse, and the options weighed, are in [ADR 0013](../adr/0013-hosted-ziffr-priced-by-size-billing-outside-marketplace-without-code.md).
 
+> **Changed course (spec 0040, the owner, 2026-11-22):** there is no Free Size any more; whoever wants Ziffr for free runs it themselves. A trial is only on hosted Ziffr, may have a team, and ends by subscribing to a Size or by closing, with a Workspace Export for running it yourself, never by becoming Free. Cancelling a Size likewise closes the Workspace after the grace days instead of moving it to Free. Everything below that names a Free Size, a trial that becomes Free, one Free Workspace per person or the unused-Free-Workspace rule is superseded; the Sizes are Small, Team and Business, larger on request.
+
 ## Problem Statement
 
 Ziffr can be run by anyone, but most teams will not run a server to track their numbers. They want to sign up, try it and pay by card. Nothing in Ziffr today can be paid for: a Trial Workspace (spec 0021) is deleted after its days are over, and an ordinary Workspace has no limit at all.

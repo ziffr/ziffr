@@ -87,7 +87,7 @@ To connect Slack workspaces other than the one that owns the app, turn on **Mana
 
 A **Workspace Limit** is the most Metrics a Workspace may hold. Archived Metrics do not count; Derived Metrics do. Without a default and without a limit of its own, a Workspace has no limit, which is how most Installations run.
 
-- **Default limit** and **Name of the default** apply to every Workspace without a limit of its own, such as 10 and "Free". Empty means no limit. "Working" next to the title means a default is set. The demo never has a limit, and a Trial Workspace keeps its own rule of 25 Metrics while it runs.
+- **Default limit** and **Name of the default** apply to every Workspace without a limit of its own, such as 10 and "Standard". Empty means no limit. "Working" next to the title means a default is set. The demo never has a limit, and a Trial Workspace keeps its own rule of 25 Metrics while it runs.
 - **Workspaces** lists every Workspace by name with how many Metrics it holds and its limit, marked "the default" when it has none of its own, and since when it is over its limit. Nothing else of a Workspace is shown: being an Installation Admin still shows no Workspace's data.
 - **Change** on a Workspace sets a limit of its own: the most Metrics (empty for no limit at all) and its name, such as "Team". **Use the default** gives it back to the default. Under a limit of its own the page says who set it and when; a limit set by Ziffr Cloud says so, and saving here overrides it until Ziffr Cloud sets it again.
 

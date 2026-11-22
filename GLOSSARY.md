@@ -332,11 +332,19 @@ One team's own space in Ziffr, with its people, metrics, dashboards, decks, them
 _Avoid_: Tenant, organisation, account, company
 
 **Trial Workspace**:
-A Workspace on an Installation that offers trials, made by one person to try Ziffr. Its Connectors are real but reach only its Owner, nobody can be invited to it, and a set number of days after it was made it is deleted, or, where the Installation keeps trials, becomes an ordinary Workspace with the Installation's default Workspace Limit. On such an Installation every Workspace is one. It starts with the Test Metric only, a Workflow that asks its Owner for it each day and a small dashboard showing it: nothing made up, so its first value is the Owner's own.
+A Workspace on hosted Ziffr that a person or a team makes to try Ziffr for a set number of days; only an Installation with Ziffr Cloud offers them. Its Owner may invite colleagues within the Trial Limits, and every Connector reaches those who accepted, but Contacts stay simulated. At its end it is subscribed to (a Size, everything kept) or closed, its Owner takes a Workspace Export, and it is deleted after a set number of days. It starts with the Test Metric only, a Workflow that asks its Owner for it each day and a small dashboard showing it: nothing made up, so its first value is the Owner's own.
 _Avoid_: Sandbox, test workspace, free trial
 
+**Trial Limit**:
+One of the numbers that bound every Trial Workspace: people, invitation emails a day, Metrics, messages a day, keys, Feeds, assistants, Webhooks, View Links, and the days a trial lasts and its data stays. Ziffr Cloud or an Installation Admin of hosted Ziffr sets them, each within a range, and a change applies to running trials at once. Lowering one never deletes or stops what a trial has: only what is new waits. Not a Workspace Limit, which counts Metrics of an ordinary Workspace, nor a Sending Limit, which is the same for every Workspace.
+_Avoid_: Plan limit, quota, entitlement
+
+**Workspace Export**:
+The file a Workspace's Owner downloads that holds the whole Workspace (its Metrics and their values, dashboards, decks, Workflows, Themes and people as invitations, but no secret, key or Connector link), so that another Installation can import it as a new Workspace. Not an Archived Metric, nor a Pack, which holds no values.
+_Avoid_: Backup, dump, archive
+
 **Trial Guide**:
-The few steps a new Trial Workspace opens on, one at a time: where Ziffr should ask its Owner, connecting those ways, Ask me now on the Test Metric, and its first value arriving. Each step can be skipped; until its Owner reaches the end or skips the whole guide, the trial's home and Try it lead back to it at the step reached. It sets the one way the Owner is asked each day: the first picked of Telegram, Slack and email. At its end it shows the ways in that need no asking: an assistant through the MCP Server, and a program through a Feed it can make with its Feed Key. Try it stays as the reference of every way.
+The few steps a new Trial Workspace opens on, one at a time: where Ziffr should ask its Owner, connecting those ways, Ask me now on the Test Metric, its first value arriving, and inviting colleagues. Each step can be skipped; until its Owner reaches the end or skips the whole guide, the trial's home and Try it lead back to it at the step reached. It sets the one way the Owner is asked each day: the first picked of Telegram, Slack and email. At its end it shows the ways in that need no asking: an assistant through the MCP Server, and a program through a Feed it can make with its Feed Key. Try it stays as the reference of every way.
 _Avoid_: Wizard, onboarding, tour
 
 **Test Metric**:
@@ -344,7 +352,7 @@ The Metric a Trial Workspace has for the Trial Guide to ask for: Cups of coffee,
 _Avoid_: Demo metric, sample metric
 
 **Installation**:
-One running Ziffr: its app, its database and its keys, reached at one address. It can hold many workspaces, and whoever runs it decides its settings, such as whether it offers the demo and whether it offers Trial Workspaces.
+One running Ziffr: its app, its database and its keys, reached at one address. It can hold many workspaces, and whoever runs it decides its settings, such as whether it offers the demo. Only hosted Ziffr offers Trial Workspaces.
 _Avoid_: Instance, deployment, server, tenant
 
 **Installation Admin**:
@@ -368,11 +376,11 @@ The most Metrics a Workspace may hold, Archived Metrics not counted, set for it 
 _Avoid_: Quota, cap, allowance, plan
 
 **Size**:
-What a Workspace on hosted Ziffr is booked for, named by how many Metrics it may hold: Free, Small, Team, Business, or larger on request. Every Size has every feature and any number of members. In Ziffr itself a Size is a Workspace Limit with a name; its price is known only to Ziffr Cloud.
+What a Workspace on hosted Ziffr is booked for, named by how many Metrics it may hold: Small, Team, Business, or larger on request. There is no Free Size: whoever wants Ziffr for free runs it themselves. Every Size has every feature and any number of members. In Ziffr itself a Size is a Workspace Limit with a name; its price is known only to Ziffr Cloud.
 _Avoid_: Plan, tier, package, edition, subscription
 
 **Ziffr Cloud**:
-The private service that runs hosted Ziffr's billing: Sizes, prices, payments, invoices and the Marketplace. It sets Workspace Limits through an API of its own, which can read a Workspace's count of Metrics and nothing of its data.
+The private service that runs hosted Ziffr's billing: Sizes, prices, payments, invoices and the Marketplace. It sets Workspace Limits and Trial Limits through an API of its own, which can read a Workspace's count of Metrics and nothing of its data.
 _Avoid_: Billing service, SaaS, hosted edition
 
 **Pack**:
