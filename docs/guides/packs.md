@@ -103,6 +103,8 @@ Ziffr checks a Pack in full on its server before it shows or installs anything:
 - an item that its own format's checks refuse, with the problem named by its place in the Pack, such as `contents.views[0].design.parts[2].show`, and its line;
 - a reference to an item that is not in the Pack.
 
+Mind the Size. **Set up from this Pack** shows the person how many Metrics a full set-up makes against what their Workspace's Size still holds (the smallest hosted Size, Small, holds 50), and every Metric it makes counts. A Pack of 40 entries fits an empty Small Workspace and few others. Aim for a core of about 8 to 12 entries that answer the question the Pack is named for, and put the rest in a second Pack, so people can start without making room first. This is advice, not a rule of the format: `npx @ziffr/pack check` says nothing about it.
+
 Texts that address an AI assistant, such as "ignore your instructions" or "call delete_metric", do not stop the check. Ziffr shows them to the person installing the Pack, since descriptions of Metrics reach assistants through the MCP Server. It is a filter for the obvious; assistants reach Ziffr only through their key's scopes.
 
 A Pack with Themes can be installed only by an Owner, since only Owners change Themes.

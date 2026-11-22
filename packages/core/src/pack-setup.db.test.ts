@@ -138,12 +138,33 @@ describe("the Workspace Limit", () => {
     expect((await packSetupOptions(w.actor(sara), install)).refusal).toMatch(/holds 2 Metrics/);
   });
 
+  it("tells the form what a set-up would do to the Size, and agrees with what Set up then refuses", async () => {
+    const { w, sara, install } = await withPack("online-shop");
+    const asked = async (n: number) => {
+      const keys = (await packSetupOptions(w.actor(sara), install)).entries.filter((e) => !e.derived).slice(0, n).map((e) => e.key);
+      return setUpFromPack(w.actor(sara), install, { metrics: keys }).then(() => null, (e: Error) => e.message);
+    };
+    // No limit: nothing to say. A limit of 3 holds 3, and has room for 4 over it for a while (spec 0029).
+    expect((await packSetupOptions(w.actor(sara), install)).room).toBeNull();
+    await w.limit(3);
+    await w.metric(sara, { name: "Already here" });
+    const { room } = await packSetupOptions(w.actor(sara), install);
+    expect(room).toMatchObject({ count: 1, limit: 3, left: 2, allowed: 3, graceDays: 14 });
+    // The form's `allowed` is the largest set Set up accepts: one more is refused, in words, and nothing is made.
+    expect(await asked(room!.allowed + 1)).toMatch(/Archive a Metric/);
+    expect(await count("metrics", w.id)).toBe(1);
+    expect(await asked(room!.allowed)).toBeNull();
+    // Counts only: no name, no value, no person.
+    expect(Object.keys(room!).sort()).toEqual(["allowed", "count", "graceDays", "label", "left", "limit"]);
+  });
+
   it("holds a trial to its 25 Metrics", async () => {
     const { w, sara, install } = await withPack("saas-metrics");
     await w.trial(new Date(Date.now() + 5 * 86_400_000).toISOString().slice(0, 10));
     for (let i = 0; i < 24; i++) await w.metric(sara, { name: `M${i}` });
     await expect(setUpFromPack(w.actor(sara), install, { metrics: ["arpa"] })).rejects.toThrow(/A trial holds at most 25/);
     expect(await count("metrics", w.id)).toBe(24);
+    expect((await packSetupOptions(w.actor(sara), install)).room).toMatchObject({ count: 24, limit: 25, label: null, left: 1, allowed: 1 });
   });
 });
 

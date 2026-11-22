@@ -11,7 +11,7 @@ import { toast } from "sonner";
 import { shown, unwrap } from "@/lib/action-error";
 import { Button } from "@/components/ui/button";
 import { packSetup, setUpPack } from "@/app/pack-setup-actions";
-import type { PackSetupOptions, PackSetupResult } from "@ziffr/core/pack-setup";
+import type { PackSetupOptions, PackSetupResult, PackSetupRoom } from "@ziffr/core/pack-setup";
 
 const field = "h-8 rounded-[var(--radius-input)] border border-input bg-transparent px-2 text-sm";
 
@@ -24,6 +24,17 @@ export function SetUpFromPack({ installId, viewer }: { installId: number; viewer
   });
   if (!options) return <Button variant="outline" size="sm" className="mt-3" disabled={pending} onClick={open}><Wand2 aria-hidden /> Set up from this Pack</Button>;
   return <SetUpForm options={options} viewer={viewer} onClose={() => setOptions(null)} />;
+}
+
+/** What making `n` Metrics does to the Workspace's limit, said before the button is pressed: it fits, it goes over the
+ * Size within the room and its days over, or it does not fit. Numbers only; the core checks again on Set up. */
+function Fit({ room, n }: { room: PackSetupRoom; n: number }) {
+  const where = room.label ? `Size ${room.label}` : "the limit";
+  const way = <>Untick some, archive Metrics, or <Link href="/settings/workspace#size" className="underline">change the Size</Link>.</>;
+  if (n === 0) return <p className="text-xs text-muted-foreground">{room.left.toLocaleString("en-US")} of {room.limit.toLocaleString("en-US")} Metrics left in {where}.</p>;
+  if (n > room.allowed) return <p role="alert" className="font-medium">Makes {n} Metric{n === 1 ? "" : "s"}, but only {room.allowed} fit now ({room.left.toLocaleString("en-US")} of {room.limit.toLocaleString("en-US")} left in {where}). {way}</p>;
+  if (n > room.left) return <p role="status" className="text-xs">Makes {n} Metric{n === 1 ? "" : "s"}: {n - room.left} more than {where} holds ({room.left.toLocaleString("en-US")} of {room.limit.toLocaleString("en-US")} left). The Workspace may be over its limit for {room.graceDays} days; after that new Metrics wait. <Link href="/settings/workspace#size" className="underline">Size and usage</Link></p>;
+  return <p className="text-xs text-muted-foreground">Makes {n} Metric{n === 1 ? "" : "s"}: {room.left - n} of {room.limit.toLocaleString("en-US")} left in {where} afterwards.</p>;
 }
 
 function SetUpForm({ options, viewer, onClose }: { options: PackSetupOptions; viewer: string; onClose: () => void }) {
@@ -93,6 +104,8 @@ function SetUpForm({ options, viewer, onClose }: { options: PackSetupOptions; vi
         <p className="text-xs text-muted-foreground">Makes ordinary Metrics, a dashboard and a Workflow, as if you made them by hand. Each Metric counts towards the Workspace&rsquo;s limit.</p>
       </div>
       {options.refusal && <p role="alert" className="font-medium">{options.refusal}</p>}
+      {options.room && !options.refusal && <Fit room={options.room} n={making.size} />}
+      {options.room && options.refusal && <p className="text-xs"><Link href="/settings/workspace#size" className="underline">Size and usage</Link></p>}
 
       <fieldset className="space-y-1">
         <legend className="mb-1 text-xs font-medium">Metrics to make</legend>
@@ -167,7 +180,7 @@ function SetUpForm({ options, viewer, onClose }: { options: PackSetupOptions; vi
 
       <div className="flex justify-end gap-2">
         <Button variant="outline" onClick={onClose}>Cancel</Button>
-        <Button disabled={!ready || pending || (!!options.refusal && making.size > 0)} onClick={submit}>Set up{making.size ? ` ${making.size} Metric${making.size === 1 ? "" : "s"}` : ""}</Button>
+        <Button disabled={!ready || pending || (!!options.refusal && making.size > 0) || (!!options.room && making.size > options.room.allowed)} onClick={submit}>Set up{making.size ? ` ${making.size} Metric${making.size === 1 ? "" : "s"}` : ""}</Button>
       </div>
     </div>
   );
