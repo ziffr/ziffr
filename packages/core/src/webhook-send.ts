@@ -129,6 +129,7 @@ async function personalValueMessage(send: Send, env: Omit<MessageEnvelope, "repl
     if (!view || view.pending || view.value === null) return null;
     return buildValueRecordedMessage({ metric, period, value: at(view.value) ?? "", target: at(view.target.value), link }, env);
   }
+  if (!view) return null;
   // The number only where the person may see a waiting value, asked after the value was read, so a value that arrived
   // in between is judged by the state it came with. Never because a value merely looks published.
   let shown = view && view.value !== null && (await mayPeekWaitingValue(send.workspace_id, personId, m, period)) ? at(view.value) : null;
