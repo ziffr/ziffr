@@ -82,3 +82,5 @@ pnpm --filter @ziffr/core exec stryker run --mutate src/compare.ts
 2. Write its rule into the catalogue, with a row for every function the module exports.
 3. Write a reference in `test/reference/`, with a few results worked out by hand, and a test that holds the code to it on hand-made and generated cases.
 4. Run `pnpm test` (coverage must be 100 %) and `pnpm --filter @ziffr/core exec stryker run --mutate <the module>` (at least 95 %).
+
+A calculation that others may also write is built as an Extension instead (spec 0042): a folder `extensions/<author>/<name>/` with its own reference, hand-worked cases and catalogue entry, held by the Extension Kit's checks, which run it, compare it with the reference, require every branch to run and run a mutation check. Run `node scripts/generate-extensions.mjs` to put the folder in the registry (`packages/core/src/extensions.ts`); `extensions.test.ts` fails when a folder is missing from it or it names one that is not there. The core reads the Extension's Method through the registry and keeps its own tests of the whole Method.

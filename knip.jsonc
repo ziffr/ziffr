@@ -38,6 +38,11 @@
       "entry": ["src/sandbox/child.js", "src/sandbox/mutant.js"],
       "ignore": ["test/**"]
     },
+    "extensions": {
+      // Each folder is an Extension (spec 0042): the Kit and the core's registry read method.ts, and the Kit's checks read
+      // reference.ts, cases.ts and wording.ts as files of the folder, run in a process of their own, not as imports.
+      "entry": ["*/*/*.ts"]
+    },
     "packages/*": {}
   }
 }

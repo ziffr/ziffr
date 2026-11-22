@@ -16,7 +16,7 @@ Write and check a [Ziffr](https://github.com/ziffr/ziffr) Extension: one new Met
 | `wording.ts` | The Takeaway sentences. |
 | `LICENSE` | The licence of this folder: MIT or Apache-2.0, the one the manifest names. |
 
-`test/good/example` in the repository is a complete one, and `test/bad/` holds the Extensions the checks must refuse, each for exactly one named reason.
+`test/good/example` in the repository is a complete one, and so are the two built into Ziffr, `extensions/ziffr/quantile` and `extensions/ziffr/top-share`, which the Kit's own tests hold to every check below (mutation included).  and `test/bad/` holds the Extensions the checks must refuse, each for exactly one named reason.
 
 ## Check an Extension
 
