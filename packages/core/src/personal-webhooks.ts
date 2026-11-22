@@ -200,7 +200,8 @@ async function logOf(workspaceId: string, webhookId: string, limit: number, with
     rowsOf = rowsOf.flatMap((r) => {
       const ok = r.action_id !== null ? readable.has(Number(r.action_id)) : r.metric_id !== null ? seen.has(Number(r.metric_id)) : true;
       if (ok) return [r];
-      return r.state === "delivered" || r.state === "failed" ? [{ ...r, action_id: null, metric_id: null }] : [];
+      // A send that failed for lack of a key never carried anything: for what the person may not see it is a drop, like the rest.
+      return r.state === "delivered" || (r.state === "failed" && r.failure !== "key") ? [{ ...r, action_id: null, metric_id: null }] : [];
     });
   }
   return rowsOf.map((r) => ({
