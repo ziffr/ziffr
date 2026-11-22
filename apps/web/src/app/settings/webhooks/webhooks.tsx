@@ -23,8 +23,8 @@ export const EVENTS: { id: string; label: string }[] = [
   { id: "alert.fired", label: "A Tell step fires" },
 ];
 
-export const STATE: Record<string, string> = { queued: "waiting", sending: "sending", retrying: "will try again", delivered: "delivered", failed: "failed", dropped: "not sent" };
-export const FAILURE: Record<string, string> = { timeout: "no answer in time", network: "could not connect", refused: "address refused", too_big: "message too big", status: "the address refused it", gone: "the address is gone (410)", key: "secret missing" };
+const STATE: Record<string, string> = { queued: "waiting", sending: "sending", retrying: "will try again", delivered: "delivered", failed: "failed", dropped: "not sent" };
+const FAILURE: Record<string, string> = { timeout: "no answer in time", network: "could not connect", refused: "address refused", too_big: "message too big", status: "the address refused it", gone: "the address is gone (410)", key: "secret missing" };
 export const when = (iso: string) => new Date(iso).toLocaleString(undefined, { dateStyle: "short", timeStyle: "short" });
 export const OFF: Record<string, string> = { owner: "switched off", failing: "switched off because it kept failing", gone: "switched off because its address is gone" };
 
