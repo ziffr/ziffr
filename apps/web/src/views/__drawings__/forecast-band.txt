@@ -117,3 +117,17 @@
 <text fill=var(--color-muted) font-family=var(--font-outlier) font-size=12 height=198 orientation=left stroke=none text-anchor=end width=68 x=68 y=12>
 <tspan dy=0.355em x=68>
 "180k €"
+"At this pace Revenue reaches 100,000 € or more by September 2026: over 19 in 20."
+"Worked out with a plain trend (Holt), over 18 months."
+"This assumes the pattern of the past carries on."
+"Over the last 12 months this Method would have been within its range 7 of 12 times."
+"This shows what has gone together, not what caused what."
+"Show the numbers"
+"MethodHolt's linear trend"
+"Smoothing (level, trend, pattern)0.5, 0.1"
+"Expected150,458 €"
+"Likely between143,790 € – 157,125 €"
+"Chance of reaching the Target99 %"
+"Periods tested12"
+"Inside the range7"
+"Typical miss2,900 €"

@@ -72,6 +72,11 @@ function findingText(f: Finding, ctx: TakeawayContext, pairs: number): string {
 
 const empty = (method: string): Takeaway => ({ kind: "refusal", method, sentence: null, refusal: null, strength: null, strengthText: null, range: null, basis: null, assumptions: [], cautions: [], notes: [], track: null, footer: null, figures: [], numbers: [] });
 
+/** The start of an answer: nothing said yet, nothing refused. */
+export function answerTakeaway(method: string): Takeaway {
+  return { ...empty(method), kind: "answer" };
+}
+
 /** A refusal in words: no sentence, no number, no strength, no range, no footer (nothing is claimed). */
 export function refusalTakeaway(method: string, lines: string[]): Takeaway {
   return { ...empty(method), refusal: lines.join(" ") };

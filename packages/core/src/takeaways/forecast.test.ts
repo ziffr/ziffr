@@ -102,6 +102,7 @@ describe("a forecast's Takeaway", () => {
     expect(row("Inside the range")).toBe(String(record.inBand));
     expect(row("Typical miss")).toBe(money(record.typicalMiss));
     expect(row("Method")).toBe("Holt-Winters, additive");
+    expect(row("Likely between")).toBe(`${money(t.range!.lo)} – ${money(t.range!.hi)}`);
     expect(row("Smoothing (level, trend, pattern)")).toBe("0.5, 0.1, 0.3");
     expect(row("Expected")).toBe(money(py[2].double));
     // The last third: both Methods' typical miss on the same periods.
@@ -128,6 +129,35 @@ describe("a forecast's Takeaway", () => {
     const flips: number[] = suitability.seasons.flips.values;
     expect(note(months("2020-01", flips))).toContain("The yearly pattern did not repeat the same way each year, so a plain trend is used instead.");
     expect(forecastTakeaway(euro, months("2020-01", flips), ctx).method).toBe("Holt's linear trend");
+  });
+  it("uses a plain trend, and says so, where the yearly pattern did not repeat even though the pattern would have missed less", () => {
+    // No pattern in the first two years, a strong one in the last two: the seasonal Method would win the last third, and the check rules it out.
+    const vs = Array.from({ length: 48 }, (_, t) => Math.round(100 + 2 * t + (t < 24 ? 0 : 30) * Math.sin((2 * Math.PI * (t % 12)) / 12)));
+    const pts = months("2020-01", vs);
+    expect(bestForecast(pts, "month", 12)!.method).toBe("holtWinters");
+    const t = forecastTakeaway(euro, pts, ctx);
+    expect(t.method).toBe("Holt's linear trend");
+    expect(t.notes).toEqual(["The yearly pattern did not repeat the same way each year, so a plain trend is used instead."]);
+  });
+  it("names the pattern a plain trend was not checked against, by span: two seasons is the candidate, one step either side", () => {
+    const quarter = metric({ ...euro, period: "quarter" });
+    const q = (n: number) => Array.from({ length: n }, (_, t) => ({ period: shiftPeriod("2020-01-01", "quarter", t), value: 100 + 3 * t + [4, -3, 6, -2][t % 4] + (t % 3) }));
+    expect(forecastTakeaway(quarter, q(8), ctx).notes).toEqual(["Too few quarters to check the yearly pattern against a plain trend, so a plain trend is used."]);
+    expect(forecastTakeaway(quarter, q(7), ctx).notes).toEqual([]);
+    const year = metric({ ...euro, period: "year" });
+    expect(forecastTakeaway(year, Array.from({ length: 6 }, (_, t) => ({ period: shiftPeriod("2020-01-01", "year", t), value: 100 + 3 * t + (t % 3) })), ctx).notes).toEqual([]);
+    const day = metric({ ...euro, period: "day" });
+    const d = (n: number) => Array.from({ length: n }, (_, t) => ({ period: shiftPeriod("2025-01-01", "day", t), value: 100 + t + [0, 9, 14, 3, -6, -12, -8][t % 7] + (t % 3) }));
+    expect(forecastTakeaway(day, d(14), ctx).notes).toEqual(["Too few days to check the weekly pattern against a plain trend, so a plain trend is used."]);
+    expect(forecastTakeaway(day, d(13), ctx).notes).toEqual([]);
+  });
+  it("says the Method, the range and the numbers it leaves out: no track record where nothing could be tested (four values)", () => {
+    const t = forecastTakeaway(euro, months("2025-01", [10, 12, 11, 15]), ctx);
+    expect(t.track).toBe("Too few months yet to check how this Method did on the past.");
+    expect(t.numbers.map((n) => n.label)).toEqual(["Method", "Smoothing (level, trend, pattern)", "Expected", "Likely between"]);
+    expect(t.numbers[0].text).toBe("Holt's linear trend");
+    expect(t.numbers[3].text).toBe(t.range!.text);
+    expect(t.numbers[3].text).toBe(`${money(t.range!.lo)} – ${money(t.range!.hi)}`);
   });
   it("says a weekly pattern for a daily Metric", () => {
     const daily = metric({ ...euro, period: "day" });
@@ -180,6 +210,7 @@ describe("the chance of reaching the Target", () => {
     const band = forecastTakeaway(euro, pts, ctx, { limits: { min: value - sd, max: value + sd } });
     expect(band.sentence).toBe(`At this pace Revenue lands between ${money(value - sd)} and ${money(value + sd)} by March 2023: about 7 in 10.`);
     expect(band.figures.map((f) => f.label)).toEqual(["Target, at least", "Target, at most", "In ten"]);
+    expect(upper.figures.map((f) => f.label)).toEqual(["Target, at most", "In ten"]);
   });
   it("looks at the period asked for, up to a season ahead, and refuses one past it, and one that is not ahead", () => {
     const ok = forecastTakeaway(euro, pts, ctx, { limits: { min: 400, max: null }, by: "2023-12-01" });
@@ -238,10 +269,22 @@ describe("the refusals", () => {
 describe("the cautions", () => {
   it("say a period far from the rest pulls the forecast, with what it reads without, in the Metric's unit", () => {
     const vals = Array.from({ length: 16 }, (_, i) => 100 + ((i * 7) % 11));
-    vals[14] = 900;
+    vals[14] = 140;
     const t = forecastTakeaway(euro, months("2025-01", vals), ctx);
-    expect(t.cautions).toHaveLength(1);
-    expect(t.cautions[0]).toMatch(/^This result is pulled by 1 month far from the rest; without them it reads [\d,]+ €\.$/);
+    // The value three ahead without the period is what the same rule gives on what is left: 105 €.
+    const without = bestForecast(months("2025-01", vals).filter((_, i) => i !== 14), "month", 12)!.points[2].value;
+    expect(Math.round(without)).toBe(105);
+    expect(t.cautions).toEqual(["This result is pulled by 1 month far from the rest; without them it reads 105 €."]);
+    // Where leaving periods out leaves fewer than four values, there is nothing to say without them, and the answer is still given.
+    const few = forecastTakeaway(euro, months("2025-01", [1, 2, 1, 900, 800]), ctx);
+    expect(few.kind).toBe("answer");
+    expect(few.cautions).toEqual([]);
+  });
+  it("says periods left out for a Method that uses the yearly pattern too", () => {
+    const pts = points("airline-last-36").filter((_, i) => i !== 30);
+    const t = forecastTakeaway(euro, pts, ctx);
+    expect(t.method).toBe("Holt-Winters, additive");
+    expect(t.cautions).toEqual(["Revenue: no value for 1 of 36 months, left out."]);
   });
   it("say periods without a value that were left out, and a level that changed", () => {
     const vals = Array.from({ length: 24 }, (_, i) => 100 + ((i * 7) % 11) + 3 * i);

@@ -5,7 +5,7 @@
 //
 // What a forecast Takeaway does not say: a strength word (nothing here is a link between Metrics), and any promise: it says what it
 // assumes. The chance is the share of a normal curve around the forecast that lies within the Target's limits, with the spread the
-// Method showed on the past; the track record says how well such ranges held. "Likely between" is the 80 % range (1.2816 spreads).
+// Method showed on the past; the track record says how well such ranges held. Shown as a percentage it is never 0 or 100: a forecast is not certain. "Likely between" is the 80 % range (1.2816 spreads).
 import { readSeries } from "../basis";
 import { formatNumber, formatValue } from "../format";
 import { HORIZON } from "../forecast";
@@ -17,7 +17,7 @@ import { backtest, type Candidate } from "../methods/track-record";
 import { periodsBetween, type Span } from "../periods";
 import { checkSuitability, minimumPeriods, SEASON_LENGTH, type Finding, type Rerun, type SuitabilityInputs } from "../suitability";
 import type { Metric, Point } from "../types";
-import { refusalTakeaway, type Takeaway, type TakeawayContext } from "./takeaway";
+import { answerTakeaway, refusalTakeaway, type Takeaway, type TakeawayContext } from "./takeaway";
 import { say, type CaseKey, type Slots } from "./wording";
 
 /** How many of the latest periods the track record looks at. */
@@ -120,20 +120,19 @@ export function forecastTakeaway(metric: Metric, points: Point[], ctx: TakeawayC
   }
 
   const record = backtest(rows, span, season, method, TRACK_PERIODS);
-  const third = best.choice.holt && best.choice.seasonal ? best.choice : null;
+  // The two records are there together, or neither.
+  const third = best.choice.seasonal ? best.choice : null;
   const numbers = [
     { label: text("numbers-method"), text: text(method === "holt" ? "numbers-method-holt" : "numbers-method-holt-winters") },
     { label: text("numbers-smoothing"), text: [SMOOTHING.level, SMOOTHING.trend, SMOOTHING.season].slice(0, method === "holt" ? 2 : 3).map((f) => formatNumber(Number(f.num) / Number(f.den), 1, ctx.style)).join(", ") },
     { label: expected, text: written(target.value) },
     { label: range, text: `${written(lo)} – ${written(hi)}` },
-    ...(chance === null ? [] : [{ label: text("numbers-chance"), text: `${formatNumber(chance * 100, 0, ctx.style)} %` }]),
+    ...(chance === null ? [] : [{ label: text("numbers-chance"), text: `${formatNumber(Math.min(99, Math.max(1, Math.round(chance * 100))), 0, ctx.style)} %` }]),
     ...(record ? [{ label: text("numbers-tested"), text: formatNumber(record.tested, 0, ctx.style) }, { label: text("numbers-inside"), text: formatNumber(record.inBand, 0, ctx.style) }, { label: text("numbers-miss"), text: written(record.typicalMiss) }] : []),
     ...(third ? [{ label: text("numbers-third-holt"), text: written(third.holt!.typicalMiss) }, { label: text("numbers-third-holt-winters"), text: written(third.seasonal!.typicalMiss) }, { label: text("numbers-third-n"), text: formatNumber(third.holt!.tested, 0, ctx.style) }] : []),
   ];
   return {
-    ...refusalTakeaway(text(method === "holt" ? "numbers-method-holt" : "numbers-method-holt-winters"), []),
-    kind: "answer",
-    refusal: null,
+    ...answerTakeaway(text(method === "holt" ? "numbers-method-holt" : "numbers-method-holt-winters")),
     sentence,
     range: { lo, hi, text: `${written(lo)} – ${written(hi)}` },
     basis: text("fc-basis", { method: text(method === "holt" ? "fc-method-holt" : span === "day" ? "fc-method-holt-winters-weekly" : "fc-method-holt-winters"), n: rows.length }),

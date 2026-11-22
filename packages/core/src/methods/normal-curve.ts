@@ -18,8 +18,10 @@ const FRACTION_TERMS = 200;
 
 // erfc(x) for x ≥ 0 (or NaN).
 function erfcFromZero(x: number): number {
+  // Stryker disable next-line EqualityOperator: at the switch itself both forms agree to 1e-13.
   if (x < SERIES_UNTIL) {
     let [term, sum] = [x, x];
+    // Stryker disable next-line EqualityOperator: one more term is below 1e-18 of the sum.
     for (let n = 1; n < SERIES_TERMS; n++) {
       term *= (2 * x * x) / (2 * n + 1);
       sum += term;
@@ -35,5 +37,6 @@ function erfcFromZero(x: number): number {
  * keeps its digits: Φ(−8) is 6.22e-16, not 0. NaN for NaN. */
 export function normalCdf(z: number): number {
   const tail = erfcFromZero(Math.abs(z) / Math.SQRT2) / 2;
+  // Stryker disable next-line EqualityOperator: at 0 the tail is 1/2 and both sides give 1/2.
   return z >= 0 ? 1 - tail : tail;
 }

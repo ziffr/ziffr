@@ -33,16 +33,19 @@ export const TRACK_MIN = 3;
 
 type Prediction = { period: string; predicted: Fraction; squares: Fraction; errors: number };
 const ZERO: Fraction = { num: BigInt(0), den: BigInt(1) };
+// Stryker disable next-line EqualityOperator: the size of 0 is 0 whichever side of the sign it is read from.
 const size = (a: Fraction): Fraction => (a.num < BigInt(0) ? { num: -a.num, den: a.den } : a);
 
 // Every value that a Method predicted before it came, by row, for those whose period before has a value.
 function predictions(rows: Point[], span: Span, season: number, method: Candidate): Map<number, Prediction> {
   const out = new Map<number, Prediction>();
+  // Every prediction is for the fifth value or later, so the row before it exists.
   const keep = (i: number, p: Prediction) => {
-    if (i > 0 && periodsBetween(rows[i - 1].period, rows[i].period, span) === 1) out.set(i, p);
+    if (periodsBetween(rows[i - 1].period, rows[i].period, span) === 1) out.set(i, p);
   };
   if (method === "holt") {
     // Holt needs four values before one is predicted (FORECAST_MIN_POINTS).
+    // Stryker disable next-line EqualityOperator: four values predict nothing from the fifth on, so `<` and `<=` give the same.
     if (rows.length <= 4) return out;
     for (const s of holtFit(rows.map((r) => fractionOf(r.value))).steps) if (s.index >= 4) keep(s.index, { period: rows[s.index].period, predicted: s.predicted, squares: s.squares, errors: s.errors });
     return out;
@@ -61,7 +64,8 @@ function predictions(rows: Point[], span: Span, season: number, method: Candidat
 // The outcomes of a method over a series, by row, for the rows from `from` on.
 function outcomes(rows: Point[], span: Span, season: number, method: Candidate, from: number): (Outcome & { row: number })[] {
   const out: (Outcome & { row: number })[] = [];
-  for (const [row, p] of [...predictions(rows, span, season, method)].sort((a, b) => a[0] - b[0])) {
+  // The predictions were made in order, and a Map keeps the order it was given.
+  for (const [row, p] of predictions(rows, span, season, method)) {
     if (row < from) continue;
     const miss = lowestTerms(minus(fractionOf(rows[row].value), p.predicted));
     const sd = Math.sqrt(nearest(over(p.squares, { num: BigInt(p.errors), den: BigInt(1) })));
@@ -102,10 +106,11 @@ export function chooseMethod(points: Point[], span: Span, season: number): Choic
   if (!fitHoltWinters(rows, span, season).ok) return { method: "holt", why: "holt-only", holt: null, seasonal: null };
   const [holt, seasonal] = [outcomes(rows, span, season, "holt", from), outcomes(rows, span, season, "holtWinters", from)];
   // The periods both could be tested on.
-  const [heldByHolt, heldBySeasonal] = [new Set(holt.map((o) => o.period)), new Set(seasonal.map((o) => o.period))];
-  const [h, w] = [holt.filter((o) => heldBySeasonal.has(o.period)), seasonal.filter((o) => heldByHolt.has(o.period))];
+  // Whatever the seasonal Method could test (its first two seasons are whole, so the row is at least the fifth) Holt could too.
+  const heldBySeasonal = new Set(seasonal.map((o) => o.period));
+  const h = holt.filter((o) => heldBySeasonal.has(o.period));
   if (h.length < TRACK_MIN) return { method: "holt", why: "too-few", holt: null, seasonal: null };
-  const [holtRecord, seasonalRecord] = [recordOf("holt", h), recordOf("holtWinters", w)];
+  const [holtRecord, seasonalRecord] = [recordOf("holt", h), recordOf("holtWinters", seasonal)];
   const better = seasonalRecord.missTotal.num * holtRecord.missTotal.den < holtRecord.missTotal.num * seasonalRecord.missTotal.den;
   return { method: better ? "holtWinters" : "holt", why: better ? "better" : "not-better", holt: holtRecord, seasonal: seasonalRecord };
 }

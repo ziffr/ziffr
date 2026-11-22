@@ -126,6 +126,11 @@ describe("what is tested", () => {
     expect(backtest(air(25), "month", 12, "holtWinters", 99)?.tested).toBe(1);
     expect(backtest(air(23), "month", 12, "holtWinters", 99)).toBeNull();
   });
+  it("is nothing for no value, one value or a few, for either Method, and says which Method each record is of", () => {
+    for (const n of [0, 1, 2, 3, 4]) expect(backtest(air(n), "month", 12, "holt", 99), String(n)).toBeNull();
+    expect(backtest(air(40), "month", 12, "holt", 5)!.method).toBe("holt");
+    expect(backtest(air(40), "month", 12, "holtWinters", 5)!.method).toBe("holtWinters");
+  });
   it("is nothing for a window of no values, and all of them for a window longer than the series", () => {
     expect(backtest(air(48), "month", 12, "holt", 0)).toBeNull();
     expect(backtest(air(48), "month", 12, "holt", -5)).toBeNull();
@@ -186,6 +191,7 @@ describe("the choice of the Method", () => {
     // A third of 48 is 16: values 32 to 47.
     expect(choice.holt!.outcomes[0].period).toBe(shiftPeriod("1949-01-01", "month", 32));
     expect(choice.holt!.tested).toBe(16);
+    expect([choice.holt!.method, choice.seasonal!.method]).toEqual(["holt", "holtWinters"]);
   });
   it(`needs ${TRACK_MIN} periods both can be tested on: with 2 it is Holt and says there were too few, with 3 it compares`, () => {
     const [two, three] = [chooseMethod(months("1949-01", AIRLINE.slice(0, 26)), "month", 12), chooseMethod(months("1949-01", AIRLINE.slice(0, 27)), "month", 12)];

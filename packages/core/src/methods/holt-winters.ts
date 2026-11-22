@@ -80,13 +80,14 @@ export function fitHoltWinters(points: Point[], span: Span, season: number): { o
   const start = Array.from({ length: 2 * season }, (_, t) => cell.get(t));
   if (start.some((v) => v === undefined)) return { ok: false, why: "start-gap" };
   const [m, mf] = [season, f(season, 1)];
-  const [one, two] = [sum(start.slice(0, m) as Fraction[]), sum(start.slice(m) as Fraction[])];
+  const [first1, first2] = [start.slice(0, m) as Fraction[], start.slice(m) as Fraction[]];
+  const [one, two] = [sum(first1), sum(first2)];
   const [mean1, mean2] = [over(one, mf), over(two, mf)];
   const slope = over(sub(mean2, mean1), mf);
   // The line through the first season, at position j: mean₁ + slope · (j − (m − 1)/2).
   const line = (j: number) => add(mean1, mul(slope, sub(f(j, 1), f(m - 1, 2))));
   let [level, trend] = [line(m - 1), slope];
-  const s: Fraction[] = start.slice(0, m).map((y, j) => sub(y as Fraction, line(j)));
+  const s: Fraction[] = first1.map((y, j) => sub(y, line(j)));
   const { level: a, trend: b, season: g } = SMOOTHING;
   let squares = ZERO;
   let errors = 0;

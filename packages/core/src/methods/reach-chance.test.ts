@@ -55,6 +55,10 @@ describe("the reach chance", () => {
     expect(chance(5, 0, 6, 7)).toBe(0);
     expect(chance(8, 0, 6, 7)).toBe(0);
     expect(chance(6.5, 0, 6, 7)).toBe(1);
+    // A negative value is inside a limit that is not set, and below zero is no reason to refuse it.
+    expect(chance(-5, 0, null, 5)).toBe(1);
+    expect(chance(-5, 0, -9, null)).toBe(1);
+    expect(chance(-5, 0, -4, null)).toBe(0);
   });
   it("says nothing without a Target, or for what is not a number, a negative spread or lower limit above the upper", () => {
     expect(chance(1, 1, null, null)).toBeNull();
