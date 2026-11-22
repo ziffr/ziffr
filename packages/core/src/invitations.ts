@@ -301,6 +301,11 @@ export async function setRole(actor: Actor, personId: string, role: WorkspaceRol
     const { count } = await db().from("memberships").select("user_id", { count: "exact", head: true }).eq("workspace_id", actor.workspaceId).eq("role", "owner");
     if ((count ?? 0) <= 1) throw new Error("A workspace keeps at least one Owner. Make someone else Owner first.");
   }
+  // A Guest owns nothing: a Metric must not stay with someone who can no longer own it, so it is handed over first.
+  if (role === "guest" && current.role !== "guest") {
+    const { count } = await db().from("metrics").select("id", { count: "exact", head: true }).eq("workspace_id", actor.workspaceId).eq("owner_id", personId);
+    if (count) throw new Error(`They own ${count} Metric${count === 1 ? "" : "s"}. Hand ${count === 1 ? "it" : "them"} over first, or remove them and pick who takes over.`);
+  }
   const { error } = await db().from("memberships").update({ role }).eq("workspace_id", actor.workspaceId).eq("user_id", personId);
   // The database refuses to leave a workspace without an Owner, also when two changes race.
   if (error) throw new Error(/at least one Owner/.test(error.message) ? "A workspace keeps at least one Owner. Make someone else Owner first." : "The role could not be changed.");

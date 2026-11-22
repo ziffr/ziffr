@@ -73,6 +73,7 @@ export const AUDIT_KINDS = {
   "dashboard.created": "created the dashboard",
   "metric.created": "created the Metric",
   "metric.deleted": "deleted the Metric",
+  "metric.handed_over": "handed over the Metric",
   "metric.archived": "archived the Metric",
   "metric.restored": "brought back the Metric",
   "metric.retention_set": "set the Retention of",

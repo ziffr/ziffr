@@ -14,6 +14,8 @@ import { TargetsEditor } from "./series-form";
 import { ArchivedNote } from "./archived-note";
 import { RetentionBox } from "./retention-box";
 import { canArchiveMetric } from "@ziffr/core/archived-metrics";
+import { handOverChoices } from "@ziffr/core/metric-owner";
+import { HandOver } from "./hand-over";
 import { canEditMetric } from "@ziffr/core/metrics";
 import { firstAsksFor } from "@ziffr/core/first-asks";
 import { NextPrompt } from "./next-prompt";
@@ -423,7 +425,7 @@ export default async function MetricPage({ params, searchParams }: { params: Pro
               {canEdit && <EditDetails metric={metric} money={moneyUnit(profile.currency)} numberStyle={numberStyle} attainmentMethod={attainmentMethod} fixed={obs.length > 0 ? "values" : tSeries.length + pSeries.length > 0 ? "series" : null} />}
             </div>
             <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-2">
-              <Row k="Owner"><Person p={peopleById[metric.owner_id]} /></Row>
+              <Row k="Owner"><span className="flex flex-wrap items-center gap-2"><Person p={peopleById[metric.owner_id]} />{!demo && <HandOver metricId={metric.id} name={metric.name} choices={await handOverChoices(actor, metric.id)} />}</span></Row>
               <Row k="Tags"><MetricTagsRow actor={actor} metricId={metric.id} /></Row>
               <Row k="Period">{PERIOD_LABEL[metric.period]}</Row>
               <Row k="Format">{metric.format}{metric.unit && metric.format === "number" ? ` (${metric.unit})` : ""}, {metric.decimals} decimals</Row>
