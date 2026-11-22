@@ -16,7 +16,7 @@ import type { CaseKey, Slots } from "./takeaways/wording";
 import type { Metric, Point } from "./types";
 
 /** The Methods that run the checks; a Method's entry in `APPLIES` says which. */
-export type MethodId = "correlation" | "drivers" | "lag" | "fit" | "predict" | "needs" | "whatIf" | "forecast" | "trend" | "seasonal" | "changePoint" | "afterDate" | "usualRange";
+export type MethodId = "correlation" | "spearman" | "partial" | "drivers" | "lag" | "fit" | "predict" | "needs" | "whatIf" | "forecast" | "trend" | "seasonal" | "changePoint" | "afterDate" | "usualRange";
 /** Another Method a check may ask for instead: the Method says which it can use through `canSwitchTo`. */
 export type SwitchTo = "rank-correlation" | "data-after" | "holt" | "percent-ranges" | "first-pass";
 /** The checks, in the order they are run. */
@@ -62,6 +62,9 @@ export const SUITABILITY = {
 /** Which checks each Method runs ("Applies to" in the spec's table); periods, variation and gaps apply to every Method. */
 export const APPLIES: Record<MethodId, readonly CheckId[]> = {
   correlation: ["periods", "vary", "gaps", "far-off", "skew-ties", "changing"],
+  // Ranks are not pulled by a far-off value or skew, so only what is left of the checks applies to a rank correlation.
+  spearman: ["periods", "vary", "gaps", "far-off", "changing"],
+  partial: ["periods", "vary", "gaps", "far-off", "too-many"],
   drivers: ["periods", "vary", "gaps", "far-off", "skew-ties", "changing"],
   lag: ["periods", "vary", "gaps", "far-off", "skew-ties", "changing"],
   fit: ["periods", "vary", "gaps", "mixed", "far-off", "skew-ties", "straight-line", "changing", "spread", "too-many"],
@@ -121,10 +124,13 @@ export function minimumPeriods(method: MethodId, opts: { drivers?: number; seaso
   const m = SUITABILITY.minimum;
   switch (method) {
     case "correlation":
+    case "spearman":
     case "drivers":
       return m.correlation;
     case "lag":
       return m.lag;
+    // Held-the-same Metrics count as drivers of a fit with the pair's second Metric: one more than the Metrics held the same.
+    case "partial":
     case "fit":
     case "predict":
     case "needs":

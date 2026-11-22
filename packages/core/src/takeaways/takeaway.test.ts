@@ -24,6 +24,7 @@ const fixture = JSON.parse(readFileSync(new URL("../test/reference/fixtures/suit
 const FORBIDDEN = /cause|because|significan|p-value|regression|r²|\br2\b|coefficient|confiden/i;
 const FOOTER = "This shows what has gone together, not what caused what.";
 
+const UNIT = { unit: "€", unit_position: "after", decimals: 0 } as const;
 const a = metric({ id: 1, slug: "visits", name: "Visits", period: "month" });
 const b = metric({ id: 2, slug: "revenue", name: "Revenue", period: "month" });
 /** Values with no trend, no ties and no pattern a few periods long: a different `step` is a different series. */
@@ -92,7 +93,7 @@ describe("the strength words", () => {
 });
 
 describe("the wording", () => {
-  const SAMPLE: Slots = { a: "Visits", b: "Revenue", n: 18, span: "month", strength: "strong", names: "Visits and Price", target: "Revenue", name: "Visits", other: "Cost", have: 9, need: 16, missing: 3, total: 24, run: 3, count: 2, without: 0.5, from: "2025-03-01", latest: "weak", drivers: 8, allowed: 4, basis: "compared by value", period: "month", skew: 2.5 };
+  const SAMPLE: Slots = { a: "Visits", b: "Revenue", n: 18, span: "month", strength: "strong", names: "Visits and Price", target: "Revenue", name: "Visits", other: "Cost", have: 9, need: 16, missing: 3, total: 24, run: 3, count: 2, without: 0.5, held: "Price and Cost", lag: 2, max: 6, low: { value: 410, unit: UNIT }, high: { value: 520, unit: UNIT }, k: 3, rows: 8, share: "71.0 %", change: { value: 42, unit: UNIT }, parts: "A −3 €, B +1 €", least: 1, most: 4, from: "2025-03-01", latest: "weak", drivers: 8, allowed: 4, basis: "compared by value", period: "month", skew: 2.5 };
   /** Each case with its slots and the sentence it must come to: a table of cases, per language that exists. */
   const TABLE: Record<CaseKey, [Slots, string]> = {
     "strength-strong": [{}, "strong"], "strength-moderate": [{}, "moderate"], "strength-weak": [{}, "weak"], "strength-cant-tell": [{}, "can't tell from chance"],
@@ -129,6 +130,44 @@ describe("the wording", () => {
     "caution-spread": [SAMPLE, "The misses grow as the level grows, so the ranges are rough."],
     "switch-percent": [SAMPLE, "The misses grow as the level grows, so ranges are worked out as a share of the level."],
     "switch-first-pass": [SAMPLE, "8 Metrics are more than 9 months can weigh, so the 4 that matter most were chosen first and the others left out."],
+    "refuse-controls": [{ ...SAMPLE, have: 5 }, "Visits and Cost need 1 to 4 other Metrics held the same: 5 were given."],
+    "refuse-collinear": [{}, "The Metrics held the same move so closely together that they cannot be told apart, so nothing can be held the same."],
+    "refuse-explained": [SAMPLE, "Once the others are held the same, nothing of Visits or Cost is left to compare."],
+    "refuse-season": [SAMPLE, "Visits has no values at that point of the year to go by."],
+    "refuse-rows": [{ ...SAMPLE, have: 1, need: 2 }, "Visits: 1 of 2 rows needed."],
+    "refuse-not-a-number": [SAMPLE, "Visits has a row that is not a number, so nothing is worked out."],
+    "refuse-negative": [SAMPLE, "Visits has a row below zero, so a share of the whole means nothing."],
+    "refuse-nothing": [SAMPLE, "Visits adds up to nothing, so there is no share to give."],
+    "refuse-ask": [SAMPLE, "Visits: that number of rows or that share cannot be worked out here."],
+    "refuse-weight": [SAMPLE, "Visits: a part must count for or against the whole."],
+    "basis-rank-values": [{}, "compared by rank of value"], "basis-rank-changes": [{}, "compared by rank of change, growth removed"],
+    "basis-held": [SAMPLE, "compared by value, with Price and Cost held the same"],
+    "basis-season": [SAMPLE, "from the 18 values at the same point of the year"], "basis-history": [SAMPLE, "from 18 months of history"],
+    "partial-together": [SAMPLE, "With Price and Cost held the same, Visits and Revenue tend to move together over 18 months (strong)."],
+    "partial-opposite": [SAMPLE, "With Price and Cost held the same, Visits and Revenue tend to move in opposite directions over 18 months (strong)."],
+    "partial-cant-tell": [SAMPLE, "With Price and Cost held the same, over 18 months, Visits and Revenue do not clearly move together: strong."],
+    "lag-leads": [SAMPLE, "Visits tends to move 2 months before Revenue does, over 18 months (strong)."],
+    "lag-leads-opposite": [SAMPLE, "Visits tends to move the other way 2 months before Revenue does, over 18 months (strong)."],
+    "lag-same": [SAMPLE, "Visits and Revenue tend to move together in the same month, with no delay, over 18 months (strong)."],
+    "lag-same-opposite": [SAMPLE, "Visits and Revenue tend to move in opposite directions in the same month, with no delay, over 18 months (strong)."],
+    "lag-cant-tell": [SAMPLE, "Over 18 months, no delay of 0 to 6 months between Visits and Revenue clearly shows a link: strong."],
+    "usual-range": [SAMPLE, "Visits is usually between 410 € and 520 €, going by 18 months."],
+    "usual-below": [{ value: { value: 380, unit: UNIT } }, "The value asked about, 380 €, is below that."],
+    "usual-within": [{ value: { value: 440, unit: UNIT } }, "The value asked about, 440 €, is within that."],
+    "usual-above": [{ value: { value: 640, unit: UNIT } }, "The value asked about, 640 €, is above that."],
+    "share-top": [{ ...SAMPLE, names: "A, B and C" }, "Worked out: the 3 largest of 8 rows make up 71.0 % of Visits: A, B and C."],
+    "share-pareto": [{ ...SAMPLE, names: "A, B and C", target: "80.0 %" }, "Worked out: 3 of 8 rows make up 71.0 % of Visits, the fewest that reach 80.0 %: A, B and C."],
+    "note-tied": [{}, "Rows of the same size stand at the cut, so which of them is named is arbitrary; the count is not."],
+    "bridge-up": [SAMPLE, "Worked out: Visits rose by 42 €: A −3 €, B +1 €."],
+    "bridge-down": [SAMPLE, "Worked out: Visits fell by 42 €: A −3 €, B +1 €."],
+    "bridge-flat": [SAMPLE, "Worked out: Visits did not change: A −3 €, B +1 €."],
+    "bridge-missing": [{ ...SAMPLE, names: "A, B and C" }, "A, B and C had no value in one of the two periods, so it counts as 0 there."],
+    "bridge-unexplained": [{ value: { value: 5, unit: UNIT } }, "5 € of the change is not in these rows."],
+    "numbers-method-spearman": [{}, "Spearman's rank correlation"], "numbers-method-partial": [{}, "Partial correlation"], "numbers-method-lag": [{}, "Lagged correlation"],
+    "numbers-method-usual": [{}, "Usual range"], "numbers-method-share": [{}, "Share of the largest rows"], "numbers-method-pareto": [{}, "Pareto"], "numbers-method-bridge": [{}, "Bridge"],
+    "numbers-rho": [{}, "Rank correlation"], "numbers-held": [{}, "Held the same"], "numbers-lag": [{}, "Delay (periods)"], "numbers-tries": [{}, "Delays looked at"],
+    "numbers-low": [{}, "Usual low"], "numbers-high": [{}, "Usual high"], "numbers-asked": [{}, "Value asked about"], "numbers-median": [{}, "Middle"],
+    "numbers-quartiles": [{}, "Middle half"], "numbers-usual": [{}, "Usual range"], "numbers-values": [{}, "Values used"], "numbers-share": [{}, "Share"], "numbers-change": [{}, "Change"],
     "numbers-method": [{}, "Method"], "numbers-method-pearson": [{}, "Pearson's r"], "numbers-r": [{}, "r"], "numbers-pairs": [{}, "Pairs of periods"],
     "numbers-periods": [{}, "Periods"], "numbers-basis": [{}, "Compared on"], "numbers-strength": [{}, "Strength"],
   };

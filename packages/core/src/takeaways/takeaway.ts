@@ -14,7 +14,7 @@ import type { YearStart } from "../periods";
 import { checkSuitability, type Finding, type Verdict } from "../suitability";
 import type { Metric } from "../types";
 import { strengthOf, type StrengthWord } from "./strength";
-import { say, type CaseKey, type Language, type SayContext } from "./wording";
+import { say, type CaseKey, type Language, type SayContext, type Slots } from "./wording";
 
 /** How Takeaways are written: the Workspace's Number Style, the language and the Fiscal Year start. */
 export type TakeawayContext = { style: NumberStyle; language?: Language; yearStart?: YearStart };
@@ -57,6 +57,16 @@ export type DriversTakeaway = Takeaway & { rows: { metric: Metric; takeaway: Tak
 const ctxOf = (ctx: TakeawayContext): SayContext => ({ style: ctx.style, language: ctx.language, yearStart: ctx.yearStart });
 const word = (key: StrengthWord, ctx: TakeawayContext) => say(`strength-${key}`, {}, ctxOf(ctx));
 
+/** A line of wording written in the Workspace's Number Style and language: how every Method's own Takeaway says its case. */
+export function sayIn(key: CaseKey, slots: Slots, ctx: TakeawayContext): string {
+  return say(key, slots, ctxOf(ctx));
+}
+
+/** A strength word as a person reads it. */
+export function strengthWordIn(key: StrengthWord, ctx: TakeawayContext): string {
+  return word(key, ctx);
+}
+
 /** The one footer line: what has gone together is not what caused what. */
 export function footerText(ctx: TakeawayContext): string {
   return say("footer", {}, ctxOf(ctx));
@@ -68,11 +78,12 @@ function findingText(f: Finding, ctx: TakeawayContext, pairs: number): string {
   return say(f.case, f.slots, { ...ctxOf(ctx), result });
 }
 
-const empty = (method: string): Takeaway => ({ kind: "refusal", method, sentence: null, refusal: null, strength: null, strengthText: null, range: null, basis: null, assumptions: [], cautions: [], notes: [], footer: null, figures: [], numbers: [] });
+/** A Takeaway with nothing in it, for a Method to fill in: a refusal until it says otherwise. */
+export const emptyTakeaway = (method: string): Takeaway => ({ kind: "refusal", method, sentence: null, refusal: null, strength: null, strengthText: null, range: null, basis: null, assumptions: [], cautions: [], notes: [], footer: null, figures: [], numbers: [] });
 
 /** A refusal in words: no sentence, no number, no strength, no range, no footer (nothing is claimed). */
 export function refusalTakeaway(method: string, lines: string[]): Takeaway {
-  return { ...empty(method), refusal: lines.join(" ") };
+  return { ...emptyTakeaway(method), refusal: lines.join(" ") };
 }
 
 /** The verdict of the suitability checks as the lines a person reads: refusals, cautions and what was done differently (a
@@ -117,7 +128,7 @@ export function correlationTakeaway(a: Metric, b: Metric, c: Correlation, ctx: T
   const text = (k: CaseKey) => say(k, {}, ctxOf(ctx));
   const periods = c.pairs.map((p) => p.period);
   return {
-    ...empty(method),
+    ...emptyTakeaway(method),
     kind: "answer",
     sentence: say(key, { a: a.name, b: b.name, n, span: c.period, strength: strengthText }, ctxOf(ctx)),
     strength,
@@ -139,7 +150,7 @@ export function correlationTakeaway(a: Metric, b: Metric, c: Correlation, ctx: T
 }
 
 /** A list of names in words: "A", "A and B", "A, B and C". */
-function listOf(names: string[], ctx: TakeawayContext): string {
+export function listOf(names: string[], ctx: TakeawayContext): string {
   const [and, comma] = [say("list-and", {}, ctxOf(ctx)), say("list-comma", {}, ctxOf(ctx))];
   const last = names[names.length - 1];
   return names.length === 1 ? last : `${names.slice(0, -1).join(comma)}${and}${last}`;
@@ -157,7 +168,7 @@ export function driversTakeaway(target: Metric, ranked: Ranked[], ctx: TakeawayC
   const named = rows.filter((r) => r.takeaway.strength !== null && r.takeaway.strength !== "cant-tell").slice(0, 3).map((r) => r.metric.name);
   const base = { n: top.result.n, span: top.result.period, target: target.name };
   return {
-    ...empty(method),
+    ...emptyTakeaway(method),
     kind: "answer",
     sentence: named.length > 0 ? say("drivers-some", { ...base, names: listOf(named, ctx) }, ctxOf(ctx)) : say("drivers-none", base, ctxOf(ctx)),
     strength: top.takeaway.strength,
