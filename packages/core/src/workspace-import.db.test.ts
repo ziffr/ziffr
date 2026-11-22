@@ -261,6 +261,9 @@ describe("a file that is refused", () => {
     expect((await db().from("workspace_imports").select("status").eq("id", job).single()).data?.status).toBe("uploading");
     // Others claim theirs while this one comes in, however many uploads there are.
     for (let i = 0; i < 3; i++) await claimUpload((await importer()).person);
+    // Five uploads at once at most on an Installation: the sixth waits a minute.
+    await claimUpload((await importer()).person);
+    await expect(claimUpload((await importer()).person)).rejects.toThrow(/receiving as many Workspace Exports/);
     // The Installation's limit of running imports is held when the import begins, after the file has arrived.
     const taken = await importer();
     await db().from("workspace_imports").insert([{ created_by: taken.person, status: "importing" }, { created_by: (await importer()).person, status: "checking" }]);

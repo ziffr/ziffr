@@ -71,12 +71,16 @@ revoke all on function destroy_workspace_keys(uuid) from public, anon, authentic
 
 -- Claims a place for an upload in one locked step: this person has no import under way. An upload counts only against the
 -- person, so a slow one cannot block anyone else; the Installation's limit of imports that run is checked when the
--- import begins (begin_workspace_import), after the file has arrived. Answers the job's id, or refused = 'mine'.
+-- import begins (begin_workspace_import), after the file has arrived. Answers the job's id, or refused = 'mine' (this person has one) or 'busy' (five uploads are coming in).
 create function start_workspace_import(p_person text, out job uuid, out refused text) language plpgsql security definer set search_path = public as $$
 begin
   perform pg_advisory_xact_lock(hashtext('workspace_imports'));
   if exists (select 1 from workspace_imports where created_by = p_person and status in ('uploading', 'checking', 'importing')) then
     refused := 'mine';
+  -- At most 5 uploads come in at once on an Installation. Import exists only on Installations that are not hosted Ziffr, an
+  -- upload that sends no byte for 30 seconds is ended and none may take more than 15 minutes, so this is bounded and short.
+  elsif (select count(*) from workspace_imports where status = 'uploading') >= 5 then
+    refused := 'busy';
   else
     insert into workspace_imports (created_by, status, step) values (p_person, 'uploading', 'Receiving the file') returning id into job;
   end if;

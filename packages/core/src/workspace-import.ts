@@ -152,6 +152,7 @@ export async function claimUpload(personId: string): Promise<string> {
   const { data, error } = await db().rpc("start_workspace_import", { p_person: personId }).single<{ job: string | null; refused: string | null }>();
   if (error) throw new Error("The import could not be started.");
   if (data.refused === "mine") throw new Error("You are importing a Workspace already. Wait for it to finish.");
+  if (data.refused === "busy") throw new Error("This Ziffr is receiving as many Workspace Exports as it does at once. Try again in a minute.");
   if (!data.job) throw new Error("The import could not be started.");
   return data.job;
 }
