@@ -2,6 +2,8 @@
 
 **Status:** done. **Tracking issue:** #259 (label `tracking`); tickets #273 to #281 carry `spec:0030`, built in #294, #301, #309, #322, #326, #327, #337, #344, #346 and the closing pull request of #281. The decisions that are hard to reverse, and the options weighed, are in [ADR 0013](../adr/0013-hosted-ziffr-priced-by-size-billing-outside-marketplace-without-code.md).
 
+> **Changed course (spec 0039):** a Pack may bring one logo and its Themes may use it (`"logo": "pack"`); the rest of "No images, fonts or links in the contents" stands.
+
 ## Problem Statement
 
 A new Workspace starts empty, and filling it well takes knowledge many teams do not have. Which Metrics does a SaaS business track, how is a sports club's attendance asked for, what does a good board deck show? Ziffr has pieces of the answer: the Metric Catalog, Dashboard Templates, View Designs and Analysis Recipes (spec 0024), and Themes. But each is made in one Workspace and stays there. Someone who built a good setup for online shops cannot hand it to the next shop, and nobody can earn anything for doing so.
