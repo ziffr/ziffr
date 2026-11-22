@@ -65,7 +65,7 @@ Check `data.redacted` before reading `title`. The decision is made when the mess
 
 ### What is never sent
 
-Breakdowns, Contacts, dashboards, Share lists, the names of people other than the assignee and (in a full message) the asker, the Thread's older messages, and the value of an Unusual Value. Personal Alerts never go to a Webhook. A change that came in from a Webhook is not sent back to that Webhook.
+Breakdowns, Contacts, dashboards, Share lists, the names of people other than the assignee and (in a full message) the asker, the Thread's older messages, and the value of an Unusual Value. A Personal Webhook (spec 0037) is the exception to the words and the value: it acts as its person and gets a message in full for what that person may see when it is sent, and for an Unusual Value the number only where they may see a value waiting for Approval; it is never sent another person's email address. Personal Alerts never go to a Workspace Webhook. A change that came in from a Webhook is not sent back to that Webhook.
 
 Messages go out in **clear text over TLS**. Workspace Keys seal data in the database, not on its way out, and the receiving system keeps what it gets as it sees fit. This is not end-to-end encryption.
 

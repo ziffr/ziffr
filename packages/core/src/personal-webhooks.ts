@@ -21,14 +21,17 @@ import { PERSONAL_WEBHOOKS_PER_PERSON } from "./webhook-limits";
 import { type WebhookInfo } from "./webhooks";
 import { assertManagesWebhooks, checkedAddress, cleanEvents, cleanName, findWebhook, maskedHost, newSecret, rotateSecret, switchWebhook, WEBHOOK_COLUMNS, webhookInfo } from "./webhooks";
 import { daysNow } from "./keep-days";
+import { readableActions, visibleMetricIds } from "./access";
+import { getMetrics } from "./workspace-data";
+import { checkedPickedMetrics } from "./personal-webhook-hearing";
 import { queueTestPing, type WebhookLogEntry } from "./webhook-log";
 
 const NOT_FOUND = "That Webhook was not found.";
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-const COLUMNS = `${WEBHOOK_COLUMNS}, owner_id`;
+const COLUMNS = `${WEBHOOK_COLUMNS}, owner_id, metric_ids`;
 
 /** A Personal Webhook as its person reads it: the address masked, never the secret. `paused` when the Workspace's switch is off. */
-export type PersonalWebhookInfo = WebhookInfo & { paused: boolean };
+export type PersonalWebhookInfo = WebhookInfo & { paused: boolean; /** The Metrics picked for the value events (spec 0037). */ metricIds: number[] };
 
 /** A Personal Webhook as an Owner or Admin reads it: whose it is, the address masked, and when it last sent. */
 export type PersonalWebhookAdminInfo = WebhookInfo & { ownerId: string; ownerName: string; lastSendAt: string | null };
@@ -79,13 +82,14 @@ export async function setPersonalWebhooksAllowed(actor: Actor, allowed: boolean)
 }
 
 /** Adds a Personal Webhook for the actor and returns its id and secret, shown this once. The limit and the switch are checked in the database under a lock. */
-export async function createPersonalWebhook(actor: Actor, input: { name: string; url: string; events?: string[] }): Promise<{ id: string; secret: string }> {
+export async function createPersonalWebhook(actor: Actor, input: { name: string; url: string; events?: string[]; metricIds?: number[] }): Promise<{ id: string; secret: string }> {
   await assertOwnsPersonal(actor);
   if (typeof input !== "object" || input === null) throw new Error("That is not a Webhook.");
   if (!(await personalWebhooksAllowed(actor.workspaceId))) throw new Forbidden(OFF);
   const rules = await rulesOrRefuse(actor.workspaceId);
   const name = cleanName(input.name);
   const events = cleanEvents(input.events ?? []);
+  const metricIds = input.metricIds === undefined ? [] : await checkedPickedMetrics(actor, input.metricIds);
   const url = await checkedAddress(input.url, rules.privateHosts);
   const id = randomUUID();
   const secret = newSecret();
@@ -99,7 +103,12 @@ export async function createPersonalWebhook(actor: Actor, input: { name: string;
   if (data === "role") throw new Forbidden("Only Owners, Admins and Members have their own Webhooks.");
   if (data === "trial_limit") throw new Error(`This trial already has ${rules.maxWebhooks} Webhooks, the most it may. Delete one to add another.`);
   if (data === "limit") throw new Error(`You already have ${PERSONAL_WEBHOOKS_PER_PERSON} Webhooks here, the most you may. Delete one to add another.`);
-  await audit(actor, { kind: "webhook.personal_added", object: { type: "webhook", id, name }, details: { address: maskedHost(url), events } });
+  if (metricIds.length) {
+    const { error: pickError } = await db().from("webhooks").update({ metric_ids: metricIds }).eq("id", id).eq("workspace_id", actor.workspaceId).eq("owner_id", actor.personId);
+    // Never a Webhook that hears more or less than was asked: without its Metrics it is taken back.
+    if (pickError) { await db().from("webhooks").delete().eq("id", id).eq("workspace_id", actor.workspaceId); throw new Error("The Webhook could not be saved. Try again in a moment."); }
+  }
+  await audit(actor, { kind: "webhook.personal_added", object: { type: "webhook", id, name }, details: { address: maskedHost(url), events, ...(metricIds.length ? { metrics: metricIds.length } : {}) } });
   return { id, secret };
 }
 
@@ -112,11 +121,17 @@ export async function listOwnPersonalWebhooks(actor: Actor): Promise<{ allowed: 
   const { data } = await db().from("webhooks").select(COLUMNS).eq("workspace_id", actor.workspaceId).eq("owner_id", actor.personId).order("created_at", { ascending: false });
   const rows = await openRows("webhooks", actor.workspaceId, (data ?? []) as Record<string, unknown>[]);
   const now = Date.now();
-  return { allowed, webhooks: rows.map((r) => ({ ...webhookInfo(r, now), paused: !allowed })) };
+  return { allowed, webhooks: rows.map((r) => ({ ...webhookInfo(r, now), paused: !allowed, metricIds: ((r.metric_ids as number[] | null) ?? []).map(Number) })) };
 }
 
-/** Changes the actor's own Webhook's name, events or address. */
-export async function updatePersonalWebhook(actor: Actor, id: string, change: { name?: string; events?: string[]; url?: string }): Promise<void> {
+/** The Metrics already picked on the actor's own Webhook. */
+async function currentPicks(actor: Actor, id: string): Promise<number[]> {
+  const { data } = await db().from("webhooks").select("metric_ids").eq("id", id).eq("workspace_id", actor.workspaceId).eq("owner_id", actor.personId).maybeSingle();
+  return ((data?.metric_ids as number[] | null) ?? []).map(Number);
+}
+
+/** Changes the actor's own Webhook's name, events, address or picked Metrics. */
+export async function updatePersonalWebhook(actor: Actor, id: string, change: { name?: string; events?: string[]; url?: string; metricIds?: number[] }): Promise<void> {
   await assertOwnsPersonal(actor);
   if (typeof change !== "object" || change === null) throw new Error("That is not a change to a Webhook.");
   const { row, address } = await findOwn(actor, id);
@@ -124,6 +139,7 @@ export async function updatePersonalWebhook(actor: Actor, id: string, change: { 
   const patch: Record<string, unknown> = { updated_at: new Date().toISOString() };
   if (change.name !== undefined) patch.name = cleanName(change.name);
   if (change.events !== undefined) patch.events = cleanEvents(change.events);
+  if (change.metricIds !== undefined) patch.metric_ids = await checkedPickedMetrics(actor, change.metricIds, await currentPicks(actor, String(row.id)));
   if (change.url !== undefined) patch.url = (await sealRow("webhooks", actor.workspaceId, { id: String(row.id), url: await checkedAddress(change.url, rules?.privateHosts ?? []) })).url;
   const { data: changed, error } = await db().from("webhooks").update(patch).eq("id", String(row.id)).eq("workspace_id", actor.workspaceId).eq("owner_id", actor.personId).select("id");
   if (error) throw new Error("The Webhook could not be saved. Try again in a moment.");
@@ -170,11 +186,24 @@ export async function sendTestPersonalWebhook(actor: Actor, id: string): Promise
 }
 
 /** The log of one Webhook's sends, newest first, for the days it is kept. `about` (what a send was about) is for the person only: Admins read statuses and times. */
-async function logOf(workspaceId: string, webhookId: string, limit: number, withAbout: boolean): Promise<WebhookLogEntry[]> {
+async function logOf(workspaceId: string, webhookId: string, limit: number, withAbout: boolean, person?: string): Promise<WebhookLogEntry[]> {
   const n = Number.isInteger(limit) ? Math.min(Math.max(limit, 1), 200) : 50;
   const since = new Date(Date.now() - (await daysNow("ZIFFR_KEEP_WEBHOOK_LOG_DAYS")) * 86_400_000).toISOString();
   const { data } = await db().from("webhook_sends").select("id, type, action_id, metric_id, created_at, state, status_code, failure, attempts").eq("webhook_id", webhookId).eq("workspace_id", workspaceId).gte("created_at", since).order("created_at", { ascending: false }).limit(n);
-  return (data ?? []).map((r) => ({
+  // For the person: what a send was about is shown only for what they may see now, and a send that never went out for
+  // something they may not see is left out, so the log cannot hint at it (spec 0037).
+  let rowsOf = data ?? [];
+  if (person) {
+    const metrics = await getMetrics(workspaceId);
+    const seen = await visibleMetricIds(workspaceId, person, metrics);
+    const readable = new Set((await readableActions(workspaceId, person)).map((a) => a.id));
+    rowsOf = rowsOf.flatMap((r) => {
+      const ok = r.action_id !== null ? readable.has(Number(r.action_id)) : r.metric_id !== null ? seen.has(Number(r.metric_id)) : true;
+      if (ok) return [r];
+      return r.state === "delivered" || r.state === "failed" ? [{ ...r, action_id: null, metric_id: null }] : [];
+    });
+  }
+  return rowsOf.map((r) => ({
     id: String(r.id), type: String(r.type), at: String(r.created_at), state: r.state as WebhookLogEntry["state"], statusCode: (r.status_code as number | null) ?? null,
     failure: (r.failure as string | null) ?? null, attempts: Number(r.attempts),
     about: withAbout ? (r.action_id !== null ? refFor(Number(r.action_id)) : r.metric_id !== null ? `Metric ${r.metric_id}` : null) : null,
@@ -185,7 +214,7 @@ async function logOf(workspaceId: string, webhookId: string, limit: number, with
 export async function ownPersonalWebhookLog(actor: Actor, id: string, limit = 50): Promise<WebhookLogEntry[]> {
   await assertOwnsPersonal(actor);
   const { row } = await findOwn(actor, id);
-  return logOf(actor.workspaceId, String(row.id), limit, true);
+  return logOf(actor.workspaceId, String(row.id), limit, true, actor.personId);
 }
 
 /** Every Personal Webhook of the Workspace for Owners and Admins: whose, the name, the address masked, the events, the state and the last send. No secret, no message. */

@@ -1,6 +1,6 @@
 // What a Personal Webhook sends so far (spec 0037, ticket #641; GLOSSARY: Personal Webhook): its test `ping`, signed and
 // through the real outbound request to a TLS server of the test's own, and when it does not send: the Workspace's switch
-// off, the person no longer an Owner, Admin or Member, the person's daily cap, and every other event until ticket 2.
+// off, the person no longer an Owner, Admin or Member, the person's daily cap, and an event that is not about anything the person may hear.
 // A failing one switches itself off and tells its person, not the Owners.
 import { execFileSync } from "node:child_process";
 import { mkdtempSync, readFileSync } from "node:fs";
@@ -114,12 +114,12 @@ describe.skipIf(!openssl)("when a Personal Webhook does not send", () => {
     expect(seen).toHaveLength(0);
   });
 
-  it("sends no event but its test until ticket 2, even one it chose", async () => {
+  it("sends nothing for an event that is not about anything its person may hear, and leaves no row to say so", async () => {
     const x = await setup(["action.created"]);
     await queue(x.id, x.w, "action.created");
     await sendWaitingWebhooks(50, x.w.id);
     expect(seen).toHaveLength(0);
-    expect(await logOf(x.id)).toMatchObject([{ type: "action.created", state: "dropped" }]);
+    expect(await logOf(x.id)).toEqual([]);
   });
 
   it("switches itself off after repeated failures and tells its person, not the Owners", async () => {
