@@ -82,3 +82,22 @@ export async function queueAlertFired(workspaceId: string, webhookIds: readonly 
     return 0;
   }
 }
+
+/** Writes an `alert.fired` send row for each Personal Webhook an Alert names, once per crossing, after the Alert claimed
+ * its fire. Only the Alert's own person's Webhooks (owner_id), switched on, having chosen the event, while the Workspace
+ * allows them: the first cut only, since the send judges the Alert, the person's sight and the value again. The row holds
+ * ids only (the Alert, the Metric, the period). Never throws. */
+export async function queueAlertFiredToPersonal(workspaceId: string, alert: { id: number; personId: string; webhookIds: readonly string[]; metricId: number; period: string }): Promise<number> {
+  try {
+    if (!alert.webhookIds.length || !(await personalWebhooksAllowed(workspaceId))) return 0;
+    const { data: hooks } = await db().from("webhooks").select("id").eq("workspace_id", workspaceId).eq("owner_id", alert.personId).in("id", [...alert.webhookIds]).is("disabled_at", null).contains("events", ["alert.fired"]);
+    if (!hooks?.length) return 0;
+    const rows = hooks.map((h) => ({ workspace_id: workspaceId, webhook_id: h.id as string, type: "alert.fired", alert_id: alert.id, metric_id: alert.metricId, period_start: alert.period, source_type: "system" }));
+    const { error } = await db().from("webhook_sends").insert(rows);
+    if (error) { console.error("Webhooks: could not queue an event:", error.message); return 0; }
+    return rows.length;
+  } catch (e) {
+    console.error("Webhooks: could not queue an event:", (e as Error).message);
+    return 0;
+  }
+}

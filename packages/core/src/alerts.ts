@@ -18,6 +18,7 @@ import { openRows, reserveIds, sealRow } from "./sealed-columns";
 import { attainmentMethodOf } from "./workspace-settings";
 import { getMetrics } from "./workspace-data";
 import { checkAlerts } from "./alert-firing";
+import { listOwnPersonalWebhooks } from "./personal-webhooks";
 import type { Metric } from "./types";
 
 /** How long an Alert without sight of its Metric is kept before it is removed (owner decision, spec 0032). */
@@ -32,7 +33,7 @@ export type AlertDelivery = (typeof ALERT_DELIVERIES)[number];
 export type AlertPause = "no_access" | "archived" | "no_target" | "no_workflow";
 
 /** What a person says to make or change an Alert. */
-export type AlertInput = { metricId: number; condition: AlertCondition; delivery?: AlertDelivery; includeUnapproved?: boolean };
+export type AlertInput = { metricId: number; condition: AlertCondition; delivery?: AlertDelivery; includeUnapproved?: boolean; /** The person's own Personal Webhooks that also hear it (spec 0037); the web app only, never a key. */ webhookIds?: string[] };
 
 /** One of a person's Alerts, with its Metric's name as the person sees it. */
 export type MyAlert = {
@@ -41,6 +42,8 @@ export type MyAlert = {
   condition: AlertCondition;
   delivery: AlertDelivery;
   includeUnapproved: boolean;
+  /** The person's own Personal Webhooks that still exist and also hear this Alert (spec 0037). */
+  webhookIds: string[];
   pausedByPerson: boolean;
   paused: AlertPause | null;
   state: "armed" | "fired";
@@ -49,8 +52,8 @@ export type MyAlert = {
 };
 
 /** What the database stores of an Alert, before it is opened. */
-type Row = { id: number; metric_id: number; kind: AlertKind; level: string | null; delivery: AlertDelivery; include_unapproved: boolean; paused_by_person: boolean; paused: AlertPause | null; state: "armed" | "fired"; fired_at: string | null; created_at: string };
-const COLUMNS = "id, metric_id, kind, level, delivery, include_unapproved, paused_by_person, paused, state, fired_at, created_at";
+type Row = { id: number; metric_id: number; kind: AlertKind; level: string | null; delivery: AlertDelivery; include_unapproved: boolean; webhook_ids: string[]; paused_by_person: boolean; paused: AlertPause | null; state: "armed" | "fired"; fired_at: string | null; created_at: string };
+const COLUMNS = "id, metric_id, kind, level, delivery, include_unapproved, webhook_ids, paused_by_person, paused, state, fired_at, created_at";
 
 /** A refusal in Ziffr's words, written for the person who asked (a limit, a condition the Metric cannot give, a bad
  * choice). Callers show its message; any other Error is a fault and stays out of sight. */
@@ -109,6 +112,41 @@ function checkOptions(delivery: unknown, include: unknown): { delivery: AlertDel
   return { delivery: d as AlertDelivery, include: include === true };
 }
 
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+/** Personal Webhooks one Alert may also send to. */
+export const ALERT_WEBHOOKS_MAX = 3;
+const NO_WEBHOOK = "That Webhook was not found.";
+const MISSING_NO_WEBHOOK = "An Alert on a missing value has no value to send, so it cannot also go to a Webhook.";
+
+/** The Personal Webhooks an Alert is to send to, checked: only the acting person's own, in this Workspace, each once. A
+ * Webhook that is someone else's or not there is refused in the same words, so the answer tells nothing about it. Only a
+ * signed-in person names one: a key never does (changing where data leaves is for the person at the page, spec 0037). */
+async function checkedWebhooks(actor: Actor, raw: unknown): Promise<string[]> {
+  if (actor.key) throw new Forbidden("A key cannot send an Alert to a Webhook.");
+  if (!Array.isArray(raw) || raw.length > ALERT_WEBHOOKS_MAX) throw new AlertRefused(`An Alert can also send to at most ${ALERT_WEBHOOKS_MAX} Webhooks.`);
+  const ids: string[] = [];
+  for (const id of raw) {
+    if (typeof id !== "string" || !UUID.test(id)) throw new Forbidden(NO_WEBHOOK);
+    if (!ids.includes(id.toLowerCase())) ids.push(id.toLowerCase());
+  }
+  if (!ids.length) return ids;
+  const { data } = await db().from("webhooks").select("id").eq("workspace_id", actor.workspaceId).eq("owner_id", actor.personId).in("id", ids);
+  if ((data?.length ?? 0) !== ids.length) throw new Forbidden(NO_WEBHOOK);
+  return ids;
+}
+
+/** The person's own Personal Webhooks an Alert may name, with whether each hears `alert.fired`: nothing while the
+ * Workspace does not allow them, or for anyone who may not have one. Names and ids only, never an address or a secret. */
+export async function alertWebhookChoices(actor: Actor): Promise<{ id: string; name: string; hearsAlerts: boolean }[]> {
+  try {
+    const { allowed, webhooks } = await listOwnPersonalWebhooks(actor);
+    return allowed ? webhooks.map((w) => ({ id: w.id, name: w.name, hearsAlerts: w.events.includes("alert.fired") })) : [];
+  } catch (e) {
+    if (e instanceof Forbidden) return [];
+    throw e;
+  }
+}
+
 /** The words for each refusal of the limits, in numbers the person can act on. */
 const limitWords = (perPerson: number): Record<string, string> => ({
   person_limit: `You already hold ${perPerson} Alerts in this Workspace, counting any on Metrics you can no longer see. Delete one to make another.`,
@@ -125,6 +163,8 @@ export async function createAlert(actor: Actor, input: AlertInput): Promise<numb
   const { delivery, include } = checkOptions(input.delivery, input.includeUnapproved);
   await checkPossible(actor, metric, input.condition);
   const { kind, level } = split(input.condition);
+  const webhookIds = input.webhookIds === undefined ? [] : await checkedWebhooks(actor, input.webhookIds);
+  if (webhookIds.length && kind === "missing_after_due") throw new AlertRefused(MISSING_NO_WEBHOOK);
   const [id] = await reserveIds("alerts", 1);
   const row = await sealRow("alerts", actor.workspaceId, { id, level });
   const [perWorkspace, perPerson] = await Promise.all([sendingLimit("alertsPerWorkspace"), effectiveLimit("alertsPerPerson", actor.workspaceId)]);
@@ -136,7 +176,14 @@ export async function createAlert(actor: Actor, input: AlertInput): Promise<numb
     console.error("create_alert failed:", error?.message ?? "no answer");
     throw new AlertRefused("The Alert could not be saved. Try again in a moment.");
   }
-  if (data === "ok") return id;
+  if (data === "ok") {
+    if (webhookIds.length) {
+      const { error: nameError } = await db().from("alerts").update({ webhook_ids: webhookIds }).eq("id", id).eq("workspace_id", actor.workspaceId).eq("person_id", actor.personId);
+      // Never an Alert that sends less than was asked: without its Webhooks it is taken back.
+      if (nameError) { await db().from("alerts").delete().eq("id", id).eq("workspace_id", actor.workspaceId); throw new AlertRefused("The Alert could not be saved. Try again in a moment."); }
+    }
+    return id;
+  }
   if (data === "workspace_limit") throw new AlertRefused(`This Workspace already holds ${perWorkspace} Alerts, the most it may.`);
   const words = limitWords(perPerson);
   if (data in words) throw new AlertRefused(words[data]);
@@ -155,13 +202,16 @@ export async function listMyAlerts(actor: Actor, metricId?: number): Promise<MyA
   const visible = await visibleMetricIds(actor.workspaceId, actor.personId, metrics);
   const byId = new Map(metrics.map((m) => [m.id, m]));
   const opened = await openRows("alerts", actor.workspaceId, data as Row[]);
+  // Only Webhooks that are still the person's own: one deleted since is not named.
+  const named = [...new Set(opened.flatMap((r) => r.webhook_ids ?? []))];
+  const own = new Set(named.length ? ((await db().from("webhooks").select("id").eq("workspace_id", actor.workspaceId).eq("owner_id", actor.personId).in("id", named)).data ?? []).map((w) => String(w.id)) : []);
   const out: MyAlert[] = [];
   for (const r of opened) {
     const m = byId.get(Number(r.metric_id));
     const condition = join(r.kind, r.level);
     // Without sight, or a level that does not open, there is nothing to show.
     if (!m || !visible.has(m.id) || !condition) continue;
-    out.push({ id: Number(r.id), metric: { id: m.id, slug: m.slug, name: m.name }, condition, delivery: r.delivery, includeUnapproved: r.include_unapproved, pausedByPerson: r.paused_by_person, paused: r.paused, state: r.state, firedAt: r.fired_at, createdAt: r.created_at });
+    out.push({ id: Number(r.id), metric: { id: m.id, slug: m.slug, name: m.name }, condition, delivery: r.delivery, includeUnapproved: r.include_unapproved, webhookIds: (r.webhook_ids ?? []).filter((w) => own.has(w)), pausedByPerson: r.paused_by_person, paused: r.paused, state: r.state, firedAt: r.fired_at, createdAt: r.created_at });
   }
   return out;
 }
@@ -189,7 +239,7 @@ export async function alertChoices(actor: Actor, metricId: number): Promise<Aler
 }
 
 /** What may be changed on an Alert: its condition, way of delivery, option, and whether it is paused. */
-export type AlertChange = { condition?: AlertCondition; delivery?: AlertDelivery; includeUnapproved?: boolean; paused?: boolean };
+export type AlertChange = { condition?: AlertCondition; delivery?: AlertDelivery; includeUnapproved?: boolean; paused?: boolean; /** The person's own Personal Webhooks that also hear it (spec 0037); the web app only, never a key. */ webhookIds?: string[] };
 
 /** Changes one of the acting person's own Alerts, while they still see its Metric. A new condition arms it again.
  * Pausing is the person's own switch, kept apart: resuming ends only that, and the system's pauses (no access,
@@ -198,7 +248,7 @@ export async function updateAlert(actor: Actor, id: number, change: AlertChange)
   refuseInDemo(actor);
   if (!Number.isInteger(id)) throw new Forbidden(NOT_FOUND);
   if (typeof change !== "object" || change === null) throw new AlertRefused("That is not a change to an Alert.");
-  const { data } = await db().from("alerts").select("id, metric_id").eq("id", id).eq("workspace_id", actor.workspaceId).eq("person_id", actor.personId).maybeSingle();
+  const { data } = await db().from("alerts").select("id, metric_id, kind, webhook_ids").eq("id", id).eq("workspace_id", actor.workspaceId).eq("person_id", actor.personId).maybeSingle();
   if (!data) throw new Forbidden(NOT_FOUND);
   const metric = await seen(actor, Number(data.metric_id));
   const patch: Record<string, unknown> = { updated_at: new Date().toISOString() };
@@ -208,6 +258,11 @@ export async function updateAlert(actor: Actor, id: number, change: AlertChange)
     if (change.includeUnapproved !== undefined) patch.include_unapproved = o.include;
   }
   if (change.paused !== undefined && typeof change.paused !== "boolean") throw new AlertRefused("An Alert is paused or not.");
+  if (change.webhookIds !== undefined) patch.webhook_ids = await checkedWebhooks(actor, change.webhookIds);
+  // The Webhooks it will have after this change: an Alert on a missing value has no value to send.
+  const after = (patch.webhook_ids as string[] | undefined) ?? ((data.webhook_ids as string[] | null) ?? []);
+  const kindAfter = change.condition !== undefined ? split(change.condition).kind : (data.kind as AlertKind);
+  if (after.length && kindAfter === "missing_after_due") throw new AlertRefused(MISSING_NO_WEBHOOK);
   if (change.paused !== undefined) patch.paused_by_person = change.paused;
   if (change.condition !== undefined) {
     await checkPossible(actor, metric, change.condition);

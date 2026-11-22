@@ -16,6 +16,9 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/co
 import { Input } from "@/components/ui/input";
 import { usePanel } from "@/lib/panel-param";
 
+/** One of the person's own Personal Webhooks an Alert may also send to, and whether it hears `alert.fired`. */
+export type WebhookChoice = { id: string; name: string; hearsAlerts: boolean };
+
 const field = "h-9 w-full rounded-[var(--radius-input)] border border-input bg-card px-2.5 text-sm";
 const KIND_LABEL: Record<AlertKind, string> = {
   share_of_target: "Reaches a share of its target",
@@ -30,7 +33,7 @@ const KINDS = Object.keys(KIND_LABEL) as AlertKind[];
 const numberOf = (c: AlertCondition | undefined): string => (!c ? "" : c.kind === "at_or_above" || c.kind === "below" ? c.value : c.kind === "share_of_target" || c.kind === "changed_more" ? c.share : "");
 
 /** The form for one Alert: its condition, way of delivery and the option. Makes it, or changes `initial`. */
-function AlertForm({ metricId, initial, choices, onDone }: { metricId: number; initial?: MyAlert; choices?: AlertChoices; onDone: () => void }) {
+function AlertForm({ metricId, initial, choices, webhooks, onDone }: { metricId: number; initial?: MyAlert; choices?: AlertChoices; webhooks: WebhookChoice[]; onDone: () => void }) {
   const [pending, start] = useTransition();
   const router = useRouter();
   const unavailable = choices?.unavailable ?? {};
@@ -39,11 +42,14 @@ function AlertForm({ metricId, initial, choices, onDone }: { metricId: number; i
   const [num, setNum] = useState(numberOf(initial?.condition));
   const [delivery, setDelivery] = useState<AlertDelivery>(initial?.delivery ?? "usual");
   const [include, setInclude] = useState(initial?.includeUnapproved ?? false);
+  const [hooks, setHooks] = useState<string[]>(initial?.webhookIds ?? []);
   const isShare = kind === "share_of_target" || kind === "changed_more";
   const condition = (): AlertCondition => (kind === "missing_after_due" ? { kind } : kind === "at_or_above" || kind === "below" ? { kind, value: num.trim() } : { kind, share: num.trim() });
+  // A Webhook cannot hear an Alert on a missing value, which has no value to send.
+  const sent = kind === "missing_after_due" ? [] : hooks;
   const save = () => start(async () => {
     try {
-      unwrap(initial ? await updateAlert(initial.id, { condition: condition(), delivery, includeUnapproved: include }) : await createAlert({ metricId, condition: condition(), delivery, includeUnapproved: include }));
+      unwrap(initial ? await updateAlert(initial.id, { condition: condition(), delivery, includeUnapproved: include, webhookIds: sent }) : await createAlert({ metricId, condition: condition(), delivery, includeUnapproved: include, webhookIds: sent }));
       toast.success(initial ? "Alert changed" : "Alert set", { description: "You will be told once each time it becomes true." });
       router.refresh();
       onDone();
@@ -77,6 +83,18 @@ function AlertForm({ metricId, initial, choices, onDone }: { metricId: number; i
           <span>Include values not approved yet<span className="block text-xs text-muted-foreground">Off: you hear only about values that are published or approved.</span></span>
         </label>
       )}
+      {kind !== "missing_after_due" && webhooks.length > 0 && (
+        <fieldset className="space-y-1">
+          <legend className="text-sm font-medium">Also send to</legend>
+          {webhooks.map((w) => (
+            <label key={w.id} className="flex items-start gap-2 text-sm">
+              <input type="checkbox" checked={hooks.includes(w.id)} disabled={!w.hearsAlerts && !hooks.includes(w.id)} onChange={(e) => setHooks(e.target.checked ? [...hooks, w.id] : hooks.filter((h) => h !== w.id))} className="mt-0.5 size-4 accent-[var(--color-ink)]" />
+              <span>{w.name}{!w.hearsAlerts && <span className="block text-xs text-muted-foreground">This Webhook does not listen for Alerts yet.</span>}</span>
+            </label>
+          ))}
+          <p className="text-xs text-muted-foreground">One of your own Personal Webhooks. It still tells you the usual way, and the Webhook gets the same moment as a message with the Metric, period, value and target.</p>
+        </fieldset>
+      )}
       <Button type="submit" disabled={pending}>{pending ? "Saving…" : initial ? "Save the Alert" : "Set the Alert"}</Button>
     </form>
   );
@@ -84,7 +102,7 @@ function AlertForm({ metricId, initial, choices, onDone }: { metricId: number; i
 
 /** The person's Alerts, each with its state, why it is paused, and Pause or Resume, Edit and Delete. With `showMetric`
  * (Your settings) each names its Metric. */
-export function AlertRows({ alerts, showMetric, choices }: { alerts: MyAlert[]; showMetric?: boolean; choices?: AlertChoices }) {
+export function AlertRows({ alerts, showMetric, choices, webhooks = [] }: { alerts: MyAlert[]; showMetric?: boolean; choices?: AlertChoices; webhooks?: WebhookChoice[] }) {
   const [pending, start] = useTransition();
   const [editing, setEditing] = useState<number | null>(null);
   const router = useRouter();
@@ -96,7 +114,7 @@ export function AlertRows({ alerts, showMetric, choices }: { alerts: MyAlert[]; 
           <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
             <div className="min-w-0 flex-1">
               <p className="font-medium break-words">{showMetric ? <>{a.metric.name}: {conditionWords(a.condition).toLowerCase()}</> : conditionWords(a.condition)}</p>
-              <p className="text-xs text-muted-foreground">By {DELIVERY_WORDS[a.delivery]}{a.includeUnapproved ? ", values not approved yet included" : ""}. {standing(a)}.</p>
+              <p className="text-xs text-muted-foreground">By {DELIVERY_WORDS[a.delivery]}{a.includeUnapproved ? ", values not approved yet included" : ""}. {standing(a)}.{a.webhookIds.length > 0 && ` Also sent to ${a.webhookIds.map((id) => webhooks.find((w) => w.id === id)?.name ?? "a Webhook").join(", ")}.`}</p>
             </div>
             <div className="flex gap-1">
               <button type="button" disabled={pending} aria-label={a.pausedByPerson ? "Resume the Alert" : "Pause the Alert"} onClick={() => run(() => updateAlert(a.id, { paused: !a.pausedByPerson }), a.pausedByPerson ? "Alert resumed" : "Alert paused")} className="flex size-8 items-center justify-center rounded-[var(--radius-input)] text-muted-foreground hover:bg-muted hover:text-foreground focus-visible:outline-2 focus-visible:outline-ring">
@@ -106,7 +124,7 @@ export function AlertRows({ alerts, showMetric, choices }: { alerts: MyAlert[]; 
               <button type="button" disabled={pending} aria-label="Delete the Alert" onClick={() => run(() => deleteAlert(a.id), "Alert deleted")} className="flex size-8 items-center justify-center rounded-[var(--radius-input)] text-muted-foreground hover:bg-muted hover:text-foreground focus-visible:outline-2 focus-visible:outline-ring"><Trash2 aria-hidden className="size-3.5" /></button>
             </div>
           </div>
-          {editing === a.id && <div className="border-t border-border pt-3"><AlertForm metricId={a.metric.id} initial={a} choices={choices} onDone={() => setEditing(null)} /></div>}
+          {editing === a.id && <div className="border-t border-border pt-3"><AlertForm metricId={a.metric.id} initial={a} choices={choices} webhooks={webhooks} onDone={() => setEditing(null)} /></div>}
         </li>
       ))}
     </ul>
@@ -115,7 +133,7 @@ export function AlertRows({ alerts, showMetric, choices }: { alerts: MyAlert[]; 
 
 /** "Alert me…" on a Metric's page: a slide-over (`?panel=alert` is its direct URL) with the person's Alerts on this Metric, how near the limits they are,
  * and the form for another. Not shown in the demo, which is read-only. */
-export function AlertMe({ metric, mine, choices, controlled }: { metric: { id: number; name: string }; mine: MyAlert[]; choices: AlertChoices; /** The page's ⋯ menu opens it: no button of its own. */ controlled?: boolean }) {
+export function AlertMe({ metric, mine, choices, webhooks, controlled }: { metric: { id: number; name: string }; mine: MyAlert[]; choices: AlertChoices; webhooks: WebhookChoice[]; /** The page's ⋯ menu opens it: no button of its own. */ controlled?: boolean }) {
   const [open, setOpen] = usePanel("alert");
   const { held } = choices;
   const full = held.person >= held.perPerson || held.metric >= held.perMetric;
@@ -123,9 +141,9 @@ export function AlertMe({ metric, mine, choices, controlled }: { metric: { id: n
   const body = (
     <>
       <p className="text-sm text-muted-foreground">Ziffr tells you once when this Metric&rsquo;s latest value meets the condition, and again only after it has been false in between. Only you are told, and only while you can see the Metric.</p>
-      {mine.length > 0 && <AlertRows alerts={mine} choices={choices} />}
+      {mine.length > 0 && <AlertRows alerts={mine} choices={choices} webhooks={webhooks} />}
       <p className="text-xs text-muted-foreground" aria-live="polite">You hold {held.metric} of {held.perMetric} Alerts on this Metric and {held.person} of {held.perPerson} in this Workspace.</p>
-      {choices.archived ? <p className="text-sm">This Metric is archived. Bring it back to set an Alert on it.</p> : full ? <p className="text-sm">You have reached a limit. Delete an Alert to make another.</p> : <AlertForm metricId={metric.id} choices={choices} onDone={() => setOpen(false)} />}
+      {choices.archived ? <p className="text-sm">This Metric is archived. Bring it back to set an Alert on it.</p> : full ? <p className="text-sm">You have reached a limit. Delete an Alert to make another.</p> : <AlertForm metricId={metric.id} choices={choices} webhooks={webhooks} onDone={() => setOpen(false)} />}
     </>
   );
   return (
