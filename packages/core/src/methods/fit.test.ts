@@ -609,7 +609,7 @@ describe("drivers that cannot be told apart", () => {
     const free = Array.from({ length: 30 }, () => hundredths(rng() * 50));
     const r = fit(input(y, [a, b, c, free]));
     expect(r.ok).toBe(false);
-    if (!r.ok) expect(r.refusals).toEqual([{ case: "refuse-collinear", slots: { names: "Visits, Price, Tickets" } }]);
+    if (!r.ok) expect(r.refusals).toEqual([{ case: "refuse-drivers-collinear", slots: { names: "Visits, Price, Tickets" } }]);
   });
   it("decides at a variance inflation of 5 exactly: just under stays two drivers, above is treated as one", () => {
     // x2 = 100·x1 + m·e: the noise m moves the inflation down from enormous; the first m where the exact inflation is at most 5.

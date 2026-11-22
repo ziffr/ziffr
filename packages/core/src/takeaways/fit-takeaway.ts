@@ -130,7 +130,7 @@ export function movesTakeaway(target: Metric, drivers: Metric[], f: Fit | Refuse
     numbers.push(
       { label: `${d.name}: ${text("numbers-effect", ctx, { step: stepText })}`, text: written(target, effect, ctx, like) },
       { label: `${d.name}: ${text("numbers-range", ctx)}`, text: `${written(target, lo, ctx, like)} – ${written(target, hi, ctx, like)}` },
-      { label: `${d.name}: ${text("numbers-share", ctx)}`, text: `${formatNumber(d.share * 100, 0, ctx.style)} %` },
+      { label: `${d.name}: ${text("numbers-explained-share", ctx)}`, text: `${formatNumber(d.share * 100, 0, ctx.style)} %` },
       { label: `${d.name}: ${text("numbers-moves-with", ctx)}`, text: formatNumber(d.inflation, 2, ctx.style) },
     );
     const share = text(shareWord(d.share), ctx);

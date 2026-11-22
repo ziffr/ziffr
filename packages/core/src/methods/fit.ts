@@ -333,7 +333,7 @@ function reduce(rows: FitRow[], names: string[], k: number): Reduced {
         // A driver is part of a mix when taking its column out leaves the rank as it was (it is made of the others).
         const rank = rankOf(mo.sxx);
         const mix = idx.filter((i) => rankOf(mo.sxx.map((row) => row.filter((_, c) => c !== i))) === rank);
-        return { refusals: [{ case: "refuse-collinear", slots: { names: mix.map((i) => names[cols[i]]).join(", ") } }] };
+        return { refusals: [{ case: "refuse-drivers-collinear", slots: { names: mix.map((i) => names[cols[i]]).join(", ") } }] };
       }
     } else {
       const inflation = idx.map((i) => mul(sol.m[i][i], mo.sxx[i][i]));
