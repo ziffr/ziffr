@@ -83,20 +83,28 @@ export async function metricChoices(actor: Pick<Actor, "workspaceId" | "personId
 export async function createDashboardFromTemplate(actor: Actor, input: { template: number | string; name: string; fills: number[][]; tagFills?: (string | null)[] }): Promise<number> {
   assertCan(actor, "create");
   const t = await dashboardTemplate(actor, input.template);
-  const fills = Array.isArray(input.fills) ? input.fills.map((f) => (Array.isArray(f) ? f.map(Number).filter(Number.isInteger).slice(0, 50) : [])) : [];
+  if (!t) throw new Forbidden();
   // A Slot may be filled by choosing a Tag, which makes a Tag widget (spec 0038): only for a Slot such widgets can use, and
   // only a Tag the actor sees, so a word nobody told them is no more a Tag than one that does not exist.
   const tagFills = await checkedTagFills(actor, t, input.tagFills);
-  if (!t || !fillsComplete(t.slots, fills, tagFills)) throw new Forbidden();
+  return createDashboardFromBody(actor, t, input.name, input.fills, `Made from the template “${t.name}”`, tagFills);
+}
+
+/** Makes a dashboard from a template's Slots and body that is not stored (a Workspace Export's dashboard): the same
+ * checks as a stored template, so every Slot is filled and every Metric is one the actor sees. */
+export async function createDashboardFromBody(actor: Actor, t: Pick<DashboardTemplate, "name" | "slots" | "body">, name: string, fillsIn: unknown, message: string, tagFills?: Parameters<typeof fillsComplete>[2]): Promise<number> {
+  assertCan(actor, "create");
+  const fills = Array.isArray(fillsIn) ? fillsIn.map((f) => (Array.isArray(f) ? f.map(Number).filter(Number.isInteger).slice(0, 50) : [])) : [];
+  if (!fillsComplete(t.slots, fills, tagFills)) throw new Forbidden();
   const widgets = fromDashboardTemplate(t.body, fills.slice(0, t.slots.length), tagFills);
   // A template keeps its widgets' View Designs: checked again as they become widgets (spec 0024).
   for (const w of widgets) assertSettingsDesigns(w.settings);
   await assertSeesMetrics(actor, widgets.flatMap((w) => widgetMetricIds(w.metric_ids, w.settings)));
-  const id = await createDashboard(actor, String(input.name ?? "").trim() || t.name);
+  const id = await createDashboard(actor, String(name ?? "").trim() || t.name);
   if (widgets.length) {
     const placed = await insertSealed("widgets", actor.workspaceId, widgets.map((w) => ({ ...w, owner_id: actor.personId, dashboard_id: id, saved: false })));
     if (placed.length !== widgets.length) throw new Error("The dashboard could not be made from the template.");
   }
-  await recordVersion("dashboard", id, actor.personId, { message: `Made from the template “${t.name}”` });
+  await recordVersion("dashboard", id, actor.personId, { message });
   return id;
 }

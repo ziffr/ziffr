@@ -19,6 +19,8 @@ If you follow a link to a deck that is not shared with you, Ziffr says "This dec
 
 ## The deck editor
 
+A deck that came in with a [Workspace Export](16-workspace-settings.md#from-a-workspace-export) starts empty. The first time you open it, the editor lays out its slides from today's values, as for a deck made from a Deck Template, and saves them.
+
 The editor has three parts: a row of buttons at the top, a side panel on the left, and the deck canvas, where your slides sit.
 
 Changes save by themselves a moment after you make them. Next to the deck's name you see **Saved**, **Saving…** or **Unsaved changes**. To rename the deck, click its name at the top and type. On a narrow screen the buttons move to a second line before the name is cut short.

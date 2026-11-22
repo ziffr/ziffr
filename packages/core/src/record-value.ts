@@ -30,8 +30,8 @@ type Stored = { id: number; value?: unknown; value_sealed?: unknown };
 /** A value as stored, to give back to the database as what the core read: the sealed text, or the plain number as text. */
 const asStored = (r: { value?: unknown; value_sealed?: unknown }): string => (typeof r.value_sealed === "string" ? r.value_sealed : String(r.value));
 
-/** A number written for a row: sealed for its place where the Workspace seals, as a plain number where it does not. */
-function written(cipher: WorkspaceCipher, table: "observations" | "breakdown_rows", id: number, v: number): { value: number | null; value_sealed: string | null } {
+/** A number written for a row (also by a Workspace import, which writes many values at once): sealed for its place where the Workspace seals, as a plain number where it does not. */
+export function written(cipher: WorkspaceCipher, table: "observations" | "breakdown_rows", id: number, v: number): { value: number | null; value_sealed: string | null } {
   if (!cipher.sealing) return { value: v, value_sealed: null };
   const place = numberPlace(table, "value", { id }) as NonNullable<ReturnType<typeof numberPlace>>;
   return { value: null, value_sealed: cipher.seal(place, String(v)) };
