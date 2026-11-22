@@ -34,7 +34,9 @@ describe("every problem of every bad Extension, as the command writes it", () =>
     for (const name of readdirSync(join(TEST, "bad")).sort()) {
       const files = new Map(GOOD);
       const dir = join(TEST, "bad", name);
-      const meta = JSON.parse(readFileSync(join(dir, "bad.json"), "utf8")) as { remove: string[] };
+      const meta = JSON.parse(readFileSync(join(dir, "bad.json"), "utf8")) as { remove: string[]; stage?: string };
+      // The Extensions only running them shows to be wrong pass the static checks; run-checks.test.ts holds them.
+      if (meta.stage === "run") continue;
       for (const f of readdirSync(dir)) if (f !== "bad.json") files.set(f, readFileSync(join(dir, f), "utf8"));
       for (const f of meta.remove) files.delete(f);
       out[name] = lines(files);

@@ -2,6 +2,7 @@
 // manifest, at most 400 lines for the implementation, a LICENSE that matches) and the static rules on every TypeScript
 // file. Every problem names its file and line. Nothing here runs the Extension's code: that is the next ticket's checks.
 import { checkManifest, type ExtensionManifest } from "./manifest.js";
+import type { RunRule } from "./run-checks.js";
 import { checkRules, type RuleName } from "./rules.js";
 
 /** The most lines an implementation (`method.ts` or `mark.ts`) may have. */
@@ -12,7 +13,7 @@ export const REQUIRED_FILES = ["extension.json", "reference.ts", "cases.ts", "ca
 /** The name of the reason the shape check refuses an Extension. */
 export type ShapeRule = "missing-file" | "empty-file" | "wrong-implementation" | "too-long" | "bad-manifest" | "license-mismatch";
 /** One thing wrong with an Extension: its reason, the file and line (null for a file that is missing) and what, in plain words. */
-export type ExtensionProblem = { rule: RuleName | ShapeRule; file: string; line: number | null; message: string };
+export type ExtensionProblem = { rule: RuleName | ShapeRule | RunRule; file: string; line: number | null; message: string };
 /** An Extension's files: each path relative to its folder, with its text. */
 export type ExtensionFiles = ReadonlyMap<string, string>;
 

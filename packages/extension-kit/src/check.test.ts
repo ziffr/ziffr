@@ -26,7 +26,9 @@ function badExtension(name: string): { files: Map<string, string>; rule: string;
   return { files, rule: meta.rule, why: meta.why };
 }
 
-const names = readdirSync(BAD).sort();
+// The bad Extensions of the checks that run the code (stage "run") are held to their reasons in run-checks.test.ts.
+const stageOf = (name: string) => (JSON.parse(readFileSync(join(BAD, name, "bad.json"), "utf8")) as { stage?: string }).stage ?? "static";
+const names = readdirSync(BAD).filter((n) => stageOf(n) === "static").sort();
 const rulesOf = (ps: ExtensionProblem[]) => [...new Set(ps.map((p) => p.rule))];
 
 describe("the good worked example", () => {
@@ -34,8 +36,8 @@ describe("the good worked example", () => {
     expect(checkExtensionFiles(readExtensionFolder(GOOD))).toEqual([]);
   });
 
-  it("is reported as valid by the command, which ends with 0", () => {
-    const res = run(["check", GOOD]);
+  it("is reported as valid by the command's static stage, which ends with 0", async () => {
+    const res = await run(["check", GOOD, "--static"]);
     expect(res.code).toBe(0);
     expect(res.out).toEqual([`${GOOD}: ziffr-example/spread 1.0.0 has the right shape and passes the static rules.`]);
   });
@@ -83,9 +85,9 @@ describe("the bad Extensions", () => {
     expect(checkExtensionFiles(files)).toEqual([]);
   });
 
-  it("is written by the command as file:line: message, and ends with 1", () => {
+  it("is written by the command as file:line: message, and ends with 1", async () => {
     const { files } = badExtension("clock-date-now");
-    const res = run(["check", "x"], () => files);
+    const res = await run(["check", "x"], () => files);
     expect(res.code).toBe(1);
     expect(res.out).toHaveLength(1);
     expect(res.out[0]).toMatch(/^x\/method\.ts:\d+: uses “Date”/);
@@ -93,12 +95,13 @@ describe("the bad Extensions", () => {
 });
 
 describe("the command", () => {
-  it("says how it is used, and ends with 2, when it is not given a folder", () => {
-    expect(run([]).code).toBe(2);
-    expect(run(["check"]).code).toBe(2);
+  it("says how it is used, and ends with 2, when it is not given a folder", async () => {
+    expect((await run([])).code).toBe(2);
+    expect((await run(["check"])).code).toBe(2);
+    expect((await run(["check", "--static"])).code).toBe(2);
   });
 
-  it("ends with 2 for a folder it cannot read", () => {
-    expect(run(["check", join(TEST, "nothing-here")]).code).toBe(2);
+  it("ends with 2 for a folder it cannot read", async () => {
+    expect((await run(["check", join(TEST, "nothing-here")])).code).toBe(2);
   });
 });

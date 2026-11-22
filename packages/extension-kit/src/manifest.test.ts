@@ -49,6 +49,16 @@ describe("the manifest check", () => {
     expect(outside.ok ? [] : outside.problems.map((p) => p.path)).toEqual(["signature.params[0].default"]);
   });
 
+  it("takes a relative tolerance for equality of 1e-6 or less, above 0, and refuses any other", () => {
+    const tolerance = (relative: number) => checkManifest(change((m) => { m.equality = { relative }; }));
+    expect(tolerance(1e-9).ok).toBe(true);
+    expect(tolerance(1e-6).ok).toBe(true);
+    const zero = tolerance(0);
+    expect(zero.ok ? [] : zero.problems.map((p) => p.path)).toEqual(["equality.relative"]);
+    const wide = tolerance(1e-3);
+    expect(wide.ok ? [] : wide.problems.map((p) => p.path)).toEqual(["equality.relative"]);
+  });
+
   it("refuses a text with a web address or markup", () => {
     expect(checkManifest(change((m) => { m.summary = "See https://evil.example now"; })).ok).toBe(false);
     expect(checkManifest(change((m) => { m.name = "<b>x</b>"; })).ok).toBe(false);

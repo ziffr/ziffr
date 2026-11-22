@@ -1,0 +1,6 @@
+{
+  "rule": "differs-from-reference",
+  "why": "gives another answer than its reference for a longer series, which only the generated inputs reach",
+  "remove": [],
+  "stage": "run"
+}

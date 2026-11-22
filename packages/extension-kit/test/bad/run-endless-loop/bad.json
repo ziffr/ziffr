@@ -1,0 +1,6 @@
+{
+  "rule": "too-slow",
+  "why": "loops without end on a long flat series, which the budget feeds it",
+  "remove": [],
+  "stage": "run"
+}

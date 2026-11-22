@@ -13,7 +13,7 @@ export const EXTENSION_LICENSES = ["MIT", "Apache-2.0"] as const;
 /** The kinds a value passed to or returned from an Extension has (spec 0041's `/2` format). */
 export const VALUE_KINDS = ["series", "value", "table", "model"] as const;
 /** The exact limits a manifest is held to. */
-export const EXTENSION_LIMITS = { bytes: 16_384, depth: 6, inputs: 6, params: 6, name: 80, summary: 200, points: 120, drivers: 6 } as const;
+export const EXTENSION_LIMITS = { bytes: 16_384, depth: 6, inputs: 6, params: 6, name: 80, summary: 200, points: 120, drivers: 6, relativeTolerance: 1e-6 } as const;
 
 /** What an Extension is handed or gives back: a series, a single value, a table or a fitted model. */
 export type ValueKind = (typeof VALUE_KINDS)[number];
@@ -34,6 +34,8 @@ export type ExtensionManifest = {
     gives: ValueKind | "shapes";
   };
   limits: { points: number; drivers?: number };
+  /** How the Method's answer is compared with its reference's: exactly (the default), or within a relative tolerance. */
+  equality?: { relative: number };
   ziffr: string;
   price: "free";
 };
@@ -85,6 +87,13 @@ export const EXTENSION_SCHEMA: Schema = {
       required: ["points"],
       additionalProperties: false,
     },
+    equality: {
+      type: "object",
+      description: "How the checks compare the Method's answer with its reference's. Left out, they must be exactly equal; a Method that draws on a distribution may name a relative tolerance instead.",
+      properties: { relative: { type: "number", minimum: 0, maximum: EXTENSION_LIMITS.relativeTolerance, description: "the largest relative difference accepted, above 0 and at most 1e-6" } },
+      required: ["relative"],
+      additionalProperties: false,
+    },
     ziffr: { type: "string", maxLength: 20, pattern: "^>=(?:0|[1-9][0-9]{0,3})\\.(?:0|[1-9][0-9]{0,3})(?:\\.(?:0|[1-9][0-9]{0,3}))?$", description: "the oldest Ziffr it was written for, such as “>=0.14”" },
     price: { const: "free", description: "Free only for now; paid Extensions are a later decision." },
   },
@@ -106,6 +115,7 @@ function meaning(m: ExtensionManifest, at: (path: string, message: string) => vo
     if (!(p.min < p.max)) at(`${here}.max`, "must be above min.");
     else if (p.default < p.min || p.default > p.max) at(`${here}.default`, "must be between min and max.");
   });
+  if (m.equality && !(m.equality.relative > 0)) at("equality.relative", "must be above 0: leave equality out to require exact equality.");
   if (m.kind === "mark" && m.signature.gives !== "shapes") at("signature.gives", "of a mark must be “shapes”.");
   if (m.kind === "method" && m.signature.gives === "shapes") at("signature.gives", "of a Method must be a series, value, table or model: only a mark gives shapes.");
   if (m.kind === "mark" && !m.signature.inputs.length) at("signature.inputs", "of a mark must name what it draws: a mark takes its numbers from a Method.");

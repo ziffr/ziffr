@@ -1,0 +1,6 @@
+{
+  "rule": "reference-shares-code",
+  "why": "its reference repeats the implementation's code under other names, so the comparison proves nothing",
+  "remove": [],
+  "stage": "run"
+}

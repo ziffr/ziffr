@@ -1,0 +1,6 @@
+{
+  "rule": "no-refusal",
+  "why": "returns the number 0 for a flat series instead of refusing, and its reference and cases agree with it",
+  "remove": [],
+  "stage": "run"
+}

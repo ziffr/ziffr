@@ -84,7 +84,7 @@ exports[`every problem of every bad Extension, as the command writes it > says w
     "extension.json:4: version must be three numbers, major, minor and patch, such as “1.2.0”; a change that alters a number is a new major version.",
   ],
   "manifest-extra-field": [
-    "extension.json:26: homepage is not a field here; the fields are “format”, “id”, “version”, “kind”, “name”, “summary”, “author”, “license”, “signature”, “limits”, “ziffr”, “price”.",
+    "extension.json:26: homepage is not a field here; the fields are “format”, “id”, “version”, “kind”, “name”, “summary”, “author”, “license”, “signature”, “limits”, “equality”, “ziffr”, “price”.",
   ],
   "manifest-method-that-draws": [
     "extension.json:19: signature.gives of a Method must be a series, value, table or model: only a mark gives shapes.",

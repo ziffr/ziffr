@@ -1,0 +1,6 @@
+{
+  "rule": "differs-from-case",
+  "why": "has a hand-worked case whose answer is wrong, so the Method and its reference both differ from it",
+  "remove": [],
+  "stage": "run"
+}
