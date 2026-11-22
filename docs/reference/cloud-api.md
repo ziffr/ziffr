@@ -30,7 +30,7 @@ The Trial Limits are the numbers that bound every Trial Workspace (spec 0040). Z
 | Call | What it does |
 | --- | --- |
 | `GET /api/cloud/v1/trial-limits` | `{ "limits": { ... }, "sources": { ... } }`: each limit in effect, and where it comes from (`cloud`, `page`, `server` or `default`). `days` is null while trials are off. |
-| `PUT /api/cloud/v1/trial-limits` | Sets them, answering as GET does. The body is an object of whole numbers, at most 4 KB, and unknown names are refused. Each PUT replaces all of them: a limit left out loses what was set and falls back to its default (`days`: no trials). |
+| `PUT /api/cloud/v1/trial-limits` | Changes the limits it names, answering as GET does. The body is an object, at most 4 KB, and unknown names are refused. A whole number sets a limit; `null` gives it back to its default (`days`: `null` means no trials, explicitly); a limit left out stays as it is. |
 
 - `days`: Days a trial lasts, 1 to 30, default 14 (no trials without it). Applies to trials made afterwards.
 - `graceDays`: Days a trial's data stays after it ends, 1 to 60, default 7.
@@ -44,7 +44,7 @@ The Trial Limits are the numbers that bound every Trial Workspace (spec 0040). Z
 - `webhookSendsPerDay`: Webhook sends a trial makes a day, 10 to 1,000, default 200.
 - `viewLinks`: View Links that work, 0 to 20, default 5. 0 means trials cannot make any.
 
-A number outside its range answers 400, and nothing is saved. The changes are written in one step, so two calls at once leave one of them whole. A number applies to running trials at once, except `days`, which applies to trials made afterwards. Lowering one never deletes or stops what a trial has: a trial over the new number keeps what it has and cannot add more. A limit the server's environment sets wins over what is sent, and `sources` says so. The call reads and writes numbers only, and the answer holds nothing of any trial.
+A number outside its range answers 400, and nothing is saved. The changes are written in one step, together with the numbers the database reads, so two calls at once leave one of them whole. A limit Ziffr Cloud set cannot be changed from the Installation settings page, and the database refuses any change of it but this call's. A number applies to running trials at once, except `days`, which applies to trials made afterwards. Lowering one never deletes or stops what a trial has: a trial over the new number keeps what it has and cannot add more. A limit the server's environment sets wins over what is sent, and `sources` says so. The call reads and writes numbers only, and the answer holds nothing of any trial.
 
 ## The handover
 

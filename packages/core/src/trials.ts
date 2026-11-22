@@ -6,7 +6,7 @@ import { db } from "./db";
 import { Forbidden } from "./actor";
 import { hostedByCloud } from "./installation-days";
 import { settingsInEffect, storedSettings } from "./settings-in-effect";
-import { trialLimitOf } from "./trial-limits";
+import { trialLimitFrom, trialLimitOf } from "./trial-limits";
 import { trialLimitsInEffect, trialLimitsNow } from "./trial-limits-in-effect";
 
 /** Live Trial Workspaces an Installation holds unless the Trial Limit "Trials at once" says otherwise. */
@@ -50,11 +50,8 @@ export function trialSettings(env: Record<string, string | undefined> = process.
   if (!rawDays) return null;
   const days = Number(rawDays);
   if (!/^\d+$/.test(rawDays) || days < 1 || days > 30) throw new Error("ZIFFR_TRIAL_DAYS must be a whole number from 1 to 30; no workspace is made until it is.");
-  const rawMax = env.ZIFFR_TRIAL_MAX?.trim();
-  if (!rawMax) return { days, max: DEFAULT_TRIAL_MAX };
-  const max = Number(rawMax);
-  if (!/^\d+$/.test(rawMax) || max < 1) throw new Error("ZIFFR_TRIAL_MAX must be a whole number from 1; no workspace is made until it is.");
-  return { days, max };
+  // A cap outside its range (1 to 100,000) counts for nothing, like every Trial Limit: the default applies.
+  return { days, max: trialLimitFrom(env, "max") };
 }
 
 /** Why a Trial Workspace could not be made, in words for the welcome page. */

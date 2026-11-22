@@ -17,7 +17,6 @@ import { normalizeMetric } from "./metric-row";
 import { editableMetric } from "./metrics";
 import { submissionEffects, submitValue, type SubmissionEffects } from "./submissions";
 import { trialLimitMessage } from "./trials";
-import { syncTrialLimits } from "./trial-limits-in-effect";
 import { recordVersion } from "./versions";
 import type { Metric, Period } from "./types";
 import { periodStart, type YearStart } from "./periods";
@@ -70,7 +69,6 @@ export async function createFeed(actor: Actor, name: string): Promise<{ id: stri
   const clean = cleanName(name);
   if (!clean) throw new Error("Give the Feed a name, such as the system it brings values from.");
   const id = `feed-${randomUUID()}`;
-  await syncTrialLimits();
   // No email and no Slack handle: nothing can recognise a message as coming from a Feed, only its key.
   const { error } = await db().from("profiles").insert({ id, name: clean, role: "Feed", color: "#64748b", email: null, slack_handle: null });
   if (error) throw new Error("The Feed could not be created.");

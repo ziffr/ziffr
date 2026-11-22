@@ -13,9 +13,11 @@ describe("trialSettings", () => {
     expect(trialSettings({ ...CLOUD, ZIFFR_TRIAL_DAYS: "7" })).toEqual({ days: 7, max: DEFAULT_TRIAL_MAX });
     expect(trialSettings({ ...CLOUD, ZIFFR_TRIAL_DAYS: "30", ZIFFR_TRIAL_MAX: "5" })).toEqual({ days: 30, max: 5 });
   });
-  it("refuses days or a cap that are set but wrong, rather than offering ordinary workspaces", () => {
+  it("refuses days that are set but wrong, rather than offering ordinary workspaces, and ignores a cap outside its range", () => {
     for (const days of ["0", "31", "7.5", "seven", "14d", "1e1"]) expect(() => trialSettings({ ...CLOUD, ZIFFR_TRIAL_DAYS: days })).toThrow(/ZIFFR_TRIAL_DAYS/);
-    for (const max of ["0", "-1", "2.5", "many", "1,000"]) expect(() => trialSettings({ ...CLOUD, ZIFFR_TRIAL_DAYS: "7", ZIFFR_TRIAL_MAX: max })).toThrow(/ZIFFR_TRIAL_MAX/);
+    // Like every Trial Limit a cap outside 1 to 100,000 is the default, never an absurd number of trials.
+    for (const max of ["0", "-1", "2.5", "many", "1,000", "100001", "1000000000000"]) expect(trialSettings({ ...CLOUD, ZIFFR_TRIAL_DAYS: "7", ZIFFR_TRIAL_MAX: max })).toEqual({ days: 7, max: 500 });
+    expect(trialSettings({ ...CLOUD, ZIFFR_TRIAL_DAYS: "7", ZIFFR_TRIAL_MAX: "100000" })).toEqual({ days: 7, max: 100_000 });
   });
 });
 

@@ -42,11 +42,11 @@ describe("Ziffr Cloud", () => {
     expect(hostedByCloud({ ZIFFR_CLOUD_KEY: "x".repeat(31) })).toBe(false);
     expect(hostedByCloud({ ZIFFR_CLOUD_KEY: "x".repeat(32) })).toBe(true);
   });
-  it("pins the Workspace Limits, the grace values and the unused Workspace wait, and no log, capacity or Trial Limit value (Ziffr Cloud sets those through its API)", () => {
+  it("pins the Workspace Limits, the grace values, the trial days and the unused Workspace wait, and no log or capacity value", () => {
     expect([...CLOUD_PINNED].sort()).toEqual([
       "ZIFFR_DEFAULT_LIMIT_LABEL", "ZIFFR_DEFAULT_METRICS_LIMIT", "ZIFFR_DELETE_UNUSED_AFTER_DAYS", "ZIFFR_LIMIT_GRACE_DAYS", "ZIFFR_LIMIT_GRACE_EVERY_DAYS",
-      "ZIFFR_UNUSED_WAIT_DAYS",
+      "ZIFFR_TRIAL_DAYS", "ZIFFR_TRIAL_GRACE_DAYS", "ZIFFR_UNUSED_WAIT_DAYS",
     ]);
-    for (const name of ["ZIFFR_KEEP_AUDIT_DAYS", "ZIFFR_KEEP_ACCESS_LOG_DAYS", "ZIFFR_RETENTION_VALUES_PER_RUN", "ZIFFR_TRIAL_DAYS", "ZIFFR_TRIAL_GRACE_DAYS"]) expect(CLOUD_PINNED.has(name)).toBe(false);
+    for (const name of ["ZIFFR_KEEP_AUDIT_DAYS", "ZIFFR_KEEP_ACCESS_LOG_DAYS", "ZIFFR_RETENTION_VALUES_PER_RUN"]) expect(CLOUD_PINNED.has(name)).toBe(false);
   });
 });

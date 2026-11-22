@@ -25,7 +25,6 @@ import { normalizeMetric } from "./metric-row";
 import { numberStyleOf } from "./workspace-settings";
 import { effectiveLimit } from "./limits";
 import { trialLimitMessage } from "./trials";
-import { syncTrialLimits } from "./trial-limits-in-effect";
 import type { CanvasData, Widget } from "./types";
 
 /** How long a View Link may live at most, in days: the ceiling; a Workspace may set a shorter life (limits.ts). */
@@ -315,7 +314,6 @@ export async function createViewLink(actor: Actor, type: "dashboard" | "deck", i
   const [linkId] = await reserveIds("view_links", 1);
   const cipher = await workspaceCipher(actor.workspaceId);
   const frozen = input?.frozen ? sealFrozenData(cipher, "view_links", linkId, mapViewWords(view, sealing(cipher, "view_links", linkId))) : null;
-  await syncTrialLimits();
   const { data: made, error: madeError } = await db().from("view_links").insert({ id: linkId, token, object_type: type, object_id: id, created_by: actor.personId, label: String(input?.label ?? "").slice(0, 80), expires_at: expires, frozen, show_names: input?.showNames === true, metric_ids: view.data.metrics.map((m) => m.id), widget_ids: view.widgets?.map((w) => w.id) ?? null,
     // Every record the deck has now, not only shapes: anything added later stays out of a live link.
     shape_ids: type === "deck" ? Object.keys((view.document as { store?: object } | null)?.store ?? {}) : null,
@@ -349,7 +347,6 @@ async function createSnapshotLink(actor: Actor, dashboardId: number, snapshotId:
   await assertSeesMetrics(actor, s.data.metrics.map((m) => m.id));
   const token = randomBytes(24).toString("base64url");
   const [linkId] = await reserveIds("view_links", 1);
-  await syncTrialLimits();
   const { data: made, error: madeError } = await db().from("view_links").insert({ id: linkId, token, object_type: "dashboard", object_id: dashboardId, created_by: actor.personId, label: String(input?.label ?? "").slice(0, 80), expires_at: expires, frozen: null, show_names: input?.showNames === true, snapshot_id: snapshotId,
     // The words as the owner sees them now: someone outside reads these, whatever is written in Ziffr later. Sealed for
     // the link with the Workspace Key (spec 0028).

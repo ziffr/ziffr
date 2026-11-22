@@ -5,7 +5,6 @@ import { createHash, randomBytes } from "node:crypto";
 import { db } from "../db";
 import type { FEED_SCOPE, Scope } from "../actor";
 import { trialLimitMessage } from "../trials";
-import { syncTrialLimits } from "../trial-limits-in-effect";
 
 /** The stored form of a secret: its SHA-256, never the secret. */
 export const hash = (secret: string) => createHash("sha256").update(secret).digest("hex");
@@ -13,7 +12,6 @@ export const hash = (secret: string) => createHash("sha256").update(secret).dige
 /** Stores a new key, an Access Key or a Feed Key, with a fresh secret of which only the hash is kept. Returns its
  * id and end, and the secret, for the caller to show once. The caller has checked who may make it. */
 export async function insertKey(row: { workspace_id: string; created_by: string; feed_id?: string; name: string; scopes: Scope[] | [typeof FEED_SCOPE]; expires_on: string }) {
-  await syncTrialLimits();
   // A taken prefix is all but impossible (48 random bits); one more try covers it.
   for (let attempt = 0; attempt < 2; attempt++) {
     const prefix = randomBytes(6).toString("hex");

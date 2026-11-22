@@ -89,24 +89,103 @@ end $$;
 create trigger view_links_in_trial before insert on view_links
   for each row execute function view_links_in_trial();
 
--- Ziffr Cloud's call that sets the Trial Limits (PUT /api/cloud/v1/trial-limits): every Trial Limit setting is replaced in
--- one step, under a lock, so two calls at once leave one of them whole, never a mix. p_values maps setting names to whole
--- numbers; a Trial Limit left out loses its row and falls back to its default. Only the names and shapes of Trial Limits
--- pass; the ranges are the caller's (trial-limits.ts) and the table's checks for the numbers the triggers read.
-create or replace function set_cloud_trial_limits(p_values jsonb) returns void
-language plpgsql security definer set search_path = public as $$
-declare k text; v text;
+-- The Trial Limit settings, by name: the only names the functions below accept.
+create or replace function trial_limit_names() returns text
+language sql immutable as $$ select '^ZIFFR_TRIAL_(DAYS|GRACE_DAYS|MAX|LIMIT_(METRICS|MESSAGES_PER_DAY|KEYS|FEEDS|ASSISTANTS|WEBHOOKS|WEBHOOK_SENDS_PER_DAY|VIEW_LINKS))$' $$;
+
+-- One number of the row: the server's environment (p_env, which the core passes), else the saved setting, else the
+-- default; a value outside its range counts for nothing, as in trial-limits.ts.
+create or replace function trial_limit_pick(p_name text, p_min int, p_max int, p_default int, p_env jsonb) returns int
+language sql stable security definer set search_path = public as $$
+  select coalesce(
+    (select n::int from (select case when p_env ->> p_name ~ '^[0-9]{1,9}$' then (p_env ->> p_name)::bigint end as n) x where n between p_min and p_max),
+    (select n::int from (select case when value ~ '^[0-9]{1,9}$' then value::bigint end as n from installation_settings where name = p_name) y where n between p_min and p_max),
+    p_default)
+$$;
+
+-- Writes the row the triggers read from the settings and the environment. Called only by the functions below (a save by
+-- Ziffr Cloud or by the page, in the same transaction as the setting) and by the hourly trial job for a changed
+-- environment: never from the paths that make a Metric, key, Feed or View Link.
+create or replace function recompute_trial_limits(p_env jsonb) returns void
+language sql security definer set search_path = public as $$
+  insert into trial_limits (only_row, metrics, keys, feeds, assistants, view_links, updated_at) values (true,
+    trial_limit_pick('ZIFFR_TRIAL_LIMIT_METRICS', 5, 100, 25, p_env), trial_limit_pick('ZIFFR_TRIAL_LIMIT_KEYS', 1, 10, 2, p_env),
+    trial_limit_pick('ZIFFR_TRIAL_LIMIT_FEEDS', 1, 10, 2, p_env), trial_limit_pick('ZIFFR_TRIAL_LIMIT_ASSISTANTS', 1, 5, 1, p_env),
+    trial_limit_pick('ZIFFR_TRIAL_LIMIT_VIEW_LINKS', 0, 20, 5, p_env), now())
+  on conflict (only_row) do update set metrics = excluded.metrics, keys = excluded.keys, feeds = excluded.feeds,
+    assistants = excluded.assistants, view_links = excluded.view_links, updated_at = now()
+$$;
+
+-- A setting Ziffr Cloud wrote is changed or removed only by Ziffr Cloud's function, whatever else holds the service role.
+create or replace function trial_limits_of_cloud_only() returns trigger
+language plpgsql set search_path = public as $$
 begin
-  if jsonb_typeof(p_values) is distinct from 'object' then raise exception 'trial limits must be an object'; end if;
-  perform pg_advisory_xact_lock(hashtext('trial-limits'));
-  for k, v in select key, value from jsonb_each_text(p_values) loop
-    if k !~ '^ZIFFR_TRIAL_(DAYS|GRACE_DAYS|MAX|LIMIT_[A-Z_]{1,40})$' or v !~ '^[0-9]{1,9}$' then raise exception 'not a trial limit'; end if;
-  end loop;
-  delete from installation_settings
-    where name ~ '^ZIFFR_TRIAL_(DAYS|GRACE_DAYS|MAX|LIMIT_[A-Z_]{1,40})$' and not (p_values ? name);
-  insert into installation_settings (name, value, sealed, set_by, updated_by, updated_at)
-    select key, value, false, 'cloud', null, now() from jsonb_each_text(p_values)
-    on conflict (name) do update set value = excluded.value, sealed = false, set_by = 'cloud', updated_by = null, updated_at = now();
+  if old.set_by = 'cloud' and coalesce(current_setting('ziffr.cloud_trial_limits', true), '') <> 'on' then
+    raise exception using errcode = 'ZF438', message = 'trial_limit_set_by_cloud';
+  end if;
+  return coalesce(new, old);
 end $$;
-revoke execute on function set_cloud_trial_limits(jsonb) from public, anon, authenticated;
-grant execute on function set_cloud_trial_limits(jsonb) to service_role;
+create trigger trial_limits_of_cloud_only before update or delete on installation_settings
+  for each row execute function trial_limits_of_cloud_only();
+
+-- Ziffr Cloud's call (PATCH semantics): p_values maps setting names to a whole number, or to null to give that Trial
+-- Limit back to its default (the days: no trials). Names left out stay as they are. Everything in one step under a lock,
+-- with the row the triggers read, so two calls at once leave one of them whole.
+create or replace function set_cloud_trial_limits(p_values jsonb, p_env jsonb) returns void
+language plpgsql security definer set search_path = public as $$
+declare k text; v jsonb;
+begin
+  if jsonb_typeof(p_values) is distinct from 'object' or jsonb_typeof(p_env) is distinct from 'object' then raise exception 'trial limits must be an object'; end if;
+  for k, v in select key, value from jsonb_each(p_values) loop
+    if k !~ trial_limit_names() or not (jsonb_typeof(v) = 'null' or (jsonb_typeof(v) = 'string' and (v #>> '{}') ~ '^[0-9]{1,9}$')) then raise exception 'not a trial limit'; end if;
+  end loop;
+  perform pg_advisory_xact_lock(hashtext('trial-limits'));
+  perform set_config('ziffr.cloud_trial_limits', 'on', true);
+  for k, v in select key, value from jsonb_each(p_values) loop
+    if jsonb_typeof(v) = 'null' then
+      delete from installation_settings where name = k;
+    else
+      insert into installation_settings (name, value, sealed, set_by, updated_by, updated_at) values (k, v #>> '{}', false, 'cloud', null, now())
+        on conflict (name) do update set value = excluded.value, sealed = false, set_by = 'cloud', updated_by = null, updated_at = now();
+    end if;
+  end loop;
+  perform set_config('ziffr.cloud_trial_limits', 'off', true);
+  perform recompute_trial_limits(p_env);
+end $$;
+
+-- The page's save of Trial Limits: the same, for an Installation Admin (p_by). A setting Ziffr Cloud wrote is refused
+-- (ZF438) under the lock, so a save made a moment after Ziffr Cloud's never overwrites it.
+create or replace function save_page_trial_limits(p_values jsonb, p_env jsonb, p_by text) returns void
+language plpgsql security definer set search_path = public as $$
+declare k text; v jsonb;
+begin
+  if jsonb_typeof(p_values) is distinct from 'object' or jsonb_typeof(p_env) is distinct from 'object' then raise exception 'trial limits must be an object'; end if;
+  for k, v in select key, value from jsonb_each(p_values) loop
+    if k !~ trial_limit_names() or not (jsonb_typeof(v) = 'null' or (jsonb_typeof(v) = 'string' and (v #>> '{}') ~ '^[0-9]{1,9}$')) then raise exception 'not a trial limit'; end if;
+  end loop;
+  perform pg_advisory_xact_lock(hashtext('trial-limits'));
+  for k, v in select key, value from jsonb_each(p_values) loop
+    if exists (select 1 from installation_settings where name = k and set_by = 'cloud') then
+      raise exception using errcode = 'ZF438', message = 'trial_limit_set_by_cloud';
+    end if;
+    if jsonb_typeof(v) = 'null' then
+      delete from installation_settings where name = k;
+    else
+      insert into installation_settings (name, value, sealed, set_by, updated_by, updated_at) values (k, v #>> '{}', false, null, p_by, now())
+        on conflict (name) do update set value = excluded.value, sealed = false, set_by = null, updated_by = p_by, updated_at = now();
+    end if;
+  end loop;
+  perform recompute_trial_limits(p_env);
+end $$;
+
+-- For the hourly job: bring the row in line with a changed environment.
+create or replace function refresh_trial_limits(p_env jsonb) returns void
+language plpgsql security definer set search_path = public as $$
+begin
+  perform pg_advisory_xact_lock(hashtext('trial-limits'));
+  perform recompute_trial_limits(p_env);
+end $$;
+
+revoke execute on function trial_limit_names(), trial_limit_pick(text, int, int, int, jsonb), recompute_trial_limits(jsonb),
+  set_cloud_trial_limits(jsonb, jsonb), save_page_trial_limits(jsonb, jsonb, text), refresh_trial_limits(jsonb) from public, anon, authenticated;
+grant execute on function set_cloud_trial_limits(jsonb, jsonb), save_page_trial_limits(jsonb, jsonb, text), refresh_trial_limits(jsonb) to service_role;

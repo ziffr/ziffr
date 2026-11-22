@@ -8,7 +8,7 @@ import { INSTALLATION_SETTINGS, SETTINGS_SECTIONS, settingNamed, type SettingDef
 import { db } from "./db";
 import { trialSettings } from "./trials";
 import { TRIAL_LIMITS, trialLimitProblem } from "./trial-limits";
-import { syncTrialLimits } from "./trial-limits-in-effect";
+import { trialLimitEnvironment } from "./trial-limits-in-effect";
 import { headerSafe, inboundEnabled, isAddress, mailEnabled, smtpOptions, smtpTransportWith, type MailTransport } from "./mail";
 import { checkedMailHost, MailHostError, privateMailHost, privateMailHostsAllowed } from "./mail-hosts";
 import { secretsKey, sealSecret } from "./secrets";
@@ -263,6 +263,8 @@ export async function saveInstallationSettings(actor: InstallationActor, section
   if ((sec?.id === "trials" || sec?.id === "trial_limits") && !hostedByCloud(process.env)) throw new Error("Trials exist only on hosted Ziffr.");
   if (!sec?.ready) throw new Error("This section cannot be set up here yet.");
   if (!input || typeof input !== "object" || Array.isArray(input)) throw new Error("Nothing to save.");
+  // Read fresh: what Ziffr Cloud set a moment ago must not look like the page's (the database refuses it anyway).
+  if (sec.id === "trial_limits") forgetStoredSettings();
   const sources = await settingSources();
   const changes: { def: SettingDefinition; value: string | null }[] = [];
   for (const [name, raw] of Object.entries(input).slice(0, 20)) {
@@ -346,7 +348,12 @@ export async function saveInstallationSettings(actor: InstallationActor, section
   // Read fresh, not from the few seconds' cache: a save a moment ago may have replaced it.
   if (telegram) forgetStoredSettings();
   const before = telegram ? (await storedSettings()).values.get("ZIFFR_TELEGRAM_BOT_TOKEN") ?? null : null;
-  for (const { def, value } of changes) {
+  if (sec.id === "trial_limits") {
+    // Together with the row the triggers read, in one step; a value Ziffr Cloud wrote is refused there under a lock.
+    const { error } = await db().rpc("save_page_trial_limits", { p_values: Object.fromEntries(changes.map((c) => [c.def.name, c.value])), p_env: trialLimitEnvironment(), p_by: actor.personId });
+    if (error) throw new Error(error.code === "ZF438" ? "That Trial Limit is set by Ziffr Cloud." : "The settings could not be saved. Try again.");
+  }
+  for (const { def, value } of sec.id === "trial_limits" ? [] : changes) {
     if (value === null) {
       const { error } = await db().from("installation_settings").delete().eq("name", def.name);
       if (error) throw new Error("The settings could not be saved. Try again.");
@@ -361,8 +368,6 @@ export async function saveInstallationSettings(actor: InstallationActor, section
   forgetAuditReference();
   // The default limit and the grace days take effect in the database at once, not with the next new Metric.
   if (sec.id === "limits") await syncDefaultLimit(true);
-  // So do the Trial Limits the database enforces.
-  if (sec.id === "trial_limits") await syncTrialLimits(true);
   for (const { def, value } of changes) await recordInstallationEvent(actor.personId, value === null ? "setting.removed" : "setting.set", def.name);
   if (sec.id === "slack") return slackSaved(changes.some((c) => c.def.name === "ZIFFR_SLACK_SIGNING_SECRET" && c.value !== null));
   const audit = changes.find((c) => c.def.name === "ZIFFR_KEEP_AUDIT_DAYS");

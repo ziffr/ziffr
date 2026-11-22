@@ -12,41 +12,33 @@ import { createFeed, createFeedKey } from "./feeds";
 import { createMetric } from "./metrics";
 import { createViewLink } from "./view-links";
 import { forgetStoredSettings, settingsInEffect } from "./settings-in-effect";
-import { workspace } from "./test/db-fixtures";
+import { trialSettings } from "./trials";
+import { resetTrialLimits, workspace } from "./test/db-fixtures";
 import { TRIAL_LIMITS, trialLimitsFrom } from "./trial-limits";
-import { forgetTrialLimitsSync, syncTrialLimits, trialLimitsInEffect } from "./trial-limits-in-effect";
+import { syncTrialLimits, trialLimitsInEffect } from "./trial-limits-in-effect";
 import { claimTrialSend } from "./trials";
 
 const caller = { cloud: true } as const;
 const cleanups: (() => Promise<void>)[] = [];
-let savedSettings: Record<string, unknown>[] = [];
 const ENV = TRIAL_LIMITS.map((l) => l.name);
 const savedEnv: Record<string, string | undefined> = {};
 let savedKey: string | undefined;
-beforeAll(async () => { savedSettings = (await db().from("installation_settings").select("*")).data ?? []; });
-afterAll(async () => {
-  await db().from("installation_settings").delete().neq("name", "");
-  if (savedSettings.length) await db().from("installation_settings").insert(savedSettings);
-  forgetStoredSettings();
-  forgetTrialLimitsSync();
-  await syncTrialLimits(true);
-});
+beforeAll(resetTrialLimits);
+afterAll(async () => { await resetTrialLimits(); forgetStoredSettings(); });
 beforeEach(async () => {
   // Hosted Ziffr: the days a trial lasts are read only where there is a Ziffr Cloud key.
   savedKey = process.env.ZIFFR_CLOUD_KEY;
   process.env.ZIFFR_CLOUD_KEY = "k".repeat(40);
   for (const n of ENV) { savedEnv[n] = process.env[n]; delete process.env[n]; }
-  await db().from("installation_settings").delete().like("name", "ZIFFR_TRIAL_%");
+  await resetTrialLimits();
   forgetStoredSettings();
 });
 afterEach(async () => {
   if (savedKey === undefined) delete process.env.ZIFFR_CLOUD_KEY; else process.env.ZIFFR_CLOUD_KEY = savedKey;
   for (const n of ENV) { if (savedEnv[n] === undefined) delete process.env[n]; else process.env[n] = savedEnv[n]; }
   for (const c of cleanups.splice(0)) await c();
-  await db().from("installation_settings").delete().like("name", "ZIFFR_TRIAL_%");
+  await resetTrialLimits();
   forgetStoredSettings();
-  forgetTrialLimitsSync();
-  await syncTrialLimits(true);
 });
 const day = (n: number) => new Date(Date.now() + n * 86_400_000).toISOString().slice(0, 10);
 
@@ -77,20 +69,67 @@ describe("Ziffr Cloud sets the Trial Limits", () => {
     expect(Object.keys(after.limits).sort()).toEqual(TRIAL_LIMITS.map((l) => l.key).sort());
   });
 
-  it("replaces all of them: a limit left out falls back to its default, whoever set it", async () => {
-    await db().from("installation_settings").insert({ name: "ZIFFR_TRIAL_LIMIT_FEEDS", value: "7", sealed: false });
+  it("changes only the limits it names, and null gives one back to its default, whoever set it", async () => {
+    await db().rpc("save_page_trial_limits", { p_values: { ZIFFR_TRIAL_LIMIT_FEEDS: "7" }, p_env: {}, p_by: "nobody" });
     forgetStoredSettings();
     await setCloudTrialLimits(caller, { metrics: 30, keys: 4 });
     const second = await setCloudTrialLimits(caller, { keys: 5 });
-    expect(second.limits).toMatchObject({ metrics: 25, keys: 5, feeds: 2, days: null });
+    expect(second.limits).toMatchObject({ metrics: 30, keys: 5, feeds: 7, days: null });
+    const third = await setCloudTrialLimits(caller, { metrics: null, feeds: null, days: 9 });
+    expect(third.limits).toMatchObject({ metrics: 25, keys: 5, feeds: 2, days: 9 });
+    // Explicitly off: null days means no trials, and nothing else changes.
+    const off = await setCloudTrialLimits(caller, { days: null });
+    expect(off.limits).toMatchObject({ days: null, keys: 5 });
     const { data } = await db().from("installation_settings").select("name, set_by").like("name", "ZIFFR_TRIAL_%");
     expect(data).toEqual([{ name: "ZIFFR_TRIAL_LIMIT_KEYS", set_by: "cloud" }]);
+    expect((await db().from("trial_limits").select("metrics, keys, feeds").single()).data).toEqual({ metrics: 25, keys: 5, feeds: 2 });
+  });
+
+  it("is the only thing that changes or removes a setting it wrote: not the page's save, not a direct write", async () => {
+    await setCloudTrialLimits(caller, { keys: 3 });
+    const page = await db().rpc("save_page_trial_limits", { p_values: { ZIFFR_TRIAL_LIMIT_KEYS: "9" }, p_env: {}, p_by: "someone" });
+    expect(page.error?.code).toBe("ZF438");
+    expect((await db().rpc("save_page_trial_limits", { p_values: { ZIFFR_TRIAL_LIMIT_KEYS: null }, p_env: {}, p_by: "someone" })).error?.code).toBe("ZF438");
+    // Whoever holds the service role: an upsert, an update and a delete of the row are all refused by the database.
+    expect((await db().from("installation_settings").upsert({ name: "ZIFFR_TRIAL_LIMIT_KEYS", value: "9", sealed: false, set_by: null })).error?.code).toBe("ZF438");
+    expect((await db().from("installation_settings").update({ value: "9" }).eq("name", "ZIFFR_TRIAL_LIMIT_KEYS")).error?.code).toBe("ZF438");
+    expect((await db().from("installation_settings").delete().eq("name", "ZIFFR_TRIAL_LIMIT_KEYS")).error?.code).toBe("ZF438");
+    forgetStoredSettings();
+    expect((await cloudTrialLimits(caller)).limits.keys).toBe(3);
+    // A save at the same moment as Ziffr Cloud's leaves the Cloud's value or the page's, whole, and never the page's over the Cloud's.
+    const both = await Promise.all([setCloudTrialLimits(caller, { keys: 6 }), db().rpc("save_page_trial_limits", { p_values: { ZIFFR_TRIAL_LIMIT_KEYS: "8" }, p_env: {}, p_by: "someone" })]);
+    expect(both[1].error?.code).toBe("ZF438");
+    forgetStoredSettings();
+    expect((await cloudTrialLimits(caller)).limits.keys).toBe(6);
+  });
+
+  it("bounds the cap on trials at once from the environment like every limit", async () => {
+    const env = { ...process.env, ZIFFR_TRIAL_DAYS: "7", ZIFFR_TRIAL_MAX: "1000000000000" };
+    expect(trialSettings(env)).toEqual({ days: 7, max: 500 });
+    process.env.ZIFFR_TRIAL_MAX = "1000000000000";
+    expect((await cloudTrialLimits(caller)).limits.max).toBe(500);
+    delete process.env.ZIFFR_TRIAL_MAX;
+  });
+
+  it("pins the days and grace days to Ziffr Cloud: a value saved on the page counts for nothing, Ziffr Cloud's does", async () => {
+    await db().from("installation_settings").upsert({ name: "ZIFFR_TRIAL_DAYS", value: "20", sealed: false });
+    await db().from("installation_settings").upsert({ name: "ZIFFR_TRIAL_GRACE_DAYS", value: "30", sealed: false });
+    forgetStoredSettings();
+    const before = await cloudTrialLimits(caller);
+    expect(before.limits).toMatchObject({ days: null, graceDays: 7 });
+    expect(before.sources).toMatchObject({ days: "default", graceDays: "default" });
+    const after = await setCloudTrialLimits(caller, { days: 10, graceDays: 3 });
+    expect(after.limits).toMatchObject({ days: 10, graceDays: 3 });
+    expect(after.sources).toMatchObject({ days: "cloud", graceDays: "cloud" });
+    process.env.ZIFFR_TRIAL_DAYS = "12";
+    expect((await cloudTrialLimits(caller)).sources.days).toBe("server");
+    delete process.env.ZIFFR_TRIAL_DAYS;
   });
 
   it("takes only whole numbers inside each range, and saves nothing when one is wrong", async () => {
     await setCloudTrialLimits(caller, { metrics: 30 });
     for (const l of TRIAL_LIMITS) {
-      for (const bad of [l.min - 1, l.max + 1, 1.5, "7", null, Number.NaN, 1e12]) {
+      for (const bad of [l.min - 1, l.max + 1, 1.5, "7", Number.NaN, 1e12]) {
         await expect(setCloudTrialLimits(caller, { metrics: 40, [l.key]: bad } as never), `${l.key}=${String(bad)}`).rejects.toThrow();
       }
     }
@@ -118,13 +157,14 @@ describe("Ziffr Cloud sets the Trial Limits", () => {
     expect((await trialLimitsInEffect()).metrics).toBe(12);
   });
 
-  it("leaves one whole answer when two calls come at once", async () => {
+  it("leaves one whole answer when two calls come at once, and the row the triggers read agrees with it", async () => {
     for (let i = 0; i < 4; i++) {
       await Promise.all([setCloudTrialLimits(caller, { metrics: 31 }), setCloudTrialLimits(caller, { metrics: 32, keys: 3 })]);
       forgetStoredSettings();
       const { limits } = await cloudTrialLimits(caller);
-      const mine = { metrics: limits.metrics, keys: limits.keys };
-      expect([{ metrics: 31, keys: 2 }, { metrics: 32, keys: 3 }], JSON.stringify(mine)).toContainEqual(mine);
+      expect([31, 32]).toContain(limits.metrics);
+      expect(limits.keys).toBe(3);
+      expect((await db().from("trial_limits").select("metrics, keys").single()).data).toEqual({ metrics: limits.metrics, keys: 3 });
     }
   });
 
@@ -135,14 +175,22 @@ describe("Ziffr Cloud sets the Trial Limits", () => {
     expect(Object.keys(await settingsInEffect()).includes("ZIFFR_TRIAL_LIMIT_WEBHOOKS")).toBe(true);
   });
 
-  it("cannot be read or written by a browser's role", async () => {
-    const { error } = await db().rpc("set_cloud_trial_limits", { p_values: { ZIFFR_TRIAL_DAYS: "5" } });
-    expect(error).toBeNull();
-    for (const bad of [{ ZIFFR_SMTP_URL: "1" }, { ZIFFR_TRIAL_LIMIT_METRICS: "x" }, { ZIFFR_TRIAL_LIMIT_: "1" }, [1]]) {
-      expect((await db().rpc("set_cloud_trial_limits", { p_values: bad })).error, JSON.stringify(bad)).not.toBeNull();
+  it("is written into the row the triggers read, in the same step, and the hourly refresh follows the environment", async () => {
+    await setCloudTrialLimits(caller, { metrics: 33, keys: 3, feeds: 4, assistants: 2, viewLinks: 7, webhooks: 3 });
+    expect((await db().from("trial_limits").select("metrics, keys, feeds, assistants, view_links").single()).data).toEqual({ metrics: 33, keys: 3, feeds: 4, assistants: 2, view_links: 7 });
+    process.env.ZIFFR_TRIAL_LIMIT_METRICS = "12";
+    process.env.ZIFFR_TRIAL_LIMIT_KEYS = "999";
+    await syncTrialLimits();
+    expect((await db().from("trial_limits").select("metrics, keys").single()).data).toEqual({ metrics: 12, keys: 3 });
+  });
+
+  it("takes only the Trial Limit names, as numbers or null", async () => {
+    expect((await db().rpc("set_cloud_trial_limits", { p_values: { ZIFFR_TRIAL_DAYS: "5" }, p_env: {} })).error).toBeNull();
+    for (const bad of [{ ZIFFR_SMTP_URL: "1" }, { ZIFFR_TRIAL_LIMIT_METRICS: "x" }, { ZIFFR_TRIAL_LIMIT_: "1" }, { ZIFFR_TRIAL_LIMIT_OTHER: "1" }, { ZIFFR_TRIAL_THEN: "1" }, { ZIFFR_TRIAL_LIMIT_KEYS: 3 }, [1]]) {
+      expect((await db().rpc("set_cloud_trial_limits", { p_values: bad, p_env: {} })).error, JSON.stringify(bad)).not.toBeNull();
+      expect((await db().rpc("save_page_trial_limits", { p_values: bad, p_env: {}, p_by: "x" })).error, JSON.stringify(bad)).not.toBeNull();
     }
-    const { data } = await db().from("installation_settings").select("name").eq("name", "ZIFFR_SMTP_URL");
-    expect(data).toEqual([]);
+    expect((await db().from("installation_settings").select("name").eq("name", "ZIFFR_SMTP_URL")).data).toEqual([]);
   });
 });
 

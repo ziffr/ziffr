@@ -154,7 +154,7 @@ With it on, this server, never a browser, asks the Marketplace for lists of Pack
 
 A setting your server's settings file already has wins over the page. The page then shows it as **Set on the server**, and it can be changed only there. Nothing changes for a Ziffr that was set up with a file.
 
-On a Ziffr Cloud deployment (hosted Ziffr), the Workspace Limits, the days over the limit and the wait before an unused Workspace goes are fixed by Ziffr Cloud. The page shows them as **Set by Ziffr Cloud** and changes none of them, nor the limit of a single Workspace; only Ziffr Cloud sets those. Every log and capacity setting stays yours.
+On a Ziffr Cloud deployment (hosted Ziffr), the Workspace Limits, the days over the limit, the days a trial lasts and its data stays, and the wait before an unused Workspace goes are fixed by Ziffr Cloud. The page shows them as **Set by Ziffr Cloud** and changes none of them, nor the limit of a single Workspace; only Ziffr Cloud sets those. Every log and capacity setting stays yours.
 
 ## Check against bots
 
@@ -187,7 +187,7 @@ Like Trials, this section exists only on hosted Ziffr. It lists the Trial Limits
 - **Webhook sends a trial makes a day** (10 to 1,000; empty: 200).
 - **View Links that work** (0 to 20; empty: 5). 0 means trials cannot make any.
 
-Ziffr Cloud may set them too. A limit it set shows as **Set by Ziffr Cloud** and cannot be changed here; one the server's settings file sets shows as **Set on the server**. A change applies to running trials at once, except the days, which apply to trials made afterwards. Lowering a limit never deletes or stops what a trial has: a trial over the new number keeps what it has and cannot add more.
+Ziffr Cloud may set them too. The days a trial lasts and the days its data stays are Ziffr Cloud's alone. A limit it set shows as **Set by Ziffr Cloud** and cannot be changed here; one the server's settings file sets shows as **Set on the server**. A change applies to running trials at once, except the days, which apply to trials made afterwards. Lowering a limit never deletes or stops what a trial has: a trial over the new number keeps what it has and cannot add more.
 
 ## Usage
 

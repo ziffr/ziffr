@@ -26,7 +26,6 @@ import { moneyUnit, UNIT_POSITIONS } from "./units";
 import { workspaceProfile } from "./workspace-settings";
 import { isAttainmentMethod } from "./attainment-method";
 import { limitReachedFrom, syncDefaultLimit } from "./workspace-limits";
-import { syncTrialLimits } from "./trial-limits-in-effect";
 import { trialLimitMessage } from "./trials";
 import { announceDefaultRetention, assertRetentionFits, defaultRetentionFor } from "./retention-setting";
 
@@ -113,7 +112,6 @@ export async function createMetric(actor: Actor, input: MetricInput, effects: Me
     : { unit: format === "percent" ? "%" : "", unit_position: pick(input.unitPosition, UNIT_POSITIONS, "after") };
   // The trigger checks the Workspace Limit against the Installation's default in effect.
   await syncDefaultLimit();
-  await syncTrialLimits();
   const period = pick(input.period, PERIODS, "month");
   const aggregation = pick(input.aggregation, AGGREGATIONS, "sum") as Aggregation;
   // The Workspace's default Retention is copied in, waiting its 7 days like any confirmed one (spec 0033).
