@@ -32,17 +32,23 @@ The panel of colours, sizes and fonts opens at the top right of the canvas only 
 | Option | What it does |
 |---|---|
 | **+ Slide** | Adds a new slide at the end. Pick a layout (see below) or one of your team's layouts. |
-| **Group** and **Ungroup** | Keep several selected things on one slide together, or split a group again. Only things on the same slide can be grouped. The shortcuts are Ctrl+G and Ctrl+Shift+G (⌘G and ⌘Shift+G on a Mac). |
-| Theme picker (the palette icon) | Chooses the deck's Theme. **(team default)** follows whatever theme the team uses by default. |
-| **Who can see this** | Lists everyone who can open the deck, and why. |
-| **View link** | Makes a link for someone outside the team. Only the deck's owner sees this button. |
-| **Share** | Opens a panel on the right to share the deck with people or Groups. Only the deck's owner sees this button. |
-| **Versions** | Opens a panel on the right with earlier states of the deck, and lets you go back to one. |
-| **Save as Deck Template…** | Saves every slide as a team Deck Template (see below). Only the deck's owner sees this button. |
-| **Delete…** | Deletes the deck after you confirm: its slides, Shares and View Links go with it. Widgets and Metrics stay. Only the deck's owner sees this button. |
 | **Present** | Shows the deck one slide at a time, filling the screen. |
-| **PDF** | Prepares a PDF to print or save. |
-| **Export PowerPoint** | Downloads the deck as a PowerPoint file. |
+| **Share** | Opens a panel on the right to share the deck with people or Groups. Only the deck's owner sees this button. |
+| **Export** | Opens a menu: **PowerPoint** downloads the deck as a PowerPoint file, **PDF** prepares a PDF to print or save. |
+| **⋯** (More for this deck) | Opens a menu with the rarer things, below. |
+
+The **⋯** menu holds:
+
+| Entry | What it does |
+|---|---|
+| **Theme…** | Chooses the deck's Theme. **(team default)** follows whatever theme the team uses by default. |
+| **Who can see this** | Lists everyone who can open the deck, and why. |
+| **View links…** | Makes a link for someone outside the team. Only the deck's owner sees this entry. |
+| **Versions** | Opens a panel on the right with earlier states of the deck, and lets you go back to one. |
+| **Save as Deck Template…** | Saves every slide as a team Deck Template (see below). Only the deck's owner sees this entry. |
+| **Delete…** | Below a rule, in red. Deletes the deck after you confirm: its slides, Shares and View Links go with it. Widgets and Metrics stay. Only the deck's owner sees this entry. |
+
+**Group** and **Ungroup** are in the side panel, in a box that shows while something selected can be grouped or ungrouped. They keep several selected things on one slide together, or split a group again. Only things on the same slide can be grouped. The shortcuts are Ctrl+G and Ctrl+Shift+G (⌘G and ⌘Shift+G on a Mac).
 
 ### Slide layouts
 
