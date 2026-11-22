@@ -98,3 +98,9 @@ export const INSTALLATION_SETTINGS: SettingDefinition[] = [
 
 /** The setting of this name, or undefined for any name the page does not know. */
 export const settingNamed = (name: string): SettingDefinition | undefined => INSTALLATION_SETTINGS.find((s) => s.name === name);
+
+/** Whether a setting is one that makes trials (the days and the cap), which only hosted Ziffr has (spec 0040): never
+ * read from a stored row or a `_DEFAULT` without a Ziffr Cloud key. The settings for how an existing trial ends (then,
+ * Webhooks, grace days) are not in it: without a key they only ever govern trials that already exist, so a stored
+ * "keep" must not silently turn into "delete". */
+export const isTrialSetting = (name: string): boolean => name === "ZIFFR_TRIAL_DAYS" || name === "ZIFFR_TRIAL_MAX";
