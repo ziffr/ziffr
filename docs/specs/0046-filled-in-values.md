@@ -1,6 +1,6 @@
 # 0046 Filled-in Values: someone fills in the blank, the value stays the submitter's
 
-**Status:** draft. **Tracking issue:** #799 (label `tracking`); tickets #800 to #803 carry `spec:0046`. Built after spec 0045 (its last ticket, #794).
+**Status:** draft. **Tracking issue:** #799 (label `tracking`); tickets #800 to #803 carry `spec:0046`. Built after spec 0045 (its last ticket, #794) and after #798 (handing over a Metric, PR #804).
 
 ## Problem Statement
 
@@ -18,6 +18,11 @@ Read from the code on `main` (2026-11-22):
 - **Approval excludes only the Stand-in.** `onValue` and `approversFor` (`workflow-engine.ts`) leave out the value's `submitter_id`, the Stand-in. The person it was entered for, if they are a named Approver, could approve the value entered for them; and the Self-check, when nobody else could approve, goes to the Stand-in.
 - **The API and MCP accept a Stand-in's value.** A Stand-in's Token counts for their Access Key like their own (`candidates` in `takeValue`), so a Stand-in can send the value through `submit_value` today.
 - **A Guest can be a Stand-in.** `setStandIn` accepts any member or Contact of the Workspace (`assertSubmittersIn`), Guests included.
+
+### Depends on
+
+- **Spec 0045** (#790, last ticket #794): the period's progress and Period Timeline this spec marks values in.
+- **#798, handing over a Metric** (PR #804): with it every Metric always has an owner who is still in the Workspace, because ownership moves to another Member and never ends with someone who leaves. This spec relies on that: the Metric's owner is one of the three who may fill in, and the owner fallback for Approval skips whoever entered the value. Without #798 a Metric whose owner left would have nobody but the Stand-in and the Workflow's owner to fill in, and `mayFillIn` would have to handle an owner who is gone.
 
 ## Solution
 
@@ -184,7 +189,7 @@ Proposed in this spec, open to change: the name Filled-in Value; a Stand-in's an
 
 ## Tickets
 
-1. #800 **Filled-in Values in the core:** the migration (`observations.entered_by` and its check, `observation_history.entered_by` and the trigger, `entered_by_name` sealed with `seal_table` and the labels, `prompts.stands_in_for`), `fill-in-rules.ts`, `fillInValue`, the Stand-in path in `takeValue` and `recordOwnValue` (Filled-in Value, asked periods only, no Access Key), `setStandIn` refusing Guests, replacing by the submitter, closing Prompts, Approval and Self-check exclusions and `valueOutlook`, the `filled_in` Delivery held by Quiet Hours, the Audit Log kind, db tests. Blocked by #794.
+1. #800 **Filled-in Values in the core:** the migration (`observations.entered_by` and its check, `observation_history.entered_by` and the trigger, `entered_by_name` sealed with `seal_table` and the labels, `prompts.stands_in_for`), `fill-in-rules.ts`, `fillInValue`, the Stand-in path in `takeValue` and `recordOwnValue` (Filled-in Value, asked periods only, no Access Key), `setStandIn` refusing Guests, replacing by the submitter, closing Prompts, Approval and Self-check exclusions and `valueOutlook`, the `filled_in` Delivery held by Quiet Hours, the Audit Log kind, db tests. Blocked by #794 and #798.
 2. #801 **Fill in and the mark in the app:** **Fill in for …** on the Period Record, the Metric page's Workflow box and the Workflow page; the mark on the Period Record, the Period Timeline (and `period_status`), the History tab, the widget's history panel and the Changes page; the Guest Stand-in note; the user guide (Metrics, Workflows, Actions, Your settings), the release note, tried in the running app. Blocked by #800.
 3. #802 **Reads elsewhere and the demo:** `entered_by` in `get_metric` and the API, the Usage page's count, `enteredBy` in the Workspace Export and Import, the demo seed migration and the upgrade test, the user guide (Workspace settings), visibility db tests (View Link, Snapshot, Guests). Blocked by #800.
 4. #803 **Security review of the whole spec** (Opus): every way a value can be entered in someone else's name and every surface that shows `entered_by`, against rule 3, for each role, Guest, View Link and Snapshot; the narrowed Stand-in Token; the threat model entry; findings fixed; the spec set to done. Blocked by #800 to #802.
