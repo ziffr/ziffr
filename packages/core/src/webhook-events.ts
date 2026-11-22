@@ -25,7 +25,7 @@ export type SendSubject = { actionId?: number; threadMessageId?: number | null; 
  * Never throws: the change has happened, and a Webhook must not undo or fail it. */
 export async function queueWebhookEvent(workspaceId: string, type: WebhookEvent, source: ChangeSource, subject: SendSubject): Promise<number> {
   try {
-    const { data: hooks } = await db().from("webhooks").select("id").eq("workspace_id", workspaceId).is("disabled_at", null).contains("events", [type]);
+    const { data: hooks } = await db().from("webhooks").select("id").eq("workspace_id", workspaceId).is("owner_id", null).is("disabled_at", null).contains("events", [type]);
     if (!hooks?.length) return 0;
     // No echo: a change a Webhook reported is not sent back to that Webhook (Ziffr is the single source of truth); the others hear it, marked with its origin.
     const rows = hooks.filter((h) => source.type !== "webhook" || h.id !== source.webhookId).map((h) => ({
@@ -51,7 +51,7 @@ export async function queueWebhookEvent(workspaceId: string, type: WebhookEvent,
 export async function queueAlertFired(workspaceId: string, webhookIds: readonly string[], tell: { workflowId: number; stepId: string; metricId: number; period: string }): Promise<number> {
   try {
     if (!webhookIds.length) return 0;
-    const { data: hooks } = await db().from("webhooks").select("id").eq("workspace_id", workspaceId).in("id", [...webhookIds]).is("disabled_at", null).contains("events", ["alert.fired"]);
+    const { data: hooks } = await db().from("webhooks").select("id").eq("workspace_id", workspaceId).in("id", [...webhookIds]).is("owner_id", null).is("disabled_at", null).contains("events", ["alert.fired"]);
     if (!hooks?.length) return 0;
     const rows = hooks.map((h) => ({ workspace_id: workspaceId, webhook_id: h.id as string, type: "alert.fired", metric_id: tell.metricId, period_start: tell.period, workflow_id: tell.workflowId, tell_step_id: tell.stepId, source_type: "workflow" }));
     const { error } = await db().from("webhook_sends").insert(rows);

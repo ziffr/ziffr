@@ -42,7 +42,8 @@ export type WebhookInfo = {
 /** The same words for a Webhook that is not there and one of another Workspace. */
 const NOT_FOUND = "That Webhook was not found.";
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-const COLUMNS = "id, name, url, events, disabled_at, disabled_reason, secret_previous_until, created_at";
+/** The columns of a Webhook a page reads: never the secret. */
+export const WEBHOOK_COLUMNS = "id, name, url, events, disabled_at, disabled_reason, secret_previous_until, created_at";
 
 /** Refuses anyone but a signed-in Owner or Admin, and the demo (read-only). */
 function assertManagesWebhooks(actor: Actor): void {
@@ -81,7 +82,7 @@ export function maskedHost(raw: string): string {
 }
 
 /** A name for people: one line, trimmed, never empty. */
-function cleanName(raw: unknown): string {
+export function cleanName(raw: unknown): string {
   const name = typeof raw === "string" ? raw.trim().replace(/\s+/g, " ") : "";
   if (!name) throw new Error("Give the Webhook a name, such as the system it feeds.");
   if (name.length > WEBHOOK_NAME_MAX) throw new Error(`The name can have at most ${WEBHOOK_NAME_MAX} characters.`);
@@ -89,7 +90,7 @@ function cleanName(raw: unknown): string {
 }
 
 /** The events chosen, checked: only known ones, each once; none is allowed (a Webhook gets nothing until chosen). */
-function cleanEvents(raw: unknown): WebhookEvent[] {
+export function cleanEvents(raw: unknown): WebhookEvent[] {
   if (!Array.isArray(raw)) throw new Error("Choose the events as a list.");
   const out: WebhookEvent[] = [];
   for (const e of raw) {
@@ -102,7 +103,7 @@ function cleanEvents(raw: unknown): WebhookEvent[] {
 /** The address, checked as the shared outbound request judges it, in words for people: https only, no user or
  * password, no fragment, at most 2,000 characters, and a name that resolves only to public addresses unless the
  * operator named that exact host. Judged again at every send (ticket 3). */
-async function checkedAddress(raw: unknown, privateHosts: readonly string[]): Promise<string> {
+export async function checkedAddress(raw: unknown, privateHosts: readonly string[]): Promise<string> {
   if (typeof raw !== "string") throw new Error("That is not an address.");
   const text = raw.trim();
   if (!text) throw new Error("Give the address to send to.");
@@ -124,7 +125,7 @@ async function checkedAddress(raw: unknown, privateHosts: readonly string[]): Pr
 }
 
 /** A new secret: `whsec_` and 32 random bytes. */
-const newSecret = () => `whsec_${randomBytes(32).toString("base64url")}`;
+export const newSecret = () => `whsec_${randomBytes(32).toString("base64url")}`;
 
 /** Tells the other Owners that a Webhook changed, since it changes where the Workspace's data goes. Best effort: the
  * change has happened, so a failed notice never undoes it. The address is masked as everywhere else. */
@@ -143,7 +144,7 @@ async function tellOwners(actor: Actor, what: string, name: string, address: str
 /** One Webhook of the Workspace, its address opened and masked, or the refusal that does not say whether it exists. */
 async function find(actor: Actor, id: unknown): Promise<{ row: Record<string, unknown>; address: string }> {
   if (typeof id !== "string" || !UUID.test(id)) throw new Forbidden(NOT_FOUND);
-  const { data } = await db().from("webhooks").select(COLUMNS).eq("id", id.toLowerCase()).eq("workspace_id", actor.workspaceId).maybeSingle();
+  const { data } = await db().from("webhooks").select(WEBHOOK_COLUMNS).eq("id", id.toLowerCase()).eq("workspace_id", actor.workspaceId).is("owner_id", null).maybeSingle();
   if (!data) throw new Forbidden(NOT_FOUND);
   const [row] = await openRows("webhooks", actor.workspaceId, [data as Record<string, unknown>]);
   return { row, address: maskedHost(String(row.url ?? "")) };
@@ -179,7 +180,7 @@ export async function createWebhook(actor: Actor, input: { name: string; url: st
 /** The Workspace's Webhooks, newest first, the address masked and no secret (Owners and Admins). */
 export async function listWebhooks(actor: Actor): Promise<WebhookInfo[]> {
   assertManagesWebhooks(actor);
-  const { data } = await db().from("webhooks").select(COLUMNS).eq("workspace_id", actor.workspaceId).order("created_at", { ascending: false });
+  const { data } = await db().from("webhooks").select(WEBHOOK_COLUMNS).eq("workspace_id", actor.workspaceId).is("owner_id", null).order("created_at", { ascending: false });
   const rows = await openRows("webhooks", actor.workspaceId, (data ?? []) as Record<string, unknown>[]);
   const now = Date.now();
   return rows.map((r) => ({

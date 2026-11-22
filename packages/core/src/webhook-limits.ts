@@ -3,6 +3,11 @@
 // ZIFFR_LIMIT_WEBHOOK_SENDS_PER_WORKSPACE_PER_DAY, sending-limits.ts) are the defaults here; the code reads the value in effect.
 import { sendingLimitDefault } from "./sending-limits";
 
+/** Personal Webhooks one person may hold in one Workspace (spec 0037). The Workspace's own limit counts Workspace Webhooks only. */
+export const PERSONAL_WEBHOOKS_PER_PERSON = 3;
+/** Sends one person's Personal Webhooks make in a day; each also counts against the Workspace's daily cap (spec 0037). */
+export const PERSONAL_WEBHOOK_SENDS_PER_PERSON_PER_DAY = 1_000;
+
 /** Webhooks a Workspace may hold. */
 export const WEBHOOKS_PER_WORKSPACE = sendingLimitDefault("webhooksPerWorkspace");
 /** The longest message a Webhook is sent, in bytes (used by sending, ticket 3). */

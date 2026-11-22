@@ -15,8 +15,9 @@ import { openNames, openOne, openRows } from "./sealed-columns";
 import { metricSeenByEveryone, webhookMayHear } from "./visibility";
 import { buildActionMessage, buildAlertFiredMessage, buildPingMessage, buildValueUnusualMessage, type ActionFacts, type MessageEnvelope, type PersonFacts, type WebhookMessage } from "./webhook-messages";
 import { daysStrict } from "./keep-days";
-import { WEBHOOK_DAYS_FAILING_BEFORE_OFF, WEBHOOK_FAILURES_BEFORE_OFF, WEBHOOK_MESSAGE_MAX_BYTES, WEBHOOK_RETRY_AFTER_MAX_MS, WEBHOOK_RETRY_WAITS_MS, WEBHOOK_SEND_CONCURRENCY, WEBHOOK_SEND_NOW_BUDGET_MS } from "./webhook-limits";
+import { WEBHOOK_DAYS_FAILING_BEFORE_OFF, WEBHOOK_FAILURES_BEFORE_OFF, PERSONAL_WEBHOOK_SENDS_PER_PERSON_PER_DAY, WEBHOOK_MESSAGE_MAX_BYTES, WEBHOOK_RETRY_AFTER_MAX_MS, WEBHOOK_RETRY_WAITS_MS, WEBHOOK_SEND_CONCURRENCY, WEBHOOK_SEND_NOW_BUDGET_MS } from "./webhook-limits";
 import { maskedHost } from "./webhooks";
+import { personalWebhookMayRun, tellPersonSwitchedOff } from "./personal-webhook-state";
 import { alertContext, viewAt } from "./alert-firing";
 import { alertHolds } from "./alert-rules";
 import { tellCondition, type TellStep } from "./tell-firing";
@@ -182,8 +183,12 @@ async function sendOne(send: Send, signal?: AbortSignal): Promise<Outcome> {
   // A trial's sends stop when the operator switches trial Webhooks off or the trial ends; a trial never reaches private hosts.
   const rules = await webhookRules(ws);
   if (!rules.allowed) return { state: "dropped" };
-  const { data } = await db().from("webhooks").select("id, name, url, secret, secret_previous, secret_previous_until, events, disabled_at").eq("id", send.webhook_id).eq("workspace_id", ws).maybeSingle();
+  const { data } = await db().from("webhooks").select("id, name, url, secret, secret_previous, secret_previous_until, events, disabled_at, owner_id").eq("id", send.webhook_id).eq("workspace_id", ws).maybeSingle();
   if (!data || data.disabled_at || (send.type !== "ping" && !((data.events as string[]) ?? []).includes(send.type))) return { state: "dropped" };
+  // A Personal Webhook (spec 0037) hears nothing but its test until ticket 2 builds what it may hear; and while its
+  // Workspace does not allow them, or its person is not an Owner, Admin or Member, it hears nothing at all.
+  const ownerId = typeof data.owner_id === "string" ? data.owner_id : null;
+  if (ownerId && (send.type !== "ping" || !(await personalWebhookMayRun(ws, ownerId)))) return { state: "dropped" };
   const [hook] = await openRows("webhooks", ws, [data as Record<string, unknown>]);
   const url = typeof hook.url === "string" ? hook.url : "";
   const secret = typeof hook.secret === "string" && hook.secret.startsWith("whsec_") ? hook.secret : null;
@@ -200,7 +205,10 @@ async function sendOne(send: Send, signal?: AbortSignal): Promise<Outcome> {
   if (hook.secret_previous_until && new Date(String(hook.secret_previous_until)).getTime() > Date.now() && typeof hook.secret_previous === "string" && hook.secret_previous.startsWith("whsec_")) secrets.push(hook.secret_previous);
   const timestamp = Math.floor(Date.now() / 1000);
   // The daily cap is one atomic claim of a slot in the database, so runs at the same moment cannot pass it together.
-  const { data: slot } = await db().rpc("take_webhook_send_slot", { p_workspace: ws, p_cap: rules.sendsPerDay });
+  // A Personal Webhook's send counts against its person's day and the Workspace's, together or neither.
+  const { data: slot } = ownerId
+    ? await db().rpc("take_personal_webhook_send_slot", { p_workspace: ws, p_person: ownerId, p_person_cap: PERSONAL_WEBHOOK_SENDS_PER_PERSON_PER_DAY, p_workspace_cap: rules.sendsPerDay })
+    : await db().rpc("take_webhook_send_slot", { p_workspace: ws, p_cap: rules.sendsPerDay });
   if (slot !== true) return { state: "deferred" };
   try {
     const res = await outboundRequest(new URL(url), {
@@ -324,9 +332,11 @@ async function settle(send: Send, o: Outcome): Promise<void> {
     if (data === true) off = "failing";
   }
   if (off) {
-    const { data } = await db().from("webhooks").select("name, url").eq("id", send.webhook_id).eq("workspace_id", send.workspace_id).maybeSingle();
+    const { data } = await db().from("webhooks").select("name, url, owner_id").eq("id", send.webhook_id).eq("workspace_id", send.workspace_id).maybeSingle();
     if (data) {
       const [opened] = await openRows("webhooks", send.workspace_id, [data as Record<string, unknown>]);
+      // A Personal Webhook tells its person, not the Owners (spec 0037).
+      if (typeof data.owner_id === "string") { await tellPersonSwitchedOff(send.workspace_id, data.owner_id, String(data.name), maskedHost(String(opened.url ?? "")), off, send.webhook_id); return; }
       await tellOwnersSwitchedOff(send.workspace_id, String(data.name), maskedHost(String(opened.url ?? "")), off);
     }
   }

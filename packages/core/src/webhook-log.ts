@@ -46,7 +46,7 @@ async function assertMaySend(actor: Actor): Promise<void> {
 /** The Webhook's id if it is one of this Workspace's, else the refusal that does not say whether it exists. */
 async function ownWebhook(actor: Actor, id: unknown): Promise<{ id: string; name: string; disabled: boolean }> {
   if (typeof id !== "string" || !UUID.test(id)) throw new Forbidden(NOT_FOUND);
-  const { data } = await db().from("webhooks").select("id, name, disabled_at").eq("id", id.toLowerCase()).eq("workspace_id", actor.workspaceId).maybeSingle();
+  const { data } = await db().from("webhooks").select("id, name, disabled_at").eq("id", id.toLowerCase()).eq("workspace_id", actor.workspaceId).is("owner_id", null).maybeSingle();
   if (!data) throw new Forbidden(NOT_FOUND);
   return { id: String(data.id), name: String(data.name), disabled: !!data.disabled_at };
 }

@@ -44,7 +44,7 @@ async function cleanConfig(actor: Actor, c: WorkflowConfig, stored: WorkflowConf
   // `keepWebhooks`: the API and MCP never name Webhooks, so a Tell step they save keeps the ones it had.
   const manages = mayManageWebhooks(actor) && !keepWebhooks;
   const hooks = new Set<string>();
-  if (manages) for (const h of (await db().from("webhooks").select("id").eq("workspace_id", actor.workspaceId)).data ?? []) hooks.add(String(h.id));
+  if (manages) for (const h of (await db().from("webhooks").select("id").eq("workspace_id", actor.workspaceId).is("owner_id", null)).data ?? []) hooks.add(String(h.id));
   const steps: WorkflowStep[] = [];
   for (const s of (Array.isArray(c?.steps) ? c.steps : []).slice(0, 12)) {
     if (s.type === "remind") steps.push({ type: "remind", daysBefore: int(s.daysBefore, 0, 30) });
