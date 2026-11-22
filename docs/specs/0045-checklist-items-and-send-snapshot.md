@@ -1,6 +1,6 @@
 # 0045 Checklist Items and Send Snapshot: the rest of a close, in the Workflow
 
-**Status:** draft. **Tracking issue:** see the pull request (label `tracking`); tickets carry `spec:0045`.
+**Status:** draft. **Tracking issue:** #790 (label `tracking`); tickets #791 to #794 carry `spec:0045`.
 
 ## Problem Statement
 
@@ -186,7 +186,7 @@ Proposed in this spec, open to change: the names Checklist Item, Finished Period
 
 ## Tickets
 
-1. **Checklist Items for information**, and the Workflow's once-per-period loop: the step types in `types.ts` (both kinds, so the editor and templates have one shape), `cleanConfig`, sealing of the text, the `workflow_step_runs` claim, the second loop in `runWorkflows`, the `checklist` Delivery kind held by Quiet Hours, mixed periods pausing, the editor, the `checklist_sent` timeline line, templates and the Pack format, Workspace Export, `get_workflow`, the Audit Log kind, the glossary entries live, the user guide (Workflows, Templates), db tests. Not blocked.
-2. **Checklist Tasks to tick off:** the migration (nullable `metric_id` for `purpose = 'checklist'`, `workflow_id`, `checklist_item_id`), giving the Task, Away and Stand-in, Remind and Escalate, ticking off with a note (app, reply, API, MCP), who reads it, every `actions` reader handling a null Metric, the Schedule and Calendar Link, the progress count, the timeline lines, the user guide (Actions, Your settings), db tests. Blocked by 1.
-3. **Finished Period and Send Snapshot:** `periodFinished` and its call sites, the step and its editor, the four cases of which Snapshot, taking and showing as the owner, recipients checked at sending, the skipped notice, the lock summary line, the `snapshot_sent` and `finished` lines, the Audit Log kinds, the demo seed migration, the user guide (Workflows, Dashboards), db tests. Blocked by 2.
-4. **Security review of the whole spec** (Opus): every path that reads a Checklist Task or sends a message or Snapshot, against rule 3; the threat model entries; findings fixed; the spec set to done. Blocked by 1 to 3.
+1. #791 **Checklist Items for information**, and the Workflow's once-per-period loop: the step types in `types.ts` (both kinds, so the editor and templates have one shape), `cleanConfig`, sealing of the text, the `workflow_step_runs` claim, the second loop in `runWorkflows`, the `checklist` Delivery kind held by Quiet Hours, mixed periods pausing, the editor, the `checklist_sent` timeline line, templates and the Pack format, Workspace Export, `get_workflow`, the Audit Log kind, the glossary entries live, the user guide (Workflows, Templates), db tests. Not blocked.
+2. #792 **Checklist Tasks to tick off:** the migration (nullable `metric_id` for `purpose = 'checklist'`, `workflow_id`, `checklist_item_id`), giving the Task, Away and Stand-in, Remind and Escalate, ticking off with a note (app, reply, API, MCP), who reads it, every `actions` reader handling a null Metric, the Schedule and Calendar Link, the progress count, the timeline lines, the user guide (Actions, Your settings), db tests. Blocked by 1.
+3. #793 **Finished Period and Send Snapshot:** `periodFinished` and its call sites, the step and its editor, the four cases of which Snapshot, taking and showing as the owner, recipients checked at sending, the skipped notice, the lock summary line, the `snapshot_sent` and `finished` lines, the Audit Log kinds, the demo seed migration, the user guide (Workflows, Dashboards), db tests. Blocked by 2.
+4. #794 **Security review of the whole spec** (Opus): every path that reads a Checklist Task or sends a message or Snapshot, against rule 3; the threat model entries; findings fixed; the spec set to done. Blocked by 1 to 3.
