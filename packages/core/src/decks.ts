@@ -1,6 +1,7 @@
 // Decks (GLOSSARY: Deck, Share, Theme): a deck's owner and its Editors change it, Viewers only present it, only the
 // owner deletes it. Every function takes the Actor first and works only inside the actor's Workspace; a deck shows
 // its Metrics to everyone it is shared with, so only Metrics the saver sees can be added to it.
+import { withoutNestedTagSources } from "./tag-source";
 import { db } from "./db";
 import { assertCan, Forbidden, type Actor } from "./actor";
 import { visibleDecks } from "./access";
@@ -37,6 +38,8 @@ export async function createDeck(actor: Actor, name: string): Promise<number> {
 /** Saves a deck's slides. Metrics added since the last save must be ones the actor sees. */
 export async function saveDeck(actor: Actor, id: number, document: unknown) {
   await assertCanEditDeck(actor, id);
+  // A widget on a slide has a list, never a Tag to follow or a Tag's name (spec 0038).
+  document = withoutNestedTagSources(document);
   if (JSON.stringify(document ?? null).length > MAX_DOCUMENT) throw new Error("This deck is too large to save.");
   // Showing a deck, also through a View Link, must tell no other site that someone looked (spec 0009).
   assertNoOutsideContent(document, "deck");

@@ -7,6 +7,7 @@
 // Workspace. Renaming, merging and deleting are not in the API or the MCP Server: they change many Metrics at once.
 // A Tag's name is sealed with the Workspace Key and found by its blind index; the counts and limits are kept by the
 // database in one step under a lock of the Workspace, so requests at once cannot pass a limit together.
+import { followMergedTag } from "./tag-lists";
 import { randomUUID } from "node:crypto";
 import { Forbidden, Refused, type Actor } from "./actor";
 import { getShares } from "./access";
@@ -180,6 +181,8 @@ async function mergeInto(actor: Actor, from: Pick<VisibleTag, "id" | "name" | "m
   const { data, error } = await db().rpc("merge_tags", { p_ws: actor.workspaceId, p_from: from.id, p_into: into.id });
   if (error) throw new ServerFault("The Tags could not be merged.");
   if (data !== "ok") throw new Forbidden();
+  // Dashboards that showed "all Metrics tagged" the first Tag follow the other (spec 0038).
+  await followMergedTag(actor, from.id, into.id);
   // The first Tag is gone, so it names no one's sight: the event is shown only to the person who did it.
   if (record) await audit(actor, { kind: "tag.merged", object: { type: "tag", id: from.id, name: from.name }, details: { into: into.name, metrics: from.metrics } });
 }

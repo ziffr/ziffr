@@ -46,7 +46,7 @@ export default async function DashboardsPage() {
           </AnsweredForm>
         )}
         {can(actor, "create") && (
-          <NewDashboardButton templates={choices.templates} metrics={choices.metrics} numberStyle={numberStyle} label="From a template…" variant="outline" />
+          <NewDashboardButton templates={choices.templates} metrics={choices.metrics} tags={choices.tags} numberStyle={numberStyle} label="From a template…" variant="outline" />
         )}
       </PageHeader>
       {!dashboards.length ? (

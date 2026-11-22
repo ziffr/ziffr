@@ -4,6 +4,7 @@
 // dashboard (or own the saved widget), change the deck (its owner or an Editor), and see every Metric the copy
 // draws; a deck shows its Metrics to everyone it is shared with. The deck editor places the copy and saves the deck,
 // and saveDeck checks the Metrics again.
+import { recordedWidgets } from "./tag-widgets";
 import { db } from "./db";
 import { assertCan, can, Forbidden, type Actor } from "./actor";
 import { visibleDecks } from "./access";
@@ -65,7 +66,9 @@ export async function deckAddition(actor: Actor, deckId: number, widgetId: numbe
     const { data } = await db().from("decks").select("document").eq("id", deckId).eq("workspace_id", actor.workspaceId).maybeSingle();
     on = slidesOf(data?.document).some((s) => s.id === slide) ? slide : null;
   }
-  return { widget: { template: spec.template, metric_ids: spec.metric_ids, settings: spec.settings, title: spec.title }, slide: on };
+  // A widget of "all Metrics tagged X" is added as the Metrics this person sees now; it follows the Tag no more (spec 0038).
+  const [widget] = await recordedWidgets(actor, [{ ...spec, id: widgetId } as unknown as Widget]);
+  return { widget: { template: widget.template, metric_ids: widget.metric_ids, settings: widget.settings, title: spec.title }, slide: on };
 }
 
 /** A new deck for adding widget `widgetId` to, named after it: the widget is checked first, so a refused one leaves

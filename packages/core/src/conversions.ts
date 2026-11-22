@@ -2,6 +2,7 @@
 // deck from a dashboard. The deck is new, owned by the person making it, and independent of where it came from; its
 // numbers stay live. Only what the person may open can be copied, and placing a copy checks again that they see
 // every Metric on it.
+import { recordedWidgets } from "./tag-widgets";
 import { Forbidden, type Actor } from "./actor";
 import { visibleDashboards } from "./access";
 import { dashboardWidgets } from "./page-data";
@@ -23,6 +24,7 @@ export async function deckSeed(actor: Actor, id: number): Promise<{ name: string
   return {
     name: found.name,
     intro: String(found.intro ?? ""),
-    widgets: widgets.map((w) => ({ template: w.template, metric_ids: w.metric_ids, settings: w.settings, title: w.title })),
+    // Recorded as the Metrics the person sees now, not followed by Tag afterwards (spec 0038).
+    widgets: (await recordedWidgets(actor, widgets)).map((w) => ({ template: w.template, metric_ids: w.metric_ids, settings: w.settings, title: w.title })),
   };
 }

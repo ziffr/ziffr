@@ -22,11 +22,13 @@ import { SlotFills } from "./slot-fills";
 type Choice = { id: number; name: string };
 
 /** The dialog for a new dashboard: a name, and either nothing or a template with its Slots filled. */
-export function NewDashboardDialog({ open, onOpenChange, templates, metrics, viewer = "", numberStyle }: {
+export function NewDashboardDialog({ open, onOpenChange, templates, metrics, tags = [], viewer = "", numberStyle }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   templates: DashboardTemplateSummary[];
   metrics: Choice[];
+  /** The Tags this person sees: a Slot of several may take all Metrics with one (GLOSSARY: Tag). */
+  tags?: { id: string; name: string }[];
   /** Who looks: Sample Data needs a viewer, though it draws nobody's numbers. */
   viewer?: string;
   /** How the workspace writes numbers, for the Previews. */
@@ -39,15 +41,17 @@ export function NewDashboardDialog({ open, onOpenChange, templates, metrics, vie
   const t = templates.find((x) => x.id === picked) ?? null;
   // Each Slot starts with the first Metric it was made with that this viewer sees, if any.
   const [fills, setFills] = useState<number[][]>([]);
+  const [tagFills, setTagFills] = useState<(string | null)[]>([]);
   const pick = (id: DashboardTemplateSummary["id"] | null) => {
     setPicked(id);
+    setTagFills([]);
     const next = templates.find((x) => x.id === id);
     setFills(next ? next.slots.map((s) => (s.exampleIds ?? []).filter((m) => metrics.some((x) => x.id === m)).slice(0, s.multiple ? 50 : 1)) : []);
   };
-  const ready = name.trim().length > 0 && (!t || fillsComplete(t.slots, fills));
+  const ready = name.trim().length > 0 && (!t || fillsComplete(t.slots, fills, tagFills));
   const make = () => start(async () => {
     try {
-      const id = unwrap(t ? await createFromDashboardTemplate(t.id, name, fills) : await createDashboardNamed(name));
+      const id = unwrap(t ? await createFromDashboardTemplate(t.id, name, fills, tagFills) : await createDashboardNamed(name));
       onOpenChange(false);
       router.push(`/dashboards/${id}`);
     } catch (e) {
@@ -87,7 +91,7 @@ export function NewDashboardDialog({ open, onOpenChange, templates, metrics, vie
           </fieldset>
           {t && (
             <div className="space-y-3">
-              <SlotFills slots={t.slots} metrics={metrics} fills={fills} onChange={setFills} />
+              <SlotFills slots={t.slots} metrics={metrics} fills={fills} onChange={setFills} tags={tags} tagFillable={t.tagFillable} tagFills={tagFills} onTagFills={setTagFills} />
               {!metrics.length && <p className="text-sm text-muted-foreground">You see no Metrics yet to fill it with.</p>}
             </div>
           )}
@@ -102,12 +106,12 @@ export function NewDashboardDialog({ open, onOpenChange, templates, metrics, vie
 }
 
 /** A button that opens the dialog, for pages without one of their own. */
-export function NewDashboardButton({ templates, metrics, numberStyle, label = "New dashboard", variant = "default" }: { templates: DashboardTemplateSummary[]; metrics: Choice[]; numberStyle: NumberStyle; label?: string; variant?: "default" | "outline" }) {
+export function NewDashboardButton({ templates, metrics, tags, numberStyle, label = "New dashboard", variant = "default" }: { templates: DashboardTemplateSummary[]; metrics: Choice[]; tags?: { id: string; name: string }[]; numberStyle: NumberStyle; label?: string; variant?: "default" | "outline" }) {
   const [open, setOpen] = useState(false);
   return (
     <>
       <Button type="button" variant={variant} onClick={() => setOpen(true)}>{label}</Button>
-      {open && <NewDashboardDialog open onOpenChange={setOpen} templates={templates} metrics={metrics} numberStyle={numberStyle} />}
+      {open && <NewDashboardDialog open onOpenChange={setOpen} templates={templates} metrics={metrics} tags={tags} numberStyle={numberStyle} />}
     </>
   );
 }

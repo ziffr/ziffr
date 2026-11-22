@@ -1,6 +1,9 @@
 // View Links (GLOSSARY: View Link): what someone outside the team gets to see. Only the one dashboard or deck, only
 // the Metrics it shows, people's names without their contact details, and nothing to act on. Made, listed and
 // revoked by the owner of the dashboard or deck.
+import { isTagWidget } from "./tag-widgets";
+import { withoutNestedTagSources } from "./tag-source";
+import { tagWidgetCount } from "./tag-lists";
 import { randomBytes } from "node:crypto";
 import { db } from "./db";
 import { openOne, openRows, reserveIds } from "./sealed-columns";
@@ -115,11 +118,13 @@ export async function buildView(type: "dashboard" | "deck", id: number, allowed?
   if (widgets) {
     widgets = widgets
       .filter((w) => !allowedWidgets || allowedWidgets.includes(w.id))
+      // A widget of "all Metrics tagged X" is never shown to someone outside: a link shows a list its maker chose (spec 0038).
+      .filter((w) => !isTagWidget(w))
       .filter((w) => widgetMetricIds(w.metric_ids, w.settings).every((m) => ids.has(m)))
       .map((w) => ({ id: w.id, template: w.template, metric_ids: w.metric_ids, settings: w.settings, title: w.title, x: w.x, y: w.y, w: w.w, h: w.h }) as Widget);
   }
   // The deck as this link shows it: only the records it had when the link was made, nothing from other sites.
-  const document = type === "deck" ? deckForLink(stripOutsideContent(obj.document), ids, allowedShapes ?? null) : undefined;
+  const document = type === "deck" ? deckForLink(withoutNestedTagSources(stripOutsideContent(obj.document)), ids, allowedShapes ?? null) : undefined;
   // A deck made from a Snapshot draws its Metrics as of the period's end: then only that much goes out (spec 0013).
   // Read from the deck this link shows, so a widget added since cannot make a Metric go out whole again.
   const data = type === "deck" ? dataAsOfEach(shownData(full, ids, obj.theme_id ?? null), deckAsOf(document)) : shownData(full, ids, obj.theme_id ?? null);
@@ -299,6 +304,8 @@ export async function createViewLink(actor: Actor, type: "dashboard" | "deck", i
   if (input?.snapshotId !== undefined && input?.snapshotId !== null) return createSnapshotLink(actor, id, Number(input.snapshotId), input, opts);
   await assertOwner(actor, type, id);
   assertCan(actor, "share");
+  // A link shows what its maker chose: a widget that follows a Tag needs its list fixed first (spec 0038).
+  if (type === "dashboard" && (await tagWidgetCount(actor.workspaceId, id)) > 0) throw new Refused("This dashboard has a widget that shows all Metrics with a Tag. Fix the list first, then make the link.");
   const today = new Date().toISOString().slice(0, 10);
   const maxDays = await effectiveLimit("viewLinkDays", actor.workspaceId);
   const latest = new Date(Date.now() + maxDays * 86400000).toISOString().slice(0, 10);
