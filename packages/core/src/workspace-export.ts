@@ -20,7 +20,7 @@ import { openNames, openRows } from "./sealed-columns";
 import { tagSight } from "./tag-sight";
 import { attainmentMethodOf, workspaceName } from "./workspace-settings";
 import { yearStartOf } from "./fiscal-year";
-import { workspaceClock } from "./workspace-clock";
+import { knownTimeZone, workspaceClock } from "./workspace-clock";
 import { openWorkflowRows } from "./workflow-rows";
 import { NOT_IN_DASHBOARD_TEMPLATES, toDashboardTemplate, toDeckTemplate, toWorkflowTemplate } from "./team-templates";
 import { cleanSlideShapes, storedSlides } from "./templates";
@@ -282,9 +282,12 @@ async function metricRecords(c: Ctx): Promise<void> {
     const label = `m${metricLabel.size + 1}`;
     metricLabel.set(m.id, label);
     metrics.push({ label, id: m.id, period: m.period, polarity: m.polarity, derived: m.formula !== null, name: file.name });
+    const seenTag = new Set<string>();
     const names = (tags.get(m.id) ?? []).filter((t) => {
-      const ok = [...t].length <= WORKSPACE_EXPORT_LIMITS.tag;
-      if (!ok) skip("Tag", t, `Left out of “${file.name}”: a Tag of the file has at most ${WORKSPACE_EXPORT_LIMITS.tag} characters.`);
+      const key = t.toLowerCase();
+      const ok = [...t].length <= WORKSPACE_EXPORT_LIMITS.tag && fitsLabel(t, WORKSPACE_EXPORT_LIMITS.tag) === t && !seenTag.has(key);
+      seenTag.add(key);
+      if (!ok) skip("Tag", t, `Left out of “${file.name}”: a Tag of the file has at most ${WORKSPACE_EXPORT_LIMITS.tag} characters, no control or direction characters, and is listed once.`);
       return ok;
     });
     if (names.length > MAX_TAGS) skip("Tags", file.name, `Only ${MAX_TAGS} of its ${names.length} Tags are in the file.`);
@@ -354,8 +357,10 @@ async function deckRecords(c: Ctx): Promise<void> {
     const unseen = (count ?? 0) - shown;
     if (unseen > 0) skip(what, `${unseen} of them`, `Not in the file because ${unseen === 1 ? "it is" : "they are"} shared only with others: ask their owners to share ${unseen === 1 ? "it" : "them"} with you before you export.`);
   }
-  const { data: deckRows } = decks.length ? await db().from("decks").select("id, name, document, theme_id").eq("workspace_id", ws).in("id", decks.map((d) => d.id)) : { data: [] };
-  for (const d of [...(deckRows ?? [])].sort((a, b) => (a.id as number) - (b.id as number))) {
+  const { data: deckRows } = decks.length ? await db().from("decks").select("id, name, theme_id").eq("workspace_id", ws).in("id", decks.map((d) => d.id)) : { data: [] };
+  for (const row of [...(deckRows ?? [])].sort((a, b) => (a.id as number) - (b.id as number))) {
+    // One deck's document at a time: a document may be megabytes.
+    const d = { ...row, document: (await db().from("decks").select("document").eq("id", row.id as number).eq("workspace_id", ws).maybeSingle()).data?.document };
     const name = plainOrSkip("Deck", String(d.name), d.name, 80);
     if (!name) continue;
     try {
@@ -447,7 +452,7 @@ async function plan(actor: Actor): Promise<Plan> {
   };
   const [wsName, yearStart, attainment, clock, groupsAll, rawShares, allMetrics] = await Promise.all([workspaceName(actor), yearStartOf(ws), attainmentMethodOf(ws), workspaceClock(actor), getGroups(ws), getRawShares(ws), getMetrics(ws)]);
   const headerName = fitsLabel(wsName, 80) ?? "Workspace";
-  records.push({ kind: "header", format: WORKSPACE_EXPORT_FORMAT, ziffr: ZIFFR_VERSION, exportedAt: new Date().toISOString().replace(/\.\d{3}Z$/, "Z"), workspace: { name: headerName, ...(clock.timeZone ? { timeZone: clock.timeZone } : {}), yearStart, attainmentMethod: attainment } });
+  records.push({ kind: "header", format: WORKSPACE_EXPORT_FORMAT, ziffr: ZIFFR_VERSION, exportedAt: new Date().toISOString().replace(/\.\d{3}Z$/, "Z"), workspace: { name: headerName, ...(/^[A-Za-z][A-Za-z0-9_+/-]{0,63}$/.test(clock.timeZone) && knownTimeZone(clock.timeZone) ? { timeZone: clock.timeZone } : {}), yearStart, attainmentMethod: attainment } });
   if (headerName !== wsName) skip("Workspace", wsName, "Its name is saved in the file as \u201cWorkspace\u201d, as it has line breaks or is too long for the file.");
   const metricLabel = new Map<number, string>();
   const metrics: Plan["metrics"] = [];
@@ -477,6 +482,10 @@ async function plan(actor: Actor): Promise<Plan> {
   await deckRecords(c);
   await workflowRecords(c);
   await shareRecords(c);
+  // More of a kind than the format holds is refused now, before a byte goes out, not found by the writer half way.
+  const kinds = new Map<string, number>();
+  for (const r of records) kinds.set(r.kind, (kinds.get(r.kind) ?? 0) + 1);
+  for (const [kind, max] of Object.entries(WORKSPACE_EXPORT_LIMITS.perKind)) if ((kinds.get(kind) ?? 0) > max) throw new Error(`This Workspace has more ${kind} records than a Workspace Export holds (${max.toLocaleString("en")}).`);
   return { records, leftOut, workspaceName: headerName, yearStart, metrics };
 }
 
@@ -568,16 +577,19 @@ export type WorkspaceExportDownload = { filename: string; stream: AsyncGenerator
  * as it is and, if it throws, ends the response with an error rather than a short file. When the stream ends, or is cut,
  * the Audit Log records how many bytes and values it held and whether it was complete. `now` is for tests.
  */
-export async function exportWorkspace(actor: Actor, options: { now?: Date; gzip?: boolean } = {}): Promise<WorkspaceExportDownload> {
+export async function exportWorkspace(actor: Actor, options: { now?: Date; gzip?: boolean; sessionStartedAt?: Date | null } = {}): Promise<WorkspaceExportDownload> {
   await assertOwner(actor);
-  const signedIn = await lastSignIn(actor.personId);
   const now = options.now ?? new Date();
-  if (!signedIn || now.getTime() - signedIn.getTime() > SIGN_IN_WINDOW_MS) throw new SignInTooOld();
-  const { count } = await db().from("audit_events").select("id", { count: "exact", head: true }).eq("workspace_id", actor.workspaceId).eq("kind", "export.workspace").gte("at", new Date(Date.now() - 3_600_000).toISOString());
-  if ((count ?? 0) >= WORKSPACE_EXPORTS_PER_HOUR) throw new WorkspaceExportLimit();
+  const recent = (at: Date | null | undefined) => Boolean(at) && now.getTime() - at!.getTime() <= SIGN_IN_WINDOW_MS;
+  // The account's last sign-in, and, when the caller knows it, the start of this very session: a session that was
+  // signed in long ago does not become fresh because the Owner signed in on another device a moment ago.
+  if (!recent(await lastSignIn(actor.personId)) || (options.sessionStartedAt !== undefined && !recent(options.sessionStartedAt))) throw new SignInTooOld();
+  // The start is recorded before the limit is counted, so requests that arrive together count each other.
+  await audit(actor, { kind: "export.workspace", object: { type: "workspace", id: actor.workspaceId }, details: { format: WORKSPACE_EXPORT_FORMAT, gzip: options.gzip !== false } });
+  const { count } = await db().from("audit_events").select("id", { count: "exact", head: true }).eq("workspace_id", actor.workspaceId).eq("kind", "export.workspace").gte("at", new Date(now.getTime() - 3_600_000).toISOString());
+  if ((count ?? 0) > WORKSPACE_EXPORTS_PER_HOUR) throw new WorkspaceExportLimit();
   const p = await plan(actor);
   const gzip = options.gzip !== false;
-  await audit(actor, { kind: "export.workspace", object: { type: "workspace", id: actor.workspaceId }, details: { format: WORKSPACE_EXPORT_FORMAT, gzip, left_out: p.leftOut.length } });
   const tally = { values: 0, leftOut: 0 };
   let bytes = 0;
   let complete = false;

@@ -6,14 +6,40 @@ import { currentActor } from "@/lib/viewer";
 import { Forbidden } from "@ziffr/core/actor";
 import { exportWorkspace, SignInTooOld, WorkspaceExportLimit } from "@ziffr/core/workspace-export";
 import { SITE_URL } from "@/lib/sign-in";
+import { authClient } from "@/lib/auth";
+
+/** When this browser session was signed in, from the verified access token (its authentication method list); undefined when the token does not say, so the account's own last sign-in decides alone. */
+async function sessionStartedAt(): Promise<Date | undefined> {
+  const client = await authClient();
+  // getUser asks the sign-in service to verify the token; only then is the token read.
+  if (!(await client.auth.getUser()).data.user) return undefined;
+  const token = (await client.auth.getSession()).data.session?.access_token;
+  try {
+    const claims = JSON.parse(Buffer.from(String(token).split(".")[1], "base64url").toString("utf8")) as { amr?: { timestamp?: number }[] };
+    const stamps = (claims.amr ?? []).map((a) => a.timestamp).filter((t): t is number => typeof t === "number");
+    return stamps.length ? new Date(Math.max(...stamps) * 1000) : undefined;
+  } catch {
+    return undefined;
+  }
+}
 
 const NO_STORE = { "cache-control": "no-store, private" };
 
 /** Streams the file. Anyone but the Owner gets 404; an Owner who signed in too long ago is sent back to the page. */
-export async function POST() {
+export async function POST(req: Request) {
+  // Only from this site's own page: a page of another site, or of a sibling subdomain, cannot start a download.
+  const origin = req.headers.get("origin");
+  const site = req.headers.get("sec-fetch-site");
+  if ((origin && new URL(origin).host !== req.headers.get("host")) || (site && site !== "same-origin")) return new Response("Not from this site.", { status: 403, headers: NO_STORE });
   let file: Awaited<ReturnType<typeof exportWorkspace>>;
   try {
-    file = await exportWorkspace(await currentActor());
+    let actor;
+    try {
+      actor = await currentActor();
+    } catch {
+      return new Response("Not found", { status: 404, headers: NO_STORE });
+    }
+    file = await exportWorkspace(actor, { sessionStartedAt: await sessionStartedAt() });
   } catch (e) {
     if (e instanceof SignInTooOld) return Response.redirect(`${SITE_URL}/settings/export`, 303);
     if (e instanceof Forbidden) return new Response("Not found", { status: 404, headers: NO_STORE });

@@ -284,6 +284,19 @@ describe("who may download, and after which sign-in", () => {
     expect(await workspaceExportState(s.actor(never, "owner"))).toEqual({ signedInRecently: false });
   });
 
+  it("asks that this session was signed in recently too, not only the account", async () => {
+    const s = await base();
+    await expect(exportWorkspace(s.as, { sessionStartedAt: new Date(Date.now() - SIGN_IN_WINDOW_MS - 60_000) })).rejects.toBeInstanceOf(SignInTooOld);
+    await expect(exportWorkspace(s.as, { sessionStartedAt: new Date() })).resolves.toBeTruthy();
+  });
+
+  it("counts requests that arrive together against the limit", async () => {
+    const s = await base();
+    const results = await Promise.allSettled(Array.from({ length: WORKSPACE_EXPORTS_PER_HOUR + 3 }, () => exportWorkspace(s.as)));
+    expect(results.filter((r) => r.status === "fulfilled").length).toBeLessThanOrEqual(WORKSPACE_EXPORTS_PER_HOUR);
+    expect(results.filter((r) => r.status === "rejected" && r.reason instanceof WorkspaceExportLimit).length).toBeGreaterThanOrEqual(3);
+  });
+
   it("is limited to a few downloads an hour", async () => {
     const s = await base();
     for (let i = 0; i < WORKSPACE_EXPORTS_PER_HOUR; i++) await exportWorkspace(s.as);
