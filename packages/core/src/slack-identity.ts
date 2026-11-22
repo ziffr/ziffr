@@ -3,6 +3,7 @@
 // and its Theme logo, as emails and the form link already do (#542). Nothing here reads the database itself.
 import { publicLook } from "./brand-logo";
 import type { ThemeLook } from "./theme-look";
+import { workspaceLook } from "./workspace-look";
 
 /** The scope that lets a message bring its own name and icon; a Slack connection made without it keeps the app's. */
 export const CUSTOMIZE_SCOPE = "chat:write.customize";
@@ -29,4 +30,12 @@ export function slackIdentity(scopes: string | null | undefined, workspaceId: st
   const origin = (() => { try { const u = new URL(site); return u.protocol === "https:" && !u.username && !u.password && u.origin === site ? site : null; } catch { return null; } })();
   if (logo && origin) out.icon_url = `${origin}${logo}`;
   return out;
+}
+
+/** The same fields for a message Ziffr sends into a Workspace's connected Slack (a reply in a thread, say), read from the
+ * Workspace's Theme; nothing, as ever, when the connection lacks the scope or the Theme cannot be read. */
+export async function slackIdentityOf(workspaceId: string, scopes: string | null | undefined): Promise<{ username?: string; icon_url?: string }> {
+  if (!canCustomize(scopes)) return {};
+  const look = await workspaceLook(workspaceId).catch(() => null);
+  return look ? slackIdentity(scopes, workspaceId, look, process.env.ZIFFR_SITE_URL) : {};
 }

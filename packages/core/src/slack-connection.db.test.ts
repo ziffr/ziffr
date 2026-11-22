@@ -161,6 +161,22 @@ describe("connecting Slack", () => {
   });
 });
 
+describe("reconnecting Slack", () => {
+  it("revokes the old bot token when another Slack workspace is connected, and not when the same one is", async () => {
+    const w = await workspace(); cleanups.push(w.cleanup);
+    const sara = await w.person("owner");
+    expect(await connect(w.actor(sara))).toBe("connected");
+    const first = slack.install.access_token;
+    const revokes = slack.of("auth.revoke").length;
+    // The same Slack workspace again (no newTeam): nothing is revoked.
+    expect(await finishSlackInstall(w.actor(sara), { code: "code-1234567890", state: stateOf(await startSlackInstall(w.actor(sara))) })).toBe("connected");
+    expect(slack.of("auth.revoke")).toHaveLength(revokes);
+    expect(await connect(w.actor(sara))).toBe("connected");
+    expect(slack.of("auth.revoke").at(-1)?.token).toBe(first);
+    expect((await slackBot(w.id))?.token).toBe(slack.install.access_token);
+  });
+});
+
 describe("finding people on Slack", () => {
   it("finds a member by their proven address and a Contact by the address kept for them, never by handle", async () => {
     const w = await workspace(); cleanups.push(w.cleanup);

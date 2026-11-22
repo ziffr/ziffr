@@ -106,6 +106,9 @@ export async function finishSlackInstall(actor: Actor, input: { code: string; st
   // is not revoked here: that would cut the other off.
   const { data: other } = await db().from("slack_installations").select("workspace_id").eq("team_id", teamId).is("revoked_at", null).neq("workspace_id", actor.workspaceId).maybeSingle();
   if (other) return "elsewhere";
+  // A Slack workspace connected before, and a different one now: its bot token is revoked once the new one is kept, so
+  // no token is left working at Slack with nowhere to be used.
+  const before = await slackBot(actor.workspaceId).catch(() => null);
   const row = {
     workspace_id: actor.workspaceId, team_id: teamId, team_name: String(team?.name ?? "").replace(/[\u0000-\u001f\u007f]/g, " ").slice(0, 120),
     app_id: appId, bot_user_id: botUserId, bot_token: await sealToken(actor.workspaceId, token), scopes: String(r.scope ?? "").slice(0, 500),
@@ -114,6 +117,9 @@ export async function finishSlackInstall(actor: Actor, input: { code: string; st
   const { error } = await db().from("slack_installations").upsert(row, { onConflict: "workspace_id" });
   if (error?.code === "23505") return "elsewhere";
   if (error) return "failed";
+  if (before && before.teamId !== teamId) {
+    try { await callSlack("auth.revoke", {}, before.token); } catch (e) { if (!(e instanceof SlackError)) throw e; }
+  }
   // People found on another Slack workspace before are not people on this one.
   await db().from("slack_links").delete().eq("workspace_id", actor.workspaceId).neq("team_id", teamId);
   await audit(actor, { kind: "slack.connected", object: { type: "workspace", id: actor.workspaceId }, details: { slack_team: row.team_name } });

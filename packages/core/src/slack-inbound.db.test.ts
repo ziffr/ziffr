@@ -81,6 +81,8 @@ describe("answers by Slack", () => {
     expect(await valuesOf(m.id)).toMatchObject([{ value: 17, submitter_id: ann, source: "slack" }]);
     const confirm = slack.of("chat.postMessage").at(-1)!;
     expect(confirm.params).toMatchObject({ channel: d.slack_channel, thread_ts: d.slack_ts });
+    // The reply comes in the Workspace's name too (the fake grants chat:write.customize).
+    expect(confirm.params.username).toBeTruthy();
     expect(confirm.params.text).toMatch(/^Recorded/);
     expect((await sent(w.id, ann)).status).toBe("answered");
   });

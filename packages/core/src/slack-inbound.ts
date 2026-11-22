@@ -10,6 +10,7 @@ import { OPT_OUT_KINDS } from "./mail";
 import { routeReply, type RepliedDelivery } from "./reply-routing";
 import { callSlack, slackOn } from "./slack-api";
 import { noteSlackEventsChecked } from "./slack-setup";
+import { slackIdentityOf } from "./slack-identity";
 import { slackBotOfTeam, slackConnectionEnded, type SlackBot } from "./slack-connection";
 import { isSlackId, linkSlackByCode, personOfSlackUser } from "./slack-people";
 import { SLACK_BUTTONS } from "./slack-send";
@@ -56,7 +57,9 @@ export function slackText(text: string): string {
 /** Says something in the thread of a message; a lost confirmation is not worth failing the answer for. */
 async function say(bot: SlackBot, channel: string, threadTs: string | null, text: string) {
   try {
-    await callSlack("chat.postMessage", { channel, ...(threadTs ? { thread_ts: threadTs } : {}), text: slackEscape(text).slice(0, 3000), unfurl_links: false, unfurl_media: false }, bot.token);
+    // In the Workspace's name and logo like the message it answers, where the connection may.
+    const who = await slackIdentityOf(bot.workspaceId, bot.scopes);
+    await callSlack("chat.postMessage", { channel, ...(threadTs ? { thread_ts: threadTs } : {}), ...who, text: slackEscape(text).slice(0, 3000), unfurl_links: false, unfurl_media: false }, bot.token);
   } catch {
     // The answer itself was taken.
   }
