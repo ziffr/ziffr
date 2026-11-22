@@ -1,6 +1,6 @@
 # 0037 Personal Webhooks: a person's own address for what happens to their numbers and tasks
 
-**Status:** done. **Ticket:** #639 (the owner's wish, 2026-11-22); the tracking issue is #639 and its sub-issues are labelled `spec:0037`.
+**Status:** draft. **Ticket:** #639 (the owner's wish, 2026-11-22); the tracking issue is #639 and its sub-issues are labelled `spec:0037`.
 
 ## Problem Statement
 
