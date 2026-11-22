@@ -182,7 +182,7 @@ async function mergeInto(actor: Actor, from: Pick<VisibleTag, "id" | "name" | "m
   if (error) throw new ServerFault("The Tags could not be merged.");
   if (data !== "ok") throw new Forbidden();
   // Dashboards that showed "all Metrics tagged" the first Tag follow the other (spec 0038).
-  await followMergedTag(actor.workspaceId, from.id, into.id);
+  await followMergedTag(actor, from.id, into.id);
   // The first Tag is gone, so it names no one's sight: the event is shown only to the person who did it.
   if (record) await audit(actor, { kind: "tag.merged", object: { type: "tag", id: from.id, name: from.name }, details: { into: into.name, metrics: from.metrics } });
 }

@@ -159,11 +159,13 @@ export function fromTemplate(t: Pick<WidgetTemplate, "view" | "body">, fills: nu
   const tagged = t.body.metricSlots.length === 1 ? tagFills[t.body.metricSlots[0]] : undefined;
   if (t.body.metricSlots.some((i) => tagFills[i]) && (!tagged || !takesTagSource({ template: t.view, settings: s }))) throw new Error("A Tag can fill only a list of Metrics that nothing else uses.");
   if (tagged) return { template: t.view, metric_ids: [], settings: { ...s, tagSource: { id: tagged } }, title: t.body.title ?? null };
+  // A template holds no Tag (a hand-made file might): only a person's choice of a Tag makes a Tag widget.
+  const { tagSource: _t, tagView: _v, ...plain } = s; void _t; void _v;
   return {
     template: t.view,
     metric_ids: own.length || !firstPanel ? own : (fills[firstPanel.slot!] ?? []).slice(0, 1),
     settings: {
-      ...s,
+      ...plain,
       ...(s.panels ? { panels: s.panels.map(({ slot, ...panel }) => (slot === undefined ? panel : { ...panel, metricIds: fills[slot] ?? [] })) } : {}),
     },
     title: t.body.title ?? null,

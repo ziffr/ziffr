@@ -42,7 +42,7 @@ import { designOf, duplicateAsDesign } from "@ziffr/core/design-files";
 import { downloadDesign } from "@/lib/design-download";
 import { Preview, TemplatePreview } from "./preview";
 import { periodLabel } from "@ziffr/core/periods";
-import { takesTagSource, withoutTagSource } from "@ziffr/core/tag-source";
+import { takesTagSource, withoutTagSource } from "@ziffr/core/widget-templates";
 import { combines, DISPLAY_LABEL, displayPeriodsFor, NOT_COMBINED, SHOWN_BY, type DisplayPeriod } from "@ziffr/core/display-periods";
 
 export type { FrameWidget } from "./read-only-frame";

@@ -2,6 +2,7 @@
 // the Metrics it shows, people's names without their contact details, and nothing to act on. Made, listed and
 // revoked by the owner of the dashboard or deck.
 import { isTagWidget } from "./tag-widgets";
+import { withoutNestedTagSources } from "./tag-source";
 import { tagWidgetCount } from "./tag-lists";
 import { randomBytes } from "node:crypto";
 import { db } from "./db";
@@ -123,7 +124,7 @@ export async function buildView(type: "dashboard" | "deck", id: number, allowed?
       .map((w) => ({ id: w.id, template: w.template, metric_ids: w.metric_ids, settings: w.settings, title: w.title, x: w.x, y: w.y, w: w.w, h: w.h }) as Widget);
   }
   // The deck as this link shows it: only the records it had when the link was made, nothing from other sites.
-  const document = type === "deck" ? deckForLink(stripOutsideContent(obj.document), ids, allowedShapes ?? null) : undefined;
+  const document = type === "deck" ? deckForLink(withoutNestedTagSources(stripOutsideContent(obj.document)), ids, allowedShapes ?? null) : undefined;
   // A deck made from a Snapshot draws its Metrics as of the period's end: then only that much goes out (spec 0013).
   // Read from the deck this link shows, so a widget added since cannot make a Metric go out whole again.
   const data = type === "deck" ? dataAsOfEach(shownData(full, ids, obj.theme_id ?? null), deckAsOf(document)) : shownData(full, ids, obj.theme_id ?? null);

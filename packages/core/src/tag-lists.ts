@@ -35,10 +35,13 @@ export async function fixTagLists(actor: Actor, dashboardId: number): Promise<nu
 
 
 /** After a merge: the widgets that showed the first Tag follow the Tag it was merged into (a rename needs nothing: the id stays). */
-export async function followMergedTag(workspaceId: string, from: string, into: string): Promise<void> {
+export async function followMergedTag(actor: Actor, from: string, into: string): Promise<void> {
+  const workspaceId = actor.workspaceId;
   const { data } = await db().from("widgets").select("*").eq("workspace_id", workspaceId).not("settings->tagSource", "is", null);
   for (const w of (await openRows("widgets", workspaceId, data)) as Widget[]) {
     if (tagSourceId(w.settings) !== from) continue;
+    await ensureBaseline("widget", w.id, actor.personId);
     await db().from("widgets").update(await sealedPatch("widgets", workspaceId, w.id, { settings: { ...w.settings, tagSource: { id: into } } })).eq("id", w.id).eq("workspace_id", workspaceId);
+    await recordVersion("widget", w.id, actor.personId, { message: "Follows the Tag it was merged into" });
   }
 }

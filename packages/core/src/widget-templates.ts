@@ -2,7 +2,7 @@
 // (built-in-designs.ts): their name, Slots, size and settings come from their files. Findings and the free layout are
 // drawn by code of their own. Plain data, shared by the app and the core.
 import { BUILT_IN_DESIGNS, designSettings, designSlots, type DesignedView } from "./built-in-designs";
-import type { Slot, TemplateId, WidgetSettings } from "./types";
+import type { Slot, TemplateId, Widget, WidgetSettings } from "./types";
 import type { ViewDesign } from "./view-design";
 
 /** A built-in Widget Template: what it draws and its default size and settings. */
@@ -70,4 +70,19 @@ export function designTemplate(design: ViewDesign): TemplateDef {
 /** A widget's template as it is drawn and filled: for a Workspace's View Design, that design's. */
 export function templateOf(widget: { template: TemplateId; settings: WidgetSettings }): TemplateDef {
   return widget.template === "design" && widget.settings.design ? designTemplate(widget.settings.design.body) : TEMPLATES[widget.template];
+}
+
+/** Whether a view can take a Tag instead of a list: only one whose Metrics are a single "one or more" Slot (a matrix of
+ * Metrics, or a View Design asking for exactly that), since a Tag fills the whole list and nothing else. */
+export function takesTagSource(widget: Pick<Widget, "template" | "settings">): boolean {
+  if (!(widget.template in TEMPLATES)) return false;
+  const slots = templateOf(widget).slots;
+  return slots.length === 1 && slots[0].multiple;
+}
+
+/** A widget's settings without a Tag source and without what drawing added to it: for a copy that records the Metrics of the moment. */
+export function withoutTagSource(settings: WidgetSettings): WidgetSettings {
+  const { tagSource: _s, tagView: _v, ...rest } = settings;
+  void _s; void _v;
+  return rest;
 }

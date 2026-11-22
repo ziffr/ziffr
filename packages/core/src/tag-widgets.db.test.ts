@@ -15,7 +15,7 @@ import { visibleTags } from "./tag-sight";
 import { deleteTag, mergeTags, setMetricTags } from "./tags";
 import { saveDashboardTemplate } from "./templates";
 import { workspace } from "./test/db-fixtures";
-import { createViewLink } from "./view-links";
+import { buildView, createViewLink } from "./view-links";
 import { getMetrics } from "./workspace-data";
 import { forgetWorkspaceKey } from "./workspace-keys";
 import { db } from "./db";
@@ -172,5 +172,10 @@ describe("a Tag widget placed inside another thing", () => {
     await saveDeck(t.as.mia, deck, layout.canvas.document);
     const { data: stored } = await db().from("decks").select("document").eq("id", deck).single();
     expect(JSON.stringify(stored?.document)).not.toMatch(/tagSource|tagView|shop/);
+    // A deck stored before this rule, with the Tag in it, still carries none through a View Link.
+    const old = { store: { "shape:w": { type: "ziffr-widget", props: { template: "matrix", metricIds: [t.b.id], settings: ` { "tagView": { "name": "shop", "more": 3 }, "tagSource": { "id": "${t.shop}" } }` } } } };
+    await db().from("decks").update({ document: old }).eq("id", deck);
+    const view = await buildView("deck", deck);
+    expect(JSON.stringify(view?.document)).not.toMatch(/tagSource|tagView|shop/);
   });
 });

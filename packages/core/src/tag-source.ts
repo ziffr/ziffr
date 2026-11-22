@@ -1,7 +1,7 @@
 // "All Metrics tagged X" as a widget's source (GLOSSARY: Tag, Widget; spec 0038): the parts that need no database, so the
 // template code and the app can use them. Reading a Tag source for a viewer is tag-widgets.ts.
-import { templateOf, TEMPLATES } from "./widget-templates";
-import type { Widget, WidgetSettings } from "./types";
+import type { WidgetSettings } from "./types";
+export { takesTagSource, withoutTagSource } from "./widget-templates";
 
 /** Most Metrics a Tag widget draws: what a fixed widget may hold (a widget stores at most 50 Metrics); the rest are said as "and N more". */
 export const TAG_WIDGET_MAX = 50;
@@ -14,21 +14,6 @@ export function tagSourceId(settings: Pick<WidgetSettings, "tagSource"> | null |
   return typeof id === "string" && UUID.test(id) ? id.toLowerCase() : null;
 }
 
-/** Whether a view can take a Tag instead of a list: only one whose Metrics are a single "one or more" Slot (a matrix of
- * Metrics, or a View Design asking for exactly that), since a Tag fills the whole list and nothing else. */
-export function takesTagSource(widget: Pick<Widget, "template" | "settings">): boolean {
-  if (!(widget.template in TEMPLATES)) return false;
-  const slots = templateOf(widget).slots;
-  return slots.length === 1 && slots[0].multiple;
-}
-
-/** A widget's settings without a Tag source and without what drawing added to it: for a copy that records the Metrics of the moment. */
-export function withoutTagSource(settings: WidgetSettings): WidgetSettings {
-  const { tagSource: _s, tagView: _v, ...rest } = settings;
-  void _s; void _v;
-  return rest;
-}
-
 /** A copy of any stored JSON (a free layout's drawing, a deck's document) with every Tag source and Tag name drawing added taken out, at every depth and also
  * inside widget settings kept as JSON text. A widget placed inside another thing has a fixed list, never a Tag: its Metrics are then opened by that thing's Share and its
  * Tag's name must not travel with it (spec 0038). */
@@ -36,7 +21,8 @@ export function withoutNestedTagSources<T>(value: T): T {
   const walk = (v: unknown): unknown => {
     if (Array.isArray(v)) return v.map(walk);
     if (v && typeof v === "object") return Object.fromEntries(Object.entries(v).filter(([k]) => k !== "tagSource" && k !== "tagView").map(([k, x]) => [k, walk(x)]));
-    if (typeof v === "string" && v.startsWith("{") && /tag(Source|View)/.test(v)) {
+    if (typeof v === "string" && v.trimStart().startsWith("{")) {
+      // Widget settings kept as JSON text: parsed, cleaned and written again, whatever the spacing or escapes.
       try { return JSON.stringify(walk(JSON.parse(v))); } catch { return v; }
     }
     return v;
