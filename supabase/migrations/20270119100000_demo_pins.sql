@@ -11,7 +11,7 @@ begin
   delete from pinned_dashboards where workspace_id = demo;
   insert into pinned_dashboards (workspace_id, person_id, dashboard_id, position)
   select demo, p.person, d.id, p.pos
-  from (values ('sara', 'Monthly overview', 0), ('sara', 'Weekly numbers', 1), ('sara', 'Board stories', 2),
+  from (values ('sara', 'Monthly overview', 0), ('sara', 'Weekly numbers', 1),
                ('ben', 'Operations', 0), ('ben', 'Monthly overview', 1)) as p(person, dash, pos)
   join dashboards d on d.workspace_id = demo and d.name = p.dash
   join profiles pr on pr.id = p.person;
