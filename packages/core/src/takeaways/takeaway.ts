@@ -149,6 +149,23 @@ export function correlationTakeaway(a: Metric, b: Metric, c: Correlation, ctx: T
   };
 }
 
+/** The answer of a Method that compares periods in pairs: the sentence, the strength, what it was compared on over how many
+ * pairs, the lines of the suitability checks and the footer once. The caller adds its own `numbers` for Show the numbers. */
+export function pairsAnswer(method: string, ctx: TakeawayContext, o: { sentence: string; strength: StrengthWord; basis: string; lines: ReturnType<typeof verdictLines>; n: number }): Takeaway {
+  return {
+    ...emptyTakeaway(method),
+    kind: "answer",
+    sentence: o.sentence,
+    strength: o.strength,
+    strengthText: word(o.strength, ctx),
+    basis: o.basis,
+    cautions: o.lines.cautions,
+    notes: o.lines.notes,
+    footer: footerText(ctx),
+    figures: [{ label: say("numbers-pairs", {}, ctxOf(ctx)), value: o.n, text: formatNumber(o.n, 0, ctx.style) }],
+  };
+}
+
 /** A list of names in words: "A", "A and B", "A, B and C". */
 export function listOf(names: string[], ctx: TakeawayContext): string {
   const [and, comma] = [say("list-and", {}, ctxOf(ctx)), say("list-comma", {}, ctxOf(ctx))];

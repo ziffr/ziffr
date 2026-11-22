@@ -11,7 +11,7 @@ import { formatNumber } from "../format";
 import type { Span } from "../periods";
 import { checkSuitability, rankAssociation } from "../suitability";
 import { strengthOf, type StrengthWord } from "../takeaways/strength";
-import { emptyTakeaway, footerText, refusalTakeaway, sayIn, strengthWordIn, verdictLines, type Takeaway, type TakeawayContext } from "../takeaways/takeaway";
+import { pairsAnswer, refusalTakeaway, sayIn, strengthWordIn, verdictLines, type Takeaway, type TakeawayContext } from "../takeaways/takeaway";
 import type { Point } from "../types";
 
 /** How much more a rank correlation scatters than Pearson's r under no link: a variance of 1.06 ÷ (n − 3) against 1 ÷ (n − 3). */
@@ -64,17 +64,9 @@ export function spearmanTakeaway(aName: string, bName: string, a: Point[], b: Po
   // Stryker disable next-line EqualityOperator: a rho of 0 is "can't tell from chance" before this, so `<` and `<=` never differ.
   const key = strength === "cant-tell" ? "corr-cant-tell" : rho < 0 ? "corr-opposite" : "corr-together";
   const basisPhrase = sayIn(basis === "changes" ? "basis-rank-changes" : "basis-rank-values", {}, ctx);
+  const answer = pairsAnswer(method, ctx, { sentence: sayIn(key, { a: aName, b: bName, n, span, strength: strengthText }, ctx), strength, basis: sayIn("basis-over", { basis: basisPhrase, n, span }, ctx), lines, n });
   return {
-    ...emptyTakeaway(method),
-    kind: "answer",
-    sentence: sayIn(key, { a: aName, b: bName, n, span, strength: strengthText }, ctx),
-    strength,
-    strengthText,
-    basis: sayIn("basis-over", { basis: basisPhrase, n, span }, ctx),
-    cautions: lines.cautions,
-    notes: lines.notes,
-    footer: footerText(ctx),
-    figures: [{ label: sayIn("numbers-pairs", {}, ctx), value: n, text: formatNumber(n, 0, ctx.style) }],
+    ...answer,
     numbers: [
       { label: sayIn("numbers-method", {}, ctx), text: method },
       { label: sayIn("numbers-rho", {}, ctx), text: formatNumber(rho, 2, ctx.style) },

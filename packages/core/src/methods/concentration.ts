@@ -81,16 +81,12 @@ const refusalFor = (why: NoShare, name: string, rows: number, ctx: TakeawayConte
 
 const shareText = (percent: number, ctx: TakeawayContext) => formatPercent(percent, ctx.style);
 
-/** The Takeaway of the share of the top rows: "Worked out: the top 3 of 8 rows make up 71.0 % of Revenue: A, B and C." A
- * refusal says what is wrong with the rows and carries no number. */
-export function topShareTakeaway(name: string, rows: Row[], n: number, ctx: TakeawayContext): Takeaway {
-  const result = topShare(rows, n);
-  if (!result.ok) return refusalFor(result.why, name, rows.length, ctx);
-  const method = sayIn("numbers-method-share", {}, ctx);
+// What both Takeaways share: the notes at a tie, the share as a figure, and the numbers (the share and each row's).
+function shareAnswer(method: string, sentence: string, result: { tied: boolean; percent: number; top: Part[] }, ctx: TakeawayContext): Takeaway {
   return {
     ...emptyTakeaway(method),
     kind: "answer",
-    sentence: sayIn("share-top", { name, k: n, rows: result.rows, share: shareText(result.percent, ctx), names: listOf(result.top.map((r) => r.label), ctx) }, ctx),
+    sentence,
     notes: result.tied ? [sayIn("note-tied", {}, ctx)] : [],
     figures: [{ label: sayIn("numbers-share", {}, ctx), value: result.percent, text: shareText(result.percent, ctx) }],
     numbers: [
@@ -101,21 +97,19 @@ export function topShareTakeaway(name: string, rows: Row[], n: number, ctx: Take
   };
 }
 
+/** The Takeaway of the share of the top rows: "Worked out: the top 3 of 8 rows make up 71.0 % of Revenue: A, B and C." A
+ * refusal says what is wrong with the rows and carries no number. */
+export function topShareTakeaway(name: string, rows: Row[], n: number, ctx: TakeawayContext): Takeaway {
+  const result = topShare(rows, n);
+  if (!result.ok) return refusalFor(result.why, name, rows.length, ctx);
+  const method = sayIn("numbers-method-share", {}, ctx);
+  return shareAnswer(method, sayIn("share-top", { name, k: n, rows: result.rows, share: shareText(result.percent, ctx), names: listOf(result.top.map((r) => r.label), ctx) }, ctx), result, ctx);
+}
+
 /** The Takeaway of a Pareto: "Worked out: 3 of 8 rows make up 71.0 % of Revenue, the fewest that reach 70.0 %: A, B and C." */
 export function paretoTakeaway(name: string, rows: Row[], ctx: TakeawayContext, target: number = PARETO_SHARE): Takeaway {
   const result = pareto(rows, target);
   if (!result.ok) return refusalFor(result.why, name, rows.length, ctx);
   const method = sayIn("numbers-method-pareto", {}, ctx);
-  return {
-    ...emptyTakeaway(method),
-    kind: "answer",
-    sentence: sayIn("share-pareto", { name, k: result.count, rows: result.rows, share: shareText(result.percent, ctx), target: shareText(result.target * 100, ctx), names: listOf(result.top.map((r) => r.label), ctx) }, ctx),
-    notes: result.tied ? [sayIn("note-tied", {}, ctx)] : [],
-    figures: [{ label: sayIn("numbers-share", {}, ctx), value: result.percent, text: shareText(result.percent, ctx) }],
-    numbers: [
-      { label: sayIn("numbers-method", {}, ctx), text: method },
-      { label: sayIn("numbers-share", {}, ctx), text: shareText(result.percent, ctx) },
-      ...result.top.map((r) => ({ label: r.label, text: shareText(r.percent, ctx) })),
-    ],
-  };
+  return shareAnswer(method, sayIn("share-pareto", { name, k: result.count, rows: result.rows, share: shareText(result.percent, ctx), target: shareText(result.target * 100, ctx), names: listOf(result.top.map((r) => r.label), ctx) }, ctx), result, ctx);
 }

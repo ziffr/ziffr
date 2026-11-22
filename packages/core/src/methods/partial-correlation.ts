@@ -14,7 +14,7 @@ import { MIN_PAIRS } from "../correlation";
 import type { Span } from "../periods";
 import { checkSuitability } from "../suitability";
 import { strengthOf, type StrengthWord } from "../takeaways/strength";
-import { emptyTakeaway, footerText, listOf, refusalTakeaway, sayIn, strengthWordIn, verdictLines, type Takeaway, type TakeawayContext } from "../takeaways/takeaway";
+import { listOf, pairsAnswer, refusalTakeaway, sayIn, strengthWordIn, verdictLines, type Takeaway, type TakeawayContext } from "../takeaways/takeaway";
 import type { Point } from "../types";
 
 /** How many other Metrics can be held the same: at least 1, at most 4. */
@@ -30,10 +30,8 @@ export type PartialResult = { ok: true; r: number; n: number; held: number; peri
 const ZERO = BigInt(0);
 const ONE = BigInt(1);
 const whole = (n: number): Fraction => ({ num: BigInt(n), den: ONE });
-const add = (a: Fraction, b: Fraction) => lowestTerms(plus(a, b));
-const sub = (a: Fraction, b: Fraction) => lowestTerms(minus(a, b));
-const mul = (a: Fraction, b: Fraction) => lowestTerms(times(a, b));
-const div = (a: Fraction, b: Fraction) => lowestTerms(over(a, b));
+const exact = (f: (a: Fraction, b: Fraction) => Fraction) => (a: Fraction, b: Fraction) => lowestTerms(f(a, b));
+const [add, sub, mul, div] = [exact(plus), exact(minus), exact(times), exact(over)];
 const sumOf = (fs: Fraction[]) => fs.reduce(add, whole(0));
 
 // The inverse of a square matrix of fractions by Gauss-Jordan elimination, null where it has none (a column with no pivot).
@@ -127,17 +125,9 @@ export function partialTakeaway(names: { a: string; b: string; held: string[] },
   // Stryker disable next-line EqualityOperator: an r of 0 is "can't tell from chance" before this, so `<` and `<=` never differ.
   const key = strength === "cant-tell" ? "partial-cant-tell" : r < 0 ? "partial-opposite" : "partial-together";
   const listed = listOf(names.held, ctx);
+  const answer = pairsAnswer(method, ctx, { sentence: sayIn(key, { a: names.a, b: names.b, held: listed, n, span, strength: strengthText }, ctx), strength, basis: sayIn("basis-over", { basis: sayIn("basis-held", { held: listed }, ctx), n, span }, ctx), lines, n });
   return {
-    ...emptyTakeaway(method),
-    kind: "answer",
-    sentence: sayIn(key, { a: names.a, b: names.b, held: listed, n, span, strength: strengthText }, ctx),
-    strength,
-    strengthText,
-    basis: sayIn("basis-over", { basis: sayIn("basis-held", { held: listed }, ctx), n, span }, ctx),
-    cautions: lines.cautions,
-    notes: lines.notes,
-    footer: footerText(ctx),
-    figures: [{ label: sayIn("numbers-pairs", {}, ctx), value: n, text: formatNumber(n, 0, ctx.style) }],
+    ...answer,
     numbers: [
       { label: sayIn("numbers-method", {}, ctx), text: method },
       { label: sayIn("numbers-r", {}, ctx), text: formatNumber(r, 2, ctx.style) },
