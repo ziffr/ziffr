@@ -83,6 +83,10 @@ An item may name another item of the same Pack, and nothing outside it:
 - a Deck Template names one of the Pack's Themes, which a deck made from it starts with: `"theme": "board"`. Its Slots and widgets name entries and designs as a Dashboard Template's do;
 - a Derived Metric's formula names the Pack's other entries in braces: `"{mrr} / {customers}"`. Its inputs follow the same rules as in a Workspace: no Derived Metric among them, all of the Derived Metric's own period, none set to Aggregation none.
 
+## The logo
+
+A Pack may bring **one logo**, optionally, as a data address in the manifest's `logo` (beside `listing`, never in `contents`): `"logo": "data:image/png;base64,…"`. Its `author` is the publisher it is shown with. A Theme of the Pack may say `"slides": { "logo": "pack" }` to use it; that is the only value the field takes, a Theme file on its own may not say it, and neither may a Theme of a Pack without a logo. A Pack with a logo needs a Ziffr that knows the field, so set `ziffr` to the version that does. A Pack's licence covers its contents, not anyone's trademark: the logo stays the publisher's.
+
 ## What is refused
 
 Ziffr checks a Pack in full on its server before it shows or installs anything:
@@ -90,7 +94,8 @@ Ziffr checks a Pack in full on its server before it shows or installs anything:
 - a file over 1 MiB, more than 200 items, or more than 50 of one kind;
 - a field Ziffr does not know, or one given twice. A field called `__proto__` is read as an unknown field, never as anything else;
 - a web address, HTML, a script, a template in braces or a line break in any text of `contents`. Words of widgets may hold the Placeholders Ziffr knows, such as `{metric}` or `{change yoy}`;
-- images, fonts and logos: a Theme uses only fonts Ziffr ships, and its logo and background image are set in Ziffr after installing;
+- images and fonts, except the Pack's one `logo`: a Theme uses only fonts Ziffr ships, and its background image is set in Ziffr after installing;
+- a `logo` that is not a PNG, JPEG or plain SVG as a base64 data address, weighs over 128,000 bytes, measures over 512 pixels on a side, or whose bytes are not the type it says; an SVG with a script, a handler, foreign content, a link, a style, an entity or a `<!DOCTYPE>`. These are the checks a Theme's logo has, the very same code. `npx @ziffr/pack check` reports them with the line of `logo`;
 - a Dashboard Template with a Free Layout, a Slot it does not have, or widgets that overlap;
 - a slide of a Deck Template with anything but widgets, text and simple boxes, or a shape past the slide's edge;
 - a Workflow Template that names a person: an Approve step says only how many Approvers to pick;

@@ -91,3 +91,12 @@ describe("svgIsPlain", () => {
     for (const bad of ["<div></div>", "<svg><script>1</script></svg>", '<svg onclick="1"/>', "<svg><use href='#a'/></svg>", '<svg><image href="http://x/y.png"/></svg>', "<!DOCTYPE svg><svg/>", "<svg><style>*{}</style></svg>", '<svg xmlns:s="http://www.w3.org/2000/svg"><s:script>1</s:script></svg>', '<svg><rect fill="url(https://e.example/t)"/></svg>']) expect(svgIsPlain(bad)).toBe(false);
   });
 });
+
+describe("a stored logo that fails today's checks", () => {
+  it("is no logo in the look, and is not rewritten", () => {
+    const stored = "data:image/svg+xml;base64," + Buffer.from("<svg><rect style=\"mask-image:image-set('https://e.example/m.png' 1x)\"/></svg>").toString("base64");
+    const theme = { ...STARTER_THEME, slides: { ...STARTER_THEME.slides, logo: stored } };
+    expect(themeLook(theme, "Acme").logo).toBeNull();
+    expect(theme.slides.logo).toBe(stored);
+  });
+});

@@ -4,14 +4,15 @@
 // one of the Workspace's own Themes holds, and that passes the logo checks, is ever served. Server only.
 import { createHash } from "node:crypto";
 import { db } from "./db";
-import { logoOk, type ThemeLook } from "./theme-look";
+import { cleanLogo, type ThemeLook } from "./theme-look";
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const hashOf = (dataUrl: string) => createHash("sha256").update(dataUrl).digest("hex").slice(0, 16);
 
 /** The look with its logo as an address on this site (or null), for pages that go to a browser. */
 export function publicLook(workspaceId: string, look: ThemeLook): ThemeLook {
-  return { ...look, logo: look.logo && logoOk(look.logo) ? `/api/brand/logo/${workspaceId}/${hashOf(look.logo)}` : null };
+  const logo = cleanLogo(look.logo);
+  return { ...look, logo: logo ? `/api/brand/logo/${workspaceId}/${hashOf(logo)}` : null };
 }
 
 /** The picture behind such an address: its type and bytes, or null when no Theme of that Workspace holds it. */
@@ -19,8 +20,10 @@ export async function brandLogo(workspaceId: string, hash: string): Promise<{ co
   if (!UUID.test(String(workspaceId)) || !/^[0-9a-f]{16}$/.test(String(hash))) return null;
   const { data } = await db().from("themes").select("slides").eq("workspace_id", workspaceId);
   for (const t of data ?? []) {
-    const logo = (t.slides as { logo?: unknown } | null)?.logo;
-    if (logoOk(logo) && hashOf(logo) === hash) {
+    // What is served is the picture as Ziffr wrote it out itself (an SVG is serialized again from what was parsed), and a
+    // stored logo that no longer passes the checks is served as nothing.
+    const logo = cleanLogo((t.slides as { logo?: unknown } | null)?.logo);
+    if (logo && hashOf(logo) === hash) {
       const [head, body] = [logo.slice(5, logo.indexOf(";")), logo.slice(logo.indexOf(",") + 1)];
       return { contentType: head, bytes: Buffer.from(body, "base64") };
     }

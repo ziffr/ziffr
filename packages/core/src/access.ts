@@ -6,6 +6,7 @@ import { checkViewDesignValue } from "./view-design";
 import { tokenValid } from "./tokens";
 import { widgetMetricIds } from "./widget-metrics";
 import { canReadThread, deckMetricIds, expandGroupShares, objectRoles, visibleMetricIdsFrom, withEveryone } from "./visibility";
+import { cleanLogo } from "./theme-look";
 import { allRows, getActions, getBreakdowns, getMetrics, getSeriesOf, getSeriesValues, withInputs } from "./workspace-data";
 import { Forbidden, type Actor } from "./actor";
 import { peopleIn, peopleToHide } from "./submissions";
@@ -221,7 +222,8 @@ export async function getCanvasData(ws: string, viewer: string, opts: { seriesOf
     templates: guest ? [] : ((templates ?? []) as TeamTemplate[]),
     // Guests place nothing; a row that no longer passes the checks is never sent.
     designs: me && me.role !== "guest" ? (designRows ?? []).flatMap((r) => { const c = checkViewDesignValue(r.body); return c.ok ? [{ id: Number(r.id), name: String(r.name), body: c.design }] : []; }) : [],
-    themes: (themes ?? []) as Theme[],
+    // A stored logo that fails today's logo checks is shown as no logo (never deleted): the canvas draws it in an img.
+    themes: ((themes ?? []) as Theme[]).map((t) => (t.slides?.logo ? { ...t, slides: { ...t.slides, logo: cleanLogo(t.slides.logo) } } : t)),
     // Owners and admins manage themes (GLOSSARY: Workspace Role).
     canEditThemes: me?.role === "owner" || me?.role === "admin",
     // A Guest shares nothing (GLOSSARY: Workspace Role), so of the Groups they get only the ones they are in, and of

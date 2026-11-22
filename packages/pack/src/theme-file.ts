@@ -1,7 +1,8 @@
 // The Theme file format, ziffr.theme/1 (GLOSSARY: Theme, Pack): a Theme's colours, fonts, cards and slide settings as
 // a file. The schema below is the only definition, checked wherever such a file is read; docs/reference is generated
 // from it. Security: a Theme file holds no image, no font of its own and no web address: only fonts Ziffr ships, and
-// no logo or background image (spec 0030), which its Owner sets after installing.
+// no background image (spec 0030). Its logo is only ever "pack": the one logo of the Pack it is in (spec 0039), so a
+// Theme file on its own holds no image at all.
 import { checkFormat, parseJson, type FormatCheck, type Schema } from "./json-check.js";
 import { plainText } from "./file-text.js";
 import { FONT_IDS, type FontId, type LogoPosition } from "./kinds.js";
@@ -24,7 +25,7 @@ export type ThemeFile = {
   fonts: { heading: FontId; body: FontId; figures: FontId };
   radius: number;
   cards: "paper" | "flat" | "plain";
-  slides?: { logoPosition?: LogoPosition; logoWidth?: number; footer?: string; showSlideNumber?: boolean; titleSize?: number; bodySize?: number };
+  slides?: { logo?: "pack"; logoPosition?: LogoPosition; logoWidth?: number; footer?: string; showSlideNumber?: boolean; titleSize?: number; bodySize?: number };
 };
 
 const HEX_COLOR: Schema = { type: "string", pattern: "^#[0-9a-fA-F]{6}$", description: "a colour as # and six hex digits, such as “#1A2B3C”" };
@@ -36,7 +37,7 @@ export const THEME_FILE_SCHEMA: Schema = {
   $schema: "https://json-schema.org/draft/2020-12/schema",
   $id: "https://ziffr.net/schemas/ziffr.theme-1.json",
   title: "Ziffr Theme (ziffr.theme/1)",
-  description: "A named look for everything that shows numbers: colours, fonts, cards and what every slide shows. It holds no image, font file or web address.",
+  description: "A named look for everything that shows numbers: colours, fonts, cards and what every slide shows. It holds no image of its own, font file or web address.",
   type: "object",
   properties: {
     format: { const: THEME_FILE_FORMAT, description: "The format and its version." },
@@ -53,8 +54,9 @@ export const THEME_FILE_SCHEMA: Schema = {
     cards: { enum: ["paper", "flat", "plain"], description: "paper: textured with a soft shadow; flat: a hairline edge; plain: no edge at all." },
     slides: {
       type: "object",
-      description: "What every slide shows. A logo and a background image are set in Ziffr, never in the file.",
+      description: "What every slide shows. A background image is set in Ziffr, never in the file; the logo is only “pack”, the logo of the Pack the Theme is in.",
       properties: {
+        logo: { const: "pack", description: "Use the logo of the Pack this Theme is in. Only inside a Pack that has a logo." },
         logoPosition: { enum: ["top-left", "top-right", "bottom-left", "bottom-right"] },
         logoWidth: int(40, 400, "The logo's width on a slide, in pixels."),
         footer: plainText(THEME_FILE_LIMITS.footer),
@@ -69,7 +71,17 @@ export const THEME_FILE_SCHEMA: Schema = {
   additionalProperties: false,
 };
 
-const FORMAT = { family: "ziffr.theme", reads: THEME_FILE_FORMATS, schema: THEME_FILE_SCHEMA };
+/** Where a Theme file is read: on its own (no logo may be named), in a Pack without a logo or in one with a logo. */
+export type ThemeLogoContext = "standalone" | "pack-without-logo" | "pack-with-logo";
+
+/** What the schema cannot say: "pack" as a logo needs a Pack with a logo. */
+function logoMeaning(context: ThemeLogoContext) {
+  return (t: ThemeFile, at: (path: string, message: string) => void) => {
+    if (t.slides?.logo === undefined) return;
+    if (context === "standalone") at("slides.logo", "a logo comes only from a Pack: a Theme file on its own holds no image.");
+    else if (context === "pack-without-logo") at("slides.logo", "is “pack”, but this Pack has no logo.");
+  };
+}
 
 /** Checks a Theme file's text: size and depth, then the schema. */
 export function checkThemeFile(textIn: string): FormatCheck<ThemeFile> {
@@ -79,6 +91,6 @@ export function checkThemeFile(textIn: string): FormatCheck<ThemeFile> {
 }
 
 /** Checks a Theme file already read from JSON (`lines` names where each path starts, when known). */
-export function checkThemeFileValue(value: unknown, lines: Map<string, number> = new Map()): FormatCheck<ThemeFile> {
-  return checkFormat(FORMAT, value, lines);
+export function checkThemeFileValue(value: unknown, lines: Map<string, number> = new Map(), context: ThemeLogoContext = "standalone"): FormatCheck<ThemeFile> {
+  return checkFormat({ family: "ziffr.theme", reads: THEME_FILE_FORMATS, schema: THEME_FILE_SCHEMA, meaning: logoMeaning(context) }, value, lines);
 }

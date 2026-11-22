@@ -10,3 +10,4 @@ export { checkViewDesign, VIEW_DESIGN_SCHEMA, type ViewDesign } from "./view-des
 export { checkAnalysisRecipe, ANALYSIS_RECIPE_SCHEMA, type AnalysisRecipe } from "./analysis-recipe.js";
 export { aimsAtAssistant } from "./assistant-words.js";
 export type { Problem } from "./json-check.js";
+export { LOGO_MAX_BYTES, LOGO_MAX_PIXELS, PACK_LOGO_MAX_BYTES, cleanLogo, logoOk, logoProblem, svgClean, svgIsPlain } from "./logo.js";

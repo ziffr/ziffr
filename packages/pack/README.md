@@ -20,6 +20,7 @@ saas.pack.json:64: contents.dashboards[0].template.slots[1].suggests names “cu
 ```
 
 - `--ziffr 0.12.0` also checks that the Pack can be installed on that Ziffr (its `ziffr` field).
+- A Pack's `logo` (one PNG, JPEG or plain SVG, at most 128,000 bytes and 512 pixels a side) is checked with the same code Ziffr uses for a Theme's logo, and a problem names the line of `logo`. An SVG is parsed strictly, held to lists of elements and attributes, and written out again; that written-out form is the only one Ziffr stores or serves. `logoOk`, `logoProblem`, `cleanLogo` and `svgClean` are exported for programs.
 - Texts that read like instructions to an AI assistant are listed, without failing the check: Ziffr shows them to whoever installs the Pack.
 
 ## In a program

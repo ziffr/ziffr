@@ -1,7 +1,7 @@
 // The Pack format, ziffr.pack/1 (GLOSSARY: Pack): one file of things to add to a Workspace, with no code, and its
 // manifest (name, version, author, license). Each item is a document in a format Ziffr already checks, and is checked
 // by exactly that format's checks; this file only wraps them. docs/reference is generated from the schema below.
-// Security: a Pack is untrusted input. Its size, depth and number of items are limited before anything is walked,
+// The one image it may bring is `logo` (spec 0039), held to the shared logo checks. Security: a Pack is untrusted input. Its size, depth and number of items are limited before anything is walked,
 // unknown and repeated fields are refused, "__proto__" is read as data, web addresses appear only in `listing`, an
 // item may name only items of the same Pack, and texts that address an assistant are reported for a person to see.
 import { checkFormat, parseJson, under, type FormatCheck, type Problem, type Schema } from "./json-check.js";
@@ -9,6 +9,7 @@ import { itemKey, plainText } from "./file-text.js";
 import { checkMetricFileValue, METRIC_FILE_LIMITS, type MetricFile } from "./metric-file.js";
 import { checkDashboardTemplateFileValue, dashboardTemplateReferences, DASHBOARD_TEMPLATE_LIMITS, type DashboardTemplateFile } from "./dashboard-template-file.js";
 import { checkThemeFileValue, THEME_FILE_LIMITS, type ThemeFile } from "./theme-file.js";
+import { cleanLogo, logoProblem, PACK_LOGO_MAX_BYTES } from "./logo.js";
 import { checkDeckTemplateFileValue, deckTemplateReferences, DECK_TEMPLATE_LIMITS, type DeckTemplateFile } from "./deck-template-file.js";
 import { checkWorkflowTemplateFileValue, WORKFLOW_TEMPLATE_LIMITS, type WorkflowTemplateFile } from "./workflow-template-file.js";
 import { checkViewDesignValue, VIEW_LIMITS, type ViewDesign } from "./view-design.js";
@@ -22,7 +23,7 @@ export const PACK_FORMAT = "ziffr.pack/1";
 export const PACK_FORMATS = [PACK_FORMAT] as const;
 /** The exact limits a Pack is held to (spec 0030): 1 MiB, 200 items, 50 of a kind. Each item is also held to its own
  * format's limits. */
-export const PACK_LIMITS = { bytes: 1_048_576, depth: 20, items: 200, perKind: 50, name: 80, summary: 300, author: 80, address: 200 } as const;
+export const PACK_LIMITS = { bytes: 1_048_576, depth: 20, items: 200, perKind: 50, name: 80, summary: 300, author: 80, address: 200, logoBytes: PACK_LOGO_MAX_BYTES } as const;
 /** What Ziffr says of a Pack file from outside the Marketplace, in the spec's words. */
 export const UNSIGNED_WARNING = "Uploaded file. The Marketplace did not check it.";
 /** The licenses a Pack may carry: CC BY 4.0 or MIT for a free one, the Ziffr Pack License for a paid one. */
@@ -53,6 +54,7 @@ export type Pack = {
   author: { name: string };
   license: (typeof PACK_LICENSES)[number];
   ziffr?: string;
+  logo?: string;
   listing?: { homepage?: string; support?: string };
   contents: {
     metrics?: PackItem<"metric", MetricFile>[];
@@ -103,6 +105,13 @@ export const PACK_SCHEMA: Schema = {
     author: { type: "object", properties: { name: { ...plainText(PACK_LIMITS.author), minLength: 1 } }, required: ["name"], additionalProperties: false },
     license: { enum: [...PACK_LICENSES], description: "CC-BY-4.0 or MIT for a free Pack, Ziffr-Pack-1.0 for a paid one." },
     ziffr: { type: "string", maxLength: 20, pattern: "^>=(?:0|[1-9][0-9]{0,3})\\.(?:0|[1-9][0-9]{0,3})(?:\\.(?:0|[1-9][0-9]{0,3}))?$", description: "the oldest Ziffr that can install it, such as “>=0.12”" },
+    logo: {
+      type: "string",
+      // 4 base64 characters per 3 bytes, and the longest prefix a data address has.
+      maxLength: Math.ceil((PACK_LOGO_MAX_BYTES * 4) / 3) + 30,
+      pattern: "^data:image/(?:png|jpeg|svg\\+xml);base64,[A-Za-z0-9+/]+={0,2}$",
+      description: `The Pack's one logo, as a PNG, JPEG or plain SVG data address: at most ${PACK_LOGO_MAX_BYTES.toLocaleString("en")} bytes and 512 pixels on each side. Shown only in a bordered box on the Packs page and the Marketplace; Themes of the Pack may use it with "logo": "pack".`,
+    },
     listing: {
       type: "object",
       description: "The only place a Pack may hold web addresses, shown on its pages as plain links.",
@@ -146,7 +155,9 @@ export function checkPack(textIn: string, ziffr?: string): PackCheck {
 export function checkPackValue(value: unknown, lines: Map<string, number> = new Map(), ziffr?: string): PackCheck {
   const res = checkFormat({ family: "ziffr.pack", reads: PACK_FORMATS, schema: PACK_SCHEMA, meaning: (p: Pack, at) => meaning(p, lines, ziffr, at) }, value, lines);
   if (!res.ok) return res;
-  const pack = res.value;
+  // The logo leaves as Ziffr wrote it out itself (an SVG is serialized again from what was parsed): what was checked is
+  // exactly what is stored and served.
+  const pack = res.value.logo === undefined ? res.value : { ...res.value, logo: cleanLogo(res.value.logo, PACK_LOGO_MAX_BYTES) ?? res.value.logo };
   const kinds = Object.keys(KINDS) as PackKind[];
   return {
     ok: true,
@@ -165,6 +176,10 @@ function meaning(p: Pack, lines: Map<string, number>, ziffr: string | undefined,
     at("ziffr", `This Pack needs Ziffr ${p.ziffr.replace(/^>=/, "")} or later; this is Ziffr ${ziffr}.`);
     return;
   }
+  if (p.logo !== undefined) {
+    const why = logoProblem(p.logo, PACK_LOGO_MAX_BYTES);
+    if (why) at("logo", why);
+  }
   const kinds = (Object.keys(KINDS) as PackKind[]).filter((k) => p.contents[k]);
   const total = kinds.reduce((n, k) => n + p.contents[k]!.length, 0);
   if (total === 0) at("contents", "holds nothing: a Pack adds at least one thing.");
@@ -181,7 +196,9 @@ function meaning(p: Pack, lines: Map<string, number>, ziffr: string | undefined,
       const size = new TextEncoder().encode(JSON.stringify(doc)).length;
       if (size > bytes) return at(`${here}.${field}`, `is ${size.toLocaleString("en")} bytes; at most ${bytes.toLocaleString("en")} are allowed for one of ${KINDS[k].what}.`);
       const path = `${here}.${field}`;
-      const r = (check as (v: unknown, l: Map<string, number>) => FormatCheck<unknown>)(doc, new Map());
+      const r = k === "themes"
+        ? checkThemeFileValue(doc, new Map(), p.logo === undefined ? "pack-without-logo" : "pack-with-logo")
+        : (check as (v: unknown, l: Map<string, number>) => FormatCheck<unknown>)(doc, new Map());
       if (!r.ok) for (const x of r.problems) at(under(path, x).path, x.message);
     });
   }

@@ -154,7 +154,8 @@ const THEME_HOSTILE: Case[] = [
   ["a missing colour", { ...THEME, colors: { ...THEME.colors, band: undefined } }, "needs the field “band”"],
   ["too many data colours", { ...THEME, colors: { ...THEME.colors, data: Array(7).fill("#000000") } }, "7 entries; at most 6"],
   ["a font Ziffr does not ship", { ...THEME, fonts: { ...THEME.fonts, body: "comic-sans" } }, "must be one of “general-sans”"],
-  ["a logo", { ...THEME, slides: { logo: "data:image/svg+xml;base64,PHN2Zz4=" } }, "is not a field here"],
+  ["a logo", { ...THEME, slides: { logo: "data:image/svg+xml;base64,PHN2Zz4=" } }, "must be “pack”"],
+  ["a logo of “pack” in a Theme file on its own", { ...THEME, slides: { logo: "pack" } }, "a logo comes only from a Pack"],
   ["a background image", { ...THEME, slides: { backgroundImage: "https://evil.example/x.png" } }, "is not a field here"],
   ["a radius out of range", { ...THEME, radius: 400 }, "must be at most 24"],
 ];

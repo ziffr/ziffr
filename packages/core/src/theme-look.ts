@@ -2,6 +2,7 @@
 // on the form link and View Link pages and in chat messages: its name, logo, footer, accent, colours and fonts, and
 // nothing else. Every colour is checked for contrast here (WCAG AA), so a brand colour that is too light to read is
 // replaced by a readable shade of it. Never Appearance, which is only for Ziffr's own screens. Pure.
+import { cleanLogo } from "@ziffr/pack/logo";
 import { FONTS, HEX } from "./themes";
 import type { FontId, Theme } from "./types";
 
@@ -28,37 +29,8 @@ const channel = (n: number) => { const c = n / 255; return c <= 0.03928 ? c / 12
 const rgb = (hex: string): [number, number, number] => { const n = parseInt(hex.slice(1), 16); return [(n >> 16) & 255, (n >> 8) & 255, n & 255]; };
 const hex = ([r, g, b]: number[]) => `#${[r, g, b].map((v) => Math.round(v).toString(16).padStart(2, "0")).join("").toUpperCase()}`;
 
-/** The most a logo may weigh, in bytes. */
-export const LOGO_MAX_BYTES = 256_000;
-/** The most a raster logo may measure on each side, in pixels. */
-export const LOGO_MAX_PIXELS = 512;
-
-/** The pixel size of a PNG or JPEG from its header, or null. */
-function pixelSize(b: Uint8Array): { w: number; h: number } | null {
-  if (b.length > 24 && b[0] === 0x89 && b[1] === 0x50) return { w: ((b[16] << 24) | (b[17] << 16) | (b[18] << 8) | b[19]) >>> 0, h: ((b[20] << 24) | (b[21] << 16) | (b[22] << 8) | b[23]) >>> 0 };
-  if (b[0] === 0xff && b[1] === 0xd8) {
-    for (let i = 2; i + 9 < b.length;) {
-      if (b[i] !== 0xff) { i++; continue; }
-      const m = b[i + 1];
-      if (m >= 0xc0 && m <= 0xcf && m !== 0xc4 && m !== 0xc8 && m !== 0xcc) return { h: (b[i + 5] << 8) | b[i + 6], w: (b[i + 7] << 8) | b[i + 8] };
-      i += 2 + ((b[i + 2] << 8) | b[i + 3]);
-    }
-  }
-  return null;
-}
-
-/** Whether this is a logo Ziffr keeps and shows: a PNG, JPEG or plain SVG (no WebP) inline, at most LOGO_MAX_BYTES, and a
- * PNG or JPEG at most LOGO_MAX_PIXELS each side. */
-export function logoOk(v: unknown): v is string {
-  const m = typeof v === "string" ? /^data:image\/(png|jpeg|svg\+xml);base64,([a-z0-9+/=]+)$/i.exec(v) : null;
-  if (!m || m[2].length * 0.75 > LOGO_MAX_BYTES + 3) return false;
-  let raw: string;
-  try { raw = atob(m[2]); } catch { return false; }
-  if (raw.length > LOGO_MAX_BYTES) return false;
-  if (m[1].toLowerCase() === "svg+xml") return svgIsPlain(raw);
-  const size = pixelSize(Uint8Array.from(raw, (c) => c.charCodeAt(0)));
-  return Boolean(size && size.w > 0 && size.h > 0 && size.w <= LOGO_MAX_PIXELS && size.h <= LOGO_MAX_PIXELS);
-}
+// The logo checks live in @ziffr/pack (MIT), so `npx @ziffr/pack check` and the server run one copy (spec 0039).
+export { cleanLogo, LOGO_MAX_BYTES, LOGO_MAX_PIXELS, logoOk, svgIsPlain } from "@ziffr/pack/logo";
 
 /** The contrast ratio of two colours written as #RRGGBB (1 to 21). */
 export function contrastRatio(a: string, b: string): number {
@@ -95,7 +67,7 @@ export function themeLook(theme: Pick<Theme, "tokens" | "slides"> | undefined, w
   const logo = theme?.slides?.logo ?? null;
   return {
     name: String(workspaceName ?? "").replace(/[\u0000-\u001f\u007f-\u009f\u2028\u2029]+/g, " ").replace(/\s+/g, " ").trim().slice(0, 80) || "Ziffr",
-    logo: logoOk(logo) ? logo : null,
+    logo: cleanLogo(logo),
     logoRatio: Number(theme?.slides?.logo_ratio) > 0 ? Math.min(20, Number(theme?.slides?.logo_ratio)) : 3,
     logoWidth: Math.min(400, Math.max(40, Math.round(Number(theme?.slides?.logo_width) || 140))),
     footer: String(theme?.slides?.footer ?? "").replace(/[\u0000-\u001f\u007f-\u009f\u2028\u2029]+/g, " ").trim().slice(0, 120),
@@ -105,13 +77,6 @@ export function themeLook(theme: Pick<Theme, "tokens" | "slides"> | undefined, w
     accent: readableOn(ok(t?.accent, "#2F5BEA"), surface),
     fontHeading: font(t?.fontHeading), fontBody: font(t?.fontBody),
   };
-}
-
-/** Whether an inline SVG is safe to show as a picture: no script, no handler, no foreign content, no link to anywhere
- * else. A picture in an img tag runs no script anyway; this keeps a file that would be dangerous anywhere else out. */
-export function svgIsPlain(svg: string): boolean {
-  if (!/^\s*(<\?xml[^>]*>\s*)?(<!--[\s\S]*?-->\s*)?<svg[\s>]/i.test(svg)) return false;
-  return !/<\s*(?:[\w.-]+:)?(script|foreignObject|iframe|object|embed|animate\w*|set|use|image|a|style|handler|listener|feImage)\b|\son[a-z]+\s*=|javascript:|data:text|(?:href|src)\s*=\s*["'](?!#)|url\s*\(\s*['"]?\s*(?!#)|<!ENTITY|<!DOCTYPE/i.test(svg);
 }
 
 /** A look as a Theme, so a page that has only the look (the form link) can be painted by the same ThemeScope: its

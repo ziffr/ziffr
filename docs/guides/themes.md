@@ -54,7 +54,7 @@ A Theme file is JSON, at most 8 KiB, in the format `ziffr.theme/1`. The exact fo
 | `cards` | `paper` (textured, soft shadow), `flat` (a hairline edge) or `plain` (no edge). |
 | `slides` | Optional. Logo position and width, a footer of at most 120 characters, whether slides show their number, and the sizes of titles and text. |
 
-A Theme file holds **no logo, no background image, no font file and no web address**. Fonts are the ones Ziffr ships, so a file can never load anything from anywhere. Set the logo and background image in Ziffr after importing. A name or footer with a web address or markup is refused.
+A Theme file holds **no image of its own, no font file and no web address**; the one thing it may say about its logo is `"logo": "pack"` inside a Pack that has a logo, to use the Pack's. Fonts are the ones Ziffr ships, so a file can never load anything from anywhere. Set the logo and background image in Ziffr after importing a file on its own. A name or footer with a web address or markup is refused.
 
 ## Import and export
 
