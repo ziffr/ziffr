@@ -32,7 +32,9 @@ import { submittingKeyNames } from "@ziffr/core/access-keys";
 import { feedChoices, feedNames } from "@ziffr/core/feeds";
 import { FeedPicker, RemoveFeed } from "./feed-picker";
 import { formatNumber, formatPercent, formatValue, POLARITY_LABEL, RULE_LABEL, SOURCE_LABEL, targetText } from "@ziffr/core/format";
-import { FORECAST_MIN_POINTS, forecast } from "@ziffr/core/forecast";
+import { FORECAST_MIN_POINTS } from "@ziffr/core/forecast";
+import { bestForecast } from "@ziffr/core/methods/forecast-choice";
+import { SEASON_LENGTH } from "@ziffr/core/suitability";
 import { basisLabel, periodWord, rankCorrelations } from "@ziffr/core/correlation";
 import { correlationTakeaway } from "@ziffr/core/takeaways/takeaway";
 import { TakeawayView } from "@/components/takeaway-view";
@@ -114,7 +116,7 @@ export default async function MetricPage({ params, searchParams }: { params: Pro
 
   const all = series[slug] ?? [];
   const points = metric.period === "day" ? all.slice(-DAILY_WINDOW) : all;
-  const fc = forecast(points, metric.period);
+  const fc = bestForecast(points, metric.period, SEASON_LENGTH[metric.period]);
   const last = all[all.length - 1];
   const prev = all[all.length - 2];
   const change = last && prev && prev.value !== 0 ? (last.value - prev.value) / Math.abs(prev.value) : null;

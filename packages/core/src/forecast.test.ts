@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { forecast } from "./forecast";
+import { forecast, holtFit } from "./forecast";
 
 const monthly = (values: number[]) => values.map((value, i) => ({ period: `2025-${String(i + 1).padStart(2, "0")}-01`, value }));
 
@@ -49,5 +49,18 @@ describe("forecast", () => {
     expect(y?.points[0].value).toBeCloseTo(140, 0);
     // A yearly Metric has a forecast after four years.
     expect(forecast(pts(["2023-01-01", "2024-01-01", "2025-01-01"]), "year")).toBeNull();
+  });
+});
+
+describe("holtFit", () => {
+  it("gives one prediction for each value from the second on, the first before any miss, with the exact misses so far", () => {
+    const ys = [10, 12, 15, 15].map((v) => ({ num: BigInt(v), den: 1n }));
+    const fit = holtFit(ys);
+    expect(fit.steps.map((s) => [s.index, s.errors])).toEqual([[1, 0], [2, 1], [3, 2]]);
+    // Level 10 and trend 2: 12 is predicted, comes as 12 (no miss), then level 12, trend 2: 14 is predicted for 15 (a miss of 1).
+    // The third value, 15, is a miss of 1 against 14: level ½·15 + ½·14 = 14.5, trend 0.3·2.5 + 0.7·2 = 2.15, so 16.65 is predicted next.
+    expect(fit.steps.map((s) => Number(s.predicted.num) / Number(s.predicted.den))).toEqual([12, 14, 16.65]);
+    expect(fit.steps[0].squares.num).toBe(0n);
+    expect(fit.steps[2].squares).toEqual({ num: 1n, den: 1n });
   });
 });
