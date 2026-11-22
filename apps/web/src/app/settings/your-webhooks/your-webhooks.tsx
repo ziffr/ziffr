@@ -27,7 +27,7 @@ const VALUE_EVENTS = ["value.recorded", "value.unusual"];
 type Pick = { id: number; name: string };
 
 /** The person's own Webhooks and a form to add one. */
-export function YourWebhooks({ webhooks, logs, metrics, seenIds, limits }: { webhooks: PersonalWebhookInfo[]; logs: Record<string, WebhookLogEntry[]>; metrics: Pick[]; seenIds: number[]; limits: { most: number; workspaceMost: number; perDay: number; metrics: number; days: number; trial: boolean } }) {
+export function YourWebhooks({ webhooks, logs, metrics, names, limits }: { webhooks: PersonalWebhookInfo[]; logs: Record<string, WebhookLogEntry[]>; metrics: Pick[]; names: Pick[]; limits: { most: number; workspaceMost: number; perDay: number; metrics: number; days: number; trial: boolean } }) {
   const [pending, start] = useTransition();
   const [secret, setSecret] = useState<{ name: string; value: string } | null>(null);
   const run: Run = (f, ok) => start(async () => { try { await f(); if (ok) toast.success(ok); } catch (err) { toast.error("Not done", { description: shown(err) }); } });
@@ -51,7 +51,7 @@ export function YourWebhooks({ webhooks, logs, metrics, seenIds, limits }: { web
       )}
       {webhooks.length === 0 && <p className="text-sm text-muted-foreground">No Webhooks yet.</p>}
       <ul className="space-y-3">
-        {webhooks.map((w) => <Card key={w.id} hook={w} log={logs[w.id] ?? []} metrics={metrics} seenIds={seenIds} max={limits.metrics} pending={pending} run={run} onSecret={(value) => setSecret({ name: w.name, value })} />)}
+        {webhooks.map((w) => <Card key={w.id} hook={w} log={logs[w.id] ?? []} metrics={metrics} names={names} max={limits.metrics} pending={pending} run={run} onSecret={(value) => setSecret({ name: w.name, value })} />)}
       </ul>
       {webhooks.length < limits.most && <AddForm metrics={metrics} max={limits.metrics} pending={pending} run={run} onSecret={setSecret} />}
     </section>
@@ -95,18 +95,17 @@ function AddForm({ metrics, max, pending, run, onSecret }: { metrics: Pick[]; ma
   );
 }
 
-function Card({ hook: w, log, metrics, seenIds, max, pending, run, onSecret }: { hook: PersonalWebhookInfo; log: WebhookLogEntry[]; metrics: Pick[]; seenIds: number[]; max: number; pending: boolean; run: Run; onSecret: (value: string) => void }) {
+function Card({ hook: w, log, metrics, names, max, pending, run, onSecret }: { hook: PersonalWebhookInfo; log: WebhookLogEntry[]; metrics: Pick[]; names: Pick[]; max: number; pending: boolean; run: Run; onSecret: (value: string) => void }) {
   const [editing, setEditing] = useState(false);
   const [name, setName] = useState(w.name);
   const [url, setUrl] = useState("");
   const [events, setEvents] = useState<string[]>(w.events);
   const [picked, setPicked] = useState<number[]>(w.metricIds);
-  const seen = new Set(seenIds);
-  // A picked Metric that is no longer on the person's list is counted, never named.
-  const hidden = w.metricIds.filter((id) => !seen.has(id)).length;
+  // Picks the person lost sight of come as a count only, never named or numbered.
+  const hidden = w.hiddenMetrics;
   const reset = () => { setEditing(false); setName(w.name); setUrl(""); setEvents(w.events); setPicked(w.metricIds); };
   const icon = "flex size-8 items-center justify-center rounded-[var(--radius-input)] text-muted-foreground hover:bg-muted hover:text-foreground focus-visible:outline-2 focus-visible:outline-ring";
-  const named = metrics.filter((m) => w.metricIds.includes(m.id)).map((m) => m.name);
+  const named = names.filter((m) => w.metricIds.includes(m.id)).map((m) => m.name);
   return (
     <li className="space-y-3 rounded-[var(--radius-card)] border border-border p-4 text-sm">
       <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
@@ -129,7 +128,7 @@ function Card({ hook: w, log, metrics, seenIds, max, pending, run, onSecret }: {
         <>
           <p className="text-muted-foreground">{w.events.length ? <>Gets: {w.events.map((e) => EVENTS.find((x) => x.id === e)?.label ?? e).join("; ")}.</> : "Gets no events yet: choose some."} {w.replacingSecret && "The old secret still signs for 24 hours after a new one."}</p>
           {w.events.some((e) => VALUE_EVENTS.includes(e)) && (
-            <p className="text-muted-foreground">{w.metricIds.length ? <>Values of: {named.length ? named.join(", ") : "none you see now"}{hidden > 0 && `${named.length ? "; " : ": "}${hidden} you no longer see (nothing is sent for ${hidden === 1 ? "it" : "them"})`}.</> : "No Metrics picked: it hears no values."}</p>
+            <p className="text-muted-foreground">{w.metricIds.length || hidden ? <>Values of: {named.length ? named.join(", ") : "none you see now"}{hidden > 0 && `${named.length ? "; " : ": "}${hidden} you no longer see (nothing is sent for ${hidden === 1 ? "it" : "them"})`}.</> : "No Metrics picked: it hears no values."}</p>
           )}
           {w.paused && <p className="text-destructive">Your Workspace has paused personal Webhooks: nothing is sent.</p>}
         </>

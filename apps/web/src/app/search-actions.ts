@@ -6,6 +6,7 @@
 import { attempt } from "@/lib/action-result";
 import { periodRecordUrl } from "@/lib/period-record-url";
 import { commandEntries, matchEntries, pageEntries, type Entry } from "@/lib/search-entries";
+import { isDemo } from "@/lib/auth";
 import { currentActor } from "@/lib/viewer";
 import { can } from "@ziffr/core/actor";
 import { MAX_QUERY } from "@ziffr/core/search-query";
@@ -53,7 +54,9 @@ export async function searchEverything(words: string) {
     // Cut before anything reads it: the browser's text is untrusted and may be huge.
     const text = words.slice(0, MAX_QUERY);
     const actor = await currentActor();
-    const entries = [...matchEntries(await commandsFor(), text, 4), ...matchEntries(pageEntries(actor.role), text, 6)];
+    // The demo has no Webhooks (the page only says so): its search does not offer the page.
+    const demo = await isDemo();
+    const entries = [...matchEntries(await commandsFor(), text, 4), ...matchEntries(pageEntries(actor.role).filter((p) => !(demo && p.id === "/settings/your-webhooks")), text, 6)];
     const found = await search(actor, text);
     return [...entries.map((e): SearchRow => ({ ...e })), ...found.map((r): SearchRow => ({ ...r, href: hrefOf(r) }))];
   });

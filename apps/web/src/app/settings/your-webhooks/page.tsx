@@ -34,8 +34,8 @@ export default async function YourWebhooksPage() {
   // Only Metrics this person sees now may be picked (the core checks again, and at every send).
   const all = await getMetrics();
   const visible = await visibleMetricIds(await viewerId(), all);
-  // A picked Metric that is only archived or computed is still seen: only ones the person lost sight of count as hidden.
-  const seenIds = all.filter((m) => visible.has(m.id)).map((m) => m.id);
+  // Names for the picks shown: every Metric the person sees, archived ones too. Picks they lost sight of arrive from the core as a count.
+  const names = all.filter((m) => visible.has(m.id)).map((m) => ({ id: m.id, name: m.name }));
   const metrics = all.filter((m) => visible.has(m.id) && !m.archived_at && !m.formula).map((m) => ({ id: m.id, name: m.name })).sort((a, b) => a.name.localeCompare(b.name));
   return (
     <>
@@ -44,7 +44,7 @@ export default async function YourWebhooksPage() {
         webhooks={webhooks}
         logs={logs}
         metrics={metrics}
-        seenIds={seenIds}
+        names={names}
         limits={{ most: PERSONAL_WEBHOOKS_PER_PERSON, workspaceMost: rules.maxWebhooks, perDay: Math.min(PERSONAL_WEBHOOK_SENDS_PER_PERSON_PER_DAY, rules.sendsPerDay), metrics: PERSONAL_WEBHOOK_PICKED_METRICS_MAX, days: await daysNow("ZIFFR_KEEP_WEBHOOK_LOG_DAYS"), trial: rules.trial }}
       />
     </>
