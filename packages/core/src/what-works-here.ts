@@ -51,18 +51,18 @@ export async function whatWorksHere(actor: Pick<Actor, "workspaceId">, given?: S
     const gone = "This trial has ended: nothing is sent or taken any more.";
     return WAYS.map((w) => way(w, "off", gone));
   }
-  const toOwner = trial ? `To you only, at most ${limits.messagesPerDay} messages a day over email, Slack and Telegram together.` : null;
+  const toTeam = trial ? `To you and the colleagues who accepted their invitation, never to Contacts: at most ${limits.messagesPerDay} messages a day over email, Slack and Telegram together.` : null;
   const [slackOn, telegramOn] = await Promise.all([slackSends(actor.workspaceId), telegramOnIn(actor.workspaceId)]);
   return [
-    mailEnabled(env) ? way("email", "real", trial ? "Sent to the address you signed in with." : "Sent to each person's own address.", toOwner)
+    mailEnabled(env) ? way("email", "real", trial ? "Sent to the address each person signed in with." : "Sent to each person's own address.", toTeam)
       : way("email", "simulated", "This Ziffr has no mail server, so emails stay in the Outbox. Whoever runs it can set one up on its Installation settings page."),
     inboundEnabled(env) ? way("email-replies", "real", "Replying to an email with a number records it.")
       : way("email-replies", "off", mailEnabled(env) ? "Replies do not come back on this Ziffr: answer by the form link in the email." : "This Ziffr has no mail server."),
     !slackEnabled(env) ? way("slack", "simulated", "This Ziffr has no Slack app, so Slack messages stay in the Outbox. Whoever runs it can set one up on its Installation settings page.")
-      : slackOn ? way("slack", "real", trial ? "Direct messages to you in your Slack workspace." : "Direct messages in your Slack workspace.", toOwner)
+      : slackOn ? way("slack", "real", trial ? "Direct messages to you and your colleagues in your Slack workspace." : "Direct messages in your Slack workspace.", toTeam)
         : way("slack", "off", "Not connected yet: an Owner or Admin connects a Slack workspace on the Connectors page."),
     !telegramEnabled(env) ? way("telegram", "simulated", "This Ziffr has no Telegram bot, so Telegram messages stay in the Outbox. Whoever runs it can add one on its Installation settings page.")
-      : telegramOn ? way("telegram", "real", "Messages from the bot once you connect your Telegram on the Connectors page.", toOwner)
+      : telegramOn ? way("telegram", "real", "Messages from the bot once each person connects their Telegram on the Connectors page.", toTeam)
         : way("telegram", "off", "Turned off: an Owner or Admin turns Telegram on on the Connectors page."),
     way("web-form", "real", "Every request for a value has a personal form link that works without signing in."),
     way("api", "real", "Programs send and read values with an Access Key.", trial ? `At most ${limits.keys} Access Keys, none past the trial's last day.` : null),
@@ -84,7 +84,7 @@ export async function whatThisZiffrOffers(given?: Settings): Promise<{ demo: boo
   const demo = env.ZIFFR_DEMO_ONLY === "1" || env.ZIFFR_DEMO !== "0";
   if (!settings) return { demo, trial: null };
   const limits = trialLimitsFrom(env);
-  const toYou = `To you only, at most ${limits.messagesPerDay} messages a day.`;
+  const toYou = `To you and the colleagues you invite, never to Contacts: at most ${limits.messagesPerDay} messages a day.`;
   const ways = [
     mailEnabled(env) ? way("email", "real", "Requests for values reach the address you sign in with.", toYou) : way("email", "simulated", "This Ziffr has no mail server. Whoever runs it can set one up on its Installation settings page."),
     inboundEnabled(env) ? way("email-replies", "real", "Reply with a number to record it.") : way("email-replies", "off", "Answer by the form link instead."),

@@ -31,7 +31,7 @@ const STEPS: Partial<Record<Way, { how: string; link?: { href: string; label: st
 
 /** What a trial never does, said once so nobody waits for it. */
 const NEVER = [
-  "Reach a Contact: messages to Contacts stay in the Outbox.",
+  "Reach a Contact: messages to Contacts, and to people who have not accepted their invitation, stay in the Outbox.",
   "Invite more people than its limit allows, or by a link: colleagues are invited by email, within the numbers above.",
   "Run past its last day: then it closes, and a week later it is deleted with everything in it.",
   "Move to another Ziffr. You can download its Metrics and values before it ends.",

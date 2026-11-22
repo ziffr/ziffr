@@ -10,7 +10,7 @@ import { trialHoldsBack } from "./trials";
 import { sendWaitingWebhooks } from "./webhook-send";
 
 /** The state a new Delivery starts in: queued when it will really be sent, else it stays in the Outbox. In a Trial
- * Workspace only a Delivery to its Owner is ever sent (ADR 0010). */
+ * Workspace only a Delivery to a person who accepted is ever sent, never one to a Contact (ADR 0015). */
 export async function initialDeliveryState(connector: string, workspaceId: string, recipientId: string): Promise<"queued" | "outbox"> {
   if (await trialHoldsBack(workspaceId, recipientId)) return "outbox";
   if (connector === "slack") return (await slackSends(workspaceId)) ? "queued" : "outbox";

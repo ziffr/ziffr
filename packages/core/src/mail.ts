@@ -220,7 +220,7 @@ export async function sendDelivery(id: number, transport: MailTransport = smtpTr
   const archived = await archivedMetricHolds(claimed);
   if (archived) return never(archived);
   // Settings may have gone, or the Delivery may be the demo's: nothing leaves then, and it does not try again.
-  // A trial reaches only its Owner, whatever is set up (ADR 0010).
+  // A trial reaches only people who accepted, never a Contact, whatever is set up (ADR 0015).
   const held = await trialHoldsBack(claimed.workspace_id, claimed.recipient_id);
   if (held) return keepInOutbox(id, held);
   // One reading of the settings for the whole send, so it cannot change half way.
