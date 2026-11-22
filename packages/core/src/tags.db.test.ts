@@ -467,7 +467,10 @@ describe("the Audit Log", () => {
     await renameTag(t.as.sara, sw.id, "common-word");
     const common = (await auditLog(t.as.adam, { kind: "tag.renamed" })).events.find((e) => e.objectName === "common-word");
     expect(common?.hidden).toBe(false);
-    expect(common?.details).toEqual({ from: "shared-word", metrics: 1 });
+    // Sara's numbers and old name were of her sight: Adam gets the Tag as he sees it now and the kind of change, no details.
+    expect(common?.details).toEqual({});
+    expect(common?.kind).toBe("tag.renamed");
+    expect((await auditLog(t.as.sara, { kind: "tag.renamed" })).events.find((e) => e.objectName === "common-word")?.details).toEqual({ from: "shared-word", metrics: 1 });
     // The names are sealed in the log's own columns, as every object name is.
     const { data } = await db().from("audit_events").select("object_name, details").eq("workspace_id", t.id).like("kind", "tag.%");
     expect(JSON.stringify(data)).not.toMatch(/keeper|draft|final|gone|common-word/);
