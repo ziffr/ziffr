@@ -12,6 +12,7 @@ import { Forbidden, Refused, type Actor } from "./actor";
 import { getShares } from "./access";
 import { audit } from "./audit-log";
 import { db } from "./db";
+import { refuseInDemo } from "./demo";
 import { ServerFault } from "./server-fault";
 import { cleanTagNames, normaliseTagName, tagKey, tagNameProblem, TAGS_PER_METRIC, TAGS_PER_WORKSPACE } from "./tag-names";
 import { readTags, tagIndexes } from "./tag-rows";
@@ -43,6 +44,8 @@ export async function mayTag(actor: Actor, metricId: number): Promise<boolean> {
  * it; a new word is made within the Workspace's 200, and a limit says what to do. A Guest Editor gets only Tags they
  * see. The change is a Version of the Metric with its author. Refused with words for a bad name, a limit or a Viewer. */
 export async function changeMetricTags(actor: Actor, metricId: number, change: TagChange, input: unknown): Promise<string[]> {
+  // The demo is read-only for everyone (GLOSSARY: Demo Mode): said before anything else is looked at.
+  refuseInDemo(actor);
   if (change !== "set" && change !== "add" && change !== "remove") throw new Forbidden();
   const cleaned = cleanTagNames(input);
   if ("error" in cleaned) throw new Refused(cleaned.error);
@@ -139,6 +142,7 @@ export async function tagImpact(actor: Actor, tagId: string): Promise<{ name: st
  * another Tag the actor sees already has is refused and says to merge; one that only Metrics the actor does not see carry
  * is the same Tag Workspace-wide, so the two are merged without a word about those Metrics. Audit Log: tag.renamed. */
 export async function renameTag(actor: Actor, tagId: string, name: unknown): Promise<{ name: string }> {
+  refuseInDemo(actor);
   assertKeeper(actor);
   const { tag, all } = await seenTag(actor, tagId);
   const next = normaliseTagName(name);
@@ -169,6 +173,7 @@ export async function renameTag(actor: Actor, tagId: string, name: unknown): Pro
  * actor does not see that carry the first carry the other afterwards, and the actor learns nothing about them. A Metric
  * with both keeps one. Audit Log: tag.merged. */
 export async function mergeTags(actor: Actor, fromId: string, intoId: string): Promise<{ metrics: number }> {
+  refuseInDemo(actor);
   assertKeeper(actor);
   const [{ tag: from }, { tag: into }] = [await seenTag(actor, fromId), await seenTag(actor, intoId)];
   if (from.id === into.id) throw new Refused("Pick two different Tags to merge.");
@@ -187,6 +192,7 @@ async function mergeInto(actor: Actor, from: Pick<VisibleTag, "id" | "name" | "m
 /** Removes a Tag from every Metric, those the actor does not see included, as Owners and Admins for a Tag they see. Answers
  * how many Metrics the actor saw it on. Audit Log: tag.deleted. */
 export async function deleteTag(actor: Actor, tagId: string): Promise<{ metrics: number }> {
+  refuseInDemo(actor);
   assertKeeper(actor);
   const { tag } = await seenTag(actor, tagId);
   const { data, error } = await db().rpc("delete_tag", { p_ws: actor.workspaceId, p_id: tag.id });
