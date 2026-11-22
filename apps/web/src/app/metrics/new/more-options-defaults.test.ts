@@ -1,6 +1,6 @@
 // The defaults behind "More options" are what the new-Metric form submitted before they were folded away.
 import { describe, expect, it } from "vitest";
-import { MORE_DEFAULTS, defaultSide, nonDefaultOptions, type MoreOptionValues } from "./more-options";
+import { MORE_DEFAULTS, defaultSide, nonDefaultOptions, type MoreOptionValues } from "./more-options-defaults";
 
 const blank: MoreOptionValues = { unit: "", unit_position: "after", decimals: 0, submission_rule: "overwrite", aggregation: "sum", sources: [...MORE_DEFAULTS.sources], attainment_method: "" };
 

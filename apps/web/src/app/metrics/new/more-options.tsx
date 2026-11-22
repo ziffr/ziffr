@@ -4,7 +4,7 @@
 // while it is closed, so what is submitted does not depend on whether it was opened. It opens by itself when a copied
 // or catalog Metric differs from the defaults, and the closed summary names every value that differs, live.
 import { useEffect, useRef, useState } from "react";
-import { nonDefaultOptions, type MoreOptionValues } from "./more-options";
+import { nonDefaultOptions, type MoreOptionValues } from "./more-options-defaults";
 
 const num = (v: FormDataEntryValue | null) => Number(v ?? 0);
 
