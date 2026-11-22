@@ -55,9 +55,10 @@ export function buildValueRecordedMessage(f: { metric: { id: number; name: strin
   return { id: env.eventId, type: "value.recorded", created_at: env.createdAt, workspace: { id: env.workspaceId }, data: { metric: f.metric, period: f.period, value: f.value, target: f.target, link: f.link } };
 }
 
-/** `value.unusual`: it carries no value (a number its Approver may send back is a rumour): the Metric, the period and a link. */
-export function buildValueUnusualMessage(f: { metric: { id: number; name: string }; period: string; link: string }, env: Pick<MessageEnvelope, "eventId" | "createdAt" | "workspaceId">): WebhookMessage {
-  return { id: env.eventId, type: "value.unusual", created_at: env.createdAt, workspace: { id: env.workspaceId }, data: { metric: f.metric, period: f.period, link: f.link } };
+/** `value.unusual`: it carries no value (a number its Approver may send back is a rumour): the Metric, the period and a
+ * link. A Personal Webhook (spec 0037) adds `value` as text, only when its person may see a value waiting for Approval. */
+export function buildValueUnusualMessage(f: { metric: { id: number; name: string }; period: string; link: string; value?: string }, env: Pick<MessageEnvelope, "eventId" | "createdAt" | "workspaceId">): WebhookMessage {
+  return { id: env.eventId, type: "value.unusual", created_at: env.createdAt, workspace: { id: env.workspaceId }, data: { metric: f.metric, period: f.period, ...(f.value !== undefined ? { value: f.value } : {}), link: f.link } };
 }
 
 /** The condition of a Tell step as a message says it: the kind and its level (a number as plain decimal text; for the
@@ -107,7 +108,7 @@ export const WEBHOOK_EVENTS_SCHEMA = {
   oneOf: [
     ...(["action.created", "action.updated", "action.answered", "action.done"] as const).map((t) => ({ ...envelope(t, { oneOf: [actionData(true), actionData(false)] }) })),
     envelope("value.recorded", { type: "object", required: ["metric", "period", "value", "target", "link"], properties: { metric: metric_, period: str, value: str, target: nullable(str), link: str }, additionalProperties: false }),
-    envelope("value.unusual", { type: "object", required: ["metric", "period", "link"], properties: { metric: metric_, period: str, link: str }, additionalProperties: false }),
+    envelope("value.unusual", { type: "object", required: ["metric", "period", "link"], properties: { metric: metric_, period: str, value: str, link: str }, additionalProperties: false }),
     envelope("alert.fired", { type: "object", required: ["metric", "period", "value", "target", "condition", "link"], properties: { metric: metric_, period: str, value: str, target: nullable(str), condition: { type: "object", required: ["kind", "level"], properties: { kind: { enum: ["share_of_target", "at_or_above", "below", "changed_more"] }, level: str }, additionalProperties: false }, link: str }, additionalProperties: false }),
     envelope("ping", { type: "object", required: ["webhook"], properties: { webhook: { type: "object", required: ["name"], properties: { name: str }, additionalProperties: false } }, additionalProperties: false }, false),
   ],

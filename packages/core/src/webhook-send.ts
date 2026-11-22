@@ -13,11 +13,12 @@ import { deliverNotice, linkTo, refFor } from "./deliveries";
 import { outboundRequest, outboundUrlProblem } from "./outbound-request";
 import { openNames, openOne, openRows } from "./sealed-columns";
 import { metricSeenByEveryone, webhookMayHear } from "./visibility";
-import { buildActionMessage, buildAlertFiredMessage, buildPingMessage, buildValueUnusualMessage, type ActionFacts, type MessageEnvelope, type PersonFacts, type WebhookMessage } from "./webhook-messages";
+import { buildActionMessage, buildAlertFiredMessage, buildPingMessage, buildValueRecordedMessage, buildValueUnusualMessage, type ActionFacts, type MessageEnvelope, type PersonFacts, type WebhookMessage } from "./webhook-messages";
 import { daysStrict } from "./keep-days";
 import { WEBHOOK_DAYS_FAILING_BEFORE_OFF, WEBHOOK_FAILURES_BEFORE_OFF, PERSONAL_WEBHOOK_SENDS_PER_PERSON_PER_DAY, WEBHOOK_MESSAGE_MAX_BYTES, WEBHOOK_RETRY_AFTER_MAX_MS, WEBHOOK_RETRY_WAITS_MS, WEBHOOK_SEND_CONCURRENCY, WEBHOOK_SEND_NOW_BUDGET_MS } from "./webhook-limits";
 import { maskedHost } from "./webhooks";
 import { personalWebhookMayRun, tellPersonSwitchedOff } from "./personal-webhook-state";
+import { personalWebhookMayHear } from "./personal-webhook-hearing";
 import { recordPersonalWebhookEnds } from "./personal-webhooks";
 import { alertContext, viewAt } from "./alert-firing";
 import { alertHolds } from "./alert-rules";
@@ -32,7 +33,7 @@ type Send = {
 };
 
 /** What became of one send, for the log and for the job's counts. */
-type Outcome = { state: "delivered" | "failed" | "retrying" | "dropped" | "deferred"; code?: number; failure?: string; waitMs?: number };
+type Outcome = { state: "delivered" | "failed" | "retrying" | "dropped" | "deferred"; code?: number; failure?: string; waitMs?: number; forget?: boolean };
 
 /** The signature header for a body: `sha256=<hex>` of the HMAC-SHA256 of `<timestamp>.<body>` with each secret, the new
  * one first, comma-separated (during the 24 hours a replaced secret still signs, so a receiver switches without a gap). */
@@ -110,7 +111,28 @@ async function alertFired(send: Send, env: Omit<MessageEnvelope, "replyText">, m
 }
 
 /** The message for one send as the Webhook may hear it now, or null when it may hear nothing (or the thing is gone). */
-async function buildMessage(send: Send, webhookName: string): Promise<{ full: WebhookMessage; redacted: WebhookMessage | null } | null> {
+/** A Personal Webhook's person and the Metrics they picked (spec 0037): what makes a message theirs and in full. */
+type Personal = { personId: string; metricIds: readonly number[] };
+
+/** `value.recorded` or `value.unusual` for a Personal Webhook, built now from the value as it counts now. `value.recorded`
+ * only for a value that counts (not one waiting for Approval or sent back); `value.unusual` carries the number only where
+ * the person may see a value waiting for Approval. Null, so nothing is sent, when the value is gone. */
+async function personalValueMessage(send: Send, env: Omit<MessageEnvelope, "replyText">, metric: { id: number; name: string }, period: string, mayPeekWaiting: boolean): Promise<WebhookMessage | null> {
+  const ctx = await alertContext(send.workspace_id);
+  const m = ctx.metrics.find((x) => x.id === metric.id);
+  if (!m) return null;
+  const view = await viewAt(ctx, m, period);
+  const at = (n: number | string | null) => (n === null ? null : formatValue(m, Number(n), ctx.style));
+  const link = linkTo(`/metrics/${metric.id}`);
+  if (send.type === "value.recorded") {
+    if (!view || view.pending || view.value === null) return null;
+    return buildValueRecordedMessage({ metric, period, value: at(view.value) ?? "", target: at(view.target.value), link }, env);
+  }
+  const shown = view && view.value !== null && (!view.pending || mayPeekWaiting) ? at(view.value) : null;
+  return buildValueUnusualMessage({ metric, period, link, ...(shown !== null ? { value: shown } : {}) }, env);
+}
+
+async function buildMessage(send: Send, webhookName: string, personal?: Personal): Promise<{ full: WebhookMessage; redacted: WebhookMessage | null } | null> {
   const eventId = `evt_${send.id.replace(/-/g, "")}`;
   const createdAt = new Date(send.created_at).toISOString();
   if (send.type === "ping") { const m = buildPingMessage(webhookName, { eventId, createdAt }); return { full: m, redacted: null }; }
@@ -131,12 +153,30 @@ async function buildMessage(send: Send, webhookName: string): Promise<{ full: We
   if (metricId === null) return null;
   const metric = await openOne("metrics", ws, (await db().from("metrics").select("id, name").eq("id", metricId).eq("workspace_id", ws).maybeSingle()).data);
   if (!metric) return null;
-  const everyone = await seenByEveryone(ws, metric.id as number);
-  const hearing = webhookMayHear(ws, send.type, { workspace_id: ws, metricSeenByEveryone: everyone, readGroupId: (action?.read_group_id as number | null | undefined) ?? null });
-  if (hearing === "none") return null;
   const metricFacts = { id: metric.id as number, name: String(metric.name) };
   const period = String(send.period_start ?? action?.period_start ?? "");
+  let hearing: "full" | "redacted" | "none" = "full";
+  let mayPeekWaiting = false;
+  if (personal) {
+    // A Personal Webhook hears as its person, in full or not at all (spec 0037); never an Alert until its own ticket.
+    if (send.type === "alert.fired") return null;
+    const actor = { personId: personal.personId, workspaceId: ws, role: "member" as const };
+    const heard = await personalWebhookMayHear(actor, action ? { type: send.type as "action.created", actionId: send.action_id as number } : { type: send.type as "value.recorded", metricId: metricFacts.id, period });
+    if (!heard) return null;
+    if (heard.kind === "value") {
+      if (!personal.metricIds.includes(metricFacts.id)) return null;
+      mayPeekWaiting = heard.mayPeekWaiting;
+    }
+  } else {
+    const everyone = await seenByEveryone(ws, metric.id as number);
+    hearing = webhookMayHear(ws, send.type, { workspace_id: ws, metricSeenByEveryone: everyone, readGroupId: (action?.read_group_id as number | null | undefined) ?? null });
+    if (hearing === "none") return null;
+  }
   if (!action && send.type === "alert.fired") return alertFired(send, env, metricFacts, period);
+  if (!action && personal) {
+    const m = await personalValueMessage(send, env, metricFacts, period, mayPeekWaiting);
+    return m ? { full: m, redacted: null } : null;
+  }
   if (!action) {
     const link = linkTo(`/metrics/${metric.id}`);
     if (send.type === "value.unusual") return { full: buildValueUnusualMessage({ metric: metricFacts, period, link }, env), redacted: null };
@@ -154,16 +194,18 @@ async function buildMessage(send: Send, webhookName: string): Promise<{ full: We
   const who = (id: string): PersonFacts => {
     const p = people.find((x) => x.id === id);
     const c = contactRows.find((x) => x.person_id === id);
-    return { id, name: String(p?.name ?? ""), email: (c?.email as string | null | undefined) ?? ((p as { email?: string | null } | undefined)?.email ?? null) };
+    // A Personal Webhook is not a way to collect teammates' addresses: only the person's own goes out (spec 0037).
+    const email = personal && id !== personal.personId ? null : ((c?.email as string | null | undefined) ?? ((p as { email?: string | null } | undefined)?.email ?? null));
+    return { id, name: String(p?.name ?? ""), email };
   };
   const [openedReply] = reply.data ? await openRows("thread_messages", ws, [reply.data as Record<string, unknown>]) : [];
   const facts: ActionFacts = {
-    ref: refFor(action.id as number), kind: action.kind as ActionFacts["kind"], status: action.status as ActionFacts["status"], title: systemTitle(action.purpose) ?? String(action.question ?? ""), due: (action.due_date as string | null) ?? null,
+    ref: refFor(action.id as number), kind: action.kind as ActionFacts["kind"], status: action.status as ActionFacts["status"], title: (personal && action.assignee_id === personal.personId ? null : systemTitle(action.purpose)) ?? String(action.question ?? ""), due: (action.due_date as string | null) ?? null,
     metric: metricFacts, period, assignee: who(String(action.assignee_id)), askerName: who(String(action.asker_id)).name, link: linkTo(`/actions/${action.id}`), updatedAt: new Date(String(action.updated_at)).toISOString(),
   };
   const withReply = { ...env, replyText: typeof openedReply?.body === "string" ? openedReply.body : null };
   const type = send.type as "action.created" | "action.updated" | "action.answered" | "action.done";
-  return { full: buildActionMessage(type, hearing, facts, withReply), redacted: buildActionMessage(type, "redacted", facts, withReply) };
+  return { full: buildActionMessage(type, hearing, facts, withReply), redacted: personal ? null : buildActionMessage(type, "redacted", facts, withReply) };
 }
 
 /** Tells every Owner that a Webhook was switched off and why, once, through their own Connector. The address is masked
@@ -184,18 +226,19 @@ async function sendOne(send: Send, signal?: AbortSignal): Promise<Outcome> {
   // A trial's sends stop when the operator switches trial Webhooks off or the trial ends; a trial never reaches private hosts.
   const rules = await webhookRules(ws);
   if (!rules.allowed) return { state: "dropped" };
-  const { data } = await db().from("webhooks").select("id, name, url, secret, secret_previous, secret_previous_until, events, disabled_at, owner_id").eq("id", send.webhook_id).eq("workspace_id", ws).maybeSingle();
+  const { data } = await db().from("webhooks").select("id, name, url, secret, secret_previous, secret_previous_until, events, disabled_at, owner_id, metric_ids").eq("id", send.webhook_id).eq("workspace_id", ws).maybeSingle();
   if (!data || data.disabled_at || (send.type !== "ping" && !((data.events as string[]) ?? []).includes(send.type))) return { state: "dropped" };
-  // A Personal Webhook (spec 0037) hears nothing but its test until ticket 2 builds what it may hear; and while its
-  // Workspace does not allow them, or its person is not an Owner, Admin or Member, it hears nothing at all.
+  // A Personal Webhook (spec 0037) hears as its person (buildMessage); while its Workspace does not allow them, or its
+  // person is not an Owner, Admin or Member, it hears nothing at all.
   const ownerId = typeof data.owner_id === "string" ? data.owner_id : null;
-  if (ownerId && (send.type !== "ping" || !(await personalWebhookMayRun(ws, ownerId)))) return { state: "dropped" };
+  if (ownerId && !(await personalWebhookMayRun(ws, ownerId))) return { state: "dropped" };
   const [hook] = await openRows("webhooks", ws, [data as Record<string, unknown>]);
   const url = typeof hook.url === "string" ? hook.url : "";
   const secret = typeof hook.secret === "string" && hook.secret.startsWith("whsec_") ? hook.secret : null;
   if (!secret) return { state: "failed", failure: "key" };
-  const built = await buildMessage(send, String(hook.name));
-  if (!built) return { state: "dropped" };
+  const built = await buildMessage(send, String(hook.name), ownerId ? { personId: ownerId, metricIds: ((data.metric_ids as number[] | null) ?? []).map(Number) } : undefined);
+  // What a Personal Webhook's person may not hear leaves no row, so the log cannot hint that it existed (spec 0037).
+  if (!built) return ownerId ? { state: "dropped", forget: true } : { state: "dropped" };
   let body = JSON.stringify(built.full);
   if (Buffer.byteLength(body) > WEBHOOK_MESSAGE_MAX_BYTES && built.redacted) body = JSON.stringify(built.redacted);
   if (Buffer.byteLength(body) > WEBHOOK_MESSAGE_MAX_BYTES) return { state: "failed", failure: "too_big" };
@@ -313,7 +356,8 @@ async function runSends(sends: Send[], signal?: AbortSignal): Promise<{ sent: nu
 async function settle(send: Send, o: Outcome): Promise<void> {
   const now = new Date();
   const base = { attempts: send.attempts + (o.state === "dropped" || o.state === "deferred" ? 0 : 1), status_code: o.code ?? null, failure: o.failure ?? null, last_attempt_at: now.toISOString() };
-  if (o.state === "dropped") await db().from("webhook_sends").update({ state: "dropped", claimed_at: null }).eq("id", send.id);
+  if (o.state === "dropped" && o.forget) await db().from("webhook_sends").delete().eq("id", send.id);
+  else if (o.state === "dropped") await db().from("webhook_sends").update({ state: "dropped", claimed_at: null }).eq("id", send.id);
   else if (o.state === "deferred") await db().from("webhook_sends").update({ state: "queued", claimed_at: null, next_attempt_at: new Date(dayStart().getTime() + 86_400_000).toISOString() }).eq("id", send.id);
   else if (o.state === "delivered") await db().from("webhook_sends").update({ ...base, state: "delivered", delivered_at: now.toISOString(), claimed_at: null }).eq("id", send.id);
   else if (o.state === "retrying") {

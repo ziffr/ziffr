@@ -250,12 +250,32 @@ export async function valueOutlook(metricId: number, submitterId: string): Promi
  * just typed while checking: if it is still the latest, it counts as confirmed instead of asking them again. */
 export async function onValue(metricId: number, period: string, submitterId: string, opts: { imported?: boolean; selfChecked?: number } = {}): Promise<string[]> {
   const done = await workflowStep(metricId, period, submitterId, opts);
+  // An Import is silent, as for Alerts; a value waiting for Approval is announced when it is approved (publishDecided).
+  if (!opts.imported) await announceRecorded(metricId, period);
   // The one place a value that counts reaches the Alerts, whatever Source it came from and whether or not the Metric has
   // a Workflow (spec 0032): a value waiting for Approval is looked at only by Alerts that include those; an Import is silent.
   await checkAlerts(metricId, { imported: opts.imported });
   // The Workflow's own Tell steps look at the same value, for the people the Workflow's owner chose.
   await checkTells(metricId, { imported: opts.imported });
   return done;
+}
+
+/** Tells the Personal Webhooks that picked this Metric (spec 0037) that a value counts: not while it waits for Approval or
+ * is sent back. Only ids are written; the number is read when it is sent. Never throws. */
+async function announceRecorded(metricId: number, period: string): Promise<void> {
+  try {
+    const [{ data: state }, { data: metric }, { data: latest }] = await Promise.all([
+      db().from("period_states").select("state").eq("metric_id", metricId).eq("period_start", period).maybeSingle(),
+      db().from("metrics").select("workspace_id").eq("id", metricId).maybeSingle(),
+      db().from("observations").select("source").eq("metric_id", metricId).eq("period_start", period).order("created_at", { ascending: false }).limit(1),
+    ]);
+    if (!metric || state?.state === "approval" || state?.state === "submitted") return;
+    const from = latest?.[0]?.source === "mail" ? "email" : String(latest?.[0]?.source ?? "");
+    const type = (["web_form", "slack", "telegram", "email", "api", "mcp"] as const).find((t) => t === from) ?? "system";
+    await queueWebhookEvent(String(metric.workspace_id), "value.recorded", { type }, { metricId, period });
+  } catch (e) {
+    console.error("Webhooks: could not announce a value:", (e as Error).message);
+  }
 }
 
 /** The Workflow's own part of a new value: check, Approval or publish. */
@@ -365,6 +385,7 @@ async function publishDecided(ctx: Ctx, actionId: number, note?: string): Promis
     .update({ state: publishedState(ctx), approval_step: null, approval_action_id: null, ...(note ? { note: sealedNote } : {}), updated_at: new Date().toISOString() })
     .eq("metric_id", ctx.m.id).eq("period_start", ctx.period).eq("state", "approval").eq("approval_action_id", actionId).select("metric_id");
   if (data?.length && publishedState(ctx) === "locked") await sendLockSummary(ctx.ws, ctx.wf.id, ctx.period);
+  if (data?.length) await announceRecorded(ctx.m.id, ctx.period);
   return Boolean(data?.length);
 }
 
