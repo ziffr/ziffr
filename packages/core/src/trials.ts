@@ -23,12 +23,17 @@ export function trialsOffered(env: Record<string, string | undefined> = process.
   try { return trialSettings(env) !== null; } catch { return false; }
 }
 
-/** The Installation's trial settings: null without a Ziffr Cloud key (no trials, and no ZIFFR_TRIAL_* setting is read)
- * or when ZIFFR_TRIAL_DAYS is not set. On hosted Ziffr a setting that is there but wrong (days
+/** The Installation's trial settings: null without a Ziffr Cloud key (no trials; the days and the cap are not read, and
+ * a ZIFFR_TRIAL_DAYS that is set anyway throws) or when ZIFFR_TRIAL_DAYS is not set. On hosted Ziffr a setting that is there but wrong (days
  * outside 1 to 30, a cap that is not a positive whole number) throws instead of counting as unset: an operator who
  * meant to offer trials must never end up offering ordinary workspaces, with invitations, to strangers. */
 export function trialSettings(env: Record<string, string | undefined> = process.env): { days: number; max: number } | null {
-  if (!hostedByCloud(env)) return null;
+  if (!hostedByCloud(env)) {
+    // Fails closed: an operator who set the days meant to offer trials, and must never end up handing strangers ordinary
+    // Workspaces, with invitations, instead. Nothing is made until the setting is removed or a Ziffr Cloud key is set.
+    if (env.ZIFFR_TRIAL_DAYS?.trim() || env.ZIFFR_TRIAL_DAYS_DEFAULT?.trim()) throw new Error("ZIFFR_TRIAL_DAYS is set, but trials exist only on hosted Ziffr (ZIFFR_CLOUD_KEY); no workspace is made until it is removed.");
+    return null;
+  }
   const rawDays = env.ZIFFR_TRIAL_DAYS?.trim();
   if (!rawDays) return null;
   const days = Number(rawDays);
@@ -63,6 +68,8 @@ export async function createTrialWorkspace(personId: string, name: string, setti
 /** What becomes of a trial at its end (spec 0029, ZIFFR_TRIAL_THEN): "delete", as spec 0021 has it (the default), or
  * "keep", which turns it into an ordinary Workspace on the Installation's default limit. A value that is set but
  * neither throws, like a wrong ZIFFR_TRIAL_DAYS: an operator must never delete Workspaces they meant to keep. */
+// Spec 0040's one exception to "nothing else reads ZIFFR_TRIAL_*": how an existing trial ends (this, trialWebhooksOn and
+// the grace days) is still read without a Ziffr Cloud key, so a stored "keep" never becomes "delete" for trials that exist.
 export function trialThen(env: Record<string, string | undefined>): "delete" | "keep" {
   const raw = env.ZIFFR_TRIAL_THEN?.trim().toLowerCase();
   if (!raw || raw === "delete") return "delete";

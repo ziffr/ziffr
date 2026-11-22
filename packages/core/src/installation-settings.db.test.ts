@@ -522,14 +522,14 @@ describe("the check against bots, trials and the demo on the page (#201)", () =>
       expect(s.ZIFFR_TRIAL_MAX).toBeUndefined();
       // What only governs trials that exist already is still read, so a stored "false" is not forgotten.
       expect(s.ZIFFR_TRIAL_WEBHOOKS).toBe("false");
-      expect(await trialSettingsInEffect()).toBeNull();
+      await expect(trialSettingsInEffect()).rejects.toThrow(/only on hosted Ziffr/);
       expect(trialsOffered(s)).toBe(false);
       expect(await trialsOpen()).toBe(false);
       expect((await whatThisZiffrOffers()).trial).toBeNull();
       expect(demoReadOnlyWords()).toBe(DEMO_READ_ONLY);
       // A key too short to count is no key.
       process.env.ZIFFR_CLOUD_KEY = "short";
-      expect(await trialSettingsInEffect()).toBeNull();
+      await expect(trialSettingsInEffect()).rejects.toThrow(/only on hosted Ziffr/);
     } finally {
       await db().from("installation_settings").delete().in("name", ["ZIFFR_TRIAL_DAYS", "ZIFFR_TRIAL_MAX", "ZIFFR_TRIAL_WEBHOOKS"]);
       forgetStoredSettings();

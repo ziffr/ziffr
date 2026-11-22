@@ -146,7 +146,11 @@ describe("trials belong to Ziffr Cloud (spec 0040)", () => {
     delete process.env.ZIFFR_CLOUD_KEY;
     process.env.ZIFFR_TRIAL_DAYS = "7";
     const sara = await newcomer();
-    // createWorkspace makes an ordinary Workspace, which a person may invite colleagues to.
+    // Days set without the key: no Workspace at all, never an ordinary one with invitations.
+    await expect(createWorkspace(sara, "Sara's own")).rejects.toThrow(/only on hosted Ziffr/);
+    expect((await db().from("memberships").select("user_id", { count: "exact", head: true }).eq("user_id", sara)).count).toBe(0);
+    // Without the days it is an ordinary Workspace, which a person may invite colleagues to.
+    delete process.env.ZIFFR_TRIAL_DAYS;
     const id = await createWorkspace(sara, "Sara's own");
     made.workspaces.push(id);
     expect(await trialEndsAt(id)).toBeNull();

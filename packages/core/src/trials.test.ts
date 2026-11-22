@@ -27,8 +27,11 @@ describe("trialsOffered (spec 0040)", () => {
       const env = { ZIFFR_CLOUD_KEY: key, ZIFFR_TRIAL_DAYS: d, ZIFFR_TRIAL_MAX: "5", ZIFFR_TRIAL_THEN: "keep", ZIFFR_TRIAL_WEBHOOKS: "true" };
       const expected = key === "k".repeat(32) && (d === "7" || d === "30");
       expect(trialsOffered(env), `${key} ${d}`).toBe(expected);
-      // Without the key there is no setting to throw about either: nothing of trials is read.
-      if (key !== "k".repeat(32)) expect(trialSettings(env)).toBeNull();
+      // Without the key no trial is made; days that are set anyway throw, so no ordinary Workspace is made instead.
+      if (key !== "k".repeat(32)) {
+        if (d) expect(() => trialSettings(env)).toThrow(/only on hosted Ziffr/);
+        else expect(trialSettings(env)).toBeNull();
+      }
     }
   });
 });
