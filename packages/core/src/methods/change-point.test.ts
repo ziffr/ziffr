@@ -163,6 +163,30 @@ describe("the chance rule, at the bar for the number of dates tried", () => {
   });
 });
 
+describe("a ratio of misses exactly at the bar", () => {
+  // The chance rule is (SSE₀ ÷ SSE₁)^d > (20 · (d − 3))² with d = n − 4 and n − 7 = d − 3 dates tried. The ratio of two sums of squares of
+  // whole-number-of-cents values is a fraction p/q in lowest terms, and (p/q)^d is a whole number only if q is 1, so a tie needs a whole
+  // number r with r^d = (20 · (d − 3))². There is none for any d from 4 to 996 (up to the 1,000 values the Method works on), which is why
+  // `>` and `>=` give the same answer everywhere.
+  it("never happens: no whole number to the power d is (20 · (d − 3))², for every d from 4 to 996", () => {
+    const root = (n: bigint, k: number): bigint => {
+      let [lo, hi] = [0n, 1n << BigInt(Math.ceil(n.toString(2).length / k) + 1)];
+      while (lo < hi) {
+        const mid = (lo + hi + 1n) / 2n;
+        if (mid ** BigInt(k) <= n) lo = mid;
+        else hi = mid - 1n;
+      }
+      return lo;
+    };
+    // The most values the Method works on is 1,000: n − 4 = 996 degrees of freedom.
+    expect(MOST_VALUES - 4).toBe(996);
+    for (let d = 4; d <= 996; d++) {
+      const bar = BigInt(20 * (d - 3)) ** 2n;
+      expect(root(bar, d) ** BigInt(d), `d=${d}`).not.toBe(bar);
+    }
+  });
+});
+
 describe("the change point equals the reference on generated series", () => {
   const value = fc.integer({ min: -2_000_000, max: 2_000_000 }).map((v) => v / 100);
   const generated = fc.record({ values: fc.array(value, { minLength: 8, maxLength: 28 }), gaps: fc.array(fc.nat({ max: 3 }), { minLength: 0, maxLength: 28 }) }).map(({ values, gaps }) => {
@@ -291,11 +315,17 @@ describe("the Takeaway of a change point", () => {
     expect(t.basis).toBe("from a straight line before the date and another after it, over 20 months, with the bar for chance raised for the dates tried (13)");
     expect(t.assumptions).toEqual(["This looks for one change only; the date is the one that fits best, and nearby dates may fit almost as well."]);
     expect(t.figures.map((f) => [f.label, f.value, f.text])).toEqual([["Trend before the date (per period)", 5, "5 €"], ["Trend after the date (per period)", 3, "3 €"], ["Step in level at the date", 0, "0 €"]]);
+    expect(t.numbers.map((n) => [n.label, n.text])).toEqual([
+      ["Method", "Change point"], ["Periods used", "20"], ["Dates tried", "13"], ["Best date", "2024-11-01"], ["Misses left, against one line", "0.0 %"],
+      ["Trend before the date (per period)", "+5 €"], ["Trend after the date (per period)", "−3 €"], ["Step in level at the date", "±0 €"], ["Typical miss", "0 €"],
+    ]);
   });
   it("says a step up and a step down in level, and a flat before or after", () => {
     const up = changePointTakeaway("Signups", series(Array.from({ length: 16 }, (_, i) => 100 + 2 * i + (i >= 8 ? 80 : 0))), "month", euro, ctx);
     expect(up.sentence).toBe("Around September 2024, Signups changed: before, it went up 2 € a month; since, up 2 € a month; and at that point its level was 80 € higher than the earlier trend would have given.");
+    expect(up.numbers.slice(5).map((n) => n.text)).toEqual(["+2 €", "+2 €", "+80 €", "0 €"]);
     const down = changePointTakeaway("Signups", series(Array.from({ length: 16 }, (_, i) => (i < 8 ? 100 : 20 - 0.5 * i))), "month", { unit: "€", unit_position: "after", decimals: 1 }, ctx);
+    expect(down.numbers.slice(5, 8).map((n) => n.text)).toEqual(["±0.0 €", "−0.5 €", expect.stringMatching(/^−[\d.]+ €$/)]);
     expect(down.sentence).toMatch(/^Around September 2024, Signups changed: before, it went neither up nor down; since, down 0\.5 € a month; and at that point its level was [\d.]+ € lower than the earlier trend would have given\.$/);
   });
   it("says that nothing stands out for noise, with the dates tried, and still shows the best date under Show the numbers", () => {
@@ -305,6 +335,8 @@ describe("the Takeaway of a change point", () => {
     expect(t.sentence).toBe("Over 30 months, nothing in Signups stands out as a change in its level or in where it was heading.");
     expect(t.basis).toContain("(23)");
     expect(t.numbers.map((n) => n.label)).toEqual(["Method", "Periods used", "Dates tried", "Best date", "Misses left, against one line"]);
+    expect(t.numbers.map((n) => n.text)).toEqual(["Change point", "30", "23", "2024-07-01".replace("07", "07"), `${((c.sse1 / c.sse0) * 100).toFixed(1)} %`].map((x, i) => (i === 3 ? new Date(Date.UTC(2024, c.index, 1)).toISOString().slice(0, 10) : x)));
+    expect(t.assumptions).toEqual(["This looks for one change only; the date is the one that fits best, and nearby dates may fit almost as well."]);
     expect(t.footer).toBeNull();
     expect(t.figures.map((f) => f.value)).toEqual([30]);
   });

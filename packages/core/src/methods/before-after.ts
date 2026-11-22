@@ -22,7 +22,7 @@ import { decimalsFor, plainValue, SHARE_UNIT, signedText, sizeText } from "../ta
 import { answerTakeaway, refusalTakeaway, sayIn, type Figure, type NumberRow, type Takeaway, type TakeawayContext } from "../takeaways/takeaway";
 import type { CaseKey, Slots } from "../takeaways/wording";
 import type { Point } from "../types";
-import { LIKELY, MOST_DF, tQuantile } from "./t-curve";
+import { LIKELY, tQuantile } from "./t-curve";
 
 /** How many periods before the date a Takeaway looks at, at most: the latest 120 (spec 0041, Limits). */
 export const MAX_PERIODS = 120;
@@ -69,10 +69,11 @@ const total = (fs: Fraction[]) => fs.reduce(add, whole(0));
 export function isDay(text: unknown): text is string {
   if (typeof text !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(text)) return false;
   const [y, m, day] = text.split("-").map(Number);
-  // setUTCFullYear, since Date.UTC reads the years 0 to 99 as 1900 to 1999.
+  // setUTCFullYear, since Date.UTC reads the years 0 to 99 as 1900 to 1999. A month or a day that is too large or too small rolls
+  // over into another month, so the month still being the one written says the whole date is real.
   const d = new Date(0);
   d.setUTCFullYear(y, m - 1, day);
-  return d.getUTCFullYear() === y && d.getUTCMonth() === m - 1 && d.getUTCDate() === day;
+  return d.getUTCMonth() === m - 1;
 }
 
 /** The series split at a date; null where `date` is not a day. A value that is not a number is no value, a period twice counts
@@ -98,7 +99,6 @@ export function afterDate(points: Point[], span: Span, date: string): AfterDate 
   // A line needs 3 values to have a miss to judge by (n − 2 degrees of freedom).
   if (n < 3) return { ok: false, why: "before" };
   if (after.length === 0) return { ok: false, why: "after" };
-  if (n - 2 > MOST_DF) return { ok: false, why: "huge" };
   const first = before[0].period;
   const [xs, ys] = [before.map((p) => whole(periodsBetween(first, p.period, span))), before.map((p) => fractionOf(p.value))];
   const [xa, ya] = [after.map((p) => whole(periodsBetween(first, p.period, span))), after.map((p) => fractionOf(p.value))];
@@ -118,6 +118,7 @@ export function afterDate(points: Point[], span: Span, date: string): AfterDate 
   const gap = sub(mya, expected);
   // The spread of a mean of m new values about a line that was fitted to n: 1/m + 1/n + (x̄ₐ − x̄ᵦ)² ÷ Sxx, times the squared miss.
   const factor = add(add(div(whole(1), whole(after.length)), div(whole(1), whole(n))), div(mul(reach, reach), sxx));
+  // Past the most degrees of freedom the curve is worked out for, the point is NaN, which the check below turns into "huge".
   const half = tQuantile(LIKELY, n - 2) * Math.sqrt(nearest(mul(variance, factor)));
   const [gapNumber, expectedNumber] = [nearest(gap), nearest(expected)];
   const [lo, hi] = [gapNumber - half, gapNumber + half];
@@ -126,19 +127,22 @@ export function afterDate(points: Point[], span: Span, date: string): AfterDate 
   // A share of where the trend pointed is only said where that is above 0: a share of 0 or of a negative level means nothing.
   const level = expected.num > ZERO ? expectedNumber : null;
   const hundred = level === null ? null : nearest(div(mul(gap, whole(100)), expected));
-  const share = hundred === null ? null : { gap: hundred, lo: hundred - (half / level!) * 100, hi: hundred + (half / level!) * 100 };
-  if (share && ![share.gap, share.lo, share.hi].every(Number.isFinite)) return { ok: false, why: "huge" };
+  const wide = level === null ? null : (half / level) * 100;
+  if (hundred !== null && ![hundred, wide!].every(Number.isFinite)) return { ok: false, why: "huge" };
+  const share = hundred === null ? null : { gap: hundred, lo: hundred - wide!, hi: hundred + wide! };
   return { ok: true, before: n, after: after.length, slope: nearest(slope), expected: expectedNumber, actual: nearest(mya), gap: gapNumber, half, lo, hi, spread, share, fits: sse.num === ZERO };
 }
 
-/** What one series says, in words, for `afterDateTakeaway`: the lines that refuse, or the sentence and the lines that go with it. */
-type Said = { refusals: string[]; sentence?: string; clear?: boolean; counts?: { before: number; after: number }; cautions: string[]; notes: string[]; numbers: NumberRow[]; figures: Figure[]; range?: Takeaway["range"] };
+/** One series said in words for `afterDateTakeaway`: the lines that refuse, or the sentence and the lines that go with it. */
+type Refused = { refusals: string[] };
+type Piece = { sentence: string; clear: boolean; counts: { before: number; after: number }; cautions: string[]; notes: string[]; numbers: NumberRow[]; figures: Figure[]; range: NonNullable<Takeaway["range"]> };
+const refused = (x: Refused | Piece): x is Refused => "refusals" in x;
 
 // One series' Takeaway pieces: the date, the checks, the gap and its range written in the unit (or as a share of the trend).
-function lookAt(name: string, points: Point[], span: Span, date: string, unit: ValueUnit, ctx: TakeawayContext, lead: "main" | "beside"): Said {
+function lookAt(name: string, points: Point[], span: Span, date: string, unit: ValueUnit, ctx: TakeawayContext, main: boolean): Refused | Piece {
   const text = (key: CaseKey, slots: Slots = {}) => sayIn(key, { span, ...slots }, ctx);
-  const refuse = (...lines: string[]): Said => ({ refusals: lines, cautions: [], notes: [], numbers: [], figures: [] });
-  if (!isDay(date)) return refuse(text("refuse-date", { name }));
+  const refuse = (...refusals: string[]): Refused => ({ refusals });
+  if (!isDay(date)) return refuse(text("refuse-date"));
   const since = formatDate(date);
   // Only the latest periods before the date are used; the rest are said to be left out.
   const split = splitAt(points, span, date)!;
@@ -148,8 +152,8 @@ function lookAt(name: string, points: Point[], span: Span, date: string, unit: V
   if (split.straddle) notes.push(text("ba-note-straddle", { from: split.straddle.period, since }));
   // The checks look at the whole series (the values before, the one that holds the date, and those after); the minimum of 6 is
   // held to the periods before the date that the line is fitted to, which are the ones counted in `periods`.
-  const series = [{ name, points: [...used, ...(split.straddle ? [split.straddle] : []), ...split.after] }];
-  const verdict = checkSuitability("afterDate", { series, span, periods: used.length });
+  const whole = [...used, split.straddle, ...split.after].filter((p): p is Point => p !== null);
+  const verdict = checkSuitability("afterDate", { series: [{ name, points: whole }], span, periods: used.length });
   const found = (f: Finding) => text(f.case, f.slots);
   if (verdict.refusals.length > 0) return refuse(...verdict.refusals.map(found));
   const cautions = verdict.cautions.map(found);
@@ -165,16 +169,16 @@ function lookAt(name: string, points: Point[], span: Span, date: string, unit: V
   const [lo, hi] = [signedText(values.lo, unitUsed, decimals, style), signedText(values.hi, unitUsed, decimals, style)];
   const clear = values.lo > 0 || values.hi < 0;
   const size = sizeText(values.gap, unitUsed, decimals, style);
-  const gapText = values.gap === 0 ? "" : text(values.gap > 0 ? "ba-gap-above" : "ba-gap-below", { size });
+  // Stryker disable next-line EqualityOperator: a gap of exactly 0 is said by "ba-level", which has no place for the gap's words.
+  const gapText = text(values.gap > 0 ? "ba-gap-above" : "ba-gap-below", { size });
   const key = values.gap === 0 ? "ba-level" : clear ? "ba-clear" : "ba-unclear";
-  const sentence = text(key, { lead: text(lead === "main" ? "ba-lead-main" : "ba-lead-beside", { since }), name, gap: gapText, lo, hi });
+  const sentence = text(key, { lead: text(main ? "ba-lead-main" : "ba-lead-beside", { since }), name, gap: gapText, lo, hi });
   if (result.fits) cautions.push(text("caution-ba-fits", { since }));
   // Show the numbers: every figure in the Metric's unit, with as many decimals as keep it from reading as 0.
   const written = (v: number) => plainValue(v, unit, unit.decimals, style);
-  const between = (a: number, b: number) => `${written(a)} \u2013 ${written(b)}`;
-  const row = (label: CaseKey, value: string): NumberRow => ({ label: lead === "main" ? text(label) : `${name}: ${text(label)}`, text: value });
+  const between = (a: string, b: string) => `${a} \u2013 ${b}`;
+  const row = (label: CaseKey, value: string): NumberRow => ({ label: main ? text(label) : `${name}: ${text(label)}`, text: value });
   return {
-    refusals: [],
     sentence,
     clear,
     counts: { before: result.before, after: result.after },
@@ -186,7 +190,7 @@ function lookAt(name: string, points: Point[], span: Span, date: string, unit: V
       { label: `${text("numbers-range")} (low)`, value: values.lo, text: lo },
       { label: `${text("numbers-range")} (high)`, value: values.hi, text: hi },
     ],
-    range: { lo: values.lo, hi: values.hi, text: `${lo} \u2013 ${hi}` },
+    range: { lo: values.lo, hi: values.hi, text: between(lo, hi) },
     numbers: [
       row("numbers-before", formatNumber(result.before, 0, style)),
       row("numbers-after", formatNumber(result.after, 0, style)),
@@ -194,8 +198,8 @@ function lookAt(name: string, points: Point[], span: Span, date: string, unit: V
       row("numbers-trend-level", written(result.expected)),
       row("numbers-actual", written(result.actual)),
       row("numbers-gap", written(result.gap)),
-      row("numbers-range", between(result.lo, result.hi)),
-      ...(result.share ? [row("numbers-gap-share", `${lo} \u2013 ${hi}`)] : []),
+      row("numbers-range", between(written(result.lo), written(result.hi))),
+      ...(result.share ? [row("numbers-gap-share", between(lo, hi))] : []),
       row("numbers-miss", written(result.spread)),
     ],
   };
@@ -208,18 +212,18 @@ function lookAt(name: string, points: Point[], span: Span, date: string, unit: V
  * the same period as the first, since both are cut at the same date, period by period. */
 export function afterDateTakeaway(name: string, points: Point[], span: Span, date: string, unit: ValueUnit, ctx: TakeawayContext, beside?: { name: string; points: Point[]; unit: ValueUnit }): Takeaway {
   const method = sayIn("numbers-method-before-after", {}, ctx);
-  const main = lookAt(name, points, span, date, unit, ctx, "main");
-  if (main.refusals.length > 0) return refusalTakeaway(method, main.refusals);
+  const main = lookAt(name, points, span, date, unit, ctx, true);
+  if (refused(main)) return refusalTakeaway(method, main.refusals);
   const since = formatDate(date);
   const cautions = [...main.cautions];
   const notes = [...main.notes];
-  const sentences = [main.sentence!];
+  const sentences = [main.sentence];
   const numbers = [{ label: sayIn("numbers-method", {}, ctx), text: method }, { label: sayIn("numbers-date", {}, ctx), text: since }, ...main.numbers];
   if (beside) {
-    const other = lookAt(beside.name, beside.points, span, date, beside.unit, ctx, "beside");
-    if (other.refusals.length > 0) notes.push(sayIn("ba-beside-refused", { name: beside.name }, ctx), ...other.refusals);
+    const other = lookAt(beside.name, beside.points, span, date, beside.unit, ctx, false);
+    if (refused(other)) notes.push(sayIn("ba-beside-refused", { name: beside.name }, ctx), ...other.refusals);
     else {
-      sentences.push(other.sentence!);
+      sentences.push(other.sentence);
       // A Metric that should not have been touched but moved as well says that something else may be at work.
       if (other.clear) cautions.push(sayIn("caution-ba-beside-moved", { name: beside.name }, ctx));
       cautions.push(...other.cautions);
@@ -227,12 +231,11 @@ export function afterDateTakeaway(name: string, points: Point[], span: Span, dat
       numbers.push(...other.numbers);
     }
   }
-  const { before, after } = main.counts!;
   return {
     ...answerTakeaway(method),
     sentence: sentences.join(" "),
-    range: main.range!,
-    basis: sayIn("ba-basis", { n: before, m: after, since, span }, ctx),
+    range: main.range,
+    basis: sayIn("ba-basis", { n: main.counts.before, m: main.counts.after, since, span }, ctx),
     assumptions: [sayIn("ba-assumes", { since }, ctx)],
     cautions,
     notes,

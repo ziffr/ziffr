@@ -12,8 +12,14 @@ export const SHARE_UNIT: ValueUnit = { unit: "%", unit_position: "after", decima
 /** The most decimals a size is written with (the number writer's own limit). */
 const MOST_DECIMALS = 20;
 
-// Whether a number written with `decimals` places shows a digit other than 0.
-const shows = (v: number, decimals: number, style: NumberStyle) => /[1-9]/.test(writeNumber(Math.abs(v), decimals, style, { group: false }));
+// Whether a number written with `decimals` places shows a digit other than 0 (the group marks hold none).
+const shows = (v: number, decimals: number, style: NumberStyle) => /[1-9]/.test(writeNumber(Math.abs(v), decimals, style));
+
+// The fewest decimals, from `from` up to the most, at which a value shows a digit that is not zero; null where none does.
+function firstShowing(v: number, from: number, style: NumberStyle): number | null {
+  for (let decimals = from; decimals <= MOST_DECIMALS; decimals++) if (shows(v, decimals, style)) return decimals;
+  return null;
+}
 
 /** The fewest decimals, from `base`, at which every value that is not zero shows a digit other than 0 (so that none reads as 0),
  * or null where one is too small to show even with the most decimals the writer has. */
@@ -21,8 +27,9 @@ export function decimalsFor(values: readonly number[], base: number, style: Numb
   let decimals = Math.max(0, Math.min(base, MOST_DECIMALS));
   for (const v of values) {
     if (v === 0) continue;
-    while (decimals < MOST_DECIMALS && !shows(v, decimals, style)) decimals++;
-    if (!shows(v, decimals, style)) return null;
+    const found = firstShowing(v, decimals, style);
+    if (found === null) return null;
+    decimals = found;
   }
   return decimals;
 }
@@ -47,6 +54,7 @@ export function valueText(v: number, unit: ValueUnit, decimals: number, style: N
 export function plainValue(v: number, unit: ValueUnit, base: number, style: NumberStyle): string {
   const decimals = decimalsFor([v], base, style);
   if (decimals !== null) return valueText(v, unit, decimals, style);
-  const [sign, body] = [v < 0 ? "−" : "", Math.abs(v).toExponential(2)];
+  // v is not zero here (a zero shows at any decimals), so its sign is one of two.
+  const [sign, body] = [["−", "", ""][Math.sign(v) + 1], Math.abs(v).toExponential(2)];
   return unit.unit_position === "before" ? `${sign}${unit.unit}${body}` : `${sign}${body} ${unit.unit}`.trimEnd();
 }

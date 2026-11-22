@@ -165,6 +165,9 @@ Mutation testing changes the code on purpose and expects a test to fail. A chang
 - `src/methods/spearman.ts` · EqualityOperator · The word for a rank link in the right direction: a rho of 0 is "can't tell from chance" before the sign is looked at, so `<` and `<=` never differ.
 - `src/methods/partial-correlation.ts` · EqualityOperator · The word for a partial link in the right direction: an r of 0 is "can't tell from chance" before the sign is looked at, so `<` and `<=` never differ.
 - `src/methods/lagged-correlation.ts` · EqualityOperator · The word for a lag in the right direction: an r of 0 is "can't tell from chance" before the sign is looked at, so `<` and `<=` never differ.
+- `src/methods/change-point.ts` · EqualityOperator · The chance rule's `>`: a ratio of misses exactly at the bar would need a whole number r with r^d = (20 · (d − 3))², and there is none for d from 4 to 996 (a test goes through every one), so `>` and `>=` give the same.
+- `src/methods/t-curve.ts` · EqualityOperator · The bisection's `<`: where the curve at the middle equals the chance exactly, either end may take the middle, and the point comes out the same to a unit of its last place.
+- `src/methods/before-after.ts` · EqualityOperator · The words for the direction of a gap: a gap of exactly 0 is said by "ba-level", which has no place for them, so `>` and `>=` give the same sentence.
 - `src/methods/bridge.ts` · EqualityOperator · The size of a fraction for ordering parts: a fraction of 0 has the size 0 whether it is read as negative or not.
 - `src/correlation.ts` · EqualityOperator · The sign word of a correlation: an r of 0 is "no clear" before the sign is named, so `r >= 0` and `r > 0` never differ.
 - `src/display-periods.ts` · ConditionalExpression · A Derived Metric's value over a span: `evaluate` gives none for a formula missing an input, so stopping at the first input without a value only saves the work.

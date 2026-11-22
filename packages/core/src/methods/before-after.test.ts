@@ -248,7 +248,8 @@ describe("which periods are before and after a date", () => {
       expect(splitAt(points, "month", d), d).toBeNull();
       expect(afterDate(points, "month", d)).toEqual({ ok: false, why: "date" });
     }
-    for (const bad of [null, undefined, 20240601, {}, []]) expect(isDay(bad)).toBe(false);
+    // An array of one day reads as that day as text, and must not be taken for a text.
+    for (const bad of [null, undefined, 20240601, {}, [], ["2024-06-01"], new String("2024-06-01")]) expect(isDay(bad)).toBe(false);
     for (const d of ["2024-02-29", "2024-12-31", "2000-02-29", "0001-01-01"]) expect(isDay(d), d).toBe(true);
     expect(isDay("1900-02-29")).toBe(false);
   });
@@ -288,6 +289,19 @@ describe("before and after on hostile input", () => {
     const flat = ok(afterDate(series([1.7e308, 1.7e308, 1.7e308, 1.7e308, 1.7e308, 1.7e308]), "month", monthStart(4)));
     expect(flat.gap).toBe(0);
   });
+  it("is none for numbers too large to work out when the trend points to 0 or below too (no share is worked out then), and for a share of the trend that is not a number (a trend of 1e-300, values after of 1e300)", () => {
+    expect(afterDate(series([-1e300, -2e300, -5e300, -3e300, -9e300, -1e301, -2e300]), "month", monthStart(5))).toEqual({ ok: false, why: "huge" });
+    expect(afterDate(series([1e-300, 2e-300, 3e-300, 4e-300, 5e-300, 7e-300, 1e300, 2e300]), "month", "2024-07-01")).toEqual({ ok: false, why: "huge" });
+  });
+  it("gives no share where the trend points to exactly 0 (a share of 0 is no share), and the gap in the Metric's unit", () => {
+    // The line 7 − position through 6 months points to 0 at the mean position after (7).
+    const values = [7, 6, 5, 4, 3, 2, 1, 0.5, -0.5];
+    const got = ok(afterDate(series(values), "month", monthStart(6)));
+    expect([got.expected, got.share, got.fits]).toEqual([0, null, true]);
+    expect(got.gap).toBe(1 / 3);
+    const t = afterDateTakeaway("Debt", series(values), "month", monthStart(6), euro, ctx);
+    expect(t.numbers.map((n) => n.label)).not.toContain("Difference as a share of the trend");
+  });
   it("gives the same range from the same fit however far a gap runs, since each value counts at its place in the calendar", () => {
     const withGap = ok(afterDate(series([5, 7, null, null, 11, 13, 17, 19, 23]), "month", monthStart(6)));
     const ref = reference([5, 7, null, null, 11, 13, 17, 19, 23], 6);
@@ -317,7 +331,12 @@ describe("the Takeaway of a before-and-after look", () => {
     expect(t.basis).toBe("from a straight line through the 12 months before 1 Jan 2025, compared with the 12 months since");
     expect(t.assumptions).toEqual(["This assumes the trend before 1 Jan 2025 would have carried on, and that the ups and downs since are as large as those before and do not carry over from one period to the next."]);
     expect(t.cautions).toEqual([]);
-    expect(t.numbers.slice(0, 4).map((n) => n.text)).toEqual(["Before and after", "1 Jan 2025", "12", "12"]);
+    expect(t.numbers.map((n) => [n.label, n.text])).toEqual([
+      ["Method", "Before and after"], ["Date", "1 Jan 2025"], ["Periods before", "12"], ["Periods after", "12"], ["Trend before (per period)", "11 €"],
+      ["Where the trend pointed (average)", "1,183 €"], ["What it was (average)", "1,324 €"], ["Difference", "142 €"], ["Likely between", "99 € – 185 €"],
+      ["Difference as a share of the trend", "+8.3 % – +15.6 %"], ["Typical miss", "29 €"],
+    ]);
+    expect(t.figures.map((f) => [f.label, f.text])).toEqual([["Difference", "12.0 %"], ["Likely between (low)", "+8.3 %"], ["Likely between (high)", "+15.6 %"]]);
   });
   it("finds planted differences: the range holds the planted rise and fall, and excludes it for no planted change (the fixture's planted cases)", () => {
     for (const [name, c] of Object.entries(fixture.after)) {
@@ -369,6 +388,17 @@ describe("the Takeaway of a before-and-after look", () => {
     expect(t2.cautions).toEqual(["Visits, set beside it, also moved away from its trend, so something else may have moved both."]);
     expect(t2.footer).toBe(FOOTER);
   });
+  it("says nothing of a Metric set beside it that ran exactly where its trend pointed, and carries the notes and cautions of the Metric set beside it", () => {
+    const own = series(planted(24, 12, 150));
+    const online = afterDateTakeaway("Signups", own, "month", monthStart(12), euro, ctx, { name: "Visits", points: series(Array.from({ length: 24 }, (_, i) => 500 + 5 * i)), unit: euro });
+    expect(online.sentence).toMatch(/Set beside it, Visits ran exactly where its trend pointed \(likely between ±0.0 % and ±0.0 %\)\.$/);
+    expect(online.cautions).toEqual(["The values before 1 Jan 2025 lie exactly on a straight line, so the range has no spread to go by and may be too sure."]);
+    // A date inside a month: both leave that month out, and the Metric set beside it has two months without a value.
+    const gappy = series(Array.from({ length: 24 }, (_, i): number | null => (i === 3 || i === 7 ? null : 500 + 5 * i + 6 * noise(i + 3))));
+    const t = afterDateTakeaway("Signups", own, "month", "2025-01-15", euro, ctx, { name: "Visits", points: gappy, unit: euro });
+    expect(t.cautions).toEqual(["Visits: no value for 2 of 24 months, left out."]);
+    expect(t.notes).toEqual(["The month of January 2025 began before 15 Jan 2025, so it is left out.", "The month of January 2025 began before 15 Jan 2025, so it is left out."]);
+  });
   it("says when the comparison cannot be set beside it, and still gives the answer for the Metric asked about", () => {
     const own = series(planted(24, 12, 150));
     const flat = afterDateTakeaway("Signups", own, "month", monthStart(12), euro, ctx, { name: "Visits", points: series([1, 2, 3]), unit: euro });
@@ -411,6 +441,8 @@ describe("the Takeaway of a before-and-after look", () => {
     const with6 = afterDateTakeaway("A", series(v), "month", "2024-07-15", euro, ctx);
     expect(with6.kind).toBe("answer");
     expect(with6.notes).toEqual(["The month of July 2024 began before 15 Jul 2024, so it is left out."]);
+    // The period that holds the date has a value, which the checks count: it is not a gap.
+    expect(with6.cautions).toEqual([]);
     expect(with6.basis).toBe("from a straight line through the 6 months before 15 Jul 2024, compared with the 3 months since");
     expect(with6.numbers.filter((n) => n.label === "Periods before" || n.label === "Periods after").map((n) => n.text)).toEqual(["6", "3"]);
     const with5 = afterDateTakeaway("A", series(v), "month", "2024-06-15", euro, ctx);

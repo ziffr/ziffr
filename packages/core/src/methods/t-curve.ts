@@ -35,7 +35,7 @@ export function tCdf(t: number, df: number): number {
     within = s * sum;
   } else {
     // ν = 1 is the angle alone: there is no sine-and-cosine term.
-    if (df === 1) return t < 0 ? 0.5 - Math.atan(Math.abs(t)) / Math.PI : 0.5 + Math.atan(Math.abs(t)) / Math.PI;
+    if (df === 1) return 0.5 + Math.atan(t) / Math.PI;
     let [term, sum] = [1, 1];
     for (let k = 1; k <= (df - 3) / 2; k++) {
       term *= ((2 * k) / (2 * k + 1)) * c2;
@@ -44,7 +44,8 @@ export function tCdf(t: number, df: number): number {
     within = (2 / Math.PI) * (Math.atan(Math.abs(t) / Math.sqrt(df)) + s * c * sum);
   }
   const half = Math.min(1, within) / 2;
-  return t < 0 ? 0.5 - half : 0.5 + half;
+  // The curve is symmetric: 0.5 plus half of what lies within ±|t| for t above 0, minus it for t below 0.
+  return 0.5 + Math.sign(t) * half;
 }
 
 /** The point below which a t value with `df` degrees of freedom lies with chance `p`, for `p` from 0.001 to 0.999 (beyond it a
@@ -53,16 +54,16 @@ export function tQuantile(p: number, df: number): number {
   if (!(p >= 0.001 && p <= 0.999) || !Number.isInteger(df) || df < 1 || df > MOST_DF) return NaN;
   if (p === 0.5) return 0;
   // The curve is symmetric: work on the upper half and mirror.
-  const q = p > 0.5 ? p : 1 - p;
+  const q = Math.max(p, 1 - p);
   // The point is below 636.62 for ν = 1 and p = 0.9995; 1e4 holds every p in range for ν = 1 (the heaviest tail).
   let [lo, hi] = [0, 1e4];
-  // 200 halvings of an interval of 1e4 reach the spacing of doubles long before the end; the loop stops when the middle no longer moves.
-  for (let i = 0; i < 200; i++) {
+  // Halve the bracket until its middle is one of its ends, which is when no double lies between them: that happens after about 70 halvings.
+  for (;;) {
     const mid = (lo + hi) / 2;
     if (mid === lo || mid === hi) break;
+    // Stryker disable next-line EqualityOperator: where the curve at the middle equals the chance exactly, either end may take the middle, and the point comes out the same to a unit of its last place.
     if (tCdf(mid, df) < q) lo = mid;
     else hi = mid;
   }
-  const point = (lo + hi) / 2;
-  return p > 0.5 ? point : -point;
+  return Math.sign(p - 0.5) * ((lo + hi) / 2);
 }

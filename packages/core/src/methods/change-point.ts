@@ -59,10 +59,7 @@ const add = (a: Fraction, b: Fraction) => lowestTerms(plus(a, b));
 const sub = (a: Fraction, b: Fraction) => lowestTerms(minus(a, b));
 const mul = (a: Fraction, b: Fraction) => lowestTerms(times(a, b));
 const div = (a: Fraction, b: Fraction) => lowestTerms(over(a, b));
-const cmp = (a: Fraction, b: Fraction) => {
-  const [l, r] = [a.num * b.den, b.num * a.den];
-  return l < r ? -1 : l > r ? 1 : 0;
-};
+const smaller = (a: Fraction, b: Fraction) => a.num * b.den < b.num * a.den;
 
 // The straight line through values i up to (not including) j, from running sums: its mean position and value, Sxx, the slope and
 // the squared misses, all exact.
@@ -96,21 +93,16 @@ export function changePoint(points: Point[], span: Span): ChangePoint | NoChange
   for (let k = segment; k <= n - segment; k++) {
     const [left, right] = [lineThrough(sums, 0, k), lineThrough(sums, k, n)];
     const sse = add(left.sse, right.sse);
-    if (!best || cmp(sse, best.sse) < 0) best = { k, sse, left, right };
+    if (!best || smaller(sse, best.sse)) best = { k, sse, left, right };
   }
   const { k, sse, left, right } = best!;
   const one = lineThrough(sums, 0, n);
   const d = n - 2 * 2;
-  // Found: the two lines leave misses at all, fewer than one line does, by more than (20 · tries)² as a power of the ratio.
-  // No misses at all with two lines is an improvement beyond any bar, unless one line has none either.
-  let found = false;
-  if (one.sse.num > ZERO) {
-    if (sse.num === ZERO) found = true;
-    else {
-      const ratio = div(one.sse, sse);
-      found = ratio.num ** BigInt(d) > BigInt(ONE_IN * tries) ** BigInt(2) * ratio.den ** BigInt(d);
-    }
-  }
+  // Found: one line leaves misses, and (SSE₀ ÷ SSE₁)^d is above (20 · tries)², compared by multiplying out so that two lines with no misses at
+  // all (SSE₁ = 0) are above every bar. A ratio exactly at the bar cannot occur (the ratio of two sums of squares is a fraction, and a fraction
+  // raised to d is a whole number only if it is one: no whole number to the d is (20 · (d − 3))² for d from 4 to 996, see the tests).
+  // Stryker disable next-line EqualityOperator: a ratio exactly at the bar never occurs, so `>` and `>=` give the same.
+  const found = one.sse.num > ZERO && (one.sse.num * sse.den) ** BigInt(d) > BigInt(ONE_IN * tries) ** BigInt(2) * (sse.num * one.sse.den) ** BigInt(d);
   const x = xs[k];
   const atStart = (l: Line) => add(l.my, mul(l.slope, sub(x, l.mx)));
   const variance = div(sse, whole(d));
@@ -130,7 +122,7 @@ export function changePoint(points: Point[], span: Span): ChangePoint | NoChange
 
 // How a slope reads: up, down or neither, by the size in the Metric's unit per period.
 function moving(v: number, unit: ValueUnit, decimals: number, ctx: TakeawayContext, span: Span): string {
-  return sayIn(v === 0 ? "cp-flat" : v > 0 ? "cp-up" : "cp-down", { size: sizeText(v, unit, decimals, ctx.style), span }, ctx);
+  return sayIn(v > 0 ? "cp-up" : v < 0 ? "cp-down" : "cp-flat", { size: sizeText(v, unit, decimals, ctx.style), span }, ctx);
 }
 
 /** The Takeaway of a change point: "Around March 2026, Signups changed: before, it went up 120 a month; since, down 40 a month;
@@ -144,19 +136,19 @@ export function changePointTakeaway(name: string, points: Point[], span: Span, u
   const all = readSeries(points);
   const rows = all.slice(-MAX_PERIODS);
   const result = changePoint(rows, span);
-  // The far-off check asks the change point itself: what it reads without those periods, and whether it is still there.
-  const log: { found: boolean; period: string }[] = [];
+  // The far-off check asks the change point itself: what it reads without those periods, and whether it is still there (or, where none was
+  // found, whether leaving them out would show one). `last` is the latest run it asked for, the one that gave the finding.
+  let last: { found: boolean; period: string } | undefined;
   const rerun = (left: ReadonlySet<string>): Rerun => {
     const r = changePoint(rows.filter((p) => !left.has(p.period)), span);
     if (!r.ok) return null;
-    log.push({ found: r.found, period: r.period });
+    last = { found: r.found, period: r.period };
     return { value: r.found ? r.slopeChange : 0, range: 2 * r.slopeHalf };
   };
-  const verdict = checkSuitability("changePoint", { series: [{ name, points: rows }], span, rerun: result.ok && result.found ? rerun : undefined });
+  const verdict = checkSuitability("changePoint", { series: [{ name, points: rows }], span, rerun });
   const lines = (fs: Finding[]) =>
     fs.map((f) => {
       // The reading without the far-off periods is the last run that was asked for: it says whether the change is still there.
-      const last = log[log.length - 1];
       const without = last?.found ? text("cp-without-found", { from: last.period }) : text("cp-without-none");
       return say(f.case, { span, ...f.slots }, { style: ctx.style, language: ctx.language, yearStart: ctx.yearStart, result: () => without });
     });
@@ -181,7 +173,7 @@ export function changePointTakeaway(name: string, points: Point[], span: Span, u
   }
   const decimals = decimalsFor([result.before, result.after, result.step], unit.decimals, style);
   if (decimals === null) return refusalTakeaway(method, [text("refuse-tiny", { name })]);
-  const step = result.step === 0 ? text("cp-step-none") : text(result.step > 0 ? "cp-step-up" : "cp-step-down", { size: sizeText(result.step, unit, decimals, style) });
+  const step = text(result.step > 0 ? "cp-step-up" : result.step < 0 ? "cp-step-down" : "cp-step-none", { size: sizeText(result.step, unit, decimals, style) });
   const [before, after] = [moving(result.before, unit, decimals, ctx, span), moving(result.after, unit, decimals, ctx, span)];
   const written = (v: number) => plainValue(v, unit, unit.decimals, style);
   const signed = (v: number) => (v > 0 ? `+${written(v)}` : v < 0 ? written(v) : `±${written(v)}`);
