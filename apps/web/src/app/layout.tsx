@@ -23,6 +23,7 @@ import { OverLimitBar } from "@/components/over-limit-bar";
 import { overLimitBanner, sizeAndUsage } from "@ziffr/core/workspace-usage";
 import { Suspense } from "react";
 import { Toaster } from "@/components/ui/sonner";
+import { DemoRefusalLinks } from "@/components/demo-refusal";
 import { QuickLookHost } from "@/components/metric-quick-look";
 import { ServiceWorker } from "@/components/service-worker";
 import { APP_COLOURS } from "@/lib/app-colours";
@@ -136,6 +137,7 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
         <AppShell workspace={workspaceTree(role)} settings={settingsGroups(role)} pinned={pinned} due={due} open={open} guide={guideHref()} account={accountOf} demo={demoControls} people={demo ? { profiles: profiles.filter((p) => !p.contact), current: viewer } : undefined} collapsed={await sidebarCollapsed()} banners={<>{demoNote}{banners}</>}>
           {trial?.ended ? <TrialEnded deletedAt={trial.deletedAt} /> : children}
         </AppShell>
+        {demo && offersTrials && <DemoRefusalLinks />}
         {demo && <Tour key={can(actor, "create") ? "member" : "guest"} guest={!can(actor, "create")} />}
         <Toaster />
         <Suspense fallback={null}><QuickLookHost /></Suspense>

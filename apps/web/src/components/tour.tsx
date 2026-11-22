@@ -4,14 +4,14 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { CheckCircle2, Circle, ChevronDown, ChevronUp, Compass, Minus } from "lucide-react";
 
+/** The demo changes nothing, so the tour reads first and only then tries what the demo will refuse (#528). */
 const MEMBER_STEPS = [
-  { href: "/metrics/new", title: "Define a metric", body: "Pick “Customer satisfaction” from the catalog, adjust it, and choose who reports it." },
+  { href: "/", title: "Look at a dashboard", body: "Open the Monthly overview and click a number to see its history. Right-click a widget → Change view." },
+  { href: "/", title: "See what others see", body: "Switch “Viewing as” to Anna, then to the Guest, and watch what each can open. Roles decide it." },
+  { href: "/analyze", title: "Analyze", body: "Run “What drives Cost?” and look at what it finds. Right-click a result → Add to dashboard." },
+  { href: "/decks", title: "Open a deck", body: "Open the board update and click through its slides. Its numbers are live." },
   { href: "/connectors/sources", title: "Capture a value", body: "Answer Anna’s Slack Prompt with a number. Send a second one and watch the Submission Rule." },
-  { href: "/", title: "Build your dashboard", body: "Drag metrics from the Pool onto the canvas. Right-click a widget → Change view, then Save as Widget." },
-  { href: "/", title: "Ask without leaving", body: "Right-click the Cost widget → Ask a question to Ben. Switch “Viewing as” to Ben, answer with a correction, switch back and accept." },
-  { href: "/analyze", title: "Analyze", body: "Run “What drives Cost?” or drop metrics yourself. Right-click a result → Add to dashboard." },
-  { href: "/decks", title: "Make a deck", body: "Open the board update, drag Cost onto a slide, add a text and an arrow, then Export PowerPoint." },
-  { href: "/", title: "Share", body: "Share your dashboard with Anna, then “Viewing as” Anna to see what she gets." },
+  { href: "/metrics/new", title: "Define a metric", body: "Pick “Customer satisfaction” from the catalog and choose who reports it. The demo won’t save it: that is what a trial is for." },
 ];
 
 /** A Guest creates nothing (GLOSSARY: Workspace Role), so their tour only looks at what is shared with them. */
@@ -21,7 +21,7 @@ const GUEST_STEPS = [
   { href: "/actions", title: "Answer a question", body: "Questions and tasks waiting for you are in Actions. Reply there." },
 ];
 
-const KEY = "ziffr-tour-v3";
+const KEY = "ziffr-tour-v4";
 
 /** The demo's guided tour, bottom right; it folds down to a small round button so it never covers controls. */
 export function Tour({ guest = false }: { guest?: boolean }) {

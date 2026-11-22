@@ -43,6 +43,9 @@ const ICONS: Record<string, React.ReactNode> = {
 /** The user menu's pages (#529): the person's own pages without My schedule, which has a row of its own, plus Connected assistants. */
 const YOUR_PAGES: NavItem[] = [...YOU.filter((l) => l.href !== "/schedule"), { href: "/settings/assistants", label: "Connected assistants" }];
 
+/** The same pages in the demo (#528), read-only as the demo is. Without Connected assistants: they connect to real workspaces only. */
+const DEMO_PAGES: NavItem[] = YOU.filter((l) => l.href !== "/schedule");
+
 /** The top rows after Actions and Schedule, in the sidebar's order. */
 const TOP_ORDER = ["/dashboards", "/metrics", "/decks", "/analyze"];
 
@@ -106,7 +109,7 @@ export function AppShell({ workspace, settings, pinned, due, open, account, guid
             ) : children}
           </main>
         </SidebarInset>
-        <TabBar open={open} due={due} pinned={pinned} workspace={workspace} account={account} guide={guide} />
+        <TabBar open={open} due={due} pinned={pinned} workspace={workspace} account={account} guide={guide} demoPages={Boolean(people)} />
       </SidebarProvider>
     </TooltipProvider>
   );
@@ -224,6 +227,11 @@ function DemoMenu({ people }: { people: { profiles: Profile[]; current: string }
           </DropdownMenuRadioGroup>
         </DropdownMenuGroup>
         <DropdownMenuSeparator />
+        <DropdownMenuGroup>
+          <DropdownMenuLabel>Your settings</DropdownMenuLabel>
+          {DEMO_PAGES.map((l) => <DropdownMenuItem key={l.href} render={<Link href={l.href} />}>{l.label}</DropdownMenuItem>)}
+        </DropdownMenuGroup>
+        <DropdownMenuSeparator />
         {/* A full page load, not a client navigation (#14): the frame is drawn again without the demo. */}
         <DropdownMenuGroup><DropdownMenuItem render={<a href="/demo/leave" />}><LogOut aria-hidden /> Leave the demo</DropdownMenuItem></DropdownMenuGroup>
       </DropdownMenuContent>
@@ -232,7 +240,7 @@ function DemoMenu({ people }: { people: { profiles: Profile[]; current: string }
 }
 
 /** The phone's way around: four places and More, which opens everything else from the bottom. */
-function TabBar({ open, due, pinned, workspace, account, guide }: { open: number; due: number; pinned: Pinned[]; workspace: TreeLink[]; account: Account | null; guide: string }) {
+function TabBar({ open, due, pinned, workspace, account, guide, demoPages }: { open: number; due: number; pinned: Pinned[]; workspace: TreeLink[]; account: Account | null; guide: string; demoPages: boolean }) {
   const path = usePathname();
   const [more, setMore] = useState(false);
   // A page change closes More.
@@ -255,7 +263,7 @@ function TabBar({ open, due, pinned, workspace, account, guide }: { open: number
       <Sheet open={more} onOpenChange={setMore}>
         <SheetContent side="bottom" className="overflow-y-auto pb-[env(safe-area-inset-bottom)] md:hidden">
           <SheetHeader><SheetTitle>More</SheetTitle></SheetHeader>
-          <div className="px-2 pb-3"><MoreRows due={due} pinned={pinned} workspace={workspace} account={account} guide={guide} /></div>
+          <div className="px-2 pb-3"><MoreRows due={due} pinned={pinned} workspace={workspace} account={account} guide={guide} demoPages={demoPages} /></div>
         </SheetContent>
       </Sheet>
     </>
@@ -264,7 +272,7 @@ function TabBar({ open, due, pinned, workspace, account, guide }: { open: number
 
 /** What More lists (#529): only what the tabs do not (no Dashboards, Metrics, Actions or Search): the pinned dashboards (#509), Schedule, Decks,
  * Analyze, the Workspace as one row that opens its pages, the guide, your own pages, switching, signing out. */
-function MoreRows({ due, pinned, workspace, account, guide }: { due: number; pinned: Pinned[]; workspace: TreeLink[]; account: Account | null; guide: string }) {
+function MoreRows({ due, pinned, workspace, account, guide, demoPages }: { due: number; pinned: Pinned[]; workspace: TreeLink[]; account: Account | null; guide: string; demoPages: boolean }) {
   const path = usePathname();
   const [pages, setPages] = useState(false);
   const row = "flex h-11 items-center gap-3 rounded-md px-2 text-sm hover:bg-muted focus-visible:outline-2 focus-visible:outline-ring [&_svg]:size-4 [&_svg]:text-muted-foreground";
@@ -294,6 +302,12 @@ function MoreRows({ due, pinned, workspace, account, guide }: { due: number; pin
         )}
         <li><GuideLink href={guide} className={row}><CircleHelp aria-hidden />User guide</GuideLink></li>
       </ul>
+      {demoPages && (
+        <>
+          <h2 className="mt-3 px-2 pb-1 text-xs font-medium text-muted-foreground">Your settings</h2>
+          <ul>{DEMO_PAGES.map((l) => link(l))}</ul>
+        </>
+      )}
       {account && (
         <>
           <h2 className="mt-3 px-2 pb-1 text-xs font-medium text-muted-foreground">{account.name}</h2>

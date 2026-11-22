@@ -37,7 +37,7 @@ After signing in for the first time, you start a Workspace or join one; see [Wor
 
 Choose **Try the demo** on the sign-in page. If you are already signed in, Ziffr first asks **Open the demo?**: nothing you do there is saved, so your own numbers belong in your own Workspace. Choose **Open the demo**, or **Stay in my workspace**.
 
-While you are in the demo, the footer of the sidebar shows two controls, **Viewing as** and **Leave the demo**.
+While you are in the demo, the footer of the sidebar shows your menu with **Viewing as**, your own pages and **Leave the demo**.
 
 | Control | What it does |
 | --- | --- |
@@ -50,7 +50,7 @@ Some pages have a dashed box marked **Demo controls**. Its buttons show what wou
 
 ### Nothing is saved
 
-You can open every page, switch between the people and try every button and form, but the demo can't be changed: where something would be saved, Ziffr says "The demo can't be changed." Where this Ziffr offers trials, it adds "Start a trial to try it with your own numbers." A form with no place of its own for the answer shows it on a screen headed **Nothing was saved**; **Back** returns to the form.
+You can open every page, switch between the people and try every button and form, but the demo can't be changed: where something would be saved, Ziffr says "The demo can't be changed." Where this Ziffr offers trials, it adds a link, "Try it with a trial of your own." A form with no place of its own for the answer shows it on a screen headed **Nothing was saved**; **Back** returns to the form.
 
 The simulators on **Connectors → Sources** and in the **Outbox** answer with what would happen, such as "Would be: Recorded", and keep nothing. What you tried in the Sources simulator stays on the page until you leave it, marked "not saved".
 
@@ -60,13 +60,14 @@ The demo's people keep their names and colours, and the demo sends no email. It 
 
 In the demo, the **Guided tour** sits at the bottom right. Choose it to open the steps, and click a step to go to its page:
 
-1. **Define a metric** from the catalog.
-2. **Capture a value** by answering a Slack Prompt, and send a second one to see the Submission Rule.
-3. **Build your dashboard** from the Pool.
-4. **Ask without leaving**: ask a question, answer it as someone else with a Correction, and accept it.
-5. **Analyze**: run a Recipe and add the result to a dashboard.
-6. **Make a deck** and export it.
-7. **Share** your dashboard and see what the other person gets.
+The tour reads first, because the demo can't be changed:
+
+1. **Look at a dashboard** and click a number to see its history.
+2. **See what others see**: switch **Viewing as** to Anna and to the Guest.
+3. **Analyze**: run a Recipe and look at what it finds.
+4. **Open a deck** and click through its slides.
+5. **Capture a value** by answering a Slack Prompt, and send a second one to see the Submission Rule.
+6. **Define a metric** from the catalog; the demo won't save it, which is what a trial is for.
 
 A Guest gets a shorter tour of three steps, since they create nothing: **Look at what is shared**, **Submit a value** and **Answer a question**.
 
@@ -74,7 +75,7 @@ The circle in front of a step marks it done. The header shows how many are done 
 
 ## The sidebar
 
-The sidebar is on every page once you are in a Workspace. At its top is the Workspace switcher, then a **Search** field (Ctrl+K), **Actions** and **Schedule**, each with its count, Dashboards (with the dashboards you pinned under it, see [Pinning a dashboard](12-dashboards.md#pinning-a-dashboard)), Metrics, Decks, Analyze and one **Workspace** row that opens **Members and Groups**, **Workflows**, **Connectors** and **Settings** (closed unless you are on one of them; Guests do not see it). **User guide** and your own menu (**Your profile**, **Appearance**, **Your Deliveries**, **Your Alerts**, **Connected assistants**, and **Installation settings** for Installation Admins) sit at its bottom. The page is a card beside it, and in the demo, **Viewing as** and **Leave the demo** sit in the footer where your own menu is. Ctrl+B (or the button at the top of the card) shrinks the sidebar to icons; hover or focus an icon to see its name. Details open beside the page instead of replacing it: **Details** on a row of the Metrics list, and **Alert me…** on a Metric's page. On a phone, a bar at the bottom has Dashboards, Metrics, Actions, Search and More; **More** lists only what the bar does not: your pinned dashboards, Schedule, Decks, Analyze, the Workspace as one row that opens its pages, the guide and your own pages. For how search works, see [Search](#search).
+The sidebar is on every page once you are in a Workspace. At its top is the Workspace switcher, then a **Search** field (Ctrl+K), **Actions** and **Schedule**, each with its count, Dashboards (with the dashboards you pinned under it, see [Pinning a dashboard](12-dashboards.md#pinning-a-dashboard)), Metrics, Decks, Analyze and one **Workspace** row that opens **Members and Groups**, **Workflows**, **Connectors** and **Settings** (closed unless you are on one of them; Guests do not see it). **User guide** and your own menu (**Your profile**, **Appearance**, **Your Deliveries**, **Your Alerts**, **Connected assistants**, and **Installation settings** for Installation Admins) sit at its bottom. The page is a card beside it, and in the demo, **Viewing as** and **Leave the demo** sit in the footer where your own menu is, with **Your profile**, **Appearance**, **Your Deliveries** and **Your Alerts** to look at (read-only, as the demo is; there is no Connected assistants). Ctrl+B (or the button at the top of the card) shrinks the sidebar to icons; hover or focus an icon to see its name. Details open beside the page instead of replacing it: **Details** on a row of the Metrics list, and **Alert me…** on a Metric's page. On a phone, a bar at the bottom has Dashboards, Metrics, Actions, Search and More; **More** lists only what the bar does not: your pinned dashboards, Schedule, Decks, Analyze, the Workspace as one row that opens its pages, the guide and your own pages (in the demo, the same four). For how search works, see [Search](#search).
 
 Ziffr works best on a phone once you install it: it then opens from the home screen like an app. See [Put Ziffr on your phone or desktop](07-getting-started.md#put-ziffr-on-your-phone-or-desktop).
 
