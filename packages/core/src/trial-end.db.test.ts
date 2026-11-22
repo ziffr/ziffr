@@ -318,13 +318,30 @@ describe("when the Installation Settings cannot be read (fail closed)", () => {
     expect((await db().from("workspaces").select("id").eq("id", t.id).maybeSingle()).data).not.toBeNull();
   });
 
-  it("deletes an ended trial after its grace days whatever a stored ZIFFR_TRIAL_THEN row says: there is no Free Size", async () => {
+  it("deletes nothing for a stored keep row without a Ziffr Cloud key, which still governs the trials that exist (spec 0040)", async () => {
+    const key = process.env.ZIFFR_CLOUD_KEY;
+    delete process.env.ZIFFR_CLOUD_KEY;
+    const old = await trial(-8 * 24);
+    await db().from("installation_settings").upsert({ name: "ZIFFR_TRIAL_THEN", value: "keep", sealed: false }).throwOnError();
+    forgetStoredSettings();
+    try {
+      expect(await deleteExpiredTrials()).toBe(0);
+      expect(await closeEndedTrials()).toBeGreaterThanOrEqual(1);
+      expect((await db().from("workspaces").select("trial_kept_at").eq("id", old.id).single()).data!.trial_kept_at).not.toBeNull();
+      await expect(endTrialNow(old.ownerActor)).rejects.toThrow();
+    } finally { if (key !== undefined) process.env.ZIFFR_CLOUD_KEY = key; await db().from("installation_settings").delete().eq("name", "ZIFFR_TRIAL_THEN"); forgetStoredSettings(); }
+    expect((await db().from("workspaces").select("id").eq("id", old.id).maybeSingle()).data).not.toBeNull();
+  });
+
+  it("deletes an ended trial on hosted Ziffr whatever a stored ZIFFR_TRIAL_THEN row says: there is no Free Size", async () => {
+    const key = process.env.ZIFFR_CLOUD_KEY;
+    process.env.ZIFFR_CLOUD_KEY = "k".repeat(40);
     const old = await trial(-8 * 24);
     await db().from("installation_settings").upsert({ name: "ZIFFR_TRIAL_THEN", value: "keep", sealed: false }).throwOnError();
     forgetStoredSettings();
     try {
       expect(await deleteExpiredTrials()).toBeGreaterThanOrEqual(1);
-    } finally { await db().from("installation_settings").delete().eq("name", "ZIFFR_TRIAL_THEN"); forgetStoredSettings(); }
+    } finally { if (key === undefined) delete process.env.ZIFFR_CLOUD_KEY; else process.env.ZIFFR_CLOUD_KEY = key; await db().from("installation_settings").delete().eq("name", "ZIFFR_TRIAL_THEN"); forgetStoredSettings(); }
     expect((await db().from("workspaces").select("id").eq("id", old.id).maybeSingle()).data).toBeNull();
   });
 

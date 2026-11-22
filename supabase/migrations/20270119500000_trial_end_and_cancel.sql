@@ -51,8 +51,9 @@ begin
 end $$;
 
 -- Closes a Workspace whose Size was cancelled, once: true for the call that did it. It ends now like a trial, so every
--- check of a trial (nothing sent or taken, keys and links stopped) and the deletion after the grace days apply; the
--- demo and a Workspace that is in a trial are left alone.
+-- check of a trial (nothing sent or taken, keys and links stopped) and the deletion after the grace days apply. Only a
+-- Workspace whose limit Ziffr Cloud set (a Size it sells) can be closed this way; the demo, a Workspace in a trial and
+-- one an Installation Admin set the limit of are left alone.
 create or replace function close_cancelled_workspace(p_workspace uuid) returns boolean
 language plpgsql security definer set search_path = public as $$
 declare
@@ -61,9 +62,23 @@ begin
   update workspaces set trial_ends_at = now(), trial_kept_at = null, closed_because = 'cancelled'
     where id = p_workspace and trial_ends_at is null and trial_closed_at is null
       and id <> 'd3e00000-0000-4000-8000-000000000001'::uuid
+      and exists (select 1 from workspace_limits where workspace_id = p_workspace and set_by = 'cloud')
     returning id into v_id;
   return v_id is not null;
 end $$;
 
-revoke execute on function keep_trial(uuid), close_cancelled_workspace(uuid) from public, anon, authenticated;
-grant execute on function keep_trial(uuid), close_cancelled_workspace(uuid) to service_role;
+-- Undoes a cancellation during the grace days, once: true for the call that did it. The Workspace is ordinary again;
+-- what the closing revoked (keys, Slack, Telegram and Calendar Links) stays gone, and closed Actions stay closed.
+create or replace function reopen_cancelled_workspace(p_workspace uuid) returns boolean
+language plpgsql security definer set search_path = public as $$
+declare
+  v_id uuid;
+begin
+  update workspaces set trial_ends_at = null, trial_closed_at = null, trial_grace_days = null, closed_because = null, trial_kept_at = now()
+    where id = p_workspace and closed_because = 'cancelled'
+    returning id into v_id;
+  return v_id is not null;
+end $$;
+
+revoke execute on function keep_trial(uuid), close_cancelled_workspace(uuid), reopen_cancelled_workspace(uuid) from public, anon, authenticated;
+grant execute on function keep_trial(uuid), close_cancelled_workspace(uuid), reopen_cancelled_workspace(uuid) to service_role;

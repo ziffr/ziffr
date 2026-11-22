@@ -307,6 +307,8 @@ Plumbing the core's other operations use, jobs the schedule runs, and the demo.
 - `handover` (cloud-api.ts): hands a Workspace over, for Ziffr Cloud
 - `cancelCloudWorkspace` (cloud-api.ts): Ziffr Cloud's own signed route, `POST /api/cloud/v1/workspaces/{id}/cancel`, not an Access Key's
 - `closeCancelledWorkspace` (trial-end.ts): what that route does
+- `reopenCloudWorkspace` (cloud-api.ts): Ziffr Cloud's own signed route, `POST /api/cloud/v1/workspaces/{id}/reopen`
+- `reopenCancelledWorkspace` (trial-end.ts): what that route does
 - `retentionPreview` (retention-setting.ts): the Metric page's preview; setting a Retention needs the page, the counts and a confirmation, so a program only reads it (spec 0033)
 - `retentionPreviewAll` (retention-setting.ts): the Workspace settings' preview of Apply to existing Metrics (spec 0033)
 - `setRetention` (retention-setting.ts): a Metric's Retention is set on its page, never by a program (spec 0033)

@@ -55,6 +55,8 @@ export const INSTALLATION_SETTINGS: SettingDefinition[] = [
     help: "In the Cloudflare dashboard, under Turnstile, add a widget for this Ziffr's domain (mode Managed) and copy its site key. It must be the same widget's as the secret key: a wrong one stops every sign-in until it is removed." },
   { name: "ZIFFR_TURNSTILE_SECRET", section: "bots", label: "Secret key", secret: true,
     help: "The widget's secret key. Ziffr asks Cloudflare whether it knows it before saving it." },
+  { name: "ZIFFR_TRIAL_THEN", section: "trials", label: "When a trial ends", secret: false, choices: [{ value: "delete", label: "Close it, and delete it a week later" }, { value: "keep", label: "Keep it as a Workspace on the default limit" }],
+    help: "Keep turns an ended trial into an ordinary Workspace on the default Workspace Limit (set one under Workspace Limits): invitations open and every Connector reaches everyone. Empty: delete." },
   { name: "ZIFFR_TRIAL_WEBHOOKS", section: "trials", label: "Webhooks in trials", secret: false, choices: [{ value: "true", label: "Trials may have Webhooks" }, { value: "false", label: "Trials have no Webhooks" }],
     help: "On by default: a trial may hold 2 Webhooks (Workspace and personal together) and send 200 a day, to public addresses only; the hosts you list in ZIFFR_WEBHOOK_PRIVATE_HOSTS never apply to a trial. Off: trials cannot add Webhooks, and those they have send nothing. Ordinary Workspaces are not affected." },
   { name: "ZIFFR_KEEP_AUDIT_DAYS", section: "keep", label: "Days the Audit Log is kept", secret: false, placeholder: "730",

@@ -4,12 +4,12 @@
 import { randomUUID } from "node:crypto";
 import { afterEach, describe, expect, it } from "vitest";
 import { createAccessKey } from "./access-keys";
-import { cancelCloudWorkspace, CloudNotFound, cloudWorkspace, setCloudLimit } from "./cloud-api";
+import { cancelCloudWorkspace, CloudConflict, CloudNotFound, cloudWorkspace, reopenCloudWorkspace, setCloudLimit } from "./cloud-api";
 import { db } from "./db";
 import { createWorkspace } from "./page-data";
 import { forgetStoredSettings } from "./settings-in-effect";
 import { closeCancelledWorkspace, closeEndedTrials, deleteExpiredTrials, trialStatus } from "./trial-end";
-import { trialHoldsBack } from "./trials";
+import { keepTrial as keepTrialNow, trialHoldsBack } from "./trials";
 import { opened, workspace } from "./test/db-fixtures";
 import { DefaultWorkspaceTaken, syncDefaultLimit } from "./workspace-limits";
 
@@ -108,14 +108,67 @@ describe("Ziffr Cloud's cancel", () => {
     await db().from("installation_audit_events").delete().eq("subject", w.id);
   });
 
-  it("leaves a trial, the demo and what does not exist alone", async () => {
+  it("tells the people who would lose their account, and no one else, with no names for a Guest", async () => {
+    const { w, owner } = await trial(48);
+    const lone = await w.person("member");
+    const guest = await w.person("guest");
+    const elsewhere = await w.person("member");
+    const other = await workspace("Other");
+    cleanups.push(other.cleanup);
+    await db().from("memberships").insert({ workspace_id: other.id, user_id: elsewhere, role: "member" }).throwOnError();
+    await setCloudLimit({ cloud: true }, w.id, { metrics: 50, label: "Small", endTrial: true });
+    await cancelCloudWorkspace({ cloud: true }, w.id);
+    const to = async (id: string) => await opened("deliveries", w.id, (await db().from("deliveries").select("id, subject, body").eq("workspace_id", w.id).eq("kind", "notice").eq("recipient_id", id)).data);
+    const [forLone, forGuest, forElsewhere, forOwner] = [await to(lone), await to(guest), await to(elsewhere), await to(owner)];
+    expect(forLone).toHaveLength(1);
+    expect(forLone[0].body).toContain("account with it");
+    expect(forLone[0].body).toMatch(/deleted with everything in it/);
+    expect(forGuest).toHaveLength(1);
+    expect(forGuest[0].body).toContain("whoever invited you");
+    expect(forElsewhere).toHaveLength(0);
+    expect(forOwner).toHaveLength(1);
+    await db().from("installation_audit_events").delete().eq("subject", w.id);
+  });
+
+  it("refuses a trial, a Workspace Ziffr Cloud sold no Size of, and the demo; answers 404 for one that does not exist", async () => {
     const { w } = await trial(48);
-    expect((await cancelCloudWorkspace({ cloud: true }, w.id)).trial_ends_at).not.toBeNull();
+    await expect(cancelCloudWorkspace({ cloud: true }, w.id)).rejects.toBeInstanceOf(CloudConflict);
     expect((await row(w.id)).trial_closed_at).toBeNull();
     expect(await trialStatus(w.id)).toMatchObject({ ended: false, cancelled: false });
+    // Subscribed by an Installation Admin's limit, not Ziffr Cloud's: refused too.
+    await keepTrialNow(w.id);
+    await db().from("workspace_limits").upsert({ workspace_id: w.id, metrics: 50, set_by: "installation_admin" }).throwOnError();
+    await expect(cancelCloudWorkspace({ cloud: true }, w.id)).rejects.toBeInstanceOf(CloudConflict);
+    expect(await closeCancelledWorkspace(w.id)).toBe("refused");
     await expect(cancelCloudWorkspace({ cloud: true }, randomUUID())).rejects.toBeInstanceOf(CloudNotFound);
     await expect(cancelCloudWorkspace({ cloud: true }, "d3e00000-0000-4000-8000-000000000001")).rejects.toBeInstanceOf(CloudNotFound);
-    expect(await closeCancelledWorkspace("d3e00000-0000-4000-8000-000000000001")).toBe(false);
+    expect(await closeCancelledWorkspace("d3e00000-0000-4000-8000-000000000001")).toBe("refused");
+  });
+
+  it("can be undone during the grace days, keeps its data, leaves keys revoked, and refuses what was not cancelled", async () => {
+    const { w, owner, keyId } = await trial(48);
+    const m = await w.metric(owner, { name: "Kept" });
+    await setCloudLimit({ cloud: true }, w.id, { metrics: 50, label: "Small", endTrial: true });
+    await expect(reopenCloudWorkspace({ cloud: true }, w.id)).rejects.toBeInstanceOf(CloudConflict);
+    await cancelCloudWorkspace({ cloud: true }, w.id);
+    expect((await keyEnds(keyId)).revoked_at).not.toBeNull();
+    const after = await reopenCloudWorkspace({ cloud: true }, w.id);
+    expect(after.trial_ends_at).toBeNull();
+    expect(await trialStatus(w.id)).toBeNull();
+    expect((await row(w.id)).trial_closed_at).toBeNull();
+    expect((await keyEnds(keyId)).revoked_at).not.toBeNull();
+    expect((await db().from("metrics").select("id").eq("id", m.id).maybeSingle()).data).not.toBeNull();
+    // Reopened: the hourly deletion never takes it, even long after the grace days.
+    await deleteExpiredTrials(new Date(Date.now() + 30 * 86_400_000));
+    expect((await db().from("workspaces").select("id").eq("id", w.id).maybeSingle()).data).not.toBeNull();
+    await expect(reopenCloudWorkspace({ cloud: true }, w.id)).rejects.toBeInstanceOf(CloudConflict);
+    // After the deletion there is nothing to reopen.
+    const gone = await trial(48);
+    await setCloudLimit({ cloud: true }, gone.w.id, { metrics: 50, label: "Small", endTrial: true });
+    await cancelCloudWorkspace({ cloud: true }, gone.w.id);
+    await deleteExpiredTrials(new Date(Date.now() + 9 * 86_400_000));
+    await expect(reopenCloudWorkspace({ cloud: true }, gone.w.id)).rejects.toBeInstanceOf(CloudNotFound);
+    await db().from("installation_audit_events").delete().in("subject", [w.id, gone.w.id]);
   });
 });
 

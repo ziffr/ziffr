@@ -10,7 +10,7 @@ import { db } from "./db";
 import { openNames, openRows } from "./sealed-columns";
 import { Forbidden, type Actor, type WorkspaceRoleName } from "./actor";
 import { deliverNotice } from "./deliveries";
-import { trialEndsAt } from "./trials";
+import { keepTrial, trialEndsAt, trialThen } from "./trials";
 import { settingsInEffect, settingsInEffectStrict } from "./settings-in-effect";
 import { DEMO_WORKSPACE_ID } from "./team";
 import { daysSetting } from "./installation-days";
@@ -21,7 +21,7 @@ import type { Aggregation } from "./types";
 import { NUMBER_STYLE_MARKS } from "./number-style";
 import { numberStyleOf } from "./workspace-settings";
 import { destroyWorkspaceKeys } from "./workspace-keys";
-import { trialEndsWords, workspaceClosedWords } from "./trial-words";
+import { membersGoingWords, trialEndsWords, workspaceClosedWords, workspaceReopenedWords } from "./trial-words";
 
 /** Days between a trial's end and its deletion unless the Installation sets otherwise (ZIFFR_TRIAL_GRACE_DAYS): time to
  * download its values. A trial keeps the days it had when it closed. */
@@ -30,7 +30,7 @@ const DAY = 86_400_000;
 
 /** Where a trial stands, for the bar on every page: null outside a trial. `cancelled` is a Workspace whose Size was
  * cancelled: it closes as an ended trial does, and its screens do not say "trial". */
-export async function trialStatus(workspaceId: string, role?: WorkspaceRoleName): Promise<{ endsAt: string; daysLeft: number; ended: boolean; deletedAt: string; cancelled: boolean; ownerName: string | null } | null> {
+export async function trialStatus(workspaceId: string, role?: WorkspaceRoleName): Promise<{ endsAt: string; daysLeft: number; ended: boolean; deletedAt: string; cancelled: boolean; keeps: boolean; ownerName: string | null } | null> {
   const ends = await trialEndsAt(workspaceId);
   if (!ends) return null;
   const settings = await settingsInEffect();
@@ -38,6 +38,8 @@ export async function trialStatus(workspaceId: string, role?: WorkspaceRoleName)
   return {
     endsAt: ends.toISOString(), daysLeft: Math.max(0, Math.ceil(left / DAY)), ended: left <= 0, deletedAt: new Date(ends.getTime() + daysSetting("ZIFFR_TRIAL_GRACE_DAYS", settings) * DAY).toISOString(),
     cancelled: await cancelledOf(workspaceId),
+    // An old trial on an Installation that keeps them (never hosted Ziffr): it becomes an ordinary Workspace at its end.
+    keeps: trialThen(settings) === "keep",
     // Only a role that sees who else is in the Workspace is given the name; a Guest, or no role, gets none.
     ownerName: role === "owner" || role === "admin" || role === "member" ? await ownerName(workspaceId) : null,
   };
@@ -77,7 +79,10 @@ const REMINDERS = [
  * many messages were sent. */
 export async function remindEndingTrials(now = new Date()): Promise<number> {
   // Read strictly before anything is claimed: a reminder with the wrong words is never sent again.
-  const grace = daysSetting("ZIFFR_TRIAL_GRACE_DAYS", await settingsInEffectStrict());
+  const settings = await settingsInEffectStrict();
+  // An old trial that an Installation keeps (never hosted Ziffr) is not deleted, so none of these words would be true.
+  if (trialThen(settings) === "keep") return 0;
+  const grace = daysSetting("ZIFFR_TRIAL_GRACE_DAYS", settings);
   let n = 0;
   // Nearest first: a trial that is claimed by one is never claimed by a farther one in the same run.
   for (const [i, r] of [...REMINDERS].reverse().entries()) {
@@ -87,6 +92,10 @@ export async function remindEndingTrials(now = new Date()): Promise<number> {
     const { data } = await db().from("workspaces").update({ [r.mark]: now.toISOString() })
       .gt("trial_ends_at", now.toISOString()).lte("trial_ends_at", upTo).is(r.mark, null).is("closed_because", null).select("id, trial_ends_at");
     for (const w of data ?? []) {
+      // The people who would lose their account with it hear once: at the day-before reminder, or at the last when that
+      // one was spent unsent (a trial made for a day or two).
+      let tellMembers = r.mark === "trial_reminded_at";
+      if (r.mark === "trial_reminded_end_at") tellMembers = !(await db().from("workspaces").select("trial_reminded_at").eq("id", w.id).single()).data?.trial_reminded_at;
       // A farther reminder is spent too, and the days promised are kept with the first one: what the Owner was told holds.
       for (const f of REMINDERS.slice(0, farther)) await db().from("workspaces").update({ [f.mark]: now.toISOString() }).eq("id", w.id).is(f.mark, null);
       await db().from("workspaces").update({ trial_grace_days: grace }).eq("id", w.id).is("trial_grace_days", null);
@@ -102,6 +111,7 @@ export async function remindEndingTrials(now = new Date()): Promise<number> {
         link: "/settings/export",
       });
       n++;
+      if (tellMembers) await tellMembersWhoWouldGo(w.id as string, new Date(endsAt.getTime() + days * DAY).toISOString());
     }
   }
   return n;
@@ -112,6 +122,14 @@ export async function remindEndingTrials(now = new Date()): Promise<number> {
  * deletion. */
 export async function closeEndedTrials(now = new Date()): Promise<number> {
   const at = now.toISOString();
+  // An old trial on an Installation that keeps them (never hosted Ziffr, which has no Free Size) becomes an ordinary
+  // Workspace instead, as before; if the setting cannot be read this throws and nothing is closed.
+  if (trialThen(await settingsInEffectStrict()) === "keep") {
+    const { data: ended } = await db().from("workspaces").select("id").lte("trial_ends_at", at).is("trial_closed_at", null).is("closed_because", null);
+    let kept = 0;
+    for (const w of ended ?? []) if (await keepTrial(w.id as string)) kept++;
+    return kept;
+  }
   // The grace days in effect now are kept with the closing: what the Owner was told is what holds, whatever is set later.
   const grace = daysSetting("ZIFFR_TRIAL_GRACE_DAYS", await settingsInEffectStrict());
   await db().from("workspaces").update({ trial_grace_days: grace }).lte("trial_ends_at", at).is("trial_closed_at", null).is("trial_grace_days", null);
@@ -168,8 +186,10 @@ const graceOf = (promised: number | null, closed: boolean, current: number): num
 
 /** Deletes trials that ended more than the grace days ago. Returns how many. */
 export async function deleteExpiredTrials(now = new Date()): Promise<number> {
-  // Fail closed: deleting needs the settings to have been read, so a database hiccup never decides the days.
+  // Fail closed: deleting needs a setting that was read and says "delete" (spec 0040: a trial an Installation chose to
+  // keep is never deleted). An unreadable one throws, so a database hiccup never deletes what was meant to be kept.
   const settings = await settingsInEffectStrict();
+  if (trialThen(settings) !== "delete") return 0;
   // Each trial's own grace days: those kept when it was closed, else the usual 7 for one closed before they were kept,
   // else (not closed yet) the days in effect now. Never fewer than the lowest allowed, a day, from the first query.
   const current = daysSetting("ZIFFR_TRIAL_GRACE_DAYS", settings);
@@ -188,25 +208,63 @@ export async function deleteExpiredTrials(now = new Date()): Promise<number> {
   return n;
 }
 
+/** Tells the people of a Workspace that is closing, and whose only Workspace it is, that it and their account go on the
+ * day named (the Owner has their own words). Their notice names the Owner only to roles that see who else is in the
+ * Workspace; a Guest is given none (deliverNotice hides names from Guests as well). Nothing else about the Workspace. */
+async function tellMembersWhoWouldGo(workspaceId: string, deletedAt: string): Promise<void> {
+  const { data: members } = await db().from("memberships").select("user_id, role").eq("workspace_id", workspaceId).neq("role", "owner");
+  const owner = await ownerName(workspaceId);
+  for (const m of members ?? []) {
+    const id = m.user_id as string;
+    const [{ count }, { data: admin }] = await Promise.all([
+      db().from("memberships").select("workspace_id", { count: "exact", head: true }).eq("user_id", id),
+      db().from("installation_admins").select("person_id").eq("person_id", id).maybeSingle(),
+    ]);
+    // Only someone who would be deleted with it: this is the only Workspace they belong to.
+    if (count !== 1 || admin) continue;
+    await deliverNotice(workspaceId, { recipientId: id, senderId: null, subject: "A Ziffr Workspace of yours is closing", text: membersGoingWords(m.role === "guest" ? null : owner, deletedAt), link: "/" });
+  }
+}
+
 /** Closes a Workspace whose Size was cancelled, or whose payment failed for good, as an ended trial is closed (spec 0040:
- * read-only for the grace days with the Workspace Export offered, then deleted). Called by Ziffr Cloud only. Its Owner is
- * told first, while a message still leaves it, with the day it is deleted. A Workspace in a trial, one that is closed
- * already and the demo are left as they are: false then. True for the call that closed it. */
-export async function closeCancelledWorkspace(workspaceId: string): Promise<boolean> {
-  if (workspaceId === DEMO_WORKSPACE_ID) return false;
-  const { data: w } = await db().from("workspaces").select("trial_ends_at, trial_closed_at").eq("id", workspaceId).maybeSingle();
-  if (!w || w.trial_ends_at || w.trial_closed_at) return false;
+ * read-only for the grace days with the Workspace Export offered, then deleted). Called by Ziffr Cloud only, and only for
+ * a Workspace whose limit Ziffr Cloud set. Its Owner is told first, while a message still leaves it, with the day it is
+ * deleted, and so are the people who would lose their account with it. "closed" for the call that closed it, "already"
+ * for one that was closed this way before, "refused" for a Workspace in a trial, the demo, one without a limit of
+ * Ziffr Cloud's or one closed as a trial. */
+export async function closeCancelledWorkspace(workspaceId: string): Promise<"closed" | "already" | "refused"> {
+  if (workspaceId === DEMO_WORKSPACE_ID) return "refused";
+  const [{ data: w }, { data: sold }] = await Promise.all([
+    db().from("workspaces").select("trial_ends_at, trial_closed_at, closed_because").eq("id", workspaceId).maybeSingle(),
+    db().from("workspace_limits").select("workspace_id").eq("workspace_id", workspaceId).eq("set_by", "cloud").maybeSingle(),
+  ]);
+  if (!w) return "refused";
+  if (w.closed_because === "cancelled") return "already";
+  if (w.trial_ends_at || w.trial_closed_at || !sold) return "refused";
   const grace = daysSetting("ZIFFR_TRIAL_GRACE_DAYS", await settingsInEffectStrict());
   const owner = await ownerOf(workspaceId);
   const deletedOn = new Date(Date.now() + grace * DAY).toISOString();
   if (owner) {
     await deliverNotice(workspaceId, { recipientId: owner, senderId: null, subject: "Your Ziffr Size was cancelled", text: workspaceClosedWords(deletedOn), link: "/settings/export" });
   }
+  await tellMembersWhoWouldGo(workspaceId, deletedOn);
   const { data, error } = await db().rpc("close_cancelled_workspace", { p_workspace: workspaceId });
   if (error) throw new Error("The Workspace could not be closed.");
-  if (data !== true) return false;
+  if (data !== true) return "refused";
   // Closed at once, not at the next hourly run: keys and links stop now, and the days promised are kept.
   await closeEndedTrials();
+  return "closed";
+}
+
+/** Undoes a cancellation during the grace days (Ziffr Cloud: the Size was booked again): the Workspace is ordinary
+ * again. What closing revoked (keys, Slack, Telegram, Calendar Links) stays revoked, and closed Actions stay closed;
+ * its Owner is told so. False when it was not closed by a cancellation or is deleted already. */
+export async function reopenCancelledWorkspace(workspaceId: string): Promise<boolean> {
+  const { data, error } = await db().rpc("reopen_cancelled_workspace", { p_workspace: workspaceId });
+  if (error) throw new Error("The Workspace could not be opened again.");
+  if (data !== true) return false;
+  const owner = await ownerOf(workspaceId);
+  if (owner) await deliverNotice(workspaceId, { recipientId: owner, senderId: null, subject: "Your Ziffr Workspace is open again", text: workspaceReopenedWords, link: "/" });
   return true;
 }
 
@@ -231,6 +289,8 @@ export async function trialCleanup(now = new Date()): Promise<{ reminded: number
 /** The Owner ends their trial now: it is deleted at once with everything in it, and they with it. */
 export async function endTrialNow(actor: Actor): Promise<void> {
   if (actor.role !== "owner" || !(await trialEndsAt(actor.workspaceId))) throw new Forbidden("Only a trial's Owner can end it.");
+  // Fail closed like the cleanup: with the setting unreadable, an ended trial might be one to keep.
+  if (trialThen(await settingsInEffectStrict()) === "keep") throw new Forbidden("Trials are kept here, not deleted.");
   await deleteTrial(actor.workspaceId);
 }
 

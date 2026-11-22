@@ -130,7 +130,7 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
     <>
       {/* Owners and Admins get the bar with counts and links; everyone else the plain words (spec 0040). */}
       {trial && !trial.ended && (role === "owner" || role === "admin"
-        ? <TrialBar daysLeft={trial.daysLeft} endsAt={trial.endsAt} isOwner={role === "owner"} usage={usage} />
+        ? <TrialBar daysLeft={trial.daysLeft} endsAt={trial.endsAt} isOwner={role === "owner"} keeps={trial.keeps} usage={usage} />
         : <TrialBarForMembers owner={trial.ownerName} endsAt={trial.endsAt} />)}
       {overLimit && <OverLimitBar words={overLimit} />}
     </>

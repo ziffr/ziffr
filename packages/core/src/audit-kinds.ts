@@ -102,6 +102,7 @@ export const AUDIT_KINDS = {
   "workspace.personal_webhooks_refused": "stopped people from having their own Webhooks, pausing the existing ones",
   "workspace.limit_changed": "changed the Workspace Limit",
   "workspace.closed_cancelled": "closed the Workspace because its Size was cancelled",
+  "workspace.reopened": "opened the Workspace again after its Size was cancelled",
   "workspace.key_changed": "changed the Workspace Key",
   "workspace.profile_changed": "changed the Workspace Profile",
   "workspace.year_start_changed": "changed the month the workspace's year starts in",

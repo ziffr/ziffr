@@ -5,7 +5,7 @@
 import { db } from "./db";
 import { Forbidden } from "./actor";
 import { hostedByCloud } from "./installation-days";
-import { settingsInEffectStrict, storedSettings } from "./settings-in-effect";
+import { settingsInEffect, settingsInEffectStrict, storedSettings } from "./settings-in-effect";
 import { trialLimitFrom, trialLimitOf } from "./trial-limits";
 import { trialLimitsInEffect, trialLimitsNow } from "./trial-limits-in-effect";
 
@@ -78,6 +78,19 @@ export async function createTrialWorkspace(personId: string, name: string, setti
   return data.slice("ok:".length);
 }
 
+/** What becomes of a trial at its end on an Installation that is NOT hosted Ziffr (spec 0029, ZIFFR_TRIAL_THEN): "delete"
+ * (the default) or "keep", which turns it into an ordinary Workspace on the default limit. Trials exist only on hosted Ziffr
+ * now and there is no Free Size there: on hosted Ziffr this is always "delete". It is still read elsewhere so that a trial
+ * that exists on an Installation that chose "keep" never changes its fate (spec 0040). A value that is set but neither
+ * throws: an operator must never delete Workspaces they meant to keep. */
+export function trialThen(env: Record<string, string | undefined>): "delete" | "keep" {
+  if (hostedByCloud(process.env)) return "delete";
+  const raw = env.ZIFFR_TRIAL_THEN?.trim().toLowerCase();
+  if (!raw || raw === "delete") return "delete";
+  if (raw === "keep") return "keep";
+  throw new Error("ZIFFR_TRIAL_THEN must be delete or keep.");
+}
+
 /** Turns a Trial Workspace into an ordinary one now, because its Owner subscribed to a Size: its trial's day becomes a
  * record, its keys and View Links get back the end dates they were made with, and the Workspace Limit settles
  * (spec 0029, spec 0040). True for the call that did it. */
@@ -88,7 +101,8 @@ export async function keepTrial(workspaceId: string): Promise<boolean> {
 }
 
 /** When a workspace's trial ends, or null when it is not a Trial Workspace. A Workspace whose Size was cancelled has
- * the day it was closed. */
+ * the day it was closed. Where an old trial is kept (ZIFFR_TRIAL_THEN=keep, never on hosted Ziffr) one that has ended
+ * becomes ordinary the first time anything asks. */
 export async function trialEndsAt(workspaceId: string): Promise<Date | null> {
   return trialEndsAtRead(workspaceId, false);
 }
@@ -97,7 +111,13 @@ export async function trialEndsAt(workspaceId: string): Promise<Date | null> {
 async function trialEndsAtRead(workspaceId: string, strict: boolean): Promise<Date | null> {
   const { data, error } = await db().from("workspaces").select("trial_ends_at").eq("id", workspaceId).maybeSingle();
   if (error && strict) throw new Error("The trial could not be read.");
-  return data?.trial_ends_at ? new Date(data.trial_ends_at as string) : null;
+  const ends = data?.trial_ends_at ? new Date(data.trial_ends_at as string) : null;
+  // Where an old trial is kept (never on hosted Ziffr), it becomes ordinary the first time anything asks after its end.
+  if (ends && ends.getTime() <= Date.now() && trialThen(await settingsInEffect()) === "keep") {
+    await keepTrial(workspaceId);
+    return null;
+  }
+  return ends;
 }
 
 /** Refuses what a trial does not offer however many people it holds: an invite link (it cannot be counted or limited

@@ -28,3 +28,12 @@ export const trialEndsWords = (endsAt: string, deletedAt: string): string =>
 export const workspaceClosedWords = (deletedAt: string): string =>
   `Your Size was cancelled, so this Workspace is closed: nothing is sent or taken any more, and its keys and links have stopped. On ${trialDay(deletedAt)} it is deleted with everything in it. `
   + "To keep your numbers, download the Workspace Export from the link below and run Ziffr yourself: it holds your Metrics, values, dashboards, decks and Workflows.";
+
+/** What a person who is not the Owner is told when the Workspace they belong to is closing and it is their only one: the
+ * day it goes, and that their account goes with it. `owner` is null for a role that does not see who else is there. */
+export const membersGoingWords = (owner: string | null, deletedAt: string): string =>
+  `The Ziffr Workspace you belong to${owner ? `, ${owner}'s,` : ""} is closing, and nothing can be added to it any more. On ${trialDay(deletedAt)} it is deleted with everything in it, and your account with it, since it is the only Workspace you belong to. `
+  + `Ask ${owner ? "them" : "whoever invited you"} whether it goes on.`;
+
+/** What the Owner is told when a cancelled Workspace is opened again. */
+export const workspaceReopenedWords = "Your Workspace is open again, as it was before it closed. What stopped when it closed stays stopped: make new keys, and connect Slack and Telegram again. Questions and tasks that were open stay closed.";
