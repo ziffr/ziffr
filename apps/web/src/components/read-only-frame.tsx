@@ -6,6 +6,8 @@ import { templateOf } from "@/views/templates";
 import { CompareStrip, DEFAULT_COMPARE } from "@/components/compare-strip";
 import type { CanvasData, Metric, Widget } from "@ziffr/core/types";
 import { cn } from "@/lib/utils";
+import { useRef } from "react";
+import { WidgetScaleProvider, widgetScaleStyle, useMeasuredWidgetScale } from "@/views/widget-scale";
 
 /** The parts of a widget its card draws. */
 export type FrameWidget = Pick<Widget, "template" | "metric_ids" | "settings" | "title"> & { id?: number; w?: number; h?: number };
@@ -34,13 +36,18 @@ export function ReadOnlyFrame({ widget, data, className }: { widget: FrameWidget
   const m = ms[0];
   const kind = templateOf(widget).kind;
   const title = frameTitle(widget, ms);
+  // Its words, rows and axes grow with the card, as on a dashboard (#763).
+  const card = useRef<HTMLDivElement>(null);
+  const scale = useMeasuredWidgetScale(card);
   return (
-    <div className={cn("stock flex h-full flex-col overflow-hidden rounded-[var(--radius-card)]", className)}>
-      <div className="px-4 pt-3 pb-1"><span className="truncate text-sm font-semibold">{title}</span></div>
+    <div ref={card} style={widgetScaleStyle(scale)} className={cn("stock flex h-full flex-col overflow-hidden rounded-[var(--radius-card)]", className)}>
+      <WidgetScaleProvider value={scale}>
+      <div className="px-4 pt-3 pb-1"><span className="widget-text-sm truncate font-semibold">{title}</span></div>
       <div className="flex min-h-0 flex-1 flex-col gap-1.5 px-4 pb-3">
         <div className="@container min-h-0 flex-1"><WidgetBody widget={widget} data={data} /></div>
         {m && kind === "metric" && <CompareStrip metric={m} data={data} keys={widget.settings.compare ?? DEFAULT_COMPARE} full={widget.settings.fullPeriods} />}
       </div>
+      </WidgetScaleProvider>
     </div>
   );
 }

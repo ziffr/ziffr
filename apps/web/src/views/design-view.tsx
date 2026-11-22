@@ -110,7 +110,7 @@ export function DesignView({ design, widget, metrics, data, onPointContext }: Pr
   if (v.drivers && !v.drivers.ranked.length)
     return (
       <div className="flex h-full flex-col items-center justify-center p-4 text-center">
-        <p className="text-xs text-muted-foreground">No other metric with enough periods in common with {m.name}.</p>
+        <p className="widget-text-xs text-muted-foreground">No other metric with enough periods in common with {m.name}.</p>
         <NotCombined reasons={leftOutReasons(v)} />
       </div>
     );
@@ -142,7 +142,7 @@ function PartView({ part, v, ctx }: { part: Part; v: DesignValues; ctx?: (period
         // A plot without axes is a sparkline: a fixed, small height, so a tall card on a phone does not stretch small dips
         // into dramatic ones (#16). In a short card it gives way (min-h-0, clipped to its box) rather than drawing over the
         // comparison line under the widget (#568).
-        <div className={part.axes === "none" ? "mt-auto h-12 min-h-0 shrink overflow-hidden pt-2" : "min-h-0 flex-1"}>
+        <div className={part.axes === "none" ? "mt-auto h-[calc(3rem*var(--widget-scale,1))] min-h-0 shrink overflow-hidden pt-2" : "min-h-0 flex-1"}>
           <DesignPlot part={part} v={v} onPointContext={ctx} />
         </div>
       );
@@ -156,13 +156,14 @@ function PartView({ part, v, ctx }: { part: Part; v: DesignValues; ctx?: (period
   }
 }
 
-// The Theme's type scale: a design picks a step, never a size, colour or font of its own.
+// The Theme's type scale: a design picks a step, never a size, colour or font of its own. Each step grows with the
+// card (widget-text-*, #763); the headline also with the card's width, up to a cap that grows the same way.
 const STYLE: Record<TextStyle, string> = {
-  headline: "text-[length:clamp(var(--text-3xl),13cqw,5rem)] leading-none font-semibold tracking-[-0.03em]",
-  value: "-mt-1 text-xl font-semibold tracking-[-0.02em]",
-  caption: "mt-1 flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground",
-  body: "mb-1 text-xs text-muted-foreground",
-  note: "mt-0.5 text-xs text-muted-foreground",
+  headline: "text-[length:clamp(var(--text-3xl),13cqw,calc(5rem*var(--widget-scale,1)))] leading-none font-semibold tracking-[-0.03em]",
+  value: "widget-text-xl -mt-1 font-semibold tracking-[-0.02em]",
+  caption: "widget-text-xs mt-1 flex flex-wrap items-center gap-[0.5em] text-muted-foreground",
+  body: "widget-text-xs mb-1 text-muted-foreground",
+  note: "widget-text-xs mt-0.5 text-muted-foreground",
 };
 
 function TextView({ style, pieces, v }: { style?: TextStyle; pieces: Piece[]; v: DesignValues }) {
@@ -240,10 +241,11 @@ function recipeText(step: string, v: DesignValues): string | null {
 }
 
 function Empty({ children }: { children: ReactNode }) {
-  return <div className="flex h-full items-center justify-center p-4 text-center text-xs text-muted-foreground">{children}</div>;
+  return <div className="widget-text-xs flex h-full items-center justify-center p-4 text-center text-muted-foreground">{children}</div>;
 }
 
-/** Semicircle gauge: the target band in green, the needle at the latest value. */
+/** Semicircle gauge: the target band in green, the needle at the latest value. It fills the space its card leaves it,
+ * keeping its shape, from a small Widget to a presented one (#763); never smaller than 4rem high. */
 function GaugeMark({ v }: { v: DesignValues }) {
   const { m, last } = v;
   const value = last?.value;
@@ -262,12 +264,14 @@ function GaugeMark({ v }: { v: DesignValues }) {
   const ok = value !== undefined && (m.target_min === null || value >= m.target_min) && (m.target_max === null || value <= m.target_max);
   const [nx, ny] = pt(value === undefined ? 0 : t(value), 40);
   return (
-    <svg viewBox="0 0 120 68" className="w-full max-w-56" role="img" aria-label={`${m.name} ${formatValue(m, value, v.data.numberStyle)} against target`}>
+    <div className="relative min-h-16 w-full flex-1">
+    <svg viewBox="0 0 120 68" className="absolute inset-0 size-full" role="img" aria-label={`${m.name} ${formatValue(m, value, v.data.numberStyle)} against target`}>
       <path d={arc(0, 1, 46)} stroke="var(--color-paper-3)" strokeWidth={10} fill="none" />
       <path d={arc(tMin, tMax, 46)} stroke="var(--color-success)" strokeOpacity={0.45} strokeWidth={10} fill="none" />
       {value !== undefined && <line x1={60} y1={60} x2={nx} y2={ny} stroke={ok ? "var(--color-ink)" : "var(--color-error)"} strokeWidth={2.5} strokeLinecap="round" />}
       <circle cx={60} cy={60} r={3.5} fill="var(--color-ink)" />
     </svg>
+    </div>
   );
 }
 
@@ -275,12 +279,12 @@ function ValueRows({ v, limit, ctx }: { v: DesignValues; limit: number; ctx?: (p
   const { m, data } = v;
   const rows = v.all.slice(-limit).reverse();
   return (
-    <table className="w-full text-sm">
+    <table className="widget-text-sm w-full">
       <tbody>
         {rows.map((r) => (
           <tr key={r.period} className="border-b border-border last:border-0" onContextMenu={ctx ? () => ctx(r.period) : undefined}>
-            <td className="py-1.5 text-muted-foreground"><span className="flex items-center gap-1" title={r.toDate || isPartial(r) ? v.name(r) : undefined}>{v.name(r, true)}<ApprovalMark data={data} metricId={m.id} period={r.period} through={v.combined ? r.through : undefined} short /></span></td>
-            <td className={cn("fig py-1.5 text-right", health(v.goal(r), r.value) === "bad" && "text-destructive")}>{formatValue(m, r.value, data.numberStyle)}</td>
+            <td className="py-[0.43em] text-muted-foreground"><span className="flex items-center gap-1" title={r.toDate || isPartial(r) ? v.name(r) : undefined}>{v.name(r, true)}<ApprovalMark data={data} metricId={m.id} period={r.period} through={v.combined ? r.through : undefined} short /></span></td>
+            <td className={cn("fig py-[0.43em] text-right", health(v.goal(r), r.value) === "bad" && "text-destructive")}>{formatValue(m, r.value, data.numberStyle)}</td>
           </tr>
         ))}
       </tbody>
@@ -292,7 +296,7 @@ function ValueRows({ v, limit, ctx }: { v: DesignValues; limit: number; ctx?: (p
 function NotCombined({ reasons }: { reasons: string[] }) {
   const unique = [...new Set(reasons)];
   if (!unique.length) return null;
-  return <ul className="mt-1 space-y-0.5 text-xs text-muted-foreground">{unique.map((r) => <li key={r}>{r}</li>)}</ul>;
+  return <ul className="widget-text-xs mt-1 space-y-0.5 text-muted-foreground">{unique.map((r) => <li key={r}>{r}</li>)}</ul>;
 }
 
 const leftOutReasons = (v: DesignValues) => (v.drivers?.leftOut ?? []).map((l) => (l.why === "not-combined" ? l.reason : `${l.metric.name}: ${l.reason}`));
@@ -304,7 +308,7 @@ function MatrixRows({ v }: { v: DesignValues }) {
   // Each pair on its common period: the longer of the two, the shorter combined by its Aggregation.
   return (
     <div className="h-full overflow-auto">
-      <table className="text-xs">
+      <table className="widget-text-xs">
         <thead>
           <tr>
             <th />
@@ -321,7 +325,7 @@ function MatrixRows({ v }: { v: DesignValues }) {
                 const title = a.id === b.id ? undefined : !c ? undefined : c.ok ? [`r = ${formatNumber(c.r, 2, ns)}`, basisLabel(c), comparedBy(c) ?? `over ${periodCountLabel(c.period, c.n)}`].join(", ") : c.reason;
                 const bg = r === null ? "var(--color-paper-2)" : r >= 0 ? `color-mix(in oklch, var(--color-data) ${Math.abs(r) * 55}%, var(--color-cotton))` : `color-mix(in oklch, var(--color-error) ${Math.abs(r) * 55}%, var(--color-cotton))`;
                 return (
-                  <td key={b.id} title={title} className={cn("fig size-11 text-center text-xs", r !== null && Math.abs(r) > 0.6 && "text-[var(--color-board-type)]")} style={{ background: bg }}>
+                  <td key={b.id} title={title} className={cn("fig size-[calc(2.75rem*var(--widget-scale,1))] text-center", r !== null && Math.abs(r) > 0.6 && "text-[var(--color-board-type)]")} style={{ background: bg }}>
                     {r === null ? "–" : formatNumber(r, 2, ns)}
                   </td>
                 );
@@ -351,7 +355,7 @@ function BasisButton({ v }: { v: DesignValues }) {
 function BasisNote({ v, results }: { v: DesignValues; results: Extract<Correlation, { ok: true }>[] }) {
   const words = [...new Set(results.map((r) => basisLabel(r)))];
   return (
-    <div className="mt-1 text-xs text-muted-foreground">
+    <div className="widget-text-xs mt-1 text-muted-foreground">
       {words.length > 0 && <p>{words.length === 1 ? words[0] : "Compared by change where both grow, by value otherwise"}.</p>}
       <details>
         <summary className="cursor-pointer">Show the numbers</summary>
@@ -367,16 +371,16 @@ function DriverRows({ v }: { v: DesignValues }) {
     <>
     <ul className="space-y-1">
       {(v.drivers?.ranked ?? []).filter((_, i) => v.driversTake?.rows[i].takeaway.kind !== "refusal").map(({ metric: o, result: res }) => (
-        <li key={o.id} title={[basisLabel(res), comparedBy(res)].filter(Boolean).join(", ")} className="grid grid-cols-[minmax(0,8rem)_1fr_3rem] items-center gap-2 text-xs">
+        <li key={o.id} title={[basisLabel(res), comparedBy(res)].filter(Boolean).join(", ")} className="widget-text-xs grid grid-cols-[minmax(0,10.67em)_1fr_4em] items-center gap-[0.67em]">
           <span className="truncate">{o.name}{res.combined && <span className="text-muted-foreground"> · by {periodWord(res.period)}</span>}</span>
-          <span className="h-2 rounded-full bg-[var(--color-paper-3)]">
-            <span className="block h-2 rounded-full" style={{ width: `${Math.abs(res.r) * 100}%`, background: res.r >= 0 ? "var(--color-data)" : "var(--color-error)" }} />
+          <span className="h-[0.67em] rounded-full bg-[var(--color-paper-3)]">
+            <span className="block h-[0.67em] rounded-full" style={{ width: `${Math.abs(res.r) * 100}%`, background: res.r >= 0 ? "var(--color-data)" : "var(--color-error)" }} />
           </span>
           <span className="fig text-right">{formatNumber(res.r, 2, ns)}</span>
         </li>
       ))}
     </ul>
-    {(v.driversTake?.rows ?? []).filter((r) => r.takeaway.kind === "refusal").map((r) => <p key={r.metric.id} className="mt-1 text-xs text-muted-foreground">{r.metric.name}: {r.takeaway.refusal}</p>)}
+    {(v.driversTake?.rows ?? []).filter((r) => r.takeaway.kind === "refusal").map((r) => <p key={r.metric.id} className="widget-text-xs mt-1 text-muted-foreground">{r.metric.name}: {r.takeaway.refusal}</p>)}
     {v.driversTake && <TakeawayView takeaway={v.driversTake}><BasisButton v={v} /></TakeawayView>}
     </>
   );
