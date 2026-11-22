@@ -72,6 +72,8 @@ setInterval(() => {
   // turn with nothing to do is a few counts, and without ZIFFR_SECRETS_KEY it only answers that it waits.
   if (now.getUTCMinutes() % 5 === 2) void call("workspace-keys");
   if (now.getUTCMinutes() === 0) void call("workflows");
+  // Heads-ups (spec 0041): every hour, ten past; a Workspace is scanned at most every six hours, so most calls are a few counts.
+  if (now.getUTCMinutes() === 10) void call("heads-ups");
   if (DEMO_RESET && now.getUTCHours() === 3 && now.getUTCMinutes() === 30) void call("demo-reset", true);
   if (TRIAL_CLEANUP && now.getUTCMinutes() === 20) void call("trial-cleanup", true);
   // Unused Workspaces (spec 0029): daily at 04:10 UTC; it does nothing unless ZIFFR_DELETE_UNUSED_AFTER_DAYS is set.
@@ -88,4 +90,4 @@ setInterval(() => {
   if (now.getUTCHours() === 2 && now.getUTCMinutes() === 40) void call("retention");
 }, 15_000);
 writeFileSync(ALIVE, "");
-console.log(`Ziffr clock: calling ${APP} (Workflows hourly, deliveries and the Workspace Keys' re-encryption every five minutes${DEMO_RESET ? ", the demo's seed nightly at 03:30 UTC where it is offered" : ""}${TRIAL_CLEANUP ? ", trials hourly where they are offered" : ""}, unused Workspaces daily, Retention daily at 02:40 UTC${USAGE_FEED ? ", the Usage Feed daily at 05:00 UTC" : ""}).`);
+console.log(`Ziffr clock: calling ${APP} (Workflows and Heads-ups hourly, deliveries and the Workspace Keys' re-encryption every five minutes${DEMO_RESET ? ", the demo's seed nightly at 03:30 UTC where it is offered" : ""}${TRIAL_CLEANUP ? ", trials hourly where they are offered" : ""}, unused Workspaces daily, Retention daily at 02:40 UTC${USAGE_FEED ? ", the Usage Feed daily at 05:00 UTC" : ""}).`);
