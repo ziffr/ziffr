@@ -194,6 +194,7 @@ export async function findMetrics(actor: Actor | KeyActor, query: unknown): Prom
   if (!q.all.length) return [];
   const visible = await visibleMetricIds(ws, actor.personId, metrics);
   // A key sees what its creator sees (the same personId as above); tagSight reads nothing else of the actor.
+  // If keys ever get limits narrower than their creator's sight, they must be applied here, where the key becomes a plain Actor.
   const { namesByMetric } = await tagSight({ personId: actor.personId, workspaceId: actor.workspaceId, role: actor.role });
   return resultsFor(metrics.filter((m) => visible.has(m.id)), q, yearStart, now, namesByMetric).flatMap((r): Found[] =>
     r.kind === "period" ? [{ slug: r.slug, name: r.name, archived: r.archived, period: r.period, period_label: r.label }]

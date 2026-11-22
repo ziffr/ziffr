@@ -223,4 +223,16 @@ describe("search for Workflows, people, Groups and forms (ticket #530)", () => {
     expect(await findMetrics(key(w.actor(ben, "member")), "salaries")).toEqual([]);
     expect((await findMetrics(key(w.actor(sara)), "revenue")).every((f) => f.matched_by === undefined)).toBe(true);
   });
+
+  it("shows a Tag in the spelling it was first written with, even when a Metric the person cannot see set it (accepted, spec 0038)", async () => {
+    const { w, sara } = await setup();
+    const ben = await w.person("member");
+    const hidden = await w.metric(sara, { name: "Hidden" });
+    const shown = await w.metric(sara, { name: "Shown" });
+    await addMetricTags(w.actor(sara), hidden.id, ["ACME Merger"]);
+    await addMetricTags(w.actor(sara), shown.id, ["acme merger"]);
+    await share(w, "metric", shown.id, ben);
+    // Ben learns how the word was first typed, never that the hidden Metric exists: the count is his own.
+    expect((await search(w.actor(ben, "member"), "acme merger"))[0]).toEqual({ kind: "tag", name: "ACME Merger", metrics: 1 });
+  });
 });
