@@ -311,6 +311,14 @@ _Avoid_: Stats, model, insight
 The result of an Analysis as Ziffr says it: one sentence in the Metrics' own words and units, a strength in four words (strong, moderate, weak, "can't tell from chance"), what it was compared on, and one footer line of its kind ("This shows what has gone together, not what caused what." for a link between Metrics, "This carries the past forward; it is not a promise." for a forecast) Where the data does not suit the Method it carries one plain line above the sentence (a caution; a result with one is never strong) or, with too little data, is a refusal in words with no number. **Show the numbers** opens the numbers behind it. Every place a result is shown writes the same Takeaway. A forecast's Takeaway says where the Metric is expected to be with a "likely between" range (an 80 % range), with a Target how likely it is to be reached (in tenths), which Method worked it out and how its range for the next period would have held on the periods already known (its track record).
 _Avoid_: Answer (an Answer is what someone replies to a Prompt), insight, verdict
 
+**Likely between**:
+The range a Takeaway gives for a number that has doubt: it holds the true number about four times in five (an 80 % range), and is worked out by the Method, never as a statistical level a person must choose. A number outside what its driver has been has no range, only the number and "treat it as a guess".
+_Avoid_: Confidence interval, margin of error, error bars
+
+**Driver**:
+A Metric that moved with another in an Analysis (the Metric it is compared with is the target). A fit says what each Driver's share of the movement was and what an effect has been "with the others held the same"; Drivers that move so closely that they cannot be told apart are "treated as one".
+_Avoid_: Cause, factor, predictor, independent variable
+
 **Analysis Recipe**:
 An Analysis written as steps of Ziffr's verified functions over the Metrics in its Slots. It holds no code, so every number it gives is verified.
 _Avoid_: Script, model, custom analysis, formula
@@ -320,7 +328,7 @@ The period two Metrics are compared on in an Analysis: the longer of their own p
 _Avoid_: Shared grain, joint period
 
 **Recipe**:
-A ready-made analysis setup that runs with one click, e.g. "What drives Cost?"
+A ready-made analysis setup that runs with one click, e.g. "What drives Cost?", "What moves Revenue?" or "What does Revenue need?"
 _Avoid_: Preset analysis, template
 
 ### Decks

@@ -35,5 +35,8 @@
   "src/methods/track-record.ts",
   "src/methods/reach-chance.ts",
   "src/methods/forecast-choice.ts",
-  "src/takeaways/forecast.ts"
+  "src/takeaways/forecast.ts",
+  "src/methods/distributions.ts",
+  "src/methods/fit.ts",
+  "src/takeaways/fit-takeaway.ts"
 ]

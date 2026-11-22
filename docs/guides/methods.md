@@ -89,6 +89,93 @@ Function: `backtest`. **What it answers.** How often would this forecast have be
 
 Function: `reachChance`. **What it answers.** How likely is the forecast to land where the Target wants it? The share of a normal curve around the forecast value, with its spread, between the Target's two ends (at least the lower end where higher is better, at most the upper where lower is better, both for closer to target). Shown in tenths ("about 7 in 10"), "under 1 in 20" below 5 % and "at least 19 in 20" from 95 %. **Don't use it when** you read it as the chance the Metric really gets there: it is as good as the track record says. A past that fitted with no miss at all gives exactly 1 or 0, and the Takeaway says the chance may be too sure. **Reference.** SciPy's `norm.cdf` and a 150-digit series, to a relative 1e-9.
 
+## Multiple fit (What moves B?)
+
+Functions: `fit`, `fitNumbers`, `fitBasis` and `importance` in `packages/core/src/methods/fit.ts`; the t quantile is `tQuantile` in `packages/core/src/methods/distributions.ts`; the Takeaway is `movesTakeaway` and the Recipe `whatMoves` in `packages/core/src/takeaways/fit-takeaway.ts`.
+
+**What it answers.** Which of several Metrics have gone with B, with the others held the same, and how much of what moved does each account for?
+
+**How it is worked out.** B and its drivers (1 to 6 other Metrics) are put on their Common Period. Where B and at least one driver have a clear trend, each is turned into its change from the period before ("growth removed"); otherwise the values are used. At most the latest 120 periods that all of them have are used, and a period any of them lacks is a gap that is counted and said, never filled. A straight line through all of them is fitted by least squares: the normal equations (sums about the means, their inverse, the effects, the sum of squared misses) are worked out on fractions of the values' text, so they are exact, and only the last step to a double, a square root and the t quantile are not. Each driver's effect is its change in B per one unit of the driver with the other drivers held the same, and its range is the effect plus and minus t times its standard error, t being the 90 % point of the t curve with n − k − 1 degrees of freedom: that is the 80 % range, called "likely between". Each driver's share of what the line explains is found by averaging, over every order in which the drivers can join, how much the explained share rises when that driver joins (LMG); the shares add up to exactly 1. The strength word is read from the driver's partial correlation (its link to B with the others held fixed) over n − k + 1 periods. Effects are said per a power of ten at or below the driver's own spread ("per 1,000 Visits").
+
+**Use it when.** Several Metrics may move B together and you want to know which matter most and by how much, with the others taken into account.
+
+**Don't use it when.**
+
+- You want to know what causes B: a fit only shows what has gone together, and the footer says so.
+- The history is short: a fit with k drivers needs 8 + 4k periods and at most one driver per 6 periods (and 6): Ziffr refuses and says how many it has and needs.
+- Two drivers move so closely that the line cannot tell them apart (variance inflation above 5, or exactly in step): Ziffr treats them as one, leaves out the one with the weaker link to B, and says so. Three or more that are exactly one refuse, naming them.
+- More drivers than the history can carry: Ziffr refuses and says how many can be weighed. The first pass that would choose among them by partial correlation is not built yet.
+- The link bends, the misses grow with the level, a few periods are far from the rest, the values are very uneven, or the link was different in the first half of the history: Ziffr gives the answer with a plain line above it, the effect without the far-off periods quoted, and never calls it strong.
+- A Metric has Aggregation none beside another period, or one is calculated from another: a refusal naming them.
+
+**Minimums and checks.** 8 + 4 per driver periods. Checks that apply: enough periods, enough that vary, gaps, mixed periods, far-off values, skew and ties (a caution), not a straight line, changing relationship, spread that grows, too many Metrics.
+
+**Worked example.** Twelve months, the Metric B = 2·x + (−1)^x for x = 1 to 12 and one driver x. With n = 12, Sxx = 143 and Sxy = 292, the effect is 292/143 = 2.04, the intercept 13 − 6.5 · 292/143 = −3/11, the sum of squared misses 608 − 292²/143 = 1680/143, and 5329/5434 = 98.1 % of what moved is explained. The typical miss is √(1680/1430) = 1.08, and with 10 degrees of freedom t = 1.372, so the effect is likely between 1.92 and 2.17 per unit.
+
+**Reference.** `packages/core/src/test/reference/fit.ts` works the same answer out another way: the design has a column of ones and no centring, the normal equations are solved by Cramer's rule with every determinant by Laplace expansion, the sum of squared misses is the sum of the squared residuals, every driver's LMG share is the mean over all k! orders, and the variance inflation and the partial link come from fits of their own. Effects, intercept, explained share, shares, inflation and partial links equal the exact fractions' nearest double (the partial link and the typical miss up to their final root); ranges agree to a relative 1e-9 with the reference's t quantile, which integrates the curve's density numerically. NumPy and SciPy fixtures (`fixtures/fit.py`, a test fails when the fixture is not from the script's current text) hold Anscombe's four data sets (intercept 3.0, effect 0.5, 66.7 % explained), a Longley-style set whose GNP and Population are nearly one Metric, an exact relation, and random sets with 1 to 6 drivers, to a relative 1e-9; the t quantile equals SciPy's `t.ppf` for 240 pairs of degrees of freedom and share. An exact linear relation gives its effects back exactly with a range of no width. A simulation of 800 series checks that the 80 % ranges hold the true effect and a new period's value about 80 % of the time.
+
+## Importance
+
+Function: `importance` in `packages/core/src/methods/fit.ts`.
+
+**What it answers.** Which drivers account for most of what moved B?
+
+**How it is worked out.** As the fit above, returning only each driver's share (LMG) and how much the drivers explain together. The explained share of every subset of the drivers is worked out exactly; a driver's share is the mean, over every order of adding the drivers, of the rise when it joins; the shares are divided by what is explained, so they add up to 1. For two drivers with explained shares a, b and a + b together (ab): the first's share is (a + (ab − b)) ÷ 2.
+
+**Use it when.** You want a ranking of drivers that does not depend on the order they are listed in.
+
+**Don't use it when.** As the fit; the shares are of what the line explains, not of B.
+
+**Minimums and checks.** As the fit.
+
+**Worked example.** One driver alone explains 50 % of B, another alone 30 %, and together 70 %. The first's LMG is (0.5 + (0.7 − 0.3)) ÷ 2 = 0.45 and the second's (0.3 + (0.7 − 0.5)) ÷ 2 = 0.25; together 0.70, so the shares of what is explained are 9/14 (64 %) and 5/14 (36 %).
+
+**Reference.** As the fit: the reference averages over all k! orders by listing them. A test checks the two-driver formula above on generated data.
+
+## Predict
+
+Function: `predict` in `packages/core/src/methods/fit.ts`; the Takeaway is `predictTakeaway`.
+
+**What it answers.** What is B likely to be if the drivers are these values?
+
+**How it is worked out.** The fit is worked out again exactly from its periods, then ŷ = ȳ + Σ b·(x − x̄) at the values given, exact. The 80 % range is for a single period, ŷ plus and minus t·σ·√(1 + h), with h = 1/n + (x − x̄)ᵀ·Sxx⁻¹·(x − x̄) the leverage of the values: it widens away from what the drivers have been. Where the fit compared changes, a driver value counts from its latest level and B from its latest level. A value outside what its driver has been gets no range, only the point, and the Takeaway says "treat it as a guess".
+
+**Use it when.** You want to read B off the line for values inside what the drivers have been.
+
+**Don't use it when.**
+
+- The values are outside what the drivers have been: the point is a guess and is said to be one.
+- The link looks curved: a straight-line reading is rough, and outside what was seen Ziffr refuses.
+- The values are not numbers, or the model is not one `fit` made: a refusal in words.
+
+**Minimums and checks.** As the fit; the lines of its checks that still hold for a value (gaps, a curve, spread that grows) are carried to the answer.
+
+**Worked example.** With the fit above (x from 1 to 12), x = 11 gives −3/11 + 11 · 292/143 = 22.19, and h = 1/12 + 4.5²/143 = 0.225, so the range is 22.19 plus and minus 1.372 · √(1680/1430 · 1.225) = 1.65: likely between 20.54 and 23.83. x = 13 is above the 12 seen: 26.27 as a point, no range.
+
+**Reference.** `referenceValue` and `referenceBandSquared` in `test/reference/fit.ts` take h from the cofactor inverse of the uncentred normal matrix with the intercept in the design; the value equals the nearest double of the exact fraction and the range agrees to a relative 1e-9 with the reference's t. SciPy fixtures hold a value and its range for each data set.
+
+## Needs (What does B need?)
+
+Function: `needs` in `packages/core/src/methods/fit.ts`; the Takeaway is `needsTakeaway` and the Recipe `whatNeeds`.
+
+**What it answers.** B has to reach a goal: what would one driver need to be, with the others at their latest values?
+
+**How it is worked out.** `predict` turned round for one driver: the value that gives the goal is exact, x̄ⱼ + (goal − ȳ − Σ of the others' b·(x − x̄)) ÷ bⱼ. Its range is the set of driver values whose range for a single period holds the goal; that is a quadratic in the driver value, bounded only where the driver's effect is clear (bⱼ² above t²σ²·(Sxx⁻¹)ⱼⱼ). Where it is not clear, or the value is outside what the driver has been, only the point is given and the Takeaway says "treat it as a guess". A goal more than 1,000 times the largest value B has had is not worked out. `predict` at the answer gives the goal.
+
+**Use it when.** You have a goal for B and want to know what to work on, and the driver's effect has been clear.
+
+**Don't use it when.**
+
+- The effect cannot be told from chance, or is exactly 0: only a point, or a refusal ("has not moved with it at all").
+- The value is higher or lower than the driver has ever been: the point is a guess, and with a curved link Ziffr refuses.
+- You expect the other drivers to change: they are held at their latest values unless you give others.
+
+**Minimums and checks.** As the fit.
+
+**Worked example.** With the fit above, B = 20 needs x = (20 + 3/11) · 143/292 = 9.93, likely between 9.15 and 10.73, inside the 1 to 12 seen. B = 30 would need x = 14.8, above the 12 seen: the point only, "treat it as a guess".
+
+**Reference.** `referenceNeedsRange` finds the ends of the range by halving the band's edge on fractions, from the answer outwards, which shares no step with the quadratic; the ends agree to a relative 1e-9 of the range's size. SciPy's `brentq` on the band's edge gives the fixtures' ends to 1e-7. Generated goals check that `predict` at the answer gives the goal, and an exact relation gives a driver value back exactly.
+
 ## The suitability checks
 
 Every Method calls `checkSuitability(method, inputs)` in `packages/core/src/suitability.ts`. The thresholds are one table, `SUITABILITY`, tested one step either side. The checks, in the order they are run; a refusal ends the run, since thin data cannot be judged further:
@@ -108,6 +195,6 @@ Every Method calls `checkSuitability(method, inputs)` in `packages/core/src/suit
 | Spread that grows | rank correlation of level and size of miss above 1/2 | Ranges as a share of the level where positive, else a caution |
 | Too many Metrics for the history | more than one driver per 6 periods, or 6 | A first pass where the Method has one, else a refusal |
 
-A Method says which other Methods it can switch to (`canSwitchTo`); where it cannot, the check is a caution (or, for too many drivers, a refusal). A result with a caution is never shown as strong. Not yet used by a Method in the library: rank correlation, the multiple fit, the seasonal and the changing-level Methods; the checks are ready for them and tested on their own.
+A Method says which other Methods it can switch to (`canSwitchTo`); where it cannot, the check is a caution (or, for too many drivers, a refusal). A result with a caution is never shown as strong. Not yet used by a Method in the library: rank correlation, the seasonal and the changing-level Methods; the checks are ready for them and tested on their own.
 
 **Reference.** `packages/core/src/test/reference/suitability.ts` works each check out another way: medians and deviations by sorting, skewness from central moments, the runs test by listing every arrangement of the signs, Spearman's r from counted ranks, the step in level from the normal equations by Cramer's rule, the yearly pattern and gaps by walking the series. SciPy and NumPy fixtures (`fixtures/suitability.py`, a test fails when the fixture is not from the script's current text) hold skewness, median and deviation, Spearman's r, the runs tail and the step fit to 1e-9; the decisions themselves are exact. A simulation of 1,000 straight lines with normal noise and no gaps checks that the checks are not too eager.
