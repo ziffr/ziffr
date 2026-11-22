@@ -202,8 +202,7 @@ export default async function MetricPage({ params, searchParams }: { params: Pro
           archive={{ allowed: archivable && !demo, archived: Boolean(metric.archived_at) }} canDelete={isOwner && !demo}
         />
       </PageHeader>
-      <ArchivedNote archivedAt={metric.archived_at ?? null} />
-      <MetricTagChips actor={actor} metricId={metric.id} />
+      <ArchivedNote archivedAt={metric.archived_at ?? null} /><MetricTagChips actor={actor} metricId={metric.id} />
 
       <div className="mb-4 grid gap-3 sm:grid-cols-3">
         <Stat label={last ? `Latest, ${periodLabel(last.period, metric.period, yearStart)}` : "Latest"}>
