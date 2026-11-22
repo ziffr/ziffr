@@ -102,7 +102,7 @@ The **⋯** menu holds:
 
 1. **Name**: required, up to 120 characters.
 2. **Start from**: pick one choice. **Empty dashboard** means you add Widgets from the Pool yourself. Each **Dashboard Template** shows a **Preview** drawn with **Sample Data**, its description and how many Widgets it has; "from Ziffr" marks the built-in ones. The templates are described in [Templates](05-templates.md#dashboard-templates).
-3. When you pick a template, it asks for its **Slots**: one list per Slot, such as "Metric", reading **Choose a metric**. A Slot marked "one or more" shows tick boxes instead, for small multiples. One Slot can fill several Widgets, so you choose each Metric only once. If you can see the Metric the template was made with, it is chosen already.
+3. When you pick a template, it asks for its **Slots**: one list per Slot, such as "Metric", reading **Choose a metric**. A Slot marked "one or more" shows tick boxes instead, for small multiples. A "one or more" Slot that only a Widget of that kind uses can also be filled by choosing **All Metrics tagged …** instead of ticking Metrics; the new Widget then follows the Tag (see [Metrics by Tag](#metrics-by-tag)). One Slot can fill several Widgets, so you choose each Metric only once. If you can see the Metric the template was made with, it is chosen already.
 4. Press **Create dashboard**. Ziffr makes the dashboard and opens it.
 
 The new dashboard is yours and independent of the template: changing the template later does not change it. The lists offer only Metrics you can see. If you see none, the window says so. A new deck from a Deck Template asks for its Slots the same way (see [Decks and Themes](14-decks-and-themes.md#the-decks-page)).
@@ -241,6 +241,14 @@ Quarters, half-years and years start from the Workspace's fiscal year. **Change 
 
 The Widget looks the same wherever it goes: on a deck's slides and in a Free layout, through a View Link, in a Snapshot and in the PowerPoint export. A Snapshot keeps what the Widget showed when its period ended: in a Snapshot of October, the fourth quarter stays "to date, 1 of 3 months", however long after you open it. A frozen View Link counts to date from the day it was made. Through a View Link or in a Snapshot, a Derived Metric whose inputs are not on the dashboard is shown by its own period, with a note, since its quarters are computed from those inputs.
 
+### Metrics by Tag
+
+A Widget that takes a list of Metrics, such as the Correlation matrix, can show **all Metrics tagged** with one Tag instead of a list you pick. In edit mode open its menu, then **Metrics by Tag**, and choose **All Metrics tagged …**; the Tags offered are the ones you see on Metrics you may see. A Metric tagged later appears by itself, and a Tag that is renamed is followed. When two Tags are merged the Widget follows the one that is left. Below the Widget a line says "Metrics tagged …" and, when you see more Metrics than it draws (at most 50, by name), links "and N more" to the Metrics list filtered by that Tag.
+
+**Everyone sees only the tagged Metrics they may see themselves.** The dashboard's Share does not open a Metric through a Tag: if you tag a private Metric, the people the dashboard is shared with still do not see it, and two people may see different Metrics in the same Widget. Nobody is told how many they cannot see. Without any, the Widget says "No Metric tagged … that you can see." If the Tag was removed, the owner and Editors are told so, and the Widget keeps its place until its Tag is changed.
+
+**Keep today's Metrics, stop following the Tag** in the same menu turns the Widget back into a fixed list of the Metrics shown now. Adding such a Widget to a deck, taking a Snapshot and starting a deck from the dashboard record the Metrics you see at that moment, and do not follow the Tag afterwards. Copying the Widget to another dashboard keeps the Tag.
+
 ### Saving a widget
 
 **Save as Widget** asks for a name ("Save to your widgets as:") and keeps a copy in **My Widgets** in your Pool. From there you can drag it onto any dashboard or slide. Each placement is an independent copy.
@@ -368,9 +376,9 @@ To step through Widgets, use the arrow keys, the space bar, Page Up and Page Dow
 | --- | --- |
 | **Name** | Required; starts with the dashboard's name. |
 | **What it is for** | One line, such as "The monthly numbers for one region". |
-| **Places to fill** | One Slot for each Metric, however many Widgets show it. "Now:" says which Metric it holds. Give each a name, such as "Revenue metric"; an empty one is called "Metric 1", "Metric 2" and so on. The whole Workspace reads these names, also people who cannot see the Metrics, so the fields start empty. |
+| **Places to fill** | One Slot for each Metric, however many Widgets show it; a Widget of all Metrics tagged X becomes one "one or more" Slot named after the Tag, since a template names no Tag. "Now:" says which Metric it holds. Give each a name, such as "Revenue metric"; an empty one is called "Metric 1", "Metric 2" and so on. The whole Workspace reads these names, also people who cannot see the Metrics, so the fields start empty. |
 
-Free layouts are left out, and the window lists them. Press **Save template**. Anyone in the Workspace can then pick it under **Start from** in the New dashboard window.
+A Widget whose Tag you cannot see is left out as well. Free layouts are left out, and the window lists them. Press **Save template**. Anyone in the Workspace can then pick it under **Start from** in the New dashboard window.
 
 ## Sharing
 
@@ -410,6 +418,8 @@ Open **View links…** in the **⋯** menu:
 The page a View Link opens is drawn in the dashboard's Theme and says whose numbers they are: a strip with the Theme's logo (or the Workspace's name) under a bar in its accent colour, and the Theme's footer line. A deck shows its logo and footer on every slide, as in the app. Only the Workspace's name goes along with what the link already showed. A logo larger than 256 KB or 512 pixels on a side is not drawn; the Workspace's name stands in its place.
 
 **Make link and copy it** makes the link and puts it on your clipboard. Below, every link of this dashboard is listed with its name, "Live numbers" or "Frozen numbers", and until when it works. **Copy** copies it again; **Revoke** ends it at once. Ended and revoked links are crossed out. **Show names** and **Hide names** switch the names of a link that is already made, which takes effect the next time it is opened; a link made before this option existed has names off.
+
+A dashboard with a Widget of all Metrics tagged X needs its list fixed first: the window says so and offers **Fix the list**, which turns each such Widget into a fixed list of the Metrics you see now, which then no longer follows the Tag. A link shows a list its maker chose, never what a Tag collects for each viewer. A link to a shown Snapshot needs no fixing.
 
 A live link shows only what the dashboard held when the link was made: Widgets added later, and Metrics added later, stay out. A Widget that draws a Metric the owner can no longer see is left out whole.
 

@@ -2,6 +2,7 @@
 // turning a widget, slide or dashboard into a template with its metrics left open, and filling a template's slots to
 // make it again. Pure.
 import { listOf, metricsInOrder } from "./placeholders";
+import { tagSourceId, takesTagSource } from "./tag-source";
 import type { AnchorRule, DashboardTemplateBody, DeckTemplateBody, WorkflowConfig, WorkflowTemplateBody, DashboardTemplateWidget, Metric, Slot, SlideBody, SlideShape, TemplateId, WidgetTemplate, Widget, WidgetSettings } from "./types";
 
 type W = Pick<Widget, "template" | "metric_ids" | "settings" | "title">;
@@ -58,8 +59,19 @@ function placeholderize(text: string | undefined, ms: Metric[]) {
 export type Choices = Record<string, AnchorRule | "drop">;
 
 /** Slots shared by everything in one template: the same metric (or list of metrics) is one slot. */
-type SlotCtx = { slots: Slot[]; slotIds: number[][] };
-const newCtx = (): SlotCtx => ({ slots: [], slotIds: [] });
+type SlotCtx = { slots: Slot[]; slotIds: number[][]; tagSlots: Map<string, number> };
+const newCtx = (): SlotCtx => ({ slots: [], slotIds: [], tagSlots: new Map() });
+/** The "one or more" Slot a Tag widget becomes, named after the Tag: a template names no Tag, since Tags belong to a Workspace (spec 0038). */
+function tagSlot(ctx: SlotCtx, tagId: string, name: string) {
+  let i = ctx.tagSlots.get(tagId);
+  if (i === undefined) {
+    ctx.slotIds.push([]);
+    ctx.slots.push({ label: name, multiple: true, exampleIds: [] });
+    i = ctx.slots.length - 1;
+    ctx.tagSlots.set(tagId, i);
+  }
+  return i;
+}
 function slotFor(ctx: SlotCtx, ids: number[]) {
   let i = ctx.slotIds.findIndex((x) => x.length === ids.length && x.every((v, j) => v === ids[j]));
   if (i < 0) {
@@ -70,12 +82,12 @@ function slotFor(ctx: SlotCtx, ids: number[]) {
   return i;
 }
 function nameSlots(ctx: SlotCtx, labels: string[]) {
-  ctx.slots.forEach((x, i) => (x.label = labels[i]?.trim() || (ctx.slots.length === 1 ? "Metric" : `Metric ${i + 1}`)));
+  ctx.slots.forEach((x, i) => (x.label = labels[i]?.trim() || x.label || (ctx.slots.length === 1 ? "Metric" : `Metric ${i + 1}`)));
   return ctx.slots;
 }
 
 /** One widget with its metrics turned into slots of ctx. Keys of choices carry the prefix of this widget. */
-function templatize(widget: W, metrics: Metric[], choices: Choices, ctx: SlotCtx, prefix = "") {
+function templatize(widget: W, metrics: Metric[], choices: Choices, ctx: SlotCtx, prefix = "", tagNames: ReadonlyMap<string, string> = new Map()) {
   const s = widget.settings;
   const ms = metricsInOrder(widget, metrics);
   const notices: string[] = [];
@@ -84,7 +96,8 @@ function templatize(widget: W, metrics: Metric[], choices: Choices, ctx: SlotCtx
   // A composed story's own metric only names it; its panels carry the metrics, so they make the slots.
   const panelIds = new Set((s.panels ?? []).flatMap((x) => x.metricIds));
   const fromPanels = widget.template === "story" && panelIds.size > 0 && widget.metric_ids.every((id) => panelIds.has(id));
-  const metricSlots = fromPanels ? [] : widget.metric_ids.map((id) => slotFor(ctx, [id]));
+  const tagId = tagSourceId(s);
+  const metricSlots = fromPanels ? [] : tagId ? [tagSlot(ctx, tagId, tagNames.get(tagId) ?? "Tagged Metrics")] : widget.metric_ids.map((id) => slotFor(ctx, [id]));
   const callouts = (s.callouts ?? []).flatMap((c, i) => {
     if (c.rule) return [{ ...c, text: p(c.text) ?? "" }];
     const choice = choices[`${prefix}callout:${i}`] ?? "drop";
@@ -138,10 +151,14 @@ export function toTemplate(widget: W, metrics: Metric[], choices: Choices, label
 }
 
 /** The widget a template makes once each slot has its metrics. */
-export function fromTemplate(t: Pick<WidgetTemplate, "view" | "body">, fills: number[][]): { template: TemplateId; metric_ids: number[]; settings: WidgetSettings; title: string | null } {
+export function fromTemplate(t: Pick<WidgetTemplate, "view" | "body">, fills: number[][], tagFills: (string | null)[] = []): { template: TemplateId; metric_ids: number[]; settings: WidgetSettings; title: string | null } {
   const s = t.body.settings;
   const own = t.body.metricSlots.flatMap((i) => fills[i] ?? []);
   const firstPanel = s.panels?.find((p) => p.slot !== undefined);
+  // A Slot filled by a Tag (spec 0038): the widget shows all Metrics tagged so, for each viewer's own sight, and keeps no list.
+  const tagged = t.body.metricSlots.length === 1 ? tagFills[t.body.metricSlots[0]] : undefined;
+  if (t.body.metricSlots.some((i) => tagFills[i]) && (!tagged || !takesTagSource({ template: t.view, settings: s }))) throw new Error("A Tag can fill only a list of Metrics that nothing else uses.");
+  if (tagged) return { template: t.view, metric_ids: [], settings: { ...s, tagSource: { id: tagged } }, title: t.body.title ?? null };
   return {
     template: t.view,
     metric_ids: own.length || !firstPanel ? own : (fills[firstPanel.slot!] ?? []).slice(0, 1),
@@ -154,7 +171,16 @@ export function fromTemplate(t: Pick<WidgetTemplate, "view" | "body">, fills: nu
 }
 
 /** Fills are valid when every slot has one metric, or at least one for a "one or more" slot. */
-export const fillsComplete = (slots: Slot[], fills: number[][]) => slots.every((s, i) => (fills[i]?.length ?? 0) >= 1 && (s.multiple || fills[i].length === 1));
+export const fillsComplete = (slots: Slot[], fills: number[][], tagFills: (string | null)[] = []) => slots.every((s, i) => (s.multiple && Boolean(tagFills[i])) || ((fills[i]?.length ?? 0) >= 1 && (s.multiple || fills[i].length === 1)));
+
+/** Which Slots of a Dashboard Template a Tag may fill ("All Metrics tagged…"): a "one or more" Slot that only widgets taking a
+ * Tag use, each as its one and only list, so the Slot becomes a Tag widget and nothing else changes. */
+export function tagFillable(slots: Slot[], body: DashboardTemplateBody): boolean[] {
+  return slots.map((s, i) => {
+    const users = body.widgets.filter((w) => w.metricSlots.includes(i) || (w.settings.panels ?? []).some((p) => p.slot === i));
+    return s.multiple && users.length > 0 && users.every((w) => w.metricSlots.length === 1 && w.metricSlots[0] === i && !(w.settings.panels ?? []).some((p) => p.slot !== undefined) && takesTagSource({ template: w.view, settings: w.settings }));
+  });
+}
 
 // Slide layouts: a whole slide saved as a template. Widgets on it share one set of slots; words in its
 // text boxes become placeholders and are filled in once, when a slide is made from the layout.
@@ -240,7 +266,7 @@ export const NOT_IN_DASHBOARD_TEMPLATES: TemplateId[] = ["canvas"];
 /** The Dashboard Template a dashboard makes: shared slots, each widget with slot numbers instead of Metrics, where
  * it sits, the widgets left out (by title or view) and what changed on the way. Every note tied to one period or row
  * is dropped, as a widget template does by default. */
-export function toDashboardTemplate(widgets: (W & Pick<Widget, "x" | "y" | "w" | "h">)[], metrics: Metric[], labels: string[] = []) {
+export function toDashboardTemplate(widgets: (W & Pick<Widget, "x" | "y" | "w" | "h">)[], metrics: Metric[], labels: string[] = [], tagNames: ReadonlyMap<string, string> = new Map()) {
   const ctx = newCtx();
   const notices: string[] = [];
   const leftOut: string[] = [];
@@ -248,7 +274,10 @@ export function toDashboardTemplate(widgets: (W & Pick<Widget, "x" | "y" | "w" |
   const ordered = [...widgets].sort((a, b) => a.y - b.y || a.x - b.x);
   ordered.forEach((w, i) => {
     if (NOT_IN_DASHBOARD_TEMPLATES.includes(w.template)) { leftOut.push(w.title || "A free layout"); return; }
-    const { notices: n, ...body } = templatize(w, metrics, {}, ctx, `w${i}:`);
+    // A Tag widget needs its Tag's name for its Slot; one the person cannot see is left out, as nothing of it may be read.
+    const tag = tagSourceId(w.settings);
+    if (tag && !tagNames.has(tag)) { leftOut.push(w.title || "A widget of a Tag"); return; }
+    const { notices: n, ...body } = templatize(w, metrics, {}, ctx, `w${i}:`, tagNames);
     notices.push(...n);
     out.push({ view: w.template, ...body, x: w.x, y: w.y, w: w.w, h: w.h });
   });
@@ -256,8 +285,8 @@ export function toDashboardTemplate(widgets: (W & Pick<Widget, "x" | "y" | "w" |
 }
 
 /** The widgets of a new dashboard from a Dashboard Template, once each slot has its Metrics. */
-export function fromDashboardTemplate(body: DashboardTemplateBody, fills: number[][]) {
-  return body.widgets.map((tw) => ({ ...fromTemplate({ view: tw.view, body: tw }, fills), x: tw.x, y: tw.y, w: tw.w, h: tw.h }));
+export function fromDashboardTemplate(body: DashboardTemplateBody, fills: number[][], tagFills: (string | null)[] = []) {
+  return body.widgets.map((tw) => ({ ...fromTemplate({ view: tw.view, body: tw }, fills, tagFills), x: tw.x, y: tw.y, w: tw.w, h: tw.h }));
 }
 
 /** The shapes of a new slide from a layout, with slots filled and its words filled in from today's data. */

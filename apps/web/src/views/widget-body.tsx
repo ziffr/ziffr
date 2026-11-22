@@ -31,11 +31,19 @@ export function widgetMetrics(widget: Pick<Widget, "metric_ids">, data: CanvasDa
   return widget.metric_ids.map((id) => data.metrics.find((m) => m.id === id)).filter((m): m is Metric => !!m);
 }
 
+/** What a Tag widget says when it has no Metric to draw: the same words whether the Tag has none, or only Metrics the viewer may not see. */
+function TagEmpty({ view }: { view?: Widget["settings"]["tagView"] }) {
+  const words = view?.removed ? "This Tag was removed. Pick another Tag for this widget." : view?.name ? `No Metric tagged ${view.name} that you can see.` : "No Metric with this Tag that you can see.";
+  return <div className="flex h-full items-center justify-center p-4 text-center text-xs text-muted-foreground">{words}</div>;
+}
+
 /** A widget's body, drawn by its View. */
 export function WidgetBody({ widget, data: live, onPointContext, onRowContext }: Props) {
   // A widget of a deck made from a Snapshot draws the values of that period only (spec 0013).
   const data = widget.settings.asOf ? dataAsOf(live, widget.settings.asOf) : live;
   const ms = widgetMetrics(widget, data);
+  // A widget of "all Metrics tagged X" with nothing this viewer may see says so, and nothing about what they may not (spec 0038).
+  if (widget.settings.tagSource && widget.metric_ids.length === 0) return <TagEmpty view={widget.settings.tagView} />;
   // A page sends only the series it draws; one placed or picked since is fetched, with a quiet placeholder meanwhile.
   const ready = useSeriesReady(widgetMetricIds(widget.metric_ids, widget.settings), data);
   if (!ready) return <div aria-busy="true" aria-label="Loading values" className="h-full min-h-16 w-full animate-pulse rounded-[var(--radius-input)] bg-muted/40" />;

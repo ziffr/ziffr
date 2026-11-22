@@ -8,7 +8,7 @@ import { Copy, Link2 } from "lucide-react";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { createViewLink, listViewLinks, revokeViewLink, setViewLinkNames, shownSnapshots } from "@/app/view-link-actions";
+import { createViewLink, fixListsForLink, listViewLinks, revokeViewLink, setViewLinkNames, shownSnapshots, tagListsToFix } from "@/app/view-link-actions";
 import { formatDate } from "@ziffr/core/format";
 
 type Link = Awaited<ReturnType<typeof listViewLinks>>[number];
@@ -35,6 +35,8 @@ export function ViewLinksDialog({ type, id, snapshot, onClose }: { type: "dashbo
   const [snapshots, setSnapshots] = useState<{ id: number; label: string }[]>(snapshot ? [snapshot] : []);
   const [shows, setShows] = useState<string>(snapshot ? String(snapshot.id) : "live");
   const [showNames, setShowNames] = useState(false);
+  // Widgets that show all Metrics with a Tag: a link shows a list its maker chose, so these are fixed first (spec 0038).
+  const [toFix, setToFix] = useState(0);
   const [pending, start] = useTransition();
   const load = () => listViewLinks(type, id).then(setLinks);
   const url = (token: string) => `${window.location.origin}/v/${token}`;
@@ -42,7 +44,7 @@ export function ViewLinksDialog({ type, id, snapshot, onClose }: { type: "dashbo
   const today = inDays(0);
   useEffect(() => {
     load();
-    if (type === "dashboard") shownSnapshots(id).then(setSnapshots).catch(() => {});
+    if (type === "dashboard") { shownSnapshots(id).then(setSnapshots).catch(() => {}); tagListsToFix(id).then(setToFix).catch(() => {}); }
   }, []); // eslint-disable-line react-hooks/exhaustive-deps -- once, when opened
   const input = () => (type === "dashboard" ? { label, expires, frozen: false, snapshotId: shows === "live" ? null : Number(shows), showNames } : { label, expires, frozen, showNames });
   return (
@@ -79,7 +81,13 @@ export function ViewLinksDialog({ type, id, snapshot, onClose }: { type: "dashbo
                 <input type="checkbox" checked={showNames} onChange={(e) => setShowNames(e.target.checked)} className="mt-0.5 size-4 accent-[var(--color-ink)]" />
                 <span>Show names<span className="block text-xs text-muted-foreground">Off by default: the link shows no one&rsquo;s name, only &ldquo;Someone&rdquo;. Tick it for an internal link.</span></span>
               </label>
-              <Button type="submit" disabled={pending}>Make link and copy it</Button>
+              {type === "dashboard" && shows === "live" && toFix > 0 && (
+                <div role="status" className="space-y-2 rounded-[var(--radius-input)] border border-input bg-muted/40 p-2.5 text-xs">
+                  <p>{toFix === 1 ? "A widget on this dashboard shows" : `${toFix} widgets on this dashboard show`} all Metrics with a Tag. A link shows a list you chose, so the list is fixed first: each such widget keeps the Metrics you see now and no longer follows the Tag.</p>
+                  <Button type="button" size="sm" variant="outline" disabled={pending} onClick={() => start(async () => { if (told(await fixListsForLink(id), "Not fixed")) return; setToFix(0); toast.success("The list is fixed"); })}>Fix the list</Button>
+                </div>
+              )}
+              <Button type="submit" disabled={pending || (type === "dashboard" && shows === "live" && toFix > 0)}>Make link and copy it</Button>
             </form>
             <ul className="mt-2 space-y-2 border-t border-border pt-3 text-sm">
               {!links ? <li className="text-muted-foreground">Loading…</li> : links.length === 0 ? <li className="text-muted-foreground">No links yet.</li> : links.map((l) => {

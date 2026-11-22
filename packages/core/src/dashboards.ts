@@ -3,7 +3,7 @@
 // saved widgets are their owner's, and every Metric a widget draws must be one the actor sees.
 import { db } from "./db";
 import { insertSealed, openOne, openRows, sealedPatch, sealRow } from "./sealed-columns";
-import { assertCan, Forbidden, type Actor } from "./actor";
+import { assertCan, Forbidden, Refused, type Actor } from "./actor";
 import { visibleDashboards, readableActions } from "./access";
 import { assertSeesMetrics } from "./sharing";
 import { fillsComplete, fromTemplate } from "./team-templates";
@@ -16,6 +16,8 @@ import { ensureBaseline, recordVersion } from "./versions";
 import { assertNoOutsideContent } from "./deck-content";
 import { firstFreePlace } from "./free-place";
 import { isDisplayPeriod, SHOWN_BY } from "./display-periods";
+import { checkTagSource } from "./tag-widgets";
+import { tagSourceId, takesTagSource } from "./tag-source";
 import type { TeamTemplate, TemplateId, Widget, WidgetSettings, WidgetTemplate } from "./types";
 
 /** What can be dropped onto a dashboard or saved to the Pool. */
@@ -43,6 +45,8 @@ function settings(s: unknown): WidgetSettings {
   // a file brought in (spec 0024), at every depth.
   if (v.design !== undefined) v.design = checkedDesignSetting(v.design);
   assertSettingsDesigns(v);
+  // What drawing adds for one viewer (spec 0038) is never kept.
+  delete v.tagView;
   return v;
 }
 
@@ -104,12 +108,16 @@ export async function specFrom(actor: Actor, source: DropSource) {
     // A copy may only draw Metrics the actor sees, even from a dashboard shared with them.
     const s = settings(w.settings);
     await assertSeesMetrics(actor, widgetMetricIds(w.metric_ids ?? [], s));
+    // A widget that shows a Tag stays one in the copy, for a Tag the copier sees too.
+    if (await checkTagSource(actor, w.template, s)) return { template: w.template, metric_ids: [], settings: s, title: w.title, w: w.w, h: w.h };
     return { template: w.template, metric_ids: w.metric_ids, settings: s, title: w.title, w: w.w, h: w.h };
   }
   if (source?.type === "template") return fromTeamTemplate(actor, Number(source.id), source.fills);
   if (source?.type !== "spec" || !(source.template in TEMPLATES)) throw new Forbidden();
-  const metricIds = ids(source.metricIds);
+  let metricIds = ids(source.metricIds);
   const s = fromBrowser(source.settings ?? TEMPLATES[source.template].settings);
+  // "All Metrics tagged X" (spec 0038) replaces the list: nothing is stored of the Metrics the person sees now.
+  if (await checkTagSource(actor, source.template, s)) metricIds = [];
   // A widget of a Workspace's View Design draws the design as the Workspace keeps it, never one the browser made up.
   if (source.template === "design") s.design = await allowedDesign(actor, s.design);
   else delete s.design;
@@ -191,18 +199,25 @@ export async function updateWidget(actor: Actor, id: number, patch: { template?:
   if (newSettings && template === "design") newSettings.design = await allowedDesign(actor, newSettings.design, cur.settings?.design);
   else if (newSettings) delete newSettings.design;
   if (patch.template === "design" && !(newSettings?.design ?? cur.settings?.design)) throw new Forbidden();
-  if (metricIds || newSettings) await assertSeesMetrics(actor, widgetMetricIds(metricIds ?? cur.metric_ids ?? [], newSettings));
+  // A Tag widget (spec 0038) keeps no list; one that stops being a Tag widget needs the list to show instead.
+  let metricIdsNow = metricIds;
+  const tagged = newSettings ? await checkTagSource(actor, template, newSettings) : tagSourceId(cur.settings) !== null && !patch.template;
+  if (newSettings && !tagged && tagSourceId(cur.settings) && !metricIds?.length) throw new Refused("Pick the Metrics to show instead of the Tag.");
+  if (patch.template && !newSettings && tagSourceId(cur.settings) && !takesTagSource({ template, settings: cur.settings })) throw new Refused("A widget that shows a Tag changes only to a view of a list of Metrics. Fix its list first.");
+  if (tagged || (patch.template && !newSettings && tagSourceId(cur.settings))) metricIdsNow = [];
+  if (metricIdsNow || newSettings) await assertSeesMetrics(actor, widgetMetricIds(metricIdsNow ?? cur.metric_ids ?? [], newSettings));
   await ensureBaseline("widget", id, actor.personId);
   if (cur.dashboard_id) await ensureBaseline("dashboard", cur.dashboard_id, actor.personId);
   const update: Record<string, unknown> = {};
   if (patch.title !== undefined) update.title = title(patch.title);
-  if (metricIds) update.metric_ids = metricIds;
+  if (metricIdsNow) update.metric_ids = metricIdsNow;
   if (newSettings) update.settings = newSettings;
   if (patch.template) {
     update.template = patch.template;
     // A widget shown by quarter stays so in another view that draws a series (spec 0018).
     const keep = SHOWN_BY.includes(patch.template) && cur.settings?.display ? { display: cur.settings.display } : {};
-    update.settings = { ...TEMPLATES[patch.template].settings, ...keep, ...(newSettings ?? {}) };
+    const tag = !newSettings && tagSourceId(cur.settings) ? { tagSource: cur.settings.tagSource } : {};
+    update.settings = { ...TEMPLATES[patch.template].settings, ...keep, ...tag, ...(newSettings ?? {}) };
     if (patch.template === "design") update.settings = { ...designSettings((newSettings?.design ?? cur.settings.design)!.body), ...(newSettings ?? {}), design: newSettings?.design ?? cur.settings.design };
     // A free layout starts from the widget as it is, placed on the artboard when the editor first opens.
     // A widget that already is a free layout stays as it is: starting again from itself would nest a seed in a seed, each

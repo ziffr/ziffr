@@ -10,7 +10,7 @@ import { toast } from "sonner";
 import { shown, unwrap } from "@/lib/action-error";
 import { told } from "@/lib/action-toast";
 import { format } from "date-fns";
-import { Archive, CalendarRange, Check, Copy, FileDown, GitBranch, LayoutTemplate, PencilLine, Presentation, Scale, BookmarkPlus, ExternalLink, GripVertical, History, LayoutDashboard, ListTodo, MessageCircleQuestion, MessageSquare, MoreHorizontal, Palette, PanelRightOpen, Trash2 } from "lucide-react";
+import { Archive, Tags, CalendarRange, Check, Copy, FileDown, GitBranch, LayoutTemplate, PencilLine, Presentation, Scale, BookmarkPlus, ExternalLink, GripVertical, History, LayoutDashboard, ListTodo, MessageCircleQuestion, MessageSquare, MoreHorizontal, Palette, PanelRightOpen, Trash2 } from "lucide-react";
 import { ContextMenu, ContextMenuContent, ContextMenuItem, ContextMenuSeparator, ContextMenuSub, ContextMenuSubContent, ContextMenuSubTrigger, ContextMenuTrigger, ContextMenuCheckboxItem, ContextMenuRadioGroup, ContextMenuRadioItem } from "@/components/ui/context-menu";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuSub, DropdownMenuSubContent, DropdownMenuSubTrigger, DropdownMenuTrigger, DropdownMenuCheckboxItem, DropdownMenuRadioGroup, DropdownMenuRadioItem } from "@/components/ui/dropdown-menu";
 import { Popover, PopoverContent } from "@/components/ui/popover";
@@ -42,6 +42,7 @@ import { designOf, duplicateAsDesign } from "@ziffr/core/design-files";
 import { downloadDesign } from "@/lib/design-download";
 import { Preview, TemplatePreview } from "./preview";
 import { periodLabel } from "@ziffr/core/periods";
+import { takesTagSource, withoutTagSource } from "@ziffr/core/tag-source";
 import { combines, DISPLAY_LABEL, displayPeriodsFor, NOT_COMBINED, SHOWN_BY, type DisplayPeriod } from "@ziffr/core/display-periods";
 
 export type { FrameWidget } from "./read-only-frame";
@@ -216,6 +217,25 @@ function InteractiveFrame({ widget, data, targets, editable = false, className, 
           </K.SubContent>
         </K.Sub>
       )}
+      {/* A list of Metrics may be "all Metrics tagged X" (spec 0038): each viewer sees the tagged Metrics they may see themselves. */}
+      {editable && widget.id && takesTagSource(widget) && (data.tags?.length ?? 0) > 0 && (
+        <K.Sub>
+          <K.SubTrigger><Tags /> Metrics by Tag</K.SubTrigger>
+          <K.SubContent className="max-h-72 max-w-72 overflow-y-auto">
+            {data.tags!.map((t) => (
+              <K.Item key={t.id} onClick={() => change({ settings: { ...widget.settings, tagSource: { id: t.id } }, metricIds: [] })}>
+                <Check aria-hidden className={widget.settings.tagSource?.id === t.id ? "" : "invisible"} /> All Metrics tagged {t.name}
+              </K.Item>
+            ))}
+            {widget.settings.tagSource && widget.metric_ids.length > 0 && (
+              <>
+                <K.Separator />
+                <K.Item onClick={() => change({ settings: withoutTagSource(widget.settings), metricIds: widget.metric_ids })}>Keep today&apos;s Metrics, stop following the Tag</K.Item>
+              </>
+            )}
+          </K.SubContent>
+        </K.Sub>
+      )}
       {isStory && editable && widget.id && <K.Item onClick={() => openPanel("story")}><PencilLine /> Edit Finding…</K.Item>}
       {isLayout && editable && widget.id && <K.Item onClick={() => setTimeout(() => setLayoutOpen(true), 0)}><PencilLine /> Edit layout…</K.Item>}
       {widget.id && <K.Item onClick={() => openPanel("versions")}><GitBranch /> Versions…</K.Item>}
@@ -284,6 +304,13 @@ function InteractiveFrame({ widget, data, targets, editable = false, className, 
             <div className="@container min-h-0 flex-1">
             <WidgetBody widget={widget} data={data} onPointContext={(_, p) => setPeriod(p)} onRowContext={(_, label, p) => { setPeriod(p); setRow(label); }} />
             </div>
+            {/* "All Metrics tagged X": what it follows and, when the viewer sees more than it draws, where to see them all. */}
+            {widget.settings.tagView?.name && (
+              <p className="flex flex-wrap items-center gap-x-2 text-xs text-muted-foreground">
+                <span>Metrics tagged {widget.settings.tagView.name}</span>
+                {widget.settings.tagView.more > 0 && <Link href={`/metrics?tag=${encodeURIComponent(widget.settings.tagView.name)}`} className="underline underline-offset-2">and {widget.settings.tagView.more} more</Link>}
+              </p>
+            )}
             {m && templateOf(widget).kind === "metric" && <CompareStrip metric={m} data={data} keys={widget.settings.compare ?? DEFAULT_COMPARE} full={widget.settings.fullPeriods} />}
           </div>
         </ContextMenuTrigger>
