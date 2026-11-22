@@ -6,6 +6,7 @@ import { assertCan, Forbidden, type Actor } from "./actor";
 import { recordVersion, type VersionType } from "./versions";
 import { audit } from "./audit-log";
 import { queueWebhookEvent } from "./webhook-events";
+import { personalWebhooksOf, recordPersonalWebhooksEnded } from "./personal-webhooks";
 
 /** What a leaving member owns in the workspace, by kind, for the handover dialog and the version history. */
 export async function ownedBy(actor: Actor, personId: string) {
@@ -29,6 +30,8 @@ export async function removeMember(actor: Actor, personId: string, successorId: 
   const { data: successor } = await db().from("memberships").select("role, profiles(name)").eq("workspace_id", ws).eq("user_id", successorId).maybeSingle();
   if (!successor || successor.role === "guest" || successorId === personId) throw new Error("Pick another member, not a Guest, to take over.");
   const owned = await ownedBy(actor, personId);
+  // Their Personal Webhooks end with their place here (the database removes them with the membership); noted first for the Audit Log.
+  const endingWebhooks = await personalWebhooksOf(ws, personId);
   // The Actions waiting on them: noted before the handover moves them to the successor, who is then named in `action.updated`.
   const { data: waiting } = await db().from("actions").select("id, metric_id, period_start").eq("workspace_id", ws).eq("assignee_id", personId).in("status", ["open", "answered"]);
   // The acting role goes along: the database checks it in the same step, so a promotion in between changes nothing.
@@ -46,6 +49,7 @@ export async function removeMember(actor: Actor, personId: string, successorId: 
   for (const [type, ids] of Object.entries(owned) as [VersionType, number[]][]) {
     for (const id of ids) await recordVersion(type, id, actor.personId, { message: `Handed over from ${from} to ${to}`, always: true });
   }
+  await recordPersonalWebhooksEnded(ws, personId, endingWebhooks, "left", actor.personId);
   await audit(actor, { kind: "member.removed", object: { type: "person", id: personId, name: from }, details: {
     role: leaving.role as string, successor_id: successorId, successor_name: to, handed_over: Object.values(owned).reduce((n, ids) => n + ids.length, 0),
   } });

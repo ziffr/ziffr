@@ -58,7 +58,8 @@ export async function authenticateWebhookRequest(webhookId: string, req: Inbound
   // `no_such`: no Webhook that is on has this id. The route answers it 404 like the rest; it only keeps the gate from counting made-up ids against a real Webhook.
   const noSuch = { ok: false, why: "no_such" } as const;
   if (!UUID.test(webhookId)) return noSuch;
-  const { data } = await db().from("webhooks").select("id, workspace_id, name, url, secret, secret_previous, secret_previous_until, disabled_at").eq("id", webhookId.toLowerCase()).maybeSingle();
+  const { data } = await db().from("webhooks").select("id, workspace_id, name, url, secret, secret_previous, secret_previous_until, disabled_at").eq("id", webhookId.toLowerCase()).is("owner_id", null).maybeSingle();
+  // A Personal Webhook has no way back until spec 0037, ticket 3: it answers like an id that is not there.
   if (!data || data.disabled_at) return noSuch;
   const ws = data.workspace_id as string;
   const [hook] = await openRows("webhooks", ws, [data as Record<string, unknown>]);

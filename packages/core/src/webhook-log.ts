@@ -46,7 +46,7 @@ async function assertMaySend(actor: Actor): Promise<void> {
 /** The Webhook's id if it is one of this Workspace's, else the refusal that does not say whether it exists. */
 async function ownWebhook(actor: Actor, id: unknown): Promise<{ id: string; name: string; disabled: boolean }> {
   if (typeof id !== "string" || !UUID.test(id)) throw new Forbidden(NOT_FOUND);
-  const { data } = await db().from("webhooks").select("id, name, disabled_at").eq("id", id.toLowerCase()).eq("workspace_id", actor.workspaceId).maybeSingle();
+  const { data } = await db().from("webhooks").select("id, name, disabled_at").eq("id", id.toLowerCase()).eq("workspace_id", actor.workspaceId).is("owner_id", null).maybeSingle();
   if (!data) throw new Forbidden(NOT_FOUND);
   return { id: String(data.id), name: String(data.name), disabled: !!data.disabled_at };
 }
@@ -65,17 +65,12 @@ export async function webhookLog(actor: Actor, webhookId: string, limit = 50): P
   }));
 }
 
-/** Sends a `ping` to a Webhook now (Owners and Admins), at most once a minute per Webhook; the log shows what came
- * back. It holds the Webhook's name and nothing of the Workspace. A switched-off Webhook gets none. */
-export async function sendTestWebhook(actor: Actor, webhookId: string): Promise<void> {
-  assertReadsWebhookLog(actor);
-  await assertMaySend(actor);
-  const hook = await ownWebhook(actor, webhookId);
-  if (hook.disabled) throw new Forbidden("Switch the Webhook on to send a test.");
+/** Queues a `ping` for a Webhook and sends it now, at most one a minute per Webhook (a Workspace's or a Personal one: the caller has checked who may). */
+export async function queueTestPing(workspaceId: string, webhookId: string): Promise<void> {
   const wait = "A test was sent a moment ago. Wait a minute before sending another.";
-  const recent = () => db().from("webhook_sends").select("id").eq("webhook_id", hook.id).eq("type", "ping").gte("created_at", new Date(Date.now() - 60_000).toISOString()).order("created_at").order("id").limit(1);
+  const recent = () => db().from("webhook_sends").select("id").eq("webhook_id", webhookId).eq("type", "ping").gte("created_at", new Date(Date.now() - 60_000).toISOString()).order("created_at").order("id").limit(1);
   if ((await recent()).data?.length) throw new Error(wait);
-  const { data: made, error } = await db().from("webhook_sends").insert({ workspace_id: actor.workspaceId, webhook_id: hook.id, type: "ping", source_type: "app" }).select("id").single();
+  const { data: made, error } = await db().from("webhook_sends").insert({ workspace_id: workspaceId, webhook_id: webhookId, type: "ping", source_type: "app" }).select("id").single();
   if (error || !made) throw new Error("The test could not be queued. Try again in a moment.");
   // Two tests at the same moment both got here: the earlier one stands, the other is taken back.
   if ((await recent()).data?.[0]?.id !== made.id) {
@@ -83,7 +78,17 @@ export async function sendTestWebhook(actor: Actor, webhookId: string): Promise<
     throw new Error(wait);
   }
   // Sent now, this one only, so the log answers at once; the job would send it within minutes otherwise.
-  await sendWebhookNow(actor.workspaceId, String(made.id));
+  await sendWebhookNow(workspaceId, String(made.id));
+}
+
+/** Sends a `ping` to a Webhook now (Owners and Admins), at most once a minute per Webhook; the log shows what came
+ * back. It holds the Webhook's name and nothing of the Workspace. A switched-off Webhook gets none. */
+export async function sendTestWebhook(actor: Actor, webhookId: string): Promise<void> {
+  assertReadsWebhookLog(actor);
+  await assertMaySend(actor);
+  const hook = await ownWebhook(actor, webhookId);
+  if (hook.disabled) throw new Forbidden("Switch the Webhook on to send a test.");
+  await queueTestPing(actor.workspaceId, hook.id);
 }
 
 /** Puts a failed send of this Workspace's Webhook back in the queue (Owners and Admins): it goes out again with the
