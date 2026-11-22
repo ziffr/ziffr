@@ -229,7 +229,7 @@ describe("hostile files", () => {
     expect(Date.now() - started).toBeLessThan(1000);
   });
   it("counts periods from the Workspace's year start, and weeks from Monday", () => {
-    const withYear = (yearStart: number, period: string, metricPeriod: string, id = "m1") => {
+    const withYear = (yearStart: number, period: string, metricPeriod: string) => {
       const rs = edit(0, (r) => ({ ...r, workspace: { name: "A", yearStart } }));
       rs[at("metric")] = { ...RECORDS[at("metric")], metric: { ...metricDoc, period: metricPeriod } };
       rs[at("value")] = { ...RECORDS[at("value")], period };
