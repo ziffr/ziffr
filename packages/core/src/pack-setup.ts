@@ -287,9 +287,9 @@ async function assertMembers(actor: Actor, ids: string[]) {
   if (!wanted.every((id) => found.has(id))) throw new Forbidden("Pick members of this Workspace.");
 }
 
-// The formula of a Derived Metric just made, checked again against the Workspace's Metrics as they are now. Refused,
-// the Metric goes again (it was made a moment ago and holds nothing), so no Metric that looks derived is left
-// without its formula.
+/** Sets the formula of a Derived Metric just made, checked again against the Workspace's Metrics as they are now. Refused,
+ * the Metric goes again (it was made a moment ago and holds nothing), so no Metric that looks derived is left
+ * without its formula. */
 export async function writeFormula(actor: Actor, m: { id: number; name: string }, formula: string) {
   const metrics = await getMetrics(actor.workspaceId);
   const self = metrics.find((x) => x.id === m.id);

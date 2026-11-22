@@ -32,6 +32,8 @@ create index on workspace_imports (created_by, started_at desc);
 create unique index workspace_imports_one_running on workspace_imports (created_by) where status in ('uploading', 'checking', 'importing');
 alter table workspace_imports enable row level security;
 revoke all on table workspace_imports from public, anon, authenticated;
+-- The demo Workspace is never imported into and keeps no import jobs: the guard refuses writes to its rows like any table's.
+select attach_demo_guard('workspace_imports');
 
 alter table invitations add column held_at timestamptz;
 alter table invitations add column import_plan jsonb check (import_plan is null or pg_column_size(import_plan) <= 100000);
