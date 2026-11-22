@@ -26,7 +26,7 @@ import type { DashboardTemplateBody, DeckTemplateBody, Metric, SlideShape, Slot,
 import type { FormatCheck } from "./json-check";
 
 /** Something the person may put into a Pack, as the Export dialog lists it. */
-export type ExportOption = { id: number; name: string; detail: string; /** A Theme's logo, only when it may be the Pack's (spec 0039): the Export dialog shows it as the choice. */ logo?: string };
+export type ExportOption = { id: number; name: string; detail: string; /** True for a Theme whose logo may be the Pack's (spec 0039); the picture itself is fetched with `themeLogoForExport` only when picked. */ hasLogo?: boolean };
 /** What the Export dialog offers, by kind. */
 export type ExportOptions = { metrics: ExportOption[]; catalog: ExportOption[]; dashboards: ExportOption[]; decks: ExportOption[]; workflows: ExportOption[]; designs: ExportOption[]; themes: ExportOption[] };
 /** What the person picked, by kind, as ids. */
@@ -83,12 +83,21 @@ export async function exportOptions(actor: Actor): Promise<ExportOptions> {
     catalog: opt(cat.data, (r) => String(r.category)),
     dashboards: opt(of("dashboard")), decks: opt(of("deck")), workflows: opt(of("workflow")),
     designs: opt(des.data),
-    // A Theme's logo goes to the browser only when it passes the Pack's logo checks: it is the choice the dialog previews.
-    themes: (thm.data ?? []).map((r) => { const logo = cleanLogo((r.slides as { logo?: unknown } | null)?.logo, PACK_LOGO_MAX_BYTES); return { id: Number(r.id), name: String(r.name), detail: logo ? "has a logo" : "", ...(logo ? { logo } : {}) }; }),
+    // Only a flag per Theme goes with the page: the picture comes through `themeLogoForExport` when one is picked.
+    themes: (thm.data ?? []).map((r) => { const has = cleanLogo((r.slides as { logo?: unknown } | null)?.logo, PACK_LOGO_MAX_BYTES) !== null; return { id: Number(r.id), name: String(r.name), detail: has ? "has a logo" : "", ...(has ? { hasLogo: true } : {}) }; }),
   };
 }
 
 type Row = Record<string, unknown>;
+
+/** The cleaned logo of one of the Workspace's Themes, for the Export dialog's preview, or null when there is none that
+ * a Pack may hold. Only a Theme of the actor's Workspace is found. */
+export async function themeLogoForExport(actor: Actor, themeId: number): Promise<string | null> {
+  assertMayExport(actor);
+  if (typeof themeId !== "number" || !Number.isInteger(themeId)) return null;
+  const { data } = await db().from("themes").select("slides").eq("workspace_id", actor.workspaceId).eq("id", themeId).maybeSingle();
+  return cleanLogo((data?.slides as { logo?: unknown } | null)?.logo, PACK_LOGO_MAX_BYTES);
+}
 
 /** What else the person chose about the file: `tags: false` leaves the Tags of Metrics out (they go in by default). */
 export type ExportOptionsChosen = { tags?: boolean };

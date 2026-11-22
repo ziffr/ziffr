@@ -8,7 +8,7 @@ import { shown, unwrap } from "@/lib/action-error";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
-import { exportAsPack } from "@/app/pack-actions";
+import { exportAsPack, themeLogoPreview } from "@/app/pack-actions";
 import { PACK_LICENSES } from "@ziffr/core/pack";
 import type { ExportChoice, ExportOptions } from "@ziffr/core/pack-export";
 
@@ -24,8 +24,14 @@ export function ExportPack({ options, defaultAuthor = "" }: { options: ExportOpt
   // The Pack's logo (spec 0039): the logo of one of the Themes, or a picture from this computer; the server checks it again.
   const [logoTheme, setLogoTheme] = useState<number | null>(null);
   const [upload, setUpload] = useState<string | null>(null);
-  const themeLogos = options.themes.filter((t) => t.logo);
-  const logoShown = upload ?? themeLogos.find((t) => t.id === logoTheme)?.logo ?? null;
+  const [themePicture, setThemePicture] = useState<string | null>(null);
+  const themeLogos = options.themes.filter((t) => t.hasLogo);
+  const logoShown = upload ?? (logoTheme !== null ? themePicture : null);
+  // The picture of a Theme is fetched only when picked; the server hands over just the cleaned logo of one's own Theme.
+  const pickTheme = (id: number | null) => {
+    setLogoTheme(id); setUpload(null); setThemePicture(null);
+    if (id !== null) void themeLogoPreview(id).then((r) => { try { setThemePicture(unwrap(r)); } catch { /* the preview is a convenience */ } });
+  };
   const pickFile = (f: File | undefined) => {
     if (!f) return;
     if (f.size > 128_000) { toast.error("Logo too big", { description: "A Pack's logo is at most 128 KB." }); return; }
@@ -89,7 +95,7 @@ export function ExportPack({ options, defaultAuthor = "" }: { options: ExportOpt
               <p className="mb-1.5 text-xs text-muted-foreground">Shown with the Author on the Packs page and the Marketplace. A PNG, JPEG or plain SVG, at most 128 KB and 512 pixels on a side. It stays yours: use only a logo you may share.</p>
               <div className="flex flex-wrap items-center gap-2">
                 {themeLogos.length > 0 && (
-                  <select aria-label="Take the logo of a Theme" value={logoTheme ?? ""} onChange={(e) => { setLogoTheme(e.target.value ? Number(e.target.value) : null); setUpload(null); }} className="h-9 rounded-[var(--radius-input)] border border-input bg-card px-2 text-sm">
+                  <select aria-label="Take the logo of a Theme" value={logoTheme ?? ""} onChange={(e) => pickTheme(e.target.value ? Number(e.target.value) : null)} className="h-9 rounded-[var(--radius-input)] border border-input bg-card px-2 text-sm">
                     <option value="">{upload ? "Uploaded picture" : "No logo"}</option>
                     {themeLogos.map((t) => <option key={t.id} value={t.id}>Logo of Theme {t.name}</option>)}
                   </select>

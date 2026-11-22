@@ -3,7 +3,7 @@
 import { afterEach, describe, expect, it } from "vitest";
 import { Forbidden } from "./actor";
 import { db } from "./db";
-import { exportOptions, exportPack, type ExportChoice, type ExportManifest } from "./pack-export";
+import { exportOptions, exportPack, themeLogoForExport, type ExportChoice, type ExportManifest } from "./pack-export";
 import { installPackFile } from "./packs";
 import { checkPack } from "./pack";
 import { createDashboard, placeWidget } from "./dashboards";
@@ -142,8 +142,14 @@ describe("Export as Pack", () => {
       const small = await themeWith(x, "Small", svg("#111111"));
       const huge = await themeWith(x, "Huge", `data:image/png;base64,${Buffer.alloc(200_000).toString("base64")}`);
       const opts = await exportOptions(x.actor);
-      expect(opts.themes.find((t) => t.id === small)?.logo).toBeTruthy();
-      expect(opts.themes.find((t) => t.id === huge)?.logo).toBeUndefined();
+      expect(opts.themes.find((t) => t.id === small)?.hasLogo).toBe(true);
+      expect(opts.themes.find((t) => t.id === huge)?.hasLogo).toBeUndefined();
+      expect(JSON.stringify(opts)).not.toContain("data:image");
+      expect(await themeLogoForExport(x.actor, small)).toContain("data:image/svg+xml");
+      expect(await themeLogoForExport(x.actor, huge)).toBeNull();
+      const b = await ws("B"); const zoe = await b.person("owner");
+      expect(await themeLogoForExport(b.actor(zoe), small)).toBeNull();
+      expect(await themeLogoForExport(x.actor, "5" as unknown as number)).toBeNull();
     });
   });
 

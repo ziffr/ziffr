@@ -6,7 +6,7 @@ import { currentActor } from "@/lib/viewer";
 import { attempt } from "@/lib/action-result";
 import { installPackFile, readPackFile } from "@ziffr/core/packs";
 import { installFromMarketplace, readMarketplacePack, readMarketplaceUpdate, searchMarketplace, updateFromMarketplace } from "@ziffr/core/marketplace";
-import { exportPack, type ExportChoice, type ExportManifest } from "@ziffr/core/pack-export";
+import { exportPack, themeLogoForExport, type ExportChoice, type ExportManifest } from "@ziffr/core/pack-export";
 import { readPackUpdate, readUninstall, takeNewVersion, uninstallPack, updatePackFile } from "@ziffr/core/pack-updates";
 
 /** Reads an uploaded Pack file for its Preview; nothing is written. The problems come back with their lines. */
@@ -26,6 +26,11 @@ export async function installPack(text: string, confirmed: { unsigned: boolean; 
 /** A Pack of what the viewer picked in their Workspace, as its file's text, and what had to stay out. */
 export async function exportAsPack(manifest: ExportManifest, choice: ExportChoice, withTags = true) {
   return attempt(async () => exportPack(await currentActor(), manifest, choice, { tags: withTags !== false }));
+}
+
+/** The logo of one of the viewer's Themes, as the Export dialog previews it. */
+export async function themeLogoPreview(themeId: number) {
+  return attempt(async () => themeLogoForExport(await currentActor(), themeId));
 }
 
 /** What updating an installed Pack from a newer file would do; nothing is written. */
