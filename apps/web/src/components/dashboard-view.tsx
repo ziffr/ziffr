@@ -38,13 +38,14 @@ export async function DashboardView({ id, view }: { id?: number; view?: string }
     const owner = await closedDashboardOwner(actor, id);
     if (owner) closed = { id, owner };
   }
+  const demo = await isDemo();
   // A workspace without dashboards gets the first-run checklist; what it may show depends on the role.
-  const firstRun = !dashboards.length && !closed && !(await isDemo())
+  const firstRun = !dashboards.length && !closed && !demo
     ? { canCreate: can(actor, "create"), canManage: can(actor, "manage-members"), clockSet: can(actor, "manage-members") ? (await workspaceClock(actor)).timeZone !== "UTC" : true, hasValue: await hasVisibleValue(actor) }
     : null;
   // Only the owner's Share dialog uses Shares, and only this dashboard's: nobody else gets the workspace's list.
   const own = current?.role === "owner" ? shares.filter((s) => s.object_type === "dashboard" && s.object_id === current.id) : [];
   // Only someone who may create starts a dashboard, so only they get the templates.
   const dashboardTemplates = can(actor, "create") ? await listDashboardTemplates(actor, new Set(data.metrics.map((m) => m.id))) : [];
-  return <DashboardScreen data={data} dashboards={dashboards} current={current} widgets={ws} saved={saved} shares={own} reveals={reveals} closed={closed} firstRun={firstRun} homeId={home?.id ?? null} pinned={current ? (await pinnedDashboards(actor)).some((d) => d.id === current.id) : false} canCreate={can(actor, "create")} canInvite={can(actor, "manage-members")} dashboardTemplates={dashboardTemplates} reading={view === "read"} snapshots={snapshots} />;
+  return <DashboardScreen data={data} dashboards={dashboards} current={current} widgets={ws} saved={saved} shares={own} reveals={reveals} closed={closed} firstRun={firstRun} homeId={home?.id ?? null} pinned={current ? (await pinnedDashboards(actor)).some((d) => d.id === current.id) : false} demo={demo} canCreate={can(actor, "create")} canInvite={can(actor, "manage-members")} dashboardTemplates={dashboardTemplates} reading={view === "read"} snapshots={snapshots} />;
 }

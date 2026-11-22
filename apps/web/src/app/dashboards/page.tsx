@@ -5,6 +5,7 @@ import { Home, LayoutDashboard } from "lucide-react";
 import { getNumberStyle, getProfileMap } from "@/lib/data";
 import { currentActor } from "@/lib/viewer";
 import { pinnedDashboards } from "@ziffr/core/pinned-dashboards";
+import { isDemo } from "@/lib/auth";
 import { PinButton } from "@/components/pinned-dashboards";
 import { homeDashboard, switchableDashboards } from "@ziffr/core/home";
 import { can } from "@ziffr/core/actor";
@@ -20,6 +21,7 @@ import { AnsweredForm } from "@/components/answered-form";
 export default async function DashboardsPage() {
   const actor = await currentActor();
   const [dashboards, people, choices, numberStyle] = await Promise.all([switchableDashboards(actor), getProfileMap(), dashboardTemplateChoices(actor), getNumberStyle()]);
+  const demo = await isDemo();
   const home = await homeDashboard(actor, dashboards);
   const pinned = new Set((await pinnedDashboards(actor)).map((d) => d.id));
   const mine = dashboards.filter((d) => d.role === "owner");
@@ -33,7 +35,7 @@ export default async function DashboardsPage() {
           <div className="text-xs text-muted-foreground">{d.role === "owner" ? "Yours" : `From ${people[d.owner_id]?.name ?? "someone"}, you ${d.role === "editor" ? "can edit it" : "can look at it"}`}</div>
         </div>
       </Link>
-      <PinButton compact dashboardId={d.id} name={d.name} pinned={pinned.has(d.id)} className="absolute top-3 right-3" />
+      <PinButton compact dashboardId={d.id} name={d.name} pinned={pinned.has(d.id)} demo={demo} className="absolute top-3 right-3" />
     </li>
   );
   return (

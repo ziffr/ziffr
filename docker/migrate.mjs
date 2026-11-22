@@ -38,6 +38,13 @@ if (env.ZIFFR_DEMO !== "0" && demoNeedsFilling(marker, seed)) {
     },
     body: JSON.stringify({ min_gap: "0 seconds" }),
   });
+  // Pinned dashboards have a seed function of their own (#764); a failure only leaves the sidebar without them.
+  const pins = res.ok ? await fetch(`${env.SUPABASE_URL}/rest/v1/rpc/prototype_seed_pins`, {
+    method: "POST",
+    headers: { apikey: env.SUPABASE_SERVICE_ROLE_KEY, authorization: `Bearer ${env.SUPABASE_SERVICE_ROLE_KEY}`, "content-type": "application/json" },
+    body: "{}",
+  }).catch(() => null) : null;
+  if (res.ok && !pins?.ok) console.error("Ziffr: the demo's pinned dashboards could not be seeded.");
   if (!res.ok) {
     // The demo is not worth stopping the Installation for; the next start tries again, as does the nightly job.
     console.error(`Ziffr: the demo could not be filled in (${res.status}): ${(await res.text()).slice(0, 300)}`);
