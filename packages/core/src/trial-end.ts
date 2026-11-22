@@ -39,8 +39,8 @@ export async function trialStatus(workspaceId: string, role?: WorkspaceRoleName)
   return {
     endsAt: ends.toISOString(), daysLeft: Math.max(0, Math.ceil(left / DAY)), ended: left <= 0, deletedAt: new Date(ends.getTime() + daysSetting("ZIFFR_TRIAL_GRACE_DAYS", settings) * DAY).toISOString(),
     keptAs: await keptAs(settings),
-    // A Guest never sees who else is in the Workspace, so the Owner's name is not given for them.
-    ownerName: role === "guest" ? null : await ownerName(workspaceId),
+    // Only a role that sees who else is in the Workspace is given the name; a Guest, or no role, gets none.
+    ownerName: role === "owner" || role === "admin" || role === "member" ? await ownerName(workspaceId) : null,
   };
 }
 

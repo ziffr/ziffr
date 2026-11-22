@@ -4,11 +4,12 @@
 // trial's name for its Owner is what Members are shown.
 import { randomUUID } from "node:crypto";
 import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
+import { setCloudTrialLimits } from "./cloud-api";
 import { db } from "./db";
 import { invitationFor, inviteByEmail, openInvitations } from "./invitations";
 import { invitationStopTokenValid, stopInvitationsByToken } from "./invitation-stop";
 import { mailboxKey, type MailTransport, type OutgoingMail } from "./mail";
-import { workspace } from "./test/db-fixtures";
+import { resetTrialLimits, workspace } from "./test/db-fixtures";
 import { trialStatus } from "./trial-end";
 
 const SETTINGS = { ZIFFR_SECRETS_KEY: Buffer.alloc(32, 9).toString("base64"), ZIFFR_SMTP_URL: "smtp://127.0.0.1:1", ZIFFR_MAIL_FROM: "Ziffr <ziffr@example.test>", ZIFFR_SITE_URL: "https://ziffr.example.test", ZIFFR_CLOUD_KEY: "k".repeat(40) };
@@ -18,7 +19,7 @@ const transport: MailTransport = async (m) => { mails.push(m); return { messageI
 const cleanups: (() => Promise<void>)[] = [];
 beforeAll(() => { for (const [k, v] of Object.entries(SETTINGS)) { saved[k] = process.env[k]; process.env[k] = v; } });
 afterAll(() => { for (const [k, v] of Object.entries(saved)) if (v === undefined) delete process.env[k]; else process.env[k] = v; });
-afterEach(async () => { mails.length = 0; for (const c of cleanups.splice(0)) await c(); });
+afterEach(async () => { await resetTrialLimits(); mails.length = 0; for (const c of cleanups.splice(0)) await c(); });
 
 const address = () => `stop-${randomUUID().slice(0, 8)}@example.test`;
 const day = (n: number) => new Date(Date.now() + n * 86_400_000).toISOString().slice(0, 10);
@@ -90,24 +91,38 @@ describe("Do not invite me again", () => {
   });
   it("signs a non-ASCII address too, so a trial invitation to it is still emailed", async () => {
     const w = await ws(); const to = `jörg-${randomUUID().slice(0, 8)}@example.test`;
-    const r = await inviteByEmail(w.actor, { email: to, role: "member" }, transport).catch(() => null);
-    if (!r) return; // an address the rest of invitations refuses is not this test's concern
+    const r = await inviteByEmail(w.actor, { email: to, role: "member" }, transport);
     expect(r.emailed).toBe(true);
     expect(stopUrl(mails[0])).not.toBeNull();
+  });
+  it("is told apart from no other address by the trial's own limit: the same words, and the stop is not what answered", async () => {
+    const w = await ws(); const stoppedTo = address(); const otherTo = address();
+    await db().from("invitation_stops").upsert({ address_key: mailboxKey(stoppedTo) });
+    try {
+      await setCloudTrialLimits({ cloud: true }, { invitationsPerDay: 1 });
+      await inviteByEmail(w.actor, { email: address(), role: "member" }, transport);
+      await inviteByEmail(w.actor, { email: stoppedTo, role: "member" }, transport);
+      await inviteByEmail(w.actor, { email: otherTo, role: "member" }, transport);
+      const errors = (await openInvitations(w.actor)).filter((i) => [stoppedTo, otherTo].includes(i.email as string)).map((i) => i.email_error);
+      expect(errors).toHaveLength(2);
+      expect(errors[0]).toMatch(/a day/);
+      expect(errors[0]).toBe(errors[1]);
+    } finally { await forget(stoppedTo); }
   });
   it("is refused for a token that was not signed here, and changes nothing", async () => {
     const before = (await db().from("invitation_stops").select("address_key")).data!.length;
     for (const bad of ["", "nope", "bmlhQGV4YW1wbGUudGVzdA." + "A".repeat(43), "a.b"]) expect(await stopInvitationsByToken(bad)).toBe(false);
     expect((await db().from("invitation_stops").select("address_key")).data!.length).toBe(before);
   });
-  it("is a table the public keys cannot read", async () => {
-    const { data: key } = await db().from("invitation_stops").select("address_key").limit(1);
-    expect(Array.isArray(key)).toBe(true);
+  // Needs the anon key (the app's CI job and a local stack set it; the core's shards do not): skipped visibly, never passed silently.
+  it.skipIf(!(process.env.SUPABASE_ANON_KEY ?? process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY))("is a table the public keys cannot read", async () => {
+    await db().from("invitation_stops").upsert({ address_key: "public-keys-test@example.test" });
     const url = `${process.env.SUPABASE_URL}/rest/v1/invitation_stops?select=address_key`;
-    const anon = process.env.SUPABASE_ANON_KEY ?? process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-    if (!anon) return;
+    const anon = (process.env.SUPABASE_ANON_KEY ?? process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY)!;
     const res = await fetch(url, { headers: { apikey: anon, authorization: `Bearer ${anon}` } });
-    const body = await res.json().catch(() => []);
+    await db().from("invitation_stops").delete().eq("address_key", "public-keys-test@example.test");
+    // Row level security with no policy: the public key reads no row (or is refused outright), never the row that was there.
+    const body = await res.json();
     expect(Array.isArray(body) ? body : []).toEqual([]);
   });
 });
@@ -139,7 +154,9 @@ describe("what the accept page and the bar say", () => {
   it("gives the trial's status the Owner's name, for the Members' bar", async () => {
     const w = await ws();
     const { data } = await db().from("profiles").select("name").eq("id", w.owner).single();
-    expect((await trialStatus(w.id))?.ownerName).toBe(data!.name);
+    expect((await trialStatus(w.id, "member"))?.ownerName).toBe(data!.name);
+    // No role given: no name either.
+    expect((await trialStatus(w.id))?.ownerName).toBeNull();
     // A Guest never sees who else is in the Workspace: no name.
     expect((await trialStatus(w.id, "guest"))?.ownerName).toBeNull();
     expect(await trialStatus((await ws(false)).id)).toBeNull();
