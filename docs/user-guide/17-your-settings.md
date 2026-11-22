@@ -81,7 +81,9 @@ Ziffr works best on a phone once you install it: it then opens from the home scr
 
 ## Search
 
-Press **⌘K** (on Windows and Linux **Ctrl+K**), or choose the magnifying glass, and type. Ziffr finds the Metrics, dashboards, decks and Workflows whose names fit what you typed, ignoring capitals and accents, and only those you may see in the Workspace you are in. A Metric that is archived is marked **Archived**, and listed after the ones in use. Results are grouped: **Commands**, **Pages**, **Metrics**, **Dashboards**, **Decks**, **Workflows**, **People** and **Groups**.
+Press **⌘K** (on Windows and Linux **Ctrl+K**), or choose the magnifying glass, and type. Ziffr finds the Metrics, dashboards, decks and Workflows whose names fit what you typed, ignoring capitals and accents, and only those you may see in the Workspace you are in. A Metric that is archived is marked **Archived**, and listed after the ones in use. Results are grouped: **Commands**, **Pages**, **Metrics**, **Tags**, **Dashboards**, **Decks**, **Workflows**, **People** and **Groups**.
+
+**Tags.** Type a word that is one of your Metrics' Tags, such as "finance", and Search offers **Tag: finance (7 Metrics)**, which opens the Metrics list filtered by it. Metrics are also found by their Tags, after the ones whose names fit, and say which Tag matched. You only find Tags that sit on Metrics you may see: a word used only on Metrics you cannot see finds nothing, the same as a word nobody uses.
 
 Two Metrics you can see may have the same name. Their results then say whose each is, in brackets, such as "Support tickets (Ben)", with the period and unit added only where the owner is not enough.
 

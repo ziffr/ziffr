@@ -2,6 +2,8 @@
 // decks by name, and "Metric + period" for words such as "churn march 2026", which lead to the Period Record.
 // Security: everything is chosen from what the person may see (visibleMetricIds, visibleDashboards, visibleDecks) in
 // their own Workspace; a name they may not see is never compared, so it cannot be found by guessing either.
+// Tags (spec 0038, GLOSSARY: Tag) come only from tag-sight.ts, so a Tag is found only through a Metric the person may see:
+// a word used only on hidden Metrics answers exactly as a word nobody uses.
 // Metric names may be sealed (spec 0028, step 2): this searches the visible list in the app, after the core has opened
 // the names, never in the database, so it works the same sealed or plain.
 import { format } from "date-fns";
@@ -11,6 +13,8 @@ import { yearStartOf } from "./fiscal-year";
 import { periodLabel, periodStart, type Span, type YearStart } from "./periods";
 import { nameScore, parseSearchQuery, recordTerms, type SearchQuery } from "./search-query";
 import { db } from "./db";
+import { tagSight } from "./tag-sight";
+import { tagKey } from "./tag-names";
 import { peopleIn } from "./submissions";
 import { answerReadingOf } from "./workspace-settings";
 import { getMetrics } from "./workspace-data";
@@ -20,7 +24,10 @@ import type { Metric } from "./types";
 /** One thing found. A `period` result is one Metric's value for one period: `period` is its first day, `label` its
  * name ("March 2026"); it leads to the Period Record. */
 export type SearchResult =
-  | { kind: "metric"; slug: string; name: string; archived: boolean; hint?: string }
+  // `tag` is the Tag that matched, when the Metric was found by one of its Tags and not by its name.
+  | { kind: "metric"; slug: string; name: string; archived: boolean; hint?: string; tag?: string }
+  // A Tag the person sees (through a Metric they may see) that the words name; `metrics` counts those Metrics.
+  | { kind: "tag"; name: string; metrics: number }
   | { kind: "period"; slug: string; name: string; archived: boolean; period: string; label: string; hint?: string }
   | { kind: "dashboard"; id: number; name: string }
   | { kind: "deck"; id: number; name: string }
@@ -64,6 +71,7 @@ export async function search(actor: Actor, query: unknown): Promise<SearchResult
   const q = parseSearchQuery(query, format(new Date(), "yyyy-MM-dd"), yearStart, reading.languages, reading.monthFirst);
   if (!q.all.length) return [];
   const [visible, dashboards, decks] = await Promise.all([visibleMetricIds(ws, actor.personId, metrics), visibleDashboards(ws, actor.personId), visibleDecks(ws, actor.personId)]);
+  const sight = await tagSight(actor);
   const [workflows, people, groups, records] = await Promise.all([workflowResults(actor, visible, q.all), peopleResults(actor, q.all), groupResults(actor, q.all), recordResults(actor, metrics, visible, q.all)]);
   const seen = metrics.filter((m) => visible.has(m.id));
   // Same-named Metrics among those the person sees (never one they may not) get a note that tells them apart. A Guest
@@ -73,11 +81,18 @@ export async function search(actor: Actor, query: unknown): Promise<SearchResult
   const noteFor = new Map(seen.flatMap((m) => (notes.has(m.id) ? [[m.slug, notes.get(m.id)!] as const] : [])));
   const withNote = (r: SearchResult): SearchResult => ((r.kind === "metric" || r.kind === "period") && noteFor.has(r.slug) ? { ...r, hint: noteFor.get(r.slug) } : r);
   return [
-    ...resultsFor(seen, q, yearStart, new Date()).map(withNote),
+    ...tagResults(sight.tags, q.all),
+    ...resultsFor(seen, q, yearStart, new Date(), sight.namesByMetric).map(withNote),
     ...ranked(dashboards, q.all).map((d) => ({ kind: "dashboard" as const, id: d.id, name: d.name })),
     ...ranked(decks, q.all).map((d) => ({ kind: "deck" as const, id: d.id, name: d.name })),
     ...workflows, ...people, ...groups, ...records,
   ];
+}
+
+/** The Tags (all of them ones the person sees) whose name equals the words, or one of the words, ignoring case. */
+function tagResults(tags: readonly { name: string; metrics: number }[], all: readonly string[]): SearchResult[] {
+  const wanted = new Set([tagKey(all.join(" ")), ...all.map(tagKey)]);
+  return tags.filter((t) => wanted.has(tagKey(t.name))).sort((a, b) => a.name.localeCompare(b.name)).slice(0, MAX_BY_KIND).map((t) => ({ kind: "tag" as const, name: t.name, metrics: t.metrics }));
 }
 
 /** The things whose names fit the words, best first, at most MAX_BY_KIND. */
@@ -120,7 +135,7 @@ async function recordResults(actor: Actor, metrics: readonly Metric[], visible: 
 }
 
 /** The Metric and "Metric + period" results among Metrics the person sees. Not past: a period that has not begun. */
-function resultsFor(visible: readonly Metric[], q: SearchQuery, yearStart: YearStart, now: Date): SearchResult[] {
+function resultsFor(visible: readonly Metric[], q: SearchQuery, yearStart: YearStart, now: Date, tagNames: ReadonlyMap<number, readonly string[]> = new Map()): SearchResult[] {
   const today = format(now, "yyyy-MM-dd");
   const byName = q.name.length ? matching(visible, q.name) : [];
   const periodResults: SearchResult[] = [];
@@ -140,14 +155,36 @@ function resultsFor(visible: readonly Metric[], q: SearchQuery, yearStart: YearS
     seen.add(m.slug);
     plain.push({ kind: "metric", slug: m.slug, name: m.name, archived: Boolean(m.archived_at) });
   }
+  // After the name matches: Metrics whose Tags fit the words, with the Tag that matched. `tagNames` holds only Tags of
+  // Metrics the person sees, so nothing hidden can match.
+  for (const { m, tag } of matchingByTag(visible, q.all, tagNames)) {
+    if (seen.has(m.slug)) continue;
+    seen.add(m.slug);
+    plain.push({ kind: "metric", slug: m.slug, name: m.name, archived: Boolean(m.archived_at), tag });
+  }
   return [...periodResults.slice(0, MAX_PERIOD_RESULTS), ...plain.slice(0, MAX_BY_KIND)];
+}
+
+/** The Metrics one of whose Tags fits the words, each with its best-fitting Tag, those in use before Archived Metrics. */
+function matchingByTag(metrics: readonly Metric[], terms: readonly string[], tagNames: ReadonlyMap<number, readonly string[]>): { m: Metric; tag: string }[] {
+  const scored: { m: Metric; tag: string; score: number }[] = [];
+  for (const m of metrics) {
+    let best: { tag: string; score: number } | null = null;
+    for (const tag of tagNames.get(m.id) ?? []) {
+      const score = nameScore(tag, terms);
+      if (score !== null && (!best || score < best.score)) best = { tag, score };
+    }
+    if (best) scored.push({ m, ...best });
+  }
+  return scored.sort((a, b) => Number(Boolean(a.m.archived_at)) - Number(Boolean(b.m.archived_at)) || a.score - b.score || a.m.name.localeCompare(b.m.name));
 }
 
 /** What a program gets from `find`: a Metric, or Metric + period (`period` its first day); the slug and period are
  * what get_metric and the Period Record take. */
-export type Found = { slug: string; name: string; archived: boolean; period: string | null; period_label: string | null };
+export type Found = { slug: string; name: string; archived: boolean; period: string | null; period_label: string | null; matched_by?: "tag" };
 
-/** The Metrics and Metric + period a key's creator may see that fit the words, period results first. */
+/** The Metrics and Metric + period a key's creator may see that fit the words, period results first, then Metrics found
+ * by a Tag (`matched_by: "tag"`). */
 export async function findMetrics(actor: Actor | KeyActor, query: unknown): Promise<Found[]> {
   assertScope(actor, "metrics:read");
   const ws = actor.workspaceId;
@@ -156,7 +193,8 @@ export async function findMetrics(actor: Actor | KeyActor, query: unknown): Prom
   const q = parseSearchQuery(query, format(now, "yyyy-MM-dd"), yearStart, reading.languages, reading.monthFirst);
   if (!q.all.length) return [];
   const visible = await visibleMetricIds(ws, actor.personId, metrics);
-  return resultsFor(metrics.filter((m) => visible.has(m.id)), q, yearStart, now).flatMap((r): Found[] =>
+  const { namesByMetric } = await tagSight({ personId: actor.personId, workspaceId: actor.workspaceId, role: actor.role });
+  return resultsFor(metrics.filter((m) => visible.has(m.id)), q, yearStart, now, namesByMetric).flatMap((r): Found[] =>
     r.kind === "period" ? [{ slug: r.slug, name: r.name, archived: r.archived, period: r.period, period_label: r.label }]
-      : r.kind === "metric" ? [{ slug: r.slug, name: r.name, archived: r.archived, period: null, period_label: null }] : []);
+      : r.kind === "metric" ? [{ slug: r.slug, name: r.name, archived: r.archived, period: null, period_label: null, ...(r.tag ? { matched_by: "tag" as const } : {}) }] : []);
 }

@@ -10,6 +10,7 @@ import { archiveMetric } from "./archived-metrics";
 import { findMetrics, search } from "./search";
 import { createGroup, setGroupMember } from "./team";
 import { saveWorkflow, setMetricWorkflow } from "./workflows";
+import { addMetricTags } from "./tags";
 import { workspace } from "./test/db-fixtures";
 
 const cleanups: (() => Promise<void>)[] = [];
@@ -187,5 +188,39 @@ describe("search for Workflows, people, Groups and forms (ticket #530)", () => {
     expect((await search(w.actor(ben, "member"), "field")).some((x) => x.kind === "record")).toBe(true);
     // A Metric the person does not see offers no form, even if they hold a token for it.
     expect((await search(w.actor(ben, "member"), "record payroll")).some((x) => x.kind === "record")).toBe(false);
+  });
+
+  it("finds Tags and Metrics by Tag only through Metrics the person may see; a hidden word answers like an unknown one", async () => {
+    const { w, sara } = await setup();
+    const ben = await w.person("member");
+    const gus = await w.person("guest");
+    const shown = await w.metric(sara, { name: "Revenue" });
+    const archived = await w.metric(sara, { name: "Old sales" });
+    const secret = await w.metric(sara, { name: "Payroll" });
+    await addMetricTags(w.actor(sara), shown.id, ["Finance", "weekly review"]);
+    await addMetricTags(w.actor(sara), archived.id, ["finance"]);
+    await addMetricTags(w.actor(sara), secret.id, ["salaries", "finance"]);
+    await archiveMetric(w.actor(sara), archived.id);
+    await share(w, "metric", shown.id, ben);
+    await share(w, "metric", shown.id, gus);
+    // The owner sees all three Metrics carrying "finance": the Tag result comes first, then Metrics by Tag.
+    const owner = await search(w.actor(sara), "finance");
+    expect(owner[0]).toEqual({ kind: "tag", name: "Finance", metrics: 3 });
+    expect(owner.filter((r) => r.kind === "metric").map((r) => (r as { name: string; tag?: string }).name)).toEqual(["Payroll", "Revenue", "Old sales"]);
+    expect(owner).toContainEqual({ kind: "metric", slug: shown.slug, name: "Revenue", archived: false, tag: "Finance" });
+    // A Member who sees one Metric sees the Tag with a count of one, and no more.
+    for (const who of [w.actor(ben, "member"), w.actor(gus, "guest")]) {
+      expect((await search(who, "finance")).map((r) => `${r.kind}:${r.name}`)).toEqual(["tag:Finance", "metric:Revenue"]);
+      expect((await search(who, "finance"))[0]).toEqual({ kind: "tag", name: "Finance", metrics: 1 });
+      // A word used only on a Metric they cannot see answers as a word nobody uses, and a partial one finds no Metric.
+      expect(await search(who, "salaries")).toEqual(await search(who, "zzzunknown"));
+      expect(await search(who, "salar")).toEqual([]);
+    }
+    expect(names(await search(w.actor(ben, "member"), "weekly review"))).toEqual(["tag:weekly review", "metric:Revenue"]);
+    // Programs: Metrics found by a Tag are marked, after name matches, and only the key's creator's sight counts.
+    const key = (a: Actor) => forKey(a, ["metrics:read"]);
+    expect(await findMetrics(key(w.actor(ben, "member")), "finance")).toEqual([{ slug: shown.slug, name: "Revenue", archived: false, period: null, period_label: null, matched_by: "tag" }]);
+    expect(await findMetrics(key(w.actor(ben, "member")), "salaries")).toEqual([]);
+    expect((await findMetrics(key(w.actor(sara)), "revenue")).every((f) => f.matched_by === undefined)).toBe(true);
   });
 });
