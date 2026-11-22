@@ -25,5 +25,9 @@
   "src/export-values.ts",
   "src/series-lines.ts",
   "src/recipe-functions.ts",
-  "src/recipe-run.ts"
+  "src/recipe-run.ts",
+  "src/suitability.ts",
+  "src/takeaways/strength.ts",
+  "src/takeaways/wording.ts",
+  "src/takeaways/takeaway.ts"
 ]

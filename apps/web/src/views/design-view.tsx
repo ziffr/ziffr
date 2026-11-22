@@ -7,6 +7,8 @@
 import { useState, type ReactNode } from "react";
 import { compactValue, formatNumber, formatValue, health } from "@ziffr/core/format";
 import { basisLabel, comparedBy, correlate, periodCountLabel, periodWord, rankCorrelations, strength, type BasisChoice, type Correlation } from "@ziffr/core/correlation";
+import { correlationTakeaway, driversTakeaway } from "@ziffr/core/takeaways/takeaway";
+import { TakeawayView } from "@/components/takeaway-view";
 import { resolverFrom } from "@ziffr/core/compare";
 import { dayAfter, heldText, isPartial, pointName, shownSeries, type DisplayPoint } from "@ziffr/core/display-periods";
 import { periodLabel } from "@ziffr/core/periods";
@@ -58,12 +60,16 @@ function designValues(design: ViewDesign, widget: Pick<Widget, "settings">, metr
   const resolve = resolverFrom(data.metrics, data.series);
   const correlation: Correlation | null = uses.pairs && metrics[1] ? correlate(m, metrics[1], resolve, { yearStart: data.yearStart, basis }) : null;
   const drivers = uses.drivers ? rankCorrelations(m, metrics.slice(1), resolve, { yearStart: data.yearStart, basis }) : null;
+  // The Takeaways (spec 0041): what the results say in words, after the suitability checks, from the one writer in the core.
+  const tctx = { style: data.numberStyle, yearStart: data.yearStart };
+  const correlationTake = correlation && metrics[1] ? correlationTakeaway(m, metrics[1], correlation, tctx) : null;
+  const driversTake = drivers ? driversTakeaway(m, drivers.ranked, tctx) : null;
   const matrix = uses.matrix ? metrics.map((a) => metrics.map((b) => (a.id === b.id ? null : correlate(a, b, resolve, { yearStart: data.yearStart, basis })))) : null;
   // The target band shows when there is a range, and, for a combined series, when its spans have one.
   const band = (!combined || !!targets?.range) && (m.target_min !== null || m.target_max !== null);
   // The design's Analysis Recipe, on the series the widget shows of its own Metrics, by the library's functions.
   const recipe = designRecipe(design, metrics, data, s);
-  return { basis, m, metrics, by, all, pts, last, combined, targets, note, flags, fc, correlation, drivers, matrix, band, goal, name, data, settings: s, recipe, analysis: design.analysis ?? null };
+  return { basis, m, metrics, by, all, pts, last, combined, targets, note, flags, fc, correlation, correlationTake, drivers, driversTake, matrix, band, goal, name, data, settings: s, recipe, analysis: design.analysis ?? null };
 }
 
 /** Which of the core's results a design needs, so a number widget never runs a correlation. */
@@ -99,6 +105,8 @@ export function DesignView({ design, widget, metrics, data, onPointContext }: Pr
   if (v.matrix && metrics.length < 2) return <Empty>{design.empty ?? "Needs at least two Metrics."}</Empty>;
   if (usage(design).pairs && !metrics[1]) return <Empty>{design.empty ?? "Needs two Metrics."}</Empty>;
   if (v.correlation && !v.correlation.ok) return <Empty>{v.correlation.reason}</Empty>;
+  // Where the checks refuse (too few different values, too many gaps), the words say so and no number is shown.
+  if (v.correlationTake?.kind === "refusal") return <Empty>{v.correlationTake.refusal}</Empty>;
   if (v.drivers && !v.drivers.ranked.length)
     return (
       <div className="flex h-full flex-col items-center justify-center p-4 text-center">
@@ -108,7 +116,12 @@ export function DesignView({ design, widget, metrics, data, onPointContext }: Pr
     );
   // A point of a combined series is a span, not one of the Metric's periods: there is no single value to ask about.
   const ctx = onPointContext && !v.combined ? (p: string) => onPointContext(m.id, p) : undefined;
-  return <div className={cn("flex h-full flex-col", design.kind === "analysis" && "gap-2")}>{design.parts.map((p, i) => <PartView key={i} part={p} v={v} ctx={ctx} />)}</div>;
+  return (
+    <div className={cn("flex h-full flex-col", design.kind === "analysis" && "gap-2")}>
+      {design.parts.map((p, i) => <PartView key={i} part={p} v={v} ctx={ctx} />)}
+      {v.correlationTake && <TakeawayView takeaway={v.correlationTake}><BasisButton v={v} /></TakeawayView>}
+    </div>
+  );
 }
 
 const drawn = (when: Flag[] | undefined, v: DesignValues) => (when ?? []).every((f) => v.flags[f]);
@@ -322,6 +335,18 @@ function MatrixRows({ v }: { v: DesignValues }) {
   );
 }
 
+/** The choice of what a comparison is made on: growth removed, or the values as they are; it goes inside Show the numbers. */
+function BasisButton({ v }: { v: DesignValues }) {
+  return (
+    <p className="mt-1">
+      Two Metrics that both grow look related even when nothing links them, so by default growth is removed. {v.basis === "values" ? "Now compared on the values as they are. " : ""}
+      <button type="button" className="underline" onClick={() => v.setBasis(v.basis === "values" ? "auto" : "values")}>
+        {v.basis === "values" ? "Remove growth again" : "Compare on the values as they are"}
+      </button>
+    </p>
+  );
+}
+
 /** Which basis the comparisons were made on, in words, and Show the numbers: the older comparison on the values as they are. */
 function BasisNote({ v, results }: { v: DesignValues; results: Extract<Correlation, { ok: true }>[] }) {
   const words = [...new Set(results.map((r) => basisLabel(r)))];
@@ -330,12 +355,7 @@ function BasisNote({ v, results }: { v: DesignValues; results: Extract<Correlati
       {words.length > 0 && <p>{words.length === 1 ? words[0] : "Compared by change where both grow, by value otherwise"}.</p>}
       <details>
         <summary className="cursor-pointer">Show the numbers</summary>
-        <p className="mt-1">
-          Two Metrics that both grow look related even when nothing links them, so by default growth is removed. {v.basis === "values" ? "Now compared on the values as they are. " : ""}
-          <button type="button" className="underline" onClick={() => v.setBasis(v.basis === "values" ? "auto" : "values")}>
-            {v.basis === "values" ? "Remove growth again" : "Compare on the values as they are"}
-          </button>
-        </p>
+        <BasisButton v={v} />
       </details>
     </div>
   );
@@ -346,7 +366,7 @@ function DriverRows({ v }: { v: DesignValues }) {
   return (
     <>
     <ul className="space-y-1">
-      {(v.drivers?.ranked ?? []).map(({ metric: o, result: res }) => (
+      {(v.drivers?.ranked ?? []).filter((_, i) => v.driversTake?.rows[i].takeaway.kind !== "refusal").map(({ metric: o, result: res }) => (
         <li key={o.id} title={[basisLabel(res), comparedBy(res)].filter(Boolean).join(", ")} className="grid grid-cols-[minmax(0,8rem)_1fr_3rem] items-center gap-2 text-xs">
           <span className="truncate">{o.name}{res.combined && <span className="text-muted-foreground"> · by {periodWord(res.period)}</span>}</span>
           <span className="h-2 rounded-full bg-[var(--color-paper-3)]">
@@ -356,7 +376,8 @@ function DriverRows({ v }: { v: DesignValues }) {
         </li>
       ))}
     </ul>
-    <BasisNote v={v} results={(v.drivers?.ranked ?? []).map((r) => r.result)} />
+    {(v.driversTake?.rows ?? []).filter((r) => r.takeaway.kind === "refusal").map((r) => <p key={r.metric.id} className="mt-1 text-xs text-muted-foreground">{r.metric.name}: {r.takeaway.refusal}</p>)}
+    {v.driversTake && <TakeawayView takeaway={v.driversTake}><BasisButton v={v} /></TakeawayView>}
     </>
   );
 }

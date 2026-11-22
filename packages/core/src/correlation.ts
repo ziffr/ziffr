@@ -6,6 +6,7 @@
 // correlation matrix, the scatter plot, the Analysis Canvas and a Metric's page all correlate through `correlate`.
 import { basisFor, basisText, changes, type Basis } from "./basis";
 import { isLonger, seriesBy, type Resolver } from "./display-periods";
+import { STRENGTH } from "./takeaways/strength";
 import type { Span, YearStart } from "./periods";
 import { fractionOf, lowestTerms, minus, nearest, over, plus, times, type Fraction } from "./exact";
 import type { Metric, Point } from "./types";
@@ -79,9 +80,9 @@ function pearsonOf(pairs: Pair[]): PearsonResult {
 /** How strong a correlation is, in words ("strong positive", "no clear"). */
 export function strength(r: number): string {
   const a = Math.abs(r);
-  if (a <= 0.2) return "no clear";
+  if (a <= STRENGTH.weak) return "no clear";
   // Stryker disable next-line EqualityOperator: an r of 0 is "no clear" above, so `>` and `>=` never differ here.
-  return `${a > 0.7 ? "strong" : a > 0.4 ? "moderate" : "weak"} ${r >= 0 ? "positive" : "negative"}`;
+  return `${a > STRENGTH.strong ? "strong" : a > STRENGTH.moderate ? "moderate" : "weak"} ${r >= 0 ? "positive" : "negative"}`;
 }
 
 /** The period two Metrics are compared on: the longer of their periods. */
