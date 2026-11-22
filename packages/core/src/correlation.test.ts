@@ -164,7 +164,8 @@ describe("what correlating refuses, and how it says so (spec 0022)", () => {
     const b = metric({ id: 2, slug: "b", name: "B" });
     // January is given twice; the latest, 1, is its value: A is 1 to 6, B twice that, so r is 1 on six months.
     const r = resolverFrom([a, b], { a: [{ period: "2025-01-01", value: 100 }, ...months("2025-01", [1, 2, 3, 4, 5, 6])], b: months("2025-01", [2, 4, 6, 8, 10, 12]) });
-    const res = correlate(a, b, r, { yearStart, today: "2026-03-01" });
+    // Compared by value: both series are straight lines, so by change there would be nothing left (basis.test.ts).
+    const res = correlate(a, b, r, { yearStart, today: "2026-03-01", basis: "values" });
     expect(res).toMatchObject({ ok: true, n: 6, r: 1 });
     expect(res.ok && res.pairs[0]).toEqual({ period: "2025-01-01", x: 1, y: 2 });
   });
