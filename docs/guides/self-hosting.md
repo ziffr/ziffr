@@ -133,10 +133,10 @@ Some of what an Installation talks to can be set on a page instead of in the set
 
 - **The first Installation Admin.** While there is none, Ziffr writes a one-time setup code to its log at every start, and when someone opens `/installation`. With Docker: `docker compose logs app | grep "setup code"`. Sign in, open `/installation` and enter it; it works once. Anyone who can read the log can claim the Installation, so claim it before you hand out the address. Or name the admins in `ZIFFR_INSTALLATION_ADMINS` and skip the code. With several app servers on one database, each start makes a new code and the older ones stop working: take the code from the log of the server that started last.
 - **Which value counts.** The environment first, then the page, then the default (Docker's Mailpit). A setting in the environment is shown on the page as "set on the server" and cannot be changed there, so an Installation set up with a file works as before. A saved value takes effect within seconds, without a restart.
-- **Secrets.** The mail server's address holds its password, so it is sealed with `ZIFFR_SECRETS_KEY` before it is stored, and never shown again. Docker makes that key on the first start; elsewhere set it before saving secrets on the page. Back it up with the database: without it, sealed settings no longer open and must be saved again.
+- **Secrets.** The mail server's address holds its password, so it is sealed with `ZIFFR_SECRETS_KEY` before it is stored, and never shown again. Docker makes that key on the first start; elsewhere set it before saving secrets on the page. Back it up with the database: without it, sealed settings no longer open and must be saved again. The public addresses of Theme logos are keyed with it too: changing it changes every one, so a logo linked elsewhere (a Slack message, a View Link page already open) stops loading until the message or page is made again. Emails embed the logo and keep it.
 - **The mail server's address** is read for its host, port, user and password only, also from the environment: options in a query (`?…`) are ignored, and the page refuses them. A host inside your own network, written so or resolving there, is refused on the page unless `ZIFFR_ALLOW_PRIVATE_MAIL_HOST=1`; Ziffr connects to the address it checked.
 - **Sign-in links** go through Ziffr's mail settings too: Supabase Auth hands each one to Ziffr (its Send Email Hook), which Docker sets up by itself. With your own Supabase project, add the hook as above; without it, Auth keeps its own mail settings for sign-in links.
-- **The check against bots, trials and the demo** are set up on the page too, as the user guide's Installation settings chapter shows. `ZIFFR_DEMO_ONLY` stays a server setting, since it also stops Supabase Auth from making accounts. With Docker, `ZIFFR_DEMO` in the settings file wins. On a domain the demo is off on the server unless the settings file sets `ZIFFR_DEMO=1`, so the page shows it as set on the server; on a laptop the page may switch it off.
+- **The check against bots and the demo** are set up on the page too, as the user guide's Installation settings chapter shows. `ZIFFR_DEMO_ONLY` stays a server setting, since it also stops Supabase Auth from making accounts. With Docker, `ZIFFR_DEMO` in the settings file wins. On a domain the demo is off on the server unless the settings file sets `ZIFFR_DEMO=1`, so the page shows it as set on the server; on a laptop the page may switch it off.
 - **Replies by email** are set up on the page too: the domain for replies, a signing secret the page makes for your provider's forwarder (shown once), the provider that vouches for senders, the MX record the domain needs and what it has now, and a test that emails you and waits for your reply to come back.
 - **What is recorded.** Claiming, adding and removing Installation Admins, and every change of a setting, by name and never by value, with who did it, in a log the page shows.
 
@@ -151,7 +151,7 @@ Self-hosted Ziffr has no limits unless you set one (spec 0029). A **Workspace Li
 - **Over the limit** a Workspace keeps working and every value keeps arriving. The first Metric over the limit starts 14 days in which it may hold 10 % more (at least one); after that no new Metric can be made until it holds fewer than the limit. The database enforces it for every way a Metric is made, so the API, the MCP Server, Feeds, Packs and the forms are all refused alike.
 - **`ZIFFR_DEFAULT_LIMIT_PER_PERSON`** (default 3, unset where you do not set a default limit) caps how many Workspaces on the default limit one person may own.
 - **Hosted Ziffr only:** `ZIFFR_CLOUD_KEY` and `ZIFFR_CLOUD_URL` let a billing service set limits through a signed API and hand Owners over to it. Leave both unset and neither exists: the endpoints answer 404 and no screen mentions a Size or a price. The API is in the [reference](../reference/cloud-api.md); set `ZIFFR_SITE_URL` too, since the Owners' handover names it.
-- Trials that stay, and Workspaces deleted for being unused, are in their own sections below.
+- Workspaces deleted for being unused are in their own section below. Trials are hosted Ziffr's ([below](#trials-are-hosted-ziffrs)).
 
 ### Every Installation Setting
 
@@ -244,16 +244,6 @@ Generated from the Installation Settings catalogue (`packages/core/src/installat
 | `ZIFFR_TURNSTILE_SITE_KEY` | Site key | `0x4AAAAAAA…` | In the Cloudflare dashboard, under Turnstile, add a widget for this Ziffr's domain (mode Managed) and copy its site key. It must be the same widget's as the secret key: a wrong one stops every sign-in until it is removed. |
 | `ZIFFR_TURNSTILE_SECRET` | Secret key | secret | The widget's secret key. Ziffr asks Cloudflare whether it knows it before saving it. |
 
-**Trials**
-
-| Setting | On the page | Example or choices | What it does |
-| --- | --- | --- | --- |
-| `ZIFFR_TRIAL_DAYS` | Days a trial lasts | `7` | 1 to 30. Set, it turns trials on: whoever signs in may start a Trial Workspace, and every Workspace made here is one. Remove it to turn trials off; trials that run go on until they end. |
-| `ZIFFR_TRIAL_MAX` | Trials at once | `200` | The most trials that may run at the same time. Empty: 200. |
-| `ZIFFR_TRIAL_THEN` | When a trial ends | `delete`, `keep` | Keep turns an ended trial into an ordinary Workspace on the default Workspace Limit (set one under Workspace Limits): invitations open and every Connector reaches everyone. Empty: delete. |
-| `ZIFFR_TRIAL_WEBHOOKS` | Webhooks in trials | `true`, `false` | On by default: a trial may hold 2 Webhooks (Workspace and personal together) and send 200 a day, to public addresses only; the hosts you list in ZIFFR_WEBHOOK_PRIVATE_HOSTS never apply to a trial. Off: trials cannot add Webhooks, and those they have send nothing. Ordinary Workspaces are not affected. |
-| `ZIFFR_TRIAL_GRACE_DAYS` | Days a trial's data stays after it ends | `7` | 1 to 60. After the trial ends nothing can be added, and its Owner can still download everything; then it is deleted. Applies to every trial that has ended and is waiting, too: a smaller number deletes them sooner. |
-
 **Usage**
 
 | Setting | On the page | Example or choices | What it does |
@@ -284,20 +274,9 @@ These are Installation Settings (spec 0025, ticket #517), on the page and in the
 
 With a default Workspace Limit (spec 0029) and working email, `ZIFFR_DELETE_UNUSED_AFTER_DAYS` (30 to 3650, also on the Installation Settings page) deletes Workspaces on that default that nobody used for that many days: no sign-in and no value by any Source. Their Owners get one warning first; 14 days later, still unused, the Workspace is deleted with its key destroyed, and members whose only Workspace it was go with their sign-in. One sign-in or one value stops it. Trials, the demo and Workspaces with a limit of their own are never touched. The scheduler calls `POST /api/jobs/unused-workspaces` daily ([jobs](jobs.md)); Docker Compose does it at 04:10 UTC. Unset, nothing is deleted.
 
-## Offering trials
+## Trials are hosted Ziffr's
 
-A public Ziffr can let anyone try it for real with a **Trial Workspace** of their own ([spec 0021](../specs/0021-trial-workspaces.md), [ADR 0010](../adr/0010-trial-workspaces-reach-only-their-owner.md)). A visitor signs in with their email address and gets one workspace, filled with made-up Metrics, a dashboard and a Workflow that asks them. Email, Slack, Telegram, the API, the MCP Server and Feeds work in it for real, but reach only its Owner; nobody can be invited, Contacts stay simulated, and it sends at most 50 messages a day. It ends after the days you set and is deleted a week later, with its Owner's account. The shared demo stays beside it for people who only want to look.
-
-1. Set `ZIFFR_TRIAL_DAYS` (1 to 30) and, if you like, `ZIFFR_TRIAL_MAX` (default 200), or set them in the **Trials** section of the [Installation settings](#installation-settings) page. Leave `ZIFFR_DEMO_ONLY` unset; with Docker on a domain, offer the demo with `ZIFFR_DEMO=1` or in the page's **Demo** section. Every workspace made on this Ziffr is then a trial, so use an Installation of its own, never one your team works in.
-2. Set up Cloudflare Turnstile: make a widget for your domain in the Cloudflare dashboard (Turnstile, Add widget, mode Managed) and set `ZIFFR_TURNSTILE_SITE_KEY` and `ZIFFR_TURNSTILE_SECRET`, or save them in the page's **Check against bots** section, which asks Cloudflare whether it knows the secret first. With your own Supabase project, also turn on its bot protection (Auth, Bot protection, Turnstile) with the same secret, since Supabase's sign-in endpoint can be called without Ziffr.
-3. Real email: set `ZIFFR_SMTP_URL` and `ZIFFR_MAIL_FROM` for a mail provider that allows this volume, and replies by email ([email guide](email.md)) if you want them. Without a mail server, trials still work and say that email is simulated.
-4. Slack, if you want it: set up the app ([Slack guide](slack.md)) and, under Manage Distribution, turn on public distribution, so any Slack workspace can add it. It does not need to be listed in the Slack Marketplace.
-5. Telegram, if you want it: one bot for the Installation ([Telegram guide](telegram.md)).
-6. The scheduler must call `POST /api/jobs/trial-cleanup` every hour ([jobs](jobs.md)); Docker Compose does it, and the job answers 404 while no trials are offered.
-
-To keep trials instead of deleting them, as hosted Ziffr does, set `ZIFFR_TRIAL_THEN=keep` (or **When a trial ends** on the Installation Settings page) together with a default Workspace Limit (`ZIFFR_DEFAULT_METRICS_LIMIT`, `ZIFFR_DEFAULT_LIMIT_LABEL`; spec 0029). At its end a trial then becomes an ordinary Workspace on that limit: invitations open, its Connectors reach everyone, its keys keep the end date they were made with, and if it holds more Metrics than the limit the 14 days over it start. `ZIFFR_ONE_DEFAULT_PER_PERSON=1` lets each person own only one Workspace on the default limit, so nobody collects free Workspaces; a Workspace with a limit of its own does not count. A value of `ZIFFR_TRIAL_THEN` other than `delete` or `keep` stops trials from ending until it is fixed.
-
-The sign-in page then shows the trial next to the demo, with what works in a trial on this Ziffr and what it asks for. A setting that is set but wrong (`ZIFFR_TRIAL_DAYS=14d`) stops workspaces from being made rather than offering ordinary ones.
+A Trial Workspace is something hosted Ziffr (ziffr.net) offers, not something an Installation switches on ([spec 0040](../specs/0040-team-trials.md), [ADR 0015](../adr/0015-trials-only-on-hosted-ziffr-and-open-to-a-team.md)). Without `ZIFFR_CLOUD_KEY` there are no trials: no trial settings, no Trials section on the Installation settings page, no trial on the sign-in page, and every Workspace made here is an ordinary one that you can invite people to. A Ziffr that still has `ZIFFR_TRIAL_DAYS` set, on the server or in the Trials section an older version had on the Installation settings page, makes no Workspace at all until you remove it or set a Cloud key, so strangers never get ordinary Workspaces by mistake; the other `ZIFFR_TRIAL_*` variables only matter for trials that already exist. To let strangers look around, offer the shared demo (`ZIFFR_DEMO`, `ZIFFR_DEMO_ONLY`).
 
 ## Upgrading
 

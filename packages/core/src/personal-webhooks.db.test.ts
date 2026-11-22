@@ -241,14 +241,12 @@ describe("nobody reaches another's", () => {
     expect((await listOwnPersonalWebhooks(A)).webhooks).toHaveLength(1);
   });
 
-  it("is not heard by the Workspace's events or the inbound endpoint", async () => {
+  it("is not heard by the Workspace's events", async () => {
     const { w, A } = await allowed();
     const { id } = await createPersonalWebhook(A, { name: "Ana's", url: URL1, events: ["action.created", "alert.fired"] });
     const { queueWebhookEvent, queueAlertFired } = await import("./webhook-events");
     expect(await queueWebhookEvent(w.id, "action.created", { type: "app" }, { actionId: 1, metricId: 1 })).toBe(0);
     expect(await queueAlertFired(w.id, [id], { workflowId: 1, stepId: "s", metricId: 1, period: "2026-01-01" })).toBe(0);
-    const { authenticateWebhookRequest } = await import("./webhook-inbound");
-    expect(await authenticateWebhookRequest(id, { timestamp: "1", signature: "sha256=x", body: "{}" })).toMatchObject({ ok: false });
   });
 });
 

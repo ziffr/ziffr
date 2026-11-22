@@ -1,0 +1,7 @@
+{
+  "rule": "missing-file",
+  "why": "has no manifest",
+  "remove": [
+    "extension.json"
+  ]
+}

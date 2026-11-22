@@ -30,7 +30,7 @@ import { feedChoices, feedNames } from "@ziffr/core/feeds";
 import { FeedPicker, RemoveFeed } from "./feed-picker";
 import { formatNumber, formatPercent, formatValue, POLARITY_LABEL, RULE_LABEL, SOURCE_LABEL, targetText } from "@ziffr/core/format";
 import { FORECAST_MIN_POINTS, forecast } from "@ziffr/core/forecast";
-import { comparedBy, periodCountLabel, periodWord, rankCorrelations, strength } from "@ziffr/core/correlation";
+import { basisLabel, comparedBy, periodCountLabel, periodWord, rankCorrelations, strength } from "@ziffr/core/correlation";
 import { ANALYSES } from "@/analyses";
 import { ScatterView } from "@/views/scatter";
 import { PageHeader } from "@/components/page-header";
@@ -95,7 +95,7 @@ function CreatedNote({ derived, note, demo, tagsLeftOut }: { derived: boolean; n
   );
 }
 
-export default async function MetricPage({ params, searchParams }: { params: Promise<{ slug: string }>; searchParams: Promise<{ vs?: string; created?: string; bp?: string; full?: string; tab?: string; suggest?: string }> }) {
+export default async function MetricPage({ params, searchParams }: { params: Promise<{ slug: string }>; searchParams: Promise<{ vs?: string; created?: string; bp?: string; full?: string; tab?: string; suggest?: string; basis?: string }> }) {
   const { slug } = await params;
   const sp = await searchParams;
   const tab: Tab = TABS.some((t) => t.id === sp.tab) ? (sp.tab as Tab) : "overview";
@@ -114,8 +114,11 @@ export default async function MetricPage({ params, searchParams }: { params: Pro
   const prev = all[all.length - 2];
   const change = last && prev && prev.value !== 0 ? (last.value - prev.value) / Math.abs(prev.value) : null;
 
+  // Show the numbers: `?basis=values` keeps the older comparison on the values as they are (spec 0041).
+  const byValue = sp.basis === "values";
+  const [basisChoice, keepBasis] = basisOf(byValue);
   // Metrics of every period, each on its common period with this one (spec 0019); those kept to their own period say why.
-  const { ranked: correlations, leftOut } = rankCorrelations(metric, metrics.filter((m) => visible.has(m.id)), resolverFrom(metrics, series), { yearStart });
+  const { ranked: correlations, leftOut } = rankCorrelations(metric, metrics.filter((m) => visible.has(m.id)), resolverFrom(metrics, series), { yearStart, basis: basisChoice });
   const notCombined = [...new Set(leftOut.filter((l) => l.why === "not-combined").map((l) => l.reason))];
   const partner = correlations.find((c) => c.metric.slug === sp.vs) ?? correlations[0];
 
@@ -325,11 +328,11 @@ export default async function MetricPage({ params, searchParams }: { params: Pro
               {partner ? (
                 <>
                   <p className="mt-1 text-sm text-muted-foreground">
-                    Moves most with <span className="font-medium text-foreground">{partner.metric.name}</span>: {strength(partner.result.r)} (r = {formatNumber(partner.result.r, 2, numberStyle)}{partner.result.combined ? "" : `, ${periodCountLabel(partner.result.period, partner.result.n)}`}).{comparedBy(partner.result) && <> {comparedBy(partner.result)}.</>}
+                    Moves most with <span className="font-medium text-foreground">{partner.metric.name}</span>: {strength(partner.result.r)} (r = {formatNumber(partner.result.r, 2, numberStyle)}{partner.result.combined ? "" : `, ${periodCountLabel(partner.result.period, partner.result.n)}`}). {basisLabel(partner.result)}.{comparedBy(partner.result) && <> {comparedBy(partner.result)}.</>}
                   </p>
                   <div className="mt-2 flex flex-wrap gap-1.5">
                     {correlations.slice(0, 5).map((c) => (
-                      <Link key={c.metric.id} href={at({ vs: c.metric.slug })} scroll={false} className={cn("rounded-md border px-2 py-0.5 text-xs", c.metric.id === partner.metric.id ? "stock" : "hover:bg-muted")}>
+                      <Link key={c.metric.id} href={at({ vs: c.metric.slug, ...keepBasis })} scroll={false} title={basisLabel(c.result)} className={cn("rounded-md border px-2 py-0.5 text-xs", c.metric.id === partner.metric.id ? "stock" : "hover:bg-muted")}>
                         {c.metric.name} <span className="fig text-muted-foreground">{formatNumber(c.result.r, 2, numberStyle)}</span>
                       </Link>
                     ))}
@@ -337,11 +340,12 @@ export default async function MetricPage({ params, searchParams }: { params: Pro
                 </>
               ) : <p className="mt-1 text-sm text-muted-foreground">No other metric with enough shared history.</p>}
               {notCombined.map((r) => <p key={r} className="mt-1 text-xs text-muted-foreground">{r}</p>)}
+              <ShowTheNumbers byValue={byValue} at={at} partner={partner} />
             </div>
           </div>
           {partner && (
             <div className="mt-4">
-              <p className="mb-1 text-xs text-muted-foreground">{partner.metric.name} (x) vs. {metric.name} (y), one dot per {periodWord(partner.result.period)}</p>
+              <p className="mb-1 text-xs text-muted-foreground">{partner.metric.name} (x) vs. {metric.name} (y), one dot per {periodWord(partner.result.period)}{changeNote(partner.result)}</p>
               <ScatterView numberStyle={numberStyle} x={partner.metric} y={metric} pairs={partner.result.pairs.map((p) => ({ period: p.period, x: p.y, y: p.x }))} yearStart={yearStart} />
             </div>
           )}
@@ -480,4 +484,28 @@ function Row({ k, children }: { k: string; children: React.ReactNode }) {
       <dd>{children}</dd>
     </>
   );
+}
+
+/** Show the numbers for Correlation: the older comparison on the values as they are, a link that sets `?basis=values`. */
+function ShowTheNumbers({ byValue, at, partner }: { byValue: boolean; at: (extra: Record<string, string>) => string; partner?: { metric: { slug: string } } }) {
+  const href = at({ ...(partner ? { vs: partner.metric.slug } : {}), ...(byValue ? {} : { basis: "values" }) });
+  return (
+    <details className="mt-2 text-xs text-muted-foreground">
+      <summary className="cursor-pointer">Show the numbers</summary>
+      <p className="mt-1">
+        Two Metrics that both grow look related even when nothing links them, so by default growth is removed. {byValue ? "Now compared on the values as they are. " : ""}
+        <Link href={href} scroll={false} className="underline">{byValue ? "Remove growth again" : "Compare on the values as they are"}</Link>
+      </p>
+    </details>
+  );
+}
+
+/** The basis choice of a page's Correlation and the parameter that keeps it in a link. */
+function basisOf(byValue: boolean): ["values" | "auto", Record<string, string>] {
+  return byValue ? ["values", { basis: "values" }] : ["auto", {}];
+}
+
+/** What a dot is when growth was removed: the change from the period before. */
+function changeNote(result: { basis: string; period: Parameters<typeof periodWord>[0] }): string {
+  return result.basis === "changes" ? `, each the change from the ${periodWord(result.period)} before` : "";
 }

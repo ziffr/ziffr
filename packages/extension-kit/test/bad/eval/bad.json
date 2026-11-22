@@ -1,0 +1,5 @@
+{
+  "rule": "dynamic-code",
+  "why": "calls eval",
+  "remove": []
+}

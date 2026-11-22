@@ -1,0 +1,5 @@
+{
+  "rule": "this-keyword",
+  "why": "declares a this parameter",
+  "remove": []
+}

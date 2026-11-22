@@ -16,6 +16,7 @@ import { dashboardTemplateFromFile, templateSlots } from "./dashboard-template-f
 import { deckTemplateFromFile } from "./deck-template-file";
 import { workflowTemplateFromFile } from "./workflow-template-file";
 import { themeFromFile } from "./theme-file";
+import { cleanLogo, logoRatio, PACK_LOGO_MAX_BYTES } from "@ziffr/pack/logo";
 import { checkViewDesignValue, type ViewDesign } from "./view-design";
 import { tagNamesOf, TAGS_PER_ENTRY } from "./tag-names";
 import { designWithRecipe } from "./design-files";
@@ -61,6 +62,27 @@ export function assertManages(actor: Actor) {
  * the same and a changed one does not (updating, #276). */
 export const itemHash = (stored: unknown) => createHash("sha256").update(canonical(stored)).digest("hex");
 
+/** The Pack's logo as it may be stored: checked here again, whatever the file or an earlier check says, and written out
+ * as `cleanLogo` serializes it (an SVG is re-serialized from what was parsed). Null when the Pack has none; throws when
+ * it has one that is not a logo Ziffr keeps, so nothing hostile is ever stored. Security: spec 0039. */
+export function packLogoOf(pack: Pick<Pack, "logo">): string | null {
+  if (pack.logo === undefined) return null;
+  const clean = cleanLogo(pack.logo, PACK_LOGO_MAX_BYTES);
+  if (!clean) throw new Error("The Pack's logo is not a picture Ziffr keeps; nothing was added.");
+  return clean;
+}
+
+/** What is hashed of a Theme (spec 0039): its name, tokens and slide settings, with the logo as the word "pack" where it
+ * is exactly the Pack's logo, "other" where it is any other, and nothing where there is none. So a Theme whose logo the
+ * Workspace set, replaced or removed counts as changed, and an update keeps it as it is. A Theme without a logo hashes
+ * as it always did. */
+export function themeHashInput(name: unknown, tokens: unknown, slides: Record<string, unknown> | null, packLogo: string | null): unknown {
+  const own = slides ?? {};
+  const isPack = packLogo !== null && own.logo === packLogo;
+  const has = typeof own.logo === "string" && own.logo !== "";
+  return { name, tokens, slides: { ...own, logo: isPack ? "pack" : has ? "other" : null, logo_ratio: isPack ? logoRatio(packLogo) : 3 } };
+}
+
 /** Every item of a checked Pack as it would be stored, in the order of its kinds. View Designs, and Analysis Recipes
  * as View Designs that draw them (the Workspace keeps recipes inside designs), are checked again as they are stored. */
 export function storedItems(pack: Pack) {
@@ -89,7 +111,8 @@ export function storedItems(pack: Pack) {
     ...(c.workflows ?? []).map(({ key, template: t }) => template("workflow", key, t.name, t.description ?? "", [], workflowTemplateFromFile(t))),
   ];
   const views = [...(c.views ?? []).map((v) => ({ key: v.key, body: v.design })), ...recipeDesigns].map(({ key, body }) => ({ key, name: body.name, body, hash: itemHash({ name: body.name, body }) }));
-  const themes = (c.themes ?? []).map(({ key, theme }) => { const t = themeFromFile(theme); return { key, name: t.name, tokens: t.tokens, slides: t.slides as ThemeSlides, hash: itemHash(t) }; });
+  const packLogo = packLogoOf(pack);
+  const themes = (c.themes ?? []).map(({ key, theme }) => { const t = themeFromFile(theme, packLogo); return { key, name: t.name, tokens: t.tokens, slides: t.slides as ThemeSlides, hash: itemHash(themeHashInput(t.name, t.tokens, t.slides as unknown as Record<string, unknown>, packLogo)) }; });
   return { catalog, templates, views, themes };
 }
 
@@ -180,7 +203,7 @@ export async function installPack(actor: Actor, text: string, origin: PackOrigin
   const { data, error } = await db().rpc("install_pack", {
     p_workspace: actor.workspaceId,
     p_by: actor.personId,
-    p_install: { pack_id: pack.id, version: pack.version, license: pack.license, source: origin.source, signed: origin.signed, manifest: manifestOf(pack), item_keys: itemKeys(stored) },
+    p_install: { pack_id: pack.id, version: pack.version, license: pack.license, source: origin.source, signed: origin.signed, manifest: { ...manifestOf(pack), ...(pack.logo === undefined ? {} : { logo: packLogoOf(pack) }) }, item_keys: itemKeys(stored) },
     p_catalog: stored.catalog,
     p_templates: stored.templates,
     p_designs: stored.views,
@@ -194,7 +217,7 @@ export async function installPack(actor: Actor, text: string, origin: PackOrigin
     throw new Error(twice ? `${pack.name} is installed already.` : named ? "This Workspace's Metric Catalog has an entry of the same name as one of this Pack's already; nothing was added." : "The Pack could not be installed; nothing was added.");
   }
   const id = Number(data);
-  await audit(actor, { kind: "pack.installed", object: { type: "pack", id, name: pack.name }, details: { pack: pack.id, version: pack.version, source: origin.source, signed: origin.signed } });
+  await audit(actor, { kind: "pack.installed", object: { type: "pack", id, name: pack.name }, details: { pack: pack.id, version: pack.version, source: origin.source, signed: origin.signed, ...(pack.logo === undefined ? {} : { logo: true, themes_with_logo: stored.themes.filter((t) => t.slides.logo).length }) } });
   return id;
 }
 

@@ -1,0 +1,5 @@
+{
+  "rule": "outside-assignment",
+  "why": "pushes onto a list outside the function",
+  "remove": []
+}

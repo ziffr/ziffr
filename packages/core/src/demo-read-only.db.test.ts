@@ -12,6 +12,7 @@ import { updateMyProfile } from "./profile";
 import { addContact, DEMO_WORKSPACE_ID } from "./team";
 import { workspace } from "./test/db-fixtures";
 import type { Actor } from "./actor";
+const CLOUD = { ZIFFR_CLOUD_KEY: "k".repeat(32) };
 
 const sara: Actor = { personId: "sara", workspaceId: DEMO_WORKSPACE_ID, role: "owner" };
 const cleanups: (() => Promise<void>)[] = [];
@@ -75,14 +76,14 @@ describe("the demo refuses every write", () => {
 describe("the sentence", () => {
   it("points to a trial only where this Installation offers them", () => {
     expect(demoReadOnlyWords({})).toBe(DEMO_READ_ONLY);
-    expect(demoReadOnlyWords({ ZIFFR_TRIAL_DAYS: "14" })).toBe(DEMO_READ_ONLY_TRIAL);
-    expect(demoReadOnlyWords({ ZIFFR_TRIAL_DAYS: "nonsense" })).toBe(DEMO_READ_ONLY);
+    expect(demoReadOnlyWords({ ...CLOUD, ZIFFR_TRIAL_DAYS: "14" })).toBe(DEMO_READ_ONLY_TRIAL);
+    expect(demoReadOnlyWords({ ...CLOUD, ZIFFR_TRIAL_DAYS: "nonsense" })).toBe(DEMO_READ_ONLY);
     expect(DEMO_READ_ONLY_TRIAL).toBe("The demo can't be changed. Start a trial to try it with your own numbers.");
   });
 
   it("reaches a plain form's error screen as a fixed code, never as text", () => {
     expect(new DemoReadOnly({}).digest).toBe(DEMO_DIGEST.plain);
-    expect(new DemoReadOnly({ ZIFFR_TRIAL_DAYS: "7" }).digest).toBe(DEMO_DIGEST.trial);
+    expect(new DemoReadOnly({ ...CLOUD, ZIFFR_TRIAL_DAYS: "7" }).digest).toBe(DEMO_DIGEST.trial);
     expect(demoWordsForDigest(DEMO_DIGEST.trial)).toBe(DEMO_READ_ONLY_TRIAL);
     expect(demoWordsForDigest("1234567")).toBeNull();
   });

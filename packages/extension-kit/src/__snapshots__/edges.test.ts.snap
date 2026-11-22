@@ -1,0 +1,213 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`every problem of every bad Extension, as the command writes it > says what is wrong, in words, with its file and line 1`] = `
+{
+  "ambient-document": [
+    "method.ts:6: uses “document”, which an Extension may not.",
+  ],
+  "ambient-globalthis": [
+    "method.ts:6: uses “globalThis”, which an Extension may not.",
+  ],
+  "ambient-object-assign": [
+    "method.ts:6: uses “Object”, which is neither declared in the file nor on the short list of what an Extension may use.",
+  ],
+  "ambient-process": [
+    "method.ts:6: uses “process”, which an Extension may not.",
+  ],
+  "ambient-webassembly": [
+    "method.ts:6: uses “WebAssembly”, which is neither declared in the file nor on the short list of what an Extension may use.",
+  ],
+  "ambient-window": [
+    "method.ts:6: uses “window”, which an Extension may not.",
+  ],
+  "ambient-worker": [
+    "method.ts:6: uses “Worker”, which is neither declared in the file nor on the short list of what an Extension may use.",
+  ],
+  "any-annotation": [
+    "method.ts:6: uses the type any: write the type.",
+  ],
+  "any-assertion": [
+    "method.ts:6: uses the type any: write the type.",
+  ],
+  "both-method-and-mark": [
+    "mark.ts:1: is here, but extension.json says this is a method: it has method.ts.",
+  ],
+  "clock-date-now": [
+    "method.ts:6: uses “Date”, which an Extension may not.",
+  ],
+  "clock-new-date": [
+    "method.ts:6: uses “Date”, which an Extension may not.",
+  ],
+  "clock-performance-now": [
+    "method.ts:6: uses “performance”, which an Extension may not.",
+  ],
+  "dynamic-import": [
+    "method.ts:6: calls import(…): an Extension loads nothing at run time.",
+  ],
+  "empty-catalogue": [
+    "catalogue.md:1: is empty.",
+  ],
+  "eval": [
+    "method.ts:6: uses “eval”, which an Extension may not.",
+  ],
+  "function-constructor": [
+    "method.ts:6: uses “Function”, which an Extension may not.",
+  ],
+  "import-node-builtin": [
+    "method.ts:5: imports “node:fs”; an Extension may import only “@ziffr/extension-kit” and “@ziffr/figures”.",
+  ],
+  "import-outside-the-list": [
+    "method.ts:5: imports “lodash”; an Extension may import only “@ziffr/extension-kit” and “@ziffr/figures”.",
+  ],
+  "import-reexport": [
+    "method.ts:17: imports “node:os”; an Extension may import only “@ziffr/extension-kit” and “@ziffr/figures”.",
+  ],
+  "import-subpath-of-figures": [
+    "method.ts:5: imports “@ziffr/figures/internal”; an Extension may import only “@ziffr/extension-kit” and “@ziffr/figures”.",
+  ],
+  "licence-text-is-not-the-named-one": [
+    "LICENSE:1: is not the MIT licence that extension.json names.",
+  ],
+  "locale-compare": [
+    "method.ts:6: uses localeCompare, whose result depends on the machine's language settings.",
+  ],
+  "locale-intl": [
+    "method.ts:6: uses “Intl”, which an Extension may not.",
+  ],
+  "locale-tolocalestring": [
+    "method.ts:6: uses toLocaleString, whose result depends on the machine's language settings.",
+  ],
+  "longer-than-400-lines": [
+    "method.ts:401: has 401 lines; at most 400 are allowed, so that a person can read it all.",
+  ],
+  "manifest-bad-version": [
+    "extension.json:4: version must be three numbers, major, minor and patch, such as “1.2.0”; a change that alters a number is a new major version.",
+  ],
+  "manifest-extra-field": [
+    "extension.json:26: homepage is not a field here; the fields are “format”, “id”, “version”, “kind”, “name”, “summary”, “author”, “license”, “signature”, “limits”, “ziffr”, “price”.",
+  ],
+  "manifest-method-that-draws": [
+    "extension.json:19: signature.gives of a Method must be a series, value, table or model: only a mark gives shapes.",
+  ],
+  "manifest-not-json": [
+    "extension.json:2: The file ends too early.",
+  ],
+  "manifest-paid": [
+    "extension.json:25: price must be “free”.",
+  ],
+  "manifest-parameter-range": [
+    "extension.json:24: signature.params[0].max must be above min.",
+  ],
+  "manifest-too-many-points": [
+    "extension.json:22: limits.points must be at most 120.",
+  ],
+  "manifest-unknown-licence": [
+    "extension.json:11: license must be one of “MIT”, “Apache-2.0”.",
+  ],
+  "manifest-wrong-format": [
+    "extension.json:2: format This file is in format ziffr.extension/9; this Ziffr reads ziffr.extension/1.",
+  ],
+  "missing-cases": [
+    "cases.ts: is missing: every Extension has extension.json, reference.ts, cases.ts, catalogue.md, wording.ts, LICENSE and method.ts or mark.ts.",
+  ],
+  "missing-catalogue": [
+    "catalogue.md: is missing: every Extension has extension.json, reference.ts, cases.ts, catalogue.md, wording.ts, LICENSE and method.ts or mark.ts.",
+  ],
+  "missing-extension-json": [
+    "extension.json: is missing: every Extension has extension.json, reference.ts, cases.ts, catalogue.md, wording.ts, LICENSE and method.ts or mark.ts.",
+  ],
+  "missing-implementation": [
+    "method.ts: is missing: the implementation of a method.",
+  ],
+  "missing-license": [
+    "LICENSE: is missing: every Extension has extension.json, reference.ts, cases.ts, catalogue.md, wording.ts, LICENSE and method.ts or mark.ts.",
+  ],
+  "missing-reference": [
+    "reference.ts: is missing: every Extension has extension.json, reference.ts, cases.ts, catalogue.md, wording.ts, LICENSE and method.ts or mark.ts.",
+  ],
+  "missing-wording": [
+    "wording.ts: is missing: every Extension has extension.json, reference.ts, cases.ts, catalogue.md, wording.ts, LICENSE and method.ts or mark.ts.",
+  ],
+  "module-let": [
+    "method.ts:5: is a variable at the top of the file that can change: state shared between calls. Use const.",
+  ],
+  "module-list": [
+    "method.ts:5: is a top-level value that can change (a list, object, Map or Set): write it \`as const\`, with a readonly type or in Object.freeze(…).",
+  ],
+  "module-map": [
+    "method.ts:5: is a top-level value that can change (a list, object, Map or Set): write it \`as const\`, with a readonly type or in Object.freeze(…).",
+  ],
+  "module-state-in-the-reference": [
+    "reference.ts:4: is a top-level value that can change (a list, object, Map or Set): write it \`as const\`, with a readonly type or in Object.freeze(…).",
+  ],
+  "network-fetch": [
+    "method.ts:6: uses “fetch”, which an Extension may not.",
+  ],
+  "network-xhr": [
+    "method.ts:6: uses “XMLHttpRequest”, which an Extension may not.",
+  ],
+  "push-on-a-frozen-module-list": [
+    "method.ts:7: calls push on “log”, which changes it; it is not a variable of the function (copy it first).",
+  ],
+  "random": [
+    "method.ts:6: uses Math.random: an Extension is deterministic.",
+    "method.ts:6: uses Math other than as Math.name, and Math.random is not allowed.",
+  ],
+  "random-by-name-in-destructuring": [
+    "method.ts:6: uses Math other than as Math.name, and Math.random is not allowed.",
+  ],
+  "random-crypto": [
+    "method.ts:6: uses “crypto”, which an Extension may not.",
+  ],
+  "reach-constructor": [
+    "method.ts:6: reaches “constructor”, which leads to the Function constructor or the prototype chain.",
+  ],
+  "reference-imports-the-implementation": [
+    "reference.ts:2: imports “./method”; an Extension may import only “@ziffr/extension-kit” and “@ziffr/figures”.",
+  ],
+  "require": [
+    "method.ts:6: uses “require”, which an Extension may not.",
+  ],
+  "sort-the-input": [
+    "method.ts:6: calls sort on “series”, which changes it; it is not a variable of the function (copy it first).",
+  ],
+  "string-key-literal": [
+    "method.ts:6: reaches a property by a string: write the name after a dot.",
+  ],
+  "string-key-made-of-pieces": [
+    "method.ts:7: reaches a property by a string: write the name after a dot.",
+  ],
+  "syntax-error": [
+    "method.ts:1: Identifier expected.",
+    "method.ts:1: ',' expected.",
+    "method.ts:2: '}' expected.",
+  ],
+  "this-parameter": [
+    "method.ts:5: uses this: what a value is depends on how it is called. Write a function over its arguments.",
+  ],
+  "this-value": [
+    "method.ts:6: uses this: what a value is depends on how it is called. Write a function over its arguments.",
+  ],
+  "timer": [
+    "method.ts:6: uses “setTimeout”, which an Extension may not.",
+  ],
+  "wording-says-because": [
+    "wording.ts:4: says “because”, which a Takeaway never says.",
+  ],
+  "wording-says-confidence": [
+    "wording.ts:5: says “confidence”, which a Takeaway never says.",
+  ],
+  "wording-says-significant": [
+    "wording.ts:3: says “significant”, which a Takeaway never says.",
+  ],
+  "write-to-a-global": [
+    "method.ts:7: assigns to “state”, which is not declared inside the function.",
+  ],
+  "write-to-an-undeclared-name": [
+    "method.ts:6: uses “total”, which is neither declared in the file nor on the short list of what an Extension may use.",
+  ],
+  "write-to-the-input": [
+    "method.ts:6: changes what “series” holds, which the caller handed in: an Extension never changes its input.",
+  ],
+}
+`;

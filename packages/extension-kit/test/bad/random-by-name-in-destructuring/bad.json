@@ -1,0 +1,5 @@
+{
+  "rule": "random",
+  "why": "takes random out of Math",
+  "remove": []
+}

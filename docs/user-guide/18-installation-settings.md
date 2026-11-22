@@ -4,7 +4,7 @@
 
 This chapter is for the people who run a Ziffr for others: a team, a club or a company. If someone else runs your Ziffr, you never see this page, and you can skip it.
 
-An **Installation** is one running Ziffr, with all its Workspaces. Its **Installation Settings** say what it talks to: the mail server, Telegram and Slack, and later the check against bots and trials. The people who may change them are its **Installation Admins**. Being an Owner of a Workspace does not make you one, and being one shows you nothing of anyone's Workspace.
+An **Installation** is one running Ziffr, with all its Workspaces. Its **Installation Settings** say what it talks to: the mail server, Telegram and Slack, and the check against bots. The people who may change them are its **Installation Admins**. Being an Owner of a Workspace does not make you one, and being one shows you nothing of anyone's Workspace.
 
 ## Becoming the first Installation Admin
 
@@ -167,15 +167,9 @@ Ziffr asks Cloudflare whether it knows the secret key first and saves nothing Cl
 
 ## Trials
 
-With trials on, anyone who signs in may start a **Trial Workspace** of their own, and every Workspace made on this Ziffr is one. Use it on a Ziffr of its own, never one your team works in.
+Trials are something hosted Ziffr offers, so this section exists only on a Ziffr Cloud deployment. On any other Ziffr the page has no Trials section, the sign-in page has no trial, and every Workspace made here is an ordinary one. If the server's settings file, or a Trials section saved by an older version, still sets the trial days, no Workspace can be made until that is removed.
 
-- **Days a trial lasts**: 1 to 30. Setting it turns trials on; **Remove** turns them off, and trials that run go on until they end.
-- **Trials at once**: the most trials that may run at the same time; empty means 200.
-- **Days a trial's data stays after it ends**: 1 to 60, default 7. After its end a trial can add nothing and its Owner can still download everything; then it is deleted. It applies to every trial that has ended and waits, so a smaller number deletes them sooner.
-- **Webhooks in trials**: on by default. A trial may then add 2 Webhooks and send 200 a day, to public addresses only; the hosts you list in `ZIFFR_WEBHOOK_PRIVATE_HOSTS` never apply to a trial, so a trial cannot reach your network. Off, or `ZIFFR_TRIAL_WEBHOOKS=false` in the environment (the environment wins over the page), a trial cannot add a Webhook and the ones it has send nothing; ordinary Workspaces are not affected.
-- **When a trial ends**: close it and delete it a week later (the default), or keep it as an ordinary Workspace on the default Workspace Limit (see Workspace Limits): invitations open, every Connector reaches everyone, and its keys keep the end date they were made with.
-
-The section then says, for example, "Trials of 14 days, at most 200 at once. Every Workspace made here is one." The sign-in page shows the trial next to the demo, with what works in a trial on this Ziffr. Set up the check against bots too.
+On hosted Ziffr the section shows the days a trial lasts as **Set by Ziffr Cloud**, and you can still set how many trials may run at once, whether trials may have Webhooks, and the days a trial's data stays after it ends.
 
 ## Usage
 

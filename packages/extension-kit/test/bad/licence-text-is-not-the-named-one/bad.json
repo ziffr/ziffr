@@ -1,0 +1,5 @@
+{
+  "rule": "license-mismatch",
+  "why": "its LICENSE is not the MIT licence the manifest names",
+  "remove": []
+}

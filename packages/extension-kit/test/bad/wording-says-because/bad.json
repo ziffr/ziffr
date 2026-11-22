@@ -1,0 +1,5 @@
+{
+  "rule": "forbidden-word",
+  "why": "a Takeaway says because",
+  "remove": []
+}

@@ -288,6 +288,17 @@ describe("when the Installation Settings cannot be read (fail closed)", () => {
     expect((await db().from("workspaces").select("id").eq("id", t.id).maybeSingle()).data).not.toBeNull();
   });
 
+  it("deletes nothing for a stored keep row without a Ziffr Cloud key, which still governs the trials that exist (spec 0040)", async () => {
+    delete process.env.ZIFFR_CLOUD_KEY;
+    const old = await trial(-8 * 24);
+    await db().from("installation_settings").upsert({ name: "ZIFFR_TRIAL_THEN", value: "keep", sealed: false }).throwOnError();
+    forgetStoredSettings();
+    try {
+      expect(await deleteExpiredTrials()).toBe(0);
+    } finally { await db().from("installation_settings").delete().eq("name", "ZIFFR_TRIAL_THEN"); forgetStoredSettings(); }
+    expect((await db().from("workspaces").select("id").eq("id", old.id).maybeSingle()).data).not.toBeNull();
+  });
+
   it("deletes nothing where trials are kept, and a trial that was kept is never deleted", async () => {
     const old = await trial(-8 * 24);
     const kept = await trial(-8 * 24);

@@ -1,0 +1,5 @@
+{
+  "rule": "import-not-allowed",
+  "why": "imports a path inside an allowed package",
+  "remove": []
+}

@@ -1,0 +1,5 @@
+{
+  "rule": "locale",
+  "why": "writes a number with toLocaleString",
+  "remove": []
+}

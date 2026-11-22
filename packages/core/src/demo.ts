@@ -5,16 +5,11 @@
 import { Forbidden, type Actor } from "./actor";
 import { DEMO_DIGEST, DEMO_READ_ONLY, DEMO_READ_ONLY_TRIAL } from "./demo-words";
 import { DEMO_WORKSPACE_ID } from "./team";
-import { trialSettings } from "./trials";
+import { trialsOffered } from "./trials";
 import { settingsInEffectNow } from "./settings-in-effect";
 
 /** The error code the database raises for a write to the demo. */
 export const DEMO_READ_ONLY_CODE = "ZF4D0";
-
-/** Whether this Installation offers Trial Workspaces; a wrong setting counts as none, so the sentence leaves them out. */
-function trialsOffered(env: Record<string, string | undefined>): boolean {
-  try { return trialSettings(env) !== null; } catch { return false; }
-}
 
 /** The one sentence a refused change in the demo says, pointing to a trial where this Installation offers them. */
 export function demoReadOnlyWords(env: Record<string, string | undefined> = settingsInEffectNow()): string {
