@@ -13,7 +13,7 @@ import { deleteMetric } from "./metrics";
 import { readTags, tagIndexes } from "./tag-rows";
 import { metricIdsWithTags, metricTagNames, visibleTags } from "./tag-sight";
 import { TAGS_PER_METRIC, TAGS_PER_WORKSPACE } from "./tag-names";
-import { addMetricTags, deleteTag, mergeTags, removeMetricTags, renameTag, setMetricTags, tagImpact } from "./tags";
+import { addMetricTags, deleteTag, mayTag, mergeTags, removeMetricTags, renameTag, setMetricTags, tagImpact } from "./tags";
 import { workspace } from "./test/db-fixtures";
 import { listVersions, restoreVersion } from "./version-history";
 import { reencryptionJob } from "./workspace-key-job";
@@ -168,6 +168,9 @@ describe("who may tag", () => {
     const keyActor = { ...t.as.sara, key: { id: "1", scopes: ["metrics:write"] } };
     // A key never tags as itself: the API acts as its creator through the core's person functions.
     await expect(renameTag(keyActor as never, randomUUID(), "x")).rejects.toBeInstanceOf(Forbidden);
+    // Not even on a Metric the key's creator owns: the scope is the API's to check, and it then passes the creator (#662).
+    expect(await mayTag(keyActor as never, t.privateM.id)).toBe(false);
+    await expect(setMetricTags(keyActor as never, t.privateM.id, ["finance"])).rejects.toBeInstanceOf(Forbidden);
   });
 });
 
