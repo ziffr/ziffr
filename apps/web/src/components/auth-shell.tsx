@@ -4,8 +4,9 @@
 // everybody, so nothing here depends on who is asking.
 import { cn } from "@/lib/utils";
 
-/** The column around a signed-out page: the mark, its content in a card, and what sits below the card. */
-export function AuthShell({ children, below, className }: { children: React.ReactNode; below?: React.ReactNode; className?: string }) {
+/** The column around a signed-out page: the mark, its content in a card, what sits below the card (`below`, such as
+ * the demo link) and, last, a page footer (`footer`, such as the legal links of hosted Ziffr, #760). */
+export function AuthShell({ children, below, footer, className }: { children: React.ReactNode; below?: React.ReactNode; footer?: React.ReactNode; className?: string }) {
   return (
     <div className={cn("mx-auto w-full max-w-md pt-2 sm:pt-10", className)}>
       {/* The same mark as the site's header and the app icons; decorative, the heading says where you are. */}
@@ -13,6 +14,7 @@ export function AuthShell({ children, below, className }: { children: React.Reac
       <img src="/brand/ziffr-logo.svg" width={44} height={44} alt="" className="mb-6 size-11" />
       <div className="rounded-[var(--radius-card)] border border-border bg-card p-6 text-card-foreground shadow-[var(--shadow-card)] sm:p-8">{children}</div>
       {below && <div className="mt-6 text-center text-sm text-muted-foreground">{below}</div>}
+      {footer && <footer className="mt-10 text-center text-xs text-muted-foreground">{footer}</footer>}
     </div>
   );
 }
