@@ -15,6 +15,7 @@ import { createViewLink } from "./view-links";
 import { submitValue } from "./submissions";
 import { addContact } from "./team";
 import { saveWorkflow } from "./workflows";
+import { setMetricTags } from "./tags";
 import { workspace } from "./test/db-fixtures";
 
 const file = process.env.DUMP_NEEDLES_FILE ?? null;
@@ -49,6 +50,9 @@ describe.skipIf(!on)("the dump", () => {
     known("91481.4375", "an added-up value");
     await saveSeriesRows(actor, created.id, "target", [{ period: "2026-10-01", value: Number(known("55512.875", "a Target point")) }], "");
     await saveSeriesRows(actor, created.id, "projection", [{ period: "2026-10-01", value: Number(known("40404.0625", "a Projection point")) }], "");
+
+    // A Tag's name says what the Workspace measures (spec 0038): it and its blind index are in the dump only sealed.
+    await setMetricTags(actor, created.id, [known("Cormorant Tithe Ledger", "a Tag's name")]);
 
     const id = await ask(actor, { metricId: created.id, period: "2026-08-01", assigneeId: helper, text: known("Why did Gulliver Quay close early?", "a Question") });
     await reply(w.actor(helper, "member"), id, known("Because of the Saffron Pier storm", "a Thread reply"), null);

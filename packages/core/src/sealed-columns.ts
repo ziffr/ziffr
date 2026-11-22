@@ -47,6 +47,9 @@ export const SEALED_COLUMNS = {
   // A Slack connection's bot token, bound to its Workspace (slack-connection.ts seals it; a token sealed before, with
   // ZIFFR_SECRETS_KEY, is sealed again by the re-encryption job, which opens it first: see sealTexts).
   slack_installations: ["bot_token"],
+  // A Tag's name (spec 0038) says what the Workspace measures as much as a Metric's does: written by tags.ts with its id (a uuid)
+  // made first, and found by its blind index (`name_index`), which the re-encryption job recomputes with the name.
+  tags: ["name"],
 } as const;
 
 /** Columns sealed together with a blind index, beside the table above on purpose: the re-encryption job seals every
@@ -104,7 +107,7 @@ const COLUMNS: Record<string, readonly string[]> = ALL_SEALED_COLUMNS;
 const NUMBERS: Record<string, readonly string[] | undefined> = SEALED_NUMBERS;
 
 /** The column that names a row of each table, which a sealed value is bound to. */
-export const ROW_KEY: Record<OpenedTable, string> = { thread_messages: "id", actions: "id", contacts: "person_id", profiles: "id", deliveries: "id", prompts: "id", intake_log: "id", audit_events: "id", alerts: "id", webhooks: "id", webhook_external_ids: "id", condensed_values: "id", period_states: "row_key", slack_installations: "workspace_id", breakdown_rows: "id", breakdown_history: "id", dashboards: "id", widgets: "id", metrics: "id", observations: "id", observation_history: "id", series_values: "id" };
+export const ROW_KEY: Record<OpenedTable, string> = { thread_messages: "id", actions: "id", contacts: "person_id", profiles: "id", deliveries: "id", prompts: "id", intake_log: "id", audit_events: "id", alerts: "id", tags: "id", webhooks: "id", webhook_external_ids: "id", condensed_values: "id", period_states: "row_key", slack_installations: "workspace_id", breakdown_rows: "id", breakdown_history: "id", dashboards: "id", widgets: "id", metrics: "id", observations: "id", observation_history: "id", series_values: "id" };
 
 /** The name of a row that its sealed values are bound to: the row's key column, which a period's state has only as the
  * generated `row_key`, made here from its Metric and period when the row is not read from the table yet; a Slack

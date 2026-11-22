@@ -193,6 +193,10 @@ Settings an Owner or Installation Admin makes at the screen. Programs with a key
 - `workspaceSettableLimits` (limits.ts): Workspace settings, Limits (#518)
 - `sizeAndUsage` (workspace-usage.ts): the Usage page
 - `metricsOfLimit` (workspace-usage.ts): the Usage page
+- `tagImpact` (tags.ts): Owners and Admins on the page only, spec 0038
+- `renameTag` (tags.ts): Owners and Admins on the page only, spec 0038
+- `mergeTags` (tags.ts): Owners and Admins on the page only, spec 0038
+- `deleteTag` (tags.ts): Owners and Admins on the page only, spec 0038
 
 ## app-only: what a page reads
 
@@ -266,6 +270,15 @@ Ticketed. MCP follows where the ticket says so.
 - `createWorkflowFromTemplate` (workflow-templates.ts): Workflows for programs, #433
 - `runTodayNow` (workflows.ts): running a Workflow now, with Workflows for programs, #433
 - `closeWorkflowPeriod` (workflows.ts): closing a period, with Workflows for programs, #433
+- `visibleTags` (tag-sight.ts): API and MCP: spec 0038 ticket #659
+- `tagSight` (tag-sight.ts): API and MCP: spec 0038 ticket #659
+- `metricTagNames` (tag-sight.ts): API and MCP: spec 0038 ticket #659
+- `metricIdsWithTags` (tag-sight.ts): API and MCP: spec 0038 ticket #659
+- `changeMetricTags` (tags.ts): API and MCP: spec 0038 ticket #659
+- `setMetricTags` (tags.ts): API and MCP: spec 0038 ticket #659
+- `addMetricTags` (tags.ts): API and MCP: spec 0038 ticket #659
+- `removeMetricTags` (tags.ts): API and MCP: spec 0038 ticket #659
+- `restoreMetricTags` (tags.ts): API and MCP: spec 0038 ticket #659
 
 ## internal: not for programs
 

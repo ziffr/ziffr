@@ -146,6 +146,8 @@ function mapMetricVersion(snapshot: Obj, change: Change): Obj {
     const value = next === undefined ? undefined : next === text && typeof v === "number" ? v : isSealed(next) ? next : Number.isFinite(n) ? n : undefined;
     if (value === undefined) delete out[column]; else out[column] = value;
   }
+  // A Metric's Tags (spec 0038) are Workspace words: each name sealed for its place in the Version; one that does not open is left out.
+  if (Array.isArray(out.tags)) out.tags = out.tags.flatMap((t, i) => (typeof t === "string" ? [change(`snapshot.tags.${i}`, t)] : [])).filter((t): t is string => t !== undefined);
   return out;
 }
 

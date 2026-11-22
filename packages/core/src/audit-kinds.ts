@@ -113,6 +113,9 @@ export const AUDIT_KINDS = {
   "slack.disconnected": "disconnected Slack",
   "telegram.turned_on": "turned Telegram on",
   "telegram.turned_off": "turned Telegram off",
+  "tag.renamed": "renamed the Tag",
+  "tag.merged": "merged the Tag",
+  "tag.deleted": "deleted the Tag",
   "snapshot.taken": "took a Snapshot of",
   "snapshot.shown": "showed a Snapshot of",
   "snapshot.deleted": "deleted a Snapshot of",
@@ -130,18 +133,18 @@ export type AuditKind = keyof typeof AUDIT_KINDS;
 /** The groups of kinds the page filters by, each with its label. */
 export const AUDIT_CATEGORIES = {
   member: "Members", invitation: "Invitations", join_request: "Join requests", domain_joining: "Domain Joining", contact: "Contacts",
-  share: "Shares", group: "Groups", view_link: "View Links", share_proposal: "Share Proposals", access_key: "Access Keys", calendar_link: "Calendar Links", schedule: "Schedules", assistant: "Assistants", feed: "Feeds", webhook: "Webhooks", view_design: "View Designs", theme: "Themes", pack: "Packs", dashboard: "Dashboards", metric: "Metrics", period: "Locks",
+  share: "Shares", group: "Groups", view_link: "View Links", share_proposal: "Share Proposals", access_key: "Access Keys", calendar_link: "Calendar Links", schedule: "Schedules", assistant: "Assistants", feed: "Feeds", webhook: "Webhooks", view_design: "View Designs", theme: "Themes", pack: "Packs", dashboard: "Dashboards", metric: "Metrics", tag: "Tags", period: "Locks",
   workflow: "Workflow runs", retention: "Retention runs", approval: "Approvals", self_check: "Self-checks", correction: "Corrections", workspace: "Settings", slack: "Slack", telegram: "Telegram", snapshot: "Snapshots", export: "Exports", email_reply: "Email replies", person: "Sign-ins",
 } as const;
 
 /** What an Audit Log event can be about. */
-export type AuditObjectType = "workspace" | "person" | "invitation" | "group" | "metric" | "dashboard" | "deck" | "access_key" | "feed" | "webhook" | "view_design" | "theme" | "workflow" | "pack" | "audit_log";
+export type AuditObjectType = "workspace" | "person" | "invitation" | "group" | "metric" | "dashboard" | "deck" | "access_key" | "feed" | "webhook" | "view_design" | "theme" | "workflow" | "pack" | "tag" | "audit_log";
 
 /** Every object type, for checking a filter. */
-export const AUDIT_OBJECT_TYPES: AuditObjectType[] = ["workspace", "person", "invitation", "group", "metric", "dashboard", "deck", "access_key", "feed", "webhook", "view_design", "theme", "workflow", "pack", "audit_log"];
+export const AUDIT_OBJECT_TYPES: AuditObjectType[] = ["workspace", "person", "invitation", "group", "metric", "dashboard", "deck", "access_key", "feed", "webhook", "view_design", "theme", "workflow", "pack", "tag", "audit_log"];
 
-/** Objects whose names only people who see them may read: Owners and Admins do not see every Metric, dashboard or deck. */
-export const NAMED_IF_SEEN: AuditObjectType[] = ["metric", "dashboard", "deck"];
+/** Objects whose names only people who see them may read: Owners and Admins do not see every Metric, dashboard or deck, nor every Tag (a Tag is seen through the Metrics carrying it). */
+export const NAMED_IF_SEEN: AuditObjectType[] = ["metric", "dashboard", "deck", "tag"];
 
 /** Small structured facts about an event, such as the old and the new role. Never a value or a message body. */
 export type AuditDetails = Record<string, string | number | boolean | null | string[]>;

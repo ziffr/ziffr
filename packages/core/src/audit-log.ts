@@ -8,6 +8,7 @@ import { insertSealed, openNames, openRows, sealDetails } from "./sealed-columns
 import { Forbidden, type Actor } from "./actor";
 import { visibleDashboards, visibleDecks, visibleMetricIds } from "./access";
 import { getMetrics } from "./workspace-data";
+import { visibleTags } from "./tag-sight";
 import { canSee } from "./sharing";
 import { DEMO_WORKSPACE_ID } from "./team";
 import { auditKeepDays } from "./audit-retention";
@@ -126,12 +127,14 @@ function assertReader(actor: Actor) {
 /** Which Metrics, dashboards and decks the reader sees, so names of the others stay out. */
 async function seenBy(actor: Actor) {
   const ws = actor.workspaceId;
-  const [metrics, dashboards, decks] = await Promise.all([
+  const [metrics, dashboards, decks, tags] = await Promise.all([
     getMetrics(ws).then((m) => visibleMetricIds(ws, actor.personId, m)),
     visibleDashboards(ws, actor.personId),
     visibleDecks(ws, actor.personId),
+    visibleTags(actor),
   ]);
-  return { reader: actor.personId, metric: metrics, dashboard: new Set(dashboards.map((d) => d.id)), deck: new Set(decks.map((d) => d.id)) };
+  // A Tag is seen through the Metrics carrying it (spec 0038); its id is a uuid, not a number.
+  return { reader: actor.personId, metric: metrics, dashboard: new Set(dashboards.map((d) => d.id)), deck: new Set(decks.map((d) => d.id)), tag: new Map(tags.map((t) => [t.id, t.name] as const)) };
 }
 
 /** The first instant of a calendar day in a time zone. */
@@ -171,11 +174,14 @@ function shown(r: Row, seen: Awaited<ReturnType<typeof seenBy>>): AuditEvent {
   const type = r.object_type as AuditObjectType | null;
   // Only what the reader may see goes out: Owners and Admins do not see every Metric, dashboard or deck. What they did
   // themselves they saw when they did it, so a Metric they deleted keeps its name for them.
-  const hidden = Boolean(type && NAMED_IF_SEEN.includes(type) && r.actor_id !== seen.reader && !seen[type as "metric" | "dashboard" | "deck"].has(Number(r.object_id)));
+  const hidden = Boolean(type && NAMED_IF_SEEN.includes(type) && r.actor_id !== seen.reader && !(type === "tag" ? seen.tag.has(String(r.object_id)) : seen[type as "metric" | "dashboard" | "deck"].has(Number(r.object_id))));
+  // A Tag's event was written from its actor's sight: its numbers and the other name in it may be about Metrics and Tags the reader
+  // does not see. Another reader gets the Tag's current name (as they see it) and the kind of change, nothing more.
+  const otherTag = type === "tag" && r.actor_id !== seen.reader;
   return {
     id: r.id, at: r.at, actorId: r.actor_id, actorName: r.actor_name, kind: r.kind as AuditKind, label: AUDIT_KINDS[r.kind as AuditKind] ?? r.kind,
     // Its details too (who it was shared with, periods, key names): the reader learns only that something happened.
-    objectType: type, objectId: r.object_id, objectName: hidden ? null : r.object_name, hidden, details: hidden ? {} : r.details ?? {},
+    objectType: type, objectId: r.object_id, objectName: hidden ? null : otherTag ? seen.tag.get(String(r.object_id)) ?? null : r.object_name, hidden, details: hidden || otherTag ? {} : r.details ?? {},
   };
 }
 
