@@ -6,7 +6,8 @@
       "file": "google-sheets-feed.json",
       "guide": "google-sheets-feed.md",
       "reads": "The rows of one sheet: a column metric (the Metric's slug), a column value, and optionally a column period (the period's first day).",
-      "needs": "A Google account that can read the sheet."
+      "needs": "A Google account that can read the sheet.",
+      "rows": true
     }
   ]
 }

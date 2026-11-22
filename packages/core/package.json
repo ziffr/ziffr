@@ -33,6 +33,7 @@
   },
   "dependencies": {
     "@supabase/supabase-js": "2.119.0",
+    "@ziffr/extensions": "workspace:*",
     "@ziffr/figures": "workspace:*",
     "@ziffr/pack": "workspace:*",
     "date-fns": "^4.4.0",

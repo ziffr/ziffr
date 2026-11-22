@@ -33,6 +33,12 @@ describe("quantile against NumPy, SciPy and its reference", () => {
     // 0.1 and 0.2 are 1/10 and 1/5 as written: their middle is exactly 3/20, which is the double 0.15 (0.1 + 0.2 in doubles is not).
     expect(quantile(series([0.1, 0.2]), 0.5)).toBe(0.15);
   });
+  it("gives the value of values that are all the same (the Extension refuses those, the core does not), and 0 for a minus zero, as the text of a value says", () => {
+    expect(quantile(series([4, 4, 4]), 0.3)).toBe(4);
+    expect(quantile(series([-0.25]), 0.9)).toBe(-0.25);
+    expect(quantile(series([-0]), 0.5)).toBe(0);
+    expect(usualRange(series([6, 6]), "month")).toEqual({ n: 2, median: 6, q1: 6, q3: 6, low: 6, high: 6 });
+  });
   it("is the smallest value at 0, the largest at 1, the value itself for one value, and between two values in proportion", () => {
     const v = series([5, 9, 1, 7]);
     expect([quantile(v, 0), quantile(v, 1)]).toEqual([1, 9]);

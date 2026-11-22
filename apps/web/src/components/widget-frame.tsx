@@ -41,6 +41,7 @@ import { ReadOnlyFrame, frameTitle, type FrameWidget } from "./read-only-frame";
 import { WidgetScaleProvider, widgetScaleStyle, useMeasuredWidgetScale } from "@/views/widget-scale";
 import { ObservationDetailsProvider, cachedLoader } from "@/views/observation-tip";
 import { observationDetailsAction } from "@/app/observation-actions";
+import { markWidgetMenuSeen } from "@/lib/widget-menu-hint";
 import { designOf, duplicateAsDesign } from "@ziffr/core/design-files";
 import { downloadDesign } from "@/lib/design-download";
 import { Preview, TemplatePreview } from "./preview";
@@ -247,30 +248,39 @@ function InteractiveFrame({ widget, data, targets, editable = false, className, 
       {isStory && editable && widget.id && <K.Item onClick={() => openPanel("story")}><PencilLine /> Edit Finding…</K.Item>}
       {isLayout && editable && widget.id && <K.Item onClick={() => setTimeout(() => setLayoutOpen(true), 0)}><PencilLine /> Edit layout…</K.Item>}
       {widget.id && <K.Item onClick={() => openPanel("versions")}><GitBranch /> Versions…</K.Item>}
-      <K.Item
-        onClick={() => {
-          const name = window.prompt("Save to your widgets as:", title ?? "My widget");
-          if (name) start(async () => { if (told(await saveToPool(source, name), "Not saved")) return; toast.success("Saved to My Widgets", { description: "Drag it from the Pool onto any dashboard." }); });
-        }}
-      >
-        <BookmarkPlus /> Save as Widget
-      </K.Item>
-      {widget.id && !isLayout && <K.Item onClick={() => setTimeout(() => setSaveTemplateOpen(true), 0)}><LayoutTemplate /> Save as template…</K.Item>}
+      {/* One entry for the four ways to keep a copy of this widget, each saying where the copy goes. */}
+      <K.Sub>
+        <K.SubTrigger><Copy /> Copy to…</K.SubTrigger>
+        <K.SubContent className="max-w-72">
+          {targets.length > 0 && (
+            <K.Sub>
+              <K.SubTrigger><LayoutDashboard /> Add to dashboard</K.SubTrigger>
+              <K.SubContent>
+                {targets.map((d) => (
+                  <K.Item key={d.id} onClick={() => start(async () => { if (told(await placeWidget(d.id, source), "Not added")) return; toast.success(`Added to ${d.name}`); })}>{d.name}</K.Item>
+                ))}
+              </K.SubContent>
+            </K.Sub>
+          )}
+          {/* A copy onto a slide of a deck the person may change (ticket #1); the core checks the rest. */}
+          {widget.id && <K.Item onClick={() => setTimeout(() => setDeckOpen(true), 0)}><Presentation /> Add to deck…</K.Item>}
+          <K.Item
+            onClick={() => {
+              const name = window.prompt("Save to your widgets as:", title ?? "My widget");
+              if (name) start(async () => { if (told(await saveToPool(source, name), "Not saved")) return; toast.success("Saved to My Widgets", { description: "Drag it from the Pool onto any dashboard." }); });
+            }}
+          >
+            <BookmarkPlus /> Save as Widget
+          </K.Item>
+          {widget.id && !isLayout && <K.Item onClick={() => setTimeout(() => setSaveTemplateOpen(true), 0)}><LayoutTemplate /> Save as template…</K.Item>}
+        </K.SubContent>
+      </K.Sub>
       {ownDesign && (
-        <>
-          <K.Item onClick={() => downloadDesign(ownDesign)}><FileDown /> Export View Design</K.Item>
-          <K.Item onClick={() => downloadDesign(duplicateAsDesign(widget, ownDesign))}><Copy /> Duplicate as View Design</K.Item>
-        </>
-      )}
-      {/* A copy onto a slide of a deck the person may change (ticket #1); the core checks the rest. */}
-      {widget.id && <K.Item onClick={() => setTimeout(() => setDeckOpen(true), 0)}><Presentation /> Add to deck…</K.Item>}
-      {targets.length > 0 && (
         <K.Sub>
-          <K.SubTrigger><LayoutDashboard /> Add to dashboard</K.SubTrigger>
+          <K.SubTrigger><FileDown /> For View Designs</K.SubTrigger>
           <K.SubContent>
-            {targets.map((d) => (
-              <K.Item key={d.id} onClick={() => start(async () => { if (told(await placeWidget(d.id, source), "Not added")) return; toast.success(`Added to ${d.name}`); })}>{d.name}</K.Item>
-            ))}
+            <K.Item onClick={() => downloadDesign(ownDesign)}><FileDown /> Export View Design</K.Item>
+            <K.Item onClick={() => downloadDesign(duplicateAsDesign(widget, ownDesign))}><Copy /> Duplicate as View Design</K.Item>
           </K.SubContent>
         </K.Sub>
       )}
@@ -287,7 +297,7 @@ function InteractiveFrame({ widget, data, targets, editable = false, className, 
 
   return (
     <>
-      <ContextMenu>
+      <ContextMenu onOpenChange={(o) => { if (o) markWidgetMenuSeen(data.viewer); }}>
         <ContextMenuTrigger
           ref={frame}
           style={widgetScaleStyle(scale)}
@@ -303,7 +313,7 @@ function InteractiveFrame({ widget, data, targets, editable = false, className, 
             {/* It keeps drawing an Archived Metric's history, and says that no new values come (GLOSSARY: Archived Metric). */}
             {ms.some(isArchived) && <span title={ms.length > 1 ? "Some of its Metrics are archived: they take no new values." : "Its Metric is archived: it takes no new values."} className="widget-text-xs flex shrink-0 items-center gap-1 text-muted-foreground"><Archive aria-hidden className="size-[1.15em]" /> Archived</span>}
             {open > 0 && <span title={`${open} open action(s)`} className="widget-text-xs flex shrink-0 items-center gap-1 text-muted-foreground"><MessageSquare aria-hidden className="size-[1.15em]" /><span className="fig">{open}</span> open</span>}
-            <DropdownMenu>
+            <DropdownMenu onOpenChange={(o) => { if (o) markWidgetMenuSeen(data.viewer); }}>
               <DropdownMenuTrigger aria-label={`Options for ${title}`} className="-mr-1.5 ml-auto flex size-8 items-center justify-center rounded-[var(--radius-input)] text-muted-foreground opacity-60 group-hover/widget:opacity-100 hover:bg-muted focus-visible:opacity-100 data-popup-open:opacity-100" onMouseDown={(e) => e.stopPropagation()}>
                 <MoreHorizontal className="size-4" />
               </DropdownMenuTrigger>

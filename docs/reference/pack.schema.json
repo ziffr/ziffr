@@ -90,6 +90,37 @@
       },
       "additionalProperties": false
     },
+    "feeds": {
+      "type": "array",
+      "maxItems": 10,
+      "description": "Which of Ziffr's n8n templates fill which of the Pack's Metric Catalog entries (spec 0043). Only ids Ziffr ships are accepted. Installing makes nothing of it: after Set up, the page offers the download for the Metrics made from the entries. A Pack that uses it should say so in its `ziffr` minimum version.",
+      "items": {
+        "type": "object",
+        "properties": {
+          "template": {
+            "enum": [
+              "google-sheets"
+            ],
+            "description": "the id of one of the templates Ziffr ships, such as “google-sheets”"
+          },
+          "fills": {
+            "type": "array",
+            "minItems": 1,
+            "maxItems": 50,
+            "items": {
+              "type": "string",
+              "pattern": "^[a-z][a-z0-9-]{0,39}$",
+              "description": "the key of a Metric Catalog entry of this Pack the template fills"
+            }
+          }
+        },
+        "required": [
+          "template",
+          "fills"
+        ],
+        "additionalProperties": false
+      }
+    },
     "contents": {
       "type": "object",
       "description": "What installing adds. Nothing in it may hold a web address.",
