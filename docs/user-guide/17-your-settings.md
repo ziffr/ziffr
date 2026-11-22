@@ -6,11 +6,13 @@ This chapter covers what is yours rather than the team's: signing in, the demo, 
 
 ## Signing in
 
-The page **Sign in to Ziffr** opens whenever you are not signed in. It is a card with the form on one side and, beside it, a short line on what Ziffr is with a picture of the demo's Monthly overview dashboard; on a phone the form comes first and the picture is left out. Under its heading it says what Ziffr is: the record of your numbers.
+The page **Sign in to Ziffr** opens whenever you are not signed in. It is one plain column: the Ziffr mark, a card with the form, and below it **Try the demo** where your Ziffr offers the demo. It looks the same on a phone, and follows your Appearance, dark included.
 
-On a Ziffr that is only a public demo, the same page is called **Try Ziffr**. It has no sign-in, only **Try the demo** and a link to run Ziffr yourself. Everyone there shares the demo, and nothing anyone does there is saved.
+Where the Ziffr has set it up, a short check against bots by Cloudflare sits above the button; the email link and any other way to sign in work once it has passed. If the check fails or Cloudflare cannot be reached, no link is sent, and a new check appears for the next try. If a sign-in link did not work or was used already, the page says so: ask for a new one.
 
-On a Ziffr that offers **Trial Workspaces**, the page is called **Try Ziffr** too, with two choices one above the other. **Try it for real** (a Workspace of your own, starting with one Metric to try asking with) has **What works in a trial**, which opens to list what works in a trial on this Ziffr (each way marked Real, Simulated or Off, with its limit), says what a trial asks of you, and has the sign-in form; where the Ziffr has set it up, a short check against bots by Cloudflare sits above the buttons; the email link and any other way to sign in work once it has passed. If the check fails or Cloudflare cannot be reached, no link is sent, and a new check appears for the next try. **No account? Look around first**, below the form, opens the shared demo and says what it cannot do. See [On a Ziffr that offers trials](16-workspace-settings.md#on-a-ziffr-that-offers-trials).
+On a Ziffr that offers **Trial Workspaces**, the page is the same, with one line under the heading: a new address gets an account from the same link, and after signing in you start your trial (see [On a Ziffr that offers trials](16-workspace-settings.md#on-a-ziffr-that-offers-trials)). While all new trials are taken, the page says so instead, and whoever has a trial still signs in to it. A Ziffr without trials has no such line.
+
+On a Ziffr that is only a public demo, the page is called **Try Ziffr**. It has no sign-in, only **Try the demo** and a link to run Ziffr yourself. Everyone there shares the demo, and nothing anyone does there is saved.
 
 | Option | What it does |
 | --- | --- |
