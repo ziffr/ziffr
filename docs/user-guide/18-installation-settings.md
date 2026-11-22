@@ -167,7 +167,7 @@ Ziffr asks Cloudflare whether it knows the secret key first and saves nothing Cl
 
 ## Trials
 
-Trials are something hosted Ziffr offers, so this section exists only on a Ziffr Cloud deployment. On any other Ziffr the page has no Trials section, the sign-in page has no trial, and every Workspace made here is an ordinary one. If the server's settings file still sets the trial days, no Workspace can be made until that is removed.
+Trials are something hosted Ziffr offers, so this section exists only on a Ziffr Cloud deployment. On any other Ziffr the page has no Trials section, the sign-in page has no trial, and every Workspace made here is an ordinary one. If the server's settings file, or a Trials section saved by an older version, still sets the trial days, no Workspace can be made until that is removed.
 
 On hosted Ziffr the section shows the days a trial lasts as **Set by Ziffr Cloud**, and you can still set how many trials may run at once, whether trials may have Webhooks, and the days a trial's data stays after it ends.
 

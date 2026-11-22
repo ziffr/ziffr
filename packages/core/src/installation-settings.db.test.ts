@@ -516,6 +516,8 @@ describe("the check against bots, trials and the demo on the page (#201)", () =>
     await db().from("installation_settings").upsert({ name: "ZIFFR_TRIAL_WEBHOOKS", value: "false", sealed: false }).throwOnError();
     forgetStoredSettings();
     try {
+      // The stored row alone, with nothing in the environment, also stops sign-ins from getting ordinary Workspaces.
+      await expect(trialSettingsInEffect()).rejects.toThrow(/only on hosted Ziffr/);
       process.env.ZIFFR_TRIAL_DAYS = "7";
       const s = await settingsInEffect();
       expect(s.ZIFFR_TRIAL_DAYS).toBe("7");
