@@ -19,7 +19,7 @@ import { listShareProposals } from "@ziffr/core/share-proposals";
 import { getProfileMap } from "@/lib/data";
 import { ShareProposalButtons } from "@/components/share-proposal-buttons";
 import { ProposalFacts, proposalTitle } from "@/components/share-proposal-summary";
-import { AskedView } from "./asked-view";
+import { AskedView, AskedRows } from "./asked-view";
 import { TimelineList } from "./timeline-view";
 import { Choices, Pick, href, type Params } from "./choices";
 
@@ -80,7 +80,9 @@ async function ToDo({ sp }: { sp: Params }) {
   const today = localTime(new Date(), timeZone).day;
   // One fetch serves the list (its next 14 days) and the week and month views (from this week on): the same function.
   const span = calendarSpan(today, weekStart);
-  const [s0, link, demo, proposals] = await Promise.all([schedule(actor, span), myCalendarLink(actor), isDemo(), listShareProposals(actor)]);
+  const [s0, link, demo, proposals, asked, people] = await Promise.all([schedule(actor, span), myCalendarLink(actor), isDemo(), listShareProposals(actor), actionsAskedByMe(actor), getProfileMap()]);
+  // Answered Actions wait for their asker to close them: they are theirs to do, so they are here too (not under a kind filter).
+  const toClose = kind ? [] : asked.filter((a) => a.group === "answered");
   const s = { ...s0, overdue: only(s0.overdue), days: s0.days.map((d) => ({ ...d, entries: only(d.entries) })).filter((d) => d.entries.length), undated: only(s0.undated) };
   const listDays = s.days.filter((d) => d.date <= format(addDays(parseISO(today), DAYS_SHOWN - 1), "yyyy-MM-dd"));
   const nothing = !s.overdue.length && !listDays.length && !s.undated.length;
@@ -106,6 +108,7 @@ async function ToDo({ sp }: { sp: Params }) {
             </ul>
           </section>
         )}
+        {toClose.length > 0 && <Section title="To close" hint={`${toClose.length}: answered or done, close them`}><AskedRows rows={toClose} people={people} /></Section>}
         <ScheduleViews
           person={s.personId}
           today={s.today}

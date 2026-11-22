@@ -3,7 +3,7 @@
 // names, quotes or links an event about a Metric the person may not see.
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { db } from "./db";
-import { actionsAskedByMe, actionsTimeline, askedGroup, timelineTone } from "./actions-overview";
+import { actionsAskedByMe, actionsTimeline, askedGroup, timelineTone, toCloseCount } from "./actions-overview";
 import { saveWorkflow } from "./workflows";
 import { workspace } from "./test/db-fixtures";
 
@@ -115,3 +115,53 @@ describe("the Timeline", () => {
     } finally { await other.cleanup(); }
   });
 });
+
+describe("the Timeline for others", () => {
+  it("leaves out a loose Action whose Group does not include the person", async () => {
+    const { data: g } = await db().from("groups").insert({ workspace_id: w.id, name: "Board" }).select("id").single();
+    await db().from("group_members").insert({ workspace_id: w.id, group_id: g!.id, user_id: mia });
+    await w.action({ metric_id: loose, period_start: PERIOD, asker_id: sara, assignee_id: mia, read_group_id: g!.id, question: "Board only coffee talk", created_at: "2026-11-19T10:00:00Z" });
+    expect(JSON.stringify(await actionsTimeline(benActor()))).not.toContain("Board only");
+    expect(JSON.stringify(await actionsTimeline(w.actor(sara, "owner")))).toContain("Board only");
+  });
+
+  it("gives a Guest only their own name, and offers only the Workflows of what is shared with them", async () => {
+    const guest = await w.person("guest");
+    const other = (await saveWorkflow(w.actor(sara), null, "Hidden flow", { dueWorkingDays: 3, steps: [{ type: "publish", lock: true }] }));
+    await w.metric(sara, { name: "Hidden flow metric", period: "week", workflow_id: other });
+    await w.share(loose, guest); await w.share(revenue, guest);
+    const t = await actionsTimeline(w.actor(guest, "guest"));
+    expect(t.workflows.map((x) => x.name)).toEqual(["Weekly numbers"]);
+    const text = JSON.stringify(t);
+    expect(text).not.toContain("Hidden flow");
+    expect(text).not.toContain("Secret");
+    // Other people are "Someone" on a Guest's lines.
+    expect(t.items.find((i) => i.text.includes("about Loose coffee"))!.text).toMatch(/^Someone (asked|gave) Someone/);
+  });
+
+  it("answers a hidden Metric, a Workflow the person does not know and an id that does not exist the same way", async () => {
+    const guest = await w.person("guest");
+    await w.share(revenue, guest);
+    const none = await actionsTimeline(w.actor(guest, "guest"), { metricId: 999999999 });
+    const hidden = await actionsTimeline(w.actor(guest, "guest"), { metricId: secret });
+    expect(hidden).toEqual(none);
+    const noWf = await actionsTimeline(w.actor(guest, "guest"), { workflowId: 999999999 });
+    const hiddenWf = await actionsTimeline(w.actor(guest, "guest"), { workflowId: (await db().from("workflows").select("id").eq("workspace_id", w.id).eq("name", "Hidden flow").single()).data!.id });
+    expect(hiddenWf).toEqual(noWf);
+    expect(noWf.items).toEqual([]);
+    // The same for a member who does not see the Metric.
+    expect(await actionsTimeline(benActor(), { metricId: secret })).toEqual(await actionsTimeline(benActor(), { metricId: 999999999 }));
+  });
+
+  it("opens a newer Workflow asked for by id, and counts what waits to be closed", async () => {
+    const newer = await saveWorkflow(w.actor(sara), null, "Newer flow", { dueWorkingDays: 3, steps: [{ type: "publish", lock: true }] });
+    await w.metric(sara, { name: "Newer metric", period: "week", workflow_id: newer });
+    const t = await actionsTimeline(w.actor(sara, "owner"), { workflowId: newer });
+    expect(t.workflows.map((x) => x.id)).toContain(newer);
+    const answered = await w.action({ metric_id: loose, period_start: BEFORE, asker_id: ben, assignee_id: mia, status: "answered", question: "To close?" });
+    expect(answered).toBeGreaterThan(0);
+    expect(await toCloseCount(benActor())).toBe(1);
+    expect(await toCloseCount(w.actor(mia, "member"))).toBe(0);
+  });
+});
+

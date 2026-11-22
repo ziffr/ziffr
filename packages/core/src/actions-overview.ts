@@ -8,9 +8,9 @@
 // only their own), Guest-hidden system text follows systemTextFor.
 import { db } from "./db";
 import type { Actor } from "./actor";
-import { peopleFor, readableActions, systemTextFor, visibleMetricIds } from "./access";
+import { readableActions, systemTextFor, visibleMetricIds } from "./access";
 import { getMetrics, getSeriesOf } from "./workspace-data";
-import { listWorkflowNames, periodTimelineAbout, workflowPeriods, inZone, type TimelineEventAbout, type TimelineKind } from "./period-timeline";
+import { listWorkflowNames, periodTimelineAbout, workflowPeriods, timelineContext, inZone, firstWords, type TimelineContext, type TimelineEventAbout, type TimelineKind } from "./period-timeline";
 import { periodLabel, type YearStart } from "./periods";
 import { yearStartOf } from "./fiscal-year";
 import { formatValue } from "./format";
@@ -105,7 +105,10 @@ export type ActionsTimeline = {
   periods: { start: string; label: string }[];
 };
 
-const MOST_WORKFLOWS = 30;
+/** How many Workflows the offered list reads, and how many of them (the most recently active) the Timeline opens. */
+const MOST_WORKFLOWS = 100;
+const MOST_ACTIVE_WORKFLOWS = 10;
+const ACTIVITY_ROWS = 300;
 const PERIODS_PER_WORKFLOW = 3;
 const MOST_ITEMS = 300;
 /** Kinds that finish something. A Period Timeline records no more kinds than these. */
@@ -118,29 +121,56 @@ export function timelineTone(e: Pick<TimelineEventAbout, "kind" | "path">, settl
   return FINISHED.includes(e.kind) ? "finished" : "neutral";
 }
 
-/** What happened lately, newest first: the Period Timelines of the Workflows the actor knows (the newest periods of each)
- * and the Actions on Metrics no Workflow asks for, all as this actor may see them. */
+/** The Workflows with the most recent doings first (Prompts sent, periods published or locked), then the rest by id,
+ * newest first: from Metrics the actor sees only, so a hidden Metric cannot lift a Workflow in the order. */
+async function byRecentActivity(ws: string, ctx: TimelineContext, ids: number[]): Promise<number[]> {
+  const workflowOf = new Map<number, number>();
+  for (const m of ctx.metrics) {
+    const w = (m as Metric & { workflow_id?: number | null }).workflow_id;
+    if (typeof w === "number" && ids.includes(w) && ctx.visible.has(m.id)) workflowOf.set(m.id, w);
+  }
+  const metricIds = [...workflowOf.keys()];
+  const last = new Map<number, string>();
+  if (metricIds.length) {
+    const [{ data: prompts }, { data: states }] = await Promise.all([
+      db().from("prompts").select("metric_id, sent_at").eq("workspace_id", ws).in("metric_id", metricIds).order("sent_at", { ascending: false }).limit(ACTIVITY_ROWS),
+      db().from("period_states").select("metric_id, updated_at").eq("workspace_id", ws).in("metric_id", metricIds).order("updated_at", { ascending: false }).limit(ACTIVITY_ROWS),
+    ]);
+    for (const r of [...(prompts ?? []).map((p) => [p.metric_id, p.sent_at]), ...(states ?? []).map((p) => [p.metric_id, p.updated_at])]) {
+      const w = workflowOf.get(r[0] as number);
+      if (w !== undefined && String(r[1]) > (last.get(w) ?? "")) last.set(w, String(r[1]));
+    }
+  }
+  return [...ids].sort((a, b) => (last.get(b) ?? "").localeCompare(last.get(a) ?? "") || b - a);
+}
+
+/** What happened lately, newest first: the Period Timelines of the Workflows the actor knows (the newest periods of the
+ * most recently active ones, or of the one asked for) and the Actions on Metrics no Workflow asks for, all as this actor
+ * may see them. A filter that matches nothing the actor may see (a hidden Metric, a Workflow they do not know, an id
+ * that does not exist) gives the same empty answer. */
 export async function actionsTimeline(actor: Actor, filter: TimelineFilter = {}): Promise<ActionsTimeline> {
   const ws = actor.workspaceId;
-  const viewer = actor.personId;
-  const [list, metrics] = await Promise.all([listWorkflowNames(actor, { limit: MOST_WORKFLOWS }), getMetrics(ws)]);
-  const visible = await visibleMetricIds(ws, viewer, metrics);
+  const ctx = await timelineContext(actor);
+  const { metrics, visible } = ctx;
+  const list = await listWorkflowNames(actor, { limit: MOST_WORKFLOWS });
+  const known = new Map(list.items.map((w) => [w.id, w.name]));
   const byId = new Map(metrics.map((m) => [m.id, m]));
   const wfOf = (m: Metric) => (m as Metric & { workflow_id?: number | null }).workflow_id ?? null;
+  // One Workflow asked for by id is opened if it is one the actor knows; the rest are the most recently active.
+  const open = filter.workflowId ? (known.has(filter.workflowId) ? [filter.workflowId] : []) : (await byRecentActivity(ws, ctx, [...known.keys()])).slice(0, MOST_ACTIVE_WORKFLOWS);
   const items: TimelineItem[] = [];
-  for (const wf of list.items) {
-    if (filter.workflowId && filter.workflowId !== wf.id) continue;
-    const periods = filter.period ? [filter.period] : await workflowPeriods(actor, wf.id, PERIODS_PER_WORKFLOW);
+  for (const id of open) {
+    const periods = filter.period ? [filter.period] : await workflowPeriods(actor, id, PERIODS_PER_WORKFLOW, ctx);
     for (const period of periods) {
-      const t = await periodTimelineAbout(actor, wf.id, period);
+      const t = await periodTimelineAbout(actor, id, period, ctx);
       const settled = new Set(t.events.filter((e) => (e.kind === "approved" || e.kind === "sent_back") && e.path).map((e) => e.path!));
-      for (const e of t.events) items.push({ ...e, workflowId: wf.id, workflowName: wf.name, period, periodLabel: t.label, tone: timelineTone(e, settled) });
+      for (const e of t.events) items.push({ ...e, workflowId: id, workflowName: known.get(id)!, period, periodLabel: t.label, tone: timelineTone(e, settled) });
     }
   }
   // Actions on Metrics no Workflow asks for: only ones the actor may read about a Metric they see.
   if (!filter.workflowId) {
-    const [readable, people, hideSystem, yearStart, zone] = await Promise.all([readableActions(ws, viewer), peopleFor(actor), systemTextFor(actor), yearStartOf(ws), zoneOf(ws)]);
-    const name = new Map(people.map((p) => [p.id, p.name]));
+    const [readable, hideSystem] = await Promise.all([readableActions(ws, actor.personId), systemTextFor(actor)]);
+    const name = new Map(ctx.shown.map((p) => [p.id, p.name]));
     const nameOf = (id: string) => name.get(id) ?? "Someone";
     for (const a of readable) {
       const m = byId.get(a.metric_id);
@@ -148,16 +178,17 @@ export async function actionsTimeline(actor: Actor, filter: TimelineFilter = {})
       const at = new Date(a.created_at);
       const verb = a.kind === "task" ? "gave" : "asked";
       items.push({
-        at: at.toISOString(), ...inZone(at, zone), kind: "action", count: 1, metricIds: [m.id], path: `/actions/${a.id}`,
+        at: at.toISOString(), ...inZone(at, ctx.zone), kind: "action", count: 1, metricIds: [m.id], path: `/actions/${a.id}`,
         text: `${nameOf(a.asker_id)} ${verb} ${nameOf(a.assignee_id)} ${a.kind === "task" ? "a task" : "a question"} about ${m.name}`,
-        items: [hideSystem(a.question, Boolean(a.purpose)).replace(/\s+/g, " ").trim().slice(0, 140)],
-        workflowId: null, workflowName: null, period: a.period_start, periodLabel: periodLabel(a.period_start, m.period as Period, yearStart as YearStart), tone: "neutral",
+        items: [firstWords(hideSystem(a.question, Boolean(a.purpose)))],
+        workflowId: null, workflowName: null, period: a.period_start, periodLabel: periodLabel(a.period_start, m.period as Period, ctx.yearStart), tone: "neutral",
       });
     }
   }
-  // What the filters may offer comes before the Metric filter narrows the lines.
+  // What the filters may offer comes before the Metric filter narrows the lines: every Workflow the actor knows, and the
+  // Metrics and periods of what the lines show.
   const offered = {
-    workflows: list.items.filter((w) => items.some((i) => i.workflowId === w.id) || w.id === filter.workflowId),
+    workflows: list.items,
     metrics: [...new Set(items.flatMap((i) => i.metricIds))].flatMap((id) => (byId.get(id) && visible.has(id) ? [{ id, name: byId.get(id)!.name }] : [])).sort((a, b) => a.name.localeCompare(b.name)),
     periods: [...new Map(items.map((i) => [i.period, i.periodLabel])).entries()].sort(([a], [b]) => b.localeCompare(a)).map(([start, label]) => ({ start, label })),
   };
@@ -166,8 +197,9 @@ export async function actionsTimeline(actor: Actor, filter: TimelineFilter = {})
   return { items: shown.slice(0, MOST_ITEMS), ...offered };
 }
 
-/** The Workspace's time zone. */
-async function zoneOf(ws: string): Promise<string> {
-  const { data } = await db().from("workspaces").select("time_zone").eq("id", ws).maybeSingle();
-  return (data?.time_zone as string | undefined) ?? "UTC";
+/** How many Actions the person asked that were answered and wait for them to close: a number for the sidebar (their own
+ * Actions only). */
+export async function toCloseCount(actor: Actor): Promise<number> {
+  const { count } = await db().from("actions").select("id", { count: "exact", head: true }).eq("workspace_id", actor.workspaceId).eq("asker_id", actor.personId).eq("status", "answered");
+  return count ?? 0;
 }

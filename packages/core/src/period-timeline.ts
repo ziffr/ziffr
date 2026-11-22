@@ -87,7 +87,7 @@ const plural = (n: number, one: string, many = `${one}s`) => `${n} ${n === 1 ? o
 const list = (xs: string[]) => (xs.length < 2 ? xs.join("") : `${xs.slice(0, -1).join(", ")} and ${xs.at(-1)}`);
 
 /** The first words of someone's note, cut at a word. */
-function firstWords(text: string): string {
+export function firstWords(text: string): string {
   const t = text.replace(/\s+/g, " ").trim();
   if (t.length <= NOTE_WORDS) return t;
   return `${t.slice(0, NOTE_WORDS).replace(/\s+\S*$/, "")}…`;
@@ -113,12 +113,40 @@ function viewerOf(actor: Actor | KeyActor): string {
   return actor.personId;
 }
 
+/** What one viewer's timelines all start from, read once so that a page of many periods does not redo it. */
+export type TimelineContext = {
+  metrics: Metric[];
+  visible: Set<number>;
+  groups: Awaited<ReturnType<typeof getGroups>>;
+  dashboards: Awaited<ReturnType<typeof visibleDashboards>>;
+  guestSees: Set<number> | null;
+  yearStart: YearStart;
+  numberStyle: Awaited<ReturnType<typeof numberStyleOf>>;
+  zone: string;
+  shown: Awaited<ReturnType<typeof peopleFor>>;
+};
+
+/** The shared facts for this viewer's timelines (the same checks periodTimeline makes, once). */
+export async function timelineContext(actor: Actor | KeyActor): Promise<TimelineContext> {
+  const viewer = viewerOf(actor);
+  const ws = actor.workspaceId;
+  const metrics = await getMetrics(ws);
+  const [visible, groups, dashboards, yearStart, numberStyle, { data: clock }, shown] = await Promise.all([
+    visibleMetricIds(ws, viewer, metrics), getGroups(ws), visibleDashboards(ws, viewer), yearStartOf(ws), numberStyleOf(ws),
+    db().from("workspaces").select("time_zone").eq("id", ws).maybeSingle(), peopleFor(actor),
+  ]);
+  const guestSees = actor.role === "guest"
+    ? new Set(metrics.flatMap((m) => { const id = (m as Metric & { workflow_id?: number | null }).workflow_id; return visible.has(m.id) && typeof id === "number" ? [id] : []; }))
+    : null;
+  return { metrics, visible, groups, dashboards, guestSees, yearStart: yearStart as YearStart, numberStyle, zone: (clock?.time_zone as string | undefined) ?? "UTC", shown };
+}
+
 /** The Workflow, if it is in the actor's Workspace: Forbidden otherwise (the same for missing and other Workspaces). */
-async function workflowOf(actor: Actor | KeyActor, workflowId: number) {
+async function workflowOf(actor: Actor | KeyActor, workflowId: number, ctx?: TimelineContext) {
   if (!Number.isInteger(workflowId)) throw new Forbidden();
   const { data } = await db().from("workflows").select("id, name").eq("id", workflowId).eq("workspace_id", actor.workspaceId).maybeSingle();
   if (!data) throw new Forbidden();
-  const guestSees = await guestWorkflowIds(actor);
+  const guestSees = ctx ? ctx.guestSees : await guestWorkflowIds(actor);
   if (guestSees && !guestSees.has(workflowId)) throw new Forbidden();
   return data as { id: number; name: string };
 }
@@ -136,7 +164,8 @@ export async function guestWorkflowIds(actor: Pick<Actor, "workspaceId" | "perso
 }
 
 /** The Workflow's Metrics, with the ones the viewer sees. */
-async function workflowMetrics(ws: string, viewer: string, workflowId: number) {
+async function workflowMetrics(ws: string, viewer: string, workflowId: number, ctx?: TimelineContext) {
+  if (ctx) return { all: ctx.metrics, mine: ctx.metrics.filter((m) => (m as Metric & { workflow_id?: number | null }).workflow_id === workflowId), visible: ctx.visible };
   const all = await getMetrics(ws);
   const mine = all.filter((m) => (m as Metric & { workflow_id?: number | null }).workflow_id === workflowId);
   const visible = await visibleMetricIds(ws, viewer, all);
@@ -148,20 +177,20 @@ const asked = (m: Metric) => !m.formula && !m.archived_at;
 
 /** The periods of a Workflow that have something to show, newest first, the one running now included: from what the
  * viewer sees of its Metrics. At most `limit` (default 6). */
-export async function workflowPeriods(actor: Actor | KeyActor, workflowId: number, limit = 6): Promise<string[]> {
+export async function workflowPeriods(actor: Actor | KeyActor, workflowId: number, limit = 6, ctx?: TimelineContext): Promise<string[]> {
   const viewer = viewerOf(actor);
-  await workflowOf(actor, workflowId);
+  await workflowOf(actor, workflowId, ctx);
   const ws = actor.workspaceId;
-  const { mine, visible } = await workflowMetrics(ws, viewer, workflowId);
+  const { mine, visible } = await workflowMetrics(ws, viewer, workflowId, ctx);
   const seen = mine.filter((m) => visible.has(m.id));
   const ids = seen.map((m) => m.id);
-  const [{ data: states }, { data: values }, { data: clock }, yearStart] = await Promise.all([
+  const [{ data: states }, { data: values }, zone, yearStart] = await Promise.all([
     ids.length ? db().from("period_states").select("period_start").eq("workspace_id", ws).in("metric_id", ids) : Promise.resolve({ data: [] }),
     ids.length ? db().from("observations").select("period_start").eq("workspace_id", ws).in("metric_id", ids) : Promise.resolve({ data: [] }),
-    db().from("workspaces").select("time_zone").eq("id", ws).maybeSingle(),
-    yearStartOf(ws),
+    ctx ? Promise.resolve(ctx.zone) : db().from("workspaces").select("time_zone").eq("id", ws).maybeSingle().then((r) => (r.data?.time_zone as string | undefined) ?? "UTC"),
+    ctx ? Promise.resolve(ctx.yearStart) : yearStartOf(ws),
   ]);
-  const today = localTime(new Date(), (clock?.time_zone as string | undefined) ?? "UTC").day;
+  const today = localTime(new Date(), zone).day;
   const out = new Set<string>([...(states ?? []), ...(values ?? [])].map((r) => String(r.period_start)));
   for (const m of seen) if (asked(m)) out.add(workingPeriod(today, m.period, yearStart));
   return [...out].sort().reverse().slice(0, Math.max(1, Math.min(24, Math.floor(limit))));
@@ -175,19 +204,19 @@ export async function periodTimeline(actor: Actor | KeyActor, workflowId: number
 }
 
 /** The same as periodTimeline, each line also naming the visible Metrics it is about (never a hidden one). */
-export async function periodTimelineAbout(actor: Actor | KeyActor, workflowId: number, period: string): Promise<Omit<PeriodTimeline, "events"> & { events: TimelineEventAbout[] }> {
+export async function periodTimelineAbout(actor: Actor | KeyActor, workflowId: number, period: string, ctx?: TimelineContext): Promise<Omit<PeriodTimeline, "events"> & { events: TimelineEventAbout[] }> {
   const viewer = viewerOf(actor);
   if (!DAY.test(String(period))) throw new Error("Pick a period: its first day, as YYYY-MM-DD.");
-  const wf = await workflowOf(actor, workflowId);
+  const wf = await workflowOf(actor, workflowId, ctx);
   const ws = actor.workspaceId;
-  const { mine, visible } = await workflowMetrics(ws, viewer, workflowId);
+  const { mine, visible } = await workflowMetrics(ws, viewer, workflowId, ctx);
   const ids = mine.map((m) => m.id);
   const byId = new Map(mine.map((m) => [m.id, m]));
   // The name of a Metric, only when the viewer sees it.
   const named = (id: number) => (visible.has(id) ? byId.get(id)!.name : null);
   const countable = mine.filter(asked);
-  const [yearStart, numberStyle, { data: clock }] = await Promise.all([yearStartOf(ws), numberStyleOf(ws), db().from("workspaces").select("time_zone").eq("id", ws).maybeSingle()]);
-  const zone = (clock?.time_zone as string | undefined) ?? "UTC";
+  const c = ctx ?? (await timelineContext(actor));
+  const { yearStart, numberStyle, zone } = c;
   const label = periodLabel(period, ((countable[0] ?? mine[0])?.period ?? "month") as Period, yearStart as YearStart);
   const base = { workflow: wf, period, label };
   if (!ids.length) return { ...base, in: 0, of: 0, published: 0, locked: 0, events: [] };
@@ -201,10 +230,8 @@ export async function periodTimelineAbout(actor: Actor | KeyActor, workflowId: n
   // Values are sealed with the Workspace Key: one that does not open still counts as in, but is not shown.
   const values = await openRows("observations", ws, (valueRows ?? []) as Record<string, unknown>[]);
   const promptIds = (prompts ?? []).map((p) => p.id as number);
-  const [{ data: deliveries }, groups] = await Promise.all([
-    promptIds.length ? db().from("deliveries").select("prompt_id, connector").eq("workspace_id", ws).in("prompt_id", promptIds) : Promise.resolve({ data: [] }),
-    getGroups(ws),
-  ]);
+  const { data: deliveries } = promptIds.length ? await db().from("deliveries").select("prompt_id, connector").eq("workspace_id", ws).in("prompt_id", promptIds) : { data: [] };
+  const groups = c.groups;
   const channelOf = new Map((deliveries ?? []).map((d) => [d.prompt_id as number, d.connector as ConnectorId]));
 
   // Threads: only the ones this viewer may read are opened at all.
@@ -222,7 +249,7 @@ export async function periodTimelineAbout(actor: Actor | KeyActor, workflowId: n
   const actionById = new Map(opened.map((a) => [a.id as number, a]));
 
   // Dashboards of this viewer that draw one of these Metrics, and their shown Snapshots of this period.
-  const dashboards = await visibleDashboards(ws, viewer);
+  const dashboards = c.dashboards;
   const dashIds = dashboards.map((d) => d.id);
   const { data: widgets } = dashIds.length ? await db().from("widgets").select("dashboard_id, metric_ids, settings").eq("workspace_id", ws).in("dashboard_id", dashIds) : { data: [] };
   const mineSet = new Set(ids);
@@ -239,7 +266,7 @@ export async function periodTimelineAbout(actor: Actor | KeyActor, workflowId: n
   for (const m of messages) peopleIds.add(m.author_id as string);
   const { data: profileRows } = await db().from("profiles").select("id, name").in("id", [...peopleIds]);
   // A Guest is told only their own name (peopleFor): everyone else reads "Someone".
-  const shown = await peopleFor(actor);
+  const shown = c.shown;
   const names = new Map((await openNames(ws, profileRows)).filter((p) => shown.some((s) => s.id === p.id)).map((p) => [p.id as string, String(p.name)]));
   const nameOf = (id: string) => names.get(id) ?? "Someone";
 

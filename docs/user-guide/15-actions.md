@@ -8,7 +8,7 @@ Everyone in the Workspace works with Actions, Guests included. This chapter also
 
 ## The Actions row
 
-**Schedule** in the sidebar holds your Actions. Its **To do** view lists the Questions and Tasks given to you among the other things waiting for you; **Asked by me** lists the ones you asked. The number next to Schedule counts what is due. The old address of the Actions page, `/actions`, opens **Asked by me**.
+**Schedule** in the sidebar holds your Actions. Its **To do** view lists the Questions and Tasks given to you among the other things waiting for you; **Asked by me** lists the ones you asked. The number next to Schedule counts the values due and the Actions waiting for you to close. The old address of the Actions page, `/actions`, opens **Asked by me**.
 
 ## Share Proposals: sharing an assistant prepared
 
@@ -64,7 +64,7 @@ The Schedule has three views, switched at the top. They show only what you may s
 
 ### To do
 
-The default. It lists what you have to do, overdue first and then by Due Date: values to submit, Approvals waiting for you, and the Tasks and Questions given to you. See [My schedule and your calendar](17-your-settings.md#the-schedule-and-your-calendar). **Values**, **Approvals**, **Tasks** and **Questions** above the list narrow it to one kind.
+The default. It lists what you have to do, overdue first and then by Due Date: values to submit, Approvals waiting for you, and the Tasks and Questions given to you. See [My schedule and your calendar](17-your-settings.md#the-schedule-and-your-calendar). **Values**, **Approvals**, **Tasks** and **Questions** above the list narrow it to one kind. Above the list, **To close** shows the Actions you asked that were answered or done, so you can close them; they count in the number next to Schedule.
 
 ### Asked by me
 

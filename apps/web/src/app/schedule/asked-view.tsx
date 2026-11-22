@@ -35,6 +35,11 @@ function Row({ a, people, quiet }: { a: AskedRow; people: People; quiet?: boolea
   );
 }
 
+/** A list of what the person asked, as rows. */
+export function AskedRows({ rows, people, quiet }: { rows: AskedRow[]; people: People; quiet?: boolean }) {
+  return <ul className="overflow-hidden stock rounded-[var(--radius-card)]">{rows.map((a) => <Row key={a.id} a={a} people={people} quiet={quiet} />)}</ul>;
+}
+
 /** The three groups of what the person asked. */
 export function AskedView({ rows, people }: { rows: AskedRow[]; people: People }) {
   const groups = [
