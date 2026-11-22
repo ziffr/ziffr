@@ -34,7 +34,7 @@ export type Takeaway = {
   strength: StrengthWord | null;
   /** The strength as a person reads it: "strong", "moderate", "weak" or "can't tell from chance". */
   strengthText: string | null;
-  /** The range the Method gives ("likely between"); the Methods so far give none. */
+  /** The range the Method gives ("likely between"); a correlation gives none. */
   range: { lo: number; hi: number; text: string } | null;
   /** What it was compared on and over how many periods. */
   basis: string | null;
@@ -43,6 +43,8 @@ export type Takeaway = {
   cautions: string[];
   /** What was done differently, said: another Method used because the data did not suit this one. */
   notes: string[];
+  /** How the Method did on the periods already known (a forecast's track record), one line; null where a Method has none. */
+  track: string | null;
   /** The one footer line, on an answer. */
   footer: string | null;
   /** The numbers in the sentence. */
@@ -68,7 +70,7 @@ function findingText(f: Finding, ctx: TakeawayContext, pairs: number): string {
   return say(f.case, f.slots, { ...ctxOf(ctx), result });
 }
 
-const empty = (method: string): Takeaway => ({ kind: "refusal", method, sentence: null, refusal: null, strength: null, strengthText: null, range: null, basis: null, assumptions: [], cautions: [], notes: [], footer: null, figures: [], numbers: [] });
+const empty = (method: string): Takeaway => ({ kind: "refusal", method, sentence: null, refusal: null, strength: null, strengthText: null, range: null, basis: null, assumptions: [], cautions: [], notes: [], track: null, footer: null, figures: [], numbers: [] });
 
 /** A refusal in words: no sentence, no number, no strength, no range, no footer (nothing is claimed). */
 export function refusalTakeaway(method: string, lines: string[]): Takeaway {

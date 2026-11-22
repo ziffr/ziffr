@@ -14,7 +14,9 @@ import { dayAfter, heldText, isPartial, pointName, shownSeries, type DisplayPoin
 import { periodLabel } from "@ziffr/core/periods";
 import type { Flag, Part, Piece, TextShow, TextStyle, ViewDesign } from "@ziffr/core/view-design";
 import type { CanvasData, Metric, Widget } from "@ziffr/core/types";
-import { forecast } from "@ziffr/core/forecast";
+import { bestForecast } from "@ziffr/core/methods/forecast-choice";
+import { SEASON_LENGTH } from "@ziffr/core/suitability";
+import { forecastTakeaway, limitsOf } from "@ziffr/core/takeaways/forecast";
 import { designRecipe, formatOutput } from "@ziffr/core/design-analysis";
 import { TargetChip } from "@/components/target-chip";
 import { cn } from "@/lib/utils";
@@ -55,7 +57,9 @@ function designValues(design: ViewDesign, widget: Pick<Widget, "settings">, metr
   const note = shown.reason ?? ([combined ? targets?.note : null, shown.note].filter(Boolean).join(" ") || null);
   const flags: Record<Flag, boolean> = { showTarget: option("showTarget"), showForecast: option("showForecast"), hasForecast: false, hasNote: !!note, manyValues: pts.length > 1 };
   // A span still running would read as a drop: the forecast starts from the last complete one.
-  const fc = uses.forecast(flags) ? forecast(last?.toDate ? pts.slice(0, -1) : pts, by)?.points ?? null : null;
+  const ahead = last?.toDate ? pts.slice(0, -1) : pts;
+  const projection = uses.forecast(flags) ? bestForecast(ahead, by, SEASON_LENGTH[by]) : null;
+  const fc = projection?.points ?? null;
   flags.hasForecast = !!fc?.length;
   const resolve = resolverFrom(data.metrics, data.series);
   const correlation: Correlation | null = uses.pairs && metrics[1] ? correlate(m, metrics[1], resolve, { yearStart: data.yearStart, basis }) : null;
@@ -64,12 +68,15 @@ function designValues(design: ViewDesign, widget: Pick<Widget, "settings">, metr
   const tctx = { style: data.numberStyle, yearStart: data.yearStart };
   const correlationTake = correlation && metrics[1] ? correlationTakeaway(m, metrics[1], correlation, tctx) : null;
   const driversTake = drivers ? driversTakeaway(m, drivers.ranked, tctx) : null;
+  // A forecast says which Method it used and how that did on the past; with a Target, how likely it is to be reached.
+  const limits = limitsOf(m);
+  const forecastTake = projection ? forecastTakeaway(m, ahead, tctx, flags.showTarget && (limits.min !== null || limits.max !== null) ? { limits } : {}) : null;
   const matrix = uses.matrix ? metrics.map((a) => metrics.map((b) => (a.id === b.id ? null : correlate(a, b, resolve, { yearStart: data.yearStart, basis })))) : null;
   // The target band shows when there is a range, and, for a combined series, when its spans have one.
   const band = (!combined || !!targets?.range) && (m.target_min !== null || m.target_max !== null);
   // The design's Analysis Recipe, on the series the widget shows of its own Metrics, by the library's functions.
   const recipe = designRecipe(design, metrics, data, s);
-  return { basis, m, metrics, by, all, pts, last, combined, targets, note, flags, fc, correlation, correlationTake, drivers, driversTake, matrix, band, goal, name, data, settings: s, recipe, analysis: design.analysis ?? null };
+  return { basis, m, metrics, by, all, pts, last, combined, targets, note, flags, fc, correlation, correlationTake, forecastTake, drivers, driversTake, matrix, band, goal, name, data, settings: s, recipe, analysis: design.analysis ?? null };
 }
 
 /** Which of the core's results a design needs, so a number widget never runs a correlation. */
@@ -120,6 +127,7 @@ export function DesignView({ design, widget, metrics, data, onPointContext }: Pr
     <div className={cn("flex h-full flex-col", design.kind === "analysis" && "gap-2")}>
       {design.parts.map((p, i) => <PartView key={i} part={p} v={v} ctx={ctx} />)}
       {v.correlationTake && <TakeawayView takeaway={v.correlationTake}><BasisButton v={v} /></TakeawayView>}
+      {v.forecastTake?.kind === "answer" && <TakeawayView takeaway={v.forecastTake} />}
     </div>
   );
 }

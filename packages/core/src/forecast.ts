@@ -12,8 +12,8 @@ import type { Point } from "./types";
 /** One period ahead: the value forecast for it and the band around it. */
 export type ForecastPoint = { period: string; value: number; lo: number; hi: number };
 
-// A few spans ahead: two weeks of days, three months, two quarters, one year.
-const HORIZON: Record<Span, number> = { day: 14, week: 6, month: 3, quarter: 2, half: 2, year: 1 };
+/** How many periods ahead a forecast looks by default: two weeks of days, six weeks, three months, two quarters, one year. */
+export const HORIZON: Record<Span, number> = { day: 14, week: 6, month: 3, quarter: 2, half: 2, year: 1 };
 
 /** How many values a forecast needs: Holt's method fits a level and a trend, which takes four points. */
 export const FORECAST_MIN_POINTS = 4;
@@ -24,22 +24,35 @@ const ALPHA = f(1, 2);
 const BETA = f(3, 10);
 const ONE = f(1, 1);
 
-/** Holt's linear trend (double exponential smoothing) with a widening ~95% band, for the points in their order. */
-export function forecast(points: Point[], period: Span, horizon = HORIZON[period]) {
-  if (points.length < FORECAST_MIN_POINTS) return null;
-  const ys = points.map((p) => fractionOf(p.value));
+/** What Holt's method predicted for the value at `index` before it came, and the exact sum and count of the one-step errors
+ * up to then: what a forecast made at that moment would have had (the track record reads these). */
+export type HoltStep = { index: number; predicted: Fraction; squares: Fraction; errors: number };
+
+/** Holt's method run over the values: the exact level and trend after the last, the sum of the squared one-step errors,
+ * and, for every value from the second on, the prediction made before it came. Nothing here is rounded. */
+export function holtFit(ys: Fraction[]): { level: Fraction; trend: Fraction; squares: Fraction; steps: HoltStep[] } {
   let level = ys[0];
   let trend = minus(ys[1], ys[0]);
   let squares = f(0, 1);
+  const steps: HoltStep[] = [];
   for (let t = 1; t < ys.length; t++) {
     // The one-step error: what came against what the level and trend predicted.
-    const error = minus(ys[t], plus(level, trend));
+    const predicted = plus(level, trend);
+    steps.push({ index: t, predicted, squares, errors: t - 1 });
+    const error = minus(ys[t], predicted);
     squares = lowestTerms(plus(squares, times(error, error)));
     const prevLevel = level;
     level = lowestTerms(plus(times(ALPHA, ys[t]), times(minus(ONE, ALPHA), plus(level, trend))));
     trend = lowestTerms(plus(times(BETA, minus(level, prevLevel)), times(minus(ONE, BETA), trend)));
   }
-  const sd = Math.sqrt(nearest({ num: squares.num, den: squares.den * BigInt(ys.length - 1) }));
+  return { level, trend, squares, steps };
+}
+
+/** Holt's linear trend (double exponential smoothing) with a widening ~95% band, for the points in their order. */
+export function forecast(points: Point[], period: Span, horizon = HORIZON[period]) {
+  if (points.length < FORECAST_MIN_POINTS) return null;
+  const { level, trend, squares } = holtFit(points.map((p) => fractionOf(p.value)));
+  const sd = Math.sqrt(nearest({ num: squares.num, den: squares.den * BigInt(points.length - 1) }));
   const last = points[points.length - 1].period;
   const out: ForecastPoint[] = [];
   for (let h = 1; h <= horizon; h++) {

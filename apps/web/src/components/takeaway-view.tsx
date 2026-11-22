@@ -13,6 +13,8 @@ export function TakeawayView({ takeaway: t, children }: { takeaway: Takeaway; ch
       <p className="text-foreground">{t.sentence}</p>
       {t.notes.map((n) => <p key={n} className="text-xs">{n}</p>)}
       {t.basis && <p className="text-xs">{t.basis[0].toUpperCase() + t.basis.slice(1)}.</p>}
+      {t.assumptions.map((a) => <p key={a} className="text-xs">{a}</p>)}
+      {t.track && <p className="text-xs">{t.track}</p>}
       {t.footer && <p className="text-xs">{t.footer}</p>}
       <details className="text-xs">
         <summary className="cursor-pointer">Show the numbers</summary>

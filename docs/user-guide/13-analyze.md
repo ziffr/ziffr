@@ -49,7 +49,10 @@ A **Recipe** is a ready-made Analysis that runs with one click. Ziffr offers:
 | --- | --- |
 | **What drives Cost?** | Puts Cost and every other Metric you can see on the canvas and runs **Drivers** for Cost. |
 | **Where is Revenue heading?** | Puts Revenue on the canvas and runs **Forecast**. |
+| **Will we reach the Target?** | Puts Revenue on the canvas and runs **Forecast**; when Revenue has a Target, the Takeaway says how likely it is to be reached ("about 7 in 10"). |
 | **Do support tickets drive returns?** | Puts Return rate and Support tickets on the canvas and runs **Correlation**. |
+
+A Forecast says where the Metric is expected to be, with the range it is likely between, and which Method worked it out: a plain trend, or the trend with the yearly pattern when the Metric has two seasons of values and the pattern would have missed less on the last third of its history. It also says how that Method did on the periods already known ("within its range 10 of 12 times"). Show the numbers has the details. A forecast is not a promise; it assumes the pattern of the past carries on.
 
 A Recipe replaces what is on the canvas with its own Metrics. Each one appears only when you can see the Metrics it needs. When none fits, the screen says "Recipes appear once the metrics they need are shared with you."
 
