@@ -330,6 +330,17 @@ describe("the end of a person's Webhooks", () => {
     expect((await log(y.w)).map((e) => [e.object_id, e.actor_id])).toEqual([[yAna, null]]);
   });
 
+  it("lets a Workspace be deleted while its people hold Personal Webhooks, taking their waiting ends with it", async () => {
+    const x = await allowed();
+    const ana = await made(x, x.A);
+    await x.w.dropMember(x.ana);
+    expect((await db().from("personal_webhook_ends").select("webhook_id").eq("webhook_id", ana)).data).toHaveLength(1);
+    await made(x, x.B);
+    const { error } = await db().from("workspaces").delete().eq("id", x.w.id);
+    expect(error).toBeNull();
+    expect((await db().from("personal_webhook_ends").select("webhook_id").eq("workspace_id", x.w.id)).data).toEqual([]);
+  });
+
   it("ends when the person becomes a Guest, not when they change between the roles that may have one", async () => {
     const x = await allowed();
     const ana = await made(x, x.A);
