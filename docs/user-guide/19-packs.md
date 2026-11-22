@@ -55,7 +55,7 @@ Owners and Admins see **Update from a file…** on each installed Pack (an Owner
 - an item the new version drops is removed, or kept without being marked as from the Pack when you changed it or something uses it;
 - an item you removed is not added again.
 
-When the new version has another logo, or none, the update page says **The logo changed** and shows the old and the new one side by side. A Theme nobody changed here gets the new logo with the replacement; one you changed keeps what it has.
+When the new version has another logo, or none, the update page says **The logo changed** and shows the old and the new one side by side. A Theme nobody changed here gets the new logo with the replacement; one you changed keeps what it has, and a logo you set yourself is never replaced, also when you take the new version.
 
 A new major version, such as 2.0.0 after 1.4.0, says first that it may change how things look or work. Confirm the same warnings as when installing and choose **Update to …**. The update happens whole or not at all, and the Audit log records it. Metrics, dashboards, decks and Workflows made from the Pack never change.
 
@@ -63,7 +63,7 @@ A new major version, such as 2.0.0 after 1.4.0, says first that it may change ho
 
 ## Uninstalling a Pack
 
-**Uninstall…** first lists what goes and what stays. It removes every item nobody changed and nothing uses. It keeps, no longer marked as from the Pack, every item you changed and every Theme a dashboard, a deck or the Workspace's default uses. Metrics made from its catalog entries, and everything else made from the Pack, stay as they are. The Audit log records it.
+**Uninstall…** first lists what goes and what stays. It removes every item nobody changed and nothing uses. It keeps, no longer marked as from the Pack, every item you changed and every Theme a dashboard, a deck or the Workspace's default uses. Metrics made from its catalog entries, and everything else made from the Pack, stay as they are. When a kept Theme still shows the Pack's logo, the window says so and offers **Also remove the author's logo from this Theme**, ticked by default: the Pack that brought the logo is gone. A logo you chose yourself always stays. The Audit log records it, with how many Themes lost the logo.
 ## Export as Pack
 
 **Export as Pack…** is for everyone but Guests. Pick Metrics, Metric Catalog entries from Packs, Dashboard, Deck and Workflow Templates, View Designs and Themes; name the Pack, give it an id such as `northwind/saas-metrics`, a version, a summary, an author and a license; then choose **Download Pack**. The file holds descriptions and layouts, never a value or a person, and only Metrics you see. Tags of the Metrics you pick go in too, up to 5 per entry and only Tags you see on those Metrics, never a Tag of a Metric you did not pick; untick **Carry the Tags of the Metrics you pick** to leave them out. Anything a Pack may not hold, such as a description with a web address or a drawing on a slide, stays out, and the window lists it with the reason.

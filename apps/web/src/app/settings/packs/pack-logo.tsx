@@ -38,6 +38,7 @@ export function LogoChange({ logo, author }: { logo: { before: string | null; af
         <span>Now</span>{logo.before ? <PackLogo src={logo.before} author={author} label={`Current logo of ${author}`} /> : <span>none</span>}
         <span>New version</span>{logo.after ? <PackLogo src={logo.after} author={author} label={`New logo of ${author}`} /> : <span>none</span>}
       </div>
+      <p className="mt-2 text-xs text-muted-foreground">Themes you did not change take the new logo. A Theme you changed keeps its own logo, and a logo you set yourself is never replaced.</p>
     </div>
   );
 }
