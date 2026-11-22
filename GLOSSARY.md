@@ -11,7 +11,7 @@ A named, fully described number tracked over time. It must be defined before any
 _Avoid_: Number, KPI, measure, series
 
 **Metric Description**:
-Everything that defines a metric: name, description, unit and which side of the number it stands on, format, period, submission rule, sources, target range, polarity, how its Attainment is computed (or the Workspace's way), owner and, for a derived metric, its formula.
+Everything that defines a metric: name, description, unit and which side of the number it stands on, format, period, submission rule, sources, target range, polarity, how its Attainment is computed (or the Workspace's way), owner, its Tags and, for a derived metric, its formula.
 _Avoid_: Settings, config, schema
 
 **Period**:
@@ -57,6 +57,10 @@ _Avoid_: Admin, maintainer
 **Metric Catalog**:
 A library of predefined metric descriptions: the entries every Workspace has, and the Workspace's own part, from the Packs it installed. Picking one copies its description into a new metric of your own, with no link back to the catalog.
 _Avoid_: Template library, presets
+
+**Tag**:
+A free word of a Workspace that people put on Metrics to find and group them, such as "finance" or "weekly review". Anyone who may change a Metric's description adds Tags to it; Owners and Admins rename, merge and delete them. Tags filter the Metrics list, Search and what programs read, and a widget that takes several Metrics may take all those tagged with one. A person is shown a Tag only through a Metric they may see, and a Tag never shares anything. Not a Group, which is a set of people; not an industry or segment key, which Ziffr sets on Metric Catalog entries; not a Breakdown's labels, which split one value.
+_Avoid_: Label, category, folder, hashtag, keyword
 
 **Archived Metric**:
 A Metric kept with its description, values and history that asks for nothing and takes no values, shown only under Archived. It does not count towards the Workspace Limit; bringing it back counts again. Not a Snapshot, which keeps what a dashboard showed; that is why "archive" belongs to Metrics and a Snapshot is never called an archived copy.
@@ -183,7 +187,7 @@ One Metric's page for one period (`/metrics/churn-rate/2026-03-01`): its value a
 _Avoid_: Value page, audit trail, timeline (a Workflow's timeline lists many periods)
 
 **Search**:
-Finding things from the sidebar's Search field (⌘K or Ctrl+K): a Metric, dashboard, deck, Workflow, person, Group or page by name (and by a few plain words for pages: "invite" finds Members and Groups), a Metric's value for a period by words such as "churn march 2026" (the period words are read like replies, in the Workspace's Answer Languages, and lead to the Period Record), and commands such as New metric, Invite someone, Record a value for a Metric the person submits, Switch Workspace and Toggle sidebar. Opened empty it lists recent items (kept in the browser, per person) and the commands. It only finds what the person may see and do, in their own Workspace: a Guest finds only themselves, their own Groups and the Workflows of what is shared with them; Archived Metrics are marked. Programs use the MCP tool `find` and `GET /api/v1/find`, which return Metrics and periods only.
+Finding things from the sidebar's Search field (⌘K or Ctrl+K): a Metric (also by its Tags), dashboard, deck, Workflow, person, Group or page by name (and by a few plain words for pages: "invite" finds Members and Groups), a Metric's value for a period by words such as "churn march 2026" (the period words are read like replies, in the Workspace's Answer Languages, and lead to the Period Record), and commands such as New metric, Invite someone, Record a value for a Metric the person submits, Switch Workspace and Toggle sidebar. Opened empty it lists recent items (kept in the browser, per person) and the commands. It only finds what the person may see and do, in their own Workspace: a Guest finds only themselves, their own Groups and the Workflows of what is shared with them; Archived Metrics are marked. Programs use the MCP tool `find` and `GET /api/v1/find`, which return Metrics and periods only.
 _Avoid_: Global search, omnibox, command palette
 
 **Lock**:
@@ -310,7 +314,7 @@ One 16:9 page of a deck. Its order follows its position on the deck canvas, left
 _Avoid_: Page, frame, board
 
 **Theme**:
-A named look for everything that shows numbers: colours for text, surfaces, data, good, bad and the target band, the fonts for headlines, text and figures, how cards are drawn, and what every slide shows (logo, footer, slide number, background image, type sizes). The team has one default theme; a dashboard or deck may use another, and a deck may set its own footer. A slide may hide the logo, footer and number. Ziffr's own screens are drawn by the person's Appearance, not by a Theme. Owners and Admins change Themes. The team default Theme also dresses what Ziffr sends and shows outside the app: emails, the form link, View Link pages and the side bar of Slack messages show its logo (or the Workspace's name), accent, footer and fonts, with every colour checked for contrast. A Theme can be written as a file and read back from one. Every Theme has a **dark variant**, the colours it wears when the viewer's Appearance is dark: a Standard Theme carries a designed one, any other Theme gets one worked out from its own colours and checked for contrast (WCAG AA), falling back to Ziffr Dark's colours if that fails; a Theme that is dark already has none. Its setting **In a dark Appearance** is "Follows the viewer's Appearance" (the default) or "Always as designed", for brand decks and anything that must look the same for everyone. Fonts, corners and cards are the same in both.
+A named look for everything that shows numbers: colours for text, surfaces, data, good, bad and the target band, the fonts for headlines, text and figures, how cards are drawn, and what every slide shows (logo, footer, slide number, background image, type sizes). The team has one default theme; a dashboard or deck may use another, and a deck may set its own footer. A slide may hide the logo, footer and number. Ziffr's own screens are drawn by the person's Appearance, not by a Theme. Owners and Admins change Themes. The team default Theme also dresses what Ziffr sends and shows outside the app: emails, the form link, View Link pages and the side bar of Slack messages show its logo (or the Workspace's name), accent, footer and fonts, with every colour checked for contrast. A Theme can be written as a file and read back from one; a Theme in a Pack may use the Pack's logo. Every Theme has a **dark variant**, the colours it wears when the viewer's Appearance is dark: a Standard Theme carries a designed one, any other Theme gets one worked out from its own colours and checked for contrast (WCAG AA), falling back to Ziffr Dark's colours if that fails; a Theme that is dark already has none. Its setting **In a dark Appearance** is "Follows the viewer's Appearance" (the default) or "Always as designed", for brand decks and anything that must look the same for everyone. Fonts, corners and cards are the same in both.
 _Avoid_: Master, skin, style, brand kit, palette
 
 **Standard Theme**:
@@ -372,7 +376,7 @@ The private service that runs hosted Ziffr's billing: Sizes, prices, payments, i
 _Avoid_: Billing service, SaaS, hosted edition
 
 **Pack**:
-A file of things to add to a Workspace, with no code: Metric Catalog entries, Dashboard and Deck Templates, View Designs, Analysis Recipes, Workflow Templates and Themes, with its name, version, author and license. Installing one copies each thing into the Workspace, marked with the Pack and version; it makes no Metric until a person sets it up. New versions are offered, never applied by themselves, and uninstalling removes what nobody changed.
+A file of things to add to a Workspace, with no code: Metric Catalog entries, Dashboard and Deck Templates, View Designs, Analysis Recipes, Workflow Templates and Themes, with its name, version, author, license and optionally a logo. Installing one copies each thing into the Workspace, marked with the Pack and version; it makes no Metric until a person sets it up. New versions are offered, never applied by themselves, and uninstalling removes what nobody changed.
 _Avoid_: Plugin, extension, add-on, integration, app, bundle
 
 **Marketplace**:
