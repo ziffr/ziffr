@@ -20,7 +20,7 @@ export async function handOverMetric(actor: Actor, metricId: number, toId: strin
   if (actor.key || actor.role === "guest" || !Number.isInteger(metricId) || typeof toId !== "string") throw new Forbidden();
   refuseInDemo(actor);
   const ws = actor.workspaceId;
-  const m = await openOne("metrics", ws, (await db().from("metrics").select("id, slug, name, owner_id, formula, inputs_checked, owner_took_by_role").eq("id", metricId).eq("workspace_id", ws).maybeSingle()).data);
+  const m = await openOne("metrics", ws, (await db().from("metrics").select("id, slug, name, owner_id, formula, inputs_checked, owner_taken_by").eq("id", metricId).eq("workspace_id", ws).maybeSingle()).data);
   const mayAny = actor.role === "owner" || actor.role === "admin";
   if (!m || (m.owner_id !== actor.personId && !mayAny)) throw new Forbidden("Only the Metric's owner, an Owner or an Admin hands it over.");
   const from = m.owner_id as string;
@@ -38,7 +38,7 @@ export async function handOverMetric(actor: Actor, metricId: number, toId: strin
   // Taking a Metric for oneself by one's role is allowed (and audited); the Editor Share a round trip would leave goes
   // to nobody who did not really own it, and the sight such a person had before is theirs still.
   const tookIt = actor.personId !== from && toId === actor.personId;
-  const keepOld = !m.owner_took_by_role;
+  const keepOld = m.owner_taken_by !== m.owner_id;
   const names = new Map(((await db().from("profiles").select("id, name").in("id", [from, toId, actor.personId])).data ?? []).map((p) => [p.id as string, p.name as string]));
   const fromName = names.get(from) ?? "a former member", toName = names.get(toId) ?? "a member", byName = names.get(actor.personId) ?? "An Owner or Admin";
   // One step under a lock on the new owner's membership: the owner, the Shares and the open Questions of the owner.

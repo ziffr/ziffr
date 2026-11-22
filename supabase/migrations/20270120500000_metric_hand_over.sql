@@ -2,9 +2,11 @@
 -- membership, the Metric changes owner, the new owner's own Share on it goes (they need none), the old owner stays on
 -- as Editor (never downgraded), and the open Questions that were waiting on the old owner as the Metric's owner go to
 -- the new one (only escalations: an Approval is a Task, for the Workflow's approvers). The database also refuses what must never be: a Guest who owns a Metric, an owner who is not a member.
--- Whether the current owner took the Metric for themselves by their role (an Owner or Admin): the round trip then
--- leaves them no Editor Share. Kept on the Metric, set in the same step as the owner, never read from the Audit Log.
-alter table metrics add column owner_took_by_role boolean not null default false;
+-- The person who took the Metric for themselves by their role (an Owner or Admin), or null: the round trip then leaves
+-- them no Editor Share. "Took it by role" is `owner_taken_by = owner_id`, so a value left behind when another path
+-- (an import, a later feature) changes the owner never matches the new owner. Set in the same step as the owner; never
+-- read from the Audit Log. Nothing to backfill: hand-overs, and so Metrics taken this way, exist only from here on.
+alter table metrics add column owner_taken_by text;
 
 create or replace function hand_over_metric(ws uuid, metric int, old_owner text, new_owner text, keep_old boolean, drop_new boolean, took boolean)
 returns table (action_id int, period date)
@@ -16,7 +18,7 @@ declare new_role text;
 begin
   select role into new_role from memberships where workspace_id = ws and user_id = new_owner for share;
   if new_role is null or new_role = 'guest' then raise exception 'the new owner must be a member who can own things'; end if;
-  update metrics set owner_id = new_owner, owner_took_by_role = took where id = metric and workspace_id = ws and owner_id = old_owner;
+  update metrics set owner_id = new_owner, owner_taken_by = case when took then new_owner else null end where id = metric and workspace_id = ws and owner_id = old_owner;
   if not found then raise exception 'the metric changed hands meanwhile'; end if;
   if drop_new then
     delete from shares where workspace_id = ws and object_type = 'metric' and object_id = metric and user_id = new_owner;
@@ -76,7 +78,7 @@ begin
     raise exception 'the successor must be a member who can own things';
   end if;
   -- Taking the Metrics for oneself by one's role is remembered on them, in this same step.
-  update metrics set owner_id = successor, owner_took_by_role = coalesce(successor = actor_id, false) where workspace_id = ws and owner_id = leaving;
+  update metrics set owner_id = successor, owner_taken_by = case when successor = actor_id then successor else null end where workspace_id = ws and owner_id = leaving;
   update dashboards set owner_id = successor where workspace_id = ws and owner_id = leaving;
   update widgets set owner_id = successor where workspace_id = ws and owner_id = leaving;
   update decks set owner_id = successor where workspace_id = ws and owner_id = leaving;

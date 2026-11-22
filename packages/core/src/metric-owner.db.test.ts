@@ -119,6 +119,20 @@ describe("a hand-over the database refuses", () => {
   });
 });
 
+describe("a stale mark of taking by role", () => {
+  it("never matches a new owner set by another path", async () => {
+    const w = await ws(); await w.person("owner"); const ad = await w.person("admin"); const ben = await w.person("member"); const ann = await w.person("member");
+    const m = await w.metric(ben);
+    await handOverMetric(w.actor(ad, "admin"), m.id, ad);
+    expect((await db().from("metrics").select("owner_taken_by").eq("id", m.id).single()).data!.owner_taken_by).toBe(ad);
+    // Another path (an import, say) gives it to Ann; the mark still names the Admin.
+    await db().from("metrics").update({ owner_id: ann }).eq("id", m.id);
+    await handOverMetric(w.actor(ann, "member"), m.id, ben);
+    expect((await sharesOf(w.id, m.id)).filter((x) => x.user_id === ann)).toEqual([{ user_id: ann, role: "editor" }]);
+    expect((await db().from("metrics").select("owner_taken_by").eq("id", m.id).single()).data!.owner_taken_by).toBeNull();
+  });
+});
+
 describe("a Metric never stays with someone who is gone", () => {
   it("records taking a removed person's Metrics for oneself, so a round trip is seen", async () => {
     const w = await ws(); const sara = await w.person("owner"); const ben = await w.person("member"); const ann = await w.person("member");
