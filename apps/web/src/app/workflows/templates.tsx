@@ -1,7 +1,7 @@
 "use client";
 // Workflow Templates (spec 0030, GLOSSARY: Workflow Template): saving a Workflow as one, without its people, and
 // starting a Workflow from one with its Approvers picked. The core checks every person again.
-import { templateStepLabel } from "@ziffr/core/checklist-rules";
+import { templateStepLabel } from "./template-step-label";
 import type { WorkflowTemplateSummary } from "@ziffr/core/workflow-templates";
 import type { Workflow } from "@ziffr/core/types";
 import { createWorkflowFromTemplate, saveAsWorkflowTemplate } from "@/app/deck-workflow-template-actions";

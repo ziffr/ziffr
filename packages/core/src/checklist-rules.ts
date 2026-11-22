@@ -1,9 +1,9 @@
 // Checklist Items, the pure rules (GLOSSARY: Checklist Item, Workflow, Guest; spec 0045): which items a config holds,
 // a Workflow's period as its Metrics have it, and who may read an item's words. The engine is checklist.ts; the Period
 // Timeline and the pages use these without it.
-import { stepLabel, workingPeriod } from "./workflow-rules";
+import { workingPeriod } from "./workflow-rules";
 import type { YearStart } from "./periods";
-import type { ChecklistItem, Metric, Period, WorkflowTemplateStep } from "./types";
+import type { ChecklistItem, Metric, Period } from "./types";
 
 /** An item for information. */
 export type InfoItem = Extract<ChecklistItem, { kind: "info" }>;
@@ -32,14 +32,4 @@ export function mayReadItem(item: ChecklistItem, viewer: { id: string; role: str
   if (mine) return true;
   if (viewer.role === "guest") return false;
   return item.readGroup === undefined || viewer.groupIds.includes(item.readGroup);
-}
-
-/** A step of a Workflow Template in words: who is told, who ticks it off and which dashboard are for whoever uses it to pick. */
-export function templateStepLabel(s: WorkflowTemplateStep): string {
-  const words = (t: string) => `“${t.length > 60 ? `${t.slice(0, 60).trimEnd()}…` : t}”`;
-  const days = (n: number) => `${n} working day${n === 1 ? "" : "s"}`;
-  if (s.type === "approve") return `Approval by ${s.approvers === 1 ? "one person" : `${s.approvers} people`} you pick${s.values === "every" ? ", for every value" : ", for Unusual Values"}`;
-  if (s.type === "checklist") return s.kind === "tick" ? `${days(s.dueWorkingDays)} after the period: the person you pick ticks off ${words(s.text)}` : `${days(s.day)} after the period: tell the people you pick ${words(s.text)}`;
-  if (s.type === "send_snapshot") return "When the period is finished, send its Snapshot of a dashboard you pick to the people you pick";
-  return stepLabel(s, []);
 }

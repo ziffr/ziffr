@@ -1,7 +1,7 @@
 // Checklist Items, the pure rules (spec 0045, ticket #791; GLOSSARY: Checklist Item, Workflow, Guest): a Workflow's
 // period as its Metrics have it, and who may read an item's words.
 import { describe, expect, it } from "vitest";
-import { infoItems, mayReadItem, templateStepLabel, workflowPeriod } from "./checklist-rules";
+import { infoItems, mayReadItem, workflowPeriod } from "./checklist-rules";
 import type { ChecklistItem } from "./types";
 
 const info = (over: Partial<Extract<ChecklistItem, { kind: "info" }>> = {}): ChecklistItem => ({ type: "checklist", id: "item-one-aaaa", kind: "info", text: "Words.", day: 1, people: [], groups: [], ...over });
@@ -43,15 +43,5 @@ describe("who may read an item's words", () => {
   it("lists the items for information of a config, in order", () => {
     const a = info({ id: "item-a-aaaaa" }); const b = info({ id: "item-b-aaaaa" });
     expect(infoItems([{ type: "remind" }, a, tick(), b, { type: "tell" }]).map((i) => i.id)).toEqual(["item-a-aaaaa", "item-b-aaaaa"]);
-  });
-});
-
-describe("a Workflow Template's steps in words", () => {
-  it("leave the people, the Group and the dashboard to whoever uses the template", () => {
-    expect(templateStepLabel({ type: "checklist", kind: "info", text: "Cut-off is Friday.", day: 1 })).toBe("1 working day after the period: tell the people you pick “Cut-off is Friday.”");
-    expect(templateStepLabel({ type: "checklist", kind: "tick", text: "Reconcile the bank account.", dueWorkingDays: 3 })).toBe("3 working days after the period: the person you pick ticks off “Reconcile the bank account.”");
-    expect(templateStepLabel({ type: "send_snapshot" })).toMatch(/dashboard you pick/);
-    expect(templateStepLabel({ type: "approve", approvers: 2, values: "every" })).toBe("Approval by 2 people you pick, for every value");
-    expect(templateStepLabel({ type: "remind", daysBefore: 2 })).toMatch(/2 days before/);
   });
 });
