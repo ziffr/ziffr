@@ -149,7 +149,9 @@ export async function renameTag(actor: Actor, tagId: string, name: unknown): Pro
     if (all.some((t) => t.id === other.id)) throw new Refused(`There is already a Tag “${other.name}”. Merge the two instead.`);
     // The word is used only where the actor cannot see: it is the same Tag Workspace-wide, so this is a merge into it, answered
     // as a rename to the actor's own spelling: no signal that the word existed, and never the other Tag's name.
-    await mergeInto(actor, tag, { id: other.id, name: other.name });
+    // The Audit Log says it as a rename, with the actor's own words: the other Tag's name is nowhere the actor can read it.
+    await mergeInto(actor, tag, { id: other.id, name: other.name }, false);
+    await audit(actor, { kind: "tag.renamed", object: { type: "tag", id: tag.id, name: next }, details: { from: tag.name, metrics: tag.metrics } });
     return { name: next };
   }
   const cipher = await workspaceCipher(actor.workspaceId);
@@ -174,12 +176,12 @@ export async function mergeTags(actor: Actor, fromId: string, intoId: string): P
   return { metrics: from.metrics };
 }
 
-async function mergeInto(actor: Actor, from: Pick<VisibleTag, "id" | "name" | "metrics">, into: { id: string; name: string }): Promise<void> {
+async function mergeInto(actor: Actor, from: Pick<VisibleTag, "id" | "name" | "metrics">, into: { id: string; name: string }, record = true): Promise<void> {
   const { data, error } = await db().rpc("merge_tags", { p_ws: actor.workspaceId, p_from: from.id, p_into: into.id });
   if (error) throw new ServerFault("The Tags could not be merged.");
   if (data !== "ok") throw new Forbidden();
   // The first Tag is gone, so it names no one's sight: the event is shown only to the person who did it.
-  await audit(actor, { kind: "tag.merged", object: { type: "tag", id: from.id, name: from.name }, details: { into: into.name, metrics: from.metrics } });
+  if (record) await audit(actor, { kind: "tag.merged", object: { type: "tag", id: from.id, name: from.name }, details: { into: into.name, metrics: from.metrics } });
 }
 
 /** Removes a Tag from every Metric, those the actor does not see included, as Owners and Admins for a Tag they see. Answers

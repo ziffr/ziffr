@@ -119,6 +119,8 @@ begin
   perform 1 from metrics where workspace_id = p_ws and id in (select metric_id from metric_tags where tag_id = p_from and workspace_id = p_ws) order by id for key share;
   perform pg_advisory_xact_lock(hashtext('tags:' || p_ws::text));
   if p_from = p_into or (select count(*) from tags where workspace_id = p_ws and id in (p_from, p_into)) <> 2 then return 'missing'; end if;
+  -- A Metric that got the first Tag between the read above and the lock is held too, before anything is written.
+  perform 1 from metrics where workspace_id = p_ws and id in (select metric_id from metric_tags where tag_id = p_from and workspace_id = p_ws) order by id for key share;
   insert into metric_tags (metric_id, tag_id, workspace_id) select metric_id, p_into, p_ws from metric_tags where tag_id = p_from and workspace_id = p_ws on conflict do nothing;
   delete from tags where id = p_from and workspace_id = p_ws;
   return 'ok';

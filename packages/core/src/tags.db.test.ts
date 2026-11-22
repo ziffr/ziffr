@@ -363,6 +363,10 @@ describe("renaming, merging and deleting", () => {
     expect(await renameTag(t.as.adam, one.id, "HIDDEN-Word")).toEqual({ name: "HIDDEN-Word" });
     expect(await renameTag(t.as.adam, (await visibleTags(t.as.adam)).find((x) => x.name === "mine")!.id, "Unused")).toEqual({ name: "Unused" });
     expect(names(await readTags(t.id)).sort()).toEqual(["Unused", "hidden-word", "two"]);
+    // The actor's own Audit Log says a rename with their words, never the hidden Tag's spelling.
+    const renamed = (await auditLog(t.as.adam, { kind: "tag.renamed" })).events.find((e) => e.objectName === "HIDDEN-Word");
+    expect(renamed?.details).toEqual({ from: "one", metrics: 1 });
+    expect(JSON.stringify((await auditLog(t.as.adam, { kind: "tag" })).events)).not.toContain("hidden-word");
     await expect(renameTag(t.as.adam, (await visibleTags(t.as.adam)).find((x) => x.name === "Unused")!.id, "a,b")).rejects.toBeInstanceOf(Refused);
   });
 
