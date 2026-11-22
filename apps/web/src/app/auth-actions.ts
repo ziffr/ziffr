@@ -62,6 +62,13 @@ export async function signOut() {
   redirect("/login");
 }
 
+/** Signs the Owner out and back to the sign-in page, which returns them to the Workspace Export page: a Workspace
+ * Export asks for a sign-in from the last 10 minutes (spec 0040), and signing in is what makes one. */
+export async function signInAgainForExport() {
+  await (await authClient()).auth.signOut();
+  redirect(`/login?next=${encodeURIComponent("/settings/export")}`);
+}
+
 /** A signed-in person without a workspace creates one and becomes its Owner (GLOSSARY: Workspace, Workspace Role).
  * Why a trial could not be made comes back as words, not as a thrown error, whose message production builds hide. */
 export async function createWorkspace(name: string): Promise<{ error: string } | void> {

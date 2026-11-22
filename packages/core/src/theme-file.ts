@@ -38,11 +38,11 @@ const plain = (s: unknown, max: number) => {
 /** A stored Theme as a file. A background image never goes into a file (spec 0030) and a logo only as the word "pack",
  * when it is the Pack's one logo (`usesPackLogo`, spec 0039): no second picture is ever in a file. A name or footer that
  * is not plain text is replaced ("Theme") or left out. */
-export function themeToFile(name: unknown, tokens: ThemeTokens, slides: Partial<ThemeSlides> | null | undefined, usesPackLogo = false): ThemeFile {
+export function themeToFile(name: unknown, tokens: ThemeTokens, slides: Partial<ThemeSlides> | null | undefined, usesPackLogo = false, fit: (text: unknown, max: number) => string | null = plain): ThemeFile {
   const s = slides ?? {};
-  const footer = plain(s.footer, 120);
+  const footer = fit(s.footer, 120);
   return {
-    format: "ziffr.theme/1", name: plain(name, 60) || "Theme",
+    format: "ziffr.theme/1", name: fit(name, 60) || "Theme",
     colors: { ...Object.fromEntries(COLOR_NAMES.map((c) => [c, tokens[c]])), data: tokens.data } as ThemeFile["colors"],
     fonts: { heading: tokens.fontHeading, body: tokens.fontBody, figures: tokens.fontFigures }, radius: tokens.radius, cards: tokens.cards,
     slides: { ...(usesPackLogo ? { logo: "pack" as const } : {}), ...(s.logo_position ? { logoPosition: s.logo_position } : {}), ...(s.logo_width ? { logoWidth: s.logo_width } : {}), ...(footer ? { footer } : {}), showSlideNumber: Boolean(s.show_slide_number), ...(s.title_size ? { titleSize: s.title_size } : {}), ...(s.body_size ? { bodySize: s.body_size } : {}) },
