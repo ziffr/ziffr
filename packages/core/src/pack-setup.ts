@@ -24,7 +24,7 @@ import { tagNamesOf, TAGS_PER_ENTRY } from "./tag-names";
 import { getMetrics } from "./workspace-data";
 import { peopleIn } from "./submissions";
 import { graceNow, LimitReached, limitOf, limitRefusal, limitRule, metricCount, nextGraceOn } from "./workspace-limits";
-import { TRIAL_METRICS_MAX } from "./metrics";
+import { trialLimitsInEffect } from "./trial-limits-in-effect";
 import type { Slot, WorkflowTemplateBody } from "./types";
 
 /** An entry of the Pack's part of the Metric Catalog, as the set-up page offers it. `inputs` are the keys a Derived
@@ -115,7 +115,8 @@ async function roomFor(actor: Actor, n: number): Promise<string | null> {
   const [{ data: space }, limit, count] = await Promise.all([db().from("workspaces").select("trial_ends_at, over_limit_since, last_grace_started_at").eq("id", ws).maybeSingle(), limitOf(ws), metricCount(ws)]);
   if (space?.trial_ends_at) {
     const { count: all } = await db().from("metrics").select("id", { count: "exact", head: true }).eq("workspace_id", ws);
-    return (all ?? 0) + n > TRIAL_METRICS_MAX ? `A trial holds at most ${TRIAL_METRICS_MAX} Metrics; it has ${all ?? 0}, and this makes ${n}. Pick fewer.` : null;
+    const cap = (await trialLimitsInEffect()).metrics;
+    return (all ?? 0) + n > cap ? `A trial holds at most ${cap} Metrics; it has ${all ?? 0}, and this makes ${n}. Pick fewer.` : null;
   }
   if (!limit) return null;
   let since = space?.over_limit_since ? new Date(space.over_limit_since as string) : null;

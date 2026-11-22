@@ -292,12 +292,12 @@ describe("what the jobs remove, by the days in effect", () => {
 });
 
 describe("Ziffr Cloud pins what it keeps fixed", () => {
-  const PINNED = ["ZIFFR_DEFAULT_METRICS_LIMIT", "ZIFFR_DEFAULT_LIMIT_LABEL", "ZIFFR_LIMIT_GRACE_DAYS", "ZIFFR_LIMIT_GRACE_EVERY_DAYS", "ZIFFR_TRIAL_DAYS", "ZIFFR_TRIAL_GRACE_DAYS", "ZIFFR_DELETE_UNUSED_AFTER_DAYS", "ZIFFR_UNUSED_WAIT_DAYS"];
+  const PINNED = ["ZIFFR_DEFAULT_METRICS_LIMIT", "ZIFFR_DEFAULT_LIMIT_LABEL", "ZIFFR_LIMIT_GRACE_DAYS", "ZIFFR_LIMIT_GRACE_EVERY_DAYS", "ZIFFR_DELETE_UNUSED_AFTER_DAYS", "ZIFFR_UNUSED_WAIT_DAYS"];
 
   it("shows them as set by Ziffr Cloud, refuses to change them, and ignores a value saved on the page before", async () => {
     const a = await admin();
     // A row an older version saved before this Installation was hosted by Ziffr Cloud.
-    await db().from("installation_settings").upsert({ name: "ZIFFR_TRIAL_GRACE_DAYS", value: "30", sealed: false }).throwOnError();
+    await db().from("installation_settings").upsert({ name: "ZIFFR_UNUSED_WAIT_DAYS", value: "30", sealed: false }).throwOnError();
     process.env.ZIFFR_CLOUD_KEY = "k".repeat(32);
     forgetStoredSettings();
     const view = await installationSettingsView(a);
@@ -305,8 +305,8 @@ describe("Ziffr Cloud pins what it keeps fixed", () => {
     for (const name of PINNED) expect(byName[name].source, name).toBe("cloud");
     expect(byName.ZIFFR_KEEP_AUDIT_DAYS.source).toBe("none");
     expect(byName.ZIFFR_TRIAL_MAX.source).toBe("none");
-    // The page's own value of before is not in effect: the built-in 7 days.
-    expect((await settingsInEffect()).ZIFFR_TRIAL_GRACE_DAYS).toBeUndefined();
+    // The page's own value of before is not in effect: the built-in 14 days.
+    expect((await settingsInEffect()).ZIFFR_UNUSED_WAIT_DAYS).toBeUndefined();
     for (const name of PINNED) {
       const section = settingNamed(name)!.section;
       const value = DAYS_SETTINGS[name] ? String(DAYS_SETTINGS[name].default) : name === "ZIFFR_DEFAULT_LIMIT_LABEL" ? "Free" : name === "ZIFFR_DELETE_UNUSED_AFTER_DAYS" ? "90" : "50";
@@ -316,9 +316,9 @@ describe("Ziffr Cloud pins what it keeps fixed", () => {
     // What stays the Operator's still saves.
     await saveInstallationSettings(a, "keep", { ZIFFR_KEEP_ACCESS_LOG_DAYS: "30" });
     // The server's own value is what a pinned setting has, shown as Ziffr Cloud's.
-    process.env.ZIFFR_TRIAL_GRACE_DAYS = "10";
-    expect((await settingsInEffect()).ZIFFR_TRIAL_GRACE_DAYS).toBe("10");
-    expect(Object.fromEntries((await installationSettingsView(a)).sections.flatMap((s) => s.settings).map((s) => [s.name, s])).ZIFFR_TRIAL_GRACE_DAYS).toMatchObject({ source: "cloud", value: "10" });
+    process.env.ZIFFR_UNUSED_WAIT_DAYS = "10";
+    expect((await settingsInEffect()).ZIFFR_UNUSED_WAIT_DAYS).toBe("10");
+    expect(Object.fromEntries((await installationSettingsView(a)).sections.flatMap((s) => s.settings).map((s) => [s.name, s])).ZIFFR_UNUSED_WAIT_DAYS).toMatchObject({ source: "cloud", value: "10" });
   });
 
   it("refuses an Installation Admin's limit for a Workspace, which only Ziffr Cloud sets there", async () => {

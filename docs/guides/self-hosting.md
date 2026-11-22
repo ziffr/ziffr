@@ -268,7 +268,7 @@ Generated from the Installation Settings catalogue (`packages/core/src/installat
 The abuse safeguards (emails and chat messages per Workspace and person per day, Alerts, values and calls per API key, Webhooks, sign-in links per network address, Contacts, Snapshots) have normal values that suit most Installations. Move one within its range with a `ZIFFR_LIMIT_*` variable (all are listed in `.env.example`) or in the **Sending limits** section of the Installation Settings page; a variable wins. A small mail provider may need the emails per day lowered, a busy Feed the values per day raised. None can be switched off: a value outside its range is refused on the page and ignored in the environment. Lowering one never deletes or stops what exists, and a change takes effect within seconds. They are the same for every Workspace. The user guide, chapter 18, has every range.
 ## How long logs are kept, and the days around limits and trials
 
-These are Installation Settings (spec 0025, ticket #517), on the page and in the environment; the environment wins. A value outside its range is ignored and the default applies. `ZIFFR_KEEP_AUDIT_DAYS` (365 to 3650, default 730) is the Audit Log; it is never kept for fewer days than a Retention or an Approval still refers to, the page refuses a lower number, and the database never removes an event younger than a year. `ZIFFR_KEEP_ACCESS_LOG_DAYS` (7 to 730, default 90), `ZIFFR_KEEP_WEBHOOK_LOG_DAYS` (1 to 90, default 14), `ZIFFR_KEEP_VIEW_COUNT_DAYS` (90 to 800, default 400) and `ZIFFR_RETENTION_VALUES_PER_RUN` (500 to 100000, default 5000) are the other log lengths and the nightly Retention budget. `ZIFFR_LIMIT_GRACE_DAYS` (0 to 90, default 14), `ZIFFR_LIMIT_GRACE_EVERY_DAYS` (0 to 730, default 90), `ZIFFR_TRIAL_GRACE_DAYS` (1 to 60, default 7) and `ZIFFR_UNUSED_WAIT_DAYS` (7 to 90, default 14) set the days over a Workspace Limit, between two such periods, a trial's data stays after its end, and from the warning of an unused Workspace to its deletion. On a Ziffr Cloud deployment (`ZIFFR_CLOUD_KEY` set) the Workspace Limits, these four and the trial and unused-Workspace days are fixed by Ziffr Cloud; the page shows them as set by Ziffr Cloud.
+These are Installation Settings (spec 0025, ticket #517), on the page and in the environment; the environment wins. A value outside its range is ignored and the default applies. `ZIFFR_KEEP_AUDIT_DAYS` (365 to 3650, default 730) is the Audit Log; it is never kept for fewer days than a Retention or an Approval still refers to, the page refuses a lower number, and the database never removes an event younger than a year. `ZIFFR_KEEP_ACCESS_LOG_DAYS` (7 to 730, default 90), `ZIFFR_KEEP_WEBHOOK_LOG_DAYS` (1 to 90, default 14), `ZIFFR_KEEP_VIEW_COUNT_DAYS` (90 to 800, default 400) and `ZIFFR_RETENTION_VALUES_PER_RUN` (500 to 100000, default 5000) are the other log lengths and the nightly Retention budget. `ZIFFR_LIMIT_GRACE_DAYS` (0 to 90, default 14), `ZIFFR_LIMIT_GRACE_EVERY_DAYS` (0 to 730, default 90), `ZIFFR_TRIAL_GRACE_DAYS` (1 to 60, default 7, a Trial Limit) and `ZIFFR_UNUSED_WAIT_DAYS` (7 to 90, default 14) set the days over a Workspace Limit, between two such periods, a trial's data stays after its end, and from the warning of an unused Workspace to its deletion. On a Ziffr Cloud deployment (`ZIFFR_CLOUD_KEY` set) the Workspace Limits, these four and the trial and unused-Workspace days are fixed by Ziffr Cloud; the page shows them as set by Ziffr Cloud.
 
 ## Deleting unused Workspaces
 
@@ -277,6 +277,22 @@ With a default Workspace Limit (spec 0029) and working email, `ZIFFR_DELETE_UNUS
 ## Trials are hosted Ziffr's
 
 A Trial Workspace is something hosted Ziffr (ziffr.net) offers, not something an Installation switches on ([spec 0040](../specs/0040-team-trials.md), [ADR 0015](../adr/0015-trials-only-on-hosted-ziffr-and-open-to-a-team.md)). Without `ZIFFR_CLOUD_KEY` there are no trials: no trial settings, no Trials section on the Installation settings page, no trial on the sign-in page, and every Workspace made here is an ordinary one that you can invite people to. A Ziffr that still has `ZIFFR_TRIAL_DAYS` set, on the server or in the Trials section an older version had on the Installation settings page, makes no Workspace at all until you remove it or set a Cloud key, so strangers never get ordinary Workspaces by mistake; the other `ZIFFR_TRIAL_*` variables only matter for trials that already exist. To let strangers look around, offer the shared demo (`ZIFFR_DEMO`, `ZIFFR_DEMO_ONLY`).
+
+**Trial Limits** are the numbers that bound every trial on hosted Ziffr. Ziffr Cloud sets them through its signed API (`PUT /api/cloud/v1/trial-limits`, see the [Cloud API](../reference/cloud-api.md)), an Installation Admin sets them on the Installation settings page, and the server's environment wins over both. A value outside its range is ignored and the default applies. A change applies to running trials at once, except the days, which apply to trials made afterwards. Lowering a limit never deletes or stops what a trial has: only what is new waits. The database enforces the Metrics, keys, Feeds, assistants and View Links, so no request can pass them.
+
+| Setting | Trial Limit | Range | Default |
+| --- | --- | --- | --- |
+| `ZIFFR_TRIAL_DAYS` | Days a trial lasts | 1 to 30 | 14 (no trials without it) |
+| `ZIFFR_TRIAL_GRACE_DAYS` | Days a trial's data stays after it ends | 1 to 60 | 7 |
+| `ZIFFR_TRIAL_MAX` | Trials at once | 1 to 100,000 | 500 |
+| `ZIFFR_TRIAL_LIMIT_METRICS` | Metrics | 5 to 100 | 25 |
+| `ZIFFR_TRIAL_LIMIT_MESSAGES_PER_DAY` | Messages a trial sends a day | 10 to 500 | 100 |
+| `ZIFFR_TRIAL_LIMIT_KEYS` | Access Keys that work | 1 to 10 | 2 |
+| `ZIFFR_TRIAL_LIMIT_FEEDS` | Feeds, and Feed Keys per Feed | 1 to 10 | 2 |
+| `ZIFFR_TRIAL_LIMIT_ASSISTANTS` | Connected assistants | 1 to 5 | 1 |
+| `ZIFFR_TRIAL_LIMIT_WEBHOOKS` | Webhooks | 0 to 10 | 2 |
+| `ZIFFR_TRIAL_LIMIT_WEBHOOK_SENDS_PER_DAY` | Webhook sends a trial makes a day | 10 to 1,000 | 200 |
+| `ZIFFR_TRIAL_LIMIT_VIEW_LINKS` | View Links that work | 0 to 20 | 5 |
 
 ## Upgrading
 

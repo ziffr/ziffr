@@ -5,12 +5,16 @@ import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
 import { db } from "./db";
 import { deliverNotice, deliverPrompt } from "./deliveries";
 import { sendDelivery } from "./mail";
-import { createMetric, TRIAL_METRICS_MAX } from "./metrics";
+import { createMetric } from "./metrics";
 import { sendSlackDelivery } from "./slack-send";
 import { sendTelegramDelivery } from "./telegram-send";
-import { claimTrialSend, TRIAL_DELIVERIES_PER_DAY, TRIAL_HOLDS_BACK } from "./trials";
+import { claimTrialSend, TRIAL_HOLDS_BACK } from "./trials";
+import { trialLimitOf } from "./trial-limits";
 import { receiveEmail } from "./inbound-email";
 import { workspace } from "./test/db-fixtures";
+
+const TRIAL_METRICS_MAX = trialLimitOf("metrics").default;
+const TRIAL_DELIVERIES_PER_DAY = trialLimitOf("messagesPerDay").default;
 
 const SETTINGS = { ZIFFR_SMTP_URL: process.env.TEST_SMTP_URL ?? "smtp://127.0.0.1:55425", ZIFFR_MAIL_FROM: "Ziffr <ziffr@example.test>", ZIFFR_SITE_URL: "https://ziffr.example.test" };
 const saved: Record<string, string | undefined> = {};

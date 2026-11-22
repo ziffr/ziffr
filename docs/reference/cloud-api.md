@@ -23,6 +23,29 @@ A call is refused with 401 when the signature is missing, wrong, more than five 
 
 A Workspace's numbers: `id`, `exists`, `metrics` (its Metrics, Archived Metrics not counted), `limit`, `label`, `room` (the limit and 10 % more, at least one), `over_limit_since`, `trial_ends_at`, `set_by` (`cloud`, `installation_admin` or null) and `next`. Never a name, a Metric, a value or a person.
 
+## Trial Limits
+
+The Trial Limits are the numbers that bound every Trial Workspace (spec 0040). Ziffr Cloud reads and sets them for all trials at once; they are not per Workspace.
+
+| Call | What it does |
+| --- | --- |
+| `GET /api/cloud/v1/trial-limits` | `{ "limits": { ... }, "sources": { ... } }`: each limit in effect, and where it comes from (`cloud`, `page`, `server` or `default`). `days` is null while trials are off. |
+| `PUT /api/cloud/v1/trial-limits` | Sets them, answering as GET does. The body is an object of whole numbers, at most 4 KB, and unknown names are refused. Each PUT replaces all of them: a limit left out loses what was set and falls back to its default (`days`: no trials). |
+
+- `days`: Days a trial lasts, 1 to 30, default 14 (no trials without it). Applies to trials made afterwards.
+- `graceDays`: Days a trial's data stays after it ends, 1 to 60, default 7.
+- `max`: Trials at once, 1 to 100,000, default 500.
+- `metrics`: Metrics, 5 to 100, default 25.
+- `messagesPerDay`: Messages a trial sends a day, 10 to 500, default 100. Over email, Slack and Telegram together.
+- `keys`: Access Keys that work, 1 to 10, default 2.
+- `feeds`: Feeds, and Feed Keys per Feed, 1 to 10, default 2.
+- `assistants`: Connected assistants, 1 to 5, default 1.
+- `webhooks`: Webhooks, 0 to 10, default 2. Workspace and personal together; 0 switches them off for trials.
+- `webhookSendsPerDay`: Webhook sends a trial makes a day, 10 to 1,000, default 200.
+- `viewLinks`: View Links that work, 0 to 20, default 5. 0 means trials cannot make any.
+
+A number outside its range answers 400, and nothing is saved. The changes are written in one step, so two calls at once leave one of them whole. A number applies to running trials at once, except `days`, which applies to trials made afterwards. Lowering one never deletes or stops what a trial has: a trial over the new number keeps what it has and cannot add more. A limit the server's environment sets wins over what is sent, and `sources` says so. The call reads and writes numbers only, and the answer holds nothing of any trial.
+
 ## The handover
 
 **Change Size** and **Billing and invoices** in Workspace settings post the Owner to `ZIFFR_CLOUD_URL` + `/handover` with one form field, `token`: `<payload>.<mac>`, both base64url. The mac is HMAC-SHA256 of the payload text with the handover key. The payload is JSON: `v` (1), `purpose` (`size` or `billing`), `workspace` (`id`, `name`), `person` (`id`, `email`, proven by signing in), `role` (`owner`), `nonce`, `aud` (the address of the Installation that made it, from `ZIFFR_SITE_URL`), `iat` and `exp` (unix seconds; `exp` five minutes after `iat`). Use one `ZIFFR_CLOUD_KEY` per Installation, and check `aud`. Ziffr Cloud checks the mac and the expiry and takes each nonce once. Ziffr trusts nothing in the address Ziffr Cloud sends the Owner back to.

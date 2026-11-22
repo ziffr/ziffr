@@ -67,7 +67,7 @@ describe("what works here says what the queue does", () => {
     Object.assign(process.env, MAIL);
     const s = await setUp(7);
     const ways = await whatWorksHere(s.w.actor(s.owner));
-    expect(of(ways, "email")).toMatchObject({ state: "real", limit: expect.stringMatching(/To you only, at most 50/) });
+    expect(of(ways, "email")).toMatchObject({ state: "real", limit: expect.stringMatching(/To you only, at most 100/) });
     expect(of(ways, "api").limit).toMatch(/At most 2 Access Keys/);
     expect(await promptBy(s, "email")).toBe(expected("real"));
   });

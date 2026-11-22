@@ -29,11 +29,12 @@ export const AUDIT_WARN_BELOW_DAYS = 730;
 export const AUDIT_FLOOR_DAYS = DAYS_SETTINGS.ZIFFR_KEEP_AUDIT_DAYS.min;
 
 /** The settings Ziffr Cloud pins on a Ziffr Cloud deployment (the hosted Installation): the Workspace Limits, the grace
- * values, the trial days and the wait before an unused Workspace goes. The page shows them as "set by Ziffr Cloud",
+ * values and the wait before an unused Workspace goes (the trial days and grace days are Trial Limits, which Ziffr Cloud
+ * sets through its signed API: spec 0040). The page shows them as "set by Ziffr Cloud",
  * and only the server's environment gives them a value. */
 export const CLOUD_PINNED = new Set([
   "ZIFFR_DEFAULT_METRICS_LIMIT", "ZIFFR_DEFAULT_LIMIT_LABEL", "ZIFFR_LIMIT_GRACE_DAYS", "ZIFFR_LIMIT_GRACE_EVERY_DAYS",
-  "ZIFFR_TRIAL_DAYS", "ZIFFR_TRIAL_GRACE_DAYS", "ZIFFR_DELETE_UNUSED_AFTER_DAYS", "ZIFFR_UNUSED_WAIT_DAYS",
+  "ZIFFR_DELETE_UNUSED_AFTER_DAYS", "ZIFFR_UNUSED_WAIT_DAYS",
 ]);
 
 /** Whether this is a Ziffr Cloud deployment: the same test as cloud-api.ts's cloudEnabled (a ZIFFR_CLOUD_KEY of 32

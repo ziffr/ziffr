@@ -23,7 +23,7 @@ export const settingContext = (name: string) => `installation-setting:${name}`;
 
 const isSet = (v: string | undefined | null): v is string => typeof v === "string" && v.trim() !== "";
 
-type Stored = { values: Map<string, string>; unreadable: Set<string>; at: number };
+type Stored = { values: Map<string, string>; unreadable: Set<string>; byCloud: Set<string>; at: number };
 let cache: Stored | null = null;
 
 /** Forgets what was read from the database, so the next read sees a change at once (after a save, in tests). */
@@ -31,23 +31,26 @@ export function forgetStoredSettings(): void {
   cache = null;
 }
 
-/** The values saved on the page, opened, and the names of sealed ones that no longer open (a lost or changed key).
- * A value only the previous key opens is sealed again under the current one. */
+/** The values saved on the page or by Ziffr Cloud (`byCloud` names the latter, Trial Limits only), opened, and the names of
+ * sealed ones that no longer open (a lost or changed key). A value only the previous key opens is sealed again under the
+ * current one. */
 export async function storedSettings(strict = false): Promise<Omit<Stored, "at">> {
   if (cache && Date.now() - cache.at < SETTINGS_CACHE_MS) return cache;
   const values = new Map<string, string>();
   const unreadable = new Set<string>();
+  const byCloud = new Set<string>();
   const known = INSTALLATION_SETTINGS.map((s) => s.name);
-  const { data, error } = await db().from("installation_settings").select("name, value, sealed").in("name", known);
+  const { data, error } = await db().from("installation_settings").select("name, value, sealed, set_by").in("name", known);
   if (error) {
     // Before the migration ran, or the database is away for a moment: the environment alone, read again next time.
     console.error(`Installation Settings: could not be read (${error.code ?? "error"})`);
     // Strict readers (what deletes data) must not act on a guess: they get the error, not the defaults.
     if (strict) throw new Error("The Installation Settings could not be read.");
-    return { values, unreadable };
+    return { values, unreadable, byCloud };
   }
   for (const row of data ?? []) {
     const name = row.name as string;
+    if (row.set_by === "cloud") byCloud.add(name);
     if (!row.sealed) { values.set(name, row.value as string); continue; }
     const opened = openSecretRotating(row.value as string, settingContext(name));
     if (!opened) { unreadable.add(name); continue; }
@@ -60,7 +63,7 @@ export async function storedSettings(strict = false): Promise<Omit<Stored, "at">
       }
     }
   }
-  cache = { values, unreadable, at: Date.now() };
+  cache = { values, unreadable, byCloud, at: Date.now() };
   return cache;
 }
 
@@ -113,7 +116,7 @@ export function settingsInEffectNow(env: Settings = process.env): Settings {
 
 /** Where each Installation Setting's value comes from now. */
 export async function settingSources(env: Settings = process.env): Promise<Record<string, SettingSource>> {
-  const { values } = await storedSettings();
+  const { values, byCloud } = await storedSettings();
   return Object.fromEntries(INSTALLATION_SETTINGS.map(({ name }) => [name,
-    pinned(env, name) ? "cloud" : isSet(env[name]) ? "server" : values.has(name) ? "page" : isSet(env[`${name}_DEFAULT`]) ? "default" : "none"]));
+    pinned(env, name) ? "cloud" : isSet(env[name]) ? "server" : values.has(name) ? (byCloud.has(name) ? "cloud" : "page") : isSet(env[`${name}_DEFAULT`]) ? "default" : "none"]));
 }

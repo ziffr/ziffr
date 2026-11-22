@@ -14,6 +14,7 @@ import { actorOfKey, checkKeyRequest, hash, KEY_ROW, revokeAccessKey } from "./a
 import { DEMO_WORKSPACE_ID } from "./team";
 import { audit } from "./audit-log";
 import { trialLimitMessage } from "./trials";
+import { syncTrialLimits } from "./trial-limits-in-effect";
 
 /** How long an access token works, in seconds. */
 export const ACCESS_TOKEN_SECONDS = 3600;
@@ -180,6 +181,7 @@ export async function approveConnection(actor: Actor, params: Record<string, unk
   const req = await checkAuthorizationRequest(params);
   const { scopes, expires } = checkKeyRequest(actor, choice.scopes, choice.endsOn, { assistant: true });
   const code = secret("");
+  await syncTrialLimits();
   const { data: keyId, error } = await db().rpc("make_assistant_connection", {
     p_workspace: actor.workspaceId, p_person: actor.personId, p_client: req.client.id, p_name: req.client.name.slice(0, 80),
     // The key's own secret is never shown to anyone: an assistant's key works only with its tokens.

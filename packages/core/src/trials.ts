@@ -6,9 +6,11 @@ import { db } from "./db";
 import { Forbidden } from "./actor";
 import { hostedByCloud } from "./installation-days";
 import { settingsInEffect, storedSettings } from "./settings-in-effect";
+import { trialLimitOf } from "./trial-limits";
+import { trialLimitsInEffect, trialLimitsNow } from "./trial-limits-in-effect";
 
-/** Live Trial Workspaces an Installation holds unless ZIFFR_TRIAL_MAX says otherwise. */
-export const DEFAULT_TRIAL_MAX = 200;
+/** Live Trial Workspaces an Installation holds unless the Trial Limit "Trials at once" says otherwise. */
+export const DEFAULT_TRIAL_MAX = trialLimitOf("max").default;
 
 /** The trial settings the Installation has now, from the environment, the Installation settings page or the
  * default; null when trials are not offered. A wrong value throws, as trialSettings says. */
@@ -113,21 +115,20 @@ export async function assertNotTrial(workspaceId: string, what = "This"): Promis
   if (await trialEndsAt(workspaceId)) throw new Forbidden(`${what} is not possible in a trial: a trial is for its Owner alone.`);
 }
 
-/** Access Keys of people, Feeds, and Feed Keys per Feed that a Trial Workspace may have working at once (the
- * database keeps the counts: access_keys_in_trial, feeds_in_trial). */
-export const TRIAL_KEYS_MAX = 2;
-
-/** The words for a trial's key and Feed limits, by the code the database raises. */
+/** The words for a trial's Metric, key, Feed and View Link limits, by the code the database raises, with the numbers as
+ * the Trial Limits are now (the database keeps the counts: metrics_per_trial, access_keys_in_trial, feeds_in_trial,
+ * view_links_in_trial). */
 export function trialLimitMessage(code: string | undefined): string | null {
-  if (code === "ZF431") return `A trial has at most ${TRIAL_KEYS_MAX} Access Keys that work. Revoke one to make another.`;
-  if (code === "ZF432") return `A Feed in a trial has at most ${TRIAL_KEYS_MAX} keys that work. Revoke one to make another.`;
-  if (code === "ZF434") return "A trial may connect one assistant at a time. Disconnect it to connect another.";
-  if (code === "ZF433") return `A trial has at most ${TRIAL_KEYS_MAX} Feeds. Delete one to make another.`;
+  const n = trialLimitsNow();
+  const s = (count: number, one: string, many = `${one}s`) => `${count} ${count === 1 ? one : many}`;
+  if (code === "ZF430") return `A trial has at most ${s(n.metrics, "Metric")}. Archive or delete one to make another.`;
+  if (code === "ZF431") return `A trial has at most ${s(n.keys, "Access Key")} that work. Revoke one to make another.`;
+  if (code === "ZF432") return `A Feed in a trial has at most ${s(n.feeds, "key")} that work. Revoke one to make another.`;
+  if (code === "ZF434") return `A trial may connect ${n.assistants === 1 ? "one assistant" : `${n.assistants} assistants`} at a time. Disconnect one to connect another.`;
+  if (code === "ZF433") return `A trial has at most ${s(n.feeds, "Feed")}. Delete one to make another.`;
+  if (code === "ZF437") return `A trial has at most ${s(n.viewLinks, "View Link")} that work. Revoke one to make another.`;
   return null;
 }
-
-/** Real messages a Trial Workspace may send in 24 hours, over all its Connectors together (claim_trial_send). */
-export const TRIAL_DELIVERIES_PER_DAY = 50;
 
 /** Why a trial keeps a Delivery in the Outbox, in words for the Outbox. */
 export const TRIAL_HOLDS_BACK = {
@@ -161,7 +162,7 @@ export async function keepInOutbox(deliveryId: number, reason: string): Promise<
 /** Takes a queued Delivery's slot in its trial's daily limit, right before its Connector sends it: "ok" (also
  * outside a trial), "wait" (the limit is reached; it is tried again in an hour) or "gone". */
 export async function claimTrialSend(deliveryId: number): Promise<"ok" | "wait" | "gone"> {
-  const { data, error } = await db().rpc("claim_trial_send", { p_id: deliveryId, p_per_day: TRIAL_DELIVERIES_PER_DAY });
+  const { data, error } = await db().rpc("claim_trial_send", { p_id: deliveryId, p_per_day: (await trialLimitsInEffect()).messagesPerDay });
   if (error) throw new Error("The message could not be claimed for sending.");
   return data === "ok" || data === "wait" ? data : "gone";
 }

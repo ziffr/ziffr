@@ -2,9 +2,10 @@
 // Installation talks to, and the settings in each, named as their environment variables. Pure, so the page can list
 // them; the values and their checks live on the server (settings-in-effect.ts, installation-settings.ts).
 import { SENDING_LIMITS } from "./sending-limits";
+import { TRIAL_LIMITS } from "./trial-limits";
 
 /** A section of the Installation Settings page. */
-export type SettingsSectionId = "mail" | "replies" | "telegram" | "slack" | "limits" | "sending" | "keep" | "marketplace" | "bots" | "trials" | "demo" | "usage" | "feedback";
+export type SettingsSectionId = "mail" | "replies" | "telegram" | "slack" | "limits" | "sending" | "keep" | "marketplace" | "bots" | "trial_limits" | "trials" | "demo" | "usage" | "feedback";
 
 /** One setting: its environment variable, its words on the page, and whether its value is a secret. */
 export type SettingDefinition = { name: string; section: SettingsSectionId; label: string; help: string; secret: boolean; placeholder?: string; choices?: { value: string; label: string }[] };
@@ -23,7 +24,8 @@ export const SETTINGS_SECTIONS: SettingsSection[] = [
   { id: "keep", title: "How long logs are kept", purpose: "How long the Audit Log, the log of calls by key, the log of Webhook sends and the View Counts are kept, and how many old values one night of Retention takes. What is older than this goes by itself; what is younger is never removed.", ready: true },
   { id: "marketplace", title: "Marketplace", purpose: "Owners and Admins find, install and update Packs from the Marketplace. Off unless turned on: then this server, never a browser, asks the Marketplace for lists of Packs, their files and which installed Packs have newer versions. It sends a search, a Pack's id and version, the list of Packs installed on this Installation and Ziffr's version; never a Workspace's name, id or data, nor anyone's. Every Pack is checked in full, and its signature too, before it is shown.", ready: true },
   { id: "bots", title: "Check against bots", purpose: "Cloudflare Turnstile on the sign-in page: a bot cannot make Ziffr send sign-in links to any address it likes. Worth it on any Ziffr strangers can reach, and more so with trials.", ready: true },
-  { id: "trials", title: "Trials", purpose: "Whether anyone may sign in and try Ziffr in a Trial Workspace of their own, for how long and how many at once. With trials on, every Workspace made here is a trial.", ready: true },
+  { id: "trial_limits", title: "Trial Limits", purpose: "The numbers that bound every trial: how long one lasts, how many run at once, and what one may hold and send. Ziffr Cloud may set them too; what it sets shows here and cannot be changed here. A change applies to running trials at once, except the days, which apply to trials made afterwards. Lowering one never deletes or stops what a trial has: only what is new waits.", ready: true },
+  { id: "trials", title: "Trials", purpose: "What happens when a trial ends, and whether trials may have Webhooks. Whether trials are offered at all, for how long and how many at once is set under Trial Limits: with a number of days there, every Workspace made here is a trial.", ready: true },
   { id: "usage", title: "Usage", purpose: "What this Installation is used for, as daily counts: Workspaces, people, Metrics, values by Source, calls and what was opened. Never a Workspace's or a Metric's name, a person or a value. A Usage Key lets a program read the counts and nothing else; nothing is sent anywhere.", ready: true },
   { id: "feedback", title: "Feedback", purpose: "Whether Ziffr now and then asks signed-in people if they like it, and points those who do to the repository on GitHub, where they can star it themselves. Nothing is sent to GitHub. What people say is missing is kept without their name and shown below to Installation Admins only.", ready: true },
   { id: "demo", title: "Demo", purpose: "Whether the login page offers the demo: a made-up company anyone can look around without an account, where nothing is saved.", ready: true },
@@ -53,10 +55,6 @@ export const INSTALLATION_SETTINGS: SettingDefinition[] = [
     help: "In the Cloudflare dashboard, under Turnstile, add a widget for this Ziffr's domain (mode Managed) and copy its site key. It must be the same widget's as the secret key: a wrong one stops every sign-in until it is removed." },
   { name: "ZIFFR_TURNSTILE_SECRET", section: "bots", label: "Secret key", secret: true,
     help: "The widget's secret key. Ziffr asks Cloudflare whether it knows it before saving it." },
-  { name: "ZIFFR_TRIAL_DAYS", section: "trials", label: "Days a trial lasts", secret: false, placeholder: "7",
-    help: "1 to 30. Set, it turns trials on: whoever signs in may start a Trial Workspace, and every Workspace made here is one. Remove it to turn trials off; trials that run go on until they end." },
-  { name: "ZIFFR_TRIAL_MAX", section: "trials", label: "Trials at once", secret: false, placeholder: "200",
-    help: "The most trials that may run at the same time. Empty: 200." },
   { name: "ZIFFR_TRIAL_THEN", section: "trials", label: "When a trial ends", secret: false, choices: [{ value: "delete", label: "Close it, and delete it a week later" }, { value: "keep", label: "Keep it as a Workspace on the default limit" }],
     help: "Keep turns an ended trial into an ordinary Workspace on the default Workspace Limit (set one under Workspace Limits): invitations open and every Connector reaches everyone. Empty: delete." },
   { name: "ZIFFR_TRIAL_WEBHOOKS", section: "trials", label: "Webhooks in trials", secret: false, choices: [{ value: "true", label: "Trials may have Webhooks" }, { value: "false", label: "Trials have no Webhooks" }],
@@ -71,8 +69,6 @@ export const INSTALLATION_SETTINGS: SettingDefinition[] = [
     help: "90 to 800. How often a dashboard, a deck or a Metric was opened per day, never by whom. Over a year lets you compare a quarter with last year's." },
   { name: "ZIFFR_RETENTION_VALUES_PER_RUN", section: "keep", label: "Values one Retention takes a night", secret: false, placeholder: "5000",
     help: "500 to 100,000. The most original values one Metric's Retention condenses in a night. Years of values take weeks to catch up at 5,000; more is more work for the database at night." },
-  { name: "ZIFFR_TRIAL_GRACE_DAYS", section: "trials", label: "Days a trial's data stays after it ends", secret: false, placeholder: "7",
-    help: "1 to 60. After the trial ends nothing can be added, and its Owner can still download everything; then it is deleted. Applies to every trial that has ended and is waiting, too: a smaller number deletes them sooner." },
   { name: "ZIFFR_FEEDBACK_PROMPT", section: "feedback", label: "Ask people whether they like Ziffr", secret: false, choices: [{ value: "true", label: "Ask now and then" }, { value: "false", label: "Never ask" }],
     help: "A small card, at most three times per person, after they have submitted values on a few different days; never in the demo, for Guests or on View Links. Empty: on for hosted Ziffr, off everywhere else." },
   { name: "ZIFFR_DEMO", section: "demo", label: "Offer the demo", secret: false, choices: [{ value: "1", label: "Offered on the login page" }, { value: "0", label: "Not offered" }],
@@ -81,6 +77,8 @@ export const INSTALLATION_SETTINGS: SettingDefinition[] = [
     help: "The most Metrics a Workspace may hold unless it has a limit of its own. Empty: no limit. Over it, a Workspace keeps everything and keeps collecting values; only new Metrics wait, after 14 days with room for 10 % more." },
   { name: "ZIFFR_DEFAULT_LIMIT_LABEL", section: "limits", label: "Name of the default", secret: false, placeholder: "Standard",
     help: "What Owners and Admins see the default called, such as Standard. At most 30 characters." },
+  ...TRIAL_LIMITS.map((l): SettingDefinition => ({ name: l.name, section: "trial_limits", label: l.label, secret: false, placeholder: l.key === "days" ? "Trials off" : String(l.default),
+    help: `${l.help} ${l.min.toLocaleString("en-US")} to ${l.max.toLocaleString("en-US")}; empty: ${l.key === "days" ? "no trials" : l.default.toLocaleString("en-US")}.` })),
   ...SENDING_LIMITS.map((l): SettingDefinition => ({ name: l.name, section: "sending", label: l.label, secret: false, placeholder: String(l.default),
     help: `${l.help} ${l.min.toLocaleString("en-US")} to ${l.max.toLocaleString("en-US")}; empty: ${l.default.toLocaleString("en-US")}.` })),
   { name: "ZIFFR_MARKETPLACE", section: "marketplace", label: "Connection", secret: false, placeholder: "off",

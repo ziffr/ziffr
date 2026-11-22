@@ -12,6 +12,9 @@ import { db } from "./db";
 import { recordServiceEvent } from "./installation-admins";
 import { DEMO_WORKSPACE_ID } from "./team";
 import { keepTrial } from "./trials";
+import { forgetStoredSettings, settingSources, settingsInEffectStrict } from "./settings-in-effect";
+import { TRIAL_LIMITS, trialLimitNumberProblem, trialLimitOf, trialLimitProblem, trialLimitsFrom, type TrialLimitKey } from "./trial-limits";
+import { syncTrialLimits } from "./trial-limits-in-effect";
 import { LABEL_MAX, LIMIT_MAX, limitLabel, limitOf, metricCount, roomOf, syncDefaultLimit } from "./workspace-limits";
 
 /** The header a call carries: `t=<unix time>, v1=<hex HMAC-SHA256>`. */
@@ -220,4 +223,46 @@ const isDay = (s: string) => /^[2]\d{3}-\d{2}-\d{2}$/.test(s) && !Number.isNaN(D
 /** Whether an Owner sees Change Size and Billing and invoices: only where Ziffr Cloud is set up. */
 export function handoverOffered(actor: Pick<Actor, "role" | "workspaceId">, env: Env = process.env): boolean {
   return cloudUrl(env) !== null && actor.role === "owner" && actor.workspaceId !== DEMO_WORKSPACE_ID;
+}
+
+/** The Trial Limits as Ziffr Cloud sees them: each number in effect, where it comes from (Ziffr Cloud, the Installation's
+ * page, the server's environment or the default), and `days` as null while trials are off. Numbers only: nothing of a trial. */
+export type CloudTrialLimits = { limits: Record<TrialLimitKey, number | null>; sources: Record<TrialLimitKey, "cloud" | "page" | "server" | "default"> };
+
+/** The Trial Limits now, for Ziffr Cloud. */
+export async function cloudTrialLimits(caller: CloudCaller): Promise<CloudTrialLimits> {
+  if (caller?.cloud !== true) throw new Forbidden();
+  const [settings, sources] = await Promise.all([settingsInEffectStrict(), settingSources()]);
+  const numbers = trialLimitsFrom(settings);
+  const limits = { ...numbers } as Record<TrialLimitKey, number | null>;
+  // Without days there are no trials: say so, not the default hosted Ziffr starts with.
+  if (!settings.ZIFFR_TRIAL_DAYS?.trim() || trialLimitProblem(trialLimitOf("days"), settings.ZIFFR_TRIAL_DAYS)) limits.days = null;
+  return {
+    limits,
+    sources: Object.fromEntries(TRIAL_LIMITS.map((l) => [l.key, sources[l.name] === "cloud" ? "cloud" : sources[l.name] === "page" ? "page" : sources[l.name] === "server" ? "server" : "default"])) as CloudTrialLimits["sources"],
+  };
+}
+
+/** Sets the Trial Limits as Ziffr Cloud: exactly the numbers given, each a whole number within its range; any limit left
+ * out loses what was set and falls back to its default (the days: no trials). Replaced in one step in the database, so
+ * calls at once never mix. The numbers apply to running trials at once (the days to trials made afterwards), and what
+ * a trial already holds is never deleted. The server's environment still wins over what is set here. Answers the Trial
+ * Limits as GET does. */
+export async function setCloudTrialLimits(caller: CloudCaller, input: Partial<Record<TrialLimitKey, number>>): Promise<CloudTrialLimits> {
+  if (caller?.cloud !== true) throw new Forbidden();
+  if (!input || typeof input !== "object" || Array.isArray(input)) throw new Error("The Trial Limits are an object of numbers.");
+  const values: Record<string, string> = {};
+  for (const [key, n] of Object.entries(input)) {
+    const limit = TRIAL_LIMITS.find((l) => l.key === key);
+    if (!limit) throw new Error(`${key} is not a Trial Limit.`);
+    const problem = trialLimitNumberProblem(limit, n);
+    if (problem) throw new Error(problem);
+    values[limit.name] = String(n);
+  }
+  const { error } = await db().rpc("set_cloud_trial_limits", { p_values: values });
+  if (error) throw new Error("The Trial Limits could not be saved.");
+  forgetStoredSettings();
+  await syncTrialLimits(true);
+  await recordServiceEvent("Ziffr Cloud", "trial_limits.set", Object.keys(values).length ? `${Object.keys(values).length} set` : "all removed");
+  return cloudTrialLimits(caller);
 }
