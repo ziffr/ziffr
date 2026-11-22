@@ -25,7 +25,7 @@ Every `id` is a **label** of up to 64 letters, digits, dashes and underscores th
 
 | `kind` | What it holds | Names |
 | --- | --- | --- |
-| `header` | The format, the Ziffr release that wrote it, the moment, and the Workspace's `name`, `timeZone`, `language` and `attainmentMethod`. | |
+| `header` | The format, the Ziffr release that wrote it, the moment, and the Workspace's `name`, `timeZone`, `language`, `yearStart` (the month the Workspace's year starts in) and `attainmentMethod`. | |
 | `group` | A Group's name. | |
 | `theme` | A Theme, as a `ziffr.theme/1` document. | |
 | `person` | A person as an **invitation**: name, email address, Workspace Role (`admin`, `member` or `guest`) and Groups. The old Owner is an `admin`: whoever imports becomes the Owner. | `group` |
@@ -39,13 +39,15 @@ Every `id` is a **label** of up to 64 letters, digits, dashes and underscores th
 | `value` | One observation: period, number, when it was recorded, its Source, who submitted it **as a name**, and its Breakdown. | `metric` |
 | `end` | How many records of each kind the file holds, so a file cut off is noticed. | |
 
-A period is the first day of the period as `YYYY-MM-DD`; for a monthly, quarterly or yearly Metric it must start one. Numbers are finite, at most 10^15 in size and have at most six decimals. Moments are in UTC (`...Z`). Years run from 1900 to 2200.
+A period is the first day of the period as `YYYY-MM-DD`: a Monday for a weekly Metric, and for a monthly, quarterly or yearly Metric the first day of one, quarters and years counted from `yearStart`. `target` records are listed by Metric label and then period, and so are `projection` records, each pair once. Numbers are finite, at most 10^15 in size and have at most six decimals. Moments are in UTC (`...Z`). Years run from 1900 to 2200.
 
 ## What is never carried
 
 Access Keys, Feed Keys, Webhook addresses and secrets, Connector links (Slack, Telegram), Contacts' details, anything sealed in the form it has in the database, the Workspace Key, the Audit Log, Delivery history and the Outbox. Every record is closed: a field the schema does not list is refused, and a field whose name says it is a key, secret, token, link to another system or sealed data is refused in words. Where a sealed value had to travel (a Webhook's secret) it does not: the import page lists the names so they can be made again.
 
 Later versions may add Threads, Findings, Snapshots, Alerts, Retentions and Delivery Preferences; each addition is a new version number. A reader of version 1 refuses a record kind it does not know rather than skip it.
+
+A writer fits what the Workspace holds to the format before it writes: a name or description the plain-text rules refuse is shortened or stripped, and a value with more than six decimals is rounded, and it says so; the format does not widen to meet the data. A file's text may reach 1 GB and the file 200 MB, so large Workspaces are written gzipped.
 
 ## Checks on an untrusted file
 

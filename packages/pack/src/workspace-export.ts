@@ -70,7 +70,7 @@ type Counted = keyof typeof L.perKind;
 // The records, as TypeScript sees them.
 
 /** What the Workspace's Owner chose that travels in version 1. */
-export type WorkspaceExportSettings = { name: string; timeZone?: string; language?: string; attainmentMethod?: "ratio" | "distance" };
+export type WorkspaceExportSettings = { name: string; timeZone?: string; language?: string; yearStart?: number; attainmentMethod?: "ratio" | "distance" };
 /** The first line: what the file is. */
 export type HeaderRecord = { kind: "header"; format: typeof WORKSPACE_EXPORT_FORMAT; ziffr: string; exportedAt: string; workspace: WorkspaceExportSettings };
 /** A Group: its name; its people name it on their own record. */
@@ -131,6 +131,7 @@ export const WORKSPACE_EXPORT_SCHEMA: Schema = {
         name: { ...plainText(80), minLength: 1 },
         timeZone: { type: "string", maxLength: 64, pattern: "^[A-Za-z][A-Za-z0-9_+/-]{0,63}$", description: "A time zone name such as “Europe/Berlin”." },
         language: { type: "string", maxLength: 5, pattern: "^[a-z]{2}(?:-[A-Z]{2})?$", description: "A language such as “en” or “de-AT”." },
+        yearStart: { type: "integer", minimum: 1, maximum: 12, description: "The month the Workspace's year starts in (its Fiscal Year); left out, January." },
         attainmentMethod: { enum: ["ratio", "distance"], description: "How Attainment is computed in the Workspace." },
       }, ["name"], "The settings of the Workspace an Owner chose."),
     }, ["format", "ziffr", "exportedAt", "workspace"]),
@@ -205,12 +206,14 @@ function zoneOk(zone: string): boolean {
     return false;
   }
 }
-/** Whether a day starts a period of this length: the first of its month, quarter or year (a day or a week may start anywhere). */
-function startsPeriod(day: { m: number; d: number }, period: Period): boolean {
-  if (period === "month") return day.d === 1;
-  if (period === "quarter") return day.d === 1 && day.m % 3 === 1;
-  if (period === "year") return day.d === 1 && day.m === 1;
-  return true;
+/** Whether a day starts a period of this length: a Monday for a week, the first of the month, of a quarter or of the
+ * year as the Workspace's year starts (`yearStart`, 1 to 12), and any day for a day. */
+function startsPeriod(day: { y: number; m: number; d: number }, period: Period, yearStart: number): boolean {
+  if (period === "week") return new Date(Date.UTC(day.y, day.m - 1, day.d)).getUTCDay() === 1;
+  if (period === "day") return true;
+  if (day.d !== 1) return false;
+  const away = (day.m - yearStart + 12) % 12;
+  return period === "month" || (period === "quarter" ? away % 3 === 0 : away === 0);
 }
 
 /** The result of checking a whole text: the file's counts, or every problem found (the first 50). */
@@ -238,6 +241,8 @@ export class WorkspaceExportChecker {
   private readonly emails = new Set<string>();
   private readonly shares = new Set<string>();
   private readonly counts: Record<Counted, number> = { group: 0, theme: 0, person: 0, metric: 0, dashboard: 0, deck: 0, workflow: 0, share: 0, target: 0, projection: 0, value: 0 };
+  /** The last target and projection read, as `metric period`: each kind is listed in strictly rising order, so a repeat is seen with no memory. */
+  private last = { target: "", projection: "" };
   private declared: Record<Counted, number> | undefined;
 
   /** The lines read so far. */
@@ -310,8 +315,10 @@ export class WorkspaceExportChecker {
     else if (this.declared) {
       for (const k of Object.keys(this.counts) as Counted[]) if (this.declared[k] !== this.counts[k]) at(this.n, `counts.${k}`, `says ${this.declared[k].toLocaleString("en")} but the file holds ${this.counts[k].toLocaleString("en")}.`);
     }
-    const entries = [...this.metricEntries.values()].map((e) => e.entry);
+    // The entries are listed once and the loop stops at the problem limit, so 10,000 formulas cost one pass each.
+    const entries = new Map([...this.metricEntries.values()].map((e) => [e.entry.key, e.entry] as const));
     for (const { entry, formula, line } of this.metricEntries.values()) {
+      if (out.length >= MAX_PROBLEMS) break;
       if (formula === undefined) continue;
       const why = checkPackFormula(formula, entries, { key: entry.key, period: entry.period });
       if (why) at(line, "metric.formula", why);
@@ -425,6 +432,7 @@ export class WorkspaceExportChecker {
       case "target": {
         const m = this.metricOf(r.metric, "metric", at);
         this.period(r.period, "period", m, at);
+        this.rising("target", r.metric, r.period, at);
         if (r.min === undefined && r.max === undefined) at("", "needs “min”, “max” or both: a Target Range has an end.");
         if (r.min !== undefined && r.max !== undefined && r.min > r.max) at("min", "is above max: the lower end of a Target Range comes first.");
         for (const f of ["min", "max"] as const) if (r[f] !== undefined && !decimalsOk(r[f]!, L.decimals)) at(f, `has more than ${L.decimals} decimals.`);
@@ -433,6 +441,7 @@ export class WorkspaceExportChecker {
       case "projection": {
         const m = this.metricOf(r.metric, "metric", at);
         this.period(r.period, "period", m, at);
+        this.rising("projection", r.metric, r.period, at);
         if (!decimalsOk(r.value, L.decimals)) at("value", `has more than ${L.decimals} decimals.`);
         return;
       }
@@ -465,6 +474,13 @@ export class WorkspaceExportChecker {
     });
   }
 
+  /** Targets and projections are listed by Metric label and then period, each pair once. */
+  private rising(kind: "target" | "projection", metric: string, period: string, at: (path: string, message: string) => void) {
+    const key = `${metric}\u0000${period}`;
+    if (key <= this.last[kind]) at("period", `comes at or before the ${kind} before it: list ${kind}s by Metric label and then period, each once.`);
+    else this.last[kind] = key;
+  }
+
   /** The Metric a record names, when it was listed. */
   private metricOf(label: string, path: string, at: (path: string, message: string) => void): MetricInfo | undefined {
     const m = this.metrics.get(label);
@@ -476,7 +492,7 @@ export class WorkspaceExportChecker {
   private period(text: string, path: string, metric: MetricInfo | undefined, at: (path: string, message: string) => void) {
     const day = realDay(text);
     if (!day) return at(path, `“${text}” is not a real day between the years ${L.firstYear} and ${L.lastYear}.`);
-    if (metric && !startsPeriod(day, metric.period)) at(path, `“${text}” does not start a ${metric.period}: a ${metric.period} starts on the first day of its ${metric.period}.`);
+    if (metric && !startsPeriod(day, metric.period, this.header?.workspace.yearStart ?? 1)) at(path, `“${text}” does not start a ${metric.period}${metric.period === "week" ? ": weeks start on a Monday" : `: a ${metric.period} starts on the first day of its ${metric.period}`}.`);
   }
 }
 

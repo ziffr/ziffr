@@ -51,12 +51,12 @@ export type FormulaEntry = { key: string; name: string; period: string; aggregat
 
 /** Why a Derived Metric's formula is refused in a Pack, or null: it is read whole, names only other entries of the
  * Pack, none of them derived, all of its own period, and none set to Aggregation none (as Ziffr refuses for Metrics). */
-export function checkPackFormula(formula: string, entries: FormulaEntry[], self: { key: string; period: string }): string | null {
+export function checkPackFormula(formula: string, entries: FormulaEntry[] | Map<string, FormulaEntry>, self: { key: string; period: string }): string | null {
   const syntax = formulaSyntaxProblem(formula);
   if (syntax) return syntax;
   const keys = formulaKeys(formula);
   if (!keys.length) return "The formula names no entry: a Derived Metric is computed from others, such as {revenue} / {orders}.";
-  const byKey = new Map(entries.map((e) => [e.key, e]));
+  const byKey = entries instanceof Map ? entries : new Map(entries.map((e) => [e.key, e]));
   for (const k of keys) {
     if (k === self.key) return `{${k}} is this entry itself: a formula cannot read its own value.`;
     if (!byKey.has(k)) return `{${k}} is not a Metric Catalog entry of this Pack.`;

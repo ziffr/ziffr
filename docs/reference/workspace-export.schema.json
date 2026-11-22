@@ -51,6 +51,12 @@
               "pattern": "^[a-z]{2}(?:-[A-Z]{2})?$",
               "description": "A language such as “en” or “de-AT”."
             },
+            "yearStart": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 12,
+              "description": "The month the Workspace's year starts in (its Fiscal Year); left out, January."
+            },
             "attainmentMethod": {
               "enum": [
                 "ratio",

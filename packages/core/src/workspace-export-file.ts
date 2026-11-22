@@ -25,8 +25,8 @@ const refuse = (message: string, line: number | null = null): never => {
   throw new WorkspaceExportProblem([{ path: "", line, message }]);
 };
 
-/** Bytes of `chunk`, whatever the stream gave. */
-const bytes = (chunk: unknown): Uint8Array => (typeof chunk === "string" ? new TextEncoder().encode(chunk) : (chunk as Uint8Array));
+/** Bytes of `chunk`: only a Uint8Array (a Buffer is one) is read; anything else is refused, so a size is always a number. */
+const bytes = (chunk: unknown): Uint8Array => (chunk instanceof Uint8Array ? chunk : refuse("The file was given in pieces that are not bytes."));
 
 /** The text of a stream of bytes: gunzipped when it starts with the gzip mark, within both size limits. */
 async function* textOf(input: AsyncIterable<Uint8Array>, limits: WorkspaceExportReaderLimits): AsyncGenerator<string> {
@@ -36,7 +36,7 @@ async function* textOf(input: AsyncIterable<Uint8Array>, limits: WorkspaceExport
   const counted = async function* () {
     for await (const chunk of input) {
       const b = bytes(chunk);
-      compressed += b.length;
+      compressed += b.byteLength;
       if (compressed > limits.fileBytes) refuse(`The file is larger than ${limits.fileBytes.toLocaleString("en")} bytes, which is the most this Installation reads.`);
       yield b;
     }
@@ -78,7 +78,7 @@ async function* textOf(input: AsyncIterable<Uint8Array>, limits: WorkspaceExport
   try {
     for await (const chunk of source) {
       const b = bytes(chunk);
-      text += b.length;
+      text += b.byteLength;
       if (text > limits.textBytes) refuse(`The text of the file is larger than ${limits.textBytes.toLocaleString("en")} bytes, which is the most this Installation reads.`);
       try {
         yield decoder.decode(b, { stream: true });
@@ -97,6 +97,9 @@ async function* textOf(input: AsyncIterable<Uint8Array>, limits: WorkspaceExport
     return refuse(gzipped ? "The file is not a complete, valid gzip file." : "The file could not be read.");
   } finally {
     cleanup();
+    // However reading ended, the input is let go: an upload's socket or a file's handle must not stay open.
+    await first.return?.(undefined);
+    (input as { destroy?: () => void }).destroy?.();
   }
 }
 
@@ -111,22 +114,33 @@ export type ReadRecord = { record: WorkspaceExportRecord; line: number };
  */
 export async function* readWorkspaceExport(input: AsyncIterable<Uint8Array>, limits: WorkspaceExportReaderLimits = DEFAULT_READER_LIMITS): AsyncGenerator<ReadRecord> {
   const checker = new WorkspaceExportChecker();
-  let pending = "";
+  // The unfinished line is kept as parts and joined only when its end arrives, so many small pieces cost nothing extra.
+  let parts: string[] = [];
+  let partsLength = 0;
   let first = true;
+  const tooLong = (n: number) => n > WORKSPACE_EXPORT_LIMITS.lineBytes && refuse(`A line is longer than ${WORKSPACE_EXPORT_LIMITS.lineBytes.toLocaleString("en")} characters.`, checker.lines + 1);
   const lineOf = function* (text: string, last: boolean): Generator<string> {
-    pending += text;
+    let from = 0;
     for (;;) {
-      const at = pending.indexOf("\n");
+      const at = text.indexOf("\n", from);
       if (at < 0) break;
-      const line = pending.slice(0, at);
-      pending = pending.slice(at + 1);
+      const piece = text.slice(from, at);
+      tooLong(partsLength + piece.length);
+      const line = parts.length ? parts.join("") + piece : piece;
+      parts = [];
+      partsLength = 0;
+      from = at + 1;
       yield line.endsWith("\r") ? line.slice(0, -1) : line;
     }
+    const tail = text.slice(from);
+    parts.push(tail);
+    partsLength += tail.length;
     // A line that has not ended after the longest line a record may be is not a record.
-    if (pending.length > WORKSPACE_EXPORT_LIMITS.lineBytes) refuse(`A line is longer than ${WORKSPACE_EXPORT_LIMITS.lineBytes.toLocaleString("en")} characters.`, checker.lines + 1);
-    if (last && pending !== "") {
-      const line = pending;
-      pending = "";
+    tooLong(partsLength);
+    if (last && partsLength > 0) {
+      const line = parts.join("");
+      parts = [];
+      partsLength = 0;
       yield line.endsWith("\r") ? line.slice(0, -1) : line;
     }
   };
@@ -169,6 +183,7 @@ async function* linesOf(records: AsyncIterable<WorkspaceExportRecord> | Iterable
   };
   for await (const record of records) {
     // The writer makes the end record itself: a caller's would be a count it could get wrong.
+    if (record === null || typeof record !== "object") refuse("A record must be an object.", checker.lines + 1);
     if (record.kind === "end") refuse("The end record is written by the writer, not given to it.");
     yield write(record);
   }

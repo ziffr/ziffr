@@ -127,4 +127,27 @@ describe("the reader on an untrusted stream", () => {
     await refused(Readable.from([new TextEncoder().encode(lines.join("\n"))]));
     expect(({} as Record<string, unknown>).admin).toBeUndefined();
   });
+  it("lets go of the input when it refuses a line, and counts only real bytes", async () => {
+    const lines = (await good()).split("\n");
+    lines[2] = "not json";
+    const input = Readable.from([new TextEncoder().encode(lines.join("\n"))]);
+    await refused(input);
+    expect(input.destroyed).toBe(true);
+    expect((await refused(Readable.from([new ArrayBuffer(8)] as never)))[0].message).toContain("not bytes");
+  });
+  it("reads one long line in tiny pieces without rescanning it", async () => {
+    const long = JSON.stringify({ kind: "group", id: "g1", name: "x".repeat(500_000) });
+    const started = Date.now();
+    const problems = await refused(chunks(new TextEncoder().encode(JSON.stringify(RECORDS[0]) + "\n" + long + "\n"), 10));
+    expect(problems[0].path).toBe("name");
+    expect(Date.now() - started).toBeLessThan(2000);
+  });
+  it("refuses a whole line over the limit that arrives in one piece", async () => {
+    const huge = '{"kind":"group","id":"g1","name":"' + "x".repeat(2 * 1024 * 1024) + '"}\n';
+    const problems = await refused(Readable.from([new TextEncoder().encode(JSON.stringify(RECORDS[0]) + "\n" + huge)]));
+    expect(problems[0].message).toContain("A line is longer than");
+  });
+  it("makes a writer error a problem, not a TypeError, for a record that is not an object", async () => {
+    await expect(writeWorkspaceExportAll([RECORDS[0], null as never])).rejects.toBeInstanceOf(WorkspaceExportProblem);
+  });
 });

@@ -228,4 +228,36 @@ describe("hostile files", () => {
     problems(text(edit(at("person"), (r) => ({ ...r, email: "a@" + "a.".repeat(120) + "b", name: "x ".repeat(55) }))));
     expect(Date.now() - started).toBeLessThan(1000);
   });
+  it("counts periods from the Workspace's year start, and weeks from Monday", () => {
+    const withYear = (yearStart: number, period: string, metricPeriod: string, id = "m1") => {
+      const rs = edit(0, (r) => ({ ...r, workspace: { name: "A", yearStart } }));
+      rs[at("metric")] = { ...RECORDS[at("metric")], metric: { ...metricDoc, period: metricPeriod } };
+      rs[at("value")] = { ...RECORDS[at("value")], period };
+      return problems(text(rs.filter((r) => r.kind !== "target" && r.kind !== "projection").map((r) => (r.kind === "end" ? { ...r, counts: { ...(r.counts as object), target: 0, projection: 0 } } : r)))).filter((p) => p.path === "period");
+    };
+    expect(withYear(2, "2026-02-01", "quarter")).toHaveLength(0);
+    expect(withYear(2, "2026-05-01", "quarter")).toHaveLength(0);
+    expect(withYear(2, "2026-04-01", "quarter")).toHaveLength(1);
+    expect(withYear(2, "2026-02-01", "year")).toHaveLength(0);
+    expect(withYear(1, "2026-02-01", "year")).toHaveLength(1);
+    expect(withYear(1, "2026-01-07", "week")).toHaveLength(1);
+    expect(withYear(1, "2026-01-05", "week")).toHaveLength(0);
+    expect(problems(text(edit(0, (r) => ({ ...r, workspace: { name: "A", yearStart: 13 } }))))).not.toHaveLength(0);
+  });
+  it("lists targets and projections once each, in rising order", () => {
+    const dup = [...RECORDS];
+    dup.splice(at("target") + 1, 0, RECORDS[at("target")]);
+    expect(messages(text(dup)).join()).toContain("comes at or before the target");
+    const back = [...RECORDS];
+    back.splice(at("projection") + 1, 0, { ...RECORDS[at("projection")], period: "2026-06-01" });
+    expect(messages(text(back)).join()).toContain("comes at or before the projection");
+  });
+  it("checks 10,000 formulas in a moment", () => {
+    const rs: Record<string, unknown>[] = [RECORDS[0]];
+    for (let i = 0; i < 10_000; i++) rs.push({ kind: "metric", id: `m${i}`, key: `k${String.fromCharCode(97 + (i % 26))}${String.fromCharCode(97 + (Math.floor(i / 26) % 26))}${String.fromCharCode(97 + (Math.floor(i / 676) % 26))}`, metric: { ...metricDoc, formula: "{ghost} + 1" } });
+    rs.push({ kind: "end", counts: { ...(RECORDS.at(-1)!.counts as object), group: 0, theme: 0, person: 0, metric: 10_000, dashboard: 0, deck: 0, workflow: 0, share: 0, target: 0, projection: 0, value: 0 } });
+    const started = Date.now();
+    expect(problems(text(rs)).length).toBeGreaterThan(0);
+    expect(Date.now() - started).toBeLessThan(3000);
+  });
 });
