@@ -3,7 +3,7 @@
 // (add, change, replace the secret, test, switch off, delete), the Admins' list and removal, and the end of a person's
 // Webhooks when they leave. Nothing is heard here beyond the test `ping`: what a Personal Webhook may hear is ticket 2.
 // SECURITY: only a signed-in Owner, Admin or Member acts, never an Access Key, a Guest or a Contact, never the demo
-// and never a Trial Workspace (until spec 0037's ticket 6); there is no API or MCP route to any of this, because
+// and in a Trial Workspace only within its trial rules (webhook-trial.ts); there is no API or MCP route to any of this, because
 // changing where data leaves is exactly what a prompt-injected assistant would be asked to do. The address and secret
 // are sealed and checked exactly as a Workspace Webhook's (webhooks.ts shares the code, there is no second copy of the
 // rules); a person reaches only their own rows, and a row of someone else or another Workspace is answered like one
@@ -41,6 +41,13 @@ async function assertOwnsPersonal(actor: Actor): Promise<void> {
   if (!(PERSONAL_WEBHOOK_ROLES as readonly string[]).includes(String(data?.role)) || !(PERSONAL_WEBHOOK_ROLES as readonly string[]).includes(actor.role)) throw new Forbidden("Only Owners, Admins and Members have their own Webhooks.");
 }
 
+/** Refuses anyone but an Owner or Admin who still is one, judged in the database and not by the role the Actor claims, and the demo. */
+async function assertAdminNow(actor: Actor): Promise<void> {
+  assertManagesWebhooks(actor);
+  const { data } = await db().from("memberships").select("role").eq("workspace_id", actor.workspaceId).eq("user_id", actor.personId).maybeSingle();
+  if (data?.role !== "owner" && data?.role !== "admin") throw new Forbidden("Only Owners and Admins manage Webhooks.");
+}
+
 /** The rules of the Workspace's Webhooks (trial limits, no private hosts in a trial, the operator's switch), refusing where none are allowed. */
 async function rulesOrRefuse(workspaceId: string) {
   const rules = await webhookRules(workspaceId);
@@ -57,7 +64,7 @@ const findOwn = (actor: Actor, id: unknown) => findWebhook(actor, id, actor.pers
  * what waits to be sent is dropped (events in that time are dropped, nothing is queued for later) and each person's
  * page says why; on again resumes them. Both are in the Audit Log. */
 export async function setPersonalWebhooksAllowed(actor: Actor, allowed: boolean): Promise<void> {
-  assertManagesWebhooks(actor);
+  await assertAdminNow(actor);
   if (typeof allowed !== "boolean") throw new Error("People may add their own Webhooks, or may not.");
   const before = await personalWebhooksAllowed(actor.workspaceId);
   const { error } = await db().from("workspaces").update({ personal_webhooks_allowed: allowed }).eq("id", actor.workspaceId);
@@ -183,25 +190,25 @@ export async function ownPersonalWebhookLog(actor: Actor, id: string, limit = 50
 
 /** Every Personal Webhook of the Workspace for Owners and Admins: whose, the name, the address masked, the events, the state and the last send. No secret, no message. */
 export async function listPersonalWebhooksForAdmin(actor: Actor): Promise<PersonalWebhookAdminInfo[]> {
-  assertManagesWebhooks(actor);
+  await assertAdminNow(actor);
   const { data } = await db().from("webhooks").select(COLUMNS).eq("workspace_id", actor.workspaceId).not("owner_id", "is", null).order("created_at", { ascending: false });
   const rows = await openRows("webhooks", actor.workspaceId, (data ?? []) as Record<string, unknown>[]);
   if (!rows.length) return [];
   const ownerIds = [...new Set(rows.map((r) => String(r.owner_id)))];
-  const [{ data: people }, { data: sends }] = await Promise.all([
+  const [{ data: people }, lasts] = await Promise.all([
     db().from("profiles").select("id, name").in("id", ownerIds),
-    db().from("webhook_sends").select("webhook_id, last_attempt_at").eq("workspace_id", actor.workspaceId).in("webhook_id", rows.map((r) => String(r.id))).not("last_attempt_at", "is", null).order("last_attempt_at", { ascending: false }).limit(1000),
+    // One small query per Webhook, so a busy one cannot push the others' last send out of a shared row limit.
+    Promise.all(rows.map(async (r) => [String(r.id), (await db().from("webhook_sends").select("last_attempt_at").eq("workspace_id", actor.workspaceId).eq("webhook_id", String(r.id)).not("last_attempt_at", "is", null).order("last_attempt_at", { ascending: false }).limit(1)).data?.[0]?.last_attempt_at as string | undefined] as const)),
   ]);
   const names = new Map((await openNames(actor.workspaceId, people ?? [])).map((p) => [String(p.id), String(p.name ?? "")]));
-  const last = new Map<string, string>();
-  for (const s of sends ?? []) if (!last.has(String(s.webhook_id))) last.set(String(s.webhook_id), String(s.last_attempt_at));
+  const last = new Map(lasts.filter(([, at]) => at).map(([id, at]) => [id, String(at)]));
   const now = Date.now();
   return rows.map((r) => ({ ...webhookInfo(r, now), ownerId: String(r.owner_id), ownerName: names.get(String(r.owner_id)) ?? "", lastSendAt: last.get(String(r.id)) ?? null }));
 }
 
 /** The statuses and times of one Personal Webhook's sends, for Owners and Admins: never what was sent. */
 export async function personalWebhookLogForAdmin(actor: Actor, id: string, limit = 50): Promise<WebhookLogEntry[]> {
-  assertManagesWebhooks(actor);
+  await assertAdminNow(actor);
   if (typeof id !== "string" || !UUID.test(id)) throw new Forbidden(NOT_FOUND);
   const { data } = await db().from("webhooks").select("id").eq("id", id.toLowerCase()).eq("workspace_id", actor.workspaceId).not("owner_id", "is", null).maybeSingle();
   if (!data) throw new Forbidden(NOT_FOUND);
@@ -210,7 +217,7 @@ export async function personalWebhookLogForAdmin(actor: Actor, id: string, limit
 
 /** Removes someone's Personal Webhook (Owners and Admins). Its person is told through their Delivery Preference, naming who removed it, and the Audit Log has it. */
 export async function removePersonalWebhook(actor: Actor, id: string): Promise<void> {
-  assertManagesWebhooks(actor);
+  await assertAdminNow(actor);
   if (typeof id !== "string" || !UUID.test(id)) throw new Forbidden(NOT_FOUND);
   const { data } = await db().from("webhooks").select(COLUMNS).eq("id", id.toLowerCase()).eq("workspace_id", actor.workspaceId).not("owner_id", "is", null).maybeSingle();
   if (!data) throw new Forbidden(NOT_FOUND);
@@ -230,18 +237,15 @@ export async function removePersonalWebhook(actor: Actor, id: string): Promise<v
   }
 }
 
-/** A Personal Webhook that is about to end with its person's place in the Workspace: read before the change, since the database removes the row with it. */
-export type EndingPersonalWebhook = { id: string; name: string; address: string };
-
-/** The Personal Webhooks a person holds in the Workspace, read before they leave or become a Guest, to record their end afterwards. */
-export async function personalWebhooksOf(workspaceId: string, personId: string): Promise<EndingPersonalWebhook[]> {
-  const { data } = await db().from("webhooks").select("id, name, url").eq("workspace_id", workspaceId).eq("owner_id", personId);
-  const rows = await openRows("webhooks", workspaceId, (data ?? []) as Record<string, unknown>[]);
-  return rows.map((r) => ({ id: String(r.id), name: String(r.name), address: maskedHost(String(r.url ?? "")) }));
-}
-
-/** Records in the Audit Log that these Personal Webhooks ended with their person's place in the Workspace, with the reason
- * (the database has removed the rows). `by` is who made the change. Best effort, as every Audit Log entry. */
-export async function recordPersonalWebhooksEnded(workspaceId: string, personId: string, ended: EndingPersonalWebhook[], reason: "left" | "guest", by: string | null): Promise<void> {
-  for (const w of ended) await recordAudit(workspaceId, by, { kind: "webhook.personal_ended", object: { type: "webhook", id: w.id, name: w.name }, details: { address: w.address, owner_id: personId, reason } });
+/** Writes the Audit Log entry, with its reason, for each Personal Webhook the database ended with its person's place in the
+ * Workspace or with their account (personal_webhook_ends), and clears them. `by` is who made the change, when a person did
+ * (removing a member, making a Guest); null for Ziffr itself. Best effort, as every Audit Log entry. */
+export async function recordPersonalWebhookEnds(by: string | null = null): Promise<void> {
+  const { data } = await db().from("personal_webhook_ends").select("webhook_id, workspace_id, owner_id, name, reason").order("ended_at").limit(500);
+  for (const e of data ?? []) {
+    // Taken first, so two runs record it once.
+    const { data: taken } = await db().from("personal_webhook_ends").delete().eq("webhook_id", String(e.webhook_id)).select("webhook_id");
+    if (!taken?.length) continue;
+    await recordAudit(String(e.workspace_id), by, { kind: "webhook.personal_ended", object: { type: "webhook", id: String(e.webhook_id), name: String(e.name) }, details: { owner_id: String(e.owner_id), reason: String(e.reason) } });
+  }
 }

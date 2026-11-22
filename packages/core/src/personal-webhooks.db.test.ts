@@ -10,7 +10,7 @@ import { DemoReadOnly } from "./demo";
 import { removeMember } from "./handover";
 import { setRole } from "./invitations";
 import { mailHostResolver } from "./mail-hosts";
-import { createPersonalWebhook, deletePersonalWebhook, listOwnPersonalWebhooks, listPersonalWebhooksForAdmin, ownPersonalWebhookLog, personalWebhookLogForAdmin, removePersonalWebhook, replacePersonalWebhookSecret, sendTestPersonalWebhook, setPersonalWebhookEnabled, setPersonalWebhooksAllowed, updatePersonalWebhook } from "./personal-webhooks";
+import { recordPersonalWebhookEnds, createPersonalWebhook, deletePersonalWebhook, listOwnPersonalWebhooks, listPersonalWebhooksForAdmin, ownPersonalWebhookLog, personalWebhookLogForAdmin, removePersonalWebhook, replacePersonalWebhookSecret, sendTestPersonalWebhook, setPersonalWebhookEnabled, setPersonalWebhooksAllowed, updatePersonalWebhook } from "./personal-webhooks";
 import { personalWebhooksAllowed } from "./personal-webhook-state";
 import { DEMO_WORKSPACE_ID } from "./team";
 import { workspace } from "./test/db-fixtures";
@@ -253,6 +253,17 @@ describe("nobody reaches another's", () => {
 });
 
 describe("the Admins' list and removal", () => {
+  it("asks the database for the Admin's role: an Admin demoted to Member, with the same Actor object, is refused", async () => {
+    const { w, admin, A, D } = await allowed();
+    const { id } = await createPersonalWebhook(A, { name: "Ana's", url: URL1 });
+    expect(await listPersonalWebhooksForAdmin(D)).toHaveLength(1);
+    await w.setRole(admin, "member");
+    expect(await refusal(listPersonalWebhooksForAdmin(D))).toBeInstanceOf(Forbidden);
+    expect(await refusal(removePersonalWebhook(D, id))).toBeInstanceOf(Forbidden);
+    expect(await refusal(personalWebhookLogForAdmin(D, id))).toBeInstanceOf(Forbidden);
+    expect((await listOwnPersonalWebhooks(A)).webhooks).toHaveLength(1);
+  });
+
   it("lists every Personal Webhook with whose it is, masked, and nothing that was sent", async () => {
     const { w, ana, bo, A, B, D, O } = await allowed();
     const one = await createPersonalWebhook(A, { name: "Ana's", url: URL1, events: ["action.done"] });
@@ -314,7 +325,7 @@ describe("the end of a person's Webhooks", () => {
     expect((await kinds(x.w.id)).filter((k) => k === "webhook.personal_ended")).toHaveLength(1);
   });
 
-  it("ends when the membership goes by any other way, and when the account is deleted", async () => {
+  it("ends when the membership goes by any other way, and when the account is deleted, each with its reason in the Audit Log", async () => {
     const x = await allowed();
     const ana = await made(x, x.A); const bo = await made(x, x.B);
     await x.w.dropMember(x.ana);
@@ -323,6 +334,13 @@ describe("the end of a person's Webhooks", () => {
     expect(await rows(bo)).toEqual([]);
     // The send queue and log go with the Webhook.
     expect((await db().from("webhook_sends").select("id").eq("webhook_id", bo)).data).toEqual([]);
+    await recordPersonalWebhookEnds();
+    await recordPersonalWebhookEnds();
+    const { openRows } = await import("./sealed-columns");
+    const { data } = await db().from("audit_events").select("id, object_id, details").eq("workspace_id", x.w.id).eq("kind", "webhook.personal_ended");
+    const events = await openRows("audit_events", x.w.id, (data ?? []) as Record<string, unknown>[]);
+    expect(events.map((e) => [e.object_id, (e.details as { reason: string }).reason]).sort()).toEqual([[ana, "left"], [bo, "account"]].sort());
+    expect((await db().from("personal_webhook_ends").select("webhook_id").in("webhook_id", [ana, bo])).data).toEqual([]);
   });
 });
 
