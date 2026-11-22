@@ -3,7 +3,7 @@
 import { afterEach, describe, expect, it } from "vitest";
 import { Forbidden } from "./actor";
 import { db } from "./db";
-import { exportOptions, exportPack, type ExportChoice, type ExportManifest } from "./pack-export";
+import { exportOptions, exportPack, themeLogoForExport, type ExportChoice, type ExportManifest } from "./pack-export";
 import { installPackFile } from "./packs";
 import { checkPack } from "./pack";
 import { createDashboard, placeWidget } from "./dashboards";
@@ -85,6 +85,72 @@ describe("Export as Pack", () => {
     await installPackFile(b.actor(zoe), first.text, { unsigned: true, assistantTexts: true });
     const again = await exportPack(b.actor(zoe), MANIFEST, { catalog: await all("catalog_metrics", b.id), dashboards: await all("team_templates", b.id, { kind: "dashboard" }), decks: await all("team_templates", b.id, { kind: "deck" }), workflows: await all("team_templates", b.id, { kind: "workflow" }), designs: await all("view_designs", b.id), themes: await all("themes", b.id) });
     expect(again.text).toBe(first.text);
+  });
+
+  describe("with a logo (spec 0039)", () => {
+    const svg = (c: string) => `data:image/svg+xml;base64,${Buffer.from(`<svg xmlns="http://www.w3.org/2000/svg" width="40" height="20"><rect width="40" height="20" fill="${c}"/></svg>`).toString("base64")}`;
+    const themeWith = async (w: Awaited<ReturnType<typeof setUp>>, name: string, logo: string | null) => {
+      const { data } = await db().from("themes").insert({ ...STARTER_THEME, name, owner_id: w.ann, workspace_id: w.w.id, slides: { ...STARTER_THEME.slides, logo } }).select("id").single();
+      return Number(data!.id);
+    };
+    const parse = (text: string) => JSON.parse(text) as { logo?: string; author: { name: string }; contents: { themes?: { theme: { slides: { logo?: string } } }[] } };
+
+    it("takes a Theme's logo, marks the Themes that use it and leaves any other logo out", async () => {
+      const x = await setUp();
+      const mine = await themeWith(x, "Mine", svg("#123456")), other = await themeWith(x, "Other", svg("#654321"));
+      const res = await exportPack(x.actor, { ...MANIFEST, logo: { themeId: mine } }, { themes: [mine, other] });
+      const pack = parse(res.text);
+      expect(pack.logo).toBeTruthy();
+      expect(pack.author.name).toBe("Northwind");
+      expect(pack.contents.themes!.filter((t) => t.theme.slides.logo === "pack")).toHaveLength(1);
+      expect(pack.contents.themes).toHaveLength(2);
+      expect(res.text.split("data:image").length - 1).toBe(1);
+      expect(res.leftOut.some((l) => l.name === "Other")).toBe(true);
+      expect(checkPack(res.text).ok).toBe(true);
+    });
+
+    it("is the same file again after installing it elsewhere and choosing the installed Theme's logo", async () => {
+      const x = await setUp();
+      const mine = await themeWith(x, "Mine", svg("#123456"));
+      const first = await exportPack(x.actor, { ...MANIFEST, logo: { themeId: mine } }, { themes: [mine] });
+      const b = await ws("B"); const zoe = await b.person("owner");
+      await installPackFile(b.actor(zoe), first.text, { unsigned: true, assistantTexts: true });
+      const themes = await all("themes", b.id);
+      const again = await exportPack(b.actor(zoe), { ...MANIFEST, logo: { themeId: themes[0] } }, { themes });
+      expect(again.text).toBe(first.text);
+    });
+
+    it("takes an uploaded picture, and refuses a hostile one, a too big one and a Theme of another Workspace", async () => {
+      const x = await setUp();
+      const ok = await exportPack(x.actor, { ...MANIFEST, logo: { data: svg("#abcdef") } }, { themes: await all("themes", x.w.id) });
+      expect(parse(ok.text).logo).toBeTruthy();
+      const hostile = `data:image/svg+xml;base64,${Buffer.from('<svg xmlns="http://www.w3.org/2000/svg"><script>alert(1)</script></svg>').toString("base64")}`;
+      const big = `data:image/png;base64,${Buffer.alloc(200_000).toString("base64")}`;
+      for (const logo of [{ data: hostile }, { data: big }, { data: "javascript:alert(1)" }, { data: 5 as unknown as string }]) {
+        const res = await exportPack(x.actor, { ...MANIFEST, logo }, { themes: await all("themes", x.w.id) });
+        expect(parse(res.text).logo).toBeUndefined();
+        expect(res.leftOut.some((l) => l.name === "Logo")).toBe(true);
+      }
+      const b = await ws("B"); const zoe = await b.person("owner");
+      const foreign = await themeWith({ ...x, w: b, ann: zoe }, "Theirs", svg("#222222"));
+      const res = await exportPack(x.actor, { ...MANIFEST, logo: { themeId: foreign } }, { themes: await all("themes", x.w.id) });
+      expect(parse(res.text).logo).toBeUndefined();
+    });
+
+    it("offers a Theme's logo to the dialog only when it fits a Pack", async () => {
+      const x = await setUp();
+      const small = await themeWith(x, "Small", svg("#111111"));
+      const huge = await themeWith(x, "Huge", `data:image/png;base64,${Buffer.alloc(200_000).toString("base64")}`);
+      const opts = await exportOptions(x.actor);
+      expect(opts.themes.find((t) => t.id === small)?.hasLogo).toBe(true);
+      expect(opts.themes.find((t) => t.id === huge)?.hasLogo).toBeUndefined();
+      expect(JSON.stringify(opts)).not.toContain("data:image");
+      expect(await themeLogoForExport(x.actor, small)).toContain("data:image/svg+xml");
+      expect(await themeLogoForExport(x.actor, huge)).toBeNull();
+      const b = await ws("B"); const zoe = await b.person("owner");
+      expect(await themeLogoForExport(b.actor(zoe), small)).toBeNull();
+      expect(await themeLogoForExport(x.actor, "5" as unknown as number)).toBeNull();
+    });
   });
 
   it("leaves out a Metric the person does not see, and one computed from Metrics not in the Pack", async () => {

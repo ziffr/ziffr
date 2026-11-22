@@ -41,7 +41,7 @@ function ListingLink({ href, children, unsigned = false }: { href?: string; chil
   );
 }
 
-export function PacksScreen({ installed, manages, exportable = null, offers = [], marketplace = false, updates = [], demo, guest, viewer, numberStyle }: { installed: (Omit<InstalledPack, "installedBy"> & { installedBy: string | null })[]; manages: boolean; exportable?: ExportOptions | null; offers?: OfferedItem[]; marketplace?: boolean; updates?: { installId: number; version: string }[]; demo: boolean; guest: boolean; viewer: string; numberStyle: NumberStyle }) {
+export function PacksScreen({ installed, manages, exportable = null, authorName = "", offers = [], marketplace = false, updates = [], demo, guest, viewer, numberStyle }: { installed: (Omit<InstalledPack, "installedBy"> & { installedBy: string | null })[]; manages: boolean; exportable?: ExportOptions | null; authorName?: string; offers?: OfferedItem[]; marketplace?: boolean; updates?: { installId: number; version: string }[]; demo: boolean; guest: boolean; viewer: string; numberStyle: NumberStyle }) {
   return (
     <div className="space-y-8">
       {manages && <Offers offers={offers} />}
@@ -76,7 +76,7 @@ export function PacksScreen({ installed, manages, exportable = null, offers = []
       </section>
       {marketplace && <MarketplaceSearch viewer={viewer} numberStyle={numberStyle} />}
       {manages && <InstallFromFile viewer={viewer} numberStyle={numberStyle} />}
-      {exportable && <ExportPack options={exportable} />}
+      {exportable && <ExportPack options={exportable} defaultAuthor={authorName} />}
       {demo && <p className="text-sm text-muted-foreground">The demo installs no Packs: the Workspace is shared by everyone looking at it.</p>}
     </div>
   );
