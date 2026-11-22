@@ -106,7 +106,6 @@ const CHECKS: Record<string, (v: string) => string | null> = {
   ZIFFR_DEFAULT_LIMIT_LABEL: (v) => problemOf(() => limitLabel(v)),
   ZIFFR_TURNSTILE_SITE_KEY: (v) => (/^[A-Za-z0-9_-]{10,100}$/.test(v) ? null : "The site key is letters, digits, - and _, as Cloudflare shows it, such as 0x4AAAAAAA…."),
   ZIFFR_TURNSTILE_SECRET: (v) => (/^[A-Za-z0-9_-]{10,200}$/.test(v) ? null : "The secret key is letters, digits, - and _, as Cloudflare shows it."),
-  ZIFFR_TRIAL_THEN: (v) => (v === "delete" || v === "keep" ? null : "Pick what happens when a trial ends."),
   ZIFFR_TRIAL_WEBHOOKS: (v) => (v === "true" || v === "false" ? null : "Pick whether trials may have Webhooks."),
   ZIFFR_FEEDBACK_PROMPT: (v) => (v === "true" || v === "false" ? null : "Pick whether people are asked."),
   ZIFFR_DEMO: (v) => (v === "1" || v === "0" ? null : "Pick whether the demo is offered."),

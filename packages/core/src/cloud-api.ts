@@ -12,6 +12,7 @@ import { db } from "./db";
 import { recordServiceEvent } from "./installation-admins";
 import { DEMO_WORKSPACE_ID } from "./team";
 import { keepTrial } from "./trials";
+import { closeCancelledWorkspace } from "./trial-end";
 import { forgetStoredSettings, settingSources, settingsInEffectStrict } from "./settings-in-effect";
 import { TRIAL_LIMITS, trialLimitNumberProblem, trialLimitOf, trialLimitProblem, trialLimitsFrom, type TrialLimitKey } from "./trial-limits";
 import { trialLimitEnvironment } from "./trial-limits-in-effect";
@@ -174,6 +175,20 @@ export async function setCloudLimit(caller: CloudCaller, workspaceId: string, in
   await recordServiceEvent("Ziffr Cloud", metrics === null ? "workspace_limit.removed" : "workspace_limit.set", before.id);
   // Booking a Size during the trial ends it at once (spec 0029): the Workspace becomes ordinary with this limit.
   if (input.endTrial === true && before.trial_ends_at) await keepTrial(before.id);
+  return cloudWorkspace(caller, before.id);
+}
+
+/** Ziffr Cloud tells that a Workspace's Size was cancelled, or its payment failed for good (spec 0040): the Workspace
+ * closes as an ended trial does, read-only for the grace days with the Workspace Export offered, then it is deleted. A
+ * Workspace in a trial or closed already is left as it is; the answer's `trial_ends_at` says when it closed. The
+ * Workspace's Audit Log and the Installation's audit record it. Answers the Workspace as it is now. */
+export async function cancelCloudWorkspace(caller: CloudCaller, workspaceId: string): Promise<CloudWorkspace> {
+  const before = await cloudWorkspace(caller, workspaceId);
+  if (!before.exists) throw new CloudNotFound();
+  if (await closeCancelledWorkspace(before.id)) {
+    await recordAudit(before.id, null, { kind: "workspace.closed_cancelled", object: { type: "workspace", id: before.id }, details: { by: "cloud" } }, "Ziffr Cloud");
+    await recordServiceEvent("Ziffr Cloud", "workspace.cancelled", before.id);
+  }
   return cloudWorkspace(caller, before.id);
 }
 

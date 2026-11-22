@@ -15,3 +15,16 @@ export const trialMemberWords = (owner: string | null, endsAt: string): string =
 
 /** For a Member of a trial that has ended, under its heading "This trial has ended": what that means and who decides. */
 export const trialEndedMemberWords = (owner: string | null): string => `Nothing is sent or taken any more. ${owner ?? "The Owner"} decides whether it goes on as a subscription; ask ${owner ? "them" : "the Owner"}.`;
+
+/** The two ways on after a trial, and the day its data goes: the same words in every reminder. `deletedAt` is the day it is
+ * deleted. Subscribing keeps everything, colleagues included; the Workspace Export is the Workspace in one file for a
+ * Ziffr you run yourself (there is no free Size on hosted Ziffr). */
+export const trialEndsWords = (endsAt: string, deletedAt: string): string =>
+  `Your trial ends on ${trialDay(endsAt)}. Then it closes, and on ${trialDay(deletedAt)} it is deleted with everything in it. `
+  + "There are two ways on. Subscribe to a Size under Change Size in the Workspace settings, and everything stays as it is, colleagues included. "
+  + "Or download the Workspace Export from the link below and run Ziffr yourself: it holds your Metrics, values, dashboards, decks and Workflows.";
+
+/** What the Owner is told when a Size is cancelled: the Workspace is closed like an ended trial and goes on the day named. */
+export const workspaceClosedWords = (deletedAt: string): string =>
+  `Your Size was cancelled, so this Workspace is closed: nothing is sent or taken any more, and its keys and links have stopped. On ${trialDay(deletedAt)} it is deleted with everything in it. `
+  + "To keep your numbers, download the Workspace Export from the link below and run Ziffr yourself: it holds your Metrics, values, dashboards, decks and Workflows.";
