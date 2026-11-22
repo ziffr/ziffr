@@ -12,12 +12,22 @@ secret() { echo "Blocked: .env files hold secrets. Agents never read or write th
 
 if [ "$tool" = "Grep" ] || [ "$tool" = "Glob" ]; then
   # A search reaches files through its path and through a glob (Grep's glob, Glob's pattern). Either may name an
-  # env file; a speed bump like the Bash check, not a boundary.
+  # env file; a speed bump like the Bash check, not a boundary. Lower-cased first: macOS opens .ENV.local as
+  # .env.local. A glob may be a comma list ("*.ts,.env.local"), so .env.example is taken out wherever it stands and
+  # any other ".env" left in the value counts.
   while IFS= read -r v; do
     [ -z "$v" ] && continue
-    b=$(basename -- "$v")
-    if [[ "$b" == .env* && "$b" != ".env.example" ]]; then secret; fi
-    if [[ "$v" == *".env"* && "$v" != *".env.example" ]]; then secret; fi
+    v=$(printf '%s' "$v" | tr '[:upper:]' '[:lower:]')
+    # Each part of a list or brace group on its own: a name that starts with .env is a secret unless it is exactly
+    # .env.example (so .env.example* or .env.example.local count too). Then, wherever .env.example stands, any
+    # other .env left in the value counts.
+    set -f  # the parts are patterns: never expand them against the files here
+    for part in $(printf '%s' "$v" | tr ',{}' '   '); do
+      b=${part##*/}
+      if [[ "$b" == .env* && "$b" != ".env.example" ]]; then secret; fi
+    done
+    set +f
+    if [[ "${v//.env.example/}" == *".env"* ]]; then secret; fi
   done < <(jq -r '.tool_input.path // empty, .tool_input.glob // empty, (if .tool_name == "Glob" then .tool_input.pattern // empty else empty end)' <<<"$input")
   exit 0
 fi
@@ -28,20 +38,35 @@ if [ "$tool" = "Bash" ]; then
   # variables can always spell a file name differently. The boundary is the OS (file permissions or a sandbox).
   # The whole command is checked, commit messages included: a message that names such a file is blocked too
   # (rephrase it). Every dot-name in path position counts (not process.env in code); quotes, backslashes and
-  # brace expansions are removed, globs count as wildcards.
-  if python3 -c '
+  # brace expansions are removed, globs count as wildcards. Lower-cased first (macOS opens .ENV.local as
+  # .env.local). Exit 1 means "sure it names none"; anything else blocks, so a crash or crafted braces that would
+  # take too long count as a secret, never as a pass.
+  rc=0
+  python3 -c '
 import fnmatch, re, sys
-s = sys.stdin.read()
+s = sys.stdin.read().lower()
+budget = [5000]
 def expand(t):
-    m = re.search(r"\{([^{}]*)\}", t)
-    return [x for opt in m.group(1).split(",") for x in expand(t[:m.start()] + opt + t[m.end():])] if m else [t]
+    out, todo = [], [t]
+    while todo:
+        budget[0] -= 1
+        if budget[0] < 0:
+            sys.exit(0)
+        x = todo.pop()
+        m = re.search(r"\{([^{}]*)\}", x)
+        if m:
+            todo.extend(x[:m.start()] + o + x[m.end():] for o in m.group(1).split(","))
+        else:
+            out.append(x)
+    return out
 for tok in re.findall(r"(?<![\w$])\.[\w.?*\[\]{},\\\x27\"-]+", s):
     for name in expand(re.sub(r"[\x27\"\\]", "", tok)):
         if name == ".env.example":
             continue
-        if name.startswith(".env") or any(fnmatch.fnmatch(t, name) for t in (".env", ".env.local", ".env.production")):
+        if name.startswith(".env") or any(fnmatch.fnmatchcase(t, name) for t in (".env", ".env.local", ".env.production", ".env.staging", ".env.development.local")):
             sys.exit(0)
-sys.exit(1)' <<<"$cmd"; then secret; fi
+sys.exit(1)' <<<"$cmd" || rc=$?
+  [ "$rc" = 1 ] || secret
   exit 0
 fi
 
@@ -49,7 +74,7 @@ file=$(jq -r '.tool_input.file_path // empty' <<<"$input")
 [ -z "$file" ] && exit 0
 resolved=$(python3 -c 'import os,sys; print(os.path.realpath(sys.argv[1]))' "$file" 2>/dev/null) || { echo "Blocked: could not resolve $file." >&2; exit 2; }
 root=$(python3 -c 'import os,sys; print(os.path.realpath(sys.argv[1]))' "$CLAUDE_PROJECT_DIR")
-name=$(basename "$resolved")
+name=$(basename "$resolved" | tr '[:upper:]' '[:lower:]')
 if [[ "$name" == .env* && "$name" != ".env.example" ]]; then secret; fi
 [ "$tool" = "Read" ] && exit 0
 case "$resolved" in

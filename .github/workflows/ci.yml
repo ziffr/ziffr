@@ -59,6 +59,8 @@ jobs:
         run: node .github/scripts/client-imports.mjs
       - name: The app reaches the database only through the core
         run: node .github/scripts/app-db-access.mjs
+      - name: The agents' guard hook blocks what it should
+        run: bash .claude/hooks/test-guard.sh
       - name: Prose (Vale)
         run: |
           curl -sSL https://github.com/errata-ai/vale/releases/download/v3.27.0/vale_3.27.0_Linux_64-bit.tar.gz | tar xz vale
