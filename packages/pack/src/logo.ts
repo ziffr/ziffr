@@ -78,6 +78,27 @@ export function cleanLogo(v: unknown, maxBytes: number = LOGO_MAX_BYTES): string
   return `data:image/svg+xml;base64,${btoa(bin)}`;
 }
 
+/** The width over the height of a logo that passed `logoProblem`, read from its header (PNG, JPEG) or its root `width`
+ * and `height` or `viewBox` (an SVG Ziffr serialized itself, see `cleanLogo`), kept between 0.05 and 20; 3 when the
+ * picture says nothing usable. Pure, and never runs or renders anything. */
+export function logoRatio(v: unknown): number {
+  const clamp = (r: number) => (Number.isFinite(r) && r > 0 ? Math.min(20, Math.max(0.05, r)) : 3);
+  if (typeof v !== "string") return 3;
+  const m = /^data:image\/(png|jpeg|svg\+xml);base64,([A-Za-z0-9+/]+={0,2})$/.exec(v);
+  if (!m) return 3;
+  let raw: string;
+  try { raw = atob(m[2]); } catch { return 3; }
+  if (m[1] === "svg+xml") {
+    const root = /<svg\b[^>]*>/.exec(utf8(raw))?.[0] ?? "";
+    const num = (n: string) => { const a = new RegExp(`\\s${n}="([0-9.]+)(?:px)?"`).exec(root); return a ? Number(a[1]) : NaN; };
+    const vb = /\sviewBox="\s*[-0-9.e]+[\s,]+[-0-9.e]+[\s,]+([0-9.e]+)[\s,]+([0-9.e]+)\s*"/.exec(root);
+    if (vb) return clamp(Number(vb[1]) / Number(vb[2]));
+    return clamp(num("width") / num("height"));
+  }
+  const size = pixelSize(Uint8Array.from(raw, (c) => c.charCodeAt(0)), m[1] as "png" | "jpeg");
+  return size ? clamp(size.w / size.h) : 3;
+}
+
 /** Whether this is a logo Ziffr keeps and shows (see `logoProblem`). */
 export function logoOk(v: unknown, maxBytes: number = LOGO_MAX_BYTES): v is string {
   return logoProblem(v, maxBytes) === null;

@@ -86,7 +86,7 @@ An item may name another item of the same Pack, and nothing outside it:
 
 ## The logo
 
-A Pack may bring **one logo**, optionally, as a data address in the manifest's `logo` (beside `listing`, never in `contents`): `"logo": "data:image/png;base64,…"`. Its `author` is the publisher it is shown with. A Theme of the Pack may say `"slides": { "logo": "pack" }` to use it; that is the only value the field takes, a Theme file on its own may not say it, and neither may a Theme of a Pack without a logo. A Pack with a logo needs a Ziffr that knows the field, so set `ziffr` to the version that does. A Pack's licence covers its contents, not anyone's trademark: the logo stays the publisher's.
+A Pack may bring **one logo**, optionally, as a data address in the manifest's `logo` (beside `listing`, never in `contents`): `"logo": "data:image/png;base64,…"`. Its `author` is the publisher it is shown with. A Theme of the Pack may say `"slides": { "logo": "pack" }` to use it; that is the only value the field takes, a Theme file on its own may not say it, and neither may a Theme of a Pack without a logo. A Pack with a logo needs a Ziffr that knows the field, so set `ziffr` to the version that does. A Pack's licence covers its contents, not anyone's trademark: the logo stays the publisher's. Installing checks the logo again on the server and keeps only the form Ziffr wrote out itself (an SVG is serialized again from what was read); a Theme that says `"pack"` is installed with it, and installing never makes a Theme the team default.
 
 ## What is refused
 

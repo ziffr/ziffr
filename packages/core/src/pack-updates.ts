@@ -8,7 +8,8 @@ import { db } from "./db";
 import { Forbidden, type Actor } from "./actor";
 import { audit } from "./audit-log";
 import { checkPack, versionBelow, type Pack } from "./pack";
-import { assertManages, itemHash, itemKeys, manifestOf, PACK_CAPS, storedItems, type PackOrigin } from "./packs";
+import { cleanLogo, PACK_LOGO_MAX_BYTES } from "@ziffr/pack/logo";
+import { assertManages, itemHash, themeHashInput, itemKeys, manifestOf, PACK_CAPS, storedItems, type PackOrigin } from "./packs";
 import { ensureBaseline, recordVersion } from "./versions";
 
 /** Where an installed item lives. */
@@ -23,7 +24,7 @@ export type ItemKind = "metric" | "dashboard" | "deck" | "workflow" | "view" | "
 type Copy = { table: Table; id: number; key: string; kind: ItemKind; name: string; installedHash: string; currentHash: string; offer: unknown; updatedAt: string | null };
 
 /** What is hashed of a stored row: exactly what installing hashed (packs.ts storedItems), read back from the database. */
-function stored(table: Table, r: Record<string, unknown>, ownThemes: ReadonlySet<number>): unknown {
+function stored(table: Table, r: Record<string, unknown>, ownThemes: ReadonlySet<number>, packLogo: string | null): unknown {
   if (table === "catalog") {
     const n = (v: unknown) => (v === null || v === undefined ? null : Number(v));
     const row = Object.fromEntries(CATALOG_FIELDS.map((f) => [f, f === "target_min" || f === "target_max" ? n(r[f]) : f === "decimals" ? Number(r[f]) : r[f] ?? null]));
@@ -38,7 +39,7 @@ function stored(table: Table, r: Record<string, unknown>, ownThemes: ReadonlySet
     return { kind: r.kind, name: r.name, description: r.description, slots: r.slots, body };
   }
   if (table === "designs") return { name: r.name, body: r.body };
-  return { name: r.name, tokens: r.tokens, slides: r.slides };
+  return themeHashInput(r.name, r.tokens, r.slides as Record<string, unknown> | null, packLogo);
 }
 
 const kindOf = (table: Table, r: Record<string, unknown>): ItemKind => (table === "catalog" ? "metric" : table === "designs" ? "view" : table === "themes" ? "theme" : (r.kind as ItemKind));
@@ -61,13 +62,17 @@ async function copiesOf(actor: Actor, installId: number): Promise<Copy[]> {
   };
   const out: Copy[] = [];
   const ownThemes = new Set<number>();
+  // The Pack's logo as installed, from the install's own record, checked again as it is read.
+  const { data: inst } = await db().from("pack_installs").select("manifest").eq("id", installId).eq("workspace_id", actor.workspaceId).maybeSingle();
+  const kept = (inst?.manifest as { logo?: unknown } | null)?.logo;
+  const packLogo = kept === undefined ? null : cleanLogo(kept, PACK_LOGO_MAX_BYTES);
   // Themes first: whether a Deck Template still uses the Theme installed with it depends on them.
   for (const table of ["themes", "catalog", "templates", "designs"] as Table[]) {
     const { data, error } = await db().from(TABLE[table]).select(cols[table]).eq("workspace_id", actor.workspaceId).eq("pack_install_id", installId);
     if (error) throw new Error("The Pack's items could not be read.");
     for (const r of (data ?? []) as unknown as Record<string, unknown>[]) {
       if (table === "themes") ownThemes.add(Number(r.id));
-      out.push({ table, id: Number(r.id), key: String(r.pack_key), kind: kindOf(table, r), name: String(r.name), installedHash: String(r.pack_hash), currentHash: itemHash(stored(table, r, ownThemes)), offer: r.pack_offer ?? null, updatedAt: (r.updated_at as string | null) ?? null });
+      out.push({ table, id: Number(r.id), key: String(r.pack_key), kind: kindOf(table, r), name: String(r.name), installedHash: String(r.pack_hash), currentHash: itemHash(stored(table, r, ownThemes, packLogo)), offer: r.pack_offer ?? null, updatedAt: (r.updated_at as string | null) ?? null });
     }
   }
   return out;
