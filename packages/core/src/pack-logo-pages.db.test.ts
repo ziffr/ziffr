@@ -37,7 +37,7 @@ describe("the installed Pack's logo address", () => {
     expect(pack.logo).toMatch(new RegExp(`^/api/packs/${id}/logo/[0-9a-f]{16}$`));
     const hash = pack.logo!.split("/").pop()!;
     expect(await packLogo(w.actor(ann), id, hash)).toMatchObject({ contentType: "image/png" });
-    expect(await packLogo(w.actor(guest), id, hash)).toBeNull();
+    expect(await packLogo(w.actor(guest, "guest"), id, hash)).toBeNull();
     expect(await packLogo(o.actor(eve), id, hash)).toBeNull();
     expect(await packLogo(w.actor(ann), id, "0".repeat(16))).toBeNull();
     expect(await packLogo(w.actor(ann), id + 1, hash)).toBeNull();
@@ -90,7 +90,7 @@ describe("whose logo a Theme shows", () => {
     await installPackFile(w.actor(ann), file(withLogo(LOGO)), yes);
     const t = (await db().from("themes").select("id, name, tokens, slides").eq("workspace_id", w.id).eq("pack_key", "board").single()).data!;
     expect(await themeLogoSource(w.actor(ann), t.id)).toEqual({ pack: PACK.name, author: PACK.author.name });
-    await expect(themeLogoSource(w.actor(bob), t.id)).rejects.toThrow();
+    await expect(themeLogoSource(w.actor(bob, "member"), t.id)).rejects.toThrow();
     await saveTheme(w.actor(ann), t.id, t.name, t.tokens, { ...(t.slides as ThemeSlides), logo: NEW });
     expect(await themeLogoSource(w.actor(ann), t.id)).toBeNull();
   });
