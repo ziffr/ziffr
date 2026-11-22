@@ -50,8 +50,8 @@ create trigger memberships_guest_owns_nothing before update of role on membershi
 create or replace function metrics_owner_is_member() returns trigger language plpgsql as $$
 declare found_role text;
 begin
-  -- The demo's own seed builds its made-up company in its own order, under its own guard (ziffr.demo_seed).
-  if current_setting('ziffr.demo_seed', true) = 'on' then return new; end if;
+  -- The demo's own seed builds its made-up company in its own order, under its own guard (demo_seeding()).
+  if demo_seeding() then return new; end if;
   if tg_op = 'UPDATE' and new.owner_id is not distinct from old.owner_id then return new; end if;
   -- Under a share lock on the owner's membership, so a role change to Guest, which updates that row, waits for this
   -- write (and the other way round): every writer of owner_id, the removal's hand_over too, meets setRole.
