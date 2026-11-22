@@ -282,7 +282,7 @@ A Trial Workspace is something hosted Ziffr (ziffr.net) offers, not something an
 
 | Setting | Trial Limit | Range | Default |
 | --- | --- | --- | --- |
-| `ZIFFR_TRIAL_DAYS` | Days a trial lasts | 1 to 30 | 14 (no trials without it) |
+| `ZIFFR_TRIAL_DAYS` | Days a trial lasts | 1 to 30 | 14 (0 switches trials off) |
 | `ZIFFR_TRIAL_GRACE_DAYS` | Days a trial's data stays after it ends | 1 to 60 | 7 |
 | `ZIFFR_TRIAL_MAX` | Trials at once | 1 to 100,000 | 500 |
 | `ZIFFR_TRIAL_LIMIT_METRICS` | Metrics | 5 to 100 | 25 |

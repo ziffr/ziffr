@@ -226,7 +226,7 @@ export function handoverOffered(actor: Pick<Actor, "role" | "workspaceId">, env:
 }
 
 /** The Trial Limits as Ziffr Cloud sees them: each number in effect, where it comes from (Ziffr Cloud, the Installation's
- * page, the server's environment or the default), and `days` as null while trials are off. Numbers only: nothing of a trial. */
+ * page, the server's environment or the default), and `days` as null while trials are switched off. Numbers only: nothing of a trial. */
 export type CloudTrialLimits = { limits: Record<TrialLimitKey, number | null>; sources: Record<TrialLimitKey, "cloud" | "page" | "server" | "default"> };
 
 /** The Trial Limits now, for Ziffr Cloud. */
@@ -235,8 +235,8 @@ export async function cloudTrialLimits(caller: CloudCaller): Promise<CloudTrialL
   forgetStoredSettings();
   const [settings, sources] = await Promise.all([settingsInEffectStrict(), settingSources()]);
   const limits = { ...trialLimitsFrom(settings) } as Record<TrialLimitKey, number | null>;
-  // Without days there are no trials: say so, not the default hosted Ziffr starts with.
-  if (!settings.ZIFFR_TRIAL_DAYS?.trim() || trialLimitProblem(trialLimitOf("days"), settings.ZIFFR_TRIAL_DAYS)) limits.days = null;
+  // Days of 0 switch trials off explicitly: null.
+  if (settings.ZIFFR_TRIAL_DAYS?.trim() === "0") limits.days = null;
   // The days and grace days are pinned to Ziffr Cloud, so their source says "cloud" even when nothing is set: only a value counts.
   const source = (l: (typeof TRIAL_LIMITS)[number]) => {
     if (process.env[l.name]?.trim()) return "server";
@@ -247,7 +247,7 @@ export async function cloudTrialLimits(caller: CloudCaller): Promise<CloudTrialL
 }
 
 /** Sets Trial Limits as Ziffr Cloud (PATCH semantics): each number given is a whole number within its range; null gives
- * that limit back to its default (the days: no trials); limits left out stay as they are. Written in one step in the
+ * that limit back to its default (the days: no trials at all, as 0); limits left out stay as they are. Written in one step in the
  * database with the row the triggers read, so calls at once never mix. The numbers apply to running trials at once (the
  * days to trials made afterwards), and what a trial already holds is never deleted. The server's environment still wins.
  * Answers the Trial Limits as GET does. */
@@ -258,7 +258,8 @@ export async function setCloudTrialLimits(caller: CloudCaller, input: Partial<Re
   for (const [key, n] of Object.entries(input)) {
     const limit = TRIAL_LIMITS.find((l) => l.key === key);
     if (!limit) throw new Error(`${key} is not a Trial Limit.`);
-    if (n === null) { values[limit.name] = null; continue; }
+    // null gives a limit back to its default; for the days it is the explicit "no trials", kept as 0.
+    if (n === null) { values[limit.name] = limit.key === "days" ? "0" : null; continue; }
     const problem = trialLimitNumberProblem(limit, n);
     if (problem) throw new Error(problem);
     values[limit.name] = String(n);

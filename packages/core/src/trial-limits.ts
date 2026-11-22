@@ -17,7 +17,7 @@ export type TrialLimit = { key: TrialLimitKey; name: string; label: string; help
 /** Every Trial Limit, in the order the page shows them. */
 export const TRIAL_LIMITS: TrialLimit[] = [
   { key: "days", name: "ZIFFR_TRIAL_DAYS", label: "Days a trial lasts", min: 1, max: 30, default: 14,
-    help: "Set, it turns trials on: whoever signs in may start a Trial Workspace, and every Workspace made here is one. Remove it to turn trials off; trials that run go on until they end. Applies to trials made afterwards." },
+    help: "Set, it turns trials on: whoever signs in may start a Trial Workspace, and every Workspace made here is one. Hosted Ziffr offers trials with 14 days unless set; Ziffr Cloud sets 0 (null in its API) to switch trials off, and trials that run go on until they end. Applies to trials made afterwards." },
   { key: "graceDays", name: "ZIFFR_TRIAL_GRACE_DAYS", label: "Days a trial's data stays after it ends", min: 1, max: 60, default: 7,
     help: "After the trial ends nothing can be added, and its Owner can still download everything; then it is deleted. Applies to every trial that has ended and is waiting, too: a smaller number deletes them sooner." },
   { key: "max", name: "ZIFFR_TRIAL_MAX", label: "Trials at once", min: 1, max: 100_000, default: 500,
@@ -69,7 +69,7 @@ export function trialLimitFrom(settings: Record<string, string | undefined>, key
   return text !== undefined && trialLimitProblem(limit, text) === null ? Number(text.trim()) : limit.default;
 }
 
-/** Every Trial Limit in these settings. For the days, "set" is up to trialSettings: without them there are no trials. */
+/** Every Trial Limit in these settings. The days of 0 (trials off) are read by trialSettings. */
 export function trialLimitsFrom(settings: Record<string, string | undefined>): TrialLimitNumbers {
   return Object.fromEntries(TRIAL_LIMITS.map((l) => [l.key, trialLimitFrom(settings, l.key)])) as TrialLimitNumbers;
 }

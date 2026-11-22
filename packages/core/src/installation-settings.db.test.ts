@@ -544,6 +544,9 @@ describe("the check against bots, trials and the demo on the page (#201)", () =>
   it("offers trials on hosted Ziffr from the server's days, which the page cannot change, and every place that asks sees it", async () => {
     const a = await admin();
     process.env.ZIFFR_CLOUD_KEY = "k".repeat(32);
+    // Hosted Ziffr offers trials with the default days; 0 is the explicit off.
+    expect(await trialSettingsInEffect()).toEqual({ days: 14, max: 500 });
+    process.env.ZIFFR_TRIAL_DAYS = "0";
     expect(await trialSettingsInEffect()).toBeNull();
     process.env.ZIFFR_TRIAL_DAYS = "14";
     expect(await trialSettingsInEffect()).toEqual({ days: 14, max: 500 });

@@ -30,9 +30,9 @@ The Trial Limits are the numbers that bound every Trial Workspace (spec 0040). Z
 | Call | What it does |
 | --- | --- |
 | `GET /api/cloud/v1/trial-limits` | `{ "limits": { ... }, "sources": { ... } }`: each limit in effect, and where it comes from (`cloud`, `page`, `server` or `default`). `days` is null while trials are off. |
-| `PUT /api/cloud/v1/trial-limits` | Changes the limits it names, answering as GET does. The body is an object, at most 4 KB, and unknown names are refused. A whole number sets a limit; `null` gives it back to its default (`days`: `null` means no trials, explicitly); a limit left out stays as it is. |
+| `PUT /api/cloud/v1/trial-limits` | Changes the limits it names, answering as GET does. The body is an object, at most 4 KB, and unknown names are refused. A whole number sets a limit; `null` gives it back to its default (`days`: `null` switches trials off, explicitly); a limit left out stays as it is. |
 
-- `days`: Days a trial lasts, 1 to 30, default 14 (no trials without it). Applies to trials made afterwards.
+- `days`: Days a trial lasts, 1 to 30, default 14; `null` means 0, trials off. Applies to trials made afterwards.
 - `graceDays`: Days a trial's data stays after it ends, 1 to 60, default 7.
 - `max`: Trials at once, 1 to 100,000, default 500.
 - `metrics`: Metrics, 5 to 100, default 25.
