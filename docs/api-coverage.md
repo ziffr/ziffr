@@ -55,6 +55,8 @@ Decks, Themes, View Designs, the canvas, Packs and the pages that edit them are 
 - `previewPack` (packs.ts): Packs
 - `installPackFile` (packs.ts): Packs
 - `installPack` (packs.ts): Packs
+- `listInstalledPacks` (packs.ts): Packs
+- `packLogo` (brand-logo.ts): Packs
 - `previewValues` (paste-values.ts): pasting a table of values (the API takes values one by one)
 - `recordPastedValues` (paste-values.ts): pasting a table of values (the API takes values one by one)
 - `recordingOffer` (record-own-value.ts): the Metric page's Record a value form; a program submits through the API's own path
