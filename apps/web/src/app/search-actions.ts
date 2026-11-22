@@ -19,6 +19,8 @@ function hrefOf(r: SearchResult): string {
   switch (r.kind) {
     case "period": return periodRecordUrl(r.slug, r.period);
     case "metric": return `/metrics/${encodeURIComponent(r.slug)}`;
+    // The Metrics list filtered by the Tag (the list shows only what the person may see).
+    case "tag": return `/metrics?tag=${encodeURIComponent(r.name)}`;
     case "dashboard": return `/dashboards/${r.id}`;
     case "deck": return `/decks/${r.id}`;
     case "workflow": return `/workflows?id=${r.id}`;

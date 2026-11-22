@@ -208,8 +208,8 @@ export type Workspace = {
   reached_by: ("email" | "slack" | "telegram")[];
 };
 
-/** One thing `find` found: a Metric, or its value for one period (`period` is the period's first day, null for the Metric alone). */
-export type Found = { slug: string; name: string; archived: boolean; period: string | null; period_label: string | null };
+/** One thing `find` found: a Metric, or its value for one period (`period` is the period's first day, null for the Metric alone; `matched_by` is "tag" when a Tag of the Metric fit the words, not its name). */
+export type Found = { slug: string; name: string; archived: boolean; period: string | null; period_label: string | null; matched_by?: "tag" };
 
 /** One duty in a Schedule: a value to submit, an Approval waiting, or a Task or Question assigned to the person. */
 export type ScheduleEntry = {

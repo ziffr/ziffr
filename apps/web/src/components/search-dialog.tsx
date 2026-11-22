@@ -28,13 +28,13 @@ const PAUSE_MS = 200;
 const RECENT = 5;
 
 /** The groups of the list, in the order they are shown. */
-const GROUPS = ["Recent", "Commands", "Pages", "Metrics", "Dashboards", "Decks", "Workflows", "People", "Groups"] as const;
+const GROUPS = ["Recent", "Commands", "Pages", "Metrics", "Tags", "Dashboards", "Decks", "Workflows", "People", "Groups"] as const;
 type Group = (typeof GROUPS)[number];
 
 /** One line of the list: where it leads (`href`) or what it does (`run`). */
 type Item = { key: string; group: Group; label: string; hint?: string; archived?: boolean; href?: string; run?: () => void };
 
-const KIND_GROUP: Record<SearchRow["kind"], Group> = { command: "Commands", record: "Commands", page: "Pages", metric: "Metrics", period: "Metrics", dashboard: "Dashboards", deck: "Decks", workflow: "Workflows", person: "People", group: "Groups" };
+const KIND_GROUP: Record<SearchRow["kind"], Group> = { command: "Commands", record: "Commands", page: "Pages", metric: "Metrics", period: "Metrics", tag: "Tags", dashboard: "Dashboards", deck: "Decks", workflow: "Workflows", person: "People", group: "Groups" };
 
 /** A row from the server as a line of the list. */
 function itemOf(r: SearchRow): Item {
@@ -42,7 +42,8 @@ function itemOf(r: SearchRow): Item {
   const group = KIND_GROUP[r.kind];
   switch (r.kind) {
     case "period": return { key, group, label: `${r.name}${r.hint ? ` (${r.hint})` : ""} · ${r.label}`, hint: "Value", archived: r.archived, href: r.href };
-    case "metric": return { key, group, label: `${r.name}${r.hint ? ` (${r.hint})` : ""}`, hint: "Metric", archived: r.archived, href: r.href };
+    case "metric": return { key, group, label: `${r.name}${r.hint ? ` (${r.hint})` : ""}`, hint: r.tag ? `Tag: ${r.tag}` : "Metric", archived: r.archived, href: r.href };
+    case "tag": return { key, group, label: `Tag: ${r.name} (${r.metrics} ${r.metrics === 1 ? "Metric" : "Metrics"})`, hint: "Tag", href: r.href };
     case "record": return { key, group, label: `Record a value for ${r.name}`, href: r.href };
     case "person": return { key, group, label: r.you ? `${r.name} (you)` : r.name, hint: r.contact ? "Contact" : "Member", href: r.href };
     case "group": return { key, group, label: r.name, hint: "Group", href: r.href };
