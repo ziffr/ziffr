@@ -238,14 +238,17 @@ export async function removePersonalWebhook(actor: Actor, id: string): Promise<v
 }
 
 /** Writes the Audit Log entry, with its reason, for each Personal Webhook the database ended with its person's place in the
- * Workspace or with their account (personal_webhook_ends), and clears them. `by` is who made the change, when a person did
- * (removing a member, making a Guest); null for Ziffr itself. Best effort, as every Audit Log entry. */
-export async function recordPersonalWebhookEnds(by: string | null = null): Promise<void> {
-  const { data } = await db().from("personal_webhook_ends").select("webhook_id, workspace_id, owner_id, name, reason").order("ended_at").limit(500);
+ * Workspace or with their account (personal_webhook_ends), and clears them. With a scope (a Workspace and a person, from
+ * removing a member or making a Guest) it takes only that person's rows in that Workspace and attributes them to `by`, the
+ * person who made the change; without one (the system's sweep) it takes what is waiting, in every Workspace, as Ziffr's
+ * own. Best effort, as every Audit Log entry. */
+export async function recordPersonalWebhookEnds(scope?: { workspaceId: string; personId: string; by: string }): Promise<void> {
+  const q = db().from("personal_webhook_ends").select("webhook_id, workspace_id, owner_id, name, reason").order("ended_at").limit(500);
+  const { data } = await (scope ? q.eq("workspace_id", scope.workspaceId).eq("owner_id", scope.personId) : q);
   for (const e of data ?? []) {
     // Taken first, so two runs record it once.
     const { data: taken } = await db().from("personal_webhook_ends").delete().eq("webhook_id", String(e.webhook_id)).select("webhook_id");
     if (!taken?.length) continue;
-    await recordAudit(String(e.workspace_id), by, { kind: "webhook.personal_ended", object: { type: "webhook", id: String(e.webhook_id), name: String(e.name) }, details: { owner_id: String(e.owner_id), reason: String(e.reason) } });
+    await recordAudit(String(e.workspace_id), scope?.by ?? null, { kind: "webhook.personal_ended", object: { type: "webhook", id: String(e.webhook_id), name: String(e.name) }, details: { owner_id: String(e.owner_id), reason: String(e.reason) } });
   }
 }

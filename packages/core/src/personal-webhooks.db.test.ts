@@ -315,6 +315,21 @@ describe("the end of a person's Webhooks", () => {
     expect(events[0]).toMatchObject({ object_id: ana, details: { reason: "left", owner_id: x.ana } });
   });
 
+  it("writes an Admin's removal into that Workspace's log only, and leaves another Workspace's waiting ends to the system sweep", async () => {
+    const x = await allowed(); const y = await allowed();
+    const ana = await made(x, x.A); const yAna = await made(y, y.A);
+    await y.w.dropMember(y.ana);
+    await removeMember(x.O, x.ana, x.owner);
+    const { openRows } = await import("./sealed-columns");
+    const log = async (w: { id: string }) => (await openRows("audit_events", w.id, ((await db().from("audit_events").select("id, actor_id, object_id, details").eq("workspace_id", w.id).eq("kind", "webhook.personal_ended")).data ?? []) as Record<string, unknown>[]));
+    expect((await log(x.w)).map((e) => [e.object_id, e.actor_id])).toEqual([[ana, x.owner]]);
+    // Nothing of the other Workspace is written under the Admin's name; the system's sweep (which may also have run in
+    // another test) writes it as Ziffr's own.
+    expect((await log(y.w)).every((e) => e.actor_id === null)).toBe(true);
+    await recordPersonalWebhookEnds();
+    expect((await log(y.w)).map((e) => [e.object_id, e.actor_id])).toEqual([[yAna, null]]);
+  });
+
   it("ends when the person becomes a Guest, not when they change between the roles that may have one", async () => {
     const x = await allowed();
     const ana = await made(x, x.A);
