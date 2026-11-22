@@ -9,7 +9,7 @@ import { setCloudLimit } from "./cloud-api";
 import { db } from "./db";
 import { mailHostResolver } from "./mail-hosts";
 import { workspace } from "./test/db-fixtures";
-import { createViewLink } from "./view-links";
+import { createViewLink, openViewLink } from "./view-links";
 import { createWebhook } from "./webhooks";
 
 vi.setConfig({ testTimeout: 120_000, hookTimeout: 60_000 });
@@ -58,6 +58,14 @@ describe("a View Link made in a trial", () => {
     const t = await trial(-1);
     await expect(createViewLink(t.ownerActor, "dashboard", t.dashboardId, { label: "x", expires: day(1), frozen: false })).rejects.toBeInstanceOf(Forbidden);
     expect(await ends(t.id)).toEqual([]);
+  });
+
+  it("shows nothing once the trial has ended, though the link's last day is not over", async () => {
+    const t = await trial(5);
+    const token = await createViewLink(t.ownerActor, "dashboard", t.dashboardId, { label: "a", expires: day(5), frozen: false });
+    expect(await openViewLink(token)).not.toBeNull();
+    await db().from("workspaces").update({ trial_ends_at: new Date(Date.now() - 3_600_000).toISOString() }).eq("id", t.id);
+    expect(await openViewLink(token)).toBeNull();
   });
 
   it("keeps the end date it was made with when the trial is subscribed to, and an ordinary Workspace is not clamped", async () => {

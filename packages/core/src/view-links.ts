@@ -27,7 +27,7 @@ import { keptMethod } from "./attainment-method";
 import { normalizeMetric } from "./metric-row";
 import { numberStyleOf } from "./workspace-settings";
 import { effectiveLimit } from "./limits";
-import { trialLastDay, trialLimitMessage } from "./trials";
+import { trialEnded, trialLastDay, trialLimitMessage } from "./trials";
 import type { CanvasData, Widget } from "./types";
 
 /** How long a View Link may live at most, in days: the ceiling; a Workspace may set a shorter life (limits.ts). */
@@ -219,6 +219,8 @@ async function openLinkContent(token: string, opts: { count?: boolean }): Promis
   if (!/^[A-Za-z0-9_-]{20,64}$/.test(String(token))) return null;
   const { data: link } = await db().from("view_links").select("*").eq("token", token).maybeSingle();
   if (!link || link.revoked_at || link.expires_at < new Date().toISOString().slice(0, 10)) return null;
+  // A link of a trial that has ended shows nothing, though its last day may run to midnight (never outlives the trial).
+  if (await trialEnded(String(link.workspace_id))) return null;
   // A Snapshot's link counts for its dashboard (object_id); recordView ignores an id that is gone.
   if (opts.count && (link.object_type === "dashboard" || link.object_type === "deck")) {
     void recordView({ workspaceId: String(link.workspace_id) }, { kind: link.object_type, id: Number(link.object_id) }, "link");

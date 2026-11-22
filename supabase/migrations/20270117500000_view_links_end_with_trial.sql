@@ -6,8 +6,9 @@ create or replace function view_links_in_trial() returns trigger
 language plpgsql security definer set search_path = public as $$
 declare ends timestamptz;
 begin
-  select trial_ends_at into ends from workspaces where id = new.workspace_id for update;
-  if ends is null then return new; end if;
+  perform 1 from workspaces where id = new.workspace_id and trial_ends_at is not null for update;
+  if not found then return new; end if;
+  select trial_ends_at into ends from workspaces where id = new.workspace_id;
   -- A link works through its last day (UTC): never a day past the trial's.
   new.expires_at := least(new.expires_at, (ends at time zone 'UTC')::date);
   if (select count(*) from view_links where workspace_id = new.workspace_id and revoked_at is null and expires_at >= current_date) >= (trial_limit_numbers()).view_links then
