@@ -2,13 +2,16 @@
 // once per crossing, to the person's own Webhook only, judged at send time (the person's sight, the Alert still naming the
 // Webhook, the value still meeting its condition), through the real send to a TLS server of the test's own.
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
-import { Forbidden } from "./actor";
+import { Forbidden, type KeyActor } from "./actor";
+import { createAlertWithKey, updateAlertWithKey } from "./api-alerts";
 import { AlertRefused, alertWebhookChoices, createAlert, listMyAlerts, updateAlert } from "./alerts";
 import { db } from "./db";
 import { createPersonalWebhook, deletePersonalWebhook, setPersonalWebhooksAllowed } from "./personal-webhooks";
 import { hasOpenssl, startReceiver } from "./test/tls-receiver";
 import { workspace } from "./test/db-fixtures";
+import { JANUARY, periodStart } from "./periods";
 import { onValue } from "./workflow-engine";
+import { saveWorkflow, setMetricWorkflow } from "./workflows";
 import { sendWaitingWebhooks } from "./webhook-send";
 
 vi.setConfig({ testTimeout: 180_000, hookTimeout: 60_000 });
@@ -70,6 +73,14 @@ describe("naming a Personal Webhook on an Alert", () => {
     expect(await alertWebhookChoices(x.A)).toEqual([{ id: x.hook.id, name: "Ann's", hearsAlerts: true }]);
     await setPersonalWebhooksAllowed(x.w.actor(x.sara), false);
     expect(await alertWebhookChoices(x.A)).toEqual([]);
+  });
+
+  it("cannot be set through a key: the API's closed field list drops it, so a key's Alert names none", async () => {
+    const x = await setup();
+    const key: KeyActor = { personId: x.ann, workspaceId: x.w.id, role: "member", key: { id: "k", scopes: ["alerts:write", "metrics:read"] } };
+    const made = await createAlertWithKey(key, { metric: x.m.slug, condition: above("100"), webhookIds: [x.hook.id] } as never);
+    await updateAlertWithKey(key, made.id, { paused: false, webhookIds: [x.hook.id] } as never);
+    expect((await listMyAlerts(x.A))[0].webhookIds).toEqual([]);
   });
 
   it("refuses an Alert on a missing value, which has no value to send", async () => {
@@ -161,6 +172,32 @@ describe.skipIf(!hasOpenssl)("alert.fired to a Personal Webhook", () => {
     // The value corrected below the level meanwhile.
     await fire();
     await x.w.value(x.m.id, P(2), 50, x.sara);
+    await sendWaitingWebhooks(50, x.w.id);
+    expect(rx.seen).toHaveLength(0);
+  });
+
+  it("never sends the waiting value of a Derived Metric, not even to its owner who asked for such values", async () => {
+    const x = await setup();
+    const ada = await x.w.person("admin");
+    const flow = await saveWorkflow(x.w.actor(x.sara), null, "Close", { dueWorkingDays: 2, steps: [{ type: "approve", approvers: [ada], values: "every" }, { type: "publish", lock: false }] });
+    const input = await x.w.metric(x.sara, { name: "Input" });
+    await setMetricWorkflow(x.w.actor(x.sara), input.id, flow);
+    await db().from("shares").insert({ workspace_id: x.w.id, object_type: "metric", object_id: input.id, user_id: x.ann, role: "viewer" });
+    // Ann owns the Derived Metric but neither owns nor approves its waiting input.
+    const derived = await x.w.metric(x.ann, { name: "Doubled", formula: `{${input.slug}} * 2` });
+    await createAlert(x.A, { metricId: derived.id, condition: above("10"), includeUnapproved: true, webhookIds: [x.hook.id] });
+    const period = periodStart(new Date(), "month", JANUARY);
+    await x.w.value(input.id, period, 50, x.sara);
+    await onValue(input.id, period, x.sara, {});
+    await sendWaitingWebhooks(50, x.w.id);
+    expect(rx.seen).toHaveLength(0);
+  });
+
+  it("does not announce a crossing the Alert no longer holds: an edited condition arms it again", async () => {
+    const x = await setup();
+    const id = await createAlert(x.A, { metricId: x.m.id, condition: above("100"), webhookIds: [x.hook.id] });
+    await x.put(P(2), 120);
+    await updateAlert(x.A, id, { condition: above("110") });
     await sendWaitingWebhooks(50, x.w.id);
     expect(rx.seen).toHaveLength(0);
   });

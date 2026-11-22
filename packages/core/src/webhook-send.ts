@@ -144,8 +144,11 @@ async function personalValueMessage(send: Send, env: Omit<MessageEnvelope, "repl
 async function personalAlertFired(send: Send, env: Omit<MessageEnvelope, "replyText">, metric: { id: number; name: string }, period: string, personId: string): Promise<{ full: WebhookMessage; redacted: null } | null> {
   const ws = send.workspace_id;
   if (send.alert_id === null || !period) return null;
-  const { data } = await db().from("alerts").select("id, person_id, metric_id, kind, level, include_unapproved, paused, paused_by_person, webhook_ids").eq("id", send.alert_id).eq("workspace_id", ws).eq("person_id", personId).maybeSingle();
+  const { data } = await db().from("alerts").select("id, person_id, metric_id, kind, level, include_unapproved, paused, paused_by_person, webhook_ids, state, fired_period").eq("id", send.alert_id).eq("workspace_id", ws).eq("person_id", personId).maybeSingle();
   if (!data || data.metric_id !== metric.id || data.paused !== null || data.paused_by_person || !((data.webhook_ids as string[] | null) ?? []).includes(send.webhook_id)) return null;
+  // The crossing this send was queued for is still the Alert's own: an edited condition arms it again, and a value that fell
+  // back ends the crossing, so what is announced is never one that did not happen (the condition that fired, not a new one).
+  if (data.state !== "fired" || data.fired_period !== period) return null;
   const [alert] = await openRows("alerts", ws, [data as Record<string, unknown>]);
   const c = alertConditionOf({ kind: alert.kind as never, level: (alert.level as string | null) ?? null });
   if (!c || c.kind === "missing_after_due") return null;
