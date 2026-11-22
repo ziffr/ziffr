@@ -52,10 +52,10 @@ export async function readUninstallPlan(installId: number) {
   return attempt(async () => readUninstall(await currentActor(), Number(installId)));
 }
 
-/** Uninstalls a Pack: removes what nobody changed and nothing uses, keeps the rest. */
-export async function uninstall(installId: number) {
+/** Uninstalls a Pack: removes what nobody changed and nothing uses, keeps the rest; with `removeLogo`, the kept Themes lose the Pack's logo. */
+export async function uninstall(installId: number, removeLogo?: boolean) {
   return attempt(async () => {
-    const plan = await uninstallPack(await currentActor(), Number(installId));
+    const plan = await uninstallPack(await currentActor(), Number(installId), { removeLogo: removeLogo === true });
     revalidatePath("/", "layout");
     return plan;
   });

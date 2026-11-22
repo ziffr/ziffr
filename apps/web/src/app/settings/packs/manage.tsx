@@ -43,6 +43,8 @@ export function PackActions({ installId, name }: { installId: number; name: stri
   const [okUnsigned, setOkUnsigned] = useState(false);
   const [okAssistant, setOkAssistant] = useState(false);
   const [leaving, setLeaving] = useState<UninstallPlan | null>(null);
+  // Ticked by default: the relationship that put the publisher's logo there ends with the uninstall (spec 0039).
+  const [dropLogo, setDropLogo] = useState(true);
   const run = (f: () => Promise<void>) => start(async () => { try { await f(); } catch (e) { toast.error("Not done", { description: shown(e) }); } });
   const close = () => { setText(null); setPlan(null); setProblems([]); setOkUnsigned(false); setOkAssistant(false); if (input.current) input.current.value = ""; };
   const read = (f: File | undefined) => {
@@ -61,7 +63,7 @@ export function PackActions({ installId, name }: { installId: number; name: stri
     <div className="mt-3 flex flex-wrap gap-2">
       <input ref={input} type="file" accept="application/json,.json" className="hidden" onChange={(e) => read(e.target.files?.[0])} />
       <Button variant="outline" size="sm" disabled={pending} onClick={() => input.current?.click()}><RefreshCw aria-hidden /> Update from a file…</Button>
-      <Button variant="outline" size="sm" disabled={pending} onClick={() => run(async () => setLeaving(unwrap(await readUninstallPlan(installId))))}><Trash2 aria-hidden /> Uninstall…</Button>
+      <Button variant="outline" size="sm" disabled={pending} onClick={() => run(async () => { setDropLogo(true); setLeaving(unwrap(await readUninstallPlan(installId))); })}><Trash2 aria-hidden /> Uninstall…</Button>
       <Problems problems={problems} />
 
       <Dialog open={!!plan} onOpenChange={(o) => { if (!o) close(); }}>
@@ -113,10 +115,16 @@ export function PackActions({ installId, name }: { installId: number; name: stri
               <div><p className="font-medium">Removed</p>{leaving.remove.length ? <ul className="list-disc pl-5">{leaving.remove.map((r, i) => <li key={i}>{r.name} <span className="text-muted-foreground">({KIND[r.kind]})</span></li>)}</ul> : <p className="text-muted-foreground">Nothing.</p>}</div>
               <div><p className="font-medium">Kept, no longer from the Pack</p>{leaving.keep.length ? <ul className="list-disc pl-5">{leaving.keep.map((k, i) => <li key={i}>{k.name} <span className="text-muted-foreground">({KIND[k.kind]}, {k.why === "changed" ? "changed here" : "in use"})</span></li>)}</ul> : <p className="text-muted-foreground">Nothing.</p>}</div>
             </div>
+            {leaving.logo && (
+              <label className="flex items-start gap-2 rounded-[var(--radius-input)] border border-input p-2.5 text-sm">
+                <input type="checkbox" checked={dropLogo} onChange={(e) => setDropLogo(e.target.checked)} className="mt-0.5 accent-[var(--color-ink)]" />
+                <span>Also remove {leaving.logo.author}&rsquo;s logo from {leaving.logo.themes.length === 1 ? "this Theme" : "these Themes"}: {leaving.logo.themes.join(", ")}. A Theme whose logo is exactly the same picture counts as the Pack&rsquo;s; a different logo you chose stays.</span>
+              </label>
+            )}
             {leaving.blocked && <p role="alert" className="text-sm font-medium">{leaving.blocked}</p>}
             <div className="flex justify-end gap-2">
               <Button variant="outline" onClick={() => setLeaving(null)}>Cancel</Button>
-              <Button variant="destructive" disabled={!!leaving.blocked || pending} onClick={() => run(async () => { unwrap(await uninstall(installId)); toast.success(`${name} uninstalled`); setLeaving(null); router.refresh(); })}>Uninstall</Button>
+              <Button variant="destructive" disabled={!!leaving.blocked || pending} onClick={() => run(async () => { unwrap(await uninstall(installId, !!leaving.logo && dropLogo)); toast.success(`${name} uninstalled`); setLeaving(null); router.refresh(); })}>Uninstall</Button>
             </div>
           </DialogContent>
         )}

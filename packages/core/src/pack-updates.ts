@@ -12,6 +12,7 @@ import { cleanLogo, PACK_LOGO_MAX_BYTES } from "@ziffr/pack/logo";
 import { assertManages, itemHash, packLogoOf, safeLogo, themeHashInput, itemKeys, manifestOf, PACK_CAPS, storedItems, type PackOrigin } from "./packs";
 import { packLogoAddress } from "./brand-logo";
 import { ensureBaseline, recordVersion } from "./versions";
+import type { ThemeSlides } from "./types";
 
 /** Where an installed item lives. */
 type Table = "catalog" | "templates" | "designs" | "themes";
@@ -22,7 +23,7 @@ const CATALOG_FIELDS = ["category", "name", "description", "unit", "unit_positio
 export type ItemKind = "metric" | "dashboard" | "deck" | "workflow" | "view" | "theme";
 
 /** One copy of an installed item in the Workspace: where it is, the hash it was installed with, and its hash now. */
-type Copy = { table: Table; id: number; key: string; kind: ItemKind; name: string; installedHash: string; currentHash: string; offer: unknown; updatedAt: string | null; };
+type Copy = { table: Table; id: number; key: string; kind: ItemKind; name: string; installedHash: string; currentHash: string; offer: unknown; updatedAt: string | null; /** A Theme whose logo is exactly the Pack's. */ holdsPackLogo: boolean };
 
 /** What is hashed of a stored row: exactly what installing hashed (packs.ts storedItems), read back from the database. */
 function stored(table: Table, r: Record<string, unknown>, ownThemes: ReadonlySet<number>, packLogo: string | null): unknown {
@@ -73,7 +74,7 @@ async function copiesOf(actor: Actor, installId: number): Promise<Copy[]> {
     if (error) throw new Error("The Pack's items could not be read.");
     for (const r of (data ?? []) as unknown as Record<string, unknown>[]) {
       if (table === "themes") ownThemes.add(Number(r.id));
-      out.push({ table, id: Number(r.id), key: String(r.pack_key), kind: kindOf(table, r), name: String(r.name), installedHash: String(r.pack_hash), currentHash: itemHash(stored(table, r, ownThemes, packLogo)), offer: r.pack_offer ?? null, updatedAt: (r.updated_at as string | null) ?? null });
+      out.push({ table, id: Number(r.id), key: String(r.pack_key), kind: kindOf(table, r), name: String(r.name), installedHash: String(r.pack_hash), currentHash: itemHash(stored(table, r, ownThemes, packLogo)), offer: r.pack_offer ?? null, updatedAt: (r.updated_at as string | null) ?? null, holdsPackLogo: table === "themes" && packLogo !== null && (r.slides as { logo?: unknown } | null)?.logo === packLogo });
     }
   }
   return out;
@@ -159,6 +160,8 @@ async function planUpdate(actor: Actor, installId: number, text: string) {
   const inUse = await themesInUse(actor, copies.filter((c) => c.table === "themes").map((c) => c.id));
   const ops: Ops = { ...Object.fromEntries((Object.keys(TABLE) as Table[]).map((t) => [t, { insert: [], replace: [], offer: [], delete: [], unmark: [] }])), guard: [] } as unknown as Ops;
   const items: UpdateItem[] = [];
+  // The logo the Pack had until now, noted with a Theme's offer so that taking it later still knows what was the Pack's.
+  const oldLogo = install.manifest.logo === undefined ? null : cleanLogo(install.manifest.logo, PACK_LOGO_MAX_BYTES);
   const leave = (c: Copy, change: UpdateItem["change"]) => {
     const changedHere = c.currentHash !== c.installedHash;
     const keep = changedHere || (c.table === "themes" && inUse.has(c.id));
@@ -184,7 +187,7 @@ async function planUpdate(actor: Actor, installId: number, text: string) {
       ops.guard.push(...guardOf(c));
       items.push({ key: n.key, kind: n.kind, name: n.name, change: "changed", changedHere, outcome: "replace" });
     } else {
-      ops[n.table].offer.push({ id: c.id, offer: n.row });
+      ops[n.table].offer.push({ id: c.id, offer: n.table === "themes" ? { ...n.row, pack_logo_before: oldLogo } : n.row });
       items.push({ key: n.key, kind: n.kind, name: c.name, change: "changed", changedHere, outcome: "offer" });
     }
   }
@@ -193,7 +196,7 @@ async function planUpdate(actor: Actor, installId: number, text: string) {
     : !versionBelow(install.version, pack.version) ? `This file is version ${pack.version}; ${install.version} is installed. An update needs a higher version.`
       : (copies.some((c) => c.table === "themes") || next.themes.length) && actor.role !== "owner" ? "This Pack holds Themes, and only Owners change Themes: an Owner updates it."
         : await overCaps(actor, ops);
-  const was = install.manifest.logo === undefined ? null : cleanLogo(install.manifest.logo, PACK_LOGO_MAX_BYTES);
+  const was = oldLogo;
   const now = safeLogo(pack);
   const logo = { before: packLogoAddress(actor.workspaceId, installId, install.manifest.logo), after: now, changed: was !== now };
   const plan: UpdatePlan = { from: install.version, to: pack.version, name: pack.name, author: pack.author.name, major: pack.version.split(".")[0] !== install.version.split(".")[0], items, assistantTexts: res.assistantTexts.map(({ path, text: t }) => ({ path, text: t })), logo, blocked };
@@ -239,22 +242,30 @@ export async function updatePack(actor: Actor, installId: number, text: string, 
 }
 
 /** What uninstalling would remove and keep, and why each kept item stays. */
-export type UninstallPlan = { name: string; version: string; remove: { kind: ItemKind; name: string }[]; keep: { kind: ItemKind; name: string; why: "changed" | "in use" }[]; blocked: string | null };
+export type UninstallPlan = {
+  name: string; version: string; remove: { kind: ItemKind; name: string }[]; keep: { kind: ItemKind; name: string; why: "changed" | "in use" }[];
+  /** The Themes that are kept and still show the Pack's own logo, and whose logo it is (spec 0039): the page offers to take it out. */
+  logo: { author: string; themes: string[] } | null;
+  blocked: string | null;
+};
 
 async function planUninstall(actor: Actor, installId: number) {
   assertManages(actor);
   const install = await installOf(actor, installId);
   const copies = await copiesOf(actor, installId);
   const inUse = await themesInUse(actor, copies.filter((c) => c.table === "themes").map((c) => c.id));
-  const plan: UninstallPlan = { name: install.manifest.name, version: install.version, remove: [], keep: [], blocked: null };
+  const plan: UninstallPlan = { name: install.manifest.name, version: install.version, remove: [], keep: [], logo: null, blocked: null };
+  const logoThemes: { id: number; name: string }[] = [];
   const del: Record<Table, number[]> & { guard: Guard[] } = { catalog: [], templates: [], designs: [], themes: [], guard: [] };
   for (const c of copies) {
     if (c.currentHash !== c.installedHash) plan.keep.push({ kind: c.kind, name: c.name, why: "changed" });
     else if (c.table === "themes" && inUse.has(c.id)) plan.keep.push({ kind: c.kind, name: c.name, why: "in use" });
-    else { plan.remove.push({ kind: c.kind, name: c.name }); del[c.table].push(c.id); del.guard.push(...guardOf(c)); }
+    else { plan.remove.push({ kind: c.kind, name: c.name }); del[c.table].push(c.id); del.guard.push(...guardOf(c)); continue; }
+    if (c.holdsPackLogo) logoThemes.push({ id: c.id, name: c.name });
   }
+  if (logoThemes.length) plan.logo = { author: install.manifest.author.name, themes: logoThemes.map((t) => t.name) };
   if (copies.some((c) => c.table === "themes") && actor.role !== "owner") plan.blocked = "This Pack holds Themes, and only Owners change Themes: an Owner uninstalls it.";
-  return { plan, del, install };
+  return { plan, del, install, logoThemes };
 }
 
 /** What uninstalling an installed Pack would do (Owners and Admins); nothing is written. */
@@ -263,13 +274,30 @@ export async function readUninstall(actor: Actor, installId: number): Promise<Un
 }
 
 /** Uninstalls a Pack: removes what nobody changed and nothing uses, keeps the rest without its mark. One database step;
- * audited. Metrics and everything else made from the Pack stay as they are. */
-export async function uninstallPack(actor: Actor, installId: number): Promise<UninstallPlan> {
-  const { plan, del, install } = await planUninstall(actor, Number(installId));
+ * audited. Metrics and everything else made from the Pack stay as they are. With `removeLogo`, the kept Themes that still
+ * show the Pack's logo, exactly, lose it afterwards; a logo the Workspace chose is never touched (spec 0039). */
+export async function uninstallPack(actor: Actor, installId: number, opts: { removeLogo?: boolean } = {}): Promise<UninstallPlan> {
+  const { plan, del, install, logoThemes } = await planUninstall(actor, Number(installId));
   if (plan.blocked) throw new Forbidden(plan.blocked);
   const { error } = await db().rpc("uninstall_pack", { p_workspace: actor.workspaceId, p_install: Number(installId), p_delete: del });
   if (error) throw new Error(error.code === "40001" ? "Something of this Pack changed meanwhile; look at what uninstalling does again." : "The Pack could not be uninstalled; nothing was changed.");
-  await audit(actor, { kind: "pack.uninstalled", object: { type: "pack", id: Number(installId), name: plan.name }, details: { pack: install.pack_id, version: install.version, removed: plan.remove.length, kept: plan.keep.length } });
+  let logoRemoved = 0;
+  if (opts.removeLogo === true && logoThemes.length) {
+    const packLogo = cleanLogo(install.manifest.logo, PACK_LOGO_MAX_BYTES);
+    for (const t of logoThemes) {
+      // Read again just before: only a logo that still equals the Pack's goes, whatever happened since the plan.
+      const { data } = await db().from("themes").select("slides, updated_at").eq("id", t.id).eq("workspace_id", actor.workspaceId).maybeSingle();
+      const slides = data?.slides as ThemeSlides | null;
+      if (!data || !packLogo || !slides || slides.logo !== packLogo) continue;
+      // Only if nobody saved the Theme since it was read: an edit made meanwhile is never overwritten.
+      try {
+        await ensureBaseline("theme", t.id, actor.personId);
+        const { data: done } = await db().from("themes").update({ slides: { ...slides, logo: null, logo_ratio: 3 }, updated_at: new Date().toISOString() }).eq("id", t.id).eq("workspace_id", actor.workspaceId).eq("updated_at", data.updated_at as string).select("id");
+        if (done?.length) { await recordVersion("theme", t.id, actor.personId, { message: "Removed the uninstalled Pack's logo" }); logoRemoved++; }
+      } catch { /* the Theme stays as it is */ }
+    }
+  }
+  await audit(actor, { kind: "pack.uninstalled", object: { type: "pack", id: Number(installId), name: plan.name }, details: { pack: install.pack_id, version: install.version, removed: plan.remove.length, kept: plan.keep.length, ...(opts.removeLogo === true && logoThemes.length ? { logo_removed_from: logoRemoved } : {}) } });
   return plan;
 }
 
@@ -299,8 +327,8 @@ export async function takeNewVersion(actor: Actor, table: "templates" | "themes"
   assertManages(actor);
   if (table === "themes" && actor.role !== "owner") throw new Forbidden("Only Owners change Themes.");
   if (table !== "templates" && table !== "themes") throw new Forbidden();
-  const { data } = await db().from(TABLE[table]).select(table === "templates" ? "id, owner_id, pack_install_id, pack_offer" : "id, pack_install_id, pack_offer").eq("id", Number(id)).eq("workspace_id", actor.workspaceId).maybeSingle();
-  const row = data as { owner_id?: string; pack_install_id: number | null; pack_offer: unknown } | null;
+  const { data } = await db().from(TABLE[table]).select(table === "templates" ? "id, owner_id, pack_install_id, pack_offer" : "id, pack_install_id, pack_offer, slides, updated_at").eq("id", Number(id)).eq("workspace_id", actor.workspaceId).maybeSingle();
+  const row = data as { owner_id?: string; pack_install_id: number | null; pack_offer: unknown; slides?: { logo?: unknown; logo_ratio?: unknown } | null; updated_at?: string | null } | null;
   if (!row?.pack_offer || !row.pack_install_id) throw new Forbidden();
   // Only a template's creator changes it (or an Owner): an Admin does not overwrite someone else's edit.
   if (table === "templates" && row.owner_id !== actor.personId && actor.role !== "owner") throw new Forbidden("Only whoever installed the Pack, or an Owner, takes a new version of its templates.");
@@ -308,7 +336,15 @@ export async function takeNewVersion(actor: Actor, table: "templates" | "themes"
   const type = table === "themes" ? "theme" : "template";
   await ensureBaseline(type, Number(id), actor.personId);
   let update: Record<string, unknown>;
-  if (table === "themes") update = { name: o.name, tokens: o.tokens, slides: o.slides };
+  if (table === "themes") {
+    // A logo the Workspace set, or removed from what the Pack had, stays: the new version never replaces it (spec 0039).
+    // Only a Theme still showing the old Pack's logo, or one that never had a logo, takes the new version's.
+    // The old Pack's logo is noted in the offer when it was made (the install's own record already holds the new one).
+    const oldPack = typeof o.pack_logo_before === "string" ? cleanLogo(o.pack_logo_before, PACK_LOGO_MAX_BYTES) : null;
+    const cur = typeof row.slides?.logo === "string" ? row.slides.logo : "";
+    const keepLogo = cur ? cur !== oldPack : oldPack !== null;
+    update = { name: o.name, tokens: o.tokens, slides: keepLogo ? { ...(o.slides as object), logo: cur || null, logo_ratio: typeof row.slides?.logo_ratio === "number" ? row.slides.logo_ratio : 3 } : o.slides };
+  }
   else {
     let body = o.body as Record<string, unknown>;
     // A Deck Template's Theme, by its key in the Pack: the Theme installed with it, if the Workspace still has it.
@@ -318,7 +354,10 @@ export async function takeNewVersion(actor: Actor, table: "templates" | "themes"
     }
     update = { name: o.name, description: o.description, slots: o.slots, body };
   }
-  const { error } = await db().from(TABLE[table]).update({ ...update, pack_hash: o.hash, pack_offer: null, updated_at: new Date().toISOString() }).eq("id", Number(id)).eq("workspace_id", actor.workspaceId).eq("pack_install_id", row.pack_install_id).not("pack_offer", "is", null);
-  if (error) throw new Error("The new version could not be taken.");
+  let q = db().from(TABLE[table]).update({ ...update, pack_hash: o.hash, pack_offer: null, updated_at: new Date().toISOString() }).eq("id", Number(id)).eq("workspace_id", actor.workspaceId).eq("pack_install_id", row.pack_install_id).not("pack_offer", "is", null);
+  // A Theme saved since it was read (its logo included) is not overwritten.
+  if (table === "themes" && row.updated_at) q = q.eq("updated_at", row.updated_at);
+  const { error, data: done } = await q.select("id");
+  if (error || (table === "themes" && !done?.length)) throw new Error("The new version could not be taken.");
   await recordVersion(type, Number(id), actor.personId, { message: "Took the Pack's new version" });
 }
