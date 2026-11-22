@@ -41,7 +41,7 @@ const ICONS: Record<string, React.ReactNode> = {
 };
 
 /** The user menu's pages (#529): the person's own pages without My schedule, which has a row of its own, plus Connected assistants. */
-const YOUR_PAGES: NavItem[] = [...YOU.filter((l) => l.href !== "/schedule"), { href: "/settings/assistants", label: "Connected assistants" }];
+const YOUR_PAGES: NavItem[] = [...YOU.filter((l) => l.href !== "/schedule"), { href: "/settings/assistants", label: "Connected assistants" }, { href: "/settings/your-webhooks", label: "Your Webhooks" }];
 
 /** The same pages in the demo (#528), read-only as the demo is. Without Connected assistants: they connect to real workspaces only. */
 const DEMO_PAGES: NavItem[] = YOU.filter((l) => l.href !== "/schedule");

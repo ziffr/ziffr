@@ -1,5 +1,5 @@
 <!-- part: Screen by screen -->
-<!-- screens: apps/web/src/app/settings/workspace/**, apps/web/src/app/settings/keys/**, apps/web/src/app/settings/feeds/**, apps/web/src/app/settings/webhooks/**, apps/web/src/app/settings/size/**, apps/web/src/app/settings/usage/**, apps/web/src/app/settings/page.tsx, apps/web/src/components/app-shell.tsx, apps/web/src/app/team/**, apps/web/src/app/connectors/**, apps/web/src/app/try/**, apps/web/src/app/sources/**, apps/web/src/app/audit/**, apps/web/src/app/welcome/**, apps/web/src/app/invite/**, apps/web/src/components/settings-nav.tsx, apps/web/src/lib/settings-links.ts -->
+<!-- screens: apps/web/src/app/settings/workspace/**, apps/web/src/app/settings/keys/**, apps/web/src/app/settings/feeds/**, apps/web/src/app/settings/webhooks/**, apps/web/src/app/settings/your-webhooks/**, apps/web/src/app/settings/size/**, apps/web/src/app/settings/usage/**, apps/web/src/app/settings/page.tsx, apps/web/src/components/app-shell.tsx, apps/web/src/app/team/**, apps/web/src/app/connectors/**, apps/web/src/app/try/**, apps/web/src/app/sources/**, apps/web/src/app/audit/**, apps/web/src/app/welcome/**, apps/web/src/app/invite/**, apps/web/src/components/settings-nav.tsx, apps/web/src/lib/settings-links.ts -->
 # Workspace settings
 
 A **Workspace** is your team's own space in Ziffr. This chapter goes through its pages one by one: how a Workspace starts, how people join it, and every page behind the **Workspace** row of the sidebar.
@@ -476,7 +476,7 @@ Only Owners and Admins see Feed Keys and their Access Logs.
 
 **Workspace → Webhooks** is for Owners and Admins only. Others see a note to ask an Owner or Admin. The demo has no Webhooks. A trial may add Webhooks within smaller limits, which are Trial Limits (by default 2 Webhooks and 200 sends a day; the Try it guide shows the number in force, and offers none where trials may have no Webhooks), and only to public addresses (the private hosts an operator allows for other Workspaces never apply to a trial). Whoever runs this Ziffr can switch Webhooks off for trials (Installation settings, Trials); then a trial cannot add one and those it has send nothing.
 
-A **Webhook** is an address outside Ziffr that gets a signed message when something happens here, such as a task given or done. A program at that address, such as n8n, passes it on to another system. It belongs to the Workspace and keeps working when the person who set it up leaves. A Workspace can have five Webhooks and they send at most 10,000 messages a day, unless the person who runs this Ziffr has set other numbers under **Sending limits** in the [Installation settings](18-installation-settings.md); the page shows the numbers in force. Lowering them never removes a Webhook that exists.
+In the app this list is headed **Workspace Webhooks**. A **Webhook** is an address outside Ziffr that gets a signed message when something happens here, such as a task given or done. A program at that address, such as n8n, passes it on to another system. It belongs to the Workspace and keeps working when the person who set it up leaves. A Workspace can have five Webhooks and they send at most 10,000 messages a day, unless the person who runs this Ziffr has set other numbers under **Sending limits** in the [Installation settings](18-installation-settings.md); the page shows the numbers in force. Lowering them never removes a Webhook that exists.
 
 Messages leave Ziffr in **clear text over TLS**. Workspace Keys seal data in the database, not on its way out, and the receiving system keeps what it gets as it sees fit. This is not end-to-end encryption, and the page says so above the list. A message holds only what everyone in the Workspace may see; other things reach the Webhook with their words left out.
 
@@ -509,6 +509,14 @@ Under each Webhook, **Log** lists its sends of the last 14 days: when, the event
 
 Every change to a Webhook is in the [Audit log](#audit-log), and the other Owners get an email.
 
+
+### Personal Webhooks
+
+Below the Workspace's own Webhooks, **Workspace → Webhooks** has a second list, **Personal Webhooks**, and the switch **People may add their own Webhooks**. A **Personal Webhook** is an address that one person adds for themselves under **You → Your Webhooks** (see [Signing in and your own settings](17-your-settings.md#your-webhooks)). It hears only what that person may see at the moment it is sent, and it acts as them.
+
+The switch is **off** until an Owner or Admin switches it on, for every Workspace. Switching it off **pauses** every Personal Webhook: nothing is sent to them, what happens in the meantime is not sent later, and each person's page says why. Switching it on again resumes them. Both are in the [Audit log](#audit-log).
+
+The list shows every Personal Webhook of the Workspace: whose it is, its name, the address masked (the host and the first characters of the path), what it hears, whether it is on, and when it last sent. Under each, **Log** shows the statuses and times of its sends, never the messages: what was sent is the person's. **Remove** deletes one after asking; its person is told, naming who removed it, and the Audit log records it. A Personal Webhook also ends when its person leaves the Workspace.
 ## Usage
 
 **Workspace → Usage** is for Owners and Admins; Members and Guests do not see it, and the demo has none, because it counts nothing. It shows what could be tidied up, as lists with the reason beside each name:
