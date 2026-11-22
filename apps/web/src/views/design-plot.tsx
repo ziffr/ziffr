@@ -3,7 +3,7 @@
 // core worked out (design-view.tsx). The look of each mark comes from Theme tokens; how a span still running or one
 // with gaps is drawn (dotted, open, hatched, spec 0018) is Ziffr's rule, the same in every design.
 import { useId, useRef } from "react";
-import { Area, Bar, CartesianGrid, Cell, ComposedChart, Line, ReferenceArea, ReferenceLine, ResponsiveContainer, Scatter, Tooltip, XAxis, YAxis, ZAxis } from "recharts";
+import { Area, Bar, CartesianGrid, Cell, ComposedChart, Line, ReferenceArea, ReferenceDot, ReferenceLine, ResponsiveContainer, Scatter, Tooltip, XAxis, YAxis, ZAxis } from "recharts";
 import { axisLabels, compactValue, formatValue, health, niceAxis } from "@ziffr/core/format";
 import { formatOutput } from "@ziffr/core/design-analysis";
 import { commonPeriod } from "@ziffr/core/correlation";
@@ -12,6 +12,7 @@ import { periodLabel } from "@ziffr/core/periods";
 import type { Part, PlotMark, Tone } from "@ziffr/core/view-design";
 import type { DesignValues } from "./design-view";
 import { useWidgetScale } from "./widget-scale";
+import { sparklineContext, type SparklineContext } from "./sparkline-context";
 
 type Plot = Extract<Part, { mark: "plot" }>;
 // A recipe output is kept on its row under "recipe:" and the step, never under a name a value could have.
@@ -99,11 +100,15 @@ function PeriodPlot({ part, marks, v, onPointContext }: { part: Plot; marks: Plo
   const lineTone = (t: Tone | undefined) => (t === "status" ? (status(last) === "bad" ? TONE.bad : status(last) === "good" ? TONE.good : TONE.data) : TONE[t ?? "data"]);
   const compact = part.axes === "compact";
   const none = part.axes === "none";
-  const margin = none ? undefined : compact ? { top: 4 * s, right: 4 * s, bottom: 0, left: 0 } : { top: 12 * s, right: 12 * s, bottom: 0, left: 8 * s };
+  // A sparkline with room shows its context (ends, latest, highest and lowest, target; #782), on a fitted range.
+  const ctx = none ? sparklineContext({ scale: s, points: pts, target: v.flags.showTarget ? v.goal(last) : null, bars: !!bars }) : null;
+  if (ctx) domain = ctx.domain;
+  const note = { fontSize: 11 * s, fill: "var(--color-muted)" };
+  const strong = lineTone(marks.find((k) => k.mark === "line" || k.mark === "bar")?.tone);
+  const margin = ctx ? { top: 18 * s, right: 6 * s, bottom: 18 * s, left: 6 * s } : none ? undefined : compact ? { top: 4 * s, right: 4 * s, bottom: 0, left: 0 } : { top: 12 * s, right: 12 * s, bottom: 0, left: 8 * s };
   const aria = none ? undefined : `${m.name}, ${spanCount(pts.length, v.by)}${pts.length ? `, latest ${formatValue(m, pts[pts.length - 1].value, data.numberStyle)}` : ""}`;
 
-  return (
-    <div style={{ height: "100%" }} role={none ? undefined : "img"} aria-label={aria} aria-hidden={none || undefined} onContextMenu={bars ? () => hovered.current && onPointContext?.(hovered.current) : undefined}>
+  const chart = (
       <ResponsiveContainer width="100%" height="100%">
         <ComposedChart accessibilityLayer={false} data={rows} margin={margin}>
           {bars && (
@@ -117,6 +122,8 @@ function PeriodPlot({ part, marks, v, onPointContext }: { part: Plot; marks: Plo
           {part.grid === "horizontal" && <CartesianGrid vertical={false} stroke="var(--color-rule)" />}
           {part.grid === "both" && <CartesianGrid stroke="var(--color-rule)" />}
           {!none && <XAxis dataKey="period" tickFormatter={(p) => periodLabel(p, v.by, data.yearStart, true)} tick={tick((compact ? 11 : 12) * s)} minTickGap={(compact ? 16 : 24) * s} height={30 * s} stroke="var(--color-rule-2)" />}
+          {ctx && <XAxis dataKey="period" hide />}
+          {ctx && <TargetMark ctx={ctx} text={(x) => compactValue(m, x, data.numberStyle)} note={note} s={s} />}
           {none ? <YAxis hide domain={domain} /> : <YAxis domain={domain} ticks={axis?.ticks.length ? axis.ticks : undefined} interval={axis?.ticks.length ? 0 : undefined} tickFormatter={(x) => axisText(x)} tick={tick((compact ? 11 : 12) * s, true)} width={(compact ? 56 : 68) * s} stroke="var(--color-rule-2)" />}
           {!none && <Tooltip content={({ active, payload }) => <PeriodTip active={active} row={payload?.[0]?.payload as Row | undefined} v={v} label={label} />} cursor={bars ? { fill: "var(--color-paper-3)" } : undefined} />}
           {marks.map((k, i) => {
@@ -137,7 +144,7 @@ function PeriodPlot({ part, marks, v, onPointContext }: { part: Plot; marks: Plo
                 return (
                   <Bar key={i} dataKey="value" radius={[3, 3, 0, 0]} isAnimationActive={false} onMouseEnter={(d) => (hovered.current = (d as unknown as { period: string }).period)}>
                     {pts.map((p) => (
-                      <Cell key={p.period} data-to-date={p.toDate || undefined} data-partial={isPartial(p) || undefined} fill={p.toDate || isPartial(p) ? `url(#${hatch})` : k.tone === "status" && status(p) === "bad" ? TONE.bad : lineTone(k.tone === "status" ? "data" : k.tone)} fillOpacity={0.85} stroke={p.toDate || isPartial(p) ? "var(--color-data)" : undefined} strokeDasharray={p.toDate ? "3 2" : undefined} />
+                      <Cell key={p.period} data-to-date={p.toDate || undefined} data-partial={isPartial(p) || undefined} fill={p.toDate || isPartial(p) ? `url(#${hatch})` : ctx && p.period !== ctx.last.period ? "var(--color-rule-2)" : k.tone === "status" && status(p) === "bad" ? TONE.bad : lineTone(k.tone === "status" ? "data" : k.tone)} fillOpacity={0.85} stroke={p.toDate || isPartial(p) ? "var(--color-data)" : undefined} strokeDasharray={p.toDate ? "3 2" : undefined} />
                     ))}
                   </Bar>
                 );
@@ -180,9 +187,54 @@ function PeriodPlot({ part, marks, v, onPointContext }: { part: Plot; marks: Plo
                 return null;
             }
           })}
+          {ctx && <RangeMarks ctx={ctx} text={(x) => compactValue(m, x, data.numberStyle)} note={note} s={s} strong={strong} bars={!!bars} />}
         </ComposedChart>
       </ResponsiveContainer>
+  );
+  return (
+    <div style={{ height: "100%" }} role={none ? undefined : "img"} aria-label={aria} aria-hidden={none || undefined} onContextMenu={bars ? () => hovered.current && onPointContext?.(hovered.current) : undefined}>
+      {ctx ? (
+        <div className="flex h-full flex-col">
+          <div className="min-h-0 flex-1">{chart}</div>
+          {/* The ends: the first and last period, no ticks between; a target out of reach is named here (#782). */}
+          <div className="widget-text-xs flex items-baseline justify-between gap-[1em] px-[0.5em] text-muted-foreground">
+            <span>{periodLabel(ctx.ends.first, v.by, data.yearStart, true)}</span>
+            {ctx.target && !ctx.target.drawn && <span>{targetText(ctx.target, (x) => compactValue(m, x, data.numberStyle))} {ctx.target.side === "above" ? "↑" : "↓"}</span>}
+            <span>{periodLabel(ctx.ends.last, v.by, data.yearStart, true)}</span>
+          </div>
+        </div>
+      ) : chart}
     </div>
+  );
+}
+
+type Note = { fontSize: number; fill: string };
+
+/** "target 400", or "target 300–400" for a Target Range. */
+const targetText = (t: { min: number | null; max: number | null }, text: (x: number) => string) =>
+  `target ${t.min !== null && t.max !== null ? `${text(t.min)}–${text(t.max)}` : text((t.min ?? t.max)!)}`;
+
+/** The target in a sparkline's context: a faint band for a range, a dashed line for one bound, labelled once at the right. */
+function TargetMark({ ctx, text, note, s }: { ctx: SparklineContext; text: (x: number) => string; note: Note; s: number }) {
+  const t = ctx.target;
+  if (!t?.drawn) return null;
+  const label = { value: targetText(t, text), position: "insideTopRight" as const, offset: 2 * s, ...note };
+  return t.min !== null && t.max !== null
+    ? <ReferenceArea y1={t.min} y2={t.max} fill="var(--color-band)" fillOpacity={0.45} stroke="none" label={label} />
+    : <ReferenceLine y={(t.min ?? t.max)!} stroke="var(--color-muted)" strokeOpacity={0.6} strokeDasharray="4 3" label={label} />;
+}
+
+/** The latest value's dot (never labelled: the number is the headline), and the highest and lowest with a label each. */
+function RangeMarks({ ctx, text, note, s, strong, bars }: { ctx: SparklineContext; text: (x: number) => string; note: Note; s: number; strong: string; bars: boolean }) {
+  const edge = (p: { period: string; value: number }, position: "top" | "bottom") => (
+    <ReferenceDot key={`${position}-${p.period}`} x={p.period} y={p.value} r={bars ? 0 : 2.5 * s} fill="var(--color-cotton)" stroke="var(--color-muted)" strokeWidth={1.25 * s} label={{ value: text(p.value), position, offset: 4 * s, ...note }} />
+  );
+  return (
+    <>
+      {ctx.high && edge(ctx.high, "top")}
+      {ctx.low && edge(ctx.low, bars ? "top" : "bottom")}
+      {!bars && <ReferenceDot x={ctx.last.period} y={ctx.last.value} r={3.5 * s} fill={strong} stroke="var(--color-cotton)" strokeWidth={1.5 * s} />}
+    </>
   );
 }
 
