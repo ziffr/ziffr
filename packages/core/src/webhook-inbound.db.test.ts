@@ -484,6 +484,14 @@ describe("a Personal Webhook's status back, as its person", () => {
     expect(lines).toHaveLength(1);
     expect(String(lines[0].via).length).toBeLessThanOrEqual(80);
     expect((await db().from("audit_events").select("kind").eq("workspace_id", c.w.id).eq("kind", "webhook.marked_done")).data?.length).toBeGreaterThan(0);
+    // The hourly limit counts by the Webhook's id: ten Thread lines, and the eleventh change is refused.
+    await db().from("profiles").update({ name: "P".repeat(40) }).eq("id", c.ann);
+    for (let i = 0; i < 4; i++) {
+      expect(await c.call(long, { op: "reopen", ref: `ZIF-${id}` })).toMatchObject({ changed: true });
+      expect(await c.call(long, { op: "done", ref: `ZIF-${id}` })).toMatchObject({ changed: true });
+    }
+    expect(await c.call(long, { op: "reopen", ref: `ZIF-${id}` })).toMatchObject({ changed: true });
+    expect(await c.refused(c.call(long, { op: "done", ref: `ZIF-${id}` }))).toBe("conflict");
   });
 
   it("marks a task done as the person, with the Webhook named in the Thread and the Audit Log, and the event marked as its", async () => {
@@ -532,12 +540,12 @@ describe("a Personal Webhook's status back, as its person", () => {
     expect(await c.status(id)).toBe("open");
   });
 
-  it("stops at once for a person demoted to Guest, a Metric they no longer see, and the switch off", async () => {
+  it("stops at once for a person demoted to Guest and the switch off, and follows the app's rule for a Metric they no longer see", async () => {
     const c = await personal();
     const id = await c.task(); await c.sent(id, c.mine);
+    // The app lets the assignee tick off a Task whose Metric they no longer see (the people on a Thread read it), so the
+    // Webhook that acts as them does too: one rule, not a second.
     await c.w.unshare(c.m.id, c.ann);
-    expect(await c.refused(c.call(c.mine, { op: "done", ref: `ZIF-${id}` }))).toBe("not_found");
-    await c.w.share(c.m.id, c.ann);
     const p = { op: "done", ref: `ZIF-${id}` };
     expect(await c.call(c.mine, p)).toMatchObject({ changed: true });
     // The switch off: nothing is taken, even with a good signature.

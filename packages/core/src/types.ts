@@ -96,6 +96,8 @@ export type Observation = {
   period_start: string;
   value: number;
   submitter_id: string | null;
+  /** Who sent an imported value, as the Workspace Export named them (opened); null for a value recorded in the app. */
+  submitted_by_name?: string | null;
   source: string;
   original_value: number | null;
   /** The Access Key a program submitted it with, if any. */

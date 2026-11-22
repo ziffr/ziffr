@@ -141,6 +141,8 @@ async function currentPicks(actor: Actor, id: string): Promise<number[]> {
 export async function updatePersonalWebhook(actor: Actor, id: string, change: { name?: string; events?: string[]; url?: string; metricIds?: number[] }): Promise<void> {
   await assertOwnsPersonal(actor);
   if (typeof change !== "object" || change === null) throw new Error("That is not a change to a Webhook.");
+  // As testing and switching on: while the Workspace does not allow them, a Personal Webhook is paused and not changed.
+  if (!(await personalWebhooksAllowed(actor.workspaceId))) throw new Forbidden(OFF);
   const { row, address } = await findOwn(actor, id);
   const rules = change.url !== undefined ? await rulesOrRefuse(actor.workspaceId) : null;
   const patch: Record<string, unknown> = { updated_at: new Date().toISOString() };
@@ -159,6 +161,22 @@ export async function updatePersonalWebhook(actor: Actor, id: string, change: { 
   if (!changed?.length) throw new Forbidden(NOT_FOUND);
   const newAddress = change.url !== undefined ? maskedHost(String((await openRows("webhooks", actor.workspaceId, [{ id: String(row.id), url: patch.url }]))[0]?.url ?? "")) : address;
   await audit(actor, { kind: "webhook.personal_changed", object: { type: "webhook", id: String(row.id), name: String(patch.name ?? row.name) }, details: { address: newAddress, ...(patch.events ? { events: patch.events as string[] } : {}), ...(patch.name ? { from: String(row.name) } : {}), ...(change.url !== undefined ? { address_changed: true } : {}) } });
+}
+
+/** Drops the picked Metrics the person can no longer see from their own Webhook, so it stops carrying them (and does not hear them again if sight returns). Returns how many it dropped. */
+export async function forgetHiddenPersonalMetrics(actor: Actor, id: string): Promise<number> {
+  await assertOwnsPersonal(actor);
+  if (!(await personalWebhooksAllowed(actor.workspaceId))) throw new Forbidden(OFF);
+  const { row } = await findOwn(actor, id);
+  const current = await currentPicks(actor, String(row.id));
+  const seen = current.length ? await visibleMetricIds(actor.workspaceId, actor.personId, await getMetrics(actor.workspaceId)) : new Set<number>();
+  const kept = current.filter((m) => seen.has(m));
+  if (kept.length === current.length) return 0;
+  const { data, error } = await db().from("webhooks").update({ metric_ids: kept, updated_at: new Date().toISOString() }).eq("id", String(row.id)).eq("workspace_id", actor.workspaceId).eq("owner_id", actor.personId).select("id");
+  if (error) throw new Error("The Webhook could not be saved. Try again in a moment.");
+  if (!data?.length) throw new Forbidden(NOT_FOUND);
+  await audit(actor, { kind: "webhook.personal_changed", object: { type: "webhook", id: String(row.id), name: String(row.name) }, details: { address: maskedHost(String((await openRows("webhooks", actor.workspaceId, [row]))[0]?.url ?? "")), metrics: kept.length } });
+  return current.length - kept.length;
 }
 
 /** Replaces the actor's own Webhook's secret and returns the new one, shown this once; the old one still signs beside it for 24 hours, as for a Workspace Webhook. */

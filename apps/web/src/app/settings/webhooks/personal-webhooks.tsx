@@ -13,7 +13,7 @@ import { removePersonalWebhook, setPersonalWebhooksAllowed } from "@/app/persona
 import { EVENTS, Log, OFF, when, type Run } from "./webhooks";
 
 /** The switch and the list of Personal Webhooks. */
-export function PersonalWebhooks({ allowed, webhooks, logs }: { allowed: boolean; webhooks: PersonalWebhookAdminInfo[]; logs: Record<string, WebhookLogEntry[]> }) {
+export function PersonalWebhooks({ allowed, webhooks, logs }: { allowed: boolean; webhooks: Omit<PersonalWebhookAdminInfo, "ownerId">[]; logs: Record<string, WebhookLogEntry[]> }) {
   const [pending, start] = useTransition();
   const run: Run = (f, ok) => start(async () => { try { await f(); if (ok) toast.success(ok); } catch (err) { toast.error("Not done", { description: shown(err) }); } });
   return (

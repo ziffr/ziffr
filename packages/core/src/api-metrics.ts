@@ -10,6 +10,9 @@ import { openWorkflowRow } from "./workflow-rows";
 import { assertScope, can, Forbidden, Refused, type Actor, type KeyActor } from "./actor";
 import { createDerivedMetric, setMetricFormula } from "./derived-metrics";
 import { describeMetric, toApi, type ApiMetric, type ApiMetricDetail } from "./api";
+import { cleanTagNames } from "./tag-names";
+import { metricTagNames } from "./tag-sight";
+import { setMetricTags } from "./tags";
 import { checkWorkflowChoice, type WorkflowRef } from "./api-metric-workflow";
 import { db } from "./db";
 import { openOne } from "./sealed-columns";
@@ -57,6 +60,8 @@ export type ApiMetricInput = {
   /** One of the creator's own Workflows, by id or exact name, so the Metric is asked for on its schedule at once. Needs
    * metrics:edit as well; null or left out: none. */
   workflow?: WorkflowRef | null;
+  /** Its Tags (GLOSSARY: Tag), free words, at most 10; a word that exists is the same Tag Workspace-wide. */
+  tags?: string[];
   /** Makes a Derived Metric instead: computed from other Metrics the key's creator owns or edits, such as "{revenue} / {orders}"
    * or "change({odometer}) / 7" (this period minus the previous one). It takes no values, Sources, Submitters or
    * Workflow; the period is its inputs' own unless given. Needs metrics:read as well. */
@@ -116,7 +121,9 @@ export async function createMetricWithKey(actor: Actor | KeyActor, input: ApiMet
   assertScope(actor, "metrics:write");
   // The key's creator, with their role as it is now (actorForKey reads it on every call).
   const creator: Actor = { personId: actor.personId, workspaceId: actor.workspaceId, role: actor.role };
-  if (input.formula !== undefined) return createDerivedWithKey(actor, creator, input, effects);
+  // Tag words are untrusted: checked before anything exists, so a bad one leaves no Metric behind.
+  const tags = input.tags === undefined ? [] : tagsChecked(input.tags);
+  if (input.formula !== undefined) return createDerivedWithKey(actor, creator, input, effects, tags);
   const sources = input.sources === undefined ? SOURCE_IDS : sourcesFrom(input.sources);
   const named = input.submitters ?? [];
   if (named.length) assertScope(actor, "metrics:edit");
@@ -140,14 +147,35 @@ export async function createMetricWithKey(actor: Actor | KeyActor, input: ApiMet
   // A Feed is added as on the Metric's page, which turns the API Source on, since a Feed sends nothing else.
   for (const f of feeds) await addFeedToMetric(creator, id, f);
   if (workflow?.id != null) await asKey(actor, () => setMetricWorkflow(creator, id, workflow.id, { from: null }));
+  const left = await tagNewMetric(creator, id, tags);
   const data = await openOne("metrics", actor.workspaceId, (await db().from("metrics").select("*").eq("id", id).eq("workspace_id", actor.workspaceId).single()).data);
-  return describeMetric(actor, normalizeMetric(data as Metric) as Metric);
+  return { ...(await describeMetric(actor, normalizeMetric(data as Metric) as Metric)), ...left };
+}
+
+/** The Tag words of a request, normalised and checked (spec 0038), or MetricChangeRefused with the reason in words. */
+function tagsChecked(input: unknown): string[] {
+  const cleaned = cleanTagNames(input);
+  if ("error" in cleaned) throw new MetricChangeRefused(cleaned.error);
+  return cleaned.names;
+}
+
+/** Puts the Tags of a request on a Metric just made. The Metric exists already, so a limit that refuses them (the
+ * Workspace's 200) does not undo it: the answer names the words left out, as a Pack's Set up does. */
+async function tagNewMetric(creator: Actor, metricId: number, tags: string[]): Promise<{ tags?: string[]; tags_left_out?: string[] }> {
+  if (!tags.length) return {};
+  try {
+    // The answer is setMetricTags' own: the creator's spelling, never a hidden Tag's first spelling.
+    return { tags: await setMetricTags(creator, metricId, tags) };
+  } catch (e) {
+    if (e instanceof Refused) return { tags_left_out: tags };
+    throw e;
+  }
 }
 
 /** A Derived Metric for a key (scope metrics:write and metrics:read: it is made from what the creator sees, and
  * answering whether an input exists would otherwise tell a key that cannot read). What a Derived Metric does not take is
  * refused rather than ignored, so a program never believes it set a Submitter or a Workflow. */
-async function createDerivedWithKey(actor: Actor | KeyActor, creator: Actor, input: ApiMetricInput, effects: MetricEffects): Promise<ApiMetricDetail> {
+async function createDerivedWithKey(actor: Actor | KeyActor, creator: Actor, input: ApiMetricInput, effects: MetricEffects, tags: string[]): Promise<ApiMetricDetail> {
   assertScope(actor, "metrics:read");
   if (input.submit || input.submitters?.length || input.workflow != null || input.sources !== undefined || input.aggregation !== undefined || input.submission_rule !== undefined) {
     throw new MetricChangeRefused("A Derived Metric is computed from other Metrics: it takes no values, so no submit, submitters, sources, aggregation, submission_rule or workflow.");
@@ -159,7 +187,8 @@ async function createDerivedWithKey(actor: Actor | KeyActor, creator: Actor, inp
   }, { ...effects, recordCreated: (metricId, by) => effects.recordCreated(metricId, by, keyName ? `Created through the API (key “${keyName}”)` : "Created through the API") }, { accessKeyId: actor.key ? Number(actor.key.id) : undefined })
     .catch((e) => { throw e instanceof Refused ? new MetricChangeRefused(e.message) : e; });
   const data = await openOne("metrics", actor.workspaceId, (await db().from("metrics").select("*").eq("id", made.id).eq("workspace_id", actor.workspaceId).single()).data);
-  return { ...(await describeMetric(actor, normalizeMetric(data as Metric) as Metric)), defaults: made.defaults };
+  const left = await tagNewMetric(creator, made.id, tags);
+  return { ...(await describeMetric(actor, normalizeMetric(data as Metric) as Metric)), defaults: made.defaults, ...left };
 }
 
 /** Deletes a Metric for a key with metrics:write, as its creator: only when they own it, with its exact name to
@@ -189,7 +218,7 @@ export async function setMetricArchivedWithKey(actor: Actor | KeyActor, slug: st
   if (archived) await archiveMetric(creator, m.id, origin);
   else await restoreMetric(creator, m.id, origin);
   const data = await openOne("metrics", actor.workspaceId, (await db().from("metrics").select("*").eq("id", m.id).eq("workspace_id", actor.workspaceId).single()).data);
-  return toApi(normalizeMetric(data as Metric), data);
+  return toApi(normalizeMetric(data as Metric), data, (await metricTagNames(creator, [m.id])).get(m.id));
 }
 
 /** Thrown when a change to a Metric is refused for its content, such as a lower target above the upper one or a
@@ -221,6 +250,8 @@ export type ApiMetricPatch = {
   workflow?: WorkflowRef | null;
   /** A Derived Metric's new formula, checked as when creating one (needs metrics:read as well). */
   formula?: string;
+  /** All its Tags (GLOSSARY: Tag), at most 10: the Metric carries exactly these afterwards; [] takes them all off. */
+  tags?: string[];
 };
 
 const FORMAT_WORDS = ["number", "currency", "percent"];
@@ -283,7 +314,10 @@ export async function updateMetricWithKey(actor: Actor | KeyActor, slug: string,
   const sources = p.sources === undefined ? undefined : sourcesFrom(p.sources);
   if (sources && metric.formula) throw new MetricChangeRefused("A Derived Metric is computed; values do not arrive for it.");
   const workflow = p.workflow === undefined ? undefined : await checkWorkflowChoice(actor, creator, metric, p.workflow);
+  // Tag words are untrusted: checked before the first change.
+  const tags = p.tags === undefined ? undefined : tagsChecked(p.tags);
   const keyName = actor.key ? await nameOf(actor) : null;
+  let kept: string[] | undefined;
   await asKey(actor, () => withVersionNote(keyName ? `Changed through the API (key “${keyName}”)` : "Changed through the API", async () => {
     if (p.formula !== undefined) await setMetricFormula(creator, metric.id as number, p.formula, { accessKeyId: actor.key ? Number(actor.key.id) : undefined }).catch((e) => { throw e instanceof Refused ? new MetricChangeRefused(e.message) : e; });
     // The editor's own refusals (a period that has values, a Retention that would not fit) are plain errors: said as 422.
@@ -294,9 +328,20 @@ export async function updateMetricWithKey(actor: Actor | KeyActor, slug: string,
     if (fields.length && actor.key) await audit(creator, { kind: "metric.details_changed", object: { type: "metric", id: metric.id as number, name: metric.name }, details: { fields } });
     if (sources) await setMetricSources(creator, metric.id as number, sources);
     if (workflow !== undefined) await setMetricWorkflow(creator, metric.id as number, workflow.id, { from: workflow.from });
+    // Last, so that every other refusal (422 "nothing was changed") comes before the Tags are touched. Only a Tag limit can refuse here,
+    // and the answer then says that the rest was changed.
+    if (tags !== undefined) {
+      const others = Object.entries(p).some(([k, v]) => k !== "tags" && v !== undefined);
+      kept = await setMetricTags(creator, metric.id as number, tags).catch((e) => {
+        if (e instanceof Refused) throw new MetricChangeRefused(others ? `The other changes were made, but not the Tags: ${e.message}` : e.message);
+        throw e;
+      });
+    }
   }));
   const data = await openOne("metrics", actor.workspaceId, (await db().from("metrics").select("*").eq("id", metric.id).eq("workspace_id", actor.workspaceId).single()).data);
-  return describeMetric(actor, normalizeMetric(data as Metric) as Metric);
+  const described = await describeMetric(actor, normalizeMetric(data as Metric) as Metric);
+  // The creator's own spelling of the words they just set (see tagNewMetric).
+  return kept ? { ...described, tags: kept } : described;
 }
 
 /** Runs work so that every Audit Log event it records names the key, as for a person's own change through a key. */

@@ -7,6 +7,8 @@ import { inCondensed, partOfCondensed, valueOfParts, type CondensedPoint } from 
 import { condensedFor } from "./condensed-values";
 import { db } from "./db";
 import { formulaInputs } from "./formula";
+import { metricIdsWithTags, metricTagNames, visibleTags } from "./tag-sight";
+import { normaliseTagName, tagKey } from "./tag-names";
 import { retentionForApi, type ApiRetention } from "./retention-words";
 import { openRows } from "./sealed-columns";
 import { workflowFacts, type ApiMetricWorkflow, type ApiNextAsked, type ApiNextDue } from "./api-metric-workflow";
@@ -22,15 +24,15 @@ export const MAX_PAGE = 100;
 export type Page<T, C = number> = { items: T[]; next: C | null };
 
 /** A Metric as a program sees it in a list or on its own. */
-export type ApiMetric = Pick<Metric, "slug" | "name" | "description" | "period" | "format" | "unit" | "unit_position" | "decimals" | "polarity" | "aggregation" | "target_min" | "target_max" | "attainment_method" | "sources"> & { derived: boolean; archived: boolean } & ApiRetention;
+export type ApiMetric = Pick<Metric, "slug" | "name" | "description" | "period" | "format" | "unit" | "unit_position" | "decimals" | "polarity" | "aggregation" | "target_min" | "target_max" | "attainment_method" | "sources"> & { derived: boolean; archived: boolean; tags: string[] } & ApiRetention;
 
 /** A Metric in the shape programs see it. `stored` is the row's Retention columns (normalizeMetric drops them from the
  * Metric): without them it reads as none. A program sees the setting and its first day only (spec 0033). */
-export const toApi = (m: Metric, stored?: { retention?: unknown; retention_pending?: unknown } | null): ApiMetric => ({
+export const toApi = (m: Metric, stored?: { retention?: unknown; retention_pending?: unknown } | null, tags: string[] = []): ApiMetric => ({
   slug: m.slug, name: m.name, description: m.description, period: m.period, format: m.format, unit: m.unit, unit_position: m.unit_position,
   decimals: m.decimals, polarity: m.polarity, aggregation: m.aggregation, target_min: m.target_min, target_max: m.target_max,
   attainment_method: m.attainment_method ?? null, sources: [...(m.sources ?? [])], derived: Boolean(m.formula),
-  archived: Boolean(m.archived_at), ...retentionForApi(stored?.retention, stored?.retention_pending),
+  archived: Boolean(m.archived_at), tags, ...retentionForApi(stored?.retention, stored?.retention_pending),
 });
 
 /** The Retention columns of Metrics the caller has already checked the actor sees, by id. */
@@ -40,19 +42,40 @@ async function storedRetentions(ws: string, ids: readonly number[]): Promise<Map
   return new Map((data ?? []).map((r) => [r.id as number, r]));
 }
 
+/** The key's creator as a person's Actor (spec 0038): what the Tag functions take, with the role as it is now. */
+export const creatorOf = (actor: Actor | KeyActor): Actor => ({ personId: actor.personId, workspaceId: actor.workspaceId, role: actor.role });
+
+/** At most this many `tag` filters in one request, as many Tags as a Metric carries. */
+export const TAG_FILTERS_MAX = 10;
+
 /** The Metrics the key's creator sees, in a stable order (by id), one page after `after` (scope metrics:read): those
- * in use, or with `archived` only the Archived Metrics (GLOSSARY: Archived Metric), which are listed only when asked. */
-export async function listMetrics(actor: Actor | KeyActor, page: { after?: number | null; limit: number; archived?: boolean }): Promise<Page<ApiMetric>> {
+ * in use, or with `archived` only the Archived Metrics (GLOSSARY: Archived Metric), which are listed only when asked.
+ * With `tags`, only the Metrics that carry every one of those Tags (GLOSSARY: Tag): a word that is not a Tag the creator
+ * sees matches nothing, whatever else the Workspace holds. Each Metric lists its Tags (those the creator sees, sorted). */
+export async function listMetrics(actor: Actor | KeyActor, page: { after?: number | null; limit: number; archived?: boolean; tags?: string[] }): Promise<Page<ApiMetric>> {
   assertScope(actor, "metrics:read");
   const limit = clampLimit(page.limit);
   const after = Number.isInteger(page.after) ? (page.after as number) : 0;
   const metrics = await getMetrics(actor.workspaceId);
   const visible = await visibleMetricIds(actor.workspaceId, actor.personId, metrics);
   const archived = page.archived === true;
-  const rest = metrics.filter((m) => visible.has(m.id) && m.id > after && Boolean(m.archived_at) === archived).sort((a, b) => a.id - b.id);
+  // The filter is untrusted text, compared in memory over the Tags the creator sees: never a query filter.
+  const asked = [...new Set((page.tags ?? []).slice(0, TAG_FILTERS_MAX).map(normaliseTagName).map(tagKey))];
+  const tagged = asked.length ? new Set(await metricIdsWithTags(creatorOf(actor), asked)) : null;
+  const rest = metrics.filter((m) => visible.has(m.id) && m.id > after && Boolean(m.archived_at) === archived && (!tagged || tagged.has(m.id))).sort((a, b) => a.id - b.id);
   const items = rest.slice(0, limit);
-  const stored = await storedRetentions(actor.workspaceId, items.map((m) => m.id));
-  return { items: items.map((m) => toApi(m, stored.get(m.id))), next: rest.length > limit ? items[items.length - 1].id : null };
+  const [stored, names] = await Promise.all([storedRetentions(actor.workspaceId, items.map((m) => m.id)), metricTagNames(creatorOf(actor), items.map((m) => m.id))]);
+  return { items: items.map((m) => toApi(m, stored.get(m.id), names.get(m.id))), next: rest.length > limit ? items[items.length - 1].id : null };
+}
+
+/** A Tag as a program sees it: its name and how many Metrics the key's creator sees it on, in use and archived. */
+export type ApiTag = { name: string; metrics: number; archived: number };
+
+/** The Tags the key's creator sees (scope metrics:read), by name: a Tag is listed only through a Metric they may see, and
+ * counts only those, so a name never tells that a private Metric exists. At most 200 (a Workspace's limit): no paging. */
+export async function listTags(actor: Actor | KeyActor): Promise<ApiTag[]> {
+  assertScope(actor, "metrics:read");
+  return (await visibleTags(creatorOf(actor))).map((t) => ({ name: t.name, metrics: t.metrics - t.archived, archived: t.archived })).sort((x, y) => tagKey(x.name).localeCompare(tagKey(y.name)));
 }
 
 /** A period start as the database reads it: a real day, written YYYY-MM-DD. */
@@ -77,6 +100,8 @@ export type ApiMetricDetail = ApiMetric & {
   formula: string | null;
   /** On the answer to creating a Derived Metric: what was chosen where the caller left a field out, in plain words. */
   defaults?: string[];
+  /** On the answer to creating a Metric with `tags` that the Workspace's limit refused: the words left out. The Metric was made. */
+  tags_left_out?: string[];
 };
 
 /** A Derived Metric's formula for someone who sees all the Metrics it is made of, else null. */
@@ -90,8 +115,8 @@ async function formulaSeen(actor: Actor | KeyActor, metric: Metric): Promise<str
 
 /** A Metric the caller has checked the actor sees, with its Workflow facts. */
 export async function describeMetric(actor: Actor | KeyActor, metric: Metric): Promise<ApiMetricDetail> {
-  const [stored, facts] = await Promise.all([storedRetentions(actor.workspaceId, [metric.id]), workflowFacts(actor, metric)]);
-  return { ...toApi(metric, stored.get(metric.id)), url: linkTo(`/metrics/${metric.slug}`), ...facts, formula: await formulaSeen(actor, metric) };
+  const [stored, facts, names] = await Promise.all([storedRetentions(actor.workspaceId, [metric.id]), workflowFacts(actor, metric), metricTagNames(creatorOf(actor), [metric.id])]);
+  return { ...toApi(metric, stored.get(metric.id), names.get(metric.id)), url: linkTo(`/metrics/${metric.slug}`), ...facts, formula: await formulaSeen(actor, metric) };
 }
 
 /** One Metric's description with its Workflow and next Due Date (scope metrics:read). */

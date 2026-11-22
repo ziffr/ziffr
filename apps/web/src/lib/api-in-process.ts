@@ -22,6 +22,7 @@ import * as widget from "@/app/api/v1/dashboards/[id]/widgets/[widgetId]/route";
 import * as fromTemplate from "@/app/api/v1/dashboards/from-template/route";
 import * as feeds from "@/app/api/v1/feeds/route";
 import * as groups from "@/app/api/v1/groups/route";
+import * as tags from "@/app/api/v1/tags/route";
 import * as metrics from "@/app/api/v1/metrics/route";
 import * as metric from "@/app/api/v1/metrics/[slug]/route";
 import * as archive from "@/app/api/v1/metrics/[slug]/archive/route";
@@ -66,6 +67,7 @@ export const ROUTES: [pattern: string, module: RouteModule][] = [
   ["dashboards/[id]/widgets/[widgetId]", widget],
   ["feeds", feeds],
   ["groups", groups],
+  ["tags", tags],
   ["metrics", metrics],
   ["metrics/[slug]", metric],
   ["metrics/[slug]/archive", archive],

@@ -19,6 +19,8 @@ If you follow a link to a deck that is not shared with you, Ziffr says "This dec
 
 ## The deck editor
 
+A deck that came in with a [Workspace Export](16-workspace-settings.md#from-a-workspace-export) starts empty. The first time you open it, the editor lays out its slides from today's values, as for a deck made from a Deck Template, and saves them.
+
 The editor has three parts: a row of buttons at the top, a side panel on the left, and the deck canvas, where your slides sit.
 
 Changes save by themselves a moment after you make them. Next to the deck's name you see **Saved**, **Saving…** or **Unsaved changes**. To rename the deck, click its name at the top and type. On a narrow screen the buttons move to a second line before the name is cut short.
@@ -170,7 +172,7 @@ The team default Theme also dresses what Ziffr sends and shows outside the app (
 - **The form link** and **View Link** pages show the logo or name under a bar in the accent (see [The personal form link](10-metrics.md#the-personal-form-link) and [View Links](12-dashboards.md#view-links)).
 - **Slack** messages get a side bar in the accent. Block Kit has no other colours.
 
-Every colour is checked for contrast (WCAG AA) when it is used: an accent that is too pale to read on the cards is replaced by a darker shade of it. Under the sample Widgets, the **Email** preview shows the layout in light and dark colours and changes as you edit. A Theme that came with a Pack may show the Pack's logo; **Make team default** then asks once, naming whose logo it is, because the team default also dresses your emails, forms, View Link pages and Slack messages. Installing a Pack never makes a Theme the team default. A logo may be at most 256 KB and 512 × 512 pixels, as a PNG, JPEG or SVG (not WebP); Ziffr refuses a bigger one. An SVG is accepted only when it is a plain drawing: one with a script, an event handler, a link to another site or embedded content is not kept.
+Every colour is checked for contrast (WCAG AA) when it is used: an accent that is too pale to read on the cards is replaced by a darker shade of it. Under the sample Widgets, the **Email** preview shows the layout in light and dark colours and changes as you edit. A Theme that came with a Pack may show the Pack's logo; **Make team default**, and picking it for one dashboard or deck, then asks once, naming whose logo it is, because the team default also dresses your emails, forms, View Link pages and Slack messages. Installing a Pack never makes a Theme the team default. A logo may be at most 256 KB and 512 × 512 pixels, as a PNG, JPEG or SVG (not WebP); Ziffr refuses a bigger one. An SVG is accepted only when it is a plain drawing: one with a script, an event handler, a link to another site or embedded content is not kept.
 
 ### Name and colours
 
@@ -219,7 +221,7 @@ These settings decide what every slide of a deck in this theme shows. A slide ca
 
 | Option | What it does |
 |---|---|
-| **Add logo** / **Replace logo** | Puts your logo on every slide. Use a PNG, JPEG, WebP or SVG image under 1 MB. The bin icon removes it. |
+| **Add logo** / **Replace logo** | Puts your logo on every slide. Use a PNG, JPEG or plain SVG of at most 256 KB and 512 × 512 pixels (not WebP). The bin icon removes it. |
 | Logo position | **Top left**, **Top right**, **Bottom left** or **Bottom right**. Shown once there is a logo. A logo at the bottom left takes the footer's place, and a logo at the bottom right takes the slide number's place. |
 | **Logo width** | How wide the logo is, from 40 to 400 pixels. |
 | **Background image** / **Replace background** | An image behind every slide, filling it. Use a PNG, JPEG, WebP or SVG image under 2 MB. The bin icon removes it. |

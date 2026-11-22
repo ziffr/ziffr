@@ -29,9 +29,11 @@ const AT_LIMIT_WORKSPACE = `This Workspace has ${TAGS_PER_WORKSPACE} Tags. Merge
 const GUESTS = "Guests use only the Tags they can see, and make no new ones.";
 
 /** Whether the actor may put Tags on this Metric: its owner, or a person it is shared with as Editor, directly or through a
- * Group, in this Workspace, the Guest Editor included (who is further limited to Tags they see). A Viewer never. */
+ * Group, in this Workspace, the Guest Editor included (who is further limited to Tags they see). A Viewer never, and never
+ * a key: the API checks the key's scope and then acts as its creator, so a key's shape reaching here is refused rather
+ * than trusted to have been checked (as editableMetric does). */
 export async function mayTag(actor: Actor, metricId: number): Promise<boolean> {
-  if (!Number.isSafeInteger(metricId) || metricId < 1) return false;
+  if ((actor as { key?: unknown }).key || !Number.isSafeInteger(metricId) || metricId < 1) return false;
   const { data: m } = await db().from("metrics").select("owner_id").eq("id", metricId).eq("workspace_id", actor.workspaceId).maybeSingle();
   if (!m) return false;
   if (m.owner_id === actor.personId) return true;

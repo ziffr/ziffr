@@ -6,6 +6,8 @@ import { myWorkspaces } from "@/lib/viewer";
 import { WelcomeForm } from "./form";
 import { whatThisZiffrOffers } from "@ziffr/core/what-works-here";
 import { AuthHeading, AuthShell } from "@/components/auth-shell";
+import { importOffered } from "@ziffr/core/workspace-import";
+import Link from "next/link";
 
 export default async function WelcomePage({ searchParams }: { searchParams: Promise<{ another?: string }> }) {
   if (await isDemo()) redirect("/");
@@ -32,6 +34,7 @@ export default async function WelcomePage({ searchParams }: { searchParams: Prom
       {joinable.length > 0 && <AskToJoin workspaces={joinable} />}
       <AuthHeading title="Start a workspace">A workspace holds your metrics, dashboards and decks. You become its owner and can invite others. If a colleague already uses Ziffr, ask them to invite you instead.</AuthHeading>
       <WelcomeForm />
+      {importOffered() && <p className="mt-6 text-sm text-muted-foreground">Coming from another Ziffr? <Link className="underline" href="/welcome/import">Start from a Workspace Export</Link></p>}
     </AuthShell>
   );
 }

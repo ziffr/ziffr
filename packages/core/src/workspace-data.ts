@@ -37,14 +37,15 @@ export async function getMetrics(ws: string): Promise<Metric[]> {
 
 /** A stored value with its numbers as numbers (the database sends numeric columns as text or JSON numbers). Values are
  * sealed with the Workspace Key (spec 0028): they are opened by openObservations first. */
-const toObservation = (o: Record<string, unknown>): Observation =>
-  ({ ...o, value: Number(o.value), original_value: o.original_value === null || o.original_value === undefined ? null : Number(o.original_value) }) as Observation;
+const toObservation = (o: Record<string, unknown>, names = false): Observation =>
+  ({ ...(names ? o : { ...o, submitted_by_name: undefined }), value: Number(o.value), original_value: o.original_value === null || o.original_value === undefined ? null : Number(o.original_value) }) as Observation;
 
 /** Observations as stored, their values opened and read as numbers. A value that does not open (changed in the database,
  * or under a destroyed key) is left out: a missing value, never its ciphertext or a made-up number. */
-export async function openObservations(ws: string, rows: Record<string, unknown>[] | null | undefined): Promise<Observation[]> {
+export async function openObservations(ws: string, rows: Record<string, unknown>[] | null | undefined, names = false): Promise<Observation[]> {
   const opened = await openRows("observations", ws, rows);
-  return opened.filter((o) => typeof o.value === "number" && Number.isFinite(o.value)).map(toObservation);
+  // The name of an imported value's submitter is personal data that only the Metric page shows (to everyone but Guests): it stays off every other read.
+  return opened.filter((o) => typeof o.value === "number" && Number.isFinite(o.value)).map((o) => toObservation(o, names));
 }
 
 /** Every value of a workspace, optionally of some Metrics only, oldest period first: all of them when the Submission
@@ -90,7 +91,7 @@ export async function getObservation(ws: string, id: number | null | undefined):
 export async function getLastValues(ws: string, metricId: number, n: number): Promise<Observation[]> {
   const { data } = await db().from("observations").select("*").eq("workspace_id", ws).eq("metric_id", metricId)
     .order("period_start", { ascending: false }).order("created_at", { ascending: false }).order("id", { ascending: false }).limit(n);
-  return (await openObservations(ws, data)).reverse();
+  return (await openObservations(ws, data, true)).reverse();
 }
 
 /** These Metrics and the inputs of the Derived Metrics among them: what their series are computed from. */

@@ -7,7 +7,7 @@ import { shown, unwrap } from "@/lib/action-error";
 import { Link2, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { changeRole, createInviteLink, decideJoin, inviteMember, removeMemberWithHandover, resendInvitation, revokeInvitation, setDomainJoining } from "@/app/team-actions";
+import { changeRole, createInviteLink, decideJoin, inviteEveryone, inviteMember, setHeldRole, removeMemberWithHandover, resendInvitation, revokeInvitation, setDomainJoining } from "@/app/team-actions";
 import type { WorkspaceRoleName } from "@ziffr/core/actor";
 import type { Profile } from "@ziffr/core/types";
 import { formatDate } from "@ziffr/core/format";
@@ -29,7 +29,7 @@ export function Members(props: {
   members: { id: string; name: string; role: WorkspaceRoleName }[];
   canEdit: boolean;
   isOwner: boolean;
-  invitations: { id: number; email: string | null; role: string; expires_at: string; email_sent_at: string | null; email_sends: number; email_error: string | null }[];
+  invitations: { id: number; email: string | null; role: string; expires_at: string; email_sent_at: string | null; email_sends: number; email_error: string | null; held_at: string | null; name: string | null }[];
   /** Whether this Ziffr sends email (spec 0004): then email invitations say whether they went out, and can be resent. */
   mailOn: boolean;
   joinRequests: { id: number; person: { id: string; name: string; email: string | null } }[];
@@ -94,13 +94,19 @@ export function Members(props: {
           {link && (
             <p className="text-sm">{link.emailed === null ? "Send this link:" : link.emailed ? "Emailed. You can also send this link yourself:" : "Not emailed. Send this link yourself:"} <input readOnly value={link.url} onFocus={(e) => e.target.select()} aria-label="Invitation link" className={`${field} w-full max-w-xl font-mono`} /></p>
           )}
+          {isOwner && props.invitations.some((i) => i.held_at) && (
+            <div className="space-y-2 rounded-[var(--radius-card)] border border-[var(--color-rule-2)] p-3 text-sm">
+              <p><strong>{props.invitations.filter((i) => i.held_at).length} people from the imported file are not invited yet.</strong> They are listed below with the address and role the file gave. Nothing has been sent: invite them when you are ready.</p>
+              <Button size="sm" disabled={pending} onClick={() => run(async () => { const r = unwrap(await inviteEveryone()); toast.success(r.emailed === r.released ? `Invited ${r.released} people` : `Invited ${r.released} people; ${r.emailed} emails went out, send the others their link yourself`); })}>Invite everyone</Button>
+            </div>
+          )}
           {props.invitations.length > 0 && (
             <ul className="text-sm text-muted-foreground">
               {props.invitations.map((i) => (
                 <li key={i.id} className="flex items-center gap-2">
-                  {i.email ?? "Link"} as {ROLES.find((r) => r.id === i.role)?.label}, until {formatDate(i.expires_at)}
+                  {i.held_at ? <>{i.name ? `${i.name}, ` : ""}{i.email} as {isOwner ? <select aria-label={`Role of ${i.email}`} className={field} value={i.role} disabled={pending} onChange={(e) => run(() => setHeldRole(i.id, e.target.value as WorkspaceRoleName))}>{["admin", "member", "guest"].map((r) => <option key={r} value={r}>{ROLES.find((x) => x.id === r)?.label}</option>)}</select> : ROLES.find((r) => r.id === i.role)?.label}, <span>not invited yet</span></> : <>{i.email ?? "Link"} as {ROLES.find((r) => r.id === i.role)?.label}, until {formatDate(i.expires_at)}</>}
                   {props.mailOn && i.email && (i.email_error ? <span className="text-destructive">· not emailed: {i.email_error}</span> : i.email_sent_at ? <span>· emailed{i.email_sends > 1 ? ` ${i.email_sends} times` : ""}</span> : null)}
-                  {props.mailOn && i.email && i.email_sends < 3 && <Button size="sm" variant="ghost" disabled={pending} onClick={() => run(() => resendInvitation(i.id), "Emailed again")}>Resend</Button>}
+                  {props.mailOn && i.email && !i.held_at && i.email_sends < 3 && <Button size="sm" variant="ghost" disabled={pending} onClick={() => run(() => resendInvitation(i.id), "Emailed again")}>Resend</Button>}
                   <button type="button" aria-label={`Revoke invitation ${i.email ?? "link"}`} disabled={pending} onClick={() => run(() => revokeInvitation(i.id), "Revoked")} className="flex size-7 items-center justify-center rounded-[var(--radius-input)] hover:bg-muted focus-visible:outline-2 focus-visible:outline-ring"><Trash2 aria-hidden className="size-3.5" /></button>
                 </li>
               ))}
