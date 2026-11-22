@@ -10,7 +10,7 @@ A **Trial Workspace** is offered only by hosted Ziffr (ziffr.net), where Ziffr C
 - **Invitations only to the Owner's own email domain:** a possible tightening if abuse appears, not the start. It would keep a consultant from inviting a client.
 - **Locking trials to hosted Ziffr in the code (a licence check, obfuscation, a call home):** rejected. The code is open and an operator can change it. The check is a plain condition on `ZIFFR_CLOUD_KEY`: the product offers trials only where Ziffr Cloud is, and anyone who edits that runs a different Ziffr on their own responsibility.
 - **Feature switches per Size, or an entitlement system:** rejected by ADR 0013, and not needed. What a trial may do differs from an ordinary Workspace in numbers only, which are Trial Limits, set by Ziffr Cloud or the hosted Installation Admin without a release.
-- **The Free Size after a trial (spec 0029):** proposed away in spec 0040 and awaiting the owner. A trial that is not subscribed to closes and is deleted, so there are two ways on: subscribe, or run Ziffr yourself.
+- **The Free Size after a trial (spec 0029):** rejected, and the Free Size goes altogether (the owner, 2026-11-22). A trial that is not subscribed to closes and is deleted, so there are two ways on: subscribe, or run Ziffr yourself. Whoever wants Ziffr for free runs it themselves.
 
 ## Consequences
 
@@ -18,5 +18,6 @@ A **Trial Workspace** is offered only by hosted Ziffr (ziffr.net), where Ziffr C
 - **A trial can invite, and invitation email is the one message to an unproved address.** That email is limited per trial, per address and for all trials together, comes with a one-click stop, and is held in the Outbox over a limit. Ziffr answers for the sender reputation of ziffr.net and can set a Trial Limit to 0 the same day.
 - **Contacts stay simulated in a trial**, and the demo stays read-only. ADR 0010's rule that Deliveries to anyone but the Owner stay in the Outbox now reads: to anyone who has not accepted, and to every Contact.
 - **"Run it yourself" needs a way out.** A Workspace export and import exist as spec 0040's tickets. They carry no secret, key or Connector link, and an import re-seals everything under the new Installation's keys.
+- **There is no Free Size.** The Sizes are Small, Team and Business, larger on request. A cancelled Size closes its Workspace as an ended trial is closed, with a Workspace Export first. ADR 0013 names no Free Size and stands.
 - **ADR 0013 holds:** every Size has every feature. Ziffr Cloud learns more, the Trial Limits it set and nothing of a Workspace's data.
 - **Changing any of this is a new ADR:** trials outside hosted Ziffr, a trial that reaches Contacts or unproved addresses beyond the invitation, or features held back by Size.

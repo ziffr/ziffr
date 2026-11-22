@@ -224,7 +224,7 @@ Every call that is understood answers `200` with the result, so any call may be 
 
 Self-hosting: the gate counts per network address only when `ZIFFR_PROXY_HOPS` is set. Without it no sender can be known or admitted as new, so a flood of failed requests past 600 a minute locks out the real sender until it stops.
 
-Webhooks are available on Free and every paid Size. The demo has none. A trial may have 2 and send 200 a day, to public addresses only (the operator's `ZIFFR_WEBHOOK_PRIVATE_HOSTS` never applies to a trial); the operator can switch Webhooks off for trials with `ZIFFR_TRIAL_WEBHOOKS=false` or **Installation settings → Trials → Webhooks in trials** (spec 0037).
+Webhooks are available at every Size. The demo has none. A trial may have 2 and send 200 a day, to public addresses only (the operator's `ZIFFR_WEBHOOK_PRIVATE_HOSTS` never applies to a trial); the operator can switch Webhooks off for trials with `ZIFFR_TRIAL_WEBHOOKS=false` or **Installation settings → Trials → Webhooks in trials** (spec 0037).
 
 ## Templates
 

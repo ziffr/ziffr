@@ -376,7 +376,7 @@ The most Metrics a Workspace may hold, Archived Metrics not counted, set for it 
 _Avoid_: Quota, cap, allowance, plan
 
 **Size**:
-What a Workspace on hosted Ziffr is booked for, named by how many Metrics it may hold: Free, Small, Team, Business, or larger on request. Every Size has every feature and any number of members. In Ziffr itself a Size is a Workspace Limit with a name; its price is known only to Ziffr Cloud.
+What a Workspace on hosted Ziffr is booked for, named by how many Metrics it may hold: Small, Team, Business, or larger on request. There is no Free Size: whoever wants Ziffr for free runs it themselves. Every Size has every feature and any number of members. In Ziffr itself a Size is a Workspace Limit with a name; its price is known only to Ziffr Cloud.
 _Avoid_: Plan, tier, package, edition, subscription
 
 **Ziffr Cloud**:

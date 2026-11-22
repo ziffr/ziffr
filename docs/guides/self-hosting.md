@@ -145,7 +145,7 @@ Installation Admins can read daily totals across all Workspaces (counts only, ne
 
 ## Limits per Workspace
 
-Self-hosted Ziffr has no limits unless you set one (spec 0029). A **Workspace Limit** is the most Metrics a Workspace may hold (Archived Metrics and the demo do not count). Set a default for every Workspace with `ZIFFR_DEFAULT_METRICS_LIMIT` and `ZIFFR_DEFAULT_LIMIT_LABEL` (such as 10 and "Free"), or in the **Workspace Limits** section of the Installation settings page, where an Installation Admin also gives one Workspace a limit of its own. Nothing else is limited, and nothing about it is a price: Ziffr itself knows only a number and a name.
+Self-hosted Ziffr has no limits unless you set one (spec 0029). A **Workspace Limit** is the most Metrics a Workspace may hold (Archived Metrics and the demo do not count). Set a default for every Workspace with `ZIFFR_DEFAULT_METRICS_LIMIT` and `ZIFFR_DEFAULT_LIMIT_LABEL` (such as 10 and "Standard"), or in the **Workspace Limits** section of the Installation settings page, where an Installation Admin also gives one Workspace a limit of its own. Nothing else is limited, and nothing about it is a price: Ziffr itself knows only a number and a name.
 
 - **Over the limit** a Workspace keeps working and every value keeps arriving. The first Metric over the limit starts 14 days in which it may hold 10 % more (at least one); after that no new Metric can be made until it holds fewer than the limit. The database enforces it for every way a Metric is made, so the API, the MCP Server, Feeds, Packs and the forms are all refused alike.
 - **`ZIFFR_DEFAULT_LIMIT_PER_PERSON`** (default 3, unset where you do not set a default limit) caps how many Workspaces on the default limit one person may own.
@@ -191,7 +191,7 @@ Generated from the Installation Settings catalogue (`packages/core/src/installat
 | Setting | On the page | Example or choices | What it does |
 | --- | --- | --- | --- |
 | `ZIFFR_DEFAULT_METRICS_LIMIT` | Default limit | `No limit` | The most Metrics a Workspace may hold unless it has a limit of its own. Empty: no limit. Over it, a Workspace keeps everything and keeps collecting values; only new Metrics wait, after 14 days with room for 10 % more. |
-| `ZIFFR_DEFAULT_LIMIT_LABEL` | Name of the default | `Free` | What Owners and Admins see the default called, such as Free. At most 30 characters. |
+| `ZIFFR_DEFAULT_LIMIT_LABEL` | Name of the default | `Standard` | What Owners and Admins see the default called, such as Standard. At most 30 characters. |
 | `ZIFFR_DELETE_UNUSED_AFTER_DAYS` | Delete unused Workspaces after | `Never` | Days without a sign-in and without values after which a Workspace on the default limit is warned; 14 days after the warning, still unused, it is deleted with its key. 30 to 3650; empty: never. Never a trial, the demo or a Workspace with a limit of its own. |
 | `ZIFFR_LIMIT_GRACE_DAYS` | Days over the limit | `14` | 0 to 90. How long a Workspace may stay over its limit, within 10 % more, before new Metrics wait. 0: the limit holds at once. |
 | `ZIFFR_LIMIT_GRACE_EVERY_DAYS` | Days between two such periods | `90` | 0 to 730. After a Workspace's days over the limit started, this many days must pass before it gets others. 0: a Workspace gets them again whenever it comes back under its limit. |
