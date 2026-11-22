@@ -38,4 +38,10 @@ describe("DesignView with room to spare", () => {
     expect(draw(BUILT_IN_DESIGNS.gauge, 1)).not.toContain("6cqw");
     expect(draw(BUILT_IN_DESIGNS.gauge, 2)).toContain("6cqw");
   });
+
+  it("names the sparkline's first and last period once it has room for its context (#782), not before", () => {
+    const ends = "flex items-baseline justify-between";
+    expect(draw(BUILT_IN_DESIGNS.number, 1.25)).not.toContain(ends);
+    expect(draw(BUILT_IN_DESIGNS.number, 1.6)).toContain(ends);
+  });
 });
