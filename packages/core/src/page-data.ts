@@ -222,7 +222,7 @@ export async function metricExtras(actor: Actor, metricId: number, period: Perio
     db().from("tokens").select("id, code, metric_id, submitter_id, stand_in_id, stands_in_for").eq("workspace_id", ws).eq("metric_id", metricId),
     db().from("workflows").select("*").eq("workspace_id", ws).order("id").then(async (r) => ({ data: await openWorkflowRows(ws, r.data) })),
     db().from("metrics").select("workflow_id, owner_id").eq("id", metricId).eq("workspace_id", ws).single(),
-    db().from("period_states").select("*").eq("workspace_id", ws).eq("metric_id", metricId).eq("period_start", current).maybeSingle().then(async (r) => ({ data: r.data ? (await openRows("period_states", ws, [r.data]))[0] : null })),
+    db().from("period_states").select("*").eq("workspace_id", ws).eq("metric_id", metricId).eq("period_start", current).maybeSingle().then(async (r) => ({ data: r.data ? (({ row_key, ...rest }) => (void row_key, rest))((await openRows("period_states", ws, [r.data]))[0] as Record<string, unknown> & { row_key?: unknown }) : null })),
     // Every period whose value waits for Approval, not only the Workflow's: the page marks those values as not
     // approved yet, as widgets do (GLOSSARY: Approval).
     db().from("period_states").select("period_start").eq("workspace_id", ws).eq("metric_id", metricId).eq("state", "approval"),
