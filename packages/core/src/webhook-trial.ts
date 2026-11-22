@@ -1,16 +1,12 @@
 // The rules for Webhooks in a Trial Workspace (GLOSSARY: Webhook, Trial Workspace; spec 0037, "Trial Workspaces"; ticket
 // #646): a trial may hold Webhooks, within smaller limits, reaching public addresses only, unless the operator turns that
-// off (ZIFFR_TRIAL_WEBHOOKS, Installation settings → Trials). One place answers what a Workspace's Webhooks may do, so
+// off (ZIFFR_TRIAL_WEBHOOKS, Installation settings → Trials; the numbers are Trial Limits). One place answers what a Workspace's Webhooks may do, so
 // creating, testing and sending (and Personal Webhooks, spec 0037 ticket 1) all apply the same rules.
 import { operatorPrivateHosts } from "./outbound-request";
 import { sendingLimit } from "./sending-limit";
 import { settingsInEffectStrict, type Settings } from "./settings-in-effect";
 import { trialEndsAt } from "./trials";
-
-/** Webhooks of both kinds together that a Trial Workspace may hold. */
-export const TRIAL_WEBHOOKS_MAX = 2;
-/** Sends a Trial Workspace's Webhooks may make in a day. */
-export const TRIAL_WEBHOOK_SENDS_PER_DAY = 200;
+import { trialLimitsFrom } from "./trial-limits";
 
 /** Whether the Installation lets trials have Webhooks: on unless ZIFFR_TRIAL_WEBHOOKS says otherwise. Any value that is
  * set and is not clearly "on" counts as off, so a mistyped value never opens an outbound path to strangers. */
@@ -35,8 +31,11 @@ export async function webhookRules(workspaceId: string, given?: Settings): Promi
   if (!ends) return { trial: false, allowed: true, why: null, maxWebhooks: perWorkspace, sendsPerDay, privateHosts: operatorPrivateHosts() };
   // Only a trial reads the operator's switch, and it fails closed: settings that cannot be read count as off.
   let on = false;
-  try { on = trialWebhooksOn(given ?? (await settingsInEffectStrict())); } catch { on = false; }
-  const why = ends.getTime() <= Date.now() ? TRIAL_ENDED : on ? null : TRIAL_WEBHOOKS_OFF;
+  let settings: Settings = {};
+  try { settings = given ?? (await settingsInEffectStrict()); on = trialWebhooksOn(settings); } catch { on = false; }
+  const limits = trialLimitsFrom(settings);
+  // A Trial Limit of 0 Webhooks switches them off for trials just as the setting does.
+  const why = ends.getTime() <= Date.now() ? TRIAL_ENDED : on && limits.webhooks > 0 ? null : TRIAL_WEBHOOKS_OFF;
   // The operator's private hosts never apply in a trial: a trial reaches public addresses only.
-  return { trial: true, allowed: why === null, why, maxWebhooks: Math.min(perWorkspace, TRIAL_WEBHOOKS_MAX), sendsPerDay: Math.min(sendsPerDay, TRIAL_WEBHOOK_SENDS_PER_DAY), privateHosts: [] };
+  return { trial: true, allowed: why === null, why, maxWebhooks: Math.min(perWorkspace, limits.webhooks), sendsPerDay: Math.min(sendsPerDay, limits.webhookSendsPerDay), privateHosts: [] };
 }

@@ -169,7 +169,25 @@ Ziffr asks Cloudflare whether it knows the secret key first and saves nothing Cl
 
 Trials are something hosted Ziffr offers, so this section exists only on a Ziffr Cloud deployment. On any other Ziffr the page has no Trials section, the sign-in page has no trial, and every Workspace made here is an ordinary one. If the server's settings file, or a Trials section saved by an older version, still sets the trial days, no Workspace can be made until that is removed.
 
-On hosted Ziffr the section shows the days a trial lasts as **Set by Ziffr Cloud**, and you can still set how many trials may run at once, whether trials may have Webhooks, and the days a trial's data stays after it ends.
+On hosted Ziffr this section holds what happens when a trial ends and whether trials may have Webhooks. The numbers that bound a trial are in the next section.
+
+## Trial Limits
+
+Like Trials, this section exists only on hosted Ziffr. It lists the Trial Limits, the numbers that bound every trial, each with its range:
+
+- **Days a trial lasts** (1 to 30; empty: 14). Applies to trials made afterwards.
+- **Days a trial's data stays after it ends** (1 to 60; empty: 7).
+- **Trials at once** (1 to 100,000; empty: 500).
+- **Metrics** (5 to 100; empty: 25).
+- **Messages a trial sends a day** (10 to 500; empty: 100). Over email, Slack and Telegram together.
+- **Access Keys that work** (1 to 10; empty: 2).
+- **Feeds, and Feed Keys per Feed** (1 to 10; empty: 2).
+- **Connected assistants** (1 to 5; empty: 1).
+- **Webhooks** (0 to 10; empty: 2). Workspace and personal together; 0 switches them off for trials.
+- **Webhook sends a trial makes a day** (10 to 1,000; empty: 200).
+- **View Links that work** (0 to 20; empty: 5). 0 means trials cannot make any.
+
+Ziffr Cloud may set them too. The days a trial lasts and the days its data stays are Ziffr Cloud's alone. A limit it set shows as **Set by Ziffr Cloud** and cannot be changed here; one the server's settings file sets shows as **Set on the server**. A change applies to running trials at once, except the days, which apply to trials made afterwards. Lowering a limit never deletes or stops what a trial has: a trial over the new number keeps what it has and cannot add more.
 
 ## Usage
 

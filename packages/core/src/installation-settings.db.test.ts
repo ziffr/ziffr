@@ -16,7 +16,9 @@ import { inboundOn, mailOn, smtpOptions, smtpTransportWith } from "./mail";
 import { mailHostResolver } from "./mail-hosts";
 import { openSecret } from "./secrets";
 import { forgetStoredSettings, settingContext, settingSources, settingsInEffect } from "./settings-in-effect";
-import { workspace } from "./test/db-fixtures";
+import { resetTrialLimits, workspace } from "./test/db-fixtures";
+import { setCloudTrialLimits } from "./cloud-api";
+import { TRIAL_LIMITS } from "./trial-limits";
 import { whatThisZiffrOffers, whatWorksHere } from "./what-works-here";
 import { inboundMx, makeInboundSecret, replyTestStatus, REPLY_TESTS_PER_HOUR, startReplyTest } from "./installation-replies";
 import { receiveEmail, type InboundEmail } from "./inbound-email";
@@ -507,9 +509,10 @@ describe("the check against bots, trials and the demo on the page (#201)", () =>
   it("has no trials without a Ziffr Cloud key: no section, nothing saved or read, whatever the server or the page says (spec 0040)", async () => {
     const a = await admin();
     expect(await trialSettingsInEffect()).toBeNull();
-    expect((await installationSettingsView(a)).sections.some((x) => x.id === "trials")).toBe(false);
+    expect((await installationSettingsView(a)).sections.some((x) => x.id === "trials" || x.id === "trial_limits")).toBe(false);
     expect((await installationSettingsView(a)).sections.flatMap((x) => x.settings).some((x) => x.name.startsWith("ZIFFR_TRIAL_"))).toBe(false);
-    await expect(saveInstallationSettings(a, "trials", { ZIFFR_TRIAL_DAYS: "14" })).rejects.toThrow(/only on hosted Ziffr/);
+    await expect(saveInstallationSettings(a, "trials", { ZIFFR_TRIAL_WEBHOOKS: "true" })).rejects.toThrow(/only on hosted Ziffr/);
+    await expect(saveInstallationSettings(a, "trial_limits", { ZIFFR_TRIAL_DAYS: "14" })).rejects.toThrow(/only on hosted Ziffr/);
     // A row an older version saved, and the server's own value, count for nothing.
     await db().from("installation_settings").upsert({ name: "ZIFFR_TRIAL_DAYS", value: "14", sealed: false }).throwOnError();
     await db().from("installation_settings").upsert({ name: "ZIFFR_TRIAL_MAX", value: "5", sealed: false }).throwOnError();
@@ -541,18 +544,64 @@ describe("the check against bots, trials and the demo on the page (#201)", () =>
   it("offers trials on hosted Ziffr from the server's days, which the page cannot change, and every place that asks sees it", async () => {
     const a = await admin();
     process.env.ZIFFR_CLOUD_KEY = "k".repeat(32);
+    // Hosted Ziffr offers trials with the default days; 0 is the explicit off.
+    expect(await trialSettingsInEffect()).toEqual({ days: 14, max: 500 });
+    process.env.ZIFFR_TRIAL_DAYS = "0";
     expect(await trialSettingsInEffect()).toBeNull();
     process.env.ZIFFR_TRIAL_DAYS = "14";
-    expect(await trialSettingsInEffect()).toEqual({ days: 14, max: 200 });
+    expect(await trialSettingsInEffect()).toEqual({ days: 14, max: 500 });
     expect(trialsOffered(await settingsInEffect())).toBe(true);
     expect((await whatThisZiffrOffers()).trial?.days).toBe(14);
     expect(demoReadOnlyWords()).toBe(DEMO_READ_ONLY_TRIAL);
     const view = await installationSettingsView(a);
-    expect(view.sections.find((x) => x.id === "trials")).toMatchObject({ working: true, detail: expect.stringContaining("Trials of 14 days") });
-    await expect(saveInstallationSettings(a, "trials", { ZIFFR_TRIAL_DAYS: "3" })).rejects.toThrow(/set by Ziffr Cloud/);
+    expect(view.sections.find((x) => x.id === "trial_limits")).toMatchObject({ working: true, detail: expect.stringContaining("Trials of 14 days") });
+    await expect(saveInstallationSettings(a, "trial_limits", { ZIFFR_TRIAL_DAYS: "3" })).rejects.toThrow(/set by Ziffr Cloud/);
     expect((await trialSettingsInEffect())?.days).toBe(14);
     process.env.ZIFFR_TRIAL_DAYS = "45";
     expect(trialsOffered(await settingsInEffect())).toBe(false);
+  });
+
+  it("lists the Trial Limits on hosted Ziffr, saves them within their ranges into the database, and shows what Ziffr Cloud set as read-only (spec 0040)", async () => {
+    const a = await admin();
+    process.env.ZIFFR_CLOUD_KEY = "k".repeat(32);
+    try {
+      const section = (await installationSettingsView(a)).sections.find((x) => x.id === "trial_limits")!;
+      expect(section.settings.map((x) => x.name)).toEqual(TRIAL_LIMITS.map((l) => l.name));
+      // Each number's range, at both edges and outside, by the page's own check.
+      // The days and grace days are Ziffr Cloud's: the page refuses them whatever the value.
+      for (const name of ["ZIFFR_TRIAL_DAYS", "ZIFFR_TRIAL_GRACE_DAYS"]) await expect(saveInstallationSettings(a, "trial_limits", { [name]: "5" }), name).rejects.toThrow(/set by Ziffr Cloud/);
+      for (const l of TRIAL_LIMITS.filter((x) => x.key !== "days" && x.key !== "graceDays")) {
+        await expect(saveInstallationSettings(a, "trial_limits", { [l.name]: String(l.min - 1) }), l.name).rejects.toThrow(/whole number|must be from/);
+        await expect(saveInstallationSettings(a, "trial_limits", { [l.name]: String(l.max + 1) }), l.name).rejects.toThrow(/whole number|must be from/);
+        await expect(saveInstallationSettings(a, "trial_limits", { [l.name]: "1.5" }), l.name).rejects.toThrow();
+      }
+      await saveInstallationSettings(a, "trial_limits", { ZIFFR_TRIAL_LIMIT_METRICS: "30" });
+      expect((await db().from("trial_limits").select("metrics").single()).data!.metrics).toBe(30);
+      const byName = async () => Object.fromEntries((await installationSettingsView(a)).sections.flatMap((x) => x.settings).map((x) => [x.name, x]));
+      expect((await byName()).ZIFFR_TRIAL_LIMIT_METRICS).toMatchObject({ source: "page", value: "30" });
+      // What Ziffr Cloud sets is shown as its own and cannot be changed or removed here.
+      await setCloudTrialLimits({ cloud: true }, { keys: 3 });
+      expect((await byName()).ZIFFR_TRIAL_LIMIT_KEYS).toMatchObject({ source: "cloud", value: "3" });
+      expect((await byName()).ZIFFR_TRIAL_LIMIT_METRICS).toMatchObject({ source: "page", value: "30" });
+      await expect(saveInstallationSettings(a, "trial_limits", { ZIFFR_TRIAL_LIMIT_KEYS: "4" })).rejects.toThrow(/set by Ziffr Cloud/);
+      await expect(saveInstallationSettings(a, "trial_limits", { ZIFFR_TRIAL_LIMIT_KEYS: null })).rejects.toThrow(/set by Ziffr Cloud/);
+      // The server's own value wins over both.
+      process.env.ZIFFR_TRIAL_LIMIT_FEEDS = "3";
+      await expect(saveInstallationSettings(a, "trial_limits", { ZIFFR_TRIAL_LIMIT_FEEDS: "4" })).rejects.toThrow(/set on the server/);
+      // Once Ziffr Cloud lets go, the page may set it, and the row is the page's again.
+      await setCloudTrialLimits({ cloud: true }, { keys: null });
+      await saveInstallationSettings(a, "trial_limits", { ZIFFR_TRIAL_LIMIT_KEYS: "4" });
+      expect((await db().from("installation_settings").select("set_by").eq("name", "ZIFFR_TRIAL_LIMIT_KEYS").single()).data!.set_by).toBeNull();
+      expect((await db().from("trial_limits").select("keys").single()).data!.keys).toBe(4);
+      // Another Ziffr's page can neither set a limit nor see the section; only the Installation Admin of hosted Ziffr does.
+      const w = await workspace();
+      cleanups.push(w.cleanup);
+      await expect(saveInstallationSettings(w.actor(await w.person("owner")), "trial_limits", { ZIFFR_TRIAL_LIMIT_KEYS: "5" })).rejects.toThrow(/Only Installation Admins/);
+    } finally {
+      delete process.env.ZIFFR_TRIAL_LIMIT_FEEDS;
+      await resetTrialLimits();
+      forgetStoredSettings();
+    }
   });
 
   it("switches Webhooks in trials off on the page of hosted Ziffr, and the server's value wins (spec 0037)", async () => {

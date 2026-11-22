@@ -26,6 +26,7 @@ import { moneyUnit, UNIT_POSITIONS } from "./units";
 import { workspaceProfile } from "./workspace-settings";
 import { isAttainmentMethod } from "./attainment-method";
 import { limitReachedFrom, syncDefaultLimit } from "./workspace-limits";
+import { trialLimitMessage } from "./trials";
 import { announceDefaultRetention, assertRetentionFits, defaultRetentionFor } from "./retention-setting";
 
 const FORMATS: Format[] = ["number", "currency", "percent"];
@@ -74,10 +75,6 @@ export async function assertSubmittersIn(actor: Actor, personIds: string[]) {
   const known = new Set([...(m ?? []).map((x) => x.user_id as string), ...(c ?? []).map((x) => x.person_id as string)]);
   if (!ids.every((id) => known.has(id))) throw new Forbidden("Submitters must be members or Contacts of this workspace.");
 }
-
-/** Metrics a Trial Workspace may hold (spec 0021). The trigger metrics_per_trial keeps the count and writes the same
- * number; a database test fails when the two differ. */
-export const TRIAL_METRICS_MAX = 25;
 
 /** Thrown when an Access Key created as many Metrics as it may in 24 hours (the database keeps the count). */
 export class TooManyMetrics extends Error {
@@ -142,7 +139,7 @@ export async function createMetric(actor: Actor, input: MetricInput, effects: Me
     access_key_id: Number.isInteger(origin.accessKeyId) ? origin.accessKeyId : null,
   }).select("id, slug, from_catalog_id").single();
   if (error?.code === "ZF429") throw new TooManyMetrics();
-  if (error?.code === "ZF430") throw new Error(`A trial holds at most ${TRIAL_METRICS_MAX} Metrics. Delete one to make another.`);
+  if (error?.code === "ZF430") throw new Error(trialLimitMessage("ZF430")!);
   const reached = await limitReachedFrom(error, actor.workspaceId);
   if (reached) throw reached;
   if (error || !metric) throw new Error("The Metric could not be created.");

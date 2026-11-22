@@ -19,9 +19,11 @@ import { ask } from "./questions";
 import { workspace } from "./test/db-fixtures";
 import { queueWebhookEvent } from "./webhook-events";
 import { WEBHOOK_SENDS_PER_WORKSPACE_PER_DAY, WEBHOOK_SEND_CONCURRENCY } from "./webhook-limits";
-import { TRIAL_WEBHOOK_SENDS_PER_DAY } from "./webhook-trial";
+import { trialLimitOf } from "./trial-limits";
 import { sendWaitingWebhooks, sendWebhooksNow, verifyWebhookSignature } from "./webhook-send";
 import { createWebhook, replaceWebhookSecret } from "./webhooks";
+
+const TRIAL_WEBHOOK_SENDS_PER_DAY = trialLimitOf("webhookSendsPerDay").default;
 
 vi.setConfig({ testTimeout: 120_000, hookTimeout: 60_000 });
 const openssl = (() => { try { execFileSync("openssl", ["version"]); return true; } catch { return false; } })();

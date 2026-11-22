@@ -24,6 +24,7 @@ import { keptMethod } from "./attainment-method";
 import { normalizeMetric } from "./metric-row";
 import { numberStyleOf } from "./workspace-settings";
 import { effectiveLimit } from "./limits";
+import { trialLimitMessage } from "./trials";
 import type { CanvasData, Widget } from "./types";
 
 /** How long a View Link may live at most, in days: the ceiling; a Workspace may set a shorter life (limits.ts). */
@@ -313,10 +314,12 @@ export async function createViewLink(actor: Actor, type: "dashboard" | "deck", i
   const [linkId] = await reserveIds("view_links", 1);
   const cipher = await workspaceCipher(actor.workspaceId);
   const frozen = input?.frozen ? sealFrozenData(cipher, "view_links", linkId, mapViewWords(view, sealing(cipher, "view_links", linkId))) : null;
-  const { data: made } = await db().from("view_links").insert({ id: linkId, token, object_type: type, object_id: id, created_by: actor.personId, label: String(input?.label ?? "").slice(0, 80), expires_at: expires, frozen, show_names: input?.showNames === true, metric_ids: view.data.metrics.map((m) => m.id), widget_ids: view.widgets?.map((w) => w.id) ?? null,
+  const { data: made, error: madeError } = await db().from("view_links").insert({ id: linkId, token, object_type: type, object_id: id, created_by: actor.personId, label: String(input?.label ?? "").slice(0, 80), expires_at: expires, frozen, show_names: input?.showNames === true, metric_ids: view.data.metrics.map((m) => m.id), widget_ids: view.widgets?.map((w) => w.id) ?? null,
     // Every record the deck has now, not only shapes: anything added later stays out of a live link.
     shape_ids: type === "deck" ? Object.keys((view.document as { store?: object } | null)?.store ?? {}) : null,
     workspace_id: actor.workspaceId }).select("id").single();
+  // A trial's limit (ZF437) or any other refusal of the database: no link was made, so no token goes out.
+  if (madeError) throw new Refused(trialLimitMessage(madeError.code) ?? "The View Link could not be made. Try again.");
   // Never the token: whoever reads the record must not be able to open the link from it.
   await audit(actor, { kind: "view_link.created", object: { type, id, name: view.name }, accessKeyId: opts.accessKeyId, details: { link_id: made?.id ?? null, frozen: Boolean(input?.frozen), show_names: input?.showNames === true, expires_on: expires, metrics: view.data.metrics.length } });
   return token;
@@ -344,10 +347,12 @@ async function createSnapshotLink(actor: Actor, dashboardId: number, snapshotId:
   await assertSeesMetrics(actor, s.data.metrics.map((m) => m.id));
   const token = randomBytes(24).toString("base64url");
   const [linkId] = await reserveIds("view_links", 1);
-  const { data: made } = await db().from("view_links").insert({ id: linkId, token, object_type: "dashboard", object_id: dashboardId, created_by: actor.personId, label: String(input?.label ?? "").slice(0, 80), expires_at: expires, frozen: null, show_names: input?.showNames === true, snapshot_id: snapshotId,
+  const { data: made, error: madeError } = await db().from("view_links").insert({ id: linkId, token, object_type: "dashboard", object_id: dashboardId, created_by: actor.personId, label: String(input?.label ?? "").slice(0, 80), expires_at: expires, frozen: null, show_names: input?.showNames === true, snapshot_id: snapshotId,
     // The words as the owner sees them now: someone outside reads these, whatever is written in Ziffr later. Sealed for
     // the link with the Workspace Key (spec 0028).
     snapshot_words: sealObject(await workspaceCipher(actor.workspaceId), { table: "view_links", column: "snapshot_words", row: linkId }, s.words), metric_ids: s.data.metrics.map((m) => m.id), widget_ids: null, shape_ids: null, workspace_id: actor.workspaceId }).select("id").single();
+  // A trial's limit (ZF437) or any other refusal of the database: no link was made, so no token goes out.
+  if (madeError) throw new Refused(trialLimitMessage(madeError.code) ?? "The View Link could not be made. Try again.");
   await audit(actor, { kind: "view_link.created", object: { type: "dashboard", id: dashboardId, name: s.name }, accessKeyId: opts.accessKeyId, details: { link_id: made?.id ?? null, frozen: true, show_names: input?.showNames === true, snapshot_id: snapshotId, period: s.label, expires_on: expires, metrics: s.data.metrics.length } });
   return token;
 }

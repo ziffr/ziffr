@@ -6,14 +6,18 @@ import { Forbidden } from "./actor";
 import { db } from "./db";
 import { mailHostResolver } from "./mail-hosts";
 import { workspace } from "./test/db-fixtures";
-import { TRIAL_WEBHOOKS_MAX, TRIAL_WEBHOOK_SENDS_PER_DAY, trialWebhooksOn, webhookRules } from "./webhook-trial";
+import { trialWebhooksOn, webhookRules } from "./webhook-trial";
+import { trialLimitOf } from "./trial-limits";
 import { createWebhook, deleteWebhook, listWebhooks } from "./webhooks";
 import { sendTestWebhook } from "./webhook-log";
 import { authenticateWebhookRequest } from "./webhook-inbound";
 import { signWebhookBody } from "./webhook-send";
 
+const TRIAL_WEBHOOKS_MAX = trialLimitOf("webhooks").default;
+const TRIAL_WEBHOOK_SENDS_PER_DAY = trialLimitOf("webhookSendsPerDay").default;
+
 vi.setConfig({ testTimeout: 120_000, hookTimeout: 60_000 });
-const NAMES = ["ZIFFR_SECRETS_KEY", "ZIFFR_WEBHOOK_PRIVATE_HOSTS", "ZIFFR_TRIAL_WEBHOOKS", "ZIFFR_LIMIT_WEBHOOKS_PER_WORKSPACE", "ZIFFR_LIMIT_WEBHOOK_SENDS_PER_WORKSPACE_PER_DAY"];
+const NAMES = ["ZIFFR_TRIAL_LIMIT_WEBHOOKS", "ZIFFR_TRIAL_LIMIT_WEBHOOK_SENDS_PER_DAY", "ZIFFR_SECRETS_KEY", "ZIFFR_WEBHOOK_PRIVATE_HOSTS", "ZIFFR_TRIAL_WEBHOOKS", "ZIFFR_LIMIT_WEBHOOKS_PER_WORKSPACE", "ZIFFR_LIMIT_WEBHOOK_SENDS_PER_WORKSPACE_PER_DAY"];
 const saved: Record<string, string | undefined> = {};
 const realLookup = mailHostResolver.lookup;
 const cleanups: (() => Promise<void>)[] = [];
@@ -48,6 +52,18 @@ describe("the rules", () => {
     process.env.ZIFFR_LIMIT_WEBHOOKS_PER_WORKSPACE = "1";
     process.env.ZIFFR_LIMIT_WEBHOOK_SENDS_PER_WORKSPACE_PER_DAY = "100";
     expect(await webhookRules(t.w.id)).toMatchObject({ maxWebhooks: 1, sendsPerDay: 100 });
+  });
+
+  it("follow the Trial Limits: their numbers are the trial's, and 0 Webhooks switches them off for trials", async () => {
+    const t = await trial();
+    process.env.ZIFFR_TRIAL_LIMIT_WEBHOOKS = "3";
+    process.env.ZIFFR_TRIAL_LIMIT_WEBHOOK_SENDS_PER_DAY = "50";
+    expect(await webhookRules(t.w.id)).toMatchObject({ trial: true, allowed: true, maxWebhooks: 3, sendsPerDay: 50 });
+    const made = await Promise.allSettled(Array.from({ length: 8 }, (_, i) => createWebhook(t.a, { name: `W${i}`, url: URL1 })));
+    expect(made.filter((r) => r.status === "fulfilled")).toHaveLength(3);
+    process.env.ZIFFR_TRIAL_LIMIT_WEBHOOKS = "0";
+    expect(await webhookRules(t.w.id)).toMatchObject({ trial: true, allowed: false, why: expect.stringContaining("switched off") });
+    expect(await listWebhooks(t.a)).toHaveLength(3);
   });
 
   it("stop an ended trial's Webhooks and say why", async () => {

@@ -50,7 +50,8 @@ describe("making a Trial Workspace", () => {
     expect(count).toBe(1);
   });
 
-  it("is not made without the setting: createWorkspace makes an ordinary workspace", async () => {
+  it("is not made when the days are 0 (Ziffr Cloud's explicit off): createWorkspace makes an ordinary workspace", async () => {
+    process.env.ZIFFR_TRIAL_DAYS = "0";
     const sara = await newcomer();
     const id = await createWorkspace(sara, "Ordinary");
     made.workspaces.push(id);
@@ -123,9 +124,9 @@ describe("a Trial Workspace is for its Owner alone", () => {
   it("is never made from wrong settings: createWorkspace refuses instead of making an ordinary workspace", async () => {
     process.env.ZIFFR_TRIAL_DAYS = "7";
     process.env.ZIFFR_CLOUD_KEY = "k".repeat(32);
-    process.env.ZIFFR_TRIAL_MAX = "1,000";
+    process.env.ZIFFR_TRIAL_DAYS = "7.5";
     const sara = await newcomer();
-    await expect(createWorkspace(sara, "Typo")).rejects.toThrow(/ZIFFR_TRIAL_MAX/);
+    await expect(createWorkspace(sara, "Typo")).rejects.toThrow(/ZIFFR_TRIAL_DAYS/);
     const { count } = await db().from("memberships").select("user_id", { count: "exact", head: true }).eq("user_id", sara);
     expect(count).toBe(0);
   });

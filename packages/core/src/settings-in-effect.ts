@@ -23,7 +23,7 @@ export const settingContext = (name: string) => `installation-setting:${name}`;
 
 const isSet = (v: string | undefined | null): v is string => typeof v === "string" && v.trim() !== "";
 
-type Stored = { values: Map<string, string>; unreadable: Set<string>; at: number };
+type Stored = { values: Map<string, string>; unreadable: Set<string>; byCloud: Set<string>; at: number };
 let cache: Stored | null = null;
 
 /** Forgets what was read from the database, so the next read sees a change at once (after a save, in tests). */
@@ -31,23 +31,26 @@ export function forgetStoredSettings(): void {
   cache = null;
 }
 
-/** The values saved on the page, opened, and the names of sealed ones that no longer open (a lost or changed key).
- * A value only the previous key opens is sealed again under the current one. */
+/** The values saved on the page or by Ziffr Cloud (`byCloud` names the latter, Trial Limits only), opened, and the names of
+ * sealed ones that no longer open (a lost or changed key). A value only the previous key opens is sealed again under the
+ * current one. */
 export async function storedSettings(strict = false): Promise<Omit<Stored, "at">> {
   if (cache && Date.now() - cache.at < SETTINGS_CACHE_MS) return cache;
   const values = new Map<string, string>();
   const unreadable = new Set<string>();
+  const byCloud = new Set<string>();
   const known = INSTALLATION_SETTINGS.map((s) => s.name);
-  const { data, error } = await db().from("installation_settings").select("name, value, sealed").in("name", known);
+  const { data, error } = await db().from("installation_settings").select("name, value, sealed, set_by").in("name", known);
   if (error) {
     // Before the migration ran, or the database is away for a moment: the environment alone, read again next time.
     console.error(`Installation Settings: could not be read (${error.code ?? "error"})`);
     // Strict readers (what deletes data) must not act on a guess: they get the error, not the defaults.
     if (strict) throw new Error("The Installation Settings could not be read.");
-    return { values, unreadable };
+    return { values, unreadable, byCloud };
   }
   for (const row of data ?? []) {
     const name = row.name as string;
+    if (row.set_by === "cloud") byCloud.add(name);
     if (!row.sealed) { values.set(name, row.value as string); continue; }
     const opened = openSecretRotating(row.value as string, settingContext(name));
     if (!opened) { unreadable.add(name); continue; }
@@ -60,15 +63,15 @@ export async function storedSettings(strict = false): Promise<Omit<Stored, "at">
       }
     }
   }
-  cache = { values, unreadable, at: Date.now() };
+  cache = { values, unreadable, byCloud, at: Date.now() };
   return cache;
 }
 
 /** The settings in effect: the environment, with each Installation Setting it leaves unset taken from the page,
  * else from its default. Server only: the result holds secrets. */
 export async function settingsInEffect(env: Settings = process.env): Promise<Settings> {
-  const { values } = await storedSettings();
-  return merge(env, values);
+  const { values, byCloud } = await storedSettings();
+  return merge(env, values, byCloud);
 }
 
 /** Whether Ziffr Cloud pins this setting here: a hosted deployment, and one of the settings it keeps fixed. */
@@ -76,44 +79,44 @@ export const pinned = (env: Settings, name: string): boolean => CLOUD_PINNED.has
 
 /** Puts into `out` the value an Installation Setting has when the environment leaves it unset: what the page saved
  * (`stored`, undefined where it may not be read), else its `_DEFAULT`; removes it when there is none. */
-function putSetting(out: Settings, env: Settings, name: string, stored: string | undefined): void {
+function putSetting(out: Settings, env: Settings, name: string, stored: string | undefined, byCloud = false): void {
   if (isSet(env[name])) return;
   // Trial settings that make trials exist only on hosted Ziffr (spec 0040): nothing stored or defaulted is put in elsewhere.
   // Pinned by Ziffr Cloud: only the server's environment gives a value, never a row of the page.
-  const v = (isTrialSetting(name) && !hostedByCloud(env)) ? undefined : ((pinned(env, name) ? undefined : stored) ?? (isSet(env[`${name}_DEFAULT`]) ? env[`${name}_DEFAULT`] : undefined));
+  const v = (isTrialSetting(name) && !hostedByCloud(env)) ? undefined : ((pinned(env, name) && !byCloud ? undefined : stored) ?? (isSet(env[`${name}_DEFAULT`]) ? env[`${name}_DEFAULT`] : undefined));
   if (v === undefined) delete out[name];
   else out[name] = v;
 }
 
 /** The environment with the stored values put in for every Installation Setting it leaves unset. */
-function merge(env: Settings, values: Map<string, string>): Settings {
-  last = { values, at: Date.now() };
+function merge(env: Settings, values: Map<string, string>, byCloud: Set<string>): Settings {
+  last = { values, byCloud, at: Date.now() };
   const out: Settings = { ...env };
-  for (const { name } of INSTALLATION_SETTINGS) putSetting(out, env, name, values.get(name));
+  for (const { name } of INSTALLATION_SETTINGS) putSetting(out, env, name, values.get(name), byCloud.has(name));
   return out;
 }
 
 /** Like settingsInEffect, but throws when the stored settings cannot be read, instead of falling back to the defaults.
  * For decisions that destroy data, which must fail closed: a database hiccup never turns "keep" into "delete". */
 export async function settingsInEffectStrict(env: Settings = process.env): Promise<Settings> {
-  const { values } = await storedSettings(true);
-  return merge(env, values);
+  const { values, byCloud } = await storedSettings(true);
+  return merge(env, values, byCloud);
 }
 
-let last: { values: Map<string, string>; at: number } | null = null;
+let last: { values: Map<string, string>; byCloud: Set<string>; at: number } | null = null;
 
 /** The settings in effect as last read, for code that cannot wait for the database (the words of an error made deep
  * in a call): the environment always, with what the page saved as of the last read a few seconds ago at most. */
 export function settingsInEffectNow(env: Settings = process.env): Settings {
   const out: Settings = { ...env };
   const fresh = last && Date.now() - last.at < 60_000 ? last.values : null;
-  for (const { name } of INSTALLATION_SETTINGS) putSetting(out, env, name, fresh?.get(name));
+  for (const { name } of INSTALLATION_SETTINGS) putSetting(out, env, name, fresh?.get(name), last?.byCloud.has(name) ?? false);
   return out;
 }
 
 /** Where each Installation Setting's value comes from now. */
 export async function settingSources(env: Settings = process.env): Promise<Record<string, SettingSource>> {
-  const { values } = await storedSettings();
+  const { values, byCloud } = await storedSettings();
   return Object.fromEntries(INSTALLATION_SETTINGS.map(({ name }) => [name,
-    pinned(env, name) ? "cloud" : isSet(env[name]) ? "server" : values.has(name) ? "page" : isSet(env[`${name}_DEFAULT`]) ? "default" : "none"]));
+    pinned(env, name) ? "cloud" : isSet(env[name]) ? "server" : values.has(name) ? (byCloud.has(name) ? "cloud" : "page") : isSet(env[`${name}_DEFAULT`]) ? "default" : "none"]));
 }
