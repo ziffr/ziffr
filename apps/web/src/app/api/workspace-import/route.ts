@@ -12,14 +12,15 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { Readable, Transform } from "node:stream";
 import { pipeline } from "node:stream/promises";
-import { beginImport, claimUpload, dropUpload, importLimits, importOffered, sweepUploads } from "@ziffr/core/workspace-import";
+import { beginImport, claimUpload, dropUpload, importLimits, importOffered, sweepUploads, touchUpload } from "@ziffr/core/workspace-import";
 import { forPeople } from "@/lib/action-result";
 import { isDemo, personFor, sessionUser } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
-/** Uploads that stall are cut after this long. */
+/** An upload that sends no byte for this long is cut, and one that takes this long altogether. */
+const IDLE_MS = 30_000;
 const UPLOAD_MS = 15 * 60_000;
 
 const say = (error: string, status: number) => Response.json({ error }, { status, headers: { "cache-control": "no-store" } });
@@ -45,17 +46,29 @@ export async function POST(req: Request) {
   await sweepUploads();
   const path = join(tmpdir(), `ziffr-import-${randomUUID()}`);
   let size = 0;
+  let beat = 0;
+  const stop = new AbortController();
+  // A byte must come within IDLE_MS of the last (or of the start); every arriving chunk is a sign of life for the job.
+  let idle = setTimeout(() => stop.abort(), IDLE_MS);
   const count = new Transform({
     transform(chunk: Buffer, _enc, done) {
       size += chunk.length;
+      clearTimeout(idle);
+      idle = setTimeout(() => stop.abort(), IDLE_MS);
+      if (Date.now() - beat > 10_000) {
+        beat = Date.now();
+        void touchUpload(person, job).catch(() => undefined);
+      }
       done(size > fileBytes ? new Error("too large") : null, chunk);
     },
   });
   try {
-    await pipeline(Readable.fromWeb(req.body as never), count, createWriteStream(path, { mode: 0o600 }), { signal: AbortSignal.timeout(UPLOAD_MS) });
+    await pipeline(Readable.fromWeb(req.body as never), count, createWriteStream(path, { mode: 0o600 }), { signal: AbortSignal.any([stop.signal, AbortSignal.timeout(UPLOAD_MS)]) });
   } catch {
     await dropUpload(person, job, path);
     return size > fileBytes ? say(`The file is larger than ${fileBytes.toLocaleString("en")} bytes, which is the most this Installation reads.`, 413) : say("The upload was cut off. Try again.", 400);
+  } finally {
+    clearTimeout(idle);
   }
   try {
     const { id } = await beginImport(person, job, path);

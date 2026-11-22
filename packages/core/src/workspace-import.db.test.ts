@@ -13,9 +13,10 @@ import type { ThemeFile } from "@ziffr/pack/theme-file";
 import type { WorkspaceExportRecord } from "@ziffr/pack/workspace-export";
 import { db } from "./db";
 import { openRows } from "./sealed-columns";
+import { metricHistory } from "./dashboards";
 import { workspaceCipher } from "./workspace-keys";
 import { writeWorkspaceExportAll } from "./workspace-export-file";
-import { claimUpload, importLimits, importStatus, ImportProblem, Labels, startWorkspaceImport, STALE_SECONDS } from "./workspace-import";
+import { beginImport, claimUpload, importLimits, importStatus, ImportProblem, Labels, startWorkspaceImport, STALE_SECONDS, touchUpload } from "./workspace-import";
 import { acceptInvitation, inviteEveryone, invitationFor, openInvitations, setHeldRole } from "./invitations";
 import { workspace } from "./test/db-fixtures";
 
@@ -139,6 +140,10 @@ describe("a sound file", () => {
     expect(inGroup).toHaveLength(1);
     const { data: tokens } = await db().from("tokens").select("submitter_id").eq("metric_id", orders.id);
     expect(tokens!.map((t) => t.submitter_id)).toEqual([person]);
+    // The name stays off the history read that goes to browsers, and off every read but the Metric page's own.
+    const history = await metricHistory({ personId: person, workspaceId: ws, role: "owner" }, orders.id);
+    expect(JSON.stringify(history)).not.toContain("Ada");
+    expect(history.observations.every((o) => !("submitted_by_name" in o))).toBe(true);
     // The audit line says it was imported.
     expect((await db().from("audit_events").select("kind").eq("workspace_id", ws).eq("kind", "workspace.imported")).data).toHaveLength(1);
   });
@@ -248,18 +253,35 @@ describe("a file that is refused", () => {
     await expect(writeFile(path, "", { flag: "wx" })).resolves.toBeUndefined();
   });
 
-  it("is refused before any file is taken, and a claimed place holds the limits while the upload comes in", async () => {
+  it("claims a place before any file is taken, for the person only: parallel uploads of one person are refused, a slow one blocks nobody", async () => {
+    const { person, email } = await importer();
+    const [first, second] = await Promise.allSettled([claimUpload(person), claimUpload(person)]);
+    expect([first.status, second.status].sort()).toEqual(["fulfilled", "rejected"]);
+    const job = (first.status === "fulfilled" ? first : (second as PromiseFulfilledResult<string>)).value;
+    expect((await db().from("workspace_imports").select("status").eq("id", job).single()).data?.status).toBe("uploading");
+    // Others claim theirs while this one comes in, however many uploads there are.
+    for (let i = 0; i < 3; i++) await claimUpload((await importer()).person);
+    // The Installation's limit of running imports is held when the import begins, after the file has arrived.
+    const taken = await importer();
+    await db().from("workspace_imports").insert([{ created_by: taken.person, status: "importing" }, { created_by: (await importer()).person, status: "checking" }]);
+    const path = await fileOf(records(email));
+    await expect(beginImport(person, job, path)).rejects.toThrow(/as many Workspaces as it does at once/);
+    // The refused upload ended as failed and its file is gone; the person can claim again.
+    expect((await db().from("workspace_imports").select("status").eq("id", job).single()).data?.status).toBe("failed");
+    await expect(stat(path)).rejects.toThrow();
+    await expect(claimUpload(person)).resolves.toBeTypeOf("string");
+    process.env.ZIFFR_CLOUD_KEY = "k".repeat(40);
+    await expect(claimUpload((await importer()).person)).rejects.toThrow(/hosted Ziffr/);
+  });
+
+  it("goes stale when an upload stops sending bytes, and stays alive while it sends them", async () => {
     const { person } = await importer();
     const job = await claimUpload(person);
-    expect((await db().from("workspace_imports").select("status").eq("id", job).single()).data?.status).toBe("uploading");
-    // A second upload of the same person is refused at once, and so is a third person when two places are taken.
-    await expect(claimUpload(person)).rejects.toThrow(/importing a Workspace already/);
-    const b = await importer();
-    const c = await importer();
-    await claimUpload(b.person);
-    await expect(claimUpload(c.person)).rejects.toThrow(/as many Workspaces as it does at once/);
-    process.env.ZIFFR_CLOUD_KEY = "k".repeat(40);
-    await expect(claimUpload(c.person)).rejects.toThrow(/hosted Ziffr/);
+    await db().from("workspace_imports").update({ updated_at: new Date(Date.now() - (STALE_SECONDS + 5) * 1000).toISOString() }).eq("id", job);
+    await touchUpload(person, job);
+    expect((await importStatus(person, job))!.status).toBe("uploading");
+    await db().from("workspace_imports").update({ updated_at: new Date(Date.now() - (STALE_SECONDS + 5) * 1000).toISOString() }).eq("id", job);
+    expect((await importStatus(person, job))!.status).toBe("failed");
   });
 
   it("is one import at a time per person", async () => {

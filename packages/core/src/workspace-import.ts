@@ -50,8 +50,6 @@ import type { WorkflowConfig } from "./types";
 export const MAX_RUNNING_IMPORTS = 2;
 /** The states of a job that is not over: the upload is coming in, the file is being checked, the Workspace is being written. */
 const ACTIVE = ["uploading", "checking", "importing"];
-/** Seconds an upload may take before its slot is given up (the route cuts an upload at 15 minutes). */
-const UPLOAD_STALE_SECONDS = 20 * 60;
 /** Seconds without a sign of life after which a running import is taken for dead (its process stopped) and undone. */
 export const STALE_SECONDS = 120;
 /** Values written in one batch. */
@@ -143,19 +141,24 @@ function wordsOf(e: unknown): string | null {
 // Starting a job and reading its state.
 
 /** Claims the person's place for an import before a byte of the file is written: refused where hosted, for a person who
- * may not make a Workspace, with one import running already, or when the Installation runs its limit of them, and
- * otherwise a job row in the state "uploading" that counts against both limits at once, so many uploads cannot be
- * started at the same time. Words for the person. The upload route calls this first, then `beginImport` or `dropUpload`. */
+ * may not make a Workspace, or with an import under way already, and otherwise a job row in the state "uploading". It
+ * counts against the person only, so a slow upload blocks nobody else; the Installation's limit is held when the
+ * import begins. Words for the person. The upload route calls this first, then `beginImport` or `dropUpload`. */
 export async function claimUpload(personId: string): Promise<string> {
   if (!importOffered()) throw new Error("A new Workspace on hosted Ziffr is a trial: import a Workspace Export on an Installation of your own.");
   await assertMayOwnDefault(personId);
   await endStaleImports();
   // Claimed in one locked database step with the limits, so people starting at once cannot all pass them.
-  const { data, error } = await db().rpc("start_workspace_import", { p_person: personId, p_max: MAX_RUNNING_IMPORTS, p_status: "uploading" }).single<{ job: string | null; refused: string | null }>();
+  const { data, error } = await db().rpc("start_workspace_import", { p_person: personId }).single<{ job: string | null; refused: string | null }>();
   if (error) throw new Error("The import could not be started.");
   if (data.refused === "mine") throw new Error("You are importing a Workspace already. Wait for it to finish.");
-  if (data.refused === "busy" || !data.job) throw new Error("This Ziffr is importing as many Workspaces as it does at once. Try again in a few minutes.");
+  if (!data.job) throw new Error("The import could not be started.");
   return data.job;
+}
+
+/** A sign of life from an upload that is still coming in, so a stalled one goes stale quickly and an active one never does. */
+export async function touchUpload(personId: string, job: string): Promise<void> {
+  await db().from("workspace_imports").update({ updated_at: new Date().toISOString() }).eq("id", job).eq("created_by", personId).eq("status", "uploading");
 }
 
 /** Gives up a claimed place when the upload failed: the job ends as failed and the file, if any, is deleted. */
@@ -168,10 +171,11 @@ export async function dropUpload(personId: string, job: string, path?: string): 
  * settles when the job ends (the upload route ignores it; tests wait for it). The file is deleted when the job ends,
  * whatever the outcome. */
 export async function beginImport(personId: string, job: string, path: string, options: { limits?: WorkspaceExportReaderLimits } = {}): Promise<{ id: string; done: Promise<void> }> {
-  const { data } = await db().from("workspace_imports").update({ status: "checking", step: "Checking the file", temp_path: path.slice(0, 300), updated_at: new Date().toISOString() }).eq("id", job).eq("created_by", personId).eq("status", "uploading").select("id");
-  if (!data?.length) {
-    await removeUpload(path);
-    throw new Error("The import could not be started.");
+  // Under the lock that counts the imports that run: the Installation's limit is held now, after the file has arrived.
+  const { data: began } = await db().rpc("begin_workspace_import", { p_job: job, p_person: personId, p_max: MAX_RUNNING_IMPORTS, p_temp: path.slice(0, 300) });
+  if (began !== "ok") {
+    await dropUpload(personId, job, path);
+    throw new Error(began === "busy" ? "This Ziffr is importing as many Workspaces as it does at once. Try again in a few minutes." : "The import could not be started.");
   }
   return { id: job, done: runImport(job, personId, path, options.limits ?? importLimits()) };
 }
@@ -237,8 +241,7 @@ async function endStaleImports(): Promise<void> {
       if (j.workspace_id) await undoWorkspace(j.workspace_id as string).catch((e) => console.error("A stopped import could not be undone:", (e as Error)?.name));
     }
   };
-  await stale(["uploading"], UPLOAD_STALE_SECONDS);
-  await stale(["checking", "importing"], STALE_SECONDS);
+  await stale(ACTIVE, STALE_SECONDS);
   // Only those whose Workspace is still marked importing (inner join), oldest first, so finished ones never crowd them out.
   const { data: left } = await db().from("workspace_imports").select("workspace_id, workspaces!inner(importing_at)").eq("status", "failed").not("workspaces.importing_at", "is", null).order("started_at").limit(20);
   for (const j of left ?? []) await undoWorkspace(j.workspace_id as string).catch((e) => console.error("A failed import could not be undone:", (e as Error)?.name));

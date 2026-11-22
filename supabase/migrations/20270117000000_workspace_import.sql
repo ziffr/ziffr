@@ -69,19 +69,34 @@ end;
 $$;
 revoke all on function destroy_workspace_keys(uuid) from public, anon, authenticated;
 
--- Claims a place for an import in one locked step (p_status 'uploading' before the file is written): this person has none running and the Installation runs fewer than p_max, so two
--- people starting at once cannot both pass. Answers the job's id, or null when refused ('mine' or 'busy' say why).
-create function start_workspace_import(p_person text, p_max int, p_status text, out job uuid, out refused text) language plpgsql security definer set search_path = public as $$
+-- Claims a place for an upload in one locked step: this person has no import under way. An upload counts only against the
+-- person, so a slow one cannot block anyone else; the Installation's limit of imports that run is checked when the
+-- import begins (begin_workspace_import), after the file has arrived. Answers the job's id, or refused = 'mine'.
+create function start_workspace_import(p_person text, out job uuid, out refused text) language plpgsql security definer set search_path = public as $$
 begin
   perform pg_advisory_xact_lock(hashtext('workspace_imports'));
   if exists (select 1 from workspace_imports where created_by = p_person and status in ('uploading', 'checking', 'importing')) then
     refused := 'mine';
-  elsif (select count(*) from workspace_imports where status in ('uploading', 'checking', 'importing')) >= p_max then
-    refused := 'busy';
   else
-    insert into workspace_imports (created_by, status, step) values (p_person, p_status, case p_status when 'uploading' then 'Receiving the file' else 'Checking the file' end) returning id into job;
+    insert into workspace_imports (created_by, status, step) values (p_person, 'uploading', 'Receiving the file') returning id into job;
   end if;
 end;
 $$;
-revoke all on function start_workspace_import(text, int, text) from public, anon, authenticated;
-grant execute on function start_workspace_import(text, int, text) to service_role;
+revoke all on function start_workspace_import(text) from public, anon, authenticated;
+grant execute on function start_workspace_import(text) to service_role;
+
+-- Begins the import of an upload that has arrived: the Installation runs fewer than p_max imports ('busy' otherwise,
+-- and the job stays an upload so the caller can end it), under the same lock. Answers 'ok', 'busy' or 'gone'.
+create function begin_workspace_import(p_job uuid, p_person text, p_max int, p_temp text) returns text language plpgsql security definer set search_path = public as $$
+begin
+  perform pg_advisory_xact_lock(hashtext('workspace_imports'));
+  if (select count(*) from workspace_imports where status in ('checking', 'importing')) >= p_max then
+    return 'busy';
+  end if;
+  update workspace_imports set status = 'checking', step = 'Checking the file', temp_path = p_temp, updated_at = now()
+    where id = p_job and created_by = p_person and status = 'uploading';
+  return case when found then 'ok' else 'gone' end;
+end;
+$$;
+revoke all on function begin_workspace_import(uuid, text, int, text) from public, anon, authenticated;
+grant execute on function begin_workspace_import(uuid, text, int, text) to service_role;
