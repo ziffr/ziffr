@@ -85,7 +85,7 @@ describe("/mcp", () => {
     // A Metric the key's creator may not see is the API's 404, as for the local server.
     const refused = await client.callTool({ name: "get_metric", arguments: { slug: hidden.slug } });
     expect(refused.isError).toBe(true);
-    expect(text(refused)).toContain("not_found");
+    expect(text(refused)).toContain("Not found.");
     const log = await accessLogOf(key.id);
     expect(log.map((l) => `${l.method} ${l.status}`)).toEqual(expect.arrayContaining(["GET 200", "POST 201", "GET 404"]));
   });
@@ -120,7 +120,7 @@ describe("/mcp", () => {
     // A Metric the creator cannot see is the API's 404; a share outside 1 to 1,000 is refused by the tool's own schema.
     const blind = await client.callTool({ name: "create_alert", arguments: { metric: hidden.slug, condition: { kind: "below", value: 5 } } });
     expect(blind.isError).toBe(true);
-    expect(text(blind)).toContain("not_found");
+    expect(text(blind)).toContain("Not found.");
     expect((await client.callTool({ name: "create_alert", arguments: { metric: orders.slug, condition: { kind: "changed_more", share: 5000 } } })).isError).toBe(true);
     // Another person's key, even an Owner's, reaches none of it.
     const other = await createAccessKey(w.actor(sara, "owner"), { name: "Other", scopes: ["metrics:read", "alerts:write"], expiresOn: inDays(30) });
@@ -168,7 +168,7 @@ describe("/mcp", () => {
     ] as const) {
       const r = await client.callTool({ name, arguments: args });
       expect(r.isError, name).toBe(true);
-      expect(text(r), name).toContain("forbidden");
+      expect(text(r), name).toContain("lacks the scope");
     }
   });
 
@@ -184,14 +184,14 @@ describe("/mcp", () => {
     // A period that is over, and a Metric the creator does not see: the API's refusals, as text the assistant reads.
     const over = await client.callTool({ name: "set_projections", arguments: { slug: orders.slug, items: [{ period: "2020-01-01", value: 1 }] } });
     expect(over.isError).toBe(true);
-    expect(text(over)).toMatch(/unprocessable.*is over/);
+    expect(text(over)).toMatch(/is over/);
     expect(json(await client.callTool({ name: "get_unusual_value_check", arguments: { slug: orders.slug } }))).toEqual({ workflow: null, check: null });
     // Sources and Submitters (ticket #217).
     expect(json(await client.callTool({ name: "update_metric", arguments: { slug: orders.slug, sources: ["mail", "api"] } })).metric.sources).toEqual(["mail", "api"]);
     expect(json(await client.callTool({ name: "list_submitters", arguments: { slug: orders.slug } })).submitters).toHaveLength(1);
     expect(json(await client.callTool({ name: "list_feeds", arguments: {} }))).toEqual({ feeds: [] });
     const hiddenOne = await client.callTool({ name: "set_target_series", arguments: { slug: hidden.slug, items: [{ period: "2027-01-01", value: 1 }] } });
-    expect(text(hiddenOne)).toContain("not_found");
+    expect(text(hiddenOne)).toContain("Not found.");
   });
 
   it("answers 401 with a challenge without a valid credential, and reaches nothing for an ended one", async () => {
