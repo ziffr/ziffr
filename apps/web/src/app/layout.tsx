@@ -18,6 +18,7 @@ import { pinnedDashboards } from "@ziffr/core/pinned-dashboards";
 import { whatThisZiffrOffers } from "@ziffr/core/what-works-here";
 import { isInstallationAdmin } from "@ziffr/core/installation-admins";
 import { keptWords, trialStatus } from "@ziffr/core/trial-end";
+import { workspaceExportState } from "@ziffr/core/workspace-export";
 import { TrialBar, TrialEnded } from "@/components/trial-bar";
 import { OverLimitBar } from "@/components/over-limit-bar";
 import { overLimitBanner, sizeAndUsage } from "@ziffr/core/workspace-usage";
@@ -135,7 +136,7 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
       </head>
       <body className="min-h-screen bg-background font-sans antialiased">
         <AppShell workspace={workspaceTree(role)} settings={settingsGroups(role)} pinned={pinned} due={due} open={open} guide={guideHref()} account={accountOf} demo={demoControls} people={demo ? { profiles: profiles.filter((p) => !p.contact), current: viewer } : undefined} collapsed={await sidebarCollapsed()} banners={<>{demoNote}{banners}</>}>
-          {trial?.ended ? <TrialEnded deletedAt={trial.deletedAt} /> : children}
+          {trial?.ended ? <TrialEnded deletedAt={trial.deletedAt} workspaceExport={role === "owner" ? await workspaceExportState(actor).catch(() => null) : null} /> : children}
         </AppShell>
         {demo && offersTrials && <DemoRefusalLinks />}
         {demo && <Tour key={can(actor, "create") ? "member" : "guest"} guest={!can(actor, "create")} />}

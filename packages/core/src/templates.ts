@@ -64,7 +64,7 @@ function withoutLinks(props: Record<string, unknown>): Record<string, unknown> {
 
 /** A slide's shapes as the editor sends them, each checked: known kinds only, numbers that are numbers, widgets of
  * views that exist with their View Designs checked. Answers the shapes and every Metric their widgets draw. */
-function cleanSlideShapes(shapes: unknown): { shapes: SlideShape[]; metricIds: number[] } {
+export function cleanSlideShapes(shapes: unknown): { shapes: SlideShape[]; metricIds: number[] } {
   const list = Array.isArray(shapes) ? (shapes as SlideShape[]) : [];
   if (list.length > 80 || JSON.stringify(list).length > 400_000) throw new Error("This slide is too large to save as a layout.");
   assertWidgetDesigns(list);
@@ -99,7 +99,7 @@ const MAX_DECK_TEMPLATE = { slides: 40, bytes: 2_000_000 };
 
 /** The slides of a stored deck document, in the order the editor shows them (top to bottom, then left to right), each
  * with its own shapes in their order, in slide coordinates. */
-function storedSlides(document: unknown): SlideShape[][] {
+export function storedSlides(document: unknown): SlideShape[][] {
   type Rec = { id?: unknown; typeName?: unknown; type?: unknown; parentId?: unknown; index?: unknown; x?: unknown; y?: unknown; rotation?: unknown; opacity?: unknown; props?: unknown };
   const records = Object.values(((document as { store?: Record<string, Rec> } | null)?.store ?? {})).filter((r) => r && r.typeName === "shape");
   const at = (r: Rec) => [Number(r.y) || 0, Number(r.x) || 0];

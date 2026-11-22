@@ -2,6 +2,7 @@
 // (ticket 193), Try it and the download of its values; and the screen that replaces the app once it has ended.
 import Link from "next/link";
 import { EndTrialButton } from "./end-trial-button";
+import { WorkspaceExportButton } from "./workspace-export-button";
 
 /** The line above the page while the trial runs. */
 export function TrialBar({ daysLeft, endsAt, kept }: { daysLeft: number; endsAt: string; kept?: string | null }) {
@@ -17,7 +18,7 @@ export function TrialBar({ daysLeft, endsAt, kept }: { daysLeft: number; endsAt:
 }
 
 /** What a person sees instead of the app once their trial has ended. */
-export function TrialEnded({ deletedAt }: { deletedAt: string }) {
+export function TrialEnded({ deletedAt, workspaceExport }: { deletedAt: string; workspaceExport?: { signedInRecently: boolean } | null }) {
   return (
     <div className="mx-auto mt-16 max-w-md text-sm">
       <h1 className="text-[length:var(--text-2xl)] leading-tight">This trial has ended</h1>
@@ -25,6 +26,13 @@ export function TrialEnded({ deletedAt }: { deletedAt: string }) {
         Nothing is sent or taken any more, and its keys have stopped. On {deletedAt.slice(0, 10)} it is deleted with everything in it, and your account with it.
       </p>
       <p className="mt-4">To keep your numbers, download them now. To use Ziffr for real, run it yourself: <a href="https://github.com/ziffr/ziffr" className="underline">github.com/ziffr/ziffr</a>.</p>
+      {/* The Owner's whole Workspace as one file a Ziffr you run can import (spec 0040): the file holds every value in the clear. */}
+      {workspaceExport && (
+        <div className="mt-4 space-y-2">
+          <p className="text-muted-foreground">The Workspace Export holds the whole Workspace, for you to run yourself. It holds every value in the clear: keep it private.{!workspaceExport.signedInRecently && " It asks for a sign-in from the last 10 minutes."}</p>
+          <WorkspaceExportButton signedInRecently={workspaceExport.signedInRecently} />
+        </div>
+      )}
       <div className="mt-6 flex flex-wrap gap-3">
         <a href="/try/download" className="inline-flex h-9 items-center rounded-[var(--radius-input)] border border-input px-3 font-medium hover:bg-muted">Download your values</a>
         <EndTrialButton label="Delete it now" />

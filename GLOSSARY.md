@@ -340,7 +340,7 @@ One of the numbers that bound every Trial Workspace: people, invitation emails a
 _Avoid_: Plan limit, quota, entitlement
 
 **Workspace Export**:
-The file a Workspace's Owner downloads that holds the whole Workspace (its Metrics and their values, dashboards, decks, Workflows, Themes and people as invitations, but no secret, key or Connector link), so that another Installation can import it as a new Workspace. Not an Archived Metric, nor a Pack, which holds no values.
+The file a Workspace's Owner downloads that holds the Workspace as the Owner may see it (its Metrics and their values, dashboards, decks, Workflows, Themes, Groups, Shares and people as invitations, but no secret, key or Connector link), so that another Installation can import it as a new Workspace. It asks for a sign-in from the last 10 minutes, is made while it downloads and is never stored. What its format cannot carry is left out and said, never cut short. Not an Archived Metric, nor a Pack, which holds no values.
 _Avoid_: Backup, dump, archive
 
 **Trial Guide**:
