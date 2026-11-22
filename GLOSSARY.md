@@ -523,6 +523,10 @@ _Avoid_: Activity, activity feed, history
 A question or task about a specific observation or time range of a metric that one user assigns to another. It moves from open to answered to closed, and can be reopened.
 _Avoid_: Ticket, request, to-do
 
+**Actions Inbox** and **Actions Timeline**:
+The two views of the Actions page. The Inbox says what a person has to do now: Needs you, Waiting on others, and Done (closed, folded and never red). The Timeline says what happened, newest first, by day: the Period Timelines of the Workflows and the Actions on Metrics no Workflow asks for, each person seeing only what they may see. Neither records anything of its own.
+_Avoid_: Kanban, activity feed
+
 **Question**:
 An action that is done once the assignee has answered it, e.g. "Why is cost so high this month?"
 _Avoid_: Inquiry

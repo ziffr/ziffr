@@ -44,6 +44,9 @@ export type TimelineEvent = {
   path?: string;
 };
 
+/** A line with the Metrics it is about, only ones the viewer sees: for the Actions page's Timeline to filter by Metric. */
+export type TimelineEventAbout = TimelineEvent & { metricIds: number[] };
+
 /** A Workflow's period as one viewer sees it. */
 export type PeriodTimeline = {
   workflow: { id: number; name: string };
@@ -91,7 +94,7 @@ function firstWords(text: string): string {
 }
 
 /** A moment in the Workspace's time zone: its day and "HH:mm". */
-function inZone(at: Date, zone: string): { day: string; time: string } {
+export function inZone(at: Date, zone: string): { day: string; time: string } {
   const parts = Object.fromEntries(new Intl.DateTimeFormat("en-GB", { timeZone: zone, hour: "2-digit", minute: "2-digit", hourCycle: "h23" }).formatToParts(at).map((p) => [p.type, p.value]));
   return { day: localTime(at, zone).day, time: `${parts.hour}:${parts.minute}` };
 }
@@ -167,6 +170,12 @@ export async function workflowPeriods(actor: Actor | KeyActor, workflowId: numbe
 /** A Workflow's period as the actor may see it: ordered events, grouped where that reads better, with "N of M in". A
  * Metric they cannot see is a count ("1 value"), never a name or a word. `period` is a period's first day. */
 export async function periodTimeline(actor: Actor | KeyActor, workflowId: number, period: string): Promise<PeriodTimeline> {
+  const t = await periodTimelineAbout(actor, workflowId, period);
+  return { ...t, events: t.events.map((e) => { const line: TimelineEvent & { metricIds?: number[] } = { ...e }; delete line.metricIds; return line; }) };
+}
+
+/** The same as periodTimeline, each line also naming the visible Metrics it is about (never a hidden one). */
+export async function periodTimelineAbout(actor: Actor | KeyActor, workflowId: number, period: string): Promise<Omit<PeriodTimeline, "events"> & { events: TimelineEventAbout[] }> {
   const viewer = viewerOf(actor);
   if (!DAY.test(String(period))) throw new Error("Pick a period: its first day, as YYYY-MM-DD.");
   const wf = await workflowOf(actor, workflowId);
@@ -299,9 +308,9 @@ export async function periodTimeline(actor: Actor | KeyActor, workflowId: number
 }
 
 /** Raw events in time order as lines: some kinds merge when close together, the rest stand alone. */
-function group(raw: Raw[], total: number, zone: string, countable: ReadonlySet<number>, nameOf: (id: string) => string): TimelineEvent[] {
+function group(raw: Raw[], total: number, zone: string, countable: ReadonlySet<number>, nameOf: (id: string) => string): TimelineEventAbout[] {
   const MERGE: TimelineKind[] = ["asked", "reminded", "in", "published", "locked"];
-  const out: TimelineEvent[] = [];
+  const out: TimelineEventAbout[] = [];
   const seenIn = new Set<number>();
   let i = 0;
   while (i < raw.length) {
@@ -310,7 +319,9 @@ function group(raw: Raw[], total: number, zone: string, countable: ReadonlySet<n
     if (MERGE.includes(first.kind)) while (j < raw.length && raw[j].kind === first.kind && raw[j].at.getTime() - raw[j - 1].at.getTime() <= GROUP_MINUTES * 60_000) j++;
     const chunk = raw.slice(i, j);
     i = j;
-    out.push({ at: first.at.toISOString(), ...inZone(first.at, zone), ...line(chunk, total, seenIn, countable, nameOf) });
+    // Only Metrics the viewer sees (`metric` is null for the others) are named by id.
+    const metricIds = [...new Set(chunk.filter((r) => r.metric !== null && r.metricId !== undefined).map((r) => r.metricId!))];
+    out.push({ at: first.at.toISOString(), ...inZone(first.at, zone), ...line(chunk, total, seenIn, countable, nameOf), metricIds });
   }
   return out;
 }

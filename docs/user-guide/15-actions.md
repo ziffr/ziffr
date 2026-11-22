@@ -65,23 +65,37 @@ The asker, the Assignee and the Metric's Owner can always read an Action and its
 
 ## The Actions page
 
-The page lists every Action you may read, in three parts. Each part shows how many Actions it holds.
+The page has two views, switched at the top: **Inbox** and **Timeline**. Both show only what you may see: an Action only if you may read its Thread, and an event only about a Metric you see.
 
-| Part | What it holds |
+### Inbox: what do I have to do now?
+
+The Inbox groups the Actions by your own part in them. Each group shows how many Actions it holds.
+
+| Group | What it holds |
 |---|---|
-| **Waiting for your answer** | Open Actions given to you. |
-| **Answered or done, waiting for you to close** | Actions you asked that have been answered or done. |
-| **Everything else** | All other Actions you may read. |
+| **Needs you** | Questions and Tasks waiting for your answer, and Actions you asked that were answered or done, waiting for you to close. |
+| **Waiting on others** | Actions you asked that have no reply yet, and, under **All**, other people's live Actions you may read. |
+| **Done** | Closed Actions. It is folded; open it with its heading. Its rows are grey and carry a plain tick, never red: finished is not an error. |
+
+Above the groups, **Mine** (Actions you asked or were asked), **Asked by me** and **All** (every Action you may read) narrow the list, and **Question** and **Task** narrow it by kind. The newest Action comes first.
 
 Each row shows:
 
 - its status: **Open**, **Answered**, **Done** (for a Task) or **Closed**,
 - **Task** and its Due Date, for a Task,
-- the question or task,
-- the Metric and the period it is about,
-- who asked whom.
+- the Metric and the period, then the question or task,
+- on the right, the value of the period and how it changed against the period before ("150, up 50 %"), only for a Metric you see,
+- who asked whom, and how long ago.
 
-Choose a row to open the Action. On a phone, the Metric, the period and who asked whom move to a line under the question.
+Choose a row to open the Action. On a phone, these parts wrap onto lines under the question.
+
+### Timeline: what happened, in what order?
+
+The Timeline lists what happened, newest first, grouped by day, one line per event with its time and a dot. It is made of the [Period Timelines](11-workflows.md) of your Workflows (who was asked and reminded, values that came in, Approvals, publishing, locking and Snapshots) and of the Questions and Tasks on Metrics that no Workflow asks for. A line names its Workflow and period.
+
+A line that needs attention, such as an Approval still waiting, says **Needs attention** in words as well as with a red dot. A finished one, such as a locked period or a Snapshot that is ready, has a tick as well as a green dot. All other dots are neutral.
+
+**Workflow**, **Metric** and **Period** narrow the lines; choose **Show** after picking. A Metric you cannot see never appears by name: where it takes part in a line of a Workflow, the line only counts it ("1 value").
 
 ## An Action and its Thread
 
