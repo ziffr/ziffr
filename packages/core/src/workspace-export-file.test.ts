@@ -161,6 +161,18 @@ describe("the reader on an untrusted stream", () => {
     expect(input.destroyed).toBe(true);
     expect((await refused(Readable.from([new ArrayBuffer(8)] as never)))[0].message).toContain("not bytes");
   });
+  it("refuses a bad line of a gzip upload that then stalls, at once, and lets the upload go", async () => {
+    const bad = gzipSync(Buffer.from(JSON.stringify(RECORDS[0]) + "\nnot json\n"));
+    // The first pieces arrive, then nothing more ever does.
+    const stalled = new Readable({ read() {} });
+    stalled.push(bad.subarray(0, 8));
+    stalled.push(bad.subarray(8));
+    const started = Date.now();
+    const problems = await refused(stalled);
+    expect(problems[0].line).toBe(2);
+    expect(Date.now() - started).toBeLessThan(100);
+    expect(stalled.destroyed).toBe(true);
+  });
   it("reads one long line in tiny pieces without rescanning it", async () => {
     const long = JSON.stringify({ kind: "group", id: "g1", name: "x".repeat(500_000) });
     const started = Date.now();

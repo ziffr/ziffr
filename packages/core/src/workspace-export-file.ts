@@ -97,9 +97,10 @@ async function* textOf(input: AsyncIterable<Uint8Array>, limits: WorkspaceExport
     return refuse(gzipped ? "The file is not a complete, valid gzip file." : "The file could not be read.");
   } finally {
     cleanup();
-    // However reading ended, the input is let go: an upload's socket or a file's handle must not stay open.
-    await first.return?.(undefined);
+    // However reading ended, the input is let go: an upload's socket or a file's handle must not stay open. It is
+    // destroyed first and its iterator returned without waiting: a stalled upload has a read pending that never ends.
     (input as { destroy?: () => void }).destroy?.();
+    void first.return?.(undefined).catch(() => {});
   }
 }
 
