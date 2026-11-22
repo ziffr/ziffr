@@ -19,6 +19,7 @@ import { Offers, PackActions } from "./manage";
 import { MarketplaceSearch, MarketplaceUpdate } from "./marketplace";
 import type { NumberStyle } from "@ziffr/core/number-style";
 import type { ExportOptions } from "@ziffr/core/pack-export";
+import { Publisher } from "./pack-logo";
 import { ExportPack } from "./export";
 import { SetUpFromPack } from "./setup";
 import type { Problem } from "@ziffr/core/json-check";
@@ -55,8 +56,9 @@ export function PacksScreen({ installed, manages, exportable = null, offers = []
                     <div className="flex flex-wrap items-baseline gap-x-2">
                       <span className="font-medium">{p.name}</span>
                       <span className="fig text-muted-foreground">{p.version}</span>
-                      <span className="text-xs text-muted-foreground">by {p.author}, {p.license}</span>
+                      <span className="text-xs text-muted-foreground">{p.license}</span>
                     </div>
+                    <div className="mt-2"><Publisher author={p.author} logo={p.logo} id={p.packId} signed={p.signed} fromMarketplace={p.source === "marketplace"} /></div>
                     <p className="mt-1 text-muted-foreground">{p.summary}</p>
                     <p className="mt-1 text-xs text-muted-foreground">
                       {p.source === "upload" && !p.signed ? `${UNSIGNED} ` : "From the Marketplace. "}
@@ -162,7 +164,8 @@ export function PackPreviewCard({ preview, viewer, numberStyle, pending, okUnsig
       <div>
         <p className="flex items-center gap-2 text-base font-medium"><Package aria-hidden className="size-4" /> {preview.manifest.name} <span className="fig text-sm font-normal text-muted-foreground">{preview.manifest.version}</span></p>
         <p className="text-muted-foreground">{preview.manifest.summary}</p>
-        <p className="mt-1 text-xs text-muted-foreground">By {preview.manifest.author.name}, under {preview.manifest.license}. <ListingLink href={preview.manifest.listing?.homepage} unsigned={preview.unsigned}>Its page</ListingLink></p>
+        <div className="mt-2"><Publisher author={preview.manifest.author.name} logo={preview.logo} id={preview.manifest.id} signed={!preview.unsigned} fromMarketplace={!preview.unsigned} /></div>
+        <p className="mt-1 text-xs text-muted-foreground">Under {preview.manifest.license}. <ListingLink href={preview.manifest.listing?.homepage} unsigned={preview.unsigned}>Its page</ListingLink></p>
       </div>
       {preview.unsigned
         ? <p className="flex items-start gap-2 rounded-[var(--radius-input)] bg-muted p-2.5"><TriangleAlert aria-hidden className="mt-0.5 size-4 shrink-0" /> {UNSIGNED}</p>
@@ -226,6 +229,6 @@ const detail = (i: PackPreviewItem): string => {
     case "deck": return `${i.slides} slide${i.slides === 1 ? "" : "s"}, ${i.slots.length} Slot${i.slots.length === 1 ? "" : "s"}`;
     case "workflow": return `Due ${i.body.dueWorkingDays} working days after the period, ${i.body.steps.length} steps`;
     case "view": return `A View Design of ${i.body.slots.length} Slot${i.body.slots.length === 1 ? "" : "s"}`;
-    case "theme": return "A Theme: colours, fonts and slides, no logo";
+    case "theme": return i.logo ? "A Theme: colours, fonts and slides, with the Pack\u2019s logo" : "A Theme: colours, fonts and slides, no logo";
   }
 };

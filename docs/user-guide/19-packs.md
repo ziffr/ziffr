@@ -8,6 +8,8 @@ A **Pack** is a file of ready-made things for a Workspace: Metric Catalog entrie
 
 **Installed in this Workspace** lists each Pack with its version, author and license, whether it was an uploaded file, when and by whom it was installed, and what it added: its Metric Catalog entries, templates, designs and Themes. A Pack's own page and help page open as plain links, when it has them; for a Pack that came as a file, not from the Marketplace, the link names its site and says the Marketplace did not check it. Owners, Admins and Members see the list; Guests see no Packs.
 
+Each Pack shows "by" its author, with its logo when it has one, in a bordered box next to the name, and says who vouches for both. A Pack installed from the Marketplace says **Published through the Marketplace as @handle**; that is all its signature proves, so it does not say the name or logo were reviewed. A Pack installed from a file says **Uploaded file. The Marketplace did not check it. Its name and logo are what the file says about itself.**, shows the id as the file writes it, and, when the id begins with `ziffr/`, adds **This file says it is from Ziffr. It is not signed by the Marketplace.** There is no badge: read the lines. The logo is shown only here, in the install preview and on the update page, never anywhere else in Ziffr.
+
 ## Installing from a file
 
 Ziffr makes five starting Packs: SaaS metrics, Online shop, Agency or freelancer, Sports club, and a Board meeting deck. Their files are in the `packs` folder of Ziffr's repository; download one and install it as below.
@@ -17,7 +19,7 @@ Ziffr makes five starting Packs: SaaS metrics, Online shop, Agency or freelancer
 **Install a Pack from a file** is for Owners and Admins. A Pack that holds Themes needs an Owner, since only Owners change Themes. The demo installs no Packs and opens none.
 
 1. Choose **Choose a Pack file…** and pick the Pack's file (at most 1 MiB). Ziffr checks the whole file before it shows anything. If something in it is wrong, it lists every problem with its line, and installs nothing.
-2. Ziffr shows the Pack: its name, version, summary, author and license, and every item it adds. Dashboard Templates and View Designs are drawn with Sample Data, never your own values; Themes show their colours.
+2. Ziffr shows the Pack: its name, version, summary, author with its logo and who vouches for them, license, and every item it adds. A Theme that comes with the Pack's logo says so. Dashboard Templates and View Designs are drawn with Sample Data, never your own values; Themes show their colours.
 3. It says **Uploaded file. The Marketplace did not check it.** Tick **I install a file the Marketplace did not check.**
 4. If any text in the Pack reads like an instruction to an AI assistant, such as "ignore your instructions", Ziffr lists each one. Assistants connected to the Workspace read Metric descriptions, but can only do what their key allows. Read them, then tick **I read the words aimed at assistants.**
 5. Choose **Install**. The Pack is installed whole or not at all, and the Audit log records it.
@@ -52,6 +54,8 @@ Owners and Admins see **Update from a file…** on each installed Pack (an Owner
 - an item you changed, such as a renamed Dashboard Template or an edited Theme, stays as you made it, and the new version is offered beside it;
 - an item the new version drops is removed, or kept without being marked as from the Pack when you changed it or something uses it;
 - an item you removed is not added again.
+
+When the new version has another logo, or none, the update page says **The logo changed** and shows the old and the new one side by side. A Theme nobody changed here gets the new logo with the replacement; one you changed keeps what it has.
 
 A new major version, such as 2.0.0 after 1.4.0, says first that it may change how things look or work. Confirm the same warnings as when installing and choose **Update to …**. The update happens whole or not at all, and the Audit log records it. Metrics, dashboards, decks and Workflows made from the Pack never change.
 

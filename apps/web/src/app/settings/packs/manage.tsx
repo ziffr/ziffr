@@ -12,6 +12,7 @@ import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/compone
 import { readUninstallPlan, readUpdate, takeOffer, uninstall, updatePack } from "@/app/pack-actions";
 import { PACK_LIMITS, UNSIGNED_WARNING } from "@ziffr/core/pack";
 import type { OfferedItem, UninstallPlan, UpdateItem, UpdatePlan } from "@ziffr/core/pack-updates";
+import { LogoChange } from "./pack-logo";
 import type { Problem } from "@ziffr/core/json-check";
 
 const KIND: Record<UpdateItem["kind"], string> = { metric: "Metric Catalog entry", dashboard: "Dashboard Template", deck: "Deck Template", workflow: "Workflow Template", view: "View Design", theme: "Theme" };
@@ -68,6 +69,7 @@ export function PackActions({ installId, name }: { installId: number; name: stri
           <DialogContent className="max-h-[90vh] max-w-2xl overflow-y-auto">
             <DialogTitle>Update {plan.name} from {plan.from} to {plan.to}</DialogTitle>
             <DialogDescription>What you changed stays as you made it; the new version is offered beside it. Nothing made from the Pack, such as Metrics or dashboards, changes.</DialogDescription>
+            <LogoChange logo={plan.logo} author={plan.author} />
             {plan.major && <p className="flex gap-2 rounded-[var(--radius-input)] bg-muted p-2.5 text-sm"><TriangleAlert aria-hidden className="mt-0.5 size-4 shrink-0" /> A new major version: it may change how things look or work.</p>}
             <p className="flex gap-2 rounded-[var(--radius-input)] bg-muted p-2.5 text-sm"><TriangleAlert aria-hidden className="mt-0.5 size-4 shrink-0" /> {UNSIGNED_WARNING}</p>
             {plan.assistantTexts.length > 0 && (

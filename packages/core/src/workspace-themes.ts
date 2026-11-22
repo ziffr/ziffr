@@ -8,6 +8,7 @@ import { standardTheme } from "./standard-themes";
 import { checkThemeFile, themeFromFile } from "./theme-file";
 import type { Problem } from "./json-check";
 import { ensureBaseline, recordVersion } from "./versions";
+import { cleanLogo, PACK_LOGO_MAX_BYTES } from "@ziffr/pack/logo";
 import type { ThemeSlides, ThemeTokens } from "./types";
 
 /** A Theme of the actor's workspace, or Forbidden. */
@@ -46,6 +47,22 @@ export async function deleteTheme(actor: Actor, id: number) {
   const t = await themeOf(actor, id);
   if (t.is_default) throw new Error("The team default cannot be deleted. Make another theme the default first.");
   await db().from("themes").delete().eq("id", id).eq("workspace_id", actor.workspaceId);
+}
+
+/** Whose logo a Theme shows when it is exactly the logo of a Pack installed here, as { pack, author }; null for any other
+ * logo or none (spec 0039). Compared byte for byte on the checked pictures, so a logo the Owner chose is never named as
+ * a Pack's. For the question asked before such a Theme becomes the team default. */
+export async function themeLogoSource(actor: Actor, id: number): Promise<{ pack: string; author: string } | null> {
+  assertCan(actor, "manage-themes");
+  const t = await themeOf(actor, Number(id));
+  const own = cleanLogo((t.slides as { logo?: unknown } | null)?.logo);
+  if (!own) return null;
+  const { data } = await db().from("pack_installs").select("manifest").eq("workspace_id", actor.workspaceId);
+  for (const r of data ?? []) {
+    const m = r.manifest as { name?: unknown; author?: { name?: unknown }; logo?: unknown } | null;
+    if (m?.logo !== undefined && cleanLogo(m.logo, PACK_LOGO_MAX_BYTES) === own) return { pack: String(m.name ?? ""), author: String(m.author?.name ?? "") };
+  }
+  return null;
 }
 
 /** Makes a Theme the workspace's default. */

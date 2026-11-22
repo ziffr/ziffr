@@ -55,6 +55,11 @@ export async function deleteTheme(id: number) {
   });
 }
 
+/** Whose logo the Theme shows, when it is a Pack's: asked before it becomes the team default. */
+export async function themeLogoSource(id: number) {
+  return attempt(async () => themes.themeLogoSource(await currentActor(), Number(id)));
+}
+
 /** Makes a Theme the team default. */
 export async function setDefaultTheme(id: number) {
   return attempt(async () => {

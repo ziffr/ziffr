@@ -262,6 +262,7 @@ const CASES: Record<string, Case> = {
   "theme-actions:duplicateTheme": { args: (i) => [i.theme] },
   "theme-actions:addStandardTheme": { args: () => ["tokyo"] },
   "theme-actions:importTheme": { args: () => [JSON.stringify(themeToFile("Our look", STANDARD_THEMES[0].tokens, STANDARD_THEMES[0].slides))] },
+  "theme-actions:themeLogoSource": { reads: (i) => [i.theme] },
   "theme-actions:deleteTheme": { args: (i) => [i.otherTheme] },
   "theme-actions:setDefaultTheme": { args: (i) => [i.theme] },
   "theme-actions:setDashboardTheme": { args: (i) => [i.dashboard, i.theme] },

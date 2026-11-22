@@ -9,7 +9,8 @@ import { Forbidden, type Actor } from "./actor";
 import { audit } from "./audit-log";
 import { checkPack, versionBelow, type Pack } from "./pack";
 import { cleanLogo, PACK_LOGO_MAX_BYTES } from "@ziffr/pack/logo";
-import { assertManages, itemHash, packLogoOf, themeHashInput, itemKeys, manifestOf, PACK_CAPS, storedItems, type PackOrigin } from "./packs";
+import { assertManages, itemHash, packLogoOf, safeLogo, themeHashInput, itemKeys, manifestOf, PACK_CAPS, storedItems, type PackOrigin } from "./packs";
+import { packLogoAddress } from "./brand-logo";
 import { ensureBaseline, recordVersion } from "./versions";
 
 /** Where an installed item lives. */
@@ -49,7 +50,7 @@ async function installOf(actor: Actor, installId: number) {
   if (!Number.isInteger(installId)) throw new Forbidden();
   const { data } = await db().from("pack_installs").select("id, pack_id, version, item_keys, manifest").eq("id", installId).eq("workspace_id", actor.workspaceId).maybeSingle();
   if (!data) throw new Forbidden();
-  return data as { id: number; pack_id: string; version: string; item_keys: string[]; manifest: Omit<Pack, "contents"> };
+  return data as { id: number; pack_id: string; version: string; item_keys: string[]; manifest: Omit<Pack, "contents"> & { logo?: unknown } };
 }
 
 /** Every copy still marked as from this install, with its hash as installed and now. */
@@ -108,6 +109,11 @@ export type UpdatePlan = {
   major: boolean;
   items: UpdateItem[];
   assistantTexts: { path: string; text: string }[];
+  /** The logo before (its address on this site, null when none) and after (the new file's, a data address checked again),
+   * and whether they differ, for the update page to show side by side (spec 0039). */
+  logo: { before: string | null; after: string | null; changed: boolean };
+  /** The new version's author, whose logo it is. */
+  author: string;
   blocked: string | null;
 };
 
@@ -187,7 +193,10 @@ async function planUpdate(actor: Actor, installId: number, text: string) {
     : !versionBelow(install.version, pack.version) ? `This file is version ${pack.version}; ${install.version} is installed. An update needs a higher version.`
       : (copies.some((c) => c.table === "themes") || next.themes.length) && actor.role !== "owner" ? "This Pack holds Themes, and only Owners change Themes: an Owner updates it."
         : await overCaps(actor, ops);
-  const plan: UpdatePlan = { from: install.version, to: pack.version, name: pack.name, major: pack.version.split(".")[0] !== install.version.split(".")[0], items, assistantTexts: res.assistantTexts.map(({ path, text: t }) => ({ path, text: t })), blocked };
+  const was = install.manifest.logo === undefined ? null : cleanLogo(install.manifest.logo, PACK_LOGO_MAX_BYTES);
+  const now = safeLogo(pack);
+  const logo = { before: packLogoAddress(actor.workspaceId, installId, install.manifest.logo), after: now, changed: was !== now };
+  const plan: UpdatePlan = { from: install.version, to: pack.version, name: pack.name, author: pack.author.name, major: pack.version.split(".")[0] !== install.version.split(".")[0], items, assistantTexts: res.assistantTexts.map(({ path, text: t }) => ({ path, text: t })), logo, blocked };
   return { ok: true as const, plan, ops, pack, stored: next };
 }
 
