@@ -4,7 +4,9 @@
 // Style), worked out once in `designValues`; the design only says which of them each mark shows and how it looks.
 // Security: a design is data. Its words are drawn as React text, never as markup, and it reaches no Metric outside
 // the widget's own.
-import { useState, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
+import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
+import { useTakeawayHost } from "./takeaway-host";
 import { compactValue, formatNumber, formatValue, health } from "@ziffr/core/format";
 import { basisLabel, comparedBy, correlate, periodCountLabel, periodWord, rankCorrelations, strength, type BasisChoice, type Correlation } from "@ziffr/core/correlation";
 import { correlationTakeaway, driversTakeaway } from "@ziffr/core/takeaways/takeaway";
@@ -38,6 +40,8 @@ export type DesignValues = ReturnType<typeof designValues> & {
   setBasis: (basis: BasisChoice) => void;
   /** The widget has more room than a usual one (its widget scale is above 1): its parts share the space (#778). */
   roomy: boolean;
+  /** The Takeaway words are not drawn under the chart: a card hides them, or opens them from its ⋯ menu. */
+  behind: boolean;
 };
 
 /** The numbers and words a design draws for a widget, each from the core's functions. */
@@ -114,7 +118,8 @@ export function DesignView({ design, widget, metrics, data, onPointContext }: Pr
   // Show the numbers: "values" is the older comparison on the values as they are, never growth removed.
   const [basis, setBasis] = useState<BasisChoice>("auto");
   const roomy = useWidgetScale() > 1;
-  const v: DesignValues = { ...designValues(design, widget, metrics, data, basis), setBasis, roomy };
+  const host = useTakeawayHost();
+  const v: DesignValues = { ...designValues(design, widget, metrics, data, basis), setBasis, roomy, behind: host !== null };
   const { m } = v;
   // What the design needs and does not have says why, in the core's words where it has them.
   if (v.matrix && metrics.length < 2) return <Empty>{design.empty ?? "Needs at least two Metrics."}</Empty>;
@@ -136,9 +141,53 @@ export function DesignView({ design, widget, metrics, data, onPointContext }: Pr
     // A design with nothing that grows (a number without its sparkline) is centred both ways (#789).
     <div className={cn("flex h-full flex-col", design.kind === "analysis" && "gap-2", v.roomy && "justify-center", v.roomy && !growing(design.parts, v) && "items-center text-center")}>
       {design.parts.map((p, i) => <PartView key={i} part={p} v={v} ctx={ctx} />)}
+      {!v.behind && <TakeawayWords v={v} drivers={false} />}
+      {host?.mode === "panel" && <TakeawayPanel v={v} host={host} title={m.name} />}
+    </div>
+  );
+}
+
+/** The words an analysis says about its result, in the order they were always drawn; `drivers` picks the drivers' (drawn under their rows). */
+function TakeawayWords({ v, drivers }: { v: DesignValues; drivers: boolean }) {
+  if (drivers) {
+    return (
+      <>
+        {(v.driversTake?.rows ?? []).filter((r) => r.takeaway.kind === "refusal").map((r) => <p key={r.metric.id} className="widget-text-xs mt-1 text-muted-foreground">{r.metric.name}: {r.takeaway.refusal}</p>)}
+        {v.driversTake && <TakeawayView takeaway={v.driversTake}><BasisButton v={v} /></TakeawayView>}
+      </>
+    );
+  }
+  return (
+    <>
       {v.correlationTake && <TakeawayView takeaway={v.correlationTake}><BasisButton v={v} /></TakeawayView>}
       {v.forecastTake?.kind === "answer" && <TakeawayView takeaway={v.forecastTake} />}
-    </div>
+    </>
+  );
+}
+
+/** Whether the design has any Takeaway words to show. */
+const hasTakeaway = (v: DesignValues) => !!(v.correlationTake || v.forecastTake?.kind === "answer" || v.driversTake);
+
+/** All of the Takeaway words in one panel, opened from the card's ⋯ menu: the sentence stays with its honesty lines. */
+function TakeawayPanel({ v, host, title }: { v: DesignValues; host: Extract<NonNullable<ReturnType<typeof useTakeawayHost>>, { mode: "panel" }>; title: string }) {
+  const has = hasTakeaway(v);
+  const { setHas } = host;
+  useEffect(() => {
+    setHas(has);
+    return () => setHas(false);
+  }, [has, setHas]);
+  if (!has) return null;
+  return (
+    <Dialog open={host.open} onOpenChange={host.setOpen}>
+      <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-lg">
+        <DialogTitle>Takeaway: {title}</DialogTitle>
+        <DialogDescription className="sr-only">What this Widget shows, in words, with how it was worked out.</DialogDescription>
+        <div className="text-sm">
+          <TakeawayWords v={v} drivers={false} />
+          <TakeawayWords v={v} drivers />
+        </div>
+      </DialogContent>
+    </Dialog>
   );
 }
 
@@ -410,8 +459,7 @@ function DriverRows({ v }: { v: DesignValues }) {
         </li>
       ))}
     </ul>
-    {(v.driversTake?.rows ?? []).filter((r) => r.takeaway.kind === "refusal").map((r) => <p key={r.metric.id} className="widget-text-xs mt-1 text-muted-foreground">{r.metric.name}: {r.takeaway.refusal}</p>)}
-    {v.driversTake && <TakeawayView takeaway={v.driversTake}><BasisButton v={v} /></TakeawayView>}
+    {!v.behind && <TakeawayWords v={v} drivers />}
     </>
   );
 }
