@@ -71,6 +71,9 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: node .github/scripts/guide-touched.mjs
+      - name: New names in the UI are in the glossary (a warning)
+        if: github.event_name == 'pull_request'
+        run: node scripts/glossary-names.mjs
       - name: Changes people use or run come with a release note
         if: github.event_name == 'pull_request'
         env:
