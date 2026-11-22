@@ -179,6 +179,8 @@ Settings an Owner or Installation Admin makes at the screen. Programs with a key
 - `listPersonalWebhooksForAdmin` (personal-webhooks.ts): Personal Webhooks pages (spec 0037, ticket 5); never the API or MCP on purpose, since changing where data leaves is what a prompt-injected assistant would be asked to do
 - `personalWebhookLogForAdmin` (personal-webhooks.ts): Personal Webhooks pages (spec 0037, ticket 5); never the API or MCP on purpose, since changing where data leaves is what a prompt-injected assistant would be asked to do
 - `removePersonalWebhook` (personal-webhooks.ts): Personal Webhooks pages (spec 0037, ticket 5); never the API or MCP on purpose, since changing where data leaves is what a prompt-injected assistant would be asked to do
+- `personalWebhookMayHear` (personal-webhook-hearing.ts): what a Personal Webhook is sent at send time (spec 0037); never the API or MCP on purpose, it decides what leaves for a Webhook
+- `checkedPickedMetrics` (personal-webhook-hearing.ts): checks the Metrics picked on the Personal Webhooks pages (spec 0037, ticket 5); never the API or MCP on purpose, since changing where data leaves is what a prompt-injected assistant would be asked to do
 - `setWorkspaceClock` (workspace-clock.ts): Workspace settings
 - `setWorkspaceQuietHours` (quiet-hours.ts): Workspace settings
 - `workspaceLimitRows` (workspace-limits-admin.ts): Installation limits
