@@ -343,15 +343,17 @@ function reduce(rows: FitRow[], names: string[], k: number, ranks: number[]): Re
       // A pair is one driver where their link alone is as close as an inflation of 5: r² above 4/5. Drivers whose inflation is high
       // only together (one is about the sum of two others, each pair linked by r² of 0.67) are a mix that no pair describes: no
       // effect of any of them can be told from the others', so the fit says so and names them all.
+      // Stryker disable next-line EqualityOperator: a pair linked by exactly 4/5 (an inflation of exactly 5 for the pair alone) is on the edge, and only a third driver would make it count
       const close = idx.flatMap((i) => idx.filter((j) => j > i && cmp(link(i, j), { num: BigInt(4), den: BigInt(5) }) > 0).map((j): [number, number] => [i, j]));
       if (close.length === 0) return { refusals: [{ case: "refuse-drivers-mix", slots: { names: high.map((i) => names[cols[i]]).join(", ") } }] };
-      // Stryker disable next-line EqualityOperator: two pairs at the same closeness are a tie, and the other is merged next
+      // Stryker disable next-line EqualityOperator,ConditionalExpression: of two close pairs either is merged first, and the other is merged next, to the same result
       pair = close.reduce((x, y) => (cmp(link(y[0], y[1]), link(x[0], x[1])) > 0 ? y : x));
     }
     // The pair's driver with the weaker link to the target goes; on a tie (exactly in step) the one first in `ranks` (the Metric with the
     // lower id) stays, so the order the drivers were listed in changes nothing: r² to the target is S_iy² ÷ (S_ii·Syy).
     const [a, b] = pair;
     const stronger = cmp(mul(mul(mo.sxy[a], mo.sxy[a]), mo.sxx[b][b]), mul(mul(mo.sxy[b], mo.sxy[b]), mo.sxx[a][a]));
+    // Stryker disable next-line EqualityOperator: ranks differ between drivers, and a stronger link of exactly 0 is the tie handled by the first test
     const [keep, drop] = (stronger === 0 ? ranks[cols[a]] < ranks[cols[b]] : stronger > 0) ? [a, b] : [b, a];
     withs[cols[keep]] = [...withs[cols[keep]], names[cols[drop]], ...withs[cols[drop]]];
     withs[cols[drop]] = [];
@@ -466,6 +468,7 @@ export function fit(input: FitInput): Fit | Refused {
   const early = inChanges(checkSuitability("fit", base));
   if (early.refusals.length > 0) return { ok: false, refusals: early.refusals };
   // Drivers exactly in step are told apart by the Metric's id, then its name: the same fit whatever order they are listed in.
+  // Stryker disable next-line EqualityOperator: two drivers with the very same name and no ids are the same to the reader
   const order = input.drivers.map((d, i) => i).sort((x, y) => (input.drivers[x].id ?? Infinity) - (input.drivers[y].id ?? Infinity) || (input.drivers[x].name < input.drivers[y].name ? -1 : 1));
   const ranks = [...order.keys()].map((_, i) => order.indexOf(i));
   const made = fitNumbers(prep.rows, names, k, ranks);

@@ -757,6 +757,33 @@ describe("the Recipes", () => {
     expect(c.rows.map((r) => r.name)).toEqual(["Price", "Visits"]);
     expect(stepOf(100, 0)).toBe(100);
   });
+  it("narrows by the periods the chosen Metrics have in common, and leaves a flat or a very short one to last", () => {
+    const r = lcg(44);
+    const n = 40;
+    const mk = (i: number) => metric({ id: 60 + i, slug: `p${i}`, name: `P${i}`, period: "month", aggregation: "sum" });
+    const many = Array.from({ length: 6 }, (_, i) => mk(i));
+    const cols = many.map(() => Array.from({ length: n }, () => Math.round(r() * 100)));
+    const revenue = cols[0].map((v, i) => v * 3 + cols[1][i] + Math.round(r() * 10));
+    const series: Record<string, Point[]> = { revenue: months("2024-01", revenue) };
+    many.forEach((m, i) => (series[m.slug] = months("2024-01", cols[i])));
+    // P0 follows Revenue most closely but has only its last 22 months: the history it shares carries 3 drivers.
+    series.p0 = months("2024-01", cols[0]).slice(18);
+    const t = whatMoves(R, many, resolverFrom([R, ...many], series), opts);
+    expect(t.notes[0]).toBe("6 Metrics are more than 21 months can weigh, so the 3 that matter most were chosen first and the others left out.");
+    expect(t.rows).toHaveLength(3);
+    // A constant Metric, and one with too few values to correlate, come last and are left out.
+    const flat = mk(7);
+    const brief = mk(8);
+    const more = [...many.slice(1), flat, brief, mk(9), mk(10), mk(11)];
+    const s2: Record<string, Point[]> = { ...series, p0: months("2024-01", cols[0]), [flat.slug]: months("2024-01", Array.from({ length: n }, () => 5)), [brief.slug]: months("2024-01", cols[2]).slice(0, 4) };
+    for (const m of more.slice(-3)) s2[m.slug] = months("2024-01", Array.from({ length: n }, () => Math.round(r() * 100)));
+    const u = whatMoves(R, more, resolverFrom([R, ...more], s2), opts);
+    const leftOut = u.notes[1];
+    expect(leftOut).toContain("P7");
+    expect(leftOut).toContain("P8");
+    expect(u.rows.map((x) => x.name)).not.toContain("P7");
+    expect(u.rows.map((x) => x.name)).not.toContain("P8");
+  });
   it("says that one Metric with a longer period sets the period for all of them", () => {
     const w = world(48);
     const quarterly = metric({ id: 40, slug: "quarterly", name: "Budget", period: "quarter", aggregation: "sum" });

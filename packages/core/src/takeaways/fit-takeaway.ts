@@ -14,7 +14,7 @@ import { seriesBy, type Resolver } from "../display-periods";
 import { fit, needs, partialPeriods, type Fit, type Needed, type Outside, type Predicted, type Refused } from "../methods/fit";
 import { basisText, changes } from "../basis";
 import type { Span, YearStart } from "../periods";
-import { driversAllowed, SUITABILITY, type Verdict } from "../suitability";
+import { driversAllowed, type Verdict } from "../suitability";
 import type { Metric, Point } from "../types";
 import { strengthOf, type StrengthWord } from "./strength";
 import { footerText, refusalTakeaway, type Figure, type NumberRow, type Takeaway, type TakeawayContext } from "./takeaway";
@@ -114,6 +114,7 @@ export function movesTakeaway(target: Metric, drivers: Metric[], f: Fit | Refuse
     { label: text("numbers-miss", ctx), text: written(target, f.miss, ctx) },
   ];
   // Most of the movement first, a tie by name: the same words whatever order the drivers were listed in.
+  // Stryker disable next-line EqualityOperator: two drivers with the very same name are the same to the reader, so which comes first is not seen
   const byShare = (a: Fit["drivers"][number], b: Fit["drivers"][number]) => b.share - a.share || (a.name < b.name ? -1 : 1);
   const sorted = [...f.drivers].sort(byShare);
   const rows: DriverRow[] = sorted.map((d) => {
@@ -282,14 +283,13 @@ type FirstPass = { drivers: Metric[]; series: Point[][]; notes: string[] };
 // changes follow the target's (Pearson's r of the changes, exactly, the highest |r| first; one with fewer than 6 pairs counts as 0),
 // to the most the periods they have in common allow, and the Takeaway says which were left out.
 function firstPass(target: Metric, drivers: Metric[], series: Point[][], span: Span, opts: FitRecipeOptions): FirstPass {
-  const most = SUITABILITY.drivers.most;
   const keep = (k: number, order: number[]) => {
     const rows = order.slice(0, k).reduce((have, i) => new Set([...have].filter((p) => series[i + 1].some((q) => q.period === p))), new Set(series[0].map((p) => p.period))).size;
     // Compared by change one period is lost; the fit refuses what is too short itself.
     return { rows: Math.max(0, rows - 1), ok: k <= driversAllowed(Math.max(0, rows - 1)) };
   };
   const all = drivers.map((_, i) => i);
-  if (all.length <= most && keep(all.length, all).ok) return { drivers, series, notes: [] };
+  if (keep(all.length, all).ok) return { drivers, series, notes: [] };
   const targetChanges = changes(series[0], span);
   const link = all.map((i) => {
     const r = pearson(targetChanges, changes(series[i + 1], span))?.r;
@@ -297,7 +297,7 @@ function firstPass(target: Metric, drivers: Metric[], series: Point[][], span: S
   });
   // The same r the same way round: Metrics that tie keep the order they were given in (the sort is stable).
   const order = [...all].sort((x, y) => link[y] - link[x]);
-  let k = Math.min(most, all.length);
+  let k = all.length;
   while (k > 1 && !keep(k, order).ok) k--;
   const chosen = order.slice(0, k);
   const left = order.slice(k).map((i) => drivers[i].name);
@@ -342,6 +342,7 @@ export function whatNeeds(target: Metric, others: Metric[], goal: number, resolv
   if (!f.ok) return none(lines({ refusals: f.refusals, cautions: [], switches: [] }, opts.ctx).refusals);
   const largest = Math.max(...series[0].map((p) => Math.abs(p.value)));
   if (!Number.isFinite(goal) || Math.abs(goal) > 1000 * largest) return none([Number.isFinite(goal) ? text("refuse-goal-far", opts.ctx, { goal: written(target, goal, opts.ctx), target: target.name }) : text("refuse-goal-input", opts.ctx)]);
+  // Stryker disable next-line EqualityOperator: two drivers with the very same name are the same to the reader, so which comes first is not seen
   const clear = f.drivers.map((_, i) => i).filter((i) => f.drivers[i].strength !== "cant-tell").sort((a, b) => f.drivers[b].share - f.drivers[a].share || (f.drivers[a].name < f.drivers[b].name ? -1 : 1));
   if (clear.length === 0) return none([text("needs-none", opts.ctx, { n: f.n, span: f.span, target: target.name, goal: written(target, goal, opts.ctx) })]);
   const rows = clear.map((i) => {

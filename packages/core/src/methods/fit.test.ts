@@ -607,6 +607,12 @@ describe("drivers that cannot be told apart", () => {
     expect(results[0].drivers.find((d) => d.name === "Price")!.effect).toBeCloseTo(without.drivers[0].effect / 2, 10);
     expect(results[0].explained).toBe(without.explained);
   });
+  it("keeps the first listed of two drivers exactly in step when the numbers are fitted without ranks", () => {
+    const twin = base.map((v) => v);
+    const r = fitNumbers(rowsOf(y, [twin, base, other]), ["B1", "B2", "C", "Y"], 3);
+    if ("refusals" in r) throw new Error("refused");
+    expect(r.core.merged).toEqual([{ kept: "B1", with: ["B2"] }]);
+  });
   it("tells drivers exactly in step apart by the Metric's id, the lower one kept, before the name", () => {
     const twin = base.map((v) => v);
     const at = (idV: number, idP: number) => made(fit({ ...input(y, []), drivers: [{ name: "Visits", points: pts(base), id: idV }, { name: "Price", points: pts(twin), id: idP }, { name: "Tickets", points: pts(other), id: 9 }] }));
