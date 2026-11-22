@@ -24,8 +24,8 @@ export async function installPack(text: string, confirmed: { unsigned: boolean; 
 }
 
 /** A Pack of what the viewer picked in their Workspace, as its file's text, and what had to stay out. */
-export async function exportAsPack(manifest: ExportManifest, choice: ExportChoice) {
-  return attempt(async () => exportPack(await currentActor(), manifest, choice));
+export async function exportAsPack(manifest: ExportManifest, choice: ExportChoice, withTags = true) {
+  return attempt(async () => exportPack(await currentActor(), manifest, choice, { tags: withTags !== false }));
 }
 
 /** What updating an installed Pack from a newer file would do; nothing is written. */

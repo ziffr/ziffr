@@ -43,6 +43,8 @@ Decks, Themes, View Designs, the canvas, Packs and the pages that edit them are 
 - `removeSeriesRows` (metrics.ts): editing Target Series and Projections in a table (the API has its own)
 - `packSetupOptions` (pack-setup.ts): Packs
 - `setUpFromPack` (pack-setup.ts): Packs
+- `tagMetricFromEntry` (pack-tags.ts): Packs
+- `tagsLeftOffEntry` (pack-tags.ts): Packs
 - `readPackUpdate` (pack-updates.ts): Packs
 - `updatePackFile` (pack-updates.ts): Packs
 - `updatePack` (pack-updates.ts): Packs

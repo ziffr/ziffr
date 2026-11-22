@@ -78,6 +78,7 @@ Ziffr's own five starting Packs, in [`packs/`](../../packs/README.md), are compl
 
 An item may name another item of the same Pack, and nothing outside it:
 
+- a Metric Catalog entry may carry up to 5 `tags`: free words a Metric made from the entry gets (`"tags": ["finance", "monthly review"]`). A Tag is 1 to 32 characters of plain text (no comma, markup, web address or control character), a word is one Tag whatever its capitals (`Finance` and `finance` twice is an error), and a leading `#` and extra spaces are dropped. They are the same rules as a Tag typed in Ziffr, checked by `npx @ziffr/pack check` with the same code, and a Tag that reads as an order to an assistant is listed for the person installing to read, like any text of a Pack. Tags are not the `industries` and `segments` keys, which only suggest the entry to Workspaces of a kind. A Pack that uses `tags` should say so in its `ziffr` minimum version: an older Ziffr refuses a field it does not know. Installing a Pack still makes no Tag; **Set up from this Pack** or the Metric Catalog makes the Metric, matching the Workspace's Tags by name and making the others, within the Tag limits;
 - a Dashboard Template's Slot may suggest one of the Pack's Metric Catalog entries: `"suggests": "mrr"`;
 - a widget drawn by a View Design names one of the Pack's View Designs: `"view": "design"`, `"settings": { "design": "trend" }`. Outside a Pack, the design is written out in full instead;
 - a Deck Template names one of the Pack's Themes, which a deck made from it starts with: `"theme": "board"`. Its Slots and widgets name entries and designs as a Dashboard Template's do;
@@ -108,7 +109,7 @@ A Pack with Themes can be installed only by an Owner, since only Owners change T
 
 ## Export as Pack
 
-Under **Workspace → Packs**, **Export as Pack…** makes a Pack of things you pick in your Workspace: Metrics (as Metric Catalog entries), the Workspace's own catalog entries from Packs, Dashboard, Deck and Workflow Templates, View Designs and Themes. Give it a name, an id (your handle and a slug), a version, a summary, an author and a license, and choose **Download Pack**.
+Under **Workspace → Packs**, **Export as Pack…** makes a Pack of things you pick in your Workspace: Metrics (as Metric Catalog entries), the Workspace's own catalog entries from Packs, Dashboard, Deck and Workflow Templates, View Designs and Themes. Give it a name, an id (your handle and a slug), a version, a summary, an author and a license, and choose **Download Pack**. The Tags of the Metrics you pick go in, up to 5 per entry and only Tags you can see on those Metrics; untick **Carry the Tags** to leave them out.
 
 - It holds Metric Descriptions only, never a value, an owner, a Submitter or a Token, and only of Metrics you see.
 - A Slot suggests the catalog entry of the Metric the template was made with, when that Metric is in the Pack too. A Derived Metric goes in only with the Metrics it is computed from.

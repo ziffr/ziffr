@@ -11,6 +11,7 @@ import { parseSeriesLine } from "./series-lines";
 import { assertSeesMetrics } from "./sharing";
 import type { Aggregation, Format, MetricDescription, Period, Polarity, SourceId, SubmissionRule } from "./types";
 import { recordVersion } from "./versions";
+import { tagMetricFromEntry } from "./pack-tags";
 import { deliverPrompt, type PromptOutcome } from "./deliveries";
 import { audit } from "./audit-log";
 import { formulaInputs } from "./formula";
@@ -89,7 +90,7 @@ export class TooManyMetrics extends Error {
 /** Creates a Metric owned by the actor, with a random Token and a first Prompt for each submitter. Guests create
  * nothing; every field is checked against what Ziffr knows, never passed through. `accessKeyId` names the key a
  * program created it with (spec 0003); the database then holds the key to its daily limit. */
-export async function createMetric(actor: Actor, input: MetricInput, effects: MetricEffects = metricEffects, origin: { accessKeyId?: number } = {}): Promise<{ id: number; slug: string; submitters: number; asked: FirstAsk[] }> {
+export async function createMetric(actor: Actor, input: MetricInput, effects: MetricEffects = metricEffects, origin: { accessKeyId?: number } = {}): Promise<{ id: number; slug: string; submitters: number; asked: FirstAsk[]; tagsLeftOut: string[] }> {
   assertCan(actor, "create");
   const name = String(input.name ?? "").trim().slice(0, 120);
   if (!name) throw new Error("Give the Metric a name.");
@@ -102,7 +103,7 @@ export async function createMetric(actor: Actor, input: MetricInput, effects: Me
   const original = duplicateOf === null ? null : await duplicable(actor, duplicateOf);
   // A catalog entry is named only when this Workspace has it: one every Workspace has, or its own from a Pack.
   const catalogId = original ? null : numOrNull(input.fromCatalogId);
-  const fromCatalog = catalogId === null ? null : (await db().from("catalog_metrics").select("id, workspace_id").eq("id", catalogId).maybeSingle()).data;
+  const fromCatalog = catalogId === null ? null : (await db().from("catalog_metrics").select("id, workspace_id, tags").eq("id", catalogId).maybeSingle()).data;
   const fromCatalogId = fromCatalog && (fromCatalog.workspace_id === null || fromCatalog.workspace_id === actor.workspaceId) ? catalogId : null;
   let slug = slugify(name) || "metric";
   const { data: clash } = await db().from("metrics").select("id").eq("slug", slug).eq("workspace_id", actor.workspaceId);
@@ -161,7 +162,9 @@ export async function createMetric(actor: Actor, input: MetricInput, effects: Me
   // Who was really asked, by which way and with what result: only these people, whom the creator just named.
   const people = outcomes.length ? await openNames(actor.workspaceId, (await db().from("profiles").select("id, name").in("id", outcomes.map((o) => o.personId))).data) : [];
   const asked = outcomes.map((o) => ({ personId: o.personId, name: String(people.find((p) => p.id === o.personId)?.name ?? "Someone"), connector: o.connector, label: CONNECTORS[o.connector].label, state: o.state }));
-  return { id: metric.id, slug: metric.slug, submitters: submitters.length, asked };
+  // A Metric made from a Pack's entry gets the entry's Tags; a limit leaves words out and says which (spec 0038).
+  const tagsLeftOut = fromCatalog && fromCatalogId !== null ? await tagMetricFromEntry(actor, metric.id, fromCatalog.tags) : [];
+  return { id: metric.id, slug: metric.slug, submitters: submitters.length, asked, tagsLeftOut };
 }
 
 /** What a duplicate of a Metric starts from (GLOSSARY: Metric Description): its description, Workflow and Submitters. */

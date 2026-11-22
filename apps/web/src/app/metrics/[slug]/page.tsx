@@ -1,5 +1,6 @@
 // A Metric's page (GLOSSARY: Metric, Comparison, Target Series, Observation, Action, Workflow): its numbers first,
 // then one tab each for analyses, targets, history and how values arrive, instead of one long scroll.
+import { tagsLeftOffEntry } from "@ziffr/core/pack-tags";
 import { approvalQuestionForWeb } from "@ziffr/core/approval-question";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -83,12 +84,13 @@ function breakdownShown<R extends { value: number }>(byPeriod: Record<string, R[
 const createdNoteFor = (created: string | undefined, canEdit: boolean, actor: Parameters<typeof firstAsksFor>[0], id: number) => (created && canEdit ? firstAsksFor(actor, id) : Promise.resolve(null));
 
 /** The sentence over a just-created Metric: a Derived Metric needs no values, so it says so instead of "no values yet". */
-function CreatedNote({ derived, note, demo }: { derived: boolean; note: string | null; demo: boolean }) {
+function CreatedNote({ derived, note, demo, tagsLeftOut }: { derived: boolean; note: string | null; demo: boolean; tagsLeftOut: string[] }) {
   return (
     <div className="mb-4 stock rounded-[var(--radius-card)] p-4 text-sm">
       <span className="font-medium">Metric created.</span>{" "}
       {derived ? "It is calculated from other Metrics, so nobody is asked for it: it has a value in each period its inputs do." : <>It has no values yet. {note}</>}
       {demo && !derived && <>{" "}<Link href="/connectors/sources" className="font-medium underline">Go to Sources</Link> to answer it.</>}
+      {tagsLeftOut.length > 0 && <p className="mt-1">The Tag limits (10 per Metric, 200 in the Workspace) kept {tagsLeftOut.map((t) => `“${t}”`).join(", ")} off it. Merge or delete Tags that are not needed, then add them by hand.</p>}
     </div>
   );
 }
@@ -175,10 +177,12 @@ export default async function MetricPage({ params, searchParams }: { params: Pro
 
   // What the first requests really did, read from the Outbox's own records (only for its owner and Editors).
   const createdNote = await createdNoteFor(sp.created, canEdit, actor, metric.id);
+  // Recomputed here, never read from the address: the Tags of the entry this Metric came from that it does not carry.
+  const tagsLeftOff = sp.created && canEdit ? await tagsLeftOffEntry(actor, metric.id) : [];
 
   return (
     <>
-      {sp.created && <CreatedNote derived={Boolean(metric.formula)} note={createdNote} demo={demo} />}
+      {sp.created && <CreatedNote derived={Boolean(metric.formula)} note={createdNote} demo={demo} tagsLeftOut={tagsLeftOff} />}
       <PageHeader
         title={
           <span className="flex items-center gap-2">

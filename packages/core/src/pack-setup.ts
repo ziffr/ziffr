@@ -20,6 +20,7 @@ import { createDashboardFromTemplate, metricChoices } from "./dashboard-template
 import { createWorkflowFromTemplate } from "./workflow-templates";
 import { fromWorkflowTemplate } from "./team-templates";
 import { recordVersion } from "./versions";
+import { tagNamesOf, TAGS_PER_ENTRY } from "./tag-names";
 import { getMetrics } from "./workspace-data";
 import { peopleIn } from "./submissions";
 import { graceNow, LimitReached, limitOf, limitRefusal, limitRule, metricCount, nextGraceOn } from "./workspace-limits";
@@ -28,7 +29,7 @@ import type { Slot, WorkflowTemplateBody } from "./types";
 
 /** An entry of the Pack's part of the Metric Catalog, as the set-up page offers it. `inputs` are the keys a Derived
  * Metric's formula names: picking it makes them too, first. */
-export type SetupEntry = { key: string; name: string; period: string; unit: string; derived: boolean; inputs: string[] };
+export type SetupEntry = { key: string; name: string; period: string; unit: string; derived: boolean; inputs: string[]; tags: string[] };
 /** What setting up from an installed Pack offers: its entries and templates, the members who may approve, and the
  * Metrics this person sees to fill a Slot no entry fills. Names and ids only. */
 export type PackSetupOptions = {
@@ -56,7 +57,9 @@ export type PackSetupInput = {
 };
 
 /** What was made. */
-export type PackSetupResult = { metrics: { id: number; slug: string; name: string }[]; dashboardId: number | null; workflowId: number | null };
+export type PackSetupResult = { metrics: { id: number; slug: string; name: string }[]; dashboardId: number | null; workflowId: number | null;
+  /** The Tags of an entry that a limit kept off its Metric (the Metric is made either way), by Metric: the page says so. */
+  tagsLeftOut: { metric: string; tags: string[] }[] };
 
 /** The most entries one set-up makes: a Pack holds at most 50 of a kind. */
 const MAX_ENTRIES = 50;
@@ -80,7 +83,7 @@ function assertManages(actor: Actor) {
   refuseInDemo(actor);
 }
 
-type EntryRow = { id: number; pack_key: string; name: string; description: string; unit: string; unit_position: string; format: string; decimals: number; period: string; submission_rule: string; polarity: string; target_min: number | null; target_max: number | null; sources: string[]; aggregation: string; formula: string | null };
+type EntryRow = { id: number; pack_key: string; name: string; description: string; unit: string; unit_position: string; format: string; decimals: number; period: string; submission_rule: string; polarity: string; target_min: number | null; target_max: number | null; sources: string[]; aggregation: string; formula: string | null; tags: string[] | null };
 type TemplateRow = { id: number; kind: "dashboard" | "workflow"; pack_key: string; name: string; slots: Slot[]; body: unknown };
 
 /** The install of the actor's Workspace, with what it added that is still marked as from it. */
@@ -90,7 +93,7 @@ async function installed(actor: Actor, installId: number) {
   const { data: install } = await db().from("pack_installs").select("id, version, manifest").eq("id", installId).eq("workspace_id", ws).maybeSingle();
   if (!install) throw new Forbidden();
   const [{ data: entries }, { data: templates }] = await Promise.all([
-    db().from("catalog_metrics").select("id, pack_key, name, description, unit, unit_position, format, decimals, period, submission_rule, polarity, target_min, target_max, sources, aggregation, formula").eq("workspace_id", ws).eq("pack_install_id", installId).order("id"),
+    db().from("catalog_metrics").select("id, pack_key, name, description, unit, unit_position, format, decimals, period, submission_rule, polarity, target_min, target_max, sources, aggregation, formula, tags").eq("workspace_id", ws).eq("pack_install_id", installId).order("id"),
     db().from("team_templates").select("id, kind, pack_key, name, slots, body").eq("workspace_id", ws).eq("pack_install_id", installId).in("kind", ["dashboard", "workflow"]).order("id"),
   ]);
   const byKey = <T extends { pack_key: string }>(rows: T[]) => new Map(rows.filter((r) => typeof r.pack_key === "string").map((r) => [r.pack_key, r]));
@@ -140,7 +143,7 @@ export async function packSetupOptions(actor: Actor, installId: number): Promise
   const memberIds = new Set((members ?? []).map((m) => m.user_id as string));
   return {
     install: p.install,
-    entries: [...p.entries.values()].map((e) => ({ key: e.pack_key, name: e.name, period: e.period, unit: e.unit, derived: Boolean(e.formula), inputs: e.formula ? formulaInputs(e.formula) : [] })),
+    entries: [...p.entries.values()].map((e) => ({ key: e.pack_key, name: e.name, period: e.period, unit: e.unit, derived: Boolean(e.formula), inputs: e.formula ? formulaInputs(e.formula) : [], tags: tagNamesOf(e.tags, TAGS_PER_ENTRY) })),
     dashboards: [...p.dashboards.values()].map((t) => ({ key: t.pack_key, name: t.name, slots: (t.slots ?? []).map((s) => ({ label: s.label, multiple: s.multiple, ...(s.suggests ? { suggests: s.suggests } : {}) })) })),
     workflows: [...p.workflows.values()].map((t) => ({ key: t.pack_key, name: t.name, approvers: approversWanted(t.body as WorkflowTemplateBody) })),
     // Members only, by name: Approvers must be members; Submitters may be Contacts too, but the set-up asks the
@@ -236,6 +239,7 @@ export async function setUpFromPack(actor: Actor, installId: number, input: Pack
   // only a Metric made by someone else at the same moment can still meet the limit, and then the words say what was
   // made before it stopped.
   const made = new Map<string, { id: number; slug: string; name: string }>();
+  const tagsLeftOut: PackSetupResult["tagsLeftOut"] = [];
   let workflowId: number | null = null;
   let dashboardId: number | null = null;
   try {
@@ -247,6 +251,8 @@ export async function setUpFromPack(actor: Actor, installId: number, input: Pack
         // A Derived Metric takes no values, so no Source and no Workflow.
         sources: e.formula ? [] : e.sources, fromCatalogId: e.id, workflowId: e.formula ? null : workflowId,
       });
+      // The entry's Tags were put on it by createMetric, as this person; a limit leaves words out, never the Metric.
+      if (m.tagsLeftOut.length) tagsLeftOut.push({ metric: e.name, tags: m.tagsLeftOut });
       if (e.formula) await writeFormula(actor, { ...m, name: e.name }, withSlugs(e.formula, (k) => made.get(k)!.slug));
       made.set(e.pack_key, { id: m.id, slug: m.slug, name: e.name });
     }
@@ -263,7 +269,7 @@ export async function setUpFromPack(actor: Actor, installId: number, input: Pack
     throw new Error(`${why}${so.length ? ` Made before it stopped: ${so.join(", ")}.` : ""}`);
   }
   await audit(actor, { kind: "pack.set_up", object: { type: "pack", id: p.install.id, name: p.install.name }, details: { version: p.install.version, metrics: made.size, dashboard: dashboardId !== null, workflow: workflowId !== null, feed: feed !== null } });
-  return { metrics: [...made.values()], dashboardId, workflowId };
+  return { metrics: [...made.values()], dashboardId, workflowId, tagsLeftOut };
 }
 
 /** A formula of a Pack's entries ({key}) with each key replaced by a Metric's slug. */

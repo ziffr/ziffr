@@ -48,6 +48,18 @@
       },
       "description": "The kinds of customers, such as “b2b” or “b2c” it suits; left out, any."
     },
+    "tags": {
+      "type": "array",
+      "maxItems": 5,
+      "items": {
+        "type": "string",
+        "maxLength": 128,
+        "pattern": "^(?![\\s\\S]*(?:://|[Ww][Ww][Ww]\\.|[Jj][Aa][Vv][Aa][Ss][Cc][Rr][Ii][Pp][Tt]:|[Dd][Aa][Tt][Aa]:|[Uu][Rr][Ll]\\(|[\\p{L}\\p{N}](?:\\.(?:[Cc][Oo][Mm]|[Nn][Ee][Tt]|[Oo][Rr][Gg]|[Ii][Oo]|[Cc][Oo]|[Ii][Nn][Ff][Oo]|[Bb][Ii][Zz]|[Aa][Pp][Pp]|[Dd][Ee][Vv]|[Xx][Yy][Zz]|[Mm][Ee]|[Aa][Ii]|[Ll][Yy]|[Gg][Ll]|[Gg][Gg]|[Tt][Oo]|[Cc][Cc]|[Tt][Vv]|[Ww][Ss]|[Ll][Ii][Nn][Kk]|[Cc][Ll][Ii][Cc][Kk]|[Ss][Ii][Tt][Ee]|[Oo][Nn][Ll][Ii][Nn][Ee]|[Tt][Oo][Pp]|[Tt][Kk]|[Rr][Uu]|[Cc][Nn]|[Dd][Ee]|[Uu][Kk]|[Ff][Rr]|[Ee][Uu]|[Uu][Ss]|[Nn][Ll]|[Cc][Hh]|[Aa][Tt]|[Ii][Tt]|[Ee][Ss])(?![\\p{L}\\p{N}])|\\.[Xx][Nn]--|\\.\\p{L}{2,}/)|\\b(?:[Hh][Tt][Tt][Pp][Ss]?|[Ff][Tt][Pp]|[Mm][Aa][Ii][Ll][Tt][Oo]|[Tt][Ee][Ll]|[Ss][Mm][Ss]|[Ff][Ii][Ll][Ee]|[Vv][Bb][Ss][Cc][Rr][Ii][Pp][Tt]):(?!\\s)))[\\p{L}\\p{M}\\p{N} .,;:!?'\"’‘“”«»()%€$£¥+\\-–—/&#*=_·…°]*$",
+        "description": "plain text, without markup or web addresses",
+        "minLength": 1
+      },
+      "description": "Up to 5 Tags a Metric made from this entry gets: free words of at most 32 characters, plain text, without commas. Not the industry and segment keys above."
+    },
     "period": {
       "enum": [
         "day",

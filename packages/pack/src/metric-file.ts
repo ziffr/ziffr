@@ -4,6 +4,7 @@
 // Security: a file holds no person, no value and no web address; a Derived Metric's formula is only read, never run.
 import { checkFormat, parseJson, type FormatCheck, type Schema } from "./json-check.js";
 import { plainText } from "./file-text.js";
+import { cleanTagNames, TAG_NAME_MAX, TAGS_PER_ENTRY } from "./tag-names.js";
 import { formulaSyntaxProblem, FORMULA_LIMITS } from "./formula-check.js";
 import { ATTAINMENT_METHODS, type Aggregation, type AttainmentMethod, type Format, type Period, type Polarity, type SourceId, type SubmissionRule, type UnitPosition } from "./kinds.js";
 
@@ -12,7 +13,7 @@ export const METRIC_FILE_FORMAT = "ziffr.metric/1";
 /** Every Metric file format Ziffr ever published, oldest first. */
 export const METRIC_FILE_FORMATS = [METRIC_FILE_FORMAT] as const;
 /** The exact limits a Metric file is held to; name, unit and decimals as the Metric form keeps them. */
-export const METRIC_FILE_LIMITS = { bytes: 16_384, depth: 4, name: 120, description: 1000, unit: 20, category: 60, tags: 12, tag: 30, magnitude: 1e15 } as const;
+export const METRIC_FILE_LIMITS = { bytes: 16_384, depth: 4, name: 120, description: 1000, unit: 20, category: 60, tags: 12, tag: 30, entryTags: TAGS_PER_ENTRY, magnitude: 1e15 } as const;
 
 /** A Metric Description as a file (GLOSSARY: Metric Description), in the newest format. Fields left out take the
  * defaults of the Metric form. `formula` makes it a Derived Metric; in a Pack it names other entries by their key. */
@@ -23,6 +24,7 @@ export type MetricFile = {
   category?: string;
   industries?: string[];
   segments?: string[];
+  tags?: string[];
   period: Period;
   aggregation: Aggregation;
   polarity: Polarity;
@@ -56,6 +58,7 @@ export const METRIC_FILE_SCHEMA: Schema = {
     category: plainText(METRIC_FILE_LIMITS.category, "plain text, without markup or web addresses, such as “Revenue”"),
     industries: tags("business, such as “saas” or “retail”"),
     segments: tags("customers, such as “b2b” or “b2c”"),
+    tags: { type: "array", maxItems: METRIC_FILE_LIMITS.entryTags, items: { ...plainText(TAG_NAME_MAX * 4), minLength: 1 }, description: `Up to ${METRIC_FILE_LIMITS.entryTags} Tags a Metric made from this entry gets: free words of at most ${TAG_NAME_MAX} characters, plain text, without commas. Not the industry and segment keys above.` },
     period: { enum: ["day", "week", "month", "quarter", "year"], description: "How often it has a value." },
     aggregation: { enum: ["sum", "average", "last", "none"], description: "How its values combine over longer periods." },
     polarity: { enum: ["higher", "lower", "target"], description: "Whether higher, lower or a range of values is good." },
@@ -81,6 +84,12 @@ const FORMAT = {
   meaning(m: MetricFile, at: (path: string, message: string) => void) {
     if (m.targetMin !== undefined && m.targetMax !== undefined && m.targetMin > m.targetMax) at("targetMin", "is above targetMax: the lower end of a Target Range comes first.");
     if (m.sources && new Set(m.sources).size !== m.sources.length) at("sources", "names a Source twice.");
+    if (m.tags) {
+      // The same rules as a Tag typed in the app (spec 0038): normalised, 1 to 32 characters, plain, each Tag once.
+      m.tags.forEach((t, i) => { const one = cleanTagNames([t], 1); if ("error" in one) at(`tags[${i}]`, one.error); });
+      const names = m.tags.map((t) => cleanTagNames([t], 1)).flatMap((r) => ("names" in r ? r.names : []));
+      if (new Set(names.map((n) => n.toLowerCase())).size !== names.length) at("tags", "names a Tag twice.");
+    }
     for (const k of ["industries", "segments"] as const) if (m[k] && new Set(m[k]).size !== m[k]!.length) at(k, "names a kind twice.");
     if (m.formula !== undefined) {
       const why = formulaSyntaxProblem(m.formula);
