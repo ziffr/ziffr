@@ -155,7 +155,7 @@ A Workflow step that, once a period is finished, takes and shows the period's Sn
 _Avoid_: Pack, board pack, report, distribution, mailing
 
 **Period Timeline**:
-What happened in one period of a Workflow, in order: who was asked and reminded, which values came in and which Checklist Items were sent, given and ticked off ("5 of 6 in" counts values and those Tasks together), Approvals and Actions, what published and locked, when the period finished, and the Snapshots made and sent. It records nothing of its own and shows each person only what they may see: a Metric they cannot see is only a count ("1 value"), and a Thread's words appear only as first words, for a Thread they may read. On the Workflow page, and as the `period_status` tool.
+What happened in one period of a Workflow, in order: who was asked and reminded, which values came in (marked when someone entered one for its submitter) and which Checklist Items were sent, given and ticked off ("5 of 6 in" counts values and those Tasks together), Approvals and Actions, what published and locked, when the period finished, and the Snapshots made and sent. It records nothing of its own and shows each person only what they may see: a Metric they cannot see is only a count ("1 value"), and a Thread's words appear only as first words, for a Thread they may read. On the Workflow page, and as the `period_status` tool.
 _Avoid_: Activity feed, audit trail, history
 
 **Workflow Template**:
@@ -171,15 +171,19 @@ What one person has to do in a Workspace, day by day: values to submit by their 
 _Avoid_: Agenda, to-do list, inbox, calendar
 
 **Stand-in**:
-The person asked instead of a submitter who is Away, or who has not answered by the Due Date.
+The person asked instead of a submitter who is Away, or who has not answered by the Due Date. Their answer to a Prompt asked in the submitter's place is a Filled-in Value for that submitter, only for the periods they were asked about, and never through an Access Key. A Guest cannot be one.
 _Avoid_: Deputy, backup, substitute
 
 **Away**:
 The dates a person is not available. While someone is away, Prompts meant for them go to their Stand-in.
 _Avoid_: Absence, out of office, leave
 
+**Filled-in Value**:
+A value one person enters for a Submitter who has not sent it: their Stand-in answering the Prompt asked in their place, or, in the app, the Metric's owner or the owner of its Workflow. Only once the period's Due Date has passed or while the Submitter is Away, only for a period with no value that is not locked, only for a Metric that keeps one value per period, never for a Feed, never by a Guest or an Access Key. It is recorded and counted as the Submitter's (Schedule, progress, reports) and always marked with who entered it ("Entered by Ben for Sara") on the value, the Period Record, the Period Timeline and in the Audit Log. The Submitter is told, and can replace it with their own until the period locks; it then stays as a Superseded Value. It is checked and approved like any value, never by who entered it nor by the Submitter.
+_Avoid_: Proxy value, on-behalf value, delegated value, substitute value, override, estimate, backfill, placeholder
+
 **Quiet Hours**:
-The hours of the day and the whole days when Ziffr sends a person no Prompt, reminder, Alert or Workflow message (a Checklist Item for information, a sent Snapshot), in their time zone. A person sets their own; Owners and Admins set the Workspace's default for everyone who has set none (an empty set of their own opts out of it). A message that falls inside waits and goes out when the Quiet Hours end, and is never dropped; they delay only the message, never a Due Date or an Approval's deadline, and not other messages such as a question someone asks. Not Away, which hands a person's Prompts to their Stand-in for whole dates.
+The hours of the day and the whole days when Ziffr sends a person no Prompt, reminder, Alert or Workflow message (a Checklist Item for information, a sent Snapshot), nor word that a value was entered for them, in their time zone. A person sets their own; Owners and Admins set the Workspace's default for everyone who has set none (an empty set of their own opts out of it). A message that falls inside waits and goes out when the Quiet Hours end, and is never dropped; they delay only the message, never a Due Date or an Approval's deadline, and not other messages such as a question someone asks. Not Away, which hands a person's Prompts to their Stand-in for whole dates.
 _Avoid_: Do not disturb, silent hours, mute
 
 **Escalation**:
@@ -191,15 +195,15 @@ A value that changes more than a set share against the period before, or falls o
 _Avoid_: Outlier, anomaly
 
 **Approval**:
-Confirming a value before it counts, by each Approver in order: an Unusual Value, or every value where the Workflow's Approve step says so. An Import of a Feed's history does not wait for it. An approver can approve it, send it back to the submitter with a comment, or correct it. Until it is approved the value shows, marked as not approved yet. Nobody approves their own value: when nobody else could, the Approve step says whether a Self-check takes its place or the value counts without Approval, with a note saying so.
+Confirming a value before it counts, by each Approver in order: an Unusual Value, or every value where the Workflow's Approve step says so. An Import of a Feed's history does not wait for it. An approver can approve it, send it back to the submitter with a comment, or correct it. Until it is approved the value shows, marked as not approved yet. Nobody approves their own value, nor a Filled-in Value they entered or that was entered for them: when nobody else could, the Approve step says whether a Self-check takes its place or the value counts without Approval, with a note saying so.
 _Avoid_: Sign-off, review, verification
 
 **Self-check**:
-The submitter checking their own value when an Approval is needed but nobody else could give it, as in a Workspace of one person: they confirm it or correct it. It is recorded as confirmed by the submitter, never as an Approval, and it is the Approve step's default for that case. As soon as someone else could approve, Approval applies again.
+The submitter checking their own value when an Approval is needed but nobody else could give it, as in a Workspace of one person: they confirm it or correct it. For a Filled-in Value it is the submitter it is for, never who entered it. It is recorded as confirmed by the submitter, never as an Approval, and it is the Approve step's default for that case. As soon as someone else could approve, Approval applies again.
 _Avoid_: Self-approval, own approval
 
 **Period Record**:
-One Metric's page for one period (`/metrics/churn-rate/2026-03-01`): its value and state, every step the value went through in order (submitted, replaced, Correction proposed and decided, approved, sent back, published, locked, unlocked with its reason) with person, channel and date, and the Threads about it that the person may read. Only for people who see the Metric.
+One Metric's page for one period (`/metrics/churn-rate/2026-03-01`): its value and state, every step the value went through in order (submitted, entered by someone for its submitter, replaced, Correction proposed and decided, approved, sent back, published, locked, unlocked with its reason) with person, channel and date, and the Threads about it that the person may read. Only for people who see the Metric.
 _Avoid_: Value page, audit trail, timeline (a Workflow's timeline lists many periods)
 
 **Search**:
@@ -518,11 +522,11 @@ A saved state of something people build (a widget, dashboard, deck, master, metr
 _Avoid_: Revision, snapshot, commit, backup
 
 **Superseded Value**:
-An earlier value of an observation or breakdown row, kept when an overwrite or correction replaced it, with the time it was replaced.
+An earlier value of an observation or breakdown row, kept when an overwrite or correction replaced it, with the time it was replaced and, for a Filled-in Value, who entered it.
 _Avoid_: Old value, previous version, overwritten value
 
 **Audit Log**:
-The record of who changed who may see or do what in a Workspace, and of the decisions taken on numbers: roles, removals, invitations, joining, Shares, Groups, View Links, Access Keys, Locks, Approvals, Corrections, Snapshots taken, shown and deleted, settings, exports and sign-ins. Each event names the person, the kind, the object as it was named then, the time and small details such as the old and new role, never a value or a message. Nothing in it can be changed or removed; it keeps two years. Owners and Admins read and export it. Not the Access Log, which records a program's calls, nor a Version, which keeps what something looked like.
+The record of who changed who may see or do what in a Workspace, and of the decisions taken on numbers: roles, removals, invitations, joining, Shares, Groups, View Links, Access Keys, Locks, Approvals, Corrections, Filled-in Values, Snapshots taken, shown and deleted, settings, exports and sign-ins. Each event names the person, the kind, the object as it was named then, the time and small details such as the old and new role, never a value or a message. Nothing in it can be changed or removed; it keeps two years. Owners and Admins read and export it. Not the Access Log, which records a program's calls, nor a Version, which keeps what something looked like.
 _Avoid_: Audit trail, activity log, event log, history
 
 **Changes**:
