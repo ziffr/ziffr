@@ -14,7 +14,7 @@
 // after the date are as large as those before it, that each is independent of the one before, and that the trend would have
 // carried on: the Takeaway says so. It is a range, never a verdict: no strength word is given.
 import { readSeries } from "../basis";
-import { fractionOf, lowestTerms, minus, nearest, over, plus, times, type Fraction } from "../exact";
+import { fractionOf, nearest, type Fraction } from "../exact";
 import { formatDate, formatNumber, type ValueUnit } from "../format";
 import { periodEnd, periodsBetween, type Span } from "../periods";
 import { checkSuitability, type Finding } from "../suitability";
@@ -22,6 +22,7 @@ import { decimalsFor, plainValue, SHARE_UNIT, signedText, sizeText } from "../ta
 import { answerTakeaway, refusalTakeaway, sayIn, type Figure, type NumberRow, type Takeaway, type TakeawayContext } from "../takeaways/takeaway";
 import type { CaseKey, Slots } from "../takeaways/wording";
 import type { Point } from "../types";
+import { add, div, mul, sub, total, whole } from "./fractions";
 import { LIKELY, tQuantile } from "./t-curve";
 
 /** How many periods before the date a Takeaway looks at, at most: the latest 120 (spec 0041, Limits). */
@@ -58,12 +59,6 @@ export type AfterDate = {
 export type NoAfterDate = { ok: false; why: "date" | "before" | "after" | "huge" };
 
 const ZERO = BigInt(0);
-const whole = (n: number): Fraction => ({ num: BigInt(n), den: BigInt(1) });
-const add = (a: Fraction, b: Fraction) => lowestTerms(plus(a, b));
-const sub = (a: Fraction, b: Fraction) => lowestTerms(minus(a, b));
-const mul = (a: Fraction, b: Fraction) => lowestTerms(times(a, b));
-const div = (a: Fraction, b: Fraction) => lowestTerms(over(a, b));
-const total = (fs: Fraction[]) => fs.reduce(add, whole(0));
 
 /** Whether a text is a real calendar day written yyyy-mm-dd. */
 export function isDay(text: unknown): text is string {

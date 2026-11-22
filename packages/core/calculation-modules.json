@@ -45,5 +45,6 @@
   "src/takeaways/sizes.ts",
   "src/methods/t-curve.ts",
   "src/methods/before-after.ts",
-  "src/methods/change-point.ts"
+  "src/methods/change-point.ts",
+  "src/methods/fractions.ts"
 ]

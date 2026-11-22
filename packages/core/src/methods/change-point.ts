@@ -14,7 +14,7 @@
 // them (Bonferroni): the change is real when that chance is below 1 in 20 divided by the number of dates tried, which is
 // (SSE₀ ÷ SSE₁)^(n − 4) > (20 · tries)², decided exactly on whole numbers. A date that clears one look but not that bar is "none".
 import { readSeries } from "../basis";
-import { fractionOf, lowestTerms, minus, nearest, over, plus, times, type Fraction } from "../exact";
+import { fractionOf, nearest, type Fraction } from "../exact";
 import { formatNumber, type ValueUnit } from "../format";
 import { periodsBetween, type Span } from "../periods";
 import { checkSuitability, SUITABILITY, type Finding, type Rerun } from "../suitability";
@@ -23,6 +23,7 @@ import { answerTakeaway, refusalTakeaway, sayIn, type Takeaway, type TakeawayCon
 import { say, type CaseKey, type Slots } from "../takeaways/wording";
 import type { Point } from "../types";
 import { MAX_PERIODS } from "./before-after";
+import { add, div, mul, sub, whole } from "./fractions";
 import { LIKELY, tQuantile } from "./t-curve";
 
 /** The chance rule's level: a change is real when the chance of so large an improvement by luck is below one in this many, shared among the dates tried. */
@@ -53,12 +54,7 @@ export type ChangePoint = {
 /** Why there is no change point: fewer than 8 values, more than `MOST_VALUES`, or a number too large to work out. */
 export type NoChangePoint = { ok: false; why: "few" | "long" | "huge" };
 
-const [ZERO, ONE] = [BigInt(0), BigInt(1)];
-const whole = (n: number): Fraction => ({ num: BigInt(n), den: ONE });
-const add = (a: Fraction, b: Fraction) => lowestTerms(plus(a, b));
-const sub = (a: Fraction, b: Fraction) => lowestTerms(minus(a, b));
-const mul = (a: Fraction, b: Fraction) => lowestTerms(times(a, b));
-const div = (a: Fraction, b: Fraction) => lowestTerms(over(a, b));
+const ZERO = BigInt(0);
 const smaller = (a: Fraction, b: Fraction) => a.num * b.den < b.num * a.den;
 
 // The straight line through values i up to (not including) j, from running sums: its mean position and value, Sxx, the slope and
