@@ -121,6 +121,8 @@ async function personalValueMessage(send: Send, env: Omit<MessageEnvelope, "repl
   const ctx = await alertContext(send.workspace_id);
   const m = ctx.metrics.find((x) => x.id === metric.id);
   if (!m) return null;
+  const latestId = async () => ((await db().from("observations").select("id").eq("metric_id", metric.id).eq("period_start", period).order("id", { ascending: false }).limit(1)).data?.[0]?.id as number | undefined);
+  const before = await latestId();
   const view = await viewAt(ctx, m, period);
   const at = (n: number | string | null) => (n === null ? null : formatValue(m, Number(n), ctx.style));
   const link = linkTo(`/metrics/${metric.id}`);
@@ -130,7 +132,9 @@ async function personalValueMessage(send: Send, env: Omit<MessageEnvelope, "repl
   }
   // The number only where the person may see a waiting value, asked after the value was read, so a value that arrived
   // in between is judged by the state it came with. Never because a value merely looks published.
-  const shown = view && view.value !== null && (await mayPeekWaitingValue(send.workspace_id, personId, m, period)) ? at(view.value) : null;
+  let shown = view && view.value !== null && (await mayPeekWaitingValue(send.workspace_id, personId, m, period)) ? at(view.value) : null;
+  // A newer value that came in meanwhile may have changed who it waits for: then the number goes out to no one.
+  if (shown !== null && (await latestId()) !== before) shown = null;
   return buildValueUnusualMessage({ metric, period, link, ...(shown !== null ? { value: shown } : {}) }, env);
 }
 
