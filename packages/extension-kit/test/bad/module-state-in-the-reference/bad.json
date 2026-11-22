@@ -1,0 +1,5 @@
+{
+  "rule": "module-state",
+  "why": "its reference keeps a cache at the top",
+  "remove": []
+}

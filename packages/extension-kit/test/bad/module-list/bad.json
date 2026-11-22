@@ -1,0 +1,5 @@
+{
+  "rule": "module-state",
+  "why": "has a list at the top that is not read-only",
+  "remove": []
+}

@@ -1,0 +1,5 @@
+{
+  "rule": "this-keyword",
+  "why": "reads this",
+  "remove": []
+}

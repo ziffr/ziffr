@@ -1,0 +1,5 @@
+{
+  "rule": "bad-manifest",
+  "why": "asks a price: only free Extensions exist yet",
+  "remove": []
+}

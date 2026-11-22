@@ -1,0 +1,5 @@
+{
+  "rule": "network",
+  "why": "calls fetch",
+  "remove": []
+}

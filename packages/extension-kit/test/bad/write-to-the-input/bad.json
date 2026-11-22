@@ -1,0 +1,5 @@
+{
+  "rule": "outside-assignment",
+  "why": "changes the series it was handed",
+  "remove": []
+}

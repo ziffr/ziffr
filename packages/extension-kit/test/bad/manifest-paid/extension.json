@@ -1,0 +1,26 @@
+{
+  "format": "ziffr.extension/1",
+  "id": "ziffr-example/spread",
+  "version": "1.0.0",
+  "kind": "method",
+  "name": "Spread",
+  "summary": "How far apart the highest and the lowest value of a series are.",
+  "author": {
+    "name": "Ziffr Example"
+  },
+  "license": "MIT",
+  "signature": {
+    "inputs": [
+      {
+        "name": "series",
+        "kind": "series"
+      }
+    ],
+    "gives": "value"
+  },
+  "limits": {
+    "points": 120
+  },
+  "ziffr": ">=0.14",
+  "price": "5 EUR"
+}

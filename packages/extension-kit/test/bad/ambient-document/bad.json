@@ -1,0 +1,5 @@
+{
+  "rule": "ambient-global",
+  "why": "reaches document",
+  "remove": []
+}

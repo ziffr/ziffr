@@ -1,0 +1,5 @@
+{
+  "rule": "module-state",
+  "why": "has a variable at the top that can change",
+  "remove": []
+}

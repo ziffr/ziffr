@@ -1,0 +1,5 @@
+{
+  "rule": "string-access",
+  "why": "reaches a property by a text",
+  "remove": []
+}

@@ -1,0 +1,5 @@
+{
+  "rule": "import-not-allowed",
+  "why": "re-exports from another module",
+  "remove": []
+}

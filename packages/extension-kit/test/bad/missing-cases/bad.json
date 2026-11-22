@@ -1,0 +1,7 @@
+{
+  "rule": "missing-file",
+  "why": "has no cases",
+  "remove": [
+    "cases.ts"
+  ]
+}
