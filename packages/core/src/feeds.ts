@@ -49,7 +49,7 @@ export type FeedInfo = {
 };
 
 /** Refuses anyone but a signed-in Owner or Admin, and the demo (whose made-up people are anyone's). */
-function assertManagesFeeds(actor: Actor) {
+export function assertManagesFeeds(actor: Actor) {
   if (actor.key) throw new Forbidden("A key cannot manage Feeds.");
   if (actor.role !== "owner" && actor.role !== "admin") throw new Forbidden("Only Owners and Admins manage Feeds.");
   // A Feed's person is made before the Feed, outside the demo's rows: refused before it.

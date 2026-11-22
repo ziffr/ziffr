@@ -12,6 +12,7 @@ import { db } from "./db";
 import { recordServiceEvent } from "./installation-admins";
 import { DEMO_WORKSPACE_ID } from "./team";
 import { keepTrial } from "./trials";
+import { closeCancelledWorkspace, reopenCancelledWorkspace } from "./trial-end";
 import { forgetStoredSettings, settingSources, settingsInEffectStrict } from "./settings-in-effect";
 import { TRIAL_LIMITS, trialLimitNumberProblem, trialLimitOf, trialLimitProblem, trialLimitsFrom, type TrialLimitKey } from "./trial-limits";
 import { trialLimitEnvironment } from "./trial-limits-in-effect";
@@ -111,6 +112,10 @@ const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 /** Thrown for a Workspace that does not exist (or is the demo): the API answers 404. */
 export class CloudNotFound extends Error {}
 
+/** Thrown for a call the Workspace's state refuses (cancelling a trial or a Workspace without a Size Ziffr Cloud sold,
+ * reopening one that was not cancelled): the API answers 409. */
+export class CloudConflict extends Error {}
+
 /** A Workspace's numbers for Ziffr Cloud. A missing one, the demo or an id that is not one says only `exists: false`. */
 export async function cloudWorkspace(_caller: CloudCaller, workspaceId: string): Promise<CloudWorkspace> {
   const id = String(workspaceId ?? "").toLowerCase();
@@ -174,6 +179,35 @@ export async function setCloudLimit(caller: CloudCaller, workspaceId: string, in
   await recordServiceEvent("Ziffr Cloud", metrics === null ? "workspace_limit.removed" : "workspace_limit.set", before.id);
   // Booking a Size during the trial ends it at once (spec 0029): the Workspace becomes ordinary with this limit.
   if (input.endTrial === true && before.trial_ends_at) await keepTrial(before.id);
+  return cloudWorkspace(caller, before.id);
+}
+
+/** Ziffr Cloud tells that a Workspace's Size was cancelled, or its payment failed for good (spec 0040): the Workspace
+ * closes as an ended trial does, read-only for the grace days with the Workspace Export offered, then it is deleted.
+ * Only a Workspace whose limit Ziffr Cloud set can be closed so: a trial, the demo and any other is refused
+ * (CloudConflict, 409). A second call changes nothing. The Workspace's Audit Log and the Installation's audit record it.
+ * Answers the Workspace as it is now; its `trial_ends_at` is then the day it closed. */
+export async function cancelCloudWorkspace(caller: CloudCaller, workspaceId: string): Promise<CloudWorkspace> {
+  const before = await cloudWorkspace(caller, workspaceId);
+  if (!before.exists) throw new CloudNotFound();
+  const result = await closeCancelledWorkspace(before.id);
+  if (result === "refused") throw new CloudConflict();
+  if (result === "closed") {
+    await recordAudit(before.id, null, { kind: "workspace.closed_cancelled", object: { type: "workspace", id: before.id }, details: { by: "cloud" } }, "Ziffr Cloud");
+    await recordServiceEvent("Ziffr Cloud", "workspace.cancelled", before.id);
+  }
+  return cloudWorkspace(caller, before.id);
+}
+
+/** Ziffr Cloud undoes a cancellation during the grace days: the Workspace is ordinary again, with its data. Its keys and
+ * its Slack, Telegram and Calendar connections stay revoked (the Owner makes them again) and closed Actions stay
+ * closed. CloudConflict (409) for a Workspace that was not closed by a cancellation; one already deleted does not exist. */
+export async function reopenCloudWorkspace(caller: CloudCaller, workspaceId: string): Promise<CloudWorkspace> {
+  const before = await cloudWorkspace(caller, workspaceId);
+  if (!before.exists) throw new CloudNotFound();
+  if (!(await reopenCancelledWorkspace(before.id))) throw new CloudConflict();
+  await recordAudit(before.id, null, { kind: "workspace.reopened", object: { type: "workspace", id: before.id }, details: { by: "cloud" } }, "Ziffr Cloud");
+  await recordServiceEvent("Ziffr Cloud", "workspace.reopened", before.id);
   return cloudWorkspace(caller, before.id);
 }
 

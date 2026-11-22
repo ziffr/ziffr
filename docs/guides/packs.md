@@ -84,6 +84,19 @@ An item may name another item of the same Pack, and nothing outside it:
 - a Deck Template names one of the Pack's Themes, which a deck made from it starts with: `"theme": "board"`. Its Slots and widgets name entries and designs as a Dashboard Template's do;
 - a Derived Metric's formula names the Pack's other entries in braces: `"{mrr} / {customers}"`. Its inputs follow the same rules as in a Workspace: no Derived Metric among them, all of the Derived Metric's own period, none set to Aggregation none.
 
+## Filling the Metrics from other systems
+
+A Pack may say which of Ziffr's ready n8n templates ([Automation Templates for Feeds](../automations/README.md)) fill which of its Metric Catalog entries, so that the person who sets the Pack up can fill them without anyone retyping the numbers:
+
+```json
+"feeds": [{ "template": "google-sheets", "fills": ["headcount", "attrition"] }]
+```
+
+- `template` is the id of a template Ziffr ships (today only `google-sheets`; the ids are in `docs/automations/feed-templates.json`). Nothing else is accepted: a Pack names a template, it never carries or links to a flow of its own.
+- `fills` are keys of the Pack's own Metric Catalog entries that take values. A Derived Metric cannot be filled, and an entry or a template is named once.
+- Installing makes nothing of it. After **Set up from this Pack**, the page offers **Fill from n8n** for the Metrics made from those entries, with the template already chosen.
+- A Pack that uses `feeds` should say so in its `ziffr` minimum version: an older Ziffr refuses a field it does not know. `npx @ziffr/pack check` checks it with the same code as the server.
+
 ## The logo
 
 A Pack may bring **one logo**, optionally, as a data address in the manifest's `logo` (beside `listing`, never in `contents`): `"logo": "data:image/png;base64,…"`. Its `author` is the publisher it is shown with. A Theme of the Pack may say `"slides": { "logo": "pack" }` to use it; that is the only value the field takes, a Theme file on its own may not say it, and neither may a Theme of a Pack without a logo. A Pack with a logo needs a Ziffr that knows the field, so set `ziffr` to the version that does. A Pack's licence covers its contents, not anyone's trademark: the logo stays the publisher's. Installing checks the logo again on the server and keeps only the form Ziffr wrote out itself (an SVG is serialized again from what was read); a Theme that says `"pack"` is installed with it, and installing never makes a Theme the team default.
