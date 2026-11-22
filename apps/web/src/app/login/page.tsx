@@ -7,6 +7,7 @@ import { enabledProviders, PROVIDER_LABEL } from "@/lib/sign-in";
 import { buttonVariants } from "@/components/ui/button";
 import { AuthHeading, AuthNotice, AuthShell } from "@/components/auth-shell";
 import { cn } from "@/lib/utils";
+import { SignUpAgreement } from "@/components/legal-footer";
 import { LoginForm } from "./form";
 import { whatThisZiffrOffers } from "@ziffr/core/what-works-here";
 import { trialsOpen } from "@ziffr/core/trials";
@@ -40,7 +41,7 @@ export default async function LoginPage({ searchParams }: { searchParams: Promis
       <AuthHeading title="Sign in to Ziffr">{offers.trial && !full ? "New here? The same link creates your account." : null}</AuthHeading>
       {sp.failed && <AuthNotice>That link did not work, or it was used already. Ask for a new one.</AuthNotice>}
       {full && <p role="status" className="mb-6 rounded-[var(--radius-input)] border border-border p-3 text-sm">All new trials are taken right now. If you have one already, sign in to it here.</p>}
-      <LoginForm next={sp.next} providers={enabledProviders().map((p) => ({ id: p, label: PROVIDER_LABEL[p] }))} turnstileSiteKey={siteKey} />
+      <LoginForm next={sp.next} providers={enabledProviders().map((p) => ({ id: p, label: PROVIDER_LABEL[p] }))} turnstileSiteKey={siteKey} agreement={offers.trial && !full ? <SignUpAgreement /> : undefined} />
     </AuthShell>
   );
 }

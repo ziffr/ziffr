@@ -28,3 +28,14 @@ describe("SignUpAgreement", () => {
     expect(renderToString(<SignUpAgreement />)).toBe("");
   });
 });
+
+describe("one place", () => {
+  it("is drawn by the root layout alone: AuthShell is given no legal footer", async () => {
+    const { readFileSync, readdirSync, statSync } = await import("node:fs");
+    const { join } = await import("node:path");
+    const walk = (d: string): string[] => readdirSync(d).flatMap((f) => (statSync(join(d, f)).isDirectory() ? walk(join(d, f)) : [join(d, f)]));
+    const users = walk(join(__dirname, "..", "app")).filter((f) => f.endsWith(".tsx") && !f.endsWith("layout.tsx") && readFileSync(f, "utf8").includes("<LegalFooter"));
+    expect(users).toEqual([]);
+    expect(readFileSync(join(__dirname, "..", "app", "layout.tsx"), "utf8").match(/<LegalFooter/g)?.length).toBe(3);
+  });
+});

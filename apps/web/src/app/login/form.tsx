@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input";
 import { sendSignInLink, signInWith } from "@/app/auth-actions";
 import type { Provider } from "@/lib/sign-in";
 
-export function LoginForm({ next, providers, turnstileSiteKey = null }: { next?: string; providers: { id: Provider; label: string }[]; turnstileSiteKey?: string | null }) {
+export function LoginForm({ next, providers, turnstileSiteKey = null, agreement }: { next?: string; agreement?: React.ReactNode; providers: { id: Provider; label: string }[]; turnstileSiteKey?: string | null }) {
   const [email, setEmail] = useState("");
   const [check, setCheck] = useState<string | null>(null);
   const [round, setRound] = useState(0);
@@ -59,6 +59,8 @@ export function LoginForm({ next, providers, turnstileSiteKey = null }: { next?:
           ))}
         </div>
       )}
+      {/* Server-drawn words, given by the page: "By signing up you agree to the Terms…" where an account can be made (#760). */}
+      {agreement}
     </div>
   );
 }
