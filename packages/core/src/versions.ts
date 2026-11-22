@@ -6,6 +6,7 @@ import { openRows } from "./sealed-columns";
 import { mapVersionWords, opening, openObject, sealing, sealObject } from "./sealed-words";
 import { workspaceCipher } from "./workspace-keys";
 import { openWorkflowRow } from "./workflow-rows";
+import { tagNamesOfMetric } from "./tag-rows";
 
 // Changes a program makes through an Access Key go through the same core functions as people's (spec 0014), and those
 // record Versions deep inside. Rather than thread a note through every signature, the key's call runs inside
@@ -69,7 +70,9 @@ async function loadSnapshot(type: VersionType, id: number): Promise<{ snapshot: 
   if (type === "template") return loaded((await db().from("team_templates").select("workspace_id, kind, name, description, view, slots, body, w, h").eq("id", id).single()).data);
   if (type !== "metric") throw new Error(`Unknown version type: ${String(type)}`);
   const { data } = await db().from("metrics").select("id, workspace_id, name, description, unit, unit_position, format, decimals, period, submission_rule, polarity, target_min, target_max, target_min_sealed, target_max_sealed, attainment_method, sources, aggregation, formula").eq("id", id).single();
-  return loaded(data ? (await openRows("metrics", String(data.workspace_id), [data]))[0] : null, ["id"]);
+  const metric = await loaded(data ? (await openRows("metrics", String(data.workspace_id), [data]))[0] : null, ["id"]);
+  // A Metric's Tags are part of its description (spec 0038): a Version keeps their names as they were then.
+  return metric && { ...metric, snapshot: { ...metric.snapshot, tags: await tagNamesOfMetric(metric.ws, id) } };
 }
 
 /** What a version stores for each kind of object: everything needed to restore it, nothing it does not own, words as
@@ -148,6 +151,10 @@ export function diffSummary(type: VersionType, a: Record<string, unknown> | null
     } else if (k === "tokens") {
       const ta = (a.tokens ?? {}) as Record<string, unknown>, tb = (b.tokens ?? {}) as Record<string, unknown>;
       out.push(`changed ${[...new Set([...Object.keys(ta), ...Object.keys(tb)])].filter((x) => JSON.stringify(ta[x]) !== JSON.stringify(tb[x])).join(", ") || "look"}`);
+    } else if (type === "metric" && k === "tags") {
+      const had = new Set(((a.tags as string[] | undefined) ?? []).map(String)), has = new Set(((b.tags as string[] | undefined) ?? []).map(String));
+      const added = [...has].filter((t) => !had.has(t)), removed = [...had].filter((t) => !has.has(t));
+      out.push(`tags: ${[...added.map((t) => `+${t}`), ...removed.map((t) => `-${t}`)].join(", ") || "changed"}`);
     } else if (k === "theme_id") out.push("theme");
     else if (k === "body") out.push("content replaced");
     else if (k === "document") out.push("slides edited");

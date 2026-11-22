@@ -30,6 +30,7 @@ const INDEXES: Partial<Record<OpenedTable, readonly (readonly [string, string])[
   contacts: [["email", "email_index"], ["slack_handle", "slack_index"]],
   breakdown_rows: [["label", "label_index"]],
   webhook_external_ids: [["external_id", "external_hash"]],
+  tags: [["name", "name_index"]],
 };
 
 /** The blind index of a value for its row (the purposes and inputs the core's own writers use). */

@@ -18,6 +18,7 @@ import { keptUnit } from "./units";
 import { saveWorkflow } from "./workflows";
 import { guestWorkflowIds } from "./period-timeline";
 import { restorableWords, sealedWords, snapshotAccess } from "./snapshots";
+import { restoreMetricTags } from "./tags";
 
 /** How a restored Workflow is saved; tests may pass their own. */
 export type RestoreEffects = {
@@ -212,6 +213,8 @@ export async function restoreVersion(actor: Actor, versionId: number, effects: R
         if (s.formula) { delete patch.sources; delete patch.period; delete patch.aggregation; }
       }
       await db().from("metrics").update(await sealedPatch("metrics", ws, id, patch)).eq("id", id).eq("workspace_id", ws);
+      // Versions from before Tags were kept have none: the Tags then stay as they are.
+      if (Array.isArray(s.tags)) await restoreMetricTags(actor, id, s.tags);
       break;
     }
   }

@@ -8,6 +8,7 @@ import { insertSealed, openNames, openRows, sealDetails } from "./sealed-columns
 import { Forbidden, type Actor } from "./actor";
 import { visibleDashboards, visibleDecks, visibleMetricIds } from "./access";
 import { getMetrics } from "./workspace-data";
+import { visibleTags } from "./tag-sight";
 import { canSee } from "./sharing";
 import { DEMO_WORKSPACE_ID } from "./team";
 import { auditKeepDays } from "./audit-retention";
@@ -126,12 +127,14 @@ function assertReader(actor: Actor) {
 /** Which Metrics, dashboards and decks the reader sees, so names of the others stay out. */
 async function seenBy(actor: Actor) {
   const ws = actor.workspaceId;
-  const [metrics, dashboards, decks] = await Promise.all([
+  const [metrics, dashboards, decks, tags] = await Promise.all([
     getMetrics(ws).then((m) => visibleMetricIds(ws, actor.personId, m)),
     visibleDashboards(ws, actor.personId),
     visibleDecks(ws, actor.personId),
+    visibleTags(actor),
   ]);
-  return { reader: actor.personId, metric: metrics, dashboard: new Set(dashboards.map((d) => d.id)), deck: new Set(decks.map((d) => d.id)) };
+  // A Tag is seen through the Metrics carrying it (spec 0038); its id is a uuid, not a number.
+  return { reader: actor.personId, metric: metrics, dashboard: new Set(dashboards.map((d) => d.id)), deck: new Set(decks.map((d) => d.id)), tag: new Set(tags.map((t) => t.id)) };
 }
 
 /** The first instant of a calendar day in a time zone. */
