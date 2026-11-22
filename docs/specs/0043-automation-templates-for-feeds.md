@@ -37,14 +37,14 @@ No new term. **Automation Template** (GLOSSARY) already means an importable file
 
 ### The templates
 
-- **Where:** `automation-templates/feeds/<source>.n8n.json` in the repository, MIT-licensed like the other things programs are built on (ADR 0002), each with a `README.md` of how to import it, what it reads, and what it sends. They are listed by id in one file, `automation-templates/feeds/index.json`, which `@ziffr/pack` and the app read.
+- **Where:** `docs/automations/<source>-feed.json`, next to the Webhook bridges of spec 0034 and **generated** the same way: `scripts/automation-templates/generate.mjs` writes them from shared code (`code/feed-shape.js`, `code/feed-answers.js`), so a fix to the checks reaches every Feed template at once, and a test fails when a file differs. Each has a guide, `docs/automations/<source>-feed.md`. They are listed by id in one generated file, `docs/automations/feed-templates.json`, which `@ziffr/pack` and the app read. (The Webhook bridges are named `*-from-ziffr.json` and `*-to-ziffr.json`; `-to-ziffr` already means a task system's changes coming back, so the Feed templates take `-feed`.)
 - **What one holds:** a schedule trigger, the nodes that read the other system, a node that shapes figures into `{ metric, period, value }`, and an HTTP Request node that sends them to the Feed endpoint with Header Auth (the key in n8n's credential, never in the file). Slugs, the Ziffr address and the period come from named `Set` nodes at the top, so that the download changes only those.
 - **What is checked in the repository:** the file parses as an n8n workflow; it holds no key, token or address other than a placeholder (`https://ziffr.example.com`, `your-metric-slug`); every node's type is one n8n ships; a test sends what the shaping node produces to a test Installation's Feed endpoint and reads the values back (as spec 0034 does for events), with a fake source node standing in for the system.
 - **What they do not do:** they never write to the other system, never ask for more than read access to it, and send only values and Breakdowns (Feeds guide).
 
 ### Get this flow from Ziffr
 
-- **Where:** Owners and Admins, on a Metric's **Who submits** and on the result of **Set up from this Pack**: **Fill from n8n** lists the templates that fit (by id, from `index.json`), asks which Feed (or makes one: a Feed is made by an Owner or Admin as today), and **Download**.
+- **Where:** Owners and Admins, on a Metric's **Who submits** and on the result of **Set up from this Pack**: **Fill from n8n** lists the templates that fit (by id, from `feed-templates.json`), asks which Feed (or makes one: a Feed is made by an Owner or Admin as today), and **Download**.
 - **How it is made:** a core function `automationTemplateFor(actor, { template, feed, metrics })` takes the Actor first, reads the template, checks the Feed is a live Feed of the Workspace and every Metric is one the Feed submits to (a Metric the Feed does not submit to is added to its Submitters first, by the person, in the same step, through `addFeedToMetric`), and returns the file with its placeholders replaced. Slugs are checked against the Metric slug pattern before they are written, so a name from the browser never becomes part of the file's structure; the file is built by setting values in the parsed workflow, never by editing its text.
 - **What is in it:** the Ziffr address of the Installation and the Metrics' slugs. **No Feed Key** unless asked.
 - **The key:** by default the page shows a new Feed Key once, beside the download, to paste into n8n's credential. A person who chooses **Put the key in the file** gets a file that holds a Feed Key made for it, with an end date within a year (the rule for every Feed Key) and the usual scope (only the Feed's Metrics, never values or people); the page says plainly that the file is now a secret. The key is made for that download, and Ziffr keeps no copy of the file.
@@ -54,7 +54,7 @@ No new term. **Automation Template** (GLOSSARY) already means an importable file
 
 ### A Pack names its templates
 
-- **The manifest** gains an optional `feeds` list: `{ "template": "google-sheets", "fills": ["headcount", "attrition"] }`, where `template` is an id from `automation-templates/feeds/index.json` and `fills` are keys of the Pack's own Metric Catalog entries (references stay inside the Pack, spec 0030). A template id not on the list, a key not in the Pack, or more than 10 items is refused by the Pack's check, with the same code in `npx @ziffr/pack check`. A Pack that uses `feeds` says so in its `ziffr` minimum version: an older Ziffr refuses a field it does not know.
+- **The manifest** gains an optional `feeds` list: `{ "template": "google-sheets", "fills": ["headcount", "attrition"] }`, where `template` is an id from `docs/automations/feed-templates.json` and `fills` are keys of the Pack's own Metric Catalog entries (references stay inside the Pack, spec 0030). A template id not on the list, a key not in the Pack, or more than 10 items is refused by the Pack's check, with the same code in `npx @ziffr/pack check`. A Pack that uses `feeds` says so in its `ziffr` minimum version: an older Ziffr refuses a field it does not know.
 - **Installing** makes nothing of it. **Set up from this Pack** shows, after the Metrics are made, "Fill these automatically" with a button per template, for the Metrics of `fills` that were made.
 - **Why only ids from Ziffr's own list:** a Pack is data from outside; it may point at a template Ziffr ships and reviews, never carry or link to a flow of its own.
 
@@ -66,7 +66,7 @@ No new term. **Automation Template** (GLOSSARY) already means an importable file
 
 ## Testing Decisions
 
-- **The templates:** every template in `index.json` parses, has only placeholders and known node types, and its shaping node's output is accepted by the Feed endpoint of a test Installation, for a month, a quarter and a year Metric (`automation-templates.test.ts`).
+- **The templates:** every template in `feed-templates.json` parses, has only placeholders and known node types, and its shaping node's output is accepted by the Feed endpoint of a test Installation, for a month, a quarter and a year Metric (`automation-templates.test.ts`).
 - **The download** (`automation-template.db.test.ts`): only Owners and Admins; only a live Feed of the Workspace; only Metrics the person sees; a slug that is not a slug, a Metric of another Workspace and a Feed of another Workspace are refused; the file holds no key by default, and with the key a Feed Key that can write only to these Metrics and ends within a year; the audit event holds no file; the demo refuses.
 - **The Pack field:** the hostile table of spec 0030 gains an unknown template id, a key outside the Pack, 11 items and a duplicate; `@ziffr/pack check` and the server agree.
 - **The prompt:** a table of Metric names and descriptions that try to close the quotation or give orders; the text holds them inside the quotation, escaped.
@@ -74,8 +74,8 @@ No new term. **Automation Template** (GLOSSARY) already means an importable file
 
 ## Tickets
 
-1. The format, `index.json`, the checks and a guide (`docs/guides/automation-templates.md`), the glossary entry. Blocked by nothing.
-2. **Google Sheets template.** Blocked by 1.
+1. **The format and the first template**: the generated skeleton (`feed-shape.js`, `feed-answers.js`), `feed-templates.json`, the checks, and Google Sheets as the template that proves them, with its guide. (Tickets 1 and 2 were one pull request: the format has nothing to be checked against without a template.) Blocked by nothing.
+2. ~~Google Sheets template.~~ Done with 1.
 3. **Stripe template.** Blocked by 1.
 4. **HubSpot template.** Blocked by 1.
 5. **Get this flow from Ziffr**: `automationTemplateFor`, the screens on **Who submits** and the Set up result, the key choices, the audit event. Blocked by 1 and 2.
