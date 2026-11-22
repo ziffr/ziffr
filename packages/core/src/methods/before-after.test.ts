@@ -419,7 +419,7 @@ describe("the Takeaway of a before-and-after look", () => {
   it("uses the latest 120 periods before the date, and says so, giving what the 120 give", () => {
     const long = Array.from({ length: 150 }, (_, i) => 100 + 2 * i + 9 * noise(i) + (i >= 130 ? 40 : 0));
     const t = afterDateTakeaway("A", series(long), "month", monthStart(130), euro, ctx);
-    expect(t.notes).toEqual(["Only the latest 120 months before 1 Nov 2034 are used."]);
+    expect(t.notes).toEqual(["Only the latest 120 months with a value before 1 Nov 2034 are used."]);
     expect(MAX_PERIODS).toBe(120);
     const cut = afterDateTakeaway("A", series(long).slice(10), "month", monthStart(130), euro, ctx);
     expect(t.sentence).toBe(cut.sentence);

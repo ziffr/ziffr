@@ -356,7 +356,7 @@ describe("the Takeaway of a change point", () => {
   it("uses the latest 120 periods, and says so, giving what the 120 give", () => {
     const long = Array.from({ length: 140 }, (_, i) => 100 + i + (i >= 100 ? 90 : 0) + 4 * noise(i));
     const t = changePointTakeaway("A", series(long), "month", euro, ctx);
-    expect(t.notes).toEqual(["Only the latest 120 months are looked at."]);
+    expect(t.notes).toEqual(["Only the latest 120 months with a value are looked at."]);
     expect(t.basis).toContain("over 120 months");
     const cut = changePointTakeaway("A", series(long).slice(20), "month", euro, ctx);
     expect(t.sentence).toBe(cut.sentence);

@@ -204,7 +204,8 @@ function lookAt(name: string, points: Point[], span: Span, date: string, unit: V
 /** The Takeaway of a before-and-after look: "After 1 Mar 2026, Signups ran about 12.0 % above where its trend pointed (likely
  * between +4.0 % and +20.0 %)." with, where a Metric that should not have been touched is given, the same for it beside. After the
  * suitability checks (6 periods before the date; a refusal says what is missing), the notes on what was left out, the range and
- * its basis, and the one line of what it assumes. No strength word: it is a range, not a verdict. */
+ * its basis, and the one line of what it assumes. No strength word: it is a range, not a verdict. A Metric set `beside` must be kept in
+ * the same period as the first, since both are cut at the same date, period by period. */
 export function afterDateTakeaway(name: string, points: Point[], span: Span, date: string, unit: ValueUnit, ctx: TakeawayContext, beside?: { name: string; points: Point[]; unit: ValueUnit }): Takeaway {
   const method = sayIn("numbers-method-before-after", {}, ctx);
   const main = lookAt(name, points, span, date, unit, ctx, "main");
