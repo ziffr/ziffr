@@ -11,7 +11,7 @@ import { builtFrom, MIN_PAIRS, pearson } from "./correlation";
 import { fractionOf, lowestTerms, minus, nearest, over, plus, times, type Fraction } from "./exact";
 import { FORECAST_MIN_POINTS } from "./forecast";
 import { periodsBetween, type Span } from "./periods";
-import { strengthOf } from "./takeaways/strength";
+import { RANK_SPREAD, strengthOf } from "./takeaways/strength";
 import type { CaseKey, Slots } from "./takeaways/wording";
 import type { Metric, Point } from "./types";
 
@@ -101,6 +101,8 @@ export type SuitabilityInputs = {
   seasonLength?: number;
   /** The Method's result with these periods left out (empty: the result itself); null where it cannot say. Without it, far-off values are not judged. */
   rerun?: (left: ReadonlySet<string>) => Rerun;
+  /** That the Method's answer is a rank correlation, so a link that changed is judged by ranks too. */
+  rank?: boolean;
   /** The width of the scale of a result that has no range of its own (for r, 1). */
   scale?: number;
   /** A fit's misses with the level they belong to (the fitted value), for the straight-line and spread checks. */
@@ -357,17 +359,19 @@ function changing(inputs: SuitabilityInputs): Finding[] {
   const both = x.filter((p) => ys.has(p.period)).map((p) => p.period);
   const h = both.length >> 1;
   if (h < SUITABILITY.changing.half) return [];
-  // Pairing x with only the periods of a half leaves just that half's pairs.
+  // The link in a half is the Method's own statistic: Pearson's r, or the rank correlation where the answer is one.
+  const [mx, my] = [new Map(x.map((p) => [p.period, p.value])), new Map(y.map((p) => [p.period, p.value]))];
   const halfR = (periods: string[]) => {
-    const keep = new Set(periods);
     // Each half has at least the 6 pairs a correlation needs.
-    return pearson(x, y.filter((p) => keep.has(p.period)))!.r;
+    if (!inputs.rank) return pearson(periods.map((p) => ({ period: p, value: mx.get(p)! })), periods.map((p) => ({ period: p, value: my.get(p)! })))!.r;
+    const found = rankAssociation(periods.map((p) => mx.get(p)!), periods.map((p) => my.get(p)!));
+    return found ? (found.negative ? -1 : 1) * Math.sqrt(nearest(found.rho2)) : NaN;
   };
   // A half that does not vary has no r (NaN), and linkChange says nothing of it.
   const [first, last] = [halfR(both.slice(0, h)), halfR(both.slice(both.length - h))];
   const change = linkChange(first, last);
   const cases = { flipped: "caution-link-flipped", weaker: "caution-link-weaker", stronger: "caution-link-stronger" } as const;
-  return change ? [{ case: cases[change], slots: { latest: strengthOf(last, h) } }] : [];
+  return change ? [{ case: cases[change], slots: { latest: strengthOf(last, inputs.rank ? 3 + (h - 3) / RANK_SPREAD : h) } }] : [];
 }
 
 /** How a link changed between the first and the last half of the history, from the two r: "flipped" (opposite signs, both at

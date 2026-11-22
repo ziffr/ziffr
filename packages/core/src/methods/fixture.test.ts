@@ -4,7 +4,13 @@
 import { describe, expect, it } from "vitest";
 import { APPLIES, minimumPeriods } from "../suitability";
 import { CHANCE_BY_TRIES, strengthOf } from "../takeaways/strength";
-import { FIXTURE, HASHES } from "../test/reference/methods-fixture";
+import { FIXTURE, HASHES, series } from "../test/reference/methods-fixture";
+import { bridgeTakeaway } from "./bridge";
+import { paretoTakeaway, topShareTakeaway } from "./concentration";
+import { laggedTakeaway } from "./lagged-correlation";
+import { partialTakeaway } from "./partial-correlation";
+import { usualRangeTakeaway } from "./quantiles";
+import { spearmanTakeaway } from "./spearman";
 
 describe("the SciPy and NumPy fixture of the first Methods", () => {
   it("was made by the current script (methods.py), and names the tools", () => {
@@ -32,10 +38,10 @@ describe("strengthOf at the bar for the number of looks", () => {
     expect(strengthOf(r, 30, false, 1)).not.toBe("cant-tell");
     expect(strengthOf(r, 30, false, 7)).toBe("cant-tell");
   });
-  it("reads fewer than 1 look as 1, and more than 7 as 7", () => {
-    const r = critical(30, 2.3);
-    for (const t of [0, -4, NaN]) expect(strengthOf(r, 30, false, t), String(t)).toBe(strengthOf(r, 30, false, 1));
-    expect(strengthOf(r, 30, false, 99)).toBe(strengthOf(r, 30, false, 7));
+  it("claims no strength for a number of looks that is not a whole number from 1 to 7", () => {
+    for (const t of [0, -4, NaN, 2.5, 1.5, 7.5, 8, 99, Infinity]) expect(strengthOf(0.99, 100, false, t), String(t)).toBe("cant-tell");
+    expect(strengthOf(0.99, 100, false, 1)).toBe("strong");
+    expect(strengthOf(0.99, 100, false, 7)).toBe("strong");
   });
 });
 
@@ -51,5 +57,23 @@ describe("the limits of the first Methods", () => {
     expect(APPLIES.partial).toEqual(["periods", "vary", "gaps", "far-off", "too-many"]);
     expect(APPLIES.lag).toContain("changing");
     expect(APPLIES.usualRange).toEqual(["periods", "vary", "gaps", "level-shift"]);
+  });
+});
+
+describe("which Takeaways carry the footer", () => {
+  const ctx = { style: "1,234.5" } as const;
+  const unit = { unit: "€", unit_position: "after", decimals: 0 } as const;
+  const wavy = (n: number, step = 7) => Array.from({ length: n }, (_, i) => 10 + ((i * step * 5) % 97) + (i % 7));
+  const FOOTER = "This shows what has gone together, not what caused what.";
+  it("belongs to the Takeaways about two Metrics together (rank, partial, lagged correlation) and to no other", () => {
+    const [a, b, c] = [series(wavy(30, 7)), series(wavy(30, 7).map((v) => 2 * v)), series(wavy(30, 3))];
+    expect(spearmanTakeaway("A", "B", a, b, "month", "values", ctx).footer).toBe(FOOTER);
+    expect(partialTakeaway({ a: "A", b: "B", held: ["C"] }, a, b, [c], "month", ctx).footer).toBe(FOOTER);
+    expect(laggedTakeaway("A", "B", a, b, "month", "values", ctx).footer).toBe(FOOTER);
+    expect(usualRangeTakeaway("A", a, "month", unit, ctx).footer).toBeNull();
+    const rows = [{ label: "X", value: 5 }, { label: "Y", value: 3 }, { label: "Z", value: 2 }];
+    expect(topShareTakeaway("A", rows, 1, ctx).footer).toBeNull();
+    expect(paretoTakeaway("A", rows, ctx).footer).toBeNull();
+    expect(bridgeTakeaway("A", [{ label: "X", before: 1, after: 2 }], unit, ctx).footer).toBeNull();
   });
 });

@@ -158,13 +158,33 @@ describe("the Takeaway of a lagged correlation", () => {
   it("says it cannot tell from chance for an unrelated pair, naming the delays tried", () => {
     const t = take(wavy(24, 7), wavy(24, 11));
     expect(t.strength).toBe("cant-tell");
-    expect(t.sentence).toBe("Over 24 months, no delay of 0 to 6 months between Tickets and Churn clearly shows a link: can't tell from chance.");
+    expect(t.sentence).toBe("Over 18 months, nothing clearly shows Tickets moving 0 to 6 months before Churn: can't tell from chance.");
   });
   it("counts the delays that have a number, and says how many it looked at: a series flat from the last six months leaves 6 of the 7", () => {
-    const t = take(wavy(12, 7), [1, 3, 2, 5, 4, 6, 9, 9, 9, 9, 9, 9]);
+    const t = take([1, 3, 2, 5, 4, 6, 9, 8, 9, 8, 9, 8], [1, 3, 2, 5, 4, 6, 9, 9, 9, 9, 9, 9]);
     expect(t.numbers[4]).toEqual({ label: "Delays looked at", text: "6" });
     expect(take(x, x).numbers[4]).toEqual({ label: "Delays looked at", text: "7" });
     expect(CHANCE_BY_TRIES[6]).toBeGreaterThan(CHANCE_BY_TRIES[0]);
+  });
+  it("does not call a delayed link a changed one: the halves are judged on the pairs of the best delay, so a steady lead of 6 months stays strong", () => {
+    const a = wavy(40, 7);
+    const t = take(a, delayed(a, 6).map((v) => 2 * v + 1));
+    expect(t.numbers[1].text).toBe("6");
+    expect(t.cautions).toEqual([]);
+    expect(t.strength).toBe("strong");
+  });
+  it("counts the periods the two series share for the minimum of 12: 8 shared months with 10 pairs at a delay of 2 are refused", () => {
+    const a = wavy(24, 7);
+    // The second series starts 16 months later: 8 months in common.
+    const t = laggedTakeaway("Tickets", "Churn", series(a), series(delayed(a, 2).slice(16, 40), "2025-05"), "month", "values", ctx);
+    expect(t.refusal).toBe("Not enough months yet: 8 of 12 needed.");
+    expect(t.sentence).toBeNull();
+  });
+  it("says the same number of months in the sentence and in the basis, also where nothing stands out", () => {
+    const t = take(wavy(24, 7), wavy(24, 11));
+    expect(t.strength).toBe("cant-tell");
+    expect(t.sentence).toContain("Over 18 months");
+    expect(t.basis).toBe("compared by value, over 18 months");
   });
   it("holds the minimum to the shorter series: 12 and 11 periods refuse with 11", () => {
     expect(laggedTakeaway("A", "B", series(wavy(12, 7)), series(wavy(11, 11)), "month", "values", ctx).refusal).toBe("Not enough months yet: 11 of 12 needed.");
@@ -187,10 +207,17 @@ describe("the Takeaway of a lagged correlation", () => {
       if (said) expect(said).toBe(`This result is pulled by 2 months far from the rest; without them it reads ${word === "cant-tell" ? "can't tell from chance" : word}.`);
     }
   });
+  it("says nothing of far-off months when too few pairs would be left without them, and does not fail", () => {
+    const a = [0, 0, 0, -19, 0, 8, -9, 0, 0, 0, 0, 0, 0];
+    const b = [0, 0, 0, 0, 0, 0, 0, -1, -1, 1, -1, -30, 4];
+    const t = take(a, b);
+    expect(t.cautions.filter((c) => c.startsWith("This result is pulled"))).toEqual([]);
+    expect(["answer", "refusal"]).toContain(t.kind);
+  });
   it("puts a caution above an answer where a month has no value, and what would be strong is moderate", () => {
     const a = wavy(30, 7);
     const t = laggedTakeaway("Tickets", "Churn", series(a), series(delayed(a, 2).map((v, i) => (i === 12 ? null : v))), "month", "values", ctx);
-    expect(t.cautions).toEqual(["Churn: no value for 1 of 30 months, left out."]);
+    expect(t.cautions).toEqual(["Tickets and Churn: no value for 1 of 28 months, left out."]);
     expect(t.strength).toBe("moderate");
   });
   it("holds the minimum of 12 periods: 11 refuses with how many it has, 12 answers (one step either side)", () => {
@@ -200,9 +227,9 @@ describe("the Takeaway of a lagged correlation", () => {
   });
   it("refuses series that hardly change or share no periods, in words", () => {
     expect(take(x, Array.from({ length: 36 }, () => 2)).refusal).toBe("Churn has hardly changed, so there is nothing to compare.");
-    expect(laggedTakeaway("A", "B", series(wavy(12)), series(wavy(12, 11), "2030-01"), "month", "values", ctx).refusal).toBe("Not enough months yet: 0 of 6 needed.");
+    expect(laggedTakeaway("A", "B", series(wavy(12)), series(wavy(12, 11), "2030-01"), "month", "values", ctx).refusal).toBe("Not enough months yet: 0 of 12 needed.");
     // A far-off value in series that share no period: there is no best delay to leave it out of, so it is said as no periods in common.
-    expect(laggedTakeaway("A", "B", series([...wavy(11), 1000]), series(wavy(12, 11), "2030-01"), "month", "values", ctx).refusal).toBe("Not enough months yet: 0 of 6 needed.");
+    expect(laggedTakeaway("A", "B", series([...wavy(11), 1000]), series(wavy(12, 11), "2030-01"), "month", "values", ctx).refusal).toBe("Not enough months yet: 0 of 12 needed.");
   });
   it("puts a caution above an answer where a few periods pull the result, and never calls it strong", () => {
     const a = wavy(30, 7);

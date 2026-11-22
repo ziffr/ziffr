@@ -19,9 +19,9 @@ export type NoBridge = "none" | "not-a-number" | "weight";
 /** A part's contribution to the change, largest size first. `appeared` and `gone` say a value was missing before or after. */
 export type Contribution = { label: string; change: number; before: number | null; after: number | null; appeared: boolean; gone: boolean };
 
-/** The bridge: each part's contribution, the `total` change they come to, and, where the whole's own change was given, what is
+/** The bridge: each part's contribution, the `total` they come to, the Metric's own `change` (the whole's, where it was given, else the parts' total), and, where the whole's own change was given, what is
  * `unexplained` by the parts (0 when they account for all of it). */
-export type Bridge = { ok: true; parts: Contribution[]; total: number; unexplained: number | null } | { ok: false; why: NoBridge };
+export type Bridge = { ok: true; parts: Contribution[]; total: number; change: number; unexplained: number | null } | { ok: false; why: NoBridge };
 
 const ZERO = BigInt(0);
 const zero: Fraction = { num: ZERO, den: BigInt(1) };
@@ -47,6 +47,7 @@ export function bridge(parts: Part[], whole?: { before: number; after: number })
     ok: true,
     parts: ordered.map(({ p, change }) => ({ label: p.label, change: nearest(change), before: p.before, after: p.after, appeared: p.before === null && p.after !== null, gone: p.after === null && p.before !== null })),
     total: nearest(total),
+    change: whole ? nearest(lowestTerms(minus(fractionOf(whole.after), fractionOf(whole.before)))) : nearest(total),
     unexplained,
   };
 }
@@ -57,21 +58,25 @@ export function bridgeTakeaway(name: string, parts: Part[], unit: ValueUnit, ctx
   const method = sayIn("numbers-method-bridge", {}, ctx);
   const result = bridge(parts, whole);
   if (!result.ok) return refusalTakeaway(method, [sayIn(result.why === "none" ? "refuse-rows" : result.why === "weight" ? "refuse-weight" : "refuse-not-a-number", { name, have: 0, need: 1 }, ctx)]);
-  const write = (v: number) => formatValue(unit, v, ctx.style);
+  // Enough decimals that no change that is not 0 is written as 0 (a +0.4 and a −0.3 at no decimals would both read "0").
+  const all = [result.change, ...result.parts.map((p) => p.change), ...(result.unexplained ? [result.unexplained] : [])].filter((v) => v !== 0);
+  let decimals = unit.decimals;
+  while (decimals < 15 && all.some((v) => Math.abs(v) * 10 ** decimals < 0.5)) decimals++;
+  const write = (v: number) => formatValue({ ...unit, decimals }, v, ctx.style);
   const signed = (v: number) => `${v > 0 ? "+" : ""}${write(v)}`;
-  const key = result.total > 0 ? "bridge-up" : result.total < 0 ? "bridge-down" : "bridge-flat";
+  const key = result.change > 0 ? "bridge-up" : result.change < 0 ? "bridge-down" : "bridge-flat";
   const list = result.parts.map((p) => `${p.label} ${signed(p.change)}`).join(sayIn("list-comma", {}, ctx));
   const missing = result.parts.filter((p) => p.appeared || p.gone).map((p) => p.label);
   const notes = [
     ...(missing.length > 0 ? [sayIn("bridge-missing", { names: listOf(missing, ctx) }, ctx)] : []),
-    ...(result.unexplained ? [sayIn("bridge-unexplained", { value: { value: result.unexplained, unit } }, ctx)] : []),
+    ...(result.unexplained ? [sayIn("bridge-unexplained", { value: write(result.unexplained) }, ctx)] : []),
   ];
   return {
     ...emptyTakeaway(method),
     kind: "answer",
-    sentence: sayIn(key, { name, change: { value: Math.abs(result.total), unit }, parts: list }, ctx),
+    sentence: sayIn(key, { name, change: write(Math.abs(result.change)), parts: list }, ctx),
     notes,
-    figures: [{ label: sayIn("numbers-change", {}, ctx), value: Math.abs(result.total), text: write(Math.abs(result.total)) }],
-    numbers: [{ label: sayIn("numbers-method", {}, ctx), text: method }, { label: sayIn("numbers-change", {}, ctx), text: signed(result.total) }, ...result.parts.map((p) => ({ label: p.label, text: signed(p.change) }))],
+    figures: [{ label: sayIn("numbers-change", {}, ctx), value: Math.abs(result.change), text: write(Math.abs(result.change)) }],
+    numbers: [{ label: sayIn("numbers-method", {}, ctx), text: method }, { label: sayIn("numbers-change", {}, ctx), text: signed(result.change) }, ...result.parts.map((p) => ({ label: p.label, text: signed(p.change) }))],
   };
 }

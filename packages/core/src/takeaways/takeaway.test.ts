@@ -133,7 +133,7 @@ describe("the wording", () => {
     "refuse-controls": [{ ...SAMPLE, have: 5 }, "Visits and Cost need 1 to 4 other Metrics held the same: 5 were given."],
     "refuse-collinear": [{}, "The Metrics held the same move so closely together that they cannot be told apart, so nothing can be held the same."],
     "refuse-explained": [SAMPLE, "Once the others are held the same, nothing of Visits or Cost is left to compare."],
-    "refuse-season": [SAMPLE, "Visits has no values at that point of the year to go by."],
+    "refuse-season": [SAMPLE, "Visits has no values at that place in the season to go by."],
     "refuse-rows": [{ ...SAMPLE, have: 1, need: 2 }, "Visits: 1 of 2 rows needed."],
     "refuse-not-a-number": [SAMPLE, "Visits has a row that is not a number, so nothing is worked out."],
     "refuse-negative": [SAMPLE, "Visits has a row below zero, so a share of the whole means nothing."],
@@ -142,7 +142,7 @@ describe("the wording", () => {
     "refuse-weight": [SAMPLE, "Visits: a part must count for or against the whole."],
     "basis-rank-values": [{}, "compared by rank of value"], "basis-rank-changes": [{}, "compared by rank of change, growth removed"],
     "basis-held": [SAMPLE, "compared by value, with Price and Cost held the same"],
-    "basis-season": [SAMPLE, "from the 18 values at the same point of the year"], "basis-history": [SAMPLE, "from 18 months of history"],
+    "basis-season": [SAMPLE, "from the 18 values at the same place in the season"], "basis-history": [SAMPLE, "from 18 months of history"],
     "partial-together": [SAMPLE, "With Price and Cost held the same, Visits and Revenue tend to move together over 18 months (strong)."],
     "partial-opposite": [SAMPLE, "With Price and Cost held the same, Visits and Revenue tend to move in opposite directions over 18 months (strong)."],
     "partial-cant-tell": [SAMPLE, "With Price and Cost held the same, over 18 months, Visits and Revenue do not clearly move together: strong."],
@@ -150,8 +150,9 @@ describe("the wording", () => {
     "lag-leads-opposite": [SAMPLE, "Visits tends to move the other way 2 months before Revenue does, over 18 months (strong)."],
     "lag-same": [SAMPLE, "Visits and Revenue tend to move together in the same month, with no delay, over 18 months (strong)."],
     "lag-same-opposite": [SAMPLE, "Visits and Revenue tend to move in opposite directions in the same month, with no delay, over 18 months (strong)."],
-    "lag-cant-tell": [SAMPLE, "Over 18 months, no delay of 0 to 6 months between Visits and Revenue clearly shows a link: strong."],
+    "lag-cant-tell": [SAMPLE, "Over 18 months, nothing clearly shows Visits moving 0 to 6 months before Revenue: strong."],
     "usual-range": [SAMPLE, "Visits is usually between 410 € and 520 €, going by 18 months."],
+    "usual-range-season": [SAMPLE, "Visits is usually between 410 € and 520 € at this place in the season, going by 18 values."],
     "usual-below": [{ value: { value: 380, unit: UNIT } }, "The value asked about, 380 €, is below that."],
     "usual-within": [{ value: { value: 440, unit: UNIT } }, "The value asked about, 440 €, is within that."],
     "usual-above": [{ value: { value: 640, unit: UNIT } }, "The value asked about, 640 €, is above that."],
@@ -161,7 +162,7 @@ describe("the wording", () => {
     "bridge-up": [SAMPLE, "Worked out: Visits rose by 42 €: A −3 €, B +1 €."],
     "bridge-down": [SAMPLE, "Worked out: Visits fell by 42 €: A −3 €, B +1 €."],
     "bridge-flat": [SAMPLE, "Worked out: Visits did not change: A −3 €, B +1 €."],
-    "bridge-missing": [{ ...SAMPLE, names: "A, B and C" }, "A, B and C had no value in one of the two periods, so it counts as 0 there."],
+    "bridge-missing": [{ ...SAMPLE, names: "A, B and C" }, "A, B and C had no value in one of the two periods; a missing value counts as 0."],
     "bridge-unexplained": [{ value: { value: 5, unit: UNIT } }, "5 € of the change is not in these rows."],
     "numbers-method-spearman": [{}, "Spearman's rank correlation"], "numbers-method-partial": [{}, "Partial correlation"], "numbers-method-lag": [{}, "Lagged correlation"],
     "numbers-method-usual": [{}, "Usual range"], "numbers-method-share": [{}, "Share of the largest rows"], "numbers-method-pareto": [{}, "Pareto"], "numbers-method-bridge": [{}, "Bridge"],
@@ -320,6 +321,17 @@ describe("a correlation's Takeaway", () => {
       }),
       { numRuns, seed },
     );
+  });
+});
+
+describe("the far-off finding's strength word", () => {
+  it("is read by the rule the Method gives, Pearson's by default", () => {
+    const v = { refusals: [], cautions: [{ case: "caution-far-off" as const, slots: { count: 1, without: 0.95, span: "month" } }], switches: [] };
+    expect(verdictLines(v, ctx, 10).cautions).toEqual(["This result is pulled by 1 month far from the rest; without them it reads strong."]);
+    expect(verdictLines(v, ctx, 10, () => "weak").cautions).toEqual(["This result is pulled by 1 month far from the rest; without them it reads weak."]);
+    const seen: number[][] = [];
+    verdictLines(v, ctx, 10, (r, n) => (seen.push([r, n]), "weak"));
+    expect(seen).toEqual([[0.95, 9]]);
   });
 });
 

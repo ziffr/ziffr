@@ -89,9 +89,9 @@ export function usualRangeTakeaway(name: string, points: Point[], span: Span, un
   if (!found) return refusalTakeaway(method, [sayIn("refuse-season", { name }, ctx)]);
   const write = (v: number) => formatValue(unit, v, ctx.style);
   const base = { name, low: { value: found.low, unit }, high: { value: found.high, unit }, n: found.n, span };
-  const where = opts.value === undefined ? null : standing(found, opts.value);
-  const sentence = [sayIn("usual-range", base, ctx), where && sayIn(`usual-${where}`, { value: { value: opts.value!, unit } }, ctx)].filter(Boolean).join(" ");
   const seasonal = opts.season !== undefined && opts.at !== undefined;
+  const where = opts.value === undefined ? null : standing(found, opts.value);
+  const sentence = [sayIn(seasonal ? "usual-range-season" : "usual-range", base, ctx), where && sayIn(`usual-${where}`, { value: { value: opts.value!, unit } }, ctx)].filter(Boolean).join(" ");
   return {
     ...emptyTakeaway(method),
     kind: "answer",

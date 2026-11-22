@@ -4,6 +4,8 @@ A **Method** is one calculation in Ziffr's library, such as a correlation or a f
 
 Every Method runs the [suitability checks](#the-suitability-checks) on the series it is given, every time. It gives a number, a number with a plain line above it (a caution), a different Method chosen by a written rule, or a refusal in words. It never gives a quiet number, and it never removes, smooths or fills in a value.
 
+The footer "This shows what has gone together, not what caused what." is on the Takeaways about two Metrics together (correlation, rank, partial and lagged correlation, Drivers). The usual range, share, Pareto and bridge say nothing about what goes together and carry none.
+
 ## The entry format
 
 Every Method has an entry in this file with these parts, in this order. A Method's pull request adds its entry.
@@ -111,7 +113,7 @@ Function: `laggedCorrelation` in `packages/core/src/methods/lagged-correlation.t
 
 **What it answers.** Does one Metric tend to move some periods before another? By how many?
 
-**How it is worked out.** For each delay from 0 to 6 periods, the first Metric's value in a period is paired with the second's value that many periods later, and Pearson's r is worked out exactly on the pairs (a delay with fewer than 6 pairs is left out). The best delay has the largest |r| (the shorter delay on a tie). Because seven delays are tried, the best of them is likelier to look strong by chance than a single look: the Takeaway reads "can't tell from chance" at a higher bar for the number of delays tried (the normal curve's 1 − 0.025 ÷ tries point: 1.96 for one, 2.69 for seven), and says how many it looked at under Show the numbers.
+**How it is worked out.** Only one direction is tried: the first Metric before the second (the Takeaway says "moves before", never "no delay between"). For each delay from 0 to 6 periods, the first Metric's value in a period is paired with the second's value that many periods later, and Pearson's r is worked out exactly on the pairs (a delay with fewer than 6 pairs is left out). The best delay has the largest |r| (the shorter delay on a tie). Because seven delays are tried, the best of them is likelier to look strong by chance than a single look: the Takeaway reads "can't tell from chance" at a higher bar for the number of delays tried (the normal curve's 1 − 0.025 ÷ tries point: 1.96 for one, 2.69 for seven), and says how many it looked at under Show the numbers.
 
 **Use it when.** You think one Metric leads another ("do Support tickets rise before Churn does?").
 
@@ -121,7 +123,7 @@ Function: `laggedCorrelation` in `packages/core/src/methods/lagged-correlation.t
 - The Metrics trend: compare them by change (the basis the caller chooses), or the delay found is the delay of the trends.
 - You want to say what causes what: a lead is not a cause. The Takeaway says "tends to move before".
 
-**Minimums and checks.** 12 periods. Checks that apply: enough periods, enough that vary, gaps, far-off values (the best delay's r without them), skew and ties (a caution), changing relationship.
+**Minimums and checks.** 12 periods the two Metrics share. Checks that apply (all but the first on the pairs of the best delay): enough periods, enough that vary, gaps, far-off values (the best delay's r without them), skew and ties (a caution), changing relationship.
 
 **Worked example.** Tickets 1, 3, 2, 5, 4, 8, 6, 9 and Churn 0, 1, 3, 2, 5, 4, 8, 6. At delay 0 (8 pairs): n · Sxy = 8 · 173 − 38 · 29 = 282, n · Sxx = 8 · 236 − 38² = 444, n · Syy = 8 · 155 − 29² = 399, so r² = 282² ÷ (444 · 399) and r = 0.67. At delay 1 the 7 pairs are the same numbers on both sides and r = 1: Tickets move one month before Churn does.
 
@@ -144,7 +146,7 @@ Functions: `quantile`, `usualRange`, `standing` in `packages/core/src/methods/qu
 
 **Minimums and checks.** 8 periods. Checks that apply: enough periods, enough that vary, gaps, level shifts. Give the history without the value you ask about, so it does not judge itself.
 
-**Worked example.** Eleven months of 1 to 11 (in any order): the 10th percentile is at position 1, the value 2; the quartiles are at 2.5 and 7.5, so 3.5 and 8.5; the median is 6; the 90th percentile is 10. Ziffr says "usually between 2 and 10"; a 12 is above that.
+**Worked example.** Eleven months of 1 to 11 (in any order): the 10th percentile is at position 1, the value 2; the quartiles are at 2.5 and 7.5, so 3.5 and 8.5; the median is 6; the 90th percentile is 10. Ziffr says "usually between 2 and 10"; a 12 is above that. By season it says "at this place in the season, going by 3 values".
 
 **Reference.** `referenceQuantile` in `packages/core/src/test/reference/methods.ts` is the textbook form, (1 − g) · x[j] + g · x[j + 1] with positions counted from 1, on exact fractions: the result equals it exactly. NumPy's `quantile` and SciPy's `mquantiles` (`fixtures/methods.py`, which checks the two against each other) agree to a relative 1e-12.
 
@@ -176,7 +178,7 @@ Function: `bridge` in `packages/core/src/methods/bridge.ts`; its Takeaway is `br
 
 **What it answers.** Why did this Metric change from one period to the other: what did each part contribute?
 
-**How it is worked out.** Each part's contribution is its weight (1, or −1 for a part that counts against the whole, such as Cost in Revenue − Cost) times its value after minus its value before, worked out exactly on the values' text. The parts add up to the change exactly (as exact numbers; each is then the double nearest to its exact value). A part with no value on one side counts as 0 there and is named. Where the whole's own change is given and the parts do not add up to it, the rest is said as "not in these rows". Largest contribution first.
+**How it is worked out.** Each part's contribution is its weight (1, or −1 for a part that counts against the whole, such as Cost in Revenue − Cost) times its value after minus its value before, worked out exactly on the values' text. The parts add up to the change exactly (as exact numbers; each is then the double nearest to its exact value). A part with no value on one side counts as 0 there and is named. Where the whole's own change is given it is the change the sentence names (not the parts' sum), and the rest is said as "not in these rows". Decimals are added until no change that is not 0 reads as 0. Largest contribution first.
 
 **Use it when.** The Metric is the sum of its Breakdown rows, or a Derived Metric that adds and subtracts its inputs.
 

@@ -115,7 +115,7 @@ export function partialTakeaway(names: { a: string; b: string; held: string[] },
       return r.ok ? { value: r.r } : null;
     },
   });
-  const lines = verdictLines(verdict, ctx, common.length);
+  const lines = verdictLines(verdict, ctx, common.length, (r, n) => partialStrength(r, n, controls.length));
   if (lines.refusals.length > 0) return refusalTakeaway(method, lines.refusals);
   // Past the checks there are enough periods, so the only refusals left are the two the numbers themselves find.
   if (!result.ok) return refuse(result.why === "collinear" ? "refuse-collinear" : "refuse-explained");

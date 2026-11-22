@@ -179,15 +179,15 @@ describe("the Takeaway of a usual range", () => {
   it("goes by the values at the same point of the year, and says so, or says there are none there", () => {
     const years = Array.from({ length: 36 }, (_, i) => 100 + 7 * ((i * 5) % 11) + (i % 12 === 0 ? 300 : 0));
     const t = take(years, { season: 12, at: "2027-01-01", value: 640 });
-    expect(t.basis).toBe("from the 3 values at the same point of the year");
-    expect(t.sentence).toMatch(/^Revenue is usually between 4\d\d € and 4\d\d €, going by 3 months\. The value asked about, 640 €, is above that\.$/);
-    expect(take(wavy(8), { season: 12, at: "2024-12-01" })).toMatchObject({ kind: "refusal", refusal: "Revenue has no values at that point of the year to go by." });
+    expect(t.basis).toBe("from the 3 values at the same place in the season");
+    expect(t.sentence).toMatch(/^Revenue is usually between 4\d\d € and 4\d\d € at this place in the season, going by 3 values\. The value asked about, 640 €, is above that\.$/);
+    expect(take(wavy(8), { season: 12, at: "2024-12-01" })).toMatchObject({ kind: "refusal", refusal: "Revenue has no values at that place in the season to go by." });
   });
   it("goes by the season only when both the length and a period are given", () => {
     const years = Array.from({ length: 36 }, (_, i) => 100 + 7 * ((i * 5) % 11) + (i % 12 === 0 ? 300 : 0));
     expect(take(years, { season: 12 }).basis).toBe("from 36 months of history");
     expect(take(years, { at: "2027-01-01" }).basis).toBe("from 36 months of history");
-    expect(take(years, { season: 12, at: "2027-01-01" }).basis).toBe("from the 3 values at the same point of the year");
+    expect(take(years, { season: 12, at: "2027-01-01" }).basis).toBe("from the 3 values at the same place in the season");
   });
   it("holds the minimum of 8 periods: 7 refuses with how many it has, 8 answers (one step either side)", () => {
     expect(take(wavy(7))).toMatchObject({ kind: "refusal", refusal: "Not enough months yet: 7 of 8 needed.", sentence: null, figures: [], numbers: [] });

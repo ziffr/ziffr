@@ -6,12 +6,12 @@
 // Seven lags are tried, so the best of them is likelier to look strong by chance than one look: the Takeaway reads the chance
 // rule at the higher bar for the number of lags tried (takeaways/strength.ts) and never takes a lag with too few pairs.
 import { readSeries, type Basis } from "../basis";
-import { MIN_PAIRS, pairUp, pearson } from "../correlation";
+import { pearson } from "../correlation";
 import { formatNumber } from "../format";
 import { shiftPeriod, type Span } from "../periods";
 import { checkSuitability } from "../suitability";
 import { strengthOf } from "../takeaways/strength";
-import { emptyTakeaway, footerText, refusalTakeaway, sayIn, strengthWordIn, verdictLines, type Takeaway, type TakeawayContext } from "../takeaways/takeaway";
+import { pairsAnswer, refusalTakeaway, sayIn, strengthWordIn, verdictLines, type Takeaway, type TakeawayContext } from "../takeaways/takeaway";
 import type { Point } from "../types";
 
 /** The longest lag tried, in periods. */
@@ -40,50 +40,48 @@ export function laggedCorrelation(a: Point[], b: Point[], span: Span, maxLag: nu
   return { lags, best };
 }
 
-/** The Takeaway of a lagged correlation: `a` leads `b` by the best lag. The series are given on the basis the caller chose
- * (values, or their changes with growth removed). The suitability checks run on the series (the lag minimum of 12 periods,
- * variation, gaps, far-off values, skew, a link that changed); the chance rule is read at the bar for the lags tried. */
+/** The pairs of a delay: the first series' value in each period, and the second's `lag` periods later, both labelled by the first's period. */
+export function lagPairs(a: Point[], b: Point[], span: Span, lag: number): { x: Point[]; y: Point[] } {
+  const later = new Map(readSeries(b).map((p) => [p.period, p.value]));
+  const x = readSeries(a).filter((p) => later.has(shiftPeriod(p.period, span, lag)));
+  return { x, y: x.map((p) => ({ period: p.period, value: later.get(shiftPeriod(p.period, span, lag))! })) };
+}
+
+/** The Takeaway of a lagged correlation: `a` moves before `b` by the best delay (only that direction is tried, 0 to 6 periods).
+ * The series are given on the basis the caller chose (values, or their changes with growth removed). The suitability checks
+ * run on the periods both series have (the lag minimum of 12) and, for variation, gaps, far-off values, skew and a link that
+ * changed, on the pairs of the best delay; the chance rule is read at the bar for the delays tried. */
 export function laggedTakeaway(aName: string, bName: string, a: Point[], b: Point[], span: Span, basis: Basis, ctx: TakeawayContext): Takeaway {
   const method = sayIn("numbers-method-lag", {}, ctx);
-  const [xs, ys] = [readSeries(a), readSeries(b)];
-  const found = laggedCorrelation(xs, ys, span);
+  const found = laggedCorrelation(a, b, span);
+  const tries = found.lags.filter((l) => Number.isFinite(l.r)).length;
+  const paired = found.best ? lagPairs(a, b, span, found.best.lag) : { x: readSeries(a), y: readSeries(b) };
+  // The best delay's r with some pairs left out: the pairs need both series, so leaving a period out of the first is enough (with fewer than 6 pairs left there is no result without them).
   const verdict = checkSuitability("lag", {
-    series: [{ name: aName, points: xs }, { name: bName, points: ys }],
+    series: [{ name: aName, points: paired.x }, { name: bName, points: paired.y }],
     span,
-    periods: Math.min(xs.length, ys.length),
+    // The periods the two series share, the most any delay pairs: the rule is about how much history there is.
+    periods: Math.max(0, ...found.lags.map((l) => l.n)),
     scale: 1,
-    // The best lag's r with some periods left out of either series.
     rerun: (left) => {
-      // With no best delay (no lag has a number) there is nothing to leave periods out of: no lag is found, and no result.
-      const lag = found.best?.lag;
-      const r = laggedCorrelation(xs.filter((p) => !left.has(p.period)), ys.filter((p) => !left.has(p.period)), span, lag).lags.find((l) => l.lag === lag);
-      return r && Number.isFinite(r.r) ? { value: r.r } : null;
+      const r = pearson(paired.x.filter((p) => !left.has(p.period)), paired.y);
+      return r ? { value: r.r } : null;
     },
   });
-  const lines = verdictLines(verdict, ctx, found.best?.n ?? 0);
+  const lines = verdictLines(verdict, ctx, found.best?.n ?? 0, (r, n) => strengthOf(r, n, false, tries));
   if (lines.refusals.length > 0) return refusalTakeaway(method, lines.refusals);
-  // Series that share fewer than 6 periods (or none) have no lag with a number: said as too few periods in common.
-  if (!found.best) return refusalTakeaway(method, [sayIn("refuse-periods", { have: pairUp(xs, ys).length, need: MIN_PAIRS, span }, ctx)]);
-  const { lag, r, n } = found.best;
-  const tries = found.lags.filter((l) => Number.isFinite(l.r)).length;
+  // Past the checks there are 12 shared periods and a series that varies, so some delay has a number.
+  const { lag, r, n } = found.best!;
   const strength = strengthOf(r, n, lines.cautions.length > 0, tries);
   const strengthText = strengthWordIn(strength, ctx);
   // Stryker disable next-line EqualityOperator: an r of 0 is "can't tell from chance" before the sign is looked at, so `<` and `<=` never differ.
   const opposite = r < 0;
   const key = strength === "cant-tell" ? "lag-cant-tell" : lag === 0 ? (opposite ? "lag-same-opposite" : "lag-same") : opposite ? "lag-leads-opposite" : "lag-leads";
   const basisPhrase = sayIn(basis === "changes" ? "basis-changes" : "basis-values", {}, ctx);
+  const answer = pairsAnswer(method, ctx, { sentence: sayIn(key, { a: aName, b: bName, lag, max: MAX_LAG, n, span, strength: strengthText }, ctx), strength, basis: sayIn("basis-over", { basis: basisPhrase, n, span }, ctx), lines, n });
   return {
-    ...emptyTakeaway(method),
-    kind: "answer",
-    // Where no delay stands out, the periods held are those of lag 0; otherwise the pairs of the delay that does.
-    sentence: sayIn(key, { a: aName, b: bName, lag, max: MAX_LAG, n: key === "lag-cant-tell" ? pairUp(xs, ys).length : n, span, strength: strengthText }, ctx),
-    strength,
-    strengthText,
-    basis: sayIn("basis-over", { basis: basisPhrase, n, span }, ctx),
-    cautions: lines.cautions,
-    notes: lines.notes,
-    footer: footerText(ctx),
-    figures: [{ label: sayIn("numbers-lag", {}, ctx), value: lag, text: formatNumber(lag, 0, ctx.style) }, { label: sayIn("numbers-pairs", {}, ctx), value: n, text: formatNumber(n, 0, ctx.style) }],
+    ...answer,
+    figures: [{ label: sayIn("numbers-lag", {}, ctx), value: lag, text: formatNumber(lag, 0, ctx.style) }, ...answer.figures],
     numbers: [
       { label: sayIn("numbers-method", {}, ctx), text: method },
       { label: sayIn("numbers-lag", {}, ctx), text: formatNumber(lag, 0, ctx.style) },

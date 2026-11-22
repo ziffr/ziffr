@@ -35,6 +35,7 @@ describe("bridge against NumPy and its reference", () => {
     expect(got).toEqual({
       ok: true,
       total: -42,
+      change: -42,
       unexplained: null,
       parts: [
         { label: "Germany", change: -35, before: 120, after: 85, appeared: false, gone: false },
@@ -153,9 +154,27 @@ describe("the Takeaway of a bridge", () => {
     expect(bridgeTakeaway("Revenue", [{ label: "A", before: 1, after: 1 }], unit, ctx).sentence).toBe("Worked out: Revenue did not change: A 0 €.");
     expect(bridgeTakeaway("Revenue", [{ label: "A", before: 1000, after: 6000 }], unit, { style: "1.234,5" }).sentence).toBe("Worked out: Revenue rose by 5.000 €: A +5.000 €.");
   });
+  it("says the Metric's own change where it is given, not the parts' sum, and what the parts leave out", () => {
+    const t = bridgeTakeaway("Revenue", [{ label: "DE", before: 100, after: 65 }, { label: "AT", before: 50, after: 41 }], unit, ctx, { before: 200, after: 150 });
+    expect(t.sentence).toBe("Worked out: Revenue fell by 50 €: DE −35 €, AT −9 €.");
+    expect(t.notes).toEqual(["−6 € of the change is not in these rows."]);
+    expect(t.numbers[1]).toEqual({ label: "Change", text: "−50 €" });
+    expect(t.figures).toEqual([{ label: "Change", value: 50, text: "50 €" }]);
+    const b = bridge([{ label: "DE", before: 100, after: 65 }], { before: 200, after: 150 });
+    expect(b).toMatchObject({ total: -35, change: -50, unexplained: -15 });
+  });
+  it("writes enough decimals that no change reads as 0 when it is not: +0.4 and −0.3 at no decimals", () => {
+    const t = bridgeTakeaway("Revenue", [{ label: "DE", before: 10, after: 10.4 }, { label: "AT", before: 5, after: 4.7 }], unit, ctx);
+    expect(t.sentence).toBe("Worked out: Revenue rose by 0.1 €: DE +0.4 €, AT −0.3 €.");
+    // Half a unit rounds up, as every value does: it reads 1 and is not 0.
+    expect(bridgeTakeaway("Revenue", [{ label: "DE", before: 10, after: 10.5 }], unit, ctx).sentence).toBe("Worked out: Revenue rose by 1 €: DE +1 €.");
+    expect(bridgeTakeaway("Revenue", [{ label: "DE", before: 10, after: 12 }], unit, ctx).sentence).toBe("Worked out: Revenue rose by 2 €: DE +2 €.");
+    expect(bridgeTakeaway("Revenue", [{ label: "DE", before: 10, after: 10.004 }], unit, ctx).sentence).toBe("Worked out: Revenue rose by 0.004 €: DE +0.004 €.");
+    expect(bridgeTakeaway("Revenue", [{ label: "DE", before: 0, after: 1e-9 }], unit, ctx).sentence).toBe("Worked out: Revenue rose by 0.000000001 €: DE +0.000000001 €.");
+  });
   it("names the parts that had no value on one side and what the parts leave out", () => {
     const t = bridgeTakeaway("Revenue", [{ label: "New", before: null, after: 5 }, { label: "Old", before: 8, after: null }], unit, ctx, { before: 20, after: 18 });
-    expect(t.notes).toEqual(["Old and New had no value in one of the two periods, so it counts as 0 there.", "1 € of the change is not in these rows."]);
+    expect(t.notes).toEqual(["Old and New had no value in one of the two periods; a missing value counts as 0.", "1 € of the change is not in these rows."]);
     expect(bridgeTakeaway("Revenue", regions, unit, ctx, { before: 182, after: 140 }).notes).toEqual([]);
   });
   it("refuses in words, with no number, for no parts, a value that is not a number and a weight that is not 1 or −1", () => {

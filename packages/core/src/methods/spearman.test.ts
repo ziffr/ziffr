@@ -6,7 +6,8 @@ import { runs } from "../test/reference/check";
 import { nearestDoubleOf } from "../test/reference/exact";
 import { close, FIXTURE, series } from "../test/reference/methods-fixture";
 import { referenceSpearman } from "../test/reference/suitability";
-import { CHANCE_BY_TRIES } from "../takeaways/strength";
+import { CHANCE_BY_TRIES, strengthOf } from "../takeaways/strength";
+import { checkSuitability } from "../suitability";
 import type { TakeawayContext } from "../takeaways/takeaway";
 import { RANK_SPREAD, rankStrength, spearman, spearmanTakeaway } from "./spearman";
 
@@ -173,5 +174,59 @@ describe("the Takeaway of a rank correlation", () => {
       }),
       { numRuns, seed },
     );
+  });
+});
+
+describe("the far-off caution reads the rank bar, not Pearson's", () => {
+  it("says 'without them' by the chance rule of a rank correlation: a rho that Pearson's bar would pass is not told from chance", () => {
+    const x = [1000, ...[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((v) => v * 10)];
+    const y = [-1000, ...[5, 4, 2, 3, 6, 1, 10, 7, 8, 9].map((v) => v * 10)];
+    const without = spearman(series(x).slice(1), series(y).slice(1))!;
+    // Pearson's bar would call the result without them moderate; the rank bar cannot tell it from chance.
+    expect(strengthOf(without.rho, without.n)).not.toBe("cant-tell");
+    expect(rankStrength(without.rho, without.n)).toBe("cant-tell");
+    const t = spearmanTakeaway("A", "B", series(x), series(y), "month", "values", ctx);
+    expect(t.cautions[0]).toBe("This result is pulled by 1 month far from the rest; without them it reads can't tell from chance.");
+  });
+  it("and the link that changed is judged on ranks too: a rise that is steady in rank but not in size is not called weaker", () => {
+    const x = Array.from({ length: 24 }, (_, i) => i + 1);
+    const y = [...x.slice(0, 12), ...x.slice(12, 23), 1e6];
+    const t = spearmanTakeaway("A", "B", series(x), series(y), "month", "values", ctx);
+    expect(t.cautions.filter((c) => c.startsWith("This link"))).toEqual([]);
+    expect(correlationLikeWeaker(x, y)).toBe(true);
+  });
+});
+
+// Pearson's r of the two halves, as the changing-link check used to judge them: the first is 1, the second well under half.
+function correlationLikeWeaker(x: number[], y: number[]): boolean {
+  const verdict = checkSuitability("correlation", { series: [{ name: "A", points: series(x) }, { name: "B", points: series(y) }], span: "month", periods: 24 });
+  return verdict.cautions.some((c) => c.case === "caution-link-weaker");
+}
+
+describe("the changed-link check on ranks", () => {
+  it("says nothing of a half that does not vary (it has no rank correlation), and of a link that is the same in both halves", () => {
+    const x = Array.from({ length: 24 }, (_, i) => i + 1);
+    const check = (y: number[]) => checkSuitability("spearman", { series: [{ name: "A", points: series(x) }, { name: "B", points: series(y) }], span: "month", periods: 24, rank: true }).cautions;
+    expect(check([...Array.from({ length: 12 }, () => 5), ...x.slice(12)]).filter((c) => c.case.startsWith("caution-link"))).toEqual([]);
+    expect(check(x).filter((c) => c.case.startsWith("caution-link"))).toEqual([]);
+    // A link that reverses between the halves is a flip, whatever the statistic.
+    expect(check([...x.slice(0, 12), ...x.slice(12).reverse()]).map((c) => c.case)).toContain("caution-link-flipped");
+  });
+});
+
+describe("the changed-link check judges by ranks, in size and in words", () => {
+  it("calls a link flipped when the halves have opposite rank correlations, and names the latest half by the rank bar: 0.58 over 12 pairs is moderate by Pearson's bar and not told from chance by the rank bar", () => {
+    const first = Array.from({ length: 12 }, (_, i) => 12 - i);
+    const last = [6, 1, 3, 4, 8, 2, 10, 7, 12, 9, 11, 5].map((v) => v + 12);
+    const x = Array.from({ length: 24 }, (_, i) => i + 1);
+    const cautions = checkSuitability("spearman", { series: [{ name: "A", points: series(x) }, { name: "B", points: series([...first, ...last]) }], span: "month", periods: 24, rank: true }).cautions;
+    expect(cautions.map((c) => [c.case, c.slots.latest])).toEqual([["caution-link-flipped", "cant-tell"]]);
+    expect(strengthOf(0.5804195804195804, 12)).not.toBe("cant-tell");
+    // A latest half that is clearly there is named as it is.
+    const strong = checkSuitability("spearman", { series: [{ name: "A", points: series(x) }, { name: "B", points: series([...first, ...x.slice(12)]) }], span: "month", periods: 24, rank: true }).cautions;
+    expect(strong.map((c) => [c.case, c.slots.latest])).toEqual([["caution-link-flipped", "strong"]]);
+    // A weaker link: rank correlation 1 in the first half and 0.3 in the second (sum of squared rank differences 200 over 12 pairs), by ranks and not by values.
+    const weaker = checkSuitability("spearman", { series: [{ name: "A", points: series(x) }, { name: "B", points: series([...x.slice(0, 12), ...[2, 3, 9, 1, 10, 5, 12, 11, 7, 8, 4, 6].map((v) => v + 12)]) }], span: "month", periods: 24, rank: true }).cautions;
+    expect(weaker.map((c) => c.case)).toContain("caution-link-weaker");
   });
 });

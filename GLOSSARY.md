@@ -300,7 +300,7 @@ One statistical calculation in Ziffr's library, such as a rank correlation, a us
 _Avoid_: Algorithm, model, test
 
 **Takeaway**:
-The result of an Analysis as Ziffr says it: one sentence in the Metrics' own words and units, a strength in four words (strong, moderate, weak, "can't tell from chance"), what it was compared on, and the one footer line "This shows what has gone together, not what caused what." Where the data does not suit the Method it carries one plain line above the sentence (a caution; a result with one is never strong) or, with too little data, is a refusal in words with no number. **Show the numbers** opens the numbers behind it. Every place a result is shown writes the same Takeaway.
+The result of an Analysis as Ziffr says it: one sentence in the Metrics' own words and units, a strength in four words (strong, moderate, weak, "can't tell from chance"), what it was compared on, and, for a Takeaway about two Metrics moving together, the one footer line "This shows what has gone together, not what caused what." (a Takeaway about one Metric's own values, or a sum worked out exactly, makes no claim about what goes together and carries none) Where the data does not suit the Method it carries one plain line above the sentence (a caution; a result with one is never strong) or, with too little data, is a refusal in words with no number. **Show the numbers** opens the numbers behind it. Every place a result is shown writes the same Takeaway.
 _Avoid_: Answer (an Answer is what someone replies to a Prompt), insight, verdict
 
 **Analysis Recipe**:

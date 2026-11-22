@@ -72,9 +72,12 @@ export function footerText(ctx: TakeawayContext): string {
   return say("footer", {}, ctxOf(ctx));
 }
 
+/** The Method's own rule for the strength of a result on `n` pairs: Pearson's by default, the rank, partial or lag rule where the answer uses it. */
+export type StrengthFor = (r: number, n: number) => StrengthWord;
+
 /** A finding of the suitability checks as a line of wording; a far-off finding quotes the result without those periods as a strength word. */
-function findingText(f: Finding, ctx: TakeawayContext, pairs: number): string {
-  const result = (r: number) => word(strengthOf(r, pairs - Number(f.slots.count)), ctx);
+function findingText(f: Finding, ctx: TakeawayContext, pairs: number, strength: StrengthFor): string {
+  const result = (r: number) => word(strength(r, pairs - Number(f.slots.count)), ctx);
   return say(f.case, f.slots, { ...ctxOf(ctx), result });
 }
 
@@ -88,8 +91,8 @@ export function refusalTakeaway(method: string, lines: string[]): Takeaway {
 
 /** The verdict of the suitability checks as the lines a person reads: refusals, cautions and what was done differently (a
  * switch to another Method). `pairs` is how many pairs a far-off finding's "without them" strength is judged on. */
-export function verdictLines(v: Verdict, ctx: TakeawayContext, pairs: number) {
-  return { refusals: v.refusals.map((f) => findingText(f, ctx, pairs)), cautions: v.cautions.map((f) => findingText(f, ctx, pairs)), notes: v.switches.map((f) => findingText(f, ctx, pairs)) };
+export function verdictLines(v: Verdict, ctx: TakeawayContext, pairs: number, strength: StrengthFor = (r, n) => strengthOf(r, n)) {
+  return { refusals: v.refusals.map((f) => findingText(f, ctx, pairs, strength)), cautions: v.cautions.map((f) => findingText(f, ctx, pairs, strength)), notes: v.switches.map((f) => findingText(f, ctx, pairs, strength)) };
 }
 
 /** What a correlation was compared on, and over how many periods, in one line. */

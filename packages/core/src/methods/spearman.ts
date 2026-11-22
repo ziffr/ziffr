@@ -10,12 +10,11 @@ import { nearest } from "../exact";
 import { formatNumber } from "../format";
 import type { Span } from "../periods";
 import { checkSuitability, rankAssociation } from "../suitability";
-import { strengthOf, type StrengthWord } from "../takeaways/strength";
+import { RANK_SPREAD, strengthOf, type StrengthWord } from "../takeaways/strength";
+
+export { RANK_SPREAD };
 import { pairsAnswer, refusalTakeaway, sayIn, strengthWordIn, verdictLines, type Takeaway, type TakeawayContext } from "../takeaways/takeaway";
 import type { Point } from "../types";
-
-/** How much more a rank correlation scatters than Pearson's r under no link: a variance of 1.06 ÷ (n − 3) against 1 ÷ (n − 3). */
-export const RANK_SPREAD = 1.06;
 
 /** The word for a rank correlation over `n` pairs: a rank correlation scatters a little more than Pearson's r under no link (by
  * 1.06 in variance, Fieller, Hartley and Pearson), so the same chance rule is read on 3 + (n − 3) ÷ 1.06 pairs. */
@@ -49,13 +48,14 @@ export function spearmanTakeaway(aName: string, bName: string, a: Point[], b: Po
     span,
     periods: pairs.length,
     scale: 1,
+    rank: true,
     // Leaving periods out is a question to the Method; the pairs themselves are not changed.
     rerun: (left) => {
       const r = spearman(xs, ys.filter((p) => !left.has(p.period)));
       return r && Number.isFinite(r.rho) ? { value: r.rho } : null;
     },
   });
-  const lines = verdictLines(verdict, ctx, pairs.length);
+  const lines = verdictLines(verdict, ctx, pairs.length, rankStrength);
   if (lines.refusals.length > 0) return refusalTakeaway(method, lines.refusals);
   // The checks refuse fewer than MIN_PAIRS pairs and a series with fewer than 4 different values, so past them there is a rho.
   const { rho, n } = found!;
