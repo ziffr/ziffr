@@ -3,11 +3,12 @@
 // and how many open Threads about it the viewer may read. Fetched for one point when a person hovers or focuses it,
 // so nothing more is sent with a dashboard (#789).
 // Visibility (AGENTS.md rule 3): nothing for a Metric the person does not see; the Submitter's name only where this
-// person may be shown it (peopleFor: a Guest is told only their own name, never a Feed's); Threads only where they may
+// person may be shown it (as peopleFor and the Period Record: a Guest is told only their own name, never a Feed's); Threads only where they may
 // read them (threadReader). View Links and Snapshots never call this: they show what their data already carries.
 import { db } from "./db";
 import type { Actor } from "./actor";
-import { getGroups, peopleFor, threadReader, visibleMetricIds } from "./access";
+import { getGroups, threadReader, visibleMetricIds } from "./access";
+import { openNames } from "./sealed-columns";
 import { getMetrics } from "./workspace-data";
 import { yearStartOf } from "./fiscal-year";
 import { periodStart } from "./periods";
@@ -17,7 +18,7 @@ import { SOURCE_LABEL } from "./format";
 export type ObservationDetails = {
   /** Where the latest value came from, such as "Slack" or "Web form"; null without a value of its own (a Derived Metric). */
   source: string | null;
-  /** Who submitted it, by name; null where the viewer may not be shown it, or nobody did. */
+  /** Who submitted it, by name, as the Period Record names them; null where the viewer may not be shown it, or nobody did. */
   submitter: string | null;
   /** How many open Threads about this period the viewer may read. */
   openThreads: number;
@@ -43,17 +44,28 @@ export async function observationDetails(actor: Actor, slug: unknown, period: un
   const can = threadReader(actor.personId, groups, (id) => metrics.find((x) => x.id === id)?.owner_id, ws, visible);
   const openThreads = (actions ?? []).filter((a) => can(a as never)).length;
 
-  let submitter: string | null = null;
   const by = latest?.submitter_id ? String(latest.submitter_id) : null;
-  if (by) {
-    // A Guest is shown only their own name and no Feed's (peopleFor); everyone else in the Workspace and its Feeds by name.
-    const person = (await peopleFor(actor)).find((p) => p.id === by);
-    if (person) submitter = person.name;
-    else if (actor.role !== "guest") {
-      const { data: feed } = await db().from("feeds").select("name").eq("workspace_id", ws).eq("person_id", by).maybeSingle();
-      submitter = (feed?.name as string | undefined) ?? null;
-    }
-  }
+  const submitter = by ? await submitterName(actor, by) : null;
   const source = !latest ? null : latest.imported ? "Import" : SOURCE_LABEL[latest.source as keyof typeof SOURCE_LABEL] ?? String(latest.source);
   return { source, submitter, openThreads };
+}
+
+/** The one submitter's name, looked up alone rather than the whole Workspace's people, as the Period Record names
+ * them: a person in the Workspace now (a Member, Guest or Contact, a Contact's sealed name opened), else a Feed by its
+ * name, else "A former member". A Guest is told only their own name (peopleFor's rule): anyone else is no name. */
+async function submitterName(actor: Actor, id: string): Promise<string | null> {
+  const ws = actor.workspaceId;
+  if (actor.role === "guest" && id !== actor.personId) return null;
+  const [{ data: member }, { data: contact }, { data: feed }] = await Promise.all([
+    db().from("memberships").select("user_id").eq("workspace_id", ws).eq("user_id", id).maybeSingle(),
+    db().from("contacts").select("person_id").eq("workspace_id", ws).eq("person_id", id).maybeSingle(),
+    actor.role === "guest" ? Promise.resolve({ data: null }) : db().from("feeds").select("name").eq("workspace_id", ws).eq("person_id", id).maybeSingle(),
+  ]);
+  if (member || contact) {
+    // Only the name: never the email, Slack handle or phone the profile also holds.
+    const { data: p } = await db().from("profiles").select("id, name").eq("id", id).maybeSingle();
+    if (p) return String((await openNames(ws, [p]))[0].name);
+  }
+  if (feed?.name) return String(feed.name);
+  return actor.role === "guest" ? null : "A former member";
 }

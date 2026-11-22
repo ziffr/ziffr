@@ -5,6 +5,7 @@ import { afterEach, describe, expect, it } from "vitest";
 import { db } from "./db";
 import { observationDetails } from "./observation-details";
 import { workspace } from "./test/db-fixtures";
+import { createFeed } from "./feeds";
 
 const cleanups: (() => Promise<void>)[] = [];
 afterEach(async () => { for (const c of cleanups.splice(0)) await c(); });
@@ -59,5 +60,25 @@ describe("observationDetails", () => {
     expect(await observationDetails(a.w.actor(a.sara), a.m.slug, "2026-03-15")).toBeNull();
     expect(await observationDetails(a.w.actor(a.sara), a.m.slug, "not a day")).toBeNull();
     expect(await observationDetails(a.w.actor(a.sara), { slug: a.m.slug }, P)).toBeNull();
+  });
+
+  it("names a Feed, a Contact and a former member to a Member as the Period Record does, and none of them to a Guest", async () => {
+    const { w, sara, m } = await setup();
+    const gus = await w.person("guest");
+    await share(w, m.id, gus);
+    const { id: feed } = await createFeed(w.actor(sara), "CRM sync");
+    const contact = await w.contact({ email: "lena@example.test" });
+    const former = await w.person("member");
+    await w.dropMember(former);
+    const periods: [string, string][] = [[feed, "2026-01-01"], [contact, "2026-02-01"], [former, "2026-03-01"]];
+    for (const [who, period] of periods) await db().from("observations").insert({ metric_id: m.id, period_start: period, value: 1, submitter_id: who, source: "api", workspace_id: w.id });
+    const asMember = async (period: string) => (await observationDetails(w.actor(sara), m.slug, period))?.submitter;
+    const asGuest = async (period: string) => (await observationDetails(w.actor(gus, "guest"), m.slug, period))?.submitter;
+    expect(await asMember("2026-01-01")).toBe("CRM sync");
+    expect(await asMember("2026-02-01")).toEqual(expect.stringMatching(/^Contact /));
+    expect(await asMember("2026-03-01")).toBe("A former member");
+    for (const [, period] of periods) expect(await asGuest(period)).toBeNull();
+    // Only the name: never the Contact's email.
+    expect(JSON.stringify(await observationDetails(w.actor(sara), m.slug, "2026-02-01"))).not.toContain("lena@");
   });
 });
