@@ -6,6 +6,10 @@ import { writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
+import type { DashboardTemplateFile } from "@ziffr/pack/dashboard-template-file";
+import type { DeckTemplateFile } from "@ziffr/pack/deck-template-file";
+import type { WorkflowTemplateFile } from "@ziffr/pack/workflow-template-file";
+import type { ThemeFile } from "@ziffr/pack/theme-file";
 import type { WorkspaceExportRecord } from "@ziffr/pack/workspace-export";
 import { db } from "./db";
 import { openRows } from "./sealed-columns";
@@ -30,10 +34,10 @@ afterEach(async () => {
 });
 
 const metricDoc = { format: "ziffr.metric/1", name: "Orders", period: "month", aggregation: "sum", polarity: "higher" } as const;
-const themeDoc = { format: "ziffr.theme/1", name: "Calm", colors: { canvas: "#ffffff", surface: "#f5f5f5", ink: "#111111", muted: "#777777", rule: "#dddddd", accent: "#2255ee", good: "#118833", bad: "#cc2222", band: "#e6eeff", data: ["#2255ee"] }, fonts: { heading: "inter", body: "inter", figures: "inter" }, radius: 6, cards: "flat" } as const;
-const dashDoc = { format: "ziffr.dashboard-template/1", name: "Sales <b>board</b>", slots: [{ label: "Orders" }], widgets: [{ view: "number", slots: [0], x: 0, y: 0, w: 4, h: 3 }] } as const;
-const flowDoc = { format: "ziffr.workflow-template/1", name: "Monthly", dueWorkingDays: 3, steps: [{ type: "remind", daysBefore: 1 }, { type: "approve", approvers: 2 }, { type: "publish", lock: false }] } as const;
-const deckDoc = { format: "ziffr.deck-template/1", name: "Review", slots: [{ label: "Orders" }], slides: [{ shapes: [{ shape: "text", x: 10, y: 10, w: 300, text: ["Hello"] }] }] } as const;
+const themeDoc: ThemeFile = { format: "ziffr.theme/1", name: "Calm", colors: { canvas: "#ffffff", surface: "#f5f5f5", ink: "#111111", muted: "#777777", rule: "#dddddd", accent: "#2255ee", good: "#118833", bad: "#cc2222", band: "#e6eeff", data: ["#2255ee"] }, fonts: { heading: "inter", body: "inter", figures: "inter" }, radius: 6, cards: "flat" };
+const dashDoc: DashboardTemplateFile = { format: "ziffr.dashboard-template/1", name: "Sales <b>board</b>", slots: [{ label: "Orders" }], widgets: [{ view: "number", slots: [0], x: 0, y: 0, w: 4, h: 3 }] };
+const flowDoc: WorkflowTemplateFile = { format: "ziffr.workflow-template/1", name: "Monthly", dueWorkingDays: 3, steps: [{ type: "remind", daysBefore: 1 }, { type: "approve", approvers: 2 }, { type: "publish", lock: false }] };
+const deckDoc: DeckTemplateFile = { format: "ziffr.deck-template/1", name: "Review", slots: [{ label: "Orders" }], slides: [{ shapes: [{ shape: "text", x: 10, y: 10, w: 300, text: ["Hello"] }] }] };
 
 /** A sound file of a small Workspace, with the importer's own address among its people. */
 const records = (importerEmail: string): WorkspaceExportRecord[] => [
