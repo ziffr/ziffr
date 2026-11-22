@@ -432,7 +432,7 @@ What a person may do in a Workspace as a whole. A Workspace Owner manages settin
 _Avoid_: Permission level, admin rights
 
 **Invitation**:
-An offer to join a Workspace with a Workspace Role, made by an Owner or Admin. One sent to an email address is accepted once, by that address; a link works for anyone who has it until it ends or is revoked. Inviting a Contact makes them a member who keeps their history.
+An offer to join a Workspace with a Workspace Role, made by an Owner or Admin. One sent to an email address is accepted once, by that address; a link works for anyone who has it until it ends or is revoked. Inviting a Contact makes them a member who keeps their history. In a Trial Workspace the email and the accept page say it is a trial, until when and what follows. Every invitation email has a one-click **Do not invite me again** link that stops invitation emails to that address from every Workspace on the Installation.
 _Avoid_: Invite code, access grant
 
 **Domain Joining**:
