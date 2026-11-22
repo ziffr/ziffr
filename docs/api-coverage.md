@@ -236,6 +236,7 @@ Reads for a screen that also note that something was seen or logged; the API has
 - `teamView` (page-data.ts): what a page reads
 - `actionThread` (page-data.ts): what a page reads
 - `periodRecord` (period-record.ts): the period page
+- `observationDetails` (observation-details.ts): the popup on a chart's point in the app; a program reads the same through the API's period status and values
 - `calendarEntries` (schedule.ts): the schedule page
 - `search` (search.ts): the search page
 - `listShareProposals` (share-proposals.ts): the Actions page; a key only proposes, it never reads what waits for the person (ticket #538)

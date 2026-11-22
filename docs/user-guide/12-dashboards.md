@@ -215,6 +215,12 @@ How many periods a View shows comes with its Widget Template: the last 12 period
 
 Each of these Views, and the Analyses (Forecast, Correlation, Correlation matrix, Drivers), is a **View Design**: a file that says what the View draws, which Ziffr draws with one renderer of its own. They look as they always did, except that Drivers, Correlation and the Correlation matrix now say what they compared ("Compared by change, growth removed" where both Metrics grow, otherwise "Compared by value") and have a **Takeaway** (a sentence, a strength word, a plain line when the data makes the reading rough, and one footer) with **Show the numbers**, which gives r and the periods and switches to comparing the values as they are. The Drivers template now asks for two Slots when you place it: the Metric, and the Metrics to compare it with. A View Design of the Workspace can also draw an Analysis Recipe: its results show as lines, bars, a line across the chart or numbers in its words, and in the tooltip (see [Analysis Recipes](13-analyze.md#analysis-recipes)).
 
+### A value's details
+
+Point at a point or bar of a line, bars or forecast chart (tap it on a touch screen), or at the trend line under a number once its Widget has room, to see that value's details beside it: the period, the value, whether it is on target ("On target", "Too high"), whether it waits for Approval or is locked, its Source, who submitted it and how many open Threads there are about it. With the keyboard, move to the chart with Tab, step between points with the arrow keys, and close the details with Escape. You see a submitter's name only where you may see that person (a Guest sees only their own), and only the Threads you may read. View Links and Snapshots show the period, value, target and Approval only.
+
+When a Widget has room and shows a number alone (no trend line yet), the number sits in the middle of the Widget.
+
 ### Comparisons
 
 Views show a strip of **Comparisons** under the value. **Comparisons** lets you choose which:
@@ -234,7 +240,7 @@ A Widget shows a Metric in its own period: a monthly Metric as months. **Show by
 - **Condensed.** Once a Retention has condensed old periods, a chart or table shows each condensed span as one point, named for what it was made from ("October 2023, condensed from 31 days", or "condensed from 20 of 31 days" when some had no value), with the note under the widget: "Before November 2023 shown by month, condensed from daily values." Shown by that period or a longer one, the numbers are the same as before; shown by a shorter one, the condensed points stay as they are and no days are invented.
 - **How many.** The Widget shows as many Display Periods as it showed periods before, such as the last 12 quarters.
 - **Targets.** Where every month of a quarter has a value in the Metric's **Target Series**, the quarter's target is those values combined the same way, drawn as a thin grey line. Otherwise the Metric's target range applies if its values are averaged or a last value; a summed Metric has no target by quarter, as a monthly range says nothing exact about three months. A line under the chart says which applies.
-- **Forecast.** A forecast is computed on the quarters, a few of them ahead, from the last complete one.
+- **Forecast.** A forecast is computed on the quarters, a few of them ahead, from the last complete one. Under it, a forecast widget says where the Metric is expected to be, which Method worked it out (a plain trend, or the trend with the yearly pattern), how that Method did on the periods already known, and, when the Metric has a Target and **Show target band** is on, how likely the Target is to be reached. It is worked out in the Metric's own period from its latest 120 periods, so a widget shown by a longer period (**Show by**) draws the forecast but leaves these words out.
 - **Rates.** A Metric whose Aggregation is **Does not combine**, such as a rate, cannot be shown by a longer period. **Show by** then greys out the longer periods and says why. If its values can in fact be added up, averaged or taken last, change the Aggregation under **Edit details…** on the Metric's page.
 
 Quarters, half-years and years start from the Workspace's fiscal year. **Change view** to another of these views keeps the setting.
