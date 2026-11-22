@@ -11,8 +11,13 @@ begin
   select trial_ends_at into ends from workspaces where id = new.workspace_id;
   -- A link works through its last day (UTC): never a day past the trial's.
   new.expires_at := least(new.expires_at, (ends at time zone 'UTC')::date);
-  if (select count(*) from view_links where workspace_id = new.workspace_id and revoked_at is null and expires_at >= current_date) >= (trial_limit_numbers()).view_links then
+  if (select count(*) from view_links where workspace_id = new.workspace_id and id <> new.id and revoked_at is null and expires_at >= current_date) >= (trial_limit_numbers()).view_links then
     raise exception using errcode = 'ZF437', message = 'view_links_per_trial';
   end if;
   return new;
 end $$;
+
+-- Also when a link's end date is changed later, so no path can extend a trial's link past the trial.
+drop trigger if exists view_links_in_trial on view_links;
+create trigger view_links_in_trial before insert or update of expires_at on view_links
+  for each row execute function view_links_in_trial();

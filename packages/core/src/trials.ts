@@ -102,7 +102,13 @@ export async function keepTrial(workspaceId: string): Promise<boolean> {
  * keep), one that has ended becomes ordinary the first time anything asks, so nobody meets a closed trial between
  * its end and the hourly job. */
 export async function trialEndsAt(workspaceId: string): Promise<Date | null> {
-  const { data } = await db().from("workspaces").select("trial_ends_at").eq("id", workspaceId).maybeSingle();
+  return trialEndsAtRead(workspaceId, false);
+}
+
+/** trialEndsAt, but a failed read throws instead of reading as "not a trial": for what must fail closed. */
+async function trialEndsAtRead(workspaceId: string, strict: boolean): Promise<Date | null> {
+  const { data, error } = await db().from("workspaces").select("trial_ends_at").eq("id", workspaceId).maybeSingle();
+  if (error && strict) throw new Error("The trial could not be read.");
   const ends = data?.trial_ends_at ? new Date(data.trial_ends_at as string) : null;
   if (ends && ends.getTime() <= Date.now() && trialThen(await settingsInEffect()) === "keep") {
     await keepTrial(workspaceId);
@@ -150,6 +156,7 @@ export const TRIAL_HOLDS_BACK = {
   contact: "Kept in the Outbox: a trial never sends to a Contact.",
   notAccepted: "Kept in the Outbox: a trial sends only to people who accepted their invitation.",
   ended: "Kept in the Outbox: this trial has ended.",
+  unreadable: "Kept in the Outbox: Ziffr could not check whether this is a trial.",
 } as const;
 
 /** Why a Delivery to this recipient may not leave the workspace for real, or null when it may (always outside a
@@ -159,7 +166,9 @@ export const TRIAL_HOLDS_BACK = {
  * has ended. Checked when a Delivery is made and again by each Connector right before it sends, so one queued by any
  * other path is still held back. */
 export async function trialHoldsBack(workspaceId: string, recipientId: string): Promise<string | null> {
-  const ends = await trialEndsAt(workspaceId);
+  // Fails closed: if the Workspace cannot be read, nothing is sent (it stays in the Outbox).
+  let ends: Date | null;
+  try { ends = await trialEndsAtRead(workspaceId, true); } catch { return TRIAL_HOLDS_BACK.unreadable; }
   if (!ends) return null;
   if (ends.getTime() <= Date.now()) return TRIAL_HOLDS_BACK.ended;
   const [{ data: contact }, { data: member }] = await Promise.all([
@@ -175,7 +184,7 @@ export async function trialHoldsBack(workspaceId: string, recipientId: string): 
  * that has ended makes none. The database clamps the same way (view_links_in_trial), so this is for the words and the
  * Audit Log to say the date the link really has. */
 export async function trialLastDay(workspaceId: string): Promise<string | null> {
-  const ends = await trialEndsAt(workspaceId);
+  const ends = await trialEndsAtRead(workspaceId, true);
   if (!ends) return null;
   if (ends.getTime() <= Date.now()) throw new Forbidden("This trial has ended: nothing can be shared any more.");
   return ends.toISOString().slice(0, 10);
