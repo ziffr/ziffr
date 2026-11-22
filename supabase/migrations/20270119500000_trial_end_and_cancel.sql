@@ -50,19 +50,32 @@ begin
   return true;
 end $$;
 
--- Closes a Workspace whose Size was cancelled, once: true for the call that did it. It ends now like a trial, so every
+-- Closing a Workspace whose Size was cancelled is two steps, so the Owner and the people it affects are told while a
+-- message still leaves (a Delivery of a Workspace that has ended stays in the Outbox), and only by the one call that
+-- claimed it: claim_cancelled_workspace is true once, and close_cancelled_workspace ends it now like a trial, so every
 -- check of a trial (nothing sent or taken, keys and links stopped) and the deletion after the grace days apply. Only a
--- Workspace whose limit Ziffr Cloud set (a Size it sells) can be closed this way; the demo, a Workspace in a trial and
--- one an Installation Admin set the limit of are left alone.
+-- Workspace whose limit Ziffr Cloud set (a Size it sells) can be claimed; the demo, a Workspace in a trial and one an
+-- Installation Admin set the limit of are left alone.
+create or replace function claim_cancelled_workspace(p_workspace uuid) returns boolean
+language plpgsql security definer set search_path = public as $$
+declare
+  v_id uuid;
+begin
+  update workspaces set closed_because = 'cancelled'
+    where id = p_workspace and trial_ends_at is null and trial_closed_at is null and closed_because is null
+      and id <> 'd3e00000-0000-4000-8000-000000000001'::uuid
+      and exists (select 1 from workspace_limits where workspace_id = p_workspace and set_by = 'cloud')
+    returning id into v_id;
+  return v_id is not null;
+end $$;
+
 create or replace function close_cancelled_workspace(p_workspace uuid) returns boolean
 language plpgsql security definer set search_path = public as $$
 declare
   v_id uuid;
 begin
-  update workspaces set trial_ends_at = now(), trial_kept_at = null, closed_because = 'cancelled'
-    where id = p_workspace and trial_ends_at is null and trial_closed_at is null
-      and id <> 'd3e00000-0000-4000-8000-000000000001'::uuid
-      and exists (select 1 from workspace_limits where workspace_id = p_workspace and set_by = 'cloud')
+  update workspaces set trial_ends_at = now(), trial_kept_at = null
+    where id = p_workspace and closed_because = 'cancelled' and trial_ends_at is null
     returning id into v_id;
   return v_id is not null;
 end $$;
@@ -80,5 +93,5 @@ begin
   return v_id is not null;
 end $$;
 
-revoke execute on function keep_trial(uuid), close_cancelled_workspace(uuid), reopen_cancelled_workspace(uuid) from public, anon, authenticated;
-grant execute on function keep_trial(uuid), close_cancelled_workspace(uuid), reopen_cancelled_workspace(uuid) to service_role;
+revoke execute on function keep_trial(uuid), claim_cancelled_workspace(uuid), close_cancelled_workspace(uuid), reopen_cancelled_workspace(uuid) from public, anon, authenticated;
+grant execute on function keep_trial(uuid), claim_cancelled_workspace(uuid), close_cancelled_workspace(uuid), reopen_cancelled_workspace(uuid) to service_role;

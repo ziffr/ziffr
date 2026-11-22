@@ -104,14 +104,19 @@ export async function remindEndingTrials(now = new Date()): Promise<number> {
       if (!owner) continue;
       const days = (kept?.trial_grace_days as number | null) ?? grace;
       const endsAt = new Date(w.trial_ends_at as string);
-      await deliverNotice(w.id, {
-        recipientId: owner, senderId: null, subject: r.subject,
-        text: trialEndsWords(endsAt.toISOString(), new Date(endsAt.getTime() + days * DAY).toISOString()),
-        // The page that offers the Workspace Export to its Owner.
-        link: "/settings/export",
-      });
-      n++;
-      if (tellMembers) await tellMembersWhoWouldGo(w.id as string, new Date(endsAt.getTime() + days * DAY).toISOString());
+      // Each on its own: one that fails is logged and never drops the others claimed in this batch.
+      try {
+        await deliverNotice(w.id, {
+          recipientId: owner, senderId: null, subject: r.subject,
+          text: trialEndsWords(endsAt.toISOString(), new Date(endsAt.getTime() + days * DAY).toISOString()),
+          // The page that offers the Workspace Export to its Owner.
+          link: "/settings/export",
+        });
+        n++;
+        if (tellMembers) await tellMembersWhoWouldGo(w.id as string, new Date(endsAt.getTime() + days * DAY).toISOString());
+      } catch (e) {
+        console.error(`Reminder for trial ${w.id} could not be sent: ${(e as Error).message}`);
+      }
     }
   }
   return n;
@@ -234,26 +239,32 @@ async function tellMembersWhoWouldGo(workspaceId: string, deletedAt: string): Pr
  * Ziffr Cloud's or one closed as a trial. */
 export async function closeCancelledWorkspace(workspaceId: string): Promise<"closed" | "already" | "refused"> {
   if (workspaceId === DEMO_WORKSPACE_ID) return "refused";
-  const [{ data: w }, { data: sold }] = await Promise.all([
-    db().from("workspaces").select("trial_ends_at, trial_closed_at, closed_because").eq("id", workspaceId).maybeSingle(),
-    db().from("workspace_limits").select("workspace_id").eq("workspace_id", workspaceId).eq("set_by", "cloud").maybeSingle(),
-  ]);
-  if (!w) return "refused";
-  if (w.closed_because === "cancelled") return "already";
-  if (w.trial_ends_at || w.trial_closed_at || !sold) return "refused";
   const grace = daysSetting("ZIFFR_TRIAL_GRACE_DAYS", await settingsInEffectStrict());
-  const owner = await ownerOf(workspaceId);
-  const deletedOn = new Date(Date.now() + grace * DAY).toISOString();
-  if (owner) {
-    await deliverNotice(workspaceId, { recipientId: owner, senderId: null, subject: "Your Ziffr Size was cancelled", text: workspaceClosedWords(deletedOn), link: "/settings/export" });
-  }
-  await tellMembersWhoWouldGo(workspaceId, deletedOn);
-  const { data, error } = await db().rpc("close_cancelled_workspace", { p_workspace: workspaceId });
+  // Claimed first, by one call only, so concurrent retries never tell people twice; told next, while a message still
+  // leaves; closed last. A call that finds it claimed but not closed (the one before stopped half-way) only closes it.
+  const { data: claimed, error } = await db().rpc("claim_cancelled_workspace", { p_workspace: workspaceId });
   if (error) throw new Error("The Workspace could not be closed.");
-  if (data !== true) return "refused";
-  // Closed at once, not at the next hourly run: keys and links stop now, and the days promised are kept.
-  await closeEndedTrials();
-  return "closed";
+  if (claimed === true) {
+    const deletedOn = new Date(Date.now() + grace * DAY).toISOString();
+    const owner = await ownerOf(workspaceId);
+    try {
+      if (owner) await deliverNotice(workspaceId, { recipientId: owner, senderId: null, subject: "Your Ziffr Size was cancelled", text: workspaceClosedWords(deletedOn), link: "/settings/export" });
+      await tellMembersWhoWouldGo(workspaceId, deletedOn);
+    } catch (e) {
+      // The closing is decided; a notice that could not be made never keeps it open.
+      console.error(`Notices for the cancelled Workspace ${workspaceId} could not be sent: ${(e as Error).message}`);
+    }
+  }
+  const { data, error: e2 } = await db().rpc("close_cancelled_workspace", { p_workspace: workspaceId });
+  if (e2) throw new Error("The Workspace could not be closed.");
+  if (data === true) {
+    // Closed at once, not at the next hourly run: keys and links stop now, and the days promised are kept.
+    await closeEndedTrials();
+    return "closed";
+  }
+  if (claimed === true) return "closed";
+  const { data: w } = await db().from("workspaces").select("closed_because").eq("id", workspaceId).maybeSingle();
+  return w?.closed_because === "cancelled" ? "already" : "refused";
 }
 
 /** Undoes a cancellation during the grace days (Ziffr Cloud: the Size was booked again): the Workspace is ordinary

@@ -130,6 +130,15 @@ describe("Ziffr Cloud's cancel", () => {
     await db().from("installation_audit_events").delete().eq("subject", w.id);
   });
 
+  it("emails once when two calls arrive together", async () => {
+    const { w, owner } = await trial(48);
+    await setCloudLimit({ cloud: true }, w.id, { metrics: 50, label: "Small", endTrial: true });
+    await Promise.all([cancelCloudWorkspace({ cloud: true }, w.id), cancelCloudWorkspace({ cloud: true }, w.id)]);
+    expect(await opened("deliveries", w.id, (await db().from("deliveries").select("id, body").eq("workspace_id", w.id).eq("kind", "notice").eq("recipient_id", owner)).data)).toHaveLength(1);
+    expect((await row(w.id)).trial_closed_at).not.toBeNull();
+    await db().from("installation_audit_events").delete().eq("subject", w.id);
+  });
+
   it("refuses a trial, a Workspace Ziffr Cloud sold no Size of, and the demo; answers 404 for one that does not exist", async () => {
     const { w } = await trial(48);
     await expect(cancelCloudWorkspace({ cloud: true }, w.id)).rejects.toBeInstanceOf(CloudConflict);
