@@ -54,6 +54,34 @@ describe("Workflow config numbers", () => {
   });
 });
 
+describe("the words of a Checklist Item", () => {
+  const item = { type: "checklist", id: "item-one-aaaa", kind: "info", text: "Invoices must be in by Friday.", day: 1, people: ["p1"], groups: [] };
+  const cfg = { dueWorkingDays: 1, steps: [{ type: "remind", daysBefore: 1 }, item, { type: "check", changePct: 40, outsideTarget: true }] };
+  it("are sealed in place, bound to the Workflow and the step's place, and open again", () => {
+    const sealed = sealConfig(cipher, 7, cfg) as unknown as { steps: { text?: string; people?: string[] }[] };
+    expect(isSealed(sealed.steps[1].text as string)).toBe(true);
+    expect(JSON.stringify(sealed)).not.toContain("Invoices");
+    // What names no word stays as it is: the people and the day are ids and numbers.
+    expect(sealed.steps[1].people).toEqual(["p1"]);
+    expect(openConfig(cipher, 7, sealed)).toEqual(cfg);
+    expect(sealConfig(plain, 7, cfg)).toBe(cfg);
+  });
+  it("leave the step out of what runs when they do not open, never running as ciphertext", () => {
+    const sealed = sealConfig(cipher, 7, cfg);
+    // Another Workflow, another place (the step moved without being sealed again) or a text changed in the database.
+    expect(openConfig(cipher, 8, sealed).steps.map((s) => s.type)).toEqual(["remind", "check"]);
+    const moved = { ...sealed, steps: [sealed.steps[1], sealed.steps[0], sealed.steps[2]] };
+    expect(openConfig(cipher, 7, moved).steps.map((s) => s.type)).toEqual(["remind", "check"]);
+    expect(JSON.stringify(openConfig(cipher, 8, sealed))).not.toContain("w1.");
+  });
+  it("are sealed in a Version of the Workflow for the Version's own place", () => {
+    const version = { config: cfg };
+    const sealed = mapVersionWords("workflow", version, sealing(cipher, "versions", "workflow-1-2")) as { config: { steps: { text?: string }[] } };
+    expect(isSealed(sealed.config.steps[1].text as string)).toBe(true);
+    expect(mapVersionWords("workflow", sealed, opening(cipher, "versions", "workflow-1-2"))).toEqual(version);
+  });
+});
+
 describe("Versions of Workflows and Metrics", () => {
   const metric = { name: "Revenue", description: "d", target_min: 5, target_max: 0, unit: "EUR" };
   it("seals a Metric's name and Targets, in place, and opens them again as numbers", () => {

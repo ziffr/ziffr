@@ -13,7 +13,7 @@ import { EXAMPLE as VIEW } from "./view-design.test";
 import { checkDeckTemplateFile, checkDeckTemplateFileValue, deckTemplateFromFile, DECK_TEMPLATE_SCHEMA, type DeckTemplateFile } from "./deck-template-file";
 import { checkWorkflowTemplateFile, checkWorkflowTemplateFileValue, workflowTemplateFromFile, WORKFLOW_TEMPLATE_SCHEMA, type WorkflowTemplateFile } from "./workflow-template-file";
 import { dashboardTemplateFromFile } from "./dashboard-template-file";
-import { fromDashboardTemplate, fromDeckTemplate, fromWorkflowTemplate } from "./team-templates";
+import { fromDashboardTemplate, fromDeckTemplate, fromWorkflowTemplate, toWorkflowTemplate } from "./team-templates";
 import type { FormatCheck, Schema } from "./json-check";
 
 /** A Metric Catalog entry as a creator might write it. */
@@ -197,6 +197,16 @@ const WORKFLOW_HOSTILE: Case[] = [
   ["two checks", { ...WORKFLOW, steps: [WORKFLOW.steps[2], WORKFLOW.steps[2]] }, "is a second “check” step"],
   ["publishing before the end", { ...WORKFLOW, steps: [WORKFLOW.steps[4], WORKFLOW.steps[0]] }, "publishing is the last step"],
   ["a Due Date out of range", { ...WORKFLOW, dueWorkingDays: 99 }, "must be at most 30"],
+  ["a checklist item that names who gets it", { ...WORKFLOW, steps: [{ type: "checklist", kind: "info", text: "Cut-off is Friday.", day: 1, people: ["someone"] }, WORKFLOW.steps[4]] }, "people"],
+  ["an item for information with no day", { ...WORKFLOW, steps: [{ type: "checklist", kind: "info", text: "Cut-off is Friday." }, WORKFLOW.steps[4]] }, "needs “day”"],
+  ["an item to tick off with no Due Date", { ...WORKFLOW, steps: [{ type: "checklist", kind: "tick", text: "Reconcile." }, WORKFLOW.steps[4]] }, "needs “dueWorkingDays”"],
+  ["an item for information with a Due Date", { ...WORKFLOW, steps: [{ type: "checklist", kind: "info", text: "Cut-off is Friday.", day: 1, dueWorkingDays: 2 }, WORKFLOW.steps[4]] }, "is for an item to tick off"],
+  ["a checklist item with a web address", { ...WORKFLOW, steps: [{ type: "checklist", kind: "info", text: "Pay at https://evil.example now", day: 1 }, WORKFLOW.steps[4]] }, "web address"],
+  ["a checklist item of 501 characters", { ...WORKFLOW, steps: [{ type: "checklist", kind: "info", text: "x".repeat(501), day: 1 }, WORKFLOW.steps[4]] }, "at most 500"],
+  ["a checklist item with no words", { ...WORKFLOW, steps: [{ type: "checklist", kind: "tick", text: "", dueWorkingDays: 1 }, WORKFLOW.steps[4]] }, "must not be empty"],
+  ["21 checklist items", { ...WORKFLOW, steps: [...Array.from({ length: 21 }, () => ({ type: "checklist", kind: "info", text: "One.", day: 1 })), WORKFLOW.steps[4]] }, "checklist item 21 or later"],
+  ["a Send Snapshot step that names a dashboard", { ...WORKFLOW, steps: [{ type: "send_snapshot", dashboardId: 3 }, WORKFLOW.steps[4]] }, "dashboardId"],
+  ["two Send Snapshot steps", { ...WORKFLOW, steps: [{ type: "send_snapshot" }, { type: "send_snapshot" }, WORKFLOW.steps[4]] }, "is a second “send_snapshot” step"],
 ];
 
 const formats: [string, Case[], (v: unknown) => FormatCheck<unknown>, (t: string) => FormatCheck<unknown>, unknown, Schema][] = [
@@ -317,5 +327,32 @@ describe("files as what a Workspace keeps", () => {
     expect(fromWorkflowTemplate(body, [])).toBeNull();
     expect(fromWorkflowTemplate(body, ["a", "b"])).toBeNull();
     expect(fromWorkflowTemplate(body, ["a"])?.steps[3]).toEqual({ type: "approve", approvers: ["a"], values: "unusual" });
+  });
+
+  it("keeps a Workflow's Checklist Items and Send Snapshot step through a template, with no person, Group or dashboard in it", () => {
+    const file: WorkflowTemplateFile = { ...WORKFLOW, steps: [
+      { type: "checklist", kind: "info", text: "Invoice cut-off is Friday.", day: 1 },
+      { type: "checklist", kind: "tick", text: "Reconcile the bank account.", dueWorkingDays: 3 },
+      { type: "send_snapshot" },
+      { type: "publish", lock: true },
+    ] };
+    expect(checkWorkflowTemplateFileValue(file).ok).toBe(true);
+    const body = workflowTemplateFromFile(file);
+    const config = fromWorkflowTemplate(body, [])!;
+    expect(config.steps).toEqual([
+      { type: "checklist", id: "", kind: "info", text: "Invoice cut-off is Friday.", day: 1, people: [], groups: [] },
+      { type: "checklist", id: "", kind: "tick", text: "Reconcile the bank account.", assignee: null, dueWorkingDays: 3 },
+      { type: "send_snapshot", id: "", dashboardId: 0, people: [], groups: [] },
+      { type: "publish", lock: true },
+    ]);
+    // And back: a Workflow with people, a Group, a Stand-in and a dashboard keeps only its words, kinds and days.
+    const full = { ...config, steps: [
+      { type: "checklist" as const, id: "item-one-aaaa", kind: "info" as const, text: "Invoice cut-off is Friday.", day: 1, people: ["p1"], groups: [4], readGroup: 4 },
+      { type: "checklist" as const, id: "item-two-aaaa", kind: "tick" as const, text: "Reconcile the bank account.", assignee: "p2", standIn: "p3", dueWorkingDays: 3 },
+      { type: "send_snapshot" as const, id: "snap-one-aaaa", dashboardId: 9, people: ["p1"], groups: [4] },
+      { type: "publish" as const, lock: true },
+    ] };
+    expect(toWorkflowTemplate(full)).toEqual(body);
+    expect(JSON.stringify(toWorkflowTemplate(full))).not.toMatch(/p1|p2|p3|item-one|aaaa/);
   });
 });

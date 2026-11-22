@@ -76,7 +76,7 @@ describe("a Workflow step in words", () => {
     expect(stepLabel({ type: "tell", id: "a", condition: { kind: "below", value: "5" }, people: ["sara"], groups: [], webhooks: ["w1", "w2"] }, people)).toBe("Tell Sara, 2 Webhooks when a value falls below 5");
     expect(stepLabel({ type: "publish", lock: true }, people)).toBe("Publish and lock the period");
     expect(stepLabel({ type: "publish", lock: false }, people)).toBe("Publish");
-    expect(Object.keys(STEP_TITLE)).toEqual(["remind", "escalate", "check", "approve", "tell", "publish"]);
+    expect(Object.keys(STEP_TITLE)).toEqual(["remind", "escalate", "check", "approve", "tell", "publish", "checklist", "send_snapshot"]);
   });
   it("adds no working days for none", () => {
     expect(addWorkingDays("2026-10-30", 0)).toBe("2026-10-30");

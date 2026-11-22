@@ -3,7 +3,7 @@
 // make it again. Pure.
 import { listOf, metricsInOrder } from "./placeholders";
 import { tagSourceId, takesTagSource } from "./tag-source";
-import type { AnchorRule, DashboardTemplateBody, DeckTemplateBody, WorkflowConfig, WorkflowTemplateBody, DashboardTemplateWidget, Metric, Slot, SlideBody, SlideShape, TemplateId, WidgetTemplate, Widget, WidgetSettings } from "./types";
+import type { AnchorRule, DashboardTemplateBody, DeckTemplateBody, WorkflowConfig, WorkflowStep, WorkflowTemplateBody, WorkflowTemplateStep, DashboardTemplateWidget, Metric, Slot, SlideBody, SlideShape, TemplateId, WidgetTemplate, Widget, WidgetSettings } from "./types";
 
 type W = Pick<Widget, "template" | "metric_ids" | "settings" | "title">;
 
@@ -304,23 +304,41 @@ export function fromSlideLayout(body: SlideBody, fills: number[][], fillWords: (
 
 // Workflow Templates (GLOSSARY: Workflow Template): a Workflow's steps without its people.
 
-/** A Workflow's Due Date and steps as a template: each Approve step keeps how many Approvers it has, never who. A Tell
- * step names people, so a template leaves it out. */
+/** A Workflow's Due Date and steps as a template: each Approve step keeps how many Approvers it has, never who; a
+ * Checklist Item keeps its words, kind and day or Due Date, and Send Snapshot only that it is there, with who gets it,
+ * who ticks it off, which Group may read it and which dashboard left open. A Tell step names people, so a template
+ * leaves it out. */
 export function toWorkflowTemplate(c: WorkflowConfig): WorkflowTemplateBody {
   return {
     dueWorkingDays: c.dueWorkingDays,
-    steps: c.steps.flatMap((s) => (s.type === "tell" ? [] : [s])).map((s) => (s.type === "approve" ? { type: "approve" as const, approvers: Math.min(3, s.approvers.length), values: s.values ?? "unusual", ...(s.nobodyElse ? { nobodyElse: s.nobodyElse } : {}) } : s)),
+    steps: c.steps.flatMap((s): WorkflowTemplateStep[] => {
+      switch (s.type) {
+        case "tell": return [];
+        case "approve": return [{ type: "approve", approvers: Math.min(3, s.approvers.length), values: s.values ?? "unusual", ...(s.nobodyElse ? { nobodyElse: s.nobodyElse } : {}) }];
+        case "checklist": return [s.kind === "tick" ? { type: "checklist", kind: "tick", text: s.text, dueWorkingDays: s.dueWorkingDays } : { type: "checklist", kind: "info", text: s.text, day: s.day }];
+        case "send_snapshot": return [{ type: "send_snapshot" }];
+        default: return [s];
+      }
+    }),
   };
 }
 
 /** A Workflow's Due Date and steps from a template, with the Approvers picked, in order. Null when the number of
- * people picked is not the number the template asks for. */
+ * people picked is not the number the template asks for. Its Checklist Items come with nobody to tell or to tick them
+ * off (an item for information waits, one to tick off reads "nobody yet") and no id: saving the Workflow gives each one. */
 export function fromWorkflowTemplate(t: WorkflowTemplateBody, approvers: string[]): WorkflowConfig | null {
   const wanted = t.steps.reduce((n, s) => (s.type === "approve" ? n + s.approvers : n), 0);
   if (approvers.length !== wanted || new Set(approvers).size !== approvers.length) return null;
   let next = 0;
   return {
     dueWorkingDays: t.dueWorkingDays,
-    steps: t.steps.map((s) => (s.type === "approve" ? { type: "approve" as const, approvers: approvers.slice(next, (next += s.approvers)), values: s.values ?? "unusual", ...(s.nobodyElse ? { nobodyElse: s.nobodyElse } : {}) } : s)),
+    steps: t.steps.map((s): WorkflowStep => {
+      switch (s.type) {
+        case "approve": return { type: "approve", approvers: approvers.slice(next, (next += s.approvers)), values: s.values ?? "unusual", ...(s.nobodyElse ? { nobodyElse: s.nobodyElse } : {}) };
+        case "checklist": return s.kind === "tick" ? { type: "checklist", id: "", kind: "tick", text: s.text, assignee: null, dueWorkingDays: s.dueWorkingDays } : { type: "checklist", id: "", kind: "info", text: s.text, day: s.day, people: [], groups: [] };
+        case "send_snapshot": return { type: "send_snapshot", id: "", dashboardId: 0, people: [], groups: [] };
+        default: return s;
+      }
+    }),
   };
 }

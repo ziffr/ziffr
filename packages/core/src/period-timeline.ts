@@ -7,6 +7,8 @@
 // about it. A Thread's words are shown only to someone who may read it (canReadThread), and then only their first
 // words, opened from their seal here and nowhere else.
 import { db } from "./db";
+import { openWorkflowRow } from "./workflow-rows";
+import { mayReadItem } from "./checklist-rules";
 import { assertScope, Forbidden, type Actor, type KeyActor } from "./actor";
 import { getGroups, peopleFor, threadReader, visibleDashboards, visibleMetricIds } from "./access";
 import { getMetrics } from "./workspace-data";
@@ -19,10 +21,10 @@ import { numberStyleOf } from "./workspace-settings";
 import { widgetMetricIds } from "./widget-metrics";
 import { workingPeriod } from "./workflow-rules";
 import { localTime } from "./workspace-clock";
-import type { Action, Metric, Period } from "./types";
+import type { Action, ChecklistItem, Metric, Period, WorkflowConfig } from "./types";
 
 /** What kind of thing happened. */
-export type TimelineKind = "asked" | "reminded" | "in" | "action" | "approval_asked" | "approved" | "sent_back" | "checked" | "note" | "published" | "locked" | "snapshot";
+export type TimelineKind = "asked" | "reminded" | "in" | "action" | "approval_asked" | "approved" | "sent_back" | "checked" | "note" | "published" | "locked" | "snapshot" | "checklist_sent";
 
 /** One line of the timeline: one event, or several of the same kind close together. */
 export type TimelineEvent = {
@@ -288,6 +290,22 @@ export async function periodTimeline(actor: Actor | KeyActor, workflowId: number
   for (const s of snapshots ?? []) {
     const dash = dashboards.find((d) => d.id === s.dashboard_id)!;
     raw.push({ at: new Date(s.shown_at as string), kind: "snapshot", metric: null, text: `Snapshot ${s.label} of ${dash.name} is ready`, path: `/dashboards/${dash.id}/snapshots/${s.id}` });
+  }
+
+  // Checklist Items sent for this period (spec 0045): the claim says when and to how many, the config says what. The
+  // words are shown only to someone who may read the item; everyone else reads that an item was sent. The count of
+  // people left out is the owner's alone.
+  const { data: stepRuns } = await db().from("workflow_step_runs").select("step_id, ran_at, sent, skipped").eq("workspace_id", ws).eq("workflow_id", workflowId).eq("period_start", period).eq("kind", "checklist").order("ran_at");
+  if (stepRuns?.length) {
+    const flow = await openWorkflowRow(ws, (await db().from("workflows").select("id, owner_id, config").eq("id", workflowId).eq("workspace_id", ws).maybeSingle()).data);
+    const items = new Map(((flow?.config as WorkflowConfig | undefined)?.steps ?? []).filter((x): x is ChecklistItem => x.type === "checklist").map((x) => [x.id, x]));
+    const me = { id: viewer, role: actor.role, groupIds: groups.filter((g) => g.members.includes(viewer)).map((g) => g.id) };
+    for (const r of stepRuns) {
+      const item = items.get(String(r.step_id));
+      const may = Boolean(flow && item && mayReadItem(item, me, String(flow.owner_id)));
+      const left = Number(r.skipped);
+      raw.push({ at: new Date(r.ran_at as string), kind: "checklist_sent", metric: null, text: may ? `Sent “${firstWords(item!.text)}” to ${plural(Number(r.sent), "person", "people")}` : "A checklist item was sent", detail: flow && flow.owner_id === viewer && left ? `${plural(left, "person", "people")} could not be told` : undefined });
+    }
   }
 
   raw.sort((a, b) => a.at.getTime() - b.at.getTime());

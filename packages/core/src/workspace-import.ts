@@ -37,6 +37,7 @@ import { createDashboardFromBody } from "./dashboard-templates";
 import { dashboardTemplateFromFile, templateSlots } from "./dashboard-template-file";
 import { deckTemplateFromFile } from "./deck-template-file";
 import { workflowTemplateFromFile } from "./workflow-template-file";
+import { fromWorkflowTemplate } from "./team-templates";
 import { createDeck, setDeckTheme } from "./decks";
 import { saveWorkflow, setMetricWorkflow } from "./workflows";
 import { writeFormula, withSlugs } from "./pack-setup";
@@ -449,7 +450,9 @@ async function writePass(path: string, limits: WorkspaceExportReaderLimits, pers
       case "workflow": {
         const body = workflowTemplateFromFile(r.workflow);
         // The file holds how many Approvers there are, never who: until people join, the Owner approves.
-        const config: WorkflowConfig = { dueWorkingDays: body.dueWorkingDays, steps: body.steps.map((s) => (s.type === "approve" ? { type: "approve" as const, approvers: [personId], values: s.values ?? "unusual", ...(s.nobodyElse ? { nobodyElse: s.nobodyElse } : {}) } : s)) };
+        // Its Checklist Items come with nobody to tell or to tick them off, as when a Workflow is made from a template.
+        const open = fromWorkflowTemplate({ ...body, steps: body.steps.map((s) => (s.type === "approve" ? { ...s, approvers: 0 } : s)) }, []) as WorkflowConfig;
+        const config: WorkflowConfig = { ...open, steps: open.steps.map((s) => (s.type === "approve" ? { ...s, approvers: [personId] } : s)) };
         const id = await saveWorkflow(actor, null, r.workflow.name, config, { message: "Imported from a Workspace Export" });
         workflows.set(r.id, id);
         for (const l of r.metrics) {

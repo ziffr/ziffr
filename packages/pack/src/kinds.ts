@@ -43,10 +43,14 @@ export type CompareKey = "prev" | "dod" | "wow" | "mom" | "qoq" | "hoh" | "yoy";
 /** A period longer than a Metric's own that a widget shows it by (Show by). */
 export type DisplayPeriod = "week" | "month" | "quarter" | "half" | "year";
 
-/** A step of a Workflow Template, with its Approvers left open: only how many to pick. */
+/** A step of a Workflow Template, with its Approvers left open (only how many to pick) and the people, Groups and
+ * dashboard of its Checklist Items and Send Snapshot step left open too. */
 export type WorkflowTemplateStep =
   | { type: "remind"; daysBefore: number }
   | { type: "escalate"; to: "stand-in" | "owner"; daysAfter: number }
   | { type: "check"; changePct: number; outsideTarget: boolean }
   | { type: "approve"; approvers: number; values?: "unusual" | "every"; nobodyElse?: "self-check" | "count" }
+  | { type: "checklist"; kind: "info"; text: string; day: number }
+  | { type: "checklist"; kind: "tick"; text: string; dueWorkingDays: number }
+  | { type: "send_snapshot" }
   | { type: "publish"; lock: boolean };

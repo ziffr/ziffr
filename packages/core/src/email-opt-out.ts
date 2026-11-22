@@ -28,7 +28,7 @@ export async function unsubscribeIsTell(token: string): Promise<boolean> {
 async function deliveryFor(token: string) {
   if (!TOKEN.test(String(token))) return null;
   const { data: d } = await db().from("deliveries").select("id, workspace_id, recipient_id, kind, action_id, prompt_id, alert_id, tell_workflow_id").eq("unsubscribe_token", token).maybeSingle();
-  if (!d || d.workspace_id === DEMO_WORKSPACE_ID || !(OPT_OUT_KINDS.includes(d.kind) || (d.kind === "alert" && (d.alert_id || d.tell_workflow_id)))) return null;
+  if (!d || d.workspace_id === DEMO_WORKSPACE_ID || !(OPT_OUT_KINDS.includes(d.kind) || (d.kind === "alert" && (d.alert_id || d.tell_workflow_id)) || (d.kind === "checklist" && d.tell_workflow_id))) return null;
   return d;
 }
 
@@ -37,8 +37,8 @@ async function deliveryFor(token: string) {
 export async function optOutByToken(token: string): Promise<boolean> {
   const d = await deliveryFor(token);
   if (!d) return false;
-  if (d.kind === "alert" && d.tell_workflow_id) {
-    // A Tell message (GLOSSARY: Tell): "stop telling me" for the Workflow it came from, the person's own switch (tell.ts).
+  if ((d.kind === "alert" || d.kind === "checklist") && d.tell_workflow_id) {
+    // A Tell message or a Checklist Item (GLOSSARY: Tell, Checklist Item): "stop telling me" for the Workflow it came from, the person's own switch (tell.ts).
     await db().from("tell_stops").upsert({ workflow_id: d.tell_workflow_id, person_id: d.recipient_id, workspace_id: d.workspace_id }, { onConflict: "workflow_id,person_id", ignoreDuplicates: true });
     return true;
   }

@@ -38,6 +38,14 @@ type AboutMetric = { id: number; workspace_id: string; kind: string; recipient_i
  * reminders and Escalations by their task; other messages about a Metric (a question someone asks) still go. */
 export async function archivedMetricHolds(d: AboutMetric): Promise<string | null> {
   const ws = d.workspace_id;
+  // A Checklist Item's message (spec 0045) stops when the person said "stop telling me" after it was queued; it names no Metric.
+  if (d.kind === "checklist") {
+    if (d.tell_workflow_id && d.recipient_id) {
+      const { data: stopped } = await db().from("tell_stops").select("person_id").eq("workflow_id", d.tell_workflow_id).eq("person_id", d.recipient_id).eq("workspace_id", ws).maybeSingle();
+      if (stopped) return "Not sent: the person asked not to be told by this Workflow.";
+    }
+    return null;
+  }
   // An Alert message (GLOSSARY: Alert) leaves only while its recipient may still see its Metric and it is in use: asked
   // again here, when it is sent, not only when it was queued (AGENTS.md rule 3). The words say nothing about which.
   if (d.kind === "alert" && d.alert_metric_id) {

@@ -245,7 +245,7 @@ Pick the first and the last day you are **Away**. While you are away, Prompts me
 
 ### Quiet hours
 
-Under **Quiet hours** you choose the hours of the night and the whole days (the weekend, say) when Ziffr should leave you alone: from 19:00 until 07:00, and all day Saturday and Sunday. Requests for numbers, reminders and Alerts that would arrive then wait, and are sent when your quiet hours end; none is dropped. The times are in the time zone you pick there, or in the Workspace's. A Due Date does not move: only the message waits, so something due on Monday morning may be asked for first thing, when your quiet hours end.
+Under **Quiet hours** you choose the hours of the night and the whole days (the weekend, say) when Ziffr should leave you alone: from 19:00 until 07:00, and all day Saturday and Sunday. Requests for numbers, reminders, Alerts and checklist items that would arrive then wait, and are sent when your quiet hours end; none is dropped. The times are in the time zone you pick there, or in the Workspace's. A Due Date does not move: only the message waits, so something due on Monday morning may be asked for first thing, when your quiet hours end.
 
 If you set nothing, you follow the Workspace's default, if its Owners or Admins set one (the page says so). **Use the Workspace's default** removes your own. To have none even though the Workspace has a default, set the same hour for **From** and **Until** and no days. You cannot choose all seven days. A message already waiting keeps its time if you change your quiet hours afterwards.
 
@@ -263,7 +263,7 @@ On a Metric's page, **Alert me…** opens the same list and the form for another
 
 Each Alert has three buttons: **Pause** (or **Resume**), **Edit** and **Delete**. Besides your own pause, Ziffr can hold an Alert back and says why: **you cannot see this Metric now**, **the Metric is archived**, **the Metric has no target now** or **the Metric has no Workflow now**. It resumes by itself when the reason ends (except for no target or no Workflow, which you end by editing the condition). An Alert on a Metric you can no longer see is not listed at all, and nothing is sent for it. Alerts are only yours: nobody sets one for you or sees yours. In the demo the page is read-only.
 
-If a Workflow has a **Tell** step that names you, directly or through a Group, and you can see one of its Metrics, a section **Workflows that tell you** lists that Workflow with **Stop telling me**. After you stop it, none of its Tell steps tells you again until you press **Tell me again**; the link at the bottom of a Tell email does the same. Nobody is told when you do.
+If a Workflow has a **Tell** step that names you, directly or through a Group, and you can see one of its Metrics, a section **Workflows that tell you** lists that Workflow with **Stop telling me**. A **checklist item** that names you, directly or through a Group, lists its Workflow there as well, whether or not you see its Metrics, and waits out your Quiet Hours like an Alert. After you stop it, none of its Tell steps and none of its checklist items tells you again until you press **Tell me again**; the link at the bottom of a Tell email does the same. Nobody is told when you do.
 
 ## Connected assistants
 

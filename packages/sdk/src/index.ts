@@ -262,7 +262,9 @@ export type WorkflowStep =
   | { type: "check"; change_pct: number; outside_target: boolean }
   | { type: "approve"; approvers: string[]; values: "unusual" | "every"; nobody_else: "self-check" | "count" }
   | { type: "publish"; lock: boolean }
-  | { type: "tell"; id?: string; condition: { kind: "share_of_target" | "changed_more"; share: string } | { kind: "at_or_above" | "below"; value: string }; people: string[]; groups: number[] };
+  | { type: "tell"; id?: string; condition: { kind: "share_of_target" | "changed_more"; share: string } | { kind: "at_or_above" | "below"; value: string }; people: string[]; groups: number[] }
+  /** A Checklist Item: `kind` "info" goes to `people` and `groups` on its `day` (working days after the period ends); "tick" is a Task for `assignee`. Names people, so without workflows:people send it back as read. */
+  | { type: "checklist"; id?: string; kind: "info" | "tick"; text: string; day?: number; people?: string[]; groups?: number[]; assignee?: string | null; stand_in?: string | null; due_working_days?: number; read_group?: number | null };
 
 /** When a Workflow runs on its own (the Asking Schedule): a whole hour in the Workspace's time zone (null: the Workspace's run hour) and the days. */
 export type AskingSchedule = { hour: number | null; days: { kind: "every_day" } | { kind: "weekdays" } | { kind: "chosen_weekdays"; days: number[] } | { kind: "every_n_days"; n: number; from: string } | { kind: "month_day"; day: number | "last" } };
@@ -281,7 +283,7 @@ export type TimelineEvent = {
   /** The same moment's day in the workspace's time zone, and its time (HH:mm). */
   day: string;
   time: string;
-  kind: "asked" | "reminded" | "in" | "action" | "approval_asked" | "approved" | "sent_back" | "checked" | "note" | "published" | "locked" | "snapshot";
+  kind: "asked" | "reminded" | "in" | "action" | "approval_asked" | "approved" | "sent_back" | "checked" | "note" | "published" | "locked" | "snapshot" | "checklist_sent";
   /** One sentence; names in it come from the workspace. */
   text: string;
   count: number;
