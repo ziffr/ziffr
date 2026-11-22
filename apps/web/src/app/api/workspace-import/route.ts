@@ -43,7 +43,7 @@ export async function POST(req: Request) {
   } catch (e) {
     return say(forPeople(e) ?? "The import could not be started.", 400);
   }
-  await sweepUploads();
+  await sweepUploads().catch(() => undefined);
   const path = join(tmpdir(), `ziffr-import-${randomUUID()}`);
   let size = 0;
   let beat = 0;

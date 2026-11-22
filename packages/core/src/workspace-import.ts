@@ -292,6 +292,12 @@ async function runImport(id: string, personId: string, path: string, limits: Wor
     if (!still) throw new Error("The import was ended before it finished.");
     const { error } = await db().from("workspaces").update({ importing_at: null }).eq("id", workspaceId);
     if (error) throw new Error("The Workspace could not be opened for use.");
+    // A stale claim may have ended the job in the moment between: then the Workspace is marked again and undone.
+    const { data: after } = await db().from("workspace_imports").select("id").eq("id", id).in("status", ACTIVE).maybeSingle();
+    if (!after) {
+      await db().from("workspaces").update({ importing_at: new Date().toISOString() }).eq("id", workspaceId);
+      throw new Error("The import was ended before it finished.");
+    }
     await audit({ personId, workspaceId, role: "owner" }, { kind: "workspace.imported", object: { type: "workspace", id: workspaceId }, details: { ...counts } });
     await db().from("workspace_imports").update({ status: "done", step: "Done", counts, records_done: checked.records, finished_at: new Date().toISOString(), updated_at: new Date().toISOString() }).eq("id", id).in("status", ACTIVE);
   } catch (e) {
