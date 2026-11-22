@@ -1,4 +1,25 @@
 {
+  "sandbox": {
+    "enabled": true,
+    "excludedCommands": [
+      "docker *",
+      "supabase *",
+      "gh *",
+      "pnpm install *",
+      "pnpm add *",
+      "pnpm ci:local",
+      "pnpm prototype*"
+    ],
+    "network": {
+      "allowLocalBinding": true,
+      "allowedDomains": [
+        "registry.npmjs.org",
+        "github.com",
+        "api.github.com",
+        "*.githubusercontent.com"
+      ]
+    }
+  },
   "permissions": {
     "allow": [
       "Bash(pnpm exec tsc --noEmit)",
