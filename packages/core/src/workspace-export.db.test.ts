@@ -156,6 +156,12 @@ describe("a Workspace Export of an item the exporting Owner may not read", () =>
     const why = (await previewWorkspaceExport(s.as)).leftOut.find((l) => l.name === "Theirs")?.why;
     expect(why).toMatch(/1 checklist item you may not read/);
     expect(why).not.toContain("Accrual");
+    // An Owner inside the Group reads the item, so the words come along (and nothing is counted).
+    await setGroupMember(s.as, s.group, s.owner, true);
+    const inside = of((await download(s.as)).records, "workflow").find((r) => r.workflow.name === "Theirs");
+    expect(JSON.stringify(inside)).toContain("Accrual file is on the drive.");
+    expect(JSON.stringify(inside)).not.toContain("readGroup");
+    expect((await previewWorkspaceExport(s.as)).leftOut.find((l) => l.name === "Theirs")?.why).not.toMatch(/may not read/);
   });
 });
 
