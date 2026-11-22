@@ -36,36 +36,43 @@ const ZERO: Fraction = { num: BigInt(0), den: BigInt(1) };
 // Stryker disable next-line EqualityOperator: the size of 0 is 0 whichever side of the sign it is read from.
 const size = (a: Fraction): Fraction => (a.num < BigInt(0) ? { num: -a.num, den: a.den } : a);
 
-// Every value that a Method predicted before it came, by row, for those whose period before has a value.
-function predictions(rows: Point[], span: Span, season: number, method: Candidate): Map<number, Prediction> {
+type Predictor = (rows: Point[], span: Span, season: number) => Map<number, Prediction>;
+
+// A value's prediction counts only where the period before it has a value. Every prediction is for the fifth value or later,
+// so the row before it exists.
+const consecutive = (rows: Point[], span: Span, out: Map<number, Prediction>, i: number, p: Prediction) => {
+  if (periodsBetween(rows[i - 1].period, rows[i].period, span) === 1) out.set(i, p);
+};
+
+// Holt needs four values before one is predicted (FORECAST_MIN_POINTS).
+const holtPredictions: Predictor = (rows, span) => {
   const out = new Map<number, Prediction>();
-  // Every prediction is for the fifth value or later, so the row before it exists.
-  const keep = (i: number, p: Prediction) => {
-    if (periodsBetween(rows[i - 1].period, rows[i].period, span) === 1) out.set(i, p);
-  };
-  if (method === "holt") {
-    // Holt needs four values before one is predicted (FORECAST_MIN_POINTS).
-    // Stryker disable next-line EqualityOperator: four values predict nothing from the fifth on, so `<` and `<=` give the same.
-    if (rows.length <= 4) return out;
-    for (const s of holtFit(rows.map((r) => fractionOf(r.value))).steps) if (s.index >= 4) keep(s.index, { period: rows[s.index].period, predicted: s.predicted, squares: s.squares, errors: s.errors });
-    return out;
-  }
+  // Stryker disable next-line EqualityOperator: four values predict nothing from the fifth on, so `<` and `<=` give the same.
+  if (rows.length <= 4) return out;
+  for (const s of holtFit(rows.map((r) => fractionOf(r.value))).steps) if (s.index >= 4) consecutive(rows, span, out, s.index, { period: rows[s.index].period, predicted: s.predicted, squares: s.squares, errors: s.errors });
+  return out;
+};
+
+// The seasonal method predicts from the third season on only: its first two seasons are what it starts from.
+const seasonalPredictions: Predictor = (rows, span, season) => {
+  const out = new Map<number, Prediction>();
   const run = fitHoltWinters(rows, span, season);
   if (!run.ok) return out;
   const at = new Map(rows.map((r, i) => [r.period, i]));
-  // The seasonal method predicts from the third season on only: its first two seasons are what it starts from.
   for (const s of run.fit.steps) {
     const i = at.get(s.period);
-    if (i !== undefined && periodsBetween(run.fit.first, s.period, span) >= 2 * season) keep(i, s);
+    if (i !== undefined && periodsBetween(run.fit.first, s.period, span) >= 2 * season) consecutive(rows, span, out, i, s);
   }
   return out;
-}
+};
+
+const PREDICTORS: Record<Candidate, Predictor> = { holt: holtPredictions, holtWinters: seasonalPredictions };
 
 // The outcomes of a method over a series, by row, for the rows from `from` on.
 function outcomes(rows: Point[], span: Span, season: number, method: Candidate, from: number): (Outcome & { row: number })[] {
   const out: (Outcome & { row: number })[] = [];
   // The predictions were made in order, and a Map keeps the order it was given.
-  for (const [row, p] of predictions(rows, span, season, method)) {
+  for (const [row, p] of PREDICTORS[method](rows, span, season)) {
     if (row < from) continue;
     const miss = lowestTerms(minus(fractionOf(rows[row].value), p.predicted));
     const sd = Math.sqrt(nearest(over(p.squares, { num: BigInt(p.errors), den: BigInt(1) })));

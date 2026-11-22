@@ -280,6 +280,12 @@ describe("the cautions", () => {
     expect(few.kind).toBe("answer");
     expect(few.cautions).toEqual([]);
   });
+  it("says a period far from the rest for the Method that uses the yearly pattern too, from what the same rule gives without it", () => {
+    const vs = Array.from({ length: 30 }, (_, t) => Math.round(100 + 2 * t + (t >= 24 ? 80 : 0) + 8 * Math.sin((2 * Math.PI * (t % 12)) / 12)));
+    const t = forecastTakeaway(euro, months("2020-01", vs), ctx);
+    expect(t.method).toBe("Holt-Winters, additive");
+    expect(t.cautions).toEqual(["This result is pulled by 2 months far from the rest; without them it reads 303 €."]);
+  });
   it("says periods left out for a Method that uses the yearly pattern too", () => {
     const pts = points("airline-last-36").filter((_, i) => i !== 30);
     const t = forecastTakeaway(euro, pts, ctx);

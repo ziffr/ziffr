@@ -67,20 +67,21 @@ export function forecastTakeaway(metric: Metric, points: Point[], ctx: TakeawayC
   if (ahead > maxAhead(span)) return refuse(text("refuse-too-far", { name: metric.name, ahead, most: maxAhead(span) }));
 
   // The yearly (weekly) pattern is a candidate with two full seasons; a pattern that does not repeat rules it out.
-  const candidate = season >= 2 && rows.length >= minimumPeriods("seasonal", { seasonLength: season });
+  const candidate = season > 1 && rows.length >= minimumPeriods("seasonal", { seasonLength: season });
   const pattern = text(span === "day" ? "pattern-weekly" : "pattern-yearly");
   const ruledOut = candidate ? check("seasonal", { canSwitchTo: ["holt"] }).switches : [];
-  const best = bestForecast(rows, span, season, { horizon: ahead, seasonal: ruledOut.length === 0 })!;
+  const options = { horizon: ahead, seasonal: ruledOut.length === 0 };
+  const best = bestForecast(rows, span, season, options)!;
   const method: Candidate = best.method;
   const target = best.points[ahead - 1];
   if (!Number.isFinite(target.value) || !Number.isFinite(target.sd)) return refuse(text("refuse-huge", { name: metric.name }));
 
   // The far-off check asks what the forecast reads without some periods: the same rule, on what is left.
   const rerun = (left: ReadonlySet<string>): Rerun => {
-    const p = (left.size === 0 ? best : bestForecast(rows.filter((r) => !left.has(r.period)), span, season, { horizon: ahead, seasonal: ruledOut.length === 0 }))?.points[ahead - 1];
+    const p = bestForecast(rows.filter((r) => !left.has(r.period)), span, season, options)?.points[ahead - 1];
     return p ? { value: p.value, range: p.hi - p.lo } : null;
   };
-  const verdict = method === "holtWinters" ? check("seasonal", { rerun, canSwitchTo: ["holt"] }) : check("forecast", { rerun });
+  const verdict = method === "holtWinters" ? check("seasonal", { rerun }) : check("forecast", { rerun });
   const cautions = lines(verdict.cautions);
   if (target.sd === 0) cautions.push(text("caution-no-misses"));
   const notes = lines(ruledOut);
