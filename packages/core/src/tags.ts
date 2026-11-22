@@ -28,7 +28,7 @@ const GUESTS = "Guests use only the Tags they can see, and make no new ones.";
 
 /** Whether the actor may put Tags on this Metric: its owner, or a person it is shared with as Editor, directly or through a
  * Group, in this Workspace, the Guest Editor included (who is further limited to Tags they see). A Viewer never. */
-async function mayTag(actor: Actor, metricId: number): Promise<boolean> {
+export async function mayTag(actor: Actor, metricId: number): Promise<boolean> {
   if (!Number.isSafeInteger(metricId) || metricId < 1) return false;
   const { data: m } = await db().from("metrics").select("owner_id").eq("id", metricId).eq("workspace_id", actor.workspaceId).maybeSingle();
   if (!m) return false;
