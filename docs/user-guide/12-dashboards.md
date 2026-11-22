@@ -93,6 +93,8 @@ The **⋯** menu holds:
 | **Save as template** | The owner and Editors, once there are Widgets | Saves the dashboard as a team Dashboard Template (see [Saving as a template](#saving-a-dashboard-as-a-dashboard-template)). |
 | **Who can see this** | Everyone | Lists everyone with access and why (see [Sharing](#sharing)). |
 | **View links…** | The owner | Links for people outside the team (see [View Links](#view-links)). |
+
+A deck's **⋯** menu has the same **Who can see this** and **View links…** entries, with the same windows (see [Decks](14-decks-and-themes.md)).
 | **Theme…** | The owner and Editors | Picks the Theme the dashboard is drawn in. |
 | **Versions** | Everyone | The dashboard's history in a panel beside it (see [Versions](#versions)). |
 
