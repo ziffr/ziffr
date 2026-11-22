@@ -3,7 +3,7 @@
 // names, quotes or links an event about a Metric the person may not see.
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { db } from "./db";
-import { actionsInbox, actionsTimeline, inboxGroup, timelineTone } from "./actions-overview";
+import { actionsAskedByMe, actionsTimeline, askedGroup, timelineTone } from "./actions-overview";
 import { saveWorkflow } from "./workflows";
 import { workspace } from "./test/db-fixtures";
 
@@ -12,7 +12,7 @@ const BEFORE = "2026-11-09";
 let w: Awaited<ReturnType<typeof workspace>>;
 let sara: string, mia: string, ben: string;
 let workflowId: number, revenue: number, secret: number, loose: number;
-let toBen: number, askedByBen: number, closedOne: number, secretToBen: number;
+let toBen: number, askedByBen: number, closedOne: number, secretToBen: number, benAskedSecret: number;
 
 beforeAll(async () => {
   w = await workspace();
@@ -30,6 +30,7 @@ beforeAll(async () => {
   closedOne = await w.action({ metric_id: revenue, period_start: BEFORE, asker_id: ben, assignee_id: mia, status: "closed", question: "Old one" });
   // About a Metric Ben does not see, given to him: he may read it, but sees no value of it.
   secretToBen = await w.action({ metric_id: secret, period_start: PERIOD, asker_id: sara, assignee_id: ben, question: "Explain the payroll" });
+  benAskedSecret = await w.action({ metric_id: secret, period_start: PERIOD, asker_id: ben, assignee_id: mia, question: "Why so much?" });
   await w.action({ metric_id: loose, period_start: PERIOD, asker_id: ben, assignee_id: mia, question: "Coffee beans?" });
   // An Approval of the Secret Metric between two others, and an Approval Ben may read.
   await w.action({ metric_id: secret, period_start: PERIOD, asker_id: mia, assignee_id: sara, kind: "task", purpose: "approval", question: "Approve Secret payroll: 987654.", created_at: "2026-11-17T10:00:00Z" });
@@ -40,36 +41,34 @@ afterAll(async () => { await w.cleanup(); });
 
 const benActor = () => w.actor(ben, "member");
 
-describe("the Inbox", () => {
-  it("groups by the person's own state", () => {
-    const row = (status: "open" | "answered" | "closed", asker: string, assignee: string) => ({ status, asker_id: asker, assignee_id: assignee });
-    expect(inboxGroup(row("open", "a", "me"), "me")).toBe("needs_you");
-    expect(inboxGroup(row("answered", "me", "b"), "me")).toBe("needs_you");
-    expect(inboxGroup(row("open", "me", "b"), "me")).toBe("waiting");
-    expect(inboxGroup(row("answered", "a", "me"), "me")).toBe("waiting");
-    expect(inboxGroup(row("closed", "me", "b"), "me")).toBe("done");
+describe("Asked by me", () => {
+  it("groups by what the Action waits for", () => {
+    expect(askedGroup({ status: "open" })).toBe("open");
+    expect(askedGroup({ status: "answered" })).toBe("answered");
+    expect(askedGroup({ status: "closed" })).toBe("done");
   });
 
-  it("lists the person's own Actions newest first, narrowed by scope, with the value and its change", async () => {
-    const mine = await actionsInbox(benActor());
-    expect(mine.find((r) => r.id === toBen)).toMatchObject({ group: "needs_you", value: "150", changePercent: 50, metricName: "Revenue" });
-    expect(mine.find((r) => r.id === askedByBen)!.group).toBe("waiting");
+  it("lists only what the person asked, newest first, with the value and its change", async () => {
+    const mine = await actionsAskedByMe(benActor());
+    expect(mine.every((r) => r.askerId === ben)).toBe(true);
+    expect(mine.some((r) => r.id === toBen)).toBe(false);
+    expect(mine.find((r) => r.id === askedByBen)).toMatchObject({ group: "open", value: "150", changePercent: 50, metricName: "Revenue" });
     expect(mine.find((r) => r.id === closedOne)!.group).toBe("done");
-    expect([...mine].map((r) => r.createdAt)).toEqual([...mine].map((r) => r.createdAt).sort().reverse());
-    const asked = await actionsInbox(benActor(), "asked");
-    expect(asked.every((r) => r.askerId === ben)).toBe(true);
-    expect(asked.some((r) => r.id === toBen)).toBe(false);
+    expect(mine.map((r) => r.createdAt)).toEqual([...mine.map((r) => r.createdAt)].sort().reverse());
   });
 
-  it("gives no value or change for a Metric the person does not see", async () => {
-    const row = (await actionsInbox(benActor())).find((r) => r.id === secretToBen)!;
-    expect(row).toMatchObject({ value: null, changePercent: null });
-    expect(JSON.stringify(row)).not.toContain("987654");
+  it("gives no value or change for a Metric the person does not see, and leaves out Threads they may not read", async () => {
+    // Ben asked about a Metric he does not see: he reads his own Action, but sees no value of it. The owner does.
+    const sarasView = await actionsAskedByMe(w.actor(sara, "owner"));
+    expect(sarasView.find((r) => r.id === secretToBen)!.value).toMatch(/987/);
+    const bens = await actionsAskedByMe(benActor());
+    expect(bens.find((r) => r.id === benAskedSecret)).toMatchObject({ value: null, changePercent: null });
+    expect(JSON.stringify(bens)).not.toContain("987654");
   });
 
-  it("leaves out Actions the person may not read", async () => {
-    const all = await actionsInbox(benActor(), "all");
-    expect(all.some((r) => r.question.includes("Approve Secret payroll"))).toBe(false);
+  it("is empty for a person of another Workspace", async () => {
+    const other = await workspace(); const eve = await other.person("owner");
+    try { expect(await actionsAskedByMe(other.actor(eve, "owner"))).toEqual([]); } finally { await other.cleanup(); }
   });
 });
 
@@ -113,7 +112,6 @@ describe("the Timeline", () => {
     try {
       const t = await actionsTimeline(other.actor(eve, "owner"));
       expect(t.items).toEqual([]);
-      expect(await actionsInbox(other.actor(eve, "owner"), "all")).toEqual([]);
     } finally { await other.cleanup(); }
   });
 });

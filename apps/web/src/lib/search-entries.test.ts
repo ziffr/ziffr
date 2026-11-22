@@ -7,7 +7,7 @@ const labels = (r: { label: string }[]) => r.map((e) => e.label);
 describe("pageEntries", () => {
   it("offers a Guest only the pages their menus lead to", () => {
     const guest = labels(pageEntries("guest"));
-    expect(guest).toEqual(expect.arrayContaining(["Actions", "Metrics", "My schedule"]));
+    expect(guest).toEqual(expect.arrayContaining(["Schedule", "Metrics", "My schedule"]));
     // A Guest sees only what is shared with them (#504): no member list, Workflows or Access Keys.
     expect(guest).not.toContain("Members and Groups");
     expect(guest).not.toContain("Workflows");
@@ -37,7 +37,7 @@ describe("matchEntries", () => {
   const all = [...pageEntries("owner"), ...commandEntries({ create: true, invite: true })];
   it("finds pages by their plain words", () => {
     expect(labels(matchEntries(all, "webhook"))[0]).toBe("Webhooks");
-    expect(labels(matchEntries(all, "approval"))).toEqual(expect.arrayContaining(["Actions", "Workflows"]));
+    expect(labels(matchEntries(all, "approval"))).toEqual(expect.arrayContaining(["Schedule", "Workflows"]));
     expect(labels(matchEntries(all, "retention"))).toEqual(["Size and Retention"]);
     expect(labels(matchEntries(all, "invite"))).toEqual(expect.arrayContaining(["Invite someone", "Members and Groups"]));
     expect(labels(matchEntries(all, "settings"))).toContain("General");

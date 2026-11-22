@@ -1,7 +1,7 @@
 import { headers } from "next/headers";
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
-import { dueValueCount, getPeopleIn, getProfiles, openActionCount } from "@/lib/data";
+import { dueValueCount, getPeopleIn, getProfiles } from "@/lib/data";
 import { currentActor, currentWorkspaceId, myWorkspaces, viewerId } from "@/lib/viewer";
 import { isDemo, personFor, sessionUser } from "@/lib/auth";
 import { demoEnabled } from "@/lib/demo-mode";
@@ -94,7 +94,7 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
     );
   }
   const [shown, viewer] = await Promise.all([getProfiles(), viewerId()]);
-  const [open, workspaceId, actor] = await Promise.all([openActionCount(viewer), currentWorkspaceId(), currentActor()]);
+  const [workspaceId, actor] = await Promise.all([currentWorkspaceId(), currentActor()]);
   const { role } = actor;
   // The demo's Viewing as picker offers all its made-up people, also while viewing as its Guest.
   const profiles = demo ? await getPeopleIn(workspaceId) : shown;
@@ -149,7 +149,7 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
         <link href="https://fonts.googleapis.com/css2?family=Geist+Mono:wght@400&display=swap" rel="stylesheet" />
       </head>
       <body className="min-h-screen bg-background font-sans antialiased">
-        <AppShell workspace={workspaceTree(role)} settings={settingsGroups(role)} pinned={pinned} due={due} open={open} guide={guideHref()} account={accountOf} demo={demoControls} people={demo ? { profiles: profiles.filter((p) => !p.contact), current: viewer } : undefined} collapsed={await sidebarCollapsed()} banners={<>{demoNote}{banners}</>}>
+        <AppShell workspace={workspaceTree(role)} settings={settingsGroups(role)} pinned={pinned} due={due} guide={guideHref()} account={accountOf} demo={demoControls} people={demo ? { profiles: profiles.filter((p) => !p.contact), current: viewer } : undefined} collapsed={await sidebarCollapsed()} banners={<>{demoNote}{banners}</>}>
           {trial?.ended ? (role === "owner" || role === "admin" ? <TrialEnded deletedAt={trial.deletedAt} workspaceExport={role === "owner" ? await workspaceExportState(actor, { sessionStartedAt: await sessionStartedAt() }).catch(() => null) : null} /> : <TrialEndedForMembers owner={trial.ownerName} />) : children}
         </AppShell>
         <LegalFooter className="border-t border-border" />

@@ -1,4 +1,4 @@
-// The Actions page's Timeline (GLOSSARY: Period Timeline, Action, Workflow): what happened, newest first, grouped by day.
+// The Schedule's Timeline view (GLOSSARY: Period Timeline, Action, Workflow): what happened, newest first, grouped by day.
 // The core decides what this viewer may see; this only draws it. Neutral dots; a line that needs attention or is finished
 // also says so in words and a mark, never by colour alone.
 import Link from "next/link";

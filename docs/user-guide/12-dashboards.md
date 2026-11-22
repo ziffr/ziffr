@@ -361,7 +361,7 @@ A dashboard reads two ways. Switch with **Grid** and **Read** in the toolbar.
 
 | Option | What it does |
 | --- | --- |
-| **Overview** | The whole dashboard as arranged, fitted to the screen. On a narrow screen it stacks in reading order. Double-click a Widget to show it alone. |
+| **Overview** | The whole dashboard as arranged, fitted to the screen. When it has so few rows that its Widgets would be stretched far taller than wide on a big screen, the Widgets keep a sensible shape instead and more of them sit in each row. On a narrow screen it stacks in reading order. Double-click a Widget to show it alone. |
 | **One at a time** | One Widget at a time, as large as the screen allows, with **Previous**, **Next** and a count such as "3 / 8". |
 | **Full screen** / **Leave full screen** | Uses the whole screen, without the browser around it. |
 | **Close** | Goes back to the dashboard. |

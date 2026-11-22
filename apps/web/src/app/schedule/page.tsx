@@ -1,3 +1,5 @@
+// The Schedule (GLOSSARY: Schedule, Action): one page for what a person has to do and what happened, in three views
+// switched at the top: To do (below), Asked by me and Timeline. The old Actions page redirects here.
 // My schedule, now at /schedule (ticket #529) (spec 0027, ticket #242; GLOSSARY: Schedule, Due Date, Stand-in, Approval, Task, Question): what you have
 // to do in this Workspace, overdue first, then the next 14 days, then what has no date. It shows the core's Schedule
 // as it is; every entry links to where it is done. Below it, the Calendar Link (ticket #243).
@@ -12,6 +14,14 @@ import { calendarSpan } from "@ziffr/core/schedule-calendar";
 import { CalendarLink } from "./calendar-link";
 import { ScheduleViews, type Duty } from "./views";
 import { PageHeader } from "@/components/page-header";
+import { actionsAskedByMe, actionsTimeline } from "@ziffr/core/actions-overview";
+import { listShareProposals } from "@ziffr/core/share-proposals";
+import { getProfileMap } from "@/lib/data";
+import { ShareProposalButtons } from "@/components/share-proposal-buttons";
+import { ProposalFacts, proposalTitle } from "@/components/share-proposal-summary";
+import { AskedView } from "./asked-view";
+import { TimelineList } from "./timeline-view";
+import { Choices, Pick, href, type Params } from "./choices";
 
 /** How many days ahead the page shows, today included. */
 const DAYS_SHOWN = 14;
@@ -58,20 +68,44 @@ function Section({ title, hint, children }: { title: string; hint?: string; chil
 /** A duty as a calendar chip needs it: its words, its day and where it opens, nothing more than the list shows. */
 const duty = (e: ScheduleEntry): Duty => ({ key: `${e.kind}-${e.metric.id}-${e.period.start}-${e.actionId ?? ""}`, kind: e.kind, title: entryTitle(e), date: e.date!, overdue: e.overdue, lateDays: e.overdueWorkingDays, path: e.path });
 
-export default async function MySchedulePage() {
+const KINDS = [{ id: "", label: "All" }, { id: "value_due", label: "Values" }, { id: "approval", label: "Approvals" }, { id: "task", label: "Tasks" }, { id: "question", label: "Questions" }];
+
+/** To do: values to submit, Approvals, Tasks and Questions waiting for the person, overdue first, then by Due Date. */
+async function ToDo({ sp }: { sp: Params }) {
   const actor = await currentActor();
+  const kind = KINDS.some((k) => k.id && k.id === sp.kind) ? sp.kind : "";
+  const only = (list: ScheduleEntry[]) => (kind ? list.filter((e) => e.kind === kind) : list);
   // Today is the Workspace's, as the core counts it.
   const { timeZone, weekStart } = await workspaceClock(actor);
   const today = localTime(new Date(), timeZone).day;
   // One fetch serves the list (its next 14 days) and the week and month views (from this week on): the same function.
   const span = calendarSpan(today, weekStart);
-  const [s, link, demo] = await Promise.all([schedule(actor, span), myCalendarLink(actor), isDemo()]);
+  const [s0, link, demo, proposals] = await Promise.all([schedule(actor, span), myCalendarLink(actor), isDemo(), listShareProposals(actor)]);
+  const s = { ...s0, overdue: only(s0.overdue), days: s0.days.map((d) => ({ ...d, entries: only(d.entries) })).filter((d) => d.entries.length), undated: only(s0.undated) };
   const listDays = s.days.filter((d) => d.date <= format(addDays(parseISO(today), DAYS_SHOWN - 1), "yyyy-MM-dd"));
   const nothing = !s.overdue.length && !listDays.length && !s.undated.length;
   return (
     <>
-      <PageHeader title="My schedule" sub="What you have to do in this Workspace: values to submit by their Due Dates, Approvals waiting for you, and the Tasks and Questions assigned to you." />
       <div className="space-y-6">
+        <Choices label="Kind" current={kind ?? ""} options={KINDS} make={(id) => href(sp, { kind: id })} />
+        {proposals.length > 0 && (
+          <section aria-label="Share Proposals">
+            <h2 className="mb-2 text-sm font-semibold">Waiting for your confirmation <span className="font-normal text-muted-foreground">{proposals.length}</span></h2>
+            <p className="mb-2 text-xs text-muted-foreground">An assistant or program prepared these. Nothing is shared or sent until you confirm.</p>
+            <ul className="overflow-hidden stock rounded-[var(--radius-card)]">
+              {proposals.map((p) => (
+                <li key={p.id} className="space-y-3 border-b border-border px-4 py-3 last:border-0">
+                  <p className="font-medium">{proposalTitle(p)}</p>
+                  <ProposalFacts p={p} />
+                  <div className="flex flex-wrap items-center gap-3">
+                    <Link href={`/actions/share/${p.id}`} className="text-sm font-medium underline">{p.kind === "view_link" ? "See what they will see, and confirm" : "Review and confirm"}</Link>
+                    <ShareProposalButtons id={p.id} showConfirm={false} />
+                  </div>
+                </li>
+              ))}
+            </ul>
+          </section>
+        )}
         <ScheduleViews
           person={s.personId}
           today={s.today}
@@ -92,6 +126,40 @@ export default async function MySchedulePage() {
         />
         {s.undated.length > 0 && <Section title="No date" hint="Tasks without a due date and Questions"><Entries list={s.undated} /></Section>}
         <CalendarLink link={link} demo={demo} />
+      </div>
+    </>
+  );
+}
+
+const VIEWS = [{ id: "todo", label: "To do" }, { id: "asked", label: "Asked by me" }, { id: "timeline", label: "Timeline" }];
+
+export default async function SchedulePage({ searchParams }: { searchParams: Promise<Params> }) {
+  const sp = await searchParams;
+  const view = sp.view === "asked" || sp.view === "timeline" ? sp.view : "todo";
+  const num = (s?: string) => (s && /^\d{1,9}$/.test(s) ? Number(s) : null);
+  const day = sp.period && /^\d{4}-\d{2}-\d{2}$/.test(sp.period) ? sp.period : null;
+  const actor = await currentActor();
+  return (
+    <>
+      <PageHeader title="Schedule" sub="What you have to do in this Workspace: values to submit by their Due Dates, Approvals waiting for you, and the Tasks and Questions assigned to you. Ask them from any widget’s ⋯ menu." />
+      <div className="space-y-6">
+        <Choices label="View" current={view} options={VIEWS} make={(id) => href({}, { view: id === "todo" ? "" : id })} />
+        {view === "todo" && <ToDo sp={sp} />}
+        {view === "asked" && <AskedView rows={await actionsAskedByMe(actor)} people={await getProfileMap()} />}
+        {view === "timeline" && await (async () => {
+          const timeline = await actionsTimeline(actor, { workflowId: num(sp.workflow), metricId: num(sp.metric), period: day });
+          const base = { ...sp, view: "timeline" };
+          return (
+            <>
+              <div className="flex flex-wrap items-center gap-x-6 gap-y-2">
+                <Pick name="workflow" label="Workflow" value={sp.workflow ?? ""} options={timeline.workflows.map((w) => ({ id: String(w.id), label: w.name }))} sp={base} />
+                <Pick name="metric" label="Metric" value={sp.metric ?? ""} options={timeline.metrics.map((m) => ({ id: String(m.id), label: m.name }))} sp={base} />
+                <Pick name="period" label="Period" value={day ?? ""} options={timeline.periods.map((p) => ({ id: p.start, label: p.label }))} sp={base} />
+              </div>
+              <TimelineList timeline={timeline} />
+            </>
+          );
+        })()}
       </div>
     </>
   );

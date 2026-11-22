@@ -1,7 +1,7 @@
-// The Actions page's two views (GLOSSARY: Action, Question, Task, Assignee, Period Timeline, Workflow): the Inbox, what
-// the person has to do now, and the Timeline, what happened in what order. Neither records anything: the Inbox reads the
-// Actions the person may read, the Timeline puts together the Period Timelines of the Workflows and the Actions of Metrics
-// no Workflow asks for.
+// The Schedule page's two views beside To do (GLOSSARY: Schedule, Action, Question, Task, Assignee, Period Timeline,
+// Workflow): Asked by me, the Questions and Tasks the person asked, and the Timeline, what happened in what order.
+// Neither records anything: the first reads the Actions the person may read, the second puts together the Period
+// Timelines of the Workflows and the Actions of Metrics no Workflow asks for. What waits for the person is `schedule`.
 // Security (AGENTS.md rule 3): an Action is returned only to someone who may read its Thread (readableActions); a value
 // and its change only for a Metric the person sees; the Timeline is made of periodTimeline's lines, which count a hidden
 // Metric and never name it, plus Actions about Metrics the person sees. Names of people follow peopleFor (a Guest sees
@@ -17,15 +17,15 @@ import { formatValue } from "./format";
 import { numberStyleOf } from "./workspace-settings";
 import type { Action, Metric, Period } from "./types";
 
-/** Where an Inbox row sits for the person asking. */
-export type InboxGroup = "needs_you" | "waiting" | "done";
+/** Where a row of "Asked by me" sits: answered ones wait for the asker to close them, open ones wait for a reply. */
+export type AskedGroup = "answered" | "open" | "done";
 
-/** One Action as the Inbox shows it. */
-export type InboxRow = {
+/** One Action as "Asked by me" shows it. */
+export type AskedRow = {
   id: number;
   kind: "question" | "task";
   status: Action["status"];
-  group: InboxGroup;
+  group: AskedGroup;
   /** The question or task, with the Approval wording the web shows. */
   question: string;
   isApproval: boolean;
@@ -42,33 +42,26 @@ export type InboxRow = {
   changePercent: number | null;
 };
 
-/** Which rows an Inbox lists: the person's own, those they asked, or every one they may read. */
-export type InboxScope = "mine" | "asked" | "all";
-
 const MOST_METRICS_WITH_CHANGE = 80;
 
-/** The group an Action falls in for this person: closed is Done; what waits for them to answer or close is Needs you;
- * every other live one is Waiting on others. Pure. */
-export function inboxGroup(a: Pick<Action, "status" | "asker_id" | "assignee_id">, viewer: string): InboxGroup {
-  if (a.status === "closed") return "done";
-  if (a.status === "open" && a.assignee_id === viewer) return "needs_you";
-  if (a.status === "answered" && a.asker_id === viewer) return "needs_you";
-  return "waiting";
+/** The group an Action the person asked falls in: closed is done, answered waits for them to close it. Pure. */
+export function askedGroup(a: Pick<Action, "status">): AskedGroup {
+  return a.status === "closed" ? "done" : a.status === "answered" ? "answered" : "open";
 }
 
-/** The Actions the actor may read, newest first, as the Inbox's rows, narrowed to `scope`. A row's value and change are
- * read only for Metrics the actor sees. */
-export async function actionsInbox(actor: Actor, scope: InboxScope = "mine"): Promise<InboxRow[]> {
+/** The Actions the actor asked and may read, newest first, as rows. A row's value and change are read only for Metrics
+ * the actor sees. */
+export async function actionsAskedByMe(actor: Actor): Promise<AskedRow[]> {
   const ws = actor.workspaceId;
   const viewer = actor.personId;
   const [readable, metrics, hideSystem, yearStart, numberStyle] = await Promise.all([readableActions(ws, viewer), getMetrics(ws), systemTextFor(actor), yearStartOf(ws), numberStyleOf(ws)]);
-  const picked = readable.filter((a) => (scope === "all" ? true : scope === "asked" ? a.asker_id === viewer : a.asker_id === viewer || a.assignee_id === viewer));
+  const picked = readable.filter((a) => a.asker_id === viewer);
   const visible = await visibleMetricIds(ws, viewer, metrics);
   const byId = new Map(metrics.map((m) => [m.id, m]));
   // The change needs the Metric's series: only for the Metrics with Actions the person sees, and not for too many.
   const wanted = [...new Set(picked.map((a) => a.metric_id).filter((id) => visible.has(id)))].slice(0, MOST_METRICS_WITH_CHANGE);
   const series = wanted.length ? await getSeriesOf(ws, metrics, wanted) : {};
-  const rows: InboxRow[] = [];
+  const rows: AskedRow[] = [];
   for (const a of picked) {
     const m = byId.get(a.metric_id);
     if (!m) continue;
@@ -77,7 +70,7 @@ export async function actionsInbox(actor: Actor, scope: InboxScope = "mine"): Pr
     const here = at >= 0 ? points[at].value : null;
     const before = at > 0 ? points[at - 1].value : null;
     rows.push({
-      id: a.id, kind: a.kind, status: a.status, group: inboxGroup(a, viewer),
+      id: a.id, kind: a.kind, status: a.status, group: askedGroup(a),
       question: hideSystem(a.question, Boolean(a.purpose)),
       isApproval: a.purpose === "approval",
       metricId: m.id, metricName: m.name, periodLabel: periodLabel(a.period_start, m.period, yearStart as YearStart, true),

@@ -1,5 +1,5 @@
 <!-- part: Screen by screen -->
-<!-- screens: apps/web/src/app/actions/**, apps/web/src/app/changes/** -->
+<!-- screens: apps/web/src/app/actions/**, apps/web/src/app/schedule/asked-view.tsx, apps/web/src/app/schedule/timeline-view.tsx, apps/web/src/app/schedule/choices.tsx, apps/web/src/app/changes/** -->
 # Actions and Changes
 
 When a number looks odd, ask the person who knows. An **Action** is a question or a job about one value of a Metric, which one person gives to another. It is either a **Question**, done once it is answered, or a **Task**, done once someone has carried it out. The person it is given to is the **Assignee**. The replies about it form its **Thread**, and the answer stays with the value for anyone who looks later.
@@ -8,18 +8,13 @@ Everyone in the Workspace works with Actions, Guests included. This chapter also
 
 ## The Actions row
 
-**Actions** in the sidebar opens the Actions page. The number next to it counts the Actions waiting for you:
-
-- Actions given to you that are still open, and
-- Actions you asked that were answered or done, so you can close them.
-
-When nothing waits for you, the icon shows no number.
+**Schedule** in the sidebar holds your Actions. Its **To do** view lists the Questions and Tasks given to you among the other things waiting for you; **Asked by me** lists the ones you asked. The number next to Schedule counts what is due. The old address of the Actions page, `/actions`, opens **Asked by me**.
 
 ## Share Proposals: sharing an assistant prepared
 
 When you ask an assistant connected to Ziffr to share numbers ("share the coffee results for the last 4 weeks with jenny@example.com"), it can only prepare the sharing. Nothing is shared and nothing is sent until you confirm it yourself in Ziffr.
 
-A **Share Proposal** appears at the top of the Actions page under **Waiting for your confirmation**, and in the assistant's answer as a link. It says which of your dashboards, to whom and how: a View Link to an email address (with the day it ends, and the message, exactly as it would go out) or a Share to a person or Group in your Workspace. Open it with **See what they will see, and confirm**. The page shows the address and the message as plain text, who prepared it, and below that the dashboard as the recipient would read it.
+A **Share Proposal** appears at the top of the Schedule's **To do** view under **Waiting for your confirmation**, and in the assistant's answer as a link. It says which of your dashboards, to whom and how: a View Link to an email address (with the day it ends, and the message, exactly as it would go out) or a Share to a person or Group in your Workspace. Open it with **See what they will see, and confirm**. The page shows the address and the message as plain text, who prepared it, and below that the dashboard as the recipient would read it.
 
 - **Confirm** makes the View Link or gives the Share, and emails the link and your message to the address. If the email cannot be sent, the page shows the link so you can send it yourself.
 - **Decline** shares and sends nothing.
@@ -63,33 +58,35 @@ Anyone who can see a Metric can ask about it or give a Task on it, Guests and Vi
 
 The asker, the Assignee and the Metric's Owner can always read an Action and its Thread. Anyone else can read it only if they see its Metric, through a Share or a dashboard or deck shared with them; being an Owner or Admin of the Workspace is not enough. Of those, everyone can read it, unless the asker chose a Group under **Who can read**. Then only the members of that Group who see the Metric can read it, besides those three people. This holds for the Tasks a Workflow makes too, such as Approvals.
 
-## The Actions page
+## The Schedule views
 
-The page has two views, switched at the top: **Inbox** and **Timeline**. Both show only what you may see: an Action only if you may read its Thread, and an event only about a Metric you see.
+The Schedule has three views, switched at the top. They show only what you may see: an Action only if you may read its Thread, and an event only about a Metric you see.
 
-### Inbox: what do I have to do now?
+### To do
 
-The Inbox groups the Actions by your own part in them. Each group shows how many Actions it holds.
+The default. It lists what you have to do, overdue first and then by Due Date: values to submit, Approvals waiting for you, and the Tasks and Questions given to you. See [My schedule and your calendar](17-your-settings.md#the-schedule-and-your-calendar). **Values**, **Approvals**, **Tasks** and **Questions** above the list narrow it to one kind.
+
+### Asked by me
+
+The Questions and Tasks you asked, in three groups, each with its count:
 
 | Group | What it holds |
 |---|---|
-| **Needs you** | Questions and Tasks waiting for your answer, and Actions you asked that were answered or done, waiting for you to close. |
-| **Waiting on others** | Actions you asked that have no reply yet, and, under **All**, other people's live Actions you may read. |
+| **Answered, waiting for you to close** | Actions that were answered or done: close them. |
+| **Open, waiting for a reply** | Actions with no reply yet. |
 | **Done** | Closed Actions. It is folded; open it with its heading. Its rows are grey and carry a plain tick, never red: finished is not an error. |
-
-Above the groups, **Mine** (Actions you asked or were asked), **Asked by me** and **All** (every Action you may read) narrow the list, and **Question** and **Task** narrow it by kind. The newest Action comes first.
 
 Each row shows:
 
 - its status: **Open**, **Answered**, **Done** (for a Task) or **Closed**,
 - **Task** and its Due Date, for a Task,
 - the Metric and the period, then the question or task,
-- on the right, the value of the period and how it changed against the period before ("150, up 50 %"), only for a Metric you see,
+- the value of the period and how it changed against the period before ("150, up 50 %"), only for a Metric you see,
 - who asked whom, and how long ago.
 
-Choose a row to open the Action. On a phone, these parts wrap onto lines under the question.
+Choose a row to open the Action. The newest Action comes first.
 
-### Timeline: what happened, in what order?
+### Timeline
 
 The Timeline lists what happened, newest first, grouped by day, one line per event with its time and a dot. It is made of the [Period Timelines](11-workflows.md) of your Workflows (who was asked and reminded, values that came in, Approvals, publishing, locking and Snapshots) and of the Questions and Tasks on Metrics that no Workflow asks for. A line names its Workflow and period.
 
