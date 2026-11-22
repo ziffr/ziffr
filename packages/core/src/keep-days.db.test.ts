@@ -8,9 +8,9 @@ import { actorForKey, createAccessKey } from "./access-keys";
 import { recordCall } from "./access-log";
 import { auditKeepDays, auditKeepRefusal, referencedAuditAgeDays, forgetAuditReference } from "./audit-retention";
 import { claimInstallation, prepareSetupCode } from "./installation-admins";
-import { DAYS_SETTINGS } from "./installation-days";
+import { DAYS_SETTINGS, daysProblem } from "./installation-days";
 import { installationSettingsView, saveInstallationSettings } from "./installation-settings";
-import { settingNamed } from "./installation-catalogue";
+import { isTrialSetting, settingNamed } from "./installation-catalogue";
 import { forgetStoredSettings, settingsInEffect } from "./settings-in-effect";
 import { closeEndedTrials, deleteExpiredTrials, remindEndingTrials } from "./trial-end";
 import { pruneViewCounts } from "./usage";
@@ -66,6 +66,8 @@ describe("the ranges on the page", () => {
     const a = await admin();
     process.env.ZIFFR_SECRETS_KEY ??= Buffer.alloc(32, 7).toString("base64");
     for (const [name, d] of Object.entries(DAYS_SETTINGS)) {
+      // Trial settings are hosted Ziffr's and Ziffr Cloud pins this one: the page does not save it (spec 0040).
+      if (isTrialSetting(name)) { expect(daysProblem(name, String(d.min - 1))).not.toBeNull(); expect(daysProblem(name, String(d.max))).toBeNull(); continue; }
       const section = settingNamed(name)!.section;
       for (const bad of [String(d.min - 1), String(d.max + 1), "abc", "1.5"]) {
         await expect(saveInstallationSettings(a, section, { [name]: bad }), `${name}=${bad}`).rejects.toThrow(/Write a whole number of (days|values) from/);
@@ -294,7 +296,8 @@ describe("Ziffr Cloud pins what it keeps fixed", () => {
 
   it("shows them as set by Ziffr Cloud, refuses to change them, and ignores a value saved on the page before", async () => {
     const a = await admin();
-    await saveInstallationSettings(a, "trials", { ZIFFR_TRIAL_GRACE_DAYS: "30" });
+    // A row an older version saved before this Installation was hosted by Ziffr Cloud.
+    await db().from("installation_settings").upsert({ name: "ZIFFR_TRIAL_GRACE_DAYS", value: "30", sealed: false }).throwOnError();
     process.env.ZIFFR_CLOUD_KEY = "k".repeat(32);
     forgetStoredSettings();
     const view = await installationSettingsView(a);

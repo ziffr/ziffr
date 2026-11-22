@@ -98,3 +98,7 @@ export const INSTALLATION_SETTINGS: SettingDefinition[] = [
 
 /** The setting of this name, or undefined for any name the page does not know. */
 export const settingNamed = (name: string): SettingDefinition | undefined => INSTALLATION_SETTINGS.find((s) => s.name === name);
+
+/** Whether a setting belongs to trials, which only hosted Ziffr has (spec 0040): off the page, never saved, never read
+ * from a stored row or a `_DEFAULT` anywhere else. */
+export const isTrialSetting = (name: string): boolean => INSTALLATION_SETTINGS.some((s) => s.name === name && s.section === "trials");

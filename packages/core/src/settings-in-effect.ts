@@ -6,7 +6,7 @@
 // It holds secrets: it stays on the server and is never handed to a page, a Connector or a browser.
 import { db } from "./db";
 import { CLOUD_PINNED, hostedByCloud } from "./installation-days";
-import { INSTALLATION_SETTINGS } from "./installation-catalogue";
+import { INSTALLATION_SETTINGS, isTrialSetting } from "./installation-catalogue";
 import { openSecretRotating, sealSecret } from "./secrets";
 
 /** The environment as Ziffr's settings see it: process.env with the Installation Settings in effect put in. */
@@ -80,6 +80,8 @@ function merge(env: Settings, values: Map<string, string>): Settings {
   const out: Settings = { ...env };
   for (const { name } of INSTALLATION_SETTINGS) {
     if (isSet(env[name])) continue;
+    // Trial settings exist only on hosted Ziffr (spec 0040): nothing stored or defaulted is put in elsewhere.
+    if (isTrialSetting(name) && !hostedByCloud(env)) { delete out[name]; continue; }
     // Pinned by Ziffr Cloud: only the server's environment gives it a value, never a row of the page.
     const v = (pinned(env, name) ? undefined : values.get(name)) ?? (isSet(env[`${name}_DEFAULT`]) ? env[`${name}_DEFAULT`] : undefined);
     if (v === undefined) delete out[name];
@@ -103,6 +105,7 @@ export function settingsInEffectNow(env: Settings = process.env): Settings {
   const out: Settings = { ...env };
   for (const { name } of INSTALLATION_SETTINGS) {
     if (isSet(env[name])) continue;
+    if (isTrialSetting(name) && !hostedByCloud(env)) { delete out[name]; continue; }
     const v = (last && Date.now() - last.at < 60_000 && !pinned(env, name) ? last.values.get(name) : undefined) ?? (isSet(env[`${name}_DEFAULT`]) ? env[`${name}_DEFAULT`] : undefined);
     if (v === undefined) delete out[name];
     else out[name] = v;

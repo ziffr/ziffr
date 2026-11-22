@@ -8,6 +8,7 @@ import { deliverPrompt } from "./deliveries";
 import { DEMO_WORKSPACE_ID } from "./team";
 import { whatThisZiffrOffers, whatWorksHere, WAYS, type Way, type WayState } from "./what-works-here";
 import { workspace } from "./test/db-fixtures";
+const CLOUD = { ZIFFR_CLOUD_KEY: "k".repeat(32) };
 
 const KEYS = ["ZIFFR_SMTP_URL", "ZIFFR_MAIL_FROM", "ZIFFR_SITE_URL", "ZIFFR_INBOUND_DOMAIN", "ZIFFR_INBOUND_SECRET", "ZIFFR_SLACK_CLIENT_ID", "ZIFFR_SLACK_CLIENT_SECRET", "ZIFFR_SLACK_SIGNING_SECRET", "ZIFFR_SECRETS_KEY", "ZIFFR_TELEGRAM_BOT_TOKEN", "ZIFFR_TRIAL_DAYS", "ZIFFR_TRIAL_MAX"];
 const saved: Record<string, string | undefined> = {};
@@ -89,19 +90,21 @@ describe("what works here says what the queue does", () => {
 });
 
 describe("what this Ziffr offers someone signed out", () => {
-  it("offers no trial without the setting, or with a wrong one", async () => {
+  it("offers no trial without the setting, with a wrong one, or without a Ziffr Cloud key (spec 0040)", async () => {
     expect((await whatThisZiffrOffers({})).trial).toBeNull();
-    expect((await whatThisZiffrOffers({ ZIFFR_TRIAL_DAYS: "90" })).trial).toBeNull();
+    expect((await whatThisZiffrOffers({ ZIFFR_TRIAL_DAYS: "7" })).trial).toBeNull();
+    expect((await whatThisZiffrOffers({ ZIFFR_CLOUD_KEY: "short", ZIFFR_TRIAL_DAYS: "7" })).trial).toBeNull();
+    expect((await whatThisZiffrOffers({ ...CLOUD, ZIFFR_TRIAL_DAYS: "90" })).trial).toBeNull();
   });
   it("offers a trial with its days and what works in it", async () => {
-    const offers = await whatThisZiffrOffers({ ...MAIL, ZIFFR_TRIAL_DAYS: "7" });
+    const offers = await whatThisZiffrOffers({ ...MAIL, ...CLOUD, ZIFFR_TRIAL_DAYS: "7" });
     expect(offers.trial?.days).toBe(7);
     expect(of(offers.trial!.ways, "email").state).toBe("real");
     expect(of(offers.trial!.ways, "slack").state).toBe("simulated");
   });
   it("points to the Installation settings page for each Connector that page can set up", async () => {
     // Mail, Slack and Telegram are all set on that page now (spec 0025); a simulated one says where.
-    const offers = await whatThisZiffrOffers({ ZIFFR_TRIAL_DAYS: "7" });
+    const offers = await whatThisZiffrOffers({ ...CLOUD, ZIFFR_TRIAL_DAYS: "7" });
     for (const w of ["email", "slack", "telegram"] as Way[]) {
       expect(of(offers.trial!.ways, w).state).toBe("simulated");
       expect(of(offers.trial!.ways, w).reason).toMatch(/Installation settings page/);

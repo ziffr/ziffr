@@ -1,8 +1,10 @@
-// Trial Workspaces (spec 0021, GLOSSARY: Trial Workspace). An Installation offers them with ZIFFR_TRIAL_DAYS; then every
+// Trial Workspaces (spec 0021, GLOSSARY: Trial Workspace). Only hosted Ziffr offers them (spec 0040, ADR 0015): where
+// ZIFFR_CLOUD_KEY is set and ZIFFR_TRIAL_DAYS gives a number of days; then every
 // workspace made on it is one, owned by one person and reaching nobody else, so nothing here asks a person whether
 // they want a trial. The cap and "one per person" are checked in one locked database step (create_trial_workspace).
 import { db } from "./db";
 import { Forbidden } from "./actor";
+import { hostedByCloud } from "./installation-days";
 import { settingsInEffect } from "./settings-in-effect";
 
 /** Live Trial Workspaces an Installation holds unless ZIFFR_TRIAL_MAX says otherwise. */
@@ -14,10 +16,19 @@ export async function trialSettingsInEffect(): Promise<{ days: number; max: numb
   return trialSettings(await settingsInEffect());
 }
 
-/** The Installation's trial settings: null when ZIFFR_TRIAL_DAYS is not set. A setting that is there but wrong (days
+/** The one rule for trials (spec 0040): true only on hosted Ziffr (a ZIFFR_CLOUD_KEY) with a valid number of trial days.
+ * Everything that makes a trial, shows trial words or reads a ZIFFR_TRIAL_* setting asks this or trialSettings, which
+ * gives the same answer. Not a lock against someone who edits the source: it is what the product offers by itself. */
+export function trialsOffered(env: Record<string, string | undefined> = process.env): boolean {
+  try { return trialSettings(env) !== null; } catch { return false; }
+}
+
+/** The Installation's trial settings: null without a Ziffr Cloud key (no trials, and no ZIFFR_TRIAL_* setting is read)
+ * or when ZIFFR_TRIAL_DAYS is not set. On hosted Ziffr a setting that is there but wrong (days
  * outside 1 to 30, a cap that is not a positive whole number) throws instead of counting as unset: an operator who
  * meant to offer trials must never end up offering ordinary workspaces, with invitations, to strangers. */
 export function trialSettings(env: Record<string, string | undefined> = process.env): { days: number; max: number } | null {
+  if (!hostedByCloud(env)) return null;
   const rawDays = env.ZIFFR_TRIAL_DAYS?.trim();
   if (!rawDays) return null;
   const days = Number(rawDays);
@@ -41,6 +52,8 @@ export class TrialRefused extends Error {
 /** Makes a Trial Workspace owned by the person and returns its id. Throws TrialRefused when the cap is reached or the
  * person already belongs to a workspace. The caller adds what every new workspace gets (its starter Theme). */
 export async function createTrialWorkspace(personId: string, name: string, settings: { days: number; max: number }): Promise<string> {
+  // Checked here too, so no caller of the core can make a trial on an Installation that is not hosted Ziffr.
+  if (!hostedByCloud(process.env)) throw new Error("Trials exist only on hosted Ziffr.");
   const { data, error } = await db().rpc("create_trial_workspace", { p_person: personId, p_name: name, p_days: settings.days, p_max: settings.max });
   if (error || typeof data !== "string") throw new Error("The workspace could not be created.");
   if (data === "full" || data === "taken") throw new TrialRefused(data);

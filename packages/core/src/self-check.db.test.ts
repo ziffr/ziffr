@@ -16,7 +16,7 @@ import { confirmOwnValue, saveWorkflow, setMetricWorkflow } from "./workflows";
 import type { NobodyElse, WorkflowConfig } from "./types";
 
 const cleanups: (() => Promise<void>)[] = [];
-afterEach(async () => { for (const c of cleanups.splice(0)) await c(); delete process.env.ZIFFR_TRIAL_DAYS; });
+afterEach(async () => { for (const c of cleanups.splice(0)) await c(); delete process.env.ZIFFR_TRIAL_DAYS; delete process.env.ZIFFR_CLOUD_KEY; });
 const thisMonth = () => periodStart(new Date(), "month", JANUARY);
 const lastMonth = () => shiftPeriod(thisMonth(), "month", -1);
 // Questions and Thread messages are sealed with the Workspace Key: read here opened, as the app reads them.
@@ -215,6 +215,7 @@ describe("when someone else can approve", () => {
 describe("Every value in a Trial Workspace", () => {
   it("works for its one person: their coffee waits for their own check, then counts", async () => {
     process.env.ZIFFR_TRIAL_DAYS = "7";
+    process.env.ZIFFR_CLOUD_KEY = "k".repeat(32);
     const owner = `t-${randomUUID()}`;
     await db().from("profiles").insert({ id: owner, name: "Trial owner", role: "", color: "#000", email: `o-${owner.slice(2, 10)}@example.test` });
     const ws = await createWorkspace(owner, "My trial");

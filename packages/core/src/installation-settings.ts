@@ -18,7 +18,7 @@ import { defaultLimitFrom, limitLabel, limitNumber, syncDefaultLimit } from "./w
 import { marketplaceConfig, marketplaceUrlProblem, MARKETPLACE_DEFAULT_URL } from "./marketplace";
 import { SENDING_LIMITS, sendingLimitFrom, sendingLimitProblem } from "./sending-limits";
 import { auditKeepRefusal, forgetAuditReference } from "./audit-retention";
-import { AUDIT_WARN_BELOW_DAYS, DAYS_SETTINGS, daysOutOfRange, daysProblem, daysSetting } from "./installation-days";
+import { AUDIT_WARN_BELOW_DAYS, DAYS_SETTINGS, daysOutOfRange, daysProblem, daysSetting, hostedByCloud } from "./installation-days";
 import { forgetStoredSettings, settingContext, settingSources, settingsInEffect, settingsInEffectStrict, storedSettings, type SettingSource } from "./settings-in-effect";
 
 /** One setting as the page shows it. `value` only for a setting that is not secret; `hint` (the last four
@@ -239,7 +239,8 @@ export async function installationSettingsView(actor: InstallationActor): Promis
     return { ...s, source, value: s.secret ? null : raw, hint, unreadable: stored.unreadable.has(s.name) };
   };
   return {
-    sections: await Promise.all(SETTINGS_SECTIONS.map(async (sec) => ({ ...sec, ...(await sectionWorks(sec.id, settings)), settings: INSTALLATION_SETTINGS.filter((s) => s.section === sec.id).map(view) }))),
+    // No Trials section without a Ziffr Cloud key: trials are hosted Ziffr's (spec 0040).
+    sections: await Promise.all(SETTINGS_SECTIONS.filter((sec) => sec.id !== "trials" || hostedByCloud(process.env)).map(async (sec) => ({ ...sec, ...(await sectionWorks(sec.id, settings)), settings: INSTALLATION_SETTINGS.filter((s) => s.section === sec.id).map(view) }))),
     canSeal: secretsKey() !== null,
     siteUrl: process.env.ZIFFR_SITE_URL ?? null,
     slack: { createAppLink: slackCreateAppLink(process.env.ZIFFR_SITE_URL), eventsCheckedAt: await slackEventsCheckedAt(settings) },
@@ -252,6 +253,7 @@ export async function installationSettingsView(actor: InstallationActor): Promis
 export async function saveInstallationSettings(actor: InstallationActor, section: string, input: Record<string, string | null>): Promise<SaveOutcome> {
   await assertInstallationAdmin(actor);
   const sec = SETTINGS_SECTIONS.find((s) => s.id === section);
+  if (sec?.id === "trials" && !hostedByCloud(process.env)) throw new Error("Trials exist only on hosted Ziffr.");
   if (!sec?.ready) throw new Error("This section cannot be set up here yet.");
   if (!input || typeof input !== "object" || Array.isArray(input)) throw new Error("Nothing to save.");
   const sources = await settingSources();

@@ -13,7 +13,7 @@ import { askTrialGuide, makeGuideFeedKey, dailyWay, finishTrialGuide, saveTrialG
 const MAIL = { ZIFFR_SMTP_URL: process.env.TEST_SMTP_URL ?? "smtp://127.0.0.1:55425", ZIFFR_MAIL_FROM: "Ziffr <ziffr@example.test>", ZIFFR_SITE_URL: "https://ziffr.example.test" };
 const made: { workspaces: string[]; people: string[] } = { workspaces: [], people: [] };
 afterEach(async () => {
-  for (const k of ["ZIFFR_TRIAL_DAYS", ...Object.keys(MAIL)]) delete process.env[k];
+  for (const k of ["ZIFFR_TRIAL_DAYS", "ZIFFR_CLOUD_KEY", ...Object.keys(MAIL)]) delete process.env[k];
   for (const id of made.workspaces.splice(0)) {
     await db().from("breakdown_rows").delete().eq("workspace_id", id);
     await db().from("observations").delete().eq("workspace_id", id);
@@ -25,6 +25,7 @@ afterEach(async () => {
 
 async function newTrial(): Promise<Actor> {
   process.env.ZIFFR_TRIAL_DAYS = "7";
+  process.env.ZIFFR_CLOUD_KEY = "k".repeat(32);
   const owner = `t-${randomUUID()}`;
   made.people.push(owner);
   await db().from("profiles").insert({ id: owner, name: "Trial owner", role: "", color: "#000", email: `o-${owner.slice(2, 10)}@example.test` });
