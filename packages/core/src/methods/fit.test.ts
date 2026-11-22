@@ -9,7 +9,7 @@ import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
 import fc from "fast-check";
 import { describe, expect, it } from "vitest";
-import { fit, fitBasis, fitNumbers, importance, needs, predict, MOST_PERIODS, type Fit, type FitInput, type FitRow } from "./fit";
+import { fit, fitBasis, fitNumbers, importance, needs, partialPeriods, predict, MOST_PERIODS, type Fit, type FitInput, type FitRow } from "./fit";
 import { tQuantile } from "./distributions";
 import { SUITABILITY } from "../suitability";
 import { metric } from "../test/fixtures";
@@ -715,6 +715,203 @@ describe("what the numbers do at their edges", () => {
     expect(p.verdict.cautions.map((v) => v.case).sort()).toEqual(["caution-gaps", "caution-spread"]);
     expect(p.verdict.switches).toEqual([]);
     expect(p.verdict.refusals).toEqual([]);
+  });
+});
+
+describe("what mutation testing asked for", () => {
+  const rng = lcg(71);
+  const free = (n: number, scale = 100) => Array.from({ length: n }, () => hundredths(rng() * scale));
+  it("judges a partial link on the periods less the drivers held fixed", () => {
+    expect([partialPeriods(20, 1), partialPeriods(24, 3), partialPeriods(12, 1), partialPeriods(40, 6)]).toEqual([20, 22, 12, 35]);
+  });
+  it("merges drivers at a variance inflation just above 5 and not at exactly 5 or below", () => {
+    // a is ±1, b is ±1 and orthogonal to it: x₂ = 2a + b has r² = 4/5, inflation exactly 5; 2.1a + b is above, 1.9a + b below.
+    const a = [1, 1, 1, 1, 1, 1, -1, -1, -1, -1, -1, -1];
+    const b = [1, -1, 1, -1, 1, -1, 1, -1, 1, -1, 1, -1];
+    const y = a.map((v, i) => 3 * v + 2 * b[i] + (i % 3) + (i % 5));
+    const at = (c: number) => fitNumbers(rowsOf(y, [a, a.map((v, i) => hundredths(c * v + b[i]))]), ["A", "B", "Y"], 2);
+    const [exactly, above, below] = [at(2), at(2.1), at(1.9)];
+    if ("refusals" in exactly || "refusals" in above || "refusals" in below) throw new Error("refused");
+    expect(exactly.core.drivers.map((d) => d.inflation)).toEqual([5, 5]);
+    expect(exactly.core.merged).toEqual([]);
+    expect(below.core.merged).toEqual([]);
+    expect(above.core.merged).toHaveLength(1);
+  });
+  it("leaves out the driver with the weaker link to the target, and the closest partner, whichever positions they are in", () => {
+    const base = free(30);
+    const other = free(30);
+    const twin = base.map((v) => hundredths(2 * v + 1 + gauss(rng) * 15));
+    const fromTwin = twin.map((v, i) => hundredths(v + other[i] + gauss(rng) * 1));
+    const fromBase = base.map((v, i) => hundredths(v + other[i] + gauss(rng) * 1));
+    const a = made(fit(input(fromTwin, [base, twin, other])));
+    expect(a.merged).toEqual([{ kept: "Price", with: ["Visits"] }]);
+    const b = made(fit(input(fromBase, [base, twin, other])));
+    expect(b.merged).toEqual([{ kept: "Visits", with: ["Price"] }]);
+    // The close pair in the last two places, and with the free driver in the middle.
+    const c = made(fit(input(fromTwin, [other, base, twin])));
+    expect(new Set([c.merged[0].kept, ...c.merged[0].with])).toEqual(new Set(["Price", "Tickets"]));
+    const d = made(fit(input(fromTwin, [base, other, twin])));
+    expect(new Set([d.merged[0].kept, ...d.merged[0].with])).toEqual(new Set(["Visits", "Tickets"]));
+  });
+  it("says a far-off period only where leaving it out moves the top driver's effect by more than a fifth of its range, row by row", () => {
+    const [x1, x2] = [free(24), free(24)];
+    const clean = x1.map((v, i) => hundredths(v + 5 * x2[i] + gauss(rng) * 8));
+    let [said, not] = [0, 0];
+    for (let row = 0; row < 24; row++) {
+      const y = clean.map((v, i) => (i === row ? hundredths(v + 3000) : v));
+      const f = fit(input(y, [x1, x2]));
+      if (!f.ok) continue;
+      const t = f.drivers.reduce((a, d, i) => (d.share > f.drivers[a].share ? i : a), 0);
+      const top = f.drivers[t];
+      const alt = fitNumbers(rowsOf(y, [x1, x2]).filter((r) => r.period !== month(row)), ["Visits", "Price", "Revenue"], 2);
+      if ("refusals" in alt) throw new Error("refused");
+      const moved = Math.abs(alt.core.drivers[t].effect - top.effect) * 5 > top.hi - top.lo || alt.core.drivers[t].effect * top.effect < 0;
+      const far = f.verdict.cautions.find((c) => c.case === "caution-far-off");
+      expect(far !== undefined, `row ${row}`).toBe(moved);
+      if (far) {
+        said++;
+        expect(close(far.slots.without as number, alt.core.drivers[t].effect, 1e-12, 1e-12)).toBe(true);
+      } else not++;
+    }
+    expect(said).toBeGreaterThan(0);
+    expect(not).toBeGreaterThan(0);
+  });
+  it("has a partial link of exactly 0 for an effect of exactly 0, and the latest value of each driver", () => {
+    const x = [-6, -5, -4, -3, -2, -1, 1, 2, 3, 4, 5, 6];
+    const y = [5, 3, 1, 4, 2, 6, 6, 2, 4, 1, 3, 5];
+    const m = made(fit(input(y, [x])));
+    expect(Object.is(m.drivers[0].partial, 0)).toBe(true);
+    expect(m.drivers[0].latest).toBe(6);
+    expect([m.drivers[0].low, m.drivers[0].high]).toEqual([-6, 6]);
+  });
+  it("gives importance only its own parts, and the refusal the fit gives, unchanged", () => {
+    const x = free(24);
+    const imp = importance(input(x.map((v) => hundredths(2 * v + gauss(rng) * 9)), [x]));
+    expect(Object.keys(imp).sort()).toEqual(["basis", "drivers", "explained", "merged", "n", "ok", "verdict"]);
+    if (imp.ok) expect(Object.keys(imp.drivers[0]).sort()).toEqual(["explains", "name", "share"]);
+    const i = input([1, 2, 3], [[3, 1, 2]]);
+    expect(importance(i)).toEqual(fit(i));
+  });
+  it("judges gaps over the periods all of them have: a driver with a shorter history, or a longer one, has no gaps", () => {
+    const x = free(30);
+    const y = x.map((v) => hundredths(2 * v + gauss(rng) * 10));
+    const shorter = made(fit({ ...input(y, [x]), drivers: [{ name: "Visits", points: pts(x.slice(6), 6) }] }));
+    expect(shorter.n).toBe(24);
+    expect(shorter.verdict.cautions).toEqual([]);
+    const longer = made(fit({ ...input(y, [x]), target: { name: "Revenue", points: pts(y.slice(6), 6) } }));
+    expect(longer.n).toBe(24);
+    expect(longer.verdict.cautions).toEqual([]);
+    const endsEarly = made(fit({ ...input(y, [x]), drivers: [{ name: "Visits", points: pts(x.slice(0, 24)) }] }));
+    expect(endsEarly.n).toBe(24);
+    expect(endsEarly.verdict.cautions).toEqual([]);
+    expect(fit({ ...input(y, [x]), drivers: [{ name: "Visits", points: [] }] }).ok).toBe(false);
+  });
+  it("judges a driver over the periods all have: a hole or an extreme value outside them is nobody's gap or caution", () => {
+    const x = free(30);
+    const y = x.map((v) => hundredths(2 * v + gauss(rng) * 10));
+    // The driver has holes at months 2 and 3 and an extreme value at month 1, before the target begins (month 6); it also runs past the target's end.
+    const longer = pts(x).filter((_, i) => i !== 2 && i !== 3).map((p) => (p.period === month(1) ? { ...p, value: 1e7 } : p));
+    const f = made(fit({ ...input(y, [x]), target: { name: "Revenue", points: pts(y.slice(6, 28), 6) }, drivers: [{ name: "Visits", points: longer }] }));
+    expect(f.n).toBe(22);
+    expect(f.verdict.cautions).toEqual([]);
+    // An extreme value after the target's end is not judged either.
+    const tail = made(fit({ ...input(y, [x]), target: { name: "Revenue", points: pts(y.slice(0, 24)) }, drivers: [{ name: "Visits", points: pts(x).map((p, i) => (i === 28 ? { ...p, value: 1e7 } : p)) }] }));
+    expect(tail.verdict.cautions).toEqual([]);
+    // And a hole after the target's end.
+    const g = made(fit({ ...input(y, [x]), target: { name: "Revenue", points: pts(y.slice(0, 24)) }, drivers: [{ name: "Visits", points: pts(x).filter((_, i) => i !== 26 && i !== 27) }] }));
+    expect(g.verdict.cautions).toEqual([]);
+  });
+  it("refuses a driver too large to write its spread, though the target is not", () => {
+    const x = free(24);
+    const y = x.map((v) => hundredths(2 * v + gauss(rng) * 5));
+    expect(fit(input(y, [x.map((v) => v * 1e200)]))).toEqual({ ok: false, refusals: [{ case: "refuse-too-large", slots: {} }] });
+  });
+  it("gives a value outside what was seen as the point only, when the fit carries a gap caution and no curve", () => {
+    const x = free(30);
+    const y = x.map((v) => hundredths(2 * v + gauss(rng) * 5));
+    const g = made(fit({ ...input(y, [x]), drivers: [{ name: "Visits", points: pts(x).filter((_, i) => i !== 7) }] }));
+    expect(g.verdict.cautions.map((c) => c.case)).toEqual(["caution-gaps"]);
+    const p = predict(g, [500]);
+    expect(p.ok && p.lo === null && Number.isFinite(p.value)).toBe(true);
+    const n = needs(g, { goal: 1000, driver: 0 });
+    expect(n.ok && n.lo === null).toBe(true);
+  });
+  it("refuses values too large to work with, whatever the scale", () => {
+    const x = free(24);
+    const y = x.map((v) => hundredths(2 * v + gauss(rng) * 5));
+    const huge = fit(input(y.map((v) => v * 1e300), [x.map((v) => v * 1e300)]));
+    expect(huge).toEqual({ ok: false, refusals: [{ case: "refuse-too-large", slots: {} }] });
+  });
+  it("refuses a range it cannot write in doubles when the values are huge but the effect is clear", () => {
+    const x = Array.from({ length: 24 }, (_, i) => i + 1 + (i % 4) / 10);
+    const y = x.map((v, i) => hundredths(2 * v + 1 + ((i * 7) % 5) / 10));
+    const m = made(fit(input(y, [x])));
+    const scale = 1e200;
+    const big: Fit = { ...m, drivers: m.drivers.map((d) => ({ ...d, low: d.low * scale, high: d.high * scale })), rows: m.rows.map((r) => ({ ...r, y: r.y * scale, x: [r.x[0] * scale] })), last: { y: m.last.y * scale, x: [m.last.x[0] * scale] } };
+    const p = predict(big, [10 * scale]);
+    expect(p).toEqual({ ok: false, refusals: [{ case: "refuse-too-large", slots: {} }] });
+    const nd = needs(big, { goal: 21 * scale, driver: 0 });
+    expect(nd).toEqual({ ok: false, refusals: [{ case: "refuse-too-large", slots: {} }] });
+  });
+  it("refuses a model it did not make, and says it was 'the fit' that cannot be used", () => {
+    const x = free(24);
+    const m = made(fit(input(x.map((v) => hundredths(2 * v + gauss(rng) * 9)), [x])));
+    const bad = (over: Partial<Fit>) => ({ ...m, ...over });
+    const what = { ok: false, refusals: [{ case: "refuse-input", slots: { what: "the fit" } }] };
+    const seven = { ...m.drivers[0] };
+    void seven;
+    for (const b of [
+      bad({ drivers: undefined as never }),
+      bad({ drivers: [] }),
+      bad({ drivers: Array.from({ length: 7 }, () => seven), rows: m.rows.map((r) => ({ ...r, x: Array.from({ length: 7 }, (_, i) => r.x[0] + i * i) })), last: { y: 1, x: Array.from({ length: 7 }, () => 1) } }),
+      bad({ rows: null as never }),
+      bad({ rows: [...m.rows, ...m.rows, ...m.rows, ...m.rows, ...m.rows, ...m.rows].slice(0, 121) }),
+      bad({ last: { y: 1, x: [1, 2] } }),
+      bad({ last: { y: 1, x: [NaN] } }),
+      bad({ basis: "other" as never }),
+    ]) {
+      expect(predict(b, [10])).toEqual(what);
+      expect(needs(b, { goal: 5, driver: 0 })).toEqual(what);
+    }
+    // 120 periods are fine.
+    const rows120 = Array.from({ length: 120 }, (_, i) => ({ period: month(i), y: hundredths(2 * x[i % 24] + (i % 7)), x: [x[i % 24] + (i % 5) / 10] }));
+    expect(predict(bad({ rows: rows120 }), [30]).ok).toBe(true);
+    const flat: Fit = { ...m, rows: m.rows.map((r) => ({ ...r, x: [3] })) };
+    expect(predict(flat, [3])).toEqual(what);
+    expect(needs(flat, { goal: 5, driver: 0 })).toEqual(what);
+  });
+  it("names the drivers in the refusal for values, a driver and values held that cannot be used", () => {
+    const [x, z] = [free(24), free(24)];
+    const m = made(fit(input(x.map((v, i) => hundredths(v + 2 * z[i] + gauss(rng) * 9)), [x, z])));
+    const names = { ok: false, refusals: [{ case: "refuse-input", slots: { what: "Visits, Price" } }] };
+    expect(predict(m, [1])).toEqual(names);
+    expect(predict(m, [1, NaN])).toEqual({ ok: false, refusals: [{ case: "refuse-input", slots: { what: "Price" } }] });
+    expect(predict(m, [NaN, 1])).toEqual({ ok: false, refusals: [{ case: "refuse-input", slots: { what: "Visits" } }] });
+    expect(needs(m, { goal: 50, driver: 5 })).toEqual(names);
+    expect(needs(m, { goal: 50, driver: 0, held: [1] })).toEqual(names);
+    expect(needs(m, { goal: NaN, driver: 0 })).toEqual({ ok: false, refusals: [{ case: "refuse-input", slots: { what: "Revenue" } }] });
+    expect(needs(m, { goal: 50, driver: 1, held: [NaN, 3] })).toEqual({ ok: false, refusals: [{ case: "refuse-input", slots: { what: "Visits" } }] });
+    expect(needs(m, { goal: 50, driver: 0, held: [3, NaN] })).toEqual({ ok: false, refusals: [{ case: "refuse-input", slots: { what: "Price" } }] });
+    expect(needs(m, { goal: 50, driver: 1, held: [10, NaN] }).ok).toBe(true);
+  });
+  it("carries to a value only the gaps, the curve and the spread, not a far-off period or a changing link", () => {
+    const x = free(24);
+    const y = x.map((v, i) => hundredths(3 * v + gauss(rng) * 3 + (i === 11 ? 900 : 0)));
+    const m = made(fit(input(y, [x])));
+    expect(m.verdict.cautions.map((c) => c.case)).toContain("caution-far-off");
+    const p = predict(m, [50]);
+    if (!p.ok) throw new Error("refused");
+    expect(p.verdict.cautions.map((c) => c.case)).not.toContain("caution-far-off");
+  });
+  it("gives a value inside what was seen for a curved link, and refuses only outside it", () => {
+    const x = Array.from({ length: 30 }, (_, i) => i + 1);
+    const y = x.map((v) => hundredths((v * v) / 5 + gauss(rng) * 0.4));
+    const c = made(fit(input(y, [x])));
+    const inside = predict(c, [15]);
+    expect(inside.ok).toBe(true);
+    expect(predict(c, [31]).ok).toBe(false);
+    expect(needs(c, { goal: 45, driver: 0 }).ok).toBe(true);
+    expect(needs(c, { goal: 450, driver: 0 }).ok).toBe(false);
   });
 });
 

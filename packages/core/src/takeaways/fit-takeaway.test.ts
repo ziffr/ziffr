@@ -6,13 +6,14 @@ import fc from "fast-check";
 import { describe, expect, it } from "vitest";
 import { resolverFrom } from "../compare";
 import { formatNumber, formatValue } from "../format";
-import { fit, needs, predict, type Fit } from "../methods/fit";
+import { fit, needs, partialPeriods, predict, type Fit } from "../methods/fit";
+import { strengthOf } from "./strength";
 import { NUMBER_STYLES } from "../number-style";
 import { numbersIn } from "../numbers";
 import { metric, months } from "../test/fixtures";
 import { runs } from "../test/reference/check";
 import type { Metric, Point } from "../types";
-import { FIT_RECIPES, movesTakeaway, needsTakeaway, predictTakeaway, shareWord, SHARE_WORDS, whatMoves, whatNeeds } from "./fit-takeaway";
+import { decimalsFor, FIT_RECIPES, movesTakeaway, needsTakeaway, predictTakeaway, shareWord, SHARE_WORDS, whatMoves, whatNeeds, written } from "./fit-takeaway";
 import { footerText, type Takeaway, type TakeawayContext } from "./takeaway";
 import { LANGUAGES, WORDING, type CaseKey } from "./wording";
 
@@ -123,7 +124,9 @@ describe("a fit's Takeaway (What moves B?)", () => {
   it("names one driver alone without 'the others', and none when none can be told from chance", () => {
     const one = ok(fitOf(world(), [V]));
     expect(movesTakeaway(R, [V], one, ctx).sentence).toBe("Over 30 months, Visits moved with Revenue the most.");
-    expect(movesTakeaway(R, [V], one, ctx).rows[0].sentence).not.toContain("held the same");
+    const d0 = one.drivers[0];
+    const step0 = 10 ** Math.floor(Math.log10(d0.spread));
+    expect(movesTakeaway(R, [V], one, ctx).rows[0].sentence).toBe(`When Visits goes up by ${formatNumber(step0, 0, ctx.style)}, Revenue has gone up by about ${formatValue(R, d0.effect * step0, ctx.style)} (likely between ${formatValue(R, d0.lo * step0, ctx.style)} and ${formatValue(R, d0.hi * step0, ctx.style)}).`);
     const none = world(30, { visitsEffect: 0, priceEffect: 0, noise: 5000 });
     const nf = ok(fitOf(none, [T]));
     const nt = movesTakeaway(R, [T], nf, ctx);
@@ -294,6 +297,245 @@ describe("what a driver needs to be (What does B need?)", () => {
   });
 });
 
+describe("what mutation testing asked for", () => {
+  it("writes a value to at least two significant digits of the smallest number beside it, never fewer than the Metric's decimals", () => {
+    const eur = { unit: "€", unit_position: "after" as const, decimals: 0 };
+    expect(decimalsFor(eur, 2400, 0.8)).toBe(2);
+    expect(decimalsFor(eur, 5)).toBe(1);
+    expect(decimalsFor({ ...eur, decimals: 1 }, 0)).toBe(1);
+    expect(decimalsFor({ ...eur, decimals: 3 }, 2400)).toBe(3);
+    expect(decimalsFor(eur, 1e-9)).toBe(6);
+    expect(decimalsFor(eur, 0.0042, 3)).toBe(4);
+    expect(written(eur, 0.8, ctx)).toBe("0.80 €");
+    expect(written(eur, 1234.5, ctx)).toBe("1,235 €");
+    expect(written(eur, 2400, ctx, [2400, 0.8])).toBe("2,400.00 €");
+  });
+  /** Revenue from Visits, Price, Tickets and Orders with the effects given, so that each can be made to matter. */
+  const four = (effects: [number, number, number, number]) => {
+    const r = lcg(21);
+    const n = 30;
+    const cols = [0, 1, 2, 3].map(() => Array.from({ length: n }, () => Math.round(r() * 100)));
+    const rev = cols[0].map((_, i) => Math.round(cols.reduce((sum, c, j) => sum + effects[j] * c[i], 500) + gauss(r) * 20));
+    const O = metric({ id: 5, slug: "orders", name: "Orders", unit: "", period: "month", aggregation: "sum" });
+    const ms = [V, P, T, O];
+    const series: Record<string, Point[]> = { revenue: months("2024-01", rev), visits: months("2024-01", cols[0]), price: months("2024-01", cols[1]), tickets: months("2024-01", cols[2]), orders: months("2024-01", cols[3]) };
+    return { ms, series, resolve: resolverFrom([R, ...ms], series) };
+  };
+  it("names the top three of four, and lists three as 'A, B and C', in order of their share", () => {
+    const w = four([30, 20, 10, 5]);
+    const t = whatMoves(R, w.ms, w.resolve, opts);
+    expect(t.sentence).toBe("Over 30 months, Visits, Price and Support tickets moved with Revenue the most, with the others held the same.");
+    expect(t.rows.map((r) => r.name)).toEqual(["Visits", "Price", "Support tickets", "Orders"]);
+    const flipped = four([5, 10, 20, 30]);
+    const u = whatMoves(R, flipped.ms, flipped.resolve, opts);
+    expect(u.sentence).toBe("Over 30 months, Orders, Support tickets and Price moved with Revenue the most, with the others held the same.");
+    expect(u.rows.map((r) => r.name)).toEqual(["Orders", "Support tickets", "Price", "Visits"]);
+    // The Takeaway's own strength and range are the first driver's.
+    expect(u.strength).toBe(u.rows[0].strength);
+    const n = whatNeeds(R, flipped.ms, 2500, flipped.resolve, opts);
+    expect(n.rows.map((r) => r.name)).toEqual(["Orders", "Support tickets", "Price"]);
+  });
+  it("puts a dominant driver first even when it is listed second", () => {
+    const w = world(30, { priceEffect: -40000 });
+    const t = whatMoves(R, [V, P, T], resolverFrom([R, V, P, T], w.series), opts);
+    expect(t.rows.map((r) => r.name).slice(0, 2)).toEqual(["Price", "Visits"]);
+    expect(t.sentence).toBe("Over 30 months, Price and Visits moved with Revenue the most, with the others held the same.");
+  });
+  it("quotes the top driver's effect without the far-off months, per its own step, and caps every strength", () => {
+    const x = world(30, { priceEffect: -150000 });
+    const bad = { ...x.series, revenue: x.series.revenue.map((p, i) => (i === 11 ? { ...p, value: p.value + 300000 } : p)) };
+    const f = ok(fitOf({ ...x, series: bad }));
+    const t = movesTakeaway(R, [V, P, T], f, ctx);
+    const far = f.verdict.cautions.find((c) => c.case === "caution-far-off")!;
+    const top = f.drivers.reduce((a, d) => (d.share > a.share ? d : a));
+    expect(top.name).toBe("Price");
+    const step = 10 ** Math.floor(Math.log10(top.spread));
+    const metric = [V, P, T].find((m) => m.name === top.name)!;
+    expect(t.cautions[0]).toBe(`This result is pulled by 1 month far from the rest; without them it reads ${written(R, (far.slots.without as number) * step, ctx)} per ${written(metric, step, ctx)}.`);
+    for (const d of f.drivers) expect(t.rows.find((r) => r.name === d.name)!.strength).toBe(strengthOf(d.partial, partialPeriods(f.n, f.drivers.length), true));
+    expect(t.rows.every((r) => r.strength !== "strong")).toBe(true);
+  });
+  it("lowers a strong link to moderate when a caution is said, for the whole Takeaway and for each driver", () => {
+    const x = Array.from({ length: 30 }, (_, i) => i + 1);
+    const r = lcg(2);
+    const y = x.map((v) => Math.round((v * v) / 5 + gauss(r) * 0.4));
+    const c = ok(fit({ target: { name: "Revenue", points: months("2024-01", y) }, drivers: [{ name: "Visits", points: months("2024-01", x) }], span: "month", basis: "values" }));
+    expect(c.drivers[0].strength).toBe("strong");
+    const t = movesTakeaway(R, [V], c, ctx);
+    expect(t.cautions).toEqual(["The link looks curved, so a straight-line reading is rough."]);
+    expect([t.strength, t.rows[0].strength]).toEqual(["moderate", "moderate"]);
+  });
+  it("says nothing of an effect whose range stays on one side of 0 but that cannot be told from chance", () => {
+    let found = 0;
+    for (let seed = 1; seed < 400 && found === 0; seed++) {
+      const r = lcg(seed);
+      const x = Array.from({ length: 14 }, () => Math.round(r() * 100));
+      const y = x.map((v) => Math.round(0.12 * v + gauss(r) * 10 + 50));
+      const f = fit({ target: { name: "Revenue", points: months("2024-01", y) }, drivers: [{ name: "Visits", points: months("2024-01", x) }], span: "month", basis: "values" });
+      if (!f.ok) continue;
+      const d = f.drivers[0];
+      if (d.strength !== "cant-tell" || d.lo * d.hi <= 0) continue;
+      found++;
+      const t = movesTakeaway(R, [V], f, ctx);
+      expect(t.rows[0].sentence).toBeNull();
+      expect(t.range).toBeNull();
+    }
+    expect(found).toBe(1);
+  });
+  it("leaves out a month still under way when a shorter period is combined: today inside the last month drops it, a later today keeps it", () => {
+    const w = world();
+    const weeks: Point[] = Array.from({ length: 140 }, (_, i) => ({ period: new Date(Date.UTC(2024, 0, 1 + 7 * i)).toISOString().slice(0, 10), value: 100 + ((i * 37) % 53) }));
+    const weekly = metric({ id: 30, slug: "weekly", name: "Orders", period: "week", aggregation: "sum" });
+    const r = resolverFrom([R, weekly, P], { revenue: months("2024-01", [...w.revenue, ...w.revenue, ...w.revenue]), weekly: weeks, price: months("2024-01", [...w.price, ...w.price, ...w.price]) });
+    const count = (today: string) => Number(/^Over (\d+) months/.exec(whatMoves(R, [weekly, P], r, { ...opts, today }).sentence!)![1]);
+    expect(count("2026-08-15")).toBe(count("2027-06-01") - 1);
+  });
+  it("refuses two drivers of which one is worked out from the other, naming them", () => {
+    const w = world();
+    const derived = metric({ id: 8, slug: "double-visits", name: "Double visits", formula: "{visits} * 2", period: "month", aggregation: "sum" });
+    const r = resolverFrom([R, V, derived], { ...w.series, "double-visits": w.series.visits.map((p) => ({ ...p, value: p.value * 2 })) });
+    const t = whatMoves(R, [V, derived], r, opts);
+    expect(t.refusal).toBe("Double visits is worked out from Visits, so comparing them tells nothing.");
+  });
+  it("writes a small value and its range to two significant digits, and the whole structure of a value read from a fit", () => {
+    const r = lcg(5);
+    const x = Array.from({ length: 24 }, () => Math.round(r() * 1000) / 100);
+    const y = x.map((v) => Math.round((0.1 * v + 0.2 + gauss(r) * 0.05) * 1000) / 1000);
+    const rate = metric({ id: 1, slug: "revenue", name: "Rate", unit: "%", unit_position: "after", decimals: 0, period: "month", aggregation: "sum" });
+    const f = ok(fit({ target: { name: "Rate", points: months("2024-01", y) }, drivers: [{ name: "Visits", points: months("2024-01", x) }], span: "month", basis: "values" }));
+    const p = predict(f, [5]);
+    if (!p.ok || p.lo === null) throw new Error("no range");
+    const t = predictTakeaway(rate, [V], f, [5], p, ctx);
+    const digits = decimalsFor(rate, p.value, p.lo, p.hi!);
+    const shown = (v: number) => formatValue({ ...rate, decimals: digits }, v, ctx.style);
+    expect(digits).toBeGreaterThan(0);
+    expect(t.sentence).toBe(`With Visits at ${written(V, 5, ctx)}, Rate is likely between ${shown(p.lo)} and ${shown(p.hi!)}.`);
+    expect(t.range).toEqual({ lo: p.lo, hi: p.hi, text: `${shown(p.lo)} – ${shown(p.hi!)}` });
+    expect(t.figures).toEqual([
+      { label: "Values given", value: p.value, text: shown(p.value) },
+      { label: "Likely between", value: p.lo, text: shown(p.lo) },
+      { label: "Likely between", value: p.hi, text: shown(p.hi!) },
+    ]);
+    expect(t.numbers).toEqual([
+      { label: "Method", text: "A value read from that line, with the range of a single period" },
+      { label: "Values given", text: `Visits at ${written(V, 5, ctx)}` },
+      { label: "Periods", text: `${f.from} – ${f.to}` },
+      { label: "Typical miss", text: written(rate, f.miss, ctx) },
+    ]);
+    expect(t.basis).toBe("compared by value, over 24 months");
+    // Outside what was seen: the point, and the same structure without the range.
+    const q = predict(f, [50]);
+    if (!q.ok) throw new Error("refused");
+    const g = predictTakeaway(rate, [V], f, [50], q, ctx);
+    expect(g.figures).toEqual([{ label: "Values given", value: q.value, text: written(rate, q.value, ctx, [q.value]) }]);
+    expect(g.sentence).toBe(`With Visits at ${written(V, 50, ctx)}, Rate comes to about ${written(rate, q.value, ctx, [q.value])}. This is higher than Visits has ever been (highest ${written(V, f.drivers[0].high, ctx)}), so treat it as a guess.`);
+  });
+  it("writes every number of a range to the digits its smallest needs: a value 1,200 with a range from 0.8 to 2,400", () => {
+    const w = world();
+    const f = ok(fitOf(w, [V, P]));
+    const none = { refusals: [], cautions: [], switches: [] };
+    const p = predictTakeaway(R, [V, P], f, [50000, 9], { ok: true, value: 1200, lo: 0.8, hi: 2400, outside: [], verdict: none }, ctx);
+    expect(p.kind).toBe("answer");
+    expect(p.sentence).toBe(`With Visits at ${written(V, 50000, ctx)} and Price at 9.00 €, Revenue is likely between 0.80 € and 2,400.00 €.`);
+    expect(p.figures.map((x) => x.text)).toEqual(["1,200.00 €", "0.80 €", "2,400.00 €"]);
+    const n = needsTakeaway(R, V, f, 1200, { ok: true, value: 1200, lo: 0.8, hi: 2400, current: 100, outside: [], verdict: none }, ctx, [V, P]);
+    expect(n.kind).toBe("answer");
+    expect(n.sentence).toBe("To reach 1,200 €, Visits would need to be around 1,200.00 (likely between 0.80 and 2,400.00), 1,100 % above today.");
+    expect(n.range).toEqual({ lo: 0.8, hi: 2400, text: "0.80 – 2,400.00" });
+    // A value with no range is written to the digits of the value alone.
+    const g = needsTakeaway(R, V, f, 1200, { ok: true, value: 1200, lo: null, hi: null, current: 100, outside: [], verdict: none }, ctx, [V, P]);
+    expect(g.sentence).toContain("around 1,200,");
+  });
+  it("gives the second driver's own unit and strength where a value is outside what it has been, and a driver that cannot be told from chance as that", () => {
+    const w = world(30, { ticketsEffect: 0 });
+    const f = ok(fitOf(w, [V, P, T]));
+    const low = f.drivers[1].low - 1;
+    const q = predict(f, [50000, low, f.last.x[2]]);
+    if (!q.ok) throw new Error("refused");
+    expect(predictTakeaway(R, [V, P, T], f, [50000, low, f.last.x[2]], q, ctx).sentence).toContain(`This is lower than Price has ever been (lowest ${written(P, f.drivers[1].low, ctx)}), so treat it as a guess.`);
+    expect(f.drivers[2].strength).toBe("cant-tell");
+    expect(f.drivers[0].strength).not.toBe("cant-tell");
+    const mid = predict(f, [50000, f.last.x[1], (f.drivers[2].low + f.drivers[2].high) / 2]);
+    if (!mid.ok) throw new Error("refused");
+    const n = needs(f, { goal: Math.round(mid.value), driver: 2 });
+    expect(needsTakeaway(R, T, f, Math.round(mid.value), n, ctx, [V, P, T]).strength).toBe("cant-tell");
+  });
+  it("caps a strong link to moderate in What does B need? where a caution is said, and keeps it where none is", () => {
+    // Visits in no order, so that the link is compared by value, and a curved link to Revenue.
+    const x = Array.from({ length: 30 }, (_, i) => ((i * 7) % 30) + 1);
+    const r = lcg(2);
+    const y = x.map((v) => Math.round((v * v) / 5 + gauss(r) * 0.4));
+    const res = resolverFrom([R, V], { revenue: months("2024-01", y), visits: months("2024-01", x) });
+    const t = whatNeeds(R, [V], 45, res, opts);
+    expect(t.refusal).toBeNull();
+    expect(t.strength).toBe("moderate");
+    const straight = x.map((v, i) => 2 * v + ((i * 5) % 7 - 3) / 5);
+    const s = whatNeeds(R, [V], 45, resolverFrom([R, V], { revenue: months("2024-01", straight), visits: months("2024-01", x) }), opts);
+    expect(s.cautions).toEqual([]);
+    expect(s.strength).toBe("strong");
+  });
+  it("gives what a driver needs as a whole structure, for the second driver, with the strength of that driver and none stronger than moderate with a caution", () => {
+    const w = world();
+    const f = ok(fitOf(w, [V, P]));
+    const mid = predict(f, [f.last.x[0], (f.drivers[1].low + f.drivers[1].high) / 2]);
+    if (!mid.ok) throw new Error("refused");
+    const goal = Math.round(mid.value);
+    const n = needs(f, { goal, driver: 1 });
+    if (!n.ok || n.lo === null) throw new Error("no range");
+    const t = needsTakeaway(R, P, f, goal, n, ctx, [V, P]);
+    const digits = decimalsFor(P, n.value, n.lo, n.hi!);
+    const shown = (v: number) => formatValue({ ...P, decimals: digits }, v, ctx.style);
+    expect(t.strength).toBe(strengthOf(f.drivers[1].partial, partialPeriods(f.n, 2)));
+    expect(t.range).toEqual({ lo: n.lo, hi: n.hi, text: `${shown(n.lo)} – ${shown(n.hi!)}` });
+    expect(t.figures).toEqual([
+      { label: "Goal", value: goal, text: written(R, goal, ctx) },
+      { label: "Value needed", value: n.value, text: shown(n.value) },
+    ]);
+    expect(t.numbers).toEqual([
+      { label: "Method", text: "That line turned round for one driver" },
+      { label: "Goal", text: written(R, goal, ctx) },
+      { label: "Value needed", text: shown(n.value) },
+      { label: "Periods", text: `${f.from} – ${f.to}` },
+      { label: "Compared on", text: "compared by value" },
+    ]);
+    // A curved link in range is a caution, and the strength is capped.
+    const x = Array.from({ length: 30 }, (_, i) => i + 1);
+    const r = lcg(2);
+    const y = x.map((v) => Math.round((v * v) / 5 + gauss(r) * 0.4));
+    const c = ok(fit({ target: { name: "Revenue", points: months("2024-01", y) }, drivers: [{ name: "Visits", points: months("2024-01", x) }], span: "month", basis: "values" }));
+    expect(c.drivers[0].strength).toBe("strong");
+    const cn = needs(c, { goal: 45, driver: 0 });
+    const ct = needsTakeaway(R, V, c, 45, cn, ctx, [V]);
+    expect(ct.cautions).toEqual(["The link looks curved, so a straight-line reading is rough."]);
+    expect(ct.strength).toBe("moderate");
+  });
+  it("gives the point and the guess for what a driver needs, as a whole structure", () => {
+    const w = world();
+    const f = ok(fitOf(w, [V, P]));
+    const goal = 400000;
+    const n = needs(f, { goal, driver: 0 });
+    if (!n.ok) throw new Error("refused");
+    const t = needsTakeaway(R, V, f, goal, n, ctx, [V, P]);
+    expect(t.range).toBeNull();
+    expect(t.figures).toEqual([
+      { label: "Goal", value: goal, text: "400,000 €" },
+      { label: "Value needed", value: n.value, text: written(V, n.value, ctx, [n.value]) },
+    ]);
+    expect(t.sentence).toBe(`To reach 400,000 €, Visits would need to be around ${written(V, n.value, ctx, [n.value])}, ${t.sentence!.match(/\d+ % above today/)![0]}. This is higher than Visits has ever been (highest ${written(V, f.drivers[0].high, ctx)}), so treat it as a guess.`);
+  });
+  it("says to treat a held driver's value outside what it has been as a guess, in that driver's unit", () => {
+    const w = world();
+    const f = ok(fitOf(w, [V, P]));
+    const at = predict(f, [50000, 20]);
+    if (!at.ok) throw new Error("refused");
+    const n = needs(f, { goal: at.value, driver: 0, held: [0, 20] });
+    if (!n.ok) throw new Error("refused");
+    expect(n.outside.map((o) => o.name)).toEqual(["Price"]);
+    const t = needsTakeaway(R, V, f, at.value, n, ctx, [V, P]);
+    expect(t.sentence).toContain(`This is higher than Price has ever been (highest ${written(P, f.drivers[1].high, ctx)})`);
+  });
+});
+
 describe("compared by change", () => {
   // Two Metrics that both grow: compared by how each changed from the month before, and said so.
   const r = lcg(13);
@@ -363,6 +605,7 @@ describe("the Recipes", () => {
     const t = whatMoves(R, [R], resolve, opts);
     expect(t.refusal).toBe("No other Metric has enough in common with Revenue to compare.");
     expect([t.sentence, t.range, t.strength]).toEqual([null, null, null]);
+    expect(t.rows).toEqual([]);
   });
   it("refuses too many Metrics for the history, in words, and says how many can be weighed", () => {
     const many = Array.from({ length: 7 }, (_, i) => metric({ id: 20 + i, slug: `m${i}`, name: `M${i}`, period: "month", aggregation: "sum" }));
@@ -410,7 +653,9 @@ describe("the Recipes", () => {
     expect(t.refusal).toBe("Over 30 months, none of the other Metrics clearly moved with Revenue, so no value of them can be read as reaching 100,000 €.");
   });
   it("says when there is nothing to compare with, for a goal too", () => {
-    expect(whatNeeds(R, [R], 100, resolve, opts).refusal).toBe("No other Metric has enough in common with Revenue to compare.");
+    const none = whatNeeds(R, [R], 100, resolve, opts);
+    expect(none.refusal).toBe("No other Metric has enough in common with Revenue to compare.");
+    expect(none.rows).toEqual([]);
   });
   it("refuses as the fit does, in words", () => {
     const short = resolverFrom(metrics, { revenue: months("2024-01", [1, 2, 3, 5, 4]), visits: months("2024-01", [3, 1, 2, 5, 4]), price: [], tickets: [] });

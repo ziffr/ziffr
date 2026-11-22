@@ -30,8 +30,10 @@ export function tQuantile(p: number, df: number): number {
   if (!(p > 0.5 && p < 1) || !Number.isInteger(df) || df < 1 || df > MOST_DF) return NaN;
   const want = 2 * p - 1;
   let [lo, hi] = [0, Math.PI / 2];
+  // Stryker disable next-line EqualityOperator: halving 100 times is far below a double's last digit, so one more changes nothing
   for (let i = 0; i < 100; i++) {
     const mid = (lo + hi) / 2;
+    // Stryker disable next-line EqualityOperator: a chance exactly equal to the wanted one has probability 0, and either side gives the same point
     if (between(mid, df) < want) lo = mid;
     else hi = mid;
   }

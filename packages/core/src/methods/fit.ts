@@ -28,6 +28,10 @@ import { strengthOf, type StrengthWord } from "../takeaways/strength";
 import type { Point } from "../types";
 import { tQuantile } from "./distributions";
 
+/** How many periods a driver's partial link is judged on: the periods less the drivers held fixed (n − (k − 1)), so that the
+ * Fisher z of the link has n − k − 2 degrees. */
+export const partialPeriods = (n: number, k: number): number => n - k + 1;
+
 /** The most periods a fit uses: the latest ones (spec 0041, "Limits"). */
 export const MOST_PERIODS = 120;
 /** The share of what a fit explains a driver's own range is cut at: the 80 % range is the 90 % point of the t curve. */
@@ -81,13 +85,12 @@ function rankOf(m: F[][]): number {
   const a = m.map((row) => [...row]);
   let rank = 0;
   const cols = a[0].length;
-  for (let c = 0; c < cols && rank < a.length; c++) {
+  for (let c = 0; c < cols; c++) {
     let p = rank;
     while (p < a.length && isZero(a[p][c])) p++;
     if (p === a.length) continue;
     [a[rank], a[p]] = [a[p], a[rank]];
     for (let r = rank + 1; r < a.length; r++) {
-      if (isZero(a[r][c])) continue;
       const f = div(a[r][c], a[rank][c]);
       a[r] = a[r].map((v, j) => sub(v, mul(f, a[rank][j])));
     }
@@ -155,6 +158,7 @@ function determinant(m: bigint[][]): bigint {
   const a = m.map((row) => [...row]);
   const size = a.length;
   let before = ONE;
+  // Stryker disable next-line EqualityOperator: at k = size − 1 the inner loops are empty and `before` is not read again, so one more step changes nothing
   for (let k = 0; k < size - 1; k++) {
     for (let i = k + 1; i < size; i++) for (let j = k + 1; j < size; j++) a[i][j] = (a[i][j] * a[k][k] - a[i][k] * a[k][j]) / before;
     before = a[k][k];
@@ -179,11 +183,13 @@ function explained(mo: Moments, subset: number[]): F {
 // unreduced), and only turned into a double at the end.
 function lmg(mo: Moments): { shares: F[]; all: F } {
   const k = mo.sxx.length;
+  // Stryker disable next-line EqualityOperator: 0! and 1! are both 1, so `n < 1` gives the same factorials
   const fact = (n: number): bigint => (n <= 1 ? ONE : BigInt(n) * fact(n - 1));
   const r2 = Array.from({ length: 1 << k }, (_, mask) => explained(mo, Array.from({ length: k }, (_, i) => i).filter((i) => mask & (1 << i))));
   const shares = Array.from({ length: k }, (_, j) => {
     let sum = zero;
     for (let mask = 0; mask < 1 << k; mask++) {
+      // Stryker disable next-line ConditionalExpression: a subset that already holds the driver adds 0 (the same share twice), so counting it changes nothing
       if (mask & (1 << j)) continue;
       const size = Array.from({ length: k }, (_, i) => mask & (1 << i)).filter(Boolean).length;
       sum = plus(sum, times({ num: fact(size) * fact(k - size - 1), den: fact(k) }, minus(r2[mask | (1 << j)], r2[mask])));
@@ -277,7 +283,6 @@ type Prepared = {
   basis: Basis;
   rows: FitRow[];
   series: { name: string; points: Point[] }[];
-  window?: { from: string; to: string };
   last: { y: number; x: number[] };
 };
 
@@ -290,19 +295,18 @@ function prepare(input: FitInput): Prepared {
   const by = series.map((s) => new Map(s.points.map((p) => [p.period, p.value])));
   const common = series[0].points.map((p) => p.period).filter((p) => by.every((m) => m.has(p))).slice(-MOST_PERIODS);
   const rows = common.map((period) => ({ period, y: by[0].get(period)!, x: by.slice(1).map((m) => m.get(period)!) }));
-  const ends = series.every((s) => s.points.length > 0) && common.length > 0;
-  // The window is where all of them have history: the latest of their first periods to the earliest of their last, less the
-  // periods cut for being more than 120. Periods any of them lacks inside it are gaps.
-  const from = ends ? [common[0], ...series.map((s) => s.points[0].period)].reduce((a, b) => (a > b ? a : b)) : "";
-  const to = ends ? common[common.length - 1] : "";
+  // Nothing in common: no rows, and the checks say how many periods that is.
+  // Stryker disable next-line ArrayDeclaration,ObjectLiteral: with no rows the checks refuse before the series or the last levels are read
+  if (common.length === 0) return { basis, rows, series, last: { y: NaN, x: [] } };
+  // The checks judge the series over the periods all of them have, first to last (the latest 120): a gap is a period inside that
+  // none of them is allowed to lack, and values outside it are nobody's to judge.
+  const [from, to] = [common[0], common[common.length - 1]];
   const levels = all.map((s) => new Map(readSeries(s.points).map((p) => [p.period, p.value])));
-  const end = rows.length > 0 ? rows[rows.length - 1].period : "";
   return {
     basis,
     rows,
-    series: series.map((s) => ({ name: s.name, points: ends ? s.points.filter((p) => p.period >= from && p.period <= to) : s.points })),
-    window: ends ? { from, to } : undefined,
-    last: { y: levels[0].get(end) ?? NaN, x: levels.slice(1).map((m) => m.get(end) ?? NaN) },
+    series: series.map((s) => ({ name: s.name, points: s.points.filter((p) => p.period >= from && p.period <= to) })),
+    last: { y: levels[0].get(to)!, x: levels.slice(1).map((m) => m.get(to)!) },
   };
 }
 
@@ -324,17 +328,19 @@ function reduce(rows: FitRow[], names: string[], k: number): Reduced {
     let pair: [number, number] | null = null;
     if (!sol) {
       // No inverse: a pair exactly in step (link 1) is one driver; a mix of three or more has no pair to name and refuses.
-      for (const i of idx) for (const j of idx) if (pair === null && i < j && cmp(link(i, j), whole(1)) === 0) pair = [i, j];
+      pair = idx.flatMap((i) => idx.filter((j) => j > i && cmp(link(i, j), whole(1)) === 0).map((j): [number, number] => [i, j]))[0] ?? null;
       if (pair === null) {
-        // A driver is part of a mix when taking it out leaves the rank as it was.
+        // A driver is part of a mix when taking its column out leaves the rank as it was (it is made of the others).
         const rank = rankOf(mo.sxx);
-        const mix = idx.filter((i) => rankOf(mo.sxx.filter((_, r) => r !== i).map((row) => row.filter((_, c) => c !== i))) === rank);
+        const mix = idx.filter((i) => rankOf(mo.sxx.map((row) => row.filter((_, c) => c !== i))) === rank);
         return { refusals: [{ case: "refuse-collinear", slots: { names: mix.map((i) => names[cols[i]]).join(", ") } }] };
       }
     } else {
       const inflation = idx.map((i) => mul(sol.m[i][i], mo.sxx[i][i]));
+      // Stryker disable next-line EqualityOperator: two drivers with the same inflation are a tie, and either is the one whose closest partner goes with it
       const worst = idx.reduce((a, b) => (cmp(inflation[b], inflation[a]) > 0 ? b : a));
       if (cmp(inflation[worst], whole(MOST_INFLATION)) <= 0) return { cols, mo, sol, merged: names.flatMap((n, i) => (withs[i].length > 0 ? [{ kept: n, with: withs[i] }] : [])) };
+      // Stryker disable next-line EqualityOperator: two partners at the same closeness are a tie, and either is the one that goes with it
       const partner = idx.filter((i) => i !== worst).reduce((a, b) => (cmp(link(worst, b), link(worst, a)) > 0 ? b : a));
       pair = [Math.min(worst, partner), Math.max(worst, partner)];
     }
@@ -404,7 +410,7 @@ export function fitNumbers(rows: FitRow[], names: string[], k: number): { core: 
       explains: dbl(shares[i]),
       partial,
       // The Fisher z of a partial correlation holds the other drivers fixed: n − (k − 1) − 3 degrees.
-      strength: strengthOf(partial, n - cols.length + 1),
+      strength: strengthOf(partial, partialPeriods(n, cols.length)),
       inflation: dbl(mul(sol.m[i][i], mo.sxx[i][i])),
       low: Math.min(...xs),
       high: Math.max(...xs),
@@ -444,12 +450,13 @@ export function fit(input: FitInput): Fit | Refused {
   const k = input.drivers.length;
   if (k === 0) return { ok: false, refusals: [{ case: "refuse-no-drivers", slots: { target: input.target.name } }] };
   const prep = prepare(input);
-  const base: SuitabilityInputs = { series: prep.series, span, window: prep.window, periods: prep.rows.length, drivers: k, metrics: input.metrics, canSwitchTo: [] };
+  const base: SuitabilityInputs = { series: prep.series, span, periods: prep.rows.length, drivers: k, metrics: input.metrics };
   const early = checkSuitability("fit", base);
   if (early.refusals.length > 0) return { ok: false, refusals: early.refusals };
   const made = fitNumbers(prep.rows, names, k);
   if ("refusals" in made) return made;
   const { core, cols, misses } = made;
+  // Stryker disable next-line EqualityOperator: two drivers with exactly the same share are a tie, and the earlier is the top
   const top = core.drivers.reduce((a, b, i) => (b.share > core.drivers[a].share ? i : a), 0);
   const verdict = checkSuitability("fit", { ...base, misses, rerun: (left) => without(prep.rows, cols, left, top) });
   return { ok: true, basis: prep.basis, span, target: input.target.name, ...core, last: { y: prep.last.y, x: cols.map((c) => prep.last.x[c]) }, verdict };
@@ -513,7 +520,7 @@ export function predict(model: Fit, values: number[]): Predicted {
   if (bad) return refuseInput(bad);
   const k = model.drivers.length;
   if (!Array.isArray(values) || values.length !== k) return refuseInput(model.drivers.map((d) => d.name).join(", "));
-  const nonNumber = values.findIndex((v) => typeof v !== "number" || !Number.isFinite(v));
+  const nonNumber = values.findIndex((v) => !Number.isFinite(v));
   if (nonNumber >= 0) return refuseInput(model.drivers[nonNumber].name);
   const fitted = again(model);
   if (!fitted) return refuseInput(bad ?? "the fit");
@@ -551,11 +558,11 @@ export function needs(model: Fit, input: NeedsInput): Needed {
   if (bad) return refuseInput(bad);
   const k = model.drivers.length;
   const { goal, driver: j } = input;
-  if (typeof goal !== "number" || !Number.isFinite(goal)) return refuseInput(model.target);
+  if (!Number.isFinite(goal)) return refuseInput(model.target);
   if (!Number.isInteger(j) || j < 0 || j >= k) return refuseInput(model.drivers.map((d) => d.name).join(", "));
   const held = input.held ?? model.last.x;
   if (!Array.isArray(held) || held.length !== k) return refuseInput(model.drivers.map((d) => d.name).join(", "));
-  const nonNumber = held.findIndex((v, i) => i !== j && (typeof v !== "number" || !Number.isFinite(v)));
+  const nonNumber = held.findIndex((v, i) => i !== j && !Number.isFinite(v));
   if (nonNumber >= 0) return refuseInput(model.drivers[nonNumber].name);
   const fitted = again(model);
   if (!fitted) return refuseInput("the fit");
@@ -583,6 +590,7 @@ export function needs(model: Fit, input: NeedsInput): Needed {
   const lever = total(sol.m.flatMap((row, p) => row.map((v, q) => mul(z0[p], mul(v, z0[q])))));
   const c = sub(mul(r0, r0), mul(T, add(add(whole(1), { num: ONE, den: BigInt(mo.n) }), lever)));
   const disc = sub(mul(b, b), mul(a, c));
+  // Stryker disable next-line EqualityOperator: a is 0 only where an effect sits exactly on the edge of being clear, which no data reaches (the edge is a fraction of a double's square), and it would divide by 0 there
   const clear = outside.length === 0 && cmp(a, zero) > 0;
   const centre = dbl(add(add(mo.mx[j], div(b, a)), shift));
   const half = clear ? root(div(disc, mul(a, a))) : NaN;
