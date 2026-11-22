@@ -68,6 +68,7 @@ function AnalyzeCanvas({ data, onCanvas, targets, demo = false }: AnalyzeProps) 
   const recipes = [
     cost && { label: "What drives Cost?", go: () => recipe([cost.id, ...inUse(data.metrics).filter((m) => m.id !== cost.id).map((m) => m.id)], "drivers") },
     revenue && { label: "Where is Revenue heading?", go: () => recipe([revenue.id], "forecast") },
+    revenue && (revenue.target_min !== null || revenue.target_max !== null) && { label: "Will we reach the Target?", go: () => recipe([revenue.id], "forecast") },
     tickets && returns && { label: "Do support tickets drive returns?", go: () => recipe([returns.id, tickets.id], "correlation") },
   ].filter(Boolean) as { label: string; go: () => void }[];
 
