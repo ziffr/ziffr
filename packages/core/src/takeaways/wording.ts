@@ -150,7 +150,7 @@ const EN = {
   "ba-unclear": "{lead}{name} ran {gap} where its trend pointed, but that is within the usual ups and downs (likely between {lo} and {hi}).",
   "ba-level": "{lead}{name} ran exactly where its trend pointed (likely between {lo} and {hi}).",
   "ba-basis": "from a straight line through the {n} {periodsOf|n} before {since}, compared with the {m} {periodsOf|m} since",
-  "ba-assumes": "This assumes the trend before {since} would have carried on, and that the ups and downs since are as large as those before.",
+  "ba-assumes": "This assumes the trend before {since} would have carried on, and that the ups and downs since are as large as those before and do not carry over from one period to the next.",
   "ba-note-latest": "Only the latest {n} {periodsOf|n} before {since} are used.",
   "ba-note-straddle": "The {period} of {from} began before {since}, so it is left out.",
   "ba-beside-refused": "{name} could not be set beside it.",

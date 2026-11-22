@@ -16,7 +16,8 @@ import type { Point } from "../types";
 import { afterDate, afterDateTakeaway, isDay, MAX_PERIODS, splitAt, type AfterDate } from "./before-after";
 
 const { numRuns, seed } = runs();
-const fixture = JSON.parse(readFileSync(new URL("../test/reference/fixtures/before-after.json", import.meta.url), "utf8"));
+type AfterCase = { values: (number | null)[]; start: number; n: number; m: number; slope: number; intercept: number; sse: number; spread: number; expected: number; actual: number; gap: number; half: number; lo: number; hi: number; share: { gap: number; lo: number; hi: number } | null };
+const fixture = JSON.parse(readFileSync(new URL("../test/reference/fixtures/before-after.json", import.meta.url), "utf8")) as { tools: Record<string, string>; after: Record<string, AfterCase> };
 const ctx: TakeawayContext = { style: "1,234.5" };
 const euro: ValueUnit = { unit: "€", unit_position: "after", decimals: 0 };
 const FORBIDDEN = /cause|because|significan|p-value|regression|r²|\br2\b|coefficient|confiden/i;
@@ -62,7 +63,7 @@ function expectReference(values: (number | null)[], start: number) {
 }
 
 describe("before and after against NumPy and SciPy", () => {
-  it.each(Object.entries(fixture.after as Record<string, any>))("%s: the line, the gap and its 80 % range equal NumPy's least squares, the covariance of the fit and SciPy's t quantile to a relative 1e-9", (name, c) => {
+  it.each(Object.entries(fixture.after))("%s: the line, the gap and its 80 % range equal NumPy's least squares, the covariance of the fit and SciPy's t quantile to a relative 1e-9", (name, c) => {
     const got = ok(afterDate(series(c.values), "month", monthStart(c.start)));
     const same = (a: number, b: number, what: string) => expect(close(a, b, 1e-9), `${name} ${what}: ${a} vs ${b}`).toBe(true);
     expect([got.before, got.after]).toEqual([c.n, c.m]);
@@ -314,12 +315,12 @@ describe("the Takeaway of a before-and-after look", () => {
     expect([t.strength, t.strengthText]).toEqual([null, null]);
     expect(t.footer).toBe(FOOTER);
     expect(t.basis).toBe("from a straight line through the 12 months before 1 Jan 2025, compared with the 12 months since");
-    expect(t.assumptions).toEqual(["This assumes the trend before 1 Jan 2025 would have carried on, and that the ups and downs since are as large as those before."]);
+    expect(t.assumptions).toEqual(["This assumes the trend before 1 Jan 2025 would have carried on, and that the ups and downs since are as large as those before and do not carry over from one period to the next."]);
     expect(t.cautions).toEqual([]);
     expect(t.numbers.slice(0, 4).map((n) => n.text)).toEqual(["Before and after", "1 Jan 2025", "12", "12"]);
   });
   it("finds planted differences: the range holds the planted rise and fall, and excludes it for no planted change (the fixture's planted cases)", () => {
-    for (const [name, c] of Object.entries(fixture.after as Record<string, any>)) {
+    for (const [name, c] of Object.entries(fixture.after)) {
       const t = afterDateTakeaway("Signups", series(c.values), "month", monthStart(c.start), euro, ctx);
       expect(t.kind, name).toBe("answer");
       const gap = c.share ? c.share.gap : c.gap;
@@ -439,8 +440,9 @@ describe("the Takeaway of a before-and-after look", () => {
     const c = fixture.after["planted-rise"];
     const t = afterDateTakeaway("Signups", series(c.values), "month", monthStart(c.start), euro, ctx);
     for (const f of t.figures) expect(t.sentence, f.label).toContain(f.text);
-    expect(t.figures[0].value).toBeCloseTo(c.share.gap, 9);
-    expect(t.figures[1].value).toBeCloseTo(c.share.lo, 9);
-    expect(t.figures[2].value).toBeCloseTo(c.share.hi, 9);
+    const share = c.share!;
+    expect(t.figures[0].value).toBeCloseTo(share.gap, 9);
+    expect(t.figures[1].value).toBeCloseTo(share.lo, 9);
+    expect(t.figures[2].value).toBeCloseTo(share.hi, 9);
   });
 });

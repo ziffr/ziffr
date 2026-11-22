@@ -183,7 +183,7 @@ describe("the wording", () => {
     "ba-unclear": [{ lead: "After 1 Mar 2026, ", name: "Signups", gap: "about 3.0 % below", lo: "−9.0 %", hi: "+3.0 %" }, "After 1 Mar 2026, Signups ran about 3.0 % below where its trend pointed, but that is within the usual ups and downs (likely between −9.0 % and +3.0 %)."],
     "ba-level": [{ lead: "Set beside it, ", name: "Visits", lo: "−2.0 %", hi: "+2.0 %" }, "Set beside it, Visits ran exactly where its trend pointed (likely between −2.0 % and +2.0 %)."],
     "ba-basis": [{ n: 12, m: 4, since: "1 Mar 2026", span: "month" }, "from a straight line through the 12 months before 1 Mar 2026, compared with the 4 months since"],
-    "ba-assumes": [{ since: "1 Mar 2026" }, "This assumes the trend before 1 Mar 2026 would have carried on, and that the ups and downs since are as large as those before."],
+    "ba-assumes": [{ since: "1 Mar 2026" }, "This assumes the trend before 1 Mar 2026 would have carried on, and that the ups and downs since are as large as those before and do not carry over from one period to the next."],
     "ba-note-latest": [{ n: 120, since: "1 Mar 2026", span: "month" }, "Only the latest 120 months before 1 Mar 2026 are used."],
     "ba-note-straddle": [{ from: "2026-03-01", since: "15 Mar 2026", span: "month" }, "The month of March 2026 began before 15 Mar 2026, so it is left out."],
     "ba-beside-refused": [{ name: "Visits" }, "Visits could not be set beside it."],

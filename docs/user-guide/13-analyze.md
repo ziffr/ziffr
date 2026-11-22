@@ -51,10 +51,23 @@ A **Recipe** is a ready-made Analysis that runs with one click. Ziffr offers:
 | **Where is Revenue heading?** | Puts Revenue on the canvas and runs **Forecast**. |
 | **Will we reach the Target?** | Puts Revenue on the canvas and runs **Forecast**; when Revenue has a Target, the Takeaway says how likely it is to be reached ("about 7 in 10"). |
 | **Do support tickets drive returns?** | Puts Return rate and Support tickets on the canvas and runs **Correlation**. |
+| **Did it work?** | Asks about the first Metric on the canvas (it is greyed out until there is one). A card opens under the Recipes: pick the **day it started**, and Ziffr compares the periods after it with where the Metric's own trend pointed. Optionally pick **a metric it should not have touched** from the others on the canvas that are counted at the same period, and Ziffr shows the same for it beside. |
 
 A Forecast says where the Metric is expected to be, with the range it is likely between, and which Method worked it out: a plain trend, or the trend with the yearly pattern when the Metric has two seasons of values and the pattern would have missed less on the last third of its history. It also says how that Method did on the periods already known ("the range for the next month would have held 10 of 12 times"). Show the numbers has the details. A forecast is not a promise; it assumes the pattern of the past carries on.
 
-A Recipe replaces what is on the canvas with its own Metrics. Each one appears only when you can see the Metrics it needs. When none fits, the screen says "Recipes appear once the metrics they need are shared with you."
+Except **Did it work?**, a Recipe replaces what is on the canvas with its own Metrics. Each one appears only when you can see the Metrics it needs. When none fits, the screen says "Recipes appear once the metrics they need are shared with you."
+
+### Did it work?
+
+The answer is a range, not a verdict: "After 1 Mar 2026, Signups ran about 12.0 % above where its trend pointed (likely between +8.3 % and +15.6 %)." The trend is a straight line through the periods before the day you named, so Ziffr needs at least six of them; the latest 120 are used. A period that began before the day and runs past it is left out, and the result says so. "Likely between" is the range the answer holds about four times in five.
+
+- Both ends of the range on the same side of zero: the Metric did run away from its trend, by about that much. Ziffr does not say why: other things may have changed on the same day.
+- The range holds zero: the sentence adds "but that is within the usual ups and downs".
+- With a metric set beside it, the result also says how that one ran against its own trend. If it moved away from its trend too, a line above says that something else may have moved both.
+
+The result carries its basis, what it assumes, and the footer "This compares what happened with where the earlier trend pointed; it does not show what made the difference." **Show the numbers** has the trend, where it pointed, what the values were and the typical miss of the line. Where Ziffr cannot answer it says why in words: a day that is not a day, fewer than six periods before it, nothing on or after it, a Metric that has hardly changed, or too many periods without a value.
+
+**Leave the day empty** and Ziffr looks for the day a Metric changed instead, with no day to start from: "Around March 2026, Signups changed: before, it went up 5 € a month; since, down 3 € a month; and at that point its level was just where the earlier trend would have put it." It is the day that fits best; nearby days may fit almost as well. It says so only when the change stands out from what luck would give among all the days it tried (at least eight periods are needed); otherwise it says nothing stands out. See [Reading a Takeaway](../guides/reading-a-takeaway.md).
 
 ## Reading the results
 

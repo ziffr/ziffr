@@ -11,6 +11,7 @@ import { getDrag, setDrag } from "@/lib/drag";
 import { TEMPLATES } from "@/views/templates";
 import type { CanvasData, TemplateId } from "@ziffr/core/types";
 import { PERIOD_LABEL } from "@ziffr/core/periods";
+import { DidItWork } from "./did-it-work";
 import { cn } from "@/lib/utils";
 
 type Result = { key: string; template: TemplateId; metric_ids: number[] };
@@ -27,6 +28,7 @@ export function AnalyzeScreen(props: AnalyzeProps) {
 function AnalyzeCanvas({ data, onCanvas, targets, demo = false }: AnalyzeProps) {
   const [results, setResults] = useState<Result[]>([]);
   const [over, setOver] = useState(false);
+  const [didIt, setDidIt] = useState(false);
   const [pending, start] = useTransition();
   const ms = onCanvas.map((id) => data.metrics.find((m) => m.id === id)!).filter(Boolean);
   const bySlug = (s: string) => data.metrics.find((m) => m.slug === s);
@@ -83,8 +85,12 @@ function AnalyzeCanvas({ data, onCanvas, targets, demo = false }: AnalyzeProps) 
           {recipes.map((r) => (
             <button key={r.label} onClick={r.go} disabled={pending} className="stock min-h-9 rounded-[var(--radius-stock)] px-3 text-sm transition-[transform,box-shadow] hover:-translate-y-px hover:[box-shadow:var(--edge-stock),var(--cast-stock-lift)] active:translate-y-px">{r.label}</button>
           ))}
+          {/* Asks about the first Metric on the canvas, so it needs one there; it opens a card for the day. */}
+          <button onClick={() => setDidIt((open) => !open)} disabled={n === 0} aria-expanded={didIt && n > 0} title={n === 0 ? "Drop a metric first" : undefined} className="stock min-h-9 rounded-[var(--radius-stock)] px-3 text-sm transition-[transform,box-shadow] hover:-translate-y-px hover:[box-shadow:var(--edge-stock),var(--cast-stock-lift)] active:translate-y-px disabled:cursor-not-allowed disabled:opacity-50">Did it work?</button>
           {!recipes.length && <span className="text-xs text-muted-foreground">Recipes appear once the metrics they need are shared with you.</span>}
         </div>
+
+        {didIt && n > 0 && <DidItWork key={ms[0].id} data={data} metrics={ms} />}
 
         <div
           onDragOver={(e) => { e.preventDefault(); setOver(true); }}

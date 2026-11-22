@@ -8,7 +8,7 @@ When Ziffr looks at your numbers (which Metrics move together, what a Metric is 
 - **A strength word** in brackets: strong, moderate, weak, or can't tell from chance.
 - **What it is based on**: how many months (or weeks, or days) it looked at, and whether it compared the numbers themselves or how much they changed from one period to the next.
 - **A plain line above the sentence** when something about your data makes the reading rough. This is a caution.
-- **A footer**: for a link between Metrics, "This shows what has gone together, not what caused what."; for a forecast, "This carries the past forward; it is not a promise." A Takeaway about one Metric's own values, or a sum worked out exactly, has none.
+- **A footer**: for a link between Metrics, "This shows what has gone together, not what caused what."; for a forecast, "This carries the past forward; it is not a promise."; for a before-and-after look, "This compares what happened with where the earlier trend pointed; it does not show what made the difference." A Takeaway about one Metric's own values, or a sum worked out exactly, has none.
 - **Show the numbers**, a fold-out for people who want to check: the method, the exact figures and the periods used.
 
 ## The four strength words
@@ -27,6 +27,16 @@ A result that comes with a caution is never called strong, however close the num
 ## Growth removed
 
 Two Metrics that both grow over time, such as revenue and the number of employees, look closely related even when nothing links them. So where both grow in a clear trend, Ziffr compares how much each changed from one period to the next instead, and says "compared by change, growth removed". Two Metrics that only share a trend then come out as "can't tell from chance", which is the honest answer.
+
+## A range, not a verdict
+
+Some Takeaways have no strength word, because they do not say whether two things go together. "After 1 Mar 2026, Signups ran about 12.0 % above where its trend pointed (likely between +8.3 % and +15.6 %)." is a range. "Likely between" is the range the answer holds about four times in five. Read it like this:
+
+- **Both ends on the same side of zero** (both plus or both minus): the Metric did run away from its trend, by about that much. The Takeaway does not say why; other things may have changed on the same date.
+- **The range holds zero** (one end minus, one plus): the Metric did not clearly leave its path. The sentence says "but that is within the usual ups and downs".
+- **A Metric set beside it**, one the change should not have touched, shows what ordinary ups and downs look like. If it moved too, the Takeaway says something else may have moved both.
+
+"Around March 2026, Signups changed: before, it went up 5 € a month; since, down 3 € a month" says on which date a Metric's level or trend changed. It is the date that fits best; nearby dates may fit almost as well. It is only said when the change stands out from what luck would give among all the dates that were tried; otherwise the Takeaway says nothing stands out.
 
 ## A caution
 

@@ -15,7 +15,8 @@ import type { Point } from "../types";
 import { changePoint, changePointTakeaway, MOST_VALUES, ONE_IN, type ChangePoint } from "./change-point";
 
 const { numRuns, seed } = runs();
-const fixture = JSON.parse(readFileSync(new URL("../test/reference/fixtures/before-after.json", import.meta.url), "utf8"));
+type ChangeCase = { values: number[]; positions?: number[]; n: number; tries: number; index: number; sse0: number; sse1: number; before: number; after: number; step: number; found: boolean; p: number | null; ratio: number; bar: number; slopeHalf?: number; kept?: number };
+const fixture = JSON.parse(readFileSync(new URL("../test/reference/fixtures/before-after.json", import.meta.url), "utf8")) as { tools: Record<string, string>; change: Record<string, ChangeCase> };
 const ctx: TakeawayContext = { style: "1,234.5" };
 const euro: ValueUnit = { unit: "€", unit_position: "after", decimals: 0 };
 const FORBIDDEN = /cause|because|significan|p-value|regression|r²|\br2\b|coefficient|confiden/i;
@@ -47,7 +48,7 @@ function expectReference(positions: number[], values: number[]) {
 }
 
 describe("the change point against NumPy and SciPy", () => {
-  it.each(Object.entries(fixture.change as Record<string, any>))("%s: the date, the lines, the F ratio's chance against the bar and whether it is found equal NumPy's and SciPy's (to a relative 1e-9)", (name, c) => {
+  it.each(Object.entries(fixture.change))("%s: the date, the lines, the F ratio's chance against the bar and whether it is found equal NumPy's and SciPy's (to a relative 1e-9)", (name, c) => {
     const positions: number[] = c.positions ?? c.values.map((_: number, i: number) => i);
     const got = ok(changePoint(at(positions, c.values), "month"));
     expect([got.n, got.tries, got.index, got.found], name).toEqual([c.n, c.tries, c.index, c.found]);
@@ -57,7 +58,7 @@ describe("the change point against NumPy and SciPy", () => {
     same(got.step, c.step, "step");
     if (c.slopeHalf !== undefined) {
       same(got.slopeHalf, c.slopeHalf, "range of the change in slope");
-      same(got.kept!, c.kept, "kept");
+      same(got.kept!, c.kept!, "kept");
       same(got.spread, Math.sqrt(c.sse1 / (c.n - 4)), "typical miss");
     }
     expectReference(positions, c.values);
