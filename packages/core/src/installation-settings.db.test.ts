@@ -8,6 +8,7 @@ import { deliverPrompt } from "./deliveries";
 import { claimInstallation, prepareSetupCode } from "./installation-admins";
 import { installationSettingsView, privateMailHost, saveInstallationSettings, sendTestEmail, TEST_EMAIL_ERRORS, TEST_EMAILS_PER_HOUR, turnstileVerifier } from "./installation-settings";
 import { sendingLimit } from "./sending-limit";
+import { trialWebhooksOn } from "./webhook-trial";
 import { trialSettingsInEffect, trialsOpen } from "./trials";
 import { demoReadOnlyWords } from "./demo";
 import { DEMO_READ_ONLY, DEMO_READ_ONLY_TRIAL } from "./demo-words";
@@ -23,7 +24,7 @@ import type { OutgoingMail } from "./mail";
 
 const SMTP = process.env.TEST_SMTP_URL ?? "smtp://127.0.0.1:55425";
 const MAILPIT = process.env.MAILPIT_URL ?? "http://127.0.0.1:55424";
-const KEYS = ["ZIFFR_TURNSTILE_SITE_KEY", "ZIFFR_TURNSTILE_SECRET", "ZIFFR_TRIAL_MAX", "ZIFFR_DEMO", "ZIFFR_DEMO_DEFAULT", "ZIFFR_DEMO_ONLY", "ZIFFR_SMTP_URL", "ZIFFR_SMTP_URL_DEFAULT", "ZIFFR_MAIL_FROM", "ZIFFR_MAIL_FROM_DEFAULT", "ZIFFR_SITE_URL", "ZIFFR_INBOUND_DOMAIN", "ZIFFR_INBOUND_SECRET", "ZIFFR_SECRETS_KEY", "ZIFFR_INSTALLATION_ADMINS", "ZIFFR_TRIAL_DAYS", "ZIFFR_ALLOW_PRIVATE_MAIL_HOST"];
+const KEYS = ["ZIFFR_TURNSTILE_SITE_KEY", "ZIFFR_TURNSTILE_SECRET", "ZIFFR_TRIAL_MAX", "ZIFFR_DEMO", "ZIFFR_DEMO_DEFAULT", "ZIFFR_DEMO_ONLY", "ZIFFR_SMTP_URL", "ZIFFR_SMTP_URL_DEFAULT", "ZIFFR_MAIL_FROM", "ZIFFR_MAIL_FROM_DEFAULT", "ZIFFR_SITE_URL", "ZIFFR_INBOUND_DOMAIN", "ZIFFR_INBOUND_SECRET", "ZIFFR_SECRETS_KEY", "ZIFFR_INSTALLATION_ADMINS", "ZIFFR_TRIAL_DAYS", "ZIFFR_TRIAL_WEBHOOKS", "ZIFFR_ALLOW_PRIVATE_MAIL_HOST"];
 const savedEnv: Record<string, string | undefined> = {};
 let savedAdmins: Record<string, unknown>[] = [];
 let savedSettings: Record<string, unknown>[] = [];
@@ -519,6 +520,19 @@ describe("the check against bots, trials and the demo on the page (#201)", () =>
     process.env.ZIFFR_TRIAL_DAYS = "7";
     await expect(saveInstallationSettings(a, "trials", { ZIFFR_TRIAL_DAYS: "3" })).rejects.toThrow(/set on the server/);
     expect((await trialSettingsInEffect())?.days).toBe(7);
+  });
+
+  it("switches Webhooks in trials off on the page, and the server's value wins (spec 0037)", async () => {
+    const a = await admin();
+    expect(trialWebhooksOn(await settingsInEffect())).toBe(true);
+    await expect(saveInstallationSettings(a, "trials", { ZIFFR_TRIAL_WEBHOOKS: "maybe" })).rejects.toThrow(/Pick whether trials may have Webhooks/);
+    await saveInstallationSettings(a, "trials", { ZIFFR_TRIAL_WEBHOOKS: "false" });
+    expect(trialWebhooksOn(await settingsInEffect())).toBe(false);
+    await saveInstallationSettings(a, "trials", { ZIFFR_TRIAL_WEBHOOKS: "true" });
+    expect(trialWebhooksOn(await settingsInEffect())).toBe(true);
+    process.env.ZIFFR_TRIAL_WEBHOOKS = "false";
+    await expect(saveInstallationSettings(a, "trials", { ZIFFR_TRIAL_WEBHOOKS: "true" })).rejects.toThrow(/set on the server/);
+    expect(trialWebhooksOn(await settingsInEffect())).toBe(false);
   });
 
   it("offers the demo or not, over Docker's default, and never against the server", async () => {

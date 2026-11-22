@@ -83,7 +83,7 @@ describe("the log, the test and Send again", () => {
     expect(await webhookLog(a, id)).toHaveLength(1);
   });
 
-  it("makes a send wait a minute after it was tried, notes the resend in the Audit Log, and refuses a trial", async () => {
+  it("makes a send wait a minute after it was tried, notes the resend in the Audit Log, and refuses a trial whose Webhooks the operator switched off", async () => {
     const w = await ws(); const owner = await w.person("owner"); const a = w.actor(owner);
     const { id } = await createWebhook(a, { name: "Hook", url: URL1 });
     const { data } = await db().from("webhook_sends").insert({ workspace_id: w.id, webhook_id: id, type: "ping", source_type: "app", state: "failed", attempts: 1, failure: "status", status_code: 400, last_attempt_at: new Date().toISOString() }).select("id").single();
@@ -93,7 +93,10 @@ describe("the log, the test and Send again", () => {
     const { data: events } = await db().from("audit_events").select("kind").eq("workspace_id", w.id).eq("kind", "webhook.resent");
     expect(events).toHaveLength(1);
     await db().from("workspaces").update({ trial_ends_at: new Date(Date.now() + 86_400_000).toISOString() }).eq("id", w.id);
-    expect(await refusal(sendTestWebhook(a, id))).toBeInstanceOf(Forbidden);
-    expect(await refusal(resendWebhookSend(a, String(data!.id)))).toBeInstanceOf(Forbidden);
+    process.env.ZIFFR_TRIAL_WEBHOOKS = "false";
+    try {
+      expect(await refusal(sendTestWebhook(a, id))).toBeInstanceOf(Forbidden);
+      expect(await refusal(resendWebhookSend(a, String(data!.id)))).toBeInstanceOf(Forbidden);
+    } finally { delete process.env.ZIFFR_TRIAL_WEBHOOKS; }
   });
 });

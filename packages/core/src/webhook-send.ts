@@ -8,9 +8,9 @@
 import { openWorkflowRow } from "./workflow-rows";
 import { createHmac, timingSafeEqual } from "node:crypto";
 import { db } from "./db";
-import { sendingLimit } from "./sending-limit";
+import { webhookRules } from "./webhook-trial";
 import { deliverNotice, linkTo, refFor } from "./deliveries";
-import { operatorPrivateHosts, outboundRequest, outboundUrlProblem } from "./outbound-request";
+import { outboundRequest, outboundUrlProblem } from "./outbound-request";
 import { openNames, openOne, openRows } from "./sealed-columns";
 import { metricSeenByEveryone, webhookMayHear } from "./visibility";
 import { buildActionMessage, buildAlertFiredMessage, buildPingMessage, buildValueUnusualMessage, type ActionFacts, type MessageEnvelope, type PersonFacts, type WebhookMessage } from "./webhook-messages";
@@ -179,6 +179,9 @@ async function tellOwnersSwitchedOff(ws: string, name: string, address: string, 
 /** One send: the Webhook's current state, the message, the signed request, and the answer judged. */
 async function sendOne(send: Send, signal?: AbortSignal): Promise<Outcome> {
   const ws = send.workspace_id;
+  // A trial's sends stop when the operator switches trial Webhooks off or the trial ends; a trial never reaches private hosts.
+  const rules = await webhookRules(ws);
+  if (!rules.allowed) return { state: "dropped" };
   const { data } = await db().from("webhooks").select("id, name, url, secret, secret_previous, secret_previous_until, events, disabled_at").eq("id", send.webhook_id).eq("workspace_id", ws).maybeSingle();
   if (!data || data.disabled_at || (send.type !== "ping" && !((data.events as string[]) ?? []).includes(send.type))) return { state: "dropped" };
   const [hook] = await openRows("webhooks", ws, [data as Record<string, unknown>]);
@@ -191,13 +194,13 @@ async function sendOne(send: Send, signal?: AbortSignal): Promise<Outcome> {
   if (Buffer.byteLength(body) > WEBHOOK_MESSAGE_MAX_BYTES && built.redacted) body = JSON.stringify(built.redacted);
   if (Buffer.byteLength(body) > WEBHOOK_MESSAGE_MAX_BYTES) return { state: "failed", failure: "too_big" };
   // The address is judged again here, as when it was saved; `outboundRequest` judges every address it connects to.
-  const privateHosts = operatorPrivateHosts();
+  const privateHosts = rules.privateHosts;
   if (outboundUrlProblem(url, { privateHosts })) return { state: "failed", failure: "refused" };
   const secrets = [secret];
   if (hook.secret_previous_until && new Date(String(hook.secret_previous_until)).getTime() > Date.now() && typeof hook.secret_previous === "string" && hook.secret_previous.startsWith("whsec_")) secrets.push(hook.secret_previous);
   const timestamp = Math.floor(Date.now() / 1000);
   // The daily cap is one atomic claim of a slot in the database, so runs at the same moment cannot pass it together.
-  const { data: slot } = await db().rpc("take_webhook_send_slot", { p_workspace: ws, p_cap: await sendingLimit("webhookSendsPerWorkspace") });
+  const { data: slot } = await db().rpc("take_webhook_send_slot", { p_workspace: ws, p_cap: rules.sendsPerDay });
   if (slot !== true) return { state: "deferred" };
   try {
     const res = await outboundRequest(new URL(url), {

@@ -250,6 +250,7 @@ Generated from the Installation Settings catalogue (`packages/core/src/installat
 | `ZIFFR_TRIAL_DAYS` | Days a trial lasts | `7` | 1 to 30. Set, it turns trials on: whoever signs in may start a Trial Workspace, and every Workspace made here is one. Remove it to turn trials off; trials that run go on until they end. |
 | `ZIFFR_TRIAL_MAX` | Trials at once | `200` | The most trials that may run at the same time. Empty: 200. |
 | `ZIFFR_TRIAL_THEN` | When a trial ends | `delete`, `keep` | Keep turns an ended trial into an ordinary Workspace on the default Workspace Limit (set one under Workspace Limits): invitations open and every Connector reaches everyone. Empty: delete. |
+| `ZIFFR_TRIAL_WEBHOOKS` | Webhooks in trials | `true`, `false` | On by default: a trial may hold 2 Webhooks (Workspace and personal together) and send 200 a day, to public addresses only; the hosts you list in ZIFFR_WEBHOOK_PRIVATE_HOSTS never apply to a trial. Off: trials cannot add Webhooks, and those they have send nothing. Ordinary Workspaces are not affected. |
 | `ZIFFR_TRIAL_GRACE_DAYS` | Days a trial's data stays after it ends | `7` | 1 to 60. After the trial ends nothing can be added, and its Owner can still download everything; then it is deleted. Applies to every trial that has ended and is waiting, too: a smaller number deletes them sooner. |
 
 **Usage**

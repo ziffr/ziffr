@@ -58,6 +58,8 @@ export const INSTALLATION_SETTINGS: SettingDefinition[] = [
     help: "The most trials that may run at the same time. Empty: 200." },
   { name: "ZIFFR_TRIAL_THEN", section: "trials", label: "When a trial ends", secret: false, choices: [{ value: "delete", label: "Close it, and delete it a week later" }, { value: "keep", label: "Keep it as a Workspace on the default limit" }],
     help: "Keep turns an ended trial into an ordinary Workspace on the default Workspace Limit (set one under Workspace Limits): invitations open and every Connector reaches everyone. Empty: delete." },
+  { name: "ZIFFR_TRIAL_WEBHOOKS", section: "trials", label: "Webhooks in trials", secret: false, choices: [{ value: "true", label: "Trials may have Webhooks" }, { value: "false", label: "Trials have no Webhooks" }],
+    help: "On by default: a trial may hold 2 Webhooks (Workspace and personal together) and send 200 a day, to public addresses only; the hosts you list in ZIFFR_WEBHOOK_PRIVATE_HOSTS never apply to a trial. Off: trials cannot add Webhooks, and those they have send nothing. Ordinary Workspaces are not affected." },
   { name: "ZIFFR_KEEP_AUDIT_DAYS", section: "keep", label: "Days the Audit Log is kept", secret: false, placeholder: "730",
     help: "365 to 3,650 (730 is two years). The Audit Log says who changed who may see or do what; below 730 days it is a weaker record. Never shorter than the age of an event that a Retention or an Approval still refers to." },
   { name: "ZIFFR_KEEP_ACCESS_LOG_DAYS", section: "keep", label: "Days the log of calls by key is kept", secret: false, placeholder: "90",

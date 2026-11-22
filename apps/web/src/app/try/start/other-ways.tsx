@@ -49,11 +49,13 @@ function N8nWorkflow({ siteUrl, metricSlug, feedKey }: { siteUrl: string; metric
 }
 
 /** The two cards: an AI assistant (only where this Ziffr serves /mcp) and a program with a Feed Key. */
-export function OtherWays({ siteUrl, mcpUrl, metric, feedKey }: {
+export function OtherWays({ siteUrl, mcpUrl, metric, feedKey, webhooks }: {
   siteUrl: string;
   mcpUrl: string | null;
   metric: { name: string; slug: string };
   feedKey: GuideFeedKey | null;
+  /** How many Webhooks this trial may add, or null where Webhooks are switched off for trials. */
+  webhooks: number | null;
 }) {
   const [key, setKey] = useState<GuideFeedKey | null>(feedKey);
   const [secret, setSecret] = useState<string | null>(null);
@@ -126,6 +128,15 @@ export function OtherWays({ siteUrl, mcpUrl, metric, feedKey }: {
             </>
           )}
         </li>
+        {webhooks !== null && (
+          <li className="stock rounded-[var(--radius-card)] p-4 text-sm">
+            <h3 className="font-semibold">A Webhook</h3>
+            <p className="mt-1 text-muted-foreground">
+              Ziffr tells your own tool when something happens, such as a new Question or a Task for you. A trial can add {webhooks} Webhooks, to public https addresses only.
+            </p>
+            <p className="mt-2"><Link href="/settings/webhooks" className="underline">Add a Webhook</Link></p>
+          </li>
+        )}
       </ul>
     </section>
   );

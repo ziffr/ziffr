@@ -13,11 +13,13 @@ import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } 
 import { changeActionState } from "./action-state";
 import { deleteMetric } from "./metrics";
 import { db } from "./db";
+import { mailHostResolver } from "./mail-hosts";
 import { outboundTls } from "./outbound-request";
 import { ask } from "./questions";
 import { workspace } from "./test/db-fixtures";
 import { queueWebhookEvent } from "./webhook-events";
 import { WEBHOOK_SENDS_PER_WORKSPACE_PER_DAY, WEBHOOK_SEND_CONCURRENCY } from "./webhook-limits";
+import { TRIAL_WEBHOOK_SENDS_PER_DAY } from "./webhook-trial";
 import { sendWaitingWebhooks, sendWebhooksNow, verifyWebhookSignature } from "./webhook-send";
 import { createWebhook, replaceWebhookSecret } from "./webhooks";
 
@@ -322,6 +324,39 @@ describe.skipIf(!openssl)("claiming, the address, the caps and the bound on send
     const row = await c.rowOf(id);
     expect(row.state).toBe("queued");
     expect(new Date(row.next_attempt_at).getTime()).toBeGreaterThan(Date.now());
+  });
+  it("in a trial the operator's private hosts never apply: a host that was reachable is refused at the send", async () => {
+    const c = await setup();
+    await c.done(await c.task());
+    await c.w.trial(new Date(Date.now() + 5 * 86_400_000).toISOString().slice(0, 10));
+    // ZIFFR_WEBHOOK_PRIVATE_HOSTS still names localhost; for a trial it counts for nothing.
+    expect(process.env.ZIFFR_WEBHOOK_PRIVATE_HOSTS).toBe("localhost");
+    expect(await run()).toEqual({ sent: 0, failed: 1 });
+    expect(seen).toEqual([]);
+    expect((await db().from("webhook_sends").select("state, failure").eq("workspace_id", c.w.id).eq("type", "action.done").single()).data).toEqual({ state: "failed", failure: "refused" });
+  });
+  it("holds a trial's sends at 200 a day, not at the operator's larger number", async () => {
+    const real = mailHostResolver.lookup;
+    mailHostResolver.lookup = async () => [{ address: "93.184.216.34", family: 4 }];
+    try {
+      const c = await setup(["action.done"], "/x", "https://hooks.example.test/x");
+      await c.w.trial(new Date(Date.now() + 5 * 86_400_000).toISOString().slice(0, 10));
+      await db().from("webhook_send_days").insert({ workspace_id: c.w.id, day: new Date().toISOString().slice(0, 10), n: TRIAL_WEBHOOK_SENDS_PER_DAY });
+      const id = await c.task();
+      await c.done(id);
+      expect(await run()).toEqual({ sent: 0, failed: 0 });
+      expect((await c.rowOf(id)).state).toBe("queued");
+    } finally { mailHostResolver.lookup = real; }
+  });
+  it("drops a trial's sends where the operator switched Webhooks off for trials, and an ended trial's", async () => {
+    const c = await setup();
+    await c.w.trial(new Date(Date.now() + 5 * 86_400_000).toISOString().slice(0, 10));
+    const id = await c.task();
+    await c.done(id);
+    process.env.ZIFFR_TRIAL_WEBHOOKS = "false";
+    try { await run(); } finally { delete process.env.ZIFFR_TRIAL_WEBHOOKS; }
+    expect(seen).toEqual([]);
+    expect((await c.rowOf(id)).state).toBe("dropped");
   });
   it("claims the daily cap atomically: runs at the same moment cannot pass it together", async () => {
     const c = await setup();
