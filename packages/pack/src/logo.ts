@@ -83,7 +83,7 @@ export function cleanLogo(v: unknown, maxBytes: number = LOGO_MAX_BYTES): string
  * picture says nothing usable. Pure, and never runs or renders anything. */
 export function logoRatio(v: unknown): number {
   const clamp = (r: number) => (Number.isFinite(r) && r > 0 ? Math.min(20, Math.max(0.05, r)) : 3);
-  if (typeof v !== "string") return 3;
+  if (typeof v !== "string" || logoProblem(v) !== null) return 3;
   const m = /^data:image\/(png|jpeg|svg\+xml);base64,([A-Za-z0-9+/]+={0,2})$/.exec(v);
   if (!m) return 3;
   let raw: string;

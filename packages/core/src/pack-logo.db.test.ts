@@ -141,6 +141,21 @@ describe("the item hash with a logo", () => {
   });
 });
 
+describe("an Owner's own logo through an update", () => {
+  it("survives the replacement of an otherwise unchanged Theme, and the Pack's logo does not land on it", async () => {
+    const w = await ws(); const ann = await w.person("owner"); const actor = w.actor(ann);
+    await installPackFile(actor, file(withLogo(undefined, false)), yes);
+    const t = (await theme(w.id))!;
+    await saveTheme(actor, t.id, t.name, t.tokens as ThemeTokens, { ...(t.slides as ThemeSlides), logo: OTHER, logo_ratio: 3 });
+    const next = withLogo(LOGO, true, "1.3.0");
+    next.contents.themes![0].theme = { ...next.contents.themes![0].theme, name: "Board, new" };
+    await updatePackFile(actor, (await db().from("pack_installs").select("id").eq("workspace_id", w.id).single()).data!.id, file(next), yes);
+    const after = (await theme(w.id))!;
+    expect(after.name).toBe("Board, new");
+    expect((after.slides as { logo: string }).logo).toBe(OTHER);
+  });
+});
+
 describe("uninstalling with a logo", () => {
   it("removes the install's record and logo, and a kept Theme keeps the logo it holds", async () => {
     const w = await ws(); const ann = await w.person("owner"); const actor = w.actor(ann);
