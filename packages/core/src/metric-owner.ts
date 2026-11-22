@@ -12,6 +12,7 @@ import { deliverNotice } from "./deliveries";
 import { visibleMetricIds } from "./access";
 import { getMetrics } from "./workspace-data";
 import { withheldDerived } from "./derived-owner";
+import { queueWebhookEvent } from "./webhook-events";
 
 /** Hands a Metric to another Member, as the Metric Owner or an Owner or Admin; the old owner stays on as Editor. */
 export async function handOverMetric(actor: Actor, metricId: number, toId: string): Promise<void> {
@@ -34,20 +35,30 @@ export async function handOverMetric(actor: Actor, metricId: number, toId: strin
     const rows = all.map((x) => (x.id === m.id ? { ...x, owner_id: toId } : x));
     if ((await withheldDerived(ws, rows)).has(m.id as number)) throw new Error("Pick someone who owns or edits the Metrics this one is calculated from.");
   }
-  // The owner at this moment is part of the update: two hand-overs at once cannot both succeed.
-  const { data: moved } = await db().from("metrics").update({ owner_id: toId }).eq("id", m.id).eq("workspace_id", ws).eq("owner_id", from).select("id");
-  if (moved?.length !== 1) throw new Error("The Metric changed hands meanwhile; look again.");
-  // The old owner keeps sight and can still fill in: a direct Editor Share, in place of any weaker one. The new owner
-  // needs no Share of their own any more.
-  await db().from("shares").delete().eq("workspace_id", ws).eq("object_type", "metric").eq("object_id", m.id).in("user_id", [from, toId]);
-  await db().from("shares").insert({ workspace_id: ws, object_type: "metric", object_id: m.id, user_id: from, role: "editor" });
-  const { data: old } = await db().from("profiles").select("name").eq("id", from).maybeSingle();
-  const fromName = (old?.name as string | undefined) ?? "a former member";
-  const toName = (to.profiles as unknown as { name: string } | null)?.name ?? "a member";
+  // Taking a Metric for oneself by one's role is allowed (and audited); the Editor Share a round trip would leave goes
+  // to nobody who did not really own it, and the sight such a person had before is theirs still.
+  const tookIt = actor.personId !== from && toId === actor.personId;
+  const keepOld = !(await tookItByRole(ws, m.id as number, from));
+  // One step under a lock on the new owner's membership: the owner, the Shares and the open Questions of the owner.
+  const { data: moved, error } = await db().rpc("hand_over_metric", { ws, metric: m.id, old_owner: from, new_owner: toId, keep_old: keepOld, drop_new: !tookIt });
+  if (error) throw new Error(/changed hands/.test(error.message) ? "The Metric changed hands meanwhile; look again." : /can own things|Guest/.test(error.message) ? "Pick another Member, not a Guest, to take it over." : "The hand-over did not work; nothing was changed.");
+  // The assignee changed (spec 0034: `action.updated`): each Webhook that chose it hears it once.
+  for (const a of (moved ?? []) as { action_id: number; period: string }[]) await queueWebhookEvent(ws, "action.updated", { type: "system" }, { actionId: a.action_id, metricId: m.id as number, period: a.period });
+  const names = new Map(((await db().from("profiles").select("id, name").in("id", [from, toId, actor.personId])).data ?? []).map((p) => [p.id as string, p.name as string]));
+  const fromName = names.get(from) ?? "a former member", toName = names.get(toId) ?? "a member", byName = names.get(actor.personId) ?? "An Owner or Admin";
   await recordVersion("metric", m.id as number, actor.personId, { message: `Handed over from ${fromName} to ${toName}`, always: true });
   await audit(actor, { kind: "metric.handed_over", object: { type: "metric", id: m.id as number, name: m.name as string }, details: { from_id: from, from_name: fromName, to_id: toId, to_name: toName } });
-  // Told like a reminder: by their own way, and not during their Quiet Hours.
-  await deliverNotice(ws, { recipientId: toId, senderId: actor.personId, subject: `You now own ${m.name}`, text: `${actor.personId === from ? fromName : "An Owner or Admin"} handed the Metric ${m.name} over to you. You decide who sees it and who sends its values; ${fromName} stays on as Editor.`, link: `/metrics/${m.slug}`, quiet: true });
+  // Told like a reminder: by their own way, and not during their Quiet Hours; the old owner too, when someone else did it.
+  const link = `/metrics/${m.slug}`;
+  const lose = "If a Share of theirs on it ends, their Derived Metrics, Alerts and Personal Webhooks on it stop.";
+  await deliverNotice(ws, { recipientId: toId, senderId: actor.personId, subject: `You now own ${m.name}`, text: `${actor.personId === from ? fromName : byName} handed the Metric ${m.name} over to you. You decide who sees it and who sends its values; ${fromName} stays on as Editor. ${lose}`, link, quiet: true });
+  if (actor.personId !== from) await deliverNotice(ws, { recipientId: from, senderId: actor.personId, subject: `${m.name} was handed over to ${toName}`, text: `${byName} handed the Metric ${m.name} over to ${toName}.${keepOld ? ` You stay on as Editor, so you still see it and can fill in values. ${lose}` : ""}`, link, quiet: true });
+}
+
+/** Whether the Metric's current owner took it for themselves by their role (an Owner or Admin): the latest hand-over was their own. */
+async function tookItByRole(ws: string, metricId: number, owner: string): Promise<boolean> {
+  const { data } = await db().from("audit_events").select("actor_id").eq("workspace_id", ws).eq("kind", "metric.handed_over").eq("object_type", "metric").eq("object_id", String(metricId)).order("id", { ascending: false }).limit(1);
+  return data?.[0]?.actor_id === owner;
 }
 
 /** The Members who could take this Metric over, for the hand-over form: empty unless the actor may hand it over. Names only. */

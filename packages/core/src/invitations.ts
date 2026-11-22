@@ -308,7 +308,7 @@ export async function setRole(actor: Actor, personId: string, role: WorkspaceRol
   }
   const { error } = await db().from("memberships").update({ role }).eq("workspace_id", actor.workspaceId).eq("user_id", personId);
   // The database refuses to leave a workspace without an Owner, also when two changes race.
-  if (error) throw new Error(/at least one Owner/.test(error.message) ? "A workspace keeps at least one Owner. Make someone else Owner first." : "The role could not be changed.");
+  if (error) throw new Error(/at least one Owner/.test(error.message) ? "A workspace keeps at least one Owner. Make someone else Owner first." : /cannot own a Metric/.test(error.message) ? "They own Metrics. Hand them over first, or remove them and pick who takes over." : "The role could not be changed.");
   // A Guest has no Personal Webhooks: they ended with the change (the database removed them); the Audit Log says so.
   if (role === "guest" && current.role !== "guest") await recordPersonalWebhookEnds({ workspaceId: actor.workspaceId, personId, by: actor.personId });
   if (current.role !== role) await audit(actor, { kind: "member.role_changed", object: { type: "person", id: personId, name: await personName(personId, actor.workspaceId) }, details: { from: current.role, to: role } });

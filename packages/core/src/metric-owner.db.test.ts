@@ -117,3 +117,51 @@ describe("a Metric never stays with someone who is gone", () => {
     expect((await db().from("memberships").select("role").eq("workspace_id", w.id).eq("user_id", ben).single()).data!.role).toBe("guest");
   });
 });
+
+describe("what follows the hand-over", () => {
+  it("tells the old owner when someone else did it, and never leaves a lasting Editor Share to a round trip", async () => {
+    const w = await ws(); await w.person("owner"); const ad = await w.person("admin"); const ben = await w.person("member"); const ann = await w.person("member");
+    const m = await w.metric(ben);
+    await handOverMetric(w.actor(ad, "admin"), m.id, ad);
+    expect(await sharesOf(w.id, m.id)).toEqual([{ user_id: ben, role: "editor" }]);
+    const to = async (id: string) => (await db().from("deliveries").select("subject").eq("workspace_id", w.id).eq("recipient_id", id).eq("kind", "notice")).data ?? [];
+    expect((await to(ben)).length).toBe(1);
+    await handOverMetric(w.actor(ad, "admin"), m.id, ann);
+    // The Admin did not really own it: no Share for them; Ben's stays.
+    expect((await sharesOf(w.id, m.id)).map((x) => x.user_id).sort()).toEqual([ben].sort());
+    expect((await to(ben)).length).toBe(1);
+    expect((await to(ann)).length).toBe(1);
+  });
+  it("keeps the sight an Admin had before taking it, and never downgrades an Editor", async () => {
+    const w = await ws(); await w.person("owner"); const ad = await w.person("admin"); const ben = await w.person("member"); const ann = await w.person("member");
+    const m = await w.metric(ben);
+    await share(w.actor(ben, "member"), "metric", m.id, ad, "viewer");
+    await share(w.actor(ben, "member"), "metric", m.id, ann, "viewer");
+    await handOverMetric(w.actor(ad, "admin"), m.id, ad);
+    await handOverMetric(w.actor(ad, "admin"), m.id, ann);
+    expect((await sharesOf(w.id, m.id)).find((x) => x.user_id === ad)).toEqual({ user_id: ad, role: "viewer" });
+    await db().from("shares").update({ role: "editor" }).eq("workspace_id", w.id).eq("object_id", m.id).eq("user_id", ben);
+    await handOverMetric(w.actor(ann, "member"), m.id, ben);
+    expect((await sharesOf(w.id, m.id)).find((x) => x.user_id === ann)).toEqual({ user_id: ann, role: "editor" });
+  });
+  it("moves the open Questions waiting on the owner as owner, and nothing else", async () => {
+    const w = await ws(); const sara = await w.person("owner"); const ben = await w.person("member"); const ann = await w.person("member");
+    const m = await w.metric(ben); await w.share(m.id, ann);
+    const row = { metric_id: m.id, period_start: "2026-01-01", asker_id: sara, assignee_id: ben, kind: "question" };
+    const esc = await w.action({ ...row, purpose: "escalation", question: "q" } as never);
+    const plain = await w.action({ ...row, question: "other" } as never);
+    const task = await w.action({ ...row, kind: "task", purpose: "approval", question: "t" } as never);
+    await handOverMetric(w.actor(ben, "member"), m.id, ann);
+    const who = async (id: number) => (await db().from("actions").select("assignee_id").eq("id", id).single()).data!.assignee_id;
+    expect([await who(esc), await who(plain), await who(task)]).toEqual([ann, ben, ben]);
+  });
+  it("is enforced by the database: no Guest owns a Metric, and no owner is a non-member", async () => {
+    const w = await ws(); const sara = await w.person("owner"); const ben = await w.person("member"); const gus = await w.person("guest");
+    const m = await w.metric(ben);
+    expect((await db().from("memberships").update({ role: "guest" }).eq("workspace_id", w.id).eq("user_id", ben)).error?.message).toMatch(/cannot own a Metric/);
+    expect((await db().from("metrics").update({ owner_id: gus }).eq("id", m.id)).error?.message).toMatch(/not be a Guest|not a Guest/);
+    expect((await db().from("metrics").update({ owner_id: "t-nobody" }).eq("id", m.id)).error).toBeTruthy();
+    await expect(handOverMetric(w.actor(sara), m.id, gus)).rejects.toThrow(/not a Guest/);
+    expect(await ownerOf(m.id)).toBe(ben);
+  });
+});
