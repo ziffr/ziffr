@@ -238,10 +238,15 @@ export async function removePersonalWebhook(actor: Actor, id: string): Promise<v
 }
 
 /** Writes the Audit Log entry, with its reason, for each Personal Webhook the database ended with its person's place in the
- * Workspace or with their account (personal_webhook_ends), and clears them. `by` is who made the change, when a person did
- * (removing a member, making a Guest); null for Ziffr itself. Best effort, as every Audit Log entry. */
-export async function recordPersonalWebhookEnds(by: string | null = null): Promise<void> {
-  const { data } = await db().from("personal_webhook_ends").select("webhook_id, workspace_id, owner_id, name, reason").order("ended_at").limit(500);
+ * Workspace or with their account (personal_webhook_ends), and clears them. With a scope, only that person's ends in that
+ * Workspace, recorded as done by `by` (removing a member, making a Guest); without one, every end, recorded as done by
+ * Ziffr itself (the sending job). A person's change never names them in another Workspace's log, nor for an end they did
+ * not cause. Best effort, as every Audit Log entry. */
+export async function recordPersonalWebhookEnds(scope?: { workspaceId: string; ownerId: string; by: string }): Promise<void> {
+  let q = db().from("personal_webhook_ends").select("webhook_id, workspace_id, owner_id, name, reason");
+  if (scope) q = q.eq("workspace_id", scope.workspaceId).eq("owner_id", scope.ownerId);
+  const { data } = await q.order("ended_at").limit(500);
+  const by = scope?.by ?? null;
   for (const e of data ?? []) {
     // Taken first, so two runs record it once.
     const { data: taken } = await db().from("personal_webhook_ends").delete().eq("webhook_id", String(e.webhook_id)).select("webhook_id");

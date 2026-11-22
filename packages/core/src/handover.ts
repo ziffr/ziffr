@@ -48,7 +48,7 @@ export async function removeMember(actor: Actor, personId: string, successorId: 
     for (const id of ids) await recordVersion(type, id, actor.personId, { message: `Handed over from ${from} to ${to}`, always: true });
   }
   // Their Personal Webhooks ended with their place here (the database removed them); the Audit Log says so.
-  await recordPersonalWebhookEnds(actor.personId);
+  await recordPersonalWebhookEnds({ workspaceId: ws, ownerId: personId, by: actor.personId });
   await audit(actor, { kind: "member.removed", object: { type: "person", id: personId, name: from }, details: {
     role: leaving.role as string, successor_id: successorId, successor_name: to, handed_over: Object.values(owned).reduce((n, ids) => n + ids.length, 0),
   } });

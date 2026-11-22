@@ -315,6 +315,24 @@ describe("the end of a person's Webhooks", () => {
     expect(events[0]).toMatchObject({ object_id: ana, details: { reason: "left", owner_id: x.ana } });
   });
 
+  it("records a removal only in its own Workspace, for that person, never another Workspace's end in the remover's name", async () => {
+    const x = await allowed(); const y = await allowed();
+    const ana = await made(x, x.A); const other = await made(y, y.A);
+    // An end in Workspace y that nobody has recorded yet (its membership went by another route).
+    await y.w.dropMember(y.ana);
+    expect(await rows(other)).toEqual([]);
+    await removeMember(x.O, x.ana, x.owner);
+    const inY = (await db().from("audit_events").select("actor_id").eq("workspace_id", y.w.id).eq("kind", "webhook.personal_ended")).data ?? [];
+    expect(inY).toEqual([]);
+    expect((await db().from("personal_webhook_ends").select("webhook_id").eq("webhook_id", other)).data).toHaveLength(1);
+    const inX = (await db().from("audit_events").select("actor_id, object_id").eq("workspace_id", x.w.id).eq("kind", "webhook.personal_ended")).data ?? [];
+    expect(inX).toEqual([{ actor_id: x.owner, object_id: ana }]);
+    // The sending job records the rest as Ziffr itself.
+    await recordPersonalWebhookEnds();
+    const later = (await db().from("audit_events").select("actor_id, object_id").eq("workspace_id", y.w.id).eq("kind", "webhook.personal_ended")).data ?? [];
+    expect(later).toEqual([{ actor_id: null, object_id: other }]);
+  });
+
   it("ends when the person becomes a Guest, not when they change between the roles that may have one", async () => {
     const x = await allowed();
     const ana = await made(x, x.A);
