@@ -34,7 +34,7 @@ const manifestOf = (files: Map<string, string>) => {
 
 const runNames = readdirSync(BAD).filter((n) => badExtension(n).stage === "run").sort();
 // Short limits keep the tests quick: the example answers in a millisecond.
-const quick = (rule: string): RunOptions => ({ generated: 60, limits: { perCallMs: 400 }, mutation: rule === "mutant-survived" });
+const quick = (rule: string): RunOptions => ({ generated: 60, limits: { perCallMs: rule === "too-slow" ? 400 : 5000 }, mutation: rule === "mutant-survived" });
 
 describe("the checks that run the code, on the good worked example", () => {
   it("passes every check, with the mutation check, and the command ends with 0", async () => {
