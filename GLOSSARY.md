@@ -135,19 +135,31 @@ A scheduled message asking a submitter for a metric's value for the current peri
 _Avoid_: Reminder, nudge
 
 **Workflow**:
-A named, reusable path a metric's value takes each period: ask the submitter, remind, escalate, check, approve, tell, publish and lock. Several metrics can share one, such as "Monthly finance close". Its owner can close a period for all of them at once, and can give it an Asking Schedule of its own days and hour.
+A named, reusable path a metric's value takes each period: ask the submitter, remind, escalate, check, approve, tell, publish and lock, with Checklist Items for what is not a number and a Send Snapshot step once the period is finished. Several metrics can share one, such as "Monthly finance close". Its owner can close a period for all of them at once, and can give it an Asking Schedule of its own days and hour.
 _Avoid_: Process, pipeline, flow
 
 **Asking Schedule**:
 When a Workflow runs by itself: the time of day (a whole hour) and the days (every day, weekdays, chosen weekdays, every n-th day from a starting day, or a day of the month), in the Workspace's time zone. Without one, a Workflow runs with the Workspace's daily run. It decides only when Ziffr asks, reminds and escalates: a Due Date never moves with it, and a step that falls on a day the Workflow does not run goes out on the next run day. A run asks for the last period that ended, so a schedule sparser than a Metric's period skips the periods in between. Not the **Schedule** (what one person has to do), not a Metric's Period, and not carried by Workflow Templates or Packs.
 _Avoid_: Cron, recurrence, frequency, timer
 
+**Checklist Item**:
+A Workflow step its owner writes as a short text, of one of two kinds. For information: sent on its working day after the period ends to named people and Groups, through each person's Delivery Preference and waiting out their Quiet Hours; it asks nothing and cannot be answered. To tick off: each period it gives its Assignee a Task about the Workflow's period (no Metric), due a number of working days after the period ends, given to the item's Stand-in while the Assignee is Away, reminded and escalated by the Workflow's Remind and Escalate steps, counted in the period's progress and ticked off with an optional note. Its words are read by everyone who may look at the Workflow, unless kept to a Group; a Guest sees only what is given or sent to them. A Workflow holds at most 20. Not a Tell, which waits for a value to cross a level, nor an Action someone asks by hand.
+_Avoid_: To-do, note, instruction, manual step, reminder
+
+**Finished Period**:
+A Workflow's period once every value it asks for is published and locked and every Task its Checklist Items gave for it is done. It is what a Send Snapshot step waits for. Not a period that is over or complete (a Snapshot's word for one that has ended), nor "Close the period", which locks values only.
+_Avoid_: Complete period, closed period, signed off, done
+
+**Send Snapshot**:
+A Workflow step that, once a period is finished, takes and shows the period's Snapshot of one dashboard in the Workflow owner's name (or uses the one already shown) and sends a link to it to named people and Groups, once per period. Only people who may open the dashboard get it, each sees in it only the Metrics they may see, and the message holds no value or Metric name; the others are skipped and the owner is told. It never shares the dashboard or makes a View Link. Only the Workflow's owner adds it, for a dashboard they own or edit and fully see, and only when the Publish step locks.
+_Avoid_: Pack, board pack, report, distribution, mailing
+
 **Period Timeline**:
-What happened in one period of a Workflow, in order: who was asked and reminded, which values came in ("5 of 6 in"), Approvals and Actions, what published and locked, and the Snapshots made. It records nothing of its own and shows each person only what they may see: a Metric they cannot see is only a count ("1 value"), and a Thread's words appear only as first words, for a Thread they may read. On the Workflow page, and as the `period_status` tool.
+What happened in one period of a Workflow, in order: who was asked and reminded, which values came in and which Checklist Items were sent, given and ticked off ("5 of 6 in" counts values and those Tasks together), Approvals and Actions, what published and locked, when the period finished, and the Snapshots made and sent. It records nothing of its own and shows each person only what they may see: a Metric they cannot see is only a count ("1 value"), and a Thread's words appear only as first words, for a Thread they may read. On the Workflow page, and as the `period_status` tool.
 _Avoid_: Activity feed, audit trail, history
 
 **Workflow Template**:
-A starting point for a new Workflow: its steps, Due Date and reminders, with the people left open to be picked when it is used. A Workflow made from one is an independent copy.
+A starting point for a new Workflow: its steps, Due Date and reminders, Checklist Items and a Send Snapshot step, with the people (and the dashboard to send) left open to be picked when it is used. A Workflow made from one is an independent copy.
 _Avoid_: Preset, blueprint, process template
 
 **Due Date**:
@@ -155,7 +167,7 @@ When a period's value must be in, counted in working days after the period ends,
 _Avoid_: Deadline, cut-off
 
 **Schedule**:
-What one person has to do in a Workspace, day by day: values to submit by their Due Dates, Approvals waiting for them, and Tasks and Questions assigned to them, upcoming and overdue. It holds only their own duties, and only about Metrics they may see; while someone is Away, what they are asked for is in their Stand-in's Schedule.
+What one person has to do in a Workspace, day by day: values to submit by their Due Dates, Approvals waiting for them, and Tasks (a Checklist Item's among them) and Questions assigned to them, upcoming and overdue. It holds only their own duties, and only about Metrics they may see; while someone is Away, what they are asked for is in their Stand-in's Schedule.
 _Avoid_: Agenda, to-do list, inbox, calendar
 
 **Stand-in**:
@@ -167,7 +179,7 @@ The dates a person is not available. While someone is away, Prompts meant for th
 _Avoid_: Absence, out of office, leave
 
 **Quiet Hours**:
-The hours of the day and the whole days when Ziffr sends a person no Prompt, reminder or Alert, in their time zone. A person sets their own; Owners and Admins set the Workspace's default for everyone who has set none (an empty set of their own opts out of it). A message that falls inside waits and goes out when the Quiet Hours end, and is never dropped; they delay only the message, never a Due Date or an Approval's deadline, and not other messages such as a question someone asks. Not Away, which hands a person's Prompts to their Stand-in for whole dates.
+The hours of the day and the whole days when Ziffr sends a person no Prompt, reminder, Alert or Workflow message (a Checklist Item for information, a sent Snapshot), in their time zone. A person sets their own; Owners and Admins set the Workspace's default for everyone who has set none (an empty set of their own opts out of it). A message that falls inside waits and goes out when the Quiet Hours end, and is never dropped; they delay only the message, never a Due Date or an Approval's deadline, and not other messages such as a question someone asks. Not Away, which hands a person's Prompts to their Stand-in for whole dates.
 _Avoid_: Do not disturb, silent hours, mute
 
 **Escalation**:
@@ -296,7 +308,7 @@ A statistical method run on one or more metrics, such as forecast, correlation, 
 _Avoid_: Stats, model, insight
 
 **Takeaway**:
-The result of an Analysis as Ziffr says it: one sentence in the Metrics' own words and units, a strength in four words (strong, moderate, weak, "can't tell from chance"), what it was compared on, and the one footer line "This shows what has gone together, not what caused what." Where the data does not suit the Method it carries one plain line above the sentence (a caution; a result with one is never strong) or, with too little data, is a refusal in words with no number. **Show the numbers** opens the numbers behind it. Every place a result is shown writes the same Takeaway.
+The result of an Analysis as Ziffr says it: one sentence in the Metrics' own words and units, a strength in four words (strong, moderate, weak, "can't tell from chance"), what it was compared on, and one footer line of its kind ("This shows what has gone together, not what caused what." for a link between Metrics, "This carries the past forward; it is not a promise." for a forecast) Where the data does not suit the Method it carries one plain line above the sentence (a caution; a result with one is never strong) or, with too little data, is a refusal in words with no number. **Show the numbers** opens the numbers behind it. Every place a result is shown writes the same Takeaway. A forecast's Takeaway says where the Metric is expected to be with a "likely between" range (an 80 % range), with a Target how likely it is to be reached (in tenths), which Method worked it out and how its range for the next period would have held on the periods already known (its track record).
 _Avoid_: Answer (an Answer is what someone replies to a Prompt), insight, verdict
 
 **Analysis Recipe**:
@@ -330,7 +342,7 @@ One of the Themes Ziffr delivers (Ziffr Light, Ziffr Dark, Tokyo, Paris, Oslo, P
 _Avoid_: Preset, built-in theme, template theme
 
 **Snapshot**:
-What something showed, fixed so it never changes when observations do. A dashboard's Snapshot keeps the dashboard as it stood for one week, month, quarter, half-year or year (quarters, half-years and years of the Fiscal Year, such as "Q1 FY 2026/27", "H2 2026" or "2026"): its layout and the values of every Metric period complete by the period's last day. Its numbers never change, and a value corrected since is shown with a note of what it is now; its words (the introduction, each Finding's headline and sentences) are written after it is taken, and every change is a Version. It is a draft for the dashboard's owner and Editors until one of them shows it; then whoever may open the dashboard may open it, and sees in it only the Metrics they may see now. Its owner may have the dashboard take one of every week, month, quarter, half-year or year by itself, once every Metric on it is Locked for each of its periods inside it (for a year of a monthly Metric, all twelve months) or a set number of days after it ends. A deck's Snapshot is the values its widgets show at the moment it is exported, stamped with that date.
+What something showed, fixed so it never changes when observations do. A dashboard's Snapshot keeps the dashboard as it stood for one week, month, quarter, half-year or year (quarters, half-years and years of the Fiscal Year, such as "Q1 FY 2026/27", "H2 2026" or "2026"): its layout and the values of every Metric period complete by the period's last day. Its numbers never change, and a value corrected since is shown with a note of what it is now; its words (the introduction, each Finding's headline and sentences) are written after it is taken, and every change is a Version. It is a draft for the dashboard's owner and Editors until one of them shows it; then whoever may open the dashboard may open it, and sees in it only the Metrics they may see now. Its owner may have the dashboard take one of every week, month, quarter, half-year or year by itself, once every Metric on it is Locked for each of its periods inside it (for a year of a monthly Metric, all twelve months) or a set number of days after it ends. A Workflow's Send Snapshot step takes and shows one when its period is finished. A deck's Snapshot is the values its widgets show at the moment it is exported, stamped with that date.
 _Avoid_: Copy, freeze, archived copy, export data
 
 ### Sharing
@@ -348,7 +360,7 @@ One of the numbers that bound every Trial Workspace: people, invitation emails a
 _Avoid_: Plan limit, quota, entitlement
 
 **Workspace Export**:
-The file a Workspace's Owner downloads that holds the whole Workspace (its Metrics and their values, dashboards, decks, Workflows, Themes and people as invitations, but no secret, key or Connector link), so that another Installation can import it as a new Workspace (a Workspace made by an import is marked importing, and invisible to its Owner, until it is complete: a failed import deletes it with its key). The people in it become invitations on hold, sent only when the new Owner presses Invite everyone. Not an Archived Metric, nor a Pack, which holds no values.
+The file a Workspace's Owner downloads that holds the Workspace as the Owner may see it (its Metrics and their values, dashboards, decks, Workflows, Themes, Groups, Shares and people as invitations, but no secret, key or Connector link), so that another Installation can import it as a new Workspace (a Workspace made by an import is marked importing, and invisible to its Owner, until it is complete: a failed import deletes it with its key). It asks for a sign-in from the last 10 minutes, is made while it downloads and is never stored. What its format cannot carry is left out and said, never cut short. The people in it become invitations on hold, sent only when the new Owner presses Invite everyone. Not an Archived Metric, nor a Pack, which holds no values.
 _Avoid_: Backup, dump, archive
 
 **Trial Guide**:
@@ -520,7 +532,7 @@ _Avoid_: Activity, activity feed, history
 ### Collaboration
 
 **Action**:
-A question or task about a specific observation or time range of a metric that one user assigns to another. It moves from open to answered to closed, and can be reopened.
+A question or task about a specific observation or time range of a metric that one user assigns to another, or a Task a Checklist Item gives about a Workflow's period, which has no metric. It moves from open to answered to closed, and can be reopened.
 _Avoid_: Ticket, request, to-do
 
 **Question**:
@@ -528,7 +540,7 @@ An action that is done once the assignee has answered it, e.g. "Why is cost so h
 _Avoid_: Inquiry
 
 **Task**:
-An action that is done once the assignee has carried it out, e.g. "Renegotiate the shipping rate", optionally with a due date.
+An action that is done once the assignee has carried it out, e.g. "Renegotiate the shipping rate", optionally with a due date. A Checklist Item gives one each period, about the Workflow's period, ticked off with an optional note.
 _Avoid_: To-do, job
 
 **Assignee**:

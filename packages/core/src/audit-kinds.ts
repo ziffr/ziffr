@@ -123,6 +123,8 @@ export const AUDIT_KINDS = {
   "snapshot.shown": "showed a Snapshot of",
   "snapshot.deleted": "deleted a Snapshot of",
   "export.audit_log": "exported the Audit Log",
+  "export.workspace": "started downloading a Workspace Export of",
+  "export.workspace_finished": "finished or stopped downloading a Workspace Export of",
   "export.deck": "exported the deck",
   "export.retention_values": "exported the values a Retention would remove from",
   "email_reply.held": "held an email reply that no provider vouched for, until the person it went to confirms it, of",

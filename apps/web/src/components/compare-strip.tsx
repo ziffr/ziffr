@@ -20,7 +20,7 @@ export function CompareStrip({ metric, data, keys = DEFAULT_COMPARE, full }: { m
   if (s.value === undefined) return null;
   const style = data.numberStyle;
   return (
-    <div className="flex flex-wrap items-baseline gap-x-3 gap-y-0.5 border-t border-border pt-1.5 text-xs leading-snug text-muted-foreground">
+    <div className="widget-text-xs flex flex-wrap items-baseline gap-x-[1em] gap-y-0.5 border-t border-border pt-[0.5em] leading-snug text-muted-foreground">
       {attainmentShown(s.attainment) ? (
         // The tooltip names the method, so the same number is never read two ways (spec 0022, #130).
         <span title={`Target ${formatValue(metric, s.target?.value ?? null, style)}${s.target?.fromSeries ? " from the target series" : ""}. ${attainmentMethodNote(s.method)}`}>

@@ -225,6 +225,9 @@ Reads for a screen that also note that something was seen or logged; the API has
 
 - `auditLog` (audit-log.ts): the Audit Log page and its export
 - `exportAuditLog` (audit-log.ts): the Audit Log page and its export
+- `exportWorkspace` (workspace-export.ts): the Workspace Export download, for the Owner at the screen after a fresh sign-in; a key never exports a Workspace
+- `previewWorkspaceExport` (workspace-export.ts): what the Workspace Export page shows before the download
+- `auditOrRefuse` (audit-log.ts): records an event or refuses the action; used by the Workspace Export, which counts its starts from the log
 - `metricHistory` (dashboards.ts): the history page
 - `canvasSeries` (access.ts): the dashboard canvas fetching more series; reads sealed Breakdown labels and Condensed Values, which opening makes a read that may create a Workspace Key
 - `connectorsView` (page-data.ts): what a page reads
@@ -233,6 +236,7 @@ Reads for a screen that also note that something was seen or logged; the API has
 - `teamView` (page-data.ts): what a page reads
 - `actionThread` (page-data.ts): what a page reads
 - `periodRecord` (period-record.ts): the period page
+- `observationDetails` (observation-details.ts): the popup on a chart's point in the app; a program reads the same through the API's period status and values
 - `calendarEntries` (schedule.ts): the schedule page
 - `search` (search.ts): the search page
 - `listShareProposals` (share-proposals.ts): the Actions page; a key only proposes, it never reads what waits for the person (ticket #538)

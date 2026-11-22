@@ -38,7 +38,7 @@ const correlation = (xs: number[], ys: number[], over: { a?: Metric; b?: Metric 
   return correlate(ma, mb, resolverFrom([ma, mb], { [ma.slug]: months("2024-01", xs), [mb.slug]: months("2024-01", ys) }), { yearStart: JANUARY });
 };
 const takeaway = (xs: number[], ys: number[], c = ctx) => correlationTakeaway(a, b, correlation(xs, ys), c);
-const texts = (t: Takeaway) => [t.sentence, t.refusal, t.strengthText, t.basis, t.method, ...t.assumptions, ...t.cautions, ...t.notes, ...t.numbers.flatMap((n) => [n.label, n.text]), ...t.figures.map((f) => f.label)].filter((x): x is string => x !== null);
+const texts = (t: Takeaway) => [t.sentence, t.refusal, t.strengthText, t.basis, t.method, ...t.assumptions, ...t.cautions, ...t.notes, t.track, ...t.numbers.flatMap((n) => [n.label, n.text]), ...t.figures.map((f) => f.label)].filter((x): x is string => x !== null);
 
 describe("the strength words", () => {
   it("come from one table: above 0.7 strong, above 0.4 moderate, above 0.2 weak, else can't tell, each one step either side", () => {
@@ -91,12 +91,14 @@ describe("the strength words", () => {
   });
 });
 
+const EUR = (value: number) => ({ value, unit: { unit: "€", unit_position: "after" as const, decimals: 0 } });
+
 describe("the wording", () => {
-  const SAMPLE: Slots = { a: "Visits", b: "Revenue", n: 18, span: "month", strength: "strong", names: "Visits and Price", target: "Revenue", name: "Visits", other: "Cost", have: 9, need: 16, missing: 3, total: 24, run: 3, count: 2, without: 0.5, from: "2025-03-01", latest: "weak", drivers: 8, allowed: 4, basis: "compared by value", period: "month", skew: 2.5 };
+  const SAMPLE: Slots = { a: "Visits", b: "Revenue", n: 18, span: "month", strength: "strong", names: "Visits and Price", target: "Revenue", name: "Visits", other: "Cost", have: 9, need: 16, missing: 3, total: 24, run: 3, count: 2, without: 0.5, from: "2025-03-01", latest: "weak", drivers: 8, allowed: 4, basis: "compared by value", period: "month", skew: 2.5, value: EUR(1200), lo: EUR(1100), hi: EUR(1300), min: EUR(1250), max: EUR(1350), chance: "about 7 in 10", k: 7, tested: 12, inside: 10, pattern: "yearly", ahead: 15, most: 12, method: "a plain trend (Holt)" };
   /** Each case with its slots and the sentence it must come to: a table of cases, per language that exists. */
   const TABLE: Record<CaseKey, [Slots, string]> = {
     "strength-strong": [{}, "strong"], "strength-moderate": [{}, "moderate"], "strength-weak": [{}, "weak"], "strength-cant-tell": [{}, "can't tell from chance"],
-    footer: [{}, FOOTER],
+    footer: [{}, FOOTER], "footer-forecast": [{}, "This carries the past forward; it is not a promise."],
     "basis-values": [{}, "compared by value"], "basis-changes": [{}, "compared by change, growth removed"],
     "basis-over": [SAMPLE, "compared by value, over 18 months"], "basis-combined": [SAMPLE, "compared by value, by month (18 months)"],
     "corr-together": [SAMPLE, "Visits and Revenue tend to move together over 18 months (strong)."],
@@ -129,7 +131,34 @@ describe("the wording", () => {
     "caution-spread": [SAMPLE, "The misses grow as the level grows, so the ranges are rough."],
     "switch-percent": [SAMPLE, "The misses grow as the level grows, so ranges are worked out as a share of the level."],
     "switch-first-pass": [SAMPLE, "8 Metrics are more than 9 months can weigh, so the 4 that matter most were chosen first and the others left out."],
-    "numbers-method": [{}, "Method"], "numbers-method-pearson": [{}, "Pearson's r"], "numbers-r": [{}, "r"], "numbers-pairs": [{}, "Pairs of periods"],
+    "fc-expected": [SAMPLE, "Visits is expected to be 1,200 € in March 2025 (likely between 1,100 € and 1,300 €)."],
+    "fc-reach-min": [SAMPLE, "At this pace Visits reaches 1,250 € or more in March 2025: about 7 in 10."],
+    "fc-reach-max": [SAMPLE, "At this pace Visits stays at 1,350 € or less in March 2025: about 7 in 10."],
+    "fc-reach-between": [SAMPLE, "At this pace Visits lands between 1,250 € and 1,350 € in March 2025: about 7 in 10."],
+    "chance-about": [SAMPLE, "about 7 in 10"], "chance-under": [{}, "under 1 in 20"], "chance-over": [{}, "at least 19 in 20"],
+    "fc-method-holt": [{}, "a plain trend (Holt)"],
+    "fc-method-holt-winters": [{}, "the trend and the yearly pattern (Holt-Winters)"],
+    "fc-method-holt-winters-weekly": [{}, "the trend and the weekly pattern (Holt-Winters)"],
+    "fc-basis": [SAMPLE, "worked out with a plain trend (Holt), over 18 months"],
+    "fc-track": [SAMPLE, "Over the last 12 months, the range for the next month would have held 10 of 12 times."],
+    "fc-track-none": [SAMPLE, "Too few months yet to check how this forecast did on the past."],
+    "fc-assumes": [{}, "This assumes the pattern of the past carries on."],
+    "fc-note-holt-better": [SAMPLE, "A plain trend missed no more than the yearly pattern on the last third of the months, so the plain trend is used."],
+    "fc-note-too-few": [SAMPLE, "Too few months to check the yearly pattern against a plain trend, so a plain trend is used."],
+    "fc-note-start-gap": [SAMPLE, "The yearly pattern needs the first two seasons without a gap, so a plain trend is used."],
+    "pattern-yearly": [{}, "yearly"], "pattern-weekly": [{}, "weekly"],
+    "caution-no-misses": [{}, "The past values fit this pattern with no miss at all, so the range and the chance may be too sure."],
+    "refuse-too-far": [SAMPLE, "Visits cannot be looked at 15 months ahead; at most 12 months."],
+    "refuse-by-past": [SAMPLE, "That date is not ahead: the latest value is for March 2025."],
+    "refuse-no-target": [SAMPLE, "Visits has no Target to reach."],
+    "refuse-target-ends": [SAMPLE, "The Target of Visits cannot be read: its lower end is above its upper end, or an end is not a number."],
+    "refuse-huge": [SAMPLE, "The values of Visits are too large to look ahead from."],
+    "numbers-method": [{}, "Method"],
+    "numbers-method-holt": [{}, "Holt's linear trend"], "numbers-method-holt-winters": [{}, "Holt-Winters, additive"],
+    "numbers-smoothing": [{}, "Smoothing (level, trend, pattern)"], "numbers-expected": [{}, "Expected"], "numbers-range": [{}, "Likely between"],
+    "numbers-chance": [{}, "Chance of reaching the Target"], "numbers-target-min": [{}, "Target, at least"], "numbers-target-max": [{}, "Target, at most"], "numbers-in-ten": [{}, "In ten"],
+    "numbers-tested": [{}, "Periods tested"], "numbers-inside": [{}, "Inside the range"], "numbers-miss": [{}, "Typical miss"],
+    "numbers-third-holt": [{}, "Typical miss on the last third, plain trend"], "numbers-third-holt-winters": [{}, "Typical miss on the last third, with the pattern"], "numbers-third-n": [{}, "Periods compared"], "numbers-method-pearson": [{}, "Pearson's r"], "numbers-r": [{}, "r"], "numbers-pairs": [{}, "Pairs of periods"],
     "numbers-periods": [{}, "Periods"], "numbers-basis": [{}, "Compared on"], "numbers-strength": [{}, "Strength"],
   };
   it.each(LANGUAGES)("%s: every case is in the table, and says what the table says", (language) => {
@@ -224,7 +253,7 @@ describe("a correlation's Takeaway", () => {
   });
   it("is a refusal, with its words, where the Method found none, and where the checks refuse", () => {
     const few = correlationTakeaway(a, b, correlation([1, 2, 3], [3, 2, 1]), ctx);
-    expect(few).toEqual({ kind: "refusal", method: "Pearson's r", sentence: null, refusal: "Not enough months in common (3 of 6).", strength: null, strengthText: null, range: null, basis: null, assumptions: [], cautions: [], notes: [], footer: null, figures: [], numbers: [] });
+    expect(few).toEqual({ kind: "refusal", method: "Pearson's r", sentence: null, refusal: "Not enough months in common (3 of 6).", strength: null, strengthText: null, range: null, basis: null, assumptions: [], cautions: [], notes: [], track: null, footer: null, figures: [], numbers: [] });
     expect(few.refusal).toBe("Not enough months in common (3 of 6).");
     const flat = takeaway([4, 4, 4, 4, 4, 4, 4, 4], wavy(8));
     expect(flat.kind).toBe("refusal");

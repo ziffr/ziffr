@@ -17,6 +17,7 @@ import { checkDashboardTemplateFileValue, DASHBOARD_TEMPLATE_LIMITS, DASHBOARD_T
 import { checkDeckTemplateFileValue, DECK_TEMPLATE_LIMITS, DECK_TEMPLATE_SCHEMA, deckTemplateReferences, type DeckTemplateFile } from "./deck-template-file.js";
 import { checkWorkflowTemplateFileValue, WORKFLOW_TEMPLATE_LIMITS, WORKFLOW_TEMPLATE_SCHEMA, type WorkflowTemplateFile } from "./workflow-template-file.js";
 import { checkThemeFileValue, THEME_FILE_LIMITS, THEME_FILE_SCHEMA, type ThemeFile } from "./theme-file.js";
+import { VIEW_DESIGN_SCHEMA } from "./view-design.js";
 import { checkPackFormula, type FormulaEntry } from "./formula-check.js";
 import type { Period, SourceId } from "./kinds.js";
 
@@ -140,6 +141,8 @@ const EXPORT_DASHBOARD_SCHEMA = loosened(DASHBOARD_TEMPLATE_SCHEMA);
 const EXPORT_DECK_SCHEMA = loosened(DECK_TEMPLATE_SCHEMA);
 const EXPORT_WORKFLOW_SCHEMA = loosened(WORKFLOW_TEMPLATE_SCHEMA);
 const EXPORT_THEME_SCHEMA = loosened(THEME_FILE_SCHEMA);
+/** A View Design inside a widget, with the app's text rules too: nothing the app stores may stop an export. */
+const EXPORT_VIEW_SCHEMA = loosened(VIEW_DESIGN_SCHEMA);
 
 /** The Metric document's schema in a Workspace Export: the Metric file's, with the app's text rules (a Pack is held to
  * stricter ones because it is shown to strangers; a Workspace's own Metrics are what they typed). */
@@ -441,7 +444,7 @@ export class WorkspaceExportChecker {
       case "dashboard": {
         fresh("dashboard", r.id);
         if (doc("dashboard", "dashboard", DASHBOARD_TEMPLATE_LIMITS.bytes, r.dashboard)) {
-          const res = checkDashboardTemplateFileValue(r.dashboard, undefined, EXPORT_DASHBOARD_SCHEMA);
+          const res = checkDashboardTemplateFileValue(r.dashboard, undefined, EXPORT_DASHBOARD_SCHEMA, EXPORT_VIEW_SCHEMA);
           // Outside a Pack nothing can be named: a suggested entry or a View Design key has nothing to point to.
           merge("dashboard", res.ok ? refusedOutsidePack(res, Object.values(dashboardTemplateReferences(res.value)).flat(), new Map()) : res);
           this.slots(r.slots, res.ok ? res.value.slots : undefined, at, known);
@@ -451,7 +454,7 @@ export class WorkspaceExportChecker {
       case "deck": {
         fresh("deck", r.id);
         if (doc("deck", "deck", DECK_TEMPLATE_LIMITS.bytes, r.deck)) {
-          const res = checkDeckTemplateFileValue(r.deck, undefined, EXPORT_DECK_SCHEMA);
+          const res = checkDeckTemplateFileValue(r.deck, undefined, EXPORT_DECK_SCHEMA, EXPORT_VIEW_SCHEMA);
           const refs = res.ok ? Object.values(deckTemplateReferences(res.value)).flat() : [];
           merge("deck", res.ok ? refusedOutsidePack(res, refs, new Map()) : res);
           this.slots(r.slots, res.ok ? res.value.slots : undefined, at, known);
@@ -539,6 +542,67 @@ export class WorkspaceExportChecker {
     if (!day) return at(path, `“${text}” is not a real day between the years ${L.firstYear} and ${L.lastYear}.`);
     if (metric && !startsPeriod(day, metric.period, this.header?.workspace.yearStart ?? 1)) at(path, `“${text}” does not start a ${metric.period}${metric.period === "week" ? ": weeks start on a Monday" : `: a ${metric.period} starts on the first day of its ${metric.period}`}.`);
   }
+}
+
+/** The documents a record carries, which a writer can test one at a time before it makes the record. */
+export type ExportDocumentKind = "metric" | "theme" | "dashboard" | "deck" | "workflow";
+
+/** Whether one document of a record (a Metric, Theme, dashboard, deck or Workflow, as the app's text rules allow it)
+ * would pass the file's checks: the first problem in words, or null. For a writer that must leave out what does not fit
+ * and say so, instead of failing on the line where the file's own checks refuse it; the checker still checks every
+ * line the writer writes. Stateless: nothing here knows other records, so slots and labels are the writer's to keep. */
+export function exportDocumentProblem(kind: ExportDocumentKind, value: unknown): string | null {
+  const first = (res: { ok: true } | { ok: false; problems: Problem[] }) => (res.ok ? null : `${res.problems[0]?.path ? `${res.problems[0].path} ` : ""}${res.problems[0]?.message ?? "does not fit the format."}`);
+  const size = (bytes: number, what: string) => {
+    const n = new TextEncoder().encode(JSON.stringify(value)).length;
+    return n > bytes ? `is ${n.toLocaleString("en")} bytes; at most ${bytes.toLocaleString("en")} are allowed for one ${what}.` : null;
+  };
+  switch (kind) {
+    case "metric":
+      return size(L.metricBytes, "Metric") ?? first(checkMetricFileValue(value, undefined, EXPORT_METRIC_SCHEMA));
+    case "theme":
+      return size(THEME_FILE_LIMITS.bytes, "Theme") ?? first(checkThemeFileValue(value, new Map(), "standalone", EXPORT_THEME_SCHEMA));
+    case "workflow":
+      return size(WORKFLOW_TEMPLATE_LIMITS.bytes, "Workflow") ?? first(checkWorkflowTemplateFileValue(value, undefined, EXPORT_WORKFLOW_SCHEMA));
+    case "dashboard": {
+      const big = size(DASHBOARD_TEMPLATE_LIMITS.bytes, "dashboard");
+      if (big) return big;
+      const res = checkDashboardTemplateFileValue(value, undefined, EXPORT_DASHBOARD_SCHEMA, EXPORT_VIEW_SCHEMA);
+      return first(res.ok ? refusedOutsidePack(res, Object.values(dashboardTemplateReferences(res.value)).flat(), new Map()) : res);
+    }
+    case "deck": {
+      const big = size(DECK_TEMPLATE_LIMITS.bytes, "deck");
+      if (big) return big;
+      const res = checkDeckTemplateFileValue(value, undefined, EXPORT_DECK_SCHEMA, EXPORT_VIEW_SCHEMA);
+      return first(res.ok ? refusedOutsidePack(res, Object.values(deckTemplateReferences(res.value)).flat(), new Map()) : res);
+    }
+  }
+}
+
+/** Whether a record of one Metric's numbers (a value, a target or a projection) would pass the file's checks on its own:
+ * its fields against the schema, decimals, moments, and that `period` starts a period of `metricPeriod` as a Workspace
+ * whose year starts in month `yearStart` counts them. The first problem in words, or null. Stateless, like
+ * `exportDocumentProblem`: a writer calls it to leave a value out and say so instead of failing. */
+export function exportNumbersProblem(record: ValueRecord | TargetRecord | ProjectionRecord, metricPeriod: Period, yearStart: number): string | null {
+  const problems = checkSchema(WORKSPACE_EXPORT_SCHEMA, record);
+  if (problems.length) return `${problems[0].path} ${problems[0].message}`.trim();
+  const day = realDay(record.period);
+  if (!day) return `“${record.period}” is not a real day between the years ${L.firstYear} and ${L.lastYear}.`;
+  if (!startsPeriod(day, metricPeriod, yearStart)) return `“${record.period}” does not start a ${metricPeriod}.`;
+  const bad = (v: number | undefined) => v !== undefined && !decimalsOk(v, L.decimals);
+  if (record.kind === "target") {
+    if (record.min === undefined && record.max === undefined) return "has no end to its Target Range.";
+    if (record.min !== undefined && record.max !== undefined && record.min > record.max) return "has a lower end above its upper end.";
+    if (bad(record.min) || bad(record.max)) return `has more than ${L.decimals} decimals.`;
+    return null;
+  }
+  if (bad(record.value)) return `has more than ${L.decimals} decimals.`;
+  if (record.kind === "value") {
+    if (record.recordedAt !== undefined && !realInstant(record.recordedAt)) return "was recorded at a moment outside the years 1900 to 2200.";
+    if (record.breakdown?.some((b) => bad(b.value))) return `has a Breakdown with more than ${L.decimals} decimals.`;
+    if (record.breakdown && new Set(record.breakdown.map((b) => b.label)).size !== record.breakdown.length) return "has a Breakdown that names a label twice.";
+  }
+  return null;
 }
 
 /** Checks a whole Workspace Export given as text (a small file, a test or a command): every line, then the whole. It
