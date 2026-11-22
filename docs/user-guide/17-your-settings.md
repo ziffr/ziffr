@@ -1,5 +1,5 @@
 <!-- part: Screen by screen -->
-<!-- screens: apps/web/src/app/settings/appearance/**, apps/web/src/app/login/**, apps/web/src/app/demo/**, apps/web/src/app/settings/schedule/**, apps/web/src/app/schedule/**, apps/web/src/app/settings/profile/**, apps/web/src/app/settings/deliveries/**, apps/web/src/app/settings/alerts/**, apps/web/src/components/alerts.tsx, apps/web/src/app/settings/assistants/**, apps/web/src/app/settings/your-webhooks/**, apps/web/src/app/oauth/authorize/**, apps/web/src/components/app-shell.tsx, apps/web/src/components/nav-parts.tsx, apps/web/src/components/view-as.tsx, apps/web/src/components/demo-controls.tsx, apps/web/src/components/tour.tsx -->
+<!-- screens: apps/web/src/app/settings/appearance/**, apps/web/src/app/login/**, apps/web/src/app/demo/**, apps/web/src/app/settings/schedule/**, apps/web/src/app/schedule/**, apps/web/src/app/settings/profile/**, apps/web/src/app/settings/deliveries/**, apps/web/src/app/settings/alerts/**, apps/web/src/components/alerts.tsx, apps/web/src/app/settings/assistants/**, apps/web/src/app/settings/your-webhooks/**, apps/web/src/app/oauth/authorize/**, apps/web/src/components/app-shell.tsx, apps/web/src/components/nav-parts.tsx, apps/web/src/components/view-as.tsx, apps/web/src/components/demo-controls.tsx, apps/web/src/components/tour.tsx, apps/web/src/components/legal-footer.tsx -->
 # Signing in and your own settings
 
 This chapter covers what is yours rather than the team's: signing in, the demo, the sidebar, and your own pages: **My schedule**, **Your profile**, **Appearance**, **Your Deliveries** and **Your Alerts**. Everyone has them, whatever their role. The team's pages are in [Workspace settings](16-workspace-settings.md).
@@ -30,6 +30,10 @@ After you ask for a link, the page says "Check your inbox". If a link has been u
 Your address counts as proven when you signed in with the email link or a provider that proves it, such as Google. A proven address is what an email Invitation and Domain Joining check.
 
 After signing in for the first time, you start a Workspace or join one; see [Workspace settings](16-workspace-settings.md#starting-a-workspace).
+
+## Imprint, Privacy notice and Terms
+
+On hosted Ziffr (the Ziffr you reach at ziffr.net) three links sit at the foot of every page: **Imprint**, **Privacy notice** and **Terms**. They are on the sign-in page, in the app, in the demo and on View Link pages, and each opens Ziffr's own page in a new tab. Where an account can be created, the sign-in page also says "By signing up you agree to the Terms and the Privacy notice." under the button. A Ziffr that someone runs themselves shows none of this and has no setting for it.
 
 ## The demo
 
