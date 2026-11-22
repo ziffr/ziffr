@@ -1,5 +1,6 @@
 "use client";
-import { demoWordsForDigest } from "@ziffr/core/demo-words";
+import { DEMO_READ_ONLY_TRIAL, demoWordsForDigest } from "@ziffr/core/demo-words";
+import { DemoRefusalWords } from "@/components/demo-refusal";
 import { Button } from "@/components/ui/button";
 
 /** Error state for every screen: what broke and what to do. */
@@ -11,7 +12,7 @@ export default function ScreenError({ error, reset }: { error: Error & { digest?
     return (
       <div role="alert" className="stock mx-auto max-w-md rounded-[var(--radius-card)] p-8 text-center">
         <h1 className="text-[length:var(--text-xl)]">Nothing was saved</h1>
-        <p className="mt-2 text-sm text-muted-foreground">{demo}</p>
+        <p className="mt-2 text-sm text-muted-foreground">{demo === DEMO_READ_ONLY_TRIAL ? <DemoRefusalWords /> : demo}</p>
         <Button onClick={reset} className="mt-5">Back</Button>
       </div>
     );
