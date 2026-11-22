@@ -41,6 +41,7 @@ export const AUDIT_KINDS = {
   "feed.deleted": "deleted the Feed",
   "feed.key_created": "created a Feed Key for",
   "feed.key_revoked": "revoked a Feed Key of",
+  "feed.template_downloaded": "downloaded an n8n template for",
   "webhook.created": "added the Webhook",
   "webhook.changed": "changed the Webhook",
   "webhook.secret_replaced": "replaced the secret of the Webhook",

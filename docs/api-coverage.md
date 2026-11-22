@@ -139,6 +139,7 @@ Settings an Owner or Installation Admin makes at the screen. Programs with a key
 - `createFeed` (feeds.ts): Feeds and their keys are set up by a person in Settings
 - `renameFeed` (feeds.ts): Feeds and their keys are set up by a person in Settings
 - `deleteFeed` (feeds.ts): Feeds and their keys are set up by a person in Settings
+- `automationTemplateFor` (feed-template-download.ts): the n8n workflow for a Feed is made by an Owner or Admin at the screen (it makes a Feed and its key, set up by a person in Settings, and puts the Feed among Submitters)
 - `createFeedKey` (feeds.ts): Feeds and their keys are set up by a person in Settings
 - `revokeFeedKey` (feeds.ts): Feeds and their keys are set up by a person in Settings
 - `setYearStart` (fiscal-year.ts): Workspace settings

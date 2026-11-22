@@ -520,6 +520,8 @@ To make a key, type a **Key name** (such as "Nightly run"; if you leave it empty
 
 Only Owners and Admins see Feed Keys and their Access Logs.
 
+To fill Metrics from a sheet or another system without writing a Feed, use **Fill from n8n** under a Metric's **Who submits** (see [The Metrics screens](10-metrics.md#who-submits)) or on the page after **Set up from this Pack**: it makes the Feed and its key for you and downloads the n8n workflow.
+
 ## Webhooks
 
 **Workspace → Webhooks** is for Owners and Admins only. Others see a note to ask an Owner or Admin. The demo has no Webhooks. A trial may add Webhooks within smaller limits, which are Trial Limits (by default 2 Webhooks and 200 sends a day; the Try it guide shows the number in force, and offers none where trials may have no Webhooks), and only to public addresses (the private hosts an operator allows for other Workspaces never apply to a trial). Whoever runs this Ziffr can switch Webhooks off for trials (Installation settings, Trials); then a trial cannot add one and those it has send nothing.
