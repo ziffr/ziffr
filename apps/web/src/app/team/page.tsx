@@ -9,6 +9,7 @@ import { teamView } from "@ziffr/core/page-data";
 import { signedIn } from "@/lib/auth";
 import { openInvitations, openJoinRequests } from "@ziffr/core/invitations";
 import { mailOn } from "@ziffr/core/mail";
+import { trialEndsAt } from "@ziffr/core/trials";
 import type { WorkspaceRoleName } from "@ziffr/core/actor";
 
 export default async function TeamPage() {
@@ -31,7 +32,7 @@ export default async function TeamPage() {
   return (
     <>
       <PageHeader title="Members and Groups" sub="The people in this workspace and their groups. Share with a group, or limit a question to one, and whoever joins later is included. Everyone in the workspace is a group of its own: all members except guests." />
-      <Members viewer={viewer} members={members} canEdit={canEdit} isOwner={actor.role === "owner"} invitations={invitations} mailOn={await mailOn()} joinRequests={joinRequests} joinDomain={team.joinDomain} myDomain={who?.verifiedEmail?.split("@")[1] ?? null} contacts={contacts} />
+      <Members viewer={viewer} members={members} canEdit={canEdit} isOwner={actor.role === "owner"} invitations={invitations} mailOn={await mailOn()} joinRequests={joinRequests} joinDomain={team.joinDomain} myDomain={who?.verifiedEmail?.split("@")[1] ?? null} contacts={contacts} trial={Boolean(await trialEndsAt(actor.workspaceId))} />
       <TeamScreen people={people.filter((p) => !p.contact)} contacts={contacts} groups={groups.filter((g) => !g.everyone)} canEdit={canEdit} viewer={viewer} away={away ?? []} />
     </>
   );

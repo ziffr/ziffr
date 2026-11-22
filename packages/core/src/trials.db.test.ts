@@ -92,23 +92,27 @@ describe("making a Trial Workspace", () => {
   });
 });
 
-describe("a Trial Workspace is for its Owner alone", () => {
-  it("takes no invitations, invite links or domain joining", async () => {
+describe("what a Trial Workspace takes in", () => {
+  it("takes no invitation before the Owner's first value, and no invite links or domain joining", async () => {
     const sara = await newcomer("sara@company.test");
     const id = await trial(sara);
     const actor = { personId: sara, workspaceId: id, role: "owner" as const };
-    await expect(inviteByEmail(actor, { email: "nia@example.test", role: "member" })).rejects.toBeInstanceOf(Forbidden);
+    await expect(inviteByEmail(actor, { email: "nia@example.test", role: "member" })).rejects.toThrow(/Invitations open once the Owner has recorded a first value/);
     await expect(createInviteLink(actor, "member")).rejects.toBeInstanceOf(Forbidden);
     await expect(setJoinDomain(actor, "sara@company.test", true)).rejects.toBeInstanceOf(Forbidden);
     const { count } = await db().from("invitations").select("id", { count: "exact", head: true }).eq("workspace_id", id);
     expect(count).toBe(0);
   });
 
-  it("lets nobody in by an invitation or a domain that got there anyway", async () => {
+  it("lets nobody in by an invite link or a domain that got there anyway", async () => {
     const sara = await newcomer();
     const id = await trial(sara);
     const t = randomUUID().replace(/-/g, "");
+    // A link made before the Workspace was a trial (the database refuses one in a trial before the Owner's first value).
+    const { data: ends } = await db().from("workspaces").select("trial_ends_at").eq("id", id).single();
+    await db().from("workspaces").update({ trial_ends_at: null }).eq("id", id);
     await db().from("invitations").insert({ workspace_id: id, token: t, role: "member", created_by: sara, expires_at: new Date(Date.now() + 86_400_000).toISOString() });
+    await db().from("workspaces").update({ trial_ends_at: ends!.trial_ends_at }).eq("id", id);
     await db().from("workspaces").update({ join_domain: "company.test" }).eq("id", id);
     const nia = await newcomer("nia@company.test");
     await expect(acceptInvitation({ personId: nia, verifiedEmail: "nia@company.test" }, t)).rejects.toBeInstanceOf(Forbidden);

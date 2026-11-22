@@ -8,7 +8,7 @@
 
 /** The keys of the Trial Limits, as the code that uses one names it (also the names in the Cloud API's JSON). */
 export type TrialLimitKey =
-  | "days" | "graceDays" | "max" | "metrics" | "messagesPerDay" | "keys" | "feeds" | "assistants" | "webhooks" | "webhookSendsPerDay" | "viewLinks";
+  | "days" | "graceDays" | "max" | "people" | "invitationsPerDay" | "invitationsAllPerDay" | "metrics" | "messagesPerDay" | "keys" | "feeds" | "assistants" | "webhooks" | "webhookSendsPerDay" | "viewLinks";
 
 /** One Trial Limit: the Installation Setting that holds it, its words, its range and its default. The days have no
  * default that makes trials: without them trials are off (`default` is what hosted Ziffr starts with). */
@@ -22,6 +22,12 @@ export const TRIAL_LIMITS: TrialLimit[] = [
     help: "After the trial ends nothing can be added, and its Owner can still download everything; then it is deleted. Applies to every trial that has ended and is waiting, too: a smaller number deletes them sooner." },
   { key: "max", name: "ZIFFR_TRIAL_MAX", label: "Trials at once", min: 1, max: 100_000, default: 500,
     help: "The most trials that may run at the same time." },
+  { key: "people", name: "ZIFFR_TRIAL_LIMIT_PEOPLE", label: "People in a trial", min: 1, max: 25, default: 5,
+    help: "The people one trial holds: Members, Admins and Guests, the Owner and the invitations that are still open included." },
+  { key: "invitationsPerDay", name: "ZIFFR_TRIAL_LIMIT_INVITATIONS_PER_DAY", label: "Invitation emails a trial sends a day", min: 0, max: 50, default: 10,
+    help: "The invitation emails one trial sends in 24 hours, resends included. The rest of the invitations stay as links the Owner sends themselves. 0: trials send none." },
+  { key: "invitationsAllPerDay", name: "ZIFFR_TRIAL_LIMIT_INVITATIONS_ALL_PER_DAY", label: "Invitation emails all trials send a day", min: 0, max: 5_000, default: 500,
+    help: "The invitation emails all trials together send in 24 hours: the lever against a campaign that mails strangers. 0: trials send none." },
   { key: "metrics", name: "ZIFFR_TRIAL_LIMIT_METRICS", label: "Metrics", min: 5, max: 100, default: 25,
     help: "The Metrics one trial may hold, Archived Metrics included." },
   { key: "messagesPerDay", name: "ZIFFR_TRIAL_LIMIT_MESSAGES_PER_DAY", label: "Messages a trial sends a day", min: 10, max: 500, default: 100,
@@ -75,4 +81,4 @@ export function trialLimitsFrom(settings: Record<string, string | undefined>): T
 }
 
 /** The limits the database triggers enforce: the row `trial_limits` holds them, under these column names. */
-export const TRIAL_LIMIT_COLUMNS = { metrics: "metrics", keys: "keys", feeds: "feeds", assistants: "assistants", viewLinks: "view_links" } as const satisfies Partial<Record<TrialLimitKey, string>>;
+export const TRIAL_LIMIT_COLUMNS = { people: "people", invitationsPerDay: "invitations_per_day", invitationsAllPerDay: "invitations_all_per_day", metrics: "metrics", keys: "keys", feeds: "feeds", assistants: "assistants", viewLinks: "view_links" } as const satisfies Partial<Record<TrialLimitKey, string>>;

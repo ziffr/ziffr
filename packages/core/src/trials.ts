@@ -111,9 +111,21 @@ export async function trialEndsAt(workspaceId: string): Promise<Date | null> {
   return ends;
 }
 
-/** Refuses anything that would bring a second person into a Trial Workspace: a trial reaches only its Owner. */
+/** Refuses what a trial does not offer however many people it holds: an invite link (it cannot be counted or limited
+ * by address) and Domain Joining (an Owner approving strangers who ask). Invitations by email are allowed, within the
+ * Trial Limits the database keeps (ADR 0015). */
 export async function assertNotTrial(workspaceId: string, what = "This"): Promise<void> {
-  if (await trialEndsAt(workspaceId)) throw new Forbidden(`${what} is not possible in a trial: a trial is for its Owner alone.`);
+  if (await trialEndsAt(workspaceId)) throw new Forbidden(`${what} is not possible in a trial: invite people by email instead.`);
+}
+
+/** The words for an invitation email a trial may not send, by the message the claim raises with ZF436 (the daily number of
+ * the trial, or of all trials together), and for a second open invitation to one address. */
+export function trialInvitationMessage(refusal: { message?: string } | undefined): string {
+  const message = refusal?.message;
+  const n = trialLimitsNow();
+  if (message === "invitation_open_for_address") return "This address has an open invitation already. Revoke it first to invite it again.";
+  if (message === "invitations_all_trials_day") return "Ziffr is not sending invitation emails for trials right now; send the link yourself, or try again tomorrow.";
+  return `A trial sends at most ${n.invitationsPerDay === 1 ? "1 invitation email" : `${n.invitationsPerDay} invitation emails`} a day. Send the link yourself, or wait until tomorrow.`;
 }
 
 /** The words for a trial's Metric, key, Feed and View Link limits, by the code the database raises, with the numbers as
@@ -127,6 +139,8 @@ export function trialLimitMessage(code: string | undefined): string | null {
   if (code === "ZF432") return `A Feed in a trial has at most ${s(n.feeds, "key")} that work. Revoke one to make another.`;
   if (code === "ZF434") return `A trial may connect ${n.assistants === 1 ? "one assistant" : `${n.assistants} assistants`} at a time. Disconnect one to connect another.`;
   if (code === "ZF433") return `A trial has at most ${s(n.feeds, "Feed")}. Delete one to make another.`;
+  if (code === "ZF435") return `A trial holds at most ${s(n.people, "person", "people")}, invitations that are still open included. Revoke an invitation or wait until it ends to invite another.`;
+  if (code === "ZF439") return "Invitations open once the Owner has recorded a first value of their own. Answer the first request in the Trial guide, then invite your colleagues.";
   if (code === "ZF437") return `A trial has at most ${s(n.viewLinks, "View Link")} that work. Revoke one to make another.`;
   return null;
 }

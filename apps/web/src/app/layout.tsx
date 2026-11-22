@@ -21,6 +21,7 @@ import { whatThisZiffrOffers } from "@ziffr/core/what-works-here";
 import { isInstallationAdmin } from "@ziffr/core/installation-admins";
 import { keptWords, trialStatus } from "@ziffr/core/trial-end";
 import { TrialBar, TrialEnded } from "@/components/trial-bar";
+import { reachedWords, trialUsage, usageLine } from "@ziffr/core/trial-usage";
 import { OverLimitBar } from "@/components/over-limit-bar";
 import { overLimitBanner, sizeAndUsage } from "@ziffr/core/workspace-usage";
 import { Suspense } from "react";
@@ -95,6 +96,9 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
   const profiles = demo ? await getPeopleIn(workspaceId) : shown;
   // A Trial Workspace (spec 0021): its days left on every page, and once it has ended, only the screen that says so.
   const trial = demo ? null : await trialStatus(workspaceId);
+  // What the trial has used of its limits (spec 0040): Owners and Admins only, counts of this Workspace alone.
+  const usageRows = trial && !trial.ended ? await trialUsage(actor) : null;
+  const usage = usageRows ? { line: usageLine(usageRows), reached: usageRows.map(reachedWords).filter((w): w is string => w !== null) } : null;
   // Over the Workspace Limit (spec 0029): Owners and Admins see it on every page, with a way to Size and usage.
   const overLimit = !demo && (role === "owner" || role === "admin") ? overLimitBanner(await sizeAndUsage(await currentActor())) : null;
   // The Feedback Prompt (ticket #722): only a signed-in member, never the demo; the core decides, the page gets one flag.
@@ -124,7 +128,7 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
   ) : null;
   const banners = (
     <>
-      {trial && !trial.ended && <TrialBar daysLeft={trial.daysLeft} endsAt={trial.endsAt} kept={trial.keptAs ? keptWords(trial.endsAt, trial.keptAs) : null} />}
+      {trial && !trial.ended && <TrialBar daysLeft={trial.daysLeft} endsAt={trial.endsAt} kept={trial.keptAs ? keptWords(trial.endsAt, trial.keptAs) : null} usage={usage} />}
       {overLimit && <OverLimitBar words={overLimit} />}
     </>
   );
