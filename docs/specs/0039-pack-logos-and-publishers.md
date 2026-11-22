@@ -1,6 +1,6 @@
 # 0039 Pack logos and publishers: whose Pack this is, shown on the Packs page and the Marketplace
 
-**Status:** draft. **Ticket:** #654 (the owner's decision, 2026-11-22); the tracking issue is #654 and its sub-issues are labelled `spec:0039`.
+**Status:** done. **Ticket:** #654 (the owner's decision, 2026-11-22); the tracking issue is #654 and its sub-issues are labelled `spec:0039`.
 
 ## Problem Statement
 
