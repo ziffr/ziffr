@@ -91,10 +91,9 @@ export function PinnedDashboards({ pinned, path, demo = false }: { pinned: Pinne
 /** What the Pin button says in the demo, which saves nothing (GLOSSARY: Demo Mode). */
 export const PIN_OFF_IN_DEMO = "Pinning is off in the demo";
 
-/** The button that pins a dashboard or takes the pin off. A refusal (the list is full, the dashboard is not yours to
- * open any more) says why in a toast. `compact` is the icon alone, for a card in the list. In the demo it looks off
- * and says why on hover and on tap (aria-disabled, not disabled, so a tap on a phone still shows the reason). */
-export function PinButton({ dashboardId, name, pinned, compact = false, demo = false, className }: { dashboardId: number; name: string; pinned: boolean; compact?: boolean; demo?: boolean; className?: string }) {
+/** Pin or unpin one dashboard, as the Pin button and the dashboard's ⋯ menu both do it. In the demo, which saves nothing, it
+ * answers "Pinning is off in the demo" and calls nothing. */
+export function usePin({ dashboardId, name, pinned, demo = false }: { dashboardId: number; name: string; pinned: boolean; demo?: boolean }) {
   const router = useRouter();
   const [pending, start] = useTransition();
   const label = demo ? PIN_OFF_IN_DEMO : pinned ? `Unpin ${name} from the sidebar` : `Pin ${name} to the sidebar`;
@@ -105,8 +104,16 @@ export function PinButton({ dashboardId, name, pinned, compact = false, demo = f
       router.refresh();
     } catch (err) { toastFailure(err); }
   });
+  return { label, pending, onPress: demo ? () => { toast.info(PIN_OFF_IN_DEMO); } : toggle };
+}
+
+/** The button that pins a dashboard or takes the pin off. A refusal (the list is full, the dashboard is not yours to
+ * open any more) says why in a toast. `compact` is the icon alone, for a card in the list. In the demo it looks off
+ * and says why on hover and on tap (aria-disabled, not disabled, so a tap on a phone still shows the reason). */
+export function PinButton({ dashboardId, name, pinned, compact = false, demo = false, className }: { dashboardId: number; name: string; pinned: boolean; compact?: boolean; demo?: boolean; className?: string }) {
+  const { label, pending, onPress } = usePin({ dashboardId, name, pinned, demo });
   return (
-    <button type="button" aria-pressed={pinned} aria-label={compact ? label : undefined} title={label} disabled={!demo && pending} aria-disabled={demo || undefined} onClick={demo ? () => toast.info(PIN_OFF_IN_DEMO) : toggle} className={cn(demo && "cursor-not-allowed opacity-50", compact ? cn("flex size-8 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground focus-visible:outline-2 focus-visible:outline-ring", className) : cn(buttonVariants({ variant: "outline" }), className))}>
+    <button type="button" aria-pressed={pinned} aria-label={compact ? label : undefined} title={label} disabled={!demo && pending} aria-disabled={demo || undefined} onClick={onPress} className={cn(demo && "cursor-not-allowed opacity-50", compact ? cn("flex size-8 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground focus-visible:outline-2 focus-visible:outline-ring", className) : cn(buttonVariants({ variant: "outline" }), className))}>
       <Pin aria-hidden className={cn("size-4", pinned && "fill-current")} />{!compact && (pinned ? "Pinned" : "Pin")}
     </button>
   );
