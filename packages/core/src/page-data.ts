@@ -183,7 +183,7 @@ export async function workflowsView(actor: Actor) {
   const workflows = await openWorkflowRows(ws, guestSees ? (sealedWorkflows ?? []).filter((w) => guestSees.has(w.id as number)) : sealedWorkflows);
   const ids = [...(await visibleMetricIds(ws, actor.personId, all))];
   const [{ data: states }, { data: tokens }] = await Promise.all([
-    db().from("period_states").select("*").eq("workspace_id", ws).in("metric_id", ids).then(async (r) => ({ data: await openRows("period_states", ws, r.data) })),
+    db().from("period_states").select("*").eq("workspace_id", ws).in("metric_id", ids).then(async (r) => ({ data: (await openRows("period_states", ws, r.data)).map((state) => { const { row_key, ...rest } = state as Record<string, unknown> & { row_key?: unknown }; return void row_key, rest as typeof state; }) })),
     db().from("tokens").select("metric_id, submitter_id, stand_in_id").eq("workspace_id", ws).in("metric_id", ids).is("stands_in_for", null),
   ]);
   const metrics = all.filter((m) => ids.includes(m.id));

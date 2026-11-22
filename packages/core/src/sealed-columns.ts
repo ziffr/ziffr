@@ -111,7 +111,8 @@ export const ROW_KEY: Record<OpenedTable, string> = { thread_messages: "id", act
  * connection's is its Workspace's id in lower case. Null when the row does not say. */
 export function rowKeyOf(table: OpenedTable, row: Row): string | number | null {
   if (table === "period_states" && (row.row_key === undefined || row.row_key === null)) {
-    return row.metric_id != null && typeof row.period_start === "string" ? `${Number(row.metric_id)}_${row.period_start.slice(0, 10)}` : null;
+    // Only the spelling the database stores a date in, so a note sealed for a period opens for it.
+    return row.metric_id != null && typeof row.period_start === "string" && /^\d{4}-\d{2}-\d{2}/.test(row.period_start) ? `${Number(row.metric_id)}_${row.period_start.slice(0, 10)}` : null;
   }
   const v = row[ROW_KEY[table]];
   if (v === undefined || v === null) return null;

@@ -481,6 +481,6 @@ export async function workspaceCipher(workspaceId: string): Promise<WorkspaceCip
  * settings (spec 0028). Only Owners learn it, and only that: never a key, a version or how far the work is. */
 export async function workspaceEncrypted(actor: Actor): Promise<boolean> {
   if (actor.role !== "owner" || actor.workspaceId === DEMO_WORKSPACE_ID) return false;
-  const { count } = await db().from("workspace_keys").select("version", { count: "exact", head: true }).eq("workspace_id", actor.workspaceId).is("retired_at", null);
+  const { count } = await db().from("workspace_keys").select("version", { count: "exact", head: true }).eq("workspace_id", actor.workspaceId).is("retired_at", null).is("pending_until", null);
   return (count ?? 0) > 0;
 }

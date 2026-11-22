@@ -152,14 +152,16 @@ export async function slackBot(workspaceId: string): Promise<SlackBot | null> {
   const { data } = await db().from("slack_installations").select("team_id, app_id, bot_user_id, bot_token").eq("workspace_id", workspaceId).is("revoked_at", null).maybeSingle();
   if (!data) return null;
   let token: string | null;
-  if (isSealed(data.bot_token)) token = (await workspaceCipher(workspaceId)).open(tokenAt(workspaceId), data.bot_token);
+  // A Workspace whose key cannot be opened has no usable bot: nothing is sent, and nothing throws.
+  if (isSealed(data.bot_token)) token = await workspaceCipher(workspaceId).then((c) => c.open(tokenAt(workspaceId), data.bot_token), () => null);
   else {
     // Sealed before spec 0028 with ZIFFR_SECRETS_KEY (or its previous value): sealed again with the Workspace Key, so
     // it dies with the Workspace and the retiring key can go (spec 0009). Only if nobody changed it meanwhile.
     const opened = openSecretRotating(data.bot_token, sealContext(workspaceId));
     token = opened?.plain ?? null;
     if (opened) {
-      const again = await sealToken(workspaceId, opened.plain);
+      // Sealing again is a favour: when the Workspace Key cannot be opened the token is still used as it is.
+      const again = await sealToken(workspaceId, opened.plain).catch(() => data.bot_token as string);
       if (again !== data.bot_token && (isSealed(again) || opened.stale)) await db().from("slack_installations").update({ bot_token: again }).eq("workspace_id", workspaceId).eq("bot_token", data.bot_token);
     }
   }
