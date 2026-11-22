@@ -442,6 +442,9 @@ Records a value for the current period, or the one named, through the Metric's S
 | `period` | string | yes | The period it was recorded for, YYYY-MM-DD. |
 | `value` | number | yes | The period's value now: the Submission Rule may have added it to an earlier one. For a key that may not read metrics, the value sent. |
 | `detail` | string | yes | What happened, in words. For a key that may not read metrics, without earlier values. |
+| `unusual` | object | no | Only for a key that may read metrics, when the value looks unusual: why, and what was expected. A warning, never a refusal. |
+| `unusual.reasons` | array of string | yes |  |
+| `unusual.expected` | string | yes |  |
 
 **Errors**
 
