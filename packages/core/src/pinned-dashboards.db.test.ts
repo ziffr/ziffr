@@ -145,6 +145,14 @@ describe("the demo", () => {
     await expect(pinDashboard(demo, data!.id)).rejects.toEqual(expect.any(DemoReadOnly));
     await expect(unpinDashboard(demo, data!.id)).rejects.toEqual(expect.any(DemoReadOnly));
     await expect(setPinnedOrder(demo, [])).rejects.toEqual(expect.any(DemoReadOnly));
-    expect(await pinnedDashboards(demo)).toEqual([]);
+    // The seed's pins stay as they were.
+    expect((await pinnedDashboards(demo)).length).toBeGreaterThan(0);
+  });
+
+  it("is seeded with pinned dashboards for Sara and Ben, in order", async () => {
+    const sara = { personId: "sara", workspaceId: DEMO_WORKSPACE_ID, role: "owner" as const };
+    const ben = { personId: "ben", workspaceId: DEMO_WORKSPACE_ID, role: "admin" as const };
+    expect(await names(sara)).toEqual(["Monthly overview", "Weekly numbers", "Board stories"]);
+    expect(await names(ben)).toEqual(["Operations", "Monthly overview"]);
   });
 });

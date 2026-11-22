@@ -81,7 +81,7 @@ export function AppShell({ workspace, settings, pinned, due, open, account, guid
                   <Fragment key={l.href}>
                     {/* On a pinned dashboard the pin is marked, not Dashboards as well. */}
                     <SidebarItem render={<Link href={l.href} />} icon={ICONS[l.href]} label={l.label} active={isOn(path, l.href) && !(l.href === "/dashboards" && pinned.some((p) => path === `/dashboards/${p.id}`))} />
-                    {l.href === "/dashboards" && <PinnedDashboards pinned={pinned} path={path} />}
+                    {l.href === "/dashboards" && <PinnedDashboards pinned={pinned} path={path} demo={Boolean(people)} />}
                   </Fragment>
                 ))}
               </SidebarGroup>
