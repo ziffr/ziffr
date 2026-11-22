@@ -152,9 +152,12 @@ describe("who may tag", () => {
   it("lets a Member type a word that exists only where they see nothing: it is the same Tag, said to no one", async () => {
     const t = await setup();
     await setMetricTags(t.as.sara, t.privateM.id, ["Hidden"]);
-    expect(await addMetricTags(t.as.mia, t.editedM.id, ["hidden"])).toEqual(["Hidden"]);
-    expect(names(await readTags(t.id))).toEqual(["Hidden"]);
-    expect((await visibleTags(t.as.mia)).map((x) => [x.name, x.metrics])).toEqual([["Hidden", 1]]);
+    // The answer is in Mia's own spelling, as for a word nobody used: it does not tell that the word exists out of sight.
+    expect(await addMetricTags(t.as.mia, t.editedM.id, ["hIdDeN"])).toEqual(["hIdDeN"]);
+    // Once it is on her Metric she sees the Tag as it is stored (the spec's first-spelling rule).
+    expect(await setMetricTags(t.as.mia, t.editedM.id, ["fresh"])).toEqual(["fresh"]);
+    expect(names(await readTags(t.id)).sort()).toEqual(["Hidden", "fresh"]);
+    expect((await visibleTags(t.as.mia)).map((x) => x.metrics)).toEqual([1]);
   });
 
   it("refuses bad words in words, and an Access Key's actor shape", async () => {
@@ -356,10 +359,11 @@ describe("renaming, merging and deleting", () => {
     const seen = await visibleTags(t.as.adam);
     const one = seen.find((x) => x.name === "one")!;
     await expect(renameTag(t.as.adam, one.id, "TWO")).rejects.toThrow(/Merge the two instead/);
-    expect(await renameTag(t.as.adam, one.id, "hidden-word")).toEqual({ name: "hidden-word" });
-    expect((await metricTagNames(t.as.adam, [t.adamM.id])).get(t.adamM.id)).toEqual(["hidden-word", "mine", "two"]);
-    expect(names(await readTags(t.id))).toEqual(["hidden-word", "mine", "two"]);
-    await expect(renameTag(t.as.adam, seen.find((x) => x.name === "mine")!.id, "a,b")).rejects.toBeInstanceOf(Refused);
+    // The answer is the typed spelling, the same as a rename to a word nobody uses.
+    expect(await renameTag(t.as.adam, one.id, "HIDDEN-Word")).toEqual({ name: "HIDDEN-Word" });
+    expect(await renameTag(t.as.adam, (await visibleTags(t.as.adam)).find((x) => x.name === "mine")!.id, "Unused")).toEqual({ name: "Unused" });
+    expect(names(await readTags(t.id)).sort()).toEqual(["Unused", "hidden-word", "two"]);
+    await expect(renameTag(t.as.adam, (await visibleTags(t.as.adam)).find((x) => x.name === "Unused")!.id, "a,b")).rejects.toBeInstanceOf(Refused);
   });
 
   it("lets a rename change only the capitals of a Tag", async () => {
@@ -456,12 +460,40 @@ describe("the Audit Log", () => {
     const other = await auditLog({ ...t.as.adam, personId: adam2 }, { kind: "tag" });
     expect(other.events).toHaveLength(3);
     expect(other.events.every((e) => e.hidden && e.objectName === null && Object.keys(e.details).length === 0)).toBe(true);
+    // An Admin who sees the Tag (through a Metric of their own) reads its event; one that is gone for everyone else stays hidden.
+    await setMetricTags(t.as.adam, t.adamM.id, ["shared-word"]);
+    await setMetricTags(t.as.sara, t.privateM.id, ["shared-word"]);
+    const sw = (await visibleTags(t.as.adam)).find((x) => x.name === "shared-word")!;
+    await renameTag(t.as.sara, sw.id, "common-word");
+    const common = (await auditLog(t.as.adam, { kind: "tag.renamed" })).events.find((e) => e.objectName === "common-word");
+    expect(common?.hidden).toBe(false);
+    expect(common?.details).toEqual({ from: "shared-word", metrics: 1 });
     // The names are sealed in the log's own columns, as every object name is.
     const { data } = await db().from("audit_events").select("object_name, details").eq("workspace_id", t.id).like("kind", "tag.%");
-    expect(JSON.stringify(data)).not.toMatch(/keeper|draft|final|gone/);
+    expect(JSON.stringify(data)).not.toMatch(/keeper|draft|final|gone|common-word/);
     // Adding a Tag to one Metric is an edit with a Version, not an Audit Log event.
+    const count = (await auditLog(t.as.sara, { kind: "tag" })).events.length;
     await addMetricTags(t.as.sara, t.privateM.id, ["plain"]);
-    expect((await auditLog(t.as.sara, { kind: "tag" })).events).toHaveLength(3);
+    expect((await auditLog(t.as.sara, { kind: "tag" })).events).toHaveLength(count);
+  });
+});
+
+describe("locks", () => {
+  it("never deadlock a Metric's delete with tagging or merging it, however they interleave", async () => {
+    const t = await setup();
+    for (let i = 0; i < 6; i++) {
+      const a = await t.metric(t.sara, { name: `Doomed ${i}` });
+      const b = await t.metric(t.sara, { name: `Other ${i}` });
+      await setMetricTags(t.as.sara, a.id, [`p${i}`, `q${i}`]);
+      await setMetricTags(t.as.sara, b.id, [`p${i}`]);
+      const tags = await visibleTags(t.as.sara);
+      const p = tags.find((x) => x.name === `p${i}`)!, q = tags.find((x) => x.name === `q${i}`)!;
+      const results = await Promise.allSettled([
+        deleteMetric(t.as.sara, a.id, `Doomed ${i}`), setMetricTags(t.as.sara, a.id, [`n${i}`]), mergeTags(t.as.sara, p.id, q.id), addMetricTags(t.as.sara, b.id, [`z${i}`]),
+      ]);
+      // Whatever failed, it failed in words (gone, or merged away), never with the database's deadlock.
+      for (const r of results) if (r.status === "rejected") expect(String((r.reason as Error)?.message)).not.toMatch(/deadlock|could not be (saved|merged)/i);
+    }
   });
 });
 

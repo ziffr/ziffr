@@ -53,6 +53,9 @@ export async function changeMetricTags(actor: Actor, metricId: number, change: T
     const have = new Set((await tagSight(actor)).tags.map((t) => tagKey(t.name)));
     if (cleaned.names.some((n) => !have.has(tagKey(n)))) throw new Refused(GUESTS);
   }
+  // What the actor sees before the change: a word that matches a Tag outside it is answered in the actor's own spelling, so the
+  // answer never tells that the word exists out of sight, nor how it was first written.
+  const before = new Set((await tagSight(actor)).tags.map((t) => t.id));
   const cipher = await workspaceCipher(actor.workspaceId);
   const tags = cleaned.names.map((name) => {
     const id = randomUUID();
@@ -71,7 +74,11 @@ export async function changeMetricTags(actor: Actor, metricId: number, change: T
   // The Tags are part of the Metric's description: a change of them is a Version, with who made it.
   await recordVersion("metric", metricId, actor.personId, { message: "Changed its Tags" });
   const ids = new Set(((data as { ids?: string[] }).ids ?? []).map(String));
-  return (await readTags(actor.workspaceId)).filter((t) => ids.has(t.id)).map((t) => t.name).sort((a, b) => tagKey(a).localeCompare(tagKey(b)));
+  const made = new Set<string>(tags.map((t) => t.id));
+  const typed = new Map(cleaned.names.map((n) => [tagKey(n), n]));
+  return (await readTags(actor.workspaceId)).filter((t) => ids.has(t.id))
+    .map((t) => (before.has(t.id) || made.has(t.id) ? t.name : typed.get(tagKey(t.name)) ?? t.name))
+    .sort((a, b) => tagKey(a).localeCompare(tagKey(b)));
 }
 
 /** A Metric's Tags set to exactly these words (see changeMetricTags). */
@@ -140,9 +147,10 @@ export async function renameTag(actor: Actor, tagId: string, name: unknown): Pro
   const other = (await readTags(actor.workspaceId)).find((t) => t.id !== tag.id && tagKey(t.name) === tagKey(next));
   if (other) {
     if (all.some((t) => t.id === other.id)) throw new Refused(`There is already a Tag “${other.name}”. Merge the two instead.`);
-    // The word is used only where the actor cannot see: it is the same Tag, so this is a merge into it.
+    // The word is used only where the actor cannot see: it is the same Tag Workspace-wide, so this is a merge into it, answered
+    // as a rename to the actor's own spelling: no signal that the word existed, and never the other Tag's name.
     await mergeInto(actor, tag, { id: other.id, name: other.name });
-    return { name: other.name };
+    return { name: next };
   }
   const cipher = await workspaceCipher(actor.workspaceId);
   const index = tagIndexes(cipher, next);

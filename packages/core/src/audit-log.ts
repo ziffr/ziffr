@@ -174,7 +174,7 @@ function shown(r: Row, seen: Awaited<ReturnType<typeof seenBy>>): AuditEvent {
   const type = r.object_type as AuditObjectType | null;
   // Only what the reader may see goes out: Owners and Admins do not see every Metric, dashboard or deck. What they did
   // themselves they saw when they did it, so a Metric they deleted keeps its name for them.
-  const hidden = Boolean(type && NAMED_IF_SEEN.includes(type) && r.actor_id !== seen.reader && !seen[type as "metric" | "dashboard" | "deck"].has(Number(r.object_id)));
+  const hidden = Boolean(type && NAMED_IF_SEEN.includes(type) && r.actor_id !== seen.reader && !(type === "tag" ? seen.tag.has(String(r.object_id)) : seen[type as "metric" | "dashboard" | "deck"].has(Number(r.object_id))));
   return {
     id: r.id, at: r.at, actorId: r.actor_id, actorName: r.actor_name, kind: r.kind as AuditKind, label: AUDIT_KINDS[r.kind as AuditKind] ?? r.kind,
     // Its details too (who it was shared with, periods, key names): the reader learns only that something happened.

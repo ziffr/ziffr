@@ -9,9 +9,9 @@ export const TAGS_PER_METRIC = 10;
 /** The most Tags in one Workspace; a Tag with no Metric left is removed, so this counts words in use. */
 export const TAGS_PER_WORKSPACE = 200;
 
-// Control characters, private-use and unassigned code points, and the invisible marks that reorder or hide text (zero
-// width spaces, bidi controls, the byte order mark): a Tag shows as plain text everywhere and must look like what it is.
-const UNSAFE = /[\p{Cc}\p{Co}\p{Cn}​‎‏‪-‮⁠-⁤⁦-⁩﻿]/u;
+// Control and format characters (bidi controls, zero width marks, Unicode tag characters, the soft hyphen), private-use and
+// unassigned code points, and the blank fillers and variation selectors that make a word look like another: a Tag shows as plain text everywhere and must look like what it is.
+const UNSAFE = /[\p{Cc}\p{Cf}\p{Co}\p{Cn}\u00AD\u115F\u1160\u180E\u200B\u3164\uFFA0\uFE00-\uFE0F\u{E0100}-\u{E01EF}\u{E0000}-\u{E007F}]/u;
 
 /** A Tag name normalised: Unicode NFC, leading `#` removed, surrounding space removed, every run of white space one
  * space. Whether the result is allowed is tagNameProblem's to say. */

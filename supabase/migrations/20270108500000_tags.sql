@@ -57,6 +57,9 @@ declare
   fresh jsonb := '[]'::jsonb;
   freed integer := 0;
 begin
+  -- Lock order everywhere: the Metric rows first (a Metric's delete holds its row, and its cascade then waits for the
+  -- Workspace lock in tags_drop_unused), the Workspace's lock second, so the two never wait for each other.
+  perform 1 from metrics where id = p_metric and workspace_id = p_ws for key share;
   perform pg_advisory_xact_lock(hashtext('tags:' || p_ws::text));
   if jsonb_typeof(p_tags) <> 'array' then raise exception 'Tags must be a list.'; end if;
   if p_mode not in ('set', 'add', 'remove') then raise exception 'Unknown mode.'; end if;
@@ -113,6 +116,7 @@ grant execute on function rename_tag(uuid, uuid, text, text, text[]) to service_
 create function merge_tags(p_ws uuid, p_from uuid, p_into uuid) returns text
 language plpgsql security definer set search_path = public as $$
 begin
+  perform 1 from metrics where workspace_id = p_ws and id in (select metric_id from metric_tags where tag_id = p_from and workspace_id = p_ws) order by id for key share;
   perform pg_advisory_xact_lock(hashtext('tags:' || p_ws::text));
   if p_from = p_into or (select count(*) from tags where workspace_id = p_ws and id in (p_from, p_into)) <> 2 then return 'missing'; end if;
   insert into metric_tags (metric_id, tag_id, workspace_id) select metric_id, p_into, p_ws from metric_tags where tag_id = p_from and workspace_id = p_ws on conflict do nothing;
