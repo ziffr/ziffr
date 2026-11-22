@@ -11,7 +11,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { shown, unwrap } from "@/lib/action-error";
 import { Events, Log, OFF, type Run } from "@/app/settings/webhooks/webhooks";
-import { createPersonalWebhook, deletePersonalWebhook, replacePersonalWebhookSecret, sendTestPersonalWebhook, setPersonalWebhookEnabled, updatePersonalWebhook } from "@/app/personal-webhook-actions";
+import { createPersonalWebhook, deletePersonalWebhook, forgetHiddenPersonalMetrics, replacePersonalWebhookSecret, sendTestPersonalWebhook, setPersonalWebhookEnabled, updatePersonalWebhook } from "@/app/personal-webhook-actions";
 
 /** What a Personal Webhook may choose, in words (a subset of the core's events; `ping` is the test button). */
 const EVENTS: { id: string; label: string }[] = [
@@ -135,6 +135,7 @@ function Card({ hook: w, log, metrics, names, max, pending, run, onSecret }: { h
       )}
       <div className="flex flex-wrap gap-2">
         {!editing && <Button size="sm" variant="outline" disabled={pending} onClick={() => setEditing(true)}>Change</Button>}
+        {!editing && hidden > 0 && <Button size="sm" variant="outline" disabled={pending} onClick={() => run(async () => { unwrap(await forgetHiddenPersonalMetrics(w.id)); }, "Removed")}>Remove the {hidden} {hidden === 1 ? "Metric" : "Metrics"} you can no longer see</Button>}
         <Button size="sm" variant="outline" disabled={pending || !w.enabled} onClick={() => run(async () => unwrap(await sendTestPersonalWebhook(w.id)), "Test event sent")}>Send test event</Button>
         <Button size="sm" variant="outline" disabled={pending} onClick={() => { if (confirm(`Replace the secret of “${w.name}”? The old one keeps signing for 24 hours, so the receiver can switch without a gap.`)) run(async () => onSecret(unwrap(await replacePersonalWebhookSecret(w.id))), "New secret made"); }}>Replace secret</Button>
         <Button size="sm" variant="outline" disabled={pending} onClick={() => run(async () => unwrap(await setPersonalWebhookEnabled(w.id, !w.enabled)), w.enabled ? "Switched off" : "Switched on; nothing missed is resent")}>{w.enabled ? "Switch off" : "Switch on"}</Button>
