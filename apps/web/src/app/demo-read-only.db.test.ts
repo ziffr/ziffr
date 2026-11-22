@@ -187,6 +187,7 @@ const CASES: Record<string, Case> = {
   // Reading or fetching a Pack is refused in the demo like a change: it would make work for an anonymous visitor.
   "pack-actions:readPack": { args: () => [PACK] },
   "pack-actions:exportAsPack": { reads: (i) => [{ id: "visitor/export", name: "Export", version: "1.0.0", summary: "An export.", author: "A visitor", license: "CC-BY-4.0" }, { metrics: [i.metric] }] },
+  "pack-actions:themeLogoPreview": { reads: () => [1] },
   "pack-actions:installPack": { args: () => [PACK, { unsigned: true, assistantTexts: true }] },
   "pack-actions:readUpdate": { nothing: "the demo has no Pack installed to update", args: () => [1, PACK] },
   "pack-actions:updatePack": { nothing: "the demo has no Pack installed to update", args: () => [1, PACK, { unsigned: true, assistantTexts: true }] },
