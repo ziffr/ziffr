@@ -82,7 +82,30 @@ These are the rules that make it safe for a non-analyst, and the tests check eac
 10. **The same words everywhere.** One module writes every Takeaway; a Dashboard widget, a View Link, a deck, an email, the API and a Heads-up all show the same sentence. Wording is data keyed by case so it can be translated; the number slots take the Workspace's Number Style and each Metric's unit.
 11. **Only what the person may see.** An Analysis names and uses only Metrics the person may see (rule 3 of `AGENTS.md`). A Metric they cannot see is not in a driver list, not as a name, not as "another Metric".
 
-## The Methods
+12. **Every Method says when it does not suit the data, and the data is checked every time.** Beyond the minimums of rule 1, each Method declares its **suitability checks** (below). When one fails, the Takeaway is one of three things, never a quiet number: a **refusal** ("Not enough months yet: 9 of 16 needed"), a **caution** (the answer is given with one plain line above it: "Two months are far from the rest and pull this result; without them it reads +1,900 € per 1,000 Visits"), or a **different Method** where the rule picks one (rank correlation instead of Pearson's r for skewed values, and it says so). A Takeaway that passed every check says nothing extra; one that passed with a caution is never shown as strong.
+
+## When the data does not suit a Method
+
+Rules 1 and 12 need checks the Method can run on the series it is given. They are part of the Method, written once, tested like the Method, and shown on the Method's catalogue entry as **Use it when** and **Don't use it when** (spec 0041's picker reads the same text). The first wave:
+
+| Check | Applies to | Fails when | Result |
+| --- | --- | --- | --- |
+| Enough periods | every Method | fewer than the Method's minimum (fit: 8 + 4 per driver; seasonal forecast: 2 full seasons; lag: 12; before and after: 6 before the date) | Refusal, with how many it has and needs |
+| Enough that vary | every Method | a series is constant, or has fewer than 4 different values, or fewer than half its periods differ from the one before | Refusal: "Support tickets has hardly changed, so there is nothing to compare" |
+| Gaps | every Method | more than 20 % of the periods in the window have no value, or a gap of 3 or more in a row; gaps are never filled in | Refusal above the limit, caution below it ("3 of 24 months have no value and were left out") |
+| Outliers | fits, correlations, forecasts, change points | a value lies further than 4 median absolute deviations from the median, and leaving out the 1 to 3 most extreme changes the result by more than a fifth of its own range or flips its sign | Caution, giving the result without them next to it; never removes a value by itself |
+| Skew and ties | Pearson's r, fit | the values are strongly skewed (skewness above 2) or mostly ties | Rank correlation is used instead of Pearson's r, and it says so; for a fit, a caution |
+| Not a straight line | fit, predict, needs, what-if | the fit's misses show a curve (the misses, ordered by the fitted value, change sign fewer than expected: a runs test at 5 %) or a quadratic term explains a clear further share | Caution: "The link looks curved, so a straight-line reading is rough"; **needs** and **what-if** refuse outside the range seen (rule 7) and are marked rough inside it |
+| Changing relationship | fit, correlation, lag | the relation in the first and second half of the history differs by more than their ranges allow (a change of sign, or a drop of more than half) | Caution: "This link was stronger in 2025 than since"; the Takeaway reports the latest half as well |
+| Level shifts | forecast, trend, usual range | a change point of 3 typical misses or more lies in the window | The Method uses only the data after it when at least its minimum remains, and says so; otherwise caution |
+| Seasonality that does not repeat | seasonal forecast | the seasonal pattern of the first and second year differs more than a set share | The plain Holt forecast is used, and it says so |
+| Spread that grows | fit, ranges | the misses get larger as the level grows (a rank correlation of size and misses above 0.5) | Caution that the ranges are rough; ranges are worked out on percentages of the level where the Metric is always positive |
+| Mixed units or periods | what-if, fit | a Metric has Aggregation none and another period, or an input is a Derived Metric built from another input | Refusal naming it, as spec 0019 does |
+| Too many Metrics for the history | fit, Drivers | more drivers than rule 8 allows | A first pass chooses, and says which were left out |
+
+The thresholds are written in one table (the Takeaway layer's), reviewed with two analysts, tuned by ticket 17's trial, and each is tested at the threshold, one step either side.
+
+**What never happens:** Ziffr never removes, smooths or fills in a value without saying so; never lowers a Method's minimum to give an answer; never shows a result as strong that passed only with a caution; and never turns a refusal into a number because the person asked again or picked the Method by hand (the picker obeys the same checks).
 
 All are pure functions in `packages/core`, in new files beside `recipe-functions.ts`, taking series of `Point`s as the existing ones do. Each has: a reference in `test/reference/` that works the answer out another way, generated tests, 100 % coverage of its path, and a row in the Calculation Catalogue.
 
@@ -218,6 +241,7 @@ New marks for View Designs (spec 0024), each drawn by the one renderer and takin
 - **Heads-ups:** a simulation with 150 Metrics of independent noise and trends must produce zero "moving together" Heads-ups in at least 99 of 100 runs (the false-discovery check), and a planted lagged pair must be found. A visibility test in the database suite: a person who sees A but not B is never given a Heads-up naming B, nor one that changes when B changes, and a Metric hidden after a Heads-up is gone from the list.
 - **Same-number test** (spec 0024's): an Takeaway's number is the same on a widget, a Snapshot, a View Link and in the deck export.
 - **Marks:** the comparison test of spec 0024 for each new mark with Sample Data; treemap areas proportional to values; radar spokes in the order given.
+- **Suitability:** each check has hand-made data that fails it by one step and passes it by one step (n at the minimum and one below; 20 % gaps and one more; an outlier that changes the result and one that does not; a straight line and a plain curve; a relation that flips between halves; a level shift; seasonality that stops repeating; growing spread; the five Methods' refusals in words). A generated test checks the invariants: a refusal never carries a number; a result with a caution is never labelled strong; the same series gives the same verdict twice; and removing nothing from the input removes nothing from the output (no silent clean-up). A simulation checks that the checks are not too eager: 1,000 well-behaved simulated series (straight line, normal noise, no gaps) get no caution in at least 95 % of runs and no refusal above their minimum.
 - **Picker:** a table of canvas states against the list it shows (one Metric, two, a weekly and a monthly, a Metric with 7 months, one with Aggregation none, a Metric the person may not see): each Method is listed, greyed with its reason, or absent exactly as the table says; a Method picked by hand and the Recipe that uses it give the same Takeaway on the same input (they are one implementation); and no Method reachable through the picker can skip a Takeaway rule (a test lists every registered Method and runs it through the Takeaway layer on the hostile inputs of the Methods' tests). A Metric the person may not see is never offered in a Slot.
 - **Trial by non-analysts:** before the Recipes are released, five people who have not studied statistics are given each Recipe and the Takeaway, and asked to say in their own words what it means and what they would do. Anything misread by two of five is reworded. The results are kept in `docs/reviews/`.
 
@@ -226,7 +250,7 @@ New marks for View Designs (spec 0024), each drawn by the one renderer and takin
 Each is one pull request; blocked-by in brackets.
 
 1. **Basis choice and a fixed Drivers.** `changes`, `detrended`, `basisFor`; Drivers and the correlation matrix use it and say so; the level-based view under Show the numbers.
-2. **Takeaway layer.** The word table, strength thresholds, ranges, footer, forbidden-word test; **Show the numbers**. Glossary: Takeaway. [1]
+2. **Takeaway layer and suitability checks.** The word table, strength thresholds, ranges, footer, forbidden-word test, and the suitability checks of "When the data does not suit a Method" (one module that each Method calls, with the threshold table); **Show the numbers**. Glossary: Takeaway. [1]
 3. **Library, part one.** `spearman`, `partialCorrelation`, `laggedCorrelation`, `quantile`, `usualRange`, `topShare`, `pareto`, `bridge`: references, fixtures, catalogue. [1]
 4. **Fit.** `fit`, `importance`, `predict`, `needs`, with the exact normal equations, the minimums and rules 6 to 8; the Recipe "What moves B?" and "What does B need?". [2, 3]
 5. **What-if.** `whatIf`, the exact and estimated paths, the Recipe "What if A changes?". [4]
