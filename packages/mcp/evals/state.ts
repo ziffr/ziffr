@@ -7,7 +7,7 @@ import { valuesOf } from "@ziffr/core/test/db-fixtures";
 /** One Metric of the Workspace as the checks see it. */
 export type MetricState = { slug: string; name: string; period: string; unit: string; polarity: string; formula: string | null; asking: AskingSchedule | null; submitters: string[]; values: number[] };
 /** Everything a scenario's checks may look at. */
-export type EvalState = { personId: string; teammateIds: string[]; metrics: MetricState[]; toolErrors: string[] };
+export type EvalState = { personId: string; teammateIds: string[]; metrics: MetricState[]; toolErrors: string[]; lastWords: string };
 /** One assertion and its result; `detail` says what was found when it failed. */
 export type Check = { name: string; ok: boolean; detail: string };
 

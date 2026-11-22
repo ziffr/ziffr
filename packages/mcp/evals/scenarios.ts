@@ -28,6 +28,8 @@ const only = (s: EvalState) => (s.metrics.length === 1 ? s.metrics[0] : undefine
 const common = (s: EvalState): Check[] => [
   check("no tool errors", s.toolErrors.length === 0, s.toolErrors.slice(0, 2).join(" | ")),
   check("a Metric exists", s.metrics.length > 0),
+  // Principle 5 of #614 (and the audit #628): the last words carry the Metric's link, so the person can open it.
+  check("the last answer links to a Metric", /\/metrics\//.test(s.lastWords), s.lastWords.slice(0, 160)),
 ];
 
 const buses = (language: "de" | "en"): Scenario => ({
@@ -114,5 +116,21 @@ const odometer: Scenario = {
   },
 };
 
+const steps: Scenario = {
+  id: "steps-unusual-en",
+  language: "en",
+  opening: "Track my daily steps. Yesterday I walked 8000 steps and today 80000 steps.",
+  replies: ["Yes, both are right, please record them as they are.", "Higher is better."],
+  checks: (s) => {
+    const m = only(s);
+    return [
+      ...common(s),
+      check("period is day", m?.period === "day", m?.period),
+      // Principle 7 of #614: an unusual value is a warning the person can overrule, never a refusal.
+      check("both values recorded, the unusual one too", Boolean(m?.values.includes(8000) && m?.values.includes(80000)), JSON.stringify(m?.values)),
+    ];
+  },
+};
+
 /** Every scenario, in the order the report lists them. */
-export const SCENARIOS: Scenario[] = [buses("de"), buses("en"), kmDaily("de"), kmDaily("en"), coffee, salesMonday("de"), salesMonday("en"), odometer];
+export const SCENARIOS: Scenario[] = [buses("de"), buses("en"), kmDaily("de"), kmDaily("en"), coffee, salesMonday("de"), salesMonday("en"), odometer, steps];

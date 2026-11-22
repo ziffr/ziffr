@@ -28,7 +28,7 @@ export const POST = metricRoute("values:submit", async (actor, req, slug) => {
       return { ...errorBody("rate_limited", `This key submitted ${admitted.limit} values in the last 24 hours; try again in ${admitted.retryAfter} seconds.`), keep: false };
     }
     const r = await submitObservation(actor, slug, input);
-    if (r.ok) return { status: 201, body: SubmissionAnswer.parse({ status: r.status, period: r.period, value: r.value, detail: r.detail }) };
+    if (r.ok) return { status: 201, body: SubmissionAnswer.parse({ status: r.status, period: r.period, value: r.value, detail: r.detail, ...(r.unusual ? { unusual: r.unusual } : {}) }) };
     if (r.reason === "locked") return errorBody("locked", r.detail);
     if (r.reason === "period_condensed") return errorBody("period_condensed", r.detail);
     if (r.reason === "not_submitter") return errorBody("forbidden", r.detail);

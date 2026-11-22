@@ -8,7 +8,7 @@ import { db } from "./db";
 import type { SubmissionEffects } from "./submissions";
 import { opened, valuesOf, workspace } from "./test/db-fixtures";
 import { saveWorkflow, setMetricWorkflow } from "./workflows";
-import { JANUARY, periodStart } from "./periods";
+import { JANUARY, periodStart, shiftPeriod } from "./periods";
 
 const cleanups: (() => Promise<void>)[] = [];
 afterEach(async () => { for (const c of cleanups.splice(0)) await c(); });
@@ -34,6 +34,20 @@ describe("submitObservation", () => {
     expect(obs!.access_key_id).toBe(id);
     const { data: rows } = await db().from("breakdown_rows").select("id, label, value, value_sealed").eq("observation_id", obs!.id);
     expect(await opened("breakdown_rows", w.id, rows, { dropId: true })).toEqual([{ label: "Shop", value: 2 }]);
+  });
+  it("warns, never refuses, when a value is unusual, and only a key that reads is told what was expected (#614)", async () => {
+    const w = await ws(); const ben = await w.person("member");
+    const m = await w.metric(ben, { submission_rule: "overwrite" }); await w.token(m.id, ben);
+    await w.value(m.id, shiftPeriod(thisMonth(), "month", -1), 100, ben);
+    const reader = (await keyFor(w, ben, ["metrics:read", "values:submit"])).key;
+    const blind = (await keyFor(w, ben)).key;
+    const r = await submitObservation(reader, m.slug, { value: 13573 }, quiet());
+    expect(r).toMatchObject({ ok: true, status: "recorded", value: 13573 });
+    expect(r.ok && r.unusual?.reasons[0]).toMatch(/^up /);
+    expect(r.ok && r.unusual?.expected).toMatch(/^100 /);
+    // A usual value carries no warning; a key that may not read learns nothing about earlier values.
+    expect(await submitObservation(reader, m.slug, { value: 110 }, quiet())).not.toHaveProperty("unusual");
+    expect(await submitObservation(blind, m.slug, { value: 13573 }, quiet())).not.toHaveProperty("unusual");
   });
   it("keeps every Breakdown row of values with breakdowns sent at the same moment (spec 0022, #126)", async () => {
     const w = await ws(); const ben = await w.person("member");

@@ -505,3 +505,34 @@ export async function closePeriod(ws: string, workflowId: number, asOf: string, 
   for (const p of closed) await sendLockSummary(ws, workflowId, p);
   return n;
 }
+
+/** What a program's key that may read is told after a value (GLOSSARY: Unusual Value): why it looks unusual and what was
+ * expected, in words. Only a warning the person can overrule (the value is recorded, or waits for Approval, as the
+ * Workflow says). It uses the Workflow's check step, or a change of more than 100 % on the period before for a Metric
+ * without one; it reads only this Metric's own earlier value, which the key already sees. Null when nothing is unusual. */
+export async function unusualWarning(metricId: number, period: string): Promise<{ reasons: string[]; expected: string } | null> {
+  const { data: sealedRow } = await db().from("metrics").select("*").eq("id", metricId).single();
+  const row = await openOne("metrics", String(sealedRow?.workspace_id), sealedRow);
+  if (!row) return null;
+  const ws = String(row.workspace_id);
+  const m = normalizeMetric(row) as Metric;
+  const wf = row.workflow_id ? await openWorkflowRow(ws, (await db().from("workflows").select("*").eq("id", row.workflow_id).single()).data) : null;
+  const check = (wf as Workflow | null)?.config.steps.find((s): s is Extract<WorkflowStep, { type: "check" }> => s.type === "check") ?? { type: "check" as const, changePct: 100, outsideTarget: false };
+  const value = await latestValue(ws, metricId, period);
+  if (!value) return null;
+  const before = shiftPeriod(period, m.period, -1);
+  const prev = await latestValue(ws, metricId, before);
+  const { data: targetRows } = await db().from("series_values").select("metric_id, kind, period_start, value, value_sealed").eq("workspace_id", ws).eq("metric_id", metricId).eq("kind", "target");
+  const targets = (await openRows("series_values", ws, targetRows)) as { period_start: string; value: number | null }[];
+  const t = targetFor(m, period, targets.filter((x) => typeof x.value === "number").map((x) => ({ period: x.period_start, value: x.value as number })));
+  const style = await numberStyleOf(ws);
+  const yearStart = await yearStartFor(ws, m.period);
+  const reasons = unusualReasons(m, value.value, prev?.value, before, check, yearStart, style, t);
+  if (!reasons.length) return null;
+  const parts: string[] = [];
+  if (prev) parts.push(`${formatValue(m, prev.value, style)} in ${periodLabel(before, m.period, yearStart)}`);
+  if (t && t.min !== null && t.max !== null) parts.push(`a target of ${formatValue(m, t.min, style)} to ${formatValue(m, t.max, style)}`);
+  else if (t && t.max !== null) parts.push(`a target of at most ${formatValue(m, t.max, style)}`);
+  else if (t && t.min !== null) parts.push(`a target of at least ${formatValue(m, t.min, style)}`);
+  return { reasons, expected: parts.join(", ") || "no earlier value to compare with" };
+}
