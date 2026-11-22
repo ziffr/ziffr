@@ -71,7 +71,7 @@ describe("my_schedule", () => {
     expect((empty.content as { text: string }[])[0].text).toMatch(/for this week\.\n\nOverdue:\n- nothing\n\nBy day:\n- nothing due in this span$/);
     const refused = await client.callTool({ name: "my_schedule", arguments: { from: "2026-11-22", to: "2026-11-16" } });
     expect(refused.isError).toBe(true);
-    expect((refused.content as { text: string }[])[0].text).toBe("Ziffr refused (invalid_request): from must not be after to.");
+    expect((refused.content as { text: string }[])[0].text).toBe("Ziffr could not do that: from must not be after to.");
     expect(asked[0].search).toBe("");
     await expect(client.callTool({ name: "my_schedule", arguments: { from: "next week" } })).resolves.toMatchObject({ isError: true });
   });

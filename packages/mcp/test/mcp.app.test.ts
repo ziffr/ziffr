@@ -144,6 +144,33 @@ describe("@ziffr/mcp against the app", () => {
     expect(stuck.first_value).toMatchObject({ recorded: false, reason: expect.any(String) });
     expect(stuck.url).toBeTruthy();
   });
+  it("answers with the link, the next ask and who is asked, and says how to fix a refusal (ticket #614)", async () => {
+    const { client } = await connect(["metrics:read", "values:submit", "metrics:write", "metrics:edit", "workflows:write"]);
+    const made = json(await client.callTool({ name: "create_metric", arguments: { name: "Pages read", period: "day", schedule: { hour: 20 } } }));
+    expect(made.who_is_asked).toMatch(/is asked by email, and can always answer with a personal link; this assistant can record values too\./);
+    // A change brings the link and when the person is asked next; taking the schedule away says so.
+    const changed = json(await client.callTool({ name: "update_metric", arguments: { slug: made.metric.slug, unit: "pages" } }));
+    expect(changed.url).toBe(made.url);
+    expect(changed.next_ask).toMatch(/^The next ask is on \w+day, \d+ \w+ \d{4} at 20:00 \(UTC\)\.$/);
+    const off = json(await client.callTool({ name: "set_metric_workflow", arguments: { slug: made.metric.slug, workflow: null } }));
+    expect(off).toMatchObject({ url: made.url, next_ask: null, schedule: "It is not asked for on a schedule any more." });
+    // A recorded value carries the link too.
+    expect(json(await client.callTool({ name: "submit_value", arguments: { slug: made.metric.slug, value: 30 } }))).toMatchObject({ status: "recorded", url: made.url });
+    // The person is not asked for a Metric made for nobody: the refusal says how to fix it, in words.
+    const nobody = json(await client.callTool({ name: "create_metric", arguments: { name: "For nobody", submit: false } }));
+    expect(nobody.who_is_asked).toBe("Nobody is asked: values arrive only when someone sends them.");
+    const refused = await client.callTool({ name: "submit_value", arguments: { slug: nobody.metric.slug, value: 1 } });
+    expect(refused.isError).toBe(true);
+    expect(JSON.stringify(refused.content)).toMatch(/You do not submit values for For nobody\..*set_submitters with add/);
+    const added = json(await client.callTool({ name: "set_submitters", arguments: { slug: nobody.metric.slug, add: [(await client.callTool({ name: "list_people", arguments: {} }).then(json)).people[0].id] } }));
+    expect(added.url).toBe(nobody.url);
+    // A refusal for rights says so plainly, without the API's code.
+    const reading = (await connect(["metrics:read"])).client;
+    const denied = await reading.callTool({ name: "update_metric", arguments: { slug: made.metric.slug, name: "x" } });
+    expect(denied.isError).toBe(true);
+    expect(JSON.stringify(denied.content)).toMatch(/does not allow it/);
+    expect(JSON.stringify(denied.content)).not.toMatch(/\(forbidden\)|refused \(/);
+  });
   it("makes kilometres per day from an odometer with a formula, in plain steps (ticket #619)", async () => {
     const { client } = await connect(["metrics:read", "values:submit", "metrics:write"]);
     const odo = json(await client.callTool({ name: "create_metric", arguments: { name: "Odometer", unit: "km", period: "week", aggregation: "last", first_value: { value: 13573, period: "2026-11-02" } } }));
@@ -191,7 +218,7 @@ describe("@ziffr/mcp against the app", () => {
     const { client, orders, hidden } = await connect(["metrics:read"]);
     const refused = await client.callTool({ name: "submit_value", arguments: { slug: orders.slug, value: 1 } });
     expect(refused.isError).toBe(true);
-    expect(JSON.stringify(refused.content)).toMatch(/forbidden/);
+    expect(JSON.stringify(refused.content)).toMatch(/Not allowed: This key lacks the scope/);
     expect((await client.callTool({ name: "get_metric", arguments: { slug: hidden.slug } })).isError).toBe(true);
   });
   it("proposes a share, shows it in the chat as an app, and can never confirm it (ticket #538)", async () => {
