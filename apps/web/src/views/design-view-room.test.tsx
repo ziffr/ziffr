@@ -44,4 +44,16 @@ describe("DesignView with room to spare", () => {
     expect(draw(BUILT_IN_DESIGNS.number, 1.25)).not.toContain(ends);
     expect(draw(BUILT_IN_DESIGNS.number, 1.6)).toContain(ends);
   });
+
+  it("centres a number without its sparkline both ways when it has room (#789), and keeps it left in a usual widget", () => {
+    const one = { ...data, series: { ...data.series, [data.metrics[0].slug]: data.series[data.metrics[0].slug].slice(-1) } };
+    const at = (scale: number) => renderToStaticMarkup(
+      <WidgetScaleProvider value={scale}>
+        <DesignView design={BUILT_IN_DESIGNS.number} widget={{ metric_ids: [data.metrics[0].id], settings: { window: 12 } }} metrics={[data.metrics[0]]} data={one} />
+      </WidgetScaleProvider>,
+    );
+    expect(at(2)).toContain("items-center text-center");
+    expect(at(1)).not.toContain("items-center text-center");
+    expect(draw(BUILT_IN_DESIGNS.number, 2)).not.toContain("items-center text-center");
+  });
 });
