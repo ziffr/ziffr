@@ -35,4 +35,22 @@ describe("the starting Packs", () => {
     expect(c.workflows!.map((d) => d.key)).toEqual(["monthly-close", "quarter-close"]);
     expect(c.themes![0].theme.slides?.logo).toBe("pack");
   });
+
+  it("SaaS metrics decks use Placeholders only where the slide has a widget, and Show by only on Metrics that combine", () => {
+    const res = checkPack(startingPack("saas-metrics.pack.json"));
+    if (!res.ok) throw new Error("does not pass");
+    const entries = new Map(res.pack.contents.metrics!.map((e) => [e.key, e.metric]));
+    for (const { key, template } of res.pack.contents.decks!) {
+      template.slides.forEach((slide, i) => {
+        const words = slide.shapes.flatMap((sh) => ("text" in sh && sh.text ? sh.text : []));
+        // A slide's Placeholders are filled from the Metrics of its own widgets: with none, they would stay visible.
+        if (words.some((t) => t.includes("{"))) expect(slide.shapes.some((sh) => sh.shape === "widget"), `${key} slide ${i + 1}`).toBe(true);
+        for (const sh of slide.shapes) {
+          if (sh.shape !== "widget" || !sh.settings?.display) continue;
+          const m = entries.get(template.slots[sh.slots[0]].suggests!)!;
+          expect(Boolean(m.formula) || m.aggregation !== "none", `${key} slide ${i + 1} shows by ${sh.settings.display}`).toBe(true);
+        }
+      });
+    }
+  });
 });

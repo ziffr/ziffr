@@ -926,7 +926,7 @@
                   "y": 380,
                   "w": 1152,
                   "text": [
-                    "{period}"
+                    "For the management team"
                   ],
                   "size": "m"
                 }
@@ -994,7 +994,7 @@
                   "y": 400,
                   "w": 1152,
                   "text": [
-                    "{metric} is {change prev} on the month before."
+                    "{metric} is {change prev} on the period before."
                   ],
                   "size": "m"
                 }
@@ -1308,7 +1308,7 @@
                   "y": 380,
                   "w": 1152,
                   "text": [
-                    "{period}"
+                    "Quarterly report to the board"
                   ],
                   "size": "m"
                 }
@@ -1376,7 +1376,7 @@
                   "y": 400,
                   "w": 1152,
                   "text": [
-                    "{metric} is {change prev} on the quarter before."
+                    "{metric} is {change prev} on the period before."
                   ],
                   "size": "m"
                 }
