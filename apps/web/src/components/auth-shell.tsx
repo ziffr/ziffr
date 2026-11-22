@@ -1,33 +1,25 @@
 // The frame of the signed-out pages (GLOSSARY: Workspace, Invitation): sign-in, starting a workspace or a trial, an
-// invitation. A two-sided card built from shadcn's login-04 block: the form on one side, on the other what Ziffr is,
-// with a real screenshot of the demo's Monthly overview dashboard. It holds no data of anyone: the picture is a static
-// file and the words are the same for everybody, so nothing here depends on who is asking.
-import { Card } from "@/components/ui/card";
+// invitation. One calm column in the look of ziffr.net (#759): the Ziffr mark, a card with the page's form, and at
+// most one small line below it. It holds no data of anyone: the mark is a static file and the words are the same for
+// everybody, so nothing here depends on who is asking.
 import { cn } from "@/lib/utils";
 
-/** What the picture shows, for people who cannot see it. */
-const SHOT_ALT = "The demo's Monthly overview dashboard in Ziffr: tiles for Revenue, Margin, Cost and Support tickets, each with its latest value and how it compares with its target, a line chart of Cost over time and a table of Revenue values.";
-
-/** The card around a signed-out page: its content first, what Ziffr is beside it (below it on a phone). */
-export function AuthShell({ children, className }: { children: React.ReactNode; className?: string }) {
+/** The column around a signed-out page: the mark, its content in a card, what sits below the card (`below`, such as
+ * the demo link) and, last, a page footer (`footer`, such as the legal links of hosted Ziffr, #760). */
+export function AuthShell({ children, below, footer, className }: { children: React.ReactNode; below?: React.ReactNode; footer?: React.ReactNode; className?: string }) {
   return (
-    <Card className={cn("mx-auto mt-4 w-full max-w-5xl gap-0 p-0 sm:mt-8 md:grid md:grid-cols-[minmax(0,26rem)_minmax(0,1fr)]", className)}>
-      <div className="flex min-w-0 flex-col justify-center p-6 sm:p-10">{children}</div>
-      <aside aria-label="About Ziffr" className="flex min-w-0 flex-col justify-start gap-8 overflow-hidden border-t border-border bg-muted p-6 sm:px-10 md:border-l md:border-t-0 md:pb-0 md:pr-0 md:pt-10">
-        <div className="max-w-sm md:pr-10">
-          <p className="text-[length:var(--text-lg)] font-medium leading-snug">The numbers you care about, in one place.</p>
-          <p className="mt-2 text-sm text-muted-foreground">Define a metric, and Ziffr asks people for its values, or systems send them in. Everyone sees, shares and discusses them over time.</p>
-        </div>
-        {/* Only from the tablet width up: on a phone the form comes first and the picture would only push it down.
-            Hidden images are not fetched (loading=lazy), so a phone never downloads it. */}
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src="/login-dashboard.webp" width={1400} height={1000} loading="lazy" alt={SHOT_ALT} className="hidden w-full rounded-tl-[var(--radius-card)] border-l border-t border-border bg-background shadow-lg md:block" />
-      </aside>
-    </Card>
+    <div className={cn("mx-auto w-full max-w-md pt-2 sm:pt-10", className)}>
+      {/* The same mark as the site's header and the app icons; decorative, the heading says where you are. */}
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img src="/brand/ziffr-logo.svg" width={44} height={44} alt="" className="mb-6 size-11" />
+      <div className="rounded-[var(--radius-card)] border border-border bg-card p-6 text-card-foreground shadow-[var(--shadow-card)] sm:p-8">{children}</div>
+      {below && <div className="mt-6 text-center text-sm text-muted-foreground">{below}</div>}
+      {footer && <footer className="mt-10 text-center text-xs text-muted-foreground">{footer}</footer>}
+    </div>
   );
 }
 
-/** The heading of the content side: what this page is, and one line under it. */
+/** The heading of the card: what this page is, and one line under it. */
 export function AuthHeading({ title, children }: { title: string; children?: React.ReactNode }) {
   return (
     <header className="mb-6">
