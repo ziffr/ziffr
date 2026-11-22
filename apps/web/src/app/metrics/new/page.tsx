@@ -171,7 +171,7 @@ export default async function NewMetricPage({ searchParams }: { searchParams: Pr
                 <div className="flex flex-wrap gap-4">
                   {people.map((p) => (
                     <label key={p.id} className="flex items-center gap-2 text-sm">
-                      <input type="checkbox" name="submitters" value={p.id} defaultChecked={copy ? copy.submitters.includes(p.id) : p.id === "anna"} className="size-4 accent-primary" />
+                      <input type="checkbox" name="submitters" value={p.id} defaultChecked={copy ? copy.submitters.includes(p.id) : p.id === viewer} className="size-4 accent-primary" />
                       <span className="size-2.5 rounded-full" style={{ background: p.color }} />
                       {p.name.split(" ")[0]} <span className="text-xs text-muted-foreground">{p.role}</span>
                     </label>
