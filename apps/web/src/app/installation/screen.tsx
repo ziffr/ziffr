@@ -172,16 +172,26 @@ function Section({ section, canSeal, slack, siteUrl, limits, replies, usage }: {
   );
 }
 
+/** The Slack app's icon to download, for the app's Basic Information page. Same file wherever the app is made. */
+function SlackIcon() {
+  return (
+    <p className="text-muted-foreground">
+      An icon for the app, under Display Information on the same page: <a href="/brand/ziffr-slack-app.png" download className="underline underline-offset-2">Download the Slack app icon</a>.
+    </p>
+  );
+}
+
 /** Step one for Slack: a button that opens Slack's "Create app" with Ziffr's manifest filled in for this address. */
 function SlackCreateApp({ slack, siteUrl }: { slack: SlackSetupView; siteUrl: string | null }) {
   if (!slack.createAppLink) {
-    return <p className="max-w-[62ch] text-sm">Slack only talks to an https address. Set ZIFFR_SITE_URL on the server to this Ziffr&apos;s https address{siteUrl ? <> (it is <span className="font-mono text-xs">{siteUrl}</span> now)</> : null}, then make the app here.</p>;
+    return <div className="max-w-[62ch] space-y-2 text-sm"><p>Slack only talks to an https address. Set ZIFFR_SITE_URL on the server to this Ziffr&apos;s https address{siteUrl ? <> (it is <span className="font-mono text-xs">{siteUrl}</span> now)</> : null}, then make the app here.</p><SlackIcon /></div>;
   }
   return (
     <div className="max-w-[62ch] space-y-2 text-sm">
       <p>1. Make the app: Slack opens with Ziffr&apos;s manifest already filled in for this address. Pick the Slack workspace that owns the app, then choose Create.</p>
       <a href={slack.createAppLink} target="_blank" rel="noopener noreferrer" className={buttonVariants({ variant: "outline" })}>Create the Slack app</a>
       <p>2. On the app&apos;s Basic Information page, under App Credentials, copy the three values into the fields below and save.</p>
+      <SlackIcon />
     </div>
   );
 }
@@ -244,6 +254,11 @@ function SectionForm({ section, canSeal }: { section: SectionView; canSeal: bool
             </Button>
           )}
         </div>
+        {section.id === "telegram" && (
+          <p className="max-w-xl text-sm text-muted-foreground">
+            A picture for the bot: <a href="/brand/ziffr-telegram-bot.png" download className="underline underline-offset-2">download it</a>, then in @BotFather send /setuserpic, choose the bot and send the picture. Telegram has one bot and one picture for every Workspace.
+          </p>
+        )}
         {section.id === "telegram" && section.working && <TelegramTest disabled={pending || Object.keys(changes).length > 0} />}
       </form>
     </div>

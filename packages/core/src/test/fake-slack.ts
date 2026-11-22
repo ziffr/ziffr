@@ -24,7 +24,7 @@ export async function fakeSlack() {
   const calls: FakeCall[] = [];
   const users: FakeUser[] = [];
   const fails: Record<string, { error?: string; status?: number; retryAfter?: number; times: number }> = {};
-  let install = { team: { id: slackId("T"), name: "Acme" }, app_id: slackId("A"), bot_user_id: slackId("U"), access_token: `xoxb-${randomBytes(12).toString("hex")}`, is_enterprise_install: false, token_type: "bot", scope: "chat:write,im:write,im:history,users:read,users:read.email" };
+  let install = { team: { id: slackId("T"), name: "Acme" }, app_id: slackId("A"), bot_user_id: slackId("U"), access_token: `xoxb-${randomBytes(12).toString("hex")}`, is_enterprise_install: false, token_type: "bot", scope: "chat:write,chat:write.customize,im:write,im:history,users:read,users:read.email" };
   const tokens = new Set<string>();
   let ts = 1_700_000_000;
   const server: Server = createServer((req, res) => {

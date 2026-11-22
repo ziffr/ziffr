@@ -8,6 +8,7 @@ import { MAX_ATTEMPTS } from "./mail";
 import { ask } from "./questions";
 import { finishSlackInstall, slackBot, startSlackInstall } from "./slack-connection";
 import { sendSlackDelivery, sendWaitingSlack, slackSends, SLACK_PER_RECIPIENT_PER_HOUR } from "./slack-send";
+import { STARTER_THEME } from "./themes";
 import { DEMO_WORKSPACE_ID } from "./team";
 import type { Actor } from "./actor";
 import { fakeSlack } from "./test/fake-slack";
@@ -57,6 +58,24 @@ describe("sending by Slack", () => {
     const [attachment] = JSON.parse(post.params.attachments);
     expect(attachment.blocks[1].elements).toMatchObject([{ action_id: "ziffr_stop", value: String(d.id) }]);
     expect(attachment.color).toMatch(/^#[0-9A-F]{6}$/);
+  });
+
+  it("sends as the Workspace, with its name and logo, once Slack granted chat:write.customize (#650)", async () => {
+    const { w, sara, ann, m } = await setup();
+    const png = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==";
+    await db().from("themes").insert({ workspace_id: w.id, owner_id: sara, name: "Brand", is_default: true, tokens: STARTER_THEME.tokens, slides: { ...STARTER_THEME.slides, logo: png } });
+    const name = (await db().from("workspaces").select("name").eq("id", w.id).single()).data!.name;
+    await deliverPrompt({ metricId: m.id, submitterId: ann, senderId: sara, via: "slack" });
+    const post = posts().at(-1)!;
+    expect(post.params.username).toBe(name);
+    expect(post.params.icon_url).toMatch(new RegExp(`^https://ziffr\\.example\\.test/api/brand/logo/${w.id}/[0-9a-f]{16}$`));
+    // A connection made before the scope existed keeps the app's own name and icon, and nothing breaks.
+    await db().from("slack_installations").update({ scopes: "chat:write,im:write" }).eq("workspace_id", w.id);
+    await deliverPrompt({ metricId: m.id, submitterId: ann, senderId: sara, via: "slack" });
+    const old = posts().at(-1)!;
+    expect(old.params.username).toBeUndefined();
+    expect(old.params.icon_url).toBeUndefined();
+    expect((await latest(w.id, ann)).mail_state).toBe("sent");
   });
 
   it("posts no Prompt on Slack for a Metric that does not take answers by Slack", async () => {

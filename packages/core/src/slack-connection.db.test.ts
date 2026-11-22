@@ -30,7 +30,7 @@ describe("connecting Slack", () => {
     const sara = await w.person("owner");
     const url = await startSlackInstall(w.actor(sara));
     expect(new URL(url).pathname).toBe("/oauth/v2/authorize");
-    expect(new URL(url).searchParams.get("scope")).toBe("chat:write,im:write,im:history,users:read,users:read.email");
+    expect(new URL(url).searchParams.get("scope")).toBe("chat:write,chat:write.customize,im:write,im:history,users:read,users:read.email");
     slack.newTeam();
     expect(await finishSlackInstall(w.actor(sara), { code: "code-1234567890", state: stateOf(url) })).toBe("connected");
     const exchange = slack.of("oauth.v2.access").at(-1)!;
@@ -48,7 +48,7 @@ describe("connecting Slack", () => {
     expect(openSecret(sealSecret("x", "a", Buffer.alloc(32, 1)), "a", Buffer.alloc(32, 2))).toBeNull();
     // The page learns the name, never the token.
     const view = await slackConnection(w.actor(sara));
-    expect(view).toMatchObject({ enabled: true, canManage: true, team: { name: "Acme" } });
+    expect(view).toMatchObject({ enabled: true, canManage: true, team: { name: "Acme", customizes: true } });
     expect(JSON.stringify(view)).not.toContain("xoxb");
     expect((await slackBot(w.id))?.token).toBe(slack.install.access_token);
   });
@@ -158,6 +158,22 @@ describe("connecting Slack", () => {
     expect(await connect(w.actor(sara))).toBe("connected");
     await slackConnectionEnded(slack.install.team.id);
     expect(await slackBot(w.id)).toBeNull();
+  });
+});
+
+describe("reconnecting Slack", () => {
+  it("revokes the old bot token when another Slack workspace is connected, and not when the same one is", async () => {
+    const w = await workspace(); cleanups.push(w.cleanup);
+    const sara = await w.person("owner");
+    expect(await connect(w.actor(sara))).toBe("connected");
+    const first = slack.install.access_token;
+    const revokes = slack.of("auth.revoke").length;
+    // The same Slack workspace again (no newTeam): nothing is revoked.
+    expect(await finishSlackInstall(w.actor(sara), { code: "code-1234567890", state: stateOf(await startSlackInstall(w.actor(sara))) })).toBe("connected");
+    expect(slack.of("auth.revoke")).toHaveLength(revokes);
+    expect(await connect(w.actor(sara))).toBe("connected");
+    expect(slack.of("auth.revoke").at(-1)?.token).toBe(first);
+    expect((await slackBot(w.id))?.token).toBe(slack.install.access_token);
   });
 });
 

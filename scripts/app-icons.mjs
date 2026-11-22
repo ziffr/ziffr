@@ -1,10 +1,10 @@
 #!/usr/bin/env node
 // Renders the installable web app's icons (#143) from the one source, apps/web/public/icons/icon.svg: the sizes the
 // manifest names, the square ("maskable") ones Android crops into its own shape, the apple-touch-icon iOS puts on the
-// home screen, and the favicon. The output is checked in, so run this only after changing the source.
+// home screen, the favicon, and the brand files to download (public/brand). The output is checked in, so run this only after changing the source.
 //
 //   node scripts/app-icons.mjs
-import { readFileSync, writeFileSync } from "node:fs";
+import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { createRequire } from "node:module";
 import { join } from "node:path";
 
@@ -45,4 +45,14 @@ images.forEach(({ size, data }, i) => {
   offset += data.length;
 });
 writeFileSync(join(WEB, "src/app/favicon.ico"), Buffer.concat([header, ...images.map((i) => i.data)]));
-console.log("Wrote the app icons and the favicon.");
+
+// The brand files operators download (#650), served by the app at /brand/: the logo as it is and as a PNG, and the two
+// chat pictures. Telegram and Slack cut their own shape (a circle, rounded corners) out of a full square, so both get the
+// square version; the mark's corners lie within 60% of the way from the middle to the edge, inside any such cut.
+const BRAND = join(WEB, "public/brand");
+mkdirSync(BRAND, { recursive: true });
+writeFileSync(join(BRAND, "ziffr-logo.svg"), rounded);
+writeFileSync(join(BRAND, "ziffr-logo.png"), await png(rounded, 1024));
+writeFileSync(join(BRAND, "ziffr-telegram-bot.png"), await png(square, 640));
+writeFileSync(join(BRAND, "ziffr-slack-app.png"), await png(square, 1024));
+console.log("Wrote the app icons, the favicon and the brand files.");

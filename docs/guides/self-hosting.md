@@ -42,7 +42,7 @@ Ziffr is a Next.js app on top of a Supabase project (Postgres and its sign-in se
 | A scheduler | Calls two jobs, hourly and every few minutes | yes, for Workflows to run and email to be retried |
 | Inbound mail | A domain whose mail is forwarded to Ziffr, for replies by email | optional |
 | A Slack app | Made from the manifest in the [Slack](slack.md) guide, for messages and answers on Slack | optional |
-| A Telegram bot | Made with @BotFather as the [Telegram](telegram.md) guide says, for messages and answers by Telegram | optional |
+| A Telegram bot | Made with @BotFather as the [Telegram](telegram.md) guide says, for messages and answers by Telegram. Ziffr's [logo and chat pictures](../brand/README.md) are there to upload | optional |
 
 Ziffr keeps everything in Postgres. The server makes outgoing connections only to Supabase and to your SMTP server, and to Slack and Telegram once you set them up.
 

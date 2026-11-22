@@ -294,6 +294,7 @@ The Slack box appears when this Ziffr is set up for Slack (never in the demo).
 | Option | Who | What it does |
 | --- | --- | --- |
 | **Add to Slack** | Owners and Admins | Takes you to Slack to connect one Slack workspace. Back in Ziffr, a line says whether it worked. If Ziffr refuses before sending you there, the reason shows below the button. |
+| **Reconnect Slack** | Owners and Admins | Shown only while the connection was made without Slack's permission to send under the Workspace's own name and logo (`chat:write.customize`), and says so above the button. It takes you to Slack again; once granted, messages carry the Workspace's name and its Theme logo instead of the Ziffr app's. If Slack still does not grant it, whoever runs this Ziffr adds the scope to the Slack app first. Nothing is sent wrongly meanwhile: messages keep the app's name and icon. |
 | **Disconnect Slack** | Owners and Admins | After asking, stops all messages there. Who was found on Slack is forgotten. |
 | **Link my Slack account** | Everyone | Gives you a short code. Send the Ziffr app on Slack the message "link" and the code within ten minutes. |
 | **Forget me on Slack** | Everyone who is linked | Ziffr no longer reaches you on Slack in this Workspace |
