@@ -147,7 +147,7 @@ describe("what is never carried", () => {
       expect(problems(text(edit(at("value"), (r) => ({ ...r, submittedBy: bad })))), JSON.stringify(bad)).not.toHaveLength(0);
     }
     // The documents of dashboards, decks, Workflows and Themes take the same text, so none is lost for a title typed in the app.
-    const odd = "Q3 @ shop 🚀 <b> https://x.example {not a placeholder}";
+    const odd = "R&D @ home 🚀 [ ] <b> https://x.example {not a placeholder}";
     const wid = { ...dashDoc.widgets[0], title: odd, settings: { headline: odd, footnote: odd } };
     expect(problems(text(edit(at("dashboard"), (r) => ({ ...r, dashboard: { ...dashDoc, name: odd, slots: [{ label: odd }], widgets: [wid] } }))))).toEqual([]);
     expect(problems(text(edit(at("deck"), (r) => ({ ...r, deck: { ...deckDoc, name: odd, slots: [{ label: odd }], slides: [{ shapes: [{ shape: "text", x: 1, y: 1, w: 100, text: [odd] }] }] } }))))).toEqual([]);
