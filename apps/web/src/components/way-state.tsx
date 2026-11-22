@@ -6,7 +6,7 @@ import { cn } from "@/lib/utils";
 const STATE_LABEL: Record<WayState["state"], string> = { real: "Real", simulated: "Simulated", off: "Off" };
 
 /** The state as a small badge: real in the success colour, simulated and off plain. */
-export function WayBadge({ state }: { state: WayState["state"] }) {
+function WayBadge({ state }: { state: WayState["state"] }) {
   return (
     <span className={cn("inline-flex items-center rounded-[var(--radius-input)] border px-1.5 text-xs font-medium", state === "real" ? "border-[var(--color-success)] text-[var(--color-success)]" : "border-border text-muted-foreground")}>
       {STATE_LABEL[state]}
