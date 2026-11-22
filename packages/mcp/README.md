@@ -9,7 +9,7 @@ A local [MCP](https://modelcontextprotocol.io) server that lets an AI assistant,
 
 **Claude Code:**
 
-```sh
+```sh skip="starts the published package through Claude Code; the MCP package's app test runs the server against the app"
 claude mcp add ziffr --env ZIFFR_URL=https://ziffr.example.com --env ZIFFR_ACCESS_KEY=zk_... -- npx -y @ziffr/mcp
 ```
 
@@ -29,7 +29,7 @@ claude mcp add ziffr --env ZIFFR_URL=https://ziffr.example.com --env ZIFFR_ACCES
 
 **Without installing anything:** a Ziffr reached over https also serves this server at `https://<your ziffr>/mcp` (Streamable HTTP), with the same tools. Claude.ai and other web assistants connect to it and sign in to Ziffr, with no key to paste ([docs/guides/mcp.md](https://github.com/ziffr/ziffr/blob/main/docs/guides/mcp.md)). A client that sends a fixed header can use it with the key:
 
-```sh
+```sh skip="needs Claude Code and a real key"
 claude mcp add --transport http ziffr https://ziffr.example.com/mcp --header "Authorization: Bearer zk_..."
 ```
 

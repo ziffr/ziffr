@@ -23,7 +23,7 @@ The same steps in detail:
 5. **Create the Metrics and add the Feed as Submitter.** Each figure is one Metric whose slug is the figure's name with hyphens, such as `people-active-7d`. Open "Who submits" on each Metric and add the Feed. Do not set a Due Date for the Feed's Submission: nobody should be asked for a number only a program can give. The list of figures is below.
 6. **Put the keys in the settings.** With Docker Compose, add to `.env` and start again:
 
-```sh
+```sh skip="settings with placeholder keys"
 ZIFFR_USAGE_KEY=zu_...
 ZIFFR_USAGE_FEED_KEY=zk_...
 ```
@@ -32,7 +32,7 @@ Both keys are needed. With one missing, or neither, nothing runs and nothing is 
 
 By default the Feed reads from this Installation and sends to this one. To keep your numbers in a Workspace on another Ziffr, such as the hosted one, name each address:
 
-```sh
+```sh skip="settings with placeholder keys"
 ZIFFR_USAGE_SOURCE_URL=https://ziffr.example.com   # the Installation whose figures are read
 ZIFFR_USAGE_FEED_URL=https://app.ziffr.example     # the Installation that holds your Workspace
 ```
@@ -56,7 +56,7 @@ An Owner or Admin can have the Workspace's own usage, the figures of the Usage p
 3. Install **Workspace usage** (`packs/workspace-usage.pack.json`), **Set up from this Pack**, with the Feed as Submitter of its Metrics. The Pack has 18 Metrics, ordinary ones that count towards the [Workspace Limit](self-hosting.md); tick fewer if you want fewer.
 4. Run the Feed from any cron, with the keys in the environment:
 
-```sh
+```sh skip="needs Usage Feed keys and the Feed program"
 export ZIFFR_USAGE_ACCESS_KEY=zk_...   # the key with "Read usage figures"
 export ZIFFR_USAGE_FEED_KEY=zk_...     # the Feed Key
 export ZIFFR_USAGE_FEED_URL=https://ziffr.example.com

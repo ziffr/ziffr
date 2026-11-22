@@ -26,7 +26,7 @@ A Metric fed by a program should usually use the Submission Rule "overwrite". Th
 
 [`@ziffr/feed-kit`](../../packages/feed-kit/README.md) gives you the contract and a runner. You write how to fetch one period's value; the runner does the rest:
 
-```ts
+```ts skip="a Feed for HubSpot, needs a HubSpot account"
 // hubspot.feed.mjs
 import { defineFeed } from "@ziffr/feed-kit";
 
@@ -44,7 +44,7 @@ export default defineFeed({
 });
 ```
 
-```sh
+```sh skip="needs a Feed Key and the HubSpot Feed; the feed kit's own app test runs a Feed against the app"
 ZIFFR_URL=https://ziffr.example.com ZIFFR_FEED_KEY=zk_... npx ziffr-feed run hubspot.feed.mjs --backfill 24 --dry-run
 ```
 
@@ -77,7 +77,7 @@ metrics:
       group by 1
 ```
 
-```sh
+```sh skip="needs a warehouse database"
 WAREHOUSE_URL=postgres://readonly@warehouse/db ZIFFR_URL=... ZIFFR_FEED_KEY=... npx ziffr-feed-sql run warehouse.yaml
 ```
 

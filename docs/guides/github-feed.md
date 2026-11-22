@@ -31,7 +31,7 @@ The workflow `.github/workflows/dogfood-downloads.yml` runs daily at 05:23 UTC a
 
 ## Running it elsewhere
 
-```sh
+```sh skip="needs a Feed Key and reaches GitHub"
 ZIFFR_GITHUB_FEED_KEY=zk_... ZIFFR_GITHUB_FEED_URL=https://ziffr.example.com ziffr-feed-github run --dry-run
 ```
 

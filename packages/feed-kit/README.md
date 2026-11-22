@@ -8,11 +8,11 @@ Write a [Ziffr](https://github.com/ziffr/ziffr) Feed: a program that brings valu
 2. On each Metric the Feed should fill, its owner opens Settings, "Who submits", and adds the Feed.
 3. Write the Feed:
 
-```sh
+```sh skip="installs a package"
 npm install @ziffr/feed-kit
 ```
 
-```js
+```js skip="a Feed for a CRM that is not there"
 // crm.feed.mjs
 import { defineFeed } from "@ziffr/feed-kit";
 
@@ -35,7 +35,7 @@ export default defineFeed({
 
 4. Run it, from cron, a GitHub Action, a container or anywhere else:
 
-```sh
+```sh skip="needs a Feed Key and the CRM Feed above"
 export ZIFFR_URL=https://ziffr.example.com ZIFFR_FEED_KEY=zk_...
 npx ziffr-feed run crm.feed.mjs --dry-run       # shows what it would send
 npx ziffr-feed run crm.feed.mjs --backfill 24   # also fills the 24 periods before this one where they are empty
@@ -53,7 +53,7 @@ npx ziffr-feed run crm.feed.mjs --backfill 24   # also fills the 24 periods befo
 
 ## From code
 
-```ts
+```ts skip="needs the CRM Feed above"
 import { runFeed, summary } from "@ziffr/feed-kit";
 import feed from "./crm.feed.mjs";
 

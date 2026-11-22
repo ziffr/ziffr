@@ -19,7 +19,7 @@ Claude's mobile apps use the connectors added on claude.ai. Claude Code can use 
 
 Claude.ai reaches your Ziffr from Anthropic's servers (`160.79.104.0/21`), so `localhost` does not work. Run the app with `ZIFFR_SITE_URL` set to a public https address that forwards to it, such as a tunnel, and `ZIFFR_REMOTE_MCP=1`, then follow the steps above with that address. To check the server without Claude, use the MCP inspector:
 
-```sh
+```sh skip="downloads the MCP inspector from npm; the MCP package's app test lists the same tools against the app"
 npx @modelcontextprotocol/inspector                       # opens a browser; pick Streamable HTTP and the /mcp address, then Connect
 npx @modelcontextprotocol/inspector --cli https://ziffr.example.com/mcp --transport http \
   --header "Authorization: Bearer zk_..." --method tools/list   # with an Access Key, no sign-in
@@ -37,7 +37,7 @@ Both servers list the same tools and Starters and one resource template (`ziffr:
 
 The one table of every tool and Starter with the scope it needs is in [`packages/mcp/README.md`](../../packages/mcp/README.md#what-the-assistant-gets); keep it in step with `createServer` when a tool changes. In short: reading, also `find` and `my_schedule`, needs `metrics:read` (and `dashboards:read` for dashboards and templates), recording `values:submit`, creating and deleting Metrics `metrics:write`, changing targets, Projections, the Unusual Value check, Sources and Submitters `metrics:edit`, building dashboards and taking Snapshots `dashboards:write` (reading Snapshots `dashboards:read`), making, changing and removing the creator's own Alerts `alerts:write` (listing them needs `metrics:read`), making, reading, changing and deleting the creator's own Workflows and their steps `workflows:write` (choosing who approves or who a Tell step tells needs `workflows:people`, programs' keys only), and listing the creator's Questions and Tasks `actions:read`, answering, closing and marking them done `actions:write` and confirming or correcting their own value in a Self-check `values:submit`. There is no tool to approve a value, send it back or make a View Link, and an assistant cannot be given those scopes: Approval is a person's check and a View Link publishes data outside the workspace (`values:approve` and `view-links:write` are for programs' Access Keys only). To compare a running server with the table:
 
-```sh
+```sh skip="downloads the MCP inspector from npm; the MCP package's app test lists the same tools against the app"
 npx @modelcontextprotocol/inspector --cli https://ziffr.example.com/mcp --transport http \
   --header "Authorization: Bearer zk_..." --method tools/list     # also prompts/list, resources/templates/list
 ```

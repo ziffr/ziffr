@@ -4,7 +4,7 @@ The Usage Feed for [Ziffr](https://github.com/ziffr/ziffr): reads an Installatio
 
 The totals are counts across all Workspaces: never a Workspace's name, a Metric or a person. Setup, the figures, the Workspace Limit and what happens when the Installation is down: [Usage guide](../../docs/guides/usage.md).
 
-```sh
+```sh skip="needs a Usage Key and a Feed Key"
 export ZIFFR_USAGE_KEY=zu_...          # Installation Settings, Make a Usage Key
 export ZIFFR_USAGE_FEED_KEY=zk_...     # Settings, Feeds, in the Workspace that holds the numbers
 export ZIFFR_USAGE_SOURCE_URL=https://ziffr.example.com

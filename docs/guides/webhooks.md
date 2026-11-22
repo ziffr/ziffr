@@ -174,7 +174,7 @@ The id is in the Webhook's page. The body is JSON of at most 16 KB, signed **exa
 
 In Node, signing is one line:
 
-```js
+```js skip="a fragment: secret and body come from the receiving code"
 const { createHmac } = require("node:crypto");
 const timestamp = Math.floor(Date.now() / 1000);
 const signature = "sha256=" + createHmac("sha256", secret).update(timestamp + "." + body).digest("hex");

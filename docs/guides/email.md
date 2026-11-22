@@ -10,7 +10,7 @@ An Installation Admin can also set the mail server and the sender on the Install
 
 Set three things where Ziffr runs:
 
-```sh
+```sh skip="settings for a mail server"
 ZIFFR_SITE_URL=https://ziffr.example.com          # links in emails lead here
 ZIFFR_SMTP_URL=smtps://user:password@smtp.example.com:465
 ZIFFR_MAIL_FROM="Ziffr <ziffr@example.com>"
@@ -20,7 +20,7 @@ Any provider with SMTP works. Use an address on a domain whose SPF and DKIM incl
 
 A send that fails is tried again after 1, 2, 4 and 8 minutes, then marked as not sent. Something has to run the retries: have a scheduler call the job every few minutes ([scheduled jobs](jobs.md)).
 
-```sh
+```sh skip="a cron recipe with the job secret, which the test app does not set"
 ZIFFR_JOB_SECRET=$(openssl rand -hex 32)
 # every 5 minutes, from cron or your platform's scheduler:
 curl -fsS -X POST -H "Authorization: Bearer $ZIFFR_JOB_SECRET" https://ziffr.example.com/api/jobs/deliveries
@@ -37,7 +37,7 @@ Each email gets a reply address of its own, `reply+<token>@<your inbound domain>
 1. Pick a domain only for replies, such as `in.ziffr.example.com`, and point its MX records at a provider that can hand you incoming mail.
 2. Set:
 
-   ```sh
+   ```sh skip="settings for inbound mail"
    ZIFFR_INBOUND_DOMAIN=in.ziffr.example.com
    ZIFFR_INBOUND_SECRET=$(openssl rand -hex 32)
    ZIFFR_INBOUND_AUTHSERV_ID=<see below>
@@ -68,7 +68,7 @@ Each email gets a reply address of its own, `reply+<token>@<your inbound domain>
 
 Cloudflare Email Routing can send incoming mail to an Email Worker, which forwards it signed. Add `ZIFFR_URL` and `ZIFFR_INBOUND_SECRET` as the Worker's variables, and route `*@in.ziffr.example.com` to it:
 
-```js
+```js skip="a Cloudflare Email Worker, runs only on Cloudflare"
 export default {
   async email(message, env) {
     const raw = new Uint8Array(await new Response(message.raw).arrayBuffer());
@@ -91,7 +91,7 @@ export default {
 
 Any provider that can give you each incoming message raw works, through a small forwarder that signs it as above. Postmark, Mailgun and Amazon SES, for example, can store the raw message or pass it to a webhook or a function. In Node the signature is:
 
-```js
+```js skip="a fragment: ts and raw come from the surrounding code"
 import { createHmac } from "node:crypto";
 const signature = createHmac("sha256", process.env.ZIFFR_INBOUND_SECRET).update(`${ts}.`).update(raw).digest("hex");
 ```

@@ -27,7 +27,7 @@ metrics:
 
 3. Run it:
 
-```sh
+```sh skip="needs a Feed Key and a warehouse database"
 export ZIFFR_URL=https://ziffr.example.com ZIFFR_FEED_KEY=zk_... WAREHOUSE_URL=postgres://readonly@warehouse:5432/db
 npx @ziffr/feed-sql run warehouse.yaml --dry-run
 npx @ziffr/feed-sql run warehouse.yaml --backfill 24
