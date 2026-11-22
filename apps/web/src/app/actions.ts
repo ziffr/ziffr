@@ -49,7 +49,7 @@ export async function createMetric(form: FormData) {
     redirect(`/metrics/new?${back}`);
   }
   revalidatePath("/", "layout");
-  redirect(`/metrics/${made.slug}?created=1${made.tagsLeftOut.length ? `&tags_left_out=${encodeURIComponent(made.tagsLeftOut.join(","))}` : ""}`);
+  redirect(`/metrics/${made.slug}?created=1`);
 }
 
 /** Creates a Derived Metric from the "Calculated from other Metrics" form: back to the form with the core's words

@@ -1,6 +1,6 @@
 // A Metric's page (GLOSSARY: Metric, Comparison, Target Series, Observation, Action, Workflow): its numbers first,
 // then one tab each for analyses, targets, history and how values arrive, instead of one long scroll.
-import { normaliseTagName, tagNameProblem } from "@ziffr/core/tag-names";
+import { tagsLeftOffEntry } from "@ziffr/core/pack-tags";
 import { approvalQuestionForWeb } from "@ziffr/core/approval-question";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -83,9 +83,6 @@ function breakdownShown<R extends { value: number }>(byPeriod: Record<string, R[
 /** The sentence under a just-created Metric: only for its owner and Editors, and only right after creating it. */
 const createdNoteFor = (created: string | undefined, canEdit: boolean, actor: Parameters<typeof firstAsksFor>[0], id: number) => (created && canEdit ? firstAsksFor(actor, id) : Promise.resolve(null));
 
-/** The Tags a Pack entry could not put on a just-made Metric, read from the address: at most 5 words that pass the Tag rules, shown as text only. */
-const leftOutTags = (raw: string | undefined): string[] => (raw ?? "").split(",").slice(0, 5).map(normaliseTagName).filter((t) => !tagNameProblem(t));
-
 /** The sentence over a just-created Metric: a Derived Metric needs no values, so it says so instead of "no values yet". */
 function CreatedNote({ derived, note, demo, tagsLeftOut }: { derived: boolean; note: string | null; demo: boolean; tagsLeftOut: string[] }) {
   return (
@@ -98,7 +95,7 @@ function CreatedNote({ derived, note, demo, tagsLeftOut }: { derived: boolean; n
   );
 }
 
-export default async function MetricPage({ params, searchParams }: { params: Promise<{ slug: string }>; searchParams: Promise<{ vs?: string; created?: string; bp?: string; full?: string; tab?: string; suggest?: string; tags_left_out?: string }> }) {
+export default async function MetricPage({ params, searchParams }: { params: Promise<{ slug: string }>; searchParams: Promise<{ vs?: string; created?: string; bp?: string; full?: string; tab?: string; suggest?: string }> }) {
   const { slug } = await params;
   const sp = await searchParams;
   const tab: Tab = TABS.some((t) => t.id === sp.tab) ? (sp.tab as Tab) : "overview";
@@ -180,10 +177,12 @@ export default async function MetricPage({ params, searchParams }: { params: Pro
 
   // What the first requests really did, read from the Outbox's own records (only for its owner and Editors).
   const createdNote = await createdNoteFor(sp.created, canEdit, actor, metric.id);
+  // Recomputed here, never read from the address: the Tags of the entry this Metric came from that it does not carry.
+  const tagsLeftOff = sp.created && canEdit ? await tagsLeftOffEntry(actor, metric.id) : [];
 
   return (
     <>
-      {sp.created && <CreatedNote derived={Boolean(metric.formula)} note={createdNote} demo={demo} tagsLeftOut={leftOutTags(sp.tags_left_out)} />}
+      {sp.created && <CreatedNote derived={Boolean(metric.formula)} note={createdNote} demo={demo} tagsLeftOut={tagsLeftOff} />}
       <PageHeader
         title={
           <span className="flex items-center gap-2">

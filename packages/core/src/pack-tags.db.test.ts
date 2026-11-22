@@ -5,6 +5,7 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { db } from "./db";
 import { createMetric } from "./metrics";
+import { tagsLeftOffEntry } from "./pack-tags";
 import { exportPack, type ExportManifest } from "./pack-export";
 import { packSetupOptions, setUpFromPack } from "./pack-setup";
 import { updatePackFile } from "./pack-updates";
@@ -114,6 +115,9 @@ describe("Set up from this Pack", () => {
     const id = await installPackFile(actor, pack(), yes);
     const made = await setUpFromPack(actor, id, { metrics: ["arpa"] });
     expect(made.metrics.map((m) => m.name)).toEqual(["MRR", "Customers", "Revenue per account"]);
+    const mrr = made.metrics.find((m) => m.name === "MRR")!;
+    expect(await tagsLeftOffEntry(actor, mrr.id)).toEqual(["monthly review"]);
+    expect(await tagsLeftOffEntry(actor, fillers[0].id)).toEqual([]);
     expect(made.tagsLeftOut).toEqual([{ metric: "MRR", tags: ["monthly review"] }, { metric: "Customers", tags: ["growth"] }, { metric: "Revenue per account", tags: ["unit economics"] }]);
     const tags = await tagsOf(w, actor, made.metrics.map((m) => m.id));
     expect(made.metrics.map((m) => tags[m.id])).toEqual([["finance"], ["finance"], []]);

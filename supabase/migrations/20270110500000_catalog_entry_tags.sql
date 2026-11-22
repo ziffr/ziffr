@@ -19,7 +19,7 @@ declare
   install_id bigint;
 begin
   install_id := install_pack_untagged(p_workspace, p_by, p_install, p_catalog, p_templates, p_designs, p_themes);
-  update catalog_metrics c set tags = array(select jsonb_array_elements_text(i.value->'tags'))
+  update catalog_metrics c set tags = array(select t.x from jsonb_array_elements_text(i.value->'tags') with ordinality t(x, n) order by t.n)
     from jsonb_array_elements(coalesce(p_catalog, '[]'::jsonb)) i
    where jsonb_typeof(i.value->'tags') = 'array' and jsonb_array_length(i.value->'tags') > 0
      and c.workspace_id = p_workspace and c.pack_install_id = install_id and c.pack_key = i.value->>'key';
@@ -35,7 +35,7 @@ begin
   perform update_pack_untagged(p_workspace, p_install, p_by, p_install_row, p_ops);
   -- An entry that is inserted or replaced takes the Tags of its new version, none when it brings none.
   update catalog_metrics c set tags = case when jsonb_typeof(i.value->'tags') = 'array' and jsonb_array_length(i.value->'tags') > 0
-                                           then array(select jsonb_array_elements_text(i.value->'tags')) end
+                                           then array(select t.x from jsonb_array_elements_text(i.value->'tags') with ordinality t(x, n) order by t.n) end
     from jsonb_array_elements(coalesce(p_ops->'catalog'->'insert', '[]'::jsonb) || coalesce(p_ops->'catalog'->'replace', '[]'::jsonb)) i
    where c.workspace_id = p_workspace and c.pack_install_id = p_install and c.pack_key = i.value->>'key';
 end;

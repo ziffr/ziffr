@@ -44,6 +44,7 @@ Decks, Themes, View Designs, the canvas, Packs and the pages that edit them are 
 - `packSetupOptions` (pack-setup.ts): Packs
 - `setUpFromPack` (pack-setup.ts): Packs
 - `tagMetricFromEntry` (pack-tags.ts): Packs
+- `tagsLeftOffEntry` (pack-tags.ts): Packs
 - `readPackUpdate` (pack-updates.ts): Packs
 - `updatePackFile` (pack-updates.ts): Packs
 - `updatePack` (pack-updates.ts): Packs

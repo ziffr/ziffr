@@ -3,8 +3,10 @@
 // name and made when new, within the limits, a Version records it. A limit never stops the Metric: the words that do not fit
 // are left out and handed back for the page to say so. There is no link back to the entry (spec 0030).
 import { Refused, type Actor } from "./actor";
+import { db } from "./db";
 import { addMetricTags } from "./tags";
-import { tagNamesOf, TAGS_PER_ENTRY } from "./tag-names";
+import { metricTagNames } from "./tag-sight";
+import { tagKey, tagNamesOf, TAGS_PER_ENTRY } from "./tag-names";
 
 /** Puts an entry's Tags on the Metric just made from it. Answers the words left out (a limit, or a rule the words no longer
  * meet), never throws: the Metric is made either way. All at once when they fit; else one by one, so a word that exists
@@ -31,4 +33,17 @@ export async function tagMetricFromEntry(actor: Actor, metricId: number, entryTa
     }
   }
   return left;
+}
+
+/** The Tags of the Metric Catalog entry a Metric was made from that it does not carry now, for the note on a just-made Metric:
+ * computed here from the entry and the Metric as the actor sees them, so no word comes from an address. Only for a Metric the
+ * actor sees; the entry must be one every Workspace has or this Workspace's own. */
+export async function tagsLeftOffEntry(actor: Actor, metricId: number): Promise<string[]> {
+  const { data: m } = await db().from("metrics").select("from_catalog_id").eq("id", metricId).eq("workspace_id", actor.workspaceId).maybeSingle();
+  if (!m?.from_catalog_id) return [];
+  const { data: e } = await db().from("catalog_metrics").select("tags, workspace_id").eq("id", m.from_catalog_id).maybeSingle();
+  if (!e || (e.workspace_id !== null && e.workspace_id !== actor.workspaceId)) return [];
+  const have = metricTagNames(actor, [metricId]);
+  const carried = new Set(((await have).get(metricId) ?? []).map(tagKey));
+  return tagNamesOf(e.tags, TAGS_PER_ENTRY).filter((n) => !carried.has(tagKey(n)));
 }
