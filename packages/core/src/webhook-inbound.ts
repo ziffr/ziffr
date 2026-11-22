@@ -144,8 +144,8 @@ async function actionOf(actor: WebhookActor, input: Record<string, unknown>): Pr
     if (!m || !(PERSONAL_WEBHOOK_ROLES as readonly string[]).includes(String(m.role))) throw gone;
     const person = { personId: actor.owner, workspaceId: ws, role: m.role } as Actor;
     if (!(await personalWebhookMayHear(person, { type: "action.updated", actionId: id }))) throw gone;
-    // As for a Workspace Webhook's assignee, the Metric itself must still be one the person sees.
-    if (!(await visibleMetricIds(ws, actor.owner, await getMetrics(ws))).has(row.metric_id)) throw gone;
+    // No second rule: the app lets the people on a Thread read it and answer it (markTaskDone, reply) whether or not they
+    // still see its Metric, so the Webhook that acts as the person does the same, no more and no less.
     return row;
   }
   // The assignee is still a Member or a Contact of this Workspace and still sees the Metric.
@@ -174,12 +174,12 @@ async function closedBySystem(ws: string, row: ActionRow): Promise<boolean> {
 /** Most things a Webhook may add to one Action's Thread in an hour (done, reopen, reply and answer each leave one), so a
  * leaked secret cannot flip a Task or fill a Thread to pester the people on it. */
 const THREAD_PER_HOUR = 10;
-const busy = async (ws: string, actionId: number, via: string) =>
-  ((await db().from("thread_messages").select("id", { count: "exact", head: true }).eq("workspace_id", ws).eq("action_id", actionId).eq("via", via).gt("created_at", new Date(Date.now() - 3_600_000).toISOString())).count ?? 0) >= THREAD_PER_HOUR;
+const busy = async (ws: string, actionId: number, webhookId: string) =>
+  ((await db().from("thread_messages").select("id", { count: "exact", head: true }).eq("workspace_id", ws).eq("action_id", actionId).eq("via_webhook_id", webhookId).gt("created_at", new Date(Date.now() - 3_600_000).toISOString())).count ?? 0) >= THREAD_PER_HOUR;
 
 /** A line in the Thread saying which Webhook did something that has no text of its own ("Marked done in To Do"). */
-async function note(ws: string, row: ActionRow, by: string, text: string, via: string): Promise<void> {
-  await insertSealed("thread_messages", ws, [{ action_id: row.id, author_id: by, body: text, correction_value: null, correction_status: null, via }]);
+async function note(ws: string, row: ActionRow, by: string, text: string, via: string, viaWebhookId: string): Promise<void> {
+  await insertSealed("thread_messages", ws, [{ action_id: row.id, author_id: by, body: text, correction_value: null, correction_status: null, via, via_webhook_id: viaWebhookId }]);
 }
 
 const audited = (actor: WebhookActor, kind: "webhook.marked_done" | "webhook.replied" | "webhook.answered" | "webhook.reopened", ref: string) =>
@@ -236,14 +236,14 @@ export async function applyWebhookAction(actor: WebhookActor, input: unknown): P
   // who only asked the Action may reply to it, not finish or answer it for the assignee.
   const by = actor.owner ?? row.assignee_id;
   if (op !== "reply" && by !== row.assignee_id) throw new WebhookRequestError("not_found", "There is no such Action for this Webhook.");
-  if (await busy(ws, row.id, actor.name)) throw new WebhookRequestError("conflict", "Too many changes to this Action in the last hour.");
+  if (await busy(ws, row.id, actor.webhookId)) throw new WebhookRequestError("conflict", "Too many changes to this Action in the last hour.");
 
   if (op === "done") {
     if (row.kind !== "task") throw new WebhookRequestError("conflict", "A Question is answered, not marked done.");
     plainOnly(row);
     if (row.status !== "open") return { changed: false, status: row.status };
     const changed = await finishTask(ws, row.id, by, source);
-    if (changed) { await audited(actor, "webhook.marked_done", ref(row)); await note(ws, row, by, `Marked done in ${actor.name}`, actor.name); }
+    if (changed) { await audited(actor, "webhook.marked_done", ref(row)); await note(ws, row, by, `Marked done in ${actor.name}`, actor.name, actor.webhookId); }
     return { changed, status: await statusOf(ws, row.id) };
   }
 
@@ -255,7 +255,7 @@ export async function applyWebhookAction(actor: WebhookActor, input: unknown): P
     if (await closedBySystem(ws, row)) throw new WebhookRequestError("conflict", "Ziffr closed this Task itself; it cannot be reopened from outside.");
     const r = await changeActionState(ws, row.id, { to: "open", from: ["answered"], guard: { kind: "task", assigneeId: row.assignee_id, purpose: "plain_or_escalation" } }, source);
     if (r.refused) throw new WebhookRequestError("conflict", "This Task cannot be reopened.");
-    if (r.changed) { await audited(actor, "webhook.reopened", ref(row)); await note(ws, row, by, `Reopened in ${actor.name}`, actor.name); }
+    if (r.changed) { await audited(actor, "webhook.reopened", ref(row)); await note(ws, row, by, `Reopened in ${actor.name}`, actor.name, actor.webhookId); }
     return { changed: r.changed, status: r.status ?? row.status };
   }
 
@@ -267,17 +267,17 @@ export async function applyWebhookAction(actor: WebhookActor, input: unknown): P
     if (row.kind !== "question") throw new WebhookRequestError("conflict", "Only a Question is answered; mark a Task done instead.");
     if (row.status !== "open") return { changed: false, status: row.status };
     // The text is never parsed (no Correction, no command): `correction` is null and an Approval was refused above.
-    await postReply(ws, row.id, by, text, null, source, false, { via: actor.name });
+    await postReply(ws, row.id, by, text, null, source, false, { via: actor.name, viaWebhookId: actor.webhookId });
     await audited(actor, "webhook.answered", ref(row));
     return { changed: true, status: await statusOf(ws, row.id) };
   }
   // A repeat of the last message, said the same way by the same Webhook, adds nothing.
-  const { data: last } = await db().from("thread_messages").select("id, body, via, author_id").eq("action_id", row.id).eq("workspace_id", ws).order("id", { ascending: false }).limit(1).maybeSingle();
+  const { data: last } = await db().from("thread_messages").select("id, body, via_webhook_id, author_id").eq("action_id", row.id).eq("workspace_id", ws).order("id", { ascending: false }).limit(1).maybeSingle();
   if (last) {
     const [open] = await openRows("thread_messages", ws, [last as Record<string, unknown>]);
-    if (open.body === text && open.via === actor.name && open.author_id === by) return { changed: false, status: row.status };
+    if (open.body === text && open.via_webhook_id === actor.webhookId && open.author_id === by) return { changed: false, status: row.status };
   }
-  await postReply(ws, row.id, by, text, null, source, false, { via: actor.name, keepState: true });
+  await postReply(ws, row.id, by, text, null, source, false, { via: actor.name, viaWebhookId: actor.webhookId, keepState: true });
   await audited(actor, "webhook.replied", ref(row));
   return { changed: true, status: await statusOf(ws, row.id) };
 }
