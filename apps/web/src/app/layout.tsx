@@ -29,6 +29,7 @@ import { overLimitBanner, sizeAndUsage } from "@ziffr/core/workspace-usage";
 import { Suspense } from "react";
 import { Toaster } from "@/components/ui/sonner";
 import { DemoRefusalLinks } from "@/components/demo-refusal";
+import { LegalFooter } from "@/components/legal-footer";
 import { QuickLookHost } from "@/components/metric-quick-look";
 import { ServiceWorker } from "@/components/service-worker";
 import { APP_COLOURS } from "@/lib/app-colours";
@@ -62,7 +63,7 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
           {/* eslint-disable-next-line @next/next/no-page-custom-font */}
           <link href="https://fonts.googleapis.com/css2?family=Geist+Mono:wght@400&display=swap" rel="stylesheet" />
         </head>
-        <body className="min-h-screen bg-background font-sans antialiased">{children}</body>
+        <body className="min-h-screen bg-background font-sans antialiased">{children}<LegalFooter /></body>
       </html>
     );
   }
@@ -85,6 +86,7 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
             <GuideLink href={guideHref()} className="text-sm text-muted-foreground underline-offset-4 hover:text-foreground hover:underline">User guide</GuideLink>
           </header>
           <main className="mx-auto max-w-7xl px-4 py-8 sm:px-6">{children}</main>
+          <LegalFooter />
           <Toaster />
           <ServiceWorker />
         </body>
@@ -150,6 +152,7 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
         <AppShell workspace={workspaceTree(role)} settings={settingsGroups(role)} pinned={pinned} due={due} open={open} guide={guideHref()} account={accountOf} demo={demoControls} people={demo ? { profiles: profiles.filter((p) => !p.contact), current: viewer } : undefined} collapsed={await sidebarCollapsed()} banners={<>{demoNote}{banners}</>}>
           {trial?.ended ? (role === "owner" || role === "admin" ? <TrialEnded deletedAt={trial.deletedAt} workspaceExport={role === "owner" ? await workspaceExportState(actor, { sessionStartedAt: await sessionStartedAt() }).catch(() => null) : null} /> : <TrialEndedForMembers owner={trial.ownerName} />) : children}
         </AppShell>
+        <LegalFooter className="border-t border-border" />
         {demo && offersTrials && <DemoRefusalLinks />}
         {feedback && <FeedbackPrompt askForStar={feedback.askForStar} />}
         {demo && <Tour key={can(actor, "create") ? "member" : "guest"} guest={!can(actor, "create")} />}

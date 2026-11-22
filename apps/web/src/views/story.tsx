@@ -12,6 +12,7 @@ import { Bridge, bridgeSteps, measureSeries, MEASURE_LABEL, PanelView, PeriodBar
 import type { Annotation } from "@ziffr/core/types";
 import { cn } from "@/lib/utils";
 import { periodLabel } from "@ziffr/core/periods";
+import { useWidgetScale } from "./widget-scale";
 
 type W = Pick<Widget, "template" | "metric_ids" | "settings">;
 
@@ -102,11 +103,11 @@ export function StoryBody({ widget, data, m, onRowContext }: { widget: W; data: 
   if (widget.template === "story") return <ComposedStory widget={widget} data={data} headline={headline} subline={subline} source={source} />;
   return (
     <div className="flex h-full flex-col">
-      <div className="text-[length:clamp(var(--text-lg),3.4cqw,2.8rem)] leading-tight font-semibold tracking-[-0.02em] text-[var(--color-print)] font-[family-name:var(--font-heading)]">{headline}</div>
-      {subline && <div className="mt-1 text-[length:clamp(0.75rem,1.5cqw,1.2rem)] text-muted-foreground">{subline}</div>}
+      <div className="text-[length:clamp(var(--text-lg),3.4cqw,calc(2.8rem*var(--widget-scale,1)))] leading-tight font-semibold tracking-[-0.02em] text-[var(--color-print)] font-[family-name:var(--font-heading)]">{headline}</div>
+      {subline && <div className="mt-1 text-[length:clamp(0.75rem,1.5cqw,calc(1.2rem*var(--widget-scale,1)))] text-muted-foreground">{subline}</div>}
       <div className="mt-3 min-h-0 flex-1">
         {empty ? (
-          <div className="flex h-full items-center justify-center text-center text-xs text-muted-foreground">Upload a breakdown with this metric’s next value: paste rows on its web form, or send label and value lines.</div>
+          <div className="flex h-full items-center justify-center text-center widget-text-xs text-muted-foreground">Upload a breakdown with this metric’s next value: paste rows on its web form, or send label and value lines.</div>
         ) : widget.template === "ranked" ? (
           <Ranked numberStyle={data.numberStyle} rows={b.rows} m={m} highlight={b.highlight?.label} sum={b.additive ? b.sum : null} onRowContext={onRowContext && b.period ? (l) => onRowContext(l, b.period!) : undefined} />
         ) : widget.template === "share" ? (
@@ -117,7 +118,7 @@ export function StoryBody({ widget, data, m, onRowContext }: { widget: W; data: 
           <StoryLine widget={widget} data={data} m={m} />
         )}
       </div>
-      <div className="mt-2 truncate text-[length:clamp(11px,1.1cqw,15px)] leading-snug text-muted-foreground">{source}</div>
+      <div className="mt-2 truncate text-[length:clamp(11px,1.1cqw,calc(15px*var(--widget-scale,1)))] leading-snug text-muted-foreground">{source}</div>
     </div>
   );
 }
@@ -138,19 +139,19 @@ function Ranked({ rows, m, highlight, sum, onRowContext, annotations, numberStyl
     if (t) marks.set(t.label, [...(marks.get(t.label) ?? []), a]);
   }
   return (
-    <ol className="flex h-full flex-col justify-center gap-1.5" aria-label={`${m.name}, largest first`}>
+    <ol className="flex h-full flex-col justify-center gap-[0.5em] widget-text-xs" aria-label={`${m.name}, largest first`}>
       {rows.slice(0, 12).map((r) => {
         const on = r.label === highlight;
         return (
-          <li key={r.label} className={cn("grid grid-cols-[minmax(0,7rem)_minmax(3rem,1fr)_auto] items-center gap-2 rounded-[4px] text-xs", marks.get(r.label)?.some((a) => a.kind === "ring") && "outline-2 outline-offset-2 outline-[var(--color-accent-2)]")} onContextMenu={onRowContext ? () => onRowContext(r.label) : undefined}>
+          <li key={r.label} className={cn("grid grid-cols-[minmax(0,9.33em)_minmax(4em,1fr)_auto] items-center gap-[0.67em] rounded-[4px] widget-text-xs", marks.get(r.label)?.some((a) => a.kind === "ring") && "outline-2 outline-offset-2 outline-[var(--color-accent-2)]")} onContextMenu={onRowContext ? () => onRowContext(r.label) : undefined}>
             <span className={cn("flex min-w-0 items-center gap-1.5", on && "font-semibold")}><Flag label={r.label} /><span className="truncate">{r.label}</span></span>
-            <span className="h-4 rounded-r-[3px]" style={{ width: `${Math.max(2, (r.value / max) * 100)}%`, background: on ? "var(--color-data)" : "var(--color-rule-2)" }} />
+            <span className="h-[1.33em] rounded-r-[3px]" style={{ width: `${Math.max(2, (r.value / max) * 100)}%`, background: on ? "var(--color-data)" : "var(--color-rule-2)" }} />
             <span className={cn("fig text-right", on && "font-semibold")}>
               {compactValue(m, r.value, numberStyle)}
               {sum ? <span className="ml-1.5 text-muted-foreground">{pct(r.value, sum)}%</span> : null}
             </span>
             {marks.get(r.label)?.filter((a) => a.text && a.kind !== "ring").map((a, i) => (
-              <span key={i} className={cn("col-span-3 -mt-1 pl-[7.5rem] text-xs", a.kind === "callout" ? "font-semibold text-[var(--color-accent-2)]" : "text-muted-foreground")}>{a.kind === "callout" && a.arrow !== false ? "↑ " : ""}{a.text}</span>
+              <span key={i} className={cn("col-span-3 -mt-1 pl-[10em] widget-text-xs", a.kind === "callout" ? "font-semibold text-[var(--color-accent-2)]" : "text-muted-foreground")}>{a.kind === "callout" && a.arrow !== false ? "↑ " : ""}{a.text}</span>
             ))}
           </li>
         );
@@ -164,13 +165,13 @@ function Share({ rows, m, highlight, sum, onRowContext, numberStyle }: { numberS
   const ordered = [...rows].sort((a, b) => (a.label === highlight ? -1 : b.label === highlight ? 1 : b.value - a.value));
   return (
     <div className="flex h-full flex-col justify-center gap-4">
-      <div className="flex h-8 w-full overflow-hidden rounded-[4px]" role="img" aria-label={ordered.map((r) => `${r.label} ${pct(r.value, sum)} %`).join(", ")}>
+      <div className="flex h-[calc(2rem*var(--widget-scale,1))] w-full overflow-hidden rounded-[4px]" role="img" aria-label={ordered.map((r) => `${r.label} ${pct(r.value, sum)} %`).join(", ")}>
         {ordered.map((r, i) => <div key={r.label} style={{ width: `${(r.value / (sum || 1)) * 100}%`, background: tones[Math.min(i, tones.length - 1)] }} />)}
       </div>
-      <ul className="grid grid-cols-2 gap-x-4 gap-y-1.5 text-xs">
+      <ul className="grid grid-cols-2 gap-x-4 gap-y-1.5 widget-text-xs">
         {ordered.map((r, i) => (
           <li key={r.label} className={cn("flex items-center gap-1.5", r.label === highlight && "font-semibold")} onContextMenu={onRowContext ? () => onRowContext(r.label) : undefined}>
-            <span aria-hidden className="size-2.5 shrink-0 rounded-[2px]" style={{ background: tones[Math.min(i, tones.length - 1)] }} />
+            <span aria-hidden className="size-[0.83em] shrink-0 rounded-[2px]" style={{ background: tones[Math.min(i, tones.length - 1)] }} />
             <Flag label={r.label} />
             <span className="truncate">{r.label}</span>
             <span className="fig ml-auto">{pct(r.value, sum)} %</span>
@@ -188,10 +189,10 @@ function Pictogram({ rows, highlight, sum }: { rows: BreakdownRow[]; highlight: 
     <div className="flex h-full flex-col items-center justify-center gap-3">
       <div className="grid grid-cols-5 gap-x-2 gap-y-1" role="img" aria-label={`${n} in 10`}>
         {Array.from({ length: 10 }, (_, i) => (
-          <User key={i} aria-hidden className="size-8" strokeWidth={1.75} style={{ color: i < n ? "var(--color-data)" : "var(--color-rule-2)", fill: i < n ? "var(--color-data)" : "none" }} />
+          <User key={i} aria-hidden className="size-[calc(2rem*var(--widget-scale,1))]" strokeWidth={1.75} style={{ color: i < n ? "var(--color-data)" : "var(--color-rule-2)", fill: i < n ? "var(--color-data)" : "none" }} />
         ))}
       </div>
-      <div className="text-center text-xs text-muted-foreground">
+      <div className="text-center widget-text-xs text-muted-foreground">
         {highlight?.label} <span className="fig text-foreground">{pct(highlight?.value ?? 0, sum)} %</span>, the rest {rows.length - 1} others
       </div>
     </div>
@@ -201,6 +202,8 @@ function Pictogram({ rows, highlight, sum }: { rows: BreakdownRow[]; highlight: 
 /** The trend, drawn with Observable Plot, with callouts at chosen periods. */
 function StoryLine({ widget, data, m }: { widget: W; data: CanvasData; m: Metric }) {
   const box = useRef<HTMLDivElement>(null);
+  // The line, its dots and margins grow with the card, so a presented story is not drawn in hairlines (#778).
+  const s = useWidgetScale();
   const pts = (data.series[m.slug] ?? []).slice(-(widget.settings.window ?? 12)).map((p) => ({ date: new Date(p.period), value: p.value, period: p.period }));
   // A callout from a template follows a rule (highest, latest, …) instead of a fixed period.
   const items = pts.map((p, i) => ({ ...p, label: p.period, delta: i ? p.value - pts[i - 1].value : undefined }));
@@ -217,21 +220,21 @@ function StoryLine({ widget, data, m }: { widget: W; data: CanvasData; m: Metric
       const chart = Plot.plot({
         width,
         height,
-        marginLeft: 8,
-        marginRight: 56,
-        marginTop: 24,
-        marginBottom: 24,
-        style: { fontFamily: "var(--font-body)", fontSize: "clamp(11px, 1.2cqw, 17px)", color: "var(--color-muted)", background: "transparent" },
+        marginLeft: 8 * s,
+        marginRight: 56 * s,
+        marginTop: 24 * s,
+        marginBottom: 24 * s,
+        style: { fontFamily: "var(--font-body)", fontSize: "clamp(11px, 1.2cqw, calc(17px * var(--widget-scale, 1)))", color: "var(--color-muted)", background: "transparent" },
         x: { type: "utc", ticks: 4, tickFormat: (d: Date) => periodLabel(d.toISOString().slice(0, 10), m.period, data.yearStart, true), label: null },
         y: { axis: null, nice: true, zero: false },
         marks: [
           Plot.ruleY([Math.min(...pts.map((p) => p.value))], { stroke: "var(--color-rule)" }),
-          Plot.lineY(pts, { x: "date", y: "value", stroke: "var(--color-data)", strokeWidth: 2, curve: "monotone-x" }),
-          Plot.dot([last], { x: "date", y: "value", fill: "var(--color-data)", r: 3.5 }),
-          Plot.text([last], { x: "date", y: "value", text: (d) => compactValue(m, d.value, data.numberStyle), dx: 8, textAnchor: "start", fill: "var(--color-print)", fontWeight: 600 }),
+          Plot.lineY(pts, { x: "date", y: "value", stroke: "var(--color-data)", strokeWidth: 2 * s, curve: "monotone-x" }),
+          Plot.dot([last], { x: "date", y: "value", fill: "var(--color-data)", r: 3.5 * s }),
+          Plot.text([last], { x: "date", y: "value", text: (d) => compactValue(m, d.value, data.numberStyle), dx: 8 * s, textAnchor: "start", fill: "var(--color-print)", fontWeight: 600 }),
           Plot.ruleX(callouts, { x: (c) => c.point!.date, stroke: "var(--color-muted)", strokeDasharray: "2 3" }),
-          Plot.dot(callouts, { x: (c) => c.point!.date, y: (c) => c.point!.value, r: 4, fill: "var(--color-cotton)", stroke: "var(--color-data)" }),
-          Plot.text(callouts, { x: (c) => c.point!.date, frameAnchor: "top", text: "text", dy: -14, lineWidth: 14, fill: "var(--color-print)", fontWeight: 500 }),
+          Plot.dot(callouts, { x: (c) => c.point!.date, y: (c) => c.point!.value, r: 4 * s, strokeWidth: 1.5 * s, fill: "var(--color-cotton)", stroke: "var(--color-data)" }),
+          Plot.text(callouts, { x: (c) => c.point!.date, frameAnchor: "top", text: "text", dy: -14 * s, lineWidth: 14, fill: "var(--color-print)", fontWeight: 500 }),
         ],
       });
       el.replaceChildren(chart);
@@ -240,7 +243,7 @@ function StoryLine({ widget, data, m }: { widget: W; data: CanvasData; m: Metric
     const ro = new ResizeObserver(draw);
     ro.observe(el);
     return () => ro.disconnect();
-  }, [JSON.stringify(pts.map((p) => [p.period, p.value])), JSON.stringify(callouts.map((c) => [c.point?.period, c.text])), m.id]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [JSON.stringify(pts.map((p) => [p.period, p.value])), JSON.stringify(callouts.map((c) => [c.point?.period, c.text])), m.id, s]); // eslint-disable-line react-hooks/exhaustive-deps
   return <div ref={box} className="h-full w-full" role="img" aria-label={`${m.name} over time${callouts.length ? `, ${callouts.map((c) => c.text).join("; ")}` : ""}`} />;
 }
 
@@ -256,11 +259,11 @@ function ComposedStory({ widget, data, headline, subline, source }: { widget: W;
   };
   return (
     <div className="flex h-full flex-col">
-      {s.kicker && <div className="mb-1 text-[length:clamp(0.75rem,1.3cqw,1.05rem)] font-medium text-[var(--color-accent-2)]">{s.kicker}</div>}
-      <div className="text-[length:clamp(var(--text-xl),3.6cqw,3.2rem)] leading-tight font-semibold tracking-[-0.02em] text-[var(--color-print)] font-[family-name:var(--font-heading)]">{headline}</div>
-      {subline && <div className="mt-1 text-[length:clamp(0.875rem,1.6cqw,1.3rem)] text-muted-foreground">{subline}</div>}
+      {s.kicker && <div className="mb-1 text-[length:clamp(0.75rem,1.3cqw,calc(1.05rem*var(--widget-scale,1)))] font-medium text-[var(--color-accent-2)]">{s.kicker}</div>}
+      <div className="text-[length:clamp(var(--text-xl),3.6cqw,calc(3.2rem*var(--widget-scale,1)))] leading-tight font-semibold tracking-[-0.02em] text-[var(--color-print)] font-[family-name:var(--font-heading)]">{headline}</div>
+      {subline && <div className="mt-1 text-[length:clamp(0.875rem,1.6cqw,calc(1.3rem*var(--widget-scale,1)))] text-muted-foreground">{subline}</div>}
       <div className="mt-3 flex min-h-0 flex-1 flex-col gap-4">
-        {panels.length === 0 && <p className="m-auto text-xs text-muted-foreground">Edit the story to add a panel: period bars, a bridge, ranked bars or a line.</p>}
+        {panels.length === 0 && <p className="m-auto widget-text-xs text-muted-foreground">Edit the story to add a panel: period bars, a bridge, ranked bars or a line.</p>}
         {panels.map((panel, i) => (
           <div key={i} className="min-h-0 flex-1">
             <PanelView
@@ -278,7 +281,7 @@ function ComposedStory({ widget, data, headline, subline, source }: { widget: W;
           </div>
         ))}
       </div>
-      <div className="mt-3 flex flex-wrap items-end justify-between gap-x-4 gap-y-1 border-t border-border pt-2 text-[length:clamp(11px,1.1cqw,15px)] leading-snug text-muted-foreground">
+      <div className="mt-3 flex flex-wrap items-end justify-between gap-x-4 gap-y-1 border-t border-border pt-2 text-[length:clamp(11px,1.1cqw,calc(15px*var(--widget-scale,1)))] leading-snug text-muted-foreground">
         {s.footnote && <span className="max-w-[70%]">{s.footnote}</span>}
         <span className="ml-auto">{source}</span>
       </div>

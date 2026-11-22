@@ -29,7 +29,7 @@ function Tile({ name }: { name: string }) {
 
 /** The pins under Dashboards. Drag a row to move it; its ⋯ menu has Move up, Move down and Unpin for keyboards. Shrunk
  * to icons, each is a tile with a tooltip. */
-export function PinnedDashboards({ pinned, path }: { pinned: Pinned[]; path: string }) {
+export function PinnedDashboards({ pinned, path, demo = false }: { pinned: Pinned[]; path: string; demo?: boolean }) {
   const { collapsed } = useSidebar();
   const router = useRouter();
   const [items, setItems] = useState(pinned);
@@ -59,7 +59,8 @@ export function PinnedDashboards({ pinned, path }: { pinned: Pinned[]; path: str
 
   const rows = items.map((p, i) => {
     const row = <SidebarItem render={<Link href={`/dashboards/${p.id}`} />} icon={<Tile name={p.name} />} label={p.name} tooltip={`${p.name} (pinned)`} active={path === `/dashboards/${p.id}`} className={cn(!collapsed && "pr-7")} />;
-    if (collapsed) return <li key={p.id}>{row}</li>;
+    // The demo saves nothing (ADR 0005): its pins are shown, but cannot be moved or taken off, so no handle that fails.
+    if (collapsed || demo) return <li key={p.id}>{row}</li>;
     return (
       <li
         key={p.id}
@@ -87,12 +88,16 @@ export function PinnedDashboards({ pinned, path }: { pinned: Pinned[]; path: str
   return <ul aria-label="Pinned dashboards" className={cn("flex flex-col gap-0.5", !collapsed && "ml-3.5 border-l border-sidebar-border pl-1.5")}>{rows}</ul>;
 }
 
+/** What the Pin button says in the demo, which saves nothing (GLOSSARY: Demo Mode). */
+export const PIN_OFF_IN_DEMO = "Pinning is off in the demo";
+
 /** The button that pins a dashboard or takes the pin off. A refusal (the list is full, the dashboard is not yours to
- * open any more) says why in a toast. `compact` is the icon alone, for a card in the list. */
-export function PinButton({ dashboardId, name, pinned, compact = false, className }: { dashboardId: number; name: string; pinned: boolean; compact?: boolean; className?: string }) {
+ * open any more) says why in a toast. `compact` is the icon alone, for a card in the list. In the demo it looks off
+ * and says why on hover and on tap (aria-disabled, not disabled, so a tap on a phone still shows the reason). */
+export function PinButton({ dashboardId, name, pinned, compact = false, demo = false, className }: { dashboardId: number; name: string; pinned: boolean; compact?: boolean; demo?: boolean; className?: string }) {
   const router = useRouter();
   const [pending, start] = useTransition();
-  const label = pinned ? `Unpin ${name} from the sidebar` : `Pin ${name} to the sidebar`;
+  const label = demo ? PIN_OFF_IN_DEMO : pinned ? `Unpin ${name} from the sidebar` : `Pin ${name} to the sidebar`;
   const toggle = () => start(async () => {
     try {
       unwrap(await (pinned ? unpinDashboard(dashboardId) : pinDashboard(dashboardId)));
@@ -101,7 +106,7 @@ export function PinButton({ dashboardId, name, pinned, compact = false, classNam
     } catch (err) { toastFailure(err); }
   });
   return (
-    <button type="button" aria-pressed={pinned} aria-label={compact ? label : undefined} title={label} disabled={pending} onClick={toggle} className={compact ? cn("flex size-8 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground focus-visible:outline-2 focus-visible:outline-ring", className) : cn(buttonVariants({ variant: "outline" }), className)}>
+    <button type="button" aria-pressed={pinned} aria-label={compact ? label : undefined} title={label} disabled={!demo && pending} aria-disabled={demo || undefined} onClick={demo ? () => toast.info(PIN_OFF_IN_DEMO) : toggle} className={cn(demo && "cursor-not-allowed opacity-50", compact ? cn("flex size-8 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground focus-visible:outline-2 focus-visible:outline-ring", className) : cn(buttonVariants({ variant: "outline" }), className))}>
       <Pin aria-hidden className={cn("size-4", pinned && "fill-current")} />{!compact && (pinned ? "Pinned" : "Pin")}
     </button>
   );

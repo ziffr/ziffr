@@ -53,6 +53,8 @@ type Props = {
   homeId: number | null;
   /** Whether the viewer pinned this dashboard to the sidebar. */
   pinned: boolean;
+  /** In the demo, which saves nothing, the Pin button shows as off. */
+  demo?: boolean;
   /** The Dashboard Templates a new dashboard can start from (empty for a Guest). */
   dashboardTemplates: DashboardTemplateSummary[];
   /** May start new dashboards (not a Guest). */
@@ -88,7 +90,7 @@ export function DashboardScreen(props: Props) {
   return <SeriesProvider ensure={ensure}><DashboardCanvas {...props} data={data} /></SeriesProvider>;
 }
 
-function DashboardCanvas({ data, dashboards, current, widgets, saved, shares, reveals, closed, firstRun, homeId, pinned, canCreate, canInvite, dashboardTemplates, reading = false, snapshots = [] }: Props) {
+function DashboardCanvas({ data, dashboards, current, widgets, saved, shares, reveals, closed, firstRun, homeId, pinned, demo = false, canCreate, canInvite, dashboardTemplates, reading = false, snapshots = [] }: Props) {
   const router = useRouter();
   const [, start] = useTransition();
   // A refusal says why in a toast; anything unforeseen says only that it went wrong (lib/action-error.ts).
@@ -210,7 +212,7 @@ function DashboardCanvas({ data, dashboards, current, widgets, saved, shares, re
                 >
                   <Home aria-hidden className={cn(current.id === homeId && "fill-current")} /> {current.id === homeId ? "Home" : "Make this my home"}
                 </button>
-                <PinButton dashboardId={current.id} name={current.name} pinned={pinned} />
+                <PinButton dashboardId={current.id} name={current.name} pinned={pinned} demo={demo} />
                 <div className="max-md:hidden">{viewToggle}</div>
                 <SnapshotMenu dashboardId={current.id} yearStart={data.yearStart} snapshots={snapshots} canTake={editable && canCreate} auto={current.role === "owner" ? { every: current.snapshot_every ?? null, waitDays: current.snapshot_wait_days ?? 5 } : null} />
                 <Link href={`/dashboards/${current.id}/present`} className={buttonVariants({ variant: "outline" })}><MonitorPlay aria-hidden /> Present</Link>
