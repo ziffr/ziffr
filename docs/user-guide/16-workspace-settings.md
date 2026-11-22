@@ -534,7 +534,7 @@ Below the Workspace's own Webhooks, **Workspace → Webhooks** has a second list
 
 The switch is **off** until an Owner or Admin switches it on, for every Workspace. Switching it off **pauses** every Personal Webhook: nothing is sent to them, what happens in the meantime is not sent later, and each person's page says why. Switching it on again resumes them. Both are in the [Audit log](#audit-log).
 
-The list shows every Personal Webhook of the Workspace: whose it is, its name, the address masked (the host and the first characters of the path), what it hears, whether it is on, and when it last sent. Under each, **Log** shows the statuses and times of its sends, never the messages: what was sent is the person's. **Remove** deletes one after asking; its person is told, naming who removed it, and the Audit log records it. A Personal Webhook also ends when its person leaves the Workspace.
+The list shows every Personal Webhook of the Workspace: whose it is, its name, the address as its host only (the rest may be a secret, and is the person's), what it hears, whether it is on, and when it last sent. Under each, **Log** shows the statuses and times of its sends, never the messages: what was sent is the person's. **Remove** deletes one after asking; its person is told, naming who removed it, and the Audit log records it. A Personal Webhook also ends when its person leaves the Workspace.
 ## Usage
 
 **Workspace → Usage** is for Owners and Admins; Members and Guests do not see it, and the demo has none, because it counts nothing. It shows what could be tidied up, as lists with the reason beside each name:

@@ -168,6 +168,7 @@ const CASES: Record<string, Case> = {
   "personal-webhook-actions:replacePersonalWebhookSecret": { args: () => ["00000000-0000-4000-8000-000000000001"] },
   "personal-webhook-actions:setPersonalWebhookEnabled": { args: () => ["00000000-0000-4000-8000-000000000001", false] },
   "personal-webhook-actions:deletePersonalWebhook": { args: () => ["00000000-0000-4000-8000-000000000001"] },
+  "personal-webhook-actions:forgetHiddenPersonalMetrics": { args: () => ["00000000-0000-4000-8000-000000000001"] },
   "personal-webhook-actions:sendTestPersonalWebhook": { args: () => ["00000000-0000-4000-8000-000000000001"] },
   "personal-webhook-actions:setPersonalWebhooksAllowed": { args: () => [true] },
   "personal-webhook-actions:removePersonalWebhook": { args: () => ["00000000-0000-4000-8000-000000000001"] },
