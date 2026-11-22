@@ -21,17 +21,21 @@ import { checkThemeFileValue, themeToFile } from "./theme-file";
 import { checkViewDesignValue, type ViewDesign } from "./view-design";
 import { canonical } from "./api-submissions";
 import { TEMPLATE_VIEWS } from "@ziffr/pack/kinds";
+import { cleanLogo, logoProblem, PACK_LOGO_MAX_BYTES } from "@ziffr/pack/logo";
 import type { DashboardTemplateBody, DeckTemplateBody, Metric, SlideShape, Slot, ThemeSlides, ThemeTokens, WidgetSettings, WorkflowTemplateBody } from "./types";
 import type { FormatCheck } from "./json-check";
 
 /** Something the person may put into a Pack, as the Export dialog lists it. */
-export type ExportOption = { id: number; name: string; detail: string };
+export type ExportOption = { id: number; name: string; detail: string; /** A Theme's logo, only when it may be the Pack's (spec 0039): the Export dialog shows it as the choice. */ logo?: string };
 /** What the Export dialog offers, by kind. */
 export type ExportOptions = { metrics: ExportOption[]; catalog: ExportOption[]; dashboards: ExportOption[]; decks: ExportOption[]; workflows: ExportOption[]; designs: ExportOption[]; themes: ExportOption[] };
 /** What the person picked, by kind, as ids. */
 export type ExportChoice = Partial<Record<keyof ExportOptions, number[]>>;
-/** The manifest the person writes for the Pack. */
-export type ExportManifest = { id: string; name: string; version: string; summary: string; author: string; license: string };
+/** The logo the person chose for the Pack (spec 0039): the logo of one of the Workspace's Themes, or a picture they
+ * uploaded as a data address. Either is checked again by the server before it goes into the file. */
+export type ExportLogo = { themeId: number } | { data: string };
+/** The manifest the person writes for the Pack; the `author` is the publisher the logo is shown with. */
+export type ExportManifest = { id: string; name: string; version: string; summary: string; author: string; license: string; logo?: ExportLogo };
 /** The Pack's file and what could not go into it, with why. */
 export type ExportResult = { text: string; fileName: string; leftOut: { name: string; why: string }[] };
 
@@ -70,7 +74,7 @@ export async function exportOptions(actor: Actor): Promise<ExportOptions> {
     db().from("catalog_metrics").select("id, name, category").eq("workspace_id", ws).order("name"),
     db().from("team_templates").select("id, kind, name").eq("workspace_id", ws).in("kind", ["dashboard", "deck", "workflow"]).order("name"),
     db().from("view_designs").select("id, name").eq("workspace_id", ws).order("name"),
-    db().from("themes").select("id, name").eq("workspace_id", ws).order("name"),
+    db().from("themes").select("id, name, slides").eq("workspace_id", ws).order("name"),
   ]);
   const opt = (rows: { id: unknown; name: unknown }[] | null, detail: (r: Record<string, unknown>) => string = () => "") => (rows ?? []).map((r) => ({ id: Number(r.id), name: String(r.name), detail: detail(r as Record<string, unknown>) }));
   const of = (kind: string) => (tpl.data ?? []).filter((r) => r.kind === kind);
@@ -78,7 +82,9 @@ export async function exportOptions(actor: Actor): Promise<ExportOptions> {
     metrics: [...metrics.values()].sort((a, b) => a.name.localeCompare(b.name)).map((m) => ({ id: m.id, name: m.name, detail: m.formula ? "Derived Metric" : `by ${m.period}` })),
     catalog: opt(cat.data, (r) => String(r.category)),
     dashboards: opt(of("dashboard")), decks: opt(of("deck")), workflows: opt(of("workflow")),
-    designs: opt(des.data), themes: opt(thm.data),
+    designs: opt(des.data),
+    // A Theme's logo goes to the browser only when it passes the Pack's logo checks: it is the choice the dialog previews.
+    themes: (thm.data ?? []).map((r) => { const logo = cleanLogo((r.slides as { logo?: unknown } | null)?.logo, PACK_LOGO_MAX_BYTES); return { id: Number(r.id), name: String(r.name), detail: logo ? "has a logo" : "", ...(logo ? { logo } : {}) }; }),
   };
 }
 
@@ -110,6 +116,17 @@ export async function exportPack(actor: Actor, manifest: ExportManifest, choice:
   };
   const seen = await seenMetrics(actor);
   const installs = new Map(((await db().from("pack_installs").select("id, manifest").eq("workspace_id", ws)).data ?? []).map((r) => [Number(r.id), String((r.manifest as { name?: string }).name ?? "")]));
+
+  // The Pack's one logo: a Theme's of this Workspace or an uploaded picture, held to the checks every logo meets.
+  let logo: string | null = null;
+  const wanted = manifest?.logo as { themeId?: unknown; data?: unknown } | undefined;
+  if (wanted && typeof wanted === "object") {
+    let raw: unknown;
+    if (wanted.themeId !== undefined) raw = ((await rows("themes", [Number(wanted.themeId)].filter(Number.isInteger), "id, slides"))[0]?.slides as { logo?: unknown } | undefined)?.logo;
+    else raw = wanted.data;
+    logo = cleanLogo(raw, PACK_LOGO_MAX_BYTES);
+    if (!logo) leftOut.push({ name: "Logo", why: logoProblem(raw, PACK_LOGO_MAX_BYTES) ?? "There is no picture to use." });
+  }
 
   // Themes and View Designs first: templates name them by key.
   const themes = (await rows("themes", ids("themes"), "id, name, tokens, slides, pack_key")).map((r) => ({ r, key: keyFor(r.pack_key, String(r.name)) }));
@@ -205,8 +222,11 @@ export async function exportPack(actor: Actor, manifest: ExportManifest, choice:
   for (const d of designs) if (keep(d.r.body, checkViewDesignValue(d.r.body).ok ? { ok: true, value: d.r.body } : { ok: false, problems: [] }, String(d.r.name), leftOut)) views.push({ key: d.key, design: d.r.body as ViewDesign });
   const themeFiles: Pack["contents"]["themes"] = [];
   for (const { r, key } of themes) {
-    const file = themeToFile(r.name, r.tokens as ThemeTokens, r.slides as Partial<ThemeSlides> | null);
-    if (keep(file, checkThemeFileValue(file), file.name, leftOut)) themeFiles.push({ key, theme: file });
+    const own = (r.slides as { logo?: unknown } | null)?.logo;
+    const usesPackLogo = logo !== null && cleanLogo(own, PACK_LOGO_MAX_BYTES) === logo;
+    if (own && !usesPackLogo) leftOut.push({ name: String(r.name), why: "Its own logo stays out unless it is the Pack's one logo." });
+    const file = themeToFile(r.name, r.tokens as ThemeTokens, r.slides as Partial<ThemeSlides> | null, usesPackLogo);
+    if (keep(file, checkThemeFileValue(file, new Map(), logo ? "pack-with-logo" : "pack-without-logo"), file.name, leftOut)) themeFiles.push({ key, theme: file });
   }
 
   const byKey = <T extends { key: string }>(xs: T[]) => [...xs].sort((a, b) => a.key.localeCompare(b.key));
@@ -216,7 +236,7 @@ export async function exportPack(actor: Actor, manifest: ExportManifest, choice:
     format: PACK_FORMAT, id: String(manifest?.id ?? ""), name: String(manifest?.name ?? "").trim(), version: String(manifest?.version ?? "").trim(),
     summary: String(manifest?.summary ?? "").replace(/\s+/g, " ").trim(), author: { name: String(manifest?.author ?? "").trim() },
     license: (PACK_LICENSES as readonly string[]).includes(String(manifest?.license)) ? (manifest.license as Pack["license"]) : "CC-BY-4.0",
-    ziffr: `>=${major}.${minor}`, contents,
+    ...(logo ? { logo } : {}), ziffr: `>=${major}.${minor}`, contents,
   };
   const text = `${JSON.stringify(pack, null, 2)}\n`;
   const res = checkPack(text);

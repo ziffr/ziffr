@@ -15,18 +15,30 @@ import type { ExportChoice, ExportOptions } from "@ziffr/core/pack-export";
 const GROUPS: [keyof ExportOptions, string][] = [["metrics", "Metrics, as Metric Catalog entries"], ["catalog", "Metric Catalog entries from Packs"], ["dashboards", "Dashboard Templates"], ["decks", "Deck Templates"], ["workflows", "Workflow Templates"], ["designs", "View Designs"], ["themes", "Themes"]];
 
 /** The Export as Pack button and its dialog. */
-export function ExportPack({ options }: { options: ExportOptions }) {
+export function ExportPack({ options, defaultAuthor = "" }: { options: ExportOptions; defaultAuthor?: string }) {
   const [open, setOpen] = useState(false);
   const [picked, setPicked] = useState<ExportChoice>({});
-  const [m, setM] = useState({ id: "", name: "", version: "1.0.0", summary: "", author: "", license: "CC-BY-4.0" });
+  const [m, setM] = useState({ id: "", name: "", version: "1.0.0", summary: "", author: defaultAuthor, license: "CC-BY-4.0" });
   const [leftOut, setLeftOut] = useState<{ name: string; why: string }[]>([]);
   const [withTags, setWithTags] = useState(true);
+  // The Pack's logo (spec 0039): the logo of one of the Themes, or a picture from this computer; the server checks it again.
+  const [logoTheme, setLogoTheme] = useState<number | null>(null);
+  const [upload, setUpload] = useState<string | null>(null);
+  const themeLogos = options.themes.filter((t) => t.logo);
+  const logoShown = upload ?? themeLogos.find((t) => t.id === logoTheme)?.logo ?? null;
+  const pickFile = (f: File | undefined) => {
+    if (!f) return;
+    if (f.size > 128_000) { toast.error("Logo too big", { description: "A Pack's logo is at most 128 KB." }); return; }
+    const r = new FileReader();
+    r.onload = () => { setUpload(String(r.result)); setLogoTheme(null); };
+    r.readAsDataURL(f);
+  };
   const [pending, start] = useTransition();
   const count = Object.values(picked).reduce((n, xs) => n + (xs?.length ?? 0), 0);
   const toggle = (k: keyof ExportOptions, id: number) => setPicked({ ...picked, [k]: (picked[k] ?? []).includes(id) ? picked[k]!.filter((x) => x !== id) : [...(picked[k] ?? []), id] });
   const make = () => start(async () => {
     try {
-      const res = unwrap(await exportAsPack(m, picked, withTags));
+      const res = unwrap(await exportAsPack({ ...m, ...(upload ? { logo: { data: upload } } : logoTheme !== null ? { logo: { themeId: logoTheme } } : {}) }, picked, withTags));
       const url = URL.createObjectURL(new Blob([res.text], { type: "application/json" }));
       const a = Object.assign(document.createElement("a"), { href: url, download: res.fileName });
       a.click();
@@ -48,7 +60,7 @@ export function ExportPack({ options }: { options: ExportOptions }) {
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="flex max-h-[90vh] max-w-2xl flex-col">
           <DialogTitle>Export as Pack</DialogTitle>
-          <DialogDescription>Pick what goes in and name the Pack. Words you wrote in templates go in as written; words with web addresses or markup, images, logos and drawings stay out, and Ziffr says so.</DialogDescription>
+          <DialogDescription>Pick what goes in and name the Pack. Words you wrote in templates go in as written; words with web addresses or markup, images and drawings stay out, and so does every logo but the one you choose below, and Ziffr says so.</DialogDescription>
           <div className="-mx-1 min-h-0 flex-1 space-y-4 overflow-y-auto px-1 text-sm">
             <div className="grid gap-3 sm:grid-cols-2">
               {field("name", "Name", "e.g. SaaS metrics")}
@@ -72,6 +84,28 @@ export function ExportPack({ options }: { options: ExportOptions }) {
                 </ul>
               </fieldset>
             ))}
+            <fieldset>
+              <legend className="mb-1 text-xs font-medium">Logo (optional)</legend>
+              <p className="mb-1.5 text-xs text-muted-foreground">Shown with the Author on the Packs page and the Marketplace. A PNG, JPEG or plain SVG, at most 128 KB and 512 pixels on a side. It stays yours: use only a logo you may share.</p>
+              <div className="flex flex-wrap items-center gap-2">
+                {themeLogos.length > 0 && (
+                  <select aria-label="Take the logo of a Theme" value={logoTheme ?? ""} onChange={(e) => { setLogoTheme(e.target.value ? Number(e.target.value) : null); setUpload(null); }} className="h-9 rounded-[var(--radius-input)] border border-input bg-card px-2 text-sm">
+                    <option value="">{upload ? "Uploaded picture" : "No logo"}</option>
+                    {themeLogos.map((t) => <option key={t.id} value={t.id}>Logo of Theme {t.name}</option>)}
+                  </select>
+                )}
+                <label className="text-xs font-medium">Upload a picture<input type="file" accept="image/png,image/jpeg,image/svg+xml" onChange={(e) => pickFile(e.target.files?.[0])} className="ml-2 text-xs" /></label>
+                {logoShown && <Button variant="outline" size="sm" onClick={() => { setUpload(null); setLogoTheme(null); }}>Remove logo</Button>}
+              </div>
+              {logoShown && (
+                <div className="mt-2 flex items-center gap-3 rounded-[var(--radius-input)] border border-border p-2">
+                  {/* A fixed, bordered box, never Ziffr's own chrome. The picture is an <img>, so no script in it runs. */}
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={logoShown} alt={`Logo of ${m.author.trim() || "the author"}`} className="h-12 w-24 object-contain" />
+                  <span className="text-xs text-muted-foreground">By {m.author.trim() || "the author"}. Themes using this logo carry it; other logos stay out of the file.</span>
+                </div>
+              )}
+            </fieldset>
             {options.metrics.length > 0 && (
               <label className="flex items-start gap-2 text-xs"><input type="checkbox" checked={withTags} onChange={(e) => setWithTags(e.target.checked)} className="mt-0.5 accent-[var(--color-ink)]" /><span>Carry the Tags of the Metrics you pick<span className="block text-muted-foreground">Up to 5 per entry, only Tags you see on those Metrics. Untick to leave them out.</span></span></label>
             )}
