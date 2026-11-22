@@ -16,7 +16,7 @@ import { deliverNotice, refFor } from "./deliveries";
 import { refuseInDemo } from "./demo";
 import { PERSONAL_WEBHOOK_ROLES, personalWebhooksAllowed } from "./personal-webhook-state";
 import { openNames, openRows, sealRow } from "./sealed-columns";
-import { trialEndsAt } from "./trials";
+import { webhookRules } from "./webhook-trial";
 import { PERSONAL_WEBHOOKS_PER_PERSON, WEBHOOK_SECRET_OVERLAP_HOURS } from "./webhook-limits";
 import { type WebhookInfo } from "./webhooks";
 import { checkedAddress, cleanEvents, cleanName, maskAddress, maskedHost, newSecret, WEBHOOK_COLUMNS } from "./webhooks";
@@ -49,9 +49,11 @@ function assertAdmin(actor: Actor): void {
   refuseInDemo(actor);
 }
 
-/** Until spec 0037's ticket 6 a Trial Workspace has no Webhooks of either kind. */
-async function refuseInTrial(workspaceId: string): Promise<void> {
-  if (await trialEndsAt(workspaceId)) throw new Forbidden("A trial cannot have Webhooks: they send Workspace data to addresses outside Ziffr.");
+/** The rules of the Workspace's Webhooks (trial limits, no private hosts in a trial, the operator's switch), refusing where none are allowed. */
+async function rulesOrRefuse(workspaceId: string) {
+  const rules = await webhookRules(workspaceId);
+  if (!rules.allowed) throw new Forbidden(rules.why ?? "Webhooks are not possible here.");
+  return rules;
 }
 
 const OFF = "Your Workspace does not allow personal Webhooks; ask an Owner or Admin.";
@@ -96,20 +98,21 @@ export async function createPersonalWebhook(actor: Actor, input: { name: string;
   await assertOwnsPersonal(actor);
   if (typeof input !== "object" || input === null) throw new Error("That is not a Webhook.");
   if (!(await personalWebhooksAllowed(actor.workspaceId))) throw new Forbidden(OFF);
-  await refuseInTrial(actor.workspaceId);
+  const rules = await rulesOrRefuse(actor.workspaceId);
   const name = cleanName(input.name);
   const events = cleanEvents(input.events ?? []);
-  const url = await checkedAddress(input.url);
+  const url = await checkedAddress(input.url, rules.privateHosts);
   const id = randomUUID();
   const secret = newSecret();
   const sealed = await sealRow("webhooks", actor.workspaceId, { id, url, secret });
-  const { data, error } = await db().rpc("create_personal_webhook", { p_id: id, p_ws: actor.workspaceId, p_owner: actor.personId, p_name: name, p_url: sealed.url, p_secret: sealed.secret, p_events: events, p_max: PERSONAL_WEBHOOKS_PER_PERSON });
+  const { data, error } = await db().rpc("create_personal_webhook", { p_id: id, p_ws: actor.workspaceId, p_owner: actor.personId, p_name: name, p_url: sealed.url, p_secret: sealed.secret, p_events: events, p_max: PERSONAL_WEBHOOKS_PER_PERSON, p_trial_max: rules.trial ? rules.maxWebhooks : null });
   if (error || typeof data !== "string") {
     console.error("create_personal_webhook failed:", error?.message ?? "no answer");
     throw new Error("The Webhook could not be saved. Try again in a moment.");
   }
   if (data === "off") throw new Forbidden(OFF);
   if (data === "role") throw new Forbidden("Only Owners, Admins and Members have their own Webhooks.");
+  if (data === "trial_limit") throw new Error(`This trial already has ${rules.maxWebhooks} Webhooks, the most it may. Delete one to add another.`);
   if (data === "limit") throw new Error(`You already have ${PERSONAL_WEBHOOKS_PER_PERSON} Webhooks here, the most you may. Delete one to add another.`);
   await audit(actor, { kind: "webhook.personal_added", object: { type: "webhook", id, name }, details: { address: maskedHost(url), events } });
   return { id, secret };
@@ -132,10 +135,11 @@ export async function updatePersonalWebhook(actor: Actor, id: string, change: { 
   await assertOwnsPersonal(actor);
   if (typeof change !== "object" || change === null) throw new Error("That is not a change to a Webhook.");
   const { row, address } = await findOwn(actor, id);
+  const rules = change.url !== undefined ? await rulesOrRefuse(actor.workspaceId) : null;
   const patch: Record<string, unknown> = { updated_at: new Date().toISOString() };
   if (change.name !== undefined) patch.name = cleanName(change.name);
   if (change.events !== undefined) patch.events = cleanEvents(change.events);
-  if (change.url !== undefined) patch.url = (await sealRow("webhooks", actor.workspaceId, { id: String(row.id), url: await checkedAddress(change.url) })).url;
+  if (change.url !== undefined) patch.url = (await sealRow("webhooks", actor.workspaceId, { id: String(row.id), url: await checkedAddress(change.url, rules?.privateHosts ?? []) })).url;
   const { data: changed, error } = await db().from("webhooks").update(patch).eq("id", String(row.id)).eq("workspace_id", actor.workspaceId).eq("owner_id", actor.personId).select("id");
   if (error) throw new Error("The Webhook could not be saved. Try again in a moment.");
   if (!changed?.length) throw new Forbidden(NOT_FOUND);
@@ -189,7 +193,7 @@ export async function deletePersonalWebhook(actor: Actor, id: string): Promise<v
 export async function sendTestPersonalWebhook(actor: Actor, id: string): Promise<void> {
   await assertOwnsPersonal(actor);
   if (!(await personalWebhooksAllowed(actor.workspaceId))) throw new Forbidden(OFF);
-  await refuseInTrial(actor.workspaceId);
+  await rulesOrRefuse(actor.workspaceId);
   const { row } = await findOwn(actor, id);
   if (row.disabled_at) throw new Forbidden("Switch the Webhook on to send a test.");
   const wait = "A test was sent a moment ago. Wait a minute before sending another.";

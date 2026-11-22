@@ -147,10 +147,29 @@ describe("a person's own Webhooks", () => {
     expect(await refusal(createPersonalWebhook({ personId: ana, workspaceId: DEMO_WORKSPACE_ID, role: "member" }, { name: "x", url: URL1 }))).toBeInstanceOf(DemoReadOnly);
   });
 
-  it("is not possible in a Trial Workspace for now", async () => {
-    const { w, A } = await allowed();
+  it("is possible in a Trial Workspace within its limit of two Webhooks of both kinds together, and not where the operator switched trial Webhooks off", async () => {
+    const { w, A, O } = await allowed();
     await w.trial("2099-01-01");
-    expect(await refusal(createPersonalWebhook(A, { name: "x", url: URL1 }))).toBeInstanceOf(Forbidden);
+    await createPersonalWebhook(A, { name: "one", url: URL1 });
+    await createWebhook(O, { name: "two", url: URL1 });
+    expect((await refusal(createPersonalWebhook(A, { name: "three", url: URL1 })))?.message).toMatch(/trial already has 2/);
+    expect((await refusal(createWebhook(O, { name: "three", url: URL1 })))?.message).toMatch(/already has 2/);
+    process.env.ZIFFR_TRIAL_WEBHOOKS = "false";
+    try {
+      expect(await refusal(createPersonalWebhook(A, { name: "four", url: URL1 }))).toBeInstanceOf(Forbidden);
+      expect(await refusal(sendTestPersonalWebhook(A, (await listOwnPersonalWebhooks(A)).webhooks[0].id))).toBeInstanceOf(Forbidden);
+    } finally { delete process.env.ZIFFR_TRIAL_WEBHOOKS; }
+  });
+
+  it("does not let the operator's private hosts reach a trial, but does for an ordinary Workspace", async () => {
+    const { w, A } = await allowed();
+    const saved = process.env.ZIFFR_WEBHOOK_PRIVATE_HOSTS;
+    process.env.ZIFFR_WEBHOOK_PRIVATE_HOSTS = "db.inside.example.test";
+    try {
+      await createPersonalWebhook(A, { name: "inside", url: "https://db.inside.example.test/hook" });
+      await w.trial("2099-01-01");
+      expect((await refusal(updatePersonalWebhook(A, (await listOwnPersonalWebhooks(A)).webhooks[0].id, { url: "https://db2.inside.example.test/hook" })))?.message).toMatch(/inside/);
+    } finally { if (saved === undefined) delete process.env.ZIFFR_WEBHOOK_PRIVATE_HOSTS; else process.env.ZIFFR_WEBHOOK_PRIVATE_HOSTS = saved; }
   });
 });
 

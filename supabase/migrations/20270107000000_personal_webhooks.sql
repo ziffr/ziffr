@@ -9,20 +9,9 @@ create index webhooks_owner_idx on webhooks (workspace_id, owner_id) where owner
 -- every Personal Webhook of the Workspace.
 alter table workspaces add column personal_webhooks_allowed boolean not null default false;
 
--- A Workspace's Webhooks are counted without the personal ones (the Workspace's limit counts its own only).
-create or replace function create_webhook(p_id uuid, p_ws uuid, p_name text, p_url text, p_secret text, p_events text[], p_by text, p_max int) returns text
-language plpgsql security definer set search_path = public as $$
-begin
-  perform pg_advisory_xact_lock(hashtext('webhooks:' || p_ws::text));
-  if exists (select 1 from workspaces where id = p_ws and trial_ends_at is not null) then return 'trial'; end if;
-  if (select count(*) from webhooks where workspace_id = p_ws and owner_id is null) >= p_max then return 'limit'; end if;
-  insert into webhooks (id, workspace_id, name, url, secret, events, created_by) values (p_id, p_ws, p_name, p_url, p_secret, p_events, p_by);
-  return 'ok';
-end $$;
-
 -- Makes one Personal Webhook in one step under a lock of the person, so two made at once cannot pass the limit together.
 -- Returns 'ok', 'off' (the Workspace does not allow them), 'role' (only Owners, Admins and Members add one) or 'limit'.
-create or replace function create_personal_webhook(p_id uuid, p_ws uuid, p_owner text, p_name text, p_url text, p_secret text, p_events text[], p_max int) returns text
+create or replace function create_personal_webhook(p_id uuid, p_ws uuid, p_owner text, p_name text, p_url text, p_secret text, p_events text[], p_max int, p_trial_max int) returns text
 language plpgsql security definer set search_path = public as $$
 begin
   perform pg_advisory_xact_lock(hashtext('personal-webhooks:' || p_ws::text || ':' || p_owner));
@@ -31,11 +20,16 @@ begin
   perform 1 from memberships where workspace_id = p_ws and user_id = p_owner and role in ('owner', 'admin', 'member') for share;
   if not found then return 'role'; end if;
   if (select count(*) from webhooks where workspace_id = p_ws and owner_id = p_owner) >= p_max then return 'limit'; end if;
+  -- A trial holds Webhooks of both kinds together within its smaller limit (p_trial_max, null outside a trial); the Workspace's lock keeps two kinds made at once from passing it.
+  if p_trial_max is not null then
+    perform pg_advisory_xact_lock(hashtext('webhooks:' || p_ws::text));
+    if (select count(*) from webhooks where workspace_id = p_ws) >= p_trial_max then return 'trial_limit'; end if;
+  end if;
   insert into webhooks (id, workspace_id, name, url, secret, events, created_by, owner_id) values (p_id, p_ws, p_name, p_url, p_secret, p_events, p_owner, p_owner);
   return 'ok';
 end $$;
-revoke execute on function create_personal_webhook(uuid, uuid, text, text, text, text, text[], int) from public, anon, authenticated;
-grant execute on function create_personal_webhook(uuid, uuid, text, text, text, text, text[], int) to service_role;
+revoke execute on function create_personal_webhook(uuid, uuid, text, text, text, text, text[], int, int) from public, anon, authenticated;
+grant execute on function create_personal_webhook(uuid, uuid, text, text, text, text, text[], int, int) to service_role;
 
 -- Sends of one person's Personal Webhooks per day (UTC), beside the Workspace's own count.
 create table webhook_person_send_days (
