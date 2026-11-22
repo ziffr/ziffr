@@ -163,5 +163,7 @@ describe("what follows the hand-over", () => {
     expect((await db().from("metrics").update({ owner_id: "t-nobody" }).eq("id", m.id)).error).toBeTruthy();
     await expect(handOverMetric(w.actor(sara), m.id, gus)).rejects.toThrow(/not a Guest/);
     expect(await ownerOf(m.id)).toBe(ben);
+    await expect(w.metric(gus)).rejects.toThrow();
+    await expect(w.metric("t-nobody")).rejects.toThrow();
   });
 });

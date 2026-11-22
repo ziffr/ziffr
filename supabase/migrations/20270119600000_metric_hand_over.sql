@@ -40,12 +40,14 @@ begin
 end $$;
 create trigger memberships_guest_owns_nothing before update of role on memberships for each row execute function memberships_guest_owns_nothing();
 
--- A Metric's owner, once changed, is a member of its Workspace who is not a Guest.
+-- A Metric's owner, when set or changed, is a member of its Workspace who is not a Guest.
 create or replace function metrics_owner_is_member() returns trigger language plpgsql as $$
 begin
-  if new.owner_id is distinct from old.owner_id and not exists (select 1 from memberships where workspace_id = new.workspace_id and user_id = new.owner_id and role <> 'guest') then
+  -- The demo's own seed builds its made-up company in its own order, under its own guard (ziffr.demo_seed).
+  if current_setting('ziffr.demo_seed', true) = 'on' then return new; end if;
+  if (tg_op = 'INSERT' or new.owner_id is distinct from old.owner_id) and not exists (select 1 from memberships where workspace_id = new.workspace_id and user_id = new.owner_id and role <> 'guest') then
     raise exception 'a Metric''s owner must be a member who is not a Guest';
   end if;
   return new;
 end $$;
-create trigger metrics_owner_is_member before update of owner_id on metrics for each row execute function metrics_owner_is_member();
+create trigger metrics_owner_is_member before insert or update of owner_id on metrics for each row execute function metrics_owner_is_member();
