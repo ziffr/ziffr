@@ -43,7 +43,7 @@ export function SaveWorkflowTemplate({ workflow, mine }: { workflow: Workflow; m
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="max-w-md">
           <DialogTitle>Save as Workflow Template</DialogTitle>
-          <DialogDescription>Everyone on the team can start a Workflow from it. It keeps the Due Date and the steps, with the words of its checklist items; the Approvers and the people a checklist item goes to are picked again each time it is used. Checklist items kept to a Group stay behind. Only you can change it.</DialogDescription>
+          <DialogDescription>Everyone on the team can start a Workflow from it. It keeps the Due Date and the steps, with the words of its checklist items; the Approvers and the people a checklist item goes to are picked again each time it is used. Checklist items you may not read stay behind, and the Group an item is kept to is not kept. Only you can change it.</DialogDescription>
           <form className="space-y-4 text-sm" onSubmit={(e) => { e.preventDefault(); save(); }}>
             {mine.length > 0 && (
               <label className="block">

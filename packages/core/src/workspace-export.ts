@@ -404,7 +404,7 @@ async function workflowRecords(c: Ctx): Promise<void> {
     const doc: WorkflowTemplateFile = { format: "ziffr.workflow-template/1", name, dueWorkingDays: body.dueWorkingDays, steps: body.steps as WorkflowTemplateFile["steps"] };
     const why = !asked.length ? "no Metric of the file uses it" : exportDocumentProblem("workflow", doc);
     if (why) { skip("Workflow", name, `Left out: ${why}`); continue; }
-    const lost = [config.steps.some((s) => s.type === "tell") && "its Tell steps", config.steps.some((s) => s.type === "approve") && "who approves", config.steps.some((s) => s.type === "checklist" && s.readGroup !== undefined) && "its checklist items kept to a Group", config.steps.some((s) => s.type === "checklist") && "who its checklist items go to", config.asking && "its own asking days and hour", config.lockSummary && "its lock summary"].filter(Boolean);
+    const lost = [config.steps.some((s) => s.type === "tell") && "its Tell steps", config.steps.some((s) => s.type === "approve") && "who approves", config.steps.some((s) => s.type === "checklist" && s.readGroup !== undefined) && "the Group a checklist item is kept to (its words come along)", config.steps.some((s) => s.type === "checklist") && "who its checklist items go to", config.asking && "its own asking days and hour", config.lockSummary && "its lock summary"].filter(Boolean);
     if (lost.length) skip("Workflow", name, `Stays behind: ${lost.join(", ")}. The file holds how many Approvers there are, never who.`);
     const label = `w${labelOf.workflow.size + 1}`;
     labelOf.workflow.set(w.id as number, label);

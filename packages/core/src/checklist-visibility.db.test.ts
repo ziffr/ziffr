@@ -115,8 +115,10 @@ describe("a Workflow Template saved from a Workflow with Checklist Items", () =>
     const id = await saveWorkflowTemplate(as(s, s.dan, "member"), { workflowId: s.flow, name: "Close", description: "" });
     const body = (await db().from("team_templates").select("body").eq("id", id).single()).data!.body as { steps: { type: string; text?: string }[] };
     expect(body.steps.filter((x) => x.type === "checklist").map((x) => x.text)).toEqual([OPEN]);
-    // Even the owner, who reads item B, leaves it behind: a template is read by the whole team.
+    // The owner reads item B, so it comes along; the Group it is kept to does not travel.
     const own = await saveWorkflowTemplate(as(s, s.sara, "owner"), { workflowId: s.flow, name: "Close", description: "" });
-    expect(JSON.stringify((await db().from("team_templates").select("body").eq("id", own).single()).data!.body)).not.toContain("accrual");
+    const ownBody = JSON.stringify((await db().from("team_templates").select("body").eq("id", own).single()).data!.body);
+    expect(ownBody).toContain("accrual");
+    expect(ownBody).not.toContain("readGroup");
   });
 });

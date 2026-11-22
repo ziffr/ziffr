@@ -136,7 +136,7 @@ export async function saveWorkflowTemplate(actor: Actor, input: { workflowId: nu
   // Its id comes along: the config's sealed numbers are bound to it. A template holds them plain (it names no person and no row).
   const data = await openWorkflowRow(actor.workspaceId, (await db().from("workflows").select("id, name, owner_id, config").eq("id", Number(input.workflowId)).eq("workspace_id", actor.workspaceId).maybeSingle()).data);
   if (!data) throw new Forbidden();
-  // A template is the whole team's: an item whose words the actor may not read stays behind (rule 3), and so does any item kept to a Group (toWorkflowTemplate).
+  // A template is the whole team's: an item whose words the actor may not read stays behind (rule 3); the Group an item is kept to does not travel in it.
   const groupIds = (await getGroups(actor.workspaceId)).filter((g) => g.members.includes(actor.personId)).map((g) => g.id);
   const config = data.config as WorkflowConfig;
   const readable = { ...config, steps: config.steps.filter((s) => s.type !== "checklist" || mayReadItem(s, { id: actor.personId, role: actor.role, groupIds }, String(data.owner_id))) };
