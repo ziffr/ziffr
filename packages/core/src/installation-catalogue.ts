@@ -4,7 +4,7 @@
 import { SENDING_LIMITS } from "./sending-limits";
 
 /** A section of the Installation Settings page. */
-export type SettingsSectionId = "mail" | "replies" | "telegram" | "slack" | "limits" | "sending" | "keep" | "marketplace" | "bots" | "trials" | "demo" | "usage";
+export type SettingsSectionId = "mail" | "replies" | "telegram" | "slack" | "limits" | "sending" | "keep" | "marketplace" | "bots" | "trials" | "demo" | "usage" | "feedback";
 
 /** One setting: its environment variable, its words on the page, and whether its value is a secret. */
 export type SettingDefinition = { name: string; section: SettingsSectionId; label: string; help: string; secret: boolean; placeholder?: string; choices?: { value: string; label: string }[] };
@@ -25,6 +25,7 @@ export const SETTINGS_SECTIONS: SettingsSection[] = [
   { id: "bots", title: "Check against bots", purpose: "Cloudflare Turnstile on the sign-in page: a bot cannot make Ziffr send sign-in links to any address it likes. Worth it on any Ziffr strangers can reach, and more so with trials.", ready: true },
   { id: "trials", title: "Trials", purpose: "Whether anyone may sign in and try Ziffr in a Trial Workspace of their own, for how long and how many at once. With trials on, every Workspace made here is a trial.", ready: true },
   { id: "usage", title: "Usage", purpose: "What this Installation is used for, as daily counts: Workspaces, people, Metrics, values by Source, calls and what was opened. Never a Workspace's or a Metric's name, a person or a value. A Usage Key lets a program read the counts and nothing else; nothing is sent anywhere.", ready: true },
+  { id: "feedback", title: "Feedback", purpose: "Whether Ziffr now and then asks signed-in people if they like it, and points those who do to the repository on GitHub, where they can star it themselves. Nothing is sent to GitHub. What people say is missing is kept without their name and shown below to Installation Admins only.", ready: true },
   { id: "demo", title: "Demo", purpose: "Whether the login page offers the demo: a made-up company anyone can look around without an account, where nothing is saved.", ready: true },
 ];
 
@@ -72,6 +73,8 @@ export const INSTALLATION_SETTINGS: SettingDefinition[] = [
     help: "500 to 100,000. The most original values one Metric's Retention condenses in a night. Years of values take weeks to catch up at 5,000; more is more work for the database at night." },
   { name: "ZIFFR_TRIAL_GRACE_DAYS", section: "trials", label: "Days a trial's data stays after it ends", secret: false, placeholder: "7",
     help: "1 to 60. After the trial ends nothing can be added, and its Owner can still download everything; then it is deleted. Applies to every trial that has ended and is waiting, too: a smaller number deletes them sooner." },
+  { name: "ZIFFR_FEEDBACK_PROMPT", section: "feedback", label: "Ask people whether they like Ziffr", secret: false, choices: [{ value: "true", label: "Ask now and then" }, { value: "false", label: "Never ask" }],
+    help: "A small card, at most three times per person, after they have submitted values on a few different days; never in the demo, for Guests or on View Links. Empty: on for hosted Ziffr, off everywhere else." },
   { name: "ZIFFR_DEMO", section: "demo", label: "Offer the demo", secret: false, choices: [{ value: "1", label: "Offered on the login page" }, { value: "0", label: "Not offered" }],
     help: "Whether the login page has Try the demo." },
   { name: "ZIFFR_DEFAULT_METRICS_LIMIT", section: "limits", label: "Default limit", secret: false, placeholder: "No limit",

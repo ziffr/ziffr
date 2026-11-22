@@ -200,6 +200,12 @@ The page shows counts and version numbers only, never a key, not even in wrapped
 
 **Offer the demo** decides whether the sign-in page has **Try the demo**: **Offered on the login page** or **Not offered**. A Ziffr run with Docker on a domain has the demo off on the server, where the page shows it as set on the server; the person who runs it offers the demo there in the server's settings file. On a laptop the demo is offered unless you choose otherwise here. The section says whether the sign-in page offers it. A Ziffr that is a public demo and nothing else is set so on the server; the section then says so, and nobody signs in there.
 
+## Feedback
+
+**Ask people whether they like Ziffr** decides whether signed-in people see a small card now and then: "Enjoying Ziffr?". Choose **Ask now and then** or **Never ask**; empty means on for hosted Ziffr and off everywhere else.
+
+The card shows only to Owners, Admins and Members who have submitted values on at least 3 different days, never in the demo, to Guests or on a View Link, and at most three times for each person: the second time after 30 days, the third after 60 more. Nobody sees it again after choosing **Star on GitHub** or **Don't ask again**. A yes opens the Ziffr repository on GitHub, where the person stars it themselves; Ziffr tells GitHub nothing, and cannot see whether they did. A **Not yet** asks "What is missing?". Those words are kept without the person's name, up to 1,000 characters each and the newest 500, and the section lists the latest 50 with their date. Someone who said something is missing is asked again after 90 days, without the request for a star.
+
 ## Changes
 
 **Changes** lists who changed what, and when: claiming, adding and removing Installation Admins, saving or removing a setting such as the mail server, the replies signing secret, the Turnstile secret key, trials, the demo, the Telegram bot token or the Slack Client Secret, a Workspace's limit, test emails and replies tests. It names the setting, never its value. When Ziffr deletes a Workspace, such as a trial that ended, it shows one line by **Ziffr** with the Workspace's id, never its name, at the moment it destroys the Workspace's key, the first step of the deletion. What is left of it in the database, or in backups taken afterwards, can no longer be opened; backups from before the deletion open until they expire.

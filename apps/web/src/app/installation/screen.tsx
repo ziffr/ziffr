@@ -61,7 +61,7 @@ function Standing({ section }: { section: SectionView }) {
 /** What the Replies section shows beside its form: the replies domain's MX records now, and the latest test. */
 type RepliesView = { mx: MxView | null; test: ReplyTestStatus };
 
-export function InstallationScreen({ view, admins, events, limits, replies, usage, encryption }: { encryption: KeyProgress; view: InstallationSettingsView; admins: InstallationAdminRow[]; events: InstallationEvent[]; limits: WorkspaceLimitRow[]; replies: RepliesView; usage: { key: UsageKeyInfo | null; days: UsageDay[]; leaveOut: { workspaceId: string; name: string }[] } }) {
+export function InstallationScreen({ view, admins, events, limits, replies, usage, encryption, feedback }: { feedback: { at: string; words: string }[]; encryption: KeyProgress; view: InstallationSettingsView; admins: InstallationAdminRow[]; events: InstallationEvent[]; limits: WorkspaceLimitRow[]; replies: RepliesView; usage: { key: UsageKeyInfo | null; days: UsageDay[]; leaveOut: { workspaceId: string; name: string }[] } }) {
   return (
     <div className="grid gap-8 md:grid-cols-[12rem_minmax(0,1fr)]">
       <nav aria-label="Sections" className="-mx-4 overflow-x-auto px-4 md:mx-0 md:px-0">
@@ -76,7 +76,7 @@ export function InstallationScreen({ view, admins, events, limits, replies, usag
       </nav>
       <div className="min-w-0 space-y-12">
         <AdminsSection admins={admins} />
-        {view.sections.map((s) => <Section key={s.id} section={s} canSeal={view.canSeal} slack={s.id === "slack" ? view.slack : undefined} siteUrl={view.siteUrl} limits={s.id === "limits" ? limits : undefined} replies={s.id === "replies" ? replies : undefined} usage={s.id === "usage" ? { key: usage.key, days: usage.days, workspaces: usage.leaveOut } : undefined} />)}
+        {view.sections.map((s) => <Section key={s.id} feedback={s.id === "feedback" ? feedback : undefined} section={s} canSeal={view.canSeal} slack={s.id === "slack" ? view.slack : undefined} siteUrl={view.siteUrl} limits={s.id === "limits" ? limits : undefined} replies={s.id === "replies" ? replies : undefined} usage={s.id === "usage" ? { key: usage.key, days: usage.days, workspaces: usage.leaveOut } : undefined} />)}
         <EncryptionSection progress={encryption} />
         <section id="changes" aria-labelledby="changes-heading" className="scroll-mt-20 space-y-3">
           <h2 id="changes-heading" className="text-lg font-medium">Changes</h2>
@@ -148,7 +148,7 @@ function AdminsSection({ admins }: { admins: InstallationAdminRow[] }) {
 
 /** One section: what it is for, how it stands, and its form when the page can set it up yet. Slack gets its steps
  * around the form: make the app from the manifest, then what Slack has checked and what comes next. */
-function Section({ section, canSeal, slack, siteUrl, limits, replies, usage }: { section: SectionView; canSeal: boolean; slack?: SlackSetupView; siteUrl: string | null; limits?: WorkspaceLimitRow[]; replies?: RepliesView; usage?: { key: UsageKeyInfo | null; days: UsageDay[]; workspaces: { workspaceId: string; name: string }[] } }) {
+function Section({ section, canSeal, slack, siteUrl, limits, replies, usage, feedback }: { feedback?: { at: string; words: string }[]; section: SectionView; canSeal: boolean; slack?: SlackSetupView; siteUrl: string | null; limits?: WorkspaceLimitRow[]; replies?: RepliesView; usage?: { key: UsageKeyInfo | null; days: UsageDay[]; workspaces: { workspaceId: string; name: string }[] } }) {
   return (
     <section id={section.id} aria-labelledby={`${section.id}-heading`} className="scroll-mt-20 space-y-3">
       <div className="flex flex-wrap items-center gap-2">
@@ -167,8 +167,21 @@ function Section({ section, canSeal, slack, siteUrl, limits, replies, usage }: {
         : <p className="max-w-[62ch] text-sm">This page cannot set it up yet. Until it can, it is set in the server&apos;s environment, as the self-hosting guide says.</p>}
       {slack && <SlackChecked slack={slack} section={section} />}
       {limits && <WorkspaceLimits rows={limits} pinned={section.settings.some((x) => x.source === "cloud")} />}
+      {feedback && <FeedbackWords words={feedback} />}
       {replies && <RepliesSetup replies={replies} section={section} siteUrl={siteUrl} canSeal={canSeal} />}
     </section>
+  );
+}
+
+/** What people said was missing, newest first and without names; the words are people's, shown as text only. */
+function FeedbackWords({ words }: { words: { at: string; words: string }[] }) {
+  if (!words.length) return <p className="max-w-[62ch] text-sm text-muted-foreground">Nobody has said what is missing yet.</p>;
+  return (
+    <ul className="max-w-[62ch] divide-y divide-[var(--color-rule-2)] text-sm" aria-label="What people said is missing">
+      {words.map((w, i) => (
+        <li key={i} className="py-2"><span className="block text-xs text-muted-foreground">{w.at.slice(0, 10)}</span><span className="whitespace-pre-wrap break-words">{w.words}</span></li>
+      ))}
+    </ul>
   );
 }
 

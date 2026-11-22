@@ -241,6 +241,10 @@ Under **Quiet hours** you choose the hours of the night and the whole days (the 
 
 If you set nothing, you follow the Workspace's default, if its Owners or Admins set one (the page says so). **Use the Workspace's default** removes your own. To have none even though the Workspace has a default, set the same hour for **From** and **Until** and no days. You cannot choose all seven days. A message already waiting keeps its time if you change your quiet hours afterwards.
 
+## The question about Ziffr
+
+Now and then, where an Installation Admin has turned it on (hosted Ziffr does), a small card in the corner asks whether you like Ziffr. **Yes** offers a link to the Ziffr repository on GitHub, where you can star it if you want to; Ziffr tells GitHub nothing about you. **Not yet** asks what is missing, and your words go to the people who run this Ziffr without your name. **Not now** closes it, and it comes back after 30 days, then once more after 60; **Don't ask again** ends it. It never appears while you are looking at a form, in the demo, or on a shared View Link.
+
 ## Your Alerts
 
 Open it from your own menu at the bottom of the sidebar, or from **Alerts** in the settings area. An **Alert** is your own standing request to be told when a Metric you see reaches a level; you set one with **Alert me…** on the Metric's page (see [The Metrics screens](10-metrics.md#the-buttons-at-the-top)). This page lists every Alert you hold in the current Workspace on a Metric you can still see, with its condition, the way it is delivered, and where it stands: **waiting**, **fired** (quiet until the condition has been false again) and when it last fired. The page says the limits: the Alerts you may hold in a Workspace (20 unless the Workspace or Installation sets fewer), at most 5 on one Metric, and the Alert messages a day (20 unless set lower, which you can do under [Your limits](#your-limits)).
