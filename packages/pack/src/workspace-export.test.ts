@@ -140,11 +140,13 @@ describe("what is never carried", () => {
     expect(messages(text(edit(at("metric"), (r) => ({ ...r, metric: { ...metricDoc, owner: "x" } })))).join()).toContain("metric.owner is not a field here");
     expect(messages(text(edit(0, (r) => ({ ...r, workspace: { name: "A", logo: "data:x" } })))).join()).toContain("workspace.logo is not a field here");
   });
-  it("refuses a web address, markup or a template in any name", () => {
-    for (const name of ["<b>x</b>", "https://evil.example/x", "{{x}}", "javascript:alert(1)", "evil.com"]) {
-      expect(problems(text(edit(at("group"), (r) => ({ ...r, name }))))).not.toHaveLength(0);
+  it("takes any text a person typed as data, but no control or direction characters, and holds a Pack's items to the Pack's rules", () => {
+    for (const name of ["<b>x</b>", "https://evil.example/x", "{{x}}", "R&D @ home 🚀"]) expect(problems(text(edit(at("group"), (r) => ({ ...r, name })))), name).toHaveLength(0);
+    for (const bad of ["line\nbreak", "tab\there", "a\u0000b", "a\u202Eb", "a\u2028b", "a\u2067b", "a\u200Fb"]) {
+      expect(problems(text(edit(at("group"), (r) => ({ ...r, name: bad })))), JSON.stringify(bad)).not.toHaveLength(0);
+      expect(problems(text(edit(at("value"), (r) => ({ ...r, submittedBy: bad })))), JSON.stringify(bad)).not.toHaveLength(0);
     }
-    expect(problems(text(edit(at("value"), (r) => ({ ...r, submittedBy: "line\nbreak" }))))).not.toHaveLength(0);
+    expect(problems(text(edit(at("dashboard"), (r) => ({ ...r, dashboard: { ...dashDoc, name: "<b>x</b>" } }))))).not.toHaveLength(0);
   });
   it("refuses a Theme that brings a logo, and a dashboard that names an item of a Pack", () => {
     expect(messages(text(edit(at("theme"), (r) => ({ ...r, theme: { ...themeDoc, slides: { logo: "pack" } } })))).join()).toContain("theme.slides.logo");
@@ -174,11 +176,11 @@ describe("hostile files", () => {
   });
   it("refuses huge, infinite and over-precise numbers, and numbers that are not numbers", () => {
     const v = (value: unknown) => text(edit(at("value"), (r) => ({ ...r, value })));
-    expect(problems(v(1e16))).not.toHaveLength(0);
+    expect(problems(v(1e31))).not.toHaveLength(0);
     expect(problems(v(-1e300))).not.toHaveLength(0);
     expect(problems(text(RECORDS.map((r) => JSON.stringify(r)).map((l) => (l.includes('"value":14') ? l.replace('"value":14', '"value":1e999') : l))))).not.toHaveLength(0);
     expect(problems(text(RECORDS.map((r) => JSON.stringify(r)).map((l) => (l.includes('"value":14') ? l.replace('"value":14', '"value":9' + "9".repeat(80)) : l))))).not.toHaveLength(0);
-    expect(messages(v(0.1234567)).join()).toContain("more than 6 decimals");
+    expect(messages(v(0.123456789)).join()).toContain("more than 8 decimals");
     expect(problems(v("14"))).not.toHaveLength(0);
     expect(problems(v(null))).not.toHaveLength(0);
     expect(problems(text(RECORDS.map((r) => JSON.stringify(r)).map((l) => (l.includes('"value":14') ? l.replace('"value":14', '"value":NaN') : l))))).not.toHaveLength(0);
@@ -214,7 +216,7 @@ describe("hostile files", () => {
     expect(last && !last.ok && last.problems[0].message).toContain("more than 1,000");
   });
   it("keeps the problems of a file with many mistakes to the first 50", () => {
-    const many = [RECORDS[0], ...Array.from({ length: 200 }, (_, i) => ({ kind: "group", id: `g${i}`, name: "<x>" }))];
+    const many = [RECORDS[0], ...Array.from({ length: 200 }, (_, i) => ({ kind: "group", id: `g${i}`, name: "x", color: "red" }))];
     expect(problems(text(many))).toHaveLength(50);
   });
   it("holds a lot of values with a bounded memory: only labels are kept", () => {
@@ -258,6 +260,6 @@ describe("hostile files", () => {
     rs.push({ kind: "end", counts: { ...(RECORDS.at(-1)!.counts as object), group: 0, theme: 0, person: 0, metric: 10_000, dashboard: 0, deck: 0, workflow: 0, share: 0, target: 0, projection: 0, value: 0 } });
     const started = Date.now();
     expect(problems(text(rs)).length).toBeGreaterThan(0);
-    expect(Date.now() - started).toBeLessThan(3000);
+    expect(Date.now() - started).toBeLessThan(500);
   });
 });

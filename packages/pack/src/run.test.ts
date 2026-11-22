@@ -35,12 +35,12 @@ describe("ziffr-pack check", () => {
   it("checks a Workspace Export, with the line of each problem", () => {
     const lines = [
       '{"kind":"header","format":"ziffr.workspace-export/1","ziffr":"0.40.0","exportedAt":"2026-11-22T10:00:00Z","workspace":{"name":"Acme"}}',
-      '{"kind":"group","id":"g1","name":"<b>"}',
+      '{"kind":"group","id":"g1","name":"A","color":"red"}',
       '{"kind":"end","counts":{"group":1,"theme":0,"person":0,"metric":0,"dashboard":0,"deck":0,"workflow":0,"share":0,"target":0,"projection":0,"value":0}}',
     ];
     const res = run(["check-export", "e.jsonl"], files(lines.join("\n")));
     expect(res.code).toBe(1);
-    expect(res.out[0]).toMatch(/^e\.jsonl:2: name /);
+    expect(res.out[0]).toMatch(/^e\.jsonl:2: color /);
     expect(run(["check-export", "e.jsonl"], files([lines[0], lines[2].replace('"group":1', '"group":0')].join("\n"))).out[0]).toContain("a valid Workspace Export of “Acme”");
   });
 });

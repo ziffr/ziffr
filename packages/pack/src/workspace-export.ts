@@ -11,8 +11,8 @@
 // are finite and bounded, dates real and in range; text follows the Pack's plain-text rules; "__proto__" and its kin
 // are data (ids are held in Maps, keys are refused by pattern). Nothing here runs or queries what it reads.
 import { checkSchema, MAX_PROBLEMS, parseJson, under, type Problem, type Schema } from "./json-check.js";
-import { itemKey, plainText } from "./file-text.js";
-import { checkMetricFileValue, METRIC_FILE_LIMITS, type MetricFile } from "./metric-file.js";
+import { itemKey } from "./file-text.js";
+import { checkMetricFileValue, METRIC_FILE_SCHEMA, type MetricFile } from "./metric-file.js";
 import { checkDashboardTemplateFileValue, DASHBOARD_TEMPLATE_LIMITS, dashboardTemplateReferences, refusedOutsidePack, type DashboardTemplateFile } from "./dashboard-template-file.js";
 import { checkDeckTemplateFileValue, DECK_TEMPLATE_LIMITS, deckTemplateReferences, type DeckTemplateFile } from "./deck-template-file.js";
 import { checkWorkflowTemplateFileValue, WORKFLOW_TEMPLATE_LIMITS, type WorkflowTemplateFile } from "./workflow-template-file.js";
@@ -53,8 +53,11 @@ export const WORKSPACE_EXPORT_LIMITS = {
   workflowMetrics: 1_000,
   submitters: 100,
   groupsOfPerson: 50,
-  magnitude: 1e15,
-  decimals: 6,
+  magnitude: 1e30,
+  decimals: 8,
+  /** What a Metric's name and description may hold in the app: its own limits, not the Pack's. */
+  metricDescription: 2000,
+  metricBytes: 32_768,
   firstYear: 1900,
   lastYear: 2200,
 } as const;
@@ -103,6 +106,11 @@ export type WorkspaceExportRecord = HeaderRecord | GroupRecord | ThemeRecord | P
 // ---------------------------------------------------------------------------------------------------------------------
 // The schema.
 
+// What a person typed into the app: any text but control characters, line and paragraph separators and the characters
+// that reverse the direction of text. Markup and web addresses are data here, never rendered or followed as such.
+const LOOSE = "^[^\\p{Cc}\\u2028\\u2029\\u061C\\u200E\\u200F\\u202A-\\u202E\\u2066-\\u2069]*$";
+const looseText = (max: number, description = "text without control characters, line breaks or characters that reverse its direction"): Schema => ({ type: "string", maxLength: max, pattern: LOOSE, description });
+
 const ID = "^[A-Za-z0-9][A-Za-z0-9_-]{0,63}$";
 const id = (what: string): Schema => ({ type: "string", pattern: ID, description: `${what}: a label of up to ${L.id} letters, digits, dashes and underscores, standing for one record of this file only` });
 const ref = (what: string): Schema => id(`the label of ${what} of this file, listed before this record`);
@@ -114,6 +122,25 @@ const INSTANT = { type: "string", maxLength: 24, pattern: "^[0-9]{4}-[0-9]{2}-[0
 const record = (kind: WorkspaceExportKind, description: string, properties: Record<string, Schema>, required: string[]): Schema =>
   obj({ kind: { const: kind, description: "Which record this line is." }, ...properties }, ["kind", ...required], description);
 const slots: Schema = { type: "array", minItems: 1, maxItems: DASHBOARD_TEMPLATE_LIMITS.slots, items: refs("the Metrics that fill one Slot", L.slotMetrics, 1), description: "The Metrics that fill each Slot of the template, in order." };
+
+/** The Metric document's schema in a Workspace Export: the Metric file's, with the app's text rules (a Pack is held to
+ * stricter ones because it is shown to strangers; a Workspace's own Metrics are what they typed). */
+const EXPORT_METRIC_SCHEMA: Schema = (() => {
+  const props = METRIC_FILE_SCHEMA.properties!;
+  const bound = (b: Schema): Schema => ({ ...b, minimum: -L.magnitude, maximum: L.magnitude });
+  return {
+    ...METRIC_FILE_SCHEMA,
+    properties: {
+      ...props,
+      name: { ...looseText(120), minLength: 1 },
+      description: looseText(L.metricDescription),
+      category: looseText(60),
+      unit: looseText(20),
+      targetMin: bound(props.targetMin),
+      targetMax: bound(props.targetMax),
+    },
+  };
+})();
 
 /** The JSON Schema of one line of ziffr.workspace-export/1: the one definition the checks run and docs/reference is
  * generated from. The documents inside a record (`metric`, `dashboard`, ...) are held to their own published schemas. */
@@ -128,18 +155,18 @@ export const WORKSPACE_EXPORT_SCHEMA: Schema = {
       ziffr: { type: "string", maxLength: 40, pattern: "^[0-9]{1,4}\\.[0-9]{1,4}\\.[0-9]{1,4}(?:-[0-9A-Za-z.-]{1,30})?$", description: "The Ziffr release that wrote the file." },
       exportedAt: INSTANT,
       workspace: obj({
-        name: { ...plainText(80), minLength: 1 },
+        name: { ...looseText(80), minLength: 1 },
         timeZone: { type: "string", maxLength: 64, pattern: "^[A-Za-z][A-Za-z0-9_+/-]{0,63}$", description: "A time zone name such as “Europe/Berlin”." },
         language: { type: "string", maxLength: 5, pattern: "^[a-z]{2}(?:-[A-Z]{2})?$", description: "A language such as “en” or “de-AT”." },
         yearStart: { type: "integer", minimum: 1, maximum: 12, description: "The month the Workspace's year starts in (its Fiscal Year); left out, January." },
         attainmentMethod: { enum: ["ratio", "distance"], description: "How Attainment is computed in the Workspace." },
       }, ["name"], "The settings of the Workspace an Owner chose."),
     }, ["format", "ziffr", "exportedAt", "workspace"]),
-    record("group", "A Group of people.", { id: id("this Group"), name: { ...plainText(80), minLength: 1 } }, ["id", "name"]),
+    record("group", "A Group of people.", { id: id("this Group"), name: { ...looseText(80), minLength: 1 } }, ["id", "name"]),
     record("theme", "A Theme of the Workspace, as a ziffr.theme/1 document.", { id: id("this Theme"), theme: { type: "object", description: "A ziffr.theme/1 document, checked by its own schema." } }, ["id", "theme"]),
     record("person", "A person, as an invitation the new Owner chooses to send. Nothing of their account travels.", {
       id: id("this person"),
-      name: { ...plainText(L.name), minLength: 1 },
+      name: { ...looseText(L.name), minLength: 1 },
       email: { type: "string", minLength: 3, maxLength: L.email, pattern: "^[A-Za-z0-9.!#$%&'*+/=?^_`{|}~-]{1,64}@[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?(?:\\.[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?)+$", description: "an email address, such as “ada@example.com”" },
       role: { enum: ["admin", "member", "guest"], description: "The Workspace Role to invite them with. The Owner of the old Workspace is listed as an admin: the person who imports becomes the Owner." },
       groups: refs("the Groups they belong to", L.groupsOfPerson),
@@ -147,8 +174,8 @@ export const WORKSPACE_EXPORT_SCHEMA: Schema = {
     record("metric", "A Metric: its Description, Tags, owner and Submitters. Its values are separate records.", {
       id: id("this Metric"),
       key: itemKey("the Metric's key, which a Derived Metric's formula names as {key}: lower-case letters, digits and dashes, unique in the file"),
-      metric: { type: "object", description: "A ziffr.metric/1 document, checked by its own schema." },
-      tags: { type: "array", maxItems: L.tags, items: { ...plainText(L.tag), minLength: 1 }, description: "The Tags put on the Metric." },
+      metric: { type: "object", description: "A ziffr.metric/1 document, checked by its schema with the text rules of the app instead of the Pack's: any text without control or direction characters, a description of up to 2000 characters and Target bounds up to 10^30." },
+      tags: { type: "array", maxItems: L.tags, items: { ...looseText(L.tag), minLength: 1 }, description: "The Tags put on the Metric." },
       owner: ref("the person who owns it"),
       submitters: refs("the people who send its values", L.submitters),
     }, ["id", "key", "metric"]),
@@ -167,8 +194,8 @@ export const WORKSPACE_EXPORT_SCHEMA: Schema = {
       value: number(`The value, with at most ${L.decimals} decimals.`),
       recordedAt: INSTANT,
       source: { enum: ["web_form", "mail", "slack", "telegram", "api", "import"], description: "Where it arrived from; an import records every value as an Import whatever this says." },
-      submittedBy: { ...plainText(L.name), minLength: 1, description: "Who submitted it, as a name, never an id." },
-      breakdown: { type: "array", maxItems: L.breakdown, items: obj({ label: { ...plainText(L.label), minLength: 1 }, value: number("The part of the value.") }, ["label", "value"]), description: "Labelled values that split the observation." },
+      submittedBy: { ...looseText(L.name), minLength: 1, description: "Who submitted it, as a name, never an id." },
+      breakdown: { type: "array", maxItems: L.breakdown, items: obj({ label: { ...looseText(L.label), minLength: 1 }, value: number("The part of the value.") }, ["label", "value"]), description: "Labelled values that split the observation." },
     }, ["metric", "period", "value"]),
     record("end", "The last line: how many records of each kind the file holds.", {
       counts: obj(Object.fromEntries(Object.keys(L.perKind).map((k) => [k, { type: "integer", minimum: 0, maximum: L.perKind[k as Counted] } satisfies Schema])), Object.keys(L.perKind), "The records of each kind, header and end not counted."),
@@ -381,8 +408,8 @@ export class WorkspaceExportChecker {
         if (this.metrics.has(r.id)) at("id", `“${r.id}” is the label of another metric of this file: every label is used once.`);
         if (this.metricKeys.has(r.key)) at("key", `“${r.key}” is the key of the Metric on line ${this.metricKeys.get(r.key)} already: every Metric needs a key of its own.`);
         this.metricKeys.set(r.key, this.n);
-        const sound = doc("metric", "Metric", METRIC_FILE_LIMITS.bytes, r.metric);
-        const res = sound ? checkMetricFileValue(r.metric) : undefined;
+        const sound = doc("metric", "Metric", L.metricBytes, r.metric);
+        const res = sound ? checkMetricFileValue(r.metric, undefined, EXPORT_METRIC_SCHEMA) : undefined;
         if (res) merge("metric", res);
         const m = res && res.ok ? res.value : (r.metric as MetricFile);
         this.metrics.set(r.id, { key: r.key, period: m.period, line: this.n });

@@ -168,22 +168,27 @@ export async function readWorkspaceExportAll(file: string | Uint8Array, limits: 
   return out;
 }
 
-/** What a writer is told: whether to gzip. */
-export type WriterOptions = { gzip?: boolean };
+/** What a writer is told: whether to gzip (the default, so large Workspaces fit) and the sizes it must stay within, which are the reader's. */
+export type WriterOptions = { gzip?: boolean; limits?: WorkspaceExportReaderLimits };
 
 /** The records of a file as the lines of its text: each checked by the format's own checks as it passes, and the end
- * record written from what passed, so a file cannot be cut or miscounted by the code that makes it. */
-async function* linesOf(records: AsyncIterable<WorkspaceExportRecord> | Iterable<WorkspaceExportRecord>): AsyncGenerator<string> {
+ * record written from what passed, so a file cannot be cut or miscounted by the code that makes it. The text's size is
+ * counted against `textBytes`, so it never writes what the reader would refuse for being too large. */
+async function* linesOf(records: AsyncIterable<WorkspaceExportRecord> | Iterable<WorkspaceExportRecord>, limits: WorkspaceExportReaderLimits): AsyncGenerator<string> {
   const checker = new WorkspaceExportChecker();
+  let size = 0;
   const write = (record: unknown) => {
     const text = JSON.stringify(record);
     const res = checker.line(text);
     if (!res.ok) throw new WorkspaceExportProblem(res.problems);
-    return `${text}\n`;
+    const line = `${text}\n`;
+    size += Buffer.byteLength(line);
+    if (size > limits.textBytes) refuse(`The file would be larger than ${limits.textBytes.toLocaleString("en")} bytes of text, which is the most an Installation reads.`, checker.lines);
+    return line;
   };
   for await (const record of records) {
-    // The writer makes the end record itself: a caller's would be a count it could get wrong.
     if (record === null || typeof record !== "object") refuse("A record must be an object.", checker.lines + 1);
+    // The writer makes the end record itself: a caller's would be a count it could get wrong.
     if (record.kind === "end") refuse("The end record is written by the writer, not given to it.");
     yield write(record);
   }
@@ -193,24 +198,36 @@ async function* linesOf(records: AsyncIterable<WorkspaceExportRecord> | Iterable
 }
 
 /**
- * Writes a Workspace Export as a stream of bytes, plain or gzipped, from a header and the records after it, in the
- * order the format needs. Nothing is held but the labels the checks keep. Throws a `WorkspaceExportProblem` with the
- * line when a record would not pass the reader; the caller streaming it to a person must then end the response with
- * an error rather than a short file.
+ * Writes a Workspace Export as a stream of bytes, gzipped unless `gzip` is false, from a header and the records after
+ * it, in the order the format needs. Nothing is held but the labels the checks keep. Throws a `WorkspaceExportProblem`
+ * with the line when a record would not pass the reader or the file would pass its size limits (the file's bytes
+ * after gzip, the text's before); the caller streaming it to a person must then end the response with an error
+ * rather than a short file.
  */
 export function writeWorkspaceExport(records: AsyncIterable<WorkspaceExportRecord> | Iterable<WorkspaceExportRecord>, options: WriterOptions = {}): AsyncGenerator<Uint8Array> {
+  const limits = options.limits ?? DEFAULT_READER_LIMITS;
   const encoder = new TextEncoder();
-  const plain = async function* () {
-    for await (const line of linesOf(records)) yield encoder.encode(line);
+  let out = 0;
+  const counted = (b: Uint8Array) => {
+    out += b.byteLength;
+    if (out > limits.fileBytes) refuse(`The file would be larger than ${limits.fileBytes.toLocaleString("en")} bytes, which is the most an Installation reads.`);
+    return b;
   };
-  if (!options.gzip) return plain();
+  const plain = async function* () {
+    for await (const line of linesOf(records, limits)) yield encoder.encode(line);
+  };
+  if (options.gzip === false) {
+    return (async function* () {
+      for await (const b of plain()) yield counted(b);
+    })();
+  }
   const gzip = createGzip();
   const source = Readable.from(plain(), { objectMode: false });
   source.on("error", (e) => gzip.destroy(e));
   source.pipe(gzip);
   return (async function* () {
     try {
-      for await (const chunk of gzip) yield chunk as Uint8Array;
+      for await (const chunk of gzip) yield counted(chunk as Uint8Array);
     } finally {
       source.destroy();
       gzip.destroy();

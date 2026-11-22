@@ -56,10 +56,36 @@ describe("write and read", () => {
         yield r;
       }
     }
-    const it = writeWorkspaceExport(source());
+    const it = writeWorkspaceExport(source(), { gzip: false });
     await it.next();
     await it.next();
     expect(made).toBeLessThan(RECORDS.length);
+  });
+  it("gzips by default, and stays within the reader's sizes, so what it writes is always read", async () => {
+    expect((await writeWorkspaceExportAll(RECORDS))[0]).toBe(0x1f);
+    const limits = { fileBytes: 10_000, textBytes: 600 };
+    await expect(writeWorkspaceExportAll(RECORDS, { gzip: false, limits })).rejects.toThrow(/larger than 600 bytes of text/);
+    await expect(writeWorkspaceExportAll(RECORDS, { gzip: false, limits: { fileBytes: 400, textBytes: 1e9 } })).rejects.toThrow(/larger than 400 bytes/);
+    // Just inside both limits: written, and read back by a reader held to the same ones.
+    const size = (await writeWorkspaceExportAll(RECORDS, { gzip: false })).length;
+    const tight = { fileBytes: size, textBytes: size };
+    expect((await readWorkspaceExportAll(await writeWorkspaceExportAll(RECORDS, { gzip: false, limits: tight }), tight)).length).toBe(RECORDS.length + 1);
+    await expect(writeWorkspaceExportAll(RECORDS, { gzip: false, limits: { fileBytes: size - 1, textBytes: size } })).rejects.toThrow();
+  });
+  it("round-trips awkward data the app really stores", async () => {
+    const awkward: WorkspaceExportRecord[] = [
+      { kind: "header", format: "ziffr.workspace-export/1", ziffr: "0.40.0", exportedAt: "2026-11-22T10:00:00Z", workspace: { name: "Müller & Söhne <GmbH> 🚀", yearStart: 2 } },
+      { kind: "group", id: "g1", name: "R&D [core] ~ 100%" },
+      { kind: "person", id: "p1", name: "ada@example.com", email: "ada@example.com", role: "guest" },
+      { kind: "metric", id: "m1", key: "orders", metric: { ...metric, period: "quarter", name: "Orders @ shop | “net” 🚀", description: "x ".repeat(900), unit: "€/Kg", targetMax: 1e20 }, tags: ["q&a", "日本語"] },
+      { kind: "value", metric: "m1", period: "2026-05-01", value: 0.12345678, submittedBy: "Zoë O'Neil <zoe>", breakdown: [{ label: "A/B", value: 1e25 }] },
+      { kind: "value", metric: "m1", period: "2026-02-01", value: -123456789012.5 },
+    ];
+    for (const gzip of [false, true]) expect((await readWorkspaceExportAll(await writeWorkspaceExportAll(awkward, { gzip }))).map((r) => r.record).slice(0, -1)).toEqual(awkward);
+    await expect(writeWorkspaceExportAll([awkward[0], { ...(awkward[1] as object), name: "a\u202Eb" } as never])).rejects.toThrow(/direction|allowed|not allowed/);
+    await expect(writeWorkspaceExportAll([awkward[0], { ...(awkward[1] as object), name: "a\u0007b" } as never])).rejects.toThrow();
+    // A description over what the app keeps is refused, never truncated.
+    await expect(writeWorkspaceExportAll([...awkward.slice(0, 3), { ...(awkward[3] as object), metric: { ...metric, description: "x".repeat(2001) } } as never])).rejects.toThrow(/2001|at most 2000/);
   });
   it("refuses to write what the reader would refuse, and a record that is a secret", async () => {
     await expect(writeWorkspaceExportAll([RECORDS[0], { ...RECORDS[1], accessKey: "zf_live_abc" } as never])).rejects.toThrow(/never carries one/);
@@ -70,7 +96,7 @@ describe("write and read", () => {
 });
 
 describe("the reader on an untrusted stream", () => {
-  const good = async () => new TextDecoder().decode(await writeWorkspaceExportAll(RECORDS));
+  const good = async () => new TextDecoder().decode(await writeWorkspaceExportAll(RECORDS, { gzip: false }));
   it("names the line of the first bad record and stops there", async () => {
     const lines = (await good()).split("\n");
     lines[2] = lines[2].replace("ada@example.com", "nobody");
@@ -83,7 +109,7 @@ describe("the reader on an untrusted stream", () => {
     expect(problems[0].message).toContain("no end record");
   });
   it("notices a gzip file cut off", async () => {
-    const file = await writeWorkspaceExportAll(RECORDS, { gzip: true });
+    const file = await writeWorkspaceExportAll(RECORDS);
     const problems = await refused(Readable.from([file.subarray(0, file.length - 10)]));
     expect(problems[0].message).toContain("gzip");
   });

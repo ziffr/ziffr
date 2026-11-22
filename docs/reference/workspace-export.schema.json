@@ -35,8 +35,8 @@
             "name": {
               "type": "string",
               "maxLength": 80,
-              "pattern": "^(?![\\s\\S]*(?:://|[Ww][Ww][Ww]\\.|[Jj][Aa][Vv][Aa][Ss][Cc][Rr][Ii][Pp][Tt]:|[Dd][Aa][Tt][Aa]:|[Uu][Rr][Ll]\\(|[\\p{L}\\p{N}](?:\\.(?:[Cc][Oo][Mm]|[Nn][Ee][Tt]|[Oo][Rr][Gg]|[Ii][Oo]|[Cc][Oo]|[Ii][Nn][Ff][Oo]|[Bb][Ii][Zz]|[Aa][Pp][Pp]|[Dd][Ee][Vv]|[Xx][Yy][Zz]|[Mm][Ee]|[Aa][Ii]|[Ll][Yy]|[Gg][Ll]|[Gg][Gg]|[Tt][Oo]|[Cc][Cc]|[Tt][Vv]|[Ww][Ss]|[Ll][Ii][Nn][Kk]|[Cc][Ll][Ii][Cc][Kk]|[Ss][Ii][Tt][Ee]|[Oo][Nn][Ll][Ii][Nn][Ee]|[Tt][Oo][Pp]|[Tt][Kk]|[Rr][Uu]|[Cc][Nn]|[Dd][Ee]|[Uu][Kk]|[Ff][Rr]|[Ee][Uu]|[Uu][Ss]|[Nn][Ll]|[Cc][Hh]|[Aa][Tt]|[Ii][Tt]|[Ee][Ss])(?![\\p{L}\\p{N}])|\\.[Xx][Nn]--|\\.\\p{L}{2,}/)|\\b(?:[Hh][Tt][Tt][Pp][Ss]?|[Ff][Tt][Pp]|[Mm][Aa][Ii][Ll][Tt][Oo]|[Tt][Ee][Ll]|[Ss][Mm][Ss]|[Ff][Ii][Ll][Ee]|[Vv][Bb][Ss][Cc][Rr][Ii][Pp][Tt]):(?!\\s)))[\\p{L}\\p{M}\\p{N} .,;:!?'\"’‘“”«»()%€$£¥+\\-–—/&#*=_·…°]*$",
-              "description": "plain text, without markup or web addresses",
+              "pattern": "^[^\\p{Cc}\\u2028\\u2029\\u061C\\u200E\\u200F\\u202A-\\u202E\\u2066-\\u2069]*$",
+              "description": "text without control characters, line breaks or characters that reverse its direction",
               "minLength": 1
             },
             "timeZone": {
@@ -96,8 +96,8 @@
         "name": {
           "type": "string",
           "maxLength": 80,
-          "pattern": "^(?![\\s\\S]*(?:://|[Ww][Ww][Ww]\\.|[Jj][Aa][Vv][Aa][Ss][Cc][Rr][Ii][Pp][Tt]:|[Dd][Aa][Tt][Aa]:|[Uu][Rr][Ll]\\(|[\\p{L}\\p{N}](?:\\.(?:[Cc][Oo][Mm]|[Nn][Ee][Tt]|[Oo][Rr][Gg]|[Ii][Oo]|[Cc][Oo]|[Ii][Nn][Ff][Oo]|[Bb][Ii][Zz]|[Aa][Pp][Pp]|[Dd][Ee][Vv]|[Xx][Yy][Zz]|[Mm][Ee]|[Aa][Ii]|[Ll][Yy]|[Gg][Ll]|[Gg][Gg]|[Tt][Oo]|[Cc][Cc]|[Tt][Vv]|[Ww][Ss]|[Ll][Ii][Nn][Kk]|[Cc][Ll][Ii][Cc][Kk]|[Ss][Ii][Tt][Ee]|[Oo][Nn][Ll][Ii][Nn][Ee]|[Tt][Oo][Pp]|[Tt][Kk]|[Rr][Uu]|[Cc][Nn]|[Dd][Ee]|[Uu][Kk]|[Ff][Rr]|[Ee][Uu]|[Uu][Ss]|[Nn][Ll]|[Cc][Hh]|[Aa][Tt]|[Ii][Tt]|[Ee][Ss])(?![\\p{L}\\p{N}])|\\.[Xx][Nn]--|\\.\\p{L}{2,}/)|\\b(?:[Hh][Tt][Tt][Pp][Ss]?|[Ff][Tt][Pp]|[Mm][Aa][Ii][Ll][Tt][Oo]|[Tt][Ee][Ll]|[Ss][Mm][Ss]|[Ff][Ii][Ll][Ee]|[Vv][Bb][Ss][Cc][Rr][Ii][Pp][Tt]):(?!\\s)))[\\p{L}\\p{M}\\p{N} .,;:!?'\"’‘“”«»()%€$£¥+\\-–—/&#*=_·…°]*$",
-          "description": "plain text, without markup or web addresses",
+          "pattern": "^[^\\p{Cc}\\u2028\\u2029\\u061C\\u200E\\u200F\\u202A-\\u202E\\u2066-\\u2069]*$",
+          "description": "text without control characters, line breaks or characters that reverse its direction",
           "minLength": 1
         }
       },
@@ -149,8 +149,8 @@
         "name": {
           "type": "string",
           "maxLength": 120,
-          "pattern": "^(?![\\s\\S]*(?:://|[Ww][Ww][Ww]\\.|[Jj][Aa][Vv][Aa][Ss][Cc][Rr][Ii][Pp][Tt]:|[Dd][Aa][Tt][Aa]:|[Uu][Rr][Ll]\\(|[\\p{L}\\p{N}](?:\\.(?:[Cc][Oo][Mm]|[Nn][Ee][Tt]|[Oo][Rr][Gg]|[Ii][Oo]|[Cc][Oo]|[Ii][Nn][Ff][Oo]|[Bb][Ii][Zz]|[Aa][Pp][Pp]|[Dd][Ee][Vv]|[Xx][Yy][Zz]|[Mm][Ee]|[Aa][Ii]|[Ll][Yy]|[Gg][Ll]|[Gg][Gg]|[Tt][Oo]|[Cc][Cc]|[Tt][Vv]|[Ww][Ss]|[Ll][Ii][Nn][Kk]|[Cc][Ll][Ii][Cc][Kk]|[Ss][Ii][Tt][Ee]|[Oo][Nn][Ll][Ii][Nn][Ee]|[Tt][Oo][Pp]|[Tt][Kk]|[Rr][Uu]|[Cc][Nn]|[Dd][Ee]|[Uu][Kk]|[Ff][Rr]|[Ee][Uu]|[Uu][Ss]|[Nn][Ll]|[Cc][Hh]|[Aa][Tt]|[Ii][Tt]|[Ee][Ss])(?![\\p{L}\\p{N}])|\\.[Xx][Nn]--|\\.\\p{L}{2,}/)|\\b(?:[Hh][Tt][Tt][Pp][Ss]?|[Ff][Tt][Pp]|[Mm][Aa][Ii][Ll][Tt][Oo]|[Tt][Ee][Ll]|[Ss][Mm][Ss]|[Ff][Ii][Ll][Ee]|[Vv][Bb][Ss][Cc][Rr][Ii][Pp][Tt]):(?!\\s)))[\\p{L}\\p{M}\\p{N} .,;:!?'\"’‘“”«»()%€$£¥+\\-–—/&#*=_·…°]*$",
-          "description": "plain text, without markup or web addresses",
+          "pattern": "^[^\\p{Cc}\\u2028\\u2029\\u061C\\u200E\\u200F\\u202A-\\u202E\\u2066-\\u2069]*$",
+          "description": "text without control characters, line breaks or characters that reverse its direction",
           "minLength": 1
         },
         "email": {
@@ -209,7 +209,7 @@
         },
         "metric": {
           "type": "object",
-          "description": "A ziffr.metric/1 document, checked by its own schema."
+          "description": "A ziffr.metric/1 document, checked by its schema with the text rules of the app instead of the Pack's: any text without control or direction characters, a description of up to 2000 characters and Target bounds up to 10^30."
         },
         "tags": {
           "type": "array",
@@ -217,8 +217,8 @@
           "items": {
             "type": "string",
             "maxLength": 30,
-            "pattern": "^(?![\\s\\S]*(?:://|[Ww][Ww][Ww]\\.|[Jj][Aa][Vv][Aa][Ss][Cc][Rr][Ii][Pp][Tt]:|[Dd][Aa][Tt][Aa]:|[Uu][Rr][Ll]\\(|[\\p{L}\\p{N}](?:\\.(?:[Cc][Oo][Mm]|[Nn][Ee][Tt]|[Oo][Rr][Gg]|[Ii][Oo]|[Cc][Oo]|[Ii][Nn][Ff][Oo]|[Bb][Ii][Zz]|[Aa][Pp][Pp]|[Dd][Ee][Vv]|[Xx][Yy][Zz]|[Mm][Ee]|[Aa][Ii]|[Ll][Yy]|[Gg][Ll]|[Gg][Gg]|[Tt][Oo]|[Cc][Cc]|[Tt][Vv]|[Ww][Ss]|[Ll][Ii][Nn][Kk]|[Cc][Ll][Ii][Cc][Kk]|[Ss][Ii][Tt][Ee]|[Oo][Nn][Ll][Ii][Nn][Ee]|[Tt][Oo][Pp]|[Tt][Kk]|[Rr][Uu]|[Cc][Nn]|[Dd][Ee]|[Uu][Kk]|[Ff][Rr]|[Ee][Uu]|[Uu][Ss]|[Nn][Ll]|[Cc][Hh]|[Aa][Tt]|[Ii][Tt]|[Ee][Ss])(?![\\p{L}\\p{N}])|\\.[Xx][Nn]--|\\.\\p{L}{2,}/)|\\b(?:[Hh][Tt][Tt][Pp][Ss]?|[Ff][Tt][Pp]|[Mm][Aa][Ii][Ll][Tt][Oo]|[Tt][Ee][Ll]|[Ss][Mm][Ss]|[Ff][Ii][Ll][Ee]|[Vv][Bb][Ss][Cc][Rr][Ii][Pp][Tt]):(?!\\s)))[\\p{L}\\p{M}\\p{N} .,;:!?'\"’‘“”«»()%€$£¥+\\-–—/&#*=_·…°]*$",
-            "description": "plain text, without markup or web addresses",
+            "pattern": "^[^\\p{Cc}\\u2028\\u2029\\u061C\\u200E\\u200F\\u202A-\\u202E\\u2066-\\u2069]*$",
+            "description": "text without control characters, line breaks or characters that reverse its direction",
             "minLength": 1
           },
           "description": "The Tags put on the Metric."
@@ -456,14 +456,14 @@
         },
         "min": {
           "type": "number",
-          "minimum": -1000000000000000,
-          "maximum": 1000000000000000,
+          "minimum": -1e+30,
+          "maximum": 1e+30,
           "description": "The lower end."
         },
         "max": {
           "type": "number",
-          "minimum": -1000000000000000,
-          "maximum": 1000000000000000,
+          "minimum": -1e+30,
+          "maximum": 1e+30,
           "description": "The upper end."
         }
       },
@@ -495,8 +495,8 @@
         },
         "value": {
           "type": "number",
-          "minimum": -1000000000000000,
-          "maximum": 1000000000000000,
+          "minimum": -1e+30,
+          "maximum": 1e+30,
           "description": "The projected value."
         }
       },
@@ -529,9 +529,9 @@
         },
         "value": {
           "type": "number",
-          "minimum": -1000000000000000,
-          "maximum": 1000000000000000,
-          "description": "The value, with at most 6 decimals."
+          "minimum": -1e+30,
+          "maximum": 1e+30,
+          "description": "The value, with at most 8 decimals."
         },
         "recordedAt": {
           "type": "string",
@@ -553,7 +553,7 @@
         "submittedBy": {
           "type": "string",
           "maxLength": 120,
-          "pattern": "^(?![\\s\\S]*(?:://|[Ww][Ww][Ww]\\.|[Jj][Aa][Vv][Aa][Ss][Cc][Rr][Ii][Pp][Tt]:|[Dd][Aa][Tt][Aa]:|[Uu][Rr][Ll]\\(|[\\p{L}\\p{N}](?:\\.(?:[Cc][Oo][Mm]|[Nn][Ee][Tt]|[Oo][Rr][Gg]|[Ii][Oo]|[Cc][Oo]|[Ii][Nn][Ff][Oo]|[Bb][Ii][Zz]|[Aa][Pp][Pp]|[Dd][Ee][Vv]|[Xx][Yy][Zz]|[Mm][Ee]|[Aa][Ii]|[Ll][Yy]|[Gg][Ll]|[Gg][Gg]|[Tt][Oo]|[Cc][Cc]|[Tt][Vv]|[Ww][Ss]|[Ll][Ii][Nn][Kk]|[Cc][Ll][Ii][Cc][Kk]|[Ss][Ii][Tt][Ee]|[Oo][Nn][Ll][Ii][Nn][Ee]|[Tt][Oo][Pp]|[Tt][Kk]|[Rr][Uu]|[Cc][Nn]|[Dd][Ee]|[Uu][Kk]|[Ff][Rr]|[Ee][Uu]|[Uu][Ss]|[Nn][Ll]|[Cc][Hh]|[Aa][Tt]|[Ii][Tt]|[Ee][Ss])(?![\\p{L}\\p{N}])|\\.[Xx][Nn]--|\\.\\p{L}{2,}/)|\\b(?:[Hh][Tt][Tt][Pp][Ss]?|[Ff][Tt][Pp]|[Mm][Aa][Ii][Ll][Tt][Oo]|[Tt][Ee][Ll]|[Ss][Mm][Ss]|[Ff][Ii][Ll][Ee]|[Vv][Bb][Ss][Cc][Rr][Ii][Pp][Tt]):(?!\\s)))[\\p{L}\\p{M}\\p{N} .,;:!?'\"’‘“”«»()%€$£¥+\\-–—/&#*=_·…°]*$",
+          "pattern": "^[^\\p{Cc}\\u2028\\u2029\\u061C\\u200E\\u200F\\u202A-\\u202E\\u2066-\\u2069]*$",
           "description": "Who submitted it, as a name, never an id.",
           "minLength": 1
         },
@@ -566,14 +566,14 @@
               "label": {
                 "type": "string",
                 "maxLength": 60,
-                "pattern": "^(?![\\s\\S]*(?:://|[Ww][Ww][Ww]\\.|[Jj][Aa][Vv][Aa][Ss][Cc][Rr][Ii][Pp][Tt]:|[Dd][Aa][Tt][Aa]:|[Uu][Rr][Ll]\\(|[\\p{L}\\p{N}](?:\\.(?:[Cc][Oo][Mm]|[Nn][Ee][Tt]|[Oo][Rr][Gg]|[Ii][Oo]|[Cc][Oo]|[Ii][Nn][Ff][Oo]|[Bb][Ii][Zz]|[Aa][Pp][Pp]|[Dd][Ee][Vv]|[Xx][Yy][Zz]|[Mm][Ee]|[Aa][Ii]|[Ll][Yy]|[Gg][Ll]|[Gg][Gg]|[Tt][Oo]|[Cc][Cc]|[Tt][Vv]|[Ww][Ss]|[Ll][Ii][Nn][Kk]|[Cc][Ll][Ii][Cc][Kk]|[Ss][Ii][Tt][Ee]|[Oo][Nn][Ll][Ii][Nn][Ee]|[Tt][Oo][Pp]|[Tt][Kk]|[Rr][Uu]|[Cc][Nn]|[Dd][Ee]|[Uu][Kk]|[Ff][Rr]|[Ee][Uu]|[Uu][Ss]|[Nn][Ll]|[Cc][Hh]|[Aa][Tt]|[Ii][Tt]|[Ee][Ss])(?![\\p{L}\\p{N}])|\\.[Xx][Nn]--|\\.\\p{L}{2,}/)|\\b(?:[Hh][Tt][Tt][Pp][Ss]?|[Ff][Tt][Pp]|[Mm][Aa][Ii][Ll][Tt][Oo]|[Tt][Ee][Ll]|[Ss][Mm][Ss]|[Ff][Ii][Ll][Ee]|[Vv][Bb][Ss][Cc][Rr][Ii][Pp][Tt]):(?!\\s)))[\\p{L}\\p{M}\\p{N} .,;:!?'\"’‘“”«»()%€$£¥+\\-–—/&#*=_·…°]*$",
-                "description": "plain text, without markup or web addresses",
+                "pattern": "^[^\\p{Cc}\\u2028\\u2029\\u061C\\u200E\\u200F\\u202A-\\u202E\\u2066-\\u2069]*$",
+                "description": "text without control characters, line breaks or characters that reverse its direction",
                 "minLength": 1
               },
               "value": {
                 "type": "number",
-                "minimum": -1000000000000000,
-                "maximum": 1000000000000000,
+                "minimum": -1e+30,
+                "maximum": 1e+30,
                 "description": "The part of the value."
               }
             },
