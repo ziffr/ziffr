@@ -32,12 +32,18 @@ export function SlackPanel({ connection, link, stopped, notice }: { connection: 
         </p>
       )}
       {team ? (
-        <p className="mt-2 text-muted-foreground">Connected to <span className="font-medium text-foreground">{team.name || "your Slack workspace"}</span>. Messages by Slack arrive as direct messages from the Ziffr app; answers in their thread come back.</p>
+        <p className="mt-2 text-muted-foreground">Connected to <span className="font-medium text-foreground">{team.name || "your Slack workspace"}</span>. Messages by Slack arrive as direct messages from the Ziffr app{team.customizes ? ", under this Workspace's name and logo" : ""}; answers in their thread come back.</p>
       ) : (
         <p className="mt-2 text-muted-foreground">Not connected: messages by Slack are only recorded in the Outbox.{connection.canManage ? "" : " An Owner or Admin can connect it."}</p>
       )}
+      {team && !team.customizes && (
+        <p role="status" className="mt-2">
+          Messages arrive under the Ziffr app&apos;s name and icon, not this Workspace&apos;s name and logo, because this connection was made without Slack&apos;s permission to change them.{connection.canManage ? " Choose Reconnect Slack to grant it. If it still does not, whoever runs this Ziffr adds the chat:write.customize scope to the Slack app first (see the Slack guide)." : " An Owner or Admin can reconnect Slack to change that."}
+        </p>
+      )}
       <div className="mt-3 flex flex-wrap gap-2">
         {connection.canManage && !team && <AnsweredForm action={connectSlack}><Button type="submit" disabled={pending}>Add to Slack</Button></AnsweredForm>}
+        {connection.canManage && team && !team.customizes && <AnsweredForm action={connectSlack}><Button type="submit" variant="outline" disabled={pending}>Reconnect Slack</Button></AnsweredForm>}
         {connection.canManage && team && <Button variant="outline" disabled={pending} onClick={async () => { if (await confirm({ title: "Disconnect Slack?", description: "Nobody gets messages there any more until it is connected again. Who was found on Slack is forgotten.", confirmLabel: "Disconnect Slack" })) run(() => disconnectSlack(), "Slack is disconnected"); }}>Disconnect Slack</Button>}
       </div>
       {team && (

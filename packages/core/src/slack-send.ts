@@ -10,6 +10,7 @@ import { sendingLimit } from "./sending-limit";
 import { sendingLimitDefault } from "./sending-limits";
 import { callSlack, slackOn, SlackError, TOKEN_GONE } from "./slack-api";
 import { slackBot, slackConnectionEnded, type SlackBot } from "./slack-connection";
+import { slackIdentity } from "./slack-identity";
 import { slackUserFor } from "./slack-people";
 import { tellIfAnswered } from "./prompt-ways";
 import { workspaceLook } from "./workspace-look";
@@ -99,9 +100,12 @@ export async function sendSlackDelivery(id: number): Promise<SendResult> {
     if (typeof channel !== "string" || !/^[A-Z0-9]{3,24}$/.test(channel)) throw new SlackError("no_channel");
     // The one thing of the Theme Slack can show: a side bar in the accent (Block Kit has no colours of its own), which
     // only an attachment carries. A Theme that cannot be read leaves the message as it was, with no bar.
-    const color = await workspaceLook(d.workspace_id).then((l) => l.accent, () => null);
+    const look = await workspaceLook(d.workspace_id).catch(() => null);
+    const color = look?.accent ?? null;
     const message = color ? { attachments: [{ color, blocks }] } : { blocks };
-    const posted = await callSlack("chat.postMessage", { channel, text: text.slice(0, 3000), ...message, unfurl_links: false, unfurl_media: false }, bot.token);
+    // The Workspace's name and logo, where Slack granted chat:write.customize; otherwise the app's own, as before.
+    const who = look ? slackIdentity(bot.scopes, d.workspace_id, look, process.env.ZIFFR_SITE_URL) : {};
+    const posted = await callSlack("chat.postMessage", { channel, text: text.slice(0, 3000), ...message, ...who, unfurl_links: false, unfurl_media: false }, bot.token);
     const ts = typeof posted.ts === "string" && /^[0-9]{1,12}\.[0-9]{1,8}$/.test(posted.ts) ? posted.ts : null;
     if (!ts) throw new SlackError("no_ts");
     await db().from("deliveries").update({ mail_state: "sent", attempts: Number(d.attempts) + 1, sent_at: new Date().toISOString(), provider_id: ts, slack_channel: channel, slack_ts: ts, last_error: null }).eq("id", id);

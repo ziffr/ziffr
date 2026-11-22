@@ -9,20 +9,21 @@ import { openSecretRotating, sealSecret, slackBotContext } from "./secrets";
 import { isSealed, workspaceCipher } from "./workspace-keys";
 import { settingsInEffect } from "./settings-in-effect";
 import { callSlack, slackApiBase, slackEnabled, slackOn, SlackError } from "./slack-api";
+import { canCustomize } from "./slack-identity";
 import { DEMO_WORKSPACE_ID } from "./team";
 import { refuseInDemo } from "./demo";
 
-/** The bot scopes the Slack app asks for: post, open a direct message, read direct messages, find people by address. */
-export const SLACK_SCOPES = ["chat:write", "im:write", "im:history", "users:read", "users:read.email"];
+/** The bot scopes the Slack app asks for: post, post under the Workspace's own name and logo, open a direct message, read direct messages, find people by address. */
+export const SLACK_SCOPES = ["chat:write", "chat:write.customize", "im:write", "im:history", "users:read", "users:read.email"];
 /** How long "Add to Slack" may take, from the click to Slack sending the person back. */
 const STATE_MINUTES = 10;
 
 /** The connected Slack workspace as a page may show it: its name and when, never its token. */
-export type SlackConnectionView = { enabled: boolean; canManage: boolean; team: { name: string; connectedAt: string } | null };
+export type SlackConnectionView = { enabled: boolean; canManage: boolean; team: { name: string; connectedAt: string; customizes: boolean } | null };
 
 /** The bot of a workspace's connected Slack workspace, with its token opened. Only for the core's Slack code; null
  * when nothing is connected, it was disconnected, or the token does not open (another ZIFFR_SECRETS_KEY). */
-export type SlackBot = { workspaceId: string; teamId: string; appId: string; botUserId: string; token: string };
+export type SlackBot = { workspaceId: string; teamId: string; appId: string; botUserId: string; token: string; scopes: string };
 
 const sealContext = slackBotContext;
 
@@ -141,15 +142,15 @@ export async function disconnectSlack(actor: Actor): Promise<void> {
 
 /** Whether Slack is set up, and the connected Slack workspace's name, for the Connectors page. Never the token. */
 export async function slackConnection(actor: Actor): Promise<SlackConnectionView> {
-  const { data } = await db().from("slack_installations").select("team_name, installed_at").eq("workspace_id", actor.workspaceId).is("revoked_at", null).maybeSingle();
+  const { data } = await db().from("slack_installations").select("team_name, installed_at, scopes").eq("workspace_id", actor.workspaceId).is("revoked_at", null).maybeSingle();
   const canManage = (actor.role === "owner" || actor.role === "admin") && actor.workspaceId !== DEMO_WORKSPACE_ID;
-  return { enabled: (await slackOn()) && actor.workspaceId !== DEMO_WORKSPACE_ID, canManage, team: data ? { name: data.team_name, connectedAt: data.installed_at } : null };
+  return { enabled: (await slackOn()) && actor.workspaceId !== DEMO_WORKSPACE_ID, canManage, team: data ? { name: data.team_name, connectedAt: data.installed_at, customizes: canCustomize(data.scopes) } : null };
 }
 
 /** The workspace's connected bot with its token, for the core's Slack code only. */
 export async function slackBot(workspaceId: string): Promise<SlackBot | null> {
   if (workspaceId === DEMO_WORKSPACE_ID || !(await slackOn())) return null;
-  const { data } = await db().from("slack_installations").select("team_id, app_id, bot_user_id, bot_token").eq("workspace_id", workspaceId).is("revoked_at", null).maybeSingle();
+  const { data } = await db().from("slack_installations").select("team_id, app_id, bot_user_id, bot_token, scopes").eq("workspace_id", workspaceId).is("revoked_at", null).maybeSingle();
   if (!data) return null;
   let token: string | null;
   // A Workspace whose key cannot be opened has no usable bot: nothing is sent, and nothing throws.
@@ -165,7 +166,7 @@ export async function slackBot(workspaceId: string): Promise<SlackBot | null> {
       if (again !== data.bot_token && (isSealed(again) || opened.stale)) await db().from("slack_installations").update({ bot_token: again }).eq("workspace_id", workspaceId).eq("bot_token", data.bot_token);
     }
   }
-  return token ? { workspaceId, teamId: data.team_id, appId: data.app_id, botUserId: data.bot_user_id, token } : null;
+  return token ? { workspaceId, teamId: data.team_id, appId: data.app_id, botUserId: data.bot_user_id, token, scopes: String(data.scopes ?? "") } : null;
 }
 
 /** The connected bot of a Slack workspace, found by Slack's team id (for events, which name the team). */

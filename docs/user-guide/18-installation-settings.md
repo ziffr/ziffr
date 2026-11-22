@@ -59,6 +59,7 @@ Ziffr asks for values and takes the answers by Telegram once it has a bot. One b
 1. In Telegram, open **@BotFather**, send `/newbot`, and give the bot a name and a username ending in `bot`.
 2. Copy the **token** BotFather sends, such as `7000000001:AAF…`. Whoever has it can send and read as the bot, so keep it to yourself.
 3. Paste it under **Bot token** and choose **Save**.
+4. Optional: under the form, **download it** gives a picture for the bot. In @BotFather send `/setuserpic`, choose the bot and send the picture. Telegram has one bot and one picture for every Workspace, so its messages cannot carry a Workspace's own logo.
 
 Ziffr asks Telegram about the token first and saves nothing Telegram refuses. Then it tells Telegram where to send answers, and the page names the bot: "Saved: @acme_ziffr_bot". "Working" next to the title and "Bot @acme_ziffr_bot" below it mean Workspaces can turn Telegram on.
 
@@ -72,7 +73,7 @@ If Telegram could not be told where to send answers, the token is saved anyway a
 
 Ziffr sends requests for values to people's Slack and takes their answers once the Installation has a Slack app. One app serves the whole Installation; each Workspace then connects its own Slack workspace on its Connectors page.
 
-1. Choose **Create the Slack app**. Slack opens with Ziffr's manifest already filled in for this Ziffr's address. Pick the Slack workspace that owns the app and choose **Create**. If the page says Slack only talks to an https address, whoever runs the server sets this Ziffr's https address there first.
+1. Choose **Create the Slack app**. Slack opens with Ziffr's manifest already filled in for this Ziffr's address. Pick the Slack workspace that owns the app and choose **Create**. If the page says Slack only talks to an https address, whoever runs the server sets this Ziffr's https address there first. **Download the Slack app icon**, below the steps, gives the picture to upload on the app's **Basic Information** page, under **Display Information**. The manifest includes the `chat:write.customize` scope, so a Workspace's messages can carry its own name and logo.
 2. On the app's **Basic Information** page in Slack, under **App Credentials**, copy the **Client ID**, the **Client Secret** and the **Signing Secret** into the three fields and choose **Save**. "Working" next to the title means Ziffr has all three.
 3. Slack tried the events address once when the app was made, before Ziffr knew the signing secret. In Slack, open the app's **App Manifest** page and choose **Verify** next to the events address. Reload Ziffr's page: "Slack has checked the events address" means Slack reached this Ziffr and signed its request with the secret you saved. If it does not appear, copy the Signing Secret again.
 

@@ -1,6 +1,6 @@
 # Slack
 
-Ziffr can send real Slack messages and take the answers ([spec 0007](../specs/0007-real-slack.md)). Prompts asking for a number, reminders, questions, tasks and Thread replies arrive as direct messages from the Ziffr app. A reply in the message's thread records the number, answers in the Thread or proposes a Correction. Buttons approve an Unusual Value and stop Prompts and reminders on Slack. Without the settings below, or until a workspace connects Slack, Slack messages stay in the Outbox, as before. The demo never sends anything to Slack.
+Ziffr can send real Slack messages and take the answers ([spec 0007](../specs/0007-real-slack.md)). Prompts asking for a number, reminders, questions, tasks and Thread replies arrive as direct messages from the Ziffr app. A reply in the message's thread records the number, answers in the Thread or proposes a Correction. Buttons approve an Unusual Value and stop Prompts and reminders on Slack. Each message carries the sending Workspace's own name and its Theme logo, where the connection has the `chat:write.customize` scope (below). Without the settings below, or until a workspace connects Slack, Slack messages stay in the Outbox, as before. The demo never sends anything to Slack.
 
 ## On the Installation settings page
 
@@ -9,6 +9,8 @@ The easiest way: an Installation Admin opens **Installation settings** (`/instal
 1. **Create the Slack app** opens Slack's "Create app" with the manifest below already filled in for this Ziffr's address (`ZIFFR_SITE_URL`, which must be https). Pick the Slack workspace that owns the app and create it.
 2. On the app's **Basic Information** page, under **App Credentials**, copy the **Client ID**, **Client Secret** and **Signing Secret** into the page's fields and save. The two secrets are sealed with `ZIFFR_SECRETS_KEY` and never shown again. They work at once, without a restart.
 3. Slack tried the events address when the app was made, before Ziffr knew the signing secret. In Slack, open the app's **App Manifest** page and choose **Verify** next to the events address. Once Slack's signed check arrives, the page says "Slack has checked the events address". If it does not, the signing secret is wrong or Slack cannot reach this Ziffr.
+
+Upload Ziffr's icon too: on the app's **Basic Information** page, under **Display Information**, add [`ziffr-slack-app.png`](../../apps/web/public/brand/ziffr-slack-app.png) (1024 × 1024, within Slack's 512 to 2000 pixels). The Installation settings page offers it as **Download the Slack app icon**; more in [docs/brand](../brand/README.md).
 
 Slack cannot check the client id and secret before a Slack workspace is connected; they are used for the first time when an Owner or Admin of a Workspace chooses **Add to Slack** (step 3 below).
 
@@ -35,6 +37,7 @@ oauth_config:
   scopes:
     bot:
       - chat:write        # send direct messages
+      - chat:write.customize  # send them under the Workspace's own name and logo
       - im:write          # open the direct message with a person
       - im:history        # read replies in those direct messages
       - users:read        # needed with the next one
@@ -121,3 +124,9 @@ Connecting a Slack workspace trusts its admins: someone who can change a Slack u
 ## Trying it locally
 
 Slack must reach Ziffr over the internet, so a local Ziffr needs a tunnel (for example `cloudflared tunnel --url http://localhost:3000`). Use the tunnel's address in the manifest and as `ZIFFR_SITE_URL`. The database tests use a fake Slack Web API (`packages/core/src/test/fake-slack.ts`) and need no Slack at all.
+
+## Messages under the Workspace's name and logo
+
+With the bot scope `chat:write.customize`, Ziffr sends each message with the Workspace's name and its Theme logo as the icon, the way emails, the form link and View Link pages already look. Slack fetches the icon from the Workspace's public logo address (`/api/brand/logo/…`, under `ZIFFR_SITE_URL`), which serves only that picture. Slack draws PNG and JPEG icons, so a Workspace whose logo is an SVG sends its name only.
+
+A Slack connection made before this scope existed has no such permission: its messages keep the Ziffr app's name and icon, and nothing breaks. To change that, add `chat:write.customize` to the Slack app (App Manifest page, under `oauth_config`, `scopes`, `bot`), then an Owner or Admin of the Workspace chooses **Reconnect Slack** on its Connectors page. Connectors says so while the scope is missing.

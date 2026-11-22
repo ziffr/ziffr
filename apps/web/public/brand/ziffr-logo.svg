@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <!-- The Ziffr mark: a Z in the Coral design tokens (board, paper, accent). Source of every app icon (scripts/app-icons.mjs). -->
+  <rect width="512" height="512" rx="112" fill="#1f1917"/>
+  <rect x="152" y="148" width="208" height="48" fill="#f8f4f1"/>
+  <polygon points="282,196 360,196 230,316 152,316" fill="#ef8b7b"/>
+  <rect x="152" y="316" width="208" height="48" fill="#f8f4f1"/>
+</svg>

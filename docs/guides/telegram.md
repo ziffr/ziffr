@@ -10,7 +10,7 @@ Every Ziffr installation uses a bot of its own.
 2. Give it a name people will see, such as "Acme Ziffr", and a username ending in `bot`, such as `acme_ziffr_bot`.
 3. BotFather answers with the bot's **token**, such as `7000000001:AAF…`. Keep it secret: whoever has it can send and read as the bot.
 
-Optional, in BotFather: `/setdescription` and `/setuserpic`, so people recognise the bot when they connect.
+Optional, in BotFather: `/setdescription` and `/setuserpic`, so people recognise the bot when they connect. For the picture, send [`ziffr-telegram-bot.png`](../../apps/web/public/brand/ziffr-telegram-bot.png) (640 × 640, the mark sits inside the circle Telegram crops to); the Installation settings page offers it too, and [docs/brand](../brand/README.md) lists all of Ziffr's brand files. Telegram has one bot and one picture for every Workspace, so messages cannot carry a Workspace's own logo there.
 
 ## 2. Give Ziffr the token
 

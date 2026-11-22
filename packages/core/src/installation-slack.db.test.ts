@@ -212,7 +212,7 @@ describe("the manifest link", () => {
     expect(manifest.oauth_config.redirect_urls).toEqual(["https://ziffr.example.test/api/slack/oauth"]);
     expect(manifest.settings.event_subscriptions.request_url).toBe("https://ziffr.example.test/api/slack/events");
     expect(manifest.settings.interactivity.request_url).toBe("https://ziffr.example.test/api/slack/interactions");
-    expect(manifest.oauth_config.scopes.bot).toEqual(["chat:write", "im:write", "im:history", "users:read", "users:read.email"]);
+    expect(manifest.oauth_config.scopes.bot).toEqual(["chat:write", "chat:write.customize", "im:write", "im:history", "users:read", "users:read.email"]);
     expect(manifest.settings.token_rotation_enabled).toBe(false);
   });
 
