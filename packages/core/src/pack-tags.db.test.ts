@@ -83,6 +83,10 @@ describe("Tags stored with an entry", () => {
     // The database holds the limit too, whatever the core let through.
     const { error } = await db().from("catalog_metrics").insert({ workspace_id: w.id, category: "x", name: "x", description: "", unit: "", unit_position: "after", format: "number", decimals: 0, period: "month", submission_rule: "overwrite", polarity: "higher", sources: [], aggregation: "sum", tags: ["a", "b", "c", "d", "e", "f"] });
     expect(error?.code).toBe("23514");
+    const long = await db().from("catalog_metrics").insert({ workspace_id: w.id, category: "x", name: "y", description: "", unit: "", unit_position: "after", format: "number", decimals: 0, period: "month", submission_rule: "overwrite", polarity: "higher", sources: [], aggregation: "sum", tags: ["x".repeat(33)] });
+    expect(long.error?.code).toBe("23514");
+    // The wrapped steps are not callable on their own.
+    expect((await db().rpc("install_pack_untagged", { p_workspace: w.id, p_by: "x", p_install: {}, p_catalog: [], p_templates: [], p_designs: [], p_themes: [] })).error).toBeTruthy();
   });
 });
 
@@ -118,6 +122,8 @@ describe("Set up from this Pack", () => {
     const mrr = made.metrics.find((m) => m.name === "MRR")!;
     expect(await tagsLeftOffEntry(actor, mrr.id)).toEqual(["monthly review"]);
     expect(await tagsLeftOffEntry(actor, fillers[0].id)).toEqual([]);
+    const nia = await w.person("member");
+    expect(await tagsLeftOffEntry(w.actor(nia, "member"), mrr.id)).toEqual([]);
     expect(made.tagsLeftOut).toEqual([{ metric: "MRR", tags: ["monthly review"] }, { metric: "Customers", tags: ["growth"] }, { metric: "Revenue per account", tags: ["unit economics"] }]);
     const tags = await tagsOf(w, actor, made.metrics.map((m) => m.id));
     expect(made.metrics.map((m) => tags[m.id])).toEqual([["finance"], ["finance"], []]);

@@ -2,7 +2,9 @@
 -- to 5 Tags, which a Metric made from the entry gets. The words are the Pack's own public text, not a Workspace's Metric
 -- names, so they are stored as they are; the core has normalised and checked them (the same rules as a Tag typed in the
 -- app) before a Pack is installed. Entries every Workspace has carry none (null).
-alter table catalog_metrics add column tags text[] check (tags is null or (cardinality(tags) between 1 and 5));
+create function catalog_tags_ok(t text[]) returns boolean language sql immutable as
+$$ select t is null or (cardinality(t) between 1 and 5 and not exists (select 1 from unnest(t) w where w is null or char_length(w) not between 1 and 32)) $$;
+alter table catalog_metrics add column tags text[] check (catalog_tags_ok(tags));
 
 -- Installing and updating write the column in the same step as the rest of the entry. The steps of 20261225310000 are kept as
 -- they are, renamed, and the wrappers below run them, then set the Tags of the entries that bring some, inside the same
@@ -47,3 +49,6 @@ revoke all on function public.install_pack_untagged(uuid, text, jsonb, jsonb, js
 revoke all on function public.update_pack_untagged(uuid, bigint, text, jsonb, jsonb) from public, anon, authenticated;
 grant execute on function public.install_pack(uuid, text, jsonb, jsonb, jsonb, jsonb, jsonb) to service_role;
 grant execute on function public.update_pack(uuid, bigint, text, jsonb, jsonb) to service_role;
+-- Only the wrappers above run the steps they wrap: nothing else may skip the Tags.
+revoke all on function public.install_pack_untagged(uuid, text, jsonb, jsonb, jsonb, jsonb, jsonb) from service_role;
+revoke all on function public.update_pack_untagged(uuid, bigint, text, jsonb, jsonb) from service_role;

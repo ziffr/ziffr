@@ -39,6 +39,8 @@ export async function tagMetricFromEntry(actor: Actor, metricId: number, entryTa
  * computed here from the entry and the Metric as the actor sees them, so no word comes from an address. Only for a Metric the
  * actor sees; the entry must be one every Workspace has or this Workspace's own. */
 export async function tagsLeftOffEntry(actor: Actor, metricId: number): Promise<string[]> {
+  // The Metric must be one the actor sees, whatever the caller checked.
+  if (!(await metricTagNames(actor, [metricId])).has(metricId)) return [];
   const { data: m } = await db().from("metrics").select("from_catalog_id").eq("id", metricId).eq("workspace_id", actor.workspaceId).maybeSingle();
   if (!m?.from_catalog_id) return [];
   const { data: e } = await db().from("catalog_metrics").select("tags, workspace_id").eq("id", m.from_catalog_id).maybeSingle();
