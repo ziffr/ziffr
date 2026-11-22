@@ -17,13 +17,13 @@ export default async function ImportProgress({ params }: { params: Promise<{ id:
   if (!user) redirect("/login");
   const job = await importStatus(await personFor(user), (await params).id);
   if (!job) notFound();
-  const running = job.status === "checking" || job.status === "importing";
+  const running = job.status !== "done" && job.status !== "failed";
   const shown = COUNTS.filter(([k]) => Number((job.counts as Record<string, number>)[k] ?? 0) > 0);
   return (
     <AuthShell>
       {running && <Refresh />}
       <AuthHeading title={job.status === "done" ? "Your Workspace is ready" : job.status === "failed" ? "The import did not work" : "Importing a Workspace"}>
-        {job.status === "failed" ? "Nothing was kept: no Workspace and no key were left behind." : job.status === "done" ? "Everything the file holds is in a new Workspace, sealed under its own key." : `${job.status === "checking" ? "Checking the whole file first" : "Writing the Workspace"}. You can leave this page open or come back to it.`}
+        {job.status === "failed" ? "Nothing was kept: no Workspace and no key were left behind." : job.status === "done" ? "Everything the file holds is in a new Workspace, sealed under its own key." : `${job.status === "uploading" ? "Receiving the file" : job.status === "checking" ? "Checking the whole file first" : "Writing the Workspace"}. You can leave this page open or come back to it.`}
       </AuthHeading>
       {job.workspaceName && <p className="mb-3 text-sm">Workspace: <strong>{job.workspaceName}</strong></p>}
       {running && (

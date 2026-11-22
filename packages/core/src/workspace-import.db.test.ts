@@ -15,7 +15,7 @@ import { db } from "./db";
 import { openRows } from "./sealed-columns";
 import { workspaceCipher } from "./workspace-keys";
 import { writeWorkspaceExportAll } from "./workspace-export-file";
-import { assertMayImport, importLimits, importStatus, ImportProblem, Labels, startWorkspaceImport, STALE_SECONDS } from "./workspace-import";
+import { claimUpload, importLimits, importStatus, ImportProblem, Labels, startWorkspaceImport, STALE_SECONDS } from "./workspace-import";
 import { acceptInvitation, inviteEveryone, invitationFor, openInvitations, setHeldRole } from "./invitations";
 import { workspace } from "./test/db-fixtures";
 
@@ -65,7 +65,7 @@ const records = (importerEmail: string): WorkspaceExportRecord[] => [
 
 /** Writes the file to a temporary path, as the upload route does. */
 async function fileOf(rs: WorkspaceExportRecord[]) {
-  const path = join(tmpdir(), `ziffr-import-test-${randomUUID()}`);
+  const path = join(tmpdir(), `ziffr-import-${randomUUID()}`);
   await writeFile(path, await writeWorkspaceExportAll(rs));
   return path;
 }
@@ -202,7 +202,7 @@ describe("a file that is refused", () => {
     const { person, email } = await importer();
     const before = (await db().from("workspaces").select("id", { count: "exact", head: true })).count;
     const lines = (await writeWorkspaceExportAll(records(email), { gzip: false })).toString().split("\n");
-    const badPath = join(tmpdir(), `ziffr-import-test-${randomUUID()}`);
+    const badPath = join(tmpdir(), `ziffr-import-${randomUUID()}`);
     await writeFile(badPath, lines.map((l) => (l.includes('"value":14,') ? l.replace('"metric":"m1"', '"metric":"nobody"') : l)).join("\n"));
     const badJob = await startWorkspaceImport(person, badPath);
     await badJob.done;
@@ -214,12 +214,12 @@ describe("a file that is refused", () => {
     // A hostile file with a field that names a secret, and one that is not a file at all.
     const hostile = (await writeWorkspaceExportAll(records(email), { gzip: false })).toString().split("\n");
     hostile[1] = hostile[1].replace('"name"', '"apiKey":"s","name"');
-    const path = join(tmpdir(), `ziffr-import-test-${randomUUID()}`);
+    const path = join(tmpdir(), `ziffr-import-${randomUUID()}`);
     await writeFile(path, hostile.join("\n"));
     const { id, done } = await startWorkspaceImport(person, path);
     await done;
     expect((await importStatus(person, id))!.problem).toMatch(/secret, a key or a link/);
-    const junk = join(tmpdir(), `ziffr-import-test-${randomUUID()}`);
+    const junk = join(tmpdir(), `ziffr-import-${randomUUID()}`);
     await writeFile(junk, "this is not a Workspace Export");
     const j = await startWorkspaceImport(person, junk);
     await j.done;
@@ -248,13 +248,18 @@ describe("a file that is refused", () => {
     await expect(writeFile(path, "", { flag: "wx" })).resolves.toBeUndefined();
   });
 
-  it("is refused before any file is taken when the person may not import now", async () => {
+  it("is refused before any file is taken, and a claimed place holds the limits while the upload comes in", async () => {
     const { person } = await importer();
-    await expect(assertMayImport(person)).resolves.toBeUndefined();
-    await db().from("workspace_imports").insert({ created_by: person, status: "importing" });
-    await expect(assertMayImport(person)).rejects.toThrow(/importing a Workspace already/);
+    const job = await claimUpload(person);
+    expect((await db().from("workspace_imports").select("status").eq("id", job).single()).data?.status).toBe("uploading");
+    // A second upload of the same person is refused at once, and so is a third person when two places are taken.
+    await expect(claimUpload(person)).rejects.toThrow(/importing a Workspace already/);
+    const b = await importer();
+    const c = await importer();
+    await claimUpload(b.person);
+    await expect(claimUpload(c.person)).rejects.toThrow(/as many Workspaces as it does at once/);
     process.env.ZIFFR_CLOUD_KEY = "k".repeat(40);
-    await expect(assertMayImport(person)).rejects.toThrow(/hosted Ziffr/);
+    await expect(claimUpload(c.person)).rejects.toThrow(/hosted Ziffr/);
   });
 
   it("is one import at a time per person", async () => {

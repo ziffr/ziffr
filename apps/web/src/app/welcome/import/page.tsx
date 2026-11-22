@@ -14,7 +14,7 @@ export default async function ImportPage() {
   if (!importOffered()) redirect("/welcome");
   const running = await latestImport(await personFor(user));
   // One import at a time: one that runs is followed, not started again.
-  if (running && (running.status === "checking" || running.status === "importing")) redirect(`/welcome/import/${running.id}`);
+  if (running && (running.status !== "done" && running.status !== "failed")) redirect(`/welcome/import/${running.id}`);
   return (
     <AuthShell>
       <AuthHeading title="From a Workspace Export">Choose the file you downloaded from another Ziffr. It becomes a new Workspace, and you are its Owner. The file is as private as the Workspace was: Ziffr reads it once and does not keep it.</AuthHeading>

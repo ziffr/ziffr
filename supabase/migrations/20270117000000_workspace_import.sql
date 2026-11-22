@@ -13,7 +13,7 @@ create table workspace_imports (
   -- Set null, not cascade: the job's row stays to say why when the half-made Workspace was deleted.
   workspace_id uuid references workspaces(id) on delete set null,
   created_by text not null references profiles(id) on delete cascade,
-  status text not null check (status in ('checking', 'importing', 'done', 'failed')),
+  status text not null check (status in ('uploading', 'checking', 'importing', 'done', 'failed')),
   step text not null default '' check (char_length(step) <= 80),
   -- The temporary file of the upload, removed when the job ends or is undone (the core checks its form before removing).
   temp_path text check (char_length(temp_path) <= 300),
@@ -29,7 +29,7 @@ create table workspace_imports (
 );
 create index on workspace_imports (created_by, started_at desc);
 -- One import at a time per person.
-create unique index workspace_imports_one_running on workspace_imports (created_by) where status in ('checking', 'importing');
+create unique index workspace_imports_one_running on workspace_imports (created_by) where status in ('uploading', 'checking', 'importing');
 alter table workspace_imports enable row level security;
 revoke all on table workspace_imports from public, anon, authenticated;
 
@@ -69,17 +69,17 @@ end;
 $$;
 revoke all on function destroy_workspace_keys(uuid) from public, anon, authenticated;
 
--- Starts an import in one locked step: this person has none running and the Installation runs fewer than p_max, so two
+-- Claims a place for an import in one locked step (p_status 'uploading' before the file is written): this person has none running and the Installation runs fewer than p_max, so two
 -- people starting at once cannot both pass. Answers the job's id, or null when refused ('mine' or 'busy' say why).
-create function start_workspace_import(p_person text, p_max int, p_temp text, out job uuid, out refused text) language plpgsql security definer set search_path = public as $$
+create function start_workspace_import(p_person text, p_max int, p_status text, out job uuid, out refused text) language plpgsql security definer set search_path = public as $$
 begin
   perform pg_advisory_xact_lock(hashtext('workspace_imports'));
-  if exists (select 1 from workspace_imports where created_by = p_person and status in ('checking', 'importing')) then
+  if exists (select 1 from workspace_imports where created_by = p_person and status in ('uploading', 'checking', 'importing')) then
     refused := 'mine';
-  elsif (select count(*) from workspace_imports where status in ('checking', 'importing')) >= p_max then
+  elsif (select count(*) from workspace_imports where status in ('uploading', 'checking', 'importing')) >= p_max then
     refused := 'busy';
   else
-    insert into workspace_imports (created_by, status, step, temp_path) values (p_person, 'checking', 'Checking the file', p_temp) returning id into job;
+    insert into workspace_imports (created_by, status, step) values (p_person, p_status, case p_status when 'uploading' then 'Receiving the file' else 'Checking the file' end) returning id into job;
   end if;
 end;
 $$;

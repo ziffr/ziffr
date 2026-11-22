@@ -8,12 +8,11 @@
 // and the session cookie is SameSite=Lax. Nothing of the file's content is looked at here.
 import { randomUUID } from "node:crypto";
 import { createWriteStream } from "node:fs";
-import { readdir, rm, stat } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { Readable, Transform } from "node:stream";
 import { pipeline } from "node:stream/promises";
-import { assertMayImport, importLimits, importOffered, startWorkspaceImport } from "@ziffr/core/workspace-import";
+import { beginImport, claimUpload, dropUpload, importLimits, importOffered, sweepUploads } from "@ziffr/core/workspace-import";
 import { forPeople } from "@/lib/action-result";
 import { isDemo, personFor, sessionUser } from "@/lib/auth";
 
@@ -22,15 +21,6 @@ export const runtime = "nodejs";
 
 /** Uploads that stall are cut after this long. */
 const UPLOAD_MS = 15 * 60_000;
-
-/** Removes uploads an earlier process left behind (it stopped before its job ended): none is older than an hour. */
-async function sweep() {
-  for (const name of await readdir(tmpdir()).catch(() => [] as string[])) {
-    if (!/^ziffr-import-[0-9a-f-]{36}$/.test(name)) continue;
-    const old = await stat(join(tmpdir(), name)).then((s) => Date.now() - s.mtimeMs > 3_600_000, () => false);
-    if (old) await rm(join(tmpdir(), name), { force: true });
-  }
-}
 
 const say = (error: string, status: number) => Response.json({ error }, { status, headers: { "cache-control": "no-store" } });
 
@@ -45,12 +35,14 @@ export async function POST(req: Request) {
   const declared = Number(req.headers.get("content-length"));
   if (Number.isFinite(declared) && declared > fileBytes) return say(`The file is larger than ${fileBytes.toLocaleString("en")} bytes, which is the most this Installation reads.`, 413);
   // Refused before a byte is written: a person who may not import, or one who has an import running, fills no disk.
+  // A place is claimed first: it counts against the person's and the Installation's limits at once.
+  let job: string;
   try {
-    await assertMayImport(person);
+    job = await claimUpload(person);
   } catch (e) {
     return say(forPeople(e) ?? "The import could not be started.", 400);
   }
-  await sweep();
+  await sweepUploads();
   const path = join(tmpdir(), `ziffr-import-${randomUUID()}`);
   let size = 0;
   const count = new Transform({
@@ -62,11 +54,11 @@ export async function POST(req: Request) {
   try {
     await pipeline(Readable.fromWeb(req.body as never), count, createWriteStream(path, { mode: 0o600 }), { signal: AbortSignal.timeout(UPLOAD_MS) });
   } catch {
-    await rm(path, { force: true });
+    await dropUpload(person, job, path);
     return size > fileBytes ? say(`The file is larger than ${fileBytes.toLocaleString("en")} bytes, which is the most this Installation reads.`, 413) : say("The upload was cut off. Try again.", 400);
   }
   try {
-    const { id } = await startWorkspaceImport(person, path);
+    const { id } = await beginImport(person, job, path);
     return Response.json({ id }, { headers: { "cache-control": "no-store" } });
   } catch (e) {
     return say(forPeople(e) ?? "The import could not be started.", 400);
