@@ -3,7 +3,8 @@
 /** Runs once when the server starts. Only in Node: the edge build must not take the core's mail code along. */
 export async function register() {
   if (process.env.NEXT_RUNTIME === "nodejs") {
-    const { announceSetupCode } = await import("./instrumentation-node");
+    const { announceSetupCode, refreshTrialLimits } = await import("./instrumentation-node");
     await announceSetupCode();
+    await refreshTrialLimits();
   }
 }

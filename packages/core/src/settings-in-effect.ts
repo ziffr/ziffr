@@ -90,7 +90,7 @@ function putSetting(out: Settings, env: Settings, name: string, stored: string |
 
 /** The environment with the stored values put in for every Installation Setting it leaves unset. */
 function merge(env: Settings, values: Map<string, string>, byCloud: Set<string>): Settings {
-  last = { values, at: Date.now() };
+  last = { values, byCloud, at: Date.now() };
   const out: Settings = { ...env };
   for (const { name } of INSTALLATION_SETTINGS) putSetting(out, env, name, values.get(name), byCloud.has(name));
   return out;
@@ -103,14 +103,14 @@ export async function settingsInEffectStrict(env: Settings = process.env): Promi
   return merge(env, values, byCloud);
 }
 
-let last: { values: Map<string, string>; at: number } | null = null;
+let last: { values: Map<string, string>; byCloud: Set<string>; at: number } | null = null;
 
 /** The settings in effect as last read, for code that cannot wait for the database (the words of an error made deep
  * in a call): the environment always, with what the page saved as of the last read a few seconds ago at most. */
 export function settingsInEffectNow(env: Settings = process.env): Settings {
   const out: Settings = { ...env };
   const fresh = last && Date.now() - last.at < 60_000 ? last.values : null;
-  for (const { name } of INSTALLATION_SETTINGS) putSetting(out, env, name, fresh?.get(name));
+  for (const { name } of INSTALLATION_SETTINGS) putSetting(out, env, name, fresh?.get(name), last?.byCloud.has(name) ?? false);
   return out;
 }
 

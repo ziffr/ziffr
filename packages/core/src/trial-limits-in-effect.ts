@@ -16,14 +16,17 @@ export async function trialLimitsInEffect(): Promise<TrialLimitNumbers> {
 /** The Trial Limits as last read (a few seconds old at most), for the words of an error made deep in a call. */
 export const trialLimitsNow = (): TrialLimitNumbers => trialLimitsFrom(settingsInEffectNow());
 
-/** What the server's environment sets of the limits the database enforces, for the functions that write the row: the
- * database cannot read the environment. Values are passed as text and checked against their range there. */
+/** What the server's environment sets of the limits the database enforces, and their _DEFAULT variants, for the functions
+ * that write the row: the database cannot read the environment. Values are passed as text; the database applies the
+ * same rule as settings-in-effect.ts (environment, saved setting, _DEFAULT, default) and range-checks the one it uses. */
 export function trialLimitEnvironment(env: Record<string, string | undefined> = process.env): Record<string, string> {
   const out: Record<string, string> = {};
   for (const key of Object.keys(TRIAL_LIMIT_COLUMNS)) {
     const name = trialLimitOf(key as keyof typeof TRIAL_LIMIT_COLUMNS).name;
     const value = env[name]?.trim();
     if (value) out[name] = value.slice(0, 12);
+    const fallback = env[`${name}_DEFAULT`]?.trim();
+    if (fallback) out[`${name}_DEFAULT`] = fallback.slice(0, 12);
   }
   return out;
 }

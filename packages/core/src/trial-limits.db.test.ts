@@ -20,7 +20,7 @@ import { claimTrialSend } from "./trials";
 
 const caller = { cloud: true } as const;
 const cleanups: (() => Promise<void>)[] = [];
-const ENV = TRIAL_LIMITS.map((l) => l.name);
+const ENV = TRIAL_LIMITS.flatMap((l) => [l.name, `${l.name}_DEFAULT`]);
 const savedEnv: Record<string, string | undefined> = {};
 let savedKey: string | undefined;
 beforeAll(resetTrialLimits);
@@ -183,7 +183,23 @@ describe("Ziffr Cloud sets the Trial Limits", () => {
     process.env.ZIFFR_TRIAL_LIMIT_METRICS = "12";
     process.env.ZIFFR_TRIAL_LIMIT_KEYS = "999";
     await syncTrialLimits();
-    expect((await db().from("trial_limits").select("metrics, keys").single()).data).toEqual({ metrics: 12, keys: 3 });
+    // One rule for the database and the code: an environment value outside its range is the default, not the saved number.
+    expect((await db().from("trial_limits").select("metrics, keys").single()).data).toEqual({ metrics: 12, keys: 2 });
+    expect((await cloudTrialLimits(caller)).limits).toMatchObject({ metrics: 12, keys: 2 });
+    // The _DEFAULT of the environment counts when nothing else is set; the refresh never touches what Ziffr Cloud set.
+    delete process.env.ZIFFR_TRIAL_LIMIT_METRICS;
+    delete process.env.ZIFFR_TRIAL_LIMIT_KEYS;
+    await setCloudTrialLimits(caller, { feeds: null, assistants: null });
+    process.env.ZIFFR_TRIAL_LIMIT_FEEDS_DEFAULT = "6";
+    process.env.ZIFFR_TRIAL_LIMIT_ASSISTANTS_DEFAULT = "99";
+    const before = (await db().from("installation_settings").select("name, value, set_by").like("name", "ZIFFR_TRIAL_%").order("name")).data;
+    await syncTrialLimits();
+    forgetStoredSettings();
+    expect((await db().from("trial_limits").select("metrics, keys, feeds, assistants").single()).data).toEqual({ metrics: 33, keys: 3, feeds: 6, assistants: 1 });
+    expect((await cloudTrialLimits(caller)).limits).toMatchObject({ metrics: 33, keys: 3, feeds: 6, assistants: 1 });
+    expect((await db().from("installation_settings").select("name, value, set_by").like("name", "ZIFFR_TRIAL_%").order("name")).data).toEqual(before);
+    delete process.env.ZIFFR_TRIAL_LIMIT_FEEDS_DEFAULT;
+    delete process.env.ZIFFR_TRIAL_LIMIT_ASSISTANTS_DEFAULT;
   });
 
   it("takes only the Trial Limit names, as numbers or null", async () => {

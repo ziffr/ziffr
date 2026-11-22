@@ -93,15 +93,22 @@ create trigger view_links_in_trial before insert on view_links
 create or replace function trial_limit_names() returns text
 language sql immutable as $$ select '^ZIFFR_TRIAL_(DAYS|GRACE_DAYS|MAX|LIMIT_(METRICS|MESSAGES_PER_DAY|KEYS|FEEDS|ASSISTANTS|WEBHOOKS|WEBHOOK_SENDS_PER_DAY|VIEW_LINKS))$' $$;
 
--- One number of the row: the server's environment (p_env, which the core passes), else the saved setting, else the
--- default; a value outside its range counts for nothing, as in trial-limits.ts.
+-- One number of the row, by the one rule of settings-in-effect.ts and trial-limits.ts: the server's environment (p_env,
+-- which the core passes: its names and their _DEFAULT variants), else the saved setting, else the _DEFAULT, else the
+-- default; whichever of them is used and is outside the range counts for nothing: the default applies.
 create or replace function trial_limit_pick(p_name text, p_min int, p_max int, p_default int, p_env jsonb) returns int
-language sql stable security definer set search_path = public as $$
-  select coalesce(
-    (select n::int from (select case when p_env ->> p_name ~ '^[0-9]{1,9}$' then (p_env ->> p_name)::bigint end as n) x where n between p_min and p_max),
-    (select n::int from (select case when value ~ '^[0-9]{1,9}$' then value::bigint end as n from installation_settings where name = p_name) y where n between p_min and p_max),
-    p_default)
-$$;
+language plpgsql stable security definer set search_path = public as $$
+declare raw text; n bigint;
+begin
+  raw := nullif(trim(p_env ->> p_name), '');
+  if raw is null then select trim(value) into raw from installation_settings where name = p_name; end if;
+  if raw is null then raw := nullif(trim(p_env ->> (p_name || '_DEFAULT')), ''); end if;
+  if raw ~ '^[0-9]{1,9}$' then
+    n := raw::bigint;
+    if n between p_min and p_max then return n::int; end if;
+  end if;
+  return p_default;
+end $$;
 
 -- Writes the row the triggers read from the settings and the environment. Called only by the functions below (a save by
 -- Ziffr Cloud or by the page, in the same transaction as the setting) and by the hourly trial job for a changed
