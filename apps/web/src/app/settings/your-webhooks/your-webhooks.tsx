@@ -27,7 +27,7 @@ const VALUE_EVENTS = ["value.recorded", "value.unusual"];
 type Pick = { id: number; name: string };
 
 /** The person's own Webhooks and a form to add one. */
-export function YourWebhooks({ webhooks, logs, metrics, limits }: { webhooks: PersonalWebhookInfo[]; logs: Record<string, WebhookLogEntry[]>; metrics: Pick[]; limits: { most: number; workspaceMost: number; perDay: number; metrics: number; days: number; trial: boolean } }) {
+export function YourWebhooks({ webhooks, logs, metrics, seenIds, limits }: { webhooks: PersonalWebhookInfo[]; logs: Record<string, WebhookLogEntry[]>; metrics: Pick[]; seenIds: number[]; limits: { most: number; workspaceMost: number; perDay: number; metrics: number; days: number; trial: boolean } }) {
   const [pending, start] = useTransition();
   const [secret, setSecret] = useState<{ name: string; value: string } | null>(null);
   const run: Run = (f, ok) => start(async () => { try { await f(); if (ok) toast.success(ok); } catch (err) { toast.error("Not done", { description: shown(err) }); } });
@@ -51,7 +51,7 @@ export function YourWebhooks({ webhooks, logs, metrics, limits }: { webhooks: Pe
       )}
       {webhooks.length === 0 && <p className="text-sm text-muted-foreground">No Webhooks yet.</p>}
       <ul className="space-y-3">
-        {webhooks.map((w) => <Card key={w.id} hook={w} log={logs[w.id] ?? []} metrics={metrics} max={limits.metrics} pending={pending} run={run} onSecret={(value) => setSecret({ name: w.name, value })} />)}
+        {webhooks.map((w) => <Card key={w.id} hook={w} log={logs[w.id] ?? []} metrics={metrics} seenIds={seenIds} max={limits.metrics} pending={pending} run={run} onSecret={(value) => setSecret({ name: w.name, value })} />)}
       </ul>
       {webhooks.length < limits.most && <AddForm metrics={metrics} max={limits.metrics} pending={pending} run={run} onSecret={setSecret} />}
     </section>
@@ -95,13 +95,13 @@ function AddForm({ metrics, max, pending, run, onSecret }: { metrics: Pick[]; ma
   );
 }
 
-function Card({ hook: w, log, metrics, max, pending, run, onSecret }: { hook: PersonalWebhookInfo; log: WebhookLogEntry[]; metrics: Pick[]; max: number; pending: boolean; run: Run; onSecret: (value: string) => void }) {
+function Card({ hook: w, log, metrics, seenIds, max, pending, run, onSecret }: { hook: PersonalWebhookInfo; log: WebhookLogEntry[]; metrics: Pick[]; seenIds: number[]; max: number; pending: boolean; run: Run; onSecret: (value: string) => void }) {
   const [editing, setEditing] = useState(false);
   const [name, setName] = useState(w.name);
   const [url, setUrl] = useState("");
   const [events, setEvents] = useState<string[]>(w.events);
   const [picked, setPicked] = useState<number[]>(w.metricIds);
-  const seen = new Set(metrics.map((m) => m.id));
+  const seen = new Set(seenIds);
   // A picked Metric that is no longer on the person's list is counted, never named.
   const hidden = w.metricIds.filter((id) => !seen.has(id)).length;
   const reset = () => { setEditing(false); setName(w.name); setUrl(""); setEvents(w.events); setPicked(w.metricIds); };
