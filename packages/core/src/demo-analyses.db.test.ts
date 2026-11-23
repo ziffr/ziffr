@@ -3,7 +3,7 @@
 // picker gives a Takeaway (an answer, never "not enough"), the four tiles (Forecast, Correlation, Drivers, Correlation matrix) show results, the built-in
 // Recipes and the marks have what they draw, and the Heads-ups say a few things, not a flood. What each analysis needs of the data is in
 // docs/reviews/2026-11-demo-data-for-analyses.md; the canvas chosen for each entry is in CASES below.
-import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
+import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import { seriesFor, visibleMetricIds } from "./access";
 import { listPicker, runPicker } from "./analysis-picker";
 import { BUILT_IN_RECIPES, RECIPES } from "./built-in-recipes";
@@ -36,6 +36,12 @@ beforeAll(async () => {
   for (const m of metrics) ids[m.slug] = m.id;
 }, 120_000);
 afterEach(() => { vi.useRealTimers(); });
+// Other files read the demo as supabase/seed.sql leaves it (the pinned dashboards, the finished period of the close): this file seeds it again, so it leaves it so.
+afterAll(async () => {
+  for (const fn of ["demo_reset", "prototype_seed_history", "prototype_seed_pins", "prototype_seed_close", "prototype_seed_fill_in"]) {
+    expect((await db().rpc(fn, fn === "demo_reset" ? { min_gap: "0 seconds" } : {})).error, fn).toBeNull();
+  }
+}, 120_000);
 
 // Each picker entry with the canvas chosen to suit it: the Metrics on the canvas, in the Slots, the settings, and what it shows (`says`, a part of the sentence).
 const CASES: { entry: string; canvas: string[]; slots: Record<string, string[]>; settings?: Record<string, number | string>; says?: RegExp; why: string }[] = [
