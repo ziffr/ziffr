@@ -280,7 +280,7 @@ The side panel that holds everything a user can drag onto a canvas: the metrics 
 _Avoid_: Library, palette, sidebar
 
 **Preview**:
-A Widget Template, Dashboard Template, saved widget or metric drawn small before it is placed, without its menus. A template's Preview draws Sample Data; a saved widget's or a metric's draws the viewer's own data.
+A Widget Template, Dashboard Template, saved widget or metric drawn small before it is placed, without its menus. A template's Preview draws Sample Data; a saved widget's draws the viewer's own data. A metric's Preview is a small card from the viewer's own data: what it counts (period, unit, description), its latest value and a sparkline.
 _Avoid_: Thumbnail, mock-up
 
 **Sample Data**:

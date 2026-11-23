@@ -10,14 +10,14 @@ export default async function AnalyzePage({ searchParams }: { searchParams: Prom
   const actor = await currentActor();
   const viewer = actor.personId;
   const sp = await searchParams;
-  // "Analyze" from a metric page drops that metric onto the canvas (the core checks the person sees it).
-  if (sp.add && /^\d{1,12}$/.test(sp.add)) await canvasAdd(actor, [Number(sp.add)]).catch(() => {});
-  const [canvas, dashboards, demo] = await Promise.all([
-    canvasMetricIds(actor),
-    visibleDashboards(viewer),
-    isDemo(),
-  ]);
-  // The series of what is on the canvas; analyses of other Metrics fetch theirs.
+  const adding = sp.add && /^\d{1,12}$/.test(sp.add) ? Number(sp.add) : null;
+  const demo = await isDemo();
+  // "Analyze" from a metric page drops that metric onto the canvas (the core checks the person sees it). The demo
+  // saves nothing, so there it is only drawn on the canvas this time (#827).
+  if (adding !== null && !demo) await canvasAdd(actor, [adding]).catch(() => {});
+  const [kept, dashboards] = await Promise.all([canvasMetricIds(actor), visibleDashboards(viewer)]);
+  const canvas = adding !== null && demo && !kept.includes(adding) ? [...kept, adding] : kept;
+  // The series of what is on the canvas, of Metrics the person sees; analyses of other Metrics fetch theirs.
   const data = await getCanvasData(viewer, canvas);
   const onCanvas = canvas.filter((id) => data.metrics.some((m) => m.id === id));
   return (
@@ -28,7 +28,7 @@ export default async function AnalyzePage({ searchParams }: { searchParams: Prom
           <Link href="/analyze/playground" className="text-sm text-muted-foreground underline-offset-2 hover:text-foreground hover:underline">Playground</Link>
         </div>
       </PageHeader>
-      <AnalyzeScreen data={data} demo={demo}onCanvas={onCanvas} targets={dashboards.filter((d) => d.role !== "viewer").map((d) => ({ id: d.id, name: d.name }))} />
+      <AnalyzeScreen data={data} demo={demo} onCanvas={onCanvas} targets={dashboards.filter((d) => d.role !== "viewer").map((d) => ({ id: d.id, name: d.name }))} />
     </>
   );
 }
