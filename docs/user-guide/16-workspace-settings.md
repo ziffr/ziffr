@@ -236,6 +236,8 @@ In the demo nobody changes these settings: the page shows them without the contr
 
 **Workspace → Members and Groups** shows everyone in the Workspace, their roles, their Groups, their Away dates and the Contacts. Owners, Admins and Members see it; only Owners and Admins see the buttons that change people and Groups. A Guest sees only what is shared with them, so the page shows them none of this.
 
+Owners and Admins also see a **Works in** column: the **Business Function** each person chose under **Your profile → In this Workspace** (Sales, Finance and so on, or a dash when they gave none). Ziffr shows it to no one else: Members and Guests have no such column, and it is in no Export, View Link, Snapshot or answer to a program. See [In this Workspace](17-your-settings.md#in-this-workspace).
+
 ### Members and their roles
 
 The list shows each person with their role. Owners and Admins see a menu next to each person instead:

@@ -8,6 +8,7 @@ import { APPEARANCE_COOKIE, parseAppearance } from "@ziffr/core/appearance";
 import { currentActor } from "@/lib/viewer";
 import { attempt } from "@/lib/action-result";
 import * as profile from "@ziffr/core/profile";
+import * as businessFunction from "@ziffr/core/business-function";
 import * as optOut from "@ziffr/core/email-opt-out";
 import * as usageDigest from "@ziffr/core/usage-digest";
 import * as workspace from "@ziffr/core/workspace-settings";
@@ -20,6 +21,14 @@ export async function updateMyProfile(input: { name?: string; color?: string }) 
   return attempt(async () => {
     await profile.updateMyProfile(await currentActor(), { name: input?.name, color: input?.color });
     revalidatePath("/", "layout");
+  });
+}
+
+/** Sets or clears your own Business Function in this Workspace (the core checks the value against the list). */
+export async function setMyBusinessFunction(value: string | null) {
+  return attempt(async () => {
+    await businessFunction.setMyBusinessFunction(await currentActor(), value);
+    revalidatePath("/settings/profile");
   });
 }
 
