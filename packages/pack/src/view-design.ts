@@ -405,7 +405,10 @@ function recipeUse(d: ViewDesign, lines: Map<string, number>, at: (path: string,
 /** A design as the text Ziffr writes it: two-space JSON, fields in the order the format lists them, so a design
  * exported, brought back and exported again is the same file. */
 export function writeViewDesign(d: ViewDesign): string {
-  return `${JSON.stringify({ $schema: VIEW_SCHEMA_URL, ...(ordered(d, VIEW_DESIGN_SCHEMA) as object) }, null, 2)}\n`;
+  // Always Ziffr's own address: a `$schema` that came in with the design (a Pack's, say) is never written back out.
+  const { $schema: _foreign, ...own } = ordered(d, VIEW_DESIGN_SCHEMA) as Record<string, unknown>;
+  void _foreign;
+  return `${JSON.stringify({ $schema: VIEW_SCHEMA_URL, ...own }, null, 2)}\n`;
 }
 
 function ordered(v: unknown, raw: Schema | undefined): unknown {

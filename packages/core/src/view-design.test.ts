@@ -1,9 +1,11 @@
 // The View Design format (spec 0024, #146): a good design passes, and a table of invalid and hostile files is refused
 // with the right message and line. The table grows with every way of breaking a file found later.
+import { templateWidgetSettings } from "./dashboard-template-file";
 import { readFileSync, writeFileSync } from "node:fs";
 import Ajv2020 from "ajv/dist/2020";
 import { describe, expect, it } from "vitest";
 import { checkViewDesign, checkViewDesignValue, VIEW_DESIGN_SCHEMA, VIEW_LIMITS, writeViewDesign, type ViewDesign } from "./view-design";
+import { DESIGNED_VIEWS } from "./built-in-designs";
 import { repoFile } from "./test/repo-file";
 
 /** A design using every kind of part and mark, as a designer might write it. */
@@ -288,6 +290,28 @@ describe("$schema, for editors", () => {
 
   it("is not a place for text the checks refuse elsewhere: a name with a web address is still refused", () => {
     expect(checkViewDesign(JSON.stringify({ ...withSchema, name: "see https://example.com" })).ok).toBe(false);
+  });
+});
+
+describe("the guide's table of the built-in Views", () => {
+  it("names every built-in design", () => {
+    const guide = readFileSync(repoFile("docs/guides/view-designs.md"), "utf8");
+    for (const id of DESIGNED_VIEWS) expect(guide, id).toContain(`(\`${id}\`)`);
+  });
+});
+
+describe("$schema from outside", () => {
+  it("is never written back out: an export carries Ziffr's own address, whatever came in", () => {
+    const foreign = { ...EXAMPLE, $schema: "https://evil.example/s.json" } as unknown as typeof EXAMPLE;
+    const out = writeViewDesign(foreign);
+    expect(out).not.toContain("evil.example");
+    expect(out.startsWith('{\n  "$schema": "https://docs.ziffr.net/schemas/ziffr.view-1.json"')).toBe(true);
+  });
+
+  it("is not kept in the widget a template's inline design makes", () => {
+    const s = templateWidgetSettings({ design: { $schema: "https://evil.example/s.json", ...EXAMPLE } as never }, new Map());
+    expect(s?.design?.body).toBeDefined();
+    expect(JSON.stringify(s)).not.toContain("evil.example");
   });
 });
 

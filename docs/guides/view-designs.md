@@ -22,6 +22,32 @@ Every file Ziffr writes starts with a `$schema` line:
 
 Editors such as VS Code read it and give completion, hover help and warnings on their own. The address is stable and belongs to the format (`ziffr.view/1`), and the same schema is [`docs/reference/view-design.schema.json`](../reference/view-design.schema.json). `$schema` is the one extra top-level field Ziffr accepts: it must be a string of at most 200 characters, it is never fetched, and Ziffr does not keep it in a saved design (writing the design out puts it back). Every other unknown field is still refused.
 
+## The built-in Views as designs
+
+Every built-in View below is itself a View Design, so you can export it from **Analyze → View Designs** and change it. A test fails when a built-in design is missing from this table. "Needs" is what the data must hold; when it does not, the Metric is not offered for the View, or the widget says so in words.
+
+| View | Made of | Needs |
+| --- | --- | --- |
+| Number + sparkline (`number`) | `text`, `text`, `plot` with a `line` of `values` | One Metric. |
+| Line chart (`line`) | `plot` with `band`, `area`, `line` marks (target, forecast, values), `text` | One Metric. |
+| Bars per period (`bars`) | `plot` with a `band` of the target and `bar` of `values`, `text` | One Metric. |
+| Gauge vs. target (`gauge`) | `group`, `gauge` (`latest`), `text` | One Metric. |
+| History table (`table`) | `rows` with `show: "values"`, `text` | One Metric. |
+| Forecast (`forecast`) | `text`, `plot` with `line` of `forecast` and an `area` of `forecast.range` | One Metric with at least 4 values. |
+| Correlation (`correlation`) | `text`, `plot` with a `point` mark of `pairs` | Two Metrics with at least 6 periods in common. |
+| Correlation matrix (`matrix`) | `rows` with `show: "matrix"`, `rows` with `show: "reasons"` | At least 2 Metrics; a pair with fewer than 6 periods in common is listed under the reasons. |
+| Drivers (`drivers`) | `rows` with `show: "correlations"`, `text`, `rows` with `show: "reasons"`, `plot` with `point` of `drivers.pairs` | One Metric and several to compare it with, each with at least 6 periods in common. |
+| Scoreboard (`scoreboard`) | `scoreboard` with `show: "latest"` | 3 to 12 Metrics. |
+| Progress against target (`progress`) | `progress` with `show: "latest"` | Up to 12 Metrics; one without a target is drawn plain and says "No target". |
+| Stacked bars over time (`stacked`) | `stacked` with `show: "breakdown"` | A Metric with a Breakdown with no negative row; it is offered only for such Metrics. |
+| Pareto (`pareto`) | `pareto` with `show: "latest"` | A Metric with a Breakdown with positive rows ("Pareto needs positive rows"); it is offered only for such Metrics. |
+| Slope chart (`slope`) | `slope` with `show: "latest"` | 2 to 12 Metrics in one unit, or a Metric with a Breakdown. |
+| Running total against target (`running-total`) | `cumulative` with `show: "year"` | One Metric whose Aggregation is sum, or it says so in words. |
+| Bump chart (`bump`) | `bump` with `show: "breakdown"` | A Metric with a Breakdown over several periods; it is offered only for such Metrics. |
+| Heatmap (`heatmap`) | `heatmap` with `show: "values"` | One Metric by day, week or month (by quarter or year it says so in words). |
+
+**What a design cannot do.** The parts and marks above are fixed building blocks: a design arranges and combines them, and it cannot add a chart type, a colour or a font (colours are Theme tones, so a design fits every Theme). Numbers that Ziffr does not already compute go through an [Analysis Recipe](analysis-recipes.md), which a design draws with `recipe.` shows. Findings and the Free layout are not View Designs: they stay built in (spec 0024).
+
 ## The file
 
 ```json

@@ -311,7 +311,11 @@ A **Finding** is a Widget set as an editorial graphic: a headline that states wh
 | **Finding: annotated line** | The trend with callouts at the moments that matter. |
 | **Finding: composed** | A frame around one or more Panels. |
 
-The first three need a Metric with a Breakdown. Until it has one, the Finding says how to send one in: paste rows on the Metric's web form, or send label and value lines.
+What each Finding needs:
+
+- **Ranked bars, Part of the whole and 7 in 10** need a Metric with a Breakdown. They are offered only for such a Metric; if the Breakdown goes away, the Finding says how to send one in: paste rows on the Metric's web form, or send label and value lines.
+- **Annotated line** takes any one Metric.
+- **Composed** has a Metric for each Panel, chosen in the editor; a Panel without a Metric, or whose data does not fit its chart, says so in words.
 
 ### The Finding editor
 
