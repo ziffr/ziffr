@@ -2845,7 +2845,7 @@ Adds a widget to a dashboard the key's creator may change, in the first free pla
 
 | Field | Type | Required | What it is |
 | --- | --- | --- | --- |
-| `view` | `"number"`, `"line"`, `"bars"`, `"gauge"`, `"table"`, `"forecast"`, `"correlation"`, `"matrix"`, `"drivers"`, `"scoreboard"`, `"ranked"`, `"share"`, `"pictogram"`, `"story-line"` | no | Default number. Leave out when using `template`. |
+| `view` | `"number"`, `"line"`, `"bars"`, `"gauge"`, `"table"`, `"forecast"`, `"correlation"`, `"matrix"`, `"drivers"`, `"scoreboard"`, `"progress"`, `"ranked"`, `"share"`, `"pictogram"`, `"story-line"` | no | Default number. Leave out when using `template`. |
 | `template` | integer | no | A team Widget Template's id from GET /templates?kind=widget. |
 | `metrics` | array of string, at most 100 characters (at most 50) | no | With `view`: the Metrics it draws. |
 | `fills` | array of array of string, at most 100 characters (at most 50) (at most 50) | no | With `template`: Metric slugs for each Slot, in order. |
@@ -2904,7 +2904,7 @@ Changes a widget's view, Metrics, title or settings. A Free Layout is changed on
 
 | Field | Type | Required | What it is |
 | --- | --- | --- | --- |
-| `view` | `"number"`, `"line"`, `"bars"`, `"gauge"`, `"table"`, `"forecast"`, `"correlation"`, `"matrix"`, `"drivers"`, `"scoreboard"`, `"ranked"`, `"share"`, `"pictogram"`, `"story-line"` | no | A built-in view; GET /templates?kind=view lists them with what each is for. |
+| `view` | `"number"`, `"line"`, `"bars"`, `"gauge"`, `"table"`, `"forecast"`, `"correlation"`, `"matrix"`, `"drivers"`, `"scoreboard"`, `"progress"`, `"ranked"`, `"share"`, `"pictogram"`, `"story-line"` | no | A built-in view; GET /templates?kind=view lists them with what each is for. |
 | `metrics` | array of string, at most 100 characters (at most 50) | no |  |
 | `title` | string, at most 200 characters or null | no | null shows the Metric's name. |
 | `settings` | object | no |  |

@@ -1605,6 +1605,26 @@
         },
         {
           "type": "object",
+          "description": "One compact bar per Metric of the Slots, in order, 12 at most: the latest value against the Metric's Target Range, with its name, its value and, in words, how far along it is. The bar is filled to the latest value on a scale that includes the target (a lighter band for a range, a tick for one bound); its colour says only whether the value is on target.",
+          "properties": {
+            "mark": {
+              "const": "progress"
+            },
+            "show": {
+              "const": "latest"
+            },
+            "when": {
+              "$ref": "#/$defs/when"
+            }
+          },
+          "required": [
+            "mark",
+            "show"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
           "description": "One row for each of 3 to 12 Metrics, in the order of the Slots: its name, latest value, change against the previous period, whether it is on target, and a small trend.",
           "properties": {
             "mark": {
