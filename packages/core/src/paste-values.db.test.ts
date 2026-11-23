@@ -92,8 +92,13 @@ describe("whose Metrics", () => {
     await db().from("tokens").insert({ code: `tk-test-${m.id}-cleo`, metric_id: m.id, submitter_id: cleo, stand_in_id: ben });
     await db().from("tokens").insert({ code: `tk-test-${m.id}-ben`, metric_id: m.id, submitter_id: ben, stands_in_for: cleo });
     const text = `Visits\t${cell(ago(1))}\t7`;
+    // Spec 0046: a Stand-in's value is the submitter's and counts only for a period Ziffr asked them about, while she is Away.
+    expect(brief(ok(await recordPastedValues(w.actor(ben, "member"), { text }, quiet())).rows)).toEqual([["C1", "refused", null]]);
+    const today = new Date().toISOString().slice(0, 10);
+    await db().from("away").insert({ user_id: cleo, starts: today, ends: today });
+    await db().from("prompts").insert({ workspace_id: w.id, metric_id: m.id, submitter_id: ben, source: "web_form", text: "What?", period_start: ago(1), stands_in_for: cleo });
     expect(brief(ok(await recordPastedValues(w.actor(ben, "member"), { text }, quiet())).rows)).toEqual([["C1", "recorded", null]]);
-    expect((await valuesOf(m.id)).map((v) => v.submitter_id)).toEqual([ben]);
+    expect((await valuesOf(m.id)).map((v) => v.submitter_id)).toEqual([cleo]);
     await db().from("tokens").update({ stand_in_id: null }).eq("code", `tk-test-${m.id}-cleo`);
     const after = ok(await previewValues(w.actor(ben, "member"), { text: `Visits\t${cell(ago(2))}\t7` }));
     expect(after.rows[0]).toMatchObject({ outcome: "refused", metric: null });

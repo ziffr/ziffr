@@ -71,3 +71,11 @@ export async function tellFilledIn(ws: string, f: { metric: Metric; period: stri
     console.error("A Filled-in Value could not be announced:", e instanceof Error ? e.message : e);
   }
 }
+
+/** What follows an accepted Filled-in Value, for the submission's answer: closes the open Prompts, records and tells, and
+ * returns the answer's words with who it was entered for. */
+export async function settleFilled(ws: string, f: { metric: Metric; period: string; value: string; when: string; forId: string; by: string; as: FillInRole; source: SourceId; forName: string | undefined; detail: string }): Promise<string> {
+  await closeFilledInPrompts(ws, f.metric.id, f.period, f.source, `${f.value} for ${f.metric.name}, ${f.when}, entered by a colleague.`);
+  await tellFilledIn(ws, { metric: f.metric, period: f.period, value: f.value, forId: f.forId, by: f.by, as: f.as });
+  return `Entered for ${f.forName ?? "the submitter"}: ${f.detail}`;
+}

@@ -111,7 +111,7 @@ export type Observation = {
 export type Point = { period: string; value: number };
 
 /** The standing permission that links one submitter to one metric (GLOSSARY: Token). */
-export type Token = { id: number; code: string; metric_id: number; submitter_id: string };
+export type Token = { id: number; code: string; metric_id: number; submitter_id: string; /** Set on a Stand-in's own Token: the submitter they stand in for. */ stands_in_for?: string | null };
 
 /** A message asking a submitter for a value (GLOSSARY: Prompt). */
 export type Prompt = {

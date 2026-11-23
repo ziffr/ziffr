@@ -13,7 +13,9 @@ import { dueDate } from "./workflow-rules";
 import { localTime } from "./workspace-clock";
 import { getMetrics } from "./workspace-data";
 import { isArchived } from "./metric-row";
-import type { Metric, Workflow } from "./types";
+import { isGuest } from "./fill-in-tell";
+import type { FillInRole } from "./fill-in-rules";
+import type { Metric, SourceId, Token, Workflow } from "./types";
 
 /** Who enters, as the core knows them: a person (never a key here: a key is refused before anything is read). */
 export type FilledInBy = { id: string; viaKey: boolean };
@@ -27,12 +29,13 @@ export async function standInWasAsked(ws: string, metricId: number, personId: st
 
 /** The verdict of mayFillIn for `by` entering a value for `submitterId` for a period of a Metric, with the facts read now. */
 export async function fillInVerdict(ws: string, metric: Metric, period: string, by: FilledInBy, submitterId: string, demo = false): Promise<FillInVerdict> {
+  const workflowId = (metric as Metric & { workflow_id?: number | null }).workflow_id;
   const [{ data: membership }, feeds, { data: standIns }, asked, { data: row }, { data: state }, condensed, { data: workspace }] = await Promise.all([
     db().from("memberships").select("role").eq("workspace_id", ws).eq("user_id", by.id).maybeSingle(),
     feedIdsAmong([submitterId]),
     db().from("tokens").select("id").eq("workspace_id", ws).eq("metric_id", metric.id).eq("submitter_id", submitterId).eq("stand_in_id", by.id).is("stands_in_for", null).limit(1),
     standInWasAsked(ws, metric.id, by.id, submitterId, period),
-    metric.workflow_id ? db().from("workflows").select("*").eq("id", metric.workflow_id).eq("workspace_id", ws).maybeSingle() : Promise.resolve({ data: null }),
+    workflowId ? db().from("workflows").select("*").eq("id", workflowId).eq("workspace_id", ws).maybeSingle() : Promise.resolve({ data: null }),
     db().from("period_states").select("state").eq("metric_id", metric.id).eq("period_start", period).maybeSingle(),
     condensedOn(ws, metric.id, period),
     db().from("workspaces").select("time_zone").eq("id", ws).maybeSingle(),
@@ -63,4 +66,33 @@ export async function fillInVerdict(ws: string, metric: Metric, period: string, 
     demo,
   };
   return mayFillIn(facts);
+}
+
+/** A Filled-in Value as the submission path records it: who enters it, for whom, and in which role. */
+export type Filled = { by: string; forId: string; as: FillInRole };
+/** What asking found: nothing is filled in, the words of a refusal, or the Filled-in Value to record. */
+export type FillStage = null | { refused: string } | { filled: Filled };
+
+const NOT_BY_KEY = "Values for someone else are entered in the app or by answering the Prompt.";
+
+/** The Metric's or the Workflow's owner `by` entering a value for the person whose own Token is used (fillInValue, on the
+ * web form with a value read already): null when this submission is no such value. Asked before a locked period is looked at,
+ * since a locked period is refused here and not proposed as a Correction in the submitter's name. */
+export async function ownerFillStage(ws: string, metric: Metric, period: string, i: { by: string | undefined; source: SourceId; given: boolean; preview: boolean }, senderId: string | null, token: Token): Promise<FillStage> {
+  if (!i.by || i.source !== "web_form" || !i.given || i.preview || !senderId) return null;
+  // Entered for the submitter by their own Token only, never by a Stand-in's.
+  if (token.stands_in_for) return { refused: "A value is entered for the person whose own Token it is." };
+  const v = await fillInVerdict(ws, metric, period, { id: i.by, viaKey: false }, senderId);
+  return v.ok ? { filled: { by: i.by, forId: senderId, as: v.as } } : { refused: v.refusal };
+}
+
+/** A Stand-in's answer to a Prompt sent in someone's place (its Token or the Prompt says whom for): the submitter's value,
+ * entered by the Stand-in. Asked after the Lock, so a late one is still proposed as a Correction as any late value is. A Guest
+ * who is a Stand-in keeps recording their own value, as before; nothing is filled in by a preview, which saves nothing. */
+export async function standInFillStage(ws: string, metric: Metric, period: string, i: { source: SourceId; preview: boolean }, senderId: string | null, standsFor: string | null): Promise<FillStage> {
+  if (!standsFor || !senderId || i.preview || (await isGuest(ws, senderId))) return null;
+  // Through an Access Key it is refused for good: the app and the Prompt's answer are the ways (spec 0046).
+  if (i.source === "api") return { refused: NOT_BY_KEY };
+  const v = await fillInVerdict(ws, metric, period, { id: senderId, viaKey: false }, standsFor);
+  return v.ok ? { filled: { by: senderId, forId: standsFor, as: v.as } } : { refused: v.refusal };
 }

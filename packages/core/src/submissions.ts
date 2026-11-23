@@ -20,9 +20,8 @@ import { deliver } from "./deliveries";
 import { onValue } from "./workflow-engine";
 import { settlePrompts } from "./prompt-ways";
 import { audit } from "./audit-log";
-import { fillInVerdict } from "./fill-in-check";
-import type { FillInRole } from "./fill-in-rules";
-import { closeFilledInPrompts, enteredByWords, isGuest, tellFilledIn } from "./fill-in-tell";
+import { ownerFillStage, standInFillStage, type Filled } from "./fill-in-check";
+import { enteredByWords, settleFilled } from "./fill-in-tell";
 import { ARCHIVED_CODE, ARCHIVED_REFUSAL } from "./archived-metrics";
 import { CONDENSED_CODE, condensedOn, condensedRefusal, condensedWords } from "./condensed-values";
 import type { Metric, Profile, SourceId, Token } from "./types";
@@ -135,62 +134,16 @@ async function takeValue(input: SubmissionInput, effects: SubmissionEffects, pro
   const metrics = (await openRows("metrics", workspaceId, metricRows)).map(normalizeMetric) as Metric[];
   const live = (tokens ?? []).filter((t) => tokenValid(t, tokens ?? []));
   const metricById = Object.fromEntries(metrics.map((m) => [m.id, m]));
-  let sender: Profile | undefined;
-  let feed: Profile | null = null;
-  let candidates: Token[] = [];
-  if (byToken) {
-    const t = live.find((t) => t.code === input.sender);
-    if (!t) return log({ ok: false, outcome: "rejected_no_token", detail: "This form link doesn’t match any Token." });
-    sender = profiles.find((p) => p.id === t.submitter_id);
-    // A Feed is nobody's colleague, so it is not among the people above; only a program reaches it, by its key.
-    if (!sender && input.source === "api") {
-      feed = await liveFeed(workspaceId, t.submitter_id);
-      sender = feed ?? undefined;
-    }
-    // A link of someone who is no longer a member or Contact here records nothing.
-    if (!sender) return log({ ok: false, outcome: "rejected_no_token", detail: "This form link is no longer in use." });
-    candidates = [t];
-  } else {
-    sender = provenSenderId ? profiles.find((p) => p.id === provenSenderId) : recogniseSender(profiles, input.source === "slack" ? "slack" : "mail", input.sender);
-    if (!sender) return log({ ok: false, outcome: "rejected_unknown_sender", detail: `${input.sender} isn’t a known ${SOURCE_LABEL[input.source]} identity of any user.` });
-    candidates = live.filter((t) => t.submitter_id === sender!.id);
-  }
-  const senderId = sender?.id ?? null;
+  const found = await findSender(input, workspaceId, provenSenderId, profiles, live);
+  if ("refused" in found) return log({ ok: false, ...found.refused });
+  const { sender, feed, candidates } = found;
+  const senderId: string = sender.id;
   if (candidates.length === 0) return log({ ok: false, senderId, outcome: "rejected_no_token", detail: `${sender?.name} has no Token for any metric, so nothing can be recorded.` });
 
   // 2. Which metric? Prompt reply > metric named in the message (among the sender's own Tokens) > the only Token.
-  let token: Token | undefined;
-  let prompt: { id: number; metric_id: number; period_start: string; submitter_id: string; answered_at: string | null; answered_source: string | null; stands_in_for: string | null } | null = null;
-  let how = "";
-  if (input.promptId) {
-    const { data } = await db().from("prompts").select("*").eq("id", input.promptId).eq("workspace_id", workspaceId).maybeSingle();
-    prompt = data;
-    // A Prompt is answered by the person it asked only (a Stand-in has Prompts of their own): its id is no key to another's.
-    if (!prompt || prompt.submitter_id !== senderId) return log({ ok: false, senderId, outcome: "rejected_no_token", detail: "That Prompt is not known here." });
-    // A Prompt sent in someone's place is answered by the Token of that Stand-in, whatever other Tokens they hold: the
-    // answer records under the right name (spec 0046). An older Prompt without it takes whichever Token fits.
-    const forMetric = candidates.filter((t) => t.metric_id === prompt?.metric_id);
-    token = prompt.stands_in_for ? forMetric.find((t) => t.stands_in_for === prompt?.stands_in_for) : (forMetric.find((t) => !t.stands_in_for) ?? forMetric[0]);
-    if (!token) return log({ ok: false, senderId, metricId: prompt.metric_id, outcome: "rejected_no_token", detail: `${sender?.name} has no Token for ${metricById[prompt.metric_id]?.name ?? "that metric"}.` });
-    how = "reply to a Prompt";
-  } else {
-    // Only among the sender's own Tokens: a metric matches if a distinctive word of its name appears ("2 more deals" → Deals closed).
-    const words = new Set(input.text.toLowerCase().match(/[a-z]+/g) ?? []);
-    const stem = (w: string) => w.replace(/s$/, "");
-    const named = candidates.filter((t) =>
-      (metricById[t.metric_id]?.name.toLowerCase().match(/[a-z]+/g) ?? []).some((w) => w.length >= 4 && [...words].some((x) => stem(x) === stem(w))),
-    );
-    if (named.length === 1) {
-      token = named[0];
-      how = "metric named in the message";
-    } else if (candidates.length === 1) {
-      token = candidates[0];
-      how = viaWords(input.source, pasted !== null, feed !== null);
-    } else {
-      const names = candidates.map((t) => metricById[t.metric_id]?.name).join(", ");
-      return log({ ok: false, senderId, outcome: "rejected_ambiguous", detail: `${sender?.name} has Tokens for ${names}. Reply to a Prompt or name the metric.` });
-    }
-  }
+  const chosen = await chooseToken(input, workspaceId, sender, candidates, metricById, pasted !== null, feed !== null);
+  if ("refused" in chosen) return log({ ok: false, senderId: sender.id, ...chosen.refused });
+  const { token, prompt, how } = chosen;
   const metric = metricById[token.metric_id];
   const base = { senderId, metricId: metric.id, token: token.code, metricSlug: metric.slug };
 
@@ -234,19 +187,9 @@ async function takeValue(input: SubmissionInput, effects: SubmissionEffects, pro
   // (fillInValue, on the web form), or by a Stand-in answering a Prompt sent in someone's place. Whom it is for and who
   // entered it are decided here from what the core knows, never from what the sender wrote. A Guest who is a Stand-in
   // keeps recording their own value, as before: a Guest cannot fill in for someone.
-  const ownerFills = input.filledIn && input.source === "web_form" && given && !preview ? input.filledIn.by : null;
-  let filled: { by: string; forId: string; as: FillInRole } | null = null;
-  const standsFor = ownerFills || preview || !senderId ? null : (token.stands_in_for ?? prompt?.stands_in_for ?? null);
-  const askFill = async (by: string, forId: string): Promise<{ ok: false; detail: string } | { ok: true; as: FillInRole }> => {
-    const v = await fillInVerdict(workspaceId!, metric, period, { id: by, viaKey: input.source === "api" }, forId);
-    return v.ok ? v : { ok: false, detail: v.refusal };
-  };
-  if (ownerFills && senderId) {
-    // Entered for the submitter by their own Token only, never by a Stand-in's.
-    const v = token.stands_in_for ? { ok: false as const, detail: "A value is entered for the person whose own Token it is." } : await askFill(ownerFills, senderId);
-    if (!v.ok) return log({ ...base, ok: false, outcome: "rejected_fill_in", detail: v.detail });
-    filled = { by: ownerFills, forId: senderId, as: v.as };
-  }
+  const ownerFill = await ownerFillStage(workspaceId, metric, period, { by: input.filledIn?.by, source: input.source, given, preview }, senderId, token);
+  if (ownerFill && "refused" in ownerFill) return log({ ...base, ok: false, outcome: "rejected_fill_in", detail: ownerFill.refused });
+  let filled: Filled | null = ownerFill?.filled ?? null;
 
   // A condensed period takes no more values, as if locked for good, and no proposal either: the originals are gone
   // (spec 0033). It is refused with the day it was condensed, whatever the Source.
@@ -254,30 +197,13 @@ async function takeValue(input: SubmissionInput, effects: SubmissionEffects, pro
   if (condensedDay) return log({ ...base, ok: false, outcome: "rejected_period_condensed", detail: condensedRefusal(condensedDay) });
 
   // A locked period takes no more values: a late one becomes a proposal for the metric owner (GLOSSARY: Lock).
-  if (await isLocked(metric.id, period)) {
-    if (preview) return log({ ...base, ok: false, outcome: "proposed_locked", detail: `${metric.name}, ${when} is locked. ${fv(value)} would go to ${metric.owner_id === senderId ? "you" : "the metric owner"} as a proposed correction.` });
-    // It proposes a change to the value already there (GLOSSARY: Correction), so accepting it replaces that value.
-    const { data: latest } = await db().from("observations").select("id").eq("metric_id", metric.id).eq("period_start", period).order("created_at", { ascending: false }).limit(1);
-    const [a] = await insertSealed("actions", workspaceId, [{
-      metric_id: metric.id, period_start: period, observation_id: latest?.[0]?.id ?? null, asker_id: senderId, assignee_id: metric.owner_id, kind: "question", purpose: "approval",
-      question: `${metric.name} for ${when} is locked. ${sender?.name.split(" ")[0]} sent ${fv(value)} late: accept it as a correction?`,
-    }]) as { id: number }[];
-    if (a) {
-      await announceNewAction(a.id, { type: "system" });
-      await insertSealed("thread_messages", workspaceId, [{ action_id: a.id, author_id: senderId, body: "Late value for a locked period.", correction_value: value, correction_status: "proposed" }]);
-      if (senderId) await effects.notifyCorrection({ actionId: a.id, senderId, ownerId: metric.owner_id, value });
-    }
-    return log({ ...base, ok: false, outcome: "proposed_locked", detail: `${metric.name}, ${when} is locked. ${fv(value)} went to ${metric.owner_id === senderId ? "you" : "the metric owner"} as a proposed correction.` });
-  }
+  if (await isLocked(metric.id, period)) return log({ ...base, ...(await proposeLate({ ws: workspaceId, metric, period, value, senderName: sender?.name, senderId, preview, fv, when, notify: effects.notifyCorrection })) });
 
   // A Stand-in's answer to a Prompt sent in someone's place is the submitter's value, entered by the Stand-in; asked after
   // the Lock, so a late one is still proposed as a Correction, as any late value is.
-  if (standsFor && senderId && !(await isGuest(workspaceId, senderId))) {
-    // Through an Access Key it is refused for good: the app and the Prompt's answer are the ways (spec 0046).
-    const v = input.source === "api" ? { ok: false as const, detail: "Values for someone else are entered in the app or by answering the Prompt." } : await askFill(senderId, standsFor);
-    if (!v.ok) return log({ ...base, ok: false, outcome: "rejected_fill_in", detail: v.detail });
-    filled = { by: senderId, forId: standsFor, as: v.as };
-  }
+  const standFill = filled || ownerFill ? null : await standInFillStage(workspaceId, metric, period, { source: input.source, preview }, senderId, token.stands_in_for ?? prompt?.stands_in_for ?? null);
+  if (standFill && "refused" in standFill) return log({ ...base, ok: false, outcome: "rejected_fill_in", detail: standFill.refused });
+  filled = standFill?.filled ?? filled;
 
   // 4. Submission Rule, applied in one call to the database with the breakdown's rows (spec 0022, #111 and #126):
   // two values arriving together wait for each other there, so both count under "add", the second is rejected under
@@ -306,28 +232,13 @@ async function takeValue(input: SubmissionInput, effects: SubmissionEffects, pro
   const before = data.before === null ? null : Number(data.before);
   // A Filled-in Value the submitter replaces with their own says so: who had entered it (a Guest is told "a colleague").
   const replacedBy = data.replacedFilledIn ? await enteredByWords(workspaceId, submitterId, data.replacedFilledIn, profiles) : null;
-  const result: SubmissionResult = (() => {
-    switch (data.outcome) {
-      case "recorded": return { ok: true, outcome: "recorded", detail: `${fv(value)} ${imported ? "imported" : "recorded"} for ${metric.name}, ${when} (via ${how}).`, imported };
-      case "added": return { ok: true, outcome: "added", detail: `${fv(before!)} + ${fv(value)} = ${fv(Number(data.after))} for ${metric.name}, ${when}.`, imported: false };
-      case "overwritten": return { ok: true, outcome: "overwritten", detail: replacedBy ? `Replaced ${fv(before!)}, entered by ${replacedBy} for you, with ${fv(value)} for ${metric.name}, ${when}.` : `Replaced ${fv(before!)} with ${fv(value)} for ${metric.name}, ${when}.` };
-      case "kept_both": return { ok: true, outcome: "kept_both", detail: `Kept ${fv(value)} alongside ${data.earlier} earlier value(s) for ${metric.name}, ${when}.` };
-      default: return { ok: false, outcome: "rejected_duplicate", detail: `${metric.name} already has ${fv(before!)} for ${when}, and its rule rejects a second value.` };
-    }
-  })();
-  if (breakdown && result.ok) {
-    const off = breakdown.total !== null && Math.abs(rowsSum - breakdown.total) > Math.abs(breakdown.total) * 0.001;
-    result.detail += ` With a breakdown of ${breakdown.rows.length} rows.${off ? ` The rows add up to ${fv(rowsSum)}, the total says ${fv(breakdown.total!)}; the total counts.` : ""}`;
-  }
+  const result = outcomeWords(data, { metric, when, value, before, imported, how, replacedBy, fv });
+  if (breakdown && result.ok) result.detail += breakdownWords(breakdown, rowsSum, fv);
   // The first accepted value closes the Prompt, by whichever way it arrived (prompt-ways.ts); one that comes second says so.
   if (result.ok && !preview) result.detail += await settlePrompts({ ws: workspaceId, prompt, metricId: metric.id, senderId, source: input.source, period, said: `${fv(value)} for ${metric.name}, ${when}.` });
   // A Filled-in Value closes every open Prompt of its Metric and period, the submitter's and the Stand-in's (spec 0046),
   // is recorded in the Audit Log, and tells the submitter. None of it can fail the value.
-  if (result.ok && !preview && filled) {
-    result.detail = `Entered for ${profiles.find((p) => p.id === filled!.forId)?.name ?? "the submitter"}: ${result.detail}`;
-    await closeFilledInPrompts(workspaceId, metric.id, period, input.source, `${fv(value)} for ${metric.name}, ${when}, entered by a colleague.`);
-    await tellFilledIn(workspaceId, { metric, period, value: fv(value), forId: filled.forId, by: filled.by, as: filled.as });
-  }
+  if (result.ok && !preview && filled) result.detail = await settleFilled(workspaceId, { metric, period, value: fv(value), when, forId: filled.forId, by: filled.by, as: filled.as, source: input.source, forName: profiles.find((p) => p.id === filled!.forId)?.name, detail: result.detail });
   // The metric's Workflow takes it from here: check, approval, publish.
   if (result.ok && submitterId) {
     const next = await effects.afterValue(metric.id, period, submitterId, { imported });
@@ -335,6 +246,97 @@ async function takeValue(input: SubmissionInput, effects: SubmissionEffects, pro
   }
   // The value it became, so the intake log and the Metric's history can say how it arrived.
   return log({ ...base, ...result, observationId: result.ok ? data.observation_id : null });
+}
+
+/** Who sent a submission and which Tokens of theirs it may use: the Token a form link or a key names, or the Tokens of the
+ * person a Slack or mail identity belongs to (proven by the Connector where it signs). Or why it records nothing. */
+async function findSender(input: SubmissionInput, ws: string, provenSenderId: string | undefined, profiles: Profile[], live: Token[]): Promise<{ sender: Profile; feed: Profile | null; candidates: Token[] } | { refused: { outcome: string; detail: string } }> {
+  if (input.source === "web_form" || input.source === "api") {
+    const t = live.find((t) => t.code === input.sender);
+    if (!t) return { refused: { outcome: "rejected_no_token", detail: "This form link doesn’t match any Token." } };
+    let sender = profiles.find((p) => p.id === t.submitter_id);
+    let feed: Profile | null = null;
+    // A Feed is nobody's colleague, so it is not among the people above; only a program reaches it, by its key.
+    if (!sender && input.source === "api") {
+      feed = await liveFeed(ws, t.submitter_id);
+      sender = feed ?? undefined;
+    }
+    // A link of someone who is no longer a member or Contact here records nothing.
+    if (!sender) return { refused: { outcome: "rejected_no_token", detail: "This form link is no longer in use." } };
+    return { sender, feed, candidates: [t] };
+  }
+  const sender = provenSenderId ? profiles.find((p) => p.id === provenSenderId) : recogniseSender(profiles, input.source === "slack" ? "slack" : "mail", input.sender);
+  if (!sender) return { refused: { outcome: "rejected_unknown_sender", detail: `${input.sender} isn’t a known ${SOURCE_LABEL[input.source]} identity of any user.` } };
+  return { sender, feed: null, candidates: live.filter((t) => t.submitter_id === sender.id) };
+}
+
+/** The Prompt a submission answers, as stored. */
+type AnsweredPrompt = { id: number; metric_id: number; period_start: string; submitter_id: string; answered_at: string | null; answered_source: string | null; stands_in_for: string | null };
+
+/** Which of the sender's Tokens, and so which Metric, a submission is for: a reply to a Prompt, else the Metric named in the
+ * message among the sender's own, else their only Token. Or why it records nothing. */
+async function chooseToken(input: SubmissionInput, ws: string, sender: Profile, candidates: Token[], metricById: Record<number, Metric>, pasted: boolean, isFeed: boolean): Promise<{ token: Token; prompt: AnsweredPrompt | null; how: string } | { refused: { metricId?: number; outcome: string; detail: string } }> {
+  if (input.promptId) {
+    const { data } = await db().from("prompts").select("*").eq("id", input.promptId).eq("workspace_id", ws).maybeSingle();
+    const prompt = data as AnsweredPrompt | null;
+    // A Prompt is answered by the person it asked only (a Stand-in has Prompts of their own): its id is no key to another's.
+    if (!prompt || prompt.submitter_id !== sender.id) return { refused: { outcome: "rejected_no_token", detail: "That Prompt is not known here." } };
+    // A Prompt sent in someone's place is answered by the Token of that Stand-in, whatever other Tokens they hold: the
+    // answer records under the right name (spec 0046). An older Prompt without it takes whichever Token fits.
+    const forMetric = candidates.filter((t) => t.metric_id === prompt.metric_id);
+    const token = prompt.stands_in_for ? forMetric.find((t) => t.stands_in_for === prompt.stands_in_for) : (forMetric.find((t) => !t.stands_in_for) ?? forMetric[0]);
+    if (!token) return { refused: { metricId: prompt.metric_id, outcome: "rejected_no_token", detail: `${sender.name} has no Token for ${metricById[prompt.metric_id]?.name ?? "that metric"}.` } };
+    return { token, prompt, how: "reply to a Prompt" };
+  }
+  // Only among the sender's own Tokens: a metric matches if a distinctive word of its name appears ("2 more deals" → Deals closed).
+  const words = new Set(input.text.toLowerCase().match(/[a-z]+/g) ?? []);
+  const stem = (w: string) => w.replace(/s$/, "");
+  const named = candidates.filter((t) =>
+    (metricById[t.metric_id]?.name.toLowerCase().match(/[a-z]+/g) ?? []).some((w) => w.length >= 4 && [...words].some((x) => stem(x) === stem(w))),
+  );
+  if (named.length === 1) return { token: named[0], prompt: null, how: "metric named in the message" };
+  if (candidates.length === 1) return { token: candidates[0], prompt: null, how: viaWords(input.source, pasted, isFeed) };
+  const names = candidates.map((t) => metricById[t.metric_id]?.name).join(", ");
+  return { refused: { outcome: "rejected_ambiguous", detail: `${sender.name} has Tokens for ${names}. Reply to a Prompt or name the metric.` } };
+}
+
+/** What a recording answers the sender, in words (the intake's reply). */
+function outcomeWords(data: { outcome: string; after: number | string; earlier: number }, c: { metric: Metric; when: string; value: number; before: number | null; imported: boolean; how: string; replacedBy: string | null; fv: (v: number) => string }): SubmissionResult {
+  const { metric, when, value, before, fv } = c;
+  switch (data.outcome) {
+    case "recorded": return { ok: true, outcome: "recorded", detail: `${fv(value)} ${c.imported ? "imported" : "recorded"} for ${metric.name}, ${when} (via ${c.how}).`, imported: c.imported };
+    case "added": return { ok: true, outcome: "added", detail: `${fv(before!)} + ${fv(value)} = ${fv(Number(data.after))} for ${metric.name}, ${when}.`, imported: false };
+    // A Filled-in Value the submitter replaced says who had entered it (spec 0046).
+    case "overwritten": return { ok: true, outcome: "overwritten", detail: c.replacedBy ? `Replaced ${fv(before!)}, entered by ${c.replacedBy} for you, with ${fv(value)} for ${metric.name}, ${when}.` : `Replaced ${fv(before!)} with ${fv(value)} for ${metric.name}, ${when}.` };
+    case "kept_both": return { ok: true, outcome: "kept_both", detail: `Kept ${fv(value)} alongside ${data.earlier} earlier value(s) for ${metric.name}, ${when}.` };
+    default: return { ok: false, outcome: "rejected_duplicate", detail: `${metric.name} already has ${fv(before!)} for ${when}, and its rule rejects a second value.` };
+  }
+}
+
+/** The words added to the reply for a value with a Breakdown, saying when its rows and its total disagree. */
+function breakdownWords(breakdown: { rows: { label: string; value: number }[]; total: number | null }, rowsSum: number, fv: (v: number) => string): string {
+  const off = breakdown.total !== null && Math.abs(rowsSum - breakdown.total) > Math.abs(breakdown.total) * 0.001;
+  return ` With a breakdown of ${breakdown.rows.length} rows.${off ? ` The rows add up to ${fv(rowsSum)}, the total says ${fv(breakdown.total!)}; the total counts.` : ""}`;
+}
+
+/** A value for a locked period (GLOSSARY: Lock, Correction): it changes nothing; it becomes a proposal for the Metric's owner,
+ * or, in a preview, says that it would. Returns the intake's outcome and words. */
+async function proposeLate(i: { ws: string; metric: Metric; period: string; value: number; senderName: string | undefined; senderId: string | null; preview: boolean; fv: (v: number) => string; when: string; notify: SubmissionEffects["notifyCorrection"] }): Promise<{ ok: false; outcome: string; detail: string }> {
+  const { ws, metric, period, value, senderId, fv, when } = i;
+  const owner = metric.owner_id === senderId ? "you" : "the metric owner";
+  if (i.preview) return { ok: false, outcome: "proposed_locked", detail: `${metric.name}, ${when} is locked. ${fv(value)} would go to ${owner} as a proposed correction.` };
+  // It proposes a change to the value already there (GLOSSARY: Correction), so accepting it replaces that value.
+  const { data: latest } = await db().from("observations").select("id").eq("metric_id", metric.id).eq("period_start", period).order("created_at", { ascending: false }).limit(1);
+  const [a] = await insertSealed("actions", ws, [{
+    metric_id: metric.id, period_start: period, observation_id: latest?.[0]?.id ?? null, asker_id: senderId, assignee_id: metric.owner_id, kind: "question", purpose: "approval",
+    question: `${metric.name} for ${when} is locked. ${i.senderName?.split(" ")[0]} sent ${fv(value)} late: accept it as a correction?`,
+  }]) as { id: number }[];
+  if (a) {
+    await announceNewAction(a.id, { type: "system" });
+    await insertSealed("thread_messages", ws, [{ action_id: a.id, author_id: senderId, body: "Late value for a locked period.", correction_value: value, correction_status: "proposed" }]);
+    if (senderId) await i.notify({ actionId: a.id, senderId, ownerId: metric.owner_id, value });
+  }
+  return { ok: false, outcome: "proposed_locked", detail: `${metric.name}, ${when} is locked. ${fv(value)} went to ${owner} as a proposed correction.` };
 }
 
 /** The outcome and words for a value the database refused because the Metric was archived or the period condensed after
