@@ -3,7 +3,7 @@
 // (migration 20261225110000_demo_read_only.sql); db.ts turns that code into DemoReadOnly, so whichever core function
 // tried, the person reads the same sentence.
 import { Forbidden, type Actor } from "./actor";
-import { DEMO_DIGEST, DEMO_PROTECTED_DIGEST, DEMO_READ_ONLY, DEMO_READ_ONLY_TRIAL, DEMO_SEEDED_WORDS, DEMO_SHOWCASE, DEMO_STALE } from "./demo-words";
+import { DEMO_DIGEST, DEMO_PROTECTED_DIGEST, DEMO_READ_ONLY, DEMO_READ_ONLY_TRIAL, DEMO_SEEDED_WORDS, DEMO_SHOWCASE, DEMO_STALE, demoLimitWords } from "./demo-words";
 import { DEMO_WORKSPACE_ID } from "./team";
 import { trialsOffered } from "./trials";
 import { settingsInEffectNow } from "./settings-in-effect";
@@ -14,6 +14,9 @@ export const DEMO_READ_ONLY_CODE = "ZF4D0";
 
 /** The error code the database raises for a visit's write made after the demo started fresh (spec 0051). */
 export const DEMO_STALE_CODE = "ZF4D1";
+
+/** The error code the database raises when a visit's insert would pass a row cap (`demo_limits`, spec 0051). */
+export const DEMO_LIMIT_CODE = "ZF4D2";
 
 /** The one sentence a refused change in the demo says, pointing to a trial where this Installation offers them. */
 export function demoReadOnlyWords(env: Record<string, string | undefined> = settingsInEffectNow()): string {
@@ -82,5 +85,13 @@ export class DemoStale extends Forbidden {
   constructor() {
     super(DEMO_STALE);
     this.name = "DemoStale";
+  }
+}
+
+/** A visit's change refused because the demo already holds as many rows of a kind as visitors may make (spec 0051). */
+export class DemoLimit extends Forbidden {
+  constructor(readonly kind: string) {
+    super(demoLimitWords(kind));
+    this.name = "DemoLimit";
   }
 }
