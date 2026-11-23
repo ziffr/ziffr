@@ -1,7 +1,8 @@
 // The Help panel's data (spec 0050): the search index is current with docs/user-guide and covers every chapter, the route
 // table points at real chapters and real pages, and searches find the chapter a person would expect.
-// UPDATE_REFERENCE=1 rewrites the generated index (pnpm --filter @ziffr/web help:index).
-import { readdirSync, readFileSync, writeFileSync } from "node:fs";
+// help-index.generated.json is a git-ignored build artifact (apps/web/scripts/help-index.mjs writes it before build, dev,
+// test, typecheck and lint, and after install); `pnpm --filter @ziffr/web help:index` rebuilds it by hand.
+import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
@@ -15,9 +16,6 @@ const appDir = fileURLToPath(new URL("../app", import.meta.url));
 const indexPath = fileURLToPath(new URL("./help-index.generated.json", import.meta.url));
 const files = readdirSync(guideDir).filter((f) => CHAPTER_FILE.test(f)).map((name) => ({ name, markdown: readFileSync(join(guideDir, name), "utf8") }));
 const built = buildHelpIndex(files);
-const json = JSON.stringify(built) + "\n";
-// Written before the tests read it, so one run with UPDATE_REFERENCE=1 is enough.
-if (process.env.UPDATE_REFERENCE === "1") writeFileSync(indexPath, json);
 
 /** Every page.tsx under the app folder as a route pattern, e.g. `/metrics/[slug]`. */
 function pageRoutes(dir = appDir, at = ""): string[] {
@@ -26,12 +24,13 @@ function pageRoutes(dir = appDir, at = ""): string[] {
 }
 
 describe("the help index", () => {
-  it("matches the generated file", () => {
-    expect(readFileSync(indexPath, "utf8"), "help-index.generated.json is out of date with docs/user-guide: run `pnpm --filter @ziffr/web help:index` and commit the file").toBe(json);
-  });
   const index = JSON.parse(readFileSync(indexPath, "utf8")) as HelpIndex;
+  it("is built from docs/user-guide and equals what the builder makes", () => {
+    // The file is ignored by Git and rebuilt before each run: a mismatch means the script and the builder differ.
+    expect(index, "help-index.generated.json differs from the builder: run `pnpm --filter @ziffr/web help:index`").toEqual(built);
+  });
   it("covers every chapter file, each with sections and a title", () => {
-    expect(index.chapters.map((c) => c.slug)).toEqual(files.map((f) => CHAPTER_FILE.exec(f.name)![2]));
+    expect(built.chapters.map((c) => c.slug)).toEqual(files.map((f) => CHAPTER_FILE.exec(f.name)![2]));
     for (const c of index.chapters.filter((c) => c.slug !== "words-in-ziffr")) {
       expect(c.title, c.slug).not.toBe("");
       expect(c.sections.length, c.slug).toBeGreaterThan(0);
