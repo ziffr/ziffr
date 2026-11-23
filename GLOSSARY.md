@@ -117,6 +117,10 @@ _Avoid_: Reporter, contributor
 A small card in the corner of the app that asks a signed-in person "Enjoying Ziffr?". A yes opens the Ziffr repository on GitHub in a new tab, where they star it themselves: Ziffr cannot star for anyone and tells GitHub nothing. A no asks "What is missing?", and the words are kept without the person's name and read only by Installation Admins. It appears only to Owners, Admins and Members after they have submitted values on at least 3 different days, never in the demo, for Guests, Contacts or on View Links; at most 3 times (after 30 days, then 60), and never again after a star or "Don't ask again". Whether it is asked is an Installation Setting: on for hosted Ziffr, off elsewhere. Not a Prompt, which asks a submitter for a value.
 _Avoid_: Popup, survey, rating, nag
 
+**Feedback**:
+A message from a signed-in person to the Ziffr team, on hosted Ziffr only: a kind (a problem, an idea or a question), their words, and the page and app version it was sent from, kept with a status (waiting for review, open, answered, closed) and its own conversation. It lives outside every Workspace, is never added to a Workspace Export, carries no Metric name, value or other Workspace data, and is seen only by the person who sent it (My feedback) and by the Ziffr team. Not a Finding (an observation about numbers), a Question or a Task (asked of a person in their Workspace), nor the Feedback Prompt (the card that asks whether people like Ziffr).
+_Avoid_: Ticket, support request, report, review
+
 **Feed**:
 A program outside Ziffr that brings in values for some metrics from another system, such as a CRM or a data warehouse. It belongs to the Workspace, not to a person, and only Owners and Admins create one. It is a Submitter of its own, uses a Feed Key, is never sent Prompts, and keeps working when the person who created it leaves. Ziffr never runs its code or holds its credentials for the other system. An n8n or Zapier flow that sends values is an automation, never a Workflow.
 _Avoid_: Integration, sync, pipeline, connector, workflow
@@ -349,6 +353,10 @@ _Avoid_: Breakpoint, inflection, anomaly, outlier
 **Analysis Recipe**:
 An Analysis written as steps of Ziffr's verified functions over the Metrics in its Slots. It holds no code, so every number it gives is verified. In format `ziffr.analysis/2` a step may also give a table (rows with a label and a number) or what a fit holds, and an output may be a Takeaway, written by the Method's own words: a recipe's author writes no sentence about statistics. Format `/1` is read for ever.
 _Avoid_: Script, model, custom analysis, formula
+
+**Formula Tree**:
+The formula of a Derived Metric drawn as boxes by a View Design's `tree` mark: the Metric's value for its own newest period at the top, and under it each part of the formula (the terms of a sum, the factors of a product or a ratio, a bracket as a box with parts of its own), every box an exact number. The parts of a sum share the width of their box by size, a part taken away is hatched, and the factors of a product are laid side by side, equal and not to scale. It is drawn only from inputs the person may see; with one hidden, the whole tree is refused, never drawn with a rest.
+_Avoid_: Driver tree (a Driver is a Metric that moved with another, which a formula's parts do not say), decision tree, treemap
 
 **Common Period**:
 The period two Metrics are compared on in an Analysis: the longer of their own periods, the shorter Metric combined to it by its Aggregation ("compared by month"). A Metric whose Aggregation is none has no Common Period with Metrics of another period.
