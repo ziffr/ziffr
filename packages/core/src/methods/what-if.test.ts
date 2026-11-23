@@ -10,6 +10,7 @@ import { readFileSync } from "node:fs";
 import fc from "fast-check";
 import { describe, expect, it } from "vitest";
 import { evaluateRange } from "../formula";
+import { withWork } from "../work-bound";
 import { fit, predict, type Fit } from "./fit";
 import { fractionOf } from "../exact";
 import { MOST_LINKS, MOST_METRICS, MOST_STEPS, planOf, whatIf, type FitLink, type WhatIfInput, type WhatIfLink, type WorkedLink } from "./what-if";
@@ -298,6 +299,15 @@ describe("a formula worked out on ranges (the part of a what-if that follows an 
     expect(range("{a} / {b}", { a: [2, 6], b: [2, 4] })).toEqual({ lo: 500n, hi: 3000n });
     expect(range("{a} / {b}", { a: [2, 6], b: [-4, -2] })).toEqual({ lo: -3000n, hi: -500n });
     expect(range("12 / (3 + {a}) * 0.5", { a: [1, 3] })).toEqual({ lo: 1000n, hi: 1500n });
+  });
+  it("charges the work budget by the size of the larger end of each range: a range reaching 1e30 costs more than 3,000 units whichever side it is on, a pair of small ones far less", () => {
+    const big = { lo: fractionOf(1), hi: fractionOf(1e30) };
+    const one = { lo: fractionOf(1), hi: fractionOf(1) };
+    const within = (a: typeof big, b: typeof big, budget: number) => withWork(() => evaluateRange("{a} + {b}", { a, b }), budget) !== null;
+    expect(within(big, one, 3000)).toBe(false);
+    expect(within(one, big, 3000)).toBe(false);
+    expect(within(one, one, 3000)).toBe(true);
+    expect(within(big, big, 100000)).toBe(true);
   });
   it("is the formula's own value for a range of no width, and for a Metric named twice holds every result (never less)", () => {
     expect(range("({a} - {b}) / {b} * 100", { a: [120, 120], b: [100, 100] })).toEqual({ lo: 20000n, hi: 20000n });
