@@ -6,6 +6,7 @@ import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { EntryView, PickerList, PickerRun } from "@ziffr/core/analysis-picker";
+import type { Takeaway } from "@ziffr/core/takeaways/takeaway";
 import { groupsFor, metricsNeeded, type CanvasFact } from "@ziffr/core/method-picker-fit";
 import { textsOf } from "@ziffr/core/method-picker";
 
@@ -103,8 +104,8 @@ describe("Choose a method", () => {
 
   it("shows the Takeaway of a result with Save as widget where the Method has a widget, and says so where it has none", async () => {
     await mount([fact(1, "Revenue", { hasTarget: true })]);
-    const takeaway = { kind: "answer", method: "Holt", sentence: "At this pace Revenue reaches 150 € in March: about 7 in 10.", refusal: null, strength: null, strengthText: null, range: null, basis: null, assumptions: [], cautions: [], notes: [], track: null, footer: "This carries the past forward; it is not a promise.", figures: [], numbers: [] } as const;
-    answer = { ok: true, entry: "reach-target", takeaway: { ...takeaway }, recipe: null, widget: { template: "forecast", metricIds: [1], showTarget: true } };
+    const takeaway = { kind: "answer", method: "Holt", sentence: "At this pace Revenue reaches 150 € in March: about 7 in 10.", refusal: null, strength: null, strengthText: null, range: null, basis: null, assumptions: [], cautions: [], notes: [], track: null, footer: "This carries the past forward; it is not a promise.", figures: [], numbers: [] } as Takeaway;
+    answer = { ok: true, entry: "reach-target", takeaway, recipe: null, widget: { template: "forecast", metricIds: [1], showTarget: true } };
     await act(async () => { card("Will we reach the Target?").querySelector("button")!.click(); });
     await act(async () => { host.querySelector("form")!.requestSubmit(); });
     const result = host.querySelector("[role=region]")!;
@@ -122,8 +123,8 @@ describe("Choose a method", () => {
 
   it("says a result has no widget yet, and offers the Analysis Recipe file where the Method can be one", async () => {
     await mount([fact(1, "Revenue"), fact(2, "Visits")]);
-    const takeaway = { kind: "refusal", method: "Rank", sentence: null, refusal: "Not enough months yet: 4 of 6 needed.", strength: null, strengthText: null, range: null, basis: null, assumptions: [], cautions: [], notes: [], track: null, footer: null, figures: [], numbers: [] } as const;
-    answer = { ok: true, entry: "rank", takeaway: { ...takeaway }, recipe: { format: "ziffr.analysis/2", name: "x", slots: [{ label: "A" }], steps: [], outputs: [] }, widget: null };
+    const takeaway = { kind: "refusal", method: "Rank", sentence: null, refusal: "Not enough months yet: 4 of 6 needed.", strength: null, strengthText: null, range: null, basis: null, assumptions: [], cautions: [], notes: [], track: null, footer: null, figures: [], numbers: [] } as Takeaway;
+    answer = { ok: true, entry: "rank", takeaway, recipe: { format: "ziffr.analysis/2", name: "x", slots: [{ label: "A" }], steps: [], outputs: [] }, widget: null };
     await act(async () => { card("Do A and B rise and fall").querySelector("button")!.click(); });
     await act(async () => { host.querySelector("form")!.requestSubmit(); });
     const result = host.querySelector("[role=region]")!;

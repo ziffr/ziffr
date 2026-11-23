@@ -97,8 +97,11 @@ describe("running a picked Method", () => {
     }
     const moves = await runPicker(t.as, { entry: "moves", slots: { metric: [t.revenue.id], drivers: [t.visits.id] } });
     expect(moves.ok && moves.recipe?.steps[0].fn).toBe("fit");
-    const reach = await runPicker(t.as, { entry: "reach-target", slots: { metric: [t.revenue.id] }, settings: { ahead: 2 } });
+    const reach = await runPicker(t.as, { entry: "reach-target", slots: { metric: [t.revenue.id] } });
     expect(reach.ok && reach.widget).toEqual({ template: "forecast", metricIds: [t.revenue.id], showTarget: true });
+    // A look ahead the widget does not take is not saved as one that shows a different Takeaway.
+    const ahead = await runPicker(t.as, { entry: "reach-target", slots: { metric: [t.revenue.id] }, settings: { ahead: 2 } });
+    expect(ahead.ok && ahead.widget).toBeNull();
   });
 
   it("refuses a Metric the person may not see in the very words it uses for one that does not exist", async () => {
