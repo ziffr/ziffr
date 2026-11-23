@@ -9,8 +9,8 @@ import { settingsInEffect, settingsInEffectStrict, type Settings } from "./setti
 
 /** The events of a Metric that has a Retention, which its runs and its confirmation are read from. */
 const RETENTION_KINDS = ["metric.retention_set", "metric.retention_cancelled", "retention.run", "retention.mismatch", "retention.needs_confirmation", "retention.stopped", "export.retention_values"];
-/** The events a period's record shows for a Metric whose Approval is open (the same kinds as period-record.ts). */
-const APPROVAL_KINDS = ["approval.given", "approval.sent_back", "approval.skipped", "self_check.confirmed", "self_check.corrected", "correction.accepted", "correction.declined", "period.locked", "period.unlocked"];
+/** The events a period's record shows for a Metric whose Approval is open (the same kinds as period-record.ts, and a Filled-in Value, which its Period Record step will tell from it: spec 0046). */
+const APPROVAL_KINDS = ["approval.given", "approval.sent_back", "approval.skipped", "self_check.confirmed", "self_check.corrected", "correction.accepted", "correction.declined", "period.locked", "period.unlocked", "value.filled_in"];
 
 const CHUNK = 200;
 const PAGE = 1000;
