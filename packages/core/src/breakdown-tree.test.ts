@@ -146,7 +146,6 @@ describe("a Breakdown of three levels, worked by hand", () => {
     expect(m.rule).not.toContain("add up to");
   });
   it("shows the Metric's value as the rows added up when the Metric has none, and says so", () => {
-    const m = model();
     const d = ok(tree(rows, null));
     expect(d.boxes[0].text).toBe("150 €");
     expect(d.rule).toContain("Revenue has no value for March 2026, so the top box is its rows added up.");
@@ -171,12 +170,10 @@ describe("a row whose parts do not add up to it", () => {
     expect(m.boxes[2].share).toBe(60 / 90);
   });
   it("compares as the values are written, so 0.1 and 0.2 add up to 0.3", () => {
-    const m = model();
     const d = ok(tree([{ label: "A", value: 0.3, parts: [{ label: "B", value: 0.1 }, { label: "C", value: 0.2 }] }], 0.3, { unit: { ...eur, decimals: 1 } }));
     expect(d.rule).not.toContain("add up to");
   });
   it("shows a difference as small as the numbers can tell, never rounded away", () => {
-    const m = model();
     const d = ok(tree([{ label: "A", value: 1, parts: [{ label: "B", value: 0.4 }, { label: "C", value: 0.6000001 }] }], 1));
     expect(d.rule).toContain("A: its parts add up to 1.0000001 €, not to 1.0000000 €");
   });
