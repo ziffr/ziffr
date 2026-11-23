@@ -89,6 +89,7 @@ const CASES: Record<string, Case> = {
   "canvas-actions:canvasAdd": { args: (i) => [[i.metric]] },
   "canvas-actions:canvasRemove": { nothing: "nothing is on the demo's analysis canvas to remove", args: (i) => [i.metric] },
   "canvas-actions:canvasSet": { args: (i) => [[i.metric]] },
+  "canvas-actions:canvasExplain": { nothing: "nothing is on the demo's analysis canvas to mark", args: (i) => [i.metric] },
   "canvas-actions:getHistory": { reads: (i) => [i.metric] },
   "picker-actions:pickerList": { reads: (i) => [[i.metric]] },
   "picker-actions:pickerRun": { reads: (i) => [{ entry: "forecast", slots: { metric: [i.metric] } }] },

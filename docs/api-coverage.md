@@ -35,6 +35,7 @@ Decks, Themes, View Designs, the canvas, Packs and the pages that edit them are 
 - `canvasAdd` (dashboards.ts): the dashboard canvas
 - `canvasRemove` (dashboards.ts): the dashboard canvas
 - `canvasSet` (dashboards.ts): the dashboard canvas
+- `canvasExplain` (dashboards.ts): the dashboard canvas
 - `newDeckFor` (deck-additions.ts): Deck building
 - `createDeckFromTemplate` (deck-templates.ts): Deck Templates
 - `createDeck` (decks.ts): Deck building
