@@ -736,6 +736,34 @@ describe("whole Takeaways, word for word (golden: any change to a sentence, a fi
   });
 });
 
+describe("values that cannot be worked out exactly in reasonable time", () => {
+  const hostile = (kind: "tiny" | "wide" | "places") => {
+    const ms = Array.from({ length: 12 }, (_, i) => mk(i + 1, `m${i}`, `M${i}`));
+    const series: Record<string, Point[]> = {};
+    ms.forEach((m, i) => (series[m.slug] = months("2016-01", Array.from({ length: 120 }, (_, t) => (kind === "tiny" ? ((t + i) % 2 === 0 ? 9.8e14 : 1e-290 * (1 + ((t * 7 + i) % 13))) : kind === "wide" ? ((t + i) % 3 === 0 ? 1e30 : 1) + t : 1.5e-21 * (1 + ((t * 5 + i) % 11)))))));
+    const t0 = Date.now();
+    const out = whatIfRecipe(ms[0], { by: 1 }, ms.slice(1), resolverFrom(ms, series), opts);
+    return { out, ms: Date.now() - t0 };
+  };
+  it("refuses in words, in under a second, 12 Metrics of 120 months mixing 9.8e14 with 1e-290, and says which and why", () => {
+    const { out, ms } = hostile("tiny");
+    expect(ms).toBeLessThan(1000);
+    expect(out).toMatchObject({ kind: "refusal", sentence: null, rows: [], figures: [], numbers: [] });
+    expect(out.refusal).toContain("M0: its values go to more than 20 decimal places");
+  });
+  it("refuses in words where the work budget is spent before the answer, and answers the same with enough of it", () => {
+    const w = world();
+    const cut = whatIfRecipe(VISITS, { by: 1000 }, [SIGNUPS, REVENUE], resolverFrom([VISITS, SIGNUPS, REVENUE], w.series), opts, 1000);
+    expect(cut).toMatchObject({ kind: "refusal", sentence: null, rows: [], figures: [] });
+    expect(cut.refusal).toBe("These values are too large or too fine to work out exactly in reasonable time.");
+    expect(recipe(VISITS, { by: 1000 }, [SIGNUPS, REVENUE], w).kind).toBe("answer");
+  });
+  it("refuses values that span more than 20 orders of magnitude, and values to more than 20 places, in words", () => {
+    expect(hostile("wide").out.refusal).toContain("span more than 20 orders of magnitude");
+    expect(hostile("places").out.refusal).toContain("more than 20 decimal places");
+  });
+});
+
 describe("the wording table", () => {
   it("has every what-if line in every language, none with a forbidden word", () => {
     for (const [, lines] of Object.entries(WORDING)) for (const [key, line] of Object.entries(lines)) if (key.startsWith("whatif") || key.includes("what-if")) expect(line, key).not.toMatch(FORBIDDEN);

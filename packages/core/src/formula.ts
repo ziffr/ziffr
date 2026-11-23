@@ -5,6 +5,7 @@
 // a number from the part it could read.
 import { bitLength, fractionOf, fractionOfText, lowestTerms, minus, nearest, over, plus, times, type Fraction } from "./exact";
 import type { Metric } from "./types";
+import { spendOn, widthOf } from "./work-bound";
 
 /** The slugs of the metrics a Derived Metric's formula reads, each once. */
 export function formulaInputs(formula: string): string[] {
@@ -179,6 +180,8 @@ function runBounds(n: Node, vars: Record<string, Bounds>): Bounds | null {
     case "op": {
       const a = runBounds(n.a, vars), b = runBounds(n.b, vars);
       if (!a || !b) return null;
+      // The four products (or sums) of the ends are charged to the work budget of the Method that asked, by the size of their operands.
+      spendOn(2 * Math.max(widthOf(a.lo), widthOf(a.hi)), 2 * Math.max(widthOf(b.lo), widthOf(b.hi)));
       let out: Bounds;
       if (n.op === "+") out = { lo: plus(a.lo, b.lo), hi: plus(a.hi, b.hi) };
       else if (n.op === "-") out = { lo: minus(a.lo, b.hi), hi: minus(a.hi, b.lo) };

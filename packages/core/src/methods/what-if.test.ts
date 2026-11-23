@@ -558,11 +558,13 @@ describe("hostile input is refused in words and never gives a number", () => {
   it("refuses values too large to work with, for that Metric, and does not change its input", () => {
     const before = JSON.stringify(input());
     const huge = whatIf(input({ change: { by: 1e308 } }));
-    const [r] = huge.ok ? huge.reached : [];
-    expect(r).toEqual({ ok: false, name: "B", step: 1, refusal: { case: "refuse-too-large", slots: {} } });
+    expect(refused(huge)[0]).toMatchObject({ case: "refuse-exact-orders" });
+    const rowsUp: FitLink = { kind: "fit", fit: { ...lb.fit, rows: lb.fit.rows.map((r) => ({ ...r, y: r.y * 1e200 })) } };
+    const big = whatIf({ start: { name: "A", latest: 50 }, change: { by: 1 }, links: [rowsUp] });
+    expect(big.ok && big.reached[0]).toEqual({ ok: false, name: "B", step: 1, refusal: { case: "refuse-too-large", slots: {} } });
     expect(JSON.stringify(input())).toBe(before);
     const tiny = whatIf(input({ change: { by: 1e-300 } }));
-    expect(tiny.ok).toBe(true);
+    expect(refused(tiny)[0]).toMatchObject({ case: "refuse-exact-places" });
   });
   it("is the same bytes twice", () => {
     expect(JSON.stringify(whatIf(input()))).toBe(JSON.stringify(whatIf(input())));
@@ -785,11 +787,6 @@ describe("every check on what is handed over, one at a time (so that none can be
     const rs = reachedOf(run([link("B1", b1, [{ name: "A", x: w.a }]), link("B2", b2, [{ name: "A", x: w.a }]), c], 1));
     expect(rs.find((r) => r.name === "C")!.through).toEqual(["B1", "B2"]);
   });
-  it("refuses a range that overflows although the effect itself does not", () => {
-    const l = link("B", w.b, [{ name: "A", x: w.a }]);
-    const r = whatIf({ start: { name: "A", latest: 50 }, change: { by: 6e307 }, links: [l] });
-    expect(r.ok && r.reached[0]).toEqual({ ok: false, name: "B", step: 1, refusal: { case: "refuse-too-large", slots: {} } });
-  });
   it("names a driver once: beyond is only what the point leaves inside, and a driver outside at the point is not also beyond", () => {
     const lb = link("B", w.b, [{ name: "A", x: w.a }]);
     const lc = link("C", w.c, [{ name: "B", x: w.b }]);
@@ -844,12 +841,44 @@ describe("every check on what is handed over, one at a time (so that none can be
     const first = run([curvy(lb), lc], x, latest);
     expect(first.ok && first.reached[1]).toMatchObject({ ok: true, lo: null });
   });
+  it("refuses, for that Metric, a worked-out change that is past the doubles although every value in it is not", () => {
+    const power: WorkedLink = { kind: "worked", target: "P", formula: Array.from({ length: 20 }, () => "{a}").join(" * "), names: { a: "A" }, levels: { A: 1e20 } };
+    const out = whatIf({ start: { name: "A", latest: 1e20 }, change: { by: 1e20 }, links: [power] });
+    expect(out.ok && out.reached[0]).toEqual({ ok: false, name: "P", step: 1, refusal: { case: "refuse-too-large", slots: {} } });
+  });
   it("counts the lowest value a driver has been as inside, and one step below it as outside", () => {
     const l = link("B", w.b, [{ name: "A", x: w.a }]);
     const low = Math.min(...w.a);
     const latest = l.fit.last.x[0];
     expect(reachedOf(run([l], low - latest, latest))[0].outside).toEqual([]);
     expect(reachedOf(run([l], low - latest - 0.1, latest))[0].outside).toHaveLength(1);
+  });
+});
+
+describe("the work bound", () => {
+  const w = world(3, 30);
+  const lb = link("B", w.b, [{ name: "A", x: w.a }]);
+  const wide = (v: number, name = "A") => whatIf({ start: { name, latest: 50 }, change: { by: v }, links: [lb] });
+  it("refuses in words a change, a latest value, levels or a fit's rows with more than 20 places or spanning more than 20 orders", () => {
+    expect(refused(wide(1e-290))[0]).toMatchObject({ case: "refuse-exact-places", slots: { name: "A" } });
+    expect(refused(whatIf({ start: { name: "A", latest: 9.8e14 }, change: { by: 1e-9 }, links: [lb] }))[0]).toMatchObject({ case: "refuse-exact-orders" });
+    const s: WorkedLink = { kind: "worked", target: "S", formula: "{a} * {k}", names: { a: "A", k: "K" }, levels: { A: 50, K: 1e-290 } };
+    expect(refused(whatIf({ start: { name: "A", latest: 50 }, change: { by: 1 }, links: [s] }))[0]).toMatchObject({ case: "refuse-exact-places", slots: { name: "S" } });
+    const rows = lb.fit.rows.map((r, i) => (i === 0 ? { ...r, y: 1e-290 } : r));
+    expect(refused(whatIf({ start: { name: "A", latest: 50 }, change: { by: 1 }, links: [{ kind: "fit", fit: { ...lb.fit, rows } }] }))[0]).toMatchObject({ case: "refuse-exact-places", slots: { name: "B" } });
+    // Malformed links are not read as wide: they are `linkProblem`'s.
+    expect(refused(whatIf({ start: { name: "A", latest: 50 }, change: { by: 1 }, links: [{ kind: "fit", fit: { rows: 5 } } as never, { kind: "x" } as never] }))[0]).toMatchObject({ case: "refuse-input" });
+  });
+  it("refuses in words where the work budget is spent, and gives the same answer with enough of it", () => {
+    expect(refused(whatIf({ start: { name: "A", latest: 50 }, change: { by: 1 }, links: [lb] }, 1))).toEqual([{ case: "refuse-exact-work", slots: {} }]);
+    expect(whatIf({ start: { name: "A", latest: 50 }, change: { by: 1 }, links: [lb] }).ok).toBe(true);
+  });
+  it("finishes 12 Metrics of 120 points quickly, worked out or refused", () => {
+    const t0 = Date.now();
+    const fine = Array.from({ length: 11 }, (_, i) => link(`M${i}`, w.b.map((v, t) => tenths(v + i * 3 + ((t * 7 + i) % 5))), [{ name: "A", x: w.a }]));
+    const ok = whatIf({ start: { name: "A", latest: 50 }, change: { by: 1 }, links: fine });
+    expect(ok.ok).toBe(true);
+    expect(Date.now() - t0).toBeLessThan(1000);
   });
 });
 

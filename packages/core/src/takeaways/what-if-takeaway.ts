@@ -18,9 +18,10 @@ import { MOST_METRICS, MOST_STEPS, planOf, whatIf, type NotReached, type Reached
 import type { Span } from "../periods";
 import type { Resolver } from "../display-periods";
 import type { Metric, Point } from "../types";
+import { withWork, WORK_BUDGET } from "../work-bound";
 import type { StrengthWord } from "./strength";
 import { lines, onCommon, outsideText, written, type FitRecipeOptions } from "./fit-takeaway";
-import { answerTakeaway, footerText, listOf, refusalTakeaway, sayIn, strengthWordIn, type Figure, type NumberRow, type Takeaway, type TakeawayContext } from "./takeaway";
+import { answerTakeaway, footerText, listOf, refusalTakeaway, wideRefusal, sayIn, strengthWordIn, type Figure, type NumberRow, type Takeaway, type TakeawayContext } from "./takeaway";
 import type { CaseKey, Slots } from "./wording";
 
 /** What a row of the picture is: a value worked out from a formula (no range), estimated with a range, estimated with only a point
@@ -264,7 +265,11 @@ export function recipeNotes(o: { left: string[]; cutFirst: string[]; dropped: st
  * first step. Each Metric that moved with the first step is then fitted on `start` and the first-step Metrics that move it, so that the
  * effect of `start` direct and the effect through each one are told apart; a driver that cannot be told from chance is left out and the
  * fit made again. The second step is what the Method follows from those links. */
-export function whatIfRecipe(start: Metric, change: WhatIfChange, others: Metric[], resolve: Resolver, opts: FitRecipeOptions): WhatIfTakeaway {
+export function whatIfRecipe(start: Metric, change: WhatIfChange, others: Metric[], resolve: Resolver, opts: FitRecipeOptions, budget: number = WORK_BUDGET): WhatIfTakeaway {
+  return withWork(() => whatIfRecipeWithin(start, change, others, resolve, opts), budget) ?? { ...refusalTakeaway(text("numbers-method-what-if", opts.ctx), [text("refuse-exact-work", opts.ctx)]), rows: [] };
+}
+
+function whatIfRecipeWithin(start: Metric, change: WhatIfChange, others: Metric[], resolve: Resolver, opts: FitRecipeOptions): WhatIfTakeaway {
   const method = text("numbers-method-what-if", opts.ctx);
   const none = (lines: string[], notes: string[] = []): WhatIfTakeaway => ({ ...refusalTakeaway(method, lines), notes, rows: [] });
   const everyone = [start, ...others.filter((m) => m.id !== start.id)];
@@ -277,6 +282,9 @@ export function whatIfRecipe(start: Metric, change: WhatIfChange, others: Metric
   if (typeof on === "string") return none([on]);
   const { span } = on;
   const series = new Map(everyone.slice(0, 1).concat(pool).map((m, i) => [m.id, on.series[i]] as const));
+  // Values too wide to work out exactly in reasonable time (work-bound.ts) are refused in words before any arithmetic is done on them.
+  const wide = wideRefusal(method, [start, ...pool].map((m, i) => ({ name: m.name, values: on.series[i].map((p) => p.value) })), opts.ctx);
+  if (wide) return { ...wide, notes: [], rows: [] };
   const last = on.series[0][on.series[0].length - 1];
   if (last === undefined) return none([text("refuse-what-if-latest", opts.ctx, { name: start.name })]);
   const latest = last.value;

@@ -31,6 +31,7 @@ import type { Span } from "../periods";
 import { evaluateRange, formulaInputs, usesPrevious, type Bounds } from "../formula";
 import type { Finding, Verdict } from "../suitability";
 import { strengthOf, type StrengthWord } from "../takeaways/strength";
+import { spendOn, wideColumns, widthOf, withWork, WORK_BUDGET } from "../work-bound";
 import { tQuantile } from "./distributions";
 import { again, carried, modelProblem, partialPeriods, type Again, type Fit, type Merged, type Outside, type Refused } from "./fit";
 
@@ -98,9 +99,11 @@ export type WhatIf = { ok: true; start: string; by: number; /** The percent aske
 const [ZERO, ONE] = [BigInt(0), BigInt(1)];
 type F = Fraction;
 const zero: F = { num: ZERO, den: ONE };
-const add = (a: F, b: F) => lowestTerms(plus(a, b));
-const sub = (a: F, b: F) => lowestTerms(minus(a, b));
-const mul = (a: F, b: F) => lowestTerms(times(a, b));
+// Every step of exact arithmetic is charged to the work budget (work-bound.ts) by the size of its operands before it is done.
+const charge = (a: F, b: F) => spendOn(widthOf(a), widthOf(b));
+const add = (a: F, b: F) => (charge(a, b), lowestTerms(plus(a, b)));
+const sub = (a: F, b: F) => (charge(a, b), lowestTerms(minus(a, b)));
+const mul = (a: F, b: F) => (charge(a, b), lowestTerms(times(a, b)));
 const cmp = (a: F, b: F) => {
   const [l, r] = [a.num * b.den, b.num * a.den];
   // Stryker disable next-line EqualityOperator,ConditionalExpression: at a tie both choices are the same value, so nothing that follows can differ
@@ -177,9 +180,28 @@ function linkProblem(l: unknown): string | null {
       return null;
     }
     return "a link";
-  } catch {
-    // Anything that throws on its way through is not a link this module made.
+  } catch (e) {
+    // The work budget running out is not a link that is wrong: it goes on up to `whatIf`.
+    if (e instanceof Error && e.constructor.name === "OutOfWork") throw e;
+    // Anything else that throws on its way through is not a link this module made.
     return "a link";
+  }
+}
+
+// What is too wide to work out exactly in reasonable time in a link handed over (work-bound.ts): the values a fit was made of, or the levels of a formula. Read
+// loosely: what is not a link is left to `linkProblem`.
+function wideIn(l: unknown): Finding[] {
+  try {
+    const x = l as Loose;
+    if (x.kind === "fit") {
+      const f = x.fit as Fit;
+      const names = [f.target, ...f.drivers.map((d) => d.name)].map(String);
+      return wideColumns(names, [f.rows.map((r) => r.y), ...f.drivers.map((_, j) => f.rows.map((r) => r.x[j]))]);
+    }
+    return x.kind === "worked" ? wideColumns([String(x.target)], [Object.values(x.levels as Record<string, number>)]) : [];
+  } catch {
+    // Nothing that can be read is too wide; the rest is `linkProblem`'s.
+    return [];
   }
 }
 
@@ -316,13 +338,12 @@ function outsideOfFit(l: FitLink, changes: Map<number, Bounds>, start: { name: s
   return out;
 }
 
-/** What happens to the Metrics a change in one Metric reaches, at most two steps and 12 Metrics. Each Metric's change is worked out once from the
- * changes of every Metric that drives it, so the change used further on is the change shown. An exact link (a Derived Metric's formula) is
- * worked out; an estimated one (a fit) carries a range, and the range of a chain holds the true effect at least four times in five, for links as
- * given, without assuming the links' errors are independent (see the top of this file). Never gives a number for what it refuses: a change that
- * is not a number or is no change, a link that is not sound, names that are not told apart, levels that disagree, too many links or Metrics,
- * links that drive each other or run more than two steps, or nothing reached. */
-export function whatIf(input: WhatIfInput): WhatIf {
+/** What happens to the Metrics a change in one Metric reaches, at most two steps and 12 Metrics. Each Metric's change is worked out once from the changes of every Metric that drives it, so the change used further on is the change shown. An exact link (a Derived Metric's formula) is worked out; an estimated one (a fit) carries a range, and the range of a chain holds the true effect at least four times in five, for links as given, without assuming the links' errors are independent (see the top of this file). Never gives a number for what it refuses: a change that is not a number or is no change, a link that is not sound, names that are not told apart, levels that disagree, too many links or Metrics, links that drive each other or run more than two steps, or nothing reached. Out of work budget or with values too wide to work out exactly in reasonable time (work-bound.ts), it is refused in words; `budget` is for tests. */
+export function whatIf(input: WhatIfInput, budget: number = WORK_BUDGET): WhatIf {
+  return withWork(() => whatIfWithin(input), budget) ?? refuse("refuse-exact-work");
+}
+
+function whatIfWithin(input: WhatIfInput): WhatIf {
   const { start, change, links } = input ?? ({} as WhatIfInput);
   if (!start || typeof start.name !== "string" || start.name === "" || !Number.isFinite(start.latest)) return refuseInput("the Metric changed");
   const c = change as Partial<{ by: number; percent: number }> | null | undefined;
@@ -334,6 +355,8 @@ export function whatIf(input: WhatIfInput): WhatIf {
   if (!Number.isFinite(amount)) return refuseInput("the change");
   if (!Array.isArray(links)) return refuseInput("the links");
   if (links.length > MOST_LINKS) return refuse("refuse-what-if-links", { most: MOST_LINKS });
+  const wide = [...links.flatMap(wideIn), ...wideColumns([start.name], [[start.latest, amount]])];
+  if (wide.length > 0) return { ok: false, refusals: wide };
   const bad = links.map(linkProblem).find((p) => p !== null);
   if (bad) return refuseInput(bad);
   // A percent of nothing is nothing: the latest value must say what the change is a part of.
