@@ -27,19 +27,31 @@ type StepRow = { type?: string; assignee?: string | null; standIn?: string; peop
  * again. Only those fields change, in the stored config, so the sealed words stay at their places (`steps.<i>.text`).
  * Approvers are taken out by `hand_over` in the database. */
 async function dropFromWorkflowSteps(ws: string, personId: string): Promise<void> {
-  const { data: flows } = await db().from("workflows").select("id, config").eq("workspace_id", ws);
-  for (const f of flows ?? []) {
-    const steps = (f.config as { steps?: StepRow[] } | null)?.steps ?? [];
-    let changed = false;
-    const next = steps.map((s) => {
-      if (s?.type !== "checklist" && s?.type !== "send_snapshot") return s;
-      const out: StepRow = { ...s };
-      if (out.assignee === personId) { out.assignee = null; changed = true; }
-      if (out.standIn === personId) { delete out.standIn; changed = true; }
-      if (Array.isArray(out.people) && out.people.includes(personId)) { out.people = out.people.filter((p) => p !== personId); changed = true; }
-      return out;
-    });
-    if (changed) await db().from("workflows").update({ config: { ...(f.config as object), steps: next } }).eq("id", f.id).eq("workspace_id", ws);
+  const { data: flows, error } = await db().from("workflows").select("id").eq("workspace_id", ws);
+  // The member is already removed: a failure here is logged, never undoes that. Messages still check membership when they leave.
+  if (error) { console.error("Handover: the Workflows' steps could not be read:", error.message); return; }
+  for (const { id } of flows ?? []) {
+    // Written only over the config it was made from (updated_at), so an owner's save in between is never undone; tried again on that.
+    let done = false;
+    for (let attempt = 0; attempt < 3 && !done; attempt++) {
+      const { data: f } = await db().from("workflows").select("id, config, updated_at").eq("id", id).eq("workspace_id", ws).maybeSingle();
+      if (!f) { done = true; break; }
+      const steps = (f.config as { steps?: StepRow[] } | null)?.steps ?? [];
+      let changed = false;
+      const next = steps.map((s) => {
+        if (s?.type !== "checklist" && s?.type !== "send_snapshot") return s;
+        const out: StepRow = { ...s };
+        if (out.assignee === personId) { out.assignee = null; changed = true; }
+        if (out.standIn === personId) { delete out.standIn; changed = true; }
+        if (Array.isArray(out.people) && out.people.includes(personId)) { out.people = out.people.filter((p) => p !== personId); changed = true; }
+        return out;
+      });
+      if (!changed) { done = true; break; }
+      const { data: written, error: writeError } = await db().from("workflows").update({ config: { ...(f.config as object), steps: next }, updated_at: new Date().toISOString() }).eq("id", id).eq("workspace_id", ws).eq("updated_at", f.updated_at as string).select("id");
+      if (writeError) { console.error("Handover: a Workflow's steps could not be written:", writeError.message); break; }
+      done = Boolean(written?.length);
+    }
+    if (!done) console.error(`Handover: Workflow ${id} still names a removed member in its steps.`);
   }
 }
 
