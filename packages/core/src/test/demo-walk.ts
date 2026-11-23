@@ -5,8 +5,10 @@ import { createHash } from "node:crypto";
 import { db } from "../db";
 import { seedDemoSnapshots } from "../demo-snapshots";
 import { DEMO_WORKSPACE_ID } from "../team";
+import { idFreeRows } from "./demo-fingerprint-row";
 
-/** One row per demo row of every table with a workspace, and the demo's people: changed by anything at all. */
+/** One hash per table of the demo's rows, and the demo's people: changed by anything at all. Rows are taken without the
+ * ids and times the database makes (demo-fingerprint-row.ts), so the demo after a Demo Reset compares equal to its seed. */
 export async function demoFingerprint(): Promise<Record<string, string>> {
   const res = await fetch(`${process.env.SUPABASE_URL}/rest/v1/`, { headers: { apikey: process.env.SUPABASE_SERVICE_ROLE_KEY!, authorization: `Bearer ${process.env.SUPABASE_SERVICE_ROLE_KEY}` } });
   const spec = (await res.json()) as { definitions: Record<string, { properties?: Record<string, unknown> }> };
@@ -15,10 +17,10 @@ export async function demoFingerprint(): Promise<Record<string, string>> {
   for (const t of tables) {
     const { data, error } = await db().from(t).select("*").eq("workspace_id", DEMO_WORKSPACE_ID);
     if (error) continue; // A view that cannot be filtered so; its tables are counted on their own.
-    out[t] = createHash("sha256").update(JSON.stringify([...(data ?? [])].map((r) => JSON.stringify(r)).sort())).digest("hex");
+    out[t] = createHash("sha256").update(idFreeRows(data ?? [])).digest("hex");
   }
   const { data: people } = await db().from("profiles").select("*").in("id", ["sara", "ben", "anna"]);
-  out.profiles = createHash("sha256").update(JSON.stringify(people)).digest("hex");
+  out.profiles = createHash("sha256").update(idFreeRows(people ?? [])).digest("hex");
   const { count } = await db().from("profiles").select("id", { count: "exact", head: true });
   out["profiles (count)"] = String(count);
   const { count: ws } = await db().from("workspaces").select("id", { count: "exact", head: true });
