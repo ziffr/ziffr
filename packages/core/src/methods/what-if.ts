@@ -68,8 +68,12 @@ export type Reached = {
   /** The 80 % range of the effect ("likely between"); null where it is worked out, or where it is a guess (outside what was seen). */
   lo: number | null;
   hi: number | null;
-  /** The values outside what their driver has been, which is why there is no range. */
+  /** The values outside what their driver has been at the point, which is why there is no range. */
   outside: Outside[];
+  /** Drivers whose value is inside what they have been at the point but whose range reaches beyond it: the range is then not offered either. */
+  beyond: Outside[];
+  /** True where a formula after an estimated link could not be worked out on a range (it divides by something that could be 0): the point only. */
+  noRange: boolean;
   /** The Metrics of the first step the change came through to reach this one (none where it came directly). */
   through: string[];
   /** How many estimated effects this rests on, and so how far each one's range is cut (1 − 1 ÷ (10·M) of the t curve). */
@@ -129,6 +133,10 @@ const own = (o: object, k: string) => Object.prototype.hasOwnProperty.call(o, k)
 function fitProblem(f: Fit): string | null {
   if (!f || f.ok !== true || typeof f.target !== "string" || f.target === "" || !Array.isArray(f.drivers) || !Array.isArray(f.rows) || !f.last || !Array.isArray(f.last.x)) return "a fit";
   if (!SPANS.includes(f.span) || !f.verdict || !Array.isArray(f.verdict.cautions) || !Array.isArray(f.crowded)) return "a fit";
+  // The cautions are taken as the fit gave them (only a fit that `fit` made carries the right ones) but must be lines of the wording kind, with plain slots.
+  const plain = (v: unknown) => typeof v === "string" || typeof v === "number";
+  if (f.verdict.cautions.some((c) => !c || typeof c.case !== "string" || !c.slots || typeof c.slots !== "object" || !Object.values(c.slots).every(plain))) return "a fit";
+  if (f.crowded.some((n) => !f.drivers.some((d) => d?.name === n))) return "a fit";
   if (modelProblem(f) !== null || f.drivers.some((d) => !d || typeof d.name !== "string" || d.name === "" || d.name === f.target)) return "a fit";
   if (new Set(f.drivers.map((d) => d.name)).size !== f.drivers.length) return "a fit";
   const m = again(f);
@@ -274,9 +282,10 @@ function evaluate(p0: Extract<Plan, { order: string[] }>, p: number | null, star
   for (const name of p0.order) {
     const link = p0.links.get(name)!;
     const drivers = driversOf(link).filter((d) => done.has(d));
-    const failed = drivers.map((d) => done.get(d)!).find(isFinding);
-    if (failed) {
-      done.set(name, failed as Finding);
+    const failed = drivers.find((d) => isFinding(done.get(d)!));
+    if (failed !== undefined) {
+      // It rests on a Metric nothing can be said of: that is the reason, not the reason that Metric has.
+      done.set(name, { case: "refuse-what-if-driver", slots: { name: failed } });
       continue;
     }
     done.set(name, applyLink(link, new Map(drivers.map((d) => [d, done.get(d) as Eval])), coef, p !== null));
@@ -348,16 +357,22 @@ export function whatIf(input: WhatIfInput): WhatIf {
       const m = point.used.size;
       const level = m === 0 ? 0 : 1 - 1 / (10 * m);
       if (m > 0 && !atLevel.has(level)) atLevel.set(level, evaluate(p0, level, start.name, by));
-      const range = m === 0 ? point : atLevel.get(level)!.get(name)!;
+      const atRange = m === 0 ? point : atLevel.get(level)!.get(name)!;
+      // A formula that cannot be worked out on a range, where the point can: the point only, said as a guess.
+      const noRange = isFinding(atRange) && atRange.case === "refuse-what-if-range";
+      const range = noRange ? point : atRange;
       if (isFinding(range)) return { ok: false, name, step, refusal: range };
       const [effect, lo, hi] = [nearest(point.iv.lo), nearest(range.iv.lo), nearest(range.iv.hi)];
       if (!finiteAll([effect, lo, hi])) return { ok: false, name, step, refusal: { case: "refuse-too-large", slots: {} } };
-      // The fits it went through (each once): what was seen, the cautions that hold, and the weakest link.
+      // The fits it went through (each once): what was seen, the cautions that hold, and the weakest link. A value is outside what was seen where the point
+      // is; where only an end of its range is, the range is dropped and it is said that it could go beyond.
       const fits = range.seen;
-      const outsides = fits.map((s) => outsideOfFit(s.link, s.changes, start));
+      const outsides = point.seen.map((sn) => outsideOfFit(sn.link, sn.changes, start));
+      const edges = fits.map((sn) => outsideOfFit(sn.link, sn.changes, start));
       const outside = outsides.flat();
-      const curved = fits.findIndex((s, i) => outsides[i].length > 0 && carried(s.link.fit).cautions.some((f) => f.case === "caution-curved"));
-      if (curved >= 0) return { ok: false, name, step, refusal: { case: "refuse-curved-outside", slots: { name: outsides[curved][0].name } } };
+      const beyond = edges.flat().filter((o) => !outside.some((x) => x.name === o.name && x.side === o.side));
+      const curved = edges.findIndex((o, i) => (o.length > 0 || outsides[i].length > 0) && carried(fits[i].link.fit).cautions.some((f) => f.case === "caution-curved"));
+      if (curved >= 0) return { ok: false, name, step, refusal: { case: "refuse-curved-outside", slots: { name: [...edges[curved], ...outsides[curved]][0].name } } };
       const cautions = [...new Map(fits.flatMap((s) => carried(s.link.fit).cautions).map((f) => [JSON.stringify(f), f])).values()];
       const words = [...range.used.values()].map((c) => c.link.fit.drivers[c.j].strength);
       const weakest = words.length === 0 ? null : WEAKEST.find((w) => words.includes(w))!;
@@ -367,9 +382,11 @@ export function whatIf(input: WhatIfInput): WhatIf {
         step,
         exact: m === 0,
         effect,
-        lo: m === 0 || outside.length > 0 ? null : lo,
-        hi: m === 0 || outside.length > 0 ? null : hi,
+        lo: m === 0 || outside.length > 0 || beyond.length > 0 || noRange ? null : lo,
+        hi: m === 0 || outside.length > 0 || beyond.length > 0 || noRange ? null : hi,
         outside,
+        beyond,
+        noRange,
         through: driversOf(p0.links.get(name)!).filter((d) => d !== name && p0.depth.has(d) && d !== start.name).sort(),
         coefficients: m,
         level,
