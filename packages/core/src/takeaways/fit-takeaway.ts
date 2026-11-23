@@ -75,8 +75,8 @@ const periodRange = (f: Fit) => `${f.from} – ${f.to}`;
 
 const NAMED = new Set<CaseKey>(["caution-crowded", "refuse-drivers-mix", "refuse-drivers-collinear"]);
 
-// The lines of a verdict, written; a far-off finding quotes the effect of the top driver without those periods.
-function lines(v: Verdict, ctx: TakeawayContext, result?: (value: number) => string) {
+/** The lines of a verdict, written; a far-off finding quotes the effect of the top driver without those periods. */
+export function lines(v: Verdict, ctx: TakeawayContext, result?: (value: number) => string) {
   // Gaps in changes name the periods that had no value, up to four, then how many more.
   const which = (f: { case: CaseKey; slots: Slots }): Slots => {
     // Several drivers named together are written as a list: "A, B and C".
@@ -93,7 +93,7 @@ function lines(v: Verdict, ctx: TakeawayContext, result?: (value: number) => str
 const blank = (method: string, ctx: TakeawayContext): Takeaway => ({ ...refusalTakeaway(method, []), refusal: null, footer: footerText(ctx) });
 
 /** The words for a value outside what a driver has been, with the driver's own unit. */
-function outsideText(o: Outside, m: ValueUnit, span: Span, ctx: TakeawayContext): string {
+export function outsideText(o: Outside, m: ValueUnit, span: Span, ctx: TakeawayContext): string {
   const key: CaseKey = o.change ? (o.side === "above" ? "outside-rise" : "outside-fall") : o.side === "above" ? "outside-above" : "outside-below";
   return say(key, { name: o.name, limit: written(m, o.change ? Math.abs(o.limit) : o.limit, ctx), span }, ctxOf(ctx));
 }
@@ -278,8 +278,8 @@ export const FIT_RECIPES = [
 /** What the recipes need from the world: where the series are and how to write them. */
 export type FitRecipeOptions = { yearStart: YearStart; ctx: TakeawayContext; today?: string };
 
-// The series of each Metric on the common (longest) period, whole periods only; the reason where one cannot be combined.
-function onCommon(metrics: Metric[], resolve: Resolver, opts: FitRecipeOptions): { span: Span; series: Point[][] } | string {
+/** The series of each Metric on the common (longest) period, whole periods only; the reason where one cannot be combined. */
+export function onCommon(metrics: Metric[], resolve: Resolver, opts: FitRecipeOptions): { span: Span; series: Point[][] } | string {
   const span = metrics.map((m) => m.period as Span).reduce((a, b) => commonPeriod(a, b));
   const series: Point[][] = [];
   for (const m of metrics) {
@@ -290,8 +290,8 @@ function onCommon(metrics: Metric[], resolve: Resolver, opts: FitRecipeOptions):
   return { span, series };
 }
 
-// The Metrics a fit can use: the others, but not one that is built from the target or the target from it.
-const candidates = (target: Metric, others: Metric[]) => others.filter((m) => m.id !== target.id && !builtFrom(target, m));
+/** The Metrics a fit can use: the others, but not one that is built from the target or the target from it. */
+export const candidates = (target: Metric, others: Metric[]) => others.filter((m) => m.id !== target.id && !builtFrom(target, m));
 
 /** What a first pass did: how many Metrics there were, over how many periods, how many the history can weigh, and which were left out. */
 type FirstPass = { drivers: Metric[]; series: Point[][]; notes: string[] };
