@@ -10,9 +10,17 @@ A **Pack** is a file of ready-made things for a Workspace: Metric Catalog entrie
 
 Each Pack shows "by" its author, with its logo when it has one, in a bordered box next to the name, and says who vouches for both. A Pack installed from the Marketplace says **Published through the Marketplace as @handle**; that is all its signature proves, so it does not say the name or logo were reviewed. A Pack installed from a file says **Uploaded file. The Marketplace did not check it. Its name and logo are what the file says about itself.**, shows the id as the file writes it, and, when the id begins with `ziffr/`, adds **This file says it is from Ziffr. It is not signed by the Marketplace.** There is no badge: read the lines. The logo is shown only here, in the install preview and on the update page, never anywhere else in Ziffr.
 
+## Ziffr's own Packs
+
+**Ziffr's own Packs** lists the twelve Packs that come with this version of Ziffr, for Owners and Admins. Each shows its name, version and summary and what it brings as counts (for example "13 Metrics, 2 dashboards, 2 Workflows"). It works on any Installation, also a self-hosted one with no Marketplace: nothing is downloaded and nothing leaves your server.
+
+Choose **Preview with Sample Data** to see everything the Pack adds, drawn with Sample Data and never your own values. These Packs need no confirmation about where they came from; texts aimed at assistants, if one ever had any, would still be listed and need a tick. Choose **Install** to add it. Nothing installs until you do, and the Audit log records it as installed from Ziffr's own Packs. A Pack that holds a Theme, such as SaaS metrics and Board meeting, needs an Owner. A Pack that is installed already shows its version instead of a Preview.
+
+When a newer Ziffr brings a newer version of a Pack you installed, that Pack shows **Version … comes with this Ziffr…**, which shows what an update changes before it is done, as under Updating a Pack. It is never applied by itself.
+
 ## Installing from a file
 
-Ziffr makes starting Packs: SaaS metrics, Online shop, Agency or freelancer, Sports club and a Board meeting deck, and five for the functions of a business that any company can use: Sales, Finance, People and HR, Customer support, and Operations and fulfilment. Each brings its Metrics, a dashboard and a Workflow, and names the ready n8n templates that can fill them. Their files are in the `packs` folder of Ziffr's repository; download one and install it as below.
+Ziffr makes starting Packs: SaaS metrics, Online shop, Agency or freelancer, Sports club and a Board meeting deck, and five for the functions of a business that any company can use: Sales, Finance, People and HR, Customer support, and Operations and fulfilment. Each brings its Metrics, a dashboard and a Workflow, and names the ready n8n templates that can fill them. They come with Ziffr: install one from **Ziffr's own Packs**, below, with no download. Their files are also in the `packs` folder of Ziffr's repository, to read or to install as a file.
 
 **SaaS metrics** is the fullest: 13 Metrics with Tags, a monthly management report (a dashboard and a deck), a quarterly board deck, Workflows for the monthly and the quarterly close, an Analysis Recipe with its View Design, and a Theme that shows the Pack's logo. It holds a Theme, so an Owner installs it. **Set up from this Pack** makes its Metrics, the monthly dashboard and a close Workflow in one go; the decks start from **From a Deck Template** on the Decks page, with the Pack's Theme already chosen.
 

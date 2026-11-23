@@ -107,5 +107,17 @@ for (const [file, page] of pages) {
 }
 // The landing page is the one file written here by hand.
 cpSync(join(app, "landing.mdx"), join(out, "index.mdx"));
+// The JSON Schemas of docs/reference are served at /schemas/<name of its $id> (a file's "$schema" line points editors
+// there), copied from the generated files, never written by hand.
+const schemas = join(app, "public/schemas");
+rmSync(schemas, { recursive: true, force: true });
+mkdirSync(schemas, { recursive: true });
+for (const f of readdirSync(join(repo, "docs/reference")).filter((n) => n.endsWith(".schema.json"))) {
+  const text = readFileSync(join(repo, "docs/reference", f), "utf8");
+  const id = /^[a-z0-9.-]+\.json$/.exec(String(JSON.parse(text).$id ?? "").split("/").pop() ?? "")?.[0];
+  if (id) writeFileSync(join(schemas, id), text);
+}
+// Editors in a browser may read them from any page.
+writeFileSync(join(app, "public/_headers"), "/schemas/*\n  Access-Control-Allow-Origin: *\n");
 execFileSync(process.execPath, [join(here, "openapi.mjs")], { stdio: "inherit" });
 console.log(`docs: ${pages.size} pages synced`);
