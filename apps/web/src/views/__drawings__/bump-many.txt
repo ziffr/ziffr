@@ -1,204 +1,187 @@
-<line stroke-width=0.8 stroke=var(--color-rule) x1=14 x2=248 y1=174 y2=174>
-<text fill=var(--color-muted) font-size=6 text-anchor=end x=9 y=12.5>
+<line stroke-width=0.8 stroke=var(--color-rule) x1=16 x2=264 y1=174 y2=174>
+<text fill=var(--color-muted) font-size=8 text-anchor=end x=11 y=11>
 "1"
-<text fill=var(--color-muted) font-size=6 text-anchor=end x=9 y=34.785714285714285>
+<text fill=var(--color-muted) font-size=8 text-anchor=end x=11 y=33.57142857142857>
 "2"
-<text fill=var(--color-muted) font-size=6 text-anchor=end x=9 y=57.07142857142857>
+<text fill=var(--color-muted) font-size=8 text-anchor=end x=11 y=56.142857142857146>
 "3"
-<text fill=var(--color-muted) font-size=6 text-anchor=end x=9 y=79.35714285714286>
+<text fill=var(--color-muted) font-size=8 text-anchor=end x=11 y=78.71428571428571>
 "4"
-<text fill=var(--color-muted) font-size=6 text-anchor=end x=9 y=101.64285714285714>
+<text fill=var(--color-muted) font-size=8 text-anchor=end x=11 y=101.28571428571429>
 "5"
-<text fill=var(--color-muted) font-size=6 text-anchor=end x=9 y=123.92857142857143>
+<text fill=var(--color-muted) font-size=8 text-anchor=end x=11 y=123.85714285714286>
 "6"
-<text fill=var(--color-muted) font-size=6 text-anchor=end x=9 y=146.21428571428572>
+<text fill=var(--color-muted) font-size=8 text-anchor=end x=11 y=146.42857142857142>
 "7"
-<text fill=var(--color-muted) font-size=6 text-anchor=end x=9 y=168.5>
+<text fill=var(--color-muted) font-size=8 text-anchor=end x=11 y=169>
 "8"
-<text fill=var(--color-muted) font-size=6.5 text-anchor=middle x=14 y=186>
+<text fill=var(--color-muted) font-size=8.5 text-anchor=middle x=20 y=186>
 "Jan 26"
-<text fill=var(--color-muted) font-size=6.5 text-anchor=middle x=60.8 y=186>
+<text fill=var(--color-muted) font-size=8.5 text-anchor=middle x=65.6 y=186>
 "Feb 26"
-<text fill=var(--color-muted) font-size=6.5 text-anchor=middle x=107.6 y=186>
+<text fill=var(--color-muted) font-size=8.5 text-anchor=middle x=115.2 y=186>
 "Mar 26"
-<text fill=var(--color-muted) font-size=6.5 text-anchor=middle x=154.4 y=186>
+<text fill=var(--color-muted) font-size=8.5 text-anchor=middle x=164.8 y=186>
 "Apr 26"
-<text fill=var(--color-muted) font-size=6.5 text-anchor=middle x=201.2 y=186>
+<text fill=var(--color-muted) font-size=8.5 text-anchor=middle x=214.4 y=186>
 "May 26"
-<text fill=var(--color-muted) font-size=6.5 text-anchor=middle x=248 y=186>
+<text fill=var(--color-muted) font-size=8.5 text-anchor=middle x=264 y=186>
 "Jun 26"
-<line stroke-linecap=round stroke-width=1.4 stroke=var(--color-muted) x1=14 x2=60.8 y1=10 y2=10>
-<line stroke-linecap=round stroke-width=1.4 stroke=var(--color-muted) x1=60.8 x2=107.6 y1=10 y2=10>
-<line stroke-linecap=round stroke-width=1.4 stroke=var(--color-muted) x1=107.6 x2=154.4 y1=10 y2=10>
-<line stroke-linecap=round stroke-width=1.4 stroke=var(--color-muted) x1=154.4 x2=201.2 y1=10 y2=10>
-<line stroke-linecap=round stroke-width=1.4 stroke=var(--color-muted) x1=201.2 x2=248 y1=10 y2=10>
-<circle cx=14 cy=10 fill=var(--color-muted) r=2.3 stroke-width=0.8 stroke=var(--color-paper)>
+<line stroke-linecap=round stroke-width=1.4 stroke=var(--color-muted) x1=16 x2=65.6 y1=8 y2=8>
+<line stroke-linecap=round stroke-width=1.4 stroke=var(--color-muted) x1=65.6 x2=115.2 y1=8 y2=8>
+<line stroke-linecap=round stroke-width=1.4 stroke=var(--color-muted) x1=115.2 x2=164.8 y1=8 y2=8>
+<line stroke-linecap=round stroke-width=1.4 stroke=var(--color-muted) x1=164.8 x2=214.4 y1=8 y2=8>
+<line stroke-linecap=round stroke-width=1.4 stroke=var(--color-muted) x1=214.4 x2=264 y1=8 y2=8>
+<circle cx=16 cy=8 fill=var(--color-muted) r=2.3 stroke-width=0.8 stroke=var(--color-paper)>
 "North, Jan 26: rank 1, 37,739 €"
-<circle cx=60.8 cy=10 fill=var(--color-muted) r=2.3 stroke-width=0.8 stroke=var(--color-paper)>
+<circle cx=65.6 cy=8 fill=var(--color-muted) r=2.3 stroke-width=0.8 stroke=var(--color-paper)>
 "North, Feb 26: rank 1, 48,280 €"
-<circle cx=107.6 cy=10 fill=var(--color-muted) r=2.3 stroke-width=0.8 stroke=var(--color-paper)>
+<circle cx=115.2 cy=8 fill=var(--color-muted) r=2.3 stroke-width=0.8 stroke=var(--color-paper)>
 "North, Mar 26: rank 1, 48,402 €"
-<circle cx=154.4 cy=10 fill=var(--color-muted) r=2.3 stroke-width=0.8 stroke=var(--color-paper)>
+<circle cx=164.8 cy=8 fill=var(--color-muted) r=2.3 stroke-width=0.8 stroke=var(--color-paper)>
 "North, Apr 26: rank 1, 49,097 €"
-<circle cx=201.2 cy=10 fill=var(--color-muted) r=2.3 stroke-width=0.8 stroke=var(--color-paper)>
+<circle cx=214.4 cy=8 fill=var(--color-muted) r=2.3 stroke-width=0.8 stroke=var(--color-paper)>
 "North, May 26: rank 1, 46,486 €"
-<circle cx=248 cy=10 fill=var(--color-muted) r=2.3 stroke-width=0.8 stroke=var(--color-paper)>
+<circle cx=264 cy=8 fill=var(--color-muted) r=2.3 stroke-width=0.8 stroke=var(--color-paper)>
 "North, Jun 26: rank 1, 47,094 €"
-<line stroke-linecap=round stroke-width=1.4 stroke=var(--color-muted) x1=14 x2=60.8 y1=32.285714285714285 y2=32.285714285714285>
-<line stroke-linecap=round stroke-width=1.4 stroke=var(--color-muted) x1=60.8 x2=107.6 y1=32.285714285714285 y2=32.285714285714285>
-<line stroke-linecap=round stroke-width=1.4 stroke=var(--color-muted) x1=107.6 x2=154.4 y1=32.285714285714285 y2=32.285714285714285>
-<line stroke-linecap=round stroke-width=1.4 stroke=var(--color-muted) x1=154.4 x2=201.2 y1=32.285714285714285 y2=32.285714285714285>
-<line stroke-linecap=round stroke-width=1.4 stroke=var(--color-muted) x1=201.2 x2=248 y1=32.285714285714285 y2=32.285714285714285>
-<circle cx=14 cy=32.285714285714285 fill=var(--color-muted) r=2.3 stroke-width=0.8 stroke=var(--color-paper)>
+<line stroke-linecap=round stroke-width=1.4 stroke=var(--color-muted) x1=16 x2=65.6 y1=30.571428571428573 y2=30.571428571428573>
+<line stroke-linecap=round stroke-width=1.4 stroke=var(--color-muted) x1=65.6 x2=115.2 y1=30.571428571428573 y2=30.571428571428573>
+<line stroke-linecap=round stroke-width=1.4 stroke=var(--color-muted) x1=115.2 x2=164.8 y1=30.571428571428573 y2=30.571428571428573>
+<line stroke-linecap=round stroke-width=1.4 stroke=var(--color-muted) x1=164.8 x2=214.4 y1=30.571428571428573 y2=30.571428571428573>
+<line stroke-linecap=round stroke-width=1.4 stroke=var(--color-muted) x1=214.4 x2=264 y1=30.571428571428573 y2=30.571428571428573>
+<circle cx=16 cy=30.571428571428573 fill=var(--color-muted) r=2.3 stroke-width=0.8 stroke=var(--color-paper)>
 "South, Jan 26: rank 2, 27,727 €"
-<circle cx=60.8 cy=32.285714285714285 fill=var(--color-muted) r=2.3 stroke-width=0.8 stroke=var(--color-paper)>
+<circle cx=65.6 cy=30.571428571428573 fill=var(--color-muted) r=2.3 stroke-width=0.8 stroke=var(--color-paper)>
 "South, Feb 26: rank 2, 26,902 €"
-<circle cx=107.6 cy=32.285714285714285 fill=var(--color-muted) r=2.3 stroke-width=0.8 stroke=var(--color-paper)>
+<circle cx=115.2 cy=30.571428571428573 fill=var(--color-muted) r=2.3 stroke-width=0.8 stroke=var(--color-paper)>
 "South, Mar 26: rank 2, 28,172 €"
-<circle cx=154.4 cy=32.285714285714285 fill=var(--color-muted) r=2.3 stroke-width=0.8 stroke=var(--color-paper)>
+<circle cx=164.8 cy=30.571428571428573 fill=var(--color-muted) r=2.3 stroke-width=0.8 stroke=var(--color-paper)>
 "South, Apr 26: rank 2, 30,652 €"
-<circle cx=201.2 cy=32.285714285714285 fill=var(--color-muted) r=2.3 stroke-width=0.8 stroke=var(--color-paper)>
+<circle cx=214.4 cy=30.571428571428573 fill=var(--color-muted) r=2.3 stroke-width=0.8 stroke=var(--color-paper)>
 "South, May 26: rank 2, 33,433 €"
-<circle cx=248 cy=32.285714285714285 fill=var(--color-muted) r=2.3 stroke-width=0.8 stroke=var(--color-paper)>
+<circle cx=264 cy=30.571428571428573 fill=var(--color-muted) r=2.3 stroke-width=0.8 stroke=var(--color-paper)>
 "South, Jun 26: rank 2, 38,554 €"
-<line stroke-linecap=round stroke-width=1.4 stroke=var(--color-muted) x1=14 x2=60.8 y1=54.57142857142857 y2=54.57142857142857>
-<line stroke-linecap=round stroke-width=1.4 stroke=var(--color-muted) x1=60.8 x2=107.6 y1=54.57142857142857 y2=54.57142857142857>
-<line stroke-linecap=round stroke-width=1.4 stroke=var(--color-muted) x1=107.6 x2=154.4 y1=54.57142857142857 y2=54.57142857142857>
-<line stroke-linecap=round stroke-width=1.4 stroke=var(--color-muted) x1=154.4 x2=201.2 y1=54.57142857142857 y2=54.57142857142857>
-<line stroke-linecap=round stroke-width=1.4 stroke=var(--color-muted) x1=201.2 x2=248 y1=54.57142857142857 y2=54.57142857142857>
-<circle cx=14 cy=54.57142857142857 fill=var(--color-muted) r=2.3 stroke-width=0.8 stroke=var(--color-paper)>
+<line stroke-linecap=round stroke-width=1.4 stroke=var(--color-muted) x1=16 x2=65.6 y1=53.142857142857146 y2=53.142857142857146>
+<line stroke-linecap=round stroke-width=1.4 stroke=var(--color-muted) x1=65.6 x2=115.2 y1=53.142857142857146 y2=53.142857142857146>
+<line stroke-linecap=round stroke-width=1.4 stroke=var(--color-muted) x1=115.2 x2=164.8 y1=53.142857142857146 y2=53.142857142857146>
+<line stroke-linecap=round stroke-width=1.4 stroke=var(--color-muted) x1=164.8 x2=214.4 y1=53.142857142857146 y2=53.142857142857146>
+<line stroke-linecap=round stroke-width=1.4 stroke=var(--color-muted) x1=214.4 x2=264 y1=53.142857142857146 y2=53.142857142857146>
+<circle cx=16 cy=53.142857142857146 fill=var(--color-muted) r=2.3 stroke-width=0.8 stroke=var(--color-paper)>
 "West, Jan 26: rank 3, 21,150 €"
-<circle cx=60.8 cy=54.57142857142857 fill=var(--color-muted) r=2.3 stroke-width=0.8 stroke=var(--color-paper)>
+<circle cx=65.6 cy=53.142857142857146 fill=var(--color-muted) r=2.3 stroke-width=0.8 stroke=var(--color-paper)>
 "West, Feb 26: rank 3, 22,126 €"
-<circle cx=107.6 cy=54.57142857142857 fill=var(--color-muted) r=2.3 stroke-width=0.8 stroke=var(--color-paper)>
+<circle cx=115.2 cy=53.142857142857146 fill=var(--color-muted) r=2.3 stroke-width=0.8 stroke=var(--color-paper)>
 "West, Mar 26: rank 3, 24,475 €"
-<circle cx=154.4 cy=54.57142857142857 fill=var(--color-muted) r=2.3 stroke-width=0.8 stroke=var(--color-paper)>
+<circle cx=164.8 cy=53.142857142857146 fill=var(--color-muted) r=2.3 stroke-width=0.8 stroke=var(--color-paper)>
 "West, Apr 26: rank 3, 28,050 €"
-<circle cx=201.2 cy=54.57142857142857 fill=var(--color-muted) r=2.3 stroke-width=0.8 stroke=var(--color-paper)>
+<circle cx=214.4 cy=53.142857142857146 fill=var(--color-muted) r=2.3 stroke-width=0.8 stroke=var(--color-paper)>
 "West, May 26: rank 3, 22,237 €"
-<circle cx=248 cy=54.57142857142857 fill=var(--color-muted) r=2.3 stroke-width=0.8 stroke=var(--color-paper)>
+<circle cx=264 cy=53.142857142857146 fill=var(--color-muted) r=2.3 stroke-width=0.8 stroke=var(--color-paper)>
 "West, Jun 26: rank 3, 23,324 €"
-<line stroke-linecap=round stroke-width=1.4 stroke=var(--color-muted) x1=14 x2=60.8 y1=76.85714285714286 y2=99.14285714285714>
-<line stroke-linecap=round stroke-width=1.4 stroke=var(--color-muted) x1=60.8 x2=107.6 y1=99.14285714285714 y2=99.14285714285714>
-<line stroke-linecap=round stroke-width=1.4 stroke=var(--color-muted) x1=107.6 x2=154.4 y1=99.14285714285714 y2=99.14285714285714>
-<circle cx=14 cy=76.85714285714286 fill=var(--color-muted) r=2.3 stroke-width=0.8 stroke=var(--color-paper)>
+<line stroke-linecap=round stroke-width=1.4 stroke=var(--color-muted) x1=16 x2=65.6 y1=75.71428571428571 y2=98.28571428571429>
+<line stroke-linecap=round stroke-width=1.4 stroke=var(--color-muted) x1=65.6 x2=115.2 y1=98.28571428571429 y2=98.28571428571429>
+<line stroke-linecap=round stroke-width=1.4 stroke=var(--color-muted) x1=115.2 x2=164.8 y1=98.28571428571429 y2=98.28571428571429>
+<circle cx=16 cy=75.71428571428571 fill=var(--color-muted) r=2.3 stroke-width=0.8 stroke=var(--color-paper)>
 "Online, Jan 26: rank 4, 18,953 €"
-<circle cx=60.8 cy=99.14285714285714 fill=var(--color-muted) r=2.3 stroke-width=0.8 stroke=var(--color-paper)>
+<circle cx=65.6 cy=98.28571428571429 fill=var(--color-muted) r=2.3 stroke-width=0.8 stroke=var(--color-paper)>
 "Online, Feb 26: rank 5, 15,623 €"
-<circle cx=107.6 cy=99.14285714285714 fill=var(--color-muted) r=2.3 stroke-width=0.8 stroke=var(--color-paper)>
+<circle cx=115.2 cy=98.28571428571429 fill=var(--color-muted) r=2.3 stroke-width=0.8 stroke=var(--color-paper)>
 "Online, Mar 26: rank 5, 14,598 €"
-<circle cx=154.4 cy=99.14285714285714 fill=var(--color-muted) r=2.3 stroke-width=0.8 stroke=var(--color-paper)>
+<circle cx=164.8 cy=98.28571428571429 fill=var(--color-muted) r=2.3 stroke-width=0.8 stroke=var(--color-paper)>
 "Online, Apr 26: rank 5, 13,610 €"
-<circle cx=248 cy=99.14285714285714 fill=var(--color-muted) r=2.3 stroke-width=0.8 stroke=var(--color-paper)>
+<circle cx=264 cy=98.28571428571429 fill=var(--color-muted) r=2.3 stroke-width=0.8 stroke=var(--color-paper)>
 "Online, Jun 26: rank 5, 14,604 €"
-<line stroke-linecap=round stroke-width=1.4 stroke=var(--color-muted) x1=14 x2=60.8 y1=121.42857142857143 y2=121.42857142857143>
-<line stroke-linecap=round stroke-width=1.4 stroke=var(--color-muted) x1=60.8 x2=107.6 y1=121.42857142857143 y2=121.42857142857143>
-<line stroke-linecap=round stroke-width=1.4 stroke=var(--color-muted) x1=107.6 x2=154.4 y1=121.42857142857143 y2=121.42857142857143>
-<line stroke-linecap=round stroke-width=1.4 stroke=var(--color-muted) x1=154.4 x2=201.2 y1=121.42857142857143 y2=99.14285714285714>
-<line stroke-linecap=round stroke-width=1.4 stroke=var(--color-muted) x1=201.2 x2=248 y1=99.14285714285714 y2=121.42857142857143>
-<circle cx=14 cy=121.42857142857143 fill=var(--color-muted) r=2.3 stroke-width=0.8 stroke=var(--color-paper)>
+<line stroke-linecap=round stroke-width=1.4 stroke=var(--color-muted) x1=16 x2=65.6 y1=120.85714285714286 y2=120.85714285714286>
+<line stroke-linecap=round stroke-width=1.4 stroke=var(--color-muted) x1=65.6 x2=115.2 y1=120.85714285714286 y2=120.85714285714286>
+<line stroke-linecap=round stroke-width=1.4 stroke=var(--color-muted) x1=115.2 x2=164.8 y1=120.85714285714286 y2=120.85714285714286>
+<line stroke-linecap=round stroke-width=1.4 stroke=var(--color-muted) x1=164.8 x2=214.4 y1=120.85714285714286 y2=98.28571428571429>
+<line stroke-linecap=round stroke-width=1.4 stroke=var(--color-muted) x1=214.4 x2=264 y1=98.28571428571429 y2=120.85714285714286>
+<circle cx=16 cy=120.85714285714286 fill=var(--color-muted) r=2.3 stroke-width=0.8 stroke=var(--color-paper)>
 "Epsilon, Jan 26: rank 6, 480 €"
-<circle cx=60.8 cy=121.42857142857143 fill=var(--color-muted) r=2.3 stroke-width=0.8 stroke=var(--color-paper)>
+<circle cx=65.6 cy=120.85714285714286 fill=var(--color-muted) r=2.3 stroke-width=0.8 stroke=var(--color-paper)>
 "Epsilon, Feb 26: rank 6, 480 €"
-<circle cx=107.6 cy=121.42857142857143 fill=var(--color-muted) r=2.3 stroke-width=0.8 stroke=var(--color-paper)>
+<circle cx=115.2 cy=120.85714285714286 fill=var(--color-muted) r=2.3 stroke-width=0.8 stroke=var(--color-paper)>
 "Epsilon, Mar 26: rank 6, 480 €"
-<circle cx=154.4 cy=121.42857142857143 fill=var(--color-muted) r=2.3 stroke-width=0.8 stroke=var(--color-paper)>
+<circle cx=164.8 cy=120.85714285714286 fill=var(--color-muted) r=2.3 stroke-width=0.8 stroke=var(--color-paper)>
 "Epsilon, Apr 26: rank 6, 480 €"
-<circle cx=201.2 cy=99.14285714285714 fill=var(--color-muted) r=2.3 stroke-width=0.8 stroke=var(--color-paper)>
+<circle cx=214.4 cy=98.28571428571429 fill=var(--color-muted) r=2.3 stroke-width=0.8 stroke=var(--color-paper)>
 "Epsilon, May 26: rank 5, 480 €"
-<circle cx=248 cy=121.42857142857143 fill=var(--color-muted) r=2.3 stroke-width=0.8 stroke=var(--color-paper)>
+<circle cx=264 cy=120.85714285714286 fill=var(--color-muted) r=2.3 stroke-width=0.8 stroke=var(--color-paper)>
 "Epsilon, Jun 26: rank 6, 480 €"
-<line stroke-linecap=round stroke-width=1.4 stroke=var(--color-muted) x1=14 x2=60.8 y1=143.71428571428572 y2=143.71428571428572>
-<line stroke-linecap=round stroke-width=1.4 stroke=var(--color-muted) x1=60.8 x2=107.6 y1=143.71428571428572 y2=143.71428571428572>
-<line stroke-linecap=round stroke-width=1.4 stroke=var(--color-muted) x1=107.6 x2=154.4 y1=143.71428571428572 y2=143.71428571428572>
-<line stroke-linecap=round stroke-width=1.4 stroke=var(--color-muted) x1=154.4 x2=201.2 y1=143.71428571428572 y2=121.42857142857143>
-<line stroke-linecap=round stroke-width=1.4 stroke=var(--color-muted) x1=201.2 x2=248 y1=121.42857142857143 y2=143.71428571428572>
-<circle cx=14 cy=143.71428571428572 fill=var(--color-muted) r=2.3 stroke-width=0.8 stroke=var(--color-paper)>
+<line stroke-linecap=round stroke-width=1.4 stroke=var(--color-muted) x1=16 x2=65.6 y1=143.42857142857142 y2=143.42857142857142>
+<line stroke-linecap=round stroke-width=1.4 stroke=var(--color-muted) x1=65.6 x2=115.2 y1=143.42857142857142 y2=143.42857142857142>
+<line stroke-linecap=round stroke-width=1.4 stroke=var(--color-muted) x1=115.2 x2=164.8 y1=143.42857142857142 y2=143.42857142857142>
+<line stroke-linecap=round stroke-width=1.4 stroke=var(--color-muted) x1=164.8 x2=214.4 y1=143.42857142857142 y2=120.85714285714286>
+<line stroke-linecap=round stroke-width=1.4 stroke=var(--color-muted) x1=214.4 x2=264 y1=120.85714285714286 y2=143.42857142857142>
+<circle cx=16 cy=143.42857142857142 fill=var(--color-muted) r=2.3 stroke-width=0.8 stroke=var(--color-paper)>
 "Delta, Jan 26: rank 7, 460 €"
-<circle cx=60.8 cy=143.71428571428572 fill=var(--color-muted) r=2.3 stroke-width=0.8 stroke=var(--color-paper)>
+<circle cx=65.6 cy=143.42857142857142 fill=var(--color-muted) r=2.3 stroke-width=0.8 stroke=var(--color-paper)>
 "Delta, Feb 26: rank 7, 460 €"
-<circle cx=107.6 cy=143.71428571428572 fill=var(--color-muted) r=2.3 stroke-width=0.8 stroke=var(--color-paper)>
+<circle cx=115.2 cy=143.42857142857142 fill=var(--color-muted) r=2.3 stroke-width=0.8 stroke=var(--color-paper)>
 "Delta, Mar 26: rank 7, 460 €"
-<circle cx=154.4 cy=143.71428571428572 fill=var(--color-muted) r=2.3 stroke-width=0.8 stroke=var(--color-paper)>
+<circle cx=164.8 cy=143.42857142857142 fill=var(--color-muted) r=2.3 stroke-width=0.8 stroke=var(--color-paper)>
 "Delta, Apr 26: rank 7, 460 €"
-<circle cx=201.2 cy=121.42857142857143 fill=var(--color-muted) r=2.3 stroke-width=0.8 stroke=var(--color-paper)>
+<circle cx=214.4 cy=120.85714285714286 fill=var(--color-muted) r=2.3 stroke-width=0.8 stroke=var(--color-paper)>
 "Delta, May 26: rank 6, 460 €"
-<circle cx=248 cy=143.71428571428572 fill=var(--color-muted) r=2.3 stroke-width=0.8 stroke=var(--color-paper)>
+<circle cx=264 cy=143.42857142857142 fill=var(--color-muted) r=2.3 stroke-width=0.8 stroke=var(--color-paper)>
 "Delta, Jun 26: rank 7, 460 €"
-<line stroke-linecap=round stroke-width=1.4 stroke=var(--color-muted) x1=14 x2=60.8 y1=166 y2=166>
-<line stroke-linecap=round stroke-width=1.4 stroke=var(--color-muted) x1=60.8 x2=107.6 y1=166 y2=166>
-<line stroke-linecap=round stroke-width=1.4 stroke=var(--color-muted) x1=107.6 x2=154.4 y1=166 y2=166>
-<line stroke-linecap=round stroke-width=1.4 stroke=var(--color-muted) x1=154.4 x2=201.2 y1=166 y2=143.71428571428572>
-<line stroke-linecap=round stroke-width=1.4 stroke=var(--color-muted) x1=201.2 x2=248 y1=143.71428571428572 y2=166>
-<circle cx=14 cy=166 fill=var(--color-muted) r=2.3 stroke-width=0.8 stroke=var(--color-paper)>
+<line stroke-linecap=round stroke-width=1.4 stroke=var(--color-muted) x1=16 x2=65.6 y1=166 y2=166>
+<line stroke-linecap=round stroke-width=1.4 stroke=var(--color-muted) x1=65.6 x2=115.2 y1=166 y2=166>
+<line stroke-linecap=round stroke-width=1.4 stroke=var(--color-muted) x1=115.2 x2=164.8 y1=166 y2=166>
+<line stroke-linecap=round stroke-width=1.4 stroke=var(--color-muted) x1=164.8 x2=214.4 y1=166 y2=143.42857142857142>
+<line stroke-linecap=round stroke-width=1.4 stroke=var(--color-muted) x1=214.4 x2=264 y1=143.42857142857142 y2=166>
+<circle cx=16 cy=166 fill=var(--color-muted) r=2.3 stroke-width=0.8 stroke=var(--color-paper)>
 "Gamma, Jan 26: rank 8, 440 €"
-<circle cx=60.8 cy=166 fill=var(--color-muted) r=2.3 stroke-width=0.8 stroke=var(--color-paper)>
+<circle cx=65.6 cy=166 fill=var(--color-muted) r=2.3 stroke-width=0.8 stroke=var(--color-paper)>
 "Gamma, Feb 26: rank 8, 440 €"
-<circle cx=107.6 cy=166 fill=var(--color-muted) r=2.3 stroke-width=0.8 stroke=var(--color-paper)>
+<circle cx=115.2 cy=166 fill=var(--color-muted) r=2.3 stroke-width=0.8 stroke=var(--color-paper)>
 "Gamma, Mar 26: rank 8, 440 €"
-<circle cx=154.4 cy=166 fill=var(--color-muted) r=2.3 stroke-width=0.8 stroke=var(--color-paper)>
+<circle cx=164.8 cy=166 fill=var(--color-muted) r=2.3 stroke-width=0.8 stroke=var(--color-paper)>
 "Gamma, Apr 26: rank 8, 440 €"
-<circle cx=201.2 cy=143.71428571428572 fill=var(--color-muted) r=2.3 stroke-width=0.8 stroke=var(--color-paper)>
+<circle cx=214.4 cy=143.42857142857142 fill=var(--color-muted) r=2.3 stroke-width=0.8 stroke=var(--color-paper)>
 "Gamma, May 26: rank 7, 440 €"
-<circle cx=248 cy=166 fill=var(--color-muted) r=2.3 stroke-width=0.8 stroke=var(--color-paper)>
+<circle cx=264 cy=166 fill=var(--color-muted) r=2.3 stroke-width=0.8 stroke=var(--color-paper)>
 "Gamma, Jun 26: rank 8, 440 €"
-<line stroke-linecap=round stroke-width=2.4 stroke=var(--color-accent) x1=14 x2=60.8 y1=99.14285714285714 y2=76.85714285714286>
-<line stroke-linecap=round stroke-width=2.4 stroke=var(--color-accent) x1=60.8 x2=107.6 y1=76.85714285714286 y2=76.85714285714286>
-<line stroke-linecap=round stroke-width=2.4 stroke=var(--color-accent) x1=107.6 x2=154.4 y1=76.85714285714286 y2=76.85714285714286>
-<line stroke-linecap=round stroke-width=2.4 stroke=var(--color-accent) x1=154.4 x2=201.2 y1=76.85714285714286 y2=76.85714285714286>
-<line stroke-linecap=round stroke-width=2.4 stroke=var(--color-accent) x1=201.2 x2=248 y1=76.85714285714286 y2=76.85714285714286>
-<circle cx=14 cy=99.14285714285714 fill=var(--color-accent) r=3 stroke-width=0.8 stroke=var(--color-paper)>
+<line stroke-linecap=round stroke-width=2.4 stroke=var(--color-accent) x1=16 x2=65.6 y1=98.28571428571429 y2=75.71428571428571>
+<line stroke-linecap=round stroke-width=2.4 stroke=var(--color-accent) x1=65.6 x2=115.2 y1=75.71428571428571 y2=75.71428571428571>
+<line stroke-linecap=round stroke-width=2.4 stroke=var(--color-accent) x1=115.2 x2=164.8 y1=75.71428571428571 y2=75.71428571428571>
+<line stroke-linecap=round stroke-width=2.4 stroke=var(--color-accent) x1=164.8 x2=214.4 y1=75.71428571428571 y2=75.71428571428571>
+<line stroke-linecap=round stroke-width=2.4 stroke=var(--color-accent) x1=214.4 x2=264 y1=75.71428571428571 y2=75.71428571428571>
+<circle cx=16 cy=98.28571428571429 fill=var(--color-accent) r=3 stroke-width=0.8 stroke=var(--color-paper)>
 "East, Jan 26: rank 5, 18,693 €"
-<circle cx=60.8 cy=76.85714285714286 fill=var(--color-accent) r=3 stroke-width=0.8 stroke=var(--color-paper)>
+<circle cx=65.6 cy=75.71428571428571 fill=var(--color-accent) r=3 stroke-width=0.8 stroke=var(--color-paper)>
 "East, Feb 26: rank 4, 21,347 €"
-<circle cx=107.6 cy=76.85714285714286 fill=var(--color-accent) r=3 stroke-width=0.8 stroke=var(--color-paper)>
+<circle cx=115.2 cy=75.71428571428571 fill=var(--color-accent) r=3 stroke-width=0.8 stroke=var(--color-paper)>
 "East, Mar 26: rank 4, 17,396 €"
-<circle cx=154.4 cy=76.85714285714286 fill=var(--color-accent) r=3 stroke-width=0.8 stroke=var(--color-paper)>
+<circle cx=164.8 cy=75.71428571428571 fill=var(--color-accent) r=3 stroke-width=0.8 stroke=var(--color-paper)>
 "East, Apr 26: rank 4, 19,014 €"
-<circle cx=201.2 cy=76.85714285714286 fill=var(--color-accent) r=3 stroke-width=0.8 stroke=var(--color-paper)>
+<circle cx=214.4 cy=75.71428571428571 fill=var(--color-accent) r=3 stroke-width=0.8 stroke=var(--color-paper)>
 "East, May 26: rank 4, 21,671 €"
-<circle cx=248 cy=76.85714285714286 fill=var(--color-accent) r=3 stroke-width=0.8 stroke=var(--color-paper)>
+<circle cx=264 cy=75.71428571428571 fill=var(--color-accent) r=3 stroke-width=0.8 stroke=var(--color-paper)>
 "East, Jun 26: rank 4, 18,152 €"
-<line stroke-width=0.6 stroke=var(--color-rule) x1=252 x2=256 y1=10 y2=8>
-<text fill=var(--color-ink) font-size=7 font-weight=500 x=258 y=10>
+<line stroke-width=0.6 stroke=var(--color-rule) x1=268 x2=272 y1=8 y2=6>
+<text fill=var(--color-ink) font-size=9.5 font-weight=500 x=274 y=11>
 "North · 1North"
-<text fill=var(--color-muted) font-size=6 x=258 y=17>
-"47,094 €"
-<line stroke-width=0.6 stroke=var(--color-rule) x1=252 x2=256 y1=32.285714285714285 y2=30.285714285714285>
-<text fill=var(--color-ink) font-size=7 font-weight=500 x=258 y=32.285714285714285>
+<line stroke-width=0.6 stroke=var(--color-rule) x1=268 x2=272 y1=30.571428571428573 y2=28.571428571428573>
+<text fill=var(--color-ink) font-size=9.5 font-weight=500 x=274 y=33.57142857142857>
 "South · 2South"
-<text fill=var(--color-muted) font-size=6 x=258 y=39.285714285714285>
-"38,554 €"
-<line stroke-width=0.6 stroke=var(--color-rule) x1=252 x2=256 y1=54.57142857142857 y2=52.57142857142857>
-<text fill=var(--color-ink) font-size=7 font-weight=500 x=258 y=54.57142857142857>
+<line stroke-width=0.6 stroke=var(--color-rule) x1=268 x2=272 y1=53.142857142857146 y2=51.142857142857146>
+<text fill=var(--color-ink) font-size=9.5 font-weight=500 x=274 y=56.142857142857146>
 "West · 3West"
-<text fill=var(--color-muted) font-size=6 x=258 y=61.57142857142857>
-"23,324 €"
-<line stroke-width=0.6 stroke=var(--color-rule) x1=252 x2=256 y1=76.85714285714286 y2=74.85714285714286>
-<text fill=var(--color-ink) font-size=7 font-weight=700 x=258 y=76.85714285714286>
+<line stroke-width=0.6 stroke=var(--color-rule) x1=268 x2=272 y1=75.71428571428571 y2=73.71428571428571>
+<text fill=var(--color-ink) font-size=9.5 font-weight=700 x=274 y=78.71428571428571>
 "East · 4East"
-<text fill=var(--color-muted) font-size=6 x=258 y=83.85714285714286>
-<tspan fill=var(--color-ink) font-weight=700>
-"up 1 place ·"
-"18,152 €"
-<line stroke-width=0.6 stroke=var(--color-rule) x1=252 x2=256 y1=99.14285714285714 y2=97.14285714285714>
-<text fill=var(--color-ink) font-size=7 font-weight=500 x=258 y=99.14285714285714>
+<line stroke-width=0.6 stroke=var(--color-rule) x1=268 x2=272 y1=98.28571428571429 y2=96.28571428571429>
+<text fill=var(--color-ink) font-size=9.5 font-weight=500 x=274 y=101.28571428571429>
 "Online · 5Online"
-<text fill=var(--color-muted) font-size=6 x=258 y=106.14285714285714>
-"14,604 €"
-<line stroke-width=0.6 stroke=var(--color-rule) x1=252 x2=256 y1=121.42857142857143 y2=119.42857142857143>
-<text fill=var(--color-ink) font-size=7 font-weight=500 x=258 y=121.42857142857143>
+<line stroke-width=0.6 stroke=var(--color-rule) x1=268 x2=272 y1=120.85714285714286 y2=118.85714285714286>
+<text fill=var(--color-ink) font-size=9.5 font-weight=500 x=274 y=123.85714285714286>
 "Epsilon · 6Epsilon"
-<text fill=var(--color-muted) font-size=6 x=258 y=128.42857142857144>
-"480 €"
-<line stroke-width=0.6 stroke=var(--color-rule) x1=252 x2=256 y1=143.71428571428572 y2=141.71428571428572>
-<text fill=var(--color-ink) font-size=7 font-weight=500 x=258 y=143.71428571428572>
+<line stroke-width=0.6 stroke=var(--color-rule) x1=268 x2=272 y1=143.42857142857142 y2=141.42857142857142>
+<text fill=var(--color-ink) font-size=9.5 font-weight=500 x=274 y=146.42857142857142>
 "Delta · 7Delta"
-<text fill=var(--color-muted) font-size=6 x=258 y=150.71428571428572>
-"460 €"
-<line stroke-width=0.6 stroke=var(--color-rule) x1=252 x2=256 y1=166 y2=164>
-<text fill=var(--color-ink) font-size=7 font-weight=500 x=258 y=166>
+<line stroke-width=0.6 stroke=var(--color-rule) x1=268 x2=272 y1=166 y2=164>
+<text fill=var(--color-ink) font-size=9.5 font-weight=500 x=274 y=169>
 "Gamma · 8Gamma"
-<text fill=var(--color-muted) font-size=6 x=258 y=173>
-"440 €"
+"East up 1 place"
 "Rank 1 is the highest value of the period; rows with the same value share the better rank. Online was missing in some periods and has no dot there, never a last place. 2 rows with a worse average rank are not drawn."

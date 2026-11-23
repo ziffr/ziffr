@@ -10,24 +10,18 @@ import { formatValue } from "@ziffr/core/format";
 import { periodLabel } from "@ziffr/core/periods";
 import { bumpModel, upWords } from "@ziffr/core/bump-marks";
 import type { DesignValues } from "./design-view";
+import { useBoxSize } from "./use-box-size";
+import { useWidgetScale } from "./widget-scale";
 
-const W = 360;
-const H = 190;
-const LEFT = 14;
-const RIGHT = 112;
-const TOP = 10;
-const BOTTOM = 16;
-// A label is two lines of 7 and 6 units: rows whose lines would touch are pushed apart by this much.
-const GAP = 15;
 const NAME = 16;
 
-/** The y of every label, kept at least GAP apart (two rows can end on the same rank): each wants its line's end, pushed down when it would touch the one above, then the block lifted back inside the plot. */
-function spread(wanted: number[], floor: number): number[] {
+/** The y of every label, kept at least `gap` apart (two rows can end on the same rank): each wants its line's end, pushed down when it would touch the one above, then the block lifted back inside the plot. */
+function spread(wanted: number[], floor: number, gap: number): number[] {
   const order = wanted.map((y, i) => ({ y, i })).sort((a, b) => a.y - b.y || a.i - b.i);
   const out = new Array<number>(wanted.length);
   let prev = -Infinity;
   for (const { y, i } of order) {
-    prev = Math.max(y, prev + GAP);
+    prev = Math.max(y, prev + gap);
     out[i] = prev;
   }
   const over = Math.max(0, Math.max(...out) - floor);
@@ -53,28 +47,53 @@ export function BumpMark({ v }: { v: DesignValues }) {
     write: (x) => formatValue(m, x, data.numberStyle),
   });
   if (!model.ok) return <Words>{model.reason}</Words>;
+  return <BumpChart v={v} model={model} />;
+}
+
+/** The chart, drawn to the pixels of its box: the lines fill the width, the type follows the widget scale, and the labels at the line
+ * ends give way to the room: a wide card writes each row's name, rank and value (two lines), a middle one its name and rank, a narrow
+ * one gives the width to the lines and says the biggest mover in one line below; a short card drops the words. */
+function BumpChart({ v, model }: { v: DesignValues; model: Extract<ReturnType<typeof bumpModel>, { ok: true }> }) {
+  const { m, data } = v;
   const { periods, rows, lowest } = model;
+  const scale = useWidgetScale();
+  const [whole, all] = useBoxSize<HTMLDivElement>();
+  const [box, size] = useBoxSize<HTMLDivElement>();
+  // Until the box is measured (the first render on the server, a drawing made without a screen) a nominal size is drawn.
+  const measured = size.w > 0 && size.h > 0;
+  const W = measured ? size.w : 360;
+  const H = measured ? size.h : 190;
+  const fs = 10 * scale;
+  const detail = W / scale >= 430 ? "full" : W / scale >= 250 ? "mid" : "narrow";
   const n = periods.length;
-  const x = (i: number) => LEFT + ((W - LEFT - RIGHT) * i) / (n - 1);
-  const bottom = H - BOTTOM;
-  const y = (rank: number) => TOP + ((bottom - TOP - 8) * (rank - 1)) / Math.max(lowest - 1, 1);
-  const labelY = spread(rows.map((r) => y(r.end.rank)), bottom);
-  // With many periods the names would touch: they are written on every other one, and the newest always.
-  const every = n > 8 ? 2 : 1;
+  const left = fs * 1.6;
+  const right = detail === "full" ? Math.min(W * 0.3, 150 * scale) : detail === "mid" ? Math.min(W * 0.3, 96 * scale) : 8;
+  const top = fs * 0.8;
+  const bottom = H - fs * 1.6;
+  const x = (i: number) => left + ((W - left - right) * i) / Math.max(n - 1, 1);
+  const y = (rank: number) => top + ((bottom - top - 8) * (rank - 1)) / Math.max(lowest - 1, 1);
+  const gap = detail === "full" ? fs * 2.3 : fs * 1.25;
+  // The lowest label's second line must stay above the period names, so the labels are kept a line higher in a wide card.
+  const labelY = spread(rows.map((r) => y(r.end.rank)), bottom - (detail === "full" ? fs * 1.1 : 0), gap);
+  // With many periods the names would touch: they are written on as many as have the room, and the newest always.
+  const every = Math.max(1, Math.ceil((5.4 * fs * 0.85) / Math.max(1, (W - left - right) / Math.max(n - 1, 1))));
   const mover = rows.some((r) => r.up !== null);
   const tone = (up: number | null) => (up !== null ? "var(--color-accent)" : mover ? "var(--color-muted)" : "var(--color-data)");
   // The mover is drawn last, so nothing covers it.
   const drawOrder = [...rows].sort((a, b) => Number(a.up !== null) - Number(b.up !== null));
+  const nameMax = Math.max(4, Math.floor((right - 14) / (0.6 * fs * 0.9)) - (detail === "mid" ? 4 : 0));
+  const movers = rows.filter((r) => r.up !== null).map((r) => `${r.label} ${upWords(r.up!)}`);
+  const tall = all.h === 0 || all.h / scale >= 190;
   return (
-    <>
-      <div className="relative min-h-40 w-full flex-1">
-        <svg viewBox={`0 0 ${W} ${H}`} className="absolute inset-0 size-full" role="img" aria-label={model.alt} preserveAspectRatio="xMidYMid meet">
-          <line x1={LEFT} x2={W - RIGHT} y1={bottom} y2={bottom} stroke="var(--color-rule)" strokeWidth={0.8} />
+    <div ref={whole} className="flex min-h-0 w-full flex-1 flex-col">
+      <div ref={box} className="relative min-h-[5rem] w-full flex-1">
+        <svg viewBox={`0 0 ${W} ${H}`} className="absolute inset-0 size-full" role="img" aria-label={model.alt}>
+          <line x1={left} x2={W - right} y1={bottom} y2={bottom} stroke="var(--color-rule)" strokeWidth={0.8} />
           {Array.from({ length: lowest }, (_, k) => k + 1).map((rank) => (
-            <text key={rank} x={LEFT - 5} y={y(rank) + 2.5} textAnchor="end" fontSize={6} fill="var(--color-muted)">{rank}</text>
+            <text key={rank} x={left - 5} y={y(rank) + fs * 0.3} textAnchor="end" fontSize={fs * 0.8} fill="var(--color-muted)">{rank}</text>
           ))}
           {periods.map((p, i) => (n - 1 - i) % every === 0 && (
-            <text key={p.period} x={x(i)} y={H - 4} textAnchor="middle" fontSize={6.5} fill="var(--color-muted)">{p.label}</text>
+            <text key={p.period} x={Math.min(W - fs * 2, Math.max(fs * 2, x(i)))} y={H - fs * 0.4} textAnchor="middle" fontSize={fs * 0.85} fill="var(--color-muted)">{p.label}</text>
           ))}
           {drawOrder.map((r) => {
             const color = tone(r.up);
@@ -93,30 +112,33 @@ export function BumpMark({ v }: { v: DesignValues }) {
               </g>
             );
           })}
-          {rows.map((r, k) => {
+          {detail !== "narrow" && rows.map((r, k) => {
             const lastAt = r.ranks.map((q) => q !== null).lastIndexOf(true);
             const ly = labelY[k];
-            const name = r.label.length > NAME ? `${r.label.slice(0, NAME - 1)}…` : r.label;
+            const name = r.label.length > Math.min(NAME, nameMax) ? `${r.label.slice(0, Math.min(NAME, nameMax) - 1)}…` : r.label;
             return (
               <g key={r.label}>
                 {/* A short leader from the end of the line to its label when the label had to move to keep clear of another. */}
                 <line x1={x(lastAt) + 4} y1={y(r.end.rank)} x2={x(n - 1) + 8} y2={ly - 2} stroke="var(--color-rule)" strokeWidth={0.6} />
-                <text x={x(n - 1) + 10} y={ly} fontSize={7} fill="var(--color-ink)" fontWeight={r.up !== null ? 700 : 500}>
+                <text x={x(n - 1) + 10} y={ly + fs * 0.3} fontSize={fs * 0.95} fill="var(--color-ink)" fontWeight={r.up !== null ? 700 : 500}>
                   {`${name} · ${r.end.rank}`}
                   <title>{r.label}</title>
                 </text>
-                <text x={x(n - 1) + 10} y={ly + 7} fontSize={6} fill="var(--color-muted)">
-                  {r.up !== null ? <tspan fill="var(--color-ink)" fontWeight={700}>{`${upWords(r.up)} · `}</tspan> : null}
-                  {r.end.seen ? `last ${r.end.seen} · ` : ""}
-                  {r.end.value}
-                </text>
+                {detail === "full" && (
+                  <text x={x(n - 1) + 10} y={ly + fs * 1.3} fontSize={fs * 0.85} fill="var(--color-muted)">
+                    {r.up !== null ? <tspan fill="var(--color-ink)" fontWeight={700}>{`${upWords(r.up)} · `}</tspan> : null}
+                    {r.end.seen ? `last ${r.end.seen} · ` : ""}
+                    {r.end.value}
+                  </text>
+                )}
               </g>
             );
           })}
         </svg>
       </div>
-      <Words>{model.rule}</Words>
-    </>
+      {detail !== "full" && tall && movers.length > 0 && <Words>{movers.join(" · ")}</Words>}
+      {tall && <Words>{model.rule}</Words>}
+    </div>
   );
 }
 
