@@ -105,6 +105,18 @@ function CreatedNote({ derived, note, demo, tagsLeftOut }: { derived: boolean; n
   );
 }
 
+/** What a person sees for a Metric that is not shared with them: who owns it, and a way to ask for access. */
+function NotShared({ metric, owner }: { metric: { id: number; name: string }; owner?: { name: string } }) {
+  return (
+    <div className="mx-auto max-w-md rounded-[var(--radius-card)] border border-dashed border-[var(--color-rule-2)] p-8 text-center text-sm">
+      <Lock className="mx-auto mb-2 size-6 text-muted-foreground" />
+      <p className="font-medium">{metric.name} isn’t shared with you</p>
+      <p className="mt-1 text-muted-foreground">{owner ? `${owner.name} owns it.` : "Its owner can share it with you."}</p>
+      <RequestAccess type="metric" id={metric.id} owner={owner?.name.split(" ")[0] ?? "the owner"} />
+    </div>
+  );
+}
+
 export default async function MetricPage({ params, searchParams }: { params: Promise<{ slug: string }>; searchParams: Promise<{ vs?: string; created?: string; bp?: string; full?: string; tab?: string; suggest?: string; basis?: string }> }) {
   const { slug } = await params;
   const sp = await searchParams;
@@ -132,16 +144,7 @@ export default async function MetricPage({ params, searchParams }: { params: Pro
   const notCombined = [...new Set(leftOut.filter((l) => l.why === "not-combined" || l.why === "too-much").map((l) => l.reason))];
   const partner = correlations.find((c) => c.metric.slug === sp.vs) ?? correlations[0];
 
-  if (!visible.has(metric.id)) {
-    return (
-      <div className="mx-auto max-w-md rounded-[var(--radius-card)] border border-dashed border-[var(--color-rule-2)] p-8 text-center text-sm">
-        <Lock className="mx-auto mb-2 size-6 text-muted-foreground" />
-        <p className="font-medium">{metric.name} isn’t shared with you</p>
-        <p className="mt-1 text-muted-foreground">{peopleById[metric.owner_id] ? `${peopleById[metric.owner_id].name} owns it.` : "Its owner can share it with you."}</p>
-        <RequestAccess type="metric" id={metric.id} owner={peopleById[metric.owner_id]?.name.split(" ")[0] ?? "the owner"} />
-      </div>
-    );
-  }
+  if (!visible.has(metric.id)) return <NotShared metric={metric} owner={peopleById[metric.owner_id]} />;
   const actor = await currentActor();
   // Only a Metric this person sees is counted (the refusal above returns first); a number, never a person.
   void countView(actor, { kind: "metric", id: metric.id });
