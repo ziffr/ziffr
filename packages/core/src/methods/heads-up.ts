@@ -119,7 +119,7 @@ function stoppedTakeaway(row: PairRow, names: ReadonlyMap<number, string>, looke
       { label: sayIn("numbers-lag", {}, ctx), text: text(lag) },
       { label: sayIn("numbers-hu-before", {}, ctx), text: sayIn("numbers-hu-half", { r: before.r, n: before.n, span: row.span }, ctx) },
       { label: sayIn("numbers-hu-recent", {}, ctx), text: sayIn("numbers-hu-half", { r: recent.r, n: recent.n, span: row.span }, ctx) },
-      { label: sayIn("numbers-hu-looked-at", {}, ctx), text: text(looked) },
+      { label: sayIn("numbers-hu-looked-at-stopped", {}, ctx), text: text(looked) },
       { label: sayIn("numbers-hu-drop", {}, ctx), text: chanceText(adjusted, ctx) },
       { label: sayIn("numbers-basis", {}, ctx), text: sayIn("basis-changes", {}, ctx) },
     ],

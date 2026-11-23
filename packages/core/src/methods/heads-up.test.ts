@@ -45,6 +45,7 @@ describe("the words", () => {
     "numbers-hu-second-half": "Second half of the periods",
     "numbers-hu-half": "0.50 over 18 months",
     "numbers-hu-looked-at": "Pairs of Metrics looked at",
+    "numbers-hu-looked-at-stopped": "Pairs that had been moving together, looked at for a drop",
     "numbers-hu-luck": "Chance of this by luck, after correcting for the pairs looked at",
     "numbers-hu-before": "Before the last periods",
     "numbers-hu-recent": "The last periods",
@@ -208,7 +209,7 @@ describe("a pair that has stopped moving together", () => {
       footer: FOOTER,
     });
     expect(h.takeaway.figures).toEqual([{ label: "The last periods", value: 6, text: "6" }]);
-    expect(h.takeaway.numbers.map((n) => n.label)).toEqual(["Method", "Delay (periods)", "Before the last periods", "The last periods", "Pairs of Metrics looked at", "Chance of a drop this big by luck, after correcting for the pairs looked at", "Compared on"]);
+    expect(h.takeaway.numbers.map((n) => n.label)).toEqual(["Method", "Delay (periods)", "Before the last periods", "The last periods", "Pairs that had been moving together, looked at for a drop", "Chance of a drop this big by luck, after correcting for the pairs looked at", "Compared on"]);
     expect(h.takeaway.numbers[2].text).toBe("0.92 over 30 months");
     expect(h.takeaway.numbers[3].text).toBe("0.12 over 6 months");
     // The drop is tried among the pairs that had been moving together: here one.

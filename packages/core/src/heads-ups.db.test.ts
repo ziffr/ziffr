@@ -55,6 +55,7 @@ async function setup() {
   const mine = (id: string) => w.actor(id, "member");
   return { w, sara, ben, cleo, ids, owner, scan, mine, series };
 }
+const series_of = (metricId: number, ws: string) => walk(77).map((value, k) => ({ metric_id: metricId, period_start: month(k), value, source: "api", workspace_id: ws }));
 const names = (ups: { metrics: number[] }[], ids: Record<string, number>) => ups.map((u) => u.metrics.map((id) => Object.keys(ids).find((k) => ids[k] === id)));
 
 describe("the job", () => {
@@ -145,6 +146,31 @@ describe("the job", () => {
     expect(out.scanned).toBe(0);
     expect(out.left).toBeGreaterThanOrEqual(1);
   }, 120_000);
+
+  it("reads every period waiting for Approval, not only the first 1,000 rows", async () => {
+    const { w, ids, scan, sara } = await setup();
+    const last = await w.metric(sara, { name: "Last made" });
+    await db().from("observations").insert(series_of(last.id, w.id));
+    // 1,100 states on an older Metric at old dates, then the one that matters on the Metric with the highest id.
+    await db().from("period_states").insert(Array.from({ length: 1100 }, (_, i) => ({ metric_id: ids.visits, period_start: new Date(Date.UTC(1990, 0, 1 + i)).toISOString().slice(0, 10), state: "approval", workspace_id: w.id })));
+    await db().from("period_states").insert({ metric_id: last.id, period_start: month(MONTHS - 1), state: "approval", workspace_id: w.id });
+    await scan();
+    const row = (await db().from("heads_up_pairs").select("through").eq("workspace_id", w.id).eq("metric_a", ids.notes).eq("metric_b", last.id).single()).data!;
+    expect(row.through).toBe("2026-05-01");
+  }, 60_000);
+
+  it("leaves a safe state when a scan is killed part-way: the old rows stand, the flag is not loosened, a reader is told what a safe read gives, and the next scan completes", async () => {
+    const { w, ben, ids, scan } = await setup();
+    await scan();
+    await w.share(ids.visits, ben);
+    await w.share(ids.revenue, ben);
+    const before = JSON.stringify(await listHeadsUps(w.actor(ben, "member")));
+    await expect(scanWorkspace(w.id, new Date(Date.now() + 4000).toISOString(), TODAY, { afterFlag: async () => { throw new Error("killed"); } })).rejects.toThrow("killed");
+    expect(JSON.stringify(await listHeadsUps(w.actor(ben, "member")))).toBe(before);
+    await expect(scanWorkspace(w.id, new Date(Date.now() + 6000).toISOString(), TODAY, { afterRows: async () => { throw new Error("killed"); } })).rejects.toThrow("killed");
+    expect(JSON.stringify(await listHeadsUps(w.actor(ben, "member")))).toBe(before);
+    expect(await scan(new Date(Date.now() + 8000).toISOString())).toMatchObject({ pairs: 10 });
+  });
 
   it.each(["approval", "submitted"])("rests on no value whose period is in the state %s (not final, the rule Alerts read): the period is left out until it is final", async (state) => {
     const { w, ids, scan } = await setup();
@@ -353,7 +379,7 @@ describe("what is scanned does not depend on Metrics a person may not see", () =
     expect(seenAt).toHaveLength(4);
   }, 300_000);
 
-  it("leaves a pair out as related only through Metrics the person sees: two Derived Metrics of one hidden Metric are shown, of one they see are not", async () => {
+  it("leaves a pair out as related only through Metrics the person sees: two Derived Metrics whose formulas name the same Metric are related whether or not the person sees it", async () => {
     const w = await workspace();
     cleanups.push(w.cleanup);
     const [sara, ben] = [await w.person("owner"), await w.person("member")];
@@ -366,7 +392,8 @@ describe("what is scanned does not depend on Metrics a person may not see", () =
     await w.share(d2.id, ben);
     await scanWorkspace(w.id, new Date().toISOString(), TODAY);
     const benActor = w.actor(ben, "member");
-    expect((await listHeadsUps(benActor)).map((h) => h.takeaway.sentence)).toEqual([expect.stringContaining("Source doubled and Source plus one have started moving together")]);
+    // The formulas Ben reads both name the same Metric, hidden or not, so the pair is related either way and no Heads-up says they moved together.
+    expect(await listHeadsUps(benActor)).toEqual([]);
     await w.share(hidden.id, ben);
     expect(await listHeadsUps(benActor)).toEqual([]);
   });

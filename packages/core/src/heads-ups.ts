@@ -10,7 +10,10 @@
 // own rule: Shares, Groups, Tokens, Stand-ins) that are in use, reads ONLY the rows whose two Metrics are among them, and gives
 // methods/heads-up.ts those rows and those Metrics' names. The correction for the number of pairs is worked out there, over those
 // rows alone, so nothing a person receives (not a Heads-up, not a count, not the order, not the chance in Show the numbers)
-// depends on a Metric they may not see. A Metric that is archived or hidden since the last scan is gone from the list at once,
+// depends on a Metric they may not see.
+//
+// TODO before listHeadsUps is exposed (ticket #707, the Heads-ups list and API): in a Workspace over the cap every call scans up to 200
+// Metrics with no cache and no rate limit. The UI and API must add a per-person cache or a budget first. A Metric that is archived or hidden since the last scan is gone from the list at once,
 // without a new scan, because the filter is applied at every read.
 import type { Actor } from "./actor";
 import { visibleMetricIds } from "./access";
@@ -109,8 +112,12 @@ async function scanSubset(ws: string, day: string, pick: (all: Metric[]) => Metr
   const [metrics, yearStart] = await Promise.all([getMetrics(ws), yearStartOf(ws)]);
   // Only values of the last ten years are read: no series is longer than 120 periods, and a yearly Metric has few values.
   // A value that is not final (waiting for Approval, or sent back; value-state.ts, the rule Alerts read too) is not used: the period is left out (a gap), so no Heads-up rests on a value not approved yet.
-  const [all, { data: waiting }] = await Promise.all([getLatestObservations(ws, { from: shiftPeriod(day, "year", -10) }), db().from("period_states").select("metric_id, period_start").eq("workspace_id", ws).in("state", [...NOT_FINAL_STATES])]);
-  const unapproved = new Set((waiting ?? []).map((w) => `${w.metric_id}:${w.period_start}`));
+  const [all, waiting] = await Promise.all([
+    getLatestObservations(ws, { from: shiftPeriod(day, "year", -10) }),
+    // Page by page: a hosted database answers at most 1,000 rows a request, and a Workspace may have more periods waiting.
+    allRows<{ metric_id: number; period_start: string }>((from, to) => db().from("period_states").select("metric_id, period_start").eq("workspace_id", ws).in("state", [...NOT_FINAL_STATES]).order("metric_id").order("period_start").range(from, to)),
+  ]);
+  const unapproved = new Set(waiting.map((w) => `${w.metric_id}:${w.period_start}`));
   const observations = all.filter((o) => !unapproved.has(`${o.metric_id}:${o.period_start}`));
   const series = buildSeries(metrics, observations);
   const resolve = resolverFrom(metrics, series);
@@ -142,7 +149,12 @@ function relatedAmong(chosen: Metric[]): (a: number, b: number) => boolean {
   const inputs = ingredients(chosen);
   const byId = new Map(chosen.map((m) => [m.id, m]));
   const share = (x: Set<number>, y: Set<number>) => [...x].some((id) => y.has(id));
-  return (a, b) => builtFrom(byId.get(a)!, byId.get(b)!) || inputs.get(a)!.has(b) || inputs.get(b)!.has(a) || share(inputs.get(a)!, inputs.get(b)!);
+  // A viewer of a Derived Metric already sees its formula, so two of them that name the same Metric in their formulas (even one the
+  // viewer may not see: its slug is in the formula text they read) are related. Only the formulas' own words are compared: no
+  // chain through a Metric outside `chosen` is followed, and nothing about such a Metric is looked at.
+  const named = new Map(chosen.map((m) => [m.id, new Set(m.formula ? formulaInputs(m.formula) : [])]));
+  const sameWord = (a: number, b: number) => [...named.get(a)!].some((slug) => named.get(b)!.has(slug));
+  return (a, b) => builtFrom(byId.get(a)!, byId.get(b)!) || inputs.get(a)!.has(b) || inputs.get(b)!.has(a) || share(inputs.get(a)!, inputs.get(b)!) || sameWord(a, b);
 }
 
 /** Scans one Workspace and replaces its rows of the pair table: the 200 most recently updated Metrics in use and every pair that

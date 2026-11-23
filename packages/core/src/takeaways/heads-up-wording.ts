@@ -20,6 +20,7 @@ export const HEADS_UP_EN = {
   "numbers-hu-second-half": "Second half of the periods",
   "numbers-hu-half": "{r} over {n} {periodsOf|n}",
   "numbers-hu-looked-at": "Pairs of Metrics looked at",
+  "numbers-hu-looked-at-stopped": "Pairs that had been moving together, looked at for a drop",
   "numbers-hu-luck": "Chance of this by luck, after correcting for the pairs looked at",
   "numbers-hu-before": "Before the last periods",
   "numbers-hu-recent": "The last periods",
