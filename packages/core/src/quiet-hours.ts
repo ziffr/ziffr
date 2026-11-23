@@ -12,8 +12,8 @@ import { refuseInDemo } from "./demo";
 import { checkRule, neverQuiet, quietEnd, type QuietRule } from "./quiet-rules";
 import { knownTimeZone, workspaceClock } from "./workspace-clock";
 
-/** The kinds of Delivery that wait out quiet hours: asking for numbers, reminding, and telling of an Alert or a Heads-up. */
-export const HELD_KINDS = ["prompt", "reminder", "alert", "heads_up"] as const;
+/** The kinds of Delivery that wait out quiet hours: asking for numbers, reminding, and telling of an Alert, a Heads-up or a Checklist Item. */
+export const HELD_KINDS = ["prompt", "reminder", "alert", "heads_up", "checklist"] as const;
 
 type Row = { person_id: string | null; from_hour: number; to_hour: number; days: number[]; time_zone: string | null };
 const ruleOf = (r: Row): QuietRule => ({ fromHour: r.from_hour, toHour: r.to_hour, days: [...r.days].sort((a, b) => a - b), timeZone: r.time_zone });

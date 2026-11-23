@@ -1,11 +1,12 @@
-// Sealed Workflow numbers (spec 0028, ticket #248; GLOSSARY: Workflow, Unusual Value, Tell, Workspace Key): the level of a
-// Workflow's check step (`changePct`) and what a Tell step waits for (`condition.value` or `.share`) are numbers people
-// chose, so they are sealed inside the config as text, each bound to the Workflow and to its place in the config
-// (`config.steps.2.change_pct`). Pure: it takes a cipher and returns copies; reading and writing the database stays in
+// Sealed Workflow numbers and words (spec 0028, ticket #248; GLOSSARY: Workflow, Unusual Value, Tell, Checklist Item,
+// Workspace Key): the level of a Workflow's check step (`changePct`), what a Tell step waits for (`condition.value` or
+// `.share`) and the text of a Checklist Item (`text`, spec 0045) are what people chose and wrote, so they are sealed
+// inside the config as text, each bound to the Workflow and to its place in the config (`config.steps.2.change_pct`,
+// `config.steps.4.text`). Pure: it takes a cipher and returns copies; reading and writing the database stays in
 // the functions that own the table. Where the Workspace does not seal, the config stays as it is; a config written
 // before sealing passes through as it is until the re-encryption job seals it. Security: a number that does not
 // open (another Workflow, a changed text, a destroyed key) never reads as ciphertext or 0: a Check holds the strictest level,
-// a Tell step is left out.
+// a Tell step and a Checklist Item are left out.
 import { isSealed, type WorkspaceCipher } from "./workspace-keys";
 
 /** The strictest level a Check can have: the smallest change that counts as unusual. */
@@ -43,6 +44,12 @@ export function mapConfigNumbers<T>(config: T, change: Change, base: string): T 
       if (out !== undefined) steps.push({ ...step, condition: { ...step.condition, [key]: out } });
       return;
     }
+    if (step.type === "checklist" && typeof step.text === "string") {
+      // A Checklist Item whose text does not open is dropped, never run as ciphertext.
+      const out = change(`${at}text`, step.text);
+      if (out !== undefined) steps.push({ ...step, text: out });
+      return;
+    }
     steps.push(step);
   });
   return { ...config, steps } as T;
@@ -52,7 +59,7 @@ export function mapConfigNumbers<T>(config: T, change: Change, base: string): T 
 const seal = (cipher: WorkspaceCipher, id: number): Change => (column, text) => cipher.seal({ table: "workflows", column, row: id }, text);
 /** The change that opens a number's text of a place: a plain one as it is. A sealed one that does not open must not
  * make a guard vanish: a Check whose level is lost holds the strictest one (every change is unusual, so Approval still
- * happens), and a Tell step that cannot tell what it waits for is left out. */
+ * happens), and a Tell step that cannot tell what it waits for, or a Checklist Item whose text is lost, is left out. */
 const open = (cipher: WorkspaceCipher, id: number): Change => (column, text) => {
   if (!isSealed(text)) return text;
   return cipher.open({ table: "workflows", column, row: id }, text) ?? (column.endsWith(".change_pct") ? STRICTEST : undefined);

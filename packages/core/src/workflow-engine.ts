@@ -26,6 +26,7 @@ import { numberStyleOf } from "./workspace-settings";
 import { checkAlerts, checkMissingAlerts } from "./alert-firing";
 import { refreshAlertSight } from "./alerts";
 import { checkTells } from "./tell-firing";
+import { runChecklistItems } from "./checklist";
 
 /** A Metric with its Workflow and the period at hand. */
 type Ctx = { m: Metric; wf: Workflow; period: string; yearStart: YearStart; numberStyle: NumberStyle; ws: string };
@@ -162,6 +163,15 @@ export async function runWorkflows(workspaceId: string, asOf: string, actorId: s
       }
     }
     await setState(m.id, period, { state: "asked", done_steps: [...done] });
+  }
+  // The second loop (spec 0045): what works once per Workflow and period, not per Metric. The same scope, so an Asking
+  // Schedule decides when these steps run too; a step whose day the Workflow does not run on goes out on its next run day.
+  const metrics = (rows ?? []).map((r) => normalizeMetric(r) as Metric);
+  for (const wf of workflows.values()) {
+    if (scope === "unscheduled" ? wf.config.asking : typeof scope === "object" && wf.id !== scope.workflowId) continue;
+    if (!wf.config.steps.some((s) => s.type === "checklist")) continue;
+    // A failing item never fails the Metrics' run; its claim keeps it from going twice.
+    try { log.push(...(await runChecklistItems(workspaceId, wf, metrics, asOf, yearStart))); } catch (e) { console.error("Checklist Items could not be run:", e instanceof Error ? e.message : e); }
   }
   return log;
 }
