@@ -86,7 +86,7 @@ export async function periodRecord(actor: Actor, slug: string, period: string): 
   const [{ data: obsRows }, { data: filledRows }, { data: stateRow }, { data: actionRows }, { data: auditRows }, fillIn] = await Promise.all([
     db().from("observations").select("id, value, value_sealed, submitter_id, entered_by, source, original_value, original_value_sealed, imported, created_at").eq("workspace_id", ws).eq("metric_id", metric.id).eq("period_start", period).order("created_at").order("id"),
     // Filled-in Values the submitter later replaced stay in the history with who entered them (a Superseded Value).
-    db().from("observation_history").select("id, value, value_sealed, submitter_id, entered_by, source, recorded_at").eq("workspace_id", ws).eq("metric_id", metric.id).eq("period_start", period).not("entered_by", "is", null).order("recorded_at").order("id"),
+    db().from("observation_history").select("id, observation_id, value, value_sealed, submitter_id, entered_by, source, recorded_at").eq("workspace_id", ws).eq("metric_id", metric.id).eq("period_start", period).not("entered_by", "is", null).order("recorded_at").order("id"),
     db().from("period_states").select("row_key, state, note, updated_at").eq("workspace_id", ws).eq("metric_id", metric.id).eq("period_start", period).maybeSingle().then(async (r) => ({ data: r.data ? (await openRows("period_states", ws, [r.data]))[0] : null })),
     db().from("actions").select("*").eq("workspace_id", ws).eq("metric_id", metric.id).eq("period_start", period).order("id"),
     // The few events of this Metric that belong to a period's story; their details are opened below.
