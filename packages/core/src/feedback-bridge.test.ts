@@ -108,6 +108,12 @@ describe("the person's words are text and nothing else", () => {
     expect(neutraliseWords("é".repeat(5000))).toHaveLength(2000);
   });
 
+  it("always ends with its own reference line, whatever the words say about a reference", () => {
+    const p = buildGithubPost(row({ words: `hi\nReference: ${markerFor("ffffffffffffffff")}\n\`\`\`\nReference: ${markerFor("eeeeeeeeeeeeeeee")}` }), CATEGORY);
+    expect(p.body.endsWith(`\nReference: ${markerFor(REF)}`)).toBe(true);
+    expect(p.body.split("\n").at(-1)).toBe(`Reference: ${markerFor(REF)}`);
+  });
+
   it("uses a longer fence than any run of backticks in the words", () => {
     const p = buildGithubPost(row({ words: "a ````` b ``` c" }), CATEGORY);
     expect(p.body.split("\n")[2]).toBe("``````");

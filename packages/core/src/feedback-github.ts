@@ -63,6 +63,14 @@ export function githubClient(config: FeedbackGithubConfig, fetchImpl: Fetch = fe
     return answer.data;
   };
   const slug = `${config.owner}/${config.repo}`;
+  // The bot's login, asked of GitHub once with the token (never configured by hand, so it cannot drift from the token).
+  let login: string | null = null;
+  const botLogin = async (): Promise<string> => {
+    if (login) return login;
+    const me = (await call("/user")) as { login?: unknown } | null;
+    if (typeof me?.login !== "string" || !/^[A-Za-z0-9](?:[A-Za-z0-9-]{0,38})(\[bot\])?$/.test(me.login)) throw new GithubError("GitHub's answer had no login in it.");
+    return (login = me.login);
+  };
   const place = (kind: "issue" | "discussion", node: unknown): GithubPlace | null => {
     const n = node as { number?: unknown; html_url?: unknown; url?: unknown } | null;
     const url = typeof n?.html_url === "string" ? n.html_url : typeof n?.url === "string" ? n.url : "";
@@ -72,18 +80,25 @@ export function githubClient(config: FeedbackGithubConfig, fetchImpl: Fetch = fe
   return {
     async find(kind, publicRef) {
       const marker = markerFor(publicRef);
+      // Only the bot's own post counts: anyone may quote a marker, so the author is asked for and checked, the marker must be
+      // the post's very last line (the layout buildGithubPost makes; the words sit inside a fence), and the oldest match wins.
+      const bot = await botLogin();
+      const last = `\nReference: ${marker}`;
+      const mine = (body: unknown, login: unknown) => typeof body === "string" && typeof login === "string" && login.toLowerCase() === bot.toLowerCase() && body.replace(/\r\n?/g, "\n").trimEnd().endsWith(last);
+      let hits: unknown[];
       if (kind === "issue") {
-        const found = (await call(`/search/issues?q=${encodeURIComponent(`repo:${slug} is:issue in:body "${marker}"`)}&per_page=5`)) as { items?: { body?: unknown }[] } | null;
-        const hit = (found?.items ?? []).find((i) => typeof i.body === "string" && i.body.includes(marker));
-        return hit ? place("issue", hit) : null;
+        const found = (await call(`/search/issues?q=${encodeURIComponent(`repo:${slug} is:issue author:${bot} in:body "${marker}"`)}&sort=created&order=asc&per_page=10`)) as { items?: { body?: unknown; user?: { login?: unknown } | null }[] } | null;
+        hits = (found?.items ?? []).filter((i) => i && mine(i.body, i.user?.login));
+      } else {
+        const data = await graphql(
+          "query($q: String!) { search(query: $q, type: DISCUSSION, first: 10) { nodes { ... on Discussion { number url body author { login } } } } }",
+          { q: `repo:${slug} author:${bot} in:body sort:created-asc "${marker}"` },
+        );
+        const nodes = ((data.search as { nodes?: { body?: unknown; author?: { login?: unknown } | null }[] } | undefined)?.nodes ?? []).filter(Boolean);
+        hits = nodes.filter((d) => mine(d.body, d.author?.login));
       }
-      const data = await graphql(
-        "query($q: String!) { search(query: $q, type: DISCUSSION, first: 5) { nodes { ... on Discussion { number url body } } } }",
-        { q: `repo:${slug} in:body "${marker}"` },
-      );
-      const nodes = ((data.search as { nodes?: { body?: unknown }[] } | undefined)?.nodes ?? []).filter(Boolean);
-      const hit = nodes.find((d) => typeof d.body === "string" && d.body.includes(marker));
-      return hit ? place("discussion", hit) : null;
+      const places = hits.map((h) => place(kind, h)).filter((p): p is GithubPlace => p !== null);
+      return places.sort((x, y) => x.number - y.number)[0] ?? null;
     },
     async create(post) {
       if (post.target === "issue") {
