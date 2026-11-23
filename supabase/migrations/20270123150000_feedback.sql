@@ -22,6 +22,8 @@ alter table feedback enable row level security;
 revoke all on table feedback from public, anon, authenticated;
 create index feedback_person_idx on feedback (person_id, created_at desc);
 create index feedback_workspace_idx on feedback (workspace_id, created_at desc) where workspace_id is not null;
+-- The demo guard refuses rows for the demo Workspace on every Installation that has the demo (AGENTS rule 5).
+select attach_demo_guard('feedback');
 
 -- The conversation under one feedback (the bridge's replies come here; a Thread of an Action cannot hold it, because
 -- those belong to a Workspace). `from_team` is true for what came back from the Ziffr team.
@@ -37,20 +39,20 @@ revoke all on table feedback_messages from public, anon, authenticated;
 create index feedback_messages_feedback_idx on feedback_messages (feedback_id, created_at);
 
 -- Makes one feedback unless the person or the Workspace has sent their share today. One call counts and inserts under
--- a lock per person, so two requests at once cannot both pass the count. Returns the new row, or null when over a limit.
+-- a lock per person, so two requests at once cannot both pass the count. Returns the new row, or no row at all when over a limit (a set, so an overrun is an empty answer, never a row of empty values).
 create or replace function feedback_create(
   p_person text, p_workspace uuid, p_kind text, p_words text, p_route text, p_version text, p_per_person int, p_per_workspace int
-) returns feedback
+) returns setof feedback
 language plpgsql security definer set search_path = public as $$
 declare made feedback;
 begin
   perform pg_advisory_xact_lock(hashtextextended('feedback:' || p_person, 0));
   if p_workspace is not null then perform pg_advisory_xact_lock(hashtextextended('feedback-ws:' || p_workspace::text, 0)); end if;
-  if (select count(*) from feedback where person_id = p_person and created_at > now() - interval '24 hours') >= p_per_person then return null; end if;
-  if p_workspace is not null and (select count(*) from feedback where workspace_id = p_workspace and created_at > now() - interval '24 hours') >= p_per_workspace then return null; end if;
+  if (select count(*) from feedback where person_id = p_person and created_at > now() - interval '24 hours') >= p_per_person then return; end if;
+  if p_workspace is not null and (select count(*) from feedback where workspace_id = p_workspace and created_at > now() - interval '24 hours') >= p_per_workspace then return; end if;
   insert into feedback (person_id, workspace_id, kind, words, route, app_version)
     values (p_person, p_workspace, p_kind, p_words, p_route, p_version) returning * into made;
-  return made;
+  return next made;
 end $$;
 revoke execute on function feedback_create(text, uuid, text, text, text, text, int, int) from public, anon, authenticated;
 grant execute on function feedback_create(text, uuid, text, text, text, text, int, int) to service_role;

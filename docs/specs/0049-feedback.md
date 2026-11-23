@@ -34,7 +34,7 @@ Most people who use Ziffr have no GitHub account and should not need one to tell
 ### Who and where
 
 - Only a signed-in person on the central version can send (not a View Link viewer, not a Token).
-- Feedback lives outside any Workspace's data: a separate store in the central operations code under `ee/` or the central-only part of the repository, never the core, so a self-hosted Installation compiles and runs without it. The core gets no new operation.
+- Feedback lives outside any Workspace's data: a separate store, never part of a Workspace or its Export. The central-only code sits in `packages/core` in one module (`feedback.ts`), gated at every call by `ZIFFR_CLOUD_KEY` (the same test as the cloud API) and imported by nothing else, as the repository's other central-only code is (there is no `ee/` yet). The tables exist in every Installation, so the schema is one, but only the hosted version ever writes to them.
 - A rate limit per person and per Workspace (a few a day), and a size limit on the words and the screenshot, checked on the server.
 
 ### The bridge
@@ -42,6 +42,8 @@ Most people who use Ziffr have no GitHub account and should not need one to tell
 - Filing: a worker takes approved feedback and creates the issue or discussion through the GitHub API with a Ziffr bot account, labelled by kind. The link between the post and the person is kept only in our store; the post shows an opaque reference.
 - Coming back: a GitHub webhook (verified by its signature) on comments and on state changes; a comment by anyone but the bot is added to the Thread and notifies the person. Comments by the bot's own account (relayed replies) are not echoed back.
 - Anonymity is a property of what we send, so it is tested: the payload to GitHub is built from the words, the route, the version and the kind, and a test fails if anything else (names, emails, Workspace ids, Metric data) can reach it. The form says plainly that the words are public. The person may edit or withdraw their words before filing (when review first is on) and may ask for them to be closed afterwards.
+- Before words are posted to GitHub, @-mentions are neutralised (so nobody is pinged or impersonated) and zero-width and bidirectional control characters are removed.
+- Besides the per-person and per-Workspace limits, consider a daily cap for the whole Installation, so many accounts cannot flood the bridge.
 - Replies to a person go to the same place Task and Question notices go (spec 0034's channels, their email).
 
 ### The switch

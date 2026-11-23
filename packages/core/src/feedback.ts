@@ -61,8 +61,10 @@ export async function createFeedback(actor: Actor, input: { kind?: unknown; word
     p_version: cleanAppVersion(input.appVersion), p_per_person: FEEDBACK_PER_PERSON_PER_DAY, p_per_workspace: FEEDBACK_PER_WORKSPACE_PER_DAY,
   });
   if (error) throw new Error("Your feedback could not be saved.");
-  if (!data) throw new Error("That is enough feedback for today. Please try again tomorrow.");
-  return view(data as Row);
+  // A set: no row means a limit was reached. Checked by the id so an empty answer can never pass for a feedback.
+  const made = (data as Row[] | null)?.[0];
+  if (!made?.id) throw new Error("That is enough feedback for today. Please try again tomorrow.");
+  return view(made);
 }
 
 /** My feedback: what the actor sent, newest first, with its status. Never anyone else's. */

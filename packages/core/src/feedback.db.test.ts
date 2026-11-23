@@ -66,6 +66,8 @@ describe("limits", () => {
     const w = await ws(); const ben = await signedIn(w); const eva = await signedIn(w);
     for (let i = 0; i < FEEDBACK_PER_PERSON_PER_DAY; i++) await say(w.actor(ben, "member"));
     await expect(say(w.actor(ben, "member"))).rejects.toThrow(/enough feedback for today/);
+    expect((await listMyFeedback(w.actor(ben, "member"))).every((f) => typeof f.id === "string")).toBe(true);
+    expect(await listMyFeedback(w.actor(ben, "member"))).toHaveLength(FEEDBACK_PER_PERSON_PER_DAY);
     await expect(say(w.actor(eva, "member"))).resolves.toBeTruthy();
   });
   it("counts only the last 24 hours", async () => {
