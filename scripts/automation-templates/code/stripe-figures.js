@@ -32,15 +32,18 @@ const period = new Date(from).toISOString().slice(0, 10);
 
 const customerOf = (x) => (typeof x.customer === 'string' ? x.customer : x.customer && typeof x.customer.id === 'string' ? x.customer.id : '');
 const customers = new Set(live.map(customerOf).filter((c) => c !== ''));
-const lost = new Set(cancelled.filter((x) => typeof x.canceled_at === 'number' && x.canceled_at * 1000 >= from && x.canceled_at * 1000 < to).map(customerOf).filter((c) => c !== '' && !customers.has(c)));
+// A subscription cancelled "at the end of the period" ends later than it was cancelled: the day it ended is what counts.
+const endedAt = (x) => (typeof x.ended_at === 'number' ? x.ended_at : x.canceled_at);
+const lost = new Set(cancelled.filter((x) => typeof endedAt(x) === 'number' && endedAt(x) * 1000 >= from && endedAt(x) * 1000 < to).map(customerOf).filter((c) => c !== '' && !customers.has(c)));
 
 // A month's worth of one price, in the currency's own whole units. Only a plain price with an amount and a fixed interval
 // counts; tiered, metered and other currencies are left out of the sum and counted in `left out`.
 const PER_MONTH = { day: 365 / 12, week: 52 / 12, month: 1, year: 1 / 12 };
-const DIVISOR = (c) => (['bif', 'clp', 'djf', 'gnf', 'jpy', 'kmf', 'krw', 'mga', 'pyg', 'rwf', 'ugx', 'vnd', 'vuv', 'xaf', 'xof', 'xpf'].includes(c) ? 1 : ['bhd', 'iqd', 'jod', 'kwd', 'lyd', 'omr', 'tnd'].includes(c) ? 1000 : 100);
+const DIVISOR = (c) => (['bif', 'clp', 'djf', 'gnf', 'jpy', 'kmf', 'krw', 'mga', 'pyg', 'rwf', 'ugx', 'vnd', 'vuv', 'xaf', 'xof', 'xpf'].includes(c) ? 1 : ['bhd', 'jod', 'kwd', 'omr', 'tnd'].includes(c) ? 1000 : 100);
 let mrr = 0;
 let leftOut = 0;
 for (const sub of live) {
+  if (sub.items && sub.items.has_more === true) throw new Error('A subscription has more items than Stripe lists with it; no figure was sent.');
   const lines = sub.items && Array.isArray(sub.items.data) ? sub.items.data : [];
   for (const line of lines) {
     const p = line.price;
@@ -56,4 +59,4 @@ if (slugs.mrr) items.push({ metric: slugs.mrr, period, value: Math.round(mrr * 1
 if (slugs.customers) items.push({ metric: slugs.customers, period, value: customers.size });
 if (slugs.churned) items.push({ metric: slugs.churned, period, value: lost.size });
 @@KEY@@
-return [{ json: { items, skipped: leftOut ? [{ why: leftOut + ' price(s) left out of the revenue: tiered, metered, in another currency or without a fixed interval' }] : [], key } }];
+return [{ json: { items: send, settled, skipped: leftOut ? [{ why: leftOut + ' price(s) left out of the revenue: tiered, metered, in another currency or without a fixed interval' }] : [], key } }];

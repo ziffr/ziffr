@@ -78,7 +78,7 @@ export function FillFromN8n({ metrics, feeds, templates }: { metrics: { id: numb
     <div className="mt-3 space-y-3 rounded-[var(--radius-input)] border border-input p-3 text-sm">
       <div>
         <p className="font-medium">Fill {metrics.length === 1 ? metrics[0].name : `${metrics.length} Metrics`} from n8n</p>
-        <p className="text-xs text-muted-foreground">Downloads a ready n8n workflow with your Ziffr&rsquo;s address in it. You add the other system&rsquo;s login in n8n; Ziffr never sees it and never runs the workflow. The Feed you pick becomes a Submitter of {metrics.length === 1 ? "this Metric" : "these Metrics"}.</p>
+        <p className="text-xs text-muted-foreground">Downloads a ready n8n workflow with your Ziffr&rsquo;s address in it. You add the other system&rsquo;s login in n8n; Ziffr never sees it and never runs the workflow. The Feed you pick becomes a Submitter of {metrics.length === 1 ? "this Metric" : "these Metrics"}; a Feed Key works for every Metric its Feed submits to, so a new Feed keeps a key to these only.</p>
       </div>
       <label className="flex flex-wrap items-center gap-2">
         <span className="w-24 text-xs font-medium">Read from</span>

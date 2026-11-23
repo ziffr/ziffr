@@ -3,7 +3,7 @@
   "nodes": [
     {
       "parameters": {
-        "content": "HubSpot to Ziffr: values\n\n1. Fill in the Settings node: your Ziffr address and which Metric each figure is for.\n2. Add the credentials: HubSpot on the read nodes, and a Header Auth credential named \"Ziffr Feed Key\" (name Authorization, value Bearer <your Feed Key>) on Send to Ziffr. Make the key in Ziffr under Settings, Feeds, and add the Feed under Who submits on each Metric.\n3. Press Execute workflow once to try it, then activate it: it runs on the 1st of every month at 9, for the month that has just ended.\n\nTwo counts, read only: deals won and new contacts, for the month that has just ended.",
+        "content": "HubSpot to Ziffr: values\n\n1. Fill in the Settings node: your Ziffr address and which Metric each figure is for.\n2. Add the credentials: HubSpot on the read nodes, and a Header Auth credential named \"Ziffr Feed Key\" (name Authorization, value Bearer <your Feed Key>) on Send to Ziffr. Make the key in Ziffr under Settings, Feeds, and add the Feed under Who submits on each Metric.\n3. Press Execute workflow once to try it, then activate it: it runs on the 1st of every month at 9, for the month that has just ended (UTC).\n\nTwo counts, read only: deals won and new contacts, for the month that has just ended.",
         "width": 460,
         "height": 340
       },
@@ -77,6 +77,37 @@
     },
     {
       "parameters": {
+        "method": "GET",
+        "url": "={{ $('Settings').first().json.ziffrUrl.replace(/\\/+$/, '') }}/api/v1/feed",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "limit",
+              "value": "200"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "f11fde69-9e20-5202-92d0-752242ec44bb",
+      "name": "What is filled",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        440,
+        300
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "name": "Ziffr Feed Key"
+        }
+      }
+    },
+    {
+      "parameters": {
         "method": "POST",
         "url": "https://api.hubapi.com/crm/v3/objects/deals/search",
         "authentication": "predefinedCredentialType",
@@ -84,7 +115,7 @@
         "sendBody": true,
         "contentType": "json",
         "specifyBody": "json",
-        "jsonBody": "={{ JSON.stringify({ filterGroups: [{ filters: [{ propertyName: 'hs_is_closed_won', operator: 'EQ', value: 'true' }, { propertyName: 'closedate', operator: 'GTE', value: String(new Date(Date.UTC(new Date().getUTCFullYear(), new Date().getUTCMonth() - 1, 1)).getTime()) }, { propertyName: 'closedate', operator: 'LT', value: String(new Date(Date.UTC(new Date().getUTCFullYear(), new Date().getUTCMonth(), 1)).getTime()) }] }], limit: 1 }) }}",
+        "jsonBody": "={{ JSON.stringify({ filterGroups: [{ filters: [{ propertyName: 'hs_is_closed_won', operator: 'EQ', value: 'true' }, { propertyName: 'closedate', operator: 'GTE', value: String(new Date(Date.UTC(new Date().getUTCFullYear(), new Date().getUTCMonth() - 1, 1)).getTime()) }, { propertyName: 'closedate', operator: 'LT', value: String(new Date(Date.UTC(new Date().getUTCFullYear(), new Date().getUTCMonth(), 1)).getTime()) }] }], properties: ['hs_object_id'], limit: 1 }) }}",
         "options": {}
       },
       "id": "80bebbd6-39ef-5846-9f75-69ec02977f21",
@@ -92,7 +123,7 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        440,
+        660,
         300
       ],
       "credentials": {
@@ -110,7 +141,7 @@
         "sendBody": true,
         "contentType": "json",
         "specifyBody": "json",
-        "jsonBody": "={{ JSON.stringify({ filterGroups: [{ filters: [{ propertyName: 'createdate', operator: 'GTE', value: String(new Date(Date.UTC(new Date().getUTCFullYear(), new Date().getUTCMonth() - 1, 1)).getTime()) }, { propertyName: 'createdate', operator: 'LT', value: String(new Date(Date.UTC(new Date().getUTCFullYear(), new Date().getUTCMonth(), 1)).getTime()) }] }], limit: 1 }) }}",
+        "jsonBody": "={{ JSON.stringify({ filterGroups: [{ filters: [{ propertyName: 'createdate', operator: 'GTE', value: String(new Date(Date.UTC(new Date().getUTCFullYear(), new Date().getUTCMonth() - 1, 1)).getTime()) }, { propertyName: 'createdate', operator: 'LT', value: String(new Date(Date.UTC(new Date().getUTCFullYear(), new Date().getUTCMonth(), 1)).getTime()) }] }], properties: ['hs_object_id'], limit: 1 }) }}",
         "options": {}
       },
       "id": "1110293a-6ee8-55dd-a14d-85206f354213",
@@ -118,7 +149,7 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        660,
+        880,
         300
       ],
       "credentials": {
@@ -129,14 +160,14 @@
     },
     {
       "parameters": {
-        "jsCode": "// HubSpot -> Ziffr (spec 0043): two counts for the month that has just ended, taken from HubSpot's own totals: deals won and\n// new contacts. Only the two numbers leave: no deal, no contact, no name, no amount. A figure whose Metric slug is left empty\n// is not sent.\nconst SLUG = /^[a-z0-9][a-z0-9-]{0,99}$/;\nconst s = $('Settings').first().json;\nconst want = (name) => {\n  const v = String(s[name] ?? '').trim();\n  if (v === '') return '';\n  if (!SLUG.test(v)) throw new Error('Settings: ' + name + ' is not a Metric slug (lower case letters, digits and hyphens), or leave it empty to skip that figure.');\n  return v;\n};\nconst slugs = { won: want('dealsWonMetric'), contacts: want('newContactsMetric') };\nif (!slugs.won && !slugs.contacts) throw new Error('Settings: name at least one Metric to fill.');\nconst totalOf = (node) => {\n  const t = $(node).first().json.total;\n  if (typeof t !== 'number' || !Number.isFinite(t) || t < 0) throw new Error('HubSpot did not say how many (' + node + '): no figure was sent.');\n  return t;\n};\n// The month that has just ended, by its first day.\nconst now = new Date();\nconst period = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - 1, 1)).toISOString().slice(0, 10);\nconst items = [];\nif (slugs.won) items.push({ metric: slugs.won, period, value: totalOf('Count deals won') });\nif (slugs.contacts) items.push({ metric: slugs.contacts, period, value: totalOf('Count new contacts') });\n// One run sends once, also when n8n retries it: the same figures give the same key, other figures another.\nlet h = 5381;\nconst body = JSON.stringify(items);\nfor (let i = 0; i < body.length; i++) h = ((h * 33) ^ body.charCodeAt(i)) >>> 0;\nconst key = 'hubspot-' + new Date().toISOString().slice(0, 10) + '-' + h.toString(36) + '-' + items.length;\nreturn [{ json: { items, skipped: [], key } }];\n"
+        "jsCode": "// HubSpot -> Ziffr (spec 0043): two counts for the month that has just ended, taken from HubSpot's own totals: deals won and\n// new contacts. Only the two numbers leave: no deal, no contact, no name, no amount. A figure whose Metric slug is left empty\n// is not sent.\nconst SLUG = /^[a-z0-9][a-z0-9-]{0,99}$/;\nconst s = $('Settings').first().json;\nconst want = (name) => {\n  const v = String(s[name] ?? '').trim();\n  if (v === '') return '';\n  if (!SLUG.test(v)) throw new Error('Settings: ' + name + ' is not a Metric slug (lower case letters, digits and hyphens), or leave it empty to skip that figure.');\n  return v;\n};\nconst slugs = { won: want('dealsWonMetric'), contacts: want('newContactsMetric') };\nif (!slugs.won && !slugs.contacts) throw new Error('Settings: name at least one Metric to fill.');\nconst totalOf = (node) => {\n  const t = $(node).first().json.total;\n  if (typeof t !== 'number' || !Number.isFinite(t) || t < 0) throw new Error('HubSpot did not say how many (' + node + '): no figure was sent.');\n  return t;\n};\n// The month that has just ended, by its first day.\nconst now = new Date();\nconst period = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - 1, 1)).toISOString().slice(0, 10);\nconst items = [];\nif (slugs.won) items.push({ metric: slugs.won, period, value: totalOf('Count deals won') });\nif (slugs.contacts) items.push({ metric: slugs.contacts, period, value: totalOf('Count new contacts') });\n// Ziffr says which periods already hold a value (the node \"What is filled\", GET /api/v1/feed, as @ziffr/feed-kit does): a past\n// period that has one is not sent again, so a rerun, a manual run or a later run never overwrites, adds to or doubles what is\n// there, whatever the Metric's Submission Rule. The current period is always sent: its value may still change.\nconst overview = $('What is filled').first().json;\nconst listed = overview && overview.metrics && Array.isArray(overview.metrics.items) ? overview.metrics.items : [];\nif (overview && overview.metrics && overview.metrics.next) throw new Error('This Feed submits to more than 200 Metrics; this template reads that many at most. No figure was sent.');\nconst metricOf = new Map(listed.map((m) => [m.slug, m]));\nconst send = items.filter((i) => {\n  const m = metricOf.get(i.metric);\n  return !(m && i.period && i.period !== m.current && Array.isArray(m.filled) && m.filled.includes(i.period));\n});\nconst settled = items.length - send.length;\nif (send.length === 0) return [];\n// One run sends once, also when n8n retries it: the same figures give the same key, other figures another.\nlet h = 5381;\nconst body = JSON.stringify(send);\nfor (let i = 0; i < body.length; i++) h = ((h * 33) ^ body.charCodeAt(i)) >>> 0;\nconst key = 'hubspot-' + h.toString(36) + '-' + send.length;\nreturn [{ json: { items: send, settled, skipped: [], key } }];\n"
       },
       "id": "f507f91c-4f6f-54f4-821f-1bcfe1dedbb7",
       "name": "Shape values",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        880,
+        1100,
         300
       ]
     },
@@ -166,7 +197,7 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        1100,
+        1320,
         300
       ],
       "credentials": {
@@ -177,14 +208,14 @@
     },
     {
       "parameters": {
-        "jsCode": "// Ziffr's answer to a batch of values (spec 0043): one result per item, in the order sent. A refused item fails the run,\n// so that n8n shows it as failed and its owner looks; the rest were recorded all the same (each item stands on its own).\nconst results = Array.isArray($input.first().json.results) ? $input.first().json.results : [];\nconst shaped = $('Shape values').first().json;\nconst refused = results.filter((r) => r.status === 'refused');\nif (refused.length) {\n  const why = refused.slice(0, 10).map((r) => String(r.metric) + ' ' + String(r.period ?? '') + ' (' + String(r.code ?? 'refused') + '): ' + String(r.detail)).join('; ');\n  throw new Error('Ziffr refused ' + refused.length + ' of ' + results.length + ' values: ' + why + (refused.length > 10 ? '; and more' : ''));\n}\nconst count = (s) => results.filter((r) => r.status === s).length;\nreturn [{ json: { recorded: count('recorded'), waitingForApproval: count('awaiting_approval'), proposedAsCorrection: count('locked'), skippedRows: shaped.skipped } }];\n"
+        "jsCode": "// Ziffr's answer to a batch of values (spec 0043): one result per item, in the order sent. A refused item fails the run,\n// so that n8n shows it as failed and its owner looks; the rest were recorded all the same (each item stands on its own).\nconst results = Array.isArray($input.first().json.results) ? $input.first().json.results : [];\nconst shaped = $('Shape values').first().json;\nconst refused = results.filter((r) => r.status === 'refused');\nif (refused.length) {\n  const why = refused.slice(0, 10).map((r) => String(r.metric) + ' ' + String(r.period ?? '') + ' (' + String(r.code ?? 'refused') + '): ' + String(r.detail)).join('; ');\n  throw new Error('Ziffr refused ' + refused.length + ' of ' + results.length + ' values: ' + why + (refused.length > 10 ? '; and more' : ''));\n}\nconst count = (s) => results.filter((r) => r.status === s).length;\nreturn [{ json: { recorded: count('recorded'), waitingForApproval: count('awaiting_approval'), proposedAsCorrection: count('locked'), alreadyThere: shaped.settled, skippedRows: shaped.skipped } }];\n"
       },
       "id": "39404fb1-ede0-5b85-a304-91d8985f7df4",
       "name": "Check the answers",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        1320,
+        1540,
         300
       ]
     }
@@ -202,6 +233,17 @@
       ]
     },
     "Settings": {
+      "main": [
+        [
+          {
+            "node": "What is filled",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "What is filled": {
       "main": [
         [
           {
@@ -258,7 +300,8 @@
     }
   },
   "settings": {
-    "executionOrder": "v1"
+    "executionOrder": "v1",
+    "timezone": "UTC"
   },
   "pinData": {},
   "active": false,

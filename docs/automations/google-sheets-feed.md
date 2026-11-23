@@ -6,7 +6,7 @@ One n8n workflow that reads a sheet every morning and sends the numbers in it to
 
 | File | Direction | What it does |
 |---|---|---|
-| [`google-sheets-feed.json`](google-sheets-feed.json) | Google Sheets to Ziffr | Every day at 9: reads the sheet, checks each row, sends the good ones to the Feed endpoint, and fails the run if Ziffr refuses a value. |
+| [`google-sheets-feed.json`](google-sheets-feed.json) | Google Sheets to Ziffr | Every day at 9 (UTC): asks Ziffr which periods are filled, reads the sheet, checks each row, sends the good ones to the Feed endpoint, and fails the run if Ziffr refuses a value. |
 
 ## The sheet
 
@@ -27,13 +27,14 @@ A row Ziffr would refuse (a name that is not a slug, a value that is not a numbe
 3. In n8n, import `google-sheets-feed.json` (**Workflows → Import from file**).
 4. Open the **Settings** node and fill in your Ziffr address, the sheet's id (the long string in its address, between `/d/` and `/edit`) and the name of the tab.
 5. Add the credential **Google Sheets OAuth2 API** in n8n and choose it in **Read the sheet**.
-6. Add a credential of the type **Header Auth** named `Ziffr Feed Key`: name `Authorization`, value `Bearer ` followed by your key. Choose it in **Send to Ziffr**. Keep the key in the credential, never in the workflow, so that you can share the workflow.
-7. Press **Execute workflow** once. In Ziffr the Metrics show the values, from "Feed". Then activate the workflow: it runs every day at 9 (n8n's time zone).
+6. Add a credential of the type **Header Auth** named `Ziffr Feed Key`: name `Authorization`, value `Bearer ` followed by your key. Choose it in **What is filled** and **Send to Ziffr**. Keep the key in the credential, never in the workflow, so that you can share the workflow.
+7. Press **Execute workflow** once. In Ziffr the Metrics show the values, from "Feed". Then activate the workflow: it runs every day at 9 (UTC).
 
 ## What it does with a value
 
-- **A value for the current period** is checked as any value is: an Unusual Value waits for Approval, and a Workflow that approves every value holds it. A past period that has no value is an **Import**, recorded without that check and marked as imported; a past period that already has one is refused (usually as `duplicate`), so rerunning the workflow does not change what is there.
-- **Running twice records nothing twice.** The same rows send the same key, so a retried run replays Ziffr's first answer. Changed rows send another key, so a corrected number is sent again, and Ziffr decides what to do with it as with any second value for a period.
+- **A value for the current period** is checked as any value is: an Unusual Value waits for Approval, and a Workflow that approves every value holds it. It is sent on every run, since the current period's value may still change, so under a Submission Rule that adds (`add`) or keeps both (`keep_both`) a row that stays in the sheet is counted again each day: for such a Metric keep only the rows that are new, or use a Metric that takes the latest value.
+- **A past period that already has a value is not sent again.** The first node asks Ziffr which periods are filled, as `@ziffr/feed-kit` does, so rerunning the workflow never overwrites or doubles what is there. A past period with no value is an **Import**, recorded without the Unusual Value check and marked as imported. To correct a past value, change it in Ziffr.
+- **Running twice records nothing twice.** The same rows send the same key, so a retried run replays Ziffr's first answer.
 - **A refused value fails the run**, so n8n shows it as failed and whoever watches it looks. The other values of the run were recorded all the same, each stands on its own.
 
 ## Limits

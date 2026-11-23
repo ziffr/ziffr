@@ -3,7 +3,7 @@
   "nodes": [
     {
       "parameters": {
-        "content": "Stripe to Ziffr: values\n\n1. Fill in the Settings node: your Ziffr address and which Metric each figure is for, and the currency.\n2. Add the credentials: Stripe on the read nodes, and a Header Auth credential named \"Ziffr Feed Key\" (name Authorization, value Bearer <your Feed Key>) on Send to Ziffr. Make the key in Ziffr under Settings, Feeds, and add the Feed under Who submits on each Metric.\n3. Press Execute workflow once to try it, then activate it: it runs on the 1st of every month at 9, for the month that has just ended.\n\nYour subscriptions, read only: monthly recurring revenue, customers with a subscription and customers who cancelled, for the month that has just ended.",
+        "content": "Stripe to Ziffr: values\n\n1. Fill in the Settings node: your Ziffr address and which Metric each figure is for, and the currency.\n2. Add the credentials: Stripe on the read nodes, and a Header Auth credential named \"Ziffr Feed Key\" (name Authorization, value Bearer <your Feed Key>) on Send to Ziffr. Make the key in Ziffr under Settings, Feeds, and add the Feed under Who submits on each Metric.\n3. Press Execute workflow once to try it, then activate it: it runs on the 1st of every month at 9, for the month that has just ended (UTC).\n\nYour subscriptions, read only: monthly recurring revenue, customers with a subscription and customers who cancelled, for the month that has just ended.",
         "width": 460,
         "height": 340
       },
@@ -90,6 +90,37 @@
     {
       "parameters": {
         "method": "GET",
+        "url": "={{ $('Settings').first().json.ziffrUrl.replace(/\\/+$/, '') }}/api/v1/feed",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "limit",
+              "value": "200"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "be57d957-ae1a-541a-ac39-d6294c86cc2f",
+      "name": "What is filled",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        440,
+        300
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "name": "Ziffr Feed Key"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "GET",
         "url": "https://api.stripe.com/v1/subscriptions",
         "authentication": "predefinedCredentialType",
         "nodeCredentialType": "stripeApi",
@@ -128,7 +159,7 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        440,
+        660,
         300
       ],
       "credentials": {
@@ -182,7 +213,7 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        660,
+        880,
         300
       ],
       "credentials": {
@@ -194,14 +225,14 @@
     },
     {
       "parameters": {
-        "jsCode": "// Stripe -> Ziffr (spec 0043): three figures for the month that has just ended, worked out from the subscriptions Stripe lists:\n// monthly recurring revenue, customers with a subscription, and customers who cancelled in that month. Only read data is\n// used and only these numbers leave: no customer, no email, no id. A figure whose Metric slug is left empty is not sent.\nconst SLUG = /^[a-z0-9][a-z0-9-]{0,99}$/;\nconst s = $('Settings').first().json;\nconst want = (name) => {\n  const v = String(s[name] ?? '').trim();\n  if (v === '') return '';\n  if (!SLUG.test(v)) throw new Error('Settings: ' + name + ' is not a Metric slug (lower case letters, digits and hyphens), or leave it empty to skip that figure.');\n  return v;\n};\nconst slugs = { mrr: want('mrrMetric'), customers: want('customersMetric'), churned: want('churnedMetric') };\nif (!slugs.mrr && !slugs.customers && !slugs.churned) throw new Error('Settings: name at least one Metric to fill.');\nconst currency = String(s.currency ?? '').trim().toLowerCase();\nif (!/^[a-z]{3}$/.test(currency)) throw new Error('Settings: currency is the three letters of the one currency to add up, such as eur.');\n\n// Every page of one list; a list that Stripe says goes on after the last page we read is too big to add up, so the run fails\n// rather than send a number that is too low.\nconst subscriptionsOf = (node) => {\n  const pages = $(node).all().map((i) => i.json);\n  if (pages.length && pages[pages.length - 1].has_more === true) throw new Error('Stripe lists more subscriptions than this template reads (' + node + '). Ask for a bigger template; no figure was sent.');\n  return pages.flatMap((p) => (Array.isArray(p.data) ? p.data : []));\n};\nconst live = subscriptionsOf('Read current subscriptions').filter((x) => x.status === 'active' || x.status === 'past_due');\nconst cancelled = subscriptionsOf('Read cancelled subscriptions');\n\n// The month that has just ended, by its first day; Stripe's times are seconds since 1970 (UTC).\nconst now = new Date();\nconst from = Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - 1, 1);\nconst to = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1);\nconst period = new Date(from).toISOString().slice(0, 10);\n\nconst customerOf = (x) => (typeof x.customer === 'string' ? x.customer : x.customer && typeof x.customer.id === 'string' ? x.customer.id : '');\nconst customers = new Set(live.map(customerOf).filter((c) => c !== ''));\nconst lost = new Set(cancelled.filter((x) => typeof x.canceled_at === 'number' && x.canceled_at * 1000 >= from && x.canceled_at * 1000 < to).map(customerOf).filter((c) => c !== '' && !customers.has(c)));\n\n// A month's worth of one price, in the currency's own whole units. Only a plain price with an amount and a fixed interval\n// counts; tiered, metered and other currencies are left out of the sum and counted in `left out`.\nconst PER_MONTH = { day: 365 / 12, week: 52 / 12, month: 1, year: 1 / 12 };\nconst DIVISOR = (c) => (['bif', 'clp', 'djf', 'gnf', 'jpy', 'kmf', 'krw', 'mga', 'pyg', 'rwf', 'ugx', 'vnd', 'vuv', 'xaf', 'xof', 'xpf'].includes(c) ? 1 : ['bhd', 'iqd', 'jod', 'kwd', 'lyd', 'omr', 'tnd'].includes(c) ? 1000 : 100);\nlet mrr = 0;\nlet leftOut = 0;\nfor (const sub of live) {\n  const lines = sub.items && Array.isArray(sub.items.data) ? sub.items.data : [];\n  for (const line of lines) {\n    const p = line.price;\n    const r = p && p.recurring;\n    const factor = r ? PER_MONTH[r.interval] : undefined;\n    if (!p || !r || factor === undefined || p.currency !== currency || typeof p.unit_amount !== 'number' || r.usage_type === 'metered' || !(r.interval_count >= 1)) { leftOut++; continue; }\n    mrr += (p.unit_amount * (typeof line.quantity === 'number' ? line.quantity : 1) * factor) / r.interval_count / DIVISOR(currency);\n  }\n}\n\nconst items = [];\nif (slugs.mrr) items.push({ metric: slugs.mrr, period, value: Math.round(mrr * 100) / 100 });\nif (slugs.customers) items.push({ metric: slugs.customers, period, value: customers.size });\nif (slugs.churned) items.push({ metric: slugs.churned, period, value: lost.size });\n// One run sends once, also when n8n retries it: the same figures give the same key, other figures another.\nlet h = 5381;\nconst body = JSON.stringify(items);\nfor (let i = 0; i < body.length; i++) h = ((h * 33) ^ body.charCodeAt(i)) >>> 0;\nconst key = 'stripe-' + new Date().toISOString().slice(0, 10) + '-' + h.toString(36) + '-' + items.length;\nreturn [{ json: { items, skipped: leftOut ? [{ why: leftOut + ' price(s) left out of the revenue: tiered, metered, in another currency or without a fixed interval' }] : [], key } }];\n"
+        "jsCode": "// Stripe -> Ziffr (spec 0043): three figures for the month that has just ended, worked out from the subscriptions Stripe lists:\n// monthly recurring revenue, customers with a subscription, and customers who cancelled in that month. Only read data is\n// used and only these numbers leave: no customer, no email, no id. A figure whose Metric slug is left empty is not sent.\nconst SLUG = /^[a-z0-9][a-z0-9-]{0,99}$/;\nconst s = $('Settings').first().json;\nconst want = (name) => {\n  const v = String(s[name] ?? '').trim();\n  if (v === '') return '';\n  if (!SLUG.test(v)) throw new Error('Settings: ' + name + ' is not a Metric slug (lower case letters, digits and hyphens), or leave it empty to skip that figure.');\n  return v;\n};\nconst slugs = { mrr: want('mrrMetric'), customers: want('customersMetric'), churned: want('churnedMetric') };\nif (!slugs.mrr && !slugs.customers && !slugs.churned) throw new Error('Settings: name at least one Metric to fill.');\nconst currency = String(s.currency ?? '').trim().toLowerCase();\nif (!/^[a-z]{3}$/.test(currency)) throw new Error('Settings: currency is the three letters of the one currency to add up, such as eur.');\n\n// Every page of one list; a list that Stripe says goes on after the last page we read is too big to add up, so the run fails\n// rather than send a number that is too low.\nconst subscriptionsOf = (node) => {\n  const pages = $(node).all().map((i) => i.json);\n  if (pages.length && pages[pages.length - 1].has_more === true) throw new Error('Stripe lists more subscriptions than this template reads (' + node + '). Ask for a bigger template; no figure was sent.');\n  return pages.flatMap((p) => (Array.isArray(p.data) ? p.data : []));\n};\nconst live = subscriptionsOf('Read current subscriptions').filter((x) => x.status === 'active' || x.status === 'past_due');\nconst cancelled = subscriptionsOf('Read cancelled subscriptions');\n\n// The month that has just ended, by its first day; Stripe's times are seconds since 1970 (UTC).\nconst now = new Date();\nconst from = Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - 1, 1);\nconst to = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1);\nconst period = new Date(from).toISOString().slice(0, 10);\n\nconst customerOf = (x) => (typeof x.customer === 'string' ? x.customer : x.customer && typeof x.customer.id === 'string' ? x.customer.id : '');\nconst customers = new Set(live.map(customerOf).filter((c) => c !== ''));\n// A subscription cancelled \"at the end of the period\" ends later than it was cancelled: the day it ended is what counts.\nconst endedAt = (x) => (typeof x.ended_at === 'number' ? x.ended_at : x.canceled_at);\nconst lost = new Set(cancelled.filter((x) => typeof endedAt(x) === 'number' && endedAt(x) * 1000 >= from && endedAt(x) * 1000 < to).map(customerOf).filter((c) => c !== '' && !customers.has(c)));\n\n// A month's worth of one price, in the currency's own whole units. Only a plain price with an amount and a fixed interval\n// counts; tiered, metered and other currencies are left out of the sum and counted in `left out`.\nconst PER_MONTH = { day: 365 / 12, week: 52 / 12, month: 1, year: 1 / 12 };\nconst DIVISOR = (c) => (['bif', 'clp', 'djf', 'gnf', 'jpy', 'kmf', 'krw', 'mga', 'pyg', 'rwf', 'ugx', 'vnd', 'vuv', 'xaf', 'xof', 'xpf'].includes(c) ? 1 : ['bhd', 'jod', 'kwd', 'omr', 'tnd'].includes(c) ? 1000 : 100);\nlet mrr = 0;\nlet leftOut = 0;\nfor (const sub of live) {\n  if (sub.items && sub.items.has_more === true) throw new Error('A subscription has more items than Stripe lists with it; no figure was sent.');\n  const lines = sub.items && Array.isArray(sub.items.data) ? sub.items.data : [];\n  for (const line of lines) {\n    const p = line.price;\n    const r = p && p.recurring;\n    const factor = r ? PER_MONTH[r.interval] : undefined;\n    if (!p || !r || factor === undefined || p.currency !== currency || typeof p.unit_amount !== 'number' || r.usage_type === 'metered' || !(r.interval_count >= 1)) { leftOut++; continue; }\n    mrr += (p.unit_amount * (typeof line.quantity === 'number' ? line.quantity : 1) * factor) / r.interval_count / DIVISOR(currency);\n  }\n}\n\nconst items = [];\nif (slugs.mrr) items.push({ metric: slugs.mrr, period, value: Math.round(mrr * 100) / 100 });\nif (slugs.customers) items.push({ metric: slugs.customers, period, value: customers.size });\nif (slugs.churned) items.push({ metric: slugs.churned, period, value: lost.size });\n// Ziffr says which periods already hold a value (the node \"What is filled\", GET /api/v1/feed, as @ziffr/feed-kit does): a past\n// period that has one is not sent again, so a rerun, a manual run or a later run never overwrites, adds to or doubles what is\n// there, whatever the Metric's Submission Rule. The current period is always sent: its value may still change.\nconst overview = $('What is filled').first().json;\nconst listed = overview && overview.metrics && Array.isArray(overview.metrics.items) ? overview.metrics.items : [];\nif (overview && overview.metrics && overview.metrics.next) throw new Error('This Feed submits to more than 200 Metrics; this template reads that many at most. No figure was sent.');\nconst metricOf = new Map(listed.map((m) => [m.slug, m]));\nconst send = items.filter((i) => {\n  const m = metricOf.get(i.metric);\n  return !(m && i.period && i.period !== m.current && Array.isArray(m.filled) && m.filled.includes(i.period));\n});\nconst settled = items.length - send.length;\nif (send.length === 0) return [];\n// One run sends once, also when n8n retries it: the same figures give the same key, other figures another.\nlet h = 5381;\nconst body = JSON.stringify(send);\nfor (let i = 0; i < body.length; i++) h = ((h * 33) ^ body.charCodeAt(i)) >>> 0;\nconst key = 'stripe-' + h.toString(36) + '-' + send.length;\nreturn [{ json: { items: send, settled, skipped: leftOut ? [{ why: leftOut + ' price(s) left out of the revenue: tiered, metered, in another currency or without a fixed interval' }] : [], key } }];\n"
       },
       "id": "089c654d-aa66-5095-a241-365aa00c71ce",
       "name": "Shape values",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        880,
+        1100,
         300
       ]
     },
@@ -231,7 +262,7 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        1100,
+        1320,
         300
       ],
       "credentials": {
@@ -242,14 +273,14 @@
     },
     {
       "parameters": {
-        "jsCode": "// Ziffr's answer to a batch of values (spec 0043): one result per item, in the order sent. A refused item fails the run,\n// so that n8n shows it as failed and its owner looks; the rest were recorded all the same (each item stands on its own).\nconst results = Array.isArray($input.first().json.results) ? $input.first().json.results : [];\nconst shaped = $('Shape values').first().json;\nconst refused = results.filter((r) => r.status === 'refused');\nif (refused.length) {\n  const why = refused.slice(0, 10).map((r) => String(r.metric) + ' ' + String(r.period ?? '') + ' (' + String(r.code ?? 'refused') + '): ' + String(r.detail)).join('; ');\n  throw new Error('Ziffr refused ' + refused.length + ' of ' + results.length + ' values: ' + why + (refused.length > 10 ? '; and more' : ''));\n}\nconst count = (s) => results.filter((r) => r.status === s).length;\nreturn [{ json: { recorded: count('recorded'), waitingForApproval: count('awaiting_approval'), proposedAsCorrection: count('locked'), skippedRows: shaped.skipped } }];\n"
+        "jsCode": "// Ziffr's answer to a batch of values (spec 0043): one result per item, in the order sent. A refused item fails the run,\n// so that n8n shows it as failed and its owner looks; the rest were recorded all the same (each item stands on its own).\nconst results = Array.isArray($input.first().json.results) ? $input.first().json.results : [];\nconst shaped = $('Shape values').first().json;\nconst refused = results.filter((r) => r.status === 'refused');\nif (refused.length) {\n  const why = refused.slice(0, 10).map((r) => String(r.metric) + ' ' + String(r.period ?? '') + ' (' + String(r.code ?? 'refused') + '): ' + String(r.detail)).join('; ');\n  throw new Error('Ziffr refused ' + refused.length + ' of ' + results.length + ' values: ' + why + (refused.length > 10 ? '; and more' : ''));\n}\nconst count = (s) => results.filter((r) => r.status === s).length;\nreturn [{ json: { recorded: count('recorded'), waitingForApproval: count('awaiting_approval'), proposedAsCorrection: count('locked'), alreadyThere: shaped.settled, skippedRows: shaped.skipped } }];\n"
       },
       "id": "5095382a-0ca2-5ae7-bdd7-918711767673",
       "name": "Check the answers",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        1320,
+        1540,
         300
       ]
     }
@@ -267,6 +298,17 @@
       ]
     },
     "Settings": {
+      "main": [
+        [
+          {
+            "node": "What is filled",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "What is filled": {
       "main": [
         [
           {
@@ -323,7 +365,8 @@
     }
   },
   "settings": {
-    "executionOrder": "v1"
+    "executionOrder": "v1",
+    "timezone": "UTC"
   },
   "pinData": {},
   "active": false,

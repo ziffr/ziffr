@@ -11,6 +11,8 @@ import { automationTemplateFor } from "@ziffr/core/feed-template-download";
 /** Makes the template's file for these Metrics and Feed; a new Feed key is returned this once. */
 export async function downloadFeedTemplate(input: { template: string; metrics: number[]; feedId: string | null; newFeedName: string; makeKey: boolean }) {
   return attempt(async () => {
+    // Without ZIFFR_SITE_URL the address would be this computer's: a file for another machine would send its key there.
+    if (!process.env.ZIFFR_SITE_URL && process.env.NODE_ENV === "production") throw new Error("Set ZIFFR_SITE_URL (this Ziffr's public address) before downloading a template.");
     const feed = input?.feedId ? { id: String(input.feedId) } : { name: String(input?.newFeedName ?? "") };
     const r = await automationTemplateFor(await currentActor(), SITE_URL, {
       template: String(input?.template ?? ""),

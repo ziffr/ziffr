@@ -23,4 +23,4 @@ const items = [];
 if (slugs.won) items.push({ metric: slugs.won, period, value: totalOf('Count deals won') });
 if (slugs.contacts) items.push({ metric: slugs.contacts, period, value: totalOf('Count new contacts') });
 @@KEY@@
-return [{ json: { items, skipped: [], key } }];
+return [{ json: { items: send, settled, skipped: [], key } }];

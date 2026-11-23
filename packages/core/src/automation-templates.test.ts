@@ -127,9 +127,12 @@ describe("Feed templates in docs/automations (spec 0043)", () => {
   }
 });
 
+/** What GET /api/v1/feed answers: the Feed's Metrics with the periods that already hold a value. */
+const overview = (metrics: Param[]) => ({ name: "Feed", year_start_month: 1, metrics: { items: metrics, next: null } });
+
 describe("google-sheets-feed.json: from rows to the items a Feed takes", () => {
   const wf = load("google-sheets-feed.json");
-  const shape = (rows: Param[]) => runNode(wf, "Shape values", { items: rows.map((json) => ({ json })) }).then((x) => x[0].json as { items: Param[]; skipped: { row: number; why: string }[]; key: string });
+  const shape = (rows: Param[], filled: Param[] = []) => runNode(wf, "Shape values", { items: rows.map((json) => ({ json })), nodes: { "What is filled": [{ json: overview(filled) }] } }).then((x) => x[0].json as { items: Param[]; skipped: { row: number; why: string }[]; key: string });
   // What POST /api/v1/feed/observations takes (apps/web/src/app/api/v1/schemas.ts FeedItem): a slug, an optional first day, a number.
   const accepted = (i: Param) => Object.keys(i).every((k) => ["metric", "period", "value"].includes(k)) && /^[a-z0-9][a-z0-9-]{0,99}$/.test(String(i.metric)) && typeof i.value === "number" && Number.isFinite(i.value) && (i.period === undefined || /^\d{4}-\d{2}-\d{2}$/.test(String(i.period)));
 
@@ -180,7 +183,7 @@ describe("stripe-feed.json and hubspot-feed.json: only reads, only figures", () 
   for (const file of ["stripe-feed.json", "hubspot-feed.json"]) {
     it(`${file}: never writes to the other system, and runs once a month for the month that ended`, () => {
       const wf = load(file);
-      for (const n of wf.nodes.filter((x) => x.type === "n8n-nodes-base.httpRequest" && x.name !== "Send to Ziffr")) {
+      for (const n of wf.nodes.filter((x) => x.type === "n8n-nodes-base.httpRequest" && x.name !== "Send to Ziffr" && x.name !== "What is filled")) {
         const method = String(n.parameters.method);
         const url = String(n.parameters.url);
         // Stripe is read with GET; HubSpot's search is a POST that only reads (its address says so).
@@ -203,9 +206,9 @@ describe("stripe-feed.json: from subscriptions to three figures", () => {
   const price = (unit_amount: number | null, interval = "month", extra: Param = {}) => ({ unit_amount, currency: "eur", recurring: { interval, interval_count: 1, usage_type: "licensed" }, ...extra });
   const sub = (customer: string, lines: Param[], extra: Param = {}) => ({ status: "active", customer, items: { data: lines }, ...extra });
   const T = (iso: string) => Math.floor(new Date(iso).getTime() / 1000);
-  const run = (s: Param, current: Param[], cancelled: Param[] = [], more = false) => runNode(wf, "Shape values", {
+  const run = (s: Param, current: Param[], cancelled: Param[] = [], more = false, filled: Param[] = []) => runNode(wf, "Shape values", {
     items: [],
-    nodes: { Settings: [{ json: s }], "Read current subscriptions": [{ json: { data: current, has_more: more } }], "Read cancelled subscriptions": [{ json: { data: cancelled, has_more: false } }] },
+    nodes: { "What is filled": [{ json: overview(filled) }], Settings: [{ json: s }], "Read current subscriptions": [{ json: { data: current, has_more: more } }], "Read cancelled subscriptions": [{ json: { data: cancelled, has_more: false } }] },
   }).then((x) => x[0].json as { items: Param[]; skipped: { why: string }[]; key: string });
 
   it("adds the plans up to a month, counts customers once, and counts those who cancelled in the month that ended and are not back", async () => {
@@ -244,6 +247,16 @@ describe("stripe-feed.json: from subscriptions to three figures", () => {
     await expect(run(settings({ mrrMetric: "", customersMetric: "", churnedMetric: "" }), [])).rejects.toThrow(/at least one Metric/);
     await expect(run(settings({ currency: "REPLACE-WITH-THE-CURRENCY-CODE-SUCH-AS-eur" }), [])).rejects.toThrow(/currency/);
   });
+  it("counts a cancellation by the day the subscription ended, not the day it was asked for", async () => {
+    const out = await run(settings({ mrrMetric: "", customersMetric: "" }), [], [
+      { customer: "c1", canceled_at: T("2025-09-12T10:00:00Z"), ended_at: T("2025-10-12T10:00:00Z") },   // asked in September, ended in October: counted in October
+      { customer: "c2", canceled_at: T("2025-10-05T10:00:00Z"), ended_at: T("2025-11-05T10:00:00Z") },   // asked in October, ends in November: not yet
+    ]);
+    expect(out.items).toEqual([{ metric: "churned", period: "2025-10-01", value: 1 }]);
+  });
+  it("sends nothing when a subscription has more items than Stripe lists with it", async () => {
+    await expect(run(settings(), [sub("c1", [{ price: price(1000) }]).valueOf() && { ...sub("c1", [{ price: price(1000) }]), items: { data: [{ price: price(1000) }], has_more: true } }])).rejects.toThrow(/more items than Stripe lists/);
+  });
   it("sends nothing when Stripe has more than was read, rather than a number that is too low", async () => {
     await expect(run(settings(), [sub("c1", [{ price: price(1000) }])], [], true)).rejects.toThrow(/more subscriptions than this template reads/);
   });
@@ -253,12 +266,45 @@ describe("stripe-feed.json: from subscriptions to three figures", () => {
   });
 });
 
+describe("Feed templates do not send a past period twice", () => {
+  const settings = { ziffrUrl: "https://z.example", dealsWonMetric: "deals-won", newContactsMetric: "new-contacts" };
+  const hubspot = load("hubspot-feed.json");
+  const run = (filled: Param[]) => runNode(hubspot, "Shape values", { items: [], nodes: { "What is filled": [{ json: overview(filled) }], Settings: [{ json: settings }], "Count deals won": [{ json: { total: 7 } }], "Count new contacts": [{ json: { total: 120 } }] } });
+  it("leaves out a past period that already has a value, and sends the rest", async () => {
+    const out = await run([{ slug: "deals-won", period: "month", current: "2025-11-01", filled: ["2025-10-01"] }, { slug: "new-contacts", period: "month", current: "2025-11-01", filled: [] }]);
+    expect((out[0].json.items as Param[]).map((i) => i.metric)).toEqual(["new-contacts"]);
+    expect(out[0].json.settled).toBe(1);
+  });
+  it("sends nothing, and does not fail, when every period already has its value", async () => {
+    const out = await run([{ slug: "deals-won", period: "month", current: "2025-11-01", filled: ["2025-10-01"] }, { slug: "new-contacts", period: "month", current: "2025-11-01", filled: ["2025-10-01"] }]);
+    expect(out).toEqual([]);
+  });
+  it("always sends the current period (its value may still change), and a Metric Ziffr does not list (Ziffr refuses it, loudly)", async () => {
+    const out = await run([{ slug: "deals-won", period: "month", current: "2025-10-01", filled: ["2025-10-01"] }]);
+    expect((out[0].json.items as Param[]).map((i) => i.metric)).toEqual(["deals-won", "new-contacts"]);
+  });
+  it("gives the same key for the same figures on any day", async () => {
+    const a = await run([]);
+    expect((await run([]))[0].json.key).toBe(a[0].json.key);
+    expect(String(a[0].json.key)).not.toMatch(/\d{4}-\d{2}-\d{2}/);
+  });
+  it("runs in UTC and asks Ziffr what is filled with the Feed Key in the credential", () => {
+    for (const file of ["stripe-feed.json", "hubspot-feed.json", "google-sheets-feed.json"]) {
+      const wf = JSON.parse(readFileSync(new URL(file, dir), "utf8")) as Workflow & { settings: { timezone?: string } };
+      expect(wf.settings.timezone, file).toBe("UTC");
+      const ask = wf.nodes.find((n) => n.name === "What is filled")!;
+      expect(ask.parameters).toMatchObject({ method: "GET", authentication: "genericCredentialType", genericAuthType: "httpHeaderAuth" });
+      expect(String(ask.parameters.url)).toMatch(/\/api\/v1\/feed$/);
+    }
+  });
+});
+
 describe("hubspot-feed.json: from two totals to two figures", () => {
   const wf = load("hubspot-feed.json");
   const settings = (o: Param = {}) => ({ ziffrUrl: "https://z.example", dealsWonMetric: "deals-won", newContactsMetric: "new-contacts", ...o });
-  const run = (s: Param, won: unknown, contacts: unknown) => runNode(wf, "Shape values", {
+  const run = (s: Param, won: unknown, contacts: unknown, filled: Param[] = []) => runNode(wf, "Shape values", {
     items: [],
-    nodes: { Settings: [{ json: s }], "Count deals won": [{ json: { total: won, results: [{ id: "SECRET" }] } }], "Count new contacts": [{ json: { total: contacts } }] },
+    nodes: { "What is filled": [{ json: overview(filled) }], Settings: [{ json: s }], "Count deals won": [{ json: { total: won, results: [{ id: "SECRET" }] } }], "Count new contacts": [{ json: { total: contacts } }] },
   }).then((x) => x[0].json as { items: Param[]; key: string });
 
   it("sends the two totals for the month that ended, and nothing else HubSpot said", async () => {

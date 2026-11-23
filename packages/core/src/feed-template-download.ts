@@ -64,6 +64,10 @@ export type TemplateDownload = {
 
 /** Whether `address` is an address a workflow may send to: http or https, no spaces, quotes or end slash. */
 const ADDRESS = /^https?:\/\/[^\s"'\\<>]+[^\s"'\\<>/]$/;
+/** The longest slug the templates and feed-kit take; a Metric with a longer one cannot be named in a flow. */
+const SLUG = /^[a-z0-9][a-z0-9-]{0,99}$/;
+/** A Feed Key travels in a header: over plain http only to this computer, never to a name on a network. */
+const plainHttpIsLocal = (address: string) => !address.startsWith("http://") || /^http:\/\/(localhost|127\.0\.0\.1|\[::1\])(:\d+)?$/.test(address);
 
 /** Makes the download (Owners and Admins). Everything is checked before anything is made; the Feed, its place among
  * the Metrics' Submitters and its key are made through the core's own operations, audited as any. */
@@ -72,7 +76,7 @@ export async function automationTemplateFor(actor: Actor, siteUrl: string, input
   const template = typeof input?.template === "string" ? TEMPLATES.find((t) => t.id === input.template) : undefined;
   if (!template) throw new Error("Pick one of the templates offered.");
   const workflow = WORKFLOWS[template.file];
-  if (!workflow || !ADDRESS.test(siteUrl)) throw new Error("This Ziffr cannot make the file; its address is not set.");
+  if (!workflow || !ADDRESS.test(siteUrl) || !plainHttpIsLocal(siteUrl)) throw new Error("This Ziffr cannot make the file; its address is not set, or is not https (set ZIFFR_SITE_URL).");
   const asked = Array.isArray(input.metrics) ? input.metrics.map(Number) : [];
   if (!asked.length || asked.length > DOWNLOAD_METRICS_MAX || asked.some((id) => !Number.isSafeInteger(id) || id <= 0) || new Set(asked).size !== asked.length) {
     throw new Error(`Pick 1 to ${DOWNLOAD_METRICS_MAX} Metrics.`);
@@ -85,6 +89,8 @@ export async function automationTemplateFor(actor: Actor, siteUrl: string, input
   for (const id of asked) {
     const m = await editableMetric(actor, id, "who submits");
     if (m.formula) throw new Error(`“${m.name}” is computed from other Metrics; it takes no values.`);
+    // Checked again here, since a slug goes into a flow's settings and a starter sheet: one the templates would refuse stops everything.
+    if (!SLUG.test(String(m.slug))) throw new Error(`“${m.name}” has an address too long or odd for the templates; rename it first.`);
     metrics.push({ id, slug: String(m.slug), name: String(m.name) });
   }
   let feed: { id: string; name: string };
