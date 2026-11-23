@@ -146,6 +146,19 @@ describe("the job", () => {
     expect(out.left).toBeGreaterThanOrEqual(1);
   }, 120_000);
 
+  it("rests on no value that waits for Approval: the period is left out of the scan until it is approved", async () => {
+    const { w, ids, scan } = await setup();
+    const through = async () => (await db().from("heads_up_pairs").select("through").eq("workspace_id", w.id).eq("metric_a", Math.min(ids.visits, ids.notes)).eq("metric_b", Math.max(ids.visits, ids.notes)).single()).data!.through;
+    await scan();
+    expect(await through()).toBe("2026-06-01");
+    await db().from("period_states").insert({ metric_id: ids.visits, period_start: month(MONTHS - 1), state: "approval", workspace_id: w.id });
+    await scan(new Date(Date.now() + 5000).toISOString());
+    expect(await through()).toBe("2026-05-01");
+    await db().from("period_states").update({ state: "locked" }).eq("metric_id", ids.visits).eq("period_start", month(MONTHS - 1));
+    await scan(new Date(Date.now() + 9000).toISOString());
+    expect(await through()).toBe("2026-06-01");
+  });
+
   it("leaves out an archived Metric, takes a pair away that can no longer be compared, and never pairs a Derived Metric with what it is worked out from", async () => {
     const { w, sara, ids, scan, owner } = await setup();
     // Derived from Visits, and another derived from Visits too, and one derived from that: none of them pairs with Visits or with each other.
@@ -315,6 +328,27 @@ describe("what is scanned does not depend on Metrics a person may not see", () =
     expect(a).toHaveLength(1);
     expect(JSON.stringify(b)).toBe(JSON.stringify(a));
   }, 180_000);
+
+  it("never lets a reader see rows and flag that disagree: a scan interrupted after the flag, and after the rows, gives what a scan of the person's own Metrics gives, in both directions of the cap", async () => {
+    const crowded = await withHidden(250);
+    const alone = await told(await withHidden(0));
+    const hiddenIds = (await db().from("metrics").select("id").eq("workspace_id", crowded.w.id).like("slug", "hid-%")).data!.map((m) => m.id as number);
+    const seenAt: string[] = [];
+    const reader = (label: string) => async () => { seenAt.push(label); expect(JSON.stringify(await told(crowded)), label).toBe(JSON.stringify(alone)); };
+    const rescan = async (at: number, label: string) => scanWorkspace(crowded.w.id, new Date(Date.now() + at).toISOString(), TODAY, { afterFlag: reader(`${label}: after the flag`), afterRows: reader(`${label}: after the rows`) });
+    const flag = async () => (await db().from("heads_up_scans").select("capped").eq("workspace_id", crowded.w.id).single()).data!.capped;
+    expect(await flag()).toBe(true);
+    // Capped to not capped: the flag stays true until the rows are done.
+    await db().from("metrics").update({ archived_at: new Date().toISOString() }).in("id", hiddenIds);
+    await rescan(10_000, "true to false");
+    expect(await flag()).toBe(false);
+    expect(JSON.stringify(await told(crowded))).toBe(JSON.stringify(alone));
+    // Not capped to capped: the flag is true before any row changes.
+    await db().from("metrics").update({ archived_at: null }).in("id", hiddenIds);
+    await rescan(20_000, "false to true");
+    expect(await flag()).toBe(true);
+    expect(seenAt).toHaveLength(4);
+  }, 300_000);
 
   it("leaves a pair out as related only through Metrics the person sees: two Derived Metrics of one hidden Metric are shown, of one they see are not", async () => {
     const w = await workspace();

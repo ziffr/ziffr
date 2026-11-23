@@ -99,18 +99,23 @@ function movingTakeaway(row: PairRow, names: ReadonlyMap<number, string>, looked
 function stoppedTakeaway(row: PairRow, names: ReadonlyMap<number, string>, looked: number, adjusted: number, ctx: TakeawayContext): Takeaway {
   const before = row.before!;
   const recent = before.recent!;
-  const [first, second] = [names.get(row.a)!, names.get(row.b)!];
+  // The Metric that moved first comes first, as in a Heads-up of moving together; with no delay the lower id comes first.
+  const [leader, follower] = before.lag >= 0 ? [row.a, row.b] : [row.b, row.a];
+  const [first, second] = [names.get(leader)!, names.get(follower)!];
+  const lag = Math.abs(before.lag);
+  const opposite = before.r < 0;
+  const key = lag === 0 ? (opposite ? "hu-stopped-opposite" : "hu-stopped") : opposite ? "hu-stopped-leads-opposite" : "hu-stopped-leads";
   const method = sayIn("numbers-method-hu-stopped", {}, ctx);
   const text = (n: number, d = 0) => formatNumber(n, d, ctx.style);
   return {
     ...answerTakeaway(method),
-    sentence: sayIn(before.r < 0 ? "hu-stopped-opposite" : "hu-stopped", { a: first, b: second, recent: recent.n, span: row.span }, ctx),
+    sentence: sayIn(key, { a: first, b: second, lag, recent: recent.n, span: row.span }, ctx),
     basis: sayIn("basis-over", { basis: sayIn("basis-changes", {}, ctx), n: before.n, span: row.span }, ctx),
     footer: footerText(ctx),
     figures: [{ label: sayIn("numbers-hu-recent", {}, ctx), value: recent.n, text: text(recent.n) }],
     numbers: [
       { label: sayIn("numbers-method", {}, ctx), text: method },
-      { label: sayIn("numbers-lag", {}, ctx), text: text(Math.abs(before.lag)) },
+      { label: sayIn("numbers-lag", {}, ctx), text: text(lag) },
       { label: sayIn("numbers-hu-before", {}, ctx), text: sayIn("numbers-hu-half", { r: before.r, n: before.n, span: row.span }, ctx) },
       { label: sayIn("numbers-hu-recent", {}, ctx), text: sayIn("numbers-hu-half", { r: recent.r, n: recent.n, span: row.span }, ctx) },
       { label: sayIn("numbers-hu-looked-at", {}, ctx), text: text(looked) },

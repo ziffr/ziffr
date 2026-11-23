@@ -36,6 +36,8 @@ describe("the words", () => {
     "hu-together-leads-opposite": "Visits and Revenue have started moving in opposite directions: when Visits rises, Revenue falls 2 months later (strong, over 18 months).",
     "hu-stopped": "Visits and Revenue used to move together. Over the last 6 months, they have not.",
     "hu-stopped-opposite": "Visits and Revenue used to move in opposite directions. Over the last 6 months, they have not.",
+    "hu-stopped-leads": "Visits and Revenue used to move together: when Visits rose, Revenue followed 2 months later. Over the last 6 months, they have not.",
+    "hu-stopped-leads-opposite": "Visits and Revenue used to move in opposite directions: when Visits rose, Revenue fell 2 months later. Over the last 6 months, they have not.",
     "numbers-method-hu-together": "Moving together: changes compared at delays of 0 to 3 periods either way, corrected for the pairs looked at",
     "numbers-method-hu-stopped": "Stopped moving together: the last periods against the history before them, corrected for the pairs looked at",
     "numbers-hu-effective": "Pairs, allowing for each Metric following its own past",
@@ -199,7 +201,7 @@ describe("a pair that has stopped moving together", () => {
     expect(h).toMatchObject({ key: "stopped-moving-together:1:2", kind: "stopped-moving-together", metrics: [1, 2] });
     expect(h.takeaway).toMatchObject({
       kind: "answer",
-      sentence: "Visits and Revenue used to move together. Over the last 6 months, they have not.",
+      sentence: "Visits and Revenue used to move together: when Visits rose, Revenue followed 1 month later. Over the last 6 months, they have not.",
       strength: null,
       strengthText: null,
       basis: "compared by change, growth removed, over 30 months",
@@ -212,6 +214,13 @@ describe("a pair that has stopped moving together", () => {
     // The drop is tried among the pairs that had been moving together: here one.
     expect(h.takeaway.numbers[4].text).toBe("1");
     expect(h.takeaway.numbers[5].text).toBe("0.0020");
+  });
+  it("says which Metric led and by how long: the leader first, 'followed' or 'fell' for the other way, nothing for no delay", () => {
+    const one = (lag: number, r: number) => headsUpsFrom([stopped({ lag, r }, { r: 0.1, n: 6, low: true, dropP: 1e-6 })], names(1, 2), ctx)[0].takeaway;
+    expect(one(2, 0.9).sentence).toBe("Visits and Revenue used to move together: when Visits rose, Revenue followed 2 months later. Over the last 6 months, they have not.");
+    expect(one(-1, 0.9).sentence).toBe("Revenue and Visits used to move together: when Revenue rose, Visits followed 1 month later. Over the last 6 months, they have not.");
+    expect(one(-3, -0.9).sentence).toBe("Revenue and Visits used to move in opposite directions: when Revenue rose, Visits fell 3 months later. Over the last 6 months, they have not.");
+    expect(one(-3, 0.9).numbers.find((n) => n.label === "Delay (periods)")!.text).toBe("3");
   });
   it("says 'opposite directions' for a link that went the other way, and is not also reported as moving together", () => {
     const row2 = row(1, 2, { full: win(), before: before({ r: -0.9 }, { r: -0.1, n: 6, low: true, dropP: 1e-6 }) });

@@ -107,7 +107,10 @@ function ingredients(metrics: readonly Metric[]): Map<number, Set<number>> {
 async function scanSubset(ws: string, day: string, pick: (all: Metric[]) => Metric[], relatedOver: (all: Metric[]) => (a: number, b: number) => boolean): Promise<{ rows: PairRow[]; metrics: number; capped: boolean }> {
   const [metrics, yearStart] = await Promise.all([getMetrics(ws), yearStartOf(ws)]);
   // Only values of the last ten years are read: no series is longer than 120 periods, and a yearly Metric has few values.
-  const observations = await getLatestObservations(ws, { from: shiftPeriod(day, "year", -10) });
+  // A value that waits for Approval is not final: the period is left out (a gap), so no Heads-up rests on a value not approved yet.
+  const [all, { data: waiting }] = await Promise.all([getLatestObservations(ws, { from: shiftPeriod(day, "year", -10) }), db().from("period_states").select("metric_id, period_start").eq("workspace_id", ws).eq("state", "approval")]);
+  const unapproved = new Set((waiting ?? []).map((w) => `${w.metric_id}:${w.period_start}`));
+  const observations = all.filter((o) => !unapproved.has(`${o.metric_id}:${o.period_start}`));
   const series = buildSeries(metrics, observations);
   const resolve = resolverFrom(metrics, series);
   const chosen = pick(metrics);
@@ -145,12 +148,21 @@ function relatedAmong(chosen: Metric[]): (a: number, b: number) => boolean {
  * may be compared (the same Period, or one step apart). Which pairs are related is NOT decided here (it is decided per person, over
  * the Metrics they may see, when the rows are read), so the rows depend on no one's sight. `today` is for tests. The caller has
  * claimed the scan. Reads and writes only this Workspace. */
-export async function scanWorkspace(ws: string, scannedAt: string, today?: string): Promise<ScanResult> {
+export async function scanWorkspace(ws: string, scannedAt: string, today?: string, steps: { afterFlag?: () => Promise<void>; afterRows?: () => Promise<void> } = {}): Promise<ScanResult> {
   const day = today ?? (await workspaceToday(ws));
   const { rows, metrics, capped } = await scanSubset(ws, day, inUse, () => () => false);
-  // Whether the scan was capped is written BEFORE its rows: a reader that sees rows chosen by the cap must also see that it was capped.
-  const { error: scanError } = await db().from("heads_up_scans").update({ metrics, pairs: rows.length, capped }).eq("workspace_id", ws);
-  if (scanError) throw new Error("The scan could not be recorded.");
+  const record = async (flag: boolean) => {
+    const { error } = await db().from("heads_up_scans").upsert({ workspace_id: ws, metrics, pairs: rows.length, capped: flag }, { onConflict: "workspace_id" });
+    if (error) throw new Error("The scan could not be recorded.");
+  };
+  // The flag only ever gets STRICTER while rows are being replaced: a reader takes the table path only where the flag says the rows
+  // were not chosen by the cap, so while the flag and the rows can disagree it must say "capped" (the safe path, a scan of the
+  // person's own Metrics). It is made stricter first (old OR new), and the final value, false included, is written only after the
+  // rows are all written and the stale ones deleted.
+  const { data: before, error: readError } = await db().from("heads_up_scans").select("capped").eq("workspace_id", ws).maybeSingle();
+  if (readError) throw new Error("The scan could not be recorded.");
+  await record(Boolean(before?.capped) || capped);
+  await steps.afterFlag?.();
   for (let i = 0; i < rows.length; i += CHUNK) {
     const { error } = await db().from("heads_up_pairs").upsert(rows.slice(i, i + CHUNK).map((r) => rowToDb(ws, r, scannedAt)), { onConflict: "workspace_id,metric_a,metric_b" });
     if (error) throw new Error("The pair table could not be written.");
@@ -158,6 +170,8 @@ export async function scanWorkspace(ws: string, scannedAt: string, today?: strin
   // What this scan did not refresh is gone: a pair that can no longer be compared, or a Metric no longer in use.
   const { error: staleError } = await db().from("heads_up_pairs").delete().eq("workspace_id", ws).lt("scanned_at", scannedAt);
   if (staleError) throw new Error("The pair table could not be cleaned.");
+  await steps.afterRows?.();
+  await record(capped);
   return { metrics, pairs: rows.length, capped };
 }
 

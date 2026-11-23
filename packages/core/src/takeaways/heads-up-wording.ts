@@ -11,6 +11,8 @@ export const HEADS_UP_EN = {
   "hu-together-leads-opposite": "{a} and {b} have started moving in opposite directions: when {a} rises, {b} falls {lag} {periodsOf|lag} later ({strength}, over {n} {periodsOf|n}).",
   "hu-stopped": "{a} and {b} used to move together. Over the last {recent} {periods}, they have not.",
   "hu-stopped-opposite": "{a} and {b} used to move in opposite directions. Over the last {recent} {periods}, they have not.",
+  "hu-stopped-leads": "{a} and {b} used to move together: when {a} rose, {b} followed {lag} {periodsOf|lag} later. Over the last {recent} {periods}, they have not.",
+  "hu-stopped-leads-opposite": "{a} and {b} used to move in opposite directions: when {a} rose, {b} fell {lag} {periodsOf|lag} later. Over the last {recent} {periods}, they have not.",
   "numbers-method-hu-together": "Moving together: changes compared at delays of 0 to 3 periods either way, corrected for the pairs looked at",
   "numbers-method-hu-stopped": "Stopped moving together: the last periods against the history before them, corrected for the pairs looked at",
   "numbers-hu-effective": "Pairs, allowing for each Metric following its own past",
