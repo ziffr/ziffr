@@ -11,7 +11,8 @@ alter table workflow_step_runs add constraint workflow_step_runs_kind_check
 -- The Snapshot a send used. A deleted Snapshot keeps no frozen part; the row only forgets which one it was.
 alter table workflow_step_runs add column snapshot_id bigint references dashboard_snapshots(id) on delete set null;
 -- The dashboard a message links to, so that it is checked again when it leaves that its recipient may still open it (rule 3).
-alter table deliveries add column snapshot_dashboard_id int references dashboards(id) on delete set null;
+-- A plain number, no foreign key: a dashboard deleted while the message waits is then one its recipient can no longer open, and it is refused.
+alter table deliveries add column snapshot_dashboard_id int;
 
 create or replace function claim_workflow_step(p_workspace uuid, p_workflow int, p_step text, p_period date, p_kind text)
 returns bigint language plpgsql security definer set search_path = public as $$
@@ -27,6 +28,21 @@ begin
 end $$;
 revoke execute on function claim_workflow_step(uuid, int, text, date, text) from public, anon, authenticated;
 grant execute on function claim_workflow_step(uuid, int, text, date, text) to service_role;
+
+-- Shows a Snapshot's draft only if nobody has written in it (no Version of it exists), in one statement, so that an edit
+-- racing the show cannot slip in between a check and the update. The number of rows shown: 0 when it was written in,
+-- already shown, deleted or not of the Workspace.
+create or replace function show_untouched_snapshot(p_workspace uuid, p_id bigint, p_by text) returns int
+language sql security definer set search_path = public as $$
+  with shown as (
+    update dashboard_snapshots set shown_at = now(), shown_by = p_by
+    where id = p_id and workspace_id = p_workspace and shown_at is null and deleted_at is null
+      and not exists (select 1 from versions where object_type = 'snapshot' and object_id = p_id)
+    returning 1)
+  select count(*)::int from shown
+$$;
+revoke execute on function show_untouched_snapshot(uuid, bigint, text) from public, anon, authenticated;
+grant execute on function show_untouched_snapshot(uuid, bigint, text) to service_role;
 
 -- The demo's finished period (spec 0045, "Demo"): the monthly finance close gains two Checklist Items and a Send
 -- Snapshot step for its board dashboard, a finished past period (its Tasks done with a note, the item and the Snapshot

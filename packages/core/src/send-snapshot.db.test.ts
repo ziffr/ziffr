@@ -372,6 +372,28 @@ describe("review fixes", () => {
     expect(await archivedMetricHolds(data![0] as never)).toBe("Not sent.");
   });
 
+  it("does not send a message whose dashboard was deleted while it waited", async () => {
+    const { w, ann, dash, lockAll } = await setup({ people: (p) => [p.ann] });
+    await lockAll();
+    const { data } = await db().from("deliveries").select("id, workspace_id, recipient_id, kind, tell_workflow_id, snapshot_dashboard_id").eq("workspace_id", w.id).eq("recipient_id", ann).eq("kind", "checklist");
+    await db().from("dashboards").delete().eq("id", dash);
+    expect(await archivedMetricHolds(data![0] as never)).toBe("Not sent.");
+  });
+
+  it("decides a show against a written edit in one step: whichever comes second, nobody gets a draft shown over someone's words", async () => {
+    for (let round = 0; round < 4; round++) {
+      const { w, sara, dash } = await setup({ people: (p) => [p.ann] });
+      const id = await takeSnapshot(w.actor(sara), dash, { kind: "month", start: LAST }, { automatic: true });
+      const [shown, edited] = await Promise.allSettled([showSnapshot(w.actor(sara), id, { workflowId: 1 }), editSnapshotWords(w.actor(sara), id, { intro: "By hand." })]);
+      expect(edited.status).toBe("fulfilled");
+      const row = (await db().from("dashboard_snapshots").select("shown_at, words_changed_at").eq("id", id).single()).data!;
+      // Either the edit came first (the show was refused, the draft stays a draft) or the show did (and the words are marked as changed since).
+      if (shown.status === "rejected") expect(row.shown_at).toBeNull();
+      else expect(row.words_changed_at).not.toBeNull();
+      await w.cleanup();
+    }
+  });
+
   it("does not show a draft that was written in meanwhile", async () => {
     const { w, sara, dash } = await setup({ people: (p) => [p.ann] });
     const id = await takeSnapshot(w.actor(sara), dash, { kind: "month", start: LAST }, { automatic: true });

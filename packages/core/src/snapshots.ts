@@ -410,8 +410,10 @@ export async function editSnapshotWords(actor: Actor, snapshotId: number, words:
   const next = cleanWords(words, new Set(seen.widgets.map((w) => String(w.id))), current);
   if (JSON.stringify(next) === JSON.stringify(current)) return;
   await ensureBaseline("snapshot", snapshotId, actor.personId);
-  const { error } = await db().from("dashboard_snapshots").update({ words: await sealedWords(actor.workspaceId, snapshotId, next), ...(row.shown_at ? { words_changed_at: new Date().toISOString() } : {}) }).eq("id", snapshotId).eq("workspace_id", actor.workspaceId);
+  const { error } = await db().from("dashboard_snapshots").update({ words: await sealedWords(actor.workspaceId, snapshotId, next) }).eq("id", snapshotId).eq("workspace_id", actor.workspaceId);
   if (error) throw new Error("The words could not be saved.");
+  // Said after the write, from the row as it is now: a Snapshot shown while this edit was under way (by a Workflow, say) is one whose words changed since.
+  await db().from("dashboard_snapshots").update({ words_changed_at: new Date().toISOString() }).eq("id", snapshotId).eq("workspace_id", actor.workspaceId).not("shown_at", "is", null);
   await recordVersion("snapshot", snapshotId, actor.personId);
 }
 
@@ -440,10 +442,16 @@ export async function showSnapshot(actor: Actor, snapshotId: number, opts: { wor
   const { row, writer } = await readable(actor, snapshotId, "id, dashboard_id, label, shown_at");
   if (!writer) throw new Forbidden();
   if (row.shown_at) return;
-  // A Workflow shows only a draft nobody has written in (a Version exists once someone does); one written in meanwhile is left for its writer.
-  if (opts.workflowId && (await db().from("versions").select("id", { count: "exact", head: true }).eq("object_type", "snapshot").eq("object_id", snapshotId)).count) throw new Refused("This Snapshot has been written in: show it by hand.");
-  const { error } = await db().from("dashboard_snapshots").update({ shown_at: new Date().toISOString(), shown_by: actor.personId }).eq("id", snapshotId).eq("workspace_id", actor.workspaceId).is("shown_at", null);
-  if (error) throw new Error("The Snapshot could not be shown.");
+  // A Workflow shows only a draft nobody has written in (a Version exists once someone does), decided in the same statement
+  // that shows it, so a word written meanwhile cannot slip in between; one written in is left for its writer.
+  if (opts.workflowId) {
+    const { data: shown, error } = await db().rpc("show_untouched_snapshot", { p_workspace: actor.workspaceId, p_id: snapshotId, p_by: actor.personId });
+    if (error) throw new Error("The Snapshot could not be shown.");
+    if (!shown) throw new Refused("This Snapshot has been written in: show it by hand.");
+  } else {
+    const { error } = await db().from("dashboard_snapshots").update({ shown_at: new Date().toISOString(), shown_by: actor.personId }).eq("id", snapshotId).eq("workspace_id", actor.workspaceId).is("shown_at", null);
+    if (error) throw new Error("The Snapshot could not be shown.");
+  }
   const { data: d } = await db().from("dashboards").select("name").eq("id", row.dashboard_id).eq("workspace_id", actor.workspaceId).maybeSingle();
   await audit(actor, { kind: "snapshot.shown", object: { type: "dashboard", id: row.dashboard_id, name: d?.name ?? null }, details: { snapshot_id: snapshotId, period: row.label, ...(opts.workflowId ? { via: "workflow", workflow_id: opts.workflowId } : {}) } });
 }
