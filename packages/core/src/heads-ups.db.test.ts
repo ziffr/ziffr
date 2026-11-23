@@ -6,7 +6,7 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { db } from "./db";
 import { deliverHeadsUpsTo } from "./heads-up-delivery";
-import { setHeadsUpSettings } from "./heads-up-state";
+import { markNotUseful, muteMetric, setHeadsUpSettings } from "./heads-up-state";
 import { opened } from "./test/db-fixtures";
 import { headsUpJob, listHeadsUps, resetHeadsUpBudget, scanWorkspace } from "./heads-ups";
 import { DEMO_WORKSPACE_ID } from "./team";
@@ -572,7 +572,7 @@ describe("Heads-ups about one Metric by message (spec 0041, ticket 15)", () => {
     await add("Quiet 0", quiet(0));
     for (let i = 0; i < hidden; i++) await add(`Hidden ${i}`, i % 2 ? turning : quiet(i + 5));
     const messages = async (id: string) => (await opened("deliveries", w.id, (await db().from("deliveries").select("id, subject, body, kind, heads_up_metric_a, heads_up_metric_b").eq("recipient_id", id).eq("kind", "heads_up").order("id")).data ?? [])) as { subject: string; body: string; heads_up_metric_a: number; heads_up_metric_b: number | null }[];
-    return { w, sara, ben, cleo, ids, messages };
+    return { w, sara, ben, cleo, ids, messages, add };
   }
 
   it("tells a person who may see the Metrics, once each, with the footer of each kind, and the message names only that one Metric", async () => {
@@ -617,6 +617,46 @@ describe("Heads-ups about one Metric by message (spec 0041, ticket 15)", () => {
     };
     const [a, b] = [await run(plain), await run(crowded)];
     expect(b).toEqual(a);
+  }, 180_000);
+
+  it("tells at most 3 in 7 days across the kinds, once each until ended, and again when it has ended and returned", async () => {
+    const { w, ben, ids, add, messages } = await room();
+    await add("Signups B", turning);
+    for (const n of ["Signups", "Signups B", "Revenue", "Visits"]) await w.share(ids[n], ben);
+    await setHeadsUpSettings(w.actor(ben, "member"), { byMessage: true });
+    const day = (d: number) => ({ now: new Date(Date.now() + d * 86_400_000) });
+    expect(await deliverHeadsUpsTo(w.id, ben, day(0))).toBe(3);
+    expect(await deliverHeadsUpsTo(w.id, ben, day(1))).toBe(0);
+    // A week later the fourth is told, and then nothing: each is told once while it stands.
+    expect(await deliverHeadsUpsTo(w.id, ben, day(8))).toBe(1);
+    expect(await deliverHeadsUpsTo(w.id, ben, day(9))).toBe(0);
+    expect((await messages(ben)).length).toBe(4);
+    // Signups ends (its latest periods wait for Approval), is seen to have ended, returns, and is told again.
+    resetHeadsUpBudget();
+    await db().from("period_states").insert(Array.from({ length: 5 }, (_, i) => ({ metric_id: ids.Signups, period_start: recent(35 - i, 36), state: "approval", workspace_id: w.id })));
+    expect(await deliverHeadsUpsTo(w.id, ben, day(16))).toBe(0);
+    await db().from("period_states").delete().eq("metric_id", ids.Signups);
+    resetHeadsUpBudget();
+    expect(await deliverHeadsUpsTo(w.id, ben, day(17))).toBe(1);
+    expect((await messages(ben)).filter((m) => m.subject === "Heads-up: Signups").length).toBe(2);
+  }, 180_000);
+
+  it("stops a waiting message when the Metric is muted or the Heads-up marked Not useful, and for a Metric no longer shared or archived", async () => {
+    const { w, ben, ids, messages } = await room();
+    for (const n of ["Signups", "Revenue", "Visits"]) await w.share(ids[n], ben);
+    const actor = w.actor(ben, "member");
+    await setHeadsUpSettings(actor, { byMessage: true });
+    await muteMetric(actor, ids.Revenue);
+    await markNotUseful(actor, `unusual-for-season:${ids.Visits}`);
+    await w.unshare(ids.Signups, ben);
+    expect(await deliverHeadsUpsTo(w.id, ben)).toBe(0);
+    expect(await messages(ben)).toEqual([]);
+    // Shared again, but archived before the send: nothing either.
+    await w.share(ids.Signups, ben);
+    await db().from("metrics").update({ archived_at: new Date().toISOString() }).eq("id", ids.Signups);
+    resetHeadsUpBudget();
+    expect(await deliverHeadsUpsTo(w.id, ben)).toBe(0);
+    expect(await messages(ben)).toEqual([]);
   }, 180_000);
 
   it("keeps what it worked out for a few minutes, and never for values that have changed since", async () => {
