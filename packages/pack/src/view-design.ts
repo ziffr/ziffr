@@ -302,8 +302,9 @@ export function checkViewDesignValue(value: unknown, lines: Map<string, number> 
   const problems = checkSchema(schema, value, lines);
   if (problems.length) return { ok: false, problems };
   // `$schema` is for editors alone: dropped here, so nothing downstream (the database, a Pack, a View Link) ever holds it.
-  const { $schema: _editorsOnly, ...rest } = value as ViewDesign & { $schema?: string };
-  const design = rest as ViewDesign;
+  const rest = { ...(value as Record<string, unknown>) };
+  delete rest.$schema;
+  const design = rest as unknown as ViewDesign;
   const more = meaning(design, lines);
   return more.length ? { ok: false, problems: more } : { ok: true, design };
 }
