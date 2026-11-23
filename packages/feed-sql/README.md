@@ -50,3 +50,29 @@ An optional `dialect` line in the file names the database language: `postgres` (
 | `snowflake` | numbered binds `:1`, `:2` | the optional package `snowflake-sdk` |
 
 The BigQuery and Snowflake drivers are optional: a file that names one when its package is not installed stops with a message naming what to install, and Postgres users install nothing new. Each driver is one file next to `src/index.ts` that exports `connect(config, env)` and gives back a `SqlRunner`; its connection comes from the environment, never from the file. To read another system, write your own Feed with [`@ziffr/feed-kit`](../feed-kit/README.md).
+
+## Snowflake
+
+Set `dialect: snowflake` and install the driver next to the Feed (`npm install snowflake-sdk`). Login is by key pair and comes from the environment only; the file may name `warehouse`, `role`, `database` and `schema` (names, never secrets):
+
+```yaml
+name: Warehouse
+dialect: snowflake
+warehouse: FEED_WH
+role: ZIFFR_FEED_RO
+database: ANALYTICS
+metrics:
+  monthly-revenue:
+    value: select sum(amount) from orders where paid_at >= :period_start and paid_at < :period_end
+```
+
+```sh skip="needs a Snowflake account"
+export SNOWFLAKE_ACCOUNT=myorg-myaccount SNOWFLAKE_USER=ZIFFR_FEED
+export SNOWFLAKE_PRIVATE_KEY_PATH=/secure/ziffr_feed.p8   # or SNOWFLAKE_PRIVATE_KEY with the PEM text
+export SNOWFLAKE_PRIVATE_KEY_PASSPHRASE=...               # only if the key is encrypted
+```
+
+- **Key pair:** create the key with `openssl genrsa 2048 | openssl pkcs8 -topk8 -inform PEM -out ziffr_feed.p8` (add `-nocrypt` for none) and attach its public half to the user: `alter user ZIFFR_FEED set rsa_public_key=...`.
+- **A read-only role:** give the user a role that may only read, for example `grant usage on warehouse FEED_WH`, `grant usage on database ANALYTICS` and `grant select on all tables in schema ANALYTICS.PUBLIC`, all `to role ZIFFR_FEED_RO`.
+- **A small warehouse:** point the Feed at an X-Small warehouse with auto-suspend, so a run costs little.
+- **Bounded:** each query binds the period as `:1` and `:2`, runs with a statement timeout (`statement_timeout_ms`, 30 seconds by default), and the driver refuses anything that is not one `select` (or `with ... select`) statement: no semicolon-separated batches, no DDL, DML, `call` or `copy`.
