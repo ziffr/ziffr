@@ -518,10 +518,9 @@ describe("properties of a pair's scan", () => {
       { numRuns, seed },
     );
   });
-  // (A power of 2 below 2^-14 makes values of two decimals need more than 20 places, which the Methods refuse: work-bound.ts.)
   it(`is the same for series scaled by a power of 2, exactly (${numRuns} generated)`, () => {
     fc.assert(
-      fc.property(pair, fc.integer({ min: -14, max: 14 }), fc.integer({ min: -14, max: 14 }), ([a, b], i, j) => {
+      fc.property(pair, fc.integer({ min: -20, max: 20 }), fc.integer({ min: -20, max: 20 }), ([a, b], i, j) => {
         const [k, l] = [2 ** i, 2 ** j];
         expect(summary(scan(a.map((v) => v * k), b.map((v) => v * l)))).toEqual(summary(scan(a, b)));
       }),
