@@ -327,7 +327,8 @@ export function whatIf(input: WhatIfInput): WhatIf {
   const asked: Partial<{ by: number; percent: number }> = c !== null && typeof c === "object" ? c : {};
   const kind = "by" in asked ? "by" : "percent";
   const amount = asked[kind];
-  if (typeof amount !== "number" || !Number.isFinite(amount)) return refuseInput("the change");
+  // Number.isFinite is false for anything that is not a number, a string included.
+  if (!Number.isFinite(amount as number)) return refuseInput("the change");
   if (!Array.isArray(links)) return refuseInput("the links");
   if (links.length > MOST_LINKS) return refuse("refuse-what-if-links", { most: MOST_LINKS });
   const bad = links.map(linkProblem).find((p) => p !== null);

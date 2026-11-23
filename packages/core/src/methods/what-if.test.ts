@@ -796,6 +796,22 @@ describe("every check on what is handed over, one at a time (so that none can be
     const both = Array.from({ length: 120 }, (_, i) => (i + 1) / 2).map((x) => reachedOf(run([lb, lca], x, 50))[1]).find((r) => r.outside.some((o) => o.name === "A") && r.beyond.some((o) => o.name === "B"));
     expect(both, "a driver outside at the point beside another whose range reaches beyond").toBeDefined();
   });
+  it("gives the period the fits are counted by, and none where every link is a formula", () => {
+    const lb = link("B", w.b, [{ name: "A", x: w.a }]);
+    expect(whatIf({ start: { name: "A", latest: 50 }, change: { by: 1 }, links: [lb] })).toMatchObject({ ok: true, span: "month" });
+    const s: WorkedLink = { kind: "worked", target: "S", formula: "{a} * 2", names: { a: "A" }, levels: { A: 50 } };
+    expect(whatIf({ start: { name: "A", latest: 50 }, change: { by: 1 }, links: [s] })).toMatchObject({ ok: true, span: null });
+  });
+  it("refuses outside what was seen for every Metric a curved link feeds, not only the one it is the link of", () => {
+    const a = Array.from({ length: 24 }, (_, i) => i + 1);
+    const curved = link("B", a.map((v) => v * v), [{ name: "A", x: a }]);
+    expect(curved.fit.verdict.cautions.map((c) => c.case)).toContain("caution-curved");
+    const next = link("Z", a.map((v) => 2 * v * v + (v % 5) * 9), [{ name: "B", x: a.map((v) => v * v) }]);
+    expect(next.fit.verdict.cautions.map((c) => c.case)).not.toContain("caution-curved");
+    const res = whatIf({ start: { name: "A", latest: 24 }, change: { by: 30 }, links: [curved, next] });
+    if (!res.ok) throw new Error("refused");
+    expect(res.reached.map((r) => (r.ok ? "ok" : r.refusal.case))).toEqual(["refuse-curved-outside", "refuse-curved-outside"]);
+  });
   it("counts the lowest value a driver has been as inside, and one step below it as outside", () => {
     const l = link("B", w.b, [{ name: "A", x: w.a }]);
     const low = Math.min(...w.a);
