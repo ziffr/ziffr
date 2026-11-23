@@ -472,6 +472,10 @@ describe("the corners of the Recipe", () => {
 
 describe("a what-if said from the Method's result", () => {
   const bare = { exact: false, effect: 100, lo: 80, hi: 120, outside: [], beyond: [], noRange: false, merged: [], through: [], coefficients: 1, level: 0.9, byChange: false, verdict: { refusals: [], cautions: [], switches: [] } };
+  it("says a link that cannot be told from chance as that even where its effect is exactly 0", () => {
+    const t = whatIfTakeaway(VISITS, [VISITS, SIGNUPS], { ok: true, start: "Visits", by: 5, percent: null, span: "month", reached: [{ ok: true, name: "Signups", step: 1, exact: false, effect: 0, lo: -4, hi: 4, outside: [], beyond: [], noRange: false, merged: [], through: [], coefficients: 1, level: 0.9, byChange: false, strength: "cant-tell", verdict: { refusals: [], cautions: [], switches: [] } }] }, [], ctx);
+    expect(t.rows[0]).toMatchObject({ kind: "unclear", effect: null });
+  });
   it("says a link with no strength word as one that cannot be told from chance, and names what it was compared on, by value, by change or both", () => {
     const reached: Reached = { ok: true, name: "Signups", step: 1, strength: null, ...bare };
     const t = whatIfTakeaway(VISITS, [VISITS, SIGNUPS], { ok: true, start: "Visits", by: 5, percent: null, span: "month", reached: [reached] }, [], ctx);
@@ -557,12 +561,14 @@ describe("the Recipe's choices, each worked out by hand", () => {
   });
   it("does not fit a Metric on one that is made of it, even where that one is looked at first", () => {
     const w = world();
-    // Triple signups (a lower id) is looked at before Signups (a higher id): Signups must not be fitted on a Metric built from it.
+    const r = lcg(77);
+    // Triple of signups two follows Visits more cleanly than Signups two does, so it is ranked first and is pure; Signups two must not be fitted on it.
     const S2 = mk(150, "signups2", "Signups two");
     const triple = mk(149, "triple", "Triple of signups two", { formula: "{signups2} * 3" });
-    const series = { ...w.series, signups2: w.series.signups, triple: months("2024-01", w.signups.map((v) => v * 3)) };
+    const series = { ...w.series, signups2: months("2024-01", w.signups.map((v) => v + Math.round(gauss(r) * 40))), triple: months("2024-01", w.signups.map((v) => v * 3)) };
     const t = whatIfRecipe(VISITS, { by: 1000 }, [S2, triple], resolverFrom([VISITS, S2, triple], series), opts);
-    expect(t.rows.find((r) => r.name === "Signups two")).toMatchObject({ step: 1, through: [] });
+    expect(t.rows.find((x) => x.name === "Signups two")).toMatchObject({ step: 1, through: [] });
+    expect(t.rows.find((x) => x.name === "Triple of signups two")).toBeDefined();
   });
   it("does not fit a Metric whose formula could not be used on another: it is left out, not tried against the first step", () => {
     const w = world();

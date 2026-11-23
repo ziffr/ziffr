@@ -218,6 +218,7 @@ export function closeness(a: Map<string, number>, b: Map<string, number>): numbe
   // Stryker disable next-line EqualityOperator,ConditionalExpression: a Metric with so few pairs has too few periods for any fit, so whether it counts as 0 or as its r, it is never followed
   if (pairs.length < MIN_PAIRS) return 0;
   const [mx, my] = [0, 1].map((k) => pairs.reduce((t, p) => t + p[k], 0) / pairs.length);
+  // Stryker disable next-line ArithmeticOperator: the sign of the cross sum is lost in |r|, and Σ(x + x̄)(y − ȳ) is Σ(x − x̄)(y − ȳ) since the y about its mean add to 0, so these give the same r
   const [sxx, syy, sxy] = pairs.reduce((t, p) => [t[0] + (p[0] - mx) ** 2, t[1] + (p[1] - my) ** 2, t[2] + (p[0] - mx) * (p[1] - my)], [0, 0, 0]);
   const r = sxy / Math.sqrt(sxx * syy);
   // A series that does not change has no r: it counts as 0.
