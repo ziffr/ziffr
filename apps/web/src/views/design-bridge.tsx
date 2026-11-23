@@ -27,7 +27,7 @@ export function DesignBridge({ figures, caption }: { figures: BridgeFigures | un
       {caption && <p className="widget-text-xs text-muted-foreground">{caption}</p>}
       {/* The whole chart is one picture to a screen reader, which gets every number in one sentence. */}
       <div role="img" aria-label={figures.alt} className="flex min-h-24 flex-1 flex-col">
-        <div aria-hidden className="grid min-h-0 flex-1 gap-[0.4em]" style={{ gridTemplateColumns: `repeat(${figures.steps.length}, minmax(0, 1fr))` }}>
+        <div aria-hidden className="grid h-full min-h-24 gap-[0.4em]" style={{ gridTemplateColumns: `repeat(${figures.steps.length}, minmax(0, 1fr))` }}>
           {figures.steps.map((s, i) => {
             const [a, b] = [at(Math.min(s.from, s.to)), at(Math.max(s.from, s.to))];
             const level = s.kind === "start" || s.kind === "end";
@@ -40,22 +40,24 @@ export function DesignBridge({ figures, caption }: { figures: BridgeFigures | un
                     className="absolute inset-x-[12%] rounded-[2px]"
                     style={{
                       bottom: `${a}%`,
-                      height: `max(${b - a}%, 2px)`,
+                      height: `${b - a}%`,
+                      minHeight: s.kind === "rest" ? "6px" : "2px",
                       // Levels are solid; a rise is solid in the data colour; a fall is hatched, so it reads without the colour; what the parts leave out is an outline.
                       ...(level ? { background: "var(--color-ink)", opacity: 0.8 }
-                        : s.kind === "rest" ? { border: "1.5px dashed var(--color-muted)" }
+                        : s.kind === "rest" ? { background: "var(--color-muted)", opacity: 0.35, border: "1.5px dashed var(--color-ink)" }
                         : s.direction === "down" ? { background: "repeating-linear-gradient(135deg, var(--color-data) 0 2px, transparent 2px 5px)", border: "1px solid var(--color-data)" }
                         : { background: "var(--color-data)", opacity: 0.85 }),
                     }}
                   />
                 </div>
-                <span className="widget-text-xs truncate text-center text-muted-foreground" title={s.label}>{s.label}</span>
+                <span dir="auto" className="widget-text-xs line-clamp-3 text-center text-muted-foreground [overflow-wrap:break-word]" title={s.label}>{s.label}{s.missing ? " *" : ""}</span>
               </div>
             );
           })}
         </div>
       </div>
-      {figures.notes.map((n) => <p key={n} className="widget-text-xs text-muted-foreground">{n}</p>)}
+      {figures.notes.map((n) => <p key={n} className="widget-text-xs text-muted-foreground">* {n}</p>)}
+      <p className="widget-text-xs text-muted-foreground">Drawn to scale from 0; a small part is a thin line.</p>
     </div>
   );
 }

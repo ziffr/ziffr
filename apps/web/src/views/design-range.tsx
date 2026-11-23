@@ -12,26 +12,30 @@ import type { Tone } from "@ziffr/core/view-design";
 export function DesignRange({ figures, tone, caption }: { figures: RangeFigures | undefined; tone?: Tone; caption?: string }) {
   if (!figures) return <p className="widget-text-xs text-muted-foreground">Nothing to draw yet.</p>;
   if (!figures.ok) return <p className="widget-text-xs text-muted-foreground">{figures.refusal}</p>;
-  const lo = Math.min(0, ...figures.rows.map((r) => r.low));
-  const hi = Math.max(0, ...figures.rows.map((r) => r.high));
-  const at = (x: number) => ((x - lo) / (hi - lo || 1)) * 100;
   const colour = TONE[tone && tone !== "status" ? tone : "data"];
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-1">
       {caption && <p className="widget-text-xs text-muted-foreground">{caption}</p>}
-      <ul role="img" aria-label={figures.alt} className="flex flex-1 flex-col justify-center gap-[0.6em]">
-        {figures.rows.map((r, i) => (
+      <ul role="img" aria-label={figures.alt} className="flex min-h-0 flex-1 flex-col gap-[0.6em] overflow-y-auto [justify-content:safe_center]">
+        {figures.rows.map((r, i) => {
+          // Each row has its own scale from 0: a driver's effect is in the target's unit per unit of that driver, so rows are not in one unit.
+          const lo = Math.min(0, r.low);
+          const hi = Math.max(0, r.high);
+          const at = (x: number) => ((x - lo) / (hi - lo || 1)) * 100;
+          return (
           <li key={i} aria-hidden className="widget-text-xs grid grid-cols-[minmax(0,8em)_minmax(4em,1fr)_minmax(0,auto)] items-center gap-[0.67em]" data-range={r.label}>
-            <span className="truncate" title={r.label}>{r.label}</span>
+            <span dir="auto" className="line-clamp-2 [overflow-wrap:break-word]" title={r.label}>{r.label}</span>
             <span className="relative block h-[1.2em]">
               <span className="absolute inset-y-0 border-l border-[var(--color-rule-2)]" style={{ left: `${at(0)}%` }} />
-              <span className="absolute top-1/2 h-[0.5em] -translate-y-1/2 rounded-full" style={{ left: `${at(r.low)}%`, width: `max(${at(r.high) - at(r.low)}%, 3px)`, background: colour, opacity: 0.35, border: `1px solid ${colour}` }} />
+              <span className="absolute top-1/2 h-[0.5em] -translate-y-1/2 rounded-full" style={{ left: `${at(r.low)}%`, width: `${at(r.high) - at(r.low)}%`, minWidth: "3px", background: colour, opacity: 0.35, border: `1px solid ${colour}` }} />
               {r.centre !== null && <span className="absolute top-1/2 size-[0.8em] -translate-x-1/2 -translate-y-1/2 rotate-45" style={{ left: `${at(r.centre)}%`, background: "var(--color-ink)" }} />}
             </span>
-            <span className="fig text-right text-muted-foreground">{r.centreText !== null ? `${r.centreText}, ` : ""}{r.lowText} – {r.highText}</span>
+            <span className="fig text-right text-muted-foreground">{r.centreText !== null ? `${r.centreText} · ` : ""}{r.lowText} to {r.highText}</span>
           </li>
-        ))}
+          );
+        })}
       </ul>
+      <p className="widget-text-xs text-muted-foreground">Each row is drawn on its own scale, from 0.</p>
     </div>
   );
 }

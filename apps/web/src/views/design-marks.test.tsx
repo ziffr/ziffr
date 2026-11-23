@@ -45,7 +45,7 @@ describe("the bridge and range marks", () => {
     expect(labels(html)).toEqual([bridge.alt, range.alt]);
     const text = textOf(html);
     for (const s of bridge.steps) expect(text, s.label).toContain(s.text);
-    for (const r of range.rows) expect(text, r.label).toContain(`${r.lowText} – ${r.highText}`);
+    for (const r of range.rows) expect(text, r.label).toContain(`${r.lowText} to ${r.highText}`);
     // A fall is written with its minus, never by colour alone.
     expect(bridge.steps.filter((s) => s.direction === "down").every((s) => s.text.startsWith("−"))).toBe(true);
     expect(html.includes('data-direction="down"')).toBe(bridge.steps.some((s) => s.direction === "down"));
