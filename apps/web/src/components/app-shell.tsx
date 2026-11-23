@@ -5,7 +5,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Fragment, useEffect, useState, useTransition } from "react";
-import { Activity, BarChart3, Blocks, Building2, CalendarClock, ChevronRight, ChevronsUpDown, CircleHelp, FlaskConical, Hash, KeyRound, LayoutDashboard, LogOut, MoreHorizontal, Package, Plug, Plus, Presentation, Rss, ScrollText, Search, Settings2, ShieldCheck, Users, Webhook, Workflow } from "lucide-react";
+import { Activity, BarChart3, Blocks, Building2, CalendarClock, ChevronRight, ChevronsUpDown, CircleHelp, FlaskConical, Hash, KeyRound, LayoutDashboard, LogOut, MessageSquarePlus, MoreHorizontal, Package, Plug, Plus, Presentation, Rss, ScrollText, Search, Settings2, ShieldCheck, Users, Webhook, Workflow } from "lucide-react";
 import { GuideLink, INSTALLATION, MAIN, PhoneAccount, WorkspaceChoices, YOU, type Account, type NavItem } from "@/components/nav-parts";
 import { PinnedDashboards, type Pinned } from "@/components/pinned-dashboards";
 import { SettingsNav } from "@/components/settings-nav";
@@ -13,7 +13,8 @@ import { inSettings, onPage, type TreeLink } from "@/lib/settings-links";
 import { OPEN_SEARCH, SearchDialog } from "@/components/search-dialog";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuGroup, DropdownMenuItem, DropdownMenuLabel, DropdownMenuRadioGroup, DropdownMenuRadioItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
-import { SlideOverProvider } from "@/components/slide-over-host";
+import { SlideOverProvider, useSlideOver } from "@/components/slide-over-host";
+import { FeedbackPanel } from "@/components/feedback-panel";
 import { HelpButton } from "@/components/help-panel";
 import { Sidebar, SidebarContent, SidebarFooter, SidebarGroup, SidebarHeader, SidebarInset, SidebarItem, SidebarProvider, SidebarTrigger, useSidebar } from "@/components/ui/sidebar";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -189,6 +190,8 @@ function WorkspaceSwitcher({ account }: { account: Account | null }) {
 function UserMenu({ account }: { account: Account }) {
   const { collapsed } = useSidebar();
   const [pending, start] = useTransition();
+  const panel = useSlideOver();
+  const path = usePathname();
   return (
     <DropdownMenu>
       <DropdownMenuTrigger disabled={pending} title={account.name} className={cn("flex h-9 w-full items-center gap-2 rounded-md px-1.5 text-[13px] outline-none hover:bg-sidebar-accent focus-visible:ring-2 focus-visible:ring-sidebar-ring", collapsed && "justify-center px-0")}>
@@ -204,6 +207,8 @@ function UserMenu({ account }: { account: Account }) {
         </DropdownMenuGroup>
         <DropdownMenuSeparator />
         <DropdownMenuGroup>
+          {/* Hosted Ziffr only (spec 0049): the layout sets the flag from the server's own test, never from the browser. */}
+          {account.sendFeedback && <DropdownMenuItem onClick={() => panel.open({ title: "Send feedback", description: "Tell the Ziffr team what is wrong or missing", content: <FeedbackPanel route={path} /> })}><MessageSquarePlus aria-hidden /> Send feedback</DropdownMenuItem>}
           <DropdownMenuItem onClick={() => start(() => signOut())}><LogOut aria-hidden /> Sign out</DropdownMenuItem>
         </DropdownMenuGroup>
       </DropdownMenuContent>
