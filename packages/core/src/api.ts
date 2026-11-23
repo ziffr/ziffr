@@ -131,14 +131,14 @@ export async function getMetric(actor: Actor | KeyActor, slug: string): Promise<
 export type ValueState = "recorded" | "awaiting_approval" | "locked";
 
 /** A Metric's value for one period as a program sees it: the plotted value (the latest when the Submission Rule keeps
- * both), who submitted it (a person's id, see listPeople, and their name; null for a Derived Metric or an import), when
+ * both), who submitted it (a person's id, see listPeople, and their name; null for a Derived Metric or an import, and for a Guest's key on everyone's values but the Guest's own), when
  * and through which Source, its Breakdown, and whether the key's creator may read a Thread on it (never says anything
  * about a Thread they may not read). */
 export type ApiObservation = {
   period: string; value: number; state: ValueState; submitter: string | null; submitter_name: string | null;
   submitted_at: string | null; source: string | null; has_thread: boolean; breakdown: ListedRow[] | null;
   /** Read only (spec 0046): the id and name of the person who entered the value for its submitter (a Filled-in Value),
-   * or null when the submitter entered it. Always null for a key whose creator is a Guest, as submitters' names are. */
+   * or null when the submitter entered it. Always null for a key whose creator is a Guest. */
   entered_by?: string | null; entered_by_name?: string | null;
   /** Only on a Condensed Value (spec 0033): how many of the Metric's periods it was made from, so a program never
    * mistakes it for one period; `period` is the span's first day and `period_end` its last. */
