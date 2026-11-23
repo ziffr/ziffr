@@ -24,7 +24,9 @@ export function widgetWith(template: TemplateId, real: number[], period: Period)
   const order = sampleIds(sample);
   const map = (n: number) => real[Math.max(0, order.indexOf(n)) % real.length];
   const swap = (x: unknown): unknown => Array.isArray(x) ? x.map(swap) : x && typeof x === "object" ? Object.fromEntries(Object.entries(x).map(([k, v]) => [k, k === "metricIds" && Array.isArray(v) ? v.map((n) => map(Number(n))) : swap(v)])) : x;
-  return { ...sample, metric_ids: sample.metric_ids.map(map), settings: swap(sample.settings) as WidgetSettings };
+  const ids = sample.metric_ids.map(map);
+  // One bar per Metric: a Metric picked once is not drawn three times to fill the sample's three.
+  return { ...sample, metric_ids: template === "progress" ? [...new Set(ids)] : ids, settings: swap(sample.settings) as WidgetSettings };
 }
 
 

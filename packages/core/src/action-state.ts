@@ -6,6 +6,7 @@
 // `actions.status`, so a new channel cannot bypass this. Security: callers decide who may change what (`guard` only
 // narrows further); a Workspace is checked in the same statement, and nothing here reads a Workspace's words.
 import { db } from "./db";
+import { checkFinishedPeriod } from "./send-snapshot";
 import { FROM_APP, queueWebhookEvent, type ChangeSource, type DoneReason } from "./webhook-events";
 import type { WebhookEvent } from "./webhooks";
 
@@ -27,7 +28,7 @@ export type StateChange = {
   messageId?: number | null;
 };
 
-type Row = { id: number; kind: "task" | "question"; status: ActionStatus; purpose: string | null; asker_id: string; assignee_id: string; metric_id: number | null; period_start: string };
+type Row = { id: number; kind: "task" | "question"; status: ActionStatus; purpose: string | null; asker_id: string; assignee_id: string; metric_id: number | null; period_start: string; workflow_id: number | null };
 
 const purposeFits = (purpose: string | null, rule: PurposeRule) =>
   rule === "any" || (rule === "plain" && purpose === null) || (rule === "plain_or_escalation" && (purpose === null || purpose === "escalation"))
@@ -49,7 +50,7 @@ export function eventForChange(kind: "task" | "question", from: ActionStatus, to
  * change; `status` is the state the Action is in afterwards (null when there is no such Action here); `refused` is true
  * when the Action is not there or does not fit the guard (a repeat is not a refusal). Neither changes or sends anything. */
 export async function changeActionState(workspaceId: string, actionId: number, change: StateChange, source: ChangeSource = FROM_APP): Promise<{ changed: boolean; status: ActionStatus | null; refused: boolean }> {
-  const { data } = await db().from("actions").select("id, kind, status, purpose, asker_id, assignee_id, metric_id, period_start").eq("id", actionId).eq("workspace_id", workspaceId).maybeSingle();
+  const { data } = await db().from("actions").select("id, kind, status, purpose, asker_id, assignee_id, metric_id, period_start, workflow_id").eq("id", actionId).eq("workspace_id", workspaceId).maybeSingle();
   const row = data as Row | null;
   if (!row) return { changed: false, status: null, refused: true };
   const g = change.guard ?? {};
@@ -68,6 +69,8 @@ export async function changeActionState(workspaceId: string, actionId: number, c
   const event = eventForChange(row.kind, row.status, change.to, change.reason);
   // Webhooks hear nothing of a Checklist Task (spec 0045): their events name a Metric (queueWebhookEvent).
   if (event) await queueWebhookEvent(workspaceId, event.type, source, { actionId: row.id, metricId: row.metric_id, period: row.period_start, threadMessageId: change.messageId ?? null, reason: event.reason });
+  // A Checklist Task ticked off (or closed) may finish its Workflow's period (spec 0045); never undoes the change.
+  if (change.to === "closed" && row.purpose === "checklist" && row.workflow_id) await checkFinishedPeriod(workspaceId, row.workflow_id, row.period_start);
   return { changed: true, status: change.to, refused: false };
 }
 

@@ -82,6 +82,9 @@ const withSeries = (d: CanvasData, id: number, points: Point[]): CanvasData => {
 };
 // Sixty months, more than a line draws dots for.
 const long = (d: CanvasData) => withSeries(d, REVENUE, Array.from({ length: 60 }, (_, i) => ({ period: shiftPeriod("2021-07-01", "month", i), value: 80000 + 900 * i + (i % 7) * 1500 })));
+const withBreakdowns = (d: CanvasData, id: number, by: CanvasData["breakdowns"][number]): CanvasData => ({ ...d, breakdowns: { ...d.breakdowns, [id]: by } });
+// Six rows in the newest period (one becomes Other), a period without a Breakdown, and a Metric that is not their sum.
+const sixRows = (d: CanvasData) => withBreakdowns(d, REVENUE, { ...Object.fromEntries(Object.entries(d.breakdowns[REVENUE]).filter(([p]) => p !== "2026-04-01")), "2026-06-01": [...d.breakdowns[REVENUE]["2026-06-01"], { label: "Partners", value: 900 }] });
 const band = (d: CanvasData) => withMetric(d, REVENUE, { target_min: 100000, target_max: 130000 });
 const pending = (d: CanvasData): CanvasData => ({ ...d, pending: { [REVENUE]: ["2026-06-01"] }, locked: { [REVENUE]: ["2026-04-01", "2026-03-01"] } });
 
@@ -130,7 +133,15 @@ const CASES: [string, TemplateId, number[], WidgetSettings, CanvasData][] = [
   ["matrix-one", "matrix", [REVENUE], {}, base()],
   ["drivers", "drivers", [REVENUE, ORDERS, CUSTOMERS, CHURN, COST], {}, base()],
   ["drivers-alone", "drivers", [REVENUE], {}, base()],
+  ["stacked", "stacked", [REVENUE], { window: 12 }, base()],
+  ["stacked-other", "stacked", [REVENUE], { window: 6 }, sixRows(base())],
+  ["stacked-negative", "stacked", [REVENUE], { window: 12 }, withBreakdowns(base(), REVENUE, { "2026-06-01": [{ label: "Online", value: 5 }, { label: "Refunds", value: -2 }] })],
+  ["stacked-none", "stacked", [REVENUE], { window: 12 }, withBreakdowns(base(), REVENUE, {})],
   ["drivers-comma", "drivers", [COST, REVENUE, CHURN], {}, base("1.234,5")],
+  ["scoreboard", "scoreboard", [REVENUE, CHURN, CUSTOMERS, ORDERS], { window: 12 }, base()],
+  ["scoreboard-comma", "scoreboard", [COST, REVENUE, CHURN], { window: 12 }, base("1.234,5")],
+  ["scoreboard-few", "scoreboard", [REVENUE, CHURN], { window: 12 }, base()],
+  ["scoreboard-empty-row", "scoreboard", [REVENUE, CHURN, ORDERS], { window: 12 }, withSeries(base(), ORDERS, [])],
 ];
 
 describe("the built-in Views draw as before", () => {

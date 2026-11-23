@@ -50,7 +50,7 @@ async function buttons(d: { id: number; workspace_id: string; kind: string; acti
 /** Sends one queued Slack Delivery. It is claimed first, so the immediate send and the retry job never both send it. */
 export async function sendSlackDelivery(id: number): Promise<SendResult> {
   const maxAttempts = await sendingLimit("sendAttempts");
-  const { data: found } = await db().from("deliveries").select("id, workspace_id, recipient_id, kind, action_id, body, attempts, form_token_id, prompt_id, alert_metric_id, heads_up_metric_a, heads_up_metric_b, heads_up_key, heads_up_told_id, tell_workflow_id")
+  const { data: found } = await db().from("deliveries").select("id, workspace_id, recipient_id, kind, action_id, body, attempts, form_token_id, prompt_id, alert_metric_id, heads_up_metric_a, heads_up_metric_b, heads_up_key, heads_up_told_id, tell_workflow_id, snapshot_dashboard_id")
     .eq("id", id).eq("connector", "slack").eq("mail_state", "queued").lt("attempts", maxAttempts).maybeSingle();
   if (!found) return "skipped";
   const [d] = await openRows("deliveries", found.workspace_id, [found]);

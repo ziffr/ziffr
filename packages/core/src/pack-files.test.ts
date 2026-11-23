@@ -207,6 +207,9 @@ const WORKFLOW_HOSTILE: Case[] = [
   ["21 checklist items", { ...WORKFLOW, steps: [...Array.from({ length: 21 }, () => ({ type: "checklist", kind: "info", text: "One.", day: 1 })), WORKFLOW.steps[4]] }, "checklist item 21 or later"],
   ["a Send Snapshot step that names a dashboard", { ...WORKFLOW, steps: [{ type: "send_snapshot", dashboardId: 3 }, WORKFLOW.steps[4]] }, "dashboardId"],
   ["two Send Snapshot steps", { ...WORKFLOW, steps: [{ type: "send_snapshot" }, { type: "send_snapshot" }, WORKFLOW.steps[4]] }, "is a second “send_snapshot” step"],
+  // The editor refuses it (cleanConfig), so a Pack or an import must not get as far as making the Workflow.
+  ["a Send Snapshot step whose Publish does not lock", { ...WORKFLOW, steps: [{ type: "send_snapshot" }, { type: "publish", lock: false }] }, "needs a “publish” step with “lock”: true"],
+  ["a Send Snapshot step with no Publish step", { ...WORKFLOW, steps: [{ type: "send_snapshot" }] }, "needs a “publish” step with “lock”: true"],
 ];
 
 const formats: [string, Case[], (v: unknown) => FormatCheck<unknown>, (t: string) => FormatCheck<unknown>, unknown, Schema][] = [

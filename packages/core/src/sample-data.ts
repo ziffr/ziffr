@@ -32,7 +32,7 @@ type Shape = { slug: string; desc: Omit<MetricDescription, "period" | "sources" 
 // Five Metrics are enough for every built-in template: a correlation needs two that move together, a matrix and
 // Drivers need several, and the Finding templates need one with a Breakdown (the first).
 const SHAPES: Shape[] = [
-  { slug: "revenue", desc: { name: "Revenue", unit: "€", unit_position: "after", format: "currency", decimals: 0, polarity: "higher", target_min: null, target_max: null, attainment_method: null }, start: 82000, growth: 0.025, noise: 0.05, target: 1.02, breakdown: ["North", "South", "West", "East", "Online"] },
+  { slug: "revenue", desc: { name: "Revenue", unit: "€", unit_position: "after", format: "currency", decimals: 0, polarity: "higher", target_min: null, target_max: null, attainment_method: null }, start: 82000, growth: 0.025, noise: 0.05, target: 1.02, breakdown: ["North", "South", "West", "East", "Online", "Partners", "Retail", "Wholesale"] },
   { slug: "orders", desc: { name: "Orders", unit: "", unit_position: "after", format: "number", decimals: 0, polarity: "higher", target_min: null, target_max: null, attainment_method: null }, start: 1150, growth: 0.022, noise: 0.03 },
   { slug: "customers", desc: { name: "Active customers", unit: "", unit_position: "after", format: "number", decimals: 0, polarity: "higher", target_min: null, target_max: null, attainment_method: null }, start: 640, growth: 0.015, noise: 0.02, target: 1.01 },
   { slug: "churn", desc: { name: "Churn rate", unit: "%", unit_position: "after", format: "percent", decimals: 1, polarity: "lower", target_min: null, target_max: 2.5, attainment_method: null }, start: 3.4, growth: -0.012, noise: 0.08 },
@@ -86,7 +86,7 @@ export function sampleData(period: Period = "month"): SampleData {
     const ahead = Array.from({ length: 3 }, (_, k) => shiftPeriod(LAST, period, k + 1));
     out.projections[id] = ahead.map((p, k): Point => ({ period: p, value: round(values[values.length - 1] * (1 + s.growth) ** (k + 1)) }));
     if (s.breakdown) {
-      const weights = [0.34, 0.24, 0.18, 0.14, 0.1];
+      const weights = [0.34, 0.24, 0.18, 0.14, 0.1, 0.06, 0.04, 0.02];
       out.breakdowns[id] = Object.fromEntries(periods.map((p, k) => {
         const r = seeded(500 + k);
         const raw = weights.map((w) => w * (0.85 + 0.3 * r()));
@@ -156,7 +156,9 @@ function sampleSettings(id: TemplateId, fills: number[][], period: Period): Widg
 /** A built-in template filled with Sample Data, as its Preview draws it. */
 export function sampleWidget(id: TemplateId, period: Period = "month"): SampleWidget {
   const t = TEMPLATES[id];
-  const fills = sampleFills(t.slots, period);
+  // A scoreboard's three rows are Revenue, Churn rate and Active customers: the middle one has a Target Range, so its Preview shows the status chip too.
+  const bySlug = (slug: string) => sampleData(period).metrics.find((m) => m.slug === `sample-${slug}`)!.id;
+  const fills = id === "scoreboard" ? [[bySlug("revenue"), bySlug("churn"), bySlug("customers")]] : sampleFills(t.slots, period);
   return { template: id, metric_ids: fills.flat(), settings: { ...t.settings, ...sampleSettings(id, fills, period) }, title: null };
 }
 

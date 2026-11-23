@@ -1,0 +1,1 @@
+"This Breakdown has negative rows; stacked bars need positive ones."

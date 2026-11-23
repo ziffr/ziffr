@@ -7,6 +7,7 @@
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
+import { BUILT_IN_DESIGNS, isDesignedView } from "@ziffr/core/built-in-designs";
 import { inUse } from "@ziffr/core/metric-row";
 import type { CanvasData, TemplateId } from "@ziffr/core/types";
 import { useCanvasSeries } from "@/canvas/series-store";
@@ -71,7 +72,10 @@ export function GalleryScreen({ data: sent, metricId, dashboards, canCreate, dem
     if (!metric) return { widget: null, why: null };
     const t = TEMPLATES[id];
     if ("needsBreakdown" in t && t.needsBreakdown && !hasBreakdown) return { widget: null, why: `${metric.name} has no breakdown, so this shows sample data.` };
-    if (t.slots.length > 1 && partners.length + 1 < t.slots.length) return { widget: null, why: `Needs other Metrics with ${ENOUGH}+ months in common with ${metric.name}, so this shows sample data.` };
+    // A Slot of several needs as many Metrics as its design says (a scoreboard: three), not just one more than the Slots.
+    const fewest = isDesignedView(id) ? BUILT_IN_DESIGNS[id].slots.reduce((n, s) => n + (s.metrics === "several" ? (s.min ?? 1) : 1), 0) : 0;
+    const need = Math.max(t.slots.length, fewest);
+    if (need > 1 && partners.length + 1 < need) return { widget: null, why: `Needs other Metrics with ${ENOUGH}+ months in common with ${metric.name}, so this shows sample data.` };
     if (id === "slope") {
       // Rows of the picked Metric's Breakdown, else it with the partners that are counted in its unit.
       if (hasBreakdown) return { widget: slopeWith([metric.id], metric.period, "rows"), why: null };

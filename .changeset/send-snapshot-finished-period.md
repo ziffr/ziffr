@@ -1,0 +1,5 @@
+---
+"@ziffr/web": minor
+---
+
+A Workflow can now send a dashboard's Snapshot when a period is finished. A new **Send Snapshot** step waits until every value of the period is locked and every checklist task of it is done (a **finished period**, shown on the Workflow page and as `finished` in `period_status`), then takes the period's Snapshot in the Workflow owner's name, shows it, and sends each person it names who may open the dashboard a link, once for each period. The message holds no value and no Metric name, and each person sees in the Snapshot only the Metrics they may see; people who may not open the dashboard get nothing, and only the owner is told who. It needs a locking Publish step, a dashboard you own or edit, and a period of a week or longer; programs and assistants cannot change it. The lock summary also says how many checklist tasks are done, and the timeline shows "finished" and the Snapshot sent. The demo's monthly finance close shows a finished period with its checklist and Snapshot.

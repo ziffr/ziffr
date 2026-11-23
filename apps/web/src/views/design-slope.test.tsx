@@ -41,7 +41,7 @@ describe("slope", () => {
     expect(text).toContain(model.beforeLabel);
     expect(text).toContain(model.afterLabel);
     expect(html).toContain('role="img"');
-    expect(html).toMatch(/aria-label="Slope chart of 5 rows/);
+    expect(html).toContain(`aria-label="Slope chart of ${model.rows.length} rows`);
   });
 
   it("highlights only the largest rise and the largest fall, in the accent and in words, every other line in the data tone", () => {
