@@ -3,9 +3,10 @@
 // trigger's own counting (per kind, per scope, the seed never counted, the last place) is tried by the database test of
 // the ticket that opens the first table, with `apply_demo_limits`; it was tried here on a scratch Postgres with stand-in
 // tables for this ticket (see the pull request).
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { db } from "./db";
-import { checkDemoBudget, DemoBudgetUsed } from "./demo-budget";
+import { checkDemoBudget, DemoBudgetUsed, networkKey } from "./demo-budget";
+import { markDemoSeedDone, readDemoState } from "./demo-reset";
 import { DEMO_ROW_CAPS, DEMO_WRITE_BUDGET } from "./demo-limits";
 import { clearDemoVisitCounts, demoVisitCount, minuteStart, resetWindowStart, visitKey } from "./demo-visit";
 import { DEMO_BUDGET_USED, DEMO_BUSY, DEMO_GOING_FAST } from "./demo-words";
@@ -54,6 +55,18 @@ describe("demo_limits", () => {
   });
 });
 
+describe("the end of the seed", () => {
+  it("is unknown after a reset and marked when the core says the seed is done, so seed rows are not counted", async () => {
+    expect((await db().rpc("demo_reset", { min_gap: "0 seconds" })).error).toBeNull();
+    const { data: before } = await db().from("demo_state").select("seed_done_at, reset_at").eq("id", true).single();
+    expect(before?.seed_done_at).toBeNull();
+    await markDemoSeedDone();
+    const { data: after } = await db().from("demo_state").select("seed_done_at, reset_at").eq("id", true).single();
+    expect(new Date(after?.seed_done_at as string).getTime()).toBeGreaterThanOrEqual(new Date(after?.reset_at as string).getTime());
+    expect((await readDemoState())?.generation).toBeGreaterThan(0);
+  });
+});
+
 describe("checkDemoBudget", () => {
   it("counts a change against the address, the visit's minute and window, and the demo", async () => {
     await checkDemoBudget(demo, from("203.0.113.7"), now, secret);
@@ -82,6 +95,27 @@ describe("checkDemoBudget", () => {
     const { error } = await db().rpc("demo_visit_bump", { p_window: resetWindowStart(now).toISOString(), p_kind: "demo", p_key: "", p_by: DEMO_WRITE_BUDGET.demoPerWindow });
     expect(error).toBeNull();
     await expect(checkDemoBudget(demo, from("203.0.113.7"), now, secret)).rejects.toThrow(DEMO_BUSY);
+  });
+
+  it("keeps a script that spreads over one network out with the network's count", async () => {
+    const { error } = await db().rpc("demo_visit_bump", { p_window: resetWindowStart(now).toISOString(), p_kind: "network", p_key: networkKey("198.51.100.1", secret), p_by: DEMO_WRITE_BUDGET.perNetworkPerWindow });
+    expect(error).toBeNull();
+    await expect(checkDemoBudget(demo, from("198.51.100.77"), now, secret)).rejects.toThrow(DEMO_BUDGET_USED);
+    await expect(checkDemoBudget(demo, from("198.51.101.77"), now, secret)).resolves.toBeUndefined();
+  });
+
+  it("logs a missing key or untrusted address once per window, not once per request", async () => {
+    const log = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    try {
+      const other = new Date(now.getTime() + 20 * 60_000);
+      for (let i = 0; i < 3; i++) await expect(checkDemoBudget(demo, from("203.0.113.7"), other, undefined)).rejects.toThrow(DEMO_BUSY);
+      process.env.ZIFFR_PROXY_HOPS = "";
+      for (let i = 0; i < 3; i++) await expect(checkDemoBudget(demo, from("203.0.113.7"), other, secret)).rejects.toThrow(DEMO_BUSY);
+      const lines = log.mock.calls.map((c) => String(c[0]));
+      expect(lines.filter((l) => l.includes("ZIFFR_DEMO_ADDRESS_KEY"))).toHaveLength(1);
+      expect(lines.filter((l) => l.includes("no trusted client address: check ZIFFR_PROXY_HOPS"))).toHaveLength(1);
+      expect(lines.join(" ")).not.toContain("203.0.113");
+    } finally { log.mockRestore(); }
   });
 
   it("refuses closed: no secret, no trusted address, no visit id", async () => {

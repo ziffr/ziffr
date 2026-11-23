@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
 import { describe, expect, it } from "vitest";
-import { addressKey, budgetRefusal } from "./demo-budget";
+import { addressKey, budgetRefusal, networkKey, networkOf } from "./demo-budget";
 import { DEMO_BUDGET_USED, DEMO_BUSY, DEMO_GOING_FAST } from "./demo-words";
 import { DEMO_WRITE_BUDGET as B } from "./demo-limits";
 
@@ -32,8 +32,9 @@ describe("addressKey", () => {
 
 describe("budgetRefusal", () => {
   it("lets counts at the number pass and refuses one more, with each budget's words", () => {
-    expect(budgetRefusal({ address: B.perAddressPerWindow, visitMinute: B.perVisitPerMinute, visitWindow: B.perVisitPerWindow, demo: B.demoPerWindow })).toBeNull();
+    expect(budgetRefusal({ address: B.perAddressPerWindow, network: B.perNetworkPerWindow, visitMinute: B.perVisitPerMinute, visitWindow: B.perVisitPerWindow, demo: B.demoPerWindow })).toBeNull();
     expect(budgetRefusal({ address: B.perAddressPerWindow + 1 })).toBe(DEMO_BUDGET_USED);
+    expect(budgetRefusal({ network: B.perNetworkPerWindow + 1 })).toBe(DEMO_BUDGET_USED);
     expect(budgetRefusal({ visitMinute: B.perVisitPerMinute + 1 })).toBe(DEMO_GOING_FAST);
     expect(budgetRefusal({ visitWindow: B.perVisitPerWindow + 1 })).toBe(DEMO_BUDGET_USED);
     expect(budgetRefusal({ demo: B.demoPerWindow + 1 })).toBe(DEMO_BUSY);
@@ -49,6 +50,30 @@ describe("budgetRefusal", () => {
   });
 
   it("uses the spec's numbers", () => {
-    expect(B).toEqual({ perVisitPerMinute: 30, perVisitPerWindow: 300, perAddressPerWindow: 600, demoPerWindow: 3000 });
+    expect(B).toEqual({ perVisitPerMinute: 30, perVisitPerWindow: 200, perAddressPerWindow: 200, perNetworkPerWindow: 400, demoPerWindow: 3000 });
+  });
+
+  it("lets no one address or network use up the demo alone: it takes at least eight networks", () => {
+    expect(B.perAddressPerWindow).toBeLessThan(B.perNetworkPerWindow);
+    expect(Math.ceil(B.demoPerWindow / B.perNetworkPerWindow)).toBeGreaterThanOrEqual(8);
+  });
+});
+
+describe("networks", () => {
+  it("are an IPv4 /24 or an IPv6 /48, and nothing else", () => {
+    expect(networkOf("203.0.113.7")).toBe("203.0.113.0/24");
+    expect(networkOf("203.0.113.200")).toBe("203.0.113.0/24");
+    expect(networkOf("2001:db8:abcd:12::/64")).toBe("2001:db8:abcd::/48");
+    expect(networkOf("2001:DB8:abcd:99::/64")).toBe("2001:db8:abcd::/48");
+    for (const bad of [null, "", "nonsense", "1.2.3", "2001:db8::1"]) expect(networkOf(bad)).toBeNull();
+  });
+
+  it("are counted under a keyed hash of their own, apart from the address's", () => {
+    const a = networkKey("203.0.113.7", secret);
+    expect(a).toMatch(/^[0-9a-f]{32}$/);
+    expect(networkKey("203.0.113.99", secret)).toBe(a);
+    expect(networkKey("203.0.114.7", secret)).not.toBe(a);
+    expect(a).not.toBe(addressKey("203.0.113.7", secret));
+    expect(networkKey("203.0.113.7", undefined)).toBeNull();
   });
 });
