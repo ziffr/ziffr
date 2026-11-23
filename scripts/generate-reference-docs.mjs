@@ -56,7 +56,8 @@ function refusalCodes() {
   const walk = (dir) => readdirSync(path.join(ROOT, dir), { withFileTypes: true }).flatMap((e) => {
     const p = `${dir}/${e.name}`;
     if (e.isDirectory()) return e.name === "node_modules" || e.name.startsWith(".") ? [] : walk(p);
-    return /\.tsx?$/.test(e.name) && !/\.test\.tsx?$/.test(e.name) ? [p] : [];
+    // A generated file holds a Pack's logo as base64, which can spell anything; no code of ours is in it.
+    return /\.tsx?$/.test(e.name) && !/\.(test|generated)\.tsx?$/.test(e.name) ? [p] : [];
   });
   for (const dir of ["packages/core/src", "apps/web/src"]) for (const f of walk(dir)) for (const m of read(f).matchAll(/ZF[0-9A-Z]{3}/g)) add(m[0]);
   return [...found].sort(([a], [b]) => a.localeCompare(b)).map(([code, msgs]) => ({ code, messages: [...msgs].sort() }));

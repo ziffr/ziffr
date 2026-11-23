@@ -50,6 +50,10 @@ Decks, Themes, View Designs, the canvas, Packs and the pages that edit them are 
 - `readMarketplaceUpdate` (marketplace.ts): the Marketplace
 - `updateFromMarketplace` (marketplace.ts): the Marketplace
 - `marketplaceUpdates` (marketplace.ts): the Marketplace
+- `readIncludedPack` (included-packs.ts): Ziffr's own Packs, installed by a person at the Packs page
+- `installIncludedPack` (included-packs.ts): Ziffr's own Packs, installed by a person at the Packs page
+- `readIncludedUpdate` (included-packs.ts): Ziffr's own Packs, installed by a person at the Packs page
+- `updateIncludedPack` (included-packs.ts): Ziffr's own Packs, installed by a person at the Packs page
 - `saveSeriesRows` (metrics.ts): editing Target Series and Projections in a table (the API has its own)
 - `removeSeriesRows` (metrics.ts): editing Target Series and Projections in a table (the API has its own)
 - `packSetupOptions` (pack-setup.ts): Packs

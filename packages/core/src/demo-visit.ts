@@ -9,6 +9,8 @@ import { DEMO_WORKSPACE_ID } from "./team";
 
 /** The visit id's shape in the cookie: 128 bits as 32 lowercase hex characters. */
 const VISIT_ID = /^[0-9a-f]{32}$/;
+/** A count's key: the 32 hex characters of a hash, as the table's check requires. */
+const HASH_KEY = VISIT_ID;
 
 /** The key of a visit: SHA-256 of the id (with a fixed prefix, so the same id hashed elsewhere gives another value),
  * as hex truncated to 32 characters (128 bits: far past guessing, half the length of the full digest). Stable, and one
@@ -39,6 +41,10 @@ function inDemo(actor: Pick<Actor, "workspaceId">): void {
 /** Adds to the count of a visit, address or the demo in a window and answers the new count. Only for the demo. */
 export async function bumpDemoVisitCount(actor: Pick<Actor, "workspaceId">, kind: VisitCountKind, key: string, windowStart: Date, by = 1): Promise<number> {
   inDemo(actor);
+  // Refused here in plain words, before the database: its check constraint stays as the backstop, and a refusal that
+  // is meant (a key that is not a hash) is not a line in the server log.
+  if (kind !== "demo" && !HASH_KEY.test(key)) throw new Error("A visit count needs the hash of a visit or an address.");
+  if (!Number.isInteger(by) || by < 1 || by > 1000) throw new Error("A visit count goes up by 1 to 1000.");
   const { data, error } = await db().rpc("demo_visit_bump", { p_window: windowStart.toISOString(), p_kind: kind, p_key: kind === "demo" ? "" : key, p_by: by });
   if (error) { console.error("demo visit counts (bump):", error.message); throw new Error("The demo's visit count could not be changed."); }
   return data as number;

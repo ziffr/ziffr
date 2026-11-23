@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { minuteStart, nextResetWindowStart, resetWindowStart, visitKey } from "./demo-visit";
+import { DEMO_WORKSPACE_ID } from "./team";
+import { bumpDemoVisitCount, minuteStart, nextResetWindowStart, resetWindowStart, visitKey } from "./demo-visit";
 
 const id = "0123456789abcdef0123456789abcdef";
 
@@ -39,5 +40,17 @@ describe("reset windows", () => {
 
   it("start the minute at its first second", () => {
     expect(minuteStart(new Date("2026-11-23T14:25:42.500Z")).toISOString()).toBe("2026-11-23T14:25:00.000Z");
+  });
+});
+
+describe("bumpDemoVisitCount", () => {
+  const demo = { workspaceId: DEMO_WORKSPACE_ID };
+  const w = new Date("2026-11-23T14:25:00Z");
+
+  it("refuses a key that is not a hash and a step out of range before asking the database", async () => {
+    await expect(bumpDemoVisitCount(demo, "visit", "not-a-hash", w)).rejects.toThrow("hash");
+    await expect(bumpDemoVisitCount(demo, "address", "", w)).rejects.toThrow("hash");
+    await expect(bumpDemoVisitCount(demo, "visit", visitKey(id), w, 0)).rejects.toThrow("1 to 1000");
+    await expect(bumpDemoVisitCount(demo, "visit", visitKey(id), w, 1001)).rejects.toThrow("1 to 1000");
   });
 });
