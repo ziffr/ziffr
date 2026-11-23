@@ -261,11 +261,17 @@ If you set nothing, you follow the Workspace's default, if its Owners or Admins 
 
 ## Send feedback
 
-On hosted Ziffr (the Ziffr you reach at ziffr.net), your own menu at the bottom of the sidebar has **Send feedback**. It opens a panel beside the page, so you can see what you are writing about. Choose what it is (**A problem**, **An idea** or **A question**), write your words (up to 2000 characters, with a counter under the box) and press **Send feedback**. You do not need an account anywhere else.
+In the central version of Ziffr (ziffr.net), your own menu at the bottom of the sidebar has **Send feedback**. It opens a panel beside the page, so you can see what you are writing about. Choose what it is (**A problem**, **An idea** or **A question**), write your words (up to 2000 characters, with a counter under the box) and press **Send feedback**. You do not need an account anywhere else.
 
-Read the note above the button before you send. Your words will be public on GitHub. Your name and your Workspace's data (Metric names, values and the like) are never sent. Ziffr adds only the page you are on, shortened to a plain path, and the version of the app. Do not write anything private. For now your feedback is saved and waits to be reviewed; nothing is filed or answered automatically yet.
+Read the note above the button before you send. Your words will be public on GitHub. Your name and your Workspace's data (Metric names, values and the like) are never sent. Ziffr adds only the page you are on, shortened to a plain path, and the version of the app. Do not write anything private. Your feedback is then filed on GitHub without your name.
 
 Under the form, **My feedback** lists what you sent, newest first: its kind, the first words, where it stands (**waiting for review**, **open**, **answered** or **closed**) and the day you sent it. Only you see this list. A few feedback a day are allowed for each person and each Workspace; if the limit is reached, the panel says so and you can try again tomorrow. A Ziffr that someone runs themselves has no **Send feedback** and sends nothing anywhere; the people who run it use GitHub directly. A screenshot cannot be added yet.
+
+### Answers to your feedback
+
+This is only in the central version of Ziffr (ziffr.net); a Ziffr that someone runs themselves has no feedback and sends nothing anywhere. When the Ziffr team answers the post that was made from your feedback, the answer is added under your feedback as a message from the **Ziffr team**, the feedback's status becomes **answered**, and Ziffr tells you the way it tells you about Tasks and Questions (in your own Connector, within your Quiet Hours, at most once an hour for one feedback). The message only says that there is an answer, and its link opens **My feedback** in the panel. Choose a feedback in the list to read it as a conversation: your words, the answers from **The Ziffr team** and your replies. The answer is shown as plain text, so a link in it is not clickable: check where it leads before you open it. You never see who on the team wrote it, and the team never sees who you are.
+
+If the team closes the post, your feedback shows **closed**; if they open it again, it shows **open** again. A reply you write in the box under the conversation (shown while the feedback is **open** or **answered**, not when it is closed) is posted to the public post as a comment from "A Ziffr user", with no name and nothing else about you, and your words are public like the first ones were. A few replies a day are allowed for each feedback and for each person; if the limit is reached, the panel says so and you can try again tomorrow.
 
 ## The question about Ziffr
 

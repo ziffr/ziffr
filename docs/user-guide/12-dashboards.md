@@ -181,26 +181,26 @@ If a Widget's Metric has open questions or tasks, its title bar shows a speech b
 | **Edit layout…** | The owner and Editors, in edit mode, for a Free layout | Opens the layout editor (see [Free layout](#free-layout)). |
 | **Versions…** | Everyone | The Widget's own history of changes. |
 | **Takeaway…** | Everyone, for a Widget that says something about its numbers (a forecast, drivers, a link between two Metrics) | Opens the Takeaway in a panel: the sentence first, then how it was worked out, any plain line of caution about the data, how it did on the past, the line that it is not a promise or not a cause, and **Show the numbers**. The Widget itself shows only the chart and its footer line; View Links, Present, Previews and a Snapshot's dashboard show no Takeaway. A Metric's page and a deck's slides keep the words under the chart. |
-| **Copy to…** | Everyone | Opens a submenu of the ways to keep a copy of the Widget, below. |
-| **For View Designs** | Everyone, for a Widget drawn with a View Design | Opens a submenu with the two entries below. |
+| **Add to…** | Everyone | Opens a submenu of the places a copy of the Widget can go: **Dashboard** and **Deck…**, below. |
+| **Save as…** | Everyone | Opens a submenu of the ways to keep the Widget: **Widget**, **Template…** and **View Design**, below. |
 
-Under **Copy to…**:
+Under **Add to…**:
 
 | Option | Who sees it | What it does |
 | --- | --- | --- |
-| **Add to dashboard** | When you may change another dashboard | Places a copy on one of your other dashboards. |
+| **Dashboard** | When you may change another dashboard | Lists your other dashboards; choose one to place a copy on it. |
+| **Deck…** | Everyone except Guests | Places a copy on a slide of a deck you own or may edit, or of a new deck named after the Widget: a panel beside the page lets you pick the deck, then a slide or **New slide at the end**. The deck opens on that slide; **Go back** in the message returns here. The copy draws only Metrics you see, and changing it leaves this Widget as it is. Also on a Finding of a story. |
 
 On a Metric's page, **⋯** → **Add to dashboard** lists your dashboards the same way and ends with **New dashboard with this Metric**, which makes a dashboard named for the Metric, puts the Metric on it and opens it (not offered to Guests).
-| **Add to deck…** | Everyone except Guests | Places a copy on a slide of a deck you own or may edit, or of a new deck named after the Widget: a panel beside the page lets you pick the deck, then a slide or **New slide at the end**. The deck opens on that slide; **Go back** in the message returns here. The copy draws only Metrics you see, and changing it leaves this Widget as it is. Also on a Finding of a story. |
-| **Save as Widget** | Everyone except Guests | Saves a copy to your Pool. |
-| **Save as template…** | The owner and Editors | Saves the Widget as a team Widget Template, in a panel beside the page. Not offered for a Free layout. |
 
-Under **For View Designs**:
+Under **Save as…**:
 
-| Option | What it does |
-| --- | --- |
-| **Export View Design** | Downloads the View Design the Widget is drawn with, and a Sample Data file to try it with. Not offered for Findings and Free layouts. |
-| **Duplicate as View Design** | The same, with this Widget's settings (how many periods, target band, forecast) as the design's defaults, named after the Widget. |
+| Option | Who sees it | What it does |
+| --- | --- | --- |
+| **Widget** | Everyone except Guests | Saves a copy to your Pool. |
+| **Template…** | The owner and Editors | Saves the Widget as a team Widget Template, in a panel beside the page. Not offered for a Free layout. |
+| **View Design** | For a Widget drawn with a View Design (not Findings and Free layouts) | Downloads a View Design file and a Sample Data file to try it with, with this Widget's settings (how many periods, target band, forecast) as the design's defaults, named after the Widget. |
+| **Download View Design file** | The same | Downloads the View Design the Widget is drawn with, as it is, and a Sample Data file to try it with. |
 
 | Option | Who sees it | What it does |
 | --- | --- | --- |
@@ -285,9 +285,9 @@ A Widget that takes a list of Metrics, such as the Correlation matrix, can show 
 
 ### Saving a widget
 
-**Save as Widget** asks for a name ("Save to your widgets as:") and keeps a copy in **My Widgets** in your Pool. From there you can drag it onto any dashboard or slide. Each placement is an independent copy.
+**Save as…** → **Widget** asks for a name ("Save to your widgets as:") and keeps a copy in **My Widgets** in your Pool. From there you can drag it onto any dashboard or slide. Each placement is an independent copy.
 
-**Save as template…** saves the Widget as a team Widget Template that everyone in the Workspace can use with their own Metrics. Only you can change it later. The panel asks:
+**Save as…** → **Template…** saves the Widget as a team Widget Template that everyone in the Workspace can use with their own Metrics. Only you can change it later. The panel asks:
 
 | Field | What it does |
 | --- | --- |

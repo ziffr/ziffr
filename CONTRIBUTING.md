@@ -22,6 +22,7 @@ Thank you for helping. This page says how we work; `CLAUDE.md` says the same for
 - **One core:** every change to data, and every read that depends on who is asking, goes through a function in the core that takes the acting person and checks permissions itself. The UI (server actions), the REST API and the MCP server are thin layers that call those functions; they never query the database on their own.
 - **Pure where possible:** rules that need no database (comparisons, formulas, placeholders, templates, workflow rules) live in pure modules with unit tests.
 - **Connectors** implement the Connector interface from the connector kit and never reach into the core's internals.
+- **Built, not committed:** the Help panel's search index (`apps/web/src/lib/help-index.generated.json`) is made from `docs/user-guide` by `apps/web/scripts/help-index.mjs` after `pnpm install` and before the web package's build, dev, test, typecheck and lint. Git ignores it; never commit it. `pnpm --filter @ziffr/web help:index` rebuilds it by hand.
 - **Paid features**, once there are any, live in `ee/` under a license of their own and only add to what works without them.
 
 ## Naming

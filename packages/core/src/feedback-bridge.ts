@@ -36,6 +36,16 @@ export function neutraliseWords(input: string): string {
   return [...defanged.trim()].slice(0, FEEDBACK_WORDS_MAX).join("");
 }
 
+/** Words from outside (a team comment on GitHub) made plain for storing: line breaks plain, control, zero-width and
+ * bidirectional characters removed, edges trimmed, cut to `max` characters (with an ellipsis when cut). Nothing is
+ * defanged: they are shown as plain text, never as markdown or a link. */
+export function plainWords(input: unknown, max: number): string {
+  const plain = (typeof input === "string" ? input : "").replace(/\r\n?/g, "\n").replace(INVISIBLE, "").replace(CONTROL, "").trim();
+  const chars = [...plain];
+  return chars.length > max ? `${chars.slice(0, max - 1).join("").trimEnd()}…` : plain;
+}
+
+/** A code fence longer than any run of backticks in the text, so nothing inside can close it. */
 const fenceFor = (text: string): string => "`".repeat(Math.max(3, ...(text.match(/`+/g) ?? []).map((r) => r.length + 1)));
 
 function titleOf(words: string): string {
@@ -65,4 +75,32 @@ export function buildGithubPost(feedback: FeedbackToPost, categoryId: string): G
   ].join("\n");
   const title = titleOf(words);
   return kind === "problem" ? { target: "issue", title, body, labels: [FEEDBACK_LABEL] } : { target: "discussion", title, body, categoryId };
+}
+
+/** The first line of every comment made from a person's reply. */
+const REPLY_HEADER = "**A Ziffr user replied:**";
+const REPLY_LAST_LINE = /^Reference: ziffr-feedback-[0-9a-f]{16}-[1-9][0-9]{0,15}$/;
+
+/** Whether a comment body has the shape of one of OUR relayed replies: the header on its first line and the reply marker as
+ * its very last line. The person's words sit between, inside a fence the neutralising keeps closed, so they can never be the
+ * last line; a team comment (which may be written from the same GitHub account) that quotes a marker anywhere but last is
+ * therefore an answer, and only a comment written to look like a relayed reply (by someone with the account) is not. */
+export function isRelayedReply(body: string): boolean {
+  const lines = String(body).replace(/\r\n?/g, "\n").trim().split("\n");
+  return lines[0]?.trim() === REPLY_HEADER && REPLY_LAST_LINE.test((lines[lines.length - 1] ?? "").trim());
+}
+
+/** The marker a reply's comment carries as its last line, so a retry can find it again (the message id is ours, opaque). */
+export const replyMarkerFor = (publicRef: string, messageId: number): string => `${markerFor(publicRef)}-${messageId}`;
+
+/** The comment made from a person's reply: "A Ziffr user replied:", the words as neutralised and fenced as in the post
+ * itself, and the marker. Reads the words, the public reference and the message id only: nothing of the person. Throws
+ * when there is nothing to post or the reference or id is not one this system makes. */
+export function buildGithubReply(reply: { words: string; public_ref: string; message_id: number }): string {
+  if (typeof reply.public_ref !== "string" || !REF.test(reply.public_ref)) throw new Error("Not a feedback reference.");
+  if (!Number.isSafeInteger(reply.message_id) || reply.message_id < 1) throw new Error("Not a message.");
+  const words = neutraliseWords(reply.words);
+  if (words === "") throw new Error("Nothing to post.");
+  const fence = fenceFor(words);
+  return [REPLY_HEADER, "", `${fence}\n${words}\n${fence}`, "", `Reference: ${replyMarkerFor(reply.public_ref, reply.message_id)}`].join("\n");
 }

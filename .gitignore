@@ -59,3 +59,6 @@ packages/*/dist/
 
 # MCP scenario eval report (#614)
 packages/mcp/evals/report.md
+
+# the Help panel's search index, built from docs/user-guide (apps/web/scripts/help-index.mjs)
+apps/web/src/lib/help-index.generated.json

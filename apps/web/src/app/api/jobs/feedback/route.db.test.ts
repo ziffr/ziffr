@@ -3,7 +3,9 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const counts = { claimed: 1, filed: 1, found: 0, failed: 0 };
+const replies = { claimed: 2, posted: 2, found: 0, failed: 0 };
 vi.mock("@ziffr/core/feedback-filing", () => ({ fileFeedback: vi.fn(async () => counts) }));
+vi.mock("@ziffr/core/feedback-replies", () => ({ postFeedbackReplies: vi.fn(async () => replies) }));
 import { fileFeedback } from "@ziffr/core/feedback-filing";
 import { forgetStoredSettings } from "@ziffr/core/settings-in-effect";
 import { POST } from "./route";
@@ -30,7 +32,7 @@ describe("POST /api/jobs/feedback", () => {
   it("files with the secret and answers counts only", async () => {
     const res = await call(`Bearer ${SECRET}`);
     expect(res.status).toBe(200);
-    expect(await res.json()).toEqual(counts);
+    expect(await res.json()).toEqual({ ...counts, replies });
   });
   it("answers 503 naming the missing settings, never a value", async () => {
     delete process.env.ZIFFR_FEEDBACK_GITHUB_REPO;

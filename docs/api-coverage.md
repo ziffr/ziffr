@@ -130,6 +130,7 @@ Acts as the person, with their own sign-in, Slack or Telegram account or email a
 - `createFeedback` (feedback.ts): the form that sends Feedback to the Ziffr team, on hosted Ziffr only (spec 0049, #915); not for programs, and never offered through the API, the SDK or the MCP server
 - `listMyFeedback` (feedback.ts): My feedback, the same form's list (spec 0049, #915)
 - `getMyFeedback` (feedback.ts): one of My feedback with its conversation (spec 0049, #915)
+- `replyToFeedback` (feedback.ts): the person's reply under one of their own feedback, which is then posted to GitHub anonymously; the same form, on hosted Ziffr only (spec 0049, #918)
 - `listFeedbackQueue` (feedback-review.ts): the maintainers' review queue of Feedback, central version only (spec 0049, #919); an Installation Admin's screen, not for programs
 - `approveFeedback` (feedback-review.ts): the same queue, approving or editing and approving
 - `rejectFeedback` (feedback-review.ts): the same queue, rejecting with a reason
@@ -139,6 +140,14 @@ Acts as the person, with their own sign-in, Slack or Telegram account or email a
 - `updateMyProfile` (profile.ts): one's own profile
 - `setMyAppearance` (profile.ts): one's own Appearance
 - `setPreference` (questions.ts): one's own reminder channel
+- `startSetupGuide` (setup-guide.ts): the Setup Guide is for people in the app (spec 0052); programs never set up a Workspace
+- `setupGuide` (setup-guide.ts): the viewer's own guide steps, for the app
+- `skipSetupStep` (setup-guide.ts): skipping a step of the guide, for the app
+- `hideSetupGuide` (setup-guide.ts): a person's own Setup line, for the app
+- `reopenSetupGuide` (setup-guide.ts): a person's own Setup line, for the app
+- `markSetupGuideSeen` (setup-guide.ts): that a person opened the guide, for the app
+- `chooseExploreOnMyOwn` (setup-guide.ts): the guide's starting point, for the app
+- `setSetupFirstMetric` (setup-guide.ts): the Metric the guide tries both ways, for the app
 - `startSlackLink` (slack-people.ts): linking oneself to Slack
 - `slackOptBackIn` (slack-people.ts): linking oneself to Slack
 - `unlinkSlack` (slack-people.ts): linking oneself to Slack
