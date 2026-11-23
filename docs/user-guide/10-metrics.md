@@ -304,7 +304,7 @@ The Metric Owner and the Metric's **Editors** change this tab. Everyone else see
 | **Period** | The period the value is for, marked "unapproved" while its value waits for **Approval**. Click it to open the [period's page](#a-periods-page). |
 | **Value** | The value. A corrected value shows the earlier one struck through, marked "corrected". A value marked "pasted by …" came from [a paste](#paste-values-from-a-spreadsheet), and the name says who pasted it. A value marked "imported" is an **Import**: a **Feed**'s value for a past period, or a pasted one recorded as history, without the Unusual Value check. It counts at once, unless the Workflow approves every value and it is for the period being closed or later. |
 | **From** | The Source it arrived through, such as Web form or Slack. For a value from a program, also the name of the **Access Key** or **Feed Key** it used. |
-| **Submitted by** | The person, Contact or Feed who sent it. A value that came in with a [Workspace Export](16-workspace-settings.md#from-a-workspace-export) shows the name the file gave, with "(imported)" after it; Guests do not see these names. |
+| **Submitted by** | The person, Contact or Feed who sent it. A value that someone else entered for them (see [Filling in a value for someone](#filling-in-a-value-for-someone)) says "entered by" and the name of who typed it; a Guest reads "Someone" for every name but their own. A value that came in with a [Workspace Export](16-workspace-settings.md#from-a-workspace-export) shows the name the file gave, with "(imported)" after it, and the name of who entered it, if the file had one; Guests do not see these names. |
 
 A Derived Metric has no values of its own, so it has no such list. If you submit values for the Metric on the web form, **Paste history** beside the heading opens [Paste values](#paste-values-from-a-spreadsheet) for this Metric.
 
@@ -315,7 +315,8 @@ A Derived Metric has no values of its own, so it has no such list. If you submit
 Click a period on the History tab, or **Open this period** after clicking a point on the chart, to open one Metric's page for one period, such as `/metrics/churn-rate/2026-03-01` (a month may also be written `2026-03`). It shows:
 
 - the Metric, the period and its state (for example **Locked** or **Waiting for Approval**), with the value in large figures; after a Correction, the value it was submitted as is struck through;
-- **History**: every step of that period's value in order, with the person, the channel and the date: submitted, replaced by a newer value, a Correction proposed, accepted or declined, approved, sent back, published, locked, and unlocked with its reason. A replaced value is struck through;
+- **History**: every step of that period's value in order, with the person, the channel and the date: submitted, entered by someone for the person ("Entered 42 by Ben for Sara"), replaced by a newer value, a Correction proposed, accepted or declined, approved, sent back, published, locked, and unlocked with its reason. A replaced value is struck through, and a value entered for someone that they replaced stays in the list with who entered it;
+- **Fill in for …** under the value, for those who may (see [Filling in a value for someone](#filling-in-a-value-for-someone));
 - **Threads**: the Questions and tasks about the period that you may read, each with its first message and how many replies follow. Click one to open and answer it.
 
 You see the page only for a Metric you see. A Thread you may not read, and the Corrections proposed in it, are left out, as if there were none.
@@ -412,7 +413,8 @@ A **Workflow** is the path the Metric's value takes each period: who is asked, w
 - The **Workflow** menu chooses one of the Workspace's Workflows, or **None: values publish as they come**. Only the Metric Owner changes it.
 - With a Workflow, the box shows the last period that has ended, its **Due Date**, and where its value is, such as "asked, waiting for the value" or "published and locked", with a link to open the Workflow.
 - **Lock** or **Unlock** the last period, for the Metric Owner.
-- **Stand-ins**: for each Submitter, who is asked instead when they are **Away** or have not answered. Only the Metric Owner chooses.
+- **Stand-ins**: for each Submitter, who is asked instead when they are **Away** or have not answered. Only the Metric Owner chooses. A Guest cannot be chosen as a Stand-in; one chosen before keeps being asked, and the list says "A Guest cannot fill in for Sara: choose another Stand-in."
+- **Fill in for …**, for the Metric Owner and the Workflow's owner (see [Filling in a value for someone](#filling-in-a-value-for-someone)).
 
 ### Who submits
 
@@ -483,6 +485,18 @@ Ziffr refuses to delete a Metric while something still uses it, and says what:
 
 The demo's Metrics cannot be deleted: the demo can't be changed.
 
+## Filling in a value for someone
+
+When a Submitter has not sent a value, the **Metric Owner** or the owner of the Metric's **Workflow** can enter it for them. The value is recorded as the Submitter's, counts for them in their Schedule, the period's progress and the reports, and always shows who typed it: "Entered by Ben for Sara".
+
+**Fill in for …** appears under the value on the [period's page](#a-periods-page) and in the Workflow box of the Metric's page, for the period the box shows. It is there only for someone who may fill in, and only for a Submitter who holds a Token for the Metric. Before the **Due Date** it is greyed out, with the reason beside it; it opens after the Due Date has passed, or at any time while the Submitter is **Away**. A Metric without a Workflow has no Due Date, so it can be filled in only while the Submitter is Away. It is not offered for a Guest, a Feed, a period that already has a value, a locked or condensed period, a Derived or archived Metric, or a Metric whose Submission Rule adds up or keeps both values.
+
+**Fill in for …** opens a form with the person (when there are several), the value and an optional **Breakdown**, as on **Record a value**. The Metric's checks and Workflow apply as to any value: an Unusual Value is flagged, and nobody approves a value they entered or one entered for them. The Submitter is told by their Delivery Preference and can replace the value with their own until the period is locked: they send a value as usual (their form link, **Record a value**, a reply), and the value entered for them stays in the history, struck through, with who entered it. In a locked period their value becomes a proposed Correction.
+
+A **Stand-in** who is asked for a value in someone's place does not use **Fill in for …**: they answer the request, and the answer is the Submitter's value entered by the Stand-in. Their form link says so ("You answer in place of Sara"), and works only for the periods they were asked about.
+
+Guests never fill in for anyone, and see only their own name on these marks; everyone else reads "Someone". View Links and Snapshots show no names at all. Each Filled-in Value is in the [Audit Log](16-workspace-settings.md#audit-log).
+
 ## Locks and corrections on a Metric
 
 A **Lock**ed period takes no more values. When someone sends a value for it anyway, it is not recorded. Instead the Metric Owner gets a question, "… is locked. … sent … late: accept it as a correction?", with **Accept** and **Decline**. The sender sees that their value went to the Metric Owner as a proposed Correction.
@@ -510,4 +524,4 @@ At the bottom, **Open metric** leads to the Metric's page, for those who may sig
 
 Where the Workspace has Telegram on, the form also offers **Connect Telegram**: it gives a link that opens Ziffr's Telegram bot, valid for ten minutes. Tap **Start** there, and requests for numbers then reach you in Telegram as well. Once connected, the form says so. To stop, send `/stop` to the bot in Telegram; only then can the form connect another Telegram account. A form cannot disconnect, so a forwarded form link never moves your messages to someone else's Telegram. Only a Contact sees this on the form: members connect Telegram signed in, on the Connectors page.
 
-A Stand-in's form link works only while they stand in. A Feed has no form link; it sends values with its Feed Key. The form only works when the Web form is one of the Metric's Sources.
+A Stand-in's form link works only while they stand in, and for the periods they were asked about; its page says whom they answer for. A Feed has no form link; it sends values with its Feed Key. The form only works when the Web form is one of the Metric's Sources.

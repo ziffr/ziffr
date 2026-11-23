@@ -11,13 +11,21 @@ import { lockPeriod, setMetricWorkflow, setStandIn } from "@/app/workflow-action
 import { dueDate } from "@ziffr/core/workflow-rules";
 import { formatDate } from "@ziffr/core/format";
 import type { Metric, PeriodState, Profile, Workflow } from "@ziffr/core/types";
+import type { FillInOffer } from "@ziffr/core/fill-in-offer";
+import type { NumberStyle } from "@ziffr/core/number-style";
+import { FillIn } from "@/app/metrics/[slug]/fill-in";
 import { periodLabel, type YearStart } from "@ziffr/core/periods";
 
 const STATE: Record<PeriodState["state"], string> = { asked: "asked, waiting for the value", submitted: "in, not approved yet", approval: "waiting for approval", published: "published", locked: "published and locked" };
 
-export function MetricWorkflow({ metric, workflowId, workflows, period, state, tokens, people, isOwner, yearStart }: {
+export function MetricWorkflow({ metric, workflowId, workflows, period, state, tokens, people, isOwner, yearStart, fillIn, guestStandIn, numberStyle }: {
   metric: Metric; yearStart: YearStart; workflowId: number | null; workflows: Workflow[]; period: string; state: PeriodState | null;
   tokens: { submitter_id: string; stand_in_id: string | null }[]; people: Profile[]; isOwner: boolean;
+  /** Whom the viewer may fill in for in this period (fill-in-offer.ts), null for nobody. */
+  fillIn: FillInOffer | null;
+  /** Guests already chosen as Stand-ins, by the Submitter they stand in for. */
+  guestStandIn: Record<string, string>;
+  numberStyle: NumberStyle;
 }) {
   const [pending, start] = useTransition();
   const wf = workflows.find((w) => w.id === workflowId);
@@ -36,6 +44,11 @@ export function MetricWorkflow({ metric, workflowId, workflows, period, state, t
           <p><span className="font-medium">{periodLabel(period, metric.period, yearStart)}</span>, due {formatDate(dueDate(period, metric.period, wf.config))}: {state ? STATE[state.state] : "not started"}.</p>
           {state?.note && <p className="text-muted-foreground">{state.note}</p>}
           <Link href={`/workflows?id=${wf.id}`} className="underline">Open {wf.name}</Link>
+        </div>
+      )}
+      {fillIn && (
+        <div className="mt-3">
+          <FillIn offer={fillIn} metricName={metric.name} periodLabel={periodLabel(period, metric.period, yearStart)} placeholder={metric.unit || "Value"} numberStyle={numberStyle} />
         </div>
       )}
       {isOwner && (
@@ -61,6 +74,7 @@ export function MetricWorkflow({ metric, workflowId, workflows, period, state, t
                   <option value="">Nobody</option>
                   {people.filter((p) => p.id !== t.submitter_id).map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
                 </select>
+                {guestStandIn[t.submitter_id] && <span className="col-span-2 text-muted-foreground">A Guest cannot fill in for {name(t.submitter_id)}: choose another Stand-in.</span>}
               </li>
             ))}
           </ul>

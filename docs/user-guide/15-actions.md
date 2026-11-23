@@ -133,7 +133,7 @@ Only the asker, the Assignee and the Metric Owner can reply. Everyone else who m
 
 ### Approving a value
 
-On an Approval waiting for you, the Action shows the value, its period, the period before it with the change, and who submitted it, with three buttons. **Approve** accepts the value. **Send back** asks what the submitter should check and returns it with your reason. **Correct the value** takes a number and an optional reason and proposes it as a [Correction](#corrections); the Metric's Owner accepts it, and the new value is approved again. You cannot approve your own value, and only the Approver named on the Action sees the buttons. The words "reply approve" belong to chat messages and do not show here.
+On an Approval waiting for you, the Action shows the value, its period, the period before it with the change, and who submitted it, with three buttons. **Approve** accepts the value. **Send back** asks what the submitter should check and returns it with your reason. **Correct the value** takes a number and an optional reason and proposes it as a [Correction](#corrections); the Metric's Owner accepts it, and the new value is approved again. You cannot approve your own value, nor a value you entered for someone, nor one entered for you (see [Filling in a value for someone](10-metrics.md#filling-in-a-value-for-someone)), and only the Approver named on the Action sees the buttons. The words "reply approve" belong to chat messages and do not show here.
 
 ### From open to closed
 
@@ -177,7 +177,7 @@ Open **Workspace → Changes**. The page lists every change to what people build
 ### What it lists
 
 - **Changes to things people build**: someone created, edited or restored a Widget, dashboard, deck, Metric description, team Widget Template or Dashboard Template, Theme, Workflow or the words of a Snapshot, or gave a Version a name. Each line names the person and the thing, shows the Version number (such as "v3") and links to the thing where it has a page. Edits by one person within ten minutes count as one Version.
-- **Replaced values**: "A value" lines say that a value of a Metric for a period was replaced or removed, with the old value. The old value is kept as a **Superseded Value**.
+- **Replaced values**: "A value" lines say that a value of a Metric for a period was replaced or removed, with the old value. The old value is kept as a **Superseded Value**. A value that someone entered for a submitter says so ("… 42, entered by Ben for Sara, was replaced"); a Guest reads "Someone" for every name but their own.
 
 You see a change only if you may see the thing it is about: Metrics you can see, dashboards you own or that were shared with you, your own decks, and Widgets on dashboards you can open. Changes to team Widget Templates and Dashboard Templates, Themes and Workflows are listed for everyone.
 

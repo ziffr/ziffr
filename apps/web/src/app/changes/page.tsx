@@ -35,7 +35,9 @@ export default async function ChangesPage({ searchParams }: { searchParams: Prom
     ...superseded
       .map((x) => {
         const m = metrics.find((y) => y.id === x.metric_id)!;
-        return { at: x.superseded_at, who: null, text: `${m.name}, ${periodLabel(x.period_start, m.period, yearStart, true)}: ${formatValue(m, Number(x.value), numberStyle)} was ${x.change === "deleted" ? "removed" : "replaced"}`, version: null, href: `/metrics/${m.slug}`, kind: "value" as const };
+        // A replaced Filled-in Value still says who entered it for whom; names by the same rules as everywhere (a Guest reads "Someone").
+        const entered = x.entered_by ? `, entered by ${name(x.entered_by as string)}${x.submitter_id ? ` for ${name(x.submitter_id as string)}` : ""}` : "";
+        return { at: x.superseded_at, who: null, text: `${m.name}, ${periodLabel(x.period_start, m.period, yearStart, true)}: ${formatValue(m, Number(x.value), numberStyle)}${entered} was ${x.change === "deleted" ? "removed" : "replaced"}`, version: null, href: `/metrics/${m.slug}`, kind: "value" as const };
       }),
   ]
     .filter((i) => !sp.who || i.who === sp.who)

@@ -10,15 +10,18 @@ import { openRows } from "./sealed-columns";
 import { yearStartOf } from "./fiscal-year";
 import { periodStart } from "./periods";
 import { SOURCE_LABEL } from "./format";
+import { fillInOffer, type FillInOffer } from "./fill-in-offer";
 import type { Action, Metric, PeriodStateName } from "./types";
 
 /** One step of a period's value, in the order it happened. */
 export type PeriodStep = {
-  kind: "submitted" | "replaced" | "correction_proposed" | "correction_accepted" | "correction_declined" | "approved" | "sent_back" | "published" | "locked" | "unlocked";
+  kind: "submitted" | "filled_in" | "replaced" | "correction_proposed" | "correction_accepted" | "correction_declined" | "approved" | "sent_back" | "published" | "locked" | "unlocked";
   /** When it happened; null for a step whose time was not kept. */
   at: string | null;
-  /** Who did it, by name; null when nobody did (a Workflow closing the period). */
+  /** Who did it, by name; null when nobody did (a Workflow closing the period). For a Filled-in Value, whose it is. */
   person: string | null;
+  /** Who entered the value for that person (a Filled-in Value, spec 0046), by the same name rules; null for every other step. */
+  enteredBy: string | null;
   /** Where it came from, such as "Slack" or "Web form"; null for steps that have no channel. */
   channel: string | null;
   /** The value the step is about, for a submitted, replaced or Correction step. */
@@ -53,6 +56,8 @@ export type PeriodRecord = {
   note: string | null;
   steps: PeriodStep[];
   threads: PeriodThread[];
+  /** Whom the viewer may fill in for, now or from the Due Date on (fill-in-offer.ts); null when nobody, and for a viewer who may not. */
+  fillIn: FillInOffer | null;
 };
 
 /** The unlock reason the period's note keeps while it stays unlocked. */
@@ -78,14 +83,17 @@ export async function periodRecord(actor: Actor, slug: string, period: string): 
   if (!visible.has(metric.id)) return null;
   if (periodStart(period, metric.period, yearStart) !== period) return null;
 
-  const [{ data: obsRows }, { data: stateRow }, { data: actionRows }, { data: auditRows }] = await Promise.all([
-    db().from("observations").select("id, value, value_sealed, submitter_id, source, original_value, original_value_sealed, imported, created_at").eq("workspace_id", ws).eq("metric_id", metric.id).eq("period_start", period).order("created_at").order("id"),
+  const [{ data: obsRows }, { data: filledRows }, { data: stateRow }, { data: actionRows }, { data: auditRows }, fillIn] = await Promise.all([
+    db().from("observations").select("id, value, value_sealed, submitter_id, entered_by, source, original_value, original_value_sealed, imported, created_at").eq("workspace_id", ws).eq("metric_id", metric.id).eq("period_start", period).order("created_at").order("id"),
+    // Filled-in Values the submitter later replaced stay in the history with who entered them (a Superseded Value).
+    db().from("observation_history").select("id, value, value_sealed, submitter_id, entered_by, source, recorded_at").eq("workspace_id", ws).eq("metric_id", metric.id).eq("period_start", period).not("entered_by", "is", null).order("recorded_at").order("id"),
     db().from("period_states").select("row_key, state, note, updated_at").eq("workspace_id", ws).eq("metric_id", metric.id).eq("period_start", period).maybeSingle().then(async (r) => ({ data: r.data ? (await openRows("period_states", ws, [r.data]))[0] : null })),
     db().from("actions").select("*").eq("workspace_id", ws).eq("metric_id", metric.id).eq("period_start", period).order("id"),
     // The few events of this Metric that belong to a period's story; their details are opened below.
     db().from("audit_events").select("id, at, actor_id, actor_name, kind, details").eq("workspace_id", ws).eq("object_type", "metric").eq("object_id", String(metric.id))
       .in("kind", ["approval.given", "approval.sent_back", "approval.skipped", "self_check.confirmed", "self_check.corrected", "correction.accepted", "correction.declined", "period.locked", "period.unlocked"])
       .order("id", { ascending: false }).limit(2000),
+    fillInOffer(actor, metric.id, period),
   ]);
 
   // Threads this person may read, and no others: what is not theirs to read is left out whole, with its Corrections.
@@ -99,7 +107,10 @@ export async function periodRecord(actor: Actor, slug: string, period: string): 
   // Names of the people on these steps only, and only of people in the Workspace now (members and Contacts, a Contact's
   // sealed name opened) and its Feeds, as the API does: anyone else, such as a former member, is "A former member".
   const people = new Set<string>([metric.owner_id]);
-  for (const o of obsRows ?? []) if (o.submitter_id) people.add(String(o.submitter_id));
+  for (const o of [...(obsRows ?? []), ...(filledRows ?? [])]) {
+    if (o.submitter_id) people.add(String(o.submitter_id));
+    if (o.entered_by) people.add(String(o.entered_by));
+  }
   for (const m of messages) people.add(m.author_id);
   for (const e of events) if (e.actor_id) people.add(e.actor_id);
   // A Guest is told only their own name (peopleFor), and no Feed's: everyone else is "Someone".
@@ -116,14 +127,21 @@ export async function periodRecord(actor: Actor, slug: string, period: string): 
   const actorOf = (e: Event): string => (e.actor_id ? who(e.actor_id)! : guest ? "Someone" : e.actor_name);
 
   const drafts: Draft[] = [];
-  const push = (d: Partial<PeriodStep> & Pick<PeriodStep, "kind" | "at" | "person">) => drafts.push({ channel: null, value: null, superseded: false, reason: null, ...d, sort: drafts.length });
+  const push = (d: Partial<PeriodStep> & Pick<PeriodStep, "kind" | "at" | "person">) => drafts.push({ enteredBy: null, channel: null, value: null, superseded: false, reason: null, ...d, sort: drafts.length });
   // Values are sealed with the Workspace Key; one that does not open is left out of the record, never shown as ciphertext.
   const obs = (await openRows("observations", ws, (obsRows ?? []) as Record<string, unknown>[])).filter((o) => typeof o.value === "number");
+  const channelOf = (o: Record<string, unknown>) => (o.imported ? "Import" : SOURCE_LABEL[o.source as keyof typeof SOURCE_LABEL] ?? String(o.source));
+  // A Filled-in Value the submitter replaced: kept in the history, struck through, still saying who entered it.
+  const replacedFilled = (await openRows("observation_history", ws, (filledRows ?? []) as Record<string, unknown>[])).filter((o) => typeof o.value === "number");
+  for (const o of replacedFilled) push({ kind: "filled_in", at: o.recorded_at as string, person: who(o.submitter_id), enteredBy: who(o.entered_by), value: Number(o.value), superseded: true, channel: channelOf(o) });
   obs.forEach((o, i) => {
     // A value a Correction changed in place was submitted as its original; the Correction's own steps carry the new one.
     const corrected = o.original_value !== null && o.original_value !== undefined;
-    push({ kind: i === 0 ? "submitted" : "replaced", at: o.created_at as string, person: who(o.submitter_id), value: corrected ? Number(o.original_value) : Number(o.value), superseded: i < obs.length - 1 || corrected,
-      channel: o.imported ? "Import" : SOURCE_LABEL[o.source as keyof typeof SOURCE_LABEL] ?? String(o.source) });
+    const filled = Boolean(o.entered_by);
+    // The submitter's own value after a Filled-in Value for them replaces it; one after any other value does too.
+    const first = i === 0 && !replacedFilled.some((r) => r.submitter_id === o.submitter_id);
+    push({ kind: filled ? "filled_in" : first ? "submitted" : "replaced", at: o.created_at as string, person: who(o.submitter_id), enteredBy: filled ? who(o.entered_by) : null, value: corrected ? Number(o.original_value) : Number(o.value), superseded: i < obs.length - 1 || corrected,
+      channel: channelOf(o) });
   });
 
   // Corrections proposed in a Thread this person reads, and how each was decided: by the owner (Audit Log event), or by
@@ -175,7 +193,7 @@ export async function periodRecord(actor: Actor, slug: string, period: string): 
   let before = 0;
   const timed = drafts.map((d) => { before = d.at ? Date.parse(d.at) : before; return { d, t: before }; });
   timed.sort((a, b) => a.t - b.t || a.d.sort - b.d.sort);
-  const steps: PeriodStep[] = timed.map(({ d }) => ({ kind: d.kind, at: d.at, person: d.person, channel: d.channel, value: d.value, superseded: d.superseded, reason: d.reason }));
+  const steps: PeriodStep[] = timed.map(({ d }) => ({ kind: d.kind, at: d.at, person: d.person, enteredBy: d.enteredBy, channel: d.channel, value: d.value, superseded: d.superseded, reason: d.reason }));
 
   // The Threads: the first message and how many replies follow, words as opened above.
   const hideSystem = await systemTextFor(actor);
@@ -194,5 +212,5 @@ export async function periodRecord(actor: Actor, slug: string, period: string): 
   // A Derived Metric has no values of its own: its value for the period is computed from its inputs.
   if (metric.formula) value = (await getSeriesOf(ws, metrics, [metric.id]))[metric.slug]?.find((p) => p.period === period)?.value ?? null;
   const { id, name, slug: key, period: span, owner_id, decimals, unit, unit_position } = metric;
-  return { metric: { id, name, slug: key, period: span, owner_id, decimals, unit, unit_position }, period, value, originalValue: last && last.original_value !== null ? Number(last.original_value) : null, state, note: (stateRow?.note as string | null) ?? null, steps, threads };
+  return { metric: { id, name, slug: key, period: span, owner_id, decimals, unit, unit_position }, period, value, originalValue: last && last.original_value !== null ? Number(last.original_value) : null, state, note: (stateRow?.note as string | null) ?? null, steps, threads, fillIn };
 }

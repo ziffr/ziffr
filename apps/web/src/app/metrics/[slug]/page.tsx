@@ -26,7 +26,7 @@ import { countryCode } from "@/lib/countries";
 import { currentActor, viewerId } from "@/lib/viewer";
 import { metricExtras } from "@ziffr/core/page-data";
 import { pastedValueIds } from "@ziffr/core/paste-values";
-import { ValueMarks } from "./value-marks";
+import { EnteredBy, ValueMarks } from "./value-marks";
 import { can } from "@ziffr/core/actor";
 import { submittingKeyNames } from "@ziffr/core/access-keys";
 import { feedChoices, feedNames } from "@ziffr/core/feeds";
@@ -48,6 +48,7 @@ import { Badge } from "@/components/ui/badge";
 import { MetricWorkspace } from "./workspace";
 import { MetricToolbar } from "./metric-toolbar";
 import { recordingOffer } from "@ziffr/core/record-own-value";
+import { fillInOffer, guestStandIns } from "@ziffr/core/fill-in-offer";
 import { canAskNow } from "@ziffr/core/ask-now";
 import { nextPromptWays } from "@ziffr/core/prompt-preview";
 import { MetricWorkflow } from "@/components/metric-workflow";
@@ -163,7 +164,7 @@ export default async function MetricPage({ params, searchParams }: { params: Pro
     recordingOffer(actor, metric.id),
     alertMeData({ id: metric.id, name: metric.name }, demo),
   ]);
-  const { tokens, workflows, workflowId, state: wfState, period: wfPeriod, pending } = extras;
+  const { tokens, workflows, workflowId, state: wfState, period: wfPeriod, pending } = extras; const [fillIn, guestStandIn] = await Promise.all([metric.formula ? null : fillInOffer(actor, metric.id, wfPeriod), guestStandIns(actor, metric.id)]);
   const markers = [...new Set(actions.map((a) => a.period_start))];
   // Breakdown (GLOSSARY: Breakdown): any uploaded period, the latest by default.
   const bdByPeriod = (await getBreakdowns([metric.id]))[metric.id] ?? {};
@@ -393,7 +394,7 @@ export default async function MetricPage({ params, searchParams }: { params: Pro
                           <ValueMarks pastedBy={pasted.has(o.id) ? (peopleById[o.submitter_id ?? ""]?.name ?? "someone") : null} imported={Boolean(o.imported)} />
                         </td>
                         <td className="py-2 pl-3 text-muted-foreground">{SOURCE_LABEL[o.source as keyof typeof SOURCE_LABEL] ?? o.source}{o.access_key_id && keyNames[o.access_key_id] ? ` · ${keyNames[o.access_key_id]}` : null}</td>
-                        <td className="py-2">{actor.role !== "guest" && !o.submitter_id && o.submitted_by_name ? <span>{o.submitted_by_name} <span className="text-muted-foreground">(imported)</span></span> : <Person p={o.submitter_id ? peopleById[o.submitter_id] : undefined} />}</td>
+                        <td className="py-2">{actor.role !== "guest" && !o.submitter_id && o.submitted_by_name ? <span>{o.submitted_by_name} <span className="text-muted-foreground">(imported)</span></span> : <Person p={o.submitter_id ? peopleById[o.submitter_id] : undefined} />}<EnteredBy by={o.entered_by ? (peopleById[o.entered_by]?.name ?? "Someone") : null} importedName={o.entered_by_name} guest={actor.role === "guest"} /></td>
                       </tr>
                     ))}
                   </tbody>
@@ -447,7 +448,7 @@ export default async function MetricPage({ params, searchParams }: { params: Pro
             </dl>
           </section>
           {!metric.formula && <RetentionBox metric={metric} demo={demo} suggest={sp.suggest} />}
-          {!metric.formula && <MetricWorkflow metric={metric} yearStart={yearStart} workflowId={workflowId} workflows={workflows as Workflow[]} period={wfPeriod} state={(wfState as PeriodState | null) ?? null} tokens={tokens.filter((t) => !t.stands_in_for && !t.feed).map((t) => ({ submitter_id: t.submitter_id, stand_in_id: t.stand_in_id }))} people={people} isOwner={isOwner} />}
+          {!metric.formula && <MetricWorkflow metric={metric} yearStart={yearStart} workflowId={workflowId} workflows={workflows as Workflow[]} period={wfPeriod} state={(wfState as PeriodState | null) ?? null} tokens={tokens.filter((t) => !t.stands_in_for && !t.feed).map((t) => ({ submitter_id: t.submitter_id, stand_in_id: t.stand_in_id }))} people={people} isOwner={isOwner} fillIn={fillIn} guestStandIn={guestStandIn} numberStyle={numberStyle} />}
           {!metric.formula && (
             <section className="stock rounded-[var(--radius-card)] p-5 text-sm">
               <h2 className="mb-1 flex items-center gap-2 font-medium"><KeyRound className="size-4" /> Who submits</h2>

@@ -80,6 +80,8 @@ type Raw = {
   metric: string | null;
   /** The person it concerns, for counting people (never shown for a Metric the viewer does not see). */
   person?: string;
+  /** For a value that came in: who entered it for `person` (a Filled-in Value, spec 0046); only for a Metric the viewer sees. */
+  enteredBy?: string;
   channel?: string;
   detail?: string;
   path?: string;
@@ -235,7 +237,7 @@ export async function periodTimelineAbout(actor: Actor | KeyActor, workflowId: n
 
   const [{ data: prompts }, { data: valueRows }, { data: actions }, { data: states }, { data: tasks }] = await Promise.all([
     db().from("prompts").select("id, metric_id, submitter_id, sent_at").eq("workspace_id", ws).in("metric_id", ids).eq("period_start", period).order("sent_at").order("id"),
-    db().from("observations").select("id, metric_id, value, value_sealed, submitter_id, created_at").eq("workspace_id", ws).in("metric_id", ids).eq("period_start", period).order("created_at").order("id"),
+    db().from("observations").select("id, metric_id, value, value_sealed, submitter_id, entered_by, created_at").eq("workspace_id", ws).in("metric_id", ids).eq("period_start", period).order("created_at").order("id"),
     db().from("actions").select("id, metric_id, asker_id, assignee_id, read_group_id, purpose, kind, question, created_at, workspace_id").eq("workspace_id", ws).in("metric_id", ids).eq("period_start", period).order("id"),
     db().from("period_states").select("metric_id, state, updated_at").eq("workspace_id", ws).in("metric_id", ids).eq("period_start", period),
     // The Workflow's Checklist Tasks of the period: no Metric, so they are found by their Workflow.
@@ -279,7 +281,7 @@ export async function periodTimelineAbout(actor: Actor | KeyActor, workflowId: n
   // Names of the people on visible lines only.
   const peopleIds = new Set<string>();
   for (const p of prompts ?? []) if (visible.has(p.metric_id as number)) peopleIds.add(p.submitter_id as string);
-  for (const v of values) if (visible.has(v.metric_id as number) && v.submitter_id) peopleIds.add(v.submitter_id as string);
+  for (const v of values) if (visible.has(v.metric_id as number) && v.submitter_id) { peopleIds.add(v.submitter_id as string); if (v.entered_by) peopleIds.add(v.entered_by as string); }
   for (const a of [...opened, ...openedTasks]) if (mayRead.has(a.id as number)) { peopleIds.add(a.asker_id as string); peopleIds.add(a.assignee_id as string); }
   for (const m of messages) peopleIds.add(m.author_id as string);
   const { data: profileRows } = await db().from("profiles").select("id, name").in("id", [...peopleIds]);
@@ -302,7 +304,7 @@ export async function periodTimelineAbout(actor: Actor | KeyActor, workflowId: n
   for (const v of values) {
     const m = byId.get(v.metric_id as number)!;
     const seen = visible.has(m.id);
-    raw.push({ at: new Date(v.created_at as string), kind: "in", metric: seen ? m.name : null, person: seen && v.submitter_id ? (v.submitter_id as string) : undefined, detail: seen && typeof v.value === "number" ? formatValue(m, v.value, numberStyle) : undefined, metricId: m.id });
+    raw.push({ at: new Date(v.created_at as string), kind: "in", metric: seen ? m.name : null, person: seen && v.submitter_id ? (v.submitter_id as string) : undefined, enteredBy: seen && v.submitter_id && v.entered_by ? (v.entered_by as string) : undefined, detail: seen && typeof v.value === "number" ? formatValue(m, v.value, numberStyle) : undefined, metricId: m.id });
   }
   const counted = new Set<number>();
   for (const r of raw) if (r.kind === "in") { r.again = counted.has(r.metricId!); counted.add(r.metricId!); }
@@ -446,11 +448,14 @@ function line(chunk: Raw[], total: number, seenIn: Set<number>, countable: Reado
   if (kind === "in") {
     for (const r of chunk) if (r.metricId !== undefined && countable.has(r.metricId)) seenIn.add(r.metricId);
     const n = chunk.length;
-    const sentence = n === 1 ? (first.metric ? `${first.metric} came in: ${first.detail}` : "1 value came in") : `${values(n)} came in`;
+    // A Filled-in Value says who entered it for whom (GLOSSARY: Filled-in Value), by the same name rules as the others.
+    const entered = chunk.filter((r) => r.enteredBy).length;
+    const by = (r: Raw) => `entered by ${nameOf(r.enteredBy!)} for ${nameOf(r.person!)}`;
+    const sentence = n === 1 ? (first.metric ? `${first.metric} came in: ${first.detail}${first.enteredBy ? `, ${by(first)}` : ""}` : "1 value came in") : `${values(n)} came in${entered ? `, ${entered} entered for someone` : ""}`;
     return {
       kind, count: n, in: seenIn.size,
       text: `${sentence} (${seenIn.size} of ${total} in)`,
-      items: [...shown.map((r) => `${r.metric}: ${r.detail}${r.again ? " (a new value)" : ""}${r.person ? `, from ${nameOf(r.person)}` : ""}`), ...unseen],
+      items: [...shown.map((r) => `${r.metric}: ${r.detail}${r.again ? " (a new value)" : ""}${r.enteredBy ? `, ${by(r)}` : r.person ? `, from ${nameOf(r.person)}` : ""}`), ...unseen],
     };
   }
   if (kind === "published" || kind === "locked") {
