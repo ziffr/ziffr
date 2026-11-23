@@ -6,7 +6,7 @@
 import { currentActor } from "@/lib/viewer";
 import { attempt } from "@/lib/action-result";
 import { ziffrVersion } from "@/lib/installation";
-import { createFeedback, listMyFeedback } from "@ziffr/core/feedback";
+import { createFeedback, getMyFeedback, listMyFeedback, replyToFeedback } from "@ziffr/core/feedback";
 
 /** Sends the person's feedback. `input` comes from a browser: only its three strings are looked at, and the core checks them. */
 export async function sendFeedback(input: { kind: string; words: string; route: string }) {
@@ -19,4 +19,14 @@ export async function sendFeedback(input: { kind: string; words: string; route: 
 /** My feedback: what the signed-in person sent, newest first. */
 export async function myFeedback() {
   return attempt(async () => listMyFeedback(await currentActor()));
+}
+
+/** One of the person's feedback with its conversation; `id` comes from a browser and the core checks it. */
+export async function myFeedbackThread(id: string) {
+  return attempt(async () => getMyFeedback(await currentActor(), id));
+}
+
+/** The person's reply under one of their own feedback (the core checks the id, the words and the limits). */
+export async function replyToMyFeedback(input: { id: string; words: string }) {
+  return attempt(async () => replyToFeedback(await currentActor(), input?.id, input?.words));
 }

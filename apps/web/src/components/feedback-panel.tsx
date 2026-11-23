@@ -5,12 +5,12 @@
 // are never sent, and Ziffr adds only the page route and the app version. Sending and listing go through the server
 // actions, which call the core; the route is the page the person is on, cut down again by the core.
 import { useEffect, useState, useTransition } from "react";
-import { myFeedback, sendFeedback } from "@/app/feedback-actions";
+import { myFeedback, myFeedbackThread, replyToMyFeedback, sendFeedback } from "@/app/feedback-actions";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { isActionError } from "@/lib/action-error";
 import { FEEDBACK_KINDS, FEEDBACK_WORDS_MAX, type FeedbackKind, type FeedbackStatus } from "@ziffr/core/feedback-rules";
-import type { MyFeedback } from "@ziffr/core/feedback";
+import type { MyFeedback, MyFeedbackThread } from "@ziffr/core/feedback";
 import { formatDate } from "@ziffr/core/format";
 
 // The kinds, in the words a person would use.
@@ -26,6 +26,73 @@ const STATUS_WORDS: Record<FeedbackStatus, string> = { waiting_for_review: "Wait
 const FIRST_WORDS = 90;
 const firstWords = (words: string) => { const one = words.replace(/\s+/g, " ").trim(); return one.length > FIRST_WORDS ? `${one.slice(0, FIRST_WORDS).trimEnd()}…` : one; };
 
+/** One feedback as a conversation: the person's words, the Ziffr team's answers and their replies, and a reply box while it is open or answered. The team's words are plain text (never a link or markup). */
+function Conversation({ id, onBack }: { id: string; onBack: () => void }) {
+  const [thread, setThread] = useState<MyFeedbackThread | null | "failed" | undefined>(undefined);
+  const [words, setWords] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const [done, setDone] = useState(false);
+  const [pending, start] = useTransition();
+
+  useEffect(() => {
+    let live = true;
+    myFeedbackThread(id).then((r) => live && setThread(isActionError(r) ? "failed" : r)).catch(() => live && setThread("failed"));
+    return () => { live = false; };
+  }, [id]);
+
+  const back = <Button type="button" variant="ghost" size="sm" className="-ml-2 w-fit" onClick={onBack}>Back to My feedback</Button>;
+  if (thread === undefined) return <div className="flex flex-col gap-3">{back}<p className="text-sm text-muted-foreground" aria-live="polite">Loading…</p></div>;
+  if (thread === "failed" || thread === null) return <div className="flex flex-col gap-3">{back}<p className="text-sm">This feedback did not load. Go back and try again.</p></div>;
+
+  const left = FEEDBACK_WORDS_MAX - words.length;
+  const canReply = thread.status === "open" || thread.status === "answered";
+  const submit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (words.trim() === "") return setError("Write your reply first.");
+    if (words.length > FEEDBACK_WORDS_MAX) return setError(`Keep it under ${FEEDBACK_WORDS_MAX} characters.`);
+    setError(null); setDone(false);
+    start(async () => {
+      try {
+        const r = await replyToMyFeedback({ id, words });
+        if (isActionError(r)) return setError(r.error);
+        setThread((t) => (t && t !== "failed" ? { ...t, status: t.status === "answered" ? "open" : t.status, messages: [...t.messages, r] } : t));
+        setWords(""); setDone(true);
+      } catch {
+        setError("Your reply could not be sent. Please try again.");
+      }
+    });
+  };
+  const bubble = "whitespace-pre-wrap break-words rounded-md border border-border p-2.5 text-sm";
+  return (
+    <div className="flex flex-col gap-4">
+      {back}
+      <p className="text-xs text-muted-foreground">{KIND_WORDS[thread.kind].label}, {STATUS_WORDS[thread.status].toLowerCase()}, sent {formatDate(thread.createdAt)}</p>
+      <ol className="flex flex-col gap-3" aria-label="Conversation">
+        <li><p className="mb-1 text-xs font-medium">You</p><p className={bubble}>{thread.words}</p></li>
+        {thread.messages.map((m, i) => (
+          <li key={i}>
+            <p className="mb-1 text-xs font-medium">{m.fromTeam ? "The Ziffr team" : "You"} <span className="font-normal text-muted-foreground">{formatDate(m.at)}</span></p>
+            <p className={m.fromTeam ? `${bubble} bg-muted/40` : bubble}>{m.words}</p>
+          </li>
+        ))}
+      </ol>
+      {canReply ? (
+        <form onSubmit={submit} noValidate className="flex flex-col gap-2">
+          <label htmlFor="feedback-reply" className="text-sm font-medium">Your reply</label>
+          <Textarea id="feedback-reply" value={words} onChange={(e) => { setWords(e.target.value); setDone(false); }} rows={4} aria-describedby="feedback-reply-count feedback-reply-note" aria-invalid={error ? true : undefined} />
+          <p id="feedback-reply-count" className={left < 0 ? "text-xs text-destructive" : "text-xs text-muted-foreground"} aria-live="polite"><span className="fig">{words.length}</span> of <span className="fig">{FEEDBACK_WORDS_MAX}</span> characters</p>
+          <p id="feedback-reply-note" className="text-xs text-muted-foreground">Your reply is posted on GitHub as a comment from &ldquo;A Ziffr user&rdquo;, without your name. It is public.</p>
+          {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
+          {done && <p role="status" className="text-sm">Your reply was saved and will be posted shortly.</p>}
+          <Button type="submit" disabled={pending} className="w-fit">{pending ? "Sending…" : "Send reply"}</Button>
+        </form>
+      ) : (
+        <p className="text-sm text-muted-foreground">{thread.status === "closed" ? "This feedback is closed, so it takes no more replies." : "It is waiting for review. You can reply once it is open."}</p>
+      )}
+    </div>
+  );
+}
+
 type Mine = { state: "loading" } | { state: "failed"; words: string } | { state: "ready"; rows: MyFeedback[] };
 
 /** The form and the list. `route` is the page the person was on when they opened it. */
@@ -37,6 +104,7 @@ export function FeedbackPanel({ route }: { route: string }) {
   const [pending, start] = useTransition();
   const [mine, setMine] = useState<Mine>({ state: "loading" });
   const [reload, setReload] = useState(0);
+  const [open, setOpen] = useState<string | null>(null);
 
   useEffect(() => {
     let live = true;
@@ -64,6 +132,7 @@ export function FeedbackPanel({ route }: { route: string }) {
     });
   };
 
+  if (open) return <div className="flex flex-1 flex-col gap-6 overflow-y-auto px-4 pb-4"><Conversation id={open} onBack={() => { setOpen(null); setReload((n) => n + 1); }} /></div>;
   return (
     <div className="flex flex-1 flex-col gap-6 overflow-y-auto px-4 pb-4">
       {sent ? (
@@ -107,8 +176,10 @@ export function FeedbackPanel({ route }: { route: string }) {
           <ul className="divide-y divide-border">
             {mine.rows.map((f) => (
               <li key={f.id} className="py-2.5 text-sm">
-                <span className="block">{firstWords(f.words)}</span>
-                <span className="block text-xs text-muted-foreground">{KIND_WORDS[f.kind].label}, {STATUS_WORDS[f.status].toLowerCase()}, sent {formatDate(f.createdAt)}</span>
+                <button type="button" onClick={() => setOpen(f.id)} className="block w-full rounded-sm text-left outline-none hover:bg-muted/40 focus-visible:ring-2 focus-visible:ring-ring">
+                  <span className="block">{firstWords(f.words)}</span>
+                  <span className="block text-xs text-muted-foreground">{KIND_WORDS[f.kind].label}, {STATUS_WORDS[f.status].toLowerCase()}, sent {formatDate(f.createdAt)}</span>
+                </button>
               </li>
             ))}
           </ul>
