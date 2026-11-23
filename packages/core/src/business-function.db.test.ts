@@ -8,6 +8,7 @@ import { Forbidden, type Actor } from "./actor";
 import { auditLog } from "./audit-log";
 import { BUSINESS_FUNCTIONS, businessFunctions, myBusinessFunction, setMyBusinessFunction } from "./business-function";
 import { db } from "./db";
+import { DemoReadOnly } from "./demo";
 import { DEMO_WORKSPACE_ID } from "./team";
 import { auditRowsOf, workspace } from "./test/db-fixtures";
 
@@ -135,7 +136,7 @@ describe("the demo, the table and the Audit Log", () => {
     const { owner } = await fresh();
     const demo: Actor = { personId: owner.personId, workspaceId: DEMO_WORKSPACE_ID, role: "owner" };
     expect(await myBusinessFunction(demo)).toBeNull();
-    await expect(setMyBusinessFunction(demo, "sales")).rejects.toBeInstanceOf(Forbidden);
+    await expect(setMyBusinessFunction(demo, "sales")).rejects.toBeInstanceOf(DemoReadOnly);
     expect(await businessFunctions(demo)).toEqual([]);
   });
 

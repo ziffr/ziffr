@@ -6,6 +6,7 @@
 import { Forbidden, type Actor } from "./actor";
 import { audit } from "./audit-log";
 import { db } from "./db";
+import { DemoReadOnly } from "./demo";
 import { DEMO_WORKSPACE_ID } from "./team";
 import { isBusinessFunction, type BusinessFunction } from "@ziffr/pack/business-functions";
 
@@ -33,6 +34,8 @@ export async function myBusinessFunction(actor: Actor): Promise<BusinessFunction
  * change, and an Access Key cannot. The value is checked against the list here; anything else is refused. Writes an
  * Audit Log line `person.business_function_changed` with the keys only (from, to) when something changed. */
 export async function setMyBusinessFunction(actor: Actor, value: unknown): Promise<BusinessFunction | null> {
+  // The demo holds no row: it says so in its one sentence, as every change there does.
+  if (!actor.key && actor.workspaceId === DEMO_WORKSPACE_ID) throw new DemoReadOnly();
   await assertMayHaveOne(actor);
   if (value !== null && !isBusinessFunction(value)) throw new Error("Pick one of the choices.");
   const before = await myBusinessFunction(actor);
