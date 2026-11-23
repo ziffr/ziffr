@@ -149,7 +149,8 @@ jobs:
           path: packages/core/unit-blobs/
           retention-days: 1
 
-  # Every other package's unit tests, and the scripts' own.
+  # Every other package's unit tests (not the core's, and not the root package, whose test script would run every package again),
+  # and the scripts' own.
   unit-other:
     runs-on: ubuntu-latest
     timeout-minutes: 15
@@ -163,7 +164,7 @@ jobs:
           node-version: 22
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      - run: pnpm -r --if-present --filter '!@ziffr/core' test
+      - run: pnpm -r --if-present --filter '!@ziffr/core' --filter '!ziffr' test
       - run: node --test scripts/*.test.mjs .github/scripts/*.test.mjs docker/*.test.mjs
 
   # The answer for the unit tests: merges the shards' reports (and their coverage) and enforces the core's thresholds.
