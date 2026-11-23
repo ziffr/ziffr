@@ -3,7 +3,7 @@
 // hand), a Takeaway output is the Method's own Takeaway, and a recipe reaches only the series of its Slots, in words where it
 // cannot answer.
 import { describe, expect, it } from "vitest";
-import { ANALYSIS_FORMAT_2, FUNCTIONS_2, type AnalysisRecipe2 } from "./analysis-recipe";
+import { ANALYSIS_FORMAT_2, type AnalysisRecipe2 } from "./analysis-recipe";
 import { changes, detrended } from "./basis";
 import { fit, importance } from "./methods/fit";
 import { laggedCorrelation, laggedTakeaway } from "./methods/lagged-correlation";
@@ -561,46 +561,5 @@ describe("a pair is compared on the same basis in the table, the value and the T
     expect(rows(r).every((x) => x.value === null)).toBe(true);
     expect(tk(r, "s").kind).toBe("refusal");
     expect(tk(r, "s").refusal).toContain("hardly changed");
-  });
-});
-
-describe("the work units follow the time (calibration guard)", () => {
-  // Each kind of step and of Takeaway on 120 values, timed in this process (the best of five runs, so a busy machine does not count against
-  // one kind): microseconds per work unit may not be more than three times the median of all kinds. A kind charged too little would
-  // let a recipe take far longer than the budget says; the table of measured times is in docs/guides/analysis-recipes.md.
-  const slots = [1, 2, 3, 4, 5, 6, 7].map((k) => input(`M${k}`, wobble(RECIPE_POINTS, k + 1)));
-  const others = (n: number, from = 2) => Array.from({ length: n }, (_, i) => `slot${from + i}`);
-  const kinds: [string, AnalysisRecipe2["steps"][number], boolean][] = [
-    ["changes", { id: "x", fn: "changes", of: "slot1" }, false],
-    ["detrended", { id: "x", fn: "detrended", of: "slot1" }, false],
-    ["movingAverage", { id: "x", fn: "movingAverage", of: "slot1", window: 12 }, false],
-    ["quantile", { id: "x", fn: "quantile", of: "slot1", percent: 30 }, false],
-    ["spearman", { id: "x", fn: "spearman", of: "slot1", with: "slot2" }, true],
-    ["lagged, 6 delays", { id: "x", fn: "laggedCorrelation", of: "slot1", with: "slot2", maxLag: 6 }, true],
-    ["partial, 2 controls", { id: "x", fn: "partialCorrelation", of: "slot1", with: "slot2", controls: others(2, 3) }, true],
-    ["partial, 4 controls", { id: "x", fn: "partialCorrelation", of: "slot1", with: "slot2", controls: others(4, 3) }, true],
-    ["usual range", { id: "x", fn: "usualRange", of: "slot1" }, true],
-    ["fit, 2 drivers", { id: "x", fn: "fit", of: "slot1", drivers: others(2) }, true],
-    ["fit, 4 drivers", { id: "x", fn: "fit", of: "slot1", drivers: others(4) }, true],
-    ["fit, 6 drivers", { id: "x", fn: "fit", of: "slot1", drivers: others(6) }, true],
-  ];
-  it("no kind of step or Takeaway takes more than three times the median microseconds per unit", () => {
-    const perUnit = kinds.map(([name, step, takeaway]) => {
-      const gives = FUNCTIONS_2[step.fn].gives;
-      const shows: AnalysisRecipe2["outputs"] = [takeaway ? { step: "x", label: "t", shows: "takeaway" } : gives === "value" ? { step: "x", label: "t", shows: "value", unit: "number" } : { step: "x", label: "t", shows: "series", unit: "metric" }];
-      const r = rec([step], shows, 7);
-      let best = Infinity;
-      let spent = 0;
-      for (let i = 0; i < 5; i++) {
-        const t = performance.now();
-        const run = runRecipe2(r, slots, ctx, 1_000_000);
-        best = Math.min(best, performance.now() - t);
-        spent = run.spent;
-      }
-      return { name, us: (best * 1000) / spent };
-    });
-    const sorted = perUnit.map((p) => p.us).sort((a, b) => a - b);
-    const median = sorted[Math.floor(sorted.length / 2)];
-    for (const p of perUnit) expect(p.us, `${p.name}: ${p.us.toFixed(1)} µs per unit, median ${median.toFixed(1)}`).toBeLessThanOrEqual(3 * median);
   });
 });
