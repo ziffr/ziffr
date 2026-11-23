@@ -11,5 +11,6 @@ import { jobAuthorized, jobNotFound } from "@/lib/jobs";
 /** Seeds the demo workspace again; `reset` is false when it was seeded less than a minute ago or, where visitors may change the demo (spec 0051), when it is clean and young. */
 export async function POST(req: Request) {
   if (!jobAuthorized(req) || !(await demoEnabled())) return jobNotFound();
-  return Response.json({ reset: await resetDemoWorkspace({ onlyWhenNeeded: demoChangesInEffect(await settingsInEffect()) }) }, { headers: { "cache-control": "no-store" } });
+  const visitorsMayChange = demoChangesInEffect(await settingsInEffect());
+  return Response.json({ reset: await resetDemoWorkspace({ onlyWhenNeeded: visitorsMayChange, openToVisitors: visitorsMayChange }) }, { headers: { "cache-control": "no-store" } });
 }

@@ -3,13 +3,14 @@
 import { AsyncLocalStorage } from "node:async_hooks";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { DEMO_READ_ONLY_CODE, DEMO_STALE_CODE, DemoReadOnly, DemoStale } from "./demo";
+import { visitHeaders } from "./demo-visit-scope";
 import { ServerFault } from "./server-fault";
 
 let client: SupabaseClient | null = null;
 let seedClient: SupabaseClient | null = null;
 const seeding = new AsyncLocalStorage<true>();
-// A demo visit's request headers (spec 0051), and the client made for them once per visit's work.
-const visiting = new AsyncLocalStorage<{ headers: Record<string, string>; client?: SupabaseClient }>();
+// The client made for a demo visit's headers (spec 0051), once per visit's work: keyed by the scope's headers object.
+const visitClients = new WeakMap<Record<string, string>, SupabaseClient>();
 
 /** Whether a database error is its refusal of a write to the demo. */
 const isDemoRefusal = (e: unknown) => typeof e === "object" && e !== null && (e as { code?: unknown }).code === DEMO_READ_ONLY_CODE;
@@ -72,8 +73,12 @@ export function db(): SupabaseClient {
   // The service role never runs in a browser: a client component importing this fails at once.
   if (typeof window !== "undefined") throw new ServerFault("The core's database access runs on the server only.");
   if (seeding.getStore()) return (seedClient ??= make({ "x-ziffr-demo-seed": "on" }));
-  const visit = visiting.getStore();
-  if (visit) return (visit.client ??= make(visit.headers));
+  const visit = visitHeaders();
+  if (visit) {
+    let c = visitClients.get(visit);
+    if (!c) visitClients.set(visit, (c = make(visit)));
+    return c;
+  }
   return (client ??= make());
 }
 
@@ -81,10 +86,4 @@ export function db(): SupabaseClient {
  * visitor: only the nightly job and the first start reach it, through resetDemoWorkspace. */
 export function seedingDemo<T>(work: () => Promise<T>): Promise<T> {
   return seeding.run(true, work);
-}
-
-/** Runs work with the given request headers on its database client, so the demo guard can tell a visit's writes from
- * the seed's and from everyone else's (demo-visiting.ts makes the headers). The seed's own client wins inside seedingDemo. */
-export function withDemoVisitHeaders<T>(headers: Record<string, string>, work: () => Promise<T>): Promise<T> {
-  return visiting.run({ headers }, work);
 }

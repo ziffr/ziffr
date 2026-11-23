@@ -44,6 +44,33 @@ describe("the demo refuses every write", () => {
     expect(open.filter((t) => closed.includes(t)), "A table is on both lists of the demo.").toEqual([]);
   });
 
+  it("with the lists changed by migrations only: the service role may read them and nothing else", async () => {
+    for (const t of ["demo_open_tables", "demo_closed_tables"]) {
+      expect((await db().from(t).select("table_name").limit(1)).error).toBeNull();
+      expect((await db().from(t).insert({ table_name: "dashboards", reason: "x" })).error?.code).toBe("42501");
+      expect((await db().from(t).update({ table_name: "x" }).eq("table_name", "dashboards")).error?.code).toBe("42501");
+      expect((await db().from(t).delete().eq("table_name", "dashboards")).error?.code).toBe("42501");
+    }
+    // demo_state: the core updates its row, but never inserts or deletes one.
+    expect((await db().from("demo_state").insert({ id: false })).error?.code).toBe("42501");
+    expect((await db().from("demo_state").delete().eq("id", true)).error?.code).toBe("42501");
+  });
+
+  it("with every open table taking the reset lock before its rows are locked", async () => {
+    const { data, error } = await db().rpc("demo_open_tables_without_lock");
+    expect(error).toBeNull();
+    expect(data ?? []).toEqual([]);
+  });
+
+  it("with the Installation's flag off unless the reset job set it", async () => {
+    expect((await db().from("demo_state").select("open_to_visitors").single()).data?.open_to_visitors).toBe(false);
+    await resetDemoWorkspace({ openToVisitors: true });
+    expect((await db().from("demo_state").select("open_to_visitors").single()).data?.open_to_visitors).toBe(true);
+    // Any call without the setting in effect closes it again.
+    await resetDemoWorkspace();
+    expect((await db().from("demo_state").select("open_to_visitors").single()).data?.open_to_visitors).toBe(false);
+  });
+
   it("with every table closed today: the open list is empty", async () => {
     const open = (await db().from("demo_open_tables").select("table_name")).data ?? [];
     expect(open).toEqual([]);
@@ -187,6 +214,18 @@ describe("a visit's header (spec 0051)", () => {
     // Called as the service role, outside any request: no headers, so no.
     const { data } = await db().rpc("demo_visit_allows", { t: "dashboards" });
     expect(data).toBe(false);
+  });
+
+  it("never moves a row into or out of the demo, nor changes its id", async () => {
+    turnOn();
+    const w = await workspace("Elsewhere");
+    cleanups.push(w.cleanup);
+    const { data: dash } = await db().from("dashboards").select("id").eq("workspace_id", DEMO_WORKSPACE_ID).limit(1).single();
+    await visitingDemo({ generation: await generation(), visit: VISIT }, async () => {
+      await expect(db().from("dashboards").update({ workspace_id: w.id }).eq("id", dash!.id)).rejects.toBeInstanceOf(DemoReadOnly);
+      await expect(db().from("workspaces").update({ id: w.id }).eq("id", DEMO_WORKSPACE_ID)).rejects.toBeInstanceOf(DemoReadOnly);
+    });
+    expect((await db().from("dashboards").select("workspace_id").eq("id", dash!.id).single()).data?.workspace_id).toBe(DEMO_WORKSPACE_ID);
   });
 
   it("does not touch a real workspace's rows", async () => {

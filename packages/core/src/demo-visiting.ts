@@ -5,7 +5,7 @@
 // setting off, or the list empty (as now), the header changes nothing and every write is refused as before.
 import { visitKey } from "./demo-visit";
 import { demoChangesInEffect } from "./demo-reset-decision";
-import { withDemoVisitHeaders } from "./db";
+import { runAsVisit } from "./demo-visit-scope";
 import { settingsInEffect } from "./settings-in-effect";
 
 /** The visit a request belongs to: the Generation its page was drawn in (the demo bar's cookie) and the visit's id (the demo cookie). */
@@ -25,5 +25,5 @@ export function demoVisitHeaders(visit: DemoVisit, settings: Record<string, stri
  * database refuses what the demo refuses. Never for the seed, whose client wins inside seedingDemo. */
 export async function visitingDemo<T>(visit: DemoVisit, work: () => Promise<T>): Promise<T> {
   const headers = demoVisitHeaders(visit, await settingsInEffect());
-  return headers ? withDemoVisitHeaders(headers, work) : work();
+  return headers ? runAsVisit(headers, work) : work();
 }
