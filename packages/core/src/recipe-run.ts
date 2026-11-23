@@ -59,8 +59,8 @@ export function runRecipe(r: AnalysisRecipe, inputs: Point[][]): RecipeResults {
 
 /** What a /2 recipe gives for each output: a series or one value with its unit, a table, or a Takeaway (written by the Method's own wording). */
 export type RunOutput =
-  | { shows: "series" | "value"; step: string; label: string; unit: "metric" | "percent" | "number"; result: Result; basis?: string }
-  | { shows: "table"; step: string; label: string; rows: TableRow[]; basis?: string }
+  | { shows: "series" | "value"; step: string; label: string; unit: "metric" | "percent" | "number"; result: Result; basis?: string; refusal?: string }
+  | { shows: "table"; step: string; label: string; rows: TableRow[]; basis?: string; refusal?: string }
   | { shows: "takeaway"; step: string; label: string; takeaway: Takeaway; title?: string; note?: string };
 
 /** A /2 recipe's run: every step's result by id, and the outputs in the order the recipe lists them. */
@@ -72,21 +72,24 @@ const PLAIN = { unit: "", unit_position: "after", decimals: 2 } as const;
 
 /** The most decimal places a value of a recipe may need, and its largest size: beyond them the exact arithmetic of the steps (BigInt sums
  * of every value at one scale) grows without a bound that is worth its answer, and the recipe says so instead. */
-export const MOST_PLACES = 30;
-/** The largest absolute value a Slot of a recipe may hold (the API's own limit for a value). */
-export const MOST_SIZE = 1e15;
+export const MOST_PLACES = 20;
+/** The largest absolute value a series of a recipe may hold, a Slot's or what a step made of one (the API's own limit for a Metric's value is 1e15). */
+export const MOST_SIZE = 1e20;
 /** The work one run may ask for, in units counted from the steps and the series' length alone (never the clock), so that the same recipe on the same
- * data stops at the same step on every machine. A fit of k drivers on n values is n·(k + 1)² units; a unit is about a microsecond. */
+ * data stops at the same step on every machine. A fit of k drivers on n values is n·(k + 1)² + 2^k·(k + 1)³ units; a unit is about a microsecond. */
 export const WORK_BUDGET = 100_000;
 
-/** Whether a Slot's values are beyond what the steps work out exactly in a fair time: more than `MOST_PLACES` decimal places or above `MOST_SIZE`. */
+/** Whether a series is beyond what the steps work out exactly in a fair time: a value that is not a number, more than `MOST_PLACES` decimal
+ * places, or above `MOST_SIZE`. Held to every series, those of the Slots and those a step makes (a difference of two admitted values, a
+ * z-score of small ones, a line's misses), so that no step reads what another could not. */
 export function tooWide(points: Point[]): boolean {
-  return points.some((p) => Math.abs(p.value) > MOST_SIZE || fractionOf(p.value).den.toString().length - 1 > MOST_PLACES);
+  return points.some((p) => !Number.isFinite(p.value) || Math.abs(p.value) > MOST_SIZE || fractionOf(p.value).den.toString().length - 1 > MOST_PLACES);
 }
 
 // What a step asks for, in work units: n is the longest Slot.
 function cost(s: Step2, n: number): number {
-  if (s.fn === "fit") return n * (s.drivers!.length + 1) ** 2;
+  // The normal equations (n·(k + 1)²), and the importance's 2^k submodels of at most k + 1 terms each, which every fit works out for its shares.
+  if (s.fn === "fit") return n * (s.drivers!.length + 1) ** 2 + 2 ** s.drivers!.length * (s.drivers!.length + 1) ** 3;
   if (s.fn === "partialCorrelation") return n * (s.controls!.length + 2) ** 2;
   if (s.fn === "laggedCorrelation") return n * (s.maxLag! + 1) * 2;
   return n;
@@ -136,24 +139,37 @@ export function runRecipe2(r: AnalysisRecipe2, inputs: RecipeInput[], ctx: Takea
   const refusal = (f: Finding) => sayIn(f.case, f.slots, ctx);
   const steps: Record<string, Result2> = {};
   const bases: Record<string, Basis> = {};
+  // Why a step has no result, in words: what stops the whole run, or the work spent, or an input that was too wide to read.
+  const refused: Record<string, Finding> = {};
+  const wide: Finding = { case: "recipe-too-wide", slots: { names: names2 } };
   for (const s of r.steps) {
     spent += cost(s, longest);
-    const why = stop ?? (spent > WORK_BUDGET ? tooMuch : null);
-    const res = why ? emptyResult(s, why) : step2(s, seriesOf, known, nameOf, (id) => { const i = slotAt.get(id); return i === undefined ? undefined : slots[i].meta; }, span, ctx, (b) => (bases[s.id] = b));
+    // Stryker disable next-line ArrayDeclaration: a step without controls or drivers names none; an id put there is no refused step, so nothing changes
+    const inputs = [s.of, s.with ?? s.of, ...(s.controls ?? []), ...(s.drivers ?? [])];
+    const why = stop ?? (spent > WORK_BUDGET ? tooMuch : null) ?? (inputs.some((id) => id in refused) ? wide : null);
+    let res = why ? emptyResult(s, why) : step2(s, seriesOf, known, nameOf, (id) => { const i = slotAt.get(id); return i === undefined ? undefined : slots[i].meta; }, span, ctx, (b) => (bases[s.id] = b));
+    let found = why;
+    // What a step makes is held to the same limits as what it was given.
+    if (!found && res.kind === "series" && tooWide(res.points)) {
+      found = wide;
+      res = emptyResult(s, wide);
+    }
+    if (found) refused[s.id] = found;
     known.set(s.id, res);
     steps[s.id] = res;
   }
+  const reason = (id: string) => (id in refused ? { refusal: refusal(refused[id]) } : {});
   const outputs = r.outputs.map((o): RunOutput => {
     const s = r.steps.find((x) => x.id === o.step)!;
     const res = steps[s.id];
     if (o.shows === "takeaway") {
       spent += takeawayCost(s, longest);
-      const why = stop ?? (spent > WORK_BUDGET ? tooMuch : null);
-      const takeaway = why ? refusalTakeaway(sayIn(METHOD[s.fn as keyof typeof METHOD], {}, ctx), [refusal(why)]) : takeawayOf(s, steps, slots, names, span, ctx);
+      const w = stop ?? (spent > WORK_BUDGET ? tooMuch : null);
+      const takeaway = w ? refusalTakeaway(sayIn(METHOD[s.fn as keyof typeof METHOD], {}, ctx), [refusal(w)]) : takeawayOf(s, steps, slots, names, span, ctx);
       return { shows: "takeaway", step: o.step, label: o.label, takeaway, ...(o.title !== undefined ? { title: o.title } : {}), ...(o.note !== undefined ? { note: o.note } : {}) };
     }
-    if (o.shows === "table") return { shows: "table", step: o.step, label: o.label, rows: (res as { rows: TableRow[] }).rows, ...(bases[s.id] ? { basis: basisText(bases[s.id]) } : {}) };
-    return { shows: o.shows, step: o.step, label: o.label, unit: o.unit!, result: res as Result, ...(bases[s.id] ? { basis: basisText(bases[s.id]) } : {}) };
+    if (o.shows === "table") return { shows: "table", step: o.step, label: o.label, rows: (res as { rows: TableRow[] }).rows, ...(bases[s.id] ? { basis: basisText(bases[s.id]) } : {}), ...reason(s.id) };
+    return { shows: o.shows, step: o.step, label: o.label, unit: o.unit!, result: res as Result, ...(bases[s.id] ? { basis: basisText(bases[s.id]) } : {}), ...reason(s.id) };
   });
   return { steps, outputs };
 }

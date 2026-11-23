@@ -166,10 +166,14 @@ describe("what each step holds", () => {
     const r = runRecipe2(rec([{ id: "d", fn: "detrended", of: "slot1" }, { id: "c", fn: "changes", of: "slot1" }], [{ step: "d", label: "d", shows: "series", unit: "metric" }, { step: "c", label: "c", shows: "series", unit: "metric" }], 1), [input("A", [big, -big, big])], ctx);
     expect(val(out(r, "d"))).toEqual([]);
     expect(val(out(r, "c"))).toEqual([]);
-    // At the largest size accepted, a change and a miss are numbers.
-    const ok = runRecipe2(rec([{ id: "d", fn: "detrended", of: "slot1" }, { id: "c", fn: "changes", of: "slot1" }], [{ step: "d", label: "d", shows: "series", unit: "metric" }, { step: "c", label: "c", shows: "series", unit: "metric" }], 1), [input("A", [1e15, -1e15, 1e15])], ctx);
-    expect((val(out(ok, "c")) as { value: number }[]).map((p) => p.value)).toEqual([-2e15, 2e15]);
+    // What a step makes is held to the same size: a change of 2e20 is refused, one of 1e20 is a number.
+    const run = (vs: number[]) => runRecipe2(rec([{ id: "d", fn: "detrended", of: "slot1" }, { id: "c", fn: "changes", of: "slot1" }], [{ step: "d", label: "d", shows: "series", unit: "metric" }, { step: "c", label: "c", shows: "series", unit: "metric" }], 1), [input("A", vs)], ctx);
+    const ok = run([5e19, -5e19, 5e19]);
+    expect((val(out(ok, "c")) as { value: number }[]).map((p) => p.value)).toEqual([-1e20, 1e20]);
     expect((val(out(ok, "d")) as { value: number }[]).every((p) => Number.isFinite(p.value))).toBe(true);
+    const over = run([1e20, -1e20, 1e20]);
+    expect(val(out(over, "c"))).toEqual([]);
+    expect((out(over, "c") as { refusal?: string }).refusal).toContain("cannot work out exactly");
   });
   it("names a step by its own id and a Slot by its Metric, even where an id looks like a Slot", () => {
     // `myslot1` and `slot1x` are good names for steps: only slot1 to slot4 exactly are Slots.
@@ -316,31 +320,35 @@ describe("what a recipe may be asked to work out", () => {
   const one = (vs: number[]) => runRecipe2(rec([{ id: "u", fn: "usualRange", of: "slot1" }, { id: "c", fn: "changes", of: "slot1" }], [{ step: "u", label: "u", shows: "takeaway" }, { step: "c", label: "c", shows: "series", unit: "metric" }], 1), [input("Sales", vs)], ctx);
   const base = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
 
-  it("works on up to 30 decimal places and refuses the 31st, in words, with no number", () => {
-    expect(MOST_PLACES).toBe(30);
-    expect(tooWide(at([1e-30]))).toBe(false);
-    expect(tooWide(at([1e-31]))).toBe(true);
-    expect(tooWide(at([1.5e-29]))).toBe(false);
-    expect(tooWide(at([1.5e-30]))).toBe(true);
+  it("works on up to 20 decimal places and refuses the 21st, in words, with no number", () => {
+    expect(MOST_PLACES).toBe(20);
+    expect(tooWide(at([1e-20]))).toBe(false);
+    expect(tooWide(at([1e-21]))).toBe(true);
+    expect(tooWide(at([1.5e-19]))).toBe(false);
+    expect(tooWide(at([1.5e-20]))).toBe(true);
+    expect(tooWide([{ period: "2020-01-01", value: NaN }, { period: "2020-02-01", value: 1 }])).toBe(true);
+    expect(tooWide([{ period: "2020-01-01", value: Infinity }])).toBe(true);
     expect(tooWide(at([0.12345678901234567]))).toBe(false);
-    const ok = one([...base, 1e-30]);
+    const ok = one([...base, 1e-20]);
     expect(val(out(ok, "c"))).not.toEqual([]);
-    const wide = one([...base, 1e-31]);
+    const wide = one([...base, 1e-21]);
     expect(val(out(wide, "c"))).toEqual([]);
     expect(takeawayOf(wide, "u").kind).toBe("refusal");
-    expect(takeawayOf(wide, "u").refusal).toBe("Sales hold values this recipe cannot work out exactly: more than 30 decimal places, or a value above 1,000,000,000,000,000. Round the values or leave out the far-off ones.");
+    expect(takeawayOf(wide, "u").refusal).toBe("Sales hold values this recipe cannot work out exactly: more than 20 decimal places, or a value above 100,000,000,000,000,000,000. Round the values or leave out the far-off ones.");
   });
-  it("works on values up to 1e15 and refuses the first double above it", () => {
-    expect(MOST_SIZE).toBe(1e15);
-    expect(tooWide(at([1e15, -1e15]))).toBe(false);
-    expect(tooWide(at([1e15 + 0.125]))).toBe(true);
-    expect(tooWide(at([-1e15 - 0.125]))).toBe(true);
+  it("works on values up to 1e20 and refuses the first double above it", () => {
+    const above = 1.0000000000000002e20;
+    expect(above).toBeGreaterThan(1e20);
+    expect(MOST_SIZE).toBe(1e20);
+    expect(tooWide(at([1e20, -1e20]))).toBe(false);
+    expect(tooWide(at([above]))).toBe(true);
+    expect(tooWide(at([-above]))).toBe(true);
     expect(tooWide(at([1e300]))).toBe(true);
-    expect(takeawayOf(one([...base, 1e15]), "u").kind).toBe("answer");
-    expect(takeawayOf(one([...base, 1e15 + 0.125]), "u").kind).toBe("refusal");
+    expect(takeawayOf(one([...base, 1e20]), "u").kind).toBe("answer");
+    expect(takeawayOf(one([...base, above]), "u").kind).toBe("refusal");
   });
   it("refuses the same for every kind of step, and a fit says why in its own words", () => {
-    const r = runRecipe2(rec([{ id: "m", fn: "fit", of: "slot1", drivers: ["slot2"] }, { id: "s", fn: "spearman", of: "slot1", with: "slot2" }], [{ step: "m", label: "m", shows: "takeaway" }, { step: "s", label: "s", shows: "takeaway" }], 2), [input("A", [...va, 1e-31]), input("B", vb)], ctx);
+    const r = runRecipe2(rec([{ id: "m", fn: "fit", of: "slot1", drivers: ["slot2"] }, { id: "s", fn: "spearman", of: "slot1", with: "slot2" }], [{ step: "m", label: "m", shows: "takeaway" }, { step: "s", label: "s", shows: "takeaway" }], 2), [input("A", [...va, 1e-21]), input("B", vb)], ctx);
     expect(takeawayOf(r, "m").refusal).toContain("cannot work out exactly");
     expect(takeawayOf(r, "s").refusal).toContain("cannot work out exactly");
     expect(r.steps.s).toEqual({ kind: "value", value: null });
@@ -368,8 +376,8 @@ describe("what a recipe may be asked to work out", () => {
     expect(t(59).refusal).toBe("This recipe asks for more work than one result may take, so it stops here. Leave out some steps.");
     // Steps that are not lagged: a fit of 3 drivers on 120 values is 1,920 units, a partial correlation with 2 controls 1,920, a Takeaway of the usual range 8 passes.
     const fits = (n: number) => runRecipe2(rec(Array.from({ length: n }, (_, i) => ({ id: `m${i}`, fn: "fit" as const, of: "slot1", drivers: ["slot2", "slot3", "slot4"] })), [{ step: "m0", label: "m", shows: "table" }], 4), [1, 2, 3, 4].map((k) => input(`M${k}`, wobble(RECIPE_POINTS, k + 2))), ctx);
-    expect((fits(52).steps.m51 as { fit: { ok: boolean } }).fit.ok).toBe(true);
-    expect((fits(53).steps.m52 as { fit: { ok: boolean; refusals?: { case: string }[] } }).fit).toMatchObject({ ok: false, refusals: [{ case: "recipe-too-much" }] });
+    expect((fits(41).steps.m40 as { fit: { ok: boolean } }).fit.ok).toBe(true);
+    expect((fits(42).steps.m41 as { fit: { ok: boolean; refusals?: { case: string }[] } }).fit).toMatchObject({ ok: false, refusals: [{ case: "recipe-too-much" }] });
     const partials = (n: number) => runRecipe2(rec(Array.from({ length: n }, (_, i) => ({ id: `p${i}`, fn: "partialCorrelation" as const, of: "slot1", with: "slot2", controls: ["slot3", "slot4"] })), [{ step: "p0", label: "m", shows: "value", unit: "number" }], 4), [1, 2, 3, 4].map((k) => input(`M${k}`, wobble(RECIPE_POINTS, k + 2))), ctx);
     expect((partials(52).steps.p51 as { value: number | null }).value).not.toBeNull();
     expect((partials(53).steps.p52 as { value: number | null }).value).toBeNull();
@@ -403,11 +411,45 @@ describe("what a recipe may be asked to work out", () => {
     expect(run(par, [{ step: "p", label: "t", shows: "takeaway" }]).outputs[0]).toMatchObject({ takeaway: { kind: "refusal" } });
     expect(run([...plain(800), par[975]], [{ step: "p", label: "t", shows: "takeaway" }]).outputs[0]).toMatchObject({ takeaway: { kind: "answer" } });
     const fitStep = fitStepOf();
-    expect(run([...plain(980), fitStep], [{ step: "f", label: "t", shows: "takeaway" }]).outputs[0]).toMatchObject({ takeaway: { kind: "answer" } });
+    expect(run([...plain(978), fitStep], [{ step: "f", label: "t", shows: "takeaway" }]).outputs[0]).toMatchObject({ takeaway: { kind: "answer" } });
+  });
+  it("holds what a step makes to the same limits, and every step that reads it", () => {
+    // 1e-20 is admitted (20 places); a mean of three of them is 2.3333333333333335e-20 and has 36: no step may read it.
+    const tiny = [1, 3, 2, 5, 4, 1, 3, 2, 5, 4, 3, 2].map((k) => Number(`${k}e-20`));
+    const r = runRecipe2(rec(
+      [{ id: "avg", fn: "movingAverage", of: "slot1", window: 3 }, { id: "g", fn: "growth", of: "avg" }, { id: "m", fn: "fit", of: "slot2", drivers: ["avg"] }, { id: "d", fn: "detrended", of: "slot1" }, { id: "ok", fn: "changes", of: "slot1" }, { id: "sh", fn: "share", of: "slot1", with: "avg" }, { id: "pc", fn: "partialCorrelation", of: "slot1", with: "slot2", controls: ["avg"] }],
+      [{ step: "avg", label: "a", shows: "series", unit: "metric" }, { step: "g", label: "g", shows: "series", unit: "percent" }, { step: "d", label: "d", shows: "series", unit: "metric" }, { step: "ok", label: "c", shows: "series", unit: "metric" }, { step: "sh", label: "s", shows: "series", unit: "percent" }, { step: "pc", label: "p", shows: "value", unit: "number" }],
+      2,
+    ), [input("Tiny", tiny), input("Other", wobble(12, 4))], ctx);
+    const refusal = "Tiny, Other hold values this recipe cannot work out exactly: more than 20 decimal places, or a value above 100,000,000,000,000,000,000. Round the values or leave out the far-off ones.";
+    for (const step of ["avg", "g", "d", "sh"]) {
+      const o = out(r, step) as Extract<RunOutput, { shows: "series" | "value" }>;
+      expect(o.result).toEqual({ kind: "series", points: [] });
+      expect(o.refusal, step).toBe(refusal);
+    }
+    // A step that reads a refused series by its second input or its controls is refused too.
+    expect((out(r, "pc") as { refusal?: string; result: unknown }).refusal).toBe(refusal);
+    expect(r.steps.m).toMatchObject({ kind: "model", fit: { ok: false, refusals: [{ case: "recipe-too-wide" }] } });
+    // What the same Slot gives that stays within the limits is worked out, with no refusal.
+    const ok = out(r, "ok") as Extract<RunOutput, { shows: "series" | "value" }>;
+    expect(ok.refusal).toBeUndefined();
+    expect(ok.result).toEqual({ kind: "series", points: changes(at(tiny), "month") });
+  });
+  it("answers a recipe of derived series within a few seconds, and refuses it in words", () => {
+    const tiny = (k: number) => Array.from({ length: RECIPE_POINTS }, (_, i) => Number(`${1 + ((i * 7 + k) % 13)}e-20`));
+    const started = Date.now();
+    const r = runRecipe2(rec(
+      [{ id: "z", fn: "zScore", of: "slot1" }, { id: "a", fn: "movingAverage", of: "slot2", window: 5 }, { id: "d", fn: "detrended", of: "slot3" }, { id: "m", fn: "fit", of: "slot1", drivers: ["a", "d", "z"] }, { id: "w", fn: "importance", of: "m" }],
+      [{ step: "w", label: "w", shows: "table" }],
+      3,
+    ), [input("A", tiny(1)), input("B", tiny(2)), input("C", tiny(3))], ctx);
+    expect(Date.now() - started).toBeLessThan(3000);
+    expect((out(r, "w") as Extract<RunOutput, { shows: "table" }>).rows).toEqual([]);
+    expect((out(r, "w") as Extract<RunOutput, { shows: "table" }>).refusal).toContain("cannot work out exactly");
   });
   it("answers the hostile recipe on the widest values it accepts in a few seconds, as on ordinary values", () => {
     const r7 = (x: number) => Number(x.toPrecision(7));
-    const wide = (k: number) => Array.from({ length: RECIPE_POINTS }, (_, i) => r7(i % 2 ? 4.87654321e14 * (1 + ((i * 7 + k) % 13) / 13) : 1.23456789e-23 * (1 + ((i * 5 + k) % 11) / 11)));
+    const wide = (k: number) => Array.from({ length: RECIPE_POINTS }, (_, i) => r7(i % 2 ? 4.87654321e14 * (1 + ((i * 7 + k) % 13) / 13) : 1.23456789e-14 * (1 + ((i * 5 + k) % 11) / 11)));
     const four = (gen: (k: number) => number[]) => [1, 2, 3, 4].map((k) => input(`M${k}`, gen(k + 2)));
     const big = rec(
       [

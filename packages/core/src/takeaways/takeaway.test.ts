@@ -226,7 +226,7 @@ describe("the wording", () => {
     "numbers-method-spearman": [{}, "Spearman's rank correlation"], "numbers-method-partial": [{}, "Partial correlation"], "numbers-method-lag": [{}, "Lagged correlation"],
     "numbers-method-usual": [{}, "Usual range"], "numbers-method-share": [{}, "Share of the largest rows"],
     "table-lag-0": [{ span: "month" }, "Same month"], "table-lag": [{ lag: 2, span: "month" }, "2 months later"], "table-usual-low": [{}, "Usual low"], "table-usual-q1": [{}, "Lower quartile"], "table-usual-median": [{}, "Median"], "table-usual-q3": [{}, "Upper quartile"], "table-usual-high": [{}, "Usual high"],
-    "recipe-too-wide": [{ names: "Visits and Price" }, "Visits and Price hold values this recipe cannot work out exactly: more than 30 decimal places, or a value above 1,000,000,000,000,000. Round the values or leave out the far-off ones."],
+    "recipe-too-wide": [{ names: "Visits and Price" }, "Visits and Price hold values this recipe cannot work out exactly: more than 20 decimal places, or a value above 100,000,000,000,000,000,000. Round the values or leave out the far-off ones."],
     "recipe-too-much": [{}, "This recipe asks for more work than one result may take, so it stops here. Leave out some steps."],
     "recipe-mixed-periods": [{ names: "Visits and Price" }, "Visits and Price are kept by different periods, and a recipe compares Metrics of one period. Show them by the same period first."], "numbers-method-pareto": [{}, "Pareto"], "numbers-method-bridge": [{}, "Bridge"],
     "numbers-rho": [{}, "Rank correlation"], "numbers-held": [{}, "Held the same"], "numbers-lag": [{}, "Delay (periods)"], "numbers-tries": [{}, "Delays looked at"],
