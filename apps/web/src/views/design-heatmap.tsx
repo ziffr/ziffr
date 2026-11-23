@@ -8,8 +8,7 @@
 import { formatValue } from "@ziffr/core/format";
 import { HEAT_STEPS, heatmapModel } from "@ziffr/core/heatmap-grid";
 import type { DesignValues } from "./design-view";
-import { useBoxSize } from "./use-box-size";
-import { useWidgetScale } from "./widget-scale";
+import { ChartFrame, useChartSize } from "./chart-frame";
 
 // The lightest to the darkest step: the data tone mixed with the card's paper, so the scale follows the Theme.
 const STEP_SHARE = [18, 38, 58, 78, 100];
@@ -28,25 +27,20 @@ export function HeatmapMark({ v }: { v: DesignValues }) {
     write: (x) => formatValue(m, x, data.numberStyle),
   });
   if (!model.ok) return <p className="widget-text-xs mt-0.5 text-muted-foreground">{model.reason}</p>;
-  return <HeatmapGrid v={v} model={model} />;
+  return <HeatmapGrid model={model} />;
 }
 
 /** The grid, drawn to the pixels of its box: the squares are as large as the box allows (never bigger than the type they carry), the
  * headings thin out to the room, and a short card keeps the grid and drops the legend, then the caption. */
-function HeatmapGrid({ v, model }: { v: DesignValues; model: Extract<ReturnType<typeof heatmapModel>, { ok: true }> }) {
-  const scale = useWidgetScale();
-  const [whole, all] = useBoxSize<HTMLDivElement>();
-  const [box, size] = useBoxSize<HTMLDivElement>();
-  // Until the box is measured (the first render on the server, a drawing made without a screen) a nominal size is drawn.
-  const measured = size.w > 0 && size.h > 0;
+function HeatmapGrid({ model }: { model: Extract<ReturnType<typeof heatmapModel>, { ok: true }> }) {
+  const labelChars = Math.max(...model.rows.map((r) => r.label.length), 3);
   const nominalPitch = model.by === "month" ? 24 : 11;
+  const { scale, whole, all, box, W, H } = useChartSize({ w: labelChars * 0.62 * 9 + 6 + model.columns.length * nominalPitch, h: 9 + 6 + model.rows.length * nominalPitch });
   const fs = 9 * scale;
-  const left = Math.max(...model.rows.map((r) => r.label.length), 3) * 0.62 * fs + 6;
+  const left = labelChars * 0.62 * fs + 6;
   const top = fs + 6;
   const cols = model.columns.length;
   const rowsN = model.rows.length;
-  const W = measured ? size.w : left + cols * nominalPitch;
-  const H = measured ? size.h : top + rowsN * nominalPitch;
   const pitch = Math.max(4, Math.min((W - left) / cols, (H - top) / rowsN, 44 * scale));
   const gap = Math.max(1, pitch * 0.12);
   const cell = pitch - gap;
@@ -59,8 +53,23 @@ function HeatmapGrid({ v, model }: { v: DesignValues; model: Extract<ReturnType<
   const showLegend = !!model.legend && (all.h === 0 || all.h / scale >= 120);
   const showCaption = all.h === 0 || all.h / scale >= 175;
   return (
-    <div ref={whole} className="flex min-h-0 w-full flex-1 flex-col">
-      <div ref={box} className="relative min-h-[4.5rem] w-full flex-1">
+    <ChartFrame
+      whole={whole}
+      box={box}
+      below={
+        <>
+      {showLegend && model.legend && (
+        <div className="widget-text-xs mt-1 flex flex-wrap items-center gap-x-1.5">
+          <span aria-hidden className="flex gap-px">
+            {Array.from({ length: HEAT_STEPS }, (_, st) => <span key={st} className="inline-block size-2.5 rounded-[2px]" style={{ background: fill(st) }} />)}
+          </span>
+          <span>{model.legend.text}</span>
+        </div>
+      )}
+      {showCaption && <p className="widget-text-xs mt-0.5 text-muted-foreground">{model.caption}</p>}
+        </>
+      }
+    >
         <svg viewBox={`0 0 ${W} ${H}`} className="absolute inset-0 size-full" role="img" aria-label={model.alt}>
           <g fontSize={fs * 0.9} fill="var(--color-muted)">
             {model.columns.map((c, i) => (heading(c, i) ? <text key={i} x={left + i * pitch} y={top - 4}>{heading(c, i)}</text> : null))}
@@ -78,16 +87,6 @@ function HeatmapGrid({ v, model }: { v: DesignValues; model: Extract<ReturnType<
             ),
           )}
         </svg>
-      </div>
-      {showLegend && model.legend && (
-        <div className="widget-text-xs mt-1 flex flex-wrap items-center gap-x-1.5">
-          <span aria-hidden className="flex gap-px">
-            {Array.from({ length: HEAT_STEPS }, (_, st) => <span key={st} className="inline-block size-2.5 rounded-[2px]" style={{ background: fill(st) }} />)}
-          </span>
-          <span>{model.legend.text}</span>
-        </div>
-      )}
-      {showCaption && <p className="widget-text-xs mt-0.5 text-muted-foreground">{model.caption}</p>}
-    </div>
+    </ChartFrame>
   );
 }

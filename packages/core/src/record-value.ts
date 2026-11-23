@@ -12,10 +12,10 @@ import { isSealed, normaliseForIndex, workspaceCipher, type WorkspaceCipher } fr
 import type { Metric } from "./types";
 
 /** What recording a value did: the value's id, the outcome, what was there before and what is there now. */
-export type Recorded = { observation_id: number; outcome: string; before: number | string | null; after: number | string; earlier: number };
+export type Recorded = { observation_id: number; outcome: string; before: number | string | null; after: number | string; earlier: number; /** Who entered the value this one replaced, when that was a Filled-in Value (spec 0046). */ replacedFilledIn?: string | null };
 
 /** A recording as takeValue asks for it: the answer, or the database's refusal (its words stay in the server log). */
-export type Recording = (workspaceId: string, metric: Metric, period: string, value: number, row: { submitter_id: string | null; source: string; access_key_id: number | null }, imported: boolean, rows: { label: string; value: number }[]) => Promise<{ data: Recorded | null; error: { message: string; code?: string } | null }>;
+export type Recording = (workspaceId: string, metric: Metric, period: string, value: number, row: { submitter_id: string | null; source: string; access_key_id: number | null; /** Who entered it, when it is a Filled-in Value for the submitter (spec 0046). */ entered_by?: string | null }, imported: boolean, rows: { label: string; value: number }[]) => Promise<{ data: Recorded | null; error: { message: string; code?: string } | null }>;
 
 /** How often the core reads the period again when it changed between reading and writing, and for how long: with many
  * writers at the same moment each round lets one through, so a dozen attempts, a little apart, serve a burst of them, and
@@ -25,7 +25,7 @@ const BUDGET_MS = 5000;
 const CONFLICT = "ZF409";
 const PURPOSE = "breakdown_rows.label";
 
-type Stored = { id: number; value?: unknown; value_sealed?: unknown };
+type Stored = { id: number; value?: unknown; value_sealed?: unknown; entered_by?: string | null; submitter_id?: string | null };
 
 /** A value as stored, to give back to the database as what the core read: the sealed text, or the plain number as text. */
 const asStored = (r: { value?: unknown; value_sealed?: unknown }): string => (typeof r.value_sealed === "string" ? r.value_sealed : String(r.value));
@@ -49,16 +49,19 @@ export const recordObservation: Recording = async (workspaceId, metric, period, 
   const started = Date.now();
   for (let attempt = 0; attempt < ATTEMPTS && Date.now() - started < BUDGET_MS; attempt++) {
     // The latest value, and how many the period has (a keep-both period may hold more than a page of them).
-    const { data, count } = await db().from("observations").select("id, value, value_sealed", { count: "exact" }).eq("workspace_id", workspaceId).eq("metric_id", metric.id).eq("period_start", period).order("created_at", { ascending: false }).order("id", { ascending: false }).limit(1);
+    const { data, count } = await db().from("observations").select("id, value, value_sealed, entered_by, submitter_id", { count: "exact" }).eq("workspace_id", workspaceId).eq("metric_id", metric.id).eq("period_start", period).order("created_at", { ascending: false }).order("id", { ascending: false }).limit(1);
     const latest = ((data ?? []) as Stored[])[0] ?? null;
     const earlier = count ?? (latest ? 1 : 0);
     const before = latest ? (openRow(cipher, "observations", latest as Record<string, unknown>).value as number | null) : null;
     const rule = metric.submission_rule;
+    // The submitter's own value replaces a Filled-in Value for them, whatever the rule (spec 0046); anyone else's value,
+    // and a Filled-in Value, meet the rule as any value does.
+    const replacesFilledIn = Boolean(latest?.entered_by) && !row.entered_by && latest!.submitter_id === row.submitter_id;
     // Only adding to the latest value, or telling that it is there, needs it opened: replacing it or keeping it beside
     // another does not, so a value that does not open never blocks its period.
-    if (latest && before === null && (rule === "add" || rule === "reject")) return { data: null, error: { message: "The period's value did not open." } };
-    if (latest && rule === "reject") return { data: { observation_id: latest.id, outcome: "rejected_duplicate", before, after: before!, earlier }, error: null };
-    const op = !latest || rule === "keep_both" ? "insert" : rule === "overwrite" ? "overwrite" : "add";
+    if (latest && before === null && (rule === "add" || rule === "reject" || replacesFilledIn)) return { data: null, error: { message: "The period's value did not open." } };
+    if (latest && rule === "reject" && !replacesFilledIn) return { data: { observation_id: latest.id, outcome: "rejected_duplicate", before, after: before!, earlier }, error: null };
+    const op = !latest || (rule === "keep_both" && !replacesFilledIn) ? "insert" : replacesFilledIn || rule === "overwrite" ? "overwrite" : "add";
     const after = op === "add" ? addUp(before!, value) : value;
     const outcome = !latest ? "recorded" : op === "insert" ? "kept_both" : op === "overwrite" ? "overwritten" : "added";
     const obs = written(cipher, "observations", op === "insert" ? newId : latest!.id, after);
@@ -77,14 +80,14 @@ export const recordObservation: Recording = async (workspaceId, metric, period, 
     const { data: id, error } = await db().rpc("record_value", {
       p_metric: metric.id, p_period: period, p_op: op, p_new_id: newId, p_value: obs.value, p_value_sealed: obs.value_sealed, p_submitter: row.submitter_id, p_source: row.source,
       p_access_key: row.access_key_id, p_imported: imported, p_expect_id: latest?.id ?? null, p_expect_count: earlier, p_expect_value: latest ? asStored(latest) : null,
-      p_expect_rows: op === "add" && rows.length ? existing.length : null, p_rows: planned,
+      p_expect_rows: op === "add" && rows.length ? existing.length : null, p_rows: planned, p_entered_by: row.entered_by ?? null,
     });
     if (error?.code === CONFLICT) {
       await new Promise((r) => setTimeout(r, 5 + Math.random() * 15 * (attempt + 1)));
       continue;
     }
     if (error) return { data: null, error: { message: error.message, code: error.code } };
-    return { data: { observation_id: Number(id), outcome, before, after, earlier }, error: null };
+    return { data: { observation_id: Number(id), outcome, before, after, earlier, ...(replacesFilledIn ? { replacedFilledIn: latest!.entered_by ?? null } : {}) }, error: null };
   }
   return { data: null, error: { message: "The period kept changing." } };
 };

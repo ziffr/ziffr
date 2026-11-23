@@ -36,7 +36,7 @@ export function tellCondition(s: TellStep): AlertCondition | null {
 /** The people a Tell step names, Groups expanded, each once, named people first, at most TELL_PEOPLE_PER_STEP. Only
  * members of the Workspace with a sign-in (not Contacts or Feeds), and not those who said "stop telling me" for this
  * Workflow. Sight of a Metric is not decided here but for each message. */
-export async function tellRecipients(ws: string, workflowId: number, step: Pick<TellStep, "people" | "groups">): Promise<string[]> {
+export async function tellRecipients(ws: string, workflowId: number, step: Pick<TellStep, "people" | "groups">, opts: { all?: boolean } = {}): Promise<string[]> {
   const groups = step.groups.length ? (await getGroups(ws)).filter((g) => step.groups.includes(g.id)) : [];
   const wanted = [...new Set([...step.people, ...groups.flatMap((g) => g.members)])];
   if (!wanted.length) return [];
@@ -46,7 +46,9 @@ export async function tellRecipients(ws: string, workflowId: number, step: Pick<
   ]);
   const ok = new Set((members ?? []).map((m) => String(m.user_id)));
   const stopped = new Set((stops ?? []).map((s) => String(s.person_id)));
-  return wanted.filter((p) => ok.has(p) && !stopped.has(p)).slice(0, TELL_PEOPLE_PER_STEP);
+  const told = wanted.filter((p) => ok.has(p) && !stopped.has(p));
+  // `all` keeps those past the limit too, for a step that names them to its owner (Send Snapshot).
+  return opts.all ? told : told.slice(0, TELL_PEOPLE_PER_STEP);
 }
 
 /** Checks the Tell steps of a Metric's Workflow after a value counted: recorded, approved or corrected. Called from the

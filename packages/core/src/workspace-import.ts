@@ -591,6 +591,8 @@ class ValueWriter {
       submitter_id: null, source: "web_form", imported: true, created_at: b.r.recordedAt ?? new Date().toISOString(),
       // Who sent it stays as a name, sealed for the value's row (an id of the old Workspace would mean nothing here).
       submitted_by_name: b.r.submittedBy === undefined ? null : cipher.seal({ table: "observations", column: "submitted_by_name", row: ids[i] }, b.r.submittedBy),
+      // And who entered it for them, the same way (spec 0046): shown on the Metric page only, never to Guests.
+      entered_by_name: b.r.enteredBy === undefined ? null : cipher.seal({ table: "observations", column: "entered_by_name", row: ids[i] }, b.r.enteredBy),
     }));
     const { error } = await db().from("observations").insert(observations);
     if (error) throw new Error("Values could not be written.");

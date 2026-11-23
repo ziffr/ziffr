@@ -15,7 +15,7 @@ The first line is the **header**, the last is the **end** record, and in between
 {"kind":"group","id":"g1","name":"Sales team"}
 {"kind":"person","id":"p1","name":"Ada Lovelace","email":"ada@example.com","role":"admin","groups":["g1"]}
 {"kind":"metric","id":"m1","key":"orders","metric":{"format":"ziffr.metric/1","name":"Orders","period":"month","aggregation":"sum","polarity":"higher"},"owner":"p1"}
-{"kind":"value","metric":"m1","period":"2026-01-01","value":14,"submittedBy":"Ada Lovelace","source":"web_form"}
+{"kind":"value","metric":"m1","period":"2026-01-01","value":14,"submittedBy":"Ada Lovelace","enteredBy":"Ben Fischer","source":"web_form"}
 {"kind":"end","counts":{"group":1,"theme":0,"person":1,"metric":1,"dashboard":0,"deck":0,"workflow":0,"share":0,"target":0,"projection":0,"value":1}}
 ```
 

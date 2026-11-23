@@ -58,5 +58,5 @@
   "src/methods/fractions.ts",
   "src/methods/carry-over.ts",
   "src/polar-marks.ts",
-  "src/heatmap-grid.ts"
+  "src/mark-figures.ts"
 ]

@@ -1,0 +1,1 @@
+"A bump chart needs a breakdown in at least 2 periods; only 1 period shown has one."
