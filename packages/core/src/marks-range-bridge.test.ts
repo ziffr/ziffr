@@ -497,7 +497,7 @@ describe("the number drawn is the number the Method gave", () => {
     const first = drawRecipe(DESIGN, metrics, data, {}, budget);
     expect(first.refusal).toBeNull();
     expect(budget.left).toBeLessThan(50_000);
-    expect(drawRecipe(DESIGN, metrics, data, {}, { left: 0 })).toMatchObject({ results: null, figures: {}, refusal: expect.stringContaining("Too much analysis on this page") });
+    expect(drawRecipe(DESIGN, metrics, data, {}, { left: 0, exact: 0 })).toMatchObject({ results: null, figures: {}, refusal: expect.stringContaining("Too much analysis on this page") });
   });
   it("says why a table is not drawn, in words, when the recipe has nothing to draw", () => {
     const short = { ...data, series: Object.fromEntries(Object.entries(data.series).map(([k, v]) => [k, v.slice(0, 1)])) };

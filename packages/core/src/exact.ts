@@ -5,6 +5,7 @@
 // this gives 0.3 and 0.2. Pure, so the browser computes the same numbers.
 //
 // BigInt(…) rather than literals such as 10n: the app's TypeScript targets a version before BigInt literals.
+import { spendOn, widthOf } from "./work-bound";
 const [ZERO, ONE, TWO, TEN, HUNDRED] = [BigInt(0), BigInt(1), BigInt(2), BigInt(10), BigInt(100)];
 const TEXT = /^(-?)(\d+)(?:\.(\d+))?(?:e([+-]\d+))?$/;
 
@@ -72,6 +73,9 @@ export function fractionOfText(text: string): Fraction {
 
 /** A fraction in lowest terms: numerator and denominator divided by their greatest common divisor. */
 export function lowestTerms(a: Fraction): Fraction {
+  // The greatest common divisor costs about the square of the size of the fraction: counted against the work budget of the Method that
+  // is running (work-bound.ts), which stops it when values too wide to work out in reasonable time reach here. Nothing is counted outside one.
+  spendOn(widthOf(a), widthOf(a));
   let [x, y] = [size(a.num), a.den];
   while (y) [x, y] = [y, x % y];
   // x is at least 1: the denominator is.

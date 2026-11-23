@@ -190,14 +190,14 @@ describe("what a page of recipes may ask for", () => {
     expect(a.left).toBe(0);
     // Without a page, a widget has only its own budget.
     expect(drawRecipe(worst, three, big, {}).refusal).toBeNull();
-    expect(drawRecipe(worst, three, big, {}, { left: 0 }).refusal).toContain("Too much analysis on this page");
+    expect(drawRecipe(worst, three, big, {}, { left: 0, exact: 0 }).refusal).toContain("Too much analysis on this page");
   });
   it("a recipe in the first format is charged a pass of its longest series for each step", () => {
     const budget = newRecipeBudget();
     const d = designWithRecipe(BUILT_IN_RECIPES["moving-average"]);
     expect(drawRecipe(d, [revenue], big, {}, budget).refusal).toBeNull();
     expect(PAGE_BUDGET - budget.left).toBe(BUILT_IN_RECIPES["moving-average"].steps.length * 120);
-    expect(drawRecipe(d, [revenue], big, {}, { left: 119 }).refusal).toContain("Too much analysis");
+    expect(drawRecipe(d, [revenue], big, {}, { left: 119, exact: 0 }).refusal).toContain("Too much analysis");
   });
   it("every built-in recipe and every recipe of a shipped Pack uses under a fifth of a recipe's budget", () => {
     const packs = (JSON.parse(readFileSync(repoFile("packs/saas-metrics.pack.json"), "utf8")).contents.analyses ?? []) as { recipe: { steps: unknown[] } }[];

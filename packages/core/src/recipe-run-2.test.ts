@@ -319,24 +319,24 @@ describe("what a recipe reaches and how it fails", () => {
 describe("what a recipe may be asked to work out", () => {
   const one = (vs: number[]) => runRecipe2(rec([{ id: "u", fn: "usualRange", of: "slot1" }, { id: "c", fn: "changes", of: "slot1" }], [{ step: "u", label: "u", shows: "takeaway" }, { step: "c", label: "c", shows: "series", unit: "metric" }], 1), [input("Sales", vs)], ctx, 1_000_000);
   const base = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
-  // The same at the scale of the 20th decimal place, which a series of the 20th place needs beside it.
-  const small = base.map((k) => Number(`${k}e-20`));
+  // The same at the scale of the 40th decimal place, which a series of the 40th place needs beside it.
+  const small = base.map((k) => Number(`${k}e-40`));
 
-  it("works on up to 20 decimal places and refuses the 21st, in words, with no number", () => {
-    expect(MOST_PLACES).toBe(20);
-    expect(tooWide(at([1e-20]))).toBe(false);
-    expect(tooWide(at([1e-21]))).toBe(true);
-    expect(tooWide(at([1.5e-19]))).toBe(false);
-    expect(tooWide(at([1.5e-20]))).toBe(true);
+  it("works on up to 40 decimal places and refuses the 41st, in words, with no number", () => {
+    expect(MOST_PLACES).toBe(40);
+    expect(tooWide(at([1e-40]))).toBe(false);
+    expect(tooWide(at([1e-41]))).toBe(true);
+    expect(tooWide(at([1.5e-39]))).toBe(false);
+    expect(tooWide(at([1.5e-40]))).toBe(true);
     expect(tooWide([{ period: "2020-01-01", value: NaN }, { period: "2020-02-01", value: 1 }])).toBe(true);
     expect(tooWide([{ period: "2020-01-01", value: Infinity }])).toBe(true);
     expect(tooWide(at([0.12345678901234567]))).toBe(false);
-    const ok = one([...small, 1e-20]);
+    const ok = one([...small, 1e-40]);
     expect(val(out(ok, "c"))).not.toEqual([]);
-    const wide = one([...small, 1e-21]);
+    const wide = one([...small, 1e-41]);
     expect(val(out(wide, "c"))).toEqual([]);
     expect(takeawayOf(wide, "u").kind).toBe("refusal");
-    expect(takeawayOf(wide, "u").refusal).toBe("Sales hold values this recipe cannot work out exactly: more than 20 decimal places, or a value above 100,000,000,000,000,000,000. Round the values or leave out the far-off ones.");
+    expect(takeawayOf(wide, "u").refusal).toBe("Sales hold values this recipe cannot work out exactly: more than 40 decimal places, a spread of more than 30 orders of magnitude, or a value above 100,000,000,000,000,000,000. Round the values or leave out the far-off ones.");
   });
   it("works on values up to 1e20 and refuses the first double above it", () => {
     const above = 1.0000000000000002e20;
@@ -350,26 +350,26 @@ describe("what a recipe may be asked to work out", () => {
     expect(takeawayOf(one([...base, above]), "u").kind).toBe("refusal");
   });
   it("refuses the same for every kind of step, and a fit says why in its own words", () => {
-    const r = runRecipe2(rec([{ id: "m", fn: "fit", of: "slot1", drivers: ["slot2"] }, { id: "s", fn: "spearman", of: "slot1", with: "slot2" }], [{ step: "m", label: "m", shows: "takeaway" }, { step: "s", label: "s", shows: "takeaway" }], 2), [input("A", [...va, 1e-21]), input("B", vb)], ctx);
+    const r = runRecipe2(rec([{ id: "m", fn: "fit", of: "slot1", drivers: ["slot2"] }, { id: "s", fn: "spearman", of: "slot1", with: "slot2" }], [{ step: "m", label: "m", shows: "takeaway" }, { step: "s", label: "s", shows: "takeaway" }], 2), [input("A", [...va, 1e-41]), input("B", vb)], ctx);
     expect(takeawayOf(r, "m").refusal).toContain("cannot work out exactly");
     expect(takeawayOf(r, "s").refusal).toContain("cannot work out exactly");
     expect(r.steps.s).toEqual({ kind: "value", value: null });
     expect((r.steps.m as { fit: { ok: boolean } }).fit.ok).toBe(false);
   });
-  it("refuses a spread of more than 1e20 between the largest value and the smallest that is not 0, one step either side", () => {
-    expect(MOST_SPREAD).toBe(1e20);
-    // 1e20 beside 1 is a spread of exactly 1e20, and 1e20 beside 0.5 is 2e20.
-    expect(tooWide(at([1e20, 1]))).toBe(false);
-    expect(tooWide(at([1e20, 0.5]))).toBe(true);
-    expect(tooWide(at([1e20, 0, 1]))).toBe(false);
-    expect(tooWide(at([1e20, 1e-4]))).toBe(true);
-    expect(tooWide(at([-1e20, 1]))).toBe(false);
+  it("refuses a spread of more than 1e30 between the largest value and the smallest that is not 0, one step either side", () => {
+    expect(MOST_SPREAD).toBe(1e30);
+    // 1e20 beside 1e-10 is a spread of exactly 1e30, and 1e20 beside 5e-11 is 2e30 (no value is above 1e20).
+    expect(tooWide(at([1e20, 1e-10]))).toBe(false);
+    expect(tooWide(at([1e20, 5e-11]))).toBe(true);
+    expect(tooWide(at([1e20, 0, 1e-10]))).toBe(false);
+    expect(tooWide(at([1e20, 1e-14]))).toBe(true);
+    expect(tooWide(at([-1e20, 1e-10]))).toBe(false);
     expect(tooWide(at([0, 0, 0]))).toBe(false);
-    expect(tooWide(at([1e-20, 1]))).toBe(false);
-    expect(tooWide(at([1e-20, 1.5]))).toBe(true);
-    expect(tooWide(at([1e-20, 1e20]))).toBe(true);
+    expect(tooWide(at([1e-30, 1]))).toBe(false);
+    expect(tooWide(at([1e-30, 1.5]))).toBe(true);
+    expect(tooWide(at([1e-30, 1e30]))).toBe(true);
     expect(tooWide(at([1e-10, 1e10]))).toBe(false);
-    const r = one([...base, 1e-20]);
+    const r = one([...base, 1e-30]);
     expect(takeawayOf(r, "u").refusal).toContain("cannot work out exactly");
   });
   it("stops at the same step on every machine when the work is spent, one step either side", () => {
@@ -447,14 +447,14 @@ describe("what a recipe may be asked to work out", () => {
     expect((runRecipe2(rec([...plain(10), usual], tk("u"), 4), [1, 2, 3, 4].map((k) => hundred(k + 2)), ctx, 500).outputs[0] as { takeaway: { refusal: string } }).takeaway.refusal).toBe("Too much analysis on this page to work out at once: open the widget on its own.");
   });
   it("holds what a step makes to the same limits, and every step that reads it", () => {
-    // 1e-20 is admitted (20 places); a mean of three of them is 2.3333333333333335e-20 and has 36: no step may read it.
-    const tiny = [1, 3, 2, 5, 4, 1, 3, 2, 5, 4, 3, 2].map((k) => Number(`${k}e-20`));
+    // 1e-30 is admitted (30 places); a mean of three of them is 2.3333333333333335e-30 and has 46: no step may read it.
+    const tiny = [1, 3, 2, 5, 4, 1, 3, 2, 5, 4, 3, 2].map((k) => Number(`${k}e-30`));
     const r = runRecipe2(rec(
       [{ id: "avg", fn: "movingAverage", of: "slot1", window: 3 }, { id: "g", fn: "growth", of: "avg" }, { id: "m", fn: "fit", of: "slot2", drivers: ["avg"] }, { id: "d", fn: "detrended", of: "slot1" }, { id: "ok", fn: "changes", of: "slot1" }, { id: "sh", fn: "share", of: "slot1", with: "avg" }, { id: "pc", fn: "partialCorrelation", of: "slot1", with: "slot2", controls: ["avg"] }],
       [{ step: "avg", label: "a", shows: "series", unit: "metric" }, { step: "g", label: "g", shows: "series", unit: "percent" }, { step: "d", label: "d", shows: "series", unit: "metric" }, { step: "ok", label: "c", shows: "series", unit: "metric" }, { step: "sh", label: "s", shows: "series", unit: "percent" }, { step: "pc", label: "p", shows: "value", unit: "number" }],
       2,
     ), [input("Tiny", tiny), input("Other", wobble(12, 4))], ctx);
-    const refusal = "Tiny, Other hold values this recipe cannot work out exactly: more than 20 decimal places, or a value above 100,000,000,000,000,000,000. Round the values or leave out the far-off ones.";
+    const refusal = "Tiny, Other hold values this recipe cannot work out exactly: more than 40 decimal places, a spread of more than 30 orders of magnitude, or a value above 100,000,000,000,000,000,000. Round the values or leave out the far-off ones.";
     for (const step of ["avg", "g", "d", "sh"]) {
       const o = out(r, step) as Extract<RunOutput, { shows: "series" | "value" }>;
       expect(o.result).toEqual({ kind: "series", points: [] });
@@ -497,7 +497,7 @@ describe("what a recipe may be asked to work out", () => {
     const mixed = runRecipe2(rec([{ id: "c", fn: "changes", of: "slot1" }], [{ step: "c", label: "c", shows: "series", unit: "metric" }], 2), [input("A", ints), input("B", ints.map((v, i) => (i === 0 ? v + 0.125 : v)))], ctx);
     expect(mixed.spent).toBe(137);
     // A step that reads a series that was refused does no work and is not charged.
-    const tiny = [1, 3, 2, 5, 4, 1, 3, 2, 5, 4, 3, 2].map((k) => Number(`${k}e-20`));
+    const tiny = [1, 3, 2, 5, 4, 1, 3, 2, 5, 4, 3, 2].map((k) => Number(`${k}e-30`));
     const chain = (n: number) => runRecipe2(rec([{ id: "avg", fn: "movingAverage", of: "slot1", window: 3 }, ...Array.from({ length: n }, (_, i) => ({ id: `g${i}`, fn: "growth" as const, of: "avg" }))], [{ step: "avg", label: "a", shows: "series", unit: "metric" }], 1), [input("T", tiny)], ctx);
     expect(chain(3).spent).toBe(chain(0).spent);
     // What a step makes counts as well: a mean of seven is a repeating decimal, and the step after it is charged for its width.

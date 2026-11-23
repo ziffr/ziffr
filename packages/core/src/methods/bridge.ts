@@ -8,7 +8,7 @@
 // the whole's own change is given and the parts do not add up to it, the rest is said as "not in these rows".
 import { fractionOf, lowestTerms, minus, nearest, plus, times, type Fraction } from "../exact";
 import { formatValue, type ValueUnit } from "../format";
-import { emptyTakeaway, listOf, refusalTakeaway, sayIn, type Takeaway, type TakeawayContext } from "../takeaways/takeaway";
+import { emptyTakeaway, listOf, refusalTakeaway, sayIn, wideRefusal, type Takeaway, type TakeawayContext } from "../takeaways/takeaway";
 
 /** One part: its label, its value in the earlier and the later period (null where it has none), and its weight (1 unless it counts against the whole). */
 export type Part = { label: string; before: number | null; after: number | null; weight?: 1 | -1 };
@@ -56,6 +56,9 @@ export function bridge(parts: Part[], whole?: { before: number; after: number })
  * with a note naming parts that had no value on one side and, where the whole's change was given, what the parts leave out. */
 export function bridgeTakeaway(name: string, parts: Part[], unit: ValueUnit, ctx: TakeawayContext, whole?: { before: number; after: number }): Takeaway {
   const method = sayIn("numbers-method-bridge", {}, ctx);
+  // Stryker disable next-line ArrayDeclaration: a value that is not a number is no value, so what stands where the whole is not given changes nothing.
+  const wide = wideRefusal(method, [{ name, values: [...parts.flatMap((p) => [p.before, p.after]), ...(whole ? [whole.before, whole.after] : [])] }], ctx);
+  if (wide) return wide;
   const result = bridge(parts, whole);
   if (!result.ok) return refusalTakeaway(method, [sayIn(result.why === "none" ? "refuse-rows" : result.why === "weight" ? "refuse-weight" : "refuse-not-a-number", { name, have: 0, need: 1 }, ctx)]);
   // Enough decimals that no change that is not 0 is written as 0 (a +0.4 and a −0.3 at no decimals would both read "0").

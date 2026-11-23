@@ -1193,7 +1193,8 @@ describe("hostile inputs refuse in words or give the exact right answer, never a
         expect(f.explained).toBe(base.explained);
         expect(f.drivers[0].share).toBe(1);
       } else {
-        expect(f.refusals.map((c) => c.case)).toEqual(["refuse-too-large"]);
+        // A target scaled to 1e-100 needs more than 40 decimal places, which is refused before the arithmetic (work-bound.ts); the others are too large to work with.
+        expect(f.refusals.map((c) => c.case)).toEqual([scale < 1 ? "refuse-exact-places" : "refuse-too-large"]);
       }
     }
     const huge = fit(input(y.map((v) => v * 1e300), [x.map((v) => v * 1e300)]));

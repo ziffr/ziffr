@@ -81,42 +81,42 @@ describe("runningTotal", () => {
     expect(line(leap, "last")!.points.find((p) => p.at === 60)!.total).toBe(60);
   });
 
-  it("plans from the Target Series, adding it up, and says how the total stands in words", () => {
+  it("follows the Target Series, adding it up, and says how the total stands in words", () => {
     const targets = months("2026-01-01", 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10);
     const behind = ok(run({ points: months("2026-01-01", 8, 8, 8), targets, today: "2026-03-20" }));
     expect(line(behind, "plan")!.points.at(-1)).toEqual({ at: 11, total: 120 });
     expect(line(behind, "plan")!.end).toBe("120");
-    // 24 of 30: 80 % of plan, 6 behind; March is still running, so the comparison is made at February (16 of 20).
-    expect(line(behind, "now")!.words).toBe("80 % of plan, 4 behind");
+    // 24 of 30: 80 % of target, 6 behind; March is still running, so the comparison is made at February (16 of 20).
+    expect(line(behind, "now")!.words).toBe("80 % of target, 4 behind");
     expect(behind.status).toBe("off");
     expect(behind.notes.join(" ")).toContain("Mar 26 is still running, so the comparison is made at Feb 26");
     const ahead = ok(run({ points: months("2026-01-01", 12, 12), targets, today: "2026-04-10" }));
-    expect(line(ahead, "now")!.words).toBe("ahead of plan by 4");
+    expect(line(ahead, "now")!.words).toBe("ahead of target by 4");
     expect(ahead.status).toBe("on");
-    expect(ok(run({ points: months("2026-01-01", 10, 10), targets, today: "2026-04-10" })).lines[0].words).toBe("on plan");
+    expect(ok(run({ points: months("2026-01-01", 10, 10), targets, today: "2026-04-10" })).lines[0].words).toBe("on target");
   });
 
-  it("says a plan period that has no target, and that lower is ahead where lower is better", () => {
+  it("says a period that has no target, and that lower is ahead where lower is better", () => {
     const m = ok(run({ metric: metric({ polarity: "lower" }), points: months("2026-01-01", 8, 8), targets: months("2026-01-01", 10, null, 10), today: "2026-04-10" }));
-    expect(m.notes.join(" ")).toContain("No plan for Feb 26");
+    expect(m.notes.join(" ")).toContain("No target for Feb 26");
     expect(line(m, "plan")!.points).toEqual([{ at: 0, total: 10 }, { at: 2, total: 20 }]);
-    // At February the plan holds 10 (January only), the total 16: more than planned, so off for a Metric where lower is better.
+    // At February the target holds 10 (January only), the total 16: more than planned, so off for a Metric where lower is better.
     expect(m.status).toBe("off");
     const low = ok(run({ metric: metric({ polarity: "lower" }), points: months("2026-01-01", 8, 8), targets: months("2026-01-01", 10, 10), today: "2026-04-10" }));
-    expect(line(low, "now")!.words).toBe("ahead of plan by 4");
+    expect(line(low, "now")!.words).toBe("ahead of target by 4");
     expect(low.status).toBe("on");
   });
 
-  it("derives a plan from a target with one bound, saying so, and draws none for a range or no target", () => {
+  it("derives a target line from a target with one bound, saying so, and draws none for a range or no target", () => {
     const one = ok(run({ metric: metric({ target_min: 5 }), points: months("2026-01-01", 5, 6, 7), today: "2026-04-10" }));
     expect(line(one, "plan")!.points.slice(0, 3)).toEqual([{ at: 0, total: 5 }, { at: 1, total: 10 }, { at: 2, total: 15 }]);
-    expect(one.notes.join(" ")).toContain("Plan: the target of 5 each month, added up.");
+    expect(one.notes.join(" ")).toContain("The target of 5 each month, added up.");
     const range = ok(run({ metric: metric({ target_min: 5, target_max: 9 }), points: months("2026-01-01", 5, 6, 7), today: "2026-04-10" }));
     expect(line(range, "plan")).toBeUndefined();
     expect(range.notes).toContain(NO_PLAN);
     expect(range.status).toBeNull();
     expect(range.lines[0].words).toBeNull();
-    expect(range.alt).toContain("no plan");
+    expect(range.alt).toContain("no target");
     const none = ok(run({ points: months("2026-01-01", 5), today: "2026-04-10" }));
     expect(none.notes).toContain(NO_PLAN);
   });
@@ -126,8 +126,8 @@ describe("runningTotal", () => {
     expect(m.notes).toContain("No values for last year.");
     expect(line(m, "last")).toBeUndefined();
     expect(m.alt).toContain("Running total of Orders since the start of");
-    expect(m.alt).toContain("This year: 11 (ahead of plan by 1)");
-    expect(m.alt).toContain("Plan: 10");
+    expect(m.alt).toContain("This year: 11 (ahead of target by 1)");
+    expect(m.alt).toContain("Target: 10");
   });
 
   it("uses the year of the latest value when the current year has none yet", () => {

@@ -11,7 +11,7 @@ import { formatNumber } from "../format";
 import { shiftPeriod, type Span } from "../periods";
 import { checkSuitability } from "../suitability";
 import { strengthOf } from "../takeaways/strength";
-import { pairsAnswer, refusalTakeaway, sayIn, strengthWordIn, verdictLines, type Takeaway, type TakeawayContext } from "../takeaways/takeaway";
+import { pairsAnswer, refusalTakeaway, sayIn, strengthWordIn, verdictLines, wideRefusal, onLatest, type Takeaway, type TakeawayContext } from "../takeaways/takeaway";
 import type { Point } from "../types";
 
 /** The longest lag tried, in periods. */
@@ -52,7 +52,18 @@ export function lagPairs(a: Point[], b: Point[], span: Span, lag: number): { x: 
  * run on the periods both series have (the lag minimum of 12) and, for variation, gaps, far-off values, skew and a link that
  * changed, on the pairs of the best delay; the chance rule is read at the bar for the delays tried. */
 export function laggedTakeaway(aName: string, bName: string, a: Point[], b: Point[], span: Span, basis: Basis, ctx: TakeawayContext): Takeaway {
+  // Stryker disable next-line StringLiteral: the Method's name in the refusal that only a spent work allowance writes; the wording of that refusal is held by the test of withinBudget.
+  return onLatest("numbers-method-lag", ctx, span, [a, b], ([ca, cb]) => laggedWithin(aName, bName, ca, cb, span, basis, ctx));
+}
+
+// The Takeaway itself, on the latest periods the series have in common.
+function laggedWithin(aName: string, bName: string, a: Point[], b: Point[], span: Span, basis: Basis, ctx: TakeawayContext): Takeaway {
   const method = sayIn("numbers-method-lag", {}, ctx);
+  // Values too wide to work out exactly are refused before the exact arithmetic is started (work-bound.ts).
+  // Stryker disable next-line ArrayDeclaration,ArrowFunction: without these values the check below refuses with the same words; this only saves the exact work before it.
+  const wide = wideRefusal(method, [{ name: aName, values: readSeries(a).map((p) => p.value) }, { name: bName, values: readSeries(b).map((p) => p.value) }], ctx);
+  // Stryker disable next-line ConditionalExpression: without this return the check below refuses with the same words; this only saves the exact work before it.
+  if (wide) return wide;
   const found = laggedCorrelation(a, b, span);
   const tries = found.lags.filter((l) => Number.isFinite(l.r)).length;
   const paired = found.best ? lagPairs(a, b, span, found.best.lag) : { x: readSeries(a), y: readSeries(b) };

@@ -17,6 +17,7 @@ import { refusalTakeaway, sayIn, type Takeaway, type TakeawayContext } from "./t
 import type { Finding } from "./suitability";
 import { correlation, difference, growth, linearTrend, mean, movingAverage, seasonalIndex, share, slope, standardDeviation, zScore, type Result } from "./recipe-functions";
 import type { Point } from "./types";
+import { WORK_BOUND } from "./work-bound";
 
 /** The output of a recipe, by step id, worked out by the library's functions. */
 export type RecipeResults = Record<string, Result>;
@@ -70,13 +71,13 @@ export type Run2 = { steps: Record<string, Result2>; outputs: RunOutput[]; /** T
 const METHOD = { spearman: "numbers-method-spearman", partialCorrelation: "numbers-method-partial", laggedCorrelation: "numbers-method-lag", usualRange: "numbers-method-usual", fit: "numbers-method-fit" } as const;
 const PLAIN = { unit: "", unit_position: "after", decimals: 2 } as const;
 
-/** The most decimal places a value of a recipe may need, and its largest size: beyond them the exact arithmetic of the steps (BigInt sums
+/** The most decimal places a value of a recipe may need (the one limit of the Methods, work-bound.ts), and its largest size: beyond them the exact arithmetic of the steps (BigInt sums
  * of every value at one scale) grows without a bound that is worth its answer, and the recipe says so instead. */
-export const MOST_PLACES = 20;
+export const MOST_PLACES: number = WORK_BOUND.places;
 /** The largest absolute value a series of a recipe may hold, a Slot's or what a step made of one (the API's own limit for a Metric's value is 1e15). */
 export const MOST_SIZE = 1e20;
-/** The widest spread between the largest and the smallest value that is not 0 in one series. */
-export const MOST_SPREAD = 1e20;
+/** The widest spread between the largest and the smallest value that is not 0 in one series (the one limit of the Methods, work-bound.ts). */
+export const MOST_SPREAD: number = 10 ** WORK_BOUND.orders;
 /** The work one recipe may ask for in one run, in work units: a unit is about 10 microseconds of one core (measured, see docs/guides/analysis-recipes.md),
  * so 12,000 units are about 120 ms. Units are counted from the steps and the series' length alone, never the clock, so the same recipe on the same
  * data stops at the same step on every machine. */
@@ -89,7 +90,7 @@ export const PAGE_BUDGET = 50_000;
  * z-score of small ones, a line's misses), so that no step reads what another could not. */
 export function tooWide(points: Point[]): boolean {
   if (points.some((p) => !Number.isFinite(p.value) || Math.abs(p.value) > MOST_SIZE || fractionOf(p.value).den.toString().length - 1 > MOST_PLACES)) return true;
-  // The spread: the largest value over the smallest that is not 0 may not pass `MOST_SPREAD` (1e20 beside 1e-4 needs 24 digits at one scale).
+  // The spread: the largest value over the smallest that is not 0 may not pass `MOST_SPREAD` (1e30 beside 1e-10 needs 40 digits at one scale).
   // A series of 0 only has no sizes: its largest over its smallest is not a number, which is not above the limit.
   const sizes = points.map((p) => Math.abs(p.value)).filter((v) => v > 0);
   return Math.max(...sizes) / Math.min(...sizes) > MOST_SPREAD;

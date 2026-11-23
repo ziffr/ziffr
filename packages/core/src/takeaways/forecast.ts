@@ -17,6 +17,7 @@ import { backtest, type Candidate } from "../methods/track-record";
 import { periodsBetween, type Span } from "../periods";
 import { checkSuitability, minimumPeriods, SEASON_LENGTH, type Finding, type Rerun, type SuitabilityInputs } from "../suitability";
 import type { Metric, Point } from "../types";
+import { withWork } from "../work-bound";
 import { answerTakeaway, refusalTakeaway, type Takeaway, type TakeawayContext } from "./takeaway";
 import { say, type CaseKey, type Slots } from "./wording";
 
@@ -45,7 +46,7 @@ export function chanceCase(p: number): { key: "chance-under" | "chance-about" | 
 export const maxAhead = (span: Span): number => Math.max(HORIZON[span], SEASON_LENGTH[span]);
 
 /** What is asked of a forecast Takeaway: the Target's ends (the Recipe "Will we reach the Target?") and the period to look at (the end of the default horizon where not given). */
-export type ForecastAsk = { ends?: TargetEnds; by?: string };
+export type ForecastAsk = { ends?: TargetEnds; by?: string; /** The work allowance to run under instead of the usual (work-bound.ts), for tests of what happens when it is spent. */ allowance?: number };
 
 /** What a forecast reads of a Metric: its name, its period and its unit. */
 export type ForecastMetric = Pick<Metric, "name" | "period"> & ValueUnit;
@@ -60,6 +61,11 @@ type Fit = { rows: Point[]; season: number; ahead: number; best: NonNullable<Ret
 // A forecast, or the lines that say why there is none. The one place the checks, the Method's choice and the period asked about are decided,
 // for the Takeaway and for the Heads-up about a Target (reachOf) alike.
 function fitForecast(metric: ForecastMetric, points: Point[], ctx: TakeawayContext, ask: ForecastAsk): { refuse: string[] } | Fit {
+  // Under the work allowance of work-bound.ts: its series are cut to the latest 120 periods, so no ordinary values come near it.
+  return withWork(() => fitForecastWithin(metric, points, ctx, ask), ask.allowance) ?? { refuse: [wordsFor(metric, ctx)("refuse-exact-work")] };
+}
+
+function fitForecastWithin(metric: ForecastMetric, points: Point[], ctx: TakeawayContext, ask: ForecastAsk): { refuse: string[] } | Fit {
   const span = metric.period;
   const season = SEASON_LENGTH[span];
   const text = wordsFor(metric, ctx);
@@ -108,7 +114,7 @@ function fitForecast(metric: ForecastMetric, points: Point[], ctx: TakeawayConte
 /** How likely a Metric is to reach its Target `by` a period, as the forecast says it and with none of its words: the chance (0 to 1), the
  * period it is for and how many periods after the last value that is. Null where the forecast is refused, comes with a caution (a Heads-up
  * is only made from a forecast that passes cleanly), or the Target cannot be read. */
-export function reachOf(metric: ForecastMetric, points: Point[], ctx: TakeawayContext, ask: { ends: TargetEnds; by?: string }): { chance: number; period: string; ahead: number } | null {
+export function reachOf(metric: ForecastMetric, points: Point[], ctx: TakeawayContext, ask: { ends: TargetEnds; by?: string; allowance?: number }): { chance: number; period: string; ahead: number } | null {
   const fit = fitForecast(metric, points, ctx, ask);
   if ("refuse" in fit || fit.cautions.length > 0) return null;
   const chance = reachChance({ value: fit.target.value, sd: fit.target.sd }, ask.ends);

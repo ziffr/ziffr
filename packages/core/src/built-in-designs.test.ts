@@ -50,7 +50,7 @@ describe("the built-in View Designs", () => {
 
   it("marks the running total as needing a Metric that adds up, which the Gallery says", () => {
     expect(TEMPLATES["running-total"].needsSum).toBe(true);
-    expect(TEMPLATES["running-total"]).toMatchObject({ label: "Running total against plan", kind: "metric", size: { w: 8, h: 6 } });
+    expect(TEMPLATES["running-total"]).toMatchObject({ label: "Running total against target", kind: "metric", size: { w: 8, h: 6 } });
   });
 
   it("go into PowerPoint as before: lines, bars, numbers and tables natively, the rest as pictures", () => {
