@@ -117,6 +117,10 @@ _Avoid_: Reporter, contributor
 A small card in the corner of the app that asks a signed-in person "Enjoying Ziffr?". A yes opens the Ziffr repository on GitHub in a new tab, where they star it themselves: Ziffr cannot star for anyone and tells GitHub nothing. A no asks "What is missing?", and the words are kept without the person's name and read only by Installation Admins. It appears only to Owners, Admins and Members after they have submitted values on at least 3 different days, never in the demo, for Guests, Contacts or on View Links; at most 3 times (after 30 days, then 60), and never again after a star or "Don't ask again". Whether it is asked is an Installation Setting: on for hosted Ziffr, off elsewhere. Not a Prompt, which asks a submitter for a value.
 _Avoid_: Popup, survey, rating, nag
 
+**Feedback**:
+A message from a signed-in person to the Ziffr team, on hosted Ziffr only: a kind (a problem, an idea or a question), their words, and the page and app version it was sent from, kept with a status (waiting for review, open, answered, closed) and its own conversation. It lives outside every Workspace, is never added to a Workspace Export, carries no Metric name, value or other Workspace data, and is seen only by the person who sent it (My feedback) and by the Ziffr team. Not a Finding (an observation about numbers), a Question or a Task (asked of a person in their Workspace), nor the Feedback Prompt (the card that asks whether people like Ziffr).
+_Avoid_: Ticket, support request, report, review
+
 **Feed**:
 A program outside Ziffr that brings in values for some metrics from another system, such as a CRM or a data warehouse. It belongs to the Workspace, not to a person, and only Owners and Admins create one. It is a Submitter of its own, uses a Feed Key, is never sent Prompts, and keeps working when the person who created it leaves. Ziffr never runs its code or holds its credentials for the other system. An n8n or Zapier flow that sends values is an automation, never a Workflow.
 _Avoid_: Integration, sync, pipeline, connector, workflow
