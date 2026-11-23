@@ -6,6 +6,7 @@
 // demo calls each night seeds it again and its periods keep reaching up to today. Docker's first start and
 // `prototype:reset` seed it too, in SQL only.
 import { db, seedingDemo } from "./db";
+import { scanWorkspace } from "./heads-ups";
 import { seedDemoSnapshots } from "./demo-snapshots";
 import { askForMissingValues, sendDueReminders } from "./questions";
 import { DEMO_WORKSPACE_ID } from "./team";
@@ -15,6 +16,15 @@ export async function resetDemoWorkspace(): Promise<boolean> {
   const { data: done, error } = await db().rpc("demo_reset");
   if (error) throw new Error("The demo could not be reset. Try again in a minute.");
   if (!done) return false;
+  // The three years of history are seeded by a function of their own (#987), before anything that reads the values: the Snapshots, the close.
+  const history = await db().rpc("prototype_seed_history");
+  if (history.error) console.error("Demo: no three years of history", history.error.message);
+  // The Heads-up job never scans the demo, so the pairs that move together are looked at here, once a night, as the job would look at a Workspace.
+  try {
+    await seedingDemo(() => scanWorkspace(DEMO_WORKSPACE_ID, new Date().toISOString()));
+  } catch (e) {
+    console.error("Demo: no Heads-ups", e instanceof Error ? e.message : e);
+  }
   // The pins are seeded by a function of their own, so no other migration has to carry them (#764).
   const pins = await db().rpc("prototype_seed_pins");
   if (pins.error) console.error("Demo: no pinned dashboards", pins.error.message);

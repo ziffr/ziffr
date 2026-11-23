@@ -60,6 +60,7 @@ Ziffr keeps everything in Postgres. The server makes outgoing connections only t
 
    ```sql
    select demo_reset(interval '0 seconds');
+   select prototype_seed_history();
    select prototype_seed_pins();
    select prototype_seed_close();
    select prototype_seed_fill_in();
