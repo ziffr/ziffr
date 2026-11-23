@@ -143,6 +143,7 @@ Acts as the person, with their own sign-in, Slack or Telegram account or email a
 - `updateMyProfile` (profile.ts): one's own profile
 - `setMyAppearance` (profile.ts): one's own Appearance
 - `setPreference` (questions.ts): one's own reminder channel
+- `sendTestMessage` (test-message.ts): a Test Message to oneself, for the app's buttons; a program cannot message a person (spec 0052)
 - `startSetupGuide` (setup-guide.ts): the Setup Guide is for people in the app (spec 0052); programs never set up a Workspace
 - `setupGuide` (setup-guide.ts): the viewer's own guide steps, for the app
 - `skipSetupStep` (setup-guide.ts): skipping a step of the guide, for the app

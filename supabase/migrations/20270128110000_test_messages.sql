@@ -18,6 +18,10 @@ create index test_message_sends_person on test_message_sends (workspace_id, pers
 alter table test_message_sends enable row level security;
 revoke all on table test_message_sends from public, anon, authenticated;
 select attach_demo_guard('test_message_sends');
+-- Closed to the demo's visitors (spec 0051's allow-list): the demo never sends a Test Message, and holds no row here.
+insert into demo_closed_tables (table_name, reason) values
+  ('test_message_sends', 'The demo sends no Test Message: it sends nothing (spec 0052).')
+on conflict (table_name) do nothing;
 
 -- Lets one press through or says which limit stops it: 'ok', or 'window|<when it resets>' (too many by this way in the
 -- last p_window_minutes), or 'day|<when it resets>' (too many by all ways in the last 24 hours). The person's rows are
