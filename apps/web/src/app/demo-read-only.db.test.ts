@@ -138,6 +138,7 @@ const CASES: Record<string, Case> = {
   "deck-actions:noteDeckExport": { nothing: "it only records an Audit event, and the demo keeps no Audit Log", args: (i) => [i.deck, "pdf"] },
   "design-actions:addViewDesign": { args: () => [JSON.stringify(BUILT_IN_DESIGNS.number)] },
   "design-actions:removeViewDesign": { nothing: "the demo has no View Designs", args: () => [1] },
+  "fill-in-actions:fillInForSubmitter": { args: (i) => [{ metricId: i.metric, period: "2026-03-01", for: "someone", value: "42" }] },
   "feed-actions:createFeed": { args: () => ["Visitor feed"] },
   "feed-actions:renameFeed": { args: () => ["feed-x", "Renamed"] },
   "feed-actions:deleteFeed": { args: () => ["feed-x"] },
