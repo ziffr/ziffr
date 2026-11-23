@@ -186,6 +186,17 @@ Mutation testing changes the code on purpose and expects a test to fail. A chang
 - `src/compare.ts` · EqualityOperator · The difference to a target range: a value exactly on the upper bound is 0 from it, which is what inside the range gives too.
 - `src/basis.ts` · EqualityOperator · Putting a series in order by period: the periods are unique once a period given twice is kept once, so `<` and `<=` never differ.
 - `src/work-bound.ts` · EqualityOperator · Reading a size without its sign, and choosing the largest and the smallest size: for 0 the sign does not matter (0 is left out), and of equal sizes either is the largest, or the smallest, the same size.
+- `src/methods/fit.ts` · CallExpression · The counting of work (`charge`, `spendOn`): it only counts against the work allowance of work-bound.ts, and no number of a fit that is not stopped depends on it.
+- `src/methods/fit.ts` · MethodExpression · The width counted for a column of the sums of products: work is counted, never a number.
+- `src/methods/fit.ts` · ArithmeticOperator · The size of the work counted for a sum of products: work is counted, never a number.
+- `src/methods/partial-correlation.ts` · ArrayDeclaration · The early refusal of values too wide: without it the suitability check refuses with the same words, and the early one only saves the exact work before it.
+- `src/methods/partial-correlation.ts` · ArrowFunction · The early refusal of values too wide: without it the suitability check refuses with the same words, and the early one only saves the exact work before it.
+- `src/methods/partial-correlation.ts` · ConditionalExpression · The early refusal of values too wide: without it the suitability check refuses with the same words, and the early one only saves the exact work before it.
+- `src/methods/lagged-correlation.ts` · ArrayDeclaration · The early refusal of values too wide: without it the suitability check refuses with the same words, and the early one only saves the exact work before it.
+- `src/methods/lagged-correlation.ts` · ArrowFunction · The early refusal of values too wide: without it the suitability check refuses with the same words, and the early one only saves the exact work before it.
+- `src/methods/lagged-correlation.ts` · ConditionalExpression · The early refusal of values too wide: without it the suitability check refuses with the same words, and the early one only saves the exact work before it.
+- `src/methods/before-after.ts` · StringLiteral · The name of the Method in the refusal that only a spent work allowance writes; the wording of that refusal is held by the test of `withinBudget`.
+- `src/methods/change-point.ts` · StringLiteral · The name of the Method in the refusal that only a spent work allowance writes; the wording of that refusal is held by the test of `withinBudget`.
 - `src/suitability.ts` · EqualityOperator · Reading a size without its sign: for 0 the sign does not matter, and reading every size negative leaves every ratio of sizes (deviations, the yearly patterns) as it was.
 - `src/suitability.ts` · EqualityOperator · The sign of a miss: misses of 0 are left out before, and reading every sign the other way swaps the two counts of signs and keeps the number of runs.
 - `src/methods/distributions.ts` · EqualityOperator · The halving of the t quantile's interval: 100 steps are far below a double's last digit, so one more changes nothing, and a chance exactly equal to the wanted one has probability 0, so `<` and `<=` give the same point.

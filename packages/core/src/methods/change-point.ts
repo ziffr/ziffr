@@ -155,6 +155,7 @@ export function checkedChangePoint(name: string, points: Point[], span: Span) {
  * change in slope by more than a fifth of its range, or makes the change go away), the note on the latest 120 periods, the basis
  * (which says the bar for chance was raised for the dates tried) and one line of what it assumes. No strength word. */
 export function changePointTakeaway(name: string, points: Point[], span: Span, unit: ValueUnit, ctx: TakeawayContext): Takeaway {
+  // Stryker disable next-line StringLiteral: the key names the Method in the refusal that only a spent allowance writes; the wording of that refusal is held by the test of withinBudget.
   return withinBudget("numbers-method-change-point", ctx, () => changePointTakeawayWithin(name, points, span, unit, ctx));
 }
 
