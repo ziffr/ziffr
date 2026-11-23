@@ -128,7 +128,7 @@ Each card shows the Metric's name, what it counts, its period, which way is good
 
 ### The form
 
-The form has three parts. The panel on the right says that you become the **Owner**: "The owner keeps the description up to date and accepts corrections to its values." **Create metric** saves it; **Cancel** goes back to the list.
+The form is short: three parts, and **More options** below them for what you rarely change. The panel on the right says that you become the **Owner**: "The owner keeps the description up to date and accepts corrections to its values." **Create metric** saves it; **Cancel** goes back to the list.
 
 **What is it?**
 
@@ -138,18 +138,36 @@ The form has three parts. The panel on the right says that you become the **Owne
 | **Description** | What exactly is counted, and what isn't. Would a new colleague understand it? |
 | **Format** | **Number**, **Money** or **Percent**. Choosing **Money** fills in the unit of the Workspace Profile's currency: "€" after the number for euros, "$" before it for dollars, otherwise the currency's code before it, such as "CHF ". You can change it. A Percent Metric's values are numbers such as 12.5, not 0.125. |
 | **Unit** | What stands next to the number, such as "€", "$", "d", "pc" or "%". Any text up to 20 characters; leave it empty for plain numbers. |
-| **Stands** | Whether the unit stands **after** the number ("1.200 €", "12 d", with a space) or **before** it ("$1,200", without one; a unit such as "CHF " keeps the space it ends with). |
-| **Decimals** | How many digits after the decimal point, from 0 to 4. A line under these fields shows how a value will read, in the Workspace's Number Style. |
 
 **How do values arrive?**
 
 | Field | What it does |
 | --- | --- |
 | **Period** | **Daily**, **Weekly**, **Monthly**, **Quarterly** or **Yearly**: one value per period. Quarters and years start from the Workspace's fiscal year (**Workspace → General**), so with a year that starts in April, Q1 is April to June. The period cannot change once the Metric has values, or targets or projections on its Targets tab. |
+| **Who submits** | The people who send in its values, members and Contacts alike. Each one gets a personal form link for this Metric and a first request for the value. You are ticked to start with when you create a Metric; a copy starts with the original's Submitters. |
+
+**Target**
+
+| Field | What it does |
+| --- | --- |
+| **Which way is good** | The **Polarity**: **Higher is better**, **Lower is better** or **Closer to target is better**. |
+| **Target from** | The lower end of the Target Range. Leave it empty for no lower end. |
+| **Target to** | The upper end. Leave it empty for no upper end. |
+
+**More options**
+
+A folded section below Target. Opening it shows the fields below; leave it closed and Ziffr uses the defaults named in the table, which is what the form always used. While it is closed, its heading names every value that is not the default, such as "2 decimals · Aggregation: Average". It opens by itself when a Metric you duplicate, or one from the Catalog, has values that are not the defaults, and when a value in it is not valid.
+
+| Field | What it does |
+| --- | --- |
+| **Stands** | Whether the unit stands **after** the number ("1.200 €", "12 d", with a space) or **before** it ("$1,200", without one; a unit such as "CHF " keeps the space it ends with). |
+| **Decimals** | How many digits after the decimal point, from 0 to 4. A line under Format and Unit shows how a value will read, in the Workspace's Number Style. |
 | **A second value for the same period** | The **Submission Rule**: what happens when another value arrives for a period that already has one. See the table below. |
 | **Aggregation** | How values combine into a longer period, for comparisons such as QoQ or YoY and for Widgets shown by quarter or year (**Show by**, see the Dashboards chapter): **Sum** (counts and amounts, such as revenue or deals), **Average** (levels, such as a score or a delivery time), **Last value** (stocks, such as a balance or headcount) or **Does not combine** (rates and ratios). |
 | **Sources** | The ways values may arrive: **Slack**, **Mail**, **Telegram**, **Web form** and **API and Feeds**. All are ticked for a new Metric, so each Submitter can use what suits them. A value that arrives another way is refused. In the demo, Slack and Mail are marked "(played in the demo)": nothing is really sent. |
-| **Who submits** | The people who send in its values, members and Contacts alike. Each one gets a personal form link for this Metric and a first request for the value. You are ticked to start with when you create a Metric; a copy starts with the original's Submitters. |
+| **Attainment** | How the percentage of target is computed: **As the workspace** (the default, set on **Workspace → General**), **By ratio** or **By distance**. See [Comparisons](#comparisons). |
+
+Defaults: the unit stands where its sign suggests (before a "$", after a "%" or "d"), **Decimals** 0, **A second value** overwrites, **Aggregation** is Sum, all **Sources** are ticked, and **Attainment** follows the Workspace.
 
 The four Submission Rules:
 
@@ -159,15 +177,6 @@ The four Submission Rules:
 | **Overwrite with the newer value** | It replaces the first. The first is kept as a **Superseded Value**. | Figures reported again in full, where the latest report wins. |
 | **Add up all values** | It is added to the first. Values that arrive at the same moment all count. | Counts reported in pieces: "3 deals", then "2 more". |
 | **Keep every value** | Both are kept. | Repeated measurements, such as weight twice a day. |
-
-**Target**
-
-| Field | What it does |
-| --- | --- |
-| **Which way is good** | The **Polarity**: **Higher is better**, **Lower is better** or **Closer to target is better**. |
-| **Target from** | The lower end of the Target Range. Leave it empty for no lower end. |
-| **Target to** | The upper end. Leave it empty for no upper end. |
-| **Attainment** | How the percentage of target is computed: **As the workspace** (the default, set on **Workspace → General**), **By ratio** or **By distance**. See [Comparisons](#comparisons). |
 
 After **Create metric**, the Metric's page opens with the note "Metric created. It has no values yet." Under it, one sentence says what really happened: who got a form link and a first request and by which way ("Ana got a form link and a first request by email."); that nobody submits it yet, with where to add Submitters; or, when this Ziffr sends no email, that nothing was sent and the request waits in the Outbox. Only the Metric's owner, who made it, sees who was asked. In the demo, where nothing is really sent, the note ends with **Go to Sources**, which opens the **Sources** tab of **Connectors** so you can answer the request there.
 
@@ -193,6 +202,7 @@ A Metric's page has one main button, and the rest sit in the **⋯** menu.
 | **Share** | Gives people or Groups access (see below). | The Metric Owner |
 | **⋯** → **Ask me now** | Sends you this period's **Prompt** for the Metric at once, by your own Connector (email, Slack or Telegram), instead of waiting for the Workflow. A message says where it went ("Sent to you on Slack", with a note when that is not your usual way because the Metric does not accept values that way), why it stayed in the Outbox, or why it could not ask now, such as when it already asked in the last ten minutes. At most once every ten minutes per Metric. | The Metric's owner, when they submit it too |
 | **⋯** → **Alert me…** | Opens a panel on the right with your Alerts on this Metric and a form to set another: Ziffr tells you once when the latest value **reaches a share of its target**, **reaches a value** (at or above), **falls below a value**, **changes more than a share** against the period before, or **has no value the day after its Due Date**. Choose a way to be told (your usual way, email, Slack or Telegram) and whether to **Include values not approved yet**; off, you hear only about published or approved values. A kind the Metric cannot give is greyed out with the reason: a share needs a target with a percentage, the Due Date needs a Workflow. The dialog says how many Alerts you hold against the limits (20 in a Workspace, 5 on one Metric) before you hit them. Each Alert can be paused, edited or deleted there. With the preview layout on, it opens as a panel on the right instead of a dialog, with the same content. Not shown in the demo, and not for an Archived Metric. | Everyone with a sign-in who sees the Metric If you have a Personal Webhook, the form also offers **Also send to** with your Webhooks, so a ticked one gets an `alert.fired` message each time the Alert fires (see [Your Alerts](17-your-settings.md#your-alerts)). |
+| **⋯** → **Fill past periods with my assistant…** | Opens a text to copy into your own assistant (one connected to Ziffr that can read where your numbers are) that fills in the Metric's last 12 periods once, from the place you name. It tells the assistant to look at which periods already have a value and never record over one, to show you a table of what it found before it records anything, to record each value through Ziffr's tools, and to stop and ask when a number looks off. It is not a schedule: use [Fill from n8n](#who-submits) for numbers that keep coming. Ziffr does not run the text, sends it nowhere and gives the assistant no key; what it records is recorded as you, by the Metric's own rules (an unusual value may wait for Approval). The Metric's name and description are in the text as quoted data, which the text tells the assistant never to obey. | Everyone who submits the Metric |
 | **⋯** → **Analyze** | Opens the Metric on an **Analysis Canvas** (see [Analyze](13-analyze.md)). | Everyone who sees the Metric |
 | **⋯** → **Duplicate** | Starts a new Metric with the same description (see below). | Owners, Admins and Members; not for a Derived Metric |
 | **⋯** → **Add to dashboard** | Places the Metric on one of your dashboards as a widget drawn with the default **Widget Template**. Lists the dashboards you own or may edit. | Everyone; greyed out when you have no such dashboard |

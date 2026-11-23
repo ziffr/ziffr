@@ -5,18 +5,16 @@ import { isActionError, UNEXPECTED } from "@/lib/action-error";
 import { useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { Trash2 } from "lucide-react";
 import { deleteDeck } from "@/app/deck-actions";
-import { Button, buttonVariants } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 
-/** "Delete…" with a confirmation. Owner only: the page shows it only to the owner, and the core checks again. */
-export function DeleteDeck({ deckId, name }: { deckId: number; name: string }) {
+/** The confirmation that "Delete…" in the editor's ⋯ menu opens. Owner only: the page offers it only to the owner, and the core checks again. */
+export function DeleteDeckDialog({ deckId, name, onClose }: { deckId: number; name: string; onClose: () => void }) {
   const [pending, start] = useTransition();
   const router = useRouter();
   return (
-    <Dialog>
-      <DialogTrigger className={buttonVariants({ variant: "outline" })}><Trash2 aria-hidden /> Delete…</DialogTrigger>
+    <Dialog open onOpenChange={(o) => { if (!o) onClose(); }}>
       <DialogContent className="sm:max-w-md">
         <DialogTitle>Delete {name}?</DialogTitle>
         <p className="text-sm text-muted-foreground">Its slides, Shares and View Links go with it, and this cannot be undone. Its widgets and the Metrics behind them stay.</p>

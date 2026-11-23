@@ -132,7 +132,7 @@ export function PlaygroundScreen({ data: page, manages }: { data: CanvasData; ma
         )}
         <div className="overflow-hidden rounded-[var(--radius-card)]" style={{ height: Math.max(240, design.size.h * 52) }}>
           <SeriesProvider ensure={ensure}>
-            <ReadOnlyFrame widget={widget} data={mine && filled ? data : sample} />
+            <ReadOnlyFrame widget={widget} data={mine && filled ? data : sample} wordsUnder />
           </SeriesProvider>
         </div>
         {mine && !filled && <p className="text-xs text-muted-foreground">Choose a Metric for every Slot; until then it is drawn with Sample Data.</p>}
