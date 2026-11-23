@@ -216,7 +216,7 @@ The chart draws the Metric's values over time. A daily Metric shows its last 90 
 | The question | Filled in for you, such as "Why is cost so high in March?" when the value is off target. Change it as you like. |
 | **Assign Action** | Sends the **Question** and opens its page, where the **Thread** continues. |
 
-See [Actions](15-actions.md) for what happens next. On a Metric's page and its period page, an Approval in the list of Actions reads as a plain question ("Approve Revenue for Oct 2026: 118,941 €, below target."), without the chat words "Reply approve"; opening it shows the buttons. With no values yet, the chart is replaced by a note saying how values arrive, with a link to see who submits.
+See [Actions](15-actions.md) for what happens next; the Questions and Tasks you asked also show on your Schedule under **Asked by me**, where finished ones are grey with a tick, never red. On a Metric's page and its period page, an Approval in the list of Actions reads as a plain question ("Approve Revenue for Oct 2026: 118,941 €, below target."), without the chat words "Reply approve"; opening it shows the buttons. With no values yet, the chart is replaced by a note saying how values arrive, with a link to see who submits.
 
 ### Comparisons
 
