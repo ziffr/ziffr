@@ -28,6 +28,8 @@ export const FORMULA_MAX_DIGITS = 20;
  * the bounds above and values of at most 10^15 with six decimals, as values are kept, no formula comes near it. */
 export const FORMULA_MAX_BITS = 8192;
 
+/** A formula read into a tree: a number, a Metric, a Metric's value one period back, a minus sign in front of a value, or two values with an operator between them. */
+export type FormulaNode = Node;
 type Node = { k: "num"; v: string } | { k: "ref"; slug: string } | { k: "back"; slug: string; change: boolean } | { k: "neg"; a: Node } | { k: "op"; op: "+" | "-" | "*" | "/"; a: Node; b: Node };
 type Token = { t: string; at: number };
 
@@ -103,6 +105,11 @@ function parse(formula: string): { ok: true; node: Node } | { ok: false; reason:
     // Only `fail` throws while reading.
     return { ok: false, reason: (e as FormulaError).message };
   }
+}
+
+/** A formula read into a tree, or why it cannot be read (the same reading `evaluate` and `checkFormula` go by): for what draws the formula's parts, such as the formula tree of a View Design. */
+export function readFormula(formula: string): { ok: true; node: FormulaNode } | { ok: false; reason: string } {
+  return parse(formula);
 }
 
 class FormulaError extends Error {}

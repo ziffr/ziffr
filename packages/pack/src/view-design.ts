@@ -52,6 +52,7 @@ export type Part =
   | { mark: "bridge"; show: RecipeShow; when?: Flag[] }
   | { mark: "polar"; show: "values" | RecipeShow; when?: Flag[] }
   | { mark: "radar"; show: "latest"; against?: "previous"; when?: Flag[] }
+  | { mark: "tree"; show: "formula"; when?: Flag[] }
   | { mark: "progress"; show: "latest"; when?: Flag[] }
   | { mark: "scoreboard"; show: "latest"; when?: Flag[] }
   | { mark: "stacked"; show: "breakdown"; when?: Flag[] }
@@ -261,6 +262,7 @@ export const VIEW_DESIGN_SCHEMA: Schema = {
         mark("cumulative", "The running total of the Metric since the start of its year, restarting each year, with a line for the plan (the running total of its Target Series, or of its target when that has one bound; drawn when the option showTarget is on) and a lighter one for last year. The Metric's Aggregation must be sum; any other is refused in words.", { show: { const: "year" } }, ["show"]),
         mark("bump", "A bump chart: one line per row of the Metric's Breakdown across its periods, the vertical axis the rank (1 at the top) and not the value; at most 8 rows (the best average rank), a row a period lacks is a gap and never last, ties share the better rank, and the row that gained the most places says so in words; a period without a Breakdown is left out and counted.", { show: { const: "breakdown" } }, ["show"]),
         mark("heatmap", "The periods of one Metric as a grid of squares shaded by value: a daily Metric as weeks in columns and weekdays in rows, a weekly one as ISO years by week 1 to 53, a monthly one as years by the months of the Workspace's year. Five steps of the data tone by each value's rank among the squares drawn; darker is a higher value, never a better one. A period without a value is an empty outline, never a 0. A Metric by quarter or year is refused in words. The option “window” counts weeks (daily) or years (weekly, monthly).", { show: { const: "values" } }, ["show"]),
+        mark("tree", "The parts of a Derived Metric's formula as boxes, from the Metric's own value in its latest period down through each part, every box an exact number: the parts of a sum share the width of the box above them by their size, the factors of a product or a ratio are laid side by side equally and are not to scale. The first Slot must be a Derived Metric whose inputs are all shared with the viewer; at most 4 levels and 24 boxes.", { show: { const: "formula" } }, ["show"]),
       ],
     },
     plotMark: {
