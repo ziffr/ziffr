@@ -20,6 +20,7 @@ A **Widget Template** is a starting point for one Widget: a way of drawing a num
 | | Bars per period | One bar per period, coloured by target |
 | | Gauge vs. target | Where the latest value sits against the target |
 | | History table | The last values as a list |
+| | Stacked bars over time | How a Breakdown changes period by period: one stacked bar each. Offered for a Metric that has a Breakdown |
 | Analyses | Forecast | The trend projected a few periods ahead |
 | | Correlation | Whether two Metrics move together |
 | | Correlation matrix | Every pair of several Metrics at once |
