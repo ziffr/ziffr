@@ -1542,6 +1542,26 @@
             "show"
           ],
           "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "description": "One row for each of 3 to 12 Metrics, in the order of the Slots: its name, latest value, change against the previous period, whether it is on target, and a small trend.",
+          "properties": {
+            "mark": {
+              "const": "scoreboard"
+            },
+            "show": {
+              "const": "latest"
+            },
+            "when": {
+              "$ref": "#/$defs/when"
+            }
+          },
+          "required": [
+            "mark",
+            "show"
+          ],
+          "additionalProperties": false
         }
       ]
     },
