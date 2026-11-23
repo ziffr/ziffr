@@ -203,12 +203,7 @@ async function takeValue(input: SubmissionInput, effects: SubmissionEffects, pro
   if (condensedDay) return log({ ...base, ok: false, outcome: "rejected_period_condensed", detail: condensedRefusal(condensedDay) });
 
   // A locked period takes no more values: a late one becomes a proposal for the metric owner (GLOSSARY: Lock).
-  if (await isLocked(metric.id, period)) {
-    // A Stand-in's Token stays narrowed for a late value too: no Access Key, only the periods they were asked about (spec 0046).
-    const lateRefused = filled || ownerFill ? null : await standInLateRefusal(workspaceId, metric, period, { source: input.source }, senderId, token.stands_in_for ?? prompt?.stands_in_for ?? null);
-    if (lateRefused) return log({ ...base, ok: false, outcome: "rejected_fill_in", detail: lateRefused });
-    return log({ ...base, ...(await proposeLate({ ws: workspaceId, metric, period, value, senderName: sender?.name, senderId, preview, fv, when, notify: effects.notifyCorrection })) });
-  }
+  if (await isLocked(metric.id, period)) return log({ ...base, ...(await lateValue({ ws: workspaceId, metric, period, value, senderName: sender?.name, senderId, preview, fv, when, notify: effects.notifyCorrection }, { filled: Boolean(filled || ownerFill), source: input.source, token, prompt })) });
 
   // A Stand-in's answer to a Prompt sent in someone's place is the submitter's value, entered by the Stand-in; asked after
   // the Lock, so a late one is still proposed as a Correction, as any late value is.
@@ -329,6 +324,16 @@ function outcomeWords(data: { outcome: string; after: number | string; earlier: 
 function breakdownWords(breakdown: { rows: BreakdownInput[]; total: number | null }, rowsSum: number, fv: (v: number) => string): string {
   const off = breakdown.total !== null && Math.abs(rowsSum - breakdown.total) > Math.abs(breakdown.total) * 0.001;
   return ` With a breakdown of ${breakdown.rows.length} rows.${off ? ` The rows add up to ${fv(rowsSum)}, the total says ${fv(breakdown.total!)}; the total counts.` : ""}`;
+}
+
+/** A value for a locked period: refused for a Stand-in outside what their Token is narrowed to (spec 0046: no Access Key,
+ * only the periods they were asked about), otherwise proposed as a Correction as any late value is. A Filled-in Value
+ * already decided on (by the Metric's or the Workflow's owner) is not a Stand-in's answer and goes straight to the proposal. */
+async function lateValue(i: Parameters<typeof proposeLate>[0], by: { filled: boolean; source: SourceId; token: Token; prompt: AnsweredPrompt | null }): Promise<{ ok: false; outcome: string; detail: string }> {
+  const standsFor = by.token.stands_in_for ?? by.prompt?.stands_in_for ?? null;
+  const refused = by.filled ? null : await standInLateRefusal(i.ws, i.metric, i.period, { source: by.source }, i.senderId, standsFor);
+  if (refused) return { ok: false, outcome: "rejected_fill_in", detail: refused };
+  return proposeLate(i);
 }
 
 /** A value for a locked period (GLOSSARY: Lock, Correction): it changes nothing; it becomes a proposal for the Metric's owner,
