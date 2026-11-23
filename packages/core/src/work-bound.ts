@@ -10,7 +10,8 @@
 //      double. Values that people keep (money to the cent, a price to 8 decimals, a rate computed as a double, which has 17
 //      significant digits, down to 1e-23) are far inside.
 //   2. `withWork` and `spend`: a Method that keeps many exact numbers at once (the multiple fit, which solves for every
-//      driver, refits for each pair it merges and again without the far-off periods) counts the digit work it does and stops
+//      driver, refits for each pair it merges and again without the far-off periods; the forecast; before and after; the change
+//      point; partial, lagged and rank correlation; the usual range; the ranking of Metrics) counts the digit work it does and stops
 //      when its allowance is spent, so that even values inside the first limit (or a very large size, which no decimal place
 //      catches) cannot keep the server busy for long. The count is of digits, not of seconds: the same input spends the same
 //      on every machine, and stops at the same step.

@@ -406,7 +406,7 @@ function NotCombined({ reasons }: { reasons: string[] }) {
   return <ul className="widget-text-xs mt-1 space-y-0.5 text-muted-foreground">{unique.map((r) => <li key={r}>{r}</li>)}</ul>;
 }
 
-const leftOutReasons = (v: DesignValues) => (v.drivers?.leftOut ?? []).map((l) => (l.why === "not-combined" ? l.reason : `${l.metric.name}: ${l.reason}`));
+const leftOutReasons = (v: DesignValues) => [...new Set((v.drivers?.leftOut ?? []).map((l) => (l.why === "not-combined" || l.why === "too-much" ? l.reason : `${l.metric.name}: ${l.reason}`)))];
 const matrixReasons = (v: DesignValues) => (v.matrix ?? []).flat().flatMap((c) => (c && !c.ok && c.why === "not-combined" ? [c.reason] : []));
 
 function MatrixRows({ v }: { v: DesignValues }) {

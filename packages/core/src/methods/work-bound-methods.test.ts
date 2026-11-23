@@ -89,7 +89,7 @@ describe("checkSuitability refuses wide values first, for every Method", () => {
 
 describe("the multiple fit on hostile values", () => {
   const [ordinary, tiny, huge, fine] = (["ordinary", "tiny", "huge", "dense"] as const).map((k) => [series(k, 1), ...[2, 3, 4, 5, 6, 7].map((s) => series(k, s))]);
-  it.each([1, 2, 3, 4, 5, 6])("refuses %s drivers of tiny values before any exact arithmetic, naming each series, in well under a second (it took 1 to 34 seconds)", (k) => {
+  it.each([1, 2, 3, 4, 5, 6])("refuses %s drivers of tiny values before any exact arithmetic, naming each series, in a bounded time (it took 1 to 34 seconds)", (k) => {
     const { result, ms } = timed(() => fit(input(tiny[0], tiny.slice(1, 1 + k))));
     expect(ms).toBeLessThan(QUICK);
     expect(result).toEqual({ ok: false, refusals: Array.from({ length: k + 1 }, (_, i) => ({ case: "refuse-exact-places", slots: { name: i === 0 ? "Revenue" : ["Visits", "Price", "Tickets", "Churn", "Orders", "Returns"][i - 1], places: 40, orders: 30 } })) });
@@ -156,7 +156,7 @@ describe("predict and needs on a model a program handed over", () => {
     expect(predict(good, [150, 160]).ok).toBe(true);
     expect(needs(good, { goal: 150, driver: 0 }).ok).toBe(true);
   });
-  it("answer in well under a second for the largest values a double holds, six drivers, 120 periods (one refit is far inside the limits)", () => {
+  it("answer in a bounded time for the largest values a double holds, six drivers, 120 periods (one refit is far inside the limits)", () => {
     const big = Array.from({ length: 7 }, (_, j) => series("huge", 20 + j));
     const model: Fit = { ...good, drivers: Array.from({ length: 6 }, (_, j) => ({ ...good.drivers[0], name: `D${j}`, low: -Infinity, high: Infinity })), rows: big[0].map((p, i) => ({ period: p.period, y: p.value, x: big.slice(1).map((s) => s[i].value) })), last: { y: big[0][0].value, x: big.slice(1).map((s) => s[0].value) } };
     const p = timed(() => predict(model, big.slice(1).map((s) => s[0].value)));
@@ -382,10 +382,10 @@ describe.each(Object.entries(LEGIT))("legitimate values: %s", (_name, make) => {
   });
 });
 
-describe("the worst values the limits admit: 17 digits at 20 places beside 17 digits of 1e16, 120 periods", () => {
+describe("the worst values the bounds admit: 17 digits at 40 places beside 17 digits of 1e5, 120 periods", () => {
   const [y, x, c1, c2, c3] = [1, 2, 3, 4, 5].map((s) => series("dense", s));
   const m = metric({ period: "month", name: "Revenue" });
-  it("every Method answers or refuses in well under a second (the bound here is generous so that a busy machine never fails it)", () => {
+  it("every Method answers, or refuses in words by the work allowance, in a bounded time (the case assertions carry the guarantee; the time is only a generous bound)", () => {
     const runs: [string, () => unknown][] = [
       ["fit of 6", () => fit(input(y, [x, c1, c2, c3, series("dense", 6), series("dense", 7)]))],
       ["importance of 3", () => importance(input(y, [x, c1, c2]))],
@@ -438,7 +438,7 @@ describe("long series are cut to the latest 120 periods, and the Takeaway says s
   const long = [1, 2, 3, 4, 5].map((s) => days(s, 3650));
   const note = "Only the latest 120 days with a value in common are used.";
   const notes = (t: { kind: string; notes: string[] }) => (t.kind === "answer" ? t.notes : []);
-  it("partial, lagged and rank correlation and the usual range on 3,650 daily values answer in well under a second, with the note, as on the latest 120 alone", () => {
+  it("partial, lagged and rank correlation and the usual range on 3,650 daily values answer in a bounded time, with the note, as on the latest 120 alone", () => {
     const cut = (s: Point[]) => s.slice(-120);
     const runs: [string, () => ReturnType<typeof usualRangeTakeaway>, () => ReturnType<typeof usualRangeTakeaway>][] = [
       ["partial", () => partialTakeaway({ a: "A", b: "B", held: ["C", "D", "E"] }, long[0], long[1], long.slice(2), "day", ctx), () => partialTakeaway({ a: "A", b: "B", held: ["C", "D", "E"] }, cut(long[0]), cut(long[1]), long.slice(2).map(cut), "day", ctx)],
