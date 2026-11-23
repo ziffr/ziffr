@@ -1,0 +1,402 @@
+{
+  "format": "ziffr.pack/1",
+  "id": "ziffr/customer-support",
+  "name": "Customer support",
+  "version": "1.0.0",
+  "summary": "Tickets opened, closed and open, the old ones, first response and resolution times, satisfaction and reopens, with a weekly dashboard and a Workflow that asks for last week's figures on Monday.",
+  "author": {
+    "name": "Ziffr"
+  },
+  "license": "CC-BY-4.0",
+  "ziffr": ">=0.11",
+  "listing": {
+    "homepage": "https://github.com/ziffr/ziffr/tree/main/packs"
+  },
+  "contents": {
+    "metrics": [
+      {
+        "key": "tickets-opened",
+        "metric": {
+          "format": "ziffr.metric/1",
+          "name": "Tickets opened",
+          "description": "Support tickets that customers opened in the week.",
+          "category": "Support",
+          "period": "week",
+          "aggregation": "sum",
+          "polarity": "target",
+          "valueFormat": "number",
+          "decimals": 0,
+          "submissionRule": "overwrite",
+          "sources": [
+            "web_form",
+            "mail",
+            "slack",
+            "telegram",
+            "api"
+          ],
+          "tags": [
+            "Support",
+            "Weekly report"
+          ]
+        }
+      },
+      {
+        "key": "tickets-closed",
+        "metric": {
+          "format": "ziffr.metric/1",
+          "name": "Tickets closed",
+          "description": "Support tickets that were resolved and closed in the week.",
+          "category": "Support",
+          "period": "week",
+          "aggregation": "sum",
+          "polarity": "higher",
+          "valueFormat": "number",
+          "decimals": 0,
+          "submissionRule": "overwrite",
+          "sources": [
+            "web_form",
+            "mail",
+            "slack",
+            "telegram",
+            "api"
+          ],
+          "tags": [
+            "Support",
+            "Weekly report"
+          ]
+        }
+      },
+      {
+        "key": "open-tickets",
+        "metric": {
+          "format": "ziffr.metric/1",
+          "name": "Open tickets",
+          "description": "Tickets still open at the end of the week.",
+          "category": "Support",
+          "period": "week",
+          "aggregation": "last",
+          "polarity": "lower",
+          "valueFormat": "number",
+          "decimals": 0,
+          "submissionRule": "overwrite",
+          "sources": [
+            "web_form",
+            "mail",
+            "slack",
+            "telegram",
+            "api"
+          ],
+          "tags": [
+            "Support",
+            "Weekly report"
+          ]
+        }
+      },
+      {
+        "key": "old-tickets",
+        "metric": {
+          "format": "ziffr.metric/1",
+          "name": "Tickets open over 7 days",
+          "description": "Tickets that have been open for more than seven days at the end of the week.",
+          "category": "Support",
+          "period": "week",
+          "aggregation": "last",
+          "polarity": "lower",
+          "valueFormat": "number",
+          "decimals": 0,
+          "submissionRule": "overwrite",
+          "targetMax": 10,
+          "sources": [
+            "web_form",
+            "mail",
+            "slack",
+            "telegram",
+            "api"
+          ],
+          "tags": [
+            "Support"
+          ]
+        }
+      },
+      {
+        "key": "first-response",
+        "metric": {
+          "format": "ziffr.metric/1",
+          "name": "First response time",
+          "description": "The average hours from a ticket arriving to the first human answer, for the tickets answered in the week.",
+          "category": "Support",
+          "period": "week",
+          "aggregation": "average",
+          "polarity": "lower",
+          "unit": "hours",
+          "unitPosition": "after",
+          "valueFormat": "number",
+          "decimals": 1,
+          "submissionRule": "overwrite",
+          "sources": [
+            "web_form",
+            "mail",
+            "slack",
+            "telegram",
+            "api"
+          ],
+          "tags": [
+            "Support",
+            "Weekly report"
+          ]
+        }
+      },
+      {
+        "key": "resolution-time",
+        "metric": {
+          "format": "ziffr.metric/1",
+          "name": "Resolution time",
+          "description": "The average hours from a ticket arriving to it being resolved, for the tickets resolved in the week.",
+          "category": "Support",
+          "period": "week",
+          "aggregation": "average",
+          "polarity": "lower",
+          "unit": "hours",
+          "unitPosition": "after",
+          "valueFormat": "number",
+          "decimals": 1,
+          "submissionRule": "overwrite",
+          "sources": [
+            "web_form",
+            "mail",
+            "slack",
+            "telegram",
+            "api"
+          ],
+          "tags": [
+            "Support"
+          ]
+        }
+      },
+      {
+        "key": "csat",
+        "metric": {
+          "format": "ziffr.metric/1",
+          "name": "Customer satisfaction",
+          "description": "The share of rated tickets where the customer was satisfied, in the week.",
+          "category": "Support",
+          "period": "week",
+          "aggregation": "average",
+          "polarity": "higher",
+          "unit": "%",
+          "unitPosition": "after",
+          "valueFormat": "percent",
+          "decimals": 0,
+          "submissionRule": "overwrite",
+          "targetMin": 85,
+          "sources": [
+            "web_form",
+            "mail",
+            "slack",
+            "telegram",
+            "api"
+          ],
+          "tags": [
+            "Support",
+            "Weekly report"
+          ]
+        }
+      },
+      {
+        "key": "reopen-rate",
+        "metric": {
+          "format": "ziffr.metric/1",
+          "name": "Reopen rate",
+          "description": "The share of resolved tickets that the customer reopened, in the week.",
+          "category": "Support",
+          "period": "week",
+          "aggregation": "average",
+          "polarity": "lower",
+          "unit": "%",
+          "unitPosition": "after",
+          "valueFormat": "percent",
+          "decimals": 1,
+          "submissionRule": "overwrite",
+          "targetMax": 5,
+          "sources": [
+            "web_form",
+            "mail",
+            "slack",
+            "telegram",
+            "api"
+          ],
+          "tags": [
+            "Support"
+          ]
+        }
+      }
+    ],
+    "dashboards": [
+      {
+        "key": "support-weekly",
+        "template": {
+          "format": "ziffr.dashboard-template/1",
+          "name": "Support weekly",
+          "description": "How much comes in and goes out, what is waiting, how fast it is answered and how customers rate it.",
+          "slots": [
+            {
+              "label": "Open tickets",
+              "suggests": "open-tickets"
+            },
+            {
+              "label": "First response time",
+              "suggests": "first-response"
+            },
+            {
+              "label": "Customer satisfaction",
+              "suggests": "csat"
+            },
+            {
+              "label": "Tickets open over 7 days",
+              "suggests": "old-tickets"
+            },
+            {
+              "label": "Tickets opened",
+              "suggests": "tickets-opened"
+            },
+            {
+              "label": "Tickets closed",
+              "suggests": "tickets-closed"
+            }
+          ],
+          "widgets": [
+            {
+              "view": "number",
+              "slots": [
+                0
+              ],
+              "x": 0,
+              "y": 0,
+              "w": 3,
+              "h": 4
+            },
+            {
+              "view": "number",
+              "slots": [
+                1
+              ],
+              "x": 3,
+              "y": 0,
+              "w": 3,
+              "h": 4
+            },
+            {
+              "view": "gauge",
+              "slots": [
+                2
+              ],
+              "x": 6,
+              "y": 0,
+              "w": 3,
+              "h": 4
+            },
+            {
+              "view": "number",
+              "slots": [
+                3
+              ],
+              "x": 9,
+              "y": 0,
+              "w": 3,
+              "h": 4
+            },
+            {
+              "view": "line",
+              "slots": [
+                0
+              ],
+              "x": 0,
+              "y": 4,
+              "w": 6,
+              "h": 6,
+              "settings": {
+                "window": 12
+              }
+            },
+            {
+              "view": "line",
+              "slots": [
+                1
+              ],
+              "x": 6,
+              "y": 4,
+              "w": 6,
+              "h": 6,
+              "settings": {
+                "window": 12
+              }
+            },
+            {
+              "view": "bars",
+              "slots": [
+                4
+              ],
+              "x": 0,
+              "y": 10,
+              "w": 6,
+              "h": 6,
+              "settings": {
+                "window": 12
+              }
+            },
+            {
+              "view": "bars",
+              "slots": [
+                5
+              ],
+              "x": 6,
+              "y": 10,
+              "w": 6,
+              "h": 6,
+              "settings": {
+                "window": 12
+              }
+            }
+          ]
+        }
+      }
+    ],
+    "workflows": [
+      {
+        "key": "monday-support-figures",
+        "template": {
+          "format": "ziffr.workflow-template/1",
+          "name": "Monday support figures",
+          "description": "Last week's support figures are asked for on Monday and published.",
+          "dueWorkingDays": 1,
+          "steps": [
+            {
+              "type": "remind",
+              "daysBefore": 1
+            },
+            {
+              "type": "escalate",
+              "to": "owner",
+              "daysAfter": 1
+            },
+            {
+              "type": "publish",
+              "lock": false
+            }
+          ]
+        }
+      }
+    ]
+  },
+  "feeds": [
+    {
+      "template": "google-sheets",
+      "fills": [
+        "tickets-opened",
+        "tickets-closed",
+        "open-tickets",
+        "csat"
+      ]
+    }
+  ]
+}
