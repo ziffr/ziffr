@@ -43,6 +43,12 @@ async function sender() {
   await db().from("profiles").update({ auth_user_id: data.user!.id }).eq("id", id);
   return { w, id, actor: w.actor(id, "member") };
 }
+/** A feedback that waits for review: in the default (direct) mode a new one is open, so the status is set here. */
+async function waitingForReview(s: Awaited<ReturnType<typeof sender>>, words: string) {
+  const f = await createFeedback(s.actor, { kind: "problem", words });
+  await db().from("feedback").update({ status: "waiting_for_review" }).eq("id", f.id);
+  return f.id;
+}
 /** A feedback that is filed as issue/discussion `number` and open. */
 async function filed(s: Awaited<ReturnType<typeof sender>>, number: number, kind: "issue" | "discussion" = "issue", status = "open") {
   const f = await createFeedback(s.actor, { kind: kind === "issue" ? "problem" : "idea", words: "The chart is wrong." });
@@ -211,16 +217,21 @@ describe("a person's reply", () => {
   });
   it("is refused in plain words unless the feedback is open or answered", async () => {
     const s = await sender(); const closed = await filed(s, num(), "issue", "closed");
-    const waiting = (await createFeedback(s.actor, { kind: "problem", words: "Not reviewed yet." })).id;
+    const waiting = await waitingForReview(s, "Not reviewed yet.");
     await expect(replyToFeedback(s.actor, closed, "Hello")).rejects.toThrow("This feedback is closed.");
     await expect(replyToFeedback(s.actor, waiting, "Hello")).rejects.toThrow("You can reply once your feedback is open.");
     expect((await getMyFeedback(s.actor, closed))!.messages).toHaveLength(0);
     expect((await getMyFeedback(s.actor, waiting))!.messages).toHaveLength(0);
   });
   it("is refused by the database too, whatever the core checked", async () => {
-    const s = await sender(); const closed = await filed(s, num(), "issue", "closed");
-    const { data } = await db().rpc("feedback_reply_create", { p_person: s.id, p_feedback: closed, p_words: "x", p_per_feedback: 5, p_per_person: 15, p_total: 100 });
-    expect(data ?? []).toHaveLength(0);
+    const s = await sender(); const closed = await filed(s, num(), "issue", "closed"); const waiting = await waitingForReview(s, "Not reviewed yet."); const open = await filed(s, num());
+    const reply = (id: string) => db().rpc("feedback_reply_create", { p_person: s.id, p_feedback: id, p_words: "x", p_per_feedback: 5, p_per_person: 15, p_total: 100 });
+    expect((await reply(closed)).data ?? []).toHaveLength(0);
+    expect((await reply(waiting)).data ?? []).toHaveLength(0);
+    // The same call takes a reply for an open one, so the refusals above are the status's and not the call's.
+    expect((await reply(open)).data ?? []).toHaveLength(1);
+    const { count } = await db().from("feedback_messages").select("id", { count: "exact", head: true }).in("feedback_id", [closed, waiting]);
+    expect(count).toBe(0);
   });
   it("is refused to a Contact, a key and anyone off the central version", async () => {
     const s = await sender(); const id = await filed(s, num());
@@ -253,7 +264,7 @@ describe("posting a reply to GitHub", () => {
   it("posts it anonymously once, records it and posts nothing for a feedback that is not filed yet", async () => {
     const s = await sender(); const g = fakeGithub(); const number = num();
     const id = await filed(s, number);
-    const waiting = (await createFeedback(s.actor, { kind: "problem", words: "Not filed yet." })).id;
+    const waiting = await waitingForReview(s, "Not filed yet.");
     await replyToFeedback(s.actor, id, "It still fails on Tuesdays.");
     // Written before it was refused (the way a reply queued before closing would be): the worker must not post it.
     await db().from("feedback_messages").insert({ feedback_id: waiting, from_team: false, words: "Waiting reply." });
