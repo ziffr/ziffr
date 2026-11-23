@@ -628,3 +628,5 @@ Click a person's name in the list to see only their events. Click what an event 
 ### Download CSV
 
 **Download CSV** saves the events of the current filter as a spreadsheet file, at most 50,000 at a time; pick dates for more. Each download is itself recorded in the Audit Log, and a Workspace can download it at most ten times an hour.
+
+In the demo, where visitors may change it, the pins in the sidebar are your own, kept in your browser.

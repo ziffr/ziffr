@@ -34,6 +34,7 @@ import { themeFor } from "@ziffr/core/themes";
 import { FirstRun } from "@/components/first-run";
 import { DashboardSwitcher } from "@/components/dashboard-switcher";
 import { usePin } from "@/components/pinned-dashboards";
+import { useDemoPrefs } from "@/components/demo-visit-prefs";
 import { useWidgetMenuSeen } from "@/lib/widget-menu-hint";
 import { setHome } from "@/app/home-actions";
 import { makeDeck } from "@/app/convert-actions";
@@ -149,6 +150,9 @@ function DashboardCanvas({ data, dashboards, current, widgets, saved, shares, re
     </div>
   );
   const pin = usePin({ dashboardId: current?.id ?? 0, name: current?.name ?? "", pinned, demo });
+  // Where visitors may change the demo, Home is this visit's own, kept in the browser (demo-visit-prefs.tsx).
+  const visit = useDemoPrefs();
+  const homeShown = visit?.homeId ?? homeId;
   const menuSeen = useWidgetMenuSeen(data.viewer);
   const [newOpen, setNewOpen] = useState(false);
   const [savingTemplate, setSavingTemplate] = useState(false);
@@ -190,7 +194,7 @@ function DashboardCanvas({ data, dashboards, current, widgets, saved, shares, re
           <>
             <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
               <div className="min-w-0">
-                <DashboardSwitcher current={current} dashboards={dashboards} homeId={homeId} ownerName={(id) => people[id]?.name ?? ""} onNew={canCreate ? newDashboard : undefined} />
+                <DashboardSwitcher current={current} dashboards={dashboards} homeId={homeShown} ownerName={(id) => people[id]?.name ?? ""} onNew={canCreate ? newDashboard : undefined} />
                 <p className="mt-1 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-muted-foreground">
                   <span className="flex items-center gap-1.5">{current.role === "owner" ? <><Users aria-hidden className="size-4" /> Yours</> : current.role === "editor" ? <><Pencil aria-hidden className="size-4" /> {people[current.owner_id]?.name} shared this with you as Editor</> : <><Eye aria-hidden className="size-4" /> {people[current.owner_id]?.name} shared this with you as Viewer</>}</span>
                   {!menuSeen && widgets.length > 0 && <span className="flex items-center gap-1.5 max-md:hidden"><MoreHorizontal aria-hidden className="size-4" /> <span>A widget&rsquo;s ⋯ menu has its history, questions and tasks<span className="hidden pointer-fine:inline">, or right-click it</span></span></span>}
@@ -208,8 +212,8 @@ function DashboardCanvas({ data, dashboards, current, widgets, saved, shares, re
                 menu={[
                   // Home and Pin are switches: "Home dashboard ✓", "Pinned ✓". The switcher's list shows them too. In the demo
                   // Pin shows as off and says why (#764), as the Pin button on the list does.
-                  { label: "Home dashboard", icon: <Home aria-hidden />, checked: current.id === homeId, hint: current.id === homeId ? "Ziffr opens on this dashboard" : "Open Ziffr on this dashboard", onSelect: () => { if (current.id !== homeId) act(async () => { unwrap(await setHome(current.id)); toast.success(`${current.name} is your home`); router.refresh(); }); } },
-                  { label: "Pinned", icon: <Pin aria-hidden />, checked: demo ? false : pinned, dimmed: demo, hint: pin.label, onSelect: pin.onPress },
+                  { label: "Home dashboard", icon: <Home aria-hidden />, checked: current.id === homeShown, hint: current.id === homeShown ? "Ziffr opens on this dashboard" : "Open Ziffr on this dashboard", onSelect: () => { if (current.id !== homeShown && visit) { visit.setHome({ id: current.id, name: current.name }); toast.success(`${current.name} is your home`); } else if (current.id !== homeShown) act(async () => { unwrap(await setHome(current.id)); toast.success(`${current.name} is your home`); router.refresh(); }); } },
+                  { label: "Pinned", icon: <Pin aria-hidden />, checked: pin.demo ? false : pin.pinned, dimmed: pin.demo, hint: pin.label, onSelect: pin.onPress },
                   ...(canCreate ? [
                   { label: "Make a deck", icon: <Presentation aria-hidden />, onSelect: () => act(() => makeDeck(current.id)) },
                   ...(editable && widgets.length ? [{ label: "Save as template", icon: <LayoutTemplate aria-hidden />, onSelect: () => setSavingTemplate(true) }] : []),

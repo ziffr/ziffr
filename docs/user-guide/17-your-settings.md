@@ -392,3 +392,5 @@ You can have three, up to 1,000 messages a day (a trial has fewer, and only publ
 | The bin icon | Deletes it after asking, also while the Workspace's switch is off |
 
 Under each, **Log** lists its sends of the last 14 days: when, the event, what it is about, the state and the answer. A Webhook that keeps failing is switched off by Ziffr and you are told. An Owner or Admin sees that you have a Webhook, whose it is, the address masked and when it last sent, never what it sent, and can remove it; you are then told who did. It ends when you leave the Workspace. Messages leave Ziffr in clear text over TLS and the receiving system keeps them as it sees fit.
+
+In the demo, where visitors may change it, your pins and home dashboard are kept in your own browser.
