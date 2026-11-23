@@ -50,7 +50,7 @@ function inDemo(actor: Pick<Actor, "workspaceId">): void {
 export async function bumpDemoVisitCount(actor: Pick<Actor, "workspaceId">, kind: VisitCountKind, key: string, windowStart: Date, by = 1): Promise<number> {
   inDemo(actor);
   const { data, error } = await db().rpc("demo_visit_bump", { p_window: windowStart.toISOString(), p_kind: kind, p_key: kind === "demo" ? "" : key, p_by: by });
-  if (error) throw new Error(error.message);
+  if (error) { console.error("demo visit counts (bump):", error.message); throw new Error("The demo's visit count could not be changed."); }
   return data as number;
 }
 
@@ -58,12 +58,12 @@ export async function bumpDemoVisitCount(actor: Pick<Actor, "workspaceId">, kind
 export async function demoVisitCount(actor: Pick<Actor, "workspaceId">, kind: VisitCountKind, key: string, windowStart: Date): Promise<number> {
   inDemo(actor);
   const { data, error } = await db().from("demo_visit_counts").select("count").eq("window_start", windowStart.toISOString()).eq("kind", kind).eq("key", kind === "demo" ? "" : key).maybeSingle();
-  if (error) throw new Error(error.message);
+  if (error) { console.error("demo visit counts (read):", error.message); throw new Error("The demo's visit count could not be read."); }
   return data?.count ?? 0;
 }
 
 /** Empties every count: part of each Demo Reset (demo-reset.ts), so a new window starts at zero. Not a person's call. */
 export async function clearDemoVisitCounts(): Promise<void> {
   const { error } = await db().from("demo_visit_counts").delete().gte("count", 0);
-  if (error) throw new Error(error.message);
+  if (error) { console.error("demo visit counts (clear):", error.message); throw new Error("The demo's visit counts could not be emptied."); }
 }
