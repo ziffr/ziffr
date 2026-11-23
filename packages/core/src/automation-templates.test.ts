@@ -16,6 +16,9 @@ const fixture = (name: string) => JSON.parse(readFileSync(new URL(`fixtures/${na
 /** A fixture whose linked external tasks belong to `system` (the fixtures link microsoft-todo). */
 const linkedTo = (name: string, system: string, id?: string) => { const f = fixture(name); f.data.external_ids = f.data.external_ids.map((e: Param) => ({ ...e, system, ...(id !== undefined ? { external_id: id } : {}) })); return f; };
 const files = readdirSync(dir).filter((f) => f.endsWith(".json"));
+/** The bridges between a Webhook and a task system (spec 0034); the Feed templates (spec 0043) have their own checks below. */
+const bridges = files.filter((f) => /-(from|to)-ziffr\.json$/.test(f));
+const feedFiles = files.filter((f) => f.endsWith("-feed.json"));
 
 const ALLOWED = new Set(["n8n-nodes-base.webhook", "n8n-nodes-base.respondToWebhook", "n8n-nodes-base.scheduleTrigger", "n8n-nodes-base.set", "n8n-nodes-base.code", "n8n-nodes-base.switch", "n8n-nodes-base.if", "n8n-nodes-base.httpRequest", "n8n-nodes-base.stickyNote"]);
 const TRIGGERS = new Set(["n8n-nodes-base.webhook", "n8n-nodes-base.scheduleTrigger"]);
@@ -31,10 +34,13 @@ describe("every template in docs/automations: generated", () => {
 
 describe("every template in docs/automations: shape", () => {
   it("has two files for each system", () => {
-    expect(files.length).toBeGreaterThanOrEqual(2);
-    for (const f of files) expect(f).toMatch(/^[a-z-]+-(from|to)-ziffr\.json$/);
+    expect(bridges.length).toBeGreaterThanOrEqual(2);
+    for (const f of bridges) expect(f).toMatch(/^[a-z-]+-(from|to)-ziffr\.json$/);
   });
-  for (const file of files) {
+  it("holds nothing else but the Feed templates and their index", () => {
+    expect([...files].sort()).toEqual([...bridges, ...feedFiles, "feed-templates.json"].sort());
+  });
+  for (const file of bridges) {
     const wf = load(file);
     it(`${file}: ids and names are unique, connections name real nodes, only allowed node types`, () => {
       expect(new Set(wf.nodes.map((n) => n.id)).size).toBe(wf.nodes.length);
@@ -71,6 +77,382 @@ describe("every template in docs/automations: shape", () => {
     });
     it(`${file}: every Code node is valid JavaScript`, () => {
       for (const n of wf.nodes.filter((x) => x.type === "n8n-nodes-base.code")) expect(() => new vm.Script(`(async function(){${n.parameters.jsCode}})`), n.name).not.toThrow();
+    });
+  }
+});
+
+// ---- Feed templates (spec 0043) ----
+
+const FEED_ALLOWED = new Set([...ALLOWED, "n8n-nodes-base.googleSheets", "n8n-nodes-base.microsoftExcel"]);
+type FeedIndex = { templates: { id: string; label: string; file: string; guide: string; reads: string; needs: string }[] };
+
+describe("Feed templates in docs/automations (spec 0043)", () => {
+  const index = JSON.parse(readFileSync(new URL("feed-templates.json", dir), "utf8")) as FeedIndex;
+  it("are listed, once each, with a guide", () => {
+    expect(index.templates.map((t) => t.file).sort()).toEqual([...feedFiles].sort());
+    expect(new Set(index.templates.map((t) => t.id)).size).toBe(index.templates.length);
+    for (const t of index.templates) {
+      expect(t.id).toMatch(/^[a-z][a-z0-9-]{0,39}$/);
+      expect(readFileSync(new URL(t.guide, dir), "utf8").length, t.guide).toBeGreaterThan(200);
+    }
+  });
+  for (const file of feedFiles) {
+    const wf = load(file);
+    it(`${file}: sound graph, one schedule trigger, only allowed nodes, every node reached`, () => {
+      expect(new Set(wf.nodes.map((n) => n.id)).size).toBe(wf.nodes.length);
+      const names = new Set(wf.nodes.map((n) => n.name));
+      expect(names.size).toBe(wf.nodes.length);
+      for (const [from, out] of Object.entries(wf.connections)) { expect(names.has(from)).toBe(true); for (const l of out.main.flat()) expect(names.has(l.node)).toBe(true); }
+      for (const n of wf.nodes) expect(FEED_ALLOWED.has(n.type), `${n.name}: ${n.type}`).toBe(true);
+      const triggers = wf.nodes.filter((n) => TRIGGERS.has(n.type));
+      expect(triggers.map((n) => n.type)).toEqual(["n8n-nodes-base.scheduleTrigger"]);
+      const reached = new Set([triggers[0].name]);
+      for (let grew = true; grew; ) { grew = false; for (const [from, out] of Object.entries(wf.connections)) if (reached.has(from)) for (const l of out.main.flat()) if (!reached.has(l.node)) { reached.add(l.node); grew = true; } }
+      for (const n of wf.nodes) if (n.type !== "n8n-nodes-base.stickyNote") expect(reached.has(n.name), n.name).toBe(true);
+    });
+    it(`${file}: holds no key and only placeholders, sends to the Feed endpoint with the key in a credential`, () => {
+      const text = JSON.stringify(wf);
+      expect(text).not.toMatch(/whsec_[A-Za-z0-9]{8,}|zk_[A-Za-z0-9_]{8,}|sk-[A-Za-z0-9]{10,}|Bearer [A-Za-z0-9]|eyJ[A-Za-z0-9]{10,}/);
+      const settings = wf.nodes.find((n) => n.name === "Settings")!;
+      for (const a of (settings.parameters.assignments as { assignments: { value: string }[] }).assignments) expect(a.value).toMatch(/^(https:\/\/)?REPLACE-WITH-/);
+      const send = wf.nodes.find((n) => n.name === "Send to Ziffr")!;
+      expect(String(send.parameters.url)).toContain("/api/v1/feed/observations");
+      expect(send.parameters).toMatchObject({ method: "POST", authentication: "genericCredentialType", genericAuthType: "httpHeaderAuth" });
+      expect(JSON.stringify(send.parameters.headerParameters)).not.toMatch(/authorization/i);
+      expect(JSON.stringify(send)).toContain("Ziffr Feed Key");
+    });
+    it(`${file}: every Code node is valid JavaScript`, () => {
+      for (const n of wf.nodes.filter((x) => x.type === "n8n-nodes-base.code")) expect(() => new vm.Script(`(async function(){${n.parameters.jsCode}})`), n.name).not.toThrow();
+    });
+  }
+});
+
+/** What GET /api/v1/feed answers: the Feed's Metrics with the periods that already hold a value. */
+const overview = (metrics: Param[]) => ({ name: "Feed", year_start_month: 1, metrics: { items: metrics, next: null } });
+/** A Feed template's two Code nodes in turn, as n8n runs them: the source's "Figures", then the shared "Shape values". */
+async function shaped(wf: Workflow, input: { items?: { json: Param }[]; nodes?: Record<string, { json: Param }[]> }, filled: Param[] = []) {
+  const nodes = { ...input.nodes, "What is filled": [{ json: overview(filled) }] };
+  return runNode(wf, "Shape values", { items: await runNode(wf, "Figures", { items: input.items ?? [], nodes }), nodes });
+}
+
+describe("google-sheets-feed.json: from rows to the items a Feed takes", () => {
+  const wf = load("google-sheets-feed.json");
+  const shape = (rows: Param[], filled: Param[] = []) => shaped(wf, { items: rows.map((json) => ({ json })) }, filled).then((x) => x[0].json as { items: Param[]; skipped: { row: number; why: string }[]; key: string });
+  // What POST /api/v1/feed/observations takes (apps/web/src/app/api/v1/schemas.ts FeedItem): a slug, an optional first day, a number.
+  const accepted = (i: Param) => Object.keys(i).every((k) => ["metric", "period", "value"].includes(k)) && /^[a-z0-9][a-z0-9-]{0,99}$/.test(String(i.metric)) && typeof i.value === "number" && Number.isFinite(i.value) && (i.period === undefined || /^\d{4}-\d{2}-\d{2}$/.test(String(i.period)));
+
+  it("sends a Metric's number for the current period, or for the period named, and nothing else of a row", async () => {
+    const out = await shape([
+      { metric: "headcount", value: "42", note: "left out", secret: "left out" },
+      { metric: " attrition ", value: 3.5, period: "2026-10-01" },
+    ]);
+    expect(out.items).toEqual([{ metric: "headcount", value: 42 }, { metric: "attrition", period: "2026-10-01", value: 3.5 }]);
+    for (const i of out.items) expect(accepted(i)).toBe(true);
+    expect(out.skipped).toEqual([]);
+  });
+  it("skips, and says why by row, what a Feed would refuse; empty rows are not mistakes", async () => {
+    const out = await shape([
+      { metric: "ok", value: "1" },
+      { metric: "", value: "" },
+      { metric: "Not A Slug", value: "1" },
+      { metric: "words", value: "twelve" },
+      { metric: "percent", value: "12%" },
+      { metric: "late", value: "1", period: "1 October" },
+      { metric: "ok", value: "2" },
+    ]);
+    expect(out.items).toEqual([{ metric: "ok", value: 1 }]);
+    expect(out.skipped.map((x) => x.row)).toEqual([4, 5, 6, 7, 8]);
+    expect(out.skipped.map((x) => x.why).join("|")).toMatch(/Metric slug.*plain number.*plain number.*YYYY-MM-DD.*twice/);
+  });
+  it("takes at most 500 items, and fails the run when there is nothing to send", async () => {
+    const many = await shape(Array.from({ length: 502 }, (_, i) => ({ metric: `m-${i}`, value: String(i) })));
+    expect(many.items).toHaveLength(500);
+    expect(many.skipped).toHaveLength(2);
+    await expect(shape([{ metric: "", value: "" }])).rejects.toThrow(/No row holds a Metric slug and a number/);
+  });
+  it("gives the same key for the same rows and another for other rows, so a retry records nothing twice", async () => {
+    const a = await shape([{ metric: "x", value: "1" }]);
+    expect((await shape([{ metric: "x", value: "1" }])).key).toBe(a.key);
+    expect((await shape([{ metric: "x", value: "2" }])).key).not.toBe(a.key);
+    expect(a.key.length).toBeLessThan(100);
+  });
+  it("fails the run on a refused item, and counts the others", async () => {
+    const nodes = { "Shape values": [{ json: { skipped: [] } }] };
+    const ok = await runNode(wf, "Check the answers", { items: [{ json: { results: [{ status: "recorded" }, { status: "awaiting_approval" }, { status: "locked" }] } }], nodes });
+    expect(ok[0].json).toMatchObject({ recorded: 1, waitingForApproval: 1, proposedAsCorrection: 1 });
+    await expect(runNode(wf, "Check the answers", { items: [{ json: { results: [{ status: "recorded" }, { status: "refused", metric: "nope", period: null, code: "not_found", detail: "No such Metric." }] } }], nodes })).rejects.toThrow(/refused 1 of 2.*nope.*not_found/);
+  });
+});
+
+describe("stripe-feed.json and hubspot-feed.json: only reads, only figures", () => {
+  for (const file of ["stripe-feed.json", "hubspot-feed.json"]) {
+    it(`${file}: never writes to the other system, and runs once a month for the month that ended`, () => {
+      const wf = load(file);
+      for (const n of wf.nodes.filter((x) => x.type === "n8n-nodes-base.httpRequest" && x.name !== "Send to Ziffr" && x.name !== "What is filled")) {
+        const method = String(n.parameters.method);
+        const url = String(n.parameters.url);
+        // Stripe is read with GET; HubSpot's search is a POST that only reads (its address says so).
+        expect(method === "GET" || (method === "POST" && /\/crm\/v3\/objects\/(deals|contacts)\/search$/.test(url)), `${n.name}: ${method} ${url}`).toBe(true);
+        expect(url).toMatch(/^https:\/\/api\.(stripe\.com\/v1\/subscriptions|hubapi\.com\/crm\/v3\/objects\/(deals|contacts)\/search)$/);
+        expect(n.parameters.authentication).toBe("predefinedCredentialType");
+      }
+      const trigger = wf.nodes.find((n) => n.type === "n8n-nodes-base.scheduleTrigger")!;
+      expect(JSON.stringify(trigger.parameters)).toContain('"months"');
+    });
+  }
+});
+
+describe("excel-feed.json: from the rows of an Excel table to plain rows", () => {
+  const wf = load("excel-feed.json");
+  const figures = (rows: Param[]) => runNode(wf, "Figures", { items: rows.map((json) => ({ json })) }).then((x) => x[0].json as { rows: Param[]; none: string });
+  const shape = (rows: Param[]) => shaped(wf, { items: rows.map((json) => ({ json })) }).then((x) => x[0].json as { items: Param[]; skipped: { row: number; why: string }[] });
+  it("only reads: one table, Get Rows, with the login in n8n's credential", () => {
+    const read = wf.nodes.find((n) => n.name === "Read the table")!;
+    expect(read.parameters).toMatchObject({ resource: "table", operation: "getRows", returnAll: true });
+    expect(JSON.stringify(read)).toContain("microsoftExcelOAuth2Api");
+    expect(wf.nodes.filter((n) => n.type === "n8n-nodes-base.microsoftExcel")).toHaveLength(1);
+  });
+  it("turns an Excel date (days since 30 December 1899) into the day it stands for, and leaves a day written out alone", async () => {
+    const out = await figures([
+      { metric: "a", value: 1, period: 45931 },          // 2025-10-01
+      { metric: "b", value: 2, period: 46296 },          // 2026-10-01
+      { metric: "c", value: 3, period: "46296" },        // the same, as text
+      { metric: "d", value: 4, period: 46296.75 },       // a time of day on it: the day
+      { metric: "e", value: 5, period: "2026-10-01" },   // already a day
+      { metric: "f", value: 6 },                         // no period: the current one
+    ]);
+    expect(out.rows.map((r) => r.period)).toEqual(["2025-10-01", "2026-10-01", "2026-10-01", "2026-10-01", "2026-10-01", undefined]);
+  });
+  it("leaves a number that cannot be a date as it is, so it is refused with its row named", async () => {
+    const out = await shape([{ metric: "ok", value: 1 }, { metric: "x", value: 1, period: 5 }, { metric: "y", value: 1, period: 99999999 }]);
+    expect(out.items).toEqual([{ metric: "ok", value: 1 }]);
+    expect(out.skipped.map((s) => s.row)).toEqual([3, 4]);
+    expect(out.skipped.every((s) => /YYYY-MM-DD/.test(s.why))).toBe(true);
+  });
+  it("reads headers without regard to capitals or spaces, sends only the three columns, and skips what Ziffr would refuse", async () => {
+    const out = await shape([
+      { " Metric ": "headcount", VALUE: 42, Period: 45931, Notes: "left out", Secret: "left out" },
+      { metric: "Not A Slug", value: 1 },
+      { metric: "pct", value: "12%" },
+      { metric: "", value: "" },
+    ]);
+    expect(out.items).toEqual([{ metric: "headcount", period: "2025-10-01", value: 42 }]);
+    expect(JSON.stringify(out)).not.toMatch(/left out/);
+    expect(out.skipped.map((s) => s.row)).toEqual([3, 4]);
+  });
+  it("fails the run, in words, when the table holds nothing to send", async () => {
+    await expect(shape([{ metric: "", value: "" }])).rejects.toThrow(/the table has the columns metric, value/);
+  });
+});
+
+describe("stripe-feed.json: from subscriptions to three figures", () => {
+  it("asks for the cancelled list once, not once for each page of the current list", () => {
+    expect((load("stripe-feed.json").nodes.find((n) => n.name === "Read cancelled subscriptions") as unknown as { executeOnce?: boolean }).executeOnce).toBe(true);
+  });
+  const wf = load("stripe-feed.json");
+  const settings = (o: Param = {}) => ({ ziffrUrl: "https://z.example", mrrMetric: "mrr", customersMetric: "customers", churnedMetric: "churned", currency: "eur", ...o });
+  const price = (unit_amount: number | null, interval = "month", extra: Param = {}) => ({ unit_amount, currency: "eur", recurring: { interval, interval_count: 1, usage_type: "licensed" }, ...extra });
+  const sub = (customer: string, lines: Param[], extra: Param = {}) => ({ status: "active", customer, items: { data: lines }, ...extra });
+  const T = (iso: string) => Math.floor(new Date(iso).getTime() / 1000);
+  const run = (s: Param, current: Param[], cancelled: Param[] = [], more = false, filled: Param[] = []) => shaped(wf, {
+    nodes: { Settings: [{ json: s }], "Read current subscriptions": [{ json: { data: current, has_more: more } }], "Read cancelled subscriptions": [{ json: { data: cancelled, has_more: false } }] },
+  }, filled).then((x) => x[0].json as { items: Param[]; skipped: { why: string }[]; key: string });
+
+  it("adds the plans up to a month, counts customers once, and counts those who cancelled in the month that ended and are not back", async () => {
+    const out = await run(settings(), [
+      sub("c1", [{ price: price(5000), quantity: 2 }]),                          // 100.00 a month
+      sub("c1", [{ price: price(12000, "year") }]),                              // another plan of the same customer: 10.00 a month, still one customer
+      sub("c2", [{ price: price(2000, "week") }], { status: "past_due" }),       // 2000 a week = 8666.67 a month in cents: 86.67
+      sub("c3", [{ price: price(9900) }], { status: "trialing" }),               // a trial is not revenue, and not yet a customer
+    ], [
+      { customer: "c4", canceled_at: T("2025-10-15T10:00:00Z") },                // cancelled in the month that ended: lost
+      { customer: "c5", canceled_at: T("2025-09-30T23:59:59Z") },                // the month before
+      { customer: "c6", canceled_at: T("2025-11-02T10:00:00Z") },                // this month, not yet counted
+      { customer: "c1", canceled_at: T("2025-10-20T10:00:00Z") },                // cancelled one plan, still a customer: not lost
+    ]);
+    expect(out.items).toEqual([{ metric: "mrr", period: "2025-10-01", value: 196.67 }, { metric: "customers", period: "2025-10-01", value: 2 }, { metric: "churned", period: "2025-10-01", value: 1 }]);
+    expect(out.skipped).toEqual([]);
+    expect(out.key.length).toBeLessThan(100);
+  });
+  it("leaves tiered, metered, other-currency and interval-less prices out of the revenue, and says so", async () => {
+    const out = await run(settings(), [sub("c1", [
+      { price: price(null) }, { price: price(100, "month", { currency: "usd" }) }, { price: price(100, "month", { recurring: { interval: "month", interval_count: 1, usage_type: "metered" } }) }, { price: { unit_amount: 100, currency: "eur" } }, { price: price(1000) },
+    ])]);
+    expect(out.items[0]).toMatchObject({ metric: "mrr", value: 10 });
+    expect(out.skipped[0].why).toMatch(/^4 price\(s\) left out/);
+  });
+  it("uses a currency's own units: whole yen, three-decimal dinars, cents otherwise", async () => {
+    const yen = await run(settings({ currency: "jpy", customersMetric: "", churnedMetric: "" }), [sub("c1", [{ price: price(1500, "month", { currency: "jpy" }) }])]);
+    expect(yen.items).toEqual([{ metric: "mrr", period: "2025-10-01", value: 1500 }]);
+    const kwd = await run(settings({ currency: "kwd", customersMetric: "", churnedMetric: "" }), [sub("c1", [{ price: price(2500, "month", { currency: "kwd" }) }])]);
+    expect(kwd.items[0]).toMatchObject({ value: 2.5 });
+  });
+  it("skips a figure whose slug is empty; refuses what is not a slug, no figure at all and no currency", async () => {
+    const one = await run(settings({ customersMetric: "", churnedMetric: "" }), [sub("c1", [{ price: price(1000) }])]);
+    expect(one.items.map((i) => i.metric)).toEqual(["mrr"]);
+    await expect(run(settings({ mrrMetric: "REPLACE-WITH-THE-MRR-METRIC-SLUG-OR-EMPTY" }), [])).rejects.toThrow(/mrrMetric is not a Metric slug/);
+    await expect(run(settings({ mrrMetric: "", customersMetric: "", churnedMetric: "" }), [])).rejects.toThrow(/at least one Metric/);
+    await expect(run(settings({ currency: "REPLACE-WITH-THE-CURRENCY-CODE-SUCH-AS-eur" }), [])).rejects.toThrow(/currency/);
+  });
+  it("counts a cancellation by the day the subscription ended, not the day it was asked for", async () => {
+    const out = await run(settings({ mrrMetric: "", customersMetric: "" }), [], [
+      { customer: "c1", canceled_at: T("2025-09-12T10:00:00Z"), ended_at: T("2025-10-12T10:00:00Z") },   // asked in September, ended in October: counted in October
+      { customer: "c2", canceled_at: T("2025-10-05T10:00:00Z"), ended_at: T("2025-11-05T10:00:00Z") },   // asked in October, ends in November: not yet
+    ]);
+    expect(out.items).toEqual([{ metric: "churned", period: "2025-10-01", value: 1 }]);
+  });
+  it("sends nothing when a subscription has more items than Stripe lists with it", async () => {
+    await expect(run(settings(), [sub("c1", [{ price: price(1000) }]).valueOf() && { ...sub("c1", [{ price: price(1000) }]), items: { data: [{ price: price(1000) }], has_more: true } }])).rejects.toThrow(/more items than Stripe lists/);
+  });
+  it("sends nothing when Stripe has more than was read, rather than a number that is too low", async () => {
+    await expect(run(settings(), [sub("c1", [{ price: price(1000) }])], [], true)).rejects.toThrow(/more subscriptions than this template reads/);
+  });
+  it("sends only the figures: no customer, id or other field leaves", async () => {
+    const out = await run(settings(), [sub("cus_SECRET", [{ price: price(1000) }], { id: "sub_SECRET" })]);
+    expect(JSON.stringify(out)).not.toMatch(/SECRET/);
+  });
+});
+
+describe("Feed templates do not send a past period twice", () => {
+  const settings = { ziffrUrl: "https://z.example", dealsWonMetric: "deals-won", newContactsMetric: "new-contacts" };
+  const hubspot = load("hubspot-feed.json");
+  const run = (filled: Param[]) => shaped(hubspot, { nodes: { Settings: [{ json: settings }], "Count deals won": [{ json: { total: 7 } }], "Count new contacts": [{ json: { total: 120 } }] } }, filled);
+  it("leaves out a past period that already has a value, and sends the rest", async () => {
+    const out = await run([{ slug: "deals-won", period: "month", current: "2025-11-01", filled: ["2025-10-01"] }, { slug: "new-contacts", period: "month", current: "2025-11-01", filled: [] }]);
+    expect((out[0].json.items as Param[]).map((i) => i.metric)).toEqual(["new-contacts"]);
+    expect(out[0].json.settled).toBe(1);
+  });
+  it("sends nothing, and does not fail, when every period already has its value", async () => {
+    const out = await run([{ slug: "deals-won", period: "month", current: "2025-11-01", filled: ["2025-10-01"] }, { slug: "new-contacts", period: "month", current: "2025-11-01", filled: ["2025-10-01"] }]);
+    expect(out).toEqual([]);
+  });
+  it("always sends the current period (its value may still change), and a Metric Ziffr does not list (Ziffr refuses it, loudly)", async () => {
+    const out = await run([{ slug: "deals-won", period: "month", current: "2025-10-01", filled: ["2025-10-01"] }]);
+    expect((out[0].json.items as Param[]).map((i) => i.metric)).toEqual(["deals-won", "new-contacts"]);
+  });
+  it("gives the same key for the same figures on any day", async () => {
+    const a = await run([]);
+    expect((await run([]))[0].json.key).toBe(a[0].json.key);
+    expect(String(a[0].json.key)).not.toMatch(/\d{4}-\d{2}-\d{2}/);
+  });
+  it("runs in UTC and asks Ziffr what is filled with the Feed Key in the credential", () => {
+    for (const file of ["stripe-feed.json", "hubspot-feed.json", "google-sheets-feed.json"]) {
+      const wf = JSON.parse(readFileSync(new URL(file, dir), "utf8")) as Workflow & { settings: { timezone?: string } };
+      expect(wf.settings.timezone, file).toBe("UTC");
+      const ask = wf.nodes.find((n) => n.name === "What is filled")!;
+      expect(ask.parameters).toMatchObject({ method: "GET", authentication: "genericCredentialType", genericAuthType: "httpHeaderAuth" });
+      expect(String(ask.parameters.url)).toMatch(/\/api\/v1\/feed$/);
+    }
+  });
+});
+
+describe("hubspot-feed.json: from two totals to two figures", () => {
+  const wf = load("hubspot-feed.json");
+  const settings = (o: Param = {}) => ({ ziffrUrl: "https://z.example", dealsWonMetric: "deals-won", newContactsMetric: "new-contacts", ...o });
+  const run = (s: Param, won: unknown, contacts: unknown, filled: Param[] = []) => shaped(wf, {
+    nodes: { Settings: [{ json: s }], "Count deals won": [{ json: { total: won, results: [{ id: "SECRET" }] } }], "Count new contacts": [{ json: { total: contacts } }] },
+  }, filled).then((x) => x[0].json as { items: Param[]; key: string });
+
+  it("sends the two totals for the month that ended, and nothing else HubSpot said", async () => {
+    const out = await run(settings(), 7, 120);
+    expect(out.items).toEqual([{ metric: "deals-won", period: "2025-10-01", value: 7 }, { metric: "new-contacts", period: "2025-10-01", value: 120 }]);
+    expect(JSON.stringify(out)).not.toMatch(/SECRET/);
+    expect((await run(settings(), 7, 120)).key).toBe(out.key);
+    expect((await run(settings(), 8, 120)).key).not.toBe(out.key);
+  });
+  it("a zero is a figure; no total, a negative one or a slug that is not one stops the run", async () => {
+    expect((await run(settings(), 0, 0)).items.map((i) => i.value)).toEqual([0, 0]);
+    await expect(run(settings(), undefined, 1)).rejects.toThrow(/did not say how many/);
+    await expect(run(settings(), -1, 1)).rejects.toThrow(/did not say how many/);
+    await expect(run(settings({ dealsWonMetric: "Deals Won" }), 1, 1)).rejects.toThrow(/dealsWonMetric is not a Metric slug/);
+    await expect(run(settings({ dealsWonMetric: "", newContactsMetric: "" }), 1, 1)).rejects.toThrow(/at least one Metric/);
+  });
+  it("asks HubSpot for the month that ended: closed-won deals by closing day, contacts by creation day", () => {
+    const body = (name: string) => String(load("hubspot-feed.json").nodes.find((n) => n.name === name)!.parameters.jsonBody);
+    expect(body("Count deals won")).toContain("hs_is_closed_won");
+    expect(body("Count deals won")).toContain("closedate");
+    expect(body("Count new contacts")).toContain("createdate");
+    for (const n of ["Count deals won", "Count new contacts"]) expect(body(n)).toMatch(/GTE.*LT/s);
+  });
+});
+
+// ---- The contract every Feed template meets (spec 0043) ----
+// A template is a source (the nodes that read the other system and its "Figures" node) plus a part that is the same in all of
+// them. These tests run for every template in feed-templates.json with one fixture each, so a new template cannot be added
+// without meeting them: what goes wrong the same way for any source (a month sent twice, a bad row, a wrong key) is checked once.
+describe("every Feed template meets the same contract", () => {
+  const ids = (JSON.parse(readFileSync(new URL("feed-templates.json", dir), "utf8")) as FeedIndex).templates;
+  /** For each template, what its source hands over for two Metrics, `m-a` (a past period) and `m-b`. */
+  const SOURCES: Record<string, { items?: { json: Param }[]; nodes?: Record<string, { json: Param }[]>; past: string }> = {
+    excel: { items: [{ json: { metric: "m-a", value: 1, period: 45931 } }, { json: { Metric: "m-b", Value: 2 } }], past: "2025-10-01" },
+    "google-sheets": { items: [{ json: { metric: "m-a", value: "1", period: "2025-10-01" } }, { json: { metric: "m-b", value: "2" } }], past: "2025-10-01" },
+    stripe: {
+      nodes: {
+        Settings: [{ json: { mrrMetric: "m-a", customersMetric: "m-b", churnedMetric: "", currency: "eur" } }],
+        "Read current subscriptions": [{ json: { data: [{ status: "active", customer: "c1", items: { data: [{ price: { unit_amount: 1000, currency: "eur", recurring: { interval: "month", interval_count: 1 } } }] } }], has_more: false } }],
+        "Read cancelled subscriptions": [{ json: { data: [], has_more: false } }],
+      },
+      past: "2025-10-01",
+    },
+    hubspot: { nodes: { Settings: [{ json: { dealsWonMetric: "m-a", newContactsMetric: "m-b" } }], "Count deals won": [{ json: { total: 7 } }], "Count new contacts": [{ json: { total: 9 } }] }, past: "2025-10-01" },
+  };
+  it("has a fixture for each template listed, and none for one that is not", () => {
+    expect(Object.keys(SOURCES).sort()).toEqual(ids.map((t) => t.id).sort());
+  });
+  const metricsOf = (filled: string[], current = "2025-11-01") => [{ slug: "m-a", period: "month", current, filled }, { slug: "m-b", period: "month", current, filled: [] }];
+  for (const t of ids) {
+    const wf = load(t.file);
+    const src = SOURCES[t.id];
+    const run = (filled: Param[]) => shaped(wf, src, filled);
+    describe(t.id, () => {
+      it("sends only metric, period and value, for slugs and numbers Ziffr accepts", async () => {
+        const out = (await run(metricsOf([])))[0].json.items as Param[];
+        expect(out.length).toBeGreaterThan(0);
+        for (const i of out) { expect(Object.keys(i).every((k) => ["metric", "period", "value"].includes(k))).toBe(true); expect(String(i.metric)).toMatch(/^[a-z0-9][a-z0-9-]{0,99}$/); expect(Number.isFinite(i.value)).toBe(true); }
+      });
+      it("does not send a past period that already has a value, and stops quietly when nothing is left", async () => {
+        const one = (await run(metricsOf([src.past])))[0].json;
+        expect((one.items as Param[]).some((i) => i.metric === "m-a" && i.period === src.past)).toBe(false);
+        expect(one.settled).toBe(1);
+        const all = await run([{ slug: "m-a", period: "month", current: "2025-11-01", filled: [src.past] }, { slug: "m-b", period: "month", current: "2025-11-01", filled: [src.past] }]);
+        expect(all.length === 0 || (all[0].json.items as Param[]).every((i) => !i.period)).toBe(true);
+      });
+      it("sends the current period even when it has a value, since that value may still change", async () => {
+        const out = (await run(metricsOf([src.past], src.past)))[0].json.items as Param[];
+        expect(out.some((i) => i.metric === "m-a" && i.period === src.past)).toBe(true);
+      });
+      it("gives one key for the same figures, made from the figures only", async () => {
+        const a = String((await run(metricsOf([])))[0].json.key);
+        expect(String((await run(metricsOf([])))[0].json.key)).toBe(a);
+        expect(a).not.toMatch(/\d{4}-\d{2}-\d{2}/);
+        expect(a.length).toBeLessThan(100);
+      });
+      it("refuses a row Ziffr would refuse, whatever the source said", async () => {
+        const rows = [{ metric: "ok", value: 1 }, { metric: "Not A Slug", value: 1 }, { metric: "x", value: "12%" }, { metric: "y", value: 1, period: "October" }, { metric: "ok", value: 2 }, { metric: "z", value: Infinity }];
+        const out = (await runNode(wf, "Shape values", { items: [{ json: { rows } }], nodes: { "What is filled": [{ json: overview([]) }] } }))[0].json;
+        expect(out.items).toEqual([{ metric: "ok", value: 1 }]);
+        expect((out.skipped as { why: string }[]).length).toBe(5);
+        const many = Array.from({ length: 502 }, (_, i) => ({ metric: `m-${i}`, value: i }));
+        expect(((await runNode(wf, "Shape values", { items: [{ json: { rows: many } }], nodes: { "What is filled": [{ json: overview([]) }] } }))[0].json.items as Param[]).length).toBe(500);
+      });
+      it("is the shared part, word for word, in the node that shapes and sends", () => {
+        const finish = (name: string) => String(load(name).nodes.find((n) => n.name === "Shape values")!.parameters.jsCode).replace(/const key = '[a-z0-9-]+-'/, "const key = 'SYSTEM-'");
+        expect(finish(t.file)).toBe(finish("google-sheets-feed.json"));
+      });
+      it("is wired in one order: schedule, settings, what is filled, the source, figures, shape, send, check", () => {
+        const order = ["Settings", "What is filled"];
+        let at = Object.entries(wf.connections).find(([from]) => wf.nodes.find((n) => n.name === from && n.type === "n8n-nodes-base.scheduleTrigger"))![0];
+        const seen: string[] = [];
+        for (;;) { seen.push(at); const next = wf.connections[at]?.main[0]?.[0]?.node; if (!next) break; at = next; }
+        expect(seen.slice(1, 3)).toEqual(order);
+        expect(seen.slice(-4)).toEqual(["Figures", "Shape values", "Send to Ziffr", "Check the answers"]);
+        expect(seen.length).toBe(wf.nodes.filter((n) => n.type !== "n8n-nodes-base.stickyNote").length);
+      });
+      it("reaches Ziffr only through its two nodes, with the Feed Key in a credential, in UTC", () => {
+        const talksToZiffr = wf.nodes.filter((n) => JSON.stringify(n.parameters).includes("ziffrUrl")).map((n) => n.name).sort();
+        expect(talksToZiffr).toEqual(["Send to Ziffr", "Settings", "What is filled"]);
+        expect((wf as unknown as { settings: { timezone: string } }).settings.timezone).toBe("UTC");
+      });
     });
   }
 });

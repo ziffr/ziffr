@@ -5,6 +5,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { actorForSecret, createAccessKey } from "@ziffr/core/access-keys";
 import type { KeyActor, Scope } from "@ziffr/core/actor";
 import { listActionsWithKey } from "@ziffr/core/api-actions";
+import { actionThread } from "@ziffr/core/page-data";
 import { JANUARY, periodStart } from "@ziffr/core/periods";
 import { accessLogOf, workspace } from "@ziffr/core/test/db-fixtures";
 import { onValue } from "@ziffr/core/workflow-engine";
@@ -57,6 +58,20 @@ async function setup() {
 }
 
 describe("Actions over HTTP", () => {
+  it("marks a Task done with an optional note kept as the Thread's last reply, and refuses a note that is too long", async () => {
+    const { w, sara, ann, cash } = await setup();
+    await w.share(cash.id, ann);
+    const k = await keyFor(w, ann, "member", ["actions:write"]);
+    const make = () => w.action({ metric_id: cash.id, period_start: month(), asker_id: sara, assignee_id: ann, kind: "task", question: "Send the report" });
+    const first = await make();
+    expect((await done(k.req("POST", `/actions/${first}/done`, { note: "x".repeat(2001) }), k.params(first))).status).toBe(400);
+    expect((await done(k.req("POST", `/actions/${first}/done`, { note: "Sent it." }), k.params(first))).status).toBe(200);
+    const thread = await actionThread(w.actor(ann, "member"), first);
+    expect(thread!.messages.map((m) => [m.author_id, m.body])).toEqual([[ann, "Sent it."]]);
+    const second = await make();
+    expect((await done(k.req("POST", `/actions/${second}/done`), k.params(second))).status).toBe(200);
+  });
+
   it("lists, replies, marks done and closes, with the Access Log entries", async () => {
     const { w, sara, ann, cash, task } = await setup();
     await w.share(cash.id, ann);

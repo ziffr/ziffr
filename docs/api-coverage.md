@@ -15,6 +15,8 @@ Decks, Themes, View Designs, the canvas, Packs and the pages that edit them are 
 - `checkedFormula` (derived-metrics.ts): the check a restored Version's formula goes through, as a changed one does; Versions are restored in the app, and a program changes a formula through the API's update
 - `formulaChoices` (derived-metrics.ts): the list in the new-Metric form that builds a formula in the app; a program lists the Metrics it sees through the API and writes the formula itself
 - `sameNamedMetrics` (metric-name-check.ts): a form hint in the app that warns before a Metric gets a name that is taken; the API's create answers with the Metric
+- `sendableMetrics` (send-values-options.ts): the picker on Connectors → Send values in the app; a program lists the Metrics it sees, and the ones it may submit to, through the API
+- `pasteTemplate` (paste-template.ts): the template file on the Paste values page in the app; a program reads its Metrics through the API and sends values through a Feed or its own key
 - `saveLayout` (dashboards.ts): the dashboard canvas
 - `createDashboardFromBody` (dashboard-templates.ts): the same as making a dashboard from a template, for a template that is not stored; only a Workspace import uses it
 - `writeFormula` (pack-setup.ts): sets the formula of a Derived Metric made from a Pack entry or a Workspace Export; a program writes a formula through the API's
@@ -97,6 +99,11 @@ Decks, Themes, View Designs, the canvas, Packs and the pages that edit them are 
 
 Acts as the person, with their own sign-in, Slack or Telegram account or email address.
 
+- `setHeadsUpSettings` (heads-up-state.ts): a person's own Heads-up choices (spec 0041, ticket 14); the Heads-up list is for the app until the API is built for it
+- `markNotUseful` (heads-up-state.ts): a person's own Not useful on a Heads-up (spec 0041, ticket 14); the Heads-up list is for the app until the API is built for it
+- `muteMetric` (heads-up-state.ts): a person's own mute of a Metric for Heads-ups (spec 0041, ticket 14); the Heads-up list is for the app until the API is built for it
+- `unmuteMetric` (heads-up-state.ts): a person's own mute taken off (spec 0041, ticket 14); the Heads-up list is for the app until the API is built for it
+- `mutedMetrics` (heads-up-state.ts): the Metrics a person muted, for their settings page (spec 0041, ticket 14); the Heads-up list is for the app until the API is built for it
 - `pinnedDashboards` (pinned-dashboards.ts): one's own sidebar of pinned dashboards
 - `pinDashboard` (pinned-dashboards.ts): one's own sidebar of pinned dashboards
 - `unpinDashboard` (pinned-dashboards.ts): one's own sidebar of pinned dashboards
@@ -132,6 +139,7 @@ Acts as the person, with their own sign-in, Slack or Telegram account or email a
 
 Settings an Owner or Installation Admin makes at the screen. Programs with a key do not change who runs the Workspace.
 
+- `handOverMetric` (metric-owner.ts): handing a Metric to another Member: a person's call at the Metric's page, so a key must not change who owns a Metric
 - `createAccessKey` (access-keys.ts): Access Keys: a key must not make or end keys
 - `revokeAccessKey` (access-keys.ts): Access Keys: a key must not make or end keys
 - `setJoinDomain` (invitations.ts): domain joining rests on the Owner's own verified address, which only a sign-in proves
@@ -139,6 +147,7 @@ Settings an Owner or Installation Admin makes at the screen. Programs with a key
 - `createFeed` (feeds.ts): Feeds and their keys are set up by a person in Settings
 - `renameFeed` (feeds.ts): Feeds and their keys are set up by a person in Settings
 - `deleteFeed` (feeds.ts): Feeds and their keys are set up by a person in Settings
+- `automationTemplateFor` (feed-template-download.ts): the n8n workflow for a Feed is made by an Owner or Admin at the screen (it makes a Feed and its key, set up by a person in Settings, and puts the Feed among Submitters)
 - `createFeedKey` (feeds.ts): Feeds and their keys are set up by a person in Settings
 - `revokeFeedKey` (feeds.ts): Feeds and their keys are set up by a person in Settings
 - `setYearStart` (fiscal-year.ts): Workspace settings
@@ -223,6 +232,8 @@ Settings an Owner or Installation Admin makes at the screen. Programs with a key
 
 Reads for a screen that also note that something was seen or logged; the API has its own reads.
 
+- `myHeadsUps` (heads-up-state.ts): the Heads-ups list of the Analyze page (spec 0041, ticket 14); the API for it is not built yet
+- `listHeadsUpsWith` (heads-ups.ts): the same list with the Metrics' names, for the page; the plain `listHeadsUps` carries the same rules
 - `auditLog` (audit-log.ts): the Audit Log page and its export
 - `exportAuditLog` (audit-log.ts): the Audit Log page and its export
 - `exportWorkspace` (workspace-export.ts): the Workspace Export download, for the Owner at the screen after a fresh sign-in; a key never exports a Workspace
@@ -236,12 +247,18 @@ Reads for a screen that also note that something was seen or logged; the API has
 - `teamView` (page-data.ts): what a page reads
 - `actionThread` (page-data.ts): what a page reads
 - `periodRecord` (period-record.ts): the period page
+- `observationDetails` (observation-details.ts): the popup on a chart's point in the app; a program reads the same through the API's period status and values
 - `calendarEntries` (schedule.ts): the schedule page
 - `search` (search.ts): the search page
 - `listShareProposals` (share-proposals.ts): the Actions page; a key only proposes, it never reads what waits for the person (ticket #538)
 - `previewShareProposal` (share-proposals.ts): the confirm page shows what the recipient would see, to the person only (ticket #538)
 - `confirmShareProposal` (share-proposals.ts): never through a key, by design: only the person confirms a Share Proposal, signed in (ticket #538)
 - `declineShareProposal` (share-proposals.ts): never through a key, by design: only the person decides a Share Proposal, signed in (ticket #538)
+- `actionsAskedByMe` (actions-overview.ts): the Schedule's Asked by me view; the API lists a key's Actions through its own endpoint (ticket #784)
+- `actionsTimeline` (actions-overview.ts): the Schedule's Timeline view, made of period timelines the API already offers per Workflow as `period-status` (ticket #784)
+- `toCloseCount` (actions-overview.ts): a number for the sidebar badge of a signed-in person (ticket #784)
+- `timelineContext` (period-timeline.ts): shared facts for building many timelines at once; internal to the pages (ticket #784)
+- `periodTimelineAbout` (period-timeline.ts): the same lines as `periodTimeline`, which the API reaches, plus the Metric ids the Timeline filters by (ticket #784)
 - `previewViewLink` (view-links.ts): the confirm page of a Share Proposal; reads only (ticket #538)
 - `submittingKeyNames` (access-keys.ts): reads Workspace words, which opening needs the Workspace's key for (spec 0028); the API has its own reads
 - `alertChoices` (alerts.ts): reads Workspace words, which opening needs the Workspace's key for (spec 0028); the API has its own reads
@@ -328,3 +345,4 @@ Plumbing the core's other operations use, jobs the schedule runs, and the demo.
 - `runWorkflowsAsOf` (workflows.ts): what the schedule runs
 - `newMetricRefusal` (workspace-limits.ts): what the Metric functions use to refuse at a limit
 
+- `listHeadsUps` (heads-ups.ts): the Heads-ups list is in a later ticket of spec 0041 (the Analyze page); analyses are not in the API or MCP yet, and its cost in a Workspace over the cap needs a per-person cache first (ticket #707)

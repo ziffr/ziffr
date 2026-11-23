@@ -2,7 +2,7 @@
 // signature over time, method, path and body; replays; 60 a minute) before its handler runs. Without ZIFFR_CLOUD_KEY
 // every endpoint answers a bare 404. No session, no cookies, no CORS headers, never cached; bodies at most 4 KB.
 import { z } from "zod";
-import { checkCloudCall, CLOUD_BODY_MAX, CLOUD_SIGNATURE_HEADER, cloudEnabled, CloudNotFound, type CloudCaller } from "@ziffr/core/cloud-api";
+import { checkCloudCall, CLOUD_BODY_MAX, CLOUD_SIGNATURE_HEADER, cloudEnabled, CloudConflict, CloudNotFound, type CloudCaller } from "@ziffr/core/cloud-api";
 import { readLimited } from "@/lib/limited-body";
 
 const HEADERS = { "content-type": "application/json; charset=utf-8", "cache-control": "no-store", "x-content-type-options": "nosniff" };
@@ -30,6 +30,7 @@ export function cloudRoute<C>(handler: (caller: CloudCaller, body: string, req: 
     try {
       return await handler(check.caller, body, req, ctx);
     } catch (e) {
+      if (e instanceof CloudConflict) return error(409, "conflict", "The Workspace is not in a state this call applies to.");
       if (e instanceof CloudNotFound) return error(404, "not_found", "No such Workspace.");
       if (e instanceof z.ZodError) return error(400, "invalid_request", e.issues.map((i) => `${i.path.join(".") || "body"}: ${i.message}`).join("; "));
       console.error("Ziffr Cloud API error", e);

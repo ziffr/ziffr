@@ -21,7 +21,7 @@ export default async function ShareProposalPage({ params }: { params: Promise<{ 
   const preview = p.status === "open" ? await previewShareProposal(actor, id).catch(() => null) : null;
   return (
     <div className="mx-auto max-w-3xl">
-      <Link href="/actions" className="mb-3 inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"><ArrowLeft className="size-4" /> Actions</Link>
+      <Link href="/schedule" className="mb-3 inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"><ArrowLeft className="size-4" /> Schedule</Link>
       <PageHeader title={proposalTitle(p)} sub="An assistant or program prepared this. Nothing is shared and nothing is sent until you confirm here." />
       <div className="stock space-y-4 rounded-[var(--radius-card)] p-5">
         <ProposalFacts p={p} />

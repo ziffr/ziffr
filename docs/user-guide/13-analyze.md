@@ -16,13 +16,13 @@ The screen has three parts:
 
 ## Putting Metrics on the canvas
 
-Drag a Metric from the Pool onto the canvas, or point at it and press **+**. **Archived Metrics** are not in the Pool, and the Drivers suggestion leaves them out. You can also open a Metric's own page and choose **Analyze** there: Ziffr opens this screen with that Metric already on the canvas.
+Drag a Metric from the Pool onto the canvas, or point at it and press **+**. **Archived Metrics** are not in the Pool, and the Drivers suggestion leaves them out. To see what a Metric is before you drop it, press the **ⓘ** on its row: a small card opens beside it with the Metric's name, how often it is counted and in which unit, its description, its latest value with the period, and a small line of its recent values. The list stays as it is; press **ⓘ** again, press Escape or tap elsewhere to close the card. You can also open a Metric's own page and choose **Analyze** there: Ziffr opens this screen with that Metric already on the canvas.
 
 Each Metric on the canvas shows its name and how often it is counted, such as "monthly". The **×** next to it takes it off. **Clear** empties the canvas and its results. The number next to **Analysis canvas** says how many Metrics are on it.
 
 When there is more than one Metric, the first one carries a **Target** mark. It is the Metric the **Drivers** Analysis explains.
 
-The Metrics on your canvas stay there until you take them off, also when you leave and come back. The canvas is yours alone; colleagues have their own.
+The Metrics on your canvas stay there until you take them off, also when you leave and come back. The canvas is yours alone; colleagues have their own. In the demo nothing is saved: the canvas works the same way, but starts over when you leave the page.
 
 An empty canvas reminds you what to drop: "One metric → forecast. Two → correlation. More → drivers and a matrix."
 
@@ -49,9 +49,38 @@ A **Recipe** is a ready-made Analysis that runs with one click. Ziffr offers:
 | --- | --- |
 | **What drives Cost?** | Puts Cost and every other Metric you can see on the canvas and runs **Drivers** for Cost. |
 | **Where is Revenue heading?** | Puts Revenue on the canvas and runs **Forecast**. |
+| **Will we reach the Target?** | Puts Revenue on the canvas and runs **Forecast**; when Revenue has a Target, the Takeaway says how likely it is to be reached ("about 7 in 10"). |
 | **Do support tickets drive returns?** | Puts Return rate and Support tickets on the canvas and runs **Correlation**. |
+| **Did it work?** | Asks about the first Metric on the canvas (it is greyed out until there is one). A card opens under the Recipes: pick the **day it started**, and Ziffr compares the periods after it with where the Metric's own trend pointed. Optionally pick **a metric it should not have touched** from the others on the canvas that are counted at the same period, and Ziffr shows the same for it beside. |
 
-A Recipe replaces what is on the canvas with its own Metrics. Each one appears only when you can see the Metrics it needs. When none fits, the screen says "Recipes appear once the metrics they need are shared with you."
+A Forecast says where the Metric is expected to be, with the range it is likely between, and which Method worked it out: a plain trend, or the trend with the yearly pattern when the Metric has two seasons of values and the pattern would have missed less on the last third of its history. It also says how that Method did on the periods already known ("the range for the next month would have held 10 of 12 times"). Show the numbers has the details. A forecast is not a promise; it assumes the pattern of the past carries on.
+
+Except **Did it work?**, a Recipe replaces what is on the canvas with its own Metrics. Each one appears only when you can see the Metrics it needs. When none fits, the screen says "Recipes appear once the metrics they need are shared with you."
+
+### Did it work?
+
+The answer is a range, not a verdict: "After 1 Mar 2026, Signups ran about 12.0 % above where its trend pointed (likely between +8.1 % and +16.2 %; that range leaves out zero)." The trend is a straight line through the periods before the day you named, so Ziffr needs at least six of them; the latest 120 are used, and the first 120 periods since the day. A period that began before the day and runs past it is left out, and the result says so. "Likely between" is the range the answer holds about four times in five.
+
+- Both ends of the range on the same side of zero: the Metric did run away from its trend, by about that much. Ziffr does not say why: other things may have changed on the same day.
+- The range holds zero: the sentence adds "that range includes zero". A range that leaves out zero is no proof: with no real change, about 1 range in 5 does by chance.
+- With a metric set beside it, the result also says how that one ran against its own trend. If it ran outside the same range around its own trend, which chance alone gives about 1 time in 5, a line above says that something else may have moved both, or that it is chance.
+
+The result carries its basis, what it assumes, and the footer "This compares what happened with where the earlier trend pointed; it does not show what made the difference." **Show the numbers** has the trend, where it pointed, what the values were and the typical miss of the line. Where Ziffr cannot answer it says why in words: a day that is not a day, fewer than six periods before it, nothing on or after it, a Metric that has hardly changed, or too many periods without a value.
+
+**Leave the day empty** and Ziffr looks for the day a Metric changed instead, with no day to start from: "Around March 2026, Signups changed: before, it went up 5 € a month; since, down 3 € a month; and at that point its level was just where the earlier trend would have put it." It is the day that fits best; nearby days may fit almost as well. It says so only when the change stands out from what luck would give among all the days it tried (at least eight periods are needed); otherwise it says nothing stands out. See [Reading a Takeaway](../guides/reading-a-takeaway.md).
+
+## Heads-ups
+
+At the top of Analyze, a list called **Heads-ups** shows what Ziffr noticed in the Metrics you can see, without being asked: two Metrics that have started moving together, or that used to and have stopped. Each one reads as a short sentence ("A and B have started moving together: when A rises, B follows one month later (strong, over 18 months)"), says what it is based on, and ends with the line that it shows what has gone together, not what caused what. **Show the numbers** opens the numbers behind it. The strongest come first.
+
+Ziffr looks again every few hours and says nothing when nothing stands out: then the list reads "Nothing stands out right now." A Heads-up is about two Metrics, and you see it only if you can see both. It never asks anyone to approve anything and never changes a value.
+
+Under each Heads-up:
+
+- **Not useful** hides that Heads-up for you, for good. Nobody else's list changes.
+- **Mute** and the name of a Metric hide every Heads-up about that Metric, in the list and by message. You can undo it under **Your Deliveries**, where the muted Metrics are listed.
+
+You can turn Heads-ups off for yourself, or have the strongest ones sent to you by message, under **Heads-ups** on [Your Deliveries](17-your-settings.md#heads-ups). By message you get at most 3 a week, each one once, by your Delivery Preference for replies and updates, and not during your Quiet hours. The rest wait here. In the demo the list is read-only.
 
 ## Reading the results
 
@@ -67,11 +96,11 @@ Placed on a dashboard, a forecast can be shown by quarter, half-year or year wit
 
 ### Correlation
 
-A dot for each period, placed by the two Metrics' values, and a **Takeaway** under it: one sentence in the Metrics' own words, such as "Visits and Revenue tend to move together over 18 months (strong)."
+A dot for each period, placed by the two Metrics' values, and a **Takeaway** behind the Widget's **⋯** menu (**Takeaway…**): one sentence in the Metrics' own words, such as "Visits and Revenue tend to move together over 18 months (strong)."
 
 - The word in brackets says how clear the link is: **strong**, **moderate**, **weak**, or **can't tell from chance**. The last one means the pattern is no clearer than what luck alone could give, so do not lean on it. Read more in [Reading a Takeaway](../guides/reading-a-takeaway.md).
 - Above the sentence, a plain line appears when something about the data makes the reading rough: a few periods far from the rest that pull the result ("without them it reads moderate"), values that are very uneven or repeat a lot, periods with no value that were left out, or a link that was stronger earlier than it has been since. A result with such a line is never called strong.
-- Under it, the same footer on every Takeaway: "This shows what has gone together, not what caused what."
+- Under it, a footer: "This shows what has gone together, not what caused what." for a link between Metrics, and "This carries the past forward; it is not a promise." for a Forecast.
 - **Show the numbers** opens the details for those who want them: the Method, r, how many pairs of periods and which, and what the Metrics were compared on. The choice of comparing the values as they are, not their change, is there too.
 
 Only periods where both Metrics have a value count, and at least six are needed. Where Ziffr cannot give a result it says why, in words and with no number: "Not enough months in common (4 of 6).", or that a Metric has hardly changed, so there is nothing to compare. It never turns a refusal into a number because you ask again.
@@ -123,6 +152,8 @@ Nothing you type in the Playground is kept unless it is added to the Workspace.
 An **Analysis Recipe** is an Analysis written as steps of Ziffr's own functions: moving average, difference, growth, share, linear trend and slope, mean, standard deviation, z-score, seasonal index and correlation. A View Design can carry one under `analysis` and draw its results: as a line or bars (`recipe.` and the step's name), as a rule across a plot for one value, or as a number in its words. The recipe works on the Metrics in the design's first Slots, as the Widget shows them (by quarter, when it is shown by quarter), and on nothing else. Every number it gives is computed by Ziffr's verified functions, so it is as trustworthy as any other number in Ziffr.
 
 **Start from** also lists the built-in recipes (moving average, growth, linear trend, seasonality, unusual periods, correlation, share of a total), each inside a design that draws it. Once added to the Workspace, a design with a recipe is placed like any other, and goes onto dashboards, Snapshots, View Links, decks and the PowerPoint export, where it becomes a picture.
+
+A recipe can also be written in the newer format, `ziffr.analysis/2`, which adds rank, partial and lagged correlation, the usual range, percentiles and a fit with its importance as steps. A design draws the series and single values such a recipe gives as before. Two of its tables have a mark of their own: **bridge** draws what changed as steps (a start, each part going up or down, and an end; a part that went down hangs down, is hatched and is written with its minus, so it reads without colour), and **range** draws each driver's effect as a range, "likely between" its low and high end, with its middle value marked. Each says its numbers in words beside the drawing and to a screen reader (a part with no value in one period is marked with a star and named; each range row is drawn on its own scale from 0, because effects are in different units), and a table that cannot be drawn honestly (a low end above its high end, a missing start or end, too many rows) is named as not drawn instead of drawn wrongly. Any other table, and every Takeaway, is not drawn by a mark yet, and a design that names one is refused with that said. A forecast's likely range can also be drawn as a bar from low to high at each period with a **range** mark in a chart. Recipes in the first format work exactly as before. Packs and the [analysis recipes guide](../guides/analysis-recipes.md) describe the format.
 
 ## Saving a result
 

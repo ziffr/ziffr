@@ -4,7 +4,9 @@
 // Style), worked out once in `designValues`; the design only says which of them each mark shows and how it looks.
 // Security: a design is data. Its words are drawn as React text, never as markup, and it reaches no Metric outside
 // the widget's own.
-import { useState, type ReactNode } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
+import { useTakeawayHost } from "./takeaway-host";
 import { compactValue, formatNumber, formatValue, health } from "@ziffr/core/format";
 import { basisLabel, comparedBy, correlate, periodCountLabel, periodWord, rankCorrelations, strength, type BasisChoice, type Correlation } from "@ziffr/core/correlation";
 import { correlationTakeaway, driversTakeaway } from "@ziffr/core/takeaways/takeaway";
@@ -14,12 +16,22 @@ import { dayAfter, heldText, isPartial, pointName, shownSeries, type DisplayPoin
 import { periodLabel } from "@ziffr/core/periods";
 import type { Flag, Part, Piece, TextShow, TextStyle, ViewDesign } from "@ziffr/core/view-design";
 import type { CanvasData, Metric, Widget } from "@ziffr/core/types";
-import { forecast } from "@ziffr/core/forecast";
-import { designRecipe, formatOutput } from "@ziffr/core/design-analysis";
-import { TargetChip } from "@/components/target-chip";
+import { bestForecast } from "@ziffr/core/methods/forecast-choice";
+import { SEASON_LENGTH } from "@ziffr/core/suitability";
+import { forecastTakeaway, endsOf } from "@ziffr/core/takeaways/forecast";
+import { drawRecipe, formatOutput, newRecipeBudget, type TableFigures } from "@ziffr/core/design-analysis";
+import { useRecipeBudget } from "./recipe-budget";
+import type { RecipeResults } from "@ziffr/core/recipe-run";
+import { drawnOutputs } from "@ziffr/core/analysis-recipe";
+import { StatusChip } from "./header-status";
 import { cn } from "@/lib/utils";
 import { ApprovalMark } from "./approval-mark";
 import { DesignPlot } from "./design-plot";
+import { DesignBridge } from "./design-bridge";
+import { DesignRange } from "./design-range";
+import { PolarMark, RadarMark } from "./design-polar";
+import { ProgressMark } from "./design-progress";
+import { ScoreboardMark } from "./design-scoreboard";
 import { useWidgetScale } from "./widget-scale";
 
 type Props = {
@@ -34,12 +46,16 @@ type Props = {
 /** Everything a design can show, worked out by the core for one widget. Only what the design uses is computed. */
 export type DesignValues = ReturnType<typeof designValues> & {
   setBasis: (basis: BasisChoice) => void;
+  /** What the range and bridge marks draw of the recipe's tables, by step: written once by the core, so every surface reads the same text. */
+  figures: TableFigures;
   /** The widget has more room than a usual one (its widget scale is above 1): its parts share the space (#778). */
   roomy: boolean;
+  /** The Takeaway words are not drawn under the chart: a card hides them, or opens them from its ⋯ menu. */
+  behind: boolean;
 };
 
 /** The numbers and words a design draws for a widget, each from the core's functions. */
-function designValues(design: ViewDesign, widget: Pick<Widget, "settings">, metrics: Metric[], data: CanvasData, basis: BasisChoice) {
+function designValues(design: ViewDesign, widget: Pick<Widget, "settings">, metrics: Metric[], data: CanvasData, basis: BasisChoice, recipe: RecipeResults | null) {
   const uses = usage(design);
   const m = metrics[0];
   const s = widget.settings;
@@ -60,7 +76,10 @@ function designValues(design: ViewDesign, widget: Pick<Widget, "settings">, metr
   const note = shown.reason ?? ([combined ? targets?.note : null, shown.note].filter(Boolean).join(" ") || null);
   const flags: Record<Flag, boolean> = { showTarget: option("showTarget"), showForecast: option("showForecast"), hasForecast: false, hasNote: !!note, manyValues: pts.length > 1 };
   // A span still running would read as a drop: the forecast starts from the last complete one.
-  const fc = uses.forecast(flags) ? forecast(last?.toDate ? pts.slice(0, -1) : pts, by)?.points ?? null : null;
+  // The whole history is used (the latest 120 periods at most), not the window drawn, so the chart and the Takeaway say the same.
+  const ahead = last?.toDate ? all.slice(0, -1) : all;
+  const projection = uses.forecast(flags) ? bestForecast(ahead, by, SEASON_LENGTH[by]) : null;
+  const fc = projection?.points ?? null;
   flags.hasForecast = !!fc?.length;
   const resolve = resolverFrom(data.metrics, data.series);
   const correlation: Correlation | null = uses.pairs && metrics[1] ? correlate(m, metrics[1], resolve, { yearStart: data.yearStart, basis }) : null;
@@ -69,12 +88,15 @@ function designValues(design: ViewDesign, widget: Pick<Widget, "settings">, metr
   const tctx = { style: data.numberStyle, yearStart: data.yearStart };
   const correlationTake = correlation && metrics[1] ? correlationTakeaway(m, metrics[1], correlation, tctx) : null;
   const driversTake = drivers ? driversTakeaway(m, drivers.ranked, tctx) : null;
+  // A forecast says which Method it used and how that did on the past; with a Target, how likely it is to be reached. It is
+  // worked out in the Metric's own period, so a widget shown by a longer period (Show by) leaves it out rather than say it in other periods.
+  const ends = endsOf(m);
+  const forecastTake = projection && !combined ? forecastTakeaway(m, ahead, tctx, flags.showTarget && (ends.min !== null || ends.max !== null) ? { ends } : {}) : null;
   const matrix = uses.matrix ? metrics.map((a) => metrics.map((b) => (a.id === b.id ? null : correlate(a, b, resolve, { yearStart: data.yearStart, basis })))) : null;
   // The target band shows when there is a range, and, for a combined series, when its spans have one.
   const band = (!combined || !!targets?.range) && (m.target_min !== null || m.target_max !== null);
   // The design's Analysis Recipe, on the series the widget shows of its own Metrics, by the library's functions.
-  const recipe = designRecipe(design, metrics, data, s);
-  return { basis, m, metrics, by, all, pts, last, combined, targets, note, flags, fc, correlation, correlationTake, drivers, driversTake, matrix, band, goal, name, data, settings: s, recipe, analysis: design.analysis ?? null };
+  return { basis, m, metrics, by, all, pts, last, combined, targets, note, flags, fc, correlation, correlationTake, forecastTake, drivers, driversTake, matrix, band, goal, name, data, settings: s, recipe, analysis: design.analysis ?? null, offersDisplay: !!design.options?.display, win };
 }
 
 /** Which of the core's results a design needs, so a number widget never runs a correlation. */
@@ -105,8 +127,15 @@ export function DesignView({ design, widget, metrics, data, onPointContext }: Pr
   // Show the numbers: "values" is the older comparison on the values as they are, never growth removed.
   const [basis, setBasis] = useState<BasisChoice>("auto");
   const roomy = useWidgetScale() > 1;
-  const v: DesignValues = { ...designValues(design, widget, metrics, data, basis), setBasis, roomy };
+  const host = useTakeawayHost();
+  // The recipe is worked out once for its real inputs, not again whenever Show the numbers is toggled.
+  const budget = useRecipeBudget();
+  const drawn = useMemo(() => drawRecipe(design, metrics, data, widget.settings, budget ?? newRecipeBudget()), [design, metrics, data, widget.settings, budget]);
+  const recipe = drawn.results;
+  const v: DesignValues = { ...designValues(design, widget, metrics, data, basis, recipe), figures: drawn.figures, setBasis, roomy, behind: host !== null };
   const { m } = v;
+  // The page has spent its share of work on recipes: the words say so and no number is shown.
+  if (drawn.refusal) return <Empty>{drawn.refusal}</Empty>;
   // What the design needs and does not have says why, in the core's words where it has them.
   if (v.matrix && metrics.length < 2) return <Empty>{design.empty ?? "Needs at least two Metrics."}</Empty>;
   if (usage(design).pairs && !metrics[1]) return <Empty>{design.empty ?? "Needs two Metrics."}</Empty>;
@@ -124,14 +153,63 @@ export function DesignView({ design, widget, metrics, data, onPointContext }: Pr
   const ctx = onPointContext && !v.combined ? (p: string) => onPointContext(m.id, p) : undefined;
   return (
     // With room to spare, what does not grow is centred rather than pinned to the top (#778).
-    <div className={cn("flex h-full flex-col", design.kind === "analysis" && "gap-2", v.roomy && "justify-center")}>
+    // A design with nothing that grows (a number without its sparkline) is centred both ways (#789).
+    <div className={cn("flex h-full flex-col", design.kind === "analysis" && "gap-2", v.roomy && "justify-center", v.roomy && !growing(design.parts, v) && "items-center text-center")}>
       {design.parts.map((p, i) => <PartView key={i} part={p} v={v} ctx={ctx} />)}
-      {v.correlationTake && <TakeawayView takeaway={v.correlationTake}><BasisButton v={v} /></TakeawayView>}
+      {!v.behind && <TakeawayWords v={v} drivers={false} />}
+      {host?.mode === "panel" && <TakeawayPanel v={v} host={host} title={m.name} />}
     </div>
   );
 }
 
+/** The words an analysis says about its result, in the order they were always drawn; `drivers` picks the drivers' (drawn under their rows). */
+function TakeawayWords({ v, drivers }: { v: DesignValues; drivers: boolean }) {
+  if (drivers) {
+    return (
+      <>
+        {(v.driversTake?.rows ?? []).filter((r) => r.takeaway.kind === "refusal").map((r) => <p key={r.metric.id} className="widget-text-xs mt-1 text-muted-foreground">{r.metric.name}: {r.takeaway.refusal}</p>)}
+        {v.driversTake && <TakeawayView takeaway={v.driversTake}><BasisButton v={v} /></TakeawayView>}
+      </>
+    );
+  }
+  return (
+    <>
+      {v.correlationTake && <TakeawayView takeaway={v.correlationTake}><BasisButton v={v} /></TakeawayView>}
+      {v.forecastTake?.kind === "answer" && <TakeawayView takeaway={v.forecastTake} />}
+    </>
+  );
+}
+
+/** Whether the design has any Takeaway words to show. */
+const hasTakeaway = (v: DesignValues) => !!(v.correlationTake || v.forecastTake?.kind === "answer" || v.driversTake);
+
+/** All of the Takeaway words in one panel, opened from the card's ⋯ menu: the sentence stays with its honesty lines. */
+function TakeawayPanel({ v, host, title }: { v: DesignValues; host: Extract<NonNullable<ReturnType<typeof useTakeawayHost>>, { mode: "panel" }>; title: string }) {
+  const has = hasTakeaway(v);
+  const { setHas } = host;
+  useEffect(() => {
+    setHas(has);
+    return () => setHas(false);
+  }, [has, setHas]);
+  if (!has) return null;
+  return (
+    <Dialog open={host.open} onOpenChange={host.setOpen}>
+      <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-lg">
+        <DialogTitle>Takeaway: {title}</DialogTitle>
+        <DialogDescription className="sr-only">What this Widget shows, in words, with how it was worked out.</DialogDescription>
+        <div className="text-sm">
+          <TakeawayWords v={v} drivers={false} />
+          <TakeawayWords v={v} drivers />
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 const drawn = (when: Flag[] | undefined, v: DesignValues) => (when ?? []).every((f) => v.flags[f]);
+
+/** Whether any part drawn takes the free space: a plot, a gauge, a polar plot, a radar or rows. */
+const growing = (parts: Part[], v: DesignValues): boolean => parts.some((p) => drawn(p.when, v) && (p.mark === "group" ? growing(p.parts, v) : p.mark === "plot" || p.mark === "gauge" || p.mark === "rows" || p.mark === "polar" || p.mark === "radar" || p.mark === "scoreboard" || p.mark === "range" || p.mark === "bridge" || p.mark === "progress"));
 
 function PartView({ part, v, ctx }: { part: Part; v: DesignValues; ctx?: (period: string) => void }): ReactNode {
   if (!drawn(part.when, v)) return null;
@@ -155,14 +233,34 @@ function PartView({ part, v, ctx }: { part: Part; v: DesignValues; ctx?: (period
           <DesignPlot part={part} v={v} onPointContext={ctx} />
         </div>
       );
+    case "range":
+    case "bridge":
+      return <TableMark part={part} v={v} />;
     case "gauge":
       return <GaugeMark v={v} />;
+    case "polar":
+      return <PolarMark part={part} v={v} />;
+    case "radar":
+      return <RadarMark part={part} v={v} />;
+    case "progress":
+      return <ProgressMark v={v} />;
+    case "scoreboard":
+      return <ScoreboardMark v={v} />;
     case "rows":
       if (part.show === "values") return <ValueRows v={v} limit={part.limit === "rows" ? v.settings.rows ?? 6 : part.limit ?? 6} ctx={ctx} />;
       if (part.show === "matrix") return <MatrixRows v={v} />;
       if (part.show === "correlations") return <DriverRows v={v} />;
       return <NotCombined reasons={v.drivers ? leftOutReasons(v) : matrixReasons(v)} />;
   }
+}
+
+/** A range or a bridge: the figures of its recipe table, with the output's label as a small caption apart from them. */
+function TableMark({ part, v }: { part: Extract<Part, { mark: "range" | "bridge" }>; v: DesignValues }) {
+  const step = part.show.slice("recipe.".length);
+  const figures = v.figures[step];
+  const caption = v.analysis?.outputs.find((o) => o.step === step)?.label;
+  if (part.mark === "bridge") return <DesignBridge figures={figures?.mark === "bridge" ? figures : undefined} caption={caption} />;
+  return <DesignRange figures={figures?.mark === "range" ? figures : undefined} tone={part.tone} caption={caption} />;
 }
 
 // The Theme's type scale: a design picks a step, never a size, colour or font of its own. Each step grows with the
@@ -216,7 +314,7 @@ function textValue(show: TextShow, v: DesignValues): ReactNode {
       return last.toDate || isPartial(last) ? <span title={v.name(last)}>{periodLabel(last.period, v.by, data.yearStart, true)}, {heldText(last, m.period)}</span> : v.name(last);
     case "latest.status":
       // The headline stays neutral; the chip says on or off target (one colour rule, see target-chip).
-      return <TargetChip metric={{ ...m, ...v.goal(last) }} value={last?.value} note={v.note} numberStyle={ns} />;
+      return <StatusChip metric={{ ...m, ...v.goal(last) }} value={last?.value} note={v.note} numberStyle={ns} />;
     case "latest.approval":
       return last ? <ApprovalMark data={data} metricId={m.id} period={last.period} through={v.combined ? last.through : undefined} /> : null;
     case "target.note":
@@ -246,7 +344,7 @@ function textValue(show: TextShow, v: DesignValues): ReactNode {
 
 /** A recipe output as text: its one value, or a series' latest, in the output's unit (formatOutput). */
 function recipeText(step: string, v: DesignValues): string | null {
-  const out = v.analysis?.outputs.find((o) => o.step === step);
+  const out = drawnOutputs(v.analysis).find((o) => o.step === step);
   const res = v.recipe?.[step];
   if (!out || !res) return null;
   const value = res.kind === "value" ? res.value : res.points[res.points.length - 1]?.value;
@@ -396,8 +494,7 @@ function DriverRows({ v }: { v: DesignValues }) {
         </li>
       ))}
     </ul>
-    {(v.driversTake?.rows ?? []).filter((r) => r.takeaway.kind === "refusal").map((r) => <p key={r.metric.id} className="widget-text-xs mt-1 text-muted-foreground">{r.metric.name}: {r.takeaway.refusal}</p>)}
-    {v.driversTake && <TakeawayView takeaway={v.driversTake}><BasisButton v={v} /></TakeawayView>}
+    {!v.behind && <TakeawayWords v={v} drivers />}
     </>
   );
 }

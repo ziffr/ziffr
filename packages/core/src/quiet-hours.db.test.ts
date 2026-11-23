@@ -76,11 +76,11 @@ describe("setting quiet hours", () => {
 });
 
 describe("when a message waits", () => {
-  it("holds only Prompts, reminders and Alerts, until the person's quiet hours end in their time zone", async () => {
+  it("holds only Prompts, reminders, Alerts and Heads-ups, until the person's quiet hours end in their time zone", async () => {
     const w = await ws(); const ben = await w.person("member");
     const now = new Date("2026-11-20T11:00:00Z"); // 20:00 on Friday in Tokyo
     await setMyQuietHours(w.actor(ben, "member"), { fromHour: 19, toHour: 7, days: [0, 6], timeZone: "Asia/Tokyo" });
-    expect(HELD_KINDS).toEqual(["prompt", "reminder", "alert"]);
+    expect(HELD_KINDS).toEqual(["prompt", "reminder", "alert", "heads_up", "checklist"]);
     for (const kind of HELD_KINDS) expect((await holdFor(w.id, ben, kind, now))?.toISOString()).toBe("2026-11-22T22:00:00.000Z"); // Monday 07:00 in Tokyo
     for (const kind of ["question", "task", "notice", "reply", "digest"]) expect(await holdFor(w.id, ben, kind, now)).toBeNull();
     // Friday noon UTC is 21:00 in Tokyo too, but 11:00 in Tokyo is not quiet.

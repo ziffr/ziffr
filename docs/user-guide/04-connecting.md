@@ -14,7 +14,7 @@ Each Metric says which **Sources** it accepts. You can turn on several for the s
 | **Slack** | Teams that work in Slack | Replies in the thread of Ziffr's direct message |
 | **Telegram** | People who live on their phone, such as shop owners, field teams and freelancers | Replies to the message from Ziffr's bot with the number, after connecting their Telegram once |
 | **A Feed** | Numbers that already sit in another system, such as a CRM, a shop or a data warehouse | Nothing: the Feed sends the numbers on a schedule |
-| **The API** | Your own programs and automations, such as an n8n or Zapier flow | Nothing: the program sends the numbers |
+| **The API** | Your own programs and automations, such as an n8n or Zapier flow | Nothing: the program sends the numbers. **Workspace → Connectors → Send values** has the call to copy for each of your Metrics |
 | **An AI assistant** | People who already work with an assistant such as Claude | Asks the assistant to look up or send in a number |
 
 Every value goes through the same checks, whichever way it came: the Submission Rule, Approval of Unusual Values and Locks.

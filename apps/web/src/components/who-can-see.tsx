@@ -3,25 +3,14 @@
 import { useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { Eye, KeyRound } from "lucide-react";
+import { KeyRound } from "lucide-react";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
-import { Button, buttonVariants } from "@/components/ui/button";
+import { Button } from "@/components/ui/button";
 import { decideAccess, requestAccess, whoCanSee } from "@/app/access-actions";
 import type { ObjectType } from "@/lib/access";
 import type { Profile } from "@ziffr/core/types";
 
 type Data = Awaited<ReturnType<typeof whoCanSee>>;
-
-/** A "Who can see this" button that opens the dialog. */
-export function WhoCanSee({ type, id, people }: { type: ObjectType; id: number; people: Profile[] }) {
-  const [open, setOpen] = useState(false);
-  return (
-    <>
-      <button type="button" onClick={() => setOpen(true)} className={buttonVariants({ variant: "outline" })}><Eye aria-hidden /> Who can see this</button>
-      {open && <WhoCanSeeDialog type={type} id={id} people={people} onClose={() => setOpen(false)} />}
-    </>
-  );
-}
 
 /** The "Who can see this" dialog on its own, for menus that open it; it loads when it opens. */
 export function WhoCanSeeDialog({ type, id, people, onClose }: { type: ObjectType; id: number; people: Profile[]; onClose: () => void }) {

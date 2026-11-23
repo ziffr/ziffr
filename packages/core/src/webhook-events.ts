@@ -20,11 +20,13 @@ export type DoneReason = "done" | "answered" | "closed" | "metric_archived" | "m
 export type SendType = WebhookEvent | "ping";
 
 /** What a send row is about, as ids. */
-export type SendSubject = { actionId?: number; threadMessageId?: number | null; metricId?: number; period?: string; reason?: DoneReason | null };
+export type SendSubject = { actionId?: number; threadMessageId?: number | null; metricId?: number | null; period?: string; reason?: DoneReason | null };
 
 /** Writes a send row for each enabled Webhook of the Workspace that chose this event, and returns how many it wrote.
  * Never throws: the change has happened, and a Webhook must not undo or fail it. */
 export async function queueWebhookEvent(workspaceId: string, type: WebhookEvent, source: ChangeSource, subject: SendSubject): Promise<number> {
+  // An Action event names a Metric (spec 0034). A Checklist Task has none (metric_id null) and is never sent to a Webhook (spec 0045).
+  if (type.startsWith("action.") && subject.metricId === null) return 0;
   try {
     // `value.recorded` is for Personal Webhooks only (spec 0037): a Workspace Webhook is never sent it.
     const { data: shared } = type === "value.recorded" ? { data: [] } : await db().from("webhooks").select("id").eq("workspace_id", workspaceId).is("owner_id", null).is("disabled_at", null).contains("events", [type]);

@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { format } from "date-fns";
 import { FileInput } from "lucide-react";
-import { getMetrics, getPeopleIn, getProfiles } from "@/lib/data";
+import { getPeopleIn, getProfiles } from "@/lib/data";
 import { currentActor } from "@/lib/viewer";
 import { sourcesView } from "@ziffr/core/page-data";
 import { Person } from "@/components/avatar";
@@ -15,7 +15,7 @@ import type { IntakeEntry, Prompt } from "@ziffr/core/types";
 export default async function SourcesPage() {
   const actor = await currentActor();
   const viewer = actor.personId;
-  const [shown, metrics, { prompts, log, tokens }, demo] = await Promise.all([getProfiles(), getMetrics(), sourcesView(actor), isDemo()]);
+  const [shown, { prompts, log, tokens, metrics }, demo] = await Promise.all([getProfiles(), sourcesView(actor), isDemo()]);
   // The demo's simulator writes as someone by their Slack handle or address: made-up people, so theirs are shown.
   const profiles = demo ? await getPeopleIn(actor.workspaceId, { contactDetails: true }) : shown;
   const metricNames = Object.fromEntries(metrics.map((m) => [m.id, m.name]));

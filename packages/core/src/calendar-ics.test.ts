@@ -6,7 +6,7 @@ import { calendarFile, escapeText, foldLine, type CalendarInput } from "./calend
 import type { ScheduleEntry } from "./schedule";
 
 const entry = (over: Partial<ScheduleEntry> = {}): ScheduleEntry => ({
-  kind: "value_due", date: "2026-11-04", overdue: true, overdueWorkingDays: 11, metric: { id: 7, slug: "revenue", name: "Revenue, net; EU", period: "month" },
+  kind: "value_due", date: "2026-11-04", overdue: true, overdueWorkingDays: 11, metric: { id: 7, slug: "revenue", name: "Revenue, net; EU", period: "month" }, workflow: null,
   period: { start: "2026-10-01", label: "October 2026" }, actionId: null, text: null, escalation: false, standingInFor: null, noDueDate: false,
   dueWorkingDays: 3, remindDaysBefore: 2, path: "/schedule/submit/revenue", ...over,
 });

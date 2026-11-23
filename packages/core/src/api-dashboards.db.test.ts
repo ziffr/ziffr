@@ -173,7 +173,7 @@ describe("templates and limits", () => {
     const all = await listTemplatesWithKey(key);
     expect(all.some((t) => t.kind === "view" && t.id === "line")).toBe(true);
     expect(all.some((t) => t.kind === "view" && (t.id === "canvas" || t.id === "story"))).toBe(false);
-    expect((await listTemplatesWithKey(key, "dashboard")).map((t) => t.id)).toEqual(["overview", "deep-dive", "side-by-side"]);
+    expect((await listTemplatesWithKey(key, "dashboard")).map((t) => t.id)).toEqual(["overview", "deep-dive", "side-by-side", "scorecard", "trends", "target-tracker", "check-in", "board-pack"]);
   });
   it("stops after 50 new dashboards and 500 changes a day", async () => {
     const w = await ws(); const ben = await w.person("member");

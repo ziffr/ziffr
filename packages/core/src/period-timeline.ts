@@ -7,6 +7,9 @@
 // about it. A Thread's words are shown only to someone who may read it (canReadThread), and then only their first
 // words, opened from their seal here and nowhere else.
 import { db } from "./db";
+import { openWorkflowRow } from "./workflow-rows";
+import { mayReadItem } from "./checklist-rules";
+import { periodFinishedAt } from "./period-finished";
 import { assertScope, Forbidden, type Actor, type KeyActor } from "./actor";
 import { getGroups, peopleFor, threadReader, visibleDashboards, visibleMetricIds } from "./access";
 import { getMetrics } from "./workspace-data";
@@ -19,10 +22,10 @@ import { numberStyleOf } from "./workspace-settings";
 import { widgetMetricIds } from "./widget-metrics";
 import { workingPeriod } from "./workflow-rules";
 import { localTime } from "./workspace-clock";
-import type { Action, Metric, Period } from "./types";
+import type { Action, ChecklistItem, Metric, Period, WorkflowConfig } from "./types";
 
 /** What kind of thing happened. */
-export type TimelineKind = "asked" | "reminded" | "in" | "action" | "approval_asked" | "approved" | "sent_back" | "checked" | "note" | "published" | "locked" | "snapshot";
+export type TimelineKind = "asked" | "reminded" | "in" | "action" | "approval_asked" | "approved" | "sent_back" | "checked" | "note" | "published" | "locked" | "snapshot" | "checklist_sent" | "checklist_given" | "checklist_done" | "snapshot_sent" | "finished";
 
 /** One line of the timeline: one event, or several of the same kind close together. */
 export type TimelineEvent = {
@@ -44,6 +47,9 @@ export type TimelineEvent = {
   path?: string;
 };
 
+/** A line with the Metrics it is about, only ones the viewer sees: for the Actions page's Timeline to filter by Metric. */
+export type TimelineEventAbout = TimelineEvent & { metricIds: number[] };
+
 /** A Workflow's period as one viewer sees it. */
 export type PeriodTimeline = {
   workflow: { id: number; name: string };
@@ -54,6 +60,10 @@ export type PeriodTimeline = {
   of: number;
   published: number;
   locked: number;
+  /** The Workflow's Checklist Tasks of the period (spec 0045): how many were given, and how many of them are done. Counts only. */
+  checklist: { done: number; of: number };
+  /** Whether the period is finished: every value locked and every Checklist Task of it done (period-finished.ts). */
+  finished: boolean;
   events: TimelineEvent[];
 };
 
@@ -84,14 +94,14 @@ const plural = (n: number, one: string, many = `${one}s`) => `${n} ${n === 1 ? o
 const list = (xs: string[]) => (xs.length < 2 ? xs.join("") : `${xs.slice(0, -1).join(", ")} and ${xs.at(-1)}`);
 
 /** The first words of someone's note, cut at a word. */
-function firstWords(text: string): string {
+export function firstWords(text: string): string {
   const t = text.replace(/\s+/g, " ").trim();
   if (t.length <= NOTE_WORDS) return t;
   return `${t.slice(0, NOTE_WORDS).replace(/\s+\S*$/, "")}…`;
 }
 
 /** A moment in the Workspace's time zone: its day and "HH:mm". */
-function inZone(at: Date, zone: string): { day: string; time: string } {
+export function inZone(at: Date, zone: string): { day: string; time: string } {
   const parts = Object.fromEntries(new Intl.DateTimeFormat("en-GB", { timeZone: zone, hour: "2-digit", minute: "2-digit", hourCycle: "h23" }).formatToParts(at).map((p) => [p.type, p.value]));
   return { day: localTime(at, zone).day, time: `${parts.hour}:${parts.minute}` };
 }
@@ -110,12 +120,45 @@ function viewerOf(actor: Actor | KeyActor): string {
   return actor.personId;
 }
 
+/** What one viewer's timelines all start from, read once so that a page of many periods does not redo it. */
+export type TimelineContext = {
+  /** Whose facts these are: a context is used only for the same person in the same Workspace. */
+  personId: string;
+  workspaceId: string;
+  metrics: Metric[];
+  visible: Set<number>;
+  groups: Awaited<ReturnType<typeof getGroups>>;
+  dashboards: Awaited<ReturnType<typeof visibleDashboards>>;
+  guestSees: Set<number> | null;
+  yearStart: YearStart;
+  numberStyle: Awaited<ReturnType<typeof numberStyleOf>>;
+  zone: string;
+  shown: Awaited<ReturnType<typeof peopleFor>>;
+};
+
+/** The shared facts for this viewer's timelines (the same checks periodTimeline makes, once). */
+export async function timelineContext(actor: Actor | KeyActor): Promise<TimelineContext> {
+  const viewer = viewerOf(actor);
+  const ws = actor.workspaceId;
+  const metrics = await getMetrics(ws);
+  const [visible, groups, dashboards, yearStart, numberStyle, { data: clock }, shown] = await Promise.all([
+    visibleMetricIds(ws, viewer, metrics), getGroups(ws), visibleDashboards(ws, viewer), yearStartOf(ws), numberStyleOf(ws),
+    db().from("workspaces").select("time_zone").eq("id", ws).maybeSingle(), peopleFor(actor),
+  ]);
+  const guestSees = actor.role === "guest"
+    ? new Set(metrics.flatMap((m) => { const id = (m as Metric & { workflow_id?: number | null }).workflow_id; return visible.has(m.id) && typeof id === "number" ? [id] : []; }))
+    : null;
+  return { personId: viewer, workspaceId: ws, metrics, visible, groups, dashboards, guestSees, yearStart: yearStart as YearStart, numberStyle, zone: (clock?.time_zone as string | undefined) ?? "UTC", shown };
+}
+
 /** The Workflow, if it is in the actor's Workspace: Forbidden otherwise (the same for missing and other Workspaces). */
-async function workflowOf(actor: Actor | KeyActor, workflowId: number) {
+async function workflowOf(actor: Actor | KeyActor, workflowId: number, ctx?: TimelineContext) {
+  // Another person's or Workspace's facts are never used for this actor.
+  if (ctx && (ctx.personId !== actor.personId || ctx.workspaceId !== actor.workspaceId)) throw new Forbidden();
   if (!Number.isInteger(workflowId)) throw new Forbidden();
   const { data } = await db().from("workflows").select("id, name").eq("id", workflowId).eq("workspace_id", actor.workspaceId).maybeSingle();
   if (!data) throw new Forbidden();
-  const guestSees = await guestWorkflowIds(actor);
+  const guestSees = ctx ? ctx.guestSees : await guestWorkflowIds(actor);
   if (guestSees && !guestSees.has(workflowId)) throw new Forbidden();
   return data as { id: number; name: string };
 }
@@ -133,7 +176,8 @@ export async function guestWorkflowIds(actor: Pick<Actor, "workspaceId" | "perso
 }
 
 /** The Workflow's Metrics, with the ones the viewer sees. */
-async function workflowMetrics(ws: string, viewer: string, workflowId: number) {
+async function workflowMetrics(ws: string, viewer: string, workflowId: number, ctx?: TimelineContext) {
+  if (ctx) return { all: ctx.metrics, mine: ctx.metrics.filter((m) => (m as Metric & { workflow_id?: number | null }).workflow_id === workflowId), visible: ctx.visible };
   const all = await getMetrics(ws);
   const mine = all.filter((m) => (m as Metric & { workflow_id?: number | null }).workflow_id === workflowId);
   const visible = await visibleMetricIds(ws, viewer, all);
@@ -145,20 +189,20 @@ const asked = (m: Metric) => !m.formula && !m.archived_at;
 
 /** The periods of a Workflow that have something to show, newest first, the one running now included: from what the
  * viewer sees of its Metrics. At most `limit` (default 6). */
-export async function workflowPeriods(actor: Actor | KeyActor, workflowId: number, limit = 6): Promise<string[]> {
+export async function workflowPeriods(actor: Actor | KeyActor, workflowId: number, limit = 6, ctx?: TimelineContext): Promise<string[]> {
   const viewer = viewerOf(actor);
-  await workflowOf(actor, workflowId);
+  await workflowOf(actor, workflowId, ctx);
   const ws = actor.workspaceId;
-  const { mine, visible } = await workflowMetrics(ws, viewer, workflowId);
+  const { mine, visible } = await workflowMetrics(ws, viewer, workflowId, ctx);
   const seen = mine.filter((m) => visible.has(m.id));
   const ids = seen.map((m) => m.id);
-  const [{ data: states }, { data: values }, { data: clock }, yearStart] = await Promise.all([
+  const [{ data: states }, { data: values }, zone, yearStart] = await Promise.all([
     ids.length ? db().from("period_states").select("period_start").eq("workspace_id", ws).in("metric_id", ids) : Promise.resolve({ data: [] }),
     ids.length ? db().from("observations").select("period_start").eq("workspace_id", ws).in("metric_id", ids) : Promise.resolve({ data: [] }),
-    db().from("workspaces").select("time_zone").eq("id", ws).maybeSingle(),
-    yearStartOf(ws),
+    ctx ? Promise.resolve(ctx.zone) : db().from("workspaces").select("time_zone").eq("id", ws).maybeSingle().then((r) => (r.data?.time_zone as string | undefined) ?? "UTC"),
+    ctx ? Promise.resolve(ctx.yearStart) : yearStartOf(ws),
   ]);
-  const today = localTime(new Date(), (clock?.time_zone as string | undefined) ?? "UTC").day;
+  const today = localTime(new Date(), zone).day;
   const out = new Set<string>([...(states ?? []), ...(values ?? [])].map((r) => String(r.period_start)));
   for (const m of seen) if (asked(m)) out.add(workingPeriod(today, m.period, yearStart));
   return [...out].sort().reverse().slice(0, Math.max(1, Math.min(24, Math.floor(limit))));
@@ -167,53 +211,63 @@ export async function workflowPeriods(actor: Actor | KeyActor, workflowId: numbe
 /** A Workflow's period as the actor may see it: ordered events, grouped where that reads better, with "N of M in". A
  * Metric they cannot see is a count ("1 value"), never a name or a word. `period` is a period's first day. */
 export async function periodTimeline(actor: Actor | KeyActor, workflowId: number, period: string): Promise<PeriodTimeline> {
+  const t = await periodTimelineAbout(actor, workflowId, period);
+  return { ...t, events: t.events.map((e) => { const line: TimelineEvent & { metricIds?: number[] } = { ...e }; delete line.metricIds; return line; }) };
+}
+
+/** The same as periodTimeline, each line also naming the visible Metrics it is about (never a hidden one). */
+export async function periodTimelineAbout(actor: Actor | KeyActor, workflowId: number, period: string, ctx?: TimelineContext): Promise<Omit<PeriodTimeline, "events"> & { events: TimelineEventAbout[] }> {
   const viewer = viewerOf(actor);
   if (!DAY.test(String(period))) throw new Error("Pick a period: its first day, as YYYY-MM-DD.");
-  const wf = await workflowOf(actor, workflowId);
+  const wf = await workflowOf(actor, workflowId, ctx);
   const ws = actor.workspaceId;
-  const { mine, visible } = await workflowMetrics(ws, viewer, workflowId);
+  const { mine, visible } = await workflowMetrics(ws, viewer, workflowId, ctx);
   const ids = mine.map((m) => m.id);
   const byId = new Map(mine.map((m) => [m.id, m]));
   // The name of a Metric, only when the viewer sees it.
   const named = (id: number) => (visible.has(id) ? byId.get(id)!.name : null);
   const countable = mine.filter(asked);
-  const [yearStart, numberStyle, { data: clock }] = await Promise.all([yearStartOf(ws), numberStyleOf(ws), db().from("workspaces").select("time_zone").eq("id", ws).maybeSingle()]);
-  const zone = (clock?.time_zone as string | undefined) ?? "UTC";
+  const c = ctx ?? (await timelineContext(actor));
+  const { yearStart, numberStyle, zone } = c;
   const label = periodLabel(period, ((countable[0] ?? mine[0])?.period ?? "month") as Period, yearStart as YearStart);
   const base = { workflow: wf, period, label };
-  if (!ids.length) return { ...base, in: 0, of: 0, published: 0, locked: 0, events: [] };
+  if (!ids.length) return { ...base, in: 0, of: 0, published: 0, locked: 0, checklist: { done: 0, of: 0 }, finished: false, events: [] };
 
-  const [{ data: prompts }, { data: valueRows }, { data: actions }, { data: states }] = await Promise.all([
+  const [{ data: prompts }, { data: valueRows }, { data: actions }, { data: states }, { data: tasks }] = await Promise.all([
     db().from("prompts").select("id, metric_id, submitter_id, sent_at").eq("workspace_id", ws).in("metric_id", ids).eq("period_start", period).order("sent_at").order("id"),
     db().from("observations").select("id, metric_id, value, value_sealed, submitter_id, created_at").eq("workspace_id", ws).in("metric_id", ids).eq("period_start", period).order("created_at").order("id"),
     db().from("actions").select("id, metric_id, asker_id, assignee_id, read_group_id, purpose, kind, question, created_at, workspace_id").eq("workspace_id", ws).in("metric_id", ids).eq("period_start", period).order("id"),
     db().from("period_states").select("metric_id, state, updated_at").eq("workspace_id", ws).in("metric_id", ids).eq("period_start", period),
+    // The Workflow's Checklist Tasks of the period: no Metric, so they are found by their Workflow.
+    db().from("actions").select("id, asker_id, assignee_id, previous_assignee_id, read_group_id, status, question, created_at, updated_at, workspace_id, metric_id").eq("workspace_id", ws).eq("workflow_id", workflowId).eq("purpose", "checklist").eq("period_start", period).order("id"),
   ]);
   // Values are sealed with the Workspace Key: one that does not open still counts as in, but is not shown.
   const values = await openRows("observations", ws, (valueRows ?? []) as Record<string, unknown>[]);
   const promptIds = (prompts ?? []).map((p) => p.id as number);
-  const [{ data: deliveries }, groups] = await Promise.all([
-    promptIds.length ? db().from("deliveries").select("prompt_id, connector").eq("workspace_id", ws).in("prompt_id", promptIds) : Promise.resolve({ data: [] }),
-    getGroups(ws),
-  ]);
+  const { data: deliveries } = promptIds.length ? await db().from("deliveries").select("prompt_id, connector").eq("workspace_id", ws).in("prompt_id", promptIds) : { data: [] };
+  const groups = c.groups;
   const channelOf = new Map((deliveries ?? []).map((d) => [d.prompt_id as number, d.connector as ConnectorId]));
 
   // Threads: only the ones this viewer may read are opened at all.
   const owners = new Map(mine.map((m) => [m.id, m.owner_id]));
-  const readable = threadReader(viewer, groups, (id) => owners.get(id), ws, visible);
+  const readable = threadReader(viewer, groups, (id) => owners.get(id), ws, visible, actor.role);
   // Only Threads of Metrics they see, and that they may read, are opened: the columns decided on are not sealed.
   const allowed = (actions ?? []).filter((a) => visible.has(a.metric_id as number) && readable(a as unknown as Action & { workspace_id: string }));
   const opened = await openRows("actions", ws, allowed);
-  const mayRead = new Set(opened.map((a) => a.id as number));
+  // A Checklist Task is read by the same rule (no Metric to see): its words and Thread only for someone who may read it.
+  const taskRows = (tasks ?? []) as unknown as (Action & { workspace_id: string })[];
+  const openedTasks = await openRows("actions", ws, taskRows.filter((a) => readable(a)) as unknown as Record<string, unknown>[]);
+  const mayRead = new Set([...opened, ...openedTasks].map((a) => a.id as number));
   const readableIds = [...mayRead];
   const { data: messageRows } = readableIds.length
     ? await db().from("thread_messages").select("id, action_id, author_id, body, correction_status, created_at").eq("workspace_id", ws).in("action_id", readableIds).order("created_at").order("id")
     : { data: [] };
   const messages = await openRows("thread_messages", ws, messageRows ?? []);
   const actionById = new Map(opened.map((a) => [a.id as number, a]));
+  const taskById = new Map(openedTasks.map((a) => [a.id as number, a]));
 
   // Dashboards of this viewer that draw one of these Metrics, and their shown Snapshots of this period.
-  const dashboards = await visibleDashboards(ws, viewer);
+  const dashboards = c.dashboards;
   const dashIds = dashboards.map((d) => d.id);
   const { data: widgets } = dashIds.length ? await db().from("widgets").select("dashboard_id, metric_ids, settings").eq("workspace_id", ws).in("dashboard_id", dashIds) : { data: [] };
   const mineSet = new Set(ids);
@@ -226,11 +280,11 @@ export async function periodTimeline(actor: Actor | KeyActor, workflowId: number
   const peopleIds = new Set<string>();
   for (const p of prompts ?? []) if (visible.has(p.metric_id as number)) peopleIds.add(p.submitter_id as string);
   for (const v of values) if (visible.has(v.metric_id as number) && v.submitter_id) peopleIds.add(v.submitter_id as string);
-  for (const a of opened) if (mayRead.has(a.id as number)) { peopleIds.add(a.asker_id as string); peopleIds.add(a.assignee_id as string); }
+  for (const a of [...opened, ...openedTasks]) if (mayRead.has(a.id as number)) { peopleIds.add(a.asker_id as string); peopleIds.add(a.assignee_id as string); }
   for (const m of messages) peopleIds.add(m.author_id as string);
   const { data: profileRows } = await db().from("profiles").select("id, name").in("id", [...peopleIds]);
   // A Guest is told only their own name (peopleFor): everyone else reads "Someone".
-  const shown = await peopleFor(actor);
+  const shown = c.shown;
   const names = new Map((await openNames(ws, profileRows)).filter((p) => shown.some((s) => s.id === p.id)).map((p) => [p.id as string, String(p.name)]));
   const nameOf = (id: string) => names.get(id) ?? "Someone";
 
@@ -266,6 +320,16 @@ export async function periodTimeline(actor: Actor | KeyActor, workflowId: number
     else if (purpose === "escalation") raw.push({ at, kind: "action", metric, text: `${metric} was missing: ${nameOf(a.assignee_id as string)} was asked to follow up`, path, metricId });
     else raw.push({ at, kind: "action", metric, text: `${nameOf(a.asker_id as string)} ${a.kind === "task" ? "gave" : "asked"} ${nameOf(a.assignee_id as string)} ${a.kind === "task" ? "a task" : "a question"} about ${metric}`, detail: typeof a.question === "string" ? firstWords(a.question) : undefined, path, metricId });
   }
+  // Checklist Tasks given and ticked off: the words only where the viewer may read the Task, else that one was.
+  for (const t of taskRows) {
+    const a = taskById.get(t.id);
+    const path = a ? `/actions/${t.id}` : undefined;
+    raw.push({ at: new Date(t.created_at), kind: "checklist_given", metric: null, text: a ? `“${firstWords(String(a.question ?? ""))}” was given to ${nameOf(String(a.assignee_id))}` : "A checklist task was given", path });
+    if (t.status === "closed") {
+      const last = [...messages].reverse().find((m) => m.action_id === t.id && m.author_id === (a?.assignee_id ?? ""));
+      raw.push({ at: new Date(t.updated_at), kind: "checklist_done", metric: null, text: a ? `“${firstWords(String(a.question ?? ""))}” was ticked off` : "A checklist task was ticked off", detail: a && typeof last?.body === "string" && last.body ? firstWords(last.body) : undefined, path });
+    }
+  }
   for (const msg of messages) {
     const action = actionById.get(msg.action_id as number);
     if (!action) continue;
@@ -290,18 +354,61 @@ export async function periodTimeline(actor: Actor | KeyActor, workflowId: number
     raw.push({ at: new Date(s.shown_at as string), kind: "snapshot", metric: null, text: `Snapshot ${s.label} of ${dash.name} is ready`, path: `/dashboards/${dash.id}/snapshots/${s.id}` });
   }
 
+  const own = await workflowLines({ ws, workflowId, period, label, viewer, role: actor.role, groups, dashboards, hasTasks: taskRows.length > 0 });
+  raw.push(...own.lines);
+  const finished = own.finished;
+
   raw.sort((a, b) => a.at.getTime() - b.at.getTime());
   const totalOf = countable.length;
   const events = group(raw, totalOf, zone, new Set(countable.map((m) => m.id)), nameOf);
   const inNow = new Set(values.map((v) => v.metric_id as number).filter((id) => countable.some((m) => m.id === id))).size;
   const stateOf = (s: string) => (states ?? []).filter((r) => r.state === s && countable.some((m) => m.id === r.metric_id)).length;
-  return { ...base, in: inNow, of: totalOf, published: stateOf("published") + stateOf("locked"), locked: stateOf("locked"), events };
+  return { ...base, in: inNow, of: totalOf, published: stateOf("published") + stateOf("locked"), locked: stateOf("locked"), checklist: { done: taskRows.filter((t) => t.status === "closed").length, of: taskRows.length }, finished, events };
+}
+
+/** What the Workflow itself did for a period (spec 0045), as timeline lines for one viewer, and whether the period is finished:
+ * the Checklist Items and the Snapshot it sent (the claim says when and to how many, the config says what), and the moment it
+ * finished. The words of a Checklist Item are shown only to someone who may read it; everyone else reads that one was sent. The
+ * counts of people left out are the owner's alone. The words are the item's current ones, not the ones it had when it went
+ * out: the claim keeps no words (rule 3). A Guest who may not open the Snapshot's dashboard is shown no line of it. */
+async function workflowLines(a: { ws: string; workflowId: number; period: string; label: string; viewer: string; role: Actor["role"]; groups: Awaited<ReturnType<typeof getGroups>>; dashboards: Awaited<ReturnType<typeof visibleDashboards>>; hasTasks: boolean }): Promise<{ lines: Raw[]; finished: boolean }> {
+  const { ws, workflowId, label, viewer, groups } = a;
+  const lines: Raw[] = [];
+  const flow = await openWorkflowRow(ws, (await db().from("workflows").select("id, owner_id, config").eq("id", workflowId).eq("workspace_id", ws).maybeSingle()).data);
+  const steps = (flow?.config as WorkflowConfig | undefined)?.steps ?? [];
+  const owner = Boolean(flow && flow.owner_id === viewer);
+  const { data: stepRuns } = await db().from("workflow_step_runs").select("step_id, kind, ran_at, sent, skipped, snapshot_id").eq("workspace_id", ws).eq("workflow_id", workflowId).eq("period_start", a.period).in("kind", ["checklist", "send_snapshot"]).order("ran_at");
+  const items = new Map(steps.filter((x): x is ChecklistItem => x.type === "checklist").map((x) => [x.id, x]));
+  // The dashboard a sent Snapshot belongs to is the one the run kept (not whatever the step names now).
+  const snapIds = (stepRuns ?? []).flatMap((r) => (r.snapshot_id ? [r.snapshot_id as number] : []));
+  const { data: snaps } = snapIds.length ? await db().from("dashboard_snapshots").select("id, dashboard_id").eq("workspace_id", ws).in("id", snapIds) : { data: [] };
+  const dashOf = new Map((snaps ?? []).map((x) => [x.id as number, x.dashboard_id as number]));
+  const me = { id: viewer, role: a.role, groupIds: groups.filter((g) => g.members.includes(viewer)).map((g) => g.id) };
+  for (const r of stepRuns ?? []) {
+    const left = Number(r.skipped);
+    const to = plural(Number(r.sent), "person", "people");
+    const at = new Date(r.ran_at as string);
+    if (r.kind === "send_snapshot") {
+      // The dashboard's name and the link only to someone who may open it; a Guest who may not is shown no line at all.
+      const dash = a.dashboards.find((d) => d.id === dashOf.get(r.snapshot_id as number));
+      if (dash || a.role !== "guest") lines.push({ at, kind: "snapshot_sent", metric: null, text: dash ? `Sent the Snapshot ${label} of ${dash.name} to ${to}${owner && left ? `, ${left} not sent` : ""}` : `The Snapshot was sent to ${to}`, path: dash ? `/dashboards/${dash.id}/snapshots/${r.snapshot_id}` : undefined });
+      continue;
+    }
+    const item = items.get(String(r.step_id));
+    const may = Boolean(flow && item && mayReadItem(item, me, String(flow.owner_id)));
+    lines.push({ at, kind: "checklist_sent", metric: null, text: may ? `Sent “${firstWords(item!.text)}” to ${to}` : "A checklist item was sent", detail: owner && left ? `${plural(left, "person", "people")} could not be told` : undefined });
+  }
+  // The same rule as the Send Snapshot step uses (period-finished.ts); the line is for Workflows with a checklist or the step, where it means something.
+  const at = await periodFinishedAt(ws, workflowId, a.period);
+  const finished = at !== null;
+  if (at && (a.hasTasks || steps.some((x) => x.type === "send_snapshot"))) lines.push({ at: new Date(at), kind: "finished", metric: null, text: `${label} is finished` });
+  return { lines, finished };
 }
 
 /** Raw events in time order as lines: some kinds merge when close together, the rest stand alone. */
-function group(raw: Raw[], total: number, zone: string, countable: ReadonlySet<number>, nameOf: (id: string) => string): TimelineEvent[] {
+function group(raw: Raw[], total: number, zone: string, countable: ReadonlySet<number>, nameOf: (id: string) => string): TimelineEventAbout[] {
   const MERGE: TimelineKind[] = ["asked", "reminded", "in", "published", "locked"];
-  const out: TimelineEvent[] = [];
+  const out: TimelineEventAbout[] = [];
   const seenIn = new Set<number>();
   let i = 0;
   while (i < raw.length) {
@@ -310,7 +417,9 @@ function group(raw: Raw[], total: number, zone: string, countable: ReadonlySet<n
     if (MERGE.includes(first.kind)) while (j < raw.length && raw[j].kind === first.kind && raw[j].at.getTime() - raw[j - 1].at.getTime() <= GROUP_MINUTES * 60_000) j++;
     const chunk = raw.slice(i, j);
     i = j;
-    out.push({ at: first.at.toISOString(), ...inZone(first.at, zone), ...line(chunk, total, seenIn, countable, nameOf) });
+    // Only Metrics the viewer sees (`metric` is null for the others) are named by id.
+    const metricIds = [...new Set(chunk.filter((r) => r.metric !== null && r.metricId !== undefined).map((r) => r.metricId!))];
+    out.push({ at: first.at.toISOString(), ...inZone(first.at, zone), ...line(chunk, total, seenIn, countable, nameOf), metricIds });
   }
   return out;
 }

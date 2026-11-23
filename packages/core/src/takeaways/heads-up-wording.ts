@@ -1,0 +1,45 @@
+// The words of the Heads-ups (GLOSSARY: Heads-up, Takeaway; spec 0041, "Heads-ups"): data keyed by case like the rest of the
+// Takeaway wording (wording.ts spreads it into the one table), kept in a file of its own so a Heads-up's words are read in one
+// place. A Heads-up says what two Metrics have done together, or what one Metric has done, never what caused what: the footer is the Takeaway's own.
+// No text here may hold a word a non-analyst would have to look up (the forbidden-word test walks them).
+
+/** The cases of a Heads-up's sentences, labels for Show the numbers and its chance written small. */
+export const HEADS_UP_EN = {
+  "hu-together-same": "{a} and {b} have started moving together ({strength}, over {n} {periodsOf|n}).",
+  "hu-together-same-opposite": "{a} and {b} have started moving in opposite directions ({strength}, over {n} {periodsOf|n}).",
+  "hu-together-leads": "{a} and {b} have started moving together: when {a} rises, {b} follows {lag} {periodsOf|lag} later ({strength}, over {n} {periodsOf|n}).",
+  "hu-together-leads-opposite": "{a} and {b} have started moving in opposite directions: when {a} rises, {b} falls {lag} {periodsOf|lag} later ({strength}, over {n} {periodsOf|n}).",
+  "hu-stopped": "{a} and {b} used to move together. Over the last {recent} {periods}, they have not.",
+  "hu-stopped-opposite": "{a} and {b} used to move in opposite directions. Over the last {recent} {periods}, they have not.",
+  "hu-stopped-leads": "{a} and {b} used to move together: when {a} rose, {b} followed {lag} {periodsOf|lag} later. Over the last {recent} {periods}, they have not.",
+  "hu-stopped-leads-opposite": "{a} and {b} used to move in opposite directions: when {a} rose, {b} fell {lag} {periodsOf|lag} later. Over the last {recent} {periods}, they have not.",
+  "numbers-method-hu-together": "Moving together: changes compared at delays of 0 to 3 periods either way, corrected for the pairs looked at",
+  "numbers-method-hu-stopped": "Stopped moving together: the last periods against the history before them, corrected for the pairs looked at",
+  "numbers-hu-effective": "Pairs, allowing for each Metric following its own past",
+  "numbers-hu-first-half": "First half of the periods",
+  "numbers-hu-second-half": "Second half of the periods",
+  "numbers-hu-half": "{r} over {n} {periodsOf|n}",
+  "numbers-hu-looked-at": "Pairs of Metrics looked at",
+  "numbers-hu-looked-at-stopped": "Pairs that had been moving together, looked at for a drop",
+  "numbers-hu-luck": "Chance of this by luck, after correcting for the pairs looked at",
+  "numbers-hu-before": "Before the last periods",
+  "numbers-hu-recent": "The last periods",
+  "numbers-hu-drop": "Chance of a drop this big by luck, after correcting for the pairs looked at",
+  "hu-chance-under": "under 0.0001",
+  "hu-turned": "{name} turned around in {from}: {before} before, {after} since.",
+  "hu-reach-min": "{name} is unlikely to reach {min} or more in {from} ({chance}).",
+  "hu-reach-max": "{name} is unlikely to stay at {max} or less in {from} ({chance}).",
+  "hu-reach-between": "{name} is unlikely to land between {min} and {max} in {from} ({chance}).",
+  "footer-hu-season": "This compares the value with the earlier ones at this time of year; it does not show what made it differ.",
+  "hu-was-on-pace": "Until its latest value, it was on pace.",
+  "hu-season-above": "{name}'s {value} in {from} is high for this time of year: it is usually between {low} and {high}.",
+  "hu-season-below": "{name}'s {value} in {from} is low for this time of year: it is usually between {low} and {high}.",
+  "numbers-method-hu-direction": "Change of direction: a straight line before a date and another after it, corrected for the dates tried and the Metrics looked at",
+  "numbers-method-hu-reach": "Target out of reach: the forecast's chance, and a straight line through the latest periods read against the Target, corrected for the Metrics looked at",
+  "numbers-method-hu-season": "Unusual for the season: the latest value against the earlier values at the same place in the season, corrected for the Metrics looked at",
+  "numbers-hu-gap": "Gap between the two trends at the latest period",
+  "numbers-hu-periods-left": "Periods left",
+  "numbers-hu-line": "Straight line, at that period",
+  "numbers-hu-checks": "Checks looked at",
+  "numbers-hu-luck-checks": "Chance of this by luck, after correcting for the checks looked at",
+} as const;

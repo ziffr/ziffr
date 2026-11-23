@@ -49,16 +49,16 @@ export function useSlotFill(data: CanvasData) {
   /** Asks for a team template's slots. */
   const ask = useCallback((t: TeamTemplate, initial: number[] = []) => (t.kind === "widget" ? open({ kind: "team", t }, initial) : Promise.resolve(null)), [open]);
 
-  /** A Pool drop, with the slots filled in when it is a template: a team one, or a built-in one without metrics yet. */
-  const complete = useCallback(async (s: DropSource): Promise<DropSource | null> => {
+  /** A Pool drop, with the slots filled in when it is a template: a team one, or a built-in one without metrics yet. `initial` are Metrics to start the slots from. */
+  const complete = useCallback(async (s: DropSource, initial: number[] = []): Promise<DropSource | null> => {
     if (s.type === "spec" && s.metricIds.length === 0 && templateOf({ template: s.template, settings: s.settings ?? {} }).slots.length) {
-      const fills = await open({ kind: "builtin", id: s.template, settings: s.settings });
+      const fills = await open({ kind: "builtin", id: s.template, settings: s.settings }, initial);
       return fills ? { ...s, metricIds: fills.flat() } : null;
     }
     if (s.type !== "template" || s.fills) return s;
     const t = data.templates.find((x) => x.id === s.id);
     if (!t || t.kind !== "widget") return null;
-    const fills = await open({ kind: "team", t });
+    const fills = await open({ kind: "team", t }, initial);
     return fills ? { ...s, fills } : null;
   }, [open, data.templates]);
 

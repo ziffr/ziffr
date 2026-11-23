@@ -131,6 +131,32 @@ describe("making, reading, changing and deleting a Workflow with a key", () => {
 });
 
 describe("who approves and who is told", () => {
+  it("reads a Checklist Item with its words, and lets only workflows:people choose who it goes to", async () => {
+    const { w, sara, ann } = await setup();
+    const plain = await keyOf(w, sara, "owner", WRITE);
+    const programs = await keyOf(w, sara, "owner", PEOPLE);
+    const item = { type: "checklist" as const, kind: "info" as const, text: "Invoices must be in by Friday.", day: 2, people: [ann], groups: [] };
+    const publish = { type: "publish" as const, lock: false };
+    // Not when making one without the scope: it names people.
+    await expect(createWorkflowWithKey(plain, { name: "C", steps: [item, publish] })).rejects.toThrow(/cannot choose who approves or who is told/);
+    const made = await createWorkflowWithKey(programs, { name: "Close", steps: [item, publish] });
+    const read = made.steps.find((s) => s.type === "checklist")!;
+    expect(read).toEqual({ type: "checklist", id: expect.stringMatching(/^[A-Za-z0-9-]{8,40}$/), kind: "info", text: "Invoices must be in by Friday.", day: 2, people: [ann], groups: [] });
+    expect(await getWorkflowWithKey(plain, made.id)).toEqual(made);
+    // Without the scope: other steps change and the item may be sent back as read, nothing else of it.
+    const refused = /cannot choose who approves or who is told/;
+    expect((await updateWorkflowWithKey(plain, made.id, { due_working_days: 4, steps: [read, { type: "remind", days_before: 1 }, publish] })).steps.map((s) => s.type)).toEqual(["checklist", "remind", "publish"]);
+    for (const steps of [[{ ...read, text: "Something else." }], [{ ...read, people: [ann, sara] }], [{ ...read, id: undefined }], [{ type: "remind" as const, days_before: 1 }]]) {
+      await expect(updateWorkflowWithKey(plain, made.id, { steps: [...steps, publish] as never })).rejects.toThrow(refused);
+    }
+    await expect(deleteWorkflowWithKey(plain, made.id)).rejects.toThrow(/cannot delete a Workflow that has an Approve, Tell, checklist or Send Snapshot step/);
+    // A person who is no member, or words that are too long, are refused in words.
+    await expect(updateWorkflowWithKey(programs, made.id, { steps: [{ ...read, people: ["nobody"] }, publish] })).rejects.toThrow(/must be members/);
+    await expect(updateWorkflowWithKey(programs, made.id, { steps: [{ ...read, text: "x".repeat(501) }, publish] })).rejects.toThrow(/at most 500/);
+    expect((await updateWorkflowWithKey(programs, made.id, { steps: [{ ...read, text: "Now by Monday.", read_group: undefined }, publish] })).steps[0]).toMatchObject({ text: "Now by Monday.", id: read.id });
+    await deleteWorkflowWithKey(programs, made.id);
+  });
+
   it("is chosen only with workflows:people; without it the Approve and Tell steps stay exactly as stored", async () => {
     const { w, sara, ada, ann } = await setup();
     const plain = await keyOf(w, sara, "owner", WRITE);

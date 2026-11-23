@@ -5,6 +5,7 @@ import { db } from "./db";
 import { assertCan, Forbidden, type Actor } from "./actor";
 import { recordVersion, type VersionType } from "./versions";
 import { audit } from "./audit-log";
+import { getMetrics } from "./workspace-data";
 import { queueWebhookEvent } from "./webhook-events";
 import { recordPersonalWebhookEnds } from "./personal-webhooks";
 
@@ -16,6 +17,43 @@ export async function ownedBy(actor: Actor, personId: string) {
   const [metric, dashboard, deck, template, theme, workflow] = await Promise.all(["metrics", "dashboards", "decks", "team_templates", "themes", "workflows"].map(count));
   // A Snapshot has no owner of its own: it goes with its dashboard.
   return { metric, dashboard, deck, template, theme, workflow } satisfies Record<Exclude<VersionType, "widget" | "snapshot">, number[]>;
+}
+
+type StepRow = { type?: string; assignee?: string | null; standIn?: string; people?: string[] };
+
+/** Takes a leaver out of the Workflow steps that name them (spec 0045): a Checklist Item's Assignee becomes nobody (the
+ * item pauses until the owner picks someone) and its Stand-in goes, and they leave the people an item for information or a
+ * Send Snapshot step sends to, so someone invited again later is not told by these steps until the owner names them
+ * again. Only those fields change, in the stored config, so the sealed words stay at their places (`steps.<i>.text`).
+ * Approvers are taken out by `hand_over` in the database. */
+async function dropFromWorkflowSteps(ws: string, personId: string): Promise<void> {
+  const { data: flows, error } = await db().from("workflows").select("id").eq("workspace_id", ws);
+  // The member is already removed: a failure here is logged, never undoes that. Messages still check membership when they leave.
+  if (error) { console.error("Handover: the Workflows' steps could not be read:", error.message); return; }
+  for (const { id } of flows ?? []) {
+    // Written only over the config it was made from (updated_at), so an owner's save in between is never undone; tried again on that.
+    let done = false;
+    for (let attempt = 0; attempt < 3 && !done; attempt++) {
+      const { data: f, error: readError } = await db().from("workflows").select("id, config, updated_at").eq("id", id).eq("workspace_id", ws).maybeSingle();
+      if (readError) { console.error("Handover: a Workflow's steps could not be read:", readError.message); break; }
+      if (!f) { done = true; break; }
+      const steps = (f.config as { steps?: StepRow[] } | null)?.steps ?? [];
+      let changed = false;
+      const next = steps.map((s) => {
+        if (s?.type !== "checklist" && s?.type !== "send_snapshot") return s;
+        const out: StepRow = { ...s };
+        if (out.assignee === personId) { out.assignee = null; changed = true; }
+        if (out.standIn === personId) { delete out.standIn; changed = true; }
+        if (Array.isArray(out.people) && out.people.includes(personId)) { out.people = out.people.filter((p) => p !== personId); changed = true; }
+        return out;
+      });
+      if (!changed) { done = true; break; }
+      const { data: written, error: writeError } = await db().from("workflows").update({ config: { ...(f.config as object), steps: next }, updated_at: new Date().toISOString() }).eq("id", id).eq("workspace_id", ws).eq("updated_at", f.updated_at as string).select("id");
+      if (writeError) { console.error("Handover: a Workflow's steps could not be written:", writeError.message); break; }
+      done = Boolean(written?.length);
+    }
+    if (!done) console.error(`Handover: Workflow ${id} still names a removed member in its steps.`);
+  }
 }
 
 /** Removes a member and hands everything they own to a successor, in one step. Owners and Admins may; only Owners
@@ -33,17 +71,25 @@ export async function removeMember(actor: Actor, personId: string, successorId: 
   // The Actions waiting on them: noted before the handover moves them to the successor, who is then named in `action.updated`.
   const { data: waiting } = await db().from("actions").select("id, metric_id, period_start").eq("workspace_id", ws).eq("assignee_id", personId).in("status", ["open", "answered"]);
   // The acting role goes along: the database checks it in the same step, so a promotion in between changes nothing.
-  const { error } = await db().rpc("hand_over", { ws, leaving: personId, successor: successorId, actor_role: actor.role });
+  const { error } = await db().rpc("hand_over", { ws, leaving: personId, successor: successorId, actor_role: actor.role, actor_id: actor.personId });
   if (error) {
     if (/only Owners remove an Owner/.test(error.message)) throw new Forbidden("Only Owners remove an Owner.");
     throw new Error(/at least one Owner/.test(error.message) ? "A workspace keeps at least one Owner. Make someone else Owner first." : "The handover did not work; nothing was changed.");
   }
+  // A Checklist Task handed on from them is no longer theirs to read.
+  await db().from("actions").update({ previous_assignee_id: null }).eq("workspace_id", ws).eq("previous_assignee_id", personId);
+  await dropFromWorkflowSteps(ws, personId);
   // The assignee changed (spec 0034: `action.updated`): each Webhook that chose it hears it once, so the external task follows to the successor.
-  for (const a of waiting ?? []) await queueWebhookEvent(ws, "action.updated", { type: "system" }, { actionId: a.id as number, metricId: a.metric_id as number, period: a.period_start as string });
+  for (const a of waiting ?? []) await queueWebhookEvent(ws, "action.updated", { type: "system" }, { actionId: a.id as number, metricId: a.metric_id as number | null, period: a.period_start as string });
   const from = (leaving.profiles as unknown as { name: string } | null)?.name ?? "a former member";
   const to = (successor.profiles as unknown as { name: string } | null)?.name ?? "a member";
   // Automatic Snapshots are taken in the owner's name, with what they see (spec 0013): the successor chooses again.
   if (owned.dashboard.length) await db().from("dashboards").update({ snapshot_every: null }).eq("workspace_id", ws).in("id", owned.dashboard);
+  // Taking someone's Metrics for oneself by one's role is a hand-over like any other: audited, so a round trip is seen.
+  if (successorId === actor.personId && owned.metric.length) {
+    const names = new Map((await getMetrics(ws)).map((m) => [m.id, m.name]));
+    for (const id of owned.metric) await audit(actor, { kind: "metric.handed_over", object: { type: "metric", id, name: names.get(id) ?? "" }, details: { from_id: personId, from_name: from, to_id: successorId, to_name: to } });
+  }
   for (const [type, ids] of Object.entries(owned) as [VersionType, number[]][]) {
     for (const id of ids) await recordVersion(type, id, actor.personId, { message: `Handed over from ${from} to ${to}`, always: true });
   }

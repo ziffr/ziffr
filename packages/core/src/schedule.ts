@@ -16,6 +16,7 @@ import { addWorkingDays, dueDate, workingPeriod } from "./workflow-rules";
 import { allRows, getMetrics } from "./workspace-data";
 import { localTime, workspaceClock } from "./workspace-clock";
 import { tokenValid } from "./tokens";
+import { checklistAbout } from "./checklist-about";
 import { weekStartOf, type WeekStart } from "./schedule-calendar";
 import type { Metric, Period, WorkflowConfig } from "./types";
 
@@ -30,7 +31,10 @@ export type ScheduleEntry = {
   overdue: boolean;
   /** Working days (Saturdays and Sundays skipped) since it became overdue; 0 when it is not. */
   overdueWorkingDays: number;
-  metric: { id: number; slug: string; name: string; period: Period };
+  /** What it is about: a Metric, or null for a Checklist Task (spec 0045), which is about its Workflow (`workflow`) and period. */
+  metric: { id: number; slug: string; name: string; period: Period } | null;
+  /** The Workflow a Checklist Task is about; null for every other entry. */
+  workflow: { id: number; name: string } | null;
   /** The period it is about, with its name. */
   period: { start: string; label: string };
   /** The Action behind an Approval, Task or Question; null for a value due. */
@@ -127,7 +131,7 @@ async function auditTeammateRead(actor: Actor | KeyActor, person: string, from: 
 }
 
 type TokenFact = { metric_id: number; submitter_id: string; stand_in_id: string | null; created_at: string };
-type ActionRow = { id: number; metric_id: number; period_start: string; kind: "question" | "task"; purpose: string | null; due_date: string | null; question: string; created_at: string; asker_id: string; assignee_id: string; read_group_id: number | null; workspace_id: string };
+type ActionRow = { id: number; metric_id: number | null; workflow_id?: number | null; period_start: string; kind: "question" | "task"; purpose: string | null; due_date: string | null; question: string; created_at: string; asker_id: string; assignee_id: string; read_group_id: number | null; workspace_id: string };
 type Ctx = { today: string; lo: string; hi: string; timeZone: string; yearStart: YearStart; workflows: Map<number, WorkflowConfig> };
 
 /** The Workspace's today and the facts every entry is worked out from. */
@@ -147,7 +151,7 @@ function valueDue(m: Metric, start: string, date: string, ctx: Ctx, cfg: Workflo
   const reminds = (cfg?.steps ?? []).flatMap((s) => (s.type === "remind" ? [s.daysBefore] : []));
   return {
     kind: "value_due", date, overdue, overdueWorkingDays: overdue ? workingDaysBetween(date, ctx.today) : 0,
-    metric: { id: m.id, slug: m.slug, name: m.name, period: m.period }, period: { start, label: periodLabel(start, m.period, ctx.yearStart) },
+    metric: { id: m.id, slug: m.slug, name: m.name, period: m.period }, workflow: null, period: { start, label: periodLabel(start, m.period, ctx.yearStart) },
     actionId: null, text: null, escalation: false, standingInFor, noDueDate: !cfg, dueWorkingDays: cfg ? Math.max(0, cfg.dueWorkingDays) : null,
     remindDaysBefore: reminds.length ? Math.max(...reminds) : null, path: `/schedule/submit/${encodeURIComponent(m.slug)}`,
   };
@@ -226,9 +230,24 @@ function noDueDatePeriod(m: Metric, since: string, ctx: Ctx): { start: string; d
 /** The open Approvals, Tasks and Questions assigned to the person. `metrics` are the Metrics their Actions may be
  * about: being the Assignee is enough to have one (as on the Actions page), even on a Metric they do not see. */
 async function actionEntries(ws: string, person: string, metrics: Map<number, Metric>, ctx: Ctx, readable: (a: ActionRow) => boolean): Promise<ScheduleEntry[]> {
-  const rows = await openRows("actions", ws, await allRows<ActionRow>((from, to) => db().from("actions").select("id, metric_id, period_start, kind, purpose, due_date, question, created_at, asker_id, assignee_id, read_group_id, workspace_id").eq("workspace_id", ws).eq("assignee_id", person).eq("status", "open").order("id").range(from, to)));
+  const rows = await openRows("actions", ws, await allRows<ActionRow>((from, to) => db().from("actions").select("id, metric_id, workflow_id, period_start, kind, purpose, due_date, question, created_at, asker_id, assignee_id, previous_assignee_id, read_group_id, workspace_id").eq("workspace_id", ws).eq("assignee_id", person).eq("status", "open").order("id").range(from, to)));
   const out: ScheduleEntry[] = [];
+  const about = await checklistAbout(ws, rows);
   for (const a of rows) {
+    // A Checklist Task has no Metric: it is about its Workflow and period, dated by its Due Date (spec 0045).
+    if (a.metric_id === null) {
+      const w = about(a.workflow_id, a.period_start);
+      if (!w.workflow) continue;
+      const date = a.due_date ? String(a.due_date).slice(0, 10) : null;
+      const overdue = date !== null && date < ctx.today;
+      out.push({
+        kind: "task", date, overdue, overdueWorkingDays: overdue ? workingDaysBetween(date!, ctx.today) : 0,
+        metric: null, workflow: w.workflow, period: { start: a.period_start, label: w.period },
+        actionId: a.id, text: readable(a) ? (a.question ?? "").slice(0, 300) : null, escalation: false, standingInFor: null, noDueDate: false,
+        dueWorkingDays: null, remindDaysBefore: null, path: `/actions/${a.id}`,
+      });
+      continue;
+    }
     const m = metrics.get(a.metric_id);
     if (!m) continue;
     const cfg = (m as Metric & { workflow_id?: number | null }).workflow_id ? ctx.workflows.get((m as Metric & { workflow_id: number }).workflow_id) : undefined;
@@ -256,7 +275,7 @@ async function actionEntries(ws: string, person: string, metrics: Map<number, Me
     out.push({
       kind: approval ? "approval" : a.kind === "task" ? "task" : "question",
       date, overdue, overdueWorkingDays: overdue ? workingDaysBetween(overdueFrom!, ctx.today) : 0,
-      metric: { id: m.id, slug: m.slug, name: m.name, period: m.period }, period: { start: a.period_start, label: periodLabel(a.period_start, m.period, ctx.yearStart) },
+      metric: { id: m.id, slug: m.slug, name: m.name, period: m.period }, workflow: null, period: { start: a.period_start, label: periodLabel(a.period_start, m.period, ctx.yearStart) },
       actionId: a.id, text: approval || !readable(a) ? null : (a.question ?? "").slice(0, 300), escalation, standingInFor: null, noDueDate: false,
       dueWorkingDays: cfg ? Math.max(0, cfg.dueWorkingDays) : null, remindDaysBefore: null, path: `/actions/${a.id}`,
     });
@@ -267,13 +286,14 @@ async function actionEntries(ws: string, person: string, metrics: Map<number, Me
 /** An entry in a few words, the same on the My schedule page and in a calendar: "Revenue for October 2026 due",
  * "Approve: Cost for October 2026", "Task: Renegotiate the shipping rate". */
 export function entryTitle(e: ScheduleEntry): string {
-  const about = `${e.metric.name} for ${e.period.label}`;
+  // A Checklist Task is about its Workflow and period where a Metric's name would be.
+  const about = `${e.metric?.name ?? e.workflow?.name ?? "A Workflow"} for ${e.period.label}`;
   if (e.kind === "value_due") return `${about} due`;
   if (e.kind === "approval") return `Approve: ${about}`;
   return `${e.kind === "task" ? "Task" : "Question"}: ${e.text ?? about}`;
 }
 
-const byKindAndName = (a: ScheduleEntry, b: ScheduleEntry) => KIND_ORDER[a.kind] - KIND_ORDER[b.kind] || a.metric.name.localeCompare(b.metric.name) || a.period.start.localeCompare(b.period.start) || (a.actionId ?? 0) - (b.actionId ?? 0);
+const byKindAndName = (a: ScheduleEntry, b: ScheduleEntry) => KIND_ORDER[a.kind] - KIND_ORDER[b.kind] || (a.metric?.name ?? a.workflow?.name ?? "").localeCompare(b.metric?.name ?? b.workflow?.name ?? "") || a.period.start.localeCompare(b.period.start) || (a.actionId ?? 0) - (b.actionId ?? 0);
 
 /** A person's Schedule in the actor's Workspace from `from` to `to` (days, both included, at most 90 days apart, `to`
  * at most 366 days ahead), with every overdue entry of the last 90 days whatever the span. The actor's own by default;
@@ -320,7 +340,7 @@ async function entriesOf(actor: Actor | KeyActor, person: string, base: Awaited<
   let readable: (a: ActionRow) => boolean = () => true;
   if (person !== actor.personId) {
     const groups = await getGroups(ws);
-    const can = threadReader(actor.personId, groups, (id) => all.find((m) => m.id === id)?.owner_id, ws, asker);
+    const can = threadReader(actor.personId, groups, (id) => all.find((m) => m.id === id)?.owner_id, ws, asker, actor.role);
     readable = (a) => can(a);
   }
   return [...(await valuesDue(ws, person, metrics, ctx, actor.role === "guest")), ...(await actionEntries(ws, person, onActions, ctx, readable))];

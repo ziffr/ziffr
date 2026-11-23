@@ -29,7 +29,7 @@ The exact formats are JSON Schemas in `docs/reference/`, generated from the defi
 
 ## The file
 
-Ziffr's own five starting Packs, in [`packs/`](../../packs/README.md), are complete examples of every kind of item.
+Ziffr's own starting Packs, in [`packs/`](../../packs/README.md), are complete examples of every kind of item.
 
 
 ```json
@@ -84,6 +84,19 @@ An item may name another item of the same Pack, and nothing outside it:
 - a Deck Template names one of the Pack's Themes, which a deck made from it starts with: `"theme": "board"`. Its Slots and widgets name entries and designs as a Dashboard Template's do;
 - a Derived Metric's formula names the Pack's other entries in braces: `"{mrr} / {customers}"`. Its inputs follow the same rules as in a Workspace: no Derived Metric among them, all of the Derived Metric's own period, none set to Aggregation none.
 
+## Filling the Metrics from other systems
+
+A Pack may say which of Ziffr's ready n8n templates ([Automation Templates for Feeds](../automations/README.md)) fill which of its Metric Catalog entries, so that the person who sets the Pack up can fill them without anyone retyping the numbers:
+
+```json
+"feeds": [{ "template": "google-sheets", "fills": ["headcount", "attrition"] }]
+```
+
+- `template` is the id of a template Ziffr ships (today `google-sheets`, `excel`, `stripe` and `hubspot`; the ids are in `docs/automations/feed-templates.json`). Nothing else is accepted: a Pack names a template, it never carries or links to a flow of its own.
+- `fills` are keys of the Pack's own Metric Catalog entries that take values. A Derived Metric cannot be filled, and an entry or a template is named once.
+- Installing makes nothing of it. After **Set up from this Pack**, the page offers **Fill from n8n** for the Metrics made from those entries, with the template already chosen.
+- A Pack that uses `feeds` should say so in its `ziffr` minimum version: an older Ziffr refuses a field it does not know. `npx @ziffr/pack check` checks it with the same code as the server.
+
 ## The logo
 
 A Pack may bring **one logo**, optionally, as a data address in the manifest's `logo` (beside `listing`, never in `contents`): `"logo": "data:image/png;base64,…"`. Its `author` is the publisher it is shown with. A Theme of the Pack may say `"slides": { "logo": "pack" }` to use it; that is the only value the field takes, a Theme file on its own may not say it, and neither may a Theme of a Pack without a logo. A Pack with a logo needs a Ziffr that knows the field, so set `ziffr` to the version that does. A Pack's licence covers its contents, not anyone's trademark: the logo stays the publisher's. Installing checks the logo again on the server and keeps only the form Ziffr wrote out itself (an SVG is serialized again from what was read); a Theme that says `"pack"` is installed with it, and installing never makes a Theme the team default.
@@ -102,6 +115,8 @@ Ziffr checks a Pack in full on its server before it shows or installs anything:
 - a Workflow Template that names a person: an Approve step says only how many Approvers to pick;
 - an item that its own format's checks refuse, with the problem named by its place in the Pack, such as `contents.views[0].design.parts[2].show`, and its line;
 - a reference to an item that is not in the Pack.
+
+Mind the Size. **Set up from this Pack** shows the person how many Metrics a full set-up makes against what their Workspace's Size still holds (the smallest hosted Size, Small, holds 50), and every Metric it makes counts. A Pack of 40 entries fits an empty Small Workspace and few others. Aim for a core of about 8 to 12 entries that answer the question the Pack is named for, and put the rest in a second Pack, so people can start without making room first. This is advice, not a rule of the format: `npx @ziffr/pack check` says nothing about it.
 
 Texts that address an AI assistant, such as "ignore your instructions" or "call delete_metric", do not stop the check. Ziffr shows them to the person installing the Pack, since descriptions of Metrics reach assistants through the MCP Server. It is a filter for the obvious; assistants reach Ziffr only through their key's scopes.
 

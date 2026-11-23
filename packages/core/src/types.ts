@@ -151,11 +151,17 @@ export type Action = {
   /** null: everyone may read the thread; else only this Group (and the people on it). */
   read_group_id: number | null;
   /** Approval requests and escalations are Actions the Workflow creates. */
-  purpose?: "approval" | "escalation" | "self_check" | null;
+  purpose?: "approval" | "escalation" | "self_check" | "checklist" | null;
   kind: ActionKind;
   due_date: string | null;
   id: number;
-  metric_id: number;
+  /** The Metric it is about; null only for a Checklist Task (purpose `checklist`), which is about its Workflow and period. */
+  metric_id: number | null;
+  /** A Checklist Task's Workflow and the id of the item that gave it (spec 0045); null for every other Action. */
+  workflow_id?: number | null;
+  checklist_item_id?: string | null;
+  /** Whom a Checklist Task was handed over from (the item's Stand-in took it): they keep reading it. */
+  previous_assignee_id?: string | null;
   period_start: string;
   observation_id: number | null;
   asker_id: string;
@@ -190,7 +196,7 @@ export type Dashboard = {
 };
 
 /** The built-in Widget Templates. */
-export type TemplateId = "number" | "line" | "bars" | "gauge" | "table" | "forecast" | "correlation" | "matrix" | "drivers" | "ranked" | "share" | "pictogram" | "story-line" | "story" | "canvas" | "design";
+export type TemplateId = "number" | "line" | "bars" | "gauge" | "table" | "forecast" | "correlation" | "matrix" | "drivers" | "scoreboard" | "progress" | "ranked" | "share" | "pictogram" | "story-line" | "story" | "canvas" | "design";
 
 /** A callout sits at one period, or (in templates) at whatever period a rule picks. */
 export type Callout = { period: string; text: string; rule?: AnchorRule };
@@ -372,7 +378,13 @@ export type DeckTemplateBody = { slides: SlideBody[]; themeId?: number | null };
 /** A whole deck saved with its Metrics left open (GLOSSARY: Deck Template). */
 export type DeckTemplate = TemplateBase & { kind: "deck"; view: "deck"; body: DeckTemplateBody };
 /** A step of a Workflow Template: a Workflow's step with its Approvers left open, only how many to pick. */
-export type WorkflowTemplateStep = Exclude<WorkflowStep, { type: "approve" | "tell" }> | { type: "approve"; approvers: number; values?: ApprovalScope; nobodyElse?: NobodyElse };
+export type WorkflowTemplateStep =
+  | Exclude<WorkflowStep, { type: "approve" | "tell" | "checklist" | "send_snapshot" }>
+  | { type: "approve"; approvers: number; values?: ApprovalScope; nobodyElse?: NobodyElse }
+  // Checklist Items and Send Snapshot keep their words and days; who, which Group may read and which dashboard are left open.
+  | { type: "checklist"; kind: "info"; text: string; day: number }
+  | { type: "checklist"; kind: "tick"; text: string; dueWorkingDays: number }
+  | { type: "send_snapshot" };
 /** What a Workflow Template keeps (GLOSSARY: Workflow Template): the Due Date and steps, with no person in them. */
 export type WorkflowTemplateBody = { dueWorkingDays: number; steps: WorkflowTemplateStep[] };
 /** A Workflow saved with its people left open (GLOSSARY: Workflow Template). */
@@ -462,7 +474,22 @@ export type WorkflowStep =
   // Tells named people and Groups when a Metric of the Workflow reaches a level (GLOSSARY: Tell). `id` names the step for
   // its memory (once per crossing); a level or a share is plain decimal text. `webhooks` are Webhook ids (spec 0034, ticket
   // #408): named by an Owner or Admin only, and each gets `alert.fired` for a Metric Everyone sees.
-  | { type: "tell"; id: string; condition: TellCondition; people: string[]; groups: number[]; webhooks?: string[] };
+  | { type: "tell"; id: string; condition: TellCondition; people: string[]; groups: number[]; webhooks?: string[] }
+  // A Checklist Item (GLOSSARY: Checklist Item; spec 0045): a short text of the owner's, once per Workflow and period,
+  // either for information (sent to people and Groups `day` working days after the period ends) or to tick off (a Task
+  // for `assignee`, due `dueWorkingDays` after it ends; given by ticket #792). `id` names it for its claim and Tasks;
+  // `text` is sealed inside the stored config; `readGroup` keeps the item's words to one Group's people (and its owner).
+  | ChecklistItem
+  // Takes and sends the period's Snapshot of a dashboard once the period is finished (GLOSSARY: Send Snapshot; ticket #793).
+  // `dashboardId` 0 is a dashboard not picked yet (a template's); `addedOn` (yyyy-mm-dd) is the day it was first saved: a
+  // period that finished before it is not sent.
+  | { type: "send_snapshot"; id: string; dashboardId: number; people: string[]; groups: number[]; addedOn?: string };
+/** A Checklist Item as stored: for information, or to tick off. */
+/** `addedOn` (yyyy-mm-dd) is the day the item was first saved: an item sends no period whose day came before it. */
+export type ChecklistItem = { type: "checklist"; id: string; text: string; readGroup?: number; addedOn?: string } & (
+  | { kind: "info"; day: number; people: string[]; groups: number[] }
+  | { kind: "tick"; assignee: string | null; standIn?: string | null; dueWorkingDays: number }
+);
 /** What a Tell step waits for: an Alert's conditions without "not in by its Due Date", which is Escalate's. */
 export type TellCondition = { kind: "share_of_target" | "changed_more"; share: string } | { kind: "at_or_above" | "below"; value: string };
 /** Which values an Approve step holds back for Approval: only Unusual Values, or every value. */

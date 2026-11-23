@@ -74,17 +74,19 @@ A new trial opens on its **Trial guide**, one step at a time with the steps name
 
 **Colleagues in a trial.** The Team page invites by email as in any Workspace, with three differences. Invitations open only after you, the Owner, have recorded a value of your own (a value that came in through a Feed or an Import does not count): before that, **Invite** says "Invitations open once the Owner has recorded a first value of their own". A trial holds at most 5 people (Members, Admins and Guests, you and the invitations that are still open included; hosted Ziffr may set another number); a sixth invitation is refused, and revoking an open invitation makes room. A trial sends at most 10 invitation emails a day, resends included, and all trials together send a limited number too; an invitation the day's number could not email stays on the Team page as a link you send yourself, and says why. An address has one open invitation at a time. There are no invite links and no Domain Joining in a trial, and the invitation works for its address only. The email says it is a trial, who invited the person, the day it ends and what follows (it becomes a subscription or is closed and its data deleted), and it ends with a **Do not invite me again** link: whoever uses it gets no more invitation emails from any Workspace on this Ziffr. An invitation that could not be emailed, for this or any other reason the day's limits give, stays on the Team page as a link you can send yourself.
 
-**Who a trial reaches.** Once someone has accepted their invitation (signing in proves their address), every Connector reaches them as in any Workspace: Prompts, reminders, tasks and Alerts go by email, Slack or Telegram, whichever each person chose. Anything meant for an invitation that is still open, or for a **Contact**, stays in the Outbox with the reason, because nobody has proved those details. The trial sends at most 100 messages a day to everyone together (hosted Ziffr may set another number). **View Links** and **Webhooks** work in a trial within its limits (see the Trial limits on the Try it page): a View Link ends on the trial's last day at the latest, whatever date you pick, and keeps that date if you subscribe.
+**Who a trial reaches.** Once someone has accepted their invitation (signing in proves their address), every Connector reaches them as in any Workspace: Prompts, reminders, tasks and Alerts go by email, Slack or Telegram, whichever each person chose. Anything meant for an invitation that is still open, or for a **Contact**, stays in the Outbox with the reason, because nobody has proved those details. The trial sends at most 100 messages a day to everyone together (hosted Ziffr may set another number). **View Links** and **Webhooks** work in a trial within its limits (see the Trial limits on the Try it page): a View Link ends on the trial's last day at the latest, whatever date you pick, and gets the date you picked back if you subscribe.
 
 **Your trial's limits.** The line above the page, and **Try it** below the cards, show Owners and Admins what the trial has used: "3 of 5 people, 4 of 10 invitation emails today, 12 of 25 Metrics", and, when one is reached, what it means and when more invitation emails can go. Members and Guests see no counts: their line above the page says whose trial it is (a Guest is not told the name), the day it ends and what follows, in the words of the invitation.
 
 **Try it** stays as the reference: one card per way values and messages travel (email, replies by email, Slack, Telegram, the web form, the API, AI assistants, Feeds, WhatsApp, the ticket system). Each says whether it is **Real**, **Simulated** or **Off** on this Ziffr and why, and, for the real ones, how to try it in a sentence with a link. A card is ticked once a value really arrived that way. Below the cards, **What a trial never does** lists what to not wait for.
 
-While the trial runs, a line above the page says how many days it has left, with **Trial guide**, **Try it** and **Download your values** (a CSV file of every Metric's values, written in the Workspace's Number Style without group marks and with a plain "-" before a negative value, so a spreadsheet reads it as a number; when the decimal mark is a comma, the fields are separated by ";" so a spreadsheet set to that style opens it right away). The day before it ends, Ziffr reminds you once. When it ends, Ziffr shows **This trial has ended** instead of the app: nothing is sent or taken any more and its keys stop working, but you can still download your values, and its Owner the [Workspace Export](#workspace-export). A week later the trial is deleted with everything in it, and your account with it. Members and Guests of the trial see **This trial has ended** with the name of its Owner, who decides whether it goes on, and nothing to download or delete. **End my trial** on the Try it page, or **Delete it now** on the ended screen, deletes it at once after you confirm.
+While the trial runs, a line above the page says how many days it has left, with **Trial guide**, **Try it** and **Download your values** (a CSV file of every Metric's values, written in the Workspace's Number Style without group marks and with a plain "-" before a negative value, so a spreadsheet reads it as a number; when the decimal mark is a comma, the fields are separated by ";" so a spreadsheet set to that style opens it right away). Ziffr reminds you three days before the end, one day before and as it ends. Each reminder names the two ways on and the day the trial is deleted: **subscribe** to a Size (choose **Change Size** in the Workspace settings), and everything stays as it is, colleagues included, or take the **Workspace Export** (the link in the reminder, and **Workspace Export** in the line above the page) and run Ziffr yourself. There is no free Size on hosted Ziffr: whoever wants Ziffr for free runs it themselves. (A trial that an older Ziffr kept as an ordinary Workspace, by its `ZIFFR_TRIAL_THEN` setting, stays as it was.) Members whose only Workspace it is get a note the day before the end with the day it is deleted, and that their account goes with it. When it ends, Ziffr shows **This trial has ended** instead of the app: nothing is sent or taken any more and its keys stop working, but you can still download your values, and its Owner the [Workspace Export](#workspace-export). A week later (the days the page names) the trial is deleted with everything in it, and your account with it. Members and Guests of the trial see **This trial has ended** with the name of its Owner, who decides whether it goes on, and nothing to download or delete. **End my trial** on the Try it page, or **Delete it now** on the ended screen, deletes it at once after you confirm.
 
-Some Ziffrs, such as hosted Ziffr, keep trials instead of deleting them. The line above the page then says what the Workspace stays on, such as "Your trial ends on 3 December. Your Workspace then stays, on Free: up to 10 Metrics.", and so does the reminder the day before. When the trial ends, nothing closes: the Workspace becomes an ordinary one with that limit (see Size and usage). From then on you can invite people, every Connector reaches everyone, and keys work until the day they were made for. If it holds more Metrics than the limit, the 14 days over it start. Booking a Size during the trial ends the trial at once, with that Size's limit.
+**When you cancel a Size.** Cancelling a Size, or a payment that fails for good, ends a Workspace the same way a trial ends: it closes, **This Workspace is closed** replaces the app, nothing is sent or taken, keys and links stop, and the Owner can take the Workspace Export and the values. The Owner gets an email with the day it is deleted, the same number of days later as a trial's (a week). Members whose only Workspace it is are told the day it goes, and that their account goes with it; the others hear nothing. If the Size is booked again before that day, Ziffr Cloud can open the Workspace again with all its data, and you are told. Keys and the Slack, Telegram and Calendar connections that stopped when it closed stay stopped: make the keys and connect them again. Questions and tasks that were open stay closed. Otherwise take the Workspace Export and run Ziffr yourself.
 
-Where such a Ziffr allows only one Workspace on its default limit per person, making a second one says so: change the first one's Size for more room, or ask to be invited to another Workspace.
+**View Links in a trial and after.** A View Link made in a trial ends on the trial's last day at the latest, whatever date you pick. If you subscribe, the Workspace goes on, and the link gets the end date you picked back. A link made before this change keeps the date the trial gave it. Revoked links stay revoked.
+
+Where a Ziffr allows only one Workspace on its default limit per person, making a second one says so: change the first one's Size for more room, or ask to be invited to another Workspace.
 
 ### Asking to join
 
@@ -131,7 +133,7 @@ The **Workspace name** is what everyone sees in the Workspace switcher and in In
 
 ### Quiet hours
 
-On the same page as the Workspace's time, Owners and Admins can set the default **Quiet hours** for everyone who has set none of their own: the hours (such as 19:00 until 07:00) and the whole days (such as Saturday and Sunday) when Ziffr sends no request for numbers, reminder or Alert. They wait and go out when the quiet hours end. The default is read in the Workspace's time zone; people can set their own, in their own time zone, under **Your Deliveries**. **Remove** takes the default away. It is recorded in the **Audit Log**.
+On the same page as the Workspace's time, Owners and Admins can set the default **Quiet hours** for everyone who has set none of their own: the hours (such as 19:00 until 07:00) and the whole days (such as Saturday and Sunday) when Ziffr sends no request for numbers, reminder, Alert or Heads-up message. They wait and go out when the quiet hours end. The default is read in the Workspace's time zone; people can set their own, in their own time zone, under **Your Deliveries**. **Remove** takes the default away. It is recorded in the **Audit Log**.
 
 ### Workspace time
 
@@ -249,7 +251,9 @@ Pick another role and it changes at once. Only an Owner can make someone an Owne
 
 ### Removing someone and handing over
 
-Choose **Remove…** next to a person. Ziffr asks **Who takes over?**: pick another person (not a Guest), then choose **Remove**, or **Cancel** to stop.
+A person who owns Metrics cannot be changed to Guest: hand the Metrics over first (see Handing a Metric over in the Metrics chapter), or remove them and pick who takes over.
+
+Choose **Remove…** next to a person. Ziffr asks who takes over their Metrics and everything else, and offers an Owner first: keep that choice or pick another person (not a Guest), then choose **Remove**, or **Cancel** to stop.
 
 When you remove someone:
 
@@ -321,7 +325,11 @@ In the demo, adding a Contact says "The demo can't be changed."
 
 ## Connectors
 
-**Workspace → Connectors** shows how Ziffr reaches people and how their answers come back. Everyone sees it. See [Connecting Ziffr](04-connecting.md) for the bigger picture. It has four tabs, each its own page: **Channels** (below, from Slack to Connected systems), **Sources**, **Outbox** and **Who gets what**. The old address `/sources` leads to the **Sources** tab. Claude and other AI assistants are not set up here but under **Connected assistants** in your own menu; **Channels** says so in one line.
+**Workspace → Connectors** shows how Ziffr reaches people and how their answers come back. Everyone sees it. See [Connecting Ziffr](04-connecting.md) for the bigger picture. It has five tabs, each its own page: **Channels** (below, from Slack to Connected systems), **Sources**, **Send values**, **Outbox** and **Who gets what**. The old address `/sources` leads to the **Sources** tab. Claude and other AI assistants are not set up here but under **Connected assistants** in your own menu; **Channels** says so in one line.
+
+### Send values
+
+The **Send values** tab is where everyone finds a working way to put values on their Metrics from a program or another system. Pick one of your Metrics that takes values from the API (its **Values arrive by** includes **API and Feeds**), and a kind of key: a **Feed Key** for a system (Owners and Admins; up to 500 values in one call) or an **Access Key** for you (one value at a time, as you). The page shows the call for this Ziffr's own address in curl, JavaScript, Python and n8n or Zapier, each with a **Copy** button. The key is a placeholder: the page holds no key and sends nothing (make a key under **Settings → Feeds** or **Settings → API keys**). Below it, **What the answers mean** says what a 400, 401, 409, 422 or 429 is and what to do, and **Other ways to connect** points to the ready-made n8n workflows (**Fill from n8n** on a Metric), the AI assistant and the keys. The full list of answers and codes is in the [Feeds guide](../guides/feeds.md).
 
 ### Slack
 
@@ -403,7 +411,7 @@ The two **Run now** buttons sit in a dashed **Demo controls** box; using them sa
 
 ## Sources
 
-**Workspace → Connectors → Sources** shows where values come from. Everyone sees it.
+**Workspace → Connectors → Sources** shows where values come from. Everyone sees it. It names only the Metrics you can see: a message or form link about a Metric you cannot see shows no name.
 
 ### From the web form
 
@@ -490,7 +498,7 @@ The demo has no Access Keys, because a key there would act as a made-up person f
 
 ### Calendar Links
 
-Owners and Admins also see, below the keys, who has a **Calendar Link**: a secret address that shows a person's schedule in their calendar app (see [My schedule and your calendar](17-your-settings.md#my-schedule-and-your-calendar)). Each line shows the person's name, when they made it, and when a calendar last fetched it. The address itself is never shown. The bin icon revokes the link at once, and it then answers "not found". Its person can make a new one. A Calendar Link also ends when its person leaves the Workspace.
+Owners and Admins also see, below the keys, who has a **Calendar Link**: a secret address that shows a person's schedule in their calendar app (see [My schedule and your calendar](17-your-settings.md#the-schedule-and-your-calendar)). Each line shows the person's name, when they made it, and when a calendar last fetched it. The address itself is never shown. The bin icon revokes the link at once, and it then answers "not found". Its person can make a new one. A Calendar Link also ends when its person leaves the Workspace.
 
 ## Feeds
 
@@ -519,6 +527,8 @@ Each Feed lists its keys with name, the start of the key, and the day it ends or
 To make a key, type a **Key name** (such as "Nightly run"; if you leave it empty, Ziffr names it after the Feed), pick **Until** (at most a year ahead) and choose **Create Feed Key**. The secret is shown once. Copy it and give it to whoever runs the Feed.
 
 Only Owners and Admins see Feed Keys and their Access Logs.
+
+To fill Metrics from a sheet or another system without writing a Feed, use **Fill from n8n** under a Metric's **Who submits** (see [The Metrics screens](10-metrics.md#who-submits)) or on the page after **Set up from this Pack**: it makes the Feed and its key for you and downloads the n8n workflow.
 
 ## Webhooks
 

@@ -4,6 +4,8 @@
 // sees every Metric it draws publishes it. Every function takes the Actor first.
 import { openWorkflowRow } from "./workflow-rows";
 import { db } from "./db";
+import { getGroups } from "./access";
+import { mayReadItem } from "./checklist-rules";
 import { openRows } from "./sealed-columns";
 import { assertCan, Forbidden, Refused, type Actor } from "./actor";
 import { assertCanEditDashboard, editableWidget } from "./dashboards";
@@ -132,9 +134,13 @@ export async function saveDeckTemplate(actor: Actor, input: { deckId: number; na
  * Approvers are left out, only how many there are kept: a template names no person (GLOSSARY: Workflow Template). */
 export async function saveWorkflowTemplate(actor: Actor, input: { workflowId: number; name: string; description: string; replaceId?: number | null }): Promise<number> {
   // Its id comes along: the config's sealed numbers are bound to it. A template holds them plain (it names no person and no row).
-  const data = await openWorkflowRow(actor.workspaceId, (await db().from("workflows").select("id, name, config").eq("id", Number(input.workflowId)).eq("workspace_id", actor.workspaceId).maybeSingle()).data);
+  const data = await openWorkflowRow(actor.workspaceId, (await db().from("workflows").select("id, name, owner_id, config").eq("id", Number(input.workflowId)).eq("workspace_id", actor.workspaceId).maybeSingle()).data);
   if (!data) throw new Forbidden();
-  const body = toWorkflowTemplate(data.config as WorkflowConfig);
+  // A template is the whole team's: an item whose words the actor may not read stays behind (rule 3); an item kept to a Group stays out of a team template whoever saves it (toWorkflowTemplate).
+  const groupIds = (await getGroups(actor.workspaceId)).filter((g) => g.members.includes(actor.personId)).map((g) => g.id);
+  const config = data.config as WorkflowConfig;
+  const readable = { ...config, steps: config.steps.filter((s) => s.type !== "checklist" || mayReadItem(s, { id: actor.personId, role: actor.role, groupIds }, String(data.owner_id))) };
+  const body = toWorkflowTemplate(readable, { forTeam: true });
   return store(actor, "workflow", input.replaceId, { ...names(input.name, input.description, `${data.name} template`), view: "workflow", slots: [], body, w: 0, h: 0, updated_at: new Date().toISOString() });
 }
 

@@ -98,386 +98,1125 @@
       "description": "plain text, without markup or web addresses"
     },
     "analysis": {
-      "description": "An Analysis Recipe (ziffr.analysis/1) the design draws; its Slots are the design's first Metrics, in order.",
-      "type": "object",
-      "properties": {
-        "format": {
-          "const": "ziffr.analysis/1"
-        },
-        "name": {
-          "type": "string",
-          "maxLength": 80,
-          "pattern": "^(?![\\s\\S]*(?:://|[Ww][Ww][Ww]\\.|[Jj][Aa][Vv][Aa][Ss][Cc][Rr][Ii][Pp][Tt]:|[Dd][Aa][Tt][Aa]:|[Uu][Rr][Ll]\\(|[\\p{L}\\p{N}](?:\\.(?:[Cc][Oo][Mm]|[Nn][Ee][Tt]|[Oo][Rr][Gg]|[Ii][Oo]|[Cc][Oo]|[Ii][Nn][Ff][Oo]|[Bb][Ii][Zz]|[Aa][Pp][Pp]|[Dd][Ee][Vv]|[Xx][Yy][Zz]|[Mm][Ee]|[Aa][Ii]|[Ll][Yy]|[Gg][Ll]|[Gg][Gg]|[Tt][Oo]|[Cc][Cc]|[Tt][Vv]|[Ww][Ss]|[Ll][Ii][Nn][Kk]|[Cc][Ll][Ii][Cc][Kk]|[Ss][Ii][Tt][Ee]|[Oo][Nn][Ll][Ii][Nn][Ee]|[Tt][Oo][Pp]|[Tt][Kk]|[Rr][Uu]|[Cc][Nn]|[Dd][Ee]|[Uu][Kk]|[Ff][Rr]|[Ee][Uu]|[Uu][Ss]|[Nn][Ll]|[Cc][Hh]|[Aa][Tt]|[Ii][Tt]|[Ee][Ss])(?![\\p{L}\\p{N}])|\\.[Xx][Nn]--|\\.\\p{L}{2,}/)|\\b(?:[Hh][Tt][Tt][Pp][Ss]?|[Ff][Tt][Pp]|[Mm][Aa][Ii][Ll][Tt][Oo]|[Tt][Ee][Ll]|[Ss][Mm][Ss]|[Ff][Ii][Ll][Ee]|[Vv][Bb][Ss][Cc][Rr][Ii][Pp][Tt]):(?!\\s)))[\\p{L}\\p{M}\\p{N} .,;:!?'\"’‘“”«»()%€$£¥+\\-–—/&#*=_·…°]*$",
-          "description": "plain text, without markup or web addresses",
-          "minLength": 1
-        },
-        "description": {
-          "type": "string",
-          "maxLength": 300,
-          "pattern": "^(?![\\s\\S]*(?:://|[Ww][Ww][Ww]\\.|[Jj][Aa][Vv][Aa][Ss][Cc][Rr][Ii][Pp][Tt]:|[Dd][Aa][Tt][Aa]:|[Uu][Rr][Ll]\\(|[\\p{L}\\p{N}](?:\\.(?:[Cc][Oo][Mm]|[Nn][Ee][Tt]|[Oo][Rr][Gg]|[Ii][Oo]|[Cc][Oo]|[Ii][Nn][Ff][Oo]|[Bb][Ii][Zz]|[Aa][Pp][Pp]|[Dd][Ee][Vv]|[Xx][Yy][Zz]|[Mm][Ee]|[Aa][Ii]|[Ll][Yy]|[Gg][Ll]|[Gg][Gg]|[Tt][Oo]|[Cc][Cc]|[Tt][Vv]|[Ww][Ss]|[Ll][Ii][Nn][Kk]|[Cc][Ll][Ii][Cc][Kk]|[Ss][Ii][Tt][Ee]|[Oo][Nn][Ll][Ii][Nn][Ee]|[Tt][Oo][Pp]|[Tt][Kk]|[Rr][Uu]|[Cc][Nn]|[Dd][Ee]|[Uu][Kk]|[Ff][Rr]|[Ee][Uu]|[Uu][Ss]|[Nn][Ll]|[Cc][Hh]|[Aa][Tt]|[Ii][Tt]|[Ee][Ss])(?![\\p{L}\\p{N}])|\\.[Xx][Nn]--|\\.\\p{L}{2,}/)|\\b(?:[Hh][Tt][Tt][Pp][Ss]?|[Ff][Tt][Pp]|[Mm][Aa][Ii][Ll][Tt][Oo]|[Tt][Ee][Ll]|[Ss][Mm][Ss]|[Ff][Ii][Ll][Ee]|[Vv][Bb][Ss][Cc][Rr][Ii][Pp][Tt]):(?!\\s)))[\\p{L}\\p{M}\\p{N} .,;:!?'\"’‘“”«»()%€$£¥+\\-–—/&#*=_·…°]*$",
-          "description": "plain text, without markup or web addresses"
-        },
-        "slots": {
-          "type": "array",
-          "minItems": 1,
-          "maxItems": 4,
-          "items": {
-            "type": "object",
-            "properties": {
-              "label": {
-                "type": "string",
-                "maxLength": 60,
-                "pattern": "^(?![\\s\\S]*(?:://|[Ww][Ww][Ww]\\.|[Jj][Aa][Vv][Aa][Ss][Cc][Rr][Ii][Pp][Tt]:|[Dd][Aa][Tt][Aa]:|[Uu][Rr][Ll]\\(|[\\p{L}\\p{N}](?:\\.(?:[Cc][Oo][Mm]|[Nn][Ee][Tt]|[Oo][Rr][Gg]|[Ii][Oo]|[Cc][Oo]|[Ii][Nn][Ff][Oo]|[Bb][Ii][Zz]|[Aa][Pp][Pp]|[Dd][Ee][Vv]|[Xx][Yy][Zz]|[Mm][Ee]|[Aa][Ii]|[Ll][Yy]|[Gg][Ll]|[Gg][Gg]|[Tt][Oo]|[Cc][Cc]|[Tt][Vv]|[Ww][Ss]|[Ll][Ii][Nn][Kk]|[Cc][Ll][Ii][Cc][Kk]|[Ss][Ii][Tt][Ee]|[Oo][Nn][Ll][Ii][Nn][Ee]|[Tt][Oo][Pp]|[Tt][Kk]|[Rr][Uu]|[Cc][Nn]|[Dd][Ee]|[Uu][Kk]|[Ff][Rr]|[Ee][Uu]|[Uu][Ss]|[Nn][Ll]|[Cc][Hh]|[Aa][Tt]|[Ii][Tt]|[Ee][Ss])(?![\\p{L}\\p{N}])|\\.[Xx][Nn]--|\\.\\p{L}{2,}/)|\\b(?:[Hh][Tt][Tt][Pp][Ss]?|[Ff][Tt][Pp]|[Mm][Aa][Ii][Ll][Tt][Oo]|[Tt][Ee][Ll]|[Ss][Mm][Ss]|[Ff][Ii][Ll][Ee]|[Vv][Bb][Ss][Cc][Rr][Ii][Pp][Tt]):(?!\\s)))[\\p{L}\\p{M}\\p{N} .,;:!?'\"’‘“”«»()%€$£¥+\\-–—/&#*=_·…°]*$",
-                "description": "plain text, without markup or web addresses",
-                "minLength": 1
+      "oneOf": [
+        {
+          "type": "object",
+          "properties": {
+            "format": {
+              "const": "ziffr.analysis/1"
+            },
+            "name": {
+              "type": "string",
+              "maxLength": 80,
+              "pattern": "^(?![\\s\\S]*(?:://|[Ww][Ww][Ww]\\.|[Jj][Aa][Vv][Aa][Ss][Cc][Rr][Ii][Pp][Tt]:|[Dd][Aa][Tt][Aa]:|[Uu][Rr][Ll]\\(|[\\p{L}\\p{N}](?:\\.(?:[Cc][Oo][Mm]|[Nn][Ee][Tt]|[Oo][Rr][Gg]|[Ii][Oo]|[Cc][Oo]|[Ii][Nn][Ff][Oo]|[Bb][Ii][Zz]|[Aa][Pp][Pp]|[Dd][Ee][Vv]|[Xx][Yy][Zz]|[Mm][Ee]|[Aa][Ii]|[Ll][Yy]|[Gg][Ll]|[Gg][Gg]|[Tt][Oo]|[Cc][Cc]|[Tt][Vv]|[Ww][Ss]|[Ll][Ii][Nn][Kk]|[Cc][Ll][Ii][Cc][Kk]|[Ss][Ii][Tt][Ee]|[Oo][Nn][Ll][Ii][Nn][Ee]|[Tt][Oo][Pp]|[Tt][Kk]|[Rr][Uu]|[Cc][Nn]|[Dd][Ee]|[Uu][Kk]|[Ff][Rr]|[Ee][Uu]|[Uu][Ss]|[Nn][Ll]|[Cc][Hh]|[Aa][Tt]|[Ii][Tt]|[Ee][Ss])(?![\\p{L}\\p{N}])|\\.[Xx][Nn]--|\\.\\p{L}{2,}/)|\\b(?:[Hh][Tt][Tt][Pp][Ss]?|[Ff][Tt][Pp]|[Mm][Aa][Ii][Ll][Tt][Oo]|[Tt][Ee][Ll]|[Ss][Mm][Ss]|[Ff][Ii][Ll][Ee]|[Vv][Bb][Ss][Cc][Rr][Ii][Pp][Tt]):(?!\\s)))[\\p{L}\\p{M}\\p{N} .,;:!?'\"’‘“”«»()%€$£¥+\\-–—/&#*=_·…°]*$",
+              "description": "plain text, without markup or web addresses",
+              "minLength": 1
+            },
+            "description": {
+              "type": "string",
+              "maxLength": 300,
+              "pattern": "^(?![\\s\\S]*(?:://|[Ww][Ww][Ww]\\.|[Jj][Aa][Vv][Aa][Ss][Cc][Rr][Ii][Pp][Tt]:|[Dd][Aa][Tt][Aa]:|[Uu][Rr][Ll]\\(|[\\p{L}\\p{N}](?:\\.(?:[Cc][Oo][Mm]|[Nn][Ee][Tt]|[Oo][Rr][Gg]|[Ii][Oo]|[Cc][Oo]|[Ii][Nn][Ff][Oo]|[Bb][Ii][Zz]|[Aa][Pp][Pp]|[Dd][Ee][Vv]|[Xx][Yy][Zz]|[Mm][Ee]|[Aa][Ii]|[Ll][Yy]|[Gg][Ll]|[Gg][Gg]|[Tt][Oo]|[Cc][Cc]|[Tt][Vv]|[Ww][Ss]|[Ll][Ii][Nn][Kk]|[Cc][Ll][Ii][Cc][Kk]|[Ss][Ii][Tt][Ee]|[Oo][Nn][Ll][Ii][Nn][Ee]|[Tt][Oo][Pp]|[Tt][Kk]|[Rr][Uu]|[Cc][Nn]|[Dd][Ee]|[Uu][Kk]|[Ff][Rr]|[Ee][Uu]|[Uu][Ss]|[Nn][Ll]|[Cc][Hh]|[Aa][Tt]|[Ii][Tt]|[Ee][Ss])(?![\\p{L}\\p{N}])|\\.[Xx][Nn]--|\\.\\p{L}{2,}/)|\\b(?:[Hh][Tt][Tt][Pp][Ss]?|[Ff][Tt][Pp]|[Mm][Aa][Ii][Ll][Tt][Oo]|[Tt][Ee][Ll]|[Ss][Mm][Ss]|[Ff][Ii][Ll][Ee]|[Vv][Bb][Ss][Cc][Rr][Ii][Pp][Tt]):(?!\\s)))[\\p{L}\\p{M}\\p{N} .,;:!?'\"’‘“”«»()%€$£¥+\\-–—/&#*=_·…°]*$",
+              "description": "plain text, without markup or web addresses"
+            },
+            "slots": {
+              "type": "array",
+              "minItems": 1,
+              "maxItems": 4,
+              "items": {
+                "type": "object",
+                "properties": {
+                  "label": {
+                    "type": "string",
+                    "maxLength": 60,
+                    "pattern": "^(?![\\s\\S]*(?:://|[Ww][Ww][Ww]\\.|[Jj][Aa][Vv][Aa][Ss][Cc][Rr][Ii][Pp][Tt]:|[Dd][Aa][Tt][Aa]:|[Uu][Rr][Ll]\\(|[\\p{L}\\p{N}](?:\\.(?:[Cc][Oo][Mm]|[Nn][Ee][Tt]|[Oo][Rr][Gg]|[Ii][Oo]|[Cc][Oo]|[Ii][Nn][Ff][Oo]|[Bb][Ii][Zz]|[Aa][Pp][Pp]|[Dd][Ee][Vv]|[Xx][Yy][Zz]|[Mm][Ee]|[Aa][Ii]|[Ll][Yy]|[Gg][Ll]|[Gg][Gg]|[Tt][Oo]|[Cc][Cc]|[Tt][Vv]|[Ww][Ss]|[Ll][Ii][Nn][Kk]|[Cc][Ll][Ii][Cc][Kk]|[Ss][Ii][Tt][Ee]|[Oo][Nn][Ll][Ii][Nn][Ee]|[Tt][Oo][Pp]|[Tt][Kk]|[Rr][Uu]|[Cc][Nn]|[Dd][Ee]|[Uu][Kk]|[Ff][Rr]|[Ee][Uu]|[Uu][Ss]|[Nn][Ll]|[Cc][Hh]|[Aa][Tt]|[Ii][Tt]|[Ee][Ss])(?![\\p{L}\\p{N}])|\\.[Xx][Nn]--|\\.\\p{L}{2,}/)|\\b(?:[Hh][Tt][Tt][Pp][Ss]?|[Ff][Tt][Pp]|[Mm][Aa][Ii][Ll][Tt][Oo]|[Tt][Ee][Ll]|[Ss][Mm][Ss]|[Ff][Ii][Ll][Ee]|[Vv][Bb][Ss][Cc][Rr][Ii][Pp][Tt]):(?!\\s)))[\\p{L}\\p{M}\\p{N} .,;:!?'\"’‘“”«»()%€$£¥+\\-–—/&#*=_·…°]*$",
+                    "description": "plain text, without markup or web addresses",
+                    "minLength": 1
+                  }
+                },
+                "required": [
+                  "label"
+                ],
+                "additionalProperties": false
               }
             },
-            "required": [
-              "label"
-            ],
-            "additionalProperties": false
-          }
-        },
-        "steps": {
-          "type": "array",
-          "minItems": 1,
-          "maxItems": 12,
-          "items": {
-            "oneOf": [
-              {
-                "type": "object",
-                "properties": {
-                  "id": {
-                    "type": "string",
-                    "pattern": "^[a-z][a-zA-Z0-9]{0,23}$",
-                    "description": "a name for the step: a letter, then letters and digits"
+            "steps": {
+              "type": "array",
+              "minItems": 1,
+              "maxItems": 12,
+              "items": {
+                "oneOf": [
+                  {
+                    "type": "object",
+                    "properties": {
+                      "id": {
+                        "type": "string",
+                        "pattern": "^[a-z][a-zA-Z0-9]{0,23}$",
+                        "description": "a name for the step: a letter, then letters and digits"
+                      },
+                      "fn": {
+                        "const": "movingAverage"
+                      },
+                      "of": {
+                        "type": "string",
+                        "pattern": "^(slot[1-4]|[a-z][a-zA-Z0-9]{0,23})$",
+                        "description": "a Slot (slot1 to slot4) or the id of an earlier step"
+                      },
+                      "window": {
+                        "type": "integer",
+                        "minimum": 2,
+                        "maximum": 60
+                      }
+                    },
+                    "required": [
+                      "id",
+                      "fn",
+                      "of",
+                      "window"
+                    ],
+                    "additionalProperties": false
                   },
-                  "fn": {
-                    "const": "movingAverage"
+                  {
+                    "type": "object",
+                    "properties": {
+                      "id": {
+                        "type": "string",
+                        "pattern": "^[a-z][a-zA-Z0-9]{0,23}$",
+                        "description": "a name for the step: a letter, then letters and digits"
+                      },
+                      "fn": {
+                        "const": "difference"
+                      },
+                      "of": {
+                        "type": "string",
+                        "pattern": "^(slot[1-4]|[a-z][a-zA-Z0-9]{0,23})$",
+                        "description": "a Slot (slot1 to slot4) or the id of an earlier step"
+                      }
+                    },
+                    "required": [
+                      "id",
+                      "fn",
+                      "of"
+                    ],
+                    "additionalProperties": false
                   },
-                  "of": {
-                    "type": "string",
-                    "pattern": "^(slot[1-4]|[a-z][a-zA-Z0-9]{0,23})$",
-                    "description": "a Slot (slot1 to slot4) or the id of an earlier step"
+                  {
+                    "type": "object",
+                    "properties": {
+                      "id": {
+                        "type": "string",
+                        "pattern": "^[a-z][a-zA-Z0-9]{0,23}$",
+                        "description": "a name for the step: a letter, then letters and digits"
+                      },
+                      "fn": {
+                        "const": "growth"
+                      },
+                      "of": {
+                        "type": "string",
+                        "pattern": "^(slot[1-4]|[a-z][a-zA-Z0-9]{0,23})$",
+                        "description": "a Slot (slot1 to slot4) or the id of an earlier step"
+                      }
+                    },
+                    "required": [
+                      "id",
+                      "fn",
+                      "of"
+                    ],
+                    "additionalProperties": false
                   },
-                  "window": {
-                    "type": "integer",
-                    "minimum": 2,
-                    "maximum": 60
+                  {
+                    "type": "object",
+                    "properties": {
+                      "id": {
+                        "type": "string",
+                        "pattern": "^[a-z][a-zA-Z0-9]{0,23}$",
+                        "description": "a name for the step: a letter, then letters and digits"
+                      },
+                      "fn": {
+                        "const": "share"
+                      },
+                      "of": {
+                        "type": "string",
+                        "pattern": "^(slot[1-4]|[a-z][a-zA-Z0-9]{0,23})$",
+                        "description": "a Slot (slot1 to slot4) or the id of an earlier step"
+                      },
+                      "with": {
+                        "type": "string",
+                        "pattern": "^(slot[1-4]|[a-z][a-zA-Z0-9]{0,23})$",
+                        "description": "a Slot (slot1 to slot4) or the id of an earlier step"
+                      }
+                    },
+                    "required": [
+                      "id",
+                      "fn",
+                      "of",
+                      "with"
+                    ],
+                    "additionalProperties": false
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "id": {
+                        "type": "string",
+                        "pattern": "^[a-z][a-zA-Z0-9]{0,23}$",
+                        "description": "a name for the step: a letter, then letters and digits"
+                      },
+                      "fn": {
+                        "const": "linearTrend"
+                      },
+                      "of": {
+                        "type": "string",
+                        "pattern": "^(slot[1-4]|[a-z][a-zA-Z0-9]{0,23})$",
+                        "description": "a Slot (slot1 to slot4) or the id of an earlier step"
+                      }
+                    },
+                    "required": [
+                      "id",
+                      "fn",
+                      "of"
+                    ],
+                    "additionalProperties": false
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "id": {
+                        "type": "string",
+                        "pattern": "^[a-z][a-zA-Z0-9]{0,23}$",
+                        "description": "a name for the step: a letter, then letters and digits"
+                      },
+                      "fn": {
+                        "const": "slope"
+                      },
+                      "of": {
+                        "type": "string",
+                        "pattern": "^(slot[1-4]|[a-z][a-zA-Z0-9]{0,23})$",
+                        "description": "a Slot (slot1 to slot4) or the id of an earlier step"
+                      }
+                    },
+                    "required": [
+                      "id",
+                      "fn",
+                      "of"
+                    ],
+                    "additionalProperties": false
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "id": {
+                        "type": "string",
+                        "pattern": "^[a-z][a-zA-Z0-9]{0,23}$",
+                        "description": "a name for the step: a letter, then letters and digits"
+                      },
+                      "fn": {
+                        "const": "mean"
+                      },
+                      "of": {
+                        "type": "string",
+                        "pattern": "^(slot[1-4]|[a-z][a-zA-Z0-9]{0,23})$",
+                        "description": "a Slot (slot1 to slot4) or the id of an earlier step"
+                      }
+                    },
+                    "required": [
+                      "id",
+                      "fn",
+                      "of"
+                    ],
+                    "additionalProperties": false
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "id": {
+                        "type": "string",
+                        "pattern": "^[a-z][a-zA-Z0-9]{0,23}$",
+                        "description": "a name for the step: a letter, then letters and digits"
+                      },
+                      "fn": {
+                        "const": "standardDeviation"
+                      },
+                      "of": {
+                        "type": "string",
+                        "pattern": "^(slot[1-4]|[a-z][a-zA-Z0-9]{0,23})$",
+                        "description": "a Slot (slot1 to slot4) or the id of an earlier step"
+                      }
+                    },
+                    "required": [
+                      "id",
+                      "fn",
+                      "of"
+                    ],
+                    "additionalProperties": false
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "id": {
+                        "type": "string",
+                        "pattern": "^[a-z][a-zA-Z0-9]{0,23}$",
+                        "description": "a name for the step: a letter, then letters and digits"
+                      },
+                      "fn": {
+                        "const": "zScore"
+                      },
+                      "of": {
+                        "type": "string",
+                        "pattern": "^(slot[1-4]|[a-z][a-zA-Z0-9]{0,23})$",
+                        "description": "a Slot (slot1 to slot4) or the id of an earlier step"
+                      }
+                    },
+                    "required": [
+                      "id",
+                      "fn",
+                      "of"
+                    ],
+                    "additionalProperties": false
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "id": {
+                        "type": "string",
+                        "pattern": "^[a-z][a-zA-Z0-9]{0,23}$",
+                        "description": "a name for the step: a letter, then letters and digits"
+                      },
+                      "fn": {
+                        "const": "seasonalIndex"
+                      },
+                      "of": {
+                        "type": "string",
+                        "pattern": "^(slot[1-4]|[a-z][a-zA-Z0-9]{0,23})$",
+                        "description": "a Slot (slot1 to slot4) or the id of an earlier step"
+                      },
+                      "season": {
+                        "type": "integer",
+                        "minimum": 2,
+                        "maximum": 53
+                      }
+                    },
+                    "required": [
+                      "id",
+                      "fn",
+                      "of",
+                      "season"
+                    ],
+                    "additionalProperties": false
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "id": {
+                        "type": "string",
+                        "pattern": "^[a-z][a-zA-Z0-9]{0,23}$",
+                        "description": "a name for the step: a letter, then letters and digits"
+                      },
+                      "fn": {
+                        "const": "correlation"
+                      },
+                      "of": {
+                        "type": "string",
+                        "pattern": "^(slot[1-4]|[a-z][a-zA-Z0-9]{0,23})$",
+                        "description": "a Slot (slot1 to slot4) or the id of an earlier step"
+                      },
+                      "with": {
+                        "type": "string",
+                        "pattern": "^(slot[1-4]|[a-z][a-zA-Z0-9]{0,23})$",
+                        "description": "a Slot (slot1 to slot4) or the id of an earlier step"
+                      }
+                    },
+                    "required": [
+                      "id",
+                      "fn",
+                      "of",
+                      "with"
+                    ],
+                    "additionalProperties": false
                   }
-                },
-                "required": [
-                  "id",
-                  "fn",
-                  "of",
-                  "window"
-                ],
-                "additionalProperties": false
-              },
-              {
-                "type": "object",
-                "properties": {
-                  "id": {
-                    "type": "string",
-                    "pattern": "^[a-z][a-zA-Z0-9]{0,23}$",
-                    "description": "a name for the step: a letter, then letters and digits"
-                  },
-                  "fn": {
-                    "const": "difference"
-                  },
-                  "of": {
-                    "type": "string",
-                    "pattern": "^(slot[1-4]|[a-z][a-zA-Z0-9]{0,23})$",
-                    "description": "a Slot (slot1 to slot4) or the id of an earlier step"
-                  }
-                },
-                "required": [
-                  "id",
-                  "fn",
-                  "of"
-                ],
-                "additionalProperties": false
-              },
-              {
-                "type": "object",
-                "properties": {
-                  "id": {
-                    "type": "string",
-                    "pattern": "^[a-z][a-zA-Z0-9]{0,23}$",
-                    "description": "a name for the step: a letter, then letters and digits"
-                  },
-                  "fn": {
-                    "const": "growth"
-                  },
-                  "of": {
-                    "type": "string",
-                    "pattern": "^(slot[1-4]|[a-z][a-zA-Z0-9]{0,23})$",
-                    "description": "a Slot (slot1 to slot4) or the id of an earlier step"
-                  }
-                },
-                "required": [
-                  "id",
-                  "fn",
-                  "of"
-                ],
-                "additionalProperties": false
-              },
-              {
-                "type": "object",
-                "properties": {
-                  "id": {
-                    "type": "string",
-                    "pattern": "^[a-z][a-zA-Z0-9]{0,23}$",
-                    "description": "a name for the step: a letter, then letters and digits"
-                  },
-                  "fn": {
-                    "const": "share"
-                  },
-                  "of": {
-                    "type": "string",
-                    "pattern": "^(slot[1-4]|[a-z][a-zA-Z0-9]{0,23})$",
-                    "description": "a Slot (slot1 to slot4) or the id of an earlier step"
-                  },
-                  "with": {
-                    "type": "string",
-                    "pattern": "^(slot[1-4]|[a-z][a-zA-Z0-9]{0,23})$",
-                    "description": "a Slot (slot1 to slot4) or the id of an earlier step"
-                  }
-                },
-                "required": [
-                  "id",
-                  "fn",
-                  "of",
-                  "with"
-                ],
-                "additionalProperties": false
-              },
-              {
-                "type": "object",
-                "properties": {
-                  "id": {
-                    "type": "string",
-                    "pattern": "^[a-z][a-zA-Z0-9]{0,23}$",
-                    "description": "a name for the step: a letter, then letters and digits"
-                  },
-                  "fn": {
-                    "const": "linearTrend"
-                  },
-                  "of": {
-                    "type": "string",
-                    "pattern": "^(slot[1-4]|[a-z][a-zA-Z0-9]{0,23})$",
-                    "description": "a Slot (slot1 to slot4) or the id of an earlier step"
-                  }
-                },
-                "required": [
-                  "id",
-                  "fn",
-                  "of"
-                ],
-                "additionalProperties": false
-              },
-              {
-                "type": "object",
-                "properties": {
-                  "id": {
-                    "type": "string",
-                    "pattern": "^[a-z][a-zA-Z0-9]{0,23}$",
-                    "description": "a name for the step: a letter, then letters and digits"
-                  },
-                  "fn": {
-                    "const": "slope"
-                  },
-                  "of": {
-                    "type": "string",
-                    "pattern": "^(slot[1-4]|[a-z][a-zA-Z0-9]{0,23})$",
-                    "description": "a Slot (slot1 to slot4) or the id of an earlier step"
-                  }
-                },
-                "required": [
-                  "id",
-                  "fn",
-                  "of"
-                ],
-                "additionalProperties": false
-              },
-              {
-                "type": "object",
-                "properties": {
-                  "id": {
-                    "type": "string",
-                    "pattern": "^[a-z][a-zA-Z0-9]{0,23}$",
-                    "description": "a name for the step: a letter, then letters and digits"
-                  },
-                  "fn": {
-                    "const": "mean"
-                  },
-                  "of": {
-                    "type": "string",
-                    "pattern": "^(slot[1-4]|[a-z][a-zA-Z0-9]{0,23})$",
-                    "description": "a Slot (slot1 to slot4) or the id of an earlier step"
-                  }
-                },
-                "required": [
-                  "id",
-                  "fn",
-                  "of"
-                ],
-                "additionalProperties": false
-              },
-              {
-                "type": "object",
-                "properties": {
-                  "id": {
-                    "type": "string",
-                    "pattern": "^[a-z][a-zA-Z0-9]{0,23}$",
-                    "description": "a name for the step: a letter, then letters and digits"
-                  },
-                  "fn": {
-                    "const": "standardDeviation"
-                  },
-                  "of": {
-                    "type": "string",
-                    "pattern": "^(slot[1-4]|[a-z][a-zA-Z0-9]{0,23})$",
-                    "description": "a Slot (slot1 to slot4) or the id of an earlier step"
-                  }
-                },
-                "required": [
-                  "id",
-                  "fn",
-                  "of"
-                ],
-                "additionalProperties": false
-              },
-              {
-                "type": "object",
-                "properties": {
-                  "id": {
-                    "type": "string",
-                    "pattern": "^[a-z][a-zA-Z0-9]{0,23}$",
-                    "description": "a name for the step: a letter, then letters and digits"
-                  },
-                  "fn": {
-                    "const": "zScore"
-                  },
-                  "of": {
-                    "type": "string",
-                    "pattern": "^(slot[1-4]|[a-z][a-zA-Z0-9]{0,23})$",
-                    "description": "a Slot (slot1 to slot4) or the id of an earlier step"
-                  }
-                },
-                "required": [
-                  "id",
-                  "fn",
-                  "of"
-                ],
-                "additionalProperties": false
-              },
-              {
-                "type": "object",
-                "properties": {
-                  "id": {
-                    "type": "string",
-                    "pattern": "^[a-z][a-zA-Z0-9]{0,23}$",
-                    "description": "a name for the step: a letter, then letters and digits"
-                  },
-                  "fn": {
-                    "const": "seasonalIndex"
-                  },
-                  "of": {
-                    "type": "string",
-                    "pattern": "^(slot[1-4]|[a-z][a-zA-Z0-9]{0,23})$",
-                    "description": "a Slot (slot1 to slot4) or the id of an earlier step"
-                  },
-                  "season": {
-                    "type": "integer",
-                    "minimum": 2,
-                    "maximum": 53
-                  }
-                },
-                "required": [
-                  "id",
-                  "fn",
-                  "of",
-                  "season"
-                ],
-                "additionalProperties": false
-              },
-              {
-                "type": "object",
-                "properties": {
-                  "id": {
-                    "type": "string",
-                    "pattern": "^[a-z][a-zA-Z0-9]{0,23}$",
-                    "description": "a name for the step: a letter, then letters and digits"
-                  },
-                  "fn": {
-                    "const": "correlation"
-                  },
-                  "of": {
-                    "type": "string",
-                    "pattern": "^(slot[1-4]|[a-z][a-zA-Z0-9]{0,23})$",
-                    "description": "a Slot (slot1 to slot4) or the id of an earlier step"
-                  },
-                  "with": {
-                    "type": "string",
-                    "pattern": "^(slot[1-4]|[a-z][a-zA-Z0-9]{0,23})$",
-                    "description": "a Slot (slot1 to slot4) or the id of an earlier step"
-                  }
-                },
-                "required": [
-                  "id",
-                  "fn",
-                  "of",
-                  "with"
-                ],
-                "additionalProperties": false
-              }
-            ]
-          }
-        },
-        "outputs": {
-          "type": "array",
-          "minItems": 1,
-          "maxItems": 6,
-          "items": {
-            "type": "object",
-            "properties": {
-              "step": {
-                "type": "string",
-                "pattern": "^[a-z][a-zA-Z0-9]{0,23}$"
-              },
-              "label": {
-                "type": "string",
-                "maxLength": 60,
-                "pattern": "^(?![\\s\\S]*(?:://|[Ww][Ww][Ww]\\.|[Jj][Aa][Vv][Aa][Ss][Cc][Rr][Ii][Pp][Tt]:|[Dd][Aa][Tt][Aa]:|[Uu][Rr][Ll]\\(|[\\p{L}\\p{N}](?:\\.(?:[Cc][Oo][Mm]|[Nn][Ee][Tt]|[Oo][Rr][Gg]|[Ii][Oo]|[Cc][Oo]|[Ii][Nn][Ff][Oo]|[Bb][Ii][Zz]|[Aa][Pp][Pp]|[Dd][Ee][Vv]|[Xx][Yy][Zz]|[Mm][Ee]|[Aa][Ii]|[Ll][Yy]|[Gg][Ll]|[Gg][Gg]|[Tt][Oo]|[Cc][Cc]|[Tt][Vv]|[Ww][Ss]|[Ll][Ii][Nn][Kk]|[Cc][Ll][Ii][Cc][Kk]|[Ss][Ii][Tt][Ee]|[Oo][Nn][Ll][Ii][Nn][Ee]|[Tt][Oo][Pp]|[Tt][Kk]|[Rr][Uu]|[Cc][Nn]|[Dd][Ee]|[Uu][Kk]|[Ff][Rr]|[Ee][Uu]|[Uu][Ss]|[Nn][Ll]|[Cc][Hh]|[Aa][Tt]|[Ii][Tt]|[Ee][Ss])(?![\\p{L}\\p{N}])|\\.[Xx][Nn]--|\\.\\p{L}{2,}/)|\\b(?:[Hh][Tt][Tt][Pp][Ss]?|[Ff][Tt][Pp]|[Mm][Aa][Ii][Ll][Tt][Oo]|[Tt][Ee][Ll]|[Ss][Mm][Ss]|[Ff][Ii][Ll][Ee]|[Vv][Bb][Ss][Cc][Rr][Ii][Pp][Tt]):(?!\\s)))[\\p{L}\\p{M}\\p{N} .,;:!?'\"’‘“”«»()%€$£¥+\\-–—/&#*=_·…°]*$",
-                "description": "plain text, without markup or web addresses",
-                "minLength": 1
-              },
-              "unit": {
-                "enum": [
-                  "metric",
-                  "percent",
-                  "number"
                 ]
               }
             },
-            "required": [
-              "step",
-              "label",
-              "unit"
-            ],
-            "additionalProperties": false
-          }
+            "outputs": {
+              "type": "array",
+              "minItems": 1,
+              "maxItems": 6,
+              "items": {
+                "type": "object",
+                "properties": {
+                  "step": {
+                    "type": "string",
+                    "pattern": "^[a-z][a-zA-Z0-9]{0,23}$"
+                  },
+                  "label": {
+                    "type": "string",
+                    "maxLength": 60,
+                    "pattern": "^(?![\\s\\S]*(?:://|[Ww][Ww][Ww]\\.|[Jj][Aa][Vv][Aa][Ss][Cc][Rr][Ii][Pp][Tt]:|[Dd][Aa][Tt][Aa]:|[Uu][Rr][Ll]\\(|[\\p{L}\\p{N}](?:\\.(?:[Cc][Oo][Mm]|[Nn][Ee][Tt]|[Oo][Rr][Gg]|[Ii][Oo]|[Cc][Oo]|[Ii][Nn][Ff][Oo]|[Bb][Ii][Zz]|[Aa][Pp][Pp]|[Dd][Ee][Vv]|[Xx][Yy][Zz]|[Mm][Ee]|[Aa][Ii]|[Ll][Yy]|[Gg][Ll]|[Gg][Gg]|[Tt][Oo]|[Cc][Cc]|[Tt][Vv]|[Ww][Ss]|[Ll][Ii][Nn][Kk]|[Cc][Ll][Ii][Cc][Kk]|[Ss][Ii][Tt][Ee]|[Oo][Nn][Ll][Ii][Nn][Ee]|[Tt][Oo][Pp]|[Tt][Kk]|[Rr][Uu]|[Cc][Nn]|[Dd][Ee]|[Uu][Kk]|[Ff][Rr]|[Ee][Uu]|[Uu][Ss]|[Nn][Ll]|[Cc][Hh]|[Aa][Tt]|[Ii][Tt]|[Ee][Ss])(?![\\p{L}\\p{N}])|\\.[Xx][Nn]--|\\.\\p{L}{2,}/)|\\b(?:[Hh][Tt][Tt][Pp][Ss]?|[Ff][Tt][Pp]|[Mm][Aa][Ii][Ll][Tt][Oo]|[Tt][Ee][Ll]|[Ss][Mm][Ss]|[Ff][Ii][Ll][Ee]|[Vv][Bb][Ss][Cc][Rr][Ii][Pp][Tt]):(?!\\s)))[\\p{L}\\p{M}\\p{N} .,;:!?'\"’‘“”«»()%€$£¥+\\-–—/&#*=_·…°]*$",
+                    "description": "plain text, without markup or web addresses",
+                    "minLength": 1
+                  },
+                  "unit": {
+                    "enum": [
+                      "metric",
+                      "percent",
+                      "number"
+                    ]
+                  }
+                },
+                "required": [
+                  "step",
+                  "label",
+                  "unit"
+                ],
+                "additionalProperties": false
+              }
+            }
+          },
+          "required": [
+            "format",
+            "name",
+            "slots",
+            "steps",
+            "outputs"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "format": {
+              "const": "ziffr.analysis/2"
+            },
+            "name": {
+              "type": "string",
+              "maxLength": 80,
+              "pattern": "^(?![\\s\\S]*(?:://|[Ww][Ww][Ww]\\.|[Jj][Aa][Vv][Aa][Ss][Cc][Rr][Ii][Pp][Tt]:|[Dd][Aa][Tt][Aa]:|[Uu][Rr][Ll]\\(|[\\p{L}\\p{N}](?:\\.(?:[Cc][Oo][Mm]|[Nn][Ee][Tt]|[Oo][Rr][Gg]|[Ii][Oo]|[Cc][Oo]|[Ii][Nn][Ff][Oo]|[Bb][Ii][Zz]|[Aa][Pp][Pp]|[Dd][Ee][Vv]|[Xx][Yy][Zz]|[Mm][Ee]|[Aa][Ii]|[Ll][Yy]|[Gg][Ll]|[Gg][Gg]|[Tt][Oo]|[Cc][Cc]|[Tt][Vv]|[Ww][Ss]|[Ll][Ii][Nn][Kk]|[Cc][Ll][Ii][Cc][Kk]|[Ss][Ii][Tt][Ee]|[Oo][Nn][Ll][Ii][Nn][Ee]|[Tt][Oo][Pp]|[Tt][Kk]|[Rr][Uu]|[Cc][Nn]|[Dd][Ee]|[Uu][Kk]|[Ff][Rr]|[Ee][Uu]|[Uu][Ss]|[Nn][Ll]|[Cc][Hh]|[Aa][Tt]|[Ii][Tt]|[Ee][Ss])(?![\\p{L}\\p{N}])|\\.[Xx][Nn]--|\\.\\p{L}{2,}/)|\\b(?:[Hh][Tt][Tt][Pp][Ss]?|[Ff][Tt][Pp]|[Mm][Aa][Ii][Ll][Tt][Oo]|[Tt][Ee][Ll]|[Ss][Mm][Ss]|[Ff][Ii][Ll][Ee]|[Vv][Bb][Ss][Cc][Rr][Ii][Pp][Tt]):(?!\\s)))[\\p{L}\\p{M}\\p{N} .,;:!?'\"’‘“”«»()%€$£¥+\\-–—/&#*=_·…°]*$",
+              "description": "plain text, without markup or web addresses",
+              "minLength": 1
+            },
+            "description": {
+              "type": "string",
+              "maxLength": 300,
+              "pattern": "^(?![\\s\\S]*(?:://|[Ww][Ww][Ww]\\.|[Jj][Aa][Vv][Aa][Ss][Cc][Rr][Ii][Pp][Tt]:|[Dd][Aa][Tt][Aa]:|[Uu][Rr][Ll]\\(|[\\p{L}\\p{N}](?:\\.(?:[Cc][Oo][Mm]|[Nn][Ee][Tt]|[Oo][Rr][Gg]|[Ii][Oo]|[Cc][Oo]|[Ii][Nn][Ff][Oo]|[Bb][Ii][Zz]|[Aa][Pp][Pp]|[Dd][Ee][Vv]|[Xx][Yy][Zz]|[Mm][Ee]|[Aa][Ii]|[Ll][Yy]|[Gg][Ll]|[Gg][Gg]|[Tt][Oo]|[Cc][Cc]|[Tt][Vv]|[Ww][Ss]|[Ll][Ii][Nn][Kk]|[Cc][Ll][Ii][Cc][Kk]|[Ss][Ii][Tt][Ee]|[Oo][Nn][Ll][Ii][Nn][Ee]|[Tt][Oo][Pp]|[Tt][Kk]|[Rr][Uu]|[Cc][Nn]|[Dd][Ee]|[Uu][Kk]|[Ff][Rr]|[Ee][Uu]|[Uu][Ss]|[Nn][Ll]|[Cc][Hh]|[Aa][Tt]|[Ii][Tt]|[Ee][Ss])(?![\\p{L}\\p{N}])|\\.[Xx][Nn]--|\\.\\p{L}{2,}/)|\\b(?:[Hh][Tt][Tt][Pp][Ss]?|[Ff][Tt][Pp]|[Mm][Aa][Ii][Ll][Tt][Oo]|[Tt][Ee][Ll]|[Ss][Mm][Ss]|[Ff][Ii][Ll][Ee]|[Vv][Bb][Ss][Cc][Rr][Ii][Pp][Tt]):(?!\\s)))[\\p{L}\\p{M}\\p{N} .,;:!?'\"’‘“”«»()%€$£¥+\\-–—/&#*=_·…°]*$",
+              "description": "plain text, without markup or web addresses"
+            },
+            "slots": {
+              "type": "array",
+              "minItems": 1,
+              "maxItems": 4,
+              "items": {
+                "type": "object",
+                "properties": {
+                  "label": {
+                    "type": "string",
+                    "maxLength": 60,
+                    "pattern": "^(?![\\s\\S]*(?:://|[Ww][Ww][Ww]\\.|[Jj][Aa][Vv][Aa][Ss][Cc][Rr][Ii][Pp][Tt]:|[Dd][Aa][Tt][Aa]:|[Uu][Rr][Ll]\\(|[\\p{L}\\p{N}](?:\\.(?:[Cc][Oo][Mm]|[Nn][Ee][Tt]|[Oo][Rr][Gg]|[Ii][Oo]|[Cc][Oo]|[Ii][Nn][Ff][Oo]|[Bb][Ii][Zz]|[Aa][Pp][Pp]|[Dd][Ee][Vv]|[Xx][Yy][Zz]|[Mm][Ee]|[Aa][Ii]|[Ll][Yy]|[Gg][Ll]|[Gg][Gg]|[Tt][Oo]|[Cc][Cc]|[Tt][Vv]|[Ww][Ss]|[Ll][Ii][Nn][Kk]|[Cc][Ll][Ii][Cc][Kk]|[Ss][Ii][Tt][Ee]|[Oo][Nn][Ll][Ii][Nn][Ee]|[Tt][Oo][Pp]|[Tt][Kk]|[Rr][Uu]|[Cc][Nn]|[Dd][Ee]|[Uu][Kk]|[Ff][Rr]|[Ee][Uu]|[Uu][Ss]|[Nn][Ll]|[Cc][Hh]|[Aa][Tt]|[Ii][Tt]|[Ee][Ss])(?![\\p{L}\\p{N}])|\\.[Xx][Nn]--|\\.\\p{L}{2,}/)|\\b(?:[Hh][Tt][Tt][Pp][Ss]?|[Ff][Tt][Pp]|[Mm][Aa][Ii][Ll][Tt][Oo]|[Tt][Ee][Ll]|[Ss][Mm][Ss]|[Ff][Ii][Ll][Ee]|[Vv][Bb][Ss][Cc][Rr][Ii][Pp][Tt]):(?!\\s)))[\\p{L}\\p{M}\\p{N} .,;:!?'\"’‘“”«»()%€$£¥+\\-–—/&#*=_·…°]*$",
+                    "description": "plain text, without markup or web addresses",
+                    "minLength": 1
+                  }
+                },
+                "required": [
+                  "label"
+                ],
+                "additionalProperties": false
+              }
+            },
+            "steps": {
+              "type": "array",
+              "minItems": 1,
+              "maxItems": 12,
+              "items": {
+                "oneOf": [
+                  {
+                    "type": "object",
+                    "properties": {
+                      "id": {
+                        "type": "string",
+                        "pattern": "^[a-z][a-zA-Z0-9]{0,23}$",
+                        "description": "a name for the step: a letter, then letters and digits"
+                      },
+                      "fn": {
+                        "const": "movingAverage"
+                      },
+                      "of": {
+                        "type": "string",
+                        "pattern": "^(slot[1-4]|[a-z][a-zA-Z0-9]{0,23})$",
+                        "description": "a Slot (slot1 to slot4) or the id of an earlier step"
+                      },
+                      "window": {
+                        "type": "integer",
+                        "minimum": 2,
+                        "maximum": 60
+                      }
+                    },
+                    "required": [
+                      "id",
+                      "fn",
+                      "of",
+                      "window"
+                    ],
+                    "additionalProperties": false
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "id": {
+                        "type": "string",
+                        "pattern": "^[a-z][a-zA-Z0-9]{0,23}$",
+                        "description": "a name for the step: a letter, then letters and digits"
+                      },
+                      "fn": {
+                        "const": "difference"
+                      },
+                      "of": {
+                        "type": "string",
+                        "pattern": "^(slot[1-4]|[a-z][a-zA-Z0-9]{0,23})$",
+                        "description": "a Slot (slot1 to slot4) or the id of an earlier step"
+                      }
+                    },
+                    "required": [
+                      "id",
+                      "fn",
+                      "of"
+                    ],
+                    "additionalProperties": false
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "id": {
+                        "type": "string",
+                        "pattern": "^[a-z][a-zA-Z0-9]{0,23}$",
+                        "description": "a name for the step: a letter, then letters and digits"
+                      },
+                      "fn": {
+                        "const": "growth"
+                      },
+                      "of": {
+                        "type": "string",
+                        "pattern": "^(slot[1-4]|[a-z][a-zA-Z0-9]{0,23})$",
+                        "description": "a Slot (slot1 to slot4) or the id of an earlier step"
+                      }
+                    },
+                    "required": [
+                      "id",
+                      "fn",
+                      "of"
+                    ],
+                    "additionalProperties": false
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "id": {
+                        "type": "string",
+                        "pattern": "^[a-z][a-zA-Z0-9]{0,23}$",
+                        "description": "a name for the step: a letter, then letters and digits"
+                      },
+                      "fn": {
+                        "const": "share"
+                      },
+                      "of": {
+                        "type": "string",
+                        "pattern": "^(slot[1-4]|[a-z][a-zA-Z0-9]{0,23})$",
+                        "description": "a Slot (slot1 to slot4) or the id of an earlier step"
+                      },
+                      "with": {
+                        "type": "string",
+                        "pattern": "^(slot[1-4]|[a-z][a-zA-Z0-9]{0,23})$",
+                        "description": "a Slot (slot1 to slot4) or the id of an earlier step"
+                      }
+                    },
+                    "required": [
+                      "id",
+                      "fn",
+                      "of",
+                      "with"
+                    ],
+                    "additionalProperties": false
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "id": {
+                        "type": "string",
+                        "pattern": "^[a-z][a-zA-Z0-9]{0,23}$",
+                        "description": "a name for the step: a letter, then letters and digits"
+                      },
+                      "fn": {
+                        "const": "linearTrend"
+                      },
+                      "of": {
+                        "type": "string",
+                        "pattern": "^(slot[1-4]|[a-z][a-zA-Z0-9]{0,23})$",
+                        "description": "a Slot (slot1 to slot4) or the id of an earlier step"
+                      }
+                    },
+                    "required": [
+                      "id",
+                      "fn",
+                      "of"
+                    ],
+                    "additionalProperties": false
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "id": {
+                        "type": "string",
+                        "pattern": "^[a-z][a-zA-Z0-9]{0,23}$",
+                        "description": "a name for the step: a letter, then letters and digits"
+                      },
+                      "fn": {
+                        "const": "slope"
+                      },
+                      "of": {
+                        "type": "string",
+                        "pattern": "^(slot[1-4]|[a-z][a-zA-Z0-9]{0,23})$",
+                        "description": "a Slot (slot1 to slot4) or the id of an earlier step"
+                      }
+                    },
+                    "required": [
+                      "id",
+                      "fn",
+                      "of"
+                    ],
+                    "additionalProperties": false
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "id": {
+                        "type": "string",
+                        "pattern": "^[a-z][a-zA-Z0-9]{0,23}$",
+                        "description": "a name for the step: a letter, then letters and digits"
+                      },
+                      "fn": {
+                        "const": "mean"
+                      },
+                      "of": {
+                        "type": "string",
+                        "pattern": "^(slot[1-4]|[a-z][a-zA-Z0-9]{0,23})$",
+                        "description": "a Slot (slot1 to slot4) or the id of an earlier step"
+                      }
+                    },
+                    "required": [
+                      "id",
+                      "fn",
+                      "of"
+                    ],
+                    "additionalProperties": false
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "id": {
+                        "type": "string",
+                        "pattern": "^[a-z][a-zA-Z0-9]{0,23}$",
+                        "description": "a name for the step: a letter, then letters and digits"
+                      },
+                      "fn": {
+                        "const": "standardDeviation"
+                      },
+                      "of": {
+                        "type": "string",
+                        "pattern": "^(slot[1-4]|[a-z][a-zA-Z0-9]{0,23})$",
+                        "description": "a Slot (slot1 to slot4) or the id of an earlier step"
+                      }
+                    },
+                    "required": [
+                      "id",
+                      "fn",
+                      "of"
+                    ],
+                    "additionalProperties": false
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "id": {
+                        "type": "string",
+                        "pattern": "^[a-z][a-zA-Z0-9]{0,23}$",
+                        "description": "a name for the step: a letter, then letters and digits"
+                      },
+                      "fn": {
+                        "const": "zScore"
+                      },
+                      "of": {
+                        "type": "string",
+                        "pattern": "^(slot[1-4]|[a-z][a-zA-Z0-9]{0,23})$",
+                        "description": "a Slot (slot1 to slot4) or the id of an earlier step"
+                      }
+                    },
+                    "required": [
+                      "id",
+                      "fn",
+                      "of"
+                    ],
+                    "additionalProperties": false
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "id": {
+                        "type": "string",
+                        "pattern": "^[a-z][a-zA-Z0-9]{0,23}$",
+                        "description": "a name for the step: a letter, then letters and digits"
+                      },
+                      "fn": {
+                        "const": "seasonalIndex"
+                      },
+                      "of": {
+                        "type": "string",
+                        "pattern": "^(slot[1-4]|[a-z][a-zA-Z0-9]{0,23})$",
+                        "description": "a Slot (slot1 to slot4) or the id of an earlier step"
+                      },
+                      "season": {
+                        "type": "integer",
+                        "minimum": 2,
+                        "maximum": 53
+                      }
+                    },
+                    "required": [
+                      "id",
+                      "fn",
+                      "of",
+                      "season"
+                    ],
+                    "additionalProperties": false
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "id": {
+                        "type": "string",
+                        "pattern": "^[a-z][a-zA-Z0-9]{0,23}$",
+                        "description": "a name for the step: a letter, then letters and digits"
+                      },
+                      "fn": {
+                        "const": "correlation"
+                      },
+                      "of": {
+                        "type": "string",
+                        "pattern": "^(slot[1-4]|[a-z][a-zA-Z0-9]{0,23})$",
+                        "description": "a Slot (slot1 to slot4) or the id of an earlier step"
+                      },
+                      "with": {
+                        "type": "string",
+                        "pattern": "^(slot[1-4]|[a-z][a-zA-Z0-9]{0,23})$",
+                        "description": "a Slot (slot1 to slot4) or the id of an earlier step"
+                      }
+                    },
+                    "required": [
+                      "id",
+                      "fn",
+                      "of",
+                      "with"
+                    ],
+                    "additionalProperties": false
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "id": {
+                        "type": "string",
+                        "pattern": "^[a-z][a-zA-Z0-9]{0,23}$",
+                        "description": "a name for the step: a letter, then letters and digits"
+                      },
+                      "fn": {
+                        "const": "changes"
+                      },
+                      "of": {
+                        "type": "string",
+                        "pattern": "^(slot[1-4]|[a-z][a-zA-Z0-9]{0,23})$",
+                        "description": "a Slot (slot1 to slot4) or the id of an earlier step"
+                      }
+                    },
+                    "required": [
+                      "id",
+                      "fn",
+                      "of"
+                    ],
+                    "additionalProperties": false
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "id": {
+                        "type": "string",
+                        "pattern": "^[a-z][a-zA-Z0-9]{0,23}$",
+                        "description": "a name for the step: a letter, then letters and digits"
+                      },
+                      "fn": {
+                        "const": "detrended"
+                      },
+                      "of": {
+                        "type": "string",
+                        "pattern": "^(slot[1-4]|[a-z][a-zA-Z0-9]{0,23})$",
+                        "description": "a Slot (slot1 to slot4) or the id of an earlier step"
+                      }
+                    },
+                    "required": [
+                      "id",
+                      "fn",
+                      "of"
+                    ],
+                    "additionalProperties": false
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "id": {
+                        "type": "string",
+                        "pattern": "^[a-z][a-zA-Z0-9]{0,23}$",
+                        "description": "a name for the step: a letter, then letters and digits"
+                      },
+                      "fn": {
+                        "const": "quantile"
+                      },
+                      "of": {
+                        "type": "string",
+                        "pattern": "^(slot[1-4]|[a-z][a-zA-Z0-9]{0,23})$",
+                        "description": "a Slot (slot1 to slot4) or the id of an earlier step"
+                      },
+                      "percent": {
+                        "type": "integer",
+                        "minimum": 1,
+                        "maximum": 99,
+                        "description": "the share of the values below it, in percent"
+                      }
+                    },
+                    "required": [
+                      "id",
+                      "fn",
+                      "of",
+                      "percent"
+                    ],
+                    "additionalProperties": false
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "id": {
+                        "type": "string",
+                        "pattern": "^[a-z][a-zA-Z0-9]{0,23}$",
+                        "description": "a name for the step: a letter, then letters and digits"
+                      },
+                      "fn": {
+                        "const": "spearman"
+                      },
+                      "of": {
+                        "type": "string",
+                        "pattern": "^(slot[1-4]|[a-z][a-zA-Z0-9]{0,23})$",
+                        "description": "a Slot (slot1 to slot4) or the id of an earlier step"
+                      },
+                      "with": {
+                        "type": "string",
+                        "pattern": "^(slot[1-4]|[a-z][a-zA-Z0-9]{0,23})$",
+                        "description": "a Slot (slot1 to slot4) or the id of an earlier step"
+                      }
+                    },
+                    "required": [
+                      "id",
+                      "fn",
+                      "of",
+                      "with"
+                    ],
+                    "additionalProperties": false
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "id": {
+                        "type": "string",
+                        "pattern": "^[a-z][a-zA-Z0-9]{0,23}$",
+                        "description": "a name for the step: a letter, then letters and digits"
+                      },
+                      "fn": {
+                        "const": "partialCorrelation"
+                      },
+                      "of": {
+                        "type": "string",
+                        "pattern": "^(slot[1-4]|[a-z][a-zA-Z0-9]{0,23})$",
+                        "description": "a Slot (slot1 to slot4) or the id of an earlier step"
+                      },
+                      "with": {
+                        "type": "string",
+                        "pattern": "^(slot[1-4]|[a-z][a-zA-Z0-9]{0,23})$",
+                        "description": "a Slot (slot1 to slot4) or the id of an earlier step"
+                      },
+                      "controls": {
+                        "type": "array",
+                        "minItems": 1,
+                        "maxItems": 4,
+                        "uniqueItems": true,
+                        "items": {
+                          "type": "string",
+                          "pattern": "^(slot[1-4]|[a-z][a-zA-Z0-9]{0,23})$",
+                          "description": "a Slot (slot1 to slot4) or the id of an earlier step"
+                        }
+                      }
+                    },
+                    "required": [
+                      "id",
+                      "fn",
+                      "of",
+                      "with",
+                      "controls"
+                    ],
+                    "additionalProperties": false
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "id": {
+                        "type": "string",
+                        "pattern": "^[a-z][a-zA-Z0-9]{0,23}$",
+                        "description": "a name for the step: a letter, then letters and digits"
+                      },
+                      "fn": {
+                        "const": "laggedCorrelation"
+                      },
+                      "of": {
+                        "type": "string",
+                        "pattern": "^(slot[1-4]|[a-z][a-zA-Z0-9]{0,23})$",
+                        "description": "a Slot (slot1 to slot4) or the id of an earlier step"
+                      },
+                      "with": {
+                        "type": "string",
+                        "pattern": "^(slot[1-4]|[a-z][a-zA-Z0-9]{0,23})$",
+                        "description": "a Slot (slot1 to slot4) or the id of an earlier step"
+                      },
+                      "maxLag": {
+                        "type": "integer",
+                        "minimum": 0,
+                        "maximum": 6,
+                        "description": "the longest delay tried, in periods"
+                      }
+                    },
+                    "required": [
+                      "id",
+                      "fn",
+                      "of",
+                      "with",
+                      "maxLag"
+                    ],
+                    "additionalProperties": false
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "id": {
+                        "type": "string",
+                        "pattern": "^[a-z][a-zA-Z0-9]{0,23}$",
+                        "description": "a name for the step: a letter, then letters and digits"
+                      },
+                      "fn": {
+                        "const": "usualRange"
+                      },
+                      "of": {
+                        "type": "string",
+                        "pattern": "^(slot[1-4]|[a-z][a-zA-Z0-9]{0,23})$",
+                        "description": "a Slot (slot1 to slot4) or the id of an earlier step"
+                      }
+                    },
+                    "required": [
+                      "id",
+                      "fn",
+                      "of"
+                    ],
+                    "additionalProperties": false
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "id": {
+                        "type": "string",
+                        "pattern": "^[a-z][a-zA-Z0-9]{0,23}$",
+                        "description": "a name for the step: a letter, then letters and digits"
+                      },
+                      "fn": {
+                        "const": "fit"
+                      },
+                      "of": {
+                        "type": "string",
+                        "pattern": "^(slot[1-4]|[a-z][a-zA-Z0-9]{0,23})$",
+                        "description": "a Slot (slot1 to slot4) or the id of an earlier step"
+                      },
+                      "drivers": {
+                        "type": "array",
+                        "minItems": 1,
+                        "maxItems": 6,
+                        "uniqueItems": true,
+                        "items": {
+                          "type": "string",
+                          "pattern": "^(slot[1-4]|[a-z][a-zA-Z0-9]{0,23})$",
+                          "description": "a Slot (slot1 to slot4) or the id of an earlier step"
+                        }
+                      }
+                    },
+                    "required": [
+                      "id",
+                      "fn",
+                      "of",
+                      "drivers"
+                    ],
+                    "additionalProperties": false
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "id": {
+                        "type": "string",
+                        "pattern": "^[a-z][a-zA-Z0-9]{0,23}$",
+                        "description": "a name for the step: a letter, then letters and digits"
+                      },
+                      "fn": {
+                        "const": "importance"
+                      },
+                      "of": {
+                        "type": "string",
+                        "pattern": "^(slot[1-4]|[a-z][a-zA-Z0-9]{0,23})$",
+                        "description": "a Slot (slot1 to slot4) or the id of an earlier step"
+                      }
+                    },
+                    "required": [
+                      "id",
+                      "fn",
+                      "of"
+                    ],
+                    "additionalProperties": false
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "id": {
+                        "type": "string",
+                        "pattern": "^[a-z][a-zA-Z0-9]{0,23}$",
+                        "description": "a name for the step: a letter, then letters and digits"
+                      },
+                      "fn": {
+                        "const": "effects"
+                      },
+                      "of": {
+                        "type": "string",
+                        "pattern": "^(slot[1-4]|[a-z][a-zA-Z0-9]{0,23})$",
+                        "description": "a Slot (slot1 to slot4) or the id of an earlier step"
+                      }
+                    },
+                    "required": [
+                      "id",
+                      "fn",
+                      "of"
+                    ],
+                    "additionalProperties": false
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "id": {
+                        "type": "string",
+                        "pattern": "^[a-z][a-zA-Z0-9]{0,23}$",
+                        "description": "a name for the step: a letter, then letters and digits"
+                      },
+                      "fn": {
+                        "const": "bridge"
+                      },
+                      "of": {
+                        "type": "string",
+                        "pattern": "^(slot[1-4]|[a-z][a-zA-Z0-9]{0,23})$",
+                        "description": "a Slot (slot1 to slot4) or the id of an earlier step"
+                      },
+                      "parts": {
+                        "type": "array",
+                        "minItems": 1,
+                        "maxItems": 6,
+                        "uniqueItems": true,
+                        "items": {
+                          "type": "string",
+                          "pattern": "^(slot[1-4]|[a-z][a-zA-Z0-9]{0,23})$",
+                          "description": "a Slot (slot1 to slot4) or the id of an earlier step"
+                        }
+                      }
+                    },
+                    "required": [
+                      "id",
+                      "fn",
+                      "of",
+                      "parts"
+                    ],
+                    "additionalProperties": false
+                  }
+                ]
+              }
+            },
+            "outputs": {
+              "type": "array",
+              "minItems": 1,
+              "maxItems": 6,
+              "items": {
+                "type": "object",
+                "properties": {
+                  "step": {
+                    "type": "string",
+                    "pattern": "^[a-z][a-zA-Z0-9]{0,23}$"
+                  },
+                  "label": {
+                    "type": "string",
+                    "maxLength": 60,
+                    "pattern": "^(?![\\s\\S]*(?:://|[Ww][Ww][Ww]\\.|[Jj][Aa][Vv][Aa][Ss][Cc][Rr][Ii][Pp][Tt]:|[Dd][Aa][Tt][Aa]:|[Uu][Rr][Ll]\\(|[\\p{L}\\p{N}](?:\\.(?:[Cc][Oo][Mm]|[Nn][Ee][Tt]|[Oo][Rr][Gg]|[Ii][Oo]|[Cc][Oo]|[Ii][Nn][Ff][Oo]|[Bb][Ii][Zz]|[Aa][Pp][Pp]|[Dd][Ee][Vv]|[Xx][Yy][Zz]|[Mm][Ee]|[Aa][Ii]|[Ll][Yy]|[Gg][Ll]|[Gg][Gg]|[Tt][Oo]|[Cc][Cc]|[Tt][Vv]|[Ww][Ss]|[Ll][Ii][Nn][Kk]|[Cc][Ll][Ii][Cc][Kk]|[Ss][Ii][Tt][Ee]|[Oo][Nn][Ll][Ii][Nn][Ee]|[Tt][Oo][Pp]|[Tt][Kk]|[Rr][Uu]|[Cc][Nn]|[Dd][Ee]|[Uu][Kk]|[Ff][Rr]|[Ee][Uu]|[Uu][Ss]|[Nn][Ll]|[Cc][Hh]|[Aa][Tt]|[Ii][Tt]|[Ee][Ss])(?![\\p{L}\\p{N}])|\\.[Xx][Nn]--|\\.\\p{L}{2,}/)|\\b(?:[Hh][Tt][Tt][Pp][Ss]?|[Ff][Tt][Pp]|[Mm][Aa][Ii][Ll][Tt][Oo]|[Tt][Ee][Ll]|[Ss][Mm][Ss]|[Ff][Ii][Ll][Ee]|[Vv][Bb][Ss][Cc][Rr][Ii][Pp][Tt]):(?!\\s)))[\\p{L}\\p{M}\\p{N} .,;:!?'\"’‘“”«»()%€$£¥+\\-–—/&#*=_·…°]*$",
+                    "description": "plain text, without markup or web addresses",
+                    "minLength": 1
+                  },
+                  "shows": {
+                    "enum": [
+                      "series",
+                      "value",
+                      "table",
+                      "takeaway"
+                    ],
+                    "description": "what it shows; a fit is shown only through its Takeaway"
+                  },
+                  "unit": {
+                    "enum": [
+                      "metric",
+                      "percent",
+                      "number"
+                    ],
+                    "description": "for a series or one value"
+                  },
+                  "title": {
+                    "type": "string",
+                    "maxLength": 60,
+                    "pattern": "^(?![\\s\\S]*(?:://|[Ww][Ww][Ww]\\.|[Jj][Aa][Vv][Aa][Ss][Cc][Rr][Ii][Pp][Tt]:|[Dd][Aa][Tt][Aa]:|[Uu][Rr][Ll]\\(|[\\p{L}\\p{N}](?:\\.(?:[Cc][Oo][Mm]|[Nn][Ee][Tt]|[Oo][Rr][Gg]|[Ii][Oo]|[Cc][Oo]|[Ii][Nn][Ff][Oo]|[Bb][Ii][Zz]|[Aa][Pp][Pp]|[Dd][Ee][Vv]|[Xx][Yy][Zz]|[Mm][Ee]|[Aa][Ii]|[Ll][Yy]|[Gg][Ll]|[Gg][Gg]|[Tt][Oo]|[Cc][Cc]|[Tt][Vv]|[Ww][Ss]|[Ll][Ii][Nn][Kk]|[Cc][Ll][Ii][Cc][Kk]|[Ss][Ii][Tt][Ee]|[Oo][Nn][Ll][Ii][Nn][Ee]|[Tt][Oo][Pp]|[Tt][Kk]|[Rr][Uu]|[Cc][Nn]|[Dd][Ee]|[Uu][Kk]|[Ff][Rr]|[Ee][Uu]|[Uu][Ss]|[Nn][Ll]|[Cc][Hh]|[Aa][Tt]|[Ii][Tt]|[Ee][Ss])(?![\\p{L}\\p{N}])|\\.[Xx][Nn]--|\\.\\p{L}{2,}/)|\\b(?:[Hh][Tt][Tt][Pp][Ss]?|[Ff][Tt][Pp]|[Mm][Aa][Ii][Ll][Tt][Oo]|[Tt][Ee][Ll]|[Ss][Mm][Ss]|[Ff][Ii][Ll][Ee]|[Vv][Bb][Ss][Cc][Rr][Ii][Pp][Tt]):(?!\\s)))[\\p{L}\\p{M}\\p{N} .,;:!?'\"’‘“”«»()%€$£¥+\\-–—/&#*=_·…°]*$",
+                    "description": "plain text, without markup or web addresses"
+                  },
+                  "note": {
+                    "type": "string",
+                    "maxLength": 200,
+                    "pattern": "^(?![\\s\\S]*(?:://|[Ww][Ww][Ww]\\.|[Jj][Aa][Vv][Aa][Ss][Cc][Rr][Ii][Pp][Tt]:|[Dd][Aa][Tt][Aa]:|[Uu][Rr][Ll]\\(|[\\p{L}\\p{N}](?:\\.(?:[Cc][Oo][Mm]|[Nn][Ee][Tt]|[Oo][Rr][Gg]|[Ii][Oo]|[Cc][Oo]|[Ii][Nn][Ff][Oo]|[Bb][Ii][Zz]|[Aa][Pp][Pp]|[Dd][Ee][Vv]|[Xx][Yy][Zz]|[Mm][Ee]|[Aa][Ii]|[Ll][Yy]|[Gg][Ll]|[Gg][Gg]|[Tt][Oo]|[Cc][Cc]|[Tt][Vv]|[Ww][Ss]|[Ll][Ii][Nn][Kk]|[Cc][Ll][Ii][Cc][Kk]|[Ss][Ii][Tt][Ee]|[Oo][Nn][Ll][Ii][Nn][Ee]|[Tt][Oo][Pp]|[Tt][Kk]|[Rr][Uu]|[Cc][Nn]|[Dd][Ee]|[Uu][Kk]|[Ff][Rr]|[Ee][Uu]|[Uu][Ss]|[Nn][Ll]|[Cc][Hh]|[Aa][Tt]|[Ii][Tt]|[Ee][Ss])(?![\\p{L}\\p{N}])|\\.[Xx][Nn]--|\\.\\p{L}{2,}/)|\\b(?:[Hh][Tt][Tt][Pp][Ss]?|[Ff][Tt][Pp]|[Mm][Aa][Ii][Ll][Tt][Oo]|[Tt][Ee][Ll]|[Ss][Mm][Ss]|[Ff][Ii][Ll][Ee]|[Vv][Bb][Ss][Cc][Rr][Ii][Pp][Tt]):(?!\\s)))[\\p{L}\\p{M}\\p{N} .,;:!?'\"’‘“”«»()%€$£¥+\\-–—/&#*=_·…°]*$",
+                    "description": "plain text, without markup or web addresses"
+                  }
+                },
+                "required": [
+                  "step",
+                  "label",
+                  "shows"
+                ],
+                "additionalProperties": false
+              }
+            }
+          },
+          "required": [
+            "format",
+            "name",
+            "slots",
+            "steps",
+            "outputs"
+          ],
+          "additionalProperties": false
         }
-      },
-      "required": [
-        "format",
-        "name",
-        "slots",
-        "steps",
-        "outputs"
       ],
-      "additionalProperties": false
+      "description": "An Analysis Recipe (ziffr.analysis/1 or ziffr.analysis/2) the design draws; its Slots are the design's first Metrics, in order."
     },
     "parts": {
       "type": "array",
@@ -818,6 +1557,147 @@
             "show"
           ],
           "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "description": "Values around a circle: the periods of a series as angles in the order given, the values as the distance from the centre, which is 0; 3 to 12 periods, none below 0.",
+          "properties": {
+            "mark": {
+              "const": "polar"
+            },
+            "show": {
+              "type": "string",
+              "pattern": "^(?:values|recipe\\.[a-z][a-zA-Z0-9]{0,23})$",
+              "description": "one of “values”, or “recipe.” and a step of the design's analysis (a series)"
+            },
+            "when": {
+              "$ref": "#/$defs/when"
+            }
+          },
+          "required": [
+            "mark",
+            "show"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "description": "Several Metrics as spokes on one shape, in the order of the Slots, 3 to 12 of them: each spoke has its own scale, from the Metric's lowest value of the periods shown at the centre to its highest at the rim. With against, the period before is drawn as a second, dashed shape.",
+          "properties": {
+            "mark": {
+              "const": "radar"
+            },
+            "show": {
+              "const": "latest"
+            },
+            "against": {
+              "const": "previous"
+            },
+            "when": {
+              "$ref": "#/$defs/when"
+            }
+          },
+          "required": [
+            "mark",
+            "show"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "description": "One compact bar per Metric of the Slots, in order, 12 at most: the latest value against the Metric's Target Range, with its name, its value and, in words, how far along it is. The bar is filled to the latest value on a scale that includes the target (a lighter band for a range, a tick for one bound); its colour says only whether the value is on target.",
+          "properties": {
+            "mark": {
+              "const": "progress"
+            },
+            "show": {
+              "const": "latest"
+            },
+            "when": {
+              "$ref": "#/$defs/when"
+            }
+          },
+          "required": [
+            "mark",
+            "show"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "description": "One row for each of 3 to 12 Metrics, in the order of the Slots: its name, latest value, change against the previous period, whether it is on target, and a small trend.",
+          "properties": {
+            "mark": {
+              "const": "scoreboard"
+            },
+            "show": {
+              "const": "latest"
+            },
+            "when": {
+              "$ref": "#/$defs/when"
+            }
+          },
+          "required": [
+            "mark",
+            "show"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "description": "One bar per row, from its low to its high end, with its middle value: a driver's effect with its range (the table of the `effects` step of the design's analysis).",
+          "properties": {
+            "mark": {
+              "const": "range"
+            },
+            "show": {
+              "type": "string",
+              "pattern": "^recipe\\.[a-z][a-zA-Z0-9]{0,23}$",
+              "description": "“recipe.” and a step of the design's analysis (a table with a low and a high end for each row, from the `effects` step)"
+            },
+            "tone": {
+              "enum": [
+                "data",
+                "muted",
+                "ink",
+                "good",
+                "bad",
+                "accent",
+                "status"
+              ],
+              "description": "A Theme colour: data, muted, ink, good, bad, accent, or status (by the target: bad when off target)."
+            },
+            "when": {
+              "$ref": "#/$defs/when"
+            }
+          },
+          "required": [
+            "mark",
+            "show"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "description": "Steps from a start, each part going up or down, and an end (the table of the `bridge` step of the design's analysis).",
+          "properties": {
+            "mark": {
+              "const": "bridge"
+            },
+            "show": {
+              "type": "string",
+              "pattern": "^recipe\\.[a-z][a-zA-Z0-9]{0,23}$",
+              "description": "“recipe.” and a step of the design's analysis (the table of the `bridge` step)"
+            },
+            "when": {
+              "$ref": "#/$defs/when"
+            }
+          },
+          "required": [
+            "mark",
+            "show"
+          ],
+          "additionalProperties": false
         }
       ]
     },
@@ -1006,6 +1886,41 @@
               "type": "string",
               "pattern": "^(?:target\\.min|target\\.max|recipe\\.[a-z][a-zA-Z0-9]{0,23})$",
               "description": "one of “target.min”, “target.max”, or “recipe.” and a step of the design's analysis (one value)"
+            },
+            "tone": {
+              "enum": [
+                "data",
+                "muted",
+                "ink",
+                "good",
+                "bad",
+                "accent",
+                "status"
+              ],
+              "description": "A Theme colour: data, muted, ink, good, bad, accent, or status (by the target: bad when off target)."
+            },
+            "when": {
+              "$ref": "#/$defs/when"
+            }
+          },
+          "required": [
+            "mark",
+            "show"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "description": "The forecast's likely range at each period, drawn as a bar from low to high, with the forecast as its middle value when `centre` is true.",
+          "properties": {
+            "mark": {
+              "const": "range"
+            },
+            "show": {
+              "const": "forecast.range"
+            },
+            "centre": {
+              "type": "boolean"
             },
             "tone": {
               "enum": [

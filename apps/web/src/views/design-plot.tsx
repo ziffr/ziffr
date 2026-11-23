@@ -2,10 +2,12 @@
 // A View Design's plot (GLOSSARY: View Design): its marks drawn against a period or value axis, with the values the
 // core worked out (design-view.tsx). The look of each mark comes from Theme tokens; how a span still running or one
 // with gaps is drawn (dotted, open, hatched, spec 0018) is Ziffr's rule, the same in every design.
-import { useId, useRef } from "react";
+import { useId, useRef, useState } from "react";
 import { Area, Bar, CartesianGrid, Cell, ComposedChart, Line, ReferenceArea, ReferenceDot, ReferenceLine, ResponsiveContainer, Scatter, Tooltip, XAxis, YAxis, ZAxis } from "recharts";
 import { axisLabels, compactValue, formatValue, health, niceAxis } from "@ziffr/core/format";
 import { formatOutput } from "@ziffr/core/design-analysis";
+import { rangeFigures } from "@ziffr/core/mark-figures";
+import { drawnOutputs } from "@ziffr/core/analysis-recipe";
 import { commonPeriod } from "@ziffr/core/correlation";
 import { isPartial, spanCount } from "@ziffr/core/display-periods";
 import { periodLabel } from "@ziffr/core/periods";
@@ -13,13 +15,14 @@ import type { Part, PlotMark, Tone } from "@ziffr/core/view-design";
 import type { DesignValues } from "./design-view";
 import { useWidgetScale } from "./widget-scale";
 import { sparklineContext, type SparklineContext } from "./sparkline-context";
+import { ObservationTip } from "./observation-tip";
 
 type Plot = Extract<Part, { mark: "plot" }>;
 // A recipe output is kept on its row under "recipe:" and the step, never under a name a value could have.
-type Row = { period: string; value?: number; fc?: number; band?: [number, number]; partial?: number; target?: number; [recipe: `recipe:${string}`]: number | undefined };
+type Row = { period: string; value?: number; fc?: number; band?: [number, number]; rband?: [number, number]; rfc?: number; partial?: number; target?: number; [recipe: `recipe:${string}`]: number | undefined };
 
 // Theme tokens only: a design names a role, the Theme gives it a colour.
-const TONE: Record<Exclude<Tone, "status">, string> = { data: "var(--color-data)", muted: "var(--color-muted)", ink: "var(--color-ink)", good: "var(--color-success)", bad: "var(--color-error)", accent: "var(--color-accent)" };
+export const TONE: Record<Exclude<Tone, "status">, string> = { data: "var(--color-data)", muted: "var(--color-muted)", ink: "var(--color-ink)", good: "var(--color-success)", bad: "var(--color-error)", accent: "var(--color-accent)" };
 
 // Axis words grow with the card (widget scale, #763): 1 in a usual Widget, so they read as they always did.
 const tick = (size: number, figures = false) => ({ fontSize: size, fill: "var(--color-muted)", ...(figures ? { fontFamily: "var(--font-outlier)" } : {}) });
@@ -34,6 +37,8 @@ function PeriodPlot({ part, marks, v, onPointContext }: { part: Plot; marks: Plo
   const { m, pts, last, data } = v;
   const s = useWidgetScale();
   const hovered = useRef<string | null>(null);
+  // Escape closes the popup until the pointer moves or another point is chosen with the arrow keys (#789).
+  const [closed, setClosed] = useState(false);
   // A span still running is hatched, so it is not read as a drop (spec 0018).
   const hatch = `hatch-${useId().replace(/:/g, "")}`;
   const full = marks.find((k): k is Extract<PlotMark, { mark: "line" }> => k.mark === "line" && k.show === "values" && k.detail === "full");
@@ -73,8 +78,8 @@ function PeriodPlot({ part, marks, v, onPointContext }: { part: Plot; marks: Plo
     }
     for (const f of fc) {
       const same = rows.find((r) => r.period === f.period);
-      if (same) Object.assign(same, { fc: f.value, band: [f.lo, f.hi] });
-      else rows.push({ period: f.period, fc: f.value, band: [f.lo, f.hi] });
+      if (same) Object.assign(same, { fc: f.value, band: [f.lo, f.hi], rband: [f.lo, f.hi], rfc: f.value });
+      else rows.push({ period: f.period, fc: f.value, band: [f.lo, f.hi], rband: [f.lo, f.hi], rfc: f.value });
     }
   }
   const tMin = bandOn ? m.target_min : null;
@@ -106,11 +111,17 @@ function PeriodPlot({ part, marks, v, onPointContext }: { part: Plot; marks: Plo
   const note = { fontSize: 11 * s, fill: "var(--color-muted)" };
   const strong = lineTone(marks.find((k) => k.mark === "line" || k.mark === "bar")?.tone);
   const margin = ctx ? { top: 18 * s, right: 6 * s, bottom: 18 * s, left: 6 * s } : none ? undefined : compact ? { top: 4 * s, right: 4 * s, bottom: 0, left: 0 } : { top: 12 * s, right: 12 * s, bottom: 0, left: 8 * s };
-  const aria = none ? undefined : `${m.name}, ${spanCount(pts.length, v.by)}${pts.length ? `, latest ${formatValue(m, pts[pts.length - 1].value, data.numberStyle)}` : ""}`;
+  // A popup on each point wherever there is an axis, and on a sparkline once it has room for its context.
+  const tips = !none || !!ctx;
+  const rangeEnd = marks.some((k) => k.mark === "range") ? fc?.[fc.length - 1] : undefined;
+  // A range is also said in words, written as the table marks write theirs (decimals widened until the ends differ), so its numbers are not read off the drawing alone.
+  const said = rangeEnd ? rangeFigures([{ label: `${m.name}, forecast`, value: rangeEnd.value, low: rangeEnd.lo, high: rangeEnd.hi }], m, { style: data.numberStyle, yearStart: data.yearStart }) : null;
+  const aria = !tips ? undefined : none ? `${m.name}, ${spanCount(pts.length, v.by)}` : `${m.name}, ${spanCount(pts.length, v.by)}${pts.length ? `, latest ${formatValue(m, pts[pts.length - 1].value, data.numberStyle)}` : ""}${said ? `, ${said.ok ? said.alt : said.refusal}` : ""}`;
 
   const chart = (
       <ResponsiveContainer width="100%" height="100%">
-        <ComposedChart accessibilityLayer={false} data={rows} margin={margin}>
+        {/* With a popup, the chart is reachable by keyboard: focus it, the arrow keys move between points (#789). */}
+        <ComposedChart accessibilityLayer={tips} data={rows} margin={margin}>
           {bars && (
             <defs>
               <pattern id={hatch} patternUnits="userSpaceOnUse" width="6" height="6" patternTransform="rotate(45)">
@@ -125,7 +136,8 @@ function PeriodPlot({ part, marks, v, onPointContext }: { part: Plot; marks: Plo
           {ctx && <XAxis dataKey="period" hide />}
           {ctx && <TargetMark ctx={ctx} text={(x) => compactValue(m, x, data.numberStyle)} note={note} s={s} />}
           {none ? <YAxis hide domain={domain} /> : <YAxis domain={domain} ticks={axis?.ticks.length ? axis.ticks : undefined} interval={axis?.ticks.length ? 0 : undefined} tickFormatter={(x) => axisText(x)} tick={tick((compact ? 11 : 12) * s, true)} width={(compact ? 56 : 68) * s} stroke="var(--color-rule-2)" />}
-          {!none && <Tooltip content={({ active, payload }) => <PeriodTip active={active} row={payload?.[0]?.payload as Row | undefined} v={v} label={label} />} cursor={bars ? { fill: "var(--color-paper-3)" } : undefined} />}
+          {/* Beside the point, never over it; a bare sparkline has none, one with room does. */}
+          {tips && <Tooltip active={closed ? false : undefined} offset={16 * s} content={({ active, payload }) => <PeriodTip active={active} row={payload?.[0]?.payload as Row | undefined} v={v} label={label} />} cursor={bars ? { fill: "var(--color-paper-3)" } : ctx ? { stroke: "var(--color-rule-2)" } : undefined} isAnimationActive={false} />}
           {marks.map((k, i) => {
             switch (k.mark) {
               case "band":
@@ -183,6 +195,12 @@ function PeriodPlot({ part, marks, v, onPointContext }: { part: Plot; marks: Plo
                   />,
                 ];
               }
+              case "range":
+                // The forecast's likely range at each period as a bar from low to high (a floating bar), with the forecast as its middle value on request.
+                return fc ? [
+                  <Bar key={`${i}-range`} dataKey="rband" barSize={Math.max(4, 8 * s)} radius={2} isAnimationActive={false} fill={lineTone(k.tone)} fillOpacity={0.3} stroke={lineTone(k.tone)} />,
+                  ...(k.centre ? [<Line key={`${i}-centre`} dataKey="rfc" stroke="none" dot={{ r: 3 * s, fill: lineTone(k.tone), stroke: "var(--color-cotton)" }} activeDot={false} isAnimationActive={false} />] : []),
+                ] : null;
               case "point":
                 return null;
             }
@@ -192,7 +210,15 @@ function PeriodPlot({ part, marks, v, onPointContext }: { part: Plot; marks: Plo
       </ResponsiveContainer>
   );
   return (
-    <div style={{ height: "100%" }} role={none ? undefined : "img"} aria-label={aria} aria-hidden={none || undefined} onContextMenu={bars ? () => hovered.current && onPointContext?.(hovered.current) : undefined}>
+    <div
+      style={{ height: "100%" }}
+      role={tips ? "img" : undefined}
+      aria-label={aria}
+      aria-hidden={!tips || undefined}
+      onContextMenu={bars ? () => hovered.current && onPointContext?.(hovered.current) : undefined}
+      onKeyDown={tips ? (e) => setClosed(e.key === "Escape" ? true : e.key.startsWith("Arrow") ? false : closed) : undefined}
+      onPointerMove={closed ? () => setClosed(false) : undefined}
+    >
       {ctx ? (
         <div className="flex h-full flex-col">
           <div className="min-h-0 flex-1">{chart}</div>
@@ -250,21 +276,23 @@ function PeriodTip({ active, row: r, v, label }: { active?: boolean; row?: Row; 
   if (!active || !r) return null;
   const { m, data } = v;
   const ns = data.numberStyle;
+  const value = r.value ?? r.partial;
+  if (value !== undefined) {
+    const point = v.pts.find((p) => p.period === r.period);
+    return (
+      // One of the Metric's Observations: the shared popup; a span of a combined series is not one, so it asks for nothing.
+      <ObservationTip metric={m} period={r.period} label={label(r.period)} value={value} goal={v.goal(point)} data={data} single={!v.combined}>
+        {r.target !== undefined && <div className="text-muted-foreground">Target: <span className="fig">{formatValue(m, r.target, ns)}</span></div>}
+        {drawnOutputs(v.analysis).map((o) => (r[`recipe:${o.step}`] === undefined ? null : <div key={o.step} className="text-muted-foreground">{o.label}: <span className="fig">{formatOutput(o.unit, m, r[`recipe:${o.step}`], ns)}</span></div>))}
+      </ObservationTip>
+    );
+  }
+  if (r.fc === undefined) return null;
   return (
-    <div className="stock widget-text-xs rounded-[var(--radius-input)] px-[0.83em] py-[0.5em]">
+    <div role="tooltip" className="stock widget-text-xs rounded-[var(--radius-input)] px-[0.83em] py-[0.5em]">
       <div className="font-medium">{label(r.period)}</div>
-      {r.value !== undefined || r.partial !== undefined ? (
-        <>
-          <div>{m.name}: <span className="fig">{formatValue(m, r.value ?? r.partial!, ns)}</span></div>
-          {r.target !== undefined && <div className="text-muted-foreground">Target: <span className="fig">{formatValue(m, r.target, ns)}</span></div>}
-          {(v.analysis?.outputs ?? []).map((o) => (r[`recipe:${o.step}`] === undefined ? null : <div key={o.step} className="text-muted-foreground">{o.label}: <span className="fig">{formatOutput(o.unit, m, r[`recipe:${o.step}`], ns)}</span></div>))}
-        </>
-      ) : r.fc !== undefined ? (
-        <>
-          <div>Forecast: <span className="fig">{formatValue(m, r.fc, ns)}</span></div>
-          {r.band && <div className="text-muted-foreground">Likely {formatValue(m, r.band[0], ns)} – {formatValue(m, r.band[1], ns)}</div>}
-        </>
-      ) : null}
+      <div>Forecast: <span className="fig">{formatValue(m, r.fc, ns)}</span></div>
+      {r.band && <div className="text-muted-foreground">Likely {formatValue(m, r.band[0], ns)} – {formatValue(m, r.band[1], ns)}</div>}
     </div>
   );
 }

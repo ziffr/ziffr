@@ -74,7 +74,11 @@ export async function workspace(name = "Test") {
     await db().from("workspaces").delete().eq("id", id);
     if (people.length) await db().from("profiles").delete().in("id", people);
   };
-  return { id, person, contact, metric, token, action, value, lock, trial, limit, setRole, share, unshare, dropMember, actor, cleanup };
+  /** Changes columns of a Metric as stored (a Source switched off, a Metric archived), for a test of what a sender then gets. */
+  const patchMetric = async (metricId: number, patch: Record<string, unknown>) => { await must(db().from("metrics").update(patch).eq("id", metricId)); };
+  /** How many values a Metric holds, whoever put them there. */
+  const valueCount = async (metricId: number) => (await must(db().from("observations").select("id", { count: "exact", head: true }).eq("metric_id", metricId))).count ?? 0;
+  return { id, person, contact, metric, token, action, value, lock, trial, limit, setRole, share, unshare, dropMember, actor, patchMetric, valueCount, cleanup };
 }
 
 /** Whether the person switched the usage digest off, as stored: for tests of the setting and of the unsubscribe link. */

@@ -142,7 +142,39 @@ The webhook takes one value, `{ "metric": "sign-ups", "value": 1 }`, with an opt
 
 ## When something goes wrong
 
-- **`not_found` for a Metric.** The Feed is not one of the Metric's Submitters, or the Metric's API Source is off. Choose the Feed on the Metric again.
-- **401.** The key ended, was revoked, or the Feed was deleted. Make a new key on the Feeds page.
-- **`duplicate`.** The Metric's Submission Rule rejects a second value for a period. Use "overwrite" for Metrics a Feed keeps current.
-- **`locked`.** The period is closed. The value went to the Metric's owner as a proposed Correction.
+There are two kinds of answer, and a program should look at both.
+
+**The request is not right: the whole call is refused (a 4xx), nothing in it is recorded, and the error names the field.** The answer is `{ "error": { "code": "…", "message": "…" } }`, and a message such as `items.1.value: Invalid input: expected number, received string` says which item and which field. Fix the request and send it again.
+
+| You got | It means | What to do |
+|---|---|---|
+| **401** `unauthorized` | No `Authorization: Bearer zk_…` header, a wrong key, a key that ended or was revoked, or its Feed was deleted. A key in the address (`?key=`) is never read. | Send the key in the header. Make a new key under **Settings → Feeds**. |
+| **403** `forbidden` | A person's Access Key on `/feed`, or a Feed Key on any other endpoint. | Use a Feed Key for `/feed`. |
+| **400** `invalid_request`, "not valid JSON" or "Content-Type" | The body is not JSON, or the header is not `Content-Type: application/json`. | Send JSON with that header. |
+| **400**, `items: …` | No `items`, not a list, empty, or more than 500. | Send 1 to 500 items. |
+| **400**, `items.N.metric` | Not a Metric slug: lower case letters, digits and hyphens, at most 100 (not the name, not capitals or spaces). | Use the slug `GET /api/v1/feed` lists. |
+| **400**, `items.N.value` | Not a number: text such as `"12"` or `"12%"`, `null`, missing, or too big to hold. | Send a JSON number, `12`, with no unit or sign. |
+| **400**, `items.N.period` | Not a day written `YYYY-MM-DD` (`October`, `2026-10-01T00:00:00Z`, `2026-13-45`). | Send the period's first day, or leave it out for the current period. |
+| **400**, `items.N.breakdown…` | A row without a label or with a value that is not a number, or more than 500 rows. | Fix the row. |
+| **400**, a field Ziffr does not know | Only `metric`, `period`, `value` and `breakdown` are taken, and only `items` in the body. | Remove the extra field. |
+| **400**, `Idempotency-Key` | Not 1 to 200 visible ASCII characters. | Use a plain string such as `crm-2026-10-01`. |
+| **400**, "larger than 1 MB" | The body is too big. | Send fewer items, or fewer Breakdown rows. |
+| **409** `conflict` | The same `Idempotency-Key` with another body, or its first call is still running. | Use a new key for new values; wait for the first call. |
+| **429** `rate_limited` | The Feed's 10,000 values a day, its 60 calls a minute, or another batch is still running. `Retry-After` says when. | Wait that many seconds; send fewer values. |
+| **500** `internal` | A fault in Ziffr. Nothing is promised about the batch. | Try again with the same `Idempotency-Key`, so nothing is recorded twice. |
+
+**A value is not right: the call answers 200, and that item is `refused` with a `code`, while the rest of the batch still runs.** Look at `results`, one per item in the order you sent them, not only at the HTTP status.
+
+| `code` | It means | What to do |
+|---|---|---|
+| `not_found` | The Feed is not one of the Metric's Submitters, the slug is wrong, the Metric is not of this Workspace, or the Metric's API Source is off (a Feed does not see such a Metric). | Choose the Feed under the Metric's **Who submits** and keep its API Source on; check the slug against `GET /api/v1/feed`. |
+| `period` | Not the first day of one of the Metric's periods (a month's `2026-10-15`), or in the future. | Send the first day of the period. |
+| `duplicate` | The Metric's Submission Rule rejects a second value for a period. | Use "overwrite" for Metrics a Feed keeps current, or do not resend a period that has a value (`filled` in `GET /feed`). |
+| `archived` | The Metric is archived. | Restore it, or stop sending. |
+| `derived` | A Derived Metric is computed, never sent. | Send its inputs. |
+| `period_condensed` | The period was condensed by a Retention. | It takes no more values. |
+| `no_value` | The value is not a number. | Send a number. |
+
+Two answers that are not refusals: `awaiting_approval` (an Unusual Value, or a Workflow that approves every value: it waits for a person and is not lost) and `locked` (the period is closed; the value went to the Metric's owner as a proposed Correction). `imported: true` marks a past period that had no value, recorded without the Unusual Value check.
+
+These are tested as one table (`sender-errors.db.test.ts`), so a change to Ziffr that makes one of them silently different fails there.

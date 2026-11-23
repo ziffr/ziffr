@@ -31,7 +31,7 @@
     "steps": {
       "type": "array",
       "minItems": 1,
-      "maxItems": 12,
+      "maxItems": 33,
       "description": "What happens each period, in order.",
       "items": {
         "oneOf": [
@@ -136,6 +136,59 @@
             "required": [
               "type",
               "approvers"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "description": "A Checklist Item: its words, and when. \"info\" is sent to people chosen when the template is used, `day` working days after the period ends; \"tick\" is given to a person chosen then, due `dueWorkingDays` after it ends.",
+            "properties": {
+              "type": {
+                "const": "checklist"
+              },
+              "kind": {
+                "enum": [
+                  "info",
+                  "tick"
+                ]
+              },
+              "text": {
+                "type": "string",
+                "maxLength": 500,
+                "pattern": "^(?![\\s\\S]*(?:://|[Ww][Ww][Ww]\\.|[Jj][Aa][Vv][Aa][Ss][Cc][Rr][Ii][Pp][Tt]:|[Dd][Aa][Tt][Aa]:|[Uu][Rr][Ll]\\(|[\\p{L}\\p{N}](?:\\.(?:[Cc][Oo][Mm]|[Nn][Ee][Tt]|[Oo][Rr][Gg]|[Ii][Oo]|[Cc][Oo]|[Ii][Nn][Ff][Oo]|[Bb][Ii][Zz]|[Aa][Pp][Pp]|[Dd][Ee][Vv]|[Xx][Yy][Zz]|[Mm][Ee]|[Aa][Ii]|[Ll][Yy]|[Gg][Ll]|[Gg][Gg]|[Tt][Oo]|[Cc][Cc]|[Tt][Vv]|[Ww][Ss]|[Ll][Ii][Nn][Kk]|[Cc][Ll][Ii][Cc][Kk]|[Ss][Ii][Tt][Ee]|[Oo][Nn][Ll][Ii][Nn][Ee]|[Tt][Oo][Pp]|[Tt][Kk]|[Rr][Uu]|[Cc][Nn]|[Dd][Ee]|[Uu][Kk]|[Ff][Rr]|[Ee][Uu]|[Uu][Ss]|[Nn][Ll]|[Cc][Hh]|[Aa][Tt]|[Ii][Tt]|[Ee][Ss])(?![\\p{L}\\p{N}])|\\.[Xx][Nn]--|\\.\\p{L}{2,}/)|\\b(?:[Hh][Tt][Tt][Pp][Ss]?|[Ff][Tt][Pp]|[Mm][Aa][Ii][Ll][Tt][Oo]|[Tt][Ee][Ll]|[Ss][Mm][Ss]|[Ff][Ii][Ll][Ee]|[Vv][Bb][Ss][Cc][Rr][Ii][Pp][Tt]):(?!\\s)))[\\p{L}\\p{M}\\p{N} .,;:!?'\"’‘“”«»()%€$£¥+\\-–—/&#*=_·…°]*$",
+                "description": "plain text, without markup or web addresses",
+                "minLength": 1
+              },
+              "day": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 30,
+                "description": "For \"info\": working days after the period ends."
+              },
+              "dueWorkingDays": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 30,
+                "description": "For \"tick\": working days after the period ends by which it is due."
+              }
+            },
+            "required": [
+              "type",
+              "kind",
+              "text"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "description": "Send a dashboard's Snapshot of the period to people chosen when the template is used, once the period is finished. The dashboard and the people are left open.",
+            "properties": {
+              "type": {
+                "const": "send_snapshot"
+              }
+            },
+            "required": [
+              "type"
             ],
             "additionalProperties": false
           },

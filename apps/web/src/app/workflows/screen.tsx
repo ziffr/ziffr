@@ -6,14 +6,14 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { toast } from "sonner";
-import { ArrowDown, ArrowUp, BellRing, CheckCheck, CircleUserRound, Lock, Megaphone, Plus, Play, ScanSearch, Send, Trash2, TriangleAlert } from "lucide-react";
+import { ArrowDown, ArrowUp, BellRing, Camera, CheckCheck, CircleUserRound, ListChecks, Lock, Megaphone, Plus, Play, ScanSearch, Send, Trash2, TriangleAlert } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { closeWorkflowPeriod, deleteWorkflow, runTodayNow, runWorkflowsNow, saveWorkflow, setMetricWorkflow } from "@/app/workflow-actions";
 import type { RunInfo } from "@ziffr/core/workflows";
 import { dueDate, stepLabel, STEP_TITLE, workingPeriod } from "@ziffr/core/workflow-rules";
-import { TELL_GROUPS_PER_STEP, TELL_PEOPLE_PER_STEP, TELL_STEPS_PER_WORKFLOW, TELL_WEBHOOKS_PER_STEP } from "@ziffr/core/alert-limits";
+import { CHECKLIST_DAYS_MAX, TELL_GROUPS_PER_STEP, CHECKLIST_ITEMS_PER_WORKFLOW, TELL_PEOPLE_PER_STEP, CHECKLIST_TEXT_MAX, TELL_STEPS_PER_WORKFLOW, TELL_WEBHOOKS_PER_STEP } from "@ziffr/core/alert-limits";
 import type { TellEditorFacts } from "@ziffr/core/tell";
 import { formatDate } from "@ziffr/core/format";
 import type { Metric, PeriodState, Profile, Workflow, WorkflowConfig, WorkflowStep } from "@ziffr/core/types";
@@ -27,10 +27,14 @@ import type { PeriodTimeline } from "@ziffr/core/period-timeline";
 import { PeriodTimelines } from "./period-timeline";
 import { AskingFields, AskingSentence, type AskingClock } from "./asking-fields";
 
-const ICON: Record<WorkflowStep["type"], typeof BellRing> = { remind: BellRing, escalate: TriangleAlert, check: ScanSearch, approve: CheckCheck, tell: Megaphone, publish: Lock };
+const ICON: Record<WorkflowStep["type"], typeof BellRing> = { remind: BellRing, escalate: TriangleAlert, check: ScanSearch, approve: CheckCheck, tell: Megaphone, publish: Lock, checklist: ListChecks, send_snapshot: Camera };
 /** A new Tell step; its id names it for its memory and is kept by the server. */
 const newTell = (): WorkflowStep => ({ type: "tell", id: crypto.randomUUID(), condition: { kind: "share_of_target", share: "80" }, people: [], groups: [] });
-const NEW_STEP: Record<Exclude<WorkflowStep["type"], "tell">, WorkflowStep> = {
+/** A new Checklist Item for information; its id names it for its claim and is kept by the server. */
+const newItem = (): WorkflowStep => ({ type: "checklist", id: crypto.randomUUID(), kind: "info", text: "", day: 1, people: [], groups: [] });
+/** A new Send Snapshot step with no dashboard picked yet; its id names it for its claim and is kept by the server. */
+const newSend = (): WorkflowStep => ({ type: "send_snapshot", id: crypto.randomUUID(), dashboardId: 0, people: [], groups: [] });
+const NEW_STEP: Record<Exclude<WorkflowStep["type"], "tell" | "checklist" | "send_snapshot">, WorkflowStep> = {
   remind: { type: "remind", daysBefore: 2 },
   escalate: { type: "escalate", to: "stand-in", daysAfter: 0 },
   check: { type: "check", changePct: 30, outsideTarget: true },
@@ -45,7 +49,11 @@ type Tok = { metric_id: number; submitter_id: string; stand_in_id: string | null
 /** When Workflows run in a real workspace, and its last run; null in the demo, which pretends a day instead. */
 type Schedule = { timeZone: string; runHour: number; today: string; hour: number; todayRan: boolean; lastRun: RunInfo | null; scheduled: boolean };
 
-export function WorkflowsScreen({ viewer, people, feeds = [], metrics, workflows, current, states, tokens, asOf, schedule, askingRun = null, canRun, yearStart, templates = [], canCreate = true, timelines = [], tellFacts = { groups: [], webhooks: [], steps: [] } }: {
+export function WorkflowsScreen({ viewer, people, feeds = [], metrics, workflows, current, states, tokens, asOf, schedule, askingRun = null, canRun, yearStart, templates = [], canCreate = true, timelines = [], tellFacts = { groups: [], webhooks: [], steps: [] }, checklistPaused = null, dashboards = [] }: {
+  /** The dashboards this viewer may open, and whether they may pick one for a Send Snapshot step (decided in the core). */
+  dashboards?: { id: number; name: string; pick: boolean }[];
+  /** Why this Workflow's checklist items wait, for its owner (decided in the core). */
+  checklistPaused?: "none" | "mixed" | null;
   /** Groups a Tell step may name, and who each of the Workflow's Tell steps skips (decided in the core). */
   tellFacts?: TellEditorFacts;
   /** The last run of this Workflow on its own Asking Schedule (spec 0035). */
@@ -120,7 +128,7 @@ export function WorkflowsScreen({ viewer, people, feeds = [], metrics, workflows
                 {cfg.asking && <p className="mt-1 text-xs text-muted-foreground"><AskingSentence asking={cfg.asking} clock={clock} /></p>}
               </Node>
               {steps.map((s, i) => (
-                <Node key={i} icon={ICON[s.type]} title={STEP_TITLE[s.type]} text={stepLabel(s, people, tellFacts.groups)}
+                <Node key={i} icon={ICON[s.type]} title={STEP_TITLE[s.type]} text={stepLabel(s, people, tellFacts.groups, dashboards)}
                   controls={canEdit && (
                     <span className="flex gap-0.5">
                       {s.type !== "publish" && i > 0 && <IconBtn label={`Move ${STEP_TITLE[s.type]} (step ${i + 1}) earlier`} onClick={() => move(i, -1)}><ArrowUp className="size-3.5" /></IconBtn>}
@@ -129,19 +137,22 @@ export function WorkflowsScreen({ viewer, people, feeds = [], metrics, workflows
                     </span>
                   )}
                 >
-                  {canEdit && <StepFields s={s} people={people} submitters={submitters} tellFacts={tellFacts} onChange={(x) => setStep(i, x)} />}
+                  {canEdit && <StepFields s={s} people={people} submitters={submitters} tellFacts={tellFacts} dashboards={dashboards} lockHeld={steps.some((x) => x.type === "send_snapshot")} onChange={(x) => setStep(i, x)} />}
                 </Node>
               ))}
             </ol>
 
+            {checklistPaused && canEdit && <p role="note" className="mt-3 pl-12 text-xs text-[var(--color-ink)]">The checklist items and the Send Snapshot step wait: {checklistPaused === "none" ? "this Workflow asks for no Metric" : "its Metrics do not all have the same period"}, and they belong to one period. They go on when its Metrics agree on a period.</p>}
+            {canEdit && steps.some((x) => x.type === "send_snapshot") && onIt.length > 0 && onIt.every((m) => m.period === "day") && <p role="note" className="mt-3 pl-12 text-xs text-[var(--color-ink)]">The Send Snapshot step waits: a Snapshot covers a week or longer, and this Workflow&apos;s Metrics have a period of a day.</p>}
             {canEdit && (
               <div className="mt-4 flex flex-wrap gap-2 pl-12">
                 <DropdownMenu>
                   <DropdownMenuTrigger className="inline-flex min-h-9 items-center gap-1.5 rounded-[var(--radius-input)] border border-input bg-card px-3 text-sm"><Plus aria-hidden className="size-4" /> Add step</DropdownMenuTrigger>
                   <DropdownMenuContent>
-                    {(["remind", "escalate", "check", "approve", "tell"] as const).filter((t) => t === "tell" ? steps.filter((x) => x.type === "tell").length < TELL_STEPS_PER_WORKFLOW : (t !== "check" && t !== "approve") || !steps.some((x) => x.type === t)).map((t) => {
+                    {(["remind", "escalate", "check", "approve", "tell", "checklist", "send_snapshot"] as const).filter((t) => t === "tell" ? steps.filter((x) => x.type === "tell").length < TELL_STEPS_PER_WORKFLOW : t === "checklist" ? steps.filter((x) => x.type === "checklist").length < CHECKLIST_ITEMS_PER_WORKFLOW : (t !== "check" && t !== "approve" && t !== "send_snapshot") || !steps.some((x) => x.type === t)).map((t) => {
                       const Icon = ICON[t];
-                      return <DropdownMenuItem key={t} onClick={() => { const at = steps.findIndex((x) => x.type === "publish"); const s = [...steps]; s.splice(at < 0 ? s.length : at, 0, t === "tell" ? newTell() : NEW_STEP[t]); setCfg({ ...cfg, steps: s }); }}><Icon aria-hidden /> {STEP_TITLE[t]}</DropdownMenuItem>;
+                      // Send Snapshot goes when the period is finished, which needs a locking Publish step: adding it ticks the lock.
+                      return <DropdownMenuItem key={t} onClick={() => { const at = steps.findIndex((x) => x.type === "publish"); const s = (t === "send_snapshot" ? steps.map((x) => (x.type === "publish" ? { ...x, lock: true } : x)) : [...steps]); s.splice(at < 0 ? s.length : at, 0, t === "tell" ? newTell() : t === "checklist" ? newItem() : t === "send_snapshot" ? newSend() : NEW_STEP[t]); setCfg({ ...cfg, steps: s }); }}><Icon aria-hidden /> {STEP_TITLE[t]}</DropdownMenuItem>;
                     })}
                   </DropdownMenuContent>
                 </DropdownMenu>
@@ -230,7 +241,7 @@ function IconBtn({ label, onClick, children }: { label: string; onClick: () => v
   return <button type="button" aria-label={label} title={label} onClick={onClick} className="flex size-7 items-center justify-center rounded-[var(--radius-input)] text-muted-foreground hover:bg-muted hover:text-foreground">{children}</button>;
 }
 
-function StepFields({ s, people, submitters, tellFacts, onChange }: { s: WorkflowStep; people: Profile[]; submitters: Set<string>; tellFacts: TellEditorFacts; onChange: (s: WorkflowStep) => void }) {
+function StepFields({ s, people, submitters, tellFacts, dashboards, lockHeld, onChange }: { s: WorkflowStep; people: Profile[]; submitters: Set<string>; tellFacts: TellEditorFacts; dashboards: { id: number; name: string; pick: boolean }[]; lockHeld: boolean; onChange: (s: WorkflowStep) => void }) {
   const field = "h-8 rounded-[var(--radius-input)] border border-input bg-card px-2 text-xs";
   const num = (v: number, set: (n: number) => void, max = 30) => <input type="number" min={0} max={max} value={v} onChange={(e) => set(Number(e.target.value))} className={cn(field, "w-16")} />;
   return (
@@ -282,8 +293,90 @@ function StepFields({ s, people, submitters, tellFacts, onChange }: { s: Workflo
         </>
       )}
       {s.type === "tell" && <TellFields s={s} people={people} tellFacts={tellFacts} onChange={onChange} field={field} />}
-      {s.type === "publish" && <label className="flex items-center gap-1.5"><input type="checkbox" checked={s.lock} onChange={(e) => onChange({ ...s, lock: e.target.checked })} className="size-4 accent-[var(--color-ink)]" /> lock the period once published</label>}
+      {s.type === "checklist" && <ChecklistFields s={s} people={people} tellFacts={tellFacts} onChange={onChange} field={field} />}
+      {s.type === "send_snapshot" && <SnapshotFields s={s} people={people} dashboards={dashboards} tellFacts={tellFacts} onChange={onChange} field={field} />}
+      {s.type === "publish" && <label className="flex items-center gap-1.5"><input type="checkbox" checked={s.lock} disabled={lockHeld} onChange={(e) => onChange({ ...s, lock: e.target.checked })} className="size-4 accent-[var(--color-ink)]" /> lock the period once published{lockHeld && <span>(kept on: the Send Snapshot step waits for the lock)</span>}</label>}
     </div>
+  );
+}
+
+/** The people and Groups a Tell step or a Checklist Item names: each as a chip with its remove button, and the lists to add more from (never Contacts). */
+function Recipients({ named, people, groups, field, onChange }: { named: { people: string[]; groups: number[] }; people: Profile[]; groups: TellEditorFacts["groups"]; field: string; onChange: (r: { people: string[]; groups: number[] }) => void }) {
+  const name = (id: string) => people.find((p) => p.id === id)?.name ?? id;
+  const chip = "flex items-center gap-1 rounded-[var(--radius-input)] border border-border px-1.5 py-0.5";
+  const pickable = people.filter((p) => !p.contact && !named.people.includes(p.id));
+  const more = groups.filter((g) => !named.groups.includes(g.id));
+  return (
+    <>
+      {named.people.map((p) => <span key={p} className={chip}>{name(p)}<IconBtn label={`Do not tell ${name(p)}`} onClick={() => onChange({ ...named, people: named.people.filter((x) => x !== p) })}><Trash2 className="size-3.5" /></IconBtn></span>)}
+      {named.groups.map((g) => <span key={g} className={chip}>Group {groups.find((x) => x.id === g)?.name ?? g}<IconBtn label="Do not tell this Group" onClick={() => onChange({ ...named, groups: named.groups.filter((x) => x !== g) })}><Trash2 className="size-3.5" /></IconBtn></span>)}
+      {pickable.length > 0 && named.people.length < TELL_PEOPLE_PER_STEP && (
+        <select aria-label="Add a person to tell" value="" onChange={(e) => e.target.value && onChange({ ...named, people: [...named.people, e.target.value] })} className={field}>
+          <option value="">Add a person…</option>
+          {pickable.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
+        </select>
+      )}
+      {more.length > 0 && named.groups.length < TELL_GROUPS_PER_STEP && (
+        <select aria-label="Add a Group to tell" value="" onChange={(e) => e.target.value && onChange({ ...named, groups: [...named.groups, Number(e.target.value)] })} className={field}>
+          <option value="">Add a Group…</option>
+          {more.map((g) => <option key={g.id} value={g.id}>{g.name} ({g.members})</option>)}
+        </select>
+      )}
+    </>
+  );
+}
+
+/** A Checklist Item's fields: its words, its day, who is told and which Group reads its words on the page. Plain text,
+ * as everywhere it is shown; the server checks every limit again. */
+function ChecklistFields({ s, people, tellFacts, onChange, field }: { s: Extract<WorkflowStep, { type: "checklist" }>; people: Profile[]; tellFacts: TellEditorFacts; onChange: (s: WorkflowStep) => void; field: string }) {
+  const readers = (
+    <label className="flex items-center gap-1.5">
+      <span>Its words are read on this page by</span>
+      <select aria-label="Who reads its words" value={s.readGroup ?? ""} onChange={(e) => { const next = { ...s }; if (e.target.value) next.readGroup = Number(e.target.value); else delete next.readGroup; onChange(next); }} className={field}>
+        <option value="">everyone who sees the Workflow</option>
+        {tellFacts.groups.map((g) => <option key={g.id} value={g.id}>the Group {g.name}</option>)}
+      </select>
+    </label>
+  );
+  const text = (
+    <label className="block basis-full">
+      <span className="mb-1 block">Its words ({[...s.text].length} of {CHECKLIST_TEXT_MAX} characters; plain words, no line breaks or web addresses)</span>
+      <textarea aria-label="Checklist item words" value={s.text} maxLength={CHECKLIST_TEXT_MAX} rows={2} onChange={(e) => onChange({ ...s, text: e.target.value })} className="w-full rounded-[var(--radius-input)] border border-input bg-card p-2 text-xs text-foreground" />
+    </label>
+  );
+  if (s.kind === "tick") {
+    return <>{text}<span className="basis-full">To tick off by a person: it is not given as a Task yet, so nothing is sent for it.</span>{readers}</>;
+  }
+  return (
+    <>
+      {text}
+      <label className="flex items-center gap-1.5"><input type="number" aria-label="Working days after the period" min={1} max={CHECKLIST_DAYS_MAX} value={s.day} onChange={(e) => onChange({ ...s, day: Number(e.target.value) })} className={cn(field, "w-16")} /> working days after the period ends (1 is the first working day after it)</label>
+      <span className="basis-full">Tell</span>
+      <Recipients named={s} people={people} groups={tellFacts.groups} field={field} onChange={(r) => onChange({ ...s, ...r })} />
+      {s.people.length === 0 && s.groups.length === 0 && <span role="note" className="basis-full text-[var(--color-ink)]">Nobody is chosen yet, so nothing is sent.</span>}
+      <span className="basis-full">Sent once for each period, by each person&apos;s Delivery Preference, after their Quiet Hours, and never more than {TELL_PEOPLE_PER_STEP} people. It holds your words and a link, no value. Only members with a sign-in get it, and each can stop it in Your settings.</span>
+      {readers}
+    </>
+  );
+}
+
+/** A Send Snapshot step's fields: the dashboard and who gets a link to its Snapshot. The server checks again that the dashboard
+ * is one the owner may take a Snapshot of, and each recipient is checked for opening it when the link is sent. */
+function SnapshotFields({ s, people, dashboards, tellFacts, onChange, field }: { s: Extract<WorkflowStep, { type: "send_snapshot" }>; people: Profile[]; dashboards: { id: number; name: string; pick: boolean }[]; tellFacts: TellEditorFacts; onChange: (s: WorkflowStep) => void; field: string }) {
+  return (
+    <>
+      <label className="flex items-center gap-1.5">
+        <span>Dashboard</span>
+        <select aria-label="Dashboard whose Snapshot is sent" value={s.dashboardId || ""} onChange={(e) => onChange({ ...s, dashboardId: Number(e.target.value) || 0 })} className={field}>
+          <option value="">Pick a dashboard…</option>
+          {dashboards.filter((d) => d.pick || d.id === s.dashboardId).map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}
+        </select>
+      </label>
+      <span className="basis-full">Send to</span>
+      <Recipients named={s} people={people} groups={tellFacts.groups} field={field} onChange={(r) => onChange({ ...s, ...r })} />
+      {(!s.dashboardId || (s.people.length === 0 && s.groups.length === 0)) && <span role="note" className="basis-full text-[var(--color-ink)]">{!s.dashboardId ? "No dashboard is picked yet" : "Nobody is chosen yet"}, so nothing is sent.</span>}
+      <span className="basis-full">Once the period is finished (every value locked and every checklist task done) it takes the period&apos;s Snapshot in your name, shows it, and sends each person who may open the dashboard a link to it, once for each period. The message holds no value and no Metric name; each person sees only the Metrics they may see. People who may not open the dashboard are skipped and you are told who: share it with them and they get the next one. Only members with a sign-in get it, and each can stop it in Your settings.</span>
+    </>
   );
 }
 
@@ -337,8 +430,6 @@ function TellFields({ s, people, tellFacts, onChange, field }: { s: Extract<Work
   const skipped = tellFacts.steps.find((x) => x.id === s.id)?.skipped ?? [];
   const byPerson = new Map<string, string[]>();
   for (const k of skipped) byPerson.set(k.person, [...(byPerson.get(k.person) ?? []), k.metric]);
-  const pickable = people.filter((p) => !p.contact && !s.people.includes(p.id));
-  const groups = tellFacts.groups.filter((g) => !s.groups.includes(g.id));
   const hooks = s.webhooks ?? [];
   const hook = (id: string) => tellFacts.webhooks.find((w) => w.id === id);
   const pickableHooks = tellFacts.webhooks.filter((w) => !hooks.includes(w.id));
@@ -356,20 +447,7 @@ function TellFields({ s, people, tellFacts, onChange, field }: { s: Extract<Work
         {(c.kind === "share_of_target" || c.kind === "changed_more") && <span>%</span>}
       </label>
       <span className="basis-full">Tell</span>
-      {s.people.map((p) => <span key={p} className="flex items-center gap-1 rounded-[var(--radius-input)] border border-border px-1.5 py-0.5">{name(p)}<IconBtn label={`Do not tell ${name(p)}`} onClick={() => onChange({ ...s, people: s.people.filter((x) => x !== p) })}><Trash2 className="size-3.5" /></IconBtn></span>)}
-      {s.groups.map((g) => <span key={g} className="flex items-center gap-1 rounded-[var(--radius-input)] border border-border px-1.5 py-0.5">Group {tellFacts.groups.find((x) => x.id === g)?.name ?? g}<IconBtn label="Do not tell this Group" onClick={() => onChange({ ...s, groups: s.groups.filter((x) => x !== g) })}><Trash2 className="size-3.5" /></IconBtn></span>)}
-      {pickable.length > 0 && s.people.length < TELL_PEOPLE_PER_STEP && (
-        <select aria-label="Add a person to tell" value="" onChange={(e) => e.target.value && onChange({ ...s, people: [...s.people, e.target.value] })} className={field}>
-          <option value="">Add a person…</option>
-          {pickable.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
-        </select>
-      )}
-      {groups.length > 0 && s.groups.length < TELL_GROUPS_PER_STEP && (
-        <select aria-label="Add a Group to tell" value="" onChange={(e) => e.target.value && onChange({ ...s, groups: [...s.groups, Number(e.target.value)] })} className={field}>
-          <option value="">Add a Group…</option>
-          {groups.map((g) => <option key={g.id} value={g.id}>{g.name} ({g.members})</option>)}
-        </select>
-      )}
+      <Recipients named={s} people={people} groups={tellFacts.groups} field={field} onChange={(r) => onChange({ ...s, ...r })} />
       {hooks.map((id) => <span key={id} className="flex items-center gap-1 rounded-[var(--radius-input)] border border-border px-1.5 py-0.5">Webhook {hook(id)?.name ?? "(not shown to you)"}{tellFacts.webhooks.length > 0 && <IconBtn label={`Do not tell Webhook ${hook(id)?.name ?? ""}`} onClick={() => onChange({ ...s, webhooks: hooks.filter((x) => x !== id) })}><Trash2 className="size-3.5" /></IconBtn>}</span>)}
       {pickableHooks.length > 0 && hooks.length < TELL_WEBHOOKS_PER_STEP && (
         <select aria-label="Add a Webhook to tell" value="" onChange={(e) => e.target.value && onChange({ ...s, webhooks: [...hooks, e.target.value] })} className={field}>

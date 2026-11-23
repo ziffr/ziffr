@@ -13,7 +13,7 @@ import { cleanLogo, logoProblem, PACK_LOGO_MAX_BYTES } from "./logo.js";
 import { checkDeckTemplateFileValue, deckTemplateReferences, DECK_TEMPLATE_LIMITS, type DeckTemplateFile } from "./deck-template-file.js";
 import { checkWorkflowTemplateFileValue, WORKFLOW_TEMPLATE_LIMITS, type WorkflowTemplateFile } from "./workflow-template-file.js";
 import { checkViewDesignValue, VIEW_LIMITS, type ViewDesign } from "./view-design.js";
-import { checkAnalysisRecipeValue, RECIPE_LIMITS, type AnalysisRecipe } from "./analysis-recipe.js";
+import { checkAnalysisRecipeValue, RECIPE_LIMITS, type AnyAnalysisRecipe } from "./analysis-recipe.js";
 import { checkPackFormula, type FormulaEntry } from "./formula-check.js";
 import { textsAimedAtAssistants } from "./assistant-words.js";
 
@@ -23,7 +23,9 @@ export const PACK_FORMAT = "ziffr.pack/1";
 export const PACK_FORMATS = [PACK_FORMAT] as const;
 /** The exact limits a Pack is held to (spec 0030): 1 MiB, 200 items, 50 of a kind. Each item is also held to its own
  * format's limits. */
-export const PACK_LIMITS = { bytes: 1_048_576, depth: 20, items: 200, perKind: 50, name: 80, summary: 300, author: 80, address: 200, logoBytes: PACK_LOGO_MAX_BYTES } as const;
+export const PACK_LIMITS = { bytes: 1_048_576, depth: 20, items: 200, perKind: 50, name: 80, summary: 300, author: 80, address: 200, logoBytes: PACK_LOGO_MAX_BYTES, feeds: 10, feedFills: 50 } as const;
+/** The Automation Templates for Feeds a Pack may name (spec 0043): ids of the list Ziffr ships in docs/automations/feed-templates.json, and only those, so that everything that ends up in someone's n8n was reviewed here. A test holds this list and that file to each other. */
+export const FEED_TEMPLATE_IDS = ["google-sheets", "excel", "stripe", "hubspot"] as const;
 /** What Ziffr says of a Pack file from outside the Marketplace, in the spec's words. */
 export const UNSIGNED_WARNING = "Uploaded file. The Marketplace did not check it.";
 /** The licenses a Pack may carry: CC BY 4.0 or MIT for a free one, the Ziffr Pack License for a paid one. */
@@ -34,7 +36,7 @@ const KINDS = {
   metrics: { field: "metric", what: "Metric Catalog entries", format: "ziffr.metric/1", bytes: METRIC_FILE_LIMITS.bytes, check: checkMetricFileValue },
   dashboards: { field: "template", what: "Dashboard Templates", format: "ziffr.dashboard-template/1", bytes: DASHBOARD_TEMPLATE_LIMITS.bytes, check: checkDashboardTemplateFileValue },
   views: { field: "design", what: "View Designs", format: "ziffr.view/1", bytes: VIEW_LIMITS.bytes, check: (v: unknown, l: Map<string, number>): FormatCheck<ViewDesign> => { const r = checkViewDesignValue(v, l); return r.ok ? { ok: true, value: r.design } : r; } },
-  analyses: { field: "recipe", what: "Analysis Recipes", format: "ziffr.analysis/1", bytes: RECIPE_LIMITS.bytes, check: (v: unknown, l: Map<string, number>): FormatCheck<AnalysisRecipe> => { const r = checkAnalysisRecipeValue(v, l); return r.ok ? { ok: true, value: r.recipe } : r; } },
+  analyses: { field: "recipe", what: "Analysis Recipes", format: "ziffr.analysis/1 or ziffr.analysis/2", bytes: RECIPE_LIMITS.bytes, check: (v: unknown, l: Map<string, number>): FormatCheck<AnyAnalysisRecipe> => { const r = checkAnalysisRecipeValue(v, l); return r.ok ? { ok: true, value: r.recipe } : r; } },
   themes: { field: "theme", what: "Themes", format: "ziffr.theme/1", bytes: THEME_FILE_LIMITS.bytes, check: checkThemeFileValue },
   decks: { field: "template", what: "Deck Templates", format: "ziffr.deck-template/1", bytes: DECK_TEMPLATE_LIMITS.bytes, check: checkDeckTemplateFileValue },
   workflows: { field: "template", what: "Workflow Templates", format: "ziffr.workflow-template/1", bytes: WORKFLOW_TEMPLATE_LIMITS.bytes, check: checkWorkflowTemplateFileValue },
@@ -56,11 +58,13 @@ export type Pack = {
   ziffr?: string;
   logo?: string;
   listing?: { homepage?: string; support?: string };
+  /** Which Automation Templates fill which of its Metric Catalog entries (spec 0043). Installing makes nothing of it. */
+  feeds?: { template: (typeof FEED_TEMPLATE_IDS)[number]; fills: string[] }[];
   contents: {
     metrics?: PackItem<"metric", MetricFile>[];
     dashboards?: PackItem<"template", DashboardTemplateFile>[];
     views?: PackItem<"design", ViewDesign>[];
-    analyses?: PackItem<"recipe", AnalysisRecipe>[];
+    analyses?: PackItem<"recipe", AnyAnalysisRecipe>[];
     themes?: PackItem<"theme", ThemeFile>[];
     decks?: PackItem<"template", DeckTemplateFile>[];
     workflows?: PackItem<"template", WorkflowTemplateFile>[];
@@ -117,6 +121,20 @@ export const PACK_SCHEMA: Schema = {
       description: "The only place a Pack may hold web addresses, shown on its pages as plain links.",
       properties: { homepage: ADDRESS, support: ADDRESS },
       additionalProperties: false,
+    },
+    feeds: {
+      type: "array",
+      maxItems: PACK_LIMITS.feeds,
+      description: "Which of Ziffr's n8n templates fill which of the Pack's Metric Catalog entries (spec 0043). Only ids Ziffr ships are accepted. Installing makes nothing of it: after Set up, the page offers the download for the Metrics made from the entries. A Pack that uses it should say so in its `ziffr` minimum version.",
+      items: {
+        type: "object",
+        properties: {
+          template: { enum: [...FEED_TEMPLATE_IDS], description: "the id of one of the templates Ziffr ships, such as “google-sheets”" },
+          fills: { type: "array", minItems: 1, maxItems: PACK_LIMITS.feedFills, items: itemKey("the key of a Metric Catalog entry of this Pack the template fills") },
+        },
+        required: ["template", "fills"],
+        additionalProperties: false,
+      },
     },
     contents: {
       type: "object",
@@ -215,6 +233,19 @@ function references(p: Pack, at: (path: string, message: string) => void) {
     for (const k of Object.keys(refs) as (keyof typeof known)[])
       for (const r of refs[k]!) if (!known[k].has(r.key)) at(`${here}.${r.path}`, `names “${r.key}”, which is not ${what[k]} of this Pack.`);
   };
+  // A template may fill only entries of this Pack, and is named once, an entry once for it.
+  const templates = new Set<string>();
+  (p.feeds ?? []).forEach((f, i) => {
+    if (templates.has(f.template)) at(`feeds[${i}].template`, `“${f.template}” is named already: list the entries it fills together.`);
+    templates.add(f.template);
+    const once = new Set<string>();
+    f.fills.forEach((k, j) => {
+      if (!known.metrics.has(k)) at(`feeds[${i}].fills[${j}]`, `names “${k}”, which is not ${what.metrics} of this Pack.`);
+      else if (metrics.find((m) => m.key === k)?.metric.formula !== undefined) at(`feeds[${i}].fills[${j}]`, `names “${k}”, a Derived Metric: it is computed and takes no values, so a template cannot fill it.`);
+      if (once.has(k)) at(`feeds[${i}].fills[${j}]`, `names “${k}” twice.`);
+      once.add(k);
+    });
+  });
   (p.contents.dashboards ?? []).forEach((d, i) => named(`contents.dashboards[${i}].template`, dashboardTemplateReferences(d.template)));
   (p.contents.decks ?? []).forEach((d, i) => named(`contents.decks[${i}].template`, deckTemplateReferences(d.template)));
   // A Derived Metric's formula names the Pack's other entries by key, held to every rule a formula in a Workspace is.

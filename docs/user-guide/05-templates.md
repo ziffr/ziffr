@@ -24,6 +24,8 @@ A **Widget Template** is a starting point for one Widget: a way of drawing a num
 | | Correlation | Whether two Metrics move together |
 | | Correlation matrix | Every pair of several Metrics at once |
 | | Drivers | Which Metrics move most with this one |
+| | Progress against target | Each Metric's latest value against its target, one compact bar each |
+| | Scoreboard | Several Metrics in one table: latest value, change, status and a small trend |
 | Findings | Ranked bars | A Breakdown, largest first, one row highlighted |
 | | Part of the whole | How a Breakdown divides the total |
 | | 7 in 10 | The largest share as ten figures |
@@ -35,11 +37,16 @@ Anyone can save a Widget they made, with its words and annotations, as a team Wi
 
 ## Dashboard Templates
 
-A **Dashboard Template** is a starting point for a whole dashboard: its Widgets, their layout and their words, with the Metrics left open. Ziffr ships three:
+A **Dashboard Template** is a starting point for a whole dashboard: its Widgets, their layout and their words, with the Metrics left open. Ziffr ships eight:
 
 - **Overview**: four numbers at a glance, the first two also as trends against their targets.
 - **One metric in depth**: one Metric from every side: its latest value, where it sits against the target, its trend, its periods, its history and a forecast.
 - **Two metrics side by side**: two Metrics next to each other, and whether they move together.
+- **Scorecard**: six Metrics as gauges against their targets: what is on track and what is not, at a glance.
+- **Trends board**: four trends side by side against their targets, and the first one forecast. For a weekly or monthly review.
+- **Target tracker**: three Metrics, each as its latest value and its periods coloured by whether they were on target, so you see how often it was on track.
+- **Weekly check-in**: four numbers with their change since the last period, and the last values of the first two: a glance to start the week.
+- **Board pack**: a written Finding on the first Metric (its change on last year, in period bars) and an annotated trend for the second, with the numbers behind them.
 
 When you have built a dashboard the team likes, such as "Monthly board pack", you can save it as a team Dashboard Template, so the next one starts from it. You can do this when you may change the dashboard and see every Metric on it.
 
@@ -47,7 +54,7 @@ When you have built a dashboard the team likes, such as "Monthly board pack", yo
 
 A **Deck Template** is a starting point for a whole deck: its slides with their Widgets, words and boxes, the Metrics left open as Slots. Save a deck as one with **Save as Deck Template…** in the deck editor, and start a deck from one on the Decks page (Decks and Themes).
 
-A **Workflow Template** is a starting point for a Workflow: its Due Date, steps and reminders, with the people left open. Save a Workflow as one with **Save as template…**, and start one with **New from a template** on the Workflows page (Workflows and approvals).
+A **Workflow Template** is a starting point for a Workflow: its Due Date, steps and reminders, with the people left open. Its **checklist items** come along with their words, day and Due Date, but never the people they go to, the Group that reads them or the person who ticks them off: you pick those in the editor after you start a Workflow from it. Save a Workflow as one with **Save as template…**, and start one with **New from a template** on the Workflows page (Workflows and approvals).
 
 ## Slots and Placeholders
 

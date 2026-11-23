@@ -129,6 +129,42 @@ async function seed() {
   return { ...s, revenue, quarterly, lower, group, dash, deck, flow };
 }
 
+describe("a Workspace Export of a Workflow with a checklist item kept to a Group", () => {
+  it("keeps the item's words, drops the Group and says so", async () => {
+    const s = await seed();
+    const flow = await saveWorkflow(s.as, null, "Kept", { dueWorkingDays: 1, steps: [{ type: "checklist", id: "item-kept-aaaa", kind: "info", text: "Accrual file is on the drive.", day: 1, people: [], groups: [], readGroup: s.group }, { type: "publish", lock: false }] });
+    await db().from("metrics").update({ workflow_id: flow }).eq("id", s.lower.id);
+    const { records } = await download(s.as);
+    const rec = of(records, "workflow").find((r) => r.workflow.name === "Kept");
+    expect(JSON.stringify(rec?.workflow.steps)).toContain("Accrual file is on the drive.");
+    expect(JSON.stringify(rec)).not.toContain("readGroup");
+    const preview = await previewWorkspaceExport(s.as);
+    expect(preview.leftOut.find((l) => l.name === "Kept")?.why).toMatch(/Group a checklist item is kept to/);
+  });
+});
+
+describe("a Workspace Export of an item the exporting Owner may not read", () => {
+  it("leaves its words behind, counted and never named", async () => {
+    const s = await seed();
+    // A Member, who is in the Group, owns a Workflow whose item is kept to it; the Owner is not in that Group.
+    const flow = await saveWorkflow(s.actor(s.member, "member"), null, "Theirs", { dueWorkingDays: 1, steps: [{ type: "checklist", id: "item-kept-aaaa", kind: "info", text: "Accrual file is on the drive.", day: 1, people: [], groups: [], readGroup: s.group }, { type: "checklist", id: "item-open-aaaa", kind: "info", text: "Cut-off is Friday.", day: 1, people: [], groups: [] }, { type: "publish", lock: false }] });
+    await db().from("metrics").update({ workflow_id: flow }).eq("id", s.lower.id);
+    const { records } = await download(s.as);
+    const rec = of(records, "workflow").find((r) => r.workflow.name === "Theirs");
+    expect(JSON.stringify(rec)).toContain("Cut-off is Friday.");
+    expect(JSON.stringify(rec)).not.toContain("Accrual");
+    const why = (await previewWorkspaceExport(s.as)).leftOut.find((l) => l.name === "Theirs")?.why;
+    expect(why).toMatch(/1 checklist item you may not read/);
+    expect(why).not.toContain("Accrual");
+    // An Owner inside the Group reads the item, so the words come along (and nothing is counted).
+    await setGroupMember(s.as, s.group, s.owner, true);
+    const inside = of((await download(s.as)).records, "workflow").find((r) => r.workflow.name === "Theirs");
+    expect(JSON.stringify(inside)).toContain("Accrual file is on the drive.");
+    expect(JSON.stringify(inside)).not.toContain("readGroup");
+    expect((await previewWorkspaceExport(s.as)).leftOut.find((l) => l.name === "Theirs")?.why).not.toMatch(/may not read/);
+  });
+});
+
 describe("a Workspace Export of awkward data", () => {
   it("reads back through the format's own reader with everything the format carries, as the app stored it", async () => {
     const s = await seed();

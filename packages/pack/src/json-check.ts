@@ -25,6 +25,7 @@ export type Schema = {
   items?: Schema;
   minItems?: number;
   maxItems?: number;
+  uniqueItems?: boolean;
   oneOf?: Schema[];
   default?: unknown;
 };
@@ -196,6 +197,14 @@ export function checkSchema(root: Schema, value: unknown, lines: Map<string, num
     if (Array.isArray(v)) {
       if (s.minItems !== undefined && v.length < s.minItems) at(path, s.minItems === 1 ? "must not be empty." : `must have at least ${s.minItems} entries.`);
       if (s.maxItems !== undefined && v.length > s.maxItems) return void at(path, `has ${v.length} entries; at most ${s.maxItems} are allowed.`);
+      if (s.uniqueItems) {
+        // Only lists of texts and numbers are held to this: the one place a format asks for it (a step's list of inputs).
+        const seen = new Set<unknown>();
+        v.forEach((x, n) => {
+          if (typeof x !== "object" && seen.has(x)) at(`${path}[${n}]`, `“${String(x)}” is listed twice.`);
+          seen.add(x);
+        });
+      }
       if (s.items) v.forEach((x, n) => walk(s.items!, x, `${path}[${n}]`));
     }
     if (t === "object") {

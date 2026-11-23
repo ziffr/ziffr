@@ -207,7 +207,7 @@ export async function addressIn(workspaceId: string, personId: string): Promise<
 /** Sends one queued Delivery. It is claimed first, so the immediate send and the retry job never both send it. */
 export async function sendDelivery(id: number, transport: MailTransport = smtpTransport): Promise<SendResult> {
   const maxAttempts = await sendingLimit("sendAttempts");
-  const { data: found } = await db().from("deliveries").select("id, workspace_id, recipient_id, kind, subject, body, attempts, reply_token, unsubscribe_token, form_token_id, prompt_id, action_id, alert_metric_id, alert_id, tell_workflow_id")
+  const { data: found } = await db().from("deliveries").select("id, workspace_id, recipient_id, kind, subject, body, attempts, reply_token, unsubscribe_token, form_token_id, prompt_id, action_id, alert_metric_id, alert_id, heads_up_metric_a, heads_up_metric_b, heads_up_key, heads_up_told_id, tell_workflow_id, snapshot_dashboard_id")
     // Email only: a queued Slack Delivery is sent by slack-send.ts, never as an email.
     .eq("id", id).eq("connector", "email").eq("mail_state", "queued").lt("attempts", maxAttempts).maybeSingle();
   if (!found) return "skipped";
@@ -269,11 +269,11 @@ export async function sendDelivery(id: number, transport: MailTransport = smtpTr
   let stop: { label: string; url: string } | undefined;
   // An Alert email has a one-click link of its own that pauses that Alert only (email-opt-out.ts).
   // (the daily limit note names no Alert and has no link: deliveryFor would refuse it)
-  if (stoppable || (claimed.kind === "alert" && (claimed.alert_id || claimed.tell_workflow_id))) {
+  if (stoppable || claimed.kind === "heads_up" || ((claimed.kind === "alert" || claimed.kind === "checklist") && (claimed.alert_id || claimed.tell_workflow_id))) {
     const token = claimed.unsubscribe_token ?? randomBytes(24).toString("base64url");
     if (!claimed.unsubscribe_token) await db().from("deliveries").update({ unsubscribe_token: token }).eq("id", id);
     unsubscribe = `${String(settings.ZIFFR_SITE_URL).replace(/\/+$/, "")}/api/unsubscribe/${token}`;
-    stop = { label: claimed.tell_workflow_id ? "To stop being told by this Workflow" : claimed.kind === "alert" ? "To pause this Alert" : "To get no more of these by email", url: unsubscribe };
+    stop = { label: claimed.tell_workflow_id ? "To stop being told by this Workflow" : claimed.kind === "heads_up" ? "To get no more Heads-ups by message" : claimed.kind === "alert" ? "To pause this Alert" : "To get no more of these by email", url: unsubscribe };
     text += `\n\n--\n${stop.label}: ${unsubscribe}`;
   }
   if (digest) {
@@ -287,8 +287,8 @@ export async function sendDelivery(id: number, transport: MailTransport = smtpTr
   }
   // Its own reply address, made the first time it is sent while replies come back (24 random bytes, unguessable).
   let replyTo: string | undefined;
-  // An Alert cannot be answered (GLOSSARY: Alert): its email has no reply address of its own.
-  if (!digest && inboundEnabled(settings) && claimed.kind !== "alert") {
+  // An Alert or a Checklist Item cannot be answered (GLOSSARY: Alert, Checklist Item): its email has no reply address of its own.
+  if (!digest && inboundEnabled(settings) && claimed.kind !== "alert" && claimed.kind !== "heads_up" && claimed.kind !== "checklist") {
     const token = claimed.reply_token ?? randomBytes(24).toString("base64url");
     if (!claimed.reply_token) await db().from("deliveries").update({ reply_token: token }).eq("id", id);
     replyTo = replyAddress(token, settings);

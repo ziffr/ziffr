@@ -1,5 +1,8 @@
 // What the web app's pages read (spec 0001: one core). Every loader takes the Actor first, reads one Workspace only,
 // and returns only what that person may see; pages render it and query nothing themselves.
+import { withoutChecklistWords } from "./checklist";
+import { withoutSnapshotAudience } from "./send-snapshot";
+import { checklistAbout } from "./checklist-about";
 import { openWorkflowRows } from "./workflow-rows";
 import { guestWorkflowIds } from "./period-timeline";
 import { feedIdsAmong } from "./feed-people";
@@ -36,7 +39,7 @@ const isAdmin = async (actor: Actor) => actor.role === "owner" || actor.role ===
 /** The latest 80 Deliveries the person may be shown, taken per person first (their own, those they sent, those about a
  * thread), so other people's messages, such as Alerts, can never push theirs out of the 80; in the demo, anyone's. */
 async function recentDeliveries(actor: Actor) {
-  const columns = "id, connector, recipient_id, sender_id, kind, action_id, prompt_id, answer_source, alert_metric_id, subject, body, external_ref, status, created_at, mail_state, last_error, actions(kind, status), prompts(source, answered_at, answered_source, submitter_id, metric_id)";
+  const columns = "id, connector, recipient_id, sender_id, kind, action_id, prompt_id, answer_source, alert_metric_id, heads_up_metric_a, heads_up_metric_b, subject, body, external_ref, status, created_at, mail_state, last_error, actions(kind, status), prompts(source, answered_at, answered_source, submitter_id, metric_id)";
   const base = () => db().from("deliveries").select(columns).eq("workspace_id", actor.workspaceId).order("id", { ascending: false }).limit(80);
   if (inDemo(actor)) return base();
   const [mine, sent, threads] = await Promise.all([base().eq("recipient_id", actor.personId), base().eq("sender_id", actor.personId), base().not("action_id", "is", null)]);
@@ -71,10 +74,12 @@ export async function connectorsView(actor: Actor) {
   const opened = await openRows("deliveries", ws, deliveries);
   // An Alert message (GLOSSARY: Alert) about a Metric the person can no longer see disappears from the Outbox too:
   // its subject, its text and a "not sent" reason would each confirm the Metric (AGENTS.md rule 3).
-  const alertMetrics = opened.some((d) => d.alert_metric_id) ? await visibleMetricIds(ws, actor.personId, await getMetrics(ws)) : new Set<number>();
+  const alertMetrics = opened.some((d) => d.alert_metric_id || d.heads_up_metric_a) ? await visibleMetricIds(ws, actor.personId, await getMetrics(ws)) : new Set<number>();
   const visible = opened
     .filter((d) => !d.alert_metric_id || inDemo(actor) || alertMetrics.has(d.alert_metric_id as number))
-    .map((d) => ({ ...d, alert_metric_id: undefined }))
+    // A Heads-up message is listed only while the person sees both Metrics it is about, for the same reason.
+    .filter((d) => !d.heads_up_metric_a || inDemo(actor) || [d.heads_up_metric_a, d.heads_up_metric_b].every((id) => id === null || alertMetrics.has(id as number)))
+    .map((d) => ({ ...d, alert_metric_id: undefined, heads_up_metric_a: undefined, heads_up_metric_b: undefined }))
     .filter((d) => (d.action_id ? can.has(d.action_id) : inDemo(actor) || d.recipient_id === actor.personId || d.sender_id === actor.personId));
   // A Token code opens someone's submission form: only their own go to the browser, also in the demo (the demo refuses
   // the submission, but must teach the real rule for the person viewed as, ticket #609).
@@ -111,7 +116,12 @@ export async function sourcesView(actor: Actor) {
   const mine = new Set((own ?? []).map((t) => t.code));
   const viaCode = (source: string) => source === "web_form" || source === "api";
   const shown = (await openRows("intake_log", ws, log)).map((l) => (!l.token_code || mine.has(l.token_code) ? l : { ...l, token_code: null, sender: viaCode(l.source) ? "" : l.sender }));
-  return { prompts: (await openRows("prompts", ws, asked)).reverse(), log: shown.reverse(), tokens: own ?? [] };
+  // The names of Metrics the page shows next to a line: only Metrics this person sees (their own, Shared, through a Group),
+  // never the Workspace's whole list; a line about one they cannot see, or no longer see, shows no name.
+  const all = await getMetrics(ws);
+  const seen = await visibleMetricIds(ws, actor.personId, all);
+  const metrics = all.filter((m) => seen.has(m.id)).map((m) => ({ id: m.id, name: String(m.name), sources: m.sources as string[] }));
+  return { prompts: (await openRows("prompts", ws, asked)).reverse(), log: shown.reverse(), tokens: own ?? [], metrics };
 }
 
 /** The Activity page's raw material: versions and replaced values the person may see, and what labels them. */
@@ -168,7 +178,8 @@ export async function activityView(actor: Actor) {
   };
 }
 
-/** Workflows as the actor may be shown them: Webhook ids in a Tell step only for those who manage Webhooks (rule 3). */
+/** Workflows as the actor may be shown them: Webhook ids in a Tell step only for those who manage Webhooks, and
+ * Checklist Items' words and people only where they may read them (rule 3, checklist.ts). */
 function withoutWebhookIds<W extends { config: unknown }>(actor: Actor, workflows: W[]): W[] {
   if (mayManageWebhooks(actor)) return workflows;
   return workflows.map((w) => ({ ...w, config: { ...(w.config as object), steps: ((w.config as { steps?: Record<string, unknown>[] } | null)?.steps ?? []).map((step) => Object.fromEntries(Object.entries(step).filter(([k]) => k !== "webhooks"))) } }));
@@ -196,7 +207,7 @@ export async function workflowsView(actor: Actor) {
     : { data: [] };
   const feeds = (feedRows ?? []).map((f) => ({ id: f.person_id as string, name: f.name as string }));
   // Webhook ids in a Tell step are for those who manage Webhooks; the rest of the Workspace gets the step without them (rule 3).
-  const shown = withoutWebhookIds(actor, workflows ?? []);
+  const shown = await withoutSnapshotAudience(actor, await withoutChecklistWords(actor, withoutWebhookIds(actor, workflows ?? [])));
   return { workflows: shown, states: states ?? [], tokens: tokens ?? [], feeds, metrics, assigned: metrics.map((m) => ({ id: m.id, workflow_id: (m as Metric & { workflow_id?: number | null }).workflow_id ?? null })) };
 }
 
@@ -238,7 +249,7 @@ export async function metricExtras(actor: Actor, metricId: number, period: Perio
   const pending = (waiting ?? []).map((p) => p.period_start as string);
   // A Guest is shown only the Workflows of Metrics shared with them, not every Workflow's steps and people (rule 3).
   const guestSees = await guestWorkflowIds(actor);
-  return { tokens: shown, workflows: withoutWebhookIds(actor, (workflows ?? []).filter((w) => !guestSees || guestSees.has(w.id as number))), workflowId: (row?.workflow_id as number | null) ?? null, state, period: current, pending };
+  return { tokens: shown, workflows: await withoutSnapshotAudience(actor, await withoutChecklistWords(actor, withoutWebhookIds(actor, (workflows ?? []).filter((w) => !guestSees || guestSees.has(w.id as number))))), workflowId: (row?.workflow_id as number | null) ?? null, state, period: current, pending };
 }
 
 /** The actor's saved widgets (their Pool). */
@@ -321,9 +332,19 @@ export async function actionThread(actor: Actor, id: number) {
   const action = { ...opened, question: hideSystem(opened.question, Boolean(opened.purpose)) } as Action;
   const [groups, metrics] = await Promise.all([getGroups(ws), getMetrics(ws)]);
   const visible = await visibleMetricIds(ws, actor.personId, metrics);
-  const can = threadReader(actor.personId, groups, (m) => metrics.find((x) => x.id === m)?.owner_id, ws, visible);
+  const can = threadReader(actor.personId, groups, (m) => metrics.find((x) => x.id === m)?.owner_id, ws, visible, actor.role);
+  if (!can(action as Action & { workspace_id: string })) return null;
+  // A Checklist Task has no Metric (spec 0045): no chart and no value, only the Workflow and the period it is about.
+  if (action.metric_id === null) {
+    const about = (await checklistAbout(ws, [{ workflow_id: action.workflow_id, period_start: action.period_start }]))(action.workflow_id, action.period_start);
+    const [{ data: messages }, { data: deliveries }] = await Promise.all([
+      db().from("thread_messages").select("*").eq("workspace_id", ws).eq("action_id", id).order("created_at"),
+      db().from("deliveries").select("id, connector, recipient_id, kind, external_ref, created_at").eq("workspace_id", ws).eq("action_id", id).order("id"),
+    ]);
+    return { action, metric: null, about, chartMetric: null, seesMetric: false, observation: null, chart: [] as Point[], messages: await openRows("thread_messages", ws, messages), deliveries: deliveries ?? [], externalLinks: [] as { system: string; url: string | null }[] };
+  }
   const metric = metrics.find((m) => m.id === action.metric_id);
-  if (!metric || !can(action as Action & { workspace_id: string })) return null;
+  if (!metric) return null;
   const seesMetric = visible.has(metric.id);
   const [{ data: messages }, { data: deliveries }, observation, series, { data: links }] = await Promise.all([
     db().from("thread_messages").select("*").eq("workspace_id", ws).eq("action_id", id).order("created_at"),
@@ -343,7 +364,7 @@ export async function actionThread(actor: Actor, id: number) {
   // Security: someone on the Action who does not see its Metric gets only these few fields of it, never its
   // description, settings or Workflow; the whole Metric, for the chart, only goes to a viewer who sees it.
   const named: ActionMetric = { id: metric.id, name: metric.name, slug: metric.slug, period: metric.period, owner_id: metric.owner_id, decimals: metric.decimals, unit: metric.unit, unit_position: metric.unit_position };
-  return { action, metric: named, chartMetric: seesMetric ? metric : null, seesMetric, observation: value, chart, messages: await openRows("thread_messages", ws, messages), deliveries: deliveries ?? [], externalLinks };
+  return { action, metric: named, about: null, chartMetric: seesMetric ? metric : null, seesMetric, observation: value, chart, messages: await openRows("thread_messages", ws, messages), deliveries: deliveries ?? [], externalLinks };
 }
 
 /** A personal form link's page, for anyone holding the code: the Metric, whose form it is, and this period's value.

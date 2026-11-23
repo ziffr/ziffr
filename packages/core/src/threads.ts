@@ -9,9 +9,10 @@ import type { ConnectorId } from "./connectors/index";
 
 /** Who takes part in an Action: asker, assignee and the metric's owner. Only they reply. */
 export async function participants(ws: string, actionId: number) {
-  const { data: a } = await db().from("actions").select("id, asker_id, assignee_id, status, kind, purpose, metric_id, period_start, metrics(owner_id)").eq("id", actionId).eq("workspace_id", ws).maybeSingle();
+  const { data: a } = await db().from("actions").select("id, asker_id, assignee_id, previous_assignee_id, status, kind, purpose, metric_id, period_start, metrics(owner_id)").eq("id", actionId).eq("workspace_id", ws).maybeSingle();
   if (!a) return null;
-  return { ...a, owner_id: (a.metrics as unknown as { owner_id: string }).owner_id };
+  // A Checklist Task has no Metric and so no Metric owner: its Workflow's owner is its asker.
+  return { ...a, owner_id: (a.metrics as unknown as { owner_id: string } | null)?.owner_id ?? a.asker_id };
 }
 
 /** Adds a reply and tells the others, through each one's Connector. On an approval task, "approve" or
@@ -21,7 +22,9 @@ export async function participants(ws: string, actionId: number) {
  * `opts.keepState` adds the message without moving the Action to answered. */
 export async function postReply(ws: string, actionId: number, authorId: string, body: string, correction: number | null, source: ChangeSource = FROM_APP, commands = true, opts: { via?: string; viaWebhookId?: string; keepState?: boolean } = {}) {
   const a = await participants(ws, actionId);
-  if (!a || ![a.asker_id, a.assignee_id, a.owner_id].includes(authorId)) throw new Error("Only the people on this thread can reply.");
+  // Whom a Checklist Task was handed on from keeps answering it only while they are still in the Workspace.
+  const handedFrom = a?.previous_assignee_id === authorId && (await db().from("memberships").select("user_id").eq("workspace_id", ws).eq("user_id", authorId).maybeSingle()).data ? authorId : null;
+  if (!a || ![a.asker_id, a.assignee_id, a.owner_id, handedFrom].includes(authorId)) throw new Error("Only the people on this thread can reply.");
   // `commands` is false for a program's reply (API, MCP): its words are only words. "approve", "send back", "confirm" and
   // a Correction decide a value only from the channels a person uses, never through a scope that cannot (ticket #427).
   if (commands && a.purpose === "approval" && a.assignee_id === authorId && a.status === "open" && correction === null) {
@@ -29,6 +32,13 @@ export async function postReply(ws: string, actionId: number, authorId: string, 
     if (/^\s*approved?\b/i.test(body)) { await approve(ws, actionId, authorId, source); return; }
     const back = body.match(/^\s*send back\s*:?\s*([\s\S]*)$/i);
     if (back) { await sendBack(ws, actionId, authorId, back[1].trim(), source); return; }
+  }
+  // A Checklist Task is ticked off by "done" (the rest of the words are the note), from Ziffr, email, Slack or Telegram; any other
+  // reply is only words: the Task stays open until it is ticked off (spec 0045).
+  if (commands && a.purpose === "checklist" && a.assignee_id === authorId && a.status === "open") {
+    // Only "done" on a line of its own, or "done:" and the note: "Done? Not yet" is only words.
+    const done = body.match(/^\s*(?:done|erledigt)[.!]?[ \t]*(?::[ \t]*([\s\S]*)|\r?\n([\s\S]*))?$/i);
+    if (done && await finishTask(ws, actionId, authorId, source, done[1] ?? done[2])) return;
   }
   if (commands && a.purpose === "self_check" && a.assignee_id === authorId && a.status === "open") {
     const { confirmSelfCheck, correctSelfCheck } = await import("./workflow-engine");
@@ -48,7 +58,7 @@ export async function postReply(ws: string, actionId: number, authorId: string, 
   // The Assignee replying moves an open Action to answered; not an Approval or Self-check, which only their own
   // commands decide: answered, it could no longer be decided and the value would wait for good. The change tells the
   // Webhooks (with the reply); a reply that changes no state is an update of its own.
-  const moved = !opts.keepState && a.assignee_id === authorId && a.status === "open" && a.purpose !== "approval" && a.purpose !== "self_check"
+  const moved = !opts.keepState && a.assignee_id === authorId && a.status === "open" && a.purpose !== "approval" && a.purpose !== "self_check" && a.purpose !== "checklist"
     ? await changeActionState(ws, actionId, { to: "answered", from: ["open"], guard: { assigneeId: authorId, purpose: "plain_or_escalation" }, messageId }, source)
     : null;
   if (!moved?.changed) {
@@ -61,13 +71,23 @@ export async function postReply(ws: string, actionId: number, authorId: string, 
   if (correction !== null && a.owner_id !== other) await deliver({ kind: "correction", actionId, senderId: authorId, recipientId: a.owner_id, text: body, correction });
 }
 
-/** A task marked done, in Ziffr or by closing its ticket. Never an Approval or Self-check: those are decided by
- * approving, sending back, confirming or correcting, and one marked done would leave its value waiting for good. */
-export async function finishTask(ws: string, actionId: number, byId: string, source: ChangeSource = FROM_APP) {
-  const { changed } = await changeActionState(ws, actionId, { to: "answered", from: ["open"], reason: "done", guard: { assigneeId: byId, kind: "task", purpose: "plain_or_escalation" } }, source);
+/** The longest note that comes with a task marked done. */
+export const DONE_NOTE_MAX = 2000;
+
+/** A task marked done, in Ziffr or by closing its ticket, with an optional note (kept as the Thread's last reply). Never an
+ * Approval or Self-check: those are decided by approving, sending back, confirming or correcting, and one marked done would
+ * leave its value waiting for good. A Checklist Task (spec 0045) is closed by it, since nobody has to look at it again for
+ * the period to be done; any other task is answered, for its asker to close. */
+export async function finishTask(ws: string, actionId: number, byId: string, source: ChangeSource = FROM_APP, note?: string | null) {
+  const { data: row } = await db().from("actions").select("purpose").eq("id", actionId).eq("workspace_id", ws).maybeSingle();
+  const checklist = row?.purpose === "checklist";
+  const { changed } = await changeActionState(ws, actionId, { to: checklist ? "closed" : "answered", from: ["open"], reason: "done", guard: { assigneeId: byId, kind: "task", purpose: checklist ? "checklist" : "plain_or_escalation" } }, source);
   if (!changed) return false;
+  const words = String(note ?? "").trim().slice(0, DONE_NOTE_MAX);
   const { data } = await db().from("actions").select("asker_id").eq("id", actionId).eq("workspace_id", ws).maybeSingle();
-  if (data) await deliver({ kind: "done", actionId, senderId: byId, recipientId: data.asker_id });
+  // The note is the Thread's last reply and tells the asker with the done message; a task done without one only says it is done.
+  if (words) await postReply(ws, actionId, byId, words, null, source, false, { keepState: true });
+  else if (data) await deliver({ kind: "done", actionId, senderId: byId, recipientId: data.asker_id });
   return true;
 }
 

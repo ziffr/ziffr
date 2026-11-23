@@ -22,3 +22,10 @@ export const TELL_PEOPLE_PER_STEP = 20;
 export const TELL_GROUPS_PER_STEP = 10;
 /** Webhooks one Tell step names (spec 0034): they get the message as a program, so the number is small. */
 export const TELL_WEBHOOKS_PER_STEP = 3;
+
+/** Checklist Items one Workflow holds (spec 0045): its own count, apart from the other steps' 12. */
+export const CHECKLIST_ITEMS_PER_WORKFLOW = 20;
+/** Characters in a Checklist Item's text. An item for information names people and Groups as a Tell step does (TELL_PEOPLE_PER_STEP, TELL_GROUPS_PER_STEP). */
+export const CHECKLIST_TEXT_MAX = 500;
+/** Working days after a period ends that an item's day or Due Date may be. */
+export const CHECKLIST_DAYS_MAX = 30;

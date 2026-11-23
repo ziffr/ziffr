@@ -29,7 +29,7 @@ export type FontId = (typeof FONT_IDS)[number];
 export type LogoPosition = "top-left" | "top-right" | "bottom-left" | "bottom-right";
 
 /** The Views a template's widget may use: every built-in View but the Free Layout, and "design" for a View Design. */
-export const TEMPLATE_VIEWS = ["number", "line", "bars", "gauge", "table", "forecast", "correlation", "matrix", "drivers", "ranked", "share", "pictogram", "story", "design", "story-line"] as const;
+export const TEMPLATE_VIEWS = ["number", "line", "bars", "gauge", "table", "forecast", "correlation", "matrix", "drivers", "scoreboard", "progress", "ranked", "share", "pictogram", "story", "design", "story-line"] as const;
 /** One of TEMPLATE_VIEWS. */
 export type TemplateView = (typeof TEMPLATE_VIEWS)[number];
 /** Where a note sits: the highest or lowest value, the latest or first period shown, or the biggest change. */
@@ -43,10 +43,14 @@ export type CompareKey = "prev" | "dod" | "wow" | "mom" | "qoq" | "hoh" | "yoy";
 /** A period longer than a Metric's own that a widget shows it by (Show by). */
 export type DisplayPeriod = "week" | "month" | "quarter" | "half" | "year";
 
-/** A step of a Workflow Template, with its Approvers left open: only how many to pick. */
+/** A step of a Workflow Template, with its Approvers left open (only how many to pick) and the people, Groups and
+ * dashboard of its Checklist Items and Send Snapshot step left open too. */
 export type WorkflowTemplateStep =
   | { type: "remind"; daysBefore: number }
   | { type: "escalate"; to: "stand-in" | "owner"; daysAfter: number }
   | { type: "check"; changePct: number; outsideTarget: boolean }
   | { type: "approve"; approvers: number; values?: "unusual" | "every"; nobodyElse?: "self-check" | "count" }
+  | { type: "checklist"; kind: "info"; text: string; day: number }
+  | { type: "checklist"; kind: "tick"; text: string; dueWorkingDays: number }
+  | { type: "send_snapshot" }
   | { type: "publish"; lock: boolean };

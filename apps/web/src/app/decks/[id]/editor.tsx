@@ -8,14 +8,15 @@ import { isDark, slideDesign, themeFor } from "@ziffr/core/themes";
 import { tokensForViewer } from "@ziffr/core/theme-dark";
 import { useViewerDark } from "@/lib/use-viewer-dark";
 import { toast } from "sonner";
-import { FileDown, Group as GroupIcon, LayoutTemplate, MonitorPlay, Plus, Presentation, Printer, Ungroup } from "lucide-react";
+import { ChevronDown, Eye, FileDown, Group as GroupIcon, History, LayoutTemplate, Link2, MonitorPlay, MoreHorizontal, Palette, Plus, Presentation, Printer, Trash2, Ungroup } from "lucide-react";
 import { createShapeId, DefaultDashStyle, DefaultFontStyle, DefaultStylePanel, getSnapshot, Tldraw, useEditor, useValue, type Editor, type TLComponents, type TLEditorSnapshot, type TLUiStylePanelProps } from "tldraw";
 import { Pool } from "@/components/pool";
 import { Button, buttonVariants } from "@/components/ui/button";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuGroup, DropdownMenuItem, DropdownMenuLabel, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuGroup, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
 import { noteDeckExport, renameDeck, saveDeck, setDeckFooter } from "@/app/deck-actions";
 import { doneAddingToDeck } from "@/app/convert-actions";
-import { DeleteDeck } from "./delete-deck";
+import { DeleteDeckDialog } from "./delete-deck";
 import { Input } from "@/components/ui/input";
 import type { DropSource } from "@/app/canvas-actions";
 import { getDrag, setDrag } from "@/lib/drag";
@@ -39,10 +40,10 @@ import { freeSpot } from "@/decks/placement";
 import { exportPdf, exportPptx } from "@/decks/export";
 import { SeriesProvider, useCanvasSeries, useEnsure } from "@/canvas/series-store";
 import { keepContentLocal, LOCAL_ONLY_OVERRIDES } from "@/canvas/keep-local";
-import { VersionsSheet } from "@/components/versions-sheet";
+import { useOpenVersions, VersionsSheetOpen } from "@/components/versions-sheet";
 import { ShareSheet } from "@/components/share-sheet";
-import { WhoCanSee } from "@/components/who-can-see";
-import { ViewLinks } from "@/components/view-links";
+import { WhoCanSeeDialog } from "@/components/who-can-see";
+import { ViewLinksDialog } from "@/components/view-links";
 
 const shapeUtils = [WidgetShapeUtil, SlideFrameUtil];
 // Decks favour charts over bare numbers: a dropped metric lands as a line chart.
@@ -83,6 +84,10 @@ function DeckCanvas({ deck, data, saved, sharing, seed, templateSeed, deckTempla
   const [status, setStatus] = useState<"saved" | "saving" | "unsaved">("saved");
   const [busy, setBusy] = useState<null | "pptx" | "pdf">(null);
   const [, start] = useTransition();
+  // The dialog a ⋯ menu entry opened; each is opened after the menu has closed and returned focus.
+  const [dialog, setDialog] = useState<null | "who" | "links" | "theme" | "delete">(null);
+  const openVersions = useOpenVersions();
+  const show = (d: "who" | "links" | "theme" | "delete") => () => setTimeout(() => setDialog(d), 0);
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const masterRef = useRef<SlideDesign | null>(null);
   masterRef.current = master;
@@ -315,17 +320,46 @@ function DeckCanvas({ deck, data, saved, sharing, seed, templateSeed, deckTempla
             )}
           </DropdownMenuContent>
         </DropdownMenu>
-        {editor && <GroupButtons editor={editor} />}
-        <ThemePicker themes={data.themes} value={themeId} onChange={async (id) => { setThemeId(id); return setDeckTheme(deck.id, id); }} />
-        <WhoCanSee type="deck" id={deck.id} people={data.people} />
-        {sharing && <ViewLinks type="deck" id={deck.id} />}
-        {sharing && <ShareSheet objectType="deck" objectId={deck.id} name={name} ownerId={sharing.ownerId} people={data.people} shares={sharing.shares} groups={sharing.groups} reveals={sharing.reveals} canInvite={sharing.canInvite} />}
-        <VersionsSheet type="deck" id={deck.id} people={data.people} reload="page" />
-        {sharing && <DeleteDeck deckId={deck.id} name={name} />}
-        {sharing && <Button variant="outline" disabled={!editor || status !== "saved"} title={status === "saved" ? undefined : "Wait until the deck is saved"} onClick={() => editor && setDeckSlides(orderedSlides(editor).map((sl) => slideShapes(editor, sl.id)))}><LayoutTemplate aria-hidden /> Save as Deck Template…</Button>}
         <Link href={`/decks/${deck.id}/present`} className={buttonVariants({ variant: "outline" })}><MonitorPlay aria-hidden /> Present</Link>
-        <Button variant="outline" onClick={() => run("pdf")} disabled={!editor || busy !== null}><Printer aria-hidden /> {busy === "pdf" ? "Preparing…" : "PDF"}</Button>
-        <Button onClick={() => run("pptx")} disabled={!editor || busy !== null}><FileDown aria-hidden /> {busy === "pptx" ? "Exporting…" : "Export PowerPoint"}</Button>
+        {sharing && <ShareSheet objectType="deck" objectId={deck.id} name={name} ownerId={sharing.ownerId} people={data.people} shares={sharing.shares} groups={sharing.groups} reveals={sharing.reveals} canInvite={sharing.canInvite} />}
+        <DropdownMenu>
+          <DropdownMenuTrigger className={buttonVariants()} disabled={!editor || busy !== null}><FileDown aria-hidden /> {busy === "pptx" ? "Exporting…" : busy === "pdf" ? "Preparing…" : "Export"} <ChevronDown aria-hidden /></DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-52">
+            <DropdownMenuItem onClick={() => run("pptx")}><FileDown aria-hidden /> PowerPoint</DropdownMenuItem>
+            <DropdownMenuItem onClick={() => run("pdf")}><Printer aria-hidden /> PDF</DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+        <DropdownMenu>
+          <DropdownMenuTrigger aria-label="More for this deck" title="More for this deck" className={buttonVariants({ variant: "outline", size: "icon" })}><MoreHorizontal aria-hidden /></DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-56">
+            <DropdownMenuItem onClick={show("theme")}><Palette aria-hidden /> Theme…</DropdownMenuItem>
+            <DropdownMenuItem onClick={show("who")}><Eye aria-hidden /> Who can see this</DropdownMenuItem>
+            {sharing && <DropdownMenuItem onClick={show("links")}><Link2 aria-hidden /> View links…</DropdownMenuItem>}
+            <DropdownMenuItem onClick={() => setTimeout(() => openVersions(true), 0)}><History aria-hidden /> Versions</DropdownMenuItem>
+            {sharing && (
+              <DropdownMenuItem disabled={!editor || status !== "saved"} title={status === "saved" ? undefined : "Wait until the deck is saved"} onClick={() => editor && setDeckSlides(orderedSlides(editor).map((sl) => slideShapes(editor, sl.id)))}><LayoutTemplate aria-hidden /> Save as Deck Template…</DropdownMenuItem>
+            )}
+            {sharing && (
+              <>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem variant="destructive" onClick={show("delete")}><Trash2 aria-hidden /> Delete…</DropdownMenuItem>
+              </>
+            )}
+          </DropdownMenuContent>
+        </DropdownMenu>
+        {dialog === "who" && <WhoCanSeeDialog type="deck" id={deck.id} people={data.people} onClose={() => setDialog(null)} />}
+        {dialog === "links" && sharing && <ViewLinksDialog type="deck" id={deck.id} onClose={() => setDialog(null)} />}
+        {dialog === "delete" && sharing && <DeleteDeckDialog deckId={deck.id} name={name} onClose={() => setDialog(null)} />}
+        {dialog === "theme" && (
+          <Dialog open onOpenChange={(o) => { if (!o) setDialog(null); }}>
+            <DialogContent>
+              <DialogTitle>Theme</DialogTitle>
+              <DialogDescription>The colours and fonts this deck is drawn in. Ziffr&rsquo;s own screens keep their look.</DialogDescription>
+              <ThemePicker themes={data.themes} value={themeId} onChange={async (id) => { setThemeId(id); return setDeckTheme(deck.id, id); }} />
+            </DialogContent>
+          </Dialog>
+        )}
+        <VersionsSheetOpen type="deck" id={deck.id} people={data.people} reload="page" />
       </div>
 
       <div className="grid gap-4 lg:grid-cols-[15rem_minmax(0,1fr)]">
@@ -333,6 +367,7 @@ function DeckCanvas({ deck, data, saved, sharing, seed, templateSeed, deckTempla
           <Pool data={data} saved={saved} onAdd={(s) => place(s)} hint="Drag onto a slide, or click + to add to the slide in view." />
           {slotFill.dialog}
           {editor && <SelectionPanel editor={editor} data={data} onSaveLayout={setLayoutShapes} />}
+          {editor && <GroupPanel editor={editor} />}
           <label className="stock block rounded-[var(--radius-card)] p-3 text-sm">
             <span className="mb-1 block text-xs font-medium">Footer on every slide</span>
             <Input
@@ -389,8 +424,9 @@ function StylePanelWhenStyling(props: TLUiStylePanelProps) {
 /** The tldraw parts the deck editor replaces; a constant, so tldraw does not rebuild its UI on every render. */
 const DECK_COMPONENTS: TLComponents = { StylePanel: StylePanelWhenStyling };
 
-/** Group and Ungroup for the selection: tldraw does both with Ctrl+G and its context menu, which few people find. */
-function GroupButtons({ editor }: { editor: Editor }) {
+/** Group and Ungroup for the selection, in the side panel while a selection can use them: tldraw does both with Ctrl+G
+ * and its context menu, which few people find. */
+function GroupPanel({ editor }: { editor: Editor }) {
   // Only shapes on one slide group together: a group across slides would leave both, and a slide in a group would
   // no longer count as a slide.
   const canGroup = useValue("can group", () => {
@@ -399,16 +435,16 @@ function GroupButtons({ editor }: { editor: Editor }) {
   }, [editor]);
   const canUngroup = useValue("can ungroup", () => editor.getSelectedShapes().some((s) => s.type === "group"), [editor]);
   const mod = typeof navigator !== "undefined" && /Mac|iPhone|iPad/.test(navigator.platform) ? "⌘" : "Ctrl+";
+  if (!canGroup && !canUngroup) return null;
   return (
-    <>
-      {/* The toolbar is full: below very wide screens the buttons show their icon, named by aria-label. */}
-      <Button variant="outline" disabled={!canGroup} aria-label="Group" title={`Group: keep the selected shapes together (${mod}G)`} onClick={() => editor.groupShapes(editor.getSelectedShapeIds())}>
-        <GroupIcon aria-hidden /> <span className="hidden 2xl:inline">Group</span>
+    <div className="stock flex gap-2 rounded-[var(--radius-card)] p-3" role="group" aria-label="Selection">
+      <Button variant="outline" className="flex-1" disabled={!canGroup} title={`Keep the selected shapes together (${mod}G)`} onClick={() => editor.groupShapes(editor.getSelectedShapeIds())}>
+        <GroupIcon aria-hidden /> Group
       </Button>
-      <Button variant="outline" disabled={!canUngroup} aria-label="Ungroup" title={`Ungroup: split the selected group (${mod}Shift+G)`} onClick={() => editor.ungroupShapes(editor.getSelectedShapes().filter((s) => s.type === "group").map((s) => s.id))}>
-        <Ungroup aria-hidden /> <span className="hidden 2xl:inline">Ungroup</span>
+      <Button variant="outline" className="flex-1" disabled={!canUngroup} title={`Split the selected group (${mod}Shift+G)`} onClick={() => editor.ungroupShapes(editor.getSelectedShapes().filter((s) => s.type === "group").map((s) => s.id))}>
+        <Ungroup aria-hidden /> Ungroup
       </Button>
-    </>
+    </div>
   );
 }
 

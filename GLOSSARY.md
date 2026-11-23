@@ -51,7 +51,7 @@ The band of values a metric should stay within.
 _Avoid_: Threshold, goal, limits, expected range
 
 **Metric Owner**:
-The user responsible for a metric's description and for accepting corrections to its observations.
+The Member responsible for a Metric's description and for accepting Corrections to its observations; the Corrections, unlocking a Lock, Retention notices and the Escalation that "tells the Metric Owner" all follow whoever owns it now. Whoever creates a Metric owns it first. The Metric Owner can hand it over to another Member who already sees it, and an Owner or Admin can hand any Metric to any Member who can own things: never to a Guest, a Contact or an Access Key, and never by a program. The new owner is told through their Delivery Preference, after Quiet Hours; the previous owner stays on as Editor (told too, when an Owner or Admin did it), so they keep seeing and filling in the Metric until its new owner changes that, and if that Share ends their Derived Metrics, Alerts and Personal Webhooks on it stop; the Metric's Workflow stays with the Workflow's owner, and the open Questions waiting on the old owner as owner move to the new one; the Audit Log records from, to and by whom. A Metric never stays with someone who is no longer a Member: removing someone hands everything they own to the person picked in the removal screen (the Workspace's Owner is offered first), and a Member who owns Metrics cannot be made a Guest before they are handed over.
 _Avoid_: Admin, maintainer
 
 **Metric Catalog**:
@@ -167,11 +167,11 @@ When a period's value must be in, counted in working days after the period ends,
 _Avoid_: Deadline, cut-off
 
 **Schedule**:
-What one person has to do in a Workspace, day by day: values to submit by their Due Dates, Approvals waiting for them, and Tasks (a Checklist Item's among them) and Questions assigned to them, upcoming and overdue. It holds only their own duties, and only about Metrics they may see; while someone is Away, what they are asked for is in their Stand-in's Schedule.
+What one person has to do in a Workspace, day by day (the To do view of the Schedule page, which also has Asked by me and a Timeline): values to submit by their Due Dates, Approvals waiting for them, and Tasks (a Checklist Item's among them) and Questions assigned to them, upcoming and overdue. It holds only their own duties, and only about Metrics they may see; while someone is Away, what they are asked for is in their Stand-in's Schedule.
 _Avoid_: Agenda, to-do list, inbox, calendar
 
 **Stand-in**:
-The person asked instead of a submitter who is Away, or who has not answered by the Due Date. Their answer to a Prompt asked in the submitter's place is a Filled-in Value for that submitter, only for the periods they were asked about, and never through an Access Key. A Guest cannot be one.
+The person asked instead of a submitter who is Away, or who has not answered by the Due Date. Also whoever a Checklist Task is given to while its Assignee is Away, and whom an Escalation hands it to. Their answer to a Prompt asked in the submitter's place is a Filled-in Value for that submitter, only for the periods they were asked about, and never through an Access Key. A Guest cannot be one.
 _Avoid_: Deputy, backup, substitute
 
 **Away**:
@@ -284,7 +284,7 @@ The side panel that holds everything a user can drag onto a canvas: the metrics 
 _Avoid_: Library, palette, sidebar
 
 **Preview**:
-A Widget Template, Dashboard Template, saved widget or metric drawn small before it is placed, without its menus. A template's Preview draws Sample Data; a saved widget's or a metric's draws the viewer's own data.
+A Widget Template, Dashboard Template, saved widget or metric drawn small before it is placed, without its menus. A template's Preview draws Sample Data; a saved widget's draws the viewer's own data. A metric's Preview is a small card from the viewer's own data: what it counts (period, unit, description), its latest value and a sparkline.
 _Avoid_: Thumbnail, mock-up
 
 **Sample Data**:
@@ -311,12 +311,40 @@ _Avoid_: Editor, sandbox, studio
 A statistical method run on one or more metrics, such as forecast, correlation, clustering or impact analysis. Its result can be saved as a widget. Ziffr ships its own Analyses; more can be written as Analysis Recipes.
 _Avoid_: Stats, model, insight
 
+**Method**:
+One statistical calculation in Ziffr's library, such as a rank correlation, a usual range or a bridge. Used in documents and code; a person sees Analyses, Recipes and Takeaways. Each Method runs its suitability checks on every call, is worked out exactly on the values' text where arithmetic allows, and has an entry in the Methods guide with when to use it and when not.
+_Avoid_: Algorithm, model, test
+
+**Extension**:
+A Method, or later a mark that draws one kind of View Design, written by someone other than Ziffr as a folder of a fixed shape under `extensions/<author>/<name>`: a manifest, one pure file that Ziffr reads in full, a second implementation worked out another way, hand-worked cases, its entry for the Calculation Catalogue, its Takeaway wording and a LICENSE of its own. It is never loaded at run time. It is submitted as a pull request, read, checked and shipped inside a Ziffr release, and the registry lists the Extensions built into that release. Ziffr's own `quantile` and `topShare` are built in the same shape. It is not a Pack, which holds no code.
+_Avoid_: Plugin, add-on, integration, script, module
+
+**Extension Kit**:
+The MIT package `@ziffr/extension-kit`, which an author writes an Extension against and checks it with on their own computer: its shape, its static rules, and then, by running it in a process of its own, determinism, a time and memory budget, refusals, its comparison with its reference, coverage and a mutation check. CI runs the same checks.
+_Avoid_: Plugin framework, SDK (the SDK is for programs that talk to Ziffr)
+
 **Takeaway**:
-The result of an Analysis as Ziffr says it: one sentence in the Metrics' own words and units, a strength in four words (strong, moderate, weak, "can't tell from chance"), what it was compared on, and the one footer line "This shows what has gone together, not what caused what." Where the data does not suit the Method it carries one plain line above the sentence (a caution; a result with one is never strong) or, with too little data, is a refusal in words with no number. **Show the numbers** opens the numbers behind it. Every place a result is shown writes the same Takeaway.
+The result of an Analysis as Ziffr says it: one sentence in the Metrics' own words and units, a strength in four words (strong, moderate, weak, "can't tell from chance"), what it was compared on, and one footer line of its kind ("This shows what has gone together, not what caused what." for a link between Metrics, "This carries the past forward; it is not a promise." for a forecast, "This compares what happened with where the earlier trend pointed; it does not show what made the difference." for a before-and-after look, "This shows when the numbers changed, not what made them change." for a change point) Where the data does not suit the Method it carries one plain line above the sentence (a caution; a result with one is never strong) or, with too little data, is a refusal in words with no number. **Show the numbers** opens the numbers behind it. Every place a result is shown writes the same Takeaway. A forecast's Takeaway says where the Metric is expected to be with a "likely between" range (an 80 % range), with a Target how likely it is to be reached (in tenths), which Method worked it out and how its range for the next period would have held on the periods already known (its track record). A Takeaway about one Metric's own values, or a sum worked out exactly, makes no claim about what goes together and carries none.
 _Avoid_: Answer (an Answer is what someone replies to a Prompt), insight, verdict
 
+**Likely between**:
+The range a Takeaway gives for a number that has doubt: it holds the true number about four times in five (an 80 % range), and is worked out by the Method, never as a statistical level a person must choose. A number outside what its driver has been has no range, only the number and "treat it as a guess".
+_Avoid_: Confidence interval, margin of error, error bars
+
+**Driver**:
+A Metric that moved with another in an Analysis (the Metric it is compared with is the target). A fit says what each Driver's share of the movement was and what an effect has been "with the others held the same"; Drivers that move so closely that they cannot be told apart are "treated as one".
+_Avoid_: Cause, factor, predictor, independent variable
+
+
+**Heads-up**:
+Something Ziffr noticed in Metrics a person may see and tells that person, once, without being asked about that Metric: two Metrics that have started moving together ("Support tickets and Churn have started moving together: when tickets rise, churn follows two months later (strong, over 18 months)") or have stopped ("Visits and Revenue used to move together. Over the last 6 months, they have not."), or one Metric whose trend turned around ("Signups turned around in October: up 20 € a month before, down 11 € a month since."), whose Target is likely out of reach ("Revenue is unlikely to reach 600 € or more in March 2023 (about 2 in 10).") or whose latest value is unusual for its season ("Visits's 120 € in October 2028 is high for this time of year: it is usually between 78 € and 84 €."). It is worked out from final values only (nothing waiting for Approval), judged against everything that was looked at (every pair, or every Metric and kind) so that Ziffr stays quiet when nothing stands out, and it says what went together or what the Metric did, never what caused it. A person's Heads-ups are made only from Metrics they may see: one about two Metrics exists only for people who may see both, the count of what was looked at is their own, and a Metric hidden, archived or deleted is gone from them at once. The **pair table** that the Heads-up job fills once per Workspace is derived data that nobody but the core reads. A person sees them in the list called Heads-ups on the Analyze page, can mark one **Not useful** or mute a Metric, and may switch on being told by message (by their Delivery Preference, at most 3 in 7 days, each once). A Heads-up never asks anyone to approve anything and never changes a value. Not an Alert (a person's own standing request on one Metric), nor an Unusual Value (a value that needs Approval).
+_Avoid_: Insight, notification, alert, anomaly
+**Change point**:
+The one date at which a Metric's level or its trend most likely changed, found by trying every date that leaves at least four values each side, with how the Metric went before and since and the step in level at that date. It is called a change only when it beats what the dates tried would give by luck (the chance rule is shared among them); otherwise the Takeaway says nothing stands out. Used for the question "did something change, and when?". A "before and after" look is the same question with the date given: it compares the periods after a date with where the Metric's own trend pointed, and gives a range, not a verdict.
+_Avoid_: Breakpoint, inflection, anomaly, outlier
+
 **Analysis Recipe**:
-An Analysis written as steps of Ziffr's verified functions over the Metrics in its Slots. It holds no code, so every number it gives is verified.
+An Analysis written as steps of Ziffr's verified functions over the Metrics in its Slots. It holds no code, so every number it gives is verified. In format `ziffr.analysis/2` a step may also give a table (rows with a label and a number) or what a fit holds, and an output may be a Takeaway, written by the Method's own words: a recipe's author writes no sentence about statistics. Format `/1` is read for ever.
 _Avoid_: Script, model, custom analysis, formula
 
 **Common Period**:
@@ -324,7 +352,7 @@ The period two Metrics are compared on in an Analysis: the longer of their own p
 _Avoid_: Shared grain, joint period
 
 **Recipe**:
-A ready-made analysis setup that runs with one click, e.g. "What drives Cost?"
+A ready-made analysis setup that runs with one click, e.g. "What drives Cost?", "What moves Revenue?" or "What does Revenue need?"
 _Avoid_: Preset analysis, template
 
 ### Decks
@@ -409,7 +437,7 @@ _Avoid_: Billing service, SaaS, hosted edition
 
 **Pack**:
 A file of things to add to a Workspace, with no code: Metric Catalog entries, Dashboard and Deck Templates, View Designs, Analysis Recipes, Workflow Templates and Themes, with its name, version, author, license and optionally a logo. Installing one copies each thing into the Workspace, marked with the Pack and version; it makes no Metric until a person sets it up. New versions are offered, never applied by themselves, and uninstalling removes what nobody changed.
-_Avoid_: Plugin, extension, add-on, integration, app, bundle
+_Avoid_: Plugin, add-on, integration, app, bundle
 
 **Marketplace**:
 Ziffr's catalogue of Packs, checked before they are listed, and of programs outside Ziffr that work with it, such as Feeds. Packs are installed from it into a Workspace; programs outside Ziffr are only listed, and their creators bill for them themselves.
@@ -424,7 +452,7 @@ A Webhook that one person adds for themselves in one Workspace, once an Owner or
 _Avoid_: My webhook, user webhook, private webhook
 
 **Automation Template**:
-An importable file for an automation tool such as n8n that joins a Webhook to another system, such as Microsoft To Do, Google Tasks, Slack, Asana or Todoist. It lives in the repository; Ziffr never runs it or holds the other system's credentials.
+An importable file for an automation tool such as n8n that joins Ziffr to another system, in one direction or the other: out, from a Webhook to Microsoft To Do, Google Tasks, Slack, Asana or Todoist; or in, from a system such as Google Sheets, Stripe or HubSpot through a Feed, to fill Metrics. It lives in the repository; Ziffr never runs it or holds the other system's credentials. A person may download one from Ziffr with their Ziffr's address and their Metrics already in it.
 _Avoid_: Recipe (that is an Analysis Recipe), plugin, integration, flow
 
 **Workspace Key**:
@@ -538,6 +566,10 @@ _Avoid_: Activity, activity feed, history
 **Action**:
 A question or task about a specific observation or time range of a metric that one user assigns to another, or a Task a Checklist Item gives about a Workflow's period, which has no metric. It moves from open to answered to closed, and can be reopened.
 _Avoid_: Ticket, request, to-do
+
+**Schedule views**:
+The Schedule is one page with three views, switched at the top. To do is the Schedule itself, what the person has to do, overdue first. Asked by me lists the Questions and Tasks they asked: answered ones waiting for them to close, open ones, and Done (closed, folded, grey and ticked, never red). The Timeline says what happened, newest first, by day: the Period Timelines of the Workflows and the Actions on Metrics no Workflow asks for, each person seeing only what they may see. The old Actions page is no longer a page of its own; Action stays the word for a Question or Task.
+_Avoid_: Actions page, Inbox, Kanban, activity feed
 
 **Question**:
 An action that is done once the assignee has answered it, e.g. "Why is cost so high this month?"

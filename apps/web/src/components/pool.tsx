@@ -1,6 +1,6 @@
 "use client";
 import { tellApart } from "@ziffr/core/metric-names";
-import { useEnsure } from "@/canvas/series-store";
+import { useEnsure, useSeriesReady } from "@/canvas/series-store";
 import { inUse } from "@ziffr/core/metric-row";
 import { widgetMetricIds } from "@ziffr/core/widget-metrics";
 import Link from "next/link";
@@ -13,15 +13,23 @@ import { TemplateMenu } from "./template-menu";
 import { setDrag } from "@/lib/drag";
 import { deleteSavedWidget, type DropSource } from "@/app/canvas-actions";
 import { told } from "@/lib/action-toast";
-import { DEFAULT_TEMPLATE, TEMPLATES, designTemplate, type TemplateDef, templateOf } from "@/views/templates";
-import type { CanvasData, Widget, WidgetTemplate } from "@ziffr/core/types";
+import { designTemplate, type TemplateDef, templateOf } from "@/views/templates";
+import type { CanvasData, Metric, Widget, WidgetTemplate } from "@ziffr/core/types";
+import { formatValue, health } from "@ziffr/core/format";
+import { PERIOD_LABEL, periodLabel } from "@ziffr/core/periods";
+import { Sparkline } from "@/views/sparkline";
 import { cn } from "@/lib/utils";
 import { Preview, TemplatePreview } from "./preview";
 import { TemplateBrowser } from "./template-browser";
 import { TEMPLATE_GROUPS, builtinTemplates } from "./template-groups";
 
-/** What a Preview in the Pool shows. */
-type Shown = { key: string; draw: () => React.ReactNode; name: string; blurb?: string };
+/** What a Preview in the Pool shows: a drawing with the name and a line under it, or (`whole`) a body of its own. */
+type Shown = { key: string; draw: () => React.ReactNode; name: string; blurb?: string; whole?: boolean };
+
+/** Where a Preview opens: beside the Pool where there is room, else over the page just below (or above) its row. */
+type Spot = { top: number; left: number };
+const PREVIEW_WIDTH = 288;
+const PREVIEW_HEIGHT = 340;
 
 /** GLOSSARY: Pool. Metrics the viewer can see, their saved Widgets and the Widget Templates, draggable onto any canvas.
  * Pointing at or focusing a template or saved widget shows its Preview (spec 0011). */
@@ -48,25 +56,38 @@ export function Pool({ data, saved, onAdd, hint, metricsOnly, layouts = false }:
     else if (s.type === "widget") { const w = saved.find((x) => x.id === s.id); if (w) void ensure(widgetMetricIds(w.metric_ids, w.settings)); }
   };
 
-  // One Preview at a time: beside the Pool after a short pause on pointing, at once on keyboard focus; inline below
-  // the row when opened with its ⓘ button (touch, narrow screens).
-  const [flyout, setFlyout] = useState<(Shown & { top: number; left: number }) | null>(null);
-  const [inline, setInline] = useState<string | null>(null);
+  // One Preview at a time, always over the page, never in the list, so the list never moves (#827): beside the Pool
+  // after a short pause on pointing, at once on keyboard focus, and until it is closed when opened with a row's ⓘ
+  // button (touch, narrow screens, or to keep it open). Escape, scrolling the Pool or a tap elsewhere closes it.
+  const [flyout, setFlyout] = useState<(Shown & Spot) | null>(null);
+  const [opened, setOpened] = useState<(Shown & Spot) | null>(null);
   const timer = useRef<ReturnType<typeof setTimeout>>(undefined);
   const aside = useRef<HTMLElement>(null);
-  const showAt = (el: HTMLElement, s: Shown) => {
-    // Only where there is room beside the Pool; narrow screens use the ⓘ button.
-    if (!window.matchMedia("(min-width: 1024px)").matches) return;
+  const wide = () => window.matchMedia("(min-width: 1024px)").matches;
+  const spotFor = (el: HTMLElement): Spot => {
     const row = el.getBoundingClientRect();
     const pool = aside.current?.getBoundingClientRect();
-    setFlyout({ ...s, top: Math.max(72, Math.min(row.top - 8, window.innerHeight - 340)), left: (pool?.right ?? row.right) + 8 });
+    if (wide()) return { top: Math.max(72, Math.min(row.top - 8, window.innerHeight - PREVIEW_HEIGHT)), left: (pool?.right ?? row.right) + 8 };
+    const left = Math.max(16, Math.min(row.left, window.innerWidth - PREVIEW_WIDTH - 16));
+    const below = row.bottom + 4;
+    return { top: below + PREVIEW_HEIGHT <= window.innerHeight ? below : Math.max(16, row.top - PREVIEW_HEIGHT - 4), left };
   };
+  // Pointing only shows a Preview where there is room beside the Pool; narrow screens use the ⓘ button.
+  const showAt = (el: HTMLElement, s: Shown) => { if (wide()) setFlyout({ ...s, ...spotFor(el) }); };
   const hide = () => { clearTimeout(timer.current); setFlyout(null); };
+  const close = () => { hide(); setOpened(null); };
   useEffect(() => {
-    const esc = (e: KeyboardEvent) => { if (e.key === "Escape") { hide(); setInline(null); } };
+    const esc = (e: KeyboardEvent) => { if (e.key === "Escape") { hide(); setOpened(null); } };
     window.addEventListener("keydown", esc);
     return () => { window.removeEventListener("keydown", esc); clearTimeout(timer.current); };
   }, []);
+  useEffect(() => {
+    if (!opened) return;
+    // A tap anywhere but an ⓘ button closes it; the ⓘ buttons open, switch or close it themselves.
+    const away = (e: PointerEvent) => { if (!(e.target instanceof Element && e.target.closest("[data-pool-info]"))) setOpened(null); };
+    document.addEventListener("pointerdown", away);
+    return () => document.removeEventListener("pointerdown", away);
+  }, [opened]);
   const previewOn = (s: Shown | null) => (s ? {
     onPointerEnter: (e: React.PointerEvent<HTMLElement>) => {
       if (e.pointerType !== "mouse") return;
@@ -98,14 +119,28 @@ export function Pool({ data, saved, onAdd, hint, metricsOnly, layouts = false }:
       onDragEnd: () => setDrag(null),
     };
   };
-  const info = (s: Shown) => ({ shown: s, open: inline === s.key, onToggle: () => { hide(); setInline((k) => (k === s.key ? null : s.key)); } });
+  // The rows' Previews as drawn now: an open one draws from these, so series that arrive after it opened show in it.
+  const current = new Map<string, Shown>();
+  const info = (s: Shown) => {
+    current.set(s.key, s);
+    return {
+      shown: s,
+      open: opened?.key === s.key,
+      onToggle: (button: HTMLElement) => {
+        hide();
+        const row = button.closest("li") ?? button;
+        setOpened((o) => (o?.key === s.key ? null : { ...s, ...spotFor(row) }));
+      },
+    };
+  };
 
   const builtinShown = (t: TemplateDef): Shown => ({ key: `b${t.id}`, name: t.label, blurb: t.blurb, draw: () => <TemplatePreview template={t.id} viewer={data.viewer} numberStyle={data.numberStyle} width={260} /> });
   const teamShown = (t: WidgetTemplate): Shown => ({ key: `t${t.id}`, name: t.name, blurb: t.description, draw: () => <TemplatePreview template={t} viewer={data.viewer} numberStyle={data.numberStyle} width={260} /> });
   // A saved widget is the viewer's own: its Preview draws their data, never more than placing it would show.
   const savedShown = (w: Widget): Shown => ({ key: `w${w.id}`, name: w.title ?? templateOf(w).label, blurb: templateOf(w).label, draw: () => <Preview widget={w} data={data} size={{ w: w.w, h: w.h }} width={260} /> });
-  // A metric's Preview is the widget a drop would place, from the series the Pool already fetches on pointing.
-  const metricShown = (id: number, name: string): Shown => ({ key: `m${id}`, name, draw: () => <Preview widget={{ template: DEFAULT_TEMPLATE, metric_ids: [id], settings: TEMPLATES[DEFAULT_TEMPLATE].settings, title: null }} data={data} size={TEMPLATES[DEFAULT_TEMPLATE].size} width={260} /> });
+  // A metric's Preview says what it is before it is placed: its description, unit, latest value and a sparkline, from
+  // the series the Pool already fetches on pointing (#827). The chart a drop draws depends on where it lands.
+  const metricShown = (m: Metric): Shown => ({ key: `m${m.id}`, name: m.name, whole: true, draw: () => <MetricPreview metric={m} data={data} /> });
 
   return (
     <aside ref={aside} aria-label="Pool" className="flex max-h-[calc(100vh-7rem)] flex-col rounded-[var(--radius-card)] border border-border bg-[var(--color-paper-2)] lg:sticky lg:top-20">
@@ -117,10 +152,10 @@ export function Pool({ data, saved, onAdd, hint, metricsOnly, layouts = false }:
           <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Filter" aria-label="Filter the pool" className="h-9 w-full bg-transparent text-sm outline-none" />
         </label>
       </div>
-      <div className="flex-1 overflow-y-auto p-2" onScroll={hide}>
+      <div className="flex-1 overflow-y-auto p-2" onScroll={close}>
         <Section title="Metrics">
           {metrics.map((m) => (
-            <Item key={`m${m.id}`} {...drag({ type: "metric", id: m.id })} onAdd={onAdd && (() => onAdd({ type: "metric", id: m.id }))} info={info(metricShown(m.id, m.name))}>
+            <Item key={`m${m.id}`} {...drag({ type: "metric", id: m.id })} onAdd={onAdd && (() => onAdd({ type: "metric", id: m.id }))} info={info(metricShown(m))}>
               <span className="flex min-w-0 flex-1 items-center gap-1.5">
                 <span className="truncate">{m.name}</span>
                 {m.formula && <Sigma aria-label="derived" className="size-3.5 shrink-0 text-muted-foreground" />}
@@ -220,9 +255,18 @@ export function Pool({ data, saved, onAdd, hint, metricsOnly, layouts = false }:
         )}
       </div>
       {/* In a portal: an ancestor of the Pool makes "fixed" relative to itself and clips it. */}
-      {flyout && createPortal(
-        <div aria-hidden className="pointer-events-none fixed z-50 w-[18rem] space-y-2 rounded-[var(--radius-card)] bg-popover p-3 shadow-md ring-1 ring-foreground/10" style={{ top: flyout.top, left: flyout.left }}>
-          <ShownBody s={flyout} />
+      {(opened ?? flyout) && createPortal(
+        // Opened with ⓘ it is read out; shown on pointing it repeats what the row says, so it stays out of the way.
+        <div
+          id={opened ? "pool-preview" : undefined}
+          role={opened ? "region" : undefined}
+          aria-label={opened ? `About ${opened.name}` : undefined}
+          aria-live={opened ? "polite" : undefined}
+          aria-hidden={opened ? undefined : true}
+          className="pointer-events-none fixed z-50 w-[18rem] max-w-[calc(100vw-2rem)] space-y-2 rounded-[var(--radius-card)] bg-popover p-3 shadow-md ring-1 ring-foreground/10"
+          style={{ top: (opened ?? flyout)!.top, left: (opened ?? flyout)!.left }}
+        >
+          <ShownBody s={current.get((opened ?? flyout)!.key) ?? (opened ?? flyout)!} />
         </div>,
         document.body,
       )}
@@ -232,6 +276,7 @@ export function Pool({ data, saved, onAdd, hint, metricsOnly, layouts = false }:
 }
 
 function ShownBody({ s }: { s: Shown }) {
+  if (s.whole) return <>{s.draw()}</>;
   return (
     <>
       <div className="flex justify-center">{s.draw()}</div>
@@ -255,34 +300,53 @@ function Section({ title, action, children }: { title: string; action?: React.Re
   );
 }
 
-type ItemProps = { children: React.ReactNode; onAdd?: () => void; info?: { shown: Shown; open: boolean; onToggle: () => void } } & React.HTMLAttributes<HTMLLIElement> & { draggable: boolean };
+type ItemProps = { children: React.ReactNode; onAdd?: () => void; info?: { shown: Shown; open: boolean; onToggle: (button: HTMLElement) => void } } & React.HTMLAttributes<HTMLLIElement> & { draggable: boolean };
 
 function Item({ children, onAdd, info, ...rest }: ItemProps) {
   return (
-    <>
-      <li {...rest} className={cn("group/item flex min-h-10 cursor-grab items-center gap-1.5 rounded-[var(--radius-input)] px-2 text-sm transition-colors outline-none hover:bg-[var(--color-cotton)] hover:shadow-[var(--edge-stock)] focus-visible:outline-2 focus-visible:outline-ring active:cursor-grabbing")}>
-        <GripVertical aria-hidden className="size-3.5 shrink-0 text-muted-foreground" />
-        {children}
-        {info && (
-          <button
-            title="Preview"
-            aria-label={`Preview of ${info.shown.name}`}
-            aria-expanded={info.open}
-            onClick={info.onToggle}
-            className={cn("flex size-7 shrink-0 items-center justify-center rounded-[var(--radius-input)] text-muted-foreground hover:bg-muted hover:text-foreground lg:hidden lg:group-hover/item:flex lg:group-focus-within/item:flex", info.open && "text-foreground lg:flex")}
-          >
-            <Info className="size-3.5" />
-          </button>
-        )}
-        {onAdd && (
-          <button title="Add" aria-label={info ? `Add ${info.shown.name}` : "Add"} onClick={onAdd} className="flex size-7 shrink-0 items-center justify-center rounded-[var(--radius-input)] text-muted-foreground opacity-0 group-hover/item:opacity-100 hover:bg-muted hover:text-foreground focus-visible:opacity-100"><Plus className="size-4" /></button>
-        )}
-      </li>
-      {info?.open && (
-        <li aria-hidden className="space-y-2 rounded-[var(--radius-input)] bg-card p-2 shadow-[var(--edge-stock)]">
-          <ShownBody s={info.shown} />
-        </li>
+    <li {...rest} className={cn("group/item flex min-h-10 cursor-grab items-center gap-1.5 rounded-[var(--radius-input)] px-2 text-sm transition-colors outline-none hover:bg-[var(--color-cotton)] hover:shadow-[var(--edge-stock)] focus-visible:outline-2 focus-visible:outline-ring active:cursor-grabbing")}>
+      <GripVertical aria-hidden className="size-3.5 shrink-0 text-muted-foreground" />
+      {children}
+      {info && (
+        <button
+          data-pool-info
+          title="Preview"
+          aria-label={`Preview of ${info.shown.name}`}
+          aria-expanded={info.open}
+          aria-controls={info.open ? "pool-preview" : undefined}
+          onClick={(e) => info.onToggle(e.currentTarget)}
+          className={cn("flex size-7 shrink-0 items-center justify-center rounded-[var(--radius-input)] text-muted-foreground hover:bg-muted hover:text-foreground lg:hidden lg:group-hover/item:flex lg:group-focus-within/item:flex", info.open && "text-foreground lg:flex")}
+        >
+          <Info className="size-3.5" />
+        </button>
       )}
-    </>
+      {onAdd && (
+        <button title="Add" aria-label={info ? `Add ${info.shown.name}` : "Add"} onClick={onAdd} className="flex size-7 shrink-0 items-center justify-center rounded-[var(--radius-input)] text-muted-foreground opacity-0 group-hover/item:opacity-100 hover:bg-muted hover:text-foreground focus-visible:opacity-100"><Plus className="size-4" /></button>
+      )}
+    </li>
+  );
+}
+
+/** A metric's Preview in the Pool (GLOSSARY: Preview): what it counts and how it stands, drawn from the viewer's own
+ * data, which the page already holds for every Metric the viewer sees. */
+function MetricPreview({ metric: m, data }: { metric: Metric; data: CanvasData }) {
+  const ready = useSeriesReady([m.id], data);
+  const points = data.series[m.slug] ?? [];
+  const last = points[points.length - 1];
+  return (
+    <div className="space-y-2">
+      <div>
+        <p className="text-sm font-medium">{m.name}</p>
+        <p className="text-xs text-muted-foreground">{PERIOD_LABEL[m.period]}{m.unit ? `, in ${m.unit}` : ""}</p>
+      </div>
+      {m.description && <p className="line-clamp-4 text-xs">{m.description}</p>}
+      <div className="flex items-end justify-between gap-3">
+        <div className="min-w-0">
+          <div className="fig truncate text-lg font-semibold">{last ? formatValue(m, last.value, data.numberStyle) : "–"}</div>
+          <div className="text-xs text-muted-foreground">{last ? periodLabel(last.period, m.period, data.yearStart, true) : ready ? "No values yet" : "Loading…"}</div>
+        </div>
+        {points.length > 1 && <div className="w-28 shrink-0"><Sparkline points={points.slice(-24)} height={36} tone={health(m, last.value)} /></div>}
+      </div>
+    </div>
   );
 }

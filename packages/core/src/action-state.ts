@@ -6,14 +6,15 @@
 // `actions.status`, so a new channel cannot bypass this. Security: callers decide who may change what (`guard` only
 // narrows further); a Workspace is checked in the same statement, and nothing here reads a Workspace's words.
 import { db } from "./db";
+import { checkFinishedPeriod } from "./send-snapshot";
 import { FROM_APP, queueWebhookEvent, type ChangeSource, type DoneReason } from "./webhook-events";
 import type { WebhookEvent } from "./webhooks";
 
 /** The three states of an Action. */
 export type ActionStatus = "open" | "answered" | "closed";
 
-/** Which Actions a change may apply to, by what the Action is for: a plain one, an Escalation, an Approval or a Self-check. */
-export type PurposeRule = "any" | "approval" | "plain" | "plain_or_escalation" | "not_self_check" | "approval_or_self_check";
+/** Which Actions a change may apply to, by what the Action is for: a plain one, an Escalation, an Approval, a Self-check or a Checklist Task. */
+export type PurposeRule = "any" | "approval" | "plain" | "plain_or_escalation" | "not_self_check" | "approval_or_self_check" | "checklist";
 
 /** One change of state, with the guards the row must meet and what to tell Webhooks. */
 export type StateChange = {
@@ -27,11 +28,11 @@ export type StateChange = {
   messageId?: number | null;
 };
 
-type Row = { id: number; kind: "task" | "question"; status: ActionStatus; purpose: string | null; asker_id: string; assignee_id: string; metric_id: number; period_start: string };
+type Row = { id: number; kind: "task" | "question"; status: ActionStatus; purpose: string | null; asker_id: string; assignee_id: string; metric_id: number | null; period_start: string; workflow_id: number | null };
 
 const purposeFits = (purpose: string | null, rule: PurposeRule) =>
   rule === "any" || (rule === "plain" && purpose === null) || (rule === "plain_or_escalation" && (purpose === null || purpose === "escalation"))
-  || (rule === "approval" && purpose === "approval") || (rule === "not_self_check" && purpose !== "self_check") || (rule === "approval_or_self_check" && (purpose === "approval" || purpose === "self_check"));
+  || (rule === "checklist" && purpose === "checklist") || (rule === "approval" && purpose === "approval") || (rule === "not_self_check" && purpose !== "self_check") || (rule === "approval_or_self_check" && (purpose === "approval" || purpose === "self_check"));
 
 /** The event a change makes, or none. A Task that reaches done or closed is `action.done` once (it is not again when the
  * asker closes what was done); a Question answered is `action.answered`, and closed is `action.done`; a reopen is `action.updated`. */
@@ -49,7 +50,7 @@ export function eventForChange(kind: "task" | "question", from: ActionStatus, to
  * change; `status` is the state the Action is in afterwards (null when there is no such Action here); `refused` is true
  * when the Action is not there or does not fit the guard (a repeat is not a refusal). Neither changes or sends anything. */
 export async function changeActionState(workspaceId: string, actionId: number, change: StateChange, source: ChangeSource = FROM_APP): Promise<{ changed: boolean; status: ActionStatus | null; refused: boolean }> {
-  const { data } = await db().from("actions").select("id, kind, status, purpose, asker_id, assignee_id, metric_id, period_start").eq("id", actionId).eq("workspace_id", workspaceId).maybeSingle();
+  const { data } = await db().from("actions").select("id, kind, status, purpose, asker_id, assignee_id, metric_id, period_start, workflow_id").eq("id", actionId).eq("workspace_id", workspaceId).maybeSingle();
   const row = data as Row | null;
   if (!row) return { changed: false, status: null, refused: true };
   const g = change.guard ?? {};
@@ -66,7 +67,10 @@ export async function changeActionState(workspaceId: string, actionId: number, c
     return { changed: false, status: (now?.status as ActionStatus | undefined) ?? null, refused: false };
   }
   const event = eventForChange(row.kind, row.status, change.to, change.reason);
+  // Webhooks hear nothing of a Checklist Task (spec 0045): their events name a Metric (queueWebhookEvent).
   if (event) await queueWebhookEvent(workspaceId, event.type, source, { actionId: row.id, metricId: row.metric_id, period: row.period_start, threadMessageId: change.messageId ?? null, reason: event.reason });
+  // A Checklist Task ticked off (or closed) may finish its Workflow's period (spec 0045); never undoes the change.
+  if (change.to === "closed" && row.purpose === "checklist" && row.workflow_id) await checkFinishedPeriod(workspaceId, row.workflow_id, row.period_start);
   return { changed: true, status: change.to, refused: false };
 }
 
@@ -92,5 +96,5 @@ export async function closeActions(workspaceId: string, where: CloseWhere, sourc
  * made, whichever way the Action was made (asked in the app, a Workflow's question, an Approval or a Self-check). */
 export async function announceNewAction(actionId: number, source: ChangeSource): Promise<void> {
   const { data } = await db().from("actions").select("workspace_id, metric_id, period_start").eq("id", actionId).maybeSingle();
-  if (data) await queueWebhookEvent(data.workspace_id as string, "action.created", source, { actionId, metricId: data.metric_id as number, period: data.period_start as string });
+  if (data) await queueWebhookEvent(data.workspace_id as string, "action.created", source, { actionId, metricId: data.metric_id as number | null, period: data.period_start as string });
 }

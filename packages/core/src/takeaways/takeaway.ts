@@ -14,7 +14,7 @@ import type { YearStart } from "../periods";
 import { checkSuitability, type Finding, type Verdict } from "../suitability";
 import type { Metric } from "../types";
 import { strengthOf, type StrengthWord } from "./strength";
-import { say, type CaseKey, type Language, type SayContext } from "./wording";
+import { say, type CaseKey, type Language, type SayContext, type Slots } from "./wording";
 
 /** How Takeaways are written: the Workspace's Number Style, the language and the Fiscal Year start. */
 export type TakeawayContext = { style: NumberStyle; language?: Language; yearStart?: YearStart };
@@ -34,7 +34,7 @@ export type Takeaway = {
   strength: StrengthWord | null;
   /** The strength as a person reads it: "strong", "moderate", "weak" or "can't tell from chance". */
   strengthText: string | null;
-  /** The range the Method gives ("likely between"); the Methods so far give none. */
+  /** The range the Method gives ("likely between"); a correlation gives none. */
   range: { lo: number; hi: number; text: string } | null;
   /** What it was compared on and over how many periods. */
   basis: string | null;
@@ -43,6 +43,8 @@ export type Takeaway = {
   cautions: string[];
   /** What was done differently, said: another Method used because the data did not suit this one. */
   notes: string[];
+  /** How the Method did on the periods already known (a forecast's track record), one line; null where a Method has none. */
+  track: string | null;
   /** The one footer line, on an answer. */
   footer: string | null;
   /** The numbers in the sentence. */
@@ -57,28 +59,48 @@ export type DriversTakeaway = Takeaway & { rows: { metric: Metric; takeaway: Tak
 const ctxOf = (ctx: TakeawayContext): SayContext => ({ style: ctx.style, language: ctx.language, yearStart: ctx.yearStart });
 const word = (key: StrengthWord, ctx: TakeawayContext) => say(`strength-${key}`, {}, ctxOf(ctx));
 
+/** A line of wording written in the Workspace's Number Style and language: how every Method's own Takeaway says its case. */
+export function sayIn(key: CaseKey, slots: Slots, ctx: TakeawayContext): string {
+  return say(key, slots, ctxOf(ctx));
+}
+
+/** A strength word as a person reads it. */
+export function strengthWordIn(key: StrengthWord, ctx: TakeawayContext): string {
+  return word(key, ctx);
+}
+
 /** The one footer line: what has gone together is not what caused what. */
 export function footerText(ctx: TakeawayContext): string {
   return say("footer", {}, ctxOf(ctx));
 }
 
+/** The Method's own rule for the strength of a result on `n` pairs: Pearson's by default, the rank, partial or lag rule where the answer uses it. */
+export type StrengthFor = (r: number, n: number) => StrengthWord;
+
 /** A finding of the suitability checks as a line of wording; a far-off finding quotes the result without those periods as a strength word. */
-function findingText(f: Finding, ctx: TakeawayContext, pairs: number): string {
-  const result = (r: number) => word(strengthOf(r, pairs - Number(f.slots.count)), ctx);
+function findingText(f: Finding, ctx: TakeawayContext, pairs: number, strength: StrengthFor): string {
+  const result = (r: number) => word(strength(r, pairs - Number(f.slots.count)), ctx);
   return say(f.case, f.slots, { ...ctxOf(ctx), result });
 }
 
-const empty = (method: string): Takeaway => ({ kind: "refusal", method, sentence: null, refusal: null, strength: null, strengthText: null, range: null, basis: null, assumptions: [], cautions: [], notes: [], footer: null, figures: [], numbers: [] });
+/** A Takeaway with nothing in it, for a Method to fill in: a refusal until it says otherwise. */
+export const emptyTakeaway = (method: string): Takeaway => ({ kind: "refusal", method, sentence: null, refusal: null, strength: null, strengthText: null, range: null, basis: null, assumptions: [], cautions: [], notes: [], track: null, footer: null, figures: [], numbers: [] });
+const empty = emptyTakeaway;
+
+/** The start of an answer: nothing said yet, nothing refused. */
+export function answerTakeaway(method: string): Takeaway {
+  return { ...empty(method), kind: "answer" };
+}
 
 /** A refusal in words: no sentence, no number, no strength, no range, no footer (nothing is claimed). */
 export function refusalTakeaway(method: string, lines: string[]): Takeaway {
-  return { ...empty(method), refusal: lines.join(" ") };
+  return { ...emptyTakeaway(method), refusal: lines.join(" ") };
 }
 
 /** The verdict of the suitability checks as the lines a person reads: refusals, cautions and what was done differently (a
  * switch to another Method). `pairs` is how many pairs a far-off finding's "without them" strength is judged on. */
-export function verdictLines(v: Verdict, ctx: TakeawayContext, pairs: number) {
-  return { refusals: v.refusals.map((f) => findingText(f, ctx, pairs)), cautions: v.cautions.map((f) => findingText(f, ctx, pairs)), notes: v.switches.map((f) => findingText(f, ctx, pairs)) };
+export function verdictLines(v: Verdict, ctx: TakeawayContext, pairs: number, strength: StrengthFor = (r, n) => strengthOf(r, n)) {
+  return { refusals: v.refusals.map((f) => findingText(f, ctx, pairs, strength)), cautions: v.cautions.map((f) => findingText(f, ctx, pairs, strength)), notes: v.switches.map((f) => findingText(f, ctx, pairs, strength)) };
 }
 
 /** What a correlation was compared on, and over how many periods, in one line. */
@@ -117,7 +139,7 @@ export function correlationTakeaway(a: Metric, b: Metric, c: Correlation, ctx: T
   const text = (k: CaseKey) => say(k, {}, ctxOf(ctx));
   const periods = c.pairs.map((p) => p.period);
   return {
-    ...empty(method),
+    ...emptyTakeaway(method),
     kind: "answer",
     sentence: say(key, { a: a.name, b: b.name, n, span: c.period, strength: strengthText }, ctxOf(ctx)),
     strength,
@@ -138,8 +160,25 @@ export function correlationTakeaway(a: Metric, b: Metric, c: Correlation, ctx: T
   };
 }
 
+/** The answer of a Method that compares periods in pairs: the sentence, the strength, what it was compared on over how many
+ * pairs, the lines of the suitability checks and the footer once. The caller adds its own `numbers` for Show the numbers. */
+export function pairsAnswer(method: string, ctx: TakeawayContext, o: { sentence: string; strength: StrengthWord; basis: string; lines: ReturnType<typeof verdictLines>; n: number }): Takeaway {
+  return {
+    ...emptyTakeaway(method),
+    kind: "answer",
+    sentence: o.sentence,
+    strength: o.strength,
+    strengthText: word(o.strength, ctx),
+    basis: o.basis,
+    cautions: o.lines.cautions,
+    notes: o.lines.notes,
+    footer: footerText(ctx),
+    figures: [{ label: say("numbers-pairs", {}, ctxOf(ctx)), value: o.n, text: formatNumber(o.n, 0, ctx.style) }],
+  };
+}
+
 /** A list of names in words: "A", "A and B", "A, B and C". */
-function listOf(names: string[], ctx: TakeawayContext): string {
+export function listOf(names: string[], ctx: TakeawayContext): string {
   const [and, comma] = [say("list-and", {}, ctxOf(ctx)), say("list-comma", {}, ctxOf(ctx))];
   const last = names[names.length - 1];
   return names.length === 1 ? last : `${names.slice(0, -1).join(comma)}${and}${last}`;
@@ -157,7 +196,7 @@ export function driversTakeaway(target: Metric, ranked: Ranked[], ctx: TakeawayC
   const named = rows.filter((r) => r.takeaway.strength !== null && r.takeaway.strength !== "cant-tell").slice(0, 3).map((r) => r.metric.name);
   const base = { n: top.result.n, span: top.result.period, target: target.name };
   return {
-    ...empty(method),
+    ...emptyTakeaway(method),
     kind: "answer",
     sentence: named.length > 0 ? say("drivers-some", { ...base, names: listOf(named, ctx) }, ctxOf(ctx)) : say("drivers-none", base, ctxOf(ctx)),
     strength: top.takeaway.strength,

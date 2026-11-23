@@ -46,6 +46,16 @@ Nothing is recorded until you confirm. Ziffr first shows what each value would d
 
 Instead of pasting, drop a file on the box or choose **Or choose a file**: a CSV file (.csv, .tsv or .txt), an Excel workbook (.xlsx, .xls) or an OpenDocument one (.ods). The file is read in your browser, and only its cells are sent, exactly as if you had pasted them, so the preview and the limits are the same. A workbook's first sheet is read, cells as they are shown (a cell formatted as 2.5 % reads as 2.5 %); with several sheets, pick another under **sheet**. A CSV file may hold at most 256 KB and a workbook at most 10 MB.
 
+### A template to fill in
+
+Under the box, **Download a template** saves a CSV file that already names your Metrics, so you only type the numbers. Pick one of three:
+
+- **One value per row**: the columns `metric`, `period` and `value`, one row for each Metric you may paste for, with its own current period filled in.
+- **Metrics down, periods across**: your Metrics of one period length (the most common one, or pick another next to it) and the last 12 periods as columns, oldest first.
+- **One Metric's periods without a value**: two columns, `period` and `value`, listing the periods in the last two years that have no value yet. Choose the Metric next to it.
+
+Metrics are named by their slug, so two Metrics with one name cannot be mixed up, and periods are written as days (`2026-10-01`) so Excel does not turn them into numbers. Where your Workspace writes numbers with a decimal comma, the columns are separated by semicolons, as a spreadsheet there expects. Open the file, fill in the `value` cells, and drop it back on the page or paste its cells: Ziffr reads it like any other paste and shows what each value would do. Downloading it records nothing.
+
 ### The layouts
 
 Ziffr recognises three layouts and says above the preview which one it read, such as "Metrics as rows, periods as columns: 2 Metrics × 3 periods". When a paste fits two layouts, a link offers the other reading.
@@ -128,7 +138,7 @@ Each card shows the Metric's name, what it counts, its period, which way is good
 
 ### The form
 
-The form has three parts. The panel on the right says that you become the **Owner**: "The owner keeps the description up to date and accepts corrections to its values." **Create metric** saves it; **Cancel** goes back to the list.
+The form is short: three parts, and **More options** below them for what you rarely change. The panel on the right says that you become the **Owner**: "The owner keeps the description up to date and accepts corrections to its values." **Create metric** saves it; **Cancel** goes back to the list.
 
 **What is it?**
 
@@ -138,18 +148,36 @@ The form has three parts. The panel on the right says that you become the **Owne
 | **Description** | What exactly is counted, and what isn't. Would a new colleague understand it? |
 | **Format** | **Number**, **Money** or **Percent**. Choosing **Money** fills in the unit of the Workspace Profile's currency: "€" after the number for euros, "$" before it for dollars, otherwise the currency's code before it, such as "CHF ". You can change it. A Percent Metric's values are numbers such as 12.5, not 0.125. |
 | **Unit** | What stands next to the number, such as "€", "$", "d", "pc" or "%". Any text up to 20 characters; leave it empty for plain numbers. |
-| **Stands** | Whether the unit stands **after** the number ("1.200 €", "12 d", with a space) or **before** it ("$1,200", without one; a unit such as "CHF " keeps the space it ends with). |
-| **Decimals** | How many digits after the decimal point, from 0 to 4. A line under these fields shows how a value will read, in the Workspace's Number Style. |
 
 **How do values arrive?**
 
 | Field | What it does |
 | --- | --- |
 | **Period** | **Daily**, **Weekly**, **Monthly**, **Quarterly** or **Yearly**: one value per period. Quarters and years start from the Workspace's fiscal year (**Workspace → General**), so with a year that starts in April, Q1 is April to June. The period cannot change once the Metric has values, or targets or projections on its Targets tab. |
+| **Who submits** | The people who send in its values, members and Contacts alike. Each one gets a personal form link for this Metric and a first request for the value. You are ticked to start with when you create a Metric; a copy starts with the original's Submitters. |
+
+**Target**
+
+| Field | What it does |
+| --- | --- |
+| **Which way is good** | The **Polarity**: **Higher is better**, **Lower is better** or **Closer to target is better**. |
+| **Target from** | The lower end of the Target Range. Leave it empty for no lower end. |
+| **Target to** | The upper end. Leave it empty for no upper end. |
+
+**More options**
+
+A folded section below Target. Opening it shows the fields below; leave it closed and Ziffr uses the defaults named in the table, which is what the form always used. While it is closed, its heading names every value that is not the default, such as "2 decimals · Aggregation: Average". It opens by itself when a Metric you duplicate, or one from the Catalog, has values that are not the defaults, and when a value in it is not valid.
+
+| Field | What it does |
+| --- | --- |
+| **Stands** | Whether the unit stands **after** the number ("1.200 €", "12 d", with a space) or **before** it ("$1,200", without one; a unit such as "CHF " keeps the space it ends with). |
+| **Decimals** | How many digits after the decimal point, from 0 to 4. A line under Format and Unit shows how a value will read, in the Workspace's Number Style. |
 | **A second value for the same period** | The **Submission Rule**: what happens when another value arrives for a period that already has one. See the table below. |
 | **Aggregation** | How values combine into a longer period, for comparisons such as QoQ or YoY and for Widgets shown by quarter or year (**Show by**, see the Dashboards chapter): **Sum** (counts and amounts, such as revenue or deals), **Average** (levels, such as a score or a delivery time), **Last value** (stocks, such as a balance or headcount) or **Does not combine** (rates and ratios). |
 | **Sources** | The ways values may arrive: **Slack**, **Mail**, **Telegram**, **Web form** and **API and Feeds**. All are ticked for a new Metric, so each Submitter can use what suits them. A value that arrives another way is refused. In the demo, Slack and Mail are marked "(played in the demo)": nothing is really sent. |
-| **Who submits** | The people who send in its values, members and Contacts alike. Each one gets a personal form link for this Metric and a first request for the value. |
+| **Attainment** | How the percentage of target is computed: **As the workspace** (the default, set on **Workspace → General**), **By ratio** or **By distance**. See [Comparisons](#comparisons). |
+
+Defaults: the unit stands where its sign suggests (before a "$", after a "%" or "d"), **Decimals** 0, **A second value** overwrites, **Aggregation** is Sum, all **Sources** are ticked, and **Attainment** follows the Workspace.
 
 The four Submission Rules:
 
@@ -159,15 +187,6 @@ The four Submission Rules:
 | **Overwrite with the newer value** | It replaces the first. The first is kept as a **Superseded Value**. | Figures reported again in full, where the latest report wins. |
 | **Add up all values** | It is added to the first. Values that arrive at the same moment all count. | Counts reported in pieces: "3 deals", then "2 more". |
 | **Keep every value** | Both are kept. | Repeated measurements, such as weight twice a day. |
-
-**Target**
-
-| Field | What it does |
-| --- | --- |
-| **Which way is good** | The **Polarity**: **Higher is better**, **Lower is better** or **Closer to target is better**. |
-| **Target from** | The lower end of the Target Range. Leave it empty for no lower end. |
-| **Target to** | The upper end. Leave it empty for no upper end. |
-| **Attainment** | How the percentage of target is computed: **As the workspace** (the default, set on **Workspace → General**), **By ratio** or **By distance**. See [Comparisons](#comparisons). |
 
 After **Create metric**, the Metric's page opens with the note "Metric created. It has no values yet." Under it, one sentence says what really happened: who got a form link and a first request and by which way ("Ana got a form link and a first request by email."); that nobody submits it yet, with where to add Submitters; or, when this Ziffr sends no email, that nothing was sent and the request waits in the Outbox. Only the Metric's owner, who made it, sees who was asked. In the demo, where nothing is really sent, the note ends with **Go to Sources**, which opens the **Sources** tab of **Connectors** so you can answer the request there.
 
@@ -181,6 +200,12 @@ The top of the page shows the Metric's name, a **Derived** badge if it is calcul
 
 Then come five tabs: **Overview**, **Analysis**, **Targets**, **History** and **Description**.
 
+### Handing a Metric over
+
+Next to **Owner** in a Metric's Description, the Metric's owner, Owners and Admins see **Hand over…**. Pick the Member who takes it over, then **Hand over**. The Metric's owner can pick only people who already see the Metric (share it first otherwise); Owners and Admins can hand any Metric to any Member. Guests, Contacts and Access Keys never take a Metric over or hand one over: a program cannot change who owns a Metric.
+
+The new owner is told through their way of being reached, and not during their Quiet Hours. The previous owner stays on as **Editor**, so they still see the Metric and can fill in values until the new owner takes that away. Corrections, unlocking, Retention notices and Escalations now go to the new owner, and so do the open Questions that waited on the old owner as the Metric's owner. When an Owner or Admin hands a Metric over, the previous owner is told too. If the previous owner's Share is later taken away, their Derived Metrics, Alerts and Personal Webhooks on the Metric stop. The Metric stays on its Workflow, which stays with the Workflow's owner: the new owner can choose another Workflow, or ask that owner to hand theirs over. A Member who owns Metrics can't be made a Guest, and a Guest can't be given one. The Audit Log records who handed which Metric from whom to whom.
+
 If a Metric is not shared with you, its page says "… isn't shared with you", names its owner (for a Guest who is not shown the owner: "Its owner can share it with you"), and offers **Ask … for access**. The owner sees your request under **Who can see this** and can let you in as a Viewer.
 
 ### The buttons at the top
@@ -193,9 +218,11 @@ A Metric's page has one main button, and the rest sit in the **⋯** menu.
 | **Share** | Gives people or Groups access (see below). | The Metric Owner |
 | **⋯** → **Ask me now** | Sends you this period's **Prompt** for the Metric at once, by your own Connector (email, Slack or Telegram), instead of waiting for the Workflow. A message says where it went ("Sent to you on Slack", with a note when that is not your usual way because the Metric does not accept values that way), why it stayed in the Outbox, or why it could not ask now, such as when it already asked in the last ten minutes. At most once every ten minutes per Metric. | The Metric's owner, when they submit it too |
 | **⋯** → **Alert me…** | Opens a panel on the right with your Alerts on this Metric and a form to set another: Ziffr tells you once when the latest value **reaches a share of its target**, **reaches a value** (at or above), **falls below a value**, **changes more than a share** against the period before, or **has no value the day after its Due Date**. Choose a way to be told (your usual way, email, Slack or Telegram) and whether to **Include values not approved yet**; off, you hear only about published or approved values. A kind the Metric cannot give is greyed out with the reason: a share needs a target with a percentage, the Due Date needs a Workflow. The dialog says how many Alerts you hold against the limits (20 in a Workspace, 5 on one Metric) before you hit them. Each Alert can be paused, edited or deleted there. With the preview layout on, it opens as a panel on the right instead of a dialog, with the same content. Not shown in the demo, and not for an Archived Metric. | Everyone with a sign-in who sees the Metric If you have a Personal Webhook, the form also offers **Also send to** with your Webhooks, so a ticked one gets an `alert.fired` message each time the Alert fires (see [Your Alerts](17-your-settings.md#your-alerts)). |
+| **⋯** → **Fill past periods…** | Opens one list of the ways to bring a Metric's past values in, easiest first: **Paste or upload a spreadsheet** (opens Paste history for this Metric), **Fill in a template** (downloads a file that lists the periods without a value, to fill in and bring back to Paste history), **Ask my assistant** (the text described next) and **Send from another system** (opens Connectors → Send values). Paste and template are offered when the Metric takes the web form and you submit it; the assistant and the other system when you submit it at all. | Everyone who submits the Metric |
+| **Ask my assistant** (in the list above) | Opens a text to copy into your own assistant (one connected to Ziffr that can read where your numbers are) that fills in the Metric's last 12 periods once, from the place you name. It tells the assistant to look at which periods already have a value and never record over one, to show you a table of what it found before it records anything, to record each value through Ziffr's tools, and to stop and ask when a number looks off. It is not a schedule: use [Fill from n8n](#who-submits) for numbers that keep coming. Ziffr does not run the text, sends it nowhere and gives the assistant no key; what it records is recorded as you, by the Metric's own rules (an unusual value may wait for Approval). The Metric's name and description are in the text as quoted data, which the text tells the assistant never to obey. | Everyone who submits the Metric |
 | **⋯** → **Analyze** | Opens the Metric on an **Analysis Canvas** (see [Analyze](13-analyze.md)). | Everyone who sees the Metric |
 | **⋯** → **Duplicate** | Starts a new Metric with the same description (see below). | Owners, Admins and Members; not for a Derived Metric |
-| **⋯** → **Add to dashboard** | Places the Metric on one of your dashboards as a widget drawn with the default **Widget Template**. Lists the dashboards you own or may edit. | Everyone; greyed out when you have no such dashboard |
+| **⋯** → **Add to dashboard** | Places the Metric on one of your dashboards as a widget drawn with the default **Widget Template**. Lists the dashboards you own or may edit, and, below them, **New dashboard with this Metric**: it makes a dashboard named for the Metric, puts the Metric on it and opens it (rename it there). | Everyone who may make dashboards (not Guests); a Guest sees the list only, and nothing when they have no such dashboard |
 | **⋯** → **Archive…** | Puts the Metric aside, keeping its values and history (see below). | Owners, Admins and the Metric Owner, outside the demo |
 | **⋯** → **Bring back** | On an Archived Metric: makes it a Metric in use again (see below). | Owners, Admins and the Metric Owner, outside the demo |
 | **⋯** → **Delete…** | Deletes the Metric (see below). | The Metric Owner, outside the demo |
@@ -212,11 +239,11 @@ The chart draws the Metric's values over time. A daily Metric shows its last 90 
 
 | Option | What it does |
 | --- | --- |
-| **Assign to** | The colleague who should answer. Contacts are not listed. |
+| **Assign to** | The colleague who should answer. Contacts are not listed. The first other person is suggested. |
 | The question | Filled in for you, such as "Why is cost so high in March?" when the value is off target. Change it as you like. |
 | **Assign Action** | Sends the **Question** and opens its page, where the **Thread** continues. |
 
-See [Actions](15-actions.md) for what happens next. On a Metric's page and its period page, an Approval in the list of Actions reads as a plain question ("Approve Revenue for Oct 2026: 118,941 €, below target."), without the chat words "Reply approve"; opening it shows the buttons. With no values yet, the chart is replaced by a note saying how values arrive, with a link to see who submits.
+See [Actions](15-actions.md) for what happens next; the Questions and Tasks you asked also show on your Schedule under **Asked by me**, where finished ones are grey with a tick, never red. On a Metric's page and its period page, an Approval in the list of Actions reads as a plain question ("Approve Revenue for Oct 2026: 118,941 €, below target."), without the chat words "Reply approve"; opening it shows the buttons. With no values yet, the chart is replaced by a note saying how values arrive, with a link to see who submits.
 
 ### Comparisons
 
@@ -248,7 +275,7 @@ When the rows add up to the total, a **Share** column shows each row's part. Whe
 
 The tab lists the analyses Ziffr offers. In the demo, analyses still to come are shown with a lock and "coming soon"; they do nothing yet.
 
-- **Forecast**: the trend per period and the value expected a few periods ahead (14 days, 6 weeks, 3 months, 2 quarters or 1 year), with a likely range. The forecast is drawn dashed on the Overview chart. It needs at least 4 values, so a yearly Metric has one after four years; until then the chart says so. It is worked out exactly from the values, so the Metric page, a forecast widget and the Analysis Canvas show the same numbers.
+- **Forecast**: the trend per period and the value expected a few periods ahead (14 days, 6 weeks, 3 months, 2 quarters or 1 year), with a likely range. The forecast is drawn dashed on the Overview chart. It needs at least 4 values, so a yearly Metric has one after four years; until then the chart says so. It is worked out exactly from the values, so the Metric page, a forecast widget and the Analysis Canvas show the same numbers. With two full seasons of values (24 months, 8 quarters) the forecast also follows the yearly pattern when that would have missed less on the last third of the history; a forecast widget says which it used and how it did on the past.
 - **Correlation**: a **Takeaway** about the other Metric that moves most like this one: a sentence with how strongly (strong, moderate, weak, or can't tell from chance) and over how many periods, a plain line above it when the data makes the reading rough, and a footer saying this shows what has gone together, not what caused what. A Metric that cannot be compared gets its reason in words and no number. A Metric counted at another period is compared on the longer of the two, the shorter combined by its Aggregation, and the sentence then adds "Compared by month (18 months)". Up to five candidates are offered as buttons; pick one to compare with it. A scatter chart shows one dot per common period. Where both Metrics have grown over time, they are compared by how each changed from the period before, and the sentence says "Compared by change, growth removed", so that two Metrics that only grow side by side are not read as related. **Show the numbers** gives r, the pairs of periods and the basis, and compares the values as they are instead. When this Metric's Aggregation is none, it is compared only with Metrics of its own period, and the tab says so. Only Metrics you may see are compared. See [Analyze](13-analyze.md#metrics-counted-at-different-periods).
 
 For more analyses, use **Analyze** at the top (see [Analyze](13-analyze.md)).
@@ -394,6 +421,8 @@ The **Submitters** of this Metric: who may send values for it. Ziffr recognises 
 Under each person a line says where their next **Prompt** will go and why, for example "Next request: by Slack", or "Can't reach: link Slack" when none of the ways this Metric accepts reaches them. The owner and Editors see it for everyone; anyone else who submits sees their own line. On your own line the fix is a link: **Link Slack** or **Connect Telegram** on **Connectors**, or **Add an email address** in your profile. A request goes only by a way the Metric accepts values by (see **Values arrive by**) and that reaches the person: if your usual way is not one, the line names the way it goes instead and why. When nothing reaches the person the request waits in the **Outbox** as "Not sent: …", is never sent by email or anywhere else instead, and the owner gets one message about it.
 
 A Feed is listed with the word "Feed". The owner and Editors see **Remove** next to it, which stops that Feed sending values. The values it already sent stay.
+
+**Fill from n8n** is under the Feeds, for Owners and Admins who may change this Metric's Submitters (not in the demo, and not for a Derived Metric). Choose which template to read from (**Google Sheets**, **Microsoft Excel**, **Stripe** or **HubSpot**), which Feed sends the values (one you have, or **A new Feed…** with a name), and whether to **Make a Feed Key for it and show it once**, then **Download the workflow**. You get an n8n workflow with your Ziffr's address already in it, and the Feed becomes a Submitter of the Metric. The Stripe and HubSpot templates send a few fixed figures once a month, for the month that has ended, so you type the slug of the Metric each figure is for into the workflow's Settings node (the page lists the slugs of the Metrics you picked). For a template that reads rows from a sheet or an Excel table, the page also offers a **starter sheet**: a `metric,value,period` header with this Metric's slug, to paste into your sheet. The key is shown once, beside the download, and is never written into the file: n8n keeps it in a credential named Ziffr Feed Key, as the template's guide says ([Google Sheets](../automations/google-sheets-feed.md), [Microsoft Excel](../automations/excel-feed.md), [Stripe](../automations/stripe-feed.md), [HubSpot](../automations/hubspot-feed.md)). You add the other system's login in n8n; Ziffr never sees it and never runs the workflow. The Audit log records that the template was downloaded, never the file.
 
 **Values from a Feed** (for the owner and Editors) adds one of the Workspace's Feeds as a Submitter: pick it and choose **Add**. Its values arrive through the API, so the **API and Feeds** Source is turned on by itself. Owners and Admins create Feeds (see [Connecting Ziffr](04-connecting.md#feeds-numbers-from-other-systems)); a Feed is never sent Prompts. The choice only appears when there is a Feed not yet on the list.
 

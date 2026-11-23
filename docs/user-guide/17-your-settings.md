@@ -81,7 +81,7 @@ The circle in front of a step marks it done. The header shows how many are done 
 
 ## The sidebar
 
-The sidebar is on every page once you are in a Workspace. At its top is the Workspace switcher, then a **Search** field (Ctrl+K), **Actions** and **Schedule**, each with its count, Dashboards (with the dashboards you pinned under it, or in the demo a few already pinned, see [Pinning a dashboard](12-dashboards.md#pinning-a-dashboard)), Metrics, Decks, Analyze and one **Workspace** row that opens **Members and Groups**, **Workflows**, **Connectors** and **Settings** (closed unless you are on one of them; Guests do not see it). **User guide** and your own menu (**Your profile**, **Appearance**, **Your Deliveries**, **Your Alerts**, **Connected assistants**, and **Installation settings** for Installation Admins) sit at its bottom. The page is a card beside it, and in the demo, **Viewing as** and **Leave the demo** sit in the footer where your own menu is, with **Your profile**, **Appearance**, **Your Deliveries** and **Your Alerts** to look at (read-only, as the demo is; there is no Connected assistants). Ctrl+B (or the button at the top of the card) shrinks the sidebar to icons; hover or focus an icon to see its name. Details open beside the page instead of replacing it: **Details** on a row of the Metrics list, and **Alert me…** on a Metric's page. On a phone, a bar at the bottom has Dashboards, Metrics, Actions, Search and More; **More** lists only what the bar does not: your pinned dashboards, Schedule, Decks, Analyze, the Workspace as one row that opens its pages, the guide and your own pages (in the demo, the same four). For how search works, see [Search](#search).
+The sidebar is on every page once you are in a Workspace. At its top is the Workspace switcher, then a **Search** field (Ctrl+K), **Schedule** with its count (values due, and answered Actions waiting for you to close), Dashboards (with the dashboards you pinned under it, or in the demo a few already pinned, see [Pinning a dashboard](12-dashboards.md#pinning-a-dashboard)), Metrics, Decks, Analyze and one **Workspace** row that opens **Members and Groups**, **Workflows**, **Connectors** and **Settings** (closed unless you are on one of them; Guests do not see it). **User guide** and your own menu (**Your profile**, **Appearance**, **Your Deliveries**, **Your Alerts**, **Connected assistants**, and **Installation settings** for Installation Admins) sit at its bottom. The page is a card beside it, and in the demo, **Viewing as** and **Leave the demo** sit in the footer where your own menu is, with **Your profile**, **Appearance**, **Your Deliveries** and **Your Alerts** to look at (read-only, as the demo is; there is no Connected assistants). Ctrl+B (or the button at the top of the card) shrinks the sidebar to icons; hover or focus an icon to see its name. Details open beside the page instead of replacing it: **Details** on a row of the Metrics list, and **Alert me…** on a Metric's page. On a phone, a bar at the bottom has Dashboards, Metrics, Schedule, Search and More; **More** lists only what the bar does not: your pinned dashboards, Decks, Analyze, the Workspace as one row that opens its pages, the guide and your own pages (in the demo, the same four). For how search works, see [Search](#search).
 
 Ziffr works best on a phone once you install it: it then opens from the home screen like an app. See [Put Ziffr on your phone or desktop](07-getting-started.md#put-ziffr-on-your-phone-or-desktop).
 
@@ -112,9 +112,9 @@ Your assistant can do the same: ask it for "churn march 2026" and it looks the M
 On a phone the demo's note is one line, the guided tour starts as a small round button, and everything you press is at least 44 px high. The row of Settings pages scrolls sideways and fades out at the edge to say so.
 
 Ziffr works best on a phone once you install it: it then opens from the home screen like an app, with the same layout. See [Put Ziffr on your phone or desktop](07-getting-started.md#put-ziffr-on-your-phone-or-desktop).
-## My schedule and your calendar
+## The Schedule and your calendar
 
-Open **My schedule** from the **Schedule** row of the sidebar (with the number of values due). Its address is `/schedule`; the old `/settings/schedule` still lands on it. It lists what you have to do in the current Workspace, and only that:
+Open the **Schedule** row of the sidebar (with the number of values due). Its address is `/schedule`; the old `/settings/schedule` still lands on it, and the old Actions page, `/actions`, lands on its **Asked by me** view. The Schedule has three views, switched at the top: **To do** (the default, described here), **Asked by me** and **Timeline** (see [Actions and Changes](15-actions.md#the-schedule-views)). To do lists what you have to do in the current Workspace, and only that. **All**, **Values**, **Approvals**, **Tasks** and **Questions** above it narrow the list to one kind; **Waiting for your confirmation** lists any Share Proposals an assistant prepared (see [Actions and Changes](15-actions.md#share-proposals-sharing-an-assistant-prepared)):
 
 | Part | What it lists |
 | --- | --- |
@@ -128,10 +128,10 @@ Each line links to where you do it:
 | --- | --- | --- |
 | **Revenue for October 2026 due** | The value's Due Date, set by the Metric's Workflow, such as the 3rd working day after the month ends. It says when Ziffr reminds you, such as "Ziffr reminds you 2 days before". A Metric without a Workflow has no Due Date: only its last ended period without a value is listed, on the first working day after it ends, marked "no Due Date set". | Your form for the Metric, or the Metric's page if you have no form for it |
 | **Approve: Cost for October 2026** | The day you were asked. It is overdue from the day after that period's Due Date. | The Approval |
-| **Task: …** | The Task's due date, or under **No date** | The Task |
+| **Task: …** | The Task's due date, or under **No date**. A checklist item of a Workflow gives you a Task with its Due Date, named by its words, and shows the Workflow and period in place of a Metric (see [Checklist Tasks](15-actions.md#checklist-tasks)); while you are Away it is in your Stand-in's list. | The Task |
 | **Question: …** | A Question the Workflow asked because a value is missing (an Escalation) falls on that value's Due Date. Other Questions are under **No date**. | The Question |
 
-A value due leaves the list as soon as the value is in. While a colleague is Away on a Due Date, their value is in their Stand-in's schedule, marked "standing in for …", and not in theirs. Only values of Metrics you may see are listed; an Approval, Task or Question you are assigned is listed even on a Metric you do not see, as on the Actions page. Values a Feed sends are never anyone's to do.
+A value due leaves the list as soon as the value is in. While a colleague is Away on a Due Date, their value is in their Stand-in's schedule, marked "standing in for …", and not in theirs. Only values of Metrics you may see are listed; an Approval, Task or Question you are assigned is listed even on a Metric you do not see. Values a Feed sends are never anyone's to do.
 
 ### List, Week and Month
 
@@ -243,9 +243,13 @@ Owners also see **Email me when Metrics, dashboards or decks go unused**. It is 
 
 Pick the first and the last day you are **Away**. While you are away, Prompts meant for you go to your **Stand-in**. The dates are saved as soon as both are set; **Clear** removes them. Owners and Admins can also set your Away dates on **Members and Groups**.
 
+### Heads-ups
+
+Under **Heads-ups** you choose whether Ziffr shows you the [Heads-ups](13-analyze.md#heads-ups) it notices and whether it also tells you by message. **Show me Heads-ups under Analyze** is on unless you turn it off; turning it off also stops the messages. **Also tell me by message** is off until you turn it on. Then the strongest Heads-ups you were not told yet reach you by your Delivery Preference for replies and updates, at most 3 in any 7 days, each once (one that ended and came back can be sent again). Quiet hours hold them like an Alert, and one is not sent after you lose sight of either of its Metrics. A message cannot be answered; open Ziffr. An email has a link to stop Heads-ups by message. Leaving a Workspace removes these choices. **Metrics you muted** lists the Metrics you muted from a Heads-up, with **Hear about it again**; only Metrics you can still see are listed. Heads-up choices are yours alone and can't be changed in the demo.
+
 ### Quiet hours
 
-Under **Quiet hours** you choose the hours of the night and the whole days (the weekend, say) when Ziffr should leave you alone: from 19:00 until 07:00, and all day Saturday and Sunday. Requests for numbers, reminders and Alerts that would arrive then wait, and are sent when your quiet hours end; none is dropped. The times are in the time zone you pick there, or in the Workspace's. A Due Date does not move: only the message waits, so something due on Monday morning may be asked for first thing, when your quiet hours end.
+Under **Quiet hours** you choose the hours of the night and the whole days (the weekend, say) when Ziffr should leave you alone: from 19:00 until 07:00, and all day Saturday and Sunday. Requests for numbers, reminders, Alerts, Heads-ups and checklist items by message that would arrive then wait, and are sent when your quiet hours end; none is dropped. The times are in the time zone you pick there, or in the Workspace's. A Due Date does not move: only the message waits, so something due on Monday morning may be asked for first thing, when your quiet hours end.
 
 If you set nothing, you follow the Workspace's default, if its Owners or Admins set one (the page says so). **Use the Workspace's default** removes your own. To have none even though the Workspace has a default, set the same hour for **From** and **Until** and no days. You cannot choose all seven days. A message already waiting keeps its time if you change your quiet hours afterwards.
 
@@ -263,7 +267,7 @@ On a Metric's page, **Alert me…** opens the same list and the form for another
 
 Each Alert has three buttons: **Pause** (or **Resume**), **Edit** and **Delete**. Besides your own pause, Ziffr can hold an Alert back and says why: **you cannot see this Metric now**, **the Metric is archived**, **the Metric has no target now** or **the Metric has no Workflow now**. It resumes by itself when the reason ends (except for no target or no Workflow, which you end by editing the condition). An Alert on a Metric you can no longer see is not listed at all, and nothing is sent for it. Alerts are only yours: nobody sets one for you or sees yours. In the demo the page is read-only.
 
-If a Workflow has a **Tell** step that names you, directly or through a Group, and you can see one of its Metrics, a section **Workflows that tell you** lists that Workflow with **Stop telling me**. After you stop it, none of its Tell steps tells you again until you press **Tell me again**; the link at the bottom of a Tell email does the same. Nobody is told when you do.
+If a Workflow has a **Tell** step that names you, directly or through a Group, and you can see one of its Metrics, a section **Workflows that tell you** lists that Workflow with **Stop telling me**. A **checklist item** that names you, directly or through a Group, lists its Workflow there as well, whether or not you see its Metrics, and waits out your Quiet Hours like an Alert. After you stop it, none of its Tell steps and none of its checklist items tells you again until you press **Tell me again**; the link at the bottom of a Tell email does the same. Nobody is told when you do.
 
 ## Connected assistants
 
@@ -334,7 +338,7 @@ You do not need a Starter. Some examples:
 - **Read your questions and tasks** and **Answer questions and tasks for you:** list the Questions and Tasks that wait for you, reply in their Threads, close the ones you asked, mark your Tasks done, and confirm or correct your own value in a Self-check when **Submit values** is ticked too.
 - **Build workflows:** make, change and delete **your own Workflows** and their steps. The assistant leaves who approves, and who a Tell step tells, as it is.
 - **Manage alerts:** set, change and remove **your own Alerts**, on Metrics you may see, such as "tell me when churn goes above 3 %". An Alert tells only you, through your Delivery Preference, and the assistant cannot make one for anyone else. The same limits apply as in the app.
-- **Propose sharing:** the assistant can propose a share of one of your dashboards for you to confirm; it never shares by itself. Nothing is shared or sent until you confirm it in Ziffr, on the Actions page. It needs **Read dashboards** too.
+- **Propose sharing:** the assistant can propose a share of one of your dashboards for you to confirm; it never shares by itself. Nothing is shared or sent until you confirm it in Ziffr, on the Schedule. It needs **Read dashboards** too.
 
 #### What the assistant cannot do
 

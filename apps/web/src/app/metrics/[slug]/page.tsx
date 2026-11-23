@@ -14,6 +14,8 @@ import { TargetsEditor } from "./series-form";
 import { ArchivedNote } from "./archived-note";
 import { RetentionBox } from "./retention-box";
 import { canArchiveMetric } from "@ziffr/core/archived-metrics";
+import { handOverChoices } from "@ziffr/core/metric-owner";
+import { HandOver } from "./hand-over";
 import { canEditMetric } from "@ziffr/core/metrics";
 import { firstAsksFor } from "@ziffr/core/first-asks";
 import { NextPrompt } from "./next-prompt";
@@ -28,9 +30,13 @@ import { ValueMarks } from "./value-marks";
 import { can } from "@ziffr/core/actor";
 import { submittingKeyNames } from "@ziffr/core/access-keys";
 import { feedChoices, feedNames } from "@ziffr/core/feeds";
-import { FeedPicker, RemoveFeed } from "./feed-picker";
+import { feedTemplates } from "@ziffr/core/feed-template-download";
+import { mcpAddress } from "@/lib/remote-mcp";
+import { FeedControls, RemoveFeed } from "./feed-picker";
 import { formatNumber, formatPercent, formatValue, POLARITY_LABEL, RULE_LABEL, SOURCE_LABEL, targetText } from "@ziffr/core/format";
-import { FORECAST_MIN_POINTS, forecast } from "@ziffr/core/forecast";
+import { FORECAST_MIN_POINTS } from "@ziffr/core/forecast";
+import { bestForecast } from "@ziffr/core/methods/forecast-choice";
+import { SEASON_LENGTH } from "@ziffr/core/suitability";
 import { basisLabel, periodWord, rankCorrelations } from "@ziffr/core/correlation";
 import { correlationTakeaway } from "@ziffr/core/takeaways/takeaway";
 import { TakeawayView } from "@/components/takeaway-view";
@@ -112,7 +118,7 @@ export default async function MetricPage({ params, searchParams }: { params: Pro
 
   const all = series[slug] ?? [];
   const points = metric.period === "day" ? all.slice(-DAILY_WINDOW) : all;
-  const fc = forecast(points, metric.period);
+  const fc = bestForecast(points, metric.period, SEASON_LENGTH[metric.period]);
   const last = all[all.length - 1];
   const prev = all[all.length - 2];
   const change = last && prev && prev.value !== 0 ? (last.value - prev.value) / Math.abs(prev.value) : null;
@@ -198,9 +204,9 @@ export default async function MetricPage({ params, searchParams }: { params: Pro
       >
         {/* Record a value is the one main button, for someone who submits the Metric; Share is the owner's; the rest is in the ⋯ menu. */}
         <MetricToolbar
-          id={metric.id} people={people} metric={{ id: metric.id, name: metric.name, slug: metric.slug }} record={record} askable={askable}
+          id={metric.id} people={people} metric={{ id: metric.id, name: metric.name, slug: metric.slug, description: metric.description, unit: metric.unit, period: metric.period }} mcp={mcpAddress()} record={record} askable={askable}
           share={isOwner ? { name: metric.name, ownerId: metric.owner_id, shares, groups, canInvite: can(actor, "manage-members") } : null} alert={alertMe ? { mine: alertMe.mine, choices: alertMe.choices, webhooks: alertMe.webhooks } : null}
-          canDuplicate={can(actor, "create") && !metric.formula} dashboards={dashboards.filter((d) => d.role !== "viewer").map((d) => ({ id: d.id, name: d.name }))}
+          canDuplicate={can(actor, "create") && !metric.formula} canPaste={mayPaste(metric, tokens, actor.personId)} canCreateDashboard={can(actor, "create")} dashboards={dashboards.filter((d) => d.role !== "viewer").map((d) => ({ id: d.id, name: d.name }))}
           archive={{ allowed: archivable && !demo, archived: Boolean(metric.archived_at) }} canDelete={isOwner && !demo}
         />
       </PageHeader>
@@ -371,7 +377,7 @@ export default async function MetricPage({ params, searchParams }: { params: Pro
           {!metric.formula && (
             <section className="stock rounded-[var(--radius-card)] p-5">
               {/* Paste history is offered to whoever submits for the Metric on the web form; the core checks again when they paste. */}
-              <div className="mb-3 flex items-baseline justify-between gap-3"><h2 className="font-medium">Latest values</h2>{metric.sources.includes("web_form") && tokens.some((t) => t.submitter_id === actor.personId) && <Link href={`/paste-values?metric=${encodeURIComponent(metric.slug)}`} className="text-sm">Paste history</Link>}</div>
+              <div className="mb-3 flex items-baseline justify-between gap-3"><h2 className="font-medium">Latest values</h2>{mayPaste(metric, tokens, actor.personId) && <Link href={`/paste-values?metric=${encodeURIComponent(metric.slug)}`} className="text-sm">Paste history</Link>}</div>
               {obs.length === 0 ? <p className="text-sm text-muted-foreground">No values yet.</p> : (
                 <table className="w-full text-sm">
                   <thead className="text-left text-xs text-muted-foreground">
@@ -423,7 +429,7 @@ export default async function MetricPage({ params, searchParams }: { params: Pro
               {canEdit && <EditDetails metric={metric} money={moneyUnit(profile.currency)} numberStyle={numberStyle} attainmentMethod={attainmentMethod} fixed={obs.length > 0 ? "values" : tSeries.length + pSeries.length > 0 ? "series" : null} />}
             </div>
             <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-2">
-              <Row k="Owner"><Person p={peopleById[metric.owner_id]} /></Row>
+              <Row k="Owner"><span className="flex flex-wrap items-center gap-2"><Person p={peopleById[metric.owner_id]} />{!demo && <HandOver metricId={metric.id} name={metric.name} choices={await handOverChoices(actor, metric.id)} />}</span></Row>
               <Row k="Tags"><MetricTagsRow actor={actor} metricId={metric.id} /></Row>
               <Row k="Period">{PERIOD_LABEL[metric.period]}</Row>
               <Row k="Format">{metric.format}{metric.unit && metric.format === "number" ? ` (${metric.unit})` : ""}, {metric.decimals} decimals</Row>
@@ -460,7 +466,7 @@ export default async function MetricPage({ params, searchParams }: { params: Pro
                 ))}
                 {!tokens.length && <li className="text-muted-foreground">Nobody yet.</li>}
               </ul>
-              {canEdit && <FeedPicker metricId={metric.id} choices={choices.filter((c) => !tokens.some((t) => t.submitter_id === c.id))} />}
+              {canEdit && <FeedControls metric={{ id: metric.id, name: metric.name }} choices={choices} taken={tokens.map((t) => t.submitter_id)} role={actor.role} demo={demo} templates={feedTemplates()} />}
             </section>
           )}
         </div>
@@ -517,4 +523,9 @@ function basisOf(byValue: boolean): ["values" | "auto", Record<string, string>] 
 /** What a dot is when growth was removed: the change from the period before. */
 function changeNote(result: { basis: string; period: Parameters<typeof periodWord>[0] }): string {
   return result.basis === "changes" ? `, each the change from the ${periodWord(result.period)} before` : "";
+}
+
+/** Whether the person may paste or upload values for the Metric: it takes the web form, is not computed, and they submit it. The core checks again when they paste. */
+function mayPaste(metric: { formula?: unknown; sources: string[] }, tokens: { submitter_id: string }[], personId: string): boolean {
+  return !metric.formula && metric.sources.includes("web_form") && tokens.some((t) => t.submitter_id === personId);
 }

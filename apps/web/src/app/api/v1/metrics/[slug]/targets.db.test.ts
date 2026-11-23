@@ -4,7 +4,7 @@
 import { afterEach, describe, expect, it } from "vitest";
 import { createAccessKey } from "@ziffr/core/access-keys";
 import { share } from "@ziffr/core/sharing";
-import { workspace } from "@ziffr/core/test/db-fixtures";
+import { changeRows, workspace } from "@ziffr/core/test/db-fixtures";
 import { getMetrics, getSeriesValues } from "@ziffr/core/workspace-data";
 import { PATCH } from "./route";
 import * as projections from "./projections/route";
@@ -124,6 +124,10 @@ describe("targets through the API", () => {
 
   it("refuses a key whose creator is now a Guest, even for their own Metric", async () => {
     const { w, ben, mine, writer } = await setup();
+    // A Guest owns nothing: the Metric is Ben's no more, but he edits it through a Share; as a Guest he still changes nothing.
+    const sara = await w.person("owner");
+    await changeRows("metrics", { id: mine.id }, { owner_id: sara });
+    await share(w.actor(sara), "metric", mine.id, ben, "editor");
     await w.setRole(ben, "guest");
     const r = await patch(mine.slug, writer, { target_min: 1 });
     expect(r.status).toBe(403);
