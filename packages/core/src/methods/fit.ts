@@ -454,7 +454,8 @@ export function fitNumbers(rows: FitRow[], names: string[], k: number, ranks: nu
       explains: dbl(shares[i]),
       partial,
       // The Fisher z of a partial correlation holds the other drivers fixed: n − (k − 1) − 3 degrees.
-      strength: strengthOf(partial, partialPeriods(n, cols.length)),
+      // Never strong for a crowded driver: its effect is less certain, and whoever reads the fit reads that here.
+      strength: strengthOf(partial, partialPeriods(n, cols.length), crowded.includes(names[c])),
       inflation: dbl(mul(sol.m[i][i], mo.sxx[i][i])),
       low: Math.min(...xs),
       high: Math.max(...xs),
@@ -512,7 +513,9 @@ export function fit(input: FitInput): Fit | Refused {
   // The finding names which periods had no value (as their dates, which the Takeaway writes as names).
   const aboutChanges = (f: Finding): Finding => {
     const mine = f.case in CHANGE_CASES ? [input.target, ...input.drivers].find((d) => d.name === f.slots.name) : undefined;
-    return mine ? { case: CHANGE_CASES[f.case], slots: { ...f.slots, periods: missingLevels(mine.points, span, prep.rows).join(",") } } : f;
+    // A run of m missing periods loses m + 1 changes (into the first, between, out of the last): the finding counts changes, we say periods.
+    const run: Record<string, number> = typeof f.slots.run === "number" ? { run: f.slots.run - 1 } : {};
+    return mine ? { case: CHANGE_CASES[f.case], slots: { ...f.slots, ...run, periods: missingLevels(mine.points, span, prep.rows).join(",") } } : f;
   };
   const inChanges = (v: Verdict): Verdict => (prep.basis === "changes" ? { ...v, refusals: v.refusals.map(aboutChanges), cautions: v.cautions.map(aboutChanges) } : v);
   const early = inChanges(checkSuitability("fit", base));

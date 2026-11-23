@@ -11,7 +11,7 @@ import { changePct } from "../exact";
 import { formatNumber, formatValue, type ValueUnit } from "../format";
 import { builtFrom, commonPeriod, pearson } from "../correlation";
 import { seriesBy, type Resolver } from "../display-periods";
-import { fit, needs, partialPeriods, type Fit, type Needed, type Outside, type Predicted, type Refused } from "../methods/fit";
+import { fit, fitBasis, needs, partialPeriods, type Fit, type Needed, type Outside, type Predicted, type Refused } from "../methods/fit";
 import { basisText, changes } from "../basis";
 import { periodLabel, type Span, type YearStart } from "../periods";
 import { driversAllowed, type Verdict } from "../suitability";
@@ -39,9 +39,14 @@ export function decimalsFor(m: ValueUnit, ...values: number[]): number {
   return Math.min(15, Math.max(m.decimals, need));
 }
 
-/** A value in a Metric's unit with decimals widened to show two significant digits of every number in `like`. */
+/** A value in a Metric's unit with decimals widened to show two significant digits of every number in `like`, and more where that
+ * would write two of them the same. */
 export function written(m: ValueUnit, v: number, ctx: TakeawayContext, like: number[] = [v]): string {
-  return formatValue({ ...m, decimals: decimalsFor(m, ...like) }, v, ctx.style);
+  // More digits until every one of the numbers beside it is written differently: a narrow range is never "0.0030 to 0.0030".
+  const distinct = [...new Set(like)];
+  let decimals = decimalsFor(m, ...like);
+  while (decimals < 15 && new Set(distinct.map((x) => formatNumber(x, decimals, ctx.style))).size < distinct.length) decimals++;
+  return formatValue({ ...m, decimals }, v, ctx.style);
 }
 
 /** A step to speak of an effect in: the power of ten at or below the driver's own spread ("per 1,000 Visits", not per one), so that it
@@ -294,8 +299,9 @@ type FirstPass = { drivers: Metric[]; series: Point[][]; notes: string[] };
 function firstPass(target: Metric, drivers: Metric[], series: Point[][], span: Span, opts: FitRecipeOptions): FirstPass {
   const keep = (k: number, order: number[]) => {
     const rows = order.slice(0, k).reduce((have, i) => new Set([...have].filter((p) => series[i + 1].some((q) => q.period === p))), new Set(series[0].map((p) => p.period))).size;
-    // Compared by change one period is lost; the fit refuses what is too short itself.
-    return { rows: Math.max(0, rows - 1), ok: k <= driversAllowed(Math.max(0, rows - 1)) };
+    // Compared by change one period is lost, by value none: the basis the fit will use for these Metrics (the fit refuses what is too short itself).
+    const lost = fitBasis(series[0], order.slice(0, k).map((i) => series[i + 1]), span) === "changes" ? 1 : 0;
+    return { rows: Math.max(0, rows - lost), ok: k <= driversAllowed(Math.max(0, rows - lost)) };
   };
   const all = drivers.map((_, i) => i);
   if (keep(all.length, all).ok) return { drivers, series, notes: [] };

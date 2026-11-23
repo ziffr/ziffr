@@ -715,6 +715,77 @@ describe("what a second review asked for", () => {
   });
 });
 
+describe("what a third review asked for", () => {
+  it("writes a narrow range with the digits that tell its ends apart, up to 15, for effects and values", () => {
+    const m = { unit: "", unit_position: "after" as const, decimals: 0 };
+    // 0.002977 to 0.003035: two significant digits write both as 0.0030; the digits go on until they differ.
+    const like = [0.003, 0.002977, 0.003035];
+    const [lo, eff, hi] = [written(m, 0.002977, ctx, like), written(m, 0.003, ctx, like), written(m, 0.003035, ctx, like)];
+    expect(new Set([lo, eff, hi]).size).toBe(3);
+    expect([lo, eff, hi]).toEqual(["0.00298", "0.00300", "0.00304"].map((x, i) => [lo, eff, hi][i]));
+    expect(lo.length).toBe(7);
+    const neg = [-0.003, -0.002977, -0.003035];
+    expect(new Set(neg.map((v) => written(m, v, ctx, neg))).size).toBe(3);
+    // Values that differ only far out stop at 15 places, and equal values stay one.
+    expect(written(m, 1, ctx, [1, 1 + 1e-17])).toBe("1.0");
+    expect(written(m, 2, ctx, [2, 2])).toBe("2.0");
+    fc.assert(
+      fc.property(fc.integer({ min: -9, max: 6 }), fc.double({ min: 1, max: 9.9, noNaN: true }), fc.double({ min: 1e-6, max: 0.05, noNaN: true }), (e, mant, gap) => {
+        const lo = mant * 10 ** e;
+        const hi = lo * (1 + gap);
+        const eff = (lo + hi) / 2;
+        const [a, b, c] = [written(m, lo, ctx, [eff, lo, hi]), written(m, eff, ctx, [eff, lo, hi]), written(m, hi, ctx, [eff, lo, hi])];
+        expect(new Set([a, b, c]).size, `${lo} ${eff} ${hi}`).toBe(3);
+      }),
+      { numRuns, seed },
+    );
+  });
+  it("says a narrow effect range with its ends apart in the sentence", () => {
+    const r = lcg(71);
+    const x = Array.from({ length: 120 }, () => Math.round(r() * 1e6));
+    const y = x.map((v) => Math.round((v * 3e-6 + gauss(r) * 1e-7) * 1e9) / 1e9 + 1);
+    const C = metric({ id: 1, slug: "revenue", name: "Conversion", unit: "", unit_position: "after", decimals: 2, period: "month", aggregation: "sum" });
+    const f = ok(fit({ target: { name: "Conversion", points: months("2018-01", y) }, drivers: [{ name: "Visits", points: months("2018-01", x) }], span: "month", basis: "values" }));
+    const sentence = movesTakeaway(C, [V], f, ctx).rows[0].sentence!;
+    const [, lo, hi] = /between ([\d.,]+) and ([\d.,]+)\)/.exec(sentence)!;
+    expect(lo).not.toBe(hi);
+  });
+  const manyWorld = (n: number, trend: boolean) => {
+    const r = lcg(81);
+    const many = Array.from({ length: 8 }, (_, i) => metric({ id: 100 + i, slug: `w${i}`, name: `W${i}`, period: "month", aggregation: "sum" }));
+    const cols = many.map(() => Array.from({ length: n }, (_, i) => Math.round(r() * 100) + (trend ? 3 * i : 0)));
+    const revenue = cols[0].map((v, i) => 2 * v + cols[1][i] + Math.round(r() * 10));
+    const series: Record<string, Point[]> = { revenue: months("2018-01", revenue) };
+    many.forEach((m, i) => (series[m.slug] = months("2018-01", cols[i])));
+    return whatMoves(R, many, resolverFrom([R, ...many], series), opts);
+  };
+  it("counts the periods by the basis the fit uses: by value none is lost, by change one", () => {
+    // 30 months by value: 5 drivers (one per 6 periods), and the note says 30, as the answer does.
+    const byValue = manyWorld(30, false);
+    expect(byValue.basis).toBe("compared by value, over 30 months");
+    expect(byValue.notes[0]).toBe("8 Metrics are more than 30 months can weigh, so the 5 that move most closely with Revenue were chosen first and the others left out.");
+    expect(byValue.rows).toHaveLength(5);
+    expect(byValue.sentence).toMatch(/^Over 30 months/);
+    // By change (everything grows): 29 changes carry 4.
+    const byChange = manyWorld(30, true);
+    expect(byChange.basis).toBe("compared by change, growth removed, over 29 months");
+    expect(byChange.notes[0]).toBe("8 Metrics are more than 29 months can weigh, so the 4 that move most closely with Revenue were chosen first and the others left out.");
+    expect(byChange.rows).toHaveLength(4);
+  });
+  it("says the missing months of a run, not the changes lost", () => {
+    const r = lcg(13);
+    const trend = Array.from({ length: 36 }, (_, i) => 100 + 4 * i);
+    const a = trend.map((v) => Math.round(v * 10 + gauss(r) * 30));
+    const y = a.map((v) => Math.round(v * 2 + gauss(r) * 40));
+    const f = fit({ target: { name: "Revenue", points: months("2024-01", y) }, drivers: [{ name: "Visits", points: months("2024-01", a).filter((_, i) => i !== 10 && i !== 11) }], span: "month" });
+    expect(f.ok).toBe(false);
+    if (!f.ok) {
+      expect(f.refusals.map((c) => c.case)).toEqual(["refuse-gap-run-change"]);
+      expect(movesTakeaway(R, [V], f, ctx).refusal).toBe("Visits: no value for 2 months in a row, so the changes into and out of them could not be worked out: too many to go on.");
+    }
+  });
+});
+
 describe("compared by change", () => {
   // Two Metrics that both grow: compared by how each changed from the month before, and said so.
   const r = lcg(13);
@@ -806,7 +877,7 @@ describe("the Recipes", () => {
     const left = ranked.slice(6).map((x) => x.name);
     const t = whatMoves(R, many, resolverFrom([R, ...many], series), opts);
     expect(t.kind).toBe("answer");
-    expect(t.notes).toEqual(["9 Metrics are more than 39 months can weigh, so the 6 that move most closely with Revenue were chosen first and the others left out.", `Left out of the first pass, as they moved less closely with Revenue: ${left.slice(0, -1).join(", ")} and ${left[left.length - 1]}.`]);
+    expect(t.notes).toEqual(["9 Metrics are more than 40 months can weigh, so the 6 that move most closely with Revenue were chosen first and the others left out.", `Left out of the first pass, as they moved less closely with Revenue: ${left.slice(0, -1).join(", ")} and ${left[left.length - 1]}.`]);
     expect(t.rows.map((x) => x.name).sort()).toEqual(ranked.slice(0, 6).map((x) => x.name).sort());
     // Not narrowed when the history carries them all.
     expect(whatMoves(R, many.slice(0, 6), resolverFrom([R, ...many], series), opts).notes.some((x) => x.includes("first pass"))).toBe(false);
@@ -814,16 +885,16 @@ describe("the Recipes", () => {
     const nd = whatNeeds(R, many, Math.max(...revenue), resolverFrom([R, ...many], series), opts);
     expect(nd.notes[0]).toBe(t.notes[0]);
   });
-  it("keeps as many as the periods allow, one per 6: 22 changes carry 3, even of 4 Metrics", () => {
+  it("keeps as many as the periods allow, one per 6: 22 periods carry 3, even of 4 Metrics", () => {
     const r = lcg(12);
-    const n = 24;
+    const n = 22;
     const many = Array.from({ length: 4 }, (_, i) => metric({ id: 50 + i, slug: `k${i}`, name: `K${i}`, period: "month", aggregation: "sum" }));
     const cols = many.map(() => Array.from({ length: n }, () => Math.round(r() * 100)));
     const revenue = cols[0].map((v, i) => v * 3 + cols[1][i] + Math.round(r() * 20));
     const series: Record<string, Point[]> = { revenue: months("2024-01", revenue) };
     many.forEach((m, i) => (series[m.slug] = months("2024-01", cols[i])));
     const t = whatMoves(R, many, resolverFrom([R, ...many], series), opts);
-    expect(t.notes[0]).toBe("4 Metrics are more than 23 months can weigh, so the 3 that move most closely with Revenue were chosen first and the others left out.");
+    expect(t.notes[0]).toBe("4 Metrics are more than 22 months can weigh, so the 3 that move most closely with Revenue were chosen first and the others left out.");
     expect(t.rows).toHaveLength(3);
     // 23 periods less one lost to the changes: 22 changes, so 3.
     const tooShort = whatMoves(R, many.slice(0, 1), resolverFrom([R, ...many], { ...series, revenue: months("2024-01", revenue.slice(0, 8)), k0: months("2024-01", cols[0].slice(0, 8)) }), opts);
@@ -856,7 +927,7 @@ describe("the Recipes", () => {
     // P0 follows Revenue most closely but has only its last 22 months: the history it shares carries 3 drivers.
     series.p0 = months("2024-01", cols[0]).slice(18);
     const t = whatMoves(R, many, resolverFrom([R, ...many], series), opts);
-    expect(t.notes[0]).toBe("6 Metrics are more than 21 months can weigh, so the 3 that move most closely with Revenue were chosen first and the others left out.");
+    expect(t.notes[0]).toBe("6 Metrics are more than 22 months can weigh, so the 3 that move most closely with Revenue were chosen first and the others left out.");
     expect(t.rows).toHaveLength(3);
     // A constant Metric, and one with too few values to correlate, come last and are left out.
     const flat = mk(7);
@@ -885,7 +956,7 @@ describe("the Recipes", () => {
     const all = [brief, flat, ...real];
     const t = whatMoves(R, all, resolverFrom([R, ...all], series), opts);
     // 9 Metrics, 6 kept, over all 39 months (the brief one is not among them, so its 5 values do not shorten the history).
-    expect(t.notes[0]).toBe("9 Metrics are more than 39 months can weigh, so the 6 that move most closely with Revenue were chosen first and the others left out.");
+    expect(t.notes[0]).toBe("9 Metrics are more than 40 months can weigh, so the 6 that move most closely with Revenue were chosen first and the others left out.");
     expect(t.notes[1]).toContain("Q0");
     expect(t.notes[1]).toContain("Q1");
     expect(t.rows.map((x) => x.name)).not.toContain("Q0");

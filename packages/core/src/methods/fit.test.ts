@@ -12,6 +12,7 @@ import { describe, expect, it } from "vitest";
 import { fit, fitBasis, fitNumbers, groupOf, importance, needs, partialPeriods, predict, MOST_PERIODS, type Fit, type FitInput, type FitRow } from "./fit";
 import { tQuantile } from "./distributions";
 import { SUITABILITY } from "../suitability";
+import { strengthOf } from "../takeaways/strength";
 import { metric } from "../test/fixtures";
 import { dayOf, monthsLater, textOf } from "../test/reference/calendar";
 import { runs } from "../test/reference/check";
@@ -721,6 +722,25 @@ describe("drivers that cannot be told apart", () => {
     const ref = referenceFit(refRowsOf(yy, [x1, x2, found!.x3, free4]), [0, 1, 2, 3])!;
     nearestTo(f.drivers[3].effect, ref.effects[3], "free driver");
     expect(Math.abs(f.drivers[3].effect - 3)).toBeLessThan(0.5);
+  });
+  it("never calls a crowded driver strong in the fit itself, though its link alone would be", () => {
+    const free = (n: number) => Array.from({ length: n }, () => hundredths(rng() * 100));
+    const [x1, x2, f4] = [free(40), free(40), free(40)];
+    const noise = Array.from({ length: 40 }, () => gauss(rng));
+    const yy = x1.map((v, i) => hundredths(5 * v + 5 * x2[i] + 3 * f4[i] + gauss(rng) * 5));
+    let seen = false;
+    for (let sd = 4; sd < 40 && !seen; sd += 0.5) {
+      const x3 = x1.map((v, i) => hundredths(v + x2[i] + noise[i] * sd));
+      const f = fit(input(yy, [x1, x2, x3, f4]));
+      if (!f.ok || f.crowded.length === 0) continue;
+      const uncapped = f.drivers.filter((d) => f.crowded.includes(d.name) && strengthOf(d.partial, partialPeriods(f.n, f.drivers.length)) === "strong");
+      if (uncapped.length === 0) continue;
+      seen = true;
+      for (const d of f.drivers) if (f.crowded.includes(d.name)) expect(d.strength).not.toBe("strong");
+      // A driver that is not crowded keeps its own word.
+      expect(f.drivers.find((d) => !f.crowded.includes(d.name))!.strength).toBe("strong");
+    }
+    expect(seen).toBe(true);
   });
   it("names two or more crowded drivers even where only one has an inflation above 5", () => {
     const free = (n: number) => Array.from({ length: n }, () => hundredths(rng() * 100));
