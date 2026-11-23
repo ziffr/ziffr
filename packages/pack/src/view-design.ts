@@ -11,6 +11,8 @@ import { ANALYSIS_RECIPE_SCHEMA, ANALYSIS_RECIPE_SCHEMA_2, checkAnalysisRecipeVa
 export const VIEW_FORMAT = "ziffr.view/1";
 /** Every View Design format Ziffr ever published, oldest first. A file made in any of them still loads. */
 export const VIEW_FORMATS = [VIEW_FORMAT] as const;
+/** Where editors find the JSON Schema of this format (docs.ziffr.net serves `docs/reference`); written as `$schema` at the top of every file Ziffr exports. */
+export const VIEW_SCHEMA_URL = "https://docs.ziffr.net/schemas/ziffr.view-1.json";
 
 /** The exact limits a View Design is held to, so a file can never be large enough to slow down anyone who opens it. */
 export const VIEW_LIMITS = { bytes: 65_536, depth: 10, slots: 4, parts: 12, marksInPlot: 12, partsInGroup: 12, pieces: 12, marks: 48, name: 80, description: 300, label: 60, text: 200 } as const;
@@ -145,6 +147,8 @@ export const VIEW_DESIGN_SCHEMA: Schema = {
   description: "A View written as a file: its Slots, its marks and what each shows, and its Theme colours. It holds no code.",
   type: "object",
   properties: {
+    // Only for editors: it is never fetched or followed, and the checks drop it, so a saved design never holds it.
+    $schema: { type: "string", maxLength: 200, description: "The address of this schema, so an editor offers completion and help. Ignored by Ziffr and not kept." },
     format: { const: VIEW_FORMAT, description: "The format and its version." },
     name: { ...text(VIEW_LIMITS.name, "plain text, without markup or web addresses"), minLength: 1 },
     description: text(VIEW_LIMITS.description, "plain text, without markup or web addresses"),
@@ -297,7 +301,10 @@ export function checkViewDesignValue(value: unknown, lines: Map<string, number> 
     return { ok: false, problems: [{ path: "format", line: lines.get("format") ?? null, message: `This file is in format ${fmt}; this Ziffr reads ${VIEW_FORMATS.join(", ")}. Update Ziffr, or save the design again in ${VIEW_FORMAT}.` }] };
   const problems = checkSchema(schema, value, lines);
   if (problems.length) return { ok: false, problems };
-  const design = value as ViewDesign;
+  // `$schema` is for editors alone: dropped from the checked design; a design stored raw elsewhere (a Free layout's seed) may still carry it, which is harmless as it is never read and never written back out.
+  const rest = { ...(value as Record<string, unknown>) };
+  delete rest.$schema;
+  const design = rest as unknown as ViewDesign;
   const more = meaning(design, lines);
   return more.length ? { ok: false, problems: more } : { ok: true, design };
 }
@@ -398,7 +405,10 @@ function recipeUse(d: ViewDesign, lines: Map<string, number>, at: (path: string,
 /** A design as the text Ziffr writes it: two-space JSON, fields in the order the format lists them, so a design
  * exported, brought back and exported again is the same file. */
 export function writeViewDesign(d: ViewDesign): string {
-  return `${JSON.stringify(ordered(d, VIEW_DESIGN_SCHEMA), null, 2)}\n`;
+  // Always Ziffr's own address: a `$schema` that came in with the design (a Pack's, say) is never written back out.
+  const { $schema: _foreign, ...own } = ordered(d, VIEW_DESIGN_SCHEMA) as Record<string, unknown>;
+  void _foreign;
+  return `${JSON.stringify({ $schema: VIEW_SCHEMA_URL, ...own }, null, 2)}\n`;
 }
 
 function ordered(v: unknown, raw: Schema | undefined): unknown {

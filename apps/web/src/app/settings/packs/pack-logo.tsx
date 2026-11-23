@@ -15,8 +15,8 @@ function PackLogo({ src, author, label }: { src: string | null; author: string; 
 }
 
 /** "by <author>", with the logo, and under it who vouches for both: the Marketplace, or nobody. */
-export function Publisher({ author, logo, id, signed, fromMarketplace }: { author: string; logo: string | null; id: string; signed: boolean; fromMarketplace: boolean }) {
-  const v = packVoucher({ id, signed, fromMarketplace, hasLogo: logo !== null });
+export function Publisher({ author, logo, id, signed, fromMarketplace, included = false }: { author: string; logo: string | null; id: string; signed: boolean; fromMarketplace: boolean; included?: boolean }) {
+  const v = packVoucher({ id, signed, fromMarketplace, hasLogo: logo !== null, included });
   return (
     <div className="flex flex-wrap items-center gap-3">
       <PackLogo src={logo} author={author} />

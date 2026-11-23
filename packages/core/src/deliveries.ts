@@ -250,8 +250,15 @@ export async function deliverFilledIn(ws: string, input: { recipientId: string; 
   return deliverPlain(ws, "filled_in", { recipientId: input.recipientId, senderId: input.senderId, filledInObservationId: input.observationId, subject: input.subject, text: input.text, link: input.link, alertMetricId: input.metricId, formTokenId: input.formTokenId, queue: true });
 }
 
-/** One plain message of a kind that is not about an Action: a notice, an Alert, a Heads-up, a Checklist Item or a Filled-in Value. */
-async function deliverPlain(ws: string, kind: "notice" | "alert" | "heads_up" | "checklist" | "filled_in", input: { recipientId: string; senderId: string | null; subject: string; text: string; link: string; via?: ConnectorId; quiet?: boolean; alertMetricId?: number | null; alertId?: number | null; tellWorkflowId?: number; snapshotDashboardId?: number; queue?: boolean; headsUpMetrics?: readonly number[]; headsUpKey?: string; headsUpToldId?: number; formTokenId?: number | null; filledInObservationId?: number }): Promise<number | null> {
+/** A Test Message (GLOSSARY: Test Message; spec 0052) to the person themself, by the one Connector they test: its own kind, sent at
+ * once, held by no Quiet Hours, never answerable (no reply address, no buttons). The recipient is the caller's own person id;
+ * `text` is fixed words (test-message.ts), `keep` the reason it cannot go out when Ziffr knows that already. Returns the Delivery's id. */
+export async function deliverTest(ws: string, input: { recipientId: string; subject: string; text: string; via: ConnectorId; keep?: string }): Promise<number | null> {
+  return deliverPlain(ws, "test", { recipientId: input.recipientId, senderId: null, subject: input.subject, text: input.text, link: "/", via: input.via, keep: input.keep });
+}
+
+/** One plain message of a kind that is not about an Action: a notice, an Alert, a Heads-up, a Checklist Item, a Filled-in Value or a Test Message. */
+async function deliverPlain(ws: string, kind: "notice" | "alert" | "heads_up" | "checklist" | "filled_in" | "test", input: { keep?: string; recipientId: string; senderId: string | null; subject: string; text: string; link: string; via?: ConnectorId; quiet?: boolean; alertMetricId?: number | null; alertId?: number | null; tellWorkflowId?: number; snapshotDashboardId?: number; queue?: boolean; headsUpMetrics?: readonly number[]; headsUpKey?: string; headsUpToldId?: number; formTokenId?: number | null; filledInObservationId?: number }): Promise<number | null> {
   const via = input.via ?? await connectorFor(ws, input.recipientId, "reply", null);
   // A Guest does not see who else is in the Workspace: a notice's text names no one else to them.
   const { data: member } = await db().from("memberships").select("role").eq("workspace_id", ws).eq("user_id", input.recipientId).maybeSingle();
@@ -259,8 +266,10 @@ async function deliverPlain(ws: string, kind: "notice" | "alert" | "heads_up" | 
     const hide = nameHider((await peopleToHide(ws)).filter((p) => p.id !== input.recipientId));
     input = { ...input, subject: hide(input.subject), text: hide(input.text) };
   }
-  const mail_state = await initialDeliveryState(via, ws, input.recipientId);
+  // `keep`: Ziffr already knows this one cannot go out, so it stays in the Outbox with that reason (a Test Message to a way not set up).
+  const mail_state = input.keep ? "outbox" : await initialDeliveryState(via, ws, input.recipientId);
   const d = await insertDelivery(ws, {
+    last_error: input.keep ?? null,
     connector: via, recipient_id: input.recipientId, sender_id: input.senderId, kind,
     // A message holds people's and things' names: on Slack they are escaped, so none can become a link or a mention.
     // A Contact's link is their own personal form link, put in only as it is sent (FORM_LINK), never stored.

@@ -13,6 +13,7 @@ import { SidebarItem, useSidebar } from "@/components/ui/sidebar";
 import { buttonVariants } from "@/components/ui/button";
 import { shown, unwrap } from "@/lib/action-error";
 import { cn } from "@/lib/utils";
+import { useDemoPrefs } from "@/components/demo-visit-prefs";
 
 /** A pinned dashboard as the layout sends it: the id and the name, nothing more. */
 export type Pinned = { id: number; name: string };
@@ -32,6 +33,8 @@ function Tile({ name }: { name: string }) {
 export function PinnedDashboards({ pinned, path, demo = false }: { pinned: Pinned[]; path: string; demo?: boolean }) {
   const { collapsed } = useSidebar();
   const router = useRouter();
+  // Where visitors may change the demo, the pins are this visit's own, kept in the browser (demo-visit-prefs.tsx).
+  const visit = useDemoPrefs();
   const [items, setItems] = useState(pinned);
   const [dragging, setDragging] = useState<number | null>(null);
   const [, start] = useTransition();
@@ -49,18 +52,19 @@ export function PinnedDashboards({ pinned, path, demo = false }: { pinned: Pinne
   const moveTo = (id: number, to: number) => {
     const from = items.findIndex((p) => p.id === id);
     if (from < 0 || to < 0 || to >= items.length || from === to) return;
+    if (visit) { visit.movePin(id, to); return; }
     const next = [...items];
     next.splice(to, 0, next.splice(from, 1)[0]);
     save(next);
   };
-  const unpin = (id: number) => start(async () => {
+  const unpin = (id: number) => visit ? void visit.togglePin(items.find((p) => p.id === id) ?? { id, name: "" }) : start(async () => {
     try { unwrap(await unpinDashboard(id)); router.refresh(); } catch (err) { toastFailure(err); }
   });
 
   const rows = items.map((p, i) => {
     const row = <SidebarItem render={<Link href={`/dashboards/${p.id}`} />} icon={<Tile name={p.name} />} label={p.name} tooltip={`${p.name} (pinned)`} active={path === `/dashboards/${p.id}`} className={cn(!collapsed && "pr-7")} />;
     // The demo saves nothing (ADR 0005): its pins are shown, but cannot be moved or taken off, so no handle that fails.
-    if (collapsed || demo) return <li key={p.id}>{row}</li>;
+    if (collapsed || (demo && !visit)) return <li key={p.id}>{row}</li>;
     return (
       <li
         key={p.id}
@@ -93,25 +97,34 @@ export const PIN_OFF_IN_DEMO = "Pinning is off in the demo";
 
 /** Pin or unpin one dashboard, as the Pin button and the dashboard's ⋯ menu both do it. In the demo, which saves nothing, it
  * answers "Pinning is off in the demo" and calls nothing. */
-export function usePin({ dashboardId, name, pinned, demo = false }: { dashboardId: number; name: string; pinned: boolean; demo?: boolean }) {
+export function usePin({ dashboardId, name, pinned: pinnedByServer, demo: inDemo = false }: { dashboardId: number; name: string; pinned: boolean; demo?: boolean }) {
   const router = useRouter();
   const [pending, start] = useTransition();
+  // Where visitors may change the demo, a pin is this visit's own, kept in the browser, and works as a real one does.
+  const visit = useDemoPrefs();
+  const pinned = visit ? visit.isPinned(dashboardId) : pinnedByServer;
+  const demo = inDemo && !visit;
   const label = demo ? PIN_OFF_IN_DEMO : pinned ? `Unpin ${name} from the sidebar` : `Pin ${name} to the sidebar`;
-  const toggle = () => start(async () => {
+  const toggleHere = () => {
+    const refused = visit?.togglePin({ id: dashboardId, name });
+    if (refused) toast.error("Not done", { description: refused });
+    else toast.success(pinned ? `${name} is unpinned` : `${name} is pinned to the sidebar`);
+  };
+  const toggle = visit ? toggleHere : () => start(async () => {
     try {
       unwrap(await (pinned ? unpinDashboard(dashboardId) : pinDashboard(dashboardId)));
       toast.success(pinned ? `${name} is unpinned` : `${name} is pinned to the sidebar`);
       router.refresh();
     } catch (err) { toastFailure(err); }
   });
-  return { label, pending, onPress: demo ? () => { toast.info(PIN_OFF_IN_DEMO); } : toggle };
+  return { label, pending, pinned, demo, onPress: demo ? () => { toast.info(PIN_OFF_IN_DEMO); } : toggle };
 }
 
 /** The button that pins a dashboard or takes the pin off. A refusal (the list is full, the dashboard is not yours to
  * open any more) says why in a toast. `compact` is the icon alone, for a card in the list. In the demo it looks off
  * and says why on hover and on tap (aria-disabled, not disabled, so a tap on a phone still shows the reason). */
-export function PinButton({ dashboardId, name, pinned, compact = false, demo = false, className }: { dashboardId: number; name: string; pinned: boolean; compact?: boolean; demo?: boolean; className?: string }) {
-  const { label, pending, onPress } = usePin({ dashboardId, name, pinned, demo });
+export function PinButton({ dashboardId, name, pinned: pinnedByServer, compact = false, demo: inDemo = false, className }: { dashboardId: number; name: string; pinned: boolean; compact?: boolean; demo?: boolean; className?: string }) {
+  const { label, pending, pinned, demo, onPress } = usePin({ dashboardId, name, pinned: pinnedByServer, demo: inDemo });
   return (
     <button type="button" aria-pressed={pinned} aria-label={compact ? label : undefined} title={label} disabled={!demo && pending} aria-disabled={demo || undefined} onClick={onPress} className={cn(demo && "cursor-not-allowed opacity-50", compact ? cn("flex size-8 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground focus-visible:outline-2 focus-visible:outline-ring", className) : cn(buttonVariants({ variant: "outline" }), className))}>
       <Pin aria-hidden className={cn("size-4", pinned && "fill-current")} />{!compact && (pinned ? "Pinned" : "Pin")}

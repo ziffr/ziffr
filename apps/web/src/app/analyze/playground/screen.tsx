@@ -12,11 +12,12 @@ import { BUILT_IN_DESIGNS, DESIGNED_VIEWS, designSettings, designSlots } from "@
 import { designWithRecipe, sampleDesignWidget } from "@ziffr/core/design-files";
 import { BUILT_IN_RECIPES, RECIPES, type BuiltInRecipe } from "@ziffr/core/built-in-recipes";
 import { sampleCanvasData } from "@ziffr/core/sample-data";
-import { checkViewDesign, VIEW_LIMITS, writeViewDesign, type ViewDesign } from "@ziffr/core/view-design";
+import { checkViewDesign, VIEW_DESIGN_SCHEMA, VIEW_LIMITS, writeViewDesign, type ViewDesign } from "@ziffr/core/view-design";
 import type { Problem } from "@ziffr/core/json-check";
 import type { CanvasData } from "@ziffr/core/types";
 import { Button } from "@/components/ui/button";
-import { Textarea } from "@/components/ui/textarea";
+import { JsonEditor } from "@/components/json-editor";
+import type { EditorHandle } from "@/components/json-editor-cm";
 import { ReadOnlyFrame } from "@/components/read-only-frame";
 import { SeriesProvider, useCanvasSeries } from "@/canvas/series-store";
 import { downloadDesign } from "@/lib/design-download";
@@ -30,7 +31,7 @@ export function PlaygroundScreen({ data: page, manages }: { data: CanvasData; ma
   const [mine, setMine] = useState(false);
   const [fills, setFills] = useState<number[][]>([]);
   const [pending, start] = useTransition();
-  const editor = useRef<HTMLTextAreaElement>(null);
+  const editor = useRef<EditorHandle>(null);
   const file = useRef<HTMLInputElement>(null);
   const check = useMemo(() => checkViewDesign(text), [text]);
   // The last design that passed: drawn while the text has mistakes, so the drawing does not flicker away.
@@ -43,11 +44,7 @@ export function PlaygroundScreen({ data: page, manages }: { data: CanvasData; ma
   const filled = slots.every((s, i) => (fills[i]?.length ?? 0) > 0);
 
   const goTo = (line: number | null) => {
-    const el = editor.current;
-    if (!el || !line) return;
-    const at = text.split("\n").slice(0, line - 1).join("\n").length + (line > 1 ? 1 : 0);
-    el.focus();
-    el.setSelectionRange(at, at + (text.split("\n")[line - 1]?.length ?? 0));
+    if (line) editor.current?.goTo(line);
   };
   const load = async (f: File | undefined) => {
     if (!f) return;
@@ -97,7 +94,8 @@ export function PlaygroundScreen({ data: page, manages }: { data: CanvasData; ma
             </ul>
           )}
         </div>
-        <Textarea ref={editor} aria-label="The View Design's file" value={text} onChange={(e) => { setServer(null); setText(e.target.value); }} rows={28} spellCheck={false} className="max-h-[36rem] font-mono text-xs leading-5 [field-sizing:fixed]" />
+        {/* A code editor with help from the format's schema (loaded on demand); a plain text box until then, and if it cannot load. */}
+        <JsonEditor ref={editor} label="The View Design's file" value={text} onChange={(t) => { setServer(null); setText(t); }} schema={VIEW_DESIGN_SCHEMA} />
       </section>
       <section aria-labelledby="pg-drawn" className="space-y-3">
         <div className="flex flex-wrap items-center gap-2">
