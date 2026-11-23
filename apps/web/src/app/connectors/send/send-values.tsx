@@ -19,9 +19,12 @@ const ANSWERS: [string, string][] = [
 ];
 
 /** The picker and the examples. */
-export function SendValues({ address, metrics, canFeed, demo }: { address: string; metrics: { slug: string; name: string }[]; canFeed: boolean; demo: boolean }) {
-  const [slug, setSlug] = useState(metrics[0]?.slug ?? "");
+export function SendValues({ address, metrics, canFeed, demo }: { address: string; metrics: { feed: { slug: string; name: string }[]; person: { slug: string; name: string }[] }; canFeed: boolean; demo: boolean }) {
   const [route, setRoute] = useState<ExampleRoute>(canFeed ? "feed" : "person");
+  const list = metrics[route];
+  const [picked, setPicked] = useState("");
+  const slug = list.some((m) => m.slug === picked) ? picked : (list[0]?.slug ?? "");
+  const setSlug = setPicked;
   const [which, setWhich] = useState("curl");
   const examples = useMemo(() => examplesFor({ address, route, slug }), [address, route, slug]);
   const shown = examples.find((e) => e.id === which) ?? examples[0];
@@ -39,8 +42,8 @@ export function SendValues({ address, metrics, canFeed, demo }: { address: strin
       <div className="flex flex-wrap items-center gap-3 text-sm">
         <label className="flex items-center gap-2"><span className="text-xs font-medium">Metric</span>
           <select className={field} value={slug} onChange={(e) => setSlug(e.target.value)} aria-label="Metric">
-            {metrics.length === 0 && <option value="">your-metric-slug</option>}
-            {metrics.map((m) => <option key={m.slug} value={m.slug}>{m.name}</option>)}
+            {list.length === 0 && <option value="">your-metric-slug</option>}
+            {list.map((m) => <option key={m.slug} value={m.slug}>{m.name}</option>)}
           </select>
         </label>
         {canFeed && (
@@ -52,7 +55,7 @@ export function SendValues({ address, metrics, canFeed, demo }: { address: strin
           </label>
         )}
       </div>
-      {metrics.length === 0 && <p className="text-sm text-muted-foreground">No Metric of yours takes values from a program yet. Turn the API on as a Source on a Metric (its Description tab), and it appears here.</p>}
+      {list.length === 0 && <p className="text-sm text-muted-foreground">{route === "person" ? "You submit to no Metric that takes values from a program yet. Ask its owner to add you as a Submitter, with the API as a Source." : "No Metric you see takes values from a program yet. Turn the API on as a Source on a Metric (its Values arrive by)."}</p>}
       <div role="tablist" aria-label="Language" className="flex flex-wrap gap-1">
         {examples.map((e) => <Button key={e.id} role="tab" aria-selected={e.id === shown.id} size="sm" variant={e.id === shown.id ? "default" : "outline"} onClick={() => setWhich(e.id)}>{e.label}</Button>)}
       </div>
