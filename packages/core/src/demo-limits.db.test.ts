@@ -94,8 +94,11 @@ describe("checkDemoBudget", () => {
   });
 
   it("refuses when the demo's whole budget is used", async () => {
-    const { error } = await db().rpc("demo_visit_bump", { p_window: resetWindowStart(now).toISOString(), p_kind: "demo", p_key: "", p_by: DEMO_WRITE_BUDGET.demoPerWindow });
-    expect(error).toBeNull();
+    // demo_visit_bump adds 1 to 1000 at a time.
+    for (let left = DEMO_WRITE_BUDGET.demoPerWindow; left > 0; left -= 1000) {
+      const { error } = await db().rpc("demo_visit_bump", { p_window: resetWindowStart(now).toISOString(), p_kind: "demo", p_key: "", p_by: Math.min(1000, left) });
+      expect(error).toBeNull();
+    }
     await expect(checkDemoBudget(demo, from("203.0.113.7"), now, secret)).rejects.toThrow(DEMO_BUSY);
   });
 
