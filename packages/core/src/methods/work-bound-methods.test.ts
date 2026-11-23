@@ -647,6 +647,28 @@ describe("the correlation work of one page shares one allowance, in the order th
     expect(late.leftOut.map((l) => [l.why, l.reason])).toEqual(ms.slice(1).map(() => ["too-much", pageWords]));
     expect(page.exact).toBeLessThanOrEqual(0);
   });
+  it("leaves out nothing while the page has work left and the Metrics are compared, and names only Metrics that are compared with it", () => {
+    const page = { exact: 35_000_000_000 };
+    const all = rankCorrelations(ms[0], ms.slice(1), resolve, { yearStart: 1, basis: "values", page });
+    expect(all.leftOut).toEqual([]);
+    expect(page.exact).toBeLessThan(35_000_000_000);
+    expect(page.exact).toBeGreaterThan(0);
+    // With none left, the Metric itself and one worked out from it are not among those left out.
+    const derived = metric({ id: 99, slug: "d99", name: "Doubled", period: "month", formula: "{p0} * 2" });
+    const none = rankCorrelations(ms[0], [ms[0], derived, ms[1]], (slug) => (slug === "d99" ? { metric: derived, points: data.p0 } : resolve(slug)), { yearStart: 1, basis: "values", page: { exact: 0 } });
+    expect(none.leftOut.map((l) => l.metric.name)).toEqual(["P1"]);
+  });
+  it("says it in the words of the call, not of the page, where only the call's own allowance is spent", () => {
+    const many = Array.from({ length: 160 }, (_, i) => metric({ id: 100 + i, slug: `q${i}`, name: `Q${i}`, period: "month" }));
+    const dense = series("dense", 7);
+    const page = { exact: 1_000_000_000_000 };
+    const r = rankCorrelations(ms[0], many, (slug) => (slug.startsWith("q") ? { metric: many.find((m) => m.slug === slug)!, points: dense } : resolve(slug)), { yearStart: 1, basis: "values", page, allowance: 50_000_000 });
+    const left = r.leftOut.filter((l) => l.why === "too-much");
+    expect(left.length).toBeGreaterThan(0);
+    expect(r.ranked.length).toBeGreaterThan(0);
+    expect(new Set(left.map((l) => l.reason))).toEqual(new Set(["Some Metrics were not compared: there are too many of them to work out exactly in reasonable time."]));
+    expect(page.exact).toBeGreaterThan(0);
+  });
   it("spends nothing of a page that has none, and leaves the others to the call's own allowance without a page", () => {
     expect(widgets({ exact: 0 }, 3)).toEqual([0, 0, 0]);
     expect(rankCorrelations(ms[0], ms.slice(1), resolve, { yearStart: 1, basis: "values" }).ranked.length).toBe(7);

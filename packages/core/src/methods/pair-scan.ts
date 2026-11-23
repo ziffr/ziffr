@@ -428,7 +428,6 @@ export function scanPairsCounted(metrics: readonly ScanMetric[], levels: (id: nu
       // Both Metrics current: the pair's last period is within a few periods of today.
       if (scan && periodsBetween(scan.through, periodStart(today, span, yearStart), span) <= HEADS_UP.current) out.push({ a: a.id, b: b.id, span, ...scan });
     }
-    return true;
   }, allowance);
   return { rows: out, notScanned };
 }

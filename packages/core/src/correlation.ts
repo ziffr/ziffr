@@ -164,7 +164,7 @@ export type LeftOut = { metric: Metric; why: NoCorrelation; reason: string };
 /** Every other Metric correlated with this one on their common period, ranked by |r|, and those left out with why.
  * The Metric itself and Derived Metrics built from it (or it from them) are left out silently, as there is nothing
  * to learn. */
-export function rankCorrelations(metric: Metric, metrics: Metric[], resolve: Resolver, opts: { yearStart: YearStart; today?: string; basis?: BasisChoice; page?: { exact: number } }): { ranked: Ranked[]; leftOut: LeftOut[] } {
+export function rankCorrelations(metric: Metric, metrics: Metric[], resolve: Resolver, opts: { yearStart: YearStart; today?: string; basis?: BasisChoice; page?: { exact: number }; /** What this call may spend, instead of the usual (work-bound.ts), for tests. */ allowance?: number }): { ranked: Ranked[]; leftOut: LeftOut[] } {
   const ranked: Ranked[] = [];
   const leftOut: LeftOut[] = [];
   // One work allowance (work-bound.ts) for the whole ranking, so that a page with many Metrics cannot be kept busy: the pairs that are left when it is
@@ -185,13 +185,14 @@ export function rankCorrelations(metric: Metric, metrics: Metric[], resolve: Res
   };
   if (opts.page) {
     // Nothing left of the page's work: no Metric is compared.
-    if (!onPage(opts.page, RANK_BUDGET, loop)) for (const m of metrics) if (m.id !== metric.id && !builtFrom(metric, m)) leftOut.push({ metric: m, why: "too-much", reason: spent });
+    if (!onPage(opts.page, opts.allowance ?? RANK_BUDGET, loop)) for (const m of metrics) if (m.id !== metric.id && !builtFrom(metric, m)) leftOut.push({ metric: m, why: "too-much", reason: spent });
     // The page's work is spent (by this call or an earlier one): the Metrics left out say so as a page does.
     if (opts.page.exact <= 0) {
+      // Stryker disable next-line ObjectLiteral: the style only writes numbers, and this note has none.
       const page = say("recipe-page-too-much", {}, { style: "1,234.5" });
       for (const l of leftOut) if (l.why === "too-much") l.reason = page;
     }
-  } else withWork(loop, RANK_BUDGET);
+  } else withWork(loop, opts.allowance ?? RANK_BUDGET);
   ranked.sort((x, y) => Math.abs(y.result.r) - Math.abs(x.result.r));
   return { ranked, leftOut };
 }
