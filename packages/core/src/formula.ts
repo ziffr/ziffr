@@ -192,6 +192,7 @@ function runBounds(n: Node, vars: Record<string, Bounds>): Bounds | null {
           d = { lo: over({ num: BigInt(1), den: BigInt(1) }, b.hi), hi: over({ num: BigInt(1), den: BigInt(1) }, b.lo) };
         }
         const ends = [times(a.lo, d.lo), times(a.lo, d.hi), times(a.hi, d.lo), times(a.hi, d.hi)];
+        // Stryker disable next-line EqualityOperator: of two equal products either is the end
         const below = (x: Fraction, y: Fraction) => x.num * y.den < y.num * x.den;
         out = { lo: ends.reduce((x, y) => (below(y, x) ? y : x)), hi: ends.reduce((x, y) => (below(x, y) ? y : x)) };
       }
