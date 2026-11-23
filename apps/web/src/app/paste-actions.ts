@@ -6,6 +6,7 @@ import { revalidatePath } from "next/cache";
 import { attempt } from "@/lib/action-result";
 import { currentActor } from "@/lib/viewer";
 import { previewValues as corePreviewValues, recordPastedValues as coreRecordPastedValues, type PasteInput } from "@ziffr/core/paste-values";
+import { pasteTemplate, type PasteTemplateInput } from "@ziffr/core/paste-template";
 
 /** What each value of a paste would do, without recording anything. */
 export async function previewPaste(input: PasteInput) {
@@ -19,4 +20,9 @@ export async function recordPaste(input: PasteInput) {
     revalidatePath("/", "layout");
     return r;
   });
+}
+
+/** A template file to fill in and paste back: the person's own Metrics by slug and the periods they wait for. Records nothing. */
+export async function pasteTemplateFile(input: PasteTemplateInput) {
+  return attempt(async () => pasteTemplate(await currentActor(), { kind: input?.kind, metricId: input?.metricId ?? null, period: input?.period ?? null, periods: input?.periods ?? null }));
 }

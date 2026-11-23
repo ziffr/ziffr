@@ -16,6 +16,7 @@ Decks, Themes, View Designs, the canvas, Packs and the pages that edit them are 
 - `formulaChoices` (derived-metrics.ts): the list in the new-Metric form that builds a formula in the app; a program lists the Metrics it sees through the API and writes the formula itself
 - `sameNamedMetrics` (metric-name-check.ts): a form hint in the app that warns before a Metric gets a name that is taken; the API's create answers with the Metric
 - `sendableMetrics` (send-values-options.ts): the picker on Connectors → Send values in the app; a program lists the Metrics it sees, and the ones it may submit to, through the API
+- `pasteTemplate` (paste-template.ts): the template file on the Paste values page in the app; a program reads its Metrics through the API and sends values through a Feed or its own key
 - `saveLayout` (dashboards.ts): the dashboard canvas
 - `createDashboardFromBody` (dashboard-templates.ts): the same as making a dashboard from a template, for a template that is not stored; only a Workspace import uses it
 - `writeFormula` (pack-setup.ts): sets the formula of a Derived Metric made from a Pack entry or a Workspace Export; a program writes a formula through the API's

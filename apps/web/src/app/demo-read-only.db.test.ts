@@ -188,6 +188,7 @@ const CASES: Record<string, Case> = {
   "observation-actions:observationDetailsAction": { reads: () => ["revenue", "2026-03-01"] },
   "paste-actions:previewPaste": { reads: () => [{ text: "Revenue\t42" }] },
   "paste-actions:recordPaste": { args: () => [{ text: "Revenue\t42" }] },
+  "paste-actions:pasteTemplateFile": { reads: () => [{ kind: "rows" }] },
   "quick-look-actions:metricQuickLook": { reads: () => ["revenue"] },
   // Reading or fetching a Pack is refused in the demo like a change: it would make work for an anonymous visitor.
   "pack-actions:readPack": { args: () => [PACK] },

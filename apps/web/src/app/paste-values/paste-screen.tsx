@@ -13,6 +13,7 @@ import type { PasteLayout } from "@ziffr/core/paste-reader";
 import type { PasteOutcome, PasteReport, PasteRow } from "@ziffr/core/paste-values";
 import { previewPaste, recordPaste } from "@/app/paste-actions";
 import { readFile } from "./read-file";
+import { TemplateDownload } from "./template-download";
 import { cn } from "@/lib/utils";
 
 /** A Metric the person submits for, to pick for a two-column paste. */
@@ -194,6 +195,7 @@ export function PasteScreen({ metrics, metricId: opened }: { metrics: PasteChoic
             </label>
             <span className="text-muted-foreground">(CSV, Excel or OpenDocument), or drop one here. It is read in your browser; only its cells are sent.</span>
           </div>
+          <TemplateDownload metrics={metrics} metricId={metricId} />
           {file && (
             <p className="text-sm text-muted-foreground">
               Read from {file.file.name}
