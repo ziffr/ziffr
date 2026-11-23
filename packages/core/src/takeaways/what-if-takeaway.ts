@@ -241,7 +241,8 @@ export function whatIfRecipe(start: Metric, change: WhatIfChange, others: Metric
   const worked = (t: Metric): Found | null => {
     const inputs = formulaInputs(t.formula!).map((s) => everyone.find((m) => m.slug === s));
     const have = inputs as Metric[];
-    const levels = inputs.some((m) => m === undefined) || usesPrevious(t.formula!) || t.period !== span || have.some((m) => m.period !== span) || inputsProblem(t, have) !== null ? null : levelsOf(have, series, last.period);
+    // Its inputs are counted by its own period (`inputsProblem` says where they are not, or are Derived Metrics themselves).
+    const levels = inputs.some((m) => m === undefined) || usesPrevious(t.formula!) || t.period !== span || inputsProblem(t, have) !== null ? null : levelsOf(have, series, last.period);
     if (!levels) {
       left.add(t.name);
       return null;
@@ -273,7 +274,7 @@ export function whatIfRecipe(start: Metric, change: WhatIfChange, others: Metric
   // is only fitted on those whose own link has the changed Metric alone as its driver ("pure"), so that no change runs more than two steps.
   const pure: Metric[] = [];
   const linkFor = (t: Metric): Found | null => {
-    const chain = [start, ...pure].filter((m) => m.id !== t.id && !builds(m, t));
+    const chain = [start, ...pure].filter((m) => !builds(m, t));
     if (chain.some((m) => builds(t, m))) return worked(t);
     const drivers = [start, ...closest(t, chain.filter((m) => m.id !== start.id), 2)];
     let f = fitOn(t, drivers);
