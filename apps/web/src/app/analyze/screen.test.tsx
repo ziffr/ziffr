@@ -19,7 +19,7 @@ vi.mock("@/app/canvas-actions", () => ({
 }));
 // Server action modules the Pool and widgets import, never called here.
 vi.mock("server-only", () => ({}));
-vi.mock("@/lib/db", () => ({ db: {} }));
+vi.mock("@/lib/viewer", () => ({}));
 vi.mock("next/navigation", () => ({ useRouter: () => ({ refresh: vi.fn(), push: vi.fn() }), usePathname: () => "/analyze", useSearchParams: () => new URLSearchParams() }));
 vi.mock("sonner", () => ({ toast: { error: (t: string, o?: { description?: string }) => shownError(o?.description ?? t), info: vi.fn(), success: vi.fn() } }));
 import { AnalyzeScreen } from "./screen";

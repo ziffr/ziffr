@@ -10,7 +10,7 @@ import { formatValue } from "@ziffr/core/format";
 vi.mock("@/app/canvas-actions", () => ({ deleteSavedWidget: vi.fn() }));
 // Server action modules the template menu imports, never called here.
 vi.mock("server-only", () => ({}));
-vi.mock("@/lib/db", () => ({ db: {} }));
+vi.mock("@/lib/viewer", () => ({}));
 vi.mock("next/navigation", () => ({ useRouter: () => ({ refresh: vi.fn(), push: vi.fn() }), usePathname: () => "/analyze", useSearchParams: () => new URLSearchParams() }));
 import { Pool } from "./pool";
 
