@@ -1,75 +1,75 @@
-<line stroke-width=0.8 stroke=var(--color-rule) x1=0 x2=260 y1=136 y2=136>
-<rect fill=var(--color-data) height=33.742939675239086 stroke-width=0.8 stroke=var(--color-paper) width=36.4 x=7.800000000000001 y=102.25706032476091>
+<line stroke-width=0.8 stroke=var(--color-rule) x1=0 x2=260 y1=133 y2=133>
+<rect fill=var(--color-data) height=31.565975825223656 stroke-width=0.8 stroke=var(--color-paper) width=36.4 x=7.800000000000001 y=101.43402417477634>
 "North, Jan 26: 38,812 €"
-<rect fill=var(--color-data-2) height=27.814538519785735 stroke-width=0.8 stroke=var(--color-paper) width=36.4 x=7.800000000000001 y=74.44252180497517>
+<rect fill=var(--color-data-2) height=26.020052163670528 stroke-width=0.8 stroke=var(--color-paper) width=36.4 x=7.800000000000001 y=75.41397201110581>
 "South, Jan 26: 31,993 €"
-<rect fill=var(--color-data-4) height=18.911069355245814 stroke-width=0.8 stroke=var(--color-paper) width=36.4 x=7.800000000000001 y=55.53145244972936>
+<rect fill=var(--color-data-4) height=17.691000364584795 stroke-width=0.8 stroke=var(--color-paper) width=36.4 x=7.800000000000001 y=57.72297164652102>
 "West, Jan 26: 21,752 €"
-<rect fill=var(--color-accent) height=14.785792411027288 stroke-width=0.8 stroke=var(--color-paper) width=36.4 x=7.800000000000001 y=40.74566003870207>
+<rect fill=var(--color-accent) height=13.83187031999327 stroke-width=0.8 stroke=var(--color-paper) width=36.4 x=7.800000000000001 y=43.891101326527746>
 "East, Jan 26: 17,007 €"
-<rect fill=color-mix(in oklab, var(--color-accent) 45%, var(--color-paper)) height=12.779229884735114 stroke-width=0.8 stroke=var(--color-paper) width=36.4 x=7.800000000000001 y=27.966430153966954>
+<rect fill=color-mix(in oklab, var(--color-accent) 45%, var(--color-paper)) height=11.954763440558656 stroke-width=0.8 stroke=var(--color-paper) width=36.4 x=7.800000000000001 y=31.93633788596909>
 "Online, Jan 26: 14,699 €"
-<text fill=var(--color-ink) font-size=7 style=font-family: var(--font-outlier); text-anchor=middle x=26 y=25.466430153966954>
+<text fill=var(--color-ink) font-size=9.9 style=font-family: var(--font-outlier); text-anchor=middle x=26 y=28.93633788596909>
 "124k €"
-<text fill=var(--color-muted) font-size=7 text-anchor=middle x=26 y=147>
+<text fill=var(--color-muted) font-size=9.9 text-anchor=middle x=26 y=147>
 "Jan 26"
-<rect fill=var(--color-data) height=42.831589870151724 stroke-width=0.8 stroke=var(--color-paper) width=36.4 x=59.8 y=93.16841012984827>
+<rect fill=var(--color-data) height=40.06826149143225 stroke-width=0.8 stroke=var(--color-paper) width=36.4 x=59.8 y=92.93173850856775>
 "North, Feb 26: 49,266 €"
-<rect fill=var(--color-data-2) height=26.139215301343356 stroke-width=0.8 stroke=var(--color-paper) width=36.4 x=59.8 y=67.02919482850491>
+<rect fill=var(--color-data-2) height=24.452814314159912 stroke-width=0.8 stroke=var(--color-paper) width=36.4 x=59.8 y=68.47892419440784>
 "South, Feb 26: 30,066 €"
-<rect fill=var(--color-data-4) height=19.629189219508092 stroke-width=0.8 stroke=var(--color-paper) width=36.4 x=59.8 y=47.40000560899682>
+<rect fill=var(--color-data-4) height=18.362789915023697 stroke-width=0.8 stroke=var(--color-paper) width=36.4 x=59.8 y=50.11613427938414>
 "West, Feb 26: 22,578 €"
-<rect fill=var(--color-accent) height=17.14880668592422 stroke-width=0.8 stroke=var(--color-paper) width=36.4 x=59.8 y=30.2511989230726>
+<rect fill=var(--color-accent) height=16.042432061025885 stroke-width=0.8 stroke=var(--color-paper) width=36.4 x=59.8 y=34.07370221835826>
 "East, Feb 26: 19,725 €"
-<rect fill=color-mix(in oklab, var(--color-accent) 45%, var(--color-paper)) height=10.991754774658553 stroke-width=0.8 stroke=var(--color-paper) width=36.4 x=59.8 y=19.259444148414048>
+<rect fill=color-mix(in oklab, var(--color-accent) 45%, var(--color-paper)) height=10.282609305325742 stroke-width=0.8 stroke=var(--color-paper) width=36.4 x=59.8 y=23.791092913032514>
 "Online, Feb 26: 12,643 €"
-<text fill=var(--color-ink) font-size=7 style=font-family: var(--font-outlier); text-anchor=middle x=78 y=16.759444148414048>
+<text fill=var(--color-ink) font-size=9.9 style=font-family: var(--font-outlier); text-anchor=middle x=78 y=20.791092913032514>
 "134k €"
-<text fill=var(--color-muted) font-size=7 text-anchor=middle x=78 y=147>
+<text fill=var(--color-muted) font-size=9.9 text-anchor=middle x=78 y=147>
 "Feb 26"
-<rect fill=var(--color-data) height=42.62032700451524 stroke-width=0.8 stroke=var(--color-paper) width=36.4 x=111.8 y=93.37967299548475>
+<rect fill=var(--color-data) height=39.8706284880949 stroke-width=0.8 stroke=var(--color-paper) width=36.4 x=111.8 y=93.1293715119051>
 "North, Mar 26: 49,023 €"
-<rect fill=var(--color-data-2) height=26.537397986370138 stroke-width=0.8 stroke=var(--color-paper) width=36.4 x=111.8 y=66.84227500911462>
+<rect fill=var(--color-data-2) height=24.825307793701096 stroke-width=0.8 stroke=var(--color-paper) width=36.4 x=111.8 y=68.304063718204>
 "South, Mar 26: 30,524 €"
-<rect fill=var(--color-data-4) height=21.55142047844743 stroke-width=0.8 stroke=var(--color-paper) width=36.4 x=111.8 y=45.29085453066719>
+<rect fill=var(--color-data-4) height=20.161006254031467 stroke-width=0.8 stroke=var(--color-paper) width=36.4 x=111.8 y=48.14305746417254>
 "West, Mar 26: 24,789 €"
-<rect fill=var(--color-accent) height=14.205906273662956 stroke-width=0.8 stroke=var(--color-paper) width=36.4 x=111.8 y=31.084948257004235>
+<rect fill=var(--color-accent) height=13.289396191491152 stroke-width=0.8 stroke=var(--color-paper) width=36.4 x=111.8 y=34.85366127268139>
 "East, Mar 26: 16,340 €"
-<rect fill=color-mix(in oklab, var(--color-accent) 45%, var(--color-paper)) height=10.75093249572314 stroke-width=0.8 stroke=var(--color-paper) width=36.4 x=111.8 y=20.334015761281094>
+<rect fill=color-mix(in oklab, var(--color-accent) 45%, var(--color-paper)) height=10.05732394761197 stroke-width=0.8 stroke=var(--color-paper) width=36.4 x=111.8 y=24.796337325069423>
 "Online, Mar 26: 12,366 €"
-<text fill=var(--color-ink) font-size=7 style=font-family: var(--font-outlier); text-anchor=middle x=130 y=17.834015761281094>
+<text fill=var(--color-ink) font-size=9.9 style=font-family: var(--font-outlier); text-anchor=middle x=130 y=21.796337325069423>
 "133k €"
-<text fill=var(--color-muted) font-size=7 text-anchor=middle x=130 y=147>
+<text fill=var(--color-muted) font-size=9.9 text-anchor=middle x=130 y=147>
 "Mar 26"
-<rect fill=var(--color-data) height=40.58420506492414 stroke-width=0.8 stroke=var(--color-paper) width=36.4 x=163.8 y=95.41579493507587>
+<rect fill=var(--color-data) height=37.965869254283874 stroke-width=0.8 stroke=var(--color-paper) width=36.4 x=163.8 y=95.03413074571613>
 "North, May 26: 46,681 €"
-<rect fill=var(--color-data-2) height=29.836750147236167 stroke-width=0.8 stroke=var(--color-paper) width=36.4 x=163.8 y=65.5790447878397>
+<rect fill=var(--color-data-2) height=27.911798524833834 stroke-width=0.8 stroke=var(--color-paper) width=36.4 x=163.8 y=67.1223322208823>
 "South, May 26: 34,319 €"
-<rect fill=var(--color-data-4) height=19.41357938132765 stroke-width=0.8 stroke=var(--color-paper) width=36.4 x=163.8 y=46.165465406512055>
+<rect fill=var(--color-data-4) height=18.16109038898393 stroke-width=0.8 stroke=var(--color-paper) width=36.4 x=163.8 y=48.96124183189837>
 "West, May 26: 22,330 €"
-<rect fill=var(--color-accent) height=18.438118742462912 stroke-width=0.8 stroke=var(--color-paper) width=36.4 x=163.8 y=27.727346664049143>
+<rect fill=var(--color-accent) height=17.24856269456208 stroke-width=0.8 stroke=var(--color-paper) width=36.4 x=163.8 y=31.71267913733629>
 "East, May 26: 21,208 €"
-<rect fill=color-mix(in oklab, var(--color-accent) 45%, var(--color-paper)) height=10.170176963850015 stroke-width=0.8 stroke=var(--color-paper) width=36.4 x=163.8 y=17.55716970019913>
+<rect fill=color-mix(in oklab, var(--color-accent) 45%, var(--color-paper)) height=9.51403651456937 stroke-width=0.8 stroke=var(--color-paper) width=36.4 x=163.8 y=22.198642622766922>
 "Online, May 26: 11,698 €"
-<text fill=var(--color-ink) font-size=7 style=font-family: var(--font-outlier); text-anchor=middle x=182 y=15.057169700199129>
+<text fill=var(--color-ink) font-size=9.9 style=font-family: var(--font-outlier); text-anchor=middle x=182 y=19.198642622766922>
 "136k €"
-<text fill=var(--color-muted) font-size=7 text-anchor=middle x=182 y=147>
+<text fill=var(--color-muted) font-size=9.9 text-anchor=middle x=182 y=147>
 "May 26"
-<rect fill=var(--color-data) height=40.94326499705527 stroke-width=0.8 stroke=var(--color-paper) width=36.4 x=215.8 y=95.05673500294472>
+<rect fill=var(--color-data) height=38.301764029503325 stroke-width=0.8 stroke=var(--color-paper) width=36.4 x=215.8 y=94.69823597049668>
 "North, Jun 26: 47,094 €"
-<rect fill=var(--color-data-2) height=33.51863589197072 stroke-width=0.8 stroke=var(--color-paper) width=36.4 x=215.8 y=61.538099110974>
+<rect fill=var(--color-data-2) height=31.35614325377906 stroke-width=0.8 stroke=var(--color-paper) width=36.4 x=215.8 y=63.34209271671762>
 "South, Jun 26: 38,554 €"
-<rect fill=var(--color-data-4) height=20.277757523067 stroke-width=0.8 stroke=var(--color-paper) width=36.4 x=215.8 y=41.26034158790701>
+<rect fill=var(--color-data-4) height=18.969515102223966 stroke-width=0.8 stroke=var(--color-paper) width=36.4 x=215.8 y=44.37257761449366>
 "West, Jun 26: 23,324 €"
-<rect fill=var(--color-accent) height=15.781249123594245 stroke-width=0.8 stroke=var(--color-paper) width=36.4 x=215.8 y=25.479092464312764>
+<rect fill=var(--color-accent) height=14.76310401884623 stroke-width=0.8 stroke=var(--color-paper) width=36.4 x=215.8 y=29.60947359564743>
 "East, Jun 26: 18,152 €"
-<rect fill=color-mix(in oklab, var(--color-accent) 45%, var(--color-paper)) height=12.696637406399866 stroke-width=0.8 stroke=var(--color-paper) width=36.4 x=215.8 y=12.782455057912898>
+<rect fill=color-mix(in oklab, var(--color-accent) 45%, var(--color-paper)) height=11.877499509212777 stroke-width=0.8 stroke=var(--color-paper) width=36.4 x=215.8 y=17.731974086434654>
 "Online, Jun 26: 14,604 €"
-<rect fill=color-mix(in oklab, var(--color-muted) 35%, var(--color-paper)) height=0.7824550579128923 stroke-width=0.8 stroke=var(--color-paper) width=36.4 x=215.8 y=12.000000000000005>
+<rect fill=color-mix(in oklab, var(--color-muted) 35%, var(--color-paper)) height=0.7319740864346411 stroke-width=0.8 stroke=var(--color-paper) width=36.4 x=215.8 y=17.000000000000014>
 "Other, Jun 26: 900 €"
-<text fill=var(--color-ink) font-size=7 style=font-family: var(--font-outlier); text-anchor=middle x=234 y=9.500000000000005>
+<text fill=var(--color-ink) font-size=9.9 style=font-family: var(--font-outlier); text-anchor=middle x=234 y=14.000000000000014>
 "143k €"
-<text fill=var(--color-muted) font-size=7 text-anchor=middle x=234 y=147>
+<text fill=var(--color-muted) font-size=9.9 text-anchor=middle x=234 y=147>
 "Jun 26"
 <li>
 "Other900 €"
