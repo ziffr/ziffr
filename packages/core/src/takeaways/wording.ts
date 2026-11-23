@@ -300,6 +300,8 @@ const EN = {
   "numbers-pairs": "Pairs of periods",
   "numbers-periods": "Periods",
   "numbers-basis": "Compared on",
+  "numbers-effective": "Effective number of {periods}",
+  "note-effective": "{a} and {b} each follow their own past, so these {n} {periodsOf|n} are worth about {eff} separate {periods}: how clearly they move together is judged on that, and it is weaker than {n} separate {periods} would show.",
   "numbers-strength": "Strength",
   "numbers-method-fit": "Straight line through several Metrics, by least squares",
   "numbers-method-predict": "A value read from that line, with the range of a single period",
