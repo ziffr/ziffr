@@ -56,6 +56,7 @@ export function bridge(parts: Part[], whole?: { before: number; after: number })
  * with a note naming parts that had no value on one side and, where the whole's change was given, what the parts leave out. */
 export function bridgeTakeaway(name: string, parts: Part[], unit: ValueUnit, ctx: TakeawayContext, whole?: { before: number; after: number }): Takeaway {
   const method = sayIn("numbers-method-bridge", {}, ctx);
+  // Stryker disable next-line ArrayDeclaration: a value that is not a number is no value, so what stands where the whole is not given changes nothing.
   const wide = wideRefusal(method, [{ name, values: [...parts.flatMap((p) => [p.before, p.after]), ...(whole ? [whole.before, whole.after] : [])] }], ctx);
   if (wide) return wide;
   const result = bridge(parts, whole);

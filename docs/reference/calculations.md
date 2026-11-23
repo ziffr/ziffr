@@ -199,6 +199,7 @@ Mutation testing changes the code on purpose and expects a test to fail. A chang
 - `src/methods/change-point.ts` · StringLiteral · The name of the Method in the refusal that only a spent work allowance writes; the wording of that refusal is held by the test of `withinBudget`.
 - `src/correlation.ts` · ObjectLiteral · The Number Style given to the words of the refusal for values too wide: it only writes the two bounds, whole numbers under 1000, the same in every style.
 - `src/correlation.ts` · StringLiteral · The Number Style given to the words of the refusal for values too wide: it only writes the two bounds, whole numbers under 1000, the same in every style.
+- `src/methods/bridge.ts` · ArrayDeclaration · What stands where the whole is not given in the check of values too wide: a value that is not a number is no value, so it changes nothing.
 - `src/suitability.ts` · EqualityOperator · Reading a size without its sign: for 0 the sign does not matter, and reading every size negative leaves every ratio of sizes (deviations, the yearly patterns) as it was.
 - `src/suitability.ts` · EqualityOperator · The sign of a miss: misses of 0 are left out before, and reading every sign the other way swaps the two counts of signs and keeps the number of runs.
 - `src/methods/distributions.ts` · EqualityOperator · The halving of the t quantile's interval: 100 steps are far below a double's last digit, so one more changes nothing, and a chance exactly equal to the wanted one has probability 0, so `<` and `<=` give the same point.

@@ -25,6 +25,7 @@ import { partialTakeaway } from "./partial-correlation";
 import { usualRangeTakeaway } from "./quantiles";
 import { spearmanTakeaway } from "./spearman";
 import { testsOf } from "./heads-up-single";
+import { checkedChangePoint } from "./change-point";
 
 const ctx = { style: "1,234.5" as const };
 const euro = { unit: "€", unit_position: "after" as const, decimals: 0 };
@@ -303,6 +304,11 @@ describe("correlation names what is too wide, in the order of the Metrics", () =
     const auto = correlate(a, b, (slug) => ({ metric: slug === "d1" ? a : b, points: slug === "d1" ? series("tiny", 1) : series("ordinary", 2) }), { yearStart: 1 });
     expect(auto).toMatchObject({ ok: false, why: "too-wide", n: 120, reason: words("D1", "refuse-exact-places") });
   });
+  it("judges the levels first even where the changes are plain and the series both rise", () => {
+    const rising = months("2022-01", [1e-290, ...Array.from({ length: 29 }, (_, i) => (i + 1) * 1e12)]);
+    const r = correlate(a, b, (slug) => ({ metric: slug === "d1" ? a : b, points: slug === "d1" ? rising : months("2022-01", Array.from({ length: 30 }, (_, i) => i * 1e12 + 5)) }), { yearStart: 1 });
+    expect(r).toMatchObject({ ok: false, why: "too-wide", n: 30, reason: words("D1", "refuse-exact-places") });
+  });
   it("and the changes it works out on, by the same words", () => {
     const rising = (shift: number): Point[] => months("2022-01", Array.from({ length: 30 }, (_, i) => (i < 20 ? Number(`${10 + i + shift}e-6`) : 1e14 + (i + shift) * 1e12)));
     const r = correlate(a, b, (slug) => ({ metric: slug === "d1" ? a : b, points: slug === "d1" ? rising(0) : rising(1) }), { yearStart: 1 });
@@ -359,5 +365,14 @@ describe("the Heads-ups about one Metric leave out a Metric whose values are too
     expect(hostile.result).toEqual([]);
     expect(hostile.ms).toBeLessThan(QUICK);
     expect(testsOf({ metric: metricOf, points: series("ordinary", 1) }, ctxOf).length).toBeGreaterThan(0);
+  });
+});
+
+describe("the change point is not searched for in values that are too wide", () => {
+  it("has no result to read for either kind of refusal, and the real result for any other", () => {
+    expect(checkedChangePoint("A", series("tiny", 1), "month").result).toEqual({ ok: false, why: "huge" });
+    expect(checkedChangePoint("A", series("wide", 1), "month").result).toEqual({ ok: false, why: "huge" });
+    expect(checkedChangePoint("A", series("ordinary", 1).slice(0, 5), "month").result).toEqual({ ok: false, why: "few" });
+    expect(checkedChangePoint("A", series("ordinary", 1), "month").result.ok).toBe(true);
   });
 });
