@@ -56,7 +56,9 @@ export function whatIfTakeaway(start: Metric, metrics: Metric[], result: WhatIf,
   if (!result.ok) return { ...refusalTakeaway(method, lines({ refusals: result.refusals, cautions: [], switches: [] }, ctx).refusals), rows: [] };
   const known = (name: string) => (name === start.name ? start : metrics.find((m) => m.name === name));
   // A Metric that is not among those given is never written in another Metric's unit: nothing is said.
-  const named = [...result.reached.flatMap((r) => (r.ok ? [r.name, ...r.through, ...r.outside.map((o) => o.name)] : [r.name]))];
+  // Names in the lines a verdict or a refusal carries count too: nothing is written about a Metric that was not given.
+  const inSlots = (f: { slots: Record<string, unknown> }) => [...(typeof f.slots.name === "string" ? [f.slots.name] : []), ...(typeof f.slots.names === "string" ? f.slots.names.split(", ") : [])];
+  const named = result.reached.flatMap((r) => (r.ok ? [r.name, ...r.through, ...r.outside.map((o) => o.name), ...r.beyond.map((o) => o.name), ...r.verdict.cautions.flatMap(inSlots)] : [r.name, ...inSlots(r.refusal)]));
   if (named.some((n) => known(n) === undefined)) return { ...refusalTakeaway(method, [text("refuse-input", ctx, { what: "the Metrics" })]), rows: [] };
   const metricOf = (name: string) => known(name)!;
   const span = (result.span ?? start.period) as Span;
@@ -99,9 +101,13 @@ export function whatIfTakeaway(start: Metric, metrics: Metric[], result: WhatIf,
     numbers.push({ label: text("numbers-effect-on", ctx, { name: r.name }), text: `${text(r.effect > 0 ? "whatif-goes-up" : "whatif-goes-down", ctx)} ${shown}` });
     if (lo === null || hi === null) {
       // Every driver that was outside is said, each with the edge of what was seen, the sign it has (a limit is a level, which may be below 0).
-      const outs = r.outside.filter((o, i) => r.outside.findIndex((x) => x.name === o.name && x.side === o.side) === i);
-      const outside = outs.map((o) => outsideText(o, metricOf(o.name), span, ctx)).join(". ");
-      for (const o of outs) figures.push(figure(o.name, o.change ? Math.abs(o.limit) : o.limit, written(metricOf(o.name), o.change ? Math.abs(o.limit) : o.limit, ctx)));
+      const uniq = (os: Reached["outside"]) => os.filter((o, i) => os.findIndex((x) => x.name === o.name && x.side === o.side && x.limit === o.limit) === i);
+      const [outs, beyonds] = [uniq(r.outside), uniq(r.beyond)];
+      const limitOf = (o: Reached["outside"][number]) => (o.change ? Math.abs(o.limit) : o.limit);
+      const kinds = beyonds.map((o) => (o.change ? (o.side === "above" ? "whatif-beyond-rise" : "whatif-beyond-fall") : o.side === "above" ? "whatif-beyond-above" : "whatif-beyond-below") as CaseKey);
+      const outside = [...outs.map((o) => outsideText(o, metricOf(o.name), span, ctx)), ...beyonds.map((o, i) => text(kinds[i], ctx, { name: o.name, limit: written(metricOf(o.name), limitOf(o), ctx), span }))].join(". ");
+      for (const o of [...outs, ...beyonds]) figures.push(figure(o.name, limitOf(o), written(metricOf(o.name), limitOf(o), ctx)));
+      if (r.noRange) return { ...base, kind: "guess", effect: r.effect, lo: null, hi: null, strength: lowest, strengthText, sentence: text("whatif-row-norange", ctx, { name: r.name, moves, effect: shown, through }) };
       return { ...base, kind: "guess", effect: r.effect, lo: null, hi: null, strength: lowest, strengthText, sentence: text("whatif-row-guess", ctx, { name: r.name, moves, effect: shown, through, outside }) };
     }
     // Where the range reaches 0 or crosses it, each end says which way it goes; else both are sizes in the direction of the effect.
@@ -121,7 +127,7 @@ export function whatIfTakeaway(start: Metric, metrics: Metric[], result: WhatIf,
   // "Next month" belongs on the headline only where every estimated link counts a change; else it is said once as an assumption.
   const byChange = estimated.filter((r) => r.byChange).length;
   const allByChange = estimated.length > 0 && byChange === estimated.length && result.reached.every((r) => r.ok && !r.exact);
-  const slots = { start: start.name, goes: text(result.by > 0 ? "whatif-goes-up" : "whatif-goes-down", ctx), by: startText, when: allByChange ? text("whatif-when-next", ctx, { span }) : "", pct: result.percent === null ? "" : formatNumber(Math.abs(result.percent), Number.isInteger(result.percent) ? 0 : 2, ctx.style) };
+  const slots = { start: start.name, goes: text(result.by > 0 ? "whatif-goes-up" : "whatif-goes-down", ctx), by: startText, when: allByChange ? text("whatif-when-next", ctx, { span }) : "", pct: result.percent === null ? "" : formatNumber(Math.abs(result.percent), percentDigits(Math.abs(result.percent)), ctx.style) };
   const headline = text(result.percent === null ? "whatif-headline" : "whatif-headline-percent", ctx, slots);
   if (result.percent !== null) figures.push(figure(`${start.name} %`, Math.abs(result.percent), slots.pct));
   // The weakest of every estimated row, one that cannot be told from chance included.
@@ -145,6 +151,11 @@ export function whatIfTakeaway(start: Metric, metrics: Metric[], result: WhatIf,
     numbers,
     rows,
   };
+}
+
+/** The decimals a percent is written with: none for a whole one, else at least two significant digits (never a percent above 0 written as 0), up to 15. */
+function percentDigits(v: number): number {
+  return Number.isInteger(v) ? 0 : Math.min(15, Math.max(2, Math.ceil(1 - Math.log10(v))));
 }
 
 /** Whether numbers can be written in a Metric's unit so that none above 0 reads as 0 and no two that differ read the same, within 15 places. */
@@ -242,7 +253,8 @@ export function whatIfRecipe(start: Metric, change: WhatIfChange, others: Metric
 
   // The first step: what clearly moved with the Metric changed, each on its own.
   const firstFound: Found[] = [];
-  for (const t of closest(start, pool.filter((m) => !builds(m, start) && !builds(start, m)), MOST_LOOKED_AT)) {
+  const candidates1 = pool.filter((m) => !builds(m, start) && !builds(start, m));
+  for (const t of closest(start, candidates1, MOST_LOOKED_AT)) {
     const f = fitOn(t, [start]);
     if (f.ok && f.drivers[0].strength !== "cant-tell") firstFound.push(estimated(t, f));
   }
@@ -250,7 +262,9 @@ export function whatIfRecipe(start: Metric, change: WhatIfChange, others: Metric
     const w = worked(t);
     if (w) firstFound.push(w);
   }
-  const first = firstFound.sort(order).slice(0, MOST_FIRST);
+  const ranked = firstFound.sort(order);
+  const first = ranked.slice(0, MOST_FIRST);
+  const cutFirst = ranked.slice(MOST_FIRST).map((f) => f.target.name);
   const firstMetrics = first.map((f) => f.target);
 
   // Each Metric that may have moved with the first step is fitted on the changed Metric and the first-step Metrics nearer to it, the ones that cannot be told
@@ -292,7 +306,7 @@ export function whatIfRecipe(start: Metric, change: WhatIfChange, others: Metric
   }
   // A note for each kind of Metric left out, naming them; none where none was.
   const note = (names: string[], key: CaseKey, slots: Slots = {}): string[] => (names.length > 0 ? [text(key, opts.ctx, { ...slots, names: listOf([...names].sort(), opts.ctx) })] : []);
-  const notes = [...note([...left], "note-what-if-formula"), ...note(dropped, "note-what-if-left", { most: MOST_METRICS }), ...note(gone, "note-what-if-deep", { most: MOST_STEPS })];
+  const notes = [...note([...left], "note-what-if-formula"), ...note(cutFirst, "note-what-if-first", { n: MOST_FIRST, start: start.name }), ...note(dropped, "note-what-if-left", { most: MOST_METRICS }), ...note(gone, "note-what-if-deep", { most: MOST_STEPS }), ...(candidates1.length > MOST_LOOKED_AT ? [text("note-what-if-unlooked", opts.ctx, { n: candidates1.length - MOST_LOOKED_AT, most: MOST_LOOKED_AT, start: start.name })] : [])];
   const result = whatIf({ start: { name: start.name, latest }, change, links: found.map((f) => f.link) });
   const t = whatIfTakeaway(start, everyone, result, found.flatMap((f) => (f.fit ? [f.fit] : [])), opts.ctx);
   // Which of two Metrics that move together comes first is read, not known: said wherever a Metric is reached through another.

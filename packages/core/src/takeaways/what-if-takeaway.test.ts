@@ -139,7 +139,7 @@ describe("a chain of estimated links is never read as a promise or a cause", () 
 });
 
 describe("rows the picture draws", () => {
-  const ok = (name: string, over: Partial<Reached> = {}): Reached => ({ ok: true, name, step: 1, exact: false, effect: 100, lo: 80, hi: 120, outside: [], through: [], coefficients: 1, level: 0.9, strength: "strong", byChange: false, verdict: { refusals: [], cautions: [], switches: [] }, ...over });
+  const ok = (name: string, over: Partial<Reached> = {}): Reached => ({ ok: true, name, step: 1, exact: false, effect: 100, lo: 80, hi: 120, outside: [], beyond: [], noRange: false, through: [], coefficients: 1, level: 0.9, strength: "strong", byChange: false, verdict: { refusals: [], cautions: [], switches: [] }, ...over });
   const result = (reached: WhatIf extends infer W ? (W extends { reached: infer R } ? R : never) : never, by = 1000, span: "month" | null = "month"): WhatIf => ({ ok: true, start: "Visits", by, percent: null, span, reached });
   const say = (reached: Parameters<typeof result>[0], by = 1000, metrics: Metric[] = [VISITS, SIGNUPS, REVENUE]) => whatIfTakeaway(VISITS, metrics, result(reached, by), [], ctx);
   it("writes a fall as a fall and a rise as a rise, with the size as a size, whichever the sign", () => {
@@ -244,6 +244,34 @@ describe("rows the picture draws", () => {
     const unknown = say([ok("Mystery")]);
     expect(unknown).toMatchObject({ kind: "refusal", sentence: null, rows: [] });
     expect(unknown.refusal).toBe("the Metrics cannot be used as it was given.");
+  });
+  it("says a range that could reach beyond what was seen, in each of its four forms, and a point with no range where a formula cannot be worked out on one", () => {
+    const beyond = (side: "above" | "below", change: boolean) => say([ok("Revenue", { lo: null, hi: null, beyond: [{ name: "Visits", side, limit: 300, change }] })]).rows[0];
+    expect(beyond("above", false).sentence).toBe("Revenue is estimated to go up by about 100 €. A change this size could take Visits higher than it has ever been (highest 300), so treat it as a guess.");
+    expect(beyond("below", false).sentence).toContain("lower than it has ever been (lowest 300)");
+    expect(beyond("above", true).sentence).toContain("a bigger rise in one month than Visits has ever had (largest 300)");
+    expect(beyond("below", true).sentence).toContain("a bigger fall in one month than Visits has ever had (largest 300)");
+    expect(beyond("above", false)).toMatchObject({ kind: "guess", lo: null, hi: null });
+    const norange = say([ok("Revenue", { lo: null, hi: null, noRange: true })]).rows[0];
+    expect(norange).toMatchObject({ kind: "guess", lo: null });
+    expect(norange.sentence).toBe("Revenue is estimated to go up by about 100 €: how far that could be off cannot be said here, so treat it as a guess.");
+  });
+  it("writes a small percent with its significant digits, never as 0, and refuses one that cannot be written", () => {
+    const pct = (percent: number) => whatIfTakeaway(VISITS, [VISITS, SIGNUPS], { ok: true, start: "Visits", by: 100, percent, span: "month", reached: [ok("Signups")] }, [], ctx);
+    expect(pct(0.001).sentence).toMatch(/^If Visits goes up by 0\.0010 % \(100\): /);
+    expect(pct(0.5).sentence).toMatch(/^If Visits goes up by 0\.50 % /);
+    expect(pct(12.34).sentence).toMatch(/^If Visits goes up by 12\.34 % /);
+  });
+  it("writes nothing about a Metric it was not given, not even one a caution or a refusal names", () => {
+    const caution = { case: "caution-crowded" as const, slots: { names: "Visits, Secret plans" } };
+    const t = say([ok("Signups", { verdict: { refusals: [], switches: [], cautions: [caution] } })]);
+    expect(t).toMatchObject({ kind: "refusal", sentence: null });
+    const named = say([{ ok: false, name: "Signups", step: 1, refusal: { case: "refuse-curved-outside", slots: { name: "Secret plans" } } }]);
+    expect(named.refusal).toBe("the Metrics cannot be used as it was given.");
+  });
+  it("says a Metric that rests on one nothing can be said of, by that reason", () => {
+    const t = say([ok("Signups"), { ok: false, name: "Revenue", step: 2, refusal: { case: "refuse-what-if-driver", slots: { name: "Signups" } } }]);
+    expect(t.rows[1].sentence).toBe("Revenue: it rests on Signups, for which nothing can be said.");
   });
   it("generated: a sign is never lost, a number above 0 is never 0, no forbidden word, every number in a sentence is a figure", () => {
     fc.assert(
@@ -374,6 +402,17 @@ describe("the corners of the Recipe", () => {
     expect(t.rows.map((r) => r.name)).toEqual(["Signups"]);
     expect(t.notes).toContain("Left out, as the formula of Signups plus visits could not be used here.");
   });
+  it("says how many Metrics were not looked at and which of the first step were left out, not a silent cut", () => {
+    const r = lcg(5);
+    const n = 30;
+    const visits = Array.from({ length: n }, () => 40000 + Math.round(r() * 20000));
+    const many = Array.from({ length: 29 }, (_, i) => mk(100 + i, `q${i}`, `Quick ${String(i).padStart(2, "0")}`));
+    const series: Record<string, Point[]> = { visits: months("2024-01", visits) };
+    many.forEach((m) => (series[m.slug] = months("2024-01", visits.map((v) => Math.round(v * 0.02 + gauss(r) * 25)))));
+    const t = whatIfRecipe(VISITS, { by: 1000 }, many, resolverFrom([VISITS, ...many], series), opts);
+    expect(t.notes.some((x) => x.startsWith("Only the 5 Metrics that moved most closely with Visits are followed; left out: "))).toBe(true);
+    expect(t.notes).toContain("9 other Metrics were not looked at: only the 20 whose changes follow Visits most closely were.");
+  });
   it("looks past a Metric that never changes or has only a few months, and does not name it", () => {
     const flat = mk(61, "flat", "Flat");
     const brief = mk(62, "brief", "Brief");
@@ -391,7 +430,7 @@ describe("the corners of the Recipe", () => {
 });
 
 describe("a what-if said from the Method's result", () => {
-  const bare = { exact: false, effect: 100, lo: 80, hi: 120, outside: [], through: [], coefficients: 1, level: 0.9, byChange: false, verdict: { refusals: [], cautions: [], switches: [] } };
+  const bare = { exact: false, effect: 100, lo: 80, hi: 120, outside: [], beyond: [], noRange: false, through: [], coefficients: 1, level: 0.9, byChange: false, verdict: { refusals: [], cautions: [], switches: [] } };
   it("says a link with no strength word as one that cannot be told from chance, and names what it was compared on, by value, by change or both", () => {
     const reached: Reached = { ok: true, name: "Signups", step: 1, strength: null, ...bare };
     const t = whatIfTakeaway(VISITS, [VISITS, SIGNUPS], { ok: true, start: "Visits", by: 5, percent: null, span: "month", reached: [reached] }, [], ctx);

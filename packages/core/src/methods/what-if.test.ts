@@ -581,8 +581,19 @@ describe("values too large for a range, and a formula that fails inside a chain"
     if (!res.ok) throw new Error("refused");
     expect(res.reached).toEqual([
       { ok: false, name: "B", step: 1, refusal: { case: "refuse-what-if-formula", slots: { name: "B" } } },
-      { ok: false, name: "C", step: 2, refusal: { case: "refuse-what-if-formula", slots: { name: "B" } } },
+      { ok: false, name: "C", step: 2, refusal: { case: "refuse-what-if-driver", slots: { name: "B" } } },
     ]);
+  });
+  it("says 'beyond' and gives no range where the point is inside what a driver has been but the end of its range is not", () => {
+    const lb = link("B", w.b, [{ name: "A", x: w.a }]);
+    const lc = link("C", w.c, [{ name: "B", x: w.b }]);
+    const latest = (Math.min(...w.a) + Math.max(...w.a)) / 2;
+    const found = Array.from({ length: 60 }, (_, i) => (i + 1) / 2).map((x) => reachedOf(run([lb, lc], x, latest))).find((rs) => rs[1].outside.length === 0 && rs[1].beyond.length > 0 && rs[0].outside.length === 0);
+    expect(found, "a change whose point is inside and range end is outside").toBeDefined();
+    const [b, c] = found!;
+    expect([c.lo, c.hi, c.noRange]).toEqual([null, null, false]);
+    expect(c.beyond[0]).toMatchObject({ name: "B" });
+    expect(b.beyond).toEqual([]);
   });
   it("is never strong with a caution: a link of strong strength with the spread caution is moderate", () => {
     const a = [1, 3, 2, 5, 4, 9, 6, 8, 12, 10, 11, 14, 13, 7];
@@ -608,6 +619,12 @@ describe("a fit handed over is checked against its own rows", () => {
     const other = (["strong", "moderate", "weak", "cant-tell"] as const).find((x) => x !== f.drivers[0].strength)!;
     expect(bad({ ...f, drivers: [{ ...f.drivers[0], strength: other }] })).toEqual({ case: "refuse-input", slots: { what: "a fit" } });
     expect(bad({ ...f, crowded: [f.drivers[0].name] })).toEqual(f.drivers[0].strength === "strong" ? { case: "refuse-input", slots: { what: "a fit" } } : bad({ ...f, crowded: [f.drivers[0].name] }));
+  });
+  it("refuses cautions that are not lines of the wording kind, and a crowded name that is not a driver", () => {
+    for (const verdict of [{ refusals: [], switches: [], cautions: [null] }, { refusals: [], switches: [], cautions: [{ case: 5, slots: {} }] }, { refusals: [], switches: [], cautions: [{ case: "caution-spread", slots: null }] }, { refusals: [], switches: [], cautions: [{ case: "caution-spread", slots: { x: {} } }] }]) {
+      expect(bad({ ...f, verdict })).toEqual({ case: "refuse-input", slots: { what: "a fit" } });
+    }
+    expect(bad({ ...f, crowded: ["Nobody"] })).toEqual({ case: "refuse-input", slots: { what: "a fit" } });
   });
   it("refuses, and does not throw, a fit with its verdict, last, span, crowded or drivers missing or of the wrong kind", () => {
     const parts: Record<string, unknown> = { verdict: undefined, last: undefined, span: "fortnight", crowded: "x", rows: null, drivers: null, basis: "other" };
@@ -637,13 +654,15 @@ describe("a fit handed over is checked against its own rows", () => {
     expect(refused(whatIf({ start: { name: "A", latest: 50 }, change: { by: 1 }, links: [one, two] }))).toEqual([{ case: "refuse-input", slots: { what: "the levels" } }]);
     expect(refused(whatIf({ start: { name: "A", latest: 49 }, change: { by: 1 }, links: [one] }))).toEqual([{ case: "refuse-input", slots: { what: "the levels" } }]);
   });
-  it("says that the change is worked out but not how far off it could be, where only the range of a formula divides by 0", () => {
+  it("gives the point only, with no range, where only the range of a formula divides by 0", () => {
     const l = link("B", w.b, [{ name: "A", x: w.a }]);
     const point = reachedOf(run([l], 5, 50))[0].effect;
     const s: WorkedLink = { kind: "worked", target: "S", formula: "1 / {b}", names: { b: "B" }, levels: { B: 0.001 - point } };
     const res = whatIf({ start: { name: "A", latest: 50 }, change: { by: 5 }, links: [l, s] });
     if (!res.ok) throw new Error("refused");
-    expect(res.reached[1]).toEqual({ ok: false, name: "S", step: 2, refusal: { case: "refuse-what-if-range", slots: { name: "S" } } });
+    const r = res.reached[1];
+    expect(r).toMatchObject({ ok: true, name: "S", step: 2, noRange: true, lo: null, hi: null, exact: false });
+    expect(r.ok && r.effect).toBeCloseTo(1 / 0.001 - 1 / (0.001 - point), 6 - 3);
   });
 });
 
