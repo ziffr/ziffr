@@ -342,6 +342,10 @@ _Avoid_: Answer (an Answer is what someone replies to a Prompt), insight, verdic
 The range a Takeaway gives for a number that has doubt: it holds the true number about four times in five (an 80 % range), and is worked out by the Method, never as a statistical level a person must choose. A number outside what its driver has been has no range, only the number and "treat it as a guess".
 _Avoid_: Confidence interval, margin of error, error bars
 
+**What-if**:
+A Takeaway about what a change in one Metric has gone with in others: "If Visits goes up by 1,000: Signups is estimated to go up by about 20 (likely between 17 and 22). Revenue is estimated to go up by about 960 € (likely between 700 € and 1,200 €), through Signups.". It follows at most two steps and 12 Metrics, and keeps two kinds of number apart: **worked out** (a Derived Metric's formula, exact, no range) and **estimated** (from what has gone together, with a "likely between" range that is cut wider the more estimated effects it rests on, so that, for links as given, it holds without assuming they are independent; links picked for standing out from chance tend to be overstated). A value beyond what a Metric has been is only a point to "treat as a guess". It reads what has gone together, never a promise or what would be caused.
+_Avoid_: Scenario, simulation, forecast (a forecast carries the past forward in time), what-if analysis
+
 **Driver**:
 A Metric that moved with another in an Analysis (the Metric it is compared with is the target). A fit says what each Driver's share of the movement was and what an effect has been "with the others held the same"; Drivers that move so closely that they cannot be told apart are "treated as one".
 _Avoid_: Cause, factor, predictor, independent variable
