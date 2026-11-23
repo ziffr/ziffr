@@ -114,7 +114,12 @@ export async function sourcesView(actor: Actor) {
   const mine = new Set((own ?? []).map((t) => t.code));
   const viaCode = (source: string) => source === "web_form" || source === "api";
   const shown = (await openRows("intake_log", ws, log)).map((l) => (!l.token_code || mine.has(l.token_code) ? l : { ...l, token_code: null, sender: viaCode(l.source) ? "" : l.sender }));
-  return { prompts: (await openRows("prompts", ws, asked)).reverse(), log: shown.reverse(), tokens: own ?? [] };
+  // The names of Metrics the page shows next to a line: only Metrics this person sees (their own, Shared, through a Group),
+  // never the Workspace's whole list; a line about one they cannot see, or no longer see, shows no name.
+  const all = await getMetrics(ws);
+  const seen = await visibleMetricIds(ws, actor.personId, all);
+  const metrics = all.filter((m) => seen.has(m.id)).map((m) => ({ id: m.id, name: String(m.name), sources: m.sources as string[] }));
+  return { prompts: (await openRows("prompts", ws, asked)).reverse(), log: shown.reverse(), tokens: own ?? [], metrics };
 }
 
 /** The Activity page's raw material: versions and replaced values the person may see, and what labels them. */
