@@ -557,6 +557,26 @@ describe("the picker hands the Takeaway layer exactly what the Recipes hand it",
     }
   });
 
+  it("leaves out a period that is still running when it puts Metrics on a longer period", () => {
+    const quarterly = { ...B, period: "quarter" as const };
+    const qs: Point[] = Array.from({ length: 12 }, (_, i) => ({ period: `${2020 + Math.floor(i / 4)}-${String((i % 4) * 3 + 1).padStart(2, "0")}-01`, value: 300 + ((i * 37) % 23) * 3 }));
+    const slots = { first: [A], second: [quarterly] };
+    // The last quarter (October to December 2022) is running on 15 December: only the earlier ones are compared.
+    const running = world({ series: { revenue: SERIES.revenue, visits: qs }, today: "2022-12-15" }, [A, quarterly]);
+    const cut = world({ series: { revenue: SERIES.revenue.slice(0, 33), visits: qs } }, [A, quarterly]);
+    for (const id of ["rank", "lag", "correlation"] as const) same(runEntry(entry(id), running, picked(slots)), runEntry(entry(id), cut, picked(slots)));
+  });
+
+  it("reads the inputs of a calculated Metric as the Metrics they are", () => {
+    // Margin is calculated from Visits, which has Aggregation none: it cannot be put on a longer period, whatever the first Metric of the Workspace is.
+    const visits = { ...B, aggregation: "none" as const };
+    const margin = metric({ id: 9, slug: "margin", name: "Margin", formula: "{visits} * 2", aggregation: "sum" });
+    const quarterly = { ...C, period: "quarter" as const };
+    const w2 = world({ series: { revenue: SERIES.revenue, visits: SERIES.visits, margin: SERIES.visits, price: SERIES.price } }, [A, visits, margin, quarterly]);
+    const t = runEntry(entry("rank"), w2, picked({ first: [margin], second: [quarterly] }));
+    expect(t.kind).toBe("refusal");
+  });
+
   it("works a bridge on the rows of the last two periods: a row that appeared or went is a part, and no rows is a refusal in words", () => {
     const rows = (a: [string, number][]) => a.map(([label, value]) => ({ label, value }));
     const was = rows([["DE", 60], ["OLD", 10]]);
@@ -614,6 +634,18 @@ describe("what is sent is refused in these words", () => {
     expect(readDay({ toString: () => "2026-03-01" })).toBeNull();
   });
 
+  it("a day that is optional may be left out (no entry has one yet; a Method registered later may)", () => {
+    const optional = { ...e("after-date"), settings: [{ id: "day", question: "Which day?", hint: "A day.", kind: "date" as const, required: false }] };
+    expect(readSettings(optional, {})).toEqual({ ok: true, settings: {} });
+    expect(readSettings(optional, { day: "2026-03-01" })).toEqual({ ok: true, settings: { day: "2026-03-01" } });
+  });
+
+  it("a Metric with no values at hand is a refusal in words, not an error", () => {
+    const none = world({ series: {} });
+    for (const id of ["forecast", "change-point", "usual"] as const) expect(runEntry(entryOf(id)!, none, picked(SLOTS[id]([A, B, C]))).kind, id).toBe("refusal");
+    for (const id of ["correlation", "rank", "moves"] as const) expect(runEntry(entryOf(id)!, none, picked(SLOTS[id]([A, B, C]))).kind, id).toBe("refusal");
+  });
+
   it("exactly one of an amount and a percent", () => {
     const m = "What if A changes? Give exactly one of: Change it by how much? or Or by how many percent?";
     expect(bad(readSettings(e("what-if"), {}))).toBe(m);
@@ -628,17 +660,22 @@ describe("what is sent is refused in these words", () => {
     expect(bad(readSlotIds(e("forecast"), {}))).toBe("Which Metric do you want to look ahead for? Choose a Metric.");
     expect(bad(readSlotIds(e("partial"), { first: [1], second: [2], held: [] }))).toBe("Which Metrics should be held the same? Choose a Metric.");
     expect(bad(readSlotIds(e("what-if"), { metric: [1], others: [] }))).toBe("Which Metrics might follow it? Choose a Metric.");
-    expect(bad(readSlotIds(e("forecast"), []))).toBe("The Metrics were not sent in a form Ziffr can read.");
+    expect(bad(readSlotIds(e("forecast"), undefined))).toBe("Which Metric do you want to look ahead for? Choose a Metric.");
+    for (const v of [[], "x", 7, true]) expect(bad(readSlotIds(e("forecast"), v)), String(v)).toBe("The Metrics were not sent in a form Ziffr can read.");
+    // A Slot that takes at least two Metrics says so (no entry has one yet; a Method registered later may).
+    const two = { ...e("moves"), slots: [{ id: "some", question: "Which Metrics?", many: { min: 2, max: 3 } }] };
+    expect(bad(readSlotIds(two, { some: [1] }))).toBe("Which Metrics? Choose at least 2 Metrics.");
+    expect(readSlotIds(two, { some: [1, 2] }).ok).toBe(true);
     expect(bad(readSlotIds(e("forecast"), { metric: [1], x: [2] }))).toBe("A Metric was named for a place this Method does not have.");
     expect(bad(readSlotIds(e("correlation"), { first: [1], second: [1] }))).toBe("A Metric can be chosen once for each Method.");
   });
 
   it("the recipe file numbers the Slots after the ones before", () => {
     const partial = recipeFileOf(e("partial"), 2)!;
-    expect(partial.slots).toHaveLength(4);
+    expect(partial.slots.map((x) => x.label)).toEqual(["First Metric", "Second Metric", "Held the same 1", "Held the same 2"]);
     expect(partial.steps[0]).toMatchObject({ controls: ["slot3", "slot4"] });
     const moves = recipeFileOf(e("moves"), 1, 3)!;
-    expect(moves.slots).toHaveLength(4);
+    expect(moves.slots.map((x) => x.label)).toEqual(["Metric to explain", "Might move it 1", "Might move it 2", "Might move it 3"]);
     expect(moves.steps[0]).toMatchObject({ drivers: ["slot2", "slot3", "slot4"] });
   });
 });

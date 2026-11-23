@@ -35,8 +35,8 @@ const plural = (n: number, one: string, many: string) => (n === 1 ? one : many);
 function filled(entry: PickerEntry, canvas: CanvasFact[]): CanvasFact[][] {
   let at = 0;
   return entry.slots.map((s) => {
-    if (s.optional) return [];
-    const take = s.many ? Math.min(s.many.max, Math.max(0, canvas.length - at)) : 1;
+    // Past the end of the canvas a slice is shorter, not an error.
+    const take = s.many ? s.many.max : 1;
     const got = canvas.slice(at, at + take);
     at += take;
     return got;
@@ -58,7 +58,7 @@ function whyNot(entry: PickerEntry, canvas: CanvasFact[]): string | null {
 
 /** Whether the entry takes one Metric (besides an optional one set beside it). */
 export function looksAtOne(entry: PickerEntry): boolean {
-  return metricsNeeded(entry) === 1 && !entry.slots.some((s) => s.many);
+  return metricsNeeded(entry) === 1;
 }
 
 function whyNotFor(entry: PickerEntry, canvas: CanvasFact[]): string | null {
@@ -70,6 +70,7 @@ function whyNotFor(entry: PickerEntry, canvas: CanvasFact[]): string | null {
 
 // The Metrics counted at the longest period set the period of a comparison; the history they have in common is at most theirs.
 function periodsReason(entry: PickerEntry, used: CanvasFact[]): string | null {
+  // Stryker disable next-line ConditionalExpression: an entry with no checks of its own (the shares, the bridge) has no minimum to read; without this line the minimum is undefined and no count is below it, so the result is the same
   if (!entry.checks) return null;
   const span = used.map((m) => m.period).reduce(commonPeriod);
   const held = entry.id === "partial" ? Math.max(1, used.length - 2) + 1 : 1;
@@ -101,7 +102,7 @@ function pairReason(entry: PickerEntry, used: CanvasFact[]): string | null {
   const stuck = used.find((m) => m.period !== span && m.aggregation === "none" && (!fits || m === used[0]));
   if (stuck) return `${stuck.name} has Aggregation none, so it cannot be compared with Metrics counted at another period.`;
   for (const a of fits ? [used[0]] : used) {
-    const b = used.find((x) => x !== a && a.builtFrom.includes(x.id));
+    const b = used.find((x) => a.builtFrom.includes(x.id));
     if (b) return `${a.name} is calculated from ${b.name}, so the two are never compared.`;
   }
   return null;
@@ -112,7 +113,7 @@ export function fitList(canvas: CanvasFact[]): EntryFit[] {
   return ENTRIES.map((e) => {
     const why = whyNot(e, canvas);
     if (why !== null) return { entry: e.id, ok: false, reason: why };
-    const metric = looksAtOne(e) ? canvas.find((m) => whyNotFor(e, [m]) === null)?.id : undefined;
+    const metric = looksAtOne(e) ? canvas.find((m) => whyNotFor(e, [m]) === null)!.id : undefined;
     return metric === undefined ? { entry: e.id, ok: true } : { entry: e.id, ok: true, metric };
   });
 }

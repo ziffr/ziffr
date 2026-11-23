@@ -5,7 +5,7 @@
 // person may see. Settings come from a browser, so they are read here with their limits and refused in words.
 import { basisFor, changes, type Basis } from "./basis";
 import { commonPeriod, correlate } from "./correlation";
-import { seriesBy, type Resolver } from "./display-periods";
+import { latestOfEach, seriesBy, type Resolver } from "./display-periods";
 import { ENTRIES, type EntryId, type PickerEntry, type SettingDef } from "./method-picker";
 import { afterDateTakeaway } from "./methods/before-after";
 import { bridgeTakeaway, type Part } from "./methods/bridge";
@@ -32,6 +32,8 @@ export type PickWorld = {
   breakdowns: Record<number, Record<string, BreakdownRow[]>>;
   ctx: TakeawayContext;
   yearStart: YearStart;
+  /** The day it is (yyyy-mm-dd), for the period that is still running; left out, the current day. */
+  today?: string;
 };
 
 /** The Metrics for each Slot, and the settings, as a run reads them. */
@@ -39,14 +41,13 @@ export type Picked = { slots: Record<string, Metric[]>; settings: Record<string,
 
 const resolverOf = (w: PickWorld): Resolver => (slug) => {
   const metric = w.metrics.find((m) => m.slug === slug);
+  // Stryker disable next-line ArrayDeclaration: a Metric whose values were not read has none; a single made-up element is one value, far below every minimum, and is refused in the same words
   return metric && { metric, points: w.series[slug] ?? [] };
 };
 
 // A Metric's own values by its own period, whole periods only.
-const ownPoints = (w: PickWorld, m: Metric): Point[] => {
-  const s = seriesBy(m, resolverOf(w), m.period as Span, { yearStart: w.yearStart });
-  return s.ok ? s.points.filter((p) => !p.toDate).map((p) => ({ period: p.period, value: p.value })) : [];
-};
+// Stryker disable next-line ArrayDeclaration: a Metric whose values were not read has none; a single made-up element is one value, far below every minimum, and is refused in the same words
+const ownPoints = (w: PickWorld, m: Metric): Point[] => latestOfEach(w.series[m.slug] ?? []).map((p) => ({ period: p.period, value: p.value }));
 
 // What a refusal of the picker's own says: the Method's name and the reason.
 const refuse = (key: CaseKey, w: PickWorld, why: string): Takeaway => refusalTakeaway(sayIn(key, {}, w.ctx), [why]);
@@ -56,7 +57,7 @@ function onCommon(w: PickWorld, metrics: Metric[]): { span: Span; series: Point[
   const span = metrics.map((m) => m.period as Span).reduce(commonPeriod);
   const series: Point[][] = [];
   for (const m of metrics) {
-    const s = seriesBy(m, resolverOf(w), span, { yearStart: w.yearStart });
+    const s = seriesBy(m, resolverOf(w), span, { yearStart: w.yearStart, today: w.today });
     if (!s.ok) return s.reason;
     series.push(s.points.filter((p) => !p.toDate).map((p) => ({ period: p.period, value: p.value })));
   }
@@ -80,8 +81,9 @@ function compared(key: CaseKey, w: PickWorld, ms: Metric[], run: (span: Span, se
 }
 
 // The latest Breakdown of a Metric as rows, or why there are none.
-function rowsOf(w: PickWorld, m: Metric, period: string): Row[] | null {
-  const rows = w.breakdowns[m.id]?.[period];
+function rowsOf(w: PickWorld, m: Metric, period: string | undefined): Row[] | null {
+  // Stryker disable next-line ConditionalExpression: a Metric has no rows under an undefined period either, so the lookup without this test finds none
+  const rows = period === undefined ? undefined : w.breakdowns[m.id]?.[period];
   return rows && rows.length > 0 ? rows.map((r) => ({ label: r.label, value: r.value })) : null;
 }
 
@@ -90,13 +92,13 @@ const latestPeriod = (points: Point[]): string | undefined => points.at(-1)?.per
 function bridgeOf(key: CaseKey, w: PickWorld, p: Picked): Takeaway {
   const m = one(p, "metric");
   const pts = ownPoints(w, m);
-  const [before, after] = [pts.at(-2), pts.at(-1)];
-  const [was, now] = [before && rowsOf(w, m, before.period), after && rowsOf(w, m, after.period)];
-  if (!before || !after || !was || !now) return refuse(key, w, `${m.name} needs a Breakdown for its latest period and the one before.`);
+  const [was, now] = [rowsOf(w, m, pts.at(-2)?.period), rowsOf(w, m, pts.at(-1)?.period)];
+  // Rows for both periods mean both periods have a value.
+  if (!was || !now) return refuse(key, w, `${m.name} needs a Breakdown for its latest period and the one before.`);
   const labels = [...new Set([...was, ...now].map((r) => r.label))];
   const at = (rows: Row[], l: string) => rows.find((r) => r.label === l)?.value ?? null;
   const parts: Part[] = labels.map((label) => ({ label, before: at(was, label), after: at(now, label) }));
-  return bridgeTakeaway(m.name, parts, m, w.ctx, { before: before.value, after: after.value });
+  return bridgeTakeaway(m.name, parts, m, w.ctx, { before: pts.at(-2)!.value, after: pts.at(-1)!.value });
 }
 
 function shareOf(key: CaseKey, w: PickWorld, p: Picked, take: (name: string, rows: Row[]) => Takeaway): Takeaway {
@@ -130,7 +132,7 @@ export const RUNNERS: Record<EntryId, Runner> = {
   /** Does A move with B?: Pearson's r on the basis the rule gives. */
   correlation: (w, p) => {
     const [a, b] = [one(p, "first"), one(p, "second")];
-    return correlationTakeaway(a, b, correlate(a, b, resolverOf(w), { yearStart: w.yearStart }), w.ctx);
+    return correlationTakeaway(a, b, correlate(a, b, resolverOf(w), { yearStart: w.yearStart, today: w.today }), w.ctx);
   },
   /** Rank correlation, for skewed values. */
   rank: (w, p) => compared("numbers-method-spearman", w, [one(p, "first"), one(p, "second")], (span, [a, b]) => {
@@ -165,7 +167,7 @@ export const RUNNERS: Record<EntryId, Runner> = {
   usual: (w, p) => {
     const m = one(p, "metric");
     const value = p.settings.value;
-    return usualRangeTakeaway(m.name, ownPoints(w, m), m.period as Span, m, w.ctx, typeof value === "number" ? { value } : {});
+    return usualRangeTakeaway(m.name, ownPoints(w, m), m.period as Span, m, w.ctx, { value: value as number | undefined });
   },
   /** How much do the biggest rows make up?: the share of the top rows. */
   "top-share": (w, p) => shareOf("numbers-method-share", w, p, (name, rows) => topShareTakeaway(name, rows, p.settings.rows as number, w.ctx)),
@@ -187,18 +189,19 @@ const DATE_TEXT = /^(\d{4})-(\d{2})-(\d{2})$/;
 
 /** A number a person typed: whole or decimal digits with a minus, no exponent, no spaces, at most 1e15 in size; null for anything else. */
 export function readNumber(v: unknown): number | null {
-  const n = typeof v === "number" ? v : typeof v === "string" && NUMBER_TEXT.test(v.trim()) ? Number(v.trim()) : Number.NaN;
+  const n = typeof v === "number" ? v : typeof v === "string" && NUMBER_TEXT.test(v.trim()) ? Number(v) : Number.NaN;
   return Number.isFinite(n) && Math.abs(n) <= MOST_NUMBER ? n : null;
 }
 
 /** A day written yyyy-mm-dd that exists, from 1970 to 2100; null for anything else. */
 export function readDay(v: unknown): string | null {
-  const m = typeof v === "string" ? DATE_TEXT.exec(v) : null;
+  // Anything that is not text is read as text and never equals the day written back, so it comes out as no day.
+  const m = DATE_TEXT.exec(v as string);
   if (!m) return null;
   const [y, mo, d] = [Number(m[1]), Number(m[2]), Number(m[3])];
-  const real = new Date(Date.UTC(y, mo - 1, d));
-  const ok = y >= 1970 && y <= 2100 && real.getUTCFullYear() === y && real.getUTCMonth() === mo - 1 && real.getUTCDate() === d;
-  return ok ? (v as string) : null;
+  // A day that does not exist (30 February) comes back as another day when written again.
+  const written = new Date(Date.UTC(y, mo - 1, d)).toISOString().slice(0, 10);
+  return y >= 1970 && y <= 2100 && written === v ? written : null;
 }
 
 const empty = (v: unknown) => v === undefined || v === null || v === "";
@@ -206,9 +209,9 @@ const empty = (v: unknown) => v === undefined || v === null || v === "";
 function readOne(def: SettingDef, v: unknown): { ok: true; value: number | string | null } | { ok: false; message: string } {
   const bad = (message: string) => ({ ok: false as const, message });
   if (def.kind === "whole") {
-    if (empty(v)) return def.default === null ? { ok: true, value: null } : { ok: true, value: def.default };
-    const n = readNumber(v);
-    return n !== null && Number.isInteger(n) && n >= def.min && n <= def.max ? { ok: true, value: n } : bad(`${def.question} Use a whole number from ${def.min} to ${def.max}.`);
+    if (empty(v)) return { ok: true, value: def.default };
+    const n = readNumber(v) ?? Number.NaN;
+    return Number.isInteger(n) && n >= def.min && n <= def.max ? { ok: true, value: n } : bad(`${def.question} Use a whole number from ${def.min} to ${def.max}.`);
   }
   if (def.kind === "number") {
     if (empty(v)) return def.required ? bad(`${def.question} Give a number.`) : { ok: true, value: null };
@@ -232,8 +235,7 @@ export function readSettings(entry: PickerEntry, raw: unknown): { ok: true; sett
     if (!got.ok) return got;
     if (got.value !== null) settings[def.id] = got.value;
   }
-  const given = (entry.oneOf ?? []).filter((id) => id in settings);
-  if (entry.oneOf && given.length !== 1) return { ok: false, message: `${entry.name} Give exactly one of: ${entry.oneOf.map((id) => entry.settings.find((d) => d.id === id)!.question).join(" or ")}` };
+  if (entry.oneOf && entry.oneOf.filter((id) => id in settings).length !== 1) return { ok: false, message: `${entry.name} Give exactly one of: ${entry.oneOf.map((id) => entry.settings.find((d) => d.id === id)!.question).join(" or ")}` };
   return { ok: true, settings };
 }
 

@@ -129,7 +129,7 @@ describe("Choose a method", () => {
     await act(async () => { host.querySelector("form")!.requestSubmit(); });
     const result = host.querySelector("[role=region]")!;
     expect(result.textContent).toContain("Not enough months yet: 4 of 6 needed.");
-    expect(result.textContent).toContain("This result has no widget of its own yet");
+    expect(result.textContent).toContain("This result cannot be saved as a widget yet.");
     expect([...result.querySelectorAll("button")].map((b) => b.textContent)).toEqual([" Download as Analysis Recipe"]);
     expect(result.textContent).toContain("An Owner or Admin can add it to the Workspace from the Playground");
   });

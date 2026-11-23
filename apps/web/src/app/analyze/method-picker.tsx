@@ -38,7 +38,7 @@ function ResultActions({ entry, done, pending, save }: { entry: EntryView; done:
           <button type="button" onClick={() => download(`${entry.id}.analysis.json`, `${JSON.stringify(done.recipe, null, 2)}\n`)} className="stock flex min-h-9 items-center gap-1.5 rounded-[var(--radius-stock)] px-3 text-sm text-foreground"><FileDown className="size-3.5" /> Download as Analysis Recipe</button>
         )}
       </div>
-      {!done.widget && <p>This result has no widget of its own yet, so it stays on this screen.</p>}
+      {!done.widget && <p>This result cannot be saved as a widget yet.</p>}
       {done.recipe
         ? <p>The Analysis Recipe is this Method with its Slots left open. An Owner or Admin can add it to the Workspace from the Playground, and export it in a Pack under Settings.</p>
         : <p>This Method is not an Analysis Recipe yet, so it has no file to take away.</p>}
