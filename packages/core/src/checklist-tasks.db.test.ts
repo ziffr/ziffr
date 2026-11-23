@@ -374,6 +374,7 @@ describe("every reader of actions.metric_id", () => {
       "page-data.ts": "the action page shows the Workflow and period, no chart; the Outbox lists a Delivery by readableActions",
       "paste-values.ts": "reads the Approval of one Metric",
       "period-record.ts": "reads the Actions of one Metric",
+      "period-finished.ts": "reads a Workflow's Checklist Tasks by their Workflow, for their status and time only (no words, no Metric)",
       "period-timeline.ts": "reads a Workflow's Checklist Tasks by their Workflow and shows them as each viewer may read them",
       "personal-webhook-hearing.ts": "an Action with no Metric is heard by no Personal Webhook",
       "questions.ts": "reads the purpose and assignee only",

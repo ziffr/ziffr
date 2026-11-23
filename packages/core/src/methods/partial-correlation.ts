@@ -14,7 +14,7 @@ import { MIN_PAIRS } from "../correlation";
 import type { Span } from "../periods";
 import { checkSuitability } from "../suitability";
 import { strengthOf, type StrengthWord } from "../takeaways/strength";
-import { listOf, pairsAnswer, refusalTakeaway, sayIn, strengthWordIn, verdictLines, wideRefusal, type Takeaway, type TakeawayContext } from "../takeaways/takeaway";
+import { listOf, pairsAnswer, refusalTakeaway, sayIn, strengthWordIn, verdictLines, wideRefusal, onLatest, type Takeaway, type TakeawayContext } from "../takeaways/takeaway";
 import type { Point } from "../types";
 
 /** How many other Metrics can be held the same: at least 1, at most 4. */
@@ -96,6 +96,12 @@ export function partialCorrelation(a: Point[], b: Point[], controls: Point[][]):
  * periods all the series have (the fit's minimum for the Metrics weighed, 8 + 4 per Metric, and at most one Metric per 6
  * periods): a refusal says what is missing, a caution is said above the answer and keeps the strength below "strong". */
 export function partialTakeaway(names: { a: string; b: string; held: string[] }, a: Point[], b: Point[], controls: Point[][], span: Span, ctx: TakeawayContext): Takeaway {
+  // Stryker disable next-line StringLiteral: the Method's name in the refusal that only a spent work allowance writes; the wording of that refusal is held by the test of withinBudget.
+  return onLatest("numbers-method-partial", ctx, span, [a, b, ...controls], ([ca, cb, ...cc]) => partialWithin(names, ca, cb, cc, span, ctx));
+}
+
+// The Takeaway itself, on the latest periods the series have in common.
+function partialWithin(names: { a: string; b: string; held: string[] }, a: Point[], b: Point[], controls: Point[][], span: Span, ctx: TakeawayContext): Takeaway {
   const method = sayIn("numbers-method-partial", {}, ctx);
   // Values too wide to work out exactly are refused before the exact arithmetic is started (work-bound.ts).
   // Stryker disable next-line ArrayDeclaration,ArrowFunction: without these values the check below refuses with the same words; this only saves the exact work before it.

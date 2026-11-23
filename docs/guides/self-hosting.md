@@ -61,6 +61,8 @@ Ziffr keeps everything in Postgres. The server makes outgoing connections only t
    ```sql
    select demo_reset(interval '0 seconds');
    select prototype_seed_pins();
+   select prototype_seed_close();
+   select prototype_seed_fill_in();
    ```
 
    The demo sits beside your real workspaces and reaches only its own made-up people ([ADR 0005](../adr/0005-demo-beside-real-accounts.md)). Visitors can reset it from the app at most once a minute.

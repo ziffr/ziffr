@@ -29,6 +29,9 @@ export const LOOKED_DAYS = 30;
 export type UsageItem = { id: number; name: string; why: string; slug?: string };
 /** A Submitter who has sent no value, with the Metrics they were asked for and who owns each. */
 export type IdleSubmitter = { id: string; name: string; kind: "person" | "contact" | "feed"; metrics: { id: number; name: string; slug: string; owner: string }[] };
+/** A Submitter with values in the window that someone else entered for them (spec 0046, Filled-in Values): all their values
+ * in the window and how many of them others entered, so an Admin can still see who keeps needing help. Counts only. */
+export type FilledInFor = { id: string; name: string; values: number; enteredByOthers: number };
 /** A Metric the page does not suggest archiving, and why. */
 export type KeptMetric = { id: number; name: string; because: string };
 
@@ -50,6 +53,8 @@ export type UsageReport = {
   noValues: UsageItem[];
   projectionOnly: UsageItem[];
   submitters: IdleSubmitter[];
+  /** Submitters whose values in the last unused-days window were partly entered by others; a Filled-in Value counts as the submitter's. */
+  filledInFor: FilledInFor[];
   mostLooked: { dashboards: { id: number; name: string; views: number }[]; metrics: { id: number; name: string; slug: string; views: number }[] };
   suggested: UsageItem[];
   kept: KeptMetric[];
@@ -63,7 +68,7 @@ const CADENCE: Record<Period, number> = { day: 1, week: 7, month: 31, quarter: 9
 const isoDay = (ms: number) => new Date(ms).toISOString().slice(0, 10);
 const words = (iso: string) => new Date(`${iso.slice(0, 10)}T00:00:00Z`).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" });
 /** Widget templates that compare or analyse: a Metric shown by one is kept from the suggestions. */
-const ANALYSING = new Set(["forecast", "correlation", "matrix", "drivers"]);
+const ANALYSING = new Set(["forecast", "correlation", "matrix", "drivers", "scoreboard"]);
 
 /** Owners and Admins only, never with a key, never in the demo (which counts nothing). */
 function assertMay(actor: Actor): void {
@@ -200,6 +205,20 @@ export async function workspaceUsage(actor: Actor, now: Date = new Date()): Prom
   }
   idle.sort((a, b) => a.name.localeCompare(b.name));
 
+  // Filled-in Values count as the submitter's (by submitter_id); the ones someone else entered are counted apart, for the
+  // Metrics the actor sees only. Counts and names of people in this Workspace, never a value.
+  const windowRows = !visibleIds.size ? [] : await allRows<{ metric_id: number; submitter_id: string | null; entered_by: string | null }>((from, to) =>
+    db().from("observations").select("metric_id, submitter_id, entered_by").eq("workspace_id", ws).in("metric_id", [...visibleIds]).gte("created_at", `${cutoff}T00:00:00Z`).order("id").range(from, to));
+  const filled = new Map<string, FilledInFor>();
+  for (const r of windowRows) {
+    if (!r.submitter_id || !visibleIds.has(r.metric_id)) continue;
+    const f = filled.get(r.submitter_id) ?? { id: r.submitter_id, name: nameOf.get(r.submitter_id)?.name ?? "", values: 0, enteredByOthers: 0 };
+    f.values += 1;
+    if (r.entered_by) f.enteredByOthers += 1;
+    filled.set(r.submitter_id, f);
+  }
+  const filledInFor = [...filled.values()].filter((f) => f.enteredByOthers > 0 && f.name).sort((a, b) => b.enteredByOthers - a.enteredByOthers || a.name.localeCompare(b.name));
+
   // Most looked at, in 30 days, as numbers.
   const top = <T extends { id: number; name: string; slug?: string }>(rows: T[], kind: string) => rows
     .map((r) => ({ id: r.id, name: r.name, slug: r.slug ?? "", views: views30.get(`${kind}:${r.id}`) ?? 0 })).filter((r) => r.views > 0)
@@ -226,7 +245,7 @@ export async function workspaceUsage(actor: Actor, now: Date = new Date()): Prom
   }
 
   return {
-    countingSince, unusedDays, fillsInOn, notOpened, readByProgram, noValues, projectionOnly, submitters: idle,
+    countingSince, unusedDays, fillsInOn, notOpened, readByProgram, noValues, projectionOnly, submitters: idle, filledInFor,
     mostLooked: { dashboards: top(dashboards, "dashboard"), metrics: top(visible, "metric") },
     suggested, kept, retentionSuggestions: await retentionSuggestions(ws, notOpened.metrics, byMetric, await workspaceToday(ws, now), unusedDays),
   };

@@ -501,7 +501,7 @@ describe("every condition on its own", () => {
     expect(ups([{ metric: visits, points: series(spike) }], { today: month(105 + 7) })).toEqual([]);
     expect(ups([{ metric: visits, points: series(spike) }], { today: month(105 + 6) }).length).toBe(1);
     expect(ups([{ metric: visits, points: series(spike.map((v, k) => (k < 60 ? v - 400 : v))) }], { today: month(107) })).toEqual([]);
-    expect(ups([{ metric: visits, points: series(spike.map((v) => v / 1e33)) }], { today: month(107) })).toEqual([]);
+    expect(ups([{ metric: visits, points: series(spike.map((v) => v / 1e22)) }], { today: month(107) })).toEqual([]);
     const [long] = ups([{ metric: visits, points: series(seasonal(133, 40)) }], { today: month(134) });
     expect(long.takeaway.basis).toBe("from the 9 values at the same place in the season");
     expect(long.takeaway.figures.map((f) => f.label)).toEqual(["Usual low", "Usual high"]);
@@ -547,8 +547,7 @@ describe("every gate of every test, one at a time (the others holding)", () => {
     only(dir(series(turn(1, 10, 28))), "recent");
     only(dir(series(turn(1, -3))), "turned");
     only(dir(series(turn().map((v, k) => (k >= 30 ? v + 100 : v)))), "apart");
-    // Values this small need more than 20 decimal places, which are refused before any test is tried (work-bound.ts), so the gate cannot be failed alone by them.
-    expect(testsOf({ metric: signups, points: series(turn().map((v) => v / 1e33)) }, ctx)).toEqual([]);
+    only(dir(series(turn().map((v) => v / 1e22))), "written");
   });
   it("a Target: every gate for a falling Metric and its chance by hand from the line and the changes; each condition alone failing leaves a chance of 1", () => {
     const tgt = (values: number[], over = {}, ctxOver: SingleContext = ctx, period = "month") => test("target-out-of-reach", { metric: revenue(over), points: values.map((value, k) => ({ period: period === "day" ? new Date(Date.UTC(2026, 0, 1 + k)).toISOString().slice(0, 10) : month(k), value })) }, ctxOver);
@@ -570,7 +569,7 @@ describe("every gate of every test, one at a time (the others holding)", () => {
     expect(failing(tgt(falling, { target_min: 300 }))).toEqual([]);
     expect(tgt(falling, { target_min: 300 }).p).toBe(1);
     only(tgt(falling, { target_min: 300 }, at(39)), "ahead");
-    expect(testsOf({ metric: revenue({ target_min: 1e-30 }), points: series(falling.map((v) => v / 1e33)) }, ctx)).toEqual([]);
+    only(tgt(falling.map((v) => v / 1e22), { target_min: 1e-30 }), "written");
     only(tgt(falling.map((v, k) => v + 5 * Math.sin(k / 4))), "mild");
     // A Period with more periods ahead than the day it counts as current for: the Target is not over and the data is no longer current.
     const daily = Array.from({ length: 40 }, (_, k) => 1000 - 15 * k + noise(k));
@@ -590,7 +589,7 @@ describe("every gate of every test, one at a time (the others holding)", () => {
     expect(failing(mild)).toEqual([]);
     expect(mild.chance).toBeGreaterThan(0.01);
     expect(mild.p).toBe(1);
-    expect(testsOf({ metric: visits, points: series(spike.map((v) => v / 1e33)) }, { ...ctx, today: month(107) })).toEqual([]);
+    only(sea(spike.map((v) => v / 1e22)), "written");
     // The latest value in the middle of the usual range: not outside it (and so on neither side).
     const within = seasonal(106, 0);
     const median = usualRange(series(within).slice(0, -1), "month", { season: 12, at: month(105), least: 2 })!.median;
@@ -627,7 +626,7 @@ describe("a Target with both ends counts twice", () => {
     expect(rank({ polarity: "higher", target_min: 600 }) - rank({ polarity: "target", target_min: 600, target_max: 5000 })).toBeCloseTo(Math.log10(2), 6);
   });
   it("is not told for a turn whose slopes are too small to write, or too blurred to be a change", () => {
-    expect(ups([{ metric: signups, points: series(turning(30, false).map((v) => v / 1e33)) }])).toEqual([]);
+    expect(ups([{ metric: signups, points: series(turning(30, false).map((v) => v / 1e22)) }])).toEqual([]);
     expect(ups([{ metric: signups, points: series(turning(30, false).map((v, k) => v + 150 * noise(k))) }])).toEqual([]);
   });
 });
@@ -705,7 +704,7 @@ describe("small numbers are never written as 0, and never lose their sign", () =
     expect(low).not.toBe(hi);
   });
   it("says nothing where even the most decimals could not show an end of the Target", () => {
-    expect(ups([{ metric: revenue({ target_min: 1e-30 }), points: series(falling.map((v) => v / 1e33)) }]).filter((u) => u.kind === "target-out-of-reach")).toEqual([]);
+    expect(ups([{ metric: revenue({ target_min: 1e-30 }), points: series(falling.map((v) => v / 1e22)) }]).filter((u) => u.kind === "target-out-of-reach")).toEqual([]);
   });
 });
 

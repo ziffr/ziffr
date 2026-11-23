@@ -80,6 +80,10 @@ export type Observation = {
   submitted_at: string | null;
   /** The Source it arrived through (web_form, mail, slack, telegram, api), or null for a Derived Metric. */
   source: string | null;
+  /** Read only: who entered the value for its submitter (a Filled-in Value), or null; always null for a Guest's key. */
+  entered_by?: string | null;
+  /** Their name, or null. */
+  entered_by_name?: string | null;
   /** A Thread on this period that the key's creator may read exists (see `thread`). */
   has_thread: boolean;
   breakdown: BreakdownRow[] | null;
@@ -286,7 +290,7 @@ export type TimelineEvent = {
   /** The same moment's day in the workspace's time zone, and its time (HH:mm). */
   day: string;
   time: string;
-  kind: "asked" | "reminded" | "in" | "action" | "approval_asked" | "approved" | "sent_back" | "checked" | "note" | "published" | "locked" | "snapshot" | "checklist_sent" | "checklist_given" | "checklist_done";
+  kind: "asked" | "reminded" | "in" | "action" | "approval_asked" | "approved" | "sent_back" | "checked" | "note" | "published" | "locked" | "snapshot" | "checklist_sent" | "checklist_given" | "checklist_done" | "snapshot_sent" | "finished";
   /** One sentence; names in it come from the workspace. */
   text: string;
   count: number;
@@ -306,6 +310,8 @@ export type PeriodStatus = {
   in: number; of: number; published: number; locked: number;
   /** The Workflow's checklist Tasks of the period: how many were given (`of`) and how many are done. `in` and `of` count values only. */
   checklist: { done: number; of: number };
+  /** Whether the period is finished: every value locked and every checklist Task of it done. */
+  finished: boolean;
   events: TimelineEvent[];
 };
 
@@ -451,7 +457,7 @@ export type ViewLink = { id: number; dashboard: number; label: string; expires: 
 export type MadeViewLink = ViewLink & { token: string; url: string };
 
 /** The built-in views a key may place. */
-export type View = "number" | "line" | "bars" | "gauge" | "table" | "forecast" | "correlation" | "matrix" | "drivers" | "ranked" | "share" | "pictogram" | "story-line";
+export type View = "number" | "line" | "bars" | "gauge" | "table" | "forecast" | "correlation" | "matrix" | "drivers" | "scoreboard" | "progress" | "stacked" | "pareto" | "slope" | "running-total" | "bump" | "heatmap" | "ranked" | "share" | "pictogram" | "story-line";
 
 /** The few widget settings a key may set. */
 export type WidgetSettings = {

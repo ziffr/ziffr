@@ -26,7 +26,7 @@ import { db } from "./db";
 import { resolverFrom, seriesBy } from "./display-periods";
 import { yearStartOf } from "./fiscal-year";
 import { formulaInputs } from "./formula";
-import { capMetrics, scanPairs, type PairRow, type Window } from "./methods/pair-scan";
+import { capMetrics, scanPairsCounted, type PairRow, type Window } from "./methods/pair-scan";
 import { headsUpsFrom, type HeadsUp } from "./methods/heads-up";
 import { singleHeadsUpsFrom, type SingleLook } from "./methods/heads-up-single";
 import { deliverHeadsUps } from "./heads-up-delivery";
@@ -161,13 +161,15 @@ async function finalValues(ws: string, day: string) {
 /** Scans `subset` of a Workspace's Metrics (the ones in use) into pair rows, in memory: the 200 most recently updated of them, every
  * pair that may be compared. Nothing here looks at a Metric outside `subset`, except that a Derived Metric's values come from its
  * inputs (the values a person sees of it are those). `related` decides which pairs are left out. */
-async function scanSubset(ws: string, day: string, pick: (all: Metric[]) => Metric[], relatedOver: (all: Metric[]) => (a: number, b: number) => boolean): Promise<{ rows: PairRow[]; metrics: number; capped: boolean }> {
+async function scanSubset(ws: string, day: string, pick: (all: Metric[]) => Metric[], relatedOver: (all: Metric[]) => (a: number, b: number) => boolean): Promise<{ rows: PairRow[]; metrics: number; capped: boolean; notScanned: number }> {
   const { metrics, yearStart, series, levels, updatedAmong } = await finalValues(ws, day);
   const chosen = pick(metrics);
   const updated = updatedAmong(chosen);
   const withValues = chosen.filter((m) => (series[m.slug]?.length ?? 0) > 0).map((m) => ({ id: m.id, period: m.period as Span, latest: updated(m) }));
   const looked = capMetrics(withValues);
-  return { rows: scanPairs(looked, levels, relatedOver(chosen), day, yearStart), metrics: looked.length, capped: withValues.length > looked.length };
+  const { rows, notScanned } = scanPairsCounted(looked, levels, relatedOver(chosen), day, yearStart);
+  // A scan that ran out of work has not looked at every pair, as one that was capped has not looked at every Metric: it is recorded as capped.
+  return { rows, metrics: looked.length, capped: withValues.length > looked.length || notScanned > 0, notScanned };
 }
 
 /** The Metrics `mine` (the ones a person may see, in use) as the Heads-ups about one Metric look at them: the 200 most recently updated that have values, each with
@@ -339,13 +341,16 @@ async function pairHeadsUps(actor: Actor, mine: Metric[], names: Map<number, str
   if (readError || !answer) throw new Error("Heads-ups could not be read. Try again in a moment.");
   const { capped, rows: stored } = answer as { capped: boolean; rows: Record<string, unknown>[] };
   // Pairs one of whose Metrics is worked out from the other, or both from the same, are left out: over the Metrics they see.
-  const make = (rows: PairRow[]) => {
+  const make = (rows: PairRow[], notScanned = 0) => {
     const related = relatedAmong(mine);
-    return headsUpsFrom(rows.filter((r) => names.has(r.a) && names.has(r.b) && !related(r.a, r.b)), names, ctx);
+    return headsUpsFrom(rows.filter((r) => names.has(r.a) && names.has(r.b) && !related(r.a, r.b)), names, ctx, notScanned);
   };
   const extra = hashOf([ctx, mine.map((m) => [m.id, m.name, m.slug, m.formula ?? null])]);
   return capped
-    ? await ownHeads(ws, actor.personId, signature(mine.map((m) => m.id), extra), opts.now ?? Date.now(), opts.lane ?? "page", async () => make((await scanSubset(ws, day, () => mine, () => () => false)).rows))
+    ? await ownHeads(ws, actor.personId, signature(mine.map((m) => m.id), extra), opts.now ?? Date.now(), opts.lane ?? "page", async () => {
+        const own = await scanSubset(ws, day, () => mine, () => () => false);
+        return make(own.rows, own.notScanned);
+      })
     : make(stored.map(rowFromDb));
 }
 

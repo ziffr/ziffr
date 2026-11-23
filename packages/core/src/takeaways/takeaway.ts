@@ -10,10 +10,10 @@ import { basisText } from "../basis";
 import { pearson, type Correlation, type Ranked } from "../correlation";
 import { formatNumber } from "../format";
 import type { NumberStyle } from "../number-style";
-import type { YearStart } from "../periods";
+import type { Span, YearStart } from "../periods";
 import { checkSuitability, type Finding, type Verdict } from "../suitability";
-import type { Metric } from "../types";
-import { wideColumns, withWork } from "../work-bound";
+import type { Metric, Point } from "../types";
+import { latestCommon, wideColumns, withWork } from "../work-bound";
 import { strengthOf, type StrengthWord } from "./strength";
 import { say, type CaseKey, type Language, type SayContext, type Slots } from "./wording";
 
@@ -98,8 +98,8 @@ export function refusalTakeaway(method: string, lines: string[]): Takeaway {
   return { ...emptyTakeaway(method), refusal: lines.join(" ") };
 }
 
-/** A refusal in words when some values are too wide to work out exactly in reasonable time (work-bound.ts: more than 20 decimal
- * places, or more than 20 orders of magnitude), else null. For the Methods that work out a number before, or without, the suitability checks. */
+/** A refusal in words when some values are too wide to work out exactly in reasonable time (work-bound.ts: more than 40 decimal
+ * places, or more than 30 orders of magnitude), else null. For the Methods that work out a number before, or without, the suitability checks. */
 export function wideRefusal(method: string, columns: { name: string; values: readonly (number | null)[] }[], ctx: TakeawayContext): Takeaway | null {
   const wide = wideColumns(columns.map((c) => c.name), columns.map((c) => c.values));
   return wide.length > 0 ? refusalTakeaway(method, wide.map((f) => sayIn(f.case, f.slots, ctx))) : null;
@@ -108,6 +108,14 @@ export function wideRefusal(method: string, columns: { name: string; values: rea
 /** The Takeaway `f` works out under the work budget of work-bound.ts, or a refusal in words, with the Method's name, when the budget is spent first. */
 export function withinBudget(method: CaseKey, ctx: TakeawayContext, f: () => Takeaway): Takeaway {
   return withWork(f) ?? refusalTakeaway(sayIn(method, {}, ctx), [sayIn("refuse-exact-work", {}, ctx)]);
+}
+
+/** A Takeaway of Methods whose series can be long: the series are cut to the latest 120 periods they have in common (and the Takeaway says so,
+ * as a note), and `f` works on those under the work allowance of work-bound.ts, or is a refusal in words when that is spent first. */
+export function onLatest(method: CaseKey, ctx: TakeawayContext, span: Span, series: Point[][], f: (cut: Point[][]) => Takeaway): Takeaway {
+  const { series: used, cut } = latestCommon(series);
+  const t = withinBudget(method, ctx, () => f(used));
+  return cut === null || t.kind !== "answer" ? t : { ...t, notes: [...t.notes, sayIn("note-latest-used", { n: cut, span }, ctx)] };
 }
 
 /** The verdict of the suitability checks as the lines a person reads: refusals, cautions and what was done differently (a
@@ -199,8 +207,9 @@ export function listOf(names: string[], ctx: TakeawayContext): string {
 
 /** The Takeaway of Drivers: the Metrics that moved with the target the most (up to three, none that can't be told from
  * chance), each Metric's own strength word and cautions, one footer, and every Metric's numbers under Show the numbers. A
- * Metric whose own checks refuse is a row with its refusal, and never named in the sentence. */
-export function driversTakeaway(target: Metric, ranked: Ranked[], ctx: TakeawayContext): DriversTakeaway {
+ * Metric whose own checks refuse is a row with its refusal, and never named in the sentence. With `notCompared` (the ranking ran out of work) it says
+ * that the answer is among the Metrics that were compared. */
+export function driversTakeaway(target: Metric, ranked: Ranked[], ctx: TakeawayContext, notCompared = false): DriversTakeaway {
   const method = say("numbers-method-pearson", {}, ctxOf(ctx));
   const rows = ranked.map(({ metric, result }) => ({ metric, result, takeaway: correlationTakeaway(target, metric, result, ctx, { footer: false }) }));
   const text = (k: CaseKey) => say(k, {}, ctxOf(ctx));
@@ -216,6 +225,8 @@ export function driversTakeaway(target: Metric, ranked: Ranked[], ctx: TakeawayC
     strengthText: top.takeaway.strengthText,
     basis: top.takeaway.basis,
     footer: footerText(ctx),
+    // Where the ranking ran out of work (work-bound.ts) the answer is among the Metrics that were compared, which is said.
+    notes: notCompared ? [text("note-among-compared")] : [],
     figures: [{ label: text("numbers-pairs"), value: top.result.n, text: formatNumber(top.result.n, 0, ctx.style) }],
     numbers: rows
       .filter((r) => r.takeaway.kind === "answer")

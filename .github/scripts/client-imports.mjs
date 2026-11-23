@@ -7,11 +7,11 @@ import { join } from "node:path";
 
 const PURE = new Set([
   "appearance", "branded-email", "theme-look", "theme-dark",
-  "actor", "attainment-method", "built-in-designs", "compare", "design-export", "correlation", "display-periods", "exact", "export-values", "forecast", "format", "formula", "metric-row", "metric-names", "number-style", "numbers", "parse", "paste-reader", "people", "periods", "placeholders", "sample-data", "series-lines", "snapshot-periods", "team-templates", "theme-tokens", "standard-themes", "view-design", "json-check", "design-files", "widget-designs", "analysis-recipe", "recipe-run", "recipe-functions", "built-in-recipes", "design-analysis", "mark-figures", "basis", "suitability", "takeaways/takeaway", "takeaways/strength", "takeaways/wording", "takeaways/forecast", "methods/holt-winters", "methods/track-record", "methods/forecast-choice", "methods/reach-chance", "methods/normal-curve", "methods/before-after", "methods/change-point", "methods/t-curve", "takeaways/sizes",
+  "actor", "attainment-method", "built-in-designs", "compare", "design-export", "correlation", "display-periods", "exact", "export-values", "forecast", "format", "formula", "metric-row", "metric-names", "number-style", "numbers", "parse", "paste-reader", "people", "periods", "placeholders", "sample-data", "series-lines", "snapshot-periods", "team-templates", "theme-tokens", "standard-themes", "view-design", "json-check", "design-files", "widget-designs", "analysis-recipe", "recipe-run", "recipe-functions", "built-in-recipes", "design-analysis", "mark-figures", "basis", "suitability", "takeaways/takeaway", "takeaways/strength", "takeaways/wording", "takeaways/forecast", "methods/holt-winters", "methods/track-record", "methods/forecast-choice", "methods/reach-chance", "methods/normal-curve", "methods/before-after", "methods/change-point", "methods/t-curve", "takeaways/sizes", "work-bound",
   "themes", "tokens", "types", "pack", "pack-voucher", "metric-file", "theme-file", "dashboard-template-file", "deck-template-file", "workflow-template-file", "file-text", "assistant-words", "assistant-backfill-prompt", "visibility", "widget-metrics", "widget-templates", "workflow-rules", "workspace-profile", "trial-guide-ways", "n8n-workflow", "units",
   "approval-question", "demo-words", "sealed-labels", "retention-rules", "retention-words", "alert-rules", "alert-limits", "asking-schedule", "schedule-calendar", "quiet-rules", "prompt-route",
   "connectors/index", "connectors/types", "connectors/email", "connectors/slack", "connectors/tickets", "connectors/whatsapp",
-  "polar-marks",
+  "polar-marks", "progress-bars", "stacked-marks", "pareto", "slope-chart", "running-total", "bump-marks", "heatmap-grid",
 ]);
 
 const files = [];

@@ -19,6 +19,12 @@ export async function resetDemoWorkspace(): Promise<boolean> {
   const pins = await db().rpc("prototype_seed_pins");
   if (pins.error) console.error("Demo: no pinned dashboards", pins.error.message);
   await seedDemoSnapshots();
+  // The finished period of the monthly close names a Snapshot, so it is seeded after the Snapshots are taken (spec 0045).
+  const close = await db().rpc("prototype_seed_close");
+  if (close.error) console.error("Demo: no finished period in the close", close.error.message);
+  // The Filled-in Values of the close (spec 0046): a Stand-in's while Away, and one the submitter later replaced.
+  const filledIn = await db().rpc("prototype_seed_fill_in");
+  if (filledIn.error) console.error("Demo: no Filled-in Values", filledIn.error.message);
   await seedDemoOutbox();
   return true;
 }

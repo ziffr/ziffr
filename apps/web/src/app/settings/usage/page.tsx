@@ -106,6 +106,16 @@ export default async function UsagePage() {
           )}
         </section>
 
+        {u.filledInFor.length > 0 && (
+          <section className="space-y-2">
+            <h2 className="text-base font-semibold">Values entered by others</h2>
+            <p className="text-sm text-muted-foreground">Values someone else filled in for a submitter in the last {u.unusedDays} days. They count as the submitter&apos;s.</p>
+            <ul className="divide-y divide-border rounded-[var(--radius-card)] border border-border text-sm">
+              {u.filledInFor.map((f) => <li key={f.id} className="flex gap-3 px-3 py-2"><span className="font-medium">{f.name}</span><span className="ml-auto text-xs text-muted-foreground">{f.values} value{f.values === 1 ? "" : "s"}, {f.enteredByOthers} entered by others</span></li>)}
+            </ul>
+          </section>
+        )}
+
         <section className="space-y-2">
           <h2 className="text-base font-semibold">Most looked at, last 30 days</h2>
           <div className="grid gap-4 sm:grid-cols-2">

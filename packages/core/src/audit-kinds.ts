@@ -91,6 +91,11 @@ export const AUDIT_KINDS = {
   "workflow.run_now": "ran today's Workflow steps now",
   "workflow.webhooks_set": "changed the Webhooks the Tell steps tell, of the Workflow",
   "workflow.checklist_set": "changed the checklist of the Workflow",
+  "workflow.send_snapshot_set": "changed who gets the Snapshot of the Workflow",
+  "workflow.snapshot_sent": "sent the Snapshot of a period of the Workflow",
+  "away.set": "set the Away dates of",
+  "away.cleared": "cleared the Away dates of",
+  "value.filled_in": "filled in a value for someone, of",
   "approval.given": "approved a value of",
   "approval.sent_back": "sent back a value of",
   "approval.skipped": "counted without Approval, as nobody else could approve it, a value of",
@@ -141,7 +146,7 @@ export type AuditKind = keyof typeof AUDIT_KINDS;
 /** The groups of kinds the page filters by, each with its label. */
 export const AUDIT_CATEGORIES = {
   member: "Members", invitation: "Invitations", join_request: "Join requests", domain_joining: "Domain Joining", contact: "Contacts",
-  share: "Shares", group: "Groups", view_link: "View Links", share_proposal: "Share Proposals", access_key: "Access Keys", calendar_link: "Calendar Links", schedule: "Schedules", assistant: "Assistants", feed: "Feeds", webhook: "Webhooks", view_design: "View Designs", theme: "Themes", pack: "Packs", dashboard: "Dashboards", metric: "Metrics", tag: "Tags", period: "Locks",
+  share: "Shares", group: "Groups", view_link: "View Links", share_proposal: "Share Proposals", access_key: "Access Keys", calendar_link: "Calendar Links", schedule: "Schedules", assistant: "Assistants", feed: "Feeds", webhook: "Webhooks", view_design: "View Designs", theme: "Themes", pack: "Packs", dashboard: "Dashboards", metric: "Metrics", tag: "Tags", period: "Locks", value: "Filled-in Values", away: "Away",
   workflow: "Workflow runs", retention: "Retention runs", approval: "Approvals", self_check: "Self-checks", correction: "Corrections", workspace: "Settings", slack: "Slack", telegram: "Telegram", snapshot: "Snapshots", export: "Exports", email_reply: "Email replies", person: "Sign-ins",
 } as const;
 

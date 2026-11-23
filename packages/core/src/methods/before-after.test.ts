@@ -453,11 +453,11 @@ describe("the Takeaway of a before-and-after look", () => {
   it("says so, in words, when a number is too large to work out a share from, or a difference too small to write out, and writes a number of Show the numbers that no digit could show in scientific form", () => {
     const refusal = (values: number[], unit = euro) => afterDateTakeaway("A", series(values), "month", "2024-07-01", unit, ctx).refusal;
     // Trend values tiny, values after huge: the share of the trend (1e300 ÷ 1e-300 as a percentage) cannot be a number; the values need
-    // more than 20 decimal places and span more than 20 orders of magnitude, so they are refused before that (work-bound.ts).
-    expect(refusal([1e-300, 2e-300, 3e-300, 4e-300, 5e-300, 7e-300, 1e300, 2e300])).toBe("A: its values go to more than 20 decimal places, which cannot be worked out exactly in reasonable time.");
-    // A trend at or below 0 so the gap is in the unit, and a third of 1e-20: even 20 decimals show nothing.
+    // more than 40 decimal places and span more than 30 orders of magnitude, so they are refused before that (work-bound.ts).
+    expect(refusal([1e-300, 2e-300, 3e-300, 4e-300, 5e-300, 7e-300, 1e300, 2e300])).toBe("A: its values go to more than 40 decimal places, which cannot be worked out exactly in reasonable time.");
+    // A trend at or below 0 so the gap is in the unit, and a third of 1e-20: the difference is below what the most decimals written show.
     expect(refusal([-1e-13, -2e-13, -3e-13, -4e-13, -5e-13, -6e-13, -7e-13, -8e-13, -9.0000001e-13])).toBe("A: the difference is too small to write out.");
-    // A line with a miss of 1e-20 (the first value is off it by that): the typical miss is written as 2.50e-25 style, not as 0.
+    // A line with a miss of 1e-20 (the first value is off it by that): the typical miss is written in scientific form (1.00e-20 style), not as 0.
     const t = afterDateTakeaway("A", series([1e-20, 1e-5, 2e-5, 3e-5, 4e-5, 5e-5, 7e-5, 8e-5, 9e-5]), "month", "2024-07-01", euro, ctx);
     expect(t.kind).toBe("answer");
     const miss = t.numbers.find((n) => n.label === "Typical miss")!.text;

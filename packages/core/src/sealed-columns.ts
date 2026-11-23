@@ -37,8 +37,8 @@ export const SEALED_COLUMNS = {
   // description. A Snapshot's words and the copies in Versions and View Links are sealed in their own functions.
   dashboards: ["intro"],
   widgets: ["title"],
-  // Who sent an imported value, as a name (spec 0040, ticket 9), sealed for the value's row; its number is in SEALED_NUMBERS.
-  observations: ["submitted_by_name"],
+  // Who sent an imported value, and who entered it for them (spec 0046), as names (spec 0040, ticket 9), sealed for the value's row; its number is in SEALED_NUMBERS.
+  observations: ["submitted_by_name", "entered_by_name"],
   // Step 2 (ticket #248): a Metric's name is sealed beside its description, bound to its row.
   metrics: ["description", "name"],
   // A Condensed Value's numbers (the sum or last value, and the Target), as JSON (spec 0033); its id (a uuid) is made first.

@@ -51,10 +51,29 @@ export type Part =
   | { mark: "range"; show: RecipeShow; tone?: Tone; when?: Flag[] }
   | { mark: "bridge"; show: RecipeShow; when?: Flag[] }
   | { mark: "polar"; show: "values" | RecipeShow; when?: Flag[] }
-  | { mark: "radar"; show: "latest"; against?: "previous"; when?: Flag[] };
+  | { mark: "radar"; show: "latest"; against?: "previous"; when?: Flag[] }
+  | { mark: "progress"; show: "latest"; when?: Flag[] }
+  | { mark: "scoreboard"; show: "latest"; when?: Flag[] }
+  | { mark: "stacked"; show: "breakdown"; when?: Flag[] }
+  | { mark: "pareto"; show: "latest"; when?: Flag[] }
+  | { mark: "slope"; show: "latest"; when?: Flag[] }
+  | { mark: "cumulative"; show: "year"; when?: Flag[] }
+  | { mark: "bump"; show: "breakdown"; when?: Flag[] }
+  | { mark: "heatmap"; show: "values"; when?: Flag[] };
+
+/** How many Metrics a scoreboard has rows for, at least and at most: fewer than 3 read better as number Widgets, more than 12 cannot be taken in at a glance. */
+export const SCOREBOARD = { min: 3, max: 12 } as const;
 
 /** How many spokes (a radar) or periods (a polar plot) are drawn, at least and at most: fewer than 3 is a line, more than 12 cannot be read. */
 export const SPOKES = { min: 3, max: 12 } as const;
+
+/** How many Metrics a progress mark draws bars for: one bar each, so more than this would not fit where one gauge does. */
+export const PROGRESS_BARS = { max: 12 } as const;
+/** How many rows (or Metrics) a slope mark draws: two points and a line each, so more could not be told apart. */
+export const SLOPE_ROWS = 12;
+
+/** What a slope mark compares, as a person chooses it when placing the design: the rows of a Breakdown against the period before (previous) or a year earlier (year), several Metrics (metrics), or what was placed (auto: several Metrics, else the rows of a Breakdown). */
+export const SLOPE_CHOICES = ["auto", "previous", "year", "metrics"] as const;
 
 /** A place a design is filled with Metrics when it is used (GLOSSARY: Slot): one, or several for small multiples. */
 export type DesignSlot = { label: string; metrics: "one" | "several"; min?: number };
@@ -65,6 +84,8 @@ export type DesignOptions = {
   rows?: { label?: string; default: number };
   showTarget?: { label?: string; default: boolean };
   showForecast?: { label?: string; default: boolean };
+  /** What a slope mark compares (SLOPE_CHOICES). */
+  slope?: { label?: string; default: (typeof SLOPE_CHOICES)[number] };
   /** It may be shown by a longer period than the Metric's own (GLOSSARY: Display Period); the Metric's own by default. */
   display?: { label?: string };
 };
@@ -143,6 +164,7 @@ export const VIEW_DESIGN_SCHEMA: Schema = {
         rows: { $ref: "#/$defs/countOption" },
         showTarget: { $ref: "#/$defs/switchOption" },
         showForecast: { $ref: "#/$defs/switchOption" },
+        slope: { $ref: "#/$defs/slopeOption" },
         display: {
           type: "object",
           description: "It may be shown by a longer period than the Metric's own, its values combined by the Metric's Aggregation (Show by).",
@@ -185,6 +207,13 @@ export const VIEW_DESIGN_SCHEMA: Schema = {
       required: ["default"],
       additionalProperties: false,
     },
+    slopeOption: {
+      type: "object",
+      description: "What a slope mark compares: the rows of a Breakdown against the period before (previous) or a year earlier (year), several Metrics (metrics), or what was placed (auto).",
+      properties: { label: text(VIEW_LIMITS.label, "plain text, without markup or web addresses"), default: { enum: [...SLOPE_CHOICES] } },
+      required: ["default"],
+      additionalProperties: false,
+    },
     piece: {
       oneOf: [
         text(VIEW_LIMITS.text, "plain text, without markup or web addresses"),
@@ -222,8 +251,16 @@ export const VIEW_DESIGN_SCHEMA: Schema = {
         mark("rows", "Table rows: the latest values; the Metrics ranked by how much they move with the first (correlations), or every pair (matrix); or why Metrics were left out of a comparison (reasons).", { show: { enum: ["values", "correlations", "matrix", "reasons"] }, limit: { oneOf: [{ type: "string", enum: ["rows"] }, { type: "integer", minimum: 1, maximum: 120 }] } }, ["show"]),
         mark("polar", `Values around a circle: the periods of a series as angles in the order given, the values as the distance from the centre, which is 0; ${SPOKES.min} to ${SPOKES.max} periods, none below 0.`, { show: shows(["values"], true, "a series") }, ["show"]),
         mark("radar", `Several Metrics as spokes on one shape, in the order of the Slots, ${SPOKES.min} to ${SPOKES.max} of them: each spoke has its own scale, from the Metric's lowest value of the periods shown at the centre to its highest at the rim. With against, the period before is drawn as a second, dashed shape.`, { show: { const: "latest" }, against: { const: "previous" } }, ["show"]),
+        mark("progress", `One compact bar per Metric of the Slots, in order, ${PROGRESS_BARS.max} at most: the latest value against the Metric's Target Range, with its name, its value and, in words, how far along it is. The bar is filled to the latest value on a scale that includes the target (a lighter band for a range, a tick for one bound); its colour says only whether the value is on target.`, { show: { const: "latest" } }, ["show"]),
+        mark("scoreboard", `One row for each of ${SCOREBOARD.min} to ${SCOREBOARD.max} Metrics, in the order of the Slots: its name, latest value, change against the previous period, whether it is on target, and a small trend.`, { show: { const: "latest" } }, ["show"]),
         mark("range", "One bar per row, from its low to its high end, with its middle value: a driver's effect with its range (the table of the `effects` step of the design's analysis).", { show: recipeTable("a table with a low and a high end for each row, from the `effects` step"), tone }, ["show"]),
         mark("bridge", "Steps from a start, each part going up or down, and an end (the table of the `bridge` step of the design's analysis).", { show: recipeTable("the table of the `bridge` step") }, ["show"]),
+        mark("stacked", "One bar per period, stacked from that period's Breakdown: the largest rows of the newest period (at most 5) as their own segments in a stable order and colour, every other row as one muted Other; a period without a Breakdown is left out and counted, and a negative row is refused in words.", { show: { const: "breakdown" } }, ["show"]),
+        mark("pareto", "The rows of the Metric's latest Breakdown as bars from largest to smallest, ten at most and the rest in one muted \"Other\" bar, with a line of the running share of the total (0 to 100 %) and a reference at 80 %. Only positive rows count.", { show: { const: "latest" } }, ["show"]),
+        mark("slope", `Two points per row joined by a line, on two vertical axes (before on the left, now on the right): the rows of a Breakdown in two periods, or ${SLOPE_ROWS} Metrics at most of one unit, each against its period before. Both sides share one scale; labels name each end and the change in words, and only the largest rise and the largest fall are highlighted. The option “slope” chooses what is compared.`, { show: { const: "latest" } }, ["show"]),
+        mark("cumulative", "The running total of the Metric since the start of its year, restarting each year, with a line for the plan (the running total of its Target Series, or of its target when that has one bound; drawn when the option showTarget is on) and a lighter one for last year. The Metric's Aggregation must be sum; any other is refused in words.", { show: { const: "year" } }, ["show"]),
+        mark("bump", "A bump chart: one line per row of the Metric's Breakdown across its periods, the vertical axis the rank (1 at the top) and not the value; at most 8 rows (the best average rank), a row a period lacks is a gap and never last, ties share the better rank, and the row that gained the most places says so in words; a period without a Breakdown is left out and counted.", { show: { const: "breakdown" } }, ["show"]),
+        mark("heatmap", "The periods of one Metric as a grid of squares shaded by value: a daily Metric as weeks in columns and weekdays in rows, a weekly one as ISO years by week 1 to 53, a monthly one as years by the months of the Workspace's year. Five steps of the data tone by each value's rank among the squares drawn; darker is a higher value, never a better one. A period without a value is an empty outline, never a 0. A Metric by quarter or year is refused in words. The option “window” counts weeks (daily) or years (weekly, monthly).", { show: { const: "values" } }, ["show"]),
       ],
     },
     plotMark: {
@@ -299,6 +336,9 @@ function meaning(d: ViewDesign, lines: Map<string, number>): Problem[] {
       if (p.mark === "rows" && p.limit === "rows" && !d.options?.rows) at(`${here}.limit`, "uses the option “rows”, which the design does not declare under options.");
       if (p.mark === "rows" && p.show !== "values") needsTwo(here, `Rows of ${p.show}`);
       if (p.mark === "radar" && (fewest < SPOKES.min || fewest > SPOKES.max)) at(here, `A radar needs ${SPOKES.min} to ${SPOKES.max} spokes: give the design ${SPOKES.min} Slots, or a Slot of several with “min”: ${SPOKES.min}, and no more than ${SPOKES.max} in all.`);
+      if (p.mark === "progress" && fewest > PROGRESS_BARS.max) at(here, `A progress mark draws ${PROGRESS_BARS.max} bars at most: give the design no more than ${PROGRESS_BARS.max} Metrics.`);
+      if (p.mark === "scoreboard" && (fewest < SCOREBOARD.min || fewest > SCOREBOARD.max)) at(here, `A scoreboard needs ${SCOREBOARD.min} to ${SCOREBOARD.max} Metrics: give the design a Slot of several with “min”: ${SCOREBOARD.min}, and no more than ${SCOREBOARD.max} in all.`);
+      if (p.mark === "slope" && fewest > SLOPE_ROWS) at(here, `A slope mark draws ${SLOPE_ROWS} rows at most: give the design no more than ${SLOPE_ROWS} Metrics.`);
     });
   walk(d.parts, "parts");
   recipeUse(d, lines, at);

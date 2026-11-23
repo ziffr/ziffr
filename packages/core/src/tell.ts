@@ -6,7 +6,7 @@
 // chose themselves. A person unknown to the Workflow is answered like a Workflow that is not there.
 import { openWorkflowRow, openWorkflowRows } from "./workflow-rows";
 import { Forbidden, type Actor } from "./actor";
-import { getGroups, visibleMetricIds } from "./access";
+import { getGroups, visibleDashboards, visibleMetricIds } from "./access";
 import { db } from "./db";
 import { refuseInDemo } from "./demo";
 import { tellRecipients, type TellStep } from "./tell-firing";
@@ -78,8 +78,12 @@ export async function listTellSubscriptions(actor: Actor): Promise<TellSubscript
   // A Checklist Item for information (spec 0045) tells by the same switch: the person is named, so they got its words
   // already and may stop the next ones, whether or not they see any Metric of the Workflow.
   const itemTold = (flows ?? []).filter((w) => infoItems((w.config as { steps?: { type: string }[] } | null)?.steps ?? []).some((i) => i.people.includes(actor.personId) || i.groups.some((g) => mineGroups.has(g))));
+  // So does a Send Snapshot step (spec 0045): a person it names may stop its messages, as they may those of a Tell step.
+  // A Guest is listed only for a dashboard they may open, as they get its message only then (a Workflow's name is no Guest's to know otherwise).
+  const opens = actor.role === "guest" ? new Set((await visibleDashboards(actor.workspaceId, actor.personId)).map((d) => d.id)) : null;
+  const snapshotTold = (flows ?? []).filter((w) => ((w.config as { steps?: { type: string; people?: string[]; groups?: number[]; dashboardId?: number }[] } | null)?.steps ?? []).some((s) => s.type === "send_snapshot" && (!opens || opens.has(Number(s.dashboardId))) && ((s.people ?? []).includes(actor.personId) || (s.groups ?? []).some((g) => mineGroups.has(g)))));
   const out = new Map<number, TellSubscription>();
-  for (const w of itemTold) out.set(Number(w.id), { workflowId: Number(w.id), name: String(w.name), stopped: stopped.has(Number(w.id)) });
+  for (const w of [...itemTold, ...snapshotTold]) out.set(Number(w.id), { workflowId: Number(w.id), name: String(w.name), stopped: stopped.has(Number(w.id)) });
   if (told.length) {
     const metrics = await getMetrics(actor.workspaceId);
     const seen = await visibleMetricIds(actor.workspaceId, actor.personId, metrics);

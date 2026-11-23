@@ -8,18 +8,19 @@ import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
 import { useTakeawayHost } from "./takeaway-host";
 import { compactValue, formatNumber, formatValue, health } from "@ziffr/core/format";
-import { basisLabel, comparedBy, correlate, periodCountLabel, periodWord, rankCorrelations, strength, type BasisChoice, type Correlation } from "@ziffr/core/correlation";
-import { correlationTakeaway, driversTakeaway } from "@ziffr/core/takeaways/takeaway";
+import { basisLabel, commonPeriod, comparedBy, correlate, periodCountLabel, periodWord, rankCorrelations, strength, type BasisChoice, type Correlation } from "@ziffr/core/correlation";
+import { correlationTakeaway, driversTakeaway, sayIn } from "@ziffr/core/takeaways/takeaway";
 import { TakeawayView } from "@/components/takeaway-view";
 import { resolverFrom } from "@ziffr/core/compare";
 import { dayAfter, heldText, isPartial, pointName, shownSeries, type DisplayPoint } from "@ziffr/core/display-periods";
 import { periodLabel } from "@ziffr/core/periods";
 import type { Flag, Part, Piece, TextShow, TextStyle, ViewDesign } from "@ziffr/core/view-design";
 import type { CanvasData, Metric, Widget } from "@ziffr/core/types";
-import { bestForecast } from "@ziffr/core/methods/forecast-choice";
+import { bestForecast, forecastTooWide, NO_FORECAST_WIDE } from "@ziffr/core/methods/forecast-choice";
 import { SEASON_LENGTH } from "@ziffr/core/suitability";
 import { forecastTakeaway, endsOf } from "@ziffr/core/takeaways/forecast";
-import { drawRecipe, formatOutput, newRecipeBudget, type TableFigures } from "@ziffr/core/design-analysis";
+import { drawRecipe, formatOutput, newRecipeBudget, type RecipeBudget, type TableFigures } from "@ziffr/core/design-analysis";
+import { onPage, RANK_BUDGET } from "@ziffr/core/work-bound";
 import { useRecipeBudget } from "./recipe-budget";
 import type { RecipeResults } from "@ziffr/core/recipe-run";
 import { drawnOutputs } from "@ziffr/core/analysis-recipe";
@@ -29,7 +30,15 @@ import { ApprovalMark } from "./approval-mark";
 import { DesignPlot } from "./design-plot";
 import { DesignBridge } from "./design-bridge";
 import { DesignRange } from "./design-range";
+import { ParetoMark } from "./design-pareto";
+import { CumulativeMark } from "./design-cumulative";
+import { BumpMark } from "./design-bump";
+import { HeatmapMark } from "./design-heatmap";
 import { PolarMark, RadarMark } from "./design-polar";
+import { ProgressMark } from "./design-progress";
+import { ScoreboardMark } from "./design-scoreboard";
+import { StackedMark } from "./design-stacked";
+import { SlopeMark } from "./design-slope";
 import { useWidgetScale } from "./widget-scale";
 
 type Props = {
@@ -53,7 +62,22 @@ export type DesignValues = ReturnType<typeof designValues> & {
 };
 
 /** The numbers and words a design draws for a widget, each from the core's functions. */
-function designValues(design: ViewDesign, widget: Pick<Widget, "settings">, metrics: Metric[], data: CanvasData, basis: BasisChoice, recipe: RecipeResults | null) {
+/** What a widget's correlation work comes to: the pair, the ranking and the matrix, each only where the design uses it. Under the page's share of exact work (`page`,
+ * charged in the order the widgets are drawn): where that is spent, the ranking says so for the Metrics it did not compare and a pair or a matrix cell says so in words. */
+function correlationWork(design: ViewDesign, metrics: Metric[], data: CanvasData, basis: BasisChoice, page: RecipeBudget) {
+  const uses = usage(design);
+  const m = metrics[0];
+  const resolve = resolverFrom(data.metrics, data.series);
+  const opts = { yearStart: data.yearStart, basis };
+  const tooMuch = (a: Metric, b: Metric): Correlation => ({ ok: false, period: commonPeriod(a.period, b.period), n: 0, why: "too-much", reason: sayIn("recipe-page-too-much", {}, { style: data.numberStyle, yearStart: data.yearStart }) });
+  const one = (a: Metric, b: Metric) => onPage(page, RANK_BUDGET, () => correlate(a, b, resolve, opts)) ?? tooMuch(a, b);
+  const correlation: Correlation | null = uses.pairs && metrics[1] ? one(m, metrics[1]) : null;
+  const drivers = uses.drivers ? rankCorrelations(m, metrics.slice(1), resolve, { ...opts, page }) : null;
+  const matrix = uses.matrix ? metrics.map((a) => metrics.map((b) => (a.id === b.id ? null : one(a, b)))) : null;
+  return { correlation, drivers, matrix };
+}
+
+function designValues(design: ViewDesign, widget: Pick<Widget, "settings">, metrics: Metric[], data: CanvasData, basis: BasisChoice, recipe: RecipeResults | null, work: ReturnType<typeof correlationWork>) {
   const uses = usage(design);
   const m = metrics[0];
   const s = widget.settings;
@@ -71,26 +95,25 @@ function designValues(design: ViewDesign, widget: Pick<Widget, "settings">, metr
   const goal = (p: DisplayPoint | undefined) => (combined ? { target_min: targets?.at[p?.period ?? ""]?.min ?? null, target_max: targets?.at[p?.period ?? ""]?.max ?? null } : { target_min: m.target_min, target_max: m.target_max });
   const name = (p: DisplayPoint, short = false) => pointName(p, by, m.period, data.yearStart, short);
   // The words under the widget: why a setting was not followed, else the target's and the Condensed Values' (spec 0033).
-  const note = shown.reason ?? ([combined ? targets?.note : null, shown.note].filter(Boolean).join(" ") || null);
-  const flags: Record<Flag, boolean> = { showTarget: option("showTarget"), showForecast: option("showForecast"), hasForecast: false, hasNote: !!note, manyValues: pts.length > 1 };
   // A span still running would read as a drop: the forecast starts from the last complete one.
   // The whole history is used (the latest 120 periods at most), not the window drawn, so the chart and the Takeaway say the same.
   const ahead = last?.toDate ? all.slice(0, -1) : all;
+  // Values too fine or too wide to work out exactly have no forecast, which is said (never a quiet gap).
+  const noForecast = uses.forecast({ showTarget: false, showForecast: option("showForecast"), hasForecast: false, hasNote: false, manyValues: false }) && forecastTooWide(ahead) ? NO_FORECAST_WIDE : null;
+  const note = shown.reason ?? ([combined ? targets?.note : null, shown.note, noForecast].filter(Boolean).join(" ") || null);
+  const flags: Record<Flag, boolean> = { showTarget: option("showTarget"), showForecast: option("showForecast"), hasForecast: false, hasNote: !!note, manyValues: pts.length > 1 };
   const projection = uses.forecast(flags) ? bestForecast(ahead, by, SEASON_LENGTH[by]) : null;
   const fc = projection?.points ?? null;
   flags.hasForecast = !!fc?.length;
-  const resolve = resolverFrom(data.metrics, data.series);
-  const correlation: Correlation | null = uses.pairs && metrics[1] ? correlate(m, metrics[1], resolve, { yearStart: data.yearStart, basis }) : null;
-  const drivers = uses.drivers ? rankCorrelations(m, metrics.slice(1), resolve, { yearStart: data.yearStart, basis }) : null;
+  const { correlation, drivers, matrix } = work;
   // The Takeaways (spec 0041): what the results say in words, after the suitability checks, from the one writer in the core.
   const tctx = { style: data.numberStyle, yearStart: data.yearStart };
   const correlationTake = correlation && metrics[1] ? correlationTakeaway(m, metrics[1], correlation, tctx) : null;
-  const driversTake = drivers ? driversTakeaway(m, drivers.ranked, tctx) : null;
+  const driversTake = drivers ? driversTakeaway(m, drivers.ranked, tctx, drivers.leftOut.some((l) => l.why === "too-much")) : null;
   // A forecast says which Method it used and how that did on the past; with a Target, how likely it is to be reached. It is
   // worked out in the Metric's own period, so a widget shown by a longer period (Show by) leaves it out rather than say it in other periods.
   const ends = endsOf(m);
   const forecastTake = projection && !combined ? forecastTakeaway(m, ahead, tctx, flags.showTarget && (ends.min !== null || ends.max !== null) ? { ends } : {}) : null;
-  const matrix = uses.matrix ? metrics.map((a) => metrics.map((b) => (a.id === b.id ? null : correlate(a, b, resolve, { yearStart: data.yearStart, basis })))) : null;
   // The target band shows when there is a range, and, for a combined series, when its spans have one.
   const band = (!combined || !!targets?.range) && (m.target_min !== null || m.target_max !== null);
   // The design's Analysis Recipe, on the series the widget shows of its own Metrics, by the library's functions.
@@ -130,7 +153,9 @@ export function DesignView({ design, widget, metrics, data, onPointContext }: Pr
   const budget = useRecipeBudget();
   const drawn = useMemo(() => drawRecipe(design, metrics, data, widget.settings, budget ?? newRecipeBudget()), [design, metrics, data, widget.settings, budget]);
   const recipe = drawn.results;
-  const v: DesignValues = { ...designValues(design, widget, metrics, data, basis, recipe), figures: drawn.figures, setBasis, roomy, behind: host !== null };
+  // The correlation work is charged to the page's share once, not again at every render.
+  const work = useMemo(() => correlationWork(design, metrics, data, basis, budget ?? newRecipeBudget()), [design, metrics, data, basis, budget]);
+  const v: DesignValues = { ...designValues(design, widget, metrics, data, basis, recipe, work), figures: drawn.figures, setBasis, roomy, behind: host !== null };
   const { m } = v;
   // The page has spent its share of work on recipes: the words say so and no number is shown.
   if (drawn.refusal) return <Empty>{drawn.refusal}</Empty>;
@@ -207,7 +232,7 @@ function TakeawayPanel({ v, host, title }: { v: DesignValues; host: Extract<NonN
 const drawn = (when: Flag[] | undefined, v: DesignValues) => (when ?? []).every((f) => v.flags[f]);
 
 /** Whether any part drawn takes the free space: a plot, a gauge, a polar plot, a radar or rows. */
-const growing = (parts: Part[], v: DesignValues): boolean => parts.some((p) => drawn(p.when, v) && (p.mark === "group" ? growing(p.parts, v) : p.mark === "plot" || p.mark === "gauge" || p.mark === "rows" || p.mark === "polar" || p.mark === "radar" || p.mark === "range" || p.mark === "bridge"));
+const growing = (parts: Part[], v: DesignValues): boolean => parts.some((p) => drawn(p.when, v) && (p.mark === "group" ? growing(p.parts, v) : p.mark === "plot" || p.mark === "gauge" || p.mark === "rows" || p.mark === "polar" || p.mark === "radar" || p.mark === "scoreboard" || p.mark === "range" || p.mark === "bridge" || p.mark === "progress" || p.mark === "stacked" || p.mark === "pareto" || p.mark === "slope" || p.mark === "cumulative" || p.mark === "bump" || p.mark === "heatmap"));
 
 function PartView({ part, v, ctx }: { part: Part; v: DesignValues; ctx?: (period: string) => void }): ReactNode {
   if (!drawn(part.when, v)) return null;
@@ -238,8 +263,24 @@ function PartView({ part, v, ctx }: { part: Part; v: DesignValues; ctx?: (period
       return <GaugeMark v={v} />;
     case "polar":
       return <PolarMark part={part} v={v} />;
+    case "heatmap":
+      return <HeatmapMark v={v} />;
     case "radar":
       return <RadarMark part={part} v={v} />;
+    case "progress":
+      return <ProgressMark v={v} />;
+    case "scoreboard":
+      return <ScoreboardMark v={v} />;
+    case "stacked":
+      return <StackedMark v={v} />;
+    case "pareto":
+      return <ParetoMark v={v} />;
+    case "slope":
+      return <SlopeMark v={v} />;
+    case "cumulative":
+      return <CumulativeMark v={v} />;
+    case "bump":
+      return <BumpMark v={v} />;
     case "rows":
       if (part.show === "values") return <ValueRows v={v} limit={part.limit === "rows" ? v.settings.rows ?? 6 : part.limit ?? 6} ctx={ctx} />;
       if (part.show === "matrix") return <MatrixRows v={v} />;
@@ -406,7 +447,7 @@ function NotCombined({ reasons }: { reasons: string[] }) {
   return <ul className="widget-text-xs mt-1 space-y-0.5 text-muted-foreground">{unique.map((r) => <li key={r}>{r}</li>)}</ul>;
 }
 
-const leftOutReasons = (v: DesignValues) => (v.drivers?.leftOut ?? []).map((l) => (l.why === "not-combined" ? l.reason : `${l.metric.name}: ${l.reason}`));
+const leftOutReasons = (v: DesignValues) => [...new Set((v.drivers?.leftOut ?? []).map((l) => (l.why === "not-combined" || l.why === "too-much" ? l.reason : `${l.metric.name}: ${l.reason}`)))];
 const matrixReasons = (v: DesignValues) => (v.matrix ?? []).flat().flatMap((c) => (c && !c.ok && c.why === "not-combined" ? [c.reason] : []));
 
 function MatrixRows({ v }: { v: DesignValues }) {
