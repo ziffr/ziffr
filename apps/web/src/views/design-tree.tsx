@@ -50,7 +50,7 @@ function Box({ box, at, hatch }: { box: TreeBox; at: Placed; hatch: string }) {
 }
 
 /** The boxes of a tree model, drawn; a model that was refused is its words. */
-export function TreeDrawing({ model }: { model: TreeModel }) {
+function TreeDrawing({ model }: { model: TreeModel }) {
   const hatch = useId().replace(/:/g, "");
   if (!model.ok) return <Words>{model.refusal}</Words>;
   const { boxes } = model;
