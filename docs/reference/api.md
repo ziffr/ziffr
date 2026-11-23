@@ -901,7 +901,7 @@ For a Feed Key only: 1 to 500 values, each through its Metric's Submission Rule,
 | `results[].period` | string or null | yes | The period it was meant for, YYYY-MM-DD; null when the Metric was not found. |
 | `results[].status` | `"recorded"`, `"awaiting_approval"`, `"locked"`, `"refused"` | yes | recorded; waiting for Approval (an Unusual Value, or every value under its Workflow); locked (it went to the Metric's owner as a proposed Correction); or refused. |
 | `results[].imported` | boolean | no | An Import: a past period that had no value, recorded without the Unusual Value check. Under a Workflow that approves every value, one for the period it is closing or later still waits for Approval. |
-| `results[].code` | string | no | Why it was refused: not_found, duplicate, period, derived, archived, source, no_value, no_token. |
+| `results[].code` | string | no | Why it was refused: not_found, duplicate, period, period_condensed, derived, archived, source, no_value, no_token. |
 | `results[].detail` | string | yes |  |
 
 **Errors**

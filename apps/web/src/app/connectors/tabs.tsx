@@ -1,5 +1,5 @@
 "use client";
-// The tabs of Workspace → Connectors (#532): Channels, Sources, Outbox and Who gets what, each its own page so a deep
+// The tabs of Workspace → Connectors (#532): Channels, Sources, Send values, Outbox and Who gets what, each its own page so a deep
 // link lands on one thing. On a phone they scroll sideways inside their own row, with a fade at the edge.
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -8,6 +8,7 @@ import { cn } from "@/lib/utils";
 const TABS = [
   { href: "/connectors", label: "Channels" },
   { href: "/connectors/sources", label: "Sources" },
+  { href: "/connectors/send", label: "Send values" },
   { href: "/connectors/outbox", label: "Outbox" },
   { href: "/connectors/who-gets-what", label: "Who gets what" },
 ];

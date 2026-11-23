@@ -325,7 +325,11 @@ In the demo, adding a Contact says "The demo can't be changed."
 
 ## Connectors
 
-**Workspace → Connectors** shows how Ziffr reaches people and how their answers come back. Everyone sees it. See [Connecting Ziffr](04-connecting.md) for the bigger picture. It has four tabs, each its own page: **Channels** (below, from Slack to Connected systems), **Sources**, **Outbox** and **Who gets what**. The old address `/sources` leads to the **Sources** tab. Claude and other AI assistants are not set up here but under **Connected assistants** in your own menu; **Channels** says so in one line.
+**Workspace → Connectors** shows how Ziffr reaches people and how their answers come back. Everyone sees it. See [Connecting Ziffr](04-connecting.md) for the bigger picture. It has five tabs, each its own page: **Channels** (below, from Slack to Connected systems), **Sources**, **Send values**, **Outbox** and **Who gets what**. The old address `/sources` leads to the **Sources** tab. Claude and other AI assistants are not set up here but under **Connected assistants** in your own menu; **Channels** says so in one line.
+
+### Send values
+
+The **Send values** tab is where everyone finds a working way to put values on their Metrics from a program or another system. Pick one of your Metrics that takes values from the API (its **Values arrive by** includes **API and Feeds**), and a kind of key: a **Feed Key** for a system (Owners and Admins; up to 500 values in one call) or an **Access Key** for you (one value at a time, as you). The page shows the call for this Ziffr's own address in curl, JavaScript, Python and n8n or Zapier, each with a **Copy** button. The key is a placeholder: the page holds no key and sends nothing (make a key under **Settings → Feeds** or **Settings → API keys**). Below it, **What the answers mean** says what a 400, 401, 409, 422 or 429 is and what to do, and **Other ways to connect** points to the ready-made n8n workflows (**Fill from n8n** on a Metric), the AI assistant and the keys. The full list of answers and codes is in the [Feeds guide](../guides/feeds.md).
 
 ### Slack
 
