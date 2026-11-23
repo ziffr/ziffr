@@ -92,8 +92,9 @@ jobs:
   # has no merge queue, so the pull request is the only gate: the full checks run there.
   numbers:
     runs-on: ubuntu-latest
-    # The full-strength run takes a few minutes and mutation testing at most 20 (mutation-pr.sh stops it there).
-    timeout-minutes: 30
+    # The full-strength run takes about 16 minutes (the suite of generated reference tests has grown) and mutation testing at most
+    # 20 more (mutation-pr.sh stops it there): so 45, not 30, or every calculation pull request is cancelled in its mutation step.
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:

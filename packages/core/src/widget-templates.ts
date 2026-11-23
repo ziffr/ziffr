@@ -11,7 +11,7 @@ export type TemplateDef = {
   label: string;
   blurb: string;
   kind: "metric" | "analysis" | "story" | "layout";
-  /** Story templates that draw one period's Breakdown. */
+  /** Templates that draw a Breakdown (a Finding of one period's, or a View of every period's): offered only for a Metric that has one. */
   needsBreakdown?: boolean;
   /** The metrics it asks for when it is added (GLOSSARY: Slot); none for a free layout, which starts empty. */
   slots: Slot[];
@@ -23,9 +23,9 @@ const one: Slot[] = [{ label: "Metric", multiple: false }];
 const withBreakdown: Slot[] = [{ label: "Metric with a breakdown", multiple: false }];
 
 // A built-in View Design as a Widget Template.
-const designed = (id: DesignedView): TemplateDef => {
+const designed = (id: DesignedView, needsBreakdown = false): TemplateDef => {
   const d = BUILT_IN_DESIGNS[id];
-  return { id, label: d.name, blurb: d.description ?? "", kind: d.kind, slots: designSlots(d), size: d.size, settings: designSettings(d) };
+  return { id, label: d.name, blurb: d.description ?? "", kind: d.kind, ...(needsBreakdown ? { needsBreakdown } : {}), slots: designSlots(d), size: d.size, settings: designSettings(d) };
 };
 
 /** Every built-in Widget Template by id. */
@@ -39,6 +39,9 @@ export const TEMPLATES: Record<TemplateId, TemplateDef> = {
   correlation: designed("correlation"),
   matrix: designed("matrix"),
   drivers: designed("drivers"),
+  scoreboard: designed("scoreboard"),
+  progress: designed("progress"),
+  stacked: designed("stacked", true),
   ranked: { id: "ranked", label: "Finding: ranked bars", blurb: "A breakdown, largest first, one row highlighted.", kind: "story", needsBreakdown: true, slots: withBreakdown, size: { w: 6, h: 9 }, settings: {} },
   share: { id: "share", label: "Finding: part of the whole", blurb: "How a breakdown divides the total.", kind: "story", needsBreakdown: true, slots: withBreakdown, size: { w: 6, h: 7 }, settings: {} },
   pictogram: { id: "pictogram", label: "Finding: 7 in 10", blurb: "The largest share as ten figures.", kind: "story", needsBreakdown: true, slots: withBreakdown, size: { w: 4, h: 8 }, settings: {} },
@@ -56,7 +59,7 @@ export const METRIC_TEMPLATES = Object.values(TEMPLATES).filter((t) => t.kind ==
 /** Story templates. */
 export const STORY_TEMPLATES = Object.values(TEMPLATES).filter((t) => t.kind === "story");
 /** Templates one metric can be shown in: story templates that need a breakdown only when it has one. */
-export const templatesFor = (hasBreakdown: boolean) => [...METRIC_TEMPLATES, ...STORY_TEMPLATES.filter((t) => !t.needsBreakdown || hasBreakdown), TEMPLATES.canvas];
+export const templatesFor = (hasBreakdown: boolean) => [...METRIC_TEMPLATES, ...STORY_TEMPLATES, TEMPLATES.canvas].filter((t) => !t.needsBreakdown || hasBreakdown);
 
 /** The built-in templates offered to choose from: every one but the stand-in for a Workspace's View Design, which is
  * offered by its own name (GLOSSARY: View Design). */

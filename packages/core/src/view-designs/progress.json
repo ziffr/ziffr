@@ -1,0 +1,10 @@
+{
+  "format": "ziffr.view/1",
+  "name": "Progress against target",
+  "description": "Each Metric's latest value against its target, one compact bar each.",
+  "kind": "analysis",
+  "slots": [{ "label": "Metrics", "metrics": "several" }],
+  "size": { "w": 6, "h": 7 },
+  "empty": "Drop at least one metric.",
+  "parts": [{ "mark": "progress", "show": "latest" }]
+}

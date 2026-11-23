@@ -24,7 +24,7 @@ export const GET = keyRoute("metrics:read", async (actor, req, ctx: Ctx) => {
     throw e;
   }
   return json(PeriodStatus.parse({
-    workflow: t.workflow, period: { start: t.period, name: t.label }, in: t.in, of: t.of, published: t.published, locked: t.locked, checklist: t.checklist,
+    workflow: t.workflow, period: { start: t.period, name: t.label }, in: t.in, of: t.of, published: t.published, locked: t.locked, checklist: t.checklist, finished: t.finished,
     events: t.events.map((e) => ({ at: e.at, day: e.day, time: e.time, kind: e.kind, text: e.text, count: e.count, in: e.in ?? null, items: e.items, url: e.path ? new URL(e.path, req.url).toString() : null })),
   }));
 });
