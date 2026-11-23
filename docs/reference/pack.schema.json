@@ -99,7 +99,9 @@
         "properties": {
           "template": {
             "enum": [
-              "google-sheets"
+              "google-sheets",
+              "stripe",
+              "hubspot"
             ],
             "description": "the id of one of the templates Ziffr ships, such as “google-sheets”"
           },

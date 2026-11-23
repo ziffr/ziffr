@@ -176,6 +176,114 @@ describe("google-sheets-feed.json: from rows to the items a Feed takes", () => {
   });
 });
 
+describe("stripe-feed.json and hubspot-feed.json: only reads, only figures", () => {
+  for (const file of ["stripe-feed.json", "hubspot-feed.json"]) {
+    it(`${file}: never writes to the other system, and runs once a month for the month that ended`, () => {
+      const wf = load(file);
+      for (const n of wf.nodes.filter((x) => x.type === "n8n-nodes-base.httpRequest" && x.name !== "Send to Ziffr")) {
+        const method = String(n.parameters.method);
+        const url = String(n.parameters.url);
+        // Stripe is read with GET; HubSpot's search is a POST that only reads (its address says so).
+        expect(method === "GET" || (method === "POST" && /\/crm\/v3\/objects\/(deals|contacts)\/search$/.test(url)), `${n.name}: ${method} ${url}`).toBe(true);
+        expect(url).toMatch(/^https:\/\/api\.(stripe\.com\/v1\/subscriptions|hubapi\.com\/crm\/v3\/objects\/(deals|contacts)\/search)$/);
+        expect(n.parameters.authentication).toBe("predefinedCredentialType");
+      }
+      const trigger = wf.nodes.find((n) => n.type === "n8n-nodes-base.scheduleTrigger")!;
+      expect(JSON.stringify(trigger.parameters)).toContain('"months"');
+    });
+  }
+});
+
+describe("stripe-feed.json: from subscriptions to three figures", () => {
+  it("asks for the cancelled list once, not once for each page of the current list", () => {
+    expect((load("stripe-feed.json").nodes.find((n) => n.name === "Read cancelled subscriptions") as unknown as { executeOnce?: boolean }).executeOnce).toBe(true);
+  });
+  const wf = load("stripe-feed.json");
+  const settings = (o: Param = {}) => ({ ziffrUrl: "https://z.example", mrrMetric: "mrr", customersMetric: "customers", churnedMetric: "churned", currency: "eur", ...o });
+  const price = (unit_amount: number | null, interval = "month", extra: Param = {}) => ({ unit_amount, currency: "eur", recurring: { interval, interval_count: 1, usage_type: "licensed" }, ...extra });
+  const sub = (customer: string, lines: Param[], extra: Param = {}) => ({ status: "active", customer, items: { data: lines }, ...extra });
+  const T = (iso: string) => Math.floor(new Date(iso).getTime() / 1000);
+  const run = (s: Param, current: Param[], cancelled: Param[] = [], more = false) => runNode(wf, "Shape values", {
+    items: [],
+    nodes: { Settings: [{ json: s }], "Read current subscriptions": [{ json: { data: current, has_more: more } }], "Read cancelled subscriptions": [{ json: { data: cancelled, has_more: false } }] },
+  }).then((x) => x[0].json as { items: Param[]; skipped: { why: string }[]; key: string });
+
+  it("adds the plans up to a month, counts customers once, and counts those who cancelled in the month that ended and are not back", async () => {
+    const out = await run(settings(), [
+      sub("c1", [{ price: price(5000), quantity: 2 }]),                          // 100.00 a month
+      sub("c1", [{ price: price(12000, "year") }]),                              // another plan of the same customer: 10.00 a month, still one customer
+      sub("c2", [{ price: price(2000, "week") }], { status: "past_due" }),       // 2000 a week = 8666.67 a month in cents: 86.67
+      sub("c3", [{ price: price(9900) }], { status: "trialing" }),               // a trial is not revenue, and not yet a customer
+    ], [
+      { customer: "c4", canceled_at: T("2025-10-15T10:00:00Z") },                // cancelled in the month that ended: lost
+      { customer: "c5", canceled_at: T("2025-09-30T23:59:59Z") },                // the month before
+      { customer: "c6", canceled_at: T("2025-11-02T10:00:00Z") },                // this month, not yet counted
+      { customer: "c1", canceled_at: T("2025-10-20T10:00:00Z") },                // cancelled one plan, still a customer: not lost
+    ]);
+    expect(out.items).toEqual([{ metric: "mrr", period: "2025-10-01", value: 196.67 }, { metric: "customers", period: "2025-10-01", value: 2 }, { metric: "churned", period: "2025-10-01", value: 1 }]);
+    expect(out.skipped).toEqual([]);
+    expect(out.key.length).toBeLessThan(100);
+  });
+  it("leaves tiered, metered, other-currency and interval-less prices out of the revenue, and says so", async () => {
+    const out = await run(settings(), [sub("c1", [
+      { price: price(null) }, { price: price(100, "month", { currency: "usd" }) }, { price: price(100, "month", { recurring: { interval: "month", interval_count: 1, usage_type: "metered" } }) }, { price: { unit_amount: 100, currency: "eur" } }, { price: price(1000) },
+    ])]);
+    expect(out.items[0]).toMatchObject({ metric: "mrr", value: 10 });
+    expect(out.skipped[0].why).toMatch(/^4 price\(s\) left out/);
+  });
+  it("uses a currency's own units: whole yen, three-decimal dinars, cents otherwise", async () => {
+    const yen = await run(settings({ currency: "jpy", customersMetric: "", churnedMetric: "" }), [sub("c1", [{ price: price(1500, "month", { currency: "jpy" }) }])]);
+    expect(yen.items).toEqual([{ metric: "mrr", period: "2025-10-01", value: 1500 }]);
+    const kwd = await run(settings({ currency: "kwd", customersMetric: "", churnedMetric: "" }), [sub("c1", [{ price: price(2500, "month", { currency: "kwd" }) }])]);
+    expect(kwd.items[0]).toMatchObject({ value: 2.5 });
+  });
+  it("skips a figure whose slug is empty; refuses what is not a slug, no figure at all and no currency", async () => {
+    const one = await run(settings({ customersMetric: "", churnedMetric: "" }), [sub("c1", [{ price: price(1000) }])]);
+    expect(one.items.map((i) => i.metric)).toEqual(["mrr"]);
+    await expect(run(settings({ mrrMetric: "REPLACE-WITH-THE-MRR-METRIC-SLUG-OR-EMPTY" }), [])).rejects.toThrow(/mrrMetric is not a Metric slug/);
+    await expect(run(settings({ mrrMetric: "", customersMetric: "", churnedMetric: "" }), [])).rejects.toThrow(/at least one Metric/);
+    await expect(run(settings({ currency: "REPLACE-WITH-THE-CURRENCY-CODE-SUCH-AS-eur" }), [])).rejects.toThrow(/currency/);
+  });
+  it("sends nothing when Stripe has more than was read, rather than a number that is too low", async () => {
+    await expect(run(settings(), [sub("c1", [{ price: price(1000) }])], [], true)).rejects.toThrow(/more subscriptions than this template reads/);
+  });
+  it("sends only the figures: no customer, id or other field leaves", async () => {
+    const out = await run(settings(), [sub("cus_SECRET", [{ price: price(1000) }], { id: "sub_SECRET" })]);
+    expect(JSON.stringify(out)).not.toMatch(/SECRET/);
+  });
+});
+
+describe("hubspot-feed.json: from two totals to two figures", () => {
+  const wf = load("hubspot-feed.json");
+  const settings = (o: Param = {}) => ({ ziffrUrl: "https://z.example", dealsWonMetric: "deals-won", newContactsMetric: "new-contacts", ...o });
+  const run = (s: Param, won: unknown, contacts: unknown) => runNode(wf, "Shape values", {
+    items: [],
+    nodes: { Settings: [{ json: s }], "Count deals won": [{ json: { total: won, results: [{ id: "SECRET" }] } }], "Count new contacts": [{ json: { total: contacts } }] },
+  }).then((x) => x[0].json as { items: Param[]; key: string });
+
+  it("sends the two totals for the month that ended, and nothing else HubSpot said", async () => {
+    const out = await run(settings(), 7, 120);
+    expect(out.items).toEqual([{ metric: "deals-won", period: "2025-10-01", value: 7 }, { metric: "new-contacts", period: "2025-10-01", value: 120 }]);
+    expect(JSON.stringify(out)).not.toMatch(/SECRET/);
+    expect((await run(settings(), 7, 120)).key).toBe(out.key);
+    expect((await run(settings(), 8, 120)).key).not.toBe(out.key);
+  });
+  it("a zero is a figure; no total, a negative one or a slug that is not one stops the run", async () => {
+    expect((await run(settings(), 0, 0)).items.map((i) => i.value)).toEqual([0, 0]);
+    await expect(run(settings(), undefined, 1)).rejects.toThrow(/did not say how many/);
+    await expect(run(settings(), -1, 1)).rejects.toThrow(/did not say how many/);
+    await expect(run(settings({ dealsWonMetric: "Deals Won" }), 1, 1)).rejects.toThrow(/dealsWonMetric is not a Metric slug/);
+    await expect(run(settings({ dealsWonMetric: "", newContactsMetric: "" }), 1, 1)).rejects.toThrow(/at least one Metric/);
+  });
+  it("asks HubSpot for the month that ended: closed-won deals by closing day, contacts by creation day", () => {
+    const body = (name: string) => String(load("hubspot-feed.json").nodes.find((n) => n.name === name)!.parameters.jsonBody);
+    expect(body("Count deals won")).toContain("hs_is_closed_won");
+    expect(body("Count deals won")).toContain("closedate");
+    expect(body("Count new contacts")).toContain("createdate");
+    for (const n of ["Count deals won", "Count new contacts"]) expect(body(n)).toMatch(/GTE.*LT/s);
+  });
+});
+
 // ---- the fixture run ----
 
 const SECRET = "whsec_TESTTESTTESTTESTTESTTESTTESTTESTTESTTEST0";

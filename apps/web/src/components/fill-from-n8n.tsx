@@ -52,7 +52,7 @@ export function FillFromN8n({ metrics, feeds, templates }: { metrics: { id: numb
         <p className="font-medium">The n8n workflow for {chosen.label} is downloaded</p>
         <p className="text-xs text-muted-foreground">It is the Feed “{made.feed.name}” that sends the values, and it now takes values for {made.metrics.map((m) => m.name).join(", ")}.</p>
         <ol className="list-decimal space-y-1 pl-5 text-xs">
-          <li>In n8n, import <code>{made.fileName}</code> (Workflows → Import from file) and fill in its <strong>Settings</strong> node{chosen.rows ? ": the sheet's id and the tab's name" : ""}. Your Ziffr&rsquo;s address is in it already.</li>
+          <li>In n8n, import <code>{made.fileName}</code> (Workflows → Import from file) and fill in its <strong>Settings</strong> node{chosen.rows ? ": the sheet's id and the tab's name" : `: which Metric each figure is for (${made.metrics.map((m) => m.slug).join(", ")}) and what it asks`}. Your Ziffr&rsquo;s address is in it already.</li>
           {chosen.rows && made.startSheet && <li>Put the Metrics in your sheet: <button type="button" className="underline" onClick={() => save("ziffr-metrics.csv", made.startSheet!, "text/csv")}>download the starter sheet</button> (a column <code>metric</code> with these slugs, <code>value</code>, and an optional <code>period</code>).</li>}
           <li>{made.key ? "Make a Header Auth credential in n8n named Ziffr Feed Key: name Authorization, value Bearer followed by the key below." : "Use a Feed Key of this Feed (Settings → Feeds) in a Header Auth credential in n8n named Ziffr Feed Key: name Authorization, value Bearer followed by the key."}</li>
           <li>You need: {chosen.needs}</li>
