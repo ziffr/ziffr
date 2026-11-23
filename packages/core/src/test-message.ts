@@ -3,7 +3,7 @@
 // ways in and out. It asks for nothing and cannot be answered.
 // Security: this is the one operation that makes Ziffr message a person on a person's press, so it is built to reach
 // nobody else. No parameter names a recipient, an address, a Slack user or a chat: the recipient is the acting person,
-// the address is their sign-in address (proven by signing in), and Slack and Telegram reach only the account that
+// the address is the one Ziffr keeps for that person (their sign-in address, or the Contact address on file if they also have one), and Slack and Telegram reach only the account that
 // person linked (or Slack found by that address). The text is fixed: the Workspace's name and the way, never anything
 // typed. Never through an Access Key, in the demo or for a Guest. At most 3 by one way in 10 minutes and 20 a day by
 // all ways, claimed in the database under a lock. The Audit Log keeps the way and the outcome, never an address.
