@@ -94,7 +94,9 @@ jobs:
     runs-on: ubuntu-latest
     # The full-strength run takes about 16 minutes (the suite of generated reference tests has grown) and mutation testing at most
     # 20 more (mutation-pr.sh stops it there): so 45, not 30, or every calculation pull request is cancelled in its mutation step.
-    timeout-minutes: 45
+    # A pull request with the label "full-mutation" (a change under the exact arithmetic that every calculation builds on: thousands of
+    # mutants run again) may mutate for up to 4 hours, for the other pull requests the budget stays 20 minutes.
+    timeout-minutes: ${{ contains(github.event.pull_request.labels.*.name, 'full-mutation') && 330 || 45 }}
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
@@ -133,7 +135,7 @@ jobs:
         if: steps.changes.outputs.run == 'true'
         env:
           BASE: ${{ github.event_name == 'pull_request' && format('origin/{0}', github.base_ref) || github.event_name == 'merge_group' && github.event.merge_group.base_sha || 'HEAD^1' }}
-        run: .github/scripts/mutation-pr.sh "$BASE" 1200
+        run: .github/scripts/mutation-pr.sh "$BASE" ${{ contains(github.event.pull_request.labels.*.name, 'full-mutation') && 14400 || 1200 }}
 
   # Core operations against a real Postgres with the migrations applied (spec 0001, testing decisions), in the merge
   # queue and on main only: a pull request gets the quick checks, and its group is tested in full before it lands.
