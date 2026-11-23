@@ -58,5 +58,6 @@
   "src/methods/fractions.ts",
   "src/methods/carry-over.ts",
   "src/polar-marks.ts",
-  "src/mark-figures.ts"
+  "src/mark-figures.ts",
+  "src/driver-tree.ts"
 ]

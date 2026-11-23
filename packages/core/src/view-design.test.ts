@@ -58,6 +58,13 @@ export const WITH_POLAR_AND_RADAR: ViewDesign = {
   analysis: { ...WITH_RECIPE.analysis!, slots: [{ label: "Metric" }] },
   parts: [{ mark: "polar", show: "recipe.avg" }, { mark: "polar", show: "values" }, { mark: "radar", show: "latest" }, { mark: "radar", show: "latest", against: "previous" }],
 };
+/** A design with the formula tree of a Derived Metric (spec 0041, ticket 11): one Slot, whose Metric has the formula. */
+export const WITH_TREE: ViewDesign = {
+  ...EXAMPLE,
+  name: "Where the number comes from",
+  slots: [{ label: "Derived Metric", metrics: "one" }],
+  parts: [{ mark: "tree", show: "formula" }],
+};
 const text = (v: unknown) => JSON.stringify(v, null, 2);
 const withPart = (part: unknown, extra: Record<string, unknown> = {}) => text({ ...EXAMPLE, ...extra, parts: [part] });
 const deep = (n: number): unknown => (n === 0 ? "x" : { mark: "group", direction: "row", parts: [deep(n - 1)] });
@@ -127,6 +134,12 @@ const HOSTILE: [string, string, string, Where][] = [
   ["a radar of a Slot of several that may hold two", withPart({ mark: "radar", show: "latest" }, { slots: [{ label: "A", metrics: "several", min: 2 }] }), "A radar needs 3 to 12 spokes", { after: '"parts": [' }],
   ["a radar of 13 Slots' worth", withPart({ mark: "radar", show: "latest" }, { slots: [{ label: "A", metrics: "several", min: 12 }, { label: "B", metrics: "one" }] }), "A radar needs 3 to 12 spokes", { after: '"parts": [' }],
   ["a radar with a style field", withPart({ mark: "radar", show: "latest", color: "red" }, { slots: [{ label: "M", metrics: "several", min: 3 }] }), "is not a field here", '"color"'],
+  // The formula tree mark (spec 0041, ticket 11).
+  ["a tree of something else", withPart({ mark: "tree", show: "values" }), "must be “formula”", '"values"'],
+  ["a tree of a recipe output", withPart({ mark: "tree", show: "recipe.avg" }), "must be “formula”", '"recipe.avg"'],
+  ["a tree with a style field", withPart({ mark: "tree", show: "formula", color: "red" }), "is not a field here", '"color"'],
+  ["a tree with a formula of its own", withPart({ mark: "tree", show: "formula", formula: "{a} + {b}" }), "is not a field here", '"formula": "{a} + {b}"'],
+  ["a tree without what it shows", withPart({ mark: "tree" }), "needs the field “show”", { after: '"parts": [' }],
   ["a prototype key", text(EXAMPLE).replace('"format"', '"__proto__": { "admin": true },\n  "format"'), "is not a field here", "__proto__"],
   ["a constructor key in a mark", withPart({ mark: "text", content: ["a"], constructor: { prototype: 1 } }), "is not a field here", "constructor"],
   // A design's Analysis Recipe (#151): checked as a recipe, and every "recipe." names an output of the right kind.
@@ -150,6 +163,8 @@ describe("checkViewDesign", () => {
     expect(withRecipe.ok ? [] : withRecipe.problems).toEqual([]);
     const polar = checkViewDesign(text(WITH_POLAR_AND_RADAR));
     expect(polar.ok ? [] : polar.problems).toEqual([]);
+    const tree = checkViewDesign(text(WITH_TREE));
+    expect(tree.ok ? [] : tree.problems).toEqual([]);
     // Three Slots of one Metric each are three spokes as well.
     expect(checkViewDesign(text({ ...WITH_POLAR_AND_RADAR, analysis: undefined, parts: [{ mark: "radar", show: "latest" }], slots: ["A", "B", "C"].map((label) => ({ label, metrics: "one" })) })).ok).toBe(true);
     const once = writeViewDesign(WITH_RECIPE);
@@ -226,6 +241,7 @@ describe("the published schema", () => {
     const validate = ajv.compile(VIEW_DESIGN_SCHEMA as object);
     expect(validate(EXAMPLE)).toBe(true);
     expect(validate(WITH_POLAR_AND_RADAR)).toBe(true);
+    expect(validate(WITH_TREE)).toBe(true);
     for (const [name, file] of HOSTILE) {
       let value: unknown;
       try {

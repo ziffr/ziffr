@@ -51,7 +51,8 @@ export type Part =
   | { mark: "range"; show: RecipeShow; tone?: Tone; when?: Flag[] }
   | { mark: "bridge"; show: RecipeShow; when?: Flag[] }
   | { mark: "polar"; show: "values" | RecipeShow; when?: Flag[] }
-  | { mark: "radar"; show: "latest"; against?: "previous"; when?: Flag[] };
+  | { mark: "radar"; show: "latest"; against?: "previous"; when?: Flag[] }
+  | { mark: "tree"; show: "formula"; when?: Flag[] };
 
 /** How many spokes (a radar) or periods (a polar plot) are drawn, at least and at most: fewer than 3 is a line, more than 12 cannot be read. */
 export const SPOKES = { min: 3, max: 12 } as const;
@@ -222,6 +223,7 @@ export const VIEW_DESIGN_SCHEMA: Schema = {
         mark("rows", "Table rows: the latest values; the Metrics ranked by how much they move with the first (correlations), or every pair (matrix); or why Metrics were left out of a comparison (reasons).", { show: { enum: ["values", "correlations", "matrix", "reasons"] }, limit: { oneOf: [{ type: "string", enum: ["rows"] }, { type: "integer", minimum: 1, maximum: 120 }] } }, ["show"]),
         mark("polar", `Values around a circle: the periods of a series as angles in the order given, the values as the distance from the centre, which is 0; ${SPOKES.min} to ${SPOKES.max} periods, none below 0.`, { show: shows(["values"], true, "a series") }, ["show"]),
         mark("radar", `Several Metrics as spokes on one shape, in the order of the Slots, ${SPOKES.min} to ${SPOKES.max} of them: each spoke has its own scale, from the Metric's lowest value of the periods shown at the centre to its highest at the rim. With against, the period before is drawn as a second, dashed shape.`, { show: { const: "latest" }, against: { const: "previous" } }, ["show"]),
+        mark("tree", "The parts of a Derived Metric's formula as boxes, from the Metric's own value in its latest period down through each part, every box an exact number: the parts of a sum share the width of the box above them by their size, the factors of a product or a ratio are laid side by side equally and are not to scale. The first Slot must be a Derived Metric whose inputs are all shared with the viewer; at most 4 levels and 24 boxes.", { show: { const: "formula" } }, ["show"]),
         mark("range", "One bar per row, from its low to its high end, with its middle value: a driver's effect with its range (the table of the `effects` step of the design's analysis).", { show: recipeTable("a table with a low and a high end for each row, from the `effects` step"), tone }, ["show"]),
         mark("bridge", "Steps from a start, each part going up or down, and an end (the table of the `bridge` step of the design's analysis).", { show: recipeTable("the table of the `bridge` step") }, ["show"]),
       ],
