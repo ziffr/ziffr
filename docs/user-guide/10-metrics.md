@@ -430,6 +430,76 @@ A Feed is listed with the word "Feed". The owner and Editors see **Remove** next
 
 People are chosen as Submitters when the Metric is created or duplicated. This box has no way yet to add or remove a person later.
 
+#### Fill from a data warehouse
+
+If your numbers sit in BigQuery or Snowflake, there are two ways to fill a Metric from them, and neither gives Ziffr your warehouse login ([ADR 0006](../adr/0006-feeds-run-outside-ziffr.md)): the query runs where you put it, with an identity you own, and only the figures it returns are sent.
+
+| You want | Use |
+| --- | --- |
+| A command-line Feed in a file you keep in git, run by cron, a container or a scheduled job; a query for each Metric, with an optional Breakdown | The SQL Feed, below |
+| To run nothing yourself, and you already use n8n | **Fill from n8n** with the **BigQuery** or **Snowflake** template, one query for all your Metrics, once a month ([BigQuery](../automations/bigquery-feed.md), [Snowflake](../automations/snowflake-feed.md)) |
+
+For the SQL Feed, an Owner or Admin first makes a Feed and a Feed Key under **Settings, Feeds**, and each Metric's owner adds the Feed under **Who submits**. You install the warehouse's own package next to the Feed yourself (`npm install @google-cloud/bigquery` or `npm install snowflake-sdk`); Ziffr does not ship them, and a file that asks for one that is missing stops with a message naming it. The file holds one query per Metric slug. Write `:period_start` (the period's first day) and `:period_end` (the day after its last); the Feed turns them into the warehouse's own bound parameters, so nothing is pasted into the query. A query returns one row whose first column is the value; no row, or null, means no value yet. Only a single `select` (or `with ... select`) is accepted.
+
+**BigQuery.** Save this as `warehouse.yaml`:
+
+```yaml
+name: Warehouse
+dialect: bigquery
+project: my-company-data
+max_bytes_billed: 10737418240 # optional; 10 GB is the default
+metrics:
+  monthly-revenue:
+    value: |
+      select sum(amount) from `my-company-data.sales.orders`
+      where order_date >= :period_start and order_date < :period_end
+```
+
+The Feed signs in with the Google Cloud application default credentials of the machine that runs it, so set `GOOGLE_APPLICATION_CREDENTIALS` to a service account's key file (or run it as an identity the machine already has). The project can instead come from `GOOGLE_CLOUD_PROJECT`.
+
+```sh skip="needs a Feed Key and a BigQuery project"
+export ZIFFR_URL=https://ziffr.example.com ZIFFR_FEED_KEY=zk_...
+export GOOGLE_APPLICATION_CREDENTIALS=/secure/ziffr-feed.json
+npx @ziffr/feed-sql run warehouse.yaml --dry-run
+npx @ziffr/feed-sql run warehouse.yaml --backfill 24
+```
+
+`--dry-run` runs the queries and shows what would be sent without sending anything; `--backfill 24` also fills the 24 periods before the current one that have no value yet (the first run). To keep it going, schedule `npx @ziffr/feed-sql run warehouse.yaml` once a month with cron, a GitHub Action or any scheduled job, with the same environment variables ([the Feeds guide](../guides/feeds.md) has an example).
+
+- **The role:** give the service account BigQuery Data Viewer on the datasets it reads and BigQuery Job User on the project, nothing that can write.
+- **The cost cap:** BigQuery bills by bytes scanned. Every query is dry-run first; if the estimate is above `max_bytes_billed` (10 GB unless you set it) the Feed stops with a message naming the estimate and the limit, and otherwise runs the job with the same limit. Filter on the table's partition column, as the example does, to stay far below it. The cap is a safety stop, not your bill: Ziffr does not know your prices.
+
+**Snowflake.** Save this as `warehouse.yaml`:
+
+```yaml
+name: Warehouse
+dialect: snowflake
+warehouse: FEED_WH
+role: ZIFFR_FEED_RO
+database: ANALYTICS
+metrics:
+  monthly-revenue:
+    value: select sum(amount) from orders where paid_at >= :period_start and paid_at < :period_end
+```
+
+Login is by key pair and comes from the environment only; the file names the warehouse, role, database and schema, never a secret. Create the key with `openssl genrsa 2048 | openssl pkcs8 -topk8 -inform PEM -out ziffr_feed.p8` and attach its public half to the Snowflake user with `alter user ZIFFR_FEED set rsa_public_key=...`.
+
+```sh skip="needs a Feed Key and a Snowflake account"
+export ZIFFR_URL=https://ziffr.example.com ZIFFR_FEED_KEY=zk_...
+export SNOWFLAKE_ACCOUNT=myorg-myaccount SNOWFLAKE_USER=ZIFFR_FEED
+export SNOWFLAKE_PRIVATE_KEY_PATH=/secure/ziffr_feed.p8
+npx @ziffr/feed-sql run warehouse.yaml --dry-run
+npx @ziffr/feed-sql run warehouse.yaml --backfill 24
+```
+
+Use `SNOWFLAKE_PRIVATE_KEY` for the key's text instead of a path, and `SNOWFLAKE_PRIVATE_KEY_PASSPHRASE` if the key is encrypted. The two options and the schedule work as for BigQuery.
+
+- **The role is the real control:** give the user a role that may only read, for example `usage` on the warehouse and the database and `select` on the tables it needs. The Feed's own check (one `select` statement, no batches) is a backup, not a substitute.
+- **Warehouse size:** point the Feed at an X-Small warehouse with auto-suspend, so a monthly run costs little.
+- **Timeout:** each query stops after 30 seconds unless you set `statement_timeout_ms` in the file.
+
+The Feed's [README](../../packages/feed-sql/README.md) has every setting of the file.
+
 ## Sharing a Metric
 
 **Share** belongs to the Metric Owner. For each person, and for each Group ("including whoever joins later"), choose **No access**, **Viewer** or **Editor**.
