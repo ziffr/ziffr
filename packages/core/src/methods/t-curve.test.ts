@@ -31,7 +31,7 @@ describe("Student's t curve against SciPy", () => {
     expect(fixture.tCdf.length).toBe(18 * 18);
     for (const { t, df, p } of fixture.tCdf as { t: number; df: number; p: number }[]) {
       const got = tCdf(t, df);
-      expect(relative(got, p) < 1e-9 || (p < 1e-300 && got < 1e-300), `t=${t} df=${df}: ${got} vs ${p}`).toBe(true);
+      expect(relative(got, p) < 1e-12 || (p < 1e-300 && got < 1e-300), `t=${t} df=${df}: ${got} vs ${p}`).toBe(true);
     }
   });
   it("is the reference's curve, which is itself SciPy's to a relative 1e-10 (the incomplete beta function against the finite sums)", () => {

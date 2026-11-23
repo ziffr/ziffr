@@ -131,9 +131,13 @@ export function afterDate(points: Point[], span: Span, date: string): AfterDate 
   if (expected.num > ZERO) {
     const [t2, level2] = [tQuantile(LIKELY, n - 2) ** 2, mul(expected, expected)];
     const [u, g, h] = [nearest(div(mya, expected)), t2 * nearest(div(mul(variance, add(div(whole(1), whole(n)), div(mul(reach, reach), sxx))), level2)), t2 * nearest(div(variance, mul(whole(after.length), level2)))];
-    const [hundred, root] = [nearest(div(mul(gap, whole(100)), expected)), Math.sqrt(u * u * g + h * (1 - g))];
-    if (g < 1 && ![hundred, root, (u - root) / (1 - g)].every(Number.isFinite)) return { ok: false, why: "huge" };
-    if (g < 1) share = { gap: hundred, lo: 100 * ((u - root) / (1 - g) - 1), hi: 100 * ((u + root) / (1 - g) - 1) };
+    // Stryker disable next-line EqualityOperator: g is t² times a fraction and is never exactly 1, where the range would have no end.
+    if (g < 1) {
+      const root = Math.sqrt(u * u * g + h * (1 - g));
+      const ends = { gap: nearest(div(mul(gap, whole(100)), expected)), lo: 100 * ((u - root) / (1 - g) - 1), hi: 100 * ((u + root) / (1 - g) - 1) };
+      if (!Object.values(ends).every(Number.isFinite)) return { ok: false, why: "huge" };
+      share = ends;
+    }
   }
   const misses = before.map((p, i) => ({ x: Number(xs[i].num), miss: sub(dy[i], mul(slope, dx[i])) }));
   return { ok: true, before: n, after: after.length, slope: nearest(slope), expected: expectedNumber, actual: nearest(mya), gap: gapNumber, half, lo, hi, spread, share, fits: sse.num === ZERO, carries: carriesOver(misses) };

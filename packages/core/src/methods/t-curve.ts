@@ -18,31 +18,32 @@ export const LIKELY = 0.9;
 /** The most degrees of freedom the curve is worked out for; the sum has about half as many terms. */
 export const MOST_DF = 100_000;
 
-// ln Γ(k ÷ 2) for a whole k ≥ 1: Stirling's series from 30 on, and below that Γ(z + 1) = z·Γ(z) up to it.
+// ln Γ(k ÷ 2) for a whole k ≥ 1 without the constant ½ ln 2π, which cancels in the difference the front factor takes: Stirling's series from 30 on
+// (the next term is below 1e-16), and below that Γ(z + 1) = z·Γ(z) up to it.
 function lnGammaHalf(k: number): number {
   let [z, shift] = [k / 2, 0];
+  // Stryker disable next-line EqualityOperator: from 30 or from 31 the two routes agree to the last digit.
   for (; z < 30; z += 1) shift -= Math.log(z);
-  return (z - 0.5) * Math.log(z) - z + 0.5 * Math.log(2 * Math.PI) + 1 / (12 * z) - 1 / (360 * z ** 3) + 1 / (1260 * z ** 5) - 1 / (1680 * z ** 7) + shift;
+  return (z - 0.5) * Math.log(z) - z + 1 / (12 * z) - 1 / (360 * z ** 3) + 1 / (1260 * z ** 5) + shift;
 }
 
 // I_x(ν/2, ½) for x below (ν/2 + 1) ÷ (ν/2 + 2.5): the front factor times Lentz's continued fraction ÷ a.
 function lowerBeta(x: number, df: number): number {
   const [a, b] = [df / 2, 0.5];
   const front = Math.exp(lnGammaHalf(df + 1) - lnGammaHalf(df) - 0.5 * Math.log(Math.PI) + a * Math.log(x) + b * Math.log1p(-x));
-  const tiny = 1e-300;
-  const nonzero = (v: number) => (Math.abs(v) < tiny ? tiny : v);
-  let [c, d] = [1, 1 / nonzero(1 - ((a + b) * x) / (a + 1))];
+  let [c, d] = [1, 1 / (1 - ((a + b) * x) / (a + 1))];
   let h = d;
   // Each pass takes two steps of the fraction; it has converged when the factor is 1 to the last digit (a few hundred passes at most).
   for (let m = 1; ; m++) {
     const m2 = 2 * m;
     let factor = 1;
     for (const aa of [(m * (b - m) * x) / ((a - 1 + m2) * (a + m2)), (-(a + m) * (a + b + m) * x) / ((a + m2) * (a + 1 + m2))]) {
-      d = 1 / nonzero(1 + aa * d);
-      c = nonzero(1 + aa / c);
+      d = 1 / (1 + aa * d);
+      c = 1 + aa / c;
       factor = d * c;
       h *= factor;
     }
+    // Stryker disable next-line EqualityOperator: a factor is never exactly 1e-16 from 1 (doubles near 1 are 1.1e-16 apart).
     if (Math.abs(factor - 1) < 1e-16) return (front * h) / a;
   }
 }
@@ -50,11 +51,11 @@ function lowerBeta(x: number, df: number): number {
 /** The chance that a t value with `df` degrees of freedom lies at or below `t`; NaN for a `df` that is not a whole number from 1 to `MOST_DF`, or a `t` that is NaN. */
 export function tCdf(t: number, df: number): number {
   if (!Number.isInteger(df) || df < 1 || df > MOST_DF || Number.isNaN(t)) return NaN;
-  // The ends of the line: all of the curve is beyond them.
+  // The upper end of the line has all of the curve below it (the lower end comes out as 0 of itself).
   if (t === Infinity) return 1;
-  if (t === -Infinity) return 0;
   // Far below 0 the chance is a tail: worked out directly, where x is small enough for the fraction to converge.
   const x = df / (df + t * t);
+  // Stryker disable next-line EqualityOperator,ArithmeticOperator: at t = 0, x is 1, above the switch; and the switch only picks between two routes that agree to 1e-14 where a tail is above 1e-3.
   if (t < 0 && x < (df / 2 + 1) / (df / 2 + 2.5)) return 0.5 * lowerBeta(x, df);
   const root = Math.sqrt(df + t * t);
   // t ÷ √(ν + t²) cannot lose a digit to the square root, even for t as large as a double goes: hypot is not needed for ν ≥ 1.

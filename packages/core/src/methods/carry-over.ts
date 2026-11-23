@@ -16,5 +16,7 @@ export function carriesOver(misses: { x: number; miss: Fraction }[]): boolean {
   const products = misses.slice(1).flatMap((p, i) => (p.x - misses[i].x === 1 ? [mul(misses[i].miss, p.miss)] : []));
   const [along, all] = [total(products), total(misses.map((p) => mul(p.miss, p.miss)))];
   // r₁ = along ÷ all is above 0 and m · r₁² above CARRY_SPREADS², by multiplying out.
-  return along.num > BigInt(0) && BigInt(products.length) * (along.num * along.num) * (all.den * all.den) > BigInt(CARRY_SPREADS ** 2) * (all.num * all.num) * (along.den * along.den);
+  // Stryker disable next-line EqualityOperator: where the products add to exactly 0 the right side is not below the left, so a sign of 0 gives the same.
+  const positive = along.num > BigInt(0);
+  return positive && BigInt(products.length) * (along.num * along.num) * (all.den * all.den) > BigInt(CARRY_SPREADS ** 2) * (all.num * all.num) * (along.den * along.den);
 }

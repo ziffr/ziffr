@@ -24,6 +24,11 @@ function inDoubles(vs: number[], at: number[]): boolean {
 }
 
 describe("misses that carry over", () => {
+  it("are not at an r₁ of exactly 1/2 over 16 pairs (16 · r₁² = 4 is not above 4), and are above it for a constant run", () => {
+    const tie = [-1, -3, 1, -2, -2, -3, -3, -2, -2, 0, 1, -2, -2, -3, 1, 0, 0];
+    expect(carriesOver(misses(tie))).toBe(false);
+    expect(carriesOver(misses(Array(17).fill(1)))).toBe(true);
+  });
   it("are a slow wave (each miss near the one before) and not an alternation, a constant or too little", () => {
     expect(carriesOver(misses([-5, -4, -3, -1, 0, 1, 3, 4, 5, 4, 2, 0, -2, -4]))).toBe(true);
     expect(carriesOver(misses([3, -3, 2, -4, 3, -2, 4, -3, 2, -3, 4, -2]))).toBe(false);

@@ -88,6 +88,8 @@ describe("decimals that tell values apart", () => {
     expect(decimalsApart([3e-20, 3.4e-20], 0, "1,234.5")).toBeNull();
     expect(decimalsApart([1e-20, 3e-20], 0, "1,234.5")).toBe(20);
     expect(decimalsApart([4e-21], 0, "1,234.5")).toBeNull();
+    // One shows at 20 decimals and the other does not: the Method cannot write both, and says null, not the 20 that suits the one.
+    expect(decimalsApart([3e-20, 1e-21], 0, "1,234.5")).toBeNull();
   });
   it(`never writes two values that differ the same when it gives decimals (${numRuns * 2} lists, seed ${seed})`, () => {
     fc.assert(

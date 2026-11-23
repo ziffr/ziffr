@@ -209,6 +209,28 @@ describe("the change point equals the reference on generated series", () => {
   });
 });
 
+describe("the caution that the ups and downs carry over, on the change point", () => {
+  it("is said exactly where a change is found and the misses of one line carry over, with the Metric's name, and never for none", () => {
+    let state = 9;
+    const next = () => (state = (state * 1_664_525 + 1_013_904_223) % 4_294_967_296) / 4_294_967_296;
+    const z = () => Math.sqrt(-2 * Math.log(next() + 1e-12)) * Math.cos(2 * Math.PI * next());
+    const text = "The ups and downs of Signups carry over from one month to the next, which a change does too, but so does a slow wave; read this with care, since the range or the chance may be too sure.";
+    const seen = { foundCarries: 0, foundQuiet: 0, noneCarries: 0 };
+    for (let r = 0; r < 200; r++) {
+      let e = 0;
+      const v = Array.from({ length: 24 }, (_, i) => Math.round((100 + 1.5 * i + (i >= 12 ? 25 : 0) + 7 * (e = (r % 2 ? 0.8 : 0) * e + z())) * 100) / 100);
+      const raw = ok(changePoint(series(v), "month"));
+      const said = changePointTakeaway("Signups", series(v), "month", euro, ctx).cautions.includes(text);
+      expect(said, `series ${r}`).toBe(raw.found && raw.carries);
+      if (raw.found) seen[raw.carries ? "foundCarries" : "foundQuiet"]++;
+      else if (raw.carries) seen.noneCarries++;
+    }
+    expect(seen.foundCarries).toBeGreaterThan(5);
+    expect(seen.foundQuiet).toBeGreaterThan(5);
+    expect(seen.noneCarries).toBeGreaterThan(0);
+  });
+});
+
 describe("the change point, properties", () => {
   const cents = fc.integer({ min: -100_000, max: 100_000 });
   const arb = fc.array(cents, { minLength: 8, maxLength: 26 });

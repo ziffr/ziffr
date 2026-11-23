@@ -223,6 +223,31 @@ describe("before and after, properties", () => {
   });
 });
 
+describe("the caution that the ups and downs carry over", () => {
+  // Seeded series with a slow wave (carry-over 0.8) and without, 24 months before the date and 6 after.
+  const stream = (start: number) => {
+    let state = start;
+    const next = () => (state = (state * 1_664_525 + 1_013_904_223) % 4_294_967_296) / 4_294_967_296;
+    return () => Math.sqrt(-2 * Math.log(next() + 1e-12)) * Math.cos(2 * Math.PI * next());
+  };
+  it("is said exactly where the misses of the line before the date carry over, in the Takeaway, with the Metric's name", () => {
+    const z = stream(5);
+    let [said, quiet] = [0, 0];
+    for (let r = 0; r < 120; r++) {
+      let e = 0;
+      const v = Array.from({ length: 30 }, (_, i) => Math.round((100 + 1.5 * i + 7 * (e = (r % 2 ? 0.8 : 0) * e + z())) * 100) / 100);
+      const raw = ok(afterDate(series(v), "month", monthStart(24)));
+      const t = afterDateTakeaway("Signups", series(v), "month", monthStart(24), euro, ctx);
+      const text = "The ups and downs of Signups carry over from one month to the next, which a change does too, but so does a slow wave; read this with care, since the range or the chance may be too sure.";
+      expect(t.cautions.includes(text), `series ${r}`).toBe(raw.carries);
+      if (raw.carries) said++;
+      else quiet++;
+    }
+    expect(said).toBeGreaterThan(5);
+    expect(quiet).toBeGreaterThan(5);
+  });
+});
+
 describe("which periods are before and after a date", () => {
   const points = series([10, 11, 12, 13, 14, 15, 16, 17]);
   const counts = (date: string) => {
@@ -301,6 +326,9 @@ describe("before and after on hostile input", () => {
     expect(got.gap).toBe(1 / 3);
     const t = afterDateTakeaway("Debt", series(values), "month", monthStart(6), euro, ctx);
     expect(t.numbers.map((n) => n.label)).toEqual(["Method", "Date", "Periods before", "Periods after", "Trend before (per period)", "Where the trend pointed (average)", "What it was (average)", "Difference", "Likely between", "Typical miss"]);
+  });
+  it("is none where the share's ends are not numbers though the share is (a trend of 1e-100 scale, values after of 1e100)", () => {
+    expect(afterDate(series([1e-100, 2e-100, 3e-100, 4e-100, 5e-100, 6e-100, 1e100, 1e100]), "month", "2024-07-01")).toEqual({ ok: false, why: "huge" });
   });
   it("gives the same range from the same fit however far a gap runs, since each value counts at its place in the calendar", () => {
     const withGap = ok(afterDate(series([5, 7, null, null, 11, 13, 17, 19, 23]), "month", monthStart(6)));
