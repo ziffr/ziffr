@@ -131,6 +131,8 @@ const HOSTILE: [string, string, string, Where][] = [
   ["a polar plot of one value", text({ ...WITH_RECIPE, parts: [{ mark: "polar", show: "recipe.sd" }] }), "“recipe.sd” gives one value; this mark needs a series", '"recipe.sd"'],
   ["a stacked mark of something else", withPart({ mark: "stacked", show: "values" }), "must be “breakdown”", '"values"'],
   ["a stacked mark with no show", withPart({ mark: "stacked" }), "needs the field “show”", { after: '"parts": [' }],
+  ["a heatmap of something else", withPart({ mark: "heatmap", show: "latest" }), "must be “values”", '"latest"'],
+  ["a heatmap with no show", withPart({ mark: "heatmap" }), "needs the field “show”", { after: '"parts": [' }],
   ["a radar of something else", withPart({ mark: "radar", show: "values" }), "must be “latest”", '"values"'],
   ["a radar against a target", withPart({ mark: "radar", show: "latest", against: "target" }, { slots: [{ label: "M", metrics: "several", min: 3 }] }), "must be “previous”", '"target"'],
   ["a radar of one Metric", withPart({ mark: "radar", show: "latest" }), "A radar needs 3 to 12 spokes", { after: '"parts": [' }],
@@ -176,6 +178,8 @@ describe("checkViewDesign", () => {
     expect(checkViewDesign(text({ ...EXAMPLE, parts: [{ mark: "progress", show: "latest" }] })).ok).toBe(true);
     // A cumulative mark takes one Metric.
     expect(checkViewDesign(text({ ...EXAMPLE, parts: [{ mark: "cumulative", show: "year" }] })).ok).toBe(true);
+    // A heatmap of a Metric's values is a View Design like any other (the built-in Heatmap).
+    expect(checkViewDesign(text({ ...EXAMPLE, parts: [{ mark: "heatmap", show: "values" }] })).ok).toBe(true);
     // Three Slots of one Metric each are three spokes as well.
     expect(checkViewDesign(text({ ...WITH_POLAR_AND_RADAR, analysis: undefined, parts: [{ mark: "radar", show: "latest" }], slots: ["A", "B", "C"].map((label) => ({ label, metrics: "one" })) })).ok).toBe(true);
     // A scoreboard of a Slot of several with at least three, or of three Slots.
