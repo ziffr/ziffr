@@ -17,6 +17,13 @@ describe("checkConfig", () => {
   });
 });
 
+describe("Snowflake names", () => {
+  it("takes warehouse, role, database and schema names and refuses anything else", () => {
+    expect(checkConfig({ ...ok, dialect: "snowflake", warehouse: "SMALL_WH", role: "FEED_RO", database: "ANALYTICS", schema: "PUBLIC" }).role).toBe("FEED_RO");
+    expect(() => checkConfig({ ...ok, role: "x password=1" })).toThrow(/role is a Snowflake name/);
+  });
+});
+
 describe("bind", () => {
   it("turns the two parameters into $1 and $2 and leaves casts alone", () => {
     expect(bind("select :period_start::date, x::int where d < :period_end")).toBe("select $1::date, x::int where d < $2");

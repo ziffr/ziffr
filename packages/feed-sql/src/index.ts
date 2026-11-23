@@ -15,7 +15,7 @@ export type SqlMetric = { value: string; breakdown?: string };
 
 /** What a SQL Feed's file says. `dialect` is the database language (default postgres); `connection_env` names the
  * environment variable with a read-only connection string (Postgres). */
-export type SqlFeedConfig = { name: string; dialect?: Dialect; connection_env?: string; project?: string; max_bytes_billed?: number; statement_timeout_ms?: number; metrics: Record<string, SqlMetric> };
+export type SqlFeedConfig = { name: string; dialect?: Dialect; connection_env?: string; project?: string; max_bytes_billed?: number; warehouse?: string; role?: string; database?: string; schema?: string; statement_timeout_ms?: number; metrics: Record<string, SqlMetric> };
 
 /** The connection string's variable when the file names none. */
 export const DEFAULT_CONNECTION_ENV = "FEED_SQL_URL";
@@ -34,6 +34,10 @@ export function checkConfig(raw: unknown): SqlFeedConfig {
   if (c.project !== undefined && (typeof c.project !== "string" || !c.project.trim())) throw new Error("project names a Google Cloud project, such as my-company-data.");
   if (c.max_bytes_billed !== undefined && !(Number.isSafeInteger(c.max_bytes_billed) && c.max_bytes_billed > 0)) throw new Error("max_bytes_billed is a whole number of bytes above zero, such as 10737418240.");
   if (c.connection_env !== undefined && !/^[A-Z_][A-Z0-9_]*$/.test(String(c.connection_env))) throw new Error("connection_env names an environment variable, such as WAREHOUSE_URL; the connection string itself never goes in the file.");
+  // Snowflake names only (the driver reads them); a secret or free text does not belong in the file.
+  for (const key of ["warehouse", "role", "database", "schema"] as const) {
+    if (c[key] !== undefined && !/^[A-Za-z0-9_$.-]+$/.test(String(c[key]))) throw new Error(`${key} is a Snowflake name such as ANALYTICS_WH; it must not hold a secret or spaces.`);
+  }
   if (!c.metrics || typeof c.metrics !== "object" || !Object.keys(c.metrics).length) throw new Error("List at least one Metric slug under metrics.");
   for (const [slug, m] of Object.entries(c.metrics)) {
     if (typeof m?.value !== "string" || !m.value.trim()) throw new Error(`${slug}: give a value query.`);

@@ -51,6 +51,33 @@ An optional `dialect` line in the file names the database language: `postgres` (
 
 The BigQuery and Snowflake drivers are optional: a file that names one when its package is not installed stops with a message naming what to install, and Postgres users install nothing new. Each driver is one file next to `src/index.ts` that exports `connect(config, env)` and gives back a `SqlRunner`; its connection comes from the environment, never from the file. To read another system, write your own Feed with [`@ziffr/feed-kit`](../feed-kit/README.md).
 
+## Snowflake
+
+Set `dialect: snowflake` and install the vendor package yourself, next to the Feed (`npm install snowflake-sdk`); it is not a dependency of `@ziffr/feed-sql`, which only loads it when the file asks for Snowflake. Login is by key pair and comes from the environment only; the file may name `warehouse`, `role`, `database` and `schema` (names, never secrets):
+
+```yaml
+name: Warehouse
+dialect: snowflake
+warehouse: FEED_WH
+role: ZIFFR_FEED_RO
+database: ANALYTICS
+metrics:
+  monthly-revenue:
+    value: select sum(amount) from orders where paid_at >= :period_start and paid_at < :period_end
+```
+
+```sh skip="needs a Snowflake account"
+export SNOWFLAKE_ACCOUNT=myorg-myaccount SNOWFLAKE_USER=ZIFFR_FEED
+export SNOWFLAKE_PRIVATE_KEY_PATH=/secure/ziffr_feed.p8   # or SNOWFLAKE_PRIVATE_KEY with the PEM text
+export SNOWFLAKE_PRIVATE_KEY_PASSPHRASE=...               # only if the key is encrypted
+```
+
+- **Key pair:** create the key with `openssl genrsa 2048 | openssl pkcs8 -topk8 -inform PEM -out ziffr_feed.p8` (add `-nocrypt` for none) and attach its public half to the user: `alter user ZIFFR_FEED set rsa_public_key=...`.
+- **A read-only role:** give the user a role that may only read, for example `grant usage on warehouse FEED_WH`, `grant usage on database ANALYTICS` and `grant select on all tables in schema ANALYTICS.PUBLIC`, all `to role ZIFFR_FEED_RO`.
+- **A small warehouse:** point the Feed at an X-Small warehouse with auto-suspend, so a run costs little.
+- **The role is the real control.** Snowflake enforces what the role may do; the driver's text check (one `select` or `with ... select`, no `$$` blocks, none of the words call, procedure, execute, copy, put, get, create, alter, drop, grant, insert, update, delete, merge or truncate outside quoted strings) and the session setting `MULTI_STATEMENT_COUNT=1` (the server refuses batches) are backups, not a substitute.
+- **Bounded:** each query binds the period as `:1` and `:2`, runs with a statement timeout (`statement_timeout_ms`, 30 seconds by default), and the driver refuses anything that is not one `select` (or `with ... select`) statement: no semicolon-separated batches, no DDL, DML, `call` or `copy`.
+
 ## BigQuery
 
 Set `dialect: bigquery`, install the optional package (`npm install @google-cloud/bigquery`) and name the Google Cloud project to bill, in the file or as `GOOGLE_CLOUD_PROJECT`. The Feed signs in with application default credentials (`GOOGLE_APPLICATION_CREDENTIALS` or the machine's own identity); no key goes in the file.
