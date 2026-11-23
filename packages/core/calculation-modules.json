@@ -57,5 +57,6 @@
   "src/methods/change-point.ts",
   "src/methods/fractions.ts",
   "src/methods/carry-over.ts",
-  "src/polar-marks.ts"
+  "src/polar-marks.ts",
+  "src/mark-figures.ts"
 ]

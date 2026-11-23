@@ -75,6 +75,9 @@
         "showForecast": {
           "$ref": "#/$defs/switchOption"
         },
+        "slope": {
+          "$ref": "#/$defs/slopeOption"
+        },
         "display": {
           "type": "object",
           "description": "It may be shown by a longer period than the Metric's own, its values combined by the Metric's Aggregation (Show by).",
@@ -1085,6 +1088,66 @@
                       "of"
                     ],
                     "additionalProperties": false
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "id": {
+                        "type": "string",
+                        "pattern": "^[a-z][a-zA-Z0-9]{0,23}$",
+                        "description": "a name for the step: a letter, then letters and digits"
+                      },
+                      "fn": {
+                        "const": "effects"
+                      },
+                      "of": {
+                        "type": "string",
+                        "pattern": "^(slot[1-4]|[a-z][a-zA-Z0-9]{0,23})$",
+                        "description": "a Slot (slot1 to slot4) or the id of an earlier step"
+                      }
+                    },
+                    "required": [
+                      "id",
+                      "fn",
+                      "of"
+                    ],
+                    "additionalProperties": false
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "id": {
+                        "type": "string",
+                        "pattern": "^[a-z][a-zA-Z0-9]{0,23}$",
+                        "description": "a name for the step: a letter, then letters and digits"
+                      },
+                      "fn": {
+                        "const": "bridge"
+                      },
+                      "of": {
+                        "type": "string",
+                        "pattern": "^(slot[1-4]|[a-z][a-zA-Z0-9]{0,23})$",
+                        "description": "a Slot (slot1 to slot4) or the id of an earlier step"
+                      },
+                      "parts": {
+                        "type": "array",
+                        "minItems": 1,
+                        "maxItems": 6,
+                        "uniqueItems": true,
+                        "items": {
+                          "type": "string",
+                          "pattern": "^(slot[1-4]|[a-z][a-zA-Z0-9]{0,23})$",
+                          "description": "a Slot (slot1 to slot4) or the id of an earlier step"
+                        }
+                      }
+                    },
+                    "required": [
+                      "id",
+                      "fn",
+                      "of",
+                      "parts"
+                    ],
+                    "additionalProperties": false
                   }
                 ]
               }
@@ -1253,6 +1316,30 @@
         },
         "default": {
           "type": "boolean"
+        }
+      },
+      "required": [
+        "default"
+      ],
+      "additionalProperties": false
+    },
+    "slopeOption": {
+      "type": "object",
+      "description": "What a slope mark compares: the rows of a Breakdown against the period before (previous) or a year earlier (year), several Metrics (metrics), or what was placed (auto).",
+      "properties": {
+        "label": {
+          "type": "string",
+          "maxLength": 60,
+          "pattern": "^(?![\\s\\S]*(?:://|[Ww][Ww][Ww]\\.|[Jj][Aa][Vv][Aa][Ss][Cc][Rr][Ii][Pp][Tt]:|[Dd][Aa][Tt][Aa]:|[Uu][Rr][Ll]\\(|[\\p{L}\\p{N}](?:\\.(?:[Cc][Oo][Mm]|[Nn][Ee][Tt]|[Oo][Rr][Gg]|[Ii][Oo]|[Cc][Oo]|[Ii][Nn][Ff][Oo]|[Bb][Ii][Zz]|[Aa][Pp][Pp]|[Dd][Ee][Vv]|[Xx][Yy][Zz]|[Mm][Ee]|[Aa][Ii]|[Ll][Yy]|[Gg][Ll]|[Gg][Gg]|[Tt][Oo]|[Cc][Cc]|[Tt][Vv]|[Ww][Ss]|[Ll][Ii][Nn][Kk]|[Cc][Ll][Ii][Cc][Kk]|[Ss][Ii][Tt][Ee]|[Oo][Nn][Ll][Ii][Nn][Ee]|[Tt][Oo][Pp]|[Tt][Kk]|[Rr][Uu]|[Cc][Nn]|[Dd][Ee]|[Uu][Kk]|[Ff][Rr]|[Ee][Uu]|[Uu][Ss]|[Nn][Ll]|[Cc][Hh]|[Aa][Tt]|[Ii][Tt]|[Ee][Ss])(?![\\p{L}\\p{N}])|\\.[Xx][Nn]--|\\.\\p{L}{2,}/)|\\b(?:[Hh][Tt][Tt][Pp][Ss]?|[Ff][Tt][Pp]|[Mm][Aa][Ii][Ll][Tt][Oo]|[Tt][Ee][Ll]|[Ss][Mm][Ss]|[Ff][Ii][Ll][Ee]|[Vv][Bb][Ss][Cc][Rr][Ii][Pp][Tt]):(?!\\s)))[\\p{L}\\p{M}\\p{N} .,;:!?'\"’‘“”«»()%€$£¥+\\-–—/&#*=_·…°]*$",
+          "description": "plain text, without markup or web addresses"
+        },
+        "default": {
+          "enum": [
+            "auto",
+            "previous",
+            "year",
+            "metrics"
+          ]
         }
       },
       "required": [
@@ -1545,6 +1632,162 @@
         },
         {
           "type": "object",
+          "description": "One compact bar per Metric of the Slots, in order, 12 at most: the latest value against the Metric's Target Range, with its name, its value and, in words, how far along it is. The bar is filled to the latest value on a scale that includes the target (a lighter band for a range, a tick for one bound); its colour says only whether the value is on target.",
+          "properties": {
+            "mark": {
+              "const": "progress"
+            },
+            "show": {
+              "const": "latest"
+            },
+            "when": {
+              "$ref": "#/$defs/when"
+            }
+          },
+          "required": [
+            "mark",
+            "show"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "description": "One row for each of 3 to 12 Metrics, in the order of the Slots: its name, latest value, change against the previous period, whether it is on target, and a small trend.",
+          "properties": {
+            "mark": {
+              "const": "scoreboard"
+            },
+            "show": {
+              "const": "latest"
+            },
+            "when": {
+              "$ref": "#/$defs/when"
+            }
+          },
+          "required": [
+            "mark",
+            "show"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "description": "One bar per row, from its low to its high end, with its middle value: a driver's effect with its range (the table of the `effects` step of the design's analysis).",
+          "properties": {
+            "mark": {
+              "const": "range"
+            },
+            "show": {
+              "type": "string",
+              "pattern": "^recipe\\.[a-z][a-zA-Z0-9]{0,23}$",
+              "description": "“recipe.” and a step of the design's analysis (a table with a low and a high end for each row, from the `effects` step)"
+            },
+            "tone": {
+              "enum": [
+                "data",
+                "muted",
+                "ink",
+                "good",
+                "bad",
+                "accent",
+                "status"
+              ],
+              "description": "A Theme colour: data, muted, ink, good, bad, accent, or status (by the target: bad when off target)."
+            },
+            "when": {
+              "$ref": "#/$defs/when"
+            }
+          },
+          "required": [
+            "mark",
+            "show"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "description": "Steps from a start, each part going up or down, and an end (the table of the `bridge` step of the design's analysis).",
+          "properties": {
+            "mark": {
+              "const": "bridge"
+            },
+            "show": {
+              "type": "string",
+              "pattern": "^recipe\\.[a-z][a-zA-Z0-9]{0,23}$",
+              "description": "“recipe.” and a step of the design's analysis (the table of the `bridge` step)"
+            },
+            "when": {
+              "$ref": "#/$defs/when"
+            }
+          },
+          "required": [
+            "mark",
+            "show"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "description": "One bar per period, stacked from that period's Breakdown: the largest rows of the newest period (at most 5) as their own segments in a stable order and colour, every other row as one muted Other; a period without a Breakdown is left out and counted, and a negative row is refused in words.",
+          "properties": {
+            "mark": {
+              "const": "stacked"
+            },
+            "show": {
+              "const": "breakdown"
+            },
+            "when": {
+              "$ref": "#/$defs/when"
+            }
+          },
+          "required": [
+            "mark",
+            "show"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "description": "The rows of the Metric's latest Breakdown as bars from largest to smallest, ten at most and the rest in one muted \"Other\" bar, with a line of the running share of the total (0 to 100 %) and a reference at 80 %. Only positive rows count.",
+          "properties": {
+            "mark": {
+              "const": "pareto"
+            },
+            "show": {
+              "const": "latest"
+            },
+            "when": {
+              "$ref": "#/$defs/when"
+            }
+          },
+          "required": [
+            "mark",
+            "show"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "description": "Two points per row joined by a line, on two vertical axes (before on the left, now on the right): the rows of a Breakdown in two periods, or 12 Metrics at most of one unit, each against its period before. Both sides share one scale; labels name each end and the change in words, and only the largest rise and the largest fall are highlighted. The option “slope” chooses what is compared.",
+          "properties": {
+            "mark": {
+              "const": "slope"
+            },
+            "show": {
+              "const": "latest"
+            },
+            "when": {
+              "$ref": "#/$defs/when"
+            }
+          },
+          "required": [
+            "mark",
+            "show"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
           "description": "The running total of the Metric since the start of its year, restarting each year, with a line for the plan (the running total of its Target Series, or of its target when that has one bound; drawn when the option showTarget is on) and a lighter one for last year. The Metric's Aggregation must be sum; any other is refused in words.",
           "properties": {
             "mark": {
@@ -1750,6 +1993,41 @@
               "type": "string",
               "pattern": "^(?:target\\.min|target\\.max|recipe\\.[a-z][a-zA-Z0-9]{0,23})$",
               "description": "one of “target.min”, “target.max”, or “recipe.” and a step of the design's analysis (one value)"
+            },
+            "tone": {
+              "enum": [
+                "data",
+                "muted",
+                "ink",
+                "good",
+                "bad",
+                "accent",
+                "status"
+              ],
+              "description": "A Theme colour: data, muted, ink, good, bad, accent, or status (by the target: bad when off target)."
+            },
+            "when": {
+              "$ref": "#/$defs/when"
+            }
+          },
+          "required": [
+            "mark",
+            "show"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "description": "The forecast's likely range at each period, drawn as a bar from low to high, with the forecast as its middle value when `centre` is true.",
+          "properties": {
+            "mark": {
+              "const": "range"
+            },
+            "show": {
+              "const": "forecast.range"
+            },
+            "centre": {
+              "type": "boolean"
             },
             "tone": {
               "enum": [

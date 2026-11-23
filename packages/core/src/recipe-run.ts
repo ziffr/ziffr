@@ -11,7 +11,7 @@ import { partialCorrelation, partialTakeaway } from "./methods/partial-correlati
 import { usualRange, usualRangeTakeaway } from "./methods/quantiles";
 import { spearman, spearmanTakeaway } from "./methods/spearman";
 import type { Span } from "./periods";
-import { importanceRows, lagRows, percentile, RECIPE_POINTS, usualRows, type RecipeInput, type Result2, type TableRow } from "./recipe-methods";
+import { bridgeRows, effectRows, importanceRows, lagRows, percentile, RECIPE_POINTS, usualRows, type RecipeInput, type Result2, type TableRow } from "./recipe-methods";
 import { movesTakeaway } from "./takeaways/fit-takeaway";
 import { refusalTakeaway, sayIn, type Takeaway, type TakeawayContext } from "./takeaways/takeaway";
 import type { Finding } from "./suitability";
@@ -172,7 +172,7 @@ export function runRecipe2(r: AnalysisRecipe2, inputs: RecipeInput[], ctx: Takea
   const wide: Finding = { case: "recipe-too-wide", slots: { names: names2 } };
   for (const s of r.steps) {
     // Stryker disable next-line ArrayDeclaration: a step without controls or drivers names none; an id put there is no refused step, so nothing changes
-    const inputs = [s.of, s.with ?? s.of, ...(s.controls ?? []), ...(s.drivers ?? [])];
+    const inputs = [s.of, s.with ?? s.of, ...(s.controls ?? []), ...(s.drivers ?? []), ...(s.parts ?? [])];
     // A step that reads a refused series does no work, so it is not charged; it is refused for the reason that series was.
     const blocked = inputs.some((id) => id in refused);
     if (!blocked) spent += cost(s, longest, width);
@@ -199,7 +199,7 @@ export function runRecipe2(r: AnalysisRecipe2, inputs: RecipeInput[], ctx: Takea
       const takeaway = w ? refusalTakeaway(sayIn(METHOD[s.fn as keyof typeof METHOD], {}, ctx), [refusal(w)]) : takeawayOf(s, steps, slots, names, span, ctx);
       return { shows: "takeaway", step: o.step, label: o.label, takeaway, ...(o.title !== undefined ? { title: o.title } : {}), ...(o.note !== undefined ? { note: o.note } : {}) };
     }
-    if (o.shows === "table") return { shows: "table", step: o.step, label: o.label, rows: (res as { rows: TableRow[] }).rows, ...(bases[s.id] ? { basis: basisText(bases[s.id]) } : {}), ...reason(s.id) };
+    if (o.shows === "table") return { shows: "table", step: o.step, label: o.label, rows: (res as { rows: TableRow[] }).rows, ...(bases[s.id] ? { basis: basisText(bases[s.id]) } : {}), ...(!(s.id in refused) && (res as { refusal?: string }).refusal ? { refusal: (res as { refusal: string }).refusal } : {}), ...reason(s.id) };
     return { shows: o.shows, step: o.step, label: o.label, unit: o.unit!, result: res as Result, ...(bases[s.id] ? { basis: basisText(bases[s.id]) } : {}), ...reason(s.id) };
   });
   return { steps, outputs, spent: Math.min(spent, limit), limited: spent > limit };
@@ -239,6 +239,13 @@ function step2(s: Step2, seriesOf: (id: string) => Point[], known: Map<string, R
       return { kind: "model", input, fit: fit(input) };
     }
     case "importance": return { kind: "table", rows: importanceRows((known.get(s.of) as Extract<Result2, { kind: "model" }>).fit) };
+    case "effects": {
+      // Where the fit was refused, the table says why in the fit's own words.
+      const f = (known.get(s.of) as Extract<Result2, { kind: "model" }>).fit;
+      return { kind: "table", rows: effectRows(f), ...(f.ok ? {} : { refusal: sayIn(f.refusals[0].case, f.refusals[0].slots, ctx) }) };
+    }
+    // The whole and its parts are Slots (the checks), so each is named by its Metric.
+    case "bridge": return { kind: "table", ...bridgeRows({ name: nameOf(s.of), points: a() }, s.parts!.map((id) => ({ name: nameOf(id), points: seriesOf(id) })), span, ctx) };
     default: return first(s, seriesOf);
   }
 }

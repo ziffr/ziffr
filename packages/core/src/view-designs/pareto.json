@@ -1,0 +1,10 @@
+{
+  "format": "ziffr.view/1",
+  "name": "Pareto",
+  "description": "A Breakdown's rows from largest to smallest, with the running share that shows which few make most of it.",
+  "kind": "metric",
+  "slots": [{ "label": "Metric with a breakdown", "metrics": "one" }],
+  "size": { "w": 6, "h": 7 },
+  "empty": "Drop a metric with a breakdown.",
+  "parts": [{ "mark": "pareto", "show": "latest" }]
+}

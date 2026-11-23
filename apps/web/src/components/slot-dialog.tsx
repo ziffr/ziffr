@@ -11,6 +11,7 @@ import { fillsComplete, fromTemplate } from "@ziffr/core/team-templates";
 import { templateOf } from "@/views/templates";
 import type { DropSource } from "@/app/canvas-actions";
 import type { CanvasData, Slot, TeamTemplate, TemplateId, WidgetSettings, WidgetTemplate } from "@ziffr/core/types";
+import { useBoxSize } from "@/views/use-box-size";
 import { Preview } from "./preview";
 import type { FrameWidget } from "./read-only-frame";
 
@@ -81,7 +82,7 @@ export function useSlotFill(data: CanvasData) {
         <DialogTitle className="flex items-center gap-2"><LayoutTemplate aria-hidden className="size-4" /> {name}</DialogTitle>
         {description && <DialogDescription>{description}</DialogDescription>}
         <form
-          className="space-y-3"
+          className="min-w-0 space-y-3"
           onSubmit={(e) => {
             e.preventDefault();
             if (ready) close(state.fills);
@@ -125,9 +126,7 @@ export function useSlotFill(data: CanvasData) {
           {preview && (
             <div className="space-y-1">
               <p className="text-xs font-medium text-muted-foreground">Preview</p>
-              <div className="flex justify-center rounded-[var(--radius-card)] bg-[var(--color-paper-2)] p-2">
-                <Preview widget={preview.widget} data={data} size={preview.size} width={380} />
-              </div>
+              <PreviewBox widget={preview.widget} data={data} size={preview.size} />
             </div>
           )}
           <div className="flex justify-end gap-2 pt-1">
@@ -140,4 +139,15 @@ export function useSlotFill(data: CanvasData) {
   );
 
   return { ask, complete, dialog };
+}
+
+/** The Preview in a frame, drawn as wide as the dialog allows (up to 380 px): a fixed width would push the dialog's whole column wider than the dialog on a narrow screen. */
+function PreviewBox(props: Omit<React.ComponentProps<typeof Preview>, "width">) {
+  const [box, { w }] = useBoxSize<HTMLDivElement>();
+  const width = w > 0 ? Math.max(160, Math.min(380, w - 16)) : 280;
+  return (
+    <div ref={box} className="flex min-w-0 justify-center overflow-hidden rounded-[var(--radius-card)] bg-[var(--color-paper-2)] p-2">
+      <Preview {...props} width={width} />
+    </div>
+  );
 }

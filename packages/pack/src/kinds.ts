@@ -29,7 +29,7 @@ export type FontId = (typeof FONT_IDS)[number];
 export type LogoPosition = "top-left" | "top-right" | "bottom-left" | "bottom-right";
 
 /** The Views a template's widget may use: every built-in View but the Free Layout, and "design" for a View Design. */
-export const TEMPLATE_VIEWS = ["number", "line", "bars", "gauge", "table", "forecast", "correlation", "matrix", "drivers", "running-total", "ranked", "share", "pictogram", "story", "design", "story-line"] as const;
+export const TEMPLATE_VIEWS = ["number", "line", "bars", "gauge", "table", "forecast", "correlation", "matrix", "drivers", "scoreboard", "progress", "stacked", "pareto", "slope", "running-total", "ranked", "share", "pictogram", "story", "design", "story-line"] as const;
 /** One of TEMPLATE_VIEWS. */
 export type TemplateView = (typeof TEMPLATE_VIEWS)[number];
 /** Where a note sits: the highest or lowest value, the latest or first period shown, or the biggest change. */
