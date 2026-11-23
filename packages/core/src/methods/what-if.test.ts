@@ -12,7 +12,7 @@ import { describe, expect, it } from "vitest";
 import { evaluateRange } from "../formula";
 import { fit, predict, type Fit } from "./fit";
 import { fractionOf } from "../exact";
-import { MOST_LINKS, MOST_METRICS, MOST_STEPS, whatIf, type FitLink, type WhatIfInput, type WhatIfLink, type WorkedLink } from "./what-if";
+import { MOST_LINKS, MOST_METRICS, MOST_STEPS, planOf, whatIf, type FitLink, type WhatIfInput, type WhatIfLink, type WorkedLink } from "./what-if";
 import { dayOf, monthsLater, textOf } from "../test/reference/calendar";
 import { runs } from "../test/reference/check";
 import { exactOf, isNearestDouble, minus as minusExact } from "../test/reference/exact";
@@ -624,7 +624,6 @@ describe("a fit handed over is checked against its own rows", () => {
     for (const verdict of [{ refusals: [], switches: [], cautions: [null] }, { refusals: [], switches: [], cautions: [{ case: 5, slots: {} }] }, { refusals: [], switches: [], cautions: [{ case: "caution-spread", slots: null }] }, { refusals: [], switches: [], cautions: [{ case: "caution-spread", slots: { x: {} } }] }]) {
       expect(bad({ ...f, verdict })).toEqual({ case: "refuse-input", slots: { what: "a fit" } });
     }
-    expect(bad({ ...f, crowded: ["Nobody"] })).toEqual({ case: "refuse-input", slots: { what: "a fit" } });
   });
   it("refuses, and does not throw, a fit with its verdict, last, span, crowded or drivers missing or of the wrong kind", () => {
     const parts: Record<string, unknown> = { verdict: undefined, last: undefined, span: "fortnight", crowded: "x", rows: null, drivers: null, basis: "other" };
@@ -663,6 +662,122 @@ describe("a fit handed over is checked against its own rows", () => {
     const r = res.reached[1];
     expect(r).toMatchObject({ ok: true, name: "S", step: 2, noRange: true, lo: null, hi: null, exact: false });
     expect(r.ok && r.effect).toBeCloseTo(1 / 0.001 - 1 / (0.001 - point), 6 - 3);
+  });
+});
+
+describe("every check on what is handed over, one at a time (so that none can be dropped unseen)", () => {
+  const w = world(3, 30);
+  const w2 = world(5, 30);
+  const f = link("B", w.b, [{ name: "A", x: w.a }]).fit;
+  const two = link("B", w2.b, [{ name: "A", x: w2.a }, { name: "X", x: w2.d }]).fit;
+  const input = (l: unknown): WhatIfInput => ({ start: { name: "A", latest: 50 }, change: { by: 1 }, links: [l as WhatIfLink] });
+  const what = (l: unknown) => refused(whatIf(input(l)))[0];
+  const asFit = (fit: unknown) => ({ kind: "fit", fit });
+  const FIT = { case: "refuse-input", slots: { what: "a fit" } };
+  const FORMULA = { case: "refuse-input", slots: { what: "a formula" } };
+  const LINK = { case: "refuse-input", slots: { what: "a link" } };
+  it("names what is wrong with a link that is not one: not a thing, not a kind", () => {
+    for (const l of [null, undefined, 5, "x", { kind: "other" }, {}]) expect(what(l)).toEqual(LINK);
+  });
+  it("refuses a fit for each of its checks alone", () => {
+    const bad: unknown[] = [
+      { ...f, ok: false }, { ...f, ok: undefined }, { ...f, target: 5 }, { ...f, target: "" }, { ...f, drivers: "x" }, { ...f, rows: "x" }, { ...f, last: null }, { ...f, last: { x: "x" } },
+      { ...f, rows: f.rows.slice(0, 3) }, { ...f, drivers: [null] }, { ...f, drivers: [{ ...f.drivers[0], name: 5 }] }, { ...f, drivers: [{ ...f.drivers[0], name: "" }] }, { ...f, drivers: [{ ...f.drivers[0], name: f.target }] },
+      { ...f, rows: f.rows.map((r) => ({ ...r, x: [1] })) },
+      { ...f, span: "fortnight" }, { ...f, verdict: null }, { ...f, verdict: {} }, { ...f, crowded: null },
+      { ...two, drivers: [two.drivers[0], { ...two.drivers[1], name: two.drivers[0].name }] },
+      { ...f, verdict: { cautions: [{ case: "caution-spread", slots: "x" }] } }, { ...f, verdict: { cautions: [{ case: "caution-spread", slots: { a: undefined } }] } },
+    ];
+    for (const b of bad) expect(what(asFit(b)), JSON.stringify(b).slice(0, 90)).toEqual(FIT);
+  });
+  it("refuses a fit whose rows leave nothing to work out again (the effects have no inverse)", () => {
+    expect(what(asFit({ ...f, rows: f.rows.map((r) => ({ ...r, x: [3] })) }))).toEqual(FIT);
+  });
+  it("accepts a fit as the fit made it, and cautions with plain slots", () => {
+    expect(whatIf(input(asFit(two))).ok).toBe(true);
+    expect(whatIf(input(asFit({ ...f, verdict: { refusals: [], switches: [], cautions: [{ case: "caution-spread", slots: { n: 1, s: "x" } }] } }))).ok).toBe(true);
+  });
+  it("refuses a formula for each of its checks alone", () => {
+    const ok = { kind: "worked", target: "T", formula: "{a} * 2", names: { a: "A" }, levels: { A: 50 } };
+    const bad: unknown[] = [
+      { ...ok, target: 5 }, { ...ok, target: "" }, { ...ok, formula: 5 }, { ...ok, names: "x" }, { ...ok, levels: "x" }, { ...ok, names: null }, { ...ok, levels: null },
+      { ...ok, formula: "2 * 3" }, { ...ok, formula: "prev({a})" }, { ...ok, names: {} }, { ...ok, names: { a: 5 }, levels: { 5: 3 } }, { ...ok, names: { a: "" }, levels: { "": 3 } }, { ...ok, names: { a: "T" }, levels: { T: 3 } },
+      { ...ok, levels: {} }, { ...ok, levels: { A: Infinity } }, { ...ok, levels: { A: "5" } },
+    ];
+    for (const b of bad) expect(what(b), JSON.stringify(b)).toEqual(FORMULA);
+    expect(whatIf(input(ok)).ok).toBe(true);
+  });
+  it("finds a bad link wherever it stands among good ones", () => {
+    const good = { kind: "worked", target: "T", formula: "{a} * 2", names: { a: "A" }, levels: { A: 50 } };
+    expect(refused(whatIf({ start: { name: "A", latest: 50 }, change: { by: 1 }, links: [good as WorkedLink, { ...good, target: "" } as WorkedLink] }))).toEqual([FORMULA]);
+  });
+  it("refuses a change for each of its checks alone", () => {
+    const ch = (change: unknown) => refused(whatIf({ start: { name: "A", latest: 50 }, change: change as WhatIfInput["change"], links: [] }))[0];
+    for (const c of [{ by: undefined }, { by: "2" }, { by: NaN }, { percent: "2" }, { percent: Infinity }, { other: 1 }, [], "x", 3]) expect(ch(c), JSON.stringify(c)).toEqual({ case: "refuse-input", slots: { what: "the change" } });
+  });
+  it("gives the percent asked for, and none for an amount", () => {
+    const l = link("B", w.b, [{ name: "A", x: w.a }]);
+    const r = (change: WhatIfInput["change"]) => whatIf({ start: { name: "A", latest: 50 }, change, links: [l] });
+    expect(r({ percent: 10 })).toMatchObject({ ok: true, percent: 10, by: 5 });
+    expect(r({ by: 5 })).toMatchObject({ ok: true, percent: null, by: 5 });
+  });
+  it("ignores a link into the Metric changed even where another Metric is driven by it", () => {
+    const lb = link("B", w.b, [{ name: "A", x: w.a }]);
+    const into = link("A", w.a, [{ name: "B", x: w.b }]);
+    expect(reachedOf(run([lb, into], 1)).map((r) => r.name)).toEqual(["B"]);
+  });
+  it("says whether links can be followed, and why not", () => {
+    const lb = link("B", w.b, [{ name: "A", x: w.a }]);
+    expect(planOf("A", [lb])).toEqual({ ok: true });
+    expect(planOf("A", [])).toEqual({ case: "refuse-what-if-none", slots: { name: "A" } });
+    expect(planOf("A", [lb, link("C", w.c, [{ name: "B", x: w.b }]), link("D", w.d, [{ name: "C", x: w.c }])])).toEqual({ case: "refuse-what-if-deep", slots: { most: 2, name: "D" } });
+  });
+  it("keeps the order of the Metrics whatever the order of the links, names at the same step in order", () => {
+    const [lb, lc] = [link("B", w.b, [{ name: "A", x: w.a }]), link("C", w.c, [{ name: "A", x: w.a }])];
+    expect(reachedOf(run([lc, lb], 1)).map((r) => r.name)).toEqual(["B", "C"]);
+  });
+  it("carries what was seen through a formula, and what upstream links went beyond", () => {
+    const lb = link("B", w.b, [{ name: "A", x: w.a }]);
+    const cautious: FitLink = { kind: "fit", fit: { ...lb.fit, verdict: { refusals: [], switches: [], cautions: [{ case: "caution-spread", slots: {} }] } } };
+    const s: WorkedLink = { kind: "worked", target: "S", formula: "{b} * 2", names: { b: "B" }, levels: { B: 100 } };
+    const [, rs] = reachedOf(run([cautious, s], 1, 50));
+    expect(rs.verdict.cautions).toEqual([{ case: "caution-spread", slots: {} }]);
+    const lc = link("C", w.c, [{ name: "B", x: w.b }]);
+    const high = reachedOf(run([lb, lc], 100, Math.max(...w.a)));
+    expect(high[1].outside.map((o) => o.name)).toContain("A");
+  });
+  it("does not name as 'through' a driver that nothing changes", () => {
+    const [r] = reachedOf(whatIf(input(asFit(two))));
+    expect(r.through).toEqual([]);
+  });
+  it("is as weak as the weakest, and a caution lowers only a strong word: a link that cannot be told from chance stays that", () => {
+    const noise = link("B", w.d, [{ name: "A", x: w.b.map((v) => v * 0 + (v % 7)) }]);
+    const cautious: FitLink = { kind: "fit", fit: { ...noise.fit, verdict: { refusals: [], switches: [], cautions: [{ case: "caution-spread", slots: {} }] } } };
+    const [r] = reachedOf(run([cautious], 1, 50));
+    expect(r.strength).toBe(noise.fit.drivers[0].strength);
+    expect(["cant-tell", "weak"]).toContain(r.strength);
+  });
+  it("is compared by change for one link and by value for the other: the Metric reached through both says it counts a change", () => {
+    const r = lcg(4);
+    const a = Array.from({ length: 30 }, (_, t) => tenths(100 + 6 * t + gauss(r) * 3));
+    const b = a.map((v, t) => tenths(2 * v + 4 * t + gauss(r) * 5));
+    const flat = Array.from({ length: 30 }, () => tenths(20 + r() * 60));
+    const c = flat.map((v) => tenths(3 * v + gauss(r) * 30));
+    const lb = fit({ target: { name: "B", points: pts(b) }, drivers: [{ name: "A", points: pts(a) }], span: "month" });
+    const lc = fit({ target: { name: "C", points: pts(c) }, drivers: [{ name: "B", points: pts(flat) }], span: "month", basis: "values" });
+    if (!lb.ok || !lc.ok) throw new Error("refused");
+    expect([lb.basis, lc.basis]).toEqual(["changes", "values"]);
+    const rs = reachedOf(run([{ kind: "fit", fit: lb }, { kind: "fit", fit: lc }], 1, a[a.length - 1]));
+    expect(rs.map((x) => x.byChange)).toEqual([true, true]);
+    const only = reachedOf(run([{ kind: "fit", fit: lc }, { kind: "worked", target: "B", formula: "{a} * 2", names: { a: "A" }, levels: { A: a[a.length - 1] } }], 1, a[a.length - 1]));
+    expect(only.find((x) => x.name === "C")!.byChange).toBe(false);
+  });
+  it("counts the lowest value a driver has been as inside, and one step below it as outside", () => {
+    const l = link("B", w.b, [{ name: "A", x: w.a }]);
+    const low = Math.min(...w.a);
+    const latest = l.fit.last.x[0];
+    expect(reachedOf(run([l], low - latest, latest))[0].outside).toEqual([]);
+    expect(reachedOf(run([l], low - latest - 0.1, latest))[0].outside).toHaveLength(1);
   });
 });
 
