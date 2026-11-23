@@ -1,0 +1,28 @@
+{
+  "format": "ziffr.analysis/1",
+  "name": "Correlation",
+  "description": "Pearson's r of two Metrics on the periods both have.",
+  "slots": [
+    {
+      "label": "First metric"
+    },
+    {
+      "label": "Second metric"
+    }
+  ],
+  "steps": [
+    {
+      "id": "r",
+      "fn": "correlation",
+      "of": "slot1",
+      "with": "slot2"
+    }
+  ],
+  "outputs": [
+    {
+      "step": "r",
+      "label": "r",
+      "unit": "number"
+    }
+  ]
+}

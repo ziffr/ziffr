@@ -1,0 +1,18 @@
+{
+  "format": "ziffr.view/1",
+  "name": "Drivers",
+  "description": "Which metrics move most with this one.",
+  "kind": "analysis",
+  "slots": [{ "label": "Metric", "metrics": "one" }, { "label": "Compared with", "metrics": "several" }],
+  "size": { "w": 6, "h": 8 },
+  "parts": [
+    { "mark": "rows", "show": "correlations" },
+    {
+      "mark": "text",
+      "style": "body",
+      "content": [{ "show": "drivers.name", "style": "strong" }, " moves most with ", { "show": "metric.name" }, " (", { "show": "drivers.strength" }, ")", { "show": "drivers.over", "before": ". " }, "."]
+    },
+    { "mark": "rows", "show": "reasons" },
+    { "mark": "plot", "axes": "regular", "x": "value", "grid": "both", "scale": "auto", "marks": [{ "mark": "point", "show": "drivers.pairs", "tone": "data" }] }
+  ]
+}
