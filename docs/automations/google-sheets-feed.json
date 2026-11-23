@@ -3,7 +3,7 @@
   "nodes": [
     {
       "parameters": {
-        "content": "Google Sheets to Ziffr: values\n\n1. Fill in the Settings node: your Ziffr address and where the figures are.\n2. Add the credentials: Google Sheets on the read node, and a Header Auth credential named \"Ziffr Feed Key\" (name Authorization, value Bearer <your Feed Key>) on Send to Ziffr. Make the key in Ziffr under Settings, Feeds, and add the Feed under Who submits on each Metric.\n3. Press Execute workflow once to try it, then activate it: it runs every day at 9.\n\nThe rows of one sheet: a column metric (the Metric's slug), a column value, and optionally a column period (the period's first day).",
+        "content": "Google Sheets to Ziffr: values\n\n1. Fill in the Settings node: your Ziffr address and where the figures are.\n2. Add the credentials: Google Sheets on the read node, and a Header Auth credential named \"Ziffr Feed Key\" (name Authorization, value Bearer <your Feed Key>) on Send to Ziffr. Make the key in Ziffr under Settings, Feeds, and add the Feed under Who submits on each Metric.\n3. Press Execute workflow once to try it, then activate it: it runs every day at 9 (UTC).\n\nThe rows of one sheet: a column metric (the Metric's slug), a column value, and optionally a column period (the period's first day).",
         "width": 460,
         "height": 340
       },
@@ -75,6 +75,37 @@
     },
     {
       "parameters": {
+        "method": "GET",
+        "url": "={{ $('Settings').first().json.ziffrUrl.replace(/\\/+$/, '') }}/api/v1/feed",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "limit",
+              "value": "200"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "e068cc3b-a9f0-507a-83e1-84b6e959cc48",
+      "name": "What is filled",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        440,
+        300
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "name": "Ziffr Feed Key"
+        }
+      }
+    },
+    {
+      "parameters": {
         "resource": "sheet",
         "operation": "read",
         "documentId": {
@@ -94,7 +125,7 @@
       "type": "n8n-nodes-base.googleSheets",
       "typeVersion": 4.5,
       "position": [
-        440,
+        660,
         300
       ],
       "credentials": {
@@ -105,14 +136,14 @@
     },
     {
       "parameters": {
-        "jsCode": "// Google Sheets -> Ziffr (spec 0043): the rows read from Google Sheets become the items a Feed sends. Each row names a Metric by its\n// slug (as Ziffr shows it in the Metric's address), gives a number, and may give the period's first day (YYYY-MM-DD);\n// a row without a period is the current period. Nothing else leaves: no other column is sent.\nconst SLUG = /^[a-z0-9][a-z0-9-]{0,99}$/;\nconst DAY = /^\\d{4}-\\d{2}-\\d{2}$/;\nconst NUMBER = /^-?\\d+(\\.\\d+)?$/;\nconst MAX_ITEMS = 500;\nconst items = [];\nconst skipped = [];\nconst seen = new Set();\nlet row = 1;\nfor (const item of $input.all()) {\n  row++;\n  const r = item.json;\n  const metric = String(r.metric ?? '').trim();\n  const raw = typeof r.value === 'number' ? String(r.value) : String(r.value ?? '').trim();\n  const period = String(r.period ?? '').trim();\n  if (metric === '' && raw === '' && period === '') continue;\n  if (!SLUG.test(metric)) { skipped.push({ row, why: 'the metric is not a Metric slug' }); continue; }\n  if (!NUMBER.test(raw)) { skipped.push({ row, metric, why: 'the value is not a plain number' }); continue; }\n  if (period !== '' && !DAY.test(period)) { skipped.push({ row, metric, why: 'the period is not a day written YYYY-MM-DD' }); continue; }\n  const at = metric + '/' + period;\n  if (seen.has(at)) { skipped.push({ row, metric, why: 'the same Metric and period appear twice' }); continue; }\n  seen.add(at);\n  if (items.length >= MAX_ITEMS) { skipped.push({ row, metric, why: 'more than ' + MAX_ITEMS + ' rows' }); continue; }\n  items.push(period === '' ? { metric, value: Number(raw) } : { metric, period, value: Number(raw) });\n}\nif (items.length === 0) throw new Error('No row holds a Metric slug and a number: the columns are metric, value and, if you like, period.');\n// One run sends once, also when n8n retries it: the same rows give the same key, other rows another.\nlet h = 5381;\nconst body = JSON.stringify(items);\nfor (let i = 0; i < body.length; i++) h = ((h * 33) ^ body.charCodeAt(i)) >>> 0;\nconst key = 'sheets-' + new Date().toISOString().slice(0, 10) + '-' + h.toString(36) + '-' + items.length;\nreturn [{ json: { items, skipped, key } }];\n"
+        "jsCode": "// Google Sheets -> Ziffr (spec 0043): the rows read from Google Sheets become the items a Feed sends. Each row names a Metric by its\n// slug (as Ziffr shows it in the Metric's address), gives a number, and may give the period's first day (YYYY-MM-DD);\n// a row without a period is the current period. Nothing else leaves: no other column is sent.\nconst SLUG = /^[a-z0-9][a-z0-9-]{0,99}$/;\nconst DAY = /^\\d{4}-\\d{2}-\\d{2}$/;\nconst NUMBER = /^-?\\d+(\\.\\d+)?$/;\nconst MAX_ITEMS = 500;\nconst items = [];\nconst skipped = [];\nconst seen = new Set();\nlet row = 1;\nfor (const item of $input.all()) {\n  row++;\n  const r = item.json;\n  const metric = String(r.metric ?? '').trim();\n  const raw = typeof r.value === 'number' ? String(r.value) : String(r.value ?? '').trim();\n  const period = String(r.period ?? '').trim();\n  if (metric === '' && raw === '' && period === '') continue;\n  if (!SLUG.test(metric)) { skipped.push({ row, why: 'the metric is not a Metric slug' }); continue; }\n  if (!NUMBER.test(raw)) { skipped.push({ row, metric, why: 'the value is not a plain number' }); continue; }\n  if (period !== '' && !DAY.test(period)) { skipped.push({ row, metric, why: 'the period is not a day written YYYY-MM-DD' }); continue; }\n  const at = metric + '/' + period;\n  if (seen.has(at)) { skipped.push({ row, metric, why: 'the same Metric and period appear twice' }); continue; }\n  seen.add(at);\n  if (items.length >= MAX_ITEMS) { skipped.push({ row, metric, why: 'more than ' + MAX_ITEMS + ' rows' }); continue; }\n  items.push(period === '' ? { metric, value: Number(raw) } : { metric, period, value: Number(raw) });\n}\nif (items.length === 0) throw new Error('No row holds a Metric slug and a number: the columns are metric, value and, if you like, period.');\n// Ziffr says which periods already hold a value (the node \"What is filled\", GET /api/v1/feed, as @ziffr/feed-kit does): a past\n// period that has one is not sent again, so a rerun, a manual run or a later run never overwrites, adds to or doubles what is\n// there, whatever the Metric's Submission Rule. The current period is always sent: its value may still change.\nconst overview = $('What is filled').first().json;\nconst listed = overview && overview.metrics && Array.isArray(overview.metrics.items) ? overview.metrics.items : [];\nif (overview && overview.metrics && overview.metrics.next) throw new Error('This Feed submits to more than 200 Metrics; this template reads that many at most. No figure was sent.');\nconst metricOf = new Map(listed.map((m) => [m.slug, m]));\nconst send = items.filter((i) => {\n  const m = metricOf.get(i.metric);\n  return !(m && i.period && i.period !== m.current && Array.isArray(m.filled) && m.filled.includes(i.period));\n});\nconst settled = items.length - send.length;\nif (send.length === 0) return [];\n// One run sends once, also when n8n retries it: the same figures give the same key, other figures another.\nlet h = 5381;\nconst body = JSON.stringify(send);\nfor (let i = 0; i < body.length; i++) h = ((h * 33) ^ body.charCodeAt(i)) >>> 0;\nconst key = 'sheets-' + h.toString(36) + '-' + send.length;\nreturn [{ json: { items: send, skipped, settled, key } }];\n"
       },
       "id": "2536020d-2391-5c18-b9d3-7bc01a5380ca",
       "name": "Shape values",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        660,
+        880,
         300
       ]
     },
@@ -142,7 +173,7 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        880,
+        1100,
         300
       ],
       "credentials": {
@@ -153,14 +184,14 @@
     },
     {
       "parameters": {
-        "jsCode": "// Ziffr's answer to a batch of values (spec 0043): one result per item, in the order sent. A refused item fails the run,\n// so that n8n shows it as failed and its owner looks; the rest were recorded all the same (each item stands on its own).\nconst results = Array.isArray($input.first().json.results) ? $input.first().json.results : [];\nconst shaped = $('Shape values').first().json;\nconst refused = results.filter((r) => r.status === 'refused');\nif (refused.length) {\n  const why = refused.slice(0, 10).map((r) => String(r.metric) + ' ' + String(r.period ?? '') + ' (' + String(r.code ?? 'refused') + '): ' + String(r.detail)).join('; ');\n  throw new Error('Ziffr refused ' + refused.length + ' of ' + results.length + ' values: ' + why + (refused.length > 10 ? '; and more' : ''));\n}\nconst count = (s) => results.filter((r) => r.status === s).length;\nreturn [{ json: { recorded: count('recorded'), waitingForApproval: count('awaiting_approval'), proposedAsCorrection: count('locked'), skippedRows: shaped.skipped } }];\n"
+        "jsCode": "// Ziffr's answer to a batch of values (spec 0043): one result per item, in the order sent. A refused item fails the run,\n// so that n8n shows it as failed and its owner looks; the rest were recorded all the same (each item stands on its own).\nconst results = Array.isArray($input.first().json.results) ? $input.first().json.results : [];\nconst shaped = $('Shape values').first().json;\nconst refused = results.filter((r) => r.status === 'refused');\nif (refused.length) {\n  const why = refused.slice(0, 10).map((r) => String(r.metric) + ' ' + String(r.period ?? '') + ' (' + String(r.code ?? 'refused') + '): ' + String(r.detail)).join('; ');\n  throw new Error('Ziffr refused ' + refused.length + ' of ' + results.length + ' values: ' + why + (refused.length > 10 ? '; and more' : ''));\n}\nconst count = (s) => results.filter((r) => r.status === s).length;\nreturn [{ json: { recorded: count('recorded'), waitingForApproval: count('awaiting_approval'), proposedAsCorrection: count('locked'), alreadyThere: shaped.settled, skippedRows: shaped.skipped } }];\n"
       },
       "id": "86791596-1439-505d-ad52-809281f400df",
       "name": "Check the answers",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        1100,
+        1320,
         300
       ]
     }
@@ -178,6 +209,17 @@
       ]
     },
     "Settings": {
+      "main": [
+        [
+          {
+            "node": "What is filled",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "What is filled": {
       "main": [
         [
           {
@@ -223,7 +265,8 @@
     }
   },
   "settings": {
-    "executionOrder": "v1"
+    "executionOrder": "v1",
+    "timezone": "UTC"
   },
   "pinData": {},
   "active": false,
