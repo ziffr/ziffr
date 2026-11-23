@@ -253,6 +253,14 @@ Under **Quiet hours** you choose the hours of the night and the whole days (the 
 
 If you set nothing, you follow the Workspace's default, if its Owners or Admins set one (the page says so). **Use the Workspace's default** removes your own. To have none even though the Workspace has a default, set the same hour for **From** and **Until** and no days. You cannot choose all seven days. A message already waiting keeps its time if you change your quiet hours afterwards.
 
+## Send feedback
+
+On hosted Ziffr (the Ziffr you reach at ziffr.net), your own menu at the bottom of the sidebar has **Send feedback**. It opens a panel beside the page, so you can see what you are writing about. Choose what it is (**A problem**, **An idea** or **A question**), write your words (up to 2000 characters, with a counter under the box) and press **Send feedback**. You do not need an account anywhere else.
+
+Read the note above the button before you send. Your words will be public on GitHub. Your name and your Workspace's data (Metric names, values and the like) are never sent. Ziffr adds only the page you are on, shortened to a plain path, and the version of the app. Do not write anything private. For now your feedback is saved and waits to be reviewed; nothing is filed or answered automatically yet.
+
+Under the form, **My feedback** lists what you sent, newest first: its kind, the first words, where it stands (**waiting for review**, **open**, **answered** or **closed**) and the day you sent it. Only you see this list. A few feedback a day are allowed for each person and each Workspace; if the limit is reached, the panel says so and you can try again tomorrow. A Ziffr that someone runs themselves has no **Send feedback** and sends nothing anywhere; the people who run it use GitHub directly. A screenshot cannot be added yet.
+
 ## The question about Ziffr
 
 Now and then, where an Installation Admin has turned it on (hosted Ziffr does), a small card in the corner asks whether you like Ziffr. **Yes** offers a link to the Ziffr repository on GitHub, where you can star it if you want to; Ziffr tells GitHub nothing about you. **Not yet** asks what is missing, and your words go to the people who run this Ziffr without your name. **Not now** closes it, and it comes back after 30 days, then once more after 60; **Don't ask again** ends it. It never appears while you are looking at a form, in the demo, or on a shared View Link.
