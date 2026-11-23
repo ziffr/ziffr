@@ -5,7 +5,7 @@ import { BUILT_IN_DESIGNS, designSettings, designSlots, isDesignedView } from ".
 import { sampleData, sampleFills, type SampleWidget } from "./sample-data";
 import { VIEW_DESIGN_SCHEMA, VIEW_FORMAT, writeViewDesign, VIEW_LIMITS, type Part, type PlotMark, type ViewDesign } from "./view-design";
 import { checkSchema } from "./json-check";
-import { FUNCTIONS, type AnalysisRecipe } from "./analysis-recipe";
+import { drawnOutputs, type AnyAnalysisRecipe } from "./analysis-recipe";
 import type { Period, Widget } from "./types";
 
 /** The format of a Sample Data file that comes with an exported design. */
@@ -41,12 +41,13 @@ export function sampleDesignWidget(d: ViewDesign, period: Period = "month"): Sam
 
 /** A starting design for an Analysis Recipe: the first Metric's values with the recipe's series in the Metric's unit
  * on one plot, its other series on a second, and its single values as words. */
-export function designWithRecipe(r: AnalysisRecipe): ViewDesign {
-  const gives = (step: string) => FUNCTIONS[r.steps.find((s) => s.id === step)!.fn].gives;
-  const series = r.outputs.filter((o) => gives(o.step) === "series");
+export function designWithRecipe(r: AnyAnalysisRecipe): ViewDesign {
+  // Only a series or one value has a mark so far: a table or a Takeaway output stays in the recipe, undrawn.
+  const outputs = drawnOutputs(r);
+  const series = outputs.filter((o) => o.gives === "series");
   const inUnit = series.filter((o) => o.unit === "metric");
   const other = series.filter((o) => o.unit !== "metric");
-  const values = r.outputs.filter((o) => gives(o.step) === "value");
+  const values = outputs.filter((o) => o.gives === "value");
   const line = (step: string): PlotMark => ({ mark: "line", show: `recipe.${step}`, tone: "muted", dash: true, weight: "regular" });
   const parts: Part[] = [
     { mark: "plot", axes: "regular", grid: "horizontal", scale: "padded", marks: [{ mark: "line", show: "values", tone: "data", weight: "strong", detail: "full" }, ...inUnit.map((o) => line(o.step))] },

@@ -4,7 +4,7 @@
 // Style), worked out once in `designValues`; the design only says which of them each mark shows and how it looks.
 // Security: a design is data. Its words are drawn as React text, never as markup, and it reaches no Metric outside
 // the widget's own.
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
 import { useTakeawayHost } from "./takeaway-host";
 import { compactValue, formatNumber, formatValue, health } from "@ziffr/core/format";
@@ -19,7 +19,10 @@ import type { CanvasData, Metric, Widget } from "@ziffr/core/types";
 import { bestForecast } from "@ziffr/core/methods/forecast-choice";
 import { SEASON_LENGTH } from "@ziffr/core/suitability";
 import { forecastTakeaway, endsOf } from "@ziffr/core/takeaways/forecast";
-import { designRecipe, formatOutput } from "@ziffr/core/design-analysis";
+import { drawRecipe, formatOutput, newRecipeBudget } from "@ziffr/core/design-analysis";
+import { useRecipeBudget } from "./recipe-budget";
+import type { RecipeResults } from "@ziffr/core/recipe-run";
+import { drawnOutputs } from "@ziffr/core/analysis-recipe";
 import { TargetChip } from "@/components/target-chip";
 import { cn } from "@/lib/utils";
 import { ApprovalMark } from "./approval-mark";
@@ -45,7 +48,7 @@ export type DesignValues = ReturnType<typeof designValues> & {
 };
 
 /** The numbers and words a design draws for a widget, each from the core's functions. */
-function designValues(design: ViewDesign, widget: Pick<Widget, "settings">, metrics: Metric[], data: CanvasData, basis: BasisChoice) {
+function designValues(design: ViewDesign, widget: Pick<Widget, "settings">, metrics: Metric[], data: CanvasData, basis: BasisChoice, recipe: RecipeResults | null) {
   const uses = usage(design);
   const m = metrics[0];
   const s = widget.settings;
@@ -86,7 +89,6 @@ function designValues(design: ViewDesign, widget: Pick<Widget, "settings">, metr
   // The target band shows when there is a range, and, for a combined series, when its spans have one.
   const band = (!combined || !!targets?.range) && (m.target_min !== null || m.target_max !== null);
   // The design's Analysis Recipe, on the series the widget shows of its own Metrics, by the library's functions.
-  const recipe = designRecipe(design, metrics, data, s);
   return { basis, m, metrics, by, all, pts, last, combined, targets, note, flags, fc, correlation, correlationTake, forecastTake, drivers, driversTake, matrix, band, goal, name, data, settings: s, recipe, analysis: design.analysis ?? null };
 }
 
@@ -119,8 +121,14 @@ export function DesignView({ design, widget, metrics, data, onPointContext }: Pr
   const [basis, setBasis] = useState<BasisChoice>("auto");
   const roomy = useWidgetScale() > 1;
   const host = useTakeawayHost();
-  const v: DesignValues = { ...designValues(design, widget, metrics, data, basis), setBasis, roomy, behind: host !== null };
+  // The recipe is worked out once for its real inputs, not again whenever Show the numbers is toggled.
+  const budget = useRecipeBudget();
+  const drawn = useMemo(() => drawRecipe(design, metrics, data, widget.settings, budget ?? newRecipeBudget()), [design, metrics, data, widget.settings, budget]);
+  const recipe = drawn.results;
+  const v: DesignValues = { ...designValues(design, widget, metrics, data, basis, recipe), setBasis, roomy, behind: host !== null };
   const { m } = v;
+  // The page has spent its share of work on recipes: the words say so and no number is shown.
+  if (drawn.refusal) return <Empty>{drawn.refusal}</Empty>;
   // What the design needs and does not have says why, in the core's words where it has them.
   if (v.matrix && metrics.length < 2) return <Empty>{design.empty ?? "Needs at least two Metrics."}</Empty>;
   if (usage(design).pairs && !metrics[1]) return <Empty>{design.empty ?? "Needs two Metrics."}</Empty>;
@@ -309,7 +317,7 @@ function textValue(show: TextShow, v: DesignValues): ReactNode {
 
 /** A recipe output as text: its one value, or a series' latest, in the output's unit (formatOutput). */
 function recipeText(step: string, v: DesignValues): string | null {
-  const out = v.analysis?.outputs.find((o) => o.step === step);
+  const out = drawnOutputs(v.analysis).find((o) => o.step === step);
   const res = v.recipe?.[step];
   if (!out || !res) return null;
   const value = res.kind === "value" ? res.value : res.points[res.points.length - 1]?.value;

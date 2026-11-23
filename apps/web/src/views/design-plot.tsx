@@ -6,6 +6,7 @@ import { useId, useRef, useState } from "react";
 import { Area, Bar, CartesianGrid, Cell, ComposedChart, Line, ReferenceArea, ReferenceDot, ReferenceLine, ResponsiveContainer, Scatter, Tooltip, XAxis, YAxis, ZAxis } from "recharts";
 import { axisLabels, compactValue, formatValue, health, niceAxis } from "@ziffr/core/format";
 import { formatOutput } from "@ziffr/core/design-analysis";
+import { drawnOutputs } from "@ziffr/core/analysis-recipe";
 import { commonPeriod } from "@ziffr/core/correlation";
 import { isPartial, spanCount } from "@ziffr/core/display-periods";
 import { periodLabel } from "@ziffr/core/periods";
@@ -272,7 +273,7 @@ function PeriodTip({ active, row: r, v, label }: { active?: boolean; row?: Row; 
       // One of the Metric's Observations: the shared popup; a span of a combined series is not one, so it asks for nothing.
       <ObservationTip metric={m} period={r.period} label={label(r.period)} value={value} goal={v.goal(point)} data={data} single={!v.combined}>
         {r.target !== undefined && <div className="text-muted-foreground">Target: <span className="fig">{formatValue(m, r.target, ns)}</span></div>}
-        {(v.analysis?.outputs ?? []).map((o) => (r[`recipe:${o.step}`] === undefined ? null : <div key={o.step} className="text-muted-foreground">{o.label}: <span className="fig">{formatOutput(o.unit, m, r[`recipe:${o.step}`], ns)}</span></div>))}
+        {drawnOutputs(v.analysis).map((o) => (r[`recipe:${o.step}`] === undefined ? null : <div key={o.step} className="text-muted-foreground">{o.label}: <span className="fig">{formatOutput(o.unit, m, r[`recipe:${o.step}`], ns)}</span></div>))}
       </ObservationTip>
     );
   }

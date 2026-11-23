@@ -7,7 +7,7 @@ export { checkDeckTemplateFile, DECK_TEMPLATE_SCHEMA, type DeckTemplateFile } fr
 export { checkWorkflowTemplateFile, WORKFLOW_TEMPLATE_SCHEMA, type WorkflowTemplateFile } from "./workflow-template-file.js";
 export { checkThemeFile, THEME_FILE_SCHEMA, type ThemeFile } from "./theme-file.js";
 export { checkViewDesign, VIEW_DESIGN_SCHEMA, type ViewDesign } from "./view-design.js";
-export { checkAnalysisRecipe, ANALYSIS_RECIPE_SCHEMA, type AnalysisRecipe } from "./analysis-recipe.js";
+export { checkAnalysisRecipe, ANALYSIS_RECIPE_SCHEMA, ANALYSIS_RECIPE_SCHEMA_2, drawnOutputs, type AnalysisRecipe, type AnalysisRecipe2, type AnyAnalysisRecipe } from "./analysis-recipe.js";
 export { aimsAtAssistant } from "./assistant-words.js";
 export type { Problem } from "./json-check.js";
 export { LOGO_MAX_BYTES, LOGO_MAX_PIXELS, PACK_LOGO_MAX_BYTES, cleanLogo, logoOk, logoProblem, logoRatio, svgClean, svgIsPlain } from "./logo.js";

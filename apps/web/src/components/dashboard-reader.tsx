@@ -3,6 +3,7 @@
 // widgets one below the other in reading order (top to bottom, left to right), each at full width, readable on any
 // screen. Findings read like the sections of an article. Nothing here changes the dashboard: it is changed in the
 // Grid view's Edit mode. Through a View Link it shows only the cards and their numbers, nothing that calls the server.
+import { RecipeBudgetProvider } from "@/views/recipe-budget";
 import { WidgetFrame } from "@/components/widget-frame";
 import { ThemeScope } from "@/components/theme-scope";
 import { themeFor } from "@ziffr/core/themes";
@@ -30,11 +31,13 @@ export function DashboardReader({ dashboard, widgets, data, readOnly = false, he
         {ordered.length === 0 && (
           <p className="rounded-[var(--radius-card)] border border-dashed border-[var(--color-rule-2)] p-8 text-center text-sm text-muted-foreground">This dashboard has no widgets yet.</p>
         )}
+        <RecipeBudgetProvider data={data}>
         {ordered.map((w, i) => (
           <section key={w.id} aria-label={`Part ${i + 1} of ${ordered.length}`} style={{ height: height(w) }}>
             <WidgetFrame widget={w} data={data} targets={[]} editable={false} readOnly={readOnly} />
           </section>
         ))}
+        </RecipeBudgetProvider>
       </ThemeScope>
     </article>
   );
