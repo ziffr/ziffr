@@ -24,17 +24,17 @@ describe("snowflake connect", () => {
   it("logs in with the key pair, runs a bound query with a statement timeout and closes", async () => {
     const { sdk, log } = fake([{ V: 42 }]);
     const db = await connect({ warehouse: "SMALL_WH", statement_timeout_ms: 45_000 }, { ...env, SNOWFLAKE_ROLE: "FEED_RO", SNOWFLAKE_PRIVATE_KEY_PASSPHRASE: "pw" }, sdk);
-    expect(log.options).toMatchObject({ account: "org-acct", username: "FEED", authenticator: "SNOWFLAKE_JWT", privateKeyPass: "pw", warehouse: "SMALL_WH", role: "FEED_RO", sessionParams: { STATEMENT_TIMEOUT_IN_SECONDS: 45 } });
+    expect(log.options).toMatchObject({ account: "org-acct", username: "FEED", authenticator: "SNOWFLAKE_JWT", privateKeyPass: "pw", warehouse: "SMALL_WH", role: "FEED_RO", sessionParams: { STATEMENT_TIMEOUT_IN_SECONDS: 45, MULTI_STATEMENT_COUNT: 1 } });
     expect(String(log.options?.privateKey)).toContain("\nabc\n");
     expect(await db.query("select sum(x) from t where d >= :1 and d < :2", ["2026-01-01", "2026-02-01"])).toEqual([{ V: 42 }]);
-    expect(log.executed).toEqual([{ sqlText: "select sum(x) from t where d >= :1 and d < :2", binds: ["2026-01-01", "2026-02-01"], parameters: { STATEMENT_TIMEOUT_IN_SECONDS: 45 } }]);
+    expect(log.executed).toEqual([{ sqlText: "select sum(x) from t where d >= :1 and d < :2", binds: ["2026-01-01", "2026-02-01"], parameters: { STATEMENT_TIMEOUT_IN_SECONDS: 45, MULTI_STATEMENT_COUNT: 1 } }]);
     await db.close();
     expect([log.connected, log.destroyed]).toEqual([1, 1]);
   });
   it("defaults to 30 seconds and takes the warehouse from the environment", async () => {
     const { sdk, log } = fake();
     await connect({}, { ...env, SNOWFLAKE_WAREHOUSE: "ENV_WH" }, sdk);
-    expect(log.options).toMatchObject({ warehouse: "ENV_WH", sessionParams: { STATEMENT_TIMEOUT_IN_SECONDS: 30 } });
+    expect(log.options).toMatchObject({ warehouse: "ENV_WH", sessionParams: { STATEMENT_TIMEOUT_IN_SECONDS: 30, MULTI_STATEMENT_COUNT: 1 } });
   });
   it("accepts a WITH ... SELECT, comments and a trailing semicolon", async () => {
     const { sdk, log } = fake();
@@ -50,6 +50,20 @@ describe("snowflake connect", () => {
       await expect(db.query(text, [])).rejects.toThrow(/SELECT|statement/);
     }
     expect(log.executed).toEqual([]);
+  });
+  it("refuses the known bypasses: CALL, a write inside WITH, $$ blocks, a statement after a comment", async () => {
+    const { sdk, log } = fake();
+    const db = await connect({}, env, sdk);
+    for (const text of ["call my_proc()", "with a as (select 1) insert into t select * from a", "select 1 $$ select 2 $$", "with p as procedure () returns int language sql as $$ begin return 1; end $$ call p()", "select 1 -- done\n; drop table t", "select 1 /* x */ ; /* y */ delete from t", "select 1 where x in (select get(y) from z)"]) {
+      await expect(db.query(text, [])).rejects.toThrow(/SELECT|statement|\$\$/);
+    }
+    expect(log.executed).toEqual([]);
+  });
+  it("lets quoted strings and identifiers hold those words", async () => {
+    const { sdk, log } = fake();
+    const db = await connect({}, env, sdk);
+    await db.query("select 'call; drop table t $$ insert' as note, \"update\" from t where label = 'copy'", []);
+    expect(log.executed).toHaveLength(1);
   });
   it("says in words what is missing for the key-pair login", async () => {
     const { sdk } = fake();

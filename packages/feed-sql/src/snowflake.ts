@@ -18,18 +18,25 @@ export type SnowflakeSdk = { createConnection: (options: Record<string, unknown>
 /** What a Snowflake Feed file may say besides its queries: names only, never a secret. */
 type SnowflakeConfig = { warehouse?: string; role?: string; database?: string; schema?: string; statement_timeout_ms?: number };
 
-/** Removes comments and the insides of quoted strings and identifiers, so the checks see only the statement's own words. */
+/** Removes comments and ordinary quoted strings and identifiers, so the checks see only the statement's own words. A `$$` block is not removed: it is refused. */
 function skeleton(sql: string): string {
-  return sql.replace(/--[^\n]*|\/\/[^\n]*|\/\*[\s\S]*?\*\/|'(?:[^'\\]|\\[\s\S]|'')*'|"(?:[^"]|"")*"|\$\$[\s\S]*?\$\$/g, " ");
+  return sql.replace(/--[^\n]*|\/\/[^\n]*|\/\*[\s\S]*?\*\/|'(?:[^'\\]|\\[\s\S]|'')*'|"(?:[^"]|"")*"/g, " ");
 }
 
-/** Throws unless the text is one SELECT (or WITH ... SELECT) statement; a trailing semicolon is the only one allowed. */
+/** Words that never belong in a Feed's query; a whole-word match outside quoted strings refuses it. */
+const FORBIDDEN = /\b(call|procedure|execute|copy|put|get|create|alter|drop|grant|insert|update|delete|merge|truncate)\b/i;
+
+/** Throws unless the text is one SELECT (or WITH ... SELECT) statement; a trailing semicolon is the only one allowed.
+ * An allowlist of shape and words, a backup to the read-only role and to MULTI_STATEMENT_COUNT=1 (the server refuses batches). */
 function assertSingleSelect(sql: string): void {
   const body = skeleton(sql).trim().replace(/;\s*$/, "");
+  if (body.includes("$$")) throw new Error("A $$ block is not allowed in a Feed's query.");
   if (body.includes(";")) throw new Error("Only one statement may run: remove the semicolon-separated statements.");
   const first = /^[\s(]*([a-z]+)/i.exec(body)?.[1]?.toLowerCase();
   if (first !== "select" && first !== "with") throw new Error(`Only a single SELECT statement may run on Snowflake, not ${first ? first.toUpperCase() : "an empty or unreadable statement"}.`);
-  if (first === "with" && (!/\bselect\b/i.test(body) || /\b(insert\s+(overwrite\s+)?into|delete\s+from|merge\s+into|update\s+\S+\s+set)\b/i.test(body))) throw new Error("A WITH query must end in a SELECT and change nothing.");
+  const word = FORBIDDEN.exec(body)?.[1];
+  if (word) throw new Error(`Only a single SELECT statement may run on Snowflake: the word ${word.toUpperCase()} is not allowed in a query.`);
+  if (first === "with" && !/\bselect\b/i.test(body)) throw new Error("A WITH query must end in a SELECT.");
 }
 
 /** Seconds for Snowflake's STATEMENT_TIMEOUT_IN_SECONDS from the file's milliseconds (at least 1, at most 10 minutes). */
@@ -67,14 +74,14 @@ export async function connect(config: Record<string, unknown>, env: Record<strin
     ...(env.SNOWFLAKE_PRIVATE_KEY_PASSPHRASE ? { privateKeyPass: env.SNOWFLAKE_PRIVATE_KEY_PASSPHRASE } : {}),
     warehouse: c.warehouse ?? env.SNOWFLAKE_WAREHOUSE, role: c.role ?? env.SNOWFLAKE_ROLE, database: c.database, schema: c.schema,
     // Also a session parameter, so a statement cannot outlive the limit even if a per-statement one is dropped.
-    sessionParams: { STATEMENT_TIMEOUT_IN_SECONDS: seconds },
+    sessionParams: { STATEMENT_TIMEOUT_IN_SECONDS: seconds, MULTI_STATEMENT_COUNT: 1 },
   });
   await new Promise<void>((resolve, reject) => conn.connect((err) => (err ? reject(new Error(`Snowflake login failed: ${err.message}`)) : resolve())));
   return {
     query: async (text, params) => {
       assertSingleSelect(text);
       // The period goes in as bound values only; the text is the file's own query.
-      return new Promise((resolve, reject) => conn.execute({ sqlText: text, binds: params, parameters: { STATEMENT_TIMEOUT_IN_SECONDS: seconds }, complete: (err, _stmt, rows) => (err ? reject(err) : resolve(rows ?? [])) }));
+      return new Promise((resolve, reject) => conn.execute({ sqlText: text, binds: params, parameters: { STATEMENT_TIMEOUT_IN_SECONDS: seconds, MULTI_STATEMENT_COUNT: 1 }, complete: (err, _stmt, rows) => (err ? reject(err) : resolve(rows ?? [])) }));
     },
     close: () => new Promise<void>((resolve) => conn.destroy(() => resolve())),
   };
