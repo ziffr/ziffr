@@ -170,6 +170,14 @@
 .guide-prose a.guide-term { text-decoration: none; border-bottom: 1px dotted var(--color-rule-2); }
 .guide-prose a.guide-term:hover { border-bottom-color: currentColor; }
 .guide-prose h3 + p { margin-top: var(--space-xs); }
+/* The same text in the Help panel's narrow column (spec 0050): full width, smaller headings, long words and code wrap,
+   tables scroll sideways inside their own box (already so above), pictures fit. */
+.guide-prose-panel { max-width: none; font-size: var(--text-sm); line-height: 1.55; overflow-wrap: anywhere; }
+.guide-prose-panel h1 { font-size: var(--text-xl); }
+.guide-prose-panel h2 { font-size: var(--text-lg); margin-top: var(--space-lg); scroll-margin-top: 0.5rem; }
+.guide-prose-panel h3 { font-size: var(--text-md); scroll-margin-top: 0.5rem; }
+.guide-prose-panel pre { white-space: pre-wrap; }
+.guide-prose-panel img { max-width: 100%; height: auto; }
 
 /* Touch targets (#535): on a phone, and on any touch screen, what you press is at least 44 px high (and wide when it
    is only an icon). Switches, checkboxes and sliders keep their own size, and the widget grid's drag handles too. */
