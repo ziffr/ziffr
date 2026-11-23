@@ -19,6 +19,8 @@ import { runWorkflows, setLock } from "./workflow-engine";
 import { saveWorkflow } from "./workflows";
 import { archivedMetricHolds } from "./internal/delivery-send";
 import { updateWorkflowWithKey } from "./api-workflows";
+import { removeMember } from "./handover";
+import { openWorkflowRow } from "./workflow-rows";
 import { auditRowsOf, opened, workspace } from "./test/db-fixtures";
 import type { ChecklistItem, WorkflowStep } from "./types";
 
@@ -430,5 +432,58 @@ describe("review fixes", () => {
     await makeOld(flow);
     await checkFinishedPeriod(w.id, flow, LAST);
     expect(await messages(w, ann)).toHaveLength(1);
+  });
+});
+
+// Found by the spec's final security review (#794): the paths no single ticket owned.
+describe("across the features", () => {
+  it("takes a removed person out of the steps, so their item holds no period back and the Snapshot still goes", async () => {
+    const { w, sara, ann, bob, flow, lockAll } = await setup({ people: (p) => [p.ann, p.bob] });
+    const stored = (await db().from("workflows").select("config").eq("id", flow).single()).data!.config;
+    const info: ChecklistItem = { type: "checklist", id: "info-one-aaaa", kind: "info", text: "Invoices by Friday", day: 1, people: [bob, ann], groups: [] };
+    await saveWorkflow(w.actor(sara), flow, "Month-end close", { ...stored, steps: [{ ...tick(bob), standIn: ann }, { ...tick(ann), id: "tick-two-aaaa", standIn: bob }, info, ...stored.steps] });
+    await makeOld(flow);
+    // Bob leaves before his Task for the period was given: it never will be, so it must not hold the period back.
+    await removeMember(w.actor(sara), bob, sara);
+    const raw = (await db().from("workflows").select("config").eq("id", flow).single()).data!.config as { steps: Record<string, unknown>[] };
+    expect(raw.steps.find((s) => s.id === "tick-one-aaaa")).toMatchObject({ assignee: null, standIn: ann });
+    expect(raw.steps.find((s) => s.id === "tick-two-aaaa")).not.toHaveProperty("standIn");
+    expect(raw.steps.find((s) => s.id === "info-one-aaaa")!.people).toEqual([ann]);
+    expect(raw.steps.find((s) => s.type === "send_snapshot")!.people).toEqual([ann]);
+    // Only those fields changed: the sealed words still open at their places.
+    const open = (await openWorkflowRow(w.id, (await db().from("workflows").select("id, config").eq("id", flow).single()).data))!.config as { steps: ChecklistItem[] };
+    expect(open.steps.filter((s) => s.type === "checklist").map((s) => s.text)).toEqual(["Reconcile the bank account", "Reconcile the bank account", "Invoices by Friday"]);
+    // Ann's own item still waits for its Task; with it given and done, the period finishes.
+    await runWorkflows(w.id, ASOF, sara);
+    const tasks = (await db().from("actions").select("id, assignee_id, checklist_item_id").eq("workflow_id", flow).eq("purpose", "checklist").eq("period_start", LAST)).data ?? [];
+    expect(tasks.map((t) => t.checklist_item_id)).toEqual(["tick-two-aaaa"]);
+    await lockAll();
+    expect(await periodFinished(w.id, flow, LAST)).toBe(false);
+    await markTaskDone(w.actor(ann, "member"), tasks[0].id as number);
+    expect(await periodFinished(w.id, flow, LAST)).toBe(true);
+    expect((await messages(w, ann)).filter((m) => String(m.subject).includes("is finished"))).toHaveLength(1);
+  });
+
+  it("holds an item whose Assignee left without the handover, and finishes once the Assignee is no longer a member", async () => {
+    const { w, sara, bob, flow, lockAll } = await setup({ people: (p) => [p.ann] });
+    const stored = (await db().from("workflows").select("config").eq("id", flow).single()).data!.config;
+    await saveWorkflow(w.actor(sara), flow, "Month-end close", { ...stored, steps: [tick(bob), ...stored.steps] });
+    await makeOld(flow);
+    await lockAll();
+    expect(await periodFinished(w.id, flow, LAST)).toBe(false);
+    await w.dropMember(bob);
+    expect(await periodFinished(w.id, flow, LAST)).toBe(true);
+  });
+
+  it("does not send a Workflow's message once the Workflow was deleted while it waited", async () => {
+    const { w, ann, flow, lockAll } = await setup({ people: (p) => [p.ann] });
+    await lockAll();
+    const pick = async () => (await db().from("deliveries").select("id, workspace_id, recipient_id, kind, tell_workflow_id, snapshot_dashboard_id").eq("workspace_id", w.id).eq("recipient_id", ann).eq("kind", "checklist")).data!;
+    expect(await archivedMetricHolds((await pick())[0] as never)).toBeNull();
+    const { error } = await db().from("workflows").delete().eq("id", flow);
+    expect(error).toBeNull();
+    const [left] = await pick();
+    expect(left.tell_workflow_id).toBeNull();
+    expect(await archivedMetricHolds(left as never)).toBe("Not sent: the Workflow was deleted.");
   });
 });

@@ -49,6 +49,8 @@ export async function archivedMetricHolds(d: AboutMetric): Promise<string | null
   if (d.kind === "checklist") {
     // Nor does it leave for someone who has left the Workspace since it was queued.
     if (!d.recipient_id || !(await db().from("memberships").select("user_id").eq("workspace_id", ws).eq("user_id", d.recipient_id).maybeSingle()).data) return "Not sent: the person is no longer in the Workspace.";
+    // Every such message names its Workflow; the name is gone (set null) once the Workflow is deleted, and then nothing of it leaves.
+    if (d.tell_workflow_id === null) return "Not sent: the Workflow was deleted.";
     // A Send Snapshot message (spec 0045) leaves only while its recipient may still open the dashboard it links to: asked
     // again here, when it is sent, not only when it was queued (rule 3).
     if (d.snapshot_dashboard_id && !(await visibleDashboards(ws, d.recipient_id)).some((x) => x.id === d.snapshot_dashboard_id)) return "Not sent.";

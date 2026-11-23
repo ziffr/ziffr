@@ -79,6 +79,10 @@ const FORMAT = {
     }
     const publish = t.steps.findIndex((s) => s.type === "publish");
     if (publish >= 0 && publish !== t.steps.length - 1) at(`steps[${publish}]`, "comes before other steps; publishing is the last step.");
+    // The editor's rule (spec 0045): a Send Snapshot step goes when the period is finished, so the Publish step locks.
+    // Checked here, so a file the editor would refuse is refused when it is checked, not halfway through using it.
+    const send = t.steps.findIndex((s) => s.type === "send_snapshot");
+    if (send >= 0 && !t.steps.some((s) => s.type === "publish" && (s as { lock?: boolean }).lock === true)) at(`steps[${send}]`, "needs a “publish” step with “lock”: true; a Send Snapshot step goes once the period is locked.");
   },
 };
 
