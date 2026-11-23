@@ -4,6 +4,7 @@ import { getCanvasData, visibleDashboards } from "@/lib/access";
 import { PageHeader } from "@/components/page-header";
 import { isDemo } from "@/lib/auth";
 import { AnalyzeScreen } from "./screen";
+import { HeadsUpsSection } from "./heads-ups";
 import Link from "next/link";
 
 export default async function AnalyzePage({ searchParams }: { searchParams: Promise<{ add?: string }> }) {
@@ -28,6 +29,7 @@ export default async function AnalyzePage({ searchParams }: { searchParams: Prom
           <Link href="/analyze/playground" className="text-sm text-muted-foreground underline-offset-2 hover:text-foreground hover:underline">Playground</Link>
         </div>
       </PageHeader>
+      <HeadsUpsSection actor={actor} demo={demo} />
       <AnalyzeScreen data={data} demo={demo} onCanvas={onCanvas} targets={dashboards.filter((d) => d.role !== "viewer").map((d) => ({ id: d.id, name: d.name }))} />
     </>
   );

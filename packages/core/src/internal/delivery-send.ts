@@ -30,7 +30,7 @@ export async function withFormLink(body: string, d: { workspace_id: string; form
 export const PROMPT_ANSWERED = "Not sent: the request was answered another way first.";
 
 /** What a Delivery is about, as far as its Metric goes. */
-type AboutMetric = { id: number; workspace_id: string; kind: string; recipient_id?: string; alert_metric_id?: number | null; tell_workflow_id?: number | null; prompt_id?: number | null; form_token_id?: number | null; action_id?: number | null };
+type AboutMetric = { id: number; workspace_id: string; kind: string; recipient_id?: string; alert_metric_id?: number | null; heads_up_metric_a?: number | null; heads_up_metric_b?: number | null; tell_workflow_id?: number | null; prompt_id?: number | null; form_token_id?: number | null; action_id?: number | null };
 
 /** Why a Delivery must not go out because its Metric is archived (GLOSSARY: Archived Metric), or null. Checked when it
  * is sent, not only when it was queued: a Prompt checked just before the archive and queued just after, or one put
@@ -50,6 +50,15 @@ export async function archivedMetricHolds(d: AboutMetric): Promise<string | null
       if (stopped) return "Not sent: the person asked not to be told by this Workflow.";
     }
     return null;
+  }
+  // A Heads-up message (GLOSSARY: Heads-up) leaves only while its recipient may still see EVERY Metric it is about and none is
+  // archived: asked again here, when it is sent (AGENTS.md rule 3). One that names no Metric does not go at all.
+  if (d.kind === "heads_up") {
+    const about = [d.heads_up_metric_a, d.heads_up_metric_b].filter((id): id is number => typeof id === "number");
+    if (!about.length || !d.recipient_id) return "Not sent.";
+    const metrics = await getMetrics(ws);
+    const seen = await visibleMetricIds(ws, d.recipient_id, metrics);
+    return about.every((id) => seen.has(id) && metrics.some((m) => m.id === id && !m.archived_at && !m.inputs_withheld)) ? null : "Not sent.";
   }
   let metricId: number | null = null;
   if (d.kind === "prompt") {

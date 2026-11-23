@@ -31,8 +31,8 @@ export type RouteOutcome = "recorded" | "refused" | "form_link" | "replied" | "c
 /** Takes one reply to a Delivery from the person it went to. */
 export async function routeReply(d: RepliedDelivery, text: string, via: ReplyChannel, submission: SubmissionEffects = submissionEffects): Promise<RouteOutcome> {
   // An Alert is never answerable (spec 0032): nothing said back to it is a value, a reply or a Correction.
-  if (d.kind === "alert") {
-    await via.answer("Not recorded", "Alerts cannot be answered; open the Metric in Ziffr.");
+  if (d.kind === "alert" || d.kind === "heads_up") {
+    await via.answer("Not recorded", d.kind === "alert" ? "Alerts cannot be answered; open the Metric in Ziffr." : "Heads-ups cannot be answered; open Ziffr.");
     return "refused";
   }
   if (d.kind === "prompt" && d.prompt_id) {

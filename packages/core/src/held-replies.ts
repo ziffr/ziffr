@@ -67,8 +67,8 @@ export type HoldOutcome = "held" | "refused" | "empty" | "unknown_token" | "limi
  * address on file. The caller has checked the Delivery, the sender's address and the limits. */
 export async function holdReply(d: RepliedDelivery, text: string, address: string, say: (subject: string, text: string) => Promise<void>): Promise<HoldOutcome> {
   let kind: "value" | "reply";
-  if (d.kind === "alert") {
-    await say("Not recorded", "Alerts cannot be answered; open the Metric in Ziffr.");
+  if (d.kind === "alert" || d.kind === "heads_up") {
+    await say("Not recorded", d.kind === "alert" ? "Alerts cannot be answered; open the Metric in Ziffr." : "Heads-ups cannot be answered; open Ziffr.");
     return "refused";
   }
   if (d.kind === "prompt" && d.prompt_id) {

@@ -207,7 +207,7 @@ export async function addressIn(workspaceId: string, personId: string): Promise<
 /** Sends one queued Delivery. It is claimed first, so the immediate send and the retry job never both send it. */
 export async function sendDelivery(id: number, transport: MailTransport = smtpTransport): Promise<SendResult> {
   const maxAttempts = await sendingLimit("sendAttempts");
-  const { data: found } = await db().from("deliveries").select("id, workspace_id, recipient_id, kind, subject, body, attempts, reply_token, unsubscribe_token, form_token_id, prompt_id, action_id, alert_metric_id, alert_id, tell_workflow_id")
+  const { data: found } = await db().from("deliveries").select("id, workspace_id, recipient_id, kind, subject, body, attempts, reply_token, unsubscribe_token, form_token_id, prompt_id, action_id, alert_metric_id, alert_id, heads_up_metric_a, heads_up_metric_b, tell_workflow_id")
     // Email only: a queued Slack Delivery is sent by slack-send.ts, never as an email.
     .eq("id", id).eq("connector", "email").eq("mail_state", "queued").lt("attempts", maxAttempts).maybeSingle();
   if (!found) return "skipped";
@@ -288,7 +288,7 @@ export async function sendDelivery(id: number, transport: MailTransport = smtpTr
   // Its own reply address, made the first time it is sent while replies come back (24 random bytes, unguessable).
   let replyTo: string | undefined;
   // An Alert cannot be answered (GLOSSARY: Alert): its email has no reply address of its own.
-  if (!digest && inboundEnabled(settings) && claimed.kind !== "alert") {
+  if (!digest && inboundEnabled(settings) && claimed.kind !== "alert" && claimed.kind !== "heads_up") {
     const token = claimed.reply_token ?? randomBytes(24).toString("base64url");
     if (!claimed.reply_token) await db().from("deliveries").update({ reply_token: token }).eq("id", id);
     replyTo = replyAddress(token, settings);

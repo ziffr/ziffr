@@ -133,7 +133,7 @@ The **Workspace name** is what everyone sees in the Workspace switcher and in In
 
 ### Quiet hours
 
-On the same page as the Workspace's time, Owners and Admins can set the default **Quiet hours** for everyone who has set none of their own: the hours (such as 19:00 until 07:00) and the whole days (such as Saturday and Sunday) when Ziffr sends no request for numbers, reminder or Alert. They wait and go out when the quiet hours end. The default is read in the Workspace's time zone; people can set their own, in their own time zone, under **Your Deliveries**. **Remove** takes the default away. It is recorded in the **Audit Log**.
+On the same page as the Workspace's time, Owners and Admins can set the default **Quiet hours** for everyone who has set none of their own: the hours (such as 19:00 until 07:00) and the whole days (such as Saturday and Sunday) when Ziffr sends no request for numbers, reminder, Alert or Heads-up message. They wait and go out when the quiet hours end. The default is read in the Workspace's time zone; people can set their own, in their own time zone, under **Your Deliveries**. **Remove** takes the default away. It is recorded in the **Audit Log**.
 
 ### Workspace time
 
