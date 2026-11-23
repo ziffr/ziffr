@@ -1,6 +1,6 @@
 # 0043 Automation Templates for Feeds: a Pack's Metrics fill themselves from the systems people already use
 
-**Status:** draft. **Ticket:** #769 (the owner's wish, 2026-11-22); the tracking issue is #769 and its sub-issues are labelled `spec:0043`.
+**Status:** built (tickets 1 to 8); the threat model is item 25 of `docs/security/threat-model.md`. Not yet tried in a real n8n, Stripe or HubSpot (owner). **Ticket:** #769 (the owner's wish, 2026-11-22); the tracking issue is #769 and its sub-issues are labelled `spec:0043`.
 
 ## Problem Statement
 
