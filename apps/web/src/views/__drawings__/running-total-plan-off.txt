@@ -1,0 +1,34 @@
+<line stroke-width=0.8 stroke=var(--color-rule) x1=46 x2=292 y1=204 y2=204>
+<text fill=var(--color-muted) font-family=var(--font-outlier) font-size=9 text-anchor=end x=42 y=207>
+"0 €"
+<line stroke-width=0.8 stroke=var(--color-rule) x1=46 x2=292 y1=108 y2=108>
+<text fill=var(--color-muted) font-family=var(--font-outlier) font-size=9 text-anchor=end x=42 y=111>
+"651,160 €"
+<line stroke-width=0.8 stroke=var(--color-rule) x1=46 x2=292 y1=12 y2=12>
+<text fill=var(--color-muted) font-family=var(--font-outlier) font-size=9 text-anchor=end x=42 y=15>
+"1,302,320 €"
+<text fill=var(--color-muted) font-size=9 text-anchor=start x=46 y=222>
+"Jan 26"
+<text fill=var(--color-muted) font-size=9 text-anchor=middle x=90.72727272727272 y=222>
+"Mar 26"
+<text fill=var(--color-muted) font-size=9 text-anchor=middle x=135.45454545454544 y=222>
+"May 26"
+<text fill=var(--color-muted) font-size=9 text-anchor=middle x=180.18181818181816 y=222>
+"Jul 26"
+<text fill=var(--color-muted) font-size=9 text-anchor=middle x=224.9090909090909 y=222>
+"Sep 26"
+<text fill=var(--color-muted) font-size=9 text-anchor=middle x=269.6363636363636 y=222>
+"Nov 26"
+<g data-line=last>
+<polyline fill=none points=46,189.9765341851465 68.36363636363636,175.66808772037595 90.72727272727272,161.00359972971313 113.09090909090908,145.85421708950182 135.45454545454544,130.6943669758585 157.8181818181818,115.07439031881565 180.18181818181816,98.5682167209288 202.54545454545453,81.694059831685 224.9090909090909,64.98679280054057 247.27272727272728,47.84475704895877 269.6363636363636,30.39444683334358 292,12 stroke-linecap=round stroke-linejoin=round stroke-opacity=0.7 stroke-width=1.4 stroke=var(--color-muted)>
+<circle cx=292 cy=12 fill-opacity=0.7 fill=var(--color-muted) r=2.2>
+<g data-line=now>
+<polyline fill=none points=46,185.68000491430678 68.36363636363636,165.8835063578844 90.72727272727272,146.26923029670127 113.09090909090908,125.56677928619695 135.45454545454544,105.48161434977578 157.8181818181818,84.5867682290067 stroke-linecap=round stroke-linejoin=round stroke-width=2.4 stroke=var(--color-data)>
+<circle cx=157.8181818181818 cy=84.5867682290067 fill=var(--color-data) r=3.2>
+<text fill=var(--color-ink) font-size=9.5 x=300 y=20>
+<tspan dy=0 fill=var(--color-muted) font-weight=600 x=300>
+"Last year 1,302,320 €"
+<text fill=var(--color-ink) font-size=9.5 x=300 y=89.5867682290067>
+<tspan dy=0 fill=var(--color-data) font-weight=600 x=300>
+"This year 809,970 €"
+"Jun 26 is still running, so the comparison is made at May 26."

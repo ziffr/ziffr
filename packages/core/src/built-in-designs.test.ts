@@ -41,9 +41,14 @@ describe("the built-in View Designs", () => {
     expect(DESIGNED_VIEWS.filter((id) => BUILT_IN_DESIGNS[id].options?.display)).toEqual([...SHOWN_BY]);
   });
 
+  it("marks the running total as needing a Metric that adds up, which the Gallery says", () => {
+    expect(TEMPLATES["running-total"].needsSum).toBe(true);
+    expect(TEMPLATES["running-total"]).toMatchObject({ label: "Running total against plan", kind: "metric", size: { w: 8, h: 6 } });
+  });
+
   it("go into PowerPoint as before: lines, bars, numbers and tables natively, the rest as pictures", () => {
     const form = Object.fromEntries(DESIGNED_VIEWS.map((id) => [id, nativeForm(BUILT_IN_DESIGNS[id], TEMPLATES[id].settings)]));
-    expect(form).toEqual({ number: "number", line: "line", bars: "bar", gauge: "picture", table: "table", forecast: "picture", correlation: "picture", matrix: "picture", drivers: "picture" });
+    expect(form).toEqual({ number: "number", line: "line", bars: "bar", gauge: "picture", table: "table", forecast: "picture", correlation: "picture", matrix: "picture", drivers: "picture", "running-total": "picture" });
     // A line with its forecast or target switched on is still a native line, the forecast and band left out as before.
     expect(nativeForm(BUILT_IN_DESIGNS.line, { showForecast: true, showTarget: true })).toBe("line");
     expect(nativeForm(BUILT_IN_DESIGNS.bars, { showTarget: false })).toBe("bar");

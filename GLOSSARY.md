@@ -38,6 +38,9 @@ _Avoid_: Granularity, grain, bucket, roll-up
 Target values for individual periods, such as a monthly budget, uploaded like observations. Where a period has none, the metric's target range applies.
 _Avoid_: Budget, plan, goal series
 
+**Running total**:
+A Metric that adds up (its Aggregation is sum) added up from the start of its Fiscal Year, restarting each year, drawn against the running total of its Target Series (or of a one-sided target range, each period) and against last year's.
+
 **Projection**:
 A value for a future period, from an outside forecast or Ziffr's own, uploaded like an observation and always shown as a projection, never as an observation.
 _Avoid_: Forecast value, estimate, prediction

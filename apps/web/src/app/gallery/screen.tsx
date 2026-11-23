@@ -71,6 +71,7 @@ export function GalleryScreen({ data: sent, metricId, dashboards, canCreate, dem
     if (!metric) return { widget: null, why: null };
     const t = TEMPLATES[id];
     if ("needsBreakdown" in t && t.needsBreakdown && !hasBreakdown) return { widget: null, why: `${metric.name} has no breakdown, so this shows sample data.` };
+    if (t.needsSum && metric.aggregation !== "sum") return { widget: null, why: `${metric.name} does not add up over the year (its Aggregation is not sum), so this shows sample data.` };
     if (t.slots.length > 1 && partners.length + 1 < t.slots.length) return { widget: null, why: `Needs other Metrics with ${ENOUGH}+ months in common with ${metric.name}, so this shows sample data.` };
     return { widget: widgetWith(id, [metric.id, ...partners], metric.period), why: null };
   };
