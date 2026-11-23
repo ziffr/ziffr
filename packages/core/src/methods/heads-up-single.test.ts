@@ -492,6 +492,17 @@ describe("every condition on its own", () => {
   });
 });
 
+describe("a Target with both ends counts twice", () => {
+  it("has a chance twice as large as the same Target with its near end alone: the rank is log10(2) lower", () => {
+    const rank = (over: object) => ups([{ metric: revenue(over), points: series(falling) }]).find((u) => u.kind === "target-out-of-reach")!.rank;
+    expect(rank({ polarity: "higher", target_min: 600 }) - rank({ polarity: "target", target_min: 600, target_max: 5000 })).toBeCloseTo(Math.log10(2), 6);
+  });
+  it("is not told for a turn whose slopes are too small to write, or too blurred to be a change", () => {
+    expect(ups([{ metric: signups, points: series(turning(30, false).map((v) => v / 1e33)) }])).toEqual([]);
+    expect(ups([{ metric: signups, points: series(turning(30, false).map((v, k) => v + 150 * noise(k))) }])).toEqual([]);
+  });
+});
+
 describe("the order", () => {
   it("is the kinds in their order, the stronger first within a kind, ties by Metric id, whatever order the Metrics come in", () => {
     const turn106 = (amount: number) => Array.from({ length: 106 }, (_, k) => (k < 100 ? 10 * k : 1000 - 10 * (k - 100)) + amount * noise(k));

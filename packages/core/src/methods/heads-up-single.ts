@@ -156,28 +156,32 @@ export function twoLinesMisses(rows: Point[], span: Span, index: number) {
   return [...fitLine(rows.slice(0, index), span, first).misses, ...fitLine(rows.slice(index), span, first).misses];
 }
 
+// The exact mean of some fractions (at least 1) and the sum of squares about it.
+function spread(values: Fraction[]) {
+  const mean = div(total(values), whole(values.length));
+  return { mean, ss: total(values.map((x) => mul(sub(x, mean), sub(x, mean)))) };
+}
+
+// The change into each value from the period before it, exactly, with the value's index in `rows`; a change between periods that do not follow one another is no change.
+function consecutiveChanges(rows: Point[], span: Span): { at: number; change: Fraction }[] {
+  return rows.flatMap((r, i) => (i > 0 && periodsBetween(rows[i - 1].period, r.period, span) === 1 ? [{ at: i, change: sub(fractionOf(r.value), fractionOf(rows[i - 1].value)) }] : []));
+}
+
 /** The chance that the mean change from one period to the next differs between the periods before a date and those after it, as far as it does or farther, if it did not (Student's t
  * with pooled variance over the changes into the periods before the date and the changes into the periods after it; the change into the date's own period spans it and is left out;
  * a change between periods that do not follow one another is no change). 1 where either side has fewer than 2 changes; 0 or 1 where both sides' changes are each all the same (no
  * spread to judge by: 0 where the two sides differ). A series that wanders, a running total, has changes that are independent, which a line's misses are not: this is the chance the
  * change of direction must also pass. Exact on the values' text. */
 export function shiftChance(rows: Point[], span: Span, index: number): number {
-  const [before, after]: Fraction[][] = [[], []];
-  for (let i = 1; i < rows.length; i++) {
-    if (i === index || periodsBetween(rows[i - 1].period, rows[i].period, span) !== 1) continue;
-    // Stryker disable next-line EqualityOperator: the change into the date's own period (i equal to index) is skipped above, so `<` and `<=` never differ.
-    (i < index ? before : after).push(sub(fractionOf(rows[i].value), fractionOf(rows[i - 1].value)));
-  }
+  // (The change into the date's own period spans it: it belongs to neither side.)
+  const all = consecutiveChanges(rows, span).filter((c) => c.at !== index);
+  const [before, after] = [all.filter((c) => c.at < index).map((c) => c.change), all.filter((c) => c.at > index).map((c) => c.change)];
   if (before.length < 2 || after.length < 2) return 1;
-  const parts = [before, after].map((d) => {
-    const mean = div(total(d), whole(d.length));
-    return { mean, ss: total(d.map((x) => mul(sub(x, mean), sub(x, mean)))), n: d.length };
-  });
+  const [a, b] = [spread(before), spread(after)];
   const df = before.length + after.length - 2;
-  const [a, b] = parts;
   const gap = sub(b.mean, a.mean);
   if (a.ss.num === BigInt(0) && b.ss.num === BigInt(0)) return gap.num === BigInt(0) ? 1 : 0;
-  const se2 = mul(div(add(a.ss, b.ss), whole(df)), add(div(whole(1), whole(a.n)), div(whole(1), whole(b.n))));
+  const se2 = mul(div(add(a.ss, b.ss), whole(df)), add(div(whole(1), whole(before.length)), div(whole(1), whole(after.length))));
   return Math.min(1, 2 * tCdf(-Math.abs(nearest(gap)) / Math.sqrt(nearest(se2)), df));
 }
 
@@ -197,14 +201,12 @@ function lineMiss(line: Line, short: Fraction): number {
 // standard error of the mean change, s ÷ √changes, exact on the values' text; a change between periods that do not follow one another is no change. 1 with fewer than 2 changes; 0 or 1
 // where the changes are all the same (0 where they fall short). A series that wanders, a running total, has independent changes, which a line's misses are not.
 function driftMiss(rows: Point[], span: Span, by: string, end: number, up: boolean): number {
-  const changes: Fraction[] = [];
-  for (let i = 1; i < rows.length; i++) if (periodsBetween(rows[i - 1].period, rows[i].period, span) === 1) changes.push(sub(fractionOf(rows[i].value), fractionOf(rows[i - 1].value)));
+  const changes = consecutiveChanges(rows, span).map((c) => c.change);
   const m = changes.length;
   if (m < 2) return 1;
   const last = rows[rows.length - 1];
   const needed = div(sub(fractionOf(end), fractionOf(last.value)), whole(periodsBetween(last.period, by, span)));
-  const mean = div(total(changes), whole(m));
-  const ss = total(changes.map((c) => mul(sub(c, mean), sub(c, mean))));
+  const { mean, ss } = spread(changes);
   const short = up ? sub(mean, needed) : sub(needed, mean);
   if (ss.num === BigInt(0)) return short.num < BigInt(0) ? 0 : 1;
   return tCdf(nearest(short) / Math.sqrt(nearest(div(ss, whole(m * (m - 1))))), m - 1);
@@ -234,9 +236,7 @@ export function lineAbove(line: Line, bound: number): number {
  * k - 1 degrees of freedom at |latest - mean| ÷ (s · √(1 + 1/k)), s the sample deviation. 1 where the earlier values do not differ (no spread to judge by), NaN where a number is too large. */
 export function newValueChance(earlier: number[], latest: number): number {
   const k = earlier.length;
-  const fs = earlier.map(fractionOf);
-  const mean = div(total(fs), whole(k));
-  const ss = total(fs.map((f) => mul(sub(f, mean), sub(f, mean))));
+  const { mean, ss } = spread(earlier.map(fractionOf));
   if (ss.num === BigInt(0)) return 1;
   const d = sub(fractionOf(latest), mean);
   const t2 = div(mul(d, d), mul(div(ss, whole(k - 1)), add(whole(1), div(whole(1), whole(k)))));
@@ -249,6 +249,14 @@ export function newValueChance(earlier: number[], latest: number): number {
 type Test = { kind: keyof typeof ORDER; id: number; p: number; build: (looked: number, adjusted: number) => MetricHeadsUp };
 
 const text = (ctx: TakeawayContext) => (n: number, d = 0) => formatNumber(n, d, ctx.style);
+
+// The last two lines of Show the numbers: how many checks were looked at and the chance after the correction for them.
+function lookedRows(looked: number, adjusted: number, ctx: SingleContext) {
+  return [
+    { label: sayIn("numbers-hu-checks", {}, ctx), text: text(ctx)(looked) },
+    { label: sayIn("numbers-hu-luck-checks", {}, ctx), text: chanceText(adjusted, ctx) },
+  ];
+}
 
 // The shared tail of a Heads-up about one Metric.
 function made(look: SingleLook, kind: Test["kind"], through: string, takeaway: Takeaway, key: string, adjusted: number): MetricHeadsUp {
@@ -293,8 +301,7 @@ function directionTest(look: SingleLook, ctx: SingleContext): Test | null {
           { label: sayIn("numbers-slope-after", {}, ctx), text: signedText(result.after, unit, decimals!, ctx.style) },
           { label: sayIn("numbers-hu-gap", {}, ctx), text: plainValue(gap, unit, decimals!, ctx.style) },
           { label: sayIn("numbers-miss", {}, ctx), text: plainValue(result.spread, unit, unit.decimals, ctx.style) },
-          { label: sayIn("numbers-hu-checks", {}, ctx), text: t(looked) },
-          { label: sayIn("numbers-hu-luck-checks", {}, ctx), text: chanceText(adjusted, ctx) },
+          ...lookedRows(looked, adjusted, ctx),
         ],
       };
       return made(look, "direction-change", last, takeaway, `direction-change:${metric.id}`, adjusted);
@@ -334,8 +341,7 @@ export function targetHeadsUp(look: SingleLook, reading: TargetReading, looked: 
       { label: sayIn("numbers-chance", {}, ctx), text: `${t(chanceCase(now.chance).percent)} %` },
       { label: sayIn("numbers-hu-periods-left", {}, ctx), text: t(now.ahead) },
       { label: sayIn("numbers-hu-line", {}, ctx), text: plainValue(nearest(reading.line), metric, metric.decimals, ctx.style) },
-      { label: sayIn("numbers-hu-checks", {}, ctx), text: t(looked) },
-      { label: sayIn("numbers-hu-luck-checks", {}, ctx), text: chanceText(adjusted, ctx) },
+      ...lookedRows(looked, adjusted, ctx),
     ],
   };
   return made(look, "target-out-of-reach", reading.last, takeaway, `target-out-of-reach:${metric.id}`, adjusted);
@@ -420,8 +426,7 @@ function seasonTest(look: SingleLook, ctx: SingleContext): Test | null {
           { label: sayIn("numbers-median", {}, ctx), text: plainValue(range.median, metric, metric.decimals, ctx.style) },
           { label: sayIn("numbers-usual", {}, ctx), text: `${value(range.low)} – ${value(range.high)}` },
           { label: sayIn("numbers-values", {}, ctx), text: t(range.n) },
-          { label: sayIn("numbers-hu-checks", {}, ctx), text: t(looked) },
-          { label: sayIn("numbers-hu-luck-checks", {}, ctx), text: chanceText(adjusted, ctx) },
+          ...lookedRows(looked, adjusted, ctx),
         ],
       };
       return made(look, "unusual-for-season", latest.period, takeaway, `unusual-for-season:${metric.id}:${latest.period}`, adjusted);
@@ -433,6 +438,7 @@ function seasonTest(look: SingleLook, ctx: SingleContext): Test | null {
  * correction counts only the tests worked out for these looks, all three kinds together (see the file's header); a Metric with too few values for a kind is not a test of
  * that kind. Strongest first within each kind, the kinds in that order, ties by id. The same looks give the same Heads-ups in any order. */
 export function singleHeadsUpsFrom(looks: readonly SingleLook[], ctx: SingleContext): HeadsUp[] {
+  // Stryker disable next-line ArrowFunction,ArithmeticOperator,MethodExpression: the order the Metrics are tried in changes nothing: the correction does not read the order and the Heads-ups are sorted again below.
   const sorted = [...looks].sort((a, b) => a.metric.id - b.metric.id);
   const tests = sorted.flatMap((look) => [directionTest(look, ctx), targetTest(look, ctx), seasonTest(look, ctx)].filter((t): t is Test => t !== null));
   const reported = benjaminiHochberg(tests.map((t) => t.p), SINGLE.rate);
