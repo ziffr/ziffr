@@ -6,7 +6,8 @@
 // could approve), who a Tell step tells and who a Checklist Item goes to are a person's decision: only a program's key that also holds
 // "workflows:people" may change them, never an assistant (not offered, refused where a connection is made, and a check
 // in the database); any other key sends those steps back exactly as it read them, or leaves them out when making a
-// Workflow. Deleting a Workflow that has such a step needs the same scope, since it would drop the Approvals.
+// Workflow. Deleting a Workflow that has such a step needs the same scope, since it would drop the Approvals. A Send Snapshot step
+// is no program's to read or change at all (spec 0045): steps a key sends keep the stored one as it is.
 // The Asking Schedule (spec 0035, when the Workflow asks: an hour and the days) is a field of the Workflow like the
 // others and is checked by the same function as in the editor; it names nobody, so it needs no scope of its own.
 import { openWorkflowRow } from "./workflow-rows";
@@ -153,7 +154,9 @@ export async function updateWorkflowWithKey(actor: KeyActor, id: number, patch: 
   if (patch.steps) await assertMembers(actor, patch.steps);
   const config: WorkflowConfig = {
     dueWorkingDays: patch.due_working_days ?? w.config.dueWorkingDays,
-    steps: patch.steps ? patch.steps.map(toStep) : w.config.steps,
+    // Send Snapshot (spec 0045) is never a program's to read, send or change: it names a dashboard and who gets the
+    // Workspace's numbers, which only the owner decides in the app. Steps sent in its place keep the stored one as it is.
+    steps: patch.steps ? [...patch.steps.map(toStep), ...w.config.steps.filter((x) => x.type === "send_snapshot")] : w.config.steps,
     ...((patch.lock_summary ?? w.config.lockSummary === true) ? { lockSummary: true } : {}),
     // Left out stays, null goes back to the Workspace's run.
     ...((patch.asking === undefined ? w.config.asking : patch.asking) ? { asking: (patch.asking === undefined ? w.config.asking : patch.asking) as AskingSchedule } : {}),

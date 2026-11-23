@@ -113,10 +113,35 @@ function wordsOf(w: Widget): WidgetWords {
   return out;
 }
 
+/** The widgets a Snapshot of a dashboard would keep, and the Metrics they draw, as the actor sees the dashboard now. */
+async function snapshotWidgets(actor: Actor, dashboardId: number): Promise<{ widgets: Widget[]; metricIds: number[] }> {
+  const ws = actor.workspaceId;
+  const { data: rows } = await db().from("widgets").select("*").eq("workspace_id", ws).eq("dashboard_id", dashboardId).order("y").order("x");
+  // Nothing in a free layout may load from another site when shown (spec 0009).
+  // A widget of "all Metrics tagged X" is kept with the Metrics the person taking it sees now, and follows the Tag no more (spec 0038).
+  const widgets = await recordedWidgets(actor, ((await openRows("widgets", ws, rows)) as Widget[]).map(widgetWithoutOutside));
+  return { widgets, metricIds: [...new Set(widgets.flatMap((w) => widgetMetricIds(w.metric_ids, w.settings)))] };
+}
+
+/** Whether the actor may take a Snapshot of the dashboard now: the rule `takeSnapshot` applies, without taking one (its
+ * owner or an Editor, who sees every Metric on it). A Workflow's Send Snapshot step asks it when saved and when it runs. */
+export async function mayTakeSnapshot(actor: Actor, dashboardId: number): Promise<boolean> {
+  if (!Number.isInteger(dashboardId)) return false;
+  const dash = await roleOn(actor, dashboardId);
+  if (!dash || (dash.role !== "owner" && dash.role !== "editor")) return false;
+  try {
+    await assertSeesMetrics(actor, (await snapshotWidgets(actor, dashboardId)).metricIds);
+    return true;
+  } catch (err) {
+    if (err instanceof Forbidden) return false;
+    throw err;
+  }
+}
+
 /** Takes a Snapshot of a dashboard for a week, month, quarter, half-year or year (`start` is its first day) that is over, within the
  * last ten years: the dashboard's owner and Editors, who must see every Metric on it. It starts as a draft. `today`
  * (yyyy-mm-dd) is the workspace's own day unless given, as the daily run does. Returns its id. */
-export async function takeSnapshot(actor: Actor, dashboardId: number, period: { kind: unknown; start: unknown }, opts: { automatic?: boolean; today?: string; accessKeyId?: number } = {}): Promise<number> {
+export async function takeSnapshot(actor: Actor, dashboardId: number, period: { kind: unknown; start: unknown }, opts: { automatic?: boolean; today?: string; accessKeyId?: number; workflowId?: number } = {}): Promise<number> {
   assertCan(actor, "create");
   if (!Number.isInteger(dashboardId)) throw new Forbidden();
   const p = snapshotPeriod(period?.kind as SnapshotPeriodKind, String(period?.start ?? ""), await yearStartOf(actor.workspaceId));
@@ -132,11 +157,7 @@ export async function takeSnapshot(actor: Actor, dashboardId: number, period: { 
   const { count } = await db().from("dashboard_snapshots").select("id", { count: "exact", head: true }).eq("workspace_id", ws).eq("dashboard_id", dashboardId).is("deleted_at", null);
   const most = await sendingLimit("snapshotsPerDashboard");
   if ((count ?? 0) >= most) throw new Refused(`A dashboard keeps ${most} Snapshots at most. Delete old ones first.`);
-  const { data: rows } = await db().from("widgets").select("*").eq("workspace_id", ws).eq("dashboard_id", dashboardId).order("y").order("x");
-  // Nothing in a free layout may load from another site when shown (spec 0009).
-  // A widget of "all Metrics tagged X" is kept with the Metrics the person taking it sees now, and follows the Tag no more (spec 0038).
-  const widgets = await recordedWidgets(actor, ((await openRows("widgets", ws, rows)) as Widget[]).map(widgetWithoutOutside));
-  const metricIds = [...new Set(widgets.flatMap((w) => widgetMetricIds(w.metric_ids, w.settings)))];
+  const { widgets, metricIds } = await snapshotWidgets(actor, dashboardId);
   // Whoever takes it vouches for what it shows: every Metric on it must be one they see.
   await assertSeesMetrics(actor, metricIds);
   const full = await getCanvasData(ws, actor.personId, { seriesOf: metricIds });
@@ -162,7 +183,7 @@ export async function takeSnapshot(actor: Actor, dashboardId: number, period: { 
   }).select("id").single();
   if (error?.code === "23505") throw new Refused(`There is a Snapshot of ${p.label} already. Open it, or delete it first.`);
   if (error || !made) throw new Error("The Snapshot could not be taken.");
-  await audit(actor, { kind: "snapshot.taken", object: { type: "dashboard", id: dashboardId, name: dash.name }, accessKeyId: opts.accessKeyId, details: { snapshot_id: made.id, period: p.label, automatic: Boolean(opts.automatic), ...(opts.accessKeyId ? { via: "api" } : {}) } });
+  await audit(actor, { kind: "snapshot.taken", object: { type: "dashboard", id: dashboardId, name: dash.name }, accessKeyId: opts.accessKeyId, details: { snapshot_id: made.id, period: p.label, automatic: Boolean(opts.automatic), ...(opts.accessKeyId ? { via: "api" } : {}), ...(opts.workflowId ? { via: "workflow", workflow_id: opts.workflowId } : {}) } });
   return made.id as number;
 }
 
@@ -414,15 +435,15 @@ export async function restorableWords(actor: Actor, snapshotId: number, old: unk
   return { intro: typeof before.intro === "string" ? before.intro : String(now.intro ?? ""), widgets };
 }
 
-/** Ends a Snapshot's draft: everyone who may open the dashboard sees it from now on. Its owner and Editors. */
-export async function showSnapshot(actor: Actor, snapshotId: number): Promise<void> {
+/** Ends a Snapshot's draft: everyone who may open the dashboard sees it from now on. Its owner and Editors; `workflowId` when a Workflow's Send Snapshot step does it. */
+export async function showSnapshot(actor: Actor, snapshotId: number, opts: { workflowId?: number } = {}): Promise<void> {
   const { row, writer } = await readable(actor, snapshotId, "id, dashboard_id, label, shown_at");
   if (!writer) throw new Forbidden();
   if (row.shown_at) return;
   const { error } = await db().from("dashboard_snapshots").update({ shown_at: new Date().toISOString(), shown_by: actor.personId }).eq("id", snapshotId).eq("workspace_id", actor.workspaceId).is("shown_at", null);
   if (error) throw new Error("The Snapshot could not be shown.");
   const { data: d } = await db().from("dashboards").select("name").eq("id", row.dashboard_id).eq("workspace_id", actor.workspaceId).maybeSingle();
-  await audit(actor, { kind: "snapshot.shown", object: { type: "dashboard", id: row.dashboard_id, name: d?.name ?? null }, details: { snapshot_id: snapshotId, period: row.label } });
+  await audit(actor, { kind: "snapshot.shown", object: { type: "dashboard", id: row.dashboard_id, name: d?.name ?? null }, details: { snapshot_id: snapshotId, period: row.label, ...(opts.workflowId ? { via: "workflow", workflow_id: opts.workflowId } : {}) } });
 }
 
 /** Deletes a Snapshot: its numbers and words go; only that it existed stays, so it is not taken again by itself.
