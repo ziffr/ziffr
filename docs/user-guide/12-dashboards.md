@@ -58,7 +58,7 @@ For the dashboards you open every day, press **Pin** in the row of buttons above
 
 ### Switching dashboards
 
-The dashboard's name is also a button. Press it to open the switcher:
+The dashboard's name is also a button, and a long name wraps onto more lines rather than being cut off. Press it to open the switcher:
 
 - **Find a dashboard**: type part of a name to narrow the list.
 - **Mine** and **Shared with me**: the same two groups as on the list. The Home dashboard has a house mark; shared ones show their owner's name.
