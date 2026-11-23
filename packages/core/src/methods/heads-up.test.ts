@@ -56,6 +56,7 @@ describe("the words", () => {
     "hu-reach-min": "Revenue is unlikely to reach 600 € or more in October 2026 (about 2 in 10).",
     "hu-reach-max": "Revenue is unlikely to stay at 900 € or less in October 2026 (about 2 in 10).",
     "hu-reach-between": "Revenue is unlikely to land between 600 € and 900 € in October 2026 (about 2 in 10).",
+    "footer-hu-season": "This compares the value with the earlier ones at this time of year; it does not show what made it differ.",
     "hu-was-on-pace": "Until its latest value, it was on pace.",
     "hu-season-above": "Revenue's 640 € in October 2026 is high for this time of year: it is usually between 400 € and 500 €.",
     "hu-season-below": "Revenue's 640 € in October 2026 is low for this time of year: it is usually between 400 € and 500 €.",

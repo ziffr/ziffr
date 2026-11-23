@@ -3,13 +3,17 @@
 // on nothing else: a person who sees A but not B is never given a Heads-up that names B or changes when B changes, the
 // correction counts only their own pairs, a Metric hidden, archived or deleted after a scan is gone from the list the same day,
 // and the sentences are the ones the pure rules write.
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { db } from "./db";
-import { headsUpJob, listHeadsUps, scanWorkspace } from "./heads-ups";
+import { deliverHeadsUpsTo } from "./heads-up-delivery";
+import { setHeadsUpSettings } from "./heads-up-state";
+import { opened } from "./test/db-fixtures";
+import { headsUpJob, listHeadsUps, resetHeadsUpBudget, scanWorkspace } from "./heads-ups";
 import { DEMO_WORKSPACE_ID } from "./team";
 import { workspace } from "./test/db-fixtures";
 
 const cleanups: (() => Promise<void>)[] = [];
+beforeEach(() => resetHeadsUpBudget());
 afterEach(async () => { for (const c of cleanups.splice(0)) await c(); });
 
 /** A deterministic source of numbers in [0, 1). */
@@ -540,4 +544,91 @@ describe("Heads-ups about one Metric (spec 0041, ticket 15)", () => {
     await w.share(ids.Signups, ben);
     expect(kinds(await listHeadsUps(mine))).toEqual(["direction-change"]);
   }, 60_000);
+});
+
+describe("Heads-ups about one Metric by message (spec 0041, ticket 15)", () => {
+  const recent = (k: number, n: number) => { const now = new Date(); return new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - 1 - (n - k), 1)).toISOString().slice(0, 10); };
+  const noise = (k: number) => ((k * 7) % 5) - 2;
+  const turning = Array.from({ length: 36 }, (_, k) => (k < 30 ? 10 * k : 300 - 10 * (k - 30)) + noise(k));
+  const falling = Array.from({ length: 36 }, (_, k) => 1000 - 15 * k + noise(k));
+  const seasonal = Array.from({ length: 106 }, (_, k) => 100 + 20 * Math.sin((2 * Math.PI * k) / 12) + noise(k) * 2 + (k === 105 ? 40 : 0));
+  const quiet = (i: number) => Array.from({ length: 36 }, (_, k) => 100 + (((k + 3 * i) * 7919) % 13) - 6);
+  const FOOTERS: Record<string, string> = { "direction-change": "This shows when the numbers changed, not what made them change.", "target-out-of-reach": "This carries the past forward; it is not a promise.", "unusual-for-season": "This compares the value with the earlier ones at this time of year; it does not show what made it differ." };
+
+  async function room(hidden = 0) {
+    const w = await workspace();
+    cleanups.push(w.cleanup);
+    const [sara, ben, cleo] = [await w.person("owner"), await w.person("member"), await w.person("member")];
+    const ids: Record<string, number> = {};
+    const add = async (name: string, values: number[], over: Record<string, unknown> = {}) => {
+      const m = await w.metric(sara, { name, ...over });
+      ids[name] = m.id;
+      const { error } = await db().from("observations").insert(values.map((value, k) => ({ metric_id: m.id, period_start: recent(k, values.length), value, source: "api", workspace_id: w.id })));
+      if (error) throw new Error(error.message);
+    };
+    await add("Signups", turning);
+    await add("Revenue", falling, { polarity: "higher", target_min: 600 });
+    await add("Visits", seasonal);
+    await add("Quiet 0", quiet(0));
+    for (let i = 0; i < hidden; i++) await add(`Hidden ${i}`, i % 2 ? turning : quiet(i + 5));
+    const messages = async (id: string) => (await opened("deliveries", w.id, (await db().from("deliveries").select("id, subject, body, kind, heads_up_metric_a, heads_up_metric_b").eq("recipient_id", id).eq("kind", "heads_up").order("id")).data ?? [])) as { subject: string; body: string; heads_up_metric_a: number; heads_up_metric_b: number | null }[];
+    return { w, sara, ben, cleo, ids, messages };
+  }
+
+  it("tells a person who may see the Metrics, once each, with the footer of each kind, and the message names only that one Metric", async () => {
+    const { w, ben, ids, messages } = await room();
+    for (const n of ["Signups", "Revenue", "Visits", "Quiet 0"]) await w.share(ids[n], ben);
+    await setHeadsUpSettings(w.actor(ben, "member"), { byMessage: true });
+    expect(await deliverHeadsUpsTo(w.id, ben)).toBe(3);
+    const sent = await messages(ben);
+    expect(sent.map((m) => m.subject).sort()).toEqual(["Heads-up: Revenue", "Heads-up: Signups", "Heads-up: Visits"]);
+    for (const m of sent) {
+      expect(m.heads_up_metric_b).toBeNull();
+      expect(Object.values(FOOTERS).some((f) => m.body.includes(f))).toBe(true);
+      expect(m.body).not.toMatch(/Hidden|Quiet/);
+    }
+    expect(sent.find((m) => m.subject.includes("Signups"))!.body).toContain(FOOTERS["direction-change"]);
+    expect(sent.find((m) => m.subject.includes("Revenue"))!.body).toContain(FOOTERS["target-out-of-reach"]);
+    expect(sent.find((m) => m.subject.includes("Visits"))!.body).toContain(FOOTERS["unusual-for-season"]);
+    // Told once: the next run makes nothing while they stand.
+    expect(await deliverHeadsUpsTo(w.id, ben)).toBe(0);
+  }, 120_000);
+
+  it("tells a person who may not see them nothing, no message and no trace, and a person who sees one of them is told only about that one", async () => {
+    const { w, ben, cleo, ids, messages } = await room();
+    await w.share(ids["Quiet 0"], cleo);
+    await w.share(ids.Signups, ben);
+    for (const who of [ben, cleo]) await setHeadsUpSettings(w.actor(who, "member"), { byMessage: true });
+    expect(await deliverHeadsUpsTo(w.id, cleo)).toBe(0);
+    expect(await messages(cleo)).toEqual([]);
+    expect(await deliverHeadsUpsTo(w.id, ben)).toBe(1);
+    const only = await messages(ben);
+    expect(only.map((m) => m.subject)).toEqual(["Heads-up: Signups"]);
+    expect(only[0].heads_up_metric_a).toBe(ids.Signups);
+  }, 120_000);
+
+  it("gives a person the same message with and without Metrics they may not see", async () => {
+    const [plain, crowded] = await Promise.all([room(0), room(6)]);
+    const run = async (r: Awaited<ReturnType<typeof room>>) => {
+      for (const n of ["Signups", "Revenue", "Visits", "Quiet 0"]) await r.w.share(r.ids[n], r.ben);
+      await setHeadsUpSettings(r.w.actor(r.ben, "member"), { byMessage: true });
+      await deliverHeadsUpsTo(r.w.id, r.ben);
+      return (await r.messages(r.ben)).map((m) => m.body.replace(/\d+ checks/, "")).sort();
+    };
+    const [a, b] = [await run(plain), await run(crowded)];
+    expect(b).toEqual(a);
+  }, 180_000);
+
+  it("keeps what it worked out for a few minutes, and never for values that have changed since", async () => {
+    const { w, ben, ids } = await room();
+    await w.share(ids.Signups, ben);
+    const actor = w.actor(ben, "member");
+    const first = await listHeadsUps(actor);
+    expect(first.map((u) => u.kind)).toEqual(["direction-change"]);
+    // A value of the latest periods waits for Approval: the answer is worked out again, not taken from what was kept.
+    await db().from("period_states").insert(Array.from({ length: 5 }, (_, i) => ({ metric_id: ids.Signups, period_start: recent(35 - i, 36), state: "approval", workspace_id: w.id })));
+    expect(await listHeadsUps(actor)).toEqual([]);
+    await db().from("period_states").delete().eq("metric_id", ids.Signups);
+    expect((await listHeadsUps(actor)).map((u) => u.kind)).toEqual(["direction-change"]);
+  }, 120_000);
 });

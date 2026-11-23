@@ -13,9 +13,12 @@
 // rows alone, so nothing a person receives (not a Heads-up, not a count, not the order, not the chance in Show the numbers)
 // depends on a Metric they may not see.
 //
-// TODO before listHeadsUps is exposed (ticket #707, the Heads-ups list and API): in a Workspace over the cap every call scans up to 200
-// Metrics with no cache and no rate limit (the Heads-ups about one Metric each read the final values of every Metric the person sees, in the same call). The UI and API must add a per-person cache or a budget first. A Metric that is archived or hidden since the last scan is gone from the list at once,
-// without a new scan, because the filter is applied at every read.
+// Where a Workspace has more Metrics in use than a scan looks at, every person's list is a scan of their own Metrics: up to 200
+// Metrics' values per call (and the Heads-ups about one Metric each read the final values of every Metric the person sees, in every Workspace: they go the same way, see `singleHeads`). heads-up-budget.ts keeps that result for a few minutes for the same set of Metrics the person sees and
+// counts the scans each person starts, so the list can be opened by a page or a script without scanning again each time (ticket #707).
+// A Metric that is archived or hidden since is gone from the list at once, without a new scan, because the set is part of what a
+// kept result is matched against and the filter is applied at every read.
+import { createHash } from "node:crypto";
 import type { Actor } from "./actor";
 import { visibleMetricIds } from "./access";
 import { builtFrom } from "./correlation";
@@ -26,6 +29,8 @@ import { formulaInputs } from "./formula";
 import { capMetrics, scanPairs, type PairRow, type Window } from "./methods/pair-scan";
 import { headsUpsFrom, type HeadsUp } from "./methods/heads-up";
 import { singleHeadsUpsFrom, type SingleLook } from "./methods/heads-up-single";
+import { deliverHeadsUps } from "./heads-up-delivery";
+import { ScanBudget, limiter, signature } from "./heads-up-budget";
 import { periodStart, shiftPeriod, type Span, type YearStart } from "./periods";
 import { NOT_FINAL_STATES } from "./value-state";
 import { workspaceToday } from "./retention-setting";
@@ -45,10 +50,23 @@ const CHUNK = 500;
 export const MAX_CALL_MS = 8 * 60_000;
 
 /** What one call of the job did, in counts. `left`: Workspaces not reached because the call ran out of time. */
-export type HeadsUpJobResult = { workspaces: number; scanned: number; skipped: number; failed: number; pairs: number; expired: number; left: number };
+export type HeadsUpJobResult = { workspaces: number; scanned: number; skipped: number; failed: number; pairs: number; expired: number; left: number; told: number };
 
 /** What scanning one Workspace did, in counts. `capped`: it had more Metrics in use than a scan looks at. */
 export type ScanResult = { metrics: number; pairs: number; capped: boolean };
+
+// The finished Heads-ups of a person's own scan, kept for a few minutes (the key holds the Workspace and the person), and the one
+// scan a person has under way, so two calls at once share it.
+const budget = new ScanBudget<HeadsUp[]>();
+const pageLane = limiter();
+const jobLane = limiter(1);
+const underway = new Map<string, { sig: string; heads: Promise<HeadsUp[]> }>();
+
+/** Forgets what the budget kept (for tests). */
+export function resetHeadsUpBudget(): void {
+  budget.clear();
+  underway.clear();
+}
 
 const log = (what: string) => console.error(`Heads-ups: ${what}`);
 
@@ -216,7 +234,7 @@ export async function scanWorkspace(ws: string, scannedAt: string, today?: strin
 /** The Heads-up job (the route is the job secret's): for every Workspace but the demo whose scan is not recent, scans it; then
  * drops pair-table rows older than 90 days. Answers counts only; a Workspace whose scan fails is counted and the rest go on. */
 export async function headsUpJob(opts: { today?: string; budgetMs?: number } = {}): Promise<HeadsUpJobResult> {
-  const result: HeadsUpJobResult = { workspaces: 0, scanned: 0, skipped: 0, failed: 0, pairs: 0, expired: 0, left: 0 };
+  const result: HeadsUpJobResult = { workspaces: 0, scanned: 0, skipped: 0, failed: 0, pairs: 0, expired: 0, left: 0, told: 0 };
   const ids = await allRows<{ id: string }>((from, to) => db().from("workspaces").select("id").neq("id", DEMO_WORKSPACE_ID).order("id").range(from, to));
   const started = Date.now();
   for (const [i, { id }] of ids.entries()) {
@@ -229,6 +247,12 @@ export async function headsUpJob(opts: { today?: string; budgetMs?: number } = {
       const scan = await scanWorkspace(id, data as string, opts.today);
       result.scanned++;
       result.pairs += scan.pairs;
+      // Whoever asked for Heads-ups by message is told of what the new scan found (their own, within their week's cap).
+      try {
+        result.told += (await deliverHeadsUps(id, { budgetMs: Math.max(0, (opts.budgetMs ?? MAX_CALL_MS) - (Date.now() - started)) })).sent;
+      } catch {
+        log("a Workspace's messages failed");
+      }
     } catch {
       // The words stay out of the log: a Workspace's own text may be in a database error.
       log("a Workspace's scan failed");
@@ -238,41 +262,129 @@ export async function headsUpJob(opts: { today?: string; budgetMs?: number } = {
   const cutoff = new Date(Date.now() - KEEP_DAYS * 86_400_000).toISOString();
   const { count } = await db().from("heads_up_pairs").delete({ count: "exact" }).lt("scanned_at", cutoff).neq("workspace_id", DEMO_WORKSPACE_ID);
   result.expired = count ?? 0;
+  // Ended "told" rows older than 30 days are forgotten, also those of people who no longer ask for messages.
+  await db().from("heads_up_told").delete().not("ended_at", "is", null).lt("told_at", new Date(Date.now() - 30 * 86_400_000).toISOString());
   return result;
 }
 
-/** The Heads-ups a person may be told, the kinds about two Metrics first, then the ones about one Metric, strongest first: only about Metrics they may see that are in use, from pair rows for those
+// A person's own Heads-ups over a Workspace that is over the cap: from what is kept for exactly this signature, or one scan started
+// within their budget (a few at once in this process, the job in a lane of its own so it cannot starve a page; the others wait
+// their turn, a few at most). Over their own budget with nothing kept for exactly this signature, it says so and tells nothing: it
+// never answers from a result worked out over other Metrics. The job reads what is kept but keeps nothing, so it cannot push a
+// page's result out.
+async function ownHeads(ws: string, person: string, sig: string, now: number, lane: "page" | "job", compute: () => Promise<HeadsUp[]>): Promise<HeadsUp[]> {
+  const who = `${ws}:${person}`;
+  const kept = budget.fresh(who, sig, now);
+  if (kept) return kept;
+  const running = underway.get(who);
+  if (running && running.sig === sig) return running.heads;
+  if (!budget.mayScan(who, now)) {
+    const old = budget.stale(who, sig, now);
+    if (old) return old;
+    throw new Error("Heads-ups could not be read. Try again in a moment.");
+  }
+  // Counted only when the lane admits it (a refused call used no scan), and by the person across all their Workspaces for the line.
+  const heads = (lane === "job" ? jobLane : pageLane)(async () => { budget.scanned(who, now); return compute(); }, person).then((r) => {
+    if (lane === "page") budget.keep(who, sig, r, now);
+    return r;
+  });
+  underway.set(who, { sig, heads });
+  // Whatever happens, the scan is no longer under way when it is over, so the next call starts its own.
+  const done = () => { if (underway.get(who)?.heads === heads) underway.delete(who); };
+  heads.then(done, done);
+  return heads;
+}
+
+/** The Heads-ups a person may be told, strongest first: only about Metrics they may see that are in use, from pair rows for those
  * Metrics alone, and nothing that depends on a Metric they may not see: the cap of 200 Metrics, the pairs left out as related and
  * the count of pairs for the correction are all worked out over the Metrics they see. Where the Workspace's own scan was capped
  * (it has more than 200 Metrics in use, which a person may not see), their pairs are scanned now over their own Metrics, so the
  * cap cannot have left out a pair of theirs for the sake of one of someone else's. A person who sees fewer than two Metrics gets
- * none about two; the ones about one Metric (final values only, the correction over their own Metrics alone) need one. Takes the Actor first; an Access Key is not an Actor here. */
-export async function listHeadsUps(actor: Actor): Promise<HeadsUp[]> {
+ * none about two; the ones about one Metric (final values only, the correction over their own Metrics alone) need one. Takes the
+ * Actor first; an Access Key is not an Actor here. */
+export async function listHeadsUps(actor: Actor, opts: { now?: number; lane?: "page" | "job" } = {}): Promise<HeadsUp[]> {
+  return (await listHeadsUpsWith(actor, opts)).heads;
+}
+
+/** The Metric a Heads-up is about, as its person may be shown it. */
+export type HeadsUpMetric = { id: number; name: string; slug: string };
+
+/** `listHeadsUps` and, with it, the name and slug of every Metric the person sees and that is in use (what a list needs to name
+ * the Metrics of a Heads-up without reading them twice). Only Metrics the person may see are in `metrics`. */
+export async function listHeadsUpsWith(actor: Actor, opts: { now?: number; lane?: "page" | "job" } = {}): Promise<{ heads: HeadsUp[]; metrics: Map<number, HeadsUpMetric> }> {
   const ws = actor.workspaceId;
   const metrics = await getMetrics(ws);
   const seen = await visibleMetricIds(ws, actor.personId, metrics);
   const mine = inUse(metrics.filter((m) => seen.has(m.id)));
-  if (mine.length === 0) return [];
+  if (mine.length === 0) return { heads: [], metrics: new Map() };
   const names = new Map(mine.map((m) => [m.id, m.name]));
   const [style, yearStart, day] = await Promise.all([numberStyleOf(ws), yearStartOf(ws), workspaceToday(ws)]);
+  const ctx = { style, yearStart };
   // The Heads-ups about two Metrics: a person who sees fewer than two has none.
-  const pairs = mine.length < 2 ? [] : await pairHeadsUps(ws, mine, names, { style, yearStart }, day);
-  // The Heads-ups about one Metric each, from the final values of the Metrics they see, with the correction over those alone.
-  const looks = await singleLooks(ws, day, mine);
-  return [...pairs, ...singleHeadsUpsFrom(looks, { style, yearStart, today: day })];
+  const pairs = mine.length < 2 ? [] : await pairHeadsUps(actor, mine, names, ctx, day, opts);
+  const singles = await singleHeads(actor, metrics, mine, ctx, day, opts);
+  return { heads: [...pairs, ...singles], metrics: new Map(mine.map((m) => [m.id, { id: m.id, name: m.name, slug: m.slug }])) };
 }
 
+// What a kept result is matched against, besides which Metrics: names, slugs and formulas (the rule for related pairs) and the number style.
+const hashOf = (value: unknown) => createHash("sha256").update(JSON.stringify(value)).digest("hex");
+
 // The Heads-ups about two Metrics among `mine`; see listHeadsUps.
-async function pairHeadsUps(ws: string, mine: Metric[], names: Map<number, string>, ctx: { style: NumberStyle; yearStart: YearStart }, day: string): Promise<HeadsUp[]> {
+async function pairHeadsUps(actor: Actor, mine: Metric[], names: Map<number, string>, ctx: { style: NumberStyle; yearStart: YearStart }, day: string, opts: { now?: number; lane?: "page" | "job" }): Promise<HeadsUp[]> {
+  const ws = actor.workspaceId;
   // One statement answers both whether the table's rows were chosen by the cap and, only if not, the rows: they are read from one
   // snapshot, so a scan running meanwhile cannot make them disagree (and while it runs the flag only gets stricter).
   const { data: answer, error: readError } = await db().rpc("visible_heads_up_pairs", { p_ws: ws, p_ids: mine.map((m) => m.id) });
   // Fail closed: without the answer, nothing is told.
   if (readError || !answer) throw new Error("Heads-ups could not be read. Try again in a moment.");
   const { capped, rows: stored } = answer as { capped: boolean; rows: Record<string, unknown>[] };
-  const rows: PairRow[] = capped ? (await scanSubset(ws, day, () => mine, () => () => false)).rows : stored.map(rowFromDb);
   // Pairs one of whose Metrics is worked out from the other, or both from the same, are left out: over the Metrics they see.
-  const related = relatedAmong(mine);
-  const kept = rows.filter((r) => names.has(r.a) && names.has(r.b) && !related(r.a, r.b));
-  return headsUpsFrom(kept, names, ctx);
+  const make = (rows: PairRow[]) => {
+    const related = relatedAmong(mine);
+    return headsUpsFrom(rows.filter((r) => names.has(r.a) && names.has(r.b) && !related(r.a, r.b)), names, ctx);
+  };
+  const extra = hashOf([ctx, mine.map((m) => [m.id, m.name, m.slug, m.formula ?? null])]);
+  return capped
+    ? await ownHeads(ws, actor.personId, signature(mine.map((m) => m.id), extra), opts.now ?? Date.now(), opts.lane ?? "page", async () => make((await scanSubset(ws, day, () => mine, () => () => false)).rows))
+    : make(stored.map(rowFromDb));
+}
+
+/** How long the Heads-ups about one Metric each stand once worked out (the budget's KEEP_MS), unless something they rest on changed. */
+export const SINGLE_KEEP = "10 minutes";
+
+// What the values of `mine` (and of the Metrics a Derived one is worked out from) are right now, as one hash: how many values there
+// are and when the latest was recorded, how many periods wait for Approval or are sent back, per chunk of Metrics. A value added,
+// corrected, approved, sent back or removed changes it, so a kept result is never shown for values that are no longer there. It
+// holds nothing a person receives: it is only compared.
+async function valuesFingerprint(ws: string, all: Metric[], mine: Metric[]): Promise<string> {
+  const inputs = ingredients(all);
+  const ids = [...new Set(mine.flatMap((m) => [m.id, ...(inputs.get(m.id) ?? [])]))].sort((a, b) => a - b);
+  const parts: unknown[] = [];
+  for (let i = 0; i < ids.length; i += 150) {
+    const chunk = ids.slice(i, i + 150);
+    const [obs, states] = await Promise.all([
+      db().from("observations").select("created_at", { count: "exact" }).eq("workspace_id", ws).in("metric_id", chunk).order("created_at", { ascending: false }).limit(1),
+      db().from("period_states").select("period_start, state", { count: "exact" }).eq("workspace_id", ws).in("metric_id", chunk).in("state", [...NOT_FINAL_STATES]).order("period_start", { ascending: false }).limit(1),
+    ]);
+    if (obs.error || states.error) throw new Error("Heads-ups could not be read. Try again in a moment.");
+    parts.push([obs.count, obs.data?.[0]?.created_at ?? null, states.count, states.data?.[0]?.period_start ?? null]);
+  }
+  return hashOf(parts);
+}
+
+// The Heads-ups about one Metric each, from the final values of the Metrics the person sees, with the correction over those alone.
+// Reading the values is the costly part, so the finished Heads-ups are kept (the budget's lane and counts, as for a capped Workspace's
+// pairs) for SINGLE_KEEP, matched against exactly what they rest on: the Metrics the person sees and each one's name, Period, Polarity,
+// Target Range and unit, the number style and today's period (a Heads-up is only about periods near today), and a fingerprint of the
+// values. Over their own budget with nothing kept for exactly that, these kinds are left out (the rest of the list stands).
+async function singleHeads(actor: Actor, all: Metric[], mine: Metric[], ctx: { style: NumberStyle; yearStart: YearStart }, day: string, opts: { now?: number; lane?: "page" | "job" }): Promise<HeadsUp[]> {
+  const ws = actor.workspaceId;
+  const make = async () => singleHeadsUpsFrom(await singleLooks(ws, day, mine), { ...ctx, today: day });
+  try {
+    const rests = hashOf([ctx, day, mine.map((m) => [m.id, m.name, m.slug, m.formula ?? null, m.period, m.polarity, m.target_min, m.target_max, m.unit, m.unit_position, m.decimals, m.aggregation])]);
+    const sig = signature(mine.map((m) => m.id), `${rests}|${await valuesFingerprint(ws, all, mine)}`);
+    return await ownHeads(ws, `${actor.personId}~single`, sig, opts.now ?? Date.now(), opts.lane ?? "page", make);
+  } catch {
+    return [];
+  }
 }

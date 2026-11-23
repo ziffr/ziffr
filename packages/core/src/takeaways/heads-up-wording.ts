@@ -30,6 +30,7 @@ export const HEADS_UP_EN = {
   "hu-reach-min": "{name} is unlikely to reach {min} or more in {from} ({chance}).",
   "hu-reach-max": "{name} is unlikely to stay at {max} or less in {from} ({chance}).",
   "hu-reach-between": "{name} is unlikely to land between {min} and {max} in {from} ({chance}).",
+  "footer-hu-season": "This compares the value with the earlier ones at this time of year; it does not show what made it differ.",
   "hu-was-on-pace": "Until its latest value, it was on pace.",
   "hu-season-above": "{name}'s {value} in {from} is high for this time of year: it is usually between {low} and {high}.",
   "hu-season-below": "{name}'s {value} in {from} is low for this time of year: it is usually between {low} and {high}.",

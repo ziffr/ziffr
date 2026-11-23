@@ -69,6 +69,19 @@ The result carries its basis, what it assumes, and the footer "This compares wha
 
 **Leave the day empty** and Ziffr looks for the day a Metric changed instead, with no day to start from: "Around March 2026, Signups changed: before, it went up 5 € a month; since, down 3 € a month; and at that point its level was just where the earlier trend would have put it." It is the day that fits best; nearby days may fit almost as well. It says so only when the change stands out from what luck would give among all the days it tried (at least eight periods are needed); otherwise it says nothing stands out. See [Reading a Takeaway](../guides/reading-a-takeaway.md).
 
+## Heads-ups
+
+At the top of Analyze, a list called **Heads-ups** shows what Ziffr noticed in the Metrics you can see, without being asked: two Metrics that have started moving together, or that used to and have stopped. Each one reads as a short sentence ("A and B have started moving together: when A rises, B follows one month later (strong, over 18 months)"), says what it is based on, and ends with the line that it shows what has gone together, not what caused what. **Show the numbers** opens the numbers behind it. The strongest come first.
+
+Ziffr looks again every few hours and says nothing when nothing stands out: then the list reads "Nothing stands out right now." A Heads-up is about two Metrics, and you see it only if you can see both. It never asks anyone to approve anything and never changes a value.
+
+Under each Heads-up:
+
+- **Not useful** hides that Heads-up for you, for good. Nobody else's list changes.
+- **Mute** and the name of a Metric hide every Heads-up about that Metric, in the list and by message. You can undo it under **Your Deliveries**, where the muted Metrics are listed.
+
+You can turn Heads-ups off for yourself, or have the strongest ones sent to you by message, under **Heads-ups** on [Your Deliveries](17-your-settings.md#heads-ups). By message you get at most 3 a week, each one once, by your Delivery Preference for replies and updates, and not during your Quiet hours. The rest wait here. In the demo the list is read-only.
+
 ## Reading the results
 
 Each result is a Widget with a title saying what it compares, such as "Forecast: Revenue", "Return rate vs. Support tickets", "Drivers of Cost" or "Correlation matrix (5 metrics)".

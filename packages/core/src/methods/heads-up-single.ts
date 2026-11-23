@@ -416,7 +416,7 @@ function seasonTest(look: SingleLook, ctx: SingleContext): Test | null {
         ...answerTakeaway(method),
         sentence: sayIn(where === "above" ? "hu-season-above" : "hu-season-below", { name: metric.name, from: latest.period, span, value: value(latest.value), low: value(range.low), high: value(range.high) }, ctx),
         basis: sayIn("basis-season", { n: range.n, span }, ctx),
-        footer: null,
+        footer: sayIn("footer-hu-season", {}, ctx),
         figures: [
           { label: sayIn("numbers-low", {}, ctx), value: range.low, text: value(range.low) },
           { label: sayIn("numbers-high", {}, ctx), value: range.high, text: value(range.high) },
@@ -429,7 +429,7 @@ function seasonTest(look: SingleLook, ctx: SingleContext): Test | null {
           ...lookedRows(looked, adjusted, ctx),
         ],
       };
-      return made(look, "unusual-for-season", latest.period, takeaway, `unusual-for-season:${metric.id}:${latest.period}`, adjusted);
+      return made(look, "unusual-for-season", latest.period, takeaway, `unusual-for-season:${metric.id}`, adjusted);
     },
   };
 }

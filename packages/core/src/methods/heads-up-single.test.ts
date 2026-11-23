@@ -440,10 +440,10 @@ describe("a Target out of reach", () => {
 });
 
 describe("a value unusual for its season", () => {
-  it("is reported high, with its usual range from the earlier values at the same place in the season, no footer (it says nothing about what goes with what), and what it used", () => {
+  it("is reported high, with its usual range from the earlier values at the same place in the season, the footer of a comparison with its own earlier values, and what it used", () => {
     const [up, ...rest] = ups([{ metric: visits, points: series(seasonal(106, 40)) }], { today: month(107) });
     expect(rest).toEqual([]);
-    expect(up).toMatchObject({ key: "unusual-for-season:3:2028-10-01", kind: "unusual-for-season", metrics: [3], span: "month", through: "2028-10-01", takeaway: { footer: null, strength: null, refusal: null } });
+    expect(up).toMatchObject({ key: "unusual-for-season:3", kind: "unusual-for-season", metrics: [3], span: "month", through: "2028-10-01", takeaway: { footer: "This compares the value with the earlier ones at this time of year; it does not show what made it differ.", strength: null, refusal: null } });
     expect(up.takeaway.sentence).toMatch(/^Visits's 1\d\d € in October 2028 is high for this time of year: it is usually between \d+ € and \d+ €\.$/);
     expect(up.takeaway.basis).toBe("from the 8 values at the same place in the season");
     expect(up.takeaway.numbers.map((n) => n.label)).toEqual(["Method", "Middle", "Usual range", "Values used", "Checks looked at", "Chance of this by luck, after correcting for the checks looked at"]);
