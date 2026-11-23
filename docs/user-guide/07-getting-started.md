@@ -90,7 +90,7 @@ The installed app is the same Ziffr as in the browser and needs a connection: yo
 
 | I want to… | Go to |
 | --- | --- |
-| See what is waiting for me | **Actions** in the sidebar |
+| See what is waiting for me | **Schedule** in the sidebar |
 | Find a Metric | **Metrics** |
 | Build or open a dashboard | **Dashboards** |
 | Make slides | **Decks** |
