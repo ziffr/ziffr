@@ -414,12 +414,24 @@ _Avoid_: Plan limit, quota, entitlement
 The file a Workspace's Owner downloads that holds the Workspace as the Owner may see it (its Metrics and their values, dashboards, decks, Workflows, Themes, Groups, Shares and people as invitations, but no secret, key or Connector link), so that another Installation can import it as a new Workspace (a Workspace made by an import is marked importing, and invisible to its Owner, until it is complete: a failed import deletes it with its key). It asks for a sign-in from the last 10 minutes, is made while it downloads and is never stored. What its format cannot carry is left out and said, never cut short. The people in it become invitations on hold, sent only when the new Owner presses Invite everyone. Not an Archived Metric, nor a Pack, which holds no values.
 _Avoid_: Backup, dump, archive
 
+**Setup Guide**:
+The five steps that set up a Workspace (About you, Starting point, Ways in and out, First Metric, Team), opened by itself at a person's first sign-in and reopened from Help or the Setup line at the top of each page. Each step ticks from what the Workspace has, never from a flag a click sets, and each can be skipped. Its progress is the Workspace's, shared by its Owners and Admins; hiding it is each person's own. A Member sees the steps about themselves, a Guest none, and the demo never. What a person answers in it stays in the Workspace and is sent nowhere.
+_Avoid_: Wizard, onboarding, tour, checklist
+
 **Trial Guide**:
-The few steps a new Trial Workspace opens on, one at a time: where Ziffr should ask its Owner, connecting those ways, Ask me now on the Test Metric, its first value arriving, and inviting colleagues. Each step can be skipped; until its Owner reaches the end or skips the whole guide, the trial's home and Try it lead back to it at the step reached. It sets the one way the Owner is asked each day: the first picked of Telegram, Slack and email. At its end it shows the ways in that need no asking: an assistant through the MCP Server, and a program through a Feed it can make with its Feed Key. Try it stays as the reference of every way.
+The Setup Guide as a Trial Workspace has it: the same steps, with the Test Metric as its First Metric and the Trial Limits on the steps that count something. Try it stays as the reference of every way.
 _Avoid_: Wizard, onboarding, tour
 
+**Business Function**:
+The part of a business a person works in, picked by that person from a fixed list (sales, marketing, finance, operations, customer support, people and HR, product and engineering, management, something else). Set per Workspace, optional, and seen only by the person and the Workspace's Owners and Admins. Ziffr uses it to suggest Packs and who is asked for what.
+_Avoid_: Department, team (that is a Group), role (that is a Workspace Role), job title
+
+**Test Message**:
+A Delivery a person sends to themselves through one Connector (email, Slack or Telegram) to see that it reaches them. It asks for nothing, cannot be answered, and never goes to anyone else.
+_Avoid_: Ping, test notification
+
 **Test Metric**:
-The Metric a Trial Workspace has for the Trial Guide to ask for: Cups of coffee, asked of the Owner daily, answered by hand and without history, so the first value it holds is the Owner's own.
+The Metric a Trial Workspace has for the Setup Guide of a trial to ask for: Cups of coffee, asked of the Owner daily, answered by hand and without history, so the first value it holds is the Owner's own.
 _Avoid_: Demo metric, sample metric
 
 **Installation**:
@@ -455,8 +467,12 @@ The private service that runs hosted Ziffr's billing: Sizes, prices, payments, i
 _Avoid_: Billing service, SaaS, hosted edition
 
 **Pack**:
-A file of things to add to a Workspace, with no code: Metric Catalog entries, Dashboard and Deck Templates, View Designs, Analysis Recipes, Workflow Templates and Themes, with its name, version, author, license and optionally a logo. Installing one copies each thing into the Workspace, marked with the Pack and version; it makes no Metric until a person sets it up. New versions are offered, never applied by themselves, and uninstalling removes what nobody changed. Ziffr's own Packs (the twelve of the `packs` folder) come with each release and are installed from the Packs page by an Owner or Admin with no download and no Marketplace; they are recorded as installed from Ziffr's own Packs.
+A file of things to add to a Workspace, with no code: Metric Catalog entries, Dashboard and Deck Templates, View Designs, Analysis Recipes, Workflow Templates and Themes, with its name, version, author, license and optionally a logo. Installing one copies each thing into the Workspace, marked with the Pack and version; it makes no Metric until a person sets it up. New versions are offered, never applied by themselves, and uninstalling removes what nobody changed. Ziffr's own Packs (the twelve of the `packs` folder) come with each release and are installed from the Packs page by an Owner or Admin with no download and no Marketplace; they are recorded as installed from Ziffr's own Packs. It may say whom it is for (its Pack Audience), which ranks it in the Setup Guide.
 _Avoid_: Plugin, add-on, integration, app, bundle
+
+**Pack Audience**:
+The optional part of a Pack's manifest that says whom the Pack is for: industries, segments, Business Functions, employee bands, revenue bands and countries, each from Ziffr's fixed lists. Ziffr ranks Packs by it and never hides one for it.
+_Avoid_: Target group, persona, category
 
 **Marketplace**:
 Ziffr's catalogue of Packs, checked before they are listed, and of programs outside Ziffr that work with it, such as Feeds. Packs are installed from it into a Workspace; programs outside Ziffr are only listed, and their creators bill for them themselves.
@@ -483,7 +499,7 @@ Ziffr added to a phone's home screen or a computer's dock from the browser, so i
 _Avoid_: PWA, native app, mobile app, offline mode
 
 **Workspace Profile**:
-What kind of business a Workspace belongs to: its industry, who it sells to (B2B, B2C, B2B2C, public sector, non-profit), its country and currency, and how many people and how much revenue it has, each picked from a fixed list. Ziffr uses it to suggest Metrics; teams within a workspace are Groups, not part of it.
+What kind of business a Workspace belongs to: its industry, who it sells to (B2B, B2C, B2B2C, public sector, non-profit), its country and currency, and how many people and how much revenue it has, each picked from a fixed list. Ziffr uses it to suggest Metrics; teams within a workspace are Groups, not part of it. It is asked in the Setup Guide's About you step; it stays in the Workspace and is sent nowhere.
 _Avoid_: Classification, company profile, firmographics, tenant settings
 
 **Number Style**:
