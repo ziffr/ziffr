@@ -10,7 +10,7 @@ import { say } from "../takeaways/wording";
 import { forecastTakeaway } from "../takeaways/forecast";
 import { emptyTakeaway, withinBudget } from "../takeaways/takeaway";
 import { rankCorrelations, correlate } from "../correlation";
-import { spend } from "../work-bound";
+import { spend, wideReason } from "../work-bound";
 import type { Point } from "../types";
 import { afterDateTakeaway } from "./before-after";
 import { WORK_BUDGET } from "../work-bound";
@@ -241,6 +241,22 @@ describe("ordinary values are never refused for how long the series is", () => {
   });
 });
 
+describe("the Takeaways whose series are cut to 120 periods run under the work allowance", () => {
+  // A Takeaway cannot be made to spend 2.5e9 with values inside the bounds that it could not also be asked to work out in under a second,
+  // so the wrapper is held by the source: a test fails when one is taken away.
+  it.each([["change point", changePointTakeaway], ["before and after", afterDateTakeaway], ["forecast", forecastTakeaway]] as const)("%s", (_name, takeaway) => {
+    expect(takeaway.toString()).toMatch(/withinBudget\)?\(/);
+  });
+  it("and the values the bounds refuse are refused at once, whatever the Method", () => {
+    const hostile = series("tiny", 1);
+    for (const run of [() => changePointTakeaway("A", hostile, "month", euro, ctx), () => afterDateTakeaway("A", hostile, "month", "2020-01-01", euro, ctx), () => forecastTakeaway(metric({ period: "month" }), hostile, ctx)]) {
+      const { result, ms } = timed(run);
+      expect(ms).toBeLessThan(QUICK);
+      expect(result.kind).toBe("refusal");
+    }
+  });
+});
+
 describe("a Takeaway that spends its whole work budget is a refusal in words", () => {
   it("has the Method's name and no number, and a Takeaway that does not is left as it is", () => {
     const t = withinBudget("numbers-method-holt", ctx, () => { spend(WORK_BUDGET + 1); return emptyTakeaway("never"); });
@@ -260,6 +276,20 @@ describe("correlation leaves out values that are too wide, once for each pair, b
     expect(ranked.map((r) => r.metric.slug)).toEqual(["m3"]);
     expect(leftOut.map((l) => [l.metric.slug, l.why])).toEqual([["m2", "too-wide"]]);
     expect(correlate(a, c, resolve, { yearStart: 1, basis: "values" })).toMatchObject({ ok: true });
+  });
+});
+
+describe("correlation judges the changes it works out on, not only the levels", () => {
+  const [a, b] = [1, 2].map((id) => metric({ id, slug: `c${id}`, name: `C${id}`, period: "month" }));
+  // Levels from 1e-5 to 1e14 (inside the bounds), rising throughout: compared by change, the steps are 1e-6 beside 1e14.
+  const rising = (shift: number): Point[] => months("2022-01", Array.from({ length: 30 }, (_, i) => (i < 20 ? Number(`${10 + i + shift}e-6`) : 1e14 + (i + shift) * 1e12)));
+  const resolve = (slug: string) => ({ metric: slug === "c1" ? a : b, points: slug === "c1" ? rising(0) : rising(1) });
+  it("leaves the pair out in words when its changes need more than the bounds allow, and still compares the levels", () => {
+    expect(wideReason(rising(0).map((p) => p.value))).toBeNull();
+    const t = timed(() => correlate(a, b, resolve, { yearStart: 1 }));
+    expect(t.ms).toBeLessThan(QUICK);
+    expect(t.result).toMatchObject({ ok: false, why: "too-wide" });
+    expect(correlate(a, b, resolve, { yearStart: 1, basis: "values" })).toMatchObject({ ok: true, basis: "values" });
   });
 });
 
