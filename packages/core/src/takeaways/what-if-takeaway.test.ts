@@ -765,7 +765,7 @@ describe("values that cannot be worked out exactly in reasonable time", () => {
     const w = world();
     const cut = whatIfRecipe(VISITS, { by: 1000 }, [SIGNUPS, REVENUE], resolverFrom([VISITS, SIGNUPS, REVENUE], w.series), opts, 1000);
     expect(cut).toMatchObject({ kind: "refusal", sentence: null, rows: [], figures: [] });
-    expect(cut.refusal).toBe("These values are too large or too fine to work out exactly in reasonable time.");
+    expect(cut.refusal).toBe(WORDING.en["refuse-exact-work"]);
     expect(recipe(VISITS, { by: 1000 }, [SIGNUPS, REVENUE], w).kind).toBe("answer");
   });
   it("refuses values that span more than 20 orders of magnitude, and values to more than 20 places, in words", () => {
