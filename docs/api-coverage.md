@@ -330,6 +330,7 @@ Plumbing the core's other operations use, jobs the schedule runs, and the demo.
 - `followMergedTag` (tag-lists.ts): part of merging Tags, which is not in the API or the MCP Server on purpose (spec 0038)
 - `recordedWidgets` (tag-widgets.ts): the same, for a deck or Snapshot that records the Metrics of the moment
 - `applyWebhookAction` (webhook-inbound.ts): a Webhook's own signed route, `POST /api/webhooks/{id}/in`, not an Access Key's
+- `fileFeedback` (feedback-filing.ts): the worker that files open Feedback on GitHub through the Ziffr bot, called by `POST /api/jobs/feedback` on hosted Ziffr only (spec 0049, #917); it acts for no person and is never offered through the API, the SDK or the MCP server
 - `askMeNowBy` (ask-now.ts): used by the Connectors' reply handling
 - `handover` (cloud-api.ts): hands a Workspace over, for Ziffr Cloud
 - `retentionPreview` (retention-setting.ts): the Metric page's preview; setting a Retention needs the page, the counts and a confirmation, so a program only reads it (spec 0033)

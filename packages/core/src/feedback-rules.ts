@@ -59,6 +59,14 @@ export function normalizeRoute(input: unknown): string | null {
   return route.length <= ROUTE_MAX ? route : null;
 }
 
+/** A route as it is stored (already made plain by normalizeRoute, so `:name` and `:id` are allowed), or null when it is
+ * anything else: the check before a stored route is shown anywhere public. */
+export function storedRoute(input: unknown): string | null {
+  if (typeof input !== "string" || input.length > ROUTE_MAX || !input.startsWith("/") || input.startsWith("//")) return null;
+  const parts = input.split("/").slice(1);
+  return parts.every((p) => p === ":name" || p === ":id" || SEGMENT.test(p)) ? input : null;
+}
+
 /** The app version when it is a plain number like 0.11.0, else null. */
 export function cleanAppVersion(input: unknown): string | null {
   return typeof input === "string" && VERSION.test(input) ? input : null;
