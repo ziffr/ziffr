@@ -478,7 +478,7 @@ describe("the ranking of Metrics by correlation runs under one work allowance", 
     expect(none.ranked).toEqual([]);
     expect(none.leftOut.map((l) => l.why)).toEqual(others.map(() => "too-much"));
     expect(new Set(none.leftOut.map((l) => l.reason)).size).toBe(1);
-    expect(none.leftOut[0].reason).toBe("Some Metrics were not compared: there are too many of them to work out exactly in reasonable time.");
+    expect(none.leftOut[0].reason).toBe("Some Metrics were not compared: working them out exactly would take too long.");
     // An allowance that covers some of the pairs: the compared ones are those a ranking of just them gives.
     const some = spentAfter(100_000_000);
     const compared = others.filter((m) => !some.leftOut.some((l) => l.metric.id === m.id && l.why === "too-much"));
@@ -626,6 +626,26 @@ describe("the pair scan of many Metrics runs under one allowance, in the order o
     expect(none.rows.length).toBeLessThan(some.rows.length);
     expect(scan(1)).toEqual(none);
   });
+  it("names the pairs not scanned, and is a subset of the full scan, not its first pairs: a pair that needs no exact work is still scanned after the allowance is spent", () => {
+    // Four Metrics of noise beside the walkers: their pairs are screened in doubles and never need exact work.
+    const calm = [25, 26, 27, 28];
+    const all = [...ms, ...calm.map((id) => ({ id, period: "month" as const }))];
+    const noise = (id: number) => { const r = lcg(1000 + id); return months("2020-01", Array.from({ length: 60 }, () => Math.round(r() * 10000) / 100)); };
+    const run = (allowance?: number) => scanPairsCounted(all, (id) => (id > 24 ? noise(id) : levelsOf(id)), () => false, "2025-01-15", 1, allowance);
+    const full = run();
+    const some = run(1);
+    expect(some.skipped.length).toBe(some.notScanned);
+    expect(some.skipped.length).toBeGreaterThan(0);
+    const fullKeys = new Set(full.rows.map(key));
+    for (const r of some.rows) expect(fullKeys.has(key(r))).toBe(true);
+    expect(some.rows.length).toBeLessThan(full.rows.length);
+    // A skipped pair has a lower id than a pair scanned after it: the scan did not stop at the first pair it could not afford.
+    const scanned = new Set(some.rows.map(key));
+    const firstSkipped = Math.min(...some.skipped.map(([a, b]) => Number(key({ a, b }).replace("-", ""))));
+    expect(some.rows.some((r) => Number(key(r).replace("-", "")) > firstSkipped && calm.includes(r.b))).toBe(true);
+    // Every pair is either scanned (with its full-scan row), not scanned, or has no row of its own (too little to say).
+    for (const [a, b] of some.skipped) expect(scanned.has(key({ a, b }))).toBe(false);
+  });
 });
 
 describe("the correlation work of one page shares one allowance, in the order the widgets are drawn", () => {
@@ -633,7 +653,7 @@ describe("the correlation work of one page shares one allowance, in the order th
   const data = Object.fromEntries(ms.map((m, i) => [m.slug, series(i === 0 ? "ordinary" : "dense", i + 31)]));
   const resolve = (slug: string) => ({ metric: ms.find((m) => m.slug === slug)!, points: data[slug] });
   const widgets = (page: { exact: number }, n: number) => Array.from({ length: n }, () => rankCorrelations(ms[0], ms.slice(1), resolve, { yearStart: 1, basis: "values", page }).ranked.length);
-  const pageWords = "Too much analysis on this page to work out at once: open the widget on its own.";
+  const pageWords = "Too much analysis on this Dashboard to work out at once: open the widget on its own.";
   it("compares for the first widgets and none for the rest, the same every time, and says so in the words of a page", () => {
     const first = widgets({ exact: 600_000_000 }, 30);
     expect(first[0]).toBeGreaterThan(0);
@@ -666,7 +686,7 @@ describe("the correlation work of one page shares one allowance, in the order th
     const left = r.leftOut.filter((l) => l.why === "too-much");
     expect(left.length).toBeGreaterThan(0);
     expect(r.ranked.length).toBeGreaterThan(0);
-    expect(new Set(left.map((l) => l.reason))).toEqual(new Set(["Some Metrics were not compared: there are too many of them to work out exactly in reasonable time."]));
+    expect(new Set(left.map((l) => l.reason))).toEqual(new Set(["Some Metrics were not compared: working them out exactly would take too long."]));
     expect(page.exact).toBeGreaterThan(0);
   });
   it("keeps the reason a Metric had of its own where the page's work runs out after it", () => {
