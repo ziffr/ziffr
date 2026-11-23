@@ -38,7 +38,7 @@ describe("the words", () => {
     "hu-stopped-opposite": "Visits and Revenue used to move in opposite directions. Over the last 6 months, they have not.",
     "numbers-method-hu-together": "Moving together: changes compared at delays of 0 to 3 periods either way, corrected for the pairs looked at",
     "numbers-method-hu-stopped": "Stopped moving together: the last periods against the history before them, corrected for the pairs looked at",
-    "numbers-hu-effective": "Pairs, allowing for each series following its own past",
+    "numbers-hu-effective": "Pairs, allowing for each Metric following its own past",
     "numbers-hu-first-half": "First half of the periods",
     "numbers-hu-second-half": "Second half of the periods",
     "numbers-hu-half": "0.50 over 18 months",
@@ -85,7 +85,7 @@ describe("a pair that has started moving together", () => {
       { label: "Delay (periods)", text: "2" },
       { label: "r", text: "0.95" },
       { label: "Pairs of periods", text: "24" },
-      { label: "Pairs, allowing for each series following its own past", text: "20.0" },
+      { label: "Pairs, allowing for each Metric following its own past", text: "20.0" },
       { label: "First half of the periods", text: "0.96 over 12 months" },
       { label: "Second half of the periods", text: "0.94 over 12 months" },
       { label: "Delays looked at", text: "5" },
@@ -112,7 +112,7 @@ describe("a pair that has started moving together", () => {
     const de = { style: "1.234,5" as const };
     const [a] = headsUpsFrom([row(1, 2, { span: "week", full: win({ r: 0.9, n: 1234, nFirst: 617, nSecond: 617, nEff: 1000.5 }) })], names(1, 2), de);
     expect(a.takeaway.sentence).toBe("Visits and Revenue have started moving together (strong, over 1.234 weeks).");
-    expect(a.takeaway.numbers.find((n) => n.label === "Pairs, allowing for each series following its own past")!.text).toBe("1.000,5");
+    expect(a.takeaway.numbers.find((n) => n.label === "Pairs, allowing for each Metric following its own past")!.text).toBe("1.000,5");
     expect(a.takeaway.numbers.find((n) => n.label === "r")!.text).toBe("0,90");
     expect(a.takeaway.numbers.find((n) => n.label.startsWith("Chance"))!.text).toBe("under 0.0001");
     // Right on 0.0001 it is written as a number; the adjusted chance of a lone pair is its own.

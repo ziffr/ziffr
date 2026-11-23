@@ -21,7 +21,7 @@ import { yearStartOf } from "./fiscal-year";
 import { formulaInputs } from "./formula";
 import { capMetrics, scanPairs, type PairRow, type Window } from "./methods/pair-scan";
 import { headsUpsFrom, type HeadsUp } from "./methods/heads-up";
-import { shiftPeriod, type Span } from "./periods";
+import { periodStart, shiftPeriod, type Span } from "./periods";
 import { workspaceToday } from "./retention-setting";
 import { DEMO_WORKSPACE_ID } from "./team";
 import { allRows, buildSeries, getLatestObservations, getMetrics } from "./workspace-data";
@@ -123,7 +123,8 @@ async function scanSubset(ws: string, day: string, pick: (all: Metric[]) => Metr
   // Each Metric's levels on a Common Period: only periods that are over (a period still running compares part with whole).
   const levels = (id: number, span: Span): Point[] | null => {
     const s = seriesBy(byId.get(id)!, resolve, span, { yearStart, today: day });
-    return s.ok ? s.points.filter((p) => !p.toDate).map((p) => ({ period: p.period, value: p.value })) : null;
+    // Only periods that are over: in a Metric's own Period nothing is flagged to date, so the running period is cut here.
+    return s.ok ? s.points.filter((p) => !p.toDate && p.period < periodStart(day, span, yearStart)).map((p) => ({ period: p.period, value: p.value })) : null;
   };
   return { rows: scanPairs(looked, levels, relatedOver(chosen), day, yearStart), metrics: looked.length, capped: withValues.length > looked.length };
 }
@@ -147,6 +148,9 @@ function relatedAmong(chosen: Metric[]): (a: number, b: number) => boolean {
 export async function scanWorkspace(ws: string, scannedAt: string, today?: string): Promise<ScanResult> {
   const day = today ?? (await workspaceToday(ws));
   const { rows, metrics, capped } = await scanSubset(ws, day, inUse, () => () => false);
+  // Whether the scan was capped is written BEFORE its rows: a reader that sees rows chosen by the cap must also see that it was capped.
+  const { error: scanError } = await db().from("heads_up_scans").update({ metrics, pairs: rows.length, capped }).eq("workspace_id", ws);
+  if (scanError) throw new Error("The scan could not be recorded.");
   for (let i = 0; i < rows.length; i += CHUNK) {
     const { error } = await db().from("heads_up_pairs").upsert(rows.slice(i, i + CHUNK).map((r) => rowToDb(ws, r, scannedAt)), { onConflict: "workspace_id,metric_a,metric_b" });
     if (error) throw new Error("The pair table could not be written.");
@@ -154,7 +158,6 @@ export async function scanWorkspace(ws: string, scannedAt: string, today?: strin
   // What this scan did not refresh is gone: a pair that can no longer be compared, or a Metric no longer in use.
   const { error: staleError } = await db().from("heads_up_pairs").delete().eq("workspace_id", ws).lt("scanned_at", scannedAt);
   if (staleError) throw new Error("The pair table could not be cleaned.");
-  await db().from("heads_up_scans").update({ metrics, pairs: rows.length, capped }).eq("workspace_id", ws);
   return { metrics, pairs: rows.length, capped };
 }
 
@@ -199,7 +202,9 @@ export async function listHeadsUps(actor: Actor): Promise<HeadsUp[]> {
   const mine = inUse(metrics.filter((m) => seen.has(m.id)));
   if (mine.length < 2) return [];
   const names = new Map(mine.map((m) => [m.id, m.name]));
-  const { data: scan } = await db().from("heads_up_scans").select("capped").eq("workspace_id", ws).maybeSingle();
+  const { data: scan, error: scanError } = await db().from("heads_up_scans").select("capped").eq("workspace_id", ws).maybeSingle();
+  // Fail closed: without knowing whether the table's rows were chosen by the cap, nothing is told.
+  if (scanError) throw new Error("Heads-ups could not be read. Try again in a moment.");
   let rows: PairRow[];
   if (scan?.capped) {
     rows = (await scanSubset(ws, await workspaceToday(ws), () => mine, () => () => false)).rows;

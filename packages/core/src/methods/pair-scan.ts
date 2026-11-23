@@ -66,12 +66,12 @@ export function axisOf(series: readonly (readonly Point[])[], span: Span): Axis 
 /** A series of changes laid out on an axis (see Axis), with how it follows its own past: its autocorrelations at delays 1 to 12. */
 export type Laid = { values: number[]; rho: number[] };
 
-/** The changes laid out on the axis, with their autocorrelations (`rho`, as autocorrelations gives them for the same changes,
- * when the caller has them). A period outside the axis or given twice does not occur in changes of one series. */
-export function layOut(changed: readonly Point[], axis: Axis, rho: number[] = autocorrelations(changed.map((p) => p.value))): Laid {
+/** The changes laid out on the axis, with their autocorrelations (`rho`). A period outside the axis or given twice does not occur in changes of one series. */
+export function layOut(changed: readonly Point[], axis: Axis): Laid {
   const values = new Array<number>(axis.length).fill(NaN);
   for (const p of changed) values[periodsBetween(axis.first, p.period, axis.span)] = p.value;
-  return { values, rho };
+  // Read over the laid-out values, so a delay of k is k periods in time even across a missing period.
+  return { values, rho: autocorrelations(values) };
 }
 
 // ---- doubles: the screening of every pair ----
@@ -370,14 +370,14 @@ export function scanPairs(metrics: readonly ScanMetric[], levels: (id: number, s
   const spanOf = (a: ScanMetric, b: ScanMetric): Span => (ORDER.indexOf(a.period) > ORDER.indexOf(b.period) ? a.period : b.period);
   const pairs = ordered.flatMap((a, i) => ordered.slice(i + 1).filter((b) => adjacent(a.period, b.period) && !related(a.id, b.id)).map((b) => ({ a, b, span: spanOf(a, b) })));
   // Each Metric's changes on each Common Period it is compared on, read once.
-  const changed = new Map<string, { changed: Point[]; rho: number[] } | null>();
+  const changed = new Map<string, { changed: Point[] } | null>();
   const key = (m: ScanMetric, span: Span) => `${m.id}:${span}`;
   for (const { a, b, span } of pairs.slice(0, HEADS_UP.maxPairs)) {
     for (const m of [a, b]) {
       if (changed.has(key(m, span))) continue;
       const points = levels(m.id, span);
       const c = points === null ? [] : changes(readSeries(points).slice(-HEADS_UP.window), span);
-      changed.set(key(m, span), c.length === 0 ? null : { changed: c, rho: autocorrelations(c.map((p) => p.value)) });
+      changed.set(key(m, span), c.length === 0 ? null : { changed: c });
     }
   }
   // One axis for every series of a Common Period, and each series laid out on it once.
@@ -386,7 +386,7 @@ export function scanPairs(metrics: readonly ScanMetric[], levels: (id: number, s
   const laid = new Map<string, Laid>();
   const laidOut = (m: ScanMetric, span: Span) => {
     const k = key(m, span);
-    if (!laid.has(k)) laid.set(k, layOut(changed.get(k)!.changed, axes.get(span)!, changed.get(k)!.rho));
+    if (!laid.has(k)) laid.set(k, layOut(changed.get(k)!.changed, axes.get(span)!));
     return laid.get(k)!;
   };
   const out: PairRow[] = [];

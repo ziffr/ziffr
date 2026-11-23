@@ -574,7 +574,8 @@ describe("axisOf and layOut", () => {
     expect(layOut(a, axis).values).toEqual([1, 2, 3, NaN, NaN]);
     expect(layOut(b, axis).values).toEqual([1, 1, 2, 3, 8]);
     expect(layOut(b, axis).rho).toEqual(autocorrelations([1, 1, 2, 3, 8]));
-    expect(layOut(b, axis, [9]).rho).toEqual([9]);
+    // The autocorrelations are read over the laid-out values: across a gap a delay of k is k periods.
+    expect(layOut(a, axis).rho).toEqual(autocorrelations([1, 2, 3, NaN, NaN]));
   });
   it("have no axis for no changes, and count weeks, quarters and years by their own periods", () => {
     expect(axisOf([[], []], "month")).toBeNull();

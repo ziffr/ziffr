@@ -13,7 +13,7 @@ export const HEADS_UP_EN = {
   "hu-stopped-opposite": "{a} and {b} used to move in opposite directions. Over the last {recent} {periods}, they have not.",
   "numbers-method-hu-together": "Moving together: changes compared at delays of 0 to 3 periods either way, corrected for the pairs looked at",
   "numbers-method-hu-stopped": "Stopped moving together: the last periods against the history before them, corrected for the pairs looked at",
-  "numbers-hu-effective": "Pairs, allowing for each series following its own past",
+  "numbers-hu-effective": "Pairs, allowing for each Metric following its own past",
   "numbers-hu-first-half": "First half of the periods",
   "numbers-hu-second-half": "Second half of the periods",
   "numbers-hu-half": "{r} over {n} {periodsOf|n}",
