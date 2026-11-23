@@ -24,7 +24,7 @@ export type StrengthWord = "strong" | "moderate" | "weak" | "cant-tell";
 export function strengthOf(r: number, n: number, capped = false, tries = 1): StrengthWord {
   const a = Math.abs(r);
   // Not a number, or too few pairs for Fisher's z (n − 3 must be at least 1), is no strength at all.
-  if (!Number.isFinite(a) || n < 4) return "cant-tell";
+  if (!Number.isFinite(a) || !(n >= 4)) return "cant-tell";
   // A number of looks that is not a whole number from 1 to 7 has no bar to read: no strength is claimed.
   if (!Number.isInteger(tries) || tries < 1 || tries > CHANCE_BY_TRIES.length) return "cant-tell";
   if (Math.atanh(Math.min(a, 1)) * Math.sqrt(n - 3) < CHANCE_BY_TRIES[tries - 1]) return "cant-tell";

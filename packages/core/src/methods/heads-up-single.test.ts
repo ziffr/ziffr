@@ -364,7 +364,7 @@ describe("a change of direction", () => {
     expect(rest).toEqual([]);
     expect(up).toMatchObject({ key: "direction-change:1", kind: "direction-change", metrics: [1], span: "month", through: "2022-12-01", rank: 300 });
     expect(up.takeaway).toMatchObject({ kind: "answer", sentence: "Signups turned around in July 2022: up 10 € a month before, down 10 € a month since.", footer: FOOTER.change, strength: null, refusal: null, cautions: [], notes: [] });
-    expect(up.takeaway.basis).toBe("from a straight line before the date and another after it, over 36 months, with the bar for chance raised for the dates tried (29)");
+    expect(up.takeaway.basis).toBe("from a straight line before the date and another after it, over 36 months, and with 29 dates tried, a change must stand out more to count");
     expect(up.takeaway.numbers.map((n) => [n.label, n.text])).toEqual([
       ["Method", "Change of direction: a straight line before a date and another after it, corrected for the dates tried and the Metrics looked at"],
       ["Periods used", "36"],
