@@ -444,7 +444,7 @@ describe("what a recipe may be asked to work out", () => {
     const page = runRecipe2(rec(plain(10), keep, 4), [1, 2, 3, 4].map((k) => hundred(k + 2)), ctx, 500);
     expect(page.limited).toBe(true);
     expect((page.outputs[0] as { refusal?: string }).refusal).toBeUndefined();
-    expect((runRecipe2(rec([...plain(10), usual], tk("u"), 4), [1, 2, 3, 4].map((k) => hundred(k + 2)), ctx, 500).outputs[0] as { takeaway: { refusal: string } }).takeaway.refusal).toBe("Too much analysis on this page to work out at once: open the widget on its own.");
+    expect((runRecipe2(rec([...plain(10), usual], tk("u"), 4), [1, 2, 3, 4].map((k) => hundred(k + 2)), ctx, 500).outputs[0] as { takeaway: { refusal: string } }).takeaway.refusal).toBe("Too much analysis on this Dashboard to work out at once: open the widget on its own.");
   });
   it("holds what a step makes to the same limits, and every step that reads it", () => {
     // 1e-30 is admitted (30 places); a mean of three of them is 2.3333333333333335e-30 and has 46: no step may read it.
