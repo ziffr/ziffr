@@ -54,7 +54,8 @@ export type Part =
   | { mark: "radar"; show: "latest"; against?: "previous"; when?: Flag[] }
   | { mark: "progress"; show: "latest"; when?: Flag[] }
   | { mark: "scoreboard"; show: "latest"; when?: Flag[] }
-  | { mark: "stacked"; show: "breakdown"; when?: Flag[] };
+  | { mark: "stacked"; show: "breakdown"; when?: Flag[] }
+  | { mark: "pareto"; show: "latest"; when?: Flag[] };
 
 /** How many Metrics a scoreboard has rows for, at least and at most: fewer than 3 read better as number Widgets, more than 12 cannot be taken in at a glance. */
 export const SCOREBOARD = { min: 3, max: 12 } as const;
@@ -236,6 +237,7 @@ export const VIEW_DESIGN_SCHEMA: Schema = {
         mark("range", "One bar per row, from its low to its high end, with its middle value: a driver's effect with its range (the table of the `effects` step of the design's analysis).", { show: recipeTable("a table with a low and a high end for each row, from the `effects` step"), tone }, ["show"]),
         mark("bridge", "Steps from a start, each part going up or down, and an end (the table of the `bridge` step of the design's analysis).", { show: recipeTable("the table of the `bridge` step") }, ["show"]),
         mark("stacked", "One bar per period, stacked from that period's Breakdown: the largest rows of the newest period (at most 5) as their own segments in a stable order and colour, every other row as one muted Other; a period without a Breakdown is left out and counted, and a negative row is refused in words.", { show: { const: "breakdown" } }, ["show"]),
+        mark("pareto", "The rows of the Metric's latest Breakdown as bars from largest to smallest, ten at most and the rest in one muted \"Other\" bar, with a line of the running share of the total (0 to 100 %) and a reference at 80 %. Only positive rows count.", { show: { const: "latest" } }, ["show"]),
       ],
     },
     plotMark: {

@@ -1718,6 +1718,26 @@
             "show"
           ],
           "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "description": "The rows of the Metric's latest Breakdown as bars from largest to smallest, ten at most and the rest in one muted \"Other\" bar, with a line of the running share of the total (0 to 100 %) and a reference at 80 %. Only positive rows count.",
+          "properties": {
+            "mark": {
+              "const": "pareto"
+            },
+            "show": {
+              "const": "latest"
+            },
+            "when": {
+              "$ref": "#/$defs/when"
+            }
+          },
+          "required": [
+            "mark",
+            "show"
+          ],
+          "additionalProperties": false
         }
       ]
     },
