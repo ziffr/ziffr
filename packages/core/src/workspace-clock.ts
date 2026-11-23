@@ -41,7 +41,8 @@ export async function setWorkspaceClock(actor: Actor, clock: Omit<WorkspaceClock
   const before = await workspaceClock(actor);
   if (clock.weekStart !== undefined && clock.weekStart !== 0 && clock.weekStart !== 1) throw new Error("Pick Monday or Sunday as the first day of the week.");
   const weekStart: WeekStart = clock.weekStart ?? before.weekStart;
-  const { error } = await db().from("workspaces").update({ time_zone: clock.timeZone, run_hour: hour, week_start: weekStart }).eq("id", actor.workspaceId);
+  // clock_set_at says the clock was saved on purpose, so a Workspace really in UTC can tick the Setup Guide's About you step.
+  const { error } = await db().from("workspaces").update({ time_zone: clock.timeZone, run_hour: hour, week_start: weekStart, clock_set_at: new Date().toISOString() }).eq("id", actor.workspaceId);
   if (error) throw new Error("The time could not be saved.");
   if (before.timeZone !== clock.timeZone || before.runHour !== hour || before.weekStart !== weekStart) {
     await audit(actor, { kind: "workspace.clock_changed", object: { type: "workspace", id: actor.workspaceId }, details: { from_time_zone: before.timeZone, to_time_zone: clock.timeZone, from_run_hour: before.runHour, to_run_hour: hour, from_week_start: before.weekStart, to_week_start: weekStart } });
