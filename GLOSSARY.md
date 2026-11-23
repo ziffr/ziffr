@@ -228,7 +228,7 @@ A way of drawing a metric, such as a number with sparkline, a line chart, bars, 
 _Avoid_: Chart type, visualization plugin
 
 **Slide-over**:
-A panel that opens on the right over the current page (full screen on a phone) for one job: Share, Version history, Alert me… or a Metric's Quick look. It has its own address (`?panel=…`), keeps the keys inside it, and Escape closes it. One host in the app shell shows it (`useSlideOver`); when to use one and when a modal is in `docs/guides/side-panel.md`. Specs and tickets also call it the side panel; in code and screen text it is the Slide-over.
+A panel that opens on the right over the current page (full screen on a phone) for one job: Share, Version history, Alert me… or a Metric's Quick look. It has its own address (`?panel=…`), keeps the keys inside it, and Escape closes it. One host in the app shell shows it (`useSlideOver`), and the ? button opens Help in it: the user guide chapter for the screen, with a search that runs in the browser; when to use one and when a modal is in `docs/guides/side-panel.md`. Specs and tickets also call it the side panel; in code and screen text it is the Slide-over.
 _Avoid_: Drawer, side panel, modal, dialog (a dialog is a small window for a decision, such as a confirmation)
 
 **Quick look**:

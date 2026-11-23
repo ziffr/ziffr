@@ -85,6 +85,10 @@ The sidebar is on every page once you are in a Workspace. At its top is the Work
 
 Ziffr works best on a phone once you install it: it then opens from the home screen like an app. See [Put Ziffr on your phone or desktop](07-getting-started.md#put-ziffr-on-your-phone-or-desktop).
 
+## Help beside the page
+
+The **?** button at the right of the bar above every page (**Help for this screen**) opens a panel on the right with the part of this user guide that describes the screen you are on: its sections, each with a link to read it in the full guide. Above them is a search box, **Search the user guide**, that looks through every chapter and lists what it finds with the chapter and section it is from; choose a result to read it in the guide. The search runs in your browser and what you type goes nowhere else. **Open the full guide** at the bottom, like the **User guide** link in the sidebar, leads to the whole guide. **Esc** or **Close** closes the panel and puts you back on the **?** button.
+
 ## Search
 
 Press **⌘K** (on Windows and Linux **Ctrl+K**), or choose the magnifying glass, and type. Ziffr finds the Metrics, dashboards, decks and Workflows whose names fit what you typed, ignoring capitals and accents, and only those you may see in the Workspace you are in. A Metric that is archived is marked **Archived**, and listed after the ones in use. Results are grouped: **Commands**, **Pages**, **Metrics**, **Tags**, **Dashboards**, **Decks**, **Workflows**, **People** and **Groups**.
