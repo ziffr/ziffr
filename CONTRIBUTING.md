@@ -43,6 +43,8 @@ Thank you for helping. This page says how we work; `CLAUDE.md` says the same for
 
 Read [docs/guides/documentation.md](docs/guides/documentation.md): what gets documented where, how comments are written, and what the checks enforce. Undocumented public surface does not pass review.
 
+A new window that opens over a page follows [docs/guides/side-panel.md](docs/guides/side-panel.md): the side panel for what a person looks at or edits, a modal only for a confirmation.
+
 ## Specs and tickets
 
 Work bigger than one pull request starts with a spec in `docs/specs/` and is split into tickets: GitHub issues that are sub-issues of the spec's tracking issue. Every pull request closes a ticket (`Closes #123`), so progress shows itself. Details: [docs/specs/README.md](docs/specs/README.md).
