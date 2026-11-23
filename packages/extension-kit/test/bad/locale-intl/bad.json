@@ -1,0 +1,5 @@
+{
+  "rule": "locale",
+  "why": "formats with Intl, which depends on the machine's language",
+  "remove": []
+}

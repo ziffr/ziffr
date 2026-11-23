@@ -1,6 +1,9 @@
 // View Links (GLOSSARY: View Link): what someone outside the team gets to see. Only the one dashboard or deck, only
 // the Metrics it shows, people's names without their contact details, and nothing to act on. Made, listed and
 // revoked by the owner of the dashboard or deck.
+import { isTagWidget } from "./tag-widgets";
+import { withoutNestedTagSources } from "./tag-source";
+import { tagWidgetCount } from "./tag-lists";
 import { randomBytes } from "node:crypto";
 import { db } from "./db";
 import { openOne, openRows, reserveIds } from "./sealed-columns";
@@ -24,6 +27,7 @@ import { keptMethod } from "./attainment-method";
 import { normalizeMetric } from "./metric-row";
 import { numberStyleOf } from "./workspace-settings";
 import { effectiveLimit } from "./limits";
+import { trialEnded, trialLastDay, trialLimitMessage } from "./trials";
 import type { CanvasData, Widget } from "./types";
 
 /** How long a View Link may live at most, in days: the ceiling; a Workspace may set a shorter life (limits.ts). */
@@ -114,11 +118,13 @@ export async function buildView(type: "dashboard" | "deck", id: number, allowed?
   if (widgets) {
     widgets = widgets
       .filter((w) => !allowedWidgets || allowedWidgets.includes(w.id))
+      // A widget of "all Metrics tagged X" is never shown to someone outside: a link shows a list its maker chose (spec 0038).
+      .filter((w) => !isTagWidget(w))
       .filter((w) => widgetMetricIds(w.metric_ids, w.settings).every((m) => ids.has(m)))
       .map((w) => ({ id: w.id, template: w.template, metric_ids: w.metric_ids, settings: w.settings, title: w.title, x: w.x, y: w.y, w: w.w, h: w.h }) as Widget);
   }
   // The deck as this link shows it: only the records it had when the link was made, nothing from other sites.
-  const document = type === "deck" ? deckForLink(stripOutsideContent(obj.document), ids, allowedShapes ?? null) : undefined;
+  const document = type === "deck" ? deckForLink(withoutNestedTagSources(stripOutsideContent(obj.document)), ids, allowedShapes ?? null) : undefined;
   // A deck made from a Snapshot draws its Metrics as of the period's end: then only that much goes out (spec 0013).
   // Read from the deck this link shows, so a widget added since cannot make a Metric go out whole again.
   const data = type === "deck" ? dataAsOfEach(shownData(full, ids, obj.theme_id ?? null), deckAsOf(document)) : shownData(full, ids, obj.theme_id ?? null);
@@ -213,6 +219,8 @@ async function openLinkContent(token: string, opts: { count?: boolean }): Promis
   if (!/^[A-Za-z0-9_-]{20,64}$/.test(String(token))) return null;
   const { data: link } = await db().from("view_links").select("*").eq("token", token).maybeSingle();
   if (!link || link.revoked_at || link.expires_at < new Date().toISOString().slice(0, 10)) return null;
+  // A link of a trial that has ended shows nothing, though its last day may run to midnight (never outlives the trial).
+  if (await trialEnded(String(link.workspace_id))) return null;
   // A Snapshot's link counts for its dashboard (object_id); recordView ignores an id that is gone.
   if (opts.count && (link.object_type === "dashboard" || link.object_type === "deck")) {
     void recordView({ workspaceId: String(link.workspace_id) }, { kind: link.object_type, id: Number(link.object_id) }, "link");
@@ -298,11 +306,17 @@ export async function createViewLink(actor: Actor, type: "dashboard" | "deck", i
   if (input?.snapshotId !== undefined && input?.snapshotId !== null) return createSnapshotLink(actor, id, Number(input.snapshotId), input, opts);
   await assertOwner(actor, type, id);
   assertCan(actor, "share");
+  // A link shows what its maker chose: a widget that follows a Tag needs its list fixed first (spec 0038).
+  if (type === "dashboard" && (await tagWidgetCount(actor.workspaceId, id)) > 0) throw new Refused("This dashboard has a widget that shows all Metrics with a Tag. Fix the list first, then make the link.");
   const today = new Date().toISOString().slice(0, 10);
   const maxDays = await effectiveLimit("viewLinkDays", actor.workspaceId);
   const latest = new Date(Date.now() + maxDays * 86400000).toISOString().slice(0, 10);
-  const expires = String(input?.expires ?? "");
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(expires) || expires < today || expires > latest) throw new Refused(`Pick an end date within ${maxDays} days.`);
+  const asked = String(input?.expires ?? "");
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(asked) || asked < today || asked > latest) throw new Refused(`Pick an end date within ${maxDays} days.`);
+  // In a trial a link ends with the trial at the latest. The date asked for is what is written: the database clamps it
+  // and remembers it, so subscribing gives it back (`expires` is the date the link really has, for the Audit Log).
+  const trialEnd = await trialLastDay(actor.workspaceId);
+  const expires = trialEnd && trialEnd < asked ? trialEnd : asked;
   // `opts.view` is a payload the caller already checked (a Share Proposal's): the link is made from exactly it, with no second read in between.
   const view = opts.view ?? await buildView(type, id);
   if (!view) throw new Forbidden();
@@ -313,10 +327,12 @@ export async function createViewLink(actor: Actor, type: "dashboard" | "deck", i
   const [linkId] = await reserveIds("view_links", 1);
   const cipher = await workspaceCipher(actor.workspaceId);
   const frozen = input?.frozen ? sealFrozenData(cipher, "view_links", linkId, mapViewWords(view, sealing(cipher, "view_links", linkId))) : null;
-  const { data: made } = await db().from("view_links").insert({ id: linkId, token, object_type: type, object_id: id, created_by: actor.personId, label: String(input?.label ?? "").slice(0, 80), expires_at: expires, frozen, show_names: input?.showNames === true, metric_ids: view.data.metrics.map((m) => m.id), widget_ids: view.widgets?.map((w) => w.id) ?? null,
+  const { data: made, error: madeError } = await db().from("view_links").insert({ id: linkId, token, object_type: type, object_id: id, created_by: actor.personId, label: String(input?.label ?? "").slice(0, 80), expires_at: asked, frozen, show_names: input?.showNames === true, metric_ids: view.data.metrics.map((m) => m.id), widget_ids: view.widgets?.map((w) => w.id) ?? null,
     // Every record the deck has now, not only shapes: anything added later stays out of a live link.
     shape_ids: type === "deck" ? Object.keys((view.document as { store?: object } | null)?.store ?? {}) : null,
     workspace_id: actor.workspaceId }).select("id").single();
+  // A trial's limit (ZF437) or any other refusal of the database: no link was made, so no token goes out.
+  if (madeError) throw new Refused(trialLimitMessage(madeError.code) ?? "The View Link could not be made. Try again.");
   // Never the token: whoever reads the record must not be able to open the link from it.
   await audit(actor, { kind: "view_link.created", object: { type, id, name: view.name }, accessKeyId: opts.accessKeyId, details: { link_id: made?.id ?? null, frozen: Boolean(input?.frozen), show_names: input?.showNames === true, expires_on: expires, metrics: view.data.metrics.length } });
   return token;
@@ -337,17 +353,23 @@ async function createSnapshotLink(actor: Actor, dashboardId: number, snapshotId:
   if (!Number.isInteger(dashboardId) || !Number.isInteger(snapshotId)) throw new Forbidden();
   await assertOwner(actor, "dashboard", dashboardId);
   assertCan(actor, "share");
-  const expires = endDate(input?.expires, await effectiveLimit("viewLinkDays", actor.workspaceId));
+  const asked = endDate(input?.expires, await effectiveLimit("viewLinkDays", actor.workspaceId));
+  // In a trial a link ends with the trial at the latest. The date asked for is what is written: the database clamps it
+  // and remembers it, so subscribing gives it back (`expires` is the date the link really has, for the Audit Log).
+  const trialEnd = await trialLastDay(actor.workspaceId);
+  const expires = trialEnd && trialEnd < asked ? trialEnd : asked;
   const s = await snapshotForLink(snapshotId, dashboardId);
   // Only a shown Snapshot of this dashboard: a draft is not for anyone else yet.
   if (!s) throw new Refused("Show the Snapshot to everyone with access first, then make a link to it.");
   await assertSeesMetrics(actor, s.data.metrics.map((m) => m.id));
   const token = randomBytes(24).toString("base64url");
   const [linkId] = await reserveIds("view_links", 1);
-  const { data: made } = await db().from("view_links").insert({ id: linkId, token, object_type: "dashboard", object_id: dashboardId, created_by: actor.personId, label: String(input?.label ?? "").slice(0, 80), expires_at: expires, frozen: null, show_names: input?.showNames === true, snapshot_id: snapshotId,
+  const { data: made, error: madeError } = await db().from("view_links").insert({ id: linkId, token, object_type: "dashboard", object_id: dashboardId, created_by: actor.personId, label: String(input?.label ?? "").slice(0, 80), expires_at: asked, frozen: null, show_names: input?.showNames === true, snapshot_id: snapshotId,
     // The words as the owner sees them now: someone outside reads these, whatever is written in Ziffr later. Sealed for
     // the link with the Workspace Key (spec 0028).
     snapshot_words: sealObject(await workspaceCipher(actor.workspaceId), { table: "view_links", column: "snapshot_words", row: linkId }, s.words), metric_ids: s.data.metrics.map((m) => m.id), widget_ids: null, shape_ids: null, workspace_id: actor.workspaceId }).select("id").single();
+  // A trial's limit (ZF437) or any other refusal of the database: no link was made, so no token goes out.
+  if (madeError) throw new Refused(trialLimitMessage(madeError.code) ?? "The View Link could not be made. Try again.");
   await audit(actor, { kind: "view_link.created", object: { type: "dashboard", id: dashboardId, name: s.name }, accessKeyId: opts.accessKeyId, details: { link_id: made?.id ?? null, frozen: true, show_names: input?.showNames === true, snapshot_id: snapshotId, period: s.label, expires_on: expires, metrics: s.data.metrics.length } });
   return token;
 }

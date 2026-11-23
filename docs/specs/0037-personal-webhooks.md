@@ -1,6 +1,6 @@
 # 0037 Personal Webhooks: a person's own address for what happens to their numbers and tasks
 
-**Status:** draft. **Ticket:** #639 (the owner's wish, 2026-11-22); the tracking issue is #639 and its sub-issues are labelled `spec:0037`.
+**Status:** done. **Ticket:** #639 (the owner's wish, 2026-11-22); the tracking issue is #639 and its sub-issues are labelled `spec:0037`.
 
 ## Problem Statement
 
@@ -72,6 +72,7 @@ Everything else is spec 0034's machinery: signing, the secret shown once and rep
 ### Status back
 
 - The inbound endpoint of spec 0034 (`POST /api/webhooks/{id}/in`) takes a Personal Webhook's signed requests too. It acts **as the person** (an Actor for that person, marked as coming through this Webhook), for Actions sent to this Webhook only: `link`, `done`, `reply`, `answer`, `reopen`, with the same limits, replay claim and uniform 404s. The Thread says "Marked done in <Webhook name>" and the change is the person's, as if they had pressed the button.
+- It asks the app's own question: the people on a Thread may read and answer it whether or not they still see its Metric, so a Personal Webhook may too, and not otherwise.
 - It can never approve or send back a value, share, invite, or change a setting, as no Webhook can.
 
 ### Lifecycle

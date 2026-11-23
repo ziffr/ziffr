@@ -6,13 +6,14 @@
 import type { Actor } from "./actor";
 import { db } from "./db";
 import { inboundEnabled, mailEnabled } from "./mail";
-import { settingsInEffect, type Settings } from "./settings-in-effect";
+import { settingsInEffect, settingsInEffectStrict, type Settings } from "./settings-in-effect";
 import { slackEnabled } from "./slack-api";
 import { slackSends } from "./slack-send";
 import { telegramEnabled } from "./telegram-api";
 import { telegramOnIn } from "./telegram-connection";
 import { DEMO_WORKSPACE_ID } from "./team";
-import { TRIAL_DELIVERIES_PER_DAY, TRIAL_KEYS_MAX, trialEndsAt, trialSettings } from "./trials";
+import { trialEndsAt, trialSettings } from "./trials";
+import { trialLimitsFrom } from "./trial-limits";
 
 /** The ways values and messages travel, in the order pages list them. */
 export const WAYS = ["email", "email-replies", "slack", "telegram", "web-form", "api", "mcp", "feeds", "whatsapp", "tickets"] as const;
@@ -44,28 +45,29 @@ export async function whatWorksHere(actor: Pick<Actor, "workspaceId">, given?: S
   }
   const ends = await trialEndsAt(actor.workspaceId);
   const trial = ends !== null;
+  const limits = trialLimitsFrom(env);
   const ended = trial && ends!.getTime() <= Date.now();
   if (ended) {
     const gone = "This trial has ended: nothing is sent or taken any more.";
     return WAYS.map((w) => way(w, "off", gone));
   }
-  const toOwner = trial ? `To you only, at most ${TRIAL_DELIVERIES_PER_DAY} messages a day over email, Slack and Telegram together.` : null;
+  const toTeam = trial ? `To you and the colleagues who accepted their invitation, never to Contacts: at most ${limits.messagesPerDay} messages a day over email, Slack and Telegram together.` : null;
   const [slackOn, telegramOn] = await Promise.all([slackSends(actor.workspaceId), telegramOnIn(actor.workspaceId)]);
   return [
-    mailEnabled(env) ? way("email", "real", trial ? "Sent to the address you signed in with." : "Sent to each person's own address.", toOwner)
+    mailEnabled(env) ? way("email", "real", trial ? "Sent to the address each person signed in with." : "Sent to each person's own address.", toTeam)
       : way("email", "simulated", "This Ziffr has no mail server, so emails stay in the Outbox. Whoever runs it can set one up on its Installation settings page."),
     inboundEnabled(env) ? way("email-replies", "real", "Replying to an email with a number records it.")
       : way("email-replies", "off", mailEnabled(env) ? "Replies do not come back on this Ziffr: answer by the form link in the email." : "This Ziffr has no mail server."),
     !slackEnabled(env) ? way("slack", "simulated", "This Ziffr has no Slack app, so Slack messages stay in the Outbox. Whoever runs it can set one up on its Installation settings page.")
-      : slackOn ? way("slack", "real", trial ? "Direct messages to you in your Slack workspace." : "Direct messages in your Slack workspace.", toOwner)
+      : slackOn ? way("slack", "real", trial ? "Direct messages to you and your colleagues in your Slack workspace." : "Direct messages in your Slack workspace.", toTeam)
         : way("slack", "off", "Not connected yet: an Owner or Admin connects a Slack workspace on the Connectors page."),
     !telegramEnabled(env) ? way("telegram", "simulated", "This Ziffr has no Telegram bot, so Telegram messages stay in the Outbox. Whoever runs it can add one on its Installation settings page.")
-      : telegramOn ? way("telegram", "real", "Messages from the bot once you connect your Telegram on the Connectors page.", toOwner)
+      : telegramOn ? way("telegram", "real", "Messages from the bot once each person connects their Telegram on the Connectors page.", toTeam)
         : way("telegram", "off", "Turned off: an Owner or Admin turns Telegram on on the Connectors page."),
     way("web-form", "real", "Every request for a value has a personal form link that works without signing in."),
-    way("api", "real", "Programs send and read values with an Access Key.", trial ? `At most ${TRIAL_KEYS_MAX} Access Keys, none past the trial's last day.` : null),
-    way("mcp", "real", "Claude and other assistants work through the MCP Server with an Access Key.", trial ? `At most ${TRIAL_KEYS_MAX} Access Keys, none past the trial's last day.` : null),
-    way("feeds", "real", "Programs such as an n8n automation send values with a Feed Key.", trial ? `At most ${TRIAL_KEYS_MAX} Feeds with ${TRIAL_KEYS_MAX} keys each.` : null),
+    way("api", "real", "Programs send and read values with an Access Key.", trial ? `At most ${limits.keys} Access Keys, none past the trial's last day.` : null),
+    way("mcp", "real", "Claude and other assistants work through the MCP Server with an Access Key.", trial ? `At most ${limits.assistants} ${limits.assistants === 1 ? "assistant" : "assistants"} at a time, none past the trial's last day.` : null),
+    way("feeds", "real", "Programs such as an n8n automation send values with a Feed Key.", trial ? `At most ${limits.feeds} Feeds with ${limits.feeds} keys each.` : null),
     way("whatsapp", "simulated", "Not available yet: WhatsApp messages stay in the Outbox."),
     way("tickets", "simulated", "Not available yet: tickets stay in the Outbox."),
   ];
@@ -75,19 +77,22 @@ export async function whatWorksHere(actor: Pick<Actor, "workspaceId">, given?: S
  * one), by the settings in effect unless others are given. No workspace data, so the login page may show it to anyone. */
 export async function whatThisZiffrOffers(given?: Settings): Promise<{ demo: boolean; trial: { days: number; ways: WayState[] } | null }> {
   const env = given ?? (await settingsInEffect());
+  // Whether trials are offered comes from the strict read: settings that cannot be read mean none (fail closed).
+  const trialEnv = given ?? (await settingsInEffectStrict().catch(() => null));
   let settings: { days: number; max: number } | null = null;
-  try { settings = trialSettings(env); } catch { settings = null; }
+  try { settings = trialEnv ? trialSettings(trialEnv) : null; } catch { settings = null; }
   const demo = env.ZIFFR_DEMO_ONLY === "1" || env.ZIFFR_DEMO !== "0";
   if (!settings) return { demo, trial: null };
-  const toYou = `To you only, at most ${TRIAL_DELIVERIES_PER_DAY} messages a day.`;
+  const limits = trialLimitsFrom(env);
+  const toYou = `To you and the colleagues you invite, never to Contacts: at most ${limits.messagesPerDay} messages a day.`;
   const ways = [
     mailEnabled(env) ? way("email", "real", "Requests for values reach the address you sign in with.", toYou) : way("email", "simulated", "This Ziffr has no mail server. Whoever runs it can set one up on its Installation settings page."),
     inboundEnabled(env) ? way("email-replies", "real", "Reply with a number to record it.") : way("email-replies", "off", "Answer by the form link instead."),
     slackEnabled(env) ? way("slack", "real", "Connect your own Slack workspace.", toYou) : way("slack", "simulated", "This Ziffr has no Slack app. Whoever runs it can set one up on its Installation settings page."),
     telegramEnabled(env) ? way("telegram", "real", "Connect your own Telegram.", toYou) : way("telegram", "simulated", "This Ziffr has no Telegram bot. Whoever runs it can add one on its Installation settings page."),
-    way("api", "real", "Programs with an Access Key.", `At most ${TRIAL_KEYS_MAX} keys.`),
-    way("mcp", "real", "Claude and other assistants.", `At most ${TRIAL_KEYS_MAX} keys.`),
-    way("feeds", "real", "n8n, scripts and other programs with a Feed Key.", `At most ${TRIAL_KEYS_MAX} Feeds.`),
+    way("api", "real", "Programs with an Access Key.", `At most ${limits.keys} keys.`),
+    way("mcp", "real", "Claude and other assistants.", `At most ${limits.assistants} ${limits.assistants === 1 ? "assistant" : "assistants"} at a time.`),
+    way("feeds", "real", "n8n, scripts and other programs with a Feed Key.", `At most ${limits.feeds} Feeds.`),
   ];
   return { demo, trial: { days: settings.days, ways } };
 }

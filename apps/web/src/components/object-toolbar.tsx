@@ -3,11 +3,11 @@
 // button, the page's own secondary buttons sit next to it, and everything else is in a ⋯ menu, so a page never
 // shows seven equal buttons.
 import { useState } from "react";
-import { Eye, History, Link2, MoreHorizontal, Palette } from "lucide-react";
+import { Check, Eye, History, Link2, MoreHorizontal, Palette } from "lucide-react";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuSub, DropdownMenuSubContent, DropdownMenuSubTrigger, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { DropdownMenu, DropdownMenuCheckboxItem, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuSub, DropdownMenuSubContent, DropdownMenuSubTrigger, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { ShareSheet } from "./share-sheet";
 import { WhoCanSeeDialog } from "./who-can-see";
 import { ViewLinksDialog } from "./view-links";
@@ -31,14 +31,18 @@ export type ObjectToolbarProps = {
   viewLinks?: boolean;
   theme?: { themes: Theme[]; value: number | null; onChange: (id: number | null) => Promise<unknown> } | null;
   /** This page's own entries at the top of the ⋯ menu, such as Make a deck. An entry with `sub` opens a submenu of
-   * choices instead (a dashboard to add to); `danger` marks one that cannot be undone; `separated` puts a rule above it. */
+   * choices instead (a dashboard to add to); `danger` marks one that cannot be undone; `separated` puts a rule above it;
+   * `checked` makes it a switch that shows whether it is on ("Home dashboard"), and `dimmed` draws it as off while it still answers. */
   menu?: MenuEntry[];
   /** The page's one main action (Record a value), shown first; Share then stops being the primary button. */
   lead?: React.ReactNode;
 };
 
+/** A row of the phone sheet: the same entries as the ⋯ menu. */
+type SheetRow = { label: string; icon: React.ReactNode; checked?: boolean; go: () => void };
+
 /** One entry of a page's ⋯ menu. */
-export type MenuEntry = { label: string; icon: React.ReactNode; onSelect?: () => void; sub?: { key: string | number; label: string; onSelect: () => void }[]; danger?: boolean; separated?: boolean };
+export type MenuEntry = { label: string; icon: React.ReactNode; onSelect?: () => void; sub?: { key: string | number; label: string; onSelect: () => void }[]; danger?: boolean; separated?: boolean; checked?: boolean; dimmed?: boolean; hint?: string };
 
 /** Share as the main button, the page's own buttons, and a ⋯ menu with Who can see this, View links, Theme and Versions. */
 export function ObjectToolbar({ type, id, people, children, phone, share, viewLinks, theme, menu, lead }: ObjectToolbarProps) {
@@ -74,12 +78,12 @@ export function ObjectToolbar({ type, id, people, children, phone, share, viewLi
               {/* The page's own buttons stacked one under the other, then the same entries as the menu on a bigger screen. */}
               <div className="flex flex-col items-stretch gap-2 px-4 pb-2 [&>*]:w-full [&>*]:justify-start">{children}</div>
               <ul className="px-2 pb-3">
-                {[...(menu ?? []).flatMap((m) => m.sub ? m.sub.map((c) => ({ label: `${m.label}: ${c.label}`, icon: m.icon, go: () => { setSheet(false); c.onSelect(); } })) : [{ label: m.label, icon: m.icon, go: () => { setSheet(false); m.onSelect?.(); } }]),
+                {([...(menu ?? []).flatMap((m) => m.sub ? m.sub.map((c) => ({ label: `${m.label}: ${c.label}`, icon: m.icon, go: () => { setSheet(false); c.onSelect(); } })) : [{ label: m.label, icon: m.icon, checked: m.checked, go: () => { setSheet(false); m.onSelect?.(); } }]),
                   { label: "Who can see this", icon: <Eye aria-hidden />, go: () => { setSheet(false); setOpen("who"); } },
                   ...(viewLinks ? [{ label: "View links…", icon: <Link2 aria-hidden />, go: () => { setSheet(false); setOpen("links"); } }] : []),
                   ...(theme ? [{ label: "Theme…", icon: <Palette aria-hidden />, go: () => { setSheet(false); setOpen("theme"); } }] : []),
-                  { label: "Versions", icon: <History aria-hidden />, go: () => { setSheet(false); setTimeout(() => openVersions(true), 0); } }].map((r) => (
-                  <li key={r.label}><button type="button" onClick={r.go} className="flex h-11 w-full items-center gap-3 rounded-md px-2 text-left text-sm hover:bg-muted focus-visible:outline-2 focus-visible:outline-ring [&_svg]:size-4 [&_svg]:text-muted-foreground">{r.icon}{r.label}</button></li>
+                  { label: "Versions", icon: <History aria-hidden />, go: () => { setSheet(false); setTimeout(() => openVersions(true), 0); } }] as SheetRow[]).map((r) => (
+                  <li key={r.label}><button type="button" onClick={r.go} aria-pressed={r.checked} className="flex h-11 w-full items-center gap-3 rounded-md px-2 text-left text-sm hover:bg-muted focus-visible:outline-2 focus-visible:outline-ring [&_svg]:size-4 [&_svg]:text-muted-foreground">{r.icon}{r.label}{r.checked && <Check aria-hidden className="ml-auto" />}</button></li>
                 ))}
               </ul>
             </SheetContent>
@@ -129,6 +133,15 @@ function MenuRow({ m }: { m: MenuEntry }) {
             {m.sub.map((s) => <DropdownMenuItem key={s.key} onClick={s.onSelect}>{s.label}</DropdownMenuItem>)}
           </DropdownMenuSubContent>
         </DropdownMenuSub>
+      </>
+    );
+  }
+  if (m.checked !== undefined) {
+    return (
+      <>
+        {rule}
+        {/* A switch: the menu stays open on it as a checkbox item would, so it closes by hand-off to the action. */}
+        <DropdownMenuCheckboxItem checked={m.checked} closeOnClick title={m.hint} aria-disabled={m.dimmed || undefined} className={cn(m.dimmed && "cursor-not-allowed opacity-50")} onCheckedChange={() => m.onSelect?.()}>{m.icon} {m.label}</DropdownMenuCheckboxItem>
       </>
     );
   }

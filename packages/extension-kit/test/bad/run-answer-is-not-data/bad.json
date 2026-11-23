@@ -1,0 +1,6 @@
+{
+  "rule": "bad-answer",
+  "why": "returns a function instead of a number, a refusal or other plain data",
+  "remove": [],
+  "stage": "run"
+}

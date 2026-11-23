@@ -1,7 +1,7 @@
 // Trial Workspaces through the core, against the real database (spec 0021, ticket 1): made only with the setting,
 // one per person, never past the cap, and closed to everyone but their Owner.
 import { randomUUID } from "node:crypto";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { Forbidden } from "./actor";
 import { db } from "./db";
 import { acceptInvitation, createInviteLink, decideJoinRequest, inviteByEmail, joinableWorkspaces, setJoinDomain } from "./invitations";
@@ -9,7 +9,9 @@ import { createWorkspace } from "./page-data";
 import { createTrialWorkspace, TrialRefused, trialEndsAt } from "./trials";
 
 const made: { workspaces: string[]; people: string[] } = { workspaces: [], people: [] };
-const ENV = ["ZIFFR_TRIAL_DAYS", "ZIFFR_TRIAL_MAX"] as const;
+const ENV = ["ZIFFR_TRIAL_DAYS", "ZIFFR_TRIAL_MAX", "ZIFFR_CLOUD_KEY"] as const;
+// Trials exist only on hosted Ziffr (spec 0040): every test but the ones about its absence runs with a Ziffr Cloud key.
+beforeEach(() => { process.env.ZIFFR_CLOUD_KEY = "k".repeat(32); });
 afterEach(async () => {
   for (const k of ENV) delete process.env[k];
   if (made.workspaces.length) await db().from("workspaces").delete().in("id", made.workspaces.splice(0));
@@ -34,6 +36,7 @@ const liveTrials = async () => (await db().from("workspaces").select("id", { cou
 describe("making a Trial Workspace", () => {
   it("is what createWorkspace makes when the Installation offers trials, ending after the set days", async () => {
     process.env.ZIFFR_TRIAL_DAYS = "7";
+    process.env.ZIFFR_CLOUD_KEY = "k".repeat(32);
     const sara = await newcomer();
     const id = await createWorkspace(sara, "Sara's trial");
     made.workspaces.push(id);
@@ -47,7 +50,8 @@ describe("making a Trial Workspace", () => {
     expect(count).toBe(1);
   });
 
-  it("is not made without the setting: createWorkspace makes an ordinary workspace", async () => {
+  it("is not made when the days are 0 (Ziffr Cloud's explicit off): createWorkspace makes an ordinary workspace", async () => {
+    process.env.ZIFFR_TRIAL_DAYS = "0";
     const sara = await newcomer();
     const id = await createWorkspace(sara, "Ordinary");
     made.workspaces.push(id);
@@ -88,23 +92,27 @@ describe("making a Trial Workspace", () => {
   });
 });
 
-describe("a Trial Workspace is for its Owner alone", () => {
-  it("takes no invitations, invite links or domain joining", async () => {
+describe("what a Trial Workspace takes in", () => {
+  it("takes no invitation before the Owner's first value, and no invite links or domain joining", async () => {
     const sara = await newcomer("sara@company.test");
     const id = await trial(sara);
     const actor = { personId: sara, workspaceId: id, role: "owner" as const };
-    await expect(inviteByEmail(actor, { email: "nia@example.test", role: "member" })).rejects.toBeInstanceOf(Forbidden);
+    await expect(inviteByEmail(actor, { email: "nia@example.test", role: "member" })).rejects.toThrow(/Invitations open once the Owner has recorded a first value/);
     await expect(createInviteLink(actor, "member")).rejects.toBeInstanceOf(Forbidden);
     await expect(setJoinDomain(actor, "sara@company.test", true)).rejects.toBeInstanceOf(Forbidden);
     const { count } = await db().from("invitations").select("id", { count: "exact", head: true }).eq("workspace_id", id);
     expect(count).toBe(0);
   });
 
-  it("lets nobody in by an invitation or a domain that got there anyway", async () => {
+  it("lets nobody in by an invite link or a domain that got there anyway", async () => {
     const sara = await newcomer();
     const id = await trial(sara);
     const t = randomUUID().replace(/-/g, "");
+    // A link made before the Workspace was a trial (the database refuses one in a trial before the Owner's first value).
+    const { data: ends } = await db().from("workspaces").select("trial_ends_at").eq("id", id).single();
+    await db().from("workspaces").update({ trial_ends_at: null }).eq("id", id);
     await db().from("invitations").insert({ workspace_id: id, token: t, role: "member", created_by: sara, expires_at: new Date(Date.now() + 86_400_000).toISOString() });
+    await db().from("workspaces").update({ trial_ends_at: ends!.trial_ends_at }).eq("id", id);
     await db().from("workspaces").update({ join_domain: "company.test" }).eq("id", id);
     const nia = await newcomer("nia@company.test");
     await expect(acceptInvitation({ personId: nia, verifiedEmail: "nia@company.test" }, t)).rejects.toBeInstanceOf(Forbidden);
@@ -119,9 +127,10 @@ describe("a Trial Workspace is for its Owner alone", () => {
 
   it("is never made from wrong settings: createWorkspace refuses instead of making an ordinary workspace", async () => {
     process.env.ZIFFR_TRIAL_DAYS = "7";
-    process.env.ZIFFR_TRIAL_MAX = "1,000";
+    process.env.ZIFFR_CLOUD_KEY = "k".repeat(32);
+    process.env.ZIFFR_TRIAL_DAYS = "7.5";
     const sara = await newcomer();
-    await expect(createWorkspace(sara, "Typo")).rejects.toThrow(/ZIFFR_TRIAL_MAX/);
+    await expect(createWorkspace(sara, "Typo")).rejects.toThrow(/ZIFFR_TRIAL_DAYS/);
     const { count } = await db().from("memberships").select("user_id", { count: "exact", head: true }).eq("user_id", sara);
     expect(count).toBe(0);
   });
@@ -133,6 +142,29 @@ describe("a Trial Workspace is for its Owner alone", () => {
       expect(error).not.toBeNull();
     }
     const { count } = await db().from("memberships").select("user_id", { count: "exact", head: true }).eq("user_id", sara);
+    expect(count).toBe(0);
+  });
+});
+
+describe("trials belong to Ziffr Cloud (spec 0040)", () => {
+  it("cannot be made without a Ziffr Cloud key, by createWorkspace or by calling the core directly", async () => {
+    delete process.env.ZIFFR_CLOUD_KEY;
+    process.env.ZIFFR_TRIAL_DAYS = "7";
+    const sara = await newcomer();
+    // Days set without the key: no Workspace at all, never an ordinary one with invitations.
+    await expect(createWorkspace(sara, "Sara's own")).rejects.toThrow(/cannot be made here/);
+    expect((await db().from("memberships").select("user_id", { count: "exact", head: true }).eq("user_id", sara)).count).toBe(0);
+    // Without the days it is an ordinary Workspace, which a person may invite colleagues to.
+    delete process.env.ZIFFR_TRIAL_DAYS;
+    const id = await createWorkspace(sara, "Sara's own");
+    made.workspaces.push(id);
+    expect(await trialEndsAt(id)).toBeNull();
+    // The core's own operation refuses, whatever settings the caller hands it, and makes nothing.
+    const bob = await newcomer();
+    await expect(createTrialWorkspace(bob, "Direct", { days: 7, max: 100_000 })).rejects.toThrow(/only on hosted Ziffr/);
+    process.env.ZIFFR_CLOUD_KEY = "short";
+    await expect(createTrialWorkspace(bob, "Direct", { days: 7, max: 100_000 })).rejects.toThrow(/only on hosted Ziffr/);
+    const { count } = await db().from("memberships").select("user_id", { count: "exact", head: true }).eq("user_id", bob);
     expect(count).toBe(0);
   });
 });

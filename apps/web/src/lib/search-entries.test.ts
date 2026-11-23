@@ -49,7 +49,7 @@ describe("matchEntries", () => {
     expect(labels(matchEntries(all, "met"))[0]).toBe("Metrics");
     expect(labels(matchEntries(all, "groups"))[0]).toBe("Members and Groups");
     expect(labels(matchEntries(all, "sets"))).toEqual([]);
-    expect(labels(matchEntries(all, "ooks"))).toEqual(["Webhooks"]);
+    expect(labels(matchEntries(all, "ooks"))).toEqual(["Webhooks", "Your Webhooks"]);
   });
   it("needs every word, ignores case and accents, and finds nothing for no words", () => {
     expect(labels(matchEntries(all, "NEW métric"))).toEqual(["New metric"]);

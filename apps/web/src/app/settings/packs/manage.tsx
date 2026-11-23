@@ -12,6 +12,7 @@ import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/compone
 import { readUninstallPlan, readUpdate, takeOffer, uninstall, updatePack } from "@/app/pack-actions";
 import { PACK_LIMITS, UNSIGNED_WARNING } from "@ziffr/core/pack";
 import type { OfferedItem, UninstallPlan, UpdateItem, UpdatePlan } from "@ziffr/core/pack-updates";
+import { LogoChange } from "./pack-logo";
 import type { Problem } from "@ziffr/core/json-check";
 
 const KIND: Record<UpdateItem["kind"], string> = { metric: "Metric Catalog entry", dashboard: "Dashboard Template", deck: "Deck Template", workflow: "Workflow Template", view: "View Design", theme: "Theme" };
@@ -42,6 +43,8 @@ export function PackActions({ installId, name }: { installId: number; name: stri
   const [okUnsigned, setOkUnsigned] = useState(false);
   const [okAssistant, setOkAssistant] = useState(false);
   const [leaving, setLeaving] = useState<UninstallPlan | null>(null);
+  // Ticked by default: the relationship that put the publisher's logo there ends with the uninstall (spec 0039).
+  const [dropLogo, setDropLogo] = useState(true);
   const run = (f: () => Promise<void>) => start(async () => { try { await f(); } catch (e) { toast.error("Not done", { description: shown(e) }); } });
   const close = () => { setText(null); setPlan(null); setProblems([]); setOkUnsigned(false); setOkAssistant(false); if (input.current) input.current.value = ""; };
   const read = (f: File | undefined) => {
@@ -60,7 +63,7 @@ export function PackActions({ installId, name }: { installId: number; name: stri
     <div className="mt-3 flex flex-wrap gap-2">
       <input ref={input} type="file" accept="application/json,.json" className="hidden" onChange={(e) => read(e.target.files?.[0])} />
       <Button variant="outline" size="sm" disabled={pending} onClick={() => input.current?.click()}><RefreshCw aria-hidden /> Update from a file…</Button>
-      <Button variant="outline" size="sm" disabled={pending} onClick={() => run(async () => setLeaving(unwrap(await readUninstallPlan(installId))))}><Trash2 aria-hidden /> Uninstall…</Button>
+      <Button variant="outline" size="sm" disabled={pending} onClick={() => run(async () => { setDropLogo(true); setLeaving(unwrap(await readUninstallPlan(installId))); })}><Trash2 aria-hidden /> Uninstall…</Button>
       <Problems problems={problems} />
 
       <Dialog open={!!plan} onOpenChange={(o) => { if (!o) close(); }}>
@@ -68,6 +71,7 @@ export function PackActions({ installId, name }: { installId: number; name: stri
           <DialogContent className="max-h-[90vh] max-w-2xl overflow-y-auto">
             <DialogTitle>Update {plan.name} from {plan.from} to {plan.to}</DialogTitle>
             <DialogDescription>What you changed stays as you made it; the new version is offered beside it. Nothing made from the Pack, such as Metrics or dashboards, changes.</DialogDescription>
+            <LogoChange logo={plan.logo} author={plan.author} />
             {plan.major && <p className="flex gap-2 rounded-[var(--radius-input)] bg-muted p-2.5 text-sm"><TriangleAlert aria-hidden className="mt-0.5 size-4 shrink-0" /> A new major version: it may change how things look or work.</p>}
             <p className="flex gap-2 rounded-[var(--radius-input)] bg-muted p-2.5 text-sm"><TriangleAlert aria-hidden className="mt-0.5 size-4 shrink-0" /> {UNSIGNED_WARNING}</p>
             {plan.assistantTexts.length > 0 && (
@@ -111,10 +115,16 @@ export function PackActions({ installId, name }: { installId: number; name: stri
               <div><p className="font-medium">Removed</p>{leaving.remove.length ? <ul className="list-disc pl-5">{leaving.remove.map((r, i) => <li key={i}>{r.name} <span className="text-muted-foreground">({KIND[r.kind]})</span></li>)}</ul> : <p className="text-muted-foreground">Nothing.</p>}</div>
               <div><p className="font-medium">Kept, no longer from the Pack</p>{leaving.keep.length ? <ul className="list-disc pl-5">{leaving.keep.map((k, i) => <li key={i}>{k.name} <span className="text-muted-foreground">({KIND[k.kind]}, {k.why === "changed" ? "changed here" : "in use"})</span></li>)}</ul> : <p className="text-muted-foreground">Nothing.</p>}</div>
             </div>
+            {leaving.logo && (
+              <label className="flex items-start gap-2 rounded-[var(--radius-input)] border border-input p-2.5 text-sm">
+                <input type="checkbox" checked={dropLogo} onChange={(e) => setDropLogo(e.target.checked)} className="mt-0.5 accent-[var(--color-ink)]" />
+                <span>Also remove {leaving.logo.author}&rsquo;s logo from {leaving.logo.themes.length === 1 ? "this Theme" : "these Themes"}: {leaving.logo.themes.join(", ")}. A Theme whose logo is exactly the same picture counts as the Pack&rsquo;s; a different logo you chose stays.</span>
+              </label>
+            )}
             {leaving.blocked && <p role="alert" className="text-sm font-medium">{leaving.blocked}</p>}
             <div className="flex justify-end gap-2">
               <Button variant="outline" onClick={() => setLeaving(null)}>Cancel</Button>
-              <Button variant="destructive" disabled={!!leaving.blocked || pending} onClick={() => run(async () => { unwrap(await uninstall(installId)); toast.success(`${name} uninstalled`); setLeaving(null); router.refresh(); })}>Uninstall</Button>
+              <Button variant="destructive" disabled={!!leaving.blocked || pending} onClick={() => run(async () => { unwrap(await uninstall(installId, !!leaving.logo && dropLogo)); toast.success(`${name} uninstalled`); setLeaving(null); router.refresh(); })}>Uninstall</Button>
             </div>
           </DialogContent>
         )}

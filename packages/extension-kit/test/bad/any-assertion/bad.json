@@ -1,0 +1,5 @@
+{
+  "rule": "any-type",
+  "why": "asserts to any",
+  "remove": []
+}

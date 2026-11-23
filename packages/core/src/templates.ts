@@ -5,11 +5,13 @@
 import { openWorkflowRow } from "./workflow-rows";
 import { db } from "./db";
 import { openRows } from "./sealed-columns";
-import { assertCan, Forbidden, type Actor } from "./actor";
+import { assertCan, Forbidden, Refused, type Actor } from "./actor";
 import { assertCanEditDashboard, editableWidget } from "./dashboards";
 import { assertSeesMetrics } from "./sharing";
 import { NOT_IN_DASHBOARD_TEMPLATES, SLIDE_SHAPES, toDashboardTemplate, toDeckTemplate, toSlideLayout, toTemplate, toWorkflowTemplate, type Choices } from "./team-templates";
 import { widgetMetricIds } from "./widget-metrics";
+import { isTagWidget } from "./tag-widgets";
+import { visibleTags } from "./tag-sight";
 import { TEMPLATES } from "./widget-templates";
 import { getMetrics } from "./workspace-data";
 import { ensureBaseline, recordVersion } from "./versions";
@@ -64,7 +66,7 @@ function withoutLinks(props: Record<string, unknown>): Record<string, unknown> {
 
 /** A slide's shapes as the editor sends them, each checked: known kinds only, numbers that are numbers, widgets of
  * views that exist with their View Designs checked. Answers the shapes and every Metric their widgets draw. */
-function cleanSlideShapes(shapes: unknown): { shapes: SlideShape[]; metricIds: number[] } {
+export function cleanSlideShapes(shapes: unknown): { shapes: SlideShape[]; metricIds: number[] } {
   const list = Array.isArray(shapes) ? (shapes as SlideShape[]) : [];
   if (list.length > 80 || JSON.stringify(list).length > 400_000) throw new Error("This slide is too large to save as a layout.");
   assertWidgetDesigns(list);
@@ -99,7 +101,7 @@ const MAX_DECK_TEMPLATE = { slides: 40, bytes: 2_000_000 };
 
 /** The slides of a stored deck document, in the order the editor shows them (top to bottom, then left to right), each
  * with its own shapes in their order, in slide coordinates. */
-function storedSlides(document: unknown): SlideShape[][] {
+export function storedSlides(document: unknown): SlideShape[][] {
   type Rec = { id?: unknown; typeName?: unknown; type?: unknown; parentId?: unknown; index?: unknown; x?: unknown; y?: unknown; rotation?: unknown; opacity?: unknown; props?: unknown };
   const records = Object.values(((document as { store?: Record<string, Rec> } | null)?.store ?? {})).filter((r) => r && r.typeName === "shape");
   const at = (r: Rec) => [Number(r.y) || 0, Number(r.x) || 0];
@@ -136,12 +138,19 @@ export async function saveWorkflowTemplate(actor: Actor, input: { workflowId: nu
   return store(actor, "workflow", input.replaceId, { ...names(input.name, input.description, `${data.name} template`), view: "workflow", slots: [], body, w: 0, h: 0, updated_at: new Date().toISOString() });
 }
 
+/** The Tags the actor sees by id, for naming the Slots of Tag widgets: a Tag the actor does not see is not named. */
+async function tagNamesFor(actor: Actor): Promise<Map<string, string>> {
+  return new Map((await visibleTags(actor)).map((t) => [t.id, t.name]));
+}
+
 /** Saves a widget as a team template, new or replacing one of the actor's own. Built from the stored widget, never
  * from what the browser sends. */
 export async function saveTemplate(actor: Actor, input: { widgetId: number; name: string; description: string; labels: string[]; choices: Choices; replaceId?: number | null }): Promise<number> {
   const w = await editableWidget(actor, Number(input.widgetId));
   await assertSeesMetrics(actor, widgetMetricIds(w.metric_ids, w.settings));
   if (TEMPLATES[w.template].kind === "layout") throw new Error("Free layouts cannot be saved as templates yet.");
+  // A widget of "all Metrics tagged X" becomes a Slot only as part of a dashboard (spec 0038).
+  if (isTagWidget(w)) throw new Refused("A widget that shows all Metrics with a Tag is saved as part of its dashboard: save the dashboard as a template.");
   const t = toTemplate(w, await getMetrics(actor.workspaceId), cleanChoices(input.choices), cleanLabels(input.labels));
   return store(actor, "widget", input.replaceId, { ...names(input.name, input.description, "Untitled template"), view: w.template, slots: t.slots, body: t.body, w: w.w, h: w.h, updated_at: new Date().toISOString() });
 }
@@ -167,7 +176,7 @@ async function templatableDashboard(actor: Actor, dashboardId: number) {
  * out and what changes on the way. For the save dialog; nothing is stored. */
 export async function dashboardTemplateDraft(actor: Actor, dashboardId: number) {
   const widgets = await templatableDashboard(actor, Number(dashboardId));
-  const t = toDashboardTemplate(widgets, await getMetrics(actor.workspaceId));
+  const t = toDashboardTemplate(widgets, await getMetrics(actor.workspaceId), [], await tagNamesFor(actor));
   return { slots: t.slots, leftOut: t.leftOut, notices: t.notices, widgets: t.body.widgets.length };
 }
 
@@ -175,7 +184,7 @@ export async function dashboardTemplateDraft(actor: Actor, dashboardId: number) 
  * widgets, never from what the browser sends; `labels` name the Slots in the order the draft lists them. */
 export async function saveDashboardTemplate(actor: Actor, input: { dashboardId: number; name: string; description: string; labels: string[]; replaceId?: number | null }): Promise<number> {
   const widgets = await templatableDashboard(actor, Number(input.dashboardId));
-  const t = toDashboardTemplate(widgets, await getMetrics(actor.workspaceId), cleanLabels(input.labels));
+  const t = toDashboardTemplate(widgets, await getMetrics(actor.workspaceId), cleanLabels(input.labels), await tagNamesFor(actor));
   if (!t.body.widgets.length) throw new Error("This dashboard has nothing a template can keep.");
   if (t.body.widgets.length > MAX_DASHBOARD_TEMPLATE.widgets || JSON.stringify(t.body).length > MAX_DASHBOARD_TEMPLATE.bytes) throw new Error("This dashboard is too large to save as a template.");
   return store(actor, "dashboard", input.replaceId, { ...names(input.name, input.description, "Untitled dashboard template"), view: "dashboard", slots: t.slots, body: t.body, w: 0, h: 0, updated_at: new Date().toISOString() });

@@ -19,6 +19,7 @@ import { firstAsksFor } from "@ziffr/core/first-asks";
 import { NextPrompt } from "./next-prompt";
 import { SourcesEditor } from "./sources-editor";
 import { EditDetails } from "./edit-details";
+import { MetricTagChips, MetricTagsRow } from "./metric-tags";
 import { countryCode } from "@/lib/countries";
 import { currentActor, viewerId } from "@/lib/viewer";
 import { metricExtras } from "@ziffr/core/page-data";
@@ -27,10 +28,16 @@ import { ValueMarks } from "./value-marks";
 import { can } from "@ziffr/core/actor";
 import { submittingKeyNames } from "@ziffr/core/access-keys";
 import { feedChoices, feedNames } from "@ziffr/core/feeds";
-import { FeedPicker, RemoveFeed } from "./feed-picker";
+import { feedTemplates } from "@ziffr/core/feed-template-download";
+import { mcpAddress } from "@/lib/remote-mcp";
+import { FeedControls, RemoveFeed } from "./feed-picker";
 import { formatNumber, formatPercent, formatValue, POLARITY_LABEL, RULE_LABEL, SOURCE_LABEL, targetText } from "@ziffr/core/format";
-import { FORECAST_MIN_POINTS, forecast } from "@ziffr/core/forecast";
-import { comparedBy, periodCountLabel, periodWord, rankCorrelations, strength } from "@ziffr/core/correlation";
+import { FORECAST_MIN_POINTS } from "@ziffr/core/forecast";
+import { bestForecast } from "@ziffr/core/methods/forecast-choice";
+import { SEASON_LENGTH } from "@ziffr/core/suitability";
+import { basisLabel, periodWord, rankCorrelations } from "@ziffr/core/correlation";
+import { correlationTakeaway } from "@ziffr/core/takeaways/takeaway";
+import { TakeawayView } from "@/components/takeaway-view";
 import { ANALYSES } from "@/analyses";
 import { ScatterView } from "@/views/scatter";
 import { PageHeader } from "@/components/page-header";
@@ -95,7 +102,7 @@ function CreatedNote({ derived, note, demo, tagsLeftOut }: { derived: boolean; n
   );
 }
 
-export default async function MetricPage({ params, searchParams }: { params: Promise<{ slug: string }>; searchParams: Promise<{ vs?: string; created?: string; bp?: string; full?: string; tab?: string; suggest?: string }> }) {
+export default async function MetricPage({ params, searchParams }: { params: Promise<{ slug: string }>; searchParams: Promise<{ vs?: string; created?: string; bp?: string; full?: string; tab?: string; suggest?: string; basis?: string }> }) {
   const { slug } = await params;
   const sp = await searchParams;
   const tab: Tab = TABS.some((t) => t.id === sp.tab) ? (sp.tab as Tab) : "overview";
@@ -109,13 +116,16 @@ export default async function MetricPage({ params, searchParams }: { params: Pro
 
   const all = series[slug] ?? [];
   const points = metric.period === "day" ? all.slice(-DAILY_WINDOW) : all;
-  const fc = forecast(points, metric.period);
+  const fc = bestForecast(points, metric.period, SEASON_LENGTH[metric.period]);
   const last = all[all.length - 1];
   const prev = all[all.length - 2];
   const change = last && prev && prev.value !== 0 ? (last.value - prev.value) / Math.abs(prev.value) : null;
 
+  // Show the numbers: `?basis=values` keeps the older comparison on the values as they are (spec 0041).
+  const byValue = sp.basis === "values";
+  const [basisChoice, keepBasis] = basisOf(byValue);
   // Metrics of every period, each on its common period with this one (spec 0019); those kept to their own period say why.
-  const { ranked: correlations, leftOut } = rankCorrelations(metric, metrics.filter((m) => visible.has(m.id)), resolverFrom(metrics, series), { yearStart });
+  const { ranked: correlations, leftOut } = rankCorrelations(metric, metrics.filter((m) => visible.has(m.id)), resolverFrom(metrics, series), { yearStart, basis: basisChoice });
   const notCombined = [...new Set(leftOut.filter((l) => l.why === "not-combined").map((l) => l.reason))];
   const partner = correlations.find((c) => c.metric.slug === sp.vs) ?? correlations[0];
 
@@ -174,10 +184,8 @@ export default async function MetricPage({ params, searchParams }: { params: Pro
   const periodTarget = last ? tSeries.find((t) => t.period === last.period) : undefined;
   // Says nothing of the inputs but that their periods differ: it may be read by someone who cannot see them.
   const derivedProblem = inputsProblem(metric, metrics);
-
-  // What the first requests really did, read from the Outbox's own records (only for its owner and Editors).
+  // The first requests as the Outbox recorded them (owner and Editors); the entry Tags it lacks are recomputed, never read from the address.
   const createdNote = await createdNoteFor(sp.created, canEdit, actor, metric.id);
-  // Recomputed here, never read from the address: the Tags of the entry this Metric came from that it does not carry.
   const tagsLeftOff = sp.created && canEdit ? await tagsLeftOffEntry(actor, metric.id) : [];
 
   return (
@@ -194,13 +202,13 @@ export default async function MetricPage({ params, searchParams }: { params: Pro
       >
         {/* Record a value is the one main button, for someone who submits the Metric; Share is the owner's; the rest is in the ⋯ menu. */}
         <MetricToolbar
-          id={metric.id} people={people} metric={{ id: metric.id, name: metric.name, slug: metric.slug }} record={record} askable={askable}
-          share={isOwner ? { name: metric.name, ownerId: metric.owner_id, shares, groups, canInvite: can(actor, "manage-members") } : null} alert={alertMe ? { mine: alertMe.mine, choices: alertMe.choices } : null}
+          id={metric.id} people={people} metric={{ id: metric.id, name: metric.name, slug: metric.slug, description: metric.description, unit: metric.unit, period: metric.period }} mcp={mcpAddress()} record={record} askable={askable}
+          share={isOwner ? { name: metric.name, ownerId: metric.owner_id, shares, groups, canInvite: can(actor, "manage-members") } : null} alert={alertMe ? { mine: alertMe.mine, choices: alertMe.choices, webhooks: alertMe.webhooks } : null}
           canDuplicate={can(actor, "create") && !metric.formula} dashboards={dashboards.filter((d) => d.role !== "viewer").map((d) => ({ id: d.id, name: d.name }))}
           archive={{ allowed: archivable && !demo, archived: Boolean(metric.archived_at) }} canDelete={isOwner && !demo}
         />
       </PageHeader>
-      <ArchivedNote archivedAt={metric.archived_at ?? null} />
+      <ArchivedNote archivedAt={metric.archived_at ?? null} /><MetricTagChips actor={actor} metricId={metric.id} />
 
       <div className="mb-4 grid gap-3 sm:grid-cols-3">
         <Stat label={last ? `Latest, ${periodLabel(last.period, metric.period, yearStart)}` : "Latest"}>
@@ -324,12 +332,12 @@ export default async function MetricPage({ params, searchParams }: { params: Pro
               <h3 className="text-sm font-medium">Correlation</h3>
               {partner ? (
                 <>
-                  <p className="mt-1 text-sm text-muted-foreground">
-                    Moves most with <span className="font-medium text-foreground">{partner.metric.name}</span>: {strength(partner.result.r)} (r = {formatNumber(partner.result.r, 2, numberStyle)}{partner.result.combined ? "" : `, ${periodCountLabel(partner.result.period, partner.result.n)}`}).{comparedBy(partner.result) && <> {comparedBy(partner.result)}.</>}
-                  </p>
+                  <TakeawayView takeaway={correlationTakeaway(metric, partner.metric, partner.result, { style: numberStyle, yearStart })}>
+                    <BasisToggle byValue={byValue} at={at} partner={partner} />
+                  </TakeawayView>
                   <div className="mt-2 flex flex-wrap gap-1.5">
                     {correlations.slice(0, 5).map((c) => (
-                      <Link key={c.metric.id} href={at({ vs: c.metric.slug })} scroll={false} className={cn("rounded-md border px-2 py-0.5 text-xs", c.metric.id === partner.metric.id ? "stock" : "hover:bg-muted")}>
+                      <Link key={c.metric.id} href={at({ vs: c.metric.slug, ...keepBasis })} scroll={false} title={basisLabel(c.result)} className={cn("rounded-md border px-2 py-0.5 text-xs", c.metric.id === partner.metric.id ? "stock" : "hover:bg-muted")}>
                         {c.metric.name} <span className="fig text-muted-foreground">{formatNumber(c.result.r, 2, numberStyle)}</span>
                       </Link>
                     ))}
@@ -337,11 +345,12 @@ export default async function MetricPage({ params, searchParams }: { params: Pro
                 </>
               ) : <p className="mt-1 text-sm text-muted-foreground">No other metric with enough shared history.</p>}
               {notCombined.map((r) => <p key={r} className="mt-1 text-xs text-muted-foreground">{r}</p>)}
+              {!partner && <ShowTheNumbers byValue={byValue} at={at} partner={partner} />}
             </div>
           </div>
           {partner && (
             <div className="mt-4">
-              <p className="mb-1 text-xs text-muted-foreground">{partner.metric.name} (x) vs. {metric.name} (y), one dot per {periodWord(partner.result.period)}</p>
+              <p className="mb-1 text-xs text-muted-foreground">{partner.metric.name} (x) vs. {metric.name} (y), one dot per {periodWord(partner.result.period)}{changeNote(partner.result)}</p>
               <ScatterView numberStyle={numberStyle} x={partner.metric} y={metric} pairs={partner.result.pairs.map((p) => ({ period: p.period, x: p.y, y: p.x }))} yearStart={yearStart} />
             </div>
           )}
@@ -382,7 +391,7 @@ export default async function MetricPage({ params, searchParams }: { params: Pro
                           <ValueMarks pastedBy={pasted.has(o.id) ? (peopleById[o.submitter_id ?? ""]?.name ?? "someone") : null} imported={Boolean(o.imported)} />
                         </td>
                         <td className="py-2 pl-3 text-muted-foreground">{SOURCE_LABEL[o.source as keyof typeof SOURCE_LABEL] ?? o.source}{o.access_key_id && keyNames[o.access_key_id] ? ` · ${keyNames[o.access_key_id]}` : null}</td>
-                        <td className="py-2"><Person p={o.submitter_id ? peopleById[o.submitter_id] : undefined} /></td>
+                        <td className="py-2">{actor.role !== "guest" && !o.submitter_id && o.submitted_by_name ? <span>{o.submitted_by_name} <span className="text-muted-foreground">(imported)</span></span> : <Person p={o.submitter_id ? peopleById[o.submitter_id] : undefined} />}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -419,6 +428,7 @@ export default async function MetricPage({ params, searchParams }: { params: Pro
             </div>
             <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-2">
               <Row k="Owner"><Person p={peopleById[metric.owner_id]} /></Row>
+              <Row k="Tags"><MetricTagsRow actor={actor} metricId={metric.id} /></Row>
               <Row k="Period">{PERIOD_LABEL[metric.period]}</Row>
               <Row k="Format">{metric.format}{metric.unit && metric.format === "number" ? ` (${metric.unit})` : ""}, {metric.decimals} decimals</Row>
               <Row k="Which way is good">{POLARITY_LABEL[metric.polarity]}</Row>
@@ -454,7 +464,7 @@ export default async function MetricPage({ params, searchParams }: { params: Pro
                 ))}
                 {!tokens.length && <li className="text-muted-foreground">Nobody yet.</li>}
               </ul>
-              {canEdit && <FeedPicker metricId={metric.id} choices={choices.filter((c) => !tokens.some((t) => t.submitter_id === c.id))} />}
+              {canEdit && <FeedControls metric={{ id: metric.id, name: metric.name }} choices={choices} taken={tokens.map((t) => t.submitter_id)} role={actor.role} demo={demo} templates={feedTemplates()} />}
             </section>
           )}
         </div>
@@ -480,4 +490,35 @@ function Row({ k, children }: { k: string; children: React.ReactNode }) {
       <dd>{children}</dd>
     </>
   );
+}
+
+/** The older comparison on the values as they are, a link that sets `?basis=values`; it goes inside a Takeaway's Show the numbers. */
+function BasisToggle({ byValue, at, partner }: { byValue: boolean; at: (extra: Record<string, string>) => string; partner?: { metric: { slug: string } } }) {
+  const href = at({ ...(partner ? { vs: partner.metric.slug } : {}), ...(byValue ? {} : { basis: "values" }) });
+  return (
+    <p className="mt-1">
+      Two Metrics that both grow look related even when nothing links them, so by default growth is removed. {byValue ? "Now compared on the values as they are. " : ""}
+      <Link href={href} scroll={false} className="underline">{byValue ? "Remove growth again" : "Compare on the values as they are"}</Link>
+    </p>
+  );
+}
+
+/** Show the numbers for a Correlation that has no partner yet: only the choice of what it is compared on. */
+function ShowTheNumbers({ byValue, at, partner }: { byValue: boolean; at: (extra: Record<string, string>) => string; partner?: { metric: { slug: string } } }) {
+  return (
+    <details className="mt-2 text-xs text-muted-foreground">
+      <summary className="cursor-pointer">Show the numbers</summary>
+      <BasisToggle byValue={byValue} at={at} partner={partner} />
+    </details>
+  );
+}
+
+/** The basis choice of a page's Correlation and the parameter that keeps it in a link. */
+function basisOf(byValue: boolean): ["values" | "auto", Record<string, string>] {
+  return byValue ? ["values", { basis: "values" }] : ["auto", {}];
+}
+
+/** What a dot is when growth was removed: the change from the period before. */
+function changeNote(result: { basis: string; period: Parameters<typeof periodWord>[0] }): string {
+  return result.basis === "changes" ? `, each the change from the ${periodWord(result.period)} before` : "";
 }

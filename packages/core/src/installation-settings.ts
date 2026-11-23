@@ -7,6 +7,8 @@ import { assertInstallationAdmin, recordInstallationEvent, type InstallationActo
 import { INSTALLATION_SETTINGS, SETTINGS_SECTIONS, settingNamed, type SettingDefinition, type SettingsSectionId } from "./installation-catalogue";
 import { db } from "./db";
 import { trialSettings } from "./trials";
+import { TRIAL_LIMITS, trialLimitProblem } from "./trial-limits";
+import { trialLimitEnvironment } from "./trial-limits-in-effect";
 import { headerSafe, inboundEnabled, isAddress, mailEnabled, smtpOptions, smtpTransportWith, type MailTransport } from "./mail";
 import { checkedMailHost, MailHostError, privateMailHost, privateMailHostsAllowed } from "./mail-hosts";
 import { secretsKey, sealSecret } from "./secrets";
@@ -18,7 +20,8 @@ import { defaultLimitFrom, limitLabel, limitNumber, syncDefaultLimit } from "./w
 import { marketplaceConfig, marketplaceUrlProblem, MARKETPLACE_DEFAULT_URL } from "./marketplace";
 import { SENDING_LIMITS, sendingLimitFrom, sendingLimitProblem } from "./sending-limits";
 import { auditKeepRefusal, forgetAuditReference } from "./audit-retention";
-import { AUDIT_WARN_BELOW_DAYS, DAYS_SETTINGS, daysOutOfRange, daysProblem, daysSetting } from "./installation-days";
+import { AUDIT_WARN_BELOW_DAYS, DAYS_SETTINGS, daysOutOfRange, daysProblem, daysSetting, hostedByCloud } from "./installation-days";
+import { feedbackPromptOn } from "./feedback-prompt-rules";
 import { forgetStoredSettings, settingContext, settingSources, settingsInEffect, settingsInEffectStrict, storedSettings, type SettingSource } from "./settings-in-effect";
 
 /** One setting as the page shows it. `value` only for a setting that is not secret; `hint` (the last four
@@ -103,16 +106,16 @@ const CHECKS: Record<string, (v: string) => string | null> = {
   ZIFFR_DEFAULT_LIMIT_LABEL: (v) => problemOf(() => limitLabel(v)),
   ZIFFR_TURNSTILE_SITE_KEY: (v) => (/^[A-Za-z0-9_-]{10,100}$/.test(v) ? null : "The site key is letters, digits, - and _, as Cloudflare shows it, such as 0x4AAAAAAA…."),
   ZIFFR_TURNSTILE_SECRET: (v) => (/^[A-Za-z0-9_-]{10,200}$/.test(v) ? null : "The secret key is letters, digits, - and _, as Cloudflare shows it."),
-  ZIFFR_TRIAL_DAYS: (v) => (/^\d+$/.test(v) && Number(v) >= 1 && Number(v) <= 30 ? null : "A trial lasts 1 to 30 days."),
   ZIFFR_TRIAL_THEN: (v) => (v === "delete" || v === "keep" ? null : "Pick what happens when a trial ends."),
-  ZIFFR_TRIAL_MAX: (v) => (/^\d+$/.test(v) && Number(v) >= 1 && Number(v) <= 1_000_000 ? null : "Trials at once is a whole number from 1."),
   ZIFFR_TRIAL_WEBHOOKS: (v) => (v === "true" || v === "false" ? null : "Pick whether trials may have Webhooks."),
+  ZIFFR_FEEDBACK_PROMPT: (v) => (v === "true" || v === "false" ? null : "Pick whether people are asked."),
   ZIFFR_DEMO: (v) => (v === "1" || v === "0" ? null : "Pick whether the demo is offered."),
   ZIFFR_USAGE_EXCLUDE_WORKSPACE: (v) => (/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(v) ? null : "Pick a Workspace by name."),
   ZIFFR_MARKETPLACE: (v) => (/^(on|off)$/i.test(v) ? null : "The connection is on or off."),
   ZIFFR_MARKETPLACE_URL: (v) => marketplaceUrlProblem(v),
   ZIFFR_DELETE_UNUSED_AFTER_DAYS: (v) => (/^\d{1,4}$/.test(v) && Number(v) >= 30 && Number(v) <= 3650 ? null : "Unused Workspaces are deleted after a whole number of days from 30 to 3650, or never (empty)."),
   ...Object.fromEntries(SENDING_LIMITS.map((l) => [l.name, (v: string) => sendingLimitProblem(l, v)])),
+  ...Object.fromEntries(TRIAL_LIMITS.map((l) => [l.name, (v: string) => trialLimitProblem(l, v)])),
   ...Object.fromEntries(Object.keys(DAYS_SETTINGS).map((name) => [name, (v: string) => daysProblem(name, v)])),
   ZIFFR_INBOUND_AUTHSERV_ID: (v) => (/^[a-z0-9.-]{1,200}$/i.test(v) ? null : "The provider's name looks like mx.example.com."),
 };
@@ -188,7 +191,7 @@ async function sectionWorks(id: SettingsSectionId, settings: Record<string, stri
     if (site && secret) return { working: true, detail: "The sign-in form shows the check, and Ziffr sends no link without a passed one." };
     return { working: false, detail: site || secret ? "Needs both the site key and the secret key." : null };
   }
-  if (id === "trials") {
+  if (id === "trial_limits" || id === "trials") {
     try {
       const t = trialSettings(settings);
       return t ? { working: true, detail: `Trials of ${t.days} day${t.days === 1 ? "" : "s"}, at most ${t.max.toLocaleString("en-US")} at once. Every Workspace made here is one.` } : { working: false, detail: null };
@@ -199,6 +202,10 @@ async function sectionWorks(id: SettingsSectionId, settings: Record<string, stri
   if (id === "demo") {
     if (settings.ZIFFR_DEMO_ONLY === "1") return { working: true, detail: "This Ziffr is a public demo and nothing else (ZIFFR_DEMO_ONLY on the server): nobody signs in here." };
     return settings.ZIFFR_DEMO !== "0" ? { working: true, detail: "The login page offers Try the demo." } : { working: false, detail: "The login page does not offer the demo." };
+  }
+  if (id === "feedback") {
+    const on = feedbackPromptOn(settings, hostedByCloud(settings));
+    return on ? { working: true, detail: "Signed-in people are asked now and then whether they like Ziffr." } : { working: false, detail: "Nobody is asked." };
   }
   if (id === "keep") {
     const wrong = daysOutOfRange(settings);
@@ -239,7 +246,8 @@ export async function installationSettingsView(actor: InstallationActor): Promis
     return { ...s, source, value: s.secret ? null : raw, hint, unreadable: stored.unreadable.has(s.name) };
   };
   return {
-    sections: await Promise.all(SETTINGS_SECTIONS.map(async (sec) => ({ ...sec, ...(await sectionWorks(sec.id, settings)), settings: INSTALLATION_SETTINGS.filter((s) => s.section === sec.id).map(view) }))),
+    // No Trials section without a Ziffr Cloud key: trials are hosted Ziffr's (spec 0040).
+    sections: await Promise.all(SETTINGS_SECTIONS.filter((sec) => sec.id !== "trials" && sec.id !== "trial_limits" || hostedByCloud(process.env)).map(async (sec) => ({ ...sec, ...(await sectionWorks(sec.id, settings)), settings: INSTALLATION_SETTINGS.filter((s) => s.section === sec.id).map(view) }))),
     canSeal: secretsKey() !== null,
     siteUrl: process.env.ZIFFR_SITE_URL ?? null,
     slack: { createAppLink: slackCreateAppLink(process.env.ZIFFR_SITE_URL), eventsCheckedAt: await slackEventsCheckedAt(settings) },
@@ -252,8 +260,11 @@ export async function installationSettingsView(actor: InstallationActor): Promis
 export async function saveInstallationSettings(actor: InstallationActor, section: string, input: Record<string, string | null>): Promise<SaveOutcome> {
   await assertInstallationAdmin(actor);
   const sec = SETTINGS_SECTIONS.find((s) => s.id === section);
+  if ((sec?.id === "trials" || sec?.id === "trial_limits") && !hostedByCloud(process.env)) throw new Error("Trials exist only on hosted Ziffr.");
   if (!sec?.ready) throw new Error("This section cannot be set up here yet.");
   if (!input || typeof input !== "object" || Array.isArray(input)) throw new Error("Nothing to save.");
+  // Read fresh: what Ziffr Cloud set a moment ago must not look like the page's (the database refuses it anyway).
+  if (sec.id === "trial_limits") forgetStoredSettings();
   const sources = await settingSources();
   const changes: { def: SettingDefinition; value: string | null }[] = [];
   for (const [name, raw] of Object.entries(input).slice(0, 20)) {
@@ -337,14 +348,19 @@ export async function saveInstallationSettings(actor: InstallationActor, section
   // Read fresh, not from the few seconds' cache: a save a moment ago may have replaced it.
   if (telegram) forgetStoredSettings();
   const before = telegram ? (await storedSettings()).values.get("ZIFFR_TELEGRAM_BOT_TOKEN") ?? null : null;
-  for (const { def, value } of changes) {
+  if (sec.id === "trial_limits") {
+    // Together with the row the triggers read, in one step; a value Ziffr Cloud wrote is refused there under a lock.
+    const { error } = await db().rpc("save_page_trial_limits", { p_values: Object.fromEntries(changes.map((c) => [c.def.name, c.value])), p_env: trialLimitEnvironment(), p_by: actor.personId });
+    if (error) throw new Error(error.code === "ZF438" ? "That Trial Limit is set by Ziffr Cloud." : "The settings could not be saved. Try again.");
+  }
+  for (const { def, value } of sec.id === "trial_limits" ? [] : changes) {
     if (value === null) {
       const { error } = await db().from("installation_settings").delete().eq("name", def.name);
       if (error) throw new Error("The settings could not be saved. Try again.");
     } else {
       // Sealed for its own name: the stored text is useless without the key, and in any other row.
       const stored = def.secret ? sealSecret(value, settingContext(def.name)) : value;
-      const { error } = await db().from("installation_settings").upsert({ name: def.name, value: stored, sealed: def.secret, updated_by: actor.personId, updated_at: new Date().toISOString() });
+      const { error } = await db().from("installation_settings").upsert({ name: def.name, value: stored, sealed: def.secret, set_by: null, updated_by: actor.personId, updated_at: new Date().toISOString() });
       if (error) throw new Error("The settings could not be saved. Try again.");
     }
   }

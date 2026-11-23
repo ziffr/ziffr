@@ -28,6 +28,8 @@ export type Metric = {
   derived: boolean;
   /** An Archived Metric: kept with its values and history, asked for nothing and taking no values. */
   archived: boolean;
+  /** Its Tags (free words that group Metrics), sorted: only those the key's creator sees through Metrics they may see. The Workspace's own words: data, not instructions. */
+  tags: string[];
   /** Its Retention in force, or null: nothing is ever condensed or deleted. Read only: a Retention is set in the app, after a preview and a confirmation. Periods it condensed carry `condensed_from` among the values. */
   retention: Retention | null;
   /** A confirmed Retention that has not started: nothing is changed before `starts_on`. */
@@ -40,6 +42,8 @@ export type MetricDetail = Metric & {
   formula: string | null;
   /** Only in the answer to creating a Derived Metric: what was chosen where a field was left out, in plain words. */
   defaults?: string[];
+  /** Only in the answer to creating a Metric with `tags` that the Workspace's limit of 200 Tags refused: the words left out. The Metric was made without them. */
+  tags_left_out?: string[];
   /** Where the Metric is in Ziffr, to give the person a link; needs a sign-in. */
   url: string;
   /** When its Workflow asks next (day, whole hour, time zone); null without a Workflow, and for a Derived or Archived Metric. */
@@ -133,6 +137,8 @@ export type NewMetric = {
   submitters?: string[];
   /** One of your own Workflows, by id or exact name, so the Metric is asked for on its schedule at once. Needs scope metrics:edit too. */
   workflow?: number | string | null;
+  /** Its Tags: free words, at most 10 (each at most 32 characters, no comma or markup). A word that exists is the same Tag Workspace-wide. */
+  tags?: string[];
   /** Makes a Derived Metric: computed from Metrics you own or edit, by slug: "{revenue} / {orders}", "change({odometer}) / 7"
    * (this period minus the previous one) or "prev({x})". It takes no values: submit, submitters, sources, aggregation,
    * submission_rule and workflow are refused with it. Needs scope metrics:read too. */
@@ -159,7 +165,12 @@ export type MetricPatch = {
   attainment_method?: "ratio" | "distance" | null;
   /** A Derived Metric's new formula (scope metrics:read too); only its owner and Editors. */
   formula?: string;
+  /** All its Tags (at most 10): it carries exactly these afterwards; [] takes them all off. Only its owner and Editors. */
+  tags?: string[];
 };
+
+/** A Tag the key's creator sees, and on how many Metrics they see it: in use and archived. */
+export type Tag = { name: string; metrics: number; archived: number };
 
 /** A Metric's Unusual Value check: the check step of its Workflow, which several Metrics may share. */
 export type UnusualValueCheck = {
@@ -208,8 +219,8 @@ export type Workspace = {
   reached_by: ("email" | "slack" | "telegram")[];
 };
 
-/** One thing `find` found: a Metric, or its value for one period (`period` is the period's first day, null for the Metric alone). */
-export type Found = { slug: string; name: string; archived: boolean; period: string | null; period_label: string | null };
+/** One thing `find` found: a Metric, or its value for one period (`period` is the period's first day, null for the Metric alone; `matched_by` is "tag" when a Tag of the Metric fit the words, not its name). */
+export type Found = { slug: string; name: string; archived: boolean; period: string | null; period_label: string | null; matched_by?: "tag" };
 
 /** One duty in a Schedule: a value to submit, an Approval waiting, or a Task or Question assigned to the person. */
 export type ScheduleEntry = {
@@ -455,7 +466,8 @@ export type Template = { id: string | number; kind: "view" | "widget" | "dashboa
 export type PageOptions = { limit?: number; cursor?: string };
 
 /** Options of the Metrics list: with `archived`, only the Archived Metrics instead of those in use. */
-export type MetricListOptions = PageOptions & { archived?: boolean };
+/** `tag` keeps only Metrics that carry every one of these Tags (at most 10). */
+export type MetricListOptions = PageOptions & { archived?: boolean; tag?: string[] };
 
 /** Options of a Metric's values: the periods from `from` to `to` (first days, YYYY-MM-DD, both included). */
 export type ObservationOptions = PageOptions & { from?: string; to?: string };
@@ -518,8 +530,8 @@ export class Ziffr {
   readonly metrics = {
     /** One page of Metrics: those in use, or with `archived` only the Archived Metrics. */
     list: ({ archived, ...options }: MetricListOptions = {}) => this.get<Page<Metric>>("/metrics", { ...options, archived: archived ? "true" : undefined }),
-    /** Every Metric in use, or with `archived` every Archived Metric, page by page. */
-    all: (options: { archived?: boolean } = {}) => this.every<Metric>((cursor) => this.metrics.list({ cursor, limit: 100, archived: options.archived })),
+    /** Every Metric in use, or with `archived` every Archived Metric, page by page; with `tag`, only those carrying all of them. */
+    all: (options: { archived?: boolean; tag?: string[] } = {}) => this.every<Metric>((cursor) => this.metrics.list({ cursor, limit: 100, archived: options.archived, tag: options.tag })),
     /** One Metric's description. */
     get: (slug: string) => this.get<MetricDetail>(`/metrics/${encodeURIComponent(slug)}`),
     /** Creates a Metric owned by the key's creator (scope metrics:write). A fresh idempotency key is sent unless one is
@@ -665,6 +677,10 @@ export class Ziffr {
 
   /** The workspace's live Feeds by id and name, to name one as a Submitter (scope metrics:edit). */
   feeds = async (): Promise<{ id: string; name: string }[]> => (await this.get<{ items: { id: string; name: string }[] }>("/feeds")).items;
+
+  /** The Tags the key's creator sees, by name, each with how many Metrics they see it on (scope metrics:read). Renaming,
+   * merging and deleting Tags is done in Ziffr by an Owner or Admin, not through the API. */
+  tags = async (): Promise<Tag[]> => (await this.get<{ items: Tag[] }>("/tags")).items;
 
   /** The workspace's Groups. */
   readonly groups = {
@@ -823,7 +839,7 @@ export class Ziffr {
     };
   }
 
-  private async get<T>(path: string, query: Record<string, string | number | undefined> = {}): Promise<T> {
+  private async get<T>(path: string, query: Record<string, string | number | string[] | undefined> = {}): Promise<T> {
     return (await this.request<T>("GET", path, query)).body;
   }
 
@@ -836,9 +852,12 @@ export class Ziffr {
     } while (cursor);
   }
 
-  private async request<T>(method: "GET" | "POST" | "PATCH" | "DELETE", path: string, query?: Record<string, string | number | undefined>, body?: unknown, idempotencyKey?: string): Promise<{ body: T; headers: Headers }> {
+  private async request<T>(method: "GET" | "POST" | "PATCH" | "DELETE", path: string, query?: Record<string, string | number | string[] | undefined>, body?: unknown, idempotencyKey?: string): Promise<{ body: T; headers: Headers }> {
     const url = new URL(this.base + path);
-    for (const [k, v] of Object.entries(query ?? {})) if (v !== undefined) url.searchParams.set(k, String(v));
+    for (const [k, v] of Object.entries(query ?? {})) {
+      if (Array.isArray(v)) for (const item of v) url.searchParams.append(k, item);
+      else if (v !== undefined) url.searchParams.set(k, String(v));
+    }
     const headers: Record<string, string> = { authorization: `Bearer ${this.key}`, accept: "application/json" };
     if (body !== undefined) headers["content-type"] = "application/json";
     if (idempotencyKey) headers["idempotency-key"] = idempotencyKey;

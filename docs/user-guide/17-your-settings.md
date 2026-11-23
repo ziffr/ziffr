@@ -1,16 +1,18 @@
 <!-- part: Screen by screen -->
-<!-- screens: apps/web/src/app/settings/appearance/**, apps/web/src/app/login/**, apps/web/src/app/demo/**, apps/web/src/app/settings/schedule/**, apps/web/src/app/schedule/**, apps/web/src/app/settings/profile/**, apps/web/src/app/settings/deliveries/**, apps/web/src/app/settings/alerts/**, apps/web/src/components/alerts.tsx, apps/web/src/app/settings/assistants/**, apps/web/src/app/oauth/authorize/**, apps/web/src/components/app-shell.tsx, apps/web/src/components/nav-parts.tsx, apps/web/src/components/view-as.tsx, apps/web/src/components/demo-controls.tsx, apps/web/src/components/tour.tsx -->
+<!-- screens: apps/web/src/app/settings/appearance/**, apps/web/src/app/login/**, apps/web/src/app/demo/**, apps/web/src/app/settings/schedule/**, apps/web/src/app/schedule/**, apps/web/src/app/settings/profile/**, apps/web/src/app/settings/deliveries/**, apps/web/src/app/settings/alerts/**, apps/web/src/components/alerts.tsx, apps/web/src/app/settings/assistants/**, apps/web/src/app/settings/your-webhooks/**, apps/web/src/app/oauth/authorize/**, apps/web/src/components/app-shell.tsx, apps/web/src/components/nav-parts.tsx, apps/web/src/components/view-as.tsx, apps/web/src/components/demo-controls.tsx, apps/web/src/components/tour.tsx, apps/web/src/components/legal-footer.tsx -->
 # Signing in and your own settings
 
 This chapter covers what is yours rather than the team's: signing in, the demo, the sidebar, and your own pages: **My schedule**, **Your profile**, **Appearance**, **Your Deliveries** and **Your Alerts**. Everyone has them, whatever their role. The team's pages are in [Workspace settings](16-workspace-settings.md).
 
 ## Signing in
 
-The page **Sign in to Ziffr** opens whenever you are not signed in. It is a card with the form on one side and, beside it, a short line on what Ziffr is with a picture of the demo's Monthly overview dashboard; on a phone the form comes first and the picture is left out. Under its heading it says what Ziffr is: the record of your numbers.
+The page **Sign in to Ziffr** opens whenever you are not signed in. It is one plain column: the Ziffr mark, a card with the form, and below it **Try the demo** where your Ziffr offers the demo. It looks the same on a phone, and follows your Appearance, dark included.
 
-On a Ziffr that is only a public demo, the same page is called **Try Ziffr**. It has no sign-in, only **Try the demo** and a link to run Ziffr yourself. Everyone there shares the demo, and nothing anyone does there is saved.
+Where the Ziffr has set it up, a short check against bots by Cloudflare sits above the button; the email link and any other way to sign in work once it has passed. If the check fails or Cloudflare cannot be reached, no link is sent, and a new check appears for the next try. If a sign-in link did not work or was used already, the page says so: ask for a new one.
 
-On a Ziffr that offers **Trial Workspaces**, the page is called **Try Ziffr** too, with two choices one above the other. **Try it for real** (a Workspace of your own, starting with one Metric to try asking with) has **What works in a trial**, which opens to list what works in a trial on this Ziffr (each way marked Real, Simulated or Off, with its limit), says what a trial asks of you, and has the sign-in form; where the Ziffr has set it up, a short check against bots by Cloudflare sits above the buttons; the email link and any other way to sign in work once it has passed. If the check fails or Cloudflare cannot be reached, no link is sent, and a new check appears for the next try. **No account? Look around first**, below the form, opens the shared demo and says what it cannot do. See [On a Ziffr that offers trials](16-workspace-settings.md#on-a-ziffr-that-offers-trials).
+On a Ziffr that offers **Trial Workspaces**, the page is the same, with one line under the heading: a new address gets an account from the same link, and after signing in you start your trial (see [On a Ziffr that offers trials](16-workspace-settings.md#on-a-ziffr-that-offers-trials)). While all new trials are taken, the page says so instead, and whoever has a trial still signs in to it. A Ziffr without trials has no such line.
+
+On a Ziffr that is only a public demo, the page is called **Try Ziffr**. It has no sign-in, only **Try the demo** and a link to run Ziffr yourself. Everyone there shares the demo, and nothing anyone does there is saved.
 
 | Option | What it does |
 | --- | --- |
@@ -28,6 +30,10 @@ After you ask for a link, the page says "Check your inbox". If a link has been u
 Your address counts as proven when you signed in with the email link or a provider that proves it, such as Google. A proven address is what an email Invitation and Domain Joining check.
 
 After signing in for the first time, you start a Workspace or join one; see [Workspace settings](16-workspace-settings.md#starting-a-workspace).
+
+## Imprint, Privacy notice and Terms
+
+On hosted Ziffr (the Ziffr you reach at ziffr.net) three links sit at the foot of every page: **Imprint**, **Privacy notice** and **Terms**. They are on the sign-in page, in the app, in the demo and on View Link pages, and each opens Ziffr's own page in a new tab. Where an account can be created, the sign-in page also says "By signing up you agree to the Terms and the Privacy notice." under the button. A Ziffr that someone runs themselves shows none of this and has no setting for it.
 
 ## The demo
 
@@ -75,13 +81,15 @@ The circle in front of a step marks it done. The header shows how many are done 
 
 ## The sidebar
 
-The sidebar is on every page once you are in a Workspace. At its top is the Workspace switcher, then a **Search** field (Ctrl+K), **Actions** and **Schedule**, each with its count, Dashboards (with the dashboards you pinned under it, see [Pinning a dashboard](12-dashboards.md#pinning-a-dashboard)), Metrics, Decks, Analyze and one **Workspace** row that opens **Members and Groups**, **Workflows**, **Connectors** and **Settings** (closed unless you are on one of them; Guests do not see it). **User guide** and your own menu (**Your profile**, **Appearance**, **Your Deliveries**, **Your Alerts**, **Connected assistants**, and **Installation settings** for Installation Admins) sit at its bottom. The page is a card beside it, and in the demo, **Viewing as** and **Leave the demo** sit in the footer where your own menu is, with **Your profile**, **Appearance**, **Your Deliveries** and **Your Alerts** to look at (read-only, as the demo is; there is no Connected assistants). Ctrl+B (or the button at the top of the card) shrinks the sidebar to icons; hover or focus an icon to see its name. Details open beside the page instead of replacing it: **Details** on a row of the Metrics list, and **Alert me…** on a Metric's page. On a phone, a bar at the bottom has Dashboards, Metrics, Actions, Search and More; **More** lists only what the bar does not: your pinned dashboards, Schedule, Decks, Analyze, the Workspace as one row that opens its pages, the guide and your own pages (in the demo, the same four). For how search works, see [Search](#search).
+The sidebar is on every page once you are in a Workspace. At its top is the Workspace switcher, then a **Search** field (Ctrl+K), **Actions** and **Schedule**, each with its count, Dashboards (with the dashboards you pinned under it, or in the demo a few already pinned, see [Pinning a dashboard](12-dashboards.md#pinning-a-dashboard)), Metrics, Decks, Analyze and one **Workspace** row that opens **Members and Groups**, **Workflows**, **Connectors** and **Settings** (closed unless you are on one of them; Guests do not see it). **User guide** and your own menu (**Your profile**, **Appearance**, **Your Deliveries**, **Your Alerts**, **Connected assistants**, and **Installation settings** for Installation Admins) sit at its bottom. The page is a card beside it, and in the demo, **Viewing as** and **Leave the demo** sit in the footer where your own menu is, with **Your profile**, **Appearance**, **Your Deliveries** and **Your Alerts** to look at (read-only, as the demo is; there is no Connected assistants). Ctrl+B (or the button at the top of the card) shrinks the sidebar to icons; hover or focus an icon to see its name. Details open beside the page instead of replacing it: **Details** on a row of the Metrics list, and **Alert me…** on a Metric's page. On a phone, a bar at the bottom has Dashboards, Metrics, Actions, Search and More; **More** lists only what the bar does not: your pinned dashboards, Schedule, Decks, Analyze, the Workspace as one row that opens its pages, the guide and your own pages (in the demo, the same four). For how search works, see [Search](#search).
 
 Ziffr works best on a phone once you install it: it then opens from the home screen like an app. See [Put Ziffr on your phone or desktop](07-getting-started.md#put-ziffr-on-your-phone-or-desktop).
 
 ## Search
 
-Press **⌘K** (on Windows and Linux **Ctrl+K**), or choose the magnifying glass, and type. Ziffr finds the Metrics, dashboards, decks and Workflows whose names fit what you typed, ignoring capitals and accents, and only those you may see in the Workspace you are in. A Metric that is archived is marked **Archived**, and listed after the ones in use. Results are grouped: **Commands**, **Pages**, **Metrics**, **Dashboards**, **Decks**, **Workflows**, **People** and **Groups**.
+Press **⌘K** (on Windows and Linux **Ctrl+K**), or choose the magnifying glass, and type. Ziffr finds the Metrics, dashboards, decks and Workflows whose names fit what you typed, ignoring capitals and accents, and only those you may see in the Workspace you are in. A Metric that is archived is marked **Archived**, and listed after the ones in use. Results are grouped: **Commands**, **Pages**, **Metrics**, **Tags**, **Dashboards**, **Decks**, **Workflows**, **People** and **Groups**.
+
+**Tags.** Type a word that is one of your Metrics' Tags, such as "finance", and Search offers **Tag: finance (7 Metrics)**, which opens the Metrics list filtered by it. Metrics are also found by their Tags, after the ones whose names fit, and say which Tag matched. You only find Tags that sit on Metrics you may see: a word used only on Metrics you cannot see finds nothing, the same as a word nobody uses.
 
 Two Metrics you can see may have the same name. Their results then say whose each is, in brackets, such as "Support tickets (Ben)", with the period and unit added only where the owner is not enough.
 
@@ -241,9 +249,15 @@ Under **Quiet hours** you choose the hours of the night and the whole days (the 
 
 If you set nothing, you follow the Workspace's default, if its Owners or Admins set one (the page says so). **Use the Workspace's default** removes your own. To have none even though the Workspace has a default, set the same hour for **From** and **Until** and no days. You cannot choose all seven days. A message already waiting keeps its time if you change your quiet hours afterwards.
 
+## The question about Ziffr
+
+Now and then, where an Installation Admin has turned it on (hosted Ziffr does), a small card in the corner asks whether you like Ziffr. **Yes** offers a link to the Ziffr repository on GitHub, where you can star it if you want to; Ziffr tells GitHub nothing about you. **Not yet** asks what is missing, and your words go to the people who run this Ziffr without your name. **Not now** closes it, and it comes back after 30 days, then once more after 60; **Don't ask again** ends it. It never appears while you are looking at a form, in the demo, or on a shared View Link.
+
 ## Your Alerts
 
 Open it from your own menu at the bottom of the sidebar, or from **Alerts** in the settings area. An **Alert** is your own standing request to be told when a Metric you see reaches a level; you set one with **Alert me…** on the Metric's page (see [The Metrics screens](10-metrics.md#the-buttons-at-the-top)). This page lists every Alert you hold in the current Workspace on a Metric you can still see, with its condition, the way it is delivered, and where it stands: **waiting**, **fired** (quiet until the condition has been false again) and when it last fired. The page says the limits: the Alerts you may hold in a Workspace (20 unless the Workspace or Installation sets fewer), at most 5 on one Metric, and the Alert messages a day (20 unless set lower, which you can do under [Your limits](#your-limits)).
+
+If you have a **Personal Webhook** (your Workspace allows them and you added one under Your Webhooks), the Alert form has **Also send to** with your Webhooks as tick boxes, none ticked at first. You are still told the usual way; a ticked Webhook also gets an `alert.fired` message, once each time the Alert fires, with the Metric, period, value, target, the condition and a link. It is your own Webhook receiving your own Alert, so only a Metric you see is sent, checked again when the message goes out: if you lose sight of the Metric, pause the Alert, take the Webhook off it, switch the Webhook off or delete it, or the value no longer meets the condition by then, nothing is sent and nothing in the log says so. A Webhook must have ticked the event `alert.fired` to be offered (the form says so beside one that has not), and an Alert on "has no value the day after its Due Date" cannot name one, since there is no value to send. Up to 3 Webhooks per Alert. An assistant or program cannot name a Webhook on your Alert; only you can, here.
 
 On a Metric's page, **Alert me…** opens the same list and the form for another Alert in a panel on the right, over the page; its address ends in `?panel=alert`.
 
@@ -332,3 +346,25 @@ You do not need a Starter. Some examples:
 - It never shares anything, deletes a dashboard, makes a View Link, changes who may see what, changes a Metric's name, description, period or Workflow, adds or removes a Workflow's steps, or changes settings.
 - Everything it does shows in the Access Log.
 - It answers from what Ziffr gives it, but it can still misread a number. Check what it says before you pass it on, and ask it to show the values it used.
+
+## Your Webhooks
+
+**You → Your Webhooks** lists the **Personal Webhooks** you added for yourself in this Workspace: an address outside Ziffr, such as your own n8n flow, that gets a signed message when something happens. Yours hears only what you may see here, checked at the moment it is sent, and acts as you: ticking a task off in your own list marks it done in Ziffr as you. Without the Workspace's switch the page says "Your Workspace does not allow personal Webhooks; ask an Owner or Admin" and shows none; an Owner or Admin switches it on under **Workspace → Webhooks** ([Workspace settings](16-workspace-settings.md#personal-webhooks)). Owners, Admins and Members have it; Guests and the demo do not.
+
+You can have three, up to 1,000 messages a day (a trial has fewer, and only public addresses). Type a **name**, the **address**, which must start with `https://`, and tick what it hears, none by default:
+
+- the tasks and questions **given to you or asked by you**: given, changed, answered, done;
+- **values** recorded or unusual, for the **Metrics you pick**, up to 50, from those you see. A value waiting for approval is carried only if you may see it;
+- **your own Alerts** that name this Webhook (**Also send to** on the Alert).
+
+**Add Webhook** shows the **secret** once. Copy it: the receiver uses it to check each message's signature, and it is not shown again. Each Webhook shows its name, the address masked, what it hears and, for values, the Metrics picked; a picked Metric you no longer see is counted, never named, and nothing is sent for it. If you picked Metrics you can no longer see, the page counts them and offers **Remove the N Metrics you can no longer see**; nothing is sent for them either way, and until you remove them they come back if you see the Metric again. While your Workspace does not allow personal Webhooks, you cannot change one.
+
+| Button | What it does |
+| --- | --- |
+| **Change** | Changes the name, the events and Metrics, or the address |
+| **Send test event** | Sends a `ping` now, at most once a minute |
+| **Replace secret** | Makes a new secret, shown once; the old one still signs for 24 hours, so the receiver can switch without a gap |
+| **Switch off** / **Switch on** | A switched-off Webhook gets nothing; switching on again resends nothing |
+| The bin icon | Deletes it after asking, also while the Workspace's switch is off |
+
+Under each, **Log** lists its sends of the last 14 days: when, the event, what it is about, the state and the answer. A Webhook that keeps failing is switched off by Ziffr and you are told. An Owner or Admin sees that you have a Webhook, whose it is, the address masked and when it last sent, never what it sent, and can remove it; you are then told who did. It ends when you leave the Workspace. Messages leave Ziffr in clear text over TLS and the receiving system keeps them as it sees fit.

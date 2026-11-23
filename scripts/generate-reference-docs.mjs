@@ -65,7 +65,8 @@ function refusalCodes() {
 /** The Installation Settings, read from the catalogue itself. */
 async function settings() {
   const cat = await import(pathToFileURL(path.join(ROOT, "packages/core/src/installation-catalogue.ts")).href);
-  return { sections: cat.SETTINGS_SECTIONS, all: cat.INSTALLATION_SETTINGS };
+  // Trials are hosted Ziffr's (spec 0040): self-hosters' reference and .env.example do not list their settings.
+  return { sections: cat.SETTINGS_SECTIONS.filter((s) => s.id !== "trials"), all: cat.INSTALLATION_SETTINGS.filter((s) => s.section !== "trials") };
 }
 
 /** Each block: where it goes, and how it is written. */

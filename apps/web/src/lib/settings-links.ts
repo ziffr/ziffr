@@ -16,6 +16,8 @@ export function workspaceLinks(role: WorkspaceRoleName): { href: string; label: 
     ...(member ? [{ href: "/workflows", label: "Workflows" }] : []),
     // Packs add to the Workspace; Guests see none of it (spec 0030).
     ...(member ? [{ href: "/settings/packs", label: "Packs" }] : []),
+    // Tags are listed from what a person sees; only Owners and Admins change them (spec 0038). Guests have no page.
+    ...(member ? [{ href: "/settings/tags", label: "Tags" }] : []),
     ...(member ? [{ href: "/settings/keys", label: "Access Keys" }] : []),
     // Feeds write into the workspace without a person, so only Owners and Admins set them up (spec 0012).
     ...(admin ? [{ href: "/settings/feeds", label: "Feeds" }] : []),
@@ -25,6 +27,8 @@ export function workspaceLinks(role: WorkspaceRoleName): { href: string; label: 
     // What could be tidied: counts only, for those who manage the Workspace (spec 0031).
     ...(admin ? [{ href: "/settings/usage", label: "Usage" }] : []),
     ...(admin ? [{ href: "/audit", label: "Audit log" }] : []),
+    // The whole Workspace as one file: its Owner only (spec 0040).
+    ...(role === "owner" ? [{ href: "/settings/export", label: "Workspace Export" }] : []),
   ];
 }
 
@@ -51,7 +55,7 @@ export function settingsGroups(role: WorkspaceRoleName): { label: string; links:
   if (role === "guest") return [];
   const admin = role === "owner" || role === "admin";
   return [
-    { label: "Workspace", links: [{ href: "/settings/workspace", label: "General" }, ...(admin ? [{ href: "/settings/workspace#size", label: "Size and Retention" }] : []), { href: "/themes", label: "Themes" }, { href: "/settings/packs", label: "Packs" }] },
+    { label: "Workspace", links: [{ href: "/settings/workspace", label: "General" }, ...(admin ? [{ href: "/settings/workspace#size", label: "Size and Retention" }] : []), { href: "/themes", label: "Themes" }, { href: "/settings/packs", label: "Packs" }, { href: "/settings/tags", label: "Tags" }, ...(role === "owner" ? [{ href: "/settings/export", label: "Workspace Export" }] : [])] },
     { label: "Programs", links: [{ href: "/settings/keys", label: "Access Keys" }, ...(admin ? [{ href: "/settings/feeds", label: "Feeds" }, { href: "/settings/webhooks", label: "Webhooks" }] : [])] },
     { label: "Records", links: [{ href: "/changes", label: "Changes" }, ...(admin ? [{ href: "/settings/usage", label: "Usage" }, { href: "/audit", label: "Audit log" }] : [])] },
   ];

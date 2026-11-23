@@ -11,6 +11,7 @@ import { workspaceLimitRows } from "@ziffr/core/workspace-limits-admin";
 import { PageHeader } from "@/components/page-header";
 import { installationActor, ziffrVersion } from "@/lib/installation";
 import { ClaimForm } from "./claim";
+import { feedbackPromptWords } from "@ziffr/core/feedback-prompt";
 import { InstallationScreen } from "./screen";
 
 export default async function InstallationPage() {
@@ -19,10 +20,11 @@ export default async function InstallationPage() {
   if (await isInstallationAdmin(actor)) {
     const version = ziffrVersion();
     const [view, admins, events, limits, mx, replyTest, usageKey, usageDays, leaveOut, encryption] = await Promise.all([installationSettingsView(actor), installationAdmins(actor), installationEvents(actor, 20), workspaceLimitRows(actor), inboundMx(actor), replyTestStatus(actor), usageKeyInfo(actor), installationUsage(actor), usageExclusionChoices(actor), keyProgress(actor)]);
+    const feedback = await feedbackPromptWords(actor);
     return (
       <>
         <PageHeader title="Installation settings" sub={`What this Ziffr talks to, set up here instead of in the server's settings file. Only Installation Admins see this page.${version ? ` This is Ziffr ${version}.` : ""}`} />
-        <InstallationScreen view={view} admins={admins} events={events} limits={limits} replies={{ mx, test: replyTest }} usage={{ key: usageKey, days: usageDays, leaveOut }} encryption={encryption} />
+        <InstallationScreen view={view} admins={admins} events={events} limits={limits} replies={{ mx, test: replyTest }} usage={{ key: usageKey, days: usageDays, leaveOut }} encryption={encryption} feedback={feedback} />
       </>
     );
   }

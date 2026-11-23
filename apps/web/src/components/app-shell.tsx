@@ -43,6 +43,9 @@ const ICONS: Record<string, React.ReactNode> = {
 /** The user menu's pages (#529): the person's own pages without My schedule, which has a row of its own, plus Connected assistants. */
 const YOUR_PAGES: NavItem[] = [...YOU.filter((l) => l.href !== "/schedule"), { href: "/settings/assistants", label: "Connected assistants" }];
 
+/** Your Webhooks (spec 0037): Owners, Admins and Members have them, Guests do not. */
+const yourPages = (account: Account): NavItem[] => (account.guest ? YOUR_PAGES : [...YOUR_PAGES, { href: "/settings/your-webhooks", label: "Your Webhooks" }]);
+
 /** The same pages in the demo (#528), read-only as the demo is. Without Connected assistants: they connect to real workspaces only. */
 const DEMO_PAGES: NavItem[] = YOU.filter((l) => l.href !== "/schedule");
 
@@ -78,7 +81,7 @@ export function AppShell({ workspace, settings, pinned, due, open, account, guid
                   <Fragment key={l.href}>
                     {/* On a pinned dashboard the pin is marked, not Dashboards as well. */}
                     <SidebarItem render={<Link href={l.href} />} icon={ICONS[l.href]} label={l.label} active={isOn(path, l.href) && !(l.href === "/dashboards" && pinned.some((p) => path === `/dashboards/${p.id}`))} />
-                    {l.href === "/dashboards" && <PinnedDashboards pinned={pinned} path={path} />}
+                    {l.href === "/dashboards" && <PinnedDashboards pinned={pinned} path={path} demo={Boolean(people)} />}
                   </Fragment>
                 ))}
               </SidebarGroup>
@@ -191,7 +194,7 @@ function UserMenu({ account }: { account: Account }) {
       <DropdownMenuContent align="start" side={collapsed ? "right" : "top"} className="w-56">
         <DropdownMenuGroup>
           <DropdownMenuLabel>Your settings</DropdownMenuLabel>
-          {YOUR_PAGES.map((l) => <DropdownMenuItem key={l.href} render={<Link href={l.href} />}>{l.label}</DropdownMenuItem>)}
+          {yourPages(account).map((l) => <DropdownMenuItem key={l.href} render={<Link href={l.href} />}>{l.label}</DropdownMenuItem>)}
           {account.installationAdmin && <DropdownMenuItem render={<Link href={INSTALLATION.href} />}><ShieldCheck aria-hidden /> {INSTALLATION.label}</DropdownMenuItem>}
         </DropdownMenuGroup>
         <DropdownMenuSeparator />
@@ -279,7 +282,7 @@ function MoreRows({ due, pinned, workspace, account, guide, demoPages }: { due: 
   const link = (l: NavItem, icon?: React.ReactNode, note?: React.ReactNode) => (
     <li key={l.href}><Link href={l.href} aria-current={isOn(path, l.href) ? "page" : undefined} className={cn(row, isOn(path, l.href) && "bg-muted font-medium")}>{icon}{l.label}{note}</Link></li>
   );
-  const yours = [...YOUR_PAGES, ...(account?.installationAdmin ? [INSTALLATION] : [])];
+  const yours = [...(account ? yourPages(account) : YOUR_PAGES), ...(account?.installationAdmin ? [INSTALLATION] : [])];
   return (
     <>
       {pinned.length > 0 && (

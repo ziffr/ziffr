@@ -1,0 +1,5 @@
+{
+  "rule": "locale",
+  "why": "sorts with localeCompare, whose order depends on the machine's language",
+  "remove": []
+}

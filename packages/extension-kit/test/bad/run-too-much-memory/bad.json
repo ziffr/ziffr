@@ -1,0 +1,6 @@
+{
+  "rule": "too-much-memory",
+  "why": "keeps adding to a list on a long flat series until it has used all the memory",
+  "remove": [],
+  "stage": "run"
+}

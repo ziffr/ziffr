@@ -1,0 +1,5 @@
+{
+  "rule": "dynamic-code",
+  "why": "builds a function from text",
+  "remove": []
+}

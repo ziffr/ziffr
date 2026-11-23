@@ -284,6 +284,37 @@ function slackTo() {
 }
 
 /** Every template: file name to the exact text that belongs in docs/automations. */
+// ---- Feed templates (spec 0043): another system's figures into Ziffr through a Feed ----
+// Every one reads a few figures on a schedule, shapes them into { metric, period?, value } items (feed-shape.js), sends them
+// to the Feed endpoint with the Feed Key in an n8n credential, and fails the run when Ziffr refuses an item (feed-answers.js).
+const FEED_CRED = ["generic", "httpHeaderAuth", "Ziffr Feed Key"];
+const FEED_URL = "={{ $('Settings').first().json.ziffrUrl.replace(/\\/+$/, '') }}/api/v1/feed/observations";
+const SHEETS = {
+  key: "google-sheets", id: "google-sheets", system: "sheets", label: "Google Sheets", file: "google-sheets-feed.json", guide: "google-sheets-feed.md",
+  reads: "The rows of one sheet: a column metric (the Metric's slug), a column value, and optionally a column period (the period's first day).",
+  needs: "A Google account that can read the sheet.",
+  rows: true,
+};
+function feedFlow(s, readNode) {
+  const w = new WF(`${s.key}-feed`, `${s.label} to Ziffr (values)`);
+  w.note(`${s.label} to Ziffr: values\n\n1. Fill in the Settings node: your Ziffr address and where the figures are.\n2. Add the credentials: ${s.label} on the read node, and a Header Auth credential named "Ziffr Feed Key" (name Authorization, value Bearer <your Feed Key>) on Send to Ziffr. Make the key in Ziffr under Settings, Feeds, and add the Feed under Who submits on each Metric.\n3. Press Execute workflow once to try it, then activate it: it runs every day at 9.\n\n${s.reads}`, 340);
+  w.add("Every day at 9", "n8n-nodes-base.scheduleTrigger", { rule: { interval: [{ triggerAtHour: 9 }] } }, 0, 300, 1.2);
+  w.settings(s.settings, 220, 300);
+  readNode(w, 440, 300);
+  w.code("Shape values", fill(code("feed-shape"), { LABEL: s.label, SYSTEM: s.system }), 660, 300);
+  w.http("Send to Ziffr", "POST", FEED_URL, FEED_CRED, 880, 300, { headers: [["Idempotency-Key", "={{ $json.key }}"]], body: "={{ JSON.stringify({ items: $json.items }) }}" });
+  w.code("Check the answers", code("feed-answers"), 1100, 300);
+  for (const [a, b] of [["Every day at 9", "Settings"], ["Settings", s.readName], ["" + s.readName, "Shape values"], ["Shape values", "Send to Ziffr"], ["Send to Ziffr", "Check the answers"]]) w.link(a, b);
+  return w;
+}
+const sheetsFeed = () => feedFlow({ ...SHEETS, readName: "Read the sheet", settings: [["ziffrUrl", "https://REPLACE-WITH-YOUR-ZIFFR-ADDRESS"], ["spreadsheetId", "REPLACE-WITH-THE-SPREADSHEET-ID"], ["sheetName", "REPLACE-WITH-THE-SHEET-NAME"]] }, (w, x, y) => w.add("Read the sheet", "n8n-nodes-base.googleSheets", {
+  resource: "sheet", operation: "read",
+  documentId: { __rl: true, value: "={{ $('Settings').first().json.spreadsheetId }}", mode: "id" },
+  sheetName: { __rl: true, value: "={{ $('Settings').first().json.sheetName }}", mode: "name" },
+  options: {},
+}, x, y, 4.5, { credentials: { googleSheetsOAuth2Api: { name: "Google Sheets account" } } }));
+const FEED_TEMPLATES = [SHEETS];
+
 export function generate() {
   const [todo, google, asana] = SYSTEMS_LIST;
   const all = {
@@ -294,7 +325,12 @@ export function generate() {
     "planner-from-ziffr.json": plannerFrom(), "planner-to-ziffr.json": plannerTo(),
     "slack-from-ziffr.json": slackFrom(), "slack-to-ziffr.json": slackTo(),
   };
-  return Object.fromEntries(Object.entries(all).map(([f, w]) => [f, JSON.stringify(w.file(), null, 2) + "\n"]));
+  const feeds = { "google-sheets-feed.json": sheetsFeed() };
+  const index = { templates: FEED_TEMPLATES.map(({ id, label, file, guide, reads, needs, rows }) => ({ id, label, file, guide, reads, needs, ...(rows ? { rows } : {}) })) };
+  return {
+    ...Object.fromEntries(Object.entries({ ...all, ...feeds }).map(([f, w]) => [f, JSON.stringify(w.file(), null, 2) + "\n"])),
+    "feed-templates.json": JSON.stringify(index, null, 2) + "\n",
+  };
 }
 
 if (process.argv[1] === fileURLToPath(import.meta.url)) {

@@ -110,6 +110,10 @@ _Avoid_: Input, integration
 A person allowed to record observations for a given metric: a Member, a Guest, a Contact without a login, or a Feed.
 _Avoid_: Reporter, contributor
 
+**Feedback Prompt**:
+A small card in the corner of the app that asks a signed-in person "Enjoying Ziffr?". A yes opens the Ziffr repository on GitHub in a new tab, where they star it themselves: Ziffr cannot star for anyone and tells GitHub nothing. A no asks "What is missing?", and the words are kept without the person's name and read only by Installation Admins. It appears only to Owners, Admins and Members after they have submitted values on at least 3 different days, never in the demo, for Guests, Contacts or on View Links; at most 3 times (after 30 days, then 60), and never again after a star or "Don't ask again". Whether it is asked is an Installation Setting: on for hosted Ziffr, off elsewhere. Not a Prompt, which asks a submitter for a value.
+_Avoid_: Popup, survey, rating, nag
+
 **Feed**:
 A program outside Ziffr that brings in values for some metrics from another system, such as a CRM or a data warehouse. It belongs to the Workspace, not to a person, and only Owners and Admins create one. It is a Submitter of its own, uses a Feed Key, is never sent Prompts, and keeps working when the person who created it leaves. Ziffr never runs its code or holds its credentials for the other system. An n8n or Zapier flow that sends values is an automation, never a Workflow.
 _Avoid_: Integration, sync, pipeline, connector, workflow
@@ -131,19 +135,31 @@ A scheduled message asking a submitter for a metric's value for the current peri
 _Avoid_: Reminder, nudge
 
 **Workflow**:
-A named, reusable path a metric's value takes each period: ask the submitter, remind, escalate, check, approve, tell, publish and lock. Several metrics can share one, such as "Monthly finance close". Its owner can close a period for all of them at once, and can give it an Asking Schedule of its own days and hour.
+A named, reusable path a metric's value takes each period: ask the submitter, remind, escalate, check, approve, tell, publish and lock, with Checklist Items for what is not a number and a Send Snapshot step once the period is finished. Several metrics can share one, such as "Monthly finance close". Its owner can close a period for all of them at once, and can give it an Asking Schedule of its own days and hour.
 _Avoid_: Process, pipeline, flow
 
 **Asking Schedule**:
 When a Workflow runs by itself: the time of day (a whole hour) and the days (every day, weekdays, chosen weekdays, every n-th day from a starting day, or a day of the month), in the Workspace's time zone. Without one, a Workflow runs with the Workspace's daily run. It decides only when Ziffr asks, reminds and escalates: a Due Date never moves with it, and a step that falls on a day the Workflow does not run goes out on the next run day. A run asks for the last period that ended, so a schedule sparser than a Metric's period skips the periods in between. Not the **Schedule** (what one person has to do), not a Metric's Period, and not carried by Workflow Templates or Packs.
 _Avoid_: Cron, recurrence, frequency, timer
 
+**Checklist Item**:
+A Workflow step its owner writes as a short text, of one of two kinds. For information: sent on its working day after the period ends to named people and Groups, through each person's Delivery Preference and waiting out their Quiet Hours; it asks nothing and cannot be answered. To tick off: each period it gives its Assignee a Task about the Workflow's period (no Metric), due a number of working days after the period ends, given to the item's Stand-in while the Assignee is Away, reminded and escalated by the Workflow's Remind and Escalate steps, counted in the period's progress and ticked off with an optional note. Its words are read by everyone who may look at the Workflow, unless kept to a Group; a Guest sees only what is given or sent to them. A Workflow holds at most 20. Not a Tell, which waits for a value to cross a level, nor an Action someone asks by hand.
+_Avoid_: To-do, note, instruction, manual step, reminder
+
+**Finished Period**:
+A Workflow's period once every value it asks for is published and locked and every Task its Checklist Items gave for it is done. It is what a Send Snapshot step waits for. Not a period that is over or complete (a Snapshot's word for one that has ended), nor "Close the period", which locks values only.
+_Avoid_: Complete period, closed period, signed off, done
+
+**Send Snapshot**:
+A Workflow step that, once a period is finished, takes and shows the period's Snapshot of one dashboard in the Workflow owner's name (or uses the one already shown) and sends a link to it to named people and Groups, once per period. Only people who may open the dashboard get it, each sees in it only the Metrics they may see, and the message holds no value or Metric name; the others are skipped and the owner is told. It never shares the dashboard or makes a View Link. Only the Workflow's owner adds it, for a dashboard they own or edit and fully see, and only when the Publish step locks.
+_Avoid_: Pack, board pack, report, distribution, mailing
+
 **Period Timeline**:
-What happened in one period of a Workflow, in order: who was asked and reminded, which values came in ("5 of 6 in"), Approvals and Actions, what published and locked, and the Snapshots made. It records nothing of its own and shows each person only what they may see: a Metric they cannot see is only a count ("1 value"), and a Thread's words appear only as first words, for a Thread they may read. On the Workflow page, and as the `period_status` tool.
+What happened in one period of a Workflow, in order: who was asked and reminded, which values came in and which Checklist Items were sent, given and ticked off ("5 of 6 in" counts values and those Tasks together), Approvals and Actions, what published and locked, when the period finished, and the Snapshots made and sent. It records nothing of its own and shows each person only what they may see: a Metric they cannot see is only a count ("1 value"), and a Thread's words appear only as first words, for a Thread they may read. On the Workflow page, and as the `period_status` tool.
 _Avoid_: Activity feed, audit trail, history
 
 **Workflow Template**:
-A starting point for a new Workflow: its steps, Due Date and reminders, with the people left open to be picked when it is used. A Workflow made from one is an independent copy.
+A starting point for a new Workflow: its steps, Due Date and reminders, Checklist Items and a Send Snapshot step, with the people (and the dashboard to send) left open to be picked when it is used. A Workflow made from one is an independent copy.
 _Avoid_: Preset, blueprint, process template
 
 **Due Date**:
@@ -151,7 +167,7 @@ When a period's value must be in, counted in working days after the period ends,
 _Avoid_: Deadline, cut-off
 
 **Schedule**:
-What one person has to do in a Workspace, day by day: values to submit by their Due Dates, Approvals waiting for them, and Tasks and Questions assigned to them, upcoming and overdue. It holds only their own duties, and only about Metrics they may see; while someone is Away, what they are asked for is in their Stand-in's Schedule.
+What one person has to do in a Workspace, day by day: values to submit by their Due Dates, Approvals waiting for them, and Tasks (a Checklist Item's among them) and Questions assigned to them, upcoming and overdue. It holds only their own duties, and only about Metrics they may see; while someone is Away, what they are asked for is in their Stand-in's Schedule.
 _Avoid_: Agenda, to-do list, inbox, calendar
 
 **Stand-in**:
@@ -163,7 +179,7 @@ The dates a person is not available. While someone is away, Prompts meant for th
 _Avoid_: Absence, out of office, leave
 
 **Quiet Hours**:
-The hours of the day and the whole days when Ziffr sends a person no Prompt, reminder or Alert, in their time zone. A person sets their own; Owners and Admins set the Workspace's default for everyone who has set none (an empty set of their own opts out of it). A message that falls inside waits and goes out when the Quiet Hours end, and is never dropped; they delay only the message, never a Due Date or an Approval's deadline, and not other messages such as a question someone asks. Not Away, which hands a person's Prompts to their Stand-in for whole dates.
+The hours of the day and the whole days when Ziffr sends a person no Prompt, reminder, Alert or Workflow message (a Checklist Item for information, a sent Snapshot), in their time zone. A person sets their own; Owners and Admins set the Workspace's default for everyone who has set none (an empty set of their own opts out of it). A message that falls inside waits and goes out when the Quiet Hours end, and is never dropped; they delay only the message, never a Due Date or an Approval's deadline, and not other messages such as a question someone asks. Not Away, which hands a person's Prompts to their Stand-in for whole dates.
 _Avoid_: Do not disturb, silent hours, mute
 
 **Escalation**:
@@ -291,6 +307,22 @@ _Avoid_: Editor, sandbox, studio
 A statistical method run on one or more metrics, such as forecast, correlation, clustering or impact analysis. Its result can be saved as a widget. Ziffr ships its own Analyses; more can be written as Analysis Recipes.
 _Avoid_: Stats, model, insight
 
+**Method**:
+One statistical calculation in Ziffr's library, such as a rank correlation, a usual range or a bridge. Used in documents and code; a person sees Analyses, Recipes and Takeaways. Each Method runs its suitability checks on every call, is worked out exactly on the values' text where arithmetic allows, and has an entry in the Methods guide with when to use it and when not.
+_Avoid_: Algorithm, model, test
+
+**Extension**:
+A Method, or later a mark that draws one kind of View Design, written by someone other than Ziffr as a folder of a fixed shape under `extensions/<author>/<name>`: a manifest, one pure file that Ziffr reads in full, a second implementation worked out another way, hand-worked cases, its entry for the Calculation Catalogue, its Takeaway wording and a LICENSE of its own. It is never loaded at run time. It is submitted as a pull request, read, checked and shipped inside a Ziffr release, and the registry lists the Extensions built into that release. Ziffr's own `quantile` and `topShare` are built in the same shape. It is not a Pack, which holds no code.
+_Avoid_: Plugin, add-on, integration, script, module
+
+**Extension Kit**:
+The MIT package `@ziffr/extension-kit`, which an author writes an Extension against and checks it with on their own computer: its shape, its static rules, and then, by running it in a process of its own, determinism, a time and memory budget, refusals, its comparison with its reference, coverage and a mutation check. CI runs the same checks.
+_Avoid_: Plugin framework, SDK (the SDK is for programs that talk to Ziffr)
+
+**Takeaway**:
+The result of an Analysis as Ziffr says it: one sentence in the Metrics' own words and units, a strength in four words (strong, moderate, weak, "can't tell from chance"), what it was compared on, and one footer line of its kind ("This shows what has gone together, not what caused what." for a link between Metrics, "This carries the past forward; it is not a promise." for a forecast) Where the data does not suit the Method it carries one plain line above the sentence (a caution; a result with one is never strong) or, with too little data, is a refusal in words with no number. **Show the numbers** opens the numbers behind it. Every place a result is shown writes the same Takeaway. A forecast's Takeaway says where the Metric is expected to be with a "likely between" range (an 80 % range), with a Target how likely it is to be reached (in tenths), which Method worked it out and how its range for the next period would have held on the periods already known (its track record). A Takeaway about one Metric's own values, or a sum worked out exactly, makes no claim about what goes together and carries none.
+_Avoid_: Answer (an Answer is what someone replies to a Prompt), insight, verdict
+
 **Analysis Recipe**:
 An Analysis written as steps of Ziffr's verified functions over the Metrics in its Slots. It holds no code, so every number it gives is verified.
 _Avoid_: Script, model, custom analysis, formula
@@ -322,7 +354,7 @@ One of the Themes Ziffr delivers (Ziffr Light, Ziffr Dark, Tokyo, Paris, Oslo, P
 _Avoid_: Preset, built-in theme, template theme
 
 **Snapshot**:
-What something showed, fixed so it never changes when observations do. A dashboard's Snapshot keeps the dashboard as it stood for one week, month, quarter, half-year or year (quarters, half-years and years of the Fiscal Year, such as "Q1 FY 2026/27", "H2 2026" or "2026"): its layout and the values of every Metric period complete by the period's last day. Its numbers never change, and a value corrected since is shown with a note of what it is now; its words (the introduction, each Finding's headline and sentences) are written after it is taken, and every change is a Version. It is a draft for the dashboard's owner and Editors until one of them shows it; then whoever may open the dashboard may open it, and sees in it only the Metrics they may see now. Its owner may have the dashboard take one of every week, month, quarter, half-year or year by itself, once every Metric on it is Locked for each of its periods inside it (for a year of a monthly Metric, all twelve months) or a set number of days after it ends. A deck's Snapshot is the values its widgets show at the moment it is exported, stamped with that date.
+What something showed, fixed so it never changes when observations do. A dashboard's Snapshot keeps the dashboard as it stood for one week, month, quarter, half-year or year (quarters, half-years and years of the Fiscal Year, such as "Q1 FY 2026/27", "H2 2026" or "2026"): its layout and the values of every Metric period complete by the period's last day. Its numbers never change, and a value corrected since is shown with a note of what it is now; its words (the introduction, each Finding's headline and sentences) are written after it is taken, and every change is a Version. It is a draft for the dashboard's owner and Editors until one of them shows it; then whoever may open the dashboard may open it, and sees in it only the Metrics they may see now. Its owner may have the dashboard take one of every week, month, quarter, half-year or year by itself, once every Metric on it is Locked for each of its periods inside it (for a year of a monthly Metric, all twelve months) or a set number of days after it ends. A Workflow's Send Snapshot step takes and shows one when its period is finished. A deck's Snapshot is the values its widgets show at the moment it is exported, stamped with that date.
 _Avoid_: Copy, freeze, archived copy, export data
 
 ### Sharing
@@ -340,7 +372,7 @@ One of the numbers that bound every Trial Workspace: people, invitation emails a
 _Avoid_: Plan limit, quota, entitlement
 
 **Workspace Export**:
-The file a Workspace's Owner downloads that holds the whole Workspace (its Metrics and their values, dashboards, decks, Workflows, Themes and people as invitations, but no secret, key or Connector link), so that another Installation can import it as a new Workspace. Not an Archived Metric, nor a Pack, which holds no values.
+The file a Workspace's Owner downloads that holds the Workspace as the Owner may see it (its Metrics and their values, dashboards, decks, Workflows, Themes, Groups, Shares and people as invitations, but no secret, key or Connector link), so that another Installation can import it as a new Workspace (a Workspace made by an import is marked importing, and invisible to its Owner, until it is complete: a failed import deletes it with its key). It asks for a sign-in from the last 10 minutes, is made while it downloads and is never stored. What its format cannot carry is left out and said, never cut short. The people in it become invitations on hold, sent only when the new Owner presses Invite everyone. Not an Archived Metric, nor a Pack, which holds no values.
 _Avoid_: Backup, dump, archive
 
 **Trial Guide**:
@@ -385,7 +417,7 @@ _Avoid_: Billing service, SaaS, hosted edition
 
 **Pack**:
 A file of things to add to a Workspace, with no code: Metric Catalog entries, Dashboard and Deck Templates, View Designs, Analysis Recipes, Workflow Templates and Themes, with its name, version, author, license and optionally a logo. Installing one copies each thing into the Workspace, marked with the Pack and version; it makes no Metric until a person sets it up. New versions are offered, never applied by themselves, and uninstalling removes what nobody changed.
-_Avoid_: Plugin, extension, add-on, integration, app, bundle
+_Avoid_: Plugin, add-on, integration, app, bundle
 
 **Marketplace**:
 Ziffr's catalogue of Packs, checked before they are listed, and of programs outside Ziffr that work with it, such as Feeds. Packs are installed from it into a Workspace; programs outside Ziffr are only listed, and their creators bill for them themselves.
@@ -400,7 +432,7 @@ A Webhook that one person adds for themselves in one Workspace, once an Owner or
 _Avoid_: My webhook, user webhook, private webhook
 
 **Automation Template**:
-An importable file for an automation tool such as n8n that joins a Webhook to another system, such as Microsoft To Do, Google Tasks, Slack, Asana or Todoist. It lives in the repository; Ziffr never runs it or holds the other system's credentials.
+An importable file for an automation tool such as n8n that joins Ziffr to another system, in one direction or the other: out, from a Webhook to Microsoft To Do, Google Tasks, Slack, Asana or Todoist; or in, from a system such as Google Sheets, Stripe or HubSpot through a Feed, to fill Metrics. It lives in the repository; Ziffr never runs it or holds the other system's credentials. A person may download one from Ziffr with their Ziffr's address and their Metrics already in it.
 _Avoid_: Recipe (that is an Analysis Recipe), plugin, integration, flow
 
 **Workspace Key**:
@@ -428,7 +460,7 @@ What a person may do in a Workspace as a whole. A Workspace Owner manages settin
 _Avoid_: Permission level, admin rights
 
 **Invitation**:
-An offer to join a Workspace with a Workspace Role, made by an Owner or Admin. One sent to an email address is accepted once, by that address; a link works for anyone who has it until it ends or is revoked. Inviting a Contact makes them a member who keeps their history.
+An offer to join a Workspace with a Workspace Role, made by an Owner or Admin. One sent to an email address is accepted once, by that address; a link works for anyone who has it until it ends or is revoked. Inviting a Contact makes them a member who keeps their history. In a Trial Workspace the email and the accept page say it is a trial, until when and what follows. Every invitation email has a one-click **Do not invite me again** link that stops invitation emails to that address from every Workspace on the Installation.
 _Avoid_: Invite code, access grant
 
 **Domain Joining**:
@@ -468,7 +500,7 @@ Giving another user or a Group access to a metric or a dashboard. Sharing a dash
 _Avoid_: Invite, publish
 
 **View Link**:
-A link that shows one dashboard or deck to someone outside the team, without logging in and without being able to change or ask anything. It expires on a set date and can be revoked. It shows live numbers; for a deck, numbers frozen when it was made; for a dashboard, one of its Snapshots once shown, which ends the link when it is deleted. It shows no person's name (owners, submitters, authors, the people of a Snapshot, and any name written in its words, which read "Someone") unless the person who made it ticked **Show names**, which they can change later.
+A link that shows one dashboard or deck to someone outside the team, without logging in and without being able to change or ask anything. It expires on a set date (in a Trial Workspace no later than the trial's last day) and can be revoked. It shows live numbers; for a deck, numbers frozen when it was made; for a dashboard, one of its Snapshots once shown, which ends the link when it is deleted. It shows no person's name (owners, submitters, authors, the people of a Snapshot, and any name written in its words, which read "Someone") unless the person who made it ticked **Show names**, which they can change later.
 _Avoid_: Public link, guest access, embed
 
 **Share Proposal**:
@@ -512,7 +544,7 @@ _Avoid_: Activity, activity feed, history
 ### Collaboration
 
 **Action**:
-A question or task about a specific observation or time range of a metric that one user assigns to another. It moves from open to answered to closed, and can be reopened.
+A question or task about a specific observation or time range of a metric that one user assigns to another, or a Task a Checklist Item gives about a Workflow's period, which has no metric. It moves from open to answered to closed, and can be reopened.
 _Avoid_: Ticket, request, to-do
 
 **Question**:
@@ -520,7 +552,7 @@ An action that is done once the assignee has answered it, e.g. "Why is cost so h
 _Avoid_: Inquiry
 
 **Task**:
-An action that is done once the assignee has carried it out, e.g. "Renegotiate the shipping rate", optionally with a due date.
+An action that is done once the assignee has carried it out, e.g. "Renegotiate the shipping rate", optionally with a due date. A Checklist Item gives one each period, about the Workflow's period, ticked off with an optional note.
 _Avoid_: To-do, job
 
 **Assignee**:
@@ -548,11 +580,11 @@ Every Delivery, newest first, with what it said and where it went. An email, Sla
 _Avoid_: Sent items, log
 
 **Tell**:
-A Workflow step, set by the Workflow's owner, that tells named people and Groups when a Metric of the Workflow reaches a share of its target, reaches or falls below a value, or changes more than a share against the period before. It works like an Alert for a team: once per crossing, only for published or approved values, never for an Import, each person told through their Delivery Preference and only if they can see the Metric at that moment, the rest skipped silently. A Group is expanded to its people, never a channel. An Owner or Admin may also name a Webhook, which gets `alert.fired` (Metric, period, value, target, condition, link) only for a Metric Everyone sees; a personal Alert never reaches one. A Workflow holds at most three Tell steps, each tells at most 20 people, and each person can stop it for a Workflow ("stop telling me"). Not an Alert, which is a person's own request, nor an Escalation, which acts on a missing value; its messages cannot be answered.
+A Workflow step, set by the Workflow's owner, that tells named people and Groups when a Metric of the Workflow reaches a share of its target, reaches or falls below a value, or changes more than a share against the period before. It works like an Alert for a team: once per crossing, only for published or approved values, never for an Import, each person told through their Delivery Preference and only if they can see the Metric at that moment, the rest skipped silently. A Group is expanded to its people, never a channel. An Owner or Admin may also name a Webhook, which gets `alert.fired` (Metric, period, value, target, condition, link) only for a Metric Everyone sees; a personal Alert never reaches one (it may name its person's own Personal Webhook instead). A Workflow holds at most three Tell steps, each tells at most 20 people, and each person can stop it for a Workflow ("stop telling me"). Not an Alert, which is a person's own request, nor an Escalation, which acts on a missing value; its messages cannot be answered.
 _Avoid_: Notify, notification
 
 **Alert**:
-A person's own standing request, on one Metric they may see, to be told through their Delivery Preference when its latest value reaches a share of its target, reaches or falls below a value, changes more than a share against the period before, or is still missing after its Due Date. It fires once per crossing, only about values that are published or approved (unless the person includes the rest), never for an Import, and stops silently when the person can no longer see the Metric. It asks nobody for anything and cannot be answered. Not an Unusual Value, which needs Approval, nor an Escalation, which acts on a missing value for the people responsible. A team is told by a Workflow's Tell step, never by Alerts set for others.
+A person's own standing request, on one Metric they may see, to be told through their Delivery Preference when its latest value reaches a share of its target, reaches or falls below a value, changes more than a share against the period before, or is still missing after its Due Date. It fires once per crossing, only about values that are published or approved (unless the person includes the rest), never for an Import, and stops silently when the person can no longer see the Metric. It can also be sent to one of the person's own Personal Webhooks. It asks nobody for anything and cannot be answered. Not an Unusual Value, which needs Approval, nor an Escalation, which acts on a missing value for the people responsible. A team is told by a Workflow's Tell step, never by Alerts set for others.
 _Avoid_: Notification, subscription, trigger, watch, threshold
 
 **Delivery Preference**:

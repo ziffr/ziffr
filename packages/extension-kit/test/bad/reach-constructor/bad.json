@@ -1,0 +1,5 @@
+{
+  "rule": "reach-by-property",
+  "why": "reaches the constructor of a value",
+  "remove": []
+}

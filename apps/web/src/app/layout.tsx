@@ -14,16 +14,22 @@ import { ViewAs } from "@/components/view-as";
 import { demoRoles } from "@ziffr/core/team";
 import { can } from "@ziffr/core/actor";
 import { Tour } from "@/components/tour";
+import { FeedbackPrompt } from "@/components/feedback-prompt";
+import { feedbackPromptFor } from "@ziffr/core/feedback-prompt";
 import { pinnedDashboards } from "@ziffr/core/pinned-dashboards";
 import { whatThisZiffrOffers } from "@ziffr/core/what-works-here";
 import { isInstallationAdmin } from "@ziffr/core/installation-admins";
-import { keptWords, trialStatus } from "@ziffr/core/trial-end";
-import { TrialBar, TrialEnded } from "@/components/trial-bar";
+import { trialStatus } from "@ziffr/core/trial-end";
+import { workspaceExportState } from "@ziffr/core/workspace-export";
+import { sessionStartedAt } from "@/lib/session-start";
+import { TrialBar, TrialBarForMembers, TrialEnded, TrialEndedForMembers } from "@/components/trial-bar";
+import { reachedWords, trialUsage, usageLine } from "@ziffr/core/trial-usage";
 import { OverLimitBar } from "@/components/over-limit-bar";
 import { overLimitBanner, sizeAndUsage } from "@ziffr/core/workspace-usage";
 import { Suspense } from "react";
 import { Toaster } from "@/components/ui/sonner";
 import { DemoRefusalLinks } from "@/components/demo-refusal";
+import { LegalFooter } from "@/components/legal-footer";
 import { QuickLookHost } from "@/components/metric-quick-look";
 import { ServiceWorker } from "@/components/service-worker";
 import { APP_COLOURS } from "@/lib/app-colours";
@@ -57,7 +63,7 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
           {/* eslint-disable-next-line @next/next/no-page-custom-font */}
           <link href="https://fonts.googleapis.com/css2?family=Geist+Mono:wght@400&display=swap" rel="stylesheet" />
         </head>
-        <body className="min-h-screen bg-background font-sans antialiased">{children}</body>
+        <body className="min-h-screen bg-background font-sans antialiased">{children}<LegalFooter /></body>
       </html>
     );
   }
@@ -80,6 +86,7 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
             <GuideLink href={guideHref()} className="text-sm text-muted-foreground underline-offset-4 hover:text-foreground hover:underline">User guide</GuideLink>
           </header>
           <main className="mx-auto max-w-7xl px-4 py-8 sm:px-6">{children}</main>
+          <LegalFooter />
           <Toaster />
           <ServiceWorker />
         </body>
@@ -92,16 +99,21 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
   // The demo's Viewing as picker offers all its made-up people, also while viewing as its Guest.
   const profiles = demo ? await getPeopleIn(workspaceId) : shown;
   // A Trial Workspace (spec 0021): its days left on every page, and once it has ended, only the screen that says so.
-  const trial = demo ? null : await trialStatus(workspaceId);
+  const trial = demo ? null : await trialStatus(workspaceId, actor.role);
+  // What the trial has used of its limits (spec 0040): Owners and Admins only, counts of this Workspace alone.
+  const usageRows = trial && !trial.ended ? await trialUsage(actor) : null;
+  const usage = usageRows ? { line: usageLine(usageRows), reached: usageRows.map(reachedWords).filter((w): w is string => w !== null) } : null;
   // Over the Workspace Limit (spec 0029): Owners and Admins see it on every page, with a way to Size and usage.
   const overLimit = !demo && (role === "owner" || role === "admin") ? overLimitBanner(await sizeAndUsage(await currentActor())) : null;
+  // The Feedback Prompt (ticket #722): only a signed-in member, never the demo; the core decides, the page gets one flag.
+  const feedback = demo ? null : await feedbackPromptFor(actor).catch(() => null);
   const offersTrials = demo && Boolean((await whatThisZiffrOffers()).trial);
   // Only the real person behind the session, never a demo visitor.
   const installationAdmin = person ? await isInstallationAdmin({ personId: person }) : false;
   const due = await dueValueCount();
   // Pinned dashboards (#509): only those this person may open now, with nothing but id and name.
   const pinned = await pinnedDashboards(await currentActor());
-  const accountOf = demo ? null : { name: profiles.find((p) => p.id === viewer)?.name ?? "", workspaces, current: workspaceId, installationAdmin, demo: await demoEnabled() };
+  const accountOf = demo ? null : { name: profiles.find((p) => p.id === viewer)?.name ?? "", workspaces, current: workspaceId, installationAdmin, guest: role === "guest", demo: await demoEnabled() };
   const demoControls = demo ? (
     <>
       <ViewAs profiles={profiles.filter((p) => !p.contact)} current={viewer} roles={await demoRoles()} />
@@ -120,7 +132,10 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
   ) : null;
   const banners = (
     <>
-      {trial && !trial.ended && <TrialBar daysLeft={trial.daysLeft} endsAt={trial.endsAt} kept={trial.keptAs ? keptWords(trial.endsAt, trial.keptAs) : null} />}
+      {/* Owners and Admins get the bar with counts and links; everyone else the plain words (spec 0040). */}
+      {trial && !trial.ended && (role === "owner" || role === "admin"
+        ? <TrialBar daysLeft={trial.daysLeft} endsAt={trial.endsAt} isOwner={role === "owner"} keeps={trial.keeps} usage={usage} />
+        : <TrialBarForMembers owner={trial.ownerName} endsAt={trial.endsAt} />)}
       {overLimit && <OverLimitBar words={overLimit} />}
     </>
   );
@@ -135,9 +150,11 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
       </head>
       <body className="min-h-screen bg-background font-sans antialiased">
         <AppShell workspace={workspaceTree(role)} settings={settingsGroups(role)} pinned={pinned} due={due} open={open} guide={guideHref()} account={accountOf} demo={demoControls} people={demo ? { profiles: profiles.filter((p) => !p.contact), current: viewer } : undefined} collapsed={await sidebarCollapsed()} banners={<>{demoNote}{banners}</>}>
-          {trial?.ended ? <TrialEnded deletedAt={trial.deletedAt} /> : children}
+          {trial?.ended ? (role === "owner" || role === "admin" ? <TrialEnded deletedAt={trial.deletedAt} cancelled={trial.cancelled} isOwner={role === "owner"} workspaceExport={role === "owner" ? await workspaceExportState(actor, { sessionStartedAt: await sessionStartedAt() }).catch(() => null) : null} /> : <TrialEndedForMembers owner={trial.ownerName} cancelled={trial.cancelled} />) : children}
         </AppShell>
+        <LegalFooter className="border-t border-border" />
         {demo && offersTrials && <DemoRefusalLinks />}
+        {feedback && <FeedbackPrompt askForStar={feedback.askForStar} />}
         {demo && <Tour key={can(actor, "create") ? "member" : "guest"} guest={!can(actor, "create")} />}
         <Toaster />
         <Suspense fallback={null}><QuickLookHost /></Suspense>

@@ -1,0 +1,5 @@
+{
+  "rule": "bad-manifest",
+  "why": "is a Method that gives shapes",
+  "remove": []
+}

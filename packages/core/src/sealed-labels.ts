@@ -10,7 +10,7 @@ export const SEALED_LABELS: Record<string, string> = {
   "breakdown_rows.label": "Breakdown labels", "breakdown_history.label": "Breakdown label history", "widgets.settings": "Finding words", "dashboard_snapshots.words": "Snapshot words", "dashboard_snapshots.frozen": "Snapshot data",
   "versions.snapshot": "Version words", "view_links.frozen": "View Link copies", "workflows.config": "Workflow numbers", "view_links.snapshot_words": "View Link Snapshot words",
   "metrics.name": "Metric names", "metrics.target_min": "Metric targets (from)", "metrics.target_max": "Metric targets (to)", "thread_messages.correction_value": "Proposed Corrections",
-  "observations.value": "Values", "observations.original_value": "Values before a Correction", "observation_history.value": "Replaced values", "breakdown_rows.value": "Breakdown row values",
+  "observations.value": "Values", "observations.submitted_by_name": "Names of imported values' submitters", "observations.original_value": "Values before a Correction", "observation_history.value": "Replaced values", "breakdown_rows.value": "Breakdown row values",
   "breakdown_history.value": "Replaced Breakdown row values", "series_values.value": "Targets and Projections",
   "period_states.note": "Period notes", "slack_installations.bot_token": "Slack bot tokens", "tags.name": "Tag names",
 };

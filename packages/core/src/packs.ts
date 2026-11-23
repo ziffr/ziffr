@@ -16,6 +16,8 @@ import { dashboardTemplateFromFile, templateSlots } from "./dashboard-template-f
 import { deckTemplateFromFile } from "./deck-template-file";
 import { workflowTemplateFromFile } from "./workflow-template-file";
 import { themeFromFile } from "./theme-file";
+import { packLogoAddress } from "./brand-logo";
+import { cleanLogo, logoRatio, PACK_LOGO_MAX_BYTES } from "@ziffr/pack/logo";
 import { checkViewDesignValue, type ViewDesign } from "./view-design";
 import { tagNamesOf, TAGS_PER_ENTRY } from "./tag-names";
 import { designWithRecipe } from "./design-files";
@@ -30,12 +32,15 @@ export type PackPreviewItem =
   | { kind: "deck"; key: string; name: string; description: string; slots: Slot[]; slides: number }
   | { kind: "workflow"; key: string; name: string; description: string; body: WorkflowTemplateBody }
   | { kind: "view"; key: string; name: string; description: string; body: ViewDesign }
-  | { kind: "theme"; key: string; name: string; tokens: ThemeTokens };
+  | { kind: "theme"; key: string; name: string; tokens: ThemeTokens; /** The Theme comes with the Pack's logo (`"logo": "pack"`). */ logo: boolean };
 
 /** What a person sees of a Pack before installing it: its manifest, every item, and what to know first. */
 export type PackPreview = {
   manifest: Omit<Pack, "contents">;
   items: PackPreviewItem[];
+  /** The Pack's logo, checked again and written out as Ziffr keeps it (a data address), or null. It is drawn only in an
+   * `img` in a bordered box (spec 0039); the file is not installed yet, so it has no address of its own. */
+  logo: string | null;
   /** The file came from outside the Marketplace: shown as UNSIGNED_WARNING, and installing asks to confirm it. */
   unsigned: boolean;
   /** Texts that address an AI assistant, by where they are, for a person to read before installing. */
@@ -60,6 +65,32 @@ export function assertManages(actor: Actor) {
 /** The hash of an item as installed: of what is stored, with its fields in a fixed order, so an unchanged copy hashes
  * the same and a changed one does not (updating, #276). */
 export const itemHash = (stored: unknown) => createHash("sha256").update(canonical(stored)).digest("hex");
+
+/** The Pack's logo as it may be stored: checked here again, whatever the file or an earlier check says, and written out
+ * as `cleanLogo` serializes it (an SVG is re-serialized from what was parsed). Null when the Pack has none; throws when
+ * it has one that is not a logo Ziffr keeps, so nothing hostile is ever stored. Security: spec 0039. */
+export function packLogoOf(pack: Pick<Pack, "logo">): string | null {
+  if (pack.logo === undefined) return null;
+  const clean = cleanLogo(pack.logo, PACK_LOGO_MAX_BYTES);
+  if (!clean) throw new Error("The Pack's logo is not a picture Ziffr keeps; nothing was added.");
+  return clean;
+}
+
+/** The Pack's logo for showing, or null when it has none or none that passes (never throws). */
+export function safeLogo(pack: Pick<Pack, "logo">): string | null {
+  try { return packLogoOf(pack); } catch { return null; }
+}
+
+/** What is hashed of a Theme (spec 0039): its name, tokens and slide settings, with the logo as the word "pack" where it
+ * is exactly the Pack's logo, "other" where it is any other, and nothing where there is none. So a Theme whose logo the
+ * Workspace set, replaced or removed counts as changed, and an update keeps it as it is. A Theme without a logo hashes
+ * as it always did. */
+export function themeHashInput(name: unknown, tokens: unknown, slides: Record<string, unknown> | null, packLogo: string | null): unknown {
+  const own = slides ?? {};
+  const isPack = packLogo !== null && own.logo === packLogo;
+  const has = typeof own.logo === "string" && own.logo !== "";
+  return { name, tokens, slides: { ...own, logo: isPack ? "pack" : has ? "other" : null, logo_ratio: isPack ? logoRatio(packLogo) : 3 } };
+}
 
 /** Every item of a checked Pack as it would be stored, in the order of its kinds. View Designs, and Analysis Recipes
  * as View Designs that draw them (the Workspace keeps recipes inside designs), are checked again as they are stored. */
@@ -89,7 +120,8 @@ export function storedItems(pack: Pack) {
     ...(c.workflows ?? []).map(({ key, template: t }) => template("workflow", key, t.name, t.description ?? "", [], workflowTemplateFromFile(t))),
   ];
   const views = [...(c.views ?? []).map((v) => ({ key: v.key, body: v.design })), ...recipeDesigns].map(({ key, body }) => ({ key, name: body.name, body, hash: itemHash({ name: body.name, body }) }));
-  const themes = (c.themes ?? []).map(({ key, theme }) => { const t = themeFromFile(theme); return { key, name: t.name, tokens: t.tokens, slides: t.slides as ThemeSlides, hash: itemHash(t) }; });
+  const packLogo = packLogoOf(pack);
+  const themes = (c.themes ?? []).map(({ key, theme }) => { const t = themeFromFile(theme, packLogo); return { key, name: t.name, tokens: t.tokens, slides: t.slides as ThemeSlides, hash: itemHash(themeHashInput(t.name, t.tokens, t.slides as unknown as Record<string, unknown>, packLogo)) }; });
   return { catalog, templates, views, themes };
 }
 
@@ -153,9 +185,9 @@ export async function previewPack(actor: Actor, text: string, origin: PackOrigin
     ...(pack.contents.decks ?? []).map(({ key }): PackPreviewItem => { const t = templates.get(key)!; return { kind: "deck", key, name: t.name, description: t.description, slots: t.slots, slides: (t.body as DeckTemplateBody).slides.length }; }),
     ...(pack.contents.workflows ?? []).map(({ key }): PackPreviewItem => { const t = templates.get(key)!; return { kind: "workflow", key, name: t.name, description: t.description, body: t.body as WorkflowTemplateBody }; }),
     ...[...(pack.contents.views ?? []), ...(pack.contents.analyses ?? [])].map(({ key }): PackPreviewItem => { const v = views.get(key)!; return { kind: "view", key, name: v.name, description: v.body.description ?? "", body: v.body }; }),
-    ...stored.themes.map((t): PackPreviewItem => ({ kind: "theme", key: t.key, name: t.name, tokens: t.tokens })),
+    ...stored.themes.map((t): PackPreviewItem => ({ kind: "theme", key: t.key, name: t.name, tokens: t.tokens, logo: Boolean(t.slides.logo) })),
   ];
-  return { ok: true, preview: { manifest: manifestOf(pack), items, unsigned: !origin.signed, assistantTexts: res.assistantTexts.map(({ path, text: t }) => ({ path, text: t })), blocked: await blockedFor(actor, pack) } };
+  return { ok: true, preview: { manifest: { ...manifestOf(pack), logo: undefined }, items, logo: safeLogo(pack), unsigned: !origin.signed, assistantTexts: res.assistantTexts.map(({ path, text: t }) => ({ path, text: t })), blocked: await blockedFor(actor, pack) } };
 }
 
 /** Installs an uploaded Pack file (Owners and Admins; Owners for one with Themes; never in the demo), after the person
@@ -180,7 +212,7 @@ export async function installPack(actor: Actor, text: string, origin: PackOrigin
   const { data, error } = await db().rpc("install_pack", {
     p_workspace: actor.workspaceId,
     p_by: actor.personId,
-    p_install: { pack_id: pack.id, version: pack.version, license: pack.license, source: origin.source, signed: origin.signed, manifest: manifestOf(pack), item_keys: itemKeys(stored) },
+    p_install: { pack_id: pack.id, version: pack.version, license: pack.license, source: origin.source, signed: origin.signed, manifest: { ...manifestOf(pack), ...(pack.logo === undefined ? {} : { logo: packLogoOf(pack) }) }, item_keys: itemKeys(stored) },
     p_catalog: stored.catalog,
     p_templates: stored.templates,
     p_designs: stored.views,
@@ -194,7 +226,7 @@ export async function installPack(actor: Actor, text: string, origin: PackOrigin
     throw new Error(twice ? `${pack.name} is installed already.` : named ? "This Workspace's Metric Catalog has an entry of the same name as one of this Pack's already; nothing was added." : "The Pack could not be installed; nothing was added.");
   }
   const id = Number(data);
-  await audit(actor, { kind: "pack.installed", object: { type: "pack", id, name: pack.name }, details: { pack: pack.id, version: pack.version, source: origin.source, signed: origin.signed } });
+  await audit(actor, { kind: "pack.installed", object: { type: "pack", id, name: pack.name }, details: { pack: pack.id, version: pack.version, source: origin.source, signed: origin.signed, ...(pack.logo === undefined ? {} : { logo: true, themes_with_logo: stored.themes.filter((t) => t.slides.logo).length }) } });
   return id;
 }
 
@@ -203,6 +235,8 @@ export type InstalledPack = {
   id: number; packId: string; name: string; version: string; license: string; author: string; summary: string;
   source: "upload" | "marketplace"; signed: boolean; installedAt: string; installedBy: string | null;
   listing: { homepage?: string; support?: string };
+  /** The address of its logo on this site (signed-in people of the Workspace only), or null. */
+  logo: string | null;
   added: { kind: "metric" | "dashboard" | "deck" | "workflow" | "view" | "theme"; name: string }[];
 };
 
@@ -233,7 +267,7 @@ export async function listInstalledPacks(actor: Actor): Promise<InstalledPack[]>
     return {
       id: Number(r.id), packId: String(r.pack_id), name: m.name, version: String(r.version), license: String(r.license), author: m.author?.name ?? "", summary: m.summary ?? "",
       source: r.source as "upload" | "marketplace", signed: Boolean(r.signed), installedAt: String(r.installed_at), installedBy: (r.installed_by as string | null) ?? null,
-      listing: m.listing ?? {}, added: added.get(Number(r.id)) ?? [],
+      listing: m.listing ?? {}, logo: packLogoAddress(ws, Number(r.id), (r.manifest as { logo?: unknown } | null)?.logo), added: added.get(Number(r.id)) ?? [],
     };
   });
 }

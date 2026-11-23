@@ -191,3 +191,10 @@ export async function storeCondensed(workspace: { workspaceId: string }, input: 
   if (!metric) throw new Error(`No Metric ${input.metricId} in this Workspace.`);
   return storeCondensedFor(workspace.workspaceId, metric, input);
 }
+
+/** Removes every Trial Limit setting (those Ziffr Cloud set too, which only its function may remove) and rewrites the row
+ * the triggers read from the defaults, so a test starts and ends with none. */
+export async function resetTrialLimits() {
+  const names = ["DAYS", "GRACE_DAYS", "MAX", ...["PEOPLE", "INVITATIONS_PER_DAY", "INVITATIONS_ALL_PER_DAY", "METRICS", "MESSAGES_PER_DAY", "KEYS", "FEEDS", "ASSISTANTS", "WEBHOOKS", "WEBHOOK_SENDS_PER_DAY", "VIEW_LINKS"].map((n) => `LIMIT_${n}`)].map((n) => `ZIFFR_TRIAL_${n}`);
+  await must(db().rpc("set_cloud_trial_limits", { p_values: Object.fromEntries(names.map((n) => [n, null])), p_env: {} }));
+}

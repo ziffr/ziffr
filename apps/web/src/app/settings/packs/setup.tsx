@@ -10,6 +10,8 @@ import { Wand2 } from "lucide-react";
 import { toast } from "sonner";
 import { shown, unwrap } from "@/lib/action-error";
 import { Button } from "@/components/ui/button";
+import { approversStart, setupStart } from "./setup-defaults";
+import { FillFromN8n } from "@/components/fill-from-n8n";
 import { packSetup, setUpPack } from "@/app/pack-setup-actions";
 import type { PackSetupOptions, PackSetupResult, PackSetupRoom } from "@ziffr/core/pack-setup";
 
@@ -37,15 +39,39 @@ function Fit({ room, n }: { room: PackSetupRoom; n: number }) {
   return <p className="text-xs text-muted-foreground">Makes {n} Metric{n === 1 ? "" : "s"}: {room.left - n} of {room.limit.toLocaleString("en-US")} left in {where} afterwards.</p>;
 }
 
+/** After Set up: the templates the Pack says fill its entries, each for the Metrics made from them (spec 0043); when it
+ * names none that applies, any template for every Metric that takes values. Derived Metrics are left out: they take none. */
+function FillAfterSetUp({ options, made }: { options: PackSetupOptions; made: PackSetupResult }) {
+  const values = made.metrics.filter((m) => m.takesValues);
+  const named = options.suggestedFeeds.flatMap((s) => {
+    const template = options.templates.find((t) => t.id === s.template);
+    const metrics = values.filter((m) => s.fills.includes(m.key));
+    return template && metrics.length ? [{ template, metrics }] : [];
+  });
+  if (!values.length) return null;
+  if (!named.length) return <FillFromN8n metrics={values} feeds={options.feeds} templates={options.templates} />;
+  return (
+    <>
+      {named.map(({ template, metrics }) => (
+        <div key={template.id} className="mt-3">
+          <p className="text-xs">{options.install.name} says {template.label} can fill {metrics.map((m) => m.name).join(", ")}.</p>
+          <FillFromN8n metrics={metrics} feeds={options.feeds} templates={[template]} />
+        </div>
+      ))}
+    </>
+  );
+}
+
 function SetUpForm({ options, viewer, onClose }: { options: PackSetupOptions; viewer: string; onClose: () => void }) {
   const router = useRouter();
-  const [picked, setPicked] = useState<Set<string>>(new Set());
+  const [start0] = useState(() => setupStart(options, viewer));
+  const [picked, setPicked] = useState<Set<string>>(start0.picked);
   const [askMe, setAskMe] = useState(true);
-  const [dashboard, setDashboard] = useState<string>("");
+  const [dashboard, setDashboard] = useState<string>(start0.dashboard);
   const [fills, setFills] = useState<Record<number, number>>({});
   const [feed, setFeed] = useState<string>("");
-  const [workflow, setWorkflow] = useState<string>("");
-  const [approvers, setApprovers] = useState<string[]>([]);
+  const [workflow, setWorkflow] = useState<string>(start0.workflow);
+  const [approvers, setApprovers] = useState<string[]>(start0.approvers);
   const [made, setMade] = useState<PackSetupResult | null>(null);
   const [pending, start] = useTransition();
   const byKey = useMemo(() => new Map(options.entries.map((e) => [e.key, e])), [options.entries]);
@@ -93,6 +119,7 @@ function SetUpForm({ options, viewer, onClose }: { options: PackSetupOptions; vi
         {made.tagsLeftOut.length > 0 && (
           <p role="status" className="mt-2 text-xs">Some Tags stayed off their Metrics because of the Tag limits (10 per Metric, 200 in the Workspace): {made.tagsLeftOut.map((l) => `${l.metric}: ${l.tags.join(", ")}`).join("; ")}. Merge or delete Tags that are not needed, then add these by hand.</p>
         )}
+        <FillAfterSetUp options={options} made={made} />
         <Button variant="ghost" size="sm" className="mt-2" onClick={onClose}>Done</Button>
       </div>
     );
@@ -159,7 +186,7 @@ function SetUpForm({ options, viewer, onClose }: { options: PackSetupOptions; vi
         <div className="space-y-1.5">
           <label className="flex flex-wrap items-center gap-2">
             <span className="text-xs font-medium">Workflow</span>
-            <select value={workflow} onChange={(e) => { setWorkflow(e.target.value); setApprovers(Array.from({ length: options.workflows.find((w) => w.key === e.target.value)?.approvers ?? 0 }, () => "")); }} className={field} aria-label="Workflow">
+            <select value={workflow} onChange={(e) => { setWorkflow(e.target.value); setApprovers(approversStart(options, viewer, options.workflows.find((w) => w.key === e.target.value)?.approvers ?? 0)); }} className={field} aria-label="Workflow">
               <option value="">None</option>
               {options.workflows.map((w) => <option key={w.key} value={w.key}>{w.name}</option>)}
             </select>

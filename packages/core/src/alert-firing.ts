@@ -15,6 +15,7 @@ import type { AlertDelivery } from "./alerts";
 import { attainment, attainmentText, targetFor } from "./compare";
 import { db } from "./db";
 import { deliverAlert } from "./deliveries";
+import { queueAlertFiredToPersonal } from "./webhook-events";
 import { changePct } from "./exact";
 import { formatChange, formatValue } from "./format";
 import { formulaInputs } from "./formula";
@@ -32,8 +33,8 @@ import type { Metric } from "./types";
 export const ALERT_LIMIT_NOTE = "More Alerts fired today. Open Ziffr to see them.";
 
 /** An Alert as the check reads it, its level opened. */
-type Row = { id: number; person_id: string; metric_id: number; kind: AlertKind; level: string | null; delivery: AlertDelivery; include_unapproved: boolean; paused: "no_access" | null; state: "armed" | "fired"; fired_period: string | null };
-const COLUMNS = "id, person_id, metric_id, kind, level, delivery, include_unapproved, paused, state, fired_period";
+type Row = { id: number; person_id: string; metric_id: number; kind: AlertKind; level: string | null; delivery: AlertDelivery; include_unapproved: boolean; paused: "no_access" | null; state: "armed" | "fired"; fired_period: string | null; webhook_ids: string[] };
+const COLUMNS = "id, person_id, metric_id, kind, level, delivery, include_unapproved, paused, state, fired_period, webhook_ids";
 
 /** What every Alert on one Metric is checked against: the Metric's latest period as its page shows it. */
 export type View = {
@@ -178,7 +179,7 @@ async function pauseNoAccess(ws: string, a: Row) {
 
 /** One Alert against one view: sight first, then the rules, then the claim and the message. */
 async function handle(ctx: Ctx, m: Metric, a: Row, view: View, imported: boolean): Promise<void> {
-  if (!validCondition(condition(a))) return;
+  if (!validCondition(alertConditionOf(a))) return;
   // Without sight of the Metric the Alert says and sends nothing.
   if (!(await seen(ctx, a.person_id)).has(m.id)) return pauseNoAccess(ctx.ws, a);
   let silent = imported;
@@ -189,7 +190,7 @@ async function handle(ctx: Ctx, m: Metric, a: Row, view: View, imported: boolean
   }
   // A value that waits for Approval is not seen unless the person asked for it: nothing changes until it is approved.
   if (view.value !== null && !valueCounts(view.pending ? "pending" : "published", a.include_unapproved)) return;
-  const c = condition(a)!;
+  const c = alertConditionOf(a)!;
   const holds = alertHolds(c, { metric: m, workspaceMethod: ctx.method, value: view.value, previous: view.previous, target: view.target, today: view.today, dueDate: view.due });
   const was = { state: a.state, firedPeriod: a.fired_period };
   const step = alertStep(a.kind, was, holds, view.period, silent);
@@ -203,7 +204,7 @@ async function handle(ctx: Ctx, m: Metric, a: Row, view: View, imported: boolean
 }
 
 /** The condition an Alert row holds, or null when it does not open. */
-function condition(a: Pick<Row, "kind" | "level">): AlertCondition | null {
+export function alertConditionOf(a: { kind: AlertKind; level: string | null }): AlertCondition | null {
   const c = a.kind === "at_or_above" || a.kind === "below" ? { kind: a.kind, value: a.level } : a.kind === "share_of_target" || a.kind === "changed_more" ? { kind: a.kind, share: a.level } : { kind: a.kind };
   return validCondition(c) ? c : null;
 }
@@ -215,6 +216,9 @@ async function send(ctx: Ctx, m: Metric, a: Row, c: AlertCondition, view: View):
   // that leaves is always one the person could have opened.
   const sees = (await visibleMetricIds(ctx.ws, a.person_id, ctx.metrics)).has(m.id);
   if (!sees) return pauseNoAccess(ctx.ws, a);
+  // The person's own Personal Webhooks named on the Alert hear the crossing too (spec 0037): their own count and caps, so
+  // the day's Alert messages do not stand in their way. The send judges the Alert and the person's sight again.
+  if (a.webhook_ids?.length && c.kind !== "missing_after_due") await queueAlertFiredToPersonal(ctx.ws, { id: a.id, personId: a.person_id, webhookIds: a.webhook_ids, metricId: m.id, period: view.period });
   const { data: claim } = await db().rpc("claim_alert_message", { p_ws: ctx.ws, p_person: a.person_id, p_day: new Date().toISOString().slice(0, 10), p_per_person: await effectiveLimit("alertMessagesPerPerson", ctx.ws, a.person_id), p_per_workspace: await sendingLimit("alertMessagesPerWorkspace") });
   if (claim !== "send" && claim !== "note") return;
   const yearStart = await yearStartFor(ctx.ws, m.period);

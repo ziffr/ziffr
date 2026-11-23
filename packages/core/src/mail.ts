@@ -169,7 +169,7 @@ export const smtpTransport: MailTransport = async (mail) => smtpTransportWith(aw
 export async function sendMail(mail: OutgoingMail, transport: MailTransport = smtpTransport): Promise<string> {
   if (!(await mailOn())) throw new Error("Email is not set up.");
   if (!isAddress(mail.to)) throw new Error("Not one plain email address.");
-  return (await transport({ to: mail.to, subject: headerSafe(mail.subject), text: String(mail.text), ...(mail.html ? { html: mail.html } : {}), ...(mail.logo ? { logo: mail.logo } : {}), ...(mail.fromName ? { fromName: mail.fromName } : {}) })).messageId;
+  return (await transport({ to: mail.to, subject: headerSafe(mail.subject), text: String(mail.text), ...(mail.html ? { html: mail.html } : {}), ...(mail.logo ? { logo: mail.logo } : {}), ...(mail.fromName ? { fromName: mail.fromName } : {}), ...(mail.unsubscribe ? { unsubscribe: mail.unsubscribe } : {}) })).messageId;
 }
 
 /** Whether replies by email come back into Ziffr with these settings (spec 0004, ticket #73): sending works,
@@ -220,7 +220,7 @@ export async function sendDelivery(id: number, transport: MailTransport = smtpTr
   const archived = await archivedMetricHolds(claimed);
   if (archived) return never(archived);
   // Settings may have gone, or the Delivery may be the demo's: nothing leaves then, and it does not try again.
-  // A trial reaches only its Owner, whatever is set up (ADR 0010).
+  // A trial reaches only people who accepted, never a Contact, whatever is set up (ADR 0015).
   const held = await trialHoldsBack(claimed.workspace_id, claimed.recipient_id);
   if (held) return keepInOutbox(id, held);
   // One reading of the settings for the whole send, so it cannot change half way.

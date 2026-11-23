@@ -1,8 +1,12 @@
 // Correlation (GLOSSARY: Analysis): whether two Metrics move together, on their common period (spec 0019). Pure.
 // Two Metrics of different periods are compared on the longer one: the shorter is combined to it by its Aggregation
-// through `seriesBy` (spec 0018), so weekly tickets become monthly tickets and pair with monthly churn. Drivers, the
+// through `seriesBy` (spec 0018), so weekly tickets become monthly tickets and pair with monthly churn. Where both
+// Metrics have a clear trend they are compared on how each changed from the period before, not on their values
+// (basis.ts, spec 0041): two Metrics that only grow together are not related. Drivers, the
 // correlation matrix, the scatter plot, the Analysis Canvas and a Metric's page all correlate through `correlate`.
+import { basisFor, basisText, changes, type Basis } from "./basis";
 import { isLonger, seriesBy, type Resolver } from "./display-periods";
+import { STRENGTH } from "./takeaways/strength";
 import type { Span, YearStart } from "./periods";
 import { fractionOf, lowestTerms, minus, nearest, over, plus, times, type Fraction } from "./exact";
 import type { Metric, Point } from "./types";
@@ -18,7 +22,7 @@ export type PearsonResult = { r: number; n: number; pairs: Pair[] };
 
 /** The result of correlating two Metrics on their common period, or why there is none. */
 export type Correlation =
-  | (PearsonResult & { ok: true; period: Span; combined: boolean })
+  | (PearsonResult & { ok: true; period: Span; combined: boolean; basis: Basis })
   | { ok: false; period: Span; why: NoCorrelation; reason: string; n: number };
 
 /** Why two Metrics have no correlation: one cannot be combined (Aggregation none), too few common periods, one is a
@@ -76,9 +80,9 @@ function pearsonOf(pairs: Pair[]): PearsonResult {
 /** How strong a correlation is, in words ("strong positive", "no clear"). */
 export function strength(r: number): string {
   const a = Math.abs(r);
-  if (a <= 0.2) return "no clear";
+  if (a <= STRENGTH.weak) return "no clear";
   // Stryker disable next-line EqualityOperator: an r of 0 is "no clear" above, so `>` and `>=` never differ here.
-  return `${a > 0.7 ? "strong" : a > 0.4 ? "moderate" : "weak"} ${r >= 0 ? "positive" : "negative"}`;
+  return `${a > STRENGTH.strong ? "strong" : a > STRENGTH.moderate ? "moderate" : "weak"} ${r >= 0 ? "positive" : "negative"}`;
 }
 
 /** The period two Metrics are compared on: the longer of their periods. */
@@ -91,6 +95,12 @@ export function builtFrom(a: Pick<Metric, "slug" | "formula">, b: Pick<Metric, "
   return Boolean(a.formula?.includes(`{${b.slug}}`) || b.formula?.includes(`{${a.slug}}`));
 }
 
+/** What a result was compared on, in words, always: "Compared by change, growth removed" or "Compared by value". */
+export function basisLabel(c: Extract<Correlation, { ok: true }>): string {
+  const text = basisText(c.basis);
+  return text[0].toUpperCase() + text.slice(1);
+}
+
 /** Where a result says what it was compared on: "Compared by month (18 months)"; nothing when both share a period. */
 export function comparedBy(c: Correlation): string | null {
   return c.ok && c.combined ? `Compared by ${NOUN[c.period][0]} (${periodCountLabel(c.period, c.n)})` : null;
@@ -99,7 +109,7 @@ export function comparedBy(c: Correlation): string | null {
 /** Correlates two Metrics on their common period. The shorter one is combined to the longer by its Aggregation and
  * only complete periods count: a period still to date would compare a part with wholes. `today` (yyyy-mm-dd) is for
  * tests; it defaults to the current day. Pairs carry `a` as `x` and `b` as `y`. */
-export function correlate(a: Metric, b: Metric, resolve: Resolver, opts: { yearStart: YearStart; today?: string }): Correlation {
+export function correlate(a: Metric, b: Metric, resolve: Resolver, opts: { yearStart: YearStart; today?: string; basis?: BasisChoice }): Correlation {
   const period = commonPeriod(a.period, b.period);
   const combined = a.period !== b.period;
   if (builtFrom(a, b)) return { ok: false, period, n: 0, why: "built-from", reason: `${a.formula?.includes(`{${b.slug}}`) ? a.name : b.name} is calculated from the other.` };
@@ -115,12 +125,22 @@ export function correlate(a: Metric, b: Metric, resolve: Resolver, opts: { yearS
   if (typeof xs === "string") return { ok: false, period, n: 0, why: "not-combined", reason: xs };
   const ys = on(b);
   if (typeof ys === "string") return { ok: false, period, n: 0, why: "not-combined", reason: ys };
-  const pairs = pairUp(xs, ys);
-  if (pairs.length < MIN_PAIRS) return { ok: false, period, n: pairs.length, why: "too-few", reason: `Not enough ${NOUN[period][1]} in common (${pairs.length} of ${MIN_PAIRS}).` };
+  const levels = pairUp(xs, ys);
+  const tooFew = (n: number): Correlation => ({ ok: false, period, n, why: "too-few", reason: `Not enough ${NOUN[period][1]} in common (${n} of ${MIN_PAIRS}).` });
+  if (levels.length < MIN_PAIRS) return tooFew(levels.length);
+  // The basis is chosen on the periods both have; "values" is the choice under Show the numbers.
+  const onX = levels.map((p) => ({ period: p.period, value: p.x }));
+  const onY = levels.map((p) => ({ period: p.period, value: p.y }));
+  const basis: Basis = opts.basis === "values" ? "values" : basisFor(onX, onY, period);
+  const pairs = basis === "values" ? levels : pairUp(changes(onX, period), changes(onY, period));
+  if (pairs.length < MIN_PAIRS) return tooFew(pairs.length);
   const res = pearsonOf(pairs);
-  if (!Number.isFinite(res.r)) return { ok: false, period, n: pairs.length, why: "flat", reason: "One of them does not change, so there is nothing to compare." };
-  return { ok: true, period, combined, ...res };
+  if (!Number.isFinite(res.r)) return { ok: false, period, n: pairs.length, why: "flat", reason: basis === "values" ? "One of them does not change, so there is nothing to compare." : "Once growth is removed, one of them does not change, so there is nothing to compare." };
+  return { ok: true, period, combined, basis, ...res };
 }
+
+/** Which basis to compare on: "auto" lets `basisFor` choose; "values" keeps the older ranking by the values as they are. */
+export type BasisChoice = "auto" | "values";
 
 /** A Metric correlated with another, or left out with the reason. */
 export type Ranked = { metric: Metric; result: Extract<Correlation, { ok: true }> };
@@ -130,7 +150,7 @@ export type LeftOut = { metric: Metric; why: NoCorrelation; reason: string };
 /** Every other Metric correlated with this one on their common period, ranked by |r|, and those left out with why.
  * The Metric itself and Derived Metrics built from it (or it from them) are left out silently, as there is nothing
  * to learn. */
-export function rankCorrelations(metric: Metric, metrics: Metric[], resolve: Resolver, opts: { yearStart: YearStart; today?: string }): { ranked: Ranked[]; leftOut: LeftOut[] } {
+export function rankCorrelations(metric: Metric, metrics: Metric[], resolve: Resolver, opts: { yearStart: YearStart; today?: string; basis?: BasisChoice }): { ranked: Ranked[]; leftOut: LeftOut[] } {
   const ranked: Ranked[] = [];
   const leftOut: LeftOut[] = [];
   for (const m of metrics) {

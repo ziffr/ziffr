@@ -4,7 +4,7 @@
 
 This chapter is for the people who run a Ziffr for others: a team, a club or a company. If someone else runs your Ziffr, you never see this page, and you can skip it.
 
-An **Installation** is one running Ziffr, with all its Workspaces. Its **Installation Settings** say what it talks to: the mail server, Telegram and Slack, and later the check against bots and trials. The people who may change them are its **Installation Admins**. Being an Owner of a Workspace does not make you one, and being one shows you nothing of anyone's Workspace.
+An **Installation** is one running Ziffr, with all its Workspaces. Its **Installation Settings** say what it talks to: the mail server, Telegram and Slack, and the check against bots. The people who may change them are its **Installation Admins**. Being an Owner of a Workspace does not make you one, and being one shows you nothing of anyone's Workspace.
 
 ## Becoming the first Installation Admin
 
@@ -167,15 +167,30 @@ Ziffr asks Cloudflare whether it knows the secret key first and saves nothing Cl
 
 ## Trials
 
-With trials on, anyone who signs in may start a **Trial Workspace** of their own, and every Workspace made on this Ziffr is one. Use it on a Ziffr of its own, never one your team works in.
+Trials are something hosted Ziffr offers, so this section exists only on a Ziffr Cloud deployment. On any other Ziffr the page has no Trials section, the sign-in page has no trial, and every Workspace made here is an ordinary one. If the server's settings file, or a Trials section saved by an older version, still sets the trial days, no Workspace can be made until that is removed.
 
-- **Days a trial lasts**: 1 to 30. Setting it turns trials on; **Remove** turns them off, and trials that run go on until they end.
-- **Trials at once**: the most trials that may run at the same time; empty means 200.
-- **Days a trial's data stays after it ends**: 1 to 60, default 7. After its end a trial can add nothing and its Owner can still download everything; then it is deleted. It applies to every trial that has ended and waits, so a smaller number deletes them sooner.
-- **Webhooks in trials**: on by default. A trial may then add 2 Webhooks and send 200 a day, to public addresses only; the hosts you list in `ZIFFR_WEBHOOK_PRIVATE_HOSTS` never apply to a trial, so a trial cannot reach your network. Off, or `ZIFFR_TRIAL_WEBHOOKS=false` in the environment (the environment wins over the page), a trial cannot add a Webhook and the ones it has send nothing; ordinary Workspaces are not affected.
-- **When a trial ends**: close it and delete it a week later (the default), or keep it as an ordinary Workspace on the default Workspace Limit (see Workspace Limits): invitations open, every Connector reaches everyone, and its keys keep the end date they were made with.
+On hosted Ziffr this section holds what happens when a trial ends and whether trials may have Webhooks. The numbers that bound a trial are in the next section.
 
-The section then says, for example, "Trials of 14 days, at most 200 at once. Every Workspace made here is one." The sign-in page shows the trial next to the demo, with what works in a trial on this Ziffr. Set up the check against bots too.
+## Trial Limits
+
+Like Trials, this section exists only on hosted Ziffr. It lists the Trial Limits, the numbers that bound every trial, each with its range:
+
+- **Days a trial lasts** (1 to 30; empty: 14). Applies to trials made afterwards.
+- **Days a trial's data stays after it ends** (1 to 60; empty: 7).
+- **Trials at once** (1 to 100,000; empty: 500).
+- **People in a trial** (1 to 25; empty: 5). Members, Admins and Guests, the Owner and the invitations that are still open included.
+- **Invitation emails a trial sends a day** (0 to 50; empty: 10). Resends count; 0 means trials send none.
+- **Invitation emails all trials send a day** (0 to 5,000; empty: 500). The lever against a campaign that mails strangers; 0 means trials send none.
+- **Metrics** (5 to 100; empty: 25).
+- **Messages a trial sends a day** (10 to 500; empty: 100). Over email, Slack and Telegram together.
+- **Access Keys that work** (1 to 10; empty: 2).
+- **Feeds, and Feed Keys per Feed** (1 to 10; empty: 2).
+- **Connected assistants** (1 to 5; empty: 1).
+- **Webhooks** (0 to 10; empty: 2). Workspace and personal together; 0 switches them off for trials.
+- **Webhook sends a trial makes a day** (10 to 1,000; empty: 200).
+- **View Links that work** (0 to 20; empty: 5). 0 means trials cannot make any.
+
+Ziffr Cloud may set them too. The days a trial lasts and the days its data stays are Ziffr Cloud's alone. A limit it set shows as **Set by Ziffr Cloud** and cannot be changed here; one the server's settings file sets shows as **Set on the server**. A change applies to running trials at once, except the days, which apply to trials made afterwards. Lowering a limit never deletes or stops what a trial has: a trial over the new number keeps what it has and cannot add more.
 
 ## Usage
 
@@ -205,6 +220,12 @@ The page shows counts and version numbers only, never a key, not even in wrapped
 ## Demo
 
 **Offer the demo** decides whether the sign-in page has **Try the demo**: **Offered on the login page** or **Not offered**. A Ziffr run with Docker on a domain has the demo off on the server, where the page shows it as set on the server; the person who runs it offers the demo there in the server's settings file. On a laptop the demo is offered unless you choose otherwise here. The section says whether the sign-in page offers it. A Ziffr that is a public demo and nothing else is set so on the server; the section then says so, and nobody signs in there.
+
+## Feedback
+
+**Ask people whether they like Ziffr** decides whether signed-in people see a small card now and then: "Enjoying Ziffr?". Choose **Ask now and then** or **Never ask**; empty means on for hosted Ziffr and off everywhere else.
+
+The card shows only to Owners, Admins and Members who have submitted values on at least 3 different days, never in the demo, to Guests or on a View Link, and at most three times for each person: the second time after 30 days, the third after 60 more. Nobody sees it again after choosing **Star on GitHub** or **Don't ask again**. A yes opens the Ziffr repository on GitHub, where the person stars it themselves; Ziffr tells GitHub nothing, and cannot see whether they did. A **Not yet** asks "What is missing?". Those words are kept without the person's name, up to 1,000 characters each and the newest 500, and the section lists the latest 50 with their date. Someone who said something is missing is asked again after 90 days, without the request for a star.
 
 ## Changes
 

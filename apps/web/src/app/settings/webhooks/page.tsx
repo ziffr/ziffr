@@ -4,11 +4,14 @@
 import { currentActor } from "@/lib/viewer";
 import { isDemo } from "@/lib/auth";
 import { listWebhooks } from "@ziffr/core/webhooks";
+import { listPersonalWebhooksForAdmin, personalWebhookLogForAdmin } from "@ziffr/core/personal-webhooks";
+import { personalWebhooksAllowed } from "@ziffr/core/personal-webhook-state";
 import { webhookLog, type WebhookLogEntry } from "@ziffr/core/webhook-log";
 import { webhookRules } from "@ziffr/core/webhook-trial";
 import { daysNow } from "@ziffr/core/keep-days";
 import { PageHeader } from "@/components/page-header";
 import { Webhooks } from "./webhooks";
+import { PersonalWebhooks } from "./personal-webhooks";
 
 const note = (text: string) => (
   <>
@@ -26,10 +29,14 @@ export default async function WebhooksPage() {
   if (!rules.allowed) return note(`${rules.why ?? "Webhooks are not available here."} Every other Workspace can have them.`);
   const webhooks = await listWebhooks(actor);
   const logs: Record<string, WebhookLogEntry[]> = Object.fromEntries(await Promise.all(webhooks.map(async (w) => [w.id, await webhookLog(actor, w.id)] as const)));
+  const [allowed, personal] = await Promise.all([personalWebhooksAllowed(actor.workspaceId), listPersonalWebhooksForAdmin(actor)]);
+  // Statuses and times only: what a Personal Webhook sent is its person's.
+  const personalLogs: Record<string, WebhookLogEntry[]> = Object.fromEntries(await Promise.all(personal.map(async (w) => [w.id, await personalWebhookLogForAdmin(actor, w.id)] as const)));
   return (
     <>
       <PageHeader title="Webhooks" />
       <Webhooks webhooks={webhooks} logs={logs} limits={{ most: rules.maxWebhooks, days: await daysNow("ZIFFR_KEEP_WEBHOOK_LOG_DAYS"), perDay: rules.sendsPerDay, trial: rules.trial }} />
+      <PersonalWebhooks allowed={allowed} webhooks={personal.map((w) => ({ ...w, ownerId: undefined }))} logs={personalLogs} />
     </>
   );
 }

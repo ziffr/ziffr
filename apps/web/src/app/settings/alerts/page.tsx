@@ -3,7 +3,7 @@
 // lost sight of is not listed, since its name would show that the Metric exists.
 import Link from "next/link";
 import { currentActor } from "@/lib/viewer";
-import { listMyAlerts } from "@ziffr/core/alerts";
+import { alertWebhookChoices, listMyAlerts } from "@ziffr/core/alerts";
 import { ALERTS_PER_METRIC } from "@ziffr/core/alert-limits";
 import { effectiveLimit } from "@ziffr/core/limits";
 import { PageHeader } from "@/components/page-header";
@@ -13,7 +13,7 @@ import { TellSwitches } from "@/components/tell-switches";
 
 export default async function AlertsPage() {
   const actor = await currentActor();
-  const [alerts, telling, perPerson, perDay] = await Promise.all([listMyAlerts(actor), listTellSubscriptions(actor), effectiveLimit("alertsPerPerson", actor.workspaceId), effectiveLimit("alertMessagesPerPerson", actor.workspaceId, actor.personId)]);
+  const [alerts, webhooks, telling, perPerson, perDay] = await Promise.all([listMyAlerts(actor), alertWebhookChoices(actor), listTellSubscriptions(actor), effectiveLimit("alertsPerPerson", actor.workspaceId), effectiveLimit("alertMessagesPerPerson", actor.workspaceId, actor.personId)]);
   return (
     <>
       <PageHeader title="Your Alerts" sub="Metrics you asked to be told about, and where each Alert stands." />
@@ -24,7 +24,7 @@ export default async function AlertsPage() {
         {alerts.length === 0 ? (
           <p className="rounded-[var(--radius-card)] border border-dashed border-[var(--color-rule-2)] p-8 text-center text-sm text-muted-foreground">No Alerts yet. Open a <Link href="/metrics" className="underline">Metric</Link> and choose Alert me….</p>
         ) : (
-          <AlertRows alerts={alerts} showMetric />
+          <AlertRows alerts={alerts} showMetric webhooks={webhooks} />
         )}
         {telling.length > 0 && (
           <section className="space-y-2">

@@ -1,0 +1,5 @@
+{
+  "rule": "ambient-global",
+  "why": "reaches WebAssembly, which is on no list",
+  "remove": []
+}

@@ -1,0 +1,5 @@
+{
+  "rule": "any-type",
+  "why": "annotates with any",
+  "remove": []
+}

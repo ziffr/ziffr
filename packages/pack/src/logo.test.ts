@@ -1,7 +1,7 @@
 // The logo checks (GLOSSARY: Pack, Theme; spec 0039): the hostile table, run against the checks themselves and
 // through a Pack file and a Theme file, the way `npx @ziffr/pack check` runs them.
 import { describe, expect, it } from "vitest";
-import { cleanLogo, logoOk, logoProblem, PACK_LOGO_MAX_BYTES, svgClean, svgIsPlain } from "./logo.js";
+import { cleanLogo, logoOk, logoProblem, logoRatio, PACK_LOGO_MAX_BYTES, svgClean, svgIsPlain } from "./logo.js";
 import { checkPack } from "./pack.js";
 import { checkThemeFile } from "./theme-file.js";
 import { run } from "./run.js";
@@ -223,6 +223,15 @@ describe("the clean SVG", () => {
     const a = svgClean(messy);
     expect(a.ok && svgClean(a.svg)).toEqual(a);
   });
+  it("weighs the SVG as it is written out, so what it keeps passes the check again", () => {
+    // 80 KB in: ">" is written out as "&gt;" and "€" weighs three bytes, so the written form weighs 140 KB.
+    const heavy = svg(`<svg xmlns="http://www.w3.org/2000/svg"><text>${">".repeat(20_000)}${"€".repeat(20_000)}</text></svg>`);
+    expect(logoProblem(heavy, PACK_LOGO_MAX_BYTES)).toMatch(/larger than the 128,000 bytes/);
+    expect(cleanLogo(heavy, PACK_LOGO_MAX_BYTES)).toBeNull();
+    const kept = cleanLogo(heavy)!;
+    expect(kept).not.toBeNull();
+    expect(cleanLogo(kept)).toBe(kept);
+  });
   it("gives a raster picture as it came and nothing for what is refused", () => {
     expect(cleanLogo(png(10, 10))).toBe(png(10, 10));
     expect(cleanLogo(svg("<svg><script/></svg>"))).toBeNull();
@@ -288,5 +297,17 @@ describe("a logo in a Pack file", () => {
     const res = run(["check", "shop.pack.json"], () => text);
     expect(res.code).toBe(1);
     expect(res.out[0]).toMatch(/^shop\.pack\.json:\d+: logo is an SVG that is not plain: /);
+  });
+});
+
+describe("logoRatio", () => {
+  it("reads the proportions from the header or the SVG's viewBox, and falls back to 3", () => {
+    expect(logoRatio(png(200, 100))).toBe(2);
+    expect(logoRatio(jpeg(100, 200))).toBe(0.5);
+    expect(logoRatio(svg(SVG_OK))).toBe(1);
+    expect(logoRatio(svg('<svg xmlns="http://www.w3.org/2000/svg" width="80" height="20"/>'))).toBe(4);
+    expect(logoRatio(svg('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 1"/>'))).toBe(20);
+    expect(logoRatio("nonsense")).toBe(3);
+    expect(logoRatio(null)).toBe(3);
   });
 });

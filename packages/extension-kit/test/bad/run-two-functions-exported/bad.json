@@ -1,0 +1,6 @@
+{
+  "rule": "not-runnable",
+  "why": "exports two functions, so the checks cannot tell which one is the Method",
+  "remove": [],
+  "stage": "run"
+}

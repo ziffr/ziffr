@@ -12,6 +12,10 @@ import { db } from "./db";
 import { recordServiceEvent } from "./installation-admins";
 import { DEMO_WORKSPACE_ID } from "./team";
 import { keepTrial } from "./trials";
+import { closeCancelledWorkspace, reopenCancelledWorkspace } from "./trial-end";
+import { forgetStoredSettings, settingSources, settingsInEffectStrict } from "./settings-in-effect";
+import { TRIAL_LIMITS, trialLimitNumberProblem, trialLimitOf, trialLimitProblem, trialLimitsFrom, type TrialLimitKey } from "./trial-limits";
+import { trialLimitEnvironment } from "./trial-limits-in-effect";
 import { LABEL_MAX, LIMIT_MAX, limitLabel, limitOf, metricCount, roomOf, syncDefaultLimit } from "./workspace-limits";
 
 /** The header a call carries: `t=<unix time>, v1=<hex HMAC-SHA256>`. */
@@ -108,6 +112,10 @@ const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 /** Thrown for a Workspace that does not exist (or is the demo): the API answers 404. */
 export class CloudNotFound extends Error {}
 
+/** Thrown for a call the Workspace's state refuses (cancelling a trial or a Workspace without a Size Ziffr Cloud sold,
+ * reopening one that was not cancelled): the API answers 409. */
+export class CloudConflict extends Error {}
+
 /** A Workspace's numbers for Ziffr Cloud. A missing one, the demo or an id that is not one says only `exists: false`. */
 export async function cloudWorkspace(_caller: CloudCaller, workspaceId: string): Promise<CloudWorkspace> {
   const id = String(workspaceId ?? "").toLowerCase();
@@ -174,6 +182,35 @@ export async function setCloudLimit(caller: CloudCaller, workspaceId: string, in
   return cloudWorkspace(caller, before.id);
 }
 
+/** Ziffr Cloud tells that a Workspace's Size was cancelled, or its payment failed for good (spec 0040): the Workspace
+ * closes as an ended trial does, read-only for the grace days with the Workspace Export offered, then it is deleted.
+ * Only a Workspace whose limit Ziffr Cloud set can be closed so: a trial, the demo and any other is refused
+ * (CloudConflict, 409). A second call changes nothing. The Workspace's Audit Log and the Installation's audit record it.
+ * Answers the Workspace as it is now; its `trial_ends_at` is then the day it closed. */
+export async function cancelCloudWorkspace(caller: CloudCaller, workspaceId: string): Promise<CloudWorkspace> {
+  const before = await cloudWorkspace(caller, workspaceId);
+  if (!before.exists) throw new CloudNotFound();
+  const result = await closeCancelledWorkspace(before.id);
+  if (result === "refused") throw new CloudConflict();
+  if (result === "closed") {
+    await recordAudit(before.id, null, { kind: "workspace.closed_cancelled", object: { type: "workspace", id: before.id }, details: { by: "cloud" } }, "Ziffr Cloud");
+    await recordServiceEvent("Ziffr Cloud", "workspace.cancelled", before.id);
+  }
+  return cloudWorkspace(caller, before.id);
+}
+
+/** Ziffr Cloud undoes a cancellation during the grace days: the Workspace is ordinary again, with its data. Its keys and
+ * its Slack, Telegram and Calendar connections stay revoked (the Owner makes them again) and closed Actions stay
+ * closed. CloudConflict (409) for a Workspace that was not closed by a cancellation; one already deleted does not exist. */
+export async function reopenCloudWorkspace(caller: CloudCaller, workspaceId: string): Promise<CloudWorkspace> {
+  const before = await cloudWorkspace(caller, workspaceId);
+  if (!before.exists) throw new CloudNotFound();
+  if (!(await reopenCancelledWorkspace(before.id))) throw new CloudConflict();
+  await recordAudit(before.id, null, { kind: "workspace.reopened", object: { type: "workspace", id: before.id }, details: { by: "cloud" } }, "Ziffr Cloud");
+  await recordServiceEvent("Ziffr Cloud", "workspace.reopened", before.id);
+  return cloudWorkspace(caller, before.id);
+}
+
 /** Where an Owner is handed over to: changing the Size, or billing and invoices. */
 export type HandoverPurpose = "size" | "billing";
 
@@ -220,4 +257,54 @@ const isDay = (s: string) => /^[2]\d{3}-\d{2}-\d{2}$/.test(s) && !Number.isNaN(D
 /** Whether an Owner sees Change Size and Billing and invoices: only where Ziffr Cloud is set up. */
 export function handoverOffered(actor: Pick<Actor, "role" | "workspaceId">, env: Env = process.env): boolean {
   return cloudUrl(env) !== null && actor.role === "owner" && actor.workspaceId !== DEMO_WORKSPACE_ID;
+}
+
+/** The Trial Limits as Ziffr Cloud sees them: each number in effect, where it comes from (Ziffr Cloud, the Installation's
+ * page, the server's environment or the default), and `days` as null while trials are switched off. Numbers only: nothing of a trial. */
+export type CloudTrialLimits = { limits: Record<TrialLimitKey, number | null>; sources: Record<TrialLimitKey, "cloud" | "page" | "server" | "default" | "invalid"> };
+
+/** The Trial Limits now, for Ziffr Cloud. */
+export async function cloudTrialLimits(caller: CloudCaller): Promise<CloudTrialLimits> {
+  if (caller?.cloud !== true) throw new Forbidden();
+  forgetStoredSettings();
+  const [settings, sources] = await Promise.all([settingsInEffectStrict(), settingSources()]);
+  const limits = { ...trialLimitsFrom(settings) } as Record<TrialLimitKey, number | null>;
+  // Days of 0 switch trials off explicitly: null.
+  const rawDays = settings.ZIFFR_TRIAL_DAYS?.trim();
+  // A value that is there but wrong makes no Workspace at all (trials.ts): not 14, and its source says so.
+  const daysInvalid = !!rawDays && rawDays !== "0" && trialLimitProblem(trialLimitOf("days"), rawDays) !== null;
+  if (rawDays === "0" || daysInvalid) limits.days = null;
+  // The days and grace days are pinned to Ziffr Cloud, so their source says "cloud" even when nothing is set: only a value counts.
+  const source = (l: (typeof TRIAL_LIMITS)[number]) => {
+    if (l.key === "days" && daysInvalid) return "invalid";
+    if (process.env[l.name]?.trim()) return "server";
+    const s = sources[l.name];
+    return s === "cloud" ? (settings[l.name] === undefined ? "default" : "cloud") : s === "page" ? "page" : "default";
+  };
+  return { limits, sources: Object.fromEntries(TRIAL_LIMITS.map((l) => [l.key, source(l)])) as CloudTrialLimits["sources"] };
+}
+
+/** Sets Trial Limits as Ziffr Cloud (PATCH semantics): each number given is a whole number within its range; null gives
+ * that limit back to its default (the days: no trials at all, as 0); limits left out stay as they are. Written in one step in the
+ * database with the row the triggers read, so calls at once never mix. The numbers apply to running trials at once (the
+ * days to trials made afterwards), and what a trial already holds is never deleted. The server's environment still wins.
+ * Answers the Trial Limits as GET does. */
+export async function setCloudTrialLimits(caller: CloudCaller, input: Partial<Record<TrialLimitKey, number | null>>): Promise<CloudTrialLimits> {
+  if (caller?.cloud !== true) throw new Forbidden();
+  if (!input || typeof input !== "object" || Array.isArray(input)) throw new Error("The Trial Limits are an object of numbers.");
+  const values: Record<string, string | null> = {};
+  for (const [key, n] of Object.entries(input)) {
+    const limit = TRIAL_LIMITS.find((l) => l.key === key);
+    if (!limit) throw new Error(`${key} is not a Trial Limit.`);
+    // null gives a limit back to its default; for the days it is the explicit "no trials", kept as 0.
+    if (n === null) { values[limit.name] = limit.key === "days" ? "0" : null; continue; }
+    const problem = trialLimitNumberProblem(limit, n);
+    if (problem) throw new Error(problem);
+    values[limit.name] = String(n);
+  }
+  const { error } = await db().rpc("set_cloud_trial_limits", { p_values: values, p_env: trialLimitEnvironment() });
+  if (error) throw new Error("The Trial Limits could not be saved.");
+  forgetStoredSettings();
+  await recordServiceEvent("Ziffr Cloud", "trial_limits.set", `${Object.keys(values).length} changed`);
+  return cloudTrialLimits(caller);
 }

@@ -49,7 +49,10 @@ A **Recipe** is a ready-made Analysis that runs with one click. Ziffr offers:
 | --- | --- |
 | **What drives Cost?** | Puts Cost and every other Metric you can see on the canvas and runs **Drivers** for Cost. |
 | **Where is Revenue heading?** | Puts Revenue on the canvas and runs **Forecast**. |
+| **Will we reach the Target?** | Puts Revenue on the canvas and runs **Forecast**; when Revenue has a Target, the Takeaway says how likely it is to be reached ("about 7 in 10"). |
 | **Do support tickets drive returns?** | Puts Return rate and Support tickets on the canvas and runs **Correlation**. |
+
+A Forecast says where the Metric is expected to be, with the range it is likely between, and which Method worked it out: a plain trend, or the trend with the yearly pattern when the Metric has two seasons of values and the pattern would have missed less on the last third of its history. It also says how that Method did on the periods already known ("the range for the next month would have held 10 of 12 times"). Show the numbers has the details. A forecast is not a promise; it assumes the pattern of the past carries on.
 
 A Recipe replaces what is on the canvas with its own Metrics. Each one appears only when you can see the Metrics it needs. When none fits, the screen says "Recipes appear once the metrics they need are shared with you."
 
@@ -67,12 +70,14 @@ Placed on a dashboard, a forecast can be shown by quarter, half-year or year wit
 
 ### Correlation
 
-A dot for each period, placed by the two Metrics' values, and one sentence such as "strong positive relationship, r = 0.82 over 18 months".
+A dot for each period, placed by the two Metrics' values, and a **Takeaway** behind the Widget's **⋯** menu (**Takeaway…**): one sentence in the Metrics' own words, such as "Visits and Revenue tend to move together over 18 months (strong)."
 
-- **r** runs from −1 to 1. Near 1, the two rise and fall together. Near −1, one rises when the other falls. Near 0, there is no clear link.
-- The word before it says how clear the link is: **strong** (above 0.7, either way), **moderate** (above 0.4), **weak** (above 0.2), or **no clear** relationship.
+- The word in brackets says how clear the link is: **strong**, **moderate**, **weak**, or **can't tell from chance**. The last one means the pattern is no clearer than what luck alone could give, so do not lean on it. Read more in [Reading a Takeaway](../guides/reading-a-takeaway.md).
+- Above the sentence, a plain line appears when something about the data makes the reading rough: a few periods far from the rest that pull the result ("without them it reads moderate"), values that are very uneven or repeat a lot, periods with no value that were left out, or a link that was stronger earlier than it has been since. A result with such a line is never called strong.
+- Under it, a footer: "This shows what has gone together, not what caused what." for a link between Metrics, and "This carries the past forward; it is not a promise." for a Forecast.
+- **Show the numbers** opens the details for those who want them: the Method, r, how many pairs of periods and which, and what the Metrics were compared on. The choice of comparing the values as they are, not their change, is there too.
 
-Only periods where both Metrics have a value count, and at least six are needed. Otherwise the result says how many there are, such as "Not enough months in common (4 of 6)." Two Metrics that move together do not prove that one causes the other; use it to know whom to ask.
+Only periods where both Metrics have a value count, and at least six are needed. Where Ziffr cannot give a result it says why, in words and with no number: "Not enough months in common (4 of 6).", or that a Metric has hardly changed, so there is nothing to compare. It never turns a refusal into a number because you ask again.
 
 ### Metrics counted at different periods
 
@@ -85,13 +90,15 @@ Two Metrics counted at different periods, such as weekly support tickets and mon
 
 ### Drivers
 
-A list of the other Metrics, the one that moves most closely with the Target first. Each has a bar for how strong the link is and its r. A bar in the data colour means they move the same way; a bar in the warning colour means they move opposite ways. Below the list, a sentence names the strongest one ("Shipping cost moves most with Cost (strong positive).") and a dot chart shows the two.
+A list of the other Metrics, the one that moves most closely with the Target first. Each has a bar for how strong the link is and its r. A bar in the data colour means they move the same way; a bar in the warning colour means they move opposite ways. Below the list, a Takeaway names up to three that moved with the Target the most ("Over 18 months, Shipping cost and Returns moved with Cost the most.") and a dot chart shows the two. Each Metric in the list has its own Takeaway behind **Show the numbers**, with its strength word and any plain line about its data. A Metric whose data cannot be compared (it has hardly changed, or has too many periods without a value) is listed under the bars with the reason, and shows no number. The footer says once that this shows what has gone together, not what caused what.
 
 Metrics of every period are compared, each on the longer of its own period and the Target's (see above). One combined to another period says so after its name, such as "· by month", and pointing at it shows "Compared by month (18 months)". Below the list, Ziffr names the Metrics it left out and why: an Aggregation of none, or too few periods in common. A derived Metric made from the Target, or one the Target is made from, is left out without a note, since it would move with it by its formula. If nothing is left to compare, the result says so.
 
+**Growth removed.** Two Metrics that both grow over time look closely related even when nothing links them. So where both have a clear trend (a straight line through each explains more than half of how it moves), Drivers, the Correlation matrix and the Metric page compare how each changed from the period before, and say so: "Compared by change, growth removed". Otherwise they compare the values and say "Compared by value". The dot chart then shows each period's change, not its value. **Show the numbers** under the list (and on a Metric's Analysis tab) shows r and the periods for each Metric, and lets you compare on the values as they are instead, the way Ziffr used to.
+
 ### Correlation matrix
 
-A grid with every Metric on both sides. Each square holds the r of that pair. The stronger the link, the deeper its colour; pairs that move opposite ways are shaded in the warning colour. A pair counted at different periods (monthly against weekly) is compared on the longer one. Pointing at a square shows its r and, for such a pair, "Compared by month (18 months)". A pair with no result shows "–", and pointing at it says why, such as "Not enough months in common (4 of 6)." Below the grid, Ziffr names every Metric kept to its own period by an Aggregation of none.
+A grid with every Metric on both sides. Each square holds the r of that pair. The stronger the link, the deeper its colour; pairs that move opposite ways are shaded in the warning colour. A pair counted at different periods (monthly against weekly) is compared on the longer one. Pointing at a square shows its r, whether growth was removed ("Compared by change, growth removed" or "Compared by value") and, for such a pair, "Compared by month (18 months)". A pair with no result shows "–", and pointing at it says why, such as "Not enough months in common (4 of 6)." Below the grid, Ziffr names every Metric kept to its own period by an Aggregation of none.
 
 ## View Designs
 

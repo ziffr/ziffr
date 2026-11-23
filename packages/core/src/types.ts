@@ -96,6 +96,8 @@ export type Observation = {
   period_start: string;
   value: number;
   submitter_id: string | null;
+  /** Who sent an imported value, as the Workspace Export named them (opened); null for a value recorded in the app. */
+  submitted_by_name?: string | null;
   source: string;
   original_value: number | null;
   /** The Access Key a program submitted it with, if any. */
@@ -262,6 +264,12 @@ export type WidgetSettings = {
   /** A widget drawn by a View Design of the Workspace (template "design"): which one, and the widget's own checked
    * copy of it, so removing the design from the Workspace changes no widget already placed. */
   design?: { id: number | null; body: import("./view-design").ViewDesign } | null;
+  /** "All Metrics tagged X" instead of a fixed list (GLOSSARY: Tag; spec 0038): only for a view whose Metrics are one
+   * "one or more" Slot. The widget's own `metric_ids` stay empty; each viewer's Metrics are worked out when it is drawn. */
+  tagSource?: { id: string } | null;
+  /** Set when a Tag widget is drawn, never stored: the Tag's name, how many more Metrics than drawn the viewer sees, and
+   * whether the Tag was removed. Counts only what this viewer sees. */
+  tagView?: { name: string | null; more: number; removed: boolean } | null;
 };
 
 /** A widget on a dashboard, or saved to its owner's Pool (GLOSSARY: Widget). */
@@ -306,6 +314,8 @@ export type CanvasData = {
   breakdowns: Record<number, Record<string, BreakdownRow[]>>;
   /** The team's Widget Templates (GLOSSARY: Widget Template). */
   templates: TeamTemplate[];
+  /** The Tags this viewer sees, to pick one for a widget (GLOSSARY: Tag); only on pages that place widgets. */
+  tags?: { id: string; name: string }[];
   /** The Workspace's View Designs to choose from (GLOSSARY: View Design); left out where nothing is placed, such as a
    * View Link or a Snapshot, whose widgets carry their own copy. */
   designs?: { id: number; name: string; body: import("./view-design").ViewDesign }[];

@@ -12,8 +12,9 @@ import { join } from "node:path";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { db } from "./db";
 import { outboundTls } from "./outbound-request";
+import * as hearing from "./personal-webhook-hearing";
 import { mayPeekWaitingValue, personalWebhookMayHear } from "./personal-webhook-hearing";
-import { createPersonalWebhook, ownPersonalWebhookLog, setPersonalWebhooksAllowed, updatePersonalWebhook } from "./personal-webhooks";
+import { createPersonalWebhook, forgetHiddenPersonalMetrics, listOwnPersonalWebhooks, ownPersonalWebhookLog, setPersonalWebhooksAllowed, updatePersonalWebhook } from "./personal-webhooks";
 import { Forbidden } from "./actor";
 import { queueWebhookEvent } from "./webhook-events";
 import { workspace } from "./test/db-fixtures";
@@ -233,6 +234,22 @@ describe.skipIf(!openssl)("what a Personal Webhook is sent", () => {
     expect(plain).not.toBe(owners);
   });
 
+  it("drops the number of an unusual value when a newer value arrives while the check for a waiting value runs", async () => {
+    const { w, owner, bo, metric } = await setup();
+    await w.value(metric.id, PERIOD, 900, bo);
+    await hook(w.actor(owner), ["value.unusual"], [metric.id]);
+    // The Owner may see a waiting value, so the number would go out; a newer value lands in between, so it must not.
+    const real = hearing.mayPeekWaitingValue;
+    const spy = vi.spyOn(hearing, "mayPeekWaitingValue").mockImplementation(async (...a) => { const r = await real(...a); await w.value(metric.id, PERIOD, 901, bo); return r; });
+    try {
+      await queueWebhookEvent(w.id, "value.unusual", { type: "workflow" }, { metricId: metric.id, period: PERIOD });
+      await run(w);
+      expect(spy).toHaveBeenCalled();
+    } finally { spy.mockRestore(); }
+    expect(seen).toHaveLength(1);
+    expect(JSON.parse(seen[0].body).data.value).toBeUndefined();
+  });
+
   it("never sends a plain viewer the number of an unusual value, even if the send runs before the value is marked waiting", async () => {
     const { w, ana, bo, A, metric } = await setup();
     await w.share(metric.id, ana);
@@ -306,6 +323,16 @@ describe("the Metrics a Personal Webhook picks", () => {
     // One already picked stays when the person no longer sees it; a new one must be seen.
     await updatePersonalWebhook(A, id, { metricIds: [metric.id] });
     expect(await refused(updatePersonalWebhook(A, id, { metricIds: [] }))).toBeNull();
+    // The page gets a count, never the id of a Metric the person lost sight of, and saving keeps that pick.
+    const own = (await listOwnPersonalWebhooks(A)).webhooks.find((h) => h.id === id);
+    expect(own?.metricIds).toEqual([]);
+    expect(own?.hiddenMetrics).toBe(1);
+    expect((await db().from("webhooks").select("metric_ids").eq("id", id).single()).data?.metric_ids).toEqual([metric.id]);
+    // The person can drop them on purpose: the server does it, and they do not come back if sight returns.
+    expect(await forgetHiddenPersonalMetrics(A, id)).toBe(1);
+    expect(await forgetHiddenPersonalMetrics(A, id)).toBe(0);
+    await w.share(metric.id, ana);
+    expect((await db().from("webhooks").select("metric_ids").eq("id", id).single()).data?.metric_ids).toEqual([]);
     expect(owner).toBeTruthy();
   });
 

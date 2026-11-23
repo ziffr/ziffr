@@ -180,7 +180,7 @@ const timestamp = Math.floor(Date.now() / 1000);
 const signature = "sha256=" + createHmac("sha256", secret).update(timestamp + "." + body).digest("hex");
 ```
 
-The request acts **as the Webhook**, not as a person, and only on Actions that were sent to it. It reads nothing. In Ziffr the change shows "via" the Webhook's name, and the Audit Log names the Webhook.
+The request acts **as the Webhook**, not as a person (a Personal Webhook acts as its person: see [Personal Webhooks](#personal-webhooks)), and only on Actions that were sent to it. It reads nothing. In Ziffr the change shows "via" the Webhook's name, and the Audit Log names the Webhook.
 
 | `op` | Body | What it does |
 |---|---|---|
@@ -207,6 +207,35 @@ Every call that is understood answers `200` with the result, so any call may be 
 | `409` | Ziffr's rules do not allow it: a Question marked done, a Task Ziffr closed reopened, an Approval or Self-check, an external task already linked to another Action, too many links. |
 | `413` | Over 16 KB. |
 | `429` | More than 60 signed requests in a minute, or too many failed requests from your address (see Limits). Wait for `Retry-After`. |
+
+## Personal Webhooks
+
+A **Personal Webhook** is a Webhook that one person adds for themselves, under **You → Your Webhooks**, once an Owner or Admin has switched on **People may add their own Webhooks** on **Settings → Webhooks** ([spec 0037](../specs/0037-personal-webhooks.md)). Everything above applies to it, the signing, the secret, the retries, the log and the status back, except what it hears and who it acts as. The person who adds it is covered in the [user guide](../user-guide/17-your-settings.md#your-webhooks); this section is for the program that receives.
+
+**What it hears.** A Personal Webhook acts as its person. When a message is about to go out, Ziffr asks, with the same rules that decide what that person sees in the app, whether they may see it now: their role, Shares, Groups and Thread limits as they are at that moment, not as they were when the thing happened. If they may, the message is sent **in full**; if not, it is **not sent**, and nothing in the log hints at it. There is no redacted form, so `data.redacted` never appears. Which events:
+
+| Event | What it hears |
+|---|---|
+| `action.created`, `action.updated`, `action.answered`, `action.done` | Actions given to the person or asked by them, not every Action they could see; and only if they may read its Thread. |
+| `value.recorded`, `value.unusual` | The Metrics the person picked, up to 50, each one they see (not archived, not Derived). On `value.unusual` the number is there only where the person may see a value waiting for Approval: the Metric's Owner, an Approver, the one who submitted it. Others get the message without it. |
+| `alert.fired` | The person's own Alerts that name this Webhook (below). |
+| `ping` | The test button. |
+
+None is chosen by default. A picked Metric the person has lost sight of is skipped, and the page says so.
+
+**The full message** has every field described under [What you get](#what-you-get) and nothing else: no Breakdowns, Contacts, dashboards, Share lists or older Thread messages. Of people, a message names the assignee and the asker, and carries an email address only when it is the person's own: a Personal Webhook is not a way to collect teammates' addresses, so `assignee.email` can be `null` on a Task the person asked of someone else.
+
+**Alerts.** An Alert's form has **Also send to** with the person's Personal Webhooks (up to 3 per Alert; none ticked at first). The Alert still tells the person as usual; a ticked Webhook also gets `alert.fired` with `metric`, `period`, `value`, `target`, the condition and a link, once each time the Alert fires. It is judged again when it is sent: if the person lost sight of the Metric, the Alert is paused or no longer names the Webhook, the Webhook is off or gone, or the value no longer meets the condition, nothing is sent. Only the person can tick a Webhook on their Alert: an Access Key, an API call or an assistant cannot. A Workspace Webhook never gets an Alert.
+
+**Status back as the person.** `POST /api/webhooks/<id>/in` takes a Personal Webhook's signed requests, with the same body, signature, replay claim and answers. It acts **as the person**, for Actions sent to this Webhook that the person can still see: `link`, `done`, `reply`, `answer` and `reopen`. `done`, `reopen` and `answer` only for Actions given to the person; `reply` also for one they asked. The Thread says "Marked done in <Webhook name>" and the change is the person's. It can never approve or send back a value, share, invite or change a setting. The switch, the person's role and their sight are checked at every request; a request that fails any of them answers the same `404` as an unknown id.
+
+**Limits.** 3 Personal Webhooks per person per Workspace (they do not count against the Workspace's 5); 1,000 sends per person per day, and every send also counts against the Workspace's 10,000 a day. The address rules are the Workspace Webhooks': https only, no private, loopback or link-local address, no redirect. The operator's `ZIFFR_WEBHOOK_PRIVATE_HOSTS` applies to Personal Webhooks too, except in a trial.
+
+**When it stops.** Turning the Workspace's switch off pauses every Personal Webhook: events in that time are dropped, not queued, and each person's page says why; turning it on again resumes them. A Personal Webhook ends, with its queue and log, when its person leaves the Workspace, becomes a Guest or Contact, or deletes their account. An Owner or Admin can remove one (the person is told who did), and sees whose it is, its masked address, events, state and the log's statuses and times, never the messages. After a run of failed sends it switches itself off and tells its person.
+
+**Trials.** A Trial Workspace may add Webhooks of both kinds, 2 in all and 200 sends a day, to public addresses only. The operator can switch that off (see Limits).
+
+**What leaves** is the same as for any Webhook: clear text over TLS, not end-to-end, kept by the receiving system as it sees fit. The person answers for where their data goes there.
 
 ## Limits
 

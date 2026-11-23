@@ -1,0 +1,5 @@
+{
+  "rule": "ambient-global",
+  "why": "uses Object.assign, which is not one of the few Object functions allowed",
+  "remove": []
+}

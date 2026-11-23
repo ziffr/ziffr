@@ -1,0 +1,5 @@
+{
+  "rule": "bad-manifest",
+  "why": "asks for series longer than the checks allow",
+  "remove": []
+}

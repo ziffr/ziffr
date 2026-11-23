@@ -8,9 +8,9 @@ import { createDashboardFromTemplate } from "@ziffr/core/dashboard-templates";
 import { dashboardTemplateDraft, saveDashboardTemplate } from "@ziffr/core/templates";
 
 /** Makes a dashboard of the viewer's from a template, with one list of Metric ids per Slot; returns its id. */
-export async function createFromDashboardTemplate(template: number | string, name: string, fills: number[][]) {
+export async function createFromDashboardTemplate(template: number | string, name: string, fills: number[][], tagFills: (string | null)[] = []) {
   return attempt(async () => {
-    const id = await createDashboardFromTemplate(await currentActor(), { template: typeof template === "number" ? template : String(template), name: String(name ?? ""), fills });
+    const id = await createDashboardFromTemplate(await currentActor(), { template: typeof template === "number" ? template : String(template), name: String(name ?? ""), fills, tagFills });
     revalidatePath("/", "layout");
     return id;
   });

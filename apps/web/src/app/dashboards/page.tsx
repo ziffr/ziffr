@@ -5,6 +5,7 @@ import { Home, LayoutDashboard } from "lucide-react";
 import { getNumberStyle, getProfileMap } from "@/lib/data";
 import { currentActor } from "@/lib/viewer";
 import { pinnedDashboards } from "@ziffr/core/pinned-dashboards";
+import { isDemo } from "@/lib/auth";
 import { PinButton } from "@/components/pinned-dashboards";
 import { homeDashboard, switchableDashboards } from "@ziffr/core/home";
 import { can } from "@ziffr/core/actor";
@@ -20,6 +21,7 @@ import { AnsweredForm } from "@/components/answered-form";
 export default async function DashboardsPage() {
   const actor = await currentActor();
   const [dashboards, people, choices, numberStyle] = await Promise.all([switchableDashboards(actor), getProfileMap(), dashboardTemplateChoices(actor), getNumberStyle()]);
+  const demo = await isDemo();
   const home = await homeDashboard(actor, dashboards);
   const pinned = new Set((await pinnedDashboards(actor)).map((d) => d.id));
   const mine = dashboards.filter((d) => d.role === "owner");
@@ -33,12 +35,12 @@ export default async function DashboardsPage() {
           <div className="text-xs text-muted-foreground">{d.role === "owner" ? "Yours" : `From ${people[d.owner_id]?.name ?? "someone"}, you ${d.role === "editor" ? "can edit it" : "can look at it"}`}</div>
         </div>
       </Link>
-      <PinButton compact dashboardId={d.id} name={d.name} pinned={pinned.has(d.id)} className="absolute top-3 right-3" />
+      <PinButton compact dashboardId={d.id} name={d.name} pinned={pinned.has(d.id)} demo={demo} className="absolute top-3 right-3" />
     </li>
   );
   return (
     <>
-      <PageHeader title="Dashboards" sub="Watch your numbers as they come in. Ziffr opens on your Home dashboard; choose it on any dashboard with Make this my home.">
+      <PageHeader title="Dashboards" sub="Watch your numbers as they come in. Ziffr opens on your Home dashboard; choose it from a dashboard’s ⋯ menu, Home dashboard.">
         {can(actor, "create") && (
           <AnsweredForm action={newDashboard} className="flex gap-2 max-md:w-full">
             <Input name="name" required maxLength={120} placeholder="Name of the new dashboard" aria-label="Name of the new dashboard" className="min-w-0 flex-1 md:w-60 md:flex-none" />
@@ -46,7 +48,7 @@ export default async function DashboardsPage() {
           </AnsweredForm>
         )}
         {can(actor, "create") && (
-          <NewDashboardButton templates={choices.templates} metrics={choices.metrics} numberStyle={numberStyle} label="From a template…" variant="outline" />
+          <NewDashboardButton templates={choices.templates} metrics={choices.metrics} tags={choices.tags} numberStyle={numberStyle} label="From a template…" variant="outline" />
         )}
       </PageHeader>
       {!dashboards.length ? (

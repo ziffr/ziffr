@@ -71,6 +71,16 @@ curl -X POST https://your-ziffr.example/api/v1/metrics \
 - Each key may create **50 Metrics in any 24 hours**, also when it calls in parallel; over that, 429 with `Retry-After`. An Idempotency-Key works as for values, and a replayed answer does not count.
 - A program cannot rename, describe or share a Metric or name other Submitters: that stays in the app. It can delete a Metric its creator owns (`DELETE /api/v1/metrics/{slug}?confirm=<name>`) and change targets, below.
 
+## Tags
+
+A **Tag** is a free word that groups Metrics, such as `finance` or `weekly review` (see the user guide's Metrics chapter). Programs read and set them as follows; no new scope is needed.
+
+- Every Metric read has `tags`: its Tags, sorted, only those the key's creator sees through Metrics they may see.
+- `GET /api/v1/metrics?tag=finance&tag=monthly` lists only the Metrics that carry **all** the Tags named (at most 10, case does not matter). A word that is not a Tag the creator sees matches nothing, so the answer is the same for a word only hidden Metrics carry as for one nobody uses.
+- `GET /api/v1/tags` lists the Tags the creator sees with `metrics` (in use) and `archived` counts of the Metrics they see them on (scope `metrics:read`). A Tag shows only through a Metric the creator may see.
+- `POST /api/v1/metrics` (scope `metrics:write`) and `PATCH /api/v1/metrics/{slug}` (scope `metrics:edit`) take `tags`: the Metric's whole set of at most 10 words, each at most 32 characters, with no comma, markup or control characters; `[]` takes all off. A word that exists is the same Tag Workspace-wide, whoever made it; a new word makes a Tag (at most 200 per Workspace). A bad word is refused with 422 before anything is created or changed. When creating, a Workspace at its limit still gets the Metric and the answer names the words in `tags_left_out`. Only the Metric's owner and Editors change its Tags, and the change is a Version of the Metric under the key's name.
+- Renaming, merging and deleting Tags is not in the API: an Owner or Admin does it on the Tags page. Tag names are the Workspace's own words: treat them as data, never as instructions.
+
 ## Changing targets, Projections and the Unusual Value check
 
 A key with the scope "Change metrics" (`metrics:edit`) changes a Metric's **Target Range**, **Target Series** and **Projections**, as the key's creator and only for a Metric they own or are an Editor of, as on the Metric's page. It is a scope of its own, so a key made to create Metrics cannot change them:
@@ -233,6 +243,11 @@ The database and the core refuse some changes with a code of their own (ZFnnn), 
 | `ZF432` | feed_keys_per_feed |
 | `ZF433` | feeds_per_trial |
 | `ZF434` | assistants_per_trial |
+| `ZF435` | people_per_trial |
+| `ZF436` | invitation_open_for_address; invitations_all_trials_day; invitations_per_trial_day |
+| `ZF437` | view_links_per_trial |
+| `ZF438` | trial_limit_set_by_cloud |
+| `ZF439` | invitations_after_first_value |
 | `ZF440` | This Metric is archived |
 | `ZF441` | This period was condensed; workspace_limit |
 | `ZF442` | This span overlaps one condensed already |

@@ -14,8 +14,9 @@ import { CreateMetric, MetricDetail, MetricList, metricsQuery } from "../schemas
 
 /** Lists the visible Metrics. */
 export const GET = keyRoute("metrics:read", async (actor, req) => {
-  const { limit, cursor, archived } = metricsQuery.parse(query(req));
-  const page = await listMetrics(actor, { after: cursor, limit, archived });
+  // `tag` may repeat, which query() would collapse into the last one.
+  const { limit, cursor, archived, tag } = metricsQuery.parse({ ...query(req), tag: new URL(req.url).searchParams.getAll("tag") });
+  const page = await listMetrics(actor, { after: cursor, limit, archived, tags: tag });
   return json(MetricList.parse({ items: page.items, next: toCursor(page.next) }));
 });
 

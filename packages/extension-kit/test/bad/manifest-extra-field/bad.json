@@ -1,0 +1,5 @@
+{
+  "rule": "bad-manifest",
+  "why": "has a field the format does not know",
+  "remove": []
+}

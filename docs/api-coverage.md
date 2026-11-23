@@ -16,11 +16,17 @@ Decks, Themes, View Designs, the canvas, Packs and the pages that edit them are 
 - `formulaChoices` (derived-metrics.ts): the list in the new-Metric form that builds a formula in the app; a program lists the Metrics it sees through the API and writes the formula itself
 - `sameNamedMetrics` (metric-name-check.ts): a form hint in the app that warns before a Metric gets a name that is taken; the API's create answers with the Metric
 - `saveLayout` (dashboards.ts): the dashboard canvas
+- `createDashboardFromBody` (dashboard-templates.ts): the same as making a dashboard from a template, for a template that is not stored; only a Workspace import uses it
+- `writeFormula` (pack-setup.ts): sets the formula of a Derived Metric made from a Pack entry or a Workspace Export; a program writes a formula through the API's
+- `addThemeFromFile` (workspace-themes.ts): Themes, which are built at the screen
+- `setHeldRole` (invitations.ts): the Members page, for the people of an imported Workspace Export before they are invited
+- `inviteEveryone` (invitations.ts): the Members page's button for the people of an imported Workspace Export; a program invites through the API's invitations
 - `setViewLinkNames` (view-links.ts): the View links window; a program's View Links always show no names (ticket #590)
 - `applyTemplate` (dashboards.ts): the dashboard canvas
 - `saveToPool` (dashboards.ts): the dashboard canvas
 - `deleteSavedWidget` (dashboards.ts): the dashboard canvas
 - `setDashboardTheme` (dashboards.ts): Themes
+- `fixTagLists` (tag-lists.ts): the View links window's Fix the list; a Tag source on a widget is not in the API yet (spec 0038)
 - `canvasAdd` (dashboards.ts): the dashboard canvas
 - `canvasRemove` (dashboards.ts): the dashboard canvas
 - `canvasSet` (dashboards.ts): the dashboard canvas
@@ -55,6 +61,8 @@ Decks, Themes, View Designs, the canvas, Packs and the pages that edit them are 
 - `previewPack` (packs.ts): Packs
 - `installPackFile` (packs.ts): Packs
 - `installPack` (packs.ts): Packs
+- `listInstalledPacks` (packs.ts): Packs
+- `packLogo` (brand-logo.ts): Packs
 - `previewValues` (paste-values.ts): pasting a table of values (the API takes values one by one)
 - `recordPastedValues` (paste-values.ts): pasting a table of values (the API takes values one by one)
 - `recordingOffer` (record-own-value.ts): the Metric page's Record a value form; a program submits through the API's own path
@@ -73,6 +81,9 @@ Decks, Themes, View Designs, the canvas, Packs and the pages that edit them are 
 - `nameVersion` (version-history.ts): a page's version history
 - `saveNamedVersion` (version-history.ts): a page's version history
 - `restoreVersion` (version-history.ts): a page's version history
+- `addMetricTags` (tags.ts): the Tags field on the Metric page adds one word; a program sends the whole set with `tags` on create and update (spec 0038)
+- `removeMetricTags` (tags.ts): the Tags field on the Metric page takes one word off; a program sends the whole set with `tags` (spec 0038)
+- `restoreMetricTags` (tags.ts): restoring a Metric's Version in the app puts its Tags back; a program has no Versions to restore
 - `addViewDesign` (view-designs.ts): View Designs
 - `removeViewDesign` (view-designs.ts): View Designs
 - `saveTheme` (workspace-themes.ts): Themes
@@ -98,6 +109,10 @@ Acts as the person, with their own sign-in, Slack or Telegram account or email a
 - `makeCalendarLink` (calendar-links.ts): one's own Calendar Link
 - `setCalendarNoNames` (calendar-links.ts): one's own Calendar Link
 - `revokeCalendarLink` (calendar-links.ts): one's own Calendar Link
+- `feedbackPromptFor` (feedback-prompt.ts): the card in the app that asks a signed-in person whether they like Ziffr (ticket #722); a program has no screen to show it on
+- `markFeedbackPromptShown` (feedback-prompt.ts): the same card, noting that it was shown
+- `stopFeedbackPrompt` (feedback-prompt.ts): the same card, "Star on GitHub" and "Don't ask again"
+- `sayWhatIsMissing` (feedback-prompt.ts): the same card, what the person says is missing
 - `optOutOfEmail` (email-opt-out.ts): one's own email choices
 - `optBackIn` (email-opt-out.ts): one's own email choices
 - `setTellStopped` (tell.ts): one's own "stop telling me" setting
@@ -124,6 +139,7 @@ Settings an Owner or Installation Admin makes at the screen. Programs with a key
 - `createFeed` (feeds.ts): Feeds and their keys are set up by a person in Settings
 - `renameFeed` (feeds.ts): Feeds and their keys are set up by a person in Settings
 - `deleteFeed` (feeds.ts): Feeds and their keys are set up by a person in Settings
+- `automationTemplateFor` (feed-template-download.ts): the n8n workflow for a Feed is made by an Owner or Admin at the screen (it makes a Feed and its key, set up by a person in Settings, and puts the Feed among Submitters)
 - `createFeedKey` (feeds.ts): Feeds and their keys are set up by a person in Settings
 - `revokeFeedKey` (feeds.ts): Feeds and their keys are set up by a person in Settings
 - `setYearStart` (fiscal-year.ts): Workspace settings
@@ -176,10 +192,12 @@ Settings an Owner or Installation Admin makes at the screen. Programs with a key
 - `replacePersonalWebhookSecret` (personal-webhooks.ts): Personal Webhooks pages (spec 0037, ticket 5); never the API or MCP on purpose, since changing where data leaves is what a prompt-injected assistant would be asked to do
 - `setPersonalWebhookEnabled` (personal-webhooks.ts): Personal Webhooks pages (spec 0037, ticket 5); never the API or MCP on purpose, since changing where data leaves is what a prompt-injected assistant would be asked to do
 - `deletePersonalWebhook` (personal-webhooks.ts): Personal Webhooks pages (spec 0037, ticket 5); never the API or MCP on purpose, since changing where data leaves is what a prompt-injected assistant would be asked to do
+- `forgetHiddenPersonalMetrics` (personal-webhooks.ts): Personal Webhooks pages (spec 0037, ticket 5); never the API or MCP on purpose, since changing where data leaves is what a prompt-injected assistant would be asked to do
 - `sendTestPersonalWebhook` (personal-webhooks.ts): Personal Webhooks pages (spec 0037, ticket 5); never the API or MCP on purpose, since changing where data leaves is what a prompt-injected assistant would be asked to do
 - `ownPersonalWebhookLog` (personal-webhooks.ts): Personal Webhooks pages (spec 0037, ticket 5); never the API or MCP on purpose, since changing where data leaves is what a prompt-injected assistant would be asked to do
 - `listPersonalWebhooksForAdmin` (personal-webhooks.ts): Personal Webhooks pages (spec 0037, ticket 5); never the API or MCP on purpose, since changing where data leaves is what a prompt-injected assistant would be asked to do
 - `personalWebhookLogForAdmin` (personal-webhooks.ts): Personal Webhooks pages (spec 0037, ticket 5); never the API or MCP on purpose, since changing where data leaves is what a prompt-injected assistant would be asked to do
+- `alertWebhookChoices` (alerts.ts): the Alert form (spec 0037, ticket 4); never the API or MCP on purpose, since changing where data leaves is what a prompt-injected assistant would be asked to do
 - `removePersonalWebhook` (personal-webhooks.ts): Personal Webhooks pages (spec 0037, ticket 5); never the API or MCP on purpose, since changing where data leaves is what a prompt-injected assistant would be asked to do
 - `personalWebhookMayHear` (personal-webhook-hearing.ts): what a Personal Webhook is sent at send time (spec 0037); never the API or MCP on purpose, it decides what leaves for a Webhook
 - `checkedPickedMetrics` (personal-webhook-hearing.ts): checks the Metrics picked on the Personal Webhooks pages (spec 0037, ticket 5); never the API or MCP on purpose, since changing where data leaves is what a prompt-injected assistant would be asked to do
@@ -208,6 +226,9 @@ Reads for a screen that also note that something was seen or logged; the API has
 
 - `auditLog` (audit-log.ts): the Audit Log page and its export
 - `exportAuditLog` (audit-log.ts): the Audit Log page and its export
+- `exportWorkspace` (workspace-export.ts): the Workspace Export download, for the Owner at the screen after a fresh sign-in; a key never exports a Workspace
+- `previewWorkspaceExport` (workspace-export.ts): what the Workspace Export page shows before the download
+- `auditOrRefuse` (audit-log.ts): records an event or refuses the action; used by the Workspace Export, which counts its starts from the log
 - `metricHistory` (dashboards.ts): the history page
 - `canvasSeries` (access.ts): the dashboard canvas fetching more series; reads sealed Breakdown labels and Condensed Values, which opening makes a read that may create a Workspace Key
 - `connectorsView` (page-data.ts): what a page reads
@@ -216,6 +237,7 @@ Reads for a screen that also note that something was seen or logged; the API has
 - `teamView` (page-data.ts): what a page reads
 - `actionThread` (page-data.ts): what a page reads
 - `periodRecord` (period-record.ts): the period page
+- `observationDetails` (observation-details.ts): the popup on a chart's point in the app; a program reads the same through the API's period status and values
 - `calendarEntries` (schedule.ts): the schedule page
 - `search` (search.ts): the search page
 - `listShareProposals` (share-proposals.ts): the Actions page; a key only proposes, it never reads what waits for the person (ticket #538)
@@ -256,6 +278,7 @@ Reads for a screen that also note that something was seen or logged; the API has
 - `workspaceValuesCsv` (unused-workspaces.ts): reads Workspace words, which opening needs the Workspace's key for (spec 0028); the API has its own reads
 - `versionAccess` (version-history.ts): reads Workspace words, which opening needs the Workspace's key for (spec 0028); the API has its own reads
 - `listVersions` (version-history.ts): reads Workspace words, which opening needs the Workspace's key for (spec 0028); the API has its own reads
+- `trialUsage` (trial-usage.ts): the trial bar and Try it show an Owner or Admin what the trial has used; the API has no such page
 
 ## keys-only: needs a person's check
 
@@ -274,20 +297,16 @@ Ticketed. MCP follows where the ticket says so.
 - `createWorkflowFromTemplate` (workflow-templates.ts): Workflows for programs, #433
 - `runTodayNow` (workflows.ts): running a Workflow now, with Workflows for programs, #433
 - `closeWorkflowPeriod` (workflows.ts): closing a period, with Workflows for programs, #433
-- `visibleTags` (tag-sight.ts): API and MCP: spec 0038 ticket #659
-- `tagSight` (tag-sight.ts): API and MCP: spec 0038 ticket #659
-- `metricTagNames` (tag-sight.ts): API and MCP: spec 0038 ticket #659
-- `metricIdsWithTags` (tag-sight.ts): API and MCP: spec 0038 ticket #659
-- `changeMetricTags` (tags.ts): API and MCP: spec 0038 ticket #659
-- `setMetricTags` (tags.ts): API and MCP: spec 0038 ticket #659
-- `addMetricTags` (tags.ts): API and MCP: spec 0038 ticket #659
-- `removeMetricTags` (tags.ts): API and MCP: spec 0038 ticket #659
-- `restoreMetricTags` (tags.ts): API and MCP: spec 0038 ticket #659
 
 ## internal: not for programs
 
 Plumbing the core's other operations use, jobs the schedule runs, and the demo.
 
+- `tagSight` (tag-sight.ts): the one reading of who sees which Tag that the app and the API both use; it changes nothing itself
+- `changeMetricTags` (tags.ts): the one change behind setMetricTags, addMetricTags and removeMetricTags; the API reaches it through `tags` on create and update
+- `resolveTagWidgets` (tag-widgets.ts): works out the Metrics of a widget of all Metrics tagged X for one viewer when a dashboard is drawn; read by the pages
+- `followMergedTag` (tag-lists.ts): part of merging Tags, which is not in the API or the MCP Server on purpose (spec 0038)
+- `recordedWidgets` (tag-widgets.ts): the same, for a deck or Snapshot that records the Metrics of the moment
 - `applyWebhookAction` (webhook-inbound.ts): a Webhook's own signed route, `POST /api/webhooks/{id}/in`, not an Access Key's
 - `askMeNowBy` (ask-now.ts): used by the Connectors' reply handling
 - `handover` (cloud-api.ts): hands a Workspace over, for Ziffr Cloud

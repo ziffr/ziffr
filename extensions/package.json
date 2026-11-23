@@ -1,0 +1,11 @@
+{
+  "name": "@ziffr/extensions",
+  "version": "0.0.0",
+  "private": true,
+  "description": "The Extensions built into Ziffr: one folder each under <author>/<name>, each with its own LICENSE. A package only so that the core can import them by name.",
+  "license": "SEE LICENSE IN EACH FOLDER",
+  "type": "module",
+  "exports": {
+    "./*": "./*.ts"
+  }
+}

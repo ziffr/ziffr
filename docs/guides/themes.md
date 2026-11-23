@@ -64,7 +64,7 @@ A Theme file holds **no image of its own, no font file and no web address**; the
 ## Sharing Themes
 
 - **One file.** Send the exported file. Whoever gets it imports it.
-- **As a Pack.** A Pack carries Themes next to Metrics, templates and View Designs. In **Workspace → Packs**, **Export as Pack…** lets you pick Themes of your Workspace. A Deck Template in the Pack can name one of its Themes, which decks made from it start with. A Pack with Themes is installed by an Owner. See the [Packs guide](packs.md).
+- **As a Pack.** A Pack carries Themes next to Metrics, templates and View Designs. In **Workspace → Packs**, **Export as Pack…** lets you pick Themes of your Workspace, and the logo of one of them as the Pack's logo; Themes that use it carry `"logo": "pack"`, any other logo stays out. A Deck Template in the Pack can name one of its Themes, which decks made from it start with. A Pack with Themes is installed by an Owner. See the [Packs guide](packs.md).
 - **On the Marketplace.** Publishing Packs on the Marketplace comes later (spec 0030); a Pack that holds Themes will be published like any other. Until then, share the Pack file.
 
 Check a Pack that holds your Theme before you share it with `npx @ziffr/pack check my.pack.json`; it runs the checks Ziffr runs, Theme files included. A single Theme file is checked when you import it.

@@ -84,7 +84,7 @@ describe("setting up Metrics from a Pack", () => {
     const { w, sara, install } = await withPack("saas-metrics");
     const ada = await w.person("admin");
     const contact = await w.contact({ email: "c@example.test" });
-    expect((await packSetupOptions(w.actor(sara), install)).workflows).toEqual([expect.objectContaining({ key: "monthly-close", approvers: 1 })]);
+    expect((await packSetupOptions(w.actor(sara), install)).workflows).toEqual([expect.objectContaining({ key: "monthly-close", approvers: 1 }), expect.objectContaining({ key: "quarter-close", approvers: 1 })]);
     await expect(setUpFromPack(w.actor(sara), install, { metrics: ["mrr"], workflow: { key: "monthly-close", approvers: [] } })).rejects.toThrow(/Pick each Approver/);
     await expect(setUpFromPack(w.actor(sara), install, { metrics: ["mrr"], workflow: { key: "monthly-close", approvers: [contact] } })).rejects.toThrow();
     expect(await count("metrics", w.id)).toBe(0);
@@ -122,6 +122,27 @@ describe("what is asked for", () => {
     await entry({ name: "Long sum", pack_key: "long-sum", formula: "{long-a} + {long-b} + {long-a} * {long-b}" });
     await expect(setUpFromPack(w.actor(sara), install, { metrics: ["long-sum"] })).rejects.toThrow(/longer than 500/);
     expect(await count("metrics", w.id)).toBe(0);
+  });
+});
+
+describe("templates a Pack names (spec 0043)", () => {
+  it("hands them to the page, and the Metrics made carry the key of their entry, a Derived one marked as taking no values", async () => {
+    const w = await workspace(); cleanups.push(w.cleanup);
+    const sara = await w.person("owner");
+    const file = JSON.parse(pack("online-shop"));
+    file.feeds = [{ template: "google-sheets", fills: ["orders", "revenue"] }];
+    const install = await installPackFile(w.actor(sara), JSON.stringify(file), { unsigned: true, assistantTexts: true });
+    const options = await packSetupOptions(w.actor(sara), install);
+    expect(options.suggestedFeeds).toEqual([{ template: "google-sheets", fills: ["orders", "revenue"] }]);
+    expect(options.templates.map((t) => t.id)).toContain("google-sheets");
+    const made = await setUpFromPack(w.actor(sara), install, { metrics: ["aov"] });
+    expect(made.metrics.map((m) => [m.key, m.takesValues])).toEqual([["orders", true], ["revenue", true], ["aov", false]]);
+    // Installing and setting up made no Feed: the page only offers the download.
+    expect((await db().from("feeds").select("person_id", { count: "exact", head: true }).eq("workspace_id", w.id)).count).toBe(0);
+  });
+  it("offers nothing for a Pack that names none", async () => {
+    const { w, sara, install } = await withPack("online-shop");
+    expect((await packSetupOptions(w.actor(sara), install)).suggestedFeeds).toEqual([]);
   });
 });
 

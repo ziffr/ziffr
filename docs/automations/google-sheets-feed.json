@@ -1,0 +1,231 @@
+{
+  "name": "Google Sheets to Ziffr (values)",
+  "nodes": [
+    {
+      "parameters": {
+        "content": "Google Sheets to Ziffr: values\n\n1. Fill in the Settings node: your Ziffr address and where the figures are.\n2. Add the credentials: Google Sheets on the read node, and a Header Auth credential named \"Ziffr Feed Key\" (name Authorization, value Bearer <your Feed Key>) on Send to Ziffr. Make the key in Ziffr under Settings, Feeds, and add the Feed under Who submits on each Metric.\n3. Press Execute workflow once to try it, then activate it: it runs every day at 9.\n\nThe rows of one sheet: a column metric (the Metric's slug), a column value, and optionally a column period (the period's first day).",
+        "width": 460,
+        "height": 340
+      },
+      "id": "fd685a43-ef36-5468-a2d8-53049b1ec8cd",
+      "name": "Read me",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -60,
+        -60
+      ]
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "triggerAtHour": 9
+            }
+          ]
+        }
+      },
+      "id": "b9fce182-8537-53d0-baed-2e35fbe60eb4",
+      "name": "Every day at 9",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        0,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "fcaa56ee-eef5-5bd1-97e2-38e70e1c9f77",
+              "name": "ziffrUrl",
+              "value": "https://REPLACE-WITH-YOUR-ZIFFR-ADDRESS",
+              "type": "string"
+            },
+            {
+              "id": "24d255ba-6930-5d20-b5e8-d6f134461fa2",
+              "name": "spreadsheetId",
+              "value": "REPLACE-WITH-THE-SPREADSHEET-ID",
+              "type": "string"
+            },
+            {
+              "id": "2ef9170e-44b8-5925-af4c-ea082c1a6b8b",
+              "name": "sheetName",
+              "value": "REPLACE-WITH-THE-SHEET-NAME",
+              "type": "string"
+            }
+          ]
+        },
+        "includeOtherFields": true,
+        "options": {
+          "includeBinary": true
+        }
+      },
+      "id": "f67130b1-4734-5d48-8708-0863c043f32e",
+      "name": "Settings",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        220,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "sheet",
+        "operation": "read",
+        "documentId": {
+          "__rl": true,
+          "value": "={{ $('Settings').first().json.spreadsheetId }}",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "={{ $('Settings').first().json.sheetName }}",
+          "mode": "name"
+        },
+        "options": {}
+      },
+      "id": "288ce46e-bb10-51c1-8671-99f227d9188d",
+      "name": "Read the sheet",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [
+        440,
+        300
+      ],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Google Sheets -> Ziffr (spec 0043): the rows read from Google Sheets become the items a Feed sends. Each row names a Metric by its\n// slug (as Ziffr shows it in the Metric's address), gives a number, and may give the period's first day (YYYY-MM-DD);\n// a row without a period is the current period. Nothing else leaves: no other column is sent.\nconst SLUG = /^[a-z0-9][a-z0-9-]{0,99}$/;\nconst DAY = /^\\d{4}-\\d{2}-\\d{2}$/;\nconst NUMBER = /^-?\\d+(\\.\\d+)?$/;\nconst MAX_ITEMS = 500;\nconst items = [];\nconst skipped = [];\nconst seen = new Set();\nlet row = 1;\nfor (const item of $input.all()) {\n  row++;\n  const r = item.json;\n  const metric = String(r.metric ?? '').trim();\n  const raw = typeof r.value === 'number' ? String(r.value) : String(r.value ?? '').trim();\n  const period = String(r.period ?? '').trim();\n  if (metric === '' && raw === '' && period === '') continue;\n  if (!SLUG.test(metric)) { skipped.push({ row, why: 'the metric is not a Metric slug' }); continue; }\n  if (!NUMBER.test(raw)) { skipped.push({ row, metric, why: 'the value is not a plain number' }); continue; }\n  if (period !== '' && !DAY.test(period)) { skipped.push({ row, metric, why: 'the period is not a day written YYYY-MM-DD' }); continue; }\n  const at = metric + '/' + period;\n  if (seen.has(at)) { skipped.push({ row, metric, why: 'the same Metric and period appear twice' }); continue; }\n  seen.add(at);\n  if (items.length >= MAX_ITEMS) { skipped.push({ row, metric, why: 'more than ' + MAX_ITEMS + ' rows' }); continue; }\n  items.push(period === '' ? { metric, value: Number(raw) } : { metric, period, value: Number(raw) });\n}\nif (items.length === 0) throw new Error('No row holds a Metric slug and a number: the columns are metric, value and, if you like, period.');\n// One run sends once, also when n8n retries it: the same rows give the same key, other rows another.\nlet h = 5381;\nconst body = JSON.stringify(items);\nfor (let i = 0; i < body.length; i++) h = ((h * 33) ^ body.charCodeAt(i)) >>> 0;\nconst key = 'sheets-' + new Date().toISOString().slice(0, 10) + '-' + h.toString(36) + '-' + items.length;\nreturn [{ json: { items, skipped, key } }];\n"
+      },
+      "id": "2536020d-2391-5c18-b9d3-7bc01a5380ca",
+      "name": "Shape values",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        660,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $('Settings').first().json.ziffrUrl.replace(/\\/+$/, '') }}/api/v1/feed/observations",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Idempotency-Key",
+              "value": "={{ $json.key }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "json",
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ items: $json.items }) }}",
+        "options": {}
+      },
+      "id": "d3397057-5664-5d62-a1ef-fb7d388cce97",
+      "name": "Send to Ziffr",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        880,
+        300
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "name": "Ziffr Feed Key"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Ziffr's answer to a batch of values (spec 0043): one result per item, in the order sent. A refused item fails the run,\n// so that n8n shows it as failed and its owner looks; the rest were recorded all the same (each item stands on its own).\nconst results = Array.isArray($input.first().json.results) ? $input.first().json.results : [];\nconst shaped = $('Shape values').first().json;\nconst refused = results.filter((r) => r.status === 'refused');\nif (refused.length) {\n  const why = refused.slice(0, 10).map((r) => String(r.metric) + ' ' + String(r.period ?? '') + ' (' + String(r.code ?? 'refused') + '): ' + String(r.detail)).join('; ');\n  throw new Error('Ziffr refused ' + refused.length + ' of ' + results.length + ' values: ' + why + (refused.length > 10 ? '; and more' : ''));\n}\nconst count = (s) => results.filter((r) => r.status === s).length;\nreturn [{ json: { recorded: count('recorded'), waitingForApproval: count('awaiting_approval'), proposedAsCorrection: count('locked'), skippedRows: shaped.skipped } }];\n"
+      },
+      "id": "86791596-1439-505d-ad52-809281f400df",
+      "name": "Check the answers",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1100,
+        300
+      ]
+    }
+  ],
+  "connections": {
+    "Every day at 9": {
+      "main": [
+        [
+          {
+            "node": "Settings",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Settings": {
+      "main": [
+        [
+          {
+            "node": "Read the sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read the sheet": {
+      "main": [
+        [
+          {
+            "node": "Shape values",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Shape values": {
+      "main": [
+        [
+          {
+            "node": "Send to Ziffr",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send to Ziffr": {
+      "main": [
+        [
+          {
+            "node": "Check the answers",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "pinData": {},
+  "active": false,
+  "tags": []
+}

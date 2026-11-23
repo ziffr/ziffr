@@ -21,19 +21,27 @@ import { checkThemeFileValue, themeToFile } from "./theme-file";
 import { checkViewDesignValue, type ViewDesign } from "./view-design";
 import { canonical } from "./api-submissions";
 import { TEMPLATE_VIEWS } from "@ziffr/pack/kinds";
+import { cleanLogo, logoProblem, PACK_LOGO_MAX_BYTES } from "@ziffr/pack/logo";
 import type { DashboardTemplateBody, DeckTemplateBody, Metric, SlideShape, Slot, ThemeSlides, ThemeTokens, WidgetSettings, WorkflowTemplateBody } from "./types";
 import type { FormatCheck } from "./json-check";
 
 /** Something the person may put into a Pack, as the Export dialog lists it. */
-export type ExportOption = { id: number; name: string; detail: string };
+export type ExportOption = { id: number; name: string; detail: string; /** True for a Theme whose logo may be the Pack's (spec 0039); the picture itself is fetched with `themeLogoForExport` only when picked. */ hasLogo?: boolean };
 /** What the Export dialog offers, by kind. */
 export type ExportOptions = { metrics: ExportOption[]; catalog: ExportOption[]; dashboards: ExportOption[]; decks: ExportOption[]; workflows: ExportOption[]; designs: ExportOption[]; themes: ExportOption[] };
 /** What the person picked, by kind, as ids. */
 export type ExportChoice = Partial<Record<keyof ExportOptions, number[]>>;
-/** The manifest the person writes for the Pack. */
-export type ExportManifest = { id: string; name: string; version: string; summary: string; author: string; license: string };
+/** The logo the person chose for the Pack (spec 0039): the logo of one of the Workspace's Themes, or a picture they
+ * uploaded as a data address. Either is checked again by the server before it goes into the file. */
+export type ExportLogo = { themeId: number } | { data: string };
+/** The manifest the person writes for the Pack; the `author` is the publisher the logo is shown with. */
+export type ExportManifest = { id: string; name: string; version: string; summary: string; author: string; license: string; logo?: ExportLogo };
 /** The Pack's file and what could not go into it, with why. */
 export type ExportResult = { text: string; fileName: string; leftOut: { name: string; why: string }[] };
+
+/** How text is fitted into a file: a Pack keeps the Pack's plain-text rules; a Workspace Export (workspace-export.ts)
+ * the app's own. Both say "does not fit" by an empty answer, and the caller says what was left out. */
+export type TextFit = { plain: (s: unknown, max: number) => string | null; words: (s: unknown, max: number) => string | undefined };
 
 const plain = (s: unknown, max: number) => {
   const t = String(s ?? "").replace(/\s+/g, " ").trim().slice(0, max);
@@ -43,6 +51,8 @@ const wordsOk = (s: unknown, max: number) => {
   const t = String(s ?? "").replace(/\s+/g, " ").trim().slice(0, max);
   return t && !checkSchema({ type: "string", pattern: WORDS } as Schema, t).length ? t : undefined;
 };
+/** A Pack's text rules. */
+const PACK_FIT: TextFit = { plain, words: wordsOk };
 const slug = (name: string) => {
   const s = name.toLowerCase().normalize("NFKD").replace(/\p{M}/gu, "").replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 36);
   return /^[a-z]/.test(s) ? s : `x-${s || "item"}`.slice(0, 40);
@@ -70,7 +80,7 @@ export async function exportOptions(actor: Actor): Promise<ExportOptions> {
     db().from("catalog_metrics").select("id, name, category").eq("workspace_id", ws).order("name"),
     db().from("team_templates").select("id, kind, name").eq("workspace_id", ws).in("kind", ["dashboard", "deck", "workflow"]).order("name"),
     db().from("view_designs").select("id, name").eq("workspace_id", ws).order("name"),
-    db().from("themes").select("id, name").eq("workspace_id", ws).order("name"),
+    db().from("themes").select("id, name, slides").eq("workspace_id", ws).order("name"),
   ]);
   const opt = (rows: { id: unknown; name: unknown }[] | null, detail: (r: Record<string, unknown>) => string = () => "") => (rows ?? []).map((r) => ({ id: Number(r.id), name: String(r.name), detail: detail(r as Record<string, unknown>) }));
   const of = (kind: string) => (tpl.data ?? []).filter((r) => r.kind === kind);
@@ -78,11 +88,22 @@ export async function exportOptions(actor: Actor): Promise<ExportOptions> {
     metrics: [...metrics.values()].sort((a, b) => a.name.localeCompare(b.name)).map((m) => ({ id: m.id, name: m.name, detail: m.formula ? "Derived Metric" : `by ${m.period}` })),
     catalog: opt(cat.data, (r) => String(r.category)),
     dashboards: opt(of("dashboard")), decks: opt(of("deck")), workflows: opt(of("workflow")),
-    designs: opt(des.data), themes: opt(thm.data),
+    designs: opt(des.data),
+    // Only a flag per Theme goes with the page: the picture comes through `themeLogoForExport` when one is picked.
+    themes: (thm.data ?? []).map((r) => { const has = cleanLogo((r.slides as { logo?: unknown } | null)?.logo, PACK_LOGO_MAX_BYTES) !== null; return { id: Number(r.id), name: String(r.name), detail: has ? "has a logo" : "", ...(has ? { hasLogo: true } : {}) }; }),
   };
 }
 
 type Row = Record<string, unknown>;
+
+/** The cleaned logo of one of the Workspace's Themes, for the Export dialog's preview, or null when there is none that
+ * a Pack may hold. Only a Theme of the actor's Workspace is found. */
+export async function themeLogoForExport(actor: Actor, themeId: number): Promise<string | null> {
+  assertMayExport(actor);
+  if (typeof themeId !== "number" || !Number.isInteger(themeId)) return null;
+  const { data } = await db().from("themes").select("slides").eq("workspace_id", actor.workspaceId).eq("id", themeId).maybeSingle();
+  return cleanLogo((data?.slides as { logo?: unknown } | null)?.logo, PACK_LOGO_MAX_BYTES);
+}
 
 /** What else the person chose about the file: `tags: false` leaves the Tags of Metrics out (they go in by default). */
 export type ExportOptionsChosen = { tags?: boolean };
@@ -110,6 +131,17 @@ export async function exportPack(actor: Actor, manifest: ExportManifest, choice:
   };
   const seen = await seenMetrics(actor);
   const installs = new Map(((await db().from("pack_installs").select("id, manifest").eq("workspace_id", ws)).data ?? []).map((r) => [Number(r.id), String((r.manifest as { name?: string }).name ?? "")]));
+
+  // The Pack's one logo: a Theme's of this Workspace or an uploaded picture, held to the checks every logo meets.
+  let logo: string | null = null;
+  const wanted = manifest?.logo as { themeId?: unknown; data?: unknown } | undefined;
+  if (wanted && typeof wanted === "object") {
+    let raw: unknown;
+    if (wanted.themeId !== undefined) raw = ((await rows("themes", (typeof wanted.themeId === "number" && Number.isInteger(wanted.themeId) ? [wanted.themeId] : []), "id, slides"))[0]?.slides as { logo?: unknown } | undefined)?.logo;
+    else raw = wanted.data;
+    logo = cleanLogo(raw, PACK_LOGO_MAX_BYTES);
+    if (!logo) leftOut.push({ name: "Logo", why: logoProblem(raw, PACK_LOGO_MAX_BYTES) ?? "There is no picture to use." });
+  }
 
   // Themes and View Designs first: templates name them by key.
   const themes = (await rows("themes", ids("themes"), "id, name, tokens, slides, pack_key")).map((r) => ({ r, key: keyFor(r.pack_key, String(r.name)) }));
@@ -205,8 +237,11 @@ export async function exportPack(actor: Actor, manifest: ExportManifest, choice:
   for (const d of designs) if (keep(d.r.body, checkViewDesignValue(d.r.body).ok ? { ok: true, value: d.r.body } : { ok: false, problems: [] }, String(d.r.name), leftOut)) views.push({ key: d.key, design: d.r.body as ViewDesign });
   const themeFiles: Pack["contents"]["themes"] = [];
   for (const { r, key } of themes) {
-    const file = themeToFile(r.name, r.tokens as ThemeTokens, r.slides as Partial<ThemeSlides> | null);
-    if (keep(file, checkThemeFileValue(file), file.name, leftOut)) themeFiles.push({ key, theme: file });
+    const own = (r.slides as { logo?: unknown } | null)?.logo;
+    const usesPackLogo = logo !== null && cleanLogo(own, PACK_LOGO_MAX_BYTES) === logo;
+    if (own && !usesPackLogo) leftOut.push({ name: String(r.name), why: "Its own logo stays out unless it is the Pack's one logo." });
+    const file = themeToFile(r.name, r.tokens as ThemeTokens, r.slides as Partial<ThemeSlides> | null, usesPackLogo);
+    if (keep(file, checkThemeFileValue(file, new Map(), logo ? "pack-with-logo" : "pack-without-logo"), file.name, leftOut)) themeFiles.push({ key, theme: file });
   }
 
   const byKey = <T extends { key: string }>(xs: T[]) => [...xs].sort((a, b) => a.key.localeCompare(b.key));
@@ -216,7 +251,7 @@ export async function exportPack(actor: Actor, manifest: ExportManifest, choice:
     format: PACK_FORMAT, id: String(manifest?.id ?? ""), name: String(manifest?.name ?? "").trim(), version: String(manifest?.version ?? "").trim(),
     summary: String(manifest?.summary ?? "").replace(/\s+/g, " ").trim(), author: { name: String(manifest?.author ?? "").trim() },
     license: (PACK_LICENSES as readonly string[]).includes(String(manifest?.license)) ? (manifest.license as Pack["license"]) : "CC-BY-4.0",
-    ziffr: `>=${major}.${minor}`, contents,
+    ...(logo ? { logo } : {}), ziffr: `>=${major}.${minor}`, contents,
   };
   const text = `${JSON.stringify(pack, null, 2)}\n`;
   const res = checkPack(text);
@@ -245,11 +280,12 @@ function keep(_file: unknown, res: FormatCheck<unknown>, name: string, leftOut: 
   return false;
 }
 
-const titleOf = (t: string | null | undefined) => { const w = wordsOk(t, 200); return w ? { title: w } : {}; };
+/** A widget's title as a file keeps it: only when it fits. */
+export const titleOf = (t: string | null | undefined, fit: TextFit = PACK_FIT) => { const w = fit.words(t, 200); return w ? { title: w } : {}; };
 
 /** A widget's settings as a template file keeps them: only what the format has, words that fit, a View Design by its
  * key in the Pack when it is in it, written out otherwise. */
-function settingsOf(s: WidgetSettings | undefined, designKey: ReadonlyMap<string, string>): { settings?: WidgetSettingsFile } {
+export function settingsOf(s: WidgetSettings | undefined, designKey: ReadonlyMap<string, string>, fit: TextFit = PACK_FIT): { settings?: WidgetSettingsFile } {
   if (!s) return {};
   const out: WidgetSettingsFile = {};
   if (s.window !== undefined) out.window = s.window;
@@ -257,24 +293,24 @@ function settingsOf(s: WidgetSettings | undefined, designKey: ReadonlyMap<string
   for (const k of ["showTarget", "showForecast", "fullPeriods"] as const) if (s[k] !== undefined) out[k] = s[k];
   if (s.rows !== undefined) out.rows = s.rows;
   if (s.compare?.length) out.compare = s.compare;
-  for (const k of ["kicker", "headline", "subline", "footnote", "source"] as const) { const w = wordsOk(s[k], 200); if (w) out[k] = w; }
-  const callouts = (s.callouts ?? []).filter((c) => c.rule).map((c) => ({ rule: c.rule!, ...(wordsOk(c.text, 200) ? { text: wordsOk(c.text, 200) } : {}) }));
+  for (const k of ["kicker", "headline", "subline", "footnote", "source"] as const) { const w = fit.words(s[k], 200); if (w) out[k] = w; }
+  const callouts = (s.callouts ?? []).filter((c) => c.rule).map((c) => ({ rule: c.rule!, ...(fit.words(c.text, 200) ? { text: fit.words(c.text, 200) } : {}) }));
   if (callouts.length) out.callouts = callouts;
   if (s.panels?.length) out.panels = s.panels.map((p) => ({
     type: p.type, ...(p.slot !== undefined ? { slot: p.slot } : {}), ...(p.measure ? { measure: p.measure } : {}), ...(p.periods ? { periods: p.periods } : {}),
     ...(p.highlight === "last" || p.highlight === "projection" ? { highlight: p.highlight } : {}), ...(p.projections !== undefined ? { projections: p.projections } : {}), ...(p.sharedScale !== undefined ? { sharedScale: p.sharedScale } : {}),
-    ...(p.refLine ? { refLine: { kind: p.refLine.kind, ...(p.refLine.value !== undefined ? { value: p.refLine.value } : {}), ...(plain(p.refLine.label, 60) ? { label: plain(p.refLine.label, 60)! } : {}) } } : {}),
-    ...(p.bridge ? { bridge: { mode: p.bridge.mode } } : {}), ...(wordsOk(p.title, 200) ? { title: wordsOk(p.title, 200) } : {}),
-    ...(p.annotations?.length ? { annotations: p.annotations.flatMap((a) => (a.anchor.type === "rule" ? [{ kind: a.kind, rule: a.anchor.rule, ...(wordsOk(a.text, 200) ? { text: wordsOk(a.text, 200) } : {}), ...(a.arrow !== undefined ? { arrow: a.arrow } : {}) }] : [])) } : {}),
+    ...(p.refLine ? { refLine: { kind: p.refLine.kind, ...(p.refLine.value !== undefined ? { value: p.refLine.value } : {}), ...(fit.plain(p.refLine.label, 60) ? { label: fit.plain(p.refLine.label, 60)! } : {}) } } : {}),
+    ...(p.bridge ? { bridge: { mode: p.bridge.mode } } : {}), ...(fit.words(p.title, 200) ? { title: fit.words(p.title, 200) } : {}),
+    ...(p.annotations?.length ? { annotations: p.annotations.flatMap((a) => (a.anchor.type === "rule" ? [{ kind: a.kind, rule: a.anchor.rule, ...(fit.words(a.text, 200) ? { text: fit.words(a.text, 200) } : {}), ...(a.arrow !== undefined ? { arrow: a.arrow } : {}) }] : [])) } : {}),
   }));
   if (s.design?.body) out.design = designKey.get(canonical(s.design.body)) ?? s.design.body;
   return Object.keys(out).length ? { settings: out } : {};
 }
 
 /** Paragraphs of a shape's words, from the rich text the deck editor keeps. */
-function paragraphsOf(rich: unknown): string[] {
+function paragraphsOf(rich: unknown, fit: TextFit = PACK_FIT): string[] {
   const doc = rich as { content?: { content?: { text?: string }[] }[] } | undefined;
-  return (doc?.content ?? []).map((p) => (p.content ?? []).map((t) => t.text ?? "").join("")).slice(0, 20).map((t) => wordsOk(t, 300) ?? "").filter((t, i, all) => t || i < all.length - 1);
+  return (doc?.content ?? []).map((p) => (p.content ?? []).map((t) => t.text ?? "").join("")).slice(0, 20).map((t) => fit.words(t, 300) ?? "").filter((t, i, all) => t || i < all.length - 1);
 }
 
 const COLORS = ["black", "grey", "light-violet", "violet", "blue", "light-blue", "yellow", "orange", "green", "light-green", "light-red", "red", "white"];
@@ -282,20 +318,20 @@ const GEOS = ["rectangle", "ellipse", "oval", "triangle", "diamond", "hexagon", 
 const clamp = (v: unknown, lo: number, hi: number) => Math.min(hi, Math.max(lo, Math.round(Number(v) || 0)));
 
 /** A slide's shape as a Deck Template file keeps it: widgets, words and simple boxes; anything else stays behind. */
-function slideShapeOf(sh: SlideShape, designKey: ReadonlyMap<string, string>): DeckTemplateFile["slides"][number]["shapes"] {
+export function slideShapeOf(sh: SlideShape, designKey: ReadonlyMap<string, string>, fit: TextFit = PACK_FIT): DeckTemplateFile["slides"][number]["shapes"] {
   const p = sh.props as Record<string, unknown>;
   const x = clamp(sh.x, 0, 1279), y = clamp(sh.y, 0, 719);
   const color = COLORS.includes(String(p.color)) ? { color: p.color as "black" } : {};
   if (sh.type === "ziffr-widget" && sh.widget && (TEMPLATE_VIEWS as readonly string[]).includes(String(p.template))) {
-    return [{ shape: "widget", view: p.template as "line", slots: sh.widget.metricSlots, ...titleOf(sh.widget.title), x, y, w: clamp(p.w, 40, 1280 - x), h: clamp(p.h, 40, 720 - y), ...settingsOf(sh.widget.settings, designKey) }];
+    return [{ shape: "widget", view: p.template as "line", slots: sh.widget.metricSlots, ...titleOf(sh.widget.title, fit), x, y, w: clamp(p.w, 40, 1280 - x), h: clamp(p.h, 40, 720 - y), ...settingsOf(sh.widget.settings, designKey, fit) }];
   }
   if (sh.type === "text") {
-    const text = paragraphsOf(p.richText);
+    const text = paragraphsOf(p.richText, fit);
     if (!text.length) return [];
     return [{ shape: "text", x, y, w: clamp(p.w, 20, 1280 - x), text, ...(["s", "m", "l", "xl"].includes(String(p.size)) ? { size: p.size as "m" } : {}), ...(typeof p.scale === "number" ? { scale: Math.min(4, Math.max(0.25, p.scale)) } : {}), ...(["start", "middle", "end"].includes(String(p.textAlign)) ? { align: p.textAlign as "start" } : {}), ...color }];
   }
   if (sh.type === "geo") {
-    const text = paragraphsOf(p.richText);
+    const text = paragraphsOf(p.richText, fit);
     return [{ shape: "box", x, y, w: clamp(p.w, 4, 1280 - x), h: clamp(p.h, 4, 720 - y), geo: (GEOS.includes(String(p.geo)) ? p.geo : "rectangle") as "rectangle", ...(["none", "semi", "solid"].includes(String(p.fill)) ? { fill: p.fill as "none" } : {}), ...color, ...(text.length ? { text } : {}) }];
   }
   return [];

@@ -9,7 +9,7 @@ import { createFeed } from "./feeds";
 import { closeEndedTrials, deleteExpiredTrials, endTrialNow, remindEndingTrials, trialCleanup, trialValuesCsv } from "./trial-end";
 import { forgetStoredSettings } from "./settings-in-effect";
 import { keepTrial } from "./trials";
-import { workspace } from "./test/db-fixtures";
+import { opened, workspace } from "./test/db-fixtures";
 import { setNumberStyle } from "./workspace-settings";
 import { destroyWorkspaceKeys, ensureWorkspaceKey, forgetWorkspaceKey, workspaceCipher } from "./workspace-keys";
 
@@ -35,11 +35,42 @@ const reminders = async (ws: string) => (await db().from("deliveries").select("i
 describe("the end of a trial", () => {
   it("reminds the Owner once, the day before", async () => {
     const t = await trial(12);
-    const later = await trial(60);
+    const later = await trial(100);
     expect(await remindEndingTrials()).toBeGreaterThanOrEqual(1);
     await remindEndingTrials();
     expect(await reminders(t.id)).toBe(1);
     expect(await reminders(later.id)).toBe(0);
+  });
+
+  it("reminds three days before, one day before and as it ends, each once, naming the two ways on and the day of the deletion", async () => {
+    const t = await trial(70);
+    const sent = async () => await opened("deliveries", t.id, (await db().from("deliveries").select("id, subject, body").eq("workspace_id", t.id).eq("kind", "notice").order("id")).data);
+    await remindEndingTrials(); await remindEndingTrials();
+    expect((await sent()).map((d) => d.subject)).toEqual(["Your Ziffr trial ends in 3 days"]);
+    await t.setEnd(20); await remindEndingTrials(); await remindEndingTrials();
+    await t.setEnd(1); await remindEndingTrials(); await remindEndingTrials();
+    const all = await sent();
+    expect(all.map((d) => d.subject)).toEqual(["Your Ziffr trial ends in 3 days", "Your Ziffr trial ends tomorrow", "Your Ziffr trial ends today"]);
+    const { data: ws } = await db().from("workspaces").select("trial_ends_at, trial_grace_days").eq("id", t.id).single();
+    const deletedOn = new Date(new Date(ws!.trial_ends_at as string).getTime() + (ws!.trial_grace_days as number) * 86_400_000);
+    for (const d of all) {
+      expect(d.body).toContain("two ways on");
+      expect(d.body).toContain("Subscribe to a Size");
+      expect(d.body).toContain("Workspace Export");
+      expect(d.body).toContain("/settings/export");
+    }
+    // The last says the day the data goes: the end plus the days promised.
+    expect(all[2].body).toContain(`it is deleted with everything in it`);
+    expect(all[2].body).toContain(`on ${deletedOn.getUTCDate()} ${deletedOn.toLocaleDateString("en-GB", { month: "long", timeZone: "UTC" })} it is deleted`);
+  });
+
+  it("sends one reminder, not three, for a trial that is made for a day or two", async () => {
+    const t = await trial(10);
+    await remindEndingTrials(); await t.setEnd(1); await remindEndingTrials();
+    expect(await reminders(t.id)).toBe(2);
+    const quick = await trial(1);
+    await remindEndingTrials();
+    expect(await reminders(quick.id)).toBe(1);
   });
 
   it("stops keys at the end at once, and closing revokes them", async () => {
@@ -279,27 +310,46 @@ describe("when the Installation Settings cannot be read (fail closed)", () => {
     expect(data!.trial_closed_at).toBeNull();
   });
 
-  it("also refuses to end a trial at once, and to remind", async () => {
+  it("also refuses to remind", async () => {
     const t = await trial(12);
     settingsDown();
-    await expect(endTrialNow(t.ownerActor)).rejects.toThrow(/could not be read/);
     await expect(remindEndingTrials()).rejects.toThrow(/could not be read/);
     vi.restoreAllMocks();
     expect((await db().from("workspaces").select("id").eq("id", t.id).maybeSingle()).data).not.toBeNull();
   });
 
-  it("deletes nothing where trials are kept, and a trial that was kept is never deleted", async () => {
+  it("deletes nothing for a stored keep row without a Ziffr Cloud key, which still governs the trials that exist (spec 0040)", async () => {
+    const key = process.env.ZIFFR_CLOUD_KEY;
+    delete process.env.ZIFFR_CLOUD_KEY;
     const old = await trial(-8 * 24);
-    const kept = await trial(-8 * 24);
-    await keepTrial(kept.id);
-    process.env.ZIFFR_TRIAL_THEN = "keep";
+    await db().from("installation_settings").upsert({ name: "ZIFFR_TRIAL_THEN", value: "keep", sealed: false }).throwOnError();
     forgetStoredSettings();
     try {
       expect(await deleteExpiredTrials()).toBe(0);
-      delete process.env.ZIFFR_TRIAL_THEN;
-      forgetStoredSettings();
-      await deleteExpiredTrials();
-    } finally { delete process.env.ZIFFR_TRIAL_THEN; forgetStoredSettings(); }
+      expect(await closeEndedTrials()).toBeGreaterThanOrEqual(1);
+      expect((await db().from("workspaces").select("trial_kept_at").eq("id", old.id).single()).data!.trial_kept_at).not.toBeNull();
+      await expect(endTrialNow(old.ownerActor)).rejects.toThrow();
+    } finally { if (key !== undefined) process.env.ZIFFR_CLOUD_KEY = key; await db().from("installation_settings").delete().eq("name", "ZIFFR_TRIAL_THEN"); forgetStoredSettings(); }
+    expect((await db().from("workspaces").select("id").eq("id", old.id).maybeSingle()).data).not.toBeNull();
+  });
+
+  it("deletes an ended trial on hosted Ziffr whatever a stored ZIFFR_TRIAL_THEN row says: there is no Free Size", async () => {
+    const key = process.env.ZIFFR_CLOUD_KEY;
+    process.env.ZIFFR_CLOUD_KEY = "k".repeat(40);
+    const old = await trial(-8 * 24);
+    await db().from("installation_settings").upsert({ name: "ZIFFR_TRIAL_THEN", value: "keep", sealed: false }).throwOnError();
+    forgetStoredSettings();
+    try {
+      expect(await deleteExpiredTrials()).toBeGreaterThanOrEqual(1);
+    } finally { if (key === undefined) delete process.env.ZIFFR_CLOUD_KEY; else process.env.ZIFFR_CLOUD_KEY = key; await db().from("installation_settings").delete().eq("name", "ZIFFR_TRIAL_THEN"); forgetStoredSettings(); }
+    expect((await db().from("workspaces").select("id").eq("id", old.id).maybeSingle()).data).toBeNull();
+  });
+
+  it("never deletes a trial that was subscribed to", async () => {
+    const old = await trial(-8 * 24);
+    const kept = await trial(-8 * 24);
+    await keepTrial(kept.id);
+    await deleteExpiredTrials();
     expect((await db().from("workspaces").select("id").eq("id", kept.id).maybeSingle()).data).not.toBeNull();
     expect((await db().from("workspaces").select("id").eq("id", old.id).maybeSingle()).data).toBeNull();
   });

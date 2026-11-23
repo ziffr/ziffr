@@ -1,0 +1,208 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ziffr.net/schemas/ziffr.extension-1.json",
+  "title": "Ziffr Extension (ziffr.extension/1)",
+  "description": "The manifest of an Extension: one Method or one mark written by someone other than Ziffr, checked by the Extension Kit and shipped in a Ziffr release.",
+  "type": "object",
+  "properties": {
+    "format": {
+      "const": "ziffr.extension/1",
+      "description": "The format and its version."
+    },
+    "id": {
+      "type": "string",
+      "maxLength": 100,
+      "pattern": "^[a-z0-9][a-z0-9-]{0,38}/[a-z0-9][a-z0-9-]{0,59}$",
+      "description": "the author's handle and a slug, such as “acme/survival”, the same for every version"
+    },
+    "version": {
+      "type": "string",
+      "maxLength": 20,
+      "pattern": "^(?:0|[1-9][0-9]{0,5})\\.(?:0|[1-9][0-9]{0,5})\\.(?:0|[1-9][0-9]{0,5})$",
+      "description": "three numbers, major, minor and patch, such as “1.2.0”; a change that alters a number is a new major version"
+    },
+    "kind": {
+      "enum": [
+        "method",
+        "mark"
+      ],
+      "description": "A Method is a pure function over series, tables and numbers; a mark is a drawing rule."
+    },
+    "name": {
+      "type": "string",
+      "maxLength": 80,
+      "pattern": "^(?![\\s\\S]*(?:://|[Ww][Ww][Ww]\\.|[Jj][Aa][Vv][Aa][Ss][Cc][Rr][Ii][Pp][Tt]:|[Dd][Aa][Tt][Aa]:|[Uu][Rr][Ll]\\(|[\\p{L}\\p{N}](?:\\.(?:[Cc][Oo][Mm]|[Nn][Ee][Tt]|[Oo][Rr][Gg]|[Ii][Oo]|[Cc][Oo]|[Ii][Nn][Ff][Oo]|[Bb][Ii][Zz]|[Aa][Pp][Pp]|[Dd][Ee][Vv]|[Xx][Yy][Zz]|[Mm][Ee]|[Aa][Ii]|[Ll][Yy]|[Gg][Ll]|[Gg][Gg]|[Tt][Oo]|[Cc][Cc]|[Tt][Vv]|[Ww][Ss]|[Ll][Ii][Nn][Kk]|[Cc][Ll][Ii][Cc][Kk]|[Ss][Ii][Tt][Ee]|[Oo][Nn][Ll][Ii][Nn][Ee]|[Tt][Oo][Pp]|[Tt][Kk]|[Rr][Uu]|[Cc][Nn]|[Dd][Ee]|[Uu][Kk]|[Ff][Rr]|[Ee][Uu]|[Uu][Ss]|[Nn][Ll]|[Cc][Hh]|[Aa][Tt]|[Ii][Tt]|[Ee][Ss])(?![\\p{L}\\p{N}])|\\.[Xx][Nn]--|\\.\\p{L}{2,}/)|\\b(?:[Hh][Tt][Tt][Pp][Ss]?|[Ff][Tt][Pp]|[Mm][Aa][Ii][Ll][Tt][Oo]|[Tt][Ee][Ll]|[Ss][Mm][Ss]|[Ff][Ii][Ll][Ee]|[Vv][Bb][Ss][Cc][Rr][Ii][Pp][Tt]):(?!\\s)))[\\p{L}\\p{M}\\p{N} .,;:!?'\"’‘“”«»()%€$£¥+\\-–—/&#*=_·…°]*$",
+      "description": "plain text, without markup or web addresses",
+      "minLength": 1
+    },
+    "summary": {
+      "type": "string",
+      "maxLength": 200,
+      "pattern": "^(?![\\s\\S]*(?:://|[Ww][Ww][Ww]\\.|[Jj][Aa][Vv][Aa][Ss][Cc][Rr][Ii][Pp][Tt]:|[Dd][Aa][Tt][Aa]:|[Uu][Rr][Ll]\\(|[\\p{L}\\p{N}](?:\\.(?:[Cc][Oo][Mm]|[Nn][Ee][Tt]|[Oo][Rr][Gg]|[Ii][Oo]|[Cc][Oo]|[Ii][Nn][Ff][Oo]|[Bb][Ii][Zz]|[Aa][Pp][Pp]|[Dd][Ee][Vv]|[Xx][Yy][Zz]|[Mm][Ee]|[Aa][Ii]|[Ll][Yy]|[Gg][Ll]|[Gg][Gg]|[Tt][Oo]|[Cc][Cc]|[Tt][Vv]|[Ww][Ss]|[Ll][Ii][Nn][Kk]|[Cc][Ll][Ii][Cc][Kk]|[Ss][Ii][Tt][Ee]|[Oo][Nn][Ll][Ii][Nn][Ee]|[Tt][Oo][Pp]|[Tt][Kk]|[Rr][Uu]|[Cc][Nn]|[Dd][Ee]|[Uu][Kk]|[Ff][Rr]|[Ee][Uu]|[Uu][Ss]|[Nn][Ll]|[Cc][Hh]|[Aa][Tt]|[Ii][Tt]|[Ee][Ss])(?![\\p{L}\\p{N}])|\\.[Xx][Nn]--|\\.\\p{L}{2,}/)|\\b(?:[Hh][Tt][Tt][Pp][Ss]?|[Ff][Tt][Pp]|[Mm][Aa][Ii][Ll][Tt][Oo]|[Tt][Ee][Ll]|[Ss][Mm][Ss]|[Ff][Ii][Ll][Ee]|[Vv][Bb][Ss][Cc][Rr][Ii][Pp][Tt]):(?!\\s)))[\\p{L}\\p{M}\\p{N} .,;:!?'\"’‘“”«»()%€$£¥+\\-–—/&#*=_·…°]*$",
+      "description": "plain text, without markup or web addresses",
+      "minLength": 1
+    },
+    "author": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string",
+          "maxLength": 80,
+          "pattern": "^(?![\\s\\S]*(?:://|[Ww][Ww][Ww]\\.|[Jj][Aa][Vv][Aa][Ss][Cc][Rr][Ii][Pp][Tt]:|[Dd][Aa][Tt][Aa]:|[Uu][Rr][Ll]\\(|[\\p{L}\\p{N}](?:\\.(?:[Cc][Oo][Mm]|[Nn][Ee][Tt]|[Oo][Rr][Gg]|[Ii][Oo]|[Cc][Oo]|[Ii][Nn][Ff][Oo]|[Bb][Ii][Zz]|[Aa][Pp][Pp]|[Dd][Ee][Vv]|[Xx][Yy][Zz]|[Mm][Ee]|[Aa][Ii]|[Ll][Yy]|[Gg][Ll]|[Gg][Gg]|[Tt][Oo]|[Cc][Cc]|[Tt][Vv]|[Ww][Ss]|[Ll][Ii][Nn][Kk]|[Cc][Ll][Ii][Cc][Kk]|[Ss][Ii][Tt][Ee]|[Oo][Nn][Ll][Ii][Nn][Ee]|[Tt][Oo][Pp]|[Tt][Kk]|[Rr][Uu]|[Cc][Nn]|[Dd][Ee]|[Uu][Kk]|[Ff][Rr]|[Ee][Uu]|[Uu][Ss]|[Nn][Ll]|[Cc][Hh]|[Aa][Tt]|[Ii][Tt]|[Ee][Ss])(?![\\p{L}\\p{N}])|\\.[Xx][Nn]--|\\.\\p{L}{2,}/)|\\b(?:[Hh][Tt][Tt][Pp][Ss]?|[Ff][Tt][Pp]|[Mm][Aa][Ii][Ll][Tt][Oo]|[Tt][Ee][Ll]|[Ss][Mm][Ss]|[Ff][Ii][Ll][Ee]|[Vv][Bb][Ss][Cc][Rr][Ii][Pp][Tt]):(?!\\s)))[\\p{L}\\p{M}\\p{N} .,;:!?'\"’‘“”«»()%€$£¥+\\-–—/&#*=_·…°]*$",
+          "description": "plain text, without markup or web addresses",
+          "minLength": 1
+        }
+      },
+      "required": [
+        "name"
+      ],
+      "additionalProperties": false
+    },
+    "license": {
+      "enum": [
+        "MIT",
+        "Apache-2.0"
+      ],
+      "description": "The licence of the Extension's own directory (its LICENSE file)."
+    },
+    "signature": {
+      "type": "object",
+      "description": "What the Extension is handed and what it gives back.",
+      "properties": {
+        "inputs": {
+          "type": "array",
+          "maxItems": 6,
+          "items": {
+            "type": "object",
+            "properties": {
+              "name": {
+                "type": "string",
+                "pattern": "^[a-z][a-zA-Z0-9]{0,23}$"
+              },
+              "kind": {
+                "enum": [
+                  "series",
+                  "value",
+                  "table",
+                  "model"
+                ]
+              }
+            },
+            "required": [
+              "name",
+              "kind"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "params": {
+          "type": "array",
+          "maxItems": 6,
+          "items": {
+            "type": "object",
+            "properties": {
+              "name": {
+                "type": "string",
+                "pattern": "^[a-z][a-zA-Z0-9]{0,23}$"
+              },
+              "min": {
+                "type": "number"
+              },
+              "max": {
+                "type": "number"
+              },
+              "default": {
+                "type": "number"
+              }
+            },
+            "required": [
+              "name",
+              "min",
+              "max",
+              "default"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "gives": {
+          "enum": [
+            "series",
+            "value",
+            "table",
+            "model",
+            "shapes"
+          ],
+          "description": "What comes back; a mark gives shapes, a Method one of the kinds."
+        }
+      },
+      "required": [
+        "inputs",
+        "gives"
+      ],
+      "additionalProperties": false
+    },
+    "limits": {
+      "type": "object",
+      "description": "The most the Extension is checked and run with.",
+      "properties": {
+        "points": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 120,
+          "description": "the longest series it takes"
+        },
+        "drivers": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 6,
+          "description": "the most other series it takes beside the first"
+        }
+      },
+      "required": [
+        "points"
+      ],
+      "additionalProperties": false
+    },
+    "equality": {
+      "type": "object",
+      "description": "How the checks compare the Method's answer with its reference's. Left out, they must be exactly equal; a Method that draws on a distribution may name a relative tolerance instead.",
+      "properties": {
+        "relative": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 0.000001,
+          "description": "the largest relative difference accepted, above 0 and at most 1e-6"
+        }
+      },
+      "required": [
+        "relative"
+      ],
+      "additionalProperties": false
+    },
+    "ziffr": {
+      "type": "string",
+      "maxLength": 20,
+      "pattern": "^>=(?:0|[1-9][0-9]{0,3})\\.(?:0|[1-9][0-9]{0,3})(?:\\.(?:0|[1-9][0-9]{0,3}))?$",
+      "description": "the oldest Ziffr it was written for, such as “>=0.14”"
+    },
+    "price": {
+      "const": "free",
+      "description": "Free only for now; paid Extensions are a later decision."
+    }
+  },
+  "required": [
+    "format",
+    "id",
+    "version",
+    "kind",
+    "name",
+    "summary",
+    "author",
+    "license",
+    "signature",
+    "limits",
+    "ziffr",
+    "price"
+  ],
+  "additionalProperties": false
+}

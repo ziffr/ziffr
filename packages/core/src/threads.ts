@@ -19,7 +19,7 @@ export async function participants(ws: string, actionId: number) {
  * "confirm" or "Correction: <value>" from the submitter it is for decide it the same way. `commands` is false for words that
  * are only words (a program's reply, a Webhook's). `opts.via` names the Webhook a reply came through (shown as "via <name>");
  * `opts.keepState` adds the message without moving the Action to answered. */
-export async function postReply(ws: string, actionId: number, authorId: string, body: string, correction: number | null, source: ChangeSource = FROM_APP, commands = true, opts: { via?: string; keepState?: boolean } = {}) {
+export async function postReply(ws: string, actionId: number, authorId: string, body: string, correction: number | null, source: ChangeSource = FROM_APP, commands = true, opts: { via?: string; viaWebhookId?: string; keepState?: boolean } = {}) {
   const a = await participants(ws, actionId);
   if (!a || ![a.asker_id, a.assignee_id, a.owner_id].includes(authorId)) throw new Error("Only the people on this thread can reply.");
   // `commands` is false for a program's reply (API, MCP): its words are only words. "approve", "send back", "confirm" and
@@ -42,6 +42,7 @@ export async function postReply(ws: string, actionId: number, authorId: string, 
     correction_value: correction,
     correction_status: correction !== null ? "proposed" : null,
     via: opts.via ?? null,
+    via_webhook_id: opts.viaWebhookId ?? null,
   }]);
   const messageId = Number(message?.id) || null;
   // The Assignee replying moves an open Action to answered; not an Approval or Self-check, which only their own

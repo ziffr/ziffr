@@ -1,0 +1,6 @@
+{
+  "rule": "mutant-survived",
+  "why": "has a comparison whose change to 'or equal' gives the same answers for every input, so the mutation check finds it",
+  "remove": [],
+  "stage": "run"
+}

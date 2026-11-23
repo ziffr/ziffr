@@ -4,6 +4,7 @@
 // Security: a slide holds only widgets, text and simple boxes: no images, no drawings, no links, and every word is
 // plain text. Widgets are held to exactly what a Dashboard Template's widgets are.
 import { checkFormat, parseJson, type FormatCheck, type Schema } from "./json-check.js";
+import { VIEW_DESIGN_SCHEMA } from "./view-design.js";
 import { itemKey, plainText, words } from "./file-text.js";
 import { checkTemplateWidget, refusedOutsidePack, TEMPLATE_SLOTS, WIDGET_DEFS, WIDGET_FIELDS, type DashboardTemplateFile, type TemplateWidgetFile } from "./dashboard-template-file.js";
 
@@ -87,19 +88,19 @@ export const DECK_TEMPLATE_SCHEMA: Schema = {
 };
 
 /** What the schema cannot say: every widget as a Dashboard Template's, and each shape on its slide. */
-function meaning(t: DeckTemplateFile, at: (path: string, message: string) => void) {
+function meaning(t: DeckTemplateFile, at: (path: string, message: string) => void, designSchema: Schema = VIEW_DESIGN_SCHEMA) {
   t.slides.forEach((s, i) =>
     s.shapes.forEach((sh, k) => {
       const here = `slides[${i}].shapes[${k}]`;
-      if (sh.shape === "widget") checkTemplateWidget(sh, t.slots.length, here, at);
+      if (sh.shape === "widget") checkTemplateWidget(sh, t.slots.length, here, at, designSchema);
       if (sh.x + sh.w > L.width || ("h" in sh && sh.y + sh.h > L.height)) at(here, "reaches past the edge of the slide (1280 by 720).");
     }),
   );
 }
 
 /** Checks a Deck Template file already read from JSON; which Pack items it names is checked by its Pack. */
-export function checkDeckTemplateFileValue(value: unknown, lines: Map<string, number> = new Map(), schema: Schema = DECK_TEMPLATE_SCHEMA): FormatCheck<DeckTemplateFile> {
-  return checkFormat({ family: "ziffr.deck-template", reads: DECK_TEMPLATE_FORMATS, schema, meaning }, value, lines);
+export function checkDeckTemplateFileValue(value: unknown, lines: Map<string, number> = new Map(), schema: Schema = DECK_TEMPLATE_SCHEMA, designSchema: Schema = VIEW_DESIGN_SCHEMA): FormatCheck<DeckTemplateFile> {
+  return checkFormat({ family: "ziffr.deck-template", reads: DECK_TEMPLATE_FORMATS, schema, meaning: (t: DeckTemplateFile, at: (path: string, message: string) => void) => meaning(t, at, designSchema) }, value, lines);
 }
 
 /** The keys of the Pack items a Deck Template names: the entries its Slots suggest, its widgets' View Designs, its Theme. */

@@ -20,7 +20,9 @@ export default async function InvitePage({ params }: { params: Promise<{ token: 
   const wrongAddress = info.forEmail && info.forEmail !== who?.verifiedEmail;
   return (
     <AuthShell>
-      <AuthHeading title={`Join ${info.workspace}`}>You are invited as {ROLE[info.role]}.</AuthHeading>
+      <AuthHeading title={info.trial ? `Join a trial of Ziffr: ${info.workspace}` : `Join ${info.workspace}`}>
+        {info.trial ? `${info.trial.words} You are invited as ${ROLE[info.role]}.` : `You are invited as ${ROLE[info.role]}.`}
+      </AuthHeading>
       {wrongAddress ? (
         <p className="mt-6 text-sm">This invitation is for {info.forEmail}. Sign out and sign in with that address to accept it.</p>
       ) : (

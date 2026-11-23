@@ -5,9 +5,10 @@ import { assertCan, Forbidden, type Actor } from "./actor";
 import { audit } from "./audit-log";
 import { cleanSlides, cleanTokens } from "./theme-tokens";
 import { standardTheme } from "./standard-themes";
-import { checkThemeFile, themeFromFile } from "./theme-file";
+import { checkThemeFile, themeFromFile, type ThemeFile } from "./theme-file";
 import type { Problem } from "./json-check";
 import { ensureBaseline, recordVersion } from "./versions";
+import { cleanLogo, PACK_LOGO_MAX_BYTES } from "@ziffr/pack/logo";
 import type { ThemeSlides, ThemeTokens } from "./types";
 
 /** A Theme of the actor's workspace, or Forbidden. */
@@ -48,6 +49,22 @@ export async function deleteTheme(actor: Actor, id: number) {
   await db().from("themes").delete().eq("id", id).eq("workspace_id", actor.workspaceId);
 }
 
+/** Whose logo a Theme shows when it is exactly the logo of a Pack installed here, as { pack, author }; null for any other
+ * logo or none (spec 0039). Compared byte for byte on the checked pictures, so a logo the Owner chose is never named as
+ * a Pack's. For the question asked before such a Theme becomes the team default. */
+export async function themeLogoSource(actor: Actor, id: number): Promise<{ pack: string; author: string } | null> {
+  assertCan(actor, "manage-themes");
+  const t = await themeOf(actor, Number(id));
+  const own = cleanLogo((t.slides as { logo?: unknown } | null)?.logo);
+  if (!own) return null;
+  const { data } = await db().from("pack_installs").select("manifest").eq("workspace_id", actor.workspaceId);
+  for (const r of data ?? []) {
+    const m = r.manifest as { name?: unknown; author?: { name?: unknown }; logo?: unknown } | null;
+    if (m?.logo !== undefined && cleanLogo(m.logo, PACK_LOGO_MAX_BYTES) === own) return { pack: String(m.name ?? ""), author: String(m.author?.name ?? "") };
+  }
+  return null;
+}
+
 /** Makes a Theme the workspace's default. */
 export async function setDefaultTheme(actor: Actor, id: number) {
   assertCan(actor, "manage-themes");
@@ -85,13 +102,22 @@ export async function importTheme(actor: Actor, text: string): Promise<{ ok: tru
   assertCan(actor, "manage-themes");
   const res = checkThemeFile(typeof text === "string" ? text : "");
   if (!res.ok) return res;
-  const t = themeFromFile(res.value);
+  if (!cleanTokens(themeFromFile(res.value).tokens)) return { ok: false, problems: [{ path: "", line: null, message: "Some colours or fonts are not valid." }] };
+  return { ok: true, ...(await addThemeFromFile(actor, res.value, "Imported from a Theme file")) };
+}
+
+/** Adds a Theme from a checked Theme file as a Theme of the Workspace: its tokens go through the same checks as one
+ * saved from the editor, and the number of Themes is held. The caller has checked who may and the file's own schema
+ * (a Workspace Export holds its Themes to the app's text rules, a Theme file to the Pack's). */
+export async function addThemeFromFile(actor: Actor, file: ThemeFile, message: string): Promise<{ id: number }> {
+  assertCan(actor, "manage-themes");
+  const t = themeFromFile(file);
   const tokens = cleanTokens(t.tokens);
-  if (!tokens) return { ok: false, problems: [{ path: "", line: null, message: "Some colours or fonts are not valid." }] };
+  if (!tokens) throw new Error("Some colours or fonts of a Theme are not valid.");
   await assertRoom(actor);
   const { data, error } = await db().from("themes").insert({ owner_id: actor.personId, name: t.name.slice(0, 60), tokens, slides: cleanSlides(t.slides), workspace_id: actor.workspaceId }).select("id").single();
   if (error || !data) throw new Error("The theme could not be imported.");
-  await recordVersion("theme", data.id, actor.personId, { message: "Imported from a Theme file" });
+  await recordVersion("theme", data.id, actor.personId, { message });
   await audit(actor, { kind: "theme.imported", object: { type: "theme", id: Number(data.id), name: t.name }, details: {} });
-  return { ok: true, id: Number(data.id) };
+  return { id: Number(data.id) };
 }

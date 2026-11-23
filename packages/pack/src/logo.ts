@@ -50,7 +50,9 @@ export function logoProblem(v: unknown, maxBytes: number = LOGO_MAX_BYTES): stri
   if (kind === "svg+xml") {
     const res = svgClean(utf8(raw));
     if (!res.ok) return `is an SVG that is not plain: ${res.reason}.`;
-    return res.svg.length > maxBytes ? `is larger than the ${maxBytes.toLocaleString("en")} bytes a logo may weigh here.` : null;
+    // The SVG as Ziffr writes it out is what is kept, so it is that form's bytes that are weighed: escaping and
+    // characters outside ASCII make it heavier than its length in characters, and heavier than what came in.
+    return new TextEncoder().encode(res.svg).length > maxBytes ? `is larger than the ${maxBytes.toLocaleString("en")} bytes a logo may weigh here, as Ziffr writes it out.` : null;
   }
   const size = pixelSize(Uint8Array.from(raw, (c) => c.charCodeAt(0)), kind);
   if (!size) return `is not a ${kind === "png" ? "PNG" : "JPEG"}: its bytes say otherwise.`;
@@ -76,6 +78,29 @@ export function cleanLogo(v: unknown, maxBytes: number = LOGO_MAX_BYTES): string
   let bin = "";
   for (let i = 0; i < bytes.length; i += 8192) bin += String.fromCharCode(...bytes.subarray(i, i + 8192));
   return `data:image/svg+xml;base64,${btoa(bin)}`;
+}
+
+/** The width over the height of a logo that passed `logoProblem`, read from its header (PNG, JPEG) or its root `width`
+ * and `height` or `viewBox` (an SVG Ziffr serialized itself, see `cleanLogo`), kept between 0.05 and 20; 3 when the
+ * picture says nothing usable. Pure, and never runs or renders anything. */
+export function logoRatio(v: unknown): number {
+  const clamp = (r: number) => (Number.isFinite(r) && r > 0 ? Math.min(20, Math.max(0.05, r)) : 3);
+  if (typeof v !== "string" || logoProblem(v) !== null) return 3;
+  const m = /^data:image\/(png|jpeg|svg\+xml);base64,([A-Za-z0-9+/]+={0,2})$/.exec(v);
+  if (!m) return 3;
+  let raw: string;
+  try { raw = atob(m[2]); } catch { return 3; }
+  if (m[1] === "svg+xml") {
+    const text = utf8(raw);
+    const at = text.indexOf("<svg");
+    const root = at < 0 ? "" : text.slice(at, (text.indexOf(">", at) + 1) || at);
+    const num = (n: string) => { const a = new RegExp(`\\s${n}="([0-9.]+)(?:px)?"`).exec(root); return a ? Number(a[1]) : NaN; };
+    const vb = /\sviewBox="\s*[-0-9.e]+[\s,]+[-0-9.e]+[\s,]+([0-9.e]+)[\s,]+([0-9.e]+)\s*"/.exec(root);
+    if (vb) return clamp(Number(vb[1]) / Number(vb[2]));
+    return clamp(num("width") / num("height"));
+  }
+  const size = pixelSize(Uint8Array.from(raw, (c) => c.charCodeAt(0)), m[1] as "png" | "jpeg");
+  return size ? clamp(size.w / size.h) : 3;
 }
 
 /** Whether this is a logo Ziffr keeps and shows (see `logoProblem`). */

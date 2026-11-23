@@ -26,7 +26,7 @@ If there is no dashboard yet, the list says "No dashboards yet" and suggests nam
 
 ### Your Home dashboard
 
-Ziffr opens on your Home dashboard. You choose it yourself: open the dashboard and press **Make this my home**. The button then reads **Home** and cannot be pressed until you choose another. If you never chose one, Ziffr opens on the first dashboard you made, or else the first one shared with you. If your Home is no longer shared with you, the same rule picks another. In a new Trial Workspace, Ziffr opens on the Trial Guide instead until you finish or skip it.
+Ziffr opens on your Home dashboard. You choose it yourself: open the dashboard, open its **⋯** menu and choose **Home dashboard**. The entry then shows a tick until you choose another. If you never chose one, Ziffr opens on the first dashboard you made, or else the first one shared with you. If your Home is no longer shared with you, the same rule picks another. In a new Trial Workspace, Ziffr opens on the Trial Guide instead until you finish or skip it.
 
 ### The first-run checklist
 
@@ -54,7 +54,7 @@ For the dashboards you open every day, press **Pin** in the row of buttons above
 - **A shrunk sidebar** shows each pin as a small tile with its first letter; hover or focus it to see the name.
 - **On a phone**, the pinned dashboards are the first thing **More** lists.
 - Pins are yours alone, in each Workspace. If a pinned dashboard stops being shared with you, it leaves your sidebar without a message, and it comes back if it is shared with you again and you are still within the eight.
-- In the demo nothing is saved, so pinning says so.
+- In the demo nothing is saved, so the **Pinned** entry in the ⋯ menu (and the Pin button on the list of dashboards) shows as off and says "Pinning is off in the demo" when you hover or tap it. The demo's sidebar already has a few pinned dashboards, so you can see what pinning does; they cannot be moved or unpinned there.
 
 ### Switching dashboards
 
@@ -75,11 +75,13 @@ The buttons to the right of the name are:
 
 | Button | Who sees it | What it does |
 | --- | --- | --- |
-| **Make this my home** / **Home** | Everyone | Makes this your Home dashboard. |
 | **Grid** / **Read** | Everyone | Switches between the two ways a dashboard reads (see [Grid and Read](#grid-and-read)). |
 | **Snapshots** | Everyone, once there is a Snapshot; the owner and Editors always | The dashboard as it stood for a past period (see [Snapshots](#snapshots)). |
 | **Present** | Everyone | Shows the dashboard on the whole screen (see [Presenting](#presenting)). |
 | **Edit** / **Done** | The owner and Editors, in Grid | Switches edit mode on and off. |
+| **⋯** (More for this dashboard) | Everyone | Home dashboard and Pinned, then the page's other entries (see below). |
+
+**Home dashboard** and **Pinned** are in the ⋯ menu, each with a tick while it is on. **Home dashboard** makes this your Home dashboard (it cannot be switched off here: choose another dashboard as your Home instead). **Pinned** puts the dashboard in the sidebar or takes it out. In the demo, **Pinned** shows as off and says "Pinning is off in the demo". The switcher's list shows both marks too.
 | **Share** | The owner | Opens the Share panel beside the dashboard. The number on it says how many people and Groups have access. |
 | **⋯** (More) | Everyone | The menu below. |
 
@@ -91,10 +93,12 @@ The **⋯** menu holds:
 | **Save as template** | The owner and Editors, once there are Widgets | Saves the dashboard as a team Dashboard Template (see [Saving as a template](#saving-a-dashboard-as-a-dashboard-template)). |
 | **Who can see this** | Everyone | Lists everyone with access and why (see [Sharing](#sharing)). |
 | **View links…** | The owner | Links for people outside the team (see [View Links](#view-links)). |
+
+A deck's **⋯** menu has the same **Who can see this** and **View links…** entries, with the same windows (see [Decks](14-decks-and-themes.md)).
 | **Theme…** | The owner and Editors | Picks the Theme the dashboard is drawn in. |
 | **Versions** | Everyone | The dashboard's history in a panel beside it (see [Versions](#versions)). |
 
-**Theme…** opens a small window with one list. Its first choice is the team's default Theme, marked "(team default)"; the others follow. The **Themes** link next to it leads to the Themes page. A Theme changes the dashboard's colours and fonts, also when presenting and through View Links. When your Appearance is dark, the dashboard shows the Theme's dark variant, unless the Theme is set to "Always as designed" (see [Decks and Themes](14-decks-and-themes.md#in-a-dark-appearance)); Snapshots and View Links keep the look they were made or shared with. Ziffr's own screens keep their look.
+**Theme…** opens a small window with one list. Its first choice is the team's default Theme, marked "(team default)"; the others follow. The **Themes** link next to it leads to the Themes page. A Theme that shows a Pack's logo asks once before it is used, naming whose logo it is. A Theme changes the dashboard's colours and fonts, also when presenting and through View Links. When your Appearance is dark, the dashboard shows the Theme's dark variant, unless the Theme is set to "Always as designed" (see [Decks and Themes](14-decks-and-themes.md#in-a-dark-appearance)); Snapshots and View Links keep the look they were made or shared with. Ziffr's own screens keep their look.
 
 ## Creating a dashboard
 
@@ -102,7 +106,7 @@ The **⋯** menu holds:
 
 1. **Name**: required, up to 120 characters.
 2. **Start from**: pick one choice. **Empty dashboard** means you add Widgets from the Pool yourself. Each **Dashboard Template** shows a **Preview** drawn with **Sample Data**, its description and how many Widgets it has; "from Ziffr" marks the built-in ones. The templates are described in [Templates](05-templates.md#dashboard-templates).
-3. When you pick a template, it asks for its **Slots**: one list per Slot, such as "Metric", reading **Choose a metric**. A Slot marked "one or more" shows tick boxes instead, for small multiples. One Slot can fill several Widgets, so you choose each Metric only once. If you can see the Metric the template was made with, it is chosen already.
+3. When you pick a template, it asks for its **Slots**: one list per Slot, such as "Metric", reading **Choose a metric**. A Slot marked "one or more" shows tick boxes instead, for small multiples. A "one or more" Slot that only a Widget of that kind uses can also be filled by choosing **All Metrics tagged …** instead of ticking Metrics; the new Widget then follows the Tag (see [Metrics by Tag](#metrics-by-tag)). One Slot can fill several Widgets, so you choose each Metric only once. If you can see the Metric the template was made with, it is chosen already.
 4. Press **Create dashboard**. Ziffr makes the dashboard and opens it.
 
 The new dashboard is yours and independent of the template: changing the template later does not change it. The lists offer only Metrics you can see. If you see none, the window says so. A new deck from a Deck Template asks for its Slots the same way (see [Decks and Themes](14-decks-and-themes.md#the-decks-page)).
@@ -123,7 +127,7 @@ A value that waits for **Approval** shows, marked "not approved yet" next to it,
 
 Changes are saved for everyone who opens the dashboard. Each one is recorded as a Version.
 
-On a narrow screen, such as a phone, the dashboard becomes one column in reading order, top to bottom and left to right. Widgets cannot be moved there. The toolbar is one row there: **Grid** and **Read**, **Share** and **⋯**; **⋯** opens a sheet from the bottom with the rest (**Home**, **Pin**, **Snapshots**, **Present**, **Edit**, and the entries of the ⋯ menu), and the hint about a widget's ⋯ menu is left out.
+On a narrow screen, such as a phone, the dashboard becomes one column in reading order, top to bottom and left to right. Widgets cannot be moved there. The toolbar is one row there: **Grid** and **Read**, **Share** and **⋯**; **⋯** opens a sheet from the bottom with the rest (**Home dashboard**, **Pinned**, **Snapshots**, **Present**, **Edit**, and the entries of the ⋯ menu), and the hint about a widget's ⋯ menu is left out.
 
 ### The Pool
 
@@ -155,9 +159,9 @@ When a template lands, a window named after it asks for each Slot, such as "Metr
 
 ## A widget's menu
 
-Every **Widget** has a **⋯** button in its title bar. Right-clicking the Widget opens the same menu. A line under the dashboard's name reminds you of this.
+Every **Widget** has a **⋯** button in its title bar. Right-clicking the Widget opens the same menu. A line under the dashboard's name reminds you of this until you have opened a Widget's menu once.
 
-If a Widget's Metric has open questions or tasks, its title bar shows how many are open.
+If a Widget's Metric has open questions or tasks, its title bar shows how many are open.  The reminder is remembered in your browser and is not shown on an empty dashboard.
 
 | Option | Who sees it | What it does |
 | --- | --- | --- |
@@ -170,12 +174,28 @@ If a Widget's Metric has open questions or tasks, its title bar shows how many a
 | **Edit Finding…** | The owner and Editors, in edit mode, for Findings | Opens the Finding editor (see [Findings](#findings)). |
 | **Edit layout…** | The owner and Editors, in edit mode, for a Free layout | Opens the layout editor (see [Free layout](#free-layout)). |
 | **Versions…** | Everyone | The Widget's own history of changes. |
+| **Takeaway…** | Everyone, for a Widget that says something about its numbers (a forecast, drivers, a link between two Metrics) | Opens the Takeaway in a panel: the sentence, how it was worked out, how it did on the past, the line that it is not a promise or not a cause, and **Show the numbers**. The Widget itself shows only the chart and its footer line; View Links, Present, Previews and a Snapshot's dashboard show no Takeaway. A Metric's page and a deck's slides keep the words under the chart. |
+| **Copy to…** | Everyone | Opens a submenu of the ways to keep a copy of the Widget, below. |
+| **For View Designs** | Everyone, for a Widget drawn with a View Design | Opens a submenu with the two entries below. |
+
+Under **Copy to…**:
+
+| Option | Who sees it | What it does |
+| --- | --- | --- |
+| **Add to dashboard** | When you may change another dashboard | Places a copy on one of your other dashboards. |
+| **Add to deck…** | Everyone except Guests | Places a copy on a slide of a deck you own or may edit, or of a new deck named after the Widget: pick the deck, then a slide or **New slide at the end**. The deck opens on that slide; **Go back** in the message returns here. The copy draws only Metrics you see, and changing it leaves this Widget as it is. Also on a Finding of a story. |
 | **Save as Widget** | Everyone except Guests | Saves a copy to your Pool. |
 | **Save as template…** | The owner and Editors | Saves the Widget as a team Widget Template. Not offered for a Free layout. |
-| **Export View Design** | Everyone | Downloads the View Design the Widget is drawn with, and a Sample Data file to try it with. Not offered for Findings and Free layouts. |
-| **Duplicate as View Design** | Everyone | The same, with this Widget's settings (how many periods, target band, forecast) as the design's defaults, named after the Widget. |
-| **Add to deck…** | Everyone except Guests | Places a copy on a slide of a deck you own or may edit, or of a new deck named after the Widget: pick the deck, then a slide or **New slide at the end**. The deck opens on that slide; **Go back** in the message returns here. The copy draws only Metrics you see, and changing it leaves this Widget as it is. Also on a Finding of a story. |
-| **Add to dashboard** | When you may change another dashboard | Places a copy on one of your other dashboards. |
+
+Under **For View Designs**:
+
+| Option | What it does |
+| --- | --- |
+| **Export View Design** | Downloads the View Design the Widget is drawn with, and a Sample Data file to try it with. Not offered for Findings and Free layouts. |
+| **Duplicate as View Design** | The same, with this Widget's settings (how many periods, target band, forecast) as the design's defaults, named after the Widget. |
+
+| Option | Who sees it | What it does |
+| --- | --- | --- |
 | **Open metric** | Everyone | Opens the Metric's page. With several Metrics, there is one **Open** entry per Metric, with its name. |
 | **Quick look** | Everyone | Opens the Widget's Metric in a panel on the right: its latest value, target, trend and owner, with **Open the Metric** at the bottom. A Widget with one Metric also shows a small button for it beside its title. |
 | **Remove from dashboard** | The owner and Editors, in edit mode | Takes the Widget off the dashboard, at once. **Versions** of the dashboard keep it. |
@@ -213,7 +233,13 @@ Press **Send question** or **Assign task**. A note says "Question put to …" or
 
 How many periods a View shows comes with its Widget Template: the last 12 periods for Number + sparkline, Line chart and Bars per period, and the last 6 values for History table. There is no setting to change it.
 
-Each of these Views, and the Analyses (Forecast, Correlation, Correlation matrix, Drivers), is a **View Design**: a file that says what the View draws, which Ziffr draws with one renderer of its own. They look as they always did. The Drivers template now asks for two Slots when you place it: the Metric, and the Metrics to compare it with. A View Design of the Workspace can also draw an Analysis Recipe: its results show as lines, bars, a line across the chart or numbers in its words, and in the tooltip (see [Analysis Recipes](13-analyze.md#analysis-recipes)).
+Each of these Views, and the Analyses (Forecast, Correlation, Correlation matrix, Drivers), is a **View Design**: a file that says what the View draws, which Ziffr draws with one renderer of its own. They look as they always did, except that Drivers, Correlation and the Correlation matrix now say what they compared ("Compared by change, growth removed" where both Metrics grow, otherwise "Compared by value") and have a **Takeaway** (a sentence, a strength word, a plain line when the data makes the reading rough, and one footer) with **Show the numbers**, which gives r and the periods and switches to comparing the values as they are. The Drivers template now asks for two Slots when you place it: the Metric, and the Metrics to compare it with. A View Design of the Workspace can also draw an Analysis Recipe: its results show as lines, bars, a line across the chart or numbers in its words, and in the tooltip (see [Analysis Recipes](13-analyze.md#analysis-recipes)).
+
+### A value's details
+
+Point at a point or bar of a line, bars or forecast chart (tap it on a touch screen), or at the trend line under a number once its Widget has room, to see that value's details beside it: the period, the value, whether it is on target ("On target", "Too high"), whether it waits for Approval or is locked, its Source, who submitted it and how many open Threads there are about it. With the keyboard, move to the chart with Tab, step between points with the arrow keys, and close the details with Escape. You see a submitter's name only where you may see that person (a Guest sees only their own), and only the Threads you may read. View Links and Snapshots show the period, value, target and Approval only.
+
+When a Widget has room and shows a number alone (no trend line yet), the number sits in the middle of the Widget.
 
 ### Comparisons
 
@@ -234,12 +260,20 @@ A Widget shows a Metric in its own period: a monthly Metric as months. **Show by
 - **Condensed.** Once a Retention has condensed old periods, a chart or table shows each condensed span as one point, named for what it was made from ("October 2023, condensed from 31 days", or "condensed from 20 of 31 days" when some had no value), with the note under the widget: "Before November 2023 shown by month, condensed from daily values." Shown by that period or a longer one, the numbers are the same as before; shown by a shorter one, the condensed points stay as they are and no days are invented.
 - **How many.** The Widget shows as many Display Periods as it showed periods before, such as the last 12 quarters.
 - **Targets.** Where every month of a quarter has a value in the Metric's **Target Series**, the quarter's target is those values combined the same way, drawn as a thin grey line. Otherwise the Metric's target range applies if its values are averaged or a last value; a summed Metric has no target by quarter, as a monthly range says nothing exact about three months. A line under the chart says which applies.
-- **Forecast.** A forecast is computed on the quarters, a few of them ahead, from the last complete one.
+- **Forecast.** A forecast is computed on the quarters, a few of them ahead, from the last complete one. Under it, a forecast widget says where the Metric is expected to be, which Method worked it out (a plain trend, or the trend with the yearly pattern), how that Method did on the periods already known, and, when the Metric has a Target and **Show target band** is on, how likely the Target is to be reached. It is worked out in the Metric's own period from its latest 120 periods, so a widget shown by a longer period (**Show by**) draws the forecast but leaves these words out.
 - **Rates.** A Metric whose Aggregation is **Does not combine**, such as a rate, cannot be shown by a longer period. **Show by** then greys out the longer periods and says why. If its values can in fact be added up, averaged or taken last, change the Aggregation under **Edit details…** on the Metric's page.
 
 Quarters, half-years and years start from the Workspace's fiscal year. **Change view** to another of these views keeps the setting.
 
 The Widget looks the same wherever it goes: on a deck's slides and in a Free layout, through a View Link, in a Snapshot and in the PowerPoint export. A Snapshot keeps what the Widget showed when its period ended: in a Snapshot of October, the fourth quarter stays "to date, 1 of 3 months", however long after you open it. A frozen View Link counts to date from the day it was made. Through a View Link or in a Snapshot, a Derived Metric whose inputs are not on the dashboard is shown by its own period, with a note, since its quarters are computed from those inputs.
+
+### Metrics by Tag
+
+A Widget that takes a list of Metrics, such as the Correlation matrix, can show **all Metrics tagged** with one Tag instead of a list you pick. In edit mode open its menu, then **Metrics by Tag**, and choose **All Metrics tagged …**; the Tags offered are the ones you see on Metrics you may see. A Metric tagged later appears by itself, and a Tag that is renamed is followed. When two Tags are merged the Widget follows the one that is left. Below the Widget a line says "Metrics tagged …" and, when you see more Metrics than it draws (at most 50, by name), links "and N more" to the Metrics list filtered by that Tag.
+
+**Everyone sees only the tagged Metrics they may see themselves.** The dashboard's Share does not open a Metric through a Tag: if you tag a private Metric, the people the dashboard is shared with still do not see it, and two people may see different Metrics in the same Widget. Nobody is told how many they cannot see. Without any, the Widget says "No Metric tagged … that you can see." If the Tag was removed, the owner and Editors are told so, and the Widget keeps its place until its Tag is changed.
+
+**Keep today's Metrics, stop following the Tag** in the same menu turns the Widget back into a fixed list of the Metrics shown now, and asks first, because those Metrics are then shown to everyone the dashboard is shared with (**Fix the list** in the View links window says the same). Adding such a Widget to a deck, taking a Snapshot and starting a deck from the dashboard record the Metrics you see at that moment, and do not follow the Tag afterwards. Copying the Widget to another dashboard keeps the Tag.
 
 ### Saving a widget
 
@@ -358,6 +392,8 @@ A dashboard reads two ways. Switch with **Grid** and **Read** in the toolbar.
 | **Full screen** / **Leave full screen** | Uses the whole screen, without the browser around it. |
 | **Close** | Goes back to the dashboard. |
 
+A Widget grows with the space it has: when it is large on a dashboard, and when presenting, its value, the gauge, the table rows, the chart axes and the line under it get larger, so a Widget shown on a big screen reads from across the room. Its parts share the room: the small trend line under a number grows into the free height and, from about Overview size on, names its first and last period, marks the latest value with a dot, labels its highest and lowest value and shows the target as a faint band or dashed line (a target far from the values is named at the edge instead), a table spreads its rows, and what does not grow sits in the middle rather than in a corner. Widgets of the usual size and phones show it at its normal size.
+
 To step through Widgets, use the arrow keys, the space bar, Page Up and Page Down, or swipe. **Home** and **End** jump to the first and last. **Escape** closes presenting (or first leaves full screen).
 
 ## Saving a dashboard as a Dashboard Template
@@ -368,9 +404,9 @@ To step through Widgets, use the arrow keys, the space bar, Page Up and Page Dow
 | --- | --- |
 | **Name** | Required; starts with the dashboard's name. |
 | **What it is for** | One line, such as "The monthly numbers for one region". |
-| **Places to fill** | One Slot for each Metric, however many Widgets show it. "Now:" says which Metric it holds. Give each a name, such as "Revenue metric"; an empty one is called "Metric 1", "Metric 2" and so on. The whole Workspace reads these names, also people who cannot see the Metrics, so the fields start empty. |
+| **Places to fill** | One Slot for each Metric, however many Widgets show it; a Widget of all Metrics tagged X becomes one "one or more" Slot called "Tagged Metrics" (rename it if you like, but everyone in the Workspace reads the name), since a template names no Tag. "Now:" says which Metric it holds. Give each a name, such as "Revenue metric"; an empty one is called "Metric 1", "Metric 2" and so on. The whole Workspace reads these names, also people who cannot see the Metrics, so the fields start empty. |
 
-Free layouts are left out, and the window lists them. Press **Save template**. Anyone in the Workspace can then pick it under **Start from** in the New dashboard window.
+A Widget whose Tag you cannot see is left out as well. Free layouts are left out, and the window lists them. Press **Save template**. Anyone in the Workspace can then pick it under **Start from** in the New dashboard window.
 
 ## Sharing
 
@@ -403,13 +439,15 @@ Open **View links…** in the **⋯** menu:
 | Field | What it does |
 | --- | --- |
 | **For** | Who the link is for, such as "Advisory board, Q4", so you recognise it later. |
-| **Works until** | The last day it works: 30 days from today unless you change it, at most 90 days. |
+| **Works until** | The last day it works: 30 days from today unless you change it, at most 90 days. In a trial it is never later than the trial's last day, and a later date you pick is shortened to it, and it keeps that date if you subscribe: give the link a new end by making a new one. |
 | **Freeze today's numbers** | The link keeps the values of today. Otherwise it shows live values until it ends. |
 | **Show names** | Off by default. Without it the link shows no one's name: owners, submitters, authors and the people of a Snapshot are left out, and a name written in a title or an introduction reads "Someone". Tick it for an internal link. |
 
 The page a View Link opens is drawn in the dashboard's Theme and says whose numbers they are: a strip with the Theme's logo (or the Workspace's name) under a bar in its accent colour, and the Theme's footer line. A deck shows its logo and footer on every slide, as in the app. Only the Workspace's name goes along with what the link already showed. A logo larger than 256 KB or 512 pixels on a side is not drawn; the Workspace's name stands in its place.
 
 **Make link and copy it** makes the link and puts it on your clipboard. Below, every link of this dashboard is listed with its name, "Live numbers" or "Frozen numbers", and until when it works. **Copy** copies it again; **Revoke** ends it at once. Ended and revoked links are crossed out. **Show names** and **Hide names** switch the names of a link that is already made, which takes effect the next time it is opened; a link made before this option existed has names off.
+
+A dashboard with a Widget of all Metrics tagged X needs its list fixed first: the window says so and offers **Fix the list**, which turns each such Widget into a fixed list of the Metrics you see now, which then no longer follows the Tag. A link shows a list its maker chose, never what a Tag collects for each viewer. A link to a shown Snapshot needs no fixing.
 
 A live link shows only what the dashboard held when the link was made: Widgets added later, and Metrics added later, stay out. A Widget that draws a Metric the owner can no longer see is left out whole.
 

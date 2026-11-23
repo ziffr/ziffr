@@ -8,6 +8,7 @@
 // open the dashboard may open its Snapshots once they are shown, and sees in them only the Metrics they may see now,
 // as on the live dashboard; until then they are drafts for the dashboard's owner and Editors who see all they kept.
 // Losing access to the dashboard loses its Snapshots; losing a Metric loses it in every Snapshot too.
+import { recordedWidgets } from "./tag-widgets";
 import { assertCan, Forbidden, Refused, type Actor } from "./actor";
 import { sendingLimit } from "./sending-limit";
 import { sendingLimitDefault } from "./sending-limits";
@@ -133,7 +134,8 @@ export async function takeSnapshot(actor: Actor, dashboardId: number, period: { 
   if ((count ?? 0) >= most) throw new Refused(`A dashboard keeps ${most} Snapshots at most. Delete old ones first.`);
   const { data: rows } = await db().from("widgets").select("*").eq("workspace_id", ws).eq("dashboard_id", dashboardId).order("y").order("x");
   // Nothing in a free layout may load from another site when shown (spec 0009).
-  const widgets = ((await openRows("widgets", ws, rows)) as Widget[]).map(widgetWithoutOutside);
+  // A widget of "all Metrics tagged X" is kept with the Metrics the person taking it sees now, and follows the Tag no more (spec 0038).
+  const widgets = await recordedWidgets(actor, ((await openRows("widgets", ws, rows)) as Widget[]).map(widgetWithoutOutside));
   const metricIds = [...new Set(widgets.flatMap((w) => widgetMetricIds(w.metric_ids, w.settings)))];
   // Whoever takes it vouches for what it shows: every Metric on it must be one they see.
   await assertSeesMetrics(actor, metricIds);

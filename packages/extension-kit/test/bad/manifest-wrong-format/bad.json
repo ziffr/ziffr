@@ -1,0 +1,5 @@
+{
+  "rule": "bad-manifest",
+  "why": "names a format that does not exist",
+  "remove": []
+}
