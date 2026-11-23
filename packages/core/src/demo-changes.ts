@@ -193,6 +193,7 @@ const BLOCKED: Record<BlockedReason, readonly string[]> = {
     "settings-actions:setAttainmentMethod",
     "settings-actions:setEmailReminders",
     "settings-actions:setMyQuietHours",
+    "settings-actions:setMyBusinessFunction",
     "settings-actions:setMySettableLimit",
     "settings-actions:setNumberStyle",
     "settings-actions:setUsageDigestOn",

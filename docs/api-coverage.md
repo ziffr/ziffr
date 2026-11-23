@@ -142,6 +142,7 @@ Acts as the person, with their own sign-in, Slack or Telegram account or email a
 - `setTellStopped` (tell.ts): one's own "stop telling me" setting
 - `updateMyProfile` (profile.ts): one's own profile
 - `setMyAppearance` (profile.ts): one's own Appearance
+- `setMyBusinessFunction` (business-function.ts): one's own Business Function, which no program may read or set: it is seen only by the person and the Workspace's Owners and Admins
 - `setPreference` (questions.ts): one's own reminder channel
 - `startSetupGuide` (setup-guide.ts): the Setup Guide is for people in the app (spec 0052); programs never set up a Workspace
 - `setupGuide` (setup-guide.ts): the viewer's own guide steps, for the app
