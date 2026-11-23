@@ -387,12 +387,14 @@ A dashboard reads two ways. Switch with **Grid** and **Read** in the toolbar.
 
 | Option | What it does |
 | --- | --- |
-| **Overview** | The whole dashboard as arranged, fitted to the screen. When it has so few rows that its Widgets would be stretched far taller than wide on a big screen, the Widgets keep a sensible shape instead and more of them sit in each row. On a narrow screen it stacks in reading order. Double-click a Widget to show it alone. |
+| **Overview** | The whole dashboard as arranged, fitted to the screen. When it has so few rows that its Widgets would be stretched far taller than wide on a big screen, the Widgets keep a sensible shape instead and more of them sit in each row. On a narrow screen it stacks in reading order. Click or tap a Widget to show it alone. |
 | **One at a time** | One Widget at a time, as large as the screen allows, with **Previous**, **Next** and a count such as "3 / 8". |
 | **Full screen** / **Leave full screen** | Uses the whole screen, without the browser around it. |
 | **Close** | Goes back to the dashboard. |
 
 A Widget grows with the space it has: when it is large on a dashboard, and when presenting, its value, the gauge, the table rows, the chart axes and the line under it get larger, so a Widget shown on a big screen reads from across the room. Its parts share the room: the small trend line under a number grows into the free height and, from about Overview size on, names its first and last period, marks the latest value with a dot, labels its highest and lowest value and shows the target as a faint band or dashed line (a target far from the values is named at the edge instead), a table spreads its rows, and what does not grow sits in the middle rather than in a corner. Widgets of the usual size and phones show it at its normal size.
+
+Outside Edit mode you can also click or tap a Widget on the dashboard itself, outside its ⋯ menu, links, controls and the points of a chart (which show their value), to open it large, as **One at a time** does. Press **Enter** on a Widget you have reached with the keyboard to do the same. **Back**, **Close** and **Escape** return to the dashboard where you were. Scrolling on a touch screen opens nothing. In Edit mode a click selects or drags the Widget as before.
 
 To step through Widgets, use the arrow keys, the space bar, Page Up and Page Down, or swipe. **Home** and **End** jump to the first and last. **Escape** closes presenting (or first leaves full screen).
 
