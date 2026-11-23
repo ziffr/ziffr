@@ -235,15 +235,19 @@ describe("the numbers equal the reference on generated data", () => {
         const r = fitNumbers(rowsOf(y, x), [...NAMES.slice(0, k), "Y"], k);
         const ref = refRowsOf(y, x);
         const all = Array.from({ length: k }, (_, i) => i);
+        const full = all.map((j) => referenceInflation(ref, k, j));
+        const above = (v: Exact | null, n: bigint) => v === null || v.num > n * v.den;
+        // A pair is one driver where its own inflation is above 5 (a link r² above 4/5), or none (exactly in step).
+        const pairClose = all.some((i) => all.some((j) => j > i && above(referenceInflation(ref.map((row) => ({ y: row.y, x: [row.x[i], row.x[j]] })), 2, 0), 5n)));
         if ("refusals" in r) {
-          // Only a mix of drivers that is exactly one, or a series that does not vary, has no fit.
-          expect(referenceFit(ref, all) === null || y.every((v) => v === y[0]) || x.some((c) => c.every((v) => v === c[0]))).toBe(true);
+          // No fit for a mix of drivers that is exactly one, or whose inflation is above 10 with no pair to merge, or a series that does not vary.
+          const mix = !pairClose && full.some((v) => above(v, 10n));
+          expect(referenceFit(ref, all) === null || mix || y.every((v) => v === y[0]) || x.some((c) => c.every((v) => v === c[0]))).toBe(true);
           return;
         }
-        // Drivers are treated as one exactly when the full set has a variance inflation above 5 (or none).
-        const full = all.map((j) => referenceInflation(ref, k, j));
-        const tooClose = full.some((v) => v === null || v.num > 5n * v.den);
-        expect(r.core.merged.length > 0).toBe(tooClose);
+        // Drivers are treated as one exactly when a pair of them is; otherwise ones whose inflation is above 5 are crowded (and kept).
+        expect(r.core.merged.length > 0).toBe(pairClose);
+        if (!pairClose) expect(r.core.crowded.length > 0).toBe(full.some((v) => above(v, 5n)));
         const kept = ref.map((row) => ({ y: row.y, x: r.cols.map((c) => row.x[c]) }));
         const kk = r.cols.length;
         const rf = referenceFit(kept, r.cols.map((_, i) => i))!;
@@ -290,7 +294,9 @@ describe("the numbers equal the reference on generated data", () => {
           expect(d.lo).toBeLessThanOrEqual(d.effect);
           expect(d.hi).toBeGreaterThanOrEqual(d.effect);
           expect(d.inflation).toBeGreaterThanOrEqual(1);
-          expect(d.inflation).toBeLessThanOrEqual(5);
+          // A kept fit has an inflation of at most 10 (above it a mix is refused), and one above 5 is named as crowded.
+          expect(d.inflation).toBeLessThanOrEqual(10);
+          if (d.inflation > 5) expect(r.core.crowded).toContain(d.name);
         }
       }),
       { numRuns, seed },
