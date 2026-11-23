@@ -784,6 +784,27 @@ describe("the Recipes", () => {
     expect(u.rows.map((x) => x.name)).not.toContain("P7");
     expect(u.rows.map((x) => x.name)).not.toContain("P8");
   });
+  it("ranks a Metric with too few values, and a constant one, last, and judges the periods of the ones chosen only", () => {
+    const r = lcg(91);
+    const n = 40;
+    const mk = (i: number) => metric({ id: 80 + i, slug: `q${i}`, name: `Q${i}`, period: "month", aggregation: "sum" });
+    const brief = mk(0);
+    const flat = mk(1);
+    const real = [2, 3, 4, 5, 6, 7, 8].map(mk);
+    const cols = real.map(() => Array.from({ length: n }, () => Math.round(r() * 100)));
+    const revenue = cols[3].map((v, i) => 4 * v + 3 * cols[4][i] + Math.round(r() * 10));
+    const series: Record<string, Point[]> = { revenue: months("2024-01", revenue), [brief.slug]: months("2024-01", [5, 9, 2, 7, 4]), [flat.slug]: months("2024-01", Array.from({ length: n }, () => 7)) };
+    real.forEach((m, i) => (series[m.slug] = months("2024-01", cols[i])));
+    const all = [brief, flat, ...real];
+    const t = whatMoves(R, all, resolverFrom([R, ...all], series), opts);
+    // 9 Metrics, 6 kept, over all 39 months (the brief one is not among them, so its 5 values do not shorten the history).
+    expect(t.notes[0]).toBe("9 Metrics are more than 39 months can weigh, so the 6 that matter most were chosen first and the others left out.");
+    expect(t.notes[1]).toContain("Q0");
+    expect(t.notes[1]).toContain("Q1");
+    expect(t.rows.map((x) => x.name)).not.toContain("Q0");
+    expect(t.rows.map((x) => x.name)).not.toContain("Q1");
+    expect(t.rows.slice(0, 2).map((x) => x.name).sort()).toEqual(["Q5", "Q6"]);
+  });
   it("says that one Metric with a longer period sets the period for all of them", () => {
     const w = world(48);
     const quarterly = metric({ id: 40, slug: "quarterly", name: "Budget", period: "quarter", aggregation: "sum" });

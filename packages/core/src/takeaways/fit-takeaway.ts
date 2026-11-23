@@ -293,7 +293,8 @@ function firstPass(target: Metric, drivers: Metric[], series: Point[][], span: S
   const targetChanges = changes(series[0], span);
   const link = all.map((i) => {
     const r = pearson(targetChanges, changes(series[i + 1], span))?.r;
-    return r === undefined || !Number.isFinite(r) ? 0 : Math.abs(r);
+    // No r (too few pairs) or none that is a number (a series that does not change) counts as 0.
+    return Number.isFinite(r) ? Math.abs(r as number) : 0;
   });
   // The same r the same way round: Metrics that tie keep the order they were given in (the sort is stable).
   const order = [...all].sort((x, y) => link[y] - link[x]);
