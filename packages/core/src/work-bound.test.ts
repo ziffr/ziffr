@@ -6,7 +6,7 @@ import { describe, expect, it } from "vitest";
 import { runs } from "./test/reference/check";
 import { referenceWide } from "./test/reference/work-bound";
 import { lowestTerms } from "./exact";
-import { digits, latestCommon, MOST_PERIODS, spend, tryWork, spendOn, WORK_BOUND, WORK_BUDGET, wideColumns, wideFindings, wideReason, widthOf, withWork } from "./work-bound";
+import { capped, digits, latestCommon, MOST_PERIODS, spend, tryWork, spendOn, WORK_BOUND, WORK_BUDGET, wideColumns, wideFindings, wideReason, widthOf, withWork } from "./work-bound";
 
 const { numRuns, seed } = runs();
 const pts = (vs: number[]) => vs.map((value, i) => ({ period: `2024-${String(i + 1).padStart(2, "0")}-01`, value }));
@@ -262,5 +262,21 @@ describe("tryWork", () => {
     expect(tryWork(() => (spend(1e300), 6))).toBe(6);
     expect(() => tryWork(() => { throw new Error("broken"); })).toThrow("broken");
     expect(withWork(() => tryWork(() => 1), 1)).toBe(1);
+  });
+});
+
+describe("capped", () => {
+  it("runs a part under a limit of its own: what it spends counts against the bound, and past the limit it answers null having spent only the limit", () => {
+    expect(withWork(() => [capped(5, () => (spend(3), "a")), capped(5, () => (spend(6), "b")), capped(5, () => (spend(1), "c"))], 12)).toEqual(["a", null, "c"]);
+    // 3 + 5 (the stopped part's whole limit) + 1 = 9 of 12: the next part of 4 still fits, and one of 4 more does not.
+    expect(withWork(() => [capped(5, () => (spend(3), 1)), capped(5, () => (spend(6), 2)), capped(5, () => (spend(1), 3)), capped(4, () => (spend(4), 4)), capped(4, () => (spend(1), 5))], 12)).toEqual([1, null, 3, null, null]);
+  });
+  it("stops at the bound's own end where that is nearer than the limit, and then every part after it", () => {
+    expect(withWork(() => [capped(100, () => (spend(8), "a")), capped(100, () => (spend(5), "b")), capped(100, () => (spend(1), "c"))], 10)).toEqual(["a", null, null]);
+  });
+  it("runs the part as it is outside a bound, and lets any other failure through with the bound as it was", () => {
+    expect(capped(1, () => (spend(1e300), 7))).toBe(7);
+    expect(withWork(() => { try { capped(5, () => { spend(2); throw new Error("broken"); }); } catch { /* the failure passed through */ } return capped(100, () => (spend(8), "rest")); }, 10)).toBe("rest");
+    expect(() => withWork(() => capped(5, () => { throw new Error("broken"); }), 10)).toThrow("broken");
   });
 });

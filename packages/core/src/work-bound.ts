@@ -82,6 +82,31 @@ export function withWork<T>(f: () => T, budget: number = WORK_BUDGET): T | null 
   }
 }
 
+/** The work a scan of one Workspace's Metrics for Heads-ups about one Metric may spend in all, and what one Metric of them may: the Metric's own limit is far above
+ * what any ordinary series needs (3 · 10^6 for money to the cent, 3 · 10^8 for log-normal doubles) and the scan's is about eight seconds of a laptop. */
+export const SCAN_BUDGET = 20_000_000_000;
+/** What one Metric of such a scan may spend. */
+export const METRIC_BUDGET = 3_000_000_000;
+
+/** Runs `f` under a limit of its own inside a bound that is running: the work it spends counts against the bound too, and where it spends more than `cap`
+ * (or the bound has less left) it answers null, having spent only that. Outside a bound `f` is simply run. */
+export function capped<T>(cap: number, f: () => T): T | null {
+  if (left === null) return f();
+  const before = left;
+  const own = Math.min(before, cap);
+  left = own;
+  let stopped = false;
+  try {
+    return f();
+  } catch (e) {
+    if (!(e instanceof OutOfWork)) throw e;
+    stopped = true;
+    return null;
+  } finally {
+    left = before - (stopped ? own : own - (left as number));
+  }
+}
+
 /** Runs `f` inside a bound that is running, and answers null where it stopped for want of work, with nothing left for what comes after: for a loop
  * that does the work of many parts and keeps the parts that were done. Outside a bound `f` is simply run. */
 export function tryWork<T>(f: () => T): T | null {

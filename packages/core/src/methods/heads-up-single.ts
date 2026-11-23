@@ -30,7 +30,7 @@ import { fractionOf, nearest, type Fraction } from "../exact";
 import { formatNumber, type ValueUnit } from "../format";
 import { periodStart, periodsBetween, shiftPeriod, type Span, type YearStart } from "../periods";
 import { readSeries } from "../basis";
-import { wideReason } from "../work-bound";
+import { capped, METRIC_BUDGET, SCAN_BUDGET, wideReason, withWork } from "../work-bound";
 import { checkSuitability, SEASON_LENGTH, SUITABILITY, verdictOutcome } from "../suitability";
 import { decimalsApart, decimalsFor, plainValue, signedText, sizeText, valueText } from "../takeaways/sizes";
 import { HORIZON } from "../forecast";
@@ -481,11 +481,21 @@ export function testsOf(look: SingleLook, ctx: SingleContext): Test[] {
   return [directionTest(look, ctx), targetTest(look, ctx), seasonTest(look, ctx)].filter((t): t is Test => t !== null);
 }
 
+/** The tests of all the `looks` under a work allowance for the scan and one for each Metric (work-bound.ts), and how many Metrics were not looked at for want of it:
+ * a Metric that spends its own is not looked at, and neither is any after the scan's is spent. A Metric not looked at still counts for the correction, as
+ * a test of each kind with a chance of 1, so that the correction is the one a full scan would make (never fewer tests, never a Heads-up from it). */
+export function testsOfScan(looks: readonly SingleLook[], ctx: SingleContext): { tests: Test[]; skipped: number } {
+  let skipped = 0;
+  const neutral = (look: SingleLook): Test[] => (["direction-change", "target-out-of-reach", "unusual-for-season"] as const).map((kind) => ({ kind, id: look.metric.id, gates: {}, chance: 1, p: 1, build: () => { throw new Error("a test with a chance of 1 is never reported"); } }));
+  const tests = withWork(() => looks.flatMap((look) => capped(METRIC_BUDGET, () => testsOf(look, ctx)) ?? (skipped++, neutral(look))), SCAN_BUDGET)!;
+  return { tests, skipped };
+}
+
 /** The Heads-ups about one Metric among the `looks` of the Metrics a person may see: a change of direction, a Target out of reach, a value unusual for its season. The
  * correction counts only the tests worked out for these looks, all three kinds together (see the file's header); a Metric with too few values for a kind is not a test of
  * that kind. Strongest first within each kind, the kinds in that order, ties by id. The same looks give the same Heads-ups in any order. */
 export function singleHeadsUpsFrom(looks: readonly SingleLook[], ctx: SingleContext): HeadsUp[] {
-  const tests = looks.flatMap((look) => testsOf(look, ctx));
+  const tests = testsOfScan(looks, ctx).tests;
   const reported = benjaminiHochberg(tests.map((t) => t.p), SINGLE.rate);
   const adjusted = adjustedChances(tests.map((t) => t.p));
   const out = tests.flatMap((test, i) => (reported[i] ? [test.build(tests.length, adjusted[i])] : []));

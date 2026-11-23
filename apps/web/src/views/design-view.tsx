@@ -16,7 +16,7 @@ import { dayAfter, heldText, isPartial, pointName, shownSeries, type DisplayPoin
 import { periodLabel } from "@ziffr/core/periods";
 import type { Flag, Part, Piece, TextShow, TextStyle, ViewDesign } from "@ziffr/core/view-design";
 import type { CanvasData, Metric, Widget } from "@ziffr/core/types";
-import { bestForecast } from "@ziffr/core/methods/forecast-choice";
+import { bestForecast, forecastTooWide, NO_FORECAST_WIDE } from "@ziffr/core/methods/forecast-choice";
 import { SEASON_LENGTH } from "@ziffr/core/suitability";
 import { forecastTakeaway, endsOf } from "@ziffr/core/takeaways/forecast";
 import { drawRecipe, formatOutput, newRecipeBudget, type TableFigures } from "@ziffr/core/design-analysis";
@@ -71,11 +71,13 @@ function designValues(design: ViewDesign, widget: Pick<Widget, "settings">, metr
   const goal = (p: DisplayPoint | undefined) => (combined ? { target_min: targets?.at[p?.period ?? ""]?.min ?? null, target_max: targets?.at[p?.period ?? ""]?.max ?? null } : { target_min: m.target_min, target_max: m.target_max });
   const name = (p: DisplayPoint, short = false) => pointName(p, by, m.period, data.yearStart, short);
   // The words under the widget: why a setting was not followed, else the target's and the Condensed Values' (spec 0033).
-  const note = shown.reason ?? ([combined ? targets?.note : null, shown.note].filter(Boolean).join(" ") || null);
-  const flags: Record<Flag, boolean> = { showTarget: option("showTarget"), showForecast: option("showForecast"), hasForecast: false, hasNote: !!note, manyValues: pts.length > 1 };
   // A span still running would read as a drop: the forecast starts from the last complete one.
   // The whole history is used (the latest 120 periods at most), not the window drawn, so the chart and the Takeaway say the same.
   const ahead = last?.toDate ? all.slice(0, -1) : all;
+  // Values too fine or too wide to work out exactly have no forecast, which is said (never a quiet gap).
+  const noForecast = uses.forecast({ showTarget: false, showForecast: option("showForecast"), hasForecast: false, hasNote: false, manyValues: false }) && forecastTooWide(ahead) ? NO_FORECAST_WIDE : null;
+  const note = shown.reason ?? ([combined ? targets?.note : null, shown.note, noForecast].filter(Boolean).join(" ") || null);
+  const flags: Record<Flag, boolean> = { showTarget: option("showTarget"), showForecast: option("showForecast"), hasForecast: false, hasNote: !!note, manyValues: pts.length > 1 };
   const projection = uses.forecast(flags) ? bestForecast(ahead, by, SEASON_LENGTH[by]) : null;
   const fc = projection?.points ?? null;
   flags.hasForecast = !!fc?.length;
@@ -85,7 +87,7 @@ function designValues(design: ViewDesign, widget: Pick<Widget, "settings">, metr
   // The Takeaways (spec 0041): what the results say in words, after the suitability checks, from the one writer in the core.
   const tctx = { style: data.numberStyle, yearStart: data.yearStart };
   const correlationTake = correlation && metrics[1] ? correlationTakeaway(m, metrics[1], correlation, tctx) : null;
-  const driversTake = drivers ? driversTakeaway(m, drivers.ranked, tctx) : null;
+  const driversTake = drivers ? driversTakeaway(m, drivers.ranked, tctx, drivers.leftOut.some((l) => l.why === "too-much")) : null;
   // A forecast says which Method it used and how that did on the past; with a Target, how likely it is to be reached. It is
   // worked out in the Metric's own period, so a widget shown by a longer period (Show by) leaves it out rather than say it in other periods.
   const ends = endsOf(m);

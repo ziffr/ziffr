@@ -9,7 +9,7 @@ import { checkSuitability, type MethodId } from "../suitability";
 import { metric, months } from "../test/fixtures";
 import { say } from "../takeaways/wording";
 import { forecastTakeaway } from "../takeaways/forecast";
-import { emptyTakeaway, withinBudget } from "../takeaways/takeaway";
+import { driversTakeaway, emptyTakeaway, withinBudget } from "../takeaways/takeaway";
 import { rankCorrelations, correlate } from "../correlation";
 import { spend, wideReason, withWork } from "../work-bound";
 import type { Point } from "../types";
@@ -19,13 +19,13 @@ import { bridgeTakeaway } from "./bridge";
 import { changePointTakeaway } from "./change-point";
 import { paretoTakeaway, topShareTakeaway } from "./concentration";
 import { fit, importance, needs, predict, type Fit, type FitInput } from "./fit";
-import { bestForecast } from "./forecast-choice";
+import { bestForecast, forecastTooWide, NO_FORECAST_WIDE } from "./forecast-choice";
 import { laggedTakeaway } from "./lagged-correlation";
 import { HEADS_UP, scanPairs } from "./pair-scan";
 import { partialTakeaway } from "./partial-correlation";
 import { usualRangeTakeaway } from "./quantiles";
 import { spearmanTakeaway } from "./spearman";
-import { testsOf } from "./heads-up-single";
+import { testsOf, testsOfScan } from "./heads-up-single";
 import { checkedChangePoint } from "./change-point";
 
 const ctx = { style: "1,234.5" as const };
@@ -270,7 +270,7 @@ describe("the Takeaways whose series are cut to 120 periods run under the work a
 describe("a Takeaway that spends its whole work budget is a refusal in words", () => {
   it("has the Method's name and no number, and a Takeaway that does not is left as it is", () => {
     const t = withinBudget("numbers-method-holt", ctx, () => { spend(WORK_BUDGET + 1); return emptyTakeaway("never"); });
-    expect(t).toMatchObject({ kind: "refusal", method: "Holt's linear trend", refusal: "These values are too large or too fine to work out exactly in reasonable time.", sentence: null, figures: [] });
+    expect(t).toMatchObject({ kind: "refusal", method: "Holt's linear trend", refusal: "These values need too much exact work to finish in reasonable time: use fewer Metrics or round the values.", sentence: null, figures: [] });
     expect(withinBudget("numbers-method-holt", ctx, () => emptyTakeaway("kept")).method).toBe("kept");
   });
 });
@@ -487,5 +487,62 @@ describe("the ranking of Metrics by correlation runs under one work allowance", 
     // The ones left are the last ones: once spent, nothing after is compared.
     const firstLeft = others.findIndex((m) => some.leftOut.some((l) => l.metric.id === m.id && l.why === "too-much"));
     expect(others.slice(firstLeft).every((m) => some.leftOut.some((l) => l.metric.id === m.id && l.why === "too-much"))).toBe(true);
+  });
+});
+
+describe("the fit judges the periods it uses", () => {
+  it("is made on the latest periods where an old value of a long history is too wide, and refused where one of them is", () => {
+    const old = (kind: Kind, seed: number) => { const long = series(kind, seed, 160); return long.map((p, i) => (i === 3 ? { ...p, value: 1e-300 } : p)); };
+    const clean = [1, 2, 3].map((sd) => old("ordinary", sd));
+    const f = fit(input(clean[0], [clean[1], clean[2]]));
+    expect(f.ok).toBe(true);
+    expect(f.ok && f.rows.length).toBe(120);
+    // The same history with the odd value inside the 120 latest periods is refused, naming that series.
+    const inside = clean.map((s, i) => s.map((p, k) => (i === 1 && k === 150 ? { ...p, value: 1e-300 } : p)));
+    expect(fit(input(inside[0], [inside[1], inside[2]]))).toEqual({ ok: false, refusals: [{ case: "refuse-exact-places", slots: { name: "Visits", places: 40, orders: 30 } }] });
+    // A short wide history is refused as before.
+    expect(cases(fit(input(series("tiny", 1), [series("tiny", 2)])))).toEqual(["refuse-exact-places", "refuse-exact-places"]);
+  });
+});
+
+describe("no forecast for values too wide is said, and the Drivers Takeaway says when the ranking ran out", () => {
+  it("knows which values have none, from the latest 120 periods, and has its words", () => {
+    expect(forecastTooWide(series("tiny", 1))).toBe(true);
+    expect(forecastTooWide(series("ordinary", 1))).toBe(false);
+    expect(forecastTooWide([...series("tiny", 1, 5), ...series("ordinary", 1, 130).map((p, i) => ({ ...p, period: months("2030-01", Array(130).fill(0))[i].period }))])).toBe(false);
+    expect(NO_FORECAST_WIDE).toBe("No forecast: the values are too fine or too wide to work out exactly.");
+    expect(bestForecast(series("tiny", 1), "month", 12)).toBeNull();
+  });
+  it("says that the answer is among the Metrics compared, only then", () => {
+    const [a, b] = [1, 2].map((id) => metric({ id, slug: `n${id}`, name: `N${id}`, period: "month" }));
+    const data = { n1: series("ordinary", 1), n2: series("ordinary", 2) };
+    const { ranked } = rankCorrelations(a, [b], (slug) => ({ metric: slug === "n1" ? a : b, points: data[slug as "n1"] }), { yearStart: 1, basis: "values" });
+    expect(driversTakeaway(a, ranked, ctx).notes).toEqual([]);
+    expect(driversTakeaway(a, ranked, ctx, true).notes).toEqual(["This is among the Metrics that were compared: some were not, as there are too many of them to work out exactly in reasonable time."]);
+  });
+});
+
+describe("a scan of many Metrics for Heads-ups about one Metric runs under an allowance", () => {
+  const metricOf = (id: number) => ({ id, name: `M${id}`, period: "month" as const, polarity: "higher" as const, target_min: 100, target_max: null, unit: "€", unit_position: "after" as const, decimals: 0 });
+  const ctxOf = { style: "1,234.5" as const, today: "2025-01-15" };
+  const looks = (kind: Kind, n: number) => Array.from({ length: n }, (_, i) => ({ metric: metricOf(i + 1), points: series(kind, 1 + (i % 7)) }));
+  it("looks at 200 hostile Metrics in no time (none has a test), and at ordinary ones all", () => {
+    const hostile = timed(() => testsOfScan(looks("tiny", 200), ctxOf));
+    expect(hostile.ms).toBeLessThan(QUICK);
+    expect(hostile.result).toEqual({ tests: [], skipped: 0 });
+    const ordinary = testsOfScan(looks("ordinary", 30), ctxOf);
+    expect(ordinary.skipped).toBe(0);
+    expect(ordinary.tests.length).toBeGreaterThan(0);
+  });
+  it("leaves the Metrics after the scan's allowance is spent unlooked at, still counted for the correction as tests of chance 1, in about the scan's time", () => {
+    const worst = timed(() => testsOfScan(looks("dense", 200), ctxOf));
+    expect(worst.ms).toBeLessThan(QUICK);
+    expect(worst.result.skipped).toBeGreaterThan(0);
+    expect(worst.result.skipped).toBeLessThan(200);
+    const neutral = worst.result.tests.filter((t) => t.p === 1 && t.gates && Object.keys(t.gates).length === 0);
+    expect(neutral).toHaveLength(3 * worst.result.skipped);
+    expect(() => neutral[0].build(1, 1)).toThrow("never reported");
+    // The same looks give the same answer twice.
+    expect(testsOfScan(looks("dense", 200), ctxOf).skipped).toBe(worst.result.skipped);
   });
 });

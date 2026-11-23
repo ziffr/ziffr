@@ -207,8 +207,9 @@ export function listOf(names: string[], ctx: TakeawayContext): string {
 
 /** The Takeaway of Drivers: the Metrics that moved with the target the most (up to three, none that can't be told from
  * chance), each Metric's own strength word and cautions, one footer, and every Metric's numbers under Show the numbers. A
- * Metric whose own checks refuse is a row with its refusal, and never named in the sentence. */
-export function driversTakeaway(target: Metric, ranked: Ranked[], ctx: TakeawayContext): DriversTakeaway {
+ * Metric whose own checks refuse is a row with its refusal, and never named in the sentence. With `notCompared` (the ranking ran out of work) it says
+ * that the answer is among the Metrics that were compared. */
+export function driversTakeaway(target: Metric, ranked: Ranked[], ctx: TakeawayContext, notCompared = false): DriversTakeaway {
   const method = say("numbers-method-pearson", {}, ctxOf(ctx));
   const rows = ranked.map(({ metric, result }) => ({ metric, result, takeaway: correlationTakeaway(target, metric, result, ctx, { footer: false }) }));
   const text = (k: CaseKey) => say(k, {}, ctxOf(ctx));
@@ -224,6 +225,8 @@ export function driversTakeaway(target: Metric, ranked: Ranked[], ctx: TakeawayC
     strengthText: top.takeaway.strengthText,
     basis: top.takeaway.basis,
     footer: footerText(ctx),
+    // Where the ranking ran out of work (work-bound.ts) the answer is among the Metrics that were compared, which is said.
+    notes: notCompared ? [text("note-among-compared")] : [],
     figures: [{ label: text("numbers-pairs"), value: top.result.n, text: formatNumber(top.result.n, 0, ctx.style) }],
     numbers: rows
       .filter((r) => r.takeaway.kind === "answer")

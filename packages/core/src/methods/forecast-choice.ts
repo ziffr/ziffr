@@ -16,6 +16,12 @@ import { chooseMethod, type Candidate, type Choice } from "./track-record";
 /** How many of the latest periods a forecast looks at (spec 0041: the series length used is the latest 120 periods). */
 export const LATEST_PERIODS = 120;
 
+/** What a widget and a Metric page say where there is no forecast because the values are too fine or too wide to work out exactly (work-bound.ts). */
+export const NO_FORECAST_WIDE = "No forecast: the values are too fine or too wide to work out exactly.";
+
+/** Whether `bestForecast` has none for these values for that reason (the latest 120 periods are the ones it looks at). */
+export const forecastTooWide = (all: Point[]): boolean => wideReason(all.slice(-LATEST_PERIODS).map((p) => p.value)) !== null;
+
 /** The forecast of the Method chosen, with each point's spread, the trend per period, the one-step spread, and how the Method was chosen. */
 export type Projection = { method: Candidate; choice: Choice; points: SeasonalPoint[]; trendPerPeriod: number; sd: number };
 
@@ -24,7 +30,7 @@ export type Projection = { method: Candidate; choice: Choice; points: SeasonalPo
 export function bestForecast(all: Point[], span: Span, season: number, opts: { horizon?: number; seasonal?: boolean } = {}): Projection | null {
   const points = all.slice(-LATEST_PERIODS);
   // Values too wide to work out exactly (work-bound.ts) have no forecast; forecastTakeaway says so in words before it gets here.
-  if (wideReason(points.map((p) => p.value))) return null;
+  if (forecastTooWide(all)) return null;
   const horizon = opts.horizon ?? HORIZON[span];
   const choice: Choice = opts.seasonal === false ? { method: "holt", why: "holt-only", holt: null, seasonal: null } : chooseMethod(points, span, season);
   // The seasonal Method was chosen only after a run that worked, on the same points.
