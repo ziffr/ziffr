@@ -169,15 +169,19 @@ describe("npx @ziffr/pack check", () => {
 });
 
 describe("the cost of checking", () => {
-  it("checks a Pack of nearly 1 MiB, every item full of values, in well under a second", () => {
+  // Timed against a small Pack of the same shape in the same run, so a slow or loaded runner cannot fail it: linear
+  // growth is 25x here, a quadratic or backtracking check would be hundreds of times. The absolute limit is generous.
+  it("checks a Pack of nearly 1 MiB, every item full of values, in linear time", () => {
     const junk = (n: number) => Array.from({ length: n }, () => 0);
     const kinds = { metrics: "metric", views: "design", analyses: "recipe", themes: "theme" } as const;
-    const contents = Object.fromEntries(Object.entries(kinds).map(([k, f]) => [k, Array.from({ length: 50 }, (_, i) => ({ key: `k${k[0]}${i}`, [f]: { x: junk(2_300) } }))]));
-    const file = JSON.stringify({ ...PACK, contents });
+    const pack = (items: number) => JSON.stringify({ ...PACK, contents: Object.fromEntries(Object.entries(kinds).map(([k, f]) => [k, Array.from({ length: items }, (_, i) => ({ key: `k${k[0]}${i}`, [f]: { x: junk(2_300) } }))])) });
+    const best = (file: string) => Math.min(...[0, 1, 2].map(() => { const t = performance.now(); expect(checkPack(file).ok).toBe(false); return performance.now() - t; }));
+    const file = pack(50);
     expect(file.length).toBeGreaterThan(900_000);
-    const started = performance.now();
-    expect(checkPack(file).ok).toBe(false);
-    expect(performance.now() - started).toBeLessThan(1_000);
+    const small = best(pack(2));
+    const big = best(file);
+    expect(big).toBeLessThan(5_000);
+    expect(big / Math.max(small, 5)).toBeLessThan(100);
   });
 });
 
