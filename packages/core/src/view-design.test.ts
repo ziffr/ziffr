@@ -81,7 +81,7 @@ const HOSTILE: [string, string, string, Where][] = [
   ["an unknown field", text({ ...EXAMPLE, script: "x" }), "is not a field here", '"script"'],
   ["an unknown field in a mark", withPart({ mark: "plot", axes: "none", marks: [{ mark: "line", show: "values", onClick: "x" }] }), "is not a field here", '"onClick"'],
   ["a style field", withPart({ mark: "text", content: ["a"], css: "color: red" }), "is not a field here", '"css"'],
-  ["an unknown mark", withPart({ mark: "iframe", src: "x" }), "must be one of “text”, “group”, “plot”, “gauge”, “rows”, “polar”, “radar”", '"iframe"'],
+  ["an unknown mark", withPart({ mark: "iframe", src: "x" }), "must be one of “text”, “group”, “plot”, “gauge”, “rows”, “polar”, “radar”, “bump”", '"iframe"'],
   ["a part with no mark", withPart({ content: ["a"] }), "needs the field “mark”", { after: '"parts": [' }],
   ["a web address in a name", text({ ...EXAMPLE, name: "See https://evil.example" }), "plain text, without markup or web addresses", '"name"'],
   ["a bare www address", text({ ...EXAMPLE, name: "www.evil.example" }), "without markup or web addresses", '"name"'],

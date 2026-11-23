@@ -51,6 +51,9 @@ export type SampleData = Pick<CanvasData, "metrics" | "series" | "targets" | "pr
 
 const cache = new Map<Period, SampleData>();
 
+// How much each Breakdown row of the sample leaned at the start, against its weight at the end (see sampleData).
+const LEAN = [0, -0.5, 0, 0.6, 1.5];
+
 /** Sample Metrics of one grain with their series, Target Series, Projections and Breakdowns. Ids are negative, so
  * nothing that saves can take one for a real Metric (the core keeps positive ids only). */
 export function sampleData(period: Period = "month"): SampleData {
@@ -89,7 +92,10 @@ export function sampleData(period: Period = "month"): SampleData {
       const weights = [0.34, 0.24, 0.18, 0.14, 0.1];
       out.breakdowns[id] = Object.fromEntries(periods.map((p, k) => {
         const r = seeded(500 + k);
-        const raw = weights.map((w) => w * (0.85 + 0.3 * r()));
+        // Earlier periods lean the other way, one row growing and another fading toward the newest, which is left as it
+        // was: the rows change places over time, so a Preview of the bump chart has lines that cross.
+        const back = (periods.length - 1 - k) / (periods.length - 1);
+        const raw = weights.map((w, j) => w * (0.85 + 0.3 * r()) * (1 + LEAN[j] * back));
         const sum = raw.reduce((a, b) => a + b, 0);
         const rows: BreakdownRow[] = s.breakdown!.map((label, j) => ({ label, value: round((values[k] * raw[j]) / sum) }));
         return [p, rows];

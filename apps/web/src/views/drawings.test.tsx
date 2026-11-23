@@ -82,6 +82,13 @@ const withSeries = (d: CanvasData, id: number, points: Point[]): CanvasData => {
 };
 // Sixty months, more than a line draws dots for.
 const long = (d: CanvasData) => withSeries(d, REVENUE, Array.from({ length: 60 }, (_, i) => ({ period: shiftPeriod("2021-07-01", "month", i), value: 80000 + 900 * i + (i % 7) * 1500 })));
+const withBreakdowns = (d: CanvasData, id: number, by: CanvasData["breakdowns"][number]): CanvasData => ({ ...d, breakdowns: { ...d.breakdowns, [id]: by } });
+// Ten rows in the newest period, so two are not drawn, and a row ("Online") that is missing in one period.
+const tenRows = (d: CanvasData) => {
+  const by = Object.fromEntries(Object.entries(d.breakdowns[REVENUE]).map(([p, rows]) => [p, [...rows, ...["Alpha", "Beta", "Gamma", "Delta", "Epsilon"].map((label, i) => ({ label, value: 400 + 20 * i }))]]));
+  by["2026-05-01"] = by["2026-05-01"].filter((r) => r.label !== "Online");
+  return withBreakdowns(d, REVENUE, by);
+};
 const band = (d: CanvasData) => withMetric(d, REVENUE, { target_min: 100000, target_max: 130000 });
 const pending = (d: CanvasData): CanvasData => ({ ...d, pending: { [REVENUE]: ["2026-06-01"] }, locked: { [REVENUE]: ["2026-04-01", "2026-03-01"] } });
 
@@ -130,6 +137,10 @@ const CASES: [string, TemplateId, number[], WidgetSettings, CanvasData][] = [
   ["matrix-one", "matrix", [REVENUE], {}, base()],
   ["drivers", "drivers", [REVENUE, ORDERS, CUSTOMERS, CHURN, COST], {}, base()],
   ["drivers-alone", "drivers", [REVENUE], {}, base()],
+  ["bump", "bump", [REVENUE], { window: 12 }, base()],
+  ["bump-many", "bump", [REVENUE], { window: 6 }, tenRows(base())],
+  ["bump-one-period", "bump", [REVENUE], { window: 12 }, withBreakdowns(base(), REVENUE, { "2026-06-01": [{ label: "Online", value: 5 }, { label: "North", value: 2 }] })],
+  ["bump-none", "bump", [REVENUE], { window: 12 }, withBreakdowns(base(), REVENUE, {})],
   ["drivers-comma", "drivers", [COST, REVENUE, CHURN], {}, base("1.234,5")],
 ];
 

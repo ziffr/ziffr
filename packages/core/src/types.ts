@@ -196,7 +196,7 @@ export type Dashboard = {
 };
 
 /** The built-in Widget Templates. */
-export type TemplateId = "number" | "line" | "bars" | "gauge" | "table" | "forecast" | "correlation" | "matrix" | "drivers" | "ranked" | "share" | "pictogram" | "story-line" | "story" | "canvas" | "design";
+export type TemplateId = "number" | "line" | "bars" | "gauge" | "table" | "forecast" | "correlation" | "matrix" | "drivers" | "bump" | "ranked" | "share" | "pictogram" | "story-line" | "story" | "canvas" | "design";
 
 /** A callout sits at one period, or (in templates) at whatever period a rule picks. */
 export type Callout = { period: string; text: string; rule?: AnchorRule };
