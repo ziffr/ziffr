@@ -8,7 +8,19 @@ The exact format is the JSON Schema in [`docs/reference/view-design.schema.json`
 
 - **Export a built-in View.** On **Analyze → View Designs**, every built-in View has **Export**. You get two files: `line-chart.view.json`, the design, and `line-chart.sample.json`, Sample Data that fits its Slots. Neither holds any of your Workspace's values.
 - **Duplicate a widget.** A widget's **⋯** menu has **Save as…** → **View Design**, and **Download View Design file** for the design as it is. You get the same files, with the widget's settings (how many periods, target band, forecast) as the design's defaults.
-- **Use the Playground.** **Analyze → Playground** shows the file and its drawing side by side. **Start from** loads any built-in View, or an Analysis Recipe inside a design that draws it.
+- **Use the Playground.** **Analyze → Playground** shows the file and its drawing side by side. **Start from** loads any built-in View, or an Analysis Recipe inside a design that draws it. Its editor offers the fields and values the format allows at the cursor (Ctrl+Space asks for them) and shows what a field means when you point at it, all read from the schema below. Both **Analyze → View Designs** and the Playground link to this guide.
+
+## Help in your own editor
+
+Every file Ziffr writes starts with a `$schema` line:
+
+```json
+{
+  "$schema": "https://docs.ziffr.net/schemas/ziffr.view-1.json",
+  "format": "ziffr.view/1",
+```
+
+Editors such as VS Code read it and give completion, hover help and warnings on their own. The address is stable and belongs to the format (`ziffr.view/1`), and the same schema is [`docs/reference/view-design.schema.json`](../reference/view-design.schema.json). `$schema` is the one extra top-level field Ziffr accepts: it must be a string of at most 200 characters, it is never fetched, and Ziffr does not keep it in a saved design (writing the design out puts it back). Every other unknown field is still refused.
 
 ## The file
 

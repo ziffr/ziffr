@@ -262,6 +262,35 @@ describe("writeViewDesign", () => {
   });
 });
 
+describe("$schema, for editors", () => {
+  const withSchema = { $schema: "https://docs.ziffr.net/schemas/ziffr.view-1.json", ...EXAMPLE };
+
+  it("is accepted at the top and dropped, so a saved design never holds it", () => {
+    const r = checkViewDesign(JSON.stringify(withSchema));
+    expect(r.ok).toBe(true);
+    if (r.ok) expect("$schema" in r.design).toBe(false);
+  });
+
+  it("starts every file Ziffr writes, and a file brought back and written again is the same file", () => {
+    const once = writeViewDesign(EXAMPLE);
+    expect(once.startsWith('{\n  "$schema": "https://docs.ziffr.net/schemas/ziffr.view-1.json",\n  "format"')).toBe(true);
+    const back = checkViewDesign(once);
+    expect(back.ok).toBe(true);
+    if (back.ok) expect(writeViewDesign(back.design)).toBe(once);
+  });
+
+  it("is only a short string, and no other unknown field gets in beside it", () => {
+    expect(checkViewDesign(JSON.stringify({ ...withSchema, $schema: 5 })).ok).toBe(false);
+    expect(checkViewDesign(JSON.stringify({ ...withSchema, $schema: "x".repeat(201) })).ok).toBe(false);
+    expect(checkViewDesign(JSON.stringify({ ...withSchema, $id: "https://example.com" })).ok).toBe(false);
+    expect(checkViewDesign(JSON.stringify({ ...withSchema, other: 1 })).ok).toBe(false);
+  });
+
+  it("is not a place for text the checks refuse elsewhere: a name with a web address is still refused", () => {
+    expect(checkViewDesign(JSON.stringify({ ...withSchema, name: "see https://example.com" })).ok).toBe(false);
+  });
+});
+
 describe("the published schema", () => {
   // The schema in docs/reference is generated from VIEW_DESIGN_SCHEMA, never written by hand. UPDATE_REFERENCE=1 writes it.
   const path = repoFile("docs/reference/view-design.schema.json");
