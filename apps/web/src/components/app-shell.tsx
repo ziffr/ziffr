@@ -13,6 +13,7 @@ import { inSettings, onPage, type TreeLink } from "@/lib/settings-links";
 import { OPEN_SEARCH, SearchDialog } from "@/components/search-dialog";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuGroup, DropdownMenuItem, DropdownMenuLabel, DropdownMenuRadioGroup, DropdownMenuRadioItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+import { SlideOverProvider } from "@/components/slide-over-host";
 import { Sidebar, SidebarContent, SidebarFooter, SidebarGroup, SidebarHeader, SidebarInset, SidebarItem, SidebarProvider, SidebarTrigger, useSidebar } from "@/components/ui/sidebar";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { signOut } from "@/app/auth-actions";
@@ -64,6 +65,7 @@ export function AppShell({ workspace, settings, pinned, due, account, guide, dem
   const path = usePathname();
   return (
     <TooltipProvider delay={300}>
+      <SlideOverProvider>
       <SidebarProvider defaultCollapsed={collapsed}>
         <a href="#main" className="sr-only focus:not-sr-only focus:fixed focus:top-2 focus:left-2 focus:z-50 focus:rounded-md focus:bg-background focus:px-3 focus:py-2 focus:text-sm">Skip to the page</a>
         <ShellSearch account={account} />
@@ -113,6 +115,7 @@ export function AppShell({ workspace, settings, pinned, due, account, guide, dem
         </SidebarInset>
         <TabBar due={due} pinned={pinned} workspace={workspace} account={account} guide={guide} demoPages={Boolean(people)} />
       </SidebarProvider>
+      </SlideOverProvider>
     </TooltipProvider>
   );
 }
