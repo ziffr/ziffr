@@ -5,12 +5,16 @@ import { getCanvasData, visibleDashboards } from "@/lib/access";
 import { PresentDashboard } from "@/components/present-dashboard";
 import { widgetMetricIds } from "@ziffr/core/widget-metrics";
 import { countView } from "@/lib/count-view";
+import { followDemoSuccessor } from "@/lib/demo-follow";
 
 export default async function PresentPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ at?: string; view?: string }> }) {
   const id = Number((await params).id);
   const viewer = await viewerId();
   const current = (await visibleDashboards(viewer)).find((d) => d.id === id);
-  if (!current) notFound();
+  if (!current) {
+    await followDemoSuccessor("dashboard", id, "/present");
+    notFound();
+  }
   const actor = await currentActor();
   void countView(actor, { kind: "dashboard", id });
   const widgets = await dashboardWidgets(actor, id);

@@ -41,3 +41,8 @@ export function withCookie(header: string | null, name: string, value: string): 
   const others = (header ?? "").split(";").map((p) => p.trim()).filter((p) => p && !p.startsWith(`${name}=`));
   return [...others, `${name}=${value}`].join("; ");
 }
+
+/** The cookie the demo bar writes with the Generation its page was drawn in (spec 0051, ticket 7): a visit's change travels
+ * with it, so the database can refuse one from a page drawn before the last Demo Reset as stale (core `visitingDemo`). Readable
+ * by the page's script on purpose: it says only a number, and the server checks it against the demo's own Generation. */
+export const DEMO_GENERATION_COOKIE = "ziffr-demo-gen";
