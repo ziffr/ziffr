@@ -452,10 +452,11 @@ describe("the Takeaway of a before-and-after look", () => {
   });
   it("says so, in words, when a number is too large to work out a share from, or a difference too small to write out, and writes a number of Show the numbers that no digit could show in scientific form", () => {
     const refusal = (values: number[], unit = euro) => afterDateTakeaway("A", series(values), "month", "2024-07-01", unit, ctx).refusal;
-    // Trend values tiny, values after huge: the share of the trend (1e300 ÷ 1e-300 as a percentage) cannot be a number.
-    expect(refusal([1e-300, 2e-300, 3e-300, 4e-300, 5e-300, 7e-300, 1e300, 2e300])).toBe("The values of A are too large to work out a range from.");
+    // Trend values tiny, values after huge: the share of the trend (1e300 ÷ 1e-300 as a percentage) cannot be a number; the values need
+    // more than 30 decimal places and span more than 30 orders of magnitude, so they are refused before that (work-bound.ts).
+    expect(refusal([1e-300, 2e-300, 3e-300, 4e-300, 5e-300, 7e-300, 1e300, 2e300])).toBe("A: its values go to more than 30 decimal places, which cannot be worked out exactly in reasonable time.");
     // A trend at or below 0 so the gap is in the unit, and it is 1e-30: even 20 decimals show nothing.
-    expect(refusal([-1e-30, -2e-30, -3e-30, -4e-30, -5e-30, -6e-30, -7.5e-30, -8e-30])).toBe("A: the difference is too small to write out.");
+    expect(refusal([-1e-30, -2e-30, -3e-30, -4e-30, -5e-30, -6e-30, -7e-30, -9e-30])).toBe("A: the difference is too small to write out.");
     // A line with a miss of 1e-25 (the first value is off it by that): the typical miss is written as 2.50e-25 style, not as 0.
     const t = afterDateTakeaway("A", series([1e-25, 1, 2, 3, 4, 5, 7, 8, 9]), "month", "2024-07-01", euro, ctx);
     expect(t.kind).toBe("answer");

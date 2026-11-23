@@ -26,6 +26,7 @@ import { shiftPeriod, type Span } from "../periods";
 import { checkSuitability, SUITABILITY, type Finding, type SuitabilityInputs, type Verdict } from "../suitability";
 import { strengthOf, type StrengthWord } from "../takeaways/strength";
 import type { Point } from "../types";
+import { digits, spend, spendOn, widthOf, wideColumns, withWork } from "../work-bound";
 import { tQuantile } from "./distributions";
 
 /** How many periods a driver's partial link is judged on: the periods less the drivers held fixed (n − (k − 1)), so that the
@@ -43,18 +44,26 @@ const [ZERO, ONE, TEN] = [BigInt(0), BigInt(1), BigInt(10)];
 type F = Fraction;
 const zero: F = { num: ZERO, den: ONE };
 const whole = (n: number | bigint): F => ({ num: BigInt(n), den: ONE });
-const add = (a: F, b: F) => lowestTerms(plus(a, b));
-const sub = (a: F, b: F) => lowestTerms(minus(a, b));
-const mul = (a: F, b: F) => lowestTerms(times(a, b));
-const div = (a: F, b: F) => lowestTerms(over(a, b));
+// Every step of exact arithmetic spends from the fit's work budget (work-bound.ts) before it is done, by the size of its operands: a fit
+// on values that need numbers of hundreds of digits is refused when the budget is spent, never worked out at length.
+const charge = (a: F, b: F) => spendOn(widthOf(a), widthOf(b));
+const add = (a: F, b: F) => (charge(a, b), lowestTerms(plus(a, b)));
+const sub = (a: F, b: F) => (charge(a, b), lowestTerms(minus(a, b)));
+const mul = (a: F, b: F) => (charge(a, b), lowestTerms(times(a, b)));
+const div = (a: F, b: F) => (charge(a, b), lowestTerms(over(a, b)));
 const total = (fs: F[]) => fs.reduce(add, zero);
 const isZero = (a: F) => a.num === ZERO;
+// The same steps left unreduced, where a fraction is as exact as it is and the reduction would cost more than the sum.
+const plainPlus = (a: F, b: F) => (charge(a, b), plus(a, b));
+const plainMinus = (a: F, b: F) => (charge(a, b), minus(a, b));
+const plainTimes = (a: F, b: F) => (charge(a, b), times(a, b));
 const cmp = (a: F, b: F) => {
+  charge(a, b);
   const [l, r] = [a.num * b.den, b.num * a.den];
   return l < r ? -1 : l > r ? 1 : 0;
 };
 /** A double that is exactly the nearest double of a fraction, or NaN where it is out of range (the square of a huge value). */
-const dbl = nearest;
+const dbl = (a: F): number => (spendOn(widthOf(a), widthOf(a)), nearest(a));
 const root = (a: F) => Math.sqrt(dbl(a));
 
 // ---- linear algebra on fractions ----
@@ -115,6 +124,9 @@ function column(values: number[]): { ints: bigint[]; places: number } {
   return { ints: parts.map((p) => p.digits * TEN ** BigInt(places - p.places)), places };
 }
 
+// A fraction in lowest terms, which costs about the square of its size.
+const reduceOf = (a: F): F => (spendOn(widthOf(a), widthOf(a)), lowestTerms(a));
+
 // n·S_ab = n·Σ a·b − Σa·Σb on whole numbers, so S_ab = that ÷ (n · 10^(places a + places b)).
 function moments(rows: FitRow[], cols: number[]): Moments {
   const n = rows.length;
@@ -123,10 +135,11 @@ function moments(rows: FitRow[], cols: number[]): Moments {
   const y = column(rows.map((r) => r.y));
   const all = [...xs, y];
   const sums = all.map((a) => a.ints.reduce((s, v) => s + v, ZERO));
-  const cross = (i: number, j: number): bigint => big * all[i].ints.reduce((s, v, r) => s + v * all[j].ints[r], ZERO) - sums[i] * sums[j];
-  const about = (i: number, j: number): F => lowestTerms({ num: cross(i, j), den: big * TEN ** BigInt(all[i].places + all[j].places) });
+  const wide = all.map((a) => Math.max(...a.ints.map(digits)));
+  const cross = (i: number, j: number): bigint => (spend(n * wide[i] * wide[j]), big * all[i].ints.reduce((s, v, r) => s + v * all[j].ints[r], ZERO) - sums[i] * sums[j]);
+  const about = (i: number, j: number): F => reduceOf({ num: cross(i, j), den: big * TEN ** BigInt(all[i].places + all[j].places) });
   const k = cols.length;
-  const mean = (i: number): F => lowestTerms({ num: sums[i], den: big * TEN ** BigInt(all[i].places) });
+  const mean = (i: number): F => reduceOf({ num: sums[i], den: big * TEN ** BigInt(all[i].places) });
   return {
     n,
     mx: xs.map((_, i) => mean(i)),
@@ -160,7 +173,12 @@ function determinant(m: bigint[][]): bigint {
   let before = ONE;
   // Stryker disable next-line EqualityOperator: at k = size − 1 the inner loops are empty and `before` is not read again, so one more step changes nothing
   for (let k = 0; k < size - 1; k++) {
-    for (let i = k + 1; i < size; i++) for (let j = k + 1; j < size; j++) a[i][j] = (a[i][j] * a[k][k] - a[i][k] * a[k][j]) / before;
+    for (let i = k + 1; i < size; i++) {
+      for (let j = k + 1; j < size; j++) {
+        spendOn(digits(a[i][j]), digits(a[k][k]));
+        a[i][j] = (a[i][j] * a[k][k] - a[i][k] * a[k][j]) / before;
+      }
+    }
     before = a[k][k];
   }
   return a[size - 1][size - 1];
@@ -192,7 +210,7 @@ function lmg(mo: Moments): { shares: F[]; all: F } {
       // Stryker disable next-line ConditionalExpression: a subset that already holds the driver adds 0 (the same share twice), so counting it changes nothing
       if (mask & (1 << j)) continue;
       const size = Array.from({ length: k }, (_, i) => mask & (1 << i)).filter(Boolean).length;
-      sum = plus(sum, times({ num: fact(size) * fact(k - size - 1), den: fact(k) }, minus(r2[mask | (1 << j)], r2[mask])));
+      sum = plainPlus(sum, plainTimes({ num: fact(size) * fact(k - size - 1), den: fact(k) }, plainMinus(r2[mask | (1 << j)], r2[mask])));
     }
     return sum;
   });
@@ -469,8 +487,8 @@ export function fitNumbers(rows: FitRow[], names: string[], k: number, ranks: nu
   if (!finiteAll([intercept, miss, explainedShare, ...drivers.flatMap((d) => [d.effect, d.lo, d.hi, d.share, d.explains, d.partial, d.inflation, d.spread])])) return { ok: false, refusals: [{ case: "refuse-too-large", slots: {} }] };
   const misses = rows.map((r) => {
     // Unreduced: a fraction is as exact unreduced, and the greatest common divisor of numbers this long costs more than the sum.
-    const fitted = cols.reduce((sum, c, i) => plus(sum, times(sol.beta[i], fractionOf(r.x[c]))), sol.intercept);
-    return { level: dbl(fitted), miss: dbl(minus(fractionOf(r.y), fitted)) };
+    const fitted = cols.reduce((sum, c, i) => plainPlus(sum, plainTimes(sol.beta[i], fractionOf(r.x[c]))), sol.intercept);
+    return { level: dbl(fitted), miss: dbl(plainMinus(fractionOf(r.y), fitted)) };
   });
   const core: Core = {
     drivers,
@@ -503,6 +521,10 @@ function missingLevels(points: Point[], span: Span, rows: FitRow[]): string[] {
 /** Fits a line through several Metrics at once, with the other drivers held the same for each effect; runs the suitability
  * checks of a fit first and says what is found. An effect is per one unit of its driver. */
 export function fit(input: FitInput): Fit | Refused {
+  return withWork(() => fitWithin(input)) ?? OUT_OF_WORK;
+}
+
+function fitWithin(input: FitInput): Fit | Refused {
   const { span } = input;
   const names = [...input.drivers.map((d) => d.name), input.target.name];
   const k = input.drivers.length;
@@ -554,6 +576,8 @@ export type Outside = { name: string; side: "above" | "below"; limit: number; ch
 /** The lines of a fit's verdict that still hold for a value worked out from it: the gaps, the curve and the spread. */
 const KEPT = new Set<string>(["caution-gaps", "caution-gaps-change", "caution-curved", "caution-spread", "caution-crowded"]);
 const carried = (m: Fit): Verdict => ({ refusals: [], cautions: m.verdict.cautions.filter((f) => KEPT.has(f.case)), switches: [] });
+/** The refusal for a fit that spent its whole work budget (work-bound.ts): in words, with no number. */
+const OUT_OF_WORK: Refused = { ok: false, refusals: [{ case: "refuse-exact-work", slots: {} }] };
 const refuseInput = (what: string): Refused => ({ ok: false, refusals: [{ case: "refuse-input", slots: { what } }] });
 
 // A model that a program handed over: its shape and numbers are checked, never trusted.
@@ -563,6 +587,14 @@ function modelProblem(m: Fit): string | null {
   const rows = m.rows;
   const sound = Array.isArray(rows) && rows.length > k + 1 && rows.length <= MOST_PERIODS && rows.every((r) => Number.isFinite(r.y) && Array.isArray(r.x) && r.x.length === k && finiteAll(r.x));
   return sound && finiteAll([...m.last.x, m.last.y]) && m.last.x.length === k && (m.basis === "values" || m.basis === "changes") ? null : "the fit";
+}
+
+// A model a program handed over is worked out again on its own rows, so they are held to the limits of work-bound.ts like any series. That
+// is all `predict` and `needs` need: they solve once, which takes under a tenth of a second for any rows inside the limits (and for the
+// largest values a double holds), where a fit solves for every driver, for each pair it merges and without the far-off periods.
+function tooWide(m: Fit): Refused | null {
+  const found = wideColumns([m.target, ...m.drivers.map((d) => d.name)], [m.rows.map((r) => r.y), ...m.drivers.map((_, j) => m.rows.map((r) => r.x[j]))]);
+  return found.length > 0 ? { ok: false, refusals: found } : null;
 }
 
 type Again = { mo: Moments; sol: Solved; t: number; sigma2: F; k: number };
@@ -591,6 +623,8 @@ export type Predicted = { ok: true; value: number; lo: number | null; hi: number
 export function predict(model: Fit, values: number[]): Predicted {
   const bad = modelProblem(model);
   if (bad) return refuseInput(bad);
+  const wide = tooWide(model);
+  if (wide) return wide;
   const k = model.drivers.length;
   if (!Array.isArray(values) || values.length !== k) return refuseInput(model.drivers.map((d) => d.name).join(", "));
   const nonNumber = values.findIndex((v) => !Number.isFinite(v));
@@ -629,6 +663,8 @@ export type NeedsInput = { goal: number; driver: number; held?: number[] };
 export function needs(model: Fit, input: NeedsInput): Needed {
   const bad = modelProblem(model);
   if (bad) return refuseInput(bad);
+  const wide = tooWide(model);
+  if (wide) return wide;
   const k = model.drivers.length;
   const { goal, driver: j } = input;
   if (!Number.isFinite(goal)) return refuseInput(model.target);
