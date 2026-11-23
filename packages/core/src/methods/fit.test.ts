@@ -723,6 +723,14 @@ describe("drivers that cannot be told apart", () => {
     nearestTo(f.drivers[3].effect, ref.effects[3], "free driver");
     expect(Math.abs(f.drivers[3].effect - 3)).toBeLessThan(0.5);
   });
+  it("keeps a gap finding in changes free of a run count where it has none", () => {
+    const r2 = lcg(5);
+    const x = Array.from({ length: 36 }, (_, i) => Math.round(100 + 4 * i + gauss(r2) * 20));
+    const y = x.map((v) => hundredths(v * 2 + gauss(r2) * 10));
+    const f = made(fit(input(y, [x], { basis: "changes", drivers: [{ name: "Visits", points: pts(x).filter((_, i) => i !== 10) }] })));
+    const gap = f.verdict.cautions.find((c) => c.case === "caution-gaps-change")!;
+    expect(Object.keys(gap.slots).sort()).toEqual(["missing", "name", "periods", "span", "total"]);
+  });
   it("never calls a crowded driver strong in the fit itself, though its link alone would be", () => {
     const free = (n: number) => Array.from({ length: n }, () => hundredths(rng() * 100));
     const [x1, x2, f4] = [free(40), free(40), free(40)];

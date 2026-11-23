@@ -728,6 +728,8 @@ describe("what a third review asked for", () => {
     expect(new Set(neg.map((v) => written(m, v, ctx, neg))).size).toBe(3);
     // Values that differ only far out stop at 15 places, and equal values stay one.
     expect(written(m, 1, ctx, [1, 1 + 1e-17])).toBe("1.0");
+    // Two numbers that differ only beyond 15 places stop at 15 (and do not go on for ever).
+    expect(written(m, 1, ctx, [1, 1 + 2.3e-16])).toBe("1.000000000000000");
     expect(written(m, 2, ctx, [2, 2])).toBe("2.0");
     fc.assert(
       fc.property(fc.integer({ min: -9, max: 6 }), fc.double({ min: 1, max: 9.9, noNaN: true }), fc.double({ min: 1e-6, max: 0.05, noNaN: true }), (e, mant, gap) => {
@@ -771,6 +773,21 @@ describe("what a third review asked for", () => {
     expect(byChange.basis).toBe("compared by change, growth removed, over 29 months");
     expect(byChange.notes[0]).toBe("8 Metrics are more than 29 months can weigh, so the 4 that move most closely with Revenue were chosen first and the others left out.");
     expect(byChange.rows).toHaveLength(4);
+  });
+  it("counts the periods by the basis of the Metrics chosen, not of those left out", () => {
+    const r = lcg(81);
+    const n = 30;
+    const many = Array.from({ length: 8 }, (_, i) => metric({ id: 200 + i, slug: `z${i}`, name: `Z${i}`, period: "month", aggregation: "sum" }));
+    const cols = many.map(() => Array.from({ length: n }, () => Math.round(r() * 100)));
+    // The target grows, and so does the last Metric, but its changes have nothing to do with the target's: it is left out.
+    cols[7] = cols[7].map((v, i) => v + 20 * i);
+    const revenue = cols[0].map((v, i) => 2 * v + cols[1][i] + 20 * i + Math.round(r() * 10));
+    const series: Record<string, Point[]> = { revenue: months("2018-01", revenue) };
+    many.forEach((m, i) => (series[m.slug] = months("2018-01", cols[i])));
+    const t = whatMoves(R, many, resolverFrom([R, ...many], series), opts);
+    expect(t.rows.map((x) => x.name)).not.toContain("Z7");
+    expect(t.basis).toBe("compared by value, over 30 months");
+    expect(t.notes[0]).toBe("8 Metrics are more than 30 months can weigh, so the 5 that move most closely with Revenue were chosen first and the others left out.");
   });
   it("says the missing months of a run, not the changes lost", () => {
     const r = lcg(13);
