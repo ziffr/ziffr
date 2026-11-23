@@ -19,9 +19,14 @@ export type Recorded = { observation_id: number; outcome: string; before: number
 export type BreakdownInput = { label: string; value: number; parent?: string | null };
 
 /** A Breakdown the core refuses to write, in words (rows that would stand where they cannot): nothing is recorded. */
-export class BreakdownRefused extends Error {}
-/** The code a refusal by the core carries, as the database's own refusals of the same rules do (ZF460 to ZF462). */
+export class BreakdownRefused extends Error {
+  /** `existing`: the refusal depends on rows already recorded, so its words must not reach anyone who may not read them. */
+  constructor(message: string, readonly existing = false) { super(message); }
+}
+/** The code a refusal by the core carries when it is made of the submitted rows alone, so its words may go back to the sender (the database's own refusals, ZF460 to ZF462, depend on stored rows). */
 export const BREAKDOWN_REFUSED = "ZF463";
+/** The code of a core refusal that depends on the rows already recorded: the sender is told only that the rows cannot be added. */
+export const BREAKDOWN_REFUSED_EXISTING = "ZF464";
 
 /** A recording as takeValue asks for it: the answer, or the database's refusal (its words stay in the server log). */
 export type Recording = (workspaceId: string, metric: Metric, period: string, value: number, row: { submitter_id: string | null; source: string; access_key_id: number | null; /** Who entered it, when it is a Filled-in Value for the submitter (spec 0046). */ entered_by?: string | null }, imported: boolean, rows: BreakdownInput[]) => Promise<{ data: Recorded | null; error: { message: string; code?: string } | null }>;
@@ -89,7 +94,7 @@ export const recordObservation: Recording = async (workspaceId, metric, period, 
     try {
       planned = planRows(cipher, op === "add", existing, rows, rowIds);
     } catch (e) {
-      if (e instanceof BreakdownRefused) return { data: null, error: { message: e.message, code: BREAKDOWN_REFUSED } };
+      if (e instanceof BreakdownRefused) return { data: null, error: { message: e.message, code: e.existing ? BREAKDOWN_REFUSED_EXISTING : BREAKDOWN_REFUSED } };
       throw e;
     }
     const { data: id, error } = await db().rpc("record_value", {
@@ -138,7 +143,7 @@ export function planRows(cipher: WorkspaceCipher, adding: boolean, existing: Exi
     if (above === null) return;
     const w = byId.get(placed[i])!;
     // A row that is there already stays where it is: a second value for it cannot move it.
-    if (!w.fresh && w.parent !== placed[above]) throw new BreakdownRefused(`“${r.label}” is already in this breakdown and sits somewhere else, so a value cannot be added to it under another parent.`);
+    if (!w.fresh && w.parent !== placed[above]) throw new BreakdownRefused(`“${r.label}” is already in this breakdown and sits somewhere else, so a value cannot be added to it under another parent.`, true);
     w.parent = placed[above];
   });
   const levels = levelsOf(working, byId);
@@ -156,11 +161,11 @@ export function planRows(cipher: WorkspaceCipher, adding: boolean, existing: Exi
 function levelsOf(working: Working[], byId: Map<number, Working>): Map<number, number> {
   const levels = new Map<number, number>();
   if (!working.some((w) => w.parent !== null)) return levels;
-  if (working.length > BREAKDOWN_PARENTS.rows) throw new BreakdownRefused(`A breakdown with parents has at most ${BREAKDOWN_PARENTS.rows} rows; with this one it would have ${working.length}.`);
+  if (working.length > BREAKDOWN_PARENTS.rows) throw new BreakdownRefused(`A breakdown with parents has at most ${BREAKDOWN_PARENTS.rows} rows; with this one it would have ${working.length}.`, true);
   for (const w of working) {
     let level = 1;
     for (let at = w.parent; at !== null; at = byId.get(at)!.parent) level++;
-    if (level > BREAKDOWN_PARENTS.depth) throw new BreakdownRefused(`“${w.label}” would be ${level} levels down; a breakdown has at most ${BREAKDOWN_PARENTS.depth} levels.`);
+    if (level > BREAKDOWN_PARENTS.depth) throw new BreakdownRefused(`“${w.label}” would be ${level} levels down; a breakdown has at most ${BREAKDOWN_PARENTS.depth} levels.`, true);
     levels.set(w.id, level);
   }
   return levels;

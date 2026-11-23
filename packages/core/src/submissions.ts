@@ -11,7 +11,7 @@ import { readAnswer, type AnswerReading } from "./numbers";
 import { NUMBER_STYLE_MARKS, type NumberStyle } from "./number-style";
 import { answerReadingOf, numberStyleOf } from "./workspace-settings";
 import { readParents } from "@ziffr/pack/breakdown-parents";
-import { BREAKDOWN_REFUSED, recordObservation, type BreakdownInput, type Recording } from "./record-value";
+import { BREAKDOWN_REFUSED, BREAKDOWN_REFUSED_EXISTING, recordObservation, type BreakdownInput, type Recording } from "./record-value";
 import { addUp } from "./adding-up";
 import { parseBreakdown } from "./parse";
 import { peopleOf, recogniseSender, type ContactRow } from "./people";
@@ -346,14 +346,20 @@ async function proposeLate(i: { ws: string; metric: Metric; period: string; valu
   return { ok: false, outcome: "proposed_locked", detail: `${metric.name}, ${when} is locked. ${fv(value)} went to ${owner} as a proposed correction.` };
 }
 
+/** What a sender is told when rows cannot be added to the Breakdown already recorded, whatever the reason. */
+const GENERIC_BREAKDOWN = "These rows cannot be added to this Breakdown.";
+
 /** The outcome and words for a value the database refused because the Metric was archived or the period condensed after
  * the checks before the write, or null when it refused for no such reason. */
 async function refusedByDatabase(error: { code?: string; message?: string } | null, ws: string, metricId: number, period: string): Promise<{ outcome: string; detail: string } | null> {
   // A value entered for someone else met a value in between (it came first), or a rule that combines people's values.
   if (error?.code === "ZF450") return { outcome: "rejected_fill_in", detail: "This period already has a value: a Correction changes it." };
   if (error?.code === "ZF452") return { outcome: "rejected_fill_in", detail: "This Metric adds up or keeps the values of several people, so nobody can fill in for someone else." };
-  // Rows that cannot stand where they were put (the core's words, or the database's own, which are plain too and name nothing of the Workspace).
-  if (error?.code === BREAKDOWN_REFUSED || /^ZF46[0-2]$/.test(error?.code ?? "")) return { outcome: "rejected_breakdown", detail: error?.message ?? "The rows of the breakdown cannot stand as they were given." };
+  // Rows that cannot stand where they were put. Words made of the submitted rows alone go back to the sender; anything that
+  // depends on rows already recorded (a name, a count, a level there) is never said to the sender, who may not read them: the
+  // same generic answer whether the row exists or not.
+  if (error?.code === BREAKDOWN_REFUSED) return { outcome: "rejected_breakdown", detail: error.message ?? GENERIC_BREAKDOWN };
+  if (error?.code === BREAKDOWN_REFUSED_EXISTING || /^ZF46[0-2]$/.test(error?.code ?? "")) return { outcome: "rejected_breakdown", detail: GENERIC_BREAKDOWN };
   if (error?.code === ARCHIVED_CODE) return { outcome: "rejected_archived", detail: ARCHIVED_REFUSAL };
   if (error?.code === CONDENSED_CODE) return { outcome: "rejected_period_condensed", detail: await condensedWords(ws, metricId, period) };
   return null;
