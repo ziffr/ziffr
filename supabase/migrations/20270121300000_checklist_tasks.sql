@@ -8,8 +8,8 @@ alter table actions add column checklist_item_id text check (checklist_item_id i
 alter table actions drop constraint actions_purpose_check;
 alter table actions add constraint actions_purpose_check check (purpose in ('approval', 'escalation', 'self_check', 'checklist'));
 alter table actions add constraint actions_metric_or_checklist
-  check (purpose = 'checklist' and workflow_id is not null and checklist_item_id is not null and metric_id is null
-      or metric_id is not null and checklist_item_id is null);
+  check (purpose is not distinct from 'checklist' and metric_id is null and workflow_id is not null and checklist_item_id is not null
+      or purpose is distinct from 'checklist' and metric_id is not null and checklist_item_id is null and workflow_id is null);
 create unique index actions_checklist_item_period on actions (workflow_id, checklist_item_id, period_start) where purpose = 'checklist';
 create index actions_workflow on actions (workflow_id) where workflow_id is not null;
 -- Whom a Checklist Task was handed over from (an Escalation to the item's Stand-in): they keep reading and answering it.

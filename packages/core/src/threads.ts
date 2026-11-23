@@ -22,7 +22,9 @@ export async function participants(ws: string, actionId: number) {
  * `opts.keepState` adds the message without moving the Action to answered. */
 export async function postReply(ws: string, actionId: number, authorId: string, body: string, correction: number | null, source: ChangeSource = FROM_APP, commands = true, opts: { via?: string; viaWebhookId?: string; keepState?: boolean } = {}) {
   const a = await participants(ws, actionId);
-  if (!a || ![a.asker_id, a.assignee_id, a.owner_id, a.previous_assignee_id].includes(authorId)) throw new Error("Only the people on this thread can reply.");
+  // Whom a Checklist Task was handed on from keeps answering it only while they are still in the Workspace.
+  const handedFrom = a?.previous_assignee_id === authorId && (await db().from("memberships").select("user_id").eq("workspace_id", ws).eq("user_id", authorId).maybeSingle()).data ? authorId : null;
+  if (!a || ![a.asker_id, a.assignee_id, a.owner_id, handedFrom].includes(authorId)) throw new Error("Only the people on this thread can reply.");
   // `commands` is false for a program's reply (API, MCP): its words are only words. "approve", "send back", "confirm" and
   // a Correction decide a value only from the channels a person uses, never through a scope that cannot (ticket #427).
   if (commands && a.purpose === "approval" && a.assignee_id === authorId && a.status === "open" && correction === null) {
@@ -34,8 +36,9 @@ export async function postReply(ws: string, actionId: number, authorId: string, 
   // A Checklist Task is ticked off by "done" (the rest of the words are the note), from Ziffr, email, Slack or Telegram; any other
   // reply is only words: the Task stays open until it is ticked off (spec 0045).
   if (commands && a.purpose === "checklist" && a.assignee_id === authorId && a.status === "open") {
-    const done = body.match(/^\s*(?:done|erledigt)\b[\s.:,;!-]*([\s\S]*)$/i);
-    if (done && await finishTask(ws, actionId, authorId, source, done[1])) return;
+    // Only "done" on a line of its own, or "done:" and the note: "Done? Not yet" is only words.
+    const done = body.match(/^\s*(?:done|erledigt)[.!]?[ \t]*(?::[ \t]*([\s\S]*)|\r?\n([\s\S]*))?$/i);
+    if (done && await finishTask(ws, actionId, authorId, source, done[1] ?? done[2])) return;
   }
   if (commands && a.purpose === "self_check" && a.assignee_id === authorId && a.status === "open") {
     const { confirmSelfCheck, correctSelfCheck } = await import("./workflow-engine");

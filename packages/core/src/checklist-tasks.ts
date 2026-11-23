@@ -68,16 +68,18 @@ export async function giveChecklistTasks(ws: string, wf: Workflow, period: strin
         metric_id: null, workflow_id: wf.id, checklist_item_id: item.id, period_start: period, asker_id: wf.owner_id, assignee_id: to,
         question: item.text, kind: "task", purpose: "checklist", due_date: due, read_group_id: item.readGroup ?? null,
       }]) as { id: number }[];
-    } catch {
-      // Given at the same moment by another run: the unique row keeps it to one.
-      continue;
+    } catch (e) {
+      // Given at the same moment by another run: the unique row keeps it to one. Any other failure is not that.
+      const { data: now } = await db().from("actions").select("id").eq("workflow_id", wf.id).eq("checklist_item_id", item.id).eq("period_start", period).limit(1);
+      if (now?.length) continue;
+      throw e;
     }
     if (!row) continue;
     if (standIn) await noteOn(ws, row.id, wf.owner_id, STAND_IN_NOTE);
     await deliver({ kind: "task", actionId: row.id, senderId: wf.owner_id, recipientId: to, queue: true, source: { type: "workflow" } });
     if (away && !standIn) {
       const [person] = await openNames(ws, (await db().from("profiles").select("*").eq("id", item.assignee)).data);
-      await deliverNotice(ws, { recipientId: wf.owner_id, senderId: null, subject: `${wf.name}: a checklist task waits for someone who is away`, text: `${(person?.name as string | undefined) ?? "The Assignee"} is away and has no stand-in for a checklist item of ${wf.name}, ${label}. The task is theirs and waits.`, link: `/actions/${row.id}` });
+      await deliverNotice(ws, { recipientId: wf.owner_id, senderId: null, subject: `${wf.name}: a checklist task waits for someone who is away`, text: `${(person?.name as string | undefined) ?? "The Assignee"} is away and has no stand-in for a checklist item of ${wf.name}, ${label}. The task is theirs and waits.`, link: `/actions/${row.id}`, quiet: true });
     }
     log.push(`${wf.name}, ${label}: gave a checklist task to ${to}${standIn ? " (stand-in)" : ""}`);
   }
@@ -107,13 +109,15 @@ export async function remindAndEscalateTasks(ws: string, wf: Workflow, period: s
         const standIn = step.to === "stand-in" && item?.standIn && item.standIn !== t.assignee_id && (await isMember(ws, item.standIn)) ? item.standIn : null;
         if (standIn) {
           // The first Assignee keeps reading it (previous_assignee_id); the Thread says so.
-          await db().from("actions").update({ assignee_id: standIn, previous_assignee_id: t.assignee_id, updated_at: new Date().toISOString() }).eq("id", t.id).eq("workspace_id", ws);
+          // Only while it is still open: a Task ticked off a moment ago is not handed on, and nothing is said about it.
+          const { data: moved } = await db().from("actions").update({ assignee_id: standIn, previous_assignee_id: t.assignee_id, updated_at: new Date().toISOString() }).eq("id", t.id).eq("workspace_id", ws).eq("status", "open").select("id");
+          if (!moved?.length) continue;
           await noteOn(ws, t.id, wf.owner_id, HANDED_NOTE);
           await deliver({ kind: "task", actionId: t.id, senderId: wf.owner_id, recipientId: standIn, queue: true, source: { type: "workflow" } });
           log.push(`${wf.name}: handed a checklist task to the stand-in`);
         } else {
           // A Checklist Task has no Metric owner: the Workflow's owner hears of it.
-          await deliverNotice(ws, { recipientId: wf.owner_id, senderId: null, subject: `${wf.name}: a checklist task is not done`, text: `A checklist task of ${wf.name} was due ${due} and is still open.`, link: `/actions/${t.id}` });
+          await deliverNotice(ws, { recipientId: wf.owner_id, senderId: null, subject: `${wf.name}: a checklist task is not done`, text: `A checklist task of ${wf.name} was due ${due} and is still open.`, link: `/actions/${t.id}`, quiet: true });
           log.push(`${wf.name}: told the owner of a checklist task`);
         }
       }

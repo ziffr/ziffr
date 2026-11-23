@@ -105,6 +105,8 @@ describe("giving the Task", () => {
     expect((await db().from("actions").insert({ ...base, purpose: "checklist", workflow_id: s.flow, checklist_item_id: "tick-bank-aaaa", metric_id: null })).error).not.toBeNull();
     expect((await db().from("actions").insert({ ...base, metric_id: null })).error).not.toBeNull();
     expect((await db().from("actions").insert({ ...base, purpose: "checklist", metric_id: null })).error).not.toBeNull();
+    // No purpose and no Metric is refused too (a null purpose must not slip past the check).
+    expect((await db().from("actions").insert({ ...base, metric_id: null, workflow_id: s.flow, checklist_item_id: "tick-other-aaaa" })).error).not.toBeNull();
     expect((await db().from("actions").insert({ ...base, purpose: "approval", workflow_id: s.flow, checklist_item_id: "x", metric_id: s.m.id })).error).not.toBeNull();
   });
 
@@ -154,6 +156,9 @@ describe("Remind and Escalate, as for a missing value", () => {
     // The first Assignee keeps reading it and may still answer.
     expect((await readableActions(s.w.id, s.ann)).map((a) => a.id)).toContain(t.id);
     await reply(as(s, s.ann, "member"), t.id as number, "I am back.", null);
+    // Once Ann has left the Workspace she answers nothing, and the handover clears her place on it.
+    await s.w.dropMember(s.ann);
+    await expect(reply(as(s, s.ann, "member"), t.id as number, "Still me.", null)).rejects.toThrow();
   });
 
   it("tells the Workflow's owner when the step asks the owner, once", async () => {
@@ -199,11 +204,13 @@ describe("ticking off", () => {
     await runWorkflows(s.w.id, "2026-04-01", s.sara);
     const [t] = await given(s);
     await reply(as(s, s.ann, "member"), t.id as number, "Working on it, bank file is late.", null);
+    await reply(as(s, s.ann, "member"), t.id as number, "Done? Not yet, one file is missing.", null);
+    await reply(as(s, s.ann, "member"), t.id as number, "done with the first half", null);
     expect((await given(s))[0].status).toBe("open");
-    await reply(as(s, s.ann, "member"), t.id as number, "Done. All matched.", null);
+    await reply(as(s, s.ann, "member"), t.id as number, "done: All matched.", null);
     expect((await given(s))[0].status).toBe("closed");
     const msgs = await opened("thread_messages", s.w.id, (await db().from("thread_messages").select("*").eq("action_id", t.id as number).order("id")).data);
-    expect(msgs.map((m) => m.body)).toEqual(["Working on it, bank file is late.", "All matched."]);
+    expect(msgs.map((m) => m.body)).toEqual(["Working on it, bank file is late.", "Done? Not yet, one file is missing.", "done with the first half", "All matched."]);
   });
 
   it("is ticked off by a reply that came back through a Connector for the Task's message", async () => {
@@ -243,6 +250,8 @@ describe("ticking off", () => {
     const s = await setup([(p) => tick({ assignee: p.ann })]);
     await runWorkflows(s.w.id, "2026-04-01", s.sara);
     const [t] = await given(s);
+    // The asker cannot close it by hand: only the Assignee ticks it off.
+    await expect(setActionStatus(as(s, s.sara, "owner"), t.id as number, "closed")).rejects.toThrow(/ticking it off/);
     await markTaskDone(as(s, s.ann, "member"), t.id as number);
     expect((await periodTimeline(as(s, s.sara, "owner"), s.flow, "2026-03-01")).checklist).toEqual({ done: 1, of: 1 });
     await setActionStatus(as(s, s.sara, "owner"), t.id as number, "open");
