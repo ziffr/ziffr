@@ -191,6 +191,7 @@ const CASES: Record<string, Case> = {
   "paste-actions:recordPaste": { args: () => [{ text: "Revenue\t42" }] },
   "paste-actions:pasteTemplateFile": { reads: () => [{ kind: "rows" }] },
   "quick-look-actions:metricQuickLook": { reads: () => ["revenue"] },
+  "metric-actions-actions:metricActions": { reads: () => [["revenue"]] },
   // Reading or fetching a Pack is refused in the demo like a change: it would make work for an anonymous visitor.
   "pack-actions:readPack": { args: () => [PACK] },
   "pack-actions:exportAsPack": { reads: (i) => [{ id: "visitor/export", name: "Export", version: "1.0.0", summary: "An export.", author: "A visitor", license: "CC-BY-4.0" }, { metrics: [i.metric] }] },

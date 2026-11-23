@@ -31,6 +31,7 @@ import { Toaster } from "@/components/ui/sonner";
 import { DemoRefusalLinks } from "@/components/demo-refusal";
 import { LegalFooter } from "@/components/legal-footer";
 import { QuickLookHost } from "@/components/metric-quick-look";
+import { MetricActionsHost } from "@/components/metric-actions-panel";
 import { ServiceWorker } from "@/components/service-worker";
 import { APP_COLOURS } from "@/lib/app-colours";
 import { appearanceFor, browserAppearance } from "@/lib/appearance";
@@ -157,7 +158,7 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
         {feedback && <FeedbackPrompt askForStar={feedback.askForStar} />}
         {demo && <Tour key={can(actor, "create") ? "member" : "guest"} guest={!can(actor, "create")} />}
         <Toaster />
-        <Suspense fallback={null}><QuickLookHost /></Suspense>
+        <Suspense fallback={null}><QuickLookHost /><MetricActionsHost /></Suspense>
         <ServiceWorker />
       </body>
     </html>
