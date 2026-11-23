@@ -80,11 +80,7 @@ export async function workflowFillIns(actor: Actor, workflowId: number): Promise
   if (!metrics.length) return [];
   // The day the Metric page uses for "the period it is working on", so both pages offer the same period.
   const today = new Date().toISOString().slice(0, 10);
-  const out: FillInOffer[] = [];
-  for (const m of metrics) {
-    const period = workingPeriod(today, m.period as Period, await yearStartFor(ws, m.period as Period));
-    const offer = await fillInOffer(actor, m.id, period);
-    if (offer) out.push(offer);
-  }
-  return out;
+  // One offer per Metric, asked side by side (each asks the same rule as the Metric's page).
+  const offers = await Promise.all(metrics.map(async (m) => fillInOffer(actor, m.id, workingPeriod(today, m.period as Period, await yearStartFor(ws, m.period as Period)))));
+  return offers.filter((o): o is FillInOffer => o !== null);
 }
