@@ -9,7 +9,7 @@
 import { fractionOf, lowestTerms, minus, nearest, over, plus, times, type Fraction } from "../exact";
 import { builtInMethod } from "../extensions";
 import { formatPercent } from "../format";
-import { emptyTakeaway, listOf, refusalTakeaway, sayIn, type Takeaway, type TakeawayContext } from "../takeaways/takeaway";
+import { emptyTakeaway, listOf, refusalTakeaway, sayIn, wideRefusal, type Takeaway, type TakeawayContext } from "../takeaways/takeaway";
 
 /** One row of a Breakdown: its label and its value. */
 export type Row = { label: string; value: number };
@@ -107,6 +107,8 @@ function shareAnswer(method: string, sentence: string, result: { tied: boolean; 
 /** The Takeaway of the share of the top rows: "Worked out: the top 3 of 8 rows make up 71.0 % of Revenue: A, B and C." A
  * refusal says what is wrong with the rows and carries no number. */
 export function topShareTakeaway(name: string, rows: Row[], n: number, ctx: TakeawayContext): Takeaway {
+  const wide = wideRefusal(sayIn("numbers-method-share", {}, ctx), [{ name, values: rows.map((r) => r.value) }], ctx);
+  if (wide) return wide;
   const result = topShare(rows, n);
   if (!result.ok) return refusalFor(result.why, name, rows.length, ctx);
   const method = sayIn("numbers-method-share", {}, ctx);
@@ -115,6 +117,8 @@ export function topShareTakeaway(name: string, rows: Row[], n: number, ctx: Take
 
 /** The Takeaway of a Pareto: "Worked out: 3 of 8 rows make up 71.0 % of Revenue, the fewest that reach 70.0 %: A, B and C." */
 export function paretoTakeaway(name: string, rows: Row[], ctx: TakeawayContext, target: number = PARETO_SHARE): Takeaway {
+  const wide = wideRefusal(sayIn("numbers-method-pareto", {}, ctx), [{ name, values: rows.map((r) => r.value) }], ctx);
+  if (wide) return wide;
   const result = pareto(rows, target);
   if (!result.ok) return refusalFor(result.why, name, rows.length, ctx);
   const method = sayIn("numbers-method-pareto", {}, ctx);

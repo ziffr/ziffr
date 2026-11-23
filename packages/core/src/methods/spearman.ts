@@ -13,7 +13,7 @@ import { checkSuitability, rankAssociation } from "../suitability";
 import { RANK_SPREAD, strengthOf, type StrengthWord } from "../takeaways/strength";
 
 export { RANK_SPREAD };
-import { pairsAnswer, refusalTakeaway, sayIn, strengthWordIn, verdictLines, type Takeaway, type TakeawayContext } from "../takeaways/takeaway";
+import { pairsAnswer, refusalTakeaway, sayIn, strengthWordIn, verdictLines, onLatest, type Takeaway, type TakeawayContext } from "../takeaways/takeaway";
 import type { Point } from "../types";
 
 /** The word for a rank correlation over `n` pairs: a rank correlation scatters a little more than Pearson's r under no link (by
@@ -39,6 +39,12 @@ export function spearman(a: Point[], b: Point[]): SpearmanResult | null {
  * growth removed); the suitability checks run on the pairs, a refusal says what is missing, a caution is said above the
  * answer and keeps the strength below "strong", and the footer is on once. */
 export function spearmanTakeaway(aName: string, bName: string, a: Point[], b: Point[], span: Span, basis: Basis, ctx: TakeawayContext): Takeaway {
+  // Stryker disable next-line StringLiteral: the Method's name in the refusal that only a spent work allowance writes; the wording of that refusal is held by the test of withinBudget.
+  return onLatest("numbers-method-spearman", ctx, span, [a, b], ([ca, cb]) => spearmanWithin(aName, bName, ca, cb, span, basis, ctx));
+}
+
+// The Takeaway itself, on the latest periods the series have in common.
+function spearmanWithin(aName: string, bName: string, a: Point[], b: Point[], span: Span, basis: Basis, ctx: TakeawayContext): Takeaway {
   const method = sayIn("numbers-method-spearman", {}, ctx);
   const found = spearman(a, b);
   const pairs = found?.pairs ?? pairUp(readSeries(a), readSeries(b));

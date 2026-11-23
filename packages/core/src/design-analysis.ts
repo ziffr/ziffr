@@ -5,6 +5,7 @@
 import { dayAfter, isPartial, shownSeries } from "./display-periods";
 import { formatNumber, formatPercent, formatValue } from "./format";
 import { PAGE_BUDGET, runRecipe, runRecipe2, WORK_BUDGET, type RecipeResults, type Run2 } from "./recipe-run";
+import { PAGE_EXACT_BUDGET } from "./work-bound";
 import { sayIn } from "./takeaways/takeaway";
 import { drawnOutputs, type AnalysisRecipe2, type Output } from "./analysis-recipe";
 import { bridgeFigures, rangeFigures, type BridgeFigures, type RangeFigures } from "./mark-figures";
@@ -72,10 +73,10 @@ export function designRun(design: ViewDesign, metrics: Metric[], data: Pick<Canv
 
 /** What the recipes drawn on one page may still ask for, in work units: one object made for each page or render (a React context in the app)
  * and charged by every widget in the order they are drawn, so what is refused is the same every time. */
-export type RecipeBudget = { left: number };
+export type RecipeBudget = { left: number; /** What the page's correlation work may still spend, in the digit work of work-bound.ts. */ exact: number };
 
 /** A fresh budget for one page. */
-export const newRecipeBudget = (): RecipeBudget => ({ left: PAGE_BUDGET });
+export const newRecipeBudget = (): RecipeBudget => ({ left: PAGE_BUDGET, exact: PAGE_EXACT_BUDGET });
 
 /** What a range or a bridge mark draws of a table of the recipe, by step: its figures, or why it cannot be drawn, in words. */
 export type TableFigures = Record<string, RangeFigures | BridgeFigures>;
