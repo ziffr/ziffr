@@ -128,7 +128,7 @@ export default async function MetricPage({ params, searchParams }: { params: Pro
   const [basisChoice, keepBasis] = basisOf(byValue);
   // Metrics of every period, each on its common period with this one (spec 0019); those kept to their own period say why.
   const { ranked: correlations, leftOut } = rankCorrelations(metric, metrics.filter((m) => visible.has(m.id)), resolverFrom(metrics, series), { yearStart, basis: basisChoice });
-  const notCombined = [...new Set(leftOut.filter((l) => l.why === "not-combined").map((l) => l.reason))];
+  const notCombined = [...new Set(leftOut.filter((l) => l.why === "not-combined" || l.why === "too-much").map((l) => l.reason))];
   const partner = correlations.find((c) => c.metric.slug === sp.vs) ?? correlations[0];
 
   if (!visible.has(metric.id)) {

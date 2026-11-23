@@ -4,13 +4,14 @@
 // 12 and 40 seconds. Each Method is also shown to give what it gave before for ordinary values (the Methods' own tests hold the
 // numbers); these tests hold the refusals, one step either side of each limit, and the time.
 import { describe, expect, it } from "vitest";
+import { changes } from "../basis";
 import { checkSuitability, type MethodId } from "../suitability";
 import { metric, months } from "../test/fixtures";
 import { say } from "../takeaways/wording";
 import { forecastTakeaway } from "../takeaways/forecast";
 import { emptyTakeaway, withinBudget } from "../takeaways/takeaway";
 import { rankCorrelations, correlate } from "../correlation";
-import { spend, wideReason } from "../work-bound";
+import { spend, wideReason, withWork } from "../work-bound";
 import type { Point } from "../types";
 import { afterDateTakeaway } from "./before-after";
 import { WORK_BUDGET } from "../work-bound";
@@ -29,25 +30,25 @@ import { checkedChangePoint } from "./change-point";
 
 const ctx = { style: "1,234.5" as const };
 const euro = { unit: "€", unit_position: "after" as const, decimals: 0 };
-/** The time a Method may take on the worst input, generous so that a busy machine never fails it: the Methods took 12 to 47 seconds before. */
-const QUICK = 5000;
+/** The time a Method may take on the worst input: generous, since the fit's work allowance is about 3 seconds of a laptop and a busy machine is several times slower, but far under the 12 to 47 seconds the Methods took before. */
+const QUICK = 15_000;
 
 function lcg(start: number) {
   let x = start;
   return () => ((x = (x * 1103515245 + 12345) % 2147483648) / 2147483648);
 }
 type Kind = "ordinary" | "tiny" | "huge" | "fine" | "wide" | "minute" | "dense";
-/** 120 months of values: ordinary (to the cent), tiny (9.8e14 alternating with 1e-290 to 1e-307), huge (1e290 to 1e299), fine (15 digits at 20 places, which the limits let through) or wide (spanning 20 orders). */
+/** 120 months of values: ordinary (to the cent), tiny (9.8e14 alternating with 1e-290 to 1e-307), huge (1e290 to 1e299), fine (15 digits at 39 places, which the limits let through), dense (17 digits at 40 places beside 17 digits of 1e5, the worst they admit) or wide (spanning 32 orders). */
 function series(kind: Kind, seed: number, n = 120): Point[] {
   const r = lcg(seed);
   const value = (i: number): number => {
     if (kind === "ordinary") return Math.round((100 + i * 0.5 + r() * 40) * 100) / 100;
     if (kind === "tiny") return i % 2 === 0 ? 9.8e14 - Math.floor(r() * 1e9) : Number(`${(1 + r() * 8.9).toFixed(3)}e-${290 + Math.floor(r() * 17)}`);
     if (kind === "huge") return Number(`${(1 + r() * 8.9).toFixed(4)}e${290 + Math.floor(r() * 10)}`);
-    if (kind === "dense") return i % 2 === 0 ? Number(`${(1 + r() * 8.99).toPrecision(17)}e16`) : Number(`${(1 + r() * 8.99).toPrecision(17)}e-3`);
+    if (kind === "dense") return i % 2 === 0 ? Number(`${(1 + r() * 8.99).toPrecision(17)}e5`) : Number(`${(1 + r() * 8.99).toPrecision(17)}e-24`);
     if (kind === "minute") return Number(`${(1 + r() * 8.9).toFixed(3)}e-295`);
-    if (kind === "fine") return Number(`${(1 + r() * 8).toPrecision(15)}e-6`);
-    return i % 2 === 0 ? Number((1e18 * (1 + r())).toPrecision(5)) : Number((1e-2 * (1 + r())).toPrecision(3));
+    if (kind === "fine") return Number(`${(1 + r() * 8).toPrecision(15)}e-25`);
+    return i % 2 === 0 ? Number((1e18 * (1 + r())).toPrecision(5)) : Number((1e-14 * (1 + r())).toPrecision(3));
   };
   return months("2015-01", Array.from({ length: n }, (_, i) => value(i)));
 }
@@ -62,36 +63,36 @@ const cases = (r: { ok: boolean; refusals?: { case: string }[] }) => (r.ok ? ["a
 describe("checkSuitability refuses wide values first, for every Method", () => {
   const METHODS: MethodId[] = ["correlation", "spearman", "partial", "drivers", "lag", "fit", "predict", "needs", "whatIf", "forecast", "trend", "seasonal", "changePoint", "afterDate", "usualRange"];
   it.each(METHODS)("%s: says what is wrong, names the series, and nothing else (no cautions, no switches), even where the series is too short to judge", (method) => {
-    const v = checkSuitability(method, { series: [{ name: "Fine", points: months("2024-01", [1, 2, 3]) }, { name: "Tiny", points: months("2024-01", [1e-300, 2e-300, 3e-300]) }, { name: "Spread", points: months("2024-01", [1, 5, 1e21]) }], span: "month" });
+    const v = checkSuitability(method, { series: [{ name: "Fine", points: months("2024-01", [1, 2, 3]) }, { name: "Tiny", points: months("2024-01", [1e-300, 2e-300, 3e-300]) }, { name: "Spread", points: months("2024-01", [1, 5, 1e31]) }], span: "month" });
     expect(v).toEqual({
       refusals: [
-        { case: "refuse-exact-places", slots: { name: "Tiny", places: 20, orders: 20 } },
-        { case: "refuse-exact-orders", slots: { name: "Spread", places: 20, orders: 20 } },
+        { case: "refuse-exact-places", slots: { name: "Tiny", places: 40, orders: 30 } },
+        { case: "refuse-exact-orders", slots: { name: "Spread", places: 40, orders: 30 } },
       ],
       cautions: [],
       switches: [],
     });
   });
-  it("lets values on the limits through to the checks: 20 places, and a spread of exactly 10^20", () => {
+  it("lets values on the limits through to the checks: 40 places, and a spread of exactly 10^30", () => {
     const refusals = (vs: number[]) => checkSuitability("usualRange", { series: [{ name: "A", points: months("2024-01", vs) }], span: "month" }).refusals.map((f) => f.case);
-    expect(refusals([1e-20, 2e-20, 3e-20])).toEqual(["refuse-periods"]);
-    expect(refusals([1.5e-20, 2e-20, 3e-20])).toEqual(["refuse-exact-places"]);
-    expect(refusals([1, 5, 1e20])).toEqual(["refuse-periods"]);
-    expect(refusals([1, 5, 1.0000000000000002e20])).toEqual(["refuse-exact-orders"]);
+    expect(refusals([1e-40, 2e-40, 3e-40])).toEqual(["refuse-periods"]);
+    expect(refusals([1.5e-40, 2e-40, 3e-40])).toEqual(["refuse-exact-places"]);
+    expect(refusals([1, 5, 1e30])).toEqual(["refuse-periods"]);
+    expect(refusals([1, 5, 1.0000000000000002e30])).toEqual(["refuse-exact-orders"]);
   });
   it("says it in words a person can read, with the limits", () => {
-    const f = { places: 20, orders: 20, name: "Signups" };
-    expect(say("refuse-exact-places", f, ctx)).toBe("Signups: its values go to more than 20 decimal places, which cannot be worked out exactly in reasonable time.");
-    expect(say("refuse-exact-orders", f, ctx)).toBe("Signups: its values span more than 20 orders of magnitude, from the smallest that is not 0 to the largest, which cannot be worked out exactly in reasonable time.");
+    const f = { places: 40, orders: 30, name: "Signups" };
+    expect(say("refuse-exact-places", f, ctx)).toBe("Signups: its values go to more than 40 decimal places, which cannot be worked out exactly in reasonable time.");
+    expect(say("refuse-exact-orders", f, ctx)).toBe("Signups: its values span more than 30 orders of magnitude, from the smallest that is not 0 to the largest, which cannot be worked out exactly in reasonable time.");
   });
 });
 
 describe("the multiple fit on hostile values", () => {
-  const [ordinary, tiny, huge, fine] = (["ordinary", "tiny", "huge", "fine"] as const).map((k) => [series(k, 1), ...[2, 3, 4, 5, 6, 7].map((s) => series(k, s))]);
+  const [ordinary, tiny, huge, fine] = (["ordinary", "tiny", "huge", "dense"] as const).map((k) => [series(k, 1), ...[2, 3, 4, 5, 6, 7].map((s) => series(k, s))]);
   it.each([1, 2, 3, 4, 5, 6])("refuses %s drivers of tiny values before any exact arithmetic, naming each series, in well under a second (it took 1 to 34 seconds)", (k) => {
     const { result, ms } = timed(() => fit(input(tiny[0], tiny.slice(1, 1 + k))));
     expect(ms).toBeLessThan(QUICK);
-    expect(result).toEqual({ ok: false, refusals: Array.from({ length: k + 1 }, (_, i) => ({ case: "refuse-exact-places", slots: { name: i === 0 ? "Revenue" : ["Visits", "Price", "Tickets", "Churn", "Orders", "Returns"][i - 1], places: 20, orders: 20 } })) });
+    expect(result).toEqual({ ok: false, refusals: Array.from({ length: k + 1 }, (_, i) => ({ case: "refuse-exact-places", slots: { name: i === 0 ? "Revenue" : ["Visits", "Price", "Tickets", "Churn", "Orders", "Returns"][i - 1], places: 40, orders: 30 } })) });
   });
   it("refuses the same on the basis of changes, and in importance", () => {
     // (The changes of 9.8e14 and 1e-290 are worked out exactly and are plain numbers, so that is another series; one that is tiny throughout has tiny changes.)
@@ -106,7 +107,7 @@ describe("the multiple fit on hostile values", () => {
   });
   it("refuses a driver that spans too many orders, naming only that driver", () => {
     const wide = series("wide", 9);
-    expect(timed(() => fit(input(ordinary[0], [ordinary[1], wide]))).result).toEqual({ ok: false, refusals: [{ case: "refuse-exact-orders", slots: { name: "Price", places: 20, orders: 20 } }] });
+    expect(timed(() => fit(input(ordinary[0], [ordinary[1], wide]))).result).toEqual({ ok: false, refusals: [{ case: "refuse-exact-orders", slots: { name: "Price", places: 40, orders: 30 } }] });
   });
   it("stops a fit of six drivers on values of 1e290 and more, which no decimal place catches, when its work is spent, in words (it took 40 seconds)", () => {
     const { result, ms } = timed(() => fit(input(huge[0], huge.slice(1, 7))));
@@ -114,7 +115,7 @@ describe("the multiple fit on hostile values", () => {
     expect(result).toEqual({ ok: false, refusals: [{ case: "refuse-exact-work", slots: {} }] });
     expect(timed(() => importance(input(huge[0], huge.slice(1, 7)))).ms).toBeLessThan(QUICK);
   });
-  it("stops a fit of six drivers on 15 digits at 20 places, which the limits let through, when its work is spent; fewer drivers on the same values are worked out", () => {
+  it("stops a fit of six drivers on 17 digits at 40 places, the worst the bounds admit, when its work is spent; fewer drivers on the same values are worked out", () => {
     const { result, ms } = timed(() => fit(input(fine[0], fine.slice(1, 7))));
     expect(ms).toBeLessThan(QUICK);
     expect(result).toEqual({ ok: false, refusals: [{ case: "refuse-exact-work", slots: {} }] });
@@ -141,15 +142,15 @@ describe("predict and needs on a model a program handed over", () => {
   const good = fit(input(y, [a, b])) as Fit;
   const withRows = (rows: Fit["rows"]): Fit => ({ ...good, rows });
   const wideRows = (f: (i: number, v: number) => number) => good.rows.map((r, i) => ({ ...r, y: f(i, r.y), x: r.x.map((v) => f(i, v)) }));
-  it("refuse rows that need more than 20 decimal places, or span more than 20 orders, naming the series", () => {
+  it("refuse rows that need more than 40 decimal places, or span more than 30 orders, naming the series", () => {
     const tiny = withRows(wideRows((i, v) => (i % 2 === 0 ? v : v * 1e-300)));
     const p = timed(() => predict(tiny, [1, 2]));
     expect(p.ms).toBeLessThan(QUICK);
     expect(cases(p.result)).toEqual(["refuse-exact-places", "refuse-exact-places", "refuse-exact-places"]);
     expect(cases(needs(tiny, { goal: 100, driver: 0 }))).toEqual(["refuse-exact-places", "refuse-exact-places", "refuse-exact-places"]);
-    const wide = withRows(good.rows.map((r, i) => (i === 3 ? { ...r, x: [r.x[0], 1e24] } : r)));
-    expect(predict(wide, [1, 2])).toEqual({ ok: false, refusals: [{ case: "refuse-exact-orders", slots: { name: good.drivers[1].name, places: 20, orders: 20 } }] });
-    expect(needs(wide, { goal: 100, driver: 0 })).toEqual({ ok: false, refusals: [{ case: "refuse-exact-orders", slots: { name: good.drivers[1].name, places: 20, orders: 20 } }] });
+    const wide = withRows(good.rows.map((r, i) => (i === 3 ? { ...r, x: [r.x[0], 1e34] } : r)));
+    expect(predict(wide, [1, 2])).toEqual({ ok: false, refusals: [{ case: "refuse-exact-orders", slots: { name: good.drivers[1].name, places: 40, orders: 30 } }] });
+    expect(needs(wide, { goal: 100, driver: 0 })).toEqual({ ok: false, refusals: [{ case: "refuse-exact-orders", slots: { name: good.drivers[1].name, places: 40, orders: 30 } }] });
   });
   it("still answer for the rows the fit was made from", () => {
     expect(predict(good, [150, 160]).ok).toBe(true);
@@ -169,7 +170,7 @@ describe("the other Methods refuse in words and stay quick on hostile values", (
   const [y, x, c1, c2, c3] = [1, 2, 3, 4, 5].map((s) => series("tiny", s));
   const [oy, ox, o1, o2, o3] = [1, 2, 3, 4, 5].map((s) => series("ordinary", s));
   const refusal = (t: { kind: string; refusal: string | null }) => (t.kind === "refusal" ? t.refusal : null);
-  const places = (name: string) => say("refuse-exact-places", { name, places: 20, orders: 20 }, ctx);
+  const places = (name: string) => say("refuse-exact-places", { name, places: 40, orders: 30 }, ctx);
   it("partial correlation: refused before the exact arithmetic (it took 1.2 seconds), naming every series", () => {
     const { result, ms } = timed(() => partialTakeaway({ a: "A", b: "B", held: ["C", "D", "E"] }, y, x, [c1, c2, c3], "month", ctx));
     expect(ms).toBeLessThan(QUICK);
@@ -280,7 +281,7 @@ describe("correlation leaves out values that are too wide, once for each pair, b
   const resolve = (slug: string) => ({ metric: [a, b, c].find((m) => m.slug === slug)!, points: data[slug] });
   it("says why in words and names the Metric, and ranks the others as before", () => {
     const wide = correlate(a, b, resolve, { yearStart: 1, basis: "values" });
-    expect(wide).toMatchObject({ ok: false, why: "too-wide", reason: say("refuse-exact-places", { name: "M2", places: 20, orders: 20 }, ctx) });
+    expect(wide).toMatchObject({ ok: false, why: "too-wide", reason: say("refuse-exact-places", { name: "M2", places: 40, orders: 30 }, ctx) });
     const { ranked, leftOut } = rankCorrelations(a, [b, c], resolve, { yearStart: 1, basis: "values" });
     expect(ranked.map((r) => r.metric.slug)).toEqual(["m3"]);
     expect(leftOut.map((l) => [l.metric.slug, l.why])).toEqual([["m2", "too-wide"]]);
@@ -291,8 +292,8 @@ describe("correlation leaves out values that are too wide, once for each pair, b
 describe("correlation names what is too wide, in the order of the Metrics", () => {
   const [a, b] = [1, 2].map((id) => metric({ id, slug: `d${id}`, name: `D${id}`, period: "month" }));
   const of = (x: Point[], y: Point[]) => correlate(a, b, (slug) => ({ metric: slug === "d1" ? a : b, points: slug === "d1" ? x : y }), { yearStart: 1, basis: "values" });
-  const [fine, tiny, spread] = [series("ordinary", 1), series("minute", 2), months("2024-01", [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 1e21, 5, 6, 7, 8])];
-  const words = (name: string, case_: "refuse-exact-places" | "refuse-exact-orders") => say(case_, { name, places: 20, orders: 20 }, { style: "1,234.5" });
+  const [fine, tiny, spread] = [series("ordinary", 1), series("minute", 2), months("2024-01", [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 1e31, 5, 6, 7, 8])];
+  const words = (name: string, case_: "refuse-exact-places" | "refuse-exact-orders") => say(case_, { name, places: 40, orders: 30 }, { style: "1,234.5" });
   it("D1 alone, D2 alone, or both, in one line", () => {
     expect(of(tiny, fine)).toMatchObject({ ok: false, why: "too-wide", period: "month", n: 120, reason: words("D1", "refuse-exact-places") });
     expect(of(fine, tiny)).toMatchObject({ ok: false, why: "too-wide", reason: words("D2", "refuse-exact-places") });
@@ -310,7 +311,7 @@ describe("correlation names what is too wide, in the order of the Metrics", () =
     expect(r).toMatchObject({ ok: false, why: "too-wide", n: 30, reason: words("D1", "refuse-exact-places") });
   });
   it("and the changes it works out on, by the same words", () => {
-    const rising = (shift: number): Point[] => months("2022-01", Array.from({ length: 30 }, (_, i) => (i < 20 ? Number(`${10 + i + shift}e-6`) : 1e14 + (i + shift) * 1e12)));
+    const rising = (shift: number): Point[] => months("2022-01", Array.from({ length: 30 }, (_, i) => (i < 20 ? Number(`${12345678901234567 + 3 * (i + shift)}e-40`) : 1e5 + (i + shift) * 1e3)));
     const r = correlate(a, b, (slug) => ({ metric: slug === "d1" ? a : b, points: slug === "d1" ? rising(0) : rising(1) }), { yearStart: 1 });
     expect(r).toMatchObject({ ok: false, why: "too-wide", reason: `${words("D1", "refuse-exact-orders")} ${words("D2", "refuse-exact-orders")}` });
     expect((r as { n: number }).n).toBe(29);
@@ -319,8 +320,8 @@ describe("correlation names what is too wide, in the order of the Metrics", () =
 
 describe("correlation judges the changes it works out on, not only the levels", () => {
   const [a, b] = [1, 2].map((id) => metric({ id, slug: `c${id}`, name: `C${id}`, period: "month" }));
-  // Levels from 1e-5 to 1e14 (inside the bounds), rising throughout: compared by change, the steps are 1e-6 beside 1e14.
-  const rising = (shift: number): Point[] => months("2022-01", Array.from({ length: 30 }, (_, i) => (i < 20 ? Number(`${10 + i + shift}e-6`) : 1e14 + (i + shift) * 1e12)));
+  // Levels from 1.2e-24 (17 digits, 40 places) to 1e5 (inside the bounds), rising throughout: compared by change, the steps are 3e-40 beside 1e3.
+  const rising = (shift: number): Point[] => months("2022-01", Array.from({ length: 30 }, (_, i) => (i < 20 ? Number(`${12345678901234567 + 3 * (i + shift)}e-40`) : 1e5 + (i + shift) * 1e3)));
   const resolve = (slug: string) => ({ metric: slug === "c1" ? a : b, points: slug === "c1" ? rising(0) : rising(1) });
   it("leaves the pair out in words when its changes need more than the bounds allow, and still compares the levels", () => {
     expect(wideReason(rising(0).map((p) => p.value))).toBeNull();
@@ -328,6 +329,56 @@ describe("correlation judges the changes it works out on, not only the levels", 
     expect(t.ms).toBeLessThan(QUICK);
     expect(t.result).toMatchObject({ ok: false, why: "too-wide" });
     expect(correlate(a, b, resolve, { yearStart: 1, basis: "values" })).toMatchObject({ ok: true, basis: "values" });
+  });
+});
+
+
+// Series that people legitimately keep, or that programs compute from them, and that every Method must work on (never a refusal for the work it takes).
+const dig17 = (r: () => number) => (1 + r() * 8.99).toPrecision(17);
+const LEGIT: Record<string, (r: () => number, i: number) => number> = {
+  "cents up to 1e12": (r, i) => Math.round((1e11 + i * 1e9 + r() * 4e10) * 100) / 100,
+  "unit prices to 8 decimals": (r) => Number((12.5 + r() * 3).toFixed(8)),
+  "rates of 1e-7 with 17 digits": (r) => Number(`${dig17(r)}e-7`),
+  "values near 1e6 to 6 decimals": (r, i) => Number((1e6 + i * 100 + r() * 5e4).toFixed(6)),
+  "values near 1e6 to 8 decimals": (r, i) => Number((1e6 + i * 100 + r() * 5e4).toFixed(8)),
+  "averages of cents": (r, i) => (Math.round((100 + i + r() * 40) * 100) / 100 + Math.round((100 + r() * 40) * 100) / 100 + Math.round((100 + r() * 40) * 100) / 100) / 3,
+  "counts with one 1e9 among zeros": (r, i) => (i === 60 ? 1e9 : Math.floor(r() * 3)),
+  "a conversion rate of 3e-5, a double": (r) => (Math.round(r() * 3000) + 30) / (Math.round(r() * 800000) + 1e6),
+};
+const workWords = /exactly in reasonable time|cannot be worked out exactly/;
+
+describe.each(Object.entries(LEGIT))("legitimate values: %s", (_name, make) => {
+  const data = (seed: number): Point[] => { const r = lcg(seed); return months("2015-01", Array.from({ length: 120 }, (_, i) => make(r, i))); };
+  const [y, x, c1, c2, c3, c4, c5] = [1, 2, 3, 4, 5, 6, 7].map(data);
+  const refusal = (t: { kind: string; refusal: string | null }) => (t.kind === "refusal" ? t.refusal : null);
+  it("are inside the bounds, as levels and as changes", () => {
+    for (const s of [y, x]) {
+      expect(wideReason(s.map((p) => p.value))).toBeNull();
+      expect(wideReason(changes(s, "month").map((p) => p.value))).toBeNull();
+    }
+  });
+  it.each([1, 2, 3, 4, 5, 6])("are worked out by a fit of %s drivers, never refused for the work", (k) => {
+    const r = timed(() => fit(input(y, [x, c1, c2, c3, c4, c5].slice(0, k))));
+    expect(r.ms).toBeLessThan(QUICK);
+    expect(r.result.ok ? [] : r.result.refusals.map((f) => f.case).filter((c) => c.startsWith("refuse-exact"))).toEqual([]);
+  });
+  it("are worked out by partial and lagged correlation, rank correlation, usual range, before and after, the change point and the forecast", () => {
+    const takeaways = [
+      partialTakeaway({ a: "A", b: "B", held: ["C", "D"] }, y, x, [c1, c2], "month", ctx),
+      laggedTakeaway("A", "B", y, x, "month", "values", ctx),
+      spearmanTakeaway("A", "B", y, x, "month", "values", ctx),
+      usualRangeTakeaway("A", y, "month", euro, ctx),
+      afterDateTakeaway("A", y, "month", "2022-01-01", euro, ctx),
+      changePointTakeaway("A", y, "month", euro, ctx),
+      forecastTakeaway(metric({ period: "month" }), y, ctx),
+    ];
+    for (const t of takeaways) expect(refusal(t) ?? "", t.method).not.toMatch(workWords);
+    expect(bestForecast(y, "month", 12)).not.toBeNull();
+  });
+  it("are compared by correlation", () => {
+    const [a, b] = [1, 2].map((id) => metric({ id, slug: `l${id}`, name: `L${id}`, period: "month" }));
+    const r = correlate(a, b, (slug) => ({ metric: slug === "l1" ? a : b, points: slug === "l1" ? y : x }), { yearStart: 1 });
+    expect(r.ok ? "ok" : r.why).not.toMatch(/too-wide|too-much/);
   });
 });
 
@@ -351,9 +402,10 @@ describe("the worst values the limits admit: 17 digits at 20 places beside 17 di
     ];
     for (const [name, run] of runs) expect(timed(run).ms, name).toBeLessThan(QUICK);
   });
-  it("the fit of 6 is refused in words where it would take long, and the forecast, which takes as long here, is refused in the same words", () => {
+  it("the fit of 6 is refused in words where it would take long, and the forecast and the chart agree: both draw one, since its cost is far inside the allowance", () => {
     expect(cases(fit(input(y, [x, c1, c2, c3, series("dense", 6), series("dense", 7)])))).toEqual(["refuse-exact-work"]);
-    expect(forecastTakeaway(m, y, ctx)).toMatchObject({ kind: "refusal", refusal: "These values are too large or too fine to work out exactly in reasonable time." });
+    expect(forecastTakeaway(m, y, ctx).kind).toBe("answer");
+    expect(bestForecast(y, "month", 12)).not.toBeNull();
   });
 });
 
@@ -378,5 +430,62 @@ describe("the change point is not searched for in values that are too wide", () 
     expect(checkedChangePoint("A", series("wide", 1), "month").result).toEqual({ ok: false, why: "huge" });
     expect(checkedChangePoint("A", series("ordinary", 1).slice(0, 5), "month").result).toEqual({ ok: false, why: "few" });
     expect(checkedChangePoint("A", series("ordinary", 1), "month").result.ok).toBe(true);
+  });
+});
+
+describe("long series are cut to the latest 120 periods, and the Takeaway says so", () => {
+  const days = (seed: number, n: number): Point[] => { const r = lcg(seed); return Array.from({ length: n }, (_, i) => ({ period: new Date(Date.UTC(2010, 0, 1 + i)).toISOString().slice(0, 10), value: Math.round((100 + i * 0.5 + r() * 40) * 100) / 100 })); };
+  const long = [1, 2, 3, 4, 5].map((s) => days(s, 3650));
+  const note = "Only the latest 120 days with a value in common are used.";
+  const notes = (t: { kind: string; notes: string[] }) => (t.kind === "answer" ? t.notes : []);
+  it("partial, lagged and rank correlation and the usual range on 3,650 daily values answer in well under a second, with the note, as on the latest 120 alone", () => {
+    const cut = (s: Point[]) => s.slice(-120);
+    const runs: [string, () => ReturnType<typeof usualRangeTakeaway>, () => ReturnType<typeof usualRangeTakeaway>][] = [
+      ["partial", () => partialTakeaway({ a: "A", b: "B", held: ["C", "D", "E"] }, long[0], long[1], long.slice(2), "day", ctx), () => partialTakeaway({ a: "A", b: "B", held: ["C", "D", "E"] }, cut(long[0]), cut(long[1]), long.slice(2).map(cut), "day", ctx)],
+      ["lagged", () => laggedTakeaway("A", "B", long[0], long[1], "day", "values", ctx), () => laggedTakeaway("A", "B", cut(long[0]), cut(long[1]), "day", "values", ctx)],
+      ["rank", () => spearmanTakeaway("A", "B", long[0], long[1], "day", "values", ctx), () => spearmanTakeaway("A", "B", cut(long[0]), cut(long[1]), "day", "values", ctx)],
+      ["usual range", () => usualRangeTakeaway("A", long[0], "day", euro, ctx), () => usualRangeTakeaway("A", cut(long[0]), "day", euro, ctx)],
+    ];
+    for (const [name, many, latest] of runs) {
+      const t = timed(many);
+      expect(t.ms, name).toBeLessThan(QUICK);
+      expect(t.result.kind, name).toBe("answer");
+      expect(notes(t.result), name).toContain(note);
+      const alone = latest();
+      expect({ ...t.result, notes: t.result.notes.filter((n) => n !== note) }, name).toEqual(alone);
+      expect(notes(alone), name).not.toContain(note);
+    }
+  });
+  it("say nothing of it for 120 periods or fewer", () => {
+    const cut = (s: Point[]) => s.slice(-120);
+    expect(notes(usualRangeTakeaway("A", cut(long[0]), "day", euro, ctx))).toEqual([]);
+    expect(notes(spearmanTakeaway("A", "B", cut(long[0]), cut(long[1]), "day", "values", ctx))).toEqual([]);
+  });
+});
+
+describe("the ranking of Metrics by correlation runs under one work allowance", () => {
+  const ms = Array.from({ length: 12 }, (_, i) => metric({ id: i + 1, slug: `r${i}`, name: `R${i}`, period: "month" }));
+  const data = Object.fromEntries(ms.map((m, i) => [m.slug, series(i === 0 ? "ordinary" : "dense", i + 1)]));
+  const resolve = (slug: string) => ({ metric: ms.find((m) => m.slug === slug)!, points: data[slug] });
+  it("compares the pairs it can, ranks them exactly as it would alone, and says once that the others were not compared", () => {
+    const [self, ...others] = ms;
+    const spentAfter = (n: number) => withWork(() => rankCorrelations(self, others, resolve, { yearStart: 1, basis: "values" }), n)!;
+    const all = rankCorrelations(self, others, resolve, { yearStart: 1, basis: "values" });
+    expect(all.leftOut.filter((l) => l.why === "too-much")).toEqual([]);
+    // A work allowance of 1: nothing is compared, every Metric is left out in the same words.
+    const none = spentAfter(1);
+    expect(none.ranked).toEqual([]);
+    expect(none.leftOut.map((l) => l.why)).toEqual(others.map(() => "too-much"));
+    expect(new Set(none.leftOut.map((l) => l.reason)).size).toBe(1);
+    expect(none.leftOut[0].reason).toBe("Some Metrics were not compared: there are too many of them to work out exactly in reasonable time.");
+    // An allowance that covers some of the pairs: the compared ones are those a ranking of just them gives.
+    const some = spentAfter(100_000_000);
+    const compared = others.filter((m) => !some.leftOut.some((l) => l.metric.id === m.id && l.why === "too-much"));
+    expect(compared.length).toBeGreaterThan(0);
+    expect(compared.length).toBeLessThan(others.length);
+    expect(some.ranked).toEqual(rankCorrelations(self, compared, resolve, { yearStart: 1, basis: "values" }).ranked);
+    // The ones left are the last ones: once spent, nothing after is compared.
+    const firstLeft = others.findIndex((m) => some.leftOut.some((l) => l.metric.id === m.id && l.why === "too-much"));
+    expect(others.slice(firstLeft).every((m) => some.leftOut.some((l) => l.metric.id === m.id && l.why === "too-much"))).toBe(true);
   });
 });

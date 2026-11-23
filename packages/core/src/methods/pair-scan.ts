@@ -374,7 +374,7 @@ export function capMetrics<T extends { id: number; latest: string }>(metrics: re
 /** Every pair of the Metrics that may be compared, scanned: the levels of each Metric on a Common Period come from
  * `levels(id, span)` (null where it cannot be combined to that period); a pair is left out when either is missing, when one
  * is built from the other (`related`), when the two series have not both a value within the last 6 periods before `today`, or
- * when no delay has enough pairs, or when a Metric's changes need more than 20 decimal places or span more than 20 orders of magnitude (work-bound.ts). Only the latest 120 periods of each series are used. At most `HEADS_UP.maxPairs` pairs are
+ * when no delay has enough pairs, or when a Metric's changes need more than 40 decimal places or span more than 30 orders of magnitude (work-bound.ts). Only the latest 120 periods of each series are used. At most `HEADS_UP.maxPairs` pairs are
  * scanned (the ones of the lower ids first); the rest are left out. */
 export function scanPairs(metrics: readonly ScanMetric[], levels: (id: number, span: Span) => Point[] | null, related: (a: number, b: number) => boolean, today: string, yearStart: YearStart): PairRow[] {
   const ordered = [...metrics].sort((x, y) => x.id - y.id);
