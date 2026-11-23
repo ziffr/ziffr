@@ -410,8 +410,8 @@ export type DashboardTemplate = Omit<TemplateBase, "id" | "owner_id" | "w" | "h"
   body: DashboardTemplateBody;
 };
 
-/** One row of a Breakdown. */
-export type BreakdownRow = { label: string; value: number };
+/** One row of a Breakdown, with the rows that are parts of it (spec 0041, ticket 12) when it has any: a Breakdown is read as its top-level rows. */
+export type BreakdownRow = { label: string; value: number; parts?: BreakdownRow[] };
 
 /** Where a Theme puts the logo on a slide. */
 export type LogoPosition = "top-left" | "top-right" | "bottom-left" | "bottom-right";

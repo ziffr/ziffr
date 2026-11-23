@@ -7,6 +7,7 @@ import { formulaInputs } from "./formula";
 import { buildSeries } from "./series";
 import { withheldDerived } from "./derived-owner";
 import { normalizeMetric } from "./metric-row";
+import { nestRows } from "./breakdown-parts";
 import type { Action, BreakdownRow, Metric, Observation, Point } from "./types";
 
 /** Plotted series per Metric, computed from observations (series.ts). */
@@ -189,8 +190,9 @@ export async function getBreakdowns(ws: string, metricIds: number[], window: { f
   const out: Record<number, Record<string, BreakdownRow[]>> = {};
   // Labels are sealed with the Workspace Key and open here; one that does not open reads as a dash, never as ciphertext.
   const cipher = await workspaceCipher(ws);
-  for (const r of (data ?? []) as { metric_id: number; period_start: string; rows: { id: number; label: string; value: unknown; value_sealed: unknown }[] }[]) {
-    (out[r.metric_id] ??= {})[r.period_start] = r.rows.map((b) => openRow(cipher, "breakdown_rows", b)).filter((b) => typeof b.value === "number").map((b) => ({ label: b.label || "–", value: b.value as number }));
+  for (const r of (data ?? []) as { metric_id: number; period_start: string; rows: { id: number; parent_id: number | null; label: string; value: unknown; value_sealed: unknown }[] }[]) {
+    // The top-level rows, each with its parts (breakdown-parts.ts); a Breakdown without parents is the flat list it always was.
+    (out[r.metric_id] ??= {})[r.period_start] = nestRows(r.rows.map((b) => openRow(cipher, "breakdown_rows", b)).filter((b) => typeof b.value === "number").map((b) => ({ id: b.id, parent_id: b.parent_id ?? null, label: b.label || "–", value: b.value as number })));
   }
   return out;
 }

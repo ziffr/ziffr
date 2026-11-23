@@ -51,9 +51,10 @@ export async function fillInValue(actor: Actor, input: FillInInput, effects: Sub
 
   const style = await numberStyleOf(actor.workspaceId);
   const pasted = String(input.breakdown ?? "").trim().slice(0, MAX_BREAKDOWN_TEXT);
-  const bd = pasted ? parseBreakdown(pasted, style) : null;
+  const bd = pasted ? parseBreakdown(pasted, style, { parents: true }) : null;
   if (pasted && !bd) return refused("rejected_no_value", "Couldn’t read the breakdown. Give at least two rows, each a label and a number.");
-  const sum = bd ? bd.rows.reduce((a, r) => a + r.value, 0) : 0;
+  // Only the rows at the top add up to the whole: a part is already in the row it is a part of (spec 0041, ticket 12).
+  const sum = bd ? bd.rows.reduce((a, r) => (r.parent ? a : a + r.value), 0) : 0;
   const typed = typeof input.value === "number" ? "" : String(input.value ?? "").trim().slice(0, MAX_VALUE_TEXT);
   const value = typeof input.value === "number" ? (Number.isFinite(input.value) ? input.value : null) : typed ? readNumber(typed, style) : bd ? (bd.total ?? sum) : null;
   if (value === null) return refused("rejected_no_value", typed ? "Couldn’t read a number in the value." : "Type a value, or paste a breakdown.");

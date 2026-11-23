@@ -1,6 +1,6 @@
 # 0048 Warehouse Feeds: BigQuery and Snowflake fill Metrics like Postgres does
 
-**Status:** draft. **Ticket:** tracking issue #908, tickets #909, #910, #911, #912, #913 (the owner's wish, 2026-11-23).
+**Status:** built (tickets 1 to 5). **Ticket:** tracking issue #908, tickets #909, #910, #911, #912, #913 (the owner's wish, 2026-11-23).
 
 ## Problem Statement
 
@@ -61,4 +61,4 @@ Built the way spec 0043 builds its templates (shared skeleton, generated into `d
 
 ## Further Notes
 
-The README already says "Other SQL dialects are not yet" supported; this spec is that "yet". A query cost cap is a safety feature, not a billing feature: Ziffr cannot know a customer's prices.
+The README already says "Other SQL dialects are not yet" supported; this spec is that "yet". A query cost cap is a safety feature, not a billing feature: Ziffr cannot know a customer's prices. The drivers, templates and guide were checked against fakes and the n8n tooling only; a real try against a BigQuery project and a Snowflake account is the owner's.

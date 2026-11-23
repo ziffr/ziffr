@@ -64,7 +64,7 @@ export type Source = "web_form" | "mail" | "slack" | "telegram" | "api";
 export type Submitter = { id: string; name: string; kind: "person" | "contact" | "feed" };
 
 /** One labelled part of a value (GLOSSARY: Breakdown). */
-export type BreakdownRow = { label: string; value: number };
+export type BreakdownRow = { label: string; value: number; /** The label of the row this one is a part of, in the same breakdown; left out for a row at the top. */ parent?: string | null };
 
 /** A Metric's value for one period. */
 export type Observation = {
