@@ -29,7 +29,7 @@ export const SETTINGS_SECTIONS: SettingsSection[] = [
   { id: "trials", title: "Trials", purpose: "What happens when a trial ends, and whether trials may have Webhooks. Whether trials are offered at all, for how long and how many at once is set under Trial Limits: with a number of days there, every Workspace made here is a trial.", ready: true },
   { id: "usage", title: "Usage", purpose: "What this Installation is used for, as daily counts: Workspaces, people, Metrics, values by Source, calls and what was opened. Never a Workspace's or a Metric's name, a person or a value. A Usage Key lets a program read the counts and nothing else; nothing is sent anywhere.", ready: true },
   { id: "feedback", title: "Feedback", purpose: "Whether Ziffr now and then asks signed-in people if they like it, and points those who do to the repository on GitHub, where they can star it themselves. Nothing is sent to GitHub. What people say is missing is kept without their name and shown below to Installation Admins only.", ready: true },
-  { id: "demo", title: "Demo", purpose: "Whether the login page offers the demo: a made-up company anyone can look around without an account, where nothing is saved.", ready: true },
+  { id: "demo", title: "Demo", purpose: "Whether the login page offers the demo: a made-up company anyone can look around without an account, where nothing is saved unless a demo-only Ziffr lets visitors try the everyday work.", ready: true },
 ];
 
 /** Every setting the page knows, in the order the page shows them. Only these are ever read from the database. */
@@ -77,6 +77,8 @@ export const INSTALLATION_SETTINGS: SettingDefinition[] = [
   { name: FEEDBACK_INSTALLATION_CAP.name, section: "feedback", label: FEEDBACK_INSTALLATION_CAP.label, secret: false, placeholder: String(FEEDBACK_INSTALLATION_CAP.default), help: FEEDBACK_INSTALLATION_CAP_HELP },
   { name: "ZIFFR_DEMO", section: "demo", label: "Offer the demo", secret: false, choices: [{ value: "1", label: "Offered on the login page" }, { value: "0", label: "Not offered" }],
     help: "Whether the login page has Try the demo." },
+  { name: "ZIFFR_DEMO_CHANGES", section: "demo", label: "Visitors may change the demo", secret: false, choices: [{ value: "1", label: "Visitors may change the demo" }, { value: "0", label: "The demo is read-only" }],
+    help: "Only in a demo-only Ziffr (ZIFFR_DEMO_ONLY on the server). What visitors change is seen by every visitor and gone when the demo starts fresh, every 15 minutes. Off, or in any other Ziffr, the demo is read-only." },
   { name: "ZIFFR_DEFAULT_METRICS_LIMIT", section: "limits", label: "Default limit", secret: false, placeholder: "No limit",
     help: "The most Metrics a Workspace may hold unless it has a limit of its own. Empty: no limit. Over it, a Workspace keeps everything and keeps collecting values; only new Metrics wait, after 14 days with room for 10 % more." },
   { name: "ZIFFR_DEFAULT_LIMIT_LABEL", section: "limits", label: "Name of the default", secret: false, placeholder: "Standard",

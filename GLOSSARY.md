@@ -531,8 +531,12 @@ The record of every call a program made with an access key: when, what it asked 
 _Avoid_: Audit trail, request log, API history
 
 **Demo Mode**:
-A visit to the demo workspace: a made-up company anyone can look around without an account, switching between its made-up people to see each one's view. Nothing a visitor does changes it or is saved; every change is refused with one sentence that points to a Trial Workspace. It sits next to real workspaces and never reaches them, and an installation can switch it off. Its Connectors are all simulated and it has no Access Keys; trying them for real is what a Trial Workspace is for.
+A visit to the demo workspace: a made-up company anyone can look around without an account, switching between its made-up people to see each one's view. Where this Ziffr is a public demo and nothing else, and its setting allows it, visitors may also try the everyday work (values, dashboards, decks, Snapshots, Metrics, Threads); what they change is seen by every visitor and gone at the next Demo Reset. Nothing is ever sent, and nothing reaches outside the demo: what would is refused with one sentence that points to a Trial Workspace. Elsewhere, and until that setting is on, the demo is read-only. It sits next to real workspaces and never reaches them, and an installation can switch it off. Its Connectors are all simulated and it has no Access Keys; trying them for real is what a Trial Workspace is for.
 _Avoid_: Sandbox, test mode
+
+**Demo Reset**:
+The demo returning to its seed as one step: every 15 minutes when a visitor changed it, and each night so that its periods reach up to today. What visitors made or changed is gone, and a page open at the time follows the demo's own dashboards and decks to their new versions. The screens say "starts fresh" ("the demo starts fresh at 14:25"), which is this term in plain words, not a second term.
+_Avoid_: Wipe, refresh, restore (a Version is restored), starting over
 
 **Share**:
 Giving another user or a Group access to a metric or a dashboard. Sharing a dashboard also gives view access to every metric on it.

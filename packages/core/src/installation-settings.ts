@@ -6,6 +6,7 @@
 import { assertInstallationAdmin, recordInstallationEvent, type InstallationActor } from "./installation-admins";
 import { INSTALLATION_SETTINGS, SETTINGS_SECTIONS, settingNamed, type SettingDefinition, type SettingsSectionId } from "./installation-catalogue";
 import { db } from "./db";
+import { demoChangesInEffect } from "./demo-reset-decision";
 import { trialSettings } from "./trials";
 import { TRIAL_LIMITS, trialLimitProblem } from "./trial-limits";
 import { trialLimitEnvironment } from "./trial-limits-in-effect";
@@ -114,6 +115,7 @@ const CHECKS: Record<string, (v: string) => string | null> = {
   ZIFFR_FEEDBACK_MODE: (v) => (v === "direct" || v === "review" ? null : "Pick whether feedback is posted directly or reviewed first."),
   ZIFFR_FEEDBACK_PER_DAY: (v) => feedbackInstallationCapProblem(v),
   ZIFFR_DEMO: (v) => (v === "1" || v === "0" ? null : "Pick whether the demo is offered."),
+  ZIFFR_DEMO_CHANGES: (v) => (v === "1" || v === "0" ? null : "Pick whether visitors may change the demo."),
   ZIFFR_USAGE_EXCLUDE_WORKSPACE: (v) => (/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(v) ? null : "Pick a Workspace by name."),
   ZIFFR_MARKETPLACE: (v) => (/^(on|off)$/i.test(v) ? null : "The connection is on or off."),
   ZIFFR_MARKETPLACE_URL: (v) => marketplaceUrlProblem(v),
@@ -204,7 +206,8 @@ async function sectionWorks(id: SettingsSectionId, settings: Record<string, stri
     }
   }
   if (id === "demo") {
-    if (settings.ZIFFR_DEMO_ONLY === "1") return { working: true, detail: "This Ziffr is a public demo and nothing else (ZIFFR_DEMO_ONLY on the server): nobody signs in here." };
+    if (settings.ZIFFR_DEMO_ONLY === "1") return { working: true, detail: `This Ziffr is a public demo and nothing else (ZIFFR_DEMO_ONLY on the server): nobody signs in here.${demoChangesInEffect(settings) ? " Visitors may change the demo; it starts fresh every 15 minutes." : ""}` };
+    if (settings.ZIFFR_DEMO_CHANGES === "1") return { working: false, detail: "Only a Ziffr that is a demo and nothing else lets visitors change the demo." };
     return settings.ZIFFR_DEMO !== "0" ? { working: true, detail: "The login page offers Try the demo." } : { working: false, detail: "The login page does not offer the demo." };
   }
   if (id === "feedback") {

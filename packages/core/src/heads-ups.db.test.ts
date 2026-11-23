@@ -91,6 +91,12 @@ describe("the job", () => {
 
   it("claims a Workspace's scan for six hours, and never scans the demo", async () => {
     const { w, scan } = await setup();
+    // The demo's reset looks at the demo itself (demo-reset.ts); the job never does, so it leaves whatever the reset wrote as it was.
+    const demoRows = async () => ({
+      scans: (await db().from("heads_up_scans").select("scanned_at").eq("workspace_id", DEMO_WORKSPACE_ID)).data,
+      pairs: (await db().from("heads_up_pairs").select("metric_a", { count: "exact", head: true }).eq("workspace_id", DEMO_WORKSPACE_ID)).count,
+    });
+    const demoBefore = await demoRows();
     const claim = async () => (await db().rpc("claim_heads_up_scan", { p_ws: w.id })).data as string | null;
     const first = await claim();
     expect(first).not.toBeNull();
@@ -101,9 +107,8 @@ describe("the job", () => {
     const job = await headsUpJob({ today: TODAY });
     expect(job.workspaces).toBeGreaterThanOrEqual(1);
     expect(job.skipped).toBeGreaterThanOrEqual(1);
-    // The scan above was claimed a moment ago, so this call left the Workspace alone, and the demo has no row at all.
-    expect((await db().from("heads_up_scans").select("scanned_at").eq("workspace_id", DEMO_WORKSPACE_ID)).data).toEqual([]);
-    expect((await db().from("heads_up_pairs").select("metric_a", { count: "exact", head: true }).eq("workspace_id", DEMO_WORKSPACE_ID)).count).toBe(0);
+    // The scan above was claimed a moment ago, so this call left the Workspace alone, and the demo's rows are as they were.
+    expect(await demoRows()).toEqual(demoBefore);
   });
 
   it("scans a Workspace the job reaches, then leaves it alone for six hours, and drops rows older than 90 days", async () => {
