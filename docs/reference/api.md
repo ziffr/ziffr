@@ -436,6 +436,7 @@ The Metric's values for the periods from `from` to `to` (first days, both includ
 | `items[].breakdown` | array of object or null | yes | The value's parts (GLOSSARY: Breakdown), or null. |
 | `items[].breakdown[].label` | string | yes | What the part is, such as a shop or a channel. |
 | `items[].breakdown[].value` | number | yes |  |
+| `items[].breakdown[].parent` | string | no | The label of the row this one is a part of (a row of the same breakdown); left out for a row at the top. |
 | `items[].condensed_from` | integer | no | Only on a Condensed Value (GLOSSARY: Condensed Value): how many of the Metric's periods it was made from. It is not one period: `period` is the span's first day and `period_end` its last. |
 | `items[].period_end` | string | no | Only on a Condensed Value: the span's last day, YYYY-MM-DD. |
 | `next` | string or null | yes | Pass as `cursor` for the next page; null on the last page. |
@@ -471,6 +472,7 @@ Records a value for the current period, or the one named, through the Metric's S
 | `breakdown` | array of object (at most 500) | no | The value's parts, such as per shop. |
 | `breakdown[].label` | string, at most 200 characters | yes | What the part is. |
 | `breakdown[].value` | number | yes |  |
+| `breakdown[].parent` | string, at most 200 characters or null | no | The label of the row this one is a part of: a row of the same list, at most 4 levels down, at most 200 rows in all, every label used once. Empty or left out for a row at the top. |
 
 **Answer** (201)
 
@@ -893,6 +895,7 @@ For a Feed Key only: 1 to 500 values, each through its Metric's Submission Rule,
 | `items[].breakdown` | array of object (at most 500) | no | The value's parts, such as per region. |
 | `items[].breakdown[].label` | string, at most 200 characters | yes |  |
 | `items[].breakdown[].value` | number | yes |  |
+| `items[].breakdown[].parent` | string, at most 200 characters or null | no | The label of the row this one is a part of: a row of the same list, at most 4 levels down, at most 200 rows in all, every label used once. Empty or left out for a row at the top. |
 
 **Answer** (200)
 
