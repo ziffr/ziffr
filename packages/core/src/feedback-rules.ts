@@ -75,6 +75,38 @@ export function storedRoute(input: unknown): string | null {
   return parts.every((p) => p === ":name" || p === ":id" || SEGMENT.test(p)) ? input : null;
 }
 
+/** Whether new feedback is filed at once (`direct`, the default) or waits for a maintainer (`review`). */
+export const FEEDBACK_MODES = ["direct", "review"] as const;
+/** One of FEEDBACK_MODES. */
+export type FeedbackMode = (typeof FEEDBACK_MODES)[number];
+
+/** The setting that holds the mode (an Installation Setting of the central version only). */
+export const FEEDBACK_MODE_SETTING = "ZIFFR_FEEDBACK_MODE";
+
+/** The mode in these settings: `direct` when nothing is set (the default) or it says `direct` exactly; any other value
+ * (a typo, a stray word) means `review`, so a setting that cannot be understood never posts anything on its own. */
+export function feedbackMode(settings: Record<string, string | undefined>): FeedbackMode {
+  const value = settings[FEEDBACK_MODE_SETTING]?.trim().toLowerCase();
+  return value === undefined || value === "" || value === "direct" ? "direct" : "review";
+}
+
+/** The status a new feedback gets: open (the bridge files it) when posting directly, else waiting for a maintainer. */
+export function newFeedbackStatus(mode: FeedbackMode): FeedbackStatus {
+  return mode === "direct" ? "open" : "waiting_for_review";
+}
+
+/** The longest reason a maintainer gives when rejecting feedback, in characters. */
+export const FEEDBACK_REASON_MAX = 500;
+
+/** The reason for a rejection cleaned like words, or why it cannot be used: the person reads it, so it is required. */
+export function cleanRejectionReason(input: unknown): { ok: true; reason: string } | { ok: false; message: string } {
+  if (typeof input !== "string") return { ok: false, message: "Say why: the person reads it." };
+  const reason = input.replace(/\r\n?/g, "\n").replace(CONTROL, "").trim();
+  if (reason === "") return { ok: false, message: "Say why: the person reads it." };
+  if (reason.length > FEEDBACK_REASON_MAX) return { ok: false, message: `Keep the reason under ${FEEDBACK_REASON_MAX} characters.` };
+  return { ok: true, reason };
+}
+
 /** The app version when it is a plain number like 0.11.0, else null. */
 export function cleanAppVersion(input: unknown): string | null {
   return typeof input === "string" && VERSION.test(input) ? input : null;

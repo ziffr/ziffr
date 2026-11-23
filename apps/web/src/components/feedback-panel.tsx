@@ -100,7 +100,7 @@ export function FeedbackPanel({ route }: { route: string }) {
   const [kind, setKind] = useState<FeedbackKind | null>(null);
   const [words, setWords] = useState("");
   const [error, setError] = useState<string | null>(null);
-  const [sent, setSent] = useState(false);
+  const [sent, setSent] = useState<false | "filed" | "review">(false);
   const [pending, start] = useTransition();
   const [mine, setMine] = useState<Mine>({ state: "loading" });
   const [reload, setReload] = useState(0);
@@ -124,7 +124,8 @@ export function FeedbackPanel({ route }: { route: string }) {
       try {
         const r = await sendFeedback({ kind, words, route });
         if (isActionError(r)) return setError(r.error);
-        setSent(true); setWords(""); setKind(null); setReload((n) => n + 1);
+        // Review first: the core says so in the status of what it made, and the words are not public until someone approves them.
+        setSent(r.status === "waiting_for_review" ? "review" : "filed"); setWords(""); setKind(null); setReload((n) => n + 1);
       } catch {
         setError("Your feedback could not be sent. Please try again.");
       }
@@ -137,7 +138,7 @@ export function FeedbackPanel({ route }: { route: string }) {
       {sent ? (
         <div role="status" className="flex flex-col items-start gap-2 text-sm">
           <p className="font-medium">Thank you.</p>
-          <p>Your feedback was received. Once it is filed, your words are public on GitHub. You will see what happens to it under My feedback.</p>
+          <p>{sent === "review" ? "Your feedback was received and will be reviewed first. Once it is approved and filed, your words are public on GitHub. You will see what happens to it under My feedback." : "Your feedback was received. Once it is filed, your words are public on GitHub. You will see what happens to it under My feedback."}</p>
           <Button type="button" variant="outline" size="sm" onClick={() => setSent(false)}>Send more feedback</Button>
         </div>
       ) : (

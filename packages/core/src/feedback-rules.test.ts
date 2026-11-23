@@ -1,10 +1,34 @@
 // The rules of Feedback (spec 0049, ticket #915) without a database: kinds, words, route, version.
 import { describe, expect, it } from "vitest";
 import {
-  cleanAppVersion, cleanFeedbackWords, FEEDBACK_ENOUGH_MESSAGE, FEEDBACK_FAILED_MESSAGE, FEEDBACK_INSTALLATION_CAP, FEEDBACK_PAUSED_MESSAGE,
-  FEEDBACK_WORDS_MAX, feedbackInstallationCapFrom, feedbackInstallationCapProblem, feedbackKind, feedbackRefusal, normalizeRoute,
+  cleanAppVersion, cleanFeedbackWords, cleanRejectionReason, FEEDBACK_ENOUGH_MESSAGE, FEEDBACK_FAILED_MESSAGE, FEEDBACK_INSTALLATION_CAP, FEEDBACK_PAUSED_MESSAGE,
+  FEEDBACK_REASON_MAX, FEEDBACK_WORDS_MAX, feedbackInstallationCapFrom, feedbackInstallationCapProblem, feedbackKind, feedbackMode, feedbackRefusal, newFeedbackStatus,
+  normalizeRoute,
 } from "./feedback-rules";
 import { INSTALLATION_SETTINGS } from "./installation-catalogue";
+
+describe("mode", () => {
+  it("is direct when unset or exactly direct, and review for any other value", () => {
+    expect(feedbackMode({})).toBe("direct");
+    expect(feedbackMode({ ZIFFR_FEEDBACK_MODE: "" })).toBe("direct");
+    expect(feedbackMode({ ZIFFR_FEEDBACK_MODE: "direct" })).toBe("direct");
+    expect(feedbackMode({ ZIFFR_FEEDBACK_MODE: "anything" })).toBe("review");
+    expect(feedbackMode({ ZIFFR_FEEDBACK_MODE: " Review " })).toBe("review");
+  });
+  it("gives new feedback open in direct and waiting for review in review", () => {
+    expect(newFeedbackStatus("direct")).toBe("open");
+    expect(newFeedbackStatus("review")).toBe("waiting_for_review");
+  });
+});
+
+describe("rejection reason", () => {
+  it("is required, cleaned and bounded", () => {
+    expect(cleanRejectionReason("  Not ours\u0000 ")).toEqual({ ok: true, reason: "Not ours" });
+    for (const r of ["", "  ", undefined, 3, null]) expect(cleanRejectionReason(r).ok).toBe(false);
+    expect(cleanRejectionReason("x".repeat(FEEDBACK_REASON_MAX)).ok).toBe(true);
+    expect(cleanRejectionReason("x".repeat(FEEDBACK_REASON_MAX + 1)).ok).toBe(false);
+  });
+});
 
 describe("kind", () => {
   it("accepts the three kinds and nothing else", () => {

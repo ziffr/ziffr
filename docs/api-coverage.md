@@ -130,6 +130,9 @@ Acts as the person, with their own sign-in, Slack or Telegram account or email a
 - `listMyFeedback` (feedback.ts): My feedback, the same form's list (spec 0049, #915)
 - `getMyFeedback` (feedback.ts): one of My feedback with its conversation (spec 0049, #915)
 - `replyToFeedback` (feedback.ts): the person's reply under one of their own feedback, which is then posted to GitHub anonymously; the same form, on hosted Ziffr only (spec 0049, #918)
+- `listFeedbackQueue` (feedback-review.ts): the maintainers' review queue of Feedback, central version only (spec 0049, #919); an Installation Admin's screen, not for programs
+- `approveFeedback` (feedback-review.ts): the same queue, approving or editing and approving
+- `rejectFeedback` (feedback-review.ts): the same queue, rejecting with a reason
 - `optOutOfEmail` (email-opt-out.ts): one's own email choices
 - `optBackIn` (email-opt-out.ts): one's own email choices
 - `setTellStopped` (tell.ts): one's own "stop telling me" setting
