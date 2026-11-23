@@ -25,6 +25,9 @@ export function remoteMcpEnabled(env: Record<string, string | undefined> = proce
 /** The address assistants connect to: this Installation's /mcp. */
 export const mcpUrl = () => `${SITE_URL}/mcp`;
 
+/** The address to name to an assistant, or null where this Installation serves none. */
+export const mcpAddress = (): string | null => (remoteMcpEnabled() ? mcpUrl() : null);
+
 /** Most a request to /mcp may carry: one JSON-RPC message, or a few, with room for a long Breakdown. */
 const MAX_BODY = 256 * 1024;
 
