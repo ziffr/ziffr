@@ -20,9 +20,10 @@ export function ProgressMark({ v }: { v: DesignValues }) {
     <div role="img" aria-label={model.alt} className="flex min-h-0 w-full flex-1 flex-col justify-around gap-[0.6em]">
       {model.rows.map((r) => (
         <div key={r.id} title={r.target ? `${r.name}: ${r.value} against a target of ${r.target}` : undefined}>
-          <div className="widget-text-xs flex items-baseline justify-between gap-[0.75em]">
+          {/* The value and its words wrap under the name when they do not fit beside it, so a narrow card keeps every name whole. */}
+          <div className="widget-text-xs flex flex-wrap items-baseline justify-between gap-x-[0.75em]">
             <span className="min-w-0 truncate">{r.name}</span>
-            <span className="flex shrink-0 items-baseline gap-[0.5em] whitespace-nowrap">
+            <span className="ml-auto flex shrink-0 items-baseline gap-[0.5em] whitespace-nowrap">
               <span className="fig font-medium">{r.value ?? "–"}</span>
               <span className={r.status && r.status !== "on" ? "text-destructive" : "text-muted-foreground"}>{r.words}</span>
             </span>
