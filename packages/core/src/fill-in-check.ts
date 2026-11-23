@@ -43,12 +43,14 @@ export async function fillInVerdict(ws: string, metric: Metric, period: string, 
   const workflow = (await openWorkflowRow(ws, row)) as Workflow | null;
   const today = localTime(new Date(), String(workspace?.time_zone ?? "UTC")).day;
   const [{ data: away }, { count: values }] = await Promise.all([
-    db().from("away").select("user_id").eq("user_id", submitterId).lte("starts", today).gte("ends", today).limit(1),
+    db().from("away").select("user_id, set_by").eq("user_id", submitterId).lte("starts", today).gte("ends", today).limit(1),
     db().from("observations").select("id", { count: "exact", head: true }).eq("workspace_id", ws).eq("metric_id", metric.id).eq("period_start", period),
   ]);
   // Only a Workflow owner needs to see the Metric (the owner of the Metric sees it by owning it), asked only then.
   const needsSight = workflow !== null && workflow.owner_id === by.id && metric.owner_id !== by.id;
   const bySeesMetric = needsSight ? (await visibleMetricIds(ws, by.id, await getMetrics(ws))).has(metric.id) : true;
+  const awaySetBy = (away?.[0]?.set_by as string | null | undefined) ?? null;
+  const awayCounts = away?.length ? await awayMayOpen(ws, submitterId, awaySetBy) : false;
   const facts: FillInFacts = {
     by: { id: by.id, role: (membership?.role as FillInFacts["by"]["role"] | undefined) ?? "contact", viaKey: by.viaKey },
     submitterId,
@@ -59,7 +61,8 @@ export async function fillInVerdict(ws: string, metric: Metric, period: string, 
     standInAsked: asked,
     bySeesMetric,
     today,
-    submitterAway: Boolean(away?.length),
+    submitterAway: awayCounts,
+    awaySetBy: awayCounts ? awaySetBy : null,
     periodHasValue: (values ?? 0) > 0,
     periodLocked: state?.state === "locked",
     periodCondensed: condensed !== null,
@@ -68,8 +71,17 @@ export async function fillInVerdict(ws: string, metric: Metric, period: string, 
   return mayFillIn(facts);
 }
 
+/** Whether an Away entry opens filling in: Away is global, so only one the person set themselves, or an Owner or Admin of this
+ * Workspace set, counts; one set by anyone else (an Admin of another Workspace, say) does not. */
+async function awayMayOpen(ws: string, personId: string, setBy: string | null): Promise<boolean> {
+  if (!setBy) return false;
+  if (setBy === personId) return true;
+  const { data } = await db().from("memberships").select("role").eq("workspace_id", ws).eq("user_id", setBy).maybeSingle();
+  return data?.role === "owner" || data?.role === "admin";
+}
+
 /** A Filled-in Value as the submission path records it: who enters it, for whom, and in which role. */
-export type Filled = { by: string; forId: string; as: FillInRole };
+export type Filled = { by: string; forId: string; as: FillInRole; /** Who set the submitter's Away entry that opened it, if one did. */ awayBy: string | null };
 /** What asking found: nothing is filled in, the words of a refusal, or the Filled-in Value to record. */
 export type FillStage = null | { refused: string } | { filled: Filled };
 
@@ -83,7 +95,7 @@ export async function ownerFillStage(ws: string, metric: Metric, period: string,
   // Entered for the submitter by their own Token only, never by a Stand-in's.
   if (token.stands_in_for) return { refused: "A value is entered for the person whose own Token it is." };
   const v = await fillInVerdict(ws, metric, period, { id: i.by, viaKey: false }, senderId);
-  return v.ok ? { filled: { by: i.by, forId: senderId, as: v.as } } : { refused: v.refusal };
+  return v.ok ? { filled: { by: i.by, forId: senderId, as: v.as, awayBy: v.awayBy } } : { refused: v.refusal };
 }
 
 /** A Stand-in's answer to a Prompt sent in someone's place (its Token or the Prompt says whom for): the submitter's value,
@@ -94,5 +106,5 @@ export async function standInFillStage(ws: string, metric: Metric, period: strin
   // Through an Access Key it is refused for good: the app and the Prompt's answer are the ways (spec 0046).
   if (i.source === "api") return { refused: NOT_BY_KEY };
   const v = await fillInVerdict(ws, metric, period, { id: senderId, viaKey: false }, standsFor);
-  return v.ok ? { filled: { by: senderId, forId: standsFor, as: v.as } } : { refused: v.refusal };
+  return v.ok ? { filled: { by: senderId, forId: standsFor, as: v.as, awayBy: v.awayBy } } : { refused: v.refusal };
 }

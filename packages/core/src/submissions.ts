@@ -216,7 +216,8 @@ async function takeValue(input: SubmissionInput, effects: SubmissionEffects, pro
   // A paste as history is checked here again, not only by its caller: its sender owns the Metric or is an Owner or
   // Admin of the Workspace (spec 0026).
   const historyAllowed = pasted?.import ? await mayRecordHistory(workspaceId, senderId, metric) : false;
-  const mayImport = importable(Boolean((input.import && feed) || historyAllowed), period, current, metric.period);
+  // A Filled-in Value is never an Import, so it never skips the Unusual Value check (spec 0046).
+  const mayImport = !filled && importable(Boolean((input.import && feed) || historyAllowed), period, current, metric.period);
   // The core applies the rule and seals what it writes; the database only checks and stores (record-value.ts, spec 0028).
   const { data, error } = await record(workspaceId, metric, period, value, row, mayImport, breakdown?.rows ?? []);
   // Archived between the check above and the write: the database refuses it the same way.
@@ -238,7 +239,7 @@ async function takeValue(input: SubmissionInput, effects: SubmissionEffects, pro
   if (result.ok && !preview) result.detail += await settlePrompts({ ws: workspaceId, prompt, metricId: metric.id, senderId, source: input.source, period, said: `${fv(value)} for ${metric.name}, ${when}.` });
   // A Filled-in Value closes every open Prompt of its Metric and period, the submitter's and the Stand-in's (spec 0046),
   // is recorded in the Audit Log, and tells the submitter. None of it can fail the value.
-  if (result.ok && !preview && filled) result.detail = await settleFilled(workspaceId, { metric, period, value: fv(value), when, forId: filled.forId, by: filled.by, as: filled.as, source: input.source, forName: profiles.find((p) => p.id === filled!.forId)?.name, detail: result.detail });
+  if (result.ok && !preview && filled) result.detail = await settleFilled(workspaceId, { metric, period, value: fv(value), when, forId: filled.forId, by: filled.by, as: filled.as, awayBy: filled.awayBy, observationId: Number(data.observation_id), source: input.source, forName: profiles.find((p) => p.id === filled!.forId)?.name, detail: result.detail });
   // The metric's Workflow takes it from here: check, approval, publish.
   if (result.ok && submitterId) {
     const next = await effects.afterValue(metric.id, period, submitterId, { imported });
@@ -532,6 +533,11 @@ export async function decideCorrection(actor: Actor, messageId: number, accept: 
   if (!msg || msg.actions?.metrics?.owner_id !== actor.personId) throw new Forbidden();
   // An Archived Metric takes no values, a Correction neither; it stays proposed for when the Metric is brought back.
   if (accept && msg.actions?.metrics?.archived_at) throw new Error(ARCHIVED_REFUSAL);
+  // A Filled-in Value is not corrected by the person who entered it: someone else decides (spec 0046, ticket #800).
+  if (accept && msg.actions?.observation_id) {
+    const { data: entered } = await db().from("observations").select("entered_by").eq("id", msg.actions.observation_id).eq("workspace_id", actor.workspaceId).maybeSingle();
+    if (entered?.entered_by && entered.entered_by === actor.personId) throw new Error("You entered this value, so someone else decides its Correction.");
+  }
   // Decided once only: the status changes first and only if it was still proposed, so a second click does nothing.
   const { data: claimed } = await db().from("thread_messages").update({ correction_status: accept ? "accepted" : "declined" }).eq("id", messageId).eq("workspace_id", actor.workspaceId).eq("correction_status", "proposed").select("id");
   if (!claimed?.length) return;
@@ -544,13 +550,15 @@ export async function decideCorrection(actor: Actor, messageId: number, accept: 
     if (typeof proposed !== "number") throw new Error("The Correction could not be read.");
     if (act.observation_id) {
       // Only the value of this Metric in this workspace is changed.
-      const { data: obs } = await db().from("observations").select("id, value, value_sealed, original_value, original_value_sealed").eq("id", act.observation_id).eq("workspace_id", actor.workspaceId).eq("metric_id", act.metric_id).maybeSingle();
+      const { data: obs } = await db().from("observations").select("id, value, value_sealed, original_value, original_value_sealed, submitter_id").eq("id", act.observation_id).eq("workspace_id", actor.workspaceId).eq("metric_id", act.metric_id).maybeSingle();
       if (!obs) throw new Forbidden();
       const [was] = await openRows("observations", actor.workspaceId, [obs as Record<string, unknown>]);
       const original = was.original_value ?? was.value;
       if (typeof original !== "number") throw new Error("The Correction could not be saved. Try again in a moment.");
       const sealedNow = await sealRow("observations", actor.workspaceId, { id: act.observation_id, value: proposed, original_value: original });
       delete sealedNow.id;
+      // The submitter's own Correction is their number: it no longer counts as entered by someone else.
+      if (msg.author_id === obs.submitter_id) sealedNow.entered_by = null;
       written = await db().from("observations").update(sealedNow).eq("id", act.observation_id).eq("workspace_id", actor.workspaceId).eq("metric_id", act.metric_id);
     } else {
       // The new value's id is taken first: its number is sealed for that row.

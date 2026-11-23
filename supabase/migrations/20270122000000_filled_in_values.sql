@@ -30,6 +30,15 @@ begin
   perform set_config('ziffr.demo_seed', 'off', true);
 end $$;
 
+-- Who set an Away entry. Away is global (one row per person, whatever their Workspaces), so it opens filling in only when the
+-- person set it themselves or an Owner or Admin of the Metric's own Workspace did: not an Admin of another Workspace.
+-- Entries from before this are taken as set by the person, as the app let them set their own.
+alter table away add column set_by text references profiles(id) on delete set null;
+update away set set_by = user_id where set_by is null;
+
+-- The message about a Filled-in Value names the value it is about, so that it is checked again when it is sent.
+alter table deliveries add column filled_in_observation_id bigint references observations(id) on delete set null;
+
 -- The re-encryption job and its counts know the new sealed column: seal_table as it was (spec 0040, ticket 9), with
 -- observations' text columns now submitted_by_name and entered_by_name.
 create or replace function seal_table(p_table text, out key text, out cols text[], out ncols text[], out extra text[], out scope text) language plpgsql immutable as $$
@@ -141,9 +150,12 @@ begin
   update tokens set submitter_id = person where workspace_id = ws and submitter_id = contact;
   update tokens set stand_in_id = person where workspace_id = ws and stand_in_id = contact;
   update tokens set stands_in_for = person where workspace_id = ws and stands_in_for = contact;
+  -- Neither direction may leave a value entered by the person it is for (the check on entered_by).
+  update observations set entered_by = null where workspace_id = ws and entered_by = person and submitter_id = contact;
   update observations set entered_by = null where workspace_id = ws and entered_by = contact and submitter_id = person;
   update observations set submitter_id = person where workspace_id = ws and submitter_id = contact;
   update observations set entered_by = person where workspace_id = ws and entered_by = contact;
+  update observation_history set entered_by = null where workspace_id = ws and entered_by = person and submitter_id = contact;
   update observation_history set entered_by = null where workspace_id = ws and entered_by = contact and submitter_id = person;
   update observation_history set submitter_id = person where workspace_id = ws and submitter_id = contact;
   update observation_history set entered_by = person where workspace_id = ws and entered_by = contact;
@@ -200,6 +212,10 @@ begin
     if v_id is not null then raise exception 'The period already has a value.' using errcode = 'ZF450'; end if;
     if v_rule not in ('reject', 'overwrite') then raise exception 'This Submission Rule combines several people''s values.' using errcode = 'ZF451'; end if;
     if p_entered_by is not distinct from p_submitter then raise exception 'A value is entered for someone else.' using errcode = 'ZF451'; end if;
+    -- Never a Guest, whoever asks.
+    if exists (select 1 from memberships mm join metrics mt on mt.workspace_id = mm.workspace_id where mt.id = p_metric and mm.user_id = p_entered_by and mm.role = 'guest') then
+      raise exception 'A Guest cannot fill in for someone.' using errcode = 'ZF451';
+    end if;
   end if;
   -- The operation follows the Metric's Submission Rule, which the core applied: a call that does not is refused. The one
   -- exception is the submitter's own value replacing a Filled-in Value for them, which replaces it under any rule.

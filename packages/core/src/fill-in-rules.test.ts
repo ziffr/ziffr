@@ -24,20 +24,20 @@ const refusal = (f: FillInFacts) => { const v = mayFillIn(f); return v.ok ? null
 
 describe("mayFillIn: who", () => {
   it("lets the Metric's owner fill in after the Due Date", () => {
-    expect(mayFillIn(base)).toEqual({ ok: true, as: "metric_owner" });
+    expect(mayFillIn(base)).toMatchObject({ ok: true, as: "metric_owner" });
   });
   it("lets the Workflow's owner fill in, when they see the Metric", () => {
     const mia = facts({ by: { id: "mia", role: "member", viaKey: false } });
-    expect(mayFillIn(mia)).toEqual({ ok: true, as: "workflow_owner" });
+    expect(mayFillIn(mia)).toMatchObject({ ok: true, as: "workflow_owner" });
     expect(refusal({ ...mia, bySeesMetric: false })).toMatch(/do not see this Metric/);
   });
   it("lets the Stand-in fill in only for a period they were asked about", () => {
     const stand = facts({ by: { id: "mia2", role: "member", viaKey: false }, isStandIn: true, standInAsked: true });
-    expect(mayFillIn(stand)).toEqual({ ok: true, as: "stand_in" });
+    expect(mayFillIn(stand)).toMatchObject({ ok: true, as: "stand_in" });
     expect(refusal({ ...stand, standInAsked: false })).toMatch(/only for the periods you were asked about/);
   });
   it("lets a Contact stand in", () => {
-    expect(mayFillIn(facts({ by: { id: "c", role: "contact", viaKey: false }, isStandIn: true, standInAsked: true }))).toEqual({ ok: true, as: "stand_in" });
+    expect(mayFillIn(facts({ by: { id: "c", role: "contact", viaKey: false }, isStandIn: true, standInAsked: true }))).toMatchObject({ ok: true, as: "stand_in" });
   });
   it("refuses an Owner or Admin who is none of the three", () => {
     for (const role of ["owner", "admin"] as const) expect(refusal(facts({ by: { id: "zed", role, viaKey: false } }))).toMatch(/Only the Metric's owner/);
@@ -75,7 +75,7 @@ describe("mayFillIn: when", () => {
   it("lets the Stand-in's Prompt answer only when one of the two holds", () => {
     const stand = facts({ by: { id: "m", role: "member", viaKey: false }, isStandIn: true, standInAsked: true, today: "2026-10-20" });
     expect(refusal(stand)).toMatch(/Due Date/);
-    expect(mayFillIn({ ...stand, submitterAway: true })).toEqual({ ok: true, as: "stand_in" });
+    expect(mayFillIn({ ...stand, submitterAway: true })).toMatchObject({ ok: true, as: "stand_in" });
   });
   it("has no Due Date without a Workflow: only while Away", () => {
     expect(refusal(facts({ workflow: null }))).toMatch(/Without a Workflow/);
@@ -96,6 +96,6 @@ describe("mayFillIn: what", () => {
     expect(refusal(facts({ metric: { ...base.metric, rule: "keep_both" } }))).toMatch(/several people/);
   });
   it("picks the Stand-in's role before the owners'", () => {
-    expect(mayFillIn(facts({ isStandIn: true, standInAsked: true }))).toEqual({ ok: true, as: "stand_in" });
+    expect(mayFillIn(facts({ isStandIn: true, standInAsked: true }))).toMatchObject({ ok: true, as: "stand_in" });
   });
 });

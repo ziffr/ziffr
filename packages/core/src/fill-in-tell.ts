@@ -41,10 +41,10 @@ export async function closeFilledInPrompts(ws: string, metricId: number, period:
 }
 
 /** Records the Filled-in Value in the Audit Log and tells its submitter. Never throws: the value is already recorded. */
-export async function tellFilledIn(ws: string, f: { metric: Metric; period: string; /** The value, written as the Workspace writes it. */ value: string; forId: string; by: string; as: FillInRole }): Promise<void> {
+export async function tellFilledIn(ws: string, f: { metric: Metric; period: string; /** The value, written as the Workspace writes it. */ value: string; forId: string; by: string; as: FillInRole; awayBy: string | null; observationId: number }): Promise<void> {
   try {
     // Never the value: the Audit Log holds who, for whom, which period and in which role.
-    await recordAudit(ws, f.by, { kind: "value.filled_in", object: { type: "metric", id: f.metric.id, name: f.metric.name }, details: { period: f.period, for: f.forId, as: f.as } });
+    await recordAudit(ws, f.by, { kind: "value.filled_in", object: { type: "metric", id: f.metric.id, name: f.metric.name }, details: { period: f.period, for: f.forId, as: f.as, away_set_by: f.awayBy } });
     if (ws === DEMO_WORKSPACE_ID) return;
     // Only someone who still holds their own Token for the Metric and sees it is told: otherwise it is skipped silently.
     const [{ data: tokens }, { data: membership }] = await Promise.all([
@@ -60,6 +60,10 @@ export async function tellFilledIn(ws: string, f: { metric: Metric; period: stri
     const when = periodLabel(f.period, f.metric.period, await yearStartFor(ws, f.metric.period));
     await deliverFilledIn(ws, {
       recipientId: f.forId,
+      // The sender is kept only on a message that names who entered it, so that a send after the recipient became a Guest can
+      // tell it must not go (internal/delivery-send.ts).
+      senderId: named ? f.by : null,
+      observationId: f.observationId,
       subject: `${f.metric.name}: ${named ? by : "a colleague"} entered a value for you`,
       text: `${by} entered ${f.value} for you for ${f.metric.name}, ${when}. You can replace it with your own until the period is locked.`,
       // A Contact signs in nowhere: their personal form link, put in as the message is sent.
@@ -74,8 +78,11 @@ export async function tellFilledIn(ws: string, f: { metric: Metric; period: stri
 
 /** What follows an accepted Filled-in Value, for the submission's answer: closes the open Prompts, records and tells, and
  * returns the answer's words with who it was entered for. */
-export async function settleFilled(ws: string, f: { metric: Metric; period: string; value: string; when: string; forId: string; by: string; as: FillInRole; source: SourceId; forName: string | undefined; detail: string }): Promise<string> {
+export async function settleFilled(ws: string, f: { metric: Metric; period: string; value: string; when: string; forId: string; by: string; as: FillInRole; awayBy: string | null; observationId: number; source: SourceId; forName: string | undefined; detail: string }): Promise<string> {
   await closeFilledInPrompts(ws, f.metric.id, f.period, f.source, `${f.value} for ${f.metric.name}, ${f.when}, entered by a colleague.`);
-  await tellFilledIn(ws, { metric: f.metric, period: f.period, value: f.value, forId: f.forId, by: f.by, as: f.as });
-  return `Entered for ${f.forName ?? "the submitter"}: ${f.detail}`;
+  await tellFilledIn(ws, { metric: f.metric, period: f.period, value: f.value, forId: f.forId, by: f.by, as: f.as, awayBy: f.awayBy, observationId: f.observationId });
+  // The person who entered it reads the submitter's name only as a member who is no Guest; a Guest or a Contact reads "your colleague".
+  const reader = (await db().from("memberships").select("role").eq("workspace_id", ws).eq("user_id", f.by).maybeSingle()).data;
+  const who = reader && reader.role !== "guest" ? (f.forName ?? "the submitter") : "your colleague";
+  return `Entered for ${who}: ${f.detail}`;
 }

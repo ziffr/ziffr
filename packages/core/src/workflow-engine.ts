@@ -325,7 +325,8 @@ async function workflowStep(metricId: number, period: string, submitterId: strin
       await setState(metricId, period, { state: "approval", approval_step: null, approval_action_id: null, approval_for: submitterId, note: "Waits for Approval: nobody but the Feed that sent it can approve it. Add an Approver to the Workflow." });
       return ["waits for approval: nobody but the Feed that sent it can approve it"];
     }
-    if (approve.nobodyElse === "count") {
+    // Never for a Filled-in Value: someone else typed it, so it is not counted unchecked; its submitter checks it (spec 0046).
+    if (approve.nobodyElse === "count" && !value.entered_by) {
       await recordAudit(ctx.ws, null, { kind: "approval.skipped", object: { type: "metric", id: metricId, name: ctx.m.name }, details: { period, submitter: submitterId, workflow: ctx.wf.id } });
       return [`counted without approval: nobody else could approve it; ${await publish(ctx, COUNTED_NOTE)}`];
     }
@@ -429,7 +430,8 @@ export async function claimTask(ws: string, actionId: number, by: string, source
 export async function confirmSelfCheck(ws: string, actionId: number, by: string, source: ChangeSource = FROM_APP): Promise<string> {
   const { a, ctx } = await openSelfCheck(ws, actionId, by);
   const step = ctx.wf.config.steps.find((s): s is Extract<WorkflowStep, { type: "approve" }> => s.type === "approve");
-  if ((await approversFor(ctx, step, by, (await latestValue(ws, a.metric_id, a.period_start))?.entered_by ?? null)).length) {
+  const latest = await latestValue(ws, a.metric_id, a.period_start);
+  if ((await approversFor(ctx, step, by, latest?.entered_by ?? null)).length) {
     // onValue closes this task and asks the Approver: the value is checked as a new round.
     const log = await onValue(a.metric_id, a.period_start, by);
     return `Someone else can approve it now: ${log.join("; ")}.`;
@@ -437,7 +439,7 @@ export async function confirmSelfCheck(ws: string, actionId: number, by: string,
   await claimTask(ws, actionId, by, source);
   if (!(await publishDecided(ctx, actionId, CONFIRMED_NOTE))) throw new Error("A newer value came in: it is checked instead.");
   await insertSealed("thread_messages", ws, [{ action_id: actionId, author_id: by, body: "Confirmed by the submitter." }]);
-  await recordAudit(ws, by, { kind: "self_check.confirmed", object: { type: "metric", id: a.metric_id, name: ctx.m.name }, details: { period: a.period_start } });
+  await recordAudit(ws, by, { kind: "self_check.confirmed", object: { type: "metric", id: a.metric_id, name: ctx.m.name }, details: { period: a.period_start, entered_by: latest?.entered_by ?? null } });
   return `Confirmed by you; ${publishedLabel(ctx)}.`;
 }
 
@@ -487,7 +489,7 @@ export async function approve(ws: string, actionId: number, by: string, source: 
   if (!(await changeActionState(ws, actionId, { to: "closed", from: ["open"], reason: "done", guard: { purpose: "approval", assigneeId: by } }, source)).changed) throw new Error("This approval is not yours, or it is done.");
   await insertSealed("thread_messages", ws, [{ action_id: actionId, author_id: by, body: "Approved." }]);
   // Here, not in the Actor's wrapper: approvals also arrive as replies through a Connector (threads.ts).
-  await recordAudit(ws, by, { kind: "approval.given", object: { type: "metric", id: a.metric_id, name: ctx.m.name }, details: { period: a.period_start, step: (state.approval_step ?? 0) + 1 } });
+  await recordAudit(ws, by, { kind: "approval.given", object: { type: "metric", id: a.metric_id, name: ctx.m.name }, details: { period: a.period_start, step: (state.approval_step ?? 0) + 1, entered_by: value?.entered_by ?? null } });
   // The same people, in the same order, as when the round started: skipping the one the round is about (also when
   // it began with an accepted Correction), not whoever submitted the latest value.
   const approvers = await approversFor(ctx, ctx.wf.config.steps.find((s): s is Extract<WorkflowStep, { type: "approve" }> => s.type === "approve"), from, value?.entered_by ?? null);

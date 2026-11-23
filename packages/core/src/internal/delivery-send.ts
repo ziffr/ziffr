@@ -30,7 +30,7 @@ export async function withFormLink(body: string, d: { workspace_id: string; form
 export const PROMPT_ANSWERED = "Not sent: the request was answered another way first.";
 
 /** What a Delivery is about, as far as its Metric goes. */
-type AboutMetric = { id: number; workspace_id: string; kind: string; recipient_id?: string; alert_metric_id?: number | null; heads_up_metric_a?: number | null; heads_up_metric_b?: number | null; heads_up_key?: string | null; heads_up_told_id?: number | null; tell_workflow_id?: number | null; snapshot_dashboard_id?: number | null; prompt_id?: number | null; form_token_id?: number | null; action_id?: number | null };
+type AboutMetric = { id: number; workspace_id: string; kind: string; recipient_id?: string; alert_metric_id?: number | null; heads_up_metric_a?: number | null; heads_up_metric_b?: number | null; heads_up_key?: string | null; heads_up_told_id?: number | null; tell_workflow_id?: number | null; snapshot_dashboard_id?: number | null; prompt_id?: number | null; form_token_id?: number | null; action_id?: number | null; sender_id?: string | null; filled_in_observation_id?: number | null };
 
 /** Why a message of a Workflow's (a Tell or a Checklist Item) must not go out: its recipient said "stop telling me" after it was queued. Null otherwise. */
 async function toldStop(d: AboutMetric): Promise<string | null> {
@@ -66,10 +66,15 @@ export async function archivedMetricHolds(d: AboutMetric): Promise<string | null
     if (!m || m.archived_at) return "Not sent.";
     const [{ data: token }, { data: member }] = await Promise.all([
       db().from("tokens").select("id").eq("workspace_id", ws).eq("metric_id", m.id).eq("submitter_id", d.recipient_id).is("stands_in_for", null).limit(1),
-      db().from("memberships").select("user_id").eq("workspace_id", ws).eq("user_id", d.recipient_id).maybeSingle(),
+      db().from("memberships").select("user_id, role").eq("workspace_id", ws).eq("user_id", d.recipient_id).maybeSingle(),
     ]);
     if (!token?.length) return "Not sent.";
     if (member && !(await visibleMetricIds(ws, d.recipient_id, metrics)).has(m.id)) return "Not sent.";
+    // It is about a value that still has someone who entered it (the submitter may have replaced it meanwhile), and one that
+    // names who entered it does not go to someone who is a Guest by now: a Guest reads no names.
+    const { data: obs } = d.filled_in_observation_id ? await db().from("observations").select("entered_by").eq("id", d.filled_in_observation_id).eq("workspace_id", ws).maybeSingle() : { data: null };
+    if (!obs?.entered_by) return "Not sent.";
+    if (d.sender_id && (member as { role?: string } | null)?.role === "guest") return "Not sent.";
     return null;
   }
   // An Alert message (GLOSSARY: Alert) leaves only while its recipient may still see its Metric and it is in use: asked

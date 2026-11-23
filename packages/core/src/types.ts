@@ -98,6 +98,10 @@ export type Observation = {
   submitter_id: string | null;
   /** Who sent an imported value, as the Workspace Export named them (opened); null for a value recorded in the app. */
   submitted_by_name?: string | null;
+  /** Who entered it for the submitter (a Filled-in Value, spec 0046), as a person id; null when the submitter entered it. */
+  entered_by?: string | null;
+  /** Who entered an imported value for the submitter, as a name (opened), as submitted_by_name. */
+  entered_by_name?: string | null;
   source: string;
   original_value: number | null;
   /** The Access Key a program submitted it with, if any. */

@@ -95,7 +95,7 @@ describe("whose Metrics", () => {
     // Spec 0046: a Stand-in's value is the submitter's and counts only for a period Ziffr asked them about, while she is Away.
     expect(brief(ok(await recordPastedValues(w.actor(ben, "member"), { text }, quiet())).rows)).toEqual([["C1", "refused", null]]);
     const today = new Date().toISOString().slice(0, 10);
-    await db().from("away").insert({ user_id: cleo, starts: today, ends: today });
+    await db().from("away").insert({ user_id: cleo, starts: today, ends: today, set_by: cleo });
     await db().from("prompts").insert({ workspace_id: w.id, metric_id: m.id, submitter_id: ben, source: "web_form", text: "What?", period_start: ago(1), stands_in_for: cleo });
     expect(brief(ok(await recordPastedValues(w.actor(ben, "member"), { text }, quiet())).rows)).toEqual([["C1", "recorded", null]]);
     expect((await valuesOf(m.id)).map((v) => v.submitter_id)).toEqual([cleo]);

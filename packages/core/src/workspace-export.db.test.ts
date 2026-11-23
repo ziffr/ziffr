@@ -97,9 +97,9 @@ async function seed() {
   const lower = await createMetric(s.as, { name: "Churn", period: "month", aggregation: "average", polarity: "lower", format: "percent" }, quiet);
   const metrics = await getMetrics(s.id);
   const of_ = (id: number) => metrics.find((m) => m.id === id)!;
-  const rec = (id: number, period: string, value: number, extra: { source?: string; imported?: boolean; submitter?: string | null; rows?: { label: string; value: number }[] } = {}) =>
-    recordObservation(s.id, of_(id), period, value, { submitter_id: extra.submitter ?? null, source: extra.source ?? "web_form", access_key_id: null }, extra.imported ?? false, extra.rows ?? []);
-  await rec(revenue.id, "2026-01-01", 14.12345678, { submitter: s.member, rows: [{ label: "Germany 🇩🇪 @ home", value: 9.12345678 }, { label: "Other", value: 5 }] });
+  const rec = (id: number, period: string, value: number, extra: { source?: string; imported?: boolean; submitter?: string | null; enteredBy?: string; rows?: { label: string; value: number }[] } = {}) =>
+    recordObservation(s.id, of_(id), period, value, { submitter_id: extra.submitter ?? null, entered_by: extra.enteredBy ?? null, source: extra.source ?? "web_form", access_key_id: null }, extra.imported ?? false, extra.rows ?? []);
+  await rec(revenue.id, "2026-01-01", 14.12345678, { submitter: s.member, enteredBy: ana, rows: [{ label: "Germany 🇩🇪 @ home", value: 9.12345678 }, { label: "Other", value: 5 }] });
   await rec(revenue.id, "2026-02-01", 1234567.5, { source: "slack", submitter: ana });
   await rec(revenue.id, "2026-03-01", -3, { imported: true });
   await rec(quarterly.id, "2026-02-01", 12.5);
@@ -185,6 +185,9 @@ describe("a Workspace Export of awkward data", () => {
     expect(values.map((v) => [v.period, v.value, v.source ?? null])).toEqual([["2026-01-01", 14.12345678, "web_form"], ["2026-02-01", 1234567.5, "slack"], ["2026-03-01", -3, "import"]]);
     expect(values[0].breakdown).toEqual([{ label: "Germany 🇩🇪 @ home", value: 9.12345678 }, { label: "Other", value: 5 }]);
     expect(values[0].submittedBy).toMatch(/^member /);
+    // A Filled-in Value says who entered it for the submitter, as a name too (spec 0046); the others carry none.
+    expect(values[0].enteredBy).toBe(values[1].submittedBy);
+    expect(values[1].enteredBy).toBeUndefined();
     // Quarters count from the Workspace's February year start.
     const margin = metrics.find((m) => m.metric.name === "Quarterly margin")!;
     expect(of(records, "value").filter((v) => v.metric === margin.id).map((v) => v.period)).toEqual(["2026-02-01", "2026-05-01"]);

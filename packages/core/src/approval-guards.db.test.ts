@@ -123,6 +123,26 @@ describe("Approval guards", () => {
       expect(task).toEqual({ assignee_id: ann, purpose: "self_check" });
     });
 
+    it("never counts a Filled-in Value without Approval: the submitter checks it, whatever the step says", async () => {
+      // Ben owns the Metric and the Workflow, entered Ann's value and is the only Approver: only Ann is left.
+      const w = await workspace();
+      cleanups.push(w.cleanup);
+      const ben = await w.person("owner"); const ann = await w.person("member");
+      const workflowId = await saveWorkflow(w.actor(ben), null, "Close", { dueWorkingDays: 2, steps: [{ type: "approve", approvers: [ben], values: "every", nobodyElse: "count" }, { type: "publish", lock: false }] });
+      const m = await w.metric(ben, { name: "Revenue" });
+      await setMetricWorkflow(w.actor(ben), m.id, workflowId);
+      await w.token(m.id, ann);
+      await w.value(m.id, thisMonth(), 100, ann);
+      await db().from("observations").update({ entered_by: ben }).eq("metric_id", m.id);
+      await onValue(m.id, thisMonth(), ann);
+      const state = await getState(m.id, thisMonth());
+      expect(state?.state).toBe("approval");
+      expect(state?.approval_for).toBe(ann);
+      const task = (await db().from("actions").select("assignee_id, purpose").eq("metric_id", m.id).eq("status", "open").single()).data;
+      expect(task).toEqual({ assignee_id: ann, purpose: "self_check" });
+      expect((await db().from("audit_events").select("kind").eq("workspace_id", w.id).eq("kind", "approval.skipped")).data).toEqual([]);
+    });
+
     it("valueOutlook agrees: the submitter's own value and the one who entered it are left out", async () => {
       const { ada, ben, ann, m } = await filledIn((a, b) => [b, a]);
       expect((await valueOutlook(m.id, ann, ben))?.approver).toBe(ada);

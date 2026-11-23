@@ -246,12 +246,12 @@ export async function deliverChecklist(ws: string, input: { recipientId: string;
  * held by Quiet Hours, never answerable. `text` holds the value and, where the recipient may read it, who entered it; it is
  * about one Metric, named here so that it is checked again at the moment it leaves (internal/delivery-send.ts). A Contact
  * has no sign-in: `formTokenId` is their own Token, whose personal form link is put in only as it is sent. */
-export async function deliverFilledIn(ws: string, input: { recipientId: string; subject: string; text: string; link: string; metricId: number; formTokenId: number | null }): Promise<number | null> {
-  return deliverPlain(ws, "filled_in", { recipientId: input.recipientId, senderId: null, subject: input.subject, text: input.text, link: input.link, alertMetricId: input.metricId, formTokenId: input.formTokenId, queue: true });
+export async function deliverFilledIn(ws: string, input: { recipientId: string; senderId: string | null; observationId: number; subject: string; text: string; link: string; metricId: number; formTokenId: number | null }): Promise<number | null> {
+  return deliverPlain(ws, "filled_in", { recipientId: input.recipientId, senderId: input.senderId, filledInObservationId: input.observationId, subject: input.subject, text: input.text, link: input.link, alertMetricId: input.metricId, formTokenId: input.formTokenId, queue: true });
 }
 
 /** One plain message of a kind that is not about an Action: a notice, an Alert, a Heads-up, a Checklist Item or a Filled-in Value. */
-async function deliverPlain(ws: string, kind: "notice" | "alert" | "heads_up" | "checklist" | "filled_in", input: { recipientId: string; senderId: string | null; subject: string; text: string; link: string; via?: ConnectorId; quiet?: boolean; alertMetricId?: number | null; alertId?: number | null; tellWorkflowId?: number; snapshotDashboardId?: number; queue?: boolean; headsUpMetrics?: readonly number[]; headsUpKey?: string; headsUpToldId?: number; formTokenId?: number | null }): Promise<number | null> {
+async function deliverPlain(ws: string, kind: "notice" | "alert" | "heads_up" | "checklist" | "filled_in", input: { recipientId: string; senderId: string | null; subject: string; text: string; link: string; via?: ConnectorId; quiet?: boolean; alertMetricId?: number | null; alertId?: number | null; tellWorkflowId?: number; snapshotDashboardId?: number; queue?: boolean; headsUpMetrics?: readonly number[]; headsUpKey?: string; headsUpToldId?: number; formTokenId?: number | null; filledInObservationId?: number }): Promise<number | null> {
   const via = input.via ?? await connectorFor(ws, input.recipientId, "reply", null);
   // A Guest does not see who else is in the Workspace: a notice's text names no one else to them.
   const { data: member } = await db().from("memberships").select("role").eq("workspace_id", ws).eq("user_id", input.recipientId).maybeSingle();
@@ -264,7 +264,7 @@ async function deliverPlain(ws: string, kind: "notice" | "alert" | "heads_up" | 
     connector: via, recipient_id: input.recipientId, sender_id: input.senderId, kind,
     // A message holds people's and things' names: on Slack they are escaped, so none can become a link or a mention.
     // A Contact's link is their own personal form link, put in only as it is sent (FORM_LINK), never stored.
-    subject: input.subject, body: input.link === FORM_LINK ? `${via === "slack" ? slackEscape(input.text) : input.text}\n${FORM_LINK}` : via === "slack" ? `${slackEscape(input.text)}\n<${linkTo(input.link)}|Open in Ziffr>` : `${input.text}\n${CONNECTORS[via].label === "Ticket system" ? "Ziffr" : "Open"}: ${linkTo(input.link)}`, mail_state, form_token_id: input.formTokenId ?? null, alert_metric_id: input.alertMetricId ?? null, alert_id: input.alertId ?? null, tell_workflow_id: input.tellWorkflowId ?? null, snapshot_dashboard_id: input.snapshotDashboardId ?? null,
+    subject: input.subject, body: input.link === FORM_LINK ? `${via === "slack" ? slackEscape(input.text) : input.text}\n${FORM_LINK}` : via === "slack" ? `${slackEscape(input.text)}\n<${linkTo(input.link)}|Open in Ziffr>` : `${input.text}\n${CONNECTORS[via].label === "Ticket system" ? "Ziffr" : "Open"}: ${linkTo(input.link)}`, mail_state, form_token_id: input.formTokenId ?? null, filled_in_observation_id: input.filledInObservationId ?? null, alert_metric_id: input.alertMetricId ?? null, alert_id: input.alertId ?? null, tell_workflow_id: input.tellWorkflowId ?? null, snapshot_dashboard_id: input.snapshotDashboardId ?? null,
     heads_up_metric_a: input.headsUpMetrics?.[0] ?? null, heads_up_metric_b: input.headsUpMetrics?.[1] ?? null, heads_up_key: input.headsUpKey ?? null, heads_up_told_id: input.headsUpToldId ?? null,
   }, input.quiet ? "reminder" : kind);
   // An Alert is only queued, for the deliveries job to send: the value that caused it must not wait on the mail server.

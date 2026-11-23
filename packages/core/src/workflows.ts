@@ -402,5 +402,9 @@ export async function setAway(actor: Actor, personId: string, starts: string | n
   }
   if (starts && ends && (!DAY.test(starts) || !DAY.test(ends) || ends < starts)) throw new Error("Pick a start and an end date.");
   await db().from("away").delete().eq("user_id", personId);
-  if (starts && ends) await db().from("away").insert({ user_id: personId, starts, ends });
+  // Who set it is kept: Away is global, and filling in for someone opens only for Away set by them or by an Owner or Admin
+  // of the Metric's Workspace (spec 0046).
+  if (starts && ends) await db().from("away").insert({ user_id: personId, starts, ends, set_by: actor.personId });
+  // Dates only, never a reason. In the Workspace the actor acts in.
+  await audit(actor, { kind: starts && ends ? "away.set" : "away.cleared", object: { type: "person", id: personId }, details: starts && ends ? { from: starts, to: ends } : {} });
 }

@@ -13,7 +13,9 @@ import { setMyQuietHours } from "./quiet-hours";
 import { submissionEffects, submitValue, type SubmissionEffects } from "./submissions";
 import { DEMO_WORKSPACE_ID } from "./team";
 import { opened, workspace } from "./test/db-fixtures";
-import { saveWorkflow, setStandIn } from "./workflows";
+import { archivedMetricHolds } from "./internal/delivery-send";
+import { decideCorrection } from "./submissions";
+import { saveWorkflow, setAway, setStandIn } from "./workflows";
 
 vi.setConfig({ testTimeout: 120_000, hookTimeout: 60_000 });
 const cleanups: (() => Promise<void>)[] = [];
@@ -52,9 +54,9 @@ describe("fillInValue: who and when", () => {
     expect(await rowsOf(m.id, ago(2))).toEqual([expect.objectContaining({ submitter_id: sara, entered_by: ben, source: "web_form" })]);
     const events = await opened("audit_events", w.id, (await db().from("audit_events").select("id, kind, details").eq("workspace_id", w.id).eq("kind", "value.filled_in")).data, { dropId: true });
     expect(events).toHaveLength(1);
-    expect(events[0].details).toEqual({ period: ago(2), for: sara, as: "metric_owner" });
+    expect(events[0].details).toEqual({ period: ago(2), for: sara, as: "metric_owner", away_set_by: null });
     // The value itself never reaches the Audit Log.
-    expect(Object.keys(events[0].details as object).sort()).toEqual(["as", "for", "period"]);
+    expect(Object.keys(events[0].details as object).sort()).toEqual(["as", "away_set_by", "for", "period"]);
     const told = await opened("deliveries", w.id, (await db().from("deliveries").select("id, subject, body, kind, recipient_id, not_before").eq("workspace_id", w.id).eq("kind", "filled_in")).data, { dropId: true });
     expect(told).toHaveLength(1);
     expect(told[0]).toMatchObject({ recipient_id: sara });
@@ -94,14 +96,14 @@ describe("fillInValue: who and when", () => {
     const early = await fillInValue(as(ben), { metricId: m.id, period: thisMonth(), for: sara, value: "5" }, quiet());
     expect(early).toMatchObject({ ok: false, outcome: "rejected_fill_in" });
     expect(early.detail).toMatch(/after the Due Date/);
-    await db().from("away").insert({ user_id: sara, starts: today(), ends: today() });
+    await db().from("away").insert({ user_id: sara, starts: today(), ends: today(), set_by: sara });
     expect(await fillInValue(as(ben), { metricId: m.id, period: thisMonth(), for: sara, value: "5" }, quiet())).toMatchObject({ ok: true });
   });
 
   it("without a Workflow has no Due Date: only while Away", async () => {
     const { ben, sara, m, as } = await setup({ workflow: false });
     expect((await fillInValue(as(ben), { metricId: m.id, period: ago(2), for: sara, value: "5" }, quiet())).detail).toMatch(/Without a Workflow/);
-    await db().from("away").insert({ user_id: sara, starts: today(), ends: today() });
+    await db().from("away").insert({ user_id: sara, starts: today(), ends: today(), set_by: sara });
     expect(await fillInValue(as(ben), { metricId: m.id, period: ago(2), for: sara, value: "5" }, quiet())).toMatchObject({ ok: true });
   });
 
@@ -231,5 +233,64 @@ describe("telling the submitter", () => {
     } finally {
       for (const [k, v] of [["ZIFFR_SMTP_URL", saved.url], ["ZIFFR_MAIL_FROM", saved.from], ["ZIFFR_SITE_URL", saved.site]] as const) if (v === undefined) delete process.env[k]; else process.env[k] = v;
     }
+  });
+});
+
+describe("Away opens filling in only when set by the person or an Owner or Admin of the Workspace", () => {
+  it("does not open for Away set by an Admin of another Workspace, and does for Away set by this Workspace's Admin", async () => {
+    const { w, ben, sara, m, as } = await setup({ workflow: false });
+    const other = await workspace(); cleanups.push(other.cleanup);
+    const stranger = await other.person("admin");
+    await db().from("away").insert({ user_id: sara, starts: today(), ends: today(), set_by: stranger });
+    const r = await fillInValue(as(ben), { metricId: m.id, period: ago(2), for: sara, value: "5" }, quiet());
+    expect(r).toMatchObject({ ok: false, outcome: "rejected_fill_in" });
+    expect(r.detail).toMatch(/only while the submitter is Away/);
+    const admin = await w.person("admin");
+    await setAway(w.actor(admin, "admin"), sara, today(), today());
+    expect(await fillInValue(as(ben), { metricId: m.id, period: ago(2), for: sara, value: "5" }, quiet())).toMatchObject({ ok: true });
+    const [e] = await opened("audit_events", w.id, (await db().from("audit_events").select("id, details").eq("kind", "value.filled_in").eq("workspace_id", w.id)).data, { dropId: true });
+    expect(e.details).toMatchObject({ away_set_by: admin });
+    expect(await kindsOf(w.id)).toContain("away.set");
+  });
+});
+
+describe("what follows a Filled-in Value", () => {
+  it("is not an Import, and a submitter's merged Contact never ends up as who entered their own value", async () => {
+    const { w, ben, sara, m, as } = await setup();
+    await fillInValue(as(ben), { metricId: m.id, period: ago(2), for: sara, value: "5" }, quiet());
+    expect((await db().from("observations").select("imported").eq("metric_id", m.id).single()).data?.imported).toBe(false);
+    const contact = await w.contact({ email: mail("c") });
+    const real = await w.person("member");
+    await w.value(m.id, ago(5), 3, contact);
+    await db().from("observations").update({ entered_by: real }).eq("metric_id", m.id).eq("period_start", ago(5));
+    expect((await db().rpc("merge_contact", { ws: w.id, contact, person: real })).error).toBeNull();
+    expect((await db().from("observations").select("submitter_id, entered_by").eq("metric_id", m.id).eq("period_start", ago(5)).single()).data).toEqual({ submitter_id: real, entered_by: null });
+  });
+
+  it("the message is not sent after the value was replaced, or to someone who became a Guest", async () => {
+    const { w, ben, sara, m, as } = await setup();
+    await fillInValue(as(ben), { metricId: m.id, period: ago(2), for: sara, value: "5" }, quiet());
+    const { data: d } = await db().from("deliveries").select("id, workspace_id, kind, recipient_id, alert_metric_id, sender_id, filled_in_observation_id").eq("workspace_id", w.id).eq("kind", "filled_in").single();
+    expect(await archivedMetricHolds(d!)).toBeNull();
+    await w.setRole(sara, "guest");
+    expect(await archivedMetricHolds(d!)).toBe("Not sent.");
+    await w.setRole(sara, "member");
+    await recordOwnValue(as(sara), m.id, { value: "4", period: ago(2) }, quiet());
+    expect(await archivedMetricHolds(d!)).toBe("Not sent.");
+  });
+
+  it("a Correction to a value its owner entered is decided by someone else, and the submitter's own clears the mark", async () => {
+    const { w, ben, sara, m, as } = await setup();
+    await fillInValue(as(ben), { metricId: m.id, period: ago(2), for: sara, value: "5" }, quiet());
+    await db().from("period_states").upsert({ metric_id: m.id, period_start: ago(2), state: "locked", workspace_id: w.id });
+    const { data: obs } = await db().from("observations").select("id").eq("metric_id", m.id).single();
+    const action = await w.action({ metric_id: m.id, period_start: ago(2), asker_id: sara, assignee_id: ben, observation_id: obs!.id, purpose: "approval" });
+    const { data: msg } = await db().from("thread_messages").insert({ action_id: action, author_id: sara, workspace_id: w.id, body: "Late", correction_value: 6, correction_status: "proposed" }).select("id").single();
+    await expect(decideCorrection(as(ben), msg!.id, true, { notifyDecision: vi.fn(async () => {}), afterValue: vi.fn(async () => []) })).rejects.toThrow(/someone else decides/);
+    // Handed to an owner who did not enter it: accepted, and the value is Sara's own now.
+    await db().from("metrics").update({ owner_id: (await w.person("member")) }).eq("id", m.id);
+    const newOwner = (await db().from("metrics").select("owner_id").eq("id", m.id).single()).data!.owner_id as string;
+    await decideCorrection(as(newOwner), msg!.id, true, { notifyDecision: vi.fn(async () => {}), afterValue: vi.fn(async () => []) });
+    expect((await db().from("observations").select("submitter_id, entered_by").eq("id", obs!.id).single()).data).toEqual({ submitter_id: sara, entered_by: null });
   });
 });

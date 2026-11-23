@@ -28,7 +28,10 @@ export type FillInFacts = {
   bySeesMetric: boolean;
   /** Today in the Workspace's time zone, and whether the submitter is Away on that day. */
   today: string;
+  /** The submitter is Away today, by an entry they set themselves or an Owner or Admin of the Metric's Workspace set (Away
+   * is global: one set by anyone else opens nothing). `awaySetBy` is who set it, for the Audit Log. */
   submitterAway: boolean;
+  awaySetBy?: string | null;
   periodHasValue: boolean;
   periodLocked: boolean;
   periodCondensed: boolean;
@@ -36,7 +39,7 @@ export type FillInFacts = {
 };
 
 /** Allowed, in which role; or refused, in words for the person. */
-export type FillInVerdict = { ok: true; as: FillInRole } | { ok: false; refusal: string };
+export type FillInVerdict = { ok: true; as: FillInRole; /** Who set the Away entry that was in effect, when there was one. */ awayBy: string | null } | { ok: false; refusal: string };
 
 /** Why not, or in which role: the order of the checks is the order of what a person can still change (who, what, when). */
 export function mayFillIn(f: FillInFacts): FillInVerdict {
@@ -75,5 +78,5 @@ export function mayFillIn(f: FillInFacts): FillInVerdict {
       ? `Filling in opens after the Due Date, ${f.workflow.dueDate}, or while the submitter is Away.`
       : "Without a Workflow there is no Due Date: filling in is open only while the submitter is Away.");
   }
-  return { ok: true, as: role };
+  return { ok: true, as: role, awayBy: f.submitterAway ? (f.awaySetBy ?? null) : null };
 }

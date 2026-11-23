@@ -98,7 +98,7 @@ export type TargetRecord = { kind: "target"; metric: string; period: string; min
 /** A Projection: a value for a future period. */
 export type ProjectionRecord = { kind: "projection"; metric: string; period: string; value: number };
 /** A value: one observation, with who submitted it as a name and its Breakdown. */
-export type ValueRecord = { kind: "value"; metric: string; period: string; value: number; recordedAt?: string; source?: SourceId | "import"; submittedBy?: string; breakdown?: { label: string; value: number }[] };
+export type ValueRecord = { kind: "value"; metric: string; period: string; value: number; recordedAt?: string; source?: SourceId | "import"; submittedBy?: string; enteredBy?: string; breakdown?: { label: string; value: number }[] };
 /** The last line: how many records of each kind the file holds, so a cut-off file is noticed. */
 export type EndRecord = { kind: "end"; counts: Record<Counted, number> };
 /** One line of a Workspace Export. */
@@ -216,6 +216,7 @@ export const WORKSPACE_EXPORT_SCHEMA: Schema = {
       recordedAt: INSTANT,
       source: { enum: ["web_form", "mail", "slack", "telegram", "api", "import"], description: "Where it arrived from; an import records every value as an Import whatever this says." },
       submittedBy: { ...looseText(L.name), minLength: 1, description: "Who submitted it, as a name, never an id." },
+      enteredBy: { ...looseText(L.name), minLength: 1, description: "Who entered it for the submitter (a Filled-in Value), as a name, never an id. Left out when the submitter entered it." },
       breakdown: { type: "array", maxItems: L.breakdown, items: obj({ label: { ...looseText(L.label), minLength: 1 }, value: number("The part of the value.") }, ["label", "value"]), description: "Labelled values that split the observation." },
     }, ["metric", "period", "value"]),
     record("end", "The last line: how many records of each kind the file holds.", {
