@@ -105,7 +105,7 @@ describe("the strength words", () => {
 const EUR = (value: number) => ({ value, unit: { unit: "€", unit_position: "after" as const, decimals: 0 } });
 
 describe("the wording", () => {
-  const SAMPLE: Slots = { a: "Visits", b: "Revenue", n: 18, span: "month", strength: "strong", names: "Visits and Price", target: "Revenue", name: "Visits", other: "Cost", have: 9, need: 16, missing: 3, total: 24, run: 3, count: 2, without: 0.5, held: "Price and Cost", lag: 2, longest: 6, low: { value: 410, unit: UNIT }, high: { value: 520, unit: UNIT }, top: 3, rows: 8, share: "71.0 %", change: { value: 42, unit: UNIT }, parts: "A −3 €, B +1 €", from: "2025-03-01", latest: "weak", drivers: 8, allowed: 4, basis: "compared by value", period: "month", skew: 2.5, value: EUR(1200), lo: EUR(1100), hi: EUR(1300), min: EUR(1250), max: EUR(1350), chance: "about 7 in 10", k: 7, tested: 12, inside: 10, pattern: "yearly", ahead: 15, most: 12, method: "a plain trend (Holt)" };
+  const SAMPLE: Slots = { a: "Visits", b: "Revenue", n: 18, span: "month", strength: "strong", names: "Visits and Price", target: "Revenue", name: "Visits", other: "Cost", have: 9, need: 16, missing: 3, total: 24, run: 3, count: 2, without: 0.5, held: "Price and Cost", lag: 2, longest: 6, low: { value: 410, unit: UNIT }, high: { value: 520, unit: UNIT }, top: 3, rows: 8, share: "71.0 %", change: { value: 42, unit: UNIT }, parts: "A −3 €, B +1 €", from: "2025-03-01", latest: "weak", drivers: 8, allowed: 4, basis: "compared by value", period: "month", skew: 2.5, value: EUR(1200), lo: EUR(1100), hi: EUR(1300), min: EUR(1250), max: EUR(1350), chance: "about 7 in 10", k: 7, tested: 12, inside: 10, pattern: "yearly", ahead: 15, most: 12, method: "a plain trend" };
   const FIT: Slots = { ...SAMPLE, driver: "Visits", step: "1,000", direction: "gone up", effect: "2,400 €", lo: "1,800 €", hi: "3,000 €", held: ", with Price held the same", others: "Price and Cost", share: "about half", given: "Visits at 60,000", value: "54,000", goal: "120,000 €", compared: "12 % above today", outside: "This is higher than Visits has ever been (highest 51,000)", limit: "51,000", pct: "12 %", what: "The fit", strength: "strong", name: "Visits", names: "Visits, Price" };
   /** Each case with its slots and the sentence it must come to: a table of cases, per language that exists. */
   const TABLE: Record<Exclude<CaseKey, keyof typeof HEADS_UP_EN>, [Slots, string]> = {
@@ -154,8 +154,8 @@ describe("the wording", () => {
     "refuse-what-if-driver": [SAMPLE, "it rests on Visits, for which nothing can be said."],
     "whatif-beyond-above": [{ name: "Visits", limit: "51,000" }, "A change this size could take Visits higher than it has ever been (highest 51,000)"],
     "whatif-beyond-below": [{ name: "Visits", limit: "100" }, "A change this size could take Visits lower than it has ever been (lowest 100)"],
-    "whatif-beyond-rise": [{ name: "Visits", limit: "300", span: "month" }, "A change this size could be a bigger rise in one month than Visits has ever had (largest 300)"],
-    "whatif-beyond-fall": [{ name: "Visits", limit: "300", span: "month" }, "A change this size could be a bigger fall in one month than Visits has ever had (largest 300)"],
+    "whatif-beyond-rise": [{ name: "Visits", limit: "300", span: "month" }, "A change this size could be a bigger rise in one month than Visits has ever had (its largest was 300)"],
+    "whatif-beyond-fall": [{ name: "Visits", limit: "300", span: "month" }, "A change this size could be a bigger fall in one month than Visits has ever had (its largest was 300)"],
     "whatif-row-norange": [{ name: "Revenue", moves: "go up", effect: "2,400 €", through: "" }, "Revenue is estimated to go up by about 2,400 €: how far that could be off cannot be said here, so treat it as a guess."],
     "note-what-if-first": [{ n: 5, start: "Visits", names: "Signups" }, "Only the 5 Metrics that moved most closely with Visits are followed; left out: Signups."],
     "note-what-if-unlooked": [{ n: 9, most: 20, start: "Visits" }, "9 other Metrics were not looked at: only the 20 whose changes follow Visits most closely were."],
@@ -165,7 +165,7 @@ describe("the wording", () => {
     "refuse-what-if-latest": [SAMPLE, "Visits has no value to change from."],
     "refuse-what-if-small": [{}, "the numbers are too small to be written out in its unit: give a bigger change."],
     "whatif-headline-percent": [{ start: "Visits", goes: "goes up", pct: "5", by: "2,027", when: "" }, "If Visits goes up by 5 % (2,027):"],
-    "whatif-assumes-chosen": [{}, "The links were picked for standing out from chance, which tends to make effects look larger than they are: read a range as a first look, not as a measurement."],
+    "whatif-assumes-chosen": [{}, "The links shown were picked for standing out, which tends to make effects look larger than they are: read the numbers as a first look, not as a measurement."],
     "whatif-assumes-next": [{ span: "month" }, "Where a link is compared by change, the change counts from the latest level, in the next month."],
     "note-what-if-deep": [SAMPLE, "Left out, as they are more than 12 steps from the Metric that changes, so a change cannot be followed through them: Visits and Price."],
     "refuse-what-if-periods": [{}, "The links are not all counted by the same period, so a change cannot be followed through them."],
@@ -196,7 +196,7 @@ describe("the wording", () => {
     "moves-unclear": [FIT, "Visits: it cannot be told whether Revenue goes up or down with it."],
     "word-up": [{}, "gone up"], "word-down": [{}, "gone down"],
     "share-nearly-all": [{}, "nearly all"], "share-most": [{}, "most"], "share-half": [{}, "about half"], "share-third": [{}, "about a third"], "share-quarter": [{}, "about a quarter"], "share-some": [{}, "some"], "share-little": [{}, "little"],
-    "note-merged": [{ ...SAMPLE, kept: "Visits" }, "Visits and Price move so closely that Ziffr cannot tell which matters; treated as one, and the effect is in the unit of Visits."],
+    "note-merged": [{ ...SAMPLE, kept: "Visits" }, "Visits and Price move so closely together that Ziffr cannot tell which of them matters, so they are counted as one and the effect is shown for each unit of Visits."],
     "predict-range": [FIT, "With Visits at 60,000, Revenue is likely between 1,800 € and 3,000 €."],
     "predict-guess": [FIT, "With Visits at 60,000, Revenue comes to about 54,000. This is higher than Visits has ever been (highest 51,000), so treat it as a guess."],
     "needs-range": [FIT, "To reach 120,000 €, Visits would need to be around 54,000 (likely between 1,800 € and 3,000 €), 12 % above today."],
@@ -207,8 +207,8 @@ describe("the wording", () => {
     "needs-none": [FIT, "Over 18 months, none of the other Metrics clearly moved with Revenue, so no value of them can be read as reaching 120,000 €."],
     "outside-above": [FIT, "This is higher than Visits has ever been (highest 51,000)"],
     "outside-below": [FIT, "This is lower than Visits has ever been (lowest 51,000)"],
-    "outside-rise": [FIT, "This is a bigger rise in one month than Visits has ever had (largest 51,000)"],
-    "outside-fall": [FIT, "This is a bigger fall in one month than Visits has ever had (largest 51,000)"],
+    "outside-rise": [FIT, "This is a bigger rise in one month than Visits has ever had (its largest was 51,000)"],
+    "outside-fall": [FIT, "This is a bigger fall in one month than Visits has ever had (its largest was 51,000)"],
     "refuse-drivers-collinear": [FIT, "Visits, Price: one is exactly the others added up, so there is no telling which of them matters."],
     "refuse-no-drivers": [SAMPLE, "Revenue needs at least one other Metric to be compared with."],
     "refuse-too-large": [{}, "The values are too large to work with."],
@@ -324,10 +324,10 @@ describe("the wording", () => {
     "cp-up": [{ size: "120", span: "month" }, "up 120 a month"], "cp-down": [{ size: "40", span: "week" }, "down 40 a week"], "cp-flat": [{}, "neither up nor down"],
     "cp-step-up": [{ size: "300" }, "its level was 300 higher than the earlier trend would have given"], "cp-step-down": [{ size: "300" }, "its level was 300 lower than the earlier trend would have given"], "cp-step-none": [{}, "its level was just where the earlier trend would have put it"],
     "cp-none": [{ n: 24, name: "Signups", span: "month" }, "Over 24 months, nothing in Signups stands out as a change in its level or in where it was heading."],
-    "cp-basis": [{ n: 24, tries: 17, span: "month" }, "from a straight line before the date and another after it, over 24 months, with the bar for chance raised for the dates tried (17)"],
+    "cp-basis": [{ n: 24, tries: 17, span: "month" }, "from a straight line before the date and another after it, over 24 months, and with 17 dates tried, a change must stand out more to count"],
     "cp-assumes": [{}, "This looks for one change only; the date is the one that fits best, nearby dates may fit almost as well, and the ups and downs of each period are taken as not carrying over from the one before."],
     "footer-change-point": [{}, "This shows when the numbers changed, not what made them change."],
-    "caution-carry-over": [{ name: "Signups", span: "month" }, "The ups and downs of Signups carry over from one month to the next, which a change does too, but so does a slow wave; read this with care, since the range or the chance may be too sure."],
+    "caution-carry-over": [{ name: "Signups", span: "month" }, "The ups and downs of Signups run in long swings from one month to the next, and a long swing can look like a change; read this with care, it may look more certain than it is."],
     "ba-note-first": [{ n: 120, since: "1 Mar 2026", span: "month" }, "Only the first 120 months with a value since 1 Mar 2026 are used."],
     "cp-note-latest": [{ n: 120, span: "month" }, "Only the latest 120 months with a value are looked at."],
     "cp-without-found": [{ from: "2026-03-01", span: "month" }, "a change around March 2026"], "cp-without-none": [{}, "no change at all"],
@@ -343,10 +343,10 @@ describe("the wording", () => {
     "fc-reach-max": [SAMPLE, "At this pace Visits stays at 1,350 € or less in March 2025: about 7 in 10."],
     "fc-reach-between": [SAMPLE, "At this pace Visits lands between 1,250 € and 1,350 € in March 2025: about 7 in 10."],
     "chance-about": [SAMPLE, "about 7 in 10"], "chance-under": [{}, "under 1 in 20"], "chance-over": [{}, "at least 19 in 20"],
-    "fc-method-holt": [{}, "a plain trend (Holt)"],
-    "fc-method-holt-winters": [{}, "the trend and the yearly pattern (Holt-Winters)"],
-    "fc-method-holt-winters-weekly": [{}, "the trend and the weekly pattern (Holt-Winters)"],
-    "fc-basis": [SAMPLE, "worked out with a plain trend (Holt), over 18 months"],
+    "fc-method-holt": [{}, "a plain trend"],
+    "fc-method-holt-winters": [{}, "the trend and the yearly pattern"],
+    "fc-method-holt-winters-weekly": [{}, "the trend and the weekly pattern"],
+    "fc-basis": [SAMPLE, "worked out with a plain trend, over 18 months"],
     "fc-track": [SAMPLE, "Over the last 12 months, the range for the next month would have held 10 of 12 times."],
     "fc-track-none": [SAMPLE, "Too few months yet to check how this forecast did on the past."],
     "fc-assumes": [{}, "This assumes the pattern of the past carries on."],
