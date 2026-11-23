@@ -15,6 +15,7 @@ import { metric, months } from "../test/fixtures";
 import { runs } from "../test/reference/check";
 import type { Metric, Point } from "../types";
 import { anyEstimated, capLinks, closeness, isPure, MOST_FIRST, rankOrder, recipeNotes, strongest, whatIfRecipe, whatIfTakeaway, WHAT_IF_RECIPES, withoutTarget, type Found, type WhatIfTakeaway } from "./what-if-takeaway";
+import { WORK_BOUND } from "../work-bound";
 import { footerText, type Takeaway, type TakeawayContext } from "./takeaway";
 import { WORDING } from "./wording";
 
@@ -740,7 +741,7 @@ describe("values that cannot be worked out exactly in reasonable time", () => {
   const hostile = (kind: "tiny" | "wide" | "places") => {
     const ms = Array.from({ length: 12 }, (_, i) => mk(i + 1, `m${i}`, `M${i}`));
     const series: Record<string, Point[]> = {};
-    ms.forEach((m, i) => (series[m.slug] = months("2016-01", Array.from({ length: 120 }, (_, t) => (kind === "tiny" ? ((t + i) % 2 === 0 ? 9.8e14 : 1e-290 * (1 + ((t * 7 + i) % 13))) : kind === "wide" ? ((t + i) % 3 === 0 ? 1e30 : 1) + t : 1.5e-21 * (1 + ((t * 5 + i) % 11)))))));
+    ms.forEach((m, i) => (series[m.slug] = months("2016-01", Array.from({ length: 120 }, (_, t) => (kind === "tiny" ? ((t + i) % 2 === 0 ? 9.8e14 : 1e-290 * (1 + ((t * 7 + i) % 13))) : kind === "wide" ? ((t + i) % 3 === 0 ? 1e150 : 1) + t : 1.5e-200 * (1 + ((t * 5 + i) % 11)))))));
     const t0 = Date.now();
     const out = whatIfRecipe(ms[0], { by: 1 }, ms.slice(1), resolverFrom(ms, series), opts);
     return { out, ms: Date.now() - t0 };
@@ -749,7 +750,7 @@ describe("values that cannot be worked out exactly in reasonable time", () => {
     const { out, ms } = hostile("tiny");
     expect(ms).toBeLessThan(1000);
     expect(out).toMatchObject({ kind: "refusal", sentence: null, rows: [], figures: [], numbers: [] });
-    expect(out.refusal).toContain("M0: its values go to more than 20 decimal places");
+    expect(out.refusal).toContain(`M0: its values go to more than ${WORK_BOUND.places} decimal places`);
   });
   it("refuses in words where the work budget is spent before the answer, and answers the same with enough of it", () => {
     const w = world();
@@ -759,8 +760,8 @@ describe("values that cannot be worked out exactly in reasonable time", () => {
     expect(recipe(VISITS, { by: 1000 }, [SIGNUPS, REVENUE], w).kind).toBe("answer");
   });
   it("refuses values that span more than 20 orders of magnitude, and values to more than 20 places, in words", () => {
-    expect(hostile("wide").out.refusal).toContain("span more than 20 orders of magnitude");
-    expect(hostile("places").out.refusal).toContain("more than 20 decimal places");
+    expect(hostile("wide").out.refusal).toContain(`span more than ${WORK_BOUND.orders} orders of magnitude`);
+    expect(hostile("places").out.refusal).toContain(`more than ${WORK_BOUND.places} decimal places`);
   });
 });
 

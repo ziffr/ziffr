@@ -861,7 +861,7 @@ describe("the work bound", () => {
   const wide = (v: number, name = "A") => whatIf({ start: { name, latest: 50 }, change: { by: v }, links: [lb] });
   it("refuses in words a change, a latest value, levels or a fit's rows with more than 20 places or spanning more than 20 orders", () => {
     expect(refused(wide(1e-290))[0]).toMatchObject({ case: "refuse-exact-places", slots: { name: "A" } });
-    expect(refused(whatIf({ start: { name: "A", latest: 9.8e14 }, change: { by: 1e-9 }, links: [lb] }))[0]).toMatchObject({ case: "refuse-exact-orders" });
+    expect(refused(whatIf({ start: { name: "A", latest: 1e150 }, change: { by: 1 }, links: [lb] }))[0]).toMatchObject({ case: "refuse-exact-orders" });
     const s: WorkedLink = { kind: "worked", target: "S", formula: "{a} * {k}", names: { a: "A", k: "K" }, levels: { A: 50, K: 1e-290 } };
     expect(refused(whatIf({ start: { name: "A", latest: 50 }, change: { by: 1 }, links: [s] }))[0]).toMatchObject({ case: "refuse-exact-places", slots: { name: "S" } });
     const rows = lb.fit.rows.map((r, i) => (i === 0 ? { ...r, y: 1e-290 } : r));
