@@ -547,7 +547,8 @@ describe("every gate of every test, one at a time (the others holding)", () => {
     only(dir(series(turn(1, 10, 28))), "recent");
     only(dir(series(turn(1, -3))), "turned");
     only(dir(series(turn().map((v, k) => (k >= 30 ? v + 100 : v)))), "apart");
-    only(dir(series(turn().map((v) => v / 1e33))), "written");
+    // Values this small need more than 20 decimal places, which are refused before any test is tried (work-bound.ts), so the gate cannot be failed alone by them.
+    expect(testsOf({ metric: signups, points: series(turn().map((v) => v / 1e33)) }, ctx)).toEqual([]);
   });
   it("a Target: every gate for a falling Metric and its chance by hand from the line and the changes; each condition alone failing leaves a chance of 1", () => {
     const tgt = (values: number[], over = {}, ctxOver: SingleContext = ctx, period = "month") => test("target-out-of-reach", { metric: revenue(over), points: values.map((value, k) => ({ period: period === "day" ? new Date(Date.UTC(2026, 0, 1 + k)).toISOString().slice(0, 10) : month(k), value })) }, ctxOver);
@@ -569,7 +570,7 @@ describe("every gate of every test, one at a time (the others holding)", () => {
     expect(failing(tgt(falling, { target_min: 300 }))).toEqual([]);
     expect(tgt(falling, { target_min: 300 }).p).toBe(1);
     only(tgt(falling, { target_min: 300 }, at(39)), "ahead");
-    only(tgt(falling.map((v) => v / 1e33), { target_min: 1e-30 }), "written");
+    expect(testsOf({ metric: revenue({ target_min: 1e-30 }), points: series(falling.map((v) => v / 1e33)) }, ctx)).toEqual([]);
     only(tgt(falling.map((v, k) => v + 5 * Math.sin(k / 4))), "mild");
     // A Period with more periods ahead than the day it counts as current for: the Target is not over and the data is no longer current.
     const daily = Array.from({ length: 40 }, (_, k) => 1000 - 15 * k + noise(k));
@@ -589,7 +590,7 @@ describe("every gate of every test, one at a time (the others holding)", () => {
     expect(failing(mild)).toEqual([]);
     expect(mild.chance).toBeGreaterThan(0.01);
     expect(mild.p).toBe(1);
-    only(sea(spike.map((v) => v / 1e33)), "written");
+    expect(testsOf({ metric: visits, points: series(spike.map((v) => v / 1e33)) }, { ...ctx, today: month(107) })).toEqual([]);
     // The latest value in the middle of the usual range: not outside it (and so on neither side).
     const within = seasonal(106, 0);
     const median = usualRange(series(within).slice(0, -1), "month", { season: 12, at: month(105), least: 2 })!.median;

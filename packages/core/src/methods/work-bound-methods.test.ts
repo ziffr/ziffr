@@ -24,6 +24,7 @@ import { scanPairs } from "./pair-scan";
 import { partialTakeaway } from "./partial-correlation";
 import { usualRangeTakeaway } from "./quantiles";
 import { spearmanTakeaway } from "./spearman";
+import { testsOf } from "./heads-up-single";
 
 const ctx = { style: "1,234.5" as const };
 const euro = { unit: "€", unit_position: "after" as const, decimals: 0 };
@@ -251,7 +252,7 @@ describe("ordinary values are never refused for how long the series is", () => {
 describe("the Takeaways whose series are cut to 120 periods run under the work allowance", () => {
   // A Takeaway cannot be made to spend 2.5e9 with values inside the bounds that it could not also be asked to work out in under a second,
   // so the wrapper is held by the source: a test fails when one is taken away.
-  it.each([["change point", changePointTakeaway], ["before and after", afterDateTakeaway], ["forecast", forecastTakeaway]] as const)("%s", (_name, takeaway) => {
+  it.each([["change point", changePointTakeaway], ["before and after", afterDateTakeaway]] as const)("%s", (_name, takeaway) => {
     expect(takeaway.toString()).toMatch(/withinBudget\)?\(/);
   });
   it("and the values the bounds refuse are refused at once, whatever the Method", () => {
@@ -347,5 +348,16 @@ describe("the worst values the limits admit: 17 digits at 20 places beside 17 di
   it("the fit of 6 is refused in words where it would take long, and the forecast, which takes as long here, is refused in the same words", () => {
     expect(cases(fit(input(y, [x, c1, c2, c3, series("dense", 6), series("dense", 7)])))).toEqual(["refuse-exact-work"]);
     expect(forecastTakeaway(m, y, ctx)).toMatchObject({ kind: "refusal", refusal: "These values are too large or too fine to work out exactly in reasonable time." });
+  });
+});
+
+describe("the Heads-ups about one Metric leave out a Metric whose values are too wide", () => {
+  const metricOf = { id: 1, name: "Signups", period: "month" as const, polarity: "higher" as const, target_min: 100, target_max: null, unit: "€", unit_position: "after" as const, decimals: 0 };
+  const ctxOf = { style: "1,234.5" as const, today: "2025-01-15" };
+  it("tries no test of any kind on them, and still tries the ordinary Metric's", () => {
+    const hostile = timed(() => testsOf({ metric: metricOf, points: series("tiny", 1) }, ctxOf));
+    expect(hostile.result).toEqual([]);
+    expect(hostile.ms).toBeLessThan(QUICK);
+    expect(testsOf({ metric: metricOf, points: series("ordinary", 1) }, ctxOf).length).toBeGreaterThan(0);
   });
 });

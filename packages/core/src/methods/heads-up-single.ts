@@ -30,6 +30,7 @@ import { fractionOf, nearest, type Fraction } from "../exact";
 import { formatNumber, type ValueUnit } from "../format";
 import { periodStart, periodsBetween, shiftPeriod, type Span, type YearStart } from "../periods";
 import { readSeries } from "../basis";
+import { wideReason } from "../work-bound";
 import { checkSuitability, SEASON_LENGTH, SUITABILITY, verdictOutcome } from "../suitability";
 import { decimalsApart, decimalsFor, plainValue, signedText, sizeText, valueText } from "../takeaways/sizes";
 import { HORIZON } from "../forecast";
@@ -475,6 +476,8 @@ function seasonTest(look: SingleLook, ctx: SingleContext): Test | null {
 
 /** The tests of one Metric, each with its conditions and chances (what `singleHeadsUpsFrom` weighs): a change of direction, a Target, a season, those that have enough values to be tried. */
 export function testsOf(look: SingleLook, ctx: SingleContext): Test[] {
+  // A Metric whose values are too wide to work out exactly in reasonable time (work-bound.ts) is no test of any kind: every test below works exact lines on them.
+  if (wideReason(readSeries(look.points).slice(-HEADS_UP.window).map((p) => p.value))) return [];
   return [directionTest(look, ctx), targetTest(look, ctx), seasonTest(look, ctx)].filter((t): t is Test => t !== null);
 }
 
