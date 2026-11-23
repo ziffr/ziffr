@@ -149,7 +149,7 @@ describe("who approves and who is told", () => {
     for (const steps of [[{ ...read, text: "Something else." }], [{ ...read, people: [ann, sara] }], [{ ...read, id: undefined }], [{ type: "remind" as const, days_before: 1 }]]) {
       await expect(updateWorkflowWithKey(plain, made.id, { steps: [...steps, publish] as never })).rejects.toThrow(refused);
     }
-    await expect(deleteWorkflowWithKey(plain, made.id)).rejects.toThrow(/cannot delete a Workflow that has an Approve, Tell or checklist step/);
+    await expect(deleteWorkflowWithKey(plain, made.id)).rejects.toThrow(/cannot delete a Workflow that has an Approve, Tell, checklist or Send Snapshot step/);
     // A person who is no member, or words that are too long, are refused in words.
     await expect(updateWorkflowWithKey(programs, made.id, { steps: [{ ...read, people: ["nobody"] }, publish] })).rejects.toThrow(/must be members/);
     await expect(updateWorkflowWithKey(programs, made.id, { steps: [{ ...read, text: "x".repeat(501) }, publish] })).rejects.toThrow(/at most 500/);

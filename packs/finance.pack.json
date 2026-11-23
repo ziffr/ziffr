@@ -1,0 +1,397 @@
+{
+  "format": "ziffr.pack/1",
+  "id": "ziffr/finance",
+  "name": "Finance",
+  "version": "1.0.0",
+  "summary": "Revenue, cost of goods sold, operating costs, cash and invoices, with gross margin and net result worked out, a monthly dashboard and a close Workflow that locks the month.",
+  "author": {
+    "name": "Ziffr"
+  },
+  "license": "CC-BY-4.0",
+  "ziffr": ">=0.11",
+  "listing": {
+    "homepage": "https://github.com/ziffr/ziffr/tree/main/packs"
+  },
+  "contents": {
+    "metrics": [
+      {
+        "key": "revenue",
+        "metric": {
+          "format": "ziffr.metric/1",
+          "name": "Revenue",
+          "description": "Revenue recognised in the month, excluding VAT.",
+          "category": "Finance",
+          "period": "month",
+          "aggregation": "sum",
+          "polarity": "higher",
+          "unit": "€",
+          "unitPosition": "after",
+          "valueFormat": "currency",
+          "decimals": 0,
+          "submissionRule": "overwrite",
+          "sources": [
+            "web_form",
+            "mail",
+            "slack",
+            "telegram",
+            "api"
+          ],
+          "tags": [
+            "Finance",
+            "Revenue",
+            "Monthly report",
+            "Board"
+          ]
+        }
+      },
+      {
+        "key": "cogs",
+        "metric": {
+          "format": "ziffr.metric/1",
+          "name": "Cost of goods sold",
+          "description": "What it cost to deliver what was sold in the month: materials, delivery and direct labour.",
+          "category": "Finance",
+          "period": "month",
+          "aggregation": "sum",
+          "polarity": "lower",
+          "unit": "€",
+          "unitPosition": "after",
+          "valueFormat": "currency",
+          "decimals": 0,
+          "submissionRule": "overwrite",
+          "sources": [
+            "web_form",
+            "mail",
+            "slack",
+            "telegram",
+            "api"
+          ],
+          "tags": [
+            "Finance"
+          ]
+        }
+      },
+      {
+        "key": "operating-costs",
+        "metric": {
+          "format": "ziffr.metric/1",
+          "name": "Operating costs",
+          "description": "Running costs of the business in the month, apart from the cost of goods sold: staff, rent, software, marketing.",
+          "category": "Finance",
+          "period": "month",
+          "aggregation": "sum",
+          "polarity": "lower",
+          "unit": "€",
+          "unitPosition": "after",
+          "valueFormat": "currency",
+          "decimals": 0,
+          "submissionRule": "overwrite",
+          "sources": [
+            "web_form",
+            "mail",
+            "slack",
+            "telegram",
+            "api"
+          ],
+          "tags": [
+            "Finance",
+            "Monthly report"
+          ]
+        }
+      },
+      {
+        "key": "cash",
+        "metric": {
+          "format": "ziffr.metric/1",
+          "name": "Cash balance",
+          "description": "Money in the bank at month end.",
+          "category": "Finance",
+          "period": "month",
+          "aggregation": "last",
+          "polarity": "higher",
+          "unit": "€",
+          "unitPosition": "after",
+          "valueFormat": "currency",
+          "decimals": 0,
+          "submissionRule": "overwrite",
+          "sources": [
+            "web_form",
+            "mail",
+            "slack",
+            "telegram",
+            "api"
+          ],
+          "tags": [
+            "Finance",
+            "Board"
+          ]
+        }
+      },
+      {
+        "key": "open-invoices",
+        "metric": {
+          "format": "ziffr.metric/1",
+          "name": "Open invoices",
+          "description": "The value of invoices sent and not yet paid, at month end.",
+          "category": "Finance",
+          "period": "month",
+          "aggregation": "last",
+          "polarity": "lower",
+          "unit": "€",
+          "unitPosition": "after",
+          "valueFormat": "currency",
+          "decimals": 0,
+          "submissionRule": "overwrite",
+          "sources": [
+            "web_form",
+            "mail",
+            "slack",
+            "telegram",
+            "api"
+          ],
+          "tags": [
+            "Finance"
+          ]
+        }
+      },
+      {
+        "key": "overdue-invoices",
+        "metric": {
+          "format": "ziffr.metric/1",
+          "name": "Overdue invoices",
+          "description": "The value of invoices past their due date and not paid, at month end.",
+          "category": "Finance",
+          "period": "month",
+          "aggregation": "last",
+          "polarity": "lower",
+          "unit": "€",
+          "unitPosition": "after",
+          "valueFormat": "currency",
+          "decimals": 0,
+          "submissionRule": "overwrite",
+          "sources": [
+            "web_form",
+            "mail",
+            "slack",
+            "telegram",
+            "api"
+          ],
+          "tags": [
+            "Finance",
+            "Board"
+          ]
+        }
+      },
+      {
+        "key": "gross-margin",
+        "metric": {
+          "format": "ziffr.metric/1",
+          "name": "Gross margin",
+          "description": "Revenue less the cost of goods sold, as a share of revenue.",
+          "category": "Finance",
+          "period": "month",
+          "aggregation": "none",
+          "polarity": "higher",
+          "unit": "%",
+          "unitPosition": "after",
+          "valueFormat": "percent",
+          "decimals": 0,
+          "formula": "({revenue} - {cogs}) / {revenue} * 100",
+          "tags": [
+            "Finance",
+            "Monthly report"
+          ]
+        }
+      },
+      {
+        "key": "net-result",
+        "metric": {
+          "format": "ziffr.metric/1",
+          "name": "Net result",
+          "description": "Revenue less the cost of goods sold and the operating costs, in the month.",
+          "category": "Finance",
+          "period": "month",
+          "aggregation": "none",
+          "polarity": "higher",
+          "unit": "€",
+          "unitPosition": "after",
+          "valueFormat": "currency",
+          "decimals": 0,
+          "formula": "{revenue} - {cogs} - {operating-costs}",
+          "tags": [
+            "Finance",
+            "Board"
+          ]
+        }
+      }
+    ],
+    "dashboards": [
+      {
+        "key": "finance-monthly",
+        "template": {
+          "format": "ziffr.dashboard-template/1",
+          "name": "Finance monthly",
+          "description": "Revenue, margin and the result it leaves, the cash in the bank, and the money still to be collected.",
+          "slots": [
+            {
+              "label": "Revenue",
+              "suggests": "revenue"
+            },
+            {
+              "label": "Gross margin",
+              "suggests": "gross-margin"
+            },
+            {
+              "label": "Net result",
+              "suggests": "net-result"
+            },
+            {
+              "label": "Cash balance",
+              "suggests": "cash"
+            },
+            {
+              "label": "Operating costs",
+              "suggests": "operating-costs"
+            },
+            {
+              "label": "Overdue invoices",
+              "suggests": "overdue-invoices"
+            }
+          ],
+          "widgets": [
+            {
+              "view": "number",
+              "slots": [
+                0
+              ],
+              "x": 0,
+              "y": 0,
+              "w": 3,
+              "h": 4
+            },
+            {
+              "view": "gauge",
+              "slots": [
+                1
+              ],
+              "x": 3,
+              "y": 0,
+              "w": 3,
+              "h": 4
+            },
+            {
+              "view": "number",
+              "slots": [
+                2
+              ],
+              "x": 6,
+              "y": 0,
+              "w": 3,
+              "h": 4
+            },
+            {
+              "view": "number",
+              "slots": [
+                3
+              ],
+              "x": 9,
+              "y": 0,
+              "w": 3,
+              "h": 4
+            },
+            {
+              "view": "line",
+              "slots": [
+                0
+              ],
+              "x": 0,
+              "y": 4,
+              "w": 8,
+              "h": 6,
+              "settings": {
+                "window": 12
+              }
+            },
+            {
+              "view": "number",
+              "slots": [
+                5
+              ],
+              "x": 8,
+              "y": 4,
+              "w": 4,
+              "h": 6
+            },
+            {
+              "view": "bars",
+              "slots": [
+                4
+              ],
+              "x": 0,
+              "y": 10,
+              "w": 12,
+              "h": 6,
+              "settings": {
+                "window": 12
+              }
+            }
+          ]
+        }
+      }
+    ],
+    "workflows": [
+      {
+        "key": "monthly-finance-close",
+        "template": {
+          "format": "ziffr.workflow-template/1",
+          "name": "Monthly finance close",
+          "description": "The month's figures are due on the fifth working day, checked, approved by one person, then locked.",
+          "dueWorkingDays": 5,
+          "steps": [
+            {
+              "type": "remind",
+              "daysBefore": 1
+            },
+            {
+              "type": "escalate",
+              "to": "owner",
+              "daysAfter": 1
+            },
+            {
+              "type": "check",
+              "changePct": 30,
+              "outsideTarget": true
+            },
+            {
+              "type": "approve",
+              "approvers": 1,
+              "values": "unusual"
+            },
+            {
+              "type": "publish",
+              "lock": true
+            }
+          ]
+        }
+      }
+    ]
+  },
+  "feeds": [
+    {
+      "template": "google-sheets",
+      "fills": [
+        "revenue",
+        "cogs",
+        "operating-costs"
+      ]
+    },
+    {
+      "template": "excel",
+      "fills": [
+        "cash",
+        "open-invoices",
+        "overdue-invoices"
+      ]
+    }
+  ]
+}

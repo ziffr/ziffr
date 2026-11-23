@@ -39,6 +39,8 @@ export const TEMPLATES: Record<TemplateId, TemplateDef> = {
   correlation: designed("correlation"),
   matrix: designed("matrix"),
   drivers: designed("drivers"),
+  scoreboard: designed("scoreboard"),
+  progress: designed("progress"),
   stacked: designed("stacked", true),
   ranked: { id: "ranked", label: "Finding: ranked bars", blurb: "A breakdown, largest first, one row highlighted.", kind: "story", needsBreakdown: true, slots: withBreakdown, size: { w: 6, h: 9 }, settings: {} },
   share: { id: "share", label: "Finding: part of the whole", blurb: "How a breakdown divides the total.", kind: "story", needsBreakdown: true, slots: withBreakdown, size: { w: 6, h: 7 }, settings: {} },

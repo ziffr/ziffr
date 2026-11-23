@@ -89,7 +89,9 @@ function usePlot(draw: (width: number, height: number, el: HTMLElement) => Eleme
     const el = box.current;
     if (!el) return;
     const render = () => {
-      const { width, height } = el.getBoundingClientRect();
+      // The layout size, not the box on screen: a Preview scales its whole widget down with a transform, which would make a
+      // chart in a small Preview look too small to draw.
+      const { clientWidth: width, clientHeight: height } = el;
       if (width < 60 || height < 60) return;
       const chart = draw(width, height, el);
       if (chart) el.replaceChildren(chart);

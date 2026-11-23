@@ -138,6 +138,10 @@ const CASES: [string, TemplateId, number[], WidgetSettings, CanvasData][] = [
   ["stacked-negative", "stacked", [REVENUE], { window: 12 }, withBreakdowns(base(), REVENUE, { "2026-06-01": [{ label: "Online", value: 5 }, { label: "Refunds", value: -2 }] })],
   ["stacked-none", "stacked", [REVENUE], { window: 12 }, withBreakdowns(base(), REVENUE, {})],
   ["drivers-comma", "drivers", [COST, REVENUE, CHURN], {}, base("1.234,5")],
+  ["scoreboard", "scoreboard", [REVENUE, CHURN, CUSTOMERS, ORDERS], { window: 12 }, base()],
+  ["scoreboard-comma", "scoreboard", [COST, REVENUE, CHURN], { window: 12 }, base("1.234,5")],
+  ["scoreboard-few", "scoreboard", [REVENUE, CHURN], { window: 12 }, base()],
+  ["scoreboard-empty-row", "scoreboard", [REVENUE, CHURN, ORDERS], { window: 12 }, withSeries(base(), ORDERS, [])],
 ];
 
 describe("the built-in Views draw as before", () => {

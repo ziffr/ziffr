@@ -10,7 +10,7 @@ const cleanups: (() => Promise<void>)[] = [];
 afterEach(async () => { for (const c of cleanups.splice(0)) await c(); });
 
 const STATUS: PeriodStatus = {
-  workflow: { id: 3, name: "Weekly numbers" }, period: { start: "2026-11-16", name: "Week 47, 2026" }, in: 5, of: 6, published: 0, locked: 0, checklist: { done: 1, of: 2 },
+  workflow: { id: 3, name: "Weekly numbers" }, period: { start: "2026-11-16", name: "Week 47, 2026" }, in: 5, of: 6, published: 0, locked: 0, checklist: { done: 1, of: 2 }, finished: false,
   events: [
     { at: "2026-11-16T08:00:00.000Z", day: "2026-11-16", time: "08:00", kind: "asked", text: "Asked 6 people by Email", count: 6, in: null, items: ["Mia: Revenue", "1 value"], url: null },
     { at: "2026-11-16T14:10:00.000Z", day: "2026-11-16", time: "14:10", kind: "in", text: "5 values came in (5 of 6 in)", count: 5, in: 5, items: [], url: "https://ziffr.test/actions/9" },
