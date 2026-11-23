@@ -27,7 +27,8 @@ insert into demo_state (generation) select 0 where not exists (select 1 from dem
 create or replace function demo_state_on_reset() returns trigger
 language plpgsql security definer set search_path = public as $$
 begin
-  update demo_state set generation = generation + 1, changed_since_reset = false, last_change_at = null, reset_at = now();
+  update demo_state set generation = generation + 1, changed_since_reset = false, last_change_at = null, reset_at = now()
+    where id;  -- a WHERE clause is required of every UPDATE here
   return null;
 end $$;
 revoke execute on function demo_state_on_reset() from public, anon, authenticated;
