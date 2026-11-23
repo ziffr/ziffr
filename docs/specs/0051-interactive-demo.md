@@ -2,6 +2,8 @@
 
 **Status:** in progress: ticket 1 done (`demo_state`, the conditional reset job, `scripts/demo-reset-measure.mjs`; the measurement on a copy of demo.ziffr.net is the owner's to run). Draft of 2026-11-23. No tickets yet: the owner decides **Decisions (proposed)** first. The survey behind it, every change a person can make and what to do with it in the demo, is [0051-interactive-demo-inventory.md](0051-interactive-demo-inventory.md).
 
+**Progress:** ticket 2 (the visit's id) done: the cookie holds 128 random bits, `visitKey` (SHA-256 of the id, 32 hex characters) is the only form that is stored, `demo_visit_counts` and its `demo_visit_bump` exist and `resetDemoWorkspace` empties them. Nothing reads them yet (ticket 5).
+
 ## Problem Statement
 
 The demo feels stale, in the owner's words, "because you can't do anything: I cannot create a dashboard, change one, or enter values". Since spec 0029 (#271) the demo is read-only: the database refuses every write to it (the demo guard, migration `20261225110000_demo_read_only.sql`), and every button that would save something says "The demo can't be changed." A visitor sees what Ziffr shows, but not what it is like to use it: placing a widget, typing this month's value and watching the dashboard move, answering a Prompt as Ben and approving it as Sara. The guided tour ends with two steps the demo refuses.
@@ -142,7 +144,7 @@ Tickets 1 to 7 change nothing a visitor can do: the setting stays off, the demo 
 2. **The visit's id:** 128 random bits in the demo cookie, its hash, `demo_visit_counts` emptied at each reset. Blocked by nothing.
 3. **The setting and the allow-list, empty:** `ZIFFR_DEMO_CHANGES` (in effect only with `ZIFFR_DEMO_ONLY=1`), `demo_open_tables` and `demo_closed_tables` with every table of today on the closed list, `demo_unclassified_tables()` and its test, the header and `visitingDemo`, the shared lock and the Generation check in the trigger, the stale refusal. The glossary's Demo Mode and Demo Reset. Blocked by 1.
 4. **The core's classification:** `demo-changes.ts`, `demoAllows`, the walk's new classes and the id-free fingerprint, with every operation `blocked`. Blocked by 3.
-5. **The limits:** rows per kind in the triggers, the write budget, texts, the refusals' words, the load script. Blocked by 2 and 4.
+5. **The limits:** rows per kind in the triggers, the write budget, texts, the refusals' words, the load script. Blocked by 2 and 4. Notes from the security review of ticket 2: the visit id is unsigned and free to mint (a script just sends a new cookie), so the per-visit budget protects nothing against scripted abuse; only the per-address and whole-demo budgets do. The address hash must be keyed (HMAC with a server secret), not an unkeyed SHA-256, because the IPv4 space is small enough to reverse an unkeyed hash.
 6. **Seeded words and the showcase:** the words columns of each open table, `demo_showcase` filled by the seed (a migration with `ziffr.demo_seed` on, rule 5), the refusals. Blocked by 4.
 7. **The line on every page and pages across a reset:** the countdown, the Generation cookie, "starting fresh", `demo_previous_ids` and the redirect, pins and home kept per visit in the browser. Blocked by 1 and 3.
 8. **Open values:** record, the web form, paste, fill in, the simulated channels recording their answer, Ask me now to the Outbox, approvals, Self-checks, Corrections, locks, Workflow runs to the Outbox, Stand-ins and Away. The tour's last steps work. Blocked by 5, 6 and 7.
