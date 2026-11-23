@@ -24,6 +24,7 @@ A **Widget Template** is a starting point for one Widget: a way of drawing a num
 | | Correlation | Whether two Metrics move together |
 | | Correlation matrix | Every pair of several Metrics at once |
 | | Drivers | Which Metrics move most with this one |
+| | Progress against target | Each Metric's latest value against its target, one compact bar each |
 | Findings | Ranked bars | A Breakdown, largest first, one row highlighted |
 | | Part of the whole | How a Breakdown divides the total |
 | | 7 in 10 | The largest share as ten figures |

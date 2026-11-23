@@ -81,7 +81,10 @@ const HOSTILE: [string, string, string, Where][] = [
   ["an unknown field", text({ ...EXAMPLE, script: "x" }), "is not a field here", '"script"'],
   ["an unknown field in a mark", withPart({ mark: "plot", axes: "none", marks: [{ mark: "line", show: "values", onClick: "x" }] }), "is not a field here", '"onClick"'],
   ["a style field", withPart({ mark: "text", content: ["a"], css: "color: red" }), "is not a field here", '"css"'],
-  ["an unknown mark", withPart({ mark: "iframe", src: "x" }), "must be one of “text”, “group”, “plot”, “gauge”, “rows”, “polar”, “radar”", '"iframe"'],
+  ["an unknown mark", withPart({ mark: "iframe", src: "x" }), "must be one of “text”, “group”, “plot”, “gauge”, “rows”, “polar”, “radar”, “progress”", '"iframe"'],
+  ["a progress mark of something else", withPart({ mark: "progress", show: "values" }), "must be “latest”", '"values"'],
+  ["a progress mark with a style field", withPart({ mark: "progress", show: "latest", color: "red" }), "is not a field here", '"color"'],
+  ["a progress mark of 13 Metrics", withPart({ mark: "progress", show: "latest" }, { slots: [{ label: "A", metrics: "several", min: 12 }, { label: "B", metrics: "one" }] }), "A progress mark draws 12 bars at most", { after: '"parts": [' }],
   ["a part with no mark", withPart({ content: ["a"] }), "needs the field “mark”", { after: '"parts": [' }],
   ["a web address in a name", text({ ...EXAMPLE, name: "See https://evil.example" }), "plain text, without markup or web addresses", '"name"'],
   ["a bare www address", text({ ...EXAMPLE, name: "www.evil.example" }), "without markup or web addresses", '"name"'],
@@ -150,6 +153,9 @@ describe("checkViewDesign", () => {
     expect(withRecipe.ok ? [] : withRecipe.problems).toEqual([]);
     const polar = checkViewDesign(text(WITH_POLAR_AND_RADAR));
     expect(polar.ok ? [] : polar.problems).toEqual([]);
+    // A progress mark takes a Slot of several, or one Metric: it is one bar each.
+    expect(checkViewDesign(text({ ...EXAMPLE, slots: [{ label: "Metrics", metrics: "several" }], parts: [{ mark: "progress", show: "latest" }] })).ok).toBe(true);
+    expect(checkViewDesign(text({ ...EXAMPLE, parts: [{ mark: "progress", show: "latest" }] })).ok).toBe(true);
     // Three Slots of one Metric each are three spokes as well.
     expect(checkViewDesign(text({ ...WITH_POLAR_AND_RADAR, analysis: undefined, parts: [{ mark: "radar", show: "latest" }], slots: ["A", "B", "C"].map((label) => ({ label, metrics: "one" })) })).ok).toBe(true);
     const once = writeViewDesign(WITH_RECIPE);

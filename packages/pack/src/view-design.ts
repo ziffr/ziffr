@@ -48,10 +48,14 @@ export type Part =
   | { mark: "gauge"; show: "latest"; when?: Flag[] }
   | { mark: "rows"; show: "values" | "correlations" | "matrix" | "reasons"; limit?: "rows" | number; when?: Flag[] }
   | { mark: "polar"; show: "values" | RecipeShow; when?: Flag[] }
-  | { mark: "radar"; show: "latest"; against?: "previous"; when?: Flag[] };
+  | { mark: "radar"; show: "latest"; against?: "previous"; when?: Flag[] }
+  | { mark: "progress"; show: "latest"; when?: Flag[] };
 
 /** How many spokes (a radar) or periods (a polar plot) are drawn, at least and at most: fewer than 3 is a line, more than 12 cannot be read. */
 export const SPOKES = { min: 3, max: 12 } as const;
+
+/** How many Metrics a progress mark draws bars for: one bar each, so more than this would not fit where one gauge does. */
+export const PROGRESS_BARS = { max: 12 } as const;
 
 /** A place a design is filled with Metrics when it is used (GLOSSARY: Slot): one, or several for small multiples. */
 export type DesignSlot = { label: string; metrics: "one" | "several"; min?: number };
@@ -217,6 +221,7 @@ export const VIEW_DESIGN_SCHEMA: Schema = {
         mark("rows", "Table rows: the latest values; the Metrics ranked by how much they move with the first (correlations), or every pair (matrix); or why Metrics were left out of a comparison (reasons).", { show: { enum: ["values", "correlations", "matrix", "reasons"] }, limit: { oneOf: [{ type: "string", enum: ["rows"] }, { type: "integer", minimum: 1, maximum: 120 }] } }, ["show"]),
         mark("polar", `Values around a circle: the periods of a series as angles in the order given, the values as the distance from the centre, which is 0; ${SPOKES.min} to ${SPOKES.max} periods, none below 0.`, { show: shows(["values"], true, "a series") }, ["show"]),
         mark("radar", `Several Metrics as spokes on one shape, in the order of the Slots, ${SPOKES.min} to ${SPOKES.max} of them: each spoke has its own scale, from the Metric's lowest value of the periods shown at the centre to its highest at the rim. With against, the period before is drawn as a second, dashed shape.`, { show: { const: "latest" }, against: { const: "previous" } }, ["show"]),
+        mark("progress", `One compact bar per Metric of the Slots, in order, ${PROGRESS_BARS.max} at most: the latest value against the Metric's Target Range, with its name, its value and, in words, how far along it is. The bar is filled to the latest value on a scale that includes the target (a lighter band for a range, a tick for one bound); its colour says only whether the value is on target.`, { show: { const: "latest" } }, ["show"]),
       ],
     },
     plotMark: {
@@ -291,6 +296,7 @@ function meaning(d: ViewDesign, lines: Map<string, number>): Problem[] {
       if (p.mark === "rows" && p.limit === "rows" && !d.options?.rows) at(`${here}.limit`, "uses the option “rows”, which the design does not declare under options.");
       if (p.mark === "rows" && p.show !== "values") needsTwo(here, `Rows of ${p.show}`);
       if (p.mark === "radar" && (fewest < SPOKES.min || fewest > SPOKES.max)) at(here, `A radar needs ${SPOKES.min} to ${SPOKES.max} spokes: give the design ${SPOKES.min} Slots, or a Slot of several with “min”: ${SPOKES.min}, and no more than ${SPOKES.max} in all.`);
+      if (p.mark === "progress" && fewest > PROGRESS_BARS.max) at(here, `A progress mark draws ${PROGRESS_BARS.max} bars at most: give the design no more than ${PROGRESS_BARS.max} Metrics.`);
     });
   walk(d.parts, "parts");
   recipeUse(d, lines, at);
