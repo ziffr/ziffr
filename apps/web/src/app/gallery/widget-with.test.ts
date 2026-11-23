@@ -14,6 +14,9 @@ describe("widgetWith", () => {
     const two = widgetWith("correlation" as never, REAL, "month");
     expect(two.metric_ids).toEqual([101, 102]);
   });
+  it("gives a scoreboard the picked Metric and its two partners, one row each, in order", () => {
+    expect(widgetWith("scoreboard", REAL, "month").metric_ids).toEqual(REAL);
+  });
   it("leaves no sample Metric in any built-in view, in its Metrics or in the Metrics its settings name", () => {
     for (const t of OFFERED_TEMPLATES) {
       const w = widgetWith(t.id, REAL, "month");
@@ -27,5 +30,9 @@ describe("widgetWith", () => {
     const matrix = widgetWith("matrix" as never, [101], "month");
     expect(new Set(matrix.metric_ids)).toEqual(new Set([101]));
     expect(widgetWith("line" as never, [], "month").metric_ids.every((id) => id < 0)).toBe(true);
+  });
+  it("draws one bar per Metric in Progress against target, never the same Metric three times", () => {
+    expect(widgetWith("progress", [101], "month").metric_ids).toEqual([101]);
+    expect(widgetWith("progress", [101, 102, 103], "month").metric_ids).toEqual([101, 102, 103]);
   });
 });

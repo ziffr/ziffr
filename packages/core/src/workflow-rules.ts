@@ -53,7 +53,7 @@ export function unusualReasons(m: Metric, value: number, previous: number | unde
 }
 
 /** A Workflow step in words, as the editor shows it. */
-export function stepLabel(s: WorkflowStep, people: Profile[], groups: { id: number; name: string }[] = []) {
+export function stepLabel(s: WorkflowStep, people: Profile[], groups: { id: number; name: string }[] = [], dashboards: { id: number; name: string }[] = []) {
   // Someone the viewer may not be shown is "someone", never their id.
   const name = (id: string) => people.find((p) => p.id === id)?.name.split(" ")[0] ?? "someone";
   switch (s.type) {
@@ -69,7 +69,11 @@ export function stepLabel(s: WorkflowStep, people: Profile[], groups: { id: numb
       const who = [...s.people.map(name), ...s.groups.map((g) => groups.find((x) => x.id === g)?.name ?? "a Group")];
       return `${s.day} working day${s.day === 1 ? "" : "s"} after the period: tell ${who.length ? who.join(", ") : "the people chosen"} ${words}`;
     }
-    case "send_snapshot": return "When the period is finished, send its Snapshot of a dashboard";
+    case "send_snapshot": {
+      // The dashboard is named only when the viewer may open it (the page is given those); otherwise it is "a dashboard".
+      const who = [...s.people.map(name), ...s.groups.map((g) => groups.find((x) => x.id === g)?.name ?? "a Group")];
+      return `When the period is finished, send its Snapshot of ${dashboards.find((d) => d.id === s.dashboardId)?.name ?? "a dashboard"} to ${who.length ? who.join(", ") : "nobody yet"}`;
+    }
   }
 }
 

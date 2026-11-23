@@ -154,7 +154,9 @@ function sampleSettings(id: TemplateId, fills: number[][], period: Period): Widg
 /** A built-in template filled with Sample Data, as its Preview draws it. */
 export function sampleWidget(id: TemplateId, period: Period = "month"): SampleWidget {
   const t = TEMPLATES[id];
-  const fills = sampleFills(t.slots, period);
+  // A scoreboard's three rows are Revenue, Churn rate and Active customers: the middle one has a Target Range, so its Preview shows the status chip too.
+  const bySlug = (slug: string) => sampleData(period).metrics.find((m) => m.slug === `sample-${slug}`)!.id;
+  const fills = id === "scoreboard" ? [[bySlug("revenue"), bySlug("churn"), bySlug("customers")]] : sampleFills(t.slots, period);
   return { template: id, metric_ids: fills.flat(), settings: { ...t.settings, ...sampleSettings(id, fills, period) }, title: null };
 }
 

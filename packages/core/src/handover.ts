@@ -19,6 +19,43 @@ export async function ownedBy(actor: Actor, personId: string) {
   return { metric, dashboard, deck, template, theme, workflow } satisfies Record<Exclude<VersionType, "widget" | "snapshot">, number[]>;
 }
 
+type StepRow = { type?: string; assignee?: string | null; standIn?: string; people?: string[] };
+
+/** Takes a leaver out of the Workflow steps that name them (spec 0045): a Checklist Item's Assignee becomes nobody (the
+ * item pauses until the owner picks someone) and its Stand-in goes, and they leave the people an item for information or a
+ * Send Snapshot step sends to, so someone invited again later is not told by these steps until the owner names them
+ * again. Only those fields change, in the stored config, so the sealed words stay at their places (`steps.<i>.text`).
+ * Approvers are taken out by `hand_over` in the database. */
+async function dropFromWorkflowSteps(ws: string, personId: string): Promise<void> {
+  const { data: flows, error } = await db().from("workflows").select("id").eq("workspace_id", ws);
+  // The member is already removed: a failure here is logged, never undoes that. Messages still check membership when they leave.
+  if (error) { console.error("Handover: the Workflows' steps could not be read:", error.message); return; }
+  for (const { id } of flows ?? []) {
+    // Written only over the config it was made from (updated_at), so an owner's save in between is never undone; tried again on that.
+    let done = false;
+    for (let attempt = 0; attempt < 3 && !done; attempt++) {
+      const { data: f, error: readError } = await db().from("workflows").select("id, config, updated_at").eq("id", id).eq("workspace_id", ws).maybeSingle();
+      if (readError) { console.error("Handover: a Workflow's steps could not be read:", readError.message); break; }
+      if (!f) { done = true; break; }
+      const steps = (f.config as { steps?: StepRow[] } | null)?.steps ?? [];
+      let changed = false;
+      const next = steps.map((s) => {
+        if (s?.type !== "checklist" && s?.type !== "send_snapshot") return s;
+        const out: StepRow = { ...s };
+        if (out.assignee === personId) { out.assignee = null; changed = true; }
+        if (out.standIn === personId) { delete out.standIn; changed = true; }
+        if (Array.isArray(out.people) && out.people.includes(personId)) { out.people = out.people.filter((p) => p !== personId); changed = true; }
+        return out;
+      });
+      if (!changed) { done = true; break; }
+      const { data: written, error: writeError } = await db().from("workflows").update({ config: { ...(f.config as object), steps: next }, updated_at: new Date().toISOString() }).eq("id", id).eq("workspace_id", ws).eq("updated_at", f.updated_at as string).select("id");
+      if (writeError) { console.error("Handover: a Workflow's steps could not be written:", writeError.message); break; }
+      done = Boolean(written?.length);
+    }
+    if (!done) console.error(`Handover: Workflow ${id} still names a removed member in its steps.`);
+  }
+}
+
 /** Removes a member and hands everything they own to a successor, in one step. Owners and Admins may; only Owners
  * remove Owners; the successor must be another member who can own things; the last Owner stays. */
 export async function removeMember(actor: Actor, personId: string, successorId: string) {
@@ -41,6 +78,7 @@ export async function removeMember(actor: Actor, personId: string, successorId: 
   }
   // A Checklist Task handed on from them is no longer theirs to read.
   await db().from("actions").update({ previous_assignee_id: null }).eq("workspace_id", ws).eq("previous_assignee_id", personId);
+  await dropFromWorkflowSteps(ws, personId);
   // The assignee changed (spec 0034: `action.updated`): each Webhook that chose it hears it once, so the external task follows to the successor.
   for (const a of waiting ?? []) await queueWebhookEvent(ws, "action.updated", { type: "system" }, { actionId: a.id as number, metricId: a.metric_id as number | null, period: a.period_start as string });
   const from = (leaving.profiles as unknown as { name: string } | null)?.name ?? "a former member";

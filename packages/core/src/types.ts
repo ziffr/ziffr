@@ -196,7 +196,7 @@ export type Dashboard = {
 };
 
 /** The built-in Widget Templates. */
-export type TemplateId = "number" | "line" | "bars" | "gauge" | "table" | "forecast" | "correlation" | "matrix" | "drivers" | "pareto" | "ranked" | "share" | "pictogram" | "story-line" | "story" | "canvas" | "design";
+export type TemplateId = "number" | "line" | "bars" | "gauge" | "table" | "forecast" | "correlation" | "matrix" | "drivers" | "scoreboard" | "progress" | "stacked" | "pareto" | "ranked" | "share" | "pictogram" | "story-line" | "story" | "canvas" | "design";
 
 /** A callout sits at one period, or (in templates) at whatever period a rule picks. */
 export type Callout = { period: string; text: string; rule?: AnchorRule };
@@ -481,7 +481,9 @@ export type WorkflowStep =
   // `text` is sealed inside the stored config; `readGroup` keeps the item's words to one Group's people (and its owner).
   | ChecklistItem
   // Takes and sends the period's Snapshot of a dashboard once the period is finished (GLOSSARY: Send Snapshot; ticket #793).
-  | { type: "send_snapshot"; id: string; dashboardId: number; people: string[]; groups: number[] };
+  // `dashboardId` 0 is a dashboard not picked yet (a template's); `addedOn` (yyyy-mm-dd) is the day it was first saved: a
+  // period that finished before it is not sent.
+  | { type: "send_snapshot"; id: string; dashboardId: number; people: string[]; groups: number[]; addedOn?: string };
 /** A Checklist Item as stored: for information, or to tick off. */
 /** `addedOn` (yyyy-mm-dd) is the day the item was first saved: an item sends no period whose day came before it. */
 export type ChecklistItem = { type: "checklist"; id: string; text: string; readGroup?: number; addedOn?: string } & (

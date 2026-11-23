@@ -63,7 +63,7 @@ const CADENCE: Record<Period, number> = { day: 1, week: 7, month: 31, quarter: 9
 const isoDay = (ms: number) => new Date(ms).toISOString().slice(0, 10);
 const words = (iso: string) => new Date(`${iso.slice(0, 10)}T00:00:00Z`).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" });
 /** Widget templates that compare or analyse: a Metric shown by one is kept from the suggestions. */
-const ANALYSING = new Set(["forecast", "correlation", "matrix", "drivers"]);
+const ANALYSING = new Set(["forecast", "correlation", "matrix", "drivers", "scoreboard"]);
 
 /** Owners and Admins only, never with a key, never in the demo (which counts nothing). */
 function assertMay(actor: Actor): void {

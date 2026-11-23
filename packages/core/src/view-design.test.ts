@@ -81,7 +81,10 @@ const HOSTILE: [string, string, string, Where][] = [
   ["an unknown field", text({ ...EXAMPLE, script: "x" }), "is not a field here", '"script"'],
   ["an unknown field in a mark", withPart({ mark: "plot", axes: "none", marks: [{ mark: "line", show: "values", onClick: "x" }] }), "is not a field here", '"onClick"'],
   ["a style field", withPart({ mark: "text", content: ["a"], css: "color: red" }), "is not a field here", '"css"'],
-  ["an unknown mark", withPart({ mark: "iframe", src: "x" }), "must be one of “text”, “group”, “plot”, “gauge”, “rows”, “polar”, “radar”, “pareto”", '"iframe"'],
+  ["an unknown mark", withPart({ mark: "iframe", src: "x" }), "must be one of “text”, “group”, “plot”, “gauge”, “rows”, “polar”, “radar”, “progress”", '"iframe"'],
+  ["a progress mark of something else", withPart({ mark: "progress", show: "values" }), "must be “latest”", '"values"'],
+  ["a progress mark with a style field", withPart({ mark: "progress", show: "latest", color: "red" }), "is not a field here", '"color"'],
+  ["a progress mark of 13 Metrics", withPart({ mark: "progress", show: "latest" }, { slots: [{ label: "A", metrics: "several", min: 12 }, { label: "B", metrics: "one" }] }), "A progress mark draws 12 bars at most", { after: '"parts": [' }],
   ["a part with no mark", withPart({ content: ["a"] }), "needs the field “mark”", { after: '"parts": [' }],
   ["a web address in a name", text({ ...EXAMPLE, name: "See https://evil.example" }), "plain text, without markup or web addresses", '"name"'],
   ["a bare www address", text({ ...EXAMPLE, name: "www.evil.example" }), "without markup or web addresses", '"name"'],
@@ -120,12 +123,20 @@ const HOSTILE: [string, string, string, Where][] = [
   ["a polar plot with an unknown field", withPart({ mark: "polar", show: "values", rings: 9 }), "is not a field here", '"rings"'],
   ["a polar plot of a recipe output without an analysis", withPart({ mark: "polar", show: "recipe.avg" }), "but the design has no analysis", '"recipe.avg"'],
   ["a polar plot of one value", text({ ...WITH_RECIPE, parts: [{ mark: "polar", show: "recipe.sd" }] }), "“recipe.sd” gives one value; this mark needs a series", '"recipe.sd"'],
+  ["a stacked mark of something else", withPart({ mark: "stacked", show: "values" }), "must be “breakdown”", '"values"'],
+  ["a stacked mark with no show", withPart({ mark: "stacked" }), "needs the field “show”", { after: '"parts": [' }],
   ["a radar of something else", withPart({ mark: "radar", show: "values" }), "must be “latest”", '"values"'],
   ["a radar against a target", withPart({ mark: "radar", show: "latest", against: "target" }, { slots: [{ label: "M", metrics: "several", min: 3 }] }), "must be “previous”", '"target"'],
   ["a radar of one Metric", withPart({ mark: "radar", show: "latest" }), "A radar needs 3 to 12 spokes", { after: '"parts": [' }],
   ["a radar of two Slots", withPart({ mark: "radar", show: "latest" }, { slots: [{ label: "A", metrics: "one" }, { label: "B", metrics: "one" }] }), "A radar needs 3 to 12 spokes", { after: '"parts": [' }],
   ["a radar of a Slot of several that may hold two", withPart({ mark: "radar", show: "latest" }, { slots: [{ label: "A", metrics: "several", min: 2 }] }), "A radar needs 3 to 12 spokes", { after: '"parts": [' }],
   ["a radar of 13 Slots' worth", withPart({ mark: "radar", show: "latest" }, { slots: [{ label: "A", metrics: "several", min: 12 }, { label: "B", metrics: "one" }] }), "A radar needs 3 to 12 spokes", { after: '"parts": [' }],
+  // The scoreboard mark: one table of 3 to 12 Metrics.
+  ["a scoreboard of one Metric", withPart({ mark: "scoreboard", show: "latest" }), "A scoreboard needs 3 to 12 Metrics", { after: '"parts": [' }],
+  ["a scoreboard of a Slot of several that may hold two", withPart({ mark: "scoreboard", show: "latest" }, { slots: [{ label: "A", metrics: "several", min: 2 }] }), "A scoreboard needs 3 to 12 Metrics", { after: '"parts": [' }],
+  ["a scoreboard that needs 13", withPart({ mark: "scoreboard", show: "latest" }, { slots: [{ label: "A", metrics: "several", min: 12 }, { label: "B", metrics: "one" }] }), "A scoreboard needs 3 to 12 Metrics", { after: '"parts": [' }],
+  ["a scoreboard of something else", withPart({ mark: "scoreboard", show: "values" }, { slots: [{ label: "M", metrics: "several", min: 3 }] }), "must be “latest”", '"values"'],
+  ["a scoreboard with a style field", withPart({ mark: "scoreboard", show: "latest", color: "red" }, { slots: [{ label: "M", metrics: "several", min: 3 }] }), "is not a field here", '"color"'],
   ["a radar with a style field", withPart({ mark: "radar", show: "latest", color: "red" }, { slots: [{ label: "M", metrics: "several", min: 3 }] }), "is not a field here", '"color"'],
   ["a prototype key", text(EXAMPLE).replace('"format"', '"__proto__": { "admin": true },\n  "format"'), "is not a field here", "__proto__"],
   ["a constructor key in a mark", withPart({ mark: "text", content: ["a"], constructor: { prototype: 1 } }), "is not a field here", "constructor"],
@@ -148,10 +159,18 @@ describe("checkViewDesign", () => {
     expect(res.ok ? [] : res.problems).toEqual([]);
     const withRecipe = checkViewDesign(text(WITH_RECIPE));
     expect(withRecipe.ok ? [] : withRecipe.problems).toEqual([]);
+    // A stacked mark of a Breakdown is a View Design like any other (the built-in Stacked bars over time).
+    expect(checkViewDesign(text({ ...EXAMPLE, parts: [{ mark: "stacked", show: "breakdown", when: ["manyValues"] }] })).ok).toBe(true);
     const polar = checkViewDesign(text(WITH_POLAR_AND_RADAR));
     expect(polar.ok ? [] : polar.problems).toEqual([]);
+    // A progress mark takes a Slot of several, or one Metric: it is one bar each.
+    expect(checkViewDesign(text({ ...EXAMPLE, slots: [{ label: "Metrics", metrics: "several" }], parts: [{ mark: "progress", show: "latest" }] })).ok).toBe(true);
+    expect(checkViewDesign(text({ ...EXAMPLE, parts: [{ mark: "progress", show: "latest" }] })).ok).toBe(true);
     // Three Slots of one Metric each are three spokes as well.
     expect(checkViewDesign(text({ ...WITH_POLAR_AND_RADAR, analysis: undefined, parts: [{ mark: "radar", show: "latest" }], slots: ["A", "B", "C"].map((label) => ({ label, metrics: "one" })) })).ok).toBe(true);
+    // A scoreboard of a Slot of several with at least three, or of three Slots.
+    expect(checkViewDesign(text({ ...EXAMPLE, kind: "analysis", slots: [{ label: "Metrics", metrics: "several", min: 3 }], parts: [{ mark: "scoreboard", show: "latest" }] })).ok).toBe(true);
+    expect(checkViewDesign(text({ ...EXAMPLE, kind: "analysis", slots: ["A", "B", "C"].map((label) => ({ label, metrics: "one" })), parts: [{ mark: "scoreboard", show: "latest" }] })).ok).toBe(true);
     const once = writeViewDesign(WITH_RECIPE);
     const back = checkViewDesign(once);
     expect(back.ok && writeViewDesign(back.design)).toBe(once);
