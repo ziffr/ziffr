@@ -8,7 +8,6 @@ import { afterEach, describe, expect, it } from "vitest";
 import { createAccessKey } from "@ziffr/core/access-keys";
 import { addFeedToMetric, createFeed, createFeedKey, revokeFeedKey } from "@ziffr/core/feeds";
 import { workspace } from "@ziffr/core/test/db-fixtures";
-import { db } from "@ziffr/core/db";
 import { periodStart, JANUARY } from "@ziffr/core/periods";
 import { POST } from "./route";
 
@@ -87,14 +86,13 @@ describe("a request that is not right is refused whole, with words that name wha
     ["an Idempotency-Key of 201 characters", { items: [{ metric: "x", value: 1 }] }, { headers: { "idempotency-key": "k".repeat(201) } }, 400, /Idempotency-Key/],
   ];
   it.each(BAD)("%s: 400, naming the field, and nothing is recorded", async (_what, body, o, status, words) => {
-    const { m, bearer } = await setup();
+    const { w, m, bearer } = await setup();
     const res = await send(typeof body === "object" && body !== null && JSON.stringify(body).includes('"x"') ? JSON.parse(JSON.stringify(body).split('"x"').join(JSON.stringify(m.slug))) : body, { auth: bearer, ...o });
     expect(res.status).toBe(status);
     const err = ((await res.json()) as { error: { code: string; message: string } }).error;
     expect(err.code).toBe("invalid_request");
     expect(err.message).toMatch(words);
-    const { count } = await db().from("observations").select("id", { count: "exact", head: true }).eq("metric_id", m.id);
-    expect(count).toBe(0);
+    expect(await w.valueCount(m.id)).toBe(0);
   });
 });
 
@@ -102,9 +100,9 @@ describe("a value the Metric's rules refuse is that item's refusal, with a code,
   it("says not_found, duplicate, period and archived as codes, in order, with the HTTP status 200", async () => {
     const { w, sara, m, feedId, bearer } = await setup();
     const archived = await w.metric(sara, { name: "Old", sources: ["api"] }); await addFeedToMetric(w.actor(sara), archived.id, feedId);
-    expect((await db().from("metrics").update({ archived_at: new Date().toISOString() }).eq("id", archived.id)).error).toBeNull();
+    await w.patchMetric(archived.id, { archived_at: new Date().toISOString() });
     const off = await w.metric(sara, { name: "Off", sources: ["web_form"] }); await addFeedToMetric(w.actor(sara), off.id, feedId);
-    expect((await db().from("metrics").update({ sources: ["web_form"] }).eq("id", off.id)).error).toBeNull();
+    await w.patchMetric(off.id, { sources: ["web_form"] });
     const derived = await w.metric(sara, { name: "Twice", formula: `{${m.slug}} * 2`, sources: ["api"] }); await addFeedToMetric(w.actor(sara), derived.id, feedId).catch(() => undefined);
     const day = periodStart(new Date(), "month", JANUARY);
     const middle = `${day.slice(0, 8)}15`;
