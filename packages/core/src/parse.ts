@@ -21,9 +21,10 @@ const hasParentHeader = (text: string): boolean => {
 };
 
 /** Reads "label value" lines (from Excel, CSV or a chat) into rows, each with the label of its parent when the header names a parent column and a third cell names one. Needs two or more rows to count as a breakdown. */
-export function parseBreakdown(text: string, style: NumberStyle): { rows: { label: string; value: number; parent?: string }[]; total: number | null } | null {
+export function parseBreakdown(text: string, style: NumberStyle, options: { parents?: boolean } = {}): { rows: { label: string; value: number; parent?: string }[]; total: number | null } | null {
   const rows: { label: string; value: number; parent?: string }[] = [];
-  const parents = hasParentHeader(text);
+  // Only a table pasted or loaded on the web (never a message from mail, Slack or Telegram, where a third cell or a line of text is something else) may have a parent column, and only under a header that says so.
+  const parents = options.parents === true && hasParentHeader(text);
   let total: number | null = null;
   for (const raw of text.split(/\r?\n|;/)) {
     // Trimmed first, so a quote after leading spaces still opens the label. An empty line matches nothing below.

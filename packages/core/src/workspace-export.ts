@@ -546,7 +546,9 @@ async function* numbersOf(actor: Actor, m: Plan["metrics"][number], yearStart: n
       const enteredBy = (r.entered_by ? who.get(String(r.entered_by)) : undefined) || keptName(r.entered_by_name);
       const source = r.imported ? "import" : SOURCES.has(String(r.source)) ? (String(r.source) as ValueRecord["source"]) : undefined;
       const at = new Date(String(r.created_at));
-      const breakdown = exportedBreakdown(parts.get(r.id as number) ?? []);
+      const kept = exportedBreakdown(parts.get(r.id as number) ?? []);
+      const breakdown = kept.rows;
+      if (kept.left) tally.leftOut++;
       const base: ValueRecord = { kind: "value", metric: m.label, period: String(r.period_start), value: r.value, ...(Number.isNaN(at.getTime()) ? {} : { recordedAt: at.toISOString() }), ...(source ? { source } : {}), ...(submittedBy ? { submittedBy } : {}), ...(enteredBy ? { enteredBy } : {}) };
       // A Breakdown that does not fit (too many rows, a repeated label) is left off the value, never the value itself.
       const withBreakdown: ValueRecord = breakdown.length && breakdown.length <= WORKSPACE_EXPORT_LIMITS.breakdown ? { ...base, breakdown } : base;
@@ -558,16 +560,16 @@ async function* numbersOf(actor: Actor, m: Plan["metrics"][number], yearStart: n
   }
 }
 
-/** A value's Breakdown rows as the file has them: each label that fits, a part naming its parent's label (spec 0041, ticket 12). A Breakdown with parents in which a name does not fit, or that the file's own reader would refuse, is left off whole: a part must never be written as a row at the top. */
-function exportedBreakdown(rows: { id: number; parent: number | null; label: string; value: number }[]): { label: string; value: number; parent?: string }[] {
+/** A value's Breakdown rows as the file has them: each label that fits, a part naming its parent's label (spec 0041, ticket 12). A Breakdown with parents in which a name does not fit, or that the file's own reader would refuse (a repeated name a flat Breakdown allowed, a label that did not open), is left off whole, and `left` says so, so the export counts it as left out: a part must never be written as a row at the top, and nothing is dropped without being counted. */
+export function exportedBreakdown(rows: { id: number; parent: number | null; label: string; value: number }[]): { rows: { label: string; value: number; parent?: string }[]; left: boolean } {
   const named = rows.map((b) => ({ ...b, fits: fitsLabel(b.label, WORKSPACE_EXPORT_LIMITS.label) }));
-  if (!named.some((b) => b.parent !== null)) return named.flatMap((b) => (b.fits ? [{ label: b.fits, value: b.value }] : []));
+  if (!named.some((b) => b.parent !== null)) return { rows: named.flatMap((b) => (b.fits ? [{ label: b.fits, value: b.value }] : [])), left: false };
   const label = new Map(named.map((b) => [b.id, b.fits]));
   const out = named.map((b) => ({ label: b.fits, value: b.value, parent: b.parent === null ? undefined : label.get(b.parent) }));
   const whole = out.every((b, i) => b.label && (named[i].parent === null || b.parent));
-  if (!whole) return [];
+  if (!whole) return { rows: [], left: true };
   const listed = out.map((b) => ({ label: b.label as string, value: b.value, ...(b.parent ? { parent: b.parent } : {}) }));
-  return readParents(listed).ok ? listed : [];
+  return readParents(listed).ok ? { rows: listed, left: false } : { rows: [], left: true };
 }
 
 /** Every record of the file after its header, in the order the format needs, as an async stream. */

@@ -160,7 +160,7 @@ async function takeValue(input: SubmissionInput, effects: SubmissionEffects, pro
   // A program names its value and period; so does a paste, whose cells the paste reader has read already, and a value typed on the Metric's page.
   const given = valueIsGiven(input, pasted !== null);
   const sent = given ? input.value : undefined;
-  const breakdown = sent ? (sent.breakdown?.length ? { rows: sent.breakdown, total: sent.value } : null) : parseBreakdown(input.text, style);
+  const breakdown = sent ? (sent.breakdown?.length ? { rows: sent.breakdown, total: sent.value } : null) : parseBreakdown(input.text, style, { parents: input.source === "web_form" });
   // Rows that are parts of others (spec 0041, ticket 12) are checked before anything is looked up or written: a list that
   // is refused is refused whole, in words, whichever way it came in (a program, a form, a message, a Feed).
   const parents = breakdown ? readParents(breakdown.rows) : null;

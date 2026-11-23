@@ -61,7 +61,7 @@ export async function submitObservation(actor: Actor | KeyActor, slug: string, i
     return { ok: false, reason: "not_submitter", detail: `You do not submit values for ${metric.name}.` };
   }
   const value = Number(input.value);
-  const breakdown = (input.breakdown ?? []).map((r) => ({ label: String(r.label).slice(0, 200), value: Number(r.value), ...(typeof r.parent === "string" ? { parent: r.parent.slice(0, 200) } : {}) }));
+  const breakdown = (input.breakdown ?? []).map((r) => ({ label: Array.from(String(r.label)).slice(0, 200).join(""), value: Number(r.value), ...(typeof r.parent === "string" ? { parent: Array.from(r.parent).slice(0, 200).join("") } : {}) }));
   const period = input.period ?? periodStart(new Date(), metric.period, await yearStartFor(actor.workspaceId, metric.period));
   const result = await submitValue({
     source: "api", sender: tokens[0].code, text: JSON.stringify({ value, period, breakdown: breakdown.length ? breakdown : undefined }).slice(0, 4000),

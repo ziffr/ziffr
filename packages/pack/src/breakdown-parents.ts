@@ -26,7 +26,7 @@ export type ParentsRead = { ok: true; parents: (number | null)[]; order: number[
 export const nameKey = (name: string): string => name.normalize("NFC").trim().toLowerCase();
 
 // Control characters of every kind, and the separators of lines and paragraphs: a name is one line of plain text.
-const CONTROL = /[\u0000-\u001f\u007f-\u009f\u200b-\u200f\u2028-\u202e\u2066-\u2069\ufeff]/;
+const CONTROL = /[\u0000-\u001f\u007f-\u009f\u00ad\u061c\u180e\u200b-\u200f\u2028-\u202e\u2060-\u2064\u2066-\u2069\ufeff]|[\u{e0000}-\u{e007f}]/u;
 const TOTAL = /^(total|gesamt|summe|sum)$/i;
 // A name, shortened for a sentence.
 const quoted = (s: string) => `“${[...s].length > 40 ? `${[...s].slice(0, 39).join("")}…` : s}”`;

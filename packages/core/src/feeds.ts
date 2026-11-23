@@ -310,7 +310,7 @@ export async function submitFeedObservations(feed: FeedActor, items: FeedItem[],
     // A Metric of another workspace, one the Feed does not feed and one whose API is off all read the same.
     if (!target) { results.push({ metric: slug, period: named, status: "refused", code: "not_found", detail: "This Feed does not submit values to that Metric." }); continue; }
     const value = Number(raw.value);
-    const breakdown = (Array.isArray(raw.breakdown) ? raw.breakdown : []).slice(0, 500).map((r) => ({ label: String(r?.label ?? "").slice(0, 200), value: Number(r?.value), ...(typeof r?.parent === "string" ? { parent: r.parent.slice(0, 200) } : {}) }));
+    const breakdown = (Array.isArray(raw.breakdown) ? raw.breakdown : []).slice(0, 500).map((r) => ({ label: Array.from(String(r?.label ?? "")).slice(0, 200).join(""), value: Number(r?.value), ...(typeof r?.parent === "string" ? { parent: Array.from(r.parent).slice(0, 200).join("") } : {}) }));
     const period = named ?? periodStart(new Date(), target.metric.period, await yearStartFor(feed.workspaceId, target.metric.period));
     const r = await submitValue({
       source: "api", sender: target.token, workspaceId: feed.workspaceId, accessKeyId: Number(feed.key.id), import: true,

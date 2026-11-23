@@ -51,7 +51,7 @@ export async function fillInValue(actor: Actor, input: FillInInput, effects: Sub
 
   const style = await numberStyleOf(actor.workspaceId);
   const pasted = String(input.breakdown ?? "").trim().slice(0, MAX_BREAKDOWN_TEXT);
-  const bd = pasted ? parseBreakdown(pasted, style) : null;
+  const bd = pasted ? parseBreakdown(pasted, style, { parents: true }) : null;
   if (pasted && !bd) return refused("rejected_no_value", "Couldn’t read the breakdown. Give at least two rows, each a label and a number.");
   // Only the rows at the top add up to the whole: a part is already in the row it is a part of (spec 0041, ticket 12).
   const sum = bd ? bd.rows.reduce((a, r) => (r.parent ? a : a + r.value), 0) : 0;
