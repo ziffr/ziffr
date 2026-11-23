@@ -15,6 +15,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuGroup, DropdownMenuItem,
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { SlideOverProvider, useSlideOver } from "@/components/slide-over-host";
 import { FeedbackPanel } from "@/components/feedback-panel";
+import { HelpButton } from "@/components/help-panel";
 import { Sidebar, SidebarContent, SidebarFooter, SidebarGroup, SidebarHeader, SidebarInset, SidebarItem, SidebarProvider, SidebarTrigger, useSidebar } from "@/components/ui/sidebar";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { signOut } from "@/app/auth-actions";
@@ -102,6 +103,8 @@ export function AppShell({ workspace, settings, pinned, due, account, guide, dem
             <Link href="/" className="text-base font-semibold tracking-[-0.03em] md:hidden">Ziffr</Link>
             {/* The demo's controls live in the sidebar footer like the signed-in menu; phones have no sidebar, so they keep this row. */}
             {demo && <div className="ml-auto flex flex-wrap items-center gap-x-3 md:hidden [&_label]:text-xs [&_select]:h-7 [&_a]:h-7 [&_a]:text-xs">{demo}</div>}
+            {/* Help for this screen opens in the side panel; the sidebar's "User guide" link stays for the whole guide. */}
+            <HelpButton guide={guide} className={demo ? "md:ml-auto" : "ml-auto"} />
           </header>
           {banners}
           <main id="main" className="mx-auto w-full max-w-7xl flex-1 px-4 py-6 pb-24 sm:px-6 md:pb-10">
