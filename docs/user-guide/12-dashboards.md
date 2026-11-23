@@ -102,7 +102,7 @@ A deck's **⋯** menu has the same **Who can see this** and **View links…** en
 
 ## Gallery
 
-**Gallery** (the button beside **New dashboard** on the Dashboards page) shows the ways to draw a Metric, so you can see what is possible before you build anything. It lists every built-in view in groups (**Views**, **Analyses**, **Findings**), each drawn with one of your own Metrics: pick it under **Show them with**, or choose **Sample data** to see made-up numbers. Views that compare Metrics (a correlation, a matrix, Drivers) use your next Metrics for the other places.
+**Gallery** (the button beside **New dashboard** on the Dashboards page) shows the ways to draw a Metric, so you can see what is possible before you build anything. It lists every built-in view in groups (**Views**, **Analyses**, **Findings**), each drawn with one of your own Metrics: pick it under **Show them with**, or choose **Sample data** to see made-up numbers. Views that compare Metrics (a correlation, a matrix, Drivers) use your other Metrics that share the most months with the one you picked. A view your Metric cannot fill, such as a Finding that needs a breakdown it does not have, is drawn with sample data and says so under the card.
 
 Two ways in lead to the same cards. Start from a Metric: pick it at the top and see every view drawn with it. Start from a view: press **Use this…** on a card, choose the Metric (or Metrics) in the dialog, then choose where it goes: one of the dashboards you may change, or **A new dashboard with it**. The widget lands as an independent copy, like one placed from the Pool. Only Metrics you can see are offered, and in the demo adding is refused ("The demo can't be changed").
 
