@@ -137,7 +137,7 @@ export const MAX_SERIES_REQUEST = 200;
 /** Series, Breakdowns, Target Series and Projections of some visible Metrics, with the visible inputs of the Derived
  * ones among them (comparisons resolve through them). A Metric with no values gets an empty series, so a missing
  * key always means "not sent". Only what is asked for is read from the database. */
-async function seriesFor(ws: string, metrics: Metric[], visible: Set<number>, ids: Iterable<number>): Promise<CanvasSeries> {
+export async function seriesFor(ws: string, metrics: Metric[], visible: Set<number>, ids: Iterable<number>): Promise<CanvasSeries> {
   const wanted = withInputs(metrics, [...ids].filter((id) => visible.has(id))).filter((id) => visible.has(id));
   if (!wanted.length) return { series: {}, breakdowns: {}, targets: {}, projections: {}, condensed: {} };
   // Derived values are computed from all their inputs, also ones the person does not see; only visible series go out.
