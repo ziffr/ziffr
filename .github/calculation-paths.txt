@@ -5,7 +5,7 @@
 # (.github/scripts/calculation-paths-touched.sh).
 
 # The calculation modules.
-^packages/core/src/(numbers|display-periods|formula|compare|format|parse|basis|correlation|snapshot-periods|periods|workflow-rules|alert-rules|number-style|series-lines|attainment-method|units|exact|adding-up|series|forecast|export-values|recipe-functions|recipe-run|analysis-recipe|built-in-recipes|suitability|polar-marks)\.ts$
+^packages/core/src/(numbers|display-periods|formula|compare|format|parse|basis|correlation|snapshot-periods|periods|workflow-rules|alert-rules|number-style|series-lines|attainment-method|units|exact|adding-up|series|forecast|export-values|recipe-functions|recipe-run|analysis-recipe|built-in-recipes|suitability|polar-marks|recipe-methods|mark-figures)\.ts$
 ^packages/core/src/numbers/
 ^packages/core/src/takeaways/
 ^packages/core/src/methods/
@@ -16,7 +16,7 @@
 # Where values are stored, read and combined on their way to a widget, a Snapshot, a deck or a program.
 ^packages/core/src/(submissions|record-value|api-submissions|workspace-data|snapshots|auto-snapshots|deck-content|page-data|api-metrics|api-dashboards|metric-row|types)\.ts$
 ^apps/web/src/decks/export\.ts$
-^apps/web/src/views/(widget-body|metric-chart|design-view|design-plot|design-polar)\.tsx$
+^apps/web/src/views/(widget-body|metric-chart|design-view|design-plot|design-polar|design-scoreboard|design-progress)\.tsx$
 # The references, the tests that hold the code to them, the Calculation Catalogue, and how they run.
 ^docs/reference/calculations\.md$
 ^packages/core/src/test/reference/

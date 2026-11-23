@@ -607,6 +607,66 @@
               "of"
             ],
             "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string",
+                "pattern": "^[a-z][a-zA-Z0-9]{0,23}$",
+                "description": "a name for the step: a letter, then letters and digits"
+              },
+              "fn": {
+                "const": "effects"
+              },
+              "of": {
+                "type": "string",
+                "pattern": "^(slot[1-4]|[a-z][a-zA-Z0-9]{0,23})$",
+                "description": "a Slot (slot1 to slot4) or the id of an earlier step"
+              }
+            },
+            "required": [
+              "id",
+              "fn",
+              "of"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string",
+                "pattern": "^[a-z][a-zA-Z0-9]{0,23}$",
+                "description": "a name for the step: a letter, then letters and digits"
+              },
+              "fn": {
+                "const": "bridge"
+              },
+              "of": {
+                "type": "string",
+                "pattern": "^(slot[1-4]|[a-z][a-zA-Z0-9]{0,23})$",
+                "description": "a Slot (slot1 to slot4) or the id of an earlier step"
+              },
+              "parts": {
+                "type": "array",
+                "minItems": 1,
+                "maxItems": 6,
+                "uniqueItems": true,
+                "items": {
+                  "type": "string",
+                  "pattern": "^(slot[1-4]|[a-z][a-zA-Z0-9]{0,23})$",
+                  "description": "a Slot (slot1 to slot4) or the id of an earlier step"
+                }
+              }
+            },
+            "required": [
+              "id",
+              "fn",
+              "of",
+              "parts"
+            ],
+            "additionalProperties": false
           }
         ]
       }

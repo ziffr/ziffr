@@ -19,7 +19,7 @@ import type { CanvasData, Metric, Widget } from "@ziffr/core/types";
 import { bestForecast } from "@ziffr/core/methods/forecast-choice";
 import { SEASON_LENGTH } from "@ziffr/core/suitability";
 import { forecastTakeaway, endsOf } from "@ziffr/core/takeaways/forecast";
-import { drawRecipe, formatOutput, newRecipeBudget } from "@ziffr/core/design-analysis";
+import { drawRecipe, formatOutput, newRecipeBudget, type TableFigures } from "@ziffr/core/design-analysis";
 import { useRecipeBudget } from "./recipe-budget";
 import type { RecipeResults } from "@ziffr/core/recipe-run";
 import { drawnOutputs } from "@ziffr/core/analysis-recipe";
@@ -27,8 +27,11 @@ import { StatusChip } from "./header-status";
 import { cn } from "@/lib/utils";
 import { ApprovalMark } from "./approval-mark";
 import { DesignPlot } from "./design-plot";
+import { DesignBridge } from "./design-bridge";
+import { DesignRange } from "./design-range";
 import { PolarMark, RadarMark } from "./design-polar";
 import { ProgressMark } from "./design-progress";
+import { ScoreboardMark } from "./design-scoreboard";
 import { useWidgetScale } from "./widget-scale";
 
 type Props = {
@@ -43,6 +46,8 @@ type Props = {
 /** Everything a design can show, worked out by the core for one widget. Only what the design uses is computed. */
 export type DesignValues = ReturnType<typeof designValues> & {
   setBasis: (basis: BasisChoice) => void;
+  /** What the range and bridge marks draw of the recipe's tables, by step: written once by the core, so every surface reads the same text. */
+  figures: TableFigures;
   /** The widget has more room than a usual one (its widget scale is above 1): its parts share the space (#778). */
   roomy: boolean;
   /** The Takeaway words are not drawn under the chart: a card hides them, or opens them from its ⋯ menu. */
@@ -127,7 +132,7 @@ export function DesignView({ design, widget, metrics, data, onPointContext }: Pr
   const budget = useRecipeBudget();
   const drawn = useMemo(() => drawRecipe(design, metrics, data, widget.settings, budget ?? newRecipeBudget()), [design, metrics, data, widget.settings, budget]);
   const recipe = drawn.results;
-  const v: DesignValues = { ...designValues(design, widget, metrics, data, basis, recipe), setBasis, roomy, behind: host !== null };
+  const v: DesignValues = { ...designValues(design, widget, metrics, data, basis, recipe), figures: drawn.figures, setBasis, roomy, behind: host !== null };
   const { m } = v;
   // The page has spent its share of work on recipes: the words say so and no number is shown.
   if (drawn.refusal) return <Empty>{drawn.refusal}</Empty>;
@@ -204,7 +209,7 @@ function TakeawayPanel({ v, host, title }: { v: DesignValues; host: Extract<NonN
 const drawn = (when: Flag[] | undefined, v: DesignValues) => (when ?? []).every((f) => v.flags[f]);
 
 /** Whether any part drawn takes the free space: a plot, a gauge, a polar plot, a radar or rows. */
-const growing = (parts: Part[], v: DesignValues): boolean => parts.some((p) => drawn(p.when, v) && (p.mark === "group" ? growing(p.parts, v) : p.mark === "plot" || p.mark === "gauge" || p.mark === "rows" || p.mark === "polar" || p.mark === "radar" || p.mark === "progress"));
+const growing = (parts: Part[], v: DesignValues): boolean => parts.some((p) => drawn(p.when, v) && (p.mark === "group" ? growing(p.parts, v) : p.mark === "plot" || p.mark === "gauge" || p.mark === "rows" || p.mark === "polar" || p.mark === "radar" || p.mark === "scoreboard" || p.mark === "range" || p.mark === "bridge" || p.mark === "progress"));
 
 function PartView({ part, v, ctx }: { part: Part; v: DesignValues; ctx?: (period: string) => void }): ReactNode {
   if (!drawn(part.when, v)) return null;
@@ -228,6 +233,9 @@ function PartView({ part, v, ctx }: { part: Part; v: DesignValues; ctx?: (period
           <DesignPlot part={part} v={v} onPointContext={ctx} />
         </div>
       );
+    case "range":
+    case "bridge":
+      return <TableMark part={part} v={v} />;
     case "gauge":
       return <GaugeMark v={v} />;
     case "polar":
@@ -236,12 +244,23 @@ function PartView({ part, v, ctx }: { part: Part; v: DesignValues; ctx?: (period
       return <RadarMark part={part} v={v} />;
     case "progress":
       return <ProgressMark v={v} />;
+    case "scoreboard":
+      return <ScoreboardMark v={v} />;
     case "rows":
       if (part.show === "values") return <ValueRows v={v} limit={part.limit === "rows" ? v.settings.rows ?? 6 : part.limit ?? 6} ctx={ctx} />;
       if (part.show === "matrix") return <MatrixRows v={v} />;
       if (part.show === "correlations") return <DriverRows v={v} />;
       return <NotCombined reasons={v.drivers ? leftOutReasons(v) : matrixReasons(v)} />;
   }
+}
+
+/** A range or a bridge: the figures of its recipe table, with the output's label as a small caption apart from them. */
+function TableMark({ part, v }: { part: Extract<Part, { mark: "range" | "bridge" }>; v: DesignValues }) {
+  const step = part.show.slice("recipe.".length);
+  const figures = v.figures[step];
+  const caption = v.analysis?.outputs.find((o) => o.step === step)?.label;
+  if (part.mark === "bridge") return <DesignBridge figures={figures?.mark === "bridge" ? figures : undefined} caption={caption} />;
+  return <DesignRange figures={figures?.mark === "range" ? figures : undefined} tone={part.tone} caption={caption} />;
 }
 
 // The Theme's type scale: a design picks a step, never a size, colour or font of its own. Each step grows with the

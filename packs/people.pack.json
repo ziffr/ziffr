@@ -1,0 +1,399 @@
+{
+  "format": "ziffr.pack/1",
+  "id": "ziffr/people",
+  "name": "People and HR",
+  "version": "1.0.0",
+  "summary": "Headcount, hires, leavers, open roles, time to hire, absence and engagement, with attrition worked out, a monthly dashboard and a Workflow that asks HR for the month's figures.",
+  "author": {
+    "name": "Ziffr"
+  },
+  "license": "CC-BY-4.0",
+  "ziffr": ">=0.11",
+  "listing": {
+    "homepage": "https://github.com/ziffr/ziffr/tree/main/packs"
+  },
+  "contents": {
+    "metrics": [
+      {
+        "key": "headcount",
+        "metric": {
+          "format": "ziffr.metric/1",
+          "name": "Headcount",
+          "description": "People employed at month end, counted as people, not full-time equivalents.",
+          "category": "People",
+          "period": "month",
+          "aggregation": "last",
+          "polarity": "target",
+          "valueFormat": "number",
+          "decimals": 0,
+          "submissionRule": "overwrite",
+          "sources": [
+            "web_form",
+            "mail",
+            "slack",
+            "telegram",
+            "api"
+          ],
+          "tags": [
+            "People",
+            "Monthly report",
+            "Board"
+          ]
+        }
+      },
+      {
+        "key": "hires",
+        "metric": {
+          "format": "ziffr.metric/1",
+          "name": "Hires",
+          "description": "People who started in the month.",
+          "category": "People",
+          "period": "month",
+          "aggregation": "sum",
+          "polarity": "higher",
+          "valueFormat": "number",
+          "decimals": 0,
+          "submissionRule": "overwrite",
+          "sources": [
+            "web_form",
+            "mail",
+            "slack",
+            "telegram",
+            "api"
+          ],
+          "tags": [
+            "People"
+          ]
+        }
+      },
+      {
+        "key": "leavers",
+        "metric": {
+          "format": "ziffr.metric/1",
+          "name": "Leavers",
+          "description": "People who left in the month, whatever the reason.",
+          "category": "People",
+          "period": "month",
+          "aggregation": "sum",
+          "polarity": "lower",
+          "valueFormat": "number",
+          "decimals": 0,
+          "submissionRule": "overwrite",
+          "sources": [
+            "web_form",
+            "mail",
+            "slack",
+            "telegram",
+            "api"
+          ],
+          "tags": [
+            "People",
+            "Monthly report"
+          ]
+        }
+      },
+      {
+        "key": "open-roles",
+        "metric": {
+          "format": "ziffr.metric/1",
+          "name": "Open roles",
+          "description": "Positions being recruited for at month end.",
+          "category": "People",
+          "period": "month",
+          "aggregation": "last",
+          "polarity": "lower",
+          "valueFormat": "number",
+          "decimals": 0,
+          "submissionRule": "overwrite",
+          "sources": [
+            "web_form",
+            "mail",
+            "slack",
+            "telegram",
+            "api"
+          ],
+          "tags": [
+            "People"
+          ]
+        }
+      },
+      {
+        "key": "time-to-hire",
+        "metric": {
+          "format": "ziffr.metric/1",
+          "name": "Time to hire",
+          "description": "The average days from opening a role to the accepted offer, for the roles filled in the month.",
+          "category": "People",
+          "period": "month",
+          "aggregation": "average",
+          "polarity": "lower",
+          "unit": "days",
+          "unitPosition": "after",
+          "valueFormat": "number",
+          "decimals": 0,
+          "submissionRule": "overwrite",
+          "sources": [
+            "web_form",
+            "mail",
+            "slack",
+            "telegram",
+            "api"
+          ],
+          "tags": [
+            "People"
+          ]
+        }
+      },
+      {
+        "key": "absence-rate",
+        "metric": {
+          "format": "ziffr.metric/1",
+          "name": "Absence rate",
+          "description": "Days of sickness absence as a share of the working days in the month.",
+          "category": "People",
+          "period": "month",
+          "aggregation": "average",
+          "polarity": "lower",
+          "unit": "%",
+          "unitPosition": "after",
+          "valueFormat": "percent",
+          "decimals": 1,
+          "submissionRule": "overwrite",
+          "targetMax": 4,
+          "sources": [
+            "web_form",
+            "mail",
+            "slack",
+            "telegram",
+            "api"
+          ],
+          "tags": [
+            "People",
+            "Monthly report"
+          ]
+        }
+      },
+      {
+        "key": "engagement",
+        "metric": {
+          "format": "ziffr.metric/1",
+          "name": "Engagement score",
+          "description": "The average answer to the engagement question in the latest survey, 0 to 100.",
+          "category": "People",
+          "period": "quarter",
+          "aggregation": "last",
+          "polarity": "higher",
+          "valueFormat": "number",
+          "decimals": 0,
+          "submissionRule": "overwrite",
+          "sources": [
+            "web_form",
+            "mail",
+            "slack",
+            "telegram",
+            "api"
+          ],
+          "tags": [
+            "People",
+            "Board"
+          ]
+        }
+      },
+      {
+        "key": "attrition-rate",
+        "metric": {
+          "format": "ziffr.metric/1",
+          "name": "Attrition rate",
+          "description": "People who left in the month as a share of the headcount at month end.",
+          "category": "People",
+          "period": "month",
+          "aggregation": "none",
+          "polarity": "lower",
+          "unit": "%",
+          "unitPosition": "after",
+          "valueFormat": "percent",
+          "decimals": 1,
+          "formula": "{leavers} / {headcount} * 100",
+          "tags": [
+            "People",
+            "Monthly report",
+            "Board"
+          ]
+        }
+      }
+    ],
+    "dashboards": [
+      {
+        "key": "people-monthly",
+        "template": {
+          "format": "ziffr.dashboard-template/1",
+          "name": "People monthly",
+          "description": "The size of the team, who joined and left, how many go, and how many are absent.",
+          "slots": [
+            {
+              "label": "Headcount",
+              "suggests": "headcount"
+            },
+            {
+              "label": "Hires",
+              "suggests": "hires"
+            },
+            {
+              "label": "Leavers",
+              "suggests": "leavers"
+            },
+            {
+              "label": "Attrition rate",
+              "suggests": "attrition-rate"
+            },
+            {
+              "label": "Absence rate",
+              "suggests": "absence-rate"
+            },
+            {
+              "label": "Open roles",
+              "suggests": "open-roles"
+            }
+          ],
+          "widgets": [
+            {
+              "view": "number",
+              "slots": [
+                0
+              ],
+              "x": 0,
+              "y": 0,
+              "w": 3,
+              "h": 4
+            },
+            {
+              "view": "number",
+              "slots": [
+                1
+              ],
+              "x": 3,
+              "y": 0,
+              "w": 3,
+              "h": 4
+            },
+            {
+              "view": "number",
+              "slots": [
+                2
+              ],
+              "x": 6,
+              "y": 0,
+              "w": 3,
+              "h": 4
+            },
+            {
+              "view": "number",
+              "slots": [
+                3
+              ],
+              "x": 9,
+              "y": 0,
+              "w": 3,
+              "h": 4
+            },
+            {
+              "view": "line",
+              "slots": [
+                0
+              ],
+              "x": 0,
+              "y": 4,
+              "w": 6,
+              "h": 6,
+              "settings": {
+                "window": 12
+              }
+            },
+            {
+              "view": "gauge",
+              "slots": [
+                4
+              ],
+              "x": 6,
+              "y": 4,
+              "w": 3,
+              "h": 6
+            },
+            {
+              "view": "number",
+              "slots": [
+                5
+              ],
+              "x": 9,
+              "y": 4,
+              "w": 3,
+              "h": 6
+            },
+            {
+              "view": "bars",
+              "slots": [
+                2
+              ],
+              "x": 0,
+              "y": 10,
+              "w": 12,
+              "h": 6,
+              "settings": {
+                "window": 12
+              }
+            }
+          ]
+        }
+      }
+    ],
+    "workflows": [
+      {
+        "key": "monthly-people-figures",
+        "template": {
+          "format": "ziffr.workflow-template/1",
+          "name": "Monthly people figures",
+          "description": "The month's people figures are asked for on the third working day after the month, and published.",
+          "dueWorkingDays": 3,
+          "steps": [
+            {
+              "type": "remind",
+              "daysBefore": 1
+            },
+            {
+              "type": "escalate",
+              "to": "owner",
+              "daysAfter": 1
+            },
+            {
+              "type": "check",
+              "changePct": 25,
+              "outsideTarget": true
+            },
+            {
+              "type": "publish",
+              "lock": false
+            }
+          ]
+        }
+      }
+    ]
+  },
+  "feeds": [
+    {
+      "template": "excel",
+      "fills": [
+        "headcount",
+        "hires",
+        "leavers",
+        "open-roles"
+      ]
+    },
+    {
+      "template": "google-sheets",
+      "fills": [
+        "absence-rate",
+        "time-to-hire"
+      ]
+    }
+  ]
+}

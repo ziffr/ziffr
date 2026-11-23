@@ -64,7 +64,7 @@ describe("@ziffr/sdk against the app", () => {
   });
   it("builds dashboards, writes one up with Findings, and lists templates (spec 0014, spec 0013)", async () => {
     const { orders, extra, ziffr } = await setup(["metrics:read", "dashboards:read", "dashboards:write"]);
-    expect((await ziffr.templates.all({ kind: "dashboard" })).map((t) => t.id)).toEqual(["overview", "deep-dive", "side-by-side"]);
+    expect((await ziffr.templates.all({ kind: "dashboard" })).map((t) => t.id)).toEqual(["overview", "deep-dive", "side-by-side", "scorecard", "trends", "target-tracker", "check-in", "board-pack"]);
     const d = await ziffr.dashboards.fromTemplate({ template: "side-by-side", fills: [[orders.slug], [extra.slug]] }, { idempotencyKey: "pair-1" });
     expect(d).toMatchObject({ name: "Two metrics side by side", replayed: false });
     expect(await ziffr.dashboards.fromTemplate({ template: "side-by-side", fills: [[orders.slug], [extra.slug]] }, { idempotencyKey: "pair-1" })).toMatchObject({ id: d.id, replayed: true });
