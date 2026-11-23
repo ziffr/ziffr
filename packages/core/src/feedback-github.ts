@@ -16,6 +16,17 @@ export interface GithubClient {
   create(post: GithubPost): Promise<GithubPlace>;
 }
 
+/** What the bridge back needs of GitHub (spec 0049, ticket #918): who the bot is, and comments on a post. Kept apart from
+ * GithubClient so the filing's fakes need not know of it. */
+export interface GithubCommentClient {
+  /** The bot's login, asked of GitHub with the token (once), so a comment by the bot can be told from the team's. */
+  botLogin(): Promise<string>;
+  /** The bot's own comment on this post that carries this marker as its last line, if there is one (so a retry never posts twice). */
+  findComment(post: { kind: "issue" | "discussion"; number: number }, marker: string): Promise<{ id: number } | null>;
+  /** Makes a comment as the bot and says which. */
+  comment(post: { kind: "issue" | "discussion"; number: number }, body: string): Promise<{ id: number }>;
+}
+
 /** The environment's settings for the bridge. */
 export type FeedbackGithubConfig = { token: string; owner: string; repo: string; categoryId: string };
 
@@ -44,7 +55,7 @@ export function feedbackGithubConfig(env: Record<string, string | undefined> = p
 type Fetch = typeof fetch;
 
 /** The real client: `fetchImpl` is only for tests of this file. */
-export function githubClient(config: FeedbackGithubConfig, fetchImpl: Fetch = fetch): GithubClient {
+export function githubClient(config: FeedbackGithubConfig, fetchImpl: Fetch = fetch): GithubClient & GithubCommentClient {
   const headers = { authorization: `Bearer ${config.token}`, accept: "application/vnd.github+json", "x-github-api-version": "2022-11-28", "content-type": "application/json", "user-agent": "ziffr-feedback-bridge" };
   let repositoryId: string | null = null;
   async function call(path: string, body?: unknown): Promise<unknown> {
@@ -77,7 +88,53 @@ export function githubClient(config: FeedbackGithubConfig, fetchImpl: Fetch = fe
     // Only a link on github.com is kept, whatever the answer says.
     return typeof n?.number === "number" && Number.isInteger(n.number) && n.number > 0 && url.startsWith("https://github.com/") ? { kind, number: n.number, url: url.slice(0, 300) } : null;
   };
+  const COMMENT_PAGES = 5;
+  const idOf = (v: unknown): number | null => (typeof v === "number" && Number.isSafeInteger(v) && v > 0 ? v : null);
+  const discussionId = async (number: number): Promise<string> => {
+    const data = await graphql("query($o: String!, $n: String!, $num: Int!) { repository(owner: $o, name: $n) { discussion(number: $num) { id } } }", { o: config.owner, n: config.repo, num: number });
+    const id = (data.repository as { discussion?: { id?: unknown } | null } | null)?.discussion?.id;
+    if (typeof id !== "string" || id === "") throw new GithubError("GitHub's answer had no discussion in it.");
+    return id;
+  };
   return {
+    botLogin,
+    async findComment(post, marker) {
+      const bot = await botLogin();
+      const last = `\nReference: ${marker}`;
+      const mine = (body: unknown, who: unknown) => typeof body === "string" && typeof who === "string" && who.toLowerCase() === bot.toLowerCase() && body.replace(/\r\n?/g, "\n").trimEnd().endsWith(last);
+      if (post.kind === "issue") {
+        for (let page = 1; page <= COMMENT_PAGES; page++) {
+          const list = (await call(`/repos/${slug}/issues/${post.number}/comments?per_page=100&page=${page}`)) as { id?: unknown; body?: unknown; user?: { login?: unknown } | null }[] | null;
+          if (!Array.isArray(list)) return null;
+          const hit = list.find((c) => c && mine(c.body, c.user?.login) && idOf(c.id));
+          if (hit) return { id: idOf(hit.id)! };
+          if (list.length < 100) return null;
+        }
+        return null;
+      }
+      const data = await graphql(
+        "query($o: String!, $n: String!, $num: Int!) { repository(owner: $o, name: $n) { discussion(number: $num) { comments(last: 100) { nodes { databaseId body author { login } } } } } }",
+        { o: config.owner, n: config.repo, num: post.number },
+      );
+      type Node = { databaseId?: unknown; body?: unknown; author?: { login?: unknown } | null };
+      const nodes = ((data.repository as { discussion?: { comments?: { nodes?: Node[] } } | null } | null)?.discussion?.comments?.nodes ?? []).filter(Boolean);
+      const hit = nodes.find((c) => mine(c.body, c.author?.login) && idOf(c.databaseId));
+      return hit ? { id: idOf(hit.databaseId)! } : null;
+    },
+    async comment(post, body) {
+      if (post.kind === "issue") {
+        const id = idOf(((await call(`/repos/${slug}/issues/${post.number}/comments`, { body })) as { id?: unknown } | null)?.id);
+        if (!id) throw new GithubError("GitHub's answer had no comment in it.");
+        return { id };
+      }
+      const data = await graphql(
+        "mutation($d: ID!, $b: String!) { addDiscussionComment(input: { discussionId: $d, body: $b }) { comment { databaseId } } }",
+        { d: await discussionId(post.number), b: body },
+      );
+      const id = idOf((data.addDiscussionComment as { comment?: { databaseId?: unknown } | null } | null)?.comment?.databaseId);
+      if (!id) throw new GithubError("GitHub's answer had no comment in it.");
+      return { id };
+    },
     async find(kind, publicRef) {
       const marker = markerFor(publicRef);
       // Only the bot's own post counts: anyone may quote a marker, so the author is asked for and checked, the marker must be

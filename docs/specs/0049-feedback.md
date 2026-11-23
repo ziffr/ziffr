@@ -1,6 +1,6 @@
 # 0049 Feedback: people tell us what is wrong or missing, and hear back, without a GitHub account
 
-**Status:** in progress (tickets 1, 3 and 5 built: the store, the bridge out and the review queue with the mode setting, which need a security review before they are switched on). **Ticket:** tracking issue #914, tickets #915, #916, #917, #918, #919, #920 (the owner's wish, 2026-11-23).
+**Status:** in progress (tickets 1, 3, 4 and 5 built: the store, the bridge out, the bridge back and the review queue with the mode setting, which need a security review before they are switched on; the reply box in My feedback is in the form's panel). Decisions made while building ticket 4: only a comment by an owner, member or collaborator of the repository counts as the team (a stranger's comment on a public post would otherwise arrive as "The Ziffr team" with a notice), other bots are ignored, and the notice goes through the Workspace the feedback was sent from. **Ticket:** tracking issue #914, tickets #915, #916, #917, #918, #919, #920 (the owner's wish, 2026-11-23).
 
 ## Problem Statement
 

@@ -5,7 +5,8 @@ import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-vi.mock("next/navigation", () => ({ usePathname: () => "/dashboards", useRouter: () => ({ push() {}, refresh() {} }), useSearchParams: () => new URLSearchParams() }));
+const url = vi.hoisted(() => ({ search: "" }));
+vi.mock("next/navigation", () => ({ usePathname: () => "/dashboards", useRouter: () => ({ push() {}, refresh() {} }), useSearchParams: () => new URLSearchParams(url.search) }));
 vi.mock("@/app/feedback-actions", () => ({ sendFeedback: async () => ({}), myFeedback: async () => [] }));
 vi.mock("server-only", () => ({}));
 vi.mock("@/lib/viewer", () => ({}));
@@ -28,7 +29,8 @@ async function openMenu(sendFeedback: boolean) {
   await act(async () => { trigger.dispatchEvent(new MouseEvent("pointerdown", { bubbles: true })); trigger.click(); });
   await tick();
 }
-afterEach(async () => { await act(async () => root.unmount()); host.remove(); document.body.innerHTML = ""; });
+afterEach(async () => {
+  url.search = ""; await act(async () => root.unmount()); host.remove(); document.body.innerHTML = ""; });
 
 describe("the user menu", () => {
   it("has Send feedback on hosted Ziffr, and it opens the form in the side panel", async () => {
@@ -44,5 +46,22 @@ describe("the user menu", () => {
     const items = [...document.querySelectorAll<HTMLElement>('[role="menuitem"]')].map((i) => i.textContent);
     expect(items.some((t) => t?.includes("Sign out"))).toBe(true);
     expect(items.some((t) => t?.includes("Send feedback"))).toBe(false);
+  });
+});
+
+describe("the link in the notice about an answer", () => {
+  async function load(sendFeedback: boolean) {
+    url.search = "panel=feedback";
+    host = document.createElement("div"); document.body.appendChild(host); root = createRoot(host);
+    await act(async () => { root.render(<AppShell workspace={[]} settings={[]} pinned={[]} due={0} account={account(sendFeedback)} guide="/guide" collapsed={false}>page</AppShell>); });
+    await tick();
+  }
+  it("opens My feedback in the side panel when the page loads with ?panel=feedback", async () => {
+    await load(true);
+    expect(document.querySelector("[data-slide-over]")!.textContent).toContain("My feedback");
+  });
+  it("opens nothing off the central version", async () => {
+    await load(false);
+    expect(document.querySelector("[data-slide-over]")).toBeNull();
   });
 });

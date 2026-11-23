@@ -9,8 +9,8 @@
 import { Forbidden, type Actor } from "./actor";
 import { db } from "./db";
 import {
-  cleanAppVersion, cleanFeedbackWords, FEEDBACK_PER_PERSON_PER_DAY, FEEDBACK_PER_WORKSPACE_PER_DAY, feedbackInstallationCapFrom, feedbackKind, feedbackMode,
-  feedbackRefusal, newFeedbackStatus, normalizeRoute,
+  cleanAppVersion, cleanFeedbackWords, FEEDBACK_MESSAGES_MAX, FEEDBACK_PER_PERSON_PER_DAY, FEEDBACK_PER_WORKSPACE_PER_DAY, FEEDBACK_REPLIES_PER_FEEDBACK_PER_DAY,
+  FEEDBACK_REPLIES_PER_PERSON_PER_DAY, feedbackInstallationCapFrom, feedbackKind, feedbackMode, feedbackRefusal, newFeedbackStatus, normalizeRoute,
   type FeedbackKind, type FeedbackMode, type FeedbackStatus,
 } from "./feedback-rules";
 import { hostedByCloud } from "./installation-days";
@@ -106,4 +106,29 @@ export async function getMyFeedback(actor: Actor, id: string): Promise<MyFeedbac
   if (!data) return null;
   const { data: messages } = await db().from("feedback_messages").select("from_team, words, created_at").eq("feedback_id", id).order("created_at");
   return { ...view(data as Row), messages: (messages ?? []).map((m) => ({ fromTeam: m.from_team === true, words: String(m.words), at: String(m.created_at) })) };
+}
+
+/** The actor writes under one of their own feedback. The words are checked like a feedback's (clean, at most 2000 characters);
+ * a few a day per feedback and per person, and a conversation holds a fixed number of messages, counted in the database.
+ * The reply is stored and then posted to GitHub, anonymously, by the worker (feedback-replies.ts); an answered feedback is
+ * open again. Someone else's feedback looks the same as one that does not exist. Returns the new message. */
+export async function replyToFeedback(actor: Actor, id: string, words: unknown): Promise<FeedbackMessage> {
+  await assertMayUse(actor);
+  if (typeof id !== "string" || !ID.test(id)) throw new Error("That feedback was not found.");
+  const clean = cleanFeedbackWords(words);
+  if (!clean.ok) throw new Error(clean.reason);
+  const { data: own } = await db().from("feedback").select("id, status").eq("id", id).eq("person_id", actor.personId).maybeSingle();
+  if (!own) throw new Error("That feedback was not found.");
+  // Only an open or answered feedback takes replies (the database checks again): one that waits for review has not been
+  // looked at, and a closed one is over.
+  if (own.status === "closed") throw new Error("This feedback is closed.");
+  if (own.status !== "open" && own.status !== "answered") throw new Error("You can reply once your feedback is open.");
+  const { data, error } = await db().rpc("feedback_reply_create", {
+    p_person: actor.personId, p_feedback: id, p_words: clean.words, p_per_feedback: FEEDBACK_REPLIES_PER_FEEDBACK_PER_DAY, p_per_person: FEEDBACK_REPLIES_PER_PERSON_PER_DAY, p_total: FEEDBACK_MESSAGES_MAX,
+  });
+  if (error) throw new Error("Your reply could not be saved.");
+  const made = (data as { id: number; words: string; created_at: string }[] | null)?.[0];
+  // No row: a limit was reached (or the status changed since it was read, which is as final).
+  if (!made?.id) throw new Error("That is enough replies for now. Please try again tomorrow.");
+  return { fromTeam: false, words: made.words, at: made.created_at };
 }
