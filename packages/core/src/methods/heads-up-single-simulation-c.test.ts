@@ -3,7 +3,7 @@
 // Not run by the mutation testing: it takes minutes and tests no line on its own.
 import { describe, expect, it } from "vitest";
 import { metric } from "../test/fixtures";
-import { FAMILIES, FULL, headsUpsFor, month, normalsOf, PLANT, RUNS } from "../test/reference/heads-up-single-sim";
+import { FAMILIES, FULL, headsUpsFor, normalsOf, PLANT, RUNS } from "../test/reference/heads-up-single-sim";
 
 describe("150 Metrics whose Target sits exactly at their long-run level (the boundary: where the process is expected to be, met half the time)", () => {
   it("none of these Heads-ups in at least 99 of 100 runs, for noise that follows its own past at 0.3, 0.5, 0.7 and 0.9", () => {
