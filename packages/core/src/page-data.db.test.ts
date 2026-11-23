@@ -45,6 +45,17 @@ describe("page loaders", () => {
     expect(JSON.stringify(await sourcesView(w.actor(ann, "member")))).not.toContain(benCode);
     expect(await log(sara, "owner")).toEqual([]);
   });
+  it("name only the Metrics the person sees, never the Workspace's whole list", async () => {
+    const w = await ws(); const sara = await w.person("owner"); const ben = await w.person("member");
+    await w.metric(sara, { name: "Salaries" });
+    const bens = await w.metric(ben, { name: "Ben's visits" });
+    const forBen = await sourcesView(w.actor(ben, "member"));
+    expect(forBen.metrics.map((m) => m.name)).toEqual(["Ben's visits"]);
+    expect(forBen.metrics[0].id).toBe(bens.id);
+    expect(JSON.stringify(forBen.metrics)).not.toContain("Salaries");
+    // Nobody sees another's Metric by role alone, an Owner included: each sees theirs.
+    expect((await sourcesView(w.actor(sara))).metrics.map((m) => m.name)).toEqual(["Salaries"]);
+  });
   it("tell the first-run checklist whether a Metric the person sees has a value", async () => {
     const w = await ws(); const sara = await w.person("owner"); const ben = await w.person("member");
     const m = await w.metric(sara);

@@ -411,7 +411,7 @@ The two **Run now** buttons sit in a dashed **Demo controls** box; using them sa
 
 ## Sources
 
-**Workspace → Connectors → Sources** shows where values come from. Everyone sees it.
+**Workspace → Connectors → Sources** shows where values come from. Everyone sees it. It names only the Metrics you can see: a message or form link about a Metric you cannot see shows no name.
 
 ### From the web form
 
