@@ -19,7 +19,7 @@ const panel = useSlideOver();
 ```
 
 - `open` shows the panel in place of what is open and keeps what was open one step back; the panel then shows a **Back** button. `replace` swaps the content without a step back. `back` and `close` do what they say. Going to another page closes the panel.
-- The host sets the width (the full width on a phone, 26 rem on a desktop), moves focus into the panel when it opens and gives it back to the button that opened it when it closes. Escape and the close button close it. The title names the panel for screen readers, so every panel has one.
+- The host sets the width (the full width on a phone, 26 rem on a desktop; a reading panel such as Help sets `widthToggle: true` and gets a "Wider" / "Narrower" button, about 48 rem, kept for the session), moves focus into the panel when it opens and gives it back to the button that opened it when it closes. Escape and the close button close it. The title names the panel for screen readers, so every panel has one.
 - The panel is a window for keyboard use like any other: Tab stays inside it while it is open, and Escape always leaves. Every control inside needs a name.
 - `content` is what the page already may show. Anything that depends on who is asking is read on the server with the person as the actor and passed in; the host holds no data and never fetches.
 - A panel that should have its own address (a Metric's quick look, shared by link) uses `?panel=…` through `usePanel` in `apps/web/src/lib/panel-param.ts`, as the panels below do today.

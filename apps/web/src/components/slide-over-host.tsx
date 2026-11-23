@@ -6,12 +6,18 @@
 // own: `content` is a component the caller already built from what the page may show.
 import { createContext, useCallback, useContext, useMemo, useRef, useState } from "react";
 import { usePathname } from "next/navigation";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, Maximize2, Minimize2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 
 /** What the panel shows: a title that names it for screen readers, an optional line under it, and the content. */
-export type SlideOverContent = { title: string; description?: string; content: React.ReactNode };
+export type SlideOverContent = {
+  title: string;
+  description?: string;
+  content: React.ReactNode;
+  /** Shows a "Wider" / "Narrower" button in the header (reading panels such as Help); the choice is kept for the session. Other panels keep their one width. */
+  widthToggle?: boolean;
+};
 
 type SlideOverApi = {
   /** Shows `panel` in place of what is open; what was open stays one step back. Focus moves into the panel. */
@@ -31,6 +37,12 @@ const SlideOverContext = createContext<SlideOverApi | null>(null);
 // Steps kept for "back"; a person never needs more, and the content of a forgotten step is not held in memory.
 const MAX_STEPS = 8;
 
+const WIDE_KEY = "ziffr.slide-over.wide";
+/** Whether the person chose the wide panel earlier in this session; storage can be blocked, then it is the normal width. */
+function readWide(): boolean {
+  try { return typeof window !== "undefined" && window.sessionStorage.getItem(WIDE_KEY) === "1"; } catch { return false; }
+}
+
 /** The panel's controls for the screen that is on. Throws outside the app shell, which is where a missing provider would otherwise show as a panel that never opens. */
 export function useSlideOver(): SlideOverApi {
   const api = useContext(SlideOverContext);
@@ -43,6 +55,7 @@ export function SlideOverProvider({ children }: { children: React.ReactNode }) {
   const [steps, setSteps] = useState<SlideOverContent[]>([]);
   // What had focus when the panel opened; it gets focus back on close, also when the opener has since been replaced by a menu.
   const opener = useRef<HTMLElement | null>(null);
+  const [wide, setWide] = useState(readWide);
   const pathname = usePathname();
   const [seenPath, setSeenPath] = useState(pathname);
 
@@ -62,7 +75,13 @@ export function SlideOverProvider({ children }: { children: React.ReactNode }) {
     if (steps.length > 0) setSteps([]);
   }
 
+  const toggleWide = () => setWide((w) => {
+    try { window.sessionStorage.setItem(WIDE_KEY, w ? "0" : "1"); } catch { /* the choice just lasts until the page is left */ }
+    return !w;
+  });
+
   const current = steps[steps.length - 1];
+  const isWide = Boolean(current?.widthToggle) && wide;
   const api = useMemo<SlideOverApi>(() => ({ open, replace, back, close, isOpen: steps.length > 0 }), [open, replace, back, close, steps.length]);
 
   return (
@@ -70,12 +89,20 @@ export function SlideOverProvider({ children }: { children: React.ReactNode }) {
       {children}
       <Sheet open={Boolean(current)} onOpenChange={(o) => { if (!o) close(); }}>
         {current && (
-          <SheetContent className="sm:w-[26rem]" data-slide-over finalFocus={opener}>
+          <SheetContent className={isWide ? "max-w-[min(48rem,100vw)] sm:w-[48rem]" : "sm:w-[26rem]"} data-slide-over finalFocus={opener}>
             <SheetHeader>
               {steps.length > 1 && (
                 <Button variant="ghost" size="sm" className="-ml-2 w-fit" onClick={back}><ArrowLeft aria-hidden /> Back</Button>
               )}
-              <SheetTitle>{current.title}</SheetTitle>
+              <div className="flex items-center gap-2 pr-9">
+                <SheetTitle className="flex-1">{current.title}</SheetTitle>
+                {/* Phones already show the full width, so the button is for wider screens only. */}
+                {current.widthToggle && (
+                  <Button variant="ghost" size="sm" className="hidden sm:inline-flex" aria-pressed={isWide} onClick={toggleWide}>
+                    {isWide ? <Minimize2 aria-hidden /> : <Maximize2 aria-hidden />}{isWide ? "Narrower" : "Wider"}
+                  </Button>
+                )}
+              </div>
               {current.description && <SheetDescription>{current.description}</SheetDescription>}
             </SheetHeader>
             <div className="flex-1 overflow-y-auto px-4 pb-4">{current.content}</div>
