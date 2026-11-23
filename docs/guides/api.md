@@ -269,6 +269,7 @@ The database and the core refuse some changes with a code of their own (ZFnnn), 
 | `ZF464` | (in the core only) |
 | `ZF4D0` | demo_read_only |
 | `ZF4D1` | demo_stale |
+| `ZF4D2` | demo_limit:; demo_limit:starting; demo_limit:unknown |
 | `ZF538` | Too many open Share Proposals. |
 | `ZF539` | Too many Share Proposals today. |
 <!-- /generated:refusal-codes -->
