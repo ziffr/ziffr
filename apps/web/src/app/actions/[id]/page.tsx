@@ -45,7 +45,7 @@ export default async function ActionPage({ params }: { params: Promise<{ id: str
 
   return (
     <div className="mx-auto max-w-3xl">
-      <Link href="/actions" className="mb-3 inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"><ArrowLeft className="size-4" /> Actions</Link>
+      <Link href="/schedule" className="mb-3 inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"><ArrowLeft className="size-4" /> Schedule</Link>
       <div className="stock rounded-[var(--radius-card)] p-5">
         <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
           <StatusBadge status={a.status} kind={a.kind} />

@@ -167,7 +167,7 @@ When a period's value must be in, counted in working days after the period ends,
 _Avoid_: Deadline, cut-off
 
 **Schedule**:
-What one person has to do in a Workspace, day by day: values to submit by their Due Dates, Approvals waiting for them, and Tasks (a Checklist Item's among them) and Questions assigned to them, upcoming and overdue. It holds only their own duties, and only about Metrics they may see; while someone is Away, what they are asked for is in their Stand-in's Schedule.
+What one person has to do in a Workspace, day by day (the To do view of the Schedule page, which also has Asked by me and a Timeline): values to submit by their Due Dates, Approvals waiting for them, and Tasks (a Checklist Item's among them) and Questions assigned to them, upcoming and overdue. It holds only their own duties, and only about Metrics they may see; while someone is Away, what they are asked for is in their Stand-in's Schedule.
 _Avoid_: Agenda, to-do list, inbox, calendar
 
 **Stand-in**:
@@ -554,6 +554,10 @@ _Avoid_: Activity, activity feed, history
 **Action**:
 A question or task about a specific observation or time range of a metric that one user assigns to another, or a Task a Checklist Item gives about a Workflow's period, which has no metric. It moves from open to answered to closed, and can be reopened.
 _Avoid_: Ticket, request, to-do
+
+**Schedule views**:
+The Schedule is one page with three views, switched at the top. To do is the Schedule itself, what the person has to do, overdue first. Asked by me lists the Questions and Tasks they asked: answered ones waiting for them to close, open ones, and Done (closed, folded, grey and ticked, never red). The Timeline says what happened, newest first, by day: the Period Timelines of the Workflows and the Actions on Metrics no Workflow asks for, each person seeing only what they may see. The old Actions page is no longer a page of its own; Action stays the word for a Question or Task.
+_Avoid_: Actions page, Inbox, Kanban, activity feed
 
 **Question**:
 An action that is done once the assignee has answered it, e.g. "Why is cost so high this month?"
