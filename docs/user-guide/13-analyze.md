@@ -1,5 +1,5 @@
 <!-- part: Screen by screen -->
-<!-- screens: apps/web/src/app/analyze/**, apps/web/src/analyses/** -->
+<!-- screens: apps/web/src/app/analyze/** -->
 # Analyze
 
 **Analyze** in the sidebar opens the **Analysis Canvas**: a place to put a few Metrics side by side and ask simple questions of them. Where is this heading? Do these two move together? What moves Cost? You choose a **method** by what you want to know, and its result can go onto a dashboard.
