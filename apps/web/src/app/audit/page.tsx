@@ -13,6 +13,7 @@ import { auditKeptWords } from "@ziffr/core/audit-retention";
 import { formatDate } from "@ziffr/core/format";
 import { monthName, toYearStart } from "@ziffr/core/periods";
 import { AUDIT_CATEGORIES, AUDIT_KINDS, kindsOf, type AuditFilter } from "@ziffr/core/audit-kinds";
+import { BUSINESS_FUNCTION_LABELS, isBusinessFunction } from "@ziffr/pack/business-functions";
 import { filledInDetail } from "./filled-in-detail";
 
 const ROLE: Record<string, string> = { owner: "Owner", admin: "Admin", member: "Member", guest: "Guest", viewer: "Viewer", editor: "Editor" };
@@ -32,6 +33,9 @@ function about(e: AuditEvent) {
   if (e.hidden) return `a ${NOUN[e.objectType]} you do not see (#${e.objectId})`;
   return e.objectName ?? `${NOUN[e.objectType] ?? "item"} #${e.objectId}`;
 }
+
+/** A Business Function key in words; "none" when it was cleared or never set. */
+const labelOf = (k: unknown) => (isBusinessFunction(k) ? BUSINESS_FUNCTION_LABELS[k] : "none");
 
 /** The details that matter, short: old and new roles, who a Share went to, the period. Never values. */
 /** What a setting followed before it was chosen: the Workspace's country, or the default when it had none. Events
@@ -64,6 +68,8 @@ function detailText(e: AuditEvent, nameOf: (id: string) => string | undefined): 
     case "workflow.run_now": return `${d.prompts ?? 0} Prompts, ${d.reminders ?? 0} reminders, ${d.escalations ?? 0} Escalations`;
     case "workspace.quiet_hours_changed": return `${d.from} → ${d.to}`;
     case "workspace.clock_changed": return `${d.from_time_zone} ${d.from_run_hour}:00 → ${d.to_time_zone} ${d.to_run_hour}:00${d.from_week_start !== d.to_week_start ? `, week starts on ${d.to_week_start === 0 ? "Sunday" : "Monday"}` : ""}`;
+    // Keys only; the words come from the list.
+    case "person.business_function_changed": return `${labelOf(d.from)} → ${labelOf(d.to)}`;
     case "workspace.year_start_changed": return `${monthName(toYearStart(d.from))} → ${monthName(toYearStart(d.to))}`;
     case "workspace.number_style_changed": return `${d.from ?? followed(d)} → ${d.to}`;
     case "workspace.answer_languages_changed": return `${Array.isArray(d.from) ? d.from.join(", ") : followed(d)} → ${Array.isArray(d.to) ? d.to.join(", ") : ""}`;
