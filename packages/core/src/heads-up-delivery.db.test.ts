@@ -133,7 +133,7 @@ describe("a person's settings, Not useful and mutes", () => {
 
   it("holds at most so many of each, one step either side", async () => {
     const { sara, ids, actor, w } = await setup(["p0a", "p0b"]);
-    const row = (k: number) => ({ workspace_id: w.id, person_id: sara, key: `moving-together:${k}` });
+    const row = (k: number) => ({ workspace_id: w.id, person_id: sara, key: `filler-kind:${k}` });
     await db().from("heads_up_dismissed").insert(Array.from({ length: 1999 }, (_, i) => row(i + 1000)));
     await markNotUseful(actor(sara), `moving-together:${ids.p0a}:${ids.p0b}`);
     await markNotUseful(actor(sara), `moving-together:${ids.p0a}:${ids.p0b}`);
