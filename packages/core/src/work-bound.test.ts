@@ -5,82 +5,83 @@ import fc from "fast-check";
 import { describe, expect, it } from "vitest";
 import { runs } from "./test/reference/check";
 import { referenceWide } from "./test/reference/work-bound";
+import { lowestTerms } from "./exact";
 import { digits, spend, spendOn, WORK_BOUND, WORK_BUDGET, wideColumns, wideFindings, wideReason, widthOf, withWork } from "./work-bound";
 
 const { numRuns, seed } = runs();
 const pts = (vs: number[]) => vs.map((value, i) => ({ period: `2024-${String(i + 1).padStart(2, "0")}-01`, value }));
 
 describe("the limits", () => {
-  it("are 30 decimal places and 30 orders of magnitude", () => {
-    expect(WORK_BOUND).toEqual({ places: 30, orders: 30 });
+  it("are 20 decimal places and 20 orders of magnitude", () => {
+    expect(WORK_BOUND).toEqual({ places: 20, orders: 20 });
   });
 });
 
 describe("wideReason: decimal places, one step either side", () => {
-  it("allows 30 places and refuses 31, for a tiny value, a negative one and one beside ordinary values", () => {
-    expect(wideReason([1e-30])).toBeNull();
-    expect(wideReason([1e-29, 1.2e-29, 5.5e-27])).toBeNull();
-    expect(wideReason([1.5e-30])).toBe("places");
-    expect(wideReason([1e-31])).toBe("places");
-    expect(wideReason([-1e-31])).toBe("places");
-    expect(wideReason([1, 2, 3, 1.5e-30])).toBe("places");
+  it("allows 20 places and refuses 21, for a tiny value, a negative one and one beside ordinary values", () => {
+    expect(wideReason([1e-20])).toBeNull();
+    expect(wideReason([1e-19, 1.2e-19, 5.5e-17])).toBeNull();
+    expect(wideReason([1.5e-20])).toBe("places");
+    expect(wideReason([1e-21])).toBe("places");
+    expect(wideReason([-1e-21])).toBe("places");
+    expect(wideReason([1, 2, 3, 1.5e-20])).toBe("places");
   });
-  it("counts the places of the text, not of the double: 0.1 has one, 1e21 none, 123456789.123456789 nine", () => {
-    expect(wideReason([0.1, 0.25, 1e21, 123456789.123456789])).toBeNull();
+  it("counts the places of the text, not of the double: 0.1 has one, 1e15 none, 123456789.123456789 nine", () => {
+    expect(wideReason([0.1, 0.25, 1e15, 123456789.123456789])).toBeNull();
     expect(wideReason([0.1 + 0.2])).toBeNull();
   });
   it("reads a value that is 0 or not a number as nothing", () => {
     expect(wideReason([0, -0, NaN, Infinity, -Infinity])).toBeNull();
-    expect(wideReason([NaN, 1e-300])).toBe("places");
+    expect(wideReason([NaN, 1e-200])).toBe("places");
     expect(wideReason([])).toBeNull();
   });
 });
 
 describe("wideReason: orders of magnitude, one step either side", () => {
   const over = 1.0000000000000002;
-  it("allows a largest size exactly 10^30 times the smallest, and refuses anything above", () => {
-    expect(wideReason([1, 1e30])).toBeNull();
-    expect(wideReason([1, over * 1e30])).toBe("orders");
-    expect(wideReason([1e-30, 1])).toBeNull();
-    expect(wideReason([1e-30, over])).toBe("orders");
-    expect(wideReason([0.5, 5e29])).toBeNull();
-    expect(wideReason([0.5, 5.000000000000001e29])).toBe("orders");
-    expect(wideReason([1e-15, 1e15])).toBeNull();
-    expect(wideReason([1e-15, over * 1e15])).toBe("orders");
+  it("allows a largest size exactly 10^20 times the smallest, and refuses anything above", () => {
+    expect(wideReason([1, 1e20])).toBeNull();
+    expect(wideReason([1, over * 1e20])).toBe("orders");
+    expect(wideReason([1e-20, 1])).toBeNull();
+    expect(wideReason([1e-20, over])).toBe("orders");
+    expect(wideReason([0.5, 5e19])).toBeNull();
+    expect(wideReason([0.5, 5.000000000000001e19])).toBe("orders");
+    expect(wideReason([1e-10, 1e10])).toBeNull();
+    expect(wideReason([1e-10, over * 1e10])).toBe("orders");
   });
   it("reads the size of a value, so negative values and mixed signs count the same", () => {
-    expect(wideReason([-1, 1e30])).toBeNull();
-    expect(wideReason([1, -1e30])).toBeNull();
-    expect(wideReason([-1, -1e30])).toBeNull();
-    expect(wideReason([-1, over * 1e30])).toBe("orders");
-    expect(wideReason([1, -over * 1e30])).toBe("orders");
-    expect(wideReason([-over * 1e30, -1])).toBe("orders");
+    expect(wideReason([-1, 1e20])).toBeNull();
+    expect(wideReason([1, -1e20])).toBeNull();
+    expect(wideReason([-1, -1e20])).toBeNull();
+    expect(wideReason([-1, over * 1e20])).toBe("orders");
+    expect(wideReason([1, -over * 1e20])).toBe("orders");
+    expect(wideReason([-over * 1e20, -1])).toBe("orders");
   });
   it("leaves out values that are 0: 0 has no size to compare, however many there are", () => {
-    expect(wideReason([0, 1, 1e30, 0])).toBeNull();
-    expect(wideReason([0, 1, over * 1e30])).toBe("orders");
+    expect(wideReason([0, 1, 1e20, 0])).toBeNull();
+    expect(wideReason([0, 1, over * 1e20])).toBe("orders");
     expect(wideReason([0, 0, 0])).toBeNull();
     expect(wideReason([0, 5])).toBeNull();
   });
   it("finds the largest and the smallest wherever they stand in the list", () => {
-    const list = [3, 1, 1e30, 7, 2, 1e29];
+    const list = [3, 1, 1e20, 7, 2, 1e19];
     for (let i = 0; i < list.length; i++) expect(wideReason([...list.slice(i), ...list.slice(0, i)]), `rotated by ${i}`).toBeNull();
-    const wide = [3, 1, over * 1e30, 7, 2, 1e29];
+    const wide = [3, 1, over * 1e20, 7, 2, 1e19];
     for (let i = 0; i < wide.length; i++) expect(wideReason([...wide.slice(i), ...wide.slice(0, i)]), `rotated by ${i}`).toBe("orders");
     expect(wideReason([...list].reverse())).toBeNull();
     // The smallest is not the first, the largest is not the last.
-    expect(wideReason([1e15, 1e-14, 5, 1e16])).toBeNull();
-    expect(wideReason([1e17, 1e-14, 5, 1e16])).toBe("orders");
+    expect(wideReason([1e5, 1e-14, 5, 1e6])).toBeNull();
+    expect(wideReason([1e7, 1e-14, 5, 1e6])).toBe("orders");
   });
   it("refuses a series of huge values that spans 300 orders, and allows huge values that do not", () => {
     expect(wideReason([1e100, 1e-200])).toBe("places");
     expect(wideReason([1e300, 2e300, 9.8e299])).toBeNull();
     expect(wideReason([1e300, 1e-1])).toBe("orders");
     expect(wideReason([9.8e17, 1e-14])).toBe("orders");
-    expect(wideReason([9.8e14, 1e-14])).toBeNull();
+    expect(wideReason([9.8e5, 1e-14])).toBeNull();
   });
   it("names the places first where both are too much", () => {
-    expect(wideReason([9.8e14, 1e-290])).toBe("places");
+    expect(wideReason([9.8e14, 1e-190])).toBe("places");
   });
 });
 
@@ -97,8 +98,8 @@ describe("wideReason is the reference's", () => {
     );
   });
   it(`agrees on lists that sit right at the limits (${numRuns} runs): a power of ten, a step either side, and a neighbour`, () => {
-    const edge = fc.tuple(fc.constantFrom(1, 2, 5, 9), fc.integer({ min: -2, max: 2 })).map(([m, step]) => Number(`${m}e${30 + step}`));
-    const tiny = fc.tuple(fc.constantFrom(1, 3, 7), fc.integer({ min: 28, max: 32 })).map(([m, p]) => Number(`${m}e-${p}`));
+    const edge = fc.tuple(fc.constantFrom(1, 2, 5, 9), fc.integer({ min: -2, max: 2 })).map(([m, step]) => Number(`${m}e${20 + step}`));
+    const tiny = fc.tuple(fc.constantFrom(1, 3, 7), fc.integer({ min: 18, max: 22 })).map(([m, p]) => Number(`${m}e-${p}`));
     fc.assert(
       fc.property(fc.array(fc.oneof(edge, tiny, fc.constantFrom(1, 2, 3, 0.5)), { minLength: 1, maxLength: 4 }), (vs) => {
         expect(wideReason(vs)).toBe(referenceWide(vs));
@@ -130,12 +131,12 @@ describe("wideFindings and wideColumns", () => {
   it("say what is wrong with each series, by name, in the order given, with the limits", () => {
     const found = wideFindings([
       { name: "Fine", points: pts([1, 2, 3]) },
-      { name: "Tiny", points: pts([1e-300, 2e-300]) },
-      { name: "Spread", points: pts([1, 1e31]) },
+      { name: "Tiny", points: pts([1e-200, 2e-300]) },
+      { name: "Spread", points: pts([1, 1e21]) },
     ]);
     expect(found).toEqual([
-      { case: "refuse-exact-places", slots: { name: "Tiny", places: 30, orders: 30 } },
-      { case: "refuse-exact-orders", slots: { name: "Spread", places: 30, orders: 30 } },
+      { case: "refuse-exact-places", slots: { name: "Tiny", places: 20, orders: 20 } },
+      { case: "refuse-exact-orders", slots: { name: "Spread", places: 20, orders: 20 } },
     ]);
   });
   it("finds nothing in series that are fine, and in none at all", () => {
@@ -144,14 +145,14 @@ describe("wideFindings and wideColumns", () => {
     expect(wideFindings([{ name: "A", points: [] }])).toEqual([]);
   });
   it("reads a series as every Method does: a period twice counts once, with the value given last, and a value that is not a number is none", () => {
-    const hostile = { period: "2024-01-01", value: 1e-300 };
+    const hostile = { period: "2024-01-01", value: 1e-200 };
     expect(wideFindings([{ name: "A", points: [hostile, { period: "2024-01-01", value: 2 }, { period: "2024-02-01", value: 3 }] }])).toEqual([]);
     expect(wideFindings([{ name: "A", points: [{ period: "2024-01-01", value: 2 }, hostile] }]).map((f) => f.case)).toEqual(["refuse-exact-places"]);
     expect(wideFindings([{ name: "A", points: [hostile, { period: "2024-02-01", value: NaN }].slice(1) }])).toEqual([]);
   });
   it("names the columns of a fit's rows as given", () => {
-    expect(wideColumns(["Revenue", "Visits"], [[1, 2, 3], [1e-31, 5]])).toEqual([{ case: "refuse-exact-places", slots: { name: "Visits", places: 30, orders: 30 } }]);
-    expect(wideColumns(["Revenue", "Visits"], [[1, 1e31], [4, 5]])).toEqual([{ case: "refuse-exact-orders", slots: { name: "Revenue", places: 30, orders: 30 } }]);
+    expect(wideColumns(["Revenue", "Visits"], [[1, 2, 3], [1e-21, 5]])).toEqual([{ case: "refuse-exact-places", slots: { name: "Visits", places: 20, orders: 20 } }]);
+    expect(wideColumns(["Revenue", "Visits"], [[1, 1e21], [4, 5]])).toEqual([{ case: "refuse-exact-orders", slots: { name: "Revenue", places: 20, orders: 20 } }]);
     expect(wideColumns([], [])).toEqual([]);
   });
 });
@@ -212,5 +213,12 @@ describe("the budget of digit work", () => {
     expect(withWork(() => (spendOn(3, 4), 1), 48)).toBeNull();
     expect(withWork(() => (spendOn(1, 1), 1), 4)).toBe(1);
     expect(withWork(() => (spendOn(1, 1), 1), 3)).toBeNull();
+  });
+  it("is spent by every reduction to lowest terms, which is where the greatest common divisor of long numbers is worked out", () => {
+    const big = { num: BigInt(10) ** BigInt(200), den: BigInt(3) * BigInt(10) ** BigInt(100) };
+    expect(lowestTerms(big)).toEqual({ num: BigInt(10) ** BigInt(100), den: BigInt(3) });
+    expect(withWork(() => lowestTerms(big), 10)).toBeNull();
+    expect(withWork(() => lowestTerms({ num: BigInt(6), den: BigInt(4) }), 10)).toEqual({ num: BigInt(3), den: BigInt(2) });
+    expect(withWork(() => lowestTerms(big))).toEqual(lowestTerms(big));
   });
 });

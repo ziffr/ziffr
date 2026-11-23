@@ -7,6 +7,8 @@
 import { basisFor, basisText, changes, type Basis } from "./basis";
 import { isLonger, seriesBy, type Resolver } from "./display-periods";
 import { STRENGTH } from "./takeaways/strength";
+import { say } from "./takeaways/wording";
+import { wideColumns } from "./work-bound";
 import type { Span, YearStart } from "./periods";
 import { fractionOf, lowestTerms, minus, nearest, over, plus, times, type Fraction } from "./exact";
 import type { Metric, Point } from "./types";
@@ -27,7 +29,7 @@ export type Correlation =
 
 /** Why two Metrics have no correlation: one cannot be combined (Aggregation none), too few common periods, one is a
  * Derived Metric built from the other, or a series does not change. */
-export type NoCorrelation = "not-combined" | "too-few" | "built-from" | "flat";
+export type NoCorrelation = "not-combined" | "too-few" | "built-from" | "flat" | "too-wide";
 
 const NOUN: Record<Span, [string, string]> = {
   day: ["day", "days"], week: ["week", "weeks"], month: ["month", "months"],
@@ -134,6 +136,9 @@ export function correlate(a: Metric, b: Metric, resolve: Resolver, opts: { yearS
   const basis: Basis = opts.basis === "values" ? "values" : basisFor(onX, onY, period);
   const pairs = basis === "values" ? levels : pairUp(changes(onX, period), changes(onY, period));
   if (pairs.length < MIN_PAIRS) return tooFew(pairs.length);
+  // Values too wide to work out exactly in reasonable time (work-bound.ts) are left out, before the exact arithmetic: a ranking runs this for many pairs.
+  const wide = wideColumns([a.name, b.name], [pairs.map((p) => p.x), pairs.map((p) => p.y)]);
+  if (wide.length > 0) return { ok: false, period, n: pairs.length, why: "too-wide", reason: wide.map((f) => say(f.case, f.slots, { style: "1,234.5" })).join(" ") };
   const res = pearsonOf(pairs);
   if (!Number.isFinite(res.r)) return { ok: false, period, n: pairs.length, why: "flat", reason: basis === "values" ? "One of them does not change, so there is nothing to compare." : "Once growth is removed, one of them does not change, so there is nothing to compare." };
   return { ok: true, period, combined, basis, ...res };

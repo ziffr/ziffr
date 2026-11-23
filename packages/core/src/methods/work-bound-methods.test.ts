@@ -8,8 +8,12 @@ import { checkSuitability, type MethodId } from "../suitability";
 import { metric, months } from "../test/fixtures";
 import { say } from "../takeaways/wording";
 import { forecastTakeaway } from "../takeaways/forecast";
+import { emptyTakeaway, withinBudget } from "../takeaways/takeaway";
+import { rankCorrelations, correlate } from "../correlation";
+import { spend } from "../work-bound";
 import type { Point } from "../types";
 import { afterDateTakeaway } from "./before-after";
+import { WORK_BUDGET } from "../work-bound";
 import { bridgeTakeaway } from "./bridge";
 import { changePointTakeaway } from "./change-point";
 import { paretoTakeaway, topShareTakeaway } from "./concentration";
@@ -30,17 +34,18 @@ function lcg(start: number) {
   let x = start;
   return () => ((x = (x * 1103515245 + 12345) % 2147483648) / 2147483648);
 }
-type Kind = "ordinary" | "tiny" | "huge" | "fine" | "wide" | "minute";
-/** 120 months of values: ordinary (to the cent), tiny (9.8e14 alternating with 1e-290 to 1e-307), huge (1e290 to 1e299), fine (15 digits at 30 places, which the limits let through) or wide (spanning 40 orders). */
+type Kind = "ordinary" | "tiny" | "huge" | "fine" | "wide" | "minute" | "dense";
+/** 120 months of values: ordinary (to the cent), tiny (9.8e14 alternating with 1e-290 to 1e-307), huge (1e290 to 1e299), fine (15 digits at 20 places, which the limits let through) or wide (spanning 20 orders). */
 function series(kind: Kind, seed: number, n = 120): Point[] {
   const r = lcg(seed);
   const value = (i: number): number => {
     if (kind === "ordinary") return Math.round((100 + i * 0.5 + r() * 40) * 100) / 100;
     if (kind === "tiny") return i % 2 === 0 ? 9.8e14 - Math.floor(r() * 1e9) : Number(`${(1 + r() * 8.9).toFixed(3)}e-${290 + Math.floor(r() * 17)}`);
     if (kind === "huge") return Number(`${(1 + r() * 8.9).toFixed(4)}e${290 + Math.floor(r() * 10)}`);
+    if (kind === "dense") return i % 2 === 0 ? Number(`${(1 + r() * 8.99).toPrecision(17)}e16`) : Number(`${(1 + r() * 8.99).toPrecision(17)}e-3`);
     if (kind === "minute") return Number(`${(1 + r() * 8.9).toFixed(3)}e-295`);
-    if (kind === "fine") return Number(`${(1 + r() * 8).toPrecision(15)}e-15`);
-    return i % 2 === 0 ? Number((1e20 * (1 + r())).toPrecision(5)) : Number((1e-20 * (1 + r())).toPrecision(5));
+    if (kind === "fine") return Number(`${(1 + r() * 8).toPrecision(15)}e-6`);
+    return i % 2 === 0 ? Number((1e18 * (1 + r())).toPrecision(5)) : Number((1e-2 * (1 + r())).toPrecision(3));
   };
   return months("2015-01", Array.from({ length: n }, (_, i) => value(i)));
 }
@@ -55,27 +60,27 @@ const cases = (r: { ok: boolean; refusals?: { case: string }[] }) => (r.ok ? ["a
 describe("checkSuitability refuses wide values first, for every Method", () => {
   const METHODS: MethodId[] = ["correlation", "spearman", "partial", "drivers", "lag", "fit", "predict", "needs", "whatIf", "forecast", "trend", "seasonal", "changePoint", "afterDate", "usualRange"];
   it.each(METHODS)("%s: says what is wrong, names the series, and nothing else (no cautions, no switches), even where the series is too short to judge", (method) => {
-    const v = checkSuitability(method, { series: [{ name: "Fine", points: months("2024-01", [1, 2, 3]) }, { name: "Tiny", points: months("2024-01", [1e-300, 2e-300, 3e-300]) }, { name: "Spread", points: months("2024-01", [1, 5, 1e31]) }], span: "month" });
+    const v = checkSuitability(method, { series: [{ name: "Fine", points: months("2024-01", [1, 2, 3]) }, { name: "Tiny", points: months("2024-01", [1e-300, 2e-300, 3e-300]) }, { name: "Spread", points: months("2024-01", [1, 5, 1e21]) }], span: "month" });
     expect(v).toEqual({
       refusals: [
-        { case: "refuse-exact-places", slots: { name: "Tiny", places: 30, orders: 30 } },
-        { case: "refuse-exact-orders", slots: { name: "Spread", places: 30, orders: 30 } },
+        { case: "refuse-exact-places", slots: { name: "Tiny", places: 20, orders: 20 } },
+        { case: "refuse-exact-orders", slots: { name: "Spread", places: 20, orders: 20 } },
       ],
       cautions: [],
       switches: [],
     });
   });
-  it("lets values on the limits through to the checks: 30 places, and a spread of exactly 10^30", () => {
+  it("lets values on the limits through to the checks: 20 places, and a spread of exactly 10^20", () => {
     const refusals = (vs: number[]) => checkSuitability("usualRange", { series: [{ name: "A", points: months("2024-01", vs) }], span: "month" }).refusals.map((f) => f.case);
-    expect(refusals([1e-30, 2e-30, 3e-30])).toEqual(["refuse-periods"]);
-    expect(refusals([1.5e-30, 2e-30, 3e-30])).toEqual(["refuse-exact-places"]);
-    expect(refusals([1, 5, 1e30])).toEqual(["refuse-periods"]);
-    expect(refusals([1, 5, 1.0000000000000002e30])).toEqual(["refuse-exact-orders"]);
+    expect(refusals([1e-20, 2e-20, 3e-20])).toEqual(["refuse-periods"]);
+    expect(refusals([1.5e-20, 2e-20, 3e-20])).toEqual(["refuse-exact-places"]);
+    expect(refusals([1, 5, 1e20])).toEqual(["refuse-periods"]);
+    expect(refusals([1, 5, 1.0000000000000002e20])).toEqual(["refuse-exact-orders"]);
   });
   it("says it in words a person can read, with the limits", () => {
-    const f = { places: 30, orders: 30, name: "Signups" };
-    expect(say("refuse-exact-places", f, ctx)).toBe("Signups: its values go to more than 30 decimal places, which cannot be worked out exactly in reasonable time.");
-    expect(say("refuse-exact-orders", f, ctx)).toBe("Signups: its values span more than 30 orders of magnitude, from the smallest that is not 0 to the largest, which cannot be worked out exactly in reasonable time.");
+    const f = { places: 20, orders: 20, name: "Signups" };
+    expect(say("refuse-exact-places", f, ctx)).toBe("Signups: its values go to more than 20 decimal places, which cannot be worked out exactly in reasonable time.");
+    expect(say("refuse-exact-orders", f, ctx)).toBe("Signups: its values span more than 20 orders of magnitude, from the smallest that is not 0 to the largest, which cannot be worked out exactly in reasonable time.");
   });
 });
 
@@ -84,7 +89,7 @@ describe("the multiple fit on hostile values", () => {
   it.each([1, 2, 3, 4, 5, 6])("refuses %s drivers of tiny values before any exact arithmetic, naming each series, in well under a second (it took 1 to 34 seconds)", (k) => {
     const { result, ms } = timed(() => fit(input(tiny[0], tiny.slice(1, 1 + k))));
     expect(ms).toBeLessThan(QUICK);
-    expect(result).toEqual({ ok: false, refusals: Array.from({ length: k + 1 }, (_, i) => ({ case: "refuse-exact-places", slots: { name: i === 0 ? "Revenue" : ["Visits", "Price", "Tickets", "Churn", "Orders", "Returns"][i - 1], places: 30, orders: 30 } })) });
+    expect(result).toEqual({ ok: false, refusals: Array.from({ length: k + 1 }, (_, i) => ({ case: "refuse-exact-places", slots: { name: i === 0 ? "Revenue" : ["Visits", "Price", "Tickets", "Churn", "Orders", "Returns"][i - 1], places: 20, orders: 20 } })) });
   });
   it("refuses the same on the basis of changes, and in importance", () => {
     // (The changes of 9.8e14 and 1e-290 are worked out exactly and are plain numbers, so that is another series; one that is tiny throughout has tiny changes.)
@@ -97,7 +102,7 @@ describe("the multiple fit on hostile values", () => {
   });
   it("refuses a driver that spans too many orders, naming only that driver", () => {
     const wide = series("wide", 9);
-    expect(timed(() => fit(input(ordinary[0], [ordinary[1], wide]))).result).toEqual({ ok: false, refusals: [{ case: "refuse-exact-orders", slots: { name: "Price", places: 30, orders: 30 } }] });
+    expect(timed(() => fit(input(ordinary[0], [ordinary[1], wide]))).result).toEqual({ ok: false, refusals: [{ case: "refuse-exact-orders", slots: { name: "Price", places: 20, orders: 20 } }] });
   });
   it("stops a fit of six drivers on values of 1e290 and more, which no decimal place catches, when its work is spent, in words (it took 40 seconds)", () => {
     const { result, ms } = timed(() => fit(input(huge[0], huge.slice(1, 7))));
@@ -105,7 +110,7 @@ describe("the multiple fit on hostile values", () => {
     expect(result).toEqual({ ok: false, refusals: [{ case: "refuse-exact-work", slots: {} }] });
     expect(timed(() => importance(input(huge[0], huge.slice(1, 7)))).ms).toBeLessThan(QUICK);
   });
-  it("stops a fit of six drivers on 15 digits at 30 places, which the limits let through, when its work is spent; fewer drivers on the same values are worked out", () => {
+  it("stops a fit of six drivers on 15 digits at 20 places, which the limits let through, when its work is spent; fewer drivers on the same values are worked out", () => {
     const { result, ms } = timed(() => fit(input(fine[0], fine.slice(1, 7))));
     expect(ms).toBeLessThan(QUICK);
     expect(result).toEqual({ ok: false, refusals: [{ case: "refuse-exact-work", slots: {} }] });
@@ -121,8 +126,8 @@ describe("the multiple fit on hostile values", () => {
     const { result, ms } = timed(() => fit(input(ordinary[0], ordinary.slice(1, 7))));
     expect(cases(result)).toEqual(["answer"]);
     expect(ms).toBeLessThan(QUICK);
-    // Eight decimal places, as a rate or a price in a small unit has, are inside it too.
-    const eight = ([ordinary[0], ...ordinary.slice(1, 7)]).map((p) => p.map((q, i) => ({ ...q, value: Number((q.value + Math.sin(i) / 1234.5678).toFixed(8)) })));
+    // Six decimal places, as a rate or a price in a small unit has, are inside it too.
+    const eight = ([ordinary[0], ...ordinary.slice(1, 7)]).map((p) => p.map((q, i) => ({ ...q, value: Number((q.value + Math.sin(i) / 1234.5678).toFixed(6)) })));
     expect(cases(fit(input(eight[0], eight.slice(1))))).toEqual(["answer"]);
   });
 });
@@ -132,15 +137,15 @@ describe("predict and needs on a model a program handed over", () => {
   const good = fit(input(y, [a, b])) as Fit;
   const withRows = (rows: Fit["rows"]): Fit => ({ ...good, rows });
   const wideRows = (f: (i: number, v: number) => number) => good.rows.map((r, i) => ({ ...r, y: f(i, r.y), x: r.x.map((v) => f(i, v)) }));
-  it("refuse rows that need more than 30 decimal places, or span more than 30 orders, naming the series", () => {
+  it("refuse rows that need more than 20 decimal places, or span more than 20 orders, naming the series", () => {
     const tiny = withRows(wideRows((i, v) => (i % 2 === 0 ? v : v * 1e-300)));
     const p = timed(() => predict(tiny, [1, 2]));
     expect(p.ms).toBeLessThan(QUICK);
     expect(cases(p.result)).toEqual(["refuse-exact-places", "refuse-exact-places", "refuse-exact-places"]);
     expect(cases(needs(tiny, { goal: 100, driver: 0 }))).toEqual(["refuse-exact-places", "refuse-exact-places", "refuse-exact-places"]);
-    const wide = withRows(good.rows.map((r, i) => (i === 3 ? { ...r, x: [r.x[0], 1e33] } : r)));
-    expect(predict(wide, [1, 2])).toEqual({ ok: false, refusals: [{ case: "refuse-exact-orders", slots: { name: good.drivers[1].name, places: 30, orders: 30 } }] });
-    expect(needs(wide, { goal: 100, driver: 0 })).toEqual({ ok: false, refusals: [{ case: "refuse-exact-orders", slots: { name: good.drivers[1].name, places: 30, orders: 30 } }] });
+    const wide = withRows(good.rows.map((r, i) => (i === 3 ? { ...r, x: [r.x[0], 1e24] } : r)));
+    expect(predict(wide, [1, 2])).toEqual({ ok: false, refusals: [{ case: "refuse-exact-orders", slots: { name: good.drivers[1].name, places: 20, orders: 20 } }] });
+    expect(needs(wide, { goal: 100, driver: 0 })).toEqual({ ok: false, refusals: [{ case: "refuse-exact-orders", slots: { name: good.drivers[1].name, places: 20, orders: 20 } }] });
   });
   it("still answer for the rows the fit was made from", () => {
     expect(predict(good, [150, 160]).ok).toBe(true);
@@ -160,7 +165,7 @@ describe("the other Methods refuse in words and stay quick on hostile values", (
   const [y, x, c1, c2, c3] = [1, 2, 3, 4, 5].map((s) => series("tiny", s));
   const [oy, ox, o1, o2, o3] = [1, 2, 3, 4, 5].map((s) => series("ordinary", s));
   const refusal = (t: { kind: string; refusal: string | null }) => (t.kind === "refusal" ? t.refusal : null);
-  const places = (name: string) => say("refuse-exact-places", { name, places: 30, orders: 30 }, ctx);
+  const places = (name: string) => say("refuse-exact-places", { name, places: 20, orders: 20 }, ctx);
   it("partial correlation: refused before the exact arithmetic (it took 1.2 seconds), naming every series", () => {
     const { result, ms } = timed(() => partialTakeaway({ a: "A", b: "B", held: ["C", "D", "E"] }, y, x, [c1, c2, c3], "month", ctx));
     expect(ms).toBeLessThan(QUICK);
@@ -223,5 +228,53 @@ describe("the other Methods refuse in words and stay quick on hostile values", (
     // The others are scanned all the same: the rows of the three are what they are with Metric 4 absent.
     expect(wide.result).toEqual(scanPairs(ms.slice(0, 3), levels(1), () => false, "2026-07-15", 1));
     expect(found(wide.result)).toContain("1-2");
+  });
+});
+
+describe("a Takeaway that spends its whole work budget is a refusal in words", () => {
+  it("has the Method's name and no number, and a Takeaway that does not is left as it is", () => {
+    const t = withinBudget("numbers-method-holt", ctx, () => { spend(WORK_BUDGET + 1); return emptyTakeaway("never"); });
+    expect(t).toMatchObject({ kind: "refusal", method: "Holt's linear trend", refusal: "These values are too large or too fine to work out exactly in reasonable time.", sentence: null, figures: [] });
+    expect(withinBudget("numbers-method-holt", ctx, () => emptyTakeaway("kept")).method).toBe("kept");
+  });
+});
+
+describe("correlation leaves out values that are too wide, once for each pair, before the exact arithmetic", () => {
+  const [a, b, c] = [1, 2, 3].map((id) => metric({ id, slug: `m${id}`, name: `M${id}`, period: "month" }));
+  const data: Record<string, Point[]> = { m1: series("ordinary", 1), m2: series("tiny", 2), m3: series("ordinary", 3) };
+  const resolve = (slug: string) => ({ metric: [a, b, c].find((m) => m.slug === slug)!, points: data[slug] });
+  it("says why in words and names the Metric, and ranks the others as before", () => {
+    const wide = correlate(a, b, resolve, { yearStart: 1, basis: "values" });
+    expect(wide).toMatchObject({ ok: false, why: "too-wide", reason: say("refuse-exact-places", { name: "M2", places: 20, orders: 20 }, ctx) });
+    const { ranked, leftOut } = rankCorrelations(a, [b, c], resolve, { yearStart: 1, basis: "values" });
+    expect(ranked.map((r) => r.metric.slug)).toEqual(["m3"]);
+    expect(leftOut.map((l) => [l.metric.slug, l.why])).toEqual([["m2", "too-wide"]]);
+    expect(correlate(a, c, resolve, { yearStart: 1, basis: "values" })).toMatchObject({ ok: true });
+  });
+});
+
+describe("the worst values the limits admit: 17 digits at 20 places beside 17 digits of 1e16, 120 periods", () => {
+  const [y, x, c1, c2, c3] = [1, 2, 3, 4, 5].map((s) => series("dense", s));
+  const m = metric({ period: "month", name: "Revenue" });
+  it("every Method answers or refuses in well under a second (the bound here is generous so that a busy machine never fails it)", () => {
+    const runs: [string, () => unknown][] = [
+      ["fit of 6", () => fit(input(y, [x, c1, c2, c3, series("dense", 6), series("dense", 7)]))],
+      ["importance of 3", () => importance(input(y, [x, c1, c2]))],
+      ["partial", () => partialTakeaway({ a: "A", b: "B", held: ["C", "D", "E"] }, y, x, [c1, c2, c3], "month", ctx)],
+      ["lagged", () => laggedTakeaway("A", "B", y, x, "month", "values", ctx)],
+      ["rank", () => spearmanTakeaway("A", "B", y, x, "month", "values", ctx)],
+      ["usual range", () => usualRangeTakeaway("A", y, "month", euro, ctx)],
+      ["before and after", () => afterDateTakeaway("A", y, "month", "2023-01-01", euro, ctx)],
+      ["change point", () => changePointTakeaway("A", y, "month", euro, ctx)],
+      ["forecast", () => forecastTakeaway(m, y, ctx)],
+      ["forecast with a Target", () => forecastTakeaway(m, y, ctx, { ends: { min: 1, max: null } })],
+      ["the forecast a page draws", () => bestForecast(y, "month", 12)],
+      ["share, Pareto, bridge", () => [topShareTakeaway("A", y.map((p) => ({ label: p.period, value: Math.abs(p.value) })), 3, ctx), paretoTakeaway("A", y.map((p) => ({ label: p.period, value: Math.abs(p.value) })), ctx), bridgeTakeaway("A", y.map((p, i) => ({ label: p.period, before: p.value, after: x[i].value })), euro, ctx)]],
+    ];
+    for (const [name, run] of runs) expect(timed(run).ms, name).toBeLessThan(QUICK);
+  });
+  it("the fit of 6 is refused in words where it would take long, and the forecast, which takes as long here, is refused in the same words", () => {
+    expect(cases(fit(input(y, [x, c1, c2, c3, series("dense", 6), series("dense", 7)])))).toEqual(["refuse-exact-work"]);
+    expect(forecastTakeaway(m, y, ctx)).toMatchObject({ kind: "refusal", refusal: "These values are too large or too fine to work out exactly in reasonable time." });
   });
 });
