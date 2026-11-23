@@ -121,7 +121,12 @@ describe("a View Link and people's names", () => {
     }
     // The owner of a Metric the dashboard draws but its owner may not see is not on the list either.
     const hidden = await w.metric(others[2].id, { name: `Hidden ${randomUUID().slice(0, 6)}` });
-    await placeWidget(owner, dash, { type: "spec", template: "number", metricIds: [hidden.id], settings: {} }).catch(() => undefined);
+    // Shared just long enough to place the widget, then taken away: the widget stays, the Metric is hidden from the owner.
+    await w.share(hidden.id, others[0].id);
+    await placeWidget(owner, dash, { type: "spec", template: "number", metricIds: [hidden.id], settings: {} });
+    await w.unshare(hidden.id, others[0].id);
+    const placed = await db().from("widgets").select("id").eq("dashboard_id", dash).contains("metric_ids", [hidden.id]);
+    expect(placed.data?.length).toBe(1);
     expect((await openViewLink(tokens[0]))!.data.people.map((p) => p.id)).toEqual([ben]);
     // A stored frozen row written before the cut, with everyone and their roles: the serve-time cut, end to end.
     const full = [ben, guest, contact, others[0].id, others[3].id].map((id) => ({ id, name: `Name ${id}`, role: "Head of Secrets", color: "#000", slack_handle: "", email: "", phone: null }));
