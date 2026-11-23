@@ -13,6 +13,7 @@ import { deckTemplateSeed, importSeedOf, listDeckTemplates, readFills } from "@z
 import { widgetMetricIds } from "@ziffr/core/widget-metrics";
 import { deckAddition } from "@ziffr/core/deck-additions";
 import { cookies } from "next/headers";
+import { followDemoSuccessor } from "@/lib/demo-follow";
 import { DECK_ADD_COOKIE, readIntent } from "@/lib/deck-add-intent";
 
 export default async function DeckPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ from?: string; snapshot?: string; template?: string; fills?: string; add?: string }> }) {
@@ -24,7 +25,7 @@ export default async function DeckPage({ params, searchParams }: { params: Promi
   const actor = await currentActor();
   // Only decks of this workspace exist here; another workspace's deck ids and owners stay unknown.
   const view = await deckView(actor, id);
-  if (!view) notFound();
+  if (!view) { await followDemoSuccessor("deck", id); notFound(); }
   const { role, deck } = view;
   if (!role || !deck) {
     return (
