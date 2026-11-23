@@ -90,7 +90,7 @@ describe("a forecast's Takeaway", () => {
     expect(t.strength).toBeNull();
     expect(t.strengthText).toBeNull();
     expect(t.method).toBe("Holt-Winters, additive");
-    expect(t.basis).toBe("worked out with the trend and the yearly pattern (Holt-Winters), over 36 months");
+    expect(t.basis).toBe("worked out with the trend and the yearly pattern, over 36 months");
     expect(t.assumptions).toEqual(["This assumes the pattern of the past carries on."]);
     expect(t.footer).toBe(FOOTER);
     expect(t.cautions).toEqual([]);
@@ -118,7 +118,7 @@ describe("a forecast's Takeaway", () => {
   it("says the Method that was used: a plain trend where the series is short, and it names no other", () => {
     const t = forecastTakeaway(euro, months("2025-01", [10, 12, 11, 14, 13, 16, 15, 18]), ctx);
     expect(t.method).toBe("Holt's linear trend");
-    expect(t.basis).toBe("worked out with a plain trend (Holt), over 8 months");
+    expect(t.basis).toBe("worked out with a plain trend, over 8 months");
     expect(t.notes).toEqual([]);
     expect(t.numbers.find((n) => n.label === "Smoothing (level, trend, pattern)")?.text).toBe("0.5, 0.1");
     expect(t.numbers.some((n) => n.label.startsWith("Typical miss on the last third"))).toBe(false);
@@ -168,7 +168,7 @@ describe("a forecast's Takeaway", () => {
     const pts = Array.from({ length: 35 }, (_, t) => ({ period: shiftPeriod("2025-01-01", "day", t), value: 100 + t + [0, 9, 14, 3, -6, -12, -8][t % 7] }));
     const t = forecastTakeaway(daily, pts, ctx);
     expect(t.method).toBe("Holt-Winters, additive");
-    expect(t.basis).toBe("worked out with the trend and the weekly pattern (Holt-Winters), over 35 days");
+    expect(t.basis).toBe("worked out with the trend and the weekly pattern, over 35 days");
     expect(t.sentence).toMatch(/ in Tue 18 Feb 2025 \(likely between /);
   });
   it("has the footer of a forecast, not the one of a link between Metrics, and looks at the latest 120 periods only", () => {

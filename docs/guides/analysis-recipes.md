@@ -135,6 +135,10 @@ Each is the Method of the same name in the [Methods guide](methods.md), with its
 
 **What is drawn.** A View Design draws a recipe's series and values with marks, as for `/1`; a `polar` mark draws a series around a circle. The table of `bridge` is drawn by a `bridge` mark (steps: the start, each part going up or down, the end) and the table of `effects` by a `range` mark (a bar from low to high with its middle value); each is written in the Number Style and says its numbers in words. A table that cannot be drawn honestly (a low end above its high end, a middle value outside its range, a value that is not a number, more than 12 rows, no start or end) is refused in words, never drawn. Any other table, and a Takeaway, has no mark yet, and a mark that names one is refused with that said. The label of an output is drawn as a small caption apart from the figures.
 
+## From the method picker
+
+You do not have to write a recipe from nothing. On the Analysis Canvas, **Choose a method** can give a Method as a file with its Slots left open (**Download as Analysis Recipe**) for rank correlation, partial correlation, lagged correlation, the usual range and What moves B?. The file is a format /2 recipe with one step and one Takeaway output, so the sentence is Ziffr's and you write none. An Owner or Admin adds it to the Workspace from the Playground, and exports it in a Pack.
+
 ## Forecast and correlation
 
 The **Correlation** recipe is the same Pearson's r the Correlation Analysis computes. The Correlation, Correlation matrix and Drivers widgets stay built in: before computing r, they combine a Metric of a shorter period to the other's longer period by its Aggregation, which is not a step on a series. The **Forecast** stays built in too: Holt's method smooths each value into the next, which no composition of these functions writes exactly.
