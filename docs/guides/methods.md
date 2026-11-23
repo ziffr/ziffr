@@ -120,7 +120,7 @@ Function: `laggedCorrelation` in `packages/core/src/methods/lagged-correlation.t
 **Don't use it when.**
 
 - You have fewer than 12 periods: refusal.
-- The Metrics trend: compare them by change (the basis the caller chooses), or the delay found is the delay of the trends.
+- Both Metrics rise or fall steadily: Ziffr then compares how each changed from the period before, because otherwise the delay found would only be the delay of the two trends.
 - You want to say what causes what: a lead is not a cause. The Takeaway says "tends to move before".
 
 **Minimums and checks.** 12 periods the two Metrics share. Checks that apply (all but the first on the pairs of the best delay): enough periods, enough that vary, gaps, far-off values (the best delay's r without them), skew and ties (a caution), changing relationship.
@@ -199,9 +199,9 @@ Functions: `holtWinters`, `fitHoltWinters` in `packages/core/src/methods/holt-wi
 
 **Which Method is used.** Holt-Winters only with two full seasons, and only if on the last third of the series its typical miss is smaller than the plain trend's on the same periods (and at least 3 periods can be compared); otherwise the plain trend (Holt), and the Takeaway says why. A pattern that did not repeat between the first and second half rules it out. This is a written rule, not a search.
 
-**Use it when.** The Metric has a pattern that repeats every year (every week for days) and at least two seasons of values.
+**Use it when.** You want to know where a Metric is heading, with the range it is likely to land in. With two years of values (a Metric that repeats a pattern every year) Ziffr also reads that pattern; with fewer it uses a plain trend and says so.
 
-**Don't use it when.** There are fewer than two seasons, or a gap in the first two (the plain trend is used and says so); the pattern changes from year to year (the plain trend is used); the level jumped (the checks caution). A forecast can be wrong in ways its range does not show: the track record says how often the range held on the past.
+**Don't use it when.** You have fewer than 4 values, or the level jumped (the checks caution). A forecast can be wrong in ways its range does not show: the track record says how often the range held on the past.
 
 **Minimums and checks.** Two seasons (24 months, 8 quarters, 14 days, 104 weeks); to be chosen over the plain trend, 3 more periods. Checks: enough periods, enough that vary, gaps, far-off values (the forecast without them is run again), seasonality that does not repeat.
 
@@ -322,9 +322,9 @@ Function: `whatIf` in `packages/core/src/methods/what-if.ts`; the Takeaway is `w
 
 - You want a promise or a cause: a what-if reads what has gone together, said so in the footer; everything not named is taken as staying where it was.
 - The change would take the driver beyond what it has been: the point is given with "treat it as a guess" and no range, and where the link looks curved Ziffr refuses for that Metric.
-- Which of two Metrics that move together comes first matters: that cannot be told from the numbers. The Recipe reads the one that moves more closely with A as coming first, and says so; a Driver Map that a person confirms is a follow-up (spec 0041).
+- Which of two Metrics that move together comes first matters: that cannot be told from the numbers. Ziffr reads the one that moves more closely with A as coming first, and says so.
 - Values go to more decimal places, or span more orders of magnitude, than the work bound allows (`work-bound.ts`: a series, a level, the change), or the exact work is more than a Method may spend: refused in words before or while it is done, as for the fit (`work-bound.ts`). A link into the Metric changed is refused too: the change would come back on itself.
-- The change is 0, is not a number, is beyond the doubles, or is a percent of a latest value of 0: refused in words. A percent counts from the size of the latest value, so "up 10 %" is up even where the value is below 0.
+- The change is 0, is not a number, is too large to work with, or is a percent of a latest value of 0: refused in words. A percent counts from the size of the latest value, so "up 10 %" is up even where the value is below 0.
 - A fit treated drivers as one (a driver moving too closely with another): the what-if says so, and the effect it uses is the one the fit gave the driver that stayed.
 - The links were picked from many Metrics because they looked clear. The ranges are for each effect as estimated from its own periods; a link chosen out of many for how clear it looks tends to be overstated, so read a Recipe's answer as a first look and not as a measurement.
 

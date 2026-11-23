@@ -153,7 +153,7 @@ describe("a fit's Takeaway (What moves B?)", () => {
     );
     const t2 = movesTakeaway(R, [V, metric({ id: 9, slug: "sessions", name: "Sessions", unit: "" }), P], f2, ctx);
     // Exactly in step, equal links, no ids: the name decides, and the note says whose unit the effect is in.
-    expect(t2.notes).toEqual(["Sessions and Visits move so closely that Ziffr cannot tell which matters; treated as one, and the effect is in the unit of Sessions."]);
+    expect(t2.notes).toEqual(["Sessions and Visits move so closely together that Ziffr cannot tell which of them matters, so they are counted as one and the effect is shown for each unit of Sessions."]);
     expect(t2.rows.map((r) => r.name)).not.toContain("Visits");
   });
   it("is a refusal, with words only, where the fit refused: no sentence, strength, range, numbers or footer", () => {
@@ -602,7 +602,7 @@ describe("what a review asked for", () => {
     const results = orders.map((o) => whatMoves(R, o.map((i) => all[i]), res, opts));
     for (const t of results) expect(JSON.stringify(t)).toBe(JSON.stringify(results[0]));
     // The lower id (Visits, 2) is the one kept, and the note says whose unit the effect is in.
-    expect(results[0].notes).toEqual(["Visits and Sessions move so closely that Ziffr cannot tell which matters; treated as one, and the effect is in the unit of Visits."]);
+    expect(results[0].notes).toEqual(["Visits and Sessions move so closely together that Ziffr cannot tell which of them matters, so they are counted as one and the effect is shown for each unit of Visits."]);
     const needsResults = orders.map((o) => whatNeeds(R, o.map((i) => all[i]), 100000, res, opts));
     for (const t of needsResults) expect(JSON.stringify(t)).toBe(JSON.stringify(needsResults[0]));
   });
@@ -821,10 +821,10 @@ describe("compared by change", () => {
   it("says a one-month change bigger than the driver has ever had as that, not as a level, on either side", () => {
     const up = predict(f, [f.last.x[0] + 10 * (f.drivers[0].high + 1)]);
     const t = predictTakeaway(R, [V], f, [f.last.x[0] + 10 * (f.drivers[0].high + 1)], up, ctx);
-    expect(t.sentence).toMatch(/This is a bigger rise in one month than Visits has ever had \(largest [\d,]+\), so treat it as a guess\.$/);
+    expect(t.sentence).toMatch(/This is a bigger rise in one month than Visits has ever had \(its largest was [\d,]+\), so treat it as a guess\.$/);
     expect(t.basis).toBe("compared by change, growth removed, over 35 months");
     const dn = predict(f, [f.last.x[0] + 10 * (f.drivers[0].low - 1)]);
-    expect(predictTakeaway(R, [V], f, [f.last.x[0] + 10 * (f.drivers[0].low - 1)], dn, ctx).sentence).toMatch(/This is a bigger fall in one month than Visits has ever had \(largest [\d,]+\)/);
+    expect(predictTakeaway(R, [V], f, [f.last.x[0] + 10 * (f.drivers[0].low - 1)], dn, ctx).sentence).toMatch(/This is a bigger fall in one month than Visits has ever had \(its largest was [\d,]+\)/);
     // The size of the fall is written without its sign: the largest fall is a size.
     expect(predictTakeaway(R, [V], f, [f.last.x[0] + 10 * (f.drivers[0].low - 1)], dn, ctx).sentence).not.toContain("−");
   });

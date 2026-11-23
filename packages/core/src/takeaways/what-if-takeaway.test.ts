@@ -247,7 +247,7 @@ describe("rows the picture draws", () => {
     const zero = say([ok("Revenue", { exact: true, effect: 0, lo: null, hi: null, strength: null, coefficients: 0, level: 0 })]);
     expect(zero.numbers.find((n) => n.label === "Revenue: change")!.text).toBe("no change");
     const merged = say([ok("Signups", { merged: [{ kept: "Visits", with: ["Revenue"] }] }), ok("Revenue", { merged: [{ kept: "Visits", with: ["Revenue"] }] })]);
-    expect(merged.notes).toEqual(["Visits and Revenue move so closely that Ziffr cannot tell which matters; treated as one, and the effect is in the unit of Visits."]);
+    expect(merged.notes).toEqual(["Visits and Revenue move so closely together that Ziffr cannot tell which of them matters, so they are counted as one and the effect is shown for each unit of Visits."]);
     const stranger = say([ok("Signups", { merged: [{ kept: "Visits", with: ["Secret plans"] }] })]);
     expect(stranger.kind).toBe("refusal");
   });
@@ -291,8 +291,8 @@ describe("rows the picture draws", () => {
     const beyond = (side: "above" | "below", change: boolean) => say([ok("Revenue", { lo: null, hi: null, beyond: [{ name: "Visits", side, limit: 300, change }] })]).rows[0];
     expect(beyond("above", false).sentence).toBe("Revenue is estimated to go up by about 100 €. A change this size could take Visits higher than it has ever been (highest 300), so treat it as a guess.");
     expect(beyond("below", false).sentence).toContain("lower than it has ever been (lowest 300)");
-    expect(beyond("above", true).sentence).toContain("a bigger rise in one month than Visits has ever had (largest 300)");
-    expect(beyond("below", true).sentence).toContain("a bigger fall in one month than Visits has ever had (largest 300)");
+    expect(beyond("above", true).sentence).toContain("a bigger rise in one month than Visits has ever had (its largest was 300)");
+    expect(beyond("below", true).sentence).toContain("a bigger fall in one month than Visits has ever had (its largest was 300)");
     expect(beyond("above", false)).toMatchObject({ kind: "guess", lo: null, hi: null });
     const norange = say([ok("Revenue", { lo: null, hi: null, noRange: true })]).rows[0];
     expect(norange).toMatchObject({ kind: "guess", lo: null });
