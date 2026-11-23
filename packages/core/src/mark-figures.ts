@@ -31,7 +31,7 @@ const writer = (unit: MarkUnit, decimals: number, ctx: TakeawayContext) => (v: n
 const signed = (write: (v: number) => string, v: number) => `${v > 0 ? "+" : ""}${write(v)}`;
 const isNumber = (v: unknown): v is number => Number.isFinite(v);
 
-/** One drawn interval: its label, the middle value if it has one, the low and high ends, and each as written. */
+/** One drawn range: its label, the middle value if it has one, the low and high ends, and each as written. */
 export type RangeFigure = { label: string; centre: number | null; low: number; high: number; centreText: string | null; lowText: string; highText: string; alt: string };
 /** What a `range` mark draws, or why it does not. `alt` is the text alternative: every number in words. */
 export type RangeFigures = { mark: "range"; ok: true; rows: RangeFigure[]; alt: string } | { mark: "range"; ok: false; refusal: string };

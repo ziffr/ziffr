@@ -2,7 +2,7 @@
 // carries, run on the series its widget shows. The recipe's Slots are the design's first Metrics, in order, each by
 // the widget's Display Period when the design offers Show by; the recipe gets those series and nothing else.
 // Security: only the widget's own Metrics, as the person may see them, ever reach a recipe. Pure.
-import { dayAfter, shownSeries } from "./display-periods";
+import { dayAfter, isPartial, shownSeries } from "./display-periods";
 import { formatNumber, formatPercent, formatValue } from "./format";
 import { PAGE_BUDGET, runRecipe, runRecipe2, WORK_BUDGET, type RecipeResults, type Run2 } from "./recipe-run";
 import { sayIn } from "./takeaways/takeaway";
@@ -103,7 +103,7 @@ export function drawRecipe(design: ViewDesign, metrics: Metric[], data: Pick<Can
   if (part.outputs.length === 0) return { results: {}, figures: {}, refusal: null };
   const limit = Math.min(WORK_BUDGET, budget?.left ?? WORK_BUDGET);
   if (limit <= 0) return page();
-  const run = runRecipe2(part, inputsFor(design, a, metrics, data, settings), { style: DEFAULT_NUMBER_STYLE, yearStart: data.yearStart }, limit);
+  const run = runRecipe2(part, inputsFor(design, a, metrics, data, settings), ctx, limit);
   if (budget) budget.left -= run.spent;
   if (run.limited && limit < WORK_BUDGET) return page();
   const figures: TableFigures = {};
@@ -113,6 +113,14 @@ export function drawRecipe(design: ViewDesign, metrics: Metric[], data: Pick<Can
     // A bridge is written in its whole's Metric's unit; the effects of a fit are plain numbers, per one unit of the driver.
     const whole = a.steps.find((x) => x.id === t.step)?.of ?? "";
     const unit = t.mark === "bridge" ? metrics[Number(whole.slice(4)) - 1] ?? null : null;
+    // A span still running, or one with fewer of its periods than the one before, is no fair end for a change: the bridge says so instead.
+    const slot = metrics[Number(whole.slice(4)) - 1];
+    const today = settings.asOf ? dayAfter(settings.asOf) : undefined;
+    const latest = t.mark === "bridge" && slot ? shownSeries(slot, data, design.options?.display ? settings.display : undefined, { today }).points.at(-1) : undefined;
+    if (latest && (latest.toDate || isPartial(latest))) {
+      figures[t.step] = { mark: "bridge", ok: false, refusal: sayIn("bridge-running", { name: slot.name }, ctx) };
+      continue;
+    }
     figures[t.step] = out.refusal !== undefined && out.rows.length === 0 ? { mark: t.mark, ok: false, refusal: out.refusal } : t.mark === "bridge" ? bridgeFigures(out.rows, unit, ctx) : rangeFigures(out.rows, unit, ctx);
   }
   return { results: Object.fromEntries(drawnOutputs(a).map((o) => [o.step, run.steps[o.step] as Result])), figures, refusal: null };

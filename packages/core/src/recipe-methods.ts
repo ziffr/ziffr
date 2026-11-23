@@ -77,6 +77,8 @@ export function bridgeRows(whole: { name: string; points: Point[] }, parts: { na
   const [prev, last] = whole.points.slice(-2);
   if (!prev || !last || shiftPeriod(prev.period, span, 1) !== last.period) return { rows: [], refusal: sayIn("bridge-no-periods", { name: whole.name }, ctx) };
   const at = (points: Point[], period: string) => points.find((p) => p.period === period)?.value ?? null;
+  const empty = parts.find((p) => at(p.points, prev.period) === null && at(p.points, last.period) === null);
+  if (empty) return { rows: [], refusal: sayIn("bridge-part-empty", { name: empty.name }, ctx) };
   const found = bridge(parts.map((p) => ({ label: p.name, before: at(p.points, prev.period), after: at(p.points, last.period) })), { before: prev.value, after: last.value });
   if (!found.ok) return { rows: [], refusal: sayIn("bridge-refused", {}, ctx) };
   return {

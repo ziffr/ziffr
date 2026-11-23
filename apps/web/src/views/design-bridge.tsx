@@ -1,5 +1,5 @@
 "use client";
-// The `bridge` mark of a View Design (GLOSSARY: View Design, Analysis Recipe; spec 0041, "Marks"): a waterfall from the start of a change
+// The `bridge` mark of a View Design (GLOSSARY: View Design, Analysis Recipe; spec 0041, "Marks"): steps from the start of a change
 // through each part, going up or down, to its end. It draws only the figures the core hands it (mark-figures.ts, from the bridge Method's
 // own table): every number and sign is written there; this file places bars. A part that went down is drawn hanging down, hatched, and written
 // with its minus; a part of 0 is drawn as a line and written as 0; a bar is never told apart by colour alone. The words named in the
@@ -17,7 +17,7 @@ function scale(f: Drawn) {
   return { at, zero: at(0) };
 }
 
-/** A waterfall of a recipe's bridge, or the words that say why it cannot be drawn. */
+/** The steps of a recipe's bridge, or the words that say why it cannot be drawn. */
 export function DesignBridge({ figures, caption }: { figures: BridgeFigures | undefined; caption?: string }) {
   if (!figures) return <p className="widget-text-xs text-muted-foreground">Nothing to draw yet.</p>;
   if (!figures.ok) return <p className="widget-text-xs text-muted-foreground">{figures.refusal}</p>;
@@ -33,7 +33,7 @@ export function DesignBridge({ figures, caption }: { figures: BridgeFigures | un
             const level = s.kind === "start" || s.kind === "end";
             return (
               <div key={i} className="flex min-h-0 flex-col" data-step={s.kind} data-direction={s.direction}>
-                <span className="fig widget-text-xs truncate text-center" title={s.text}>{s.text}</span>
+                <span className="fig widget-text-xs break-words text-center" title={s.text}>{s.text}</span>
                 <div className="relative min-h-0 flex-1">
                   <span className="absolute inset-x-0 border-t border-[var(--color-rule-2)]" style={{ bottom: `${zero}%` }} />
                   <span

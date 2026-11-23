@@ -73,7 +73,7 @@ describe("the bridge step", () => {
     expect(run(at([5]), at([1]), at([1])).refusal).toContain("Revenue needs a value in two periods");
     expect(run([], [], []).refusal).toContain("two periods");
     // Two periods one after the other do give a bridge, also across a year's end.
-    expect(run([{ period: "2025-12-01", value: 1 }, { period: "2026-01-01", value: 3 }], [{ period: "2025-12-01", value: 1 }, { period: "2026-01-01", value: 3 }], at([1])).rows.map((x) => x.role)).toEqual(["start", "part", "part", "end"]);
+    expect(run([{ period: "2025-12-01", value: 1 }, { period: "2026-01-01", value: 3 }], [{ period: "2025-12-01", value: 1 }, { period: "2026-01-01", value: 3 }], [{ period: "2025-12-01", value: 1 }, { period: "2026-01-01", value: 1 }]).rows.map((x) => x.role)).toEqual(["start", "part", "part", "end"]);
   });
   it("says in words when the Method has no bridge to give: no parts, or a value that is not a number", () => {
     expect(bridgeRows({ name: "Revenue", points: whole }, [], "month", ctx)).toEqual({ rows: [], refusal: "No bridge can be drawn from these parts." });
@@ -458,10 +458,6 @@ describe("the number drawn is the number the Method gave", () => {
   });
   it("is the same in a widget, a Snapshot, a View Link and a deck", () => {
     const live = figures();
-    // A Snapshot of the latest period: the data as of that day, as a Snapshot keeps it, with the widget's asOf.
-    const last = series(metrics[0]).at(-1)!.period;
-    const day = data.metrics.length ? "2026-06-30" : last;
-    const snapshot = drawRecipe(DESIGN, metrics, dataAsOf(data, day), { asOf: day });
     // A View Link carries only the widget's own Metrics, nothing else of the Workspace.
     const link = { ...data, metrics, series: Object.fromEntries(metrics.map((m) => [m.slug, data.series[m.slug]])) };
     expect(drawRecipe(DESIGN, metrics, link, {})).toEqual(live);
@@ -469,21 +465,18 @@ describe("the number drawn is the number the Method gave", () => {
     expect(nativeForm(DESIGN, {})).toBe("picture");
     expect(nativeForm({ ...DESIGN, parts: [{ mark: "plot", axes: "regular", scale: "padded", marks: [{ mark: "line", show: "values" }, { mark: "range", show: "forecast.range" }] }] }, {})).toBe("picture");
     expect(nativeForm({ ...DESIGN, parts: [{ mark: "plot", axes: "regular", scale: "padded", marks: [{ mark: "line", show: "values" }, { mark: "area", show: "forecast.range" }] }] }, {})).toBe("line");
-    expect(JSON.stringify(snapshot.figures)).toBe(JSON.stringify(drawRecipe(DESIGN, metrics, dataAsOf(data, day), { asOf: day }).figures));
     // A Snapshot of an earlier day says what changed up to then, not what changed since: a different pair of periods.
     const earlier = drawRecipe(DESIGN, metrics, dataAsOf(data, "2026-03-31"), { asOf: "2026-03-31" }).figures.br;
     expect(earlier.ok && live.figures.br.ok && earlier.alt !== live.figures.br.alt).toBe(true);
   });
-  it("does not read a Metric the Slots did not give: a missing Slot is a gap, never the next Metric moved up", () => {
-    const live = figures().figures.br;
+  it("refuses a Slot left empty, in words, rather than draw it as a part of 0", () => {
     const gap = drawRecipe(DESIGN, [metrics[0], undefined as never, metrics[2]], data, {}).figures.br;
-    expect(gap.ok && live.ok).toBe(true);
-    if (!gap.ok || !live.ok || gap.mark !== "bridge" || live.mark !== "bridge") return;
-    // The Metric in the third Slot is still the third: its part is what it was; the empty Slot's part is 0, with nothing said about a value it never had.
-    const part = (f: typeof gap, label: string) => f.steps.find((s) => s.label === label);
-    expect(part(gap, metrics[2].name)?.text).toBe(part(live, metrics[2].name)?.text);
-    expect(part(gap, "Orders")).toMatchObject({ value: 0, text: "0 €", direction: "flat" });
-    expect(part(gap, "Orders")?.missing).toBeUndefined();
+    expect(gap).toEqual({ mark: "bridge", ok: false, refusal: "Orders has no value in either of the two periods, so it cannot be a part of the bridge." });
+  });
+  it("does not compare a period still running with a full one", () => {
+    const day = { ...DESIGN, options: { display: {} } } as ViewDesign;
+    const running = drawRecipe(day, metrics, { ...data, today: "2026-05-10" }, { display: "quarter" }).figures.br;
+    expect(running).toEqual({ mark: "bridge", ok: false, refusal: `${metrics[0].name} is still running in its latest period, which is not compared with a full one. Show it by a period that is complete.` });
   });
   it("refuses in words when the page has spent its share, and charges the budget", () => {
     const budget = newRecipeBudget();

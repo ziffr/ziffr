@@ -194,7 +194,7 @@ function PeriodPlot({ part, marks, v, onPointContext }: { part: Plot; marks: Plo
                 ];
               }
               case "range":
-                // The forecast's likely range at each period as an interval (a floating bar), with the forecast as its middle value on request.
+                // The forecast's likely range at each period as a bar from low to high (a floating bar), with the forecast as its middle value on request.
                 return fc ? [
                   <Bar key={`${i}-range`} dataKey="band" barSize={Math.max(4, 8 * s)} radius={2} isAnimationActive={false} fill={lineTone(k.tone)} fillOpacity={0.3} stroke={lineTone(k.tone)} />,
                   ...(k.centre ? [<Line key={`${i}-centre`} dataKey="fc" stroke="none" dot={{ r: 3 * s, fill: lineTone(k.tone), stroke: "var(--color-cotton)" }} activeDot={false} isAnimationActive={false} />] : []),

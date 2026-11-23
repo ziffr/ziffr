@@ -151,6 +151,8 @@ const EN = {
   "bridge-unexplained": "{value} of the change is not in these rows.",
   "table-bridge-rest": "Not in these parts",
   "bridge-no-periods": "{name} needs a value in two periods that follow one another to draw what changed.",
+  "bridge-part-empty": "{name} has no value in either of the two periods, so it cannot be a part of the bridge.",
+  "bridge-running": "{name} is still running in its latest period, which is not compared with a full one. Show it by a period that is complete.",
   "bridge-refused": "No bridge can be drawn from these parts.",
   "mark-empty": "There is nothing to draw: the analysis gave no rows.",
   "mark-not-a-number": "Not drawn: {label} has a value that is not a number.",
