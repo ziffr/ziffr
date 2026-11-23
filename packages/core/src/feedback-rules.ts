@@ -53,10 +53,19 @@ export function normalizeRoute(input: unknown): string | null {
   const out: string[] = [];
   for (const [i, part] of parts.entries()) {
     if (!SEGMENT.test(part)) return null;
-    out.push(i > 0 && NAMED_NEXT.has(parts[i - 1]) ? ":name" : LOOKS_LIKE_ID.test(part) ? ":id" : part);
+    if (i > 0 && NAMED_NEXT.has(parts[i - 1])) { out.push(":name"); break; } // what follows a name (a period, a date) is detail of the Workspace: dropped
+    out.push(LOOKS_LIKE_ID.test(part) ? ":id" : part);
   }
   const route = `/${out.join("/")}`;
   return route.length <= ROUTE_MAX ? route : null;
+}
+
+/** A route as it is stored (already made plain by normalizeRoute, so `:name` and `:id` are allowed), or null when it is
+ * anything else: the check before a stored route is shown anywhere public. */
+export function storedRoute(input: unknown): string | null {
+  if (typeof input !== "string" || input.length > ROUTE_MAX || !input.startsWith("/") || input.startsWith("//")) return null;
+  const parts = input.split("/").slice(1);
+  return parts.every((p) => p === ":name" || p === ":id" || SEGMENT.test(p)) ? input : null;
 }
 
 /** The app version when it is a plain number like 0.11.0, else null. */

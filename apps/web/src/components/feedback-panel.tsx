@@ -68,7 +68,7 @@ export function FeedbackPanel({ route }: { route: string }) {
       {sent ? (
         <div role="status" className="flex flex-col items-start gap-2 text-sm">
           <p className="font-medium">Thank you.</p>
-          <p>It is saved and waiting to be filed. You will see what happens to it under My feedback.</p>
+          <p>Your feedback was received. Once it is filed, your words are public on GitHub. You will see what happens to it under My feedback.</p>
           <Button type="button" variant="outline" size="sm" onClick={() => setSent(false)}>Send more feedback</Button>
         </div>
       ) : (

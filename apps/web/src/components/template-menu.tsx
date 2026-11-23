@@ -1,12 +1,12 @@
 "use client";
-// A team template's own menu in the Pool: everyone sees its versions; only its creator renames or deletes it.
-import { useState, useTransition } from "react";
+// A team template's own menu in the Pool: everyone sees its versions (in the side panel, spec 0050); only its creator renames or deletes it.
+import { useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { told } from "@/lib/action-toast";
 import { GitBranch, MoreHorizontal, PencilLine, Trash2 } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
+import { useSlideOver } from "./slide-over-host";
 import { VersionsPanel } from "./versions-panel";
 import { deleteTemplate, renameTemplate } from "@/app/template-actions";
 import type { Profile, TeamTemplate } from "@ziffr/core/types";
@@ -14,7 +14,7 @@ import { useConfirm } from "./confirm-dialog";
 
 /** The ⋯ menu of one team template in the Pool. */
 export function TemplateMenu({ t, mine, people }: { t: TeamTemplate; mine: boolean; people: Profile[] }) {
-  const [versions, setVersions] = useState(false);
+  const panel = useSlideOver();
   const [, start] = useTransition();
   const router = useRouter();
   const { confirm, dialog } = useConfirm();
@@ -38,7 +38,7 @@ export function TemplateMenu({ t, mine, people }: { t: TeamTemplate; mine: boole
               <PencilLine /> Rename…
             </DropdownMenuItem>
           )}
-          <DropdownMenuItem onClick={() => setTimeout(() => setVersions(true), 0)}><GitBranch /> Versions…</DropdownMenuItem>
+          <DropdownMenuItem onClick={() => setTimeout(() => panel.open({ title: `Versions of ${t.name}`, content: <VersionsPanel type="template" id={t.id} people={people} onRestored={() => router.refresh()} hideTitle /> }), 0)}><GitBranch /> Versions…</DropdownMenuItem>
           {mine && (
             <>
               <DropdownMenuSeparator />
@@ -55,14 +55,6 @@ export function TemplateMenu({ t, mine, people }: { t: TeamTemplate; mine: boole
           )}
         </DropdownMenuContent>
       </DropdownMenu>
-      {versions && (
-        <Dialog open onOpenChange={(o) => { if (!o) setVersions(false); }}>
-          <DialogContent className="sm:max-w-lg">
-            <DialogTitle className="sr-only">Versions of {t.name}</DialogTitle>
-            <VersionsPanel type="template" id={t.id} people={people} onRestored={() => router.refresh()} />
-          </DialogContent>
-        </Dialog>
-      )}
     </>
   );
 }

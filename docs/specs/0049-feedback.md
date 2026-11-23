@@ -1,6 +1,6 @@
 # 0049 Feedback: people tell us what is wrong or missing, and hear back, without a GitHub account
 
-**Status:** draft. **Ticket:** tracking issue #914, tickets #915, #916, #917, #918, #919, #920 (the owner's wish, 2026-11-23).
+**Status:** in progress (tickets 1 and 3 built: the store and the bridge out, which needs a security review before it is switched on). **Ticket:** tracking issue #914, tickets #915, #916, #917, #918, #919, #920 (the owner's wish, 2026-11-23).
 
 ## Problem Statement
 
