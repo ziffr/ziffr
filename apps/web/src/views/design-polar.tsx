@@ -24,17 +24,17 @@ const short = (s: string, n = 14) => (s.length > n ? `${s.slice(0, n - 1)}…` :
 const anchor = (i: number, n: number) => { const c = Math.cos(angle(i, n)); return Math.abs(c) < 0.2 ? "middle" : c > 0 ? "start" : "end"; };
 
 /** The line of a shape: unbroken and closed, with its fill, when every spoke has a place; else only the stretches between neighbours that have one. */
-function Outline({ marks, dashed, square }: { marks: Mark[]; dashed: boolean; square: boolean }) {
+function Outline({ marks, dashed, square, closed = true }: { marks: Mark[]; dashed: boolean; square: boolean; closed?: boolean }) {
   const n = marks.length;
   const pts = marks.map((m, i) => (m.at === null ? null : at(i, n, R * m.at)));
   const whole = pts.every((p) => p !== null);
   const stroke = dashed ? "var(--color-ink)" : "var(--color-data)";
   const lines: ReactNode[] = [];
-  if (whole) lines.push(<polygon key="shape" points={pts.map((p) => p!.join(",")).join(" ")} fill={dashed ? "none" : "var(--color-data)"} fillOpacity={dashed ? 0 : 0.18} stroke={stroke} strokeWidth={1.6} strokeDasharray={dashed ? "4 3" : undefined} strokeLinejoin="round" />);
+  if (whole && closed) lines.push(<polygon key="shape" points={pts.map((p) => p!.join(",")).join(" ")} fill={dashed ? "none" : "var(--color-data)"} fillOpacity={dashed ? 0 : 0.18} stroke={stroke} strokeWidth={1.6} strokeDasharray={dashed ? "4 3" : undefined} strokeLinejoin="round" />);
   else {
     // A gap breaks the line: the two spokes beside it are not joined through the centre or through each other.
     pts.forEach((p, i) => {
-      const q = pts[(i + 1) % n];
+      const q = i + 1 < n ? pts[i + 1] : closed ? pts[0] : null;
       if (p && q && n > 1) lines.push(<line key={`s${i}`} x1={p[0]} y1={p[1]} x2={q[0]} y2={q[1]} stroke={stroke} strokeWidth={1.6} strokeDasharray={dashed ? "4 3" : undefined} />);
     });
   }
@@ -100,7 +100,7 @@ export function PolarMark({ part, v }: { part: Polar; v: DesignValues }) {
   return (
     <>
       <Frame n={n} rings={[0.5, 1]} label={model.alt}>
-        <Outline marks={model.marks} dashed={false} square={false} />
+        <Outline marks={model.marks} dashed={false} square={false} closed={model.closed} />
         <Spokes n={n} lines={model.marks.map((k) => [k.label, k.text ?? "no value"])} />
       </Frame>
       <Words>{model.rule}</Words>
@@ -116,12 +116,12 @@ export function RadarMark({ part, v }: { part: Radar; v: DesignValues }) {
   const n = model.spokes.length;
   const [now, before] = model.shapes;
   const mixed = new Set(now.marks.map((k) => k.period).filter(Boolean)).size > 1;
-  const lines = model.spokes.map((_, i) => {
+  const lines = model.spokes.map((name, i) => {
     const a = now.marks[i];
     const b = before?.marks[i];
     // Spokes whose latest values are of different periods say which, so they do not read as one moment.
     const when = (k: typeof a) => (mixed && k.period ? ` (${k.period})` : "");
-    return [short(a.label, 16), a.text === null ? "no value" : `${a.text}${when(a)}`, ...(b ? [`before: ${b.text ?? "no value"}${when(b)}`] : [])];
+    return [short(name, 16) + a.label.slice(name.length), a.text === null ? "no value" : `${a.text}${when(a)}`, ...(b ? [`before: ${b.text ?? "no value"}${when(b)}`] : [])];
   });
   return (
     <>

@@ -18,7 +18,7 @@ export const monthStart = (i: number) => `${String(Math.floor(i / 12)).padStart(
 export type RefPoint = { m: number; v: number; note?: string; condensed?: boolean };
 
 /** What the reference says a spoke is. */
-export type RefSpoke = { kind: "gap" } | { kind: "norange"; m: number; v: number } | { kind: "placed"; m: number; v: number; at: Exact; note?: string };
+export type RefSpoke = { kind: "gap" } | { kind: "running"; m: number; v: number; note: string } | { kind: "norange"; m: number; v: number } | { kind: "placed"; m: number; v: number; at: Exact; note?: string };
 
 /** What the reference says a radar is: a refusal (Condensed Values in a window), or each spoke and, with `against`, the period before. */
 export type RefRadar = { refused: true } | { refused: false; now: RefSpoke[]; before: RefSpoke[] };
@@ -39,9 +39,11 @@ export function referenceRadar(metrics: RefPoint[][], window: number, against: b
     }
     const latest = inside.reduce((a, b) => (b.m > a.m ? b : a));
     const prev = against ? points.find((p) => p.m === latest.m - 1) : undefined;
-    const values = [...inside.map((p) => p.v), ...(prev ? [prev.v] : [])];
+    if (prev?.condensed) return { refused: true };
+    // A period still running is written but neither sets the scale nor sits on it.
+    const values = [...inside.filter((p) => p.note !== "so far").map((p) => p.v), ...(prev && prev.note !== "so far" ? [prev.v] : [])];
     const [lo, hi] = [Math.min(...values), Math.max(...values)];
-    const spoke = (p: RefPoint | undefined): RefSpoke => (!p ? { kind: "gap" } : hi === lo ? { kind: "norange", m: p.m, v: p.v } : { kind: "placed", m: p.m, v: p.v, at: fraction(BigInt(p.v - lo), BigInt(hi - lo)), note: p.note });
+    const spoke = (p: RefPoint | undefined): RefSpoke => (!p ? { kind: "gap" } : p.note === "so far" ? { kind: "running", m: p.m, v: p.v, note: p.note } : hi === lo ? { kind: "norange", m: p.m, v: p.v } : { kind: "placed", m: p.m, v: p.v, at: fraction(BigInt(p.v - lo), BigInt(hi - lo)), note: p.note });
     now.push(spoke(latest));
     before.push(spoke(prev));
   }

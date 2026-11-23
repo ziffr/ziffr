@@ -22,7 +22,7 @@ describe("polarModel", () => {
     expect(m.top).toBe("40 orders");
     expect(m.rule).toContain("0 at the centre, 40 orders at the rim");
     // The text alternative has every number, in the order of the circle.
-    expect(m.alt).toBe("Orders, as a polar plot of 3 periods. Distance from the centre is the value: 0 at the centre, 40 orders at the rim. The first period is at the top and the others follow clockwise. 2026-01: 10 orders; 2026-02: 20 orders; 2026-03: 40 orders.");
+    expect(m.alt).toBe("Orders, as a polar plot of 3 periods. Distance from the centre is the value: 0 at the centre, 40 orders at the rim. The first period is at the top and the others follow clockwise. The line is open: these periods are not one whole cycle. 2026-01: 10 orders; 2026-02: 20 orders; 2026-03: 40 orders.");
   });
 
   it("keeps a missing period as a gap, in its place, never as 0", () => {
@@ -60,6 +60,15 @@ describe("polarModel", () => {
     expect(tail.marks.map((k) => k.at)).toEqual([5 / 7, 6 / 7, 1, null]);
     // Values outside the window are not drawn.
     expect(ok(polar(series(9, 5, 6, 7), { from: month(1), to: month(3) })).marks.map((k) => k.at)).toEqual([5 / 7, 6 / 7, 1]);
+  });
+
+  it("closes the line only for one whole cycle: 12 months, 4 quarters", () => {
+    expect(ok(polar(series(...Array(12).fill(1)))).closed).toBe(true);
+    expect(ok(polar(series(...Array(12).fill(1)))).rule).toContain("these are one whole cycle");
+    expect(ok(polar(series(...Array(11).fill(1)))).closed).toBe(false);
+    const quarters = [0, 1, 2, 3].map((i) => ({ period: shiftPeriod("2026-01-01", "quarter", i), value: 1 }));
+    expect(ok(polar(quarters, { by: "quarter", from: quarters[0].period, to: quarters[3].period })).closed).toBe(true);
+    expect(ok(polar(quarters.slice(0, 3), { by: "quarter", from: quarters[0].period, to: quarters[2].period })).closed).toBe(false);
   });
 
   it("refuses Condensed Values, which stand for several periods", () => {
@@ -207,6 +216,31 @@ describe("radarModel", () => {
     const m = ok(radar([three[0], three[1], spoke("C", [...three[2].points, { period: month(9), value: Number.NaN }])], { window: 2 }));
     // C's last 2 periods: -20 and -8, so -8 is at the rim (a later NaN would have moved the window past it).
     expect(m.shapes[0].marks[2]).toMatchObject({ text: "-8", at: 1 });
+  });
+
+  it("writes a period still running but neither places it nor lets it set the scale", () => {
+    const a = spoke("A", [{ period: month(0), value: 10 }, { period: month(1), value: 30 }, { period: month(2), value: 1, note: "so far" }]);
+    const m = ok(radar([a, three[1], three[2]], { against: "previous" }));
+    expect(m.shapes[0].marks[0]).toMatchObject({ label: "A (so far)", text: "1", at: null, gap: "still running, so it is not placed on the scale" });
+    // The period before (30) sits on the scale of the whole periods 10..30: at the rim.
+    expect(m.shapes[1].marks[0]).toMatchObject({ text: "30", at: 1 });
+    expect(m.alt).toContain("A (so far): 1 (2026-03), still running");
+  });
+
+  it("refuses a Condensed Value in the period before", () => {
+    const a = spoke("A", [{ period: month(2), value: 1, condensed: true }, { period: month(3), value: 5 }]);
+    expect(radar([a, three[1], three[2]], { window: 1, against: "previous" })).toEqual({ ok: false, reason: expect.stringContaining("Condensed Values") });
+  });
+
+  it("counts the window in the Metrics' own periods when a week and a month meet", () => {
+    const weekly = spoke("W", [{ period: "2026-10-26", value: 1 }, { period: "2026-11-16", value: 9 }], { by: "week" });
+    const monthly = (n: string) => spoke(n, [{ period: "2026-10-01", value: 3 }, { period: "2026-11-01", value: 7 }]);
+    const one = ok(radar([weekly, monthly("A"), monthly("B")], { window: 1 }));
+    expect(one.shapes[0].marks[1]).toMatchObject({ text: "7", period: "2026-11" });
+    const two = ok(radar([weekly, monthly("A"), monthly("B")], { window: 2 }));
+    expect(two.shapes[0].marks[1]).toMatchObject({ text: "7", at: 1 });
+    // The weekly Metric's window is 2 weeks: the week of 26 October is 3 weeks back, so only one week counts.
+    expect(two.shapes[0].marks[0]).toMatchObject({ text: "9", at: null, gap: "only one period is shown, so it has no range to sit in" });
   });
 
   it("draws only gaps, and does not fail, when no Metric has a value", () => {

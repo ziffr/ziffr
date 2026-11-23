@@ -39,6 +39,11 @@ describe("radar against the reference", () => {
             }
             expect(m.text).toBe(`${r.v}`);
             expect(m.period).toBe(monthStart(r.m));
+            if (r.kind === "running") {
+              expect(m.at).toBeNull();
+              expect(m.label).toBe(`M${i} (so far)`);
+              return;
+            }
             if (r.kind === "norange") {
               expect(m.at).toBeNull();
               return;
@@ -59,6 +64,9 @@ describe("radar against the reference", () => {
     const fresh = (v: number): RefPoint[] => [{ m: base + 10, v }, { m: base + 11, v: v + 1 }];
     const ref = referenceRadar([old, fresh(1), fresh(2)], 3, false);
     expect(ref).toMatchObject({ refused: false, now: [{ kind: "gap" }, { kind: "placed" }, { kind: "placed" }] });
+    // And the marks agree with it.
+    const got = radarModel([old, fresh(1), fresh(2)].map((points, i) => ({ name: `M${i}`, points: points.map(toMark), by: "month" as const, write: (v: number) => `${v}`, period: (p: string) => p })), { window: 3, style: "1,234.5" });
+    expect(got.ok && got.shapes[0].marks.map((m) => m.text)).toEqual([null, "2", "3"]);
   });
 });
 
