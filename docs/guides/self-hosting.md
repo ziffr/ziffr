@@ -92,6 +92,7 @@ Set these where the app runs. `.env.example` has them all with a comment each.
 | `ZIFFR_AUTH_PROVIDERS` | Sign-in providers besides the email link, if any |
 | `ZIFFR_DEMO` | `0` to offer no demo, `1` to offer it; or choose on the Installation settings page |
 | `ZIFFR_FEEDBACK_PROMPT` | `true` to ask signed-in people now and then whether they like Ziffr (with a link to the repository on GitHub), `false` never; off unless set, on for hosted Ziffr; or choose on the Installation settings page |
+| `ZIFFR_FEEDBACK_PER_DAY` | The most feedback the whole Installation takes in 24 hours, central version (ziffr.net) only; 20 to 100,000, `200` unless set; or choose on the Installation settings page |
 | `ZIFFR_USER_GUIDE_URL` | Where the app's "User guide" link leads, if your team keeps its guide elsewhere; without it, Ziffr's own guide at `/guide` ([user guide](../user-guide/README.md)) |
 | `ZIFFR_USER_GUIDE_DIR` | A folder of guide chapters other than `docs/user-guide`, such as a translated copy, optional |
 | `ZIFFR_SMTP_URL`, `ZIFFR_MAIL_FROM` | Sending email ([email](email.md)); or set them on the [Installation settings](#installation-settings) page |
@@ -277,6 +278,7 @@ Generated from the Installation Settings catalogue (`packages/core/src/installat
 | Setting | On the page | Example or choices | What it does |
 | --- | --- | --- | --- |
 | `ZIFFR_FEEDBACK_PROMPT` | Ask people whether they like Ziffr | `true`, `false` | A small card, at most three times per person, after they have submitted values on a few different days; never in the demo, for Guests or on View Links. Empty: on for hosted Ziffr, off everywhere else. |
+| `ZIFFR_FEEDBACK_PER_DAY` | Feedback the whole Installation takes a day | `200` | The most feedback all people together may send in 24 hours, in the central version (ziffr.net) only. Over it, new feedback is refused with a plain message until the day has passed, so many new accounts cannot fill the queue before real feedback is read. 20 to 100,000; empty: 200. |
 
 **Demo**
 
