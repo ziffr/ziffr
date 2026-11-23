@@ -149,3 +149,53 @@ describe("who sees what", () => {
     expect(data).toEqual([]);
   });
 });
+
+describe("the Installation's daily cap", () => {
+  // The cap counts all feedback of the last 24 hours in the database, whoever made it, so each test sets the cap
+  // relative to what is there already (the function takes it as a parameter; the setting's range starts at 20).
+  const made24h = async () => (await db().from("feedback").select("id", { count: "exact", head: true }).gt("created_at", new Date(Date.now() - 24 * 3_600_000).toISOString())).count ?? 0;
+  const create = (personId: string, workspaceId: string, cap: number) =>
+    db().rpc("feedback_create", { p_person: personId, p_workspace: workspaceId, p_kind: "idea", p_words: "A cap test.", p_route: null, p_version: null, p_per_person: 5, p_per_workspace: 20, p_per_installation: cap });
+
+  it("refuses the third feedback of a cap of two, from different people and Workspaces, with its own error", async () => {
+    const cap = (await made24h()) + 2;
+    const [a, b, c] = [await ws(), await ws(), await ws()];
+    const [pa, pb, pc] = [await signedIn(a), await signedIn(b), await signedIn(c)];
+    expect((await create(pa, a.id, cap)).data).toHaveLength(1);
+    expect((await create(pb, b.id, cap)).data).toHaveLength(1);
+    expect((await create(pc, c.id, cap)).error?.message).toContain("feedback_installation_cap");
+    expect((await db().from("feedback").select("id").eq("person_id", pc)).data).toEqual([]);
+  });
+  it("tells the person that feedback is paused, not that they sent enough", async () => {
+    process.env.ZIFFR_FEEDBACK_PER_DAY = "20";
+    forgetStoredSettings();
+    try {
+      const w = await ws(); const ben = await signedIn(w); const filler = await signedIn(w);
+      const missing = Math.max(0, 20 - (await made24h()));
+      await db().from("feedback").insert(Array.from({ length: missing }, () => ({ person_id: filler, workspace_id: null, kind: "idea", words: "filler" })));
+      await expect(say(w.actor(ben, "member"))).rejects.toThrow(/Feedback is paused for today/);
+    } finally { delete process.env.ZIFFR_FEEDBACK_PER_DAY; forgetStoredSettings(); }
+  });
+  it("still tells a person over their own limit that that is enough, when the cap is not reached", async () => {
+    const w = await ws(); const ben = await signedIn(w);
+    for (let i = 0; i < FEEDBACK_PER_PERSON_PER_DAY; i++) await say(w.actor(ben, "member"));
+    await expect(say(w.actor(ben, "member"))).rejects.toThrow(/enough feedback for today/);
+  });
+  it("counts only the last 24 hours", async () => {
+    const w = await ws(); const ben = await signedIn(w); const eva = await signedIn(w);
+    const cap = (await made24h()) + 1;
+    expect((await create(ben, w.id, cap)).data).toHaveLength(1);
+    expect((await create(eva, w.id, cap)).error?.message).toContain("feedback_installation_cap");
+    await db().from("feedback").update({ created_at: new Date(Date.now() - 25 * 3_600_000).toISOString() }).eq("person_id", ben);
+    expect((await create(eva, w.id, cap)).data).toHaveLength(1);
+  });
+  it("does not let simultaneous requests from different people pass the cap together", async () => {
+    const w = await ws();
+    const people = await Promise.all(Array.from({ length: 6 }, () => signedIn(w)));
+    const cap = (await made24h()) + 2;
+    const results = await Promise.all(people.map((p) => create(p, w.id, cap)));
+    expect(results.filter((r) => (r.data ?? []).length === 1)).toHaveLength(2);
+    expect(results.filter((r) => r.error?.message.includes("feedback_installation_cap"))).toHaveLength(4);
+    expect(await made24h()).toBe(cap);
+  });
+});

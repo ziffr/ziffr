@@ -9,7 +9,8 @@
 import { Forbidden, type Actor } from "./actor";
 import { db } from "./db";
 import {
-  cleanAppVersion, cleanFeedbackWords, FEEDBACK_PER_PERSON_PER_DAY, FEEDBACK_PER_WORKSPACE_PER_DAY, feedbackKind, feedbackMode, newFeedbackStatus, normalizeRoute,
+  cleanAppVersion, cleanFeedbackWords, FEEDBACK_PER_PERSON_PER_DAY, FEEDBACK_PER_WORKSPACE_PER_DAY, feedbackInstallationCapFrom, feedbackKind, feedbackMode,
+  feedbackRefusal, newFeedbackStatus, normalizeRoute,
   type FeedbackKind, type FeedbackMode, type FeedbackStatus,
 } from "./feedback-rules";
 import { hostedByCloud } from "./installation-days";
@@ -49,8 +50,8 @@ async function assertMayUse(actor: Actor): Promise<void> {
 
 /** The actor sends feedback: a kind, their words, and optionally the page route and app version the form adds. Every
  * value is checked here; the route is cut down to a plain path and dropped when it is not one. At most a few a day per
- * person and per Workspace, counted in the database. Returns the new feedback: open when the Installation posts
- * directly (the default), waiting for review when its setting says review first. */
+ * person, per Workspace and for the whole Installation (a setting), counted in the database. Returns the new feedback: open when the
+ * Installation posts directly (the default), waiting for review when its setting says review first. */
 export async function createFeedback(actor: Actor, input: { kind?: unknown; words?: unknown; route?: unknown; appVersion?: unknown }): Promise<MyFeedback> {
   await assertMayUse(actor);
   const mode = await currentMode();
@@ -58,14 +59,16 @@ export async function createFeedback(actor: Actor, input: { kind?: unknown; word
   if (!kind) throw new Error("Choose what kind of feedback this is.");
   const clean = cleanFeedbackWords(input.words);
   if (!clean.ok) throw new Error(clean.reason);
+  const cap = feedbackInstallationCapFrom(await settingsInEffect());
   const { data, error } = await db().rpc("feedback_create", {
     p_person: actor.personId, p_workspace: actor.workspaceId, p_kind: kind, p_words: clean.words, p_route: normalizeRoute(input.route),
-    p_version: cleanAppVersion(input.appVersion), p_per_person: FEEDBACK_PER_PERSON_PER_DAY, p_per_workspace: FEEDBACK_PER_WORKSPACE_PER_DAY,
+    p_version: cleanAppVersion(input.appVersion), p_per_person: FEEDBACK_PER_PERSON_PER_DAY, p_per_workspace: FEEDBACK_PER_WORKSPACE_PER_DAY, p_per_installation: cap,
   });
-  if (error) throw new Error("Your feedback could not be saved.");
-  // A set: no row means a limit was reached. Checked by the id so an empty answer can never pass for a feedback.
+  // A set: no row means the person's or the Workspace's limit; the Installation's cap is an error the database raises.
+  // Checked by the id so an empty answer can never pass for a feedback.
   const made = (data as Row[] | null)?.[0];
-  if (!made?.id) throw new Error("That is enough feedback for today. Please try again tomorrow.");
+  const refusal = feedbackRefusal(error, !!made?.id);
+  if (refusal || !made) throw new Error(refusal ?? "Your feedback could not be saved.");
   return view(await settle(made, mode));
 }
 

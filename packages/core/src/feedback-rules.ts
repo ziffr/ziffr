@@ -102,3 +102,44 @@ export function cleanRejectionReason(input: unknown): { ok: true; reason: string
 export function cleanAppVersion(input: unknown): string | null {
   return typeof input === "string" && VERSION.test(input) ? input : null;
 }
+
+/** The Installation Setting that holds the most feedback the whole Installation takes in 24 hours, with its range and
+ * default. Every lower bound is above zero: the cap cannot be switched off, only moved. Set by the central operator
+ * (ziffr.net) on the Installation settings page. */
+export const FEEDBACK_INSTALLATION_CAP = { name: "ZIFFR_FEEDBACK_PER_DAY", label: "Feedback the whole Installation takes a day", min: 20, max: 100_000, default: 200 };
+
+/** What the Installation Settings page says about the cap. */
+export const FEEDBACK_INSTALLATION_CAP_HELP =
+  "The most feedback all people together may send in 24 hours, in the central version (ziffr.net) only. Over it, new feedback is refused with a plain message until the day has passed, so many new accounts cannot fill the queue before real feedback is read. 20 to 100,000; empty: 200.";
+
+/** The sentence that says why a text is not a value of the cap, or null when it is one: a whole number within its range. */
+export function feedbackInstallationCapProblem(text: string): string | null {
+  const { label, min, max } = FEEDBACK_INSTALLATION_CAP;
+  const range = `${min.toLocaleString("en-US")} to ${max.toLocaleString("en-US")}`;
+  if (!/^\d{1,9}$/.test(text.trim())) return `${label} is a whole number from ${range}.`;
+  const n = Number(text.trim());
+  return n >= min && n <= max ? null : `${label} must be from ${range}; it cannot be switched off or left without a limit.`;
+}
+
+/** The cap in these settings: the number set, or the default when it is unset or outside the range (a mistyped
+ * environment variable never switches the safeguard off or makes it absurd). */
+export function feedbackInstallationCapFrom(settings: Record<string, string | undefined>): number {
+  const text = settings[FEEDBACK_INSTALLATION_CAP.name];
+  return text !== undefined && feedbackInstallationCapProblem(text) === null ? Number(text.trim()) : FEEDBACK_INSTALLATION_CAP.default;
+}
+
+/** What the database says when the Installation's cap is reached (the message of the error it raises). */
+export const FEEDBACK_CAP_SIGNAL = "feedback_installation_cap";
+/** The words for a person when the Installation's cap is reached: distinct from the one for their own limits. */
+export const FEEDBACK_PAUSED_MESSAGE = "Feedback is paused for today. Please try again tomorrow.";
+/** The words for a person when their own or their Workspace's limit is reached. */
+export const FEEDBACK_ENOUGH_MESSAGE = "That is enough feedback for today. Please try again tomorrow.";
+/** The words for any other failure of saving. */
+export const FEEDBACK_FAILED_MESSAGE = "Your feedback could not be saved.";
+
+/** The plain message for what the database answered to a create: the Installation's cap, a person's or Workspace's limit
+ * (no row, no error), any other error, or null when a row was made. */
+export function feedbackRefusal(error: { message?: string } | null, madeRow: boolean): string | null {
+  if (error) return String(error.message ?? "").includes(FEEDBACK_CAP_SIGNAL) ? FEEDBACK_PAUSED_MESSAGE : FEEDBACK_FAILED_MESSAGE;
+  return madeRow ? null : FEEDBACK_ENOUGH_MESSAGE;
+}

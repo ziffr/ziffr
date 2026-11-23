@@ -1,6 +1,7 @@
 // The Installation Settings there are (spec 0025; GLOSSARY: Installation Settings): one section per thing the
 // Installation talks to, and the settings in each, named as their environment variables. Pure, so the page can list
 // them; the values and their checks live on the server (settings-in-effect.ts, installation-settings.ts).
+import { FEEDBACK_INSTALLATION_CAP, FEEDBACK_INSTALLATION_CAP_HELP } from "./feedback-rules";
 import { SENDING_LIMITS } from "./sending-limits";
 import { TRIAL_LIMITS } from "./trial-limits";
 
@@ -73,6 +74,7 @@ export const INSTALLATION_SETTINGS: SettingDefinition[] = [
     help: "A small card, at most three times per person, after they have submitted values on a few different days; never in the demo, for Guests or on View Links. Empty: on for hosted Ziffr, off everywhere else." },
   { name: "ZIFFR_FEEDBACK_MODE", section: "feedback", label: "Feedback from people", secret: false, choices: [{ value: "direct", label: "Post directly" }, { value: "review", label: "Review first" }],
     help: "The central version (ziffr.net) only. Post directly (the default): each feedback is filed on GitHub as it arrives. Review first: each waits in the review queue until a maintainer approves it, edits it or rejects it with a reason. A change applies to new feedback; what already waits stays waiting." },
+  { name: FEEDBACK_INSTALLATION_CAP.name, section: "feedback", label: FEEDBACK_INSTALLATION_CAP.label, secret: false, placeholder: String(FEEDBACK_INSTALLATION_CAP.default), help: FEEDBACK_INSTALLATION_CAP_HELP },
   { name: "ZIFFR_DEMO", section: "demo", label: "Offer the demo", secret: false, choices: [{ value: "1", label: "Offered on the login page" }, { value: "0", label: "Not offered" }],
     help: "Whether the login page has Try the demo." },
   { name: "ZIFFR_DEFAULT_METRICS_LIMIT", section: "limits", label: "Default limit", secret: false, placeholder: "No limit",

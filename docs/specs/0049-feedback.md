@@ -43,7 +43,7 @@ Most people who use Ziffr have no GitHub account and should not need one to tell
 - Coming back: a GitHub webhook (verified by its signature) on comments and on state changes; a comment by anyone but the bot is added to the Thread and notifies the person. Comments by the bot's own account (relayed replies) are not echoed back.
 - Anonymity is a property of what we send, so it is tested: the payload to GitHub is built from the words, the route, the version and the kind, and a test fails if anything else (names, emails, Workspace ids, Metric data) can reach it. The form says plainly that the words are public. The person may edit or withdraw their words before filing (when review first is on) and may ask for them to be closed afterwards.
 - Before words are posted to GitHub, @-mentions are neutralised (so nobody is pinged or impersonated) and zero-width and bidirectional control characters are removed.
-- Besides the per-person and per-Workspace limits, consider a daily cap for the whole Installation, so many accounts cannot flood the bridge.
+- Besides the per-person (5) and per-Workspace (20) limits, a daily cap for the whole Installation (ticket #947), so many accounts cannot flood the bridge: 200 a day unless the central operator moves it (Installation Setting `ZIFFR_FEEDBACK_PER_DAY`, 20 to 100,000, never off). Counted in the same transaction as the others; over it, the person reads "Feedback is paused for today. Please try again tomorrow." and nothing is stored.
 - Replies to a person go to the same place Task and Question notices go (spec 0034's channels, their email).
 
 ### The switch
