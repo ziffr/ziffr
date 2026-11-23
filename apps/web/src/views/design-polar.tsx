@@ -157,7 +157,7 @@ export function RadarMark({ part, v }: { part: Radar; v: DesignValues }) {
     const when = (k: typeof a) => (mixed && k.period ? [{ text: `of ${k.period}`, muted: true }] : []);
     // Why a value is not on its spoke is written beside it, not only in the text alternative.
     const why = "why" in a && a.why ? [{ text: a.why, muted: true, wrap: true }] : [];
-    return { name: a.label, rest: [{ text: a.text === null ? "no value" : a.text, muted: true }, ...(a.text === null ? [] : when(a)), ...why, ...(b ? [{ text: `before: ${b.text ?? "no value"}`, muted: true }, ...(b.text === null ? [] : when(b))] : [])] };
+    return { name: a.label, rest: [{ text: a.text === null ? "no value" : a.text, muted: true }, ...(a.text === null ? [] : when(a)), ...why, ...(b ? [{ text: `before: ${b.text ?? "no value"}`, muted: true, wrap: true }, ...(b.text === null ? [] : when(b))] : [])] };
   });
   const drawn = (marks: Mark[]) => marks.some((k) => k.at !== null);
   const key = [drawn(now.marks) && before ? "Solid line with round dots: latest." : "", before && drawn(before.marks) ? "Dashed line with square dots: the period before." : ""].filter(Boolean).join(" ");

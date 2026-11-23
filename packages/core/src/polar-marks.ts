@@ -61,15 +61,15 @@ export function polarModel(input: { name: string; points: MarkPoint[]; by: Span;
   const from = inWindow.map((p) => p.period).sort()[0];
   // Every period from there: a missing one keeps its place and shows as a gap. They are counted before they are listed, so a window of any length costs no more than the refusal.
   const length = periodsBetween(from, input.to, by) + 1;
-  if (length > SPOKES.max) return { ok: false, reason: `A polar plot shows ${SPOKES.min} to ${SPOKES.max} periods and these cover more. Show fewer periods.` };
-  if (length < SPOKES.min) return { ok: false, reason: `A polar plot needs at least ${SPOKES.min} periods and these cover ${length}: a line shows so few better.` };
+  if (length > SPOKES.max) return { ok: false, reason: `A polar plot shows ${SPOKES.min} to ${SPOKES.max} periods and there are more. Show fewer periods.` };
+  if (length < SPOKES.min) return { ok: false, reason: `A polar plot needs at least ${SPOKES.min} periods and these have ${length}. A line chart shows so few periods better.` };
   const periods = Array.from({ length }, (_, i) => shiftPeriod(from, by, i));
   // A value that does not fall on the grid of periods would be left out of the circle without a word.
-  if (inWindow.some((p) => !periods.includes(p.period))) return { ok: false, reason: "These values do not fall on whole periods, so they cannot be placed around the circle." };
-  if (inWindow.some((p) => p.value < 0)) return { ok: false, reason: "A polar plot measures from the centre outward, which is 0, so it cannot show a value below 0. A line chart shows these values." };
+  if (inWindow.some((p) => !periods.includes(p.period))) return { ok: false, reason: "These values do not start at the beginning of a period, so they cannot be placed around the circle." };
+  if (inWindow.some((p) => p.value < 0)) return { ok: false, reason: "A polar plot measures from the centre outward, and the centre is 0, so it cannot show a value below 0. A line chart shows these values." };
   // A period still running is written but neither sets the rim nor sits on the scale, or it would read as a collapse.
   const whole = inWindow.filter((p) => p.note !== RUNNING);
-  if (whole.length === 0) return { ok: false, reason: "Every period shown is still running, so there is nothing to place on the circle yet." };
+  if (whole.length === 0) return { ok: false, reason: "Every period shown is still running, so nothing can be placed on the circle yet." };
   const max = Math.max(...whole.map((p) => p.value));
   if (max === 0) return { ok: false, reason: "Every value is 0, so there is nothing to draw around the circle." };
   const at = new Map(inWindow.map((p) => [p.period, p]));
@@ -87,7 +87,10 @@ export function polarModel(input: { name: string; points: MarkPoint[]; by: Span;
   const join = closed ? " The line joins the last period to the first: these are one whole cycle." : cycle ? " These are one whole cycle, but the line is not joined across a period that is not placed." : " The line is open: these periods are not one whole cycle.";
   const start = from > input.from ? ` The circle starts at the first period with a value, ${input.label(from)}.` : "";
   const running = marks.some((m) => m.at === null && m.text !== null) ? " A period still running is written but not placed, and does not set the rim." : "";
-  const rule = `Distance from the centre is the value: 0 at the centre, ${top} at the rim. The first period is at the top and the others follow clockwise.${start}${join}${running}`;
+  // A scale from 0 hides small ups and downs of a Metric that stays high: honest, and said.
+  const low = Math.min(...whole.map((p) => p.value));
+  const flat = (max - low) / max < 0.3 ? " The scale starts at 0, so small ups and downs look small." : "";
+  const rule = `Distance from the centre is the value: 0 at the centre, ${top} at the rim. The first period is at the top and the others follow clockwise.${flat}${start}${join}${running}`;
   const alt = `${input.name}, as a polar plot of ${periods.length} periods. ${rule} ${marks.map((m) => `${m.label}: ${m.text ?? "no value"}`).join("; ")}.`;
   return { ok: true, marks, closed, top, rule, alt };
 }
@@ -108,8 +111,8 @@ export function whereWords(at: number, style: NumberStyle): string {
 
 /** A radar of Metrics' latest values (and, with `against`, the period before), each spoke on its own scale. The window ends at the newest period any Metric has, so a Metric with nothing recent is a gap, not its old value passed off as the latest. */
 export function radarModel(inputs: RadarInput[], opts: { window: number; against?: "previous"; style: NumberStyle }): RadarModel {
-  if (inputs.length < SPOKES.min) return { ok: false, reason: `A radar needs ${SPOKES.min} to ${SPOKES.max} Metrics and this has ${inputs.length}: a line or a table shows so few better.` };
-  if (inputs.length > SPOKES.max) return { ok: false, reason: `A radar shows ${SPOKES.min} to ${SPOKES.max} Metrics and this has ${inputs.length}: more cannot be read. Pick fewer.` };
+  if (inputs.length < SPOKES.min) return { ok: false, reason: `A radar needs ${SPOKES.min} to ${SPOKES.max} Metrics and this has ${inputs.length}. A line chart or a table shows so few better.` };
+  if (inputs.length > SPOKES.max) return { ok: false, reason: `A radar shows ${SPOKES.min} to ${SPOKES.max} Metrics and this has ${inputs.length}. More cannot be read: pick fewer.` };
   const problem = windowProblem(opts.window);
   if (problem) return { ok: false, reason: problem };
   const window = opts.window;

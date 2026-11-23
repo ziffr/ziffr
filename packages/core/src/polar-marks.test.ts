@@ -72,7 +72,7 @@ describe("polarModel", () => {
     expect(m.top).toBe("345 orders");
     expect(m.rule).toContain("A period still running is written but not placed, and does not set the rim.");
     expect(m.alt).toContain("2026-04 (so far): 85 orders");
-    expect(polar(series(1, 2, 3).map((p) => ({ ...p, note: "so far" })))).toEqual({ ok: false, reason: "Every period shown is still running, so there is nothing to place on the circle yet." });
+    expect(polar(series(1, 2, 3).map((p) => ({ ...p, note: "so far" })))).toEqual({ ok: false, reason: "Every period shown is still running, so nothing can be placed on the circle yet." });
   });
 
   it("makes the rule say what is drawn: joined only for a whole cycle with a place at both ends", () => {
@@ -115,6 +115,14 @@ describe("polarModel", () => {
     expect(ok(polar(quarters.slice(0, 3), { by: "quarter", from: quarters[0].period, to: quarters[2].period })).closed).toBe(false);
   });
 
+  it("says the scale starts at 0 when the values stay close together and far from 0", () => {
+    expect(ok(polar(series(90, 95, 100, 92))).rule).toContain("The scale starts at 0, so small ups and downs look small.");
+    // A spread of 30 % of the highest or more, or a 0 among them, needs no such words.
+    expect(ok(polar(series(70, 95, 100, 92))).rule).not.toContain("starts at 0");
+    expect(ok(polar(series(0, 95, 100, 98))).rule).not.toContain("starts at 0");
+    expect(ok(polar(series(100, 100, 100))).rule).toContain("starts at 0");
+  });
+
   it("refuses Condensed Values, which stand for several periods", () => {
     expect(polar(series(1, 2, 3).map((p, i) => (i === 1 ? { ...p, condensed: true } : p)))).toEqual({ ok: false, reason: expect.stringContaining("Condensed Values") });
   });
@@ -122,17 +130,17 @@ describe("polarModel", () => {
   it("accepts 3 and 12 periods and refuses 2 and 13, in words", () => {
     expect(polar(series(...Array(SPOKES.min).fill(1))).ok).toBe(true);
     expect(polar(series(...Array(SPOKES.max).fill(1))).ok).toBe(true);
-    expect(polar(series(1, 2))).toEqual({ ok: false, reason: "A polar plot needs at least 3 periods and these cover 2: a line shows so few better." });
-    expect(polar(series(...Array(13).fill(1)))).toEqual({ ok: false, reason: "A polar plot shows 3 to 12 periods and these cover more. Show fewer periods." });
+    expect(polar(series(1, 2))).toEqual({ ok: false, reason: "A polar plot needs at least 3 periods and these have 2. A line chart shows so few periods better." });
+    expect(polar(series(...Array(13).fill(1)))).toEqual({ ok: false, reason: "A polar plot shows 3 to 12 periods and there are more. Show fewer periods." });
     // Two values far apart are 13 periods, not 2.
     expect(polar([{ period: month(0), value: 1 }, { period: month(12), value: 1 }]).ok).toBe(false);
   });
 
   it("refuses a value below 0, all zeros, no values, and values off the grid of periods", () => {
-    expect(polar(series(10, -1, 5))).toEqual({ ok: false, reason: "A polar plot measures from the centre outward, which is 0, so it cannot show a value below 0. A line chart shows these values." });
+    expect(polar(series(10, -1, 5))).toEqual({ ok: false, reason: "A polar plot measures from the centre outward, and the centre is 0, so it cannot show a value below 0. A line chart shows these values." });
     expect(polar(series(0, 0, 0))).toEqual({ ok: false, reason: "Every value is 0, so there is nothing to draw around the circle." });
     expect(polar([])).toEqual({ ok: false, reason: "There are no values to draw." });
-    expect(polar([{ period: "2026-01-01", value: 1 }, { period: "2026-01-15", value: 2 }, { period: "2026-03-01", value: 3 }])).toEqual({ ok: false, reason: "These values do not fall on whole periods, so they cannot be placed around the circle." });
+    expect(polar([{ period: "2026-01-01", value: 1 }, { period: "2026-01-15", value: 2 }, { period: "2026-03-01", value: 3 }])).toEqual({ ok: false, reason: "These values do not start at the beginning of a period, so they cannot be placed around the circle." });
     expect(polar([{ period: month(0), value: Number.NaN }, { period: month(1), value: Number.POSITIVE_INFINITY }]).ok).toBe(false);
   });
 
@@ -228,9 +236,9 @@ describe("radarModel", () => {
   });
 
   it("refuses fewer than 3 and more than 12 spokes, in words", () => {
-    expect(radar(three.slice(0, 2))).toEqual({ ok: false, reason: "A radar needs 3 to 12 Metrics and this has 2: a line or a table shows so few better." });
+    expect(radar(three.slice(0, 2))).toEqual({ ok: false, reason: "A radar needs 3 to 12 Metrics and this has 2. A line chart or a table shows so few better." });
     const many = Array.from({ length: 13 }, (_, i) => spoke(`M${i}`, series(1, 2, 3)));
-    expect(radar(many)).toEqual({ ok: false, reason: "A radar shows 3 to 12 Metrics and this has 13: more cannot be read. Pick fewer." });
+    expect(radar(many)).toEqual({ ok: false, reason: "A radar shows 3 to 12 Metrics and this has 13. More cannot be read: pick fewer." });
     expect(radar(many.slice(0, 12)).ok).toBe(true);
     expect(radar(many.slice(0, 3)).ok).toBe(true);
   });
