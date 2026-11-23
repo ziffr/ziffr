@@ -226,6 +226,22 @@ describe("the list against the canvas, state by state", () => {
     expect(greyed([{ ...rev, periods: 5 }, { ...vis, periods: 5 }]).correlation).toBe("Needs at least 6 months of values; Revenue has 5.");
   });
 
+  it("the longest period sets a comparison, and a Metric with Aggregation none is a problem only beside another period", () => {
+    // Quarterly with 10 periods beside monthly with 3: the comparison is quarterly, and the quarterly history is what counts.
+    expect(greyed([{ ...rev, period: "quarter" as const, periods: 10 }, { ...vis, periods: 3 }]).correlation).toBeUndefined();
+    // Both monthly, one with Aggregation none: nothing to combine, so nothing stops them.
+    expect(greyed([rev, { ...vis, aggregation: "none" as const }]).correlation).toBeUndefined();
+    expect(greyed([{ ...rev, aggregation: "none" as const }, vis]).correlation).toBeUndefined();
+    // Built from each other only where the formula says so.
+    expect(greyed([rev, vis]).correlation).toBeUndefined();
+    expect(greyed([fact({ id: 1, name: "Revenue", builtFrom: [7] }), vis]).correlation).toBeUndefined();
+  });
+
+  it("says the same thing for an entry that runs as for one that does not, without anything extra", () => {
+    expect(fitList([rev, vis]).find((f) => f.entry === "correlation")).toStrictEqual({ entry: "correlation", ok: true });
+    for (const g of groupsFor([rev, vis])) for (const e of g.entries) expect(e.fit).toStrictEqual(fitList([rev, vis]).find((f) => f.entry === e.id));
+  });
+
   it("an entry about one Metric runs on whichever canvas Metric fits, and starts on it", () => {
     // Revenue has 3 months, Visits 24 with a Breakdown: the forecast, the usual range and the shares run, on Visits.
     const short = { ...rev, periods: 3 };
