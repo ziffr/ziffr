@@ -123,9 +123,28 @@ export function changePoint(points: Point[], span: Span): ChangePoint | NoChange
   return { ok: true, n, tries, index: k, period: rows[k].period, found, ...result };
 }
 
-// How a slope reads: up, down or neither, by the size in the Metric's unit per period.
-function moving(v: number, unit: ValueUnit, decimals: number, ctx: TakeawayContext, span: Span): string {
+/** How a slope reads: "up 120 a month", "down 40 a month" or neither, by the size in the Metric's unit per period (the Takeaway of a change point and the Heads-up of a change of direction say it the same way). */
+export function moving(v: number, unit: ValueUnit, decimals: number, ctx: TakeawayContext, span: Span): string {
   return sayIn(v > 0 ? "cp-up" : v < 0 ? "cp-down" : "cp-flat", { size: sizeText(v, unit, decimals, ctx.style), span }, ctx);
+}
+
+/** The change point of a series' latest `MAX_PERIODS` periods with the verdict of the suitability checks (8 periods, variation, gaps,
+ * far-off values, the far-off values asked by the change point itself: whether leaving out the 1 to 3 most extreme moves the change in slope by
+ * more than a fifth of its range, or makes the change go away). `found()` is the latest run the far-off check asked for, the one that gave
+ * the finding, or undefined where it asked for none. The Takeaway and the Heads-up of a change of direction read this one. */
+export function checkedChangePoint(name: string, points: Point[], span: Span) {
+  const all = readSeries(points);
+  const rows = all.slice(-MAX_PERIODS);
+  const result = changePoint(rows, span);
+  let last: { found: boolean; period: string } | undefined;
+  const rerun = (left: ReadonlySet<string>): Rerun => {
+    const r = changePoint(rows.filter((p) => !left.has(p.period)), span);
+    if (!r.ok) return null;
+    last = { found: r.found, period: r.period };
+    return { value: r.found ? r.slopeChange : 0, range: 2 * r.slopeHalf };
+  };
+  const verdict = checkSuitability("changePoint", { series: [{ name, points: rows }], span, rerun });
+  return { all, rows, result, verdict, found: () => last };
 }
 
 /** The Takeaway of a change point: "Around March 2026, Signups changed: before, it went up 120 a month; since, down 40 a month;
@@ -136,23 +155,11 @@ function moving(v: number, unit: ValueUnit, decimals: number, ctx: TakeawayConte
 export function changePointTakeaway(name: string, points: Point[], span: Span, unit: ValueUnit, ctx: TakeawayContext): Takeaway {
   const method = sayIn("numbers-method-change-point", {}, ctx);
   const text = (key: CaseKey, slots: Slots = {}) => sayIn(key, { span, ...slots }, ctx);
-  const all = readSeries(points);
-  const rows = all.slice(-MAX_PERIODS);
-  const result = changePoint(rows, span);
-  // The far-off check asks the change point itself: what it reads without those periods, and whether it is still there (or, where none was
-  // found, whether leaving them out would show one). `last` is the latest run it asked for, the one that gave the finding.
-  let last: { found: boolean; period: string } | undefined;
-  const rerun = (left: ReadonlySet<string>): Rerun => {
-    const r = changePoint(rows.filter((p) => !left.has(p.period)), span);
-    if (!r.ok) return null;
-    last = { found: r.found, period: r.period };
-    return { value: r.found ? r.slopeChange : 0, range: 2 * r.slopeHalf };
-  };
-  const verdict = checkSuitability("changePoint", { series: [{ name, points: rows }], span, rerun });
+  const { all, rows, result, verdict, found } = checkedChangePoint(name, points, span);
   const lines = (fs: Finding[]) =>
     fs.map((f) => {
       // The reading without the far-off periods is the last run that was asked for: it says whether the change is still there.
-      const without = last?.found ? text("cp-without-found", { from: last.period }) : text("cp-without-none");
+      const without = found()?.found ? text("cp-without-found", { from: found()!.period }) : text("cp-without-none");
       return say(f.case, { span, ...f.slots }, { style: ctx.style, language: ctx.language, yearStart: ctx.yearStart, result: () => without });
     });
   if (verdict.refusals.length > 0) return refusalTakeaway(method, lines(verdict.refusals));

@@ -28,7 +28,8 @@ const names = (...ids: number[]) => new Map(ids.map((id) => [id, NAMES.get(id) ?
 const crowd = (n: number) => Array.from({ length: n }, (_, i) => i + 1).flatMap((a) => Array.from({ length: n - a }, (_, j) => quiet(a, a + j + 1)));
 
 describe("the words", () => {
-  const SAMPLE = { a: "Visits", b: "Revenue", n: 18, lag: 2, span: "month" as const, strength: "strong", recent: 6, r: 0.5 };
+  const euro = { unit: "€", unit_position: "after" as const, decimals: 0 };
+  const SAMPLE = { a: "Visits", b: "Revenue", n: 18, lag: 2, span: "month" as const, strength: "strong", recent: 6, r: 0.5, name: "Revenue", from: "2026-10-01", before: "up 2 a month", after: "down 1 a month", chance: "about 2 in 10", min: { value: 600, unit: euro }, max: { value: 900, unit: euro }, value: { value: 640, unit: euro }, low: { value: 400, unit: euro }, high: { value: 500, unit: euro } };
   const TABLE: Record<keyof typeof HEADS_UP_EN, string> = {
     "hu-together-same": "Visits and Revenue have started moving together (strong, over 18 months).",
     "hu-together-same-opposite": "Visits and Revenue have started moving in opposite directions (strong, over 18 months).",
@@ -51,6 +52,21 @@ describe("the words", () => {
     "numbers-hu-recent": "The last periods",
     "numbers-hu-drop": "Chance of a drop this big by luck, after correcting for the pairs looked at",
     "hu-chance-under": "under 0.0001",
+    "hu-turned": "Revenue turned around in October 2026: up 2 a month before, down 1 a month since.",
+    "hu-reach-min": "Revenue is unlikely to reach 600 € or more in October 2026 (about 2 in 10).",
+    "hu-reach-max": "Revenue is unlikely to stay at 900 € or less in October 2026 (about 2 in 10).",
+    "hu-reach-between": "Revenue is unlikely to land between 600 € and 900 € in October 2026 (about 2 in 10).",
+    "hu-was-on-pace": "Until its latest value, it was on pace.",
+    "hu-season-above": "Revenue's 640 € in October 2026 is high for this time of year: it is usually between 400 € and 500 €.",
+    "hu-season-below": "Revenue's 640 € in October 2026 is low for this time of year: it is usually between 400 € and 500 €.",
+    "numbers-method-hu-direction": "Change of direction: a straight line before a date and another after it, corrected for the dates tried and the Metrics looked at",
+    "numbers-method-hu-reach": "Target out of reach: the forecast's chance, and a straight line through the latest periods read against the Target, corrected for the Metrics looked at",
+    "numbers-method-hu-season": "Unusual for the season: the latest value against the earlier values at the same place in the season, corrected for the Metrics looked at",
+    "numbers-hu-gap": "Gap between the two trends at the latest period",
+    "numbers-hu-periods-left": "Periods left",
+    "numbers-hu-line": "Straight line, at that period",
+    "numbers-hu-checks": "Checks looked at",
+    "numbers-hu-luck-checks": "Chance of this by luck, after correcting for the checks looked at",
   };
   it("is a table of cases: each sentence, label and chance says what the table says, in the Number Style and with the period singular for 1", () => {
     expect(Object.keys(TABLE).sort()).toEqual(Object.keys(HEADS_UP_EN).sort());
