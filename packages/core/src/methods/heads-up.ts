@@ -153,8 +153,8 @@ export function headsUpsFrom(rows: readonly PairRow[], names: ReadonlyMap<number
   const rate = HEADS_UP.rate;
   // Pairs a scan did not get to (its work allowance was spent) count among the pairs looked at, each as a pair of chance 1: never a Heads-up from them, and the bar for the others is the one a full scan sets.
   const chances = [...mine.map((r) => r.full.p), ...Array.from({ length: notScanned }, () => 1)];
-  const reported = benjaminiHochberg(chances, rate).slice(0, mine.length);
-  const adjusted = adjustedChances(chances).slice(0, mine.length);
+  const reported = benjaminiHochberg(chances, rate);
+  const adjusted = adjustedChances(chances);
   // The history before the last 6 periods, judged as the whole history was, among the pairs that have one.
   const earlier = mine.map((row, i) => ({ row, i })).filter((x) => x.row.before !== null);
   const earlierReported = benjaminiHochberg(earlier.map((x) => x.row.before!.p), rate);

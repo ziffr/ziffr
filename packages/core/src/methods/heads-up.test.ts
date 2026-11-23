@@ -87,6 +87,9 @@ describe("pairs a scan did not get to count among the pairs looked at, each with
     const one = row(1, 2, { full: win({ lag: 2, r: 0.95, n: 24, nEff: 20, pDelays: 0.005, p: 0.005, tries: 5, rFirst: 0.96, nFirst: 12, rSecond: 0.94, nSecond: 12 }) });
     const looked = (n: number) => headsUpsFrom([one], names(1, 2), ctx, n)[0]?.takeaway.numbers.find((x) => x.label === "Pairs of Metrics looked at")?.text;
     expect(looked(0)).toBe("1");
+    // The chance after the correction is the chance over the pairs looked at: 0.005 over 1, 2 and 4 pairs.
+    const after = (n: number) => headsUpsFrom([one], names(1, 2), ctx, n)[0].takeaway.numbers.find((x) => x.label.startsWith("Chance"))?.text;
+    expect([after(0), after(1), after(3)]).toEqual(["0.0050", "0.0100", "0.0200"]);
     expect(headsUpsFrom([one], names(1, 2), ctx, 1)).toHaveLength(1);
     // The bar is the rate over the pairs looked at (HEADS_UP.rate over 31 is below 0.005): with 3 more pairs it still holds, with 30 more it does not.
     expect(looked(1)).toBe("2");

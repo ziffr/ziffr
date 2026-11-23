@@ -669,6 +669,14 @@ describe("the correlation work of one page shares one allowance, in the order th
     expect(new Set(left.map((l) => l.reason))).toEqual(new Set(["Some Metrics were not compared: there are too many of them to work out exactly in reasonable time."]));
     expect(page.exact).toBeGreaterThan(0);
   });
+  it("keeps the reason a Metric had of its own where the page's work runs out after it", () => {
+    const short = metric({ id: 50, slug: "short", name: "Short", period: "month" });
+    const list = [short, ...ms.slice(1)];
+    const r = rankCorrelations(ms[0], list, (slug) => (slug === "short" ? { metric: short, points: series("ordinary", 3, 3) } : resolve(slug)), { yearStart: 1, basis: "values", page: { exact: 60_000_000 } });
+    const reasons = Object.fromEntries(r.leftOut.map((l) => [l.metric.name, l.reason]));
+    expect(reasons.Short).toMatch(/Not enough months in common/);
+    expect(Object.values(reasons).filter((x) => x === pageWords).length).toBeGreaterThan(0);
+  });
   it("spends nothing of a page that has none, and leaves the others to the call's own allowance without a page", () => {
     expect(widgets({ exact: 0 }, 3)).toEqual([0, 0, 0]);
     expect(rankCorrelations(ms[0], ms.slice(1), resolve, { yearStart: 1, basis: "values" }).ranked.length).toBe(7);

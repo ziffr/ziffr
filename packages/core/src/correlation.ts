@@ -188,7 +188,7 @@ export function rankCorrelations(metric: Metric, metrics: Metric[], resolve: Res
     if (!onPage(opts.page, opts.allowance ?? RANK_BUDGET, loop)) for (const m of metrics) if (m.id !== metric.id && !builtFrom(metric, m)) leftOut.push({ metric: m, why: "too-much", reason: spent });
     // The page's work is spent (by this call or an earlier one): the Metrics left out say so as a page does.
     if (opts.page.exact <= 0) {
-      // Stryker disable next-line ObjectLiteral: the style only writes numbers, and this note has none.
+      // Stryker disable next-line ObjectLiteral,StringLiteral: the style only writes numbers, and this note has none.
       const page = say("recipe-page-too-much", {}, { style: "1,234.5" });
       for (const l of leftOut) if (l.why === "too-much") l.reason = page;
     }
