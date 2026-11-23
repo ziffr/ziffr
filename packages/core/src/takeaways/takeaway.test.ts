@@ -14,6 +14,7 @@ import { JANUARY } from "../periods";
 import { metric, months } from "../test/fixtures";
 import { runs } from "../test/reference/check";
 import type { Metric, Point } from "../types";
+import { HEADS_UP_EN } from "./heads-up-wording";
 import { STRENGTH, strengthOf, type StrengthWord } from "./strength";
 import { correlationTakeaway, driversTakeaway, footerText, refusalTakeaway, verdictLines, type Takeaway, type TakeawayContext } from "./takeaway";
 import { LANGUAGES, WORDING, say, type CaseKey, type Slots } from "./wording";
@@ -98,7 +99,7 @@ describe("the wording", () => {
   const SAMPLE: Slots = { a: "Visits", b: "Revenue", n: 18, span: "month", strength: "strong", names: "Visits and Price", target: "Revenue", name: "Visits", other: "Cost", have: 9, need: 16, missing: 3, total: 24, run: 3, count: 2, without: 0.5, held: "Price and Cost", lag: 2, longest: 6, low: { value: 410, unit: UNIT }, high: { value: 520, unit: UNIT }, top: 3, rows: 8, share: "71.0 %", change: { value: 42, unit: UNIT }, parts: "A −3 €, B +1 €", from: "2025-03-01", latest: "weak", drivers: 8, allowed: 4, basis: "compared by value", period: "month", skew: 2.5, value: EUR(1200), lo: EUR(1100), hi: EUR(1300), min: EUR(1250), max: EUR(1350), chance: "about 7 in 10", k: 7, tested: 12, inside: 10, pattern: "yearly", ahead: 15, most: 12, method: "a plain trend (Holt)" };
   const FIT: Slots = { ...SAMPLE, driver: "Visits", step: "1,000", direction: "gone up", effect: "2,400 €", lo: "1,800 €", hi: "3,000 €", held: ", with Price held the same", others: "Price and Cost", share: "about half", given: "Visits at 60,000", value: "54,000", goal: "120,000 €", compared: "12 % above today", outside: "This is higher than Visits has ever been (highest 51,000)", limit: "51,000", pct: "12 %", what: "The fit", strength: "strong", name: "Visits", names: "Visits, Price" };
   /** Each case with its slots and the sentence it must come to: a table of cases, per language that exists. */
-  const TABLE: Record<CaseKey, [Slots, string]> = {
+  const TABLE: Record<Exclude<CaseKey, keyof typeof HEADS_UP_EN>, [Slots, string]> = {
     "strength-strong": [{}, "strong"], "strength-moderate": [{}, "moderate"], "strength-weak": [{}, "weak"], "strength-cant-tell": [{}, "can't tell from chance"],
     footer: [{}, FOOTER], "footer-forecast": [{}, "This carries the past forward; it is not a promise."],
     "basis-values": [{}, "compared by value"], "basis-changes": [{}, "compared by change, growth removed"],
@@ -293,7 +294,8 @@ describe("the wording", () => {
     "numbers-periods": [{}, "Periods"], "numbers-basis": [{}, "Compared on"], "numbers-strength": [{}, "Strength"],
   };
   it.each(LANGUAGES)("%s: every case is in the table, and says what the table says", (language) => {
-    expect(Object.keys(TABLE).sort()).toEqual(Object.keys(WORDING[language]).sort());
+    // The Heads-ups' cases are a table of their own (heads-up.test.ts).
+    expect(Object.keys({ ...TABLE, ...HEADS_UP_EN }).sort()).toEqual(Object.keys(WORDING[language]).sort());
     for (const [key, [slots, want]] of Object.entries(TABLE) as [CaseKey, [Slots, string]][]) expect(say(key, slots, { style: "1,234.5", language }), key).toBe(want);
   });
   it.each(LANGUAGES)("%s: no text holds a word a person would have to look up, except the footer, which says nothing is a cause", (language) => {
