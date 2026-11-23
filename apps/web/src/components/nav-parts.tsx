@@ -32,7 +32,7 @@ export const YOU: NavItem[] = [
 /** The signed-in person; null in the demo, where `demo` holds its controls instead. `installationAdmin` adds the
  * Installation settings to their menu (spec 0025); the page checks again. `demo` is true where this Ziffr offers the
  * demo: it is then listed under their workspaces, set apart by a line, as one more place to switch to. */
-export type Account = { name: string; workspaces: { id: string; name: string }[]; current: string; installationAdmin?: boolean; guest?: boolean; demo?: boolean };
+export type Account = { name: string; workspaces: { id: string; name: string }[]; current: string; installationAdmin?: boolean; guest?: boolean; demo?: boolean; sendFeedback?: boolean };
 
 /** The shared, read-only demo, as it is named under a person's workspaces. */
 const DEMO_ENTRY = { href: "/demo", label: "The demo", hint: "read-only, shared" };
