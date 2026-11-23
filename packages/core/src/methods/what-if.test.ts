@@ -682,7 +682,7 @@ describe("every check on what is handed over, one at a time (so that none can be
   it("refuses a fit for each of its checks alone", () => {
     const bad: unknown[] = [
       { ...f, ok: false }, { ...f, ok: undefined }, { ...f, target: 5 }, { ...f, target: "" }, { ...f, drivers: "x" }, { ...f, rows: "x" }, { ...f, last: null }, { ...f, last: { x: "x" } },
-      { ...f, rows: f.rows.slice(0, 3) }, { ...f, drivers: [null] }, { ...f, drivers: [{ ...f.drivers[0], name: 5 }] }, { ...f, drivers: [{ ...f.drivers[0], name: "" }] }, { ...f, drivers: [{ ...f.drivers[0], name: f.target }] },
+      { ...f, rows: f.rows.slice(0, 3) }, { ...f, drivers: [null] }, { ...two, drivers: [two.drivers[0], null] }, { ...two, drivers: [two.drivers[0], { ...two.drivers[1], name: 5 }] }, { ...two, drivers: [two.drivers[0], { ...two.drivers[1], name: "" }] }, { ...two, drivers: [two.drivers[0], { ...two.drivers[1], name: two.target }] }, { ...f, drivers: [{ ...f.drivers[0], name: 5 }] }, { ...f, drivers: [{ ...f.drivers[0], name: "" }] }, { ...f, drivers: [{ ...f.drivers[0], name: f.target }] },
       { ...f, rows: f.rows.map((r) => ({ ...r, x: [1] })) },
       { ...f, span: "fortnight" }, { ...f, verdict: null }, { ...f, verdict: {} }, { ...f, crowded: null },
       { ...two, drivers: [two.drivers[0], { ...two.drivers[1], name: two.drivers[0].name }] },
@@ -691,7 +691,7 @@ describe("every check on what is handed over, one at a time (so that none can be
     for (const b of bad) expect(what(asFit(b)), JSON.stringify(b).slice(0, 90)).toEqual(FIT);
   });
   it("refuses a fit whose rows leave nothing to work out again (the effects have no inverse)", () => {
-    expect(what(asFit({ ...f, rows: f.rows.map((r) => ({ ...r, x: [3] })) }))).toEqual(FIT);
+    expect(what(asFit({ ...f, rows: f.rows.map((r) => ({ ...r, x: [3] })), drivers: [{ ...f.drivers[0], low: 3, high: 3 }] }))).toEqual(FIT);
   });
   it("accepts a fit as the fit made it, and cautions with plain slots", () => {
     expect(whatIf(input(asFit(two))).ok).toBe(true);
@@ -703,6 +703,8 @@ describe("every check on what is handed over, one at a time (so that none can be
       { ...ok, target: 5 }, { ...ok, target: "" }, { ...ok, formula: 5 }, { ...ok, names: "x" }, { ...ok, levels: "x" }, { ...ok, names: null }, { ...ok, levels: null },
       { ...ok, formula: "2 * 3" }, { ...ok, formula: "prev({a})" }, { ...ok, names: {} }, { ...ok, names: { a: 5 }, levels: { 5: 3 } }, { ...ok, names: { a: "" }, levels: { "": 3 } }, { ...ok, names: { a: "T" }, levels: { T: 3 } },
       { ...ok, levels: {} }, { ...ok, levels: { A: Infinity } }, { ...ok, levels: { A: "5" } },
+      { ...ok, formula: "{a} + {b}", names: { a: "A", b: 5 }, levels: { A: 50, 5: 3 } }, { ...ok, formula: "{a} + {b}", names: { a: "A", b: "" }, levels: { A: 50, "": 3 } }, { ...ok, formula: "{a} + {b}", names: { a: "A", b: "T" }, levels: { A: 50, T: 3 } },
+      { ...ok, formula: "{a} + {b}", names: { a: "A", b: "K" }, levels: { A: 50 } }, { ...ok, formula: "{a} + {b}", names: { a: "A", b: "K" }, levels: { A: 50, K: NaN } },
     ];
     for (const b of bad) expect(what(b), JSON.stringify(b)).toEqual(FORMULA);
     expect(whatIf(input(ok)).ok).toBe(true);
@@ -771,6 +773,28 @@ describe("every check on what is handed over, one at a time (so that none can be
     expect(rs.map((x) => x.byChange)).toEqual([true, true]);
     const only = reachedOf(run([{ kind: "fit", fit: lc }, { kind: "worked", target: "B", formula: "{a} * 2", names: { a: "A" }, levels: { A: a[a.length - 1] } }], 1, a[a.length - 1]));
     expect(only.find((x) => x.name === "C")!.byChange).toBe(false);
+  });
+  it("names the Metrics a change came through in order of their names, whatever order the drivers are listed in", () => {
+    const [b1, b2] = [w.b, w.a.map((v, i) => tenths(0.3 * v + ((i * 13) % 17) * 3))];
+    const c = link("C", w.c, [{ name: "B2", x: b2 }, { name: "B1", x: b1 }]);
+    const rs = reachedOf(run([link("B1", b1, [{ name: "A", x: w.a }]), link("B2", b2, [{ name: "A", x: w.a }]), c], 1));
+    expect(rs.find((r) => r.name === "C")!.through).toEqual(["B1", "B2"]);
+  });
+  it("refuses a range that overflows although the effect itself does not", () => {
+    const l = link("B", w.b, [{ name: "A", x: w.a }]);
+    const r = whatIf({ start: { name: "A", latest: 50 }, change: { by: 6e307 }, links: [l] });
+    expect(r.ok && r.reached[0]).toEqual({ ok: false, name: "B", step: 1, refusal: { case: "refuse-too-large", slots: {} } });
+  });
+  it("names a driver once: beyond is only what the point leaves inside, and a driver outside at the point is not also beyond", () => {
+    const lb = link("B", w.b, [{ name: "A", x: w.a }]);
+    const lc = link("C", w.c, [{ name: "B", x: w.b }]);
+    const rs = reachedOf(run([lb, lc], 40, Math.max(...w.a) - 40));
+    const c = rs[1];
+    expect(c.outside.map((o) => o.name)).toEqual(["B"]);
+    expect(c.beyond).toEqual([]);
+    const lca = link("C", w.c, [{ name: "A", x: w.a }, { name: "B", x: w.b }]);
+    const both = Array.from({ length: 120 }, (_, i) => (i + 1) / 2).map((x) => reachedOf(run([lb, lca], x, 50))[1]).find((r) => r.outside.some((o) => o.name === "A") && r.beyond.some((o) => o.name === "B"));
+    expect(both, "a driver outside at the point beside another whose range reaches beyond").toBeDefined();
   });
   it("counts the lowest value a driver has been as inside, and one step below it as outside", () => {
     const l = link("B", w.b, [{ name: "A", x: w.a }]);

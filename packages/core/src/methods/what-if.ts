@@ -101,12 +101,14 @@ const sub = (a: F, b: F) => lowestTerms(minus(a, b));
 const mul = (a: F, b: F) => lowestTerms(times(a, b));
 const cmp = (a: F, b: F) => {
   const [l, r] = [a.num * b.den, b.num * a.den];
+  // Stryker disable next-line EqualityOperator,ConditionalExpression: at a tie both choices are the same value, so nothing that follows can differ
   return l < r ? -1 : l > r ? 1 : 0;
 };
 const pointOf = (f: F): Bounds => ({ lo: f, hi: f });
 const sumB = (a: Bounds, b: Bounds): Bounds => ({ lo: add(a.lo, b.lo), hi: add(a.hi, b.hi) });
 const productB = (a: Bounds, b: Bounds): Bounds => {
   const ends = [mul(a.lo, b.lo), mul(a.lo, b.hi), mul(a.hi, b.lo), mul(a.hi, b.hi)];
+  // Stryker disable next-line EqualityOperator: of two equal ends either is the end
   return { lo: ends.reduce((x, y) => (cmp(y, x) < 0 ? y : x)), hi: ends.reduce((x, y) => (cmp(y, x) > 0 ? y : x)) };
 };
 const refuse = (c: Finding["case"], slots: Finding["slots"] = {}): Refused => ({ ok: false, refusals: [{ case: c, slots }] });
@@ -165,7 +167,7 @@ function linkProblem(l: unknown): string | null {
     if (x.kind === "fit") return fitProblem(x.fit as Fit);
     if (x.kind === "worked") {
       const w = x;
-      if (typeof w.target !== "string" || w.target === "" || typeof w.formula !== "string" || !w.names || typeof w.names !== "object" || !w.levels || typeof w.levels !== "object") return "a formula";
+      if (typeof w.target !== "string" || w.target === "" || typeof w.formula !== "string" || !w.names || !w.levels) return "a formula";
       const slugs = formulaInputs(w.formula);
       const named = slugs.map((s) => (own(w.names!, s) ? w.names![s] : null));
       if (slugs.length === 0 || usesPrevious(w.formula) || named.some((n) => typeof n !== "string" || n === "" || n === w.target)) return "a formula";
@@ -322,8 +324,9 @@ export function whatIf(input: WhatIfInput): WhatIf {
   const { start, change, links } = input ?? ({} as WhatIfInput);
   if (!start || typeof start.name !== "string" || start.name === "" || !Number.isFinite(start.latest)) return refuseInput("the Metric changed");
   const c = change as Partial<{ by: number; percent: number }> | null | undefined;
-  const kind = c && typeof c === "object" ? ("by" in c ? "by" : "percent") : "percent";
-  const amount = c && typeof c === "object" ? c[kind] : undefined;
+  const asked: Partial<{ by: number; percent: number }> = c !== null && typeof c === "object" ? c : {};
+  const kind = "by" in asked ? "by" : "percent";
+  const amount = asked[kind];
   if (typeof amount !== "number" || !Number.isFinite(amount)) return refuseInput("the change");
   if (!Array.isArray(links)) return refuseInput("the links");
   if (links.length > MOST_LINKS) return refuse("refuse-what-if-links", { most: MOST_LINKS });
@@ -359,7 +362,8 @@ export function whatIf(input: WhatIfInput): WhatIf {
       if (isFinding(point)) return { ok: false, name, step, refusal: point };
       const m = point.used.size;
       const level = m === 0 ? 0 : 1 - 1 / (10 * m);
-      const atRange = m === 0 ? point : evaluate(p0, level, start.name, by).get(name)!;
+      // Where nothing is estimated no effect's range is asked for, and this is the point again.
+      const atRange = evaluate(p0, level, start.name, by).get(name)!;
       // A formula that cannot be worked out on a range, where the point can: the point only, said as a guess.
       const noRange = isFinding(atRange) && atRange.case === "refuse-what-if-range";
       const range = noRange ? point : atRange;
@@ -373,8 +377,9 @@ export function whatIf(input: WhatIfInput): WhatIf {
       const edges = fits.map((sn) => outsideOfFit(sn.link, sn.changes, start));
       const outside = outsides.flat();
       const beyond = edges.flat().filter((o) => !outside.some((x) => x.name === o.name));
-      const curved = edges.findIndex((o, i) => (o.length > 0 || outsides[i].length > 0) && carried(fits[i].link.fit).cautions.some((f) => f.case === "caution-curved"));
-      if (curved >= 0) return { ok: false, name, step, refusal: { case: "refuse-curved-outside", slots: { name: [...edges[curved], ...outsides[curved]][0].name } } };
+      // A link that looks curved gives nothing outside what was seen, point or range, anywhere along the chain.
+      const outer = [...outside, ...beyond];
+      if (outer.length > 0 && fits.some((sn) => carried(sn.link.fit).cautions.some((f) => f.case === "caution-curved"))) return { ok: false, name, step, refusal: { case: "refuse-curved-outside", slots: { name: outer[0].name } } };
       const cautions = [...new Map(fits.flatMap((s) => carried(s.link.fit).cautions).map((f) => [JSON.stringify(f), f])).values()];
       const words = [...range.used.values()].map((c) => c.link.fit.drivers[c.j].strength);
       const weakest = words.length === 0 ? null : WEAKEST.find((w) => words.includes(w))!;
