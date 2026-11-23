@@ -40,14 +40,15 @@ function valid(row: PairRow): boolean {
   const { full, before } = row;
   if (!Number.isInteger(row.a) || !Number.isInteger(row.b) || row.a >= row.b || typeof row.through !== "string") return false;
   if (!validWindow(full) || !validHalf(full.rFirst) || !validHalf(full.rSecond)) return false;
-  if (!Number.isInteger(full.nFirst) || !Number.isInteger(full.nSecond) || full.nFirst + full.nSecond !== full.n) return false;
+  // (A whole first half and a whole total make the second half whole too.)
+  if (!Number.isInteger(full.nFirst) || full.nFirst + full.nSecond !== full.n) return false;
   if (before === null) return true;
   const { recent } = before;
   return validWindow(before) && (recent === null || (finite(recent.r, recent.n, recent.dropP) && Math.abs(recent.r) <= 1 && recent.n === HEADS_UP.recent && unit(recent.dropP) && typeof recent.low === "boolean"));
 }
 
 // Whether the chance rule of the strength words leaves a window with some strength to say: not "can't tell from chance".
-const clearOfChance = (w: Window) => strengthOf(w.r, w.nEff, false, w.tries) !== "cant-tell";
+const clearOfChance = (w: Window) => strengthOf(w.r, w.nEff, undefined, w.tries) !== "cant-tell";
 
 // The order is by a number kept to 12 digits: a row read back from the database may differ from the scan's in the last digit.
 const roundedRank = (x: number) => Number(x.toPrecision(12));
@@ -62,6 +63,7 @@ function movingTakeaway(row: PairRow, names: ReadonlyMap<number, string>, looked
   const { full, span } = row;
   const [leader, follower] = full.lag >= 0 ? [row.a, row.b] : [row.b, row.a];
   const lag = Math.abs(full.lag);
+  // Stryker disable next-line EqualityOperator: a link that met the conditions has |r| of at least 0.7, so r is never 0 here and `<` and `<=` never differ.
   const opposite = full.r < 0;
   const strength = strengthOf(full.r, full.nEff, false, full.tries);
   const strengthText = strengthWordIn(strength, ctx);

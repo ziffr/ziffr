@@ -102,6 +102,7 @@ export function autocorrelations(values: readonly number[], most: number = HEADS
   const ss = have.reduce((s, x) => s + (x - m) ** 2, 0);
   return Array.from({ length: most }, (_, i) => {
     let sum = 0;
+    // Stryker disable next-line EqualityOperator,ArithmeticOperator: a loop that runs past the end reads undefined, which is not finite and is skipped.
     for (let t = 0; t + i + 1 < values.length; t++) if (Number.isFinite(values[t]) && Number.isFinite(values[t + i + 1])) sum += (values[t] - m) * (values[t + i + 1] - m);
     // A sum of squares too large for a double gives no autocorrelation (NaN), and the delays that read it no result.
     return !Number.isFinite(ss) ? NaN : ss > 0 ? sum / ss : 0;
@@ -151,13 +152,15 @@ type Lagged = { lag: number; n: number; r: number; nEff: number; p: number };
 const DELAYS: readonly number[] = [0, ...Array.from({ length: HEADS_UP.maxLag }, (_, i) => [i + 1, -(i + 1)]).flat()];
 
 // Which series leads and by how many places: the first Metric for a positive delay.
+// Stryker disable next-line EqualityOperator: with no delay the two series are paired place for place, and which is called the leader changes nothing a result reads.
 const roles = (a: readonly number[], b: readonly number[], lag: number) => (lag >= 0 ? { leader: a, follower: b, gap: lag } : { leader: b, follower: a, gap: -lag });
 
 // The pairs of a delay with the follower's position from `from` to `to`.
 function pairsAt(a: readonly number[], b: readonly number[], lag: number, from: number, to: number): Pairs {
   const { leader, follower, gap } = roles(a, b, lag);
   const out: Pairs = { at: [], lead: [], follow: [] };
-  for (let u = Math.max(from, gap); u <= to && u < follower.length; u++) {
+  // (`to` is never past the last place of the series, and a place past it would read undefined, which is skipped.)
+  for (let u = Math.max(from, gap); u <= to; u++) {
     const [l, f] = [leader[u - gap], follower[u]];
     if (Number.isFinite(l) && Number.isFinite(f)) {
       out.at.push(u);
@@ -171,35 +174,34 @@ function pairsAt(a: readonly number[], b: readonly number[], lag: number, from: 
 // How many pairs a delay has in a window and their r, without building the pairs (a scan looks at millions): two passes over the
 // positions, the second on the centred values. A series whose pairs are all one value has no r, found by comparing, not by a sum
 // that rounding could leave a hair above 0.
-function lagStats(a: readonly number[], b: readonly number[], lag: number, from: number, to: number): { n: number; r: number } {
+function lagStats(a: readonly number[], b: readonly number[], lag: number, from: number, to: number): { n: number; r: number } | null {
   const { leader, follower, gap } = roles(a, b, lag);
-  const [start, last] = [Math.max(from, gap), Math.min(to, follower.length - 1)];
+  const start = Math.max(from, gap);
   let n = 0;
   let sx = 0;
   let sy = 0;
-  let lowX = Infinity;
-  let highX = -Infinity;
-  let lowY = Infinity;
-  let highY = -Infinity;
-  for (let u = start; u <= last; u++) {
+  let firstX = NaN;
+  let firstY = NaN;
+  let variesX = false;
+  let variesY = false;
+  for (let u = start; u <= to; u++) {
     const l = leader[u - gap];
     const f = follower[u];
     if (!Number.isFinite(l) || !Number.isFinite(f)) continue;
+    if (n === 0) [firstX, firstY] = [l, f];
     n++;
     sx += l;
     sy += f;
-    if (l < lowX) lowX = l;
-    if (l > highX) highX = l;
-    if (f < lowY) lowY = f;
-    if (f > highY) highY = f;
+    variesX = variesX || l !== firstX;
+    variesY = variesY || f !== firstY;
   }
-  if (n < HEADS_UP.minPairs || lowX === highX || lowY === highY) return { n, r: NaN };
+  if (n < HEADS_UP.minPairs || !variesX || !variesY) return null;
   const mx = sx / n;
   const my = sy / n;
   let sxy = 0;
   let sxx = 0;
   let syy = 0;
-  for (let u = start; u <= last; u++) {
+  for (let u = start; u <= to; u++) {
     const l = leader[u - gap];
     const f = follower[u];
     if (!Number.isFinite(l) || !Number.isFinite(f)) continue;
@@ -217,8 +219,10 @@ function lagStats(a: readonly number[], b: readonly number[], lag: number, from:
 function lagWindow(a: Laid, b: Laid, from: number, to: number): { best: Lagged; pairs: Pairs; tries: number } | null {
   const found: Lagged[] = [];
   for (const lag of DELAYS) {
-    const { n, r } = lagStats(a.values, b.values, lag, from, to);
-    if (Number.isNaN(r)) continue;
+    const stats = lagStats(a.values, b.values, lag, from, to);
+    // (A sum of squares too large for a double makes r NaN: no result for that delay.)
+    if (!stats || Number.isNaN(stats.r)) continue;
+    const { n, r } = stats;
     const nEff = effectiveCount(n, a.rho, b.rho);
     if (Number.isNaN(nEff)) continue;
     found.push({ lag, n, r, nEff, p: nEff < HEADS_UP.minEffective ? 1 : pValueOfR(r, nEff) });
@@ -238,7 +242,7 @@ function lagWindow(a: Laid, b: Laid, from: number, to: number): { best: Lagged; 
 export type Window = { lag: number; r: number; n: number; nEff: number; pDelays: number; p: number; tries: number; meets: boolean; rFirst: number | null; nFirst: number; rSecond: number | null; nSecond: number };
 
 /** The last periods: the correlation at the delay of the earlier window, the chance that the link dropped, and whether
- * |r| is under 0.3 (decided exactly). Null where the last 6 periods do not all have a pair or one series is constant. */
+ * |r| is under 0.3 (decided exactly; false for an earlier window that did not meet the conditions, where it is never read). Null where the last 6 periods do not all have a pair or one series is constant. */
 export type Recent = { r: number; n: number; low: boolean; dropP: number };
 
 /** A pair's result: the period it runs to, the whole history, and the history before the last 6 periods. */
@@ -267,12 +271,14 @@ export function strongInBoth(lead: readonly number[], follow: readonly number[])
 
 // Whether a window with these pairs meets the conditions that do not depend on the other pairs. `lead` and `follow` are the
 // pairs in time order at `at` (the follower's position), and `gap` the delay's size.
-function meetsConditions(pairs: Pairs, p: number, axis: Axis, gap: number): boolean {
+function meetsConditions(pairs: Pairs, p: number, axis: Axis): boolean {
   const { at, lead, follow } = pairs;
+  // Stryker disable next-line EqualityOperator: a chance of exactly 0.1 is a measure-zero event in doubles, and which side of it counts is a convention (within the rate).
   if (p > HEADS_UP.rate || !strongInBoth(lead, follow)) return false;
-  const labels = at.map((u) => u - gap);
-  const [x, y] = [labelled(axis, labels, lead), labelled(axis, labels, follow)];
+  // Both series are labelled by the follower's place: the checks only need the same label for the two values of a pair.
+  const [x, y] = [labelled(axis, at, lead), labelled(axis, at, follow)];
   const verdict = checkSuitability("lag", {
+    // Stryker disable next-line StringLiteral: the names only go into the text of a finding, which is thrown away.
     series: [{ name: "a", points: x }, { name: "b", points: y }],
     span: axis.span,
     periods: at.length,
@@ -280,7 +286,7 @@ function meetsConditions(pairs: Pairs, p: number, axis: Axis, gap: number): bool
     // The result with some periods left out, for the far-off check: r by doubles is enough to see whether it moves.
     // (A far-off check only takes out 1 to 3 of at least 12 pairs; a result that is then NaN moves nothing.)
     rerun: (left) => {
-      const keep = labels.map((l) => !left.has(shiftPeriod(axis.first, axis.span, l)));
+      const keep = at.map((u) => !left.has(shiftPeriod(axis.first, axis.span, u)));
       return { value: correlation(lead.filter((_, i) => keep[i]), follow.filter((_, i) => keep[i])) };
     },
   });
@@ -288,23 +294,27 @@ function meetsConditions(pairs: Pairs, p: number, axis: Axis, gap: number): bool
 }
 
 // The first and last position with a change.
-const ends = (v: readonly number[]) => {
+// The last place with a change (−1 where there is none, which no delay can make a pair of).
+const lastOf = (v: readonly number[]) => {
+  // Stryker disable next-line UnaryOperator: a series with no change has no pair, so the starting value is never what decides.
   let last = -1;
   v.forEach((x, i) => { if (Number.isFinite(x)) last = i; });
-  return { first: v.findIndex(Number.isFinite), last };
+  return last;
 };
 
 /** The result for a pair of Metrics: `a` and `b` are their changes laid out on the same `axis` (layOut). Null where the pair
  * cannot be looked at: no delay has 12 pairs of changes with both series changing, or the two series end more than the
  * longest delay apart. A window's pairs are counted by the later of the two periods of each pair. */
 export function scanPair(a: Laid, b: Laid, axis: Axis): PairScan | null {
-  const [ea, eb] = [ends(a.values), ends(b.values)];
-  if (ea.first < 0 || eb.first < 0 || Math.abs(ea.last - eb.last) > HEADS_UP.maxLag) return null;
+  const [ea, eb] = [lastOf(a.values), lastOf(b.values)];
+  if (Math.abs(ea - eb) > HEADS_UP.maxLag) return null;
+  // Stryker disable next-line ArithmeticOperator: a place past the end reads undefined, which is skipped.
   const all = lagWindow(a, b, 0, axis.length - 1);
   if (!all) return null;
-  const last = Math.min(ea.last, eb.last);
+  const last = Math.min(ea, eb);
   const earlier = lagWindow(a, b, 0, last - HEADS_UP.recent);
-  return { through: shiftPeriod(axis.first, axis.span, last), full: windowOf(all, a, b, axis), before: earlier ? { ...windowOf(earlier, a, b, axis), recent: recentOf(a, b, earlier, last) } : null };
+  const before = earlier && windowOf(earlier, a, b, axis);
+  return { through: shiftPeriod(axis.first, axis.span, last), full: windowOf(all, a, b, axis), before: earlier && before ? { ...before, recent: recentOf(a, b, earlier, last, before.meets) } : null };
 }
 
 // A window's result: the best delay, its halves and the chance of the link in both of them.
@@ -320,11 +330,11 @@ function windowOf(w: NonNullable<ReturnType<typeof lagWindow>>, a: Laid, b: Laid
   };
   const [first, second] = [half(0, cut), half(cut, w.best.n)];
   const p = Math.max(pDelays, first.p, second.p);
-  return { lag: w.best.lag, r: w.best.r, n: w.best.n, nEff: w.best.nEff, pDelays, p, tries: w.tries, meets: meetsConditions(w.pairs, p, axis, Math.abs(w.best.lag)), rFirst: first.r, nFirst: first.n, rSecond: second.r, nSecond: second.n };
+  return { lag: w.best.lag, r: w.best.r, n: w.best.n, nEff: w.best.nEff, pDelays, p, tries: w.tries, meets: meetsConditions(w.pairs, p, axis), rFirst: first.r, nFirst: first.n, rSecond: second.r, nSecond: second.n };
 }
 
 // The last 6 periods at the earlier window's delay, and the chance that the link dropped from what the earlier window had.
-function recentOf(a: Laid, b: Laid, earlier: { best: Lagged }, last: number): Recent | null {
+function recentOf(a: Laid, b: Laid, earlier: { best: Lagged }, last: number, strong: boolean): Recent | null {
   const { lag, r: before, nEff } = earlier.best;
   const pairs = pairsAt(a.values, b.values, lag, last - HEADS_UP.recent + 1, last);
   if (pairs.at.length !== HEADS_UP.recent) return null;
@@ -332,14 +342,13 @@ function recentOf(a: Laid, b: Laid, earlier: { best: Lagged }, last: number): Re
   if (Number.isNaN(r)) return null;
   // The drop of the link's strength in Fisher's z, one-sided, against the spread of the two: the earlier window's
   // effective count and the 6 of the last periods.
+  // Stryker disable next-line EqualityOperator: only the drop of a link that met the conditions (|r| of at least 0.7, never 0) is ever read.
   const sign = before < 0 ? -1 : 1;
   const drop = Math.atanh(Math.abs(before)) - Math.atanh(sign * r);
   const spread = Math.sqrt(1 / (nEff - 3) + 1 / (HEADS_UP.recent - 3));
   const dropP = nEff < HEADS_UP.minEffective || Number.isNaN(drop) ? 1 : normalCdf(-drop / spread);
-  // Whether |r| is under 0.3 is decided by the double unless it is within a hair of 0.3, where the exact answer is asked.
-  const near = Math.abs(Math.abs(r) - HEADS_UP.low) < 1e-9;
-  const low = near ? !exactAtLeast(pairs.lead, pairs.follow, 3, 10)!.atLeast : Math.abs(r) < HEADS_UP.low;
-  return { r, n: pairs.at.length, low, dropP };
+  // Whether |r| is under 0.3 is decided exactly, and only for an earlier history that met the conditions: nothing else reads it.
+  return { r, n: pairs.at.length, low: strong && !exactAtLeast(pairs.lead, pairs.follow, 3, 10)!.atLeast, dropP };
 }
 
 /** A Metric as the scan needs it: its id and its Period. */
@@ -367,32 +376,37 @@ export function capMetrics<T extends { id: number; latest: string }>(metrics: re
  * scanned (the ones of the lower ids first); the rest are left out. */
 export function scanPairs(metrics: readonly ScanMetric[], levels: (id: number, span: Span) => Point[] | null, related: (a: number, b: number) => boolean, today: string, yearStart: YearStart): PairRow[] {
   const ordered = [...metrics].sort((x, y) => x.id - y.id);
+  // Stryker disable next-line EqualityOperator: with the same Period the two are equal, and either is the Common Period.
   const spanOf = (a: ScanMetric, b: ScanMetric): Span => (ORDER.indexOf(a.period) > ORDER.indexOf(b.period) ? a.period : b.period);
-  const pairs = ordered.flatMap((a, i) => ordered.slice(i + 1).filter((b) => adjacent(a.period, b.period) && !related(a.id, b.id)).map((b) => ({ a, b, span: spanOf(a, b) })));
-  // Each Metric's changes on each Common Period it is compared on, read once.
-  const changed = new Map<string, { changed: Point[] } | null>();
+  const pairs = ordered.flatMap((a, i) => ordered.slice(i + 1).filter((b) => adjacent(a.period, b.period) && !related(a.id, b.id)).map((b) => ({ a, b, span: spanOf(a, b) }))).slice(0, HEADS_UP.maxPairs);
+  // Each Metric's changes on each Common Period it is compared on, read once, and the series of each Common Period together.
+  const changed = new Map<string, Point[]>();
+  const ofSpan = new Map<Span, Point[][]>();
   const key = (m: ScanMetric, span: Span) => `${m.id}:${span}`;
-  for (const { a, b, span } of pairs.slice(0, HEADS_UP.maxPairs)) {
+  for (const { a, b, span } of pairs) {
     for (const m of [a, b]) {
+      // Stryker disable next-line ConditionalExpression: a Metric met again gives the same changes; this only saves the work.
       if (changed.has(key(m, span))) continue;
       const points = levels(m.id, span);
       const c = points === null ? [] : changes(readSeries(points).slice(-HEADS_UP.window), span);
-      changed.set(key(m, span), c.length === 0 ? null : { changed: c });
+      changed.set(key(m, span), c);
+      ofSpan.set(span, [...(ofSpan.get(span) ?? []), c]);
     }
   }
   // One axis for every series of a Common Period, and each series laid out on it once.
-  const axes = new Map<Span, Axis>();
-  for (const span of new Set(pairs.map((p) => p.span))) axes.set(span, axisOf([...changed].filter(([k, v]) => v && k.endsWith(`:${span}`)).map(([, v]) => v!.changed), span)!);
+  // (A Common Period whose series have no change at all has no axis, and no pair.)
+  const axes = new Map<Span, Axis>([...ofSpan].flatMap(([span, all]) => { const axis = axisOf(all, span); return axis ? [[span, axis] as const] : []; }));
   const laid = new Map<string, Laid>();
   const laidOut = (m: ScanMetric, span: Span) => {
     const k = key(m, span);
-    if (!laid.has(k)) laid.set(k, layOut(changed.get(k)!.changed, axes.get(span)!));
+    // Stryker disable next-line ConditionalExpression: laying a series out again gives the same arrays; this only saves the work.
+    if (!laid.has(k)) laid.set(k, layOut(changed.get(k)!, axes.get(span)!));
     return laid.get(k)!;
   };
   const out: PairRow[] = [];
-  for (const { a, b, span } of pairs.slice(0, HEADS_UP.maxPairs)) {
-    if (!changed.get(key(a, span)) || !changed.get(key(b, span))) continue;
-    const axis = axes.get(span)!;
+  for (const { a, b, span } of pairs) {
+    const axis = axes.get(span);
+    if (!axis) continue;
     const scan = scanPair(laidOut(a, span), laidOut(b, span), axis);
     // Both Metrics current: the pair's last period is within a few periods of today.
     if (scan && periodsBetween(scan.through, periodStart(today, span, yearStart), span) <= HEADS_UP.current) out.push({ a: a.id, b: b.id, span, ...scan });

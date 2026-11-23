@@ -693,3 +693,117 @@ describe("scanPairs over a Workspace's Metrics", () => {
     expect(shiftPeriod("2026-06-01", "month", 0)).toBe(periodStart("2026-06-20", "month", 1));
   });
 });
+
+// ---- what the mutation testing asked for ----
+
+describe("the edges of the scan, each with its expected value worked out by hand", () => {
+  const tens = (n: number) => Array.from({ length: n }, () => 0.1);
+  /** Changes laid out with autocorrelations given, to put the effective count exactly where a rule changes. */
+  const withRho = (v: number[], rho: number[]): Laid => ({ values: v, rho });
+  const flat = (...head: number[]) => [...head, ...Array(12 - head.length).fill(0)];
+
+  it("starts an axis at the earliest period whatever order the series come in", () => {
+    expect(axisOf([[{ period: "2024-03-01", value: 1 }, { period: "2024-01-01", value: 2 }]], "month")).toEqual({ span: "month", first: "2024-01-01", length: 3 });
+  });
+  it("finds a series that does not change although 0.1 twelve times does not add to 1.2 exactly: no pair, whichever series it is, and a half of it has no r", () => {
+    const noisy = noise(5, 12);
+    expect(scan(tens(12), noisy)).toBeNull();
+    expect(scan(noisy, tens(12))).toBeNull();
+    const [first, second] = [scan([...tens(12), ...noise(6, 12)], noise(7, 24))!, scan(noise(8, 24), [...tens(12), ...noise(9, 12)])!];
+    expect(first.full.rFirst).toBeNull();
+    expect(first.full.rSecond).not.toBeNull();
+    expect(second.full.rFirst).toBeNull();
+    expect(second.full.rSecond).not.toBeNull();
+  });
+  it("gives the sign of a correlation of exactly 0 as positive, and no sign where nothing changes", () => {
+    // n·Σxy − Σx·Σy = 3 · 10 − 6 · 5 = 0, with Sxx = 6 and Syy = 2.
+    expect(exactAtLeast([1, 2, 3], [2, 1, 2], 7, 10)).toEqual({ atLeast: false, sign: 1 });
+  });
+  it("counts the pairs with a number in them only: a value that is not a number takes its pair out of the halves too", () => {
+    const [a, b] = [[...noise(31, 30)], [...noise(32, 30)]];
+    a[3] = Infinity;
+    b[4] = -Infinity;
+    a[5] = NaN;
+    const got = scanPair(laid(a), laid(b), axisOfLength(30))!;
+    expect(got.full.rFirst).not.toBeNull();
+    expect(got.full.rSecond).not.toBeNull();
+    const only = [...noise(33, 30)];
+    only[2] = NaN;
+    expect(scanPair(laid(only), laid(noise(34, 30)), axisOfLength(30))!.full.rFirst).not.toBeNull();
+  });
+  it("gives a chance of 1 for a window worth under 4 independent pairs, takes the first delay when every delay says 1, and is not met", () => {
+    const ramp = (seed: number, step: number) => noise(seed, 40, 0.01).map((d, i) => step * i + d);
+    // Each follows its own past closely (autocorrelations of 0.9): 39 pairs are worth under 2.
+    const own = Array(12).fill(0.9);
+    const got = scanPair(withRho(ramp(73, 1), own), withRho(ramp(74, -0.5), own), axisOfLength(40))!;
+    expect(got.full.nEff).toBeLessThan(4);
+    expect(got.full.pDelays).toBe(1);
+    expect(got.full.lag).toBe(0);
+    // r is exactly strong in the whole and in both halves, so only the chance keeps it from meeting the conditions.
+    expect(got.full.r).toBeLessThan(-0.99);
+    expect(got.full.meets).toBe(false);
+  });
+  it("reads an effective count of exactly 4 as enough for a chance (1 − |r| with 2 degrees of freedom), the halves' too, and the drop's", () => {
+    const [x, y] = [noise(41, 12), noise(42, 12)];
+    // ρ = 0.5 at four delays: 12 ÷ (1 + 2 · 4 · 0.25) = 4 for the whole window.
+    const whole = scanPair(withRho(x, [0.5, 0.5, 0.5, 0.5, 0, 0, 0, 0, 0, 0, 0, 0]), withRho(y, [0.5, 0.5, 0.5, 0.5, 0, 0, 0, 0, 0, 0, 0, 0]), axisOfLength(12))!;
+    expect(whole.full.nEff).toBe(4);
+    expect(whole.full.pDelays).toBeCloseTo(1 - Math.abs(whole.full.r), 12);
+    // ρ1 = 0.5 only: 12 ÷ 1.5 = 8 for the whole, and 6 ÷ 1.5 = 4 for each half.
+    const halves = scanPair(withRho(x, flat(0.5)), withRho(y, flat(0.5)), axisOfLength(12))!;
+    expect(halves.full.nEff).toBe(8);
+    const [h1, h2] = [halves.full.rFirst!, halves.full.rSecond!];
+    expect(halves.full.p).toBeCloseTo(Math.max(halves.full.pDelays, 1 - Math.abs(h1), 1 - Math.abs(h2)), 12);
+    expect(halves.full.p).toBeLessThan(1);
+    // Before the last 6 periods there are 12 pairs: 12 ÷ 3 = 4, and the chance of a drop is then a number under 1.
+    const [u, v] = [noise(43, 18), noise(44, 18)];
+    const drop = scanPair(withRho(u, [0.5, 0.5, 0.5, 0.5, 0, 0, 0, 0, 0, 0, 0, 0]), withRho(v, [0.5, 0.5, 0.5, 0.5, 0, 0, 0, 0, 0, 0, 0, 0]), axisOfLength(18))!;
+    expect(drop.before!.nEff).toBe(4);
+    expect(drop.before!.recent!.dropP).toBeLessThan(1);
+  });
+  it("decides the last 6 periods exactly: r² = 9/100 is 0.29999999999999993 as a double and is not under 0.3; and 'low' is only worked out for an earlier history that met the conditions", () => {
+    const planted = (xTail: number[], yTail: number[]) => {
+      const [a, b] = [noise(95, 30), follows(noise(95, 30), 0, 96, 0.2)];
+      a.splice(24, 6, ...xTail);
+      b.splice(24, 6, ...yTail);
+      return scan(a, b)!;
+    };
+    const exactly = planted([0, 0, 2, 1, 1, 0], [-3, 3, -3, -2, 1, -2]);
+    expect(exactly.before!.meets).toBe(true);
+    expect(Math.abs(exactly.before!.recent!.r)).toBeLessThan(0.3);
+    expect(exactly.before!.recent!.low).toBe(false);
+    for (const seed of [21, 22, 23, 24, 25, 26]) {
+      const got = scan(noise(seed, 47), noise(seed + 100, 47))!;
+      expect(got.before!.meets, `seed ${seed}`).toBe(false);
+      expect(got.before!.recent!.low, `seed ${seed}`).toBe(false);
+    }
+  });
+  it("is not made strong by values that only a far-off check sees: two huge changes of opposite sign, one in each half, make r high and leave nothing when taken out", () => {
+    const z = normals(61);
+    const [x, y] = [Array.from({ length: 30 }, z), Array.from({ length: 30 }, z)];
+    [x[5], y[5], x[22], y[22]] = [100, 100, -100, -100];
+    const got = scan(x, y)!;
+    expect(got.full.r).toBeGreaterThan(0.99);
+    expect(got.full.p).toBeLessThan(HEADS_UP.rate);
+    expect(got.full.rFirst!).toBeGreaterThan(0.7);
+    expect(got.full.rSecond!).toBeGreaterThan(0.7);
+    expect(got.full.meets).toBe(false);
+  });
+  it("orders the Metrics to look at by how recent, then by id, whatever order they come in (generated)", () => {
+    const m = fc.array(fc.record({ id: fc.integer({ min: 1, max: 40 }), latest: fc.constantFrom("2026-01-01", "2026-02-01", "2026-03-01") }), { maxLength: 25 }).map((ms) => [...new Map(ms.map((x) => [x.id, x])).values()]);
+    fc.assert(
+      fc.property(m, fc.integer({ min: -1, max: 30 }), (metrics, most) => {
+        const want = [...metrics].sort((p, q) => (p.latest === q.latest ? p.id - q.id : p.latest < q.latest ? 1 : -1)).slice(0, Math.max(0, most));
+        expect(capMetrics(metrics, most)).toEqual(want);
+      }),
+      { numRuns, seed },
+    );
+  });
+  it("has no pair where no Metric of a Common Period has a change, and still pairs the rest", () => {
+    const levelsOf = (id: number) => (id <= 2 ? series([5]) : series(noise(id, 30).map((v) => Math.round(v * 100) / 100)));
+    const metrics = [1, 2, 3, 4].map((id) => ({ id, period: "month" as const }));
+    const rows = scanPairs(metrics, (id) => levelsOf(id), () => false, "2026-07-15", 1);
+    expect(rows.map((r) => [r.a, r.b])).toEqual([[3, 4]]);
+    expect(scanPairs(metrics.slice(0, 2), (id) => levelsOf(id), () => false, "2026-07-15", 1)).toEqual([]);
+  });
+});

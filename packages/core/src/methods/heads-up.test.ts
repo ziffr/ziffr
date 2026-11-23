@@ -295,7 +295,7 @@ describe("what is left out and what comes first", () => {
       ["a low that is not a boolean", row(1, 2, { before: before({}, { r: 0.1, n: 6, low: 1 as unknown as boolean, dropP: 0.01 }) })],
       ["an earlier history with NaN", row(1, 2, { before: before({ r: NaN }) })],
     ];
-    const ids = names(1, 2, 3, 4);
+    const ids = new Map([...names(1, 2, 3, 4), [1.5, "Half"], [2.5, "Half two"]]);
     // Ten good pairs make the correction's list; a bad row among them neither makes a Heads-up nor changes the others'.
     const baseline = headsUpsFrom([row(3, 4, { full: win({ pDelays: 0.009, p: 0.009 }) }), ...crowd(5).filter((r) => !(r.a === 3 && r.b === 4)).filter((r) => r.a !== 1 && r.a !== 2)], names(1, 2, 3, 4, 5), ctx);
     for (const [why, r] of bad) {
