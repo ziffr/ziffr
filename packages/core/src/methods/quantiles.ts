@@ -71,6 +71,7 @@ const from = (points: Point[], period: string) => readSeries(points).filter((p) 
  * unit, the median and the quartiles under Show the numbers, and, where a `value` is asked about, whether it is above, below
  * or within. */
 export function usualRangeTakeaway(name: string, points: Point[], span: Span, unit: ValueUnit, ctx: TakeawayContext, opts: { value?: number; season?: number; at?: string } = {}): Takeaway {
+  // Stryker disable next-line StringLiteral: the Method's name in the refusal that only a spent work allowance writes; the wording of that refusal is held by the test of withinBudget.
   return onLatest("numbers-method-usual", ctx, span, [points], ([latest]) => usualRangeWithin(name, latest, span, unit, ctx, opts));
 }
 

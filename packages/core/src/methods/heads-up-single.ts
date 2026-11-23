@@ -484,13 +484,13 @@ export function testsOf(look: SingleLook, ctx: SingleContext): Test[] {
 /** The tests of all the `looks` under a work allowance for the scan and one for each Metric (work-bound.ts), and how many Metrics were not looked at for want of it:
  * a Metric that spends its own is not looked at, and neither is any after the scan's is spent. A Metric not looked at still counts for the correction, as
  * a test of each kind with a chance of 1, so that the correction is the one a full scan would make (never fewer tests, never a Heads-up from it). */
-export function testsOfScan(looks: readonly SingleLook[], ctx: SingleContext): { tests: Test[]; skipped: number } {
-  let skipped = 0;
+export function testsOfScan(looks: readonly SingleLook[], ctx: SingleContext): { tests: Test[]; skipped: number; skippedIds: number[] } {
+  const skippedIds: number[] = [];
   const neutral = (look: SingleLook): Test[] => (["direction-change", "target-out-of-reach", "unusual-for-season"] as const).map((kind) => ({ kind, id: look.metric.id, gates: {}, chance: 1, p: 1, build: () => { throw new Error("a test with a chance of 1 is never reported"); } }));
   // In the order of the Metrics' ids, so that which Metrics the scan's allowance reaches never depends on the order they were given in.
   const ordered = [...looks].sort((x, y) => x.metric.id - y.metric.id);
-  const tests = withWork(() => ordered.flatMap((look) => capped(METRIC_BUDGET, () => testsOf(look, ctx)) ?? (skipped++, neutral(look))), SCAN_BUDGET)!;
-  return { tests, skipped };
+  const tests = withWork(() => ordered.flatMap((look) => capped(METRIC_BUDGET, () => testsOf(look, ctx)) ?? (skippedIds.push(look.metric.id), neutral(look))), SCAN_BUDGET)!;
+  return { tests, skipped: skippedIds.length, skippedIds };
 }
 
 /** The Heads-ups about one Metric among the `looks` of the Metrics a person may see: a change of direction, a Target out of reach, a value unusual for its season. The

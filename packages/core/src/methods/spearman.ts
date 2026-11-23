@@ -39,6 +39,7 @@ export function spearman(a: Point[], b: Point[]): SpearmanResult | null {
  * growth removed); the suitability checks run on the pairs, a refusal says what is missing, a caution is said above the
  * answer and keeps the strength below "strong", and the footer is on once. */
 export function spearmanTakeaway(aName: string, bName: string, a: Point[], b: Point[], span: Span, basis: Basis, ctx: TakeawayContext): Takeaway {
+  // Stryker disable next-line StringLiteral: the Method's name in the refusal that only a spent work allowance writes; the wording of that refusal is held by the test of withinBudget.
   return onLatest("numbers-method-spearman", ctx, span, [a, b], ([ca, cb]) => spearmanWithin(aName, bName, ca, cb, span, basis, ctx));
 }
 

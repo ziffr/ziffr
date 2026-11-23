@@ -514,6 +514,16 @@ describe("the fit judges the periods it uses", () => {
     // Series with no period in common keep what they have, and a wide one is refused.
     const [early, late] = [series("ordinary", 1, 20), months("2030-01", Array.from({ length: 20 }, (_, i) => 100 + i))];
     expect(cases(fit(input(early.map((p, i) => (i === 0 ? { ...p, value: 1e-45 } : p)), [late])))).toEqual(["refuse-exact-places"]);
+    // The basis is chosen on the whole history where that is clean (a rise early on and none since is "changes" over 160 months, "values" over the latest 121).
+    const walk = (seed: number) => { let x = seed; const r = () => ((x = (x * 1103515245 + 12345) % 2147483648) / 2147483648); const mk = () => { let v = 100; return months("2010-01", Array.from({ length: 160 }, (_, i) => Math.round((v += (i < 40 ? 3 : 0) + (r() - 0.5) * 6) * 100) / 100)); }; return [mk(), mk()]; };
+    const [wa, wb] = walk(1);
+    const long = fit(input(wa, [wb], { basis: undefined }));
+    expect(long.ok && long.basis).toBe("changes");
+    // The range judged ends at the latest period they have in common, and takes it in: later values of one series are not read, that one is.
+    const [t, d] = [series("ordinary", 21, 140), series("ordinary", 22, 130)];
+    const oddAt = (k: number) => t.map((p, i) => (i === 0 || i === k ? { ...p, value: 1e-300 } : p));
+    expect(fit(input(oddAt(135), [d])).ok).toBe(true);
+    expect(cases(fit(input(oddAt(129), [d])))).toEqual(["refuse-exact-places"]);
     // A short wide history is refused as before.
     expect(cases(fit(input(series("tiny", 1), [series("tiny", 2)])))).toEqual(["refuse-exact-places", "refuse-exact-places"]);
   });
@@ -543,7 +553,7 @@ describe("a scan of many Metrics for Heads-ups about one Metric runs under an al
   it("looks at 200 hostile Metrics in no time (none has a test), and at ordinary ones all", () => {
     const hostile = timed(() => testsOfScan(looks("tiny", 200), ctxOf));
     expect(hostile.ms).toBeLessThan(QUICK);
-    expect(hostile.result).toEqual({ tests: [], skipped: 0 });
+    expect(hostile.result).toEqual({ tests: [], skipped: 0, skippedIds: [] });
     const ordinary = testsOfScan(looks("ordinary", 30), ctxOf);
     expect(ordinary.skipped).toBe(0);
     expect(ordinary.tests.length).toBeGreaterThan(0);
@@ -558,6 +568,18 @@ describe("a scan of many Metrics for Heads-ups about one Metric runs under an al
     expect(() => neutral[0].build(1, 1)).toThrow("never reported");
     // The same looks give the same answer twice.
     expect(testsOfScan(looks("dense", 200), ctxOf).skipped).toBe(worst.result.skipped);
-    expect(testsOfScan(looks("dense", 200).reverse(), ctxOf).skipped).toBe(worst.result.skipped);
+    expect(testsOfScan(looks("dense", 200).reverse(), ctxOf).skippedIds).toEqual(worst.result.skippedIds);
+    // The first Metrics by id are the ones looked at.
+    expect(worst.result.skippedIds).toEqual([...worst.result.skippedIds].sort((x, y) => x - y));
+    expect(worst.result.skippedIds[0]).toBeGreaterThan(1);
+  });
+});
+
+describe("a refusal says nothing of a cut it did not make", () => {
+  it("has no note where the Takeaway is a refusal, however long the history", () => {
+    const flat = Array.from({ length: 300 }, (_, i) => ({ period: new Date(Date.UTC(2020, 0, 1 + i)).toISOString().slice(0, 10), value: 5 }));
+    const t = usualRangeTakeaway("A", flat, "day", euro, ctx);
+    expect(t.kind).toBe("refusal");
+    expect(t.notes).toEqual([]);
   });
 });

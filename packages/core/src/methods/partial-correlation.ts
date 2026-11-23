@@ -96,6 +96,7 @@ export function partialCorrelation(a: Point[], b: Point[], controls: Point[][]):
  * periods all the series have (the fit's minimum for the Metrics weighed, 8 + 4 per Metric, and at most one Metric per 6
  * periods): a refusal says what is missing, a caution is said above the answer and keeps the strength below "strong". */
 export function partialTakeaway(names: { a: string; b: string; held: string[] }, a: Point[], b: Point[], controls: Point[][], span: Span, ctx: TakeawayContext): Takeaway {
+  // Stryker disable next-line StringLiteral: the Method's name in the refusal that only a spent work allowance writes; the wording of that refusal is held by the test of withinBudget.
   return onLatest("numbers-method-partial", ctx, span, [a, b, ...controls], ([ca, cb, ...cc]) => partialWithin(names, ca, cb, cc, span, ctx));
 }
 

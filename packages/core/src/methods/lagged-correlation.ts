@@ -52,6 +52,7 @@ export function lagPairs(a: Point[], b: Point[], span: Span, lag: number): { x: 
  * run on the periods both series have (the lag minimum of 12) and, for variation, gaps, far-off values, skew and a link that
  * changed, on the pairs of the best delay; the chance rule is read at the bar for the delays tried. */
 export function laggedTakeaway(aName: string, bName: string, a: Point[], b: Point[], span: Span, basis: Basis, ctx: TakeawayContext): Takeaway {
+  // Stryker disable next-line StringLiteral: the Method's name in the refusal that only a spent work allowance writes; the wording of that refusal is held by the test of withinBudget.
   return onLatest("numbers-method-lag", ctx, span, [a, b], ([ca, cb]) => laggedWithin(aName, bName, ca, cb, span, basis, ctx));
 }
 
