@@ -40,6 +40,11 @@ export async function routeReply(d: RepliedDelivery, text: string, via: ReplyCha
     await via.answer("Not recorded", "A checklist message cannot be answered; open the Workflow in Ziffr.");
     return "refused";
   }
+  // Nor is a Test Message (spec 0052): it asks for nothing.
+  if (d.kind === "test") {
+    await via.answer("Not recorded", "This was a test message; nothing is recorded from a reply.");
+    return "refused";
+  }
   // Nor is the message that tells someone a value was entered for them (spec 0046): they replace it in Ziffr.
   if (d.kind === "filled_in") {
     await via.answer("Not recorded", "This message cannot be answered; to replace the value, open the Metric in Ziffr.");

@@ -8,6 +8,7 @@ import { deliverPrompt } from "./deliveries";
 import { isNotSentReason } from "./prompt-route";
 import { TRIAL_HOLDS_BACK } from "./trials";
 import { ARCHIVED_BEFORE_SENT } from "./archived-metrics";
+import { NO_WAY_HERE } from "./test-message-words";
 
 /** How long a Metric waits before Ask me now asks again. */
 export const ASK_NOW_EVERY_MINUTES = 10;
@@ -29,6 +30,7 @@ const SHOWN_REASONS = new Set<string>([
   ...Object.values(TRIAL_HOLDS_BACK), ARCHIVED_BEFORE_SENT,
   "Email is not set up.", "No usable email address for this person here.", "They stopped reminders by email.",
   "Slack is not set up.", "Slack is not connected.", "Slack is not connected any more.", "They stopped reminders on Slack.", "Slack asked to wait.",
+  ...Object.values(NO_WAY_HERE),
   "Telegram is off in this workspace.", "Not connected to Telegram.", "They stopped reminders on Telegram.", "Telegram asked to wait.", "They blocked Ziffr's bot in Telegram.",
 ]);
 /** The line shown for a reason that is not one of Ziffr's own. */

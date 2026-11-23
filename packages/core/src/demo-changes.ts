@@ -150,6 +150,7 @@ const BLOCKED: Record<BlockedReason, readonly string[]> = {
     "connector-actions:connectSlack",
     "connector-actions:disconnectSlack",
     "connector-actions:emailRemindersAgain",
+    "connector-actions:sendTestMessage",
     "connector-actions:setTelegram",
     "connector-actions:slackLinkCode",
     "connector-actions:slackRemindersAgain",
