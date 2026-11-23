@@ -464,6 +464,19 @@ describe("across the features", () => {
     expect((await messages(w, ann)).filter((m) => String(m.subject).includes("is finished"))).toHaveLength(1);
   });
 
+  it("writes a leaver out of a Workflow only over the config it read: it moves updated_at, and leaves a Workflow that names nobody alone", async () => {
+    const { w, sara, ann, bob, flow } = await setup({ people: (p) => [p.ann, p.bob] });
+    const other = await saveWorkflow(w.actor(sara), null, "Other close", { dueWorkingDays: 1, steps: [{ ...tick(ann), id: "tick-other-aaaa" }, publish] });
+    const before = async (id: number) => (await db().from("workflows").select("updated_at, config").eq("id", id).single()).data!;
+    const [mine, theirs] = [await before(flow), await before(other)];
+    await removeMember(w.actor(sara), bob, sara);
+    const [mineAfter, theirsAfter] = [await before(flow), await before(other)];
+    // A key that read the Workflow before the handover is refused ("changed meanwhile"), never writes the leaver back.
+    expect(mineAfter.updated_at).not.toBe(mine.updated_at);
+    expect(JSON.stringify(mineAfter.config)).not.toContain(bob);
+    expect(theirsAfter).toEqual(theirs);
+  });
+
   it("holds an item whose Assignee left without the handover, and finishes once the Assignee is no longer a member", async () => {
     const { w, sara, bob, flow, lockAll } = await setup({ people: (p) => [p.ann] });
     const stored = (await db().from("workflows").select("config").eq("id", flow).single()).data!.config;
