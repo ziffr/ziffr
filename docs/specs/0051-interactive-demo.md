@@ -2,7 +2,7 @@
 
 **Status:** in progress: ticket 1 done (`demo_state`, the conditional reset job, `scripts/demo-reset-measure.mjs`; the measurement on a copy of demo.ziffr.net is the owner's to run). Draft of 2026-11-23. No tickets yet: the owner decides **Decisions (proposed)** first. The survey behind it, every change a person can make and what to do with it in the demo, is [0051-interactive-demo-inventory.md](0051-interactive-demo-inventory.md).
 
-**Progress:** ticket 2 (the visit's id) done: the cookie holds 128 random bits, `visitKey` (SHA-256 of the id, 32 hex characters) is the only form that is stored, `demo_visit_counts` and its `demo_visit_bump` exist and `resetDemoWorkspace` empties them. Nothing reads them yet (ticket 5).
+**Progress, ticket 3 done:** the setting `ZIFFR_DEMO_CHANGES` (Installation Setting, section Demo, in effect only with `ZIFFR_DEMO_ONLY=1` through `demoChangesInEffect`), `demo_open_tables` (empty) and `demo_closed_tables` (every table of today), `demo_unclassified_tables()` and its test, `visitingDemo` and its headers, the shared lock and the Generation check in `demo_read_only()` (migration `20270126090000`), the stale refusal ("The demo was reset; reload.", code `ZF4D1`) and the glossary's Demo Mode and Demo Reset. The demo is still read-only for every visitor: nothing is open. The database tests of the guard are written; they are run by CI. Ticket 2 (the visit's id) done: the cookie holds 128 random bits, `visitKey` (SHA-256 of the id, 32 hex characters) is the only form that is stored, `demo_visit_counts` and its `demo_visit_bump` exist and `resetDemoWorkspace` empties them. Nothing reads them yet (ticket 5).
 
 ## Problem Statement
 
