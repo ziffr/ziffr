@@ -93,6 +93,8 @@ The **⋯** menu holds:
 | **Save as template** | The owner and Editors, once there are Widgets | Saves the dashboard as a team Dashboard Template (see [Saving as a template](#saving-a-dashboard-as-a-dashboard-template)). |
 | **Who can see this** | Everyone | Lists everyone with access and why (see [Sharing](#sharing)). |
 | **View links…** | The owner | Links for people outside the team (see [View Links](#view-links)). |
+
+A deck's **⋯** menu has the same **Who can see this** and **View links…** entries, with the same windows (see [Decks](14-decks-and-themes.md)).
 | **Theme…** | The owner and Editors | Picks the Theme the dashboard is drawn in. |
 | **Versions** | Everyone | The dashboard's history in a panel beside it (see [Versions](#versions)). |
 
@@ -172,6 +174,7 @@ If a Widget's Metric has open questions or tasks, its title bar shows how many a
 | **Edit Finding…** | The owner and Editors, in edit mode, for Findings | Opens the Finding editor (see [Findings](#findings)). |
 | **Edit layout…** | The owner and Editors, in edit mode, for a Free layout | Opens the layout editor (see [Free layout](#free-layout)). |
 | **Versions…** | Everyone | The Widget's own history of changes. |
+| **Takeaway…** | Everyone, for a Widget that says something about its numbers (a forecast, drivers, a link between two Metrics) | Opens the Takeaway in a panel: the sentence, how it was worked out, how it did on the past, the line that it is not a promise or not a cause, and **Show the numbers**. The Widget itself shows only the chart and its footer line; View Links, Present, Previews and a Snapshot's dashboard show no Takeaway. A Metric's page and a deck's slides keep the words under the chart. |
 | **Copy to…** | Everyone | Opens a submenu of the ways to keep a copy of the Widget, below. |
 | **For View Designs** | Everyone, for a Widget drawn with a View Design | Opens a submenu with the two entries below. |
 

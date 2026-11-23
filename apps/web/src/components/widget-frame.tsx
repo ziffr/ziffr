@@ -10,13 +10,14 @@ import { toast } from "sonner";
 import { shown, unwrap } from "@/lib/action-error";
 import { told } from "@/lib/action-toast";
 import { format } from "date-fns";
-import { Archive, Tags, CalendarRange, Check, Copy, FileDown, GitBranch, LayoutTemplate, PencilLine, Presentation, Scale, BookmarkPlus, ExternalLink, GripVertical, History, LayoutDashboard, ListTodo, MessageCircleQuestion, MessageSquare, MoreHorizontal, Palette, PanelRightOpen, Trash2 } from "lucide-react";
+import { Archive, Tags, CalendarRange, Check, Copy, FileDown, GitBranch, Lightbulb, LayoutTemplate, PencilLine, Presentation, Scale, BookmarkPlus, ExternalLink, GripVertical, History, LayoutDashboard, ListTodo, MessageCircleQuestion, MessageSquare, MoreHorizontal, Palette, PanelRightOpen, Trash2 } from "lucide-react";
 import { ContextMenu, ContextMenuContent, ContextMenuItem, ContextMenuSeparator, ContextMenuSub, ContextMenuSubContent, ContextMenuSubTrigger, ContextMenuTrigger, ContextMenuCheckboxItem, ContextMenuRadioGroup, ContextMenuRadioItem } from "@/components/ui/context-menu";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuSub, DropdownMenuSubContent, DropdownMenuSubTrigger, DropdownMenuTrigger, DropdownMenuCheckboxItem, DropdownMenuRadioGroup, DropdownMenuRadioItem } from "@/components/ui/dropdown-menu";
 import { Popover, PopoverContent } from "@/components/ui/popover";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
+import { TakeawayHostProvider, type TakeawayHost } from "@/views/takeaway-host";
 import { WidgetBody, widgetMetrics } from "@/views/widget-body";
 import { MetricChart } from "@/views/metric-chart";
 import { templatesFor, TEMPLATES, templateOf } from "@/views/templates";
@@ -91,6 +92,10 @@ function InteractiveFrame({ widget, data, targets, editable = false, className, 
   // a Snapshot's deck (asOf) shows only what its data carries, like a View Link (read-only cards provide no loader).
   const details = useMemo(() => (widget.settings.asOf ? null : cachedLoader(observationDetailsAction)), [widget.settings.asOf]);
   const [panel, setPanel] = useState<Panel>(null);
+  // The Takeaway words of an analysis open from the menu, not under the chart; the entry is there when the View has any.
+  const [hasTakeaway, setHasTakeaway] = useState(false);
+  const [takeawayOpen, setTakeawayOpen] = useState(false);
+  const takeawayHost = useMemo<TakeawayHost>(() => ({ mode: "panel", open: takeawayOpen, setOpen: setTakeawayOpen, setHas: setHasTakeaway }), [takeawayOpen]);
   const [period, setPeriod] = useState<string | null>(null);
   const [kind, setKind] = useState<ActionKind>("question");
   const [, start] = useTransition();
@@ -248,6 +253,7 @@ function InteractiveFrame({ widget, data, targets, editable = false, className, 
       {isStory && editable && widget.id && <K.Item onClick={() => openPanel("story")}><PencilLine /> Edit Finding…</K.Item>}
       {isLayout && editable && widget.id && <K.Item onClick={() => setTimeout(() => setLayoutOpen(true), 0)}><PencilLine /> Edit layout…</K.Item>}
       {widget.id && <K.Item onClick={() => openPanel("versions")}><GitBranch /> Versions…</K.Item>}
+      {hasTakeaway && <K.Item onClick={() => setTimeout(() => setTakeawayOpen(true), 0)}><Lightbulb /> Takeaway…</K.Item>}
       {/* One entry for the four ways to keep a copy of this widget, each saying where the copy goes. */}
       <K.Sub>
         <K.SubTrigger><Copy /> Copy to…</K.SubTrigger>
@@ -305,6 +311,7 @@ function InteractiveFrame({ widget, data, targets, editable = false, className, 
           onContextMenuCapture={() => { setPeriod(null); setRow(null); }}
         >
           <WidgetScaleProvider value={scale}>
+          <TakeawayHostProvider value={takeawayHost}>
           <ObservationDetailsProvider value={details}>
           <div className={cn("flex items-center gap-2 px-4 pt-3 pb-1", dragHandle && "widget-drag cursor-grab active:cursor-grabbing")}>
             {dragHandle && <GripVertical aria-hidden className="-ml-2 size-3.5 text-muted-foreground opacity-0 group-hover/widget:opacity-100" />}
@@ -335,6 +342,7 @@ function InteractiveFrame({ widget, data, targets, editable = false, className, 
             {m && templateOf(widget).kind === "metric" && <CompareStrip metric={m} data={data} keys={widget.settings.compare ?? DEFAULT_COMPARE} full={widget.settings.fullPeriods} />}
           </div>
           </ObservationDetailsProvider>
+          </TakeawayHostProvider>
           </WidgetScaleProvider>
         </ContextMenuTrigger>
         <ContextMenuContent className="w-56">{items(CM)}</ContextMenuContent>
