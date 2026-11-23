@@ -453,7 +453,7 @@ export type ViewLink = { id: number; dashboard: number; label: string; expires: 
 export type MadeViewLink = ViewLink & { token: string; url: string };
 
 /** The built-in views a key may place. */
-export type View = "number" | "line" | "bars" | "gauge" | "table" | "forecast" | "correlation" | "matrix" | "drivers" | "scoreboard" | "progress" | "stacked" | "pareto" | "slope" | "running-total" | "ranked" | "share" | "pictogram" | "story-line";
+export type View = "number" | "line" | "bars" | "gauge" | "table" | "forecast" | "correlation" | "matrix" | "drivers" | "scoreboard" | "progress" | "stacked" | "pareto" | "slope" | "running-total" | "bump" | "ranked" | "share" | "pictogram" | "story-line";
 
 /** The few widget settings a key may set. */
 export type WidgetSettings = {
