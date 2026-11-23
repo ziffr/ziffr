@@ -8,6 +8,8 @@
 import { formatValue } from "@ziffr/core/format";
 import { HEAT_STEPS, heatmapModel } from "@ziffr/core/heatmap-grid";
 import type { DesignValues } from "./design-view";
+import { useBoxSize } from "./use-box-size";
+import { useWidgetScale } from "./widget-scale";
 
 // The lightest to the darkest step: the data tone mixed with the card's paper, so the scale follows the Theme.
 const STEP_SHARE = [18, 38, 58, 78, 100];
@@ -26,28 +28,48 @@ export function HeatmapMark({ v }: { v: DesignValues }) {
     write: (x) => formatValue(m, x, data.numberStyle),
   });
   if (!model.ok) return <p className="widget-text-xs mt-0.5 text-muted-foreground">{model.reason}</p>;
-  const pitch = model.by === "month" ? 24 : 11;
-  const size = pitch - (model.by === "month" ? 3 : 1.5);
-  const left = model.by === "month" ? 46 : model.by === "week" ? 30 : 26;
-  const top = 14;
-  const W = left + model.columns.length * pitch;
-  const H = top + model.rows.length * pitch;
-  // A week's columns are numbers: one in four is written, so they do not touch.
-  const heading = (c: string, i: number) => (model.by === "week" ? (i % 4 === 0 ? c : "") : c);
-  // Weekdays: every other one is written, the rows being small.
-  const rowName = (label: string, i: number) => (model.by === "day" && i % 2 === 1 ? "" : label);
+  return <HeatmapGrid v={v} model={model} />;
+}
+
+/** The grid, drawn to the pixels of its box: the squares are as large as the box allows (never bigger than the type they carry), the
+ * headings thin out to the room, and a short card keeps the grid and drops the legend, then the caption. */
+function HeatmapGrid({ v, model }: { v: DesignValues; model: Extract<ReturnType<typeof heatmapModel>, { ok: true }> }) {
+  const scale = useWidgetScale();
+  const [whole, all] = useBoxSize<HTMLDivElement>();
+  const [box, size] = useBoxSize<HTMLDivElement>();
+  // Until the box is measured (the first render on the server, a drawing made without a screen) a nominal size is drawn.
+  const measured = size.w > 0 && size.h > 0;
+  const nominalPitch = model.by === "month" ? 24 : 11;
+  const fs = 9 * scale;
+  const left = Math.max(...model.rows.map((r) => r.label.length), 3) * 0.62 * fs + 6;
+  const top = fs + 6;
+  const cols = model.columns.length;
+  const rowsN = model.rows.length;
+  const W = measured ? size.w : left + cols * nominalPitch;
+  const H = measured ? size.h : top + rowsN * nominalPitch;
+  const pitch = Math.max(4, Math.min((W - left) / cols, (H - top) / rowsN, 44 * scale));
+  const gap = Math.max(1, pitch * 0.12);
+  const cell = pitch - gap;
+  // Headings are written on as many columns as have the room (a month's name is about four letters wide, a week's number two).
+  const wide = (model.by === "week" ? 2.4 : 3.6) * fs;
+  const every = Math.max(1, Math.ceil(wide / pitch));
+  const heading = (c: string, i: number) => (i % every === 0 ? c : "");
+  // Weekdays: every other one is written when the rows are small.
+  const rowName = (label: string, i: number) => (pitch < fs * 1.2 || (model.by === "day" && pitch < fs * 2 && i % 2 === 1) ? "" : label);
+  const showLegend = !!model.legend && (all.h === 0 || all.h / scale >= 120);
+  const showCaption = all.h === 0 || all.h / scale >= 175;
   return (
-    <>
-      <div className="relative min-h-24 w-full flex-1">
-        <svg viewBox={`0 0 ${W} ${H}`} className="absolute inset-0 size-full" role="img" aria-label={model.alt} preserveAspectRatio="xMinYMid meet">
-          <g fontSize={7} fill="var(--color-muted)">
+    <div ref={whole} className="flex min-h-0 w-full flex-1 flex-col">
+      <div ref={box} className="relative min-h-[4.5rem] w-full flex-1">
+        <svg viewBox={`0 0 ${W} ${H}`} className="absolute inset-0 size-full" role="img" aria-label={model.alt}>
+          <g fontSize={fs * 0.9} fill="var(--color-muted)">
             {model.columns.map((c, i) => (heading(c, i) ? <text key={i} x={left + i * pitch} y={top - 4}>{heading(c, i)}</text> : null))}
-            {model.rows.map((r, i) => (rowName(r.label, i) ? <text key={i} x={left - 4} y={top + i * pitch + size * 0.75} textAnchor="end">{rowName(r.label, i)}</text> : null))}
+            {model.rows.map((r, i) => (rowName(r.label, i) ? <text key={i} x={left - 4} y={top + i * pitch + cell * 0.5 + fs * 0.3} textAnchor="end">{rowName(r.label, i)}</text> : null))}
           </g>
           {model.rows.map((r, i) =>
             r.cells.map((c, j) =>
               c ? (
-                <rect key={`${i}-${j}`} x={left + j * pitch} y={top + i * pitch} width={size} height={size} rx={1.5}
+                <rect key={`${i}-${j}`} x={left + j * pitch} y={top + i * pitch} width={cell} height={cell} rx={Math.min(1.5, cell / 5)}
                   // A period with no value is an empty outline: never the lightest step, never 0.
                   fill={c.step === null ? "none" : fill(c.step)} stroke={c.step === null ? "var(--color-rule)" : "none"} strokeWidth={0.8}>
                   <title>{`${c.label}: ${c.text ?? "no value"}`}</title>
@@ -57,15 +79,15 @@ export function HeatmapMark({ v }: { v: DesignValues }) {
           )}
         </svg>
       </div>
-      {model.legend && (
-        <div className="widget-text-xs mt-1 flex items-center gap-1.5">
+      {showLegend && model.legend && (
+        <div className="widget-text-xs mt-1 flex flex-wrap items-center gap-x-1.5">
           <span aria-hidden className="flex gap-px">
-            {Array.from({ length: HEAT_STEPS }, (_, s) => <span key={s} className="inline-block size-2.5 rounded-[2px]" style={{ background: fill(s) }} />)}
+            {Array.from({ length: HEAT_STEPS }, (_, st) => <span key={st} className="inline-block size-2.5 rounded-[2px]" style={{ background: fill(st) }} />)}
           </span>
           <span>{model.legend.text}</span>
         </div>
       )}
-      <p className="widget-text-xs mt-0.5 text-muted-foreground">{model.caption}</p>
-    </>
+      {showCaption && <p className="widget-text-xs mt-0.5 text-muted-foreground">{model.caption}</p>}
+    </div>
   );
 }
