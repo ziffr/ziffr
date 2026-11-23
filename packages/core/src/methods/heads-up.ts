@@ -103,6 +103,7 @@ function stoppedTakeaway(row: PairRow, names: ReadonlyMap<number, string>, looke
   const [leader, follower] = before.lag >= 0 ? [row.a, row.b] : [row.b, row.a];
   const [first, second] = [names.get(leader)!, names.get(follower)!];
   const lag = Math.abs(before.lag);
+  // Stryker disable next-line EqualityOperator: a link that met the conditions has |r| of at least 0.7, so r is never 0 here and `<` and `<=` never differ.
   const opposite = before.r < 0;
   const key = lag === 0 ? (opposite ? "hu-stopped-opposite" : "hu-stopped") : opposite ? "hu-stopped-leads-opposite" : "hu-stopped-leads";
   const method = sayIn("numbers-method-hu-stopped", {}, ctx);

@@ -174,6 +174,7 @@ Mutation testing changes the code on purpose and expects a test to fail. A chang
 - `src/methods/partial-correlation.ts` · EqualityOperator · The word for a partial link in the right direction: an r of 0 is "can't tell from chance" before the sign is looked at, so `<` and `<=` never differ.
 - `src/methods/lagged-correlation.ts` · EqualityOperator · The word for a lag in the right direction: an r of 0 is "can't tell from chance" before the sign is looked at, so `<` and `<=` never differ.
 - `src/methods/p-value.ts` · EqualityOperator · The rounds of the continued fraction: one round more than the last changes nothing once the fraction has converged, and it always has, long before the limit.
+- `src/methods/heads-up.ts` · EqualityOperator · The words of a stop in the right direction: the earlier link met the conditions, so its |r| is at least 0.7 and r is never 0, so `<` and `<=` never differ.
 - `src/methods/bridge.ts` · EqualityOperator · The size of a fraction for ordering parts: a fraction of 0 has the size 0 whether it is read as negative or not.
 - `src/correlation.ts` · EqualityOperator · The sign word of a correlation: an r of 0 is "no clear" before the sign is named, so `r >= 0` and `r > 0` never differ.
 - `src/display-periods.ts` · ConditionalExpression · A Derived Metric's value over a span: `evaluate` gives none for a formula missing an input, so stopping at the first input without a value only saves the work.

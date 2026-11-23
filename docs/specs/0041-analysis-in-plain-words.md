@@ -147,12 +147,14 @@ The functions above do not all give a series or a single value: `fit` gives a mo
 | Heads-up | Condition (all must hold) | Reads like |
 | --- | --- | --- |
 | Moving together | Changes of two Metrics correlate with \|r\| ≥ 0.7 on at least 12 periods, in both halves of the history, and stay significant after correcting for the number of pairs tried (Benjamini-Hochberg at 10 %); a lag from 0 to 3 periods is tried and the best reported | "Support tickets and Churn have started moving together: when tickets rise, churn follows two months later (strong, over 18 months)." |
-| Stopped moving together | A pair that earlier had a Heads-up or has been strong for 12 periods drops under 0.3 over the last 6, and the drop passes the same correction | "Visits and Revenue used to move together. Over the last 6 months they have not." |
+| Stopped moving together | A pair whose history before the last 6 periods would itself have been reported as moving together (it must pass the same conditions and the same correction; "strong for 12 periods" alone is not enough) drops under 0.3 over the last 6, and the drop passes the same correction among the pairs that had been moving together | "Visits and Revenue used to move together. Over the last 6 months they have not." |
 | Change of direction | `changePoint` finds a change of trend in the last 3 periods that passes a threshold of 2 typical misses | "Signups turned around in October: up 2 % a month before, down 1 % since." |
 | Target out of reach | `reachChance` for a Metric with a Target in the Display Period is under 20 % with 2 or more periods left, or a Metric was on pace and now is not | "Revenue is unlikely to reach its December Target (about 1 in 5)." |
 | Unusual for the season | A value outside the usual range for its season by `usualRange`, once the Metric has two seasons | "October's 640 is high even for a season that is normally strong." |
 
 An Unusual Value (the glossary's value that needs Approval) is unchanged; a Heads-up never asks anyone to approve anything and never changes a value.
+
+**Decided in ticket 13 (owner, 2026-11-23):** the earlier history must itself pass the correction, instead of "strong for 12 periods" alone. Without it, pairs that were strong only by chance among thousands would be tested for a drop. A false alarm costs more trust than a missed stop. Measured on the seeded simulation (150 Metrics): a stop in noise is found in about 30 to 50 % of cases, because over 6 pairs two unrelated Metrics have |r| of 0.3 or more more than half the time; with the last 6 periods exactly uncorrelated it is found in at least 19 of 20; a pair that carries on is called stopped in at most 1 of 20. A pair's chance is the weakest of the whole history and each half, since the correction at 10 % alone lets a false report through in roughly 1 run in 10 when nothing is related.
 
 ### How it stays useful
 
