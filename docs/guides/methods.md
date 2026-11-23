@@ -322,7 +322,8 @@ Function: `whatIf` in `packages/core/src/methods/what-if.ts`; the Takeaway is `w
 - You want a promise or a cause: a what-if reads what has gone together, said so in the footer; everything not named is taken as staying where it was.
 - The change would take the driver beyond what it has been: the point is given with "treat it as a guess" and no range, and where the link looks curved Ziffr refuses for that Metric.
 - Which of two Metrics that move together comes first matters: that cannot be told from the numbers. The Recipe reads the one that moves more closely with A as coming first, and says so; a Driver Map that a person confirms is a follow-up (spec 0041).
-- The change is 0, is not a number, or is a percent of a latest value of 0: refused in words.
+- The change is 0, is not a number, is beyond the doubles, or is a percent of a latest value of 0: refused in words. A percent counts from the size of the latest value, so "up 10 %" is up even where the value is below 0.
+- A fit treated drivers as one (a driver moving too closely with another): the what-if says so, and the effect it uses is the one the fit gave the driver that stayed.
 - The links were picked from many Metrics because they looked clear. The ranges are for each effect as estimated from its own periods; a link chosen out of many for how clear it looks tends to be overstated, so read a Recipe's answer as a first look and not as a measurement.
 
 **Minimums and checks.** As each fit that is a link (8 + 4 per driver periods, variation, gaps, mixed periods, a straight line, spread). Fits counted by different periods are refused. The cautions of the fits that still hold (gaps, a curve, spread that grows, crowded drivers) are carried; a result with one is never strong, and the strength word is that of the weakest link it rests on.
