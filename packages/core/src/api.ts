@@ -136,6 +136,9 @@ export type ValueState = "recorded" | "awaiting_approval" | "locked";
 export type ApiObservation = {
   period: string; value: number; state: ValueState; submitter: string | null; submitter_name: string | null;
   submitted_at: string | null; source: string | null; has_thread: boolean; breakdown: BreakdownRow[] | null;
+  /** Read only (spec 0046): the id and name of the person who entered the value for its submitter (a Filled-in Value),
+   * or null when the submitter entered it. Always null for a key whose creator is a Guest, as submitters' names are. */
+  entered_by?: string | null; entered_by_name?: string | null;
   /** Only on a Condensed Value (spec 0033): how many of the Metric's periods it was made from, so a program never
    * mistakes it for one period; `period` is the span's first day and `period_end` its last. */
   condensed_from?: number; period_end?: string;
@@ -175,17 +178,27 @@ export async function listObservations(actor: Actor | KeyActor, slug: string, ra
     db().from("period_states").select("period_start, state").eq("workspace_id", ws).eq("metric_id", metric.id).in("state", ["approval", "locked"]).in("period_start", page.map((p) => p.period)),
   ]);
   const stateOf = new Map((states ?? []).map((r) => [r.period_start as string, r.state === "locked" ? "locked" : "awaiting_approval"] as const));
+  const guest = actor.role === "guest"; // a Guest is told nothing of who entered a value, as of who submitted it
   const latest = new Map<string, (typeof own)[number]>();
   for (const o of own) latest.set(o.period_start, o); // one value per period: the latest
+  // Who entered a value for its submitter (spec 0046) is read apart, only for the page's values and never for a Guest:
+  // the latest-values function carries no such column, and a Guest is told nothing of it (rule 3).
+  const enteredBy = new Map<string, string>();
+  if (!guest && !metric.formula) {
+    const ids = page.flatMap((p) => { const id = latest.get(p.period)?.id; return id === undefined ? [] : [id]; });
+    const { data: entered } = ids.length ? await db().from("observations").select("id, entered_by").eq("workspace_id", ws).in("id", ids).not("entered_by", "is", null) : { data: [] };
+    const byId = new Map((entered ?? []).map((r) => [r.id as number, r.entered_by as string]));
+    for (const p of page) { const by = byId.get(latest.get(p.period)?.id as number); if (by) enteredBy.set(p.period, by); }
+  }
   const [names, threads] = await Promise.all([
-    namesOf(actor, [...latest.values()].map((o) => o.submitter_id)),
+    namesOf(actor, [...latest.values()].map((o) => o.submitter_id).concat([...enteredBy.values()])),
     readableThreads(actor, metric, page.map((p) => p.period)),
   ]);
   const withThread = new Set(threads.map((t) => t.period_start));
   return {
     items: page.map((p) => p.condensed
-      ? { period: p.period, period_end: p.condensed.periodEnd, condensed_from: p.condensed.held, value: p.value, state: "locked" as const, submitter: null, submitter_name: null, submitted_at: null, source: null, has_thread: false, breakdown: null }
-      : { period: p.period, value: p.value, state: stateOf.get(p.period) ?? "recorded", submitter: latest.get(p.period)?.submitter_id ?? null, submitter_name: names.get(latest.get(p.period)?.submitter_id ?? "") ?? null, submitted_at: latest.get(p.period)?.created_at ?? null, source: latest.get(p.period)?.source ?? null, has_thread: withThread.has(p.period), breakdown: breakdowns[metric.id]?.[p.period] ?? null }),
+      ? { period: p.period, period_end: p.condensed.periodEnd, condensed_from: p.condensed.held, value: p.value, state: "locked" as const, submitter: null, submitter_name: null, submitted_at: null, source: null, has_thread: false, breakdown: null, entered_by: null, entered_by_name: null }
+      : { period: p.period, value: p.value, state: stateOf.get(p.period) ?? "recorded", submitter: guest ? null : (latest.get(p.period)?.submitter_id ?? null), submitter_name: guest ? null : (names.get(latest.get(p.period)?.submitter_id ?? "") ?? null), submitted_at: latest.get(p.period)?.created_at ?? null, source: latest.get(p.period)?.source ?? null, has_thread: withThread.has(p.period), breakdown: breakdowns[metric.id]?.[p.period] ?? null, entered_by: enteredBy.get(p.period) ?? null, entered_by_name: names.get(enteredBy.get(p.period) ?? "") ?? null }),
     next: points.length > limit ? page[page.length - 1].period : null,
   };
 }

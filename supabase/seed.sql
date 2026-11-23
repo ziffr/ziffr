@@ -2,3 +2,4 @@
 select demo_reset(interval '0 seconds');
 select prototype_seed_pins();
 select prototype_seed_close();
+select prototype_seed_fill_in();

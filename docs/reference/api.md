@@ -430,6 +430,8 @@ The Metric's values for the periods from `from` to `to` (first days, both includ
 | `items[].submitter_name` | string or null | yes | Their name; null with the submitter. |
 | `items[].submitted_at` | string or null | yes | When it was submitted, an ISO 8601 time; null for a Derived Metric. |
 | `items[].source` | string or null | yes | The Source it arrived through, such as web_form, mail, slack, telegram or api; null for a Derived Metric. |
+| `items[].entered_by` | string or null | no | Read only: the id of the person who entered the value for its submitter (a Filled-in Value, see GLOSSARY), null when the submitter entered it. Always null when the key's creator is a Guest. Values cannot be entered for someone else through the API. |
+| `items[].entered_by_name` | string or null | no | Their name; null with `entered_by`. |
 | `items[].has_thread` | boolean | yes | A Thread on this period that the key's creator may read exists: read it with GET /metrics/{slug}/thread. False also when the only Threads are ones they may not read. |
 | `items[].breakdown` | array of object or null | yes | The value's parts (GLOSSARY: Breakdown), or null. |
 | `items[].breakdown[].label` | string | yes | What the part is, such as a shop or a channel. |

@@ -525,7 +525,7 @@ async function* numbersOf(actor: Actor, m: Plan["metrics"][number], yearStart: n
   if (m.derived) return;
   // Values, in the order they were recorded; a Breakdown with each, its labels opened.
   for (let after = 0; ; ) {
-    const { data } = await db().from("observations").select("id, period_start, value, value_sealed, submitter_id, entered_by, source, imported, created_at").eq("workspace_id", ws).eq("metric_id", m.id).gt("id", after).order("id").limit(BATCH);
+    const { data } = await db().from("observations").select("id, period_start, value, value_sealed, submitter_id, entered_by, submitted_by_name, entered_by_name, source, imported, created_at").eq("workspace_id", ws).eq("metric_id", m.id).gt("id", after).order("id").limit(BATCH);
     if (!data?.length) return;
     after = data[data.length - 1].id as number;
     const rows = await openRows("observations", ws, data);
@@ -538,9 +538,11 @@ async function* numbersOf(actor: Actor, m: Plan["metrics"][number], yearStart: n
     const who = await names([...new Set(rows.flatMap((r) => [r.submitter_id, r.entered_by]).filter((x): x is string => typeof x === "string"))]);
     for (const r of rows) {
       if (typeof r.value !== "number" || !Number.isFinite(r.value)) { tally.leftOut++; continue; }
-      const submittedBy = r.submitter_id ? who.get(String(r.submitter_id)) : undefined;
+      // An imported value has no person, only the sealed name it came with (spec 0040): exported as that name again.
+      const keptName = (v: unknown) => (typeof v === "string" ? fitsLabel(v, WORKSPACE_EXPORT_LIMITS.name) ?? undefined : undefined);
+      const submittedBy = (r.submitter_id ? who.get(String(r.submitter_id)) : undefined) || keptName(r.submitted_by_name);
       // Who entered a Filled-in Value for the submitter, as a name like the submitter (spec 0046).
-      const enteredBy = r.entered_by ? who.get(String(r.entered_by)) : undefined;
+      const enteredBy = (r.entered_by ? who.get(String(r.entered_by)) : undefined) || keptName(r.entered_by_name);
       const source = r.imported ? "import" : SOURCES.has(String(r.source)) ? (String(r.source) as ValueRecord["source"]) : undefined;
       const at = new Date(String(r.created_at));
       const breakdown = (parts.get(r.id as number) ?? []).flatMap((b) => { const label = fitsLabel(b.label, WORKSPACE_EXPORT_LIMITS.label); return label ? [{ label, value: b.value }] : []; });

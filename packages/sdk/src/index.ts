@@ -80,6 +80,10 @@ export type Observation = {
   submitted_at: string | null;
   /** The Source it arrived through (web_form, mail, slack, telegram, api), or null for a Derived Metric. */
   source: string | null;
+  /** Read only: who entered the value for its submitter (a Filled-in Value), or null; always null for a Guest's key. */
+  entered_by?: string | null;
+  /** Their name, or null. */
+  entered_by_name?: string | null;
   /** A Thread on this period that the key's creator may read exists (see `thread`). */
   has_thread: boolean;
   breakdown: BreakdownRow[] | null;
