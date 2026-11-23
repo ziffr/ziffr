@@ -12,7 +12,7 @@ import { shown, unwrap } from "@/lib/action-error";
 import { ArrowRight, Camera, Check, Eye, Link2, Pencil, Presentation, Trash2 } from "lucide-react";
 import { deleteSnapshot, editSnapshotWords, showSnapshot } from "@/app/snapshot-actions";
 import { makeDeckFromSnapshot } from "@/app/convert-actions";
-import { ViewLinksDialog } from "@/components/view-links";
+import { useShowViewLinks } from "@/components/view-links";
 import { DashboardReader } from "@/components/dashboard-reader";
 import { useConfirm } from "@/components/confirm-dialog";
 import { VersionsSheet } from "@/components/versions-sheet";
@@ -44,7 +44,7 @@ function wordsOf(w: Widget): WidgetWords {
 export function SnapshotScreen({ snapshot: s, people, takenBy, canCreate = false, viewLinks = false }: { snapshot: OpenSnapshot; people: Profile[]; takenBy: string; canCreate?: boolean; viewLinks?: boolean }) {
   const router = useRouter();
   const [writing, setWriting] = useState(false);
-  const [linking, setLinking] = useState(false);
+  const showLinks = useShowViewLinks();
   const [pending, start] = useTransition();
   const { confirm, dialog } = useConfirm();
   const run = (f: () => Promise<unknown>, ok?: string) => start(async () => {
@@ -78,8 +78,7 @@ export function SnapshotScreen({ snapshot: s, people, takenBy, canCreate = false
           <Button disabled={pending} onClick={() => run(() => showSnapshot(s.id), `${s.label} is shown to everyone who may open the dashboard`)}><Eye aria-hidden /> Show to everyone with access</Button>
         )}
         {canCreate && <Button variant="outline" disabled={pending} onClick={() => run(() => makeDeckFromSnapshot(s.id))}><Presentation aria-hidden /> Make a deck</Button>}
-        {viewLinks && <Button variant="outline" onClick={() => setLinking(true)}><Link2 aria-hidden /> View link</Button>}
-        {linking && <ViewLinksDialog type="dashboard" id={s.dashboardId} snapshot={{ id: s.id, label: s.label }} onClose={() => setLinking(false)} />}
+        {viewLinks && <Button variant="outline" onClick={() => showLinks("dashboard", s.dashboardId, { id: s.id, label: s.label })}><Link2 aria-hidden /> View link</Button>}
         <VersionsSheet type="snapshot" id={s.id} people={people} />
         {s.canDelete && (
           <Button variant="outline" disabled={pending} onClick={async () => {

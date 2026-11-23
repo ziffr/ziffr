@@ -1,11 +1,11 @@
 "use client";
-// View Links (GLOSSARY: View Link): the owner makes a link for someone outside, with an end date, live or frozen.
+// View Links (GLOSSARY: View Link, Slide-over): the owner makes a link for someone outside, with an end date, live or frozen.
 import { useEffect, useState, useTransition } from "react";
 import { toast } from "sonner";
 import { shown, unwrap } from "@/lib/action-error";
 import { told } from "@/lib/action-toast";
 import { Copy } from "lucide-react";
-import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
+import { useSlideOver } from "@/components/slide-over-host";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { createViewLink, fixListsForLink, listViewLinks, revokeViewLink, setViewLinkNames, shownSnapshots, tagListsToFix } from "@/app/view-link-actions";
@@ -14,9 +14,18 @@ import { formatDate } from "@ziffr/core/format";
 type Link = Awaited<ReturnType<typeof listViewLinks>>[number];
 const inDays = (n: number) => new Date(Date.now() + n * 86400000).toISOString().slice(0, 10);
 
-/** The View Links dialog on its own, for menus that open it; it loads the links when it opens. Owner only. A
+/** Opens View Links in the side panel (a Slide-over); the panel loads the links when it opens. Owner only. A
  * dashboard's link shows live numbers or one of its shown Snapshots (spec 0013); `snapshot` picks that one first. */
-export function ViewLinksDialog({ type, id, snapshot, onClose }: { type: "dashboard" | "deck"; id: number; snapshot?: { id: number; label: string }; onClose: () => void }) {
+export function useShowViewLinks() {
+  const panel = useSlideOver();
+  return (type: "dashboard" | "deck", id: number, snapshot?: { id: number; label: string }) => panel.open({
+    title: "View links",
+    description: `For someone outside the team, such as a board member or an investor. They see this ${type} and nothing else, cannot change or ask anything, and no login is needed.`,
+    content: <ViewLinksBody type={type} id={id} snapshot={snapshot} />,
+  });
+}
+
+function ViewLinksBody({ type, id, snapshot }: { type: "dashboard" | "deck"; id: number; snapshot?: { id: number; label: string } }) {
   const [links, setLinks] = useState<Link[] | null>(null);
   const [label, setLabel] = useState("");
   const [expires, setExpires] = useState(inDays(30));
@@ -38,11 +47,6 @@ export function ViewLinksDialog({ type, id, snapshot, onClose }: { type: "dashbo
   const input = () => (type === "dashboard" ? { label, expires, frozen: false, snapshotId: shows === "live" ? null : Number(shows), showNames } : { label, expires, frozen, showNames });
   return (
     <>
-      {(
-        <Dialog open onOpenChange={(o) => { if (!o) onClose(); }}>
-          <DialogContent className="sm:max-w-lg">
-            <DialogTitle>View links</DialogTitle>
-            <DialogDescription>For someone outside the team, such as a board member or an investor. They see this {type} and nothing else, cannot change or ask anything, and no login is needed.</DialogDescription>
             <form
               className="space-y-3 text-sm"
               onSubmit={(e) => { e.preventDefault(); start(async () => { try { const t = unwrap(await createViewLink(type, id, input())); setLabel(""); await load(); copy(t); } catch (err) { toast.error("No link made", { description: shown(err) }); } }); }}
@@ -94,9 +98,6 @@ export function ViewLinksDialog({ type, id, snapshot, onClose }: { type: "dashbo
                 );
               })}
             </ul>
-          </DialogContent>
-        </Dialog>
-      )}
     </>
   );
 }

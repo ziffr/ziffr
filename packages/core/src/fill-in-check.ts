@@ -108,3 +108,14 @@ export async function standInFillStage(ws: string, metric: Metric, period: strin
   const v = await fillInVerdict(ws, metric, period, { id: senderId, viaKey: false }, standsFor);
   return v.ok ? { filled: { by: senderId, forId: standsFor, as: v.as, awayBy: v.awayBy } } : { refused: v.refusal };
 }
+
+/** A Stand-in's late answer for a locked period is proposed as a Correction like any late value, but only by the ways and
+ * for the periods their Token is narrowed to (spec 0046): never through an Access Key, and only for a period Ziffr asked them
+ * about. Without this, a locked period would let the narrowed Token propose values for any period, by key too. A Guest who
+ * is a Stand-in keeps recording (and proposing) their own value, as before. Returns the refusal, or null. */
+export async function standInLateRefusal(ws: string, metric: Metric, period: string, i: { source: SourceId }, senderId: string | null, standsFor: string | null): Promise<string | null> {
+  if (!standsFor || !senderId || (await isGuest(ws, senderId))) return null;
+  if (i.source === "api") return NOT_BY_KEY;
+  if (!(await standInWasAsked(ws, metric.id, senderId, standsFor, period))) return "You stand in for this submitter only for the periods you were asked about.";
+  return null;
+}
