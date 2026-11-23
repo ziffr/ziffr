@@ -104,6 +104,8 @@ export const AUDIT_KINDS = {
   "correction.accepted": "accepted a Correction to",
   "correction.declined": "declined a Correction to",
   "workspace.quiet_hours_changed": "changed the Workspace's default quiet hours",
+  "setup.step_skipped": "skipped a step of the Setup Guide",
+  "setup.finished": "finished the Setup Guide",
   "workspace.clock_changed": "changed the workspace's time zone, run hour or first day of the week",
   "workspace.renamed": "renamed the workspace",
   "workspace.personal_webhooks_allowed": "allowed people to add their own Webhooks",
