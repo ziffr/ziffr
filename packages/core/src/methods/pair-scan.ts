@@ -380,9 +380,11 @@ export function scanPairs(metrics: readonly ScanMetric[], levels: (id: number, s
   return scanPairsCounted(metrics, levels, related, today, yearStart).rows;
 }
 
-/** `scanPairs` under a work allowance for the whole scan (work-bound.ts): the pairs are scanned in the order of their Metrics' ids, and where the allowance is spent the
- * pairs left are not scanned, which `notScanned` counts (the scan is then as a capped one is, and the correction counts each as a pair of chance 1). */
-export function scanPairsCounted(metrics: readonly ScanMetric[], levels: (id: number, span: Span) => Point[] | null, related: (a: number, b: number) => boolean, today: string, yearStart: YearStart, allowance: number = SCAN_PAIRS_BUDGET): { rows: PairRow[]; notScanned: number } {
+/** `scanPairs` under a work allowance for the whole scan (work-bound.ts): the pairs are scanned in the order of their Metrics' ids, and where the allowance is spent
+ * the pairs that still need exact work are not scanned (a pair that needs none, screened in doubles, is scanned whenever its turn comes, so the pairs scanned are a subset of what a full scan
+ * scans, not a prefix in the order of ids). `skipped` names the pairs not scanned and `notScanned` counts them (the scan is then as a capped one is, and the correction counts each as a
+ * pair of chance 1, which can only make it stricter). */
+export function scanPairsCounted(metrics: readonly ScanMetric[], levels: (id: number, span: Span) => Point[] | null, related: (a: number, b: number) => boolean, today: string, yearStart: YearStart, allowance: number = SCAN_PAIRS_BUDGET): { rows: PairRow[]; notScanned: number; skipped: [number, number][] } {
   const ordered = [...metrics].sort((x, y) => x.id - y.id);
   // Stryker disable next-line EqualityOperator: with the same Period the two are equal, and either is the Common Period.
   const spanOf = (a: ScanMetric, b: ScanMetric): Span => (ORDER.indexOf(a.period) > ORDER.indexOf(b.period) ? a.period : b.period);
@@ -414,14 +416,14 @@ export function scanPairsCounted(metrics: readonly ScanMetric[], levels: (id: nu
     return laid.get(k)!;
   };
   const out: PairRow[] = [];
-  let notScanned = 0;
+  const skipped: [number, number][] = [];
   withWork(() => {
     for (const { a, b, span } of pairs) {
       const axis = axes.get(span);
       if (!axis) continue;
       const done = tryWork(() => ({ scan: scanPair(laidOut(a, span), laidOut(b, span), axis) }));
       if (done === null) {
-        notScanned++;
+        skipped.push([a.id, b.id]);
         continue;
       }
       const { scan } = done;
@@ -429,5 +431,5 @@ export function scanPairsCounted(metrics: readonly ScanMetric[], levels: (id: nu
       if (scan && periodsBetween(scan.through, periodStart(today, span, yearStart), span) <= HEADS_UP.current) out.push({ a: a.id, b: b.id, span, ...scan });
     }
   }, allowance);
-  return { rows: out, notScanned };
+  return { rows: out, notScanned: skipped.length, skipped };
 }
