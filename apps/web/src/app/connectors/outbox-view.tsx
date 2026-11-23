@@ -97,6 +97,7 @@ function DeliveryCard({ d, to, formCode, demo, ways }: { d: DeliveryRow; to: str
         <span>to {to}</span>
         <RelativeTime at={d.created_at} />
         {/* One request by several ways: each is a Delivery of its own, and the first answer closes them all (#613). */}
+        {d.kind === "test" && <span className="rounded-[var(--radius-input)] border border-border px-1.5">Test</span>}
         {ways > 1 && <span className="rounded-[var(--radius-input)] border border-border px-1.5">One request, {ways} ways</span>}
         {d.status !== "sent" && <span className="rounded-[var(--radius-input)] border border-border px-1.5">{d.status === "answered" ? (ways > 1 && d.prompts?.answered_source && d.prompts.answered_source in ANSWERED_ON ? `Answered on ${ANSWERED_ON[d.prompts.answered_source]}` : "Answered") : "Closed"}</span>}
         {d.mail_state !== "outbox" && <MailState state={d.mail_state} error={d.last_error} connector={d.connector} />}

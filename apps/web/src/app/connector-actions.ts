@@ -6,6 +6,7 @@ import * as slackConnection from "@ziffr/core/slack-connection";
 import * as slackPeople from "@ziffr/core/slack-people";
 import * as telegramConnection from "@ziffr/core/telegram-connection";
 import * as telegramPeople from "@ziffr/core/telegram-people";
+import * as testMessage from "@ziffr/core/test-message";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { currentActor } from "@/lib/viewer";
@@ -74,6 +75,18 @@ export async function disconnectSlack() {
   return attempt(async () => {
     await slackConnection.disconnectSlack(await currentActor());
     revalidatePath("/connectors", "layout");
+  });
+}
+
+/** "Send me a test" (spec 0052): a Test Message to the person themself by email, Slack or Telegram. The way is the only
+ * input; the core decides the recipient (always the signed-in person) and the limits. The buttons come with ticket 8
+ * of spec 0052 (Ways in and out), so nothing calls it yet.
+ * @public */
+export async function sendTestMessage(way: string) {
+  return attempt(async () => {
+    const result = await testMessage.sendTestMessage(await currentActor(), way);
+    done();
+    return result;
   });
 }
 
