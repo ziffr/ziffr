@@ -12,7 +12,7 @@ Each Pack shows "by" its author, with its logo when it has one, in a bordered bo
 
 ## Installing from a file
 
-Ziffr makes five starting Packs: SaaS metrics, Online shop, Agency or freelancer, Sports club, and a Board meeting deck. Their files are in the `packs` folder of Ziffr's repository; download one and install it as below.
+Ziffr makes starting Packs: SaaS metrics, Online shop, Agency or freelancer, Sports club and a Board meeting deck, and five for the functions of a business that any company can use: Sales, Finance, People and HR, Customer support, and Operations and fulfilment. Each brings its Metrics, a dashboard and a Workflow, and names the ready n8n templates that can fill them. Their files are in the `packs` folder of Ziffr's repository; download one and install it as below.
 
 **SaaS metrics** is the fullest: 13 Metrics with Tags, a monthly management report (a dashboard and a deck), a quarterly board deck, Workflows for the monthly and the quarterly close, an Analysis Recipe with its View Design, and a Theme that shows the Pack's logo. It holds a Theme, so an Owner installs it. **Set up from this Pack** makes its Metrics, the monthly dashboard and a close Workflow in one go; the decks start from **From a Deck Template** on the Decks page, with the Pack's Theme already chosen.
 

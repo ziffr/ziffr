@@ -1,4 +1,4 @@
-// The seven starting Packs (spec 0030, #279): Ziffr's own Packs in packs/, kept in this repository so they work
+// The twelve starting Packs (spec 0030, #279; five for business functions): Ziffr's own Packs in packs/, kept in this repository so they work
 // offline. Each passes the checks Ziffr runs on any Pack, on this version of Ziffr, and says nothing to an assistant.
 import { readdirSync, readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
@@ -11,8 +11,8 @@ export const STARTING_PACKS = readdirSync(repoFile("packs/")).filter((f) => f.en
 export const startingPack = (file: string) => readFileSync(repoFile(`packs/${file}`), "utf8");
 
 describe("the starting Packs", () => {
-  it("are the seven the specs name", () => {
-    expect(STARTING_PACKS).toEqual(["agency.pack.json", "board-meeting.pack.json", "online-shop.pack.json", "saas-metrics.pack.json", "sports-club.pack.json", "workspace-usage.pack.json", "ziffr-operations.pack.json"]);
+  it("are the seven the specs name and the five for business functions", () => {
+    expect(STARTING_PACKS).toEqual(["agency.pack.json", "board-meeting.pack.json", "customer-support.pack.json", "finance.pack.json", "fulfilment.pack.json", "online-shop.pack.json", "people.pack.json", "saas-metrics.pack.json", "sales.pack.json", "sports-club.pack.json", "workspace-usage.pack.json", "ziffr-operations.pack.json"]);
   });
 
   it.each(STARTING_PACKS)("%s passes every check, is Ziffr's under CC BY 4.0, and aims no text at an assistant", (file) => {

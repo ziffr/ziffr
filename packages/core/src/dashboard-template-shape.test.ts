@@ -54,4 +54,24 @@ describe("the built-in Dashboard Templates", () => {
       expect(fillsComplete(t.slots, t.slots.map((_, i) => [i + 1]))).toBe(true);
     }
   });
+
+  it("use every Slot they declare and only views that exist", () => {
+    for (const t of BUILT_IN_DASHBOARD_TEMPLATES) {
+      const used = new Set(t.body.widgets.flatMap((w) => w.metricSlots));
+      expect(t.slots.every((_, i) => used.has(i)), `${t.name}: a Slot nothing draws`).toBe(true);
+      for (const w of t.body.widgets) expect(TEMPLATES[w.view], `${t.name}: ${w.view}`).toBeDefined();
+      expect(t.description.length, t.name).toBeGreaterThan(20);
+    }
+  });
+  it("list them in order: the first three, then the scorecard, the trends board, the target tracker, the check-in and the board pack", () => {
+    expect(BUILT_IN_DASHBOARD_TEMPLATES.map((t) => t.id)).toEqual(["overview", "deep-dive", "side-by-side", "scorecard", "trends", "target-tracker", "check-in", "board-pack"]);
+  });
+  it("fill a composed Finding's panel from its Slot, so the board pack's headline is about the first Metric", () => {
+    const pack = BUILT_IN_DASHBOARD_TEMPLATES.find((t) => t.id === "board-pack")!;
+    const made = fromDashboardTemplate(pack.body, [[11], [12], [13]]);
+    const story = made.find((w) => w.template === "story")!;
+    expect(story.metric_ids).toEqual([11]);
+    expect(story.settings.panels?.[0].metricIds).toEqual([11]);
+    expect(made.find((w) => w.template === "story-line")!.metric_ids).toEqual([12]);
+  });
 });
