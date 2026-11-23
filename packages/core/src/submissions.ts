@@ -345,7 +345,7 @@ async function proposeLate(i: { ws: string; metric: Metric; period: string; valu
 async function refusedByDatabase(error: { code?: string } | null, ws: string, metricId: number, period: string): Promise<{ outcome: string; detail: string } | null> {
   // A value entered for someone else met a value in between (it came first), or a rule that combines people's values.
   if (error?.code === "ZF450") return { outcome: "rejected_fill_in", detail: "This period already has a value: a Correction changes it." };
-  if (error?.code === "ZF451") return { outcome: "rejected_fill_in", detail: "This Metric adds up or keeps the values of several people, so nobody can fill in for someone else." };
+  if (error?.code === "ZF452") return { outcome: "rejected_fill_in", detail: "This Metric adds up or keeps the values of several people, so nobody can fill in for someone else." };
   if (error?.code === ARCHIVED_CODE) return { outcome: "rejected_archived", detail: ARCHIVED_REFUSAL };
   if (error?.code === CONDENSED_CODE) return { outcome: "rejected_period_condensed", detail: await condensedWords(ws, metricId, period) };
   return null;

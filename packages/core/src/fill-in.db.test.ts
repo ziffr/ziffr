@@ -130,7 +130,7 @@ describe("fillInValue: who and when", () => {
     const { data: have } = await db().from("observations").select("id").eq("metric_id", m.id).single();
     expect((await call(m.id, have!.id, 1, 9_000_001)).error?.code).toBe("ZF450");
     const added = await setup({ rule: "add" });
-    expect((await call(added.m.id, null, 0, 9_000_002)).error?.code).toBe("ZF451");
+    expect((await call(added.m.id, null, 0, 9_000_002)).error?.code).toBe("ZF452");
   });
 });
 

@@ -254,7 +254,9 @@ The database and the core refuse some changes with a code of their own (ZFnnn), 
 | `ZF444` | Open work holds a period |
 | `ZF445` | That Metric was not found; The Condensed Value is no longer there; The values changed since they were counted |
 | `ZF446` | This period was condensed |
+| `ZF450` | The period already has a value. |
 | `ZF451` | At most 8 dashboards can be pinned |
+| `ZF452` | A Guest cannot fill in for someone.; A value is entered for someone else.; This Submission Rule combines several people's values. |
 | `ZF4D0` | demo_read_only |
 | `ZF538` | Too many open Share Proposals. |
 | `ZF539` | Too many Share Proposals today. |

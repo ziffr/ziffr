@@ -174,7 +174,7 @@ grant execute on function merge_contact(uuid, text, text) to service_role;
 
 -- Recording a value, as it was (spec 0028), with who entered it. p_entered_by is set only for a Filled-in Value, which is
 -- only ever a period's first value under a rule of one value per period: the database refuses it over an existing value
--- (ZF450) or under another rule (ZF451), however the core got there, since both are read under the period's lock. And a
+-- (ZF450) or under another rule (ZF452), however the core got there, since both are read under the period's lock. And a
 -- submitter's own value replaces a Filled-in Value whatever the rule (op 'overwrite'): the Filled-in Value goes to the
 -- history with its entered_by, and the row is the submitter's own again (entered_by null).
 drop function record_value(int, date, text, bigint, numeric, text, text, text, bigint, boolean, bigint, int, text, int, jsonb);
@@ -210,11 +210,11 @@ begin
   if p_entered_by is not null then
     -- Someone else's value is entered once, for a period with none, under a rule that keeps one value per period.
     if v_id is not null then raise exception 'The period already has a value.' using errcode = 'ZF450'; end if;
-    if v_rule not in ('reject', 'overwrite') then raise exception 'This Submission Rule combines several people''s values.' using errcode = 'ZF451'; end if;
-    if p_entered_by is not distinct from p_submitter then raise exception 'A value is entered for someone else.' using errcode = 'ZF451'; end if;
+    if v_rule not in ('reject', 'overwrite') then raise exception 'This Submission Rule combines several people''s values.' using errcode = 'ZF452'; end if;
+    if p_entered_by is not distinct from p_submitter then raise exception 'A value is entered for someone else.' using errcode = 'ZF452'; end if;
     -- Never a Guest, whoever asks.
     if exists (select 1 from memberships mm join metrics mt on mt.workspace_id = mm.workspace_id where mt.id = p_metric and mm.user_id = p_entered_by and mm.role = 'guest') then
-      raise exception 'A Guest cannot fill in for someone.' using errcode = 'ZF451';
+      raise exception 'A Guest cannot fill in for someone.' using errcode = 'ZF452';
     end if;
   end if;
   -- The operation follows the Metric's Submission Rule, which the core applied: a call that does not is refused. The one
