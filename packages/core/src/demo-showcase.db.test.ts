@@ -107,6 +107,20 @@ describe("the fail-closed flag", () => {
     expect(await ready()).toBe(true);
   }, 120_000);
 
+  it("is turned on once even when two seeders run at once, and only for the Generation they seeded", async () => {
+    expect((await db().rpc("demo_reset", { min_gap: "0 seconds" })).error).toBeNull();
+    const [a, b] = await Promise.all([db().rpc("prototype_seed_showcase"), db().rpc("prototype_seed_showcase")]);
+    expect([a.error, b.error]).toEqual([null, null]);
+    const state = (await db().from("demo_state").select("showcase_ready, generation").single()).data!;
+    expect(state.showcase_ready).toBe(true);
+    const dashboards = ((await db().from("demo_showcase").select("row_key").eq("table_name", "dashboards")).data ?? []).length;
+    expect(dashboards).toBe(3);
+    // A reset that follows clears the flag again: it cannot stay on for a Generation whose showcase was not recorded.
+    expect((await db().rpc("demo_reset", { min_gap: "0 seconds" })).error).toBeNull();
+    expect((await db().from("demo_state").select("showcase_ready").single()).data!.showcase_ready).toBe(false);
+    expect((await db().rpc("prototype_seed_showcase")).error).toBeNull();
+  }, 120_000);
+
   it("has the showcase records only the seed made: a second call while ready changes nothing", async () => {
     const before = (await db().from("demo_showcase").select("*", { count: "exact", head: true })).count;
     expect((await db().rpc("prototype_seed_showcase")).error).toBeNull();

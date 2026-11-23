@@ -235,10 +235,16 @@ create or replace function prototype_seed_showcase() returns void language plpgs
 declare
   demo constant uuid := 'd3e00000-0000-4000-8000-000000000001';
   t text;
+  gen bigint;
+  ready boolean;
 begin
+  -- The row lock is held to the end of the function: a second seeder waits and then finds it done, and a Demo Reset (which
+  -- updates this row to move the Generation) waits for us, then clears the flag we set, so the flag is never on for a
+  -- Generation whose showcase was not recorded.
+  select generation, showcase_ready into gen, ready from demo_state where id for update;
   -- Once per Generation, and only while visits are refused (the flag is off from the reset until here): so only rows the
   -- seed made are recorded, never a visitor's. A second call finds it done.
-  if coalesce((select showcase_ready from demo_state where id), false) then return; end if;
+  if coalesce(ready, false) then return; end if;
   perform set_config('ziffr.demo_seed', 'on', true);
   delete from demo_showcase;
   delete from demo_seeded_rows;
@@ -272,7 +278,9 @@ begin
   perform set_config('ziffr.demo_seed', 'off', true);
   -- Last: from here visits may write (the flag is turned on by this function alone: see demo_state_showcase_flag).
   perform set_config('ziffr.showcase_seeding', 'on', true);
-  update demo_state set showcase_ready = true where id;
+  -- Only for the Generation that was seeded: if it moved meanwhile the flag stays off and the next call seeds again.
+  update demo_state set showcase_ready = true where id and generation = gen;
+  if not found then raise warning 'prototype_seed_showcase: the Generation moved while seeding; visits stay refused'; end if;
   perform set_config('ziffr.showcase_seeding', 'off', true);
 end $$;
 revoke execute on function prototype_seed_showcase() from public, anon, authenticated;

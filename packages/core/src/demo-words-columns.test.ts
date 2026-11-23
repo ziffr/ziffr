@@ -67,6 +67,8 @@ describe("the words columns", () => {
   it("keeps the words trigger out of reach of the core, and refuses every visit while the showcase is not ready", () => {
     expect(SHOWCASE).toContain("attach_demo_words_guard(regclass) from public, anon, authenticated, service_role");
     expect(SHOWCASE).toContain("if not coalesce((select showcase_ready from demo_state where id), false) then raise exception using errcode = 'ZF4D0'");
+    expect(SHOWCASE).toContain("select generation, showcase_ready into gen, ready from demo_state where id for update");
+    expect(SHOWCASE).toContain("update demo_state set showcase_ready = true where id and generation = gen");
     expect(SHOWCASE).toContain("if new.generation is distinct from old.generation then new.showcase_ready := false");
   });
 
