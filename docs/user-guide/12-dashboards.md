@@ -183,6 +183,8 @@ Under **Copy to…**:
 | Option | Who sees it | What it does |
 | --- | --- | --- |
 | **Add to dashboard** | When you may change another dashboard | Places a copy on one of your other dashboards. |
+
+On a Metric's page, **⋯** → **Add to dashboard** lists your dashboards the same way and ends with **New dashboard with this Metric**, which makes a dashboard named for the Metric, puts the Metric on it and opens it (not offered to Guests).
 | **Add to deck…** | Everyone except Guests | Places a copy on a slide of a deck you own or may edit, or of a new deck named after the Widget: pick the deck, then a slide or **New slide at the end**. The deck opens on that slide; **Go back** in the message returns here. The copy draws only Metrics you see, and changing it leaves this Widget as it is. Also on a Finding of a story. |
 | **Save as Widget** | Everyone except Guests | Saves a copy to your Pool. |
 | **Save as template…** | The owner and Editors | Saves the Widget as a team Widget Template. Not offered for a Free layout. |
