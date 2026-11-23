@@ -5,6 +5,7 @@ import { isDemo } from "@/lib/auth";
 import { listViewDesigns } from "@ziffr/core/view-designs";
 import { numberStyleOf } from "@ziffr/core/workspace-settings";
 import { PageHeader } from "@/components/page-header";
+import { ViewDesignGuideLink } from "@/components/view-design-guide-link";
 import { DesignsScreen } from "./screen";
 
 export default async function DesignsPage() {
@@ -13,7 +14,9 @@ export default async function DesignsPage() {
   const manages = !demo && (actor.role === "owner" || actor.role === "admin");
   return (
     <>
-      <PageHeader title="View Designs" sub="Views written as files. Export one as a starting point, change it, and bring it back. A design holds no code: Ziffr checks it and draws it with its own renderer." />
+      <PageHeader title="View Designs" sub="Views written as files. Export one as a starting point, change it, and bring it back. A design holds no code: Ziffr checks it and draws it with its own renderer.">
+        <ViewDesignGuideLink />
+      </PageHeader>
       <DesignsScreen designs={designs.map((d) => ({ id: d.id, name: d.name, body: d.body }))} manages={manages} demo={demo} viewer={actor.personId} numberStyle={numberStyle} />
     </>
   );

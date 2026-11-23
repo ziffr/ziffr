@@ -5,6 +5,11 @@
   "description": "A View written as a file: its Slots, its marks and what each shows, and its Theme colours. It holds no code.",
   "type": "object",
   "properties": {
+    "$schema": {
+      "type": "string",
+      "maxLength": 200,
+      "description": "The address of this schema, so an editor offers completion and help. Ignored by Ziffr and not kept."
+    },
     "format": {
       "const": "ziffr.view/1",
       "description": "The format and its version."
