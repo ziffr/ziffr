@@ -2,15 +2,22 @@
 // acts and in which Workspace; Row Level Security stays on with no policies, so nothing else can read the tables.
 import { AsyncLocalStorage } from "node:async_hooks";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
-import { DEMO_READ_ONLY_CODE, DemoReadOnly } from "./demo";
+import { DEMO_READ_ONLY_CODE, DEMO_STALE_CODE, DemoReadOnly, DemoStale } from "./demo";
+import { visitHeaders } from "./demo-visit-scope";
 import { ServerFault } from "./server-fault";
 
 let client: SupabaseClient | null = null;
 let seedClient: SupabaseClient | null = null;
 const seeding = new AsyncLocalStorage<true>();
+// The client made for a demo visit's headers (spec 0051), once per visit's work: keyed by the scope's headers object.
+const visitClients = new WeakMap<Record<string, string>, SupabaseClient>();
 
 /** Whether a database error is its refusal of a write to the demo. */
 const isDemoRefusal = (e: unknown) => typeof e === "object" && e !== null && (e as { code?: unknown }).code === DEMO_READ_ONLY_CODE;
+/** Whether a database error is its refusal of a visit's write because the demo started fresh since the page was drawn. */
+const isDemoStale = (e: unknown) => typeof e === "object" && e !== null && (e as { code?: unknown }).code === DEMO_STALE_CODE;
+/** The error a refusal of the demo's guard becomes: the stale one says to reload, any other that the demo can't be changed. */
+const refusal = (e: unknown): Error | null => (isDemoStale(e) ? new DemoStale() : isDemoRefusal(e) ? new DemoReadOnly() : null);
 
 // Demo Mode is read-only (#271): the database refuses every write to the demo with one code, and here, where every
 // query passes, that refusal is thrown as DemoReadOnly. Core functions mostly turn `{ error }` into words of their own
@@ -26,11 +33,12 @@ function guarded<T extends object>(target: T): T {
             .call(
               obj,
               (r: unknown) => {
-                if (isDemoRefusal((r as { error?: unknown } | null)?.error)) throw new DemoReadOnly();
+                const refused = refusal((r as { error?: unknown } | null)?.error);
+                if (refused) throw refused;
                 return r;
               },
               (e: unknown) => {
-                throw isDemoRefusal(e) ? new DemoReadOnly() : e;
+                throw refusal(e) ?? e;
               },
             )
             .then(onDone, onFail);
@@ -65,6 +73,12 @@ export function db(): SupabaseClient {
   // The service role never runs in a browser: a client component importing this fails at once.
   if (typeof window !== "undefined") throw new ServerFault("The core's database access runs on the server only.");
   if (seeding.getStore()) return (seedClient ??= make({ "x-ziffr-demo-seed": "on" }));
+  const visit = visitHeaders();
+  if (visit) {
+    let c = visitClients.get(visit);
+    if (!c) visitClients.set(visit, (c = make(visit)));
+    return c;
+  }
   return (client ??= make());
 }
 

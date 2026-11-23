@@ -3,7 +3,9 @@
 // say what would happen without saving anything. The walk of every server action is apps/web's demo-read-only test.
 import { afterEach, describe, expect, it } from "vitest";
 import { db, seedingDemo } from "./db";
+import { visitingDemo } from "./demo-visiting";
 import { DemoReadOnly, demoReadOnlyWords } from "./demo";
+import { forgetStoredSettings } from "./settings-in-effect";
 import { DEMO_DIGEST, DEMO_READ_ONLY, DEMO_READ_ONLY_TRIAL, demoWordsForDigest } from "./demo-words";
 import { simulateMessage, simulatePromptAnswer } from "./demo-channels";
 import { resetDemoWorkspace } from "./demo-reset";
@@ -30,6 +32,48 @@ describe("the demo refuses every write", () => {
     expect(error).toBeNull();
     const unguarded = (data ?? []) as string[];
     expect(unguarded, `These tables have a workspace_id but no demo guard: ${unguarded.join(", ")}. Call attach_demo_guard in your migration: select attach_demo_guard('${unguarded[0]}');`).toEqual([]);
+  });
+
+  it("in every table, either on the open list or on the closed one (spec 0051)", async () => {
+    const { data, error } = await db().rpc("demo_unclassified_tables");
+    expect(error).toBeNull();
+    const unclassified = (data ?? []) as string[];
+    expect(unclassified, `These tables have a workspace_id but are on neither list of the demo: ${unclassified.join(", ")}. Add each to demo_closed_tables (with its reason) or, to let visitors write it, to demo_open_tables, in your migration.`).toEqual([]);
+    const open = ((await db().from("demo_open_tables").select("table_name")).data ?? []).map((r) => r.table_name as string);
+    const closed = ((await db().from("demo_closed_tables").select("table_name")).data ?? []).map((r) => r.table_name as string);
+    expect(open.filter((t) => closed.includes(t)), "A table is on both lists of the demo.").toEqual([]);
+  });
+
+  it("with the lists changed by migrations only: the service role may read them and nothing else", async () => {
+    for (const t of ["demo_open_tables", "demo_closed_tables"]) {
+      expect((await db().from(t).select("table_name").limit(1)).error).toBeNull();
+      expect((await db().from(t).insert(t === "demo_closed_tables" ? { table_name: "dashboards", reason: "x" } : { table_name: "dashboards" })).error?.code).toBe("42501");
+      expect((await db().from(t).update({ table_name: "x" }).eq("table_name", "dashboards")).error?.code).toBe("42501");
+      expect((await db().from(t).delete().eq("table_name", "dashboards")).error?.code).toBe("42501");
+    }
+    // demo_state: the core updates its row, but never inserts or deletes one.
+    expect((await db().from("demo_state").insert({ id: false })).error?.code).toBe("42501");
+    expect((await db().from("demo_state").delete().eq("id", true)).error?.code).toBe("42501");
+  });
+
+  it("with every open table taking the reset lock before its rows are locked", async () => {
+    const { data, error } = await db().rpc("demo_open_tables_without_lock");
+    expect(error).toBeNull();
+    expect(data ?? []).toEqual([]);
+  });
+
+  it("with the Installation's flag off unless the reset job set it", async () => {
+    expect((await db().from("demo_state").select("open_to_visitors").single()).data?.open_to_visitors).toBe(false);
+    await resetDemoWorkspace({ openToVisitors: true });
+    expect((await db().from("demo_state").select("open_to_visitors").single()).data?.open_to_visitors).toBe(true);
+    // Any call without the setting in effect closes it again.
+    await resetDemoWorkspace();
+    expect((await db().from("demo_state").select("open_to_visitors").single()).data?.open_to_visitors).toBe(false);
+  });
+
+  it("with every table closed today: the open list is empty", async () => {
+    const open = (await db().from("demo_open_tables").select("table_name")).data ?? [];
+    expect(open).toEqual([]);
   });
 
   it("as one sentence, thrown, whether the query answers with an error or throws", async () => {
@@ -125,5 +169,73 @@ describe("the demo's simulated channels", () => {
     expect(await demoRows("observations")).toBe(values);
     const { data: p } = await db().from("prompts").select("answered_at").eq("id", (d.prompts as unknown as { id: number }).id).single();
     expect(p?.answered_at).toBeNull();
+  });
+});
+
+describe("a visit's header (spec 0051)", () => {
+  const VISIT = "0123456789abcdef0123456789abcdef";
+  const saved = { changes: process.env.ZIFFR_DEMO_CHANGES, only: process.env.ZIFFR_DEMO_ONLY };
+  const restore = (name: string, value: string | undefined) => { if (value === undefined) delete process.env[name]; else process.env[name] = value; };
+  afterEach(() => { restore("ZIFFR_DEMO_CHANGES", saved.changes); restore("ZIFFR_DEMO_ONLY", saved.only); forgetStoredSettings(); });
+
+  /** The demo's current Generation. */
+  async function generation(): Promise<number> {
+    const { data } = await db().from("demo_state").select("generation").single();
+    return Number(data?.generation);
+  }
+  const turnOn = () => { process.env.ZIFFR_DEMO_CHANGES = "1"; process.env.ZIFFR_DEMO_ONLY = "1"; forgetStoredSettings(); };
+
+  it("changes nothing while the open list is empty: the write is refused as before, with the current Generation too", async () => {
+    turnOn();
+    const g = await generation();
+    await visitingDemo({ generation: g, visit: VISIT }, async () => {
+      await expect(db().from("dashboards").update({ name: "x" }).eq("workspace_id", DEMO_WORKSPACE_ID)).rejects.toBeInstanceOf(DemoReadOnly);
+      await expect(db().from("workspaces").update({ name: "x" }).eq("id", DEMO_WORKSPACE_ID).select("id").single()).rejects.toBeInstanceOf(DemoReadOnly);
+      await expect(db().from("profiles").update({ name: "x" }).eq("id", "sara")).rejects.toBeInstanceOf(DemoReadOnly);
+    });
+    // Nothing marked the demo as changed.
+    expect((await db().from("demo_state").select("changed_since_reset").single()).data?.changed_since_reset).toBe(false);
+  });
+
+  it("is refused as before with an old Generation, or when the setting is off (the header is then not sent at all)", async () => {
+    turnOn();
+    const g = await generation();
+    await visitingDemo({ generation: g - 1, visit: VISIT }, async () => {
+      await expect(db().from("dashboards").update({ name: "x" }).eq("workspace_id", DEMO_WORKSPACE_ID)).rejects.toBeInstanceOf(DemoReadOnly);
+    });
+    delete process.env.ZIFFR_DEMO_CHANGES;
+    forgetStoredSettings();
+    await visitingDemo({ generation: g, visit: VISIT }, async () => {
+      await expect(db().from("dashboards").update({ name: "x" }).eq("workspace_id", DEMO_WORKSPACE_ID)).rejects.toBeInstanceOf(DemoReadOnly);
+    });
+  });
+
+  it("is not a way to write for a request that is not the core's: the guard's function says no without the service role's claims", async () => {
+    // Called as the service role, outside any request: no headers, so no.
+    const { data } = await db().rpc("demo_visit_allows", { t: "dashboards" });
+    expect(data).toBe(false);
+  });
+
+  it("never moves a row into or out of the demo, nor changes its id", async () => {
+    turnOn();
+    const w = await workspace("Elsewhere");
+    cleanups.push(w.cleanup);
+    const { data: dash } = await db().from("dashboards").select("id").eq("workspace_id", DEMO_WORKSPACE_ID).limit(1).single();
+    await visitingDemo({ generation: await generation(), visit: VISIT }, async () => {
+      await expect(db().from("dashboards").update({ workspace_id: w.id }).eq("id", dash!.id)).rejects.toBeInstanceOf(DemoReadOnly);
+      await expect(db().from("workspaces").update({ id: w.id }).eq("id", DEMO_WORKSPACE_ID)).rejects.toBeInstanceOf(DemoReadOnly);
+    });
+    expect((await db().from("dashboards").select("workspace_id").eq("id", dash!.id).single()).data?.workspace_id).toBe(DEMO_WORKSPACE_ID);
+  });
+
+  it("does not touch a real workspace's rows", async () => {
+    turnOn();
+    const w = await workspace("Real, visited");
+    cleanups.push(w.cleanup);
+    const owner = await w.person("owner");
+    await visitingDemo({ generation: await generation(), visit: VISIT }, async () => {
+      await renameWorkspace(w.actor(owner), "Still mine");
+    });
+    expect((await db().from("workspaces").select("name").eq("id", w.id).single()).data?.name).toBe("Still mine");
   });
 });

@@ -3,7 +3,7 @@
 // Ziffr bot's token. CENTRAL ONLY, like feedback.ts. Security: the token comes from the server's environment and is only
 // ever sent in the Authorization header to api.github.com; it is never logged, put in an error or returned. An error
 // carries a status and a fixed phrase, never GitHub's answer (which can repeat what was sent).
-import { markerFor, type GithubPost } from "./feedback-bridge";
+import { isRelayedReply, markerFor, type GithubPost } from "./feedback-bridge";
 
 /** Where a post ended up. */
 export type GithubPlace = { kind: "issue" | "discussion"; number: number; url: string };
@@ -101,7 +101,7 @@ export function githubClient(config: FeedbackGithubConfig, fetchImpl: Fetch = fe
     async findComment(post, marker) {
       const bot = await botLogin();
       const last = `\nReference: ${marker}`;
-      const mine = (body: unknown, who: unknown) => typeof body === "string" && typeof who === "string" && who.toLowerCase() === bot.toLowerCase() && body.replace(/\r\n?/g, "\n").trimEnd().endsWith(last);
+      const mine = (body: unknown, who: unknown) => typeof body === "string" && typeof who === "string" && who.toLowerCase() === bot.toLowerCase() && isRelayedReply(body) && body.replace(/\r\n?/g, "\n").trimEnd().endsWith(last);
       if (post.kind === "issue") {
         for (let page = 1; page <= COMMENT_PAGES; page++) {
           const list = (await call(`/repos/${slug}/issues/${post.number}/comments?per_page=100&page=${page}`)) as { id?: unknown; body?: unknown; user?: { login?: unknown } | null }[] | null;

@@ -3,7 +3,7 @@
 // the door.
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-const resetDemoWorkspace = vi.hoisted(() => vi.fn<(opts?: { onlyWhenNeeded?: boolean }) => Promise<boolean>>(async () => true));
+const resetDemoWorkspace = vi.hoisted(() => vi.fn<(opts?: { onlyWhenNeeded?: boolean; openToVisitors?: boolean }) => Promise<boolean>>(async () => true));
 vi.mock("@ziffr/core/demo-reset", () => ({ resetDemoWorkspace }));
 import { POST } from "./route";
 
@@ -39,12 +39,12 @@ describe("POST /api/jobs/demo-reset", () => {
   });
   it("resets every time as today without the setting, and only when needed with it in a demo-only Ziffr", async () => {
     await call(`Bearer ${SECRET}`);
-    expect(resetDemoWorkspace).toHaveBeenLastCalledWith({ onlyWhenNeeded: false });
+    expect(resetDemoWorkspace).toHaveBeenLastCalledWith({ onlyWhenNeeded: false, openToVisitors: false });
     process.env.ZIFFR_DEMO_CHANGES = "1";
     await call(`Bearer ${SECRET}`);
-    expect(resetDemoWorkspace).toHaveBeenLastCalledWith({ onlyWhenNeeded: false });
+    expect(resetDemoWorkspace).toHaveBeenLastCalledWith({ onlyWhenNeeded: false, openToVisitors: false });
     process.env.ZIFFR_DEMO_ONLY = "1";
     await call(`Bearer ${SECRET}`);
-    expect(resetDemoWorkspace).toHaveBeenLastCalledWith({ onlyWhenNeeded: true });
+    expect(resetDemoWorkspace).toHaveBeenLastCalledWith({ onlyWhenNeeded: true, openToVisitors: true });
   });
 });
