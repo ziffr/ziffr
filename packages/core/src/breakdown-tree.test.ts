@@ -375,3 +375,69 @@ describe("every field of every box, pinned", () => {
     expect(ok(tree(rows)).boxes.at(-1)!.alt).toBe("\u2068Other rows (1)\u2069 2 €, 0.0 % of the parts, made of Small 2 € (Tiny 2 €)".replace("0.0 %", ok(tree(rows)).boxes.at(-1)!.shareText!));
   });
 });
+
+describe("the remaining cases, one test for each way the code could be wrong", () => {
+  const eachSecond = (n: number): BreakdownRow[] => Array.from({ length: n }, (_, i) => ({ label: `R${i}`, value: (i * 7) % 5 }));
+  it("gives the boxes to the largest rows, ties to the first, as the reference does, in many mixes of values", () => {
+    for (const n of [25, 30, 40, 60]) {
+      for (const mix of [(i: number) => (i * 7) % 5, () => 3, (i: number) => 100 - i, (i: number) => i, (i: number) => (i % 2 ? -(i % 7) : i % 4)]) {
+        const rows = Array.from({ length: n }, (_, i) => ({ label: `R${i}`, value: mix(i) }));
+        const got = ok(tree(rows));
+        const want = referenceBreakdown("Revenue", null, rows);
+        expect(got.boxes.map((b) => b.label), `${n}`).toEqual(want.boxes.map((b) => b.label));
+      }
+    }
+    expect(ok(tree(eachSecond(30))).boxes).toHaveLength(24);
+  });
+  it("keeps a row of equal size after the first, whichever order the rows came in", () => {
+    const m = ok(tree([...Array.from({ length: 23 }, (_, i) => ({ label: `E${i}`, value: 5 })), { label: "Last", value: 5 }]));
+    expect(m.boxes.at(-1)!.label).toBe("Other rows (2)");
+    expect(m.boxes.map((b) => b.label)).toContain("E21");
+    expect(m.boxes.map((b) => b.label)).not.toContain("Last");
+  });
+  it("names the parts of a grouped row separated by commas", () => {
+    const rows: BreakdownRow[] = [...Array.from({ length: 22 }, (_, i) => ({ label: `Big ${i}`, value: 1000 - i })), { label: "Small", value: 2, parts: [{ label: "T1", value: 1 }, { label: "T2", value: 1 }] }];
+    expect(ok(tree(rows)).boxes.at(-1)!.alt).toContain("made of Small 2 € (T1 1 €, T2 1 €)");
+  });
+  it("refuses one row that is too small to write, and a share too small to write beside normal numbers", () => {
+    expect(refusal(tree([{ label: "A", value: 1e-30 }]))).toBe("Not drawn: some numbers are too small to write out in full.");
+    expect(refusal(tree([{ label: "A", value: 1e32 }, { label: "B", value: 1 }]))).toBe("Not drawn: some numbers are too small to write out in full.");
+    expect(ok(tree([{ label: "A", value: 1e12 }, { label: "B", value: 1 }])).boxes).toHaveLength(3);
+  });
+  it("tells two numbers apart with up to 20 decimals", () => {
+    const next = 0.0001 * (1 + 2 ** -52);
+    expect(next).not.toBe(0.0001);
+    const m = ok(tree([{ label: "A", value: 0.0001, parts: [{ label: "B", value: next }] }], 0.0001));
+    expect(m.rule).toContain("A: its parts add up to 0.00010000000000000003 €, not to 0.00010000000000000000 €");
+  });
+  it("says a negative row with parts is not negative at the top of its line, and only the top box is drawn narrower for a top-level negative", () => {
+    const m = ok(tree([{ label: "Refunds", value: -30, parts: [{ label: "x", value: -10 }, { label: "y", value: -20 }] }, { label: "Sales", value: 50 }], 20));
+    expect(m.alt).toContain("\u2068Refunds\u2069 −30 € is made of: \u2068x\u2069 −10 €, negative, 33.3 % of the parts");
+    expect(m.alt).not.toContain("Refunds\u2069 −30 €, negative is made of");
+    // A negative row only below the top level draws no narrower top box.
+    const deep = ok(tree([{ label: "Sales", value: 50, parts: [{ label: "Returns", value: -10 }, { label: "Online", value: 60 }] }], 50));
+    expect(deep.rule).toContain("A row with a negative number is hatched");
+    expect(deep.rule).not.toContain("The top box is drawn at its own size");
+  });
+  it("mentions negative rows for a group only when a row in it is negative", () => {
+    const big = (n: number): BreakdownRow[] => Array.from({ length: n }, (_, i) => ({ label: `Big ${i}`, value: 1000 - i }));
+    expect(ok(tree([...big(22), { label: "P1", value: 1 }, { label: "P2", value: 2 }])).rule).not.toContain("A row with a negative number");
+    expect(ok(tree([...big(22), { label: "Z1", value: 0 }, { label: "Z2", value: 0 }])).rule).not.toContain("A row with a negative number");
+    expect(ok(tree([...big(22), { label: "Z1", value: 0 }, { label: "N", value: -1 }])).rule).toContain("A row with a negative number");
+  });
+  it("lists every row whose parts differ, separated by full stops", () => {
+    const m = ok(tree([{ label: "A", value: 10, parts: [{ label: "A1", value: 4 }] }, { label: "B", value: 20, parts: [{ label: "B1", value: 5 }] }], 30));
+    expect(m.rule).toContain("A: its parts add up to 4 €, not to 10 €. B: its parts add up to 5 €, not to 20 €.");
+  });
+  it("takes the newest period whatever order the periods come in, and only the Metric's own point for it", () => {
+    const revenue = makeMetric({ id: 1, slug: "revenue", name: "Revenue", unit: "€", unit_position: "after", decimals: 0, period: "month" });
+    const rows = [{ label: "Germany", value: 100 }, { label: "Austria", value: 50 }];
+    const d = (series: Record<string, { period: string; value: number }[]>) => ({ series, breakdowns: { 1: { "2026-03-01": rows, "2026-02-01": [{ label: "Old", value: 1 }] } }, yearStart: 1 as const, numberStyle: STYLE });
+    const reversed = { 1: { "2026-03-01": rows, "2026-02-01": [{ label: "Old", value: 1 }] } };
+    expect(ok(breakdownTreeFromData(revenue, { ...d({}), breakdowns: reversed })).boxes.map((b) => b.label)).toEqual(["Revenue", "Germany", "Austria"]);
+    // A value for another period is not this period's value.
+    expect(ok(breakdownTreeFromData(revenue, d({ revenue: [{ period: "2026-02-01", value: 999 }] }))).boxes[0].text).toBe("150 €");
+    expect(ok(breakdownTreeFromData(revenue, d({ revenue: [{ period: "2026-03-01", value: Number.NaN }] }))).boxes[0].text).toBe("150 €");
+    expect(ok(breakdownTreeFromData(revenue, d({ revenue: [{ period: "2026-02-01", value: 999 }, { period: "2026-03-01", value: 160 }] }))).boxes[0].text).toBe("160 €");
+  });
+});

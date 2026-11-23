@@ -47,8 +47,10 @@ function read(rows: BreakdownRow[]): Part[] {
     list.map((r) => {
       if (level > BREAKDOWN_PARENTS.depth) throw new Refused(`Not drawn: the breakdown has more than the ${BREAKDOWN_PARENTS.depth} levels of rows that read clearly in a chart.`);
       if (all.length >= MOST_ROWS) throw new Refused(`Not drawn: the breakdown has more than ${MOST_ROWS} rows.`);
-      if (typeof r.value !== "number" || !Number.isFinite(r.value)) throw new Refused("Not drawn: a row of the breakdown has no number.");
+      // Not a finite number (a string, NaN, Infinity) is refused; Number.isFinite is false for anything that is no number.
+      if (!Number.isFinite(r.value)) throw new Refused("Not drawn: a row of the breakdown has no number.");
       const exact = fractionOf(r.value);
+      // Stryker disable next-line ArrayDeclaration: the parts are put in on the next lines, whatever this starts as
       const part: Part = { label: plain(String(r.label)), exact, size: sizeOf(exact), kids: [], parent, order: all.length };
       all.push(part);
       part.kids = go(level + 1, Array.isArray(r.parts) ? r.parts : [], part);
@@ -132,7 +134,7 @@ export function breakdownTree(source: BreakdownTreeSource, style: NumberStyle): 
   }
   const rest = draft(top, chosen(top));
   const added = sumOf(top);
-  const derived = source.total === null || !Number.isFinite(source.total);
+  const derived = !Number.isFinite(source.total);
   const rootExact = derived ? added : fractionOf(source.total as number);
   const root: Draft = { label: name, exact: rootExact, size: sizeOf(rootExact), kids: rest, grouped: [], parts: added };
   const boxes: TreeBox[] = [];
@@ -146,13 +148,14 @@ export function breakdownTree(source: BreakdownTreeSource, style: NumberStyle): 
     const t = write(v, source.unit, decimals, style);
     // A double is never 0 where the exact number is not, so only a number that cannot be written in 20 decimals is too small.
     tooSmall ||= t === null;
-    return t ?? "no value";
+    // A number that cannot be written makes the whole tree refused, so the text of it is never shown.
+    return t as string;
   };
   // Two different numbers written so that their texts differ: with the decimals the Metric shows, or as many more as it takes (a difference is never written as two equal numbers).
   const apart = (a: Fraction, b: Fraction): [string, string] | null => {
     for (let d = decimals; d <= 20; d++) {
       const [x, y] = [write(nearest(a), source.unit, d, style), write(nearest(b), source.unit, d, style)];
-      if (x !== null && y !== null && x !== y) return [x, y];
+      if (x !== y) return [String(x), String(y)];
     }
     return null;
   };
@@ -215,6 +218,7 @@ export function breakdownTreeFromData(metric: Metric | undefined, data: Pick<Can
   // A Snapshot's day: later periods are not part of it, whatever the data holds.
   const period = Object.keys(byPeriod).filter((p) => !opts.asOf || p <= opts.asOf).sort().at(-1);
   if (period === undefined) return no(`${plain(metric.name)} has no breakdown yet.`);
+  // Stryker disable next-line ArrayDeclaration: a series that is not there has no point for the period whatever stands in its place
   const point = (data.series[metric.slug] ?? []).find((p) => p.period === period);
   const unit: ValueUnit = { decimals: metric.decimals, unit: metric.unit, unit_position: metric.unit_position };
   return breakdownTree({ name: metric.name, unit, period: periodLabel(period, metric.period, data.yearStart), total: point && Number.isFinite(point.value) ? point.value : null, rows: byPeriod[period] }, data.numberStyle);
