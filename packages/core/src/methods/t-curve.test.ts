@@ -86,10 +86,10 @@ describe("Student's t curve, properties", () => {
   it(`is symmetric, ordered, within 0 and 1, and its quantile inverts it (${numRuns * 2} cases, seed ${seed})`, () => {
     fc.assert(
       fc.property(fc.double({ min: -60, max: 60, noNaN: true }), fc.double({ min: 0, max: 5, noNaN: true }), fc.integer({ min: 1, max: 400 }), fc.double({ min: 0.001, max: 0.999, noNaN: true }), (t, step, df, p) => {
-        // The tail is worked out on its own route, good to a relative 1e-14, so the two halves add to 1 within 2e-14.
-        expect(Math.abs(tCdf(t, df) + tCdf(-t, df) - 1)).toBeLessThanOrEqual(2e-14);
+        // The tail has its own route; the central sum of up to 200 terms (df up to 400 here) rounds at about 1e-14, so the two halves add to 1 within 1e-13.
+        expect(Math.abs(tCdf(t, df) + tCdf(-t, df) - 1)).toBeLessThanOrEqual(1e-13);
         // Ordered up to the last digit of a double (the chance of a tail is 0.5 less half of what lies within).
-        expect(tCdf(t + step, df)).toBeGreaterThanOrEqual(tCdf(t, df) - 2e-14);
+        expect(tCdf(t + step, df)).toBeGreaterThanOrEqual(tCdf(t, df) - 1e-13);
         expect(tCdf(t, df)).toBeGreaterThanOrEqual(0);
         expect(tCdf(t, df)).toBeLessThanOrEqual(1);
         const q = tQuantile(p, df);

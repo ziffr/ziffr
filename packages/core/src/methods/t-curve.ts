@@ -18,19 +18,20 @@ export const LIKELY = 0.9;
 /** The most degrees of freedom the curve is worked out for; the sum has about half as many terms. */
 export const MOST_DF = 100_000;
 
-// ln Γ(k ÷ 2) for a whole k ≥ 1 without the constant ½ ln 2π, which cancels in the difference the front factor takes: Stirling's series from 30 on
-// (the next term is below 1e-16), and below that Γ(z + 1) = z·Γ(z) up to it.
-function lnGammaHalf(k: number): number {
-  let [z, shift] = [k / 2, 0];
+// ln Γ(z + ½) − ln Γ(z) for z = ν ÷ 2, worked out as a difference so that nothing is lost to the two large logarithms: below 30, Γ(z + 1) = z·Γ(z)
+// steps z up (the ratio changes by ln z − ln(z + ½) a step); from 30 on, the series ½ ln z − 1/(8z) + 1/(192z³) − 1/(640z⁵), whose next term is below 1e-17.
+function lnGammaStep(z0: number): number {
+  let [z, shift] = [z0, 0];
   // Stryker disable next-line EqualityOperator: from 30 or from 31 the two routes agree to the last digit.
-  for (; z < 30; z += 1) shift -= Math.log(z);
-  return (z - 0.5) * Math.log(z) - z + 1 / (12 * z) - 1 / (360 * z ** 3) + 1 / (1260 * z ** 5) + shift;
+  for (; z < 30; z += 1) shift += Math.log(z) - Math.log(z + 0.5);
+  return 0.5 * Math.log(z) - 1 / (8 * z) + 1 / (192 * z ** 3) - 1 / (640 * z ** 5) + shift;
 }
 
-// I_x(ν/2, ½) for x below (ν/2 + 1) ÷ (ν/2 + 2.5): the front factor times Lentz's continued fraction ÷ a.
-function lowerBeta(x: number, df: number): number {
+// I_x(ν/2, ½) for x = ν ÷ (ν + t²) below (ν/2 + 1) ÷ (ν/2 + 2.5), with ln x and ln(1 − x) taken from u = 1 − x = t² ÷ (ν + t²) so that they keep their digits where x is near 1: the front
+// factor times Lentz's continued fraction ÷ a.
+function lowerBeta(x: number, u: number, df: number): number {
   const [a, b] = [df / 2, 0.5];
-  const front = Math.exp(lnGammaHalf(df + 1) - lnGammaHalf(df) - 0.5 * Math.log(Math.PI) + a * Math.log(x) + b * Math.log1p(-x));
+  const front = Math.exp(lnGammaStep(a) - 0.5 * Math.log(Math.PI) + a * Math.log1p(-u) + b * Math.log(u));
   let [c, d] = [1, 1 / (1 - ((a + b) * x) / (a + 1))];
   let h = d;
   // Each pass takes two steps of the fraction; it has converged when the factor is 1 to the last digit (a few hundred passes at most).
@@ -56,7 +57,7 @@ export function tCdf(t: number, df: number): number {
   // Far below 0 the chance is a tail: worked out directly, where x is small enough for the fraction to converge.
   const x = df / (df + t * t);
   // Stryker disable next-line EqualityOperator,ArithmeticOperator: at t = 0, x is 1, above the switch; and the switch only picks between two routes that agree to 1e-14 where a tail is above 1e-3.
-  if (t < 0 && x < (df / 2 + 1) / (df / 2 + 2.5)) return 0.5 * lowerBeta(x, df);
+  if (t < 0 && x < (df / 2 + 1) / (df / 2 + 2.5)) return 0.5 * lowerBeta(x, Number.isFinite(t * t) ? (t * t) / (df + t * t) : 1, df);
   const root = Math.sqrt(df + t * t);
   // t ÷ √(ν + t²) cannot lose a digit to the square root, even for t as large as a double goes: hypot is not needed for ν ≥ 1.
   const [s, c] = [Math.abs(t) / root, Math.sqrt(df) / root];
