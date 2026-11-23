@@ -10,7 +10,7 @@ import { toast } from "sonner";
 import { shown, unwrap } from "@/lib/action-error";
 import { told } from "@/lib/action-toast";
 import { format } from "date-fns";
-import { Archive, Tags, CalendarRange, Check, Copy, FileDown, GitBranch, Lightbulb, LayoutTemplate, PencilLine, Presentation, Scale, BookmarkPlus, ExternalLink, GripVertical, History, LayoutDashboard, ListTodo, MessageCircleQuestion, MoreHorizontal, Palette, PanelRightOpen, Trash2 } from "lucide-react";
+import { Archive, Tags, CalendarRange, Check, GitBranch, Lightbulb, LayoutTemplate, PencilLine, Scale, ExternalLink, GripVertical, History, ListTodo, MessageCircleQuestion, MoreHorizontal, Palette, PanelRightOpen, Trash2 } from "lucide-react";
 import { ContextMenu, ContextMenuContent, ContextMenuItem, ContextMenuSeparator, ContextMenuSub, ContextMenuSubContent, ContextMenuSubTrigger, ContextMenuTrigger, ContextMenuCheckboxItem, ContextMenuRadioGroup, ContextMenuRadioItem } from "@/components/ui/context-menu";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuSub, DropdownMenuSubContent, DropdownMenuSubTrigger, DropdownMenuTrigger, DropdownMenuCheckboxItem, DropdownMenuRadioGroup, DropdownMenuRadioItem } from "@/components/ui/dropdown-menu";
 import { Popover, PopoverContent } from "@/components/ui/popover";
@@ -36,6 +36,7 @@ import { cn } from "@/lib/utils";
 import { isArchived } from "@ziffr/core/metric-row";
 import { StatusDot } from "@/components/status";
 import { SaveTemplateDialog } from "@/components/save-template-dialog";
+import { WidgetKeepMenu, type KeepMenuKit } from "@/components/widget-keep-menu";
 import { AddToDeckDialog } from "@/components/add-to-deck-dialog";
 import { CONNECTORS, CONNECTOR_IDS, type ConnectorId } from "@ziffr/core/connectors/index";
 import { useSlotFill } from "@/components/slot-dialog";
@@ -278,42 +279,22 @@ function InteractiveFrame({ widget, data, targets, editable = false, className, 
       {isLayout && editable && widget.id && <K.Item onClick={() => setTimeout(() => setLayoutOpen(true), 0)}><PencilLine /> Edit layout…</K.Item>}
       {widget.id && <K.Item onClick={() => openPanel("versions")}><GitBranch /> Versions…</K.Item>}
       {hasTakeaway && <K.Item onClick={() => setTimeout(() => setTakeawayOpen(true), 0)}><Lightbulb /> Takeaway…</K.Item>}
-      {/* One entry for the four ways to keep a copy of this widget, each saying where the copy goes. */}
-      <K.Sub>
-        <K.SubTrigger><Copy /> Copy to…</K.SubTrigger>
-        <K.SubContent className="max-w-72">
-          {targets.length > 0 && (
-            <K.Sub>
-              <K.SubTrigger><LayoutDashboard /> Add to dashboard</K.SubTrigger>
-              <K.SubContent>
-                {targets.map((d) => (
-                  <K.Item key={d.id} onClick={() => start(async () => { if (told(await placeWidget(d.id, source), "Not added")) return; toast.success(`Added to ${d.name}`); })}>{d.name}</K.Item>
-                ))}
-              </K.SubContent>
-            </K.Sub>
-          )}
-          {/* A copy onto a slide of a deck the person may change (ticket #1); the core checks the rest. */}
-          {widget.id && <K.Item onClick={() => setTimeout(() => setDeckOpen(true), 0)}><Presentation /> Add to deck…</K.Item>}
-          <K.Item
-            onClick={() => {
-              const name = window.prompt("Save to your widgets as:", title ?? "My widget");
-              if (name) start(async () => { if (told(await saveToPool(source, name), "Not saved")) return; toast.success("Saved to My Widgets", { description: "Drag it from the Pool onto any dashboard." }); });
-            }}
-          >
-            <BookmarkPlus /> Save as Widget
-          </K.Item>
-          {widget.id && !isLayout && <K.Item onClick={() => setTimeout(() => setSaveTemplateOpen(true), 0)}><LayoutTemplate /> Save as template…</K.Item>}
-        </K.SubContent>
-      </K.Sub>
-      {ownDesign && (
-        <K.Sub>
-          <K.SubTrigger><FileDown /> For View Designs</K.SubTrigger>
-          <K.SubContent>
-            <K.Item onClick={() => downloadDesign(ownDesign)}><FileDown /> Export View Design</K.Item>
-            <K.Item onClick={() => downloadDesign(duplicateAsDesign(widget, ownDesign))}><Copy /> Duplicate as View Design</K.Item>
-          </K.SubContent>
-        </K.Sub>
-      )}
+      <WidgetKeepMenu
+        K={K as unknown as KeepMenuKit}
+        targets={targets}
+        saved={!!widget.id}
+        canSaveTemplate={!isLayout}
+        hasDesign={!!ownDesign}
+        onAddToDashboard={(d) => start(async () => { if (told(await placeWidget(d.id, source), "Not added")) return; toast.success(`Added to ${d.name}`); })}
+        onAddToDeck={() => setTimeout(() => setDeckOpen(true), 0)}
+        onSaveWidget={() => {
+          const name = window.prompt("Save to your widgets as:", title ?? "My widget");
+          if (name) start(async () => { if (told(await saveToPool(source, name), "Not saved")) return; toast.success("Saved to My Widgets", { description: "Drag it from the Pool onto any dashboard." }); });
+        }}
+        onSaveTemplate={() => setTimeout(() => setSaveTemplateOpen(true), 0)}
+        onSaveDesign={() => ownDesign && downloadDesign(duplicateAsDesign(widget, ownDesign))}
+        onDownloadDesign={() => ownDesign && downloadDesign(ownDesign)}
+      />
       {ms.map((x) => <K.Item key={`q${x.id}`} onClick={() => openQuickLook(x.slug)}><PanelRightOpen /> Quick look{ms.length > 1 ? ` at ${x.name}` : ""}</K.Item>)}
       {ms.map((x) => <K.Item key={x.id} onClick={() => router.push(`/metrics/${x.slug}`)}><ExternalLink /> Open {ms.length > 1 ? x.name : "metric"}</K.Item>)}
       {editable && widget.id && (
