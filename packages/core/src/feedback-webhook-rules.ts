@@ -4,7 +4,7 @@
 // Anonymity: the commenter's GitHub login is looked at (to tell the bot and bots from people, and never kept): the event
 // this returns carries the words, the comment's number and the post's number, and nothing that names the commenter.
 import { createHmac, timingSafeEqual } from "node:crypto";
-import { plainWords } from "./feedback-bridge";
+import { isRelayedReply, plainWords } from "./feedback-bridge";
 
 /** The shortest webhook secret accepted: a short one is refused as if there were none. */
 export const WEBHOOK_SECRET_MIN = 32;
@@ -39,7 +39,9 @@ const positive = (v: unknown): v is number => typeof v === "number" && Number.is
 const LOGIN = /^[A-Za-z0-9](?:[A-Za-z0-9-]{0,38})(\[bot\])?$/;
 
 /** What one GitHub event means, or null when it is none of ours: another repository, another event or action, a pull
- * request, a comment by the bot (a relayed reply, never echoed back), by another bot or by someone who is not on the team.
+ * request, a relayed reply (a comment of ours, never echoed back), a comment by another bot or by someone who is not on the team.
+ * A comment by the bot's own login that is not a relayed reply is a team comment like any other: the owner may answer from the
+ * account that posts.
  * `repo` is `owner/name` and `bot` the bot's login; both come from our own settings, never from the event. */
 export function readGithubEvent(name: string, payload: unknown, ctx: { repo: string; bot: string }): GithubFeedbackEvent | null {
   const p = obj(payload);
@@ -67,8 +69,11 @@ export function readGithubEvent(name: string, payload: unknown, ctx: { repo: str
     const user = obj(comment.user);
     const login = user?.login;
     if (typeof login !== "string" || !LOGIN.test(login)) return null;
-    // The bot's own comment is a relayed reply; another bot (a stale-bot, a CI notice) is not an answer from the team.
-    if (login.toLowerCase() === ctx.bot.toLowerCase() || user?.type === "Bot" || login.endsWith("[bot]")) return null;
+    // Our relayed reply is never echoed back. The bot's login alone is no reason to drop a comment (one account may post and
+    // answer): it is then judged by author association like any other. Another bot (a stale-bot, a CI notice) is no answer.
+    const ours = login.toLowerCase() === ctx.bot.toLowerCase();
+    if (ours && isRelayedReply(comment.body as string)) return null;
+    if (!ours && (user?.type === "Bot" || login.endsWith("[bot]"))) return null;
     if (typeof comment.author_association !== "string" || !TEAM_ASSOCIATIONS.includes(comment.author_association)) return null;
     const words = plainWords(comment.body, TEAM_WORDS_MAX);
     if (words === "") return null;

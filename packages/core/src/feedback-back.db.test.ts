@@ -7,7 +7,7 @@ import { Forbidden } from "./actor";
 import { db } from "./db";
 import { createFeedback, getMyFeedback, replyToFeedback } from "./feedback";
 import { receiveGithubFeedbackEvent } from "./feedback-back";
-import { replyMarkerFor } from "./feedback-bridge";
+import { buildGithubReply, replyMarkerFor } from "./feedback-bridge";
 import { GithubError, type GithubCommentClient } from "./feedback-github";
 import { postFeedbackReplies } from "./feedback-replies";
 import { FEEDBACK_REPLIES_PER_FEEDBACK_PER_DAY } from "./feedback-rules";
@@ -101,10 +101,20 @@ describe("a comment from the team", () => {
     expect((await notices(s)).data).toHaveLength(1);
   });
 
-  it("stores nothing for an unknown post, the bot, a stranger, or the same number in the other kind of post", async () => {
+  it("takes a plain comment by the bot's own account as the team's answer (one account posts and answers)", async () => {
+    const s = await sender(); const number = num(); const id = await filed(s, number);
+    expect(await take("issue_comment", issueComment(number, 70, "Fixed in the next release.", { user: { login: "ziffr-bot", type: "User" }, author_association: "OWNER" }))).toBe("comment");
+    const messages = (await getMyFeedback(s.actor, id))!.messages;
+    expect(messages).toHaveLength(1);
+    expect(messages[0]).toMatchObject({ fromTeam: true });
+    expect((await notices(s)).data).toHaveLength(1);
+  });
+
+  it("stores nothing for an unknown post, a relayed reply, a stranger, or the same number in the other kind of post", async () => {
     const s = await sender(); const number = num(); const id = await filed(s, number);
     expect(await take("issue_comment", issueComment(num(), 6))).toBe("comment");
-    expect(await take("issue_comment", issueComment(number, 7, "x", { user: { login: "ziffr-bot", type: "User" } }))).toBe("ignored");
+    const relayed = buildGithubReply({ words: "It still fails.", public_ref: "0123456789abcdef", message_id: 5 });
+    expect(await take("issue_comment", issueComment(number, 7, relayed, { user: { login: "ziffr-bot", type: "User" }, author_association: "OWNER" }))).toBe("ignored");
     expect(await take("issue_comment", issueComment(number, 8, "x", { author_association: "NONE" }))).toBe("ignored");
     expect(await take("discussion_comment", { action: "created", repository, discussion: { number }, comment: issueComment(number, 9).comment })).toBe("comment");
     expect((await getMyFeedback(s.actor, id))!.messages).toHaveLength(0);
