@@ -118,8 +118,9 @@ describe("a Breakdown of three levels, worked by hand", () => {
     { label: "Germany", value: 100, parts: [{ label: "Berlin", value: 60, parts: [{ label: "Mitte", value: 36 }, { label: "Pankow", value: 24 }] }, { label: "Munich", value: 40 }] },
     { label: "Austria", value: 50 },
   ];
-  const m = ok(tree(rows, 150));
+  const model = () => ok(tree(rows, 150));
   it("has a box for the Metric's value and each row, in tree order, each with its exact number", () => {
+    const m = model();
     expect(m.boxes.every((b) => b.differs === false)).toBe(true);
     expect(m.boxes.map((b) => [b.label, b.level, b.parent, b.text])).toEqual([
       ["Revenue", 0, null, "150 €"], ["Germany", 1, 0, "100 €"], ["Berlin", 2, 1, "60 €"], ["Mitte", 3, 2, "36 €"], ["Pankow", 3, 2, "24 €"], ["Munich", 2, 1, "40 €"], ["Austria", 1, 0, "50 €"],
@@ -127,6 +128,7 @@ describe("a Breakdown of three levels, worked by hand", () => {
     expect(m.period).toBe("March 2026");
   });
   it("shares the width of each box among its parts by their size, as exact fractions that add up to 1", () => {
+    const m = model();
     expect(m.boxes.map((b) => b.share)).toEqual([null, 100 / 150, 0.6, 0.6, 0.4, 0.4, 50 / 150]);
     expect(m.boxes[1].shareText).toBe(pct(200 / 3));
     expect(m.boxes[3].shareText).toBe(pct(60));
@@ -134,6 +136,7 @@ describe("a Breakdown of three levels, worked by hand", () => {
     expect(m.boxes.map((b) => b.op)).toEqual(["sum", "sum", "sum", null, null, null, null]);
   });
   it("gives a text alternative with every number in tree order and nothing about parts that add up, as they do", () => {
+    const m = model();
     expect(m.alt).toBe(
       "Breakdown tree of Revenue for March 2026. The top box is the value of Revenue for March 2026; the boxes under it are the rows of its breakdown, each as it was given. Parts share the width of the box above them by their size. "
       + "⁨Revenue⁩ 150 € is made of: ⁨Germany⁩ 100 €, 66.7 % of the parts; ⁨Austria⁩ 50 €, 33.3 % of the parts. "
@@ -143,6 +146,7 @@ describe("a Breakdown of three levels, worked by hand", () => {
     expect(m.rule).not.toContain("add up to");
   });
   it("shows the Metric's value as the rows added up when the Metric has none, and says so", () => {
+    const m = model();
     const d = ok(tree(rows, null));
     expect(d.boxes[0].text).toBe("150 €");
     expect(d.rule).toContain("Revenue has no value for March 2026, so the top box is its rows added up.");
@@ -152,8 +156,9 @@ describe("a Breakdown of three levels, worked by hand", () => {
 
 describe("a row whose parts do not add up to it", () => {
   const rows: BreakdownRow[] = [{ label: "Germany", value: 100, parts: [{ label: "Berlin", value: 60 }, { label: "Munich", value: 30 }] }, { label: "Austria", value: 50 }];
-  const m = ok(tree(rows, 160));
+  const model = () => ok(tree(rows, 160));
   it("shows both numbers, in the rule and the text version, and draws no box for the difference", () => {
+    const m = model();
     expect(m.boxes.map((b) => b.label)).toEqual(["Revenue", "Germany", "Berlin", "Munich", "Austria"]);
     expect(m.rule).toContain("Germany: its parts add up to 90 €, not to 100 €");
     expect(m.rule).toContain("Revenue: its parts add up to 150 €, not to 160 €");
@@ -166,10 +171,12 @@ describe("a row whose parts do not add up to it", () => {
     expect(m.boxes[2].share).toBe(60 / 90);
   });
   it("compares as the values are written, so 0.1 and 0.2 add up to 0.3", () => {
+    const m = model();
     const d = ok(tree([{ label: "A", value: 0.3, parts: [{ label: "B", value: 0.1 }, { label: "C", value: 0.2 }] }], 0.3, { unit: { ...eur, decimals: 1 } }));
     expect(d.rule).not.toContain("add up to");
   });
   it("shows a difference as small as the numbers can tell, never rounded away", () => {
+    const m = model();
     const d = ok(tree([{ label: "A", value: 1, parts: [{ label: "B", value: 0.4 }, { label: "C", value: 0.6000001 }] }], 1));
     expect(d.rule).toContain("A: its parts add up to 1.0000001 €, not to 1.0000000 €");
   });
