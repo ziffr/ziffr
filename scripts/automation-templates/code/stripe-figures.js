@@ -1,14 +1,7 @@
 // Stripe -> Ziffr (spec 0043): three figures for the month that has just ended, worked out from the subscriptions Stripe lists:
 // monthly recurring revenue, customers with a subscription, and customers who cancelled in that month. Only read data is
 // used and only these numbers leave: no customer, no email, no id. A figure whose Metric slug is left empty is not sent.
-const SLUG = /^[a-z0-9][a-z0-9-]{0,99}$/;
-const s = $('Settings').first().json;
-const want = (name) => {
-  const v = String(s[name] ?? '').trim();
-  if (v === '') return '';
-  if (!SLUG.test(v)) throw new Error('Settings: ' + name + ' is not a Metric slug (lower case letters, digits and hyphens), or leave it empty to skip that figure.');
-  return v;
-};
+@@SETTINGS@@
 const slugs = { mrr: want('mrrMetric'), customers: want('customersMetric'), churned: want('churnedMetric') };
 if (!slugs.mrr && !slugs.customers && !slugs.churned) throw new Error('Settings: name at least one Metric to fill.');
 const currency = String(s.currency ?? '').trim().toLowerCase();
@@ -24,11 +17,7 @@ const subscriptionsOf = (node) => {
 const live = subscriptionsOf('Read current subscriptions').filter((x) => x.status === 'active' || x.status === 'past_due');
 const cancelled = subscriptionsOf('Read cancelled subscriptions');
 
-// The month that has just ended, by its first day; Stripe's times are seconds since 1970 (UTC).
-const now = new Date();
-const from = Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - 1, 1);
-const to = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1);
-const period = new Date(from).toISOString().slice(0, 10);
+// Stripe's times are seconds since 1970 (UTC); the month that has just ended is `from` to `to` above.
 
 const customerOf = (x) => (typeof x.customer === 'string' ? x.customer : x.customer && typeof x.customer.id === 'string' ? x.customer.id : '');
 const customers = new Set(live.map(customerOf).filter((c) => c !== ''));
@@ -54,9 +43,8 @@ for (const sub of live) {
   }
 }
 
-const items = [];
-if (slugs.mrr) items.push({ metric: slugs.mrr, period, value: Math.round(mrr * 100) / 100 });
-if (slugs.customers) items.push({ metric: slugs.customers, period, value: customers.size });
-if (slugs.churned) items.push({ metric: slugs.churned, period, value: lost.size });
-@@KEY@@
-return [{ json: { items: send, settled, skipped: leftOut ? [{ why: leftOut + ' price(s) left out of the revenue: tiered, metered, in another currency or without a fixed interval' }] : [], key } }];
+const rows = [];
+if (slugs.mrr) rows.push({ metric: slugs.mrr, period, value: Math.round(mrr * 100) / 100 });
+if (slugs.customers) rows.push({ metric: slugs.customers, period, value: customers.size });
+if (slugs.churned) rows.push({ metric: slugs.churned, period, value: lost.size });
+return [{ json: { rows, skipped: leftOut ? [{ why: leftOut + ' price(s) left out of the revenue: tiered, metered, in another currency or without a fixed interval' }] : [] } }];

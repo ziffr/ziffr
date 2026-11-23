@@ -299,10 +299,12 @@ const SHEETS = {
 const DAILY = { name: "Every day at 9", rule: { interval: [{ triggerAtHour: 9 }] }, when: "every day at 9" };
 // Figures that are a month's total are sent once a month, for the month that has just ended: one value a period, never two.
 const MONTHLY = { name: "On the 1st at 9", rule: { interval: [{ field: "months", triggerAtDayOfMonth: 1, triggerAtHour: 9 }] }, when: "on the 1st of every month at 9, for the month that has just ended" };
-/** The key part every figure-shaping node ends with: the same figures give the same key, so a retried run records nothing twice. */
-const KEY = code("feed-key").trimEnd();
-const keyFor = (system) => fill(KEY, { SYSTEM: system });
-/** `reads` is a function that adds the read nodes (in order) and returns their names; `shape` is the shaping node's code. */
+/** The node every Feed template shares (feed-finish.js): checks the rows, leaves out what is filled, makes the key. */
+const finishFor = (system) => fill(code("feed-finish"), { SYSTEM: system });
+/** What the source nodes of the figure-making kind share: the Settings' slugs and the month that has just ended. */
+const withSettings = (name) => fill(code(name), { SETTINGS: code("feed-settings").trimEnd() });
+/** `reads` adds the read nodes (in order) and returns their names; `figures` is the code of the one node about the source,
+ * which hands plain rows { metric, value, period? } to "Shape values", the shared node that checks and sends them. */
 function feedFlow(s, reads) {
   const when = s.schedule ?? DAILY;
   const w = new WF(`${s.key}-feed`, `${s.label} to Ziffr (values)`);
@@ -313,14 +315,15 @@ function feedFlow(s, reads) {
   w.http("What is filled", "GET", FEED_BASE, FEED_CRED, 440, 300, { query: [["limit", "200"]] });
   const names = reads(w, 660, 300);
   const x = 660 + 220 * names.length;
-  w.code("Shape values", s.shape ?? fill(code("feed-shape"), { LABEL: s.label, KEY: keyFor(s.system) }), x, 300);
-  w.http("Send to Ziffr", "POST", FEED_URL, FEED_CRED, x + 220, 300, { headers: [["Idempotency-Key", "={{ $json.key }}"]], body: "={{ JSON.stringify({ items: $json.items }) }}" });
-  w.code("Check the answers", code("feed-answers"), x + 440, 300);
-  const chain = [when.name, "Settings", "What is filled", ...names, "Shape values", "Send to Ziffr", "Check the answers"];
+  w.code("Figures", s.figures, x, 300);
+  w.code("Shape values", finishFor(s.system), x + 220, 300);
+  w.http("Send to Ziffr", "POST", FEED_URL, FEED_CRED, x + 440, 300, { headers: [["Idempotency-Key", "={{ $json.key }}"]], body: "={{ JSON.stringify({ items: $json.items }) }}" });
+  w.code("Check the answers", code("feed-answers"), x + 660, 300);
+  const chain = [when.name, "Settings", "What is filled", ...names, "Figures", "Shape values", "Send to Ziffr", "Check the answers"];
   for (let i = 0; i + 1 < chain.length; i++) w.link(chain[i], chain[i + 1]);
   return w;
 }
-const sheetsFeed = () => feedFlow({ ...SHEETS, settings: [["ziffrUrl", "https://REPLACE-WITH-YOUR-ZIFFR-ADDRESS"], ["spreadsheetId", "REPLACE-WITH-THE-SPREADSHEET-ID"], ["sheetName", "REPLACE-WITH-THE-SHEET-NAME"]], fillIn: "where the figures are", readNames: ["Read the sheet"] }, (w, x, y) => {
+const sheetsFeed = () => feedFlow({ ...SHEETS, figures: fill(code("sheets-figures"), { LABEL: SHEETS.label }), settings: [["ziffrUrl", "https://REPLACE-WITH-YOUR-ZIFFR-ADDRESS"], ["spreadsheetId", "REPLACE-WITH-THE-SPREADSHEET-ID"], ["sheetName", "REPLACE-WITH-THE-SHEET-NAME"]], fillIn: "where the figures are", readNames: ["Read the sheet"] }, (w, x, y) => {
   w.add("Read the sheet", "n8n-nodes-base.googleSheets", {
     resource: "sheet", operation: "read",
     documentId: { __rl: true, value: "={{ $('Settings').first().json.spreadsheetId }}", mode: "id" },
@@ -341,7 +344,7 @@ const stripeFeed = () => feedFlow({
   ...STRIPE, fillIn: "which Metric each figure is for, and the currency",
   settings: [["ziffrUrl", "https://REPLACE-WITH-YOUR-ZIFFR-ADDRESS"], ["mrrMetric", "REPLACE-WITH-THE-MRR-METRIC-SLUG-OR-EMPTY"], ["customersMetric", "REPLACE-WITH-THE-CUSTOMERS-METRIC-SLUG-OR-EMPTY"], ["churnedMetric", "REPLACE-WITH-THE-CHURNED-CUSTOMERS-METRIC-SLUG-OR-EMPTY"], ["currency", "REPLACE-WITH-THE-CURRENCY-CODE-SUCH-AS-eur"]],
   schedule: MONTHLY, readNames: ["Read current subscriptions", "Read cancelled subscriptions"],
-  shape: fill(code("stripe-figures"), { KEY: keyFor("stripe") }),
+  figures: withSettings("stripe-figures"),
 }, (w, x, y) => {
   const paged = (n) => { n.parameters.options = { pagination: { pagination: { paginationMode: "updateAParameterInEachRequest", parameters: { parameters: [{ type: "qs", name: "starting_after", value: "={{ $response.body.data[$response.body.data.length - 1].id }}" }] }, paginationCompleteWhen: "other", completeExpression: "={{ !$response.body.has_more }}", limitPagesFetched: true, maxRequests: 50 } } }; };
   paged(stripeList(w, "Read current subscriptions", null, x, y));
@@ -366,7 +369,7 @@ const hubspotFeed = () => feedFlow({
   ...HUBSPOT, fillIn: "which Metric each figure is for",
   settings: [["ziffrUrl", "https://REPLACE-WITH-YOUR-ZIFFR-ADDRESS"], ["dealsWonMetric", "REPLACE-WITH-THE-DEALS-WON-METRIC-SLUG-OR-EMPTY"], ["newContactsMetric", "REPLACE-WITH-THE-NEW-CONTACTS-METRIC-SLUG-OR-EMPTY"]],
   schedule: MONTHLY, readNames: ["Count deals won", "Count new contacts"],
-  shape: fill(code("hubspot-figures"), { KEY: keyFor("hubspot") }),
+  figures: withSettings("hubspot-figures"),
 }, (w, x, y) => {
   const range = (prop) => `{ propertyName: '${prop}', operator: 'GTE', value: String(${MONTH_FROM}) }, { propertyName: '${prop}', operator: 'LT', value: String(${MONTH_TO}) }`;
   hubspotCount(w, "Count deals won", "deals", `{ propertyName: 'hs_is_closed_won', operator: 'EQ', value: 'true' }, ${range("closedate")}`, x, y);
