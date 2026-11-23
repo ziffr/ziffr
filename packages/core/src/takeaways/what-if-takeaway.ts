@@ -14,7 +14,7 @@ import { MIN_PAIRS } from "../correlation";
 import { changes } from "../basis";
 import { formatNumber } from "../format";
 import { fit, type Fit } from "../methods/fit";
-import { MOST_METRICS, whatIf, type NotReached, type Reached, type WhatIf, type WhatIfChange, type WhatIfLink } from "../methods/what-if";
+import { MOST_METRICS, MOST_STEPS, planOf, whatIf, type NotReached, type Reached, type WhatIf, type WhatIfChange, type WhatIfLink } from "../methods/what-if";
 import type { Span } from "../periods";
 import type { Resolver } from "../display-periods";
 import type { Metric, Point } from "../types";
@@ -54,11 +54,16 @@ const WEAKEST: readonly StrengthWord[] = ["cant-tell", "weak", "moderate", "stro
 export function whatIfTakeaway(start: Metric, metrics: Metric[], result: WhatIf, fits: Fit[], ctx: TakeawayContext): WhatIfTakeaway {
   const method = text("numbers-method-what-if", ctx);
   if (!result.ok) return { ...refusalTakeaway(method, lines({ refusals: result.refusals, cautions: [], switches: [] }, ctx).refusals), rows: [] };
-  const metricOf = (name: string) => metrics.find((m) => m.name === name) ?? start;
+  const known = (name: string) => (name === start.name ? start : metrics.find((m) => m.name === name));
+  // A Metric that is not among those given is never written in another Metric's unit: nothing is said.
+  const named = [...result.reached.flatMap((r) => (r.ok ? [r.name, ...r.through, ...r.outside.map((o) => o.name)] : [r.name]))];
+  if (named.some((n) => known(n) === undefined)) return { ...refusalTakeaway(method, [text("refuse-input", ctx, { what: "the Metrics" })]), rows: [] };
+  const metricOf = (name: string) => known(name)!;
   const span = (result.span ?? start.period) as Span;
   const figures: Figure[] = [];
   const numbers: NumberRow[] = [{ label: text("numbers-method", ctx), text: method }];
   const startText = written(start, Math.abs(result.by), ctx);
+  if (!legible(start, [Math.abs(result.by)], ctx)) return { ...refusalTakeaway(method, [`${start.name}: ${text("refuse-what-if-small", ctx)}`]), rows: [] };
   figures.push(figure(start.name, Math.abs(result.by), startText));
   numbers.push({ label: text("numbers-change-in", ctx, { name: start.name }), text: `${text(result.by > 0 ? "whatif-goes-up" : "whatif-goes-down", ctx)} ${startText}` });
   const cautions: string[] = [];
@@ -72,6 +77,7 @@ export function whatIfTakeaway(start: Metric, metrics: Metric[], result: WhatIf,
     if (r.exact) {
       const moves = text(r.effect > 0 ? "whatif-goes-up" : "whatif-goes-down", ctx);
       const shown = written(m, Math.abs(r.effect), ctx);
+      if (!legible(m, [Math.abs(r.effect)], ctx)) return refusedRow({ name: r.name, step: r.step }, text("refuse-what-if-small", ctx));
       numbers.push({ label: text("numbers-effect-on", ctx, { name: r.name }), text: `${moves} ${shown}` });
       if (r.effect === 0) return { ...base, kind: "worked-out", effect: 0, lo: null, hi: null, strength: null, strengthText: null, sentence: text("whatif-row-worked-same", ctx, { name: r.name }) };
       figures.push(figure(r.name, Math.abs(r.effect), shown));
@@ -86,13 +92,16 @@ export function whatIfTakeaway(start: Metric, metrics: Metric[], result: WhatIf,
     const moves = text(r.effect > 0 ? "whatif-go-up" : "whatif-go-down", ctx);
     const [lo, hi] = [r.lo, r.hi];
     const like = [Math.abs(r.effect), ...(lo === null || hi === null ? [] : [Math.abs(lo), Math.abs(hi)])];
+    // Numbers that cannot be told from 0 or from each other in 15 places are not written: the row says so instead.
+    if (!legible(m, like, ctx)) return refusedRow({ name: r.name, step: r.step }, text("refuse-what-if-small", ctx));
     const shown = written(m, Math.abs(r.effect), ctx, like);
     figures.push(figure(r.name, Math.abs(r.effect), shown));
     numbers.push({ label: text("numbers-effect-on", ctx, { name: r.name }), text: `${text(r.effect > 0 ? "whatif-goes-up" : "whatif-goes-down", ctx)} ${shown}` });
     if (lo === null || hi === null) {
-      const o = r.outside[0];
-      const outside = outsideText(o, metricOf(o.name), span, ctx);
-      figures.push(figure(o.name, Math.abs(o.limit), written(metricOf(o.name), Math.abs(o.limit), ctx)));
+      // Every driver that was outside is said, each with the edge of what was seen, the sign it has (a limit is a level, which may be below 0).
+      const outs = r.outside.filter((o, i) => r.outside.findIndex((x) => x.name === o.name && x.side === o.side) === i);
+      const outside = outs.map((o) => outsideText(o, metricOf(o.name), span, ctx)).join(". ");
+      for (const o of outs) figures.push(figure(o.name, o.change ? Math.abs(o.limit) : o.limit, written(metricOf(o.name), o.change ? Math.abs(o.limit) : o.limit, ctx)));
       return { ...base, kind: "guess", effect: r.effect, lo: null, hi: null, strength: lowest, strengthText, sentence: text("whatif-row-guess", ctx, { name: r.name, moves, effect: shown, through, outside }) };
     }
     // Where the range reaches 0 or crosses it, each end says which way it goes; else both are sizes in the direction of the effect.
@@ -108,10 +117,15 @@ export function whatIfTakeaway(start: Metric, metrics: Metric[], result: WhatIf,
   if (said.length === 0) return { ...refusalTakeaway(method, rows.map((r) => r.sentence)), rows };
   const first = said.slice(0, 3).map((r) => r.sentence);
   const more = said.length - first.length;
-  const changed = result.reached.some((r) => r.ok && r.byChange);
-  const headline = text("whatif-headline", ctx, { start: start.name, goes: text(result.by > 0 ? "whatif-goes-up" : "whatif-goes-down", ctx), by: startText, when: changed ? text("whatif-when-next", ctx, { span }) : "" });
   const estimated = result.reached.filter((r): r is Reached => r.ok && !r.exact);
-  const strength = WEAKEST.find((w) => rows.some((r) => (r.kind === "estimated" || r.kind === "guess") && r.strength === w)) ?? null;
+  // "Next month" belongs on the headline only where every estimated link counts a change; else it is said once as an assumption.
+  const byChange = estimated.filter((r) => r.byChange).length;
+  const allByChange = estimated.length > 0 && byChange === estimated.length && result.reached.every((r) => r.ok && !r.exact);
+  const slots = { start: start.name, goes: text(result.by > 0 ? "whatif-goes-up" : "whatif-goes-down", ctx), by: startText, when: allByChange ? text("whatif-when-next", ctx, { span }) : "", pct: result.percent === null ? "" : formatNumber(Math.abs(result.percent), Number.isInteger(result.percent) ? 0 : 2, ctx.style) };
+  const headline = text(result.percent === null ? "whatif-headline" : "whatif-headline-percent", ctx, slots);
+  if (result.percent !== null) figures.push(figure(`${start.name} %`, Math.abs(result.percent), slots.pct));
+  // The weakest of every estimated row, one that cannot be told from chance included.
+  const strength = WEAKEST.find((w) => rows.some((r) => r.kind !== "worked-out" && r.kind !== "refused" && r.strength === w)) ?? null;
   const modes = new Set(fits.map((f) => f.basis));
   const basis = fits.length === 0 ? null : modes.size > 1 ? text("basis-what-if-mixed", ctx) : text(fits[0].basis === "changes" ? "basis-changes" : "basis-values", ctx);
   const distinct = [...new Set(cautions)];
@@ -124,7 +138,7 @@ export function whatIfTakeaway(start: Metric, metrics: Metric[], result: WhatIf,
     strengthText: strength === null ? null : strengthWordIn(strength, ctx),
     range: null,
     basis,
-    assumptions: [text("whatif-assumes-rest", ctx), ...(estimated.some((r) => r.coefficients > 1) ? [text("whatif-assumes-chain", ctx)] : [])],
+    assumptions: [text("whatif-assumes-rest", ctx), ...(estimated.some((r) => r.coefficients > 1) ? [text("whatif-assumes-chain", ctx)] : []), ...(byChange > 0 && !allByChange ? [text("whatif-assumes-next", ctx, { span })] : [])],
     cautions: distinct,
     footer: estimated.length > 0 ? footerText(ctx) : null,
     figures,
@@ -133,7 +147,13 @@ export function whatIfTakeaway(start: Metric, metrics: Metric[], result: WhatIf,
   };
 }
 
-function refusedRow(r: NotReached, sentence: string): WhatIfRow {
+/** Whether numbers can be written in a Metric's unit so that none above 0 reads as 0 and no two that differ read the same, within 15 places. */
+function legible(m: Metric, values: number[], ctx: TakeawayContext): boolean {
+  const texts = values.map((v) => written(m, v, ctx, values));
+  return values.every((v, i) => v === 0 || /[1-9]/.test(texts[i])) && new Set(values).size === new Set(texts).size;
+}
+
+function refusedRow(r: Pick<NotReached, "name" | "step">, sentence: string): WhatIfRow {
   return { name: r.name, step: r.step, kind: "refused", effect: null, lo: null, hi: null, strength: null, strengthText: null, through: [], sentence: `${r.name}: ${sentence}` };
 }
 
@@ -151,13 +171,10 @@ export const MOST_LOOKED_AT = 20;
 /** The most Metrics looked at for each Metric of the first step. */
 export const MOST_PER_STEP = 8;
 
-// The levels a formula's inputs are at in the last period all of them have a value, by Metric name; null where one has none.
-function levelsOf(inputs: Metric[], series: Map<number, Point[]>): Record<string, number> | null {
+// The levels a formula's inputs are at in the period the change counts from (the changed Metric's latest), by Metric name; null where one has none there.
+function levelsOf(inputs: Metric[], series: Map<number, Point[]>, period: string): Record<string, number> | null {
   const maps = inputs.map((m) => new Map((series.get(m.id) ?? []).map((p) => [p.period, p.value])));
-  const common = [...maps[0].keys()].filter((p) => maps.every((m) => m.has(p))).sort();
-  if (common.length === 0) return null;
-  const last = common[common.length - 1];
-  return Object.fromEntries(inputs.map((m, i) => [m.name, maps[i].get(last)!]));
+  return maps.every((m) => m.has(period)) ? Object.fromEntries(inputs.map((m, i) => [m.name, maps[i].get(period)!])) : null;
 }
 
 type Found = { target: Metric; link: WhatIfLink; exact: boolean; partial: number; fit: Fit | null };
@@ -180,8 +197,9 @@ export function whatIfRecipe(start: Metric, change: WhatIfChange, others: Metric
   if (typeof on === "string") return none([on]);
   const { span } = on;
   const series = new Map(everyone.slice(0, 1).concat(pool).map((m, i) => [m.id, on.series[i]] as const));
-  const latest = on.series[0][on.series[0].length - 1]?.value;
-  if (latest === undefined) return none([text("refuse-what-if-none", opts.ctx, { name: start.name })]);
+  const last = on.series[0][on.series[0].length - 1];
+  if (last === undefined) return none([text("refuse-what-if-latest", opts.ctx, { name: start.name })]);
+  const latest = last.value;
   const left = new Set<string>();
 
   const builds = (m: Metric, from: Metric) => Boolean(m.formula?.includes(`{${from.slug}}`));
@@ -212,7 +230,7 @@ export function whatIfRecipe(start: Metric, change: WhatIfChange, others: Metric
   const worked = (t: Metric): Found | null => {
     const inputs = formulaInputs(t.formula!).map((s) => everyone.find((m) => m.slug === s));
     const have = inputs as Metric[];
-    const levels = inputs.some((m) => m === undefined) || usesPrevious(t.formula!) || t.period !== span || have.some((m) => m.period !== span) || inputsProblem(t, have) !== null ? null : levelsOf(have, series);
+    const levels = inputs.some((m) => m === undefined) || usesPrevious(t.formula!) || t.period !== span || have.some((m) => m.period !== span) || inputsProblem(t, have) !== null ? null : levelsOf(have, series, last.period);
     if (!levels) {
       left.add(t.name);
       return null;
@@ -235,13 +253,13 @@ export function whatIfRecipe(start: Metric, change: WhatIfChange, others: Metric
   const first = firstFound.sort(order).slice(0, MOST_FIRST);
   const firstMetrics = first.map((f) => f.target);
 
-  // Each Metric that may have moved with the first step is fitted on the changed Metric and those that move it, the ones that cannot be told from chance left out.
-  // Which of two Metrics that moved with the changed one is upstream is not known: the one whose link to it is closer is read as nearer to it (ties by
-  // Metric id), so a Metric is only ever fitted on those nearer than it and never on one that is fitted on it. The footer says it is what has gone together.
-  const nearer = new Map(firstMetrics.map((m, i) => [m.id, i]));
+  // Each Metric that may have moved with the first step is fitted on the changed Metric and the first-step Metrics nearer to it, the ones that cannot be told
+  // from chance left out and the fit made again. Which of two Metrics that moved with the changed one is upstream is not known: the one whose link to it is
+  // closer is read as nearer (ties by Metric id), so a Metric is only ever fitted on those nearer than it and never on one that is fitted on it. A Metric
+  // is only fitted on those whose own link has the changed Metric alone as its driver ("pure"), so that no change runs more than two steps.
+  const pure: Metric[] = [];
   const linkFor = (t: Metric): Found | null => {
-    const before = nearer.get(t.id) ?? Infinity;
-    const chain = [start, ...firstMetrics.filter((m) => nearer.get(m.id)! < before)].filter((m) => m.id !== t.id && !builds(m, t));
+    const chain = [start, ...pure].filter((m) => m.id !== t.id && !builds(m, t));
     if (chain.some((m) => builds(t, m))) return worked(t);
     const drivers = [start, ...closest(t, chain.filter((m) => m.id !== start.id), 2)];
     let f = fitOn(t, drivers);
@@ -250,23 +268,35 @@ export function whatIfRecipe(start: Metric, change: WhatIfChange, others: Metric
     if (f.ok && clear.length > 0 && clear.length < f.drivers.length) f = fitOn(t, drivers.filter((m) => clear.includes(m.name)));
     return f.ok && f.drivers.some((d) => d.strength !== "cant-tell") ? estimated(t, f) : null;
   };
-  const targets = [...new Map([...firstMetrics, ...firstMetrics.flatMap((b) => closest(b, pool.filter((m) => !firstMetrics.some((x) => x.id === m.id) && !builds(m, start)), MOST_PER_STEP))].map((m) => [m.id, m])).values()];
-  const links = targets.flatMap((t): Found[] => {
+  const isInFirst = new Set(first.map((f) => f.target.id));
+  const pool2 = [...new Map([...firstMetrics, ...firstMetrics.flatMap((b) => closest(b, pool.filter((m) => !isInFirst.has(m.id) && !builds(m, start)), MOST_PER_STEP))].map((m) => [m.id, m])).values()];
+  const links: Found[] = [];
+  for (const t of pool2) {
     const l = linkFor(t);
     // A first-step Metric keeps its own pair link where no better one is found.
     const mine = l ?? first.find((f) => f.target.id === t.id);
-    return mine ? [mine] : [];
-  });
-  const inFirst = new Set(first.map((f) => f.target.id));
-  const [sure, more] = [links.filter((f) => inFirst.has(f.target.id)), links.filter((f) => !inFirst.has(f.target.id)).sort(order)];
+    if (!mine) continue;
+    links.push(mine);
+    if (isInFirst.has(t.id) && mine.fit !== null && mine.fit.drivers.every((d) => d.name === start.name)) pure.push(t);
+  }
+  const [sure, more] = [links.filter((f) => isInFirst.has(f.target.id)), links.filter((f) => !isInFirst.has(f.target.id)).sort(order)];
   const room = Math.max(0, MOST_METRICS - 1 - sure.length);
-  const found = [...sure, ...more.slice(0, room)];
-  const notes: string[] = [];
-  if (left.size > 0) notes.push(text("note-what-if-formula", opts.ctx, { names: listOf([...left].sort(), opts.ctx) }));
-  if (more.length > room) notes.push(text("note-what-if-left", opts.ctx, { most: MOST_METRICS, names: listOf(more.slice(room).map((f) => f.target.name).sort(), opts.ctx) }));
+  let found = [...sure, ...more.slice(0, room)];
+  const dropped = more.slice(room).map((f) => f.target.name);
+  // The link of a Metric that is too far is left out, until the rest can be followed (the links made here never drive each other).
+  const gone: string[] = [];
+  for (let p = planOf(start.name, found.map((f) => f.link)); found.length > 0 && "case" in p && p.case === "refuse-what-if-deep"; p = planOf(start.name, found.map((f) => f.link))) {
+    const drop = found.find((f) => f.target.name === p.slots.name)!;
+    gone.push(drop.target.name);
+    found = found.filter((f) => f !== drop);
+  }
+  // A note for each kind of Metric left out, naming them; none where none was.
+  const note = (names: string[], key: CaseKey, slots: Slots = {}): string[] => (names.length > 0 ? [text(key, opts.ctx, { ...slots, names: listOf([...names].sort(), opts.ctx) })] : []);
+  const notes = [...note([...left], "note-what-if-formula"), ...note(dropped, "note-what-if-left", { most: MOST_METRICS }), ...note(gone, "note-what-if-deep", { most: MOST_STEPS })];
   const result = whatIf({ start: { name: start.name, latest }, change, links: found.map((f) => f.link) });
   const t = whatIfTakeaway(start, everyone, result, found.flatMap((f) => (f.fit ? [f.fit] : [])), opts.ctx);
   // Which of two Metrics that move together comes first is read, not known: said wherever a Metric is reached through another.
+  const chosen = t.rows.some((r) => r.kind !== "worked-out" && r.kind !== "refused") ? [text("whatif-assumes-chosen", opts.ctx)] : [];
   const read = t.rows.some((r) => r.through.length > 0) ? [text("whatif-assumes-order", opts.ctx, { start: start.name })] : [];
-  return { ...t, assumptions: [...t.assumptions, ...read], notes: [...notes, ...t.notes] };
+  return { ...t, assumptions: [...t.assumptions, ...chosen, ...read], notes: [...notes, ...t.notes] };
 }

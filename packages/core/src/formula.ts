@@ -170,7 +170,7 @@ function runBounds(n: Node, vars: Record<string, Bounds>): Bounds | null {
       const v = fractionOfText(n.v);
       return { lo: v, hi: v };
     }
-    case "ref": return vars[n.slug] ?? null;
+    case "ref": return Object.prototype.hasOwnProperty.call(vars, n.slug) ? vars[n.slug] : null;
     case "back": return null;
     case "neg": {
       const a = runBounds(n.a, vars);

@@ -39,62 +39,72 @@ const driversOf = (l: ReferenceLink) => (l.kind === "fit" ? l.drivers : [...new 
 /** What the reference says of one Metric reached: the change and its range, the effects it rests on and the share they are cut at. */
 export type ReferenceReached = { name: string; step: 1 | 2; effect: Exact; lo: Exact; hi: Exact; m: number; level: number };
 
-/** The what-if worked out by listing the paths and trying every corner of the effects' ranges. */
+/** The what-if worked out by recursion over the links with a memo: the change of a Metric is its link applied to the changes of all its drivers that the
+ * change reaches (the changed Metric's own, and each reached driver's, itself worked out the same way), never a cut-short copy. The links must run one way.
+ * The range is found by trying EVERY corner of the box of the effects' ranges (each reached Metric's own set of estimated effects, found by the same
+ * recursion) and taking the lowest and highest result. */
 export function referenceWhatIf(links: ReferenceLink[], start: string, change: Exact): ReferenceReached[] {
   const by = new Map(links.filter((l) => l.target !== start).map((l) => [l.target, l]));
   const fits = new Map([...by.values()].flatMap((l) => (l.kind === "fit" ? [[l.target, estimate(l)] as const] : [])));
-  const first = [...by.keys()].filter((t) => driversOf(by.get(t)!).includes(start));
-  const reached = [...by.keys()].filter((t) => first.includes(t) || driversOf(by.get(t)!).some((d) => first.includes(d) && d !== t));
+  const reachedMemo = new Map<string, boolean>();
+  const isReached = (t: string): boolean => {
+    if (!reachedMemo.has(t)) reachedMemo.set(t, driversOf(by.get(t)!).some((d) => d === start || (by.has(d) && isReached(d))));
+    return reachedMemo.get(t)!;
+  };
+  const depthMemo = new Map<string, number>();
+  const depth = (t: string): number => {
+    if (!depthMemo.has(t)) depthMemo.set(t, 1 + Math.max(0, ...driversOf(by.get(t)!).filter((d) => by.has(d) && isReached(d)).map(depth)));
+    return depthMemo.get(t)!;
+  };
+  // The estimated effects a Metric's change rests on: its own link's effects for the drivers that change, and those of each reached driver.
+  const idsOf = (t: string): Set<string> => {
+    const ids = new Set<string>();
+    for (const d of driversOf(by.get(t)!)) {
+      if (d !== start && !(by.has(d) && isReached(d))) continue;
+      if (fits.get(t)?.drivers.includes(d)) ids.add(`${t}|${d}`);
+      if (d !== start) for (const i of idsOf(d)) ids.add(i);
+    }
+    return ids;
+  };
   const out: ReferenceReached[] = [];
-  for (const t of reached) {
-    const link = by.get(t)!;
-    // The Metrics whose change goes into this one: the changed Metric and the first-step Metrics that drive it.
-    const via = driversOf(link).filter((d) => d !== t && first.includes(d));
-    const changing = [start, ...via];
-    // The distinct estimated effects its change rests on.
-    const ids: { owner: string; driver: string }[] = [];
-    const rest = (owner: string, drivers: string[]) => {
-      if (!fits.has(owner)) return;
-      for (const d of drivers) if (fits.get(owner)!.drivers.includes(d)) ids.push({ owner, driver: d });
-    };
-    rest(t, changing);
-    for (const b of via) rest(b, [start]);
+  for (const t of [...by.keys()].filter(isReached)) {
+    const ids = [...idsOf(t)];
     const m = ids.length;
     const level = m === 0 ? 0 : 1 - 1 / (10 * m);
-    const coefficients: Coefficient[] = ids.map(({ owner, driver }) => {
+    const coefficients = new Map<string, Coefficient>(ids.map((id) => {
+      const [owner, driver] = id.split("|");
       const f = fits.get(owner)!;
       const j = f.drivers.indexOf(driver);
       const effect = f.effects[j];
       const effectD = Number(effect.num) / Number(effect.den);
-      const half = m === 0 ? 0 : referenceTQuantile(level, f.df) * f.se[j];
-      return { id: `${owner}|${driver}`, effect, lo: exactOfDouble(effectD - half), hi: exactOfDouble(effectD + half) };
-    });
-    // The change at each Metric of the first step, then at this one, for one choice of the effects (an exact value for each).
-    const delta = (name: string, pick: (owner: string, driver: string) => Exact, deltas: Map<string, Exact>): Exact => {
-      const l = by.get(name)!;
-      if (l.kind === "fit") {
-        return driversOf(l).reduce((sum, d) => (deltas.has(d) ? plus(sum, times(pick(name, d), deltas.get(d)!)) : sum), ZERO);
-      }
-      const names = l.names;
-      const vars = (moved: boolean) => Object.fromEntries(Object.entries(names).map(([slug, n]) => [slug, moved && deltas.has(n) ? plus(l.levels[n], deltas.get(n)!) : l.levels[n]]));
-      return minus(referenceEvaluate(l.formula, vars(true))!, referenceEvaluate(l.formula, vars(false))!);
+      const half = referenceTQuantile(level, f.df) * f.se[j];
+      return [id, { id, effect, lo: exactOfDouble(effectD - half), hi: exactOfDouble(effectD + half) }];
+    }));
+    const total = (pick: (id: string) => Exact): Exact => {
+      const memo = new Map<string, Exact>([[start, change]]);
+      const delta = (name: string): Exact => {
+        if (memo.has(name)) return memo.get(name)!;
+        const l = by.get(name)!;
+        const moving = driversOf(l).filter((d) => d === start || (by.has(d) && isReached(d)));
+        let v: Exact;
+        if (l.kind === "fit") v = moving.reduce((sum, d) => plus(sum, times(pick(`${name}|${d}`), delta(d))), ZERO);
+        else {
+          const vars = (moved: boolean) => Object.fromEntries(Object.entries(l.names).map(([slug, n]) => [slug, moved && moving.includes(n) ? plus(l.levels[n], delta(n)) : l.levels[n]]));
+          v = minus(referenceEvaluate(l.formula, vars(true))!, referenceEvaluate(l.formula, vars(false))!);
+        }
+        memo.set(name, v);
+        return v;
+      };
+      return delta(t);
     };
-    const total = (pick: (owner: string, driver: string) => Exact): Exact => {
-      const deltas = new Map<string, Exact>([[start, change]]);
-      for (const b of via) deltas.set(b, delta(b, pick, new Map([[start, change]])));
-      return delta(t, pick, deltas);
-    };
-    const point = total((owner, driver) => coefficients.find((c) => c.id === `${owner}|${driver}`)!.effect);
+    const point = total((id) => coefficients.get(id)!.effect);
     let [lo, hi] = [point, point];
     for (let corner = 0; corner < 2 ** m; corner++) {
-      const v = total((owner, driver) => {
-        const i = coefficients.findIndex((c) => c.id === `${owner}|${driver}`);
-        return (corner >> i) & 1 ? coefficients[i].hi : coefficients[i].lo;
-      });
+      const v = total((id) => (((corner >> ids.indexOf(id)) & 1) ? coefficients.get(id)!.hi : coefficients.get(id)!.lo));
       if (compareExact(v, lo) < 0) lo = v;
       if (compareExact(v, hi) > 0) hi = v;
     }
-    out.push({ name: t, step: via.length > 0 ? 2 : 1, effect: point, lo, hi, m, level });
+    out.push({ name: t, step: depth(t) as 1 | 2, effect: point, lo, hi, m, level });
   }
   return out.sort((a, b) => a.step - b.step || (a.name < b.name ? -1 : 1));
 }
