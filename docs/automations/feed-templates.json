@@ -33,6 +33,22 @@
       "guide": "hubspot-feed.md",
       "reads": "Two counts, read only: deals won and new contacts, for the month that has just ended.",
       "needs": "A HubSpot private app token with read access to deals and contacts."
+    },
+    {
+      "id": "bigquery",
+      "label": "BigQuery",
+      "file": "bigquery-feed.json",
+      "guide": "bigquery-feed.md",
+      "reads": "The rows of a query you write in BigQuery, read only: each row has a metric (the Metric's slug), a value and the period's first day. Runs once a month, for the month that has just ended.",
+      "needs": "A Google Cloud project and a service account (or login) that may run queries and read the tables the query names, and nothing more."
+    },
+    {
+      "id": "snowflake",
+      "label": "Snowflake",
+      "file": "snowflake-feed.json",
+      "guide": "snowflake-feed.md",
+      "reads": "The rows of a query you write in Snowflake, read only: each row has a metric (the Metric's slug), a value and the period's first day. Runs once a month, for the month that has just ended.",
+      "needs": "A Snowflake user with a role that may run queries on a warehouse and read the tables the query names, and nothing more."
     }
   ]
 }
