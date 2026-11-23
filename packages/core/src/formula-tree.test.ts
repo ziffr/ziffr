@@ -455,6 +455,14 @@ describe("the tree from what the widget was given", () => {
     expect(m.period).toBe("April 2026");
   });
 
+  it("when the Metric has no value, takes the newest period of any part, whichever part has it, with the note of a running span", () => {
+    const d = dataOf(all, [...rows({ 1: [100] }, "2026-05"), ...rows({ 2: [60, 70, 80, 90] })], { today: "2026-05-20" });
+    const m = ok(treeFromData(PROFIT, d));
+    expect([m.period, ...m.boxes.map((b) => b.value)]).toEqual(["May 2026", null, 100, null]);
+    const q = ok(treeFromData(PROFIT, dataOf(all, rows({ 1: [100, 120, 140, 160, 180] }), { today: "2026-05-20" }), { display: "quarter" }));
+    expect(q.boxes.map((b) => b.label)).toEqual(["Profit (so far)", "Revenue (so far)", "Operating cost"]);
+  });
+
   it("on a running span adds up exactly what the Metric adds up: its own span, not a part's later value", () => {
     // Revenue to May, cost to April, by quarter with the second quarter running: the Metric's Q2 is April alone.
     const d = dataOf(all, rows({ 1: [100, 120, 140, 160, 180], 2: [60, 70, 80, 90] }), { today: "2026-05-20" });

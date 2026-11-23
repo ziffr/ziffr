@@ -167,13 +167,13 @@ function finish(b: Built, exact: Fraction): Built {
 }
 
 // A number written with at least `decimals` places and as many more as it takes for one that is not 0 never to be written as 0; null where even 20 do not.
-function write(v: number, unit: ValueUnit | null, decimals: number, style: NumberStyle): string | null {
+function write(v: number | null, unit: ValueUnit | null, decimals: number, style: NumberStyle): string | null {
   for (let d = decimals; d <= MOST_DECIMALS; d++) {
     if (v === 0 || /[1-9]/.test(formatNumber(v, d, style))) return unit ? formatValue({ ...unit, decimals: d }, v, style) : formatNumber(v, d, style);
   }
   return null;
 }
-function writePercent(p: number, style: NumberStyle): string | null {
+function writePercent(p: number | null, style: NumberStyle): string | null {
   for (let d = 1; d <= MOST_DECIMALS; d++) {
     if (p === 0 || /[1-9]/.test(formatNumber(p, d, style))) return formatPercent(p, style, d);
   }
@@ -213,9 +213,10 @@ export function formulaTree(source: TreeSource, style: NumberStyle): TreeModel {
     const root = parent === null;
     const title = plain(source.name);
     const value = b.exact === null ? null : nearest(b.exact);
-    const written = value === null ? null : write(value, root ? source.unit : b.unit, root ? source.unit.decimals : b.decimals, style);
+    // A box with no value has nothing to write: `write` says none for it.
+    const written = write(value, root ? source.unit : b.unit, root ? source.unit.decimals : b.decimals, style);
     const pct = share === null ? null : nearest(times(share, { num: BigInt(100), den: BigInt(1) }));
-    const shareText = pct === null ? null : writePercent(pct, style);
+    const shareText = writePercent(pct, style);
     // A number the doubles cannot tell from 0 (the exact value is not 0, the nearest double is) is never written as 0.
     tooSmall ||= (value !== null && written === null) || (pct !== null && shareText === null) || (value === 0 && b.exact!.num !== BigInt(0));
     const glyph = b.how === "divisor" ? "÷" : b.how === "factor" ? (index ? "×" : null) : b.taken ? "−" : index ? "+" : null;
@@ -290,7 +291,7 @@ export function treeFromData(metric: Metric | undefined, data: Pick<CanvasData, 
     // Over the Metric's own span, as the Metric itself is combined: a part with a value later than the Metric's own latest does not add it to a running span.
     const value = ownLatest ? valueOver(m.slug, ownLatest.period, ownLatest.through, resolve, periodCount(metric.period, ownLatest.period, ownLatest.through, data.yearStart)) : at(s.points)?.value;
     const p = ownLatest ?? at(s.points);
-    return [m.slug, { name: m.name, value: value !== undefined && Number.isFinite(value) ? value : null, note: p ? pointNote(p, m.period) : undefined, unit: unitOf(m) }];
+    return [m.slug, { name: m.name, value: value ?? null, note: p ? pointNote(p, m.period) : undefined, unit: unitOf(m) }];
   }));
   const root = at(own.points);
   return formulaTree({ name: metric.name, unit: unitOf(metric), formula: metric.formula, period: periodLabel(period, own.by, data.yearStart), note: root ? pointNote(root, metric.period) : undefined, leaves }, data.numberStyle);
