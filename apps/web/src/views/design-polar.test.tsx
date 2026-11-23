@@ -72,6 +72,13 @@ describe("radar", () => {
     expect(words(html)).toContain("no value");
   });
 
+  it("shows a Metric with nothing in the window as a gap, not its old value", () => {
+    const m = data.metrics[0];
+    const old = data.series[m.slug].slice(0, 5);
+    const text = alt(drawIn(radarDesign(), ids, {}, { ...data, series: { ...data.series, [m.slug]: old } }));
+    expect(text).toContain(`${latest(ids[1]).m.name}: no value in the last 12 periods`);
+  });
+
   it("refuses fewer than 3 and more than 12 Metrics in words", () => {
     expect(words(drawIn(radarDesign(), ids.slice(0, 2), {}))).toContain("A radar needs 3 to 12 Metrics and this has 2");
     const many = Array.from({ length: 13 }, (_, i) => ({ ...data.metrics[0], id: 100 + i, slug: `m${i}`, name: `M${i}` }));
@@ -131,6 +138,14 @@ describe("polar", () => {
     const html = drawIn(design, [m.id], {});
     expect(alt(html)).toContain(`Three-period average, as a polar plot of 12 periods`);
     expect(alt(html)).toContain(`: ${formatValue(m, avg(own.length - 1), data.numberStyle)}`);
+  });
+
+  it("keeps a gap at the start of the window in its place", () => {
+    const m = data.metrics[1];
+    const series = data.series[m.slug].filter((p) => p.period !== "2025-07-01");
+    const text = alt(drawIn(polarDesign, [m.id], {}, { ...data, series: { ...data.series, [m.slug]: series } }));
+    expect(text).toContain("Jul 25: no value");
+    expect(text).toContain("polar plot of 12 periods");
   });
 
   it("refuses a value below 0 and more periods than it can show, in words", () => {

@@ -6,10 +6,9 @@
 import type { ReactNode } from "react";
 import { drawnOutputs } from "@ziffr/core/analysis-recipe";
 import { formatOutput } from "@ziffr/core/design-analysis";
-import { isPartial } from "@ziffr/core/display-periods";
 import { formatValue } from "@ziffr/core/format";
 import { periodLabel, shiftPeriod } from "@ziffr/core/periods";
-import { polarModel, radarInputs, radarModel, type Mark } from "@ziffr/core/polar-marks";
+import { pointNote, polarModel, radarInputs, radarModel, type Mark } from "@ziffr/core/polar-marks";
 import type { Part } from "@ziffr/core/view-design";
 import type { DesignValues } from "./design-view";
 
@@ -82,17 +81,19 @@ export function PolarMark({ part, v }: { part: Polar; v: DesignValues }) {
   const out = step ? drawnOutputs(v.analysis).find((o) => o.step === step) : null;
   // The last `window` periods, counted as periods: a month with no value is a gap in the circle, not a month dropped from it.
   const lastAll = v.all[v.all.length - 1];
-  const since = lastAll ? shiftPeriod(lastAll.period, v.by, 1 - v.win) : "";
-  const shown = v.all.filter((p) => p.period >= since);
-  const points = (recipe ? (res?.kind === "series" ? res.points : []) : shown).filter((p) => p.period >= since);
-  const lastPt = shown[shown.length - 1];
+  const to = lastAll?.period ?? "";
+  const from = lastAll ? shiftPeriod(lastAll.period, v.by, 1 - v.win) : "";
+  // What a period is (running, with gaps, condensed) comes from the Metric's own points, for a recipe's series as well.
+  const own = new Map(v.all.map((p) => [p.period, p]));
+  const source: { period: string; value: number }[] = recipe ? (res?.kind === "series" ? res.points : []) : v.all;
   const model = polarModel({
     name: recipe && out ? out.label : m.name,
-    points: points.map((p) => ({ period: p.period, value: p.value })),
+    points: source.map((p) => ({ period: p.period, value: p.value, note: own.get(p.period) ? pointNote(own.get(p.period)!, m.period) : undefined, condensed: !!own.get(p.period)?.condensed })),
     by: v.by,
+    from,
+    to,
     label: (p) => periodLabel(p, v.by, data.yearStart, true),
-    write: (x) => (recipe && out ? formatOutput(out.unit, m, x, data.numberStyle) : formatOutputOwn(v, x)),
-    partialLast: !recipe && !!lastPt && (lastPt.toDate || isPartial(lastPt)),
+    write: (x) => (recipe && out ? formatOutput(out.unit, m, x, data.numberStyle) : formatValue(m, x, data.numberStyle)),
   });
   if (!model.ok) return <Words>{model.reason}</Words>;
   const n = model.marks.length;
@@ -107,9 +108,6 @@ export function PolarMark({ part, v }: { part: Polar; v: DesignValues }) {
   );
 }
 
-// A value of the widget's own Metric, in its unit and decimals and the Workspace's Number Style.
-const formatOutputOwn = (v: DesignValues, x: number) => formatValue(v.m, x, v.data.numberStyle);
-
 /** Several Metrics as spokes on one shape, in the order of the Slots, each on a scale of its own. */
 export function RadarMark({ part, v }: { part: Radar; v: DesignValues }) {
   const { data } = v;
@@ -117,10 +115,13 @@ export function RadarMark({ part, v }: { part: Radar; v: DesignValues }) {
   if (!model.ok) return <Words>{model.reason}</Words>;
   const n = model.spokes.length;
   const [now, before] = model.shapes;
+  const mixed = new Set(now.marks.map((k) => k.period).filter(Boolean)).size > 1;
   const lines = model.spokes.map((_, i) => {
     const a = now.marks[i];
     const b = before?.marks[i];
-    return [short(a.label, 16), a.text ?? "no value", ...(b ? [`before: ${b.text ?? "no value"}`] : [])];
+    // Spokes whose latest values are of different periods say which, so they do not read as one moment.
+    const when = (k: typeof a) => (mixed && k.period ? ` (${k.period})` : "");
+    return [short(a.label, 16), a.text === null ? "no value" : `${a.text}${when(a)}`, ...(b ? [`before: ${b.text ?? "no value"}${when(b)}`] : [])];
   });
   return (
     <>

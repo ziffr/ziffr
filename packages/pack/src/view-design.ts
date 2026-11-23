@@ -290,7 +290,7 @@ function meaning(d: ViewDesign, lines: Map<string, number>): Problem[] {
         });
       if (p.mark === "rows" && p.limit === "rows" && !d.options?.rows) at(`${here}.limit`, "uses the option “rows”, which the design does not declare under options.");
       if (p.mark === "rows" && p.show !== "values") needsTwo(here, `Rows of ${p.show}`);
-      if (p.mark === "radar" && fewest < SPOKES.min) at(here, `A radar needs ${SPOKES.min} to ${SPOKES.max} spokes: give the design ${SPOKES.min} Slots, or a Slot of several with “min”: ${SPOKES.min}.`);
+      if (p.mark === "radar" && (fewest < SPOKES.min || fewest > SPOKES.max)) at(here, `A radar needs ${SPOKES.min} to ${SPOKES.max} spokes: give the design ${SPOKES.min} Slots, or a Slot of several with “min”: ${SPOKES.min}, and no more than ${SPOKES.max} in all.`);
     });
   walk(d.parts, "parts");
   recipeUse(d, lines, at);

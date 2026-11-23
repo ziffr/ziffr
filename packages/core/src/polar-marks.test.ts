@@ -2,7 +2,7 @@
 // hand-worked numbers and the properties a scale must keep, and every refusal against what the person is told.
 import fc from "fast-check";
 import { describe, expect, it } from "vitest";
-import { along, polarModel, radarInputs, radarModel, SPOKES, whereWords, type MarkPoint, type RadarInput } from "./polar-marks";
+import { along, pointNote, polarModel, radarInputs, radarModel, SPOKES, whereWords, type MarkPoint, type RadarInput } from "./polar-marks";
 import { periodLabel, shiftPeriod } from "./periods";
 import { sampleCanvasData } from "./sample-data";
 import { shownSeries } from "./display-periods";
@@ -10,7 +10,7 @@ import { formatValue } from "./format";
 
 const month = (i: number) => shiftPeriod("2026-01-01", "month", i);
 const series = (...values: (number | null)[]): MarkPoint[] => values.flatMap((v, i) => (v === null ? [] : [{ period: month(i), value: v }]));
-const polar = (points: MarkPoint[], extra: Partial<Parameters<typeof polarModel>[0]> = {}) => polarModel({ name: "Orders", points, by: "month", label: (p) => p.slice(0, 7), write: (v) => `${v} orders`, ...extra });
+const polar = (points: MarkPoint[], extra: Partial<Parameters<typeof polarModel>[0]> = {}) => polarModel({ name: "Orders", points, by: "month", from: month(0), to: points.length ? points.map((q) => q.period).sort().at(-1)! : month(0), label: (p) => p.slice(0, 7), write: (v) => `${v} orders`, ...extra });
 const spoke = (name: string, points: MarkPoint[], extra: Partial<RadarInput> = {}): RadarInput => ({ name, points, by: "month", write: (v) => `${v}`, period: (p) => p.slice(0, 7), ...extra });
 const radar = (inputs: RadarInput[], opts: Partial<Parameters<typeof radarModel>[1]> = {}) => radarModel(inputs, { window: 12, style: "1,234.5", ...opts });
 const ok = <T extends { ok: boolean }>(m: T) => { if (!m.ok) throw new Error(`refused: ${(m as unknown as { reason: string }).reason}`); return m as Extract<T, { ok: true }>; };
@@ -33,8 +33,14 @@ describe("polarModel", () => {
   });
 
   it("leaves a value that is not a number out of the circle, and counts only the periods it draws", () => {
-    const m = ok(polar([...series(1, 2, 3), { period: month(3), value: Number.NaN }]));
+    const m = ok(polar([...series(1, 2, 3), { period: month(3), value: Number.NaN }], { to: month(2) }));
     expect(m.marks.map((k) => k.label)).toEqual(["2026-01", "2026-02", "2026-03"]);
+  });
+
+  it("leaves a value that is not a number, and one outside the window, out of the maximum and the places", () => {
+    const m = ok(polar([{ period: month(0), value: 2 }, { period: month(1), value: Number.NaN }, { period: month(2), value: 4 }, { period: month(3), value: 99 }], { from: month(0), to: month(2) }));
+    expect(m.marks.map((k) => k.at)).toEqual([0.5, null, 1]);
+    expect(m.top).toBe("4 orders");
   });
 
   it("gives the periods oldest first, whatever order they came in", () => {
@@ -42,8 +48,22 @@ describe("polarModel", () => {
     expect(m.marks.map((k) => k.label)).toEqual(["2026-01", "2026-02", "2026-03"]);
   });
 
-  it("says a running period is not over", () => {
-    expect(ok(polar(series(1, 2, 3), { partialLast: true })).marks.map((k) => k.label)).toEqual(["2026-01", "2026-02", "2026-03 (so far)"]);
+  it("says why a period is not a whole one, on that period only", () => {
+    const pts = series(1, 2, 3).map((p, i) => (i === 2 ? { ...p, note: "so far" } : i === 0 ? { ...p, note: "2 of 3 months" } : p));
+    expect(ok(polar(pts)).marks.map((k) => k.label)).toEqual(["2026-01 (2 of 3 months)", "2026-02", "2026-03 (so far)"]);
+  });
+
+  it("keeps the gaps at the ends of the window: a year with no January starts with its gap", () => {
+    const m = ok(polar(series(null, 5, 6, 7), { from: month(0), to: month(3) }));
+    expect(m.marks.map((k) => k.at)).toEqual([null, 5 / 7, 6 / 7, 1]);
+    const tail = ok(polar(series(5, 6, 7, null), { from: month(0), to: month(3) }));
+    expect(tail.marks.map((k) => k.at)).toEqual([5 / 7, 6 / 7, 1, null]);
+    // Values outside the window are not drawn.
+    expect(ok(polar(series(9, 5, 6, 7), { from: month(1), to: month(3) })).marks.map((k) => k.at)).toEqual([5 / 7, 6 / 7, 1]);
+  });
+
+  it("refuses Condensed Values, which stand for several periods", () => {
+    expect(polar(series(1, 2, 3).map((p, i) => (i === 1 ? { ...p, condensed: true } : p)))).toEqual({ ok: false, reason: expect.stringContaining("Condensed Values") });
   });
 
   it("accepts 3 and 12 periods and refuses 2 and 13, in words", () => {
@@ -69,9 +89,9 @@ describe("polarModel", () => {
 
   it("places weeks and quarters on their own grid", () => {
     const weeks = [0, 1, 2].map((i) => ({ period: shiftPeriod("2026-01-05", "week", i), value: i + 1 }));
-    expect(ok(polar(weeks, { by: "week" })).marks.map((k) => k.at)).toEqual([1 / 3, 2 / 3, 1]);
+    expect(ok(polar(weeks, { by: "week", from: weeks[0].period, to: weeks[2].period })).marks.map((k) => k.at)).toEqual([1 / 3, 2 / 3, 1]);
     const quarters = [0, 1, 2, 3].map((i) => ({ period: shiftPeriod("2026-01-01", "quarter", i), value: 4 - i }));
-    expect(ok(polar(quarters, { by: "quarter" })).marks.map((k) => k.at)).toEqual([1, 0.75, 0.5, 0.25]);
+    expect(ok(polar(quarters, { by: "quarter", from: quarters[0].period, to: quarters[3].period })).marks.map((k) => k.at)).toEqual([1, 0.75, 0.5, 0.25]);
   });
 
   it("is scale-free and keeps the order: any positive factor gives the same places (property)", () => {
@@ -88,7 +108,7 @@ describe("polarModel", () => {
 });
 
 describe("radarModel", () => {
-  const three = [spoke("A", series(10, 20, 30)), spoke("B", series(5, 1, 3)), spoke("C", series(-10, -5, -20, -8))];
+  const three = [spoke("A", series(10, 20, 30, 30)), spoke("B", series(5, 1, 3, 3)), spoke("C", series(-10, -5, -20, -8))];
 
   it("puts each latest value between its own lowest and highest, spokes in the order given", () => {
     const m = ok(radar(three));
@@ -97,26 +117,26 @@ describe("radarModel", () => {
     // A: 30 of 10..30 -> 1. B: 3 of 1..5 -> 0.5. C: -8 of -20..-5 -> 0.8 (a sign is kept in the text).
     expect(now.marks.map((k) => [k.label, k.text, k.at])).toEqual([["A", "30", 1], ["B", "3", 0.5], ["C", "-8", 0.8]]);
     expect(m.alt.startsWith("A radar of 3 Metrics, spokes in this order: A, B, C. Each spoke")).toBe(true);
-    expect(m.alt.endsWith("A: 30 (2026-03), at its highest; B: 3 (2026-03), 50 % of the way up its range; C: -8 (2026-04), 80 % of the way up its range.")).toBe(true);
+    expect(m.alt.endsWith("A: 30 (2026-04), at its highest; B: 3 (2026-04), 50 % of the way up its range; C: -8 (2026-04), 80 % of the way up its range.")).toBe(true);
     expect(m.alt).toContain("larger. Latest: A:");
-    expect(m.alt).toContain("A: 30 (2026-03), at its highest; B: 3 (2026-03), 50 % of the way up its range; C: -8 (2026-04), 80 % of the way up its range");
+    expect(m.alt).toContain("A: 30 (2026-04), at its highest; B: 3 (2026-04), 50 % of the way up its range; C: -8 (2026-04), 80 % of the way up its range");
     expect(m.rule).toContain("Each spoke has its own scale");
     expect(m.rule).toContain("not which Metric is larger");
   });
 
   it("uses only the periods of the window for the scale", () => {
-    const m = ok(radar([spoke("B", series(100, 1, 3)), three[0], three[2]], { window: 2 }));
-    // B over its last 2 periods: 1..3, latest 3 -> 1; with all three periods it would be 0.02.
+    const m = ok(radar([spoke("B", series(100, 1, 2, 3)), three[0], three[2]], { window: 2 }));
+    // B over its last 2 periods: 2..3, latest 3 -> 1; with all four periods it would be 0.02.
     expect(m.shapes[0].marks[0].at).toBe(1);
-    expect(ok(radar([spoke("B", series(100, 1, 3)), three[0], three[2]], { window: 3 })).shapes[0].marks[0].at).toBeCloseTo(0.0202, 3);
+    expect(ok(radar([spoke("B", series(100, 1, 2, 3)), three[0], three[2]], { window: 4 })).shapes[0].marks[0].at).toBeCloseTo(0.0202, 3);
   });
 
   it("shows a Metric with no value as a gap, and one with a single value without a place on its spoke, never as 0", () => {
     const m = ok(radar([three[0], spoke("Empty", []), spoke("One", series(7))]));
-    expect(m.shapes[0].marks[1]).toEqual({ label: "Empty", text: null, at: null, gap: "no value" });
+    expect(m.shapes[0].marks[1]).toEqual({ label: "Empty", text: null, at: null, gap: "no value in the last 12 periods" });
     expect(m.shapes[0].marks[2]).toMatchObject({ text: "7", at: null, period: "2026-01" });
     expect(m.alt).toContain("Empty: no value");
-    expect(m.alt).toContain("One: 7 (2026-01), the same in every period shown, so it has no range to sit in");
+    expect(m.alt).toContain("One: 7 (2026-01), only one period is shown, so it has no range to sit in");
   });
 
   it("draws the period before as a second shape on the same scale, and says when it has no value", () => {
@@ -136,15 +156,17 @@ describe("radarModel", () => {
   });
 
   it("scales over the window alone, but never leaves the period before off the scale, and says how many periods", () => {
-    const one = [spoke("A", series(10, 30)), three[1], three[2]];
+    const one = [spoke("A", series(null, null, 10, 30)), three[1], three[2]];
     // Window 1, nothing to compare: a single value has no range.
     const solo = ok(radar(one, { window: 1 }));
     expect(solo.shapes[0].marks[0]).toMatchObject({ text: "30", at: null });
+    expect(solo.shapes[0].marks[0]).toMatchObject({ gap: "only one period is shown, so it has no range to sit in" });
     expect(solo.rule).toContain("of the last 1 period is at the centre");
+    expect(ok(radar([spoke("S", series(4, 4, 4)), three[0], three[1]])).shapes[0].marks[0]).toMatchObject({ gap: "the same in every period shown, so it has no range to sit in" });
     // With the period before, the scale reaches it, though the window does not.
     const both = ok(radar(one, { window: 1, against: "previous" }));
     expect(both.shapes.map((s) => s.marks[0].at)).toEqual([1, 0]);
-    expect(both.rule).toContain("of the last 1 period is");
+    expect(both.rule).toContain("of the last 1 period and the period before is at the centre");
     expect(ok(radar(one, { window: 12 })).rule).toContain("of the last 12 periods is");
     // A Metric with no value has no period before either.
     expect(ok(radar([spoke("E", []), three[0], three[1]], { against: "previous" })).shapes[1].marks[0]).toMatchObject({ text: null, gap: "no value in the period before" });
@@ -158,10 +180,43 @@ describe("radarModel", () => {
     expect(radar(many.slice(0, 3)).ok).toBe(true);
   });
 
-  it("marks a running period and ignores values that are not numbers", () => {
-    const m = ok(radar([spoke("A", [...series(1, 2), { period: month(2), value: Number.NaN }], { partialLast: true }), three[1], three[2]]));
-    expect(m.shapes[0].marks[0].label).toBe("A (so far)");
+  it("marks the period actually used as latest when it is not whole, and not the period before", () => {
+    const a = spoke("A", [{ period: month(0), value: 1, note: "so far" }, { period: month(1), value: 2 }, { period: month(2), value: 3, note: "2 of 3 months" }]);
+    const m = ok(radar([a, three[1], three[2]], { against: "previous" }));
+    expect(m.shapes[0].marks[0]).toMatchObject({ label: "A (2 of 3 months)", text: "3" });
+    // The period before is month 1, a whole one: no note, though the first point had one.
+    expect(m.shapes[1].marks[0]).toMatchObject({ label: "A", text: "2" });
+  });
+
+  it("ignores values that are not numbers", () => {
+    const m = ok(radar([spoke("A", [...series(1, 2), { period: month(2), value: Number.NaN }]), three[1], three[2]]));
     expect(m.shapes[0].marks[0].text).toBe("2");
+  });
+
+  it("leaves a Metric with nothing in the window as a gap, never its old value as the latest", () => {
+    const stale = spoke("Old", series(5, 6));
+    const m = ok(radar([three[0], stale, spoke("New", series(1, 2, 3, 4, 5, 6, 7, 8))], { window: 3 }));
+    // The newest period is 2026-08; Old ended in 2026-02, outside the last 3 periods.
+    expect(m.shapes[0].marks[1]).toEqual({ label: "Old", text: null, at: null, gap: "no value in the last 3 periods" });
+    // The scale of each spoke is the window's: New over 2026-06..08 is 6..8, latest 8 at the rim.
+    expect(m.shapes[0].marks[2]).toMatchObject({ text: "8", at: 1 });
+    expect(m.alt).toContain("Old: no value in the last 3 periods");
+  });
+
+  it("ends the window at the newest real value: a value that is not a number moves nothing", () => {
+    const m = ok(radar([three[0], three[1], spoke("C", [...three[2].points, { period: month(9), value: Number.NaN }])], { window: 2 }));
+    // C's last 2 periods: -20 and -8, so -8 is at the rim (a later NaN would have moved the window past it).
+    expect(m.shapes[0].marks[2]).toMatchObject({ text: "-8", at: 1 });
+  });
+
+  it("draws only gaps, and does not fail, when no Metric has a value", () => {
+    const m = ok(radar(["A", "B", "C"].map((n) => spoke(n, [])), { against: "previous" }));
+    expect(m.shapes.flatMap((s) => s.marks.map((k) => k.text))).toEqual([null, null, null, null, null, null]);
+    expect(m.shapes[0].marks[0]).toMatchObject({ gap: "no value in the last 12 periods" });
+  });
+
+  it("refuses Condensed Values in the window", () => {
+    expect(radar([three[0], three[1], spoke("C", series(1, 2).map((p) => ({ ...p, condensed: true })))])).toEqual({ ok: false, reason: expect.stringContaining("Condensed Values") });
   });
 
   it("places every value between 0 and 1 with the lowest at 0 and the highest at 1, whatever the units (property)", () => {
@@ -176,6 +231,14 @@ describe("radarModel", () => {
       const lo = Math.min(...vs), hi = Math.max(...vs);
       expect(a.at!).toBe(along(vs[vs.length - 1], lo, hi));
     }));
+  });
+});
+
+describe("pointNote", () => {
+  it("says so far while a span runs, how many periods it holds when it is over with gaps, and nothing for a whole one", () => {
+    expect(pointNote({ held: 2, length: 3, toDate: true }, "month")).toBe("so far");
+    expect(pointNote({ held: 2, length: 3, toDate: false }, "month")).toBe("2 of 3 months");
+    expect(pointNote({ held: 3, length: 3, toDate: false }, "month")).toBeUndefined();
   });
 });
 
@@ -198,7 +261,7 @@ describe("radarInputs", () => {
     expect(inputs.map((i) => i.name)).toEqual(ms.map((m) => m.name));
     ms.forEach((m, k) => {
       const last = shownSeries(m, data, undefined, {}).points.at(-1)!;
-      expect(inputs[k].points.at(-1)).toEqual({ period: last.period, value: last.value });
+      expect(inputs[k].points.at(-1)).toMatchObject({ period: last.period, value: last.value });
       expect(inputs[k].write(last.value)).toBe(formatValue(m, last.value, "1.234,5"));
     });
     expect(inputs.map((i) => i.period("2026-06-01"))).toEqual(ms.map(() => periodLabel("2026-06-01", "month", data.yearStart)));
@@ -211,9 +274,9 @@ describe("radarInputs", () => {
     expect(radarInputs([m], data, { display: "quarter" }, false)[0].by).toBe("month");
     const by = radarInputs([m], data, { display: "quarter" }, true)[0];
     expect(by.by).toBe("quarter");
-    expect(by.partialLast).toBe(true);
-    expect(radarInputs([m], data, {}, false)[0].partialLast).toBe(false);
+    expect(by.points.at(-1)!.note).toBe("so far");
+    expect(radarInputs([m], data, {}, false)[0].points.at(-1)!.note).toBeUndefined();
     // A Snapshot counts "to date" as of its own day: a quarter that was over on that day is not running.
-    expect(radarInputs([m], data, { display: "quarter", asOf: "2026-06-30" }, true)[0].partialLast).toBe(false);
+    expect(radarInputs([m], data, { display: "quarter", asOf: "2026-06-30" }, true)[0].points.at(-1)!.note).toBeUndefined();
   });
 });
