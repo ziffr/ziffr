@@ -48,7 +48,8 @@ export type Part =
   | { mark: "gauge"; show: "latest"; when?: Flag[] }
   | { mark: "rows"; show: "values" | "correlations" | "matrix" | "reasons"; limit?: "rows" | number; when?: Flag[] }
   | { mark: "polar"; show: "values" | RecipeShow; when?: Flag[] }
-  | { mark: "radar"; show: "latest"; against?: "previous"; when?: Flag[] };
+  | { mark: "radar"; show: "latest"; against?: "previous"; when?: Flag[] }
+  | { mark: "stacked"; show: "breakdown"; when?: Flag[] };
 
 /** How many spokes (a radar) or periods (a polar plot) are drawn, at least and at most: fewer than 3 is a line, more than 12 cannot be read. */
 export const SPOKES = { min: 3, max: 12 } as const;
@@ -217,6 +218,7 @@ export const VIEW_DESIGN_SCHEMA: Schema = {
         mark("rows", "Table rows: the latest values; the Metrics ranked by how much they move with the first (correlations), or every pair (matrix); or why Metrics were left out of a comparison (reasons).", { show: { enum: ["values", "correlations", "matrix", "reasons"] }, limit: { oneOf: [{ type: "string", enum: ["rows"] }, { type: "integer", minimum: 1, maximum: 120 }] } }, ["show"]),
         mark("polar", `Values around a circle: the periods of a series as angles in the order given, the values as the distance from the centre, which is 0; ${SPOKES.min} to ${SPOKES.max} periods, none below 0.`, { show: shows(["values"], true, "a series") }, ["show"]),
         mark("radar", `Several Metrics as spokes on one shape, in the order of the Slots, ${SPOKES.min} to ${SPOKES.max} of them: each spoke has its own scale, from the Metric's lowest value of the periods shown at the centre to its highest at the rim. With against, the period before is drawn as a second, dashed shape.`, { show: { const: "latest" }, against: { const: "previous" } }, ["show"]),
+        mark("stacked", "One bar per period, stacked from that period's Breakdown: the largest rows of the newest period (at most 5) as their own segments in a stable order and colour, every other row as one muted Other; a period without a Breakdown is left out and counted, and a negative row is refused in words.", { show: { const: "breakdown" } }, ["show"]),
       ],
     },
     plotMark: {

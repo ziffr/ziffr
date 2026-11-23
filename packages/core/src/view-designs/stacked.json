@@ -1,0 +1,14 @@
+{
+  "format": "ziffr.view/1",
+  "name": "Stacked bars over time",
+  "description": "How a Breakdown changes period by period: one stacked bar each.",
+  "kind": "metric",
+  "slots": [{ "label": "Metric with a breakdown", "metrics": "one" }],
+  "size": { "w": 6, "h": 6 },
+  "options": {
+    "window": { "label": "Periods", "default": 12 }
+  },
+  "parts": [
+    { "mark": "stacked", "show": "breakdown" }
+  ]
+}

@@ -383,7 +383,7 @@ export const FeedBatchAnswer = z.object({ results: z.array(FeedItemResult).descr
 // number; nothing a program sends is used before it matches these.
 
 /** The views a key may place (GLOSSARY: View, Widget Template): no Free Layout and no composed Finding. */
-const KeyView = z.enum(["number", "line", "bars", "gauge", "table", "forecast", "correlation", "matrix", "drivers", "ranked", "share", "pictogram", "story-line"]).describe("A built-in view; GET /templates?kind=view lists them with what each is for.");
+const KeyView = z.enum(["number", "line", "bars", "gauge", "table", "forecast", "correlation", "matrix", "drivers", "stacked", "ranked", "share", "pictogram", "story-line"]).describe("A built-in view; GET /templates?kind=view lists them with what each is for.");
 
 /** A Display Period (GLOSSARY): what a widget can show a Metric by. */
 const DisplayPeriodSchema = z.enum(["week", "month", "quarter", "half", "year"]);

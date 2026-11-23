@@ -1542,6 +1542,26 @@
             "show"
           ],
           "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "description": "One bar per period, stacked from that period's Breakdown: the largest rows of the newest period (at most 5) as their own segments in a stable order and colour, every other row as one muted Other; a period without a Breakdown is left out and counted, and a negative row is refused in words.",
+          "properties": {
+            "mark": {
+              "const": "stacked"
+            },
+            "show": {
+              "const": "breakdown"
+            },
+            "when": {
+              "$ref": "#/$defs/when"
+            }
+          },
+          "required": [
+            "mark",
+            "show"
+          ],
+          "additionalProperties": false
         }
       ]
     },
