@@ -1,0 +1,130 @@
+{
+  "Correlation": {
+    "use": "You want to know whether two Metrics have gone up and down together over a stretch of time, and a straight-line link is a fair picture.",
+    "dont": [
+      "The Metrics have hardly changed, or have too few different values: Ziffr refuses and says which.",
+      "Many periods have no value: more than a fifth of the window, or three in a row, is a refusal; fewer is a caution that names how many were left out.",
+      "A few periods are far from the rest and pull the result: Ziffr gives the result and says what it reads without them."
+    ]
+  },
+  "Drivers": {
+    "use": "You have a Metric you care about and want a short list of where to look first.",
+    "dont": [
+      "You want to know what would happen if one Metric changed, or what drives what: Drivers only shows what has gone together. It is a ranking of pairs, so with many Metrics some will look related by chance; the Takeaway says \"can't tell from chance\" where the data cannot rule that out."
+    ]
+  },
+  "Rank correlation": {
+    "use": "The values are skewed or have a few very large ones, many values repeat, or the link is a steady rise or fall that is not a straight line. It is the Method the checks switch to for skewed values.",
+    "dont": [
+      "You want to know how much one changes when the other does (it only knows the order, not the size)."
+    ]
+  },
+  "Partial correlation": {
+    "use": "Two Metrics look related and you suspect a third explains both (\"Visits and Revenue move together, but do they still, with Price held the same?\").",
+    "dont": [
+      "The Metrics held the same move so closely together that they cannot be told apart: refusal.",
+      "You have more Metrics than the history can carry (one per 6 periods, at most 6 including the pair): refusal."
+    ]
+  },
+  "Lagged correlation": {
+    "use": "You think one Metric leads another (\"do Support tickets rise before Churn does?\").",
+    "dont": [
+      "You have fewer than 12 periods: refusal.",
+      "The Metrics trend: compare them by change (the basis the caller chooses), or the delay found is the delay of the trends."
+    ]
+  },
+  "Quantiles and the usual range": {
+    "use": "You want \"usually between …\" for a Metric, or to ask whether a value is outside what the Metric has been.",
+    "dont": [
+      "The Metric has a trend or a step in level: its history is not one population. A step of 3 typical misses or more is found, and only the values since it are used when at least 8 remain (and Ziffr says so), else a caution.",
+      "You want to judge a value by its season but have only two seasons: each place in the season then has two values, and the range is just those; the Takeaway says how many it rests on."
+    ]
+  },
+  "Share of the largest rows and Pareto": {
+    "use": "The rows are the parts of one whole that adds up (a Breakdown that sums, such as revenue by customer).",
+    "dont": [
+      "A row is below zero, or not a number, or the rows add up to nothing: refusal (a row is never dropped or mended).",
+      "There is one row: refusal; a share of everything is 100 %.",
+      "The rows are not parts of one whole (averages, percentages, rates): the Takeaway cannot know it, but a share of an average is not meaningful."
+    ]
+  },
+  "Bridge": {
+    "use": "The Metric is the sum of its Breakdown rows, or a Derived Metric that adds and subtracts its inputs.",
+    "dont": [
+      "The Derived Metric multiplies or divides its inputs (a price times a volume): how the change splits between the two depends on the order, so Ziffr does not offer one."
+    ]
+  },
+  "Seasonal forecast (Holt-Winters)": {
+    "use": "The Metric has a pattern that repeats every year (every week for days) and at least two seasons of values.",
+    "dont": [
+      "There are fewer than two seasons, or a gap in the first two (the plain trend is used and says so); the pattern changes from year to year (the plain trend is used); the level jumped (the checks caution). A forecast can be wrong in ways its range does not show: the track record says how often the range held on the past."
+    ]
+  },
+  "Multiple fit (What moves B?)": {
+    "use": "Several Metrics may move B together and you want to know which matter most and by how much, with the others taken into account.",
+    "dont": [
+      "The history is short: a fit with k drivers needs 8 + 4k periods and at most one driver per 6 periods (and 6): Ziffr refuses and says how many it has and needs.",
+      "Metrics of different periods are all compared by the longest period among them, the others combined by their Aggregation; the Takeaway says which were combined. Where a value is missing and the fit compares changes, it names the months with no value (up to four, then how many more) and says the changes into and out of them were left out.",
+      "A Metric has Aggregation none beside another period, or one is calculated from another: a refusal naming them."
+    ]
+  },
+  "Importance": {
+    "use": "You want a ranking of drivers that does not depend on the order they are listed in.",
+    "dont": [
+      "As the fit; the shares are of what the line explains, not of B."
+    ]
+  },
+  "Predict": {
+    "use": "You want to read B off the line for values inside what the drivers have been.",
+    "dont": [
+      "The values are outside what the drivers have been: the point is a guess and is said to be one.",
+      "The link looks curved: a straight-line reading is rough, and outside what was seen Ziffr refuses."
+    ]
+  },
+  "Needs (What does B need?)": {
+    "use": "You have a value wanted for B and want to know what to work on, and the driver's effect has been clear.",
+    "dont": [
+      "The effect cannot be told from chance, or is exactly 0: only a point, or a refusal (\"has not moved with it at all\").",
+      "The value is higher or lower than the driver has ever been: the point is a guess, and with a curved link Ziffr refuses.",
+      "You expect the other drivers to change: they are held at their latest values unless you give others."
+    ]
+  },
+  "What-if chain (What if A changes?)": {
+    "use": "You want to read what a change in one Metric has gone with in others, and what that goes with in turn, in the Metrics' own units.",
+    "dont": [
+      "The change would take the driver beyond what it has been: the point is given with \"treat it as a guess\" and no range, and where the link looks curved Ziffr refuses for that Metric.",
+      "Which of two Metrics that move together comes first matters: that cannot be told from the numbers. The Recipe reads the one that moves more closely with A as coming first, and says so; a Driver Map that a person confirms is a follow-up (spec 0041).",
+      "The change is 0, is not a number, is beyond the doubles, or is a percent of a latest value of 0: refused in words. A percent counts from the size of the latest value, so \"up 10 %\" is up even where the value is below 0."
+    ]
+  },
+  "Heads-ups: moving together and stopped moving together": {
+    "use": "You want Ziffr to say, without being asked, that two Metrics have started or stopped moving together.",
+    "dont": [
+      "You want to know whether two Metrics you picked move together: that is a correlation, which answers for any two Metrics and any history of 6 periods or more.",
+      "A Metric has seasons the other shares: the changes of two Metrics with the same yearly pattern correlate, and that is true and not new. Ziffr reports it as moving together."
+    ]
+  },
+  "Heads-ups about one Metric: change of direction, Target out of reach, unusual for the season": {
+    "use": "You want Ziffr to say, without being asked, that a Metric turned around, that its Target is likely out of reach, or that its latest value is unusual for the time of year.",
+    "dont": [
+      "You want the latest value judged against what is normal for the Metric as a whole, ignoring the season: that is the usual range without a season.",
+      "You want what made it turn: the footer says it shows when, not why. A Target Heads-up says it carries the past forward and is no promise. The Heads-up about a season says it compares the value with the earlier ones and not what made it differ (a message needs a footer)."
+    ]
+  },
+  "Before and after": {
+    "use": "You know when something started and want to see whether the Metric ran away from its own path afterwards, and by how much.",
+    "dont": [
+      "You have fewer than 6 periods before the date: refusal, with how many there are.",
+      "The Metric has a strong pattern through the year: the line knows nothing of seasons, so the ups and downs of the season count as spread (the range grows) or, if the periods after fall in another part of the year, can look like a change.",
+      "Something else changed on the same date: the Takeaway says it compares with the earlier trend and does not show what made the difference; a Metric set beside it, which the change should not have touched, helps, and a caution says when it moved too."
+    ]
+  },
+  "Change point": {
+    "use": "You do not know the date, and want to know whether, and when, a Metric's level or trend changed.",
+    "dont": [
+      "You have fewer than 8 periods (4 each side): refusal.",
+      "You already know the date: use before and after.",
+      "The Metric changed more than once (it finds the one best date, not several), or has a pattern through the year that is not a change (a season looks like a change in trend)."
+    ]
+  }
+}
