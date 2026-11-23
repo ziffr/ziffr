@@ -18,7 +18,27 @@ On a demo that lets visitors change it (only a Ziffr that is a demo and nothing 
 
 Sign in with your work email: Ziffr sends you a sign-in link (on hosted Ziffr the sign-in page also offers a trial of your own, next to the demo; on a Ziffr that somebody else runs it has no trial), and the page then says **Check your email** with the address it went to; **Use another address** takes you back to the form. Then give your Workspace a name, such as your name, your team or your company, and choose **Create workspace**. You become its Owner and can invite others later. If a colleague already uses Ziffr, ask them to invite you instead, so you join their Workspace.
 
-Under **Workspace → General**, tell Ziffr about your business (your industry, who you sell to, your size). It uses the answers to suggest Metrics that fit.
+### The Setup Guide
+
+The **Setup Guide** is a short list of steps that sets a Workspace up: **About you**, **Starting point**, **Ways in and out**, **First Metric** and **Team**. It lives at **Set up your Workspace** (the address `/setup`, also reached from Help), shows the steps in a bar at the top with each one's state in words (Done, Skipped, To do, Comes next), and every step can be skipped. **Go to Ziffr** leaves it at any time. Owners and Admins see all five steps. A Member sees only the two about themselves, and a Guest and the demo have none.
+
+Today **About you** is the step to use. The other four open and say what they will do, so you can see where the guide is going; the rest of Ziffr works without them, as the numbered steps below show.
+
+**About you** asks plain questions, one to a row, each optional and each saying what it is for. Choose **Skip this question** to leave one open, **Skip** to skip the whole step, or **Save and go on**.
+
+| Question | Who answers | What it is used for |
+| --- | --- | --- |
+| **What does your business do?**, **Who do you sell to?**, **How many people work there?** | Owners and Admins | So Ziffr can suggest Metrics and Packs that fit |
+| **Where is it based?** | Owners and Admins | So numbers and money are written the way you write them: the country proposes the currency, how numbers are written and the languages answers are read in, until someone sets them on **Workspace → General** |
+| **Revenue in a year** | Owners and Admins | The same suggestions; it is roughly, in the currency of the country |
+| **What do you work on yourself?** | Everyone who has the step | Your **Business Function**: so Ziffr can suggest Packs and who is asked for what |
+| **Your Workspace's time zone**, **Ziffr asks for numbers at**, **Your year starts in** | Owners and Admins | Which day it is for your team, when each day's requests go out, and where quarters and years begin. Ziffr proposes this browser's time zone while the Workspace still has the default, UTC |
+
+The Workspace's time counts as answered once an Owner or Admin has saved it, even when it is UTC. A Member sees what the Owners and Admins said about the business, read-only, and answers only their own function.
+
+What you answer stays in this Workspace. It is not sent to Ziffr's makers or to anyone else, and it is used only to suggest Metrics and Packs here and who is asked for what. Owners and Admins of this Workspace see your function; other members do not. (On hosted Ziffr, ziffr.net runs the database, as for everything else in the Workspace.)
+
+You can change every answer later: the business and the time under **Workspace → General**, in the section **About your business**, and your function under **Your profile**.
 
 ## 2. Describe your first Metric
 

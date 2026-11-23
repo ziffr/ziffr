@@ -86,6 +86,8 @@ const OUTSIDE: readonly string[] = [
   "installation-feedback-actions:rejectFeedbackAction",
   "oauth/authorize/actions:answerConsent",
   "settings-actions:setAppearance",
+  "setup/actions:saveAboutYou",
+  "setup/actions:skipStep",
   "try/start/actions:askGuide",
   "try/start/actions:guideValue",
   "try/start/actions:makeN8nKey",
