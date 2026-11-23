@@ -5,7 +5,7 @@ This chapter takes you from nothing to a team that sees its numbers each month. 
 
 ## Look around the demo first
 
-On the sign-in page, choose **Try the demo** under the form (the picture beside it shows the demo's Monthly overview dashboard; on a phone the form comes first and the picture is left out). It opens a made-up online shop with fifteen people, without an account. Its numbers move with today's date, so last month's cost spike is always last month.
+On the sign-in page, choose **Try the demo** under the form (the picture beside it shows the demo's Monthly overview dashboard; on a phone the form comes first and the picture is left out). It opens a made-up online shop with fifteen people, without an account. Its numbers move with today's date, so last month's cost spike is always last month. The monthly numbers go back three and a half years and the weekly ones three years, with a December peak and a few links worth finding (support tickets before refunds, a campaign that lifted new leads, marketing spend that stopped bringing new customers), so every analysis under Analyze shows a real result, not "not enough data".
 
 - Use **Viewing as** in the sidebar's footer to see Ziffr through the eyes of a different person, such as the Owner, an Admin or the Guest, whose role the list shows ("Ben, Admin"). Notice how each one sees different numbers, and that the Guest is offered no buttons for creating anything.
 - Follow the **guided tour** (bottom right). It starts with looking: a dashboard, what each person sees, an analysis and a deck. Then it tries sending in a value and describing a Metric, which the demo shows but won't save.

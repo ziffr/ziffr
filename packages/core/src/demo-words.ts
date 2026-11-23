@@ -8,10 +8,13 @@ export const DEMO_READ_ONLY = "The demo can't be changed.";
 /** The sentence, where it offers Trial Workspaces. */
 export const DEMO_READ_ONLY_TRIAL = "The demo can't be changed. Start a trial to try it with your own numbers.";
 
-/** The digest a demo refusal carries to the error screen, by whether trials are offered. */
-export const DEMO_DIGEST = { plain: "ziffr-demo-read-only", trial: "ziffr-demo-read-only-trial" } as const;
+/** What a visit's change says when the demo started fresh since its page was drawn (spec 0051). */
+export const DEMO_STALE = "The demo was reset; reload.";
+
+/** The digest a demo refusal carries to the error screen, by whether trials are offered, and for a stale page. */
+export const DEMO_DIGEST = { plain: "ziffr-demo-read-only", trial: "ziffr-demo-read-only-trial", stale: "ziffr-demo-stale" } as const;
 
 /** The sentence for a digest, or null for any other error. */
 export function demoWordsForDigest(digest: string | undefined): string | null {
-  return digest === DEMO_DIGEST.trial ? DEMO_READ_ONLY_TRIAL : digest === DEMO_DIGEST.plain ? DEMO_READ_ONLY : null;
+  return digest === DEMO_DIGEST.trial ? DEMO_READ_ONLY_TRIAL : digest === DEMO_DIGEST.plain ? DEMO_READ_ONLY : digest === DEMO_DIGEST.stale ? DEMO_STALE : null;
 }
