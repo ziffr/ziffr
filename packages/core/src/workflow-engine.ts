@@ -18,7 +18,7 @@ import type { Metric, Period, PeriodState, Workflow, WorkflowStep } from "./type
 import { recordAudit } from "./audit-log";
 import { changeActionState, closeActions } from "./action-state";
 import { FROM_APP, queueWebhookEvent, type ChangeSource } from "./webhook-events";
-import { sendLockSummary } from "./lock-summary";
+import { afterLock, runSendSnapshot } from "./send-snapshot";
 import { periodLabel, shiftPeriod, type YearStart } from "./periods";
 import { yearStartFor, yearStartOf } from "./fiscal-year";
 import type { NumberStyle } from "./number-style";
@@ -169,9 +169,11 @@ export async function runWorkflows(workspaceId: string, asOf: string, actorId: s
   const metrics = (rows ?? []).map((r) => normalizeMetric(r) as Metric);
   for (const wf of workflows.values()) {
     if (scope === "unscheduled" ? wf.config.asking : typeof scope === "object" && wf.id !== scope.workflowId) continue;
-    if (!wf.config.steps.some((s) => s.type === "checklist")) continue;
+    if (!wf.config.steps.some((s) => s.type === "checklist" || s.type === "send_snapshot")) continue;
     // A failing item never fails the Metrics' run; its claim keeps it from going twice.
     try { log.push(...(await runChecklistItems(workspaceId, wf, metrics, asOf, yearStart))); } catch (e) { console.error("Checklist Items could not be run:", e instanceof Error ? e.message : e); }
+    // Then the catch-up of the Send Snapshot step: a period may have finished while nothing changed (a Task closed by the owner, a step added).
+    try { log.push(...(await runSendSnapshot(workspaceId, wf, metrics, asOf, yearStart))); } catch (e) { console.error("Send Snapshot could not be run:", e instanceof Error ? e.message : e); }
   }
   return log;
 }
@@ -377,7 +379,7 @@ const COUNTED_NOTE = "Counted without approval: nobody else could approve it.";
 /** Publishes a period, locking it if the Workflow says so, with a note when given (why it counts). */
 async function publish(ctx: Ctx, note?: string) {
   await setState(ctx.m.id, ctx.period, { state: publishedState(ctx), approval_step: null, approval_action_id: null, ...(note ? { note } : {}) });
-  if (publishedState(ctx) === "locked") await sendLockSummary(ctx.ws, ctx.wf.id, ctx.period);
+  if (publishedState(ctx) === "locked") await afterLock(ctx.ws, ctx.wf.id, ctx.period);
   return publishedLabel(ctx);
 }
 
@@ -396,7 +398,7 @@ async function publishDecided(ctx: Ctx, actionId: number, note?: string): Promis
   const { data } = await db().from("period_states")
     .update({ state: publishedState(ctx), approval_step: null, approval_action_id: null, ...(note ? { note: sealedNote } : {}), updated_at: new Date().toISOString() })
     .eq("metric_id", ctx.m.id).eq("period_start", ctx.period).eq("state", "approval").eq("approval_action_id", actionId).select("metric_id");
-  if (data?.length && publishedState(ctx) === "locked") await sendLockSummary(ctx.ws, ctx.wf.id, ctx.period);
+  if (data?.length && publishedState(ctx) === "locked") await afterLock(ctx.ws, ctx.wf.id, ctx.period);
   if (data?.length) await announceRecorded(ctx.m.id, ctx.period);
   return Boolean(data?.length);
 }
@@ -525,7 +527,7 @@ export async function setLock(ws: string, metricId: number, period: string, lock
   if (!lock && current?.state !== "locked") throw new Error("Only a locked period can be unlocked.");
   await setState(metricId, period, { state: lock ? "locked" : "published", note: lock ? null : `Unlocked by ${by} on ${format(new Date(), "d MMM yyyy")}: ${reason}` });
   const { data: flow } = lock ? await db().from("metrics").select("workflow_id").eq("id", metricId).eq("workspace_id", ws).maybeSingle() : { data: null };
-  if (flow?.workflow_id) await sendLockSummary(ws, flow.workflow_id as number, period);
+  if (flow?.workflow_id) await afterLock(ws, flow.workflow_id as number, period);
 }
 
 /** Closes a period for every metric of a workflow that has a value: they lock, except values still waiting for
@@ -548,7 +550,7 @@ export async function closePeriod(ws: string, workflowId: number, asOf: string, 
     n++;
     closed.add(period);
   }
-  for (const p of closed) await sendLockSummary(ws, workflowId, p);
+  for (const p of closed) await afterLock(ws, workflowId, p);
   return n;
 }
 

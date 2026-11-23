@@ -73,6 +73,8 @@
               "matrix",
               "drivers",
               "scoreboard",
+              "progress",
+              "stacked",
               "ranked",
               "share",
               "pictogram",

@@ -84,7 +84,9 @@ describe("a Workflow step in words", () => {
     expect(stepLabel({ ...item, kind: "tick", assignee: "sara", dueWorkingDays: 1 }, people)).toBe("1 working day after the period: Sara ticks off “Invoices must be in by Friday.”");
     expect(stepLabel({ ...item, kind: "tick", assignee: null, dueWorkingDays: 3 }, people)).toBe("3 working days after the period: nobody yet ticks off “Invoices must be in by Friday.”");
     expect(stepLabel({ ...item, kind: "tick", assignee: "sara", dueWorkingDays: 0 }, people)).toBe("At the end of the period: Sara ticks off “Invoices must be in by Friday.”");
-    expect(stepLabel({ type: "send_snapshot", id: "snap-one-aaaa", dashboardId: 1, people: [], groups: [] }, people)).toMatch(/Snapshot/);
+    expect(stepLabel({ type: "send_snapshot", id: "snap-one-aaaa", dashboardId: 1, people: [], groups: [] }, people)).toBe("When the period is finished, send its Snapshot of a dashboard to nobody yet");
+    const send = { type: "send_snapshot" as const, id: "snap-one-aaaa", dashboardId: 7, people: ["ben", "gone"], groups: [2, 9] };
+    expect(stepLabel(send, people, [{ id: 2, name: "Board" }], [{ id: 7, name: "Board KPIs" }])).toBe("When the period is finished, send its Snapshot of Board KPIs to Ben, someone, Board, a Group");
     expect(Object.keys(STEP_TITLE)).toEqual(["remind", "escalate", "check", "approve", "tell", "publish", "checklist", "send_snapshot"]);
   });
   it("adds no working days for none", () => {

@@ -8,6 +8,7 @@ import { listWorkflowTemplates } from "@ziffr/core/workflow-templates";
 import { can } from "@ziffr/core/actor";
 import { tellEditorFacts } from "@ziffr/core/tell";
 import { checklistPausedWhy } from "@ziffr/core/checklist";
+import { snapshotDashboardChoices } from "@ziffr/core/send-snapshot";
 import { isDemo } from "@/lib/auth";
 import { PageHeader } from "@/components/page-header";
 import { WorkflowsScreen } from "./screen";
@@ -52,6 +53,7 @@ export default async function WorkflowsPage({ searchParams }: { searchParams: Pr
         timelines={timelines}
         tellFacts={await tellEditorFacts(actor, current?.id ?? null)}
         checklistPaused={current ? await checklistPausedWhy(actor, current.id) : null}
+        dashboards={await snapshotDashboardChoices(actor)}
       />
     </>
   );

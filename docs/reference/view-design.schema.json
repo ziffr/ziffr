@@ -1605,13 +1605,13 @@
         },
         {
           "type": "object",
-          "description": "The parts of a Derived Metric's formula as boxes, from the Metric's own value in its latest period down through each part, every box an exact number: the parts of a sum share the width of the box above them by their size, the factors of a product or a ratio are laid side by side equally and are not to scale. The first Slot must be a Derived Metric whose inputs are all shared with the viewer; at most 4 levels and 24 boxes.",
+          "description": "One compact bar per Metric of the Slots, in order, 12 at most: the latest value against the Metric's Target Range, with its name, its value and, in words, how far along it is. The bar is filled to the latest value on a scale that includes the target (a lighter band for a range, a tick for one bound); its colour says only whether the value is on target.",
           "properties": {
             "mark": {
-              "const": "tree"
+              "const": "progress"
             },
             "show": {
-              "const": "formula"
+              "const": "latest"
             },
             "when": {
               "$ref": "#/$defs/when"
@@ -1688,6 +1688,46 @@
               "type": "string",
               "pattern": "^recipe\\.[a-z][a-zA-Z0-9]{0,23}$",
               "description": "“recipe.” and a step of the design's analysis (the table of the `bridge` step)"
+            },
+            "when": {
+              "$ref": "#/$defs/when"
+            }
+          },
+          "required": [
+            "mark",
+            "show"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "description": "One bar per period, stacked from that period's Breakdown: the largest rows of the newest period (at most 5) as their own segments in a stable order and colour, every other row as one muted Other; a period without a Breakdown is left out and counted, and a negative row is refused in words.",
+          "properties": {
+            "mark": {
+              "const": "stacked"
+            },
+            "show": {
+              "const": "breakdown"
+            },
+            "when": {
+              "$ref": "#/$defs/when"
+            }
+          },
+          "required": [
+            "mark",
+            "show"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "description": "The parts of a Derived Metric's formula as boxes, from the Metric's own value in its latest period down through each part, every box an exact number: the parts of a sum share the width of the box above them by their size, the factors of a product or a ratio are laid side by side equally and are not to scale. The first Slot must be a Derived Metric whose inputs are all shared with the viewer; at most 4 levels and 24 boxes.",
+          "properties": {
+            "mark": {
+              "const": "tree"
+            },
+            "show": {
+              "const": "formula"
             },
             "when": {
               "$ref": "#/$defs/when"

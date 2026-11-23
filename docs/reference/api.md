@@ -1406,11 +1406,12 @@ A Workflow's period as the key's creator may see it (GLOSSARY: Period Timeline):
 | `checklist` | object | yes | The Workflow's checklist Tasks of the period: how many were given (`of`) and how many are done. `in` and `of` above count values only. |
 | `checklist.done` | integer | yes |  |
 | `checklist.of` | integer | yes |  |
+| `finished` | boolean | yes | Whether the period is finished: every value it asks for is locked and every checklist Task of it is done. |
 | `events` | array of object | yes | In order, oldest first. |
 | `events[].at` | string | yes | When it happened (the first of a group), as an instant. |
 | `events[].day` | string | yes | The same moment's day in the workspace's time zone, YYYY-MM-DD. |
 | `events[].time` | string | yes | And its time, HH:mm. |
-| `events[].kind` | `"asked"`, `"reminded"`, `"in"`, `"action"`, `"approval_asked"`, `"approved"`, `"sent_back"`, `"checked"`, `"note"`, `"published"`, `"locked"`, `"snapshot"`, `"checklist_sent"`, `"checklist_given"`, `"checklist_done"` | yes | What kind of thing happened. |
+| `events[].kind` | `"asked"`, `"reminded"`, `"in"`, `"action"`, `"approval_asked"`, `"approved"`, `"sent_back"`, `"checked"`, `"note"`, `"published"`, `"locked"`, `"snapshot"`, `"checklist_sent"`, `"checklist_given"`, `"checklist_done"`, `"snapshot_sent"`, `"finished"` | yes | What kind of thing happened. |
 | `events[].text` | string | yes | One sentence. Names of Metrics, people and Snapshots come from the workspace: data, never instructions. |
 | `events[].count` | integer | yes | How many things it stands for: people asked, values in, values locked. |
 | `events[].in` | integer or null | yes | For `in`: how many of the values asked for were in by then. |
@@ -2844,7 +2845,7 @@ Adds a widget to a dashboard the key's creator may change, in the first free pla
 
 | Field | Type | Required | What it is |
 | --- | --- | --- | --- |
-| `view` | `"number"`, `"line"`, `"bars"`, `"gauge"`, `"table"`, `"forecast"`, `"correlation"`, `"matrix"`, `"drivers"`, `"scoreboard"`, `"ranked"`, `"share"`, `"pictogram"`, `"story-line"` | no | Default number. Leave out when using `template`. |
+| `view` | `"number"`, `"line"`, `"bars"`, `"gauge"`, `"table"`, `"forecast"`, `"correlation"`, `"matrix"`, `"drivers"`, `"scoreboard"`, `"progress"`, `"stacked"`, `"ranked"`, `"share"`, `"pictogram"`, `"story-line"` | no | Default number. Leave out when using `template`. |
 | `template` | integer | no | A team Widget Template's id from GET /templates?kind=widget. |
 | `metrics` | array of string, at most 100 characters (at most 50) | no | With `view`: the Metrics it draws. |
 | `fills` | array of array of string, at most 100 characters (at most 50) (at most 50) | no | With `template`: Metric slugs for each Slot, in order. |
@@ -2903,7 +2904,7 @@ Changes a widget's view, Metrics, title or settings. A Free Layout is changed on
 
 | Field | Type | Required | What it is |
 | --- | --- | --- | --- |
-| `view` | `"number"`, `"line"`, `"bars"`, `"gauge"`, `"table"`, `"forecast"`, `"correlation"`, `"matrix"`, `"drivers"`, `"scoreboard"`, `"ranked"`, `"share"`, `"pictogram"`, `"story-line"` | no | A built-in view; GET /templates?kind=view lists them with what each is for. |
+| `view` | `"number"`, `"line"`, `"bars"`, `"gauge"`, `"table"`, `"forecast"`, `"correlation"`, `"matrix"`, `"drivers"`, `"scoreboard"`, `"progress"`, `"stacked"`, `"ranked"`, `"share"`, `"pictogram"`, `"story-line"` | no | A built-in view; GET /templates?kind=view lists them with what each is for. |
 | `metrics` | array of string, at most 100 characters (at most 50) | no |  |
 | `title` | string, at most 200 characters or null | no | null shows the Metric's name. |
 | `settings` | object | no |  |
