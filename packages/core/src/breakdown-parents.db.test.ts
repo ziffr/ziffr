@@ -125,6 +125,8 @@ describe("a Breakdown with parents", () => {
     const rows = await w.stored();
     const germany = rows.find((x) => x.label === "Germany")!;
     expect(rows.map((x) => [x.label, x.value, x.parent_id === germany.id ? "Germany" : x.parent_id])).toEqual([["Germany", 106, null], ["Austria", 50, null], ["Berlin", 65, "Germany"], ["Munich", 40, "Germany"], ["Hamburg", 1, "Germany"]]);
+    // A row that is there under a parent cannot be added to without naming it (its value would be counted at the top).
+    expect(await w.send([{ label: "Berlin", value: 1 }], 1)).toMatchObject({ ok: false });
     // A row that is there under Germany cannot be added to as a part of Austria, and a top row cannot become a part.
     expect(await w.send([{ label: "Austria", value: 1 }, { label: "Berlin", value: 1, parent: "Austria" }], 2)).toMatchObject({ ok: false });
     expect(await w.send([{ label: "Germany", value: 1 }, { label: "Austria", value: 1, parent: "Germany" }], 2)).toMatchObject({ ok: false });

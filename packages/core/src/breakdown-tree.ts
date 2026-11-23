@@ -30,6 +30,7 @@ import type { CanvasData, BreakdownRow, Metric } from "./types";
 // The most rows read at all: a Breakdown from a program holds at most 500; more is not one a person can read as a tree.
 const MOST_ROWS = 1000;
 const ZERO: Fraction = { num: BigInt(0), den: BigInt(1) };
+// Stryker disable next-line EqualityOperator: `<=` turns 0 into 0, which is the same size
 const sizeOf = (f: Fraction): Fraction => (f.num < BigInt(0) ? { num: -f.num, den: f.den } : f);
 
 /** What the tree is made from: the Metric's name and unit, the period written out, its value in that period (null: none), and the Breakdown's top-level rows with their parts. */
@@ -63,7 +64,7 @@ function chosen(top: Part[]): Set<Part> {
   collect(top);
   const kept = new Set<Part>();
   // How many of each parent's rows are kept (the root's key is null); a parent with some left out has one "Other rows" box.
-  const keptKids = new Map<Part | null, number>([[null, 0]]);
+  const keptKids = new Map<Part | null, number>();
   const rowsOf = (p: Part | null) => (p === null ? top.length : p.kids.length);
   // The top box, and the "Other rows" box the top rows would all be grouped in.
   let boxes = 1;
@@ -85,7 +86,6 @@ function chosen(top: Part[]): Set<Part> {
       boxes++;
       others += delta - 1;
       keptKids.set(p.parent, above + 1);
-      keptKids.set(p, 0);
       again = true;
       break;
     }
@@ -189,13 +189,13 @@ export function breakdownTree(source: BreakdownTreeSource, style: NumberStyle): 
   const named = (b: TreeBox) => `⁨${b.label}⁩ ${b.text}`;
   for (const b of boxes) b.alt = [named(b), ...note(b, drafts[b.id])].join(", ");
   for (const b of boxes) if (b.op !== null) lines.push(`${named(b)}${b.parent === null && b.taken ? ", negative" : ""} is made of: ${boxes.filter((k) => k.parent === b.id).map((k) => k.alt).join("; ")}.`);
-  const has = { negative: boxes.some((b) => b.taken), other: drafts.some((d) => d.grouped.length > 0), differ: differing.length > 0 };
+  const has = { negative: boxes.some((b) => b.taken) || drafts.some((d) => d.grouped.some((p) => p.exact.num < BigInt(0))), other: drafts.some((d) => d.grouped.length > 0), differ: differing.length > 0 };
   const rule = [
     derived ? `${name} has no value for ${source.period}, so the top box is its rows added up.` : `The top box is the value of ${name} for ${source.period}; the boxes under it are the rows of its breakdown, each as it was given.`,
     "Parts share the width of the box above them by their size.",
     has.negative ? "A row with a negative number is hatched and counts by its size, so its share is of the size of the parts, not of their total." : "",
     boxes.some((b) => b.parent === 0 && b.taken) ? "The top box is drawn at its own size on the same scale as its parts, so a value smaller than its parts is narrower." : "",
-    has.other ? `The smallest rows beyond ${TREE.boxes} boxes are grouped as Other rows, with their exact total; the text version names each of them.` : "",
+    has.other ? `The smallest rows beyond ${TREE.boxes} boxes are grouped as Other rows, with their exact total, and the box is as wide as their sizes together (negative rows count by their size); the text version names each of them.` : "",
     has.differ ? `A number is a row's own, as it was given: where its parts add up to another number, both are given. ${differing.join(". ")}.` : "",
   ].filter(Boolean).join(" ");
   return { ok: true, boxes, period: source.period, rule, alt: `Breakdown tree of ${name} for ${source.period}. ${rule} ${lines.join(" ")}` };

@@ -357,7 +357,7 @@ async function refusedByDatabase(error: { code?: string; message?: string } | nu
   if (error?.code === "ZF452") return { outcome: "rejected_fill_in", detail: "This Metric adds up or keeps the values of several people, so nobody can fill in for someone else." };
   // Rows that cannot stand where they were put. Words made of the submitted rows alone go back to the sender; anything that
   // depends on rows already recorded (a name, a count, a level there) is never said to the sender, who may not read them: the
-  // same generic answer whether the row exists or not.
+  // same generic answer whatever the stored rows are (that a value is refused at all still tells a prober that rows are there; accepted).
   if (error?.code === BREAKDOWN_REFUSED) return { outcome: "rejected_breakdown", detail: error.message ?? GENERIC_BREAKDOWN };
   if (error?.code === BREAKDOWN_REFUSED_EXISTING || /^ZF46[0-2]$/.test(error?.code ?? "")) return { outcome: "rejected_breakdown", detail: GENERIC_BREAKDOWN };
   if (error?.code === ARCHIVED_CODE) return { outcome: "rejected_archived", detail: ARCHIVED_REFUSAL };

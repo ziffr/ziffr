@@ -140,11 +140,11 @@ export function planRows(cipher: WorkspaceCipher, adding: boolean, existing: Exi
   const byId = new Map(working.map((w) => [w.id, w]));
   rows.forEach((r, i) => {
     const above = parents.parents[i];
-    if (above === null) return;
     const w = byId.get(placed[i])!;
-    // A row that is there already stays where it is: a second value for it cannot move it.
-    if (!w.fresh && w.parent !== placed[above]) throw new BreakdownRefused(`“${r.label}” is already in this breakdown and sits somewhere else, so a value cannot be added to it under another parent.`, true);
-    w.parent = placed[above];
+    const wanted = above === null ? null : placed[above];
+    // A row that is there already stays where it is: a second value for it cannot move it, and one that names no parent for a row that has one would be counted at the top.
+    if (!w.fresh && w.parent !== wanted) throw new BreakdownRefused(`“${r.label}” is already in this breakdown and sits somewhere else, so a value cannot be added to it under another parent.`, true);
+    if (wanted !== null) w.parent = wanted;
   });
   const levels = levelsOf(working, byId);
   const fresh = working.filter((w) => w.fresh).sort((a, b) => (levels.get(a.id) ?? 1) - (levels.get(b.id) ?? 1) || working.indexOf(a) - working.indexOf(b));

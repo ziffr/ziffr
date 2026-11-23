@@ -274,13 +274,14 @@ describe("names", () => {
 
 describe("the tree from a widget's data (who may see what)", () => {
   const revenue = makeMetric({ id: 1, slug: "revenue", name: "Revenue", unit: "€", unit_position: "after", decimals: 0, period: "month" });
-  const data = (breakdowns: Record<number, Record<string, BreakdownRow[]>>, series: Record<string, { period: string; value: number }[]> = { revenue: [{ period: "2026-03-01", value: 150 }] }) => ({ series, breakdowns, yearStart: 1 as const, numberStyle: STYLE });
+  const data = (breakdowns: Record<number, Record<string, BreakdownRow[]>>, series: Record<string, { period: string; value: number }[]> = { revenue: [{ period: "2026-03-01", value: 160 }] }) => ({ series, breakdowns, yearStart: 1 as const, numberStyle: STYLE });
 
   it("draws the newest Breakdown, under the Metric's value for that period", () => {
     const m = ok(breakdownTreeFromData(revenue, data({ 1: { "2026-02-01": [{ label: "Old", value: 1 }], "2026-03-01": GERMANY } })));
     expect(m.period).toBe("March 2026");
     expect(m.boxes.map((b) => b.label)).toEqual(["Revenue", "Germany", "Berlin", "Munich", "Austria"]);
-    expect(m.boxes[0].text).toBe("150 €");
+    expect(m.boxes[0].text).toBe("160 €");
+    expect(m.rule).toContain("Revenue: its parts add up to 150 €, not to 160 €");
     // No value for that period in the series: the rows added up.
     expect(ok(breakdownTreeFromData(revenue, data({ 1: { "2026-03-01": GERMANY } }, { revenue: [] }))).rule).toContain("so the top box is its rows added up");
     expect(ok(breakdownTreeFromData(revenue, data({ 1: { "2026-03-01": GERMANY } }, {}))).boxes[0].text).toBe("150 €");
@@ -313,5 +314,33 @@ describe("the tree from a widget's data (who may see what)", () => {
     const pct2 = makeMetric({ id: 3, slug: "rate", name: "Rate", unit: "%", unit_position: "after", decimals: 1, period: "month" });
     const m = ok(breakdownTreeFromData(pct2, { series: {}, breakdowns: { 3: { "2026-03-01": [{ label: "Shoes", value: 1.55 }, { label: "Home", value: 0.45 }] } }, yearStart: 1 as const, numberStyle: "1.234,5" as const }));
     expect(m.boxes.map((b) => b.text)).toEqual(["2,0 %", "1,6 %", "0,5 %"].map((t, i) => (i === 0 ? t : t)));
+  });
+});
+
+describe("the words, pinned whole", () => {
+  const many = (n: number): BreakdownRow[] => Array.from({ length: n }, (_, i) => ({ label: `Row ${i + 1}`, value: 5 }));
+  it("keeps equal rows in the order given when the boxes run out", () => {
+    const m = ok(tree(many(26)));
+    expect(m.boxes.map((b) => b.label).slice(1, 3)).toEqual(["Row 1", "Row 2"]);
+    expect(m.boxes.at(-1)!.label).toBe("Other rows (4)");
+    expect(m.boxes.at(-2)!.label).toBe("Row 22");
+  });
+  it("says a group that holds negative rows, and writes every sentence of the rule", () => {
+    const rows: BreakdownRow[] = [...many(22).map((r, i) => ({ ...r, value: 100 - i })), { label: "Plus", value: 5 }, { label: "Minus", value: -5 }];
+    const m = ok(tree(rows, 1000));
+    expect(m.boxes.at(-1)).toMatchObject({ label: "Other rows (2)", value: 0, taken: false, text: "0 €" });
+    expect(m.rule).toMatchInlineSnapshot(`"The top box is the value of Revenue for March 2026; the boxes under it are the rows of its breakdown, each as it was given. Parts share the width of the box above them by their size. A row with a negative number is hatched and counts by its size, so its share is of the size of the parts, not of their total. The smallest rows beyond 24 boxes are grouped as Other rows, with their exact total, and the box is as wide as their sizes together (negative rows count by their size); the text version names each of them. A number is a row's own, as it was given: where its parts add up to another number, both are given. Revenue: its parts add up to 1,969 €, not to 1,000 €."`);
+    expect(m.boxes.at(-1)!.alt).toMatchInlineSnapshot(`"⁨Other rows (2)⁩ 0 €, 0.5 % of the parts, made of Plus 5 €; Minus −5 €"`);
+  });
+  it("pins the whole text of a tree with a negative row, parts that differ and a derived top box", () => {
+    const m = ok(tree([{ label: "Sales", value: 120, parts: [{ label: "Online", value: 90 }, { label: "Returns", value: -25 }] }, { label: "Refunds", value: -30 }], null));
+    expect(m.rule).toMatchInlineSnapshot(`"Revenue has no value for March 2026, so the top box is its rows added up. Parts share the width of the box above them by their size. A row with a negative number is hatched and counts by its size, so its share is of the size of the parts, not of their total. The top box is drawn at its own size on the same scale as its parts, so a value smaller than its parts is narrower. A number is a row's own, as it was given: where its parts add up to another number, both are given. Sales: its parts add up to 65 €, not to 120 €."`);
+    expect(m.alt).toMatchInlineSnapshot(`"Breakdown tree of Revenue for March 2026. Revenue has no value for March 2026, so the top box is its rows added up. Parts share the width of the box above them by their size. A row with a negative number is hatched and counts by its size, so its share is of the size of the parts, not of their total. The top box is drawn at its own size on the same scale as its parts, so a value smaller than its parts is narrower. A number is a row's own, as it was given: where its parts add up to another number, both are given. Sales: its parts add up to 65 €, not to 120 €. ⁨Revenue⁩ 90 € is made of: ⁨Sales⁩ 120 €, 80.0 % of the parts; ⁨Refunds⁩ −30 €, negative, 20.0 % of the parts. ⁨Sales⁩ 120 € is made of: ⁨Online⁩ 90 €, 78.3 % of the parts; ⁨Returns⁩ −25 €, negative, 21.7 % of the parts."`);
+    expect(m.boxes[0].alt).toMatchInlineSnapshot(`"⁨Revenue⁩ 90 €"`);
+  });
+  it("is negative at the top too", () => {
+    const m = ok(tree([{ label: "A", value: -4 }, { label: "B", value: 2 }], -2));
+    expect(m.alt).toContain("\u2068Revenue\u2069 −2 €, negative is made of");
+    expect(m.boxes[0].taken).toBe(true);
   });
 });
