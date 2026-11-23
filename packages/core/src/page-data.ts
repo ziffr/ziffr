@@ -1,5 +1,6 @@
 // What the web app's pages read (spec 0001: one core). Every loader takes the Actor first, reads one Workspace only,
 // and returns only what that person may see; pages render it and query nothing themselves.
+import { withoutChecklistWords } from "./checklist";
 import { openWorkflowRows } from "./workflow-rows";
 import { guestWorkflowIds } from "./period-timeline";
 import { feedIdsAmong } from "./feed-people";
@@ -170,7 +171,8 @@ export async function activityView(actor: Actor) {
   };
 }
 
-/** Workflows as the actor may be shown them: Webhook ids in a Tell step only for those who manage Webhooks (rule 3). */
+/** Workflows as the actor may be shown them: Webhook ids in a Tell step only for those who manage Webhooks, and
+ * Checklist Items' words and people only where they may read them (rule 3, checklist.ts). */
 function withoutWebhookIds<W extends { config: unknown }>(actor: Actor, workflows: W[]): W[] {
   if (mayManageWebhooks(actor)) return workflows;
   return workflows.map((w) => ({ ...w, config: { ...(w.config as object), steps: ((w.config as { steps?: Record<string, unknown>[] } | null)?.steps ?? []).map((step) => Object.fromEntries(Object.entries(step).filter(([k]) => k !== "webhooks"))) } }));
@@ -198,7 +200,7 @@ export async function workflowsView(actor: Actor) {
     : { data: [] };
   const feeds = (feedRows ?? []).map((f) => ({ id: f.person_id as string, name: f.name as string }));
   // Webhook ids in a Tell step are for those who manage Webhooks; the rest of the Workspace gets the step without them (rule 3).
-  const shown = withoutWebhookIds(actor, workflows ?? []);
+  const shown = await withoutChecklistWords(actor, withoutWebhookIds(actor, workflows ?? []));
   return { workflows: shown, states: states ?? [], tokens: tokens ?? [], feeds, metrics, assigned: metrics.map((m) => ({ id: m.id, workflow_id: (m as Metric & { workflow_id?: number | null }).workflow_id ?? null })) };
 }
 
@@ -240,7 +242,7 @@ export async function metricExtras(actor: Actor, metricId: number, period: Perio
   const pending = (waiting ?? []).map((p) => p.period_start as string);
   // A Guest is shown only the Workflows of Metrics shared with them, not every Workflow's steps and people (rule 3).
   const guestSees = await guestWorkflowIds(actor);
-  return { tokens: shown, workflows: withoutWebhookIds(actor, (workflows ?? []).filter((w) => !guestSees || guestSees.has(w.id as number))), workflowId: (row?.workflow_id as number | null) ?? null, state, period: current, pending };
+  return { tokens: shown, workflows: await withoutChecklistWords(actor, withoutWebhookIds(actor, (workflows ?? []).filter((w) => !guestSees || guestSees.has(w.id as number)))), workflowId: (row?.workflow_id as number | null) ?? null, state, period: current, pending };
 }
 
 /** The actor's saved widgets (their Pool). */

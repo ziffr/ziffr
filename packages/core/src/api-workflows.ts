@@ -3,7 +3,7 @@
 // functions the Workflow editor uses (workflows.ts), so the same cleaning, limits and history hold. A key acts only for
 // its creator: another person's Workflow, or one of another Workspace, answers like one that does not exist (Forbidden,
 // so the API says 404). Who approves (an Approve step: its Approvers, which values wait, what happens when nobody else
-// could approve) and who a Tell step tells are a person's decision: only a program's key that also holds
+// could approve), who a Tell step tells and who a Checklist Item goes to are a person's decision: only a program's key that also holds
 // "workflows:people" may change them, never an assistant (not offered, refused where a connection is made, and a check
 // in the database); any other key sends those steps back exactly as it read them, or leaves them out when making a
 // Workflow. Deleting a Workflow that has such a step needs the same scope, since it would drop the Approvals.
@@ -27,7 +27,12 @@ export type ApiWorkflowStep =
   | { type: "check"; change_pct: number; outside_target: boolean }
   | { type: "approve"; approvers: string[]; values: ApprovalScope; nobody_else: NobodyElse }
   | { type: "publish"; lock: boolean }
-  | { type: "tell"; id?: string; condition: TellCondition; people: string[]; groups: number[] };
+  | { type: "tell"; id?: string; condition: TellCondition; people: string[]; groups: number[] }
+  // A Checklist Item (spec 0045): for information (sent to people and Groups) or to tick off (a Task for `assignee`). The
+  // text is the owner's own; `id` names it for its claim, left out for a new one. It names people, so like Approve and
+  // Tell it is sent back exactly as read by a key without "workflows:people".
+  // One shape for both kinds, as the API's schema has it: `day`, `people` and `groups` are for information, the rest to tick off.
+  | { type: "checklist"; id?: string; kind: "info" | "tick"; text: string; day?: number; people?: string[]; groups?: number[]; assignee?: string | null; stand_in?: string | null; due_working_days?: number; read_group?: number | null };
 
 /** A Workflow of the key's creator as a program sees it: its Due Date, its steps in order and how many Metrics use it. */
 export type ApiWorkflowDetail = { id: number; name: string; due_working_days: number; lock_summary: boolean; steps: ApiWorkflowStep[]; asking: AskingSchedule | null; metrics: number; used_by: { slug: string; name: string }[]; updated_at: string };
@@ -46,10 +51,15 @@ const toStep = (s: ApiWorkflowStep): WorkflowStep => {
     case "publish": return { type: "publish", lock: s.lock };
     // An empty id is made up by the editor's cleaning, which also keeps an id only when it is well formed.
     case "tell": return { type: "tell", id: s.id ?? "", condition: s.condition, people: s.people, groups: s.groups };
+    case "checklist": {
+      const base = { type: "checklist" as const, id: s.id ?? "", text: s.text, ...(typeof s.read_group === "number" ? { readGroup: s.read_group } : {}) };
+      return s.kind === "tick" ? { ...base, kind: "tick", assignee: s.assignee ?? null, ...(s.stand_in ? { standIn: s.stand_in } : {}), dueWorkingDays: s.due_working_days ?? 0 } : { ...base, kind: "info", day: s.day ?? 1, people: s.people ?? [], groups: s.groups ?? [] };
+    }
   }
 };
 
-const fromStep = (s: WorkflowStep): ApiWorkflowStep => {
+/** A stored step as a program reads it; Send Snapshot (spec 0045) is not a program's to read or send, so it has no form here. */
+const fromStep = (s: WorkflowStep): ApiWorkflowStep | null => {
   switch (s.type) {
     case "remind": return { type: "remind", days_before: s.daysBefore };
     case "escalate": return { type: "escalate", to: s.to, days_after: s.daysAfter };
@@ -57,6 +67,11 @@ const fromStep = (s: WorkflowStep): ApiWorkflowStep => {
     case "approve": return { type: "approve", approvers: s.approvers, values: s.values ?? "unusual", nobody_else: s.nobodyElse ?? "self-check" };
     case "publish": return { type: "publish", lock: s.lock };
     case "tell": return { type: "tell", id: s.id, condition: s.condition, people: s.people, groups: s.groups };
+    case "checklist": {
+      const base = { type: "checklist" as const, id: s.id, text: s.text, ...(s.readGroup !== undefined ? { read_group: s.readGroup } : {}) };
+      return s.kind === "tick" ? { ...base, kind: "tick", assignee: s.assignee, ...(s.standIn ? { stand_in: s.standIn } : {}), due_working_days: s.dueWorkingDays } : { ...base, kind: "info", day: s.day, people: s.people, groups: s.groups };
+    }
+    case "send_snapshot": return null;
   }
 };
 
@@ -98,15 +113,15 @@ async function detail(actor: KeyActor, id: number): Promise<ApiWorkflowDetail> {
   const all = await getMetrics(actor.workspaceId);
   const seen = await visibleMetricIds(actor.workspaceId, actor.personId, all);
   const mine = (users ?? []).filter((u) => seen.has(u.id as number)).map((u) => all.find((m) => m.id === u.id)).filter((m) => m !== undefined);
-  return { id: w.id, name: w.name, due_working_days: w.config.dueWorkingDays, lock_summary: w.config.lockSummary === true, steps: w.config.steps.map(fromStep), asking: w.config.asking ?? null, metrics: mine.length, used_by: mine.slice(0, 50).map((m) => ({ slug: m.slug, name: m.name })), updated_at: w.updated_at };
+  return { id: w.id, name: w.name, due_working_days: w.config.dueWorkingDays, lock_summary: w.config.lockSummary === true, steps: w.config.steps.flatMap((x) => { const step = fromStep(x); return step ? [step] : []; }), asking: w.config.asking ?? null, metrics: mine.length, used_by: mine.slice(0, 50).map((m) => ({ slug: m.slug, name: m.name })), updated_at: w.updated_at };
 }
 
 /** Approvers are members of this Workspace; the editor would drop others without a word, a program is told (scope workflows:write). */
 async function assertMembers(actor: KeyActor, steps: ApiWorkflowStep[]): Promise<void> {
-  const named = [...new Set(steps.flatMap((s) => (s.type === "approve" ? s.approvers : s.type === "tell" ? s.people : [])))];
+  const named = [...new Set(steps.flatMap((s) => (s.type === "approve" ? s.approvers : s.type === "tell" ? s.people : s.type === "checklist" ? [...(s.people ?? []), s.assignee, s.stand_in].filter((x): x is string => typeof x === "string") : [])))];
   if (!named.length) return;
   const { data } = await db().from("memberships").select("user_id").eq("workspace_id", actor.workspaceId).in("user_id", named);
-  if ((data ?? []).length !== named.length) throw new WorkflowRefused("Approvers and the people a Tell step tells must be members of this Workspace (ids from list_people).");
+  if ((data ?? []).length !== named.length) throw new WorkflowRefused("Approvers, the people a Tell step tells and the people of a checklist item must be members of this Workspace (ids from list_people).");
 }
 
 /** A Workflow of the creator's own, with its steps (scope metrics:read). Someone else's is Forbidden. */

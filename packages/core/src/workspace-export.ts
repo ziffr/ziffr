@@ -22,6 +22,7 @@ import { attainmentMethodOf, workspaceName } from "./workspace-settings";
 import { yearStartOf } from "./fiscal-year";
 import { knownTimeZone, workspaceClock } from "./workspace-clock";
 import { openWorkflowRows } from "./workflow-rows";
+import { mayReadItem } from "./checklist-rules";
 import { NOT_IN_DASHBOARD_TEMPLATES, toDashboardTemplate, toDeckTemplate, toWorkflowTemplate } from "./team-templates";
 import { cleanSlideShapes, storedSlides } from "./templates";
 import { settingsOf, slideShapeOf, titleOf, type TextFit } from "./pack-export";
@@ -392,19 +393,23 @@ async function deckRecords(c: Ctx): Promise<void> {
 
 /** Workflows, as templates with the Metrics that use them. */
 async function workflowRecords(c: Ctx): Promise<void> {
-  const { ws, records, skip, plainOrSkip, metricLabel, labelOf } = c;
-  const { data: flowRows } = await db().from("workflows").select("id, name, config").eq("workspace_id", ws).order("id");
+  const { actor, ws, records, skip, plainOrSkip, metricLabel, labelOf } = c;
+  const { data: flowRows } = await db().from("workflows").select("id, name, owner_id, config").eq("workspace_id", ws).order("id");
   const { data: usage } = await db().from("metrics").select("id, workflow_id").eq("workspace_id", ws).not("workflow_id", "is", null);
   for (const w of await openWorkflowRows(ws, flowRows)) {
     const name = plainOrSkip("Workflow", String(w.name), w.name, 80);
     if (!name) continue;
-    const config = w.config as WorkflowConfig;
+    // The file holds only what the Owner who exports may see: items whose words they may not read stay behind, counted and never named.
+    const full = w.config as WorkflowConfig;
+    const mine = { id: actor.personId, role: actor.role, groupIds: c.groupsAll.filter((g) => g.members.includes(actor.personId)).map((g) => g.id) };
+    const config = { ...full, steps: full.steps.filter((s) => s.type !== "checklist" || mayReadItem(s, mine, String(w.owner_id))) };
+    const hidden = full.steps.length - config.steps.length;
     const body = toWorkflowTemplate(config);
     const asked = (usage ?? []).filter((u) => u.workflow_id === w.id).map((u) => metricLabel.get(u.id as number)).filter((l): l is string => Boolean(l)).slice(0, WORKSPACE_EXPORT_LIMITS.workflowMetrics);
     const doc: WorkflowTemplateFile = { format: "ziffr.workflow-template/1", name, dueWorkingDays: body.dueWorkingDays, steps: body.steps as WorkflowTemplateFile["steps"] };
     const why = !asked.length ? "no Metric of the file uses it" : exportDocumentProblem("workflow", doc);
     if (why) { skip("Workflow", name, `Left out: ${why}`); continue; }
-    const lost = [config.steps.some((s) => s.type === "tell") && "its Tell steps", config.steps.some((s) => s.type === "approve") && "who approves", config.asking && "its own asking days and hour", config.lockSummary && "its lock summary"].filter(Boolean);
+    const lost = [config.steps.some((s) => s.type === "tell") && "its Tell steps", config.steps.some((s) => s.type === "approve") && "who approves", config.steps.some((s) => s.type === "checklist" && s.readGroup !== undefined) && "the Group a checklist item is kept to (its words come along)", config.steps.some((s) => s.type === "checklist") && "who its checklist items go to", hidden > 0 && `${hidden} checklist item${hidden === 1 ? "" : "s"} you may not read`, config.asking && "its own asking days and hour", config.lockSummary && "its lock summary"].filter(Boolean);
     if (lost.length) skip("Workflow", name, `Stays behind: ${lost.join(", ")}. The file holds how many Approvers there are, never who.`);
     const label = `w${labelOf.workflow.size + 1}`;
     labelOf.workflow.set(w.id as number, label);

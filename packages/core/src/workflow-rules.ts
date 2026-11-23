@@ -63,6 +63,13 @@ export function stepLabel(s: WorkflowStep, people: Profile[], groups: { id: numb
     case "approve": return s.approvers.length ? `${s.values === "every" ? "Every value" : "Unusual values"} approved by ${s.approvers.map(name).join(", then ")}; when nobody else can, ${s.nobodyElse === "count" ? "it counts without approval" : "the submitter checks it"}` : "Approval, nobody chosen yet";
     case "tell": return `Tell ${s.people.length || s.groups.length || s.webhooks?.length ? [...s.people.map(name), ...s.groups.map((g) => groups.find((x) => x.id === g)?.name ?? "a Group"), ...(s.webhooks?.length ? [`${s.webhooks.length} Webhook${s.webhooks.length === 1 ? "" : "s"}`] : [])].join(", ") : "nobody yet"} when ${tellWords(s.condition)}`;
     case "publish": return s.lock ? "Publish and lock the period" : "Publish";
+    case "checklist": {
+      const words = s.text ? `“${s.text.length > 60 ? `${s.text.slice(0, 60).trimEnd()}…` : s.text}”` : "a checklist item";
+      if (s.kind === "tick") return `${s.dueWorkingDays ? `${s.dueWorkingDays} working day${s.dueWorkingDays === 1 ? "" : "s"} after the period` : "At the end of the period"}: ${s.assignee ? name(s.assignee) : "nobody yet"} ticks off ${words}`;
+      const who = [...s.people.map(name), ...s.groups.map((g) => groups.find((x) => x.id === g)?.name ?? "a Group")];
+      return `${s.day} working day${s.day === 1 ? "" : "s"} after the period: tell ${who.length ? who.join(", ") : "the people chosen"} ${words}`;
+    }
+    case "send_snapshot": return "When the period is finished, send its Snapshot of a dashboard";
   }
 }
 
@@ -77,4 +84,4 @@ function tellWords(c: Extract<WorkflowStep, { type: "tell" }>["condition"]): str
 }
 
 /** The short name of each kind of Workflow step. */
-export const STEP_TITLE: Record<WorkflowStep["type"], string> = { remind: "Remind", escalate: "Escalate", check: "Check", approve: "Approve", tell: "Tell", publish: "Publish" };
+export const STEP_TITLE: Record<WorkflowStep["type"], string> = { remind: "Remind", escalate: "Escalate", check: "Check", approve: "Approve", tell: "Tell", publish: "Publish", checklist: "Checklist item", send_snapshot: "Send Snapshot" };

@@ -1,9 +1,9 @@
 "use client";
 // Workflow Templates (spec 0030, GLOSSARY: Workflow Template): saving a Workflow as one, without its people, and
 // starting a Workflow from one with its Approvers picked. The core checks every person again.
-import { stepLabel } from "@ziffr/core/workflow-rules";
+import { templateStepLabel } from "./template-step-label";
 import type { WorkflowTemplateSummary } from "@ziffr/core/workflow-templates";
-import type { Workflow, WorkflowStep } from "@ziffr/core/types";
+import type { Workflow } from "@ziffr/core/types";
 import { createWorkflowFromTemplate, saveAsWorkflowTemplate } from "@/app/deck-workflow-template-actions";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
@@ -43,7 +43,7 @@ export function SaveWorkflowTemplate({ workflow, mine }: { workflow: Workflow; m
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="max-w-md">
           <DialogTitle>Save as Workflow Template</DialogTitle>
-          <DialogDescription>Everyone on the team can start a Workflow from it. It keeps the Due Date and the steps; the Approvers are picked again each time it is used. Only you can change it.</DialogDescription>
+          <DialogDescription>Everyone on the team can start a Workflow from it. It keeps the Due Date and the steps, with the words of its checklist items; the Approvers and the people a checklist item goes to are picked again each time it is used. Checklist items you may not read, and items kept to a Group, stay behind. Only you can change it.</DialogDescription>
           <form className="space-y-4 text-sm" onSubmit={(e) => { e.preventDefault(); save(); }}>
             {mine.length > 0 && (
               <label className="block">
@@ -106,7 +106,7 @@ export function NewWorkflowFromTemplate({ templates, people }: { templates: Work
               <>
                 {t.description && <p className="text-muted-foreground">{t.description}</p>}
                 <ol className="list-decimal space-y-0.5 pl-5 text-xs text-muted-foreground">
-                  {t.body.steps.map((s, i) => <li key={i}>{s.type === "approve" ? `Approval by ${s.approvers === 1 ? "one person" : `${s.approvers} people`} you pick${s.values === "every" ? ", for every value" : ", for Unusual Values"}` : stepLabel(s as WorkflowStep, [])}</li>)}
+                  {t.body.steps.map((s, i) => <li key={i}>{templateStepLabel(s)}</li>)}
                 </ol>
                 <label className="block"><span className="mb-1 block text-xs font-medium">Name</span><Input value={name} onChange={(e) => setName(e.target.value)} maxLength={80} placeholder={t.name} /></label>
                 {approvers.map((a, i) => (
