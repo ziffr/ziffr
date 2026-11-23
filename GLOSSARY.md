@@ -307,7 +307,7 @@ A Dashboard a person keeps in the sidebar under Dashboards, for the ones they op
 _Avoid_: Favorite, bookmark, starred
 
 **Analysis Canvas**:
-A workspace where a user drops one or more metrics and runs analyses on them.
+A workspace where a user drops one or more metrics and runs analyses on them. One of them is marked as **the one to explain**: the Metric that Drivers, What moves B?, What does B need?, What if A changes? and Did it work? are about, kept with the canvas and independent of the order of the Metrics; the others are compared with it. Not a Target Range: that word is only for the range a Metric aims for.
 _Avoid_: Workbench, lab
 
 **Playground**:
@@ -315,7 +315,7 @@ The page under Analyze where a View Design or an Analysis Recipe is pasted or up
 _Avoid_: Editor, sandbox, studio
 
 **Analysis**:
-A statistical method run on one or more metrics, such as forecast, correlation, clustering or impact analysis. Its result can be saved as a widget. Ziffr ships its own Analyses; more can be written as Analysis Recipes.
+A statistical method run on one or more metrics, such as forecast, correlation or drivers. Its result can be saved as a widget. Ziffr ships its own Analyses; more can be written as Analysis Recipes.
 _Avoid_: Stats, model, insight
 
 **Method**:

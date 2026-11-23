@@ -3,6 +3,7 @@
 import { tagsLeftOffEntry } from "@ziffr/core/pack-tags";
 import { approvalQuestionForWeb } from "@ziffr/core/approval-question";
 import Link from "next/link";
+import { Suspense } from "react";
 import { notFound } from "next/navigation";
 import { KeyRound, Lock, MessageSquare, Sigma, Sparkles } from "lucide-react";
 import { getAllSeries, getAttainmentMethod, getBreakdowns, getLastValues, getNumberStyle, getProfiles, getSeriesValues, getYearStart } from "@/lib/data";
@@ -41,6 +42,7 @@ import { basisLabel, periodWord, rankCorrelations } from "@ziffr/core/correlatio
 import { correlationTakeaway } from "@ziffr/core/takeaways/takeaway";
 import { TakeawayView } from "@/components/takeaway-view";
 import { ANALYSES } from "@/analyses";
+import { MetricQuestions } from "./metric-questions";
 import { ScatterView } from "@/views/scatter";
 import { PageHeader } from "@/components/page-header";
 import { Person } from "@/components/avatar";
@@ -316,11 +318,8 @@ export default async function MetricPage({ params, searchParams }: { params: Pro
         <section className="stock rounded-[var(--radius-card)] p-5">
           <h2 className="mb-4 flex items-center gap-2 font-medium"><Sparkles className="size-4 text-primary" /> Analyses</h2>
           <div className="mb-5 flex flex-wrap gap-2">
-            {/* Analyses still to come are a preview for demo visitors only. */}
-            {ANALYSES.filter((a) => a.available || demo).map((a) => (
-              <span key={a.id} title={a.blurb} className={cn("flex items-center gap-1.5 rounded-[var(--radius-input)] border px-2.5 py-1 text-xs", a.available ? "stock font-medium" : "border-dashed text-muted-foreground")}>
-                {!a.available && <Lock aria-hidden className="size-3" />} {a.label}{!a.available && ", coming soon"}
-              </span>
+            {ANALYSES.map((a) => (
+              <span key={a.id} title={a.blurb} className="stock rounded-[var(--radius-input)] border px-2.5 py-1 text-xs font-medium">{a.label}</span>
             ))}
           </div>
           <div className="grid gap-6 md:grid-cols-2">
@@ -360,6 +359,9 @@ export default async function MetricPage({ params, searchParams }: { params: Pro
               <ScatterView numberStyle={numberStyle} x={partner.metric} y={metric} pairs={partner.result.pairs.map((p) => ({ period: p.period, x: p.y, y: p.x }))} yearStart={yearStart} />
             </div>
           )}
+          <Suspense fallback={null}>
+            <MetricQuestions actor={actor} id={metric.id} name={metric.name} slug={metric.slug} />
+          </Suspense>
         </section>
       )}
 

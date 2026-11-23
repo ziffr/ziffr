@@ -7,7 +7,7 @@ When Ziffr looks at your numbers (which Metrics move together, what a Metric is 
 - **A sentence**, such as "Visits and Revenue tend to move together over 18 months (strong)."
 - **A strength word** in brackets: strong, moderate, weak, or can't tell from chance.
 - **What it is based on**: how many months (or weeks, or days) it looked at, and whether it compared the numbers themselves or how much they changed from one period to the next.
-- **A plain line above the sentence** when something about your data makes the reading rough. This is a caution.
+- **A plain line under the sentence and what it is based on** when something about your data makes the reading rough. This is a caution. The sentence always comes first.
 - **A footer**: for a link between Metrics, "This shows what has gone together, not what caused what."; for a forecast, "This carries the past forward; it is not a promise."; for a change point, "This shows when the numbers changed, not what made them change."; for a before-and-after look, "This compares what happened with where the earlier trend pointed; it does not show what made the difference." A Takeaway about one Metric's own values, or a sum worked out exactly, has none.
 - **Show the numbers**, a fold-out for people who want to check: the method, the exact figures and the periods used.
 
@@ -40,7 +40,7 @@ Some Takeaways have no strength word, because they do not say whether two things
 
 ## A caution
 
-A caution is one plain line above the sentence. The result is still given, and Ziffr tells you why to read it with care. Examples:
+A caution is one plain line under the sentence. The result is still given, and Ziffr tells you why to read it with care. Examples:
 
 - "This result is pulled by 2 months far from the rest; without them it reads moderate." A few unusual periods drive the result. Look at those periods. Ziffr does not remove them for you.
 - "Visits: no value for 2 of 24 months, left out." Periods without a value are skipped, never filled in.

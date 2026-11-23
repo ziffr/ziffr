@@ -9,6 +9,7 @@ import { useEffect, useRef, useState, useTransition } from "react";
 import { toast } from "sonner";
 import { BookmarkPlus, FileDown } from "lucide-react";
 import type { EntryView, PickerList, PickerRun } from "@ziffr/core/analysis-picker";
+import { NOT_OFFERED_LINES } from "@ziffr/core/quick-starts";
 import { TakeawayView } from "@/components/takeaway-view";
 import { saveToPool } from "@/app/canvas-actions";
 import { pickerList, pickerRun } from "@/app/picker-actions";
@@ -90,17 +91,17 @@ function Open({ entry, list }: { entry: EntryView; list: PickerList }) {
   );
 }
 
-/** The panel under the Recipes: the list of Methods for the Metrics on the canvas (`ids`), and the questions of the one chosen. */
-export function MethodPicker({ ids }: { ids: number[] }) {
+/** The front door of the Analysis Canvas: the list of Methods for the Metrics on the canvas (`ids`), and the questions of the one chosen. */
+export function MethodPicker({ ids, explains = null }: { ids: number[]; explains?: number | null }) {
   const [list, setList] = useState<(PickerList & { key: string }) | null>(null);
   const [openId, setOpenId] = useState<EntryView["id"] | null>(null);
   const [failed, setFailed] = useState(false);
   const asked = useRef(0);
-  const key = ids.join(",");
+  const key = `${ids.join(",")}:${explains ?? ""}`;
   // The list is asked again when the canvas changes; an older answer that arrives late is dropped.
   useEffect(() => {
     const n = ++asked.current;
-    pickerList(ids).then((l) => { if (n === asked.current) { setList({ ...l, key }); setFailed(false); } }, () => { if (n === asked.current) setFailed(true); });
+    pickerList(ids, explains).then((l) => { if (n === asked.current) { setList({ ...l, key }); setFailed(false); } }, () => { if (n === asked.current) setFailed(true); });
     // eslint-disable-next-line react-hooks/exhaustive-deps -- `key` is the canvas
   }, [key]);
   return (
@@ -111,6 +112,7 @@ export function MethodPicker({ ids }: { ids: number[] }) {
       {list?.notice && <p role="note" className="text-xs text-muted-foreground">{list.notice}</p>}
       {!list && !failed && <p className="text-xs text-muted-foreground">Loading the list…</p>}
       {list && <PickerGroups list={list} openId={openId} onPick={(id) => setOpenId((cur) => (cur === id ? null : id))} ask={(e) => <Open key={`${e.id}:${list.key}`} entry={e} list={list} />} />}
+      {NOT_OFFERED_LINES.map((line) => <p key={line} className="text-xs text-muted-foreground">{line}</p>)}
     </section>
   );
 }

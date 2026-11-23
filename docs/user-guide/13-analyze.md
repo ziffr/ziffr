@@ -8,11 +8,12 @@ Everyone in the Workspace can use Analyze, with the Metrics they can see. The pa
 
 ## The screen
 
-The screen has three parts:
+The screen has four parts:
 
 - **The Pool** on the left (below on a narrow screen), with the Metrics you can see. Here it holds only Metrics, no saved Widgets or Widget Templates. **Filter** narrows it by name.
-- **Recipes** at the top: ready-made Analyses that run with one click.
-- **The Analysis canvas**, with the Metrics on it, the Analyses you can run, and below it the results.
+- **Choose a method** at the top, the main way in: a list of questions, grouped by what you want to know (see [Choose a method](#choose-a-method)). On an empty canvas the list is already open, under "Drop Metrics here, or choose a method."
+- **Quick starts**: ready-made questions that run with one click. They are shortcuts into the same list.
+- **The Analysis canvas**, with the Metrics on it, the tiles for what you can run with them, and below it the results.
 
 ## Putting Metrics on the canvas
 
@@ -20,7 +21,11 @@ Drag a Metric from the Pool onto the canvas, or point at it and press **+**. **A
 
 Each Metric on the canvas shows its name and how often it is counted, such as "monthly". The **×** next to it takes it off. **Clear** empties the canvas and its results. The number next to **Analysis canvas** says how many Metrics are on it.
 
-When there is more than one Metric, the first one carries a **Target** mark. It is the Metric the **Drivers** Analysis explains.
+### The Metric to explain
+
+Some questions are about one Metric: **Drivers**, **What moves B?**, **What does B need to reach a value?**, **What if A changes?** and **Did it work?**. Ziffr calls it **the one to explain**. When there are two or more Metrics on the canvas, each chip says its role in words: the one to explain carries a filled mark, **The one to explain**, and the others read **Compared with** and have a button, **Make this the one to explain**. The mark is its own choice: the order in which you dropped the Metrics does not decide it. With one Metric on the canvas, it is the one to explain.
+
+Choose another Metric's button and the results that are about the Metric to explain are drawn again for it; nothing is taken off the canvas. If you take the marked Metric off, the mark moves to the next Metric on the canvas (to the one before it when it was the last). The choice is kept with the canvas. The questions in **Choose a method** start on it: "Which Metric do you want to explain?" shows the marked one, and you can still change it there. The mark is called the one to explain, never the Target, which is the range a Metric aims for.
 
 The Metrics on your canvas stay there until you take them off, also when you leave and come back. The canvas is yours alone; colleagues have their own. In the demo nothing is saved: the canvas works the same way, but starts over when you leave the page.
 
@@ -28,34 +33,34 @@ An empty canvas reminds you what to drop: "One metric → forecast. Two → corr
 
 ## The Analyses
 
-Under the Metrics, one button per Analysis. A button you cannot use yet is greyed out and says what it needs, such as "Drop exactly two metrics".
+Under the Metrics, one tile per Analysis, chosen by how many Metrics are on the canvas. A tile you cannot use yet is greyed out and says what it needs, such as "Drop exactly two metrics". Each tile is a shortcut for a question in **Choose a method**.
 
 | Analysis | Needs | What it does |
 | --- | --- | --- |
 | **Forecast** | One Metric or more | Projects each Metric a few periods ahead. With several Metrics, you get one forecast for each. |
 | **Correlation** | Exactly two Metrics | Shows whether the two move together. |
-| **Drivers** | Two Metrics or more | Ranks the other Metrics by how closely they move with the first one, the Target. |
+| **Drivers** | Two Metrics or more | Ranks the other Metrics by how closely they move with the one to explain. |
 | **Correlation matrix** | Three Metrics or more | Shows how every pair moves together, at once. |
 
-In the demo, two more are shown as **coming soon**: **Clustering** (groups periods that behave alike) and **Impact analysis** (how much one Metric moves another). They cannot be run yet, and a real Workspace does not show them.
+Two things are not tiles. How much one Metric moves another is answered in **Choose a method**, under **What moves with what?**, **What would it take?** and **What would happen if?**. Clustering is not offered: groups found by a program cannot be said in a sentence without being wrong, and the list says so in one line.
 
 Running an Analysis adds its result at the top of the results. Running the same one again on the same Metrics moves it back to the top instead of adding a second.
 
 ## Recipes
 
-A **Recipe** is a ready-made Analysis that runs with one click. Ziffr offers:
+A **Recipe** is a ready-made Analysis that runs with one click; the quick starts are the Recipes that fit your Metrics. Ziffr offers:
 
 | Recipe | What it does |
 | --- | --- |
-| **What drives Cost?** | Puts Cost and every other Metric you can see on the canvas and runs **Drivers** for Cost. |
+| **What drives Cost?** | Puts Cost and every other Metric you can see on the canvas, marks Cost as the one to explain, and runs **Drivers** for Cost. |
 | **Where is Revenue heading?** | Puts Revenue on the canvas and runs **Forecast**. |
 | **Will we reach the Target?** | Puts Revenue on the canvas and runs **Forecast**; when Revenue has a Target, the Takeaway says how likely it is to be reached ("about 7 in 10"). |
 | **Do support tickets drive returns?** | Puts Return rate and Support tickets on the canvas and runs **Correlation**. |
-| **Did it work?** | Asks about the first Metric on the canvas (it is greyed out until there is one). A card opens under the Recipes: pick the **day it started**, and Ziffr compares the periods after it with where the Metric's own trend pointed. Optionally pick **a metric it should not have touched** from the others on the canvas that are counted at the same period, and Ziffr shows the same for it beside. |
+| **Did it work?** | Asks about the Metric to explain (it is greyed out until there is one). A card opens under the quick starts: pick the **day it started**, and Ziffr compares the periods after it with where the Metric's own trend pointed. Optionally pick **a metric it should not have touched** from the others on the canvas that are counted at the same period, and Ziffr shows the same for it beside. |
 
 A Forecast says where the Metric is expected to be, with the range it is likely between, and which Method worked it out: a plain trend, or the trend with the yearly pattern when the Metric has two seasons of values and the pattern would have missed less on the last third of its history. It also says how that Method did on the periods already known ("the range for the next month would have held 10 of 12 times"). Show the numbers has the details. A forecast is not a promise; it assumes the pattern of the past carries on.
 
-Except **Did it work?**, a Recipe replaces what is on the canvas with its own Metrics. Each one appears only when you can see the Metrics it needs. When none fits, the screen says "Recipes appear once the metrics they need are shared with you."
+Except **Did it work?**, a Recipe replaces what is on the canvas with its own Metrics. Each one appears only when you can see the Metrics it needs. When none fits, the screen says "Quick starts for named Metrics appear once the metrics they need are shared with you."
 
 ### Did it work?
 
@@ -63,7 +68,7 @@ The answer is a range, not a verdict: "After 1 Mar 2026, Signups ran about 12.0 
 
 - Both ends of the range on the same side of zero: the Metric did run away from its trend, by about that much. Ziffr does not say why: other things may have changed on the same day.
 - The range holds zero: the sentence adds "that range includes zero". A range that leaves out zero is no proof: with no real change, about 1 range in 5 does by chance.
-- With a metric set beside it, the result also says how that one ran against its own trend. If it ran outside the same range around its own trend, which chance alone gives about 1 time in 5, a line above says that something else may have moved both, or that it is chance.
+- With a metric set beside it, the result also says how that one ran against its own trend. If it ran outside the same range around its own trend, which chance alone gives about 1 time in 5, a line under the sentence says that something else may have moved both, or that it is chance.
 
 The result carries its basis, what it assumes, and the footer "This compares what happened with where the earlier trend pointed; it does not show what made the difference." **Show the numbers** has the trend, where it pointed, what the values were and the typical miss of the line. Where Ziffr cannot answer it says why in words: a day that is not a day, fewer than six periods before it, nothing on or after it, a Metric that has hardly changed, or too many periods without a value.
 
@@ -71,7 +76,7 @@ The result carries its basis, what it assumes, and the footer "This compares wha
 
 ## Choose a method
 
-**Choose a method**, next to the Recipes, is for when you know what you want to know and not which Method gives it. It opens a list grouped by the question: **Where is it heading?**, **What moves with what?**, **What would it take?**, **What would happen if?**, **What changed?**, **What is usual?** and **Where is it concentrated?**. Each entry has its plain name ("Does A move with B?"), the technical name in small type after it, one sentence of what it tells you, and **Use it when / Don't use it when** under it, the same words as the Methods guide.
+**Choose a method**, at the top of the screen, is the main way in: it is for when you know what you want to know and not which Method gives it. It opens a list grouped by the question: **Where is it heading?**, **What moves with what?**, **What would it take?**, **What would happen if?**, **What changed?**, **What is usual?** and **Where is it concentrated?**. Each entry has its plain name ("Does A move with B?"), the technical name in small type after it, one sentence of what it tells you, and **Use it when / Don't use it when** under it, the same words as the Methods guide.
 
 The list fits the canvas. A Method that cannot work on what is on the canvas now stays in the list, greyed, with the reason in words: "Needs at least 12 months of values; Revenue has 7.", "Revenue has no Target Range, so there is nothing to reach.", "Needs 3 Metrics on the canvas; there are 2." With nothing on the canvas every entry says "Drop a Metric on the canvas first." The list names only Metrics you can see.
 
@@ -126,9 +131,9 @@ Two Metrics counted at different periods, such as weekly support tickets and mon
 
 ### Drivers
 
-A list of the other Metrics, the one that moves most closely with the Target first. Each has a bar for how strong the link is and its r. A bar in the data colour means they move the same way; a bar in the warning colour means they move opposite ways. Below the list, a Takeaway names up to three that moved with the Target the most ("Over 18 months, Shipping cost and Returns moved with Cost the most.") and a dot chart shows the two. Each Metric in the list has its own Takeaway behind **Show the numbers**, with its strength word and any plain line about its data. A Metric whose data cannot be compared (it has hardly changed, or has too many periods without a value) is listed under the bars with the reason, and shows no number. The footer says once that this shows what has gone together, not what caused what.
+A list of the other Metrics, the one that moves most closely with the one to explain first. Each has a bar for how strong the link is and its r. A bar in the data colour means they move the same way; a bar in the warning colour means they move opposite ways. Below the list, a Takeaway names up to three that moved with the one to explain the most ("Over 18 months, Shipping cost and Returns moved with Cost the most.") and a dot chart shows the two. Each Metric in the list has its own Takeaway behind **Show the numbers**, with its strength word and any plain line about its data. A Metric whose data cannot be compared (it has hardly changed, or has too many periods without a value) is listed under the bars with the reason, and shows no number. The footer says once that this shows what has gone together, not what caused what.
 
-Metrics of every period are compared, each on the longer of its own period and the Target's (see above). One combined to another period says so after its name, such as "· by month", and pointing at it shows "Compared by month (18 months)". Below the list, Ziffr names the Metrics it left out and why: an Aggregation of none, or too few periods in common. A derived Metric made from the Target, or one the Target is made from, is left out without a note, since it would move with it by its formula. If nothing is left to compare, the result says so.
+Metrics of every period are compared, each on the longer of its own period and the one to explain's (see above). One combined to another period says so after its name, such as "· by month", and pointing at it shows "Compared by month (18 months)". Below the list, Ziffr names the Metrics it left out and why: an Aggregation of none, or too few periods in common. A derived Metric made from the one to explain, or one it is made from, is left out without a note, since it would move with it by its formula. If nothing is left to compare, the result says so.
 
 **Growth removed.** Two Metrics that both grow over time look closely related even when nothing links them. So where both have a clear trend (a straight line through each explains more than half of how it moves), Drivers, the Correlation matrix and the Metric page compare how each changed from the period before, and say so: "Compared by change, growth removed". Otherwise they compare the values and say "Compared by value". The dot chart then shows each period's change, not its value. **Show the numbers** under the list (and on a Metric's Analysis tab) shows r and the periods for each Metric, and lets you compare on the values as they are instead, the way Ziffr used to.
 
@@ -178,3 +183,7 @@ Results are not kept when you leave the screen; save the ones you want. Each res
 | **Open metric** | Opens the Metric's page; with several Metrics, one entry for each. |
 
 A result placed on a dashboard keeps working there: it is drawn again from the latest values each time the dashboard opens. You can also place an Analysis on a dashboard directly, from the **Analyses** group of Widget Templates in the dashboard's Pool. See [Dashboards and Findings](12-dashboards.md#the-pool).
+
+## Opening Analyze from a Metric page
+
+On a Metric's **Analysis** tab, **Questions you can ask about** that Metric lists the questions of **Choose a method** that fit it on its own, a few that do not yet greyed with the reason in words, and **See all questions**. That link opens Analyze with the Metric on the canvas as the one to explain and the list open. A Metric you cannot see, or one that does not exist, is ignored: the screen opens as if no Metric had been named.

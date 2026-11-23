@@ -40,7 +40,7 @@ export type Takeaway = {
   /** What it was compared on and over how many periods. */
   basis: string | null;
   assumptions: string[];
-  /** The plain lines above an answer that passed with a caution. */
+  /** The plain lines under an answer that passed with a caution: the sentence comes first. */
   cautions: string[];
   /** What was done differently, said: another Method used because the data did not suit this one. */
   notes: string[];

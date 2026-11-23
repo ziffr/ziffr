@@ -29,6 +29,21 @@ async function setup() {
 }
 
 describe("the method picker's list", () => {
+  it("starts the Slots that ask which Metric to explain on the marked one, whatever the order, and never names a hidden one (#988)", async () => {
+    const t = await setup();
+    const entries = (list: Awaited<ReturnType<typeof listPicker>>) => list.groups.flatMap((g) => g.entries);
+    const moves = async (...args: Parameters<typeof listPicker> extends [unknown, ...infer R] ? R : never) => entries(await listPicker(t.as, ...args)).find((e) => e.id === "moves")!;
+    const plain = await moves([t.visits.id, t.revenue.id]);
+    expect(plain.defaults.metric).toEqual([t.visits.id]);
+    const marked = await moves([t.visits.id, t.revenue.id], t.revenue.id);
+    expect(marked.defaults.metric).toEqual([t.revenue.id]);
+    // Reordering the canvas does not change it.
+    expect((await moves([t.revenue.id, t.visits.id], t.revenue.id)).defaults.metric).toEqual([t.revenue.id]);
+    // A mark on a Metric that is hidden, or not on the canvas, counts as none.
+    expect((await moves([t.visits.id, t.revenue.id], t.secret.id)).defaults.metric).toEqual([t.visits.id]);
+    expect((await moves([t.visits.id, t.revenue.id], "x")).defaults.metric).toEqual([t.visits.id]);
+  });
+
   it("lists what fits the canvas of the Metrics the person sees, with the reasons in words", async () => {
     const t = await setup();
     const list = await listPicker(t.as, [t.visits.id, t.revenue.id]);

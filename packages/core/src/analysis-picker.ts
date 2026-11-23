@@ -6,6 +6,7 @@
 // method-picker-run.ts and refused in words. The screen only calls these.
 import type { Actor } from "./actor";
 import { seriesFor, visibleMetricIds } from "./access";
+import { explainedFirst } from "./canvas-roles";
 import { yearStartOf } from "./fiscal-year";
 import { entryOf, textsOf, type EntryId, type PickerEntry, type SettingDef, type SlotDef } from "./method-picker";
 import { groupsFor, metricsNeeded, type CanvasFact, type EntryFit } from "./method-picker-fit";
@@ -117,10 +118,11 @@ const needsText = (e: PickerEntry): string => {
   return `${n} Metric${n === 1 ? "" : "s"} on the canvas`;
 };
 
-/** The method picker's list for the Metrics on this person's canvas (`canvasIds` as sent; the ones they may not see are left out as if absent). */
-export async function listPicker(actor: Actor, canvasIds: unknown): Promise<PickerList> {
-  const ids = readIds(canvasIds);
-  if (!ids) return { canvas: [], groups: [], notice: ids === null && Array.isArray(canvasIds) && canvasIds.length > MOST_PICKED ? `Ziffr can look at ${MOST_PICKED} Metrics at a time: take some off the canvas.` : undefined };
+/** The method picker's list for the Metrics on this person's canvas (`canvasIds` as sent; the ones they may not see are left out as if absent). `explains` is the Metric to explain: the Slots that ask which Metric to explain start on it (one that is not on the canvas counts as none). */
+export async function listPicker(actor: Actor, canvasIds: unknown, explains?: unknown): Promise<PickerList> {
+  const read = readIds(canvasIds);
+  const ids = read && explainedFirst(read, typeof explains === "number" ? explains : null);
+  if (!ids) return { canvas: [], groups: [], notice: read === null && Array.isArray(canvasIds) && canvasIds.length > MOST_PICKED ? `Ziffr can look at ${MOST_PICKED} Metrics at a time: take some off the canvas.` : undefined };
   const { world, visible } = await load(actor, ids);
   const canvas = ids.flatMap((i) => visible.get(i) ?? []);
   const facts = canvas.map((m) => factOf(world, m, canvas));
