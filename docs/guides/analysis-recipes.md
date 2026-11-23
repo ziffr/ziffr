@@ -131,7 +131,7 @@ Each is the Method of the same name in the [Methods guide](methods.md), with its
 
 **Rendering.** A table's rows and a Takeaway's `title` and `note` come from a recipe's author, so a surface that shows them must show them in a plainly separate note style, never beside or in the place of Ziffr's own sentence, strength word or footer. Ticket 9 (the marks) must keep to this.
 
-**What is drawn.** A View Design draws a recipe's series and values with marks, as for `/1`. A table or a Takeaway has no mark yet, and a mark that names one is refused with that said.
+**What is drawn.** A View Design draws a recipe's series and values with marks, as for `/1`; a `polar` mark draws a series around a circle. A table or a Takeaway has no mark yet, and a mark that names one is refused with that said.
 
 ## Forecast and correlation
 
