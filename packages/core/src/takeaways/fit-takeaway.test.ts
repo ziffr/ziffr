@@ -736,6 +736,8 @@ describe("what a third review asked for", () => {
         const lo = mant * 10 ** e;
         const hi = lo * (1 + gap);
         const eff = (lo + hi) / 2;
+        // Fifteen places can tell apart three numbers only where they are at least 2e-15 apart.
+        if (hi - lo < 4e-15) return;
         const [a, b, c] = [written(m, lo, ctx, [eff, lo, hi]), written(m, eff, ctx, [eff, lo, hi]), written(m, hi, ctx, [eff, lo, hi])];
         expect(new Set([a, b, c]).size, `${lo} ${eff} ${hi}`).toBe(3);
       }),
