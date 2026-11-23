@@ -23,6 +23,7 @@ vi.mock("@/lib/viewer", () => ({}));
 vi.mock("next/navigation", () => ({ useRouter: () => ({ refresh: vi.fn(), push: vi.fn() }), usePathname: () => "/analyze", useSearchParams: () => new URLSearchParams() }));
 vi.mock("sonner", () => ({ toast: { error: (t: string, o?: { description?: string }) => shownError(o?.description ?? t), info: vi.fn(), success: vi.fn() } }));
 import { AnalyzeScreen } from "./screen";
+import { SlideOverProvider } from "@/components/slide-over-host";
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 const data = sampleCanvasData("sara", "1,234.5");
@@ -30,7 +31,7 @@ const first = data.metrics[0];
 let host: HTMLElement; let root: Root;
 async function mount(demo: boolean, onCanvas: number[] = []) {
   host = document.createElement("div"); document.body.appendChild(host); root = createRoot(host);
-  await act(async () => { root.render(<AnalyzeScreen data={data} onCanvas={onCanvas} targets={[]} demo={demo} />); });
+  await act(async () => { root.render(<SlideOverProvider><AnalyzeScreen data={data} onCanvas={onCanvas} targets={[]} demo={demo} /></SlideOverProvider>); });
 }
 const button = (label: string) => host.querySelector<HTMLButtonElement>(`button[aria-label="${label}"]`)!;
 const onCanvas = () => [...host.querySelectorAll("button[aria-label^='Take ']")].map((b) => b.getAttribute("aria-label")!.replace(/^Take | off the canvas$/g, ""));

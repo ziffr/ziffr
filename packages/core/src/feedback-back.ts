@@ -55,7 +55,7 @@ async function tellPerson(personId: string, workspaceId: string | null): Promise
   try {
     const { data: member } = await db().from("memberships").select("role").eq("workspace_id", workspaceId).eq("user_id", personId).maybeSingle();
     if (!member) return;
-    await deliverNotice(workspaceId, { recipientId: personId, senderId: null, subject: SUBJECT, text: `${SUBJECT}. Open Send feedback in your menu, then My feedback, to read it.`, link: "/", quiet: true });
+    await deliverNotice(workspaceId, { recipientId: personId, senderId: null, subject: SUBJECT, text: `${SUBJECT}. Open My feedback to read it.`, link: "/?panel=feedback", quiet: true });
   } catch {
     // The answer is stored; a failed notice must not lose it or fail the event.
     console.error("Feedback notice failed");

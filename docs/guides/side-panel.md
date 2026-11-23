@@ -28,15 +28,20 @@ const panel = useSlideOver();
 
 This is the state when the rule was written. Later tickets of spec 0050 move the screens marked **move**; they are working surfaces that are still modals.
 
-**Side panel on the host (`useSlideOver()`):**
+**Side panel on the host** (`useSlideOver()`; `SlideOverWindow` in `slide-over-window.tsx` for a screen that keeps its own "is it open" state):
 
 | Screen | File |
 | --- | --- |
 | Share (also `?panel=share`) | `apps/web/src/components/share-sheet.tsx` |
 | Who can see this | `apps/web/src/components/who-can-see.tsx` |
 | View Links (a dashboard's, a deck's, a Snapshot's) | `apps/web/src/components/view-links.tsx` |
+| The Slot window ("Use this…"; the Preview is sized from the panel's width) | `slot-dialog.tsx` |
+| Browse templates (the Pool's Browse…; Use closes it and the Slot window takes its place) | `template-browser.tsx`, `pool.tsx` |
+| Versions of a team template | `template-menu.tsx` |
+| Save as template (widget, slide layout, Deck Template, dashboard) | `save-template-dialog.tsx`, `save-dashboard-template-dialog.tsx` |
+| Add to deck | `add-to-deck-dialog.tsx` |
 
-These three open on top of one another with a **Back** button, so Share can lead to Who can see this and View Links and back. None of them asks for a confirmation: revoking a View Link and answering a request for access act at once and can be undone by making the link again or granting later.
+Share, Who can see this and View Links open on top of one another with a **Back** button, so Share can lead to Who can see this and View Links and back. None of the three asks for a confirmation: revoking a View Link and answering a request for access act at once and can be undone by making the link again or granting later.
 
 **Side panel, built on the older `Sheet` and not yet on the host:**
 
@@ -52,15 +57,11 @@ These three open on top of one another with a **Back** button, so Share can lead
 
 | Screen | File |
 | --- | --- |
-| The Slot window ("Use this…") | `slot-dialog.tsx` |
-| Browse templates | `template-browser.tsx` |
-| Save as template (widget, dashboard) | `save-template-dialog.tsx`, `save-dashboard-template-dialog.tsx` |
-| Add to deck | `add-to-deck-dialog.tsx` |
 | Edit details of a Metric | `apps/web/src/app/metrics/[slug]/edit-details.tsx` |
 | Retention | `retention-form.tsx` |
 | New dashboard, new deck | `new-dashboard-dialog.tsx`, `new-deck-dialog.tsx` |
 | Fill in past periods | `apps/web/src/app/metrics/[slug]/fill-past.tsx` |
-| Snapshot menu, template menu dialogs | `snapshot-menu.tsx`, `template-menu.tsx` |
+| Snapshot menu dialogs | `snapshot-menu.tsx` |
 | Packs: marketplace, manage, export | `apps/web/src/app/settings/packs/` |
 | Gallery, Workflow templates, Themes, deck editor, design view dialogs | `app/gallery/screen.tsx`, `app/workflows/templates.tsx`, `app/themes/screen.tsx`, `app/decks/[id]/editor.tsx`, `views/design-view.tsx` |
 | Assistant prompt | `apps/web/src/app/metrics/[slug]/assistant-prompt.tsx` |

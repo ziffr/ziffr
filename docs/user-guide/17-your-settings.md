@@ -257,6 +257,20 @@ Under **Quiet hours** you choose the hours of the night and the whole days (the 
 
 If you set nothing, you follow the Workspace's default, if its Owners or Admins set one (the page says so). **Use the Workspace's default** removes your own. To have none even though the Workspace has a default, set the same hour for **From** and **Until** and no days. You cannot choose all seven days. A message already waiting keeps its time if you change your quiet hours afterwards.
 
+## Send feedback
+
+In the central version of Ziffr (ziffr.net), your own menu at the bottom of the sidebar has **Send feedback**. It opens a panel beside the page, so you can see what you are writing about. Choose what it is (**A problem**, **An idea** or **A question**), write your words (up to 2000 characters, with a counter under the box) and press **Send feedback**. You do not need an account anywhere else.
+
+Read the note above the button before you send. Your words will be public on GitHub. Your name and your Workspace's data (Metric names, values and the like) are never sent. Ziffr adds only the page you are on, shortened to a plain path, and the version of the app. Do not write anything private. Your feedback is then filed on GitHub without your name.
+
+Under the form, **My feedback** lists what you sent, newest first: its kind, the first words, where it stands (**waiting for review**, **open**, **answered** or **closed**) and the day you sent it. Only you see this list. A few feedback a day are allowed for each person and each Workspace; if the limit is reached, the panel says so and you can try again tomorrow. A Ziffr that someone runs themselves has no **Send feedback** and sends nothing anywhere; the people who run it use GitHub directly. A screenshot cannot be added yet.
+
+### Answers to your feedback
+
+This is only in the central version of Ziffr (ziffr.net); a Ziffr that someone runs themselves has no feedback and sends nothing anywhere. When the Ziffr team answers the post that was made from your feedback, the answer is added under your feedback as a message from the **Ziffr team**, the feedback's status becomes **answered**, and Ziffr tells you the way it tells you about Tasks and Questions (in your own Connector, within your Quiet Hours, at most once an hour for one feedback). The message only says that there is an answer, and its link opens **My feedback** in the panel. Choose a feedback in the list to read it as a conversation: your words, the answers from **The Ziffr team** and your replies. The answer is shown as plain text, so a link in it is not clickable: check where it leads before you open it. You never see who on the team wrote it, and the team never sees who you are.
+
+If the team closes the post, your feedback shows **closed**; if they open it again, it shows **open** again. A reply you write in the box under the conversation (shown while the feedback is **open** or **answered**, not when it is closed) is posted to the public post as a comment from "A Ziffr user", with no name and nothing else about you, and your words are public like the first ones were. A few replies a day are allowed for each feedback and for each person; if the limit is reached, the panel says so and you can try again tomorrow.
+
 ## The question about Ziffr
 
 Now and then, where an Installation Admin has turned it on (hosted Ziffr does), a small card in the corner asks whether you like Ziffr. **Yes** offers a link to the Ziffr repository on GitHub, where you can star it if you want to; Ziffr tells GitHub nothing about you. **Not yet** asks what is missing, and your words go to the people who run this Ziffr without your name. **Not now** closes it, and it comes back after 30 days, then once more after 60; **Don't ask again** ends it. It never appears while you are looking at a form, in the demo, or on a shared View Link.
@@ -376,9 +390,3 @@ You can have three, up to 1,000 messages a day (a trial has fewer, and only publ
 | The bin icon | Deletes it after asking, also while the Workspace's switch is off |
 
 Under each, **Log** lists its sends of the last 14 days: when, the event, what it is about, the state and the answer. A Webhook that keeps failing is switched off by Ziffr and you are told. An Owner or Admin sees that you have a Webhook, whose it is, the address masked and when it last sent, never what it sent, and can remove it; you are then told who did. It ends when you leave the Workspace. Messages leave Ziffr in clear text over TLS and the receiving system keeps them as it sees fit.
-
-## Answers to your feedback
-
-This is only in the central version of Ziffr (ziffr.net); a Ziffr that someone runs themselves has no feedback and sends nothing anywhere. When the Ziffr team answers the post that was made from your feedback, the answer is added under your feedback as a message from the **Ziffr team**, the feedback's status becomes **answered**, and Ziffr tells you the way it tells you about Tasks and Questions (in your own Connector, within your Quiet Hours, at most once an hour for one feedback). The message only says that there is an answer; read it under **My feedback**. The answer is shown as plain text, so a link in it is not clickable: check where it leads before you open it. You never see who on the team wrote it, and the team never sees who you are.
-
-If the team closes the post, your feedback shows **closed**; if they open it again, it shows **open** again. A reply you write under your feedback is posted to the public post as a comment from "A Ziffr user", with no name and nothing else about you, and your words are public like the first ones were. A few replies a day are allowed for each feedback and for each person; if the limit is reached, the page says so and you can try again tomorrow.
