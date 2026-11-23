@@ -4,7 +4,6 @@
 // list in demo-words-columns.ts says what the schema says: a table or text column nobody classified fails here.
 import { beforeAll, describe, expect, it } from "vitest";
 import { db } from "./db";
-import { resetDemoWorkspace } from "./demo-reset";
 import { DEMO_OPEN_CANDIDATES, DEMO_WORDS_COLUMNS, demoKeptRowTables, demoWordsColumnRows } from "./demo-words-columns";
 import { DEMO_WORKSPACE_ID } from "./team";
 
@@ -80,16 +79,22 @@ describe("what the seed fills after a Demo Reset", () => {
 
   it("is made again by every Demo Reset, with the new ids and none of the old", async () => {
     const before = ((await db().from("demo_showcase").select("row_key").eq("table_name", "dashboards")).data ?? []).map((r) => r.row_key as string);
-    expect(await resetDemoWorkspace()).toBe(true);
+    // The SQL reset and the seed function, as the core's reset runs them (resetDemoWorkspace refuses within a minute of the last).
+    expect((await db().rpc("demo_reset", { min_gap: "0 seconds" })).error).toBeNull();
+    expect((await db().rpc("prototype_seed_showcase")).error).toBeNull();
     const after = ((await db().from("demo_showcase").select("row_key").eq("table_name", "dashboards")).data ?? []).map((r) => r.row_key as string);
     expect(after).toHaveLength(3);
     expect(after.filter((k) => before.includes(k))).toEqual([]);
   }, 120_000);
 
   it("keeps the key tables closed to the core's writes: only the seed function fills them", async () => {
-    for (const t of ["demo_showcase", "demo_seeded_rows", "demo_words_columns", "demo_kept_rows"]) {
-      expect((await db().from(t).insert({ table_name: "dashboards", row_key: "1", column_name: "x", kind: "words" })).error?.code, t).toBe("42501");
-    }
+    const row: Record<string, Record<string, string>> = {
+      demo_showcase: { table_name: "dashboards", row_key: "1" },
+      demo_seeded_rows: { table_name: "dashboards", row_key: "1" },
+      demo_words_columns: { table_name: "dashboards", column_name: "x", kind: "words" },
+      demo_kept_rows: { table_name: "dashboards" },
+    };
+    for (const [t, values] of Object.entries(row)) expect((await db().from(t).insert(values)).error?.code, t).toBe("42501");
     expect((await db().from("demo_showcase").delete().neq("row_key", "")).error?.code).toBe("42501");
   });
 });
@@ -199,8 +204,11 @@ describe("the check that the trigger runs", () => {
   it("refuses a seeded Workflow's config, a Theme's slides and a template's body", async () => {
     const wf = await demoRow("workflows", { name: "Operations, monthly" });
     expect(await reason("UPDATE", "workflows", wf, { ...wf, config: { steps: [] } })).toBe("words");
-    const theme = await demoRow("themes");
-    if (theme.slides !== undefined) expect(await reason("UPDATE", "themes", theme, { ...theme, slides: { footer: "x" } })).toBe("words");
+    // A Theme the showcase does not use (the default and the ones its dashboards and decks use are the showcase's).
+    const used = new Set(((await db().from("demo_showcase").select("row_key").eq("table_name", "themes")).data ?? []).map((r) => r.row_key as string));
+    const themes = ((await db().from("themes").select("*").eq("workspace_id", DEMO_WORKSPACE_ID)).data ?? []) as Record<string, unknown>[];
+    const theme = themes.find((t) => !used.has(String(t.id)));
+    if (theme) expect(await reason("UPDATE", "themes", theme, { ...theme, slides: { footer: "x" } })).toBe("words");
   });
 
   it("refuses to change the key of a row the seed made, so that it cannot hide from the check", async () => {
@@ -233,7 +241,9 @@ describe("the check that the trigger runs", () => {
     const weekly = await demoRow("workflows", { name: "Weekly numbers" });
     expect(await reason("UPDATE", "workflows", weekly, { ...weekly, config: {} })).toBe("showcase");
     const other = await demoRow("workflows", { name: "Operations, monthly" });
-    expect(await reason("UPDATE", "workflows", other, { ...other, config: {} })).toBeNull();
+    // Its config holds the text of Checklist Items, so it is the seed's words; what is not words stays a visitor's.
+    expect(await reason("UPDATE", "workflows", other, { ...other, config: {} })).toBe("words");
+    expect(await reason("UPDATE", "workflows", other, { ...other, owner_id: "ben" })).toBeNull();
     expect(await reason("UPDATE", "workflows", other, { ...other, name: "Mine" })).toBe("words");
   });
 });
