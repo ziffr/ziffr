@@ -12,7 +12,7 @@ Give each reader this file, one item at a time, with the questions in [the proto
 
 > Revenue is expected to be 150,461 € in September 2026 (likely between 144,969 € and 155,953 €).
 > Too few months to check the yearly pattern against a plain trend, so a plain trend is used.
-> Worked out with a plain trend (Holt), over 24 months.
+> Worked out with a plain trend, over 24 months.
 > This assumes the pattern of the past carries on.
 > Over the last 12 months, the range for the next month would have held 7 of 12 times.
 > This carries the past forward; it is not a promise.
@@ -21,7 +21,7 @@ Give each reader this file, one item at a time, with the questions in [the proto
 
 > At this pace Revenue reaches 152,000 € or more in September 2026: about 4 in 10.
 > Too few months to check the yearly pattern against a plain trend, so a plain trend is used.
-> Worked out with a plain trend (Holt), over 24 months.
+> Worked out with a plain trend, over 24 months.
 > This assumes the pattern of the past carries on.
 > Over the last 12 months, the range for the next month would have held 7 of 12 times.
 > This carries the past forward; it is not a promise.
@@ -30,7 +30,7 @@ Give each reader this file, one item at a time, with the questions in [the proto
 
 > At this pace Revenue reaches 146,000 € or more in September 2026: about 9 in 10.
 > Too few months to check the yearly pattern against a plain trend, so a plain trend is used.
-> Worked out with a plain trend (Holt), over 24 months.
+> Worked out with a plain trend, over 24 months.
 > This assumes the pattern of the past carries on.
 > Over the last 12 months, the range for the next month would have held 7 of 12 times.
 > This carries the past forward; it is not a promise.
@@ -55,9 +55,9 @@ Give each reader this file, one item at a time, with the questions in [the proto
 > Compared by change, growth removed, over 23 months.
 > This shows what has gone together, not what caused what.
 
-### R7. What does Revenue need to reach 110,000? (with Orders, Operating cost)
+### R7. What does Revenue need to reach 165,000? (with Orders, Operating cost)
 
-> To reach 110,000 € next month, Orders would need to be around 1,560, 17 % below today. This is a bigger fall in one month than Orders has ever had (its largest was 28), so treat it as a guess.
+> To reach 165,000 € next month, Orders would need to be around 2,103, 13 % above today. This is a bigger rise in one month than Orders has ever had (its largest was 97), so treat it as a guess.
 > Compared by change, growth removed, over 23 months.
 > This shows what has gone together, not what caused what.
 
@@ -159,7 +159,7 @@ Give each reader this file, one item at a time, with the questions in [the proto
 ### S6. Where is Newsletter signups heading? (3 years of months, a yearly pattern)
 
 > Newsletter signups is expected to be 205 in March 2026 (likely between 187 and 223).
-> Worked out with the trend and the yearly pattern (Holt-Winters), over 36 months.
+> Worked out with the trend and the yearly pattern, over 36 months.
 > This assumes the pattern of the past carries on.
 > Over the last 12 months, the range for the next month would have held 10 of 12 times.
 > This carries the past forward; it is not a promise.

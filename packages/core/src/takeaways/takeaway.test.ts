@@ -96,7 +96,7 @@ describe("the strength words", () => {
 const EUR = (value: number) => ({ value, unit: { unit: "€", unit_position: "after" as const, decimals: 0 } });
 
 describe("the wording", () => {
-  const SAMPLE: Slots = { a: "Visits", b: "Revenue", n: 18, span: "month", strength: "strong", names: "Visits and Price", target: "Revenue", name: "Visits", other: "Cost", have: 9, need: 16, missing: 3, total: 24, run: 3, count: 2, without: 0.5, held: "Price and Cost", lag: 2, longest: 6, low: { value: 410, unit: UNIT }, high: { value: 520, unit: UNIT }, top: 3, rows: 8, share: "71.0 %", change: { value: 42, unit: UNIT }, parts: "A −3 €, B +1 €", from: "2025-03-01", latest: "weak", drivers: 8, allowed: 4, basis: "compared by value", period: "month", skew: 2.5, value: EUR(1200), lo: EUR(1100), hi: EUR(1300), min: EUR(1250), max: EUR(1350), chance: "about 7 in 10", k: 7, tested: 12, inside: 10, pattern: "yearly", ahead: 15, most: 12, method: "a plain trend (Holt)" };
+  const SAMPLE: Slots = { a: "Visits", b: "Revenue", n: 18, span: "month", strength: "strong", names: "Visits and Price", target: "Revenue", name: "Visits", other: "Cost", have: 9, need: 16, missing: 3, total: 24, run: 3, count: 2, without: 0.5, held: "Price and Cost", lag: 2, longest: 6, low: { value: 410, unit: UNIT }, high: { value: 520, unit: UNIT }, top: 3, rows: 8, share: "71.0 %", change: { value: 42, unit: UNIT }, parts: "A −3 €, B +1 €", from: "2025-03-01", latest: "weak", drivers: 8, allowed: 4, basis: "compared by value", period: "month", skew: 2.5, value: EUR(1200), lo: EUR(1100), hi: EUR(1300), min: EUR(1250), max: EUR(1350), chance: "about 7 in 10", k: 7, tested: 12, inside: 10, pattern: "yearly", ahead: 15, most: 12, method: "a plain trend" };
   const FIT: Slots = { ...SAMPLE, driver: "Visits", step: "1,000", direction: "gone up", effect: "2,400 €", lo: "1,800 €", hi: "3,000 €", held: ", with Price held the same", others: "Price and Cost", share: "about half", given: "Visits at 60,000", value: "54,000", goal: "120,000 €", compared: "12 % above today", outside: "This is higher than Visits has ever been (highest 51,000)", limit: "51,000", pct: "12 %", what: "The fit", strength: "strong", name: "Visits", names: "Visits, Price" };
   /** Each case with its slots and the sentence it must come to: a table of cases, per language that exists. */
   const TABLE: Record<Exclude<CaseKey, keyof typeof HEADS_UP_EN>, [Slots, string]> = {
@@ -334,10 +334,10 @@ describe("the wording", () => {
     "fc-reach-max": [SAMPLE, "At this pace Visits stays at 1,350 € or less in March 2025: about 7 in 10."],
     "fc-reach-between": [SAMPLE, "At this pace Visits lands between 1,250 € and 1,350 € in March 2025: about 7 in 10."],
     "chance-about": [SAMPLE, "about 7 in 10"], "chance-under": [{}, "under 1 in 20"], "chance-over": [{}, "at least 19 in 20"],
-    "fc-method-holt": [{}, "a plain trend (Holt)"],
-    "fc-method-holt-winters": [{}, "the trend and the yearly pattern (Holt-Winters)"],
-    "fc-method-holt-winters-weekly": [{}, "the trend and the weekly pattern (Holt-Winters)"],
-    "fc-basis": [SAMPLE, "worked out with a plain trend (Holt), over 18 months"],
+    "fc-method-holt": [{}, "a plain trend"],
+    "fc-method-holt-winters": [{}, "the trend and the yearly pattern"],
+    "fc-method-holt-winters-weekly": [{}, "the trend and the weekly pattern"],
+    "fc-basis": [SAMPLE, "worked out with a plain trend, over 18 months"],
     "fc-track": [SAMPLE, "Over the last 12 months, the range for the next month would have held 10 of 12 times."],
     "fc-track-none": [SAMPLE, "Too few months yet to check how this forecast did on the past."],
     "fc-assumes": [{}, "This assumes the pattern of the past carries on."],

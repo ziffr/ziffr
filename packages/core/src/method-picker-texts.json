@@ -59,6 +59,18 @@
       "You have fewer than 4 values, or the level jumped (the checks caution). A forecast can be wrong in ways its range does not show: the track record says how often the range held on the past."
     ]
   },
+  "Track record": {
+    "use": "You want to know how far to trust a forecast.",
+    "dont": [
+      "You take it for a promise: a test cannot prove that a forecast comes true, and the past is not the future."
+    ]
+  },
+  "Reach chance": {
+    "use": "You want a sense of whether a Target is within reach at the present pace.",
+    "dont": [
+      "You read it as the chance the Metric really gets there: it is as good as the track record says. A past that fitted with no miss at all gives exactly 1 or 0, and the Takeaway says the chance may be too sure. A Metric with no Target Range has nothing to reach."
+    ]
+  },
   "Multiple fit (What moves B?)": {
     "use": "Several Metrics may move B together and you want to know which matter most and by how much, with the others taken into account.",
     "dont": [
