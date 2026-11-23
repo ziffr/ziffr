@@ -13,13 +13,14 @@ vi.mock("server-only", () => ({}));
 vi.mock("@/lib/viewer", () => ({}));
 vi.mock("next/navigation", () => ({ useRouter: () => ({ refresh: vi.fn(), push: vi.fn() }), usePathname: () => "/analyze", useSearchParams: () => new URLSearchParams() }));
 import { Pool } from "./pool";
+import { SlideOverProvider } from "./slide-over-host";
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 const data = sampleCanvasData("sara", "1,234.5");
 const m = { ...data.metrics[0], description: "Money in from orders, before refunds." };
 const shown = { ...data, metrics: [m, ...data.metrics.slice(1)] };
 let host: HTMLElement; let root: Root;
-const draw = (d: typeof shown) => root.render(<Pool data={d} saved={[]} metricsOnly onAdd={() => {}} hint="Drag metrics onto the canvas, or click +." />);
+const draw = (d: typeof shown) => root.render(<SlideOverProvider><Pool data={d} saved={[]} metricsOnly onAdd={() => {}} hint="Drag metrics onto the canvas, or click +." /></SlideOverProvider>);
 async function mount(d = shown) {
   host = document.createElement("div"); document.body.appendChild(host); root = createRoot(host);
   await act(async () => { draw(d); });

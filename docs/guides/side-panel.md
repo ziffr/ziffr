@@ -28,6 +28,16 @@ const panel = useSlideOver();
 
 This is the state when the rule was written. Later tickets of spec 0050 move the screens marked **move**; they are working surfaces that are still modals.
 
+**Side panel, on the host** (`useSlideOver`; `SlideOverWindow` in `slide-over-window.tsx` for a screen that keeps its own "is it open" state):
+
+| Screen | File |
+| --- | --- |
+| The Slot window ("Use this…"; the Preview is sized from the panel's width) | `slot-dialog.tsx` |
+| Browse templates (the Pool's Browse…; Use closes it and the Slot window takes its place) | `template-browser.tsx`, `pool.tsx` |
+| Versions of a team template | `template-menu.tsx` |
+| Save as template (widget, slide layout, Deck Template, dashboard) | `save-template-dialog.tsx`, `save-dashboard-template-dialog.tsx` |
+| Add to deck | `add-to-deck-dialog.tsx` |
+
 **Side panel, built on the older `Sheet` and not yet on the host:**
 
 | Screen | File |
@@ -45,15 +55,11 @@ This is the state when the rule was written. Later tickets of spec 0050 move the
 | --- | --- |
 | Who can see this | `who-can-see.tsx` |
 | View Links | `view-links.tsx` |
-| The Slot window ("Use this…") | `slot-dialog.tsx` |
-| Browse templates | `template-browser.tsx` |
-| Save as template (widget, dashboard) | `save-template-dialog.tsx`, `save-dashboard-template-dialog.tsx` |
-| Add to deck | `add-to-deck-dialog.tsx` |
 | Edit details of a Metric | `apps/web/src/app/metrics/[slug]/edit-details.tsx` |
 | Retention | `retention-form.tsx` |
 | New dashboard, new deck | `new-dashboard-dialog.tsx`, `new-deck-dialog.tsx` |
 | Fill in past periods | `apps/web/src/app/metrics/[slug]/fill-past.tsx` |
-| Snapshot menu, template menu dialogs | `snapshot-menu.tsx`, `template-menu.tsx` |
+| Snapshot menu dialogs | `snapshot-menu.tsx` |
 | Packs: marketplace, manage, export | `apps/web/src/app/settings/packs/` |
 | Gallery, Workflow templates, Themes, deck editor, design view dialogs | `app/gallery/screen.tsx`, `app/workflows/templates.tsx`, `app/themes/screen.tsx`, `app/decks/[id]/editor.tsx`, `views/design-view.tsx` |
 | Assistant prompt | `apps/web/src/app/metrics/[slug]/assistant-prompt.tsx` |
