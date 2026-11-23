@@ -160,14 +160,27 @@
     },
     {
       "parameters": {
-        "jsCode": "// HubSpot -> Ziffr (spec 0043): two counts for the month that has just ended, taken from HubSpot's own totals: deals won and\n// new contacts. Only the two numbers leave: no deal, no contact, no name, no amount. A figure whose Metric slug is left empty\n// is not sent.\nconst SLUG = /^[a-z0-9][a-z0-9-]{0,99}$/;\nconst s = $('Settings').first().json;\nconst want = (name) => {\n  const v = String(s[name] ?? '').trim();\n  if (v === '') return '';\n  if (!SLUG.test(v)) throw new Error('Settings: ' + name + ' is not a Metric slug (lower case letters, digits and hyphens), or leave it empty to skip that figure.');\n  return v;\n};\nconst slugs = { won: want('dealsWonMetric'), contacts: want('newContactsMetric') };\nif (!slugs.won && !slugs.contacts) throw new Error('Settings: name at least one Metric to fill.');\nconst totalOf = (node) => {\n  const t = $(node).first().json.total;\n  if (typeof t !== 'number' || !Number.isFinite(t) || t < 0) throw new Error('HubSpot did not say how many (' + node + '): no figure was sent.');\n  return t;\n};\n// The month that has just ended, by its first day.\nconst now = new Date();\nconst period = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - 1, 1)).toISOString().slice(0, 10);\nconst items = [];\nif (slugs.won) items.push({ metric: slugs.won, period, value: totalOf('Count deals won') });\nif (slugs.contacts) items.push({ metric: slugs.contacts, period, value: totalOf('Count new contacts') });\n// Ziffr says which periods already hold a value (the node \"What is filled\", GET /api/v1/feed, as @ziffr/feed-kit does): a past\n// period that has one is not sent again, so a rerun, a manual run or a later run never overwrites, adds to or doubles what is\n// there, whatever the Metric's Submission Rule. The current period is always sent: its value may still change.\nconst overview = $('What is filled').first().json;\nconst listed = overview && overview.metrics && Array.isArray(overview.metrics.items) ? overview.metrics.items : [];\nif (overview && overview.metrics && overview.metrics.next) throw new Error('This Feed submits to more than 200 Metrics; this template reads that many at most. No figure was sent.');\nconst metricOf = new Map(listed.map((m) => [m.slug, m]));\nconst send = items.filter((i) => {\n  const m = metricOf.get(i.metric);\n  return !(m && i.period && i.period !== m.current && Array.isArray(m.filled) && m.filled.includes(i.period));\n});\nconst settled = items.length - send.length;\nif (send.length === 0) return [];\n// One run sends once, also when n8n retries it: the same figures give the same key, other figures another.\nlet h = 5381;\nconst body = JSON.stringify(send);\nfor (let i = 0; i < body.length; i++) h = ((h * 33) ^ body.charCodeAt(i)) >>> 0;\nconst key = 'hubspot-' + h.toString(36) + '-' + send.length;\nreturn [{ json: { items: send, settled, skipped: [], key } }];\n"
+        "jsCode": "// HubSpot -> Ziffr (spec 0043): two counts for the month that has just ended, taken from HubSpot's own totals: deals won and\n// new contacts. Only the two numbers leave: no deal, no contact, no name, no amount. A figure whose Metric slug is left empty\n// is not sent.\n// The Metric slugs the person typed into the Settings node: empty skips that figure, anything else must be a slug, so a\n// placeholder left in place stops the run with the setting's name.\nconst SLUG = /^[a-z0-9][a-z0-9-]{0,99}$/;\nconst s = $('Settings').first().json;\nconst want = (name) => {\n  const v = String(s[name] ?? '').trim();\n  if (v === '') return '';\n  if (!SLUG.test(v)) throw new Error('Settings: ' + name + ' is not a Metric slug (lower case letters, digits and hyphens), or leave it empty to skip that figure.');\n  return v;\n};\n// The month that has just ended, in UTC: its first day (as a period), and its first and last instants.\nconst now = new Date();\nconst from = Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - 1, 1);\nconst to = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1);\nconst period = new Date(from).toISOString().slice(0, 10);\nconst slugs = { won: want('dealsWonMetric'), contacts: want('newContactsMetric') };\nif (!slugs.won && !slugs.contacts) throw new Error('Settings: name at least one Metric to fill.');\nconst totalOf = (node) => {\n  const t = $(node).first().json.total;\n  if (typeof t !== 'number' || !Number.isFinite(t) || t < 0) throw new Error('HubSpot did not say how many (' + node + '): no figure was sent.');\n  return t;\n};\nconst rows = [];\nif (slugs.won) rows.push({ metric: slugs.won, period, value: totalOf('Count deals won') });\nif (slugs.contacts) rows.push({ metric: slugs.contacts, period, value: totalOf('Count new contacts') });\nreturn [{ json: { rows, skipped: [] } }];\n"
+      },
+      "id": "e2f31439-c672-5617-8614-8ded174e3f3a",
+      "name": "Figures",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1100,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Shape values (spec 0043): the one node every Feed template shares. The source node before it hands over plain rows\n// { metric, value, period?, row? } and nothing else; this node is what makes them safe to send, whatever the source is:\n//  - each row is checked as Ziffr would check it (a Metric slug, a plain number, a period written as a day), a row that fails is\n//    skipped and said so, the same Metric and period twice is skipped, and at most 500 are sent;\n//  - Ziffr is asked which periods already hold a value (the node \"What is filled\", GET /api/v1/feed, as @ziffr/feed-kit does) and a\n//    past period that has one is not sent again, so a rerun, a manual run or a later run never overwrites, adds to or doubles what\n//    is there, whatever the Metric's Submission Rule; the current period is always sent, since its value may still change;\n//  - the key is made from the figures alone, so a retried run records nothing twice.\n// Only { metric, period, value } leaves: no other field of a row is read.\nconst SLUG = /^[a-z0-9][a-z0-9-]{0,99}$/;\nconst DAY = /^\\d{4}-\\d{2}-\\d{2}$/;\nconst NUMBER = /^-?\\d+(\\.\\d+)?$/;\nconst MAX_ITEMS = 500;\nconst given = $input.first().json;\nconst rows = Array.isArray(given.rows) ? given.rows : [];\nconst skipped = Array.isArray(given.skipped) ? [...given.skipped] : [];\nconst items = [];\nconst seen = new Set();\nrows.forEach((r, n) => {\n  const row = r.row ?? n + 1;\n  const metric = String(r.metric ?? '').trim();\n  const raw = typeof r.value === 'number' ? String(r.value) : String(r.value ?? '').trim();\n  const period = String(r.period ?? '').trim();\n  if (metric === '' && raw === '' && period === '') return;\n  if (!SLUG.test(metric)) { skipped.push({ row, why: 'the metric is not a Metric slug' }); return; }\n  if (!NUMBER.test(raw)) { skipped.push({ row, metric, why: 'the value is not a plain number' }); return; }\n  if (period !== '' && !DAY.test(period)) { skipped.push({ row, metric, why: 'the period is not a day written YYYY-MM-DD' }); return; }\n  const at = metric + '/' + period;\n  if (seen.has(at)) { skipped.push({ row, metric, why: 'the same Metric and period appear twice' }); return; }\n  seen.add(at);\n  if (items.length >= MAX_ITEMS) { skipped.push({ row, metric, why: 'more than ' + MAX_ITEMS + ' rows' }); return; }\n  items.push(period === '' ? { metric, value: Number(raw) } : { metric, period, value: Number(raw) });\n});\nif (items.length === 0) throw new Error(String(given.none || 'No figure to send: nothing holds a Metric slug and a number.'));\n\nconst overview = $('What is filled').first().json;\nconst listed = overview && overview.metrics && Array.isArray(overview.metrics.items) ? overview.metrics.items : [];\nif (overview && overview.metrics && overview.metrics.next) throw new Error('This Feed submits to more than 200 Metrics; this template reads that many at most. No figure was sent.');\nconst metricOf = new Map(listed.map((m) => [m.slug, m]));\nconst send = items.filter((i) => {\n  const m = metricOf.get(i.metric);\n  return !(m && i.period && i.period !== m.current && Array.isArray(m.filled) && m.filled.includes(i.period));\n});\nconst settled = items.length - send.length;\nif (send.length === 0) return [];\n\nlet h = 5381;\nconst body = JSON.stringify(send);\nfor (let i = 0; i < body.length; i++) h = ((h * 33) ^ body.charCodeAt(i)) >>> 0;\nconst key = 'hubspot-' + h.toString(36) + '-' + send.length;\nreturn [{ json: { items: send, skipped, settled, key } }];\n"
       },
       "id": "f507f91c-4f6f-54f4-821f-1bcfe1dedbb7",
       "name": "Shape values",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        1100,
+        1320,
         300
       ]
     },
@@ -197,7 +210,7 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        1320,
+        1540,
         300
       ],
       "credentials": {
@@ -215,7 +228,7 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        1540,
+        1760,
         300
       ]
     }
@@ -266,6 +279,17 @@
       ]
     },
     "Count new contacts": {
+      "main": [
+        [
+          {
+            "node": "Figures",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Figures": {
       "main": [
         [
           {
