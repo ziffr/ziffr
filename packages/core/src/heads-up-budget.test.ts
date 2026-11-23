@@ -136,13 +136,15 @@ describe("the scans a person may start", () => {
     for (let i = 0; i < SCANS_PER_HOUR; i++) b.scanned("quiet:p", 1);
     expect(b.mayScan("quiet:p", 2)).toBe(false);
     // A busy Workspace cycles through more people than it may hold: only its own oldest go.
-    for (let i = 0; i < COUNT_PER_WORKSPACE + 10; i++) b.scanned(`busy:${i}`, 1);
+    for (let i = 0; i < SCANS_PER_HOUR; i++) { b.scanned("busy:0", 1); b.scanned("busy:1", 1); }
+    for (let i = 2; i < COUNT_PER_WORKSPACE; i++) b.scanned(`busy:${i}`, 1);
+    // (busy:0 asks again and goes to the back of the line, busy:1 does not; then ten more people come.)
+    b.scanned("busy:0", 1);
+    for (let i = COUNT_PER_WORKSPACE; i < COUNT_PER_WORKSPACE + 10; i++) b.scanned(`busy:${i}`, 1);
     expect(b.mayScan("quiet:p", 2)).toBe(false);
-    for (let i = 0; i < SCANS_PER_HOUR; i++) b.scanned("busy:0", 1);
-    expect(b.mayScan("busy:0", 2)).toBe(false);
     b.scanned(`busy:${COUNT_PER_WORKSPACE + 10}`, 1);
     b.scanned(`busy:${COUNT_PER_WORKSPACE + 11}`, 1);
-    // busy:0 was moved to the back by its asking, so busy:1..12 went first, not it.
+    // busy:0 was moved to the back by its asking, so busy:1 and the next went first, not it.
     expect(b.mayScan("busy:0", 2)).toBe(false);
     expect(b.mayScan("busy:1", 2)).toBe(true);
     // Over the total, the Workspace with most gives up its oldest; a small one keeps its counts.
@@ -205,6 +207,37 @@ describe("the limiter", () => {
     // A refused call is not left counted: a failing run frees its place too.
     await expect(run(async () => { throw new Error("x"); }, "p")).rejects.toThrow("x");
     expect(await run(async () => 1, "p")).toBe(1);
+  });
+
+  it("keeps the count of a person who still has a run when another ends, and refuses in an Error", async () => {
+    const run = limiter(5, 50, 2);
+    const open: (() => void)[] = [];
+    const slow = () => new Promise<void>((go) => open.push(go));
+    const first = run(slow, "p");
+    const second = run(slow, "p");
+    await new Promise((r) => setTimeout(r, 5));
+    open.shift()!();
+    await first;
+    // One of theirs still runs, so one more fits and the next does not.
+    const third = run(slow, "p");
+    await new Promise((r) => setTimeout(r, 5));
+    const refused = await run(async () => 1, "p").catch((e: unknown) => e);
+    expect(refused).toBeInstanceOf(Error);
+    expect((refused as Error).message).toBe("Heads-ups could not be read. Try again in a moment.");
+    while (open.length) { open.shift()!(); await new Promise((r) => setTimeout(r, 1)); }
+    await Promise.all([second, third]);
+  });
+
+  it("refuses at once when nobody may wait and the places are taken, but not before", async () => {
+    const run = limiter(1, 0, 5);
+    const open: (() => void)[] = [];
+    const slow = () => new Promise<void>((go) => open.push(go));
+    const first = run(slow, "a");
+    await new Promise((r) => setTimeout(r, 5));
+    await expect(run(async () => 1, "b")).rejects.toThrow("Try again in a moment.");
+    open.shift()!();
+    await first;
+    expect(await run(async () => 2, "b")).toBe(2);
   });
 
   it("gives its place back when a run fails", async () => {
