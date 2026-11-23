@@ -9,7 +9,7 @@
 //   own range, never how big it is next to another Metric's.
 // A value that is missing is a gap, never a 0. Spokes keep the order they were given in.
 import type { Span } from "./periods";
-import { periodLabel, shiftPeriod } from "./periods";
+import { periodLabel, periodsBetween, shiftPeriod } from "./periods";
 import { dayAfter, heldText, isPartial, shownSeries } from "./display-periods";
 import type { CanvasData, Metric, WidgetSettings } from "./types";
 import { SPOKES } from "./view-design";
@@ -46,14 +46,14 @@ export function pointNote(p: { held: number; length: number; toDate: boolean }, 
 /** A polar plot of a series over the periods `from` to `to` (a window, ends included): each period around the circle, oldest first, one with no value left as a gap, at the ends too. */
 export function polarModel(input: { name: string; points: MarkPoint[]; by: Span; from: string; to: string; label: (period: string) => string; write: (value: number) => string }): PolarModel {
   const { by } = input;
-  const pts = input.points.filter((p) => finite(p) && p.period >= input.from && p.period <= input.to).sort(byPeriod);
+  const pts = input.points.filter((p) => finite(p) && p.period >= input.from && p.period <= input.to);
   if (pts.length === 0) return { ok: false, reason: "There are no values to draw." };
   if (pts.some((p) => p.condensed)) return { ok: false, reason: CONDENSED };
-  // Every period of the window: a missing one keeps its place and shows as a gap.
-  const periods: string[] = [];
-  for (let p = input.from; p <= input.to && periods.length <= SPOKES.max; p = shiftPeriod(input.from, by, periods.length)) periods.push(p);
-  if (periods.length > SPOKES.max) return { ok: false, reason: `A polar plot shows ${SPOKES.min} to ${SPOKES.max} periods and these cover more. Show fewer periods.` };
-  if (periods.length < SPOKES.min) return { ok: false, reason: `A polar plot needs at least ${SPOKES.min} periods and these cover ${periods.length}: a line shows so few better.` };
+  // Every period of the window: a missing one keeps its place and shows as a gap. They are counted before they are listed, so a window of any length costs no more than the refusal.
+  const length = periodsBetween(input.from, input.to, by) + 1;
+  if (length > SPOKES.max) return { ok: false, reason: `A polar plot shows ${SPOKES.min} to ${SPOKES.max} periods and these cover more. Show fewer periods.` };
+  if (length < SPOKES.min) return { ok: false, reason: `A polar plot needs at least ${SPOKES.min} periods and these cover ${Math.max(length, 0)}: a line shows so few better.` };
+  const periods = Array.from({ length }, (_, i) => shiftPeriod(input.from, by, i));
   // A value that does not fall on the grid of periods would be left out of the circle without a word.
   if (pts.some((p) => !periods.includes(p.period))) return { ok: false, reason: "These values do not fall on whole periods, so they cannot be placed around the circle." };
   if (pts.some((p) => p.value < 0)) return { ok: false, reason: "A polar plot measures from the centre outward, which is 0, so it cannot show a value below 0. A line chart shows these values." };
@@ -91,7 +91,7 @@ export function radarModel(inputs: RadarInput[], opts: { window: number; against
   if (inputs.length > SPOKES.max) return { ok: false, reason: `A radar shows ${SPOKES.min} to ${SPOKES.max} Metrics and this has ${inputs.length}: more cannot be read. Pick fewer.` };
   const window = Math.max(1, Math.floor(opts.window));
   const lasts = inputs.flatMap((i) => i.points.filter(finite).map((p) => p.period));
-  const end = lasts.length ? lasts.reduce((a, b) => (b > a ? b : a)) : "";
+  const end = [...lasts].sort().pop() ?? "";
   const now: Mark[] = [];
   const before: Mark[] = [];
   const kept: string[] = [];
