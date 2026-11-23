@@ -19,7 +19,7 @@ import { formatDate, formatNumber, type ValueUnit } from "../format";
 import { periodEnd, periodsBetween, type Span } from "../periods";
 import { checkSuitability, type Finding } from "../suitability";
 import { decimalsApart, plainValue, SHARE_UNIT, signedText, sizeText } from "../takeaways/sizes";
-import { answerTakeaway, refusalTakeaway, sayIn, type Figure, type NumberRow, type Takeaway, type TakeawayContext } from "../takeaways/takeaway";
+import { answerTakeaway, refusalTakeaway, sayIn, type Figure, type NumberRow, withinBudget, type Takeaway, type TakeawayContext } from "../takeaways/takeaway";
 import type { CaseKey, Slots } from "../takeaways/wording";
 import type { Point } from "../types";
 import { carriesOver } from "./carry-over";
@@ -225,6 +225,11 @@ function lookAt(name: string, points: Point[], span: Span, date: string, unit: V
  * its basis, and the one line of what it assumes. No strength word: it is a range, not a verdict. A Metric set `beside` must be kept in
  * the same period as the first, since both are cut at the same date, period by period. */
 export function afterDateTakeaway(name: string, points: Point[], span: Span, date: string, unit: ValueUnit, ctx: TakeawayContext, beside?: { name: string; points: Point[]; unit: ValueUnit }): Takeaway {
+  return withinBudget("numbers-method-before-after", ctx, () => afterDateTakeawayWithin(name, points, span, date, unit, ctx, beside));
+}
+
+// The Takeaway itself, worked out under the work allowance of work-bound.ts (its series are cut to the latest 120 periods, so no ordinary values come near it).
+function afterDateTakeawayWithin(name: string, points: Point[], span: Span, date: string, unit: ValueUnit, ctx: TakeawayContext, beside?: { name: string; points: Point[]; unit: ValueUnit }): Takeaway {
   const method = sayIn("numbers-method-before-after", {}, ctx);
   const main = lookAt(name, points, span, date, unit, ctx, true);
   if (refused(main)) return refusalTakeaway(method, main.refusals);
