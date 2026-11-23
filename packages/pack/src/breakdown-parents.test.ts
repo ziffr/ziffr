@@ -60,4 +60,19 @@ describe("readParents", () => {
     const r = readParents([{ label: "C", parent: "A" }, { label: "A" }, { label: "B", parent: "A" }, { label: "D" }]);
     expect(r.ok && r.order).toEqual([1, 3, 0, 2]);
   });
+  it("matches names in lower case, not upper (the German sharp s is not SS), and shortens a name in a sentence from 41 characters", () => {
+    expect(nameKey("ß")).toBe("ß");
+    expect(nameKey("SS")).toBe("ss");
+    expect(readParents([{ label: "ß" }, { label: "ss", parent: "ß" }]).ok).toBe(true);
+    const own = (n: number) => problem([{ label: "x".repeat(n), parent: "x".repeat(n) }, { label: "B" }]);
+    expect(own(40)).toBe(`“${"x".repeat(40)}” is its own parent.`);
+    expect(own(41)).toBe(`“${"x".repeat(39)}…” is its own parent.`);
+  });
+  it("says a control character in a name as a space, and leaves a parent of only spaces as no parent", () => {
+    expect(problem([{ label: "A\nB" }, { label: "C", parent: "A\nB" }])).toBe("The name “A B” has a character that is not text (a line break or another control character).");
+    expect(readParents([{ label: "A", parent: "   " }, { label: "B", parent: "A" }])).toEqual({ ok: true, parents: [null, 0], order: [0, 1], levels: [1, 2] });
+  });
+  it("calls only a whole word a total", () => {
+    for (const t of ["Subtotal", "Totally", "total amount", "Gesamtsumme"]) expect(problem([{ label: "A", parent: t }, { label: "B" }]), t).toContain("no row of the breakdown has that name");
+  });
 });

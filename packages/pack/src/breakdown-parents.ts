@@ -30,7 +30,6 @@ const CONTROL = /[\u0000-\u001f\u007f-\u009f\u00ad\u061c\u180e\u200b-\u200f\u202
 const TOTAL = /^(total|gesamt|summe|sum)$/i;
 // A name, shortened for a sentence.
 const quoted = (s: string) => `“${[...s].length > 40 ? `${[...s].slice(0, 39).join("")}…` : s}”`;
-const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? "" : "s"}`;
 
 /** Whether any row names a parent: a Breakdown without parents stays flat and is checked by none of this. */
 export const hasParents = (rows: readonly PartRow[]): boolean => rows.some((r) => typeof r.parent === "string" && r.parent.trim() !== "");
@@ -83,8 +82,8 @@ export function readParents(rows: readonly PartRow[]): ParentsRead {
     levels.push(level);
   }
   const deepest = levels.indexOf(Math.max(...levels));
-  if (levels[deepest] > BREAKDOWN_PARENTS.depth) return no(`${quoted(rows[deepest].label)} is ${plural(levels[deepest], "level")} down; a breakdown has at most ${BREAKDOWN_PARENTS.depth} levels.`);
-  // Parents first, and rows of one level in the order given.
-  const order = rows.map((_, i) => i).sort((a, b) => levels[a] - levels[b] || a - b);
+  if (levels[deepest] > BREAKDOWN_PARENTS.depth) return no(`${quoted(rows[deepest].label)} is ${levels[deepest]} levels down; a breakdown has at most ${BREAKDOWN_PARENTS.depth} levels.`);
+  // Parents first; the sort is stable, so rows of one level keep the order given.
+  const order = rows.map((_, i) => i).sort((a, b) => levels[a] - levels[b]);
   return { ok: true, parents, order, levels };
 }
