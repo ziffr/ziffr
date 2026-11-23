@@ -43,7 +43,7 @@ export default async function AnalyzePage({ searchParams }: { searchParams: Prom
       <Suspense fallback={<p className="mb-6 text-sm text-muted-foreground">Looking for Heads-ups…</p>}>
         <HeadsUpsSection actor={actor} demo={demo} />
       </Suspense>
-      <AnalyzeScreen data={data} demo={demo} onCanvas={onCanvas} explained={demo ? named : state.explains} open={named !== null} targets={dashboards.filter((d) => d.role !== "viewer").map((d) => ({ id: d.id, name: d.name }))} />
+      <AnalyzeScreen data={data} demo={demo} onCanvas={onCanvas} explained={demo ? named : state.explains !== null && onCanvas.includes(state.explains) ? state.explains : null} open={named !== null} targets={dashboards.filter((d) => d.role !== "viewer").map((d) => ({ id: d.id, name: d.name }))} />
     </>
   );
 }
