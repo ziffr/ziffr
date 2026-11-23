@@ -11,6 +11,12 @@ import { fitList, groupsFor, metricsNeeded, type CanvasFact } from "./method-pic
 import { RUNNERS, readDay, readNumber, readSettings, readSlotIds, recipeFileOf, runEntry, MOST_NUMBER, type PickWorld, type Picked } from "./method-picker-run";
 import { afterDateTakeaway } from "./methods/before-after";
 import { changePointTakeaway } from "./methods/change-point";
+import { changes } from "./basis";
+import { bridgeTakeaway } from "./methods/bridge";
+import { laggedTakeaway } from "./methods/lagged-correlation";
+import { partialTakeaway } from "./methods/partial-correlation";
+import { usualRangeTakeaway } from "./methods/quantiles";
+import { spearmanTakeaway } from "./methods/spearman";
 import { RECIPE_POINTS } from "./recipe-methods";
 import { runRecipe2 } from "./recipe-run";
 import { APPLIES } from "./suitability";
@@ -410,7 +416,7 @@ describe("no entry can give a number the Takeaway layer would not", () => {
     const w3 = world({}, [A, weekly]);
     const t = runEntry(entryOf("rank")!, w3, picked({ first: [A], second: [weekly] }));
     expect(t.kind).toBe("refusal");
-    expect(t.refusal).toBeTruthy();
+    expect(t.refusal).toBe("Combined only for Metrics whose Aggregation is sum, average or last value; this one is set to none.");
   });
 });
 
@@ -495,5 +501,144 @@ describe("what a browser sends is read with its limits", () => {
     expect(readSlotIds(corr, { first: 1, second: [2] }).ok).toBe(false);
     for (const v of [[], "x", 7, true]) expect(readSlotIds(corr, v).ok).toBe(false);
     expect(readSlotIds(corr, { first: [Number.MAX_SAFE_INTEGER], second: [2] }).ok).toBe(true);
+  });
+});
+
+// ---- Held to the Takeaway functions in the places where a wrong turn would still give a plausible number ------------------------------
+
+describe("the picker hands the Takeaway layer exactly what the Recipes hand it", () => {
+  const entry = (id: EntryId) => entryOf(id)!;
+  const trending = (k: number) => at(Array.from({ length: 36 }, (_, i) => 100 + i * 5 + ((i * 37 + k * 11) % 7)));
+
+  it("compares two Metrics on their changes where both grow, and on their values where they do not", () => {
+    const [x, y] = [trending(1), trending(2)];
+    const w = world({ series: { revenue: x, visits: y } });
+    const rank = runEntry(entry("rank"), w, picked({ first: [A], second: [B] }));
+    expect(rank.basis).toBe(spearmanTakeaway("Revenue", "Visits", changes(x, "month"), changes(y, "month"), "month", "changes", ctx).basis);
+    same(rank, spearmanTakeaway("Revenue", "Visits", changes(x, "month"), changes(y, "month"), "month", "changes", ctx));
+    same(runEntry(entry("lag"), w, picked({ first: [A], second: [B] })), laggedTakeaway("Revenue", "Visits", changes(x, "month"), changes(y, "month"), "month", "changes", ctx));
+    const flat = world();
+    same(runEntry(entry("rank"), flat, picked({ first: [A], second: [B] })), spearmanTakeaway("Revenue", "Visits", SERIES.revenue, SERIES.visits, "month", "values", ctx));
+    same(runEntry(entry("partial"), flat, picked({ first: [A], second: [B], held: [C, D] })), partialTakeaway({ a: "Revenue", b: "Visits", held: ["Price", "Support tickets"] }, SERIES.revenue, SERIES.visits, [SERIES.price, SERIES.tickets], "month", ctx));
+  });
+
+  it("names its Method in the words of the layer when Metrics cannot be put on one period", () => {
+    const weekly = { ...B, period: "week" as const, aggregation: "none" as const };
+    const w = world({}, [A, weekly, C]);
+    const cases: [EntryId, Record<string, Metric[]>, string][] = [["rank", { first: [A], second: [weekly] }, "Spearman's rank correlation"], ["lag", { first: [A], second: [weekly] }, "Lagged correlation"], ["partial", { first: [A], second: [weekly], held: [C] }, "Partial correlation"]];
+    for (const [id, slots, name] of cases) {
+      const t = runEntry(entry(id), w, picked(slots));
+      expect(t.method, id).toBe(name);
+      expect(t.kind).toBe("refusal");
+    }
+  });
+
+  it("cuts a Metric's incomplete last period away when it puts Metrics on a longer period", () => {
+    const quarterly = { ...B, period: "quarter" as const };
+    const qs: Point[] = Array.from({ length: 12 }, (_, i) => ({ period: `${2020 + Math.floor(i / 4)}-${String((i % 4) * 3 + 1).padStart(2, "0")}-01`, value: 300 + ((i * 37) % 23) * 3 }));
+    const full = world({ series: { revenue: SERIES.revenue, visits: qs } }, [A, quarterly]);
+    const extra = world({ series: { revenue: [...SERIES.revenue, ...at(Array(40).fill(0)).slice(36, 38).map((p) => ({ period: p.period, value: 90 }))], visits: qs } }, [A, quarterly]);
+    for (const id of ["rank", "lag"] as const) {
+      const slots = { first: [A], second: [quarterly] };
+      same(runEntry(entry(id), extra, picked(slots)), runEntry(entry(id), full, picked(slots)));
+    }
+  });
+
+  it("hands the start of the Workspace's year to the putting of Metrics on a longer period", () => {
+    // Six yearly values dated 1 January: months make calendar years when the year starts in January, and none of the years when it starts in April.
+    const yearly = { ...B, period: "year" as const };
+    const ys: Point[] = Array.from({ length: 6 }, (_, i) => ({ period: `${2020 + i}-01-01`, value: 300 + ((i * 37) % 23) * 9 }));
+    const months72 = Array.from({ length: 72 }, (_, i) => ({ period: month(i), value: 100 + ((i * 37) % 23) * 3 + (i % 12) * 2 }));
+    const slots = { first: [A], second: [yearly] };
+    for (const id of ["rank", "correlation"] as const) {
+      const jan = runEntry(entry(id), world({ series: { revenue: months72, visits: ys }, yearStart: 1 }, [A, yearly]), picked(slots));
+      const apr = runEntry(entry(id), world({ series: { revenue: months72, visits: ys }, yearStart: 4 }, [A, yearly]), picked(slots));
+      expect([id, jan.kind, apr.kind]).toEqual([id, "answer", "refusal"]);
+    }
+  });
+
+  it("works a bridge on the rows of the last two periods: a row that appeared or went is a part, and no rows is a refusal in words", () => {
+    const rows = (a: [string, number][]) => a.map(([label, value]) => ({ label, value }));
+    const was = rows([["DE", 60], ["OLD", 10]]);
+    const now = rows([["DE", 70], ["NEW", 5]]);
+    const w2 = world({ breakdowns: { 1: { [month(34)]: was, [month(35)]: now } } });
+    const direct = bridgeTakeaway("Revenue", [{ label: "DE", before: 60, after: 70 }, { label: "OLD", before: 10, after: null }, { label: "NEW", before: null, after: 5 }], A, ctx, { before: SERIES.revenue[34].value, after: SERIES.revenue[35].value });
+    same(runEntry(entry("bridge"), w2, picked({ metric: [A] })), direct);
+    const none = (b: PickWorld["breakdowns"], text: RegExp) => { const t = runEntry(entry("bridge"), world({ breakdowns: b }), picked({ metric: [A] })); expect([t.kind, t.refusal]).toEqual(["refusal", expect.stringMatching(text)]); };
+    none({ 1: { [month(35)]: now } }, /Revenue needs a Breakdown for its latest period and the one before\./);
+    none({ 1: { [month(34)]: was } }, /Revenue needs a Breakdown/);
+    none({ 1: { [month(34)]: [], [month(35)]: now } }, /Revenue needs a Breakdown/);
+    none({ 1: { [month(34)]: was, [month(35)]: [] } }, /Revenue needs a Breakdown/);
+    const short = runEntry(entry("bridge"), world({ series: { revenue: at([5]) }, breakdowns: { 1: { [month(0)]: now } } }), picked({ metric: [A] }));
+    expect(short.kind).toBe("refusal");
+  });
+
+  it("reads a Target of one end, and refuses in words without one", () => {
+    const lower = { ...A, polarity: "lower" as const, target_min: null, target_max: 200 };
+    same(runEntry(entry("reach-target"), world({}, [lower]), picked({ metric: [lower] })), forecastTakeaway(lower, SERIES.revenue, ctx, { ends: endsOf(lower) }));
+    const higherMaxOnly = { ...A, polarity: "higher" as const, target_min: null, target_max: 200 };
+    expect(runEntry(entry("reach-target"), world({}, [higherMaxOnly]), picked({ metric: [higherMaxOnly] })).refusal).toBe("Revenue has no Target Range, so there is nothing to reach.");
+  });
+
+  it("asks the usual range about a value, 0 included, only when one is given; sets a Metric beside only when one is", () => {
+    const w2 = world();
+    const [none, zero, big] = ([{}, { value: 0 }, { value: 1e6 }] as Picked["settings"][]).map((s) => runEntry(entry("usual"), w2, picked({ metric: [A] }, s)));
+    same(none, usualRangeTakeaway("Revenue", SERIES.revenue, "month", A, ctx));
+    same(zero, usualRangeTakeaway("Revenue", SERIES.revenue, "month", A, ctx, { value: 0 }));
+    same(big, usualRangeTakeaway("Revenue", SERIES.revenue, "month", A, ctx, { value: 1e6 }));
+    expect(zero.sentence).not.toBe(none.sentence);
+    same(runEntry(entry("after-date"), w2, picked({ metric: [A] }, { date: "2022-03-01" })), afterDateTakeaway("Revenue", SERIES.revenue, "month", "2022-03-01", A, ctx, undefined));
+  });
+});
+
+describe("what is sent is refused in these words", () => {
+  const e = (id: EntryId) => entryOf(id)!;
+  const bad = (r: { ok: boolean }) => (r as { ok: false; message: string }).message;
+  it("numbers, whole numbers and days", () => {
+    expect(bad(readSettings(e("needs"), {}))).toBe("Which value should it reach? Give a number.");
+    expect(bad(readSettings(e("needs"), { goal: null }))).toBe("Which value should it reach? Give a number.");
+    expect(bad(readSettings(e("needs"), { goal: "1e5" }))).toBe("Which value should it reach? Give a number with digits only, no larger than 1,000,000,000,000,000.");
+    expect(bad(readSettings(e("top-share"), { rows: 11 }))).toBe("How many of the largest rows? Use a whole number from 1 to 10.");
+    expect(bad(readSettings(e("top-share"), { rows: 1.5 }))).toBe("How many of the largest rows? Use a whole number from 1 to 10.");
+    expect(readSettings(e("reach-target"), { ahead: null })).toEqual({ ok: true, settings: {} });
+    expect(readSettings(e("reach-target"), { ahead: "" })).toEqual({ ok: true, settings: {} });
+    expect(bad(readSettings(e("after-date"), {}))).toBe("Which day did it start? Give a day.");
+    expect(bad(readSettings(e("after-date"), { date: undefined }))).toBe("Which day did it start? Give a day.");
+    expect(bad(readSettings(e("after-date"), { date: "2026-02-30" }))).toBe("Which day did it start? Give a day that exists, written like 2026-03-01.");
+    expect(readSettings(e("usual"), { value: null })).toEqual({ ok: true, settings: {} });
+    expect(readSettings(e("usual"), null)).toEqual({ ok: true, settings: {} });
+    expect(readSettings(e("forecast"), null)).toEqual({ ok: true, settings: {} });
+    expect(bad(readSettings(e("usual"), []))).toBe("The settings were not sent in a form Ziffr can read.");
+    expect(bad(readSettings(e("usual"), { nope: 1 }))).toBe("A setting was sent that this Method does not take.");
+    expect(readDay(["2026-03-01"])).toBeNull();
+    expect(readDay({ toString: () => "2026-03-01" })).toBeNull();
+  });
+
+  it("exactly one of an amount and a percent", () => {
+    const m = "What if A changes? Give exactly one of: Change it by how much? or Or by how many percent?";
+    expect(bad(readSettings(e("what-if"), {}))).toBe(m);
+    expect(bad(readSettings(e("what-if"), { by: 1, percent: 1 }))).toBe(m);
+    expect(readSettings(e("what-if"), { percent: 0 })).toEqual({ ok: true, settings: { percent: 0 } });
+  });
+
+  it("Metrics for a place", () => {
+    expect(bad(readSlotIds(e("forecast"), { metric: [1, 2] }))).toBe("Which Metric do you want to look ahead for? Choose one Metric.");
+    expect(bad(readSlotIds(e("moves"), { metric: [1], drivers: Array.from({ length: 13 }, (_, i) => i + 5) }))).toBe("Which Metrics might move it? Choose up to 12 Metrics.");
+    expect(bad(readSlotIds(e("forecast"), null))).toBe("Which Metric do you want to look ahead for? Choose a Metric.");
+    expect(bad(readSlotIds(e("forecast"), {}))).toBe("Which Metric do you want to look ahead for? Choose a Metric.");
+    expect(bad(readSlotIds(e("partial"), { first: [1], second: [2], held: [] }))).toBe("Which Metrics should be held the same? Choose a Metric.");
+    expect(bad(readSlotIds(e("what-if"), { metric: [1], others: [] }))).toBe("Which Metrics might follow it? Choose a Metric.");
+    expect(bad(readSlotIds(e("forecast"), []))).toBe("The Metrics were not sent in a form Ziffr can read.");
+    expect(bad(readSlotIds(e("forecast"), { metric: [1], x: [2] }))).toBe("A Metric was named for a place this Method does not have.");
+    expect(bad(readSlotIds(e("correlation"), { first: [1], second: [1] }))).toBe("A Metric can be chosen once for each Method.");
+  });
+
+  it("the recipe file numbers the Slots after the ones before", () => {
+    const partial = recipeFileOf(e("partial"), 2)!;
+    expect(partial.slots).toHaveLength(4);
+    expect(partial.steps[0]).toMatchObject({ controls: ["slot3", "slot4"] });
+    const moves = recipeFileOf(e("moves"), 1, 3)!;
+    expect(moves.slots).toHaveLength(4);
+    expect(moves.steps[0]).toMatchObject({ drivers: ["slot2", "slot3", "slot4"] });
   });
 });
