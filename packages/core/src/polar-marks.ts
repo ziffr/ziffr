@@ -33,7 +33,7 @@ export type RadarModel =
   | { ok: true; spokes: string[]; shapes: { name: string; marks: Mark[] }[]; rule: string; alt: string }
   | { ok: false; reason: string };
 
-const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
+const count = (n: number) => `${n} ${n === 1 ? "period" : "periods"}`;
 
 /** A polar plot of a series: its periods around the circle, oldest first from the top, a period with no value left as a gap. */
 export function polarModel(input: { name: string; points: MarkPoint[]; by: Span; label: (period: string) => string; write: (value: number) => string; partialLast?: boolean }): PolarModel {
@@ -63,7 +63,7 @@ export function polarModel(input: { name: string; points: MarkPoint[]; by: Span;
   });
   const top = input.write(max);
   const rule = `Distance from the centre is the value: 0 at the centre, ${top} at the rim. The first period is at the top and the others follow clockwise.`;
-  const alt = `${input.name}, as a polar plot of ${plural(periods.length, "period", "periods")}. ${rule} ${marks.map((m) => `${m.label}: ${m.text ?? "no value"}`).join("; ")}.`;
+  const alt = `${input.name}, as a polar plot of ${periods.length} periods. ${rule} ${marks.map((m) => `${m.label}: ${m.text ?? "no value"}`).join("; ")}.`;
   return { ok: true, marks, top, rule, alt };
 }
 
@@ -105,10 +105,10 @@ export function radarModel(inputs: RadarInput[], opts: { window: number; against
     before.push(mark(prev, "no value in the period before"));
     kept.push(i.name);
   }
-  const rule = `Each spoke has its own scale, because these Metrics are not counted in the same unit: its lowest value of the last ${plural(window, "period", "periods")} is at the centre and its highest at the rim. A radar shows where each value sits in its own range, not which Metric is larger.`;
+  const rule = `Each spoke has its own scale, because these Metrics are not counted in the same unit: its lowest value of the last ${count(window)} is at the centre and its highest at the rim. A radar shows where each value sits in its own range, not which Metric is larger.`;
   const shapes = [{ name: "Latest", marks: now }, ...(opts.against ? [{ name: "Period before", marks: before }] : [])];
   const said = (m: Mark) => (m.at === null ? `${m.label}: ${m.text === null ? "" : `${m.text} (${m.period}), `}${m.gap}` : `${m.label}: ${m.text} (${m.period}), ${whereWords(m.at, opts.style)}`);
-  const alt = `A radar of ${plural(kept.length, "Metric", "Metrics")}, spokes in this order: ${kept.join(", ")}. ${rule} ${shapes.map((s) => `${s.name}: ${s.marks.map(said).join("; ")}.`).join(" ")}`;
+  const alt = `A radar of ${kept.length} Metrics, spokes in this order: ${kept.join(", ")}. ${rule} ${shapes.map((s) => `${s.name}: ${s.marks.map(said).join("; ")}.`).join(" ")}`;
   return { ok: true, spokes: kept, shapes, rule, alt };
 }
 
