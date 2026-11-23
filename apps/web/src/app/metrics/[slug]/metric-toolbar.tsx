@@ -5,22 +5,26 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { Archive, ArchiveRestore, Bell, Copy, LayoutDashboard, Send, Sigma, Trash2 } from "lucide-react";
+import { Archive, ArchiveRestore, Bell, Bot, Copy, LayoutDashboard, Send, Sigma, Trash2 } from "lucide-react";
 import { placeWidget } from "@/app/canvas-actions";
 import { told } from "@/lib/action-toast";
 import { AlertMe, type WebhookChoice } from "@/components/alerts";
 import { usePanel } from "@/lib/panel-param";
 import { ObjectToolbar, type ObjectToolbarProps, type MenuEntry } from "@/components/object-toolbar";
 import { askNow } from "./ask-now";
+import { AssistantPrompt } from "./assistant-prompt";
 import { ArchiveMetric, useBringBack } from "./archive-metric";
 import { DeleteMetric } from "./delete-metric";
 import { RecordValue } from "./record-value";
 import type { RecordingOffer } from "@ziffr/core/record-own-value";
 import type { AlertChoices, MyAlert } from "@ziffr/core/alerts";
+import type { Period } from "@ziffr/core/types";
 
 /** What the menu offers this person, decided on the server from what they may do. */
 export type MetricToolbarProps = Pick<ObjectToolbarProps, "id" | "people" | "share"> & {
-  metric: { id: number; name: string; slug: string };
+  metric: { id: number; name: string; slug: string; description: string; unit: string; period: Period };
+  /** This Installation's MCP address, or null where it serves none: named in the text for an assistant. */
+  mcp: string | null;
   /** Set when they submit the Metric: the form behind Record a value. */
   record: RecordingOffer | null;
   askable: boolean;
@@ -34,14 +38,16 @@ export type MetricToolbarProps = Pick<ObjectToolbarProps, "id" | "people" | "sha
 /** The Metric page's toolbar: Record a value, Share and a ⋯ menu with the rest. */
 export function MetricToolbar(p: MetricToolbarProps) {
   const router = useRouter();
-  const [open, setOpen] = useState<"archive" | "delete" | null>(null);
+  const [open, setOpen] = useState<"archive" | "delete" | "assistant" | null>(null);
   const [, setAlertOpen] = usePanel("alert");
   const bringBack = useBringBack(p.metric.id, p.metric.name);
   // Opened from a menu item: wait until the menu has closed and returned focus.
-  const show = (o: "archive" | "delete") => () => { setTimeout(() => setOpen(o), 0); };
+  const show = (o: "archive" | "delete" | "assistant") => () => { setTimeout(() => setOpen(o), 0); };
   const menu: MenuEntry[] = [
     ...(p.askable ? [{ label: "Ask me now", icon: <Send aria-hidden />, onSelect: () => { void askNow(p.metric.id); } }] : []),
     ...(p.alert ? [{ label: "Alert me…", icon: <Bell aria-hidden />, onSelect: () => { setTimeout(() => setAlertOpen(true), 0); } }] : []),
+    // For someone who submits the Metric: a text for their own assistant to fill past periods once (spec 0043).
+    ...(p.record ? [{ label: "Fill past periods with my assistant…", icon: <Bot aria-hidden />, onSelect: show("assistant") }] : []),
     { label: "Analyze", icon: <Sigma aria-hidden />, onSelect: () => router.push(`/analyze?add=${p.metric.id}`) },
     // Duplicating creates a Metric, which Guests may not; a Derived Metric's formula does not carry over.
     ...(p.canDuplicate ? [{ label: "Duplicate", icon: <Copy aria-hidden />, onSelect: () => router.push(`/metrics/new?copy=${p.metric.id}`) }] : []),
@@ -58,6 +64,7 @@ export function MetricToolbar(p: MetricToolbarProps) {
   return (
     <>
       <ObjectToolbar type="metric" id={p.id} people={p.people} share={p.share} menu={menu} lead={p.record ? <RecordValue offer={p.record} /> : undefined} />
+      {p.record && <AssistantPrompt metric={{ ...p.metric, mcpUrl: p.mcp }} open={open === "assistant"} onOpenChange={(o) => setOpen(o ? "assistant" : null)} />}
       {p.alert && <AlertMe metric={p.metric} mine={p.alert.mine} choices={p.alert.choices} webhooks={p.alert.webhooks} controlled />}
       {p.archive.allowed && !p.archive.archived && <ArchiveMetric metricId={p.metric.id} name={p.metric.name} open={open === "archive"} onOpenChange={(o) => setOpen(o ? "archive" : null)} />}
       {p.canDelete && <DeleteMetric metricId={p.metric.id} name={p.metric.name} open={open === "delete"} onOpenChange={(o) => setOpen(o ? "delete" : null)} />}
