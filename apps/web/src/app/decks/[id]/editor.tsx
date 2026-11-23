@@ -42,8 +42,8 @@ import { SeriesProvider, useCanvasSeries, useEnsure } from "@/canvas/series-stor
 import { keepContentLocal, LOCAL_ONLY_OVERRIDES } from "@/canvas/keep-local";
 import { useOpenVersions, VersionsSheetOpen } from "@/components/versions-sheet";
 import { ShareSheet } from "@/components/share-sheet";
-import { WhoCanSeeDialog } from "@/components/who-can-see";
-import { ViewLinksDialog } from "@/components/view-links";
+import { useShowWhoCanSee } from "@/components/who-can-see";
+import { useShowViewLinks } from "@/components/view-links";
 
 const shapeUtils = [WidgetShapeUtil, SlideFrameUtil];
 // Decks favour charts over bare numbers: a dropped metric lands as a line chart.
@@ -85,9 +85,12 @@ function DeckCanvas({ deck, data, saved, sharing, seed, templateSeed, deckTempla
   const [busy, setBusy] = useState<null | "pptx" | "pdf">(null);
   const [, start] = useTransition();
   // The dialog a ⋯ menu entry opened; each is opened after the menu has closed and returned focus.
-  const [dialog, setDialog] = useState<null | "who" | "links" | "theme" | "delete">(null);
+  const [dialog, setDialog] = useState<null | "theme" | "delete">(null);
+  // Who can see this and View links open in the side panel, after the menu has closed.
+  const showWho = useShowWhoCanSee(data.people);
+  const showLinks = useShowViewLinks();
   const openVersions = useOpenVersions();
-  const show = (d: "who" | "links" | "theme" | "delete") => () => setTimeout(() => setDialog(d), 0);
+  const show = (d: "theme" | "delete") => () => setTimeout(() => setDialog(d), 0);
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const masterRef = useRef<SlideDesign | null>(null);
   masterRef.current = master;
@@ -333,8 +336,8 @@ function DeckCanvas({ deck, data, saved, sharing, seed, templateSeed, deckTempla
           <DropdownMenuTrigger aria-label="More for this deck" title="More for this deck" className={buttonVariants({ variant: "outline", size: "icon" })}><MoreHorizontal aria-hidden /></DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-56">
             <DropdownMenuItem onClick={show("theme")}><Palette aria-hidden /> Theme…</DropdownMenuItem>
-            <DropdownMenuItem onClick={show("who")}><Eye aria-hidden /> Who can see this</DropdownMenuItem>
-            {sharing && <DropdownMenuItem onClick={show("links")}><Link2 aria-hidden /> View links…</DropdownMenuItem>}
+            <DropdownMenuItem onClick={() => setTimeout(() => showWho("deck", deck.id), 0)}><Eye aria-hidden /> Who can see this</DropdownMenuItem>
+            {sharing && <DropdownMenuItem onClick={() => setTimeout(() => showLinks("deck", deck.id), 0)}><Link2 aria-hidden /> View links…</DropdownMenuItem>}
             <DropdownMenuItem onClick={() => setTimeout(() => openVersions(true), 0)}><History aria-hidden /> Versions</DropdownMenuItem>
             {sharing && (
               <DropdownMenuItem disabled={!editor || status !== "saved"} title={status === "saved" ? undefined : "Wait until the deck is saved"} onClick={() => editor && setDeckSlides(orderedSlides(editor).map((sl) => slideShapes(editor, sl.id)))}><LayoutTemplate aria-hidden /> Save as Deck Template…</DropdownMenuItem>
@@ -347,8 +350,6 @@ function DeckCanvas({ deck, data, saved, sharing, seed, templateSeed, deckTempla
             )}
           </DropdownMenuContent>
         </DropdownMenu>
-        {dialog === "who" && <WhoCanSeeDialog type="deck" id={deck.id} people={data.people} onClose={() => setDialog(null)} />}
-        {dialog === "links" && sharing && <ViewLinksDialog type="deck" id={deck.id} onClose={() => setDialog(null)} />}
         {dialog === "delete" && sharing && <DeleteDeckDialog deckId={deck.id} name={name} onClose={() => setDialog(null)} />}
         {dialog === "theme" && (
           <Dialog open onOpenChange={(o) => { if (!o) setDialog(null); }}>
