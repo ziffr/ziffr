@@ -336,3 +336,4 @@ Plumbing the core's other operations use, jobs the schedule runs, and the demo.
 - `runWorkflowsAsOf` (workflows.ts): what the schedule runs
 - `newMetricRefusal` (workspace-limits.ts): what the Metric functions use to refuse at a limit
 
+- `listHeadsUps` (heads-ups.ts): the Heads-ups list is in a later ticket of spec 0041 (the Analyze page); analyses are not in the API or MCP yet, and its cost in a Workspace over the cap needs a per-person cache first (ticket #707)

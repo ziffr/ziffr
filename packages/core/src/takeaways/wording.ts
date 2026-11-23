@@ -7,6 +7,7 @@ import { formatNumber, formatValue, type ValueUnit } from "../format";
 import type { NumberStyle } from "../number-style";
 import type { StrengthWord } from "./strength";
 import { periodLabel, type Span, type YearStart } from "../periods";
+import { HEADS_UP_EN } from "./heads-up-wording";
 
 /** The languages Takeaways are written in. */
 export type Language = "en";
@@ -211,6 +212,7 @@ const EN = {
   "numbers-periods": "Periods",
   "numbers-basis": "Compared on",
   "numbers-strength": "Strength",
+  ...HEADS_UP_EN,
 } as const;
 
 /** One case of wording: a sentence, line or label. */

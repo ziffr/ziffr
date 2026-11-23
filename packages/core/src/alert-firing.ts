@@ -14,6 +14,7 @@ import { alertHolds, alertStep, isPerPeriod, latestAndPrevious, valueCounts, val
 import type { AlertDelivery } from "./alerts";
 import { attainment, attainmentText, targetFor } from "./compare";
 import { db } from "./db";
+import { isFinalState } from "./value-state";
 import { deliverAlert } from "./deliveries";
 import { queueAlertFiredToPersonal } from "./webhook-events";
 import { changePct } from "./exact";
@@ -160,7 +161,7 @@ async function finishView(ctx: Ctx, m: Metric, latest: { period: string; value: 
     getSeriesValues(ctx.ws, [m.id]),
   ]);
   // Waiting for Approval, or sent back: the value is not approved yet. No state at all (a Metric without a Workflow) counts.
-  const pending = (states ?? []).some((s) => s.state === "approval" || s.state === "submitted");
+  const pending = (states ?? []).some((s) => !isFinalState(s.state));
   const t = targetFor(m, latest.period, targets[m.id]);
   return { period: latest.period, value: latest.value, previous, pending, target: { min: t.min === null ? null : Number(t.min), max: t.max === null ? null : Number(t.max), value: t.value === null ? null : Number(t.value) } };
 }
