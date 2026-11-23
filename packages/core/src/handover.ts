@@ -5,6 +5,7 @@ import { db } from "./db";
 import { assertCan, Forbidden, type Actor } from "./actor";
 import { recordVersion, type VersionType } from "./versions";
 import { audit } from "./audit-log";
+import { getMetrics } from "./workspace-data";
 import { queueWebhookEvent } from "./webhook-events";
 import { recordPersonalWebhookEnds } from "./personal-webhooks";
 
@@ -33,7 +34,7 @@ export async function removeMember(actor: Actor, personId: string, successorId: 
   // The Actions waiting on them: noted before the handover moves them to the successor, who is then named in `action.updated`.
   const { data: waiting } = await db().from("actions").select("id, metric_id, period_start").eq("workspace_id", ws).eq("assignee_id", personId).in("status", ["open", "answered"]);
   // The acting role goes along: the database checks it in the same step, so a promotion in between changes nothing.
-  const { error } = await db().rpc("hand_over", { ws, leaving: personId, successor: successorId, actor_role: actor.role });
+  const { error } = await db().rpc("hand_over", { ws, leaving: personId, successor: successorId, actor_role: actor.role, actor_id: actor.personId });
   if (error) {
     if (/only Owners remove an Owner/.test(error.message)) throw new Forbidden("Only Owners remove an Owner.");
     throw new Error(/at least one Owner/.test(error.message) ? "A workspace keeps at least one Owner. Make someone else Owner first." : "The handover did not work; nothing was changed.");
@@ -44,6 +45,11 @@ export async function removeMember(actor: Actor, personId: string, successorId: 
   const to = (successor.profiles as unknown as { name: string } | null)?.name ?? "a member";
   // Automatic Snapshots are taken in the owner's name, with what they see (spec 0013): the successor chooses again.
   if (owned.dashboard.length) await db().from("dashboards").update({ snapshot_every: null }).eq("workspace_id", ws).in("id", owned.dashboard);
+  // Taking someone's Metrics for oneself by one's role is a hand-over like any other: audited, so a round trip is seen.
+  if (successorId === actor.personId && owned.metric.length) {
+    const names = new Map((await getMetrics(ws)).map((m) => [m.id, m.name]));
+    for (const id of owned.metric) await audit(actor, { kind: "metric.handed_over", object: { type: "metric", id, name: names.get(id) ?? "" }, details: { from_id: personId, from_name: from, to_id: successorId, to_name: to } });
+  }
   for (const [type, ids] of Object.entries(owned) as [VersionType, number[]][]) {
     for (const id of ids) await recordVersion(type, id, actor.personId, { message: `Handed over from ${from} to ${to}`, always: true });
   }

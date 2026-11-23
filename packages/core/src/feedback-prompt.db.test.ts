@@ -20,8 +20,8 @@ afterEach(async () => {
 async function ws() { const w = await workspace(); cleanups.push(w.cleanup); return w; }
 
 /** Gives the person values submitted on `days` different days. */
-async function activeOn(w: Awaited<ReturnType<typeof ws>>, person: string, days: number) {
-  const m = await w.metric(person);
+async function activeOn(w: Awaited<ReturnType<typeof ws>>, person: string, days: number, owner = person) {
+  const m = await w.metric(owner);
   for (let i = 0; i < days; i++) {
     const id = await w.value(m.id as number, `2026-0${i + 1}-01`, i + 1, person);
     await db().from("observations").update({ created_at: new Date(Date.now() - i * 86_400_000 - 3_600_000).toISOString() }).eq("id", id);
@@ -47,7 +47,7 @@ describe("who is asked", () => {
   });
   it("never asks a Guest, a key, a Contact, someone outside the Workspace or the demo", async () => {
     const w = await ws(); const guest = await w.person("guest"); const ben = await w.person("member"); const stranger = await (await ws()).person("member");
-    await activeOn(w, guest, 3); await activeOn(w, ben, 3);
+    await activeOn(w, guest, 3, ben); await activeOn(w, ben, 3);
     expect(await feedbackPromptFor(w.actor(guest, "guest"))).toBeNull();
     expect(await feedbackPromptFor({ ...w.actor(ben, "member"), key: { id: "k", scopes: [] } } as unknown as Actor)).toBeNull();
     expect(await feedbackPromptFor({ personId: stranger, workspaceId: w.id, role: "member" })).toBeNull();

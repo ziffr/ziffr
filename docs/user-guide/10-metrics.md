@@ -190,6 +190,12 @@ The top of the page shows the Metric's name, a **Derived** badge if it is calcul
 
 Then come five tabs: **Overview**, **Analysis**, **Targets**, **History** and **Description**.
 
+### Handing a Metric over
+
+Next to **Owner** in a Metric's Description, the Metric's owner, Owners and Admins see **Hand over…**. Pick the Member who takes it over, then **Hand over**. The Metric's owner can pick only people who already see the Metric (share it first otherwise); Owners and Admins can hand any Metric to any Member. Guests, Contacts and Access Keys never take a Metric over or hand one over: a program cannot change who owns a Metric.
+
+The new owner is told through their way of being reached, and not during their Quiet Hours. The previous owner stays on as **Editor**, so they still see the Metric and can fill in values until the new owner takes that away. Corrections, unlocking, Retention notices and Escalations now go to the new owner, and so do the open Questions that waited on the old owner as the Metric's owner. When an Owner or Admin hands a Metric over, the previous owner is told too. If the previous owner's Share is later taken away, their Derived Metrics, Alerts and Personal Webhooks on the Metric stop. The Metric stays on its Workflow, which stays with the Workflow's owner: the new owner can choose another Workflow, or ask that owner to hand theirs over. A Member who owns Metrics can't be made a Guest, and a Guest can't be given one. The Audit Log records who handed which Metric from whom to whom.
+
 If a Metric is not shared with you, its page says "… isn't shared with you", names its owner (for a Guest who is not shown the owner: "Its owner can share it with you"), and offers **Ask … for access**. The owner sees your request under **Who can see this** and can let you in as a Viewer.
 
 ### The buttons at the top

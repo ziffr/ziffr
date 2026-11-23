@@ -51,7 +51,7 @@ The band of values a metric should stay within.
 _Avoid_: Threshold, goal, limits, expected range
 
 **Metric Owner**:
-The user responsible for a metric's description and for accepting corrections to its observations.
+The Member responsible for a Metric's description and for accepting Corrections to its observations; the Corrections, unlocking a Lock, Retention notices and the Escalation that "tells the Metric Owner" all follow whoever owns it now. Whoever creates a Metric owns it first. The Metric Owner can hand it over to another Member who already sees it, and an Owner or Admin can hand any Metric to any Member who can own things: never to a Guest, a Contact or an Access Key, and never by a program. The new owner is told through their Delivery Preference, after Quiet Hours; the previous owner stays on as Editor (told too, when an Owner or Admin did it), so they keep seeing and filling in the Metric until its new owner changes that, and if that Share ends their Derived Metrics, Alerts and Personal Webhooks on it stop; the Metric's Workflow stays with the Workflow's owner, and the open Questions waiting on the old owner as owner move to the new one; the Audit Log records from, to and by whom. A Metric never stays with someone who is no longer a Member: removing someone hands everything they own to the person picked in the removal screen (the Workspace's Owner is offered first), and a Member who owns Metrics cannot be made a Guest before they are handed over.
 _Avoid_: Admin, maintainer
 
 **Metric Catalog**:
