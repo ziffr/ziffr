@@ -57,6 +57,21 @@ async function setup() {
 }
 
 describe("Actions over HTTP", () => {
+  it("marks a Task done with an optional note kept as the Thread's last reply, and refuses a note that is too long", async () => {
+    const { w, sara, ann, cash } = await setup();
+    await w.share(cash.id, ann);
+    const k = await keyFor(w, ann, "member", ["actions:write"]);
+    const make = () => w.action({ metric_id: cash.id, period_start: month(), asker_id: sara, assignee_id: ann, kind: "task", question: "Send the report" });
+    const first = await make();
+    expect((await done(k.req("POST", `/actions/${first}/done`, { note: "x".repeat(2001) }), k.params(first))).status).toBe(400);
+    expect((await done(k.req("POST", `/actions/${first}/done`, { note: "Sent it." }), k.params(first))).status).toBe(200);
+    const { data: msgs } = await (await import("@ziffr/core/db")).db().from("thread_messages").select("author_id").eq("action_id", first);
+    expect(msgs).toHaveLength(1);
+    expect(msgs![0].author_id).toBe(ann);
+    const second = await make();
+    expect((await done(k.req("POST", `/actions/${second}/done`), k.params(second))).status).toBe(200);
+  });
+
   it("lists, replies, marks done and closes, with the Access Log entries", async () => {
     const { w, sara, ann, cash, task } = await setup();
     await w.share(cash.id, ann);
