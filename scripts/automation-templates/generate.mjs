@@ -308,7 +308,7 @@ const withSettings = (name) => fill(code(name), { SETTINGS: code("feed-settings"
 function feedFlow(s, reads) {
   const when = s.schedule ?? DAILY;
   const w = new WF(`${s.key}-feed`, `${s.label} to Ziffr (values)`);
-  w.note(`${s.label} to Ziffr: values\n\n1. Fill in the Settings node: your Ziffr address and ${s.fillIn ?? "where the figures are"}.\n2. Add the credentials: ${s.label} on the read node${s.readNames?.length > 1 ? "s" : ""}, and a Header Auth credential named "Ziffr Feed Key" (name Authorization, value Bearer <your Feed Key>) on Send to Ziffr. Make the key in Ziffr under Settings, Feeds, and add the Feed under Who submits on each Metric.\n3. Press Execute workflow once to try it, then activate it: it runs ${when.when} (UTC).\n\n${s.reads}`, 340);
+  w.note(`${s.label} to Ziffr: values\n\n1. Fill in the Settings node: your Ziffr address and ${s.fillIn ?? "where the figures are"}.\n2. Add the credentials: ${s.label} on the read node${s.readNames?.length > 1 ? "s" : ""}, and a Header Auth credential named "Ziffr Feed Key" (name Authorization, value Bearer <your Feed Key>) on Send to Ziffr. Make the key in Ziffr under Settings, Feeds, and add the Feed under Who submits on each Metric.\n3. Press Execute workflow once to try it, then activate it: it runs ${when.when} (UTC).\n\n${s.reads}${s.extraNote ? `\n\n${s.extraNote}` : ""}`, s.extraNote ? 420 : 340);
   w.add(when.name, "n8n-nodes-base.scheduleTrigger", { rule: when.rule }, 0, 300, 1.2);
   w.timezone = "UTC"; // "at 9" and "the month that has just ended" are both read in UTC, whatever zone the n8n server is set to
   w.settings(s.settings, 220, 300);
@@ -394,7 +394,60 @@ const hubspotFeed = () => feedFlow({
   hubspotCount(w, "Count new contacts", "contacts", range("createdate"), x + 220, y);
   return ["Count deals won", "Count new contacts"];
 });
-const FEED_TEMPLATES = [SHEETS, EXCEL, STRIPE, HUBSPOT];
+// ---- Warehouses (spec 0048): one query on a schedule through n8n's own node, the rows it returns are the figures ----
+// The month that has just ended, read in UTC (the flow runs in UTC): its first day and the next month's, as n8n expressions
+// that stand where a query writes :period_start and :period_end. They are made by this template, never taken from data.
+const PERIOD_START = "{{ $now.minus({ months: 1 }).startOf('month').toFormat('yyyy-MM-dd') }}";
+const PERIOD_END = "{{ $now.startOf('month').toFormat('yyyy-MM-dd') }}";
+const WAREHOUSE_NOTE = "Edit the query in the node \"Your query\": it must return one row per figure with the columns metric (the Metric's slug), value (a number) and period (the first day of the month). The first date in the example query is :period_start and the second :period_end: leave them as they are, they are the month that has just ended.";
+const BIGQUERY = {
+  key: "bigquery", id: "bigquery", system: "bigquery", label: "BigQuery", file: "bigquery-feed.json", guide: "bigquery-feed.md",
+  reads: "The rows of a query you write in BigQuery, read only: each row has a metric (the Metric's slug), a value and the period's first day. Runs once a month, for the month that has just ended.",
+  fillIn: "the Google Cloud project id and the tables in Your query (the query names the Metrics)",
+  needs: "A Google Cloud project and a service account (or login) that may run queries and read the tables the query names, and nothing more.",
+};
+const SNOWFLAKE = {
+  key: "snowflake", id: "snowflake", system: "snowflake", label: "Snowflake", file: "snowflake-feed.json", guide: "snowflake-feed.md",
+  reads: "The rows of a query you write in Snowflake, read only: each row has a metric (the Metric's slug), a value and the period's first day. Runs once a month, for the month that has just ended.",
+  fillIn: "the tables in Your query (the query names the Metrics)",
+  needs: "A Snowflake user with a role that may run queries on a warehouse and read the tables the query names, and nothing more.",
+};
+const BQ_QUERY = `-- EDIT THIS QUERY. One row per figure: metric (the Metric's slug), value (a number), period (the month's first day).
+-- Add more Metrics with UNION ALL. Keep the dates as they are: they are the month that has just ended.
+SELECT 'revenue' AS metric, CAST(SUM(amount) AS NUMERIC) AS value, DATE '${PERIOD_START}' AS period
+FROM \`my-project.my_dataset.orders\`
+WHERE created_at >= TIMESTAMP '${PERIOD_START}' AND created_at < TIMESTAMP '${PERIOD_END}'
+UNION ALL
+SELECT 'new-customers', COUNT(*), DATE '${PERIOD_START}'
+FROM \`my-project.my_dataset.customers\`
+WHERE created_at >= TIMESTAMP '${PERIOD_START}' AND created_at < TIMESTAMP '${PERIOD_END}'`;
+const SF_QUERY = `-- EDIT THIS QUERY. One row per figure: metric (the Metric's slug), value (a number), period (the month's first day).
+-- Add more Metrics with UNION ALL. Keep the dates as they are: they are the month that has just ended.
+SELECT 'revenue' AS metric, SUM(amount)::NUMBER(18,2) AS value, DATE '${PERIOD_START}' AS period
+FROM my_db.my_schema.orders
+WHERE created_at >= '${PERIOD_START}' AND created_at < '${PERIOD_END}'
+UNION ALL
+SELECT 'new-customers', COUNT(*), DATE '${PERIOD_START}'
+FROM my_db.my_schema.customers
+WHERE created_at >= '${PERIOD_START}' AND created_at < '${PERIOD_END}'`;
+const warehouseFeed = (s, readType, version, params, cred) => feedFlow({
+  ...s, figures: fill(code("warehouse-figures"), { LABEL: s.label }), schedule: MONTHLY,
+  settings: [["ziffrUrl", "https://REPLACE-WITH-YOUR-ZIFFR-ADDRESS"]],
+  fillIn: s.fillIn, readNames: ["Your query"], extraNote: WAREHOUSE_NOTE,
+}, (w, x, y) => {
+  // alwaysOutputData: an empty answer still reaches the check, which fails the run in words instead of ending it quietly.
+  w.add("Your query", readType, params, x, y, version, { credentials: cred, alwaysOutputData: true });
+  return ["Your query"];
+});
+const bigqueryFeed = () => warehouseFeed(BIGQUERY, "n8n-nodes-base.googleBigQuery", 2.1, {
+  resource: "database", operation: "executeQuery",
+  projectId: { __rl: true, value: "REPLACE-WITH-YOUR-PROJECT-ID", mode: "id" },
+  sqlQuery: "=" + BQ_QUERY, options: {},
+}, { googleBigQueryOAuth2Api: { name: "Google BigQuery account" } });
+const snowflakeFeed = () => warehouseFeed(SNOWFLAKE, "n8n-nodes-base.snowflake", 1, {
+  operation: "executeQuery", query: "=" + SF_QUERY,
+}, { snowflake: { name: "Snowflake account" } });
+const FEED_TEMPLATES = [SHEETS, EXCEL, STRIPE, HUBSPOT, BIGQUERY, SNOWFLAKE];
 
 export function generate() {
   const [todo, google, asana] = SYSTEMS_LIST;
@@ -406,7 +459,7 @@ export function generate() {
     "planner-from-ziffr.json": plannerFrom(), "planner-to-ziffr.json": plannerTo(),
     "slack-from-ziffr.json": slackFrom(), "slack-to-ziffr.json": slackTo(),
   };
-  const feeds = { "google-sheets-feed.json": sheetsFeed(), "excel-feed.json": excelFeed(), "stripe-feed.json": stripeFeed(), "hubspot-feed.json": hubspotFeed() };
+  const feeds = { "google-sheets-feed.json": sheetsFeed(), "excel-feed.json": excelFeed(), "stripe-feed.json": stripeFeed(), "hubspot-feed.json": hubspotFeed(), "bigquery-feed.json": bigqueryFeed(), "snowflake-feed.json": snowflakeFeed() };
   const index = { templates: FEED_TEMPLATES.map(({ id, label, file, guide, reads, needs, rows }) => ({ id, label, file, guide, reads, needs, ...(rows ? { rows } : {}) })) };
   return {
     ...Object.fromEntries(Object.entries({ ...all, ...feeds }).map(([f, w]) => [f, JSON.stringify(w.file(), null, 2) + "\n"])),

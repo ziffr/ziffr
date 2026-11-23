@@ -25,7 +25,7 @@ export const PACK_FORMATS = [PACK_FORMAT] as const;
  * format's limits. */
 export const PACK_LIMITS = { bytes: 1_048_576, depth: 20, items: 200, perKind: 50, name: 80, summary: 300, author: 80, address: 200, logoBytes: PACK_LOGO_MAX_BYTES, feeds: 10, feedFills: 50 } as const;
 /** The Automation Templates for Feeds a Pack may name (spec 0043): ids of the list Ziffr ships in docs/automations/feed-templates.json, and only those, so that everything that ends up in someone's n8n was reviewed here. A test holds this list and that file to each other. */
-export const FEED_TEMPLATE_IDS = ["google-sheets", "excel", "stripe", "hubspot"] as const;
+export const FEED_TEMPLATE_IDS = ["google-sheets", "excel", "stripe", "hubspot", "bigquery", "snowflake"] as const;
 /** What Ziffr says of a Pack file from outside the Marketplace, in the spec's words. */
 export const UNSIGNED_WARNING = "Uploaded file. The Marketplace did not check it.";
 /** The licenses a Pack may carry: CC BY 4.0 or MIT for a free one, the Ziffr Pack License for a paid one. */

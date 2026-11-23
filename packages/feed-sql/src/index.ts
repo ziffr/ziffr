@@ -15,7 +15,7 @@ export type SqlMetric = { value: string; breakdown?: string };
 
 /** What a SQL Feed's file says. `dialect` is the database language (default postgres); `connection_env` names the
  * environment variable with a read-only connection string (Postgres). */
-export type SqlFeedConfig = { name: string; dialect?: Dialect; connection_env?: string; warehouse?: string; role?: string; database?: string; schema?: string; statement_timeout_ms?: number; metrics: Record<string, SqlMetric> };
+export type SqlFeedConfig = { name: string; dialect?: Dialect; connection_env?: string; project?: string; max_bytes_billed?: number; warehouse?: string; role?: string; database?: string; schema?: string; statement_timeout_ms?: number; metrics: Record<string, SqlMetric> };
 
 /** The connection string's variable when the file names none. */
 export const DEFAULT_CONNECTION_ENV = "FEED_SQL_URL";
@@ -31,6 +31,8 @@ export function checkConfig(raw: unknown): SqlFeedConfig {
   if (!c || typeof c !== "object") throw new Error("The file must hold name, connection_env and metrics.");
   if (typeof c.name !== "string" || !c.name.trim()) throw new Error("Give the Feed a name.");
   if (c.dialect !== undefined && !(DIALECTS as readonly unknown[]).includes(c.dialect)) throw new Error(`dialect must be one of ${DIALECTS.join(", ")}, not ${JSON.stringify(c.dialect)}.`);
+  if (c.project !== undefined && (typeof c.project !== "string" || !c.project.trim())) throw new Error("project names a Google Cloud project, such as my-company-data.");
+  if (c.max_bytes_billed !== undefined && !(Number.isSafeInteger(c.max_bytes_billed) && c.max_bytes_billed > 0)) throw new Error("max_bytes_billed is a whole number of bytes above zero, such as 10737418240.");
   if (c.connection_env !== undefined && !/^[A-Z_][A-Z0-9_]*$/.test(String(c.connection_env))) throw new Error("connection_env names an environment variable, such as WAREHOUSE_URL; the connection string itself never goes in the file.");
   // Snowflake names only (the driver reads them); a secret or free text does not belong in the file.
   for (const key of ["warehouse", "role", "database", "schema"] as const) {

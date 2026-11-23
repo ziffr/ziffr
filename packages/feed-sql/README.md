@@ -77,3 +77,24 @@ export SNOWFLAKE_PRIVATE_KEY_PASSPHRASE=...               # only if the key is e
 - **A small warehouse:** point the Feed at an X-Small warehouse with auto-suspend, so a run costs little.
 - **The role is the real control.** Snowflake enforces what the role may do; the driver's text check (one `select` or `with ... select`, no `$$` blocks, none of the words call, procedure, execute, copy, put, get, create, alter, drop, grant, insert, update, delete, merge or truncate outside quoted strings) and the session setting `MULTI_STATEMENT_COUNT=1` (the server refuses batches) are backups, not a substitute.
 - **Bounded:** each query binds the period as `:1` and `:2`, runs with a statement timeout (`statement_timeout_ms`, 30 seconds by default), and the driver refuses anything that is not one `select` (or `with ... select`) statement: no semicolon-separated batches, no DDL, DML, `call` or `copy`.
+
+## BigQuery
+
+Set `dialect: bigquery`, install the optional package (`npm install @google-cloud/bigquery`) and name the Google Cloud project to bill, in the file or as `GOOGLE_CLOUD_PROJECT`. The Feed signs in with application default credentials (`GOOGLE_APPLICATION_CREDENTIALS` or the machine's own identity); no key goes in the file.
+
+```yaml
+name: Warehouse
+dialect: bigquery
+project: my-company-data
+max_bytes_billed: 10737418240 # optional; 10 GB is the default
+metrics:
+  monthly-revenue:
+    value: |
+      select sum(amount) from `my-company-data.sales.orders`
+      where order_date >= :period_start and order_date < :period_end
+```
+
+- Give the identity the roles BigQuery Data Viewer (on the datasets it reads) and BigQuery Job User (on the project), nothing that can write.
+- `:period_start` and `:period_end` are bound as `DATE` parameters. Only a single `select` (or `with ... select`) is allowed; anything else is refused before it reaches BigQuery.
+- Every query is dry-run first. If the estimate is above `max_bytes_billed` the Feed stops with a message naming the estimate and the limit; otherwise the job runs with the same limit and a time limit (`statement_timeout_ms`, 60 seconds by default).
+- BigQuery bills by bytes scanned, so filter on the table's partition column (as above) to keep a query far below the limit.

@@ -83,7 +83,7 @@ describe("every template in docs/automations: shape", () => {
 
 // ---- Feed templates (spec 0043) ----
 
-const FEED_ALLOWED = new Set([...ALLOWED, "n8n-nodes-base.googleSheets", "n8n-nodes-base.microsoftExcel"]);
+const FEED_ALLOWED = new Set([...ALLOWED, "n8n-nodes-base.googleSheets", "n8n-nodes-base.microsoftExcel", "n8n-nodes-base.googleBigQuery", "n8n-nodes-base.snowflake"]);
 type FeedIndex = { templates: { id: string; label: string; file: string; guide: string; reads: string; needs: string }[] };
 
 describe("Feed templates in docs/automations (spec 0043)", () => {
@@ -245,6 +245,36 @@ describe("excel-feed.json: from the rows of an Excel table to plain rows", () =>
   });
 });
 
+describe("bigquery-feed.json and snowflake-feed.json: the rows of one query", () => {
+  const SETUP = { bigquery: ["n8n-nodes-base.googleBigQuery", "sqlQuery", "googleBigQueryOAuth2Api"], snowflake: ["n8n-nodes-base.snowflake", "query", "snowflake"] } as const;
+  for (const [id, [type, field, cred]] of Object.entries(SETUP)) {
+    const wf = load(`${id}-feed.json`);
+    const figures = (rows: Param[]) => runNode(wf, "Figures", { items: rows.map((json) => ({ json })) }).then((x) => x[0].json as { rows: Param[] });
+    describe(id, () => {
+      it("only reads: one query node with the login in n8n's credential, the query an expression for the month that ended, no key in the file", () => {
+        const q = wf.nodes.filter((n) => n.type === type);
+        expect(q.map((n) => n.name)).toEqual(["Your query"]);
+        const text = String(q[0].parameters[field]);
+        expect(text).toMatch(/^=/);
+        expect(text).toMatch(/EDIT THIS QUERY/);
+        expect(text).toContain("$now.minus({ months: 1 }).startOf('month')");
+        expect(text).not.toMatch(/:period_(start|end)/);
+        expect(JSON.stringify(q[0])).toContain(cred);
+        expect(JSON.stringify(wf)).not.toMatch(/Bearer [A-Za-z0-9_-]{8,}/);
+        expect(JSON.stringify(wf.nodes.find((n) => n.name === "Settings")!.parameters)).not.toMatch(/key/i);
+      });
+      it("reads column names in any case, cuts a timestamp to its day, and leaves other columns behind", async () => {
+        const out = await figures([{ METRIC: "revenue", VALUE: "12.5", PERIOD: "2026-10-01T00:00:00.000Z", SECRET: "left out" }, { metric: "x", value: 1, period: { value: "2026-10-01" } }, {}]);
+        expect(out.rows.map((r) => [r.metric, r.value, r.period])).toEqual([["revenue", "12.5", "2026-10-01"], ["x", 1, "2026-10-01"], [undefined, undefined, undefined]]);
+        expect(JSON.stringify(out)).not.toMatch(/left out/);
+      });
+      it("fails the run, in words, when the query returned nothing", async () => {
+        await expect(shaped(wf, { items: [{ json: {} }] })).rejects.toThrow(/must return the columns metric, value and period/);
+      });
+    });
+  }
+});
+
 describe("stripe-feed.json: from subscriptions to three figures", () => {
   it("asks for the cancelled list once, not once for each page of the current list", () => {
     expect((load("stripe-feed.json").nodes.find((n) => n.name === "Read cancelled subscriptions") as unknown as { executeOnce?: boolean }).executeOnce).toBe(true);
@@ -394,6 +424,8 @@ describe("every Feed template meets the same contract", () => {
       },
       past: "2025-10-01",
     },
+    bigquery: { items: [{ json: { metric: "m-a", value: "1", period: { value: "2025-10-01" } } }, { json: { METRIC: "m-b", VALUE: 2 } }], past: "2025-10-01" },
+    snowflake: { items: [{ json: { METRIC: "m-a", VALUE: "1", PERIOD: "2025-10-01T00:00:00.000Z" } }, { json: { METRIC: "m-b", VALUE: 2 } }], past: "2025-10-01" },
     hubspot: { nodes: { Settings: [{ json: { dealsWonMetric: "m-a", newContactsMetric: "m-b" } }], "Count deals won": [{ json: { total: 7 } }], "Count new contacts": [{ json: { total: 9 } }] }, past: "2025-10-01" },
   };
   it("has a fixture for each template listed, and none for one that is not", () => {
