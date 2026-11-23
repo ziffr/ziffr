@@ -188,6 +188,13 @@ A Heads-up is something Ziffr noticed without being asked. It shows in a list at
 > This looks for one change only; the date is the one that fits best, nearby dates may fit almost as well, and the ups and downs of each period are taken as not carrying over from the one before.
 > This shows when the numbers changed, not what made them change.
 
+### H4
+
+> Revenue is unlikely to reach 1,500 € or more in January 2027 (under 1 in 20).
+> From 42 months of history.
+> This assumes the pattern of the past carries on.
+> This carries the past forward; it is not a promise.
+
 ### H5
 
 > Visits's 116 in October 2026 is high for this time of year: it is usually between 77 and 83.

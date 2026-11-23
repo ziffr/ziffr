@@ -85,7 +85,7 @@ At the top of Analyze, a list called **Heads-ups** shows what Ziffr noticed in t
 
 - **Two Metrics have started moving together** ("A and B have started moving together: when A rises, B follows one month later (strong, over 18 months)"), or **used to and have stopped** ("A and B used to move together. Over the last 6 months, they have not.").
 - **A Metric turned around** ("Signups turned around in January 2026: up 3 a month before, down 9 a month since").
-- **A Target looks out of reach** ("Revenue is unlikely to reach 1,500 € or more in September 2026 (under 1 in 20)"), for a Metric with a Target Range.
+- **A Target looks out of reach** ("Revenue is unlikely to reach 1,500 € or more in January 2027 (under 1 in 20)"), for a Metric with a Target Range.
 - **A value is unusual for the time of year** ("Visits's 116 in October 2026 is high for this time of year: it is usually between 77 and 83"). This needs several years of the same Metric, so it is rare.
 
 Each one reads as a short sentence, says what it is based on, and ends with the line of its kind: "This shows what has gone together, not what caused what." for two Metrics, "This shows when the numbers changed, not what made them change." for a turn, "This carries the past forward; it is not a promise." for a Target, and "This compares the value with the earlier ones at this time of year; it does not show what made it differ." for a season. **Show the numbers** opens the numbers behind it. The strongest come first. See [Reading a Takeaway](../guides/reading-a-takeaway.md#heads-ups).

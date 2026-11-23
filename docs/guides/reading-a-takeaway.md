@@ -99,7 +99,7 @@ A Heads-up is a Takeaway Ziffr tells you without being asked. It has the same wo
 | Started moving together | "Support tickets and Churn rate have started moving together: when Support tickets rises, Churn rate follows 2 months later (strong, over 18 months)." | That one makes the other happen. |
 | Stopped moving together | "Visits and Revenue used to move together. Over the last 6 months, they have not." | Why, or which of the two changed. |
 | Turned around | "Signups turned around in January 2026: up 3 a month before, down 9 a month since." | What made it turn, or that it will go on. |
-| Target out of reach | "Revenue is unlikely to reach 1,500 € or more in September 2026 (under 1 in 20)." | A promise either way: it carries the past forward. |
+| Target out of reach | "Revenue is unlikely to reach 1,500 € or more in January 2027 (under 1 in 20)." | A promise either way: it carries the past forward. |
 | Unusual for the season | "Visits's 116 in October 2026 is high for this time of year: it is usually between 77 and 83." | Whether it is good or bad. |
 
 A Heads-up appears only after Ziffr has checked it against everything it looked at, so that on a Workspace full of ordinary ups and downs it stays quiet. A Heads-up needs a clear link; a weak one is never reported, however sure. Each is shown once, and you can mark it **Not useful** or **Mute** a Metric.
