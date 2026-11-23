@@ -177,7 +177,7 @@ Open **Workspace → Changes**. The page lists every change to what people build
 ### What it lists
 
 - **Changes to things people build**: someone created, edited or restored a Widget, dashboard, deck, Metric description, team Widget Template or Dashboard Template, Theme, Workflow or the words of a Snapshot, or gave a Version a name. Each line names the person and the thing, shows the Version number (such as "v3") and links to the thing where it has a page. Edits by one person within ten minutes count as one Version.
-- **Replaced values**: "A value" lines say that a value of a Metric for a period was replaced or removed, with the old value. The old value is kept as a **Superseded Value**. A value that someone entered for a submitter says so ("… 42, entered by Ben for Sara, was replaced"); a Guest reads "Someone" for every name but their own.
+- **Replaced values**: "A value" lines say that a value of a Metric for a period was replaced or removed, with the old value. The old value is kept as a **Superseded Value**. A value that someone entered for a submitter says so ("… 42, entered by Ben for Sara, was replaced"); a Guest is not told that someone entered it.
 
 You see a change only if you may see the thing it is about: Metrics you can see, dashboards you own or that were shared with you, your own decks, and Widgets on dashboards you can open. Changes to team Widget Templates and Dashboard Templates, Themes and Workflows are listed for everyone.
 

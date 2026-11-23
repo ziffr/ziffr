@@ -304,7 +304,7 @@ export async function periodTimelineAbout(actor: Actor | KeyActor, workflowId: n
   for (const v of values) {
     const m = byId.get(v.metric_id as number)!;
     const seen = visible.has(m.id);
-    raw.push({ at: new Date(v.created_at as string), kind: "in", metric: seen ? m.name : null, person: seen && v.submitter_id ? (v.submitter_id as string) : undefined, enteredBy: seen && v.submitter_id && v.entered_by ? (v.entered_by as string) : undefined, detail: seen && typeof v.value === "number" ? formatValue(m, v.value, numberStyle) : undefined, metricId: m.id });
+    raw.push({ at: new Date(v.created_at as string), kind: "in", metric: seen ? m.name : null, person: seen && v.submitter_id ? (v.submitter_id as string) : undefined, enteredBy: seen && !c.guestSees && v.submitter_id && v.entered_by ? (v.entered_by as string) : undefined, detail: seen && typeof v.value === "number" ? formatValue(m, v.value, numberStyle) : undefined, metricId: m.id });
   }
   const counted = new Set<number>();
   for (const r of raw) if (r.kind === "in") { r.again = counted.has(r.metricId!); counted.add(r.metricId!); }

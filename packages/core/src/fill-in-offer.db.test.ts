@@ -13,6 +13,7 @@ import { DEMO_WORKSPACE_ID } from "./team";
 import { submissionEffects, type SubmissionEffects } from "./submissions";
 import { workspace } from "./test/db-fixtures";
 import { submissionForm } from "./page-data";
+import { schedule } from "./schedule";
 import { saveWorkflow } from "./workflows";
 
 vi.setConfig({ testTimeout: 120_000, hookTimeout: 60_000 });
@@ -97,14 +98,14 @@ describe("the mark on a Filled-in Value", () => {
     void w;
   });
 
-  it("shows a Guest only their own name and offers a Guest nothing", async () => {
+  it("tells a Guest nothing of it and offers a Guest nothing", async () => {
     const { w, ben, sara, guest, m, wf, as } = await setup();
     await fillInValue(as(ben), { metricId: m.id, period: ago(2), for: sara, value: "42" }, quiet());
     const r = await periodRecord(w.actor(guest, "guest"), m.slug, ago(2));
-    expect(valueSteps(r!)).toEqual([expect.objectContaining({ kind: "filled_in", person: "Someone", enteredBy: "Someone" })]);
+    expect(valueSteps(r!)).toEqual([expect.objectContaining({ kind: "submitted", person: "Someone", enteredBy: null })]);
     expect(r!.fillIn).toBeNull();
     const line = (await periodTimeline(w.actor(guest, "guest"), wf, ago(2))).events.find((e) => e.kind === "in");
-    expect(line?.text).toContain("entered by Someone for Someone");
+    expect(line?.text).not.toContain("entered by");
     expect(JSON.stringify(line)).not.toContain(await nameOf(ben));
     expect(JSON.stringify(line)).not.toContain(await nameOf(sara));
   });
@@ -115,5 +116,32 @@ describe("a Stand-in's form link", () => {
     const { sara, saraCode, tomCode } = await setup();
     expect((await submissionForm(tomCode))?.standingInFor).toBe(await nameOf(sara));
     expect((await submissionForm(saraCode))?.standingInFor).toBeNull();
+  });
+
+  it("tells a Contact Stand-in only \"your colleague\" and a Guest Stand-in nothing", async () => {
+    const { w, m, sara } = await setup();
+    const contact = await w.contact({ email: mail("cora") });
+    const exp = new Date(Date.now() + 86_400_000 * 10).toISOString().slice(0, 10);
+    const code = await w.token(m.id, contact, { stands_in_for: sara, expires_at: exp });
+    await db().from("tokens").update({ stand_in_id: contact }).eq("metric_id", m.id).eq("submitter_id", sara).is("stands_in_for", null);
+    const f = await submissionForm(code);
+    expect(f?.standingInFor).toBe("your colleague");
+    expect(JSON.stringify(f)).not.toContain(await nameOf(sara));
+    const guest = await w.person("guest");
+    const gcode = await w.token(m.id, guest, { stands_in_for: sara, expires_at: exp });
+    await db().from("tokens").update({ stand_in_id: guest }).eq("metric_id", m.id).eq("submitter_id", sara).is("stands_in_for", null);
+    expect((await submissionForm(gcode))?.standingInFor).toBeNull();
+  });
+});
+
+describe("the Escalation on the Schedule", () => {
+  it("is marked fillable only where the core would let the person fill in", async () => {
+    const { w, ben, sara, m, as } = await setup();
+    await w.action({ metric_id: m.id, period_start: ago(2), asker_id: sara, assignee_id: ben, kind: "question", purpose: "escalation", question: "Cost is missing." });
+    await w.action({ metric_id: m.id, period_start: thisMonth(), asker_id: sara, assignee_id: ben, kind: "question", purpose: "escalation", question: "Cost is missing now." });
+    const s = await schedule(as(ben));
+    const all = [...s.overdue, ...s.days.flatMap((d) => d.entries), ...s.undated].filter((e) => e.escalation);
+    expect(all.find((e) => e.period.start === ago(2))?.mayFillIn).toBe(true);
+    expect(all.find((e) => e.period.start === thisMonth())?.mayFillIn ?? false).toBe(false);
   });
 });

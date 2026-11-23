@@ -304,7 +304,7 @@ The Metric Owner and the Metric's **Editors** change this tab. Everyone else see
 | **Period** | The period the value is for, marked "unapproved" while its value waits for **Approval**. Click it to open the [period's page](#a-periods-page). |
 | **Value** | The value. A corrected value shows the earlier one struck through, marked "corrected". A value marked "pasted by …" came from [a paste](#paste-values-from-a-spreadsheet), and the name says who pasted it. A value marked "imported" is an **Import**: a **Feed**'s value for a past period, or a pasted one recorded as history, without the Unusual Value check. It counts at once, unless the Workflow approves every value and it is for the period being closed or later. |
 | **From** | The Source it arrived through, such as Web form or Slack. For a value from a program, also the name of the **Access Key** or **Feed Key** it used. |
-| **Submitted by** | The person, Contact or Feed who sent it. A value that someone else entered for them (see [Filling in a value for someone](#filling-in-a-value-for-someone)) says "entered by" and the name of who typed it; a Guest reads "Someone" for every name but their own. A value that came in with a [Workspace Export](16-workspace-settings.md#from-a-workspace-export) shows the name the file gave, with "(imported)" after it, and the name of who entered it, if the file had one; Guests do not see these names. |
+| **Submitted by** | The person, Contact or Feed who sent it. A value that someone else entered for them (see [Filling in a value for someone](#filling-in-a-value-for-someone)) says "entered by" and the name of who typed it; a Guest is not told that someone entered it. A value that came in with a [Workspace Export](16-workspace-settings.md#from-a-workspace-export) shows the name the file gave, with "(imported)" after it, and the name of who entered it, if the file had one; Guests do not see these names. |
 
 A Derived Metric has no values of its own, so it has no such list. If you submit values for the Metric on the web form, **Paste history** beside the heading opens [Paste values](#paste-values-from-a-spreadsheet) for this Metric.
 
@@ -495,7 +495,7 @@ When a Submitter has not sent a value, the **Metric Owner** or the owner of the 
 
 A **Stand-in** who is asked for a value in someone's place does not use **Fill in for …**: they answer the request, and the answer is the Submitter's value entered by the Stand-in. Their form link says so ("You answer in place of Sara"), and works only for the periods they were asked about.
 
-Guests never fill in for anyone, and see only their own name on these marks; everyone else reads "Someone". View Links and Snapshots show no names at all. Each Filled-in Value is in the [Audit Log](16-workspace-settings.md#audit-log).
+Guests never fill in for anyone, and are not told that a value was entered for someone: it reads as the submitter's own. View Links and Snapshots show no names at all. Each Filled-in Value is in the [Audit Log](16-workspace-settings.md#audit-log).
 
 ## Locks and corrections on a Metric
 

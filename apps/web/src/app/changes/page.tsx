@@ -14,7 +14,8 @@ const NOUN: Record<string, string> = { widget: "widget", dashboard: "dashboard",
 export default async function ChangesPage({ searchParams }: { searchParams: Promise<{ who?: string }> }) {
   const sp = await searchParams;
   // The core passes only versions and replaced values the person may see, and what labels them.
-  const [people, { metrics, dashboards, versions, superseded, decks, widgets }, yearStart, numberStyle] = await Promise.all([getProfiles(), activityView(await currentActor()), getYearStart(), getNumberStyle()]);
+  const actor = await currentActor();
+  const [people, { metrics, dashboards, versions, superseded, decks, widgets }, yearStart, numberStyle] = await Promise.all([getProfiles(), activityView(actor), getYearStart(), getNumberStyle()]);
   const dash = new Map(dashboards.map((d) => [d.id, d]));
   const name = (id: string | null) => people.find((p) => p.id === id)?.name ?? "Someone";
   // The filter names only the people behind a change shown here, not everyone in the Workspace (rule 3).
@@ -35,8 +36,8 @@ export default async function ChangesPage({ searchParams }: { searchParams: Prom
     ...superseded
       .map((x) => {
         const m = metrics.find((y) => y.id === x.metric_id)!;
-        // A replaced Filled-in Value still says who entered it for whom; names by the same rules as everywhere (a Guest reads "Someone").
-        const entered = x.entered_by ? `, entered by ${name(x.entered_by as string)}${x.submitter_id ? ` for ${name(x.submitter_id as string)}` : ""}` : "";
+        // A replaced Filled-in Value still says who entered it for whom; a Guest is told nothing of it.
+        const entered = x.entered_by && actor.role !== "guest" ? `, entered by ${name(x.entered_by as string)}${x.submitter_id ? ` for ${name(x.submitter_id as string)}` : ""}` : "";
         return { at: x.superseded_at, who: null, text: `${m.name}, ${periodLabel(x.period_start, m.period, yearStart, true)}: ${formatValue(m, Number(x.value), numberStyle)}${entered} was ${x.change === "deleted" ? "removed" : "replaced"}`, version: null, href: `/metrics/${m.slug}`, kind: "value" as const };
       }),
   ]

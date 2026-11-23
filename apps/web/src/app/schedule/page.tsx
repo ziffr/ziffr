@@ -52,7 +52,7 @@ function Entries({ list }: { list: ScheduleEntry[] }) {
             <span className="text-xs text-muted-foreground">{notes(e).join(" · ")}</span>
           </Link>
           {/* An Escalation says a value is missing: its Metric's owner may enter it for the submitter from the Period Record, where the core shows the button only if filling in is open (spec 0046). */}
-          {e.escalation && e.metric && <Link href={`${periodRecordUrl(e.metric.slug, e.period.start)}#fill-in`} className="mb-3 ml-4 inline-block text-xs underline">Fill in the value…</Link>}
+          {e.mayFillIn && e.metric && <Link href={`${periodRecordUrl(e.metric.slug, e.period.start)}#fill-in`} className="mb-3 ml-4 inline-block text-xs underline">Fill in the value…</Link>}
         </li>
       ))}
     </ul>

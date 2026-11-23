@@ -132,12 +132,13 @@ export async function periodRecord(actor: Actor, slug: string, period: string): 
   const obs = (await openRows("observations", ws, (obsRows ?? []) as Record<string, unknown>[])).filter((o) => typeof o.value === "number");
   const channelOf = (o: Record<string, unknown>) => (o.imported ? "Import" : SOURCE_LABEL[o.source as keyof typeof SOURCE_LABEL] ?? String(o.source));
   // A Filled-in Value the submitter replaced: kept in the history, struck through, still saying who entered it.
-  const replacedFilled = (await openRows("observation_history", ws, (filledRows ?? []) as Record<string, unknown>[])).filter((o) => typeof o.value === "number");
+  // A Guest is not told that a value was filled in at all (as in the widget's history, spec 0046 story 10): it reads as the submitter's own.
+  const replacedFilled = guest ? [] : (await openRows("observation_history", ws, (filledRows ?? []) as Record<string, unknown>[])).filter((o) => typeof o.value === "number");
   for (const o of replacedFilled) push({ kind: "filled_in", at: o.recorded_at as string, person: who(o.submitter_id), enteredBy: who(o.entered_by), value: Number(o.value), superseded: true, channel: channelOf(o) });
   obs.forEach((o, i) => {
     // A value a Correction changed in place was submitted as its original; the Correction's own steps carry the new one.
     const corrected = o.original_value !== null && o.original_value !== undefined;
-    const filled = Boolean(o.entered_by);
+    const filled = !guest && Boolean(o.entered_by);
     // The submitter's own value after a Filled-in Value for them replaces it; one after any other value does too.
     const first = i === 0 && !replacedFilled.some((r) => r.submitter_id === o.submitter_id);
     push({ kind: filled ? "filled_in" : first ? "submitted" : "replaced", at: o.created_at as string, person: who(o.submitter_id), enteredBy: filled ? who(o.entered_by) : null, value: corrected ? Number(o.original_value) : Number(o.value), superseded: i < obs.length - 1 || corrected,
