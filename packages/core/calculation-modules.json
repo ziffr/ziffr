@@ -48,6 +48,7 @@
   "src/takeaways/fit-takeaway.ts",
   "src/methods/p-value.ts",
   "src/methods/false-discovery.ts",
+  "src/effective-count.ts",
   "src/methods/pair-scan.ts",
   "src/methods/heads-up.ts",
   "src/methods/heads-up-single.ts",
