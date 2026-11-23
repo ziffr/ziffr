@@ -9,6 +9,7 @@
 // workflow, never by editing its text. The Feed Key is never in the file: n8n keeps it in a credential. The audit
 // event names the template and counts, never the file.
 import sheetsFeed from "../../../docs/automations/google-sheets-feed.json";
+import excelFeed from "../../../docs/automations/excel-feed.json";
 import stripeFeed from "../../../docs/automations/stripe-feed.json";
 import hubspotFeed from "../../../docs/automations/hubspot-feed.json";
 import index from "../../../docs/automations/feed-templates.json";
@@ -27,6 +28,7 @@ type Workflow = { name: string; nodes: Node[] };
 /** The workflows this repository ships, by file; adding a template to the index needs a line here (a test says so). */
 const WORKFLOWS: Record<string, Workflow> = {
   "google-sheets-feed.json": sheetsFeed as unknown as Workflow,
+  "excel-feed.json": excelFeed as unknown as Workflow,
   "stripe-feed.json": stripeFeed as unknown as Workflow,
   "hubspot-feed.json": hubspotFeed as unknown as Workflow,
 };

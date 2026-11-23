@@ -92,7 +92,7 @@ A Pack may say which of Ziffr's ready n8n templates ([Automation Templates for F
 "feeds": [{ "template": "google-sheets", "fills": ["headcount", "attrition"] }]
 ```
 
-- `template` is the id of a template Ziffr ships (today `google-sheets`, `stripe` and `hubspot`; the ids are in `docs/automations/feed-templates.json`). Nothing else is accepted: a Pack names a template, it never carries or links to a flow of its own.
+- `template` is the id of a template Ziffr ships (today `google-sheets`, `excel`, `stripe` and `hubspot`; the ids are in `docs/automations/feed-templates.json`). Nothing else is accepted: a Pack names a template, it never carries or links to a flow of its own.
 - `fills` are keys of the Pack's own Metric Catalog entries that take values. A Derived Metric cannot be filled, and an entry or a template is named once.
 - Installing makes nothing of it. After **Set up from this Pack**, the page offers **Fill from n8n** for the Metrics made from those entries, with the template already chosen.
 - A Pack that uses `feeds` should say so in its `ziffr` minimum version: an older Ziffr refuses a field it does not know. `npx @ziffr/pack check` checks it with the same code as the server.
