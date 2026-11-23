@@ -76,6 +76,15 @@ describe("a Workflow step in words", () => {
     expect(stepLabel({ type: "tell", id: "a", condition: { kind: "below", value: "5" }, people: ["sara"], groups: [], webhooks: ["w1", "w2"] }, people)).toBe("Tell Sara, 2 Webhooks when a value falls below 5");
     expect(stepLabel({ type: "publish", lock: true }, people)).toBe("Publish and lock the period");
     expect(stepLabel({ type: "publish", lock: false }, people)).toBe("Publish");
+    const item = { type: "checklist" as const, id: "item-one-aaaa", text: "Invoices must be in by Friday." };
+    expect(stepLabel({ ...item, kind: "info", day: 1, people: ["sara"], groups: [3, 9] }, people, [{ id: 3, name: "Finance" }])).toBe("1 working day after the period: tell Sara, Finance, a Group “Invoices must be in by Friday.”");
+    expect(stepLabel({ ...item, kind: "info", day: 3, people: [], groups: [] }, people)).toBe("3 working days after the period: tell the people chosen “Invoices must be in by Friday.”");
+    expect(stepLabel({ ...item, text: "x".repeat(80), kind: "info", day: 2, people: ["sara"], groups: [] }, people)).toBe(`2 working days after the period: tell Sara “${"x".repeat(60)}…”`);
+    expect(stepLabel({ ...item, text: "", kind: "info", day: 2, people: ["sara"], groups: [] }, people)).toBe("2 working days after the period: tell Sara a checklist item");
+    expect(stepLabel({ ...item, kind: "tick", assignee: "sara", dueWorkingDays: 1 }, people)).toBe("1 working day after the period: Sara ticks off “Invoices must be in by Friday.”");
+    expect(stepLabel({ ...item, kind: "tick", assignee: null, dueWorkingDays: 3 }, people)).toBe("3 working days after the period: nobody yet ticks off “Invoices must be in by Friday.”");
+    expect(stepLabel({ ...item, kind: "tick", assignee: "sara", dueWorkingDays: 0 }, people)).toBe("At the end of the period: Sara ticks off “Invoices must be in by Friday.”");
+    expect(stepLabel({ type: "send_snapshot", id: "snap-one-aaaa", dashboardId: 1, people: [], groups: [] }, people)).toMatch(/Snapshot/);
     expect(Object.keys(STEP_TITLE)).toEqual(["remind", "escalate", "check", "approve", "tell", "publish", "checklist", "send_snapshot"]);
   });
   it("adds no working days for none", () => {
