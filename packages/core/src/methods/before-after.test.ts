@@ -238,7 +238,7 @@ describe("the caution that the ups and downs carry over", () => {
       const v = Array.from({ length: 30 }, (_, i) => Math.round((100 + 1.5 * i + 7 * (e = (r % 2 ? 0.8 : 0) * e + z())) * 100) / 100);
       const raw = ok(afterDate(series(v), "month", monthStart(24)));
       const t = afterDateTakeaway("Signups", series(v), "month", monthStart(24), euro, ctx);
-      const text = "The ups and downs of Signups carry over from one month to the next, which a change does too, but so does a slow wave; read this with care, since the range or the chance may be too sure.";
+      const text = "The ups and downs of Signups run in long swings from one month to the next, and a long swing can look like a change; read this with care, it may look more certain than it is.";
       expect(t.cautions.includes(text), `series ${r}`).toBe(raw.carries);
       if (raw.carries) said++;
       else quiet++;

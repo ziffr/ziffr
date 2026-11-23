@@ -33,6 +33,10 @@ async function call(job, quiet404 = false) {
 // past (spec 0021). Both are offered from the settings file or the Installation settings page (spec 0025), so the
 // clock calls them unless docker/init.mjs says no, and a job for something not offered answers 404 quietly.
 const DEMO_RESET = process.env.ZIFFR_DEMO_RESET !== "0";
+// Where visitors may change the demo (spec 0051: ZIFFR_DEMO_CHANGES, in effect only in a demo-only Ziffr; the setting
+// does not exist as a page setting yet), the job is called every 15 minutes, at 10, 25, 40 and 55 past, and resets only
+// a demo a visitor changed or one that is no longer young. Off, as today: nightly at 03:30 UTC.
+const DEMO_CHANGES = process.env.ZIFFR_DEMO_CHANGES === "1" && process.env.ZIFFR_DEMO_ONLY === "1";
 const TRIAL_CLEANUP = process.env.ZIFFR_TRIAL_CLEANUP !== "0";
 
 // The Usage Feed (spec 0031) is a Feed, outside Ziffr (ADR 0006): a program of its own that the clock only starts, as
@@ -74,7 +78,8 @@ setInterval(() => {
   if (now.getUTCMinutes() === 0) void call("workflows");
   // Heads-ups (spec 0041): every hour, ten past; a Workspace is scanned at most every six hours, so most calls are a few counts.
   if (now.getUTCMinutes() === 10) void call("heads-ups");
-  if (DEMO_RESET && now.getUTCHours() === 3 && now.getUTCMinutes() === 30) void call("demo-reset", true);
+  if (DEMO_RESET && !DEMO_CHANGES && now.getUTCHours() === 3 && now.getUTCMinutes() === 30) void call("demo-reset", true);
+  if (DEMO_RESET && DEMO_CHANGES && now.getUTCMinutes() % 15 === 10) void call("demo-reset", true);
   if (TRIAL_CLEANUP && now.getUTCMinutes() === 20) void call("trial-cleanup", true);
   // Unused Workspaces (spec 0029): daily at 04:10 UTC; it does nothing unless ZIFFR_DELETE_UNUSED_AFTER_DAYS is set.
   if (now.getUTCHours() === 4 && now.getUTCMinutes() === 10) void call("unused-workspaces");
@@ -90,4 +95,4 @@ setInterval(() => {
   if (now.getUTCHours() === 2 && now.getUTCMinutes() === 40) void call("retention");
 }, 15_000);
 writeFileSync(ALIVE, "");
-console.log(`Ziffr clock: calling ${APP} (Workflows and Heads-ups hourly, deliveries and the Workspace Keys' re-encryption every five minutes${DEMO_RESET ? ", the demo's seed nightly at 03:30 UTC where it is offered" : ""}${TRIAL_CLEANUP ? ", trials hourly where they are offered" : ""}, unused Workspaces daily, Retention daily at 02:40 UTC${USAGE_FEED ? ", the Usage Feed daily at 05:00 UTC" : ""}).`);
+console.log(`Ziffr clock: calling ${APP} (Workflows and Heads-ups hourly, deliveries and the Workspace Keys' re-encryption every five minutes${DEMO_RESET ? (DEMO_CHANGES ? ", the demo's reset every 15 minutes when it was changed" : ", the demo's seed nightly at 03:30 UTC where it is offered") : ""}${TRIAL_CLEANUP ? ", trials hourly where they are offered" : ""}, unused Workspaces daily, Retention daily at 02:40 UTC${USAGE_FEED ? ", the Usage Feed daily at 05:00 UTC" : ""}).`);

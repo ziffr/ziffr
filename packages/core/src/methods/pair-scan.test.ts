@@ -7,6 +7,7 @@
 import fc from "fast-check";
 import { describe, expect, it } from "vitest";
 import { changes } from "../basis";
+import { autocorrelations, effectiveCount } from "../effective-count";
 import { periodStart, shiftPeriod } from "../periods";
 import { runs } from "../test/reference/check";
 import { exactOf } from "../test/reference/exact";
@@ -14,7 +15,7 @@ import { referencePearson } from "../test/reference/analyses";
 import { referenceChance, referenceEffective, referencePairs, referenceR, referenceRho } from "../test/reference/heads-up";
 import { FIXTURE, HASHES } from "../test/reference/heads-up-fixture";
 import { close, series } from "../test/reference/methods-fixture";
-import { adjacent, autocorrelations, axisOf, capMetrics, effectiveCount, exactAtLeast, HEADS_UP, layOut, scanPair, scanPairs, strongAndAgreeing, strongInBoth, type Axis, type Laid, type PairScan } from "./pair-scan";
+import { adjacent, axisOf, capMetrics, exactAtLeast, HEADS_UP, layOut, scanPair, scanPairs, strongAndAgreeing, strongInBoth, type Axis, type Laid, type PairScan } from "./pair-scan";
 
 const { numRuns, seed } = runs();
 
