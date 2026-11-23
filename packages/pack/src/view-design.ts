@@ -5,7 +5,7 @@
 // refused, and every number it shows comes from the core's verified functions, never from the file.
 import { checkSchema, parseJson, type Problem, type Schema } from "./json-check.js";
 import { plainText } from "./file-text.js";
-import { ANALYSIS_RECIPE_SCHEMA, checkAnalysisRecipeValue, FUNCTIONS, type AnalysisRecipe } from "./analysis-recipe.js";
+import { ANALYSIS_RECIPE_SCHEMA, ANALYSIS_RECIPE_SCHEMA_2, checkAnalysisRecipeValue, drawnOutputs, type AnyAnalysisRecipe } from "./analysis-recipe.js";
 
 /** The format this Ziffr writes; it reads every version in `VIEW_FORMATS`. */
 export const VIEW_FORMAT = "ziffr.view/1";
@@ -73,7 +73,7 @@ export type ViewDesign = {
   /** What it says while a Slot is not filled or its Metrics have too little in common. */
   empty?: string;
   /** An Analysis Recipe the design draws: its Slots are the design's first Metrics, in order. */
-  analysis?: AnalysisRecipe;
+  analysis?: AnyAnalysisRecipe;
   parts: Part[];
 };
 
@@ -143,7 +143,10 @@ export const VIEW_DESIGN_SCHEMA: Schema = {
       additionalProperties: false,
     },
     empty: text(VIEW_LIMITS.text, "plain text, without markup or web addresses"),
-    analysis: { ...ANALYSIS_RECIPE_SCHEMA, $schema: undefined, $id: undefined, title: undefined, description: "An Analysis Recipe (ziffr.analysis/1) the design draws; its Slots are the design's first Metrics, in order." },
+    analysis: {
+      oneOf: [ANALYSIS_RECIPE_SCHEMA, ANALYSIS_RECIPE_SCHEMA_2].map((r) => ({ ...r, $schema: undefined, $id: undefined, title: undefined, description: undefined })),
+      description: "An Analysis Recipe (ziffr.analysis/1 or ziffr.analysis/2) the design draws; its Slots are the design's first Metrics, in order.",
+    },
     parts: { type: "array", minItems: 1, maxItems: VIEW_LIMITS.parts, items: { $ref: "#/$defs/part" }, description: "What it draws, top to bottom." },
   },
   required: ["format", "name", "kind", "slots", "size", "parts"],
@@ -294,10 +297,11 @@ function recipeUse(d: ViewDesign, lines: Map<string, number>, at: (path: string,
     const metrics = d.slots.reduce((n, s) => n + (s.metrics === "several" ? 2 : 1), 0);
     if (d.analysis.slots.length > metrics) at("analysis.slots", `The analysis has ${d.analysis.slots.length} Slots; the design fills at most ${metrics}.`);
   }
-  const kind = (step: string) => {
+  // What a mark may draw of a step: a series or one value that an output shows with a unit; any other output (a table, a
+  // Takeaway) is not drawn by a mark yet, and is said so.
+  const kind = (step: string): "series" | "value" | "other" | null => {
     if (!d.analysis?.outputs.some((o) => o.step === step)) return null;
-    const s = d.analysis.steps.find((x) => x.id === step);
-    return s ? FUNCTIONS[s.fn].gives : null;
+    return drawnOutputs(d.analysis).find((o) => o.step === step)?.gives ?? "other";
   };
   const use = (show: string, path: string, wants: "series" | "value" | "any") => {
     if (!show.startsWith("recipe.")) return;
@@ -305,6 +309,7 @@ function recipeUse(d: ViewDesign, lines: Map<string, number>, at: (path: string,
     if (!d.analysis) return at(path, `shows “${show}”, but the design has no analysis.`);
     const k = kind(step);
     if (!k) return at(path, `“${step}” is not an output of the design's analysis.`);
+    if (k === "other") return at(path, `“${show}” is a table, a model or a Takeaway, or has no unit; marks draw a series or one value.`);
     if (wants !== "any" && k !== wants) at(path, `“${show}” gives ${k === "series" ? "a series" : "one value"}; this mark needs ${wants === "series" ? "a series" : "one value"}.`);
   };
   const walk = (parts: Part[], path: string) =>
@@ -328,7 +333,7 @@ function ordered(v: unknown, raw: Schema | undefined): unknown {
   if (Array.isArray(v)) return v.map((x) => ordered(x, s?.items));
   if (!v || typeof v !== "object") return v;
   const o = v as Record<string, unknown>;
-  const branch = s?.oneOf?.map((b) => (b.$ref ? VIEW_DESIGN_SCHEMA.$defs?.[b.$ref.replace("#/$defs/", "")] : b)).find((b) => b?.type === "object" && (!b.properties?.mark || b.properties.mark.const === o.mark));
+  const branch = s?.oneOf?.map((b) => (b.$ref ? VIEW_DESIGN_SCHEMA.$defs?.[b.$ref.replace("#/$defs/", "")] : b)).find((b) => b?.type === "object" && (!b.properties?.mark || b.properties.mark.const === o.mark) && (!b.properties?.format || b.properties.format.const === o.format));
   const props = (branch ?? s)?.properties ?? {};
   const keys = [...Object.keys(props).filter((k) => k in o), ...Object.keys(o).filter((k) => !(k in props)).sort()];
   return Object.fromEntries(keys.map((k) => [k, ordered(o[k], props[k])]));

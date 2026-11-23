@@ -2,7 +2,7 @@
 
 An **Analysis Recipe** is an Analysis written as steps of Ziffr's verified functions over the Metrics in its Slots. It holds no code, so every number it gives is one Ziffr computed and verified (spec 0022). This guide is for analysts who want a moving average, a seasonality check or a z-score without changing Ziffr.
 
-The exact format is the JSON Schema in [`docs/reference/analysis-recipe.schema.json`](../reference/analysis-recipe.schema.json). Every function is in the [Calculation Catalogue](../reference/calculations.md#analysis-recipes) with its rule, its reference implementation and its tests.
+The exact formats are the JSON Schemas in [`docs/reference/analysis-recipe.schema.json`](../reference/analysis-recipe.schema.json) (`ziffr.analysis/1`) and [`docs/reference/analysis-recipe-2.schema.json`](../reference/analysis-recipe-2.schema.json) (`ziffr.analysis/2`, described [below](#format-2)). Every function is in the [Calculation Catalogue](../reference/calculations.md#analysis-recipes) with its rule, its reference implementation and its tests.
 
 ## A recipe
 
@@ -60,6 +60,59 @@ A recipe is drawn by a View Design that carries it under `analysis`. The recipe'
 
 A series can be a line or bars; one value can be a rule or a number in words (a series in words shows its latest value). In the Playground, **Start from** offers every built-in recipe inside a design that draws it: moving average, growth, linear trend, seasonality, unusual periods (z-score), correlation and share of a total.
 
+## Format /2
+
+`ziffr.analysis/2` is the format for recipes that use the newer Methods. Ziffr reads `/1` for ever, unchanged, and a recipe that needs nothing new may stay in `/1`; write `/2` when a recipe uses a function that only it has. A file in `/1` that names one of those functions is refused, and says which functions `/1` has.
+
+What a step gives is one of four kinds, and each function says which kind it takes:
+
+- a **series**: values by period;
+- one **value**;
+- a **table**: rows, each with a label and a number;
+- a **model**: what a fit holds. A recipe cannot show a model; it can only pass it to `importance`, or show its Takeaway.
+
+```json
+{
+  "format": "ziffr.analysis/2",
+  "name": "What goes with revenue",
+  "slots": [{ "label": "Metric" }, { "label": "Compared with" }, { "label": "Held the same" }],
+  "steps": [
+    { "id": "lags", "fn": "laggedCorrelation", "of": "slot1", "with": "slot2", "maxLag": 3 },
+    { "id": "usual", "fn": "usualRange", "of": "slot1" },
+    { "id": "model", "fn": "fit", "of": "slot1", "drivers": ["slot2", "slot3"] },
+    { "id": "shares", "fn": "importance", "of": "model" }
+  ],
+  "outputs": [
+    { "step": "lags", "label": "By delay", "shows": "table" },
+    { "step": "shares", "label": "Shares", "shows": "table" },
+    { "step": "usual", "label": "Usual", "shows": "takeaway", "title": "What is usual" },
+    { "step": "model", "label": "What moves it", "shows": "takeaway", "note": "Worked out from the history." }
+  ]
+}
+```
+
+The functions of `/1` are all there, and these are new:
+
+| Function | Takes | Gives | Rule |
+|---|---|---|---|
+| `changes` | a series | a series | Each value's change on the period before. |
+| `detrended` | a series | a series | Each value less the series' own straight-line trend. |
+| `quantile` (`percent` 1 to 99) | a series | a value | The percentile, by interpolating between neighbours (type 7). |
+| `spearman` (`with`) | two series | a value | Rank correlation; none without six pairs or for a series that does not change. |
+| `partialCorrelation` (`with`, `controls` 1 to 4) | series | a value | The link of the first two with the others held the same. |
+| `laggedCorrelation` (`with`, `maxLag` 0 to 6) | two series | a table | A row for each delay: "Same month", "1 month later", …, each with its r. |
+| `usualRange` | a series | a table | Usual low, lower quartile, median, upper quartile, usual high. |
+| `fit` (`drivers` 1 to 6) | series | a model | The target (`of`) and its drivers, each effect with the others held the same. |
+| `importance` | a model | a table | Each driver's share of what the fit explains; the shares add up to 1. |
+
+Each is the Method of the same name in the [Methods guide](methods.md), with its minimums and its refusals: where a Method has no answer for the data, a value is empty, a table has no rows, and a Takeaway says in words what is missing. A change too large to be a number is left out of a series, as everywhere in the library.
+
+**Outputs.** Each output says what it `shows`: `series`, `value`, `table` or `takeaway`. A series or a value also names its `unit` (as in `/1`); a table or a Takeaway has none. A Takeaway is available for `spearman`, `partialCorrelation`, `laggedCorrelation`, `usualRange` and `fit`, and is the Method's own: its sentence, strength, range, cautions and footer are written by Ziffr, in the same words as in the Analysis Canvas, and a recipe adds only a `title` and a `note` in plain text. Because those words name Metrics and their units, a Takeaway is worked out from Slots, not from another step. A Takeaway always uses the Method's own settings (a lagged correlation's Takeaway looks at all six delays, whatever `maxLag` the table asks for), and compares two Metrics that both grow by their changes, as everywhere.
+
+**Limits.** At most 4 Slots, 12 steps, 6 outputs, 4 controls and 6 drivers; at most 40 inputs named across all steps and 2 fits; a file of at most 32 KiB and 6 levels deep; names, titles and notes in plain text as in `/1` (a title up to 60 characters, a note up to 200). A recipe works on the latest 120 values of each Slot. Metrics of different periods are not compared: every output says to show them by the same period.
+
+**What is drawn.** A View Design draws a recipe's series and values with marks, as for `/1`. A table or a Takeaway has no mark yet, and a mark that names one is refused with that said.
+
 ## Forecast and correlation
 
 The **Correlation** recipe is the same Pearson's r the Correlation Analysis computes. The Correlation, Correlation matrix and Drivers widgets stay built in: before computing r, they combine a Metric of a shorter period to the other's longer period by its Aggregation, which is not a step on a series. The **Forecast** stays built in too: Holt's method smooths each value into the next, which no composition of these functions writes exactly.
@@ -67,3 +120,5 @@ The **Correlation** recipe is the same Pearson's r the Correlation Analysis comp
 ## What Ziffr refuses
 
 Everything a View Design's checks refuse, and also: a function the library does not have, a missing or extra parameter, a step that reads a later step or a Slot the recipe does not have, two steps with one name or a step named like a Slot, a value where a series belongs, and an output of no step. A recipe file is at most 32 KiB.
+
+In `/2` also: an input of the wrong kind (a value where a series belongs, a table where a model does), a list with a name twice, an output that does not match what its step gives, a Takeaway of a function that has none or of one that works on another step, a `unit` on a table or a Takeaway or none on a series, and more than 40 inputs or 2 fits.

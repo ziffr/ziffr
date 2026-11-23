@@ -98,10 +98,13 @@ function outsideText(o: Outside, m: ValueUnit, span: Span, ctx: TakeawayContext)
   return say(key, { name: o.name, limit: written(m, o.change ? Math.abs(o.limit) : o.limit, ctx), span }, ctxOf(ctx));
 }
 
+/** What the words of a fit's Takeaway need of a Metric: its name and how its numbers are written (a Recipe's Slot has these too). */
+export type Named = Pick<Metric, "name" | "unit" | "unit_position" | "decimals">;
+
 /** The Takeaway of "What moves B?": the drivers that moved with the target the most (up to three, none that can't be told from
  * chance), each one's share of what moved, strength and what its effect has been with the others held the same, the cautions
  * above, what was treated as one, the footer, and the numbers for Show the numbers. A refusal says what is missing. */
-export function movesTakeaway(target: Metric, drivers: Metric[], f: Fit | Refused, ctx: TakeawayContext, extra: string[] = []): MovesTakeaway {
+export function movesTakeaway(target: Named, drivers: Named[], f: Fit | Refused, ctx: TakeawayContext, extra: string[] = []): MovesTakeaway {
   const method = text("numbers-method-fit", ctx);
   // A refusal after a first pass still says who was left out (words, no number).
   if (!f.ok) return { ...refusalTakeaway(method, lines({ refusals: f.refusals, cautions: [], switches: [] }, ctx).refusals), notes: extra, rows: [] };

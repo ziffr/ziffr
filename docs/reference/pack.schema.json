@@ -200,7 +200,7 @@
         "analyses": {
           "type": "array",
           "maxItems": 50,
-          "description": "Analysis Recipes, each a ziffr.analysis/1 document under “recipe”.",
+          "description": "Analysis Recipes, each a ziffr.analysis/1 or ziffr.analysis/2 document under “recipe”.",
           "items": {
             "type": "object",
             "properties": {
@@ -211,7 +211,7 @@
               },
               "recipe": {
                 "type": "object",
-                "description": "A ziffr.analysis/1 document, checked by its own schema."
+                "description": "A ziffr.analysis/1 or ziffr.analysis/2 document, checked by its own schema."
               }
             },
             "required": [

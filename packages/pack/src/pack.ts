@@ -13,7 +13,7 @@ import { cleanLogo, logoProblem, PACK_LOGO_MAX_BYTES } from "./logo.js";
 import { checkDeckTemplateFileValue, deckTemplateReferences, DECK_TEMPLATE_LIMITS, type DeckTemplateFile } from "./deck-template-file.js";
 import { checkWorkflowTemplateFileValue, WORKFLOW_TEMPLATE_LIMITS, type WorkflowTemplateFile } from "./workflow-template-file.js";
 import { checkViewDesignValue, VIEW_LIMITS, type ViewDesign } from "./view-design.js";
-import { checkAnalysisRecipeValue, RECIPE_LIMITS, type AnalysisRecipe } from "./analysis-recipe.js";
+import { checkAnalysisRecipeValue, RECIPE_LIMITS, type AnyAnalysisRecipe } from "./analysis-recipe.js";
 import { checkPackFormula, type FormulaEntry } from "./formula-check.js";
 import { textsAimedAtAssistants } from "./assistant-words.js";
 
@@ -36,7 +36,7 @@ const KINDS = {
   metrics: { field: "metric", what: "Metric Catalog entries", format: "ziffr.metric/1", bytes: METRIC_FILE_LIMITS.bytes, check: checkMetricFileValue },
   dashboards: { field: "template", what: "Dashboard Templates", format: "ziffr.dashboard-template/1", bytes: DASHBOARD_TEMPLATE_LIMITS.bytes, check: checkDashboardTemplateFileValue },
   views: { field: "design", what: "View Designs", format: "ziffr.view/1", bytes: VIEW_LIMITS.bytes, check: (v: unknown, l: Map<string, number>): FormatCheck<ViewDesign> => { const r = checkViewDesignValue(v, l); return r.ok ? { ok: true, value: r.design } : r; } },
-  analyses: { field: "recipe", what: "Analysis Recipes", format: "ziffr.analysis/1", bytes: RECIPE_LIMITS.bytes, check: (v: unknown, l: Map<string, number>): FormatCheck<AnalysisRecipe> => { const r = checkAnalysisRecipeValue(v, l); return r.ok ? { ok: true, value: r.recipe } : r; } },
+  analyses: { field: "recipe", what: "Analysis Recipes", format: "ziffr.analysis/1 or ziffr.analysis/2", bytes: RECIPE_LIMITS.bytes, check: (v: unknown, l: Map<string, number>): FormatCheck<AnyAnalysisRecipe> => { const r = checkAnalysisRecipeValue(v, l); return r.ok ? { ok: true, value: r.recipe } : r; } },
   themes: { field: "theme", what: "Themes", format: "ziffr.theme/1", bytes: THEME_FILE_LIMITS.bytes, check: checkThemeFileValue },
   decks: { field: "template", what: "Deck Templates", format: "ziffr.deck-template/1", bytes: DECK_TEMPLATE_LIMITS.bytes, check: checkDeckTemplateFileValue },
   workflows: { field: "template", what: "Workflow Templates", format: "ziffr.workflow-template/1", bytes: WORKFLOW_TEMPLATE_LIMITS.bytes, check: checkWorkflowTemplateFileValue },
@@ -64,7 +64,7 @@ export type Pack = {
     metrics?: PackItem<"metric", MetricFile>[];
     dashboards?: PackItem<"template", DashboardTemplateFile>[];
     views?: PackItem<"design", ViewDesign>[];
-    analyses?: PackItem<"recipe", AnalysisRecipe>[];
+    analyses?: PackItem<"recipe", AnyAnalysisRecipe>[];
     themes?: PackItem<"theme", ThemeFile>[];
     decks?: PackItem<"template", DeckTemplateFile>[];
     workflows?: PackItem<"template", WorkflowTemplateFile>[];

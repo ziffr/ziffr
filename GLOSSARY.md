@@ -340,7 +340,7 @@ The one date at which a Metric's level or its trend most likely changed, found b
 _Avoid_: Breakpoint, inflection, anomaly, outlier
 
 **Analysis Recipe**:
-An Analysis written as steps of Ziffr's verified functions over the Metrics in its Slots. It holds no code, so every number it gives is verified.
+An Analysis written as steps of Ziffr's verified functions over the Metrics in its Slots. It holds no code, so every number it gives is verified. In format `ziffr.analysis/2` a step may also give a table (rows with a label and a number) or what a fit holds, and an output may be a Takeaway, written by the Method's own words: a recipe's author writes no sentence about statistics. Format `/1` is read for ever.
 _Avoid_: Script, model, custom analysis, formula
 
 **Common Period**:

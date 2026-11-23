@@ -20,6 +20,7 @@ import { bestForecast } from "@ziffr/core/methods/forecast-choice";
 import { SEASON_LENGTH } from "@ziffr/core/suitability";
 import { forecastTakeaway, endsOf } from "@ziffr/core/takeaways/forecast";
 import { designRecipe, formatOutput } from "@ziffr/core/design-analysis";
+import { drawnOutputs } from "@ziffr/core/analysis-recipe";
 import { TargetChip } from "@/components/target-chip";
 import { cn } from "@/lib/utils";
 import { ApprovalMark } from "./approval-mark";
@@ -309,7 +310,7 @@ function textValue(show: TextShow, v: DesignValues): ReactNode {
 
 /** A recipe output as text: its one value, or a series' latest, in the output's unit (formatOutput). */
 function recipeText(step: string, v: DesignValues): string | null {
-  const out = v.analysis?.outputs.find((o) => o.step === step);
+  const out = drawnOutputs(v.analysis).find((o) => o.step === step);
   const res = v.recipe?.[step];
   if (!out || !res) return null;
   const value = res.kind === "value" ? res.value : res.points[res.points.length - 1]?.value;
