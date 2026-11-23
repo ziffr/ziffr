@@ -28,15 +28,20 @@ const panel = useSlideOver();
 
 This is the state when the rule was written. Later tickets of spec 0050 move the screens marked **move**; they are working surfaces that are still modals.
 
-**Side panel, on the host** (`useSlideOver`; `SlideOverWindow` in `slide-over-window.tsx` for a screen that keeps its own "is it open" state):
+**Side panel on the host** (`useSlideOver()`; `SlideOverWindow` in `slide-over-window.tsx` for a screen that keeps its own "is it open" state):
 
 | Screen | File |
 | --- | --- |
+| Share (also `?panel=share`) | `apps/web/src/components/share-sheet.tsx` |
+| Who can see this | `apps/web/src/components/who-can-see.tsx` |
+| View Links (a dashboard's, a deck's, a Snapshot's) | `apps/web/src/components/view-links.tsx` |
 | The Slot window ("Use this…"; the Preview is sized from the panel's width) | `slot-dialog.tsx` |
 | Browse templates (the Pool's Browse…; Use closes it and the Slot window takes its place) | `template-browser.tsx`, `pool.tsx` |
 | Versions of a team template | `template-menu.tsx` |
 | Save as template (widget, slide layout, Deck Template, dashboard) | `save-template-dialog.tsx`, `save-dashboard-template-dialog.tsx` |
 | Add to deck | `add-to-deck-dialog.tsx` |
+
+Share, Who can see this and View Links open on top of one another with a **Back** button, so Share can lead to Who can see this and View Links and back. None of the three asks for a confirmation: revoking a View Link and answering a request for access act at once and can be undone by making the link again or granting later.
 
 **Side panel, built on the older `Sheet` and not yet on the host:**
 
@@ -46,15 +51,12 @@ This is the state when the rule was written. Later tickets of spec 0050 move the
 | Alert me about a Metric | `apps/web/src/components/alerts.tsx` |
 | Quick look at a Metric | `apps/web/src/components/metric-quick-look.tsx` |
 | Version history | `apps/web/src/components/versions-sheet.tsx` |
-| Share | `apps/web/src/components/share-sheet.tsx` |
 | The "More" menu on a phone (a menu, not a working surface) | `apps/web/src/components/app-shell.tsx`, `object-toolbar.tsx` |
 
 **Modal that should be a panel (move):**
 
 | Screen | File |
 | --- | --- |
-| Who can see this | `who-can-see.tsx` |
-| View Links | `view-links.tsx` |
 | Edit details of a Metric | `apps/web/src/app/metrics/[slug]/edit-details.tsx` |
 | Retention | `retention-form.tsx` |
 | New dashboard, new deck | `new-dashboard-dialog.tsx`, `new-deck-dialog.tsx` |
