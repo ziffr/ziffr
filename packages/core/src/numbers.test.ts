@@ -456,6 +456,16 @@ describe("a pasted breakdown with a parent column (spec 0041, ticket 12)", () =>
     expect(parseBreakdown("\n\nName\tValue\tParent\nA\t1\t\nB\t2\tA", "1,234.5", { parents: true })?.rows[1].parent).toBe("A");
     expect(parseBreakdown("A\t1\t\nB\t2\tA\nParent\t1\t", "1,234.5", { parents: true })?.rows[1].parent).toBeUndefined();
   });
+  it("finds the header after blank lines, with spaces and quotes round it, and not inside a word", () => {
+    const rows = "\nA\t1\t\nB\t2\tA";
+    expect(parseBreakdown(`   \n  \t \nName\tValue\tParent${rows}`, "1,234.5", { parents: true })?.rows[1].parent).toBe("A");
+    expect(parseBreakdown(`Name\tValue\t  Parent  ${rows}`, "1,234.5", { parents: true })?.rows[1].parent).toBe("A");
+    expect(parseBreakdown(`Name\tValue\t'Parent'${rows}`, "1,234.5", { parents: true })?.rows[1].parent).toBe("A");
+    expect(parseBreakdown(`Name\tValue\tPar"ent${rows}`, "1,234.5", { parents: true })?.rows[1].parent).toBeUndefined();
+    expect(parseBreakdown(`Name\tValue\tPar'ent${rows}`, "1,234.5", { parents: true })?.rows[1].parent).toBeUndefined();
+    expect(parseBreakdown("", "1,234.5", { parents: true })).toBeNull();
+    expect(parseBreakdown(" \n ", "1,234.5", { parents: true })).toBeNull();
+  });
   it("never reads a parent from a message or without the option, whatever the header says, and keeps reading units and notes as before", () => {
     const old = (text: string) => parseBreakdown(text, "1,234.5");
     // As before: the line with a third cell that is no unit is no row, and one row is no breakdown.

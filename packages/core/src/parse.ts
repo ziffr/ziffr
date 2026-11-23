@@ -16,8 +16,8 @@ const WITH_PARENT_CSV = /^["']?(.+?)["']?,\s*["']?([+\-−]?\d+(?:\.\d+)?)\s*(%|
 // The header cell that says a third column holds parents (English and German, as the words for a total are): without one, a third cell is a unit or a note, as it always was.
 const PARENT_HEADER = /^(parent( row| name)?|eltern(zeile)?|übergeordnet(e zeile|es element)?|gehört zu)$/i;
 const hasParentHeader = (text: string): boolean => {
-  const first = text.split(/\r?\n|;/).find((l) => l.trim() !== "") ?? "";
-  return first.split(/[\t,]/).some((c) => PARENT_HEADER.test(c.trim().replace(/^["']|["']$/g, "")));
+  const first = text.split(/\r?\n|;/).find((l) => l.trim() !== "");
+  return first?.split(/[\t,]/).some((c) => PARENT_HEADER.test(c.trim().replace(/^["']|["']$/g, ""))) === true;
 };
 
 /** Reads "label value" lines (from Excel, CSV or a chat) into rows, each with the label of its parent when the header names a parent column and a third cell names one. Needs two or more rows to count as a breakdown. */
@@ -39,7 +39,7 @@ export function parseBreakdown(text: string, style: NumberStyle, options: { pare
     const label = m[1].trim();
     const value = readNumber(`${m[2].trim()}${m[3]?.toLowerCase() === "k" ? "k" : ""}`, style);
     if (value === null || !label || /^\d/.test(label)) continue;
-    const parent = withParent?.[4]?.trim();
+    const parent = withParent?.[4].trim();
     if (TOTAL.test(label)) total = value;
     else rows.push(parent ? { label, value, parent } : { label, value });
   }
