@@ -22,7 +22,7 @@ import type { Point } from "./types";
 
 /** The limits: decimal places in the text of a value, and orders of magnitude (powers of ten) from the smallest size that is not 0 to the largest. */
 export const WORK_BOUND = { places: 30, orders: 30 } as const;
-/** The digit work one bounded Method may spend, in the units of `spend`: about a quarter of a second on a laptop for the multiple fit: six drivers and 120 periods of values with 8 decimal places need under a tenth of it, and 2 decimal places a sixth. */
+/** The digit work one bounded Method may spend, in the units of `spend`: a fraction of a second on a laptop for the multiple fit: six drivers and 120 periods of values with 8 decimal places need under a tenth of it, and 2 decimal places a sixth. */
 export const WORK_BUDGET = 4_000_000_000;
 
 const [ZERO, TEN] = [BigInt(0), BigInt(10)];
@@ -36,7 +36,9 @@ export function wideReason(values: readonly number[]): Wide | null {
   const parts = values.filter((v) => Number.isFinite(v)).map(scaled);
   if (parts.some((p) => p.places > WORK_BOUND.places)) return "places";
   // Every size on one scale of 10^-30 (no value has more places than that), so they are whole numbers and the largest over the smallest is a division-free comparison.
+  // Stryker disable next-line EqualityOperator: for 0 the sign does not matter, and a size of 0 is left out below.
   const sizes = parts.map((p) => (p.digits < ZERO ? -p.digits : p.digits) * TEN ** BigInt(WORK_BOUND.places - p.places)).filter((s) => s !== ZERO);
+  // Stryker disable next-line EqualityOperator: for equal sizes either is the largest (or the smallest), the same size.
   return sizes.length > 0 && sizes.reduce((a, b) => (a > b ? a : b)) > SPAN * sizes.reduce((a, b) => (a < b ? a : b)) ? "orders" : null;
 }
 
