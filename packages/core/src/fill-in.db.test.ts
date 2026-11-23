@@ -13,6 +13,7 @@ import { setMyQuietHours } from "./quiet-hours";
 import { submissionEffects, submitValue, type SubmissionEffects } from "./submissions";
 import { DEMO_WORKSPACE_ID } from "./team";
 import { opened, workspace } from "./test/db-fixtures";
+import { metricHistory } from "./dashboards";
 import { archivedMetricHolds } from "./internal/delivery-send";
 import { decideCorrection } from "./submissions";
 import { saveWorkflow, setAway, setStandIn } from "./workflows";
@@ -287,10 +288,25 @@ describe("what follows a Filled-in Value", () => {
     const action = await w.action({ metric_id: m.id, period_start: ago(2), asker_id: sara, assignee_id: ben, observation_id: obs!.id, purpose: "approval" });
     const { data: msg } = await db().from("thread_messages").insert({ action_id: action, author_id: sara, workspace_id: w.id, body: "Late", correction_value: 6, correction_status: "proposed" }).select("id").single();
     await expect(decideCorrection(as(ben), msg!.id, true, { notifyDecision: vi.fn(async () => {}), afterValue: vi.fn(async () => []) })).rejects.toThrow(/someone else decides/);
+    await expect(decideCorrection(as(ben), msg!.id, false, { notifyDecision: vi.fn(async () => {}), afterValue: vi.fn(async () => []) })).rejects.toThrow(/someone else decides/);
     // Handed to an owner who did not enter it: accepted, and the value is Sara's own now.
     await db().from("metrics").update({ owner_id: (await w.person("member")) }).eq("id", m.id);
     const newOwner = (await db().from("metrics").select("owner_id").eq("id", m.id).single()).data!.owner_id as string;
     await decideCorrection(as(newOwner), msg!.id, true, { notifyDecision: vi.fn(async () => {}), afterValue: vi.fn(async () => []) });
     expect((await db().from("observations").select("submitter_id, entered_by").eq("id", obs!.id).single()).data).toEqual({ submitter_id: sara, entered_by: null });
+  });
+
+  it("a Guest's history read carries neither who submitted a value nor who entered it", async () => {
+    const { w, ben, sara, m, as } = await setup();
+    const guest = await w.person("guest"); await w.share(m.id, guest);
+    await fillInValue(as(ben), { metricId: m.id, period: ago(2), for: sara, value: "5" }, quiet());
+    const member = await metricHistory(as(sara), m.id);
+    expect(member.observations[0]).toMatchObject({ submitter_id: sara, entered_by: ben });
+    const seen = await metricHistory(w.actor(guest, "guest"), m.id);
+    expect(seen.observations).toHaveLength(1);
+    expect(seen.observations[0]).not.toHaveProperty("submitter_id");
+    expect(seen.observations[0]).not.toHaveProperty("entered_by");
+    expect(JSON.stringify(seen)).not.toContain(ben);
+    expect(JSON.stringify(seen)).not.toContain(sara);
   });
 });

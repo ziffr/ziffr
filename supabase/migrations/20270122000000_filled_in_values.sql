@@ -32,9 +32,9 @@ end $$;
 
 -- Who set an Away entry. Away is global (one row per person, whatever their Workspaces), so it opens filling in only when the
 -- person set it themselves or an Owner or Admin of the Metric's own Workspace did: not an Admin of another Workspace.
--- Entries from before this are taken as set by the person, as the app let them set their own.
+-- Entries from before this have no setter and open nothing: people who are Away set it again themselves, so an old entry an
+-- Admin set cannot open filling in anywhere.
 alter table away add column set_by text references profiles(id) on delete set null;
-update away set set_by = user_id where set_by is null;
 
 -- The message about a Filled-in Value names the value it is about, so that it is checked again when it is sent.
 alter table deliveries add column filled_in_observation_id bigint references observations(id) on delete set null;

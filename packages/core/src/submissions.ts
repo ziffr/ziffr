@@ -533,10 +533,11 @@ export async function decideCorrection(actor: Actor, messageId: number, accept: 
   if (!msg || msg.actions?.metrics?.owner_id !== actor.personId) throw new Forbidden();
   // An Archived Metric takes no values, a Correction neither; it stays proposed for when the Metric is brought back.
   if (accept && msg.actions?.metrics?.archived_at) throw new Error(ARCHIVED_REFUSAL);
-  // A Filled-in Value is not corrected by the person who entered it: someone else decides (spec 0046, ticket #800).
-  if (accept && msg.actions?.observation_id) {
+  // A Filled-in Value's Correction is not decided, either way, by the person who entered it: someone else decides, so a
+  // Correction cannot be declined to keep their number (spec 0046, ticket #800).
+  if (msg.actions?.observation_id) {
     const { data: entered } = await db().from("observations").select("entered_by").eq("id", msg.actions.observation_id).eq("workspace_id", actor.workspaceId).maybeSingle();
-    if (entered?.entered_by && entered.entered_by === actor.personId) throw new Error("You entered this value, so someone else decides its Correction.");
+    if (entered?.entered_by && entered.entered_by === actor.personId) throw new Error("You entered this value, so someone else decides its Correction: hand the Metric over to someone else first.");
   }
   // Decided once only: the status changes first and only if it was still proposed, so a second click does nothing.
   const { data: claimed } = await db().from("thread_messages").update({ correction_status: accept ? "accepted" : "declined" }).eq("id", messageId).eq("workspace_id", actor.workspaceId).eq("correction_status", "proposed").select("id");
