@@ -8,17 +8,17 @@ import { workspace } from "./test/db-fixtures";
 
 let w: Awaited<ReturnType<typeof workspace>>;
 let other: Awaited<ReturnType<typeof workspace>>;
-let sara: string, ben: string, carla: string;
+let sara: string, ben: string, carla: string, gus: string;
 let payroll: { id: number; slug: string }, visits: { id: number; slug: string }, theirs: { id: number; slug: string };
 let openId: number, limitedId: number, closedId: number;
 const thisMonth = periodStart(new Date(), "month", JANUARY);
 
 beforeAll(async () => {
   w = await workspace(); other = await workspace();
-  sara = await w.person("owner"); ben = await w.person("member"); carla = await w.person("member");
+  sara = await w.person("owner"); ben = await w.person("member"); carla = await w.person("member"); gus = await w.person("guest");
   payroll = await w.metric(sara, { name: "Payroll" });
   visits = await w.metric(sara, { name: "Visits" });
-  await w.share(payroll.id, carla); await w.share(visits.id, carla);
+  await w.share(payroll.id, gus); await w.share(payroll.id, carla); await w.share(visits.id, carla);
   openId = await w.action({ metric_id: payroll.id, period_start: thisMonth, asker_id: sara, assignee_id: sara, question: "Why up?" });
   closedId = await w.action({ metric_id: payroll.id, period_start: thisMonth, asker_id: sara, assignee_id: sara, status: "closed" });
   const { data: g } = await db().from("groups").insert({ workspace_id: w.id, name: "Board" }).select("id").single();
@@ -46,5 +46,11 @@ describe("the Actions about a Widget's Metrics", () => {
   it("drops a Metric the person does not see, and one of another Workspace, without a word", async () => {
     expect(await ids(ben, "member", [payroll.slug, theirs.slug])).toEqual([]);
     expect(await ids(sara, "owner", [theirs.slug, "no-such-metric"])).toEqual([]);
+  });
+
+  it("shows a Guest only their own name as assignee, and no other Metric", async () => {
+    const rows = await openActionsAboutMetrics(w.actor(gus, "guest"), [payroll.slug, visits.slug]);
+    expect(rows.map((r) => r.id)).toEqual([openId]);
+    expect(rows[0].assigneeName).toBeNull();
   });
 });

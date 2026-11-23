@@ -5,6 +5,7 @@
 // person may read.
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { MessageSquare } from "lucide-react";
 import { metricActions } from "@/app/metric-actions-actions";
 import type { MetricActionRow } from "@ziffr/core/metric-actions";
@@ -15,6 +16,9 @@ import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "
 
 const PREFIX = actionsPanel([]);
 const MOST_SLUGS = 12;
+
+/** Whether the address is a View Link page (/v/<token>), where nobody is signed in. */
+export const isViewLinkPath = (path: string | null) => path === "/v" || (path ?? "").startsWith("/v/");
 
 type Load = { state: "loading" } | { state: "refused"; words: string } | { state: "failed" } | { state: "ready"; rows: MetricActionRow[] };
 
@@ -66,7 +70,9 @@ function openMetricActions(slugs: string[]) {
 /** The Actions panel, once per page (in the app shell): open whenever the address names it. */
 export function MetricActionsHost() {
   const panel = useOpenPanel();
-  const wanted = panel?.startsWith(PREFIX) ? panel.slice(PREFIX.length).split(",").filter(Boolean).slice(0, MOST_SLUGS) : [];
+  // A View Link page has no signed-in person: the call would send the viewer to sign in, so the panel stays shut there.
+  const open = !isViewLinkPath(usePathname());
+  const wanted = open && panel?.startsWith(PREFIX) ? panel.slice(PREFIX.length).split(",").filter(Boolean).slice(0, MOST_SLUGS) : [];
   const wantedKey = wanted.join(",");
   // Kept after closing so the panel slides out with its content instead of emptying first.
   const [shown, setShown] = useState<string[]>([]);

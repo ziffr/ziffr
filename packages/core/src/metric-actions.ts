@@ -37,8 +37,9 @@ export async function openActionsAboutMetrics(actor: Actor, slugs: readonly stri
   const visible = await visibleMetricIds(ws, actor.personId, metrics);
   const picked = metrics.filter((m) => wanted.has(m.slug) && visible.has(m.id));
   const byId = new Map(picked.map((m) => [m.id, m]));
-  const perMetric = await Promise.all(picked.map((m) => readableActions(ws, actor.personId, { metricId: m.id })));
-  return perMetric.flat()
+  // One read with one visibility check (not one per Metric); unshared Metrics were dropped above, Group-limited Actions by readableActions.
+  const readable = picked.length ? await readableActions(ws, actor.personId) : [];
+  return readable
     .filter((a) => a.status !== "closed" && a.metric_id !== null && byId.has(a.metric_id))
     .sort((x, y) => y.created_at.localeCompare(x.created_at) || y.id - x.id)
     .slice(0, MOST_PANEL_ACTIONS)

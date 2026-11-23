@@ -6,8 +6,8 @@ import { createRoot, type Root } from "react-dom/client";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("@/app/metric-actions-actions", () => ({ metricActions: async () => [] }));
-vi.mock("next/navigation", () => ({ useSearchParams: () => new URLSearchParams(window.location.search) }));
-import { OpenActionsButton } from "./metric-actions-panel";
+vi.mock("next/navigation", () => ({ useSearchParams: () => new URLSearchParams(window.location.search), usePathname: () => window.location.pathname }));
+import { isViewLinkPath, OpenActionsButton } from "./metric-actions-panel";
 import { actionsPanel } from "@/lib/panel-param";
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
@@ -24,5 +24,13 @@ describe("OpenActionsButton", () => {
     expect(b.getAttribute("type")).toBe("button");
     await act(async () => { b.click(); });
     expect(new URL(window.location.href).searchParams.get("panel")).toBe(actionsPanel(["revenue", "costs"]));
+  });
+});
+
+describe("isViewLinkPath", () => {
+  it("is true on a View Link page only", () => {
+    expect(isViewLinkPath("/v/abc")).toBe(true);
+    expect(isViewLinkPath("/dashboards/1")).toBe(false);
+    expect(isViewLinkPath("/vision")).toBe(false);
   });
 });
