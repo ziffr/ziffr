@@ -1,4 +1,0 @@
-	Aug-26	Sep-26	Oct-26
-Revenue	€1,200.00	€1,350.50	(€200.00)
-signups	12		15
-Churn rate	2.5%	#DIV/0!	3.1%

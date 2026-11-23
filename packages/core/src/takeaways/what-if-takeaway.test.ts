@@ -449,6 +449,60 @@ describe("a what-if said from the Method's result", () => {
   });
 });
 
+describe("whole Takeaways, word for word (golden: any change to a sentence, a figure, a number row or an assumption shows here)", () => {
+  const ok = (name: string, over: Partial<Reached> = {}): Reached => ({ ok: true, name, step: 1, exact: false, effect: 100, lo: 80, hi: 120, outside: [], beyond: [], noRange: false, through: [], coefficients: 1, level: 0.9, strength: "strong", byChange: false, verdict: { refusals: [], cautions: [], switches: [] }, ...over });
+  const made = (reached: (Reached | { ok: false; name: string; step: 1 | 2; refusal: { case: never; slots: never } })[], by = 1000, percent: number | null = null) => whatIfTakeaway(VISITS, [VISITS, SIGNUPS, REVENUE, RPV], { ok: true, start: "Visits", by, percent, span: "month", reached: reached as never }, [], ctx);
+  const caution = { case: "caution-spread" as const, slots: {} };
+  const exact = { exact: true, lo: null, hi: null, strength: null, coefficients: 0, level: 0 };
+  it("an amount up, with a range, a worked-out Metric and a two-step Metric", () => {
+    expect(JSON.stringify(made([ok("Signups"), ok("Revenue", { step: 2, effect: 1900.5, lo: 1700.25, hi: 2100.75, through: ["Signups"], coefficients: 2, level: 0.95, strength: "moderate", verdict: { refusals: [], cautions: [caution], switches: [] } }), ok("Revenue per visit", { ...exact, effect: -0.25 })]), null, 1)).toMatchSnapshot();
+  });
+  it("a fall by a percent, a range through 0, a guess, an unclear link and a refused one", () => {
+    expect(JSON.stringify(made([ok("Signups", { effect: -20, lo: -80, hi: 40 }), ok("Revenue", { lo: null, hi: null, outside: [{ name: "Visits", side: "above", limit: 51000, change: false }] }), ok("Revenue per visit", { strength: "cant-tell" }), { ok: false, name: "Weather", step: 1, refusal: { case: "refuse-too-large", slots: {} } } as never], -1500, 7.5), null, 1)).toMatchSnapshot();
+  });
+  it("every Metric worked out: no footer, no strength, and a Metric that does not change", () => {
+    expect(JSON.stringify(made([ok("Signups", { ...exact, effect: 12 }), ok("Revenue", { ...exact, effect: 0 })]), null, 1)).toMatchSnapshot();
+  });
+  it("counted by change in every estimated link: next month on the headline; and by change in only some: an assumption", () => {
+    expect(JSON.stringify(made([ok("Signups", { byChange: true }), ok("Revenue", { byChange: true, step: 2, through: ["Signups"], coefficients: 2 })]), null, 1)).toMatchSnapshot();
+    expect(JSON.stringify(made([ok("Signups", { byChange: true }), ok("Revenue")]), null, 1)).toMatchSnapshot();
+  });
+  it("beyond what was seen, and a point with no range", () => {
+    expect(JSON.stringify(made([ok("Signups", { lo: null, hi: null, beyond: [{ name: "Visits", side: "below", limit: -5, change: false }, { name: "Revenue", side: "above", limit: 30, change: true }] }), ok("Revenue", { lo: null, hi: null, noRange: true })]), null, 1)).toMatchSnapshot();
+  });
+  it("the same Takeaways with the Recipe: a chain world, one with a Derived Metric, and one with a Metric left out", () => {
+    const w = world();
+    const keep = (t: WhatIfTakeaway) => JSON.stringify(t, null, 1);
+    expect(keep(recipe(VISITS, { percent: 5 }, [SIGNUPS, REVENUE], w))).toMatchSnapshot();
+    expect(keep(recipe(VISITS, { by: -1500 }, [SIGNUPS, REVENUE, RPV, NOISE], w))).toMatchSnapshot();
+    expect(keep(recipe(VISITS, { percent: -3 }, [REVENUE, RPV], w))).toMatchSnapshot();
+    expect(keep(recipe(VISITS, { by: 1000 }, [mk(13, "double", "Double visits", { formula: "{visits} * 2" }), SIGNUPS], { ...w, series: { ...w.series, double: [] } }))).toMatchSnapshot();
+  });
+  it("twenty-five Metrics that move exactly alike: the ones with the lowest ids are looked at and kept, the others said", () => {
+    const r = lcg(5);
+    const visits = Array.from({ length: 30 }, () => 40000 + Math.round(r() * 20000));
+    const alike = months("2024-01", visits.map((v) => Math.round(v * 0.02)));
+    const twins = Array.from({ length: 25 }, (_, i) => mk(300 - i, `tw${i}`, `Twin ${String(24 - i).padStart(2, "0")}`));
+    const series: Record<string, Point[]> = { visits: months("2024-01", visits) };
+    twins.forEach((m) => (series[m.slug] = alike));
+    const t = whatIfRecipe(VISITS, { by: 1000 }, twins, resolverFrom([VISITS, ...twins], series), opts);
+    expect(t.rows.map((x) => x.name)).toEqual(Array.from({ length: 11 }, (_, i) => `Twin ${String(i).padStart(2, "0")}`));
+    expect(t.notes[0]).toBe("Only the 5 Metrics that moved most closely with Visits are followed; left out: Twin 05, Twin 06, Twin 07, Twin 08, Twin 09, Twin 10, Twin 11, Twin 12, Twin 13, Twin 14, Twin 15, Twin 16, Twin 17, Twin 18 and Twin 19.");
+    expect(t.notes.slice(1)).toEqual(["Left out to stay within 12 Metrics: Twin 11 and Twin 12.", "5 other Metrics were not looked at: only the 20 whose changes follow Visits most closely were."]);
+  });
+  it("the world where holding the near Metric leaves the far one nothing of its own, and the one with too few months for two drivers", () => {
+    const r = lcg(1);
+    const n = 24;
+    const a = Array.from({ length: n }, () => Math.round(100 + gauss(r) * 20));
+    const b = a.map((v) => Math.round(v * 0.8 + gauss(r) * 12));
+    const c = a.map((v, i) => Math.round(v + b[i] * 0.2 + gauss(r) * 35));
+    const [A, B, C] = [mk(21, "base", "Base"), mk(22, "near", "Near"), mk(23, "far", "Far")];
+    const t = whatIfRecipe(A, { by: 10 }, [B, C], resolverFrom([A, B, C], { base: months("2024-01", a), near: months("2024-01", b), far: months("2024-01", c) }), opts);
+    expect(JSON.stringify(t, null, 1)).toMatchSnapshot();
+    expect(JSON.stringify(recipe(VISITS, { by: 1000 }, [SIGNUPS, REVENUE], world(14)), null, 1)).toMatchSnapshot();
+  });
+});
+
 describe("the wording table", () => {
   it("has every what-if line in every language, none with a forbidden word", () => {
     for (const [, lines] of Object.entries(WORDING)) for (const [key, line] of Object.entries(lines)) if (key.startsWith("whatif") || key.includes("what-if")) expect(line, key).not.toMatch(FORBIDDEN);

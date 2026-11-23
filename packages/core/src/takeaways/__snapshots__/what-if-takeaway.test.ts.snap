@@ -1,0 +1,1354 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`whole Takeaways, word for word (golden: any change to a sentence, a figure, a number row or an assumption shows here) > a fall by a percent, a range through 0, a guess, an unclear link and a refused one 1`] = `
+"{
+ "kind": "refusal",
+ "method": "Each link read from a straight line through the Metrics' history or from a Derived Metric's formula, one after the other",
+ "sentence": null,
+ "refusal": "the Metrics cannot be used as it was given.",
+ "strength": null,
+ "strengthText": null,
+ "range": null,
+ "basis": null,
+ "assumptions": [],
+ "cautions": [],
+ "notes": [],
+ "track": null,
+ "footer": null,
+ "figures": [],
+ "numbers": [],
+ "rows": []
+}"
+`;
+
+exports[`whole Takeaways, word for word (golden: any change to a sentence, a figure, a number row or an assumption shows here) > an amount up, with a range, a worked-out Metric and a two-step Metric 1`] = `
+"{
+ "kind": "answer",
+ "method": "Each link read from a straight line through the Metrics' history or from a Derived Metric's formula, one after the other",
+ "sentence": "If Visits goes up by 1,000: Signups is estimated to go up by about 100 (likely between 80 and 120). Revenue is estimated to go up by about 1,901 € (likely between 1,700 € and 2,101 €), through Signups. Revenue per visit goes down by 0.25 €: worked out from its formula, the Metrics it is made of otherwise as they are.",
+ "refusal": null,
+ "strength": "moderate",
+ "strengthText": "moderate",
+ "range": null,
+ "basis": null,
+ "assumptions": [
+  "Everything else is taken as staying where it was.",
+  "The effects were estimated from the same periods, so no independence between them is assumed: where a Metric rests on more than one, each range is cut wider, so that all of them hold together about four times in five."
+ ],
+ "cautions": [
+  "The misses grow as the level grows, so the ranges are rough."
+ ],
+ "notes": [],
+ "track": null,
+ "footer": "This shows what has gone together, not what caused what.",
+ "figures": [
+  {
+   "label": "Visits",
+   "value": 1000,
+   "text": "1,000"
+  },
+  {
+   "label": "Signups",
+   "value": 100,
+   "text": "100"
+  },
+  {
+   "label": "Signups Likely between",
+   "value": 80,
+   "text": "80"
+  },
+  {
+   "label": "Signups Likely between",
+   "value": 120,
+   "text": "120"
+  },
+  {
+   "label": "Revenue",
+   "value": 1900.5,
+   "text": "1,901 €"
+  },
+  {
+   "label": "Revenue Likely between",
+   "value": 1700.25,
+   "text": "1,700 €"
+  },
+  {
+   "label": "Revenue Likely between",
+   "value": 2100.75,
+   "text": "2,101 €"
+  },
+  {
+   "label": "Revenue per visit",
+   "value": 0.25,
+   "text": "0.25 €"
+  }
+ ],
+ "numbers": [
+  {
+   "label": "Method",
+   "text": "Each link read from a straight line through the Metrics' history or from a Derived Metric's formula, one after the other"
+  },
+  {
+   "label": "Visits: the change",
+   "text": "goes up 1,000"
+  },
+  {
+   "label": "Signups: how it is known",
+   "text": "estimated from what has gone together"
+  },
+  {
+   "label": "Signups: estimated effects it rests on",
+   "text": "1"
+  },
+  {
+   "label": "Signups: change",
+   "text": "goes up 100"
+  },
+  {
+   "label": "Signups: likely between",
+   "text": "80 – 120"
+  },
+  {
+   "label": "Revenue: how it is known",
+   "text": "estimated from what has gone together"
+  },
+  {
+   "label": "Revenue: estimated effects it rests on",
+   "text": "2"
+  },
+  {
+   "label": "Revenue: change",
+   "text": "goes up 1,901 €"
+  },
+  {
+   "label": "Revenue: likely between",
+   "text": "1,700 € – 2,101 €"
+  },
+  {
+   "label": "Revenue per visit: how it is known",
+   "text": "worked out from a formula"
+  },
+  {
+   "label": "Revenue per visit: change",
+   "text": "goes down 0.25 €"
+  }
+ ],
+ "rows": [
+  {
+   "name": "Signups",
+   "step": 1,
+   "through": [],
+   "kind": "estimated",
+   "effect": 100,
+   "lo": 80,
+   "hi": 120,
+   "strength": "strong",
+   "strengthText": "strong",
+   "sentence": "Signups is estimated to go up by about 100 (likely between 80 and 120)."
+  },
+  {
+   "name": "Revenue",
+   "step": 2,
+   "through": [
+    "Signups"
+   ],
+   "kind": "estimated",
+   "effect": 1900.5,
+   "lo": 1700.25,
+   "hi": 2100.75,
+   "strength": "moderate",
+   "strengthText": "moderate",
+   "sentence": "Revenue is estimated to go up by about 1,901 € (likely between 1,700 € and 2,101 €), through Signups."
+  },
+  {
+   "name": "Revenue per visit",
+   "step": 1,
+   "through": [],
+   "kind": "worked-out",
+   "effect": -0.25,
+   "lo": null,
+   "hi": null,
+   "strength": null,
+   "strengthText": null,
+   "sentence": "Revenue per visit goes down by 0.25 €: worked out from its formula, the Metrics it is made of otherwise as they are."
+  }
+ ]
+}"
+`;
+
+exports[`whole Takeaways, word for word (golden: any change to a sentence, a figure, a number row or an assumption shows here) > beyond what was seen, and a point with no range 1`] = `
+"{
+ "kind": "answer",
+ "method": "Each link read from a straight line through the Metrics' history or from a Derived Metric's formula, one after the other",
+ "sentence": "If Visits goes up by 1,000: Signups is estimated to go up by about 100. A change this size could take Visits lower than it has ever been (lowest −5.0). A change this size could be a bigger rise in one month than Revenue has ever had (largest 30 €), so treat it as a guess. Revenue is estimated to go up by about 100 €: how far that could be off cannot be said here, so treat it as a guess.",
+ "refusal": null,
+ "strength": "strong",
+ "strengthText": "strong",
+ "range": null,
+ "basis": null,
+ "assumptions": [
+  "Everything else is taken as staying where it was."
+ ],
+ "cautions": [],
+ "notes": [],
+ "track": null,
+ "footer": "This shows what has gone together, not what caused what.",
+ "figures": [
+  {
+   "label": "Visits",
+   "value": 1000,
+   "text": "1,000"
+  },
+  {
+   "label": "Signups",
+   "value": 100,
+   "text": "100"
+  },
+  {
+   "label": "Visits",
+   "value": -5,
+   "text": "−5.0"
+  },
+  {
+   "label": "Revenue",
+   "value": 30,
+   "text": "30 €"
+  },
+  {
+   "label": "Revenue",
+   "value": 100,
+   "text": "100 €"
+  }
+ ],
+ "numbers": [
+  {
+   "label": "Method",
+   "text": "Each link read from a straight line through the Metrics' history or from a Derived Metric's formula, one after the other"
+  },
+  {
+   "label": "Visits: the change",
+   "text": "goes up 1,000"
+  },
+  {
+   "label": "Signups: how it is known",
+   "text": "estimated from what has gone together"
+  },
+  {
+   "label": "Signups: estimated effects it rests on",
+   "text": "1"
+  },
+  {
+   "label": "Signups: change",
+   "text": "goes up 100"
+  },
+  {
+   "label": "Revenue: how it is known",
+   "text": "estimated from what has gone together"
+  },
+  {
+   "label": "Revenue: estimated effects it rests on",
+   "text": "1"
+  },
+  {
+   "label": "Revenue: change",
+   "text": "goes up 100 €"
+  }
+ ],
+ "rows": [
+  {
+   "name": "Signups",
+   "step": 1,
+   "through": [],
+   "kind": "guess",
+   "effect": 100,
+   "lo": null,
+   "hi": null,
+   "strength": "strong",
+   "strengthText": "strong",
+   "sentence": "Signups is estimated to go up by about 100. A change this size could take Visits lower than it has ever been (lowest −5.0). A change this size could be a bigger rise in one month than Revenue has ever had (largest 30 €), so treat it as a guess."
+  },
+  {
+   "name": "Revenue",
+   "step": 1,
+   "through": [],
+   "kind": "guess",
+   "effect": 100,
+   "lo": null,
+   "hi": null,
+   "strength": "strong",
+   "strengthText": "strong",
+   "sentence": "Revenue is estimated to go up by about 100 €: how far that could be off cannot be said here, so treat it as a guess."
+  }
+ ]
+}"
+`;
+
+exports[`whole Takeaways, word for word (golden: any change to a sentence, a figure, a number row or an assumption shows here) > counted by change in every estimated link: next month on the headline; and by change in only some: an assumption 1`] = `
+"{
+ "kind": "answer",
+ "method": "Each link read from a straight line through the Metrics' history or from a Derived Metric's formula, one after the other",
+ "sentence": "If Visits goes up by 1,000 next month: Signups is estimated to go up by about 100 (likely between 80 and 120). Revenue is estimated to go up by about 100 € (likely between 80 € and 120 €), through Signups.",
+ "refusal": null,
+ "strength": "strong",
+ "strengthText": "strong",
+ "range": null,
+ "basis": null,
+ "assumptions": [
+  "Everything else is taken as staying where it was.",
+  "The effects were estimated from the same periods, so no independence between them is assumed: where a Metric rests on more than one, each range is cut wider, so that all of them hold together about four times in five."
+ ],
+ "cautions": [],
+ "notes": [],
+ "track": null,
+ "footer": "This shows what has gone together, not what caused what.",
+ "figures": [
+  {
+   "label": "Visits",
+   "value": 1000,
+   "text": "1,000"
+  },
+  {
+   "label": "Signups",
+   "value": 100,
+   "text": "100"
+  },
+  {
+   "label": "Signups Likely between",
+   "value": 80,
+   "text": "80"
+  },
+  {
+   "label": "Signups Likely between",
+   "value": 120,
+   "text": "120"
+  },
+  {
+   "label": "Revenue",
+   "value": 100,
+   "text": "100 €"
+  },
+  {
+   "label": "Revenue Likely between",
+   "value": 80,
+   "text": "80 €"
+  },
+  {
+   "label": "Revenue Likely between",
+   "value": 120,
+   "text": "120 €"
+  }
+ ],
+ "numbers": [
+  {
+   "label": "Method",
+   "text": "Each link read from a straight line through the Metrics' history or from a Derived Metric's formula, one after the other"
+  },
+  {
+   "label": "Visits: the change",
+   "text": "goes up 1,000"
+  },
+  {
+   "label": "Signups: how it is known",
+   "text": "estimated from what has gone together"
+  },
+  {
+   "label": "Signups: estimated effects it rests on",
+   "text": "1"
+  },
+  {
+   "label": "Signups: change",
+   "text": "goes up 100"
+  },
+  {
+   "label": "Signups: likely between",
+   "text": "80 – 120"
+  },
+  {
+   "label": "Revenue: how it is known",
+   "text": "estimated from what has gone together"
+  },
+  {
+   "label": "Revenue: estimated effects it rests on",
+   "text": "2"
+  },
+  {
+   "label": "Revenue: change",
+   "text": "goes up 100 €"
+  },
+  {
+   "label": "Revenue: likely between",
+   "text": "80 € – 120 €"
+  }
+ ],
+ "rows": [
+  {
+   "name": "Signups",
+   "step": 1,
+   "through": [],
+   "kind": "estimated",
+   "effect": 100,
+   "lo": 80,
+   "hi": 120,
+   "strength": "strong",
+   "strengthText": "strong",
+   "sentence": "Signups is estimated to go up by about 100 (likely between 80 and 120)."
+  },
+  {
+   "name": "Revenue",
+   "step": 2,
+   "through": [
+    "Signups"
+   ],
+   "kind": "estimated",
+   "effect": 100,
+   "lo": 80,
+   "hi": 120,
+   "strength": "strong",
+   "strengthText": "strong",
+   "sentence": "Revenue is estimated to go up by about 100 € (likely between 80 € and 120 €), through Signups."
+  }
+ ]
+}"
+`;
+
+exports[`whole Takeaways, word for word (golden: any change to a sentence, a figure, a number row or an assumption shows here) > counted by change in every estimated link: next month on the headline; and by change in only some: an assumption 2`] = `
+"{
+ "kind": "answer",
+ "method": "Each link read from a straight line through the Metrics' history or from a Derived Metric's formula, one after the other",
+ "sentence": "If Visits goes up by 1,000: Signups is estimated to go up by about 100 (likely between 80 and 120). Revenue is estimated to go up by about 100 € (likely between 80 € and 120 €).",
+ "refusal": null,
+ "strength": "strong",
+ "strengthText": "strong",
+ "range": null,
+ "basis": null,
+ "assumptions": [
+  "Everything else is taken as staying where it was.",
+  "Where a link is compared by change, the change counts from the latest level, in the next month."
+ ],
+ "cautions": [],
+ "notes": [],
+ "track": null,
+ "footer": "This shows what has gone together, not what caused what.",
+ "figures": [
+  {
+   "label": "Visits",
+   "value": 1000,
+   "text": "1,000"
+  },
+  {
+   "label": "Signups",
+   "value": 100,
+   "text": "100"
+  },
+  {
+   "label": "Signups Likely between",
+   "value": 80,
+   "text": "80"
+  },
+  {
+   "label": "Signups Likely between",
+   "value": 120,
+   "text": "120"
+  },
+  {
+   "label": "Revenue",
+   "value": 100,
+   "text": "100 €"
+  },
+  {
+   "label": "Revenue Likely between",
+   "value": 80,
+   "text": "80 €"
+  },
+  {
+   "label": "Revenue Likely between",
+   "value": 120,
+   "text": "120 €"
+  }
+ ],
+ "numbers": [
+  {
+   "label": "Method",
+   "text": "Each link read from a straight line through the Metrics' history or from a Derived Metric's formula, one after the other"
+  },
+  {
+   "label": "Visits: the change",
+   "text": "goes up 1,000"
+  },
+  {
+   "label": "Signups: how it is known",
+   "text": "estimated from what has gone together"
+  },
+  {
+   "label": "Signups: estimated effects it rests on",
+   "text": "1"
+  },
+  {
+   "label": "Signups: change",
+   "text": "goes up 100"
+  },
+  {
+   "label": "Signups: likely between",
+   "text": "80 – 120"
+  },
+  {
+   "label": "Revenue: how it is known",
+   "text": "estimated from what has gone together"
+  },
+  {
+   "label": "Revenue: estimated effects it rests on",
+   "text": "1"
+  },
+  {
+   "label": "Revenue: change",
+   "text": "goes up 100 €"
+  },
+  {
+   "label": "Revenue: likely between",
+   "text": "80 € – 120 €"
+  }
+ ],
+ "rows": [
+  {
+   "name": "Signups",
+   "step": 1,
+   "through": [],
+   "kind": "estimated",
+   "effect": 100,
+   "lo": 80,
+   "hi": 120,
+   "strength": "strong",
+   "strengthText": "strong",
+   "sentence": "Signups is estimated to go up by about 100 (likely between 80 and 120)."
+  },
+  {
+   "name": "Revenue",
+   "step": 1,
+   "through": [],
+   "kind": "estimated",
+   "effect": 100,
+   "lo": 80,
+   "hi": 120,
+   "strength": "strong",
+   "strengthText": "strong",
+   "sentence": "Revenue is estimated to go up by about 100 € (likely between 80 € and 120 €)."
+  }
+ ]
+}"
+`;
+
+exports[`whole Takeaways, word for word (golden: any change to a sentence, a figure, a number row or an assumption shows here) > every Metric worked out: no footer, no strength, and a Metric that does not change 1`] = `
+"{
+ "kind": "answer",
+ "method": "Each link read from a straight line through the Metrics' history or from a Derived Metric's formula, one after the other",
+ "sentence": "If Visits goes up by 1,000: Signups goes up by 12: worked out from its formula, the Metrics it is made of otherwise as they are. Revenue does not change: worked out from its formula.",
+ "refusal": null,
+ "strength": null,
+ "strengthText": null,
+ "range": null,
+ "basis": null,
+ "assumptions": [
+  "Everything else is taken as staying where it was."
+ ],
+ "cautions": [],
+ "notes": [],
+ "track": null,
+ "footer": null,
+ "figures": [
+  {
+   "label": "Visits",
+   "value": 1000,
+   "text": "1,000"
+  },
+  {
+   "label": "Signups",
+   "value": 12,
+   "text": "12"
+  }
+ ],
+ "numbers": [
+  {
+   "label": "Method",
+   "text": "Each link read from a straight line through the Metrics' history or from a Derived Metric's formula, one after the other"
+  },
+  {
+   "label": "Visits: the change",
+   "text": "goes up 1,000"
+  },
+  {
+   "label": "Signups: how it is known",
+   "text": "worked out from a formula"
+  },
+  {
+   "label": "Signups: change",
+   "text": "goes up 12"
+  },
+  {
+   "label": "Revenue: how it is known",
+   "text": "worked out from a formula"
+  },
+  {
+   "label": "Revenue: change",
+   "text": "goes down 0 €"
+  }
+ ],
+ "rows": [
+  {
+   "name": "Signups",
+   "step": 1,
+   "through": [],
+   "kind": "worked-out",
+   "effect": 12,
+   "lo": null,
+   "hi": null,
+   "strength": null,
+   "strengthText": null,
+   "sentence": "Signups goes up by 12: worked out from its formula, the Metrics it is made of otherwise as they are."
+  },
+  {
+   "name": "Revenue",
+   "step": 1,
+   "through": [],
+   "kind": "worked-out",
+   "effect": 0,
+   "lo": null,
+   "hi": null,
+   "strength": null,
+   "strengthText": null,
+   "sentence": "Revenue does not change: worked out from its formula."
+  }
+ ]
+}"
+`;
+
+exports[`whole Takeaways, word for word (golden: any change to a sentence, a figure, a number row or an assumption shows here) > the same Takeaways with the Recipe: a chain world, one with a Derived Metric, and one with a Metric left out 1`] = `
+"{
+ "kind": "answer",
+ "method": "Each link read from a straight line through the Metrics' history or from a Derived Metric's formula, one after the other",
+ "sentence": "If Visits goes up by 5 % (2,027): Signups is estimated to go up by about 40 (likely between 39 and 41). Revenue is estimated to go up by about 1,933 € (likely between 1,790 € and 2,081 €), through Signups.",
+ "refusal": null,
+ "strength": "strong",
+ "strengthText": "strong",
+ "range": null,
+ "basis": "compared by value",
+ "assumptions": [
+  "Everything else is taken as staying where it was.",
+  "The effects were estimated from the same periods, so no independence between them is assumed: where a Metric rests on more than one, each range is cut wider, so that all of them hold together about four times in five.",
+  "The links were picked for standing out from chance, which tends to make effects look larger than they are: read a range as a first look, not as a measurement.",
+  "Which of two Metrics that move together comes first cannot be told from the numbers: the one that moves more closely with Visits is read as coming first."
+ ],
+ "cautions": [],
+ "notes": [],
+ "track": null,
+ "footer": "This shows what has gone together, not what caused what.",
+ "figures": [
+  {
+   "label": "Visits",
+   "value": 2027.2,
+   "text": "2,027"
+  },
+  {
+   "label": "Signups",
+   "value": 40.15456124762334,
+   "text": "40"
+  },
+  {
+   "label": "Signups Likely between",
+   "value": 39.01340353562281,
+   "text": "39"
+  },
+  {
+   "label": "Signups Likely between",
+   "value": 41.29571895962388,
+   "text": "41"
+  },
+  {
+   "label": "Revenue",
+   "value": 1932.8514379567282,
+   "text": "1,933 €"
+  },
+  {
+   "label": "Revenue Likely between",
+   "value": 1790.238235051968,
+   "text": "1,790 €"
+  },
+  {
+   "label": "Revenue Likely between",
+   "value": 2080.9271028743487,
+   "text": "2,081 €"
+  },
+  {
+   "label": "Visits %",
+   "value": 5,
+   "text": "5"
+  }
+ ],
+ "numbers": [
+  {
+   "label": "Method",
+   "text": "Each link read from a straight line through the Metrics' history or from a Derived Metric's formula, one after the other"
+  },
+  {
+   "label": "Visits: the change",
+   "text": "goes up 2,027"
+  },
+  {
+   "label": "Signups: how it is known",
+   "text": "estimated from what has gone together"
+  },
+  {
+   "label": "Signups: estimated effects it rests on",
+   "text": "1"
+  },
+  {
+   "label": "Signups: change",
+   "text": "goes up 40"
+  },
+  {
+   "label": "Signups: likely between",
+   "text": "39 – 41"
+  },
+  {
+   "label": "Revenue: how it is known",
+   "text": "estimated from what has gone together"
+  },
+  {
+   "label": "Revenue: estimated effects it rests on",
+   "text": "2"
+  },
+  {
+   "label": "Revenue: change",
+   "text": "goes up 1,933 €"
+  },
+  {
+   "label": "Revenue: likely between",
+   "text": "1,790 € – 2,081 €"
+  }
+ ],
+ "rows": [
+  {
+   "name": "Signups",
+   "step": 1,
+   "through": [],
+   "kind": "estimated",
+   "effect": 40.15456124762334,
+   "lo": 39.01340353562281,
+   "hi": 41.29571895962388,
+   "strength": "strong",
+   "strengthText": "strong",
+   "sentence": "Signups is estimated to go up by about 40 (likely between 39 and 41)."
+  },
+  {
+   "name": "Revenue",
+   "step": 2,
+   "through": [
+    "Signups"
+   ],
+   "kind": "estimated",
+   "effect": 1932.8514379567282,
+   "lo": 1790.238235051968,
+   "hi": 2080.9271028743487,
+   "strength": "strong",
+   "strengthText": "strong",
+   "sentence": "Revenue is estimated to go up by about 1,933 € (likely between 1,790 € and 2,081 €), through Signups."
+  }
+ ]
+}"
+`;
+
+exports[`whole Takeaways, word for word (golden: any change to a sentence, a figure, a number row or an assumption shows here) > the same Takeaways with the Recipe: a chain world, one with a Derived Metric, and one with a Metric left out 2`] = `
+"{
+ "kind": "answer",
+ "method": "Each link read from a straight line through the Metrics' history or from a Derived Metric's formula, one after the other",
+ "sentence": "If Visits goes down by 1,500: Signups is estimated to go down by about 30. This is lower than Visits has ever been (lowest 40,544), so treat it as a guess. Revenue is estimated to go down by about 1,430 €, through Signups. This is lower than Visits has ever been (lowest 40,544). This is lower than Signups has ever been (lowest 786), so treat it as a guess.",
+ "refusal": null,
+ "strength": "strong",
+ "strengthText": "strong",
+ "range": null,
+ "basis": "compared by value",
+ "assumptions": [
+  "Everything else is taken as staying where it was.",
+  "The effects were estimated from the same periods, so no independence between them is assumed: where a Metric rests on more than one, each range is cut wider, so that all of them hold together about four times in five.",
+  "The links were picked for standing out from chance, which tends to make effects look larger than they are: read a range as a first look, not as a measurement.",
+  "Which of two Metrics that move together comes first cannot be told from the numbers: the one that moves more closely with Visits is read as coming first."
+ ],
+ "cautions": [],
+ "notes": [
+  "Left out, as they are more than 2 steps from the Metric that changes, so a change cannot be followed through them: Revenue per visit."
+ ],
+ "track": null,
+ "footer": "This shows what has gone together, not what caused what.",
+ "figures": [
+  {
+   "label": "Visits",
+   "value": 1500,
+   "text": "1,500"
+  },
+  {
+   "label": "Signups",
+   "value": 29.71183991290204,
+   "text": "30"
+  },
+  {
+   "label": "Visits",
+   "value": 40544,
+   "text": "40,544"
+  },
+  {
+   "label": "Revenue",
+   "value": 1430.1880213768213,
+   "text": "1,430 €"
+  },
+  {
+   "label": "Visits",
+   "value": 40544,
+   "text": "40,544"
+  },
+  {
+   "label": "Signups",
+   "value": 786,
+   "text": "786"
+  }
+ ],
+ "numbers": [
+  {
+   "label": "Method",
+   "text": "Each link read from a straight line through the Metrics' history or from a Derived Metric's formula, one after the other"
+  },
+  {
+   "label": "Visits: the change",
+   "text": "goes down 1,500"
+  },
+  {
+   "label": "Signups: how it is known",
+   "text": "estimated from what has gone together"
+  },
+  {
+   "label": "Signups: estimated effects it rests on",
+   "text": "1"
+  },
+  {
+   "label": "Signups: change",
+   "text": "goes down 30"
+  },
+  {
+   "label": "Revenue: how it is known",
+   "text": "estimated from what has gone together"
+  },
+  {
+   "label": "Revenue: estimated effects it rests on",
+   "text": "2"
+  },
+  {
+   "label": "Revenue: change",
+   "text": "goes down 1,430 €"
+  }
+ ],
+ "rows": [
+  {
+   "name": "Signups",
+   "step": 1,
+   "through": [],
+   "kind": "guess",
+   "effect": -29.71183991290204,
+   "lo": null,
+   "hi": null,
+   "strength": "strong",
+   "strengthText": "strong",
+   "sentence": "Signups is estimated to go down by about 30. This is lower than Visits has ever been (lowest 40,544), so treat it as a guess."
+  },
+  {
+   "name": "Revenue",
+   "step": 2,
+   "through": [
+    "Signups"
+   ],
+   "kind": "guess",
+   "effect": -1430.1880213768213,
+   "lo": null,
+   "hi": null,
+   "strength": "strong",
+   "strengthText": "strong",
+   "sentence": "Revenue is estimated to go down by about 1,430 €, through Signups. This is lower than Visits has ever been (lowest 40,544). This is lower than Signups has ever been (lowest 786), so treat it as a guess."
+  }
+ ]
+}"
+`;
+
+exports[`whole Takeaways, word for word (golden: any change to a sentence, a figure, a number row or an assumption shows here) > the same Takeaways with the Recipe: a chain world, one with a Derived Metric, and one with a Metric left out 3`] = `
+"{
+ "kind": "answer",
+ "method": "Each link read from a straight line through the Metrics' history or from a Derived Metric's formula, one after the other",
+ "sentence": "If Visits goes down by 3 % (1,216): Revenue is estimated to go down by about 1,164 €. This is lower than Visits has ever been (lowest 40,544), so treat it as a guess. Revenue per visit is estimated to go up by about 0.0019 €, through Revenue. This is lower than Visits has ever been (lowest 40,544), so treat it as a guess.",
+ "refusal": null,
+ "strength": "strong",
+ "strengthText": "strong",
+ "range": null,
+ "basis": "compared by value",
+ "assumptions": [
+  "Everything else is taken as staying where it was.",
+  "The links were picked for standing out from chance, which tends to make effects look larger than they are: read a range as a first look, not as a measurement.",
+  "Which of two Metrics that move together comes first cannot be told from the numbers: the one that moves more closely with Visits is read as coming first."
+ ],
+ "cautions": [],
+ "notes": [],
+ "track": null,
+ "footer": "This shows what has gone together, not what caused what.",
+ "figures": [
+  {
+   "label": "Visits",
+   "value": 1216.32,
+   "text": "1,216"
+  },
+  {
+   "label": "Revenue",
+   "value": 1164.0817651533027,
+   "text": "1,164 €"
+  },
+  {
+   "label": "Visits",
+   "value": 40544,
+   "text": "40,544"
+  },
+  {
+   "label": "Revenue per visit",
+   "value": 0.001941590117868565,
+   "text": "0.0019 €"
+  },
+  {
+   "label": "Visits",
+   "value": 40544,
+   "text": "40,544"
+  },
+  {
+   "label": "Visits %",
+   "value": 3,
+   "text": "3"
+  }
+ ],
+ "numbers": [
+  {
+   "label": "Method",
+   "text": "Each link read from a straight line through the Metrics' history or from a Derived Metric's formula, one after the other"
+  },
+  {
+   "label": "Visits: the change",
+   "text": "goes down 1,216"
+  },
+  {
+   "label": "Revenue: how it is known",
+   "text": "estimated from what has gone together"
+  },
+  {
+   "label": "Revenue: estimated effects it rests on",
+   "text": "1"
+  },
+  {
+   "label": "Revenue: change",
+   "text": "goes down 1,164 €"
+  },
+  {
+   "label": "Revenue per visit: how it is known",
+   "text": "estimated from what has gone together"
+  },
+  {
+   "label": "Revenue per visit: estimated effects it rests on",
+   "text": "1"
+  },
+  {
+   "label": "Revenue per visit: change",
+   "text": "goes up 0.0019 €"
+  }
+ ],
+ "rows": [
+  {
+   "name": "Revenue",
+   "step": 1,
+   "through": [],
+   "kind": "guess",
+   "effect": -1164.0817651533027,
+   "lo": null,
+   "hi": null,
+   "strength": "strong",
+   "strengthText": "strong",
+   "sentence": "Revenue is estimated to go down by about 1,164 €. This is lower than Visits has ever been (lowest 40,544), so treat it as a guess."
+  },
+  {
+   "name": "Revenue per visit",
+   "step": 2,
+   "through": [
+    "Revenue"
+   ],
+   "kind": "guess",
+   "effect": 0.001941590117868565,
+   "lo": null,
+   "hi": null,
+   "strength": "strong",
+   "strengthText": "strong",
+   "sentence": "Revenue per visit is estimated to go up by about 0.0019 €, through Revenue. This is lower than Visits has ever been (lowest 40,544), so treat it as a guess."
+  }
+ ]
+}"
+`;
+
+exports[`whole Takeaways, word for word (golden: any change to a sentence, a figure, a number row or an assumption shows here) > the same Takeaways with the Recipe: a chain world, one with a Derived Metric, and one with a Metric left out 4`] = `
+"{
+ "kind": "answer",
+ "method": "Each link read from a straight line through the Metrics' history or from a Derived Metric's formula, one after the other",
+ "sentence": "If Visits goes up by 1,000: Double visits goes up by 2,000: worked out from its formula, the Metrics it is made of otherwise as they are. Signups is estimated to go up by about 19.8 (likely between 19.2 and 20.4).",
+ "refusal": null,
+ "strength": "strong",
+ "strengthText": "strong",
+ "range": null,
+ "basis": "compared by value",
+ "assumptions": [
+  "Everything else is taken as staying where it was.",
+  "The links were picked for standing out from chance, which tends to make effects look larger than they are: read a range as a first look, not as a measurement."
+ ],
+ "cautions": [],
+ "notes": [],
+ "track": null,
+ "footer": "This shows what has gone together, not what caused what.",
+ "figures": [
+  {
+   "label": "Visits",
+   "value": 1000,
+   "text": "1,000"
+  },
+  {
+   "label": "Double visits",
+   "value": 2000,
+   "text": "2,000"
+  },
+  {
+   "label": "Signups",
+   "value": 19.80789327526803,
+   "text": "19.8"
+  },
+  {
+   "label": "Signups Likely between",
+   "value": 19.24497017345245,
+   "text": "19.2"
+  },
+  {
+   "label": "Signups Likely between",
+   "value": 20.370816377083603,
+   "text": "20.4"
+  }
+ ],
+ "numbers": [
+  {
+   "label": "Method",
+   "text": "Each link read from a straight line through the Metrics' history or from a Derived Metric's formula, one after the other"
+  },
+  {
+   "label": "Visits: the change",
+   "text": "goes up 1,000"
+  },
+  {
+   "label": "Double visits: how it is known",
+   "text": "worked out from a formula"
+  },
+  {
+   "label": "Double visits: change",
+   "text": "goes up 2,000"
+  },
+  {
+   "label": "Signups: how it is known",
+   "text": "estimated from what has gone together"
+  },
+  {
+   "label": "Signups: estimated effects it rests on",
+   "text": "1"
+  },
+  {
+   "label": "Signups: change",
+   "text": "goes up 19.8"
+  },
+  {
+   "label": "Signups: likely between",
+   "text": "19.2 – 20.4"
+  }
+ ],
+ "rows": [
+  {
+   "name": "Double visits",
+   "step": 1,
+   "through": [],
+   "kind": "worked-out",
+   "effect": 2000,
+   "lo": null,
+   "hi": null,
+   "strength": null,
+   "strengthText": null,
+   "sentence": "Double visits goes up by 2,000: worked out from its formula, the Metrics it is made of otherwise as they are."
+  },
+  {
+   "name": "Signups",
+   "step": 1,
+   "through": [],
+   "kind": "estimated",
+   "effect": 19.80789327526803,
+   "lo": 19.24497017345245,
+   "hi": 20.370816377083603,
+   "strength": "strong",
+   "strengthText": "strong",
+   "sentence": "Signups is estimated to go up by about 19.8 (likely between 19.2 and 20.4)."
+  }
+ ]
+}"
+`;
+
+exports[`whole Takeaways, word for word (golden: any change to a sentence, a figure, a number row or an assumption shows here) > the world where holding the near Metric leaves the far one nothing of its own, and the one with too few months for two drivers 1`] = `
+"{
+ "kind": "answer",
+ "method": "Each link read from a straight line through the Metrics' history or from a Derived Metric's formula, one after the other",
+ "sentence": "If Base goes up by 10: Far is estimated to go up by about 11.2 (likely between 7.0 and 15.4). Near is estimated to go up by about 7.7 (likely between 6.4 and 9.0).",
+ "refusal": null,
+ "strength": "moderate",
+ "strengthText": "moderate",
+ "range": null,
+ "basis": "compared by value",
+ "assumptions": [
+  "Everything else is taken as staying where it was.",
+  "The links were picked for standing out from chance, which tends to make effects look larger than they are: read a range as a first look, not as a measurement."
+ ],
+ "cautions": [],
+ "notes": [],
+ "track": null,
+ "footer": "This shows what has gone together, not what caused what.",
+ "figures": [
+  {
+   "label": "Base",
+   "value": 10,
+   "text": "10"
+  },
+  {
+   "label": "Far",
+   "value": 11.219012540931839,
+   "text": "11.2"
+  },
+  {
+   "label": "Far Likely between",
+   "value": 7.016511964136203,
+   "text": "7.0"
+  },
+  {
+   "label": "Far Likely between",
+   "value": 15.421513117727473,
+   "text": "15.4"
+  },
+  {
+   "label": "Near",
+   "value": 7.7339284482255355,
+   "text": "7.7"
+  },
+  {
+   "label": "Near Likely between",
+   "value": 6.441512247224771,
+   "text": "6.4"
+  },
+  {
+   "label": "Near Likely between",
+   "value": 9.0263446492263,
+   "text": "9.0"
+  }
+ ],
+ "numbers": [
+  {
+   "label": "Method",
+   "text": "Each link read from a straight line through the Metrics' history or from a Derived Metric's formula, one after the other"
+  },
+  {
+   "label": "Base: the change",
+   "text": "goes up 10"
+  },
+  {
+   "label": "Far: how it is known",
+   "text": "estimated from what has gone together"
+  },
+  {
+   "label": "Far: estimated effects it rests on",
+   "text": "1"
+  },
+  {
+   "label": "Far: change",
+   "text": "goes up 11.2"
+  },
+  {
+   "label": "Far: likely between",
+   "text": "7.0 – 15.4"
+  },
+  {
+   "label": "Near: how it is known",
+   "text": "estimated from what has gone together"
+  },
+  {
+   "label": "Near: estimated effects it rests on",
+   "text": "1"
+  },
+  {
+   "label": "Near: change",
+   "text": "goes up 7.7"
+  },
+  {
+   "label": "Near: likely between",
+   "text": "6.4 – 9.0"
+  }
+ ],
+ "rows": [
+  {
+   "name": "Far",
+   "step": 1,
+   "through": [],
+   "kind": "estimated",
+   "effect": 11.219012540931839,
+   "lo": 7.016511964136203,
+   "hi": 15.421513117727473,
+   "strength": "moderate",
+   "strengthText": "moderate",
+   "sentence": "Far is estimated to go up by about 11.2 (likely between 7.0 and 15.4)."
+  },
+  {
+   "name": "Near",
+   "step": 1,
+   "through": [],
+   "kind": "estimated",
+   "effect": 7.7339284482255355,
+   "lo": 6.441512247224771,
+   "hi": 9.0263446492263,
+   "strength": "strong",
+   "strengthText": "strong",
+   "sentence": "Near is estimated to go up by about 7.7 (likely between 6.4 and 9.0)."
+  }
+ ]
+}"
+`;
+
+exports[`whole Takeaways, word for word (golden: any change to a sentence, a figure, a number row or an assumption shows here) > the world where holding the near Metric leaves the far one nothing of its own, and the one with too few months for two drivers 2`] = `
+"{
+ "kind": "answer",
+ "method": "Each link read from a straight line through the Metrics' history or from a Derived Metric's formula, one after the other",
+ "sentence": "If Visits goes up by 1,000: Revenue is estimated to go up by about 992 € (likely between 951 € and 1,032 €). Signups is estimated to go up by about 21 (likely between 20 and 22).",
+ "refusal": null,
+ "strength": "moderate",
+ "strengthText": "moderate",
+ "range": null,
+ "basis": "compared by value",
+ "assumptions": [
+  "Everything else is taken as staying where it was.",
+  "The links were picked for standing out from chance, which tends to make effects look larger than they are: read a range as a first look, not as a measurement."
+ ],
+ "cautions": [
+  "The misses grow as the level grows, so the ranges are rough."
+ ],
+ "notes": [],
+ "track": null,
+ "footer": "This shows what has gone together, not what caused what.",
+ "figures": [
+  {
+   "label": "Visits",
+   "value": 1000,
+   "text": "1,000"
+  },
+  {
+   "label": "Revenue",
+   "value": 991.6579976373557,
+   "text": "992 €"
+  },
+  {
+   "label": "Revenue Likely between",
+   "value": 951.4165850671992,
+   "text": "951 €"
+  },
+  {
+   "label": "Revenue Likely between",
+   "value": 1031.8994102075123,
+   "text": "1,032 €"
+  },
+  {
+   "label": "Signups",
+   "value": 20.772472956201305,
+   "text": "21"
+  },
+  {
+   "label": "Signups Likely between",
+   "value": 20.0276550532718,
+   "text": "20"
+  },
+  {
+   "label": "Signups Likely between",
+   "value": 21.517290859130814,
+   "text": "22"
+  }
+ ],
+ "numbers": [
+  {
+   "label": "Method",
+   "text": "Each link read from a straight line through the Metrics' history or from a Derived Metric's formula, one after the other"
+  },
+  {
+   "label": "Visits: the change",
+   "text": "goes up 1,000"
+  },
+  {
+   "label": "Revenue: how it is known",
+   "text": "estimated from what has gone together"
+  },
+  {
+   "label": "Revenue: estimated effects it rests on",
+   "text": "1"
+  },
+  {
+   "label": "Revenue: change",
+   "text": "goes up 992 €"
+  },
+  {
+   "label": "Revenue: likely between",
+   "text": "951 € – 1,032 €"
+  },
+  {
+   "label": "Signups: how it is known",
+   "text": "estimated from what has gone together"
+  },
+  {
+   "label": "Signups: estimated effects it rests on",
+   "text": "1"
+  },
+  {
+   "label": "Signups: change",
+   "text": "goes up 21"
+  },
+  {
+   "label": "Signups: likely between",
+   "text": "20 – 22"
+  }
+ ],
+ "rows": [
+  {
+   "name": "Revenue",
+   "step": 1,
+   "through": [],
+   "kind": "estimated",
+   "effect": 991.6579976373557,
+   "lo": 951.4165850671992,
+   "hi": 1031.8994102075123,
+   "strength": "strong",
+   "strengthText": "strong",
+   "sentence": "Revenue is estimated to go up by about 992 € (likely between 951 € and 1,032 €)."
+  },
+  {
+   "name": "Signups",
+   "step": 1,
+   "through": [],
+   "kind": "estimated",
+   "effect": 20.772472956201305,
+   "lo": 20.0276550532718,
+   "hi": 21.517290859130814,
+   "strength": "moderate",
+   "strengthText": "moderate",
+   "sentence": "Signups is estimated to go up by about 21 (likely between 20 and 22)."
+  }
+ ]
+}"
+`;

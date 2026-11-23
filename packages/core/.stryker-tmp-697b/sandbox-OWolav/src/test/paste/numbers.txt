@@ -1,4 +1,0 @@
-Period	Metric	Value
-Aug 2026	Revenue	$1,200
-Sep 2026	Revenue	$1,350.50
-Oct 2026	signups	15
