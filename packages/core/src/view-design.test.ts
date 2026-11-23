@@ -85,6 +85,10 @@ const HOSTILE: [string, string, string, Where][] = [
   ["a progress mark of something else", withPart({ mark: "progress", show: "values" }), "must be “latest”", '"values"'],
   ["a progress mark with a style field", withPart({ mark: "progress", show: "latest", color: "red" }), "is not a field here", '"color"'],
   ["a progress mark of 13 Metrics", withPart({ mark: "progress", show: "latest" }, { slots: [{ label: "A", metrics: "several", min: 12 }, { label: "B", metrics: "one" }] }), "A progress mark draws 12 bars at most", { after: '"parts": [' }],
+  ["a slope mark of something else", withPart({ mark: "slope", show: "values" }), "must be “latest”", '"values"'],
+  ["a slope mark with a style field", withPart({ mark: "slope", show: "latest", color: "red" }), "is not a field here", '"color"'],
+  ["a slope mark of 13 Metrics", withPart({ mark: "slope", show: "latest" }, { slots: [{ label: "A", metrics: "several", min: 12 }, { label: "B", metrics: "one" }] }), "A slope mark draws 12 rows at most", { after: '"parts": [' }],
+  ["a slope option that is not a choice", withPart({ mark: "slope", show: "latest" }, { options: { slope: { default: "sideways" } } }), "must be one of", '"sideways"'],
   ["a part with no mark", withPart({ content: ["a"] }), "needs the field “mark”", { after: '"parts": [' }],
   ["a web address in a name", text({ ...EXAMPLE, name: "See https://evil.example" }), "plain text, without markup or web addresses", '"name"'],
   ["a bare www address", text({ ...EXAMPLE, name: "www.evil.example" }), "without markup or web addresses", '"name"'],
@@ -161,6 +165,8 @@ describe("checkViewDesign", () => {
     expect(withRecipe.ok ? [] : withRecipe.problems).toEqual([]);
     // A stacked mark of a Breakdown is a View Design like any other (the built-in Stacked bars over time).
     expect(checkViewDesign(text({ ...EXAMPLE, parts: [{ mark: "stacked", show: "breakdown", when: ["manyValues"] }] })).ok).toBe(true);
+    // A slope mark takes a Slot of several, and the option that says what it compares.
+    expect(checkViewDesign(text({ ...EXAMPLE, slots: [{ label: "Metrics", metrics: "several" }], options: { slope: { label: "Compare", default: "metrics" } }, parts: [{ mark: "slope", show: "latest" }] })).ok).toBe(true);
     const polar = checkViewDesign(text(WITH_POLAR_AND_RADAR));
     expect(polar.ok ? [] : polar.problems).toEqual([]);
     // A progress mark takes a Slot of several, or one Metric: it is one bar each.

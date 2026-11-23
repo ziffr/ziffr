@@ -196,7 +196,7 @@ export type Dashboard = {
 };
 
 /** The built-in Widget Templates. */
-export type TemplateId = "number" | "line" | "bars" | "gauge" | "table" | "forecast" | "correlation" | "matrix" | "drivers" | "scoreboard" | "progress" | "stacked" | "pareto" | "ranked" | "share" | "pictogram" | "story-line" | "story" | "canvas" | "design";
+export type TemplateId = "number" | "line" | "bars" | "gauge" | "table" | "forecast" | "correlation" | "matrix" | "drivers" | "scoreboard" | "progress" | "stacked" | "pareto" | "slope" | "ranked" | "share" | "pictogram" | "story-line" | "story" | "canvas" | "design";
 
 /** A callout sits at one period, or (in templates) at whatever period a rule picks. */
 export type Callout = { period: string; text: string; rule?: AnchorRule };
@@ -246,6 +246,8 @@ export type WidgetSettings = {
   showTarget?: boolean;
   showForecast?: boolean;
   rows?: number;
+  /** What a slope chart compares (GLOSSARY: View Design); absent means what was placed. */
+  slope?: import("./slope-chart").SlopeChoice;
   /** Findings (GLOSSARY: Finding). Empty fields fall back to text drawn from the data. */
   kicker?: string;
   footnote?: string;

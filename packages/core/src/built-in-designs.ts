@@ -16,13 +16,14 @@ import progress from "./view-designs/progress.json";
 import stacked from "./view-designs/stacked.json";
 import pareto from "./view-designs/pareto.json";
 import scoreboard from "./view-designs/scoreboard.json";
+import slope from "./view-designs/slope.json";
 
 /** The built-in Views written as View Designs, by their template id. */
-export const DESIGNED_VIEWS = ["number", "line", "bars", "gauge", "table", "forecast", "correlation", "matrix", "drivers", "scoreboard", "progress", "stacked", "pareto"] as const;
+export const DESIGNED_VIEWS = ["number", "line", "bars", "gauge", "table", "forecast", "correlation", "matrix", "drivers", "scoreboard", "progress", "stacked", "pareto", "slope"] as const;
 /** The id of a built-in View that is a View Design. */
 export type DesignedView = (typeof DESIGNED_VIEWS)[number];
 
-const FILES: Record<DesignedView, unknown> = { number, line, bars, gauge, table, forecast, correlation, matrix, drivers, scoreboard, progress, stacked, pareto };
+const FILES: Record<DesignedView, unknown> = { number, line, bars, gauge, table, forecast, correlation, matrix, drivers, scoreboard, progress, stacked, pareto, slope };
 
 /** Each built-in View Design, checked as every design is: a file that does not pass stops Ziffr from starting. */
 export const BUILT_IN_DESIGNS: Record<DesignedView, ViewDesign> = Object.fromEntries(
@@ -49,5 +50,6 @@ export function designSettings(d: ViewDesign): WidgetSettings {
   if (o.rows) out.rows = o.rows.default;
   if (o.showTarget) out.showTarget = o.showTarget.default;
   if (o.showForecast) out.showForecast = o.showForecast.default;
+  if (o.slope) out.slope = o.slope.default;
   return out;
 }

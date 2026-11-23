@@ -147,6 +147,8 @@ function sampleSettings(id: TemplateId, fills: number[][], period: Period): Widg
       panels: [{ type: "period-bars", metricIds: fills[0] ?? [], measure: "pct-yoy", periods: 6, highlight: "last", annotations: [{ kind: "ring", anchor: { type: "rule", rule: "max" } }] }],
     };
   }
+  // A slope chart of Sample Data compares the rows of the first Metric's Breakdown: the others are of different units.
+  if (id === "slope") return { slope: "previous" };
   if (id === "story-line") return { callouts: [{ period: periods[periods.length - 7], text: "Price change" }, { period: periods[periods.length - 2], text: "New region" }] };
   return {};
 }

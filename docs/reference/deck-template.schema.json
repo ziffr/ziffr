@@ -392,6 +392,7 @@
                 "progress",
                 "stacked",
                 "pareto",
+                "slope",
                 "ranked",
                 "share",
                 "pictogram",

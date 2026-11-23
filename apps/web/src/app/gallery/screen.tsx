@@ -19,7 +19,7 @@ import { useSlotFill } from "@/components/slot-dialog";
 import { TEMPLATE_GROUPS, builtinTemplates } from "@/components/template-groups";
 import { told } from "@/lib/action-toast";
 import { TEMPLATES } from "@/views/templates";
-import { widgetWith } from "./widget-with";
+import { slopeWith, widgetWith } from "./widget-with";
 
 /** Draws what it is given at the width the card has: the Preview scales to it and is centred, never wider than the card. */
 function Fitted({ children }: { children: (width: number) => React.ReactNode }) {
@@ -76,6 +76,13 @@ export function GalleryScreen({ data: sent, metricId, dashboards, canCreate, dem
     const fewest = isDesignedView(id) ? BUILT_IN_DESIGNS[id].slots.reduce((n, s) => n + (s.metrics === "several" ? (s.min ?? 1) : 1), 0) : 0;
     const need = Math.max(t.slots.length, fewest);
     if (need > 1 && partners.length + 1 < need) return { widget: null, why: `Needs other Metrics with ${ENOUGH}+ months in common with ${metric.name}, so this shows sample data.` };
+    if (id === "slope") {
+      // Rows of the picked Metric's Breakdown, else it with the partners that are counted in its unit.
+      if (hasBreakdown) return { widget: slopeWith([metric.id], metric.period, "rows"), why: null };
+      const alike = partners.filter((p) => data.metrics.find((x) => x.id === p)?.unit.trim() === metric.unit.trim());
+      if (!alike.length) return { widget: null, why: `${metric.name} has no breakdown and no other Metric in its unit, so this shows sample data.` };
+      return { widget: slopeWith([metric.id, ...alike], metric.period, "metrics"), why: null };
+    }
     return { widget: widgetWith(id, [metric.id, ...partners], metric.period), why: null };
   };
   const [destination, setDestination] = useState<DropSource | null>(null);
