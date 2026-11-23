@@ -286,7 +286,7 @@ export type TimelineEvent = {
   /** The same moment's day in the workspace's time zone, and its time (HH:mm). */
   day: string;
   time: string;
-  kind: "asked" | "reminded" | "in" | "action" | "approval_asked" | "approved" | "sent_back" | "checked" | "note" | "published" | "locked" | "snapshot" | "checklist_sent" | "checklist_given" | "checklist_done";
+  kind: "asked" | "reminded" | "in" | "action" | "approval_asked" | "approved" | "sent_back" | "checked" | "note" | "published" | "locked" | "snapshot" | "checklist_sent" | "checklist_given" | "checklist_done" | "snapshot_sent" | "finished";
   /** One sentence; names in it come from the workspace. */
   text: string;
   count: number;
@@ -306,6 +306,8 @@ export type PeriodStatus = {
   in: number; of: number; published: number; locked: number;
   /** The Workflow's checklist Tasks of the period: how many were given (`of`) and how many are done. `in` and `of` count values only. */
   checklist: { done: number; of: number };
+  /** Whether the period is finished: every value locked and every checklist Task of it done. */
+  finished: boolean;
   events: TimelineEvent[];
 };
 

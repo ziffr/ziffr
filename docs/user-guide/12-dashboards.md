@@ -521,6 +521,10 @@ A dashboard "Annual review" shows Revenue by month. In January 2027 its owner op
 
 To have it taken by itself next year, choose **Take one by itself…** ▸ **Every year**. The Snapshot "2027" is then taken as soon as every Metric on the dashboard is Locked for all twelve months of 2027, or the set number of days after 31 December.
 
+### Sent by a Workflow
+
+A Workflow can take, show and send a dashboard's Snapshot too, with its **Send Snapshot** step (see [Workflows and approvals](11-workflows.md)): once the Workflow's period is finished, it takes the period's Snapshot in the Workflow owner's name (the owner must still own or edit the dashboard and see every Metric on it), shows it, and sends the people it names, who may open the dashboard, a link to it. The Audit Log says the Snapshot was taken and shown "via workflow". The message carries no value; whoever opens the link sees only the Metrics they may see.
+
 ### Automatic Snapshots
 
 The dashboard's owner can have it take a Snapshot by itself. Choose **Take one by itself…**:

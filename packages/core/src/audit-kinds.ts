@@ -91,6 +91,8 @@ export const AUDIT_KINDS = {
   "workflow.run_now": "ran today's Workflow steps now",
   "workflow.webhooks_set": "changed the Webhooks the Tell steps tell, of the Workflow",
   "workflow.checklist_set": "changed the checklist of the Workflow",
+  "workflow.send_snapshot_set": "changed who gets the Snapshot of the Workflow",
+  "workflow.snapshot_sent": "sent the Snapshot of a period of the Workflow",
   "approval.given": "approved a value of",
   "approval.sent_back": "sent back a value of",
   "approval.skipped": "counted without Approval, as nobody else could approve it, a value of",
