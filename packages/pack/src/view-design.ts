@@ -301,7 +301,7 @@ export function checkViewDesignValue(value: unknown, lines: Map<string, number> 
     return { ok: false, problems: [{ path: "format", line: lines.get("format") ?? null, message: `This file is in format ${fmt}; this Ziffr reads ${VIEW_FORMATS.join(", ")}. Update Ziffr, or save the design again in ${VIEW_FORMAT}.` }] };
   const problems = checkSchema(schema, value, lines);
   if (problems.length) return { ok: false, problems };
-  // `$schema` is for editors alone: dropped here, so nothing downstream (the database, a Pack, a View Link) ever holds it.
+  // `$schema` is for editors alone: dropped from the checked design; a design stored raw elsewhere (a Free layout's seed) may still carry it, which is harmless as it is never read and never written back out.
   const rest = { ...(value as Record<string, unknown>) };
   delete rest.$schema;
   const design = rest as unknown as ViewDesign;

@@ -20,7 +20,7 @@ Every file Ziffr writes starts with a `$schema` line:
   "format": "ziffr.view/1",
 ```
 
-Editors such as VS Code read it and give completion, hover help and warnings on their own. The address is stable and belongs to the format (`ziffr.view/1`), and the same schema is [`docs/reference/view-design.schema.json`](../reference/view-design.schema.json). `$schema` is the one extra top-level field Ziffr accepts: it must be a string of at most 200 characters, it is never fetched, and Ziffr does not keep it in a saved design (writing the design out puts it back). Every other unknown field is still refused.
+Editors such as VS Code read it and give completion, hover help and warnings on their own. The address is stable and belongs to the format (`ziffr.view/1`), and the same schema is [`docs/reference/view-design.schema.json`](../reference/view-design.schema.json). `$schema` is the one extra top-level field Ziffr accepts: it must be a string of at most 200 characters, it is never fetched, Ziffr does not keep it in the design it checks, and writing a design out always puts Ziffr's own address there. Every other unknown field is still refused.
 
 ## The built-in Views as designs
 
