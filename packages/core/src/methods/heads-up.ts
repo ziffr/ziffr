@@ -148,11 +148,13 @@ function stoppedTakeaway(row: PairRow, names: ReadonlyMap<number, string>, looke
  * a row whose numbers are not what the scan writes. The correction counts only these rows. Moving together first, the stronger
  * first (larger |r|), then stopped, the larger drop first; ties by the Metrics' ids. The same rows give the same Heads-ups in the
  * same order and words, whatever order they come in. */
-export function headsUpsFrom(rows: readonly PairRow[], names: ReadonlyMap<number, string>, ctx: TakeawayContext): PairHeadsUp[] {
+export function headsUpsFrom(rows: readonly PairRow[], names: ReadonlyMap<number, string>, ctx: TakeawayContext, notScanned = 0): PairHeadsUp[] {
   const mine = rows.filter((row) => names.has(row.a) && names.has(row.b) && valid(row));
   const rate = HEADS_UP.rate;
-  const reported = benjaminiHochberg(mine.map((r) => r.full.p), rate);
-  const adjusted = adjustedChances(mine.map((r) => r.full.p));
+  // Pairs a scan did not get to (its work allowance was spent) count among the pairs looked at, each as a pair of chance 1: never a Heads-up from them, and the bar for the others is the one a full scan sets.
+  const chances = [...mine.map((r) => r.full.p), ...Array.from({ length: notScanned }, () => 1)];
+  const reported = benjaminiHochberg(chances, rate).slice(0, mine.length);
+  const adjusted = adjustedChances(chances).slice(0, mine.length);
   // The history before the last 6 periods, judged as the whole history was, among the pairs that have one.
   const earlier = mine.map((row, i) => ({ row, i })).filter((x) => x.row.before !== null);
   const earlierReported = benjaminiHochberg(earlier.map((x) => x.row.before!.p), rate);
@@ -170,7 +172,7 @@ export function headsUpsFrom(rows: readonly PairRow[], names: ReadonlyMap<number
       const before = row.before!;
       out.push({ ...base, key: `stopped-moving-together:${row.a}:${row.b}`, kind: "stopped-moving-together", rank: roundedRank(Math.abs(before.r) - Math.sign(before.r) * before.recent!.r), takeaway: stoppedTakeaway(row, names, had.length, stopped.get(i)!, ctx) });
     } else if (reported[i] && row.full.meets && clearOfChance(row.full)) {
-      out.push({ ...base, key: `moving-together:${row.a}:${row.b}`, kind: "moving-together", rank: roundedRank(Math.abs(row.full.r)), takeaway: movingTakeaway(row, names, mine.length, adjusted[i], ctx) });
+      out.push({ ...base, key: `moving-together:${row.a}:${row.b}`, kind: "moving-together", rank: roundedRank(Math.abs(row.full.r)), takeaway: movingTakeaway(row, names, mine.length + notScanned, adjusted[i], ctx) });
     }
   });
   const order: Record<PairKind, number> = { "moving-together": 0, "stopped-moving-together": 1 };

@@ -82,6 +82,20 @@ describe("the words", () => {
   });
 });
 
+describe("pairs a scan did not get to count among the pairs looked at, each with a chance of 1", () => {
+  it("raise the bar for the others as a full scan would, say how many pairs were looked at, and are never a Heads-up themselves", () => {
+    const one = row(1, 2, { full: win({ lag: 2, r: 0.95, n: 24, nEff: 20, pDelays: 0.005, p: 0.005, tries: 5, rFirst: 0.96, nFirst: 12, rSecond: 0.94, nSecond: 12 }) });
+    const looked = (n: number) => headsUpsFrom([one], names(1, 2), ctx, n)[0]?.takeaway.numbers.find((x) => x.label === "Pairs of Metrics looked at")?.text;
+    expect(looked(0)).toBe("1");
+    expect(headsUpsFrom([one], names(1, 2), ctx, 1)).toHaveLength(1);
+    // The bar is the rate over the pairs looked at (HEADS_UP.rate over 31 is below 0.005): with 3 more pairs it still holds, with 30 more it does not.
+    expect(looked(1)).toBe("2");
+    expect(headsUpsFrom([one], names(1, 2), ctx, 3)).toHaveLength(1);
+    expect(headsUpsFrom([one], names(1, 2), ctx, 30)).toEqual([]);
+    expect(headsUpsFrom([], names(1, 2), ctx, 50)).toEqual([]);
+  });
+});
+
 describe("a pair that has started moving together", () => {
   it("is reported with its sentence in the leader's order, its strength, what it was compared on, the footer once, and the numbers the job used", () => {
     const [up] = headsUpsFrom([row(1, 2, { full: win({ lag: 2, r: 0.95, n: 24, nEff: 20, pDelays: 1e-7, p: 1e-6, tries: 5, rFirst: 0.96, nFirst: 12, rSecond: 0.94, nSecond: 12 }) }), ...crowd(2).slice(1)], names(1, 2), ctx);

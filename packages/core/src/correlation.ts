@@ -8,7 +8,7 @@ import { basisFor, basisText, changes, type Basis } from "./basis";
 import { isLonger, seriesBy, type Resolver } from "./display-periods";
 import { STRENGTH } from "./takeaways/strength";
 import { say } from "./takeaways/wording";
-import { tryWork, wideColumns, withWork } from "./work-bound";
+import { onPage, RANK_BUDGET, tryWork, wideColumns, withWork } from "./work-bound";
 import type { Span, YearStart } from "./periods";
 import { fractionOf, lowestTerms, minus, nearest, over, plus, times, type Fraction } from "./exact";
 import type { Metric, Point } from "./types";
@@ -164,14 +164,16 @@ export type LeftOut = { metric: Metric; why: NoCorrelation; reason: string };
 /** Every other Metric correlated with this one on their common period, ranked by |r|, and those left out with why.
  * The Metric itself and Derived Metrics built from it (or it from them) are left out silently, as there is nothing
  * to learn. */
-export function rankCorrelations(metric: Metric, metrics: Metric[], resolve: Resolver, opts: { yearStart: YearStart; today?: string; basis?: BasisChoice }): { ranked: Ranked[]; leftOut: LeftOut[] } {
+export function rankCorrelations(metric: Metric, metrics: Metric[], resolve: Resolver, opts: { yearStart: YearStart; today?: string; basis?: BasisChoice; page?: { exact: number } }): { ranked: Ranked[]; leftOut: LeftOut[] } {
   const ranked: Ranked[] = [];
   const leftOut: LeftOut[] = [];
   // One work allowance (work-bound.ts) for the whole ranking, so that a page with many Metrics cannot be kept busy: the pairs that are left when it is
   // spent are not compared, which is said (one note for them all), and the ranking of the ones that were is exact.
   // Stryker disable next-line ObjectLiteral,StringLiteral: the style only writes numbers, and this note has none.
   const spent = say("note-not-compared", {}, { style: "1,234.5" });
-  withWork(() => {
+  // Where a page shares its exact work between its widgets (`page`), what is left of it is what this call may spend, at most `RANK_BUDGET`; where that is spent
+  // the Metrics left say so in the words of a page that asked for too much, in the order they come.
+  const loop = () => {
     for (const m of metrics) {
       if (m.id === metric.id || builtFrom(metric, m)) continue;
       const result = tryWork(() => correlate(metric, m, resolve, opts));
@@ -179,7 +181,17 @@ export function rankCorrelations(metric: Metric, metrics: Metric[], resolve: Res
       else if (result.ok) ranked.push({ metric: m, result });
       else leftOut.push({ metric: m, why: result.why, reason: result.reason });
     }
-  });
+    return true;
+  };
+  if (opts.page) {
+    // Nothing left of the page's work: no Metric is compared.
+    if (!onPage(opts.page, RANK_BUDGET, loop)) for (const m of metrics) if (m.id !== metric.id && !builtFrom(metric, m)) leftOut.push({ metric: m, why: "too-much", reason: spent });
+    // The page's work is spent (by this call or an earlier one): the Metrics left out say so as a page does.
+    if (opts.page.exact <= 0) {
+      const page = say("recipe-page-too-much", {}, { style: "1,234.5" });
+      for (const l of leftOut) if (l.why === "too-much") l.reason = page;
+    }
+  } else withWork(loop, RANK_BUDGET);
   ranked.sort((x, y) => Math.abs(y.result.r) - Math.abs(x.result.r));
   return { ranked, leftOut };
 }

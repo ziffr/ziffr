@@ -6,7 +6,7 @@ import { describe, expect, it } from "vitest";
 import { runs } from "./test/reference/check";
 import { referenceWide } from "./test/reference/work-bound";
 import { lowestTerms } from "./exact";
-import { capped, digits, latestCommon, MOST_PERIODS, spend, tryWork, spendOn, WORK_BOUND, WORK_BUDGET, wideColumns, wideFindings, wideReason, widthOf, withWork } from "./work-bound";
+import { capped, digits, onPage, latestCommon, MOST_PERIODS, spend, tryWork, spendOn, WORK_BOUND, WORK_BUDGET, wideColumns, wideFindings, wideReason, widthOf, withWork } from "./work-bound";
 
 const { numRuns, seed } = runs();
 const pts = (vs: number[]) => vs.map((value, i) => ({ period: `2024-${String(i + 1).padStart(2, "0")}-01`, value }));
@@ -283,5 +283,27 @@ describe("capped", () => {
     expect(capped(1, () => (spend(1e300), 7))).toBe(7);
     expect(withWork(() => { try { capped(5, () => { spend(2); throw new Error("broken"); }); } catch { /* the failure passed through */ } return capped(100, () => (spend(8), "rest")); }, 10)).toBe("rest");
     expect(() => withWork(() => capped(5, () => { throw new Error("broken"); }), 10)).toThrow("broken");
+  });
+});
+
+describe("onPage", () => {
+  it("runs a part under what the page has left, at most its cap, and charges the page what the part spent", () => {
+    const page = { exact: 100 };
+    expect(onPage(page, 30, () => (spend(7), "a"))).toBe("a");
+    expect(page.exact).toBe(93);
+    expect(onPage(page, 5, () => (spend(5), "b"))).toBe("b");
+    expect(page.exact).toBe(88);
+  });
+  it("charges the whole cap where the part stopped, and the whole of what was left where that is less", () => {
+    const page = { exact: 100 };
+    expect(onPage(page, 10, () => (spend(11), "x"))).toBeNull();
+    expect(page.exact).toBe(90);
+    expect(onPage(page, 500, () => (spend(91), "y"))).toBeNull();
+    expect(page.exact).toBe(0);
+  });
+  it("does not run the part at all where nothing is left", () => {
+    let ran = false;
+    expect(onPage({ exact: 0 }, 10, () => { ran = true; return 1; })).toBeNull();
+    expect(ran).toBe(false);
   });
 });

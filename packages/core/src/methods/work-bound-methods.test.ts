@@ -21,7 +21,7 @@ import { paretoTakeaway, topShareTakeaway } from "./concentration";
 import { fit, importance, needs, predict, type Fit, type FitInput } from "./fit";
 import { bestForecast, forecastTooWide, NO_FORECAST_WIDE } from "./forecast-choice";
 import { laggedTakeaway } from "./lagged-correlation";
-import { HEADS_UP, scanPairs } from "./pair-scan";
+import { HEADS_UP, scanPairs, scanPairsCounted } from "./pair-scan";
 import { partialTakeaway } from "./partial-correlation";
 import { usualRangeTakeaway } from "./quantiles";
 import { spearmanTakeaway } from "./spearman";
@@ -593,5 +593,62 @@ describe("a forecast that spends its work allowance is a refusal in words, for t
     expect(forecastTakeaway(m, y, ctx).kind).toBe("answer");
     expect(reachOf(m, y, ctx, { ends: { min: 1, max: null }, allowance: 1000 })).toBeNull();
     expect(reachOf(m, y, ctx, { ends: { min: 1, max: null } })).not.toBeNull();
+  });
+});
+
+describe("the pair scan of many Metrics runs under one allowance, in the order of the ids", () => {
+  const ms = Array.from({ length: 24 }, (_, i) => ({ id: i + 1, period: "month" as const }));
+  // Metrics that move together (one random walk, each with a little of its own), so that every pair meets the conditions and is checked exactly.
+  const walk = (() => { const r = lcg(77); let v = 100; return Array.from({ length: 60 }, () => (v += Math.round((r() - 0.4) * 1000) / 100)); })();
+  const levelsOf = (id: number) => { const r = lcg(id); return months("2020-01", walk.map((v) => Math.round((v + r() * 3) * 100) / 100)); };
+  const scan = (allowance?: number) => scanPairsCounted(ms, (id) => levelsOf(id), () => false, "2025-01-15", 1, allowance);
+  const key = (r: { a: number; b: number }) => `${String(r.a).padStart(3, "0")}-${String(r.b).padStart(3, "0")}`;
+  it("scans every pair where the allowance is the usual one, as scanPairs does", () => {
+    const full = scan();
+    expect(full.notScanned).toBe(0);
+    expect(full.rows.length).toBeGreaterThan(100);
+    expect(scanPairs(ms, (id) => levelsOf(id), () => false, "2025-01-15", 1)).toEqual(full.rows);
+  });
+  it("leaves the pairs after the allowance is spent unscanned, counts them, and keeps the ones before it exactly as a full scan has them, the same every time", () => {
+    const full = scan();
+    const some = scan(30_000_000);
+    expect(some.notScanned).toBeGreaterThan(0);
+    expect(some.rows.length).toBeGreaterThan(0);
+    expect(some.rows.length).toBeLessThan(full.rows.length);
+    expect(scan(30_000_000)).toEqual(some);
+    // What was scanned is what a full scan found for those pairs. The pairs are taken in the order of their ids, and once the allowance is spent only pairs that need no exact work are still scanned.
+    const wanted = new Map(full.rows.map((r) => [key(r), r]));
+    for (const r of some.rows) expect(wanted.get(key(r))).toEqual(r);
+    expect(some.rows.length + some.notScanned).toBeLessThanOrEqual((ms.length * (ms.length - 1)) / 2);
+    expect(some.rows.map(key)).toEqual([...some.rows.map(key)].sort());
+    const none = scan(1);
+    expect(none.notScanned).toBeGreaterThan(some.notScanned);
+    expect(none.rows.length).toBeLessThan(some.rows.length);
+    expect(scan(1)).toEqual(none);
+  });
+});
+
+describe("the correlation work of one page shares one allowance, in the order the widgets are drawn", () => {
+  const ms = Array.from({ length: 8 }, (_, i) => metric({ id: i + 1, slug: `p${i}`, name: `P${i}`, period: "month" }));
+  const data = Object.fromEntries(ms.map((m, i) => [m.slug, series(i === 0 ? "ordinary" : "dense", i + 31)]));
+  const resolve = (slug: string) => ({ metric: ms.find((m) => m.slug === slug)!, points: data[slug] });
+  const widgets = (page: { exact: number }, n: number) => Array.from({ length: n }, () => rankCorrelations(ms[0], ms.slice(1), resolve, { yearStart: 1, basis: "values", page }).ranked.length);
+  const pageWords = "Too much analysis on this page to work out at once: open the widget on its own.";
+  it("compares for the first widgets and none for the rest, the same every time, and says so in the words of a page", () => {
+    const first = widgets({ exact: 600_000_000 }, 30);
+    expect(first[0]).toBeGreaterThan(0);
+    expect(first[29]).toBe(0);
+    expect(first).toEqual([...first].sort((a, b) => b - a));
+    expect(widgets({ exact: 600_000_000 }, 30)).toEqual(first);
+    const page = { exact: 600_000_000 };
+    widgets(page, 30);
+    const late = rankCorrelations(ms[0], ms.slice(1), resolve, { yearStart: 1, basis: "values", page });
+    expect(late.ranked).toEqual([]);
+    expect(late.leftOut.map((l) => [l.why, l.reason])).toEqual(ms.slice(1).map(() => ["too-much", pageWords]));
+    expect(page.exact).toBeLessThanOrEqual(0);
+  });
+  it("spends nothing of a page that has none, and leaves the others to the call's own allowance without a page", () => {
+    expect(widgets({ exact: 0 }, 3)).toEqual([0, 0, 0]);
+    expect(rankCorrelations(ms[0], ms.slice(1), resolve, { yearStart: 1, basis: "values" }).ranked.length).toBe(7);
   });
 });

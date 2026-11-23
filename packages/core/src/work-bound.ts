@@ -85,6 +85,31 @@ export function withWork<T>(f: () => T, budget: number = WORK_BUDGET): T | null 
 /** The work a scan of one Workspace's Metrics for Heads-ups about one Metric may spend in all, and what one Metric of them may: the Metric's own limit is far above
  * what any ordinary series needs (3 · 10^6 for money to the cent, 3 · 10^8 for log-normal doubles) and the scan's is about eight seconds of a laptop. */
 export const SCAN_BUDGET = 20_000_000_000;
+/** What one call of the ranking of Metrics by correlation may spend (a fraction of a second on the worst values the bounds admit), and what all the
+ * correlation work of one page may spend together. */
+export const RANK_BUDGET = 4_000_000_000;
+/** What all the correlation work drawn on one page (the widgets of a dashboard) may spend together: about three seconds of a laptop under load. */
+export const PAGE_EXACT_BUDGET = 35_000_000_000;
+
+/** Runs `f` under what the page has left of its exact work, at most `cap`, and charges the page what it spent (all of `cap` or of what was left where it stopped);
+ * null where it stopped, and where nothing was left. A page is not inside another bound: this is the outermost. */
+export function onPage<T>(page: { exact: number }, cap: number, f: () => T): T | null {
+  const own = Math.min(page.exact, cap);
+  if (own <= 0) return null;
+  let spent = own;
+  const result = withWork(() => {
+    const out = f();
+    spent = own - (left as number);
+    return out;
+  }, own);
+  page.exact -= spent;
+  return result;
+}
+
+/** What one scan of a Workspace's Metrics for Heads-ups about two Metrics may spend in all, in the digit work counted by `lowestTerms`: most pairs spend none (they are screened in doubles, and
+ * only a pair that meets the conditions is checked exactly), so no ordinary scan comes near it; it bounds a scan of many pairs that all do. About seven seconds of a laptop under load. */
+export const SCAN_PAIRS_BUDGET = 70_000_000_000;
+
 /** What one Metric of such a scan may spend. */
 export const METRIC_BUDGET = 3_000_000_000;
 

@@ -24,7 +24,7 @@ import { changes, readSeries } from "../basis";
 import { fractionOf, lowestTerms, minus, plus, times, type Fraction } from "../exact";
 import { periodStart, periodsBetween, shiftPeriod, type Span, type YearStart } from "../periods";
 import { checkSuitability, verdictOutcome } from "../suitability";
-import { wideReason } from "../work-bound";
+import { SCAN_PAIRS_BUDGET, tryWork, wideReason, withWork } from "../work-bound";
 import type { Point } from "../types";
 import { normalCdf } from "./normal-curve";
 import { pValueOfR } from "./p-value";
@@ -377,6 +377,12 @@ export function capMetrics<T extends { id: number; latest: string }>(metrics: re
  * when no delay has enough pairs, or when a Metric's changes need more than 40 decimal places or span more than 30 orders of magnitude (work-bound.ts). Only the latest 120 periods of each series are used. At most `HEADS_UP.maxPairs` pairs are
  * scanned (the ones of the lower ids first); the rest are left out. */
 export function scanPairs(metrics: readonly ScanMetric[], levels: (id: number, span: Span) => Point[] | null, related: (a: number, b: number) => boolean, today: string, yearStart: YearStart): PairRow[] {
+  return scanPairsCounted(metrics, levels, related, today, yearStart).rows;
+}
+
+/** `scanPairs` under a work allowance for the whole scan (work-bound.ts): the pairs are scanned in the order of their Metrics' ids, and where the allowance is spent the
+ * pairs left are not scanned, which `notScanned` counts (the scan is then as a capped one is, and the correction counts each as a pair of chance 1). */
+export function scanPairsCounted(metrics: readonly ScanMetric[], levels: (id: number, span: Span) => Point[] | null, related: (a: number, b: number) => boolean, today: string, yearStart: YearStart, allowance: number = SCAN_PAIRS_BUDGET): { rows: PairRow[]; notScanned: number } {
   const ordered = [...metrics].sort((x, y) => x.id - y.id);
   // Stryker disable next-line EqualityOperator: with the same Period the two are equal, and either is the Common Period.
   const spanOf = (a: ScanMetric, b: ScanMetric): Span => (ORDER.indexOf(a.period) > ORDER.indexOf(b.period) ? a.period : b.period);
@@ -408,12 +414,21 @@ export function scanPairs(metrics: readonly ScanMetric[], levels: (id: number, s
     return laid.get(k)!;
   };
   const out: PairRow[] = [];
-  for (const { a, b, span } of pairs) {
-    const axis = axes.get(span);
-    if (!axis) continue;
-    const scan = scanPair(laidOut(a, span), laidOut(b, span), axis);
-    // Both Metrics current: the pair's last period is within a few periods of today.
-    if (scan && periodsBetween(scan.through, periodStart(today, span, yearStart), span) <= HEADS_UP.current) out.push({ a: a.id, b: b.id, span, ...scan });
-  }
-  return out;
+  let notScanned = 0;
+  withWork(() => {
+    for (const { a, b, span } of pairs) {
+      const axis = axes.get(span);
+      if (!axis) continue;
+      const done = tryWork(() => ({ scan: scanPair(laidOut(a, span), laidOut(b, span), axis) }));
+      if (done === null) {
+        notScanned++;
+        continue;
+      }
+      const { scan } = done;
+      // Both Metrics current: the pair's last period is within a few periods of today.
+      if (scan && periodsBetween(scan.through, periodStart(today, span, yearStart), span) <= HEADS_UP.current) out.push({ a: a.id, b: b.id, span, ...scan });
+    }
+    return true;
+  }, allowance);
+  return { rows: out, notScanned };
 }

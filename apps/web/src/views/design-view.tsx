@@ -8,8 +8,8 @@ import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
 import { useTakeawayHost } from "./takeaway-host";
 import { compactValue, formatNumber, formatValue, health } from "@ziffr/core/format";
-import { basisLabel, comparedBy, correlate, periodCountLabel, periodWord, rankCorrelations, strength, type BasisChoice, type Correlation } from "@ziffr/core/correlation";
-import { correlationTakeaway, driversTakeaway } from "@ziffr/core/takeaways/takeaway";
+import { basisLabel, commonPeriod, comparedBy, correlate, periodCountLabel, periodWord, rankCorrelations, strength, type BasisChoice, type Correlation } from "@ziffr/core/correlation";
+import { correlationTakeaway, driversTakeaway, sayIn } from "@ziffr/core/takeaways/takeaway";
 import { TakeawayView } from "@/components/takeaway-view";
 import { resolverFrom } from "@ziffr/core/compare";
 import { dayAfter, heldText, isPartial, pointName, shownSeries, type DisplayPoint } from "@ziffr/core/display-periods";
@@ -19,7 +19,8 @@ import type { CanvasData, Metric, Widget } from "@ziffr/core/types";
 import { bestForecast, forecastTooWide, NO_FORECAST_WIDE } from "@ziffr/core/methods/forecast-choice";
 import { SEASON_LENGTH } from "@ziffr/core/suitability";
 import { forecastTakeaway, endsOf } from "@ziffr/core/takeaways/forecast";
-import { drawRecipe, formatOutput, newRecipeBudget, type TableFigures } from "@ziffr/core/design-analysis";
+import { drawRecipe, formatOutput, newRecipeBudget, type RecipeBudget, type TableFigures } from "@ziffr/core/design-analysis";
+import { onPage, RANK_BUDGET } from "@ziffr/core/work-bound";
 import { useRecipeBudget } from "./recipe-budget";
 import type { RecipeResults } from "@ziffr/core/recipe-run";
 import { drawnOutputs } from "@ziffr/core/analysis-recipe";
@@ -53,7 +54,22 @@ export type DesignValues = ReturnType<typeof designValues> & {
 };
 
 /** The numbers and words a design draws for a widget, each from the core's functions. */
-function designValues(design: ViewDesign, widget: Pick<Widget, "settings">, metrics: Metric[], data: CanvasData, basis: BasisChoice, recipe: RecipeResults | null) {
+/** What a widget's correlation work comes to: the pair, the ranking and the matrix, each only where the design uses it. Under the page's share of exact work (`page`,
+ * charged in the order the widgets are drawn): where that is spent, the ranking says so for the Metrics it did not compare and a pair or a matrix cell says so in words. */
+function correlationWork(design: ViewDesign, metrics: Metric[], data: CanvasData, basis: BasisChoice, page: RecipeBudget) {
+  const uses = usage(design);
+  const m = metrics[0];
+  const resolve = resolverFrom(data.metrics, data.series);
+  const opts = { yearStart: data.yearStart, basis };
+  const tooMuch = (a: Metric, b: Metric): Correlation => ({ ok: false, period: commonPeriod(a.period, b.period), n: 0, why: "too-much", reason: sayIn("recipe-page-too-much", {}, { style: data.numberStyle, yearStart: data.yearStart }) });
+  const one = (a: Metric, b: Metric) => onPage(page, RANK_BUDGET, () => correlate(a, b, resolve, opts)) ?? tooMuch(a, b);
+  const correlation: Correlation | null = uses.pairs && metrics[1] ? one(m, metrics[1]) : null;
+  const drivers = uses.drivers ? rankCorrelations(m, metrics.slice(1), resolve, { ...opts, page }) : null;
+  const matrix = uses.matrix ? metrics.map((a) => metrics.map((b) => (a.id === b.id ? null : one(a, b)))) : null;
+  return { correlation, drivers, matrix };
+}
+
+function designValues(design: ViewDesign, widget: Pick<Widget, "settings">, metrics: Metric[], data: CanvasData, basis: BasisChoice, recipe: RecipeResults | null, work: ReturnType<typeof correlationWork>) {
   const uses = usage(design);
   const m = metrics[0];
   const s = widget.settings;
@@ -81,9 +97,7 @@ function designValues(design: ViewDesign, widget: Pick<Widget, "settings">, metr
   const projection = uses.forecast(flags) ? bestForecast(ahead, by, SEASON_LENGTH[by]) : null;
   const fc = projection?.points ?? null;
   flags.hasForecast = !!fc?.length;
-  const resolve = resolverFrom(data.metrics, data.series);
-  const correlation: Correlation | null = uses.pairs && metrics[1] ? correlate(m, metrics[1], resolve, { yearStart: data.yearStart, basis }) : null;
-  const drivers = uses.drivers ? rankCorrelations(m, metrics.slice(1), resolve, { yearStart: data.yearStart, basis }) : null;
+  const { correlation, drivers, matrix } = work;
   // The Takeaways (spec 0041): what the results say in words, after the suitability checks, from the one writer in the core.
   const tctx = { style: data.numberStyle, yearStart: data.yearStart };
   const correlationTake = correlation && metrics[1] ? correlationTakeaway(m, metrics[1], correlation, tctx) : null;
@@ -92,7 +106,6 @@ function designValues(design: ViewDesign, widget: Pick<Widget, "settings">, metr
   // worked out in the Metric's own period, so a widget shown by a longer period (Show by) leaves it out rather than say it in other periods.
   const ends = endsOf(m);
   const forecastTake = projection && !combined ? forecastTakeaway(m, ahead, tctx, flags.showTarget && (ends.min !== null || ends.max !== null) ? { ends } : {}) : null;
-  const matrix = uses.matrix ? metrics.map((a) => metrics.map((b) => (a.id === b.id ? null : correlate(a, b, resolve, { yearStart: data.yearStart, basis })))) : null;
   // The target band shows when there is a range, and, for a combined series, when its spans have one.
   const band = (!combined || !!targets?.range) && (m.target_min !== null || m.target_max !== null);
   // The design's Analysis Recipe, on the series the widget shows of its own Metrics, by the library's functions.
@@ -132,7 +145,9 @@ export function DesignView({ design, widget, metrics, data, onPointContext }: Pr
   const budget = useRecipeBudget();
   const drawn = useMemo(() => drawRecipe(design, metrics, data, widget.settings, budget ?? newRecipeBudget()), [design, metrics, data, widget.settings, budget]);
   const recipe = drawn.results;
-  const v: DesignValues = { ...designValues(design, widget, metrics, data, basis, recipe), figures: drawn.figures, setBasis, roomy, behind: host !== null };
+  // The correlation work is charged to the page's share once, not again at every render.
+  const work = useMemo(() => correlationWork(design, metrics, data, basis, budget ?? newRecipeBudget()), [design, metrics, data, basis, budget]);
+  const v: DesignValues = { ...designValues(design, widget, metrics, data, basis, recipe, work), figures: drawn.figures, setBasis, roomy, behind: host !== null };
   const { m } = v;
   // The page has spent its share of work on recipes: the words say so and no number is shown.
   if (drawn.refusal) return <Empty>{drawn.refusal}</Empty>;
