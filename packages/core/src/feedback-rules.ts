@@ -20,6 +20,13 @@ export const FEEDBACK_PER_PERSON_PER_DAY = 5;
 /** The most feedback all the people of one Workspace may send in 24 hours. */
 export const FEEDBACK_PER_WORKSPACE_PER_DAY = 20;
 
+/** The most replies one person may write under one feedback in 24 hours. */
+export const FEEDBACK_REPLIES_PER_FEEDBACK_PER_DAY = 5;
+/** The most replies one person may write in 24 hours, over all their feedback. */
+export const FEEDBACK_REPLIES_PER_PERSON_PER_DAY = 15;
+/** The most messages (theirs and the team's) one feedback's conversation holds. */
+export const FEEDBACK_MESSAGES_MAX = 100;
+
 const ROUTE_MAX = 200;
 // A control character is never part of a person's words (a newline and a tab are kept).
 const CONTROL = /[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/g;
