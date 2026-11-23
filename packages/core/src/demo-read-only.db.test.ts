@@ -47,7 +47,7 @@ describe("the demo refuses every write", () => {
   it("with the lists changed by migrations only: the service role may read them and nothing else", async () => {
     for (const t of ["demo_open_tables", "demo_closed_tables"]) {
       expect((await db().from(t).select("table_name").limit(1)).error).toBeNull();
-      expect((await db().from(t).insert({ table_name: "dashboards", reason: "x" })).error?.code).toBe("42501");
+      expect((await db().from(t).insert(t === "demo_closed_tables" ? { table_name: "dashboards", reason: "x" } : { table_name: "dashboards" })).error?.code).toBe("42501");
       expect((await db().from(t).update({ table_name: "x" }).eq("table_name", "dashboards")).error?.code).toBe("42501");
       expect((await db().from(t).delete().eq("table_name", "dashboards")).error?.code).toBe("42501");
     }
