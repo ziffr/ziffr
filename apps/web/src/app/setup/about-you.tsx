@@ -136,7 +136,7 @@ export function AboutYouWorkspace({ profile, countries, timeZone, runHour, yearS
         <Row id="about-country" label="Where is it based?" hint="So numbers and money are written the way you write them.">
           {pick("country", "about-country", countries.map(({ code, name }) => ({ v: code, label: name })))}
           <p className="mt-1.5 text-xs text-muted-foreground" aria-live="polite">
-            {p.currency ? `Currency: ${p.currency}. ` : ""}The country proposes the currency, how numbers are written and the languages answers are read in, until someone sets them on Workspace → General.
+            {p.currency ? `Currency: ${p.currency}. ` : ""}The country proposes the currency, number style and answer languages until someone sets them on Workspace → General.
           </p>
         </Row>
         <Row id="about-people" label="How many people work there?" hint={SO_WE_CAN_SUGGEST}>
