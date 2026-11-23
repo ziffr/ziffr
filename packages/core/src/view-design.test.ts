@@ -126,6 +126,12 @@ const HOSTILE: [string, string, string, Where][] = [
   ["a radar of two Slots", withPart({ mark: "radar", show: "latest" }, { slots: [{ label: "A", metrics: "one" }, { label: "B", metrics: "one" }] }), "A radar needs 3 to 12 spokes", { after: '"parts": [' }],
   ["a radar of a Slot of several that may hold two", withPart({ mark: "radar", show: "latest" }, { slots: [{ label: "A", metrics: "several", min: 2 }] }), "A radar needs 3 to 12 spokes", { after: '"parts": [' }],
   ["a radar of 13 Slots' worth", withPart({ mark: "radar", show: "latest" }, { slots: [{ label: "A", metrics: "several", min: 12 }, { label: "B", metrics: "one" }] }), "A radar needs 3 to 12 spokes", { after: '"parts": [' }],
+  // The scoreboard mark: one table of 3 to 12 Metrics.
+  ["a scoreboard of one Metric", withPart({ mark: "scoreboard", show: "latest" }), "A scoreboard needs 3 to 12 Metrics", { after: '"parts": [' }],
+  ["a scoreboard of a Slot of several that may hold two", withPart({ mark: "scoreboard", show: "latest" }, { slots: [{ label: "A", metrics: "several", min: 2 }] }), "A scoreboard needs 3 to 12 Metrics", { after: '"parts": [' }],
+  ["a scoreboard that needs 13", withPart({ mark: "scoreboard", show: "latest" }, { slots: [{ label: "A", metrics: "several", min: 12 }, { label: "B", metrics: "one" }] }), "A scoreboard needs 3 to 12 Metrics", { after: '"parts": [' }],
+  ["a scoreboard of something else", withPart({ mark: "scoreboard", show: "values" }, { slots: [{ label: "M", metrics: "several", min: 3 }] }), "must be “latest”", '"values"'],
+  ["a scoreboard with a style field", withPart({ mark: "scoreboard", show: "latest", color: "red" }, { slots: [{ label: "M", metrics: "several", min: 3 }] }), "is not a field here", '"color"'],
   ["a radar with a style field", withPart({ mark: "radar", show: "latest", color: "red" }, { slots: [{ label: "M", metrics: "several", min: 3 }] }), "is not a field here", '"color"'],
   ["a prototype key", text(EXAMPLE).replace('"format"', '"__proto__": { "admin": true },\n  "format"'), "is not a field here", "__proto__"],
   ["a constructor key in a mark", withPart({ mark: "text", content: ["a"], constructor: { prototype: 1 } }), "is not a field here", "constructor"],
@@ -152,6 +158,9 @@ describe("checkViewDesign", () => {
     expect(polar.ok ? [] : polar.problems).toEqual([]);
     // Three Slots of one Metric each are three spokes as well.
     expect(checkViewDesign(text({ ...WITH_POLAR_AND_RADAR, analysis: undefined, parts: [{ mark: "radar", show: "latest" }], slots: ["A", "B", "C"].map((label) => ({ label, metrics: "one" })) })).ok).toBe(true);
+    // A scoreboard of a Slot of several with at least three, or of three Slots.
+    expect(checkViewDesign(text({ ...EXAMPLE, kind: "analysis", slots: [{ label: "Metrics", metrics: "several", min: 3 }], parts: [{ mark: "scoreboard", show: "latest" }] })).ok).toBe(true);
+    expect(checkViewDesign(text({ ...EXAMPLE, kind: "analysis", slots: ["A", "B", "C"].map((label) => ({ label, metrics: "one" })), parts: [{ mark: "scoreboard", show: "latest" }] })).ok).toBe(true);
     const once = writeViewDesign(WITH_RECIPE);
     const back = checkViewDesign(once);
     expect(back.ok && writeViewDesign(back.design)).toBe(once);
