@@ -13,3 +13,4 @@ export type { Problem } from "./json-check.js";
 export { LOGO_MAX_BYTES, LOGO_MAX_PIXELS, PACK_LOGO_MAX_BYTES, cleanLogo, logoOk, logoProblem, logoRatio, svgClean, svgIsPlain } from "./logo.js";
 export { checkWorkspaceExport, WorkspaceExportChecker, WORKSPACE_EXPORT_FORMAT, WORKSPACE_EXPORT_FORMATS, WORKSPACE_EXPORT_KINDS, WORKSPACE_EXPORT_LIMITS, WORKSPACE_EXPORT_SCHEMA, type WorkspaceExportCheck, type WorkspaceExportRecord, type WorkspaceExportKind, type WorkspaceExportReaderLimits } from "./workspace-export.js";
 export { TAG_NAME_MAX, TAGS_PER_ENTRY, normaliseTagName, tagNameProblem } from "./tag-names.js";
+export { BREAKDOWN_PARENTS, hasParents, nameKey, readParents, type ParentsRead, type PartRow } from "./breakdown-parents.js";

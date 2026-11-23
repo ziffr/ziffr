@@ -10,7 +10,8 @@ import { isArchived, normalizeMetric } from "./metric-row";
 import { readAnswer, type AnswerReading } from "./numbers";
 import { NUMBER_STYLE_MARKS, type NumberStyle } from "./number-style";
 import { answerReadingOf, numberStyleOf } from "./workspace-settings";
-import { recordObservation, type Recording } from "./record-value";
+import { readParents } from "@ziffr/pack/breakdown-parents";
+import { BREAKDOWN_REFUSED, recordObservation, type BreakdownInput, type Recording } from "./record-value";
 import { addUp } from "./adding-up";
 import { parseBreakdown } from "./parse";
 import { peopleOf, recogniseSender, type ContactRow } from "./people";
@@ -36,7 +37,7 @@ export type SubmissionInput = {
   text: string;
   promptId?: number;
   /** A program's value as it sent it, instead of a number found in `text` (source "api" only). */
-  value?: { value: number; breakdown?: { label: string; value: number }[] };
+  value?: { value: number; breakdown?: BreakdownInput[] };
   /** The period a program names; otherwise the current one, or the Prompt's (source "api" only). */
   period?: string;
   /** The Access Key a program submits with (source "api" only); the value names it. */
@@ -160,7 +161,12 @@ async function takeValue(input: SubmissionInput, effects: SubmissionEffects, pro
   const given = valueIsGiven(input, pasted !== null);
   const sent = given ? input.value : undefined;
   const breakdown = sent ? (sent.breakdown?.length ? { rows: sent.breakdown, total: sent.value } : null) : parseBreakdown(input.text, style);
-  const rowsSum = breakdown ? breakdown.rows.reduce((a, r) => a + r.value, 0) : 0;
+  // Rows that are parts of others (spec 0041, ticket 12) are checked before anything is looked up or written: a list that
+  // is refused is refused whole, in words, whichever way it came in (a program, a form, a message, a Feed).
+  const parents = breakdown ? readParents(breakdown.rows) : null;
+  if (parents && !parents.ok) return log({ ...base, ok: false, outcome: "rejected_breakdown", detail: parents.problem });
+  // Only the top-level rows add up to the whole: a part is already counted in the row it is a part of.
+  const rowsSum = breakdown ? breakdown.rows.reduce((a, r) => (typeof r.parent === "string" && r.parent.trim() !== "" ? a : a + r.value), 0) : 0;
   let value: number | null;
   let period: string;
   if (sent || breakdown) {
@@ -315,7 +321,7 @@ function outcomeWords(data: { outcome: string; after: number | string; earlier: 
 }
 
 /** The words added to the reply for a value with a Breakdown, saying when its rows and its total disagree. */
-function breakdownWords(breakdown: { rows: { label: string; value: number }[]; total: number | null }, rowsSum: number, fv: (v: number) => string): string {
+function breakdownWords(breakdown: { rows: BreakdownInput[]; total: number | null }, rowsSum: number, fv: (v: number) => string): string {
   const off = breakdown.total !== null && Math.abs(rowsSum - breakdown.total) > Math.abs(breakdown.total) * 0.001;
   return ` With a breakdown of ${breakdown.rows.length} rows.${off ? ` The rows add up to ${fv(rowsSum)}, the total says ${fv(breakdown.total!)}; the total counts.` : ""}`;
 }
@@ -342,10 +348,12 @@ async function proposeLate(i: { ws: string; metric: Metric; period: string; valu
 
 /** The outcome and words for a value the database refused because the Metric was archived or the period condensed after
  * the checks before the write, or null when it refused for no such reason. */
-async function refusedByDatabase(error: { code?: string } | null, ws: string, metricId: number, period: string): Promise<{ outcome: string; detail: string } | null> {
+async function refusedByDatabase(error: { code?: string; message?: string } | null, ws: string, metricId: number, period: string): Promise<{ outcome: string; detail: string } | null> {
   // A value entered for someone else met a value in between (it came first), or a rule that combines people's values.
   if (error?.code === "ZF450") return { outcome: "rejected_fill_in", detail: "This period already has a value: a Correction changes it." };
   if (error?.code === "ZF452") return { outcome: "rejected_fill_in", detail: "This Metric adds up or keeps the values of several people, so nobody can fill in for someone else." };
+  // Rows that cannot stand where they were put (the core's words, or the database's own, which are plain too and name nothing of the Workspace).
+  if (error?.code === BREAKDOWN_REFUSED || /^ZF46[0-2]$/.test(error?.code ?? "")) return { outcome: "rejected_breakdown", detail: error?.message ?? "The rows of the breakdown cannot stand as they were given." };
   if (error?.code === ARCHIVED_CODE) return { outcome: "rejected_archived", detail: ARCHIVED_REFUSAL };
   if (error?.code === CONDENSED_CODE) return { outcome: "rejected_period_condensed", detail: await condensedWords(ws, metricId, period) };
   return null;

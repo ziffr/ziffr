@@ -1,10 +1,12 @@
 "use client";
-// The `tree` mark of a View Design (GLOSSARY: Formula Tree, View Design): the formula of a Derived Metric as boxes. What every box says (its
+// The `tree` mark of a View Design (GLOSSARY: Formula Tree, Breakdown, View Design): the formula of a Derived Metric, or the rows of a Breakdown with their parents, as boxes. What every box says (its
 // number, its share, the words for a gap, a note, a part taken away) is worked out once by the core in formula-tree.ts, exactly, so a widget,
 // a Snapshot, a View Link and a deck's picture all show the same numbers; where each box goes is tree-layout.ts. This file only draws
 // them, from Theme tokens. It reaches no Metric the person may not see: the core refuses a formula with an input that is not in the data.
 import { useId, type ReactNode } from "react";
+import { breakdownTreeFromData } from "@ziffr/core/breakdown-tree";
 import { treeFromData, type TreeBox, type TreeModel } from "@ziffr/core/formula-tree";
+import type { Part } from "@ziffr/core/view-design";
 import type { DesignValues } from "./design-view";
 import { fitWords } from "./label-fit";
 import { layoutTree, OPERATOR_WIDTH, ROW, TREE_WIDTH, treeHeight, type Placed } from "./tree-layout";
@@ -78,7 +80,10 @@ function TreeDrawing({ model }: { model: TreeModel }) {
   );
 }
 
-/** The formula of a Derived Metric as boxes: each part's number, in exact arithmetic, and its share of the box above. */
-export function TreeMark({ v }: { v: DesignValues }) {
-  return <TreeDrawing model={treeFromData(v.m, v.data, { display: v.offersDisplay ? v.settings.display : undefined, asOf: v.settings.asOf })} />;
+/** The formula of a Derived Metric, or the rows of a Metric's Breakdown with their parts, as boxes: each one's number, in exact arithmetic, and its share of the box above. */
+export function TreeMark({ part, v }: { part: Extract<Part, { mark: "tree" }>; v: DesignValues }) {
+  const model = part.show === "breakdown"
+    ? breakdownTreeFromData(v.m, v.data, { asOf: v.settings.asOf })
+    : treeFromData(v.m, v.data, { display: v.offersDisplay ? v.settings.display : undefined, asOf: v.settings.asOf });
+  return <TreeDrawing model={model} />;
 }

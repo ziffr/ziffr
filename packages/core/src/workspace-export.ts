@@ -29,6 +29,7 @@ import { settingsOf, slideShapeOf, titleOf, type TextFit } from "./pack-export";
 import { themeToFile } from "./theme-file";
 import { writeWorkspaceExport } from "./workspace-export-file";
 import { exportDocumentProblem, exportNumbersProblem, WORKSPACE_EXPORT_FORMAT, WORKSPACE_EXPORT_LIMITS, type MetricRecord, type PersonRecord, type ProjectionRecord, type TargetRecord, type ValueRecord, type WorkspaceExportRecord } from "@ziffr/pack/workspace-export";
+import { readParents } from "@ziffr/pack/breakdown-parents";
 import { checkPackFormula, type FormulaEntry } from "@ziffr/pack/formula-check";
 import { TEMPLATE_VIEWS } from "@ziffr/pack/kinds";
 import type { DashboardTemplateFile } from "@ziffr/pack/dashboard-template-file";
@@ -530,10 +531,10 @@ async function* numbersOf(actor: Actor, m: Plan["metrics"][number], yearStart: n
     after = data[data.length - 1].id as number;
     const rows = await openRows("observations", ws, data);
     const ids = rows.map((r) => r.id as number);
-    const parts = new Map<number, { label: string; value: number }[]>();
+    const parts = new Map<number, { id: number; parent: number | null; label: string; value: number }[]>();
     for (let i = 0; i < ids.length; i += 200) {
-      const { data: b } = await db().from("breakdown_rows").select("id, observation_id, label, value, value_sealed, position").eq("workspace_id", ws).in("observation_id", ids.slice(i, i + 200)).order("observation_id").order("position").order("id");
-      for (const r of await openRows("breakdown_rows", ws, b)) if (typeof r.value === "number" && typeof r.label === "string") (parts.get(r.observation_id as number) ?? parts.set(r.observation_id as number, []).get(r.observation_id as number)!).push({ label: r.label, value: r.value });
+      const { data: b } = await db().from("breakdown_rows").select("id, observation_id, parent_id, label, value, value_sealed, position").eq("workspace_id", ws).in("observation_id", ids.slice(i, i + 200)).order("observation_id").order("position").order("id");
+      for (const r of await openRows("breakdown_rows", ws, b)) if (typeof r.value === "number" && typeof r.label === "string") (parts.get(r.observation_id as number) ?? parts.set(r.observation_id as number, []).get(r.observation_id as number)!).push({ id: r.id as number, parent: (r.parent_id as number | null) ?? null, label: r.label, value: r.value });
     }
     const who = await names([...new Set(rows.flatMap((r) => [r.submitter_id, r.entered_by]).filter((x): x is string => typeof x === "string"))]);
     for (const r of rows) {
@@ -545,7 +546,7 @@ async function* numbersOf(actor: Actor, m: Plan["metrics"][number], yearStart: n
       const enteredBy = (r.entered_by ? who.get(String(r.entered_by)) : undefined) || keptName(r.entered_by_name);
       const source = r.imported ? "import" : SOURCES.has(String(r.source)) ? (String(r.source) as ValueRecord["source"]) : undefined;
       const at = new Date(String(r.created_at));
-      const breakdown = (parts.get(r.id as number) ?? []).flatMap((b) => { const label = fitsLabel(b.label, WORKSPACE_EXPORT_LIMITS.label); return label ? [{ label, value: b.value }] : []; });
+      const breakdown = exportedBreakdown(parts.get(r.id as number) ?? []);
       const base: ValueRecord = { kind: "value", metric: m.label, period: String(r.period_start), value: r.value, ...(Number.isNaN(at.getTime()) ? {} : { recordedAt: at.toISOString() }), ...(source ? { source } : {}), ...(submittedBy ? { submittedBy } : {}), ...(enteredBy ? { enteredBy } : {}) };
       // A Breakdown that does not fit (too many rows, a repeated label) is left off the value, never the value itself.
       const withBreakdown: ValueRecord = breakdown.length && breakdown.length <= WORKSPACE_EXPORT_LIMITS.breakdown ? { ...base, breakdown } : base;
@@ -555,6 +556,18 @@ async function* numbersOf(actor: Actor, m: Plan["metrics"][number], yearStart: n
     }
     if (data.length < BATCH) return;
   }
+}
+
+/** A value's Breakdown rows as the file has them: each label that fits, a part naming its parent's label (spec 0041, ticket 12). A Breakdown with parents in which a name does not fit, or that the file's own reader would refuse, is left off whole: a part must never be written as a row at the top. */
+function exportedBreakdown(rows: { id: number; parent: number | null; label: string; value: number }[]): { label: string; value: number; parent?: string }[] {
+  const named = rows.map((b) => ({ ...b, fits: fitsLabel(b.label, WORKSPACE_EXPORT_LIMITS.label) }));
+  if (!named.some((b) => b.parent !== null)) return named.flatMap((b) => (b.fits ? [{ label: b.fits, value: b.value }] : []));
+  const label = new Map(named.map((b) => [b.id, b.fits]));
+  const out = named.map((b) => ({ label: b.fits, value: b.value, parent: b.parent === null ? undefined : label.get(b.parent) }));
+  const whole = out.every((b, i) => b.label && (named[i].parent === null || b.parent));
+  if (!whole) return [];
+  const listed = out.map((b) => ({ label: b.label as string, value: b.value, ...(b.parent ? { parent: b.parent } : {}) }));
+  return readParents(listed).ok ? listed : [];
 }
 
 /** Every record of the file after its header, in the order the format needs, as an async stream. */

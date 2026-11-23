@@ -92,7 +92,8 @@ const within = (n: bigint) => bitLength(n) <= FORMULA_MAX_BITS;
 const fits = (f: Fraction) => within(f.num) && within(f.den);
 const unique = (xs: string[]) => [...new Set(xs)];
 // A name is somebody's text: direction controls are taken out, so one cannot turn the numbers beside it round where names and numbers are joined into one line.
-const plain = (name: string) => name.replace(/[\u202A-\u202E\u2066-\u2069]/g, "");
+/** A name as drawn: somebody's text with the characters that turn a line round taken out. */
+export const plain = (name: string) => name.replace(/[\u202A-\u202E\u2066-\u2069]/g, "");
 const ZERO: Fraction = { num: BigInt(0), den: BigInt(1) };
 const ONE: Fraction = { num: BigInt(1), den: BigInt(1) };
 // The size of a number. Shares are ratios of sizes, so a size with every sign turned round, or 0 turned round (it is 0 still), gives the same shares.
@@ -166,14 +167,15 @@ function finish(b: Built, exact: Fraction): Built {
   return fits(exact) ? { ...b, exact } : { ...b, why: "it cannot be worked out exactly" };
 }
 
-// A number written with at least `decimals` places and as many more as it takes for one that is not 0 never to be written as 0; null where even 20 do not.
-function write(v: number | null, unit: ValueUnit | null, decimals: number, style: NumberStyle): string | null {
+/** A number written with at least `decimals` places and as many more as it takes for one that is not 0 never to be written as 0; null where even 20 do not. */
+export function write(v: number | null, unit: ValueUnit | null, decimals: number, style: NumberStyle): string | null {
   for (let d = decimals; d <= MOST_DECIMALS; d++) {
     if (v === 0 || /[1-9]/.test(formatNumber(v, d, style))) return unit ? formatValue({ ...unit, decimals: d }, v, style) : formatNumber(v, d, style);
   }
   return null;
 }
-function writePercent(p: number | null, style: NumberStyle): string | null {
+/** A percent written with as many decimals as it takes never to write a share that is not 0 as 0; null where even 20 do not. */
+export function writePercent(p: number | null, style: NumberStyle): string | null {
   for (let d = 1; d <= MOST_DECIMALS; d++) {
     if (p === 0 || /[1-9]/.test(formatNumber(p, d, style))) return formatPercent(p, style, d);
   }

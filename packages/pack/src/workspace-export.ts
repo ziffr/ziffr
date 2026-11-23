@@ -20,6 +20,7 @@ import { checkThemeFileValue, THEME_FILE_LIMITS, THEME_FILE_SCHEMA, type ThemeFi
 import { VIEW_DESIGN_SCHEMA } from "./view-design.js";
 import { checkPackFormula, type FormulaEntry } from "./formula-check.js";
 import type { Period, SourceId } from "./kinds.js";
+import { readParents } from "./breakdown-parents.js";
 
 /** The format this Ziffr writes; it reads every version in `WORKSPACE_EXPORT_FORMATS`. */
 export const WORKSPACE_EXPORT_FORMAT = "ziffr.workspace-export/1";
@@ -98,7 +99,7 @@ export type TargetRecord = { kind: "target"; metric: string; period: string; min
 /** A Projection: a value for a future period. */
 export type ProjectionRecord = { kind: "projection"; metric: string; period: string; value: number };
 /** A value: one observation, with who submitted it as a name and its Breakdown. */
-export type ValueRecord = { kind: "value"; metric: string; period: string; value: number; recordedAt?: string; source?: SourceId | "import"; submittedBy?: string; enteredBy?: string; breakdown?: { label: string; value: number }[] };
+export type ValueRecord = { kind: "value"; metric: string; period: string; value: number; recordedAt?: string; source?: SourceId | "import"; submittedBy?: string; enteredBy?: string; breakdown?: { label: string; value: number; parent?: string }[] };
 /** The last line: how many records of each kind the file holds, so a cut-off file is noticed. */
 export type EndRecord = { kind: "end"; counts: Record<Counted, number> };
 /** One line of a Workspace Export. */
@@ -217,7 +218,7 @@ export const WORKSPACE_EXPORT_SCHEMA: Schema = {
       source: { enum: ["web_form", "mail", "slack", "telegram", "api", "import"], description: "Where it arrived from; an import records every value as an Import whatever this says." },
       submittedBy: { ...looseText(L.name), minLength: 1, description: "Who submitted it, as a name, never an id." },
       enteredBy: { ...looseText(L.name), minLength: 1, description: "Who entered it for the submitter (a Filled-in Value), as a name, never an id. Left out when the submitter entered it." },
-      breakdown: { type: "array", maxItems: L.breakdown, items: obj({ label: { ...looseText(L.label), minLength: 1 }, value: number("The part of the value.") }, ["label", "value"]), description: "Labelled values that split the observation." },
+      breakdown: { type: "array", maxItems: L.breakdown, items: obj({ label: { ...looseText(L.label), minLength: 1 }, value: number("The part of the value."), parent: { ...looseText(L.label), minLength: 1, description: "The label of the row of this Breakdown that this one is a part of: a row of the same list, at most 4 levels down; left out for a row at the top." } }, ["label", "value"]), description: "Labelled values that split the observation, each optionally a part of another row of the list (parent)." },
     }, ["metric", "period", "value"]),
     record("end", "The last line: how many records of each kind the file holds.", {
       counts: obj(Object.fromEntries(Object.keys(L.perKind).map((k) => [k, { type: "integer", minimum: 0, maximum: L.perKind[k as Counted] } satisfies Schema])), Object.keys(L.perKind), "The records of each kind, header and end not counted."),
@@ -503,6 +504,9 @@ export class WorkspaceExportChecker {
           if (!decimalsOk(b.value, L.decimals)) at(`breakdown[${i}].value`, `has more than ${L.decimals} decimals.`);
         });
         if (r.breakdown) distinct("breakdown", r.breakdown.map((b) => b.label), "label");
+        // Parents: the same reader the app uses, so a file it accepts here records without a refusal there.
+        const parents = r.breakdown ? readParents(r.breakdown) : null;
+        if (parents && !parents.ok) at("breakdown", parents.problem);
         return;
       }
       case "end": {

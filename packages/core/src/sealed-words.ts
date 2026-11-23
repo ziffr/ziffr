@@ -53,6 +53,15 @@ export function openText(cipher: WorkspaceCipher, at: SealedAt, stored: unknown)
   return isSealed(stored) ? cipher.open(at, stored) : stored;
 }
 
+/** Breakdown rows with each label passed through a change, at `<place>.<row>.label`; the parts of a row (spec 0041, ticket 12) are rows of its own, at `<place>.<row>.parts.<part>.label`. */
+function mapRows(rows: unknown[], change: Change, place: string): unknown[] {
+  return rows.map((r, i) => {
+    if (!isObj(r) || typeof r.label !== "string") return r;
+    const mapped = { ...r, label: change(`${place}.${i}.label`, r.label) ?? "" };
+    return Array.isArray(r.parts) ? { ...mapped, parts: mapRows(r.parts, change, `${place}.${i}.parts`) } : mapped;
+  });
+}
+
 /** A copy of kept data (a Snapshot's, a frozen View Link's) with each Breakdown row's label passed through a change, at
  * `<base>breakdowns.<metric>.<period>.<row>.label` (a period's dashes become underscores: a place has none). */
 export function mapBreakdownLabels<T extends { breakdowns?: unknown }>(data: T, change: Change, base: string): T {
@@ -62,9 +71,7 @@ export function mapBreakdownLabels<T extends { breakdowns?: unknown }>(data: T, 
     if (!isObj(byPeriod)) { breakdowns[metric] = byPeriod; continue; }
     const periods: Obj = {};
     for (const [period, rows] of Object.entries(byPeriod)) {
-      periods[period] = Array.isArray(rows)
-        ? rows.map((r, i) => (isObj(r) && typeof r.label === "string" ? { ...r, label: change(`${base}breakdowns.${metric.replace(/\W/g, "_")}.${period.replace(/\W/g, "_")}.${i}.label`, r.label) ?? "" } : r))
-        : rows;
+      periods[period] = Array.isArray(rows) ? mapRows(rows, change, `${base}breakdowns.${metric.replace(/\W/g, "_")}.${period.replace(/\W/g, "_")}`) : rows;
     }
     breakdowns[metric] = periods;
   }
