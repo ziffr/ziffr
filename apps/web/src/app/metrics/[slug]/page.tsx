@@ -28,7 +28,9 @@ import { ValueMarks } from "./value-marks";
 import { can } from "@ziffr/core/actor";
 import { submittingKeyNames } from "@ziffr/core/access-keys";
 import { feedChoices, feedNames } from "@ziffr/core/feeds";
-import { FeedPicker, RemoveFeed } from "./feed-picker";
+import { feedTemplates } from "@ziffr/core/feed-template-download";
+import { mcpAddress } from "@/lib/remote-mcp";
+import { FeedControls, RemoveFeed } from "./feed-picker";
 import { formatNumber, formatPercent, formatValue, POLARITY_LABEL, RULE_LABEL, SOURCE_LABEL, targetText } from "@ziffr/core/format";
 import { FORECAST_MIN_POINTS } from "@ziffr/core/forecast";
 import { bestForecast } from "@ziffr/core/methods/forecast-choice";
@@ -200,7 +202,7 @@ export default async function MetricPage({ params, searchParams }: { params: Pro
       >
         {/* Record a value is the one main button, for someone who submits the Metric; Share is the owner's; the rest is in the ⋯ menu. */}
         <MetricToolbar
-          id={metric.id} people={people} metric={{ id: metric.id, name: metric.name, slug: metric.slug }} record={record} askable={askable}
+          id={metric.id} people={people} metric={{ id: metric.id, name: metric.name, slug: metric.slug, description: metric.description, unit: metric.unit, period: metric.period }} mcp={mcpAddress()} record={record} askable={askable}
           share={isOwner ? { name: metric.name, ownerId: metric.owner_id, shares, groups, canInvite: can(actor, "manage-members") } : null} alert={alertMe ? { mine: alertMe.mine, choices: alertMe.choices, webhooks: alertMe.webhooks } : null}
           canDuplicate={can(actor, "create") && !metric.formula} dashboards={dashboards.filter((d) => d.role !== "viewer").map((d) => ({ id: d.id, name: d.name }))}
           archive={{ allowed: archivable && !demo, archived: Boolean(metric.archived_at) }} canDelete={isOwner && !demo}
@@ -462,7 +464,7 @@ export default async function MetricPage({ params, searchParams }: { params: Pro
                 ))}
                 {!tokens.length && <li className="text-muted-foreground">Nobody yet.</li>}
               </ul>
-              {canEdit && <FeedPicker metricId={metric.id} choices={choices.filter((c) => !tokens.some((t) => t.submitter_id === c.id))} />}
+              {canEdit && <FeedControls metric={{ id: metric.id, name: metric.name }} choices={choices} taken={tokens.map((t) => t.submitter_id)} role={actor.role} demo={demo} templates={feedTemplates()} />}
             </section>
           )}
         </div>

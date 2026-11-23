@@ -167,7 +167,7 @@ When a period's value must be in, counted in working days after the period ends,
 _Avoid_: Deadline, cut-off
 
 **Schedule**:
-What one person has to do in a Workspace, day by day: values to submit by their Due Dates, Approvals waiting for them, and Tasks (a Checklist Item's among them) and Questions assigned to them, upcoming and overdue. It holds only their own duties, and only about Metrics they may see; while someone is Away, what they are asked for is in their Stand-in's Schedule.
+What one person has to do in a Workspace, day by day (the To do view of the Schedule page, which also has Asked by me and a Timeline): values to submit by their Due Dates, Approvals waiting for them, and Tasks (a Checklist Item's among them) and Questions assigned to them, upcoming and overdue. It holds only their own duties, and only about Metrics they may see; while someone is Away, what they are asked for is in their Stand-in's Schedule.
 _Avoid_: Agenda, to-do list, inbox, calendar
 
 **Stand-in**:
@@ -307,8 +307,20 @@ _Avoid_: Editor, sandbox, studio
 A statistical method run on one or more metrics, such as forecast, correlation, clustering or impact analysis. Its result can be saved as a widget. Ziffr ships its own Analyses; more can be written as Analysis Recipes.
 _Avoid_: Stats, model, insight
 
+**Method**:
+One statistical calculation in Ziffr's library, such as a rank correlation, a usual range or a bridge. Used in documents and code; a person sees Analyses, Recipes and Takeaways. Each Method runs its suitability checks on every call, is worked out exactly on the values' text where arithmetic allows, and has an entry in the Methods guide with when to use it and when not.
+_Avoid_: Algorithm, model, test
+
+**Extension**:
+A Method, or later a mark that draws one kind of View Design, written by someone other than Ziffr as a folder of a fixed shape under `extensions/<author>/<name>`: a manifest, one pure file that Ziffr reads in full, a second implementation worked out another way, hand-worked cases, its entry for the Calculation Catalogue, its Takeaway wording and a LICENSE of its own. It is never loaded at run time. It is submitted as a pull request, read, checked and shipped inside a Ziffr release, and the registry lists the Extensions built into that release. Ziffr's own `quantile` and `topShare` are built in the same shape. It is not a Pack, which holds no code.
+_Avoid_: Plugin, add-on, integration, script, module
+
+**Extension Kit**:
+The MIT package `@ziffr/extension-kit`, which an author writes an Extension against and checks it with on their own computer: its shape, its static rules, and then, by running it in a process of its own, determinism, a time and memory budget, refusals, its comparison with its reference, coverage and a mutation check. CI runs the same checks.
+_Avoid_: Plugin framework, SDK (the SDK is for programs that talk to Ziffr)
+
 **Takeaway**:
-The result of an Analysis as Ziffr says it: one sentence in the Metrics' own words and units, a strength in four words (strong, moderate, weak, "can't tell from chance"), what it was compared on, and one footer line of its kind ("This shows what has gone together, not what caused what." for a link between Metrics, "This carries the past forward; it is not a promise." for a forecast) Where the data does not suit the Method it carries one plain line above the sentence (a caution; a result with one is never strong) or, with too little data, is a refusal in words with no number. **Show the numbers** opens the numbers behind it. Every place a result is shown writes the same Takeaway. A forecast's Takeaway says where the Metric is expected to be with a "likely between" range (an 80 % range), with a Target how likely it is to be reached (in tenths), which Method worked it out and how its range for the next period would have held on the periods already known (its track record).
+The result of an Analysis as Ziffr says it: one sentence in the Metrics' own words and units, a strength in four words (strong, moderate, weak, "can't tell from chance"), what it was compared on, and one footer line of its kind ("This shows what has gone together, not what caused what." for a link between Metrics, "This carries the past forward; it is not a promise." for a forecast) Where the data does not suit the Method it carries one plain line above the sentence (a caution; a result with one is never strong) or, with too little data, is a refusal in words with no number. **Show the numbers** opens the numbers behind it. Every place a result is shown writes the same Takeaway. A forecast's Takeaway says where the Metric is expected to be with a "likely between" range (an 80 % range), with a Target how likely it is to be reached (in tenths), which Method worked it out and how its range for the next period would have held on the periods already known (its track record). A Takeaway about one Metric's own values, or a sum worked out exactly, makes no claim about what goes together and carries none.
 _Avoid_: Answer (an Answer is what someone replies to a Prompt), insight, verdict
 
 **Analysis Recipe**:
@@ -405,7 +417,7 @@ _Avoid_: Billing service, SaaS, hosted edition
 
 **Pack**:
 A file of things to add to a Workspace, with no code: Metric Catalog entries, Dashboard and Deck Templates, View Designs, Analysis Recipes, Workflow Templates and Themes, with its name, version, author, license and optionally a logo. Installing one copies each thing into the Workspace, marked with the Pack and version; it makes no Metric until a person sets it up. New versions are offered, never applied by themselves, and uninstalling removes what nobody changed.
-_Avoid_: Plugin, extension, add-on, integration, app, bundle
+_Avoid_: Plugin, add-on, integration, app, bundle
 
 **Marketplace**:
 Ziffr's catalogue of Packs, checked before they are listed, and of programs outside Ziffr that work with it, such as Feeds. Packs are installed from it into a Workspace; programs outside Ziffr are only listed, and their creators bill for them themselves.
@@ -420,7 +432,7 @@ A Webhook that one person adds for themselves in one Workspace, once an Owner or
 _Avoid_: My webhook, user webhook, private webhook
 
 **Automation Template**:
-An importable file for an automation tool such as n8n that joins a Webhook to another system, such as Microsoft To Do, Google Tasks, Slack, Asana or Todoist. It lives in the repository; Ziffr never runs it or holds the other system's credentials.
+An importable file for an automation tool such as n8n that joins Ziffr to another system, in one direction or the other: out, from a Webhook to Microsoft To Do, Google Tasks, Slack, Asana or Todoist; or in, from a system such as Google Sheets, Stripe or HubSpot through a Feed, to fill Metrics. It lives in the repository; Ziffr never runs it or holds the other system's credentials. A person may download one from Ziffr with their Ziffr's address and their Metrics already in it.
 _Avoid_: Recipe (that is an Analysis Recipe), plugin, integration, flow
 
 **Workspace Key**:
@@ -534,6 +546,10 @@ _Avoid_: Activity, activity feed, history
 **Action**:
 A question or task about a specific observation or time range of a metric that one user assigns to another, or a Task a Checklist Item gives about a Workflow's period, which has no metric. It moves from open to answered to closed, and can be reopened.
 _Avoid_: Ticket, request, to-do
+
+**Schedule views**:
+The Schedule is one page with three views, switched at the top. To do is the Schedule itself, what the person has to do, overdue first. Asked by me lists the Questions and Tasks they asked: answered ones waiting for them to close, open ones, and Done (closed, folded, grey and ticked, never red). The Timeline says what happened, newest first, by day: the Period Timelines of the Workflows and the Actions on Metrics no Workflow asks for, each person seeing only what they may see. The old Actions page is no longer a page of its own; Action stays the word for a Question or Task.
+_Avoid_: Actions page, Inbox, Kanban, activity feed
 
 **Question**:
 An action that is done once the assignee has answered it, e.g. "Why is cost so high this month?"

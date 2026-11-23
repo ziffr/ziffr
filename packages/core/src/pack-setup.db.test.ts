@@ -125,6 +125,27 @@ describe("what is asked for", () => {
   });
 });
 
+describe("templates a Pack names (spec 0043)", () => {
+  it("hands them to the page, and the Metrics made carry the key of their entry, a Derived one marked as taking no values", async () => {
+    const w = await workspace(); cleanups.push(w.cleanup);
+    const sara = await w.person("owner");
+    const file = JSON.parse(pack("online-shop"));
+    file.feeds = [{ template: "google-sheets", fills: ["orders", "revenue"] }];
+    const install = await installPackFile(w.actor(sara), JSON.stringify(file), { unsigned: true, assistantTexts: true });
+    const options = await packSetupOptions(w.actor(sara), install);
+    expect(options.suggestedFeeds).toEqual([{ template: "google-sheets", fills: ["orders", "revenue"] }]);
+    expect(options.templates.map((t) => t.id)).toContain("google-sheets");
+    const made = await setUpFromPack(w.actor(sara), install, { metrics: ["aov"] });
+    expect(made.metrics.map((m) => [m.key, m.takesValues])).toEqual([["orders", true], ["revenue", true], ["aov", false]]);
+    // Installing and setting up made no Feed: the page only offers the download.
+    expect((await db().from("feeds").select("person_id", { count: "exact", head: true }).eq("workspace_id", w.id)).count).toBe(0);
+  });
+  it("offers nothing for a Pack that names none", async () => {
+    const { w, sara, install } = await withPack("online-shop");
+    expect((await packSetupOptions(w.actor(sara), install)).suggestedFeeds).toEqual([]);
+  });
+});
+
 describe("the Workspace Limit", () => {
   it("refuses a set-up that would go past it, before any Metric is made", async () => {
     const { w, sara, install } = await withPack("online-shop");

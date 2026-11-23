@@ -23,7 +23,7 @@ const DAY = 86_400_000;
 const ago = (n: number) => new Date(Date.now() - n * DAY);
 const NAMES = Object.keys(DAYS_SETTINGS);
 const cleanups: (() => Promise<void>)[] = [];
-const envKeys = [...NAMES, "ZIFFR_CLOUD_KEY", "ZIFFR_TRIAL_DAYS", "ZIFFR_TRIAL_THEN", "ZIFFR_DELETE_UNUSED_AFTER_DAYS", "ZIFFR_DEFAULT_METRICS_LIMIT"];
+const envKeys = [...NAMES, "ZIFFR_CLOUD_KEY", "ZIFFR_TRIAL_DAYS", "ZIFFR_DELETE_UNUSED_AFTER_DAYS", "ZIFFR_DEFAULT_METRICS_LIMIT"];
 const savedEnv: Record<string, string | undefined> = {};
 let savedSettings: Record<string, unknown>[] = [];
 let savedAdmins: Record<string, unknown>[] = [];
@@ -222,7 +222,6 @@ describe("what the jobs remove, by the days in effect", () => {
   });
 
   it("delete an ended trial after the grace days set, not before", async () => {
-    process.env.ZIFFR_TRIAL_THEN = "delete";
     const t = await ws();
     await db().from("workspaces").update({ trial_ends_at: ago(3).toISOString() }).eq("id", t.id);
     await deleteExpiredTrials();
@@ -233,7 +232,6 @@ describe("what the jobs remove, by the days in effect", () => {
   });
 
   it("keep a trial's grace days from when it closed: a lower setting later never deletes it sooner", async () => {
-    process.env.ZIFFR_TRIAL_THEN = "delete";
     const t = await ws();
     await db().from("workspaces").update({ trial_ends_at: ago(3).toISOString() }).eq("id", t.id);
     await closeEndedTrials();
@@ -248,7 +246,6 @@ describe("what the jobs remove, by the days in effect", () => {
   });
 
   it("keep the days its reminder promised for a trial that ended and is not closed yet", async () => {
-    process.env.ZIFFR_TRIAL_THEN = "delete";
     const t = await ws();
     await db().from("workspaces").update({ trial_ends_at: new Date(Date.now() + 3_600_000).toISOString() }).eq("id", t.id);
     await remindEndingTrials();

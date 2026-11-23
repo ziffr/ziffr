@@ -10,13 +10,14 @@ import { toast } from "sonner";
 import { shown, unwrap } from "@/lib/action-error";
 import { told } from "@/lib/action-toast";
 import { format } from "date-fns";
-import { Archive, Tags, CalendarRange, Check, Copy, FileDown, GitBranch, LayoutTemplate, PencilLine, Presentation, Scale, BookmarkPlus, ExternalLink, GripVertical, History, LayoutDashboard, ListTodo, MessageCircleQuestion, MessageSquare, MoreHorizontal, Palette, PanelRightOpen, Trash2 } from "lucide-react";
+import { Archive, Tags, CalendarRange, Check, Copy, FileDown, GitBranch, Lightbulb, LayoutTemplate, PencilLine, Presentation, Scale, BookmarkPlus, ExternalLink, GripVertical, History, LayoutDashboard, ListTodo, MessageCircleQuestion, MessageSquare, MoreHorizontal, Palette, PanelRightOpen, Trash2 } from "lucide-react";
 import { ContextMenu, ContextMenuContent, ContextMenuItem, ContextMenuSeparator, ContextMenuSub, ContextMenuSubContent, ContextMenuSubTrigger, ContextMenuTrigger, ContextMenuCheckboxItem, ContextMenuRadioGroup, ContextMenuRadioItem } from "@/components/ui/context-menu";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuSub, DropdownMenuSubContent, DropdownMenuSubTrigger, DropdownMenuTrigger, DropdownMenuCheckboxItem, DropdownMenuRadioGroup, DropdownMenuRadioItem } from "@/components/ui/dropdown-menu";
 import { Popover, PopoverContent } from "@/components/ui/popover";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
+import { TakeawayHostProvider, type TakeawayHost } from "@/views/takeaway-host";
 import { WidgetBody, widgetMetrics } from "@/views/widget-body";
 import { MetricChart } from "@/views/metric-chart";
 import { templatesFor, TEMPLATES, templateOf } from "@/views/templates";
@@ -41,6 +42,7 @@ import { ReadOnlyFrame, frameTitle, type FrameWidget } from "./read-only-frame";
 import { WidgetScaleProvider, widgetScaleStyle, useMeasuredWidgetScale } from "@/views/widget-scale";
 import { ObservationDetailsProvider, cachedLoader } from "@/views/observation-tip";
 import { observationDetailsAction } from "@/app/observation-actions";
+import { markWidgetMenuSeen } from "@/lib/widget-menu-hint";
 import { designOf, duplicateAsDesign } from "@ziffr/core/design-files";
 import { downloadDesign } from "@/lib/design-download";
 import { Preview, TemplatePreview } from "./preview";
@@ -90,6 +92,10 @@ function InteractiveFrame({ widget, data, targets, editable = false, className, 
   // a Snapshot's deck (asOf) shows only what its data carries, like a View Link (read-only cards provide no loader).
   const details = useMemo(() => (widget.settings.asOf ? null : cachedLoader(observationDetailsAction)), [widget.settings.asOf]);
   const [panel, setPanel] = useState<Panel>(null);
+  // The Takeaway words of an analysis open from the menu, not under the chart; the entry is there when the View has any.
+  const [hasTakeaway, setHasTakeaway] = useState(false);
+  const [takeawayOpen, setTakeawayOpen] = useState(false);
+  const takeawayHost = useMemo<TakeawayHost>(() => ({ mode: "panel", open: takeawayOpen, setOpen: setTakeawayOpen, setHas: setHasTakeaway }), [takeawayOpen]);
   const [period, setPeriod] = useState<string | null>(null);
   const [kind, setKind] = useState<ActionKind>("question");
   const [, start] = useTransition();
@@ -247,30 +253,40 @@ function InteractiveFrame({ widget, data, targets, editable = false, className, 
       {isStory && editable && widget.id && <K.Item onClick={() => openPanel("story")}><PencilLine /> Edit Finding…</K.Item>}
       {isLayout && editable && widget.id && <K.Item onClick={() => setTimeout(() => setLayoutOpen(true), 0)}><PencilLine /> Edit layout…</K.Item>}
       {widget.id && <K.Item onClick={() => openPanel("versions")}><GitBranch /> Versions…</K.Item>}
-      <K.Item
-        onClick={() => {
-          const name = window.prompt("Save to your widgets as:", title ?? "My widget");
-          if (name) start(async () => { if (told(await saveToPool(source, name), "Not saved")) return; toast.success("Saved to My Widgets", { description: "Drag it from the Pool onto any dashboard." }); });
-        }}
-      >
-        <BookmarkPlus /> Save as Widget
-      </K.Item>
-      {widget.id && !isLayout && <K.Item onClick={() => setTimeout(() => setSaveTemplateOpen(true), 0)}><LayoutTemplate /> Save as template…</K.Item>}
+      {hasTakeaway && <K.Item onClick={() => setTimeout(() => setTakeawayOpen(true), 0)}><Lightbulb /> Takeaway…</K.Item>}
+      {/* One entry for the four ways to keep a copy of this widget, each saying where the copy goes. */}
+      <K.Sub>
+        <K.SubTrigger><Copy /> Copy to…</K.SubTrigger>
+        <K.SubContent className="max-w-72">
+          {targets.length > 0 && (
+            <K.Sub>
+              <K.SubTrigger><LayoutDashboard /> Add to dashboard</K.SubTrigger>
+              <K.SubContent>
+                {targets.map((d) => (
+                  <K.Item key={d.id} onClick={() => start(async () => { if (told(await placeWidget(d.id, source), "Not added")) return; toast.success(`Added to ${d.name}`); })}>{d.name}</K.Item>
+                ))}
+              </K.SubContent>
+            </K.Sub>
+          )}
+          {/* A copy onto a slide of a deck the person may change (ticket #1); the core checks the rest. */}
+          {widget.id && <K.Item onClick={() => setTimeout(() => setDeckOpen(true), 0)}><Presentation /> Add to deck…</K.Item>}
+          <K.Item
+            onClick={() => {
+              const name = window.prompt("Save to your widgets as:", title ?? "My widget");
+              if (name) start(async () => { if (told(await saveToPool(source, name), "Not saved")) return; toast.success("Saved to My Widgets", { description: "Drag it from the Pool onto any dashboard." }); });
+            }}
+          >
+            <BookmarkPlus /> Save as Widget
+          </K.Item>
+          {widget.id && !isLayout && <K.Item onClick={() => setTimeout(() => setSaveTemplateOpen(true), 0)}><LayoutTemplate /> Save as template…</K.Item>}
+        </K.SubContent>
+      </K.Sub>
       {ownDesign && (
-        <>
-          <K.Item onClick={() => downloadDesign(ownDesign)}><FileDown /> Export View Design</K.Item>
-          <K.Item onClick={() => downloadDesign(duplicateAsDesign(widget, ownDesign))}><Copy /> Duplicate as View Design</K.Item>
-        </>
-      )}
-      {/* A copy onto a slide of a deck the person may change (ticket #1); the core checks the rest. */}
-      {widget.id && <K.Item onClick={() => setTimeout(() => setDeckOpen(true), 0)}><Presentation /> Add to deck…</K.Item>}
-      {targets.length > 0 && (
         <K.Sub>
-          <K.SubTrigger><LayoutDashboard /> Add to dashboard</K.SubTrigger>
+          <K.SubTrigger><FileDown /> For View Designs</K.SubTrigger>
           <K.SubContent>
-            {targets.map((d) => (
-              <K.Item key={d.id} onClick={() => start(async () => { if (told(await placeWidget(d.id, source), "Not added")) return; toast.success(`Added to ${d.name}`); })}>{d.name}</K.Item>
-            ))}
+            <K.Item onClick={() => downloadDesign(ownDesign)}><FileDown /> Export View Design</K.Item>
+            <K.Item onClick={() => downloadDesign(duplicateAsDesign(widget, ownDesign))}><Copy /> Duplicate as View Design</K.Item>
           </K.SubContent>
         </K.Sub>
       )}
@@ -287,7 +303,7 @@ function InteractiveFrame({ widget, data, targets, editable = false, className, 
 
   return (
     <>
-      <ContextMenu>
+      <ContextMenu onOpenChange={(o) => { if (o) markWidgetMenuSeen(data.viewer); }}>
         <ContextMenuTrigger
           ref={frame}
           style={widgetScaleStyle(scale)}
@@ -295,6 +311,7 @@ function InteractiveFrame({ widget, data, targets, editable = false, className, 
           onContextMenuCapture={() => { setPeriod(null); setRow(null); }}
         >
           <WidgetScaleProvider value={scale}>
+          <TakeawayHostProvider value={takeawayHost}>
           <ObservationDetailsProvider value={details}>
           <div className={cn("flex items-center gap-2 px-4 pt-3 pb-1", dragHandle && "widget-drag cursor-grab active:cursor-grabbing")}>
             {dragHandle && <GripVertical aria-hidden className="-ml-2 size-3.5 text-muted-foreground opacity-0 group-hover/widget:opacity-100" />}
@@ -303,7 +320,7 @@ function InteractiveFrame({ widget, data, targets, editable = false, className, 
             {/* It keeps drawing an Archived Metric's history, and says that no new values come (GLOSSARY: Archived Metric). */}
             {ms.some(isArchived) && <span title={ms.length > 1 ? "Some of its Metrics are archived: they take no new values." : "Its Metric is archived: it takes no new values."} className="widget-text-xs flex shrink-0 items-center gap-1 text-muted-foreground"><Archive aria-hidden className="size-[1.15em]" /> Archived</span>}
             {open > 0 && <span title={`${open} open action(s)`} className="widget-text-xs flex shrink-0 items-center gap-1 text-muted-foreground"><MessageSquare aria-hidden className="size-[1.15em]" /><span className="fig">{open}</span> open</span>}
-            <DropdownMenu>
+            <DropdownMenu onOpenChange={(o) => { if (o) markWidgetMenuSeen(data.viewer); }}>
               <DropdownMenuTrigger aria-label={`Options for ${title}`} className="-mr-1.5 ml-auto flex size-8 items-center justify-center rounded-[var(--radius-input)] text-muted-foreground opacity-60 group-hover/widget:opacity-100 hover:bg-muted focus-visible:opacity-100 data-popup-open:opacity-100" onMouseDown={(e) => e.stopPropagation()}>
                 <MoreHorizontal className="size-4" />
               </DropdownMenuTrigger>
@@ -325,6 +342,7 @@ function InteractiveFrame({ widget, data, targets, editable = false, className, 
             {m && templateOf(widget).kind === "metric" && <CompareStrip metric={m} data={data} keys={widget.settings.compare ?? DEFAULT_COMPARE} full={widget.settings.fullPeriods} />}
           </div>
           </ObservationDetailsProvider>
+          </TakeawayHostProvider>
           </WidgetScaleProvider>
         </ContextMenuTrigger>
         <ContextMenuContent className="w-56">{items(CM)}</ContextMenuContent>

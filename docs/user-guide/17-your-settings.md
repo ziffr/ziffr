@@ -81,7 +81,7 @@ The circle in front of a step marks it done. The header shows how many are done 
 
 ## The sidebar
 
-The sidebar is on every page once you are in a Workspace. At its top is the Workspace switcher, then a **Search** field (Ctrl+K), **Actions** and **Schedule**, each with its count, Dashboards (with the dashboards you pinned under it, or in the demo a few already pinned, see [Pinning a dashboard](12-dashboards.md#pinning-a-dashboard)), Metrics, Decks, Analyze and one **Workspace** row that opens **Members and Groups**, **Workflows**, **Connectors** and **Settings** (closed unless you are on one of them; Guests do not see it). **User guide** and your own menu (**Your profile**, **Appearance**, **Your Deliveries**, **Your Alerts**, **Connected assistants**, and **Installation settings** for Installation Admins) sit at its bottom. The page is a card beside it, and in the demo, **Viewing as** and **Leave the demo** sit in the footer where your own menu is, with **Your profile**, **Appearance**, **Your Deliveries** and **Your Alerts** to look at (read-only, as the demo is; there is no Connected assistants). Ctrl+B (or the button at the top of the card) shrinks the sidebar to icons; hover or focus an icon to see its name. Details open beside the page instead of replacing it: **Details** on a row of the Metrics list, and **Alert me…** on a Metric's page. On a phone, a bar at the bottom has Dashboards, Metrics, Actions, Search and More; **More** lists only what the bar does not: your pinned dashboards, Schedule, Decks, Analyze, the Workspace as one row that opens its pages, the guide and your own pages (in the demo, the same four). For how search works, see [Search](#search).
+The sidebar is on every page once you are in a Workspace. At its top is the Workspace switcher, then a **Search** field (Ctrl+K), **Schedule** with its count (values due, and answered Actions waiting for you to close), Dashboards (with the dashboards you pinned under it, or in the demo a few already pinned, see [Pinning a dashboard](12-dashboards.md#pinning-a-dashboard)), Metrics, Decks, Analyze and one **Workspace** row that opens **Members and Groups**, **Workflows**, **Connectors** and **Settings** (closed unless you are on one of them; Guests do not see it). **User guide** and your own menu (**Your profile**, **Appearance**, **Your Deliveries**, **Your Alerts**, **Connected assistants**, and **Installation settings** for Installation Admins) sit at its bottom. The page is a card beside it, and in the demo, **Viewing as** and **Leave the demo** sit in the footer where your own menu is, with **Your profile**, **Appearance**, **Your Deliveries** and **Your Alerts** to look at (read-only, as the demo is; there is no Connected assistants). Ctrl+B (or the button at the top of the card) shrinks the sidebar to icons; hover or focus an icon to see its name. Details open beside the page instead of replacing it: **Details** on a row of the Metrics list, and **Alert me…** on a Metric's page. On a phone, a bar at the bottom has Dashboards, Metrics, Schedule, Search and More; **More** lists only what the bar does not: your pinned dashboards, Decks, Analyze, the Workspace as one row that opens its pages, the guide and your own pages (in the demo, the same four). For how search works, see [Search](#search).
 
 Ziffr works best on a phone once you install it: it then opens from the home screen like an app. See [Put Ziffr on your phone or desktop](07-getting-started.md#put-ziffr-on-your-phone-or-desktop).
 
@@ -112,9 +112,9 @@ Your assistant can do the same: ask it for "churn march 2026" and it looks the M
 On a phone the demo's note is one line, the guided tour starts as a small round button, and everything you press is at least 44 px high. The row of Settings pages scrolls sideways and fades out at the edge to say so.
 
 Ziffr works best on a phone once you install it: it then opens from the home screen like an app, with the same layout. See [Put Ziffr on your phone or desktop](07-getting-started.md#put-ziffr-on-your-phone-or-desktop).
-## My schedule and your calendar
+## The Schedule and your calendar
 
-Open **My schedule** from the **Schedule** row of the sidebar (with the number of values due). Its address is `/schedule`; the old `/settings/schedule` still lands on it. It lists what you have to do in the current Workspace, and only that:
+Open the **Schedule** row of the sidebar (with the number of values due). Its address is `/schedule`; the old `/settings/schedule` still lands on it, and the old Actions page, `/actions`, lands on its **Asked by me** view. The Schedule has three views, switched at the top: **To do** (the default, described here), **Asked by me** and **Timeline** (see [Actions and Changes](15-actions.md#the-schedule-views)). To do lists what you have to do in the current Workspace, and only that. **All**, **Values**, **Approvals**, **Tasks** and **Questions** above it narrow the list to one kind; **Waiting for your confirmation** lists any Share Proposals an assistant prepared (see [Actions and Changes](15-actions.md#share-proposals-sharing-an-assistant-prepared)):
 
 | Part | What it lists |
 | --- | --- |
@@ -131,7 +131,7 @@ Each line links to where you do it:
 | **Task: …** | The Task's due date, or under **No date** | The Task |
 | **Question: …** | A Question the Workflow asked because a value is missing (an Escalation) falls on that value's Due Date. Other Questions are under **No date**. | The Question |
 
-A value due leaves the list as soon as the value is in. While a colleague is Away on a Due Date, their value is in their Stand-in's schedule, marked "standing in for …", and not in theirs. Only values of Metrics you may see are listed; an Approval, Task or Question you are assigned is listed even on a Metric you do not see, as on the Actions page. Values a Feed sends are never anyone's to do.
+A value due leaves the list as soon as the value is in. While a colleague is Away on a Due Date, their value is in their Stand-in's schedule, marked "standing in for …", and not in theirs. Only values of Metrics you may see are listed; an Approval, Task or Question you are assigned is listed even on a Metric you do not see. Values a Feed sends are never anyone's to do.
 
 ### List, Week and Month
 
@@ -334,7 +334,7 @@ You do not need a Starter. Some examples:
 - **Read your questions and tasks** and **Answer questions and tasks for you:** list the Questions and Tasks that wait for you, reply in their Threads, close the ones you asked, mark your Tasks done, and confirm or correct your own value in a Self-check when **Submit values** is ticked too.
 - **Build workflows:** make, change and delete **your own Workflows** and their steps. The assistant leaves who approves, and who a Tell step tells, as it is.
 - **Manage alerts:** set, change and remove **your own Alerts**, on Metrics you may see, such as "tell me when churn goes above 3 %". An Alert tells only you, through your Delivery Preference, and the assistant cannot make one for anyone else. The same limits apply as in the app.
-- **Propose sharing:** the assistant can propose a share of one of your dashboards for you to confirm; it never shares by itself. Nothing is shared or sent until you confirm it in Ziffr, on the Actions page. It needs **Read dashboards** too.
+- **Propose sharing:** the assistant can propose a share of one of your dashboards for you to confirm; it never shares by itself. Nothing is shared or sent until you confirm it in Ziffr, on the Schedule. It needs **Read dashboards** too.
 
 #### What the assistant cannot do
 

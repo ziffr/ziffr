@@ -41,7 +41,7 @@ export function MetricWorkspace({
   const router = useRouter();
   const [selected, setSelected] = useState<string | null>(null);
   const others = people.filter((p) => p.id !== viewer && !p.contact);
-  const [assignee, setAssignee] = useState(others.find((p) => p.id === "ben")?.id ?? others[0]?.id);
+  const [assignee, setAssignee] = useState(others[0]?.id);
   const [question, setQuestion] = useState("");
   const [pending, start] = useTransition();
   const point = points.find((p) => p.period === selected);

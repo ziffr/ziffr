@@ -1,0 +1,18 @@
+{
+  "format": "ziffr.extension/1",
+  "id": "ziffr/top-share",
+  "version": "1.0.0",
+  "kind": "method",
+  "name": "Share of the largest rows",
+  "summary": "How much of a whole the n largest of its rows make up.",
+  "author": { "name": "Ziffr" },
+  "license": "MIT",
+  "signature": {
+    "inputs": [{ "name": "rows", "kind": "table" }],
+    "params": [{ "name": "n", "min": 1, "max": 120, "default": 1 }],
+    "gives": "table"
+  },
+  "limits": { "points": 120 },
+  "ziffr": ">=0.11",
+  "price": "free"
+}

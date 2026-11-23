@@ -70,7 +70,7 @@ Placed on a dashboard, a forecast can be shown by quarter, half-year or year wit
 
 ### Correlation
 
-A dot for each period, placed by the two Metrics' values, and a **Takeaway** under it: one sentence in the Metrics' own words, such as "Visits and Revenue tend to move together over 18 months (strong)."
+A dot for each period, placed by the two Metrics' values, and a **Takeaway** behind the Widget's **⋯** menu (**Takeaway…**): one sentence in the Metrics' own words, such as "Visits and Revenue tend to move together over 18 months (strong)."
 
 - The word in brackets says how clear the link is: **strong**, **moderate**, **weak**, or **can't tell from chance**. The last one means the pattern is no clearer than what luck alone could give, so do not lean on it. Read more in [Reading a Takeaway](../guides/reading-a-takeaway.md).
 - Above the sentence, a plain line appears when something about the data makes the reading rough: a few periods far from the rest that pull the result ("without them it reads moderate"), values that are very uneven or repeat a lot, periods with no value that were left out, or a link that was stronger earlier than it has been since. A result with such a line is never called strong.

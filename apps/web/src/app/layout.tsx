@@ -1,7 +1,7 @@
 import { headers } from "next/headers";
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
-import { dueValueCount, getPeopleIn, getProfiles, openActionCount } from "@/lib/data";
+import { dueValueCount, getPeopleIn, getProfiles } from "@/lib/data";
 import { currentActor, currentWorkspaceId, myWorkspaces, viewerId } from "@/lib/viewer";
 import { isDemo, personFor, sessionUser } from "@/lib/auth";
 import { demoEnabled } from "@/lib/demo-mode";
@@ -19,7 +19,7 @@ import { feedbackPromptFor } from "@ziffr/core/feedback-prompt";
 import { pinnedDashboards } from "@ziffr/core/pinned-dashboards";
 import { whatThisZiffrOffers } from "@ziffr/core/what-works-here";
 import { isInstallationAdmin } from "@ziffr/core/installation-admins";
-import { keptWords, trialStatus } from "@ziffr/core/trial-end";
+import { trialStatus } from "@ziffr/core/trial-end";
 import { workspaceExportState } from "@ziffr/core/workspace-export";
 import { sessionStartedAt } from "@/lib/session-start";
 import { TrialBar, TrialBarForMembers, TrialEnded, TrialEndedForMembers } from "@/components/trial-bar";
@@ -94,7 +94,7 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
     );
   }
   const [shown, viewer] = await Promise.all([getProfiles(), viewerId()]);
-  const [open, workspaceId, actor] = await Promise.all([openActionCount(viewer), currentWorkspaceId(), currentActor()]);
+  const [workspaceId, actor] = await Promise.all([currentWorkspaceId(), currentActor()]);
   const { role } = actor;
   // The demo's Viewing as picker offers all its made-up people, also while viewing as its Guest.
   const profiles = demo ? await getPeopleIn(workspaceId) : shown;
@@ -134,7 +134,7 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
     <>
       {/* Owners and Admins get the bar with counts and links; everyone else the plain words (spec 0040). */}
       {trial && !trial.ended && (role === "owner" || role === "admin"
-        ? <TrialBar daysLeft={trial.daysLeft} endsAt={trial.endsAt} kept={trial.keptAs ? keptWords(trial.endsAt, trial.keptAs) : null} usage={usage} />
+        ? <TrialBar daysLeft={trial.daysLeft} endsAt={trial.endsAt} isOwner={role === "owner"} keeps={trial.keeps} usage={usage} />
         : <TrialBarForMembers owner={trial.ownerName} endsAt={trial.endsAt} />)}
       {overLimit && <OverLimitBar words={overLimit} />}
     </>
@@ -149,8 +149,8 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
         <link href="https://fonts.googleapis.com/css2?family=Geist+Mono:wght@400&display=swap" rel="stylesheet" />
       </head>
       <body className="min-h-screen bg-background font-sans antialiased">
-        <AppShell workspace={workspaceTree(role)} settings={settingsGroups(role)} pinned={pinned} due={due} open={open} guide={guideHref()} account={accountOf} demo={demoControls} people={demo ? { profiles: profiles.filter((p) => !p.contact), current: viewer } : undefined} collapsed={await sidebarCollapsed()} banners={<>{demoNote}{banners}</>}>
-          {trial?.ended ? (role === "owner" || role === "admin" ? <TrialEnded deletedAt={trial.deletedAt} workspaceExport={role === "owner" ? await workspaceExportState(actor, { sessionStartedAt: await sessionStartedAt() }).catch(() => null) : null} /> : <TrialEndedForMembers owner={trial.ownerName} />) : children}
+        <AppShell workspace={workspaceTree(role)} settings={settingsGroups(role)} pinned={pinned} due={due} guide={guideHref()} account={accountOf} demo={demoControls} people={demo ? { profiles: profiles.filter((p) => !p.contact), current: viewer } : undefined} collapsed={await sidebarCollapsed()} banners={<>{demoNote}{banners}</>}>
+          {trial?.ended ? (role === "owner" || role === "admin" ? <TrialEnded deletedAt={trial.deletedAt} cancelled={trial.cancelled} isOwner={role === "owner"} workspaceExport={role === "owner" ? await workspaceExportState(actor, { sessionStartedAt: await sessionStartedAt() }).catch(() => null) : null} /> : <TrialEndedForMembers owner={trial.ownerName} cancelled={trial.cancelled} />) : children}
         </AppShell>
         <LegalFooter className="border-t border-border" />
         {demo && offersTrials && <DemoRefusalLinks />}
