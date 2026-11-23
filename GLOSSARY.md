@@ -82,7 +82,7 @@ One value of a metric for one period.
 _Avoid_: Number, entry, data point, upload
 
 **Breakdown**:
-Labelled values that split one observation, such as revenue by country for October, uploaded with it. Labels are free text; the observation's value stays the metric's number even when the rows do not add up to it.
+Labelled values that split one observation, such as revenue by country for October, uploaded with it. Labels are free text; the observation's value stays the metric's number even when the rows do not add up to it. A row may name another row of the same Breakdown as its parent, by its label (a part of it, such as a city of a country: at most 4 levels down and 200 rows, every label used once, no cycles), which makes the Breakdown a tree; without parents it stays a flat list. A row's number is its own, as it was given, and its parts may add up to another number. Whoever may see the Metric sees every row, parts included; a flat chart reads only the rows at the top, so no row is counted twice.
 _Avoid_: Dimension, segment, table, drill-down
 
 ### Comparing
@@ -116,6 +116,10 @@ _Avoid_: Reporter, contributor
 **Feedback Prompt**:
 A small card in the corner of the app that asks a signed-in person "Enjoying Ziffr?". A yes opens the Ziffr repository on GitHub in a new tab, where they star it themselves: Ziffr cannot star for anyone and tells GitHub nothing. A no asks "What is missing?", and the words are kept without the person's name and read only by Installation Admins. It appears only to Owners, Admins and Members after they have submitted values on at least 3 different days, never in the demo, for Guests, Contacts or on View Links; at most 3 times (after 30 days, then 60), and never again after a star or "Don't ask again". Whether it is asked is an Installation Setting: on for hosted Ziffr, off elsewhere. Not a Prompt, which asks a submitter for a value.
 _Avoid_: Popup, survey, rating, nag
+
+**Feedback**:
+A message from a signed-in person to the Ziffr team, on hosted Ziffr only: a kind (a problem, an idea or a question), their words, and the page and app version it was sent from, kept with a status (waiting for review, open, answered, closed) and its own conversation. It lives outside every Workspace, is never added to a Workspace Export, carries no Metric name, value or other Workspace data, and is seen only by the person who sent it (My feedback) and by the Ziffr team. Not a Finding (an observation about numbers), a Question or a Task (asked of a person in their Workspace), nor the Feedback Prompt (the card that asks whether people like Ziffr).
+_Avoid_: Ticket, support request, report, review
 
 **Feed**:
 A program outside Ziffr that brings in values for some metrics from another system, such as a CRM or a data warehouse. It belongs to the Workspace, not to a person, and only Owners and Admins create one. It is a Submitter of its own, uses a Feed Key, is never sent Prompts, and keeps working when the person who created it leaves. Ziffr never runs its code or holds its credentials for the other system. An n8n or Zapier flow that sends values is an automation, never a Workflow.
@@ -224,7 +228,7 @@ A way of drawing a metric, such as a number with sparkline, a line chart, bars, 
 _Avoid_: Chart type, visualization plugin
 
 **Slide-over**:
-A panel that opens on the right over the current page (full screen on a phone) for one job: Share, Version history, Alert me… or a Metric's Quick look. It has its own address (`?panel=…`), keeps the keys inside it, and Escape closes it.
+A panel that opens on the right over the current page (full screen on a phone) for one job: Share, Version history, Alert me… or a Metric's Quick look. It has its own address (`?panel=…`), keeps the keys inside it, and Escape closes it. One host in the app shell shows it (`useSlideOver`); when to use one and when a modal is in `docs/guides/side-panel.md`. Specs and tickets also call it the side panel; in code and screen text it is the Slide-over.
 _Avoid_: Drawer, side panel, modal, dialog (a dialog is a small window for a decision, such as a confirmation)
 
 **Quick look**:

@@ -11,6 +11,7 @@ Decks, Themes, View Designs, the canvas, Packs and the pages that edit them are 
 - `firstAsksFor` (first-asks.ts): the sentence under a new Metric on the Metric page in the app, read from the Outbox; the API has no such page
 - `nextPromptWays` (prompt-preview.ts): the line under each submitter on the Metric page in the app, where their next Prompt goes and why; a program sets Sources and reads Metrics through the API
 - `metricQuickLook` (quick-look.ts): the slide-over beside a list or Widget in the app; a program reads a Metric through the API
+- `openActionsAboutMetrics` (metric-actions.ts): the panel a Widget's "N open" mark opens in the app; a program lists Actions through the API's actions endpoint
 - `recordDeckExport` (audit-log.ts): Deck export is noted in the Audit Log
 - `checkedFormula` (derived-metrics.ts): the check a restored Version's formula goes through, as a changed one does; Versions are restored in the app, and a program changes a formula through the API's update
 - `formulaChoices` (derived-metrics.ts): the list in the new-Metric form that builds a formula in the app; a program lists the Metrics it sees through the API and writes the formula itself
@@ -123,6 +124,9 @@ Acts as the person, with their own sign-in, Slack or Telegram account or email a
 - `markFeedbackPromptShown` (feedback-prompt.ts): the same card, noting that it was shown
 - `stopFeedbackPrompt` (feedback-prompt.ts): the same card, "Star on GitHub" and "Don't ask again"
 - `sayWhatIsMissing` (feedback-prompt.ts): the same card, what the person says is missing
+- `createFeedback` (feedback.ts): the form that sends Feedback to the Ziffr team, on hosted Ziffr only (spec 0049, #915); not for programs, and never offered through the API, the SDK or the MCP server
+- `listMyFeedback` (feedback.ts): My feedback, the same form's list (spec 0049, #915)
+- `getMyFeedback` (feedback.ts): one of My feedback with its conversation (spec 0049, #915)
 - `optOutOfEmail` (email-opt-out.ts): one's own email choices
 - `optBackIn` (email-opt-out.ts): one's own email choices
 - `setTellStopped` (tell.ts): one's own "stop telling me" setting

@@ -278,7 +278,7 @@ function PartView({ part, v, ctx }: { part: Part; v: DesignValues; ctx?: (period
     case "radar":
       return <RadarMark part={part} v={v} />;
     case "tree":
-      return <TreeMark v={v} />;
+      return <TreeMark part={part} v={v} />;
     case "progress":
       return <ProgressMark v={v} />;
     case "scoreboard":

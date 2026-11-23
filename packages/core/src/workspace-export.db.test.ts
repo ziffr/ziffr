@@ -97,9 +97,9 @@ async function seed() {
   const lower = await createMetric(s.as, { name: "Churn", period: "month", aggregation: "average", polarity: "lower", format: "percent" }, quiet);
   const metrics = await getMetrics(s.id);
   const of_ = (id: number) => metrics.find((m) => m.id === id)!;
-  const rec = (id: number, period: string, value: number, extra: { source?: string; imported?: boolean; submitter?: string | null; enteredBy?: string; rows?: { label: string; value: number }[] } = {}) =>
+  const rec = (id: number, period: string, value: number, extra: { source?: string; imported?: boolean; submitter?: string | null; enteredBy?: string; rows?: { label: string; value: number; parent?: string }[] } = {}) =>
     recordObservation(s.id, of_(id), period, value, { submitter_id: extra.submitter ?? null, entered_by: extra.enteredBy ?? null, source: extra.source ?? "web_form", access_key_id: null }, extra.imported ?? false, extra.rows ?? []);
-  await rec(revenue.id, "2026-01-01", 14.12345678, { submitter: s.member, enteredBy: ana, rows: [{ label: "Germany 🇩🇪 @ home", value: 9.12345678 }, { label: "Other", value: 5 }] });
+  await rec(revenue.id, "2026-01-01", 14.12345678, { submitter: s.member, enteredBy: ana, rows: [{ label: "Germany 🇩🇪 @ home", value: 9.12345678 }, { label: "Other", value: 5 }, { label: "Hamburg", value: 2, parent: "germany 🇩🇪 @ home" }] });
   await rec(revenue.id, "2026-02-01", 1234567.5, { source: "slack", submitter: ana });
   const imported = await rec(revenue.id, "2026-03-01", -3, { imported: true });
   // An imported value carries the names it came with, sealed (spec 0040, 0046): they go out again as names.
@@ -190,7 +190,8 @@ describe("a Workspace Export of awkward data", () => {
     // Values: 8 decimals and negatives and a million, with their source, who submitted and the Breakdown.
     const values = of(records, "value").filter((v) => v.metric === rev.id);
     expect(values.map((v) => [v.period, v.value, v.source ?? null])).toEqual([["2026-01-01", 14.12345678, "web_form"], ["2026-02-01", 1234567.5, "slack"], ["2026-03-01", -3, "import"]]);
-    expect(values[0].breakdown).toEqual([{ label: "Germany 🇩🇪 @ home", value: 9.12345678 }, { label: "Other", value: 5 }]);
+    // A part of another row goes out under its parent's label (spec 0041, ticket 12), after the rows at the top.
+    expect(values[0].breakdown).toEqual([{ label: "Germany 🇩🇪 @ home", value: 9.12345678 }, { label: "Other", value: 5 }, { label: "Hamburg", value: 2, parent: "Germany 🇩🇪 @ home" }]);
     expect(values[0].submittedBy).toMatch(/^member /);
     // A Filled-in Value says who entered it for the submitter, as a name too (spec 0046); the others carry none.
     expect(values[0].enteredBy).toBe(values[1].submittedBy);

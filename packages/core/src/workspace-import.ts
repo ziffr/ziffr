@@ -599,7 +599,7 @@ class ValueWriter {
     const breakdown = batch.flatMap((b, i) => {
       if (!b.r.breakdown?.length) return [];
       const planned = planRows(cipher, false, [], b.r.breakdown, partIds.slice(next, (next += b.r.breakdown.length)));
-      return planned.map((p, position) => ({ id: p.id, observation_id: ids[i], label: p.label, label_index: p.index, value: p.value, value_sealed: p.value_sealed, position }));
+      return planned.map((p, position) => ({ id: p.id, observation_id: ids[i], label: p.label, label_index: p.index, value: p.value, value_sealed: p.value_sealed, position, parent_id: p.parent ?? null }));
     });
     for (let i = 0; i < breakdown.length; i += 1000) {
       const { error: e2 } = await db().from("breakdown_rows").insert(breakdown.slice(i, i + 1000));

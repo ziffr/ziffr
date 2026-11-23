@@ -582,6 +582,13 @@
                 "minimum": -1000000000000000,
                 "maximum": 1000000000000000,
                 "description": "The part of the value."
+              },
+              "parent": {
+                "type": "string",
+                "maxLength": 60,
+                "pattern": "^[^\\p{Cc}\\p{Cs}\\u00AD\\u200B\\u2060\\uFEFF\\u{E0000}-\\u{E007F}\\u2028\\u2029\\u061C\\u200E\\u200F\\u202A-\\u202E\\u2066-\\u2069]*$",
+                "description": "The label of the row of this Breakdown that this one is a part of: a row of the same list, at most 4 levels down; left out for a row at the top.",
+                "minLength": 1
               }
             },
             "required": [
@@ -590,7 +597,7 @@
             ],
             "additionalProperties": false
           },
-          "description": "Labelled values that split the observation."
+          "description": "Labelled values that split the observation, each optionally a part of another row of the list (parent)."
         }
       },
       "required": [
