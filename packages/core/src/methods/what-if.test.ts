@@ -198,6 +198,8 @@ describe("the reference", () => {
       fc.property(fc.integer({ min: 1, max: 1_000_000 }), fc.integer({ min: 18, max: 40 }), fc.double({ min: -20, max: 20, noNaN: true }).filter((x) => Math.abs(x) > 0.01), (s, n, x) => {
         const v = world(s, n);
         const links = [link("B", v.b, [{ name: "A", x: v.a }]), link("C", v.c, [{ name: "A", x: v.a }, { name: "B", x: v.b }])];
+        // A fit that treated two drivers as one has fewer drivers than the reference fits: that world is not compared (it is said, see the merged lines).
+        fc.pre(links.every((l) => l.fit.merged.length === 0));
         const refs = referenceWhatIf([{ kind: "fit", target: "B", drivers: ["A"], rows: refRows(v.b, [v.a]) }, { kind: "fit", target: "C", drivers: ["A", "B"], rows: refRows(v.c, [v.a, v.b]) }], "A", exactOf(x));
         const res = run(links, x, v.a[v.a.length - 1]);
         if (!res.ok) throw new Error("refused");
