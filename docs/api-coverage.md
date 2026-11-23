@@ -357,6 +357,7 @@ Plumbing the core's other operations use, jobs the schedule runs, and the demo.
 - `applyRetentionToExisting` (retention-setting.ts): Apply to existing Metrics, Owners only, on the Workspace settings page (spec 0033)
 - `simulateMessage` (demo-channels.ts): the demo's pretend channels
 - `simulatePromptAnswer` (demo-channels.ts): the demo's pretend channels
+- `demoSuccessor` (demo-successor.ts): the demo's pages follow a reset; the demo has no API
 - `sendDueReminders` (questions.ts): what the schedule runs; the button asks for it now
 - `askForMissingValues` (questions.ts): what the schedule runs; the button asks for it now
 - `noticeEffectsFor` (sharing.ts): what the Share functions use to tell people
