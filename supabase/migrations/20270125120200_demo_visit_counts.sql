@@ -11,6 +11,7 @@ create table demo_visit_counts (
   primary key (window_start, kind, key)
 );
 alter table demo_visit_counts enable row level security;
+revoke all on table demo_visit_counts from public, anon, authenticated;
 
 -- Adds to a count in one statement, so requests at the same moment cannot lose one, and answers the new count.
 create or replace function demo_visit_bump(p_window timestamptz, p_kind text, p_key text, p_by integer default 1)
