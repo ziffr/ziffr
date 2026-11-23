@@ -121,6 +121,9 @@ Acts as the person, with their own sign-in, Slack or Telegram account or email a
 - `markFeedbackPromptShown` (feedback-prompt.ts): the same card, noting that it was shown
 - `stopFeedbackPrompt` (feedback-prompt.ts): the same card, "Star on GitHub" and "Don't ask again"
 - `sayWhatIsMissing` (feedback-prompt.ts): the same card, what the person says is missing
+- `createFeedback` (feedback.ts): the form that sends Feedback to the Ziffr team, on hosted Ziffr only (spec 0049, #915); not for programs, and never offered through the API, the SDK or the MCP server
+- `listMyFeedback` (feedback.ts): My feedback, the same form's list (spec 0049, #915)
+- `getMyFeedback` (feedback.ts): one of My feedback with its conversation (spec 0049, #915)
 - `optOutOfEmail` (email-opt-out.ts): one's own email choices
 - `optBackIn` (email-opt-out.ts): one's own email choices
 - `setTellStopped` (tell.ts): one's own "stop telling me" setting
