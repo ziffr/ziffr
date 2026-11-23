@@ -10,6 +10,7 @@ import { offeredItems } from "@ziffr/core/pack-updates";
 import { numberStyleOf } from "@ziffr/core/workspace-settings";
 import { getProfileMap } from "@/lib/data";
 import { PageHeader } from "@/components/page-header";
+import { listIncludedPacks } from "@ziffr/core/included-packs";
 import { PacksScreen } from "./screen";
 
 export default async function PacksPage() {
@@ -18,6 +19,8 @@ export default async function PacksPage() {
   const manages = !demo && (actor.role === "owner" || actor.role === "admin");
   // What this person may put into a Pack: names only, of what they see. Nothing for a Guest.
   const options = can(actor, "create") ? await exportOptions(actor) : null;
+  // Ziffr's own Packs, with what each brings, for those who install; counts and names from the bundled files only.
+  const included = manages ? await listIncludedPacks(actor) : [];
   // The Marketplace only for those who install, and only when the Installation turned the connection on.
   const market = manages && (await marketplaceOn());
   const updates = market ? await marketplaceUpdates(actor) : [];
@@ -32,6 +35,7 @@ export default async function PacksPage() {
         // The exporter's own name, as the editable Author of the Pack they export.
         authorName={people[actor.personId]?.name ?? ""}
         offers={offers}
+        included={included}
         marketplace={market}
         updates={updates}
         demo={demo}

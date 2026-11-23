@@ -4,7 +4,9 @@
 
 /** What the page may say about a Pack's author and logo, from where the file came: the Marketplace signed it, or it is an
  * uploaded file that says only what it says about itself. `id` is the Pack's id as the file writes it. */
-export function packVoucher(p: { id: string; signed: boolean; fromMarketplace: boolean; hasLogo: boolean }): { vouched: boolean; lines: string[] } {
+export function packVoucher(p: { id: string; signed: boolean; fromMarketplace: boolean; hasLogo: boolean; included?: boolean }): { vouched: boolean; lines: string[] } {
+  // One of Ziffr's own Packs comes with this release and is checked like its code; only the app sets this, never a file.
+  if (p.signed && p.included === true) return { vouched: true, lines: ["Ziffr\u2019s own Pack: it comes with this version of Ziffr."] };
   const what = p.hasLogo ? "name and logo" : "name";
   const handle = p.id.split("/")[0];
   if (p.signed && p.fromMarketplace) {
