@@ -43,7 +43,7 @@ describe("the built-in View Designs", () => {
 
   it("go into PowerPoint as before: lines, bars, numbers and tables natively, the rest as pictures", () => {
     const form = Object.fromEntries(DESIGNED_VIEWS.map((id) => [id, nativeForm(BUILT_IN_DESIGNS[id], TEMPLATES[id].settings)]));
-    expect(form).toEqual({ number: "number", line: "line", bars: "bar", gauge: "picture", table: "table", forecast: "picture", correlation: "picture", matrix: "picture", drivers: "picture" });
+    expect(form).toEqual({ number: "number", line: "line", bars: "bar", gauge: "picture", table: "table", forecast: "picture", correlation: "picture", matrix: "picture", drivers: "picture", slope: "picture" });
     // A line with its forecast or target switched on is still a native line, the forecast and band left out as before.
     expect(nativeForm(BUILT_IN_DESIGNS.line, { showForecast: true, showTarget: true })).toBe("line");
     expect(nativeForm(BUILT_IN_DESIGNS.bars, { showTarget: false })).toBe("bar");

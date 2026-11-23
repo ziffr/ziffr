@@ -82,6 +82,10 @@ const HOSTILE: [string, string, string, Where][] = [
   ["an unknown field in a mark", withPart({ mark: "plot", axes: "none", marks: [{ mark: "line", show: "values", onClick: "x" }] }), "is not a field here", '"onClick"'],
   ["a style field", withPart({ mark: "text", content: ["a"], css: "color: red" }), "is not a field here", '"css"'],
   ["an unknown mark", withPart({ mark: "iframe", src: "x" }), "must be one of “text”, “group”, “plot”, “gauge”, “rows”, “polar”, “radar”", '"iframe"'],
+  ["a slope mark of something else", withPart({ mark: "slope", show: "values" }), "must be “latest”", '"values"'],
+  ["a slope mark with a style field", withPart({ mark: "slope", show: "latest", color: "red" }), "is not a field here", '"color"'],
+  ["a slope mark of 13 Metrics", withPart({ mark: "slope", show: "latest" }, { slots: [{ label: "A", metrics: "several", min: 12 }, { label: "B", metrics: "one" }] }), "A slope mark draws 12 rows at most", { after: '"parts": [' }],
+  ["a slope option that is not a choice", withPart({ mark: "slope", show: "latest" }, { options: { slope: { default: "sideways" } } }), "must be one of", '"sideways"'],
   ["a part with no mark", withPart({ content: ["a"] }), "needs the field “mark”", { after: '"parts": [' }],
   ["a web address in a name", text({ ...EXAMPLE, name: "See https://evil.example" }), "plain text, without markup or web addresses", '"name"'],
   ["a bare www address", text({ ...EXAMPLE, name: "www.evil.example" }), "without markup or web addresses", '"name"'],
@@ -148,6 +152,8 @@ describe("checkViewDesign", () => {
     expect(res.ok ? [] : res.problems).toEqual([]);
     const withRecipe = checkViewDesign(text(WITH_RECIPE));
     expect(withRecipe.ok ? [] : withRecipe.problems).toEqual([]);
+    // A slope mark takes a Slot of several, and the option that says what it compares.
+    expect(checkViewDesign(text({ ...EXAMPLE, slots: [{ label: "Metrics", metrics: "several" }], options: { slope: { label: "Compare", default: "metrics" } }, parts: [{ mark: "slope", show: "latest" }] })).ok).toBe(true);
     const polar = checkViewDesign(text(WITH_POLAR_AND_RADAR));
     expect(polar.ok ? [] : polar.problems).toEqual([]);
     // Three Slots of one Metric each are three spokes as well.

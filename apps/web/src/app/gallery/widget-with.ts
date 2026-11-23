@@ -27,3 +27,11 @@ export function widgetWith(template: TemplateId, real: number[], period: Period)
   return { ...sample, metric_ids: sample.metric_ids.map(map), settings: swap(sample.settings) as WidgetSettings };
 }
 
+
+/** The slope chart made with real Metrics: the rows of the first one's Breakdown, or, with `metrics`, all of them (the caller passes only Metrics of one unit). One Metric is one line, never repeated to fill the sample's three. */
+export function slopeWith(real: number[], period: Period, by: "rows" | "metrics"): FrameWidget {
+  const sample = sampleWidget("slope", period);
+  return by === "rows"
+    ? { ...sample, metric_ids: [real[0]], settings: { ...sample.settings, slope: "previous" } }
+    : { ...sample, metric_ids: real, settings: { ...sample.settings, slope: "metrics" } };
+}

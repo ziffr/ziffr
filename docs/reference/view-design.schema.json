@@ -75,6 +75,9 @@
         "showForecast": {
           "$ref": "#/$defs/switchOption"
         },
+        "slope": {
+          "$ref": "#/$defs/slopeOption"
+        },
         "display": {
           "type": "object",
           "description": "It may be shown by a longer period than the Metric's own, its values combined by the Metric's Aggregation (Show by).",
@@ -1260,6 +1263,30 @@
       ],
       "additionalProperties": false
     },
+    "slopeOption": {
+      "type": "object",
+      "description": "What a slope mark compares: the rows of a Breakdown against the period before (previous) or a year earlier (year), several Metrics (metrics), or what was placed (auto).",
+      "properties": {
+        "label": {
+          "type": "string",
+          "maxLength": 60,
+          "pattern": "^(?![\\s\\S]*(?:://|[Ww][Ww][Ww]\\.|[Jj][Aa][Vv][Aa][Ss][Cc][Rr][Ii][Pp][Tt]:|[Dd][Aa][Tt][Aa]:|[Uu][Rr][Ll]\\(|[\\p{L}\\p{N}](?:\\.(?:[Cc][Oo][Mm]|[Nn][Ee][Tt]|[Oo][Rr][Gg]|[Ii][Oo]|[Cc][Oo]|[Ii][Nn][Ff][Oo]|[Bb][Ii][Zz]|[Aa][Pp][Pp]|[Dd][Ee][Vv]|[Xx][Yy][Zz]|[Mm][Ee]|[Aa][Ii]|[Ll][Yy]|[Gg][Ll]|[Gg][Gg]|[Tt][Oo]|[Cc][Cc]|[Tt][Vv]|[Ww][Ss]|[Ll][Ii][Nn][Kk]|[Cc][Ll][Ii][Cc][Kk]|[Ss][Ii][Tt][Ee]|[Oo][Nn][Ll][Ii][Nn][Ee]|[Tt][Oo][Pp]|[Tt][Kk]|[Rr][Uu]|[Cc][Nn]|[Dd][Ee]|[Uu][Kk]|[Ff][Rr]|[Ee][Uu]|[Uu][Ss]|[Nn][Ll]|[Cc][Hh]|[Aa][Tt]|[Ii][Tt]|[Ee][Ss])(?![\\p{L}\\p{N}])|\\.[Xx][Nn]--|\\.\\p{L}{2,}/)|\\b(?:[Hh][Tt][Tt][Pp][Ss]?|[Ff][Tt][Pp]|[Mm][Aa][Ii][Ll][Tt][Oo]|[Tt][Ee][Ll]|[Ss][Mm][Ss]|[Ff][Ii][Ll][Ee]|[Vv][Bb][Ss][Cc][Rr][Ii][Pp][Tt]):(?!\\s)))[\\p{L}\\p{M}\\p{N} .,;:!?'\"’‘“”«»()%€$£¥+\\-–—/&#*=_·…°]*$",
+          "description": "plain text, without markup or web addresses"
+        },
+        "default": {
+          "enum": [
+            "auto",
+            "previous",
+            "year",
+            "metrics"
+          ]
+        }
+      },
+      "required": [
+        "default"
+      ],
+      "additionalProperties": false
+    },
     "piece": {
       "oneOf": [
         {
@@ -1532,6 +1559,26 @@
             },
             "against": {
               "const": "previous"
+            },
+            "when": {
+              "$ref": "#/$defs/when"
+            }
+          },
+          "required": [
+            "mark",
+            "show"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "description": "Two points per row joined by a line, on two vertical axes (before on the left, now on the right): the rows of a Breakdown in two periods, or 12 Metrics at most of one unit, each against its period before. Both sides share one scale; labels name each end and the change in words, and only the largest rise and the largest fall are highlighted. The option “slope” chooses what is compared.",
+          "properties": {
+            "mark": {
+              "const": "slope"
+            },
+            "show": {
+              "const": "latest"
             },
             "when": {
               "$ref": "#/$defs/when"
