@@ -34,7 +34,7 @@ function listFor(facts: CanvasFact[]): PickerList {
     canvas: facts.map((f) => ({ id: f.id, name: f.name, period: f.period })),
     groups: groupsFor(facts).map((g) => ({
       want: g.want, question: g.question,
-      entries: g.entries.map((e): EntryView => ({ id: e.id, name: e.name, sentence: e.sentence, technical: e.technical, ...textsOf(e), slots: e.slots, settings: e.settings, needs: `${metricsNeeded(e)} Metrics on the canvas`, fit: e.fit, defaults: Object.fromEntries(e.slots.map((s, i) => [s.id, s.optional ? [] : s.many ? on.slice(i) : on.slice(i, i + 1)])), recipeFile: false, widget: e.widget })),
+      entries: g.entries.map((e): EntryView => ({ id: e.id, name: e.name, generic: e.name, sentence: e.sentence, technical: e.technical, ...textsOf(e), slots: e.slots, settings: e.settings, needs: `${metricsNeeded(e)} Metrics on the canvas`, fit: e.fit, defaults: Object.fromEntries(e.slots.map((s, i) => [s.id, s.optional ? [] : s.many ? on.slice(i) : on.slice(i, i + 1)])), recipeFile: false, widget: e.widget })),
     })),
   };
 }

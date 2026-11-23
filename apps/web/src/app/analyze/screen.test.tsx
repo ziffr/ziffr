@@ -12,7 +12,8 @@ const set = vi.fn(async (ids: number[]) => { void ids; return refused; });
 const remove = vi.fn(async (id: number) => { void id; return refused; });
 const shownError = vi.fn();
 const explain = vi.fn(async (id: number) => { void id; return {}; });
-vi.mock("@/app/picker-actions", () => ({ pickerList: async () => ({ canvas: [], groups: [] }), pickerRun: async () => ({ ok: false, message: "" }) }));
+const listed = vi.fn(async (ids: number[], mark?: number | null) => { void ids; void mark; return { canvas: [], groups: [] }; });
+vi.mock("@/app/picker-actions", () => ({ pickerList: (ids: number[], mark?: number | null) => listed(ids, mark), pickerRun: async () => ({ ok: false, message: "" }) }));
 vi.mock("@/app/canvas-actions", () => ({
   canvasExplain: (id: number) => explain(id),
   canvasAdd: (ids: number[]) => add(ids),
@@ -34,7 +35,7 @@ const first = data.metrics[0];
 let host: HTMLElement; let root: Root;
 async function mount(demo: boolean, onCanvas: number[] = [], explained: number | null = null) {
   host = document.createElement("div"); document.body.appendChild(host); root = createRoot(host);
-  await act(async () => { root.render(<SlideOverProvider><AnalyzeScreen data={data} onCanvas={onCanvas} explained={explained} targets={[]} demo={demo} /></SlideOverProvider>); });
+  await act(async () => { root.render(<SlideOverProvider><AnalyzeScreen data={data} onCanvas={onCanvas} explained={explained} demo={demo} /></SlideOverProvider>); });
 }
 const button = (label: string) => host.querySelector<HTMLButtonElement>(`button[aria-label="${label}"]`)!;
 const onCanvas = () => [...host.querySelectorAll("button[aria-label^='Take ']")].map((b) => b.getAttribute("aria-label")!.replace(/^Take | off the canvas$/g, ""));
@@ -81,20 +82,21 @@ describe("the Metric to explain", () => {
   const [a, b, c] = data.metrics;
   const role = (name: string) => host.querySelector<HTMLButtonElement>(`button[aria-label$="${name} the one to explain"], button[aria-label="${name} is the one to explain"]`)!;
   const pressed = () => [...host.querySelectorAll("button[aria-pressed='true'][aria-label$='is the one to explain']")].map((x) => x.getAttribute("aria-label")!.replace(" is the one to explain", ""));
-  const drivers = () => [...host.querySelectorAll("button")].find((x) => x.textContent?.startsWith("Drivers"))!;
+  // The picker is asked for the list with the Metric to explain, which starts its Slots.
+  const askedWith = async () => { await act(async () => { [...host.querySelectorAll("button")].find((x) => x.textContent?.includes("Choose a method"))!.click(); }); return listed.mock.calls.at(-1)![1]; };
 
   it("is the first Metric when none is marked, and the marked one wherever it stands, in words", async () => {
     await mount(false, [a.id, b.id, c.id]);
     expect(pressed()).toEqual([a.name]);
     expect(role(b.name).getAttribute("aria-pressed")).toBe("false");
     expect(role(b.name).getAttribute("aria-label")).toBe(`Make ${b.name} the one to explain`);
-    expect(drivers()!.textContent).toContain(a.name);
+    expect(await askedWith()).toBe(a.id);
   });
 
-  it("follows the mark, not the order, and the Drivers tile asks about it", async () => {
+  it("follows the mark, not the order, and the picker is asked with it", async () => {
     await mount(false, [a.id, b.id, c.id], b.id);
     expect(pressed()).toEqual([b.name]);
-    expect(drivers()!.textContent).toContain(b.name);
+    expect(await askedWith()).toBe(b.id);
     expect(host.textContent).toContain("Compared with");
   });
 
@@ -126,8 +128,7 @@ describe("the front door", () => {
     await mount(true);
     expect(host.textContent).toContain("Drop Metrics here, or choose a method.");
     expect(host.querySelector("section[aria-label='Choose a method']")).not.toBeNull();
-    expect(host.textContent).not.toMatch(/coming soon|Impact analysis/);
-    expect(host.textContent).toContain("Clustering is not offered");
+    expect(host.textContent).not.toMatch(/Forecast|Correlation matrix|What drives/);
   });
 
   it("keeps the picker shut with Metrics on the canvas until it is asked for, and then opens it", async () => {

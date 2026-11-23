@@ -5,11 +5,19 @@
 // What is typed here is only a request: the core reads it again, with its limits, on the server.
 import type { CanvasMetric, EntryView } from "@ziffr/core/analysis-picker";
 import type { SettingDef, SlotDef } from "@ziffr/core/method-picker";
+import { questionFor, type Picked } from "@ziffr/core/method-picker-names";
 
 const FIELD = "h-9 w-full rounded-[var(--radius-input)] border border-input bg-card px-2.5 text-sm";
 
 /** What the person has chosen so far: the Metrics of each Slot, and each setting as typed. */
 export type Answers = { slots: Record<string, number[]>; settings: Record<string, string> };
+
+/** The Method's question in the words of the Metrics chosen so far (the generic words where a Slot is empty). */
+export function titleOf(e: EntryView, a: Answers, canvas: CanvasMetric[]): string {
+  const nm = (slot: string) => canvas.find((m) => m.id === a.slots[slot]?.[0])?.name;
+  const picked: Picked = { metric: nm("metric"), first: nm("first"), second: nm("second"), held: (a.slots.held ?? []).flatMap((id) => canvas.find((m) => m.id === id)?.name ?? []), goal: a.settings.goal, by: a.settings.by, percent: a.settings.percent };
+  return questionFor(e.id, picked, e.generic);
+}
 
 /** The starting answers of a Method: its Slots filled from the canvas, its settings at their defaults. */
 export function startAnswers(e: EntryView): Answers {
@@ -71,13 +79,14 @@ function SettingQuestion({ def, value, onChange }: { def: SettingDef; value: str
 }
 
 /** The questions of one Method with a Run button. */
-export function AskForm({ entry, canvas, answers, onChange, onRun, pending }: { entry: EntryView; canvas: CanvasMetric[]; answers: Answers; onChange: (a: Answers) => void; onRun: () => void; pending: boolean }) {
+export function AskForm({ entry, title, canvas, answers, onChange, onRun, pending }: { entry: EntryView; title: string; canvas: CanvasMetric[]; answers: Answers; onChange: (a: Answers) => void; onRun: () => void; pending: boolean }) {
   return (
     <form
-      aria-label={entry.name}
+      aria-label={title}
       className="mt-3 space-y-3 border-t border-[var(--color-rule-2)] pt-3"
       onSubmit={(ev) => { ev.preventDefault(); onRun(); }}
     >
+      <h4 className="text-sm font-medium">{title}</h4>
       <div className="grid gap-3 sm:grid-cols-2">
         {entry.slots.map((s) => (
           <SlotQuestion key={s.id} slot={s} canvas={s.many ? canvas.filter((m) => !Object.entries(answers.slots).some(([k, v]) => k !== s.id && v.includes(m.id))) : canvas} chosen={answers.slots[s.id] ?? []} onChange={(ids) => onChange(chooseFor(answers, s.id, ids))} />
