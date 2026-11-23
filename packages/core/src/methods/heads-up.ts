@@ -27,7 +27,8 @@ export type HeadsUpKind = "moving-together" | "stopped-moving-together";
  * numbers under Show the numbers. */
 export type HeadsUp = { key: string; kind: HeadsUpKind; metrics: [number, number]; span: Span; through: string; rank: number; takeaway: Takeaway };
 
-const finite = (...xs: (number | null)[]) => xs.every((x) => x !== null && Number.isFinite(x));
+// (Number.isFinite is false for null, undefined and anything that is not a number, with no conversion.)
+const finite = (...xs: (number | null)[]) => xs.every((x) => Number.isFinite(x));
 const unit = (x: number) => Number.isFinite(x) && x >= 0 && x <= 1;
 const validWindow = (w: Window) =>
   finite(w.lag, w.r, w.n, w.nEff, w.pDelays, w.p, w.tries) && Math.abs(w.r) <= 1 && unit(w.pDelays) && unit(w.p) && w.p >= w.pDelays && Number.isInteger(w.lag) && Math.abs(w.lag) <= HEADS_UP.maxLag &&
