@@ -22,7 +22,7 @@ function EntryDetails({ e }: { e: EntryView }) {
 }
 
 /** One Method of the list: choosable when it fits, greyed with its reason when it does not. `children` is its questions, shown once chosen. */
-export function EntryCard({ e, open, onPick, children }: { e: EntryView; open: boolean; onPick: (id: EntryView["id"]) => void; children?: ReactNode }) {
+function EntryCard({ e, open, onPick, children }: { e: EntryView; open: boolean; onPick: (id: EntryView["id"]) => void; children?: ReactNode }) {
   const ok = e.fit.ok;
   return (
     <li className={cn("rounded-[var(--radius-stock)] p-2.5 text-sm", ok ? "stock" : "border border-dashed border-[var(--color-rule-2)] text-muted-foreground", open && "sm:col-span-2 xl:col-span-3")}>

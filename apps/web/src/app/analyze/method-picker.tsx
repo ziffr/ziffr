@@ -29,7 +29,7 @@ function download(name: string, text: string) {
 }
 
 /** What can be done with a result: save it as a widget, or take it as a recipe file. Said plainly where it cannot be. */
-export function ResultActions({ entry, done, pending, save }: { entry: EntryView; done: Done; pending: boolean; save: () => void }) {
+function ResultActions({ entry, done, pending, save }: { entry: EntryView; done: Done; pending: boolean; save: () => void }) {
   return (
     <div className="space-y-1.5 text-xs text-muted-foreground">
       <div className="flex flex-wrap gap-2">
