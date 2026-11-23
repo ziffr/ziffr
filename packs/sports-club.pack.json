@@ -2,13 +2,18 @@
   "format": "ziffr.pack/1",
   "id": "ziffr/sports-club",
   "name": "Sports club",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "summary": "Members, joiners and leavers, attendance per training, fees received and volunteer hours, with a season dashboard and a Workflow that asks each coach for attendance after training.",
   "author": {
     "name": "Ziffr"
   },
   "license": "CC-BY-4.0",
   "ziffr": ">=0.11",
+  "audience": {
+    "segments": [
+      "non_profit"
+    ]
+  },
   "listing": {
     "homepage": "https://github.com/ziffr/ziffr/tree/main/packs"
   },

@@ -16,6 +16,7 @@ import { checkViewDesignValue, VIEW_LIMITS, type ViewDesign } from "./view-desig
 import { checkAnalysisRecipeValue, RECIPE_LIMITS, type AnyAnalysisRecipe } from "./analysis-recipe.js";
 import { checkPackFormula, type FormulaEntry } from "./formula-check.js";
 import { textsAimedAtAssistants } from "./assistant-words.js";
+import { AUDIENCE_SCHEMA, checkAudience, type PackAudience } from "./audience.js";
 
 /** The format this Ziffr writes; it reads every version in `PACK_FORMATS`. */
 export const PACK_FORMAT = "ziffr.pack/1";
@@ -56,6 +57,8 @@ export type Pack = {
   author: { name: string };
   license: (typeof PACK_LICENSES)[number];
   ziffr?: string;
+  /** Whom the Pack is for (spec 0052): ranks it in the Setup Guide, never hides it. Needs `ziffr` beside it. */
+  audience?: PackAudience;
   logo?: string;
   listing?: { homepage?: string; support?: string };
   /** Which Automation Templates fill which of its Metric Catalog entries (spec 0043). Installing makes nothing of it. */
@@ -109,6 +112,7 @@ export const PACK_SCHEMA: Schema = {
     author: { type: "object", properties: { name: { ...plainText(PACK_LIMITS.author), minLength: 1 } }, required: ["name"], additionalProperties: false },
     license: { enum: [...PACK_LICENSES], description: "CC-BY-4.0 or MIT for a free Pack, Ziffr-Pack-1.0 for a paid one." },
     ziffr: { type: "string", maxLength: 20, pattern: "^>=(?:0|[1-9][0-9]{0,3})\\.(?:0|[1-9][0-9]{0,3})(?:\\.(?:0|[1-9][0-9]{0,3}))?$", description: "the oldest Ziffr that can install it, such as “>=0.12”" },
+    audience: AUDIENCE_SCHEMA,
     logo: {
       type: "string",
       // 4 base64 characters per 3 bytes, and the longest prefix a data address has.
@@ -194,6 +198,7 @@ function meaning(p: Pack, lines: Map<string, number>, ziffr: string | undefined,
     at("ziffr", `This Pack needs Ziffr ${p.ziffr.replace(/^>=/, "")} or later; this is Ziffr ${ziffr}.`);
     return;
   }
+  if (p.audience !== undefined) checkAudience(p.audience, p.ziffr, at);
   if (p.logo !== undefined) {
     const why = logoProblem(p.logo, PACK_LOGO_MAX_BYTES);
     if (why) at("logo", why);

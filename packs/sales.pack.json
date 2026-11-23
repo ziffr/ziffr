@@ -2,13 +2,18 @@
   "format": "ziffr.pack/1",
   "id": "ziffr/sales",
   "name": "Sales",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "summary": "New and qualified leads, deals won and lost, closed-won value, pipeline, sales cycle, win rate and average deal size, with a monthly dashboard and a Workflow that asks for the month's figures.",
   "author": {
     "name": "Ziffr"
   },
   "license": "CC-BY-4.0",
   "ziffr": ">=0.11",
+  "audience": {
+    "functions": [
+      "sales"
+    ]
+  },
   "listing": {
     "homepage": "https://github.com/ziffr/ziffr/tree/main/packs"
   },

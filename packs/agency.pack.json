@@ -2,13 +2,23 @@
   "format": "ziffr.pack/1",
   "id": "ziffr/agency",
   "name": "Agency or freelancer",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "summary": "Billable hours, utilisation, revenue, the effective hourly rate, open invoices and pipeline, with a monthly dashboard and a Workflow that asks for hours on Fridays.",
   "author": {
     "name": "Ziffr"
   },
   "license": "CC-BY-4.0",
   "ziffr": ">=0.11",
+  "audience": {
+    "industries": [
+      "agency",
+      "professional_services"
+    ],
+    "employeeBands": [
+      "1-10",
+      "11-50"
+    ]
+  },
   "listing": {
     "homepage": "https://github.com/ziffr/ziffr/tree/main/packs"
   },

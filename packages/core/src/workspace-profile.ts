@@ -1,15 +1,9 @@
 // The Workspace Profile (spec 0006, ticket #97; GLOSSARY: Workspace Profile): what kind of business a workspace
-// belongs to, each part picked from a fixed list. Pure: the lists, and the check of one value against them.
+// belongs to, each part picked from a fixed list. Pure: the lists, and the check of one value against them. The lists
+// themselves live in @ziffr/pack (a Pack Audience names the same keys); this file keeps their words and the currencies.
+import { COUNTRIES, EMPLOYEE_BANDS, INDUSTRIES, REVENUE_BANDS, SEGMENTS, type EmployeeBand, type Industry, type RevenueBand, type Segment } from "@ziffr/pack/audience";
 
-/** Industries a workspace can pick from: short enough to choose in one look. The Metric Catalog tags its Metrics
- * with the same keys, so suggestions can be filtered by a workspace's industry; keep them spelled alike. */
-export const INDUSTRIES = [
-  "saas", "ecommerce", "retail", "wholesale", "manufacturing", "construction", "real_estate", "professional_services",
-  "agency", "financial_services", "healthcare", "education", "hospitality", "logistics", "energy", "media",
-  "agriculture", "other",
-] as const;
-/** An industry from INDUSTRIES. */
-export type Industry = (typeof INDUSTRIES)[number];
+export { COUNTRIES, EMPLOYEE_BANDS, INDUSTRIES, REVENUE_BANDS, SEGMENTS, type EmployeeBand, type Industry, type RevenueBand, type Segment };
 
 /** What each industry is called in the app. */
 export const INDUSTRY_LABEL: Record<Industry, string> = {
@@ -21,25 +15,10 @@ export const INDUSTRY_LABEL: Record<Industry, string> = {
   energy: "Energy and utilities", media: "Media and entertainment", agriculture: "Agriculture and food production", other: "Something else",
 };
 
-/** Who a workspace's business sells to or serves. */
-export const SEGMENTS = ["b2b", "b2c", "b2b2c", "public_sector", "non_profit"] as const;
-/** A segment from SEGMENTS. */
-export type Segment = (typeof SEGMENTS)[number];
-
 /** What each segment is called in the app. */
 export const SEGMENT_LABEL: Record<Segment, string> = {
   b2b: "Businesses (B2B)", b2c: "Consumers (B2C)", b2b2c: "Businesses and their customers (B2B2C)", public_sector: "Public sector", non_profit: "Non-profit",
 };
-
-/** How many people work there. */
-export const EMPLOYEE_BANDS = ["1-10", "11-50", "51-200", "201-500", "501-1000", "1000+"] as const;
-/** An employee band from EMPLOYEE_BANDS. */
-export type EmployeeBand = (typeof EMPLOYEE_BANDS)[number];
-
-/** A year's revenue, in the workspace currency. */
-export const REVENUE_BANDS = ["<1m", "1m-10m", "10m-50m", "50m-250m", "250m-1b", "1b+"] as const;
-/** A revenue band from REVENUE_BANDS. */
-export type RevenueBand = (typeof REVENUE_BANDS)[number];
 
 /** What each revenue band is called in the app, before the currency. */
 export const REVENUE_LABEL: Record<RevenueBand, string> = {
@@ -66,9 +45,6 @@ const COUNTRY_CURRENCY = Object.fromEntries((
   "TT:TTD TV:AUD TW:TWD TZ:TZS UA:UAH UG:UGX UM:USD US:USD UY:UYU UZ:UZS VA:EUR VC:XCD VE:VES VG:USD VI:USD " +
   "VN:VND VU:VUV WF:XPF WS:WST YE:YER YT:EUR ZA:ZAR ZM:ZMW ZW:ZWG"
 ).split(" ").map((p) => p.split(":") as [string, string]));
-
-/** Every ISO 3166-1 alpha-2 country code, such as DE. */
-export const COUNTRIES: readonly string[] = Object.keys(COUNTRY_CURRENCY);
 
 /** The ISO 4217 currencies a country uses as its own, such as EUR. */
 export const CURRENCIES: readonly string[] = [...new Set(Object.values(COUNTRY_CURRENCY))].sort();
