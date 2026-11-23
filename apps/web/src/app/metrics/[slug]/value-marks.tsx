@@ -10,3 +10,11 @@ export function ValueMarks({ pastedBy, imported }: { pastedBy: string | null; im
     </>
   );
 }
+
+/** Who typed a Filled-in Value (GLOSSARY: Filled-in Value, Guest; spec 0046), under the submitter. The name is the person's as the
+ * page may show it (a Guest reads "Someone" for every name but their own); an imported value's sealed name is never shown to a Guest. */
+export function EnteredBy({ by, importedName, guest }: { by: string | null | undefined; importedName?: string | null; guest: boolean }) {
+  if (by) return <span className="block text-xs text-muted-foreground">entered by {by}</span>;
+  if (importedName && !guest) return <span className="block text-xs text-muted-foreground">entered by {importedName} (imported)</span>;
+  return null;
+}

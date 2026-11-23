@@ -22,6 +22,7 @@ import { ProposalFacts, proposalTitle } from "@/components/share-proposal-summar
 import { AskedView, AskedRows } from "./asked-view";
 import { TimelineList } from "./timeline-view";
 import { Choices, Pick, href, type Params } from "./choices";
+import { periodRecordUrl } from "@/lib/period-record-url";
 
 /** How many days ahead the page shows, today included. */
 const DAYS_SHOWN = 14;
@@ -50,6 +51,8 @@ function Entries({ list }: { list: ScheduleEntry[] }) {
             <span className="min-w-[12rem] flex-1 font-medium">{entryTitle(e)}</span>
             <span className="text-xs text-muted-foreground">{notes(e).join(" · ")}</span>
           </Link>
+          {/* An Escalation says a value is missing: its Metric's owner may enter it for the submitter from the Period Record, where the core shows the button only if filling in is open (spec 0046). */}
+          {e.mayFillIn && e.metric && <Link href={`${periodRecordUrl(e.metric.slug, e.period.start)}#fill-in`} className="mb-3 ml-4 inline-block text-xs underline">Fill in the value…</Link>}
         </li>
       ))}
     </ul>

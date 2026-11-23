@@ -15,7 +15,7 @@ The page has three parts: the list of Workflows on the left, the steps of the ch
 Under the steps, **What happened, period by period** shows a timeline for each period of the Workflow, the newest first and open, the earlier ones folded (the last four). Each period says how many values are in, such as "5 of 6 in" (the values and the Workflow's checklist Tasks to tick off count together), and whether it is published or locked. Under it are the events in order, with their day and time in the Workspace's time zone:
 
 - who was asked and reminded, grouped when close together: "Asked 6 people by Email, Slack and Telegram",
-- values that came in, with how many were in by then: "5 values came in (5 of 6 in)",
+- values that came in, with how many were in by then: "5 values came in (5 of 6 in)"; a value someone else entered for the submitter says so ("Revenue came in: 42, entered by Ben for Sara (5 of 6 in)"), and a group says "3 values came in, 1 entered for someone",
 - Approvals asked, approved and sent back, Self-checks, Escalations and the Questions and Tasks about the period's values,
 - Metrics published and locked,
 - **Checklist items** sent: "Sent ‘Invoices must be in by Friday.’ to 8 people",
@@ -150,9 +150,12 @@ Each Metric's page has a **Workflow** box on its **Description** tab (see [The M
 | The status line | The last ended period, its Due Date and where its value is, such as "asked, waiting for the value", "in, not approved yet", "waiting for approval", "published" or "published and locked". With a note when there is one. | Nobody: it follows the Workflow |
 | **Open …** | Opens the Workflow on the Workflows page. | Everyone |
 | **Lock …** / **Unlock …** | Locks or unlocks the last ended period by hand (see [Locks](#locks)). While its value waits for Approval or was sent back, the box says it can be locked once the value is approved instead. | The Metric Owner |
-| **Stand-ins** | For each Submitter, the person asked instead while they are **Away**, or when an Escalate step asks the Stand-in. Choose a member or a Contact, or **Nobody**. | The Metric Owner |
+| **Stand-ins** | For each Submitter, the person asked instead while they are **Away**, or when an Escalate step asks the Stand-in. Choose a member or a Contact, or **Nobody**. A Guest cannot be chosen; one chosen before is marked "A Guest cannot fill in for Sara: choose another Stand-in." | The Metric Owner |
+| **Fill in for …** | Enters the last period's value for a Submitter who has not sent it, marked as entered by you (see [Filling in a value for someone](10-metrics.md#filling-in-a-value-for-someone)). Greyed out, with the reason, before the Due Date, unless the Submitter is Away. | The Metric Owner and the Workflow's owner |
 
 Choosing a different Stand-in takes effect at once: the person who stood in before can no longer send values for that Submitter. People enter their own Away dates under **Your Deliveries** (see [Your settings](17-your-settings.md)); while someone is Away, their Prompts go to their Stand-in.
+
+A Stand-in's answer to a request sent in someone's place is that person's value, entered by the Stand-in, and counts for the Stand-in only for the periods they were asked about.
 
 Feeds have no Stand-in. When a Feed's value is missing, the Metric Owner hears of it.
 
@@ -173,9 +176,11 @@ The same works without opening Ziffr: reply "approve", or "send back:" followed 
 
 A new value for the same period, such as one sent after a send back, starts Approval over: earlier Approval tasks for that period are closed and no longer decide anything.
 
+Nobody approves a value they entered, nor a value entered for them: when the Metric Owner filled in a value, the Workflow's owner may approve it, and the other way round. A value entered for someone is checked as any value is, including the Unusual Value check.
+
 ## Checking your own value
 
-When a value needs Approval but nobody but you could give it, and the Approve step says **let the submitter check it**, you get a task instead: "Check your value: 60 cups for 19 November 2026, up 900.0 % on 18 November 2026. Is that right?" On its page, a box **Check your value** has:
+When a value needs Approval but nobody but you could give it, and the Approve step says **let the submitter check it**, you get a task instead (for a value someone entered for you, you are asked too: you did not type it, so checking it is a real check): "Check your value: 60 cups for 19 November 2026, up 900.0 % on 18 November 2026. Is that right?" On its page, a box **Check your value** has:
 
 | Control | What it does |
 | --- | --- |

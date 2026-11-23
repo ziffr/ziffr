@@ -34,6 +34,11 @@ export default async function SubmitPage({ params }: { params: Promise<{ code: s
           For <span className="font-medium">{periodLabel(period, m.period, form.yearStart)}</span>
           {current !== null && <>, already has <span className="font-medium">{formatValue(m, current, form.numberStyle)}</span> ({RULE_LABEL[m.submission_rule].toLowerCase()})</>}
         </div>
+        {form.standingInFor && (
+          <p role="note" className="mt-3 rounded-lg border px-3 py-2 text-sm">
+            You answer in place of {form.standingInFor}. The value is recorded as theirs, marked as entered by you, and they are told and can replace it with their own.
+          </p>
+        )}
         {form.answeredOn != null && (
           <p role="status" className="mt-3 rounded-lg border px-3 py-2 text-sm">
             Already answered{form.answeredOn in SOURCE_LABEL ? ` on ${SOURCE_LABEL[form.answeredOn as keyof typeof SOURCE_LABEL]}` : ""}. A new value here follows this Metric’s rule: {RULE_LABEL[m.submission_rule].toLowerCase()}.

@@ -1,10 +1,14 @@
 import { describe, expect, it } from "vitest";
-import { checkFormula, evaluate, formulaInputs, inputsNotCombined, inputsProblem, type FormulaInput } from "./formula";
+import { checkFormula, evaluate, formulaInputs, inputsNotCombined, inputsProblem, readFormula, type FormulaInput } from "./formula";
 import { referenceReads } from "./test/reference/formula";
 
 describe("formula", () => {
   it("lists the metrics a formula reads, once each", () => {
     expect(formulaInputs("({revenue} - {cost}) / {revenue}")).toEqual(["revenue", "cost"]);
+  });
+  it("reads a formula into the tree it is evaluated by, or says why not", () => {
+    expect(readFormula("{a} - 2")).toEqual({ ok: true, node: { k: "op", op: "-", a: { k: "ref", slug: "a" }, b: { k: "num", v: "2" } } });
+    expect(readFormula("{a} -")).toEqual({ ok: false, reason: "The formula ends where a value is missing." });
   });
   it("evaluates arithmetic over inputs", () => {
     expect(evaluate("({revenue} - {cost}) / {revenue} * 100", { revenue: 200, cost: 150 })).toBe(25);
