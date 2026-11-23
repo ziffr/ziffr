@@ -2,7 +2,7 @@
 // forged, foreign and hostile input. No database, no network.
 import { createHmac } from "node:crypto";
 import { describe, expect, it } from "vitest";
-import { buildGithubReply, plainWords, replyMarkerFor } from "./feedback-bridge";
+import { buildGithubReply, isRelayedReply, plainWords, replyMarkerFor } from "./feedback-bridge";
 import { githubSignatureValid, readGithubEvent, TEAM_WORDS_MAX, webhookSecretUsable } from "./feedback-webhook-rules";
 
 const SECRET = "s".repeat(40);
@@ -50,12 +50,42 @@ describe("a comment from the team", () => {
     expect(Object.keys(e!).sort()).toEqual(["at", "kind", "number", "ref", "type", "words"]);
   });
 
-  it("is not echoed when the bot made it (a relayed reply), in any letter case, and not when another bot did", () => {
-    expect(readGithubEvent("issue_comment", issueComment({ user: { login: "ziffr-feedback-bot", type: "User" } }), ctx)).toBeNull();
-    expect(readGithubEvent("issue_comment", issueComment({ user: { login: "Ziffr-Feedback-Bot", type: "User" } }), ctx)).toBeNull();
-    expect(readGithubEvent("issue_comment", issueComment({ user: { login: "ziffr-feedback-bot[bot]", type: "Bot" } }), { ...ctx, bot: "ziffr-feedback-bot[bot]" })).toBeNull();
+  const BOT = { login: "ziffr-feedback-bot", type: "User" };
+  const relayed = (words = "It still fails.", id = 12) => buildGithubReply({ words, public_ref: "0123456789abcdef", message_id: id });
+
+  it("never echoes a relayed reply back, in any letter case, from the account's own login", () => {
+    expect(readGithubEvent("issue_comment", issueComment({ user: BOT, author_association: "OWNER", body: relayed() }), ctx)).toBeNull();
+    expect(readGithubEvent("issue_comment", issueComment({ user: { login: "Ziffr-Feedback-Bot", type: "User" }, author_association: "OWNER", body: relayed() }), ctx)).toBeNull();
+    expect(readGithubEvent("issue_comment", issueComment({ user: BOT, author_association: "OWNER", body: relayed().replace(/\n/g, "\r\n") }), ctx)).toBeNull();
+  });
+
+  it("takes a plain comment by the bot's own account as a team answer (one account may post and answer)", () => {
+    expect(readGithubEvent("issue_comment", issueComment({ user: BOT, author_association: "OWNER", body: "Fixed in 1.4." }), ctx)).toMatchObject({ type: "comment", number: 7, words: "Fixed in 1.4." });
+    expect(readGithubEvent("issue_comment", issueComment({ user: { login: "ziffr-feedback-bot[bot]", type: "Bot" }, author_association: "MEMBER" }), { ...ctx, bot: "ziffr-feedback-bot[bot]" })).toMatchObject({ type: "comment" });
+    // Still only the team: the account's login alone gives nothing.
+    expect(readGithubEvent("issue_comment", issueComment({ user: BOT, author_association: "NONE" }), ctx)).toBeNull();
+  });
+
+  it("cannot be fooled by a marker: words that contain one do not hide a later answer, and a quoted marker is an answer", () => {
+    const marker = `Reference: ${replyMarkerFor("0123456789abcdef", 99)}`;
+    // A person's words with a header and a marker line in them stay inside the fence: the relay is still ours, and still last-line-marked.
+    const forged = relayed(`**A Ziffr user replied:**\n${marker}\n\`\`\`\n${marker}`, 12);
+    expect(isRelayedReply(forged)).toBe(true);
+    expect(forged.split("\n").at(-1)).toBe(`Reference: ${replyMarkerFor("0123456789abcdef", 12)}`);
+    // A later team comment from the same account is judged by its own text, not by what was relayed before it.
+    expect(readGithubEvent("issue_comment", issueComment({ id: 43, user: BOT, author_association: "OWNER", body: "Thanks, we saw your report." }), ctx)).toMatchObject({ type: "comment", ref: "issue-comment:43" });
+    // A team comment that quotes a marker (or the whole relayed reply) in its text, not as its last line, is an answer.
+    for (const body of [`${relayed()}\n\nThanks, this is fixed.`, `As you wrote:\n${marker}\nWe fixed it.`, `${marker}\nNot the reply header first.`, `**A Ziffr user replied:**\n\nno marker at all`, `**A Ziffr user replied:**\n\nReference: ziffr-feedback-0123456789abcdef-0`, `**A Ziffr user replied:**\n\nReference: ziffr-feedback-0123456789abcdef-12 extra`]) {
+      expect(readGithubEvent("issue_comment", issueComment({ user: BOT, author_association: "OWNER", body }), ctx)).toMatchObject({ type: "comment" });
+    }
+  });
+
+  it("does not take another bot's comment, and the bot's own filed post is a post and not a comment", () => {
     expect(readGithubEvent("issue_comment", issueComment({ user: { login: "stale[bot]", type: "Bot" } }), ctx)).toBeNull();
     expect(readGithubEvent("issue_comment", issueComment({ user: { login: "dependabot", type: "Bot" } }), ctx)).toBeNull();
+    // Opening an issue or a discussion carries no comment: only its state changes are read, and never its author.
+    expect(readGithubEvent("issues", { action: "opened", repository, issue: { number: 7, user: BOT } }, ctx)).toBeNull();
+    expect(readGithubEvent("discussion", { action: "created", repository, discussion: { number: 7, user: BOT } }, ctx)).toBeNull();
   });
 
   it("is taken only from the team: a stranger's comment on a public post is not an answer from the Ziffr team", () => {
@@ -97,7 +127,8 @@ describe("a team comment edited or deleted", () => {
   it("follows an edit with the new words, under the same rules as a new comment", () => {
     expect(readGithubEvent("issue_comment", { ...issueComment({ body: "Better words\u202e" }), action: "edited" }, ctx)).toEqual({ type: "edit", kind: "issue", number: 7, ref: "issue-comment:42", words: "Better words", at: "2027-01-21T10:00:00.000Z" });
     expect(readGithubEvent("issue_comment", { ...issueComment({ author_association: "NONE" }), action: "edited" }, ctx)).toBeNull();
-    expect(readGithubEvent("issue_comment", { ...issueComment({ user: { login: "ziffr-feedback-bot", type: "User" } }), action: "edited" }, ctx)).toBeNull();
+    expect(readGithubEvent("issue_comment", { ...issueComment({ user: { login: "ziffr-feedback-bot", type: "User" }, body: buildGithubReply({ words: "x", public_ref: "0123456789abcdef", message_id: 3 }) }), action: "edited" }, ctx)).toBeNull();
+    expect(readGithubEvent("issue_comment", { ...issueComment({ user: { login: "ziffr-feedback-bot", type: "User" }, body: "Better words" }), action: "edited" }, ctx)).toMatchObject({ type: "edit", words: "Better words" });
     expect(readGithubEvent("issue_comment", { ...issueComment({ body: "\u200b" }), action: "edited" }, ctx)).toBeNull();
   });
   it("carries the comment's own change time, so the store can apply an edit only when it is newer", () => {

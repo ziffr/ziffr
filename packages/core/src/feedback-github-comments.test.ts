@@ -54,6 +54,12 @@ describe("finding a reply that may already be posted", () => {
     expect(await client(f).findComment({ kind: "issue", number: 7 }, marker)).toBeNull();
   });
 
+  it("does not take a team answer from the same account that only copies the marker as its last line", async () => {
+    const f = listing([comment(1, "ziffr-bot", `Thanks, fixed.\nReference: ${marker}`), comment(2, "ziffr-bot", mine)]);
+    expect(await client(f).findComment({ kind: "issue", number: 7 }, marker)).toEqual({ id: 2 });
+    expect(await client(listing([comment(1, "ziffr-bot", `Thanks, fixed.\nReference: ${marker}`)])).findComment({ kind: "issue", number: 7 }, marker)).toBeNull();
+  });
+
   it("finds a Discussion comment by its database id", async () => {
     const f = vi.fn(async (url: string) => (String(url).endsWith("/user") ? json({ login: "ziffr-bot" }) : json({ data: { repository: { discussion: { comments: { nodes: [{ databaseId: 31, body: mine, author: { login: "ziffr-bot" } }] } } } } })));
     expect(await client(f).findComment({ kind: "discussion", number: 3 }, marker)).toEqual({ id: 31 });

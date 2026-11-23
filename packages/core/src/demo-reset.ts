@@ -7,6 +7,7 @@
 // `prototype:reset` seed it too, in SQL only.
 import { db, seedingDemo } from "./db";
 import { shouldResetDemo, type DemoState } from "./demo-reset-decision";
+import { scanWorkspace } from "./heads-ups";
 import { seedDemoSnapshots } from "./demo-snapshots";
 import { clearDemoVisitCounts } from "./demo-visit";
 import { askForMissingValues, sendDueReminders } from "./questions";
@@ -21,12 +22,29 @@ export async function readDemoState(): Promise<DemoState | null> {
   return { generation: Number(data.generation), changedSinceReset: Boolean(data.changed_since_reset), lastChangeAt: date(data.last_change_at), resetAt: date(data.reset_at) };
 }
 
+/** Tells the database whether this Installation lets visitors change its demo (the setting in effect, which only the core can read). The database refuses a visit's write unless this is on, so it is set on every call of the reset job and off by default. */
+async function setOpenToVisitors(on: boolean): Promise<void> {
+  const { error } = await db().from("demo_state").update({ open_to_visitors: on }).eq("id", true);
+  if (error) throw new Error("The demo's state could not be changed.");
+}
+
 /** Resets the demo. False when it was reset less than a minute ago, or, with `onlyWhenNeeded` (where visitors may change the demo), when nothing changed since its last reset and it is still young. */
-export async function resetDemoWorkspace(opts: { onlyWhenNeeded?: boolean } = {}): Promise<boolean> {
+export async function resetDemoWorkspace(opts: { onlyWhenNeeded?: boolean; openToVisitors?: boolean } = {}): Promise<boolean> {
+  // First, so a switched-off setting closes the door at the next call (the clock makes one every 15 minutes) before any work.
+  await setOpenToVisitors(opts.openToVisitors === true);
   if (opts.onlyWhenNeeded && !shouldResetDemo({ changesInEffect: true, state: await readDemoState(), now: new Date() })) return false;
   const { data: done, error } = await db().rpc("demo_reset");
   if (error) throw new Error("The demo could not be reset. Try again in a minute.");
   if (!done) return false;
+  // The three years of history are seeded by a function of their own (#987), before anything that reads the values: the Snapshots, the close.
+  const history = await db().rpc("prototype_seed_history");
+  if (history.error) console.error("Demo: no three years of history", history.error.message);
+  // The Heads-up job never scans the demo, so the pairs that move together are looked at here, once a night, as the job would look at a Workspace.
+  try {
+    await seedingDemo(() => scanWorkspace(DEMO_WORKSPACE_ID, new Date().toISOString()));
+  } catch (e) {
+    console.error("Demo: no Heads-ups", e instanceof Error ? e.message : e);
+  }
   // The visits' counts belong to the window that just ended (spec 0051); a new window starts at zero.
   // A failure is logged and the reset carries on, as for the steps below: the counts are not worth a half-seeded demo.
   try { await clearDemoVisitCounts(); } catch (e) { console.error("Demo: visit counts not emptied", e instanceof Error ? e.message : e); }
