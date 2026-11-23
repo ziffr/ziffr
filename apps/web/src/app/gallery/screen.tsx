@@ -71,6 +71,8 @@ export function GalleryScreen({ data: sent, metricId, dashboards, canCreate, dem
     if (!metric) return { widget: null, why: null };
     const t = TEMPLATES[id];
     if ("needsBreakdown" in t && t.needsBreakdown && !hasBreakdown) return { widget: null, why: `${metric.name} has no breakdown, so this shows sample data.` };
+    // A heatmap lays periods out in a grid of days, weeks or months: a Metric by quarter or year has too few of them to fill one.
+    if (id === "heatmap" && (metric.period === "quarter" || metric.period === "year")) return { widget: null, why: `${metric.name} is by ${metric.period}, and a heatmap needs a Metric by day, week or month, so this shows sample data.` };
     if (t.slots.length > 1 && partners.length + 1 < t.slots.length) return { widget: null, why: `Needs other Metrics with ${ENOUGH}+ months in common with ${metric.name}, so this shows sample data.` };
     return { widget: widgetWith(id, [metric.id, ...partners], metric.period), why: null };
   };

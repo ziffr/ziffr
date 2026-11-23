@@ -81,7 +81,7 @@ const HOSTILE: [string, string, string, Where][] = [
   ["an unknown field", text({ ...EXAMPLE, script: "x" }), "is not a field here", '"script"'],
   ["an unknown field in a mark", withPart({ mark: "plot", axes: "none", marks: [{ mark: "line", show: "values", onClick: "x" }] }), "is not a field here", '"onClick"'],
   ["a style field", withPart({ mark: "text", content: ["a"], css: "color: red" }), "is not a field here", '"css"'],
-  ["an unknown mark", withPart({ mark: "iframe", src: "x" }), "must be one of “text”, “group”, “plot”, “gauge”, “rows”, “polar”, “radar”", '"iframe"'],
+  ["an unknown mark", withPart({ mark: "iframe", src: "x" }), "must be one of “text”, “group”, “plot”, “gauge”, “rows”, “polar”, “radar”, “heatmap”", '"iframe"'],
   ["a part with no mark", withPart({ content: ["a"] }), "needs the field “mark”", { after: '"parts": [' }],
   ["a web address in a name", text({ ...EXAMPLE, name: "See https://evil.example" }), "plain text, without markup or web addresses", '"name"'],
   ["a bare www address", text({ ...EXAMPLE, name: "www.evil.example" }), "without markup or web addresses", '"name"'],
@@ -120,6 +120,8 @@ const HOSTILE: [string, string, string, Where][] = [
   ["a polar plot with an unknown field", withPart({ mark: "polar", show: "values", rings: 9 }), "is not a field here", '"rings"'],
   ["a polar plot of a recipe output without an analysis", withPart({ mark: "polar", show: "recipe.avg" }), "but the design has no analysis", '"recipe.avg"'],
   ["a polar plot of one value", text({ ...WITH_RECIPE, parts: [{ mark: "polar", show: "recipe.sd" }] }), "“recipe.sd” gives one value; this mark needs a series", '"recipe.sd"'],
+  ["a heatmap of something else", withPart({ mark: "heatmap", show: "latest" }), "must be “values”", '"latest"'],
+  ["a heatmap with no show", withPart({ mark: "heatmap" }), "needs the field “show”", { after: '"parts": [' }],
   ["a radar of something else", withPart({ mark: "radar", show: "values" }), "must be “latest”", '"values"'],
   ["a radar against a target", withPart({ mark: "radar", show: "latest", against: "target" }, { slots: [{ label: "M", metrics: "several", min: 3 }] }), "must be “previous”", '"target"'],
   ["a radar of one Metric", withPart({ mark: "radar", show: "latest" }), "A radar needs 3 to 12 spokes", { after: '"parts": [' }],
@@ -150,6 +152,8 @@ describe("checkViewDesign", () => {
     expect(withRecipe.ok ? [] : withRecipe.problems).toEqual([]);
     const polar = checkViewDesign(text(WITH_POLAR_AND_RADAR));
     expect(polar.ok ? [] : polar.problems).toEqual([]);
+    // A heatmap of a Metric's values is a View Design like any other (the built-in Heatmap).
+    expect(checkViewDesign(text({ ...EXAMPLE, parts: [{ mark: "heatmap", show: "values" }] })).ok).toBe(true);
     // Three Slots of one Metric each are three spokes as well.
     expect(checkViewDesign(text({ ...WITH_POLAR_AND_RADAR, analysis: undefined, parts: [{ mark: "radar", show: "latest" }], slots: ["A", "B", "C"].map((label) => ({ label, metrics: "one" })) })).ok).toBe(true);
     const once = writeViewDesign(WITH_RECIPE);

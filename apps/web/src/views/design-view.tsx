@@ -27,6 +27,7 @@ import { StatusChip } from "./header-status";
 import { cn } from "@/lib/utils";
 import { ApprovalMark } from "./approval-mark";
 import { DesignPlot } from "./design-plot";
+import { HeatmapMark } from "./design-heatmap";
 import { PolarMark, RadarMark } from "./design-polar";
 import { useWidgetScale } from "./widget-scale";
 
@@ -203,7 +204,7 @@ function TakeawayPanel({ v, host, title }: { v: DesignValues; host: Extract<NonN
 const drawn = (when: Flag[] | undefined, v: DesignValues) => (when ?? []).every((f) => v.flags[f]);
 
 /** Whether any part drawn takes the free space: a plot, a gauge, a polar plot, a radar or rows. */
-const growing = (parts: Part[], v: DesignValues): boolean => parts.some((p) => drawn(p.when, v) && (p.mark === "group" ? growing(p.parts, v) : p.mark === "plot" || p.mark === "gauge" || p.mark === "rows" || p.mark === "polar" || p.mark === "radar"));
+const growing = (parts: Part[], v: DesignValues): boolean => parts.some((p) => drawn(p.when, v) && (p.mark === "group" ? growing(p.parts, v) : p.mark === "plot" || p.mark === "gauge" || p.mark === "rows" || p.mark === "polar" || p.mark === "radar" || p.mark === "heatmap"));
 
 function PartView({ part, v, ctx }: { part: Part; v: DesignValues; ctx?: (period: string) => void }): ReactNode {
   if (!drawn(part.when, v)) return null;
@@ -231,6 +232,8 @@ function PartView({ part, v, ctx }: { part: Part; v: DesignValues; ctx?: (period
       return <GaugeMark v={v} />;
     case "polar":
       return <PolarMark part={part} v={v} />;
+    case "heatmap":
+      return <HeatmapMark v={v} />;
     case "radar":
       return <RadarMark part={part} v={v} />;
     case "rows":

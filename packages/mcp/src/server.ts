@@ -923,7 +923,7 @@ export function createServer(ziffr: Ziffr): McpServer {
   const id = z.number().int().positive();
   const slugs = z.array(slug).min(1).max(50);
   const fills = z.array(slugs).max(50).describe("Metric slugs for each Slot, in the template's order (from list_templates).");
-  const view = z.enum(["number", "line", "bars", "gauge", "table", "forecast", "correlation", "matrix", "drivers", "ranked", "share", "pictogram", "story-line"]);
+  const view = z.enum(["number", "line", "bars", "gauge", "table", "forecast", "correlation", "matrix", "drivers", "heatmap", "ranked", "share", "pictogram", "story-line"]);
   const settings = z.object({
     window: z.number().int().min(1).max(120).optional().describe("Periods shown."),
     showTarget: z.boolean().optional(),
