@@ -128,7 +128,8 @@ async function actionOf(actor: WebhookActor, input: Record<string, unknown>): Pr
   const gone = new WebhookRequestError("not_found", "There is no such Action for this Webhook.");
   if (id === null) throw gone;
   const { data } = await db().from("actions").select("id, kind, status, purpose, asker_id, assignee_id, metric_id").eq("id", id).eq("workspace_id", ws).maybeSingle();
-  if (!data) throw gone;
+  // A Checklist Task (no Metric) is never sent to a Webhook, and none answers it (spec 0045).
+  if (!data || data.purpose === "checklist" || data.metric_id === null) throw gone;
   // Only what was sent to this Webhook: a leaked secret reaches no further (a send still in flight counts: the recipe may answer first).
   // A link this Webhook made counts as proof too: the log of sends is pruned after 14 days, the link is not.
   const [{ data: sent }, { data: linked }] = await Promise.all([

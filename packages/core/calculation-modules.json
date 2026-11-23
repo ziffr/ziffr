@@ -26,6 +26,7 @@
   "src/series-lines.ts",
   "src/recipe-functions.ts",
   "src/recipe-run.ts",
+  "src/recipe-methods.ts",
   "src/suitability.ts",
   "src/takeaways/strength.ts",
   "src/takeaways/wording.ts",

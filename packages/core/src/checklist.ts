@@ -9,6 +9,7 @@
 // Workflow page and its timeline show of an item's words is decided in `mayReadItem`: its owner, those it is sent to or
 // given to, and everyone but a Guest, or only a Group's people when the item names a `readGroup`.
 import { addWorkingDays } from "./workflow-rules";
+import { runChecklistTasks } from "./checklist-tasks";
 import { infoItems, mayReadItem, workflowPeriod, type InfoItem } from "./checklist-rules";
 import { db } from "./db";
 import { deliverChecklist, deliverNotice } from "./deliveries";
@@ -85,7 +86,8 @@ export async function runChecklistItems(ws: string, wf: Workflow, metrics: Metri
     return [`${wf.name}: checklist waits`];
   }
   await db().from("workflow_step_runs").delete().eq("workflow_id", wf.id).eq("workspace_id", ws).eq("kind", "paused");
-  const log: string[] = [];
+  // Items to tick off give their Tasks (and the Workflow's Remind and Escalate steps treat them), then the ones for information go.
+  const log: string[] = [...(await runChecklistTasks(ws, wf, when.period, when.span, asOf))];
   for (const item of items) {
     // An item that names nobody yet sends nothing and does not use up the period.
     if (!item.people.length && !item.groups.length) continue;

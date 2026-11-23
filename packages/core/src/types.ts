@@ -151,11 +151,17 @@ export type Action = {
   /** null: everyone may read the thread; else only this Group (and the people on it). */
   read_group_id: number | null;
   /** Approval requests and escalations are Actions the Workflow creates. */
-  purpose?: "approval" | "escalation" | "self_check" | null;
+  purpose?: "approval" | "escalation" | "self_check" | "checklist" | null;
   kind: ActionKind;
   due_date: string | null;
   id: number;
-  metric_id: number;
+  /** The Metric it is about; null only for a Checklist Task (purpose `checklist`), which is about its Workflow and period. */
+  metric_id: number | null;
+  /** A Checklist Task's Workflow and the id of the item that gave it (spec 0045); null for every other Action. */
+  workflow_id?: number | null;
+  checklist_item_id?: string | null;
+  /** Whom a Checklist Task was handed over from (the item's Stand-in took it): they keep reading it. */
+  previous_assignee_id?: string | null;
   period_start: string;
   observation_id: number | null;
   asker_id: string;

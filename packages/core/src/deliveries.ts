@@ -20,6 +20,7 @@ import type { Period, Profile, SourceId } from "./types";
 import { CURRENT_PERIOD, periodLabel, periodStart } from "./periods";
 import { yearStartFor } from "./fiscal-year";
 import { announceNewAction } from "./action-state";
+import { checklistAbout } from "./checklist-about";
 import { FROM_APP, type ChangeSource } from "./webhook-events";
 
 /** A path in Ziffr as a link that works outside it (in an email): ZIFFR_SITE_URL in front, when it is set. */
@@ -70,7 +71,7 @@ export async function deliver(input: { kind: DeliveryKind; actionId: number; sen
   // A Task or Question given to someone is also told to the Webhooks, even to oneself: it is in the Workspace either way.
   if (input.kind === "question" || input.kind === "task") await announceNewAction(input.actionId, input.source ?? FROM_APP);
   if (input.senderId === input.recipientId) return;
-  const { data: found } = await db().from("actions").select("id, kind, question, period_start, due_date, workspace_id, metric_id").eq("id", input.actionId).single();
+  const { data: found } = await db().from("actions").select("id, kind, question, period_start, due_date, workspace_id, metric_id, workflow_id").eq("id", input.actionId).single();
   if (!found) return;
   const [a] = await openRows("actions", found.workspace_id, [found]);
   // A question that does not open (changed in the database, or under a destroyed key) is not sent at all.
@@ -85,13 +86,22 @@ export async function deliver(input: { kind: DeliveryKind; actionId: number; sen
   const sender: Profile = member?.role === "guest" ? { ...named, name: "Someone" } : named;
   const via = input.via && CONNECTOR_IDS.includes(input.via) ? input.via : await connectorFor(a.workspace_id, recipient.id, input.kind, a.id);
   const c = CONNECTORS[via];
-  // The Metric's name is sealed, so it is read on its own and opened rather than embedded in the Action.
-  const metric = await openOne("metrics", a.workspace_id, (await db().from("metrics").select("id, name, period").eq("id", a.metric_id).eq("workspace_id", a.workspace_id).maybeSingle()).data) as { name: string; period: Period } | null;
-  if (!metric) return;
+  // The Metric's name is sealed, so it is read on its own and opened rather than embedded in the Action. A Checklist Task
+  // (spec 0045) has no Metric: it is about its Workflow and period, and the message says so where a Metric's name would be.
+  let about: { name: string; period: string };
+  if (a.metric_id === null) {
+    const w = (await checklistAbout(a.workspace_id, [{ workflow_id: a.workflow_id, period_start: a.period_start }]))(a.workflow_id, a.period_start);
+    if (!w.workflow) return;
+    about = { name: w.workflow.name, period: w.period };
+  } else {
+    const metric = await openOne("metrics", a.workspace_id, (await db().from("metrics").select("id, name, period").eq("id", a.metric_id).eq("workspace_id", a.workspace_id).maybeSingle()).data) as { name: string; period: Period } | null;
+    if (!metric) return;
+    about = { name: metric.name, period: periodLabel(a.period_start, metric.period, await yearStartFor(a.workspace_id, metric.period)) };
+  }
   const ref = refFor(a.id);
   const { subject, body } = c.render({
     kind: input.kind,
-    action: { id: a.id, kind: a.kind, question: a.question, metric: metric.name, period: periodLabel(a.period_start, metric.period, await yearStartFor(a.workspace_id, metric.period)), due: a.due_date },
+    action: { id: a.id, kind: a.kind, question: a.question, metric: about.name, period: about.period, due: a.due_date },
     sender, recipient, text: input.text, correction: input.correction == null ? null : String(input.correction),
     link: linkTo(`/actions/${a.id}`), ref, repliesReturn: repliesReturn(via, a.workspace_id, await settingsInEffect()),
   });

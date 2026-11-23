@@ -1,9 +1,9 @@
 // What every route under /api/v1/actions/{id} shares (ticket #427): the id from the path, the source a change is
 // recorded with (the remote MCP Server in this process, or the API), and a refusal in Ziffr's words as 422.
 import { ActionRefused, type ActionSource } from "@ziffr/core/api-actions";
-import { errorBody, json } from "@/lib/api";
+import { errorBody, json, jsonBody } from "@/lib/api";
 import { calledFromMcp } from "@/lib/mcp-context";
-import { idParam } from "../schemas";
+import { idParam, MarkDone } from "../schemas";
 
 /** The context Next.js hands a route under /actions/[id]. */
 export type ActionCtx = { params: Promise<{ id: string }> };
@@ -11,6 +11,11 @@ export type ActionCtx = { params: Promise<{ id: string }> };
 /** The Action's id from the path, validated. */
 export async function actionId(ctx: ActionCtx): Promise<number> {
   return idParam.parse((await ctx.params).id);
+}
+
+/** The optional note of a request to mark a Task done: the request may have no body at all. */
+export async function noteOf(req: Request): Promise<string | undefined> {
+  return (await req.clone().text()).trim() === "" ? undefined : MarkDone.parse(await jsonBody(req)).note;
 }
 
 /** Where a change comes from, for the Webhook event: "mcp" for a call the remote MCP Server makes, else "api". */

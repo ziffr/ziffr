@@ -37,7 +37,7 @@ type Where = string | { after: string } | { last: string } | null;
 const HOSTILE: [string, string, string, Where][] = [
   ["not JSON", "{ steps: 1 }", "Expected a field name", "{"],
   ["oversized", text({ ...EXAMPLE, description: "x".repeat(RECIPE_LIMITS.bytes) }), "at most 32,768 are allowed", null],
-  ["a later version", text({ ...EXAMPLE, format: "ziffr.analysis/2" }), "this Ziffr reads ziffr.analysis/1", '"format"'],
+  ["a later version", text({ ...EXAMPLE, format: "ziffr.analysis/3" }), "this Ziffr reads ziffr.analysis/1, ziffr.analysis/2", '"format"'],
   ["an unknown field", text({ ...EXAMPLE, code: "return fetch('x')" }), "is not a field here", '"code"'],
   ["a function the library does not have", withSteps([{ id: "x", fn: "eval", of: "slot1" }]), "must be one of “movingAverage”", '"eval"'],
   ["code in a parameter", withSteps([{ id: "x", fn: "movingAverage", of: "slot1", window: "3; fetch()" }]), "must be a whole number", '"3; fetch()"'],

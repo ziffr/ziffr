@@ -206,7 +206,7 @@ export default async function MetricPage({ params, searchParams }: { params: Pro
         <MetricToolbar
           id={metric.id} people={people} metric={{ id: metric.id, name: metric.name, slug: metric.slug, description: metric.description, unit: metric.unit, period: metric.period }} mcp={mcpAddress()} record={record} askable={askable}
           share={isOwner ? { name: metric.name, ownerId: metric.owner_id, shares, groups, canInvite: can(actor, "manage-members") } : null} alert={alertMe ? { mine: alertMe.mine, choices: alertMe.choices, webhooks: alertMe.webhooks } : null}
-          canDuplicate={can(actor, "create") && !metric.formula} canPaste={mayPaste(metric, tokens, actor.personId)} dashboards={dashboards.filter((d) => d.role !== "viewer").map((d) => ({ id: d.id, name: d.name }))}
+          canDuplicate={can(actor, "create") && !metric.formula} canPaste={mayPaste(metric, tokens, actor.personId)} canCreateDashboard={can(actor, "create")} dashboards={dashboards.filter((d) => d.role !== "viewer").map((d) => ({ id: d.id, name: d.name }))}
           archive={{ allowed: archivable && !demo, archived: Boolean(metric.archived_at) }} canDelete={isOwner && !demo}
         />
       </PageHeader>

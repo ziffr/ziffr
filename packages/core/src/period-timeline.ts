@@ -24,7 +24,7 @@ import { localTime } from "./workspace-clock";
 import type { Action, ChecklistItem, Metric, Period, WorkflowConfig } from "./types";
 
 /** What kind of thing happened. */
-export type TimelineKind = "asked" | "reminded" | "in" | "action" | "approval_asked" | "approved" | "sent_back" | "checked" | "note" | "published" | "locked" | "snapshot" | "checklist_sent";
+export type TimelineKind = "asked" | "reminded" | "in" | "action" | "approval_asked" | "approved" | "sent_back" | "checked" | "note" | "published" | "locked" | "snapshot" | "checklist_sent" | "checklist_given" | "checklist_done";
 
 /** One line of the timeline: one event, or several of the same kind close together. */
 export type TimelineEvent = {
@@ -59,6 +59,8 @@ export type PeriodTimeline = {
   of: number;
   published: number;
   locked: number;
+  /** The Workflow's Checklist Tasks of the period (spec 0045): how many were given, and how many of them are done. Counts only. */
+  checklist: { done: number; of: number };
   events: TimelineEvent[];
 };
 
@@ -226,13 +228,15 @@ export async function periodTimelineAbout(actor: Actor | KeyActor, workflowId: n
   const { yearStart, numberStyle, zone } = c;
   const label = periodLabel(period, ((countable[0] ?? mine[0])?.period ?? "month") as Period, yearStart as YearStart);
   const base = { workflow: wf, period, label };
-  if (!ids.length) return { ...base, in: 0, of: 0, published: 0, locked: 0, events: [] };
+  if (!ids.length) return { ...base, in: 0, of: 0, published: 0, locked: 0, checklist: { done: 0, of: 0 }, events: [] };
 
-  const [{ data: prompts }, { data: valueRows }, { data: actions }, { data: states }] = await Promise.all([
+  const [{ data: prompts }, { data: valueRows }, { data: actions }, { data: states }, { data: tasks }] = await Promise.all([
     db().from("prompts").select("id, metric_id, submitter_id, sent_at").eq("workspace_id", ws).in("metric_id", ids).eq("period_start", period).order("sent_at").order("id"),
     db().from("observations").select("id, metric_id, value, value_sealed, submitter_id, created_at").eq("workspace_id", ws).in("metric_id", ids).eq("period_start", period).order("created_at").order("id"),
     db().from("actions").select("id, metric_id, asker_id, assignee_id, read_group_id, purpose, kind, question, created_at, workspace_id").eq("workspace_id", ws).in("metric_id", ids).eq("period_start", period).order("id"),
     db().from("period_states").select("metric_id, state, updated_at").eq("workspace_id", ws).in("metric_id", ids).eq("period_start", period),
+    // The Workflow's Checklist Tasks of the period: no Metric, so they are found by their Workflow.
+    db().from("actions").select("id, asker_id, assignee_id, previous_assignee_id, read_group_id, status, question, created_at, updated_at, workspace_id, metric_id").eq("workspace_id", ws).eq("workflow_id", workflowId).eq("purpose", "checklist").eq("period_start", period).order("id"),
   ]);
   // Values are sealed with the Workspace Key: one that does not open still counts as in, but is not shown.
   const values = await openRows("observations", ws, (valueRows ?? []) as Record<string, unknown>[]);
@@ -243,17 +247,21 @@ export async function periodTimelineAbout(actor: Actor | KeyActor, workflowId: n
 
   // Threads: only the ones this viewer may read are opened at all.
   const owners = new Map(mine.map((m) => [m.id, m.owner_id]));
-  const readable = threadReader(viewer, groups, (id) => owners.get(id), ws, visible);
+  const readable = threadReader(viewer, groups, (id) => owners.get(id), ws, visible, actor.role);
   // Only Threads of Metrics they see, and that they may read, are opened: the columns decided on are not sealed.
   const allowed = (actions ?? []).filter((a) => visible.has(a.metric_id as number) && readable(a as unknown as Action & { workspace_id: string }));
   const opened = await openRows("actions", ws, allowed);
-  const mayRead = new Set(opened.map((a) => a.id as number));
+  // A Checklist Task is read by the same rule (no Metric to see): its words and Thread only for someone who may read it.
+  const taskRows = (tasks ?? []) as unknown as (Action & { workspace_id: string })[];
+  const openedTasks = await openRows("actions", ws, taskRows.filter((a) => readable(a)) as unknown as Record<string, unknown>[]);
+  const mayRead = new Set([...opened, ...openedTasks].map((a) => a.id as number));
   const readableIds = [...mayRead];
   const { data: messageRows } = readableIds.length
     ? await db().from("thread_messages").select("id, action_id, author_id, body, correction_status, created_at").eq("workspace_id", ws).in("action_id", readableIds).order("created_at").order("id")
     : { data: [] };
   const messages = await openRows("thread_messages", ws, messageRows ?? []);
   const actionById = new Map(opened.map((a) => [a.id as number, a]));
+  const taskById = new Map(openedTasks.map((a) => [a.id as number, a]));
 
   // Dashboards of this viewer that draw one of these Metrics, and their shown Snapshots of this period.
   const dashboards = c.dashboards;
@@ -269,7 +277,7 @@ export async function periodTimelineAbout(actor: Actor | KeyActor, workflowId: n
   const peopleIds = new Set<string>();
   for (const p of prompts ?? []) if (visible.has(p.metric_id as number)) peopleIds.add(p.submitter_id as string);
   for (const v of values) if (visible.has(v.metric_id as number) && v.submitter_id) peopleIds.add(v.submitter_id as string);
-  for (const a of opened) if (mayRead.has(a.id as number)) { peopleIds.add(a.asker_id as string); peopleIds.add(a.assignee_id as string); }
+  for (const a of [...opened, ...openedTasks]) if (mayRead.has(a.id as number)) { peopleIds.add(a.asker_id as string); peopleIds.add(a.assignee_id as string); }
   for (const m of messages) peopleIds.add(m.author_id as string);
   const { data: profileRows } = await db().from("profiles").select("id, name").in("id", [...peopleIds]);
   // A Guest is told only their own name (peopleFor): everyone else reads "Someone".
@@ -308,6 +316,16 @@ export async function periodTimelineAbout(actor: Actor | KeyActor, workflowId: n
     else if (purpose === "self_check") raw.push({ at, kind: "action", metric, text: `${nameOf(a.assignee_id as string)} was asked to check their own value of ${metric}`, path, metricId });
     else if (purpose === "escalation") raw.push({ at, kind: "action", metric, text: `${metric} was missing: ${nameOf(a.assignee_id as string)} was asked to follow up`, path, metricId });
     else raw.push({ at, kind: "action", metric, text: `${nameOf(a.asker_id as string)} ${a.kind === "task" ? "gave" : "asked"} ${nameOf(a.assignee_id as string)} ${a.kind === "task" ? "a task" : "a question"} about ${metric}`, detail: typeof a.question === "string" ? firstWords(a.question) : undefined, path, metricId });
+  }
+  // Checklist Tasks given and ticked off: the words only where the viewer may read the Task, else that one was.
+  for (const t of taskRows) {
+    const a = taskById.get(t.id);
+    const path = a ? `/actions/${t.id}` : undefined;
+    raw.push({ at: new Date(t.created_at), kind: "checklist_given", metric: null, text: a ? `“${firstWords(String(a.question ?? ""))}” was given to ${nameOf(String(a.assignee_id))}` : "A checklist task was given", path });
+    if (t.status === "closed") {
+      const last = [...messages].reverse().find((m) => m.action_id === t.id && m.author_id === (a?.assignee_id ?? ""));
+      raw.push({ at: new Date(t.updated_at), kind: "checklist_done", metric: null, text: a ? `“${firstWords(String(a.question ?? ""))}” was ticked off` : "A checklist task was ticked off", detail: a && typeof last?.body === "string" && last.body ? firstWords(last.body) : undefined, path });
+    }
   }
   for (const msg of messages) {
     const action = actionById.get(msg.action_id as number);
@@ -355,7 +373,7 @@ export async function periodTimelineAbout(actor: Actor | KeyActor, workflowId: n
   const events = group(raw, totalOf, zone, new Set(countable.map((m) => m.id)), nameOf);
   const inNow = new Set(values.map((v) => v.metric_id as number).filter((id) => countable.some((m) => m.id === id))).size;
   const stateOf = (s: string) => (states ?? []).filter((r) => r.state === s && countable.some((m) => m.id === r.metric_id)).length;
-  return { ...base, in: inNow, of: totalOf, published: stateOf("published") + stateOf("locked"), locked: stateOf("locked"), events };
+  return { ...base, in: inNow, of: totalOf, published: stateOf("published") + stateOf("locked"), locked: stateOf("locked"), checklist: { done: taskRows.filter((t) => t.status === "closed").length, of: taskRows.length }, events };
 }
 
 /** Raw events in time order as lines: some kinds merge when close together, the rest stand alone. */

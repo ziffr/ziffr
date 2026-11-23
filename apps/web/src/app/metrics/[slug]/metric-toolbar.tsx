@@ -6,7 +6,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Archive, ArchiveRestore, Bell, Copy, History, LayoutDashboard, Send, Sigma, Trash2 } from "lucide-react";
-import { placeWidget } from "@/app/canvas-actions";
+import { createDashboardNamed, placeWidget } from "@/app/canvas-actions";
 import { told } from "@/lib/action-toast";
 import { AlertMe, type WebhookChoice } from "@/components/alerts";
 import { usePanel } from "@/lib/panel-param";
@@ -34,6 +34,8 @@ export type MetricToolbarProps = Pick<ObjectToolbarProps, "id" | "people" | "sha
   /** Whether they may paste or upload values for it: it takes the web form and they submit it. */
   canPaste: boolean;
   dashboards: { id: number; name: string }[];
+  /** Whether they may make a dashboard (not a Guest): then "Add to dashboard" also offers a new one. */
+  canCreateDashboard: boolean;
   archive: { allowed: boolean; archived: boolean };
   canDelete: boolean;
 };
@@ -54,7 +56,10 @@ export function MetricToolbar(p: MetricToolbarProps) {
     { label: "Analyze", icon: <Sigma aria-hidden />, onSelect: () => router.push(`/analyze?add=${p.metric.id}`) },
     // Duplicating creates a Metric, which Guests may not; a Derived Metric's formula does not carry over.
     ...(p.canDuplicate ? [{ label: "Duplicate", icon: <Copy aria-hidden />, onSelect: () => router.push(`/metrics/new?copy=${p.metric.id}`) }] : []),
-    ...(p.dashboards.length ? [{ label: "Add to dashboard", icon: <LayoutDashboard aria-hidden />, sub: p.dashboards.map((d) => ({ key: d.id, label: d.name, onSelect: () => { void addTo(d) } })) }] : []),
+    ...(p.dashboards.length || p.canCreateDashboard ? [{ label: "Add to dashboard", icon: <LayoutDashboard aria-hidden />, sub: [
+      ...p.dashboards.map((d) => ({ key: d.id, label: d.name, onSelect: () => { void addTo(d); } })),
+      ...(p.canCreateDashboard ? [{ key: "new", label: "New dashboard with this Metric", separated: p.dashboards.length > 0, onSelect: () => { void addToNew(); } }] : []),
+    ] }] : []),
     ...(p.archive.allowed ? [p.archive.archived
       ? { label: "Bring back", icon: <ArchiveRestore aria-hidden />, onSelect: bringBack, separated: true }
       : { label: "Archive…", icon: <Archive aria-hidden />, onSelect: show("archive"), separated: true }] : []),
@@ -63,6 +68,16 @@ export function MetricToolbar(p: MetricToolbarProps) {
   async function addTo(d: { id: number; name: string }) {
     if (told(await placeWidget(d.id, { type: "metric", id: p.metric.id }), "Not added")) return;
     toast.success(`Added to ${d.name}`);
+  }
+  /** Makes a dashboard named for the Metric, puts the Metric on it and opens it (its name and widgets can be changed there). */
+  async function addToNew() {
+    const made = await createDashboardNamed(p.metric.name);
+    if (told(made, "No dashboard was made")) return;
+    const id = made as number;
+    // If only the adding failed the dashboard exists: open it, so it is not lost.
+    if (told(await placeWidget(id, { type: "metric", id: p.metric.id }), "The dashboard was made, but the Metric was not added")) { router.push(`/dashboards/${id}`); return; }
+    toast.success(`Made the dashboard “${p.metric.name}”`);
+    router.push(`/dashboards/${id}`);
   }
   return (
     <>

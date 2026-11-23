@@ -30,13 +30,13 @@ export default async function ActionPage({ params }: { params: Promise<{ id: str
   // "View as" exists only in the demo: elsewhere nobody can answer as someone else, so the hint is left out.
   const [thread0, people, viewer, yearStart, numberStyle, demo] = await Promise.all([actionThread(await currentActor(), id), getProfileMap(), viewerId(), getYearStart(), getNumberStyle(), isDemo()]);
   if (!thread0) notFound();
-  const { action: a, metric: m, chartMetric, observation: obs, chart: window, seesMetric, messages: msgs, deliveries: sent, externalLinks } = thread0;
+  const { action: a, metric: m, about, chartMetric, observation: obs, chart: window, seesMetric, messages: msgs, deliveries: sent, externalLinks } = thread0;
   const isAsker = viewer === a.asker_id;
   // A Self-check is decided only by Confirm or Correct: closed or reopened by hand, it would decide nothing and leave
   // the value waiting (the core refuses it too).
   const canCloseOrReopen = isAsker && a.purpose !== "self_check";
   const isAssignee = viewer === a.assignee_id;
-  const isOwner = viewer === m.owner_id;
+  const isOwner = m !== null && viewer === m.owner_id;
   const thread = msgs as ThreadMessage[];
   // What changed against the period before: only from the periods around, which a viewer who does not see the Metric never gets.
   const at = window.findIndex((p) => p.period === a.period_start);
@@ -51,9 +51,10 @@ export default async function ActionPage({ params }: { params: Promise<{ id: str
           <StatusBadge status={a.status} kind={a.kind} />
           <span className="rounded-[var(--radius-input)] border border-[var(--color-rule-2)] px-1.5 py-0.5 text-xs font-medium capitalize">{a.kind}</span>
           {a.due_date && <span className="text-xs">due {formatDate(a.due_date)}</span>}
-          {seesMetric ? <Link href={`/metrics/${m.slug}`} className="font-medium text-foreground hover:underline">{m.name}</Link> : <span className="font-medium text-foreground">{m.name}</span>}<span>{periodLabel(a.period_start, m.period, yearStart)}</span>
+          {/* A Checklist Task has no Metric: it names its Workflow and period instead (spec 0045). */}
+          {m === null ? <>{about?.workflow ? <Link href={`/workflows?id=${about.workflow.id}`} className="font-medium text-foreground hover:underline">{about.workflow.name}</Link> : null}<span>{about?.period}</span></> : <>{seesMetric ? <Link href={`/metrics/${m.slug}`} className="font-medium text-foreground hover:underline">{m.name}</Link> : <span className="font-medium text-foreground">{m.name}</span>}<span>{periodLabel(a.period_start, m.period, yearStart)}</span></>}
           {a.breakdown_label && <span>row <span className="font-medium text-foreground">{a.breakdown_label}</span></span>}
-          {obs && <><span className="fig text-foreground">{formatValue(m, obs.value, numberStyle)}</span>{obs.original_value !== null && <span className="line-through">{formatValue(m, obs.original_value, numberStyle)}</span>}</>}
+          {obs && m && <><span className="fig text-foreground">{formatValue(m, obs.value, numberStyle)}</span>{obs.original_value !== null && <span className="line-through">{formatValue(m, obs.original_value, numberStyle)}</span>}</>}
         </div>
         <div className="mt-3 flex gap-3">
           <Avatar p={people[a.asker_id]} />
@@ -68,7 +69,7 @@ export default async function ActionPage({ params }: { params: Promise<{ id: str
             Also in {externalLinks.map((l, i) => <span key={`${l.system}-${i}`}>{i > 0 && ", "}{l.url ? <a href={l.url} target="_blank" rel="noopener noreferrer nofollow" className="underline">{l.system}</a> : l.system}</span>)}
           </p>
         )}
-        {a.purpose === "approval" && isAssignee && a.status === "open" && (
+        {a.purpose === "approval" && m && isAssignee && a.status === "open" && (
           <ApprovalBar actionId={a.id} current={obs?.value ?? null}>
             {obs ? (
               <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1">
@@ -101,7 +102,7 @@ export default async function ActionPage({ params }: { params: Promise<{ id: str
             <div className="min-w-0 flex-1">
               <div className="text-xs text-muted-foreground"><span className="font-medium text-foreground">{people[t.author_id]?.name}</span>{t.via && <> via {t.via}</>}, {formatDistanceToNow(new Date(t.created_at), { addSuffix: true })}</div>
               <p className="mt-0.5 text-sm whitespace-pre-wrap">{t.body}</p>
-              {t.correction_value !== null && (
+              {t.correction_value !== null && m && (
                 <div className="mt-2 flex flex-wrap items-center gap-2 rounded-lg border border-dashed p-2 text-sm">
                   <PencilLine className="size-4 text-primary" />
                   Correction: <span className="line-through text-muted-foreground">{formatValue(m, obs?.original_value ?? obs?.value, numberStyle)}</span> → <span className="font-semibold">{formatValue(m, Number(t.correction_value), numberStyle)}</span>
@@ -127,7 +128,7 @@ export default async function ActionPage({ params }: { params: Promise<{ id: str
               Waiting for {people[a.assignee_id]?.name.split(" ")[0]}.{demo && <> To answer as {people[a.assignee_id]?.name.split(" ")[0]}, switch “Viewing as” (at the bottom of the sidebar).</>}
             </p>
           )}
-          <Textarea name="body" rows={3} placeholder={isAssignee ? "Explain what happened…" : "Reply…"} />
+          <Textarea name="body" rows={3} placeholder={a.purpose === "checklist" && isAssignee ? "A note for the person who asked (optional)…" : isAssignee ? "Explain what happened…" : "Reply…"} />
           <div className="mt-3 flex flex-wrap items-center gap-3">
             {obs && (
               <label className="flex items-center gap-2 text-sm text-muted-foreground">

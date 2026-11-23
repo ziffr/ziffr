@@ -12,6 +12,7 @@ import { readableActions, systemTextFor, visibleMetricIds } from "./access";
 import { getMetrics, getSeriesOf } from "./workspace-data";
 import { listWorkflowNames, periodTimelineAbout, workflowPeriods, timelineContext, inZone, firstWords, type TimelineContext, type TimelineEventAbout, type TimelineKind } from "./period-timeline";
 import { periodLabel, type YearStart } from "./periods";
+import { checklistAbout } from "./checklist-about";
 import { yearStartOf } from "./fiscal-year";
 import { formatValue } from "./format";
 import { numberStyleOf } from "./workspace-settings";
@@ -29,8 +30,11 @@ export type AskedRow = {
   /** The question or task, with the Approval wording the web shows. */
   question: string;
   isApproval: boolean;
-  metricId: number;
+  /** The Metric it is about; null for a Checklist Task (spec 0045), which is about its Workflow (`workflowName`) and period. */
+  metricId: number | null;
+  /** The Metric's name, or the Workflow's for a Checklist Task. */
   metricName: string;
+  workflowId: number | null;
   /** The period, as written for a list ("Mar 2026"). */
   periodLabel: string;
   askerId: string;
@@ -56,13 +60,25 @@ export async function actionsAskedByMe(actor: Actor): Promise<AskedRow[]> {
   const viewer = actor.personId;
   const [readable, metrics, hideSystem, yearStart, numberStyle] = await Promise.all([readableActions(ws, viewer), getMetrics(ws), systemTextFor(actor), yearStartOf(ws), numberStyleOf(ws)]);
   const picked = readable.filter((a) => a.asker_id === viewer);
+  const about = await checklistAbout(ws, picked);
   const visible = await visibleMetricIds(ws, viewer, metrics);
   const byId = new Map(metrics.map((m) => [m.id, m]));
   // The change needs the Metric's series: only for the Metrics with Actions the person sees, and not for too many.
-  const wanted = [...new Set(picked.map((a) => a.metric_id).filter((id) => visible.has(id)))].slice(0, MOST_METRICS_WITH_CHANGE);
+  const wanted = [...new Set(picked.map((a) => a.metric_id).filter((id): id is number => id !== null && visible.has(id)))].slice(0, MOST_METRICS_WITH_CHANGE);
   const series = wanted.length ? await getSeriesOf(ws, metrics, wanted) : {};
   const rows: AskedRow[] = [];
   for (const a of picked) {
+    // A Checklist Task has no Metric and so no value or change: its Workflow and period stand where they would be.
+    if (a.metric_id === null) {
+      const w = about(a.workflow_id, a.period_start);
+      if (!w.workflow) continue;
+      rows.push({
+        id: a.id, kind: a.kind, status: a.status, group: askedGroup(a), question: hideSystem(a.question, Boolean(a.purpose)), isApproval: false,
+        metricId: null, metricName: w.workflow.name, workflowId: w.workflow.id, periodLabel: w.period,
+        askerId: a.asker_id, assigneeId: a.assignee_id, dueDate: a.due_date ?? null, createdAt: a.created_at, value: null, changePercent: null,
+      });
+      continue;
+    }
     const m = byId.get(a.metric_id);
     if (!m) continue;
     const points = visible.has(m.id) ? series[m.slug] ?? [] : [];
@@ -73,7 +89,7 @@ export async function actionsAskedByMe(actor: Actor): Promise<AskedRow[]> {
       id: a.id, kind: a.kind, status: a.status, group: askedGroup(a),
       question: hideSystem(a.question, Boolean(a.purpose)),
       isApproval: a.purpose === "approval",
-      metricId: m.id, metricName: m.name, periodLabel: periodLabel(a.period_start, m.period, yearStart as YearStart, true),
+      metricId: m.id, metricName: m.name, workflowId: null, periodLabel: periodLabel(a.period_start, m.period, yearStart as YearStart, true),
       askerId: a.asker_id, assigneeId: a.assignee_id, dueDate: a.due_date ?? null, createdAt: a.created_at,
       value: here === null ? null : formatValue(m, here, numberStyle),
       changePercent: here !== null && before !== null && before !== 0 ? ((here - before) / Math.abs(before)) * 100 : null,
@@ -173,6 +189,8 @@ export async function actionsTimeline(actor: Actor, filter: TimelineFilter = {})
     const name = new Map(ctx.shown.map((p) => [p.id, p.name]));
     const nameOf = (id: string) => name.get(id) ?? "Someone";
     for (const a of readable) {
+      // A Checklist Task is on its Workflow's Period Timeline, not here (it has no Metric).
+      if (a.metric_id === null) continue;
       const m = byId.get(a.metric_id);
       if (!m || wfOf(m) !== null || !visible.has(m.id) || (filter.period && filter.period !== a.period_start)) continue;
       const at = new Date(a.created_at);

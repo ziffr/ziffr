@@ -157,7 +157,6 @@ function PeriodBars({ m, data, panel, domain }: { m: Metric; data: CanvasData; p
   return (
     <figure className="flex h-full min-w-0 flex-col">
       <div ref={box} className="min-h-0 flex-1" role="img" aria-label={`${m.name}, ${MEASURE_LABEL[panel.measure ?? "value"]}: ${rows.map((r) => `${r.label} ${fmt(m, panel, r.value, data.numberStyle)}${r.projected ? " (projection)" : ""}`).join(", ")}`} />
-      {rows.some((r) => r.projected) && <figcaption className="widget-text-xs text-muted-foreground">Highlighted bars after the last actual are projections.</figcaption>}
     </figure>
   );
 }
@@ -281,14 +280,20 @@ export function PanelView({ panel, data, render }: { panel: Panel; data: CanvasD
     const vals = ms.flatMap((m) => measureSeries(m, data, panel).map((r) => r.value));
     domain = [Math.min(0, ...vals), Math.max(0, ...vals)];
   }
+  // One note for the whole row of charts, below them: a note inside the one chart that has projections took height from that
+  // chart only, so its bars stood shorter than its neighbours'.
+  const projected = panel.type === "period-bars" && ms.some((m) => measureSeries(m, data, panel).some((r) => r.projected));
   return (
-    <div className="grid h-full min-h-0 gap-4" style={{ gridTemplateColumns: `repeat(${ms.length}, minmax(0, 1fr))` }}>
-      {ms.map((m) => (
-        <div key={m.id} className="flex min-h-0 min-w-0 flex-col">
-          {(ms.length > 1 || panel.title) && <div className="mb-1 text-center widget-text-sm font-semibold text-[var(--color-print)]">{ms.length > 1 ? m.name : panel.title}</div>}
-          <div className="min-h-0 flex-1">{render(m, domain)}</div>
-        </div>
-      ))}
+    <div className="flex h-full min-h-0 flex-col gap-1">
+      <div className="grid min-h-0 flex-1 gap-4" style={{ gridTemplateColumns: `repeat(${ms.length}, minmax(0, 1fr))` }}>
+        {ms.map((m) => (
+          <div key={m.id} className="flex min-h-0 min-w-0 flex-col">
+            {(ms.length > 1 || panel.title) && <div className="mb-1 text-center widget-text-sm font-semibold text-[var(--color-print)]">{ms.length > 1 ? m.name : panel.title}</div>}
+            <div className="min-h-0 flex-1">{render(m, domain)}</div>
+          </div>
+        ))}
+      </div>
+      {projected && <p className="widget-text-xs text-muted-foreground">Highlighted bars after the last actual are projections.</p>}
     </div>
   );
 }

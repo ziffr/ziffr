@@ -33,7 +33,7 @@ async function action(w: W, row: Record<string, unknown>) {
 }
 const share = (w: W, metricId: number, person: string) => db().from("shares").insert({ workspace_id: w.id, object_type: "metric", object_id: metricId, user_id: person, role: "viewer" });
 const flat = (s: Schedule) => [...s.overdue, ...s.days.flatMap((d) => d.entries), ...s.undated];
-const brief = (s: Schedule) => flat(s).map((e) => `${e.kind} ${e.metric.name} ${e.period.start} ${e.date ?? "undated"}${e.overdue ? ` overdue ${e.overdueWorkingDays}` : ""}`);
+const brief = (s: Schedule) => flat(s).map((e) => `${e.kind} ${e.metric?.name} ${e.period.start} ${e.date ?? "undated"}${e.overdue ? ` overdue ${e.overdueWorkingDays}` : ""}`);
 
 describe("values due", () => {
   it("falls on the Workflow's Due Date in working days, includes future periods in the span and leaves when a value came", async () => {

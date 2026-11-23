@@ -1,6 +1,7 @@
 // What the web app's pages read (spec 0001: one core). Every loader takes the Actor first, reads one Workspace only,
 // and returns only what that person may see; pages render it and query nothing themselves.
 import { withoutChecklistWords } from "./checklist";
+import { checklistAbout } from "./checklist-about";
 import { openWorkflowRows } from "./workflow-rows";
 import { guestWorkflowIds } from "./period-timeline";
 import { feedIdsAmong } from "./feed-people";
@@ -330,9 +331,19 @@ export async function actionThread(actor: Actor, id: number) {
   const action = { ...opened, question: hideSystem(opened.question, Boolean(opened.purpose)) } as Action;
   const [groups, metrics] = await Promise.all([getGroups(ws), getMetrics(ws)]);
   const visible = await visibleMetricIds(ws, actor.personId, metrics);
-  const can = threadReader(actor.personId, groups, (m) => metrics.find((x) => x.id === m)?.owner_id, ws, visible);
+  const can = threadReader(actor.personId, groups, (m) => metrics.find((x) => x.id === m)?.owner_id, ws, visible, actor.role);
+  if (!can(action as Action & { workspace_id: string })) return null;
+  // A Checklist Task has no Metric (spec 0045): no chart and no value, only the Workflow and the period it is about.
+  if (action.metric_id === null) {
+    const about = (await checklistAbout(ws, [{ workflow_id: action.workflow_id, period_start: action.period_start }]))(action.workflow_id, action.period_start);
+    const [{ data: messages }, { data: deliveries }] = await Promise.all([
+      db().from("thread_messages").select("*").eq("workspace_id", ws).eq("action_id", id).order("created_at"),
+      db().from("deliveries").select("id, connector, recipient_id, kind, external_ref, created_at").eq("workspace_id", ws).eq("action_id", id).order("id"),
+    ]);
+    return { action, metric: null, about, chartMetric: null, seesMetric: false, observation: null, chart: [] as Point[], messages: await openRows("thread_messages", ws, messages), deliveries: deliveries ?? [], externalLinks: [] as { system: string; url: string | null }[] };
+  }
   const metric = metrics.find((m) => m.id === action.metric_id);
-  if (!metric || !can(action as Action & { workspace_id: string })) return null;
+  if (!metric) return null;
   const seesMetric = visible.has(metric.id);
   const [{ data: messages }, { data: deliveries }, observation, series, { data: links }] = await Promise.all([
     db().from("thread_messages").select("*").eq("workspace_id", ws).eq("action_id", id).order("created_at"),
@@ -352,7 +363,7 @@ export async function actionThread(actor: Actor, id: number) {
   // Security: someone on the Action who does not see its Metric gets only these few fields of it, never its
   // description, settings or Workflow; the whole Metric, for the chart, only goes to a viewer who sees it.
   const named: ActionMetric = { id: metric.id, name: metric.name, slug: metric.slug, period: metric.period, owner_id: metric.owner_id, decimals: metric.decimals, unit: metric.unit, unit_position: metric.unit_position };
-  return { action, metric: named, chartMetric: seesMetric ? metric : null, seesMetric, observation: value, chart, messages: await openRows("thread_messages", ws, messages), deliveries: deliveries ?? [], externalLinks };
+  return { action, metric: named, about: null, chartMetric: seesMetric ? metric : null, seesMetric, observation: value, chart, messages: await openRows("thread_messages", ws, messages), deliveries: deliveries ?? [], externalLinks };
 }
 
 /** A personal form link's page, for anyone holding the code: the Metric, whose form it is, and this period's value.
