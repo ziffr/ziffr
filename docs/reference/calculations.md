@@ -187,6 +187,9 @@ The functions an Analysis Recipe can use (spec 0024), and running a recipe. Each
 Mutation testing changes the code on purpose and expects a test to fail. A change that leaves every result the same cannot fail a test. Such a mutant is left out in the code with a `// Stryker disable next-line <mutator>: <reason>` comment, and listed here as `file` · mutator · reason. The catalogue test fails when a comment has no line here.
 
 <!-- mutants: one line per disabled mutant, "- `src/file.ts` · Mutator · reason" -->
+- `src/method-picker-fit.ts` · ConditionalExpression · An entry with no checks of its own (the shares, the bridge) has no minimum of periods to read; without the guard the minimum is undefined and no count is below it, so the result is the same.
+- `src/method-picker-run.ts` · ConditionalExpression · A Metric has no Breakdown rows under an undefined period either, so looking them up without the test finds none.
+- `src/method-picker-run.ts` · ArrayDeclaration · A Metric whose values were not read has none; a single made-up element is one value, far below every minimum of every Method, and is refused in the same words (the lookup of a Metric's values for a Method and for its own period).
 - `src/methods/track-record.ts` · EqualityOperator · The size of a BigInt, `n < 0 ? -n : n`, and the four-value guard `<= 4`: with `<=` the size of 0 is 0, and four values predict nothing from the fifth on, so `<` and `<=` give the same.
 - `src/methods/normal-curve.ts` · EqualityOperator · The switch between the series and the continued fraction at x = 1.5 (both agree to 1e-13 there), one more term of the series (below 1e-18 of the sum), and `z >= 0` at 0 (the tail is 1/2 and both sides give 1/2).
 - `src/exact.ts` · EqualityOperator · The size of a BigInt, `n < 0 ? -n : n`: with `<=`, 0 becomes −0, which for a BigInt is the same number.
