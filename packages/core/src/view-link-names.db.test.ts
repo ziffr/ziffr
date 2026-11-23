@@ -9,6 +9,9 @@ import { createDashboard, placeWidget, saveDashboardText } from "./dashboards";
 import { createDeck, saveDeck } from "./decks";
 import { showSnapshot, takeSnapshot } from "./snapshots";
 import { createViewLink, listViewLinks, openViewLink, revokeViewLink, setViewLinkNames, viewForLink, type ViewPayload } from "./view-links";
+import { openSnapshot } from "./snapshots";
+import { mapViewWords, sealFrozenData, sealing } from "./sealed-words";
+import { workspaceCipher } from "./workspace-keys";
 import { workspace } from "./test/db-fixtures";
 
 const cleanups: (() => Promise<void>)[] = [];
@@ -104,10 +107,11 @@ describe("a View Link and people's names", () => {
       await createViewLink(owner, "deck", deck, { ...dayInput, frozen: false, showNames: true }),
       await createViewLink(owner, "dashboard", dash, { ...dayInput, frozen: true, showNames: true }),
       await createViewLink(owner, "dashboard", dash, { ...dayInput, frozen: false, showNames: true, snapshotId: snap }),
+      await createViewLink(owner, "deck", deck, { ...dayInput, frozen: true, showNames: true }),
     ];
     for (const token of tokens) {
       const view = (await openViewLink(token))!;
-      // Ben owns the shown Metric: he is the one person, and his name is still there for the page to draw.
+      // Ben owns the shown Metric: he is the one person kept (no link view draws a name from this list today).
       expect(view.data.people.map((p) => p.id)).toEqual([ben]);
       expect(view.data.people[0].name).toBe(others.find((o) => o.id === ben)!.name);
       expect(view.data.people.some((p) => p.role !== "")).toBe(false);
@@ -115,6 +119,21 @@ describe("a View Link and people's names", () => {
       for (const id of [guest, contact, others[0].id, others[2].id, others[3].id]) expect(text).not.toContain(id);
       expect(text).not.toContain("Head of Secrets");
     }
+    // The owner of a Metric the dashboard draws but its owner may not see is not on the list either.
+    const hidden = await w.metric(others[2].id, { name: `Hidden ${randomUUID().slice(0, 6)}` });
+    await placeWidget(owner, dash, { type: "spec", template: "number", metricIds: [hidden.id], settings: {} }).catch(() => undefined);
+    expect((await openViewLink(tokens[0]))!.data.people.map((p) => p.id)).toEqual([ben]);
+    // A stored frozen row written before the cut, with everyone and their roles: the serve-time cut, end to end.
+    const full = [ben, guest, contact, others[0].id, others[3].id].map((id) => ({ id, name: `Name ${id}`, role: "Head of Secrets", color: "#000", slack_handle: "", email: "", phone: null }));
+    const row = (await db().from("view_links").select("id").eq("token", tokens[2]).single()).data!;
+    const cipher = await workspaceCipher(w.id);
+    const base = (await openViewLink(tokens[2]))!;
+    await db().from("view_links").update({ frozen: sealFrozenData(cipher, "view_links", row.id, mapViewWords({ ...base, data: { ...base.data, people: full } }, sealing(cipher, "view_links", row.id))) }).eq("id", row.id);
+    const reopened = (await openViewLink(tokens[2]))!;
+    expect(reopened.data.people.map((p) => p.id)).toEqual([ben]);
+    expect(JSON.stringify(reopened)).not.toContain("Head of Secrets");
+    // The Snapshot screen names editors from the Workspace's people, not the Snapshot's, which keeps only owners (#902).
+    expect((await openSnapshot(owner, snap)).data.people.map((p) => p.id)).toEqual([ben]);
     // A copy or Snapshot made before the cut holds everyone with their roles: serving it cuts it down.
     const everyone = [ben, guest, contact, others[0].id, others[3].id].map((id) => ({ id, name: `Name ${id}`, role: "Head of Secrets", color: "#000", slack_handle: "", email: "", phone: null }));
     const old = (await openViewLink(tokens[0]))!;
