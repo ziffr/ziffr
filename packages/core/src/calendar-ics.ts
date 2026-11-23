@@ -73,8 +73,8 @@ function namedEvents(input: CalendarInput): string[] {
   return input.entries.flatMap((e) => {
     const summary = `${entryTitle(e)}${e.overdue ? " (overdue)" : ""}`;
     const url = `${input.origin}${e.path}`;
-    const lines = [`${e.metric.name}, ${e.period.label}.`, dueRule(e), e.standingInFor ? `Standing in for ${e.standingInFor.name}.` : null, `Open in Ziffr: ${url}`];
-    const uid = `${e.kind}-${e.actionId ?? e.metric.id}-${e.period.start}-${input.workspaceId}@ziffr`;
+    const lines = [`${e.metric?.name ?? e.workflow?.name ?? "Workflow"}, ${e.period.label}.`, dueRule(e), e.standingInFor ? `Standing in for ${e.standingInFor.name}.` : null, `Open in Ziffr: ${url}`];
+    const uid = `${e.kind}-${e.actionId ?? e.metric?.id}-${e.period.start}-${input.workspaceId}@ziffr`;
     return event(uid, e.date!, summary, lines.filter(Boolean).join("\n"), url, input.now);
   });
 }

@@ -171,7 +171,7 @@ What one person has to do in a Workspace, day by day (the To do view of the Sche
 _Avoid_: Agenda, to-do list, inbox, calendar
 
 **Stand-in**:
-The person asked instead of a submitter who is Away, or who has not answered by the Due Date.
+The person asked instead of a submitter who is Away, or who has not answered by the Due Date. Also whoever a Checklist Task is given to while its Assignee is Away, and whom an Escalation hands it to.
 _Avoid_: Deputy, backup, substitute
 
 **Away**:

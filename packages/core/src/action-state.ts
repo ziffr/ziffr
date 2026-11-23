@@ -12,8 +12,8 @@ import type { WebhookEvent } from "./webhooks";
 /** The three states of an Action. */
 export type ActionStatus = "open" | "answered" | "closed";
 
-/** Which Actions a change may apply to, by what the Action is for: a plain one, an Escalation, an Approval or a Self-check. */
-export type PurposeRule = "any" | "approval" | "plain" | "plain_or_escalation" | "not_self_check" | "approval_or_self_check";
+/** Which Actions a change may apply to, by what the Action is for: a plain one, an Escalation, an Approval, a Self-check or a Checklist Task. */
+export type PurposeRule = "any" | "approval" | "plain" | "plain_or_escalation" | "not_self_check" | "approval_or_self_check" | "checklist";
 
 /** One change of state, with the guards the row must meet and what to tell Webhooks. */
 export type StateChange = {
@@ -27,11 +27,11 @@ export type StateChange = {
   messageId?: number | null;
 };
 
-type Row = { id: number; kind: "task" | "question"; status: ActionStatus; purpose: string | null; asker_id: string; assignee_id: string; metric_id: number; period_start: string };
+type Row = { id: number; kind: "task" | "question"; status: ActionStatus; purpose: string | null; asker_id: string; assignee_id: string; metric_id: number | null; period_start: string };
 
 const purposeFits = (purpose: string | null, rule: PurposeRule) =>
   rule === "any" || (rule === "plain" && purpose === null) || (rule === "plain_or_escalation" && (purpose === null || purpose === "escalation"))
-  || (rule === "approval" && purpose === "approval") || (rule === "not_self_check" && purpose !== "self_check") || (rule === "approval_or_self_check" && (purpose === "approval" || purpose === "self_check"));
+  || (rule === "checklist" && purpose === "checklist") || (rule === "approval" && purpose === "approval") || (rule === "not_self_check" && purpose !== "self_check") || (rule === "approval_or_self_check" && (purpose === "approval" || purpose === "self_check"));
 
 /** The event a change makes, or none. A Task that reaches done or closed is `action.done` once (it is not again when the
  * asker closes what was done); a Question answered is `action.answered`, and closed is `action.done`; a reopen is `action.updated`. */
@@ -66,6 +66,7 @@ export async function changeActionState(workspaceId: string, actionId: number, c
     return { changed: false, status: (now?.status as ActionStatus | undefined) ?? null, refused: false };
   }
   const event = eventForChange(row.kind, row.status, change.to, change.reason);
+  // Webhooks hear nothing of a Checklist Task (spec 0045): their events name a Metric (queueWebhookEvent).
   if (event) await queueWebhookEvent(workspaceId, event.type, source, { actionId: row.id, metricId: row.metric_id, period: row.period_start, threadMessageId: change.messageId ?? null, reason: event.reason });
   return { changed: true, status: change.to, refused: false };
 }
@@ -92,5 +93,5 @@ export async function closeActions(workspaceId: string, where: CloseWhere, sourc
  * made, whichever way the Action was made (asked in the app, a Workflow's question, an Approval or a Self-check). */
 export async function announceNewAction(actionId: number, source: ChangeSource): Promise<void> {
   const { data } = await db().from("actions").select("workspace_id, metric_id, period_start").eq("id", actionId).maybeSingle();
-  if (data) await queueWebhookEvent(data.workspace_id as string, "action.created", source, { actionId, metricId: data.metric_id as number, period: data.period_start as string });
+  if (data) await queueWebhookEvent(data.workspace_id as string, "action.created", source, { actionId, metricId: data.metric_id as number | null, period: data.period_start as string });
 }

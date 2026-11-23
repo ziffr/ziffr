@@ -9,7 +9,7 @@ import { ScheduleAnswer, scheduleQuery } from "../schemas";
 /** One entry as a program sees it. */
 const entry = (req: Request) => (e: ScheduleEntry) => ({
   kind: e.kind, date: e.date, overdue: e.overdue, overdue_working_days: e.overdueWorkingDays,
-  metric: { slug: e.metric.slug, name: e.metric.name }, period: { start: e.period.start, name: e.period.label },
+  metric: e.metric ? { slug: e.metric.slug, name: e.metric.name } : null, workflow: e.workflow, period: { start: e.period.start, name: e.period.label },
   action_id: e.actionId, text: e.text, escalation: e.escalation, standing_in_for: e.standingInFor?.name ?? null,
   no_due_date: e.noDueDate, remind_days_before: e.remindDaysBefore, url: new URL(e.path, req.url).toString(),
 });

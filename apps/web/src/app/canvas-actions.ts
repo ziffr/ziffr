@@ -144,10 +144,11 @@ export async function assignInPlace(input: { metricId: number; period: string; a
   });
 }
 
-/** The assignee marks their task done. */
-export async function markTaskDone(actionId: number) {
+/** The assignee marks their task done, with the words in the reply box as its note, when there are any. */
+export async function markTaskDone(actionId: number, _previous?: unknown, form?: FormData) {
+  const note = form?.get("body");
   return attempt(async () => {
-    await questions.markTaskDone(await currentActor(), Number(actionId));
+    await questions.markTaskDone(await currentActor(), Number(actionId), undefined, typeof note === "string" ? note : undefined);
     done();
   });
 }

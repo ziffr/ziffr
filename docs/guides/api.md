@@ -167,7 +167,7 @@ A key acts on the **Actions** (Questions and Tasks, including the Approvals and 
 | `GET /api/v1/actions` | `actions:read` | The Actions that wait for the creator and those they asked, newest first, a page at a time (`role=assignee` or `asker`, `status`; not closed unless `status` says). `purpose` tells an Approval or Self-check from a plain one. |
 | `POST /api/v1/actions/{id}/replies` | `actions:write` | Replies in the Thread (`body`, optional `correction`), as someone on it. A reply is only words: "approve", "send back" or "confirm" in it decides nothing. |
 | `PATCH /api/v1/actions/{id}` | `actions:write` | `{ "status": "closed" }` or `"open"`: the asker closes or reopens. Never a Self-check. |
-| `POST /api/v1/actions/{id}/done` | `actions:write` | The assignee marks their open Task done. |
+| `POST /api/v1/actions/{id}/done` | `actions:write` | The assignee marks their open Task done, with an optional `{ "note": "..." }` of at most 2,000 characters kept as the Thread's last reply. A Workflow's checklist Task (`purpose: "checklist"`, `metric: null`, `workflow: { id, name }`) is closed by it. |
 | `POST /api/v1/actions/{id}/self-check` | `values:submit` | `{ "decision": "confirm" }` or `{ "decision": "correct", "value": 12 }` on the creator's own value. |
 | `POST /api/v1/actions/{id}/approval` | `values:approve` | `{ "decision": "approve" }` or `{ "decision": "send_back", "comment": "..." }` as the Approver the Workflow names. |
 

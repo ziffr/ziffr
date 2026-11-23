@@ -12,13 +12,14 @@ The page has three parts: the list of Workflows on the left, the steps of the ch
 
 ### What happened, period by period
 
-Under the steps, **What happened, period by period** shows a timeline for each period of the Workflow, the newest first and open, the earlier ones folded (the last four). Each period says how many values are in, such as "5 of 6 in", and whether it is published or locked. Under it are the events in order, with their day and time in the Workspace's time zone:
+Under the steps, **What happened, period by period** shows a timeline for each period of the Workflow, the newest first and open, the earlier ones folded (the last four). Each period says how many values are in, such as "5 of 6 in" (the values and the Workflow's checklist Tasks to tick off count together), and whether it is published or locked. Under it are the events in order, with their day and time in the Workspace's time zone:
 
 - who was asked and reminded, grouped when close together: "Asked 6 people by Email, Slack and Telegram",
 - values that came in, with how many were in by then: "5 values came in (5 of 6 in)",
 - Approvals asked, approved and sent back, Self-checks, Escalations and the Questions and Tasks about the period's values,
 - Metrics published and locked,
 - **Checklist items** sent: "Sent ‘Invoices must be in by Friday.’ to 8 people",
+- **Checklist Tasks** given and ticked off: "‘Reconcile the bank account.’ was given to Ann", "‘Reconcile the bank account.’ was ticked off" with the first words of the note (see [Checklist Tasks](15-actions.md#checklist-tasks)); a Task you may not read shows only that one was given or ticked off,
 - **Snapshots** of dashboards that draw these Metrics, once shown.
 
 Everyone who can look at the Workflow sees the timeline, but only what they may see. A Metric you cannot see appears only as a count ("1 value"), never by name, value or sender. A checklist item shows its words only to those who may read them (see Checklist item below); to everyone else the line says only that "A checklist item was sent". What people said in a Thread shows only if you may read that Thread, and then only as the first words of a note, with a link to the whole Thread. A Thread you may not read is not on your timeline at all. The timeline records nothing of its own: it puts together what Ziffr already keeps. Assistants can read the same timeline with the `period_status` tool of the MCP server.

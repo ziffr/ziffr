@@ -67,6 +67,8 @@ export async function setActionStatus(actor: Actor, actionId: number, status: "o
   if (status === "closed") {
     const { data: a } = await db().from("actions").select("purpose, status").eq("id", Number(actionId)).eq("workspace_id", actor.workspaceId).maybeSingle();
     if (a?.purpose === "approval" && a.status === "open") throw new Error("An Approval is closed by deciding it: approve it or send it back.");
+    // A Checklist Task is closed by ticking it off (finishTask), which is the Assignee's; the asker may reopen it, not close it.
+    if (a?.purpose === "checklist") throw new Error("A checklist task is closed by its Assignee ticking it off.");
   }
   const r = await changeActionState(actor.workspaceId, Number(actionId), { to: status, from: status === "closed" ? ["open", "answered"] : ["answered", "closed"], guard: { askerId: actor.personId, purpose: "not_self_check" } }, source);
   if (r.refused) throw new Forbidden();
@@ -77,9 +79,9 @@ export async function setActionStatus(actor: Actor, actionId: number, status: "o
   }
 }
 
-/** The assignee marks their open task done. */
-export async function markTaskDone(actor: Actor, actionId: number, source: ChangeSource = FROM_APP) {
-  if (!(await finishTask(actor.workspaceId, Number(actionId), actor.personId, source))) throw new Error("That task is not open, or it is not yours.");
+/** The assignee marks their open task done, with an optional note (at most 2,000 characters) kept as the Thread's last reply. */
+export async function markTaskDone(actor: Actor, actionId: number, source: ChangeSource = FROM_APP, note?: string | null) {
+  if (!(await finishTask(actor.workspaceId, Number(actionId), actor.personId, source, note))) throw new Error("That task is not open, or it is not yours.");
 }
 
 /** Where a person hears about each kind of message. A person sets their own; the team default (personId null) is

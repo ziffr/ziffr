@@ -27,7 +27,7 @@ export function PeriodTimelines({ timelines }: { timelines: PeriodTimeline[] }) 
           <details key={t.period} open={i === 0} className="stock rounded-[var(--radius-card)] p-3 text-sm">
             <summary className="flex cursor-pointer flex-wrap items-baseline gap-x-3 gap-y-0.5">
               <span className="font-semibold">{t.label}</span>
-              <span className="text-muted-foreground">{t.of ? `${t.in} of ${t.of} in` : "No values asked for"}</span>
+              <span className="text-muted-foreground">{t.of || t.checklist.of ? `${t.in + t.checklist.done} of ${t.of + t.checklist.of} in` : "No values asked for"}</span>
               {t.locked > 0 && t.locked === t.of && <span className="text-muted-foreground">locked</span>}
               {t.locked < t.of && t.published > 0 && <span className="text-muted-foreground">{t.published} published</span>}
             </summary>

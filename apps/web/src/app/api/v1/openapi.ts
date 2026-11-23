@@ -13,6 +13,8 @@ type Endpoint = {
   scope: Scope | typeof FEED_SCOPE | "usage";
   query?: z.ZodObject;
   body?: z.ZodType;
+  /** The body may be left out altogether. */
+  bodyOptional?: boolean;
   idempotent?: boolean;
   /** The success answer's status, its schema's name in `components`, and its schema. */
   ok: { status: 200 | 201; name: string; schema: z.ZodType };
@@ -260,9 +262,9 @@ const ENDPOINTS: Endpoint[] = [
     errors: [{ status: 404, description: "An Action the creator may not read, one of another workspace, or none." }, { status: 422, description: "The creator is not on this Thread." }],
   },
   {
-    method: "post", path: "/actions/{id}/done", scope: "actions:write", ok: { status: 200, name: "Action", schema: S.ApiAction },
+    method: "post", path: "/actions/{id}/done", scope: "actions:write", body: S.MarkDone, bodyOptional: true, ok: { status: 200, name: "Action", schema: S.ApiAction },
     summary: "Mark a Task done",
-    description: "Marks the key's creator's own open Task done; the asker is told. Never an Approval or a Self-check.",
+    description: "Marks the key's creator's own open Task done, with an optional `note` kept as the Thread's last reply; the asker is told. A checklist Task of a Workflow is closed by it. Never an Approval or a Self-check.",
     errors: [{ status: 404, description: "An Action the creator may not read, one of another workspace, or none." }, { status: 422, description: "It is not an open Task of the creator's." }],
   },
   {
@@ -640,7 +642,7 @@ export function openApiDocument() {
       summary: e.summary, description: e.description,
       security: [{ [e.scope === "usage" ? "usageKey" : "accessKey"]: [] }], "x-scope": e.scope,
       ...(parameters.length ? { parameters } : {}),
-      ...(e.body ? { requestBody: { required: true, content: { "application/json": { schema: json(e.body, "input") } } } } : {}),
+      ...(e.body ? { requestBody: { required: !e.bodyOptional, content: { "application/json": { schema: json(e.body, "input") } } } } : {}),
       responses,
     };
   }
