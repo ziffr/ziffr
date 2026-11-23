@@ -94,7 +94,7 @@ The **⋯** menu holds:
 | **Who can see this** | Everyone | Lists everyone with access and why (see [Sharing](#sharing)). |
 | **View links…** | The owner | Links for people outside the team (see [View Links](#view-links)). |
 
-A deck's **⋯** menu has the same **Who can see this** and **View links…** entries, with the same windows (see [Decks](14-decks-and-themes.md)).
+A deck's **⋯** menu has the same **Who can see this** and **View links…** entries, with the same panels (see [Decks](14-decks-and-themes.md)).
 | **Theme…** | The owner and Editors | Picks the Theme the dashboard is drawn in. |
 | **Versions** | Everyone | The dashboard's history in a panel beside it (see [Versions](#versions)). |
 
@@ -424,7 +424,7 @@ A Widget whose Tag you cannot see is left out as well. Free layouts are left out
 
 Only a dashboard's owner shares it. **Share** opens a panel on the right, over the page, listing the people in the Workspace (not Contacts, who have no login) and, under **Groups, including whoever joins later**, every **Group** with its members. For each, choose:
 
-**Invite someone…** at the bottom of the Share window is for someone who is not in the Workspace yet, such as when you are the only one in it. Owners and Admins enter an email address and choose **Member** or **Guest** (a Guest sees only what is shared with them), and Ziffr invites them the same way as the **Members and Groups** page: it emails the link when mail is set up and shows it to send yourself. A person is shared with once they have joined and appear in the list. Everyone else sees "Ask an Owner or Admin to invite them" (for a dashboard or deck).
+**Invite someone…** at the bottom of the Share panel is for someone who is not in the Workspace yet, such as when you are the only one in it. Owners and Admins enter an email address and choose **Member** or **Guest** (a Guest sees only what is shared with them), and Ziffr invites them the same way as the **Members and Groups** page: it emails the link when mail is set up and shows it to send yourself. A person is shared with once they have joined and appear in the list. Everyone else sees "Ask an Owner or Admin to invite them" (for a dashboard or deck).
 
 - **No access**.
 - **Viewer**: can look, inspect history and ask questions, but not change the dashboard.
@@ -434,11 +434,11 @@ The choice takes effect at once. A Group share also reaches whoever joins the Gr
 
 **Sharing a dashboard also lets people see every Metric on it.** When that would show someone a Metric they could not see before, the line under their name says so in colour: "Also shows Cost, Margin and 2 more". Check this before you share.
 
-At the bottom of the window, **Who can see this** and, for the owner, **View links for outsiders** open those windows.
+At the bottom of the panel, **Who can see this** and, for the owner, **View links for outsiders** open those panels on top of it; **Back** returns to Share.
 
 ### Who can see this
 
-**Who can see this** (in the **⋯** menu, for everyone who can open the dashboard) lists every person in the Workspace and why they have access: "owner", "shared as Viewer", "Editor through Management", or "No access". A Guest sees only what is shared with them, so people outside it show as "Someone", there and wherever the dashboard names people.
+**Who can see this** (in the **⋯** menu, for everyone who can open the dashboard) opens a panel on the right that lists every person in the Workspace and why they have access: "owner", "shared as Viewer", "Editor through Management", or "No access". A Guest sees only what is shared with them, so people outside it show as "Someone", there and wherever the dashboard names people.
 
 When someone asked for access, the owner sees them first, under **Asking for access**, with **Grant as Viewer** and **Decline**.
 
@@ -446,7 +446,7 @@ When someone asked for access, the owner sees them first, under **Asking for acc
 
 A **View Link** shows one dashboard to someone outside the team, such as a board member or an investor, without a login. They see this dashboard and nothing else, and cannot change or ask anything. Only the dashboard's owner makes View Links, Guests make none, and the demo makes none.
 
-Open **View links…** in the **⋯** menu:
+**View links…** in the **⋯** menu opens a panel on the right, over the page, so the dashboard stays in view. Revoking a link or hiding its names takes effect at once. The panel has:
 
 | Field | What it does |
 | --- | --- |
@@ -556,4 +556,4 @@ Earlier, Ziffr had stories as a screen of their own. They are now dashboards wit
 
 ## Panels have their own address
 
-Share, Versions and a Metric's quick look open as panels on the right, over the page; on a phone they fill the screen. The address of the page then ends in `?panel=share`, `?panel=versions` or `?panel=metric-` and the Metric's short name, so you can send the link and whoever opens it sees the page with the panel open. While a panel is open the keys stay inside it; **Esc** or **Close** closes it and puts you back where you were.
+Share, Who can see this, View links, Versions and a Metric's quick look open as panels on the right, over the page; on a phone they fill the screen. The address of the page then ends in `?panel=share` (Who can see this and View links have no address of their own: they open from Share or the **⋯** menu, and **Back** in the panel returns to Share), `?panel=versions` or `?panel=metric-` and the Metric's short name, so you can send the link and whoever opens it sees the page with the panel open. While a panel is open the keys stay inside it; **Esc** or **Close** closes it and puts you back where you were.
