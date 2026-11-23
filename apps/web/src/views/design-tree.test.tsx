@@ -95,3 +95,14 @@ describe("the tree mark", () => {
     expect(textOf(html)).toContain(`Too narrow to write in the drawing: ${long}`);
   });
 });
+
+describe("the top box of a tree", () => {
+  it("is always named on the drawing: too narrow for its words, they stand to its right, and the text alternative has it first", () => {
+    const html = draw();
+    const m = treeFromData(profit, live);
+    expect(m.ok).toBe(true);
+    if (!m.ok) return;
+    expect(html).toContain(`>${m.boxes[0].text}</text>`);
+    expect(m.alt.indexOf(m.boxes[0].label)).toBeLessThan(m.alt.indexOf(m.boxes[1].label));
+  });
+});

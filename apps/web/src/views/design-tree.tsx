@@ -29,7 +29,10 @@ function Words({ children }: { children: ReactNode }) {
 function Box({ box, at, hatch }: { box: TreeBox; at: Placed; hatch: string }) {
   const gap = box.value === null;
   const words = wordsOf(box, at);
-  const lines = words?.lines ?? [];
+  // The top box is always named on the drawing: too narrow for its words, they stand to its right, where there is room.
+  const outside = box.level === 0 && !words && at.w < TREE_WIDTH - 70;
+  const left = outside ? at.x + at.w + 5 : at.x + 3;
+  const lines = words?.lines ?? (outside ? [...fitWords(box.label, Math.floor((TREE_WIDTH - left - 3) / CHAR), 2).map((t) => ({ t, muted: false })), { t: box.text, muted: gap }] : []);
   const first = at.y + (ROW.h - lines.length * STEP) / 2 + SIZE - 1;
   // Each line is its own text, isolated, so a name written right to left and its number never run together; a halo keeps it readable over the hatching.
   const halo = { stroke: "var(--color-paper-3)", strokeWidth: 2.4, paintOrder: "stroke", strokeLinejoin: "round", unicodeBidi: "plaintext" } as const;
@@ -40,7 +43,7 @@ function Box({ box, at, hatch }: { box: TreeBox; at: Placed; hatch: string }) {
       {box.taken && <rect x={at.x} y={at.y} width={at.w} height={at.h} fill={`url(#${hatch})`} />}
       {/* A box thinner than a line is still found: a mark as wide as the line, over its place. */}
       {at.w < 1.5 && <rect x={at.x + at.w / 2 - 0.75} y={at.y} width={1.5} height={at.h} fill="var(--color-ink)" />}
-      {lines.map((ln, k) => <text key={k} x={at.x + 3} y={first + k * STEP} fontSize={SIZE} fill={ln.muted ? "var(--color-muted)" : "var(--color-ink)"} fontWeight={k === lines.length - 1 ? 600 : 400} style={halo}>{ln.t}</text>)}
+      {lines.map((ln, k) => <text key={k} x={left} y={first + k * STEP} fontSize={SIZE} fill={ln.muted ? "var(--color-muted)" : "var(--color-ink)"} fontWeight={k === lines.length - 1 ? 600 : 400} style={halo}>{ln.t}</text>)}
       {words && box.taken && <text x={at.x + at.w - 3} y={first + (lines.length - 1) * STEP} fontSize={SIZE} textAnchor="end" fill="var(--color-ink)" style={halo}>−</text>}
     </g>
   );
@@ -52,7 +55,7 @@ export function TreeDrawing({ model }: { model: TreeModel }) {
   if (!model.ok) return <Words>{model.refusal}</Words>;
   const { boxes } = model;
   const placed = layoutTree(boxes);
-  const unlabelled = boxes.filter((b) => !wordsOf(b, placed[b.id])?.whole);
+  const unlabelled = boxes.filter((b) => !wordsOf(b, placed[b.id])?.whole && !(b.level === 0 && placed[b.id].w < TREE_WIDTH - 70));
   const height = treeHeight(boxes);
   return (
     <>
