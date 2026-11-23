@@ -11,6 +11,7 @@ import { replyMarkerFor } from "./feedback-bridge";
 import { GithubError, type GithubCommentClient } from "./feedback-github";
 import { postFeedbackReplies } from "./feedback-replies";
 import { FEEDBACK_REPLIES_PER_FEEDBACK_PER_DAY } from "./feedback-rules";
+import { openRows } from "./sealed-columns";
 import { forgetStoredSettings } from "./settings-in-effect";
 import { workspace } from "./test/db-fixtures";
 
@@ -50,7 +51,11 @@ async function filed(s: Awaited<ReturnType<typeof sender>>, number: number, kind
 }
 const status = async (id: string) => (await db().from("feedback").select("status").eq("id", id).single()).data!.status;
 const num = () => 100000 + Math.floor(Math.random() * 800000);
-const notices = (s: Awaited<ReturnType<typeof sender>>) => db().from("deliveries").select("subject, body, kind").eq("recipient_id", s.id).eq("kind", "notice");
+// A notice's subject and body are sealed with the Workspace Key, so they are opened to be read.
+const notices = async (s: Awaited<ReturnType<typeof sender>>) => {
+  const { data } = await db().from("deliveries").select("id, subject, body, kind").eq("recipient_id", s.id).eq("kind", "notice").eq("workspace_id", s.w.id);
+  return { data: await openRows("deliveries", s.w.id, data ?? []) };
+};
 
 describe("a comment from the team", () => {
   it("is added to the person's conversation as from the team, marks it answered and tells the person without the words", async () => {
