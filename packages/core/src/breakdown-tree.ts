@@ -36,7 +36,7 @@ const sizeOf = (f: Fraction): Fraction => (f.num < BigInt(0) ? { num: -f.num, de
 /** What the tree is made from: the Metric's name and unit, the period written out, its value in that period (null: none), and the Breakdown's top-level rows with their parts. */
 export type BreakdownTreeSource = { name: string; unit: ValueUnit; period: string; total: number | null; rows: BreakdownRow[] };
 
-/** A row as the model works with it: its exact value, its parts, the row it is a part of and its place in the order of the tree. */
+/** A row as the model works with it: its exact value, its parts, and the row it is a part of. */
 type Part = { label: string; exact: Fraction; size: Fraction; kids: Part[]; parent: Part | null };
 class Refused extends Error {}
 
