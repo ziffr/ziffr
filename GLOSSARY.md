@@ -118,7 +118,7 @@ A small card in the corner of the app that asks a signed-in person "Enjoying Zif
 _Avoid_: Popup, survey, rating, nag
 
 **Feedback**:
-A message from a signed-in person to the Ziffr team, on hosted Ziffr only: a kind (a problem, an idea or a question), their words, and the page and app version it was sent from, kept with a status (waiting for review, open, answered, closed) and its own conversation. It lives outside every Workspace, is never added to a Workspace Export, carries no Metric name, value or other Workspace data, and is seen only by the person who sent it (My feedback) and by the Ziffr team. Not a Finding (an observation about numbers), a Question or a Task (asked of a person in their Workspace), nor the Feedback Prompt (the card that asks whether people like Ziffr).
+A message from a signed-in person to the Ziffr team, on hosted Ziffr only: a kind (a problem, an idea or a question), their words, and the page and app version it was sent from, kept with a status (waiting for review, open, answered, closed) and its own conversation. It lives outside every Workspace, is never added to a Workspace Export, carries no Metric name, value or other Workspace data, and is seen only by the person who sent it (My feedback) and by the Ziffr team. Feedback is posted directly (the default) or, when an Installation Admin of the central version sets review first, waits in the review queue: they approve it, edit its words (the person is told) or reject it with a reason the person reads. Not a Finding (an observation about numbers), a Question or a Task (asked of a person in their Workspace), nor the Feedback Prompt (the card that asks whether people like Ziffr).
 _Avoid_: Ticket, support request, report, review
 
 **Feed**:
@@ -321,6 +321,10 @@ _Avoid_: Stats, model, insight
 **Method**:
 One statistical calculation in Ziffr's library, such as a rank correlation, a usual range or a bridge. Used in documents and code; a person sees Analyses, Recipes and Takeaways. Each Method runs its suitability checks on every call, is worked out exactly on the values' text where arithmetic allows, and has an entry in the Methods guide with when to use it and when not.
 _Avoid_: Algorithm, model, test
+
+**Method picker**:
+The list on the Analysis Canvas, opened by **Choose a method**, where a person who knows what they want picks a Method by what they want to know (where it is heading, what moves with what, what changed). Each entry has its plain name, one sentence, when to use it and when not (the Methods guide's words), and is greyed with its reason when it cannot work on what is on the canvas. A picked Method runs through the same Takeaway layer as its Recipe, with the Slots and settings asked in words, and sees only Metrics the person may see.
+_Avoid_: Wizard, analysis chooser
 
 **Extension**:
 A Method, or later a mark that draws one kind of View Design, written by someone other than Ziffr as a folder of a fixed shape under `extensions/<author>/<name>`: a manifest, one pure file that Ziffr reads in full, a second implementation worked out another way, hand-worked cases, its entry for the Calculation Catalogue, its Takeaway wording and a LICENSE of its own. It is never loaded at run time. It is submitted as a pull request, read, checked and shipped inside a Ziffr release, and the registry lists the Extensions built into that release. Ziffr's own `quantile` and `topShare` are built in the same shape. It is not a Pack, which holds no code.

@@ -1,0 +1,184 @@
+# 0051 An interactive demo: visitors try the everyday work, and the demo starts fresh every 15 minutes
+
+**Status:** in progress: ticket 1 done (`demo_state`, the conditional reset job, `scripts/demo-reset-measure.mjs`; the measurement on a copy of demo.ziffr.net is the owner's to run). Draft of 2026-11-23. No tickets yet: the owner decides **Decisions (proposed)** first. The survey behind it, every change a person can make and what to do with it in the demo, is [0051-interactive-demo-inventory.md](0051-interactive-demo-inventory.md).
+
+**Progress:** ticket 2 (the visit's id) done: the cookie holds 128 random bits, `visitKey` (SHA-256 of the id, 32 hex characters) is the only form that is stored, `demo_visit_counts` and its `demo_visit_bump` exist and `resetDemoWorkspace` empties them. Nothing reads them yet (ticket 5).
+
+## Problem Statement
+
+The demo feels stale, in the owner's words, "because you can't do anything: I cannot create a dashboard, change one, or enter values". Since spec 0029 (#271) the demo is read-only: the database refuses every write to it (the demo guard, migration `20261225110000_demo_read_only.sql`), and every button that would save something says "The demo can't be changed." A visitor sees what Ziffr shows, but not what it is like to use it: placing a widget, typing this month's value and watching the dashboard move, answering a Prompt as Ben and approving it as Sara. The guided tour ends with two steps the demo refuses.
+
+Spec 0029 made the demo read-only for good reasons, which still hold: a demo that anyone may change shows the next visitor someone else's mess, needs a reset that races with visitors, and is one more place where a write path must be kept safe. The owner now accepts the first two, "the demo can reset every 15 minutes if need be since it is shared with all visitors", but not at the cost of "the stability of the system". So the question is which changes can be opened, how the demo is put back, and what keeps a public, anonymous, shared Workspace from becoming a way to spam, send, cost or reach anything else.
+
+## Solution
+
+1. **Open the everyday work inside the one shared demo** (option A of **Options**): entering and correcting values (by hand, by the web form, by pasting, by answering as a made-up person through the simulated channels), approving and locking, dashboards and their widgets, decks, Snapshots, Metrics, Targets, Tags, Questions and Tasks, shares and Groups among the demo's made-up people. About sixty server actions become possible; the inventory names each.
+2. **Keep everything that reaches outside the demo blocked**, as today and with the same sentence: no email, Slack, Telegram, Webhook or Marketplace fetch; no invitation, Contact, View Link, Calendar Link, Access Key, Feed Key or assistant; no uploads; no Workspace settings that change what every visitor sees (its name, year, clock, number style).
+3. **The demo starts fresh every 15 minutes** when a visitor changed something, and each night regardless, as one locked step. Every page says when: "What you change is shared with every visitor and gone when the demo starts fresh at 14:25 (in 9 min). Nothing is sent." Pages open at the reset follow the demo's own dashboards and decks to their new versions.
+4. **Limits keep a busy or hostile visit small:** a number of rows per kind for the whole demo, a write budget per visit, per network address and per reset window, short texts, one expensive computation at a time. Past a limit the demo says why and when it starts fresh, never fails.
+5. **The seed's words and its showcase stay as they are:** visitors may change the numbers, layouts and settings of what the seed made, but not its names and descriptions, and not the few objects the landing page and the tour point at. Whatever a visitor writes is shown only inside the demo, as plain text, and is gone within 15 minutes.
+6. **Only a demo-only Installation opens it** (`ZIFFR_DEMO_ONLY=1`, as demo.ziffr.net is), and only with a setting that is off by default. An Installation with real Workspaces keeps today's read-only demo beside them.
+7. **The guard becomes an allow-list, still in the database:** a write to the demo passes only for a table on the list, from a visit's request of the current reset, within the limits. Every table and every server action must be classified, and a test fails for one that is not.
+
+## User Stories
+
+1. As a visitor, I want to type this month's revenue and see the dashboard and its Attainment change, so that I know what using Ziffr feels like.
+2. As a visitor, I want to answer a Prompt as Ben in the simulated Slack and then approve the value as Sara, so that I see the asking, the answer and the check end to end.
+3. As a visitor, I want to make a dashboard of my own from a template, move its widgets and turn it into a deck, so that I can judge the editor.
+4. As a visitor, I want to ask a question on a value, as Sara, and answer it as Anna, so that I see how a Thread keeps the why of a number.
+5. As a visitor, I want to share my dashboard with Ben and then view as Ben, so that I see what visibility means.
+6. As a visitor, I want to know how long what I change will stay and that it is shared, so that I am not surprised when it is gone, and do not type anything private.
+7. As a visitor arriving after someone else, I want the demo's own dashboards, words and examples to be as the landing page promises, so that I am not greeted by a stranger's mess.
+8. As a visitor whose page is open when the demo starts fresh, I want to be told what happened and land on the same dashboard's new version, so that nothing looks broken.
+9. As the owner, I want nothing a visitor does to send a message, call another server, publish a page or reach a real Workspace, so that the demo cannot be used against anyone.
+10. As the owner, I want a script that hammers the demo to hit a limit within seconds and leave the server as fast as before, so that the box the demo shares stays up.
+11. As a maintainer, I want a new server action or table to fail a test until someone has said what it does in the demo, so that opening the demo never opens something by accident.
+12. As a self-hoster with real Workspaces, I want my demo to stay read-only unless I run a demo-only Installation, so that anonymous writes never land in the database that holds my company's numbers.
+
+## Options
+
+### A. Open the safe set inside the one shared demo, and reset it every 15 minutes (recommended)
+
+- **How it works:** the demo guard lets a visit's writes through for the tables of the safe set (the inventory's *open* and *open with limits*); the core checks each operation against the same classification and applies the limits; the clock calls `POST /api/jobs/demo-reset` every 15 minutes, and the reset does nothing when no visitor wrote since the last one.
+- **For:** one Workspace, as today; no change to the 60 places in the core and the 28 migrations that know the demo by its one id (`d3e00000-…`); the cost of a reset is the cost of today's nightly seed, at most 96 times a day and only when used; nothing a visitor makes lives longer than 15 minutes.
+- **Against:** visitors see each other's work for up to 15 minutes, including whatever someone types; a visitor's work can vanish while they look at it; every visitor who views as Sara is the same Sara.
+- **Stability:** bounded by the limits: rows per kind, a write budget per window, one Snapshot and one Workflow run at a time. The reset is one transaction, as today.
+
+### B. A private copy of the demo for each visitor
+
+- **How it would work:** a visitor's first change (not their first look) makes a new Workspace, seeded like the demo, that only their visit reaches and that is deleted 60 minutes after its last use by a cleanup job, with a ceiling of copies at once (say 50) and a few per network address an hour; past the ceiling the visitor stays in the shared, read-only demo.
+- **For:** no visitor ever sees another's work; no reset under anyone's feet; per-person state (pins, home, canvas) is simply the visitor's.
+- **Against, cost:** each copy is a full seed: 18 months of daily, weekly and monthly values, Snapshots the core computes, the Outbox. On the 4-core server demo.ziffr.net shares with other services, a burst of new visitors becomes a burst of seeds; storage grows with every copy until the cleanup runs.
+- **Against, code:** the demo is one Workspace by its id everywhere: the guard's triggers compare with a constant (which is why rows outside the demo pay almost nothing), about 60 places in the core skip or refuse it by that id, and the seed's twenty-odd functions write that id literally. A copy needs a Workspace kind instead, the guard needs a cheaper test than a lookup on every write of every Installation, every seed function a new version that takes a Workspace id (migrations are add-only, so each is rewritten in a new file), and the demo's people (`sara`, `ben`, …, profiles of the whole Installation) need to belong to many Workspaces or be copied too.
+- **Against, abuse:** an anonymous way to make Workspaces is a way to make work for the server at will; it needs Turnstile and tight counts before it is safe, and it is close to a Trial Workspace without the sign-in that bounds trials.
+
+### C. Hybrid
+
+- **C1: A now, and a private copy for signed-in people later.** The shared demo opens as in A. Whoever wants a space of their own, with Northwind's numbers rather than an empty Workspace, starts a Trial Workspace seeded from the demo ("Start a trial with these numbers"). Sign-in, the Trial Limits, the trial clean-up and the Trial Guide already bound it. It needs the seed to take a Workspace id (B's code cost), but not B's anonymous abuse.
+- **C2: shared reading, private writing.** Everything the seed made is shared; what a visitor makes is seen only by their visit (rows marked with the visit). Rejected: every read of the core would need a second visibility rule only for the demo, which is exactly where rule 3 ("whatever you return must be something the person may see") gets hard, and a mistake shows one visitor's words to another or worse.
+
+**Recommendation: A, now; C1 as a later spec if visitors ask for a space of their own.** A gives the owner what he asked for with the least new code on the paths that keep real Workspaces safe, and its risks are bounded by time (15 minutes) and by the limits. B buys privacy for visitors who, by definition, have nothing private to protect, at the highest cost to the server and the code.
+
+## Implementation Decisions
+
+### Words
+
+- **Demo Mode** (GLOSSARY) changes. Proposed entry: "A visit to the demo workspace: a made-up company anyone can look around without an account, switching between its made-up people to see each one's view. Where this Ziffr is a public demo, visitors may also try the everyday work (values, dashboards, decks, Snapshots, Metrics, Threads); what they change is seen by every visitor and gone at the next Demo Reset. Nothing is ever sent, and nothing reaches outside the demo: what would is refused with one sentence that points to a Trial Workspace. Elsewhere the demo is read-only. It sits next to real workspaces and never reaches them, and an installation can switch it off. Its Connectors are all simulated and it has no Access Keys." _Avoid_ stays: Sandbox, test mode.
+- **Demo Reset**, a new term, proposed: "The demo returning to its seed as one step: every 15 minutes when a visitor changed it, and each night so that its periods reach up to today. What visitors made or changed is gone, and a page open at the time follows the demo's own dashboards and decks to their new versions." _Avoid_: wipe, refresh, restore (a Version is restored), starting over. The screens say "starts fresh" ("the demo starts fresh at 14:25"), which is the term in plain words, not a second term.
+- **No term for the protected objects.** The code calls them the showcase (`demo_showcase`); the screen says "Everyone sees this one as it is. Make your own to change it." and never names a kind.
+- **The glossary is changed by ticket 3**, with the setting, not by this spec: until then the entry describes what runs.
+
+### Where it is on
+
+- **A new Installation Setting, `ZIFFR_DEMO_CHANGES`** (spec 0025's list), off by default, with the label "Visitors may change the demo" and the help "Only in a demo-only Ziffr. What visitors change is seen by every visitor and gone when the demo starts fresh, every 15 minutes."
+- **In effect only with `ZIFFR_DEMO_ONLY=1`.** Elsewhere the page shows it greyed out with "Only a Ziffr that is a demo and nothing else lets visitors change it.", and the core and the database treat it as off. Real Workspaces' rows, sequences and backups are never shared with anonymous writes.
+- **Off means today:** the read-only demo, the nightly seed and every test of today's walk.
+
+### The visit
+
+- **A visit gets an id.** The demo cookie (`ziffr-demo`, set by the middleware on `/demo`) holds 128 random bits instead of `1`. It is still httpOnly and SameSite=Lax; the id is never shown and is stored only as a hash, for the limits of one reset window.
+- **The visit's writes go through a client of their own.** As `seedingDemo` gives the seed a client with `x-ziffr-demo-seed: on` (`packages/core/src/db.ts`), the web app runs a demo visit's server action inside `visitingDemo({ generation, visit }, …)`, whose client sends `x-ziffr-demo-visit: <generation>` and the visit's hash. The header counts only with the service role, which only the core has; a browser never talks to PostgREST, and Row Level Security without policies keeps it out.
+- **Which Generation the page was drawn in** travels with each action (a cookie the page's demo bar writes), so an action from a page drawn before the last Demo Reset is refused as stale (below) instead of writing into the new demo.
+
+### The guard becomes an allow-list
+
+- **The database stays the boundary.** `demo_read_only()` keeps refusing with `ZF4D0` unless one of: the seed is writing (as today); or the setting is in effect, the request carries the current Generation, **and the table is on `demo_open_tables`**. Then the trigger applies the limits it owns (rows per kind, seeded words, the showcase) and lets the row through.
+- **`demo_open_tables`** is a table of its own, written only by migrations: the table's name and, for each, which columns are seeded words (see below). The tables of the people (`profiles`, `memberships`, `contacts`), invitations, View Links, Calendar Links, Access Keys, Feeds and Feed Keys, Webhooks, Slack and Telegram, Retention, Packs, Usage, Audit and the `workspaces` row itself are never on it. `demo_people_read_only` and the `ask_now_claims` guard stay as they are, with `away` opened only for dates within 90 days.
+- **Every table is classified.** `demo_read_only_gaps()` keeps naming a table with a `workspace_id` and no guard, and a new `demo_unclassified_tables()` names a table with a `workspace_id` that is neither on `demo_open_tables` nor on `demo_closed_tables` (the list of tables refused on purpose, each with a reason). A migration that makes a table calls `attach_demo_guard` as today and adds it to one of the lists; `demo-read-only.db.test.ts` fails until it has.
+- **The core says the same, per operation.** A pure module `packages/core/src/demo-changes.ts` classifies every operation that writes: `open`, `limited` (with the limit's key) or `blocked` (with the reason, one of: reaches outside the demo, sends, changes what every visitor sees, does nothing in the demo). `refuseInDemo(actor)` becomes `demoAllows(actor, operation)`, which refuses a blocked operation with today's sentence before any work, and refuses everything when the setting is off. The places that refuse the demo because the work cannot be taken back (an email, a person outside the demo, a call to Slack) keep doing so whatever the list says: the list only ever opens what the database would also let through.
+- **The walk of every server action** (`apps/web/src/app/demo-read-only.db.test.ts`) changes its classes: `reads`, `outside` and `nothing` stay; `args` becomes `blocked` (refused with the sentence, no row changes) or `open` (succeeds, and some row of the demo changes). A new export still fails "is in the table" until it is classified, and a classification that disagrees with `demo-changes.ts` fails too. After the walk, a Demo Reset brings the demo back to the seed's fingerprint.
+
+### Seeded words and the showcase
+
+- **Seeded words are kept.** A row the seed made (its `created_at` is not after the Generation's start) keeps the columns `demo_open_tables` names as words: names, titles, descriptions, a Theme's name, a Tag's name. A visitor may change everything else of it: a dashboard's layout, a Metric's Target Range or Sources, a widget's settings. The trigger compares old and new of exactly those columns; the core says "Everyone sees this one's words as they are. Make your own to name it." before the database is asked.
+- **The showcase is kept whole.** The seed writes, in `demo_showcase`, the rows the landing page and the tour depend on: the Monthly overview dashboard (the sign-in page's picture) and its widgets, the Snapshot "October in short", the Workflow Weekly numbers with its week 47 (all in and all locked), the Correction and the Thread of the landing examples, the seeded decks the tour opens. A visitor's write to any of them is refused with "Everyone sees this one as it is. Make your own to change it." The list is checked by the landing examples' test (`demo-landing-examples.db.test.ts`), which must pass after the walk of every open action, before any Demo Reset.
+- **Deleting what the seed made** is refused for Metrics, Workflows, Groups, Tags, Themes and templates (a dashboard or deck the seed made is in the showcase or may be changed but not deleted), so the demo never misses a part of itself between resets.
+
+### Limits
+
+All numbers are starting points for the owner (see **Decisions**), kept in one list in the core (as the Trial Limits are, spec 0040) and read by the triggers from one row, so that a change needs no migration.
+
+- **Rows per kind, for the whole demo, made by visitors since the last Demo Reset:** 25 dashboards, 40 widgets per dashboard, 50 saved widgets, 15 decks (a deck's store at most 512 KB), 20 Snapshots, 15 Metrics, 15 templates, 10 Workflows, 10 Groups, 20 Tags, 300 open Questions and Tasks, 2,000 values. Counted in the trigger under the demo Workspace's row lock, as the Trial Limits are, so that requests at once cannot all pass.
+- **A write budget:** per visit 30 changes a minute and 300 per reset window; per network address (hashed, as the sign-in limits are) 600 per window; for the whole demo 3,000 per window. Kept in `demo_visit_counts` (hashes, window, count), a table without a `workspace_id`, emptied by each Demo Reset. Past the demo's budget the demo is read-only until it starts fresh, and every page says so.
+- **Texts:** names and titles 80 characters, descriptions 500, a Question, Task or reply 1,000, a Tag 40; Ziffr's own caps where they are smaller. Visitors' words are drawn as text, never as markup, and an address in them is not made a link.
+- **Values:** periods from 24 months back to the current one, never ahead; the existing checks of a Metric's format; 100 rows per paste.
+- **Expensive work:** one Snapshot at a time in the whole demo (an advisory lock; a second waits or is told "Another visitor is taking a Snapshot. Try again in a moment.") and 3 per visit per window; one Workflow run a minute; Analyses keep their own caps and stay on the visitor's browser; a Derived Metric's formula keeps its 500 characters and its existing depth.
+- **Nothing outbound, ever:** the demo's Deliveries stay in the Outbox (`mail.ts`, `slack-send.ts`, `telegram-send.ts` already skip the demo, and stay so whatever the list says), and no operation that fetches, posts or calls another server is open.
+- **No uploads:** no Theme file, logo, View Design, Pack file or workspace import.
+- **Turnstile once per visit**, before its first change, where the Installation has Turnstile set up (demo.ziffr.net has); a visit that did not pass stays read-only. (Decision 4.)
+
+### The Demo Reset
+
+- **When:** the clock (`docker/clock.mjs`) calls the job every 15 minutes, at 10, 25, 40 and 55 past the hour, away from the release follower of demo.ziffr.net (2, 17, 32, 47) and from the hourly Workflows, where `ZIFFR_DEMO_CHANGES` is in effect; otherwise nightly at 03:30 UTC as today. Another scheduler calls the same job (the jobs guide gives the line).
+- **Only when needed:** `demo_state` (one row, no `workspace_id`) holds the Generation, when it started, when the next is due, and whether a visitor wrote since. A call finds the demo clean and less than a day old and answers `{ "reset": false }`: an unused demo costs nothing.
+- **One step, with visitors' writes kept out:** `demo_reset` takes the advisory lock `ziffr-demo-reset` exclusively, as today. Each visitor write takes the same lock in its shared form in the trigger, so a write either commits before the reset begins, or waits for it and is then refused as stale because the Generation moved. Postgres queues a new shared request behind a waiting exclusive one, so a steady stream of writes cannot hold the reset off; the reset waits at most for the writes already in flight.
+- **The core's part:** pins, Snapshots, the finished period, Filled-in Values and the Outbox (`resetDemoWorkspace`) still follow in their own transactions. Until they are done, `demo_state` says "starting fresh", visitors' writes are refused with "The demo is starting fresh. Try again in a few seconds.", and pages draw what is there. Ticket 1 measures how long this lasts on a copy of demo.ziffr.net; if it is more than a few seconds, the Snapshots' values are kept from the night's seed and copied, rather than computed again (Further Notes).
+- **Open pages follow:** before deleting, the reset keeps in `demo_previous_ids` the seeded dashboards' and decks' old ids with their names; a demo page for an id of the previous Generation redirects to the same name's new id, and one for a visitor's object that is gone says "This was made by a visitor before the demo started fresh at 14:25." with a link to the list. Metrics are reached by slug, which does not change.
+- **What a visitor sees:** a line on every page (today's "Look around as anyone…" line): "Try anything: what you change is shared with every visitor and gone when the demo starts fresh at 14:25 (in 9 min). Nothing is sent." One minute before: "The demo starts fresh in a minute: what you change now will be gone." After the reset, the next action or page load from an old page says "The demo started fresh. What was changed before is gone." and the page draws again. The time comes from `demo_state`, never from the visitor's clock alone; the line counts down in the browser.
+- **Cheap:** the reset is today's seed. At most 96 a day, and only those after use. The rows a reset deletes and writes again are vacuumed as today's are; ticket 1 records the time, the WAL written and the CPU of one reset on demo.ziffr.net's hardware, and the spec's numbers change if they are not small.
+
+### Visibility and leaving the demo
+
+- **Nothing a visitor writes is seen outside the demo:** no View Link, no Share Proposal, no Calendar Link, no export of the Workspace, no Feed or key, no message. A demo page's address needs the visit's cookie; without it, it leads to the sign-in page, so a shared address shows nothing of the demo.
+- **Inside the demo, visitors see each other's work**, which the line on every page says. Visibility among the demo's made-up people works as everywhere (Shares, Groups, roles), through the same core functions.
+- **What is a person's own stays the visit's:** the Analysis Canvas (as today), pins and the home dashboard are kept in the visitor's browser, never in the made-up person's rows that every visitor shares.
+- **A visit is never a person:** it acts only as the demo's made-up people (`viewer.ts`, unchanged), and the people's tables stay refused, so a visitor cannot make, rename or promote anyone.
+
+## Testing Decisions
+
+- **The guard** (`packages/core/src/demo-read-only.db.test.ts`, extended): with the setting off, everything is refused as today. With it on: a write to an open table with the current Generation passes; without the header, with an old Generation, to a closed table, to the `workspaces` row or to a person's row it is refused with `ZF4D0`; every table with a `workspace_id` is on one of the two lists (`demo_unclassified_tables()` is empty, with the message naming the table and the call to add).
+- **The race:** a visitor write held open on one connection while a Demo Reset starts on another: the reset waits for it; a write started after the reset began waits, then is refused as stale; neither leaves a row of the old Generation in the new demo.
+- **The limits:** each count at its number passes and one more is refused with its sentence; the counts are per window and empty after a reset; two requests at once at the last place: one passes; the write budget per visit, per address and for the demo; texts one character over; a value ahead of the current period.
+- **Seeded words and the showcase:** changing a seeded dashboard's layout passes and its name is refused; every row of `demo_showcase` refuses every visitor write; `demo-landing-examples.db.test.ts` passes after the walk below.
+- **The walk** (`apps/web/src/app/demo-read-only.db.test.ts`): every export classified; `blocked` refused with the sentence and no row changed; `open` succeeds and changes the demo; the classes agree with `demo-changes.ts`; the landing examples hold; then a Demo Reset gives the seed's fingerprint again. The fingerprint (`packages/core/src/test/demo-walk.ts`) leaves out ids and times, so two seeds compare equal.
+- **The reset:** a clean, young demo is not reset; a dirty one is; the Generation moves; `demo_previous_ids` maps every seeded dashboard and deck; the job answers only `reset`; 404 without the secret or where the demo is off.
+- **Nothing outbound:** with every open action walked, no Delivery leaves the Outbox, no Webhook send is queued, and no fetch is made (the walk runs with `fetch` replaced by one that fails the test).
+- **In the browser, by hand on preview.ziffr.net before the opening tickets merge:** the line and its countdown, a page open across a reset, a refusal past each limit, the tour's last steps working.
+- **Load, by hand, once (ticket 5):** a script writing at the budget from several visits while the reset runs; the reset finishes, the server's CPU and response times stay where they were, and the demo is read-only until it starts fresh.
+
+## Tickets
+
+Tickets 1 to 7 change nothing a visitor can do: the setting stays off, the demo stays read-only, and each can merge alone. Tickets 8 to 11 open, one area each.
+
+1. **Measure the reset and make it conditional:** time, WAL and CPU of one `demo_reset` plus `resetDemoWorkspace` on a copy of demo.ziffr.net; `demo_state` with the Generation; the job skips a clean, young demo; the clock's 15-minute schedule behind the setting (off: nightly as today). Blocked by nothing.
+2. **The visit's id:** 128 random bits in the demo cookie, its hash, `demo_visit_counts` emptied at each reset. Blocked by nothing.
+3. **The setting and the allow-list, empty:** `ZIFFR_DEMO_CHANGES` (in effect only with `ZIFFR_DEMO_ONLY=1`), `demo_open_tables` and `demo_closed_tables` with every table of today on the closed list, `demo_unclassified_tables()` and its test, the header and `visitingDemo`, the shared lock and the Generation check in the trigger, the stale refusal. The glossary's Demo Mode and Demo Reset. Blocked by 1.
+4. **The core's classification:** `demo-changes.ts`, `demoAllows`, the walk's new classes and the id-free fingerprint, with every operation `blocked`. Blocked by 3.
+5. **The limits:** rows per kind in the triggers, the write budget, texts, the refusals' words, the load script. Blocked by 2 and 4. Notes from the security review of ticket 2: the visit id is unsigned and free to mint (a script just sends a new cookie), so the per-visit budget protects nothing against scripted abuse; only the per-address and whole-demo budgets do. The address hash must be keyed (HMAC with a server secret), not an unkeyed SHA-256, because the IPv4 space is small enough to reverse an unkeyed hash.
+6. **Seeded words and the showcase:** the words columns of each open table, `demo_showcase` filled by the seed (a migration with `ziffr.demo_seed` on, rule 5), the refusals. Blocked by 4.
+7. **The line on every page and pages across a reset:** the countdown, the Generation cookie, "starting fresh", `demo_previous_ids` and the redirect, pins and home kept per visit in the browser. Blocked by 1 and 3.
+8. **Open values:** record, the web form, paste, fill in, the simulated channels recording their answer, Ask me now to the Outbox, approvals, Self-checks, Corrections, locks, Workflow runs to the Outbox, Stand-ins and Away. The tour's last steps work. Blocked by 5, 6 and 7.
+9. **Open dashboards:** create (also from a template), words of one's own, widgets, the Pool, Themes of one's own, Versions, templates. Blocked by 5, 6 and 7.
+10. **Open decks and Snapshots,** with the Snapshot lock. Blocked by 9.
+11. **Open Metrics, Threads and sharing:** Metrics and Derived Metrics, their details, Targets and Projections, Tags, archive and restore of one's own, Questions, Tasks, replies, access requests, Shares and Groups among the made-up people, the preferred channel. Blocked by 8.
+12. **Turnstile before a visit's first change,** where it is set up. Blocked by 2. Only if decision 4 is yes.
+13. **Docs, the threat model and the review:** the user guide (07 Getting started and every chapter that says the demo saves nothing), the tour's words, the sign-in and confirm pages, the jobs guide (its stale reset-button lines), self-hosting, the threat model's demo visitor and "Abuse of the shared demo", an ADR that the demo opens to visitors' changes on a demo-only Installation (amending ADR 0005's consequences and spec 0029's decision), release notes, and an independent security review of the whole spec (Opus: it touches untrusted input, visibility and the guard). Blocked by 8 to 11; the review also before ticket 8 merges.
+
+## Out of Scope
+
+- A private copy of the demo per visitor (option B) and a trial seeded with the demo's numbers (C1): a spec of its own if wanted.
+- Opening anything that sends, fetches or publishes: Connectors for real, Webhooks, Feeds and keys, View Links, invitations, Packs from the Marketplace.
+- Workspace settings and people in the demo: its name, year, clock, number style, roles, new people.
+- Alerts that fire in the demo (into the list, never a message): later, once wanted.
+- Moderation by words (a list of words refused): weak against people who mean it, and the 15 minutes, the kept seeded words and the limits bound the harm.
+- Changing the read-only demo beside real Workspaces (app.ziffr.net, a company's Installation).
+- The API and the MCP Server in the demo: scripts are what the limits are against.
+
+## Decisions (proposed 2026-11-23)
+
+1. **Option A, the shared demo opened and reset every 15 minutes; not B; C1 later only if asked for.** A is the owner's own idea with the least new code on the paths that keep real Workspaces safe; B costs the most server and code for privacy visitors do not need.
+2. **Only on a demo-only Installation, behind a setting that is off by default.** Anonymous writes never land in a database with real Workspaces; app.ziffr.net's demo, and every self-hosted one, stay read-only.
+3. **The reset runs every 15 minutes, but only after a visitor changed something** (and nightly regardless). The owner said 15 minutes "if need be"; with the skip, a quiet demo costs nothing, so there is no reason to choose a longer window. Alternatives: 30 or 60 minutes (fewer vanished changes, longer exposure of a stranger's words).
+4. **Turnstile once per visit before its first change**, on demo.ziffr.net. A small step for a person, a large one for a script. Alternative: limits only.
+5. **The seed's words and the showcase cannot be changed** by visitors; everything else of the seed can. This is the price of "change one" without the next visitor finding a stranger's words on the home dashboard. Alternative: visitors may change every word, and the reset is the only protection.
+6. **The first opened set is the inventory's**: values, dashboards, decks, Snapshots, Metrics, Threads, sharing among the made-up people. Workspace settings, people, Alerts, Retention, Packs and everything outbound stay blocked.
+7. **The limits' numbers** (rows per kind, 30 changes a minute and 300 a window per visit, 3,000 a window for the demo) are starting points the owner may change; they live in one list, read by the core and the triggers.
+8. **New glossary term: Demo Reset**, and the Demo Mode entry rewritten; the screen says "starts fresh".
+
+## Further Notes
+
+- **Why the database stays the boundary.** Spec 0029 put the check in the database so that a forgotten path is refused, not open. The allow-list keeps that: a table nobody put on the list refuses as before, so the worst a forgotten classification does is refuse a visitor.
+- **If the reset proves slow,** the core's part (Snapshots above all) is the likely cause, since it computes every widget's values. The night's seed could keep its computed Snapshots in a table outside the demo and the 15-minute reset copy them with the new ids, instead of computing them again. Only if ticket 1 shows the need.
+- **A stranger's words for up to 15 minutes** is the residual risk this spec accepts. It is bounded to the demo, to visitors, to plain text and to short lengths, and nothing of it can be linked to from outside. If abuse shows anyway, the levers are: a shorter window, Turnstile on, a lower budget, or the demo back to read-only by switching the setting off, which takes effect on the next request.
+- **The success measure** is visitors who change something and then start a trial, against those who only looked; the demo counts nothing today (no Usage, no Audit Log), so a count of changes per window, kept only as a number in `demo_state`, is enough to tell.
+- The survey's other findings (ids that change at every reset, the two-step reset, stale lines in the jobs guide, the made-up people shared by every visitor) are at the end of the [inventory](0051-interactive-demo-inventory.md).

@@ -7,7 +7,7 @@ The exact format is the JSON Schema in [`docs/reference/view-design.schema.json`
 ## Start from something that works
 
 - **Export a built-in View.** On **Analyze → View Designs**, every built-in View has **Export**. You get two files: `line-chart.view.json`, the design, and `line-chart.sample.json`, Sample Data that fits its Slots. Neither holds any of your Workspace's values.
-- **Duplicate a widget.** A widget's **⋯** menu has **Duplicate as View Design**. You get the same files, with the widget's settings (how many periods, target band, forecast) as the design's defaults.
+- **Duplicate a widget.** A widget's **⋯** menu has **Save as…** → **View Design**, and **Download View Design file** for the design as it is. You get the same files, with the widget's settings (how many periods, target band, forecast) as the design's defaults.
 - **Use the Playground.** **Analyze → Playground** shows the file and its drawing side by side. **Start from** loads any built-in View, or an Analysis Recipe inside a design that draws it.
 
 ## The file

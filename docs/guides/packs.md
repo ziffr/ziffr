@@ -24,7 +24,7 @@ The exact formats are JSON Schemas in `docs/reference/`, generated from the defi
 | A Deck Template | `ziffr.deck-template/1` | [`deck-template.schema.json`](../reference/deck-template.schema.json) |
 | A Workflow Template | `ziffr.workflow-template/1` | [`workflow-template.schema.json`](../reference/workflow-template.schema.json) |
 | A View Design | `ziffr.view/1` | [`view-design.schema.json`](../reference/view-design.schema.json), see [Writing a View Design](view-designs.md) |
-| An Analysis Recipe | `ziffr.analysis/1` | [`analysis-recipe.schema.json`](../reference/analysis-recipe.schema.json), see [Analysis Recipes](analysis-recipes.md) |
+| An Analysis Recipe | `ziffr.analysis/1` or `ziffr.analysis/2` | [`analysis-recipe.schema.json`](../reference/analysis-recipe.schema.json) and [`analysis-recipe-2.schema.json`](../reference/analysis-recipe-2.schema.json), see [Analysis Recipes](analysis-recipes.md) |
 | A Theme | `ziffr.theme/1` | [`theme.schema.json`](../reference/theme.schema.json) |
 
 ## The file

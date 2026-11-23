@@ -98,6 +98,25 @@ describe("getMetric and listObservations", () => {
   });
 });
 
+describe("a Guest's key reading values (spec 0046)", () => {
+  it("names the Guest on their own values, including one filled in for them, and no one on the rest", async () => {
+    const w = await ws(); const sara = await w.person("owner"); const gus = await w.person("guest");
+    const m = await w.metric(sara, { name: "Visits" });
+    await share(w.actor(sara), "metric", m.id, gus, "viewer");
+    await value(w, m.id, "2026-01-01", 1, gus); await value(w, m.id, "2026-02-01", 2, sara);
+    const filled = await value(w, m.id, "2026-03-01", 3, gus);
+    const { error } = await db().from("observations").update({ entered_by: sara }).eq("id", filled);
+    expect(error).toBeNull();
+    const key = (await actorForKey((await createAccessKey(w.actor(gus, "guest"), { name: "Guest", scopes: ["metrics:read"], expiresOn: inDays(30) })).secret))!;
+    const items = (await listObservations(key, m.slug, { limit: 10 })).items;
+    const by = Object.fromEntries(items.map((i) => [i.period, i]));
+    expect(by["2026-01-01"]).toMatchObject({ submitter: gus, submitter_name: expect.any(String), entered_by: null, entered_by_name: null });
+    expect(by["2026-02-01"]).toMatchObject({ submitter: null, submitter_name: null, entered_by: null, entered_by_name: null });
+    expect(by["2026-03-01"]).toMatchObject({ submitter: gus, submitter_name: by["2026-01-01"].submitter_name, entered_by: null, entered_by_name: null });
+    expect(JSON.stringify(items)).not.toContain(sara);
+  });
+});
+
 describe("listPeople and listGroups", () => {
   it("name the workspace's people, Contacts and Groups, with no contact details and nothing of another workspace", async () => {
     const w = await ws(); const tag = w.id.slice(0, 8);

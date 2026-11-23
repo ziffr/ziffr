@@ -31,8 +31,8 @@ export function DashboardSwitcher({ current, dashboards, homeId, ownerName, onNe
       {/* The heading holds the button, not the other way round: a button may not contain a heading. */}
       <h1 className="text-[length:var(--text-2xl)] leading-tight">
         <PopoverTrigger className="group -ml-1 flex max-w-full items-center gap-1.5 rounded-[var(--radius-input)] px-1 text-left hover:bg-muted focus-visible:outline-2 focus-visible:outline-ring" aria-label={`${current.name}: switch dashboard`}>
-          {/* Wraps to a second line on a phone (#607); one line with an ellipsis from the tablet width up. */}
-          <span className="min-w-0 break-words md:truncate">{current.name}</span>
+          {/* Wraps to more lines when the name is long, so no dashboard title is ever cut off (#607). */}
+          <span className="min-w-0 break-words">{current.name}</span>
           <ChevronDown aria-hidden className="size-5 shrink-0 text-muted-foreground transition-transform group-aria-expanded:rotate-180" />
         </PopoverTrigger>
       </h1>

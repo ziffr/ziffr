@@ -118,7 +118,7 @@
 "180k €"
 "Revenue is expected to be 150,461 € in September 2026 (likely between 144,969 € and 155,953 €)."
 "Too few months to check the yearly pattern against a plain trend, so a plain trend is used."
-"Worked out with a plain trend (Holt), over 24 months."
+"Worked out with a plain trend, over 24 months."
 "This assumes the pattern of the past carries on."
 "Over the last 12 months, the range for the next month would have held 7 of 12 times."
 "This carries the past forward; it is not a promise."

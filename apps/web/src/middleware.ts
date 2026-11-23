@@ -21,9 +21,14 @@ import { NextResponse, type NextRequest } from "next/server";
 import { createServerClient } from "@supabase/ssr";
 import { authSettings } from "@/lib/auth-settings";
 import { ownOrigins } from "@/lib/own-origins";
+import { DEMO_VISIT_COOKIE, newVisitId, visitCookieOptions, visitFromCookie, withCookie } from "@/lib/demo-visit-cookie";
 
-// The same name as DEMO_COOKIE in lib/auth.ts, which is server-only and cannot be imported here.
-const DEMO_COOKIE = "ziffr-demo";
+// The same name as DEMO_COOKIE in lib/auth.ts, which is server-only and cannot be imported here. It holds the
+// visit's id (spec 0051): 128 random bits, never derived from anything about the person.
+const DEMO_COOKIE = DEMO_VISIT_COOKIE;
+
+/** Whether the request came over HTTPS (behind a proxy, the forwarded protocol says): the cookie is Secure only then. */
+const overHttps = (req: NextRequest) => (req.headers.get("x-forwarded-proto")?.split(",")[0]?.trim() ?? req.nextUrl.protocol.replace(":", "")) === "https";
 
 // The user guide holds only its own text, so it can be read before signing in.
 const OPEN = [/^\/login(\/|$)/, /^\/auth\//, /^\/v\//, /^\/submit\//, /^\/guide(\/|$)/];
@@ -72,14 +77,24 @@ export async function middleware(req: NextRequest) {
     // another site, so such a post would look like a visitor's, and the GET after it would carry the session.
     if (path === "/demo" && req.method === "POST" && !ownOrigins(req.nextUrl.origin).has(req.headers.get("origin") ?? "")) return new NextResponse("Not from this site.", { status: 403 });
     if (path === "/demo" && signedIn && req.method !== "POST") return NextResponse.redirect(new URL("/demo/confirm", req.url));
-    const visit = path === "/demo" && demoOffered;
+    const starts = path === "/demo" && demoOffered;
     // 303 so a POST is followed by a GET of the page.
-    const out = NextResponse.redirect(new URL(visit ? "/" : "/login", req.url), 303);
-    if (visit) out.cookies.set(DEMO_COOKIE, "1", { httpOnly: true, sameSite: "lax", path: "/" });
+    const out = NextResponse.redirect(new URL(starts ? "/" : "/login", req.url), 303);
+    if (starts) out.cookies.set(DEMO_COOKIE, newVisitId(), visitCookieOptions(overHttps(req)));
     else out.cookies.delete(DEMO_COOKIE);
     return out;
   }
-  if (demoOffered && req.cookies.get(DEMO_COOKIE)?.value === "1") return res;
+  const visit = demoOffered ? visitFromCookie(req.cookies.get(DEMO_COOKIE)?.value) : null;
+  if (visit) {
+    // A cookie that is not an id (the "1" of before ids, or a forged value) is replaced by a fresh one, for this
+    // request's page too; a valid id passes unchanged.
+    if (visit.fresh) {
+      headers.set("cookie", withCookie(req.headers.get("cookie"), DEMO_COOKIE, visit.id));
+      res = NextResponse.next({ request: { headers } });
+      res.cookies.set(DEMO_COOKIE, visit.id, visitCookieOptions(overHttps(req)));
+    }
+    return res;
+  }
 
   const { url, anonKey } = authSettings();
   const supabase = createServerClient(url, anonKey, {

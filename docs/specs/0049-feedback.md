@@ -1,6 +1,6 @@
 # 0049 Feedback: people tell us what is wrong or missing, and hear back, without a GitHub account
 
-**Status:** in progress (tickets 1 and 3 built: the store and the bridge out, which needs a security review before it is switched on). **Ticket:** tracking issue #914, tickets #915, #916, #917, #918, #919, #920 (the owner's wish, 2026-11-23).
+**Status:** in progress (tickets 1, 3 and 5 built: the store, the bridge out and the review queue with the mode setting, which need a security review before they are switched on). **Ticket:** tracking issue #914, tickets #915, #916, #917, #918, #919, #920 (the owner's wish, 2026-11-23).
 
 ## Problem Statement
 
@@ -43,12 +43,12 @@ Most people who use Ziffr have no GitHub account and should not need one to tell
 - Coming back: a GitHub webhook (verified by its signature) on comments and on state changes; a comment by anyone but the bot is added to the Thread and notifies the person. Comments by the bot's own account (relayed replies) are not echoed back.
 - Anonymity is a property of what we send, so it is tested: the payload to GitHub is built from the words, the route, the version and the kind, and a test fails if anything else (names, emails, Workspace ids, Metric data) can reach it. The form says plainly that the words are public. The person may edit or withdraw their words before filing (when review first is on) and may ask for them to be closed afterwards.
 - Before words are posted to GitHub, @-mentions are neutralised (so nobody is pinged or impersonated) and zero-width and bidirectional control characters are removed.
-- Besides the per-person and per-Workspace limits, consider a daily cap for the whole Installation, so many accounts cannot flood the bridge.
+- Besides the per-person (5) and per-Workspace (20) limits, a daily cap for the whole Installation (ticket #947), so many accounts cannot flood the bridge: 200 a day unless the central operator moves it (Installation Setting `ZIFFR_FEEDBACK_PER_DAY`, 20 to 100,000, never off). Counted in the same transaction as the others; over it, the person reads "Feedback is paused for today. Please try again tomorrow." and nothing is stored.
 - Replies to a person go to the same place Task and Question notices go (spec 0034's channels, their email).
 
 ### The switch
 
-A central setting `feedback.mode` = `direct | review`, default `direct`, changed by an operator in the central operations area and recorded. In `review`, a maintainer sees the queue, may approve, edit (the person is told the words were edited) or reject with a reason that is sent to the person.
+A central setting `feedback.mode` = `direct | review`, default `direct` (built as the Installation Setting `ZIFFR_FEEDBACK_MODE` in the Feedback section of the Installation settings page, shown only in the central version), changed by an Installation Admin and recorded in the Installation's audit. In `review`, a maintainer (an Installation Admin of the central version) sees the queue at `/installation/feedback`, may approve, edit (the person is told the words were edited) or reject with a reason that is sent to the person.
 
 ## Testing Decisions
 

@@ -32,10 +32,10 @@ async function signedIn(w: Awaited<ReturnType<typeof ws>>, role: "owner" | "admi
 const say = (a: Actor, over: Record<string, unknown> = {}) => createFeedback(a, { kind: "problem", words: "The chart is wrong.", ...over });
 
 describe("sending", () => {
-  it("stores the kind, the cleaned words, a plain route and the version, waiting for review, and answers with only those", async () => {
+  it("stores the kind, the cleaned words, a plain route and the version, open (the default posts directly), and answers with only those", async () => {
     const w = await ws(); const ben = await signedIn(w);
     const made = await say(w.actor(ben, "member"), { kind: "idea", words: "  More colours please\u0000 ", route: "/metrics/monthly-revenue?x=1#top", appVersion: "0.11.0" });
-    expect(made).toMatchObject({ kind: "idea", words: "More colours please", route: "/metrics/:name", appVersion: "0.11.0", status: "waiting_for_review" });
+    expect(made).toMatchObject({ kind: "idea", words: "More colours please", route: "/metrics/:name", appVersion: "0.11.0", status: "open" });
     expect(Object.keys(made).sort()).toEqual(["appVersion", "createdAt", "id", "kind", "route", "status", "words"]);
     const { data } = await db().from("feedback").select("*").eq("id", made.id).single();
     expect(data).toMatchObject({ person_id: ben, workspace_id: w.id, public_ref: expect.stringMatching(/^[0-9a-f]{16}$/) });
@@ -58,6 +58,31 @@ describe("sending", () => {
     delete process.env.ZIFFR_CLOUD_KEY; forgetStoredSettings();
     await expect(say(w.actor(ben, "member"))).rejects.toBeInstanceOf(Forbidden);
     await expect(listMyFeedback(w.actor(ben, "member"))).rejects.toBeInstanceOf(Forbidden);
+  });
+});
+
+describe("the mode", () => {
+  const savedMode = process.env.ZIFFR_FEEDBACK_MODE;
+  afterEach(() => { if (savedMode === undefined) delete process.env.ZIFFR_FEEDBACK_MODE; else process.env.ZIFFR_FEEDBACK_MODE = savedMode; forgetStoredSettings(); });
+  const setMode = (mode: string) => { process.env.ZIFFR_FEEDBACK_MODE = mode; forgetStoredSettings(); };
+  const statusOf = async (id: string) => (await db().from("feedback").select("status").eq("id", id).single()).data!.status;
+  it("makes new feedback waiting for review when the mode is review, and open when it is direct", async () => {
+    const w = await ws(); const ben = await signedIn(w); const a = w.actor(ben, "member");
+    setMode("review");
+    const waiting = await say(a, { words: "waits" });
+    expect(waiting.status).toBe("waiting_for_review");
+    setMode("direct");
+    const open = await say(a, { words: "goes" });
+    expect(open.status).toBe("open");
+    expect(await statusOf(waiting.id)).toBe("waiting_for_review");
+  });
+  it("leaves what waits waiting when the mode changes to direct", async () => {
+    const w = await ws(); const ben = await signedIn(w); const a = w.actor(ben, "member");
+    setMode("review");
+    const waiting = await say(a);
+    setMode("direct");
+    await say(a, { words: "another" });
+    expect(await statusOf(waiting.id)).toBe("waiting_for_review");
   });
 });
 
@@ -122,5 +147,55 @@ describe("who sees what", () => {
     cleanups.length = 0;
     const { data } = await db().from("feedback").select("id").eq("id", made.id);
     expect(data).toEqual([]);
+  });
+});
+
+describe("the Installation's daily cap", () => {
+  // The cap counts all feedback of the last 24 hours in the database, whoever made it, so each test sets the cap
+  // relative to what is there already (the function takes it as a parameter; the setting's range starts at 20).
+  const made24h = async () => (await db().from("feedback").select("id", { count: "exact", head: true }).gt("created_at", new Date(Date.now() - 24 * 3_600_000).toISOString())).count ?? 0;
+  const create = (personId: string, workspaceId: string, cap: number) =>
+    db().rpc("feedback_create", { p_person: personId, p_workspace: workspaceId, p_kind: "idea", p_words: "A cap test.", p_route: null, p_version: null, p_per_person: 5, p_per_workspace: 20, p_per_installation: cap });
+
+  it("refuses the third feedback of a cap of two, from different people and Workspaces, with its own error", async () => {
+    const cap = (await made24h()) + 2;
+    const [a, b, c] = [await ws(), await ws(), await ws()];
+    const [pa, pb, pc] = [await signedIn(a), await signedIn(b), await signedIn(c)];
+    expect((await create(pa, a.id, cap)).data).toHaveLength(1);
+    expect((await create(pb, b.id, cap)).data).toHaveLength(1);
+    expect((await create(pc, c.id, cap)).error?.message).toContain("feedback_installation_cap");
+    expect((await db().from("feedback").select("id").eq("person_id", pc)).data).toEqual([]);
+  });
+  it("tells the person that feedback is paused, not that they sent enough", async () => {
+    process.env.ZIFFR_FEEDBACK_PER_DAY = "20";
+    forgetStoredSettings();
+    try {
+      const w = await ws(); const ben = await signedIn(w); const filler = await signedIn(w);
+      const missing = Math.max(0, 20 - (await made24h()));
+      await db().from("feedback").insert(Array.from({ length: missing }, () => ({ person_id: filler, workspace_id: null, kind: "idea", words: "filler" })));
+      await expect(say(w.actor(ben, "member"))).rejects.toThrow(/Feedback is paused for today/);
+    } finally { delete process.env.ZIFFR_FEEDBACK_PER_DAY; forgetStoredSettings(); }
+  });
+  it("still tells a person over their own limit that that is enough, when the cap is not reached", async () => {
+    const w = await ws(); const ben = await signedIn(w);
+    for (let i = 0; i < FEEDBACK_PER_PERSON_PER_DAY; i++) await say(w.actor(ben, "member"));
+    await expect(say(w.actor(ben, "member"))).rejects.toThrow(/enough feedback for today/);
+  });
+  it("counts only the last 24 hours", async () => {
+    const w = await ws(); const ben = await signedIn(w); const eva = await signedIn(w);
+    const cap = (await made24h()) + 1;
+    expect((await create(ben, w.id, cap)).data).toHaveLength(1);
+    expect((await create(eva, w.id, cap)).error?.message).toContain("feedback_installation_cap");
+    await db().from("feedback").update({ created_at: new Date(Date.now() - 25 * 3_600_000).toISOString() }).eq("person_id", ben);
+    expect((await create(eva, w.id, cap)).data).toHaveLength(1);
+  });
+  it("does not let simultaneous requests from different people pass the cap together", async () => {
+    const w = await ws();
+    const people = await Promise.all(Array.from({ length: 6 }, () => signedIn(w)));
+    const cap = (await made24h()) + 2;
+    const results = await Promise.all(people.map((p) => create(p, w.id, cap)));
+    expect(results.filter((r) => (r.data ?? []).length === 1)).toHaveLength(2);
+    expect(results.filter((r) => r.error?.message.includes("feedback_installation_cap"))).toHaveLength(4);
+    expect(await made24h()).toBe(cap);
   });
 });

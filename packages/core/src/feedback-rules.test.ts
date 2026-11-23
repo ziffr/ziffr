@@ -1,6 +1,34 @@
 // The rules of Feedback (spec 0049, ticket #915) without a database: kinds, words, route, version.
 import { describe, expect, it } from "vitest";
-import { cleanAppVersion, cleanFeedbackWords, FEEDBACK_WORDS_MAX, feedbackKind, normalizeRoute } from "./feedback-rules";
+import {
+  cleanAppVersion, cleanFeedbackWords, cleanRejectionReason, FEEDBACK_ENOUGH_MESSAGE, FEEDBACK_FAILED_MESSAGE, FEEDBACK_INSTALLATION_CAP, FEEDBACK_PAUSED_MESSAGE,
+  FEEDBACK_REASON_MAX, FEEDBACK_WORDS_MAX, feedbackInstallationCapFrom, feedbackInstallationCapProblem, feedbackKind, feedbackMode, feedbackRefusal, newFeedbackStatus,
+  normalizeRoute,
+} from "./feedback-rules";
+import { INSTALLATION_SETTINGS } from "./installation-catalogue";
+
+describe("mode", () => {
+  it("is direct when unset or exactly direct, and review for any other value", () => {
+    expect(feedbackMode({})).toBe("direct");
+    expect(feedbackMode({ ZIFFR_FEEDBACK_MODE: "" })).toBe("direct");
+    expect(feedbackMode({ ZIFFR_FEEDBACK_MODE: "direct" })).toBe("direct");
+    expect(feedbackMode({ ZIFFR_FEEDBACK_MODE: "anything" })).toBe("review");
+    expect(feedbackMode({ ZIFFR_FEEDBACK_MODE: " Review " })).toBe("review");
+  });
+  it("gives new feedback open in direct and waiting for review in review", () => {
+    expect(newFeedbackStatus("direct")).toBe("open");
+    expect(newFeedbackStatus("review")).toBe("waiting_for_review");
+  });
+});
+
+describe("rejection reason", () => {
+  it("is required, cleaned and bounded", () => {
+    expect(cleanRejectionReason("  Not ours\u0000 ")).toEqual({ ok: true, reason: "Not ours" });
+    for (const r of ["", "  ", undefined, 3, null]) expect(cleanRejectionReason(r).ok).toBe(false);
+    expect(cleanRejectionReason("x".repeat(FEEDBACK_REASON_MAX)).ok).toBe(true);
+    expect(cleanRejectionReason("x".repeat(FEEDBACK_REASON_MAX + 1)).ok).toBe(false);
+  });
+});
 
 describe("kind", () => {
   it("accepts the three kinds and nothing else", () => {
@@ -43,5 +71,28 @@ describe("app version", () => {
     expect(cleanAppVersion("0.11.0")).toBe("0.11.0");
     expect(cleanAppVersion("1.2.3-rc.1")).toBe("1.2.3-rc.1");
     for (const v of ["v1.2.3", "1.2", "latest", "1.2.3 Revenue", null, 1]) expect(cleanAppVersion(v)).toBeNull();
+  });
+});
+
+describe("the Installation's daily cap", () => {
+  const { name, min, max } = FEEDBACK_INSTALLATION_CAP;
+  it("accepts a whole number within the range and nothing else, so it cannot be switched off", () => {
+    for (const v of [String(min), "200", String(max), " 300 "]) expect(feedbackInstallationCapProblem(v)).toBeNull();
+    for (const v of ["0", String(min - 1), String(max + 1), "", "abc", "1.5", "-5", "1e3"]) expect(feedbackInstallationCapProblem(v)).toMatch(/whole number|must be from/);
+  });
+  it("reads the number set, or the default for a missing or mistaken value", () => {
+    expect(feedbackInstallationCapFrom({ [name]: "50" })).toBe(50);
+    for (const v of [undefined, "0", "junk", String(max + 1)]) expect(feedbackInstallationCapFrom({ [name]: v })).toBe(FEEDBACK_INSTALLATION_CAP.default);
+    expect(FEEDBACK_INSTALLATION_CAP.default).toBe(200);
+  });
+  it("is a setting on the Installation settings page, in the Feedback section", () => {
+    expect(INSTALLATION_SETTINGS.find((s) => s.name === name)).toMatchObject({ section: "feedback", secret: false });
+  });
+  it("tells the Installation's cap from a person's limit, another failure and success", () => {
+    expect(feedbackRefusal({ message: "feedback_installation_cap" }, false)).toBe(FEEDBACK_PAUSED_MESSAGE);
+    expect(feedbackRefusal(null, false)).toBe(FEEDBACK_ENOUGH_MESSAGE);
+    expect(feedbackRefusal({ message: "connection refused" }, false)).toBe(FEEDBACK_FAILED_MESSAGE);
+    expect(feedbackRefusal(null, true)).toBeNull();
+    expect(FEEDBACK_PAUSED_MESSAGE).not.toBe(FEEDBACK_ENOUGH_MESSAGE);
   });
 });

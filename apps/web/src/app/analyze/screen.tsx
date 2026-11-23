@@ -12,6 +12,7 @@ import { TEMPLATES } from "@/views/templates";
 import type { CanvasData, TemplateId } from "@ziffr/core/types";
 import { PERIOD_LABEL } from "@ziffr/core/periods";
 import { DidItWork } from "./did-it-work";
+import { MethodPicker } from "./method-picker";
 import { cn } from "@/lib/utils";
 
 type Result = { key: string; template: TemplateId; metric_ids: number[] };
@@ -29,6 +30,7 @@ function AnalyzeCanvas({ data, onCanvas, targets, demo = false }: AnalyzeProps) 
   const [results, setResults] = useState<Result[]>([]);
   const [over, setOver] = useState(false);
   const [didIt, setDidIt] = useState(false);
+  const [choosing, setChoosing] = useState(false);
   const [pending, start] = useTransition();
   // Outside the demo the canvas is the person's own and kept between visits: the server holds it and the page sends
   // it again after each change. The demo saves nothing (GLOSSARY: Demo Mode) and its database refuses every write, so
@@ -94,10 +96,13 @@ function AnalyzeCanvas({ data, onCanvas, targets, demo = false }: AnalyzeProps) 
           ))}
           {/* Asks about the first Metric on the canvas, so it needs one there; it opens a card for the day. */}
           <button onClick={() => setDidIt((open) => !open)} disabled={n === 0} aria-expanded={didIt && n > 0} title={n === 0 ? "Drop a metric first" : undefined} className="stock min-h-9 rounded-[var(--radius-stock)] px-3 text-sm transition-[transform,box-shadow] hover:-translate-y-px hover:[box-shadow:var(--edge-stock),var(--cast-stock-lift)] active:translate-y-px disabled:cursor-not-allowed disabled:opacity-50">Did it work?</button>
+          <button onClick={() => setChoosing((open) => !open)} aria-expanded={choosing} className="stock min-h-9 rounded-[var(--radius-stock)] px-3 text-sm transition-[transform,box-shadow] hover:-translate-y-px hover:[box-shadow:var(--edge-stock),var(--cast-stock-lift)] active:translate-y-px">Choose a method</button>
           {!recipes.length && <span className="text-xs text-muted-foreground">Recipes appear once the metrics they need are shared with you.</span>}
         </div>
 
         {didIt && n > 0 && <DidItWork key={ms[0].id} data={data} metrics={ms} />}
+
+        {choosing && <MethodPicker ids={ids} />}
 
         <div
           onDragOver={(e) => { e.preventDefault(); setOver(true); }}
