@@ -142,7 +142,7 @@ jobs:
         env:
           # A shard sees part of the tests: the coverage thresholds are checked on the merge (packages/core/vitest.config.ts).
           ZIFFR_COVERAGE_SHARD: "1"
-        run: pnpm exec vitest run --coverage --reporter=blob --outputFile=unit-blobs/blob-${{ matrix.shard }}.json --shard=${{ matrix.shard }}/4
+        run: pnpm exec vitest run --coverage --reporter=default --reporter=blob --outputFile.blob=unit-blobs/blob-${{ matrix.shard }}.json --shard=${{ matrix.shard }}/4
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: unit-blob-${{ matrix.shard }}
@@ -186,6 +186,8 @@ jobs:
           pattern: unit-blob-*
           path: packages/core/unit-blobs
           merge-multiple: true
+      - name: All four shards' reports arrived
+        run: test "$(ls packages/core/unit-blobs/*.json | wc -l)" = 4
       - name: Merge the shards, with the 100 % coverage of the calculation modules
         working-directory: packages/core
         run: pnpm exec vitest run --merge-reports=unit-blobs --coverage
