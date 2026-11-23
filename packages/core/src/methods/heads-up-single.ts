@@ -477,9 +477,7 @@ export function testsOf(look: SingleLook, ctx: SingleContext): Test[] {
  * correction counts only the tests worked out for these looks, all three kinds together (see the file's header); a Metric with too few values for a kind is not a test of
  * that kind. Strongest first within each kind, the kinds in that order, ties by id. The same looks give the same Heads-ups in any order. */
 export function singleHeadsUpsFrom(looks: readonly SingleLook[], ctx: SingleContext): HeadsUp[] {
-  // Stryker disable next-line ArrowFunction,ArithmeticOperator,MethodExpression: the order the Metrics are tried in changes nothing: the correction does not read the order and the Heads-ups are sorted again below.
-  const sorted = [...looks].sort((a, b) => a.metric.id - b.metric.id);
-  const tests = sorted.flatMap((look) => testsOf(look, ctx));
+  const tests = looks.flatMap((look) => testsOf(look, ctx));
   const reported = benjaminiHochberg(tests.map((t) => t.p), SINGLE.rate);
   const adjusted = adjustedChances(tests.map((t) => t.p));
   const out = tests.flatMap((test, i) => (reported[i] ? [test.build(tests.length, adjusted[i])] : []));

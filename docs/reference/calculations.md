@@ -217,8 +217,6 @@ Mutation testing changes the code on purpose and expects a test to fail. A chang
 - `src/methods/heads-up-single.ts` · EqualityOperator · Which side the change into a date's own period would belong to: it is skipped before, so `<` and `<=` never differ; and the cut of a chance at the correction's rate before the forecast's or the usual range's checks run, which only saves their work (a chance above the rate is never reported by the correction).
 - `src/methods/heads-up-single.ts` · ConditionalExpression · The same cut at the rate, which only saves work.
 - `src/methods/heads-up-single.ts` · EqualityOperator · A season of exactly 2 periods and a first autocorrelation of exactly 0.2: no Period has a season of 2 (a half year is only a Display Period), and an autocorrelation of exactly 0.2 is a measure-zero event in doubles.
-- `src/methods/heads-up-single.ts` · ArrowFunction · The order the Metrics are tried in: the correction does not read the order and the Heads-ups are sorted again at the end.
-- `src/methods/heads-up-single.ts` · MethodExpression · The order the Metrics are tried in: the correction does not read the order and the Heads-ups are sorted again at the end.
 - `src/methods/t-curve.ts` · ArithmeticOperator · The switch to the direct tail: it only picks between two routes that agree to 1e-14 where a tail is above 1e-3, so a threshold a little lower gives the same chances.
 - `src/methods/bridge.ts` · EqualityOperator · The size of a fraction for ordering parts: a fraction of 0 has the size 0 whether it is read as negative or not.
 - `src/correlation.ts` · EqualityOperator · The sign word of a correlation: an r of 0 is "no clear" before the sign is named, so `r >= 0` and `r > 0` never differ.
