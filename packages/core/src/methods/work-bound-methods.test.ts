@@ -20,7 +20,7 @@ import { paretoTakeaway, topShareTakeaway } from "./concentration";
 import { fit, importance, needs, predict, type Fit, type FitInput } from "./fit";
 import { bestForecast } from "./forecast-choice";
 import { laggedTakeaway } from "./lagged-correlation";
-import { scanPairs } from "./pair-scan";
+import { HEADS_UP, scanPairs } from "./pair-scan";
 import { partialTakeaway } from "./partial-correlation";
 import { usualRangeTakeaway } from "./quantiles";
 import { spearmanTakeaway } from "./spearman";
@@ -365,6 +365,10 @@ describe("the Heads-ups about one Metric leave out a Metric whose values are too
     expect(hostile.result).toEqual([]);
     expect(hostile.ms).toBeLessThan(QUICK);
     expect(testsOf({ metric: metricOf, points: series("ordinary", 1) }, ctxOf).length).toBeGreaterThan(0);
+    // Only the window the tests look at is judged: hostile values older than it are not read.
+    const old = series("tiny", 2, 30).map((p) => p.value);
+    const recent = series("ordinary", 1, HEADS_UP.window).map((p) => p.value);
+    expect(testsOf({ metric: metricOf, points: months("2010-01", [...old, ...recent]) }, { ...ctxOf, today: "2030-01-15" }).length).toBeGreaterThan(0);
   });
 });
 
