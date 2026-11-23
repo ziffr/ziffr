@@ -147,7 +147,7 @@ To place something, drag it onto the dashboard where you want it, or point at it
 - **A saved Widget** lands as a copy. Changing the copy does not change your saved Widget, nor the other way round.
 - **A Widget Template** first asks for its Slots (see below), then lands with the chosen Metrics.
 
-Pointing at a template, saved Widget or Metric for a moment shows its Preview beside the Pool. On a touch screen or a narrow window, press the **ⓘ** button on its row instead to see the Preview below it. A template's Preview always uses Sample Data. A saved Widget's or Metric's Preview draws your own values.
+Pointing at a template or saved Widget for a moment shows its Preview beside the Pool. The **ⓘ** button on a row opens the Preview and keeps it open until you press **ⓘ** again, press Escape or tap elsewhere; on a touch screen or a narrow window it opens over the page just below the row, and the list never moves. A template's Preview always uses Sample Data. A saved Widget's Preview draws your own values. A Metric's Preview is a small card: its name, how often it is counted and in which unit, its description, its latest value with the period, and a small line of its recent values.
 
 **Browse…** next to **Templates** opens **Browse templates**: every template as a larger Preview, grouped as in the Pool, with **Filter** and a **Use** button on each.
 
@@ -387,12 +387,14 @@ A dashboard reads two ways. Switch with **Grid** and **Read** in the toolbar.
 
 | Option | What it does |
 | --- | --- |
-| **Overview** | The whole dashboard as arranged, fitted to the screen. On a narrow screen it stacks in reading order. Double-click a Widget to show it alone. |
+| **Overview** | The whole dashboard as arranged, fitted to the screen. When it has so few rows that its Widgets would be stretched far taller than wide on a big screen, the Widgets keep a sensible shape instead and more of them sit in each row. On a narrow screen it stacks in reading order. Click or tap a Widget to show it alone. |
 | **One at a time** | One Widget at a time, as large as the screen allows, with **Previous**, **Next** and a count such as "3 / 8". |
 | **Full screen** / **Leave full screen** | Uses the whole screen, without the browser around it. |
 | **Close** | Goes back to the dashboard. |
 
 A Widget grows with the space it has: when it is large on a dashboard, and when presenting, its value, the gauge, the table rows, the chart axes and the line under it get larger, so a Widget shown on a big screen reads from across the room. Its parts share the room: the small trend line under a number grows into the free height and, from about Overview size on, names its first and last period, marks the latest value with a dot, labels its highest and lowest value and shows the target as a faint band or dashed line (a target far from the values is named at the edge instead), a table spreads its rows, and what does not grow sits in the middle rather than in a corner. Widgets of the usual size and phones show it at its normal size.
+
+Outside Edit mode you can also click or tap a Widget on the dashboard itself, outside its ⋯ menu, links, controls and the points of a chart (which show their value), to open it large, as **One at a time** does. Press **Enter** on a Widget you have reached with the keyboard to do the same. **Back**, **Close** and **Escape** return to the dashboard where you were. Scrolling on a touch screen opens nothing. In Edit mode a click selects or drags the Widget as before.
 
 To step through Widgets, use the arrow keys, the space bar, Page Up and Page Down, or swipe. **Home** and **End** jump to the first and last. **Escape** closes presenting (or first leaves full screen).
 

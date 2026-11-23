@@ -132,6 +132,7 @@ Acts as the person, with their own sign-in, Slack or Telegram account or email a
 
 Settings an Owner or Installation Admin makes at the screen. Programs with a key do not change who runs the Workspace.
 
+- `handOverMetric` (metric-owner.ts): handing a Metric to another Member: a person's call at the Metric's page, so a key must not change who owns a Metric
 - `createAccessKey` (access-keys.ts): Access Keys: a key must not make or end keys
 - `revokeAccessKey` (access-keys.ts): Access Keys: a key must not make or end keys
 - `setJoinDomain` (invitations.ts): domain joining rests on the Owner's own verified address, which only a sign-in proves
@@ -244,6 +245,11 @@ Reads for a screen that also note that something was seen or logged; the API has
 - `previewShareProposal` (share-proposals.ts): the confirm page shows what the recipient would see, to the person only (ticket #538)
 - `confirmShareProposal` (share-proposals.ts): never through a key, by design: only the person confirms a Share Proposal, signed in (ticket #538)
 - `declineShareProposal` (share-proposals.ts): never through a key, by design: only the person decides a Share Proposal, signed in (ticket #538)
+- `actionsAskedByMe` (actions-overview.ts): the Schedule's Asked by me view; the API lists a key's Actions through its own endpoint (ticket #784)
+- `actionsTimeline` (actions-overview.ts): the Schedule's Timeline view, made of period timelines the API already offers per Workflow as `period-status` (ticket #784)
+- `toCloseCount` (actions-overview.ts): a number for the sidebar badge of a signed-in person (ticket #784)
+- `timelineContext` (period-timeline.ts): shared facts for building many timelines at once; internal to the pages (ticket #784)
+- `periodTimelineAbout` (period-timeline.ts): the same lines as `periodTimeline`, which the API reaches, plus the Metric ids the Timeline filters by (ticket #784)
 - `previewViewLink` (view-links.ts): the confirm page of a Share Proposal; reads only (ticket #538)
 - `submittingKeyNames` (access-keys.ts): reads Workspace words, which opening needs the Workspace's key for (spec 0028); the API has its own reads
 - `alertChoices` (alerts.ts): reads Workspace words, which opening needs the Workspace's key for (spec 0028); the API has its own reads

@@ -239,6 +239,8 @@ describe("people over HTTP", () => {
     expect((await removePerson(k.req("DELETE", `/people/${sara}?successor=${ada}`), k.params({ id: sara }))).status).toBe(403);
     expect((await removePerson(k.req("DELETE", `/people/${ada}?successor=${ben}`), k.params({ id: ada }))).status).toBe(403);
     await w.setRole(ben, "member");
+    // A Guest owns nothing: the one who is removed here is a Member who owns a Metric.
+    await w.setRole(gia, "member");
     await changeRows("metrics", { id: cash.id }, { owner_id: gia });
     expect(await (await removePerson(k.req("DELETE", `/people/${gia}?successor=${sara}`), k.params({ id: gia }))).json()).toEqual({ removed: gia });
     const moved = (await rowsOf("metrics", { id: cash.id }))[0];

@@ -184,6 +184,7 @@ describe("Approvals, Tasks and Questions", () => {
     // Ticket 323: Ben is its Assignee, so he may read it and it stays on his Schedule, with its words.
     const own = flat(await schedule(w.actor(ben, "member"), {}, NOW));
     expect(own.map((e) => [e.kind, e.actionId, e.text])).toEqual([["task", task, "Look"]]);
+    // A fixed created_at: an Approval is dated the day it was asked, so the real clock drifted out of the fixed week.
     // An Approval of a Metric never shared with its Approver shows too.
     const approval = await action(w, { metric_id: m.id, period_start: "2026-10-01", asker_id: sara, assignee_id: ann, kind: "task", purpose: "approval", question: "Approve Secret: 5", created_at: "2026-11-18T09:00:00Z" });
     expect(flat(await schedule(w.actor(ann, "admin"), {}, NOW)).map((e) => [e.kind, e.actionId])).toEqual([["approval", approval]]);

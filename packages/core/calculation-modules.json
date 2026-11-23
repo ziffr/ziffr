@@ -45,5 +45,11 @@
   "src/methods/p-value.ts",
   "src/methods/false-discovery.ts",
   "src/methods/pair-scan.ts",
-  "src/methods/heads-up.ts"
+  "src/methods/heads-up.ts",
+  "src/takeaways/sizes.ts",
+  "src/methods/t-curve.ts",
+  "src/methods/before-after.ts",
+  "src/methods/change-point.ts",
+  "src/methods/fractions.ts",
+  "src/methods/carry-over.ts"
 ]

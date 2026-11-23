@@ -13,7 +13,7 @@ const command = (id: string, label: string, hint: string, words: string, href: s
 
 /** Every page with its plain words. A page the person's role has no link to is left out by `pageEntries`. */
 const PAGES: Entry[] = [
-  page("/actions", "Actions", "Waiting for you", "approval approve inbox questions requests todo waiting prompt"),
+  page("/schedule", "Schedule", "Waiting for you", "approval approve inbox actions questions tasks requests todo waiting prompt timeline asked"),
   page("/dashboards", "Dashboards", "Home", "home overview charts widgets"),
   page("/decks", "Decks", "Slides", "slides presentation present board report"),
   page("/metrics", "Metrics", "All numbers", "numbers kpi list values"),
@@ -48,7 +48,7 @@ const NOT_FOR_GUESTS = new Set(["/themes", "/settings/your-webhooks"]);
 /** Pages only Owners and Admins have (a section of General, so no menu link lists it). */
 const ADMINS_ONLY = new Set(["/settings/workspace#size"]);
 /** Pages everyone has. */
-const EVERYONE = new Set(["/actions", "/dashboards", "/decks", "/metrics", "/analyze", "/settings/schedule", "/settings/profile", "/settings/deliveries", "/settings/alerts", "/settings/appearance", "/settings/assistants"]);
+const EVERYONE = new Set(["/schedule", "/dashboards", "/decks", "/metrics", "/analyze", "/settings/schedule", "/settings/profile", "/settings/deliveries", "/settings/alerts", "/settings/appearance", "/settings/assistants"]);
 
 /** The pages this role may open: the ones everyone has, and those the Workspace menu draws for the role. */
 export function pageEntries(role: WorkspaceRoleName): Entry[] {

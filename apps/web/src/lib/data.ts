@@ -5,6 +5,7 @@ import "server-only";
 import { cache } from "react";
 import { currentActor, currentWorkspaceId } from "./viewer";
 import { schedule } from "@ziffr/core/schedule";
+import { toCloseCount } from "@ziffr/core/actions-overview";
 import * as data from "@ziffr/core/workspace-data";
 import { peopleIn } from "@ziffr/core/submissions";
 import { peopleFor } from "@ziffr/core/access";
@@ -43,20 +44,20 @@ export const getLastValues = async (metricId: number, n: number) => data.getLast
 /** The current workspace's Metrics and series; with `points`, only each series' last periods. */
 export const getAllSeries = (opts?: { points?: number }) => allSeries(opts?.points ?? 0);
 const allSeries = cache(async (points: number) => data.getAllSeries(await currentWorkspaceId(), points ? { points } : {}));
-/** How many Actions wait for the person in the current workspace. */
-export const openActionCount = cache(async (viewer: string) => data.openActionCount(await currentWorkspaceId(), viewer));
 /** Target Series and Projections of the current workspace. */
 export const getSeriesValues = async (metricIds: number[]) => data.getSeriesValues(await currentWorkspaceId(), metricIds);
 /** Breakdowns of the current workspace. */
 export const getBreakdowns = async (metricIds: number[]) => data.getBreakdowns(await currentWorkspaceId(), metricIds);
 
-/** How many values are due from the viewer: their overdue ones and those due today (GLOSSARY: Schedule, Due Date), for
+/** How many values are due from the viewer, their overdue ones and those due today, and the Actions they have to close (GLOSSARY: Schedule, Due Date), for
  * the sidebar's Schedule row. A number only; where the Schedule cannot be read it is 0, never an error on every page. */
 export const dueValueCount = cache(async (): Promise<number> => {
   try {
-    const s = await schedule(await currentActor());
+    const actor = await currentActor();
+    const s = await schedule(actor);
     const today = s.days.find((d) => d.date === s.today)?.entries ?? [];
-    return [...s.overdue, ...today].filter((e) => e.kind === "value_due").length;
+    // Answered Actions waiting for the person to close them count too (the Schedule's To close).
+    return [...s.overdue, ...today].filter((e) => e.kind === "value_due").length + (await toCloseCount(actor));
   } catch {
     return 0;
   }
