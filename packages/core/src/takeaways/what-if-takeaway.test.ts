@@ -240,6 +240,10 @@ describe("rows the picture draws", () => {
     expect(t.kind).toBe("answer");
     expect(t.cautions).toEqual(["Visits and Signups move closely together, so their separate effects are less certain; the ranges show how much."]);
   });
+  it("refuses numbers that differ but would be written alike in 15 places", () => {
+    const row = say([ok("Revenue", { effect: 1, lo: 1, hi: 1 + 2.220446049250313e-16 })]).rows[0];
+    expect(row.kind).toBe("refused");
+  });
   it("keeps the rows empty where the change cannot be written, and names the Metric whose numbers cannot", () => {
     const t = whatIfTakeaway(VISITS, [VISITS, SIGNUPS], { ok: true, start: "Visits", by: 1e-16, percent: null, span: "month", reached: [ok("Signups")] }, [], ctx);
     expect(t).toMatchObject({ kind: "refusal", rows: [], figures: [], numbers: [] });
@@ -535,6 +539,25 @@ describe("how the Recipe chooses what to follow", () => {
     const twice = mk(84, "twice", "Twice the ratio", { formula: "{ratio} * 2" });
     const t2 = whatIfRecipe(START, { by: 0.1 }, [VISITS, REVENUE, twice], resolverFrom([START, VISITS, REVENUE, twice], { ...w.series, ratio: months("2024-01", w.revenue.map((v, i) => v / w.visits[i])), twice: [] }), opts);
     expect(t2.notes).toContain("Left out, as the formula of Twice the ratio could not be used here.");
+  });
+  it("leaves a Metric out of what is followed where the Metric changed is among those given, and gives refusals no notes or rows", () => {
+    const w = world();
+    const same = recipe(VISITS, { by: 1000 }, [VISITS, SIGNUPS], w);
+    expect(same.kind).toBe("answer");
+    expect(recipe(VISITS, { by: 1000 }, [], w)).toMatchObject({ kind: "refusal", notes: [], rows: [] });
+    expect(recipe(VISITS, { by: 1000 }, [SIGNUPS, mk(7, "twin", "Signups")], w)).toMatchObject({ kind: "refusal", notes: [], rows: [] });
+  });
+  it("says which Metric was left out for being three steps away, and keeps the ones that can be followed", () => {
+    const w = world();
+    const t = recipe(VISITS, { by: -1500 }, [SIGNUPS, REVENUE, RPV], w);
+    expect(t.notes).toEqual(["Left out, as they are more than 2 steps from the Metric that changes, so a change cannot be followed through them: Revenue per visit."]);
+    expect(t.rows.map((r) => r.name)).toEqual(["Signups", "Revenue"]);
+  });
+  it("names what was left out in order of their names", () => {
+    const w = world();
+    const [z, a] = [mk(91, "z", "Zed ratio", { formula: "{visits} / {nothing}" }), mk(92, "a", "Alpha ratio", { formula: "{visits} / {nothing}" })];
+    const t = whatIfRecipe(VISITS, { by: 1 }, [z, a, SIGNUPS], resolverFrom([VISITS, z, a, SIGNUPS], { ...w.series, z: [], a: [] }), opts);
+    expect(t.notes).toContain("Left out, as the formula of Alpha ratio and Zed ratio could not be used here.");
   });
   it("does not fit a Metric on one that is made of it", () => {
     const w = world();

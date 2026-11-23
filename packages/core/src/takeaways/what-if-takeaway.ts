@@ -97,6 +97,7 @@ export function whatIfTakeaway(start: Metric, metrics: Metric[], result: WhatIf,
     const moves = text(r.effect > 0 ? "whatif-go-up" : "whatif-go-down", ctx);
     const [lo, hi] = [r.lo, r.hi];
     // The range is there or not as a whole.
+    // Stryker disable next-line ConditionalExpression: a null end counted as 0 is left out when the digits are chosen (zeros are), so the digits are the same
     const like = [Math.abs(r.effect), ...(lo === null ? [] : [Math.abs(lo), Math.abs(hi!)])];
     // Numbers that cannot be told from 0 or from each other in 15 places are not written: the row says so instead.
     if (!legible(m, like, ctx)) return refusedRow({ name: r.name, step: r.step }, text("refuse-what-if-small", ctx));
@@ -136,6 +137,7 @@ export function whatIfTakeaway(start: Metric, metrics: Metric[], result: WhatIf,
   const byChange = estimated.filter((r) => r.byChange).length;
   const allByChange = byChange === estimated.length && result.reached.every((r) => r.ok && !r.exact);
   // Stryker disable next-line EqualityOperator: this value is never exactly 0 here, so `>` and `>=` say the same
+  // Stryker disable next-line ConditionalExpression: the percent is written only for the percent headline, so a 0 written where there is none is never read
   const slots = { start: start.name, goes: text(result.by > 0 ? "whatif-goes-up" : "whatif-goes-down", ctx), by: startText, when: allByChange ? text("whatif-when-next", ctx, { span }) : "", pct: result.percent === null ? "" : formatNumber(Math.abs(result.percent), percentDigits(Math.abs(result.percent)), ctx.style) };
   const headline = text(result.percent === null ? "whatif-headline" : "whatif-headline-percent", ctx, slots);
   if (result.percent !== null) figures.push(figure(`${start.name} %`, Math.abs(result.percent), slots.pct));
@@ -191,6 +193,7 @@ export const MOST_PER_STEP = 8;
 
 // The levels a formula's inputs are at in the period the change counts from (the changed Metric's latest), by Metric name; null where one has none there.
 function levelsOf(inputs: Metric[], series: Map<number, Point[]>, period: string): Record<string, number> | null {
+  // Stryker disable next-line ArrayDeclaration: an input with no series has no period to match, whatever is put in its place
   const maps = inputs.map((m) => new Map((series.get(m.id) ?? []).map((p) => [p.period, p.value])));
   return maps.every((m) => m.has(period)) ? Object.fromEntries(inputs.map((m, i) => [m.name, maps[i].get(period)!])) : null;
 }
@@ -227,12 +230,14 @@ export function whatIfRecipe(start: Metric, change: WhatIfChange, others: Metric
   // to look at, so it is worked out in doubles, once for each Metric's changes: every number given comes from the exact fits.
   const changesOf = new Map<number, Map<string, number>>();
   const changed = (m: Metric) => {
+    // Stryker disable next-line ConditionalExpression: the changes of a Metric are kept only to save working them out again
     if (!changesOf.has(m.id)) changesOf.set(m.id, new Map(changes(series.get(m.id)!, span).map((p) => [p.period, p.value])));
     return changesOf.get(m.id)!;
   };
   const closeness = (a: Metric, b: Metric): number => {
     const other = changed(b);
     const pairs = [...changed(a)].flatMap(([period, x]) => (other.has(period) ? [[x, other.get(period)!]] : []));
+    // Stryker disable next-line EqualityOperator,ConditionalExpression: a Metric with so few pairs has too few periods for any fit, so whether it counts as 0 or as its r, it is never followed
     if (pairs.length < MIN_PAIRS) return 0;
     const [mx, my] = [0, 1].map((k) => pairs.reduce((t, p) => t + p[k], 0) / pairs.length);
     const [sxx, syy, sxy] = pairs.reduce((t, p) => [t[0] + (p[0] - mx) ** 2, t[1] + (p[1] - my) ** 2, t[2] + (p[0] - mx) * (p[1] - my)], [0, 0, 0]);
@@ -254,13 +259,14 @@ export function whatIfRecipe(start: Metric, change: WhatIfChange, others: Metric
       left.add(t.name);
       return null;
     }
-    return { target: t, exact: true, partial: 1, fit: null, link: { kind: "worked", target: t.name, formula: t.formula!, names: Object.fromEntries(have.map((m) => [m.slug, m.name])), levels } };
+    return { target: t, exact: true, partial: 0, fit: null, link: { kind: "worked", target: t.name, formula: t.formula!, names: Object.fromEntries(have.map((m) => [m.slug, m.name])), levels } };
   };
   const estimated = (t: Metric, f: Fit): Found => ({ target: t, exact: false, partial: strongest(f), fit: f, link: { kind: "fit", fit: f } });
   const order = (a: Found, b: Found) => Number(b.exact) - Number(a.exact) || b.partial - a.partial || a.target.id - b.target.id;
 
   // The first step: what clearly moved with the Metric changed, each on its own.
   const firstFound: Found[] = [];
+  // Stryker disable next-line ConditionalExpression,LogicalOperator: a Metric built from the changed one is refused by the fit in any case, so it is the same whether it is also tried
   const candidates1 = pool.filter((m) => !builds(m, start) && !builds(start, m));
   for (const t of closest(start, candidates1, MOST_LOOKED_AT)) {
     const f = fitOn(t, [start]);
@@ -285,9 +291,12 @@ export function whatIfRecipe(start: Metric, change: WhatIfChange, others: Metric
     if (chain.some((m) => builds(t, m))) return worked(t);
     const drivers = [start, ...closest(t, chain.filter((m) => m.id !== start.id), 2)];
     let f = fitOn(t, drivers);
+    // Stryker disable next-line ArrayDeclaration: a fit that was refused has no driver to be clear, and the fit is made again only where it was made
     const clear = f.ok ? f.drivers.filter((d) => d.strength !== "cant-tell").map((d) => d.name) : [];
     // A driver that cannot be told from chance is left out and the fit made again, so that the one that matters is not hidden by it.
+    // Stryker disable next-line ConditionalExpression,LogicalOperator,EqualityOperator: the fit is made again only to leave out drivers that cannot be told from chance; made again with all of them, or with none, it is the same fit or one that is refused
     if (f.ok && clear.length > 0 && clear.length < f.drivers.length) f = fitOn(t, drivers.filter((m) => clear.includes(m.name)));
+    // Stryker disable next-line MethodExpression: after the fit is made again its drivers are all clear or all unclear, so `some` and `every` say the same
     return f.ok && f.drivers.some((d) => d.strength !== "cant-tell") ? estimated(t, f) : null;
   };
   const isInFirst = new Set(first.map((f) => f.target.id));
