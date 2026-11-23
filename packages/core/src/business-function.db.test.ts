@@ -85,7 +85,7 @@ describe("who reads the Workspace's functions", () => {
   });
 
   it("a role claimed on the Actor but not held in the database gets nothing", async () => {
-    const { w, member } = await fresh();
+    const { w, owner, member } = await fresh();
     const stranger = w.actor(await w.person("member"), "owner");
     await w.setRole(stranger.personId, "member");
     await expect(businessFunctions(stranger)).rejects.toBeInstanceOf(Forbidden);
@@ -95,6 +95,7 @@ describe("who reads the Workspace's functions", () => {
     await setMyBusinessFunction(member, "sales");
     await w.setRole(member.personId, "guest");
     await expect(myBusinessFunction(member)).rejects.toBeInstanceOf(Forbidden);
+    expect((await businessFunctions(owner)).map((r) => r.personId)).not.toContain(member.personId);
   });
 
   it("an Access Key, as any key-shaped actor, is refused", async () => {

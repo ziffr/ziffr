@@ -50,7 +50,7 @@ export async function setMyBusinessFunction(actor: Actor, value: unknown): Promi
 }
 
 /** Every member's Business Function in the actor's Workspace, for its Owners and Admins only; a Member, a Guest or an
- * Access Key is refused (the demo has none). Only people who are still members appear, and only those who gave one. */
+ * Access Key is refused (the demo has none). Only people who are still members and not Guests appear, and only those who gave one. */
 export async function businessFunctions(actor: Actor): Promise<{ personId: string; function: BusinessFunction }[]> {
   if (actor.key || (actor.role !== "owner" && actor.role !== "admin")) throw new Forbidden();
   if (actor.workspaceId === DEMO_WORKSPACE_ID) return [];
@@ -58,7 +58,8 @@ export async function businessFunctions(actor: Actor): Promise<{ personId: strin
   if (!me || (me.role !== "owner" && me.role !== "admin")) throw new Forbidden();
   const [{ data: rows }, { data: members }] = await Promise.all([
     db().from("business_functions").select("person_id, function").eq("workspace_id", actor.workspaceId),
-    db().from("memberships").select("user_id").eq("workspace_id", actor.workspaceId),
+    // A person demoted to Guest keeps their membership row, so Guests are left out here: they have none to show.
+    db().from("memberships").select("user_id").eq("workspace_id", actor.workspaceId).neq("role", "guest"),
   ]);
   const inside = new Set((members ?? []).map((m) => m.user_id as string));
   return (rows ?? []).filter((r) => inside.has(r.person_id as string) && isBusinessFunction(r.function)).map((r) => ({ personId: r.person_id as string, function: r.function as BusinessFunction }));
