@@ -331,6 +331,7 @@ export function groupOf(m: Fraction[][], diag: Fraction[]): number[] {
   let v = Array.from({ length: k }, (_, i) => 1 + i / 100);
   // Stryker disable next-line EqualityOperator: 200 steps are far beyond convergence, so one more changes nothing
   for (let n = 0; n < 200; n++) {
+    // Stryker disable next-line ArithmeticOperator: with the sign of the sum turned, every step turns v round and the squares of its entries, which are the loads, are the same
     const w = inverse.map((row) => row.reduce((t, x, j) => t + x * v[j], 0));
     const length = Math.sqrt(w.reduce((t, x) => t + x * x, 0));
     v = w.map((x) => x / length);

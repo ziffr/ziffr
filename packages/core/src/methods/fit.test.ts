@@ -646,6 +646,14 @@ describe("drivers that cannot be told apart", () => {
     // Sums on very different scales are put on the same footing (the correlation matrix, not the raw sums).
     const scaled = f([[10, 9, 9], [9, 10, 9], [9, 9, 10]]).map((row, i) => row.map((v, j) => ({ num: v.num, den: BigInt([1, 10, 100][i] * [1, 10, 100][j]) })));
     expect(groupOf(scaled, [1, 100, 10000].map(fractionOf))).toEqual([0, 1, 2]);
+    // And with a direction that leaves one out, the left-out one stays out on any scales.
+    const lopsided = rank1([0.9, 0.4, 0.1]).map((row, i) => row.map((v, j) => ({ num: v.num, den: v.den * BigInt([1, 10, 100][i] * [1, 10, 100][j]) })));
+    expect(groupOf(lopsided, [1, 100, 10000].map(fractionOf))).toEqual([0, 1]);
+    const other = rank1([0.1, 0.9, 0.4]).map((row, i) => row.map((v, j) => ({ num: v.num, den: v.den * BigInt([1, 10, 100][i] * [1, 10, 100][j]) })));
+    expect(groupOf(other, [1, 100, 10000].map(fractionOf))).toEqual([1, 2]);
+    // A block of two with a third that stands out: on the correlation matrix the third's direction wins, whatever the scales.
+    const block = f([[1, 0.9, 0], [0.9, 1, 0], [0, 0, 3]]).map((row, i) => row.map((v, j) => ({ num: v.num, den: v.den * BigInt([1, 10, 100][i] * [1, 10, 100][j]) })));
+    expect(groupOf(block, [1, 100, 10000].map(fractionOf))).toEqual([2, 0]);
   });
   it("refuses a mix whatever place it is listed in, on whatever scales, naming only its drivers, in name order", () => {
     const free = (n: number) => Array.from({ length: n }, () => hundredths(rng() * 100));
