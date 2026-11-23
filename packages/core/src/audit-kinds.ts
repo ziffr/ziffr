@@ -149,7 +149,7 @@ export type AuditKind = keyof typeof AUDIT_KINDS;
 export const AUDIT_CATEGORIES = {
   member: "Members", invitation: "Invitations", join_request: "Join requests", domain_joining: "Domain Joining", contact: "Contacts",
   share: "Shares", group: "Groups", view_link: "View Links", share_proposal: "Share Proposals", access_key: "Access Keys", calendar_link: "Calendar Links", schedule: "Schedules", assistant: "Assistants", feed: "Feeds", webhook: "Webhooks", view_design: "View Designs", theme: "Themes", pack: "Packs", dashboard: "Dashboards", metric: "Metrics", tag: "Tags", period: "Locks", value: "Filled-in Values", away: "Away",
-  workflow: "Workflow runs", retention: "Retention runs", approval: "Approvals", self_check: "Self-checks", correction: "Corrections", workspace: "Settings", slack: "Slack", telegram: "Telegram", snapshot: "Snapshots", export: "Exports", email_reply: "Email replies", person: "Sign-ins",
+  workflow: "Workflow runs", retention: "Retention runs", approval: "Approvals", self_check: "Self-checks", correction: "Corrections", workspace: "Settings", setup: "Setup Guide", slack: "Slack", telegram: "Telegram", snapshot: "Snapshots", export: "Exports", email_reply: "Email replies", person: "Sign-ins",
 } as const;
 
 /** What an Audit Log event can be about. */

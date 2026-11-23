@@ -138,6 +138,14 @@ Acts as the person, with their own sign-in, Slack or Telegram account or email a
 - `updateMyProfile` (profile.ts): one's own profile
 - `setMyAppearance` (profile.ts): one's own Appearance
 - `setPreference` (questions.ts): one's own reminder channel
+- `startSetupGuide` (setup-guide.ts): the Setup Guide is for people in the app (spec 0052); programs never set up a Workspace
+- `setupGuide` (setup-guide.ts): the viewer's own guide steps, for the app
+- `skipSetupStep` (setup-guide.ts): skipping a step of the guide, for the app
+- `hideSetupGuide` (setup-guide.ts): a person's own Setup line, for the app
+- `reopenSetupGuide` (setup-guide.ts): a person's own Setup line, for the app
+- `markSetupGuideSeen` (setup-guide.ts): that a person opened the guide, for the app
+- `chooseExploreOnMyOwn` (setup-guide.ts): the guide's starting point, for the app
+- `setSetupFirstMetric` (setup-guide.ts): the Metric the guide tries both ways, for the app
 - `startSlackLink` (slack-people.ts): linking oneself to Slack
 - `slackOptBackIn` (slack-people.ts): linking oneself to Slack
 - `unlinkSlack` (slack-people.ts): linking oneself to Slack
