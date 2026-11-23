@@ -180,6 +180,9 @@ export async function listObservations(actor: Actor | KeyActor, slug: string, ra
   ]);
   const stateOf = new Map((states ?? []).map((r) => [r.period_start as string, r.state === "locked" ? "locked" : "awaiting_approval"] as const));
   const guest = actor.role === "guest"; // a Guest is told nothing of who entered a value, as of who submitted it
+  // A Guest's key names the Guest on their own values (a Filled-in Value counts as theirs, and who entered it stays
+  // hidden: entered_by is never read for a Guest) and no one else; everyone else's submitter is null for a Guest.
+  const shownSubmitter = (id: string | null | undefined): string | null => (id && (!guest || id === actor.personId) ? id : null);
   const latest = new Map<string, (typeof own)[number]>();
   for (const o of own) latest.set(o.period_start, o); // one value per period: the latest
   // Who entered a value for its submitter (spec 0046) is read apart, only for the page's values and never for a Guest:
@@ -199,7 +202,7 @@ export async function listObservations(actor: Actor | KeyActor, slug: string, ra
   return {
     items: page.map((p) => p.condensed
       ? { period: p.period, period_end: p.condensed.periodEnd, condensed_from: p.condensed.held, value: p.value, state: "locked" as const, submitter: null, submitter_name: null, submitted_at: null, source: null, has_thread: false, breakdown: null, entered_by: null, entered_by_name: null }
-      : { period: p.period, value: p.value, state: stateOf.get(p.period) ?? "recorded", submitter: guest ? null : (latest.get(p.period)?.submitter_id ?? null), submitter_name: guest ? null : (names.get(latest.get(p.period)?.submitter_id ?? "") ?? null), submitted_at: latest.get(p.period)?.created_at ?? null, source: latest.get(p.period)?.source ?? null, has_thread: withThread.has(p.period), breakdown: breakdowns[metric.id]?.[p.period] ? listRows(breakdowns[metric.id][p.period]) : null, entered_by: enteredBy.get(p.period) ?? null, entered_by_name: names.get(enteredBy.get(p.period) ?? "") ?? null }),
+      : { period: p.period, value: p.value, state: stateOf.get(p.period) ?? "recorded", submitter: shownSubmitter(latest.get(p.period)?.submitter_id), submitter_name: names.get(shownSubmitter(latest.get(p.period)?.submitter_id) ?? "") ?? null, submitted_at: latest.get(p.period)?.created_at ?? null, source: latest.get(p.period)?.source ?? null, has_thread: withThread.has(p.period), breakdown: breakdowns[metric.id]?.[p.period] ? listRows(breakdowns[metric.id][p.period]) : null, entered_by: enteredBy.get(p.period) ?? null, entered_by_name: names.get(enteredBy.get(p.period) ?? "") ?? null }),
     next: points.length > limit ? page[page.length - 1].period : null,
   };
 }
