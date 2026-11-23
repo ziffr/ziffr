@@ -16,6 +16,7 @@ import { addWorkingDays, dueDate, workingPeriod } from "./workflow-rules";
 import { allRows, getMetrics } from "./workspace-data";
 import { localTime, workspaceClock } from "./workspace-clock";
 import { tokenValid } from "./tokens";
+import { fillInOffer } from "./fill-in-offer";
 import { checklistAbout } from "./checklist-about";
 import { weekStartOf, type WeekStart } from "./schedule-calendar";
 import type { Metric, Period, WorkflowConfig } from "./types";
@@ -52,6 +53,8 @@ export type ScheduleEntry = {
   dueWorkingDays: number | null;
   /** How many days before the Due Date Ziffr reminds (the Workflow's earliest Remind step), or null. */
   remindDaysBefore: number | null;
+  /** An Escalation whose value the person may fill in for its submitter now (fill-in-offer.ts, the core's own rule); set only on their own Schedule. */
+  mayFillIn?: boolean;
   /** Where in Ziffr it is done: a path that needs a sign-in and carries no secret. */
   path: string;
 };
@@ -343,7 +346,10 @@ async function entriesOf(actor: Actor | KeyActor, person: string, base: Awaited<
     const can = threadReader(actor.personId, groups, (id) => all.find((m) => m.id === id)?.owner_id, ws, asker, actor.role);
     readable = (a) => can(a);
   }
-  return [...(await valuesDue(ws, person, metrics, ctx, actor.role === "guest")), ...(await actionEntries(ws, person, onActions, ctx, readable))];
+  const entries = [...(await valuesDue(ws, person, metrics, ctx, actor.role === "guest")), ...(await actionEntries(ws, person, onActions, ctx, readable))];
+  // The button on an Escalation is offered only where the core would let this person fill in (never a Guest or a key, and only in their own Schedule).
+  if (person === actor.personId && !("key" in actor && actor.key)) for (const e of entries) if (e.escalation && e.metric) e.mayFillIn = (await fillInOffer(actor as Actor, e.metric.id, e.period.start)) !== null;
+  return entries;
 }
 
 /** How far back a Calendar Link's events reach, in days: the most; a person may choose fewer (limits.ts). */

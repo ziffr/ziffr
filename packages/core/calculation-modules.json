@@ -59,5 +59,6 @@
   "src/methods/carry-over.ts",
   "src/polar-marks.ts",
   "src/mark-figures.ts",
+  "src/formula-tree.ts",
   "src/work-bound.ts"
 ]

@@ -39,4 +39,14 @@ npx @ziffr/feed-sql run warehouse.yaml --backfill 24
 - Every query runs in a read-only transaction, with a 30-second statement timeout (`statement_timeout_ms` in the file changes it). Still, give the Feed a database user that may only read the tables it needs.
 - The file holds no secret, so you can keep it in git next to the schedule that runs it.
 
-Postgres and databases that speak its protocol are supported. Other SQL dialects are not yet. To read another system, write your own Feed with [`@ziffr/feed-kit`](../feed-kit/README.md).
+## Dialects
+
+An optional `dialect` line in the file names the database language: `postgres` (the default), `bigquery` or `snowflake`. Queries always write `:period_start` and `:period_end`; the Feed turns them into the dialect's own bound parameters and hands the runner the two dates as `[period_start, period_end]`:
+
+| Dialect | Parameters in the query sent | Runner |
+| --- | --- | --- |
+| `postgres` | `$1`, `$2` | built in, connection string from `connection_env` |
+| `bigquery` | named `@period_start`, `@period_end` | the optional package `@google-cloud/bigquery` |
+| `snowflake` | numbered binds `:1`, `:2` | the optional package `snowflake-sdk` |
+
+The BigQuery and Snowflake drivers are optional: a file that names one when its package is not installed stops with a message naming what to install, and Postgres users install nothing new. Each driver is one file next to `src/index.ts` that exports `connect(config, env)` and gives back a `SqlRunner`; its connection comes from the environment, never from the file. To read another system, write your own Feed with [`@ziffr/feed-kit`](../feed-kit/README.md).
