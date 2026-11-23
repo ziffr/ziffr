@@ -1,67 +1,101 @@
 // The budget of a person's Heads-up scans (GLOSSARY: Heads-up): what is kept, for how long, for which Metrics, and how many scans an
 // hour; every edge one step either side.
 import { describe, expect, it } from "vitest";
-import { AT_ONCE, COUNT_AT_MOST, KEEP_AT_MOST, KEEP_MS, SCANS_PER_HOUR, STALE_MS, ScanBudget, limiter } from "./heads-up-budget";
+import { AT_ONCE, COUNT_AT_MOST, KEEP_AT_MOST, KEEP_MS, SCANS_PER_HOUR, KEEP_PER_WORKSPACE, STALE_MS, WAITING_AT_MOST, ScanBudget, limiter, signature } from "./heads-up-budget";
 
 describe("the kept result", () => {
   it("answers only for exactly the same Metrics, in any order, and only while it is younger than ten minutes", () => {
     const b = new ScanBudget<string>();
-    b.keep("w:p", [3, 1, 2], "rows", 1000);
-    expect(b.fresh("w:p", [1, 2, 3], 1000)).toBe("rows");
-    expect(b.fresh("w:p", [2, 3, 1], 1000 + KEEP_MS - 1)).toBe("rows");
-    expect(b.fresh("w:p", [1, 2, 3], 1000 + KEEP_MS)).toBeNull();
+    b.keep("w:p", signature([3, 1, 2]), "rows", 1000);
+    expect(b.fresh("w:p", signature([1, 2, 3]), 1000)).toBe("rows");
+    expect(b.fresh("w:p", signature([2, 3, 1]), 1000 + KEEP_MS - 1)).toBe("rows");
+    expect(b.fresh("w:p", signature([1, 2, 3]), 1000 + KEEP_MS)).toBeNull();
     // One Metric more or fewer, or one other: nothing.
-    expect(b.fresh("w:p", [1, 2], 1000)).toBeNull();
-    expect(b.fresh("w:p", [1, 2, 3, 4], 1000)).toBeNull();
-    expect(b.fresh("w:p", [1, 2, 4], 1000)).toBeNull();
-    expect(b.fresh("w:p", [], 1000)).toBeNull();
+    expect(b.fresh("w:p", signature([1, 2]), 1000)).toBeNull();
+    expect(b.fresh("w:p", signature([1, 2, 3, 4]), 1000)).toBeNull();
+    expect(b.fresh("w:p", signature([1, 2, 4]), 1000)).toBeNull();
+    expect(b.fresh("w:p", signature([]), 1000)).toBeNull();
     // Nobody else's, and never from a clock that went back.
-    expect(b.fresh("w:q", [1, 2, 3], 1000)).toBeNull();
-    expect(b.fresh("w:p", [1, 2, 3], 999)).toBeNull();
+    expect(b.fresh("w:q", signature([1, 2, 3]), 1000)).toBeNull();
+    expect(b.fresh("w:p", signature([1, 2, 3]), 999)).toBeNull();
   });
 
   it("keeps one result per person, and the stale one answers only for the same Metrics", () => {
     const b = new ScanBudget<string>();
-    b.keep("w:p", [1, 2], "old", 0);
-    b.keep("w:p", [1, 2, 3], "new", 5);
-    expect(b.stale("w:p", [1, 2], 5)).toBeNull();
-    expect(b.stale("w:p", [3, 2, 1], 5)).toBe("new");
-    expect(b.stale("w:p", [3, 2, 1], 5 + STALE_MS - 1)).toBe("new");
-    expect(b.stale("w:p", [3, 2, 1], 5 + STALE_MS)).toBeNull();
-    expect(b.stale("w:p", [3, 2, 1], 4)).toBeNull();
-    expect(b.stale("w:p", [1, 2, 3, 4], 0)).toBeNull();
-    expect(b.stale("w:q", [1, 2, 3], 0)).toBeNull();
+    b.keep("w:p", signature([1, 2]), "old", 0);
+    b.keep("w:p", signature([1, 2, 3]), "new", 5);
+    expect(b.stale("w:p", signature([1, 2]), 5)).toBeNull();
+    expect(b.stale("w:p", signature([3, 2, 1]), 5)).toBe("new");
+    expect(b.stale("w:p", signature([3, 2, 1]), 5 + STALE_MS - 1)).toBe("new");
+    expect(b.stale("w:p", signature([3, 2, 1]), 5 + STALE_MS)).toBeNull();
+    expect(b.stale("w:p", signature([3, 2, 1]), 4)).toBeNull();
+    expect(b.stale("w:p", signature([1, 2, 3, 4]), 0)).toBeNull();
+    expect(b.stale("w:q", signature([1, 2, 3]), 0)).toBeNull();
     b.clear();
-    expect(b.stale("w:p", [1, 2, 3], 0)).toBeNull();
+    expect(b.stale("w:p", signature([1, 2, 3]), 0)).toBeNull();
   });
 
-  it("keeps at most so many results, the oldest first out", () => {
+  it("keeps at most so many results in all, the oldest first out", () => {
     const b = new ScanBudget<number>();
-    for (let i = 0; i < KEEP_AT_MOST + 1; i++) b.keep(`w:${i}`, [1], i, 0);
-    expect(b.stale("w:0", [1], 0)).toBeNull();
-    expect(b.stale("w:1", [1], 0)).toBe(1);
-    expect(b.stale(`w:${KEEP_AT_MOST}`, [1], 0)).toBe(KEEP_AT_MOST);
+    for (let i = 0; i < KEEP_AT_MOST + 1; i++) b.keep(`w${i}:p`, signature([1]), i, 0);
+    expect(b.stale("w0:p", signature([1]), 0)).toBeNull();
+    expect(b.stale("w1:p", signature([1]), 0)).toBe(1);
+    expect(b.stale(`w${KEEP_AT_MOST}:p`, signature([1]), 0)).toBe(KEEP_AT_MOST);
     // A person kept again goes to the back of the line.
-    b.keep("w:1", [1], 99, 0);
-    b.keep("w:new", [1], 7, 0);
-    expect(b.stale("w:1", [1], 0)).toBe(99);
-    expect(b.stale("w:2", [1], 0)).toBeNull();
+    b.keep("w1:p", signature([1]), 99, 0);
+    b.keep("new:p", signature([1]), 7, 0);
+    expect(b.stale("w1:p", signature([1]), 0)).toBe(99);
+    expect(b.stale("w2:p", signature([1]), 0)).toBeNull();
+  });
+});
+
+describe("bounds per Workspace", () => {
+  it("writes a signature as the sorted ids, a bar and what else", () => {
+    expect(signature([3, 1])).toBe("1,3|");
+    expect(signature([3, 1], "x")).toBe("1,3|x");
+  });
+
+  it("lets one Workspace fill only its own share, leaving another's results alone", () => {
+    const b = new ScanBudget<number>();
+    b.keep("other:p", signature([1]), 7, 0);
+    for (let i = 0; i < KEEP_PER_WORKSPACE + 5; i++) b.keep(`busy:${i}`, signature([1]), i, 0);
+    expect(b.stale("other:p", signature([1]), 0)).toBe(7);
+    expect(b.stale("busy:0", signature([1]), 0)).toBeNull();
+    expect(b.stale("busy:4", signature([1]), 0)).toBeNull();
+    expect(b.stale("busy:5", signature([1]), 0)).toBe(5);
+    expect(b.stale(`busy:${KEEP_PER_WORKSPACE + 4}`, signature([1]), 0)).toBe(KEEP_PER_WORKSPACE + 4);
+    // Exactly the share fits: nothing goes.
+    const c = new ScanBudget<number>();
+    for (let i = 0; i < KEEP_PER_WORKSPACE; i++) c.keep(`w:${i}`, signature([1]), i, 0);
+    expect(c.stale("w:0", signature([1]), 0)).toBe(0);
+    // A person kept again does not count twice.
+    c.keep("w:0", signature([1]), 99, 0);
+    expect(c.stale("w:1", signature([1]), 0)).toBe(1);
+    expect(c.stale("w:0", signature([1]), 0)).toBe(99);
+  });
+
+  it("tells signatures apart by what else the words depend on", () => {
+    const b = new ScanBudget<string>();
+    b.keep("w:p", signature([1, 2], "names-a"), "x", 0);
+    expect(b.fresh("w:p", signature([2, 1], "names-a"), 0)).toBe("x");
+    expect(b.fresh("w:p", signature([1, 2], "names-b"), 0)).toBeNull();
+    expect(b.fresh("w:p", signature([1, 2]), 0)).toBeNull();
   });
 });
 
 describe("keeping apart and clearing", () => {
   it("tells sets of Metrics apart whose ids run together, and clears results and counts", () => {
     const b = new ScanBudget<string>();
-    b.keep("w:p", [1, 23], "a", 0);
-    expect(b.fresh("w:p", [12, 3], 0)).toBeNull();
-    b.keep("w:q", [1, 2, 34], "b", 0);
-    expect(b.fresh("w:q", [12, 34], 0)).toBeNull();
-    expect(b.stale("w:q", [12, 34], 0)).toBeNull();
-    expect(b.fresh("w:p", [1, 23], 0)).toBe("a");
+    b.keep("w:p", signature([1, 23]), "a", 0);
+    expect(b.fresh("w:p", signature([12, 3]), 0)).toBeNull();
+    b.keep("w:q", signature([1, 2, 34]), "b", 0);
+    expect(b.fresh("w:q", signature([12, 34]), 0)).toBeNull();
+    expect(b.stale("w:q", signature([12, 34]), 0)).toBeNull();
+    expect(b.fresh("w:p", signature([1, 23]), 0)).toBe("a");
     for (let i = 0; i < SCANS_PER_HOUR; i++) b.scanned("w:p", 0);
     expect(b.mayScan("w:p", 1)).toBe(false);
     b.clear();
-    expect(b.fresh("w:p", [1, 23], 0)).toBeNull();
+    expect(b.fresh("w:p", signature([1, 23]), 0)).toBeNull();
     expect(b.mayScan("w:p", 1)).toBe(true);
   });
 });
@@ -121,6 +155,19 @@ describe("the limiter", () => {
     expect(await Promise.all(jobs)).toEqual([0, 1, 2, 3, 4]);
     expect(most).toBe(2);
     expect(AT_ONCE).toBe(2);
+  });
+
+  it("lets only so many wait, and refuses the rest in words", async () => {
+    const run = limiter(1, 2);
+    const open: (() => void)[] = [];
+    const slow = () => new Promise<void>((go) => open.push(go));
+    const jobs = [run(slow), run(slow), run(slow)];
+    await new Promise((r) => setTimeout(r, 5));
+    await expect(run(async () => 1)).rejects.toThrow("Try again in a moment.");
+    while (open.length) { open.shift()!(); await new Promise((r) => setTimeout(r, 1)); }
+    await Promise.all(jobs);
+    expect(await run(async () => "free")).toBe("free");
+    expect(WAITING_AT_MOST).toBe(50);
   });
 
   it("gives its place back when a run fails", async () => {

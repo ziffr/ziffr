@@ -6,6 +6,7 @@ import { isDemo } from "@/lib/auth";
 import { AnalyzeScreen } from "./screen";
 import { HeadsUpsSection } from "./heads-ups";
 import Link from "next/link";
+import { Suspense } from "react";
 
 export default async function AnalyzePage({ searchParams }: { searchParams: Promise<{ add?: string }> }) {
   const actor = await currentActor();
@@ -29,7 +30,10 @@ export default async function AnalyzePage({ searchParams }: { searchParams: Prom
           <Link href="/analyze/playground" className="text-sm text-muted-foreground underline-offset-2 hover:text-foreground hover:underline">Playground</Link>
         </div>
       </PageHeader>
-      <HeadsUpsSection actor={actor} demo={demo} />
+      {/* In a Workspace over the scan's cap the list scans the person's own Metrics: the page does not wait for it. */}
+      <Suspense fallback={<p className="mb-6 text-sm text-muted-foreground">Looking for Heads-ups…</p>}>
+        <HeadsUpsSection actor={actor} demo={demo} />
+      </Suspense>
       <AnalyzeScreen data={data} demo={demo} onCanvas={onCanvas} targets={dashboards.filter((d) => d.role !== "viewer").map((d) => ({ id: d.id, name: d.name }))} />
     </>
   );

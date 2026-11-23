@@ -269,11 +269,11 @@ export async function sendDelivery(id: number, transport: MailTransport = smtpTr
   let stop: { label: string; url: string } | undefined;
   // An Alert email has a one-click link of its own that pauses that Alert only (email-opt-out.ts).
   // (the daily limit note names no Alert and has no link: deliveryFor would refuse it)
-  if (stoppable || (claimed.kind === "alert" && (claimed.alert_id || claimed.tell_workflow_id))) {
+  if (stoppable || claimed.kind === "heads_up" || (claimed.kind === "alert" && (claimed.alert_id || claimed.tell_workflow_id))) {
     const token = claimed.unsubscribe_token ?? randomBytes(24).toString("base64url");
     if (!claimed.unsubscribe_token) await db().from("deliveries").update({ unsubscribe_token: token }).eq("id", id);
     unsubscribe = `${String(settings.ZIFFR_SITE_URL).replace(/\/+$/, "")}/api/unsubscribe/${token}`;
-    stop = { label: claimed.tell_workflow_id ? "To stop being told by this Workflow" : claimed.kind === "alert" ? "To pause this Alert" : "To get no more of these by email", url: unsubscribe };
+    stop = { label: claimed.tell_workflow_id ? "To stop being told by this Workflow" : claimed.kind === "heads_up" ? "To get no more Heads-ups by message" : claimed.kind === "alert" ? "To pause this Alert" : "To get no more of these by email", url: unsubscribe };
     text += `\n\n--\n${stop.label}: ${unsubscribe}`;
   }
   if (digest) {

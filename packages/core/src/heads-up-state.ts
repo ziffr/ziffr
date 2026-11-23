@@ -13,9 +13,9 @@ import type { HeadsUp } from "./methods/heads-up";
 import { visibleMetricIds } from "./access";
 import { allRows, getMetrics } from "./workspace-data";
 
-/** The most Heads-ups a person can mark Not useful in a Workspace, and the most Metrics they can mute. */
+/** The most Heads-ups a person can mark Not useful in a Workspace. The database counts it (a trigger, under a lock), so two calls at once cannot pass it. */
 export const MAX_NOT_USEFUL = 2000;
-/** The most Metrics a person can mute in a Workspace. */
+/** The most Metrics a person can mute in a Workspace (counted in the database too). */
 export const MAX_MUTES = 500;
 
 /** A key as the database stores it: a kind in lower case and one or two Metric ids ("moving-together:12:40"). */
@@ -64,6 +64,11 @@ export async function setHeadsUpSettings(actor: Actor, input: { show?: unknown; 
   const next = { show: input.show === undefined ? now.show : (input.show as boolean), byMessage: input.byMessage === undefined ? now.byMessage : (input.byMessage as boolean) };
   const { error } = await db().from("heads_up_settings").upsert({ workspace_id: actor.workspaceId, person_id: actor.personId, show: next.show, by_message: next.byMessage, updated_at: new Date().toISOString() }, { onConflict: "workspace_id,person_id" });
   if (error) throw new Error("Your Heads-up settings could not be saved.");
+  // Switched off: what they were told no longer stands open (the job only looks at people who ask for messages).
+  if (!(next.show && next.byMessage)) {
+    const { error: endError } = await db().rpc("end_heads_up_told", { p_ws: actor.workspaceId, p_person: actor.personId, p_standing: [], p_now: new Date().toISOString() });
+    if (endError) throw new Error("Your Heads-up settings could not be saved.");
+  }
   return next;
 }
 
@@ -78,7 +83,7 @@ export async function choicesOf(ws: string, personId: string): Promise<{ notUsef
 
 /** The Heads-ups the person is shown (and told): about Metrics they see, none they marked Not useful, none about a Metric they
  * muted. Works for a person's own Actor only. `now` is for tests. */
-export async function myHeadsUps(actor: Actor, opts: { now?: number } = {}): Promise<MyHeadsUps> {
+export async function myHeadsUps(actor: Actor, opts: { now?: number; lane?: "page" | "job" } = {}): Promise<MyHeadsUps> {
   own(actor);
   const settings = await settingsOf(actor.workspaceId, actor.personId);
   if (!settings.show) return { on: false, items: [] };
@@ -109,6 +114,7 @@ export async function markNotUseful(actor: Actor, key: unknown): Promise<void> {
   const { notUseful } = await choicesOf(ws, actor.personId);
   if (!notUseful.has(key as string) && notUseful.size >= MAX_NOT_USEFUL) throw new Error("You have marked as many Heads-ups Not useful as Ziffr keeps.");
   const { error } = await db().from("heads_up_dismissed").upsert({ workspace_id: ws, person_id: actor.personId, key: key as string }, { onConflict: "workspace_id,person_id,key" });
+  if (error?.message.includes("heads_up_choice_cap")) throw new Error("You have marked as many Heads-ups Not useful as Ziffr keeps.");
   if (error) throw new Error("That could not be saved.");
 }
 
@@ -121,6 +127,7 @@ export async function muteMetric(actor: Actor, metricId: unknown): Promise<void>
   const { muted } = await choicesOf(actor.workspaceId, actor.personId);
   if (!muted.has(metricId) && muted.size >= MAX_MUTES) throw new Error("You have muted as many Metrics as Ziffr keeps.");
   const { error } = await db().from("heads_up_mutes").upsert({ workspace_id: actor.workspaceId, person_id: actor.personId, metric_id: metricId }, { onConflict: "workspace_id,person_id,metric_id" });
+  if (error?.message.includes("heads_up_choice_cap")) throw new Error("You have muted as many Metrics as Ziffr keeps.");
   if (error) throw new Error("That could not be saved.");
 }
 

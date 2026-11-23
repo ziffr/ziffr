@@ -34,7 +34,7 @@ export async function deliverHeadsUpsTo(ws: string, personId: string, opts: { no
   const settings = await settingsOf(ws, personId);
   if (!settings.show || !settings.byMessage) return 0;
   const actor: Actor = { personId, workspaceId: ws, role: member.role as WorkspaceRoleName };
-  const { items } = await myHeadsUps(actor, { now: now.getTime() });
+  const { items } = await myHeadsUps(actor, { now: now.getTime(), lane: "job" });
   // What no longer stands has ended: if it returns, it is said again.
   const { error: endError } = await db().rpc("end_heads_up_told", { p_ws: ws, p_person: personId, p_standing: items.map((h) => h.key), p_now: now.toISOString() });
   if (endError) throw new Error("Heads-ups could not be recorded.");
@@ -52,7 +52,13 @@ export async function deliverHeadsUpsTo(ws: string, personId: string, opts: { no
     // The week's messages are used up: the others wait in the app (and for a later run).
     if (claim === "cap") break;
     if (claim !== "send") continue;
-    await deliverHeadsUp(ws, { recipientId: personId, subject: message.subject, text: message.text, link: "/analyze#heads-ups", metricIds: h.metrics, key: h.key });
+    try {
+      await deliverHeadsUp(ws, { recipientId: personId, subject: message.subject, text: message.text, link: "/analyze#heads-ups", metricIds: h.metrics, key: h.key });
+    } catch (e) {
+      // Counted but not made: its place in the week and its "told" are given back, so it is tried again at the next run.
+      await db().rpc("release_heads_up_message", { p_ws: ws, p_person: personId, p_key: h.key });
+      throw e;
+    }
     made++;
   }
   return made;
@@ -66,8 +72,12 @@ export async function deliverHeadsUps(ws: string, opts: { now?: Date; budgetMs?:
   const { data: asked, error } = await db().from("heads_up_settings").select("person_id").eq("workspace_id", ws).eq("show", true).eq("by_message", true)
     .order("checked_at", { ascending: true, nullsFirst: true }).order("person_id").limit(MAX_PEOPLE);
   if (error) throw new Error("Heads-ups could not be read.");
+  // Only people who are members now (a row of someone who left is removed with their membership; this is the second lock).
+  const ids = (asked ?? []).map((r) => r.person_id as string);
+  const { data: members } = ids.length ? await db().from("memberships").select("user_id").eq("workspace_id", ws).in("user_id", ids) : { data: [] };
+  const current = new Set((members ?? []).map((m) => m.user_id as string));
   const started = Date.now();
-  for (const { person_id } of asked ?? []) {
+  for (const { person_id } of (asked ?? []).filter((r) => current.has(r.person_id as string))) {
     if (Date.now() - started > (opts.budgetMs ?? Infinity)) break;
     result.people++;
     try {

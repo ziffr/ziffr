@@ -63,8 +63,8 @@ revoke all on heads_up_told from public, anon, authenticated;
 select attach_demo_guard('heads_up_told');
 
 -- Takes one message of the week for a person, in one step under a lock of that person: 'told' when this Heads-up was already sent
--- and has not ended, 'cap' when the person has had `p_cap` in the 7 days up to `p_now`, else 'send' (and it is counted). Nothing
--- is counted for a message that does not go.
+-- and has not ended, 'cap' when the person has had `p_cap` in the 7 days up to `p_now`, else 'send' (and it is counted). A message that is counted
+-- but not sent gives its place back (release_heads_up_message, in the next migration).
 create or replace function claim_heads_up_message(p_ws uuid, p_person text, p_key text, p_cap int, p_now timestamptz) returns text
 language plpgsql security definer set search_path = public as $$
 begin

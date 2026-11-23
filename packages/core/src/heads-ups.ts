@@ -17,6 +17,7 @@
 // counts the scans each person starts, so the list can be opened by a page or a script without scanning again each time (ticket #707).
 // A Metric that is archived or hidden since is gone from the list at once, without a new scan, because the set is part of what a
 // kept result is matched against and the filter is applied at every read.
+import { createHash } from "node:crypto";
 import type { Actor } from "./actor";
 import { visibleMetricIds } from "./access";
 import { builtFrom } from "./correlation";
@@ -27,7 +28,7 @@ import { formulaInputs } from "./formula";
 import { capMetrics, scanPairs, type PairRow, type Window } from "./methods/pair-scan";
 import { headsUpsFrom, type HeadsUp } from "./methods/heads-up";
 import { deliverHeadsUps } from "./heads-up-delivery";
-import { ScanBudget, limiter } from "./heads-up-budget";
+import { ScanBudget, limiter, signature } from "./heads-up-budget";
 import { periodStart, shiftPeriod, type Span } from "./periods";
 import { NOT_FINAL_STATES } from "./value-state";
 import { workspaceToday } from "./retention-setting";
@@ -51,11 +52,12 @@ export type HeadsUpJobResult = { workspaces: number; scanned: number; skipped: n
 /** What scanning one Workspace did, in counts. `capped`: it had more Metrics in use than a scan looks at. */
 export type ScanResult = { metrics: number; pairs: number; capped: boolean };
 
-// The rows of a person's own scan, kept for a few minutes (the key holds the Workspace and the person), and the one scan a person
-// has under way, so two calls at once share it.
-const budget = new ScanBudget<PairRow[]>();
-const oneAtATime = limiter();
-const underway = new Map<string, { ids: string; rows: Promise<PairRow[]> }>();
+// The finished Heads-ups of a person's own scan, kept for a few minutes (the key holds the Workspace and the person), and the one
+// scan a person has under way, so two calls at once share it.
+const budget = new ScanBudget<HeadsUp[]>();
+const pageLane = limiter();
+const jobLane = limiter(1);
+const underway = new Map<string, { sig: string; heads: Promise<HeadsUp[]> }>();
 
 /** Forgets what the budget kept (for tests). */
 export function resetHeadsUpBudget(): void {
@@ -235,35 +237,37 @@ export async function headsUpJob(opts: { today?: string; budgetMs?: number } = {
   const cutoff = new Date(Date.now() - KEEP_DAYS * 86_400_000).toISOString();
   const { count } = await db().from("heads_up_pairs").delete({ count: "exact" }).lt("scanned_at", cutoff).neq("workspace_id", DEMO_WORKSPACE_ID);
   result.expired = count ?? 0;
+  // Ended "told" rows older than 30 days are forgotten, also those of people who no longer ask for messages.
+  await db().from("heads_up_told").delete().not("ended_at", "is", null).lt("told_at", new Date(Date.now() - 30 * 86_400_000).toISOString());
   return result;
 }
 
-// A person's own scan, from what is kept, or one scan started within their budget (at most a few at once in this process). Over the
-// budget with nothing kept for exactly the Metrics they see now, it says so and tells nothing: it never answers from a result
-// worked out over other Metrics.
-async function ownScan(ws: string, person: string, mine: Metric[], now: number): Promise<PairRow[]> {
+// A person's own Heads-ups over a Workspace that is over the cap: from what is kept for exactly this signature, or one scan started
+// within their budget (a few at once in this process, the job in a lane of its own so it cannot starve a page; the others wait
+// their turn, a few at most). Over their own budget with nothing kept for exactly this signature, it says so and tells nothing: it
+// never answers from a result worked out over other Metrics. The job reads what is kept but keeps nothing, so it cannot push a
+// page's result out.
+async function ownHeads(ws: string, person: string, sig: string, now: number, lane: "page" | "job", compute: () => Promise<HeadsUp[]>): Promise<HeadsUp[]> {
   const who = `${ws}:${person}`;
-  const ids = mine.map((m) => m.id);
-  const kept = budget.fresh(who, ids, now);
+  const kept = budget.fresh(who, sig, now);
   if (kept) return kept;
-  const idsKey = [...ids].sort((a, b) => a - b).join(",");
   const running = underway.get(who);
-  if (running && running.ids === idsKey) return running.rows;
+  if (running && running.sig === sig) return running.heads;
   if (!budget.mayScan(who, now)) {
-    const old = budget.stale(who, ids, now);
+    const old = budget.stale(who, sig, now);
     if (old) return old;
     throw new Error("Heads-ups could not be read. Try again in a moment.");
   }
   budget.scanned(who, now);
-  const rows = oneAtATime(async () => (await scanSubset(ws, await workspaceToday(ws), () => mine, () => () => false)).rows).then((r) => {
-    budget.keep(who, ids, r, now);
+  const heads = (lane === "job" ? jobLane : pageLane)(compute).then((r) => {
+    if (lane === "page") budget.keep(who, sig, r, now);
     return r;
   });
-  underway.set(who, { ids: idsKey, rows });
+  underway.set(who, { sig, heads });
   // Whatever happens, the scan is no longer under way when it is over, so the next call starts its own.
-  const done = () => { if (underway.get(who)?.rows === rows) underway.delete(who); };
-  rows.then(done, done);
-  return rows;
+  const done = () => { if (underway.get(who)?.heads === heads) underway.delete(who); };
+  heads.then(done, done);
+  return heads;
 }
 
 /** The Heads-ups a person may be told, strongest first: only about Metrics they may see that are in use, from pair rows for those
@@ -272,7 +276,7 @@ async function ownScan(ws: string, person: string, mine: Metric[], now: number):
  * (it has more than 200 Metrics in use, which a person may not see), their pairs are scanned now over their own Metrics, so the
  * cap cannot have left out a pair of theirs for the sake of one of someone else's. A person who sees fewer than two Metrics gets
  * none. Takes the Actor first; an Access Key is not an Actor here. */
-export async function listHeadsUps(actor: Actor, opts: { now?: number } = {}): Promise<HeadsUp[]> {
+export async function listHeadsUps(actor: Actor, opts: { now?: number; lane?: "page" | "job" } = {}): Promise<HeadsUp[]> {
   return (await listHeadsUpsWith(actor, opts)).heads;
 }
 
@@ -281,7 +285,7 @@ export type HeadsUpMetric = { id: number; name: string; slug: string };
 
 /** `listHeadsUps` and, with it, the name and slug of every Metric the person sees and that is in use (what a list needs to name
  * the Metrics of a Heads-up without reading them twice). Only Metrics the person may see are in `metrics`. */
-export async function listHeadsUpsWith(actor: Actor, opts: { now?: number } = {}): Promise<{ heads: HeadsUp[]; metrics: Map<number, HeadsUpMetric> }> {
+export async function listHeadsUpsWith(actor: Actor, opts: { now?: number; lane?: "page" | "job" } = {}): Promise<{ heads: HeadsUp[]; metrics: Map<number, HeadsUpMetric> }> {
   const ws = actor.workspaceId;
   const metrics = await getMetrics(ws);
   const seen = await visibleMetricIds(ws, actor.personId, metrics);
@@ -294,10 +298,16 @@ export async function listHeadsUpsWith(actor: Actor, opts: { now?: number } = {}
   // Fail closed: without the answer, nothing is told.
   if (readError || !answer) throw new Error("Heads-ups could not be read. Try again in a moment.");
   const { capped, rows: stored } = answer as { capped: boolean; rows: Record<string, unknown>[] };
-  const rows: PairRow[] = capped ? await ownScan(ws, actor.personId, mine, opts.now ?? Date.now()) : stored.map(rowFromDb);
+  const ctx = { style: await numberStyleOf(ws), yearStart: await yearStartOf(ws) };
   // Pairs one of whose Metrics is worked out from the other, or both from the same, are left out: over the Metrics they see.
-  const related = relatedAmong(mine);
-  const kept = rows.filter((r) => names.has(r.a) && names.has(r.b) && !related(r.a, r.b));
-  const heads = headsUpsFrom(kept, names, { style: await numberStyleOf(ws), yearStart: await yearStartOf(ws) });
+  const make = (rows: PairRow[]) => {
+    const related = relatedAmong(mine);
+    return headsUpsFrom(rows.filter((r) => names.has(r.a) && names.has(r.b) && !related(r.a, r.b)), names, ctx);
+  };
+  // What the words are made from, besides which Metrics: names, slugs and formulas (the rule for related pairs) and the number style.
+  const extra = createHash("sha256").update(JSON.stringify([ctx, mine.map((m) => [m.id, m.name, m.slug, m.formula ?? null])])).digest("hex");
+  const heads = capped
+    ? await ownHeads(ws, actor.personId, signature(mine.map((m) => m.id), extra), opts.now ?? Date.now(), opts.lane ?? "page", async () => make((await scanSubset(ws, await workspaceToday(ws), () => mine, () => () => false)).rows))
+    : make(stored.map(rowFromDb));
   return { heads, metrics: new Map(mine.map((m) => [m.id, { id: m.id, name: m.name, slug: m.slug }])) };
 }

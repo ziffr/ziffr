@@ -2,7 +2,8 @@
 // settings, Not useful and mutes are their own; a message is made only for a person who switched it on and only about Metrics they
 // may see (BOTH of a pair), at most 3 in 7 days, each once until it has ended and returned; the words are the Takeaway's, with the
 // footer and none of the words a Takeaway may not use; and what a person is told never depends on a Metric they may not see.
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { optOutByToken, unsubscribeIsHeadsUp } from "./email-opt-out";
 import { connectorsView } from "./page-data";
 import { db } from "./db";
 import { archivedMetricHolds } from "./internal/delivery-send";
@@ -13,8 +14,15 @@ import { listHeadsUps, resetHeadsUpBudget, scanWorkspace } from "./heads-ups";
 import { holdFor } from "./quiet-hours";
 import { workspace, opened, rowsOf } from "./test/db-fixtures";
 
+// A way to make the one send fail, to see that what was counted for it is given back.
+const failing = { on: false };
+vi.mock("./deliveries", async (original) => {
+  const real = await original<typeof import("./deliveries")>();
+  return { ...real, deliverHeadsUp: (...args: Parameters<typeof real.deliverHeadsUp>) => (failing.on ? Promise.reject(new Error("boom")) : real.deliverHeadsUp(...args)) };
+});
+
 const cleanups: (() => Promise<void>)[] = [];
-beforeEach(() => resetHeadsUpBudget());
+beforeEach(() => { failing.on = false; resetHeadsUpBudget(); });
 afterEach(async () => { for (const c of cleanups.splice(0)) await c(); });
 
 function rng(state: number) {
@@ -387,6 +395,102 @@ describe("a message that waits is checked again when it leaves", () => {
   });
 });
 
+describe("leaving, giving back, switching off and the limits in the database", () => {
+  it("removes a person's choices and what they were told when they leave, so that coming back starts clean and sends nothing", async () => {
+    const { w, ben, ids, actor, shareAll, on, messages } = await setup(["p0a", "p0b"]);
+    await shareAll(ben, ["p0a", "p0b"]);
+    await on(ben);
+    await deliverHeadsUpsTo(w.id, ben);
+    await muteMetric(actor(ben), ids.p0a);
+    await markNotUseful(actor(ben), `moving-together:${ids.p0a}:${ids.p0b}`);
+    const rows = async () => (await Promise.all(["heads_up_settings", "heads_up_dismissed", "heads_up_mutes", "heads_up_told"].map((t) => rowsOf(t, { workspace_id: w.id, person_id: ben })))).map((r) => r.length);
+    expect(await rows()).toEqual([1, 1, 1, 1]);
+    await w.dropMember(ben);
+    expect(await rows()).toEqual([0, 0, 0, 0]);
+    await db().from("memberships").insert({ workspace_id: w.id, user_id: ben, role: "member" });
+    expect(await headsUpSettings(actor(ben))).toEqual({ show: true, byMessage: false });
+    expect(await deliverHeadsUps(w.id)).toEqual({ people: 0, sent: 0, failed: 0 });
+    expect(await deliverHeadsUpsTo(w.id, ben)).toBe(0);
+    expect((await messages(ben)).length).toBe(1);
+    expect((await myHeadsUps(actor(ben))).items).toHaveLength(1);
+  });
+
+  it("leaves out a person who is not a member when the run takes people, so their row takes no place", async () => {
+    const { w, sara, ben } = await setup(["p0a", "p0b"]);
+    await db().from("heads_up_settings").insert([{ workspace_id: w.id, person_id: ben, show: true, by_message: true }, { workspace_id: w.id, person_id: sara, show: true, by_message: true }]);
+    await db().from("memberships").delete().eq("workspace_id", w.id).eq("user_id", ben);
+    // (the trigger removed Ben's row with his membership; put one back as a stale row would be)
+    await db().from("heads_up_settings").insert({ workspace_id: w.id, person_id: ben, show: true, by_message: true });
+    const result = await deliverHeadsUps(w.id);
+    expect(result.people).toBe(1);
+  });
+
+  it("gives a counted place back when the send throws, and when the message is refused as it leaves, and counts it once", async () => {
+    const { w, sara, on, messages } = await setup(["p0a", "p0b"]);
+    await on(sara);
+    failing.on = true;
+    expect(await deliverHeadsUps(w.id)).toEqual({ people: 1, sent: 0, failed: 1 });
+    expect(await rowsOf("heads_up_told", { workspace_id: w.id, person_id: sara })).toEqual([]);
+    failing.on = false;
+    expect(await deliverHeadsUpsTo(w.id, sara)).toBe(1);
+    const [m] = await messages(sara);
+    const key = (await db().from("deliveries").select("heads_up_key").eq("id", m.id).single()).data!.heads_up_key as string;
+    const about = { id: m.id, workspace_id: w.id, kind: "heads_up", recipient_id: sara, heads_up_metric_a: m.heads_up_metric_a, heads_up_metric_b: m.heads_up_metric_b, heads_up_key: key };
+    await setHeadsUpSettings({ personId: sara, workspaceId: w.id, role: "owner" }, { byMessage: false, show: true });
+    // Switching off also ended it; put the open row back as it stood when the message was queued.
+    await db().from("heads_up_told").insert({ workspace_id: w.id, person_id: sara, key });
+    expect(await archivedMetricHolds(about)).toBe("Not sent.");
+    expect((await rowsOf("heads_up_told", { workspace_id: w.id, person_id: sara, key })).filter((r) => r.ended_at === null)).toEqual([]);
+    // Again: nothing more to give back, nothing breaks.
+    expect(await archivedMetricHolds(about)).toBe("Not sent.");
+  });
+
+  it("ends what they were told when a person switches Heads-ups off, and when they use the link in the email", async () => {
+    const { w, sara, actor, on } = await setup(["p0a", "p0b"]);
+    await on(sara);
+    await deliverHeadsUpsTo(w.id, sara);
+    const open = async () => (await rowsOf("heads_up_told", { workspace_id: w.id, person_id: sara })).filter((r) => r.ended_at === null).length;
+    expect(await open()).toBe(1);
+    await setHeadsUpSettings(actor(sara), { byMessage: false });
+    expect(await open()).toBe(0);
+    await on(sara);
+    await db().from("heads_up_told").insert({ workspace_id: w.id, person_id: sara, key: "moving-together:1:2" });
+    const { data: m } = await db().from("deliveries").select("id").eq("recipient_id", sara).eq("kind", "heads_up").limit(1).single();
+    const token = "A".repeat(32);
+    await db().from("deliveries").update({ unsubscribe_token: token }).eq("id", m!.id);
+    expect(await unsubscribeIsHeadsUp(token)).toBe(true);
+    expect(await unsubscribeIsHeadsUp("B".repeat(32))).toBe(false);
+    expect(await optOutByToken(token)).toBe(true);
+    expect(await headsUpSettings(actor(sara))).toEqual({ show: true, byMessage: false });
+    expect(await open()).toBe(0);
+    // Used again: nothing changes.
+    expect(await optOutByToken(token)).toBe(true);
+    expect(await headsUpSettings(actor(sara))).toEqual({ show: true, byMessage: false });
+  });
+
+  it("counts the limit of Not useful in the database, so calls at once cannot pass it, and a key already there is not counted again", async () => {
+    const { w, sara, ids, actor } = await setup(["p0a", "p0b", "p1a", "p1b", "p2a", "p2b"]);
+    await db().from("heads_up_dismissed").insert(Array.from({ length: 1999 }, (_, i) => ({ workspace_id: w.id, person_id: sara, key: `filler-kind:${i}` })));
+    const all = Object.values(ids);
+    const pairs: string[] = [];
+    for (let i = 0; i < all.length; i++) for (let j = i + 1; j < all.length; j++) pairs.push(`moving-together:${Math.min(all[i], all[j])}:${Math.max(all[i], all[j])}`);
+    const results = await Promise.allSettled(pairs.slice(0, 8).map((k) => markNotUseful(actor(sara), k)));
+    expect(results.filter((r) => r.status === "fulfilled")).toHaveLength(1);
+    expect((await rowsOf("heads_up_dismissed", { workspace_id: w.id, person_id: sara }))).toHaveLength(2000);
+    const there = (await rowsOf("heads_up_dismissed", { workspace_id: w.id, person_id: sara })).find((r) => String(r.key).startsWith("moving"))!.key as string;
+    await markNotUseful(actor(sara), there);
+  });
+
+  it("refuses a mute or a Heads-up message that names a Metric of another Workspace", async () => {
+    const { w, sara } = await setup(["p0a", "p0b"]);
+    const other = await setup(["p0a", "p0b"]);
+    const mute = await db().from("heads_up_mutes").insert({ workspace_id: w.id, person_id: sara, metric_id: other.ids.p0a });
+    expect(mute.error).not.toBeNull();
+    const msg = await db().from("deliveries").insert({ workspace_id: w.id, connector: "email", recipient_id: sara, kind: "heads_up", subject: "x", body: "y", mail_state: "outbox", heads_up_metric_a: other.ids.p0a, heads_up_key: "moving-together:1:2" });
+    expect(msg.error).not.toBeNull();
+  });
+});
+
 describe("the tables are the core's alone", () => {
   it("cannot be read or written by the public roles, nor their functions", async () => {
     const { w, sara } = await setup(["p0a", "p0b"]);
@@ -435,5 +539,21 @@ describe("the list over a Workspace that is over the cap", () => {
     // An hour on, the budget is whole again.
     expect(await listHeadsUps(actor(ben), { now: t0 + 66 * 60_000 })).toBeDefined();
     void scan;
+  });
+
+  it("lets the job read what is kept but keep nothing, so it cannot push a page's result out", async () => {
+    const { w, ben, ids, actor, shareAll } = await setup(["p0a", "p0b", "p1a", "p1b"]);
+    await shareAll(ben, ["p0a", "p0b"]);
+    await db().from("heads_up_scans").update({ capped: true }).eq("workspace_id", w.id);
+    const t0 = Date.parse("2026-08-01T10:00:00Z");
+    expect(await listHeadsUps(actor(ben), { now: t0, lane: "job" })).toHaveLength(1);
+    await db().from("observations").delete().eq("metric_id", ids.p0b);
+    await db().from("observations").insert(levels(changesOf(900)).map((value, k) => ({ metric_id: ids.p0b, period_start: month(k), value, source: "api", workspace_id: w.id })));
+    // The job kept nothing: the page's call a minute later scans for itself and sees the change.
+    expect(await listHeadsUps(actor(ben), { now: t0 + 60_000 })).toEqual([]);
+    // A page's result is kept; the job then reads it instead of scanning.
+    await db().from("observations").delete().eq("metric_id", ids.p0b);
+    await db().from("observations").insert(seriesOf("p0b").map((value, k) => ({ metric_id: ids.p0b, period_start: month(k), value, source: "api", workspace_id: w.id })));
+    expect(await listHeadsUps(actor(ben), { now: t0 + 61_000, lane: "job" })).toEqual([]);
   });
 });
