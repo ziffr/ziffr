@@ -208,6 +208,12 @@ describe("the chance of a change of direction by luck", () => {
     const refOf = (vals: number[], index: number) => { const d = vals.slice(1).map((v, i) => referenceMinus(v, vals[i])); return referenceTwoSample(d.slice(0, index - 1), d.slice(index)); };
     expect(shiftChance(series(two), "month", 3)).toBeCloseTo(refOf(two, 3), 12);
     expect(shiftChance(series(two), "month", 3)).toBeLessThan(1);
+    // One change after the date is too few; so is one before it.
+    expect(shiftChance(series([0, 1, 3, 6, 10, 15]), "month", 4)).toBe(1);
+    expect(shiftChance(series([0, 1, 3, 6, 10, 15]), "month", 2)).toBe(1);
+    const flatAfter = [0, 3, 8, 15, 16, 17];
+    expect(shiftChance(series(flatAfter), "month", 3)).toBeCloseTo(refOf(flatAfter, 3), 12);
+    expect(shiftChance(series(flatAfter), "month", 3)).toBeGreaterThan(0);
     const oneFlat = [0, 1, 2, 3, 6, 11];
     expect(shiftChance(series(oneFlat), "month", 3)).toBeCloseTo(refOf(oneFlat, 3), 12);
     expect(shiftChance(series(oneFlat), "month", 3)).toBeGreaterThan(0);
@@ -472,6 +478,13 @@ describe("every condition on its own", () => {
     const wave = falling.map((v, k) => v + 40 * Math.sin(k / 1.5));
     expect(ups([{ metric: revenue(), points: series(wave) }]).filter((u) => u.kind === "target-out-of-reach")).toEqual([]);
   });
+  it("a Target reads the straight line through the latest 24 periods only", () => {
+    const early = falling.map((v, k) => (k < 12 ? v + 12 * noise(k) + (k % 2) * 30 : v));
+    const [told] = ups([{ metric: revenue({ decimals: 2 }), points: series(early) }]).filter((u) => u.kind === "target-out-of-reach");
+    const want = nearest(lineAt(series(early).slice(-24), "month", month(38)).at);
+    expect(told.takeaway.numbers.find((n) => n.label === "Straight line, at that period")!.text).toBe(`${want.toFixed(2)} €`);
+    expect(want.toFixed(2)).not.toBe(nearest(lineAt(series(early), "month", month(38)).at).toFixed(2));
+  });
   it("a value unusual for its season is not told where only one condition fails: a Metric not current, a level shift in its history, tiny numbers; and it looks at the latest 120 periods", () => {
     const spike = seasonal(106, 40);
     expect(ups([{ metric: visits, points: series(spike) }], { today: month(105 + 7) })).toEqual([]);
@@ -481,6 +494,7 @@ describe("every condition on its own", () => {
     const [long] = ups([{ metric: visits, points: series(seasonal(133, 40)) }], { today: month(134) });
     expect(long.takeaway.basis).toBe("from the 9 values at the same place in the season");
     expect(long.takeaway.figures.map((f) => f.label)).toEqual(["Usual low", "Usual high"]);
+    expect(long.takeaway.numbers.find((n) => n.label === "Usual range")!.text).toBe(`${long.takeaway.figures[0].text} – ${long.takeaway.figures[1].text}`);
   });
   it("says its assumptions, and the ends of the Target it has, no more", () => {
     const [turn] = ups([{ metric: signups, points: series(turning(30)) }]);

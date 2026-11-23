@@ -174,7 +174,7 @@ function consecutiveChanges(rows: Point[], span: Span): { at: number; change: Fr
  * change of direction must also pass. Exact on the values' text. */
 export function shiftChance(rows: Point[], span: Span, index: number): number {
   // (The change into the date's own period spans it: it belongs to neither side.)
-  const all = consecutiveChanges(rows, span).filter((c) => c.at !== index);
+  const all = consecutiveChanges(rows, span);
   const [before, after] = [all.filter((c) => c.at < index).map((c) => c.change), all.filter((c) => c.at > index).map((c) => c.change)];
   if (before.length < 2 || after.length < 2) return 1;
   const [a, b] = [spread(before), spread(after)];
