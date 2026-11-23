@@ -123,6 +123,8 @@ describe("the tree mark of a Breakdown with parents (spec 0041, ticket 12)", () 
     expect(alt(html).replace(/&lt;/g, "<").replace(/&gt;/g, ">")).toBe(model.alt);
     for (const b of model.boxes) expect(html, b.label).toContain(`<title>${b.alt.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")}</title>`);
     expect(textOf(html)).toContain("Germany: its parts add up to");
+    // Marked on the drawing itself: Germany (100, parts 90) and the top box (value against 150), not Berlin, Munich or Austria.
+    expect(html.match(/data-differs/g)).toHaveLength(2);
     // Markup in a name is text.
     expect(html).not.toContain("<b>x</b>");
     expect(html).toContain("&lt;b&gt;x&lt;/b&gt;");

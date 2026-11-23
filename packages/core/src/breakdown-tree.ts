@@ -144,16 +144,17 @@ export function breakdownTree(source: BreakdownTreeSource, style: NumberStyle): 
   const say = (f: Fraction): string => {
     const v = nearest(f);
     const t = write(v, source.unit, decimals, style);
-    tooSmall ||= t === null || (v === 0 && f.num !== BigInt(0));
+    // A double is never 0 where the exact number is not, so only a number that cannot be written in 20 decimals is too small.
+    tooSmall ||= t === null;
     return t ?? "no value";
   };
   // Two different numbers written so that their texts differ: with the decimals the Metric shows, or as many more as it takes (a difference is never written as two equal numbers).
-  const apart = (a: Fraction, b: Fraction): [string, string] => {
+  const apart = (a: Fraction, b: Fraction): [string, string] | null => {
     for (let d = decimals; d <= 20; d++) {
       const [x, y] = [write(nearest(a), source.unit, d, style), write(nearest(b), source.unit, d, style)];
       if (x !== null && y !== null && x !== y) return [x, y];
     }
-    return [say(a), say(b)];
+    return null;
   };
   const place = (d: Draft, parent: number | null, share: Fraction | null): void => {
     const id = boxes.length;
@@ -164,16 +165,18 @@ export function breakdownTree(source: BreakdownTreeSource, style: NumberStyle): 
     const shareText = writePercent(pct, style);
     tooSmall ||= pct !== null && shareText === null;
     const negative = d.exact.num < BigInt(0);
+    // Both numbers, when a row's parts add up to another number than the row's own.
+    const told = d.parts !== null && (d.parts.num * d.exact.den !== d.exact.num * d.parts.den) ? apart(d.parts, d.exact) : undefined;
+    // Two numbers no decimals tell apart (the doubles are the same) are said to be: never written as two equal numbers.
+    const partsText = told === undefined ? null : told === null ? `${d.label}: its parts add up to a number too close to ${written} to write out, not to ${written}` : `${d.label}: its parts add up to ${told[0]}, not to ${told[1]}`;
+    if (partsText) differing.push(partsText);
     boxes.push({
       id, parent, level, label: d.label, how: parent === null ? "root" : "term", glyph: null, taken: negative, op: d.kids.length ? "sum" : null, value, text: written, why: null,
-      share: share === null ? null : nearest(share), shareText, scaled: true,
+      share: share === null ? null : nearest(share), shareText, scaled: true, differs: partsText !== null,
       // Written once every box is known, below.
       // Stryker disable next-line StringLiteral: a placeholder, written over below
       alt: "",
     });
-    // Both numbers, when a row's parts add up to another number than the row's own.
-    const partsText = d.parts !== null && (d.parts.num * d.exact.den !== d.exact.num * d.parts.den) ? `${d.label}: its parts add up to ${apart(d.parts, d.exact)[0]}, not to ${apart(d.parts, d.exact)[1]}` : null;
-    if (partsText) differing.push(partsText);
     // The sizes of the parts and their total, exactly: each share is a size over the total, so they add up to exactly 1.
     const total = sizesOf(d.kids);
     d.kids.forEach((k) => place(k, id, total.num === BigInt(0) ? null : lowestTerms(over(k.size, total))));
@@ -196,7 +199,7 @@ export function breakdownTree(source: BreakdownTreeSource, style: NumberStyle): 
     has.negative ? "A row with a negative number is hatched and counts by its size, so its share is of the size of the parts, not of their total." : "",
     boxes.some((b) => b.parent === 0 && b.taken) ? "The top box is drawn at its own size on the same scale as its parts, so a value smaller than its parts is narrower." : "",
     has.other ? `The smallest rows beyond ${TREE.boxes} boxes are grouped as Other rows, with their exact total, and the box is as wide as their sizes together (negative rows count by their size); the text version names each of them.` : "",
-    has.differ ? `A number is a row's own, as it was given: where its parts add up to another number, both are given. ${differing.join(". ")}.` : "",
+    has.differ ? `A number is a row's own, as it was given: where its parts add up to another number, both are given, and the box has a mark in its corner. ${differing.join(". ")}.` : "",
   ].filter(Boolean).join(" ");
   return { ok: true, boxes, period: source.period, rule, alt: `Breakdown tree of ${name} for ${source.period}. ${rule} ${lines.join(" ")}` };
 }

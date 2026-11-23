@@ -62,6 +62,8 @@ export type TreeBox = {
   shareText: string | null;
   /** The box is drawn by its share of the box above (a part of a sum); false for the factors of a product, which share the width equally. */
   scaled: boolean;
+  /** A box of a Breakdown tree (spec 0041, ticket 12) whose parts add up to another number than its own: drawn with a mark in its corner. */
+  differs?: boolean;
   /** This box in words: its name, number and what it is to the box above. */
   alt: string;
 };

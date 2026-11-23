@@ -120,6 +120,7 @@ describe("a Breakdown of three levels, worked by hand", () => {
   ];
   const m = ok(tree(rows, 150));
   it("has a box for the Metric's value and each row, in tree order, each with its exact number", () => {
+    expect(m.boxes.every((b) => b.differs === false)).toBe(true);
     expect(m.boxes.map((b) => [b.label, b.level, b.parent, b.text])).toEqual([
       ["Revenue", 0, null, "150 €"], ["Germany", 1, 0, "100 €"], ["Berlin", 2, 1, "60 €"], ["Mitte", 3, 2, "36 €"], ["Pankow", 3, 2, "24 €"], ["Munich", 2, 1, "40 €"], ["Austria", 1, 0, "50 €"],
     ]);
@@ -158,6 +159,9 @@ describe("a row whose parts do not add up to it", () => {
     expect(m.rule).toContain("Revenue: its parts add up to 150 €, not to 160 €");
     expect(m.boxes[1].text).toBe("100 €");
     expect(m.boxes[0].text).toBe("160 €");
+    // Marked on the drawing: the boxes whose parts add up to another number, and only those.
+    expect(m.boxes.map((b) => b.differs)).toEqual([true, true, false, false, false]);
+    expect(m.rule).toContain("both are given, and the box has a mark in its corner.");
     // Its parts share its width by their own sizes, as parts of 90.
     expect(m.boxes[2].share).toBe(60 / 90);
   });
@@ -329,18 +333,41 @@ describe("the words, pinned whole", () => {
     const rows: BreakdownRow[] = [...many(22).map((r, i) => ({ ...r, value: 100 - i })), { label: "Plus", value: 5 }, { label: "Minus", value: -5 }];
     const m = ok(tree(rows, 1000));
     expect(m.boxes.at(-1)).toMatchObject({ label: "Other rows (2)", value: 0, taken: false, text: "0 €" });
-    expect(m.rule).toMatchInlineSnapshot(`"The top box is the value of Revenue for March 2026; the boxes under it are the rows of its breakdown, each as it was given. Parts share the width of the box above them by their size. A row with a negative number is hatched and counts by its size, so its share is of the size of the parts, not of their total. The smallest rows beyond 24 boxes are grouped as Other rows, with their exact total, and the box is as wide as their sizes together (negative rows count by their size); the text version names each of them. A number is a row's own, as it was given: where its parts add up to another number, both are given. Revenue: its parts add up to 1,969 €, not to 1,000 €."`);
+    expect(m.rule).toMatchInlineSnapshot(`"The top box is the value of Revenue for March 2026; the boxes under it are the rows of its breakdown, each as it was given. Parts share the width of the box above them by their size. A row with a negative number is hatched and counts by its size, so its share is of the size of the parts, not of their total. The smallest rows beyond 24 boxes are grouped as Other rows, with their exact total, and the box is as wide as their sizes together (negative rows count by their size); the text version names each of them. A number is a row's own, as it was given: where its parts add up to another number, both are given, and the box has a mark in its corner. Revenue: its parts add up to 1,969 €, not to 1,000 €."`);
     expect(m.boxes.at(-1)!.alt).toMatchInlineSnapshot(`"⁨Other rows (2)⁩ 0 €, 0.5 % of the parts, made of Plus 5 €; Minus −5 €"`);
   });
   it("pins the whole text of a tree with a negative row, parts that differ and a derived top box", () => {
     const m = ok(tree([{ label: "Sales", value: 120, parts: [{ label: "Online", value: 90 }, { label: "Returns", value: -25 }] }, { label: "Refunds", value: -30 }], null));
-    expect(m.rule).toMatchInlineSnapshot(`"Revenue has no value for March 2026, so the top box is its rows added up. Parts share the width of the box above them by their size. A row with a negative number is hatched and counts by its size, so its share is of the size of the parts, not of their total. The top box is drawn at its own size on the same scale as its parts, so a value smaller than its parts is narrower. A number is a row's own, as it was given: where its parts add up to another number, both are given. Sales: its parts add up to 65 €, not to 120 €."`);
-    expect(m.alt).toMatchInlineSnapshot(`"Breakdown tree of Revenue for March 2026. Revenue has no value for March 2026, so the top box is its rows added up. Parts share the width of the box above them by their size. A row with a negative number is hatched and counts by its size, so its share is of the size of the parts, not of their total. The top box is drawn at its own size on the same scale as its parts, so a value smaller than its parts is narrower. A number is a row's own, as it was given: where its parts add up to another number, both are given. Sales: its parts add up to 65 €, not to 120 €. ⁨Revenue⁩ 90 € is made of: ⁨Sales⁩ 120 €, 80.0 % of the parts; ⁨Refunds⁩ −30 €, negative, 20.0 % of the parts. ⁨Sales⁩ 120 € is made of: ⁨Online⁩ 90 €, 78.3 % of the parts; ⁨Returns⁩ −25 €, negative, 21.7 % of the parts."`);
+    expect(m.rule).toMatchInlineSnapshot(`"Revenue has no value for March 2026, so the top box is its rows added up. Parts share the width of the box above them by their size. A row with a negative number is hatched and counts by its size, so its share is of the size of the parts, not of their total. The top box is drawn at its own size on the same scale as its parts, so a value smaller than its parts is narrower. A number is a row's own, as it was given: where its parts add up to another number, both are given, and the box has a mark in its corner. Sales: its parts add up to 65 €, not to 120 €."`);
+    expect(m.alt).toMatchInlineSnapshot(`"Breakdown tree of Revenue for March 2026. Revenue has no value for March 2026, so the top box is its rows added up. Parts share the width of the box above them by their size. A row with a negative number is hatched and counts by its size, so its share is of the size of the parts, not of their total. The top box is drawn at its own size on the same scale as its parts, so a value smaller than its parts is narrower. A number is a row's own, as it was given: where its parts add up to another number, both are given, and the box has a mark in its corner. Sales: its parts add up to 65 €, not to 120 €. ⁨Revenue⁩ 90 € is made of: ⁨Sales⁩ 120 €, 80.0 % of the parts; ⁨Refunds⁩ −30 €, negative, 20.0 % of the parts. ⁨Sales⁩ 120 € is made of: ⁨Online⁩ 90 €, 78.3 % of the parts; ⁨Returns⁩ −25 €, negative, 21.7 % of the parts."`);
     expect(m.boxes[0].alt).toMatchInlineSnapshot(`"⁨Revenue⁩ 90 €"`);
   });
   it("is negative at the top too", () => {
     const m = ok(tree([{ label: "A", value: -4 }, { label: "B", value: 2 }], -2));
     expect(m.alt).toContain("\u2068Revenue\u2069 −2 €, negative is made of");
     expect(m.boxes[0].taken).toBe(true);
+  });
+});
+
+describe("every field of every box, pinned", () => {
+  it("gives the fields of a small tree as written by hand", () => {
+    const m = ok(tree([{ label: "A", value: 3, parts: [{ label: "B", value: -1 }] }, { label: "C", value: 1 }], 4));
+    const alt = (s: string) => s;
+    expect(m.boxes).toEqual([
+      { id: 0, parent: null, level: 0, label: "Revenue", how: "root", glyph: null, taken: false, op: "sum", value: 4, text: "4 €", why: null, share: null, shareText: null, scaled: true, differs: false, alt: alt(m.boxes[0].alt) },
+      { id: 1, parent: 0, level: 1, label: "A", how: "term", glyph: null, taken: false, op: "sum", value: 3, text: "3 €", why: null, share: 0.75, shareText: "75.0 %", scaled: true, differs: true, alt: "\u2068A\u2069 3 €, 75.0 % of the parts" },
+      { id: 2, parent: 1, level: 2, label: "B", how: "term", glyph: null, taken: true, op: null, value: -1, text: "−1 €", why: null, share: 1, shareText: "100.0 %", scaled: true, differs: false, alt: "\u2068B\u2069 −1 €, negative, 100.0 % of the parts" },
+      { id: 3, parent: 0, level: 1, label: "C", how: "term", glyph: null, taken: false, op: null, value: 1, text: "1 €", why: null, share: 0.25, shareText: "25.0 %", scaled: true, differs: false, alt: "\u2068C\u2069 1 €, 25.0 % of the parts" },
+    ]);
+    expect(m.boxes[0].alt).toBe("\u2068Revenue\u2069 4 €");
+  });
+  it("says so when two numbers are too close to write apart", () => {
+    const m = ok(tree([{ label: "A", value: 1, parts: [{ label: "B", value: 1 }, { label: "C", value: 1e-20 }] }]));
+    // The doubles are the same: no number of decimals tells them apart, and it is said so rather than written as two equal numbers.
+    expect(m.rule).toContain("A: its parts add up to a number too close to 1 € to write out, not to 1 €");
+  });
+  it("groups the rows of a group that holds parts by name with their numbers", () => {
+    const rows: BreakdownRow[] = [...Array.from({ length: 22 }, (_, i) => ({ label: `Big ${i}`, value: 1000 - i })), { label: "Small", value: 2, parts: [{ label: "Tiny", value: 2 }] }];
+    expect(ok(tree(rows)).boxes.at(-1)!.alt).toBe("\u2068Other rows (1)\u2069 2 €, 0.0 % of the parts, made of Small 2 € (Tiny 2 €)".replace("0.0 %", ok(tree(rows)).boxes.at(-1)!.shareText!));
   });
 });

@@ -12,7 +12,7 @@ export function BreakdownField({ numberStyle }: { numberStyle: NumberStyle }) {
   return (
     <div className="mt-5">
       <label htmlFor="breakdown" className="text-sm font-medium">Breakdown <span className="font-normal text-muted-foreground">(optional)</span></label>
-      <p className="mt-0.5 text-xs text-muted-foreground">Paste two columns from Excel or Sheets, one row per line, such as country and revenue. Leave the total empty and it becomes the sum of the rows at the top. A third column with the name of another row makes that row a part of it (up to 4 levels).</p>
+      <p className="mt-0.5 text-xs text-muted-foreground">Paste two columns from Excel or Sheets, one row per line, such as country and revenue. Leave the total empty and it becomes the sum of the rows at the top. A third column headed Parent, with the name of another row, makes that row a part of it (up to 4 levels).</p>
       <textarea
         id="breakdown"
         name="breakdown"

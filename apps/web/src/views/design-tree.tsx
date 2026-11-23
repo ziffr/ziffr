@@ -44,6 +44,8 @@ function Box({ box, at, hatch }: { box: TreeBox; at: Placed; hatch: string }) {
       <rect x={at.x} y={at.y} width={at.w} height={at.h} fill={gap ? "none" : "var(--color-data)"} fillOpacity={box.level === 0 ? 0.3 : 0.14} stroke={gap ? "var(--color-muted)" : "var(--color-data)"} strokeWidth={0.9} strokeDasharray={gap ? "3 2" : undefined} />
       {box.taken && <rect x={at.x} y={at.y} width={at.w} height={at.h} fill={`url(#${hatch})`} />}
       {/* A box thinner than a line is still found: a mark as wide as the line, over its place. */}
+      {/* Parts that add up to another number than the box's own: a mark in its corner, which the rule under the drawing explains (never only in the tooltip). */}
+      {box.differs && <polygon data-differs points={`${at.x + at.w},${at.y} ${at.x + at.w - Math.min(7, at.w)},${at.y} ${at.x + at.w},${at.y + Math.min(7, at.w)}`} fill="var(--color-ink)" />}
       {at.w < 1.5 && <rect x={at.x + at.w / 2 - 0.75} y={at.y} width={1.5} height={at.h} fill="var(--color-ink)" />}
       {lines.map((ln, k) => <text key={k} x={left} y={first + k * STEP} fontSize={SIZE} fill={ln.muted ? "var(--color-muted)" : "var(--color-ink)"} fontWeight={k === lines.length - 1 ? 600 : 400} style={halo}>{ln.t}</text>)}
       {words && box.taken && <text x={at.x + at.w - 3} y={first + (lines.length - 1) * STEP} fontSize={SIZE} textAnchor="end" fill="var(--color-ink)" style={halo}>−</text>}
