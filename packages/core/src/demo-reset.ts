@@ -7,6 +7,7 @@
 // `prototype:reset` seed it too, in SQL only.
 import { db, seedingDemo } from "./db";
 import { seedDemoSnapshots } from "./demo-snapshots";
+import { clearDemoVisitCounts } from "./demo-visit";
 import { askForMissingValues, sendDueReminders } from "./questions";
 import { DEMO_WORKSPACE_ID } from "./team";
 
@@ -15,6 +16,8 @@ export async function resetDemoWorkspace(): Promise<boolean> {
   const { data: done, error } = await db().rpc("demo_reset");
   if (error) throw new Error("The demo could not be reset. Try again in a minute.");
   if (!done) return false;
+  // The visits' counts belong to the window that just ended (spec 0051); a new window starts at zero.
+  await clearDemoVisitCounts();
   // The pins are seeded by a function of their own, so no other migration has to carry them (#764).
   const pins = await db().rpc("prototype_seed_pins");
   if (pins.error) console.error("Demo: no pinned dashboards", pins.error.message);

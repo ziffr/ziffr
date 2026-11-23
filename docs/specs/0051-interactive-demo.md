@@ -2,6 +2,8 @@
 
 **Status:** draft (2026-11-23). No tickets yet: the owner decides **Decisions (proposed)** first. The survey behind it, every change a person can make and what to do with it in the demo, is [0051-interactive-demo-inventory.md](0051-interactive-demo-inventory.md).
 
+**Progress:** ticket 2 (the visit's id) done: the cookie holds 128 random bits, `visitKey` (SHA-256 of the id, 32 hex characters) is the only form that is stored, `demo_visit_counts` and its `demo_visit_bump` exist and `resetDemoWorkspace` empties them. Nothing reads them yet (ticket 5).
+
 ## Problem Statement
 
 The demo feels stale, in the owner's words, "because you can't do anything: I cannot create a dashboard, change one, or enter values". Since spec 0029 (#271) the demo is read-only: the database refuses every write to it (the demo guard, migration `20261225110000_demo_read_only.sql`), and every button that would save something says "The demo can't be changed." A visitor sees what Ziffr shows, but not what it is like to use it: placing a widget, typing this month's value and watching the dashboard move, answering a Prompt as Ben and approving it as Sara. The guided tour ends with two steps the demo refuses.

@@ -10,6 +10,7 @@ import type { SignedIn } from "@ziffr/core/invitations";
 import { PERSON_COLORS } from "@ziffr/core/profile";
 
 import { demoEnabled } from "./demo-mode";
+import { visitIdOf } from "./demo-visit-cookie";
 export { demoEnabled, demoOnly } from "./demo-mode";
 
 /** Set by "Try the demo" (/demo), removed by "Leave the demo" (/demo/leave). */
@@ -18,7 +19,10 @@ export const DEMO_COOKIE = "ziffr-demo";
 /** Whether this request is a visit to the demo (ADR 0005): the demo is offered and the visitor chose it. It only ever
  * reaches the demo workspace and its made-up people, never a real workspace or account. */
 export async function isDemo(): Promise<boolean> {
-  return (await cookies()).get(DEMO_COOKIE)?.value === "1" && (await demoEnabled());
+  // The cookie holds the visit's id (lib/demo-visit-cookie.ts); the "1" of before ids still counts until the middleware
+  // replaces it on the same request.
+  const value = (await cookies()).get(DEMO_COOKIE)?.value;
+  return (value === "1" || visitIdOf(value) !== null) && (await demoEnabled());
 }
 
 /** A Supabase client acting with the signed-in person's session, read from and written to cookies. */
