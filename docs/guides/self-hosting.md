@@ -278,6 +278,7 @@ Generated from the Installation Settings catalogue (`packages/core/src/installat
 | Setting | On the page | Example or choices | What it does |
 | --- | --- | --- | --- |
 | `ZIFFR_FEEDBACK_PROMPT` | Ask people whether they like Ziffr | `true`, `false` | A small card, at most three times per person, after they have submitted values on a few different days; never in the demo, for Guests or on View Links. Empty: on for hosted Ziffr, off everywhere else. |
+| `ZIFFR_FEEDBACK_MODE` | Feedback from people | `direct`, `review` | The central version (ziffr.net) only. Post directly (the default): each feedback is filed on GitHub as it arrives. Review first: each waits in the review queue until a maintainer approves it, edits it or rejects it with a reason. A change applies to new feedback; what already waits stays waiting. |
 | `ZIFFR_FEEDBACK_PER_DAY` | Feedback the whole Installation takes a day | `200` | The most feedback all people together may send in 24 hours, in the central version (ziffr.net) only. Over it, new feedback is refused with a plain message until the day has passed, so many new accounts cannot fill the queue before real feedback is read. 20 to 100,000; empty: 200. |
 
 **Demo**

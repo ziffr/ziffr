@@ -23,6 +23,7 @@ import { SENDING_LIMITS, sendingLimitFrom, sendingLimitProblem } from "./sending
 import { auditKeepRefusal, forgetAuditReference } from "./audit-retention";
 import { AUDIT_WARN_BELOW_DAYS, DAYS_SETTINGS, daysOutOfRange, daysProblem, daysSetting, hostedByCloud } from "./installation-days";
 import { feedbackPromptOn } from "./feedback-prompt-rules";
+import { FEEDBACK_MODE_SETTING, feedbackMode } from "./feedback-rules";
 import { forgetStoredSettings, settingContext, settingSources, settingsInEffect, settingsInEffectStrict, storedSettings, type SettingSource } from "./settings-in-effect";
 
 /** One setting as the page shows it. `value` only for a setting that is not secret; `hint` (the last four
@@ -110,6 +111,7 @@ const CHECKS: Record<string, (v: string) => string | null> = {
   ZIFFR_TRIAL_THEN: (v) => (v === "delete" || v === "keep" ? null : "Pick what happens when a trial ends."),
   ZIFFR_TRIAL_WEBHOOKS: (v) => (v === "true" || v === "false" ? null : "Pick whether trials may have Webhooks."),
   ZIFFR_FEEDBACK_PROMPT: (v) => (v === "true" || v === "false" ? null : "Pick whether people are asked."),
+  ZIFFR_FEEDBACK_MODE: (v) => (v === "direct" || v === "review" ? null : "Pick whether feedback is posted directly or reviewed first."),
   ZIFFR_FEEDBACK_PER_DAY: (v) => feedbackInstallationCapProblem(v),
   ZIFFR_DEMO: (v) => (v === "1" || v === "0" ? null : "Pick whether the demo is offered."),
   ZIFFR_USAGE_EXCLUDE_WORKSPACE: (v) => (/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(v) ? null : "Pick a Workspace by name."),
@@ -207,7 +209,8 @@ async function sectionWorks(id: SettingsSectionId, settings: Record<string, stri
   }
   if (id === "feedback") {
     const on = feedbackPromptOn(settings, hostedByCloud(settings));
-    return on ? { working: true, detail: "Signed-in people are asked now and then whether they like Ziffr." } : { working: false, detail: "Nobody is asked." };
+    const mode = hostedByCloud(settings) ? ` New feedback from people is ${feedbackMode(settings) === "review" ? "reviewed first" : "posted directly"}.` : "";
+    return on ? { working: true, detail: `Signed-in people are asked now and then whether they like Ziffr.${mode}` } : { working: false, detail: `Nobody is asked.${mode}` };
   }
   if (id === "keep") {
     const wrong = daysOutOfRange(settings);
@@ -249,7 +252,7 @@ export async function installationSettingsView(actor: InstallationActor): Promis
   };
   return {
     // No Trials section without a Ziffr Cloud key: trials are hosted Ziffr's (spec 0040).
-    sections: await Promise.all(SETTINGS_SECTIONS.filter((sec) => sec.id !== "trials" && sec.id !== "trial_limits" || hostedByCloud(process.env)).map(async (sec) => ({ ...sec, ...(await sectionWorks(sec.id, settings)), settings: INSTALLATION_SETTINGS.filter((s) => s.section === sec.id).map(view) }))),
+    sections: await Promise.all(SETTINGS_SECTIONS.filter((sec) => sec.id !== "trials" && sec.id !== "trial_limits" || hostedByCloud(process.env)).map(async (sec) => ({ ...sec, ...(await sectionWorks(sec.id, settings)), settings: INSTALLATION_SETTINGS.filter((s) => s.section === sec.id && (s.name !== FEEDBACK_MODE_SETTING || hostedByCloud(process.env))).map(view) }))),
     canSeal: secretsKey() !== null,
     siteUrl: process.env.ZIFFR_SITE_URL ?? null,
     slack: { createAppLink: slackCreateAppLink(process.env.ZIFFR_SITE_URL), eventsCheckedAt: await slackEventsCheckedAt(settings) },
@@ -272,6 +275,8 @@ export async function saveInstallationSettings(actor: InstallationActor, section
   for (const [name, raw] of Object.entries(input).slice(0, 20)) {
     const def = settingNamed(name);
     if (!def || def.section !== sec.id) throw new Error("That is not a setting of this section.");
+    // Feedback from people exists only in the central version (ziffr.net): nothing here for any other Installation.
+    if (name === FEEDBACK_MODE_SETTING && !hostedByCloud(process.env)) throw new Error("That is not a setting of this section.");
     if (sources[name] === "cloud") throw new Error(`${def.label} is set by Ziffr Cloud.`);
     if (sources[name] === "server") throw new Error(`${def.label} is set on the server; change it there.`);
     // Clearing or replacing the Workspace left out is as revealing as setting it (two days' totals differ by exactly
