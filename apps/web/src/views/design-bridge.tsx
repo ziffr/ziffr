@@ -5,6 +5,7 @@
 // with its minus; a part of 0 is drawn as a line and written as 0; a bar is never told apart by colour alone. The words named in the
 // recipe's output label and the note on parts with no value in one period are small and muted, apart from the figures.
 import type { BridgeFigures } from "@ziffr/core/mark-figures";
+import { fitWords } from "./label-fit";
 
 type Drawn = Extract<BridgeFigures, { ok: true }>;
 
@@ -22,6 +23,8 @@ export function DesignBridge({ figures, caption }: { figures: BridgeFigures | un
   if (!figures) return <p className="widget-text-xs text-muted-foreground">Nothing to draw yet.</p>;
   if (!figures.ok) return <p className="widget-text-xs text-muted-foreground">{figures.refusal}</p>;
   const { at, zero } = scale(figures);
+  // About 6.5 pixels a character in a 400 pixel chart shared by the columns.
+  const room = Math.max(4, Math.floor(400 / figures.steps.length / 6.5));
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-1">
       {caption && <p className="widget-text-xs text-muted-foreground">{caption}</p>}
@@ -50,7 +53,7 @@ export function DesignBridge({ figures, caption }: { figures: BridgeFigures | un
                     }}
                   />
                 </div>
-                <span dir="auto" className="widget-text-xs line-clamp-3 text-center text-muted-foreground [overflow-wrap:break-word]" title={s.label}>{s.label}{s.missing ? " *" : ""}</span>
+                <span dir="auto" className="widget-text-xs text-center text-muted-foreground" title={s.label}>{fitWords(`${s.label}${s.missing ? " *" : ""}`, room, 3).map((l, k) => <span key={k} className="block whitespace-nowrap">{l}</span>)}</span>
               </div>
             );
           })}

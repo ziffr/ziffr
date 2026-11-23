@@ -4,6 +4,7 @@
 // core hands it (mark-figures.ts): every number is written there, in the Number Style; this file places bars on one shared axis that always
 // holds 0, so a range that crosses 0 is seen to. Each row also says its numbers in words beside the bar, so no number is read off the
 // drawing alone, and a screen reader gets them all in one sentence. The output's label is a small muted caption, apart from the figures.
+import { fitWords } from "./label-fit";
 import type { RangeFigures } from "@ziffr/core/mark-figures";
 import { TONE } from "./design-plot";
 import type { Tone } from "@ziffr/core/view-design";
@@ -24,7 +25,7 @@ export function DesignRange({ figures, tone, caption }: { figures: RangeFigures 
           const at = (x: number) => ((x - lo) / (hi - lo || 1)) * 100;
           return (
           <li key={i} aria-hidden className="widget-text-xs grid grid-cols-[minmax(0,8em)_minmax(4em,1fr)_minmax(0,auto)] items-center gap-[0.67em]" data-range={r.label}>
-            <span dir="auto" className="line-clamp-2 [overflow-wrap:break-word]" title={r.label}>{r.label}</span>
+            <span dir="auto" title={r.label}>{fitWords(r.label, 14, 2).map((l, k) => <span key={k} className="block whitespace-nowrap">{l}</span>)}</span>
             <span className="relative block h-[1.2em]">
               <span className="absolute inset-y-0 border-l border-[var(--color-rule-2)]" style={{ left: `${at(0)}%` }} />
               <span className="absolute top-1/2 h-[0.5em] -translate-y-1/2 rounded-full" style={{ left: `${at(r.low)}%`, width: `${at(r.high) - at(r.low)}%`, minWidth: "3px", background: colour, opacity: 0.35, border: `1px solid ${colour}` }} />
@@ -35,7 +36,7 @@ export function DesignRange({ figures, tone, caption }: { figures: RangeFigures 
           );
         })}
       </ul>
-      <p className="widget-text-xs text-muted-foreground">Each row is drawn on its own scale, from 0.</p>
+      <p className="widget-text-xs text-muted-foreground">The bar is the range, the diamond the middle value, the thin line is 0. Each row has its own scale, which always includes 0 and ends at the row's lowest and highest value.</p>
     </div>
   );
 }
