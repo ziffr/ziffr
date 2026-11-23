@@ -1140,7 +1140,8 @@ describe("properties of the fit over generated data", () => {
         if (!a.ok || !b.ok) return;
         expect(b.drivers.map((v) => v.name)).toEqual(a.drivers.map((v) => v.name));
         expect(close(b.drivers[0].effect, a.drivers[0].effect / c, 1e-12, 1e-12)).toBe(true);
-        expect(close(b.drivers[0].hi, a.drivers[0].hi / c, 1e-12, 1e-12)).toBe(true);
+        // The end of a range can sit near 0 (the effect nearly its own half width): judge it against the range's size, not against itself.
+        expect(Math.abs(b.drivers[0].hi - a.drivers[0].hi / c)).toBeLessThanOrEqual(1e-12 * (Math.abs(a.drivers[0].effect / c) + (a.drivers[0].hi - a.drivers[0].lo) / c + 1e-12));
         expect(close(b.explained, a.explained, 1e-12, 1e-12)).toBe(true);
         expect(close(b.drivers[0].share, a.drivers[0].share, 1e-12, 1e-12)).toBe(true);
         expect(close(b.miss, a.miss, 1e-12, 1e-12)).toBe(true);
