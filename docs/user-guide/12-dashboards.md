@@ -147,7 +147,7 @@ To place something, drag it onto the dashboard where you want it, or point at it
 - **A saved Widget** lands as a copy. Changing the copy does not change your saved Widget, nor the other way round.
 - **A Widget Template** first asks for its Slots (see below), then lands with the chosen Metrics.
 
-Pointing at a template, saved Widget or Metric for a moment shows its Preview beside the Pool. On a touch screen or a narrow window, press the **ⓘ** button on its row instead to see the Preview below it. A template's Preview always uses Sample Data. A saved Widget's or Metric's Preview draws your own values.
+Pointing at a template or saved Widget for a moment shows its Preview beside the Pool. The **ⓘ** button on a row opens the Preview and keeps it open until you press **ⓘ** again, press Escape or tap elsewhere; on a touch screen or a narrow window it opens over the page just below the row, and the list never moves. A template's Preview always uses Sample Data. A saved Widget's Preview draws your own values. A Metric's Preview is a small card: its name, how often it is counted and in which unit, its description, its latest value with the period, and a small line of its recent values.
 
 **Browse…** next to **Templates** opens **Browse templates**: every template as a larger Preview, grouped as in the Pool, with **Filter** and a **Use** button on each.
 

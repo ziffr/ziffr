@@ -28,7 +28,16 @@ function AnalyzeCanvas({ data, onCanvas, targets, demo = false }: AnalyzeProps) 
   const [results, setResults] = useState<Result[]>([]);
   const [over, setOver] = useState(false);
   const [pending, start] = useTransition();
-  const ms = onCanvas.map((id) => data.metrics.find((m) => m.id === id)!).filter(Boolean);
+  // Outside the demo the canvas is the person's own and kept between visits: the server holds it and the page sends
+  // it again after each change. The demo saves nothing (GLOSSARY: Demo Mode) and its database refuses every write, so
+  // there the canvas lives on this page only, until the visitor leaves it (#827).
+  const [kept, setKept] = useState(onCanvas);
+  const ids = demo ? kept : onCanvas;
+  const change = (next: number[], save: () => Promise<unknown>) => {
+    if (demo) { setKept(next.filter((id, i) => next.indexOf(id) === i)); return true; }
+    return new Promise<boolean>((done) => start(async () => { done(!told(await save())); }));
+  };
+  const ms = ids.map((id) => data.metrics.find((m) => m.id === id)!).filter(Boolean);
   const bySlug = (s: string) => data.metrics.find((m) => m.slug === s);
   const n = ms.length;
 
@@ -39,14 +48,12 @@ function AnalyzeCanvas({ data, onCanvas, targets, demo = false }: AnalyzeProps) 
     });
 
   const drop = (s: DropSource | null) => {
-    if (s?.type === "metric") start(async () => { told(await canvasAdd([s.id])); });
+    if (s?.type === "metric") void change([...ids, s.id], () => canvasAdd([s.id]));
   };
 
-  const recipe = (ids: number[], template: TemplateId) =>
-    start(async () => {
-      if (told(await canvasSet(ids))) return;
-      run(template, ids);
-    });
+  const recipe = async (next: number[], template: TemplateId) => {
+    if (await change(next, () => canvasSet(next))) run(template, next);
+  };
 
   // Analyses offered depend on what's on the canvas (GLOSSARY: Analysis Canvas).
   const suggestions: { label: string; blurb: string; ok: boolean; why?: string; go?: () => void; locked?: boolean }[] = [
@@ -66,10 +73,10 @@ function AnalyzeCanvas({ data, onCanvas, targets, demo = false }: AnalyzeProps) 
   const tickets = bySlug("support-tickets");
   const returns = bySlug("return-rate");
   const recipes = [
-    cost && { label: "What drives Cost?", go: () => recipe([cost.id, ...inUse(data.metrics).filter((m) => m.id !== cost.id).map((m) => m.id)], "drivers") },
-    revenue && { label: "Where is Revenue heading?", go: () => recipe([revenue.id], "forecast") },
-    revenue && (revenue.target_min !== null || revenue.target_max !== null) && { label: "Will we reach the Target?", go: () => recipe([revenue.id], "forecast") },
-    tickets && returns && { label: "Do support tickets drive returns?", go: () => recipe([returns.id, tickets.id], "correlation") },
+    cost && { label: "What drives Cost?", go: () => void recipe([cost.id, ...inUse(data.metrics).filter((m) => m.id !== cost.id).map((m) => m.id)], "drivers") },
+    revenue && { label: "Where is Revenue heading?", go: () => void recipe([revenue.id], "forecast") },
+    revenue && (revenue.target_min !== null || revenue.target_max !== null) && { label: "Will we reach the Target?", go: () => void recipe([revenue.id], "forecast") },
+    tickets && returns && { label: "Do support tickets drive returns?", go: () => void recipe([returns.id, tickets.id], "correlation") },
   ].filter(Boolean) as { label: string; go: () => void }[];
 
   return (
@@ -102,7 +109,7 @@ function AnalyzeCanvas({ data, onCanvas, targets, demo = false }: AnalyzeProps) 
           <div className="mb-3 flex items-center gap-2 text-sm font-medium">
             <FlaskConical className="size-4 text-primary" /> Analysis canvas
             <span className="fig font-normal text-muted-foreground">{n}</span><span className="font-normal text-muted-foreground">metric{n === 1 ? "" : "s"}</span>
-            {n > 0 && <button onClick={() => { setResults([]); start(async () => { told(await canvasSet([])); }); }} className="ml-auto flex min-h-8 items-center gap-1 rounded-[var(--radius-input)] px-2 text-xs text-muted-foreground hover:bg-muted hover:text-foreground"><Trash2 className="size-3.5" /> Clear</button>}
+            {n > 0 && <button onClick={() => { setResults([]); void change([], () => canvasSet([])); }} className="ml-auto flex min-h-8 items-center gap-1 rounded-[var(--radius-input)] px-2 text-xs text-muted-foreground hover:bg-muted hover:text-foreground"><Trash2 className="size-3.5" /> Clear</button>}
           </div>
           {n === 0 ? (
             <p className="py-8 text-center text-sm text-muted-foreground">Drop metrics here. One metric → forecast. Two → correlation. More → drivers and a matrix.</p>
@@ -113,7 +120,7 @@ function AnalyzeCanvas({ data, onCanvas, targets, demo = false }: AnalyzeProps) 
                   {i === 0 && n > 1 && <span className="rounded-[var(--radius-input)] border border-foreground px-1 text-xs font-medium">Target</span>}
                   {m.name}
                   <span className="text-xs text-muted-foreground">{PERIOD_LABEL[m.period].toLowerCase()}</span>
-                  <button onClick={() => start(async () => { told(await canvasRemove(m.id)); })} className="rounded p-0.5 text-muted-foreground hover:bg-muted"><X className="size-3" /></button>
+                  <button onClick={() => void change(ids.filter((id) => id !== m.id), () => canvasRemove(m.id))} aria-label={`Take ${m.name} off the canvas`} className="rounded p-0.5 text-muted-foreground hover:bg-muted"><X className="size-3" /></button>
                 </span>
               ))}
             </div>
