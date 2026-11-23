@@ -376,3 +376,9 @@ You can have three, up to 1,000 messages a day (a trial has fewer, and only publ
 | The bin icon | Deletes it after asking, also while the Workspace's switch is off |
 
 Under each, **Log** lists its sends of the last 14 days: when, the event, what it is about, the state and the answer. A Webhook that keeps failing is switched off by Ziffr and you are told. An Owner or Admin sees that you have a Webhook, whose it is, the address masked and when it last sent, never what it sent, and can remove it; you are then told who did. It ends when you leave the Workspace. Messages leave Ziffr in clear text over TLS and the receiving system keeps them as it sees fit.
+
+## Answers to your feedback
+
+This is only in the central version of Ziffr (ziffr.net); a Ziffr that someone runs themselves has no feedback and sends nothing anywhere. When the Ziffr team answers the post that was made from your feedback, the answer is added under your feedback as a message from the **Ziffr team**, the feedback's status becomes **answered**, and Ziffr tells you the way it tells you about Tasks and Questions (in your own Connector, within your Quiet Hours, at most once an hour for one feedback). The message only says that there is an answer; read it under **My feedback**. The answer is shown as plain text, so a link in it is not clickable: check where it leads before you open it. You never see who on the team wrote it, and the team never sees who you are.
+
+If the team closes the post, your feedback shows **closed**; if they open it again, it shows **open** again. A reply you write under your feedback is posted to the public post as a comment from "A Ziffr user", with no name and nothing else about you, and your words are public like the first ones were. A few replies a day are allowed for each feedback and for each person; if the limit is reached, the page says so and you can try again tomorrow.
