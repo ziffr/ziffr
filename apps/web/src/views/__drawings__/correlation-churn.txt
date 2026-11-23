@@ -76,9 +76,9 @@
 <text fill=var(--color-muted) font-family=var(--font-outlier) font-size=12 height=194 name=Churn rate orientation=left stroke=none text-anchor=end width=68 x=68 y=8>
 <tspan dy=0.355em x=68>
 "0.3 %"
-"Many values of Churn rate repeat, so this reading is rough."
 "Churn rate and Operating cost tend to move together over 23 months (moderate)."
 "Compared by change, growth removed, over 23 months."
+"Many values of Churn rate repeat, so this reading is rough."
 "This shows what has gone together, not what caused what."
 "Show the numbers"
 "MethodPearson's r"
