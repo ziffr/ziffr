@@ -300,7 +300,7 @@ describe("before and after on hostile input", () => {
     expect([got.expected, got.share, got.fits]).toEqual([0, null, true]);
     expect(got.gap).toBe(1 / 3);
     const t = afterDateTakeaway("Debt", series(values), "month", monthStart(6), euro, ctx);
-    expect(t.numbers.map((n) => n.label)).not.toContain("Difference as a share of the trend");
+    expect(t.numbers.map((n) => n.label)).toEqual(["Method", "Date", "Periods before", "Periods after", "Trend before (per period)", "Where the trend pointed (average)", "What it was (average)", "Difference", "Likely between", "Typical miss"]);
   });
   it("gives the same range from the same fit however far a gap runs, since each value counts at its place in the calendar", () => {
     const withGap = ok(afterDate(series([5, 7, null, null, 11, 13, 17, 19, 23]), "month", monthStart(6)));

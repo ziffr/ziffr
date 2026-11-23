@@ -94,11 +94,11 @@ export function changePoint(points: Point[], span: Span): ChangePoint | NoChange
   const { k, sse, left, right } = best!;
   const one = lineThrough(sums, 0, n);
   const d = n - 2 * 2;
-  // Found: one line leaves misses, and (SSE₀ ÷ SSE₁)^d is above (20 · tries)², compared by multiplying out so that two lines with no misses at
-  // all (SSE₁ = 0) are above every bar. A ratio exactly at the bar cannot occur (the ratio of two sums of squares is a fraction, and a fraction
+  // Found: (SSE₀ ÷ SSE₁)^d is above (20 · tries)², compared by multiplying out so that two lines with no misses at all (SSE₁ = 0) are above
+  // every bar, and one line with none (SSE₀ = 0, so SSE₁ = 0 too) is above none. A ratio exactly at the bar cannot occur (the ratio of two sums of squares is a fraction, and a fraction
   // raised to d is a whole number only if it is one: no whole number to the d is (20 · (d − 3))² for d from 4 to 996, see the tests).
   // Stryker disable next-line EqualityOperator: a ratio exactly at the bar never occurs, so `>` and `>=` give the same.
-  const found = one.sse.num > ZERO && (one.sse.num * sse.den) ** BigInt(d) > BigInt(ONE_IN * tries) ** BigInt(2) * (sse.num * one.sse.den) ** BigInt(d);
+  const found = (one.sse.num * sse.den) ** BigInt(d) > BigInt(ONE_IN * tries) ** BigInt(2) * (sse.num * one.sse.den) ** BigInt(d);
   const x = xs[k];
   const atStart = (l: Line) => add(l.my, mul(l.slope, sub(x, l.mx)));
   const variance = div(sse, whole(d));

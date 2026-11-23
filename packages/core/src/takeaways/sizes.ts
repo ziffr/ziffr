@@ -54,7 +54,6 @@ export function valueText(v: number, unit: ValueUnit, decimals: number, style: N
 export function plainValue(v: number, unit: ValueUnit, base: number, style: NumberStyle): string {
   const decimals = decimalsFor([v], base, style);
   if (decimals !== null) return valueText(v, unit, decimals, style);
-  // v is not zero here (a zero shows at any decimals), so its sign is one of two.
-  const [sign, body] = [["−", "", ""][Math.sign(v) + 1], Math.abs(v).toExponential(2)];
+  const [sign, body] = [Math.abs(v) === v ? "" : "−", Math.abs(v).toExponential(2)];
   return unit.unit_position === "before" ? `${sign}${unit.unit}${body}` : `${sign}${body} ${unit.unit}`.trimEnd();
 }

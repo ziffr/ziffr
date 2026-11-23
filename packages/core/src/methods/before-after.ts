@@ -120,11 +120,12 @@ export function afterDate(points: Point[], span: Span, date: string): AfterDate 
   const spread = Math.sqrt(nearest(variance));
   if (![gapNumber, expectedNumber, half, lo, hi, spread].every(Number.isFinite)) return { ok: false, why: "huge" };
   // A share of where the trend pointed is only said where that is above 0: a share of 0 or of a negative level means nothing.
-  const level = expected.num > ZERO ? expectedNumber : null;
-  const hundred = level === null ? null : nearest(div(mul(gap, whole(100)), expected));
-  const wide = level === null ? null : (half / level) * 100;
-  if (hundred !== null && ![hundred, wide!].every(Number.isFinite)) return { ok: false, why: "huge" };
-  const share = hundred === null ? null : { gap: hundred, lo: hundred - wide!, hi: hundred + wide! };
+  let share: AfterDate["share"] = null;
+  if (expected.num > ZERO) {
+    const [hundred, wide] = [nearest(div(mul(gap, whole(100)), expected)), (half / expectedNumber) * 100];
+    if (![hundred, wide].every(Number.isFinite)) return { ok: false, why: "huge" };
+    share = { gap: hundred, lo: hundred - wide, hi: hundred + wide };
+  }
   return { ok: true, before: n, after: after.length, slope: nearest(slope), expected: expectedNumber, actual: nearest(mya), gap: gapNumber, half, lo, hi, spread, share, fits: sse.num === ZERO };
 }
 

@@ -52,8 +52,7 @@ export function tCdf(t: number, df: number): number {
  * chance is too small for a double to tell the points apart: NaN); NaN too for a `df` that is not a whole number from 1 to `MOST_DF`. */
 export function tQuantile(p: number, df: number): number {
   if (!(p >= 0.001 && p <= 0.999) || !Number.isInteger(df) || df < 1 || df > MOST_DF) return NaN;
-  if (p === 0.5) return 0;
-  // The curve is symmetric: work on the upper half and mirror.
+  // The curve is symmetric: work on the upper half and mirror (the point of 1/2 is 0, whose sign is 0).
   const q = Math.max(p, 1 - p);
   // The point is below 636.62 for ν = 1 and p = 0.9995; 1e4 holds every p in range for ν = 1 (the heaviest tail).
   let [lo, hi] = [0, 1e4];
