@@ -92,8 +92,13 @@ export function recentDate(index: number, n: number): boolean {
 
 /** Whether a forecast's `chance` of landing where the Target wants the Metric makes the Target out of reach: under `SINGLE.under`, with `SINGLE.periodsLeft` or more periods
  * left (`ahead`), or with fewer where one period ago it was on pace (`wasOnPace`, asked only then). */
-export function unlikelyToReach(chance: number, ahead: number, wasOnPace: () => boolean): boolean {
-  return chance < SINGLE.under && (ahead >= SINGLE.periodsLeft || wasOnPace());
+export function unlikelyToReach(chance: number, ahead: number, wasOnPace: boolean): boolean {
+  return chance < SINGLE.under && (ahead >= SINGLE.periodsLeft || wasOnPace);
+}
+
+/** Whether one period ago, without the latest value, the straight line through the values read at the period `by` met the Target. */
+export function wasOnPace(rows: Point[], span: Span, by: string, ends: TargetEnds): boolean {
+  return reaches(lineAt(rows.slice(0, -1), span, by), ends);
 }
 
 /** Whether a line's value `at` a period is where the Target wants the Metric: at or above the lower end, at or below the upper (the ends included), decided exactly. */
@@ -246,7 +251,14 @@ export function newValueChance(earlier: number[], latest: number): number {
 // ---- the tests ----
 
 /** A test of one Metric: which kind, its chance after every condition about the Metric alone (1 where one fails), and how to write the Heads-up it would be. */
-type Test = { kind: keyof typeof ORDER; id: number; p: number; build: (looked: number, adjusted: number) => MetricHeadsUp };
+/** A test of one Metric: its kind, the conditions about the Metric alone (`gates`, each true or false), the chance before the conditions (`chance`; 1 where a test has nothing to say), the chance
+ * after them (`p`: the chance where every gate holds, else 1), and how to write the Heads-up it would be. */
+export type Test = { kind: keyof typeof ORDER; id: number; gates: Record<string, boolean>; chance: number; p: number; build: (looked: number, adjusted: number) => MetricHeadsUp };
+
+/** Whether every condition holds. */
+export function holds(gates: Record<string, boolean>): boolean {
+  return Object.values(gates).every(Boolean);
+}
 
 const text = (ctx: TakeawayContext) => (n: number, d = 0) => formatNumber(n, d, ctx.style);
 
@@ -275,9 +287,19 @@ function directionTest(look: SingleLook, ctx: SingleContext): Test | null {
   const gap = result.step + result.slopeChange * periodsBetween(result.period, last, metric.period);
   // Every condition about this Metric alone, so that a Metric that does not meet them counts among those looked at, with a chance of 1.
   const misses = twoLinesMisses(rows, metric.period, result.index);
-  const meets = result.found && !carriesOver(misses) && verdictOutcome(verdict) === "ok" && isCurrent(last, ctx.today, metric.period, ctx.yearStart ?? 1) && recentDate(result.index, result.n) && turned(result.before, result.after) && farApart(gap, result.spread) && decimals !== null;
+  const gates = {
+    found: result.found,
+    steady: !carriesOver(misses),
+    clean: verdictOutcome(verdict) === "ok",
+    current: isCurrent(last, ctx.today, metric.period, ctx.yearStart ?? 1),
+    recent: recentDate(result.index, result.n),
+    turned: turned(result.before, result.after),
+    apart: farApart(gap, result.spread),
+    written: decimals !== null,
+  };
+  const chance = Math.max(changeChance(result, carryOf(misses)), Math.min(1, result.tries * shiftChance(rows, metric.period, result.index)));
   return {
-    kind: "direction-change", id: metric.id, p: meets ? Math.max(changeChance(result, carryOf(misses)), Math.min(1, result.tries * shiftChance(rows, metric.period, result.index))) : 1,
+    kind: "direction-change", id: metric.id, gates, chance, p: holds(gates) ? chance : 1,
     build: (looked, adjusted) => {
       const t = text(ctx);
       const method = sayIn("numbers-method-hu-direction", {}, ctx);
@@ -330,7 +352,7 @@ export function targetHeadsUp(look: SingleLook, reading: TargetReading, looked: 
     sentence,
     basis: sayIn("basis-history", { n: rows.length, span }, ctx),
     assumptions: [sayIn("fc-assumes", {}, ctx)],
-    notes: reading.onPace ? [sayIn("hu-was-on-pace", {}, ctx)] : [],
+    notes: reading.onPace && now.ahead < SINGLE.periodsLeft ? [sayIn("hu-was-on-pace", {}, ctx)] : [],
     footer: sayIn("footer-forecast", {}, ctx),
     figures: [
       ...(ends.min === null ? [] : [{ label: sayIn("numbers-target-min", {}, ctx), value: ends.min, text: value(ends.min) }]),
@@ -368,18 +390,22 @@ function targetTest(look: SingleLook, ctx: SingleContext): Test | null {
   // The forecast is only worked out for a line that could be reported at all (nothing above the rate is ever reported): it is the costly part.
   // (An end too small to show a digit with the most decimals the writer has cannot be said in words: no Heads-up.)
   const decimals = decimalsFor([ends.min, ends.max].filter((v): v is number => v !== null), metric.decimals, ctx.style);
+  // (A line whose misses carry over, by the check of carry-over.ts, follows its own past by more than 0.4 in a window of 24, so `mild` holds it back too.)
   // A line whose misses follow their own past by more than SINGLE.follow is not used (the estimate of how much they follow is too loose to allow for), nor is a Target period that is already over.
+  const gates = {
+    written: decimals !== null,
+    // Stryker disable next-line EqualityOperator: a first autocorrelation of exactly 0.2 is a measure-zero event in doubles; which side it counts on is a convention.
+    mild: fit.follow <= SINGLE.follow,
+    ahead: by >= periodStart(ctx.today, span, ctx.yearStart ?? 1),
+    current: isCurrent(last, ctx.today, span, ctx.yearStart ?? 1),
+  };
   // Stryker disable next-line EqualityOperator,ConditionalExpression: only saves the forecast's work: a chance above the rate is never reported by the correction anyway.
   const small = lineChance <= SINGLE.rate;
-  const worth = decimals !== null && small && !fit.carries && fit.follow <= SINGLE.follow && by >= periodStart(ctx.today, span, ctx.yearStart ?? 1) && isCurrent(last, ctx.today, span, ctx.yearStart ?? 1);
-  const now = worth ? reachOf(metric, rows, ctx, { ends, by }) : null;
-  // Where one period ago it was on pace is only asked with fewer than 2 periods left: the straight line without the latest value, read at the same period, met the Target.
-  let onPace = false;
-  const wasOnPace = () => (onPace = reaches(lineAt(line.slice(0, -1), span, by), ends));
-  const meets = now !== null && unlikelyToReach(now.chance, now.ahead, wasOnPace);
+  const now = holds(gates) && small ? reachOf(metric, rows, ctx, { ends, by }) : null;
+  const all = { ...gates, unlikely: now === null ? !(holds(gates) && small) : unlikelyToReach(now.chance, now.ahead, wasOnPace(line, span, by, ends)) };
   return {
-    kind: "target-out-of-reach", id: metric.id, p: meets ? lineChance : 1,
-    build: (looked, adjusted) => targetHeadsUp(look, { ends, decimals: decimals!, rows, now: now!, line: fit.at, onPace, last }, looked, adjusted, ctx),
+    kind: "target-out-of-reach", id: metric.id, gates: all, chance: lineChance, p: holds(all) && small ? lineChance : 1,
+    build: (looked, adjusted) => targetHeadsUp(look, { ends, decimals: decimals!, rows, now: now!, line: fit.at, onPace: wasOnPace(line, span, by, ends), last }, looked, adjusted, ctx),
   };
 }
 
@@ -388,6 +414,7 @@ function seasonTest(look: SingleLook, ctx: SingleContext): Test | null {
   const span = metric.period;
   const season = SEASON_LENGTH[span];
   const rows = readSeries(look.points).slice(-HEADS_UP.window);
+  // Stryker disable next-line EqualityOperator: no Period has a season of exactly 2 (a half year is only a Display Period), so `<` and `<=` never differ.
   if (season < 2 || rows.length === 0) return null;
   const latest = rows[rows.length - 1];
   const earlier = rows.slice(0, -1);
@@ -400,14 +427,21 @@ function seasonTest(look: SingleLook, ctx: SingleContext): Test | null {
   // On the side the mean says: a value above the 90th percentile but below the mean (a few very high ones among the earlier) is not "high".
   // (Values written with as many decimals as keep the latest value, the low and the high apart; where that cannot be done, nothing is said.)
   const decimals = decimalsApart([latest.value, range.low, range.high], metric.decimals, ctx.style);
-  const outside = decimals !== null && where !== "within" && onTheSide(where, latest.value, mean) && isCurrent(latest.period, ctx.today, span, ctx.yearStart ?? 1);
-  const chance = outside ? newValueChance(same, latest.value) : 1;
+  const chance = newValueChance(same, latest.value);
+  const gates = {
+    written: decimals !== null,
+    outside: where !== "within",
+    side: where !== "within" && onTheSide(where, latest.value, mean),
+    current: isCurrent(latest.period, ctx.today, span, ctx.yearStart ?? 1),
+  };
   // The checks of the usual range (periods, variation, gaps, a level shift) are the costly part, and only asked of a value that could be reported at all.
   // Stryker disable next-line EqualityOperator,ConditionalExpression: only saves the checks' work: a chance above the rate is never reported by the correction anyway.
   const small = chance <= SINGLE.rate;
-  const clean = small && verdictOutcome(checkSuitability("usualRange", { series: [{ name: metric.name, points: rows }], span })) === "ok";
+  // (`clean` is only asked of a value every other condition lets through, and holds where it is not asked.)
+  const asked = holds(gates) && small;
+  const all = { ...gates, clean: !asked || verdictOutcome(checkSuitability("usualRange", { series: [{ name: metric.name, points: rows }], span })) === "ok" };
   return {
-    kind: "unusual-for-season", id: metric.id, p: clean ? chance : 1,
+    kind: "unusual-for-season", id: metric.id, gates: all, chance, p: holds(all) && small ? chance : 1,
     build: (looked, adjusted) => {
       const t = text(ctx);
       const method = sayIn("numbers-method-hu-season", {}, ctx);
@@ -434,13 +468,18 @@ function seasonTest(look: SingleLook, ctx: SingleContext): Test | null {
   };
 }
 
+/** The tests of one Metric, each with its conditions and chances (what `singleHeadsUpsFrom` weighs): a change of direction, a Target, a season, those that have enough values to be tried. */
+export function testsOf(look: SingleLook, ctx: SingleContext): Test[] {
+  return [directionTest(look, ctx), targetTest(look, ctx), seasonTest(look, ctx)].filter((t): t is Test => t !== null);
+}
+
 /** The Heads-ups about one Metric among the `looks` of the Metrics a person may see: a change of direction, a Target out of reach, a value unusual for its season. The
  * correction counts only the tests worked out for these looks, all three kinds together (see the file's header); a Metric with too few values for a kind is not a test of
  * that kind. Strongest first within each kind, the kinds in that order, ties by id. The same looks give the same Heads-ups in any order. */
 export function singleHeadsUpsFrom(looks: readonly SingleLook[], ctx: SingleContext): HeadsUp[] {
   // Stryker disable next-line ArrowFunction,ArithmeticOperator,MethodExpression: the order the Metrics are tried in changes nothing: the correction does not read the order and the Heads-ups are sorted again below.
   const sorted = [...looks].sort((a, b) => a.metric.id - b.metric.id);
-  const tests = sorted.flatMap((look) => [directionTest(look, ctx), targetTest(look, ctx), seasonTest(look, ctx)].filter((t): t is Test => t !== null));
+  const tests = sorted.flatMap((look) => testsOf(look, ctx));
   const reported = benjaminiHochberg(tests.map((t) => t.p), SINGLE.rate);
   const adjusted = adjustedChances(tests.map((t) => t.p));
   const out = tests.flatMap((test, i) => (reported[i] ? [test.build(tests.length, adjusted[i])] : []));

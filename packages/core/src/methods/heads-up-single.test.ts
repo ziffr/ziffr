@@ -12,7 +12,9 @@ import { FIXTURE, HASHES } from "../test/reference/heads-up-single-fixture";
 import { referenceBelow, referenceChangeChance, referenceLine, referenceMinus, referenceNewValue, referenceTwoSample, toNumber } from "../test/reference/heads-up-single";
 import type { Point } from "../types";
 import { changePoint } from "./change-point";
-import { changeChance, driftAbove, driftBelow, farApart, lineAbove, lineAt, lineBelow, newValueChance, onTheSide, reaches, recentDate, shiftChance, singleHeadsUpsFrom, SINGLE, targetHeadsUp, turned, twoLinesMisses, unlikelyToReach, type SingleLook } from "./heads-up-single";
+import { carryOf } from "./carry-over";
+import { usualRange } from "./quantiles";
+import { changeChance, driftAbove, holds, testsOf, driftBelow, farApart, lineAbove, lineAt, lineBelow, newValueChance, onTheSide, reaches, recentDate, shiftChance, singleHeadsUpsFrom, SINGLE, targetHeadsUp, turned, wasOnPace, twoLinesMisses, unlikelyToReach, type SingleContext, type SingleLook } from "./heads-up-single";
 
 const { numRuns, seed } = runs();
 const month = (k: number) => new Date(Date.UTC(2020, k, 1)).toISOString().slice(0, 10);
@@ -298,9 +300,8 @@ describe("the misses of the two lines of a change point", () => {
 
 describe("a Target is out of reach", () => {
   it("is out of reach under 20 %, with 2 or more periods left, or with fewer where it was on pace a period ago (asked only then), one step either side of each", () => {
-    const never = () => { throw new Error("asked about the period before for nothing"); };
-    expect([unlikelyToReach(0.19999999999999998, 2, never), unlikelyToReach(0.2, 2, never), unlikelyToReach(0.05, 3, never), unlikelyToReach(0.0001, 14, never)]).toEqual([true, false, true, true]);
-    expect([unlikelyToReach(0.1, 1, () => true), unlikelyToReach(0.1, 1, () => false), unlikelyToReach(0.2, 1, () => true), unlikelyToReach(0.1, 0, () => true)]).toEqual([true, false, false, true]);
+    expect([unlikelyToReach(0.19999999999999998, 2, false), unlikelyToReach(0.2, 2, false), unlikelyToReach(0.05, 3, false), unlikelyToReach(0.0001, 14, false), unlikelyToReach(0.1, 1, false)]).toEqual([true, false, true, true, false]);
+    expect([unlikelyToReach(0.1, 1, true), unlikelyToReach(0.2, 1, true), unlikelyToReach(0.1, 0, true), unlikelyToReach(0.1, 2, true)]).toEqual([true, false, true, true]);
   });
   it("was on pace when the line met the Target: at or above the lower end, at or below the upper, the ends included, decided exactly", () => {
     const at = (num: number, den: number) => ({ at: { num: BigInt(num), den: BigInt(den) } });
@@ -315,6 +316,9 @@ describe("a Target is out of reach", () => {
     const said = (over = {}, onPace = true) => targetHeadsUp(look, { ...reading, ...over, onPace }, 7, 0.0123, ctx);
     expect(said().takeaway.notes).toEqual(["Until its latest value, it was on pace."]);
     expect(said({}, false).takeaway.notes).toEqual([]);
+    // The line is only said to have been on pace where fewer than 2 periods were left.
+    expect(said({ now: { ...now, ahead: 2 } }).takeaway.notes).toEqual([]);
+    expect(said({ now: { ...now, ahead: 0 } }).takeaway.notes).toEqual(["Until its latest value, it was on pace."]);
     expect(said().takeaway.sentence).toBe("Revenue is unlikely to reach 600 € or more in January 2023 (about 1 in 10).");
     expect(said({ ends: { min: null, max: 900 } }).takeaway.sentence).toBe("Revenue is unlikely to stay at 900 € or less in January 2023 (about 1 in 10).");
     expect(said({ ends: { min: 600, max: 900 } }).takeaway.sentence).toBe("Revenue is unlikely to land between 600 € and 900 € in January 2023 (about 1 in 10).");
@@ -327,6 +331,13 @@ describe("a Target is out of reach", () => {
       ["Chance of this by luck, after correcting for the checks looked at", "0.0123"],
     ]);
     expect(said().through).toBe("2022-12-01");
+  });
+  it("was on pace one period ago when the line without the latest value met the Target, where the line with it does not", () => {
+    const rows = series([100, 101, 100, 99, 100, 101, 100, 40]);
+    expect(wasOnPace(rows, "month", month(10), { min: 95, max: null })).toBe(true);
+    expect(reaches(lineAt(rows, "month", month(10)), { min: 95, max: null })).toBe(false);
+    expect(wasOnPace(rows, "month", month(10), { min: 105, max: null })).toBe(false);
+    expect(wasOnPace(rows, "month", month(10), { min: null, max: 95 })).toBe(false);
   });
   it("is high or low only on the side of the mean it is outside on", () => {
     expect([onTheSide("above", 10, 9.99), onTheSide("above", 10, 10), onTheSide("above", 10, 10.01), onTheSide("below", 10, 10.01), onTheSide("below", 10, 10), onTheSide("below", 10, 9.99)]).toEqual([true, false, false, true, false, false]);
@@ -503,6 +514,109 @@ describe("every condition on its own", () => {
     expect(max.takeaway.figures.map((f) => f.label)).toEqual(["Target, at most"]);
     expect(max.takeaway.assumptions.length).toBe(1);
     expect(ups([{ metric: revenue(), points: series(falling) }])[0].takeaway.figures.map((f) => f.label)).toEqual(["Target, at least"]);
+  });
+});
+
+describe("every gate of every test, one at a time (the others holding)", () => {
+  const at = (k: number) => ({ ...ctx, today: month(k) });
+  const test = (kind: string, look: SingleLook, over: SingleContext = ctx) => testsOf(look, over).find((t) => t.kind === kind)!;
+  // The names of the gates that are false.
+  const failing = (t: { gates: Record<string, boolean> }) => Object.entries(t.gates).filter(([, v]) => !v).map(([k]) => k);
+  const only = (t: { gates: Record<string, boolean>; p: number }, gate: string) => { expect(failing(t)).toEqual([gate]); expect(t.p).toBe(1); };
+  const turn = (a = 1, after = 10, cut = 30) => Array.from({ length: 36 }, (_, k) => (k < cut ? 10 * k : 10 * cut - after * (k - cut)) + a * noise(k));
+  const dir = (points: Point[], over: SingleContext = ctx) => test("direction-change", { metric: signups, points }, over);
+
+  it("holds is true only where every condition is", () => {
+    expect([holds({}), holds({ a: true, b: true }), holds({ a: true, b: false }), holds({ a: false, b: true }), holds({ a: false })]).toEqual([true, true, false, false, false]);
+  });
+  it("a change of direction: a clean turn has every gate and its chance; each condition alone failing leaves a chance of 1", () => {
+    const clean = dir(series(turn()));
+    expect(failing(clean)).toEqual([]);
+    expect(clean.p).toBe(clean.chance);
+    // The chance is the larger of the change point's and the one from the changes alone, by hand from the pieces.
+    const points = series(turn());
+    const cp = changePoint(points, "month");
+    if (!cp.ok) throw new Error("no change point");
+    const misses = twoLinesMisses(points, "month", cp.index);
+    expect(clean.chance).toBe(Math.max(changeChance(cp, carryOf(misses)), Math.min(1, cp.tries * shiftChance(points, "month", cp.index))));
+    expect(clean.chance).toBeGreaterThan(changeChance(cp, carryOf(misses)) - 1e-300);
+    only(dir(series(turn(30))), "found");
+    only(dir(series(turn().map((v, k) => v + 4 * Math.sin(k / 3)))), "steady");
+    only(dir(series(turn()).filter((p) => ![5, 6, 7].includes(Number(p.period.slice(5, 7)) + 12 * (Number(p.period.slice(0, 4)) - 2020) - 1))), "clean");
+    only(dir(series(turn()), at(60)), "current");
+    only(dir(series(turn(1, 10, 28))), "recent");
+    only(dir(series(turn(1, -3))), "turned");
+    only(dir(series(turn().map((v, k) => (k >= 30 ? v + 100 : v)))), "apart");
+    only(dir(series(turn().map((v) => v / 1e33))), "written");
+  });
+  it("a Target: every gate for a falling Metric and its chance by hand from the line and the changes; each condition alone failing leaves a chance of 1", () => {
+    const tgt = (values: number[], over = {}, ctxOver: SingleContext = ctx, period = "month") => test("target-out-of-reach", { metric: revenue(over), points: values.map((value, k) => ({ period: period === "day" ? new Date(Date.UTC(2026, 0, 1 + k)).toISOString().slice(0, 10) : month(k), value })) }, ctxOver);
+    const base = tgt(falling);
+    expect(failing(base)).toEqual([]);
+    expect(base.p).toBe(base.chance);
+    const rows = series(falling).slice(-24);
+    const line = lineAt(rows, "month", month(38));
+    expect(base.chance).toBe(Math.max(lineBelow(line, 600), driftBelow(rows, "month", month(38), 600)));
+    // An upper end alone, and both ends (twice the smaller of the two).
+    const hi = tgt(falling.map((v) => 2000 - v), { polarity: "lower", target_min: null, target_max: 1400 });
+    const rowsHi = series(falling.map((v) => 2000 - v)).slice(-24);
+    expect(hi.chance).toBe(Math.max(lineAbove(lineAt(rowsHi, "month", month(38)), 1400), driftAbove(rowsHi, "month", month(38), 1400)));
+    const band = tgt(falling, { polarity: "target", target_min: 900, target_max: 1100 });
+    const [below, above] = [Math.max(lineBelow(line, 900), driftBelow(rows, "month", month(38), 900)), Math.max(lineAbove(line, 1100), driftAbove(rows, "month", month(38), 1100))];
+    expect(band.chance).toBe(Math.min(1, 2 * Math.min(below, above)));
+    only(tgt(falling, {}, at(39)), "ahead");
+    // A Target that is met: nothing says it is out of reach, and where another gate fails the forecast is not asked.
+    expect(failing(tgt(falling, { target_min: 300 }))).toEqual([]);
+    expect(tgt(falling, { target_min: 300 }).p).toBe(1);
+    only(tgt(falling, { target_min: 300 }, at(39)), "ahead");
+    only(tgt(falling.map((v) => v / 1e33), { target_min: 1e-30 }), "written");
+    only(tgt(falling.map((v, k) => v + 5 * Math.sin(k / 4))), "mild");
+    // A Period with more periods ahead than the day it counts as current for: the Target is not over and the data is no longer current.
+    const daily = Array.from({ length: 40 }, (_, k) => 1000 - 15 * k + noise(k));
+    const dctx = { ...ctx, today: new Date(Date.UTC(2026, 0, 1 + 39 + 7)).toISOString().slice(0, 10) };
+    only(tgt(daily, { period: "day", target_min: 300 }, dctx, "day"), "current");
+  });
+  it("a season: every gate for a spike and its chance; each condition alone failing leaves a chance of 1", () => {
+    const sea = (values: number[], over: SingleContext = { ...ctx, today: month(107) }, period = "month") => test("unusual-for-season", { metric: period === "month" ? visits : { ...visits, period: "quarter" }, points: values.map((value, k) => ({ period: period === "month" ? month(k) : new Date(Date.UTC(2010, 3 * k, 1)).toISOString().slice(0, 10), value })) }, over);
+    const spike = seasonal(106, 40);
+    const base = sea(spike);
+    expect(failing(base)).toEqual([]);
+    expect(base.p).toBe(base.chance);
+    expect(base.chance).toBeCloseTo(newValueChance(spike.slice(0, -1).filter((_, k) => (105 - k) % 12 === 0), spike[105]), 15);
+    only(sea(spike, { ...ctx, today: month(105 + 7) }), "current");
+    // Every gate holds but the chance is above the rate: nothing to report.
+    const mild = sea(seasonal(106, 12));
+    expect(failing(mild)).toEqual([]);
+    expect(mild.chance).toBeGreaterThan(0.01);
+    expect(mild.p).toBe(1);
+    only(sea(spike.map((v) => v / 1e33)), "written");
+    // The latest value in the middle of the usual range: not outside it (and so on neither side).
+    const within = seasonal(106, 0);
+    const median = usualRange(series(within).slice(0, -1), "month", { season: 12, at: month(105), least: 2 })!.median;
+    const inside = sea(within.map((v, k) => (k === 105 ? median : v)));
+    expect(failing(inside)).toEqual(["outside", "side"]);
+    expect(inside.p).toBe(1);
+    // Inside the range, below the mean: still neither outside nor on a side.
+    const q1 = usualRange(series(within).slice(0, -1), "month", { season: 12, at: month(105), least: 2 })!.q1;
+    expect(failing(sea(within.map((v, k) => (k === 105 ? q1 : v))))).toEqual(["outside", "side"]);
+    // A yearly Metric has a season of 1: none.
+    const yearly = testsOf({ metric: { ...visits, period: "year" }, points: Array.from({ length: 12 }, (_, k) => ({ period: `${2010 + k}-01-01`, value: 100 + noise(k) })) }, { ...ctx, today: "2026-06-01" }).map((x) => x.kind);
+    expect(yearly).not.toContain("unusual-for-season");
+    // A value above the usual range but below the mean of the earlier ones (a few very high among them): not high. Quarterly, 11 earlier values at the place.
+    const skew = Array.from({ length: 45 }, (_, k) => (k % 4 === 0 && k < 44 ? (k === 40 ? 1000 : 0) : 100 + noise(k) * 3 + (k % 7)));
+    skew[44] = 50;
+    only(sea(skew, { ...ctx, today: new Date(Date.UTC(2010, 3 * 46, 1)).toISOString().slice(0, 10) }, "quarter"), "side");
+    // A step in level (the usual range's own check) holds back a spike too, however far out, that every other condition lets through.
+    const stepped = test("unusual-for-season", { metric: visits, points: series(seasonal(106, 1200).map((v, k) => (k < 50 ? v : v + 400))) }, { ...ctx, today: month(107) });
+    expect(failing(stepped)).toEqual(["clean"]);
+    // Where the other conditions fail the checks are not asked, whatever they would say.
+    const gappedOld = test("unusual-for-season", { metric: visits, points: series(spike).filter((_, k) => ![30, 31, 32].includes(k)) }, { ...ctx, today: month(105 + 7) });
+    expect(failing(gappedOld)).toEqual(["current"]);
+    // The checks of the usual range (here a gap of 3 periods in a row) hold a spike back that every other condition lets through.
+    const gapped = { metric: visits, points: series(spike).filter((_, k) => ![30, 31, 32].includes(k)) };
+    const held = test("unusual-for-season", gapped, { ...ctx, today: month(107) });
+    expect(failing(held)).toEqual(["clean"]);
+    expect(held.p).toBe(1);
   });
 });
 
