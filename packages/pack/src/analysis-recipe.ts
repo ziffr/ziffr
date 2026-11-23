@@ -141,10 +141,10 @@ function checkFirst(value: unknown, lines: Map<string, number>): RecipeCheck {
 export type Kind = "series" | "value" | "table" | "model";
 
 /** The exact limits a /2 recipe is held to: those of /1, and how many inputs steps may name in all, how many fits, and the lists in a step. */
-export const RECIPE_LIMITS_2 = { ...RECIPE_LIMITS, inputs: 40, fits: 2, controls: 4, drivers: 6, title: 60, note: 200 } as const;
+export const RECIPE_LIMITS_2 = { ...RECIPE_LIMITS, inputs: 40, fits: 2, controls: 4, drivers: 6, parts: 6, title: 60, note: 200 } as const;
 
 type Param = "window" | "season" | "percent" | "maxLag";
-type Function2 = { of: "series" | "model"; with?: true; controls?: true; drivers?: true; param?: Param; gives: Kind; takeaway?: true };
+type Function2 = { of: "series" | "model"; with?: true; controls?: true; drivers?: true; parts?: true; param?: Param; gives: Kind; takeaway?: true };
 
 /** The functions of /2: every one of /1 and the newer Methods, each with the kind it takes as `of`, what else it takes, what it gives, and
  * whether the Method has a Takeaway of its own (an output can show it; a recipe author writes no sentence about statistics). */
@@ -169,12 +169,14 @@ export const FUNCTIONS_2 = {
   usualRange: { of: "series", gives: "table", takeaway: true },
   fit: { of: "series", drivers: true, gives: "model", takeaway: true },
   importance: { of: "model", gives: "table" },
+  effects: { of: "model", gives: "table" },
+  bridge: { of: "series", parts: true, gives: "table" },
 } as const satisfies Record<string, Function2>;
 /** The name of a function in the /2 library. */
 export type FunctionName2 = keyof typeof FUNCTIONS_2;
 
 /** One step of /2: a function, what it works on (`of`: a Slot or an earlier step), and what else it takes. */
-export type Step2 = { id: string; fn: FunctionName2; of: string; with?: string; controls?: string[]; drivers?: string[]; window?: number; season?: number; percent?: number; maxLag?: number };
+export type Step2 = { id: string; fn: FunctionName2; of: string; with?: string; controls?: string[]; drivers?: string[]; parts?: string[]; window?: number; season?: number; percent?: number; maxLag?: number };
 /** What an output of /2 shows: a series, one value, a table, or a Takeaway (a model is shown only through its Takeaway). */
 export type Shows = "series" | "value" | "table" | "takeaway";
 /** An output of /2: a step's result with a label; `unit` for a series or one value; `title` and `note` for a Takeaway. */
@@ -197,6 +199,7 @@ const step2 = (fn: FunctionName2): Schema => {
   if (f.with) add("with", SOURCE);
   if (f.controls) add("controls", list(RECIPE_LIMITS_2.controls));
   if (f.drivers) add("drivers", list(RECIPE_LIMITS_2.drivers));
+  if (f.parts) add("parts", list(RECIPE_LIMITS_2.parts));
   if (f.param) add(f.param, PARAMS[f.param]);
   return { type: "object", properties: props, required, additionalProperties: false };
 };
@@ -255,10 +258,14 @@ function checkSecond(value: unknown, lines: Map<string, number>): RecipeCheck {
     // slot1 to slot4 are the Slots' names for ever, so no step may take one, even beyond the Slots this recipe has.
     if (kinds.has(s.id) || /^slot[1-4]$/.test(s.id)) at(`${here}.id`, `“${s.id}” is used already: each step needs a name of its own, and slot1 to slot4 are the Slots.`);
     if (s.drivers?.includes(s.of)) at(`${here}.drivers`, `lists “${s.of}”, which is the series it explains; a series cannot be its own driver.`);
+    if (s.parts?.includes(s.of)) at(`${here}.parts`, `lists “${s.of}”, which is the whole; a series cannot be its own part.`);
+    // A bridge is drawn in the whole's Metric's unit and names its parts by their Metrics, so everything it is worked out from must be a Slot.
+    if (s.fn === "bridge" && ![s.of, ...(s.parts ?? [])].every((x) => /^slot[1-4]$/.test(x))) at(`${here}.parts`, "A bridge is worked out from Slots only: the whole and each part must be a Slot (slot1 to slot4).");
     const refs: [string, string, Kind][] = [[`${here}.of`, s.of, f.of]];
     if (s.with !== undefined) refs.push([`${here}.with`, s.with, "series"]);
     s.controls?.forEach((c, j) => refs.push([`${here}.controls[${j}]`, c, "series"]));
     s.drivers?.forEach((c, j) => refs.push([`${here}.drivers[${j}]`, c, "series"]));
+    s.parts?.forEach((c, j) => refs.push([`${here}.parts[${j}]`, c, "series"]));
     for (const [path, src, need] of refs) {
       inputs++;
       const kind = known(src);
@@ -314,7 +321,7 @@ export function writeAnalysisRecipe(r: AnyAnalysisRecipe): string {
   const out = {
     ...order(r, ["format", "name", "description"]),
     slots: r.slots.map((s) => order(s, ["label"])),
-    steps: (r.steps as Step2[]).map((s) => order(s, ["id", "fn", "of", "with", "controls", "drivers", "window", "season", "percent", "maxLag"])),
+    steps: (r.steps as Step2[]).map((s) => order(s, ["id", "fn", "of", "with", "controls", "drivers", "parts", "window", "season", "percent", "maxLag"])),
     outputs: (r.outputs as Output2[]).map((o) => order(o, ["step", "label", "shows", "unit", "title", "note"])),
   };
   return `${JSON.stringify(out, null, 2)}\n`;

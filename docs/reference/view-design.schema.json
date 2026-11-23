@@ -1085,6 +1085,66 @@
                       "of"
                     ],
                     "additionalProperties": false
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "id": {
+                        "type": "string",
+                        "pattern": "^[a-z][a-zA-Z0-9]{0,23}$",
+                        "description": "a name for the step: a letter, then letters and digits"
+                      },
+                      "fn": {
+                        "const": "effects"
+                      },
+                      "of": {
+                        "type": "string",
+                        "pattern": "^(slot[1-4]|[a-z][a-zA-Z0-9]{0,23})$",
+                        "description": "a Slot (slot1 to slot4) or the id of an earlier step"
+                      }
+                    },
+                    "required": [
+                      "id",
+                      "fn",
+                      "of"
+                    ],
+                    "additionalProperties": false
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "id": {
+                        "type": "string",
+                        "pattern": "^[a-z][a-zA-Z0-9]{0,23}$",
+                        "description": "a name for the step: a letter, then letters and digits"
+                      },
+                      "fn": {
+                        "const": "bridge"
+                      },
+                      "of": {
+                        "type": "string",
+                        "pattern": "^(slot[1-4]|[a-z][a-zA-Z0-9]{0,23})$",
+                        "description": "a Slot (slot1 to slot4) or the id of an earlier step"
+                      },
+                      "parts": {
+                        "type": "array",
+                        "minItems": 1,
+                        "maxItems": 6,
+                        "uniqueItems": true,
+                        "items": {
+                          "type": "string",
+                          "pattern": "^(slot[1-4]|[a-z][a-zA-Z0-9]{0,23})$",
+                          "description": "a Slot (slot1 to slot4) or the id of an earlier step"
+                        }
+                      }
+                    },
+                    "required": [
+                      "id",
+                      "fn",
+                      "of",
+                      "parts"
+                    ],
+                    "additionalProperties": false
                   }
                 ]
               }
@@ -1542,6 +1602,62 @@
             "show"
           ],
           "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "description": "One bar per row, from its low to its high end, with its middle value: a driver's effect with its range (the table of the `effects` step of the design's analysis).",
+          "properties": {
+            "mark": {
+              "const": "range"
+            },
+            "show": {
+              "type": "string",
+              "pattern": "^recipe\\.[a-z][a-zA-Z0-9]{0,23}$",
+              "description": "“recipe.” and a step of the design's analysis (a table with a low and a high end for each row, from the `effects` step)"
+            },
+            "tone": {
+              "enum": [
+                "data",
+                "muted",
+                "ink",
+                "good",
+                "bad",
+                "accent",
+                "status"
+              ],
+              "description": "A Theme colour: data, muted, ink, good, bad, accent, or status (by the target: bad when off target)."
+            },
+            "when": {
+              "$ref": "#/$defs/when"
+            }
+          },
+          "required": [
+            "mark",
+            "show"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "description": "Steps from a start, each part going up or down, and an end (the table of the `bridge` step of the design's analysis).",
+          "properties": {
+            "mark": {
+              "const": "bridge"
+            },
+            "show": {
+              "type": "string",
+              "pattern": "^recipe\\.[a-z][a-zA-Z0-9]{0,23}$",
+              "description": "“recipe.” and a step of the design's analysis (the table of the `bridge` step)"
+            },
+            "when": {
+              "$ref": "#/$defs/when"
+            }
+          },
+          "required": [
+            "mark",
+            "show"
+          ],
+          "additionalProperties": false
         }
       ]
     },
@@ -1730,6 +1846,41 @@
               "type": "string",
               "pattern": "^(?:target\\.min|target\\.max|recipe\\.[a-z][a-zA-Z0-9]{0,23})$",
               "description": "one of “target.min”, “target.max”, or “recipe.” and a step of the design's analysis (one value)"
+            },
+            "tone": {
+              "enum": [
+                "data",
+                "muted",
+                "ink",
+                "good",
+                "bad",
+                "accent",
+                "status"
+              ],
+              "description": "A Theme colour: data, muted, ink, good, bad, accent, or status (by the target: bad when off target)."
+            },
+            "when": {
+              "$ref": "#/$defs/when"
+            }
+          },
+          "required": [
+            "mark",
+            "show"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "description": "The forecast's likely range at each period, drawn as a bar from low to high, with the forecast as its middle value when `centre` is true.",
+          "properties": {
+            "mark": {
+              "const": "range"
+            },
+            "show": {
+              "const": "forecast.range"
+            },
+            "centre": {
+              "type": "boolean"
             },
             "tone": {
               "enum": [

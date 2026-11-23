@@ -55,6 +55,8 @@ The exact format is the JSON Schema in [`docs/reference/view-design.schema.json`
 | `group` | Parts side by side (`direction: "row"`) or stacked (`"column"`), `align: "center"` to centre them. |
 | `plot` | A chart. `axes`: `none`, `compact` or `regular`. `x`: `period` (default) or `value` for pairs. `grid`: `none`, `horizontal`, `both`. `scale`: `padded`, `auto` or `tight`. `marks` are drawn in order. |
 | `gauge` | Where the latest value sits against the target. |
+| `range` | One bar per row, from its low to its high end, with its middle value: a driver's effect with its range. `show` is `recipe.` and the step of a `effects` step of the design's analysis (format `ziffr.analysis/2`). |
+| `bridge` | Steps from a start, each part going up or down, and an end. `show` is `recipe.` and the step of a `bridge` step of the design's analysis. |
 | `rows` | Table rows: `values` (the latest values, `limit` rows), `correlations` (Metrics ranked by how they move with the first), `matrix` (every pair) or `reasons` (why a Metric was left out). |
 | `polar` | Values around a circle: `show` is `values` (the Metric's last periods) or `recipe.` and a step of the analysis that gives a series. The periods are the angles, oldest first from the top, and the distance from the centre is the value, with 0 at the centre. It starts at the first period with a value and draws 3 to 12 periods; a period without a value is a gap (never a 0), and a period still running is written but not placed and does not set the rim. The line joins the last period to the first only for one whole cycle (12 months, 4 quarters) with a value at both ends. The scale always starts at 0 (a real zero), so a Metric that stays high looks like a circle; when the values are within 30 % of the highest the chart says so. It refuses a value below 0, which a line shows better. Use it for a pattern that repeats, such as the months of a year. |
 | `radar` | Several Metrics as spokes on one shape, in the order of the design's Slots, 3 to 12 of them (a Slot of several with `min`: 3, or three Slots). `show` is `latest`. Each spoke has **its own scale**, as the Metrics are not counted in the same unit: its lowest value of the periods shown is on a small inner ring (never at the centre, so it does not look like no value) and its highest at the rim, and further out means a higher value, not a better one, so the shape says where each value sits in its own range, not which Metric is larger. The chart says so in words, and its text alternative lists every value in spoke order. `against: "previous"` adds the period before as a dashed shape with square dots. A Metric with no value in the periods shown is a gap, never its older value; a period still running or with gaps in it says so in its label; one with the same value in every period has no range, and is written but not placed. |
@@ -69,6 +71,7 @@ The exact format is the JSON Schema in [`docs/reference/view-design.schema.json`
 | `point` | `pairs` (the first Metric against the second) or `drivers.pairs`. |
 | `band` | `target`, the Target Range. |
 | `rule` | `target.min`, `target.max`, or one value of a recipe. |
+| `range` | `forecast.range`: the forecast's likely range at each period as a bar from low to high; `centre: true` marks the forecast in it. |
 
 ### Values in words
 
