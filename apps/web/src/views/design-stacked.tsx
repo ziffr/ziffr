@@ -5,8 +5,8 @@
 // so a widget, a Snapshot, a View Link and a deck's picture show the same stack. It reaches no Metric but the widget's own.
 import type { ReactNode } from "react";
 import { compactValue, formatValue } from "@ziffr/core/format";
-import { periodLabel } from "@ziffr/core/periods";
 import { stackedModel } from "@ziffr/core/stacked-marks";
+import { breakdownInput } from "./breakdown-input";
 import type { DesignValues } from "./design-view";
 import { useBoxSize } from "./use-box-size";
 import { useWidgetScale } from "./widget-scale";
@@ -18,23 +18,9 @@ const OTHER_FILL = "color-mix(in oklab, var(--color-muted) 35%, var(--color-pape
 
 /** Stacked bars of a Metric's Breakdowns over its last periods. */
 export function StackedMark({ v }: { v: DesignValues }) {
-  const { m, data } = v;
-  const last = v.all[v.all.length - 1];
-  const byPeriod = data.breakdowns[m.id] ?? {};
-  // The window ends at the newest period the Metric has a value or a Breakdown in.
-  const newest = [last?.period, ...Object.keys(byPeriod)].filter((p): p is string => !!p).sort().pop();
-  if (!newest) return <Words>{m.name} has no breakdown to draw.</Words>;
-  const model = stackedModel({
-    name: m.name,
-    by: v.by,
-    to: newest,
-    window: v.win,
-    byPeriod,
-    values: Object.fromEntries(v.all.map((p) => [p.period, p.value])),
-    periods: v.all.map((p) => p.period),
-    label: (p) => periodLabel(p, v.by, data.yearStart, true),
-    write: (x) => formatValue(m, x, data.numberStyle),
-  });
+  const input = breakdownInput(v);
+  if (!input) return <Words>{v.m.name} has no breakdown to draw.</Words>;
+  const model = stackedModel({ ...input, values: Object.fromEntries(v.all.map((p) => [p.period, p.value])) });
   if (!model.ok) return <Words>{model.reason}</Words>;
   return <StackedChart v={v} model={model} />;
 }

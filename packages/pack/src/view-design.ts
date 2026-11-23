@@ -57,7 +57,8 @@ export type Part =
   | { mark: "stacked"; show: "breakdown"; when?: Flag[] }
   | { mark: "pareto"; show: "latest"; when?: Flag[] }
   | { mark: "slope"; show: "latest"; when?: Flag[] }
-  | { mark: "cumulative"; show: "year"; when?: Flag[] };
+  | { mark: "cumulative"; show: "year"; when?: Flag[] }
+  | { mark: "bump"; show: "breakdown"; when?: Flag[] };
 
 /** How many Metrics a scoreboard has rows for, at least and at most: fewer than 3 read better as number Widgets, more than 12 cannot be taken in at a glance. */
 export const SCOREBOARD = { min: 3, max: 12 } as const;
@@ -257,6 +258,7 @@ export const VIEW_DESIGN_SCHEMA: Schema = {
         mark("pareto", "The rows of the Metric's latest Breakdown as bars from largest to smallest, ten at most and the rest in one muted \"Other\" bar, with a line of the running share of the total (0 to 100 %) and a reference at 80 %. Only positive rows count.", { show: { const: "latest" } }, ["show"]),
         mark("slope", `Two points per row joined by a line, on two vertical axes (before on the left, now on the right): the rows of a Breakdown in two periods, or ${SLOPE_ROWS} Metrics at most of one unit, each against its period before. Both sides share one scale; labels name each end and the change in words, and only the largest rise and the largest fall are highlighted. The option “slope” chooses what is compared.`, { show: { const: "latest" } }, ["show"]),
         mark("cumulative", "The running total of the Metric since the start of its year, restarting each year, with a line for the plan (the running total of its Target Series, or of its target when that has one bound; drawn when the option showTarget is on) and a lighter one for last year. The Metric's Aggregation must be sum; any other is refused in words.", { show: { const: "year" } }, ["show"]),
+        mark("bump", "A bump chart: one line per row of the Metric's Breakdown across its periods, the vertical axis the rank (1 at the top) and not the value; at most 8 rows (the best average rank), a row a period lacks is a gap and never last, ties share the better rank, and the row that gained the most places says so in words; a period without a Breakdown is left out and counted.", { show: { const: "breakdown" } }, ["show"]),
       ],
     },
     plotMark: {

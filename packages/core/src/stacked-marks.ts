@@ -42,25 +42,36 @@ export type StackedInput = {
   write: (value: number) => string;
 };
 
-const count = (n: number, what: string) => `${n} ${what}${n === 1 ? "" : "s"}`;
+/** "3 periods", "1 period". */
+export const count = (n: number, what: string) => `${n} ${what}${n === 1 ? "" : "s"}`;
 // Rows add up to the value when they are within this share of it (as a Finding's share panel reads them).
 const NEAR = 0.02;
 
 /** Rows by label, a label that appears twice added up, a value that is not a number left out. */
-function merged(rows: BreakdownRow[]): Map<string, number> {
+export function merged(rows: BreakdownRow[]): Map<string, number> {
   const out = new Map<string, number>();
   for (const r of rows) if (Number.isFinite(r.value)) out.set(r.label, (out.get(r.label) ?? 0) + r.value);
   return out;
 }
 
-/** The stack of a Metric's Breakdowns over the last `window` periods ending at `to`, or why there is none. */
-export function stackedModel(input: StackedInput): StackedModel {
+/** The periods of the window (the last `window` ending at `to`) that have a Breakdown, oldest first, or why there is none: what every chart of a Breakdown over time starts from. */
+export function drawnPeriods(input: { by: Span; to: string; window: number; byPeriod: Record<string, BreakdownRow[]>; periods: string[] }): { ok: true; drawn: string[]; leftOut: number } | { ok: false; reason: string } {
   const problem = windowProblem(input.window);
   if (problem) return { ok: false, reason: problem };
   const from = shiftPeriod(input.to, input.by, 1 - input.window);
   const inWindow = (p: string) => p >= from && p <= input.to;
   const drawn = Object.keys(input.byPeriod).filter((p) => inWindow(p) && merged(input.byPeriod[p]).size > 0).sort();
   if (drawn.length === 0) return { ok: false, reason: "No period shown has a breakdown to draw." };
+  // Periods the Metric has a value in, or a Breakdown that did not draw, but that have no Breakdown rows.
+  const leftOut = new Set([...input.periods.filter(inWindow), ...Object.keys(input.byPeriod).filter(inWindow)].filter((p) => !drawn.includes(p))).size;
+  return { ok: true, drawn, leftOut };
+}
+
+/** The stack of a Metric's Breakdowns over the last `window` periods ending at `to`, or why there is none. */
+export function stackedModel(input: StackedInput): StackedModel {
+  const window = drawnPeriods(input);
+  if (!window.ok) return window;
+  const { drawn, leftOut } = window;
   const rowsOf = new Map(drawn.map((p) => [p, merged(input.byPeriod[p])]));
   if ([...rowsOf.values()].some((m) => [...m.values()].some((v) => v < 0))) return { ok: false, reason: "This Breakdown has negative rows; stacked bars need positive ones." };
   const latestPeriod = drawn[drawn.length - 1];
@@ -77,9 +88,6 @@ export function stackedModel(input: StackedInput): StackedModel {
     const total = parts.reduce((a, b) => a + b, 0);
     return { period, label: input.label(period), parts, total, totalText: input.write(total) };
   });
-  // Periods the Metric has a value in, or a Breakdown that did not draw, but that have no Breakdown rows.
-  const candidates = new Set([...input.periods.filter(inWindow), ...Object.keys(input.byPeriod).filter(inWindow)]);
-  const leftOut = [...candidates].filter((p) => !rowsOf.has(p)).length;
   const differs = bars.some((b) => {
     const v = input.values[b.period];
     return v !== undefined && Math.abs(b.total - v) > Math.abs(v) * NEAR;

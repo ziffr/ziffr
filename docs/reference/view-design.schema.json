@@ -1805,6 +1805,26 @@
             "show"
           ],
           "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "description": "A bump chart: one line per row of the Metric's Breakdown across its periods, the vertical axis the rank (1 at the top) and not the value; at most 8 rows (the best average rank), a row a period lacks is a gap and never last, ties share the better rank, and the row that gained the most places says so in words; a period without a Breakdown is left out and counted.",
+          "properties": {
+            "mark": {
+              "const": "bump"
+            },
+            "show": {
+              "const": "breakdown"
+            },
+            "when": {
+              "$ref": "#/$defs/when"
+            }
+          },
+          "required": [
+            "mark",
+            "show"
+          ],
+          "additionalProperties": false
         }
       ]
     },

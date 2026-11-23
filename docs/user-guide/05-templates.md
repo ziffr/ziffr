@@ -22,6 +22,7 @@ A **Widget Template** is a starting point for one Widget: a way of drawing a num
 | | History table | The last values as a list |
 | | Stacked bars over time | How a Breakdown changes period by period: one stacked bar each. Offered for a Metric that has a Breakdown |
 | | Pareto | A Breakdown's rows from largest to smallest, with the running share that shows which few make most of it |
+| | Bump chart | How the order of a Breakdown's rows changes from period to period (offered for a Metric that has a Breakdown) |
 | Analyses | Forecast | The trend projected a few periods ahead |
 | | Correlation | Whether two Metrics move together |
 | | Correlation matrix | Every pair of several Metrics at once |
