@@ -7,6 +7,7 @@
 // a caution is never "strong"; a Method's numbers are written through the Workspace's Number Style; the same footer once;
 // nothing says what caused what.
 import { basisText } from "../basis";
+import { autocorrelations, effectiveCount } from "../effective-count";
 import { pearson, type Correlation, type Ranked } from "../correlation";
 import { formatNumber } from "../format";
 import type { NumberStyle } from "../number-style";
@@ -150,9 +151,17 @@ export function correlationTakeaway(a: Metric, b: Metric, c: Correlation, ctx: T
       return r && Number.isFinite(r.r) ? { value: r.r } : null;
     },
   });
-  const lines = verdictLines(verdict, ctx, c.n);
+  // Monthly Metrics follow their own past, so n pairs are worth fewer independent ones (effective-count.ts): the chance rule is judged on
+  // that count, over as many delays as the Heads-ups allow for and up to a third of the pairs (a year of months and more where there are
+  // more months). The sentence and the basis still say the real number of periods.
+  const delays = Math.floor(c.n / 3);
+  const nEff = effectiveCount(c.n, autocorrelations(c.pairs.map((p) => p.x), delays), autocorrelations(c.pairs.map((p) => p.y), delays));
+  const lines = verdictLines(verdict, ctx, c.n, (r, left) => strengthOf(r, left * (nEff / c.n)));
   if (lines.refusals.length > 0) return refusalTakeaway(method, lines.refusals);
-  const strength = strengthOf(c.r, c.n, lines.cautions.length > 0);
+  const capped = lines.cautions.length > 0;
+  const strength = strengthOf(c.r, nEff, capped);
+  // Where allowing for it changed the word, it says so, and the numbers hold the count.
+  const allowed = strength !== strengthOf(c.r, c.n, capped);
   const [n, style] = [c.n, ctx.style];
   // Stryker disable next-line EqualityOperator: an r of 0 is "can't tell from chance" before this, so `<` and `<=` never differ.
   const key: CaseKey = strength === "cant-tell" ? "corr-cant-tell" : c.r < 0 ? "corr-opposite" : "corr-together";
@@ -167,13 +176,14 @@ export function correlationTakeaway(a: Metric, b: Metric, c: Correlation, ctx: T
     strengthText,
     basis: basisLine(c, ctx),
     cautions: lines.cautions,
-    notes: lines.notes,
+    notes: allowed ? [...lines.notes, say("note-effective", { a: a.name, b: b.name, n, eff: formatNumber(nEff, 1, style), span: c.period }, ctxOf(ctx))] : lines.notes,
     footer: opts.footer === false ? null : footerText(ctx),
     figures: [{ label: text("numbers-pairs"), value: n, text: formatNumber(n, 0, style) }],
     numbers: [
       { label: text("numbers-method"), text: method },
       { label: text("numbers-r"), text: formatNumber(c.r, 2, style) },
       { label: text("numbers-pairs"), text: formatNumber(n, 0, style) },
+      ...(allowed ? [{ label: say("numbers-effective", { span: c.period }, ctxOf(ctx)), text: formatNumber(nEff, 1, style) }] : []),
       { label: text("numbers-periods"), text: `${periods[0]} – ${periods[periods.length - 1]}` },
       { label: text("numbers-basis"), text: basisText(c.basis) },
       { label: text("numbers-strength"), text: strengthText },

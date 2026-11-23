@@ -39,6 +39,8 @@ const correlation = (xs: number[], ys: number[], over: { a?: Metric; b?: Metric 
   const [ma, mb] = [over.a ?? a, over.b ?? b];
   return correlate(ma, mb, resolverFrom([ma, mb], { [ma.slug]: months("2024-01", xs), [mb.slug]: months("2024-01", ys) }), { yearStart: JANUARY });
 };
+const ys24 = wavy(24, 10, 7);
+const together24 = wavy(24, 10, 7).map((v, i) => 2 * v + (i % 3) / 5);
 const takeaway = (xs: number[], ys: number[], c = ctx) => correlationTakeaway(a, b, correlation(xs, ys), c);
 const texts = (t: Takeaway) => [t.sentence, t.refusal, t.strengthText, t.basis, t.method, ...t.assumptions, ...t.cautions, ...t.notes, t.track, ...t.numbers.flatMap((n) => [n.label, n.text]), ...t.figures.map((f) => f.label)].filter((x): x is string => x !== null);
 
@@ -55,6 +57,13 @@ describe("the strength words", () => {
       expect(word(-next(edge)), String(-edge)).toBe(above);
     }
     expect([0, 0.19, 1, -1].map(word)).toEqual(["cant-tell", "cant-tell", "strong", "strong"]);
+  });
+  it("says nothing for a count of pairs that is not a number or under the 4 Fisher's z needs, including a fraction of a pair", () => {
+    expect([NaN, 3.99, 3, 0, -5].map((n) => strengthOf(0.99, n))).toEqual(Array(5).fill("cant-tell"));
+    expect(strengthOf(0.99, 4)).toBe("strong");
+    // 12 pairs worth 6.37 (z = atanh(0.8) · √3.37 = 2.017) is clear of chance, 6.15 (z = 1.950) is not.
+    expect(strengthOf(0.8, 6.37)).toBe("strong");
+    expect(strengthOf(0.8, 6.15)).toBe("cant-tell");
   });
   it("is never strong with a caution: strong becomes moderate, the others stay", () => {
     expect(strengthOf(0.95, 100, true)).toBe("moderate");
@@ -357,6 +366,8 @@ describe("the wording", () => {
     "numbers-tested": [{}, "Periods tested"], "numbers-inside": [{}, "Inside the range"], "numbers-miss": [{}, "Typical miss"],
     "numbers-third-holt": [{}, "Typical miss on the last third, plain trend"], "numbers-third-holt-winters": [{}, "Typical miss on the last third, with the pattern"], "numbers-third-n": [{}, "Periods compared"],
     "numbers-periods": [{}, "Periods"], "numbers-basis": [{}, "Compared on"], "numbers-strength": [{}, "Strength"],
+    "numbers-effective": [{ span: "month" }, "Effective number of months"],
+    "note-effective": [{ a: "Visits", b: "Revenue", n: 24, eff: "7.5", span: "month" }, "Visits and Revenue each follow their own past, so these 24 months are worth about 7.5 separate months: how clearly they move together is judged on that, and it is weaker than 24 separate months would show."],
   };
   it.each(LANGUAGES)("%s: every case is in the table, and says what the table says", (language) => {
     // The Heads-ups' cases are a table of their own (heads-up.test.ts).
@@ -508,6 +519,45 @@ describe("a correlation's Takeaway", () => {
       }),
       { numRuns, seed },
     );
+  });
+});
+
+describe("allowing for a Metric following its own past (spec 0041, ticket 17)", () => {
+  // Worked by hand on exact fractions (fixtures: none, the sums are small): x repeats 2, 5, 3, 6 and y is 3 5 4 7 2 6 3 7 3 5 4 6, 12 months
+  // each, no trend, so they are compared by value. r = 0.95223 (Sxy ÷ √(Sxx·Syy)). The first 4 autocorrelations (a third of 12) of x are
+  // 7/12 or so and of y alike; Σ ρx(k)·ρy(k) = 264617 ÷ 133560, so the 12 months are worth 12 ÷ (1 + 2 · 264617 ÷ 133560) = 801360 ÷ 331397 = 2.418
+  // separate ones: under the 4 Fisher's z needs, so "can't tell from chance" where 12 separate months would be "strong".
+  const x = [2, 5, 3, 6, 2, 5, 3, 6, 2, 5, 3, 6];
+  const y = [3, 5, 4, 7, 2, 6, 3, 7, 3, 5, 4, 6];
+  it("turns a strong word into can't tell where the months are worth too few, says so, and still names the real number of months", () => {
+    const c = correlation(x, y);
+    expect(c.ok && c.basis).toBe("values");
+    expect(c.ok && c.r).toBeCloseTo(0.9522281997895218, 12);
+    expect(strengthOf(0.9522281997895218, 12)).toBe("strong");
+    const t = takeaway(x, y);
+    expect(t.strength).toBe("cant-tell");
+    expect(t.sentence).toBe("Over 12 months, Visits and Revenue do not clearly move together: can't tell from chance.");
+    expect(t.basis).toBe("compared by value, over 12 months");
+    expect(t.notes).toEqual(["Visits and Revenue each follow their own past, so these 12 months are worth about 2.4 separate months: how clearly they move together is judged on that, and it is weaker than 12 separate months would show."]);
+    expect(t.numbers.map((n) => [n.label, n.text])).toContainEqual(["Effective number of months", "2.4"]);
+    expect(t.numbers.map((n) => [n.label, n.text])).toContainEqual(["Pairs of periods", "12"]);
+    expect(t.figures[0].text).toBe("12");
+  });
+  it("leaves the word, the notes and the numbers as they were where the months are worth as many as they are", () => {
+    const t = takeaway(ys24, together24);
+    expect(t.strength).toBe("strong");
+    expect(t.notes).toEqual([]);
+    expect(t.numbers.map((n) => n.label)).not.toContain("Effective number of months");
+  });
+  it("judges a far-off finding's result without them on the same allowance: 17 pairs left of 18, worth 17 × 16.40 ÷ 18 = 15.49, not 17", () => {
+    // Worked in Python on exact fractions: r without the far-off month is 0.48562, the 18 months are worth 16.3987 (autocorrelations up to delay 6),
+    // z = atanh(0.48562) · √(15.49 − 3) = 1.92 is under 1.96 so "can't tell from chance", where 17 separate pairs (z = 1.97) would be "moderate".
+    const [fx, fy] = [[12, 9, 2, 8, -8, -3, -2, 15, 16, 213, 5, 1, 1, -3, -13, -27, -31, -20], [15, 6, -2, 7, 3, 0, 25, 19, 22, 208, 5, 0, 11, 8, 11, -7, -1, 14]];
+    expect(strengthOf(0.4856184984268092, 17)).toBe("moderate");
+    expect(takeaway(fx, fy).cautions[0]).toBe("This result is pulled by 1 month far from the rest; without them it reads can't tell from chance.");
+  });
+  it("writes the effective number in the Number Style, and the periods in the common period's name", () => {
+    expect(takeaway(x, y, { style: "1.234,5" }).numbers.map((n) => [n.label, n.text])).toContainEqual(["Effective number of months", "2,4"]);
   });
 });
 
