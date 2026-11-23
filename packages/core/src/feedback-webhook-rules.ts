@@ -16,8 +16,8 @@ export const TEAM_ASSOCIATIONS: readonly string[] = ["OWNER", "MEMBER", "COLLABO
 
 /** What an event means for a feedback. `ref` is the comment's reference, one per comment, so a comment is taken once. */
 export type GithubFeedbackEvent =
-  | { type: "comment"; kind: "issue" | "discussion"; number: number; ref: string; words: string }
-  | { type: "edit"; kind: "issue" | "discussion"; number: number; ref: string; words: string }
+  | { type: "comment"; kind: "issue" | "discussion"; number: number; ref: string; words: string; at: string | null }
+  | { type: "edit"; kind: "issue" | "discussion"; number: number; ref: string; words: string; at: string }
   | { type: "remove"; kind: "issue" | "discussion"; number: number; ref: string }
   | { type: "status"; kind: "issue" | "discussion"; number: number; status: "open" | "closed" | "answered" };
 
@@ -72,7 +72,10 @@ export function readGithubEvent(name: string, payload: unknown, ctx: { repo: str
     if (typeof comment.author_association !== "string" || !TEAM_ASSOCIATIONS.includes(comment.author_association)) return null;
     const words = plainWords(comment.body, TEAM_WORDS_MAX);
     if (words === "") return null;
-    return { type: action === "edited" ? "edit" : "comment", kind, number: post.number, ref, words };
+    // The comment's own last-change time: an edit is applied only when it is newer than the stored one (so a late or replayed one cannot undo a later one).
+    const at = typeof comment.updated_at === "string" && Number.isFinite(Date.parse(comment.updated_at)) ? new Date(comment.updated_at).toISOString() : null;
+    if (action === "edited") return at ? { type: "edit", kind, number: post.number, ref, words, at } : null;
+    return { type: "comment", kind, number: post.number, ref, words, at };
   }
   return null;
 }

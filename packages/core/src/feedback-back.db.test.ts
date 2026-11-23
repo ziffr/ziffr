@@ -32,7 +32,7 @@ const repository = { full_name: "ziffr/ziffr" };
 let n = 1000;
 const delivery = () => `d-${Date.now()}-${n++}-aaaaaaaa`;
 const issueComment = (number: number, id: number, body = "We fixed it.", over: Record<string, unknown> = {}) =>
-  ({ action: "created", repository, issue: { number }, comment: { id, body, user: { login: "maintainer-ann", type: "User" }, author_association: "MEMBER", ...over } });
+  ({ action: "created", repository, issue: { number }, comment: { id, body, user: { login: "maintainer-ann", type: "User" }, author_association: "MEMBER", updated_at: "2027-01-21T10:00:00Z", ...over } });
 const take = (event: string, payload: unknown, id = delivery()) => receiveGithubFeedbackEvent({ deliveryId: id, event, payload }, ctx);
 
 async function sender() {
@@ -137,10 +137,30 @@ describe("a comment from the team", () => {
     const s = await sender(); const number = num(); const id = await filed(s, number);
     await take("issue_comment", issueComment(number, 30, "First words"));
     await replyToFeedback(s.actor, id, "My reply");
-    await take("issue_comment", { ...issueComment(number, 30, "Corrected words"), action: "edited" });
+    await take("issue_comment", { ...issueComment(number, 30, "Corrected words", { updated_at: "2027-01-21T11:00:00Z" }), action: "edited" });
     expect((await getMyFeedback(s.actor, id))!.messages.map((m) => m.words)).toEqual(["Corrected words", "My reply"]);
     await take("issue_comment", { action: "deleted", repository, issue: { number }, comment: { id: 30 } });
     expect((await getMyFeedback(s.actor, id))!.messages.map((m) => m.words)).toEqual(["This answer was removed.", "My reply"]);
+  });
+
+  it("never lets an edit undo a deletion, an older edit undo a newer one, or a replay change anything", async () => {
+    const s = await sender(); const number = num(); const id = await filed(s, number);
+    const at = (minutes: number) => new Date(Date.UTC(2027, 0, 21, 10, minutes)).toISOString();
+    const edit = (words: string, minutes: number) => ({ ...issueComment(number, 40, words, { updated_at: at(minutes) }), action: "edited" });
+    const words = async () => (await getMyFeedback(s.actor, id))!.messages.map((m) => m.words);
+    await take("issue_comment", issueComment(number, 40, "First", { updated_at: at(0) }));
+    await take("issue_comment", edit("Third", 20));
+    await take("issue_comment", edit("Second (late)", 10));
+    expect(await words()).toEqual(["Third"]);
+    await take("issue_comment", edit("Third", 20));
+    expect(await words()).toEqual(["Third"]);
+    await take("issue_comment", { action: "deleted", repository, issue: { number }, comment: { id: 40 } });
+    expect(await words()).toEqual(["This answer was removed."]);
+    await take("issue_comment", edit("Resurrected", 30));
+    await take("issue_comment", edit("Resurrected again", 40));
+    expect(await words()).toEqual(["This answer was removed."]);
+    const { data } = await db().from("feedback_messages").select("removed_at").eq("feedback_id", id).single();
+    expect(data!.removed_at).not.toBeNull();
   });
 
   it("answers a second delivery of an id that is still being handled with an error, and a finished one with replay", async () => {

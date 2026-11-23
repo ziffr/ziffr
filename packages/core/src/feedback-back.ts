@@ -53,12 +53,12 @@ async function apply(event: NonNullable<ReturnType<typeof readGithubEvent>>): Pr
   }
   if (event.type === "edit" || event.type === "remove") {
     const { error } = event.type === "edit"
-      ? await db().rpc("feedback_edit_team_comment", { p_kind: event.kind, p_number: event.number, p_ref: event.ref, p_words: event.words })
+      ? await db().rpc("feedback_edit_team_comment", { p_kind: event.kind, p_number: event.number, p_ref: event.ref, p_words: event.words, p_updated: event.at })
       : await db().rpc("feedback_remove_team_comment", { p_kind: event.kind, p_number: event.number, p_ref: event.ref });
     if (error) throw new Error("The comment could not be changed.");
     return "comment";
   }
-  const { data, error } = await db().rpc("feedback_take_team_comment", { p_kind: event.kind, p_number: event.number, p_ref: event.ref, p_words: event.words });
+  const { data, error } = await db().rpc("feedback_take_team_comment", { p_kind: event.kind, p_number: event.number, p_ref: event.ref, p_words: event.words, p_updated: event.at });
   if (error) throw new Error("The comment could not be stored.");
   const row = (data as { person_id: string; workspace_id: string | null; told: boolean }[] | null)?.[0];
   if (row?.told) await tellPerson(row.person_id, row.workspace_id);

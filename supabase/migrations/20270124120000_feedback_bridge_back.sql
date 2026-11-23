@@ -21,7 +21,11 @@ alter table feedback_messages
   add column posted_at timestamptz,
   add column post_attempts int not null default 0,
   add column post_attempted_at timestamptz,
-  add column post_error text check (post_error is null or char_length(post_error) <= 200);
+  add column post_error text check (post_error is null or char_length(post_error) <= 200),
+  -- A team comment's own last-change time on the other side (an edit counts only when newer, so a late or replayed older one changes nothing)
+  -- and when it was deleted there (final: nothing edits a removed message again).
+  add column github_comment_updated_at timestamptz,
+  add column removed_at timestamptz;
 create unique index feedback_messages_comment_ref_idx on feedback_messages (github_comment_ref) where github_comment_ref is not null;
 create index feedback_messages_to_post_idx on feedback_messages (created_at) where from_team = false and posted_at is null;
 
@@ -66,7 +70,7 @@ grant execute on function feedback_release_github_delivery(text) to service_role
 -- Adds one comment from the Ziffr team to the feedback filed as this issue or discussion, once (the unique reference), and
 -- marks it answered unless it is closed. Returns who to tell, or nothing when there is no such feedback or the comment is
 -- already in. `told` is false when the previous team message is less than an hour old, so a run of comments is one notice.
-create or replace function feedback_take_team_comment(p_kind text, p_number int, p_ref text, p_words text)
+create or replace function feedback_take_team_comment(p_kind text, p_number int, p_ref text, p_words text, p_updated timestamptz)
 returns table (person_id text, workspace_id uuid, told boolean)
 language plpgsql security definer set search_path = public as $$
 declare f feedback; mid bigint; recent boolean;
@@ -74,35 +78,37 @@ begin
   select * into f from feedback where github_kind = p_kind and github_number = p_number for update;
   if not found then return; end if;
   recent := exists (select 1 from feedback_messages m where m.feedback_id = f.id and m.from_team and m.created_at > now() - interval '1 hour');
-  insert into feedback_messages (feedback_id, from_team, words, github_comment_ref, posted_at)
-    values (f.id, true, p_words, p_ref, now()) on conflict (github_comment_ref) where github_comment_ref is not null do nothing returning id into mid;
+  insert into feedback_messages (feedback_id, from_team, words, github_comment_ref, posted_at, github_comment_updated_at)
+    values (f.id, true, p_words, p_ref, now(), p_updated) on conflict (github_comment_ref) where github_comment_ref is not null do nothing returning id into mid;
   if mid is null then return; end if;
   update feedback set status = case when status in ('open', 'answered') then 'answered' else status end, updated_at = now() where id = f.id;
   return query select f.person_id, f.workspace_id, not recent;
 end $$;
-revoke execute on function feedback_take_team_comment(text, int, text, text) from public, anon, authenticated;
-grant execute on function feedback_take_team_comment(text, int, text, text) to service_role;
+revoke execute on function feedback_take_team_comment(text, int, text, text, timestamptz) from public, anon, authenticated;
+grant execute on function feedback_take_team_comment(text, int, text, text, timestamptz) to service_role;
 
--- A team comment edited on GitHub: the stored words follow, only for a team message of the feedback filed as this post.
-create or replace function feedback_edit_team_comment(p_kind text, p_number int, p_ref text, p_words text) returns int
+-- A team comment edited on GitHub: the stored words follow, only for a team message of the feedback filed as this post, only
+-- when the edit is newer than what is stored (a late or replayed older one changes nothing) and never once it was removed.
+create or replace function feedback_edit_team_comment(p_kind text, p_number int, p_ref text, p_words text, p_updated timestamptz) returns int
 language plpgsql security definer set search_path = public as $$
 declare n int;
 begin
-  update feedback_messages m set words = p_words
-    where m.github_comment_ref = p_ref and m.from_team
+  update feedback_messages m set words = p_words, github_comment_updated_at = p_updated
+    where m.github_comment_ref = p_ref and m.from_team and m.removed_at is null
+      and (m.github_comment_updated_at is null or m.github_comment_updated_at < p_updated)
       and m.feedback_id in (select id from feedback where github_kind = p_kind and github_number = p_number);
   get diagnostics n = row_count;
   return n;
 end $$;
-revoke execute on function feedback_edit_team_comment(text, int, text, text) from public, anon, authenticated;
-grant execute on function feedback_edit_team_comment(text, int, text, text) to service_role;
+revoke execute on function feedback_edit_team_comment(text, int, text, text, timestamptz) from public, anon, authenticated;
+grant execute on function feedback_edit_team_comment(text, int, text, text, timestamptz) to service_role;
 
 -- A team comment deleted on GitHub: its words are replaced (the conversation keeps its shape, and the person sees it is gone).
 create or replace function feedback_remove_team_comment(p_kind text, p_number int, p_ref text) returns int
 language plpgsql security definer set search_path = public as $$
 declare n int;
 begin
-  update feedback_messages m set words = 'This answer was removed.'
+  update feedback_messages m set words = 'This answer was removed.', removed_at = coalesce(m.removed_at, now())
     where m.github_comment_ref = p_ref and m.from_team
       and m.feedback_id in (select id from feedback where github_kind = p_kind and github_number = p_number);
   get diagnostics n = row_count;

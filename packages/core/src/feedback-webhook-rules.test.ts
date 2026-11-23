@@ -10,7 +10,7 @@ const sign = (body: string, secret = SECRET) => `sha256=${createHmac("sha256", s
 const ctx = { repo: "ziffr/ziffr", bot: "ziffr-feedback-bot" };
 const repository = { full_name: "ziffr/ziffr" };
 const team = "MEMBER";
-const comment = (over: Record<string, unknown> = {}) => ({ id: 42, body: "Thanks, fixed in the next release.", user: { login: "maintainer-ann", type: "User" }, author_association: team, ...over });
+const comment = (over: Record<string, unknown> = {}) => ({ id: 42, body: "Thanks, fixed in the next release.", user: { login: "maintainer-ann", type: "User" }, author_association: team, updated_at: "2027-01-21T10:00:00Z", ...over });
 const issueComment = (over: Record<string, unknown> = {}, post: Record<string, unknown> = {}) => ({ action: "created", repository, issue: { number: 7, ...post }, comment: comment(over) });
 
 describe("the signature", () => {
@@ -38,7 +38,7 @@ describe("the signature", () => {
 
 describe("a comment from the team", () => {
   it("becomes a comment on the issue or discussion it was made on, with a reference of its own", () => {
-    expect(readGithubEvent("issue_comment", issueComment(), ctx)).toEqual({ type: "comment", kind: "issue", number: 7, ref: "issue-comment:42", words: "Thanks, fixed in the next release." });
+    expect(readGithubEvent("issue_comment", issueComment(), ctx)).toEqual({ type: "comment", kind: "issue", number: 7, ref: "issue-comment:42", words: "Thanks, fixed in the next release.", at: "2027-01-21T10:00:00.000Z" });
     const d = { action: "created", repository, discussion: { number: 3 }, comment: comment({ id: 99 }) };
     expect(readGithubEvent("discussion_comment", d, ctx)).toMatchObject({ type: "comment", kind: "discussion", number: 3, ref: "discussion-comment:99" });
   });
@@ -47,7 +47,7 @@ describe("a comment from the team", () => {
     const e = readGithubEvent("issue_comment", { ...issueComment({ user: { login: "maintainer-ann", type: "User", id: 5, email: "ann@corp.example" }, body: "Hi" }), sender: { login: "maintainer-ann" } }, ctx);
     const json = JSON.stringify(e);
     for (const leak of ["maintainer-ann", "ann@corp", "MEMBER", "sender", "login"]) expect(json).not.toContain(leak);
-    expect(Object.keys(e!).sort()).toEqual(["kind", "number", "ref", "type", "words"]);
+    expect(Object.keys(e!).sort()).toEqual(["at", "kind", "number", "ref", "type", "words"]);
   });
 
   it("is not echoed when the bot made it (a relayed reply), in any letter case, and not when another bot did", () => {
@@ -95,10 +95,18 @@ describe("a comment from the team", () => {
 
 describe("a team comment edited or deleted", () => {
   it("follows an edit with the new words, under the same rules as a new comment", () => {
-    expect(readGithubEvent("issue_comment", { ...issueComment({ body: "Better words\u202e" }), action: "edited" }, ctx)).toEqual({ type: "edit", kind: "issue", number: 7, ref: "issue-comment:42", words: "Better words" });
+    expect(readGithubEvent("issue_comment", { ...issueComment({ body: "Better words\u202e" }), action: "edited" }, ctx)).toEqual({ type: "edit", kind: "issue", number: 7, ref: "issue-comment:42", words: "Better words", at: "2027-01-21T10:00:00.000Z" });
     expect(readGithubEvent("issue_comment", { ...issueComment({ author_association: "NONE" }), action: "edited" }, ctx)).toBeNull();
     expect(readGithubEvent("issue_comment", { ...issueComment({ user: { login: "ziffr-feedback-bot", type: "User" } }), action: "edited" }, ctx)).toBeNull();
     expect(readGithubEvent("issue_comment", { ...issueComment({ body: "\u200b" }), action: "edited" }, ctx)).toBeNull();
+  });
+  it("carries the comment's own change time, so the store can apply an edit only when it is newer", () => {
+    const later = readGithubEvent("issue_comment", { ...issueComment({ body: "Later", updated_at: "2027-01-22T09:30:00+01:00" }), action: "edited" }, ctx);
+    expect(later).toMatchObject({ type: "edit", at: "2027-01-22T08:30:00.000Z" });
+    // An edit without a usable time cannot be ordered, so it is not applied.
+    for (const updated_at of [undefined, "", "yesterday", 5, null]) expect(readGithubEvent("issue_comment", { ...issueComment({ updated_at }), action: "edited" }, ctx)).toBeNull();
+    // A new comment without one is still taken (its first words are all there is).
+    expect(readGithubEvent("issue_comment", issueComment({ updated_at: undefined }), ctx)).toMatchObject({ type: "comment", at: null });
   });
   it("follows a deletion by its reference only, carrying no words and no author", () => {
     const e = readGithubEvent("discussion_comment", { action: "deleted", repository, discussion: { number: 3 }, comment: { id: 9 } }, ctx);
