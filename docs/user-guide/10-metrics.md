@@ -46,6 +46,16 @@ Nothing is recorded until you confirm. Ziffr first shows what each value would d
 
 Instead of pasting, drop a file on the box or choose **Or choose a file**: a CSV file (.csv, .tsv or .txt), an Excel workbook (.xlsx, .xls) or an OpenDocument one (.ods). The file is read in your browser, and only its cells are sent, exactly as if you had pasted them, so the preview and the limits are the same. A workbook's first sheet is read, cells as they are shown (a cell formatted as 2.5 % reads as 2.5 %); with several sheets, pick another under **sheet**. A CSV file may hold at most 256 KB and a workbook at most 10 MB.
 
+### A template to fill in
+
+Under the box, **Download a template** saves a CSV file that already names your Metrics, so you only type the numbers. Pick one of three:
+
+- **One value per row**: the columns `metric`, `period` and `value`, one row for each Metric you may paste for, with its own current period filled in.
+- **Metrics down, periods across**: your Metrics of one period length (the most common one, or pick another next to it) and the last 12 periods as columns, oldest first.
+- **One Metric's periods without a value**: two columns, `period` and `value`, listing the periods in the last two years that have no value yet. Choose the Metric next to it.
+
+Metrics are named by their slug, so two Metrics with one name cannot be mixed up, and periods are written as days (`2026-10-01`) so Excel does not turn them into numbers. Where your Workspace writes numbers with a decimal comma, the columns are separated by semicolons, as a spreadsheet there expects. Open the file, fill in the `value` cells, and drop it back on the page or paste its cells: Ziffr reads it like any other paste and shows what each value would do. Downloading it records nothing.
+
 ### The layouts
 
 Ziffr recognises three layouts and says above the preview which one it read, such as "Metrics as rows, periods as columns: 2 Metrics × 3 periods". When a paste fits two layouts, a link offers the other reading.
