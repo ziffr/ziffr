@@ -1,12 +1,12 @@
 {
   "format": "ziffr.view/1",
-  "name": "Running total against plan",
-  "description": "The year so far, added up, against the plan and last year.",
+  "name": "Running total against target",
+  "description": "The year so far, added up, against the target and last year.",
   "kind": "metric",
   "slots": [{ "label": "Metric", "metrics": "one" }],
   "size": { "w": 8, "h": 6 },
   "options": {
-    "showTarget": { "label": "Show plan", "default": true }
+    "showTarget": { "label": "Show target", "default": true }
   },
   "parts": [{ "mark": "cumulative", "show": "year" }]
 }

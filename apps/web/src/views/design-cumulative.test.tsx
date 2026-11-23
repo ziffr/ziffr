@@ -1,5 +1,5 @@
 // The cumulative mark drawn (GLOSSARY: Target Series): every number on the chart is the one the core has for the same
-// Metric, written in its Number Style; a Metric that does not add up is told so in words; the plan can be switched off.
+// Metric, written in its Number Style; a Metric that does not add up is told so in words; the target line can be switched off.
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 import { sampleCanvasData } from "@ziffr/core/sample-data";
@@ -25,10 +25,10 @@ describe("the running total drawn", () => {
     expect(html).toContain("still running");
   });
 
-  it("draws the plan only while the option is on", () => {
+  it("draws the target line only while the option is on", () => {
     expect(draw(revenue)).toContain('data-line="plan"');
     expect(draw(revenue, { showTarget: false })).not.toContain('data-line="plan"');
-    expect(draw(revenue, { showTarget: false })).not.toContain("of plan");
+    expect(draw(revenue, { showTarget: false })).not.toContain("of target");
   });
 
   it("tells a Metric that does not add up, in words, and draws no chart", () => {
