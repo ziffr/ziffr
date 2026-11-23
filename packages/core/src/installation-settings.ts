@@ -18,6 +18,7 @@ import { slackEnabled } from "./slack-api";
 import { slackCreateAppLink, slackEventsCheckedAt } from "./slack-setup";
 import { defaultLimitFrom, limitLabel, limitNumber, syncDefaultLimit } from "./workspace-limits";
 import { marketplaceConfig, marketplaceUrlProblem, MARKETPLACE_DEFAULT_URL } from "./marketplace";
+import { feedbackInstallationCapProblem } from "./feedback-rules";
 import { SENDING_LIMITS, sendingLimitFrom, sendingLimitProblem } from "./sending-limits";
 import { auditKeepRefusal, forgetAuditReference } from "./audit-retention";
 import { AUDIT_WARN_BELOW_DAYS, DAYS_SETTINGS, daysOutOfRange, daysProblem, daysSetting, hostedByCloud } from "./installation-days";
@@ -109,6 +110,7 @@ const CHECKS: Record<string, (v: string) => string | null> = {
   ZIFFR_TRIAL_THEN: (v) => (v === "delete" || v === "keep" ? null : "Pick what happens when a trial ends."),
   ZIFFR_TRIAL_WEBHOOKS: (v) => (v === "true" || v === "false" ? null : "Pick whether trials may have Webhooks."),
   ZIFFR_FEEDBACK_PROMPT: (v) => (v === "true" || v === "false" ? null : "Pick whether people are asked."),
+  ZIFFR_FEEDBACK_PER_DAY: (v) => feedbackInstallationCapProblem(v),
   ZIFFR_DEMO: (v) => (v === "1" || v === "0" ? null : "Pick whether the demo is offered."),
   ZIFFR_USAGE_EXCLUDE_WORKSPACE: (v) => (/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(v) ? null : "Pick a Workspace by name."),
   ZIFFR_MARKETPLACE: (v) => (/^(on|off)$/i.test(v) ? null : "The connection is on or off."),
