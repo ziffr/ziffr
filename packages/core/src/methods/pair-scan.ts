@@ -24,6 +24,7 @@ import { changes, readSeries } from "../basis";
 import { fractionOf, lowestTerms, minus, plus, times, type Fraction } from "../exact";
 import { periodStart, periodsBetween, shiftPeriod, type Span, type YearStart } from "../periods";
 import { checkSuitability, verdictOutcome } from "../suitability";
+import { wideReason } from "../work-bound";
 import type { Point } from "../types";
 import { normalCdf } from "./normal-curve";
 import { pValueOfR } from "./p-value";
@@ -373,7 +374,7 @@ export function capMetrics<T extends { id: number; latest: string }>(metrics: re
 /** Every pair of the Metrics that may be compared, scanned: the levels of each Metric on a Common Period come from
  * `levels(id, span)` (null where it cannot be combined to that period); a pair is left out when either is missing, when one
  * is built from the other (`related`), when the two series have not both a value within the last 6 periods before `today`, or
- * when no delay has enough pairs. Only the latest 120 periods of each series are used. At most `HEADS_UP.maxPairs` pairs are
+ * when no delay has enough pairs, or when a Metric's changes need more than 20 decimal places or span more than 20 orders of magnitude (work-bound.ts). Only the latest 120 periods of each series are used. At most `HEADS_UP.maxPairs` pairs are
  * scanned (the ones of the lower ids first); the rest are left out. */
 export function scanPairs(metrics: readonly ScanMetric[], levels: (id: number, span: Span) => Point[] | null, related: (a: number, b: number) => boolean, today: string, yearStart: YearStart): PairRow[] {
   const ordered = [...metrics].sort((x, y) => x.id - y.id);
@@ -389,7 +390,9 @@ export function scanPairs(metrics: readonly ScanMetric[], levels: (id: number, s
       // Stryker disable next-line ConditionalExpression: a Metric met again gives the same changes; this only saves the work.
       if (changed.has(key(m, span))) continue;
       const points = levels(m.id, span);
-      const c = points === null ? [] : changes(readSeries(points).slice(-HEADS_UP.window), span);
+      const made = points === null ? [] : changes(readSeries(points).slice(-HEADS_UP.window), span);
+      // Changes too wide to work out exactly (work-bound.ts) are no changes here: such a Metric is left out, as one that cannot be combined is.
+      const c = wideReason(made.map((p) => p.value)) ? [] : made;
       changed.set(key(m, span), c);
       ofSpan.set(span, [...(ofSpan.get(span) ?? []), c]);
     }

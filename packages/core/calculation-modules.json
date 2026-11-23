@@ -58,5 +58,6 @@
   "src/methods/fractions.ts",
   "src/methods/carry-over.ts",
   "src/methods/what-if.ts",
-  "src/takeaways/what-if-takeaway.ts"
+  "src/takeaways/what-if-takeaway.ts",
+  "src/work-bound.ts"
 ]

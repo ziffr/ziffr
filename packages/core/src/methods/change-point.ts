@@ -19,7 +19,7 @@ import { formatNumber, type ValueUnit } from "../format";
 import { periodsBetween, type Span } from "../periods";
 import { checkSuitability, SUITABILITY, type Finding, type Rerun } from "../suitability";
 import { decimalsApart, plainValue, SHARE_UNIT, sizeText, signedText } from "../takeaways/sizes";
-import { answerTakeaway, refusalTakeaway, sayIn, type Takeaway, type TakeawayContext } from "../takeaways/takeaway";
+import { answerTakeaway, refusalTakeaway, sayIn, withinBudget, type Takeaway, type TakeawayContext } from "../takeaways/takeaway";
 import { say, type CaseKey, type Slots } from "../takeaways/wording";
 import type { Point } from "../types";
 import { MAX_PERIODS } from "./before-after";
@@ -135,7 +135,6 @@ export function moving(v: number, unit: ValueUnit, decimals: number, ctx: Takeaw
 export function checkedChangePoint(name: string, points: Point[], span: Span) {
   const all = readSeries(points);
   const rows = all.slice(-MAX_PERIODS);
-  const result = changePoint(rows, span);
   let last: { found: boolean; period: string } | undefined;
   const rerun = (left: ReadonlySet<string>): Rerun => {
     const r = changePoint(rows.filter((p) => !left.has(p.period)), span);
@@ -144,6 +143,9 @@ export function checkedChangePoint(name: string, points: Point[], span: Span) {
     return { value: r.found ? r.slopeChange : 0, range: 2 * r.slopeHalf };
   };
   const verdict = checkSuitability("changePoint", { series: [{ name, points: rows }], span, rerun });
+  // Worked out only past the checks, so that values too wide to work out exactly (work-bound.ts) are refused before any exact arithmetic; a series that
+  // is refused for that has no result to read, and every reader looks at the refusals first.
+  const result: ChangePoint | NoChangePoint = verdict.refusals.some((f) => f.case === "refuse-exact-places" || f.case === "refuse-exact-orders") ? { ok: false, why: "huge" } : changePoint(rows, span);
   return { all, rows, result, verdict, found: () => last };
 }
 
@@ -153,6 +155,12 @@ export function checkedChangePoint(name: string, points: Point[], span: Span) {
  * change in slope by more than a fifth of its range, or makes the change go away), the note on the latest 120 periods, the basis
  * (which says the bar for chance was raised for the dates tried) and one line of what it assumes. No strength word. */
 export function changePointTakeaway(name: string, points: Point[], span: Span, unit: ValueUnit, ctx: TakeawayContext): Takeaway {
+  // Stryker disable next-line StringLiteral: the key names the Method in the refusal that only a spent allowance writes; the wording of that refusal is held by the test of withinBudget.
+  return withinBudget("numbers-method-change-point", ctx, () => changePointTakeawayWithin(name, points, span, unit, ctx));
+}
+
+// The Takeaway itself, worked out under the work allowance of work-bound.ts (its series are cut to the latest 120 periods, so no ordinary values come near it).
+function changePointTakeawayWithin(name: string, points: Point[], span: Span, unit: ValueUnit, ctx: TakeawayContext): Takeaway {
   const method = sayIn("numbers-method-change-point", {}, ctx);
   const text = (key: CaseKey, slots: Slots = {}) => sayIn(key, { span, ...slots }, ctx);
   const { all, rows, result, verdict, found } = checkedChangePoint(name, points, span);

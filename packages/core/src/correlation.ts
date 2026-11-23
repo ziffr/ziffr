@@ -7,6 +7,8 @@
 import { basisFor, basisText, changes, type Basis } from "./basis";
 import { isLonger, seriesBy, type Resolver } from "./display-periods";
 import { STRENGTH } from "./takeaways/strength";
+import { say } from "./takeaways/wording";
+import { wideColumns } from "./work-bound";
 import type { Span, YearStart } from "./periods";
 import { fractionOf, lowestTerms, minus, nearest, over, plus, times, type Fraction } from "./exact";
 import type { Metric, Point } from "./types";
@@ -27,7 +29,7 @@ export type Correlation =
 
 /** Why two Metrics have no correlation: one cannot be combined (Aggregation none), too few common periods, one is a
  * Derived Metric built from the other, or a series does not change. */
-export type NoCorrelation = "not-combined" | "too-few" | "built-from" | "flat";
+export type NoCorrelation = "not-combined" | "too-few" | "built-from" | "flat" | "too-wide";
 
 const NOUN: Record<Span, [string, string]> = {
   day: ["day", "days"], week: ["week", "weeks"], month: ["month", "months"],
@@ -128,12 +130,24 @@ export function correlate(a: Metric, b: Metric, resolve: Resolver, opts: { yearS
   const levels = pairUp(xs, ys);
   const tooFew = (n: number): Correlation => ({ ok: false, period, n, why: "too-few", reason: `Not enough ${NOUN[period][1]} in common (${n} of ${MIN_PAIRS}).` });
   if (levels.length < MIN_PAIRS) return tooFew(levels.length);
+  // Values too wide to work out exactly in reasonable time (work-bound.ts) are left out, before the exact arithmetic: a ranking runs this for many pairs.
+  // The levels are judged before the basis is chosen (that is exact arithmetic on them), and the pairs that are worked out on after it: the
+  // changes of values inside the bounds can be outside them (a step of 1e15 beside one of 1e-6).
+  const tooWide = (rows: Pair[]): Correlation | null => {
+    const wide = wideColumns([a.name, b.name], [rows.map((p) => p.x), rows.map((p) => p.y)]);
+    // Stryker disable next-line ObjectLiteral,StringLiteral: the style only writes the two bounds, whole numbers under 1000, the same in every style.
+    return wide.length > 0 ? { ok: false, period, n: rows.length, why: "too-wide", reason: wide.map((f) => say(f.case, f.slots, { style: "1,234.5" })).join(" ") } : null;
+  };
+  const wideLevels = tooWide(levels);
+  if (wideLevels) return wideLevels;
   // The basis is chosen on the periods both have; "values" is the choice under Show the numbers.
   const onX = levels.map((p) => ({ period: p.period, value: p.x }));
   const onY = levels.map((p) => ({ period: p.period, value: p.y }));
   const basis: Basis = opts.basis === "values" ? "values" : basisFor(onX, onY, period);
   const pairs = basis === "values" ? levels : pairUp(changes(onX, period), changes(onY, period));
   if (pairs.length < MIN_PAIRS) return tooFew(pairs.length);
+  const widePairs = tooWide(pairs);
+  if (widePairs) return widePairs;
   const res = pearsonOf(pairs);
   if (!Number.isFinite(res.r)) return { ok: false, period, n: pairs.length, why: "flat", reason: basis === "values" ? "One of them does not change, so there is nothing to compare." : "Once growth is removed, one of them does not change, so there is nothing to compare." };
   return { ok: true, period, combined, basis, ...res };
