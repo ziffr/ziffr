@@ -27,7 +27,8 @@ describe("route", () => {
   });
   it("hides what names something in a Workspace", () => {
     expect(normalizeRoute("/metrics/monthly-revenue")).toBe("/metrics/:name");
-    expect(normalizeRoute("/dashboards/12/edit")).toBe("/dashboards/:name/edit");
+    expect(normalizeRoute("/dashboards/12/edit")).toBe("/dashboards/:name");
+    expect(normalizeRoute("/metrics/monthly-revenue/2026-03-01")).toBe("/metrics/:name");
     expect(normalizeRoute("/v/abcdef")).toBe("/v/:name");
     expect(normalizeRoute("/foo/123456")).toBe("/foo/:id");
     expect(normalizeRoute("/foo/0a1b2c3d4e5f60718293")).toBe("/foo/:id");

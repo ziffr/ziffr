@@ -94,7 +94,7 @@ The **⋯** menu holds:
 | **Who can see this** | Everyone | Lists everyone with access and why (see [Sharing](#sharing)). |
 | **View links…** | The owner | Links for people outside the team (see [View Links](#view-links)). |
 
-A deck's **⋯** menu has the same **Who can see this** and **View links…** entries, with the same windows (see [Decks](14-decks-and-themes.md)).
+A deck's **⋯** menu has the same **Who can see this** and **View links…** entries, with the same panels (see [Decks](14-decks-and-themes.md)).
 | **Theme…** | The owner and Editors | Picks the Theme the dashboard is drawn in. |
 | **Versions** | Everyone | The dashboard's history in a panel beside it (see [Versions](#versions)). |
 
@@ -155,13 +155,13 @@ To place something, drag it onto the dashboard where you want it, or point at it
 
 Pointing at a template or saved Widget for a moment shows its Preview beside the Pool. The **ⓘ** button on a row opens the Preview and keeps it open until you press **ⓘ** again, press Escape or tap elsewhere; on a touch screen or a narrow window it opens over the page just below the row, and the list never moves. A template's Preview always uses Sample Data. A saved Widget's Preview draws your own values. A Metric's Preview is a small card: its name, how often it is counted and in which unit, its description, its latest value with the period, and a small line of its recent values.
 
-**Browse…** next to **Templates** opens **Browse templates**: every template as a larger Preview, grouped as in the Pool, with **Filter** and a **Use** button on each.
+**Browse…** next to **Templates** opens **Browse templates** in a panel beside the dashboard: every template as a larger Preview, one under the other, grouped as in the Pool, with **Filter** and a **Use** button on each. **Use** closes the panel and goes on as the Pool's **+** does; Escape or **Close** leaves without adding anything.
 
-A team Widget Template in the Pool has its own **⋯** menu. Everyone sees **Versions…**. Only the person who saved it sees **Rename…** (its name and "What it is for") and **Delete**. Deleting asks first; Widgets made from it stay as they are.
+A team Widget Template in the Pool has its own **⋯** menu. Everyone sees **Versions…**, which opens the versions in a panel beside the page. Only the person who saved it sees **Rename…** (its name and "What it is for") and **Delete**. Deleting asks first; Widgets made from it stay as they are.
 
 ### Filling a Widget Template's Slots
 
-When a template lands, a window named after it asks for each Slot, such as "Metric", "Metric with a breakdown", "First metric" and "Second metric", or "Metrics, one or more". A team template also says which Metrics it was made with ("In the original: …"), as far as you can see them. Once every Slot is filled, a Preview shows the Widget with your Metrics, drawn as wide as the window allows, also on a narrow screen. Press **Add** (built-in templates) or **Use template** (team templates), or **Cancel**.
+When a template lands, a panel beside the page, named after the template, asks for each Slot, such as "Metric", "Metric with a breakdown", "First metric" and "Second metric", or "Metrics, one or more". A team template also says which Metrics it was made with ("In the original: …"), as far as you can see them. Once every Slot is filled, a Preview shows the Widget with your Metrics, drawn as wide as the panel allows, also on a narrow screen. Press **Add** (built-in templates) or **Use template** (team templates), or **Cancel**; Escape and **Close** cancel too, and nothing is placed.
 
 ## A widget's menu
 
@@ -191,9 +191,9 @@ Under **Copy to…**:
 | **Add to dashboard** | When you may change another dashboard | Places a copy on one of your other dashboards. |
 
 On a Metric's page, **⋯** → **Add to dashboard** lists your dashboards the same way and ends with **New dashboard with this Metric**, which makes a dashboard named for the Metric, puts the Metric on it and opens it (not offered to Guests).
-| **Add to deck…** | Everyone except Guests | Places a copy on a slide of a deck you own or may edit, or of a new deck named after the Widget: pick the deck, then a slide or **New slide at the end**. The deck opens on that slide; **Go back** in the message returns here. The copy draws only Metrics you see, and changing it leaves this Widget as it is. Also on a Finding of a story. |
+| **Add to deck…** | Everyone except Guests | Places a copy on a slide of a deck you own or may edit, or of a new deck named after the Widget: a panel beside the page lets you pick the deck, then a slide or **New slide at the end**. The deck opens on that slide; **Go back** in the message returns here. The copy draws only Metrics you see, and changing it leaves this Widget as it is. Also on a Finding of a story. |
 | **Save as Widget** | Everyone except Guests | Saves a copy to your Pool. |
-| **Save as template…** | The owner and Editors | Saves the Widget as a team Widget Template. Not offered for a Free layout. |
+| **Save as template…** | The owner and Editors | Saves the Widget as a team Widget Template, in a panel beside the page. Not offered for a Free layout. |
 
 Under **For View Designs**:
 
@@ -287,7 +287,7 @@ A Widget that takes a list of Metrics, such as the Correlation matrix, can show 
 
 **Save as Widget** asks for a name ("Save to your widgets as:") and keeps a copy in **My Widgets** in your Pool. From there you can drag it onto any dashboard or slide. Each placement is an independent copy.
 
-**Save as template…** saves the Widget as a team Widget Template that everyone in the Workspace can use with their own Metrics. Only you can change it later. The window asks:
+**Save as template…** saves the Widget as a team Widget Template that everyone in the Workspace can use with their own Metrics. Only you can change it later. The panel asks:
 
 | Field | What it does |
 | --- | --- |
@@ -410,7 +410,7 @@ To step through Widgets, use the arrow keys, the space bar, Page Up and Page Dow
 
 ## Saving a dashboard as a Dashboard Template
 
-**Save as template** in the dashboard's **⋯** menu makes a team Dashboard Template, so the next dashboard can start from this one. You can do this when you may change the dashboard and see every Metric on it; otherwise the window says so.
+**Save as template** in the dashboard's **⋯** menu makes a team Dashboard Template, so the next dashboard can start from this one. You can do this when you may change the dashboard and see every Metric on it; otherwise the panel says so. It opens beside the dashboard.
 
 | Field | What it does |
 | --- | --- |
@@ -424,7 +424,7 @@ A Widget whose Tag you cannot see is left out as well. Free layouts are left out
 
 Only a dashboard's owner shares it. **Share** opens a panel on the right, over the page, listing the people in the Workspace (not Contacts, who have no login) and, under **Groups, including whoever joins later**, every **Group** with its members. For each, choose:
 
-**Invite someone…** at the bottom of the Share window is for someone who is not in the Workspace yet, such as when you are the only one in it. Owners and Admins enter an email address and choose **Member** or **Guest** (a Guest sees only what is shared with them), and Ziffr invites them the same way as the **Members and Groups** page: it emails the link when mail is set up and shows it to send yourself. A person is shared with once they have joined and appear in the list. Everyone else sees "Ask an Owner or Admin to invite them" (for a dashboard or deck).
+**Invite someone…** at the bottom of the Share panel is for someone who is not in the Workspace yet, such as when you are the only one in it. Owners and Admins enter an email address and choose **Member** or **Guest** (a Guest sees only what is shared with them), and Ziffr invites them the same way as the **Members and Groups** page: it emails the link when mail is set up and shows it to send yourself. A person is shared with once they have joined and appear in the list. Everyone else sees "Ask an Owner or Admin to invite them" (for a dashboard or deck).
 
 - **No access**.
 - **Viewer**: can look, inspect history and ask questions, but not change the dashboard.
@@ -434,11 +434,11 @@ The choice takes effect at once. A Group share also reaches whoever joins the Gr
 
 **Sharing a dashboard also lets people see every Metric on it.** When that would show someone a Metric they could not see before, the line under their name says so in colour: "Also shows Cost, Margin and 2 more". Check this before you share.
 
-At the bottom of the window, **Who can see this** and, for the owner, **View links for outsiders** open those windows.
+At the bottom of the panel, **Who can see this** and, for the owner, **View links for outsiders** open those panels on top of it; **Back** returns to Share.
 
 ### Who can see this
 
-**Who can see this** (in the **⋯** menu, for everyone who can open the dashboard) lists every person in the Workspace and why they have access: "owner", "shared as Viewer", "Editor through Management", or "No access". A Guest sees only what is shared with them, so people outside it show as "Someone", there and wherever the dashboard names people.
+**Who can see this** (in the **⋯** menu, for everyone who can open the dashboard) opens a panel on the right that lists every person in the Workspace and why they have access: "owner", "shared as Viewer", "Editor through Management", or "No access". A Guest sees only what is shared with them, so people outside it show as "Someone", there and wherever the dashboard names people.
 
 When someone asked for access, the owner sees them first, under **Asking for access**, with **Grant as Viewer** and **Decline**.
 
@@ -446,7 +446,7 @@ When someone asked for access, the owner sees them first, under **Asking for acc
 
 A **View Link** shows one dashboard to someone outside the team, such as a board member or an investor, without a login. They see this dashboard and nothing else, and cannot change or ask anything. Only the dashboard's owner makes View Links, Guests make none, and the demo makes none.
 
-Open **View links…** in the **⋯** menu:
+**View links…** in the **⋯** menu opens a panel on the right, over the page, so the dashboard stays in view. Revoking a link or hiding its names takes effect at once. The panel has:
 
 | Field | What it does |
 | --- | --- |
@@ -556,4 +556,4 @@ Earlier, Ziffr had stories as a screen of their own. They are now dashboards wit
 
 ## Panels have their own address
 
-Share, Versions and a Metric's quick look open as panels on the right, over the page; on a phone they fill the screen. The address of the page then ends in `?panel=share`, `?panel=versions` or `?panel=metric-` and the Metric's short name, so you can send the link and whoever opens it sees the page with the panel open. While a panel is open the keys stay inside it; **Esc** or **Close** closes it and puts you back where you were.
+Share, Who can see this, View links, Versions and a Metric's quick look open as panels on the right, over the page; on a phone they fill the screen. The address of the page then ends in `?panel=share` (Who can see this and View links have no address of their own: they open from Share or the **⋯** menu, and **Back** in the panel returns to Share), `?panel=versions` or `?panel=metric-` and the Metric's short name, so you can send the link and whoever opens it sees the page with the panel open. While a panel is open the keys stay inside it; **Esc** or **Close** closes it and puts you back where you were.

@@ -9,14 +9,14 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sh
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
 import { DropdownMenu, DropdownMenuCheckboxItem, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuSub, DropdownMenuSubContent, DropdownMenuSubTrigger, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { ShareSheet } from "./share-sheet";
-import { WhoCanSeeDialog } from "./who-can-see";
-import { ViewLinksDialog } from "./view-links";
+import { useShowWhoCanSee } from "./who-can-see";
+import { useShowViewLinks } from "./view-links";
 import { useOpenVersions, VersionsSheetOpen } from "./versions-sheet";
 import { ThemePicker } from "./theme-picker";
 import type { Group, Profile, Share, Theme } from "@ziffr/core/types";
 import { cn } from "@/lib/utils";
 
-type Open = "who" | "links" | "theme" | null;
+type Open = "theme" | null;
 
 /** What the toolbar needs. `share` is set only for whoever may share (the owner); `viewLinks` and `theme` likewise. */
 export type ObjectToolbarProps = {
@@ -49,6 +49,9 @@ export function ObjectToolbar({ type, id, people, children, phone, share, viewLi
   const [open, setOpen] = useState<Open>(null);
   const [sheet, setSheet] = useState(false);
   const openVersions = useOpenVersions();
+  // Who can see this and View links open in the side panel; the dialog left here is the Theme picker.
+  const showWho = useShowWhoCanSee(people);
+  const showLinks = useShowViewLinks();
   const close = () => setOpen(null);
   // Opened from a menu item: wait until the menu has closed and returned focus.
   const show = (o: Open) => () => setTimeout(() => setOpen(o), 0);
@@ -64,8 +67,8 @@ export function ObjectToolbar({ type, id, people, children, phone, share, viewLi
           people={people}
           {...share}
           more={[
-            { label: "Who can see this", icon: <Eye aria-hidden />, onClick: () => setOpen("who") },
-            ...(viewLinks ? [{ label: "View links for outsiders", icon: <Link2 aria-hidden />, onClick: () => setOpen("links") }] : []),
+            { label: "Who can see this", icon: <Eye aria-hidden />, onClick: () => showWho(type, id) },
+            ...(viewLinks ? [{ label: "View links for outsiders", icon: <Link2 aria-hidden />, onClick: () => showLinks("dashboard", id) }] : []),
           ]}
         />
       )}
@@ -79,8 +82,8 @@ export function ObjectToolbar({ type, id, people, children, phone, share, viewLi
               <div className="flex flex-col items-stretch gap-2 px-4 pb-2 [&>*]:w-full [&>*]:justify-start">{children}</div>
               <ul className="px-2 pb-3">
                 {([...(menu ?? []).flatMap((m) => m.sub ? m.sub.map((c) => ({ label: `${m.label}: ${c.label}`, icon: m.icon, go: () => { setSheet(false); c.onSelect(); } })) : [{ label: m.label, icon: m.icon, checked: m.checked, go: () => { setSheet(false); m.onSelect?.(); } }]),
-                  { label: "Who can see this", icon: <Eye aria-hidden />, go: () => { setSheet(false); setOpen("who"); } },
-                  ...(viewLinks ? [{ label: "View links…", icon: <Link2 aria-hidden />, go: () => { setSheet(false); setOpen("links"); } }] : []),
+                  { label: "Who can see this", icon: <Eye aria-hidden />, go: () => { setSheet(false); setTimeout(() => showWho(type, id), 0); } },
+                  ...(viewLinks ? [{ label: "View links…", icon: <Link2 aria-hidden />, go: () => { setSheet(false); setTimeout(() => showLinks("dashboard", id), 0); } }] : []),
                   ...(theme ? [{ label: "Theme…", icon: <Palette aria-hidden />, go: () => { setSheet(false); setOpen("theme"); } }] : []),
                   { label: "Versions", icon: <History aria-hidden />, go: () => { setSheet(false); setTimeout(() => openVersions(true), 0); } }] as SheetRow[]).map((r) => (
                   <li key={r.label}><button type="button" onClick={r.go} aria-pressed={r.checked} className="flex h-11 w-full items-center gap-3 rounded-md px-2 text-left text-sm hover:bg-muted focus-visible:outline-2 focus-visible:outline-ring [&_svg]:size-4 [&_svg]:text-muted-foreground">{r.icon}{r.label}{r.checked && <Check aria-hidden className="ml-auto" />}</button></li>
@@ -98,14 +101,12 @@ export function ObjectToolbar({ type, id, people, children, phone, share, viewLi
           {menu?.map((m) => (
             <MenuRow key={m.label} m={m} />
           ))}
-          <DropdownMenuItem onClick={show("who")}><Eye aria-hidden /> Who can see this</DropdownMenuItem>
-          {viewLinks && <DropdownMenuItem onClick={show("links")}><Link2 aria-hidden /> View links…</DropdownMenuItem>}
+          <DropdownMenuItem onClick={() => setTimeout(() => showWho(type, id), 0)}><Eye aria-hidden /> Who can see this</DropdownMenuItem>
+          {viewLinks && <DropdownMenuItem onClick={() => setTimeout(() => showLinks("dashboard", id), 0)}><Link2 aria-hidden /> View links…</DropdownMenuItem>}
           {theme && <DropdownMenuItem onClick={show("theme")}><Palette aria-hidden /> Theme…</DropdownMenuItem>}
           <DropdownMenuItem onClick={() => setTimeout(() => openVersions(true), 0)}><History aria-hidden /> Versions</DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
-      {open === "who" && <WhoCanSeeDialog type={type} id={id} people={people} onClose={close} />}
-      {open === "links" && type === "dashboard" && <ViewLinksDialog type="dashboard" id={id} onClose={close} />}
       <VersionsSheetOpen type={type} id={id} people={people} />
       {open === "theme" && theme && (
         <Dialog open onOpenChange={(o) => { if (!o) close(); }}>

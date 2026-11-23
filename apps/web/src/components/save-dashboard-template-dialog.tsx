@@ -1,21 +1,30 @@
 "use client";
 // Saving a dashboard as a team Dashboard Template (spec 0014, GLOSSARY: Dashboard Template, Slot). The core makes the
 // draft from the stored widgets: one Slot per Metric (or set of Metrics) however many widgets show it. The viewer names
-// the Slots; Free Layouts stay behind, and the dialog says so.
+// the Slots; Free Layouts stay behind, and the panel says so (spec 0050).
 import { useEffect, useState, useTransition } from "react";
-import { LayoutTemplate } from "lucide-react";
 import { toast } from "sonner";
 import { shown, unwrap } from "@/lib/action-error";
-import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { draftDashboardTemplate, saveAsDashboardTemplate } from "@/app/dashboard-template-actions";
 import type { Slot } from "@ziffr/core/types";
+import { SlideOverWindow } from "./slide-over-window";
 
 type Draft = { slots: Slot[]; leftOut: string[]; notices: string[]; widgets: number };
 
-/** The dialog; `metricName` names the Metrics this viewer sees (they see all of a dashboard they may save). */
-export function SaveDashboardTemplateDialog({ dashboardId, dashboardName, metricName, onClose }: { dashboardId: number; dashboardName: string; metricName: (id: number) => string | undefined; onClose: () => void }) {
+type Props = { dashboardId: number; dashboardName: string; metricName: (id: number) => string | undefined; onClose: () => void };
+
+/** The window, in the side panel; `metricName` names the Metrics this viewer sees (they see all of a dashboard they may save). */
+export function SaveDashboardTemplateDialog(props: Props) {
+  return (
+    <SlideOverWindow title="Save as template" description="Your team can start new dashboards from it, each with their own Metrics. Every Metric here becomes a place to fill; name each so others know what goes in." onClose={props.onClose}>
+      <SaveDashboardTemplateForm {...props} />
+    </SlideOverWindow>
+  );
+}
+
+function SaveDashboardTemplateForm({ dashboardId, dashboardName, metricName, onClose }: Props) {
   const [draft, setDraft] = useState<Draft | null>(null);
   const [failed, setFailed] = useState<string | null>(null);
   const [name, setName] = useState(dashboardName);
@@ -38,10 +47,7 @@ export function SaveDashboardTemplateDialog({ dashboardId, dashboardName, metric
     }
   });
   return (
-    <Dialog open onOpenChange={(o) => { if (!o) onClose(); }}>
-      <DialogContent className="max-w-lg">
-        <DialogTitle className="flex items-center gap-2"><LayoutTemplate aria-hidden className="size-4" /> Save as template</DialogTitle>
-        <DialogDescription>Your team can start new dashboards from it, each with their own Metrics. Every Metric here becomes a place to fill; name each so others know what goes in.</DialogDescription>
+    <>
         {failed ? <p className="text-sm text-destructive">{failed}</p> : !draft ? <p className="text-sm text-muted-foreground">Reading the dashboard…</p> : (
           <form className="space-y-4" onSubmit={(e) => { e.preventDefault(); save(); }}>
             <label className="block text-sm font-medium">Name<Input value={name} onChange={(e) => setName(e.target.value)} maxLength={80} required className="mt-1" /></label>
@@ -69,7 +75,6 @@ export function SaveDashboardTemplateDialog({ dashboardId, dashboardName, metric
             </div>
           </form>
         )}
-      </DialogContent>
-    </Dialog>
+    </>
   );
 }

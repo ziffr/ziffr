@@ -42,8 +42,8 @@ The **⋯** menu holds:
 | Entry | What it does |
 |---|---|
 | **Theme…** | Chooses the deck's Theme. **(team default)** follows whatever theme the team uses by default. |
-| **Who can see this** | Lists everyone who can open the deck, and why. |
-| **View links…** | Makes a link for someone outside the team. Only the deck's owner sees this entry. |
+| **Who can see this** | Opens a panel on the right that lists everyone who can open the deck, and why. |
+| **View links…** | Opens a panel on the right to make a link for someone outside the team. Only the deck's owner sees this entry. |
 | **Versions** | Opens a panel on the right with earlier states of the deck, and lets you go back to one. |
 | **Save as Deck Template…** | Saves every slide as a team Deck Template (see below). Only the deck's owner sees this entry. |
 | **Delete…** | Below a rule, in red. Deletes the deck after you confirm: its slides, Shares and View Links go with it. Widgets and Metrics stay. Only the deck's owner sees this entry. |
@@ -80,7 +80,7 @@ The **Pool** on the left holds the Metrics you can see, your saved Widgets and t
 
 You can only place Metrics you may see. Everyone you share the deck with can see the Metrics on its slides.
 
-From a dashboard or a story, without opening the deck first: open a Widget's or a Finding's **⋯** menu and choose **Add to deck…**. Pick a deck you own or may edit (or **New deck**), then a slide, or **New slide at the end**, which gets the Widget's name as its title. The deck opens on that slide with the copy in the first free space, and is saved. A deck you may only view is not offered. Only your own choice in the menu adds it, once: opening the deck again, or a link someone sends you, adds nothing.
+From a dashboard or a story, without opening the deck first: open a Widget's or a Finding's **⋯** menu and choose **Add to deck…**. A panel opens beside the page: pick a deck you own or may edit (or **New deck**), then a slide, or **New slide at the end**, which gets the Widget's name as its title. The deck opens on that slide with the copy in the first free space, and is saved. A deck you may only view is not offered. Only your own choice in the menu adds it, once: opening the deck again, or a link someone sends you, adds nothing.
 
 ### Text, arrows, shapes and images
 
@@ -105,11 +105,11 @@ What the side panel shows depends on what you have selected.
 
 ### Saving a slide as a layout
 
-Select a slide and choose **Save slide as layout…**. Give it a name and, if you like, a description. The Metrics on the slide become Slots, so others can fill the layout with their own Metrics. Everyone in the team can use the layout from **+ Slide**, under **Team layouts**. Only you can change it.
+Select a slide and choose **Save slide as layout…**; a panel opens beside the slide. Give it a name and, if you like, a description. The Metrics on the slide become Slots, so others can fill the layout with their own Metrics. Everyone in the team can use the layout from **+ Slide**, under **Team layouts**. Only you can change it.
 
 ### Saving a deck as a Deck Template
 
-A **Deck Template** keeps a whole deck: every slide with its Widgets, words and boxes, with the Metrics left open as Slots. Choose **Save as Deck Template…** at the top. A Metric shown on several slides becomes one Slot, which you can name, such as "Revenue". Its name in the words becomes {metric}. Notes tied to one period or row can follow a rule instead, or are left out, as for a layout. Images and links stay behind. You can do this for a deck of your own once it is saved, when you see every Metric on it. Everyone in the team can then start a deck from it on the Decks page; only you can change or replace it.
+A **Deck Template** keeps a whole deck: every slide with its Widgets, words and boxes, with the Metrics left open as Slots. Choose **Save as Deck Template…** at the top; a panel opens beside the deck. A Metric shown on several slides becomes one Slot, which you can name, such as "Revenue". Its name in the words becomes {metric}. Notes tied to one period or row can follow a rule instead, or are left out, as for a layout. Images and links stay behind. You can do this for a deck of your own once it is saved, when you see every Metric on it. Everyone in the team can then start a deck from it on the Decks page; only you can change or replace it.
 
 ## Presenting
 
@@ -156,7 +156,7 @@ If an export fails, Ziffr says "Export failed". Try again, or remove the last th
 Sharing a deck works like sharing a dashboard. [Dashboards and Findings](12-dashboards.md) explains Shares, View Links and Versions in full. In short:
 
 - **Share** gives people or Groups a role on the deck. A **Viewer** can present it. An **Editor** can also change its slides, name, footer and Theme. Only the owner shares the deck and makes View Links.
-- **Invite someone…** at the bottom of the Share window invites a person who is not in the Workspace yet, by email, as **Member** or **Guest**; only Owners and Admins see it, others are told "Ask an Owner or Admin to invite them".
+- **Invite someone…** at the bottom of the Share panel invites a person who is not in the Workspace yet, by email, as **Member** or **Guest**; only Owners and Admins see it, others are told "Ask an Owner or Admin to invite them".
 - **View link** lets someone outside the team watch the deck slide by slide, without signing in. Under **For**, say who it is for; under **Works until**, choose when it ends (at most 90 days ahead). Tick **Freeze today's numbers** to keep the values as they are now; otherwise the link shows live numbers until it ends. You can copy or revoke each link.
 - **Versions** keeps earlier states of the deck. Going back to one makes a new version.
 

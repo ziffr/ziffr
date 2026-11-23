@@ -5,8 +5,10 @@
 import type { Slot } from "@ziffr/core/types";
 
 /** One field per Slot: a list to pick one Metric from, or boxes to tick for a Slot of several. */
-export function SlotFills({ slots, metrics, fills, onChange, tags = [], tagFillable = [], tagFills = [], onTagFills }: {
+export function SlotFills({ slots, metrics, fills, onChange, original, tags = [], tagFillable = [], tagFills = [], onTagFills }: {
   slots: Pick<Slot, "label" | "multiple">[]; metrics: { id: number; name: string }[]; fills: number[][]; onChange: (fills: number[][]) => void;
+  /** The names of the Metrics a Slot was made with, as far as the person sees them: shown as "In the original: …". */
+  original?: (slot: number) => string;
   /** The Tags this person sees, and which Slots one may fill ("All Metrics tagged…", GLOSSARY: Tag); the choice per Slot. */
   tags?: { id: string; name: string }[]; tagFillable?: boolean[]; tagFills?: (string | null)[]; onTagFills?: (tags: (string | null)[]) => void;
 }) {
@@ -16,6 +18,7 @@ export function SlotFills({ slots, metrics, fills, onChange, tags = [], tagFilla
     {slots.map((slot, i) => (
       <fieldset key={i} className="space-y-1">
         <legend className="text-sm font-medium">{slot.label}{slot.multiple && <span className="font-normal text-muted-foreground">, one or more</span>}</legend>
+        {original?.(i) && <p className="text-xs text-muted-foreground">In the original: {original(i)}</p>}
         {slot.multiple && onTagFills && tagFillable[i] && tags.length > 0 && (
           <select
             aria-label={`${slot.label}: which Metrics`}

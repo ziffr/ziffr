@@ -1,45 +1,62 @@
 "use client";
-import { useState, useTransition } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
 import { Share2, UserPlus } from "lucide-react";
 import { setGroupShare, setShare } from "@/app/canvas-actions";
 import { inviteMember } from "@/app/team-actions";
 import { told } from "@/lib/action-toast";
-import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
+import { useSlideOver } from "@/components/slide-over-host";
 import { usePanel } from "@/lib/panel-param";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import type { Group, Profile, Share } from "@ziffr/core/types";
 
-/** GLOSSARY: Share, Slide-over. Opens beside the page (`?panel=share` is its direct URL). Dashboards can be shared as Viewer or Editor; metrics as Viewer. */
-export function ShareSheet({ objectType, objectId, name, ownerId, people, shares, groups = [], reveals = {}, canInvite = false, primary, more = [] }: { objectType: "metric" | "dashboard" | "deck"; objectId: number; name: string; ownerId: string; people: Profile[]; shares: Share[]; groups?: Group[]; reveals?: Record<string, string[]>; /** May invite people (Owners and Admins, decided in the core): the panel offers to invite someone. Others are told whom to ask. */ canInvite?: boolean; /** The page's main button. */ primary?: boolean; /** Related dialogs offered at the bottom ("Who can see this", "View links"); the share panel closes first. */ more?: { label: string; icon: React.ReactNode; onClick: () => void }[] }) {
+/** GLOSSARY: Share, Slide-over. The Share button opens the share panel beside the page (`?panel=share` is its direct URL, and opening that link opens it).
+ * Dashboards can be shared as Viewer or Editor; metrics as Viewer. `more` are related panels offered at the bottom ("Who can see this", "View links"):
+ * they open on top of this one, which stays one step back. */
+export function ShareSheet({ objectType, objectId, name, ownerId, people, shares, groups = [], reveals = {}, canInvite = false, primary, more = [] }: { objectType: "metric" | "dashboard" | "deck"; objectId: number; name: string; ownerId: string; people: Profile[]; shares: Share[]; groups?: Group[]; reveals?: Record<string, string[]>; /** May invite people (Owners and Admins, decided in the core): the panel offers to invite someone. Others are told whom to ask. */ canInvite?: boolean; /** The page's main button. */ primary?: boolean; /** Related panels offered at the bottom ("Who can see this", "View links"). */ more?: { label: string; icon: React.ReactNode; onClick: () => void }[] }) {
+  const panel = useSlideOver();
+  const [urlOpen, setUrlOpen] = usePanel("share");
+  // Whether the host's panel is the one this button opened, so closing it can take `?panel=share` out of the address.
+  const mine = useRef(false);
+  const others = people.filter((p) => p.id !== ownerId && !p.contact);
+  const n = others.filter((p) => shares.some((s) => s.object_type === objectType && s.object_id === objectId && s.user_id === p.id)).length + groups.filter((g) => shares.some((s) => s.object_type === objectType && s.object_id === objectId && s.group_id === g.id)).length;
+  const show = () => {
+    mine.current = true;
+    setUrlOpen(true);
+    panel.open({
+      title: `Share \u201c${name}\u201d`,
+      description: objectType === "dashboard"
+        ? "Viewers can look, inspect history and ask questions. Editors can also arrange widgets. Everyone you share with can see the metrics on this dashboard."
+        : objectType === "deck"
+          ? "Viewers can present it. Editors can also change slides. Everyone you share with can see the metrics on its slides."
+          : "People you share with can see this metric and use it on their own dashboards and analyses. Only you can change its description.",
+      content: <ShareBody objectType={objectType} objectId={objectId} ownerId={ownerId} people={people} shares={shares} groups={groups} reveals={reveals} canInvite={canInvite} more={more} />,
+    });
+  };
+  // A link with `?panel=share` opens the panel once the page is up.
+  useEffect(() => { if (urlOpen && !mine.current) show(); }, [urlOpen]); // eslint-disable-line react-hooks/exhaustive-deps -- only when the address changes
+  // The panel was closed (Escape, Close, another page): the address stops naming it.
+  useEffect(() => { if (!panel.isOpen && mine.current) { mine.current = false; setUrlOpen(false); } }, [panel.isOpen]); // eslint-disable-line react-hooks/exhaustive-deps -- only when it closes
+  return (
+    <button type="button" onClick={show} className={buttonVariants({ variant: primary ? "default" : "outline" })}>
+      <Share2 aria-hidden /> Share{n ? <span className={cn("fig", primary ? "opacity-80" : "text-muted-foreground")}>{n}</span> : null}
+    </button>
+  );
+}
+
+/** The share panel's content: who it is shared with, as a form that saves each change at once. */
+function ShareBody({ objectType, objectId, ownerId, people, shares, groups, reveals, canInvite, more }: { objectType: "metric" | "dashboard" | "deck"; objectId: number; ownerId: string; people: Profile[]; shares: Share[]; groups: Group[]; reveals: Record<string, string[]>; canInvite: boolean; more: { label: string; icon: React.ReactNode; onClick: () => void }[] }) {
   const [pending, start] = useTransition();
-  const [open, setOpen] = usePanel("share");
   // Contacts have no login: nothing is shared with them.
   const others = people.filter((p) => p.id !== ownerId && !p.contact);
   const initial = (id: string) => shares.find((s) => s.object_type === objectType && s.object_id === objectId && s.user_id === id)?.role ?? "";
   const [roles, setRoles] = useState<Record<string, string>>(() => Object.fromEntries(people.map((p) => [p.id, initial(p.id)])));
   const roleOf = (id: string) => roles[id] ?? "";
   const [groupRoles, setGroupRoles] = useState<Record<number, string>>(() => Object.fromEntries(groups.map((g) => [g.id, shares.find((s) => s.object_type === objectType && s.object_id === objectId && s.group_id === g.id)?.role ?? ""])));
-  const n = others.filter((p) => roleOf(p.id)).length + groups.filter((g) => groupRoles[g.id]).length;
   const select = "h-9 rounded-[var(--radius-input)] border border-input bg-card px-2 text-sm";
   return (
-    <Sheet open={open} onOpenChange={setOpen}>
-      <SheetTrigger className={buttonVariants({ variant: primary ? "default" : "outline" })}>
-        <Share2 aria-hidden /> Share{n ? <span className={cn("fig", primary ? "opacity-80" : "text-muted-foreground")}>{n}</span> : null}
-      </SheetTrigger>
-      <SheetContent className="sm:max-w-md">
-        <SheetHeader>
-          <SheetTitle>Share “{name}”</SheetTitle>
-          <SheetDescription>
-            {objectType === "dashboard"
-              ? "Viewers can look, inspect history and ask questions. Editors can also arrange widgets. Everyone you share with can see the metrics on this dashboard."
-              : objectType === "deck"
-                ? "Viewers can present it. Editors can also change slides. Everyone you share with can see the metrics on its slides."
-                : "People you share with can see this metric and use it on their own dashboards and analyses. Only you can change its description."}
-          </SheetDescription>
-        </SheetHeader>
-        <div className="flex flex-1 flex-col gap-3 overflow-y-auto px-4 pb-4">
+    <div className="flex min-h-full flex-col gap-3">
         <ul className="space-y-2">
           {others.map((p) => (
             <li key={p.id} className="flex items-center gap-3 text-sm">
@@ -91,16 +108,14 @@ export function ShareSheet({ objectType, objectId, name, ownerId, people, shares
           </>
         )}
         <InviteSomeone alone={others.length === 0} canInvite={canInvite} objectType={objectType} />
+      {more.length > 0 && (
+        <div className="-mx-4 -mb-4 mt-auto flex flex-wrap gap-2 border-t bg-muted/50 p-3">
+          {more.map((m) => (
+            <Button key={m.label} type="button" variant="ghost" size="sm" onClick={m.onClick}>{m.icon} {m.label}</Button>
+          ))}
         </div>
-        {more.length > 0 && (
-          <div className="flex flex-wrap gap-2 border-t bg-muted/50 p-3">
-            {more.map((m) => (
-              <Button key={m.label} type="button" variant="ghost" size="sm" onClick={() => { setOpen(false); setTimeout(m.onClick, 0); }}>{m.icon} {m.label}</Button>
-            ))}
-          </div>
-        )}
-      </SheetContent>
-    </Sheet>
+      )}
+    </div>
   );
 }
 
