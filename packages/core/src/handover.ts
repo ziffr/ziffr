@@ -34,7 +34,8 @@ async function dropFromWorkflowSteps(ws: string, personId: string): Promise<void
     // Written only over the config it was made from (updated_at), so an owner's save in between is never undone; tried again on that.
     let done = false;
     for (let attempt = 0; attempt < 3 && !done; attempt++) {
-      const { data: f } = await db().from("workflows").select("id, config, updated_at").eq("id", id).eq("workspace_id", ws).maybeSingle();
+      const { data: f, error: readError } = await db().from("workflows").select("id, config, updated_at").eq("id", id).eq("workspace_id", ws).maybeSingle();
+      if (readError) { console.error("Handover: a Workflow's steps could not be read:", readError.message); break; }
       if (!f) { done = true; break; }
       const steps = (f.config as { steps?: StepRow[] } | null)?.steps ?? [];
       let changed = false;
