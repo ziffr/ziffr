@@ -38,7 +38,8 @@ export type PlotMark =
   | { mark: "bar"; show: "values" | RecipeShow; tone?: Tone; when?: Flag[] }
   | { mark: "point"; show: "pairs" | "drivers.pairs"; tone?: Tone; when?: Flag[] }
   | { mark: "band"; show: "target"; when?: Flag[] }
-  | { mark: "rule"; show: "target.min" | "target.max" | RecipeShow; tone?: Tone; when?: Flag[] };
+  | { mark: "rule"; show: "target.min" | "target.max" | RecipeShow; tone?: Tone; when?: Flag[] }
+  | { mark: "range"; show: "forecast.range"; centre?: boolean; tone?: Tone; when?: Flag[] };
 
 /** A part of a design's layout, drawn top to bottom (or side by side in a row group). */
 export type Part =
@@ -46,7 +47,9 @@ export type Part =
   | { mark: "group"; direction: "row" | "column"; align?: "start" | "center"; style?: TextStyle; parts: Part[]; when?: Flag[] }
   | { mark: "plot"; axes: "none" | "compact" | "regular"; x?: "period" | "value"; grid?: "none" | "horizontal" | "both"; scale?: "padded" | "auto" | "tight"; marks: PlotMark[]; when?: Flag[] }
   | { mark: "gauge"; show: "latest"; when?: Flag[] }
-  | { mark: "rows"; show: "values" | "correlations" | "matrix" | "reasons"; limit?: "rows" | number; when?: Flag[] };
+  | { mark: "rows"; show: "values" | "correlations" | "matrix" | "reasons"; limit?: "rows" | number; when?: Flag[] }
+  | { mark: "range"; show: RecipeShow; tone?: Tone; when?: Flag[] }
+  | { mark: "bridge"; show: RecipeShow; when?: Flag[] };
 
 /** A place a design is filled with Metrics when it is used (GLOSSARY: Slot): one, or several for small multiples. */
 export type DesignSlot = { label: string; metrics: "one" | "several"; min?: number };
@@ -96,6 +99,8 @@ const shows = (names: readonly string[], recipe: boolean, what: string): Schema 
   pattern: `^(?:${names.map(esc).join("|")}${recipe ? "|recipe\\.[a-z][a-zA-Z0-9]{0,23}" : ""})$`,
   description: `one of ${names.map((n) => `“${n}”`).join(", ")}${recipe ? `, or “recipe.” and a step of the design's analysis` : ""} (${what})`,
 });
+// A table of the design's analysis, which only a range or a bridge mark draws.
+const recipeTable = (what: string): Schema => ({ type: "string", pattern: "^recipe\\.[a-z][a-zA-Z0-9]{0,23}$", description: `“recipe.” and a step of the design's analysis (${what})` });
 const tone: Schema = { enum: [...TONES], description: "A Theme colour: data, muted, ink, good, bad, accent, or status (by the target: bad when off target)." };
 const mark = (name: string, description: string, props: Record<string, Schema>, required: string[] = []): Schema => ({
   type: "object",
@@ -210,6 +215,8 @@ export const VIEW_DESIGN_SCHEMA: Schema = {
         }, ["axes", "marks"]),
         mark("gauge", "Where the latest value sits against the target.", { show: { const: "latest" } }, ["show"]),
         mark("rows", "Table rows: the latest values; the Metrics ranked by how much they move with the first (correlations), or every pair (matrix); or why Metrics were left out of a comparison (reasons).", { show: { enum: ["values", "correlations", "matrix", "reasons"] }, limit: { oneOf: [{ type: "string", enum: ["rows"] }, { type: "integer", minimum: 1, maximum: 120 }] } }, ["show"]),
+        mark("range", "An interval per row, from its low to its high end, with its middle value: a driver's effect with its range (the table of the `effects` step of the design's analysis).", { show: recipeTable("a table with a low and a high end for each row, from the `effects` step"), tone }, ["show"]),
+        mark("bridge", "A waterfall: a start, each part going up or down, and an end (the table of the `bridge` step of the design's analysis).", { show: recipeTable("the table of the `bridge` step") }, ["show"]),
       ],
     },
     plotMark: {
@@ -220,6 +227,7 @@ export const VIEW_DESIGN_SCHEMA: Schema = {
         mark("point", "One point per period two Metrics share: the first against the second (pairs), or against the one that moves most with it (drivers.pairs).", { show: { enum: ["pairs", "drivers.pairs"] }, tone }, ["show"]),
         mark("band", "The target range.", { show: { const: "target" } }, ["show"]),
         mark("rule", "A straight line across the plot.", { show: shows(["target.min", "target.max"], true, "one value"), tone }, ["show"]),
+        mark("range", "The forecast's likely range at each period, drawn as an interval, with the forecast as its middle value when `centre` is true.", { show: { const: "forecast.range" }, centre: { type: "boolean" }, tone }, ["show"]),
       ],
     },
   },
@@ -312,10 +320,22 @@ function recipeUse(d: ViewDesign, lines: Map<string, number>, at: (path: string,
     if (k === "other") return at(path, `“${show}” is a table, a fit or a Takeaway, or has no unit; marks draw a series or one value.`);
     if (wants !== "any" && k !== wants) at(path, `“${show}” gives ${k === "series" ? "a series" : "one value"}; this mark needs ${wants === "series" ? "a series" : "one value"}.`);
   };
+  // A table is drawn only by the mark made for it: the effects of a fit with their ranges by a range, a bridge's rows by a bridge.
+  const MADE_FOR = { range: "effects", bridge: "bridge" } as const;
+  const useTable = (mark: "range" | "bridge", show: string, path: string) => {
+    const step = show.slice("recipe.".length);
+    if (!d.analysis) return at(path, `shows “${show}”, but the design has no analysis.`);
+    const out = d.analysis.outputs.find((o) => o.step === step);
+    if (!out) return at(path, `“${step}” is not an output of the design's analysis.`);
+    const fn = d.analysis.steps.find((x) => x.id === step)?.fn;
+    if (!("shows" in out) || out.shows !== "table") return at(path, `“${show}” is not a table; a ${mark} mark draws the table of ${MADE_FOR[mark]}.`);
+    if (fn !== MADE_FOR[mark]) at(path, `“${show}” is the table of ${fn}; a ${mark} mark draws the table of ${MADE_FOR[mark]}.`);
+  };
   const walk = (parts: Part[], path: string) =>
     parts.forEach((p, n) => {
       const here = `${path}[${n}]`;
       if (p.mark === "group") walk(p.parts, `${here}.parts`);
+      if (p.mark === "range" || p.mark === "bridge") useTable(p.mark, p.show, `${here}.show`);
       if (p.mark === "plot") p.marks.forEach((m, k) => use(m.show, `${here}.marks[${k}].show`, m.mark === "rule" ? "value" : "series"));
       if (p.mark === "text") p.content.forEach((c, k) => typeof c !== "string" && use(c.show, `${here}.content[${k}].show`, "any"));
     });
@@ -337,4 +357,16 @@ function ordered(v: unknown, raw: Schema | undefined): unknown {
   const props = (branch ?? s)?.properties ?? {};
   const keys = [...Object.keys(props).filter((k) => k in o), ...Object.keys(o).filter((k) => !(k in props)).sort()];
   return Object.fromEntries(keys.map((k) => [k, ordered(o[k], props[k])]));
+}
+
+/** The tables of the design's analysis that its marks draw, each with the mark that draws it (a range or a bridge), in the order they appear. */
+export function drawnTables(d: ViewDesign): { step: string; mark: "range" | "bridge" }[] {
+  const out: { step: string; mark: "range" | "bridge" }[] = [];
+  const walk = (parts: Part[]) =>
+    parts.forEach((p) => {
+      if (p.mark === "group") walk(p.parts);
+      else if ((p.mark === "range" || p.mark === "bridge") && p.show.startsWith("recipe.")) out.push({ step: p.show.slice("recipe.".length), mark: p.mark });
+    });
+  walk(d.parts);
+  return out;
 }

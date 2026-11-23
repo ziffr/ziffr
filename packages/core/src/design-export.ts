@@ -21,7 +21,8 @@ export function nativeForm(d: ViewDesign, settings: WidgetSettings): NativeForm 
   const parts = flat(d.parts).filter((p) => !(p.mark === "text" && p.style === "note") && !(p.mark === "plot" && p.axes === "none"));
   if (parts.length === 1 && parts[0].mark === "rows" && parts[0].show === "values") return "table";
   if (parts.length === 1 && parts[0].mark === "plot" && parts[0].x !== "value") {
-    const marks = parts[0].marks.filter(drawn).filter((k) => !LEFT_OUT.includes(k.show));
+    // A range is never left out: PowerPoint has no chart that draws it, so a design that has one becomes a picture.
+    const marks = parts[0].marks.filter(drawn).filter((k) => k.mark === "range" || !LEFT_OUT.includes(k.show));
     if (marks.length === 1 && marks[0].show === "values") return marks[0].mark === "line" ? "line" : marks[0].mark === "bar" ? "bar" : "picture";
     return "picture";
   }

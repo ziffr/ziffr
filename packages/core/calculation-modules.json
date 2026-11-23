@@ -56,5 +56,6 @@
   "src/methods/before-after.ts",
   "src/methods/change-point.ts",
   "src/methods/fractions.ts",
-  "src/methods/carry-over.ts"
+  "src/methods/carry-over.ts",
+  "src/mark-figures.ts"
 ]

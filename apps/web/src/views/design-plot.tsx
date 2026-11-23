@@ -21,7 +21,7 @@ type Plot = Extract<Part, { mark: "plot" }>;
 type Row = { period: string; value?: number; fc?: number; band?: [number, number]; partial?: number; target?: number; [recipe: `recipe:${string}`]: number | undefined };
 
 // Theme tokens only: a design names a role, the Theme gives it a colour.
-const TONE: Record<Exclude<Tone, "status">, string> = { data: "var(--color-data)", muted: "var(--color-muted)", ink: "var(--color-ink)", good: "var(--color-success)", bad: "var(--color-error)", accent: "var(--color-accent)" };
+export const TONE: Record<Exclude<Tone, "status">, string> = { data: "var(--color-data)", muted: "var(--color-muted)", ink: "var(--color-ink)", good: "var(--color-success)", bad: "var(--color-error)", accent: "var(--color-accent)" };
 
 // Axis words grow with the card (widget scale, #763): 1 in a usual Widget, so they read as they always did.
 const tick = (size: number, figures = false) => ({ fontSize: size, fill: "var(--color-muted)", ...(figures ? { fontFamily: "var(--font-outlier)" } : {}) });
@@ -112,7 +112,9 @@ function PeriodPlot({ part, marks, v, onPointContext }: { part: Plot; marks: Plo
   const margin = ctx ? { top: 18 * s, right: 6 * s, bottom: 18 * s, left: 6 * s } : none ? undefined : compact ? { top: 4 * s, right: 4 * s, bottom: 0, left: 0 } : { top: 12 * s, right: 12 * s, bottom: 0, left: 8 * s };
   // A popup on each point wherever there is an axis, and on a sparkline once it has room for its context.
   const tips = !none || !!ctx;
-  const aria = !tips ? undefined : none ? `${m.name}, ${spanCount(pts.length, v.by)}` : `${m.name}, ${spanCount(pts.length, v.by)}${pts.length ? `, latest ${formatValue(m, pts[pts.length - 1].value, data.numberStyle)}` : ""}`;
+  const rangeEnd = marks.some((k) => k.mark === "range") ? fc?.[fc.length - 1] : undefined;
+  // A range is also said in words, so its numbers are not read off the drawing alone.
+  const aria = !tips ? undefined : none ? `${m.name}, ${spanCount(pts.length, v.by)}` : `${m.name}, ${spanCount(pts.length, v.by)}${pts.length ? `, latest ${formatValue(m, pts[pts.length - 1].value, data.numberStyle)}` : ""}${rangeEnd ? `, forecast ${formatValue(m, rangeEnd.value, data.numberStyle)}, likely between ${formatValue(m, rangeEnd.lo, data.numberStyle)} and ${formatValue(m, rangeEnd.hi, data.numberStyle)}` : ""}`;
 
   const chart = (
       <ResponsiveContainer width="100%" height="100%">
@@ -191,6 +193,12 @@ function PeriodPlot({ part, marks, v, onPointContext }: { part: Plot; marks: Plo
                   />,
                 ];
               }
+              case "range":
+                // The forecast's likely range at each period as an interval (a floating bar), with the forecast as its middle value on request.
+                return fc ? [
+                  <Bar key={`${i}-range`} dataKey="band" barSize={Math.max(4, 8 * s)} radius={2} isAnimationActive={false} fill={lineTone(k.tone)} fillOpacity={0.3} stroke={lineTone(k.tone)} />,
+                  ...(k.centre ? [<Line key={`${i}-centre`} dataKey="fc" stroke="none" dot={{ r: 3 * s, fill: lineTone(k.tone), stroke: "var(--color-cotton)" }} activeDot={false} isAnimationActive={false} />] : []),
+                ] : null;
               case "point":
                 return null;
             }

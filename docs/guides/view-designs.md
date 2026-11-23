@@ -55,6 +55,8 @@ The exact format is the JSON Schema in [`docs/reference/view-design.schema.json`
 | `group` | Parts side by side (`direction: "row"`) or stacked (`"column"`), `align: "center"` to centre them. |
 | `plot` | A chart. `axes`: `none`, `compact` or `regular`. `x`: `period` (default) or `value` for pairs. `grid`: `none`, `horizontal`, `both`. `scale`: `padded`, `auto` or `tight`. `marks` are drawn in order. |
 | `gauge` | Where the latest value sits against the target. |
+| `range` | One interval per row, from its low to its high end, with its middle value: a driver's effect with its range. `show` is `recipe.` and the step of a `effects` step of the design's analysis (format `ziffr.analysis/2`). |
+| `bridge` | A waterfall: a start, each part going up or down, and an end. `show` is `recipe.` and the step of a `bridge` step of the design's analysis. |
 | `rows` | Table rows: `values` (the latest values, `limit` rows), `correlations` (Metrics ranked by how they move with the first), `matrix` (every pair) or `reasons` (why a Metric was left out). |
 
 ### Marks in a plot
@@ -67,6 +69,7 @@ The exact format is the JSON Schema in [`docs/reference/view-design.schema.json`
 | `point` | `pairs` (the first Metric against the second) or `drivers.pairs`. |
 | `band` | `target`, the Target Range. |
 | `rule` | `target.min`, `target.max`, or one value of a recipe. |
+| `range` | `forecast.range`: the forecast's likely range at each period as an interval; `centre: true` marks the forecast in it. |
 
 ### Values in words
 
