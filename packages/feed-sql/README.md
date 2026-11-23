@@ -53,7 +53,7 @@ The BigQuery and Snowflake drivers are optional: a file that names one when its 
 
 ## Snowflake
 
-Set `dialect: snowflake` and install the driver next to the Feed (`npm install snowflake-sdk`). Login is by key pair and comes from the environment only; the file may name `warehouse`, `role`, `database` and `schema` (names, never secrets):
+Set `dialect: snowflake` and install the vendor package yourself, next to the Feed (`npm install snowflake-sdk`); it is not a dependency of `@ziffr/feed-sql`, which only loads it when the file asks for Snowflake. Login is by key pair and comes from the environment only; the file may name `warehouse`, `role`, `database` and `schema` (names, never secrets):
 
 ```yaml
 name: Warehouse
