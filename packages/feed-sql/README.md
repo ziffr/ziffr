@@ -2,6 +2,16 @@
 
 A ready [Ziffr](https://github.com/ziffr/ziffr) Feed for SQL databases: one Postgres query per Metric gives each period's value, and the [feed kit](../feed-kit/README.md) records it in Ziffr on a schedule. No code to write. MIT licensed, Node 20 or later. It also serves as the reference example of a Feed built on `@ziffr/feed-kit`.
 
+## Which one do I use
+
+| Your numbers are in | Use |
+| --- | --- |
+| Postgres | This Feed, below |
+| BigQuery or Snowflake, and you can run a command on a schedule | This Feed with `dialect: bigquery` or `snowflake` ([Dialects](#dialects)) |
+| BigQuery or Snowflake, and you already use n8n | The n8n templates ([BigQuery](../../docs/automations/bigquery-feed.md), [Snowflake](../../docs/automations/snowflake-feed.md)) |
+
+The user guide's chapter [Fill from a data warehouse](../../docs/user-guide/10-metrics.md#fill-from-a-data-warehouse) walks through each warehouse end to end: the read-only role, the cost limits and how to schedule it. Ziffr never holds the warehouse login.
+
 ## Setting it up
 
 1. In Ziffr, an Owner or Admin opens Settings, Feeds, creates a Feed ("Warehouse") and a Feed Key, and copies the key. Each Metric's owner adds the Feed on the Metric's Description tab, "Who submits".
