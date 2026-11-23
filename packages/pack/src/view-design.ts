@@ -52,7 +52,11 @@ export type Part =
   | { mark: "bridge"; show: RecipeShow; when?: Flag[] }
   | { mark: "polar"; show: "values" | RecipeShow; when?: Flag[] }
   | { mark: "radar"; show: "latest"; against?: "previous"; when?: Flag[] }
-  | { mark: "tree"; show: "formula"; when?: Flag[] };
+  | { mark: "tree"; show: "formula"; when?: Flag[] }
+  | { mark: "scoreboard"; show: "latest"; when?: Flag[] };
+
+/** How many Metrics a scoreboard has rows for, at least and at most: fewer than 3 read better as number Widgets, more than 12 cannot be taken in at a glance. */
+export const SCOREBOARD = { min: 3, max: 12 } as const;
 
 /** How many spokes (a radar) or periods (a polar plot) are drawn, at least and at most: fewer than 3 is a line, more than 12 cannot be read. */
 export const SPOKES = { min: 3, max: 12 } as const;
@@ -224,6 +228,7 @@ export const VIEW_DESIGN_SCHEMA: Schema = {
         mark("polar", `Values around a circle: the periods of a series as angles in the order given, the values as the distance from the centre, which is 0; ${SPOKES.min} to ${SPOKES.max} periods, none below 0.`, { show: shows(["values"], true, "a series") }, ["show"]),
         mark("radar", `Several Metrics as spokes on one shape, in the order of the Slots, ${SPOKES.min} to ${SPOKES.max} of them: each spoke has its own scale, from the Metric's lowest value of the periods shown at the centre to its highest at the rim. With against, the period before is drawn as a second, dashed shape.`, { show: { const: "latest" }, against: { const: "previous" } }, ["show"]),
         mark("tree", "The parts of a Derived Metric's formula as boxes, from the Metric's own value in its latest period down through each part, every box an exact number: the parts of a sum share the width of the box above them by their size, the factors of a product or a ratio are laid side by side equally and are not to scale. The first Slot must be a Derived Metric whose inputs are all shared with the viewer; at most 4 levels and 24 boxes.", { show: { const: "formula" } }, ["show"]),
+        mark("scoreboard", `One row for each of ${SCOREBOARD.min} to ${SCOREBOARD.max} Metrics, in the order of the Slots: its name, latest value, change against the previous period, whether it is on target, and a small trend.`, { show: { const: "latest" } }, ["show"]),
         mark("range", "One bar per row, from its low to its high end, with its middle value: a driver's effect with its range (the table of the `effects` step of the design's analysis).", { show: recipeTable("a table with a low and a high end for each row, from the `effects` step"), tone }, ["show"]),
         mark("bridge", "Steps from a start, each part going up or down, and an end (the table of the `bridge` step of the design's analysis).", { show: recipeTable("the table of the `bridge` step") }, ["show"]),
       ],
@@ -301,6 +306,7 @@ function meaning(d: ViewDesign, lines: Map<string, number>): Problem[] {
       if (p.mark === "rows" && p.limit === "rows" && !d.options?.rows) at(`${here}.limit`, "uses the option “rows”, which the design does not declare under options.");
       if (p.mark === "rows" && p.show !== "values") needsTwo(here, `Rows of ${p.show}`);
       if (p.mark === "radar" && (fewest < SPOKES.min || fewest > SPOKES.max)) at(here, `A radar needs ${SPOKES.min} to ${SPOKES.max} spokes: give the design ${SPOKES.min} Slots, or a Slot of several with “min”: ${SPOKES.min}, and no more than ${SPOKES.max} in all.`);
+      if (p.mark === "scoreboard" && (fewest < SCOREBOARD.min || fewest > SCOREBOARD.max)) at(here, `A scoreboard needs ${SCOREBOARD.min} to ${SCOREBOARD.max} Metrics: give the design a Slot of several with “min”: ${SCOREBOARD.min}, and no more than ${SCOREBOARD.max} in all.`);
     });
   walk(d.parts, "parts");
   recipeUse(d, lines, at);

@@ -1,0 +1,11 @@
+{
+  "format": "ziffr.view/1",
+  "name": "Scoreboard",
+  "description": "Several Metrics in one table: latest value, change, status and a small trend.",
+  "kind": "analysis",
+  "slots": [{ "label": "Metrics", "metrics": "several", "min": 3 }],
+  "size": { "w": 6, "h": 8 },
+  "options": { "window": { "label": "Trend periods", "default": 12 } },
+  "empty": "Drop 3 to 12 Metrics.",
+  "parts": [{ "mark": "scoreboard", "show": "latest" }]
+}
