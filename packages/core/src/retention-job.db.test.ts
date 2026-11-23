@@ -266,6 +266,9 @@ describe("deleting", () => {
     // A Breakdown row replaced by a later one stays in its history, and goes with the value: the download holds it too.
     await db().from("breakdown_rows").delete().eq("observation_id", first!.id);
     await db().from("breakdown_rows").insert([{ observation_id: first!.id, label: "North", value: 2, workspace_id: w.id }]);
+    // A part of that row (spec 0041, ticket 12) goes into the download with the name of the row it is a part of.
+    const north = (await db().from("breakdown_rows").select("id").eq("observation_id", first!.id).single()).data!;
+    await db().from("breakdown_rows").insert([{ observation_id: first!.id, label: "Hub", value: 1, parent_id: north.id, workspace_id: w.id }]);
     await db().from("series_values").insert([{ metric_id: m.id, kind: "target", period_start: "2022-01-03", value: 3, workspace_id: w.id }, { metric_id: m.id, kind: "projection", period_start: "2022-01-04", value: 3, workspace_id: w.id }]);
     await w.lock(m.id, "2022-01-05");
     // Open work holds one period back: neither in the download nor deleted.
@@ -273,12 +276,14 @@ describe("deleting", () => {
     const { p } = await turnOn(w, actor, m.id, DELETE);
     const csv = await retentionValuesCsv(actor, m.id, DELETE);
     const lines = csv.trim().split("\r\n");
-    expect(lines[0]).toBe('"Metric","Period","What","Value","Label","Recorded on","Source"');
+    expect(lines[0]).toBe('"Metric","Period","What","Value","Label","Recorded on","Source","Part of"');
     const kinds = (what: string) => lines.filter((l) => l.includes(`"${what}"`)).length;
     expect(kinds("value")).toBe(p.values);
     // The preview counts the replaced Breakdown rows with the Superseded Values.
     expect([kinds("earlier value") + kinds("earlier breakdown row"), kinds("breakdown row"), kinds("target")]).toEqual([p.supersededValues, p.breakdownRows, 1]);
     expect(csv).toContain('"North"');
+    expect(lines.find((l) => l.includes('"Hub"'))!.endsWith('"North"')).toBe(true);
+    expect(lines.filter((l) => l.includes('"breakdown row"') && l.endsWith('""')).length).toBeGreaterThan(0);
     expect(kinds("earlier breakdown row")).toBe(1);
     expect(csv).not.toContain('"2022-02-02"');
     expect(await auditRowsOf(w.id, "export.retention_values")).toHaveLength(1);
