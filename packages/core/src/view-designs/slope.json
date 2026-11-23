@@ -1,0 +1,11 @@
+{
+  "format": "ziffr.view/1",
+  "name": "Slope chart",
+  "description": "Two moments side by side: who rose and who fell between them.",
+  "kind": "analysis",
+  "slots": [{ "label": "Metrics", "metrics": "several" }],
+  "size": { "w": 6, "h": 8 },
+  "options": { "slope": { "label": "Compare", "default": "auto" } },
+  "empty": "Drop a Metric with a Breakdown, or several Metrics in one unit.",
+  "parts": [{ "mark": "slope", "show": "latest" }]
+}

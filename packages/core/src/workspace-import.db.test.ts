@@ -59,7 +59,7 @@ const records = (importerEmail: string): WorkspaceExportRecord[] => [
   { kind: "target", metric: "m1", period: "2026-04-01", min: 10, max: 20 },
   { kind: "target", metric: "m2", period: "2026-04-01", max: 7 },
   { kind: "projection", metric: "m1", period: "2027-04-01", value: 12.5 },
-  { kind: "value", metric: "m1", period: "2026-04-01", value: 14, recordedAt: "2026-05-01T08:00:00Z", source: "slack", submittedBy: "Ada", breakdown: [{ label: "Germany", value: 9 }, { label: "France", value: 5 }] },
+  { kind: "value", metric: "m1", period: "2026-04-01", value: 14, recordedAt: "2026-05-01T08:00:00Z", source: "slack", submittedBy: "Ada", enteredBy: "Ben", breakdown: [{ label: "Germany", value: 9 }, { label: "France", value: 5 }] },
   { kind: "value", metric: "m1", period: "2026-07-01", value: 21.25 },
   { kind: "value", metric: "m3", period: "2026-04-01", value: 3 },
 ];
@@ -109,7 +109,7 @@ describe("a sound file", () => {
     expect(JSON.stringify(flows![0].config)).toContain(person);
     // The values, sealed under the new key, with their Breakdown and recording time; none for the Derived Metric.
     const cipher = await workspaceCipher(ws);
-    const { data: obs } = await db().from("observations").select("id, metric_id, period_start, value, value_sealed, imported, source, created_at, submitter_id, submitted_by_name").eq("workspace_id", ws).order("period_start");
+    const { data: obs } = await db().from("observations").select("id, metric_id, period_start, value, value_sealed, imported, source, created_at, submitter_id, submitted_by_name, entered_by_name").eq("workspace_id", ws).order("period_start");
     expect(obs).toHaveLength(2);
     expect(obs!.every((o) => o.imported && o.submitter_id === null)).toBe(true);
     if (cipher.sealing) expect(obs!.every((o) => o.value === null && typeof o.value_sealed === "string")).toBe(true);
@@ -117,6 +117,8 @@ describe("a sound file", () => {
     expect(opened.map((o) => o.value)).toEqual([14, 21.25]);
     // Who sent it stays as a name, sealed for its row (opened only with this Workspace's key); a value without one has none.
     expect(opened.map((o) => o.submitted_by_name)).toEqual(["Ada", null]);
+    // Who entered it for them stays as a sealed name too (spec 0046).
+    expect(opened.map((o) => o.entered_by_name)).toEqual(["Ben", null]);
     if (cipher.sealing) {
       expect(obs![0].submitted_by_name).not.toBe("Ada");
       expect((await openRows("observations", w.id, obs!)).map((o) => o.submitted_by_name)).toEqual([null, null]);
@@ -143,7 +145,8 @@ describe("a sound file", () => {
     // The name stays off the history read that goes to browsers, and off every read but the Metric page's own.
     const history = await metricHistory({ personId: person, workspaceId: ws, role: "owner" }, orders.id);
     expect(JSON.stringify(history)).not.toContain("Ada");
-    expect(history.observations.every((o) => !("submitted_by_name" in o))).toBe(true);
+    expect(history.observations.every((o) => !("submitted_by_name" in o) && !("entered_by_name" in o))).toBe(true);
+    expect(JSON.stringify(history)).not.toContain("Ben");
     // The audit line says it was imported.
     expect((await db().from("audit_events").select("kind").eq("workspace_id", ws).eq("kind", "workspace.imported")).data).toHaveLength(1);
   });

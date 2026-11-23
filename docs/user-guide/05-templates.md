@@ -20,10 +20,17 @@ A **Widget Template** is a starting point for one Widget: a way of drawing a num
 | | Bars per period | One bar per period, coloured by target |
 | | Gauge vs. target | Where the latest value sits against the target |
 | | History table | The last values as a list |
+| | Stacked bars over time | How a Breakdown changes period by period: one stacked bar each. Offered for a Metric that has a Breakdown |
+| | Pareto | A Breakdown's rows from largest to smallest, with the running share that shows which few make most of it |
+| | Bump chart | How the order of a Breakdown's rows changes from period to period (offered for a Metric that has a Breakdown) |
 | Analyses | Forecast | The trend projected a few periods ahead |
 | | Correlation | Whether two Metrics move together |
 | | Correlation matrix | Every pair of several Metrics at once |
 | | Drivers | Which Metrics move most with this one |
+| | Progress against target | Each Metric's latest value against its target, one compact bar each |
+| | Scoreboard | Several Metrics in one table: latest value, change, status and a small trend |
+| | Slope chart | Two moments side by side: who rose and who fell between them |
+| | Running total against plan | The year so far, added up, against the plan and last year |
 | Findings | Ranked bars | A Breakdown, largest first, one row highlighted |
 | | Part of the whole | How a Breakdown divides the total |
 | | 7 in 10 | The largest share as ten figures |

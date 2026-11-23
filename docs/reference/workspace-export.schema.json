@@ -557,6 +557,13 @@
           "description": "Who submitted it, as a name, never an id.",
           "minLength": 1
         },
+        "enteredBy": {
+          "type": "string",
+          "maxLength": 120,
+          "pattern": "^[^\\p{Cc}\\p{Cs}\\u00AD\\u200B\\u2060\\uFEFF\\u{E0000}-\\u{E007F}\\u2028\\u2029\\u061C\\u200E\\u200F\\u202A-\\u202E\\u2066-\\u2069]*$",
+          "description": "Who entered it for the submitter (a Filled-in Value), as a name, never an id. Left out when the submitter entered it.",
+          "minLength": 1
+        },
         "breakdown": {
           "type": "array",
           "maxItems": 200,

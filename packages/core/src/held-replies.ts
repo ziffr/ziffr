@@ -75,6 +75,10 @@ export async function holdReply(d: RepliedDelivery, text: string, address: strin
     await say("Not recorded", "A checklist message cannot be answered; open the Workflow in Ziffr.");
     return "refused";
   }
+  if (d.kind === "filled_in") {
+    await say("Not recorded", "This message cannot be answered; to replace the value, open the Metric in Ziffr.");
+    return "refused";
+  }
   if (d.kind === "prompt" && d.prompt_id) {
     const { data: prompt } = await db().from("prompts").select("id, source, submitter_id").eq("id", d.prompt_id).eq("workspace_id", d.workspace_id).maybeSingle();
     if (!prompt || prompt.submitter_id !== d.recipient_id) return "unknown_token";

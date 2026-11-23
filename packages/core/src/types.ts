@@ -98,6 +98,10 @@ export type Observation = {
   submitter_id: string | null;
   /** Who sent an imported value, as the Workspace Export named them (opened); null for a value recorded in the app. */
   submitted_by_name?: string | null;
+  /** Who entered it for the submitter (a Filled-in Value, spec 0046), as a person id; null when the submitter entered it. */
+  entered_by?: string | null;
+  /** Who entered an imported value for the submitter, as a name (opened), as submitted_by_name. */
+  entered_by_name?: string | null;
   source: string;
   original_value: number | null;
   /** The Access Key a program submitted it with, if any. */
@@ -111,7 +115,7 @@ export type Observation = {
 export type Point = { period: string; value: number };
 
 /** The standing permission that links one submitter to one metric (GLOSSARY: Token). */
-export type Token = { id: number; code: string; metric_id: number; submitter_id: string };
+export type Token = { id: number; code: string; metric_id: number; submitter_id: string; /** Set on a Stand-in's own Token: the submitter they stand in for. */ stands_in_for?: string | null };
 
 /** A message asking a submitter for a value (GLOSSARY: Prompt). */
 export type Prompt = {
@@ -196,7 +200,7 @@ export type Dashboard = {
 };
 
 /** The built-in Widget Templates. */
-export type TemplateId = "number" | "line" | "bars" | "gauge" | "table" | "forecast" | "correlation" | "matrix" | "drivers" | "ranked" | "share" | "pictogram" | "story-line" | "story" | "canvas" | "design";
+export type TemplateId = "number" | "line" | "bars" | "gauge" | "table" | "forecast" | "correlation" | "matrix" | "drivers" | "scoreboard" | "progress" | "stacked" | "pareto" | "slope" | "running-total" | "bump" | "ranked" | "share" | "pictogram" | "story-line" | "story" | "canvas" | "design";
 
 /** A callout sits at one period, or (in templates) at whatever period a rule picks. */
 export type Callout = { period: string; text: string; rule?: AnchorRule };
@@ -246,6 +250,8 @@ export type WidgetSettings = {
   showTarget?: boolean;
   showForecast?: boolean;
   rows?: number;
+  /** What a slope chart compares (GLOSSARY: View Design); absent means what was placed. */
+  slope?: import("./slope-chart").SlopeChoice;
   /** Findings (GLOSSARY: Finding). Empty fields fall back to text drawn from the data. */
   kicker?: string;
   footnote?: string;
@@ -481,7 +487,9 @@ export type WorkflowStep =
   // `text` is sealed inside the stored config; `readGroup` keeps the item's words to one Group's people (and its owner).
   | ChecklistItem
   // Takes and sends the period's Snapshot of a dashboard once the period is finished (GLOSSARY: Send Snapshot; ticket #793).
-  | { type: "send_snapshot"; id: string; dashboardId: number; people: string[]; groups: number[] };
+  // `dashboardId` 0 is a dashboard not picked yet (a template's); `addedOn` (yyyy-mm-dd) is the day it was first saved: a
+  // period that finished before it is not sent.
+  | { type: "send_snapshot"; id: string; dashboardId: number; people: string[]; groups: number[]; addedOn?: string };
 /** A Checklist Item as stored: for information, or to tick off. */
 /** `addedOn` (yyyy-mm-dd) is the day the item was first saved: an item sends no period whose day came before it. */
 export type ChecklistItem = { type: "checklist"; id: string; text: string; readGroup?: number; addedOn?: string } & (

@@ -38,7 +38,7 @@ export async function getMetrics(ws: string): Promise<Metric[]> {
 /** A stored value with its numbers as numbers (the database sends numeric columns as text or JSON numbers). Values are
  * sealed with the Workspace Key (spec 0028): they are opened by openObservations first. */
 const toObservation = (o: Record<string, unknown>, names = false): Observation =>
-  ({ ...(names ? o : { ...o, submitted_by_name: undefined }), value: Number(o.value), original_value: o.original_value === null || o.original_value === undefined ? null : Number(o.original_value) }) as Observation;
+  ({ ...(names ? o : { ...o, submitted_by_name: undefined, entered_by_name: undefined }), value: Number(o.value), original_value: o.original_value === null || o.original_value === undefined ? null : Number(o.original_value) }) as Observation;
 
 /** Observations as stored, their values opened and read as numbers. A value that does not open (changed in the database,
  * or under a destroyed key) is left out: a missing value, never its ciphertext or a made-up number. */

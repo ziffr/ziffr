@@ -32,6 +32,8 @@ const ICON: Record<WorkflowStep["type"], typeof BellRing> = { remind: BellRing, 
 const newTell = (): WorkflowStep => ({ type: "tell", id: crypto.randomUUID(), condition: { kind: "share_of_target", share: "80" }, people: [], groups: [] });
 /** A new Checklist Item for information; its id names it for its claim and is kept by the server. */
 const newItem = (): WorkflowStep => ({ type: "checklist", id: crypto.randomUUID(), kind: "info", text: "", day: 1, people: [], groups: [] });
+/** A new Send Snapshot step with no dashboard picked yet; its id names it for its claim and is kept by the server. */
+const newSend = (): WorkflowStep => ({ type: "send_snapshot", id: crypto.randomUUID(), dashboardId: 0, people: [], groups: [] });
 const NEW_STEP: Record<Exclude<WorkflowStep["type"], "tell" | "checklist" | "send_snapshot">, WorkflowStep> = {
   remind: { type: "remind", daysBefore: 2 },
   escalate: { type: "escalate", to: "stand-in", daysAfter: 0 },
@@ -47,7 +49,9 @@ type Tok = { metric_id: number; submitter_id: string; stand_in_id: string | null
 /** When Workflows run in a real workspace, and its last run; null in the demo, which pretends a day instead. */
 type Schedule = { timeZone: string; runHour: number; today: string; hour: number; todayRan: boolean; lastRun: RunInfo | null; scheduled: boolean };
 
-export function WorkflowsScreen({ viewer, people, feeds = [], metrics, workflows, current, states, tokens, asOf, schedule, askingRun = null, canRun, yearStart, templates = [], canCreate = true, timelines = [], tellFacts = { groups: [], webhooks: [], steps: [] }, checklistPaused = null }: {
+export function WorkflowsScreen({ viewer, people, feeds = [], metrics, workflows, current, states, tokens, asOf, schedule, askingRun = null, canRun, yearStart, templates = [], canCreate = true, timelines = [], tellFacts = { groups: [], webhooks: [], steps: [] }, checklistPaused = null, dashboards = [] }: {
+  /** The dashboards this viewer may open, and whether they may pick one for a Send Snapshot step (decided in the core). */
+  dashboards?: { id: number; name: string; pick: boolean }[];
   /** Why this Workflow's checklist items wait, for its owner (decided in the core). */
   checklistPaused?: "none" | "mixed" | null;
   /** Groups a Tell step may name, and who each of the Workflow's Tell steps skips (decided in the core). */
@@ -124,7 +128,7 @@ export function WorkflowsScreen({ viewer, people, feeds = [], metrics, workflows
                 {cfg.asking && <p className="mt-1 text-xs text-muted-foreground"><AskingSentence asking={cfg.asking} clock={clock} /></p>}
               </Node>
               {steps.map((s, i) => (
-                <Node key={i} icon={ICON[s.type]} title={STEP_TITLE[s.type]} text={stepLabel(s, people, tellFacts.groups)}
+                <Node key={i} icon={ICON[s.type]} title={STEP_TITLE[s.type]} text={stepLabel(s, people, tellFacts.groups, dashboards)}
                   controls={canEdit && (
                     <span className="flex gap-0.5">
                       {s.type !== "publish" && i > 0 && <IconBtn label={`Move ${STEP_TITLE[s.type]} (step ${i + 1}) earlier`} onClick={() => move(i, -1)}><ArrowUp className="size-3.5" /></IconBtn>}
@@ -133,20 +137,22 @@ export function WorkflowsScreen({ viewer, people, feeds = [], metrics, workflows
                     </span>
                   )}
                 >
-                  {canEdit && <StepFields s={s} people={people} submitters={submitters} tellFacts={tellFacts} onChange={(x) => setStep(i, x)} />}
+                  {canEdit && <StepFields s={s} people={people} submitters={submitters} tellFacts={tellFacts} dashboards={dashboards} lockHeld={steps.some((x) => x.type === "send_snapshot")} onChange={(x) => setStep(i, x)} />}
                 </Node>
               ))}
             </ol>
 
-            {checklistPaused && canEdit && <p role="note" className="mt-3 pl-12 text-xs text-[var(--color-ink)]">The checklist items wait: {checklistPaused === "none" ? "this Workflow asks for no Metric" : "its Metrics do not all have the same period"}, and an item belongs to one period. They go on when its Metrics agree on a period.</p>}
+            {checklistPaused && canEdit && <p role="note" className="mt-3 pl-12 text-xs text-[var(--color-ink)]">The checklist items and the Send Snapshot step wait: {checklistPaused === "none" ? "this Workflow asks for no Metric" : "its Metrics do not all have the same period"}, and they belong to one period. They go on when its Metrics agree on a period.</p>}
+            {canEdit && steps.some((x) => x.type === "send_snapshot") && onIt.length > 0 && onIt.every((m) => m.period === "day") && <p role="note" className="mt-3 pl-12 text-xs text-[var(--color-ink)]">The Send Snapshot step waits: a Snapshot covers a week or longer, and this Workflow&apos;s Metrics have a period of a day.</p>}
             {canEdit && (
               <div className="mt-4 flex flex-wrap gap-2 pl-12">
                 <DropdownMenu>
                   <DropdownMenuTrigger className="inline-flex min-h-9 items-center gap-1.5 rounded-[var(--radius-input)] border border-input bg-card px-3 text-sm"><Plus aria-hidden className="size-4" /> Add step</DropdownMenuTrigger>
                   <DropdownMenuContent>
-                    {(["remind", "escalate", "check", "approve", "tell", "checklist"] as const).filter((t) => t === "tell" ? steps.filter((x) => x.type === "tell").length < TELL_STEPS_PER_WORKFLOW : t === "checklist" ? steps.filter((x) => x.type === "checklist").length < CHECKLIST_ITEMS_PER_WORKFLOW : (t !== "check" && t !== "approve") || !steps.some((x) => x.type === t)).map((t) => {
+                    {(["remind", "escalate", "check", "approve", "tell", "checklist", "send_snapshot"] as const).filter((t) => t === "tell" ? steps.filter((x) => x.type === "tell").length < TELL_STEPS_PER_WORKFLOW : t === "checklist" ? steps.filter((x) => x.type === "checklist").length < CHECKLIST_ITEMS_PER_WORKFLOW : (t !== "check" && t !== "approve" && t !== "send_snapshot") || !steps.some((x) => x.type === t)).map((t) => {
                       const Icon = ICON[t];
-                      return <DropdownMenuItem key={t} onClick={() => { const at = steps.findIndex((x) => x.type === "publish"); const s = [...steps]; s.splice(at < 0 ? s.length : at, 0, t === "tell" ? newTell() : t === "checklist" ? newItem() : NEW_STEP[t]); setCfg({ ...cfg, steps: s }); }}><Icon aria-hidden /> {STEP_TITLE[t]}</DropdownMenuItem>;
+                      // Send Snapshot goes when the period is finished, which needs a locking Publish step: adding it ticks the lock.
+                      return <DropdownMenuItem key={t} onClick={() => { const at = steps.findIndex((x) => x.type === "publish"); const s = (t === "send_snapshot" ? steps.map((x) => (x.type === "publish" ? { ...x, lock: true } : x)) : [...steps]); s.splice(at < 0 ? s.length : at, 0, t === "tell" ? newTell() : t === "checklist" ? newItem() : t === "send_snapshot" ? newSend() : NEW_STEP[t]); setCfg({ ...cfg, steps: s }); }}><Icon aria-hidden /> {STEP_TITLE[t]}</DropdownMenuItem>;
                     })}
                   </DropdownMenuContent>
                 </DropdownMenu>
@@ -235,7 +241,7 @@ function IconBtn({ label, onClick, children }: { label: string; onClick: () => v
   return <button type="button" aria-label={label} title={label} onClick={onClick} className="flex size-7 items-center justify-center rounded-[var(--radius-input)] text-muted-foreground hover:bg-muted hover:text-foreground">{children}</button>;
 }
 
-function StepFields({ s, people, submitters, tellFacts, onChange }: { s: WorkflowStep; people: Profile[]; submitters: Set<string>; tellFacts: TellEditorFacts; onChange: (s: WorkflowStep) => void }) {
+function StepFields({ s, people, submitters, tellFacts, dashboards, lockHeld, onChange }: { s: WorkflowStep; people: Profile[]; submitters: Set<string>; tellFacts: TellEditorFacts; dashboards: { id: number; name: string; pick: boolean }[]; lockHeld: boolean; onChange: (s: WorkflowStep) => void }) {
   const field = "h-8 rounded-[var(--radius-input)] border border-input bg-card px-2 text-xs";
   const num = (v: number, set: (n: number) => void, max = 30) => <input type="number" min={0} max={max} value={v} onChange={(e) => set(Number(e.target.value))} className={cn(field, "w-16")} />;
   return (
@@ -288,7 +294,8 @@ function StepFields({ s, people, submitters, tellFacts, onChange }: { s: Workflo
       )}
       {s.type === "tell" && <TellFields s={s} people={people} tellFacts={tellFacts} onChange={onChange} field={field} />}
       {s.type === "checklist" && <ChecklistFields s={s} people={people} tellFacts={tellFacts} onChange={onChange} field={field} />}
-      {s.type === "publish" && <label className="flex items-center gap-1.5"><input type="checkbox" checked={s.lock} onChange={(e) => onChange({ ...s, lock: e.target.checked })} className="size-4 accent-[var(--color-ink)]" /> lock the period once published</label>}
+      {s.type === "send_snapshot" && <SnapshotFields s={s} people={people} dashboards={dashboards} tellFacts={tellFacts} onChange={onChange} field={field} />}
+      {s.type === "publish" && <label className="flex items-center gap-1.5"><input type="checkbox" checked={s.lock} disabled={lockHeld} onChange={(e) => onChange({ ...s, lock: e.target.checked })} className="size-4 accent-[var(--color-ink)]" /> lock the period once published{lockHeld && <span>(kept on: the Send Snapshot step waits for the lock)</span>}</label>}
     </div>
   );
 }
@@ -349,6 +356,26 @@ function ChecklistFields({ s, people, tellFacts, onChange, field }: { s: Extract
       {s.people.length === 0 && s.groups.length === 0 && <span role="note" className="basis-full text-[var(--color-ink)]">Nobody is chosen yet, so nothing is sent.</span>}
       <span className="basis-full">Sent once for each period, by each person&apos;s Delivery Preference, after their Quiet Hours, and never more than {TELL_PEOPLE_PER_STEP} people. It holds your words and a link, no value. Only members with a sign-in get it, and each can stop it in Your settings.</span>
       {readers}
+    </>
+  );
+}
+
+/** A Send Snapshot step's fields: the dashboard and who gets a link to its Snapshot. The server checks again that the dashboard
+ * is one the owner may take a Snapshot of, and each recipient is checked for opening it when the link is sent. */
+function SnapshotFields({ s, people, dashboards, tellFacts, onChange, field }: { s: Extract<WorkflowStep, { type: "send_snapshot" }>; people: Profile[]; dashboards: { id: number; name: string; pick: boolean }[]; tellFacts: TellEditorFacts; onChange: (s: WorkflowStep) => void; field: string }) {
+  return (
+    <>
+      <label className="flex items-center gap-1.5">
+        <span>Dashboard</span>
+        <select aria-label="Dashboard whose Snapshot is sent" value={s.dashboardId || ""} onChange={(e) => onChange({ ...s, dashboardId: Number(e.target.value) || 0 })} className={field}>
+          <option value="">Pick a dashboard…</option>
+          {dashboards.filter((d) => d.pick || d.id === s.dashboardId).map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}
+        </select>
+      </label>
+      <span className="basis-full">Send to</span>
+      <Recipients named={s} people={people} groups={tellFacts.groups} field={field} onChange={(r) => onChange({ ...s, ...r })} />
+      {(!s.dashboardId || (s.people.length === 0 && s.groups.length === 0)) && <span role="note" className="basis-full text-[var(--color-ink)]">{!s.dashboardId ? "No dashboard is picked yet" : "Nobody is chosen yet"}, so nothing is sent.</span>}
+      <span className="basis-full">Once the period is finished (every value locked and every checklist task done) it takes the period&apos;s Snapshot in your name, shows it, and sends each person who may open the dashboard a link to it, once for each period. The message holds no value and no Metric name; each person sees only the Metrics they may see. People who may not open the dashboard are skipped and you are told who: share it with them and they get the next one. Only members with a sign-in get it, and each can stop it in Your settings.</span>
     </>
   );
 }
