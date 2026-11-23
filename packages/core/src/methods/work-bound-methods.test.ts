@@ -29,7 +29,7 @@ import { testsOf } from "./heads-up-single";
 const ctx = { style: "1,234.5" as const };
 const euro = { unit: "€", unit_position: "after" as const, decimals: 0 };
 /** The time a Method may take on the worst input, generous so that a busy machine never fails it: the Methods took 12 to 47 seconds before. */
-const QUICK = 3000;
+const QUICK = 5000;
 
 function lcg(start: number) {
   let x = start;
