@@ -12,7 +12,8 @@ declare
   owner_p date := (date_trunc('month', current_date) - interval '5 months')::date;
   orders_id int; cost_id int; o record; first_value numeric;
 begin
-  if exists (select 1 from observations where workspace_id = demo and entered_by is not null) then return; end if;
+  -- Once only: the Audit Log row is the mark, as it outlives a value being replaced (a rerun adds no history or audit rows).
+  if exists (select 1 from audit_events where workspace_id = demo and kind = 'value.filled_in') then return; end if;
   select id into orders_id from metrics where workspace_id = demo and slug = 'orders';
   select id into cost_id from metrics where workspace_id = demo and slug = 'cost';
   perform set_config('ziffr.demo_seed', 'on', true);

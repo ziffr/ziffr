@@ -37,12 +37,13 @@ async function setup() {
 
 describe("the API's read field", () => {
   it("names who entered a value to a member's key, and nothing to a Guest's", async () => {
-    const { mia, viewer, gus, m, name, keyFor } = await setup();
+    const { ben, mia, viewer, gus, m, name, keyFor } = await setup();
     const member = await listObservations(await keyFor(viewer, "member"), m.slug, { limit: 10 });
     expect(member.items[0]).toMatchObject({ value: 42, entered_by: mia, entered_by_name: await name(mia) });
     const guest = await listObservations(await keyFor(gus, "guest"), m.slug, { limit: 10 });
-    expect(guest.items[0]).toMatchObject({ value: 42, entered_by: null, entered_by_name: null });
+    expect(guest.items[0]).toMatchObject({ value: 42, submitter: null, submitter_name: null, entered_by: null, entered_by_name: null });
     expect(JSON.stringify(guest)).not.toContain(mia);
+    expect(JSON.stringify(guest)).not.toContain(ben);
   });
 
   it("is null when the submitter entered the value", async () => {

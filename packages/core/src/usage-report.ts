@@ -207,8 +207,8 @@ export async function workspaceUsage(actor: Actor, now: Date = new Date()): Prom
 
   // Filled-in Values count as the submitter's (by submitter_id); the ones someone else entered are counted apart, for the
   // Metrics the actor sees only. Counts and names of people in this Workspace, never a value.
-  const windowRows = await allRows<{ metric_id: number; submitter_id: string | null; entered_by: string | null }>((from, to) =>
-    db().from("observations").select("metric_id, submitter_id, entered_by").eq("workspace_id", ws).gte("created_at", `${cutoff}T00:00:00Z`).order("id").range(from, to));
+  const windowRows = !visibleIds.size ? [] : await allRows<{ metric_id: number; submitter_id: string | null; entered_by: string | null }>((from, to) =>
+    db().from("observations").select("metric_id, submitter_id, entered_by").eq("workspace_id", ws).in("metric_id", [...visibleIds]).gte("created_at", `${cutoff}T00:00:00Z`).order("id").range(from, to));
   const filled = new Map<string, FilledInFor>();
   for (const r of windowRows) {
     if (!r.submitter_id || !visibleIds.has(r.metric_id)) continue;

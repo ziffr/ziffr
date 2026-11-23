@@ -198,7 +198,7 @@ export async function listObservations(actor: Actor | KeyActor, slug: string, ra
   return {
     items: page.map((p) => p.condensed
       ? { period: p.period, period_end: p.condensed.periodEnd, condensed_from: p.condensed.held, value: p.value, state: "locked" as const, submitter: null, submitter_name: null, submitted_at: null, source: null, has_thread: false, breakdown: null, entered_by: null, entered_by_name: null }
-      : { period: p.period, value: p.value, state: stateOf.get(p.period) ?? "recorded", submitter: latest.get(p.period)?.submitter_id ?? null, submitter_name: names.get(latest.get(p.period)?.submitter_id ?? "") ?? null, submitted_at: latest.get(p.period)?.created_at ?? null, source: latest.get(p.period)?.source ?? null, has_thread: withThread.has(p.period), breakdown: breakdowns[metric.id]?.[p.period] ?? null, entered_by: enteredBy.get(p.period) ?? null, entered_by_name: names.get(enteredBy.get(p.period) ?? "") ?? null }),
+      : { period: p.period, value: p.value, state: stateOf.get(p.period) ?? "recorded", submitter: guest ? null : (latest.get(p.period)?.submitter_id ?? null), submitter_name: guest ? null : (names.get(latest.get(p.period)?.submitter_id ?? "") ?? null), submitted_at: latest.get(p.period)?.created_at ?? null, source: latest.get(p.period)?.source ?? null, has_thread: withThread.has(p.period), breakdown: breakdowns[metric.id]?.[p.period] ?? null, entered_by: enteredBy.get(p.period) ?? null, entered_by_name: names.get(enteredBy.get(p.period) ?? "") ?? null }),
     next: points.length > limit ? page[page.length - 1].period : null,
   };
 }
