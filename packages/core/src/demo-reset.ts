@@ -6,13 +6,24 @@
 // demo calls each night seeds it again and its periods keep reaching up to today. Docker's first start and
 // `prototype:reset` seed it too, in SQL only.
 import { db, seedingDemo } from "./db";
+import { shouldResetDemo, type DemoState } from "./demo-reset-decision";
 import { seedDemoSnapshots } from "./demo-snapshots";
 import { clearDemoVisitCounts } from "./demo-visit";
 import { askForMissingValues, sendDueReminders } from "./questions";
 import { DEMO_WORKSPACE_ID } from "./team";
 
-/** Resets the demo. False when it was reset less than a minute ago. */
-export async function resetDemoWorkspace(): Promise<boolean> {
+/** The demo's state: its Generation (moved by every reset, in the database), whether a visitor changed it since, and when it was last reset. Null when the row is not there. */
+export async function readDemoState(): Promise<DemoState | null> {
+  const { data, error } = await db().from("demo_state").select("generation, changed_since_reset, last_change_at, reset_at").maybeSingle();
+  if (error) throw new Error("The demo's state could not be read.");
+  if (!data) return null;
+  const date = (v: string | null) => (v ? new Date(v) : null);
+  return { generation: Number(data.generation), changedSinceReset: Boolean(data.changed_since_reset), lastChangeAt: date(data.last_change_at), resetAt: date(data.reset_at) };
+}
+
+/** Resets the demo. False when it was reset less than a minute ago, or, with `onlyWhenNeeded` (where visitors may change the demo), when nothing changed since its last reset and it is still young. */
+export async function resetDemoWorkspace(opts: { onlyWhenNeeded?: boolean } = {}): Promise<boolean> {
+  if (opts.onlyWhenNeeded && !shouldResetDemo({ changesInEffect: true, state: await readDemoState(), now: new Date() })) return false;
   const { data: done, error } = await db().rpc("demo_reset");
   if (error) throw new Error("The demo could not be reset. Try again in a minute.");
   if (!done) return false;

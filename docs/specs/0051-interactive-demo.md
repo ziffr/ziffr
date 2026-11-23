@@ -1,6 +1,6 @@
 # 0051 An interactive demo: visitors try the everyday work, and the demo starts fresh every 15 minutes
 
-**Status:** draft (2026-11-23). No tickets yet: the owner decides **Decisions (proposed)** first. The survey behind it, every change a person can make and what to do with it in the demo, is [0051-interactive-demo-inventory.md](0051-interactive-demo-inventory.md).
+**Status:** in progress: ticket 1 done (`demo_state`, the conditional reset job, `scripts/demo-reset-measure.mjs`; the measurement on a copy of demo.ziffr.net is the owner's to run). Draft of 2026-11-23. No tickets yet: the owner decides **Decisions (proposed)** first. The survey behind it, every change a person can make and what to do with it in the demo, is [0051-interactive-demo-inventory.md](0051-interactive-demo-inventory.md).
 
 **Progress:** ticket 2 (the visit's id) done: the cookie holds 128 random bits, `visitKey` (SHA-256 of the id, 32 hex characters) is the only form that is stored, `demo_visit_counts` and its `demo_visit_bump` exist and `resetDemoWorkspace` empties them. Nothing reads them yet (ticket 5).
 
