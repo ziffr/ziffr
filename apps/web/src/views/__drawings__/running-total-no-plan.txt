@@ -1,35 +1,24 @@
-<line stroke-width=0.8 stroke=var(--color-rule) x1=46 x2=292 y1=204 y2=204>
-<text fill=var(--color-muted) font-family=var(--font-outlier) font-size=9 text-anchor=end x=42 y=207>
+<line stroke-width=0.8 stroke=var(--color-rule) x1=41.48 x2=412 y1=206 y2=206>
+<text fill=var(--color-muted) font-family=var(--font-outlier) font-size=9 text-anchor=end x=37.48 y=209>
 "0"
-<line stroke-width=0.8 stroke=var(--color-rule) x1=46 x2=292 y1=108 y2=108>
-<text fill=var(--color-muted) font-family=var(--font-outlier) font-size=9 text-anchor=end x=42 y=111>
+<line stroke-width=0.8 stroke=var(--color-rule) x1=41.48 x2=412 y1=109 y2=109>
+<text fill=var(--color-muted) font-family=var(--font-outlier) font-size=9 text-anchor=end x=37.48 y=112>
 "8,881"
-<line stroke-width=0.8 stroke=var(--color-rule) x1=46 x2=292 y1=12 y2=12>
-<text fill=var(--color-muted) font-family=var(--font-outlier) font-size=9 text-anchor=end x=42 y=15>
+<line stroke-width=0.8 stroke=var(--color-rule) x1=41.48 x2=412 y1=12 y2=12>
+<text fill=var(--color-muted) font-family=var(--font-outlier) font-size=9 text-anchor=end x=37.48 y=15>
 "17,762"
-<text fill=var(--color-muted) font-size=9 text-anchor=start x=46 y=222>
+<text fill=var(--color-muted) font-size=9 text-anchor=start x=41.48 y=223>
 "Jan 26"
-<text fill=var(--color-muted) font-size=9 text-anchor=middle x=90.72727272727272 y=222>
-"Mar 26"
-<text fill=var(--color-muted) font-size=9 text-anchor=middle x=135.45454545454544 y=222>
+<text fill=var(--color-muted) font-size=9 text-anchor=middle x=176.21454545454543 y=223>
 "May 26"
-<text fill=var(--color-muted) font-size=9 text-anchor=middle x=180.18181818181816 y=222>
-"Jul 26"
-<text fill=var(--color-muted) font-size=9 text-anchor=middle x=224.9090909090909 y=222>
+<text fill=var(--color-muted) font-size=9 text-anchor=middle x=310.9490909090909 y=223>
 "Sep 26"
-<text fill=var(--color-muted) font-size=9 text-anchor=middle x=269.6363636363636 y=222>
-"Nov 26"
 <g data-line=last>
-<polyline fill=none points=46,189.80700371579778 68.36363636363636,175.4086251548249 90.72727272727272,160.57786285328228 113.09090909090908,145.40119355928385 135.45454545454544,130.0948091431145 157.8181818181818,114.41008895394663 180.18181818181816,98.00112599932442 202.54545454545453,81.3975903614458 224.9090909090909,64.68595878842473 247.27272727272728,47.45546672671995 269.6363636363636,30.05202116878729 292,12 stroke-linecap=round stroke-linejoin=round stroke-opacity=0.7 stroke-width=1.4 stroke=var(--color-muted)>
-<circle cx=292 cy=12 fill-opacity=0.7 fill=var(--color-muted) r=2.2>
+<polyline fill=none points=41.48,191.659160004504 75.16363636363636,177.11079833352102 108.84727272727272,162.12554892467065 142.53090909090906,146.79078932552642 176.21454545454543,131.32496340502195 209.8981818181818,115.47686071388357 243.58181818181814,98.89697106181737 277.26545454545453,82.12048192771086 310.9490909090909,65.23477085913748 344.6327272727273,47.82479450512329 378.31636363636363,30.240063055962167 412,12 stroke-linecap=round stroke-linejoin=round stroke-opacity=0.7 stroke-width=1.4 stroke=var(--color-muted)>
+<circle cx=412 cy=12 fill-opacity=0.7 fill=var(--color-muted) r=2.2>
 <g data-line=now>
-<polyline fill=none points=46,185.8939308636415 68.36363636363636,166.7393311564013 90.72727272727272,147.67120819727506 113.09090909090908,127.59779304132417 135.45454545454544,107.8270465037721 157.8181818181818,87.6347258191645 stroke-linecap=round stroke-linejoin=round stroke-width=2.4 stroke=var(--color-data)>
-<circle cx=157.8181818181818 cy=87.6347258191645 fill=var(--color-data) r=3.2>
-<text fill=var(--color-ink) font-size=9.5 x=300 y=20>
-<tspan dy=0 fill=var(--color-muted) font-weight=600 x=300>
-"Last year 17,762"
-<text fill=var(--color-ink) font-size=9.5 x=300 y=92.6347258191645>
-<tspan dy=0 fill=var(--color-data) font-weight=600 x=300>
-"This year 10,765"
+<polyline fill=none points=41.48,187.7053259768044 75.16363636363636,168.3511991892805 108.84727272727272,149.08444994933004 142.53090909090906,128.80193671883796 176.21454545454543,108.82524490485305 209.8981818181818,88.42258754644746 stroke-linecap=round stroke-linejoin=round stroke-width=2.4 stroke=var(--color-data)>
+<circle cx=209.8981818181818 cy=88.42258754644746 fill=var(--color-data) r=3.2>
+"This year 10,765 · Last year 17,762"
 "Jun 26 is still running, so the comparison is made at May 26."
 "No plan set."
