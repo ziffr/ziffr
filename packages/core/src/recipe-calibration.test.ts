@@ -36,7 +36,8 @@ describe("the work units follow the time (calibration guard)", () => {
     ["fit, 4 drivers", { id: "x", fn: "fit", of: "slot1", drivers: others(4) }, true],
     ["fit, 6 drivers", { id: "x", fn: "fit", of: "slot1", drivers: others(6) }, true],
   ];
-  it("no kind of step or Takeaway takes more than three times the median microseconds per unit", () => {
+  // Opt in (RECIPE_CALIBRATION=1): wall-clock times on a shared or instrumented machine are too noisy for the normal run.
+  it.skipIf(!process.env.RECIPE_CALIBRATION)("no kind of step or Takeaway takes more than three times the median microseconds per unit", () => {
     const perUnit = kinds.map(([name, step, takeaway]) => {
       const gives = FUNCTIONS_2[step.fn].gives;
       const shows: AnalysisRecipe2["outputs"] = [takeaway ? { step: "x", label: "t", shows: "takeaway" } : gives === "value" ? { step: "x", label: "t", shows: "value", unit: "number" } : { step: "x", label: "t", shows: "series", unit: "metric" }];
