@@ -43,7 +43,7 @@ Read from the code on `main` (2026-11-22):
 7. As an Approver, I want a Filled-in Value checked like any other, and never to be asked to approve a value I entered myself.
 8. As a Member reading the Period Record or the Period Timeline, I want to see "Entered by Ben for Sara", so that nothing about who typed a number is hidden.
 9. As an Owner or Admin, I want each Filled-in Value in the Audit Log, so that I can answer "who put that number in".
-10. As a Guest, I want to see names on values only as I see them today, and never to fill in for anyone.
+10. As a Guest, I want to see names on values only as I see them today, with no "entered by" mark, and never to fill in for anyone.
 11. As a demo visitor, I want to see one value entered by a Stand-in for a colleague who was Away, and one that the submitter later replaced.
 
 ## Implementation Decisions
@@ -122,7 +122,7 @@ A Filled-in Value counts as the submitter's; the mark "Entered by X for Y" goes 
 
 **Visibility, checked against the existing rules for submitter names** (AGENTS.md rule 3):
 
-- **Guests** see only their own name (`peopleFor`, `systemTextFor`): a Guest reads "Entered by Someone for Someone", or their own name where it is theirs. A Guest who submits a Metric and was filled in for is told "A colleague entered 42 for you".
+- **Guests** see only their own name (`peopleFor`, `systemTextFor`) and no "entered by" mark at all, neither on the Period Record nor on the Timeline (owner decision, 2026-11-23): a Guest is never told that someone else entered a value. Through a Guest's Access Key (API and MCP) `submitter` names the Guest on their own values, a Filled-in Value for them included, and is null on everyone else's; `entered_by` is always null. A Guest who submits a Metric and was filled in for is told "A colleague entered 42 for you".
 - **View Links and Snapshots** carry no submitter at all: `shownData` sends Points (`period`, `value`) and empty `submitters`, for both. So `entered_by` never goes out with them; a test proves it for a View Link with and without **Show names** and for a Snapshot.
 - **The import's sealed names:** `entered_by_name` is sealed and shown like `submitted_by_name` (Metric page only, not for Guests).
 - **Period Timeline:** a Metric the viewer cannot see stays a count, without names (unchanged).
