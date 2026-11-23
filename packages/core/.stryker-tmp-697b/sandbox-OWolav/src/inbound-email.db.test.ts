@@ -1,0 +1,205 @@
+// @ts-nocheck
+// Replies by email, against the real database and the local Mailpit (spec 0004, ticket #73): a reply to a Prompt
+// records the value (quoted history ignored, a Breakdown too), a reply about a question lands in its Thread or
+// proposes a Correction; an unknown or expired token, another sender, an automatic reply and a repeat change nothing.
+import { randomUUID } from "node:crypto";
+import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "vitest";
+import { db } from "./db";
+import { openRows } from "./sealed-columns";
+import { deliverPrompt } from "./deliveries";
+import { INBOUND_PER_SENDER, newText, parseInbound, receiveEmail, senderFailed, senderVerified, type InboundEmail } from "./inbound-email";
+import { connectorsView } from "./page-data";
+import { ask } from "./questions";
+import type { SubmissionEffects } from "./submissions";
+import { valuesOf, workspace, opened } from "./test/db-fixtures";
+
+const MAILPIT = process.env.MAILPIT_URL ?? "http://127.0.0.1:55424";
+const DOMAIN = "in.ziffr.example.test";
+const SETTINGS = {
+  ZIFFR_SMTP_URL: process.env.TEST_SMTP_URL ?? "smtp://127.0.0.1:55425", ZIFFR_MAIL_FROM: "Ziffr <ziffr@example.test>", ZIFFR_SITE_URL: "https://ziffr.example.test",
+  ZIFFR_INBOUND_DOMAIN: DOMAIN, ZIFFR_INBOUND_SECRET: "i".repeat(40),
+  // A provider vouches for senders, as it does in production; held-replies.db.test.ts covers the unvouched path.
+  ZIFFR_INBOUND_AUTHSERV_ID: "mx.provider.test",
+};
+const saved: Record<string, string | undefined> = {};
+beforeAll(() => { for (const [k, v] of Object.entries(SETTINGS)) { saved[k] = process.env[k]; process.env[k] = v; } });
+afterAll(() => { for (const [k, v] of Object.entries(saved)) if (v === undefined) delete process.env[k]; else process.env[k] = v; });
+const cleanups: (() => Promise<void>)[] = [];
+afterEach(async () => { for (const c of cleanups.splice(0)) await c(); });
+async function ws() { const w = await workspace(); cleanups.push(w.cleanup); return w; }
+const address = (who: string) => `${who}-${randomUUID().slice(0, 8)}@example.test`;
+const quiet = (): SubmissionEffects => ({ notifyCorrection: vi.fn(async () => {}), afterValue: vi.fn(async () => []) });
+const emailOf = async (person: string) => (await db().from("profiles").select("email").eq("id", person).single()).data!.email as string;
+
+/** A reply as a mail client writes it. */
+const reply = (o: { from: string; token: string; text: string; headers?: string; id?: string; unvouched?: boolean }) => [
+  ...(o.unvouched ? [] : [`Authentication-Results: mx.provider.test; dmarc=pass header.from=${o.from.split("@")[1]}`]),
+  `From: Someone <${o.from}>`, `To: Ziffr <reply+${o.token}@${DOMAIN}>`, "Subject: Re: your question", `Message-ID: <${o.id ?? randomUUID()}@mail.example.test>`,
+  ...(o.headers ? [o.headers] : []), "Content-Type: text/plain; charset=utf-8", "", o.text,
+].join("\r\n");
+
+async function promptFor(sources: string[] = ["web_form", "mail"]) {
+  const w = await ws(); const sara = await w.person("owner", { email: address("sara") }); const ann = await w.person("member", { email: address("ann") });
+  const m = await w.metric(sara, { name: "Field visits", sources, submission_rule: "overwrite" }); await w.token(m.id, ann);
+  await deliverPrompt({ metricId: m.id, submitterId: ann, senderId: sara });
+  const [d] = await opened("deliveries", w.id, (await db().from("deliveries").select("id, reply_token, mail_state, body").eq("workspace_id", w.id).eq("recipient_id", ann)).data);
+  return { w, sara, ann, m, d: d!, annMail: await emailOf(ann) };
+}
+
+describe("replies by email", () => {
+  it("sends a Prompt with its own reply address and asks for a reply, then records the number from the reply", async () => {
+    const { m, d, annMail } = await promptFor();
+    expect(d).toMatchObject({ mail_state: "sent", reply_token: expect.stringMatching(/^[A-Za-z0-9_-]{32}$/) });
+    expect(d.body).toMatch(/reply to this email/i);
+    const { messages } = await (await fetch(`${MAILPIT}/api/v1/search?query=${encodeURIComponent(`to:"${annMail}"`)}`)).json() as { messages: { ID: string }[] };
+    const headers = await (await fetch(`${MAILPIT}/api/v1/message/${messages[0].ID}/headers`)).json() as Record<string, string[]>;
+    expect(headers["Reply-To"]).toEqual([`reply+${d.reply_token}@${DOMAIN}`]);
+    const raw = reply({ from: annMail, token: d.reply_token!, text: "42 visits\r\n\r\nOn Mon, Ziffr wrote:\r\n> What's the number? Last time 7", id: `first-${randomUUID()}` });
+    expect(await receiveEmail(await parseInbound(raw), { submission: quiet() })).toBe("recorded");
+    expect(await valuesOf(m.id)).toMatchObject([{ value: 42, source: "mail" }]);
+    // The same message again (the provider retried): nothing more.
+    expect(await receiveEmail(await parseInbound(raw), { submission: quiet() })).toBe("duplicate");
+    expect(await valuesOf(m.id)).toHaveLength(1);
+    // The person is told what became of it.
+    const { messages: told } = await (await fetch(`${MAILPIT}/api/v1/search?query=${encodeURIComponent(`to:"${annMail}" subject:Recorded`)}`)).json() as { messages: unknown[] };
+    expect(told).toHaveLength(1);
+  });
+  it("records a Breakdown, one row per line", async () => {
+    const { m, d, annMail } = await promptFor();
+    expect(await receiveEmail(await parseInbound(reply({ from: annMail, token: d.reply_token!, text: "Shop 30\r\nOnline 12" })), { submission: quiet() })).toBe("recorded");
+    const [o] = await valuesOf(m.id);
+    expect(o.value).toBe(42);
+  });
+  it("reads a sentence as the answer, and asks back for several numbers or another period (spec 0022)", async () => {
+    const { w, m, d, annMail } = await promptFor();
+    const send = async (text: string) => receiveEmail(await parseInbound(reply({ from: annMail, token: d.reply_token!, text })), { submission: quiet() });
+    expect(await send("2 visits and 1 cancellation")).toBe("refused");
+    expect(await send("last month 5")).toBe("refused");
+    expect(await valuesOf(m.id)).toEqual([]);
+    expect(await send("this month we had 12,5 visits")).toBe("recorded");
+    expect(await valuesOf(m.id)).toMatchObject([{ value: 12.5, source: "mail" }]);
+    const log = await opened("intake_log", w.id, (await db().from("intake_log").select("id, outcome, detail").eq("workspace_id", w.id).order("id")).data, { dropId: true });
+    expect(log!.map((l) => l.outcome)).toEqual(["rejected_several_numbers", "rejected_other_period", "recorded"]);
+    expect(log![0].detail).toContain("“2” and “1”");
+    expect(log![1].detail).toMatch(/^This Prompt asks for \w+ \d{4}, but “last month” is \w+ \d{4}\./);
+  });
+  it("puts a reply about a question into its Thread, and a Correction line as a proposed Correction", async () => {
+    const w = await ws(); const sara = await w.person("owner", { email: address("sara") }); const ben = await w.person("member", { email: address("ben") });
+    const m = await w.metric(sara, { name: "Revenue" });
+    const actionId = await ask(w.actor(sara), { metricId: m.id, period: "2026-10-01", assigneeId: ben, text: "Is October right?" });
+    const { data: d } = await db().from("deliveries").select("reply_token").eq("action_id", actionId).eq("recipient_id", ben).single();
+    const benMail = await emailOf(ben);
+    expect(await receiveEmail(await parseInbound(reply({ from: benMail, token: d!.reply_token!, text: "Yes, checked with the bank.\r\n\r\n-- \r\nBen, Finance" })))).toBe("replied");
+    expect(await receiveEmail(await parseInbound(reply({ from: benMail, token: d!.reply_token!, text: "Actually not.\r\nCorrection: 1250" })))).toBe("corrected");
+    const thread = await openRows("thread_messages", w.id, (await db().from("thread_messages").select("id, author_id, body, correction_value, correction_value_sealed").eq("action_id", actionId).order("id")).data);
+    expect(thread).toEqual(expect.arrayContaining([
+      expect.objectContaining({ author_id: ben, body: "Yes, checked with the bank.", correction_value: null }),
+      expect.objectContaining({ author_id: ben, body: "Actually not.", correction_value: 1250 }),
+    ]));
+  });
+  it("takes nothing from another sender, for an unknown or expired token, or from an auto-reply", async () => {
+    const { m, d, annMail } = await promptFor();
+    const parse = (o: Parameters<typeof reply>[0]) => parseInbound(reply(o));
+    expect(await receiveEmail(await parse({ from: address("forwarded-to"), token: d.reply_token!, text: "99" }))).toBe("wrong_sender");
+    expect(await receiveEmail(await parse({ from: annMail, token: "x".repeat(32), text: "99" }))).toBe("unknown_token");
+    // A token for another domain is no token.
+    expect((await parseInbound(reply({ from: annMail, token: d.reply_token!, text: "99" }).replace(DOMAIN, "elsewhere.test"))).tokens).toEqual([]);
+    expect(await receiveEmail(await parse({ from: annMail, token: d.reply_token!, text: "I am away until Monday.", headers: "Auto-Submitted: auto-replied" }))).toBe("automatic");
+    await db().from("deliveries").update({ created_at: new Date(Date.now() - 31 * 86_400_000).toISOString() }).eq("id", d.id);
+    expect(await receiveEmail(await parse({ from: annMail, token: d.reply_token!, text: "99" }))).toBe("expired");
+    expect(await valuesOf(m.id)).toEqual([]);
+  });
+  it("answers a Metric that takes no mail with the form link instead of recording", async () => {
+    const { m, d, annMail } = await promptFor(["web_form"]);
+    // The Prompt itself already said to use the form, not to reply.
+    expect(d.body).not.toMatch(/reply to this email/i);
+    expect(await receiveEmail(await parseInbound(reply({ from: annMail, token: d.reply_token!, text: "5" })))).toBe("form_link");
+    expect(await valuesOf(m.id)).toEqual([]);
+    const { messages } = await (await fetch(`${MAILPIT}/api/v1/search?query=${encodeURIComponent(`to:"${annMail}" subject:"not recorded"`)}`)).json() as { messages: { ID: string }[] };
+    const told = await (await fetch(`${MAILPIT}/api/v1/message/${messages[0].ID}`)).json() as { Text: string };
+    expect(told.Text).toMatch(/https:\/\/ziffr\.example\.test\/submit\/tk-/);
+  });
+  it("keeps only what was written above the quoted message and the signature", () => {
+    expect(newText("12\n\nOn Tue, 3 Nov 2026, Ziffr wrote:\n> 7")).toBe("12");
+    expect(newText("Passt.\nAm Di., 3. Nov. 2026 um 10:00 schrieb Ziffr <z@x>:\n> 7")).toBe("Passt.");
+    expect(newText("Fine\n-----Original Message-----\nFrom: Ziffr")).toBe("Fine");
+    expect(newText("Fine\n-- \nAnn")).toBe("Fine");
+  });
+  it("never hands a reply token or a Message-ID to a page", async () => {
+    const { w, sara, d } = await promptFor();
+    expect(d.reply_token).toBeTruthy();
+    const view = await connectorsView(w.actor(sara));
+    expect(view.deliveries.length).toBeGreaterThan(0);
+    expect(JSON.stringify(view)).not.toContain(d.reply_token!);
+    for (const row of view.deliveries) expect(Object.keys(row)).not.toEqual(expect.arrayContaining(["reply_token"]));
+    for (const row of view.deliveries) expect(Object.keys(row)).not.toEqual(expect.arrayContaining(["provider_id"]));
+  });
+  it("trusts a From address only as the named provider vouches for it", () => {
+    const ar = (v: string) => [{ key: "authentication-results", value: v }];
+    expect(senderVerified(ar("mx.provider.test; dmarc=pass header.from=example.test"), "ann@example.test", "mx.provider.test")).toBe(true);
+    expect(senderVerified(ar("mx.provider.test; dkim=pass header.d=example.test header.s=s1"), "ann@example.test", "mx.provider.test")).toBe(true);
+    // Written by the sender (another authserv-id), failed, for another domain, or nothing named: no.
+    expect(senderVerified(ar("mx.evil.test; dmarc=pass header.from=example.test"), "ann@example.test", "mx.provider.test")).toBe(false);
+    expect(senderVerified(ar("mx.provider.test; dmarc=fail header.from=example.test"), "ann@example.test", "mx.provider.test")).toBe(false);
+    expect(senderVerified(ar("mx.provider.test; dkim=pass header.d=evil.test"), "ann@example.test", "mx.provider.test")).toBe(false);
+    expect(senderVerified(ar("mx.provider.test; dmarc=pass header.from=example.test"), "ann@example.test", undefined)).toBe(false);
+    // A pass the sender wrote lower down, under the provider's own fail at the top, counts for nothing.
+    const forged = [{ key: "authentication-results", value: "mx.provider.test; dmarc=fail header.from=example.test" }, { key: "authentication-results", value: "mx.provider.test; dmarc=pass header.from=example.test" }];
+    expect(senderVerified(forged, "ann@example.test", "mx.provider.test")).toBe(false);
+    // Sender-controlled text inside a quoted string or a comment is no result of its own.
+    expect(senderVerified(ar('mx.provider.test; spf=pass smtp.mailfrom="x;dkim=pass header.d=example.test"@evil.test; dmarc=fail header.from=example.test'), "ann@example.test", "mx.provider.test")).toBe(false);
+    expect(senderVerified(ar("mx.provider.test; dmarc=fail (; dmarc=pass header.from=example.test) header.from=example.test"), "ann@example.test", "mx.provider.test")).toBe(false);
+    // Comments the provider writes itself do not stop a real pass.
+    expect(senderVerified(ar("mx.provider.test; dkim=pass (2048-bit key; unprotected) header.d=example.test header.s=s1; dmarc=pass (p=reject) header.from=example.test"), "ann@example.test", "mx.provider.test")).toBe(true);
+  });
+  it("reads a provider's explicit DMARC failure for the sender's domain as a verdict against it", () => {
+    const ar = (v: string) => [{ key: "authentication-results", value: v }];
+    expect(senderFailed(ar("mx.provider.test; dmarc=fail header.from=example.test"), "ann@example.test", "mx.provider.test")).toBe(true);
+    // Not named, not the provider's, not for this domain, passed, no header, or no sender: no verdict.
+    expect(senderFailed(ar("mx.provider.test; dmarc=fail header.from=example.test"), "ann@example.test", undefined)).toBe(false);
+    expect(senderFailed(ar("mx.evil.test; dmarc=fail header.from=example.test"), "ann@example.test", "mx.provider.test")).toBe(false);
+    expect(senderFailed(ar("mx.provider.test; dmarc=fail header.from=other.test"), "ann@example.test", "mx.provider.test")).toBe(false);
+    expect(senderFailed(ar("mx.provider.test; dmarc=pass header.from=example.test"), "ann@example.test", "mx.provider.test")).toBe(false);
+    expect(senderFailed([], "ann@example.test", "mx.provider.test")).toBe(false);
+    expect(senderFailed(ar("mx.provider.test; dmarc=fail header.from=example.test"), null, "mx.provider.test")).toBe(false);
+  });
+  it("never takes an Approval by email unless the provider vouched for the sender", async () => {
+    const w = await ws(); const sara = await w.person("owner", { email: address("sara") }); const ben = await w.person("member", { email: address("ben") });
+    const m = await w.metric(sara);
+    const { data: action } = await db().from("actions").insert({ metric_id: m.id, period_start: "2026-10-01", asker_id: sara, assignee_id: ben, kind: "task", purpose: "approval", question: "Approve October?", workspace_id: w.id }).select("id").single();
+    const token = "a".repeat(32);
+    await db().from("deliveries").insert({ connector: "email", recipient_id: ben, sender_id: sara, kind: "task", action_id: action!.id, workspace_id: w.id, subject: "Approve", body: "x", mail_state: "sent", reply_token: token });
+    const benMail = await emailOf(ben);
+    const approve = (o: { headers?: string; unvouched?: boolean } = {}) => parseInbound(reply({ from: benMail, token, text: "approved", ...o }));
+    // Refused, not held, whether the provider is named or not: an Approval is only ever given in Ziffr unvouched.
+    expect(await receiveEmail(await approve({ unvouched: true }))).toBe("unverified");
+    const domain = benMail.split("@")[1];
+    expect(await receiveEmail(await approve({ unvouched: true, headers: `Authentication-Results: mx.evil.test; dmarc=pass header.from=${domain}` }))).toBe("unverified");
+    const { data: still } = await db().from("actions").select("status").eq("id", action!.id).single();
+    expect(still!.status).toBe("open");
+    delete process.env.ZIFFR_INBOUND_AUTHSERV_ID;
+    try {
+      expect(await receiveEmail(await approve({ unvouched: true }))).toBe("unverified");
+    } finally {
+      process.env.ZIFFR_INBOUND_AUTHSERV_ID = "mx.provider.test";
+    }
+    // Vouched for, it reaches the Approval itself (which finds no value waiting here, so says so).
+    await expect(receiveEmail(await approve())).rejects.toThrow(/not waiting for this approval/);
+  });
+});
+
+describe("a flood of mail", () => {
+  const unknownFrom = (from: string, verified: boolean, n: number): InboundEmail => ({ tokens: ["x".repeat(31) + String(n % 10)], from, text: "1", messageId: null, automatic: false, verified });
+  it("takes at most INBOUND_PER_SENDER messages an hour from one sender, before any reply token is looked up", async () => {
+    const from = address("flood");
+    for (let i = 0; i < INBOUND_PER_SENDER; i++) expect(await receiveEmail(unknownFrom(from, false, i))).toBe("unknown_token");
+    expect(await receiveEmail(unknownFrom(from, false, 99))).toBe("limited");
+    // Mail the provider vouched for, from that same address, has a bucket of its own: a forged flood in someone's name
+    // never uses up theirs.
+    expect(await receiveEmail(unknownFrom(from, true, 1))).toBe("unknown_token");
+    // Mail without a sender counts against nobody.
+    expect(await receiveEmail({ ...unknownFrom(from, false, 2), from: null })).toBe("wrong_sender");
+    // Nor does it hold back anyone else.
+    expect(await receiveEmail(unknownFrom(address("other"), false, 1))).toBe("unknown_token");
+  });
+});

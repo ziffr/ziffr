@@ -1,0 +1,17 @@
+{
+  "format": "ziffr.view/1",
+  "name": "Correlation",
+  "description": "Do two metrics move together?",
+  "kind": "analysis",
+  "slots": [{ "label": "First metric", "metrics": "one" }, { "label": "Second metric", "metrics": "one" }],
+  "size": { "w": 6, "h": 7 },
+  "empty": "Needs two metrics with at least 6 periods in common.",
+  "parts": [
+    {
+      "mark": "text",
+      "style": "body",
+      "content": [{ "show": "correlation.strength", "style": "strong" }, " relationship, r = ", { "show": "correlation.r" }, " ", { "show": "correlation.over" }]
+    },
+    { "mark": "plot", "axes": "regular", "x": "value", "grid": "both", "scale": "auto", "marks": [{ "mark": "point", "show": "pairs", "tone": "data" }] }
+  ]
+}

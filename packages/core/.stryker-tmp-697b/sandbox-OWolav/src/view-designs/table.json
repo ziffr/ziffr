@@ -1,0 +1,13 @@
+{
+  "format": "ziffr.view/1",
+  "name": "History table",
+  "description": "The last values as a list.",
+  "kind": "metric",
+  "slots": [{ "label": "Metric", "metrics": "one" }],
+  "size": { "w": 3, "h": 6 },
+  "options": { "rows": { "label": "Rows", "default": 6 }, "display": { "label": "Show by" } },
+  "parts": [
+    { "mark": "rows", "show": "values", "limit": "rows" },
+    { "mark": "text", "style": "note", "when": ["hasNote"], "content": [{ "show": "target.note" }] }
+  ]
+}

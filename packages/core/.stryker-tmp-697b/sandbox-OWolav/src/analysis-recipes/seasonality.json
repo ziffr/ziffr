@@ -1,0 +1,25 @@
+{
+  "format": "ziffr.analysis/1",
+  "name": "Seasonality",
+  "description": "How each month compares with an average month, from at least two years of values.",
+  "slots": [
+    {
+      "label": "Monthly metric"
+    }
+  ],
+  "steps": [
+    {
+      "id": "index",
+      "fn": "seasonalIndex",
+      "of": "slot1",
+      "season": 12
+    }
+  ],
+  "outputs": [
+    {
+      "step": "index",
+      "label": "Seasonal index",
+      "unit": "percent"
+    }
+  ]
+}
