@@ -25,6 +25,7 @@ export function duplicateAsDesign(widget: Pick<Widget, "template" | "settings" |
   if (o.window && s.window !== undefined) o.window = { ...o.window, default: Math.min(120, Math.max(1, Math.round(s.window))) };
   if (o.rows && s.rows !== undefined) o.rows = { ...o.rows, default: Math.min(120, Math.max(1, Math.round(s.rows))) };
   if (o.showTarget && s.showTarget !== undefined) o.showTarget = { ...o.showTarget, default: !!s.showTarget };
+  if (o.slope && s.slope !== undefined) o.slope = { ...o.slope, default: s.slope };
   if (o.showForecast && s.showForecast !== undefined) o.showForecast = { ...o.showForecast, default: !!s.showForecast };
   // The widget's title is the person's own words: kept only while it is plain text that fits, else the design's name.
   // Held to the format's own rule for names, and cut by characters, never inside one.

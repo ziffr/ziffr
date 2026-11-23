@@ -84,10 +84,10 @@ async function whoToAsk(metricId: number, day: string) {
 
 /** The latest value of a period. */
 async function latestValue(ws: string, metricId: number, period: string) {
-  const { data } = await db().from("observations").select("id, value, value_sealed, submitter_id").eq("workspace_id", ws).eq("metric_id", metricId).eq("period_start", period).order("created_at", { ascending: false }).limit(1);
+  const { data } = await db().from("observations").select("id, value, value_sealed, submitter_id, entered_by").eq("workspace_id", ws).eq("metric_id", metricId).eq("period_start", period).order("created_at", { ascending: false }).limit(1);
   // The value is sealed with the Workspace Key; one that does not open counts as no value, never as 0.
   const [row] = await openRows("observations", ws, (data ?? []) as Record<string, unknown>[]);
-  return row && typeof row.value === "number" ? (row as { id: number; value: number; submitter_id: string | null }) : null;
+  return row && typeof row.value === "number" ? (row as { id: number; value: number; submitter_id: string | null; /** Who entered it, when it is a Filled-in Value (spec 0046). */ entered_by: string | null }) : null;
 }
 
 /** Which Workflows a run covers (GLOSSARY: Asking Schedule): all of them (the demo, which ignores schedules), only
@@ -135,20 +135,20 @@ export async function runWorkflows(workspaceId: string, asOf: string, actorId: s
     const { data: feedTokens } = await db().from("tokens").select("submitter_id").eq("metric_id", m.id).is("stands_in_for", null);
     const feeds = [...(await feedsAmong((feedTokens ?? []).map((t) => t.submitter_id as string))).values()];
     if (!state) {
-      for (const p of people) await deliverPrompt({ metricId: m.id, submitterId: p.ask, senderId: ctx.wf.owner_id, period, queue, note: p.away ? "You stand in while your colleague is away." : undefined });
+      for (const p of people) await deliverPrompt({ metricId: m.id, submitterId: p.ask, senderId: ctx.wf.owner_id, period, queue, note: p.away ? "You stand in while your colleague is away." : undefined, standingInFor: p.ask !== p.submitter ? p.submitter : undefined });
       await setState(m.id, period, { state: "asked", done_steps: [] });
       log.push(`${label}: asked ${people.map((p) => p.ask).join(", ")}, due ${due}`);
     }
     for (const [i, step] of ctx.wf.config.steps.entries()) {
       if (done.has(i)) continue;
       if (step.type === "remind" && asOf >= shiftPeriod(due, "day", -step.daysBefore)) {
-        for (const p of people) await deliverPrompt({ metricId: m.id, submitterId: p.ask, senderId: ctx.wf.owner_id, period, queue, note: `Reminder, due ${due}.`, reminder: true });
+        for (const p of people) await deliverPrompt({ metricId: m.id, submitterId: p.ask, senderId: ctx.wf.owner_id, period, queue, note: `Reminder, due ${due}.`, reminder: true, standingInFor: p.ask !== p.submitter ? p.submitter : undefined });
         done.add(i);
         log.push(`${label}: reminded`);
       }
       if (step.type === "escalate" && asOf > shiftPeriod(due, "day", step.daysAfter) ) {
         if (step.to === "stand-in") {
-          for (const p of people) if (p.standIn && p.standIn !== p.ask) await deliverPrompt({ metricId: m.id, submitterId: p.standIn, senderId: ctx.wf.owner_id, period, queue, note: `The value was due ${due} and is still missing; you are the stand-in.` });
+          for (const p of people) if (p.standIn && p.standIn !== p.ask) await deliverPrompt({ metricId: m.id, submitterId: p.standIn, senderId: ctx.wf.owner_id, period, queue, note: `The value was due ${due} and is still missing; you are the stand-in.`, standingInFor: p.submitter });
           log.push(`${label}: asked the stand-in`);
           // A Feed has no Stand-in: when it is what is missing, the owner hears of it instead (spec 0012).
           if (feeds.length) {
@@ -193,18 +193,20 @@ async function seesMetric(ctx: Ctx, person: string): Promise<boolean> {
   return (await visibleMetricIds(ctx.ws, person, await getMetrics(ctx.ws))).has(ctx.m.id);
 }
 
-/** Who approves a value, in order: the Approve step's Approvers but never the one the value is from. When that leaves
- * nobody (the submitter is the only Approver), the Metric's owner approves instead, else the Workflow's owner, but
- * only someone who sees the Metric: the Approval task shows its value. With nobody else at all, the step's choice
- * decides (onValue): a Self-check by the submitter, or counting it without Approval, never an Approval by the
- * submitter. A step that names nobody holds nothing back. */
-async function approversFor(ctx: Ctx, step: Extract<WorkflowStep, { type: "approve" }> | undefined, from: string): Promise<string[]> {
+/** Who approves a value, in order: the Approve step's Approvers but never the one the value is from, nor (for a Filled-in
+ * Value, spec 0046) the one who entered it: nobody approves a value they entered or one entered for them. When that
+ * leaves nobody (the submitter is the only Approver), the Metric's owner approves instead, else the Workflow's owner,
+ * but only someone who sees the Metric: the Approval task shows its value, and neither of those two may be one of the
+ * above. With nobody else at all, the step's choice decides (onValue): a Self-check by the submitter, or counting it
+ * without Approval, never an Approval by the submitter nor by who entered it. A step that names nobody holds nothing back. */
+async function approversFor(ctx: Ctx, step: Extract<WorkflowStep, { type: "approve" }> | undefined, from: string, enteredBy: string | null = null): Promise<string[]> {
   if (!step?.approvers.length) return [];
+  const left = (a: string | null | undefined) => Boolean(a) && a !== from && a !== enteredBy;
   // Named Approvers are chosen by the Workflow's owner for this purpose; only the fallback must already see the Metric.
-  const named = step.approvers.filter((a) => a !== from);
+  const named = step.approvers.filter(left);
   if (named.length) return named;
   for (const candidate of [ctx.m.owner_id, ctx.wf.owner_id]) {
-    if (!candidate || candidate === from) continue;
+    if (!left(candidate)) continue;
     // Only someone of this workspace who sees the Metric now (Shares and Groups as everywhere else).
     if (await seesMetric(ctx, candidate)) return [candidate];
   }
@@ -233,7 +235,7 @@ export type ValueOutlook = {
 };
 
 /** The ValueOutlook of a Metric for a submitter; mirrors onValue, so the preview and the recording agree. */
-export async function valueOutlook(metricId: number, submitterId: string): Promise<ValueOutlook | null> {
+export async function valueOutlook(metricId: number, submitterId: string, enteredBy: string | null = null): Promise<ValueOutlook | null> {
   const ctx = await metricCtx(metricId, "");
   if (!ctx) return null;
   const steps = ctx.wf.config.steps;
@@ -246,7 +248,7 @@ export async function valueOutlook(metricId: number, submitterId: string): Promi
     check,
     every: approve?.values === "every",
     approves,
-    approver: approves ? ((await approversFor(ctx, approve, submitterId))[0] ?? null) : null,
+    approver: approves ? ((await approversFor(ctx, approve, submitterId, enteredBy))[0] ?? null) : null,
     working: workingPeriod(today, ctx.m.period, ctx.yearStart),
     yearStart: ctx.yearStart,
   };
@@ -313,7 +315,7 @@ async function workflowStep(metricId: number, period: string, submitterId: strin
   // A step stored without the choice holds back Unusual Values only, as before the choice existed.
   const every = approve?.values === "every" && (!opts.imported || !(await beforeWorkingPeriod(ctx, period)));
   // Asked only when a value needs Approval: who sees the Metric is not cheap to work out.
-  const approvers = reasons.length || every ? await approversFor(ctx, approve, submitterId) : [];
+  const approvers = reasons.length || every ? await approversFor(ctx, approve, submitterId, value.entered_by) : [];
   // Approval is needed, but the submitter is the only person who could give it. Never an Approval by them: the step
   // says whether they check it themselves (a Self-check, the default) or it counts without Approval, said in a note.
   if ((reasons.length || every) && approve?.approvers.length && !approvers.length) {
@@ -323,7 +325,8 @@ async function workflowStep(metricId: number, period: string, submitterId: strin
       await setState(metricId, period, { state: "approval", approval_step: null, approval_action_id: null, approval_for: submitterId, note: "Waits for Approval: nobody but the Feed that sent it can approve it. Add an Approver to the Workflow." });
       return ["waits for approval: nobody but the Feed that sent it can approve it"];
     }
-    if (approve.nobodyElse === "count") {
+    // Never for a Filled-in Value: someone else typed it, so it is not counted unchecked; its submitter checks it (spec 0046).
+    if (approve.nobodyElse === "count" && !value.entered_by) {
       await recordAudit(ctx.ws, null, { kind: "approval.skipped", object: { type: "metric", id: metricId, name: ctx.m.name }, details: { period, submitter: submitterId, workflow: ctx.wf.id } });
       return [`counted without approval: nobody else could approve it; ${await publish(ctx, COUNTED_NOTE)}`];
     }
@@ -427,7 +430,8 @@ export async function claimTask(ws: string, actionId: number, by: string, source
 export async function confirmSelfCheck(ws: string, actionId: number, by: string, source: ChangeSource = FROM_APP): Promise<string> {
   const { a, ctx } = await openSelfCheck(ws, actionId, by);
   const step = ctx.wf.config.steps.find((s): s is Extract<WorkflowStep, { type: "approve" }> => s.type === "approve");
-  if ((await approversFor(ctx, step, by)).length) {
+  const latest = await latestValue(ws, a.metric_id, a.period_start);
+  if ((await approversFor(ctx, step, by, latest?.entered_by ?? null)).length) {
     // onValue closes this task and asks the Approver: the value is checked as a new round.
     const log = await onValue(a.metric_id, a.period_start, by);
     return `Someone else can approve it now: ${log.join("; ")}.`;
@@ -435,7 +439,7 @@ export async function confirmSelfCheck(ws: string, actionId: number, by: string,
   await claimTask(ws, actionId, by, source);
   if (!(await publishDecided(ctx, actionId, CONFIRMED_NOTE))) throw new Error("A newer value came in: it is checked instead.");
   await insertSealed("thread_messages", ws, [{ action_id: actionId, author_id: by, body: "Confirmed by the submitter." }]);
-  await recordAudit(ws, by, { kind: "self_check.confirmed", object: { type: "metric", id: a.metric_id, name: ctx.m.name }, details: { period: a.period_start } });
+  await recordAudit(ws, by, { kind: "self_check.confirmed", object: { type: "metric", id: a.metric_id, name: ctx.m.name }, details: { period: a.period_start, entered_by: latest?.entered_by ?? null } });
   return `Confirmed by you; ${publishedLabel(ctx)}.`;
 }
 
@@ -457,7 +461,8 @@ export async function correctSelfCheck(ws: string, actionId: number, by: string,
   // The new value and the original are sealed for this value's row (the row keeps its id).
   const patch = await sealRow("observations", ws, { id: obs.id, value, original_value: original });
   delete patch.id;
-  await db().from("observations").update(patch).eq("id", obs.id).eq("workspace_id", ws).eq("metric_id", a.metric_id);
+  // The number is the submitter's own now, typed by them: a value someone else had entered for them is theirs (spec 0046).
+  await db().from("observations").update({ ...patch, entered_by: null }).eq("id", obs.id).eq("workspace_id", ws).eq("metric_id", a.metric_id);
   await insertSealed("thread_messages", ws, [{ action_id: actionId, author_id: by, body: "Corrected by the submitter.", correction_value: value, correction_status: "accepted" }]);
   const m = await openOne("metrics", ws, (await db().from("metrics").select("id, name").eq("id", a.metric_id).eq("workspace_id", ws).maybeSingle()).data);
   await recordAudit(ws, by, { kind: "self_check.corrected", object: { type: "metric", id: a.metric_id, name: m?.name ?? null }, details: { period: a.period_start, action_id: actionId } });
@@ -477,15 +482,17 @@ export async function approve(ws: string, actionId: number, by: string, source: 
   const value = await latestValue(ws, a.metric_id, a.period_start);
   const from = state.approval_for ?? value?.submitter_id ?? a.asker_id;
   if (by === from) throw new Error("Nobody approves their own value. Ask someone else to approve it.");
+  // Nor a value one entered for someone else (spec 0046, GLOSSARY: Filled-in Value).
+  if (value?.entered_by && by === value.entered_by) throw new Error("Nobody approves a value they entered. Ask someone else to approve it.");
   // Closed only while still open, in one statement: two presses at once (a double tap on a button, a reply and a
   // press) approve once, and the second is refused like an approval that is done.
   if (!(await changeActionState(ws, actionId, { to: "closed", from: ["open"], reason: "done", guard: { purpose: "approval", assigneeId: by } }, source)).changed) throw new Error("This approval is not yours, or it is done.");
   await insertSealed("thread_messages", ws, [{ action_id: actionId, author_id: by, body: "Approved." }]);
   // Here, not in the Actor's wrapper: approvals also arrive as replies through a Connector (threads.ts).
-  await recordAudit(ws, by, { kind: "approval.given", object: { type: "metric", id: a.metric_id, name: ctx.m.name }, details: { period: a.period_start, step: (state.approval_step ?? 0) + 1 } });
+  await recordAudit(ws, by, { kind: "approval.given", object: { type: "metric", id: a.metric_id, name: ctx.m.name }, details: { period: a.period_start, step: (state.approval_step ?? 0) + 1, entered_by: value?.entered_by ?? null } });
   // The same people, in the same order, as when the round started: skipping the one the round is about (also when
   // it began with an accepted Correction), not whoever submitted the latest value.
-  const approvers = await approversFor(ctx, ctx.wf.config.steps.find((s): s is Extract<WorkflowStep, { type: "approve" }> => s.type === "approve"), from);
+  const approvers = await approversFor(ctx, ctx.wf.config.steps.find((s): s is Extract<WorkflowStep, { type: "approve" }> => s.type === "approve"), from, value?.entered_by ?? null);
   const next = (state.approval_step ?? 0) + 1;
   if (next < approvers.length) {
     const nextAction = await requestApproval(ctx, approvers[next], from, (state.note ?? "").split("; ").filter(Boolean), Number(value?.value));
