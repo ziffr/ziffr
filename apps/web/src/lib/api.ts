@@ -87,7 +87,7 @@ export function sensitiveRoute<C>(scope: Scope, handler: (actor: KeyActor, req: 
  * and is logged like every call. A person's key gets 403: a Feed's endpoints are not theirs. */
 export function feedRoute<C>(handler: (feed: FeedActor, req: Request, ctx: C) => Promise<Response>) {
   return guarded<C>(async (actor, req, ctx) => {
-    if (!("feed" in actor)) return apiError("forbidden", "Only a Feed Key may use /api/v1/feed. Make one for a Feed on the Team page.");
+    if (!("feed" in actor)) return apiError("forbidden", "Only a Feed Key may use /api/v1/feed. Make one for a Feed under Settings → Feeds.");
     return run(actor, req, ctx, handler);
   });
 }

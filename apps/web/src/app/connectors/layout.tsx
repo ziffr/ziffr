@@ -1,4 +1,4 @@
-// Workspace → Connectors (spec 0021, #532; GLOSSARY: Connector, Outbox): one title, four tabs, each its own page.
+// Workspace → Connectors (spec 0021, #532; GLOSSARY: Connector, Outbox): one title, five tabs, each its own page.
 import { PageHeader } from "@/components/page-header";
 import { ConnectorsTabs } from "./tabs";
 

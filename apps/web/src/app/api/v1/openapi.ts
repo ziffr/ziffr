@@ -653,7 +653,7 @@ export function openApiDocument() {
     },
     servers: [{ url: "/api/v1" }],
     paths,
-    components: { schemas, securitySchemes: { accessKey: { type: "http", scheme: "bearer", description: "An Access Key, made in Settings, or a Feed Key, made for a Feed on the Team page." }, usageKey: { type: "http", scheme: "bearer", description: "A Usage Key, made by an Installation Admin on the Installation Settings page. It opens GET /installation/usage and nothing else." } } },
+    components: { schemas, securitySchemes: { accessKey: { type: "http", scheme: "bearer", description: "An Access Key, made in Settings, or a Feed Key, made for a Feed under Settings → Feeds." }, usageKey: { type: "http", scheme: "bearer", description: "A Usage Key, made by an Installation Admin on the Installation Settings page. It opens GET /installation/usage and nothing else." } } },
   };
 }
 
