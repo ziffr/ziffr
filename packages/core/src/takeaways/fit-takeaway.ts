@@ -77,7 +77,7 @@ function lines(v: Verdict, ctx: TakeawayContext, result?: (value: number) => str
     // Several drivers named together are written as a list: "A, B and C".
     if (NAMED.has(f.case)) return { ...f.slots, names: listOf(String(f.slots.names).split(", "), ctx) };
     if (typeof f.slots.periods !== "string") return f.slots;
-    const all = f.slots.periods.split(",").filter(Boolean).map((p) => periodLabel(p, f.slots.span as Span, ctx.yearStart ?? 1));
+    const all = f.slots.periods.split(",").map((p) => periodLabel(p, f.slots.span as Span, ctx.yearStart ?? 1));
     return { ...f.slots, which: all.length > 4 ? listOf([...all.slice(0, 3), text("list-more", ctx, { n: all.length - 3 })], ctx) : listOf(all, ctx) };
   };
   const one = (f: { case: CaseKey; slots: Slots }) => say(f.case, which(f), { ...ctxOf(ctx), result });

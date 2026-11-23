@@ -9,12 +9,13 @@ import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
 import fc from "fast-check";
 import { describe, expect, it } from "vitest";
-import { fit, fitBasis, fitNumbers, importance, needs, partialPeriods, predict, MOST_PERIODS, type Fit, type FitInput, type FitRow } from "./fit";
+import { fit, fitBasis, fitNumbers, groupOf, importance, needs, partialPeriods, predict, MOST_PERIODS, type Fit, type FitInput, type FitRow } from "./fit";
 import { tQuantile } from "./distributions";
 import { SUITABILITY } from "../suitability";
 import { metric } from "../test/fixtures";
 import { dayOf, monthsLater, textOf } from "../test/reference/calendar";
 import { runs } from "../test/reference/check";
+import { fractionOf } from "../exact";
 import { exactOf, isNearestDouble, minus, nearestDoubleOf, plus, same, type Exact } from "../test/reference/exact";
 import { referenceTQuantile } from "../test/reference/distributions";
 import { referenceBandSquared, referenceExplained, referenceFit, referenceInflation, referenceLmg, referenceNeedsRange, referencePartialSquared, referenceValue, type ReferenceRow } from "../test/reference/fit";
@@ -629,6 +630,63 @@ describe("drivers that cannot be told apart", () => {
       expect(f.merged).toHaveLength(2);
       expect(f.drivers).toHaveLength(2);
     }
+  });
+  it("finds the drivers of a near-dependency from the inverse of their sums: all that load on it, at least two, by load", () => {
+    const f = (rows: number[][]) => rows.map((r) => r.map(fractionOf));
+    const ones = [1, 1, 1].map(fractionOf);
+    // Equal loads of 1/3: all three.
+    expect(groupOf(f([[10, 9, 9], [9, 10, 9], [9, 9, 10]]), ones)).toEqual([0, 1, 2]);
+    // One direction alone: still two names, the next by load (the loads tie, the earlier first).
+    expect(groupOf(f([[100, 0, 0], [0, 1, 0], [0, 0, 1]]), ones)).toEqual([0, 1]);
+    // The top direction (0.9, 0.4, 0.1): loads 0.83, 0.16, 0.01, so the third is left out; and in order of load, not of position.
+    const rank1 = (v: number[]) => f(v.map((a, i) => v.map((b, j) => 100 * a * b + (i === j ? 1 : 0))));
+    expect(groupOf(rank1([0.9, 0.4, 0.1]), ones)).toEqual([0, 1]);
+    expect(groupOf(rank1([0.1, 0.9, 0.4]), ones)).toEqual([1, 2]);
+    expect(groupOf(rank1([0.8, 0.5, 0.33]), ones)).toEqual([0, 1, 2]);
+    // Sums on very different scales are put on the same footing (the correlation matrix, not the raw sums).
+    const scaled = f([[10, 9, 9], [9, 10, 9], [9, 9, 10]]).map((row, i) => row.map((v, j) => ({ num: v.num, den: BigInt([1, 10, 100][i] * [1, 10, 100][j]) })));
+    expect(groupOf(scaled, [1, 100, 10000].map(fractionOf))).toEqual([0, 1, 2]);
+  });
+  it("refuses a mix whatever place it is listed in, on whatever scales, naming only its drivers, in name order", () => {
+    const free = (n: number) => Array.from({ length: n }, () => hundredths(rng() * 100));
+    const [x1, x2, lone] = [free(36), free(36), free(36)];
+    const x3 = x1.map((v, i) => hundredths(v + x2[i] + gauss(rng) * 3));
+    const yy = x1.map((v, i) => hundredths(0.5 * v + 0.5 * x2[i] + lone[i] + gauss(rng) * 5));
+    const scale = (c: number[], k: number) => c.map((v) => hundredths(v * k));
+    for (const cols of [[lone, x1, x2, x3], [x1, lone, x2, x3], [x3, x2, lone, x1], [scale(x1, 100), x2, scale(x3, 0.1), lone]]) {
+      const r = fit(input(yy, cols));
+      expect(r.ok).toBe(false);
+      if (!r.ok) {
+        expect(r.refusals.map((c) => c.case)).toEqual(["refuse-drivers-mix"]);
+        const named = String(r.refusals[0].slots.names).split(", ");
+        expect(named).toHaveLength(3);
+        expect(named).toEqual([...named].sort());
+        expect(named).not.toContain(NAMES[cols.findIndex((c) => c === lone)]);
+      }
+    }
+  });
+  it("is not crowded at an inflation of exactly 5, and names the crowded in the same order whatever order they are listed in", () => {
+    const a = [1, 1, 1, 1, 1, 1, -1, -1, -1, -1, -1, -1];
+    const b = [1, -1, 1, -1, 1, -1, 1, -1, 1, -1, 1, -1];
+    const y = a.map((v, i) => 3 * v + 2 * b[i] + (i % 3) + (i % 5));
+    const exactly = fitNumbers(rowsOf(y, [a, a.map((v, i) => hundredths(2 * v + b[i]))]), ["A", "B", "Y"], 2);
+    if ("refusals" in exactly) throw new Error("refused");
+    expect(exactly.core.crowded).toEqual([]);
+    const free = (n: number) => Array.from({ length: n }, () => hundredths(rng() * 100));
+    const [x1, x2, f4] = [free(40), free(40), free(40)];
+    const noise = Array.from({ length: 40 }, () => gauss(rng));
+    const yy = x1.map((v, i) => hundredths(0.5 * v + 0.5 * x2[i] + 3 * f4[i] + gauss(rng) * 8));
+    for (let sd = 4; sd < 40; sd += 0.5) {
+      const x3 = x1.map((v, i) => hundredths(v + x2[i] + noise[i] * sd));
+      const cols = [{ name: "Visits", points: pts(x1) }, { name: "Price", points: pts(x2) }, { name: "Tickets", points: pts(x3) }, { name: "Churn", points: pts(f4) }];
+      const f = fit({ ...input(yy, []), drivers: cols });
+      if (!f.ok || f.crowded.length === 0) continue;
+      const g = made(fit({ ...input(yy, []), drivers: [cols[3], cols[2], cols[1], cols[0]] }));
+      expect(g.crowded).toEqual(f.crowded);
+      expect(f.crowded).toEqual([...f.crowded].sort());
+      return;
+    }
+    throw new Error("no crowded case found");
   });
   it("keeps a fit whose inflation is only 5 to 10 for a mix, names the crowded drivers, never calls it strong, and keeps a free driver's effect", () => {
     const free = (n: number) => Array.from({ length: n }, () => hundredths(rng() * 100));

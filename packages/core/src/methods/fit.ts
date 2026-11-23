@@ -320,13 +320,16 @@ type Reduced = { cols: number[]; mo: Moments; sol: Solved; merged: Merged[]; cro
  * and says which drivers are crowded (their separate effects are less certain, which their ranges show). */
 export const REFUSE_INFLATION = 10;
 
-// The drivers that make up a near-dependency: the direction of the correlation matrix with the least variance (the top direction of its
-// inverse, by power iteration) and the drivers that load on it. At least two, so that the group is never one driver alone.
-function groupOf(sol: Solved, mo: Moments): number[] {
-  const k = sol.m.length;
-  const size = mo.sxx.map((row, i) => root(row[i]));
-  const inverse = sol.m.map((row, i) => row.map((v, j) => dbl(v) * size[i] * size[j]));
+/** The drivers that make up a near-dependency, from the inverse of the sums about the means (`m`) and their diagonal (`diag`, each
+ * driver's own sum): the direction of least variance of the correlation matrix (the top direction of its inverse, by power iteration)
+ * and the drivers that load on it (at least 5 % of it), never fewer than two, so that a group is never one driver alone. */
+export function groupOf(m: Fraction[][], diag: Fraction[]): number[] {
+  const k = m.length;
+  const size = diag.map((d) => root(d));
+  const inverse = m.map((row, i) => row.map((v, j) => dbl(v) * size[i] * size[j]));
+  // Stryker disable next-line ArithmeticOperator: any start that is not at right angles to the top direction reaches it
   let v = Array.from({ length: k }, (_, i) => 1 + i / 100);
+  // Stryker disable next-line EqualityOperator: 200 steps are far beyond convergence, so one more changes nothing
   for (let n = 0; n < 200; n++) {
     const w = inverse.map((row) => row.reduce((t, x, j) => t + x * v[j], 0));
     const length = Math.sqrt(w.reduce((t, x) => t + x * x, 0));
@@ -334,6 +337,7 @@ function groupOf(sol: Solved, mo: Moments): number[] {
   }
   const load = v.map((x) => x * x);
   const order = load.map((_, i) => i).sort((a, b) => load[b] - load[a]);
+  // Stryker disable next-line EqualityOperator: a load of exactly 5 % is a knife-edge no data reaches
   return order.filter((i, rank) => rank < 2 || load[i] > 0.05);
 }
 
@@ -361,6 +365,7 @@ function reduce(rows: FitRow[], names: string[], k: number, ranks: number[]): Re
       }
     } else {
       const inflation = idx.map((i) => mul(sol.m[i][i], mo.sxx[i][i]));
+      // Stryker disable next-line EqualityOperator: an inflation of exactly 5 is a knife-edge only a hand-made pair reaches, and it is tested
       const high = idx.filter((i) => cmp(inflation[i], whole(MOST_INFLATION)) > 0);
       const merged = names.flatMap((n, i) => (withs[i].length > 0 ? [{ kept: n, with: withs[i] }] : []));
       if (high.length === 0) return { cols, mo, sol, merged, crowded: [] };
@@ -371,9 +376,10 @@ function reduce(rows: FitRow[], names: string[], k: number, ranks: number[]): Re
       if (close.length === 0) {
         // No pair to merge. Far above 5 no effect of the group can be told apart: refused, naming every driver that loads on the
         // near-dependency. Between 5 and that the fit is made, with the crowded drivers named so that nobody reads their effects as clean.
-        if (cmp(inflation.reduce((x, y) => (cmp(y, x) > 0 ? y : x)), whole(REFUSE_INFLATION)) > 0) return { refusals: [{ case: "refuse-drivers-mix", slots: { names: groupOf(sol, mo).map((i) => names[cols[i]]).sort().join(", ") } }] };
+        // Stryker disable next-line EqualityOperator: an inflation of exactly 10 is a knife-edge no data reaches
+        if (inflation.some((v) => cmp(v, whole(REFUSE_INFLATION)) > 0)) return { refusals: [{ case: "refuse-drivers-mix", slots: { names: groupOf(sol.m, mo.sxx.map((r, i) => r[i])).map((i) => names[cols[i]]).sort().join(", ") } }] };
         // Named with the others that load on the same near-dependency, so that it is never one driver 'moving with' itself.
-        return { cols, mo, sol, merged, crowded: [...new Set([...high, ...groupOf(sol, mo)])].map((i) => names[cols[i]]).sort() };
+        return { cols, mo, sol, merged, crowded: [...new Set([...high, ...groupOf(sol.m, mo.sxx.map((r, i) => r[i]))])].map((i) => names[cols[i]]).sort() };
       }
       // Stryker disable next-line EqualityOperator,ConditionalExpression: of two close pairs either is merged first, and the other is merged next, to the same result
       pair = close.reduce((x, y) => (cmp(link(y[0], y[1]), link(x[0], x[1])) > 0 ? y : x));
@@ -482,11 +488,13 @@ export function fitNumbers(rows: FitRow[], names: string[], k: number, ranks: nu
 
 // The words about gaps for series of changes.
 const CHANGE_CASES: Record<string, Finding["case"]> = { "caution-gaps": "caution-gaps-change", "refuse-gaps": "refuse-gaps-change", "refuse-gap-run": "refuse-gap-run-change" };
-// The periods of a series that have no value within the periods a fit uses (and the one before the first, which its first change needs).
+// The periods of a series that have no value within the periods a fit uses.
 function missingLevels(points: Point[], span: Span, rows: FitRow[]): string[] {
   const have = new Set(readSeries(points).map((p) => p.period));
   const out: string[] = [];
-  for (let p = shiftPeriod(rows[0].period, span, -1); p <= rows[rows.length - 1].period; p = shiftPeriod(p, span, 1)) if (!have.has(p)) out.push(p);
+  // The first and the last period used always have a value (a change needs it and the one before), so the ends cannot be missing.
+  // Stryker disable next-line EqualityOperator: the last period used has a value, so `<` and `<=` list the same periods
+  for (let p = rows[0].period; p <= rows[rows.length - 1].period; p = shiftPeriod(p, span, 1)) if (!have.has(p)) out.push(p);
   return out;
 }
 

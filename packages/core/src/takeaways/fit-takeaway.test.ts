@@ -663,6 +663,19 @@ describe("what a second review asked for", () => {
     expect(movesTakeaway(R, [V], at([4, 19, 34, 49]), ctx).cautions[0]).toContain("no value for May 2024, August 2025, November 2026 and February 2028, so");
     expect(movesTakeaway(R, [V], at([4, 19, 34, 49, 64]), ctx).cautions[0]).toContain("no value for May 2024, August 2025, November 2026 and 2 more, so");
   });
+  it("writes the periods of a gap by the Fiscal Year where they are quarters", () => {
+    const r = lcg(13);
+    const n = 60;
+    const trend = Array.from({ length: n }, (_, i) => 100 + 4 * i);
+    const a = trend.map((v) => Math.round(v * 10 + gauss(r) * 30));
+    const y = a.map((v) => Math.round(v * 2 + gauss(r) * 40));
+    const qs = (vs: number[]): Point[] => vs.map((value, i) => ({ period: new Date(Date.UTC(2020, 3 * i, 1)).toISOString().slice(0, 10), value }));
+    const f = ok(fit({ target: { name: "Revenue", points: qs(y) }, drivers: [{ name: "Visits", points: qs(a).filter((_, i) => i !== 20) }], span: "quarter" }));
+    const q = metric({ id: 1, slug: "revenue", name: "Revenue", period: "quarter" });
+    const [april, january] = [movesTakeaway(q, [V], f, { style: "1,234.5", yearStart: 4 }).cautions[0], movesTakeaway(q, [V], f, { style: "1,234.5", yearStart: 1 }).cautions[0]];
+    expect(april).toContain("no value for Q4 FY 2024/25,");
+    expect(january).toContain("no value for Q1 2025,");
+  });
   it("breaks a tie at the cutoff of the first pass by Metric id, in any order given", () => {
     const r = lcg(3);
     const n = 40;
@@ -928,6 +941,7 @@ describe("the Recipes", () => {
     const none = whatNeeds(R, [R], 100, resolve, opts);
     expect(none.refusal).toBe("No other Metric has enough in common with Revenue to compare.");
     expect(none.rows).toEqual([]);
+    expect(none.notes).toEqual([]);
   });
   it("refuses as the fit does, in words", () => {
     const short = resolverFrom(metrics, { revenue: months("2024-01", [1, 2, 3, 5, 4]), visits: months("2024-01", [3, 1, 2, 5, 4]), price: [], tickets: [] });
