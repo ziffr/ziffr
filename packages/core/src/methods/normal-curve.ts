@@ -2,7 +2,7 @@
 // distribution. Pure, in doubles; checked against SciPy's `norm.cdf` and `norm.ppf` (fixtures/forecast.py).
 //
 // The chance below a point z is worked out through the complementary error function, erfc, which has two documented
-// forms: for x below 2.5, the all-positive series erf(x) = 2/√π · e^(−x²) · Σ 2ⁿ x^(2n+1) ÷ (1·3·5···(2n+1)) (no
+// forms: for x below 1.5, the all-positive series erf(x) = 2/√π · e^(−x²) · Σ 2ⁿ x^(2n+1) ÷ (1·3·5···(2n+1)) (no
 // cancellation, converges everywhere), and above it Laplace's continued fraction erfc(x) = e^(−x²) ÷ (√π ·
 // (x + ½/(x + 1/(x + (3/2)/(x + 2/(x + …)))))), which is accurate in the tail where 1 − erf would lose every digit.
 
@@ -10,9 +10,9 @@
  * "likely between" is the value less and plus this many standard deviations. */
 export const Z80 = 1.2815515655446004;
 
-const SERIES_UNTIL = 2.5;
+const SERIES_UNTIL = 1.5;
 // Terms of the series and of the continued fraction: enough that the next one is below 1e-18 of the sum for x up to the
-// switch (the series needs 62 at 2.5) and the fraction is converged to the last digit from 2.5 on.
+// switch (the series needs about 40 at 1.5) and the fraction is converged to the last digit from 1.5 on. The switch is low because the series gives erfc as 1 − erf, which loses digits as erfc shrinks: at 2.5 it was off by a relative 1.6e-12, at 1.5 it is 1.3e-14.
 const SERIES_TERMS = 120;
 const FRACTION_TERMS = 200;
 

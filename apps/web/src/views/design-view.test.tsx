@@ -9,6 +9,7 @@ import { sampleCanvasData } from "@ziffr/core/sample-data";
 import type { ViewDesign } from "@ziffr/core/view-design";
 import type { CanvasData, WidgetSettings } from "@ziffr/core/types";
 import { DesignView } from "./design-view";
+import { HIDDEN_TAKEAWAYS, TakeawayHostProvider } from "./takeaway-host";
 import { designWithRecipe } from "@ziffr/core/design-files";
 import { BUILT_IN_RECIPES } from "@ziffr/core/built-in-recipes";
 import { growth, mean } from "@ziffr/core/recipe-functions";
@@ -74,5 +75,26 @@ describe("DesignView", () => {
   it("says what a design needs when a Slot is empty", () => {
     expect(draw(BUILT_IN_DESIGNS.correlation, {})).toContain("Needs two metrics with at least 6 periods in common.");
     expect(draw(BUILT_IN_DESIGNS.matrix, {})).toContain("Drop at least two metrics.");
+  });
+});
+
+describe("DesignView Takeaway words", () => {
+  const settings: WidgetSettings = { window: 18 };
+  const drawIn = (host: Parameters<typeof TakeawayHostProvider>[0]["value"]) =>
+    renderToStaticMarkup(
+      <TakeawayHostProvider value={host}>
+        <DesignView design={BUILT_IN_DESIGNS.forecast} widget={{ metric_ids: [data.metrics[0].id], settings }} metrics={[data.metrics[0]]} data={data} />
+      </TakeawayHostProvider>,
+    );
+  const panelHost = { mode: "panel" as const, open: false, setOpen: () => {}, setHas: () => {} };
+
+  it("draws them under the chart where no card hosts them (a deck's slide)", () => {
+    expect(draw(BUILT_IN_DESIGNS.forecast, settings)).toContain("it is not a promise");
+  });
+
+  it("leaves them out of a card that hides them, and of a card that opens them from its menu", () => {
+    expect(drawIn(HIDDEN_TAKEAWAYS)).not.toContain("not a promise");
+    expect(drawIn(panelHost)).not.toContain("not a promise");
+    expect(drawIn(HIDDEN_TAKEAWAYS)).not.toContain("Show the numbers");
   });
 });

@@ -1,5 +1,5 @@
 // What a trial's team can use beyond the Owner (spec 0040, ticket 4; ADR 0015), against the real database: View Links made
-// in a trial end no later than the trial, whatever date is asked and whichever way the row is written, and keep that date
+// in a trial end no later than the trial, whatever date is asked and whichever way the row is written, and get the date asked for back
 // when the trial is subscribed to; and an Admin who accepted manages the trial's Webhooks within the Trial Limits while a
 // Member does not. Who is reached by messages is in trial-sends.db.test.ts.
 import { randomUUID } from "node:crypto";
@@ -68,11 +68,11 @@ describe("a View Link made in a trial", () => {
     expect(await openViewLink(token)).toBeNull();
   });
 
-  it("keeps the end date it was made with when the trial is subscribed to, and an ordinary Workspace is not clamped", async () => {
+  it("gets the end date that was asked for back when the trial is subscribed to, and an ordinary Workspace is not clamped", async () => {
     const t = await trial(5);
     await createViewLink(t.ownerActor, "dashboard", t.dashboardId, { label: "a", expires: day(60), frozen: false });
     await setCloudLimit({ cloud: true }, t.id, { metrics: 50, label: "Small", endTrial: true });
-    expect(await ends(t.id)).toEqual([day(5)]);
+    expect(await ends(t.id)).toEqual([day(60)]);
     const o = await workspace("Ordinary");
     cleanups.push(o.cleanup);
     const sara = await o.person("owner");

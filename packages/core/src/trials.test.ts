@@ -28,7 +28,7 @@ describe("trialsOffered (spec 0040)", () => {
     const keys = [undefined, "", "short", "k".repeat(31), "k".repeat(32)];
     const days = [undefined, "", "7", "30", "0", "31", "x"];
     for (const key of keys) for (const d of days) {
-      const env = { ZIFFR_CLOUD_KEY: key, ZIFFR_TRIAL_DAYS: d, ZIFFR_TRIAL_MAX: "5", ZIFFR_TRIAL_THEN: "keep", ZIFFR_TRIAL_WEBHOOKS: "true" };
+      const env = { ZIFFR_CLOUD_KEY: key, ZIFFR_TRIAL_DAYS: d, ZIFFR_TRIAL_MAX: "5", ZIFFR_TRIAL_WEBHOOKS: "true" };
       const expected = key === "k".repeat(32) && (d === undefined || d === "" || d === "7" || d === "30");
       expect(trialsOffered(env), `${key} ${d}`).toBe(expected);
       // Without the key no trial is made; days that are set anyway throw, so no ordinary Workspace is made instead.

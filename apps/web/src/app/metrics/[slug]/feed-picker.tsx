@@ -7,9 +7,10 @@ import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { addFeedToMetric, removeFeedFromMetric } from "@/app/feed-actions";
 import { Button } from "@/components/ui/button";
+import { FillFromN8n } from "@/components/fill-from-n8n";
 
 /** A select of the workspace's Feeds not yet submitting to this Metric, with an Add button. */
-export function FeedPicker({ metricId, choices }: { metricId: number; choices: { id: string; name: string }[] }) {
+function FeedPicker({ metricId, choices }: { metricId: number; choices: { id: string; name: string }[] }) {
   const [feed, setFeed] = useState(choices[0]?.id ?? "");
   const [pending, start] = useTransition();
   const router = useRouter();
@@ -30,6 +31,17 @@ export function FeedPicker({ metricId, choices }: { metricId: number; choices: {
         }
       })}>Add</Button>
     </div>
+  );
+}
+
+/** Under Who submits, for the Metric's owner and Editors: the Feed picker, and for Owners and Admins (not in the demo)
+ * the n8n template for this Metric (spec 0043). */
+export function FeedControls({ metric, choices, taken, role, demo, templates }: { metric: { id: number; name: string }; choices: { id: string; name: string }[]; taken: string[]; role: string; demo: boolean; templates: { id: string; label: string; reads: string; needs: string; rows: boolean }[] }) {
+  return (
+    <>
+      <FeedPicker metricId={metric.id} choices={choices.filter((c) => !taken.includes(c.id))} />
+      {!demo && (role === "owner" || role === "admin") && <FillFromN8n metrics={[metric]} feeds={choices} templates={templates} />}
+    </>
   );
 }
 

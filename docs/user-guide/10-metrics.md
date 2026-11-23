@@ -128,7 +128,7 @@ Each card shows the Metric's name, what it counts, its period, which way is good
 
 ### The form
 
-The form has three parts. The panel on the right says that you become the **Owner**: "The owner keeps the description up to date and accepts corrections to its values." **Create metric** saves it; **Cancel** goes back to the list.
+The form is short: three parts, and **More options** below them for what you rarely change. The panel on the right says that you become the **Owner**: "The owner keeps the description up to date and accepts corrections to its values." **Create metric** saves it; **Cancel** goes back to the list.
 
 **What is it?**
 
@@ -138,18 +138,36 @@ The form has three parts. The panel on the right says that you become the **Owne
 | **Description** | What exactly is counted, and what isn't. Would a new colleague understand it? |
 | **Format** | **Number**, **Money** or **Percent**. Choosing **Money** fills in the unit of the Workspace Profile's currency: "€" after the number for euros, "$" before it for dollars, otherwise the currency's code before it, such as "CHF ". You can change it. A Percent Metric's values are numbers such as 12.5, not 0.125. |
 | **Unit** | What stands next to the number, such as "€", "$", "d", "pc" or "%". Any text up to 20 characters; leave it empty for plain numbers. |
-| **Stands** | Whether the unit stands **after** the number ("1.200 €", "12 d", with a space) or **before** it ("$1,200", without one; a unit such as "CHF " keeps the space it ends with). |
-| **Decimals** | How many digits after the decimal point, from 0 to 4. A line under these fields shows how a value will read, in the Workspace's Number Style. |
 
 **How do values arrive?**
 
 | Field | What it does |
 | --- | --- |
 | **Period** | **Daily**, **Weekly**, **Monthly**, **Quarterly** or **Yearly**: one value per period. Quarters and years start from the Workspace's fiscal year (**Workspace → General**), so with a year that starts in April, Q1 is April to June. The period cannot change once the Metric has values, or targets or projections on its Targets tab. |
+| **Who submits** | The people who send in its values, members and Contacts alike. Each one gets a personal form link for this Metric and a first request for the value. You are ticked to start with when you create a Metric; a copy starts with the original's Submitters. |
+
+**Target**
+
+| Field | What it does |
+| --- | --- |
+| **Which way is good** | The **Polarity**: **Higher is better**, **Lower is better** or **Closer to target is better**. |
+| **Target from** | The lower end of the Target Range. Leave it empty for no lower end. |
+| **Target to** | The upper end. Leave it empty for no upper end. |
+
+**More options**
+
+A folded section below Target. Opening it shows the fields below; leave it closed and Ziffr uses the defaults named in the table, which is what the form always used. While it is closed, its heading names every value that is not the default, such as "2 decimals · Aggregation: Average". It opens by itself when a Metric you duplicate, or one from the Catalog, has values that are not the defaults, and when a value in it is not valid.
+
+| Field | What it does |
+| --- | --- |
+| **Stands** | Whether the unit stands **after** the number ("1.200 €", "12 d", with a space) or **before** it ("$1,200", without one; a unit such as "CHF " keeps the space it ends with). |
+| **Decimals** | How many digits after the decimal point, from 0 to 4. A line under Format and Unit shows how a value will read, in the Workspace's Number Style. |
 | **A second value for the same period** | The **Submission Rule**: what happens when another value arrives for a period that already has one. See the table below. |
 | **Aggregation** | How values combine into a longer period, for comparisons such as QoQ or YoY and for Widgets shown by quarter or year (**Show by**, see the Dashboards chapter): **Sum** (counts and amounts, such as revenue or deals), **Average** (levels, such as a score or a delivery time), **Last value** (stocks, such as a balance or headcount) or **Does not combine** (rates and ratios). |
 | **Sources** | The ways values may arrive: **Slack**, **Mail**, **Telegram**, **Web form** and **API and Feeds**. All are ticked for a new Metric, so each Submitter can use what suits them. A value that arrives another way is refused. In the demo, Slack and Mail are marked "(played in the demo)": nothing is really sent. |
-| **Who submits** | The people who send in its values, members and Contacts alike. Each one gets a personal form link for this Metric and a first request for the value. You are ticked to start with when you create a Metric; a copy starts with the original's Submitters. |
+| **Attainment** | How the percentage of target is computed: **As the workspace** (the default, set on **Workspace → General**), **By ratio** or **By distance**. See [Comparisons](#comparisons). |
+
+Defaults: the unit stands where its sign suggests (before a "$", after a "%" or "d"), **Decimals** 0, **A second value** overwrites, **Aggregation** is Sum, all **Sources** are ticked, and **Attainment** follows the Workspace.
 
 The four Submission Rules:
 
@@ -159,15 +177,6 @@ The four Submission Rules:
 | **Overwrite with the newer value** | It replaces the first. The first is kept as a **Superseded Value**. | Figures reported again in full, where the latest report wins. |
 | **Add up all values** | It is added to the first. Values that arrive at the same moment all count. | Counts reported in pieces: "3 deals", then "2 more". |
 | **Keep every value** | Both are kept. | Repeated measurements, such as weight twice a day. |
-
-**Target**
-
-| Field | What it does |
-| --- | --- |
-| **Which way is good** | The **Polarity**: **Higher is better**, **Lower is better** or **Closer to target is better**. |
-| **Target from** | The lower end of the Target Range. Leave it empty for no lower end. |
-| **Target to** | The upper end. Leave it empty for no upper end. |
-| **Attainment** | How the percentage of target is computed: **As the workspace** (the default, set on **Workspace → General**), **By ratio** or **By distance**. See [Comparisons](#comparisons). |
 
 After **Create metric**, the Metric's page opens with the note "Metric created. It has no values yet." Under it, one sentence says what really happened: who got a form link and a first request and by which way ("Ana got a form link and a first request by email."); that nobody submits it yet, with where to add Submitters; or, when this Ziffr sends no email, that nothing was sent and the request waits in the Outbox. Only the Metric's owner, who made it, sees who was asked. In the demo, where nothing is really sent, the note ends with **Go to Sources**, which opens the **Sources** tab of **Connectors** so you can answer the request there.
 
@@ -394,6 +403,8 @@ The **Submitters** of this Metric: who may send values for it. Ziffr recognises 
 Under each person a line says where their next **Prompt** will go and why, for example "Next request: by Slack", or "Can't reach: link Slack" when none of the ways this Metric accepts reaches them. The owner and Editors see it for everyone; anyone else who submits sees their own line. On your own line the fix is a link: **Link Slack** or **Connect Telegram** on **Connectors**, or **Add an email address** in your profile. A request goes only by a way the Metric accepts values by (see **Values arrive by**) and that reaches the person: if your usual way is not one, the line names the way it goes instead and why. When nothing reaches the person the request waits in the **Outbox** as "Not sent: …", is never sent by email or anywhere else instead, and the owner gets one message about it.
 
 A Feed is listed with the word "Feed". The owner and Editors see **Remove** next to it, which stops that Feed sending values. The values it already sent stay.
+
+**Fill from n8n** is under the Feeds, for Owners and Admins who may change this Metric's Submitters (not in the demo, and not for a Derived Metric). Choose which template to read from (today **Google Sheets**), which Feed sends the values (one you have, or **A new Feed…** with a name), and whether to **Make a Feed Key for it and show it once**, then **Download the workflow**. You get an n8n workflow with your Ziffr's address already in it, and the Feed becomes a Submitter of the Metric. For a template that reads rows from a sheet, the page also offers a **starter sheet**: a `metric,value,period` header with this Metric's slug, to paste into your sheet. The key is shown once, beside the download, and is never written into the file: n8n keeps it in a credential named Ziffr Feed Key, as the template's guide says ([Google Sheets](../automations/google-sheets-feed.md)). You add the other system's login in n8n; Ziffr never sees it and never runs the workflow. The Audit log records that the template was downloaded, never the file.
 
 **Values from a Feed** (for the owner and Editors) adds one of the Workspace's Feeds as a Submitter: pick it and choose **Add**. Its values arrive through the API, so the **API and Feeds** Source is turned on by itself. Owners and Admins create Feeds (see [Connecting Ziffr](04-connecting.md#feeds-numbers-from-other-systems)); a Feed is never sent Prompts. The choice only appears when there is a Feed not yet on the list.
 

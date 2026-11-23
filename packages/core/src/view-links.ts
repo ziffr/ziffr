@@ -313,7 +313,8 @@ export async function createViewLink(actor: Actor, type: "dashboard" | "deck", i
   const latest = new Date(Date.now() + maxDays * 86400000).toISOString().slice(0, 10);
   const asked = String(input?.expires ?? "");
   if (!/^\d{4}-\d{2}-\d{2}$/.test(asked) || asked < today || asked > latest) throw new Refused(`Pick an end date within ${maxDays} days.`);
-  // In a trial a link ends with the trial at the latest (the database clamps too).
+  // In a trial a link ends with the trial at the latest. The date asked for is what is written: the database clamps it
+  // and remembers it, so subscribing gives it back (`expires` is the date the link really has, for the Audit Log).
   const trialEnd = await trialLastDay(actor.workspaceId);
   const expires = trialEnd && trialEnd < asked ? trialEnd : asked;
   // `opts.view` is a payload the caller already checked (a Share Proposal's): the link is made from exactly it, with no second read in between.
@@ -326,7 +327,7 @@ export async function createViewLink(actor: Actor, type: "dashboard" | "deck", i
   const [linkId] = await reserveIds("view_links", 1);
   const cipher = await workspaceCipher(actor.workspaceId);
   const frozen = input?.frozen ? sealFrozenData(cipher, "view_links", linkId, mapViewWords(view, sealing(cipher, "view_links", linkId))) : null;
-  const { data: made, error: madeError } = await db().from("view_links").insert({ id: linkId, token, object_type: type, object_id: id, created_by: actor.personId, label: String(input?.label ?? "").slice(0, 80), expires_at: expires, frozen, show_names: input?.showNames === true, metric_ids: view.data.metrics.map((m) => m.id), widget_ids: view.widgets?.map((w) => w.id) ?? null,
+  const { data: made, error: madeError } = await db().from("view_links").insert({ id: linkId, token, object_type: type, object_id: id, created_by: actor.personId, label: String(input?.label ?? "").slice(0, 80), expires_at: asked, frozen, show_names: input?.showNames === true, metric_ids: view.data.metrics.map((m) => m.id), widget_ids: view.widgets?.map((w) => w.id) ?? null,
     // Every record the deck has now, not only shapes: anything added later stays out of a live link.
     shape_ids: type === "deck" ? Object.keys((view.document as { store?: object } | null)?.store ?? {}) : null,
     workspace_id: actor.workspaceId }).select("id").single();
@@ -353,7 +354,8 @@ async function createSnapshotLink(actor: Actor, dashboardId: number, snapshotId:
   await assertOwner(actor, "dashboard", dashboardId);
   assertCan(actor, "share");
   const asked = endDate(input?.expires, await effectiveLimit("viewLinkDays", actor.workspaceId));
-  // In a trial a link ends with the trial at the latest (the database clamps too).
+  // In a trial a link ends with the trial at the latest. The date asked for is what is written: the database clamps it
+  // and remembers it, so subscribing gives it back (`expires` is the date the link really has, for the Audit Log).
   const trialEnd = await trialLastDay(actor.workspaceId);
   const expires = trialEnd && trialEnd < asked ? trialEnd : asked;
   const s = await snapshotForLink(snapshotId, dashboardId);
@@ -362,7 +364,7 @@ async function createSnapshotLink(actor: Actor, dashboardId: number, snapshotId:
   await assertSeesMetrics(actor, s.data.metrics.map((m) => m.id));
   const token = randomBytes(24).toString("base64url");
   const [linkId] = await reserveIds("view_links", 1);
-  const { data: made, error: madeError } = await db().from("view_links").insert({ id: linkId, token, object_type: "dashboard", object_id: dashboardId, created_by: actor.personId, label: String(input?.label ?? "").slice(0, 80), expires_at: expires, frozen: null, show_names: input?.showNames === true, snapshot_id: snapshotId,
+  const { data: made, error: madeError } = await db().from("view_links").insert({ id: linkId, token, object_type: "dashboard", object_id: dashboardId, created_by: actor.personId, label: String(input?.label ?? "").slice(0, 80), expires_at: asked, frozen: null, show_names: input?.showNames === true, snapshot_id: snapshotId,
     // The words as the owner sees them now: someone outside reads these, whatever is written in Ziffr later. Sealed for
     // the link with the Workspace Key (spec 0028).
     snapshot_words: sealObject(await workspaceCipher(actor.workspaceId), { table: "view_links", column: "snapshot_words", row: linkId }, s.words), metric_ids: s.data.metrics.map((m) => m.id), widget_ids: null, shape_ids: null, workspace_id: actor.workspaceId }).select("id").single();

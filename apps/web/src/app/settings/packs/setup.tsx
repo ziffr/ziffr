@@ -11,6 +11,7 @@ import { toast } from "sonner";
 import { shown, unwrap } from "@/lib/action-error";
 import { Button } from "@/components/ui/button";
 import { approversStart, setupStart } from "./setup-defaults";
+import { FillFromN8n } from "@/components/fill-from-n8n";
 import { packSetup, setUpPack } from "@/app/pack-setup-actions";
 import type { PackSetupOptions, PackSetupResult } from "@ziffr/core/pack-setup";
 
@@ -25,6 +26,29 @@ export function SetUpFromPack({ installId, viewer }: { installId: number; viewer
   });
   if (!options) return <Button variant="outline" size="sm" className="mt-3" disabled={pending} onClick={open}><Wand2 aria-hidden /> Set up from this Pack</Button>;
   return <SetUpForm options={options} viewer={viewer} onClose={() => setOptions(null)} />;
+}
+
+/** After Set up: the templates the Pack says fill its entries, each for the Metrics made from them (spec 0043); when it
+ * names none that applies, any template for every Metric that takes values. Derived Metrics are left out: they take none. */
+function FillAfterSetUp({ options, made }: { options: PackSetupOptions; made: PackSetupResult }) {
+  const values = made.metrics.filter((m) => m.takesValues);
+  const named = options.suggestedFeeds.flatMap((s) => {
+    const template = options.templates.find((t) => t.id === s.template);
+    const metrics = values.filter((m) => s.fills.includes(m.key));
+    return template && metrics.length ? [{ template, metrics }] : [];
+  });
+  if (!values.length) return null;
+  if (!named.length) return <FillFromN8n metrics={values} feeds={options.feeds} templates={options.templates} />;
+  return (
+    <>
+      {named.map(({ template, metrics }) => (
+        <div key={template.id} className="mt-3">
+          <p className="text-xs">{options.install.name} says {template.label} can fill {metrics.map((m) => m.name).join(", ")}.</p>
+          <FillFromN8n metrics={metrics} feeds={options.feeds} templates={[template]} />
+        </div>
+      ))}
+    </>
+  );
 }
 
 function SetUpForm({ options, viewer, onClose }: { options: PackSetupOptions; viewer: string; onClose: () => void }) {
@@ -84,6 +108,7 @@ function SetUpForm({ options, viewer, onClose }: { options: PackSetupOptions; vi
         {made.tagsLeftOut.length > 0 && (
           <p role="status" className="mt-2 text-xs">Some Tags stayed off their Metrics because of the Tag limits (10 per Metric, 200 in the Workspace): {made.tagsLeftOut.map((l) => `${l.metric}: ${l.tags.join(", ")}`).join("; ")}. Merge or delete Tags that are not needed, then add these by hand.</p>
         )}
+        <FillAfterSetUp options={options} made={made} />
         <Button variant="ghost" size="sm" className="mt-2" onClick={onClose}>Done</Button>
       </div>
     );

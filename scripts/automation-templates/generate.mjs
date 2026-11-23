@@ -293,6 +293,7 @@ const SHEETS = {
   key: "google-sheets", id: "google-sheets", system: "sheets", label: "Google Sheets", file: "google-sheets-feed.json", guide: "google-sheets-feed.md",
   reads: "The rows of one sheet: a column metric (the Metric's slug), a column value, and optionally a column period (the period's first day).",
   needs: "A Google account that can read the sheet.",
+  rows: true,
 };
 function feedFlow(s, readNode) {
   const w = new WF(`${s.key}-feed`, `${s.label} to Ziffr (values)`);
@@ -325,7 +326,7 @@ export function generate() {
     "slack-from-ziffr.json": slackFrom(), "slack-to-ziffr.json": slackTo(),
   };
   const feeds = { "google-sheets-feed.json": sheetsFeed() };
-  const index = { templates: FEED_TEMPLATES.map(({ id, label, file, guide, reads, needs }) => ({ id, label, file, guide, reads, needs })) };
+  const index = { templates: FEED_TEMPLATES.map(({ id, label, file, guide, reads, needs, rows }) => ({ id, label, file, guide, reads, needs, ...(rows ? { rows } : {}) })) };
   return {
     ...Object.fromEntries(Object.entries({ ...all, ...feeds }).map(([f, w]) => [f, JSON.stringify(w.file(), null, 2) + "\n"])),
     "feed-templates.json": JSON.stringify(index, null, 2) + "\n",

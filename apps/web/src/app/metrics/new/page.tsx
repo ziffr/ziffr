@@ -7,7 +7,9 @@ import { can, Forbidden } from "@ziffr/core/actor";
 import { getNumberStyle, getProfiles, getAttainmentMethod } from "@/lib/data";
 import { moneyUnit } from "@ziffr/core/units";
 import { AttainmentMethodField } from "../attainment-method-field";
-import { UnitFields } from "../unit-fields";
+import { UnitDecimals, UnitExample, UnitFormat, UnitInput, UnitProvider, UnitSide } from "../unit-fields";
+import { ATTAINMENT_METHOD_LABEL } from "@ziffr/core/attainment-method";
+import { MoreOptions } from "./more-options";
 import { currentActor, viewerId } from "@/lib/viewer";
 import { createMetric } from "@/app/actions";
 import { newMetricRefusal } from "@ziffr/core/workspace-limits";
@@ -128,12 +130,15 @@ export default async function NewMetricPage({ searchParams }: { searchParams: Pr
       <form action={createMetric} className="grid gap-6 lg:grid-cols-[1fr_20rem]">
         <input type="hidden" name="from_catalog_id" value={copy ? "" : picked?.id ?? ""} />
         <input type="hidden" name="duplicate_of" value={copy?.duplicateOf ?? ""} />
+        <UnitProvider format={d.format} unit={d.unit} unitPosition={d.unit_position} decimals={d.decimals} money={money} numberStyle={numberStyle} maxDecimals={4} idPrefix="new">
         <div className="space-y-6">
           <Section title="What is it?">
             <div className="grid gap-4 sm:grid-cols-2">
               <F label="Name" className="sm:col-span-2"><NameField defaultValue={d.name} placeholder="e.g. Customer satisfaction" /></F>
               <F label="Description" className="sm:col-span-2"><Textarea name="description" defaultValue={d.description} rows={2} placeholder="What exactly is counted, and what isn’t?" /></F>
-              <UnitFields format={d.format} unit={d.unit} unitPosition={d.unit_position} decimals={d.decimals} money={money} numberStyle={numberStyle} maxDecimals={4} idPrefix="new" />
+              <UnitFormat />
+              <UnitInput />
+              <UnitExample className="-mt-2 text-xs text-muted-foreground sm:col-span-2" />
             </div>
           </Section>
 
@@ -143,29 +148,6 @@ export default async function NewMetricPage({ searchParams }: { searchParams: Pr
                 <select name="period" defaultValue={d.period} className={field}>
                   {(Object.keys(PERIOD_LABEL) as Period[]).map((p) => <option key={p} value={p}>{PERIOD_LABEL[p]}</option>)}
                 </select>
-              </F>
-              <F label="A second value for the same period" hint="What happens when one arrives.">
-                <select name="submission_rule" defaultValue={d.submission_rule} className={field}>
-                  {(Object.keys(RULE_LABEL) as SubmissionRule[]).map((r) => <option key={r} value={r}>{RULE_LABEL[r]}: {RULE_HINT[r]}</option>)}
-                </select>
-              </F>
-              <F label="Aggregation" hint="How values combine into a longer period, for QoQ or YoY." className="sm:col-span-2">
-                <select name="aggregation" defaultValue={d.aggregation} className={field}>
-                  <option value="sum">Sum: counts and amounts, such as revenue or deals</option>
-                  <option value="average">Average: levels, such as a score or a delivery time</option>
-                  <option value="last">Last value: stocks, such as a balance or headcount</option>
-                  <option value="none">Does not combine: rates and ratios</option>
-                </select>
-              </F>
-              <F label="Sources" className="sm:col-span-2">
-                <div className="flex flex-wrap gap-4">
-                  {SOURCES.map((s) => (
-                    <label key={s.id} className="flex items-center gap-2 text-sm">
-                      <input type="checkbox" name="sources" value={s.id} defaultChecked={(d.sources as SourceId[]).includes(s.id)} className="size-4 accent-primary" />
-                      {s.label} {s.simulated && demo && <span className="text-xs text-muted-foreground">(played in the demo)</span>}
-                    </label>
-                  ))}
-                </div>
               </F>
               <F label="Who submits" hint="Each gets a personal form link for this metric, and a first request for the value by chat or mail." className="sm:col-span-2">
                 <div className="flex flex-wrap gap-4">
@@ -198,10 +180,45 @@ export default async function NewMetricPage({ searchParams }: { searchParams: Pr
               </F>
               <F label="Target from"><Input name="target_min" type="number" step="any" defaultValue={d.target_min ?? ""} /></F>
               <F label="Target to"><Input name="target_max" type="number" step="any" defaultValue={d.target_max ?? ""} /></F>
-              <AttainmentMethodField id="new-attainment" value={d.attainment_method} workspaceMethod={attainmentMethod} className="sm:col-span-3" />
             </div>
           </Section>
+
+          <MoreOptions
+            initial={{ unit: d.unit, unit_position: d.unit_position, decimals: d.decimals, submission_rule: d.submission_rule, aggregation: d.aggregation, sources: d.sources as string[], attainment_method: d.attainment_method ?? "" }}
+            sourceLabels={Object.fromEntries(SOURCES.map((s) => [s.id, s.label]))}
+            attainmentLabels={ATTAINMENT_METHOD_LABEL}
+          >
+            <div className="grid gap-4 sm:grid-cols-2">
+              <UnitSide />
+              <UnitDecimals />
+              <F label="A second value for the same period" hint="What happens when one arrives.">
+                <select name="submission_rule" defaultValue={d.submission_rule} className={field}>
+                  {(Object.keys(RULE_LABEL) as SubmissionRule[]).map((r) => <option key={r} value={r}>{RULE_LABEL[r]}: {RULE_HINT[r]}</option>)}
+                </select>
+              </F>
+              <F label="Aggregation" hint="How values combine into a longer period, for QoQ or YoY." className="sm:col-span-2">
+                <select name="aggregation" defaultValue={d.aggregation} className={field}>
+                  <option value="sum">Sum: counts and amounts, such as revenue or deals</option>
+                  <option value="average">Average: levels, such as a score or a delivery time</option>
+                  <option value="last">Last value: stocks, such as a balance or headcount</option>
+                  <option value="none">Does not combine: rates and ratios</option>
+                </select>
+              </F>
+              <F label="Sources" className="sm:col-span-2">
+                <div className="flex flex-wrap gap-4">
+                  {SOURCES.map((s) => (
+                    <label key={s.id} className="flex items-center gap-2 text-sm">
+                      <input type="checkbox" name="sources" value={s.id} defaultChecked={(d.sources as SourceId[]).includes(s.id)} className="size-4 accent-primary" />
+                      {s.label} {s.simulated && demo && <span className="text-xs text-muted-foreground">(played in the demo)</span>}
+                    </label>
+                  ))}
+                </div>
+              </F>
+              <AttainmentMethodField id="new-attainment" value={d.attainment_method} workspaceMethod={attainmentMethod} className="sm:col-span-2" />
+            </div>
+          </MoreOptions>
         </div>
+        </UnitProvider>
         <aside className="space-y-3 lg:sticky lg:top-20 lg:self-start">
           <div className="stock rounded-[var(--radius-card)] p-4 text-sm">
             <div className="font-medium">Owner</div>

@@ -131,7 +131,7 @@ Function: `laggedCorrelation` in `packages/core/src/methods/lagged-correlation.t
 
 ## Quantiles and the usual range
 
-Functions: `quantile`, `usualRange`, `standing` in `packages/core/src/methods/quantiles.ts`; the Takeaway is `usualRangeTakeaway`.
+Functions: `quantile`, `usualRange`, `standing` in `packages/core/src/methods/quantiles.ts`; the Takeaway is `usualRangeTakeaway`. The arithmetic of `quantile` is the Extension `ziffr/quantile` in `extensions/ziffr/quantile/`, which `quantiles.ts` reads through the registry (`packages/core/src/extensions.ts`).
 
 **What it answers.** What is normal for this Metric? Is this value far from it?
 
@@ -148,11 +148,11 @@ Functions: `quantile`, `usualRange`, `standing` in `packages/core/src/methods/qu
 
 **Worked example.** Eleven months of 1 to 11 (in any order): the 10th percentile is at position 1, the value 2; the quartiles are at 2.5 and 7.5, so 3.5 and 8.5; the median is 6; the 90th percentile is 10. Ziffr says "usually between 2 and 10"; a 12 is above that. By season it says "at this place in the season, going by 3 values".
 
-**Reference.** `referenceQuantile` in `packages/core/src/test/reference/methods.ts` is the textbook form, (1 − g) · x[j] + g · x[j + 1] with positions counted from 1, on exact fractions: the result equals it exactly. NumPy's `quantile` and SciPy's `mquantiles` (`fixtures/methods.py`, which checks the two against each other) agree to a relative 1e-12.
+**Reference.** `referenceQuantile` in `packages/core/src/test/reference/methods.ts` is the textbook form, (1 − g) · x[j] + g · x[j + 1] with positions counted from 1, on exact fractions: the result equals it exactly. NumPy's `quantile` and SciPy's `mquantiles` (`fixtures/methods.py`, which checks the two against each other) agree to a relative 1e-12. The Extension's own `reference.ts` is a second textbook form, on fractions, and the Extension Kit holds the Extension to it and to its hand-worked cases (`cases.ts`). One thing differs from the Method as a person sees it: the Extension refuses a single value and values that are all the same, as the Kit asks of every Method, and the core answers for those itself (the quantile of equal values is that value).
 
 ## Share of the largest rows and Pareto
 
-Functions: `topShare` and `pareto` in `packages/core/src/methods/concentration.ts`; the Takeaways are `topShareTakeaway` and `paretoTakeaway`.
+Functions: `topShare` and `pareto` in `packages/core/src/methods/concentration.ts`; the Takeaways are `topShareTakeaway` and `paretoTakeaway`. The arithmetic of `topShare` is the Extension `ziffr/top-share` in `extensions/ziffr/top-share/`, which `concentration.ts` reads through the registry (`packages/core/src/extensions.ts`).
 
 **What it answers.** How much of the whole is in a few rows? How few rows make most of it?
 
@@ -170,7 +170,7 @@ Functions: `topShare` and `pareto` in `packages/core/src/methods/concentration.t
 
 **Worked example.** Eight customers: 40, 25, 12, 8, 6, 5, 3, 1 (total 100). The three largest make up 77 %; the fewest rows that reach 80 % are four (85 %). Ziffr says "Worked out: the 3 largest of 8 rows make up 77.0 %" and "4 of 8 rows make up 85.0 % …, the fewest that reach 80.0 %".
 
-**Reference.** `referenceTopShare` and `referenceParetoCount` in `packages/core/src/test/reference/methods.ts` try every choice of rows, and take the largest sum of n rows, and the fewest rows of which some choice reaches the share: no sorting. The code equals it exactly. NumPy's sort and cumulative sum (`fixtures/methods.py`) agree to a relative 1e-12 where no share is on the line.
+**Reference.** `referenceTopShare` and `referenceParetoCount` in `packages/core/src/test/reference/methods.ts` try every choice of rows, and take the largest sum of n rows, and the fewest rows of which some choice reaches the share: no sorting. The code equals it exactly. NumPy's sort and cumulative sum (`fixtures/methods.py`) agree to a relative 1e-12 where no share is on the line. The Extension's own `reference.ts` picks the largest row n times, on a fraction for each row, and the Extension Kit holds the Extension to it and to its hand-worked cases (`cases.ts`).
 
 ## Bridge
 
