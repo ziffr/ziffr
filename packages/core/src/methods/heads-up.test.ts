@@ -268,6 +268,10 @@ describe("what is left out and what comes first", () => {
       ["a not below b", row(2, 1)],
       ["the same Metric twice", row(1, 1)],
       ["ids that are not whole", row(1.5, 2)],
+      ["the second id not whole", row(1, 2.5)],
+      ["a first half count that is not whole", row(1, 2, { full: win({ nFirst: 17.5, nSecond: 18.5 }) })],
+      ["a second half count that is not whole", row(1, 2, { full: win({ nFirst: 17, nSecond: 19.0000001 }) })],
+      ["a last periods r of NaN", row(1, 2, { before: before({}, { r: NaN, n: 6, low: true, dropP: 0.01 }) })],
       ["NaN r", row(1, 2, { full: win({ r: NaN }) })],
       ["r above 1", row(1, 2, { full: win({ r: 1.01 }) })],
       ["a chance above 1", row(1, 2, { full: win({ p: 1.5 }) })],
@@ -299,6 +303,20 @@ describe("what is left out and what comes first", () => {
       expect(got, why).toEqual(baseline);
     }
     expect(baseline.map((h) => h.key)).toEqual(["moving-together:3:4"]);
+  });
+  it("ranks a stop by how far the link fell: 0.9 to 0.05 is a bigger fall than 0.9 to 0.5, and a fall from a negative link counts the same way", () => {
+    const fell = (a: number, b: number, from: number, to: number) => row(a, b, { full: win({ meets: false }), before: before({ r: from }, { r: to, n: 6, low: true, dropP: 1e-6 }) });
+    const keys = headsUpsFrom([fell(1, 2, 0.9, 0.5), fell(3, 4, 0.9, 0.05), fell(5, 6, -0.9, -0.05)], names(1, 2, 3, 4, 5, 6), ctx).map((h) => h.key);
+    // The falls are 0.4, 0.85 and 0.85 (−0.9 to −0.05 is the same fall); the tie goes to the lower ids.
+    expect(keys).toEqual(["stopped-moving-together:3:4", "stopped-moving-together:5:6", "stopped-moving-together:1:2"]);
+  });
+  it("takes a row at the edges of what a scan writes: r of exactly 1 or -1, a half of exactly 1, a chance of 0 or 1, 12 pairs, a delay of 3", () => {
+    const edge = (over: Partial<PairRow>) => headsUpsFrom([row(1, 2, over)], names(1, 2), ctx);
+    expect(edge({ full: win({ r: 1, pDelays: 0, p: 0, rFirst: 1, rSecond: -1 }) })).toHaveLength(1);
+    expect(edge({ full: win({ r: -1, pDelays: 0, p: 0, n: 12, nFirst: 6, nSecond: 6, lag: 3 }) })).toHaveLength(1);
+    expect(edge({ full: win({ meets: false }), before: before({ r: 1, pDelays: 0, p: 0 }, { r: -1, n: 6, low: true, dropP: 1 }) })).toEqual([]);
+    expect(edge({ full: win({ meets: false }), before: before({ r: 1, pDelays: 0, p: 0 }, { r: 1, n: 6, low: true, dropP: 0 }) })).toHaveLength(1);
+    expect(edge({ full: win({ meets: false }), before: before({ r: 1, pDelays: 0, p: 0 }, { r: -1, n: 6, low: true, dropP: 0 }) })).toHaveLength(1);
   });
   it("puts moving together first, the stronger first, then stopped, the larger drop first, the lower ids on a tie, the same in any order", () => {
     const rows = [
