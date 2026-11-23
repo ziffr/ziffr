@@ -1,5 +1,5 @@
 <!-- part: Screen by screen -->
-<!-- screens: apps/web/src/app/page.tsx, apps/web/src/app/dashboards/**, apps/web/src/app/stories/**, apps/web/src/app/v/**, apps/web/src/views/**, apps/web/src/components/dashboard-*.tsx, apps/web/src/components/pool.tsx, apps/web/src/components/preview.tsx, apps/web/src/components/widget-frame.tsx, apps/web/src/components/panel-editor.tsx, apps/web/src/components/story-editor.tsx, apps/web/src/components/template-*.tsx, apps/web/src/components/slot-dialog.tsx, apps/web/src/components/save-*.tsx, apps/web/src/components/new-dashboard-dialog.tsx, apps/web/src/components/snapshot-menu.tsx, apps/web/src/components/present-dashboard.tsx, apps/web/src/components/read-only-frame.tsx, apps/web/src/components/share-sheet.tsx, apps/web/src/components/view-links.tsx, apps/web/src/components/who-can-see.tsx, apps/web/src/components/versions-*.tsx, apps/web/src/components/object-toolbar.tsx, apps/web/src/components/first-run.tsx, apps/web/src/canvas/layout-editor.tsx -->
+<!-- screens: apps/web/src/app/page.tsx, apps/web/src/app/dashboards/**, apps/web/src/app/gallery/**, apps/web/src/app/stories/**, apps/web/src/app/v/**, apps/web/src/views/**, apps/web/src/components/dashboard-*.tsx, apps/web/src/components/pool.tsx, apps/web/src/components/preview.tsx, apps/web/src/components/widget-frame.tsx, apps/web/src/components/panel-editor.tsx, apps/web/src/components/story-editor.tsx, apps/web/src/components/template-*.tsx, apps/web/src/components/slot-dialog.tsx, apps/web/src/components/save-*.tsx, apps/web/src/components/new-dashboard-dialog.tsx, apps/web/src/components/snapshot-menu.tsx, apps/web/src/components/present-dashboard.tsx, apps/web/src/components/read-only-frame.tsx, apps/web/src/components/share-sheet.tsx, apps/web/src/components/view-links.tsx, apps/web/src/components/who-can-see.tsx, apps/web/src/components/versions-*.tsx, apps/web/src/components/object-toolbar.tsx, apps/web/src/components/first-run.tsx, apps/web/src/canvas/layout-editor.tsx -->
 # Dashboards and Findings
 
 A **Dashboard** is where you watch your Metrics as their values come in. This chapter goes through every screen and option that belongs to dashboards: the list of dashboards, building one, the menus of each Widget, Findings, presenting, sharing, View Links, Snapshots and Versions.
@@ -100,6 +100,12 @@ A deck's **⋯** menu has the same **Who can see this** and **View links…** en
 
 **Theme…** opens a small window with one list. Its first choice is the team's default Theme, marked "(team default)"; the others follow. The **Themes** link next to it leads to the Themes page. A Theme that shows a Pack's logo asks once before it is used, naming whose logo it is. A Theme changes the dashboard's colours and fonts, also when presenting and through View Links. When your Appearance is dark, the dashboard shows the Theme's dark variant, unless the Theme is set to "Always as designed" (see [Decks and Themes](14-decks-and-themes.md#in-a-dark-appearance)); Snapshots and View Links keep the look they were made or shared with. Ziffr's own screens keep their look.
 
+## Gallery
+
+**Gallery** (the button beside **New dashboard** on the Dashboards page) shows the ways to draw a Metric, so you can see what is possible before you build anything. It lists every built-in view in groups (**Views**, **Analyses**, **Findings**), each drawn with one of your own Metrics: pick it under **Show them with**, or choose **Sample data** to see made-up numbers. Views that compare Metrics (a correlation, a matrix, Drivers) use your next Metrics for the other places.
+
+Two ways in lead to the same cards. Start from a Metric: pick it at the top and see every view drawn with it. Start from a view: press **Use this…** on a card, choose the Metric (or Metrics) in the dialog, then choose where it goes: one of the dashboards you may change, or **A new dashboard with it**. The widget lands as an independent copy, like one placed from the Pool. Only Metrics you can see are offered, and in the demo adding is refused ("The demo can't be changed").
+
 ## Creating a dashboard
 
 **New dashboard** in the switcher, **From a template…** on the list, and **Create dashboard** on an empty start screen all open the **New dashboard** window.
@@ -161,7 +167,7 @@ When a template lands, a window named after it asks for each Slot, such as "Metr
 
 Every **Widget** has a **⋯** button in its title bar. Right-clicking the Widget opens the same menu. A line under the dashboard's name reminds you of this until you have opened a Widget's menu once.
 
-If a Widget's Metric has open questions or tasks, its title bar shows how many are open.  The reminder is remembered in your browser and is not shown on an empty dashboard.
+If a Widget's Metric has open questions or tasks, its title bar shows a speech bubble with how many are open (point at it for the words). A number or gauge Widget whose Metric has a Target Range also shows its status, **On target**, **Too low** or **Too high**, beside the title when the card is wide enough for it; in a narrower card the status stays under the value, so the title keeps its room.  The reminder is remembered in your browser and is not shown on an empty dashboard.
 
 | Option | Who sees it | What it does |
 | --- | --- | --- |

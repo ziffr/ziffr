@@ -23,7 +23,7 @@ import { drawRecipe, formatOutput, newRecipeBudget, type TableFigures } from "@z
 import { useRecipeBudget } from "./recipe-budget";
 import type { RecipeResults } from "@ziffr/core/recipe-run";
 import { drawnOutputs } from "@ziffr/core/analysis-recipe";
-import { TargetChip } from "@/components/target-chip";
+import { StatusChip } from "./header-status";
 import { cn } from "@/lib/utils";
 import { ApprovalMark } from "./approval-mark";
 import { DesignPlot } from "./design-plot";
@@ -303,7 +303,7 @@ function textValue(show: TextShow, v: DesignValues): ReactNode {
       return last.toDate || isPartial(last) ? <span title={v.name(last)}>{periodLabel(last.period, v.by, data.yearStart, true)}, {heldText(last, m.period)}</span> : v.name(last);
     case "latest.status":
       // The headline stays neutral; the chip says on or off target (one colour rule, see target-chip).
-      return <TargetChip metric={{ ...m, ...v.goal(last) }} value={last?.value} note={v.note} numberStyle={ns} />;
+      return <StatusChip metric={{ ...m, ...v.goal(last) }} value={last?.value} note={v.note} numberStyle={ns} />;
     case "latest.approval":
       return last ? <ApprovalMark data={data} metricId={m.id} period={last.period} through={v.combined ? last.through : undefined} /> : null;
     case "target.note":
