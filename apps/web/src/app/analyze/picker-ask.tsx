@@ -47,7 +47,7 @@ function SlotQuestion({ slot, canvas, chosen, onChange }: { slot: SlotDef; canva
   return (
     <label className="block text-xs text-muted-foreground">{slot.question}
       <select value={chosen[0] ?? ""} onChange={(ev) => onChange(ev.target.value === "" ? [] : [Number(ev.target.value)])} className={`mt-1 ${FIELD}`}>
-        {slot.optional && <option value="">None</option>}
+        <option value="">{slot.optional ? "None" : "Choose a Metric"}</option>
         {canvas.map((m) => <option key={m.id} value={m.id}>{m.name}</option>)}
       </select>
     </label>

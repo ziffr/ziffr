@@ -27,7 +27,7 @@ export type CanvasFact = {
 };
 
 /** Whether an entry can run on the canvas, and if not why. */
-export type EntryFit = { entry: EntryId; ok: true } | { entry: EntryId; ok: false; reason: string };
+export type EntryFit = { entry: EntryId; ok: true; /** For an entry that looks at one Metric: the canvas Metric (by id) it can run on, the first that fits. */ metric?: number } | { entry: EntryId; ok: false; reason: string };
 
 const plural = (n: number, one: string, many: string) => (n === 1 ? one : many);
 
@@ -51,6 +51,17 @@ export function metricsNeeded(entry: PickerEntry): number {
 // The reason an entry cannot run on these Metrics, or null: the checks in the order a person would fix them.
 function whyNot(entry: PickerEntry, canvas: CanvasFact[]): string | null {
   if (canvas.length === 0) return "Drop a Metric on the canvas first.";
+  // An entry about one Metric can run on any of the canvas Metrics: it is greyed only when none fits, with the first one's reason.
+  if (looksAtOne(entry)) return canvas.some((m) => whyNotFor(entry, [m]) === null) ? null : whyNotFor(entry, [canvas[0]]);
+  return whyNotFor(entry, canvas);
+}
+
+/** Whether the entry takes one Metric (besides an optional one set beside it). */
+export function looksAtOne(entry: PickerEntry): boolean {
+  return metricsNeeded(entry) === 1 && !entry.slots.some((s) => s.many);
+}
+
+function whyNotFor(entry: PickerEntry, canvas: CanvasFact[]): string | null {
   const need = metricsNeeded(entry);
   if (canvas.length < need) return `Needs ${need} Metrics on the canvas; there ${plural(canvas.length, "is", "are")} ${canvas.length}.`;
   const used = filled(entry, canvas).flat();
@@ -86,9 +97,11 @@ function breakdownReason(entry: PickerEntry, used: CanvasFact[]): string | null 
 function pairReason(entry: PickerEntry, used: CanvasFact[]): string | null {
   if (used.length < 2 || entry.checks === "forecast") return null;
   const span = used.map((m) => m.period).reduce(commonPeriod);
-  const stuck = used.find((m) => m.period !== span && m.aggregation === "none");
+  // A fit leaves out the drivers it cannot use and says so: only the Metric to explain stops it.
+  const fits = entry.id === "moves" || entry.id === "needs";
+  const stuck = used.find((m) => m.period !== span && m.aggregation === "none" && (!fits || m === used[0]));
   if (stuck) return `${stuck.name} has Aggregation none, so it cannot be compared with Metrics counted at another period.`;
-  for (const a of used) {
+  for (const a of fits ? [used[0]] : used) {
     const b = used.find((x) => x !== a && a.builtFrom.includes(x.id));
     if (b) return `${a.name} is calculated from ${b.name}, so the two are never compared.`;
   }
@@ -99,7 +112,9 @@ function pairReason(entry: PickerEntry, used: CanvasFact[]): string | null {
 export function fitList(canvas: CanvasFact[]): EntryFit[] {
   return ENTRIES.map((e) => {
     const why = whyNot(e, canvas);
-    return why === null ? { entry: e.id, ok: true } : { entry: e.id, ok: false, reason: why };
+    if (why !== null) return { entry: e.id, ok: false, reason: why };
+    const metric = looksAtOne(e) ? canvas.find((m) => whyNotFor(e, [m]) === null)?.id : undefined;
+    return metric === undefined ? { entry: e.id, ok: true } : { entry: e.id, ok: true, metric };
   });
 }
 

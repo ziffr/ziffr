@@ -190,7 +190,11 @@ describe("the list against the canvas, state by state", () => {
   it("a Metric with Aggregation none beside another period cannot be compared; alone it can", () => {
     const weekly = { ...vis, period: "week" as const, aggregation: "none" as const, periods: 60 };
     const g = greyed([rev, weekly]);
-    for (const id of ["correlation", "rank", "lag", "moves", "needs"]) expect(g[id], id).toBe("Visits has Aggregation none, so it cannot be compared with Metrics counted at another period.");
+    for (const id of ["correlation", "rank", "lag"]) expect(g[id], id).toBe("Visits has Aggregation none, so it cannot be compared with Metrics counted at another period.");
+    // A fit leaves out a driver it cannot use, and says so: only the Metric to explain stops it.
+    expect(g.moves).toBeUndefined();
+    expect(g.needs).toBeUndefined();
+    expect(greyed([weekly, rev]).moves).toBe("Visits has Aggregation none, so it cannot be compared with Metrics counted at another period.");
     expect(greyed([weekly]).forecast).toBeUndefined();
     // Another period with a way to combine is fine: the longer period sets the comparison's.
     expect(greyed([rev, { ...vis, period: "week" as const, periods: 60 }]).correlation).toBeUndefined();
@@ -209,6 +213,36 @@ describe("the list against the canvas, state by state", () => {
     expect(g.correlation).toBe("Margin is calculated from Revenue, so the two are never compared.");
     expect(g.rank).toBeDefined();
     expect(greyed([margin, vis]).correlation).toBeUndefined();
+  });
+
+  it("takes at most the Slot's own number of Metrics from the canvas, and names the one with the least history", () => {
+    // Eight on the canvas: held-the-same takes 4 at most, so the fit weighs 2 + 4 = 6 Metrics and needs 8 + 4 x 5 = 28 periods.
+    const eight = Array.from({ length: 8 }, (_, i) => fact({ id: 20 + i, name: `M${i}`, periods: 27 }));
+    expect(greyed(eight).partial).toBe("Needs at least 28 months of values; M0 has 27.");
+    expect(greyed(eight.map((m) => ({ ...m, periods: 28 }))).partial).toBeUndefined();
+    // The shortest history among the Metrics is the one named, whichever place it has on the canvas.
+    const mixed = [{ ...rev, periods: 24 }, { ...vis, periods: 5 }, { ...pri, periods: 9 }];
+    expect(greyed(mixed).correlation).toBe("Needs at least 6 months of values; Visits has 5.");
+    expect(greyed([{ ...rev, periods: 5 }, { ...vis, periods: 5 }]).correlation).toBe("Needs at least 6 months of values; Revenue has 5.");
+  });
+
+  it("an entry about one Metric runs on whichever canvas Metric fits, and starts on it", () => {
+    // Revenue has 3 months, Visits 24 with a Breakdown: the forecast, the usual range and the shares run, on Visits.
+    const short = { ...rev, periods: 3 };
+    const long = { ...vis, breakdownLatest: true, breakdownBefore: true };
+    const g = greyed([short, long]);
+    for (const id of ["forecast", "usual", "change-point", "bridge", "top-share", "pareto"]) expect(g[id], id).toBeUndefined();
+    const fit = (id: string) => fitList([short, long]).find((f) => f.entry === id)!;
+    expect(fit("forecast")).toEqual({ entry: "forecast", ok: true, metric: 2 });
+    expect(fit("moves")).toEqual({ entry: "moves", ok: false, reason: "Needs at least 12 months of values; Revenue has 3." });
+    // With none that fits, the first Metric's reason.
+    expect(greyed([short, { ...vis, periods: 2 }]).forecast).toBe("Needs at least 4 months of values; Revenue has 3.");
+  });
+
+  it("a driver calculated from another does not stop a fit; the Metric to explain being calculated from one does", () => {
+    const margin = fact({ id: 9, name: "Margin", builtFrom: [2] });
+    expect(greyed([rev, margin, vis]).moves).toBeUndefined();
+    expect(greyed([margin, vis]).moves).toBe("Margin is calculated from Visits, so the two are never compared.");
   });
 
   it("groups the entries by what a person wants, every entry once, with how it fits", () => {

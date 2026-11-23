@@ -21,6 +21,8 @@ import { getMetrics } from "./workspace-data";
 
 /** The most Metrics one request may name; a canvas is a handful. */
 export const MOST_PICKED = 50;
+/** The most values of one Metric a picked Method reads (the latest). */
+export const MOST_POINTS = 1000;
 /** What a person is told for an id that is not theirs to use: the same words whether the Metric is hidden or does not exist. */
 export const NOT_AVAILABLE = "One of those Metrics is not available to you.";
 
@@ -49,7 +51,7 @@ export type EntryView = {
 };
 
 /** The list: the canvas Metrics the person sees, and the groups of entries. */
-export type PickerList = { canvas: CanvasMetric[]; groups: { want: string; question: string; entries: EntryView[] }[] };
+export type PickerList = { canvas: CanvasMetric[]; /** Why there is no list, in words, where there is a reason. */ notice?: string; groups: { want: string; question: string; entries: EntryView[] }[] };
 
 /** The result of running an entry: a Takeaway, or why it could not be asked for. */
 export type PickerRun =
@@ -73,7 +75,9 @@ async function load(actor: Actor, ids: number[]): Promise<Loaded> {
   const wanted = ids.filter((i) => visible.has(i));
   const [data, style, yearStart] = await Promise.all([seriesFor(ws, metrics, seen, wanted), numberStyleOf(ws), yearStartOf(ws)]);
   // Only the Metrics asked for and the visible inputs of their formulas are in `series`; the world holds the visible Metrics only, so a lookup never finds another.
-  const world: PickWorld = { metrics: [...visible.values()], series: data.series, breakdowns: data.breakdowns, ctx: { style }, yearStart };
+  // At most the latest MOST_POINTS values of each Metric are read: a Method looks at the latest 120 periods, and a very long daily history would only cost work.
+  const series = Object.fromEntries(Object.entries(data.series).map(([k, v]) => [k, v.length > MOST_POINTS ? v.slice(-MOST_POINTS) : v]));
+  const world: PickWorld = { metrics: [...visible.values()], series, breakdowns: data.breakdowns, ctx: { style }, yearStart };
   return { world, visible };
 }
 
@@ -95,8 +99,10 @@ function factOf(w: PickWorld, m: Metric, canvas: Metric[]): CanvasFact {
 }
 
 // The Metrics each Slot would be filled with from the canvas, as the list's defaults: one for each single Slot, the rest for a Slot that takes several.
-function defaultsOf(entry: PickerEntry, canvas: number[]): Record<string, number[]> {
+function defaultsOf(entry: PickerEntry, canvas: number[], fit: EntryFit): Record<string, number[]> {
   const out: Record<string, number[]> = {};
+  // An entry about one Metric starts on the first canvas Metric it can run on.
+  if (fit.ok && fit.metric !== undefined) return { ...Object.fromEntries(entry.slots.map((s) => [s.id, [] as number[]])), metric: [fit.metric] };
   let at = 0;
   for (const s of entry.slots) {
     const take = s.optional ? 0 : s.many ? Math.min(s.many.max, Math.max(0, canvas.length - at)) : 1;
@@ -114,7 +120,7 @@ const needsText = (e: PickerEntry): string => {
 /** The method picker's list for the Metrics on this person's canvas (`canvasIds` as sent; the ones they may not see are left out as if absent). */
 export async function listPicker(actor: Actor, canvasIds: unknown): Promise<PickerList> {
   const ids = readIds(canvasIds);
-  if (!ids) return { canvas: [], groups: [] };
+  if (!ids) return { canvas: [], groups: [], notice: ids === null && Array.isArray(canvasIds) && canvasIds.length > MOST_PICKED ? `Ziffr can look at ${MOST_PICKED} Metrics at a time: take some off the canvas.` : undefined };
   const { world, visible } = await load(actor, ids);
   const canvas = ids.flatMap((i) => visible.get(i) ?? []);
   const facts = canvas.map((m) => factOf(world, m, canvas));
@@ -126,7 +132,7 @@ export async function listPicker(actor: Actor, canvasIds: unknown): Promise<Pick
       question: g.question,
       entries: g.entries.map((e): EntryView => ({
         id: e.id, name: e.name, sentence: e.sentence, technical: e.technical, ...textsOf(e), slots: e.slots, settings: e.settings,
-        needs: needsText(e), fit: e.fit, defaults: defaultsOf(e, on), recipeFile: recipeFileOf(e) !== null, widget: e.widget,
+        needs: needsText(e), fit: e.fit, defaults: defaultsOf(e, on, e.fit), recipeFile: recipeFileOf(e) !== null, widget: e.widget,
       })),
     })),
   };
@@ -154,7 +160,7 @@ export async function runPicker(actor: Actor, request: unknown): Promise<PickerR
     entry: entry.id,
     takeaway,
     recipe: recipeFileOf(entry, slots.held?.length, slots.drivers?.length),
-    widget: entry.widget ? { template: entry.widget, metricIds: main, showTarget: entry.id === "reach-target" } : null,
+    widget: entry.widget && settings.settings.ahead === undefined ? { template: entry.widget, metricIds: main, showTarget: entry.id === "reach-target" } : null,
   };
 }
 

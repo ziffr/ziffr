@@ -72,14 +72,18 @@ function Open({ entry, list }: { entry: EntryView; list: PickerList }) {
   const [done, setDone] = useState<Done | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [pending, start] = useTransition();
+  const asked = useRef(0);
   const run = () => start(async () => {
+    const n = ++asked.current;
     const res = await pickerRun({ entry: entry.id, slots: answers.slots, settings: answers.settings });
+    // A result for answers that have been changed since is not shown under the new ones.
+    if (n !== asked.current) return;
     setMessage(res.ok ? null : res.message);
     setDone(res.ok ? res : null);
   });
   return (
     <>
-      <AskForm entry={entry} canvas={list.canvas} answers={answers} onChange={(a) => { setAnswers(a); setDone(null); setMessage(null); }} onRun={run} pending={pending} />
+      <AskForm entry={entry} canvas={list.canvas} answers={answers} onChange={(a) => { asked.current++; setAnswers(a); setDone(null); setMessage(null); }} onRun={run} pending={pending} />
       {message && <p role="alert" className="mt-2 text-xs text-destructive">{message}</p>}
       {done && <Result entry={entry} done={done} />}
     </>
@@ -88,7 +92,7 @@ function Open({ entry, list }: { entry: EntryView; list: PickerList }) {
 
 /** The panel under the Recipes: the list of Methods for the Metrics on the canvas (`ids`), and the questions of the one chosen. */
 export function MethodPicker({ ids }: { ids: number[] }) {
-  const [list, setList] = useState<PickerList | null>(null);
+  const [list, setList] = useState<(PickerList & { key: string }) | null>(null);
   const [openId, setOpenId] = useState<EntryView["id"] | null>(null);
   const [failed, setFailed] = useState(false);
   const asked = useRef(0);
@@ -96,16 +100,17 @@ export function MethodPicker({ ids }: { ids: number[] }) {
   // The list is asked again when the canvas changes; an older answer that arrives late is dropped.
   useEffect(() => {
     const n = ++asked.current;
-    pickerList(ids).then((l) => { if (n === asked.current) { setList(l); setFailed(false); } }, () => { if (n === asked.current) setFailed(true); });
+    pickerList(ids).then((l) => { if (n === asked.current) { setList({ ...l, key }); setFailed(false); } }, () => { if (n === asked.current) setFailed(true); });
     // eslint-disable-next-line react-hooks/exhaustive-deps -- `key` is the canvas
   }, [key]);
   return (
     <section className="desk space-y-3 rounded-[var(--radius-card)] p-4" aria-label="Choose a method">
       <h2 className="text-sm font-medium">Choose a method</h2>
-      <p className="text-xs text-muted-foreground">Pick by what you want to know. A Method that does not fit what is on the canvas stays here, greyed, with the reason. The answer is worded and held to the same rules as a Recipe&rsquo;s.</p>
+      <p className="text-xs text-muted-foreground">Pick by what you want to know. A Method that does not fit what is on the canvas stays here, greyed, with the reason. The Takeaway is worded and held to the same rules as a Recipe&rsquo;s.</p>
       {failed && <p role="alert" className="text-xs text-destructive">The list could not be loaded. Try again in a moment.</p>}
+      {list?.notice && <p role="note" className="text-xs text-muted-foreground">{list.notice}</p>}
       {!list && !failed && <p className="text-xs text-muted-foreground">Loading the list…</p>}
-      {list && <PickerGroups list={list} openId={openId} onPick={(id) => setOpenId((cur) => (cur === id ? null : id))} ask={(e) => <Open key={`${e.id}:${key}`} entry={e} list={list} />} />}
+      {list && <PickerGroups list={list} openId={openId} onPick={(id) => setOpenId((cur) => (cur === id ? null : id))} ask={(e) => <Open key={`${e.id}:${list.key}`} entry={e} list={list} />} />}
     </section>
   );
 }
