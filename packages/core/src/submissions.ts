@@ -20,6 +20,9 @@ import { deliver } from "./deliveries";
 import { onValue } from "./workflow-engine";
 import { settlePrompts } from "./prompt-ways";
 import { audit } from "./audit-log";
+import { fillInVerdict } from "./fill-in-check";
+import type { FillInRole } from "./fill-in-rules";
+import { closeFilledInPrompts, enteredByWords, isGuest, tellFilledIn } from "./fill-in-tell";
 import { ARCHIVED_CODE, ARCHIVED_REFUSAL } from "./archived-metrics";
 import { CONDENSED_CODE, condensedOn, condensedRefusal, condensedWords } from "./condensed-values";
 import type { Metric, Profile, SourceId, Token } from "./types";
@@ -51,6 +54,10 @@ export type SubmissionInput = {
    * on the Metric's own page by a signed-in Submitter and are already read into `value` and `period`. Honoured on the
    * web form only. Unlike `paste`, it marks nothing and gives no right to record history. */
   typed?: boolean;
+  /** Set only by fillInValue (fill-in.ts), never from what a browser sends: the Metric's owner or the Workflow's owner
+   * `by` enters this value for the person whose Token `sender` is (spec 0046, GLOSSARY: Filled-in Value). Honoured on the
+   * web form only, with a value read already; the core checks again, for this person and this period, that `by` may. */
+  filledIn?: { by: string };
   /** The workspace the message is meant for. A form link's Token says it itself; Slack and mail need it, since the
    * same handle or address may be known in several workspaces. */
   workspaceId?: string;
@@ -153,14 +160,17 @@ async function takeValue(input: SubmissionInput, effects: SubmissionEffects, pro
 
   // 2. Which metric? Prompt reply > metric named in the message (among the sender's own Tokens) > the only Token.
   let token: Token | undefined;
-  let prompt: { id: number; metric_id: number; period_start: string; submitter_id: string; answered_at: string | null; answered_source: string | null } | null = null;
+  let prompt: { id: number; metric_id: number; period_start: string; submitter_id: string; answered_at: string | null; answered_source: string | null; stands_in_for: string | null } | null = null;
   let how = "";
   if (input.promptId) {
     const { data } = await db().from("prompts").select("*").eq("id", input.promptId).eq("workspace_id", workspaceId).maybeSingle();
     prompt = data;
     // A Prompt is answered by the person it asked only (a Stand-in has Prompts of their own): its id is no key to another's.
     if (!prompt || prompt.submitter_id !== senderId) return log({ ok: false, senderId, outcome: "rejected_no_token", detail: "That Prompt is not known here." });
-    token = candidates.find((t) => t.metric_id === prompt?.metric_id);
+    // A Prompt sent in someone's place is answered by the Token of that Stand-in, whatever other Tokens they hold: the
+    // answer records under the right name (spec 0046). An older Prompt without it takes whichever Token fits.
+    const forMetric = candidates.filter((t) => t.metric_id === prompt?.metric_id);
+    token = prompt.stands_in_for ? forMetric.find((t) => t.stands_in_for === prompt?.stands_in_for) : (forMetric.find((t) => !t.stands_in_for) ?? forMetric[0]);
     if (!token) return log({ ok: false, senderId, metricId: prompt.metric_id, outcome: "rejected_no_token", detail: `${sender?.name} has no Token for ${metricById[prompt.metric_id]?.name ?? "that metric"}.` });
     how = "reply to a Prompt";
   } else {
@@ -220,6 +230,24 @@ async function takeValue(input: SubmissionInput, effects: SubmissionEffects, pro
   const fv = (v: number) => formatValue(metric, v, style);
   const when = midSentence(periodLabel(period, metric.period, ys));
 
+  // A value entered for the submitter (spec 0046, GLOSSARY: Filled-in Value): by the Metric's or the Workflow's owner
+  // (fillInValue, on the web form), or by a Stand-in answering a Prompt sent in someone's place. Whom it is for and who
+  // entered it are decided here from what the core knows, never from what the sender wrote. A Guest who is a Stand-in
+  // keeps recording their own value, as before: a Guest cannot fill in for someone.
+  const ownerFills = input.filledIn && input.source === "web_form" && given && !preview ? input.filledIn.by : null;
+  let filled: { by: string; forId: string; as: FillInRole } | null = null;
+  const standsFor = ownerFills || preview || !senderId ? null : (token.stands_in_for ?? prompt?.stands_in_for ?? null);
+  const askFill = async (by: string, forId: string): Promise<{ ok: false; detail: string } | { ok: true; as: FillInRole }> => {
+    const v = await fillInVerdict(workspaceId!, metric, period, { id: by, viaKey: input.source === "api" }, forId);
+    return v.ok ? v : { ok: false, detail: v.refusal };
+  };
+  if (ownerFills && senderId) {
+    // Entered for the submitter by their own Token only, never by a Stand-in's.
+    const v = token.stands_in_for ? { ok: false as const, detail: "A value is entered for the person whose own Token it is." } : await askFill(ownerFills, senderId);
+    if (!v.ok) return log({ ...base, ok: false, outcome: "rejected_fill_in", detail: v.detail });
+    filled = { by: ownerFills, forId: senderId, as: v.as };
+  }
+
   // A condensed period takes no more values, as if locked for good, and no proposal either: the originals are gone
   // (spec 0033). It is refused with the day it was condensed, whatever the Source.
   const condensedDay = await condensedOn(workspaceId, metric.id, period);
@@ -242,10 +270,20 @@ async function takeValue(input: SubmissionInput, effects: SubmissionEffects, pro
     return log({ ...base, ok: false, outcome: "proposed_locked", detail: `${metric.name}, ${when} is locked. ${fv(value)} went to ${metric.owner_id === senderId ? "you" : "the metric owner"} as a proposed correction.` });
   }
 
+  // A Stand-in's answer to a Prompt sent in someone's place is the submitter's value, entered by the Stand-in; asked after
+  // the Lock, so a late one is still proposed as a Correction, as any late value is.
+  if (standsFor && senderId && !(await isGuest(workspaceId, senderId))) {
+    // Through an Access Key it is refused for good: the app and the Prompt's answer are the ways (spec 0046).
+    const v = input.source === "api" ? { ok: false as const, detail: "Values for someone else are entered in the app or by answering the Prompt." } : await askFill(senderId, standsFor);
+    if (!v.ok) return log({ ...base, ok: false, outcome: "rejected_fill_in", detail: v.detail });
+    filled = { by: senderId, forId: standsFor, as: v.as };
+  }
+
   // 4. Submission Rule, applied in one call to the database with the breakdown's rows (spec 0022, #111 and #126):
   // two values arriving together wait for each other there, so both count under "add", the second is rejected under
   // "reject" and replaces the first under "overwrite", and no Breakdown row is lost or mixed with another value's.
-  const row = { submitter_id: senderId, source: input.source, access_key_id: input.source === "api" ? (input.accessKeyId ?? null) : null };
+  const submitterId = filled ? filled.forId : senderId;
+  const row = { submitter_id: submitterId, entered_by: filled?.by ?? null, source: input.source, access_key_id: input.source === "api" ? (input.accessKeyId ?? null) : null };
   // An Import: a Feed's value, or a paste recorded as history, for a past period with no value yet. Only those, only
   // the past, only an empty period (the database checks that one): the current period and anything that replaces a
   // value are checked as anyone's. Who may record a paste as history is checked before (paste-values.ts).
@@ -266,11 +304,13 @@ async function takeValue(input: SubmissionInput, effects: SubmissionEffects, pro
   }
   const imported = mayImport && data.outcome === "recorded";
   const before = data.before === null ? null : Number(data.before);
+  // A Filled-in Value the submitter replaces with their own says so: who had entered it (a Guest is told "a colleague").
+  const replacedBy = data.replacedFilledIn ? await enteredByWords(workspaceId, submitterId, data.replacedFilledIn, profiles) : null;
   const result: SubmissionResult = (() => {
     switch (data.outcome) {
       case "recorded": return { ok: true, outcome: "recorded", detail: `${fv(value)} ${imported ? "imported" : "recorded"} for ${metric.name}, ${when} (via ${how}).`, imported };
       case "added": return { ok: true, outcome: "added", detail: `${fv(before!)} + ${fv(value)} = ${fv(Number(data.after))} for ${metric.name}, ${when}.`, imported: false };
-      case "overwritten": return { ok: true, outcome: "overwritten", detail: `Replaced ${fv(before!)} with ${fv(value)} for ${metric.name}, ${when}.` };
+      case "overwritten": return { ok: true, outcome: "overwritten", detail: replacedBy ? `Replaced ${fv(before!)}, entered by ${replacedBy} for you, with ${fv(value)} for ${metric.name}, ${when}.` : `Replaced ${fv(before!)} with ${fv(value)} for ${metric.name}, ${when}.` };
       case "kept_both": return { ok: true, outcome: "kept_both", detail: `Kept ${fv(value)} alongside ${data.earlier} earlier value(s) for ${metric.name}, ${when}.` };
       default: return { ok: false, outcome: "rejected_duplicate", detail: `${metric.name} already has ${fv(before!)} for ${when}, and its rule rejects a second value.` };
     }
@@ -281,9 +321,16 @@ async function takeValue(input: SubmissionInput, effects: SubmissionEffects, pro
   }
   // The first accepted value closes the Prompt, by whichever way it arrived (prompt-ways.ts); one that comes second says so.
   if (result.ok && !preview) result.detail += await settlePrompts({ ws: workspaceId, prompt, metricId: metric.id, senderId, source: input.source, period, said: `${fv(value)} for ${metric.name}, ${when}.` });
+  // A Filled-in Value closes every open Prompt of its Metric and period, the submitter's and the Stand-in's (spec 0046),
+  // is recorded in the Audit Log, and tells the submitter. None of it can fail the value.
+  if (result.ok && !preview && filled) {
+    result.detail = `Entered for ${profiles.find((p) => p.id === filled!.forId)?.name ?? "the submitter"}: ${result.detail}`;
+    await closeFilledInPrompts(workspaceId, metric.id, period, input.source, `${fv(value)} for ${metric.name}, ${when}, entered by a colleague.`);
+    await tellFilledIn(workspaceId, { metric, period, value: fv(value), forId: filled.forId, by: filled.by, as: filled.as });
+  }
   // The metric's Workflow takes it from here: check, approval, publish.
-  if (result.ok && senderId) {
-    const next = await effects.afterValue(metric.id, period, senderId, { imported });
+  if (result.ok && submitterId) {
+    const next = await effects.afterValue(metric.id, period, submitterId, { imported });
     if (next.length) result.detail += ` Workflow: ${next.join("; ")}.`;
   }
   // The value it became, so the intake log and the Metric's history can say how it arrived.
@@ -293,6 +340,9 @@ async function takeValue(input: SubmissionInput, effects: SubmissionEffects, pro
 /** The outcome and words for a value the database refused because the Metric was archived or the period condensed after
  * the checks before the write, or null when it refused for no such reason. */
 async function refusedByDatabase(error: { code?: string } | null, ws: string, metricId: number, period: string): Promise<{ outcome: string; detail: string } | null> {
+  // A value entered for someone else met a value in between (it came first), or a rule that combines people's values.
+  if (error?.code === "ZF450") return { outcome: "rejected_fill_in", detail: "This period already has a value: a Correction changes it." };
+  if (error?.code === "ZF451") return { outcome: "rejected_fill_in", detail: "This Metric adds up or keeps the values of several people, so nobody can fill in for someone else." };
   if (error?.code === ARCHIVED_CODE) return { outcome: "rejected_archived", detail: ARCHIVED_REFUSAL };
   if (error?.code === CONDENSED_CODE) return { outcome: "rejected_period_condensed", detail: await condensedWords(ws, metricId, period) };
   return null;

@@ -378,11 +378,17 @@ export async function closeWorkflowPeriod(actor: Actor, workflowId: number, asOf
   return locked;
 }
 
-/** The Metric owner chooses who stands in for a submitter: a member or a Contact of the workspace. */
+/** The Metric owner chooses who stands in for a submitter: a member who is no Guest, or a Contact, of the workspace. */
 export async function setStandIn(actor: Actor, metricId: number, submitterId: string, standInId: string | null) {
   const { data: m } = await db().from("metrics").select("owner_id").eq("id", metricId).eq("workspace_id", actor.workspaceId).maybeSingle();
   if (!m || m.owner_id !== actor.personId || standInId === submitterId) throw new Forbidden();
-  if (standInId) await assertSubmittersIn(actor, [standInId]);
+  if (standInId) {
+    await assertSubmittersIn(actor, [standInId]);
+    // A Stand-in's answer is a Filled-in Value, which a Guest never enters (spec 0046). A Guest already chosen keeps being
+    // asked and answers as their own, but nobody new is chosen.
+    const { data: guest } = await db().from("memberships").select("user_id").eq("workspace_id", actor.workspaceId).eq("user_id", standInId).eq("role", "guest").maybeSingle();
+    if (guest) throw new Error("A Guest cannot stand in for someone.");
+  }
   await db().from("tokens").update({ stand_in_id: standInId }).eq("metric_id", metricId).eq("workspace_id", actor.workspaceId).eq("submitter_id", submitterId).is("stands_in_for", null);
   // Whoever stood in before loses their stand-in Token at once.
   await db().from("tokens").delete().eq("metric_id", metricId).eq("workspace_id", actor.workspaceId).eq("stands_in_for", submitterId).neq("submitter_id", standInId ?? "");

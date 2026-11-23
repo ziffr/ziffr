@@ -56,6 +56,22 @@ export async function archivedMetricHolds(d: AboutMetric): Promise<string | null
     if (d.snapshot_dashboard_id && !(await visibleDashboards(ws, d.recipient_id)).some((x) => x.id === d.snapshot_dashboard_id)) return "Not sent.";
     return toldStop(d);
   }
+  // The message that a value was entered for someone (GLOSSARY: Filled-in Value; spec 0046) leaves only while its recipient
+  // still holds their own Token for the Metric, still sees it (a Contact has no sign-in and no Shares: the Token is
+  // theirs) and it is in use: asked again here, when it is sent, as it was when it was queued (AGENTS.md rule 3).
+  if (d.kind === "filled_in") {
+    if (!d.alert_metric_id || !d.recipient_id) return "Not sent.";
+    const metrics = await getMetrics(ws);
+    const m = metrics.find((x) => x.id === d.alert_metric_id);
+    if (!m || m.archived_at) return "Not sent.";
+    const [{ data: token }, { data: member }] = await Promise.all([
+      db().from("tokens").select("id").eq("workspace_id", ws).eq("metric_id", m.id).eq("submitter_id", d.recipient_id).is("stands_in_for", null).limit(1),
+      db().from("memberships").select("user_id").eq("workspace_id", ws).eq("user_id", d.recipient_id).maybeSingle(),
+    ]);
+    if (!token?.length) return "Not sent.";
+    if (member && !(await visibleMetricIds(ws, d.recipient_id, metrics)).has(m.id)) return "Not sent.";
+    return null;
+  }
   // An Alert message (GLOSSARY: Alert) leaves only while its recipient may still see its Metric and it is in use: asked
   // again here, when it is sent, not only when it was queued (AGENTS.md rule 3). The words say nothing about which.
   if (d.kind === "alert" && d.alert_metric_id) {
