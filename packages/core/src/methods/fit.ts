@@ -22,7 +22,7 @@
 // which is a quadratic in the driver value, and it is bounded only where the effect is clear (b² > t²·σ²·(Sxx⁻¹)_jj).
 import { basisFor, changes, readSeries, type Basis } from "../basis";
 import { fractionOf, lowestTerms, minus, nearest, over, plus, scaled, times, type Fraction } from "../exact";
-import type { Span } from "../periods";
+import { shiftPeriod, type Span } from "../periods";
 import { checkSuitability, SUITABILITY, type Finding, type SuitabilityInputs, type Verdict } from "../suitability";
 import { strengthOf, type StrengthWord } from "../takeaways/strength";
 import type { Point } from "../types";
@@ -240,6 +240,8 @@ export type Fit = {
   target: string;
   drivers: FitDriver[];
   merged: Merged[];
+  /** Drivers whose inflation is above 5 with no pair to merge them (a mix): kept in the fit, said, never strong. */
+  crowded: string[];
   /** The periods used, oldest first, with the numbers they were fitted on. */
   rows: FitRow[];
   /** The levels (as the Metrics have them) at the last period: the point a change basis counts from. */
@@ -312,7 +314,28 @@ function prepare(input: FitInput): Prepared {
 }
 
 // The drivers that stay, and the ones left out as one with another, until none has a variance inflation above 5.
-type Reduced = { cols: number[]; mo: Moments; sol: Solved; merged: Merged[] } | { refusals: Finding[] };
+type Reduced = { cols: number[]; mo: Moments; sol: Solved; merged: Merged[]; crowded: string[] } | { refusals: Finding[] };
+
+/** Above this inflation, drivers that no pair describes cannot be told apart at all and the fit is refused; between 5 and this it is made
+ * and says which drivers are crowded (their separate effects are less certain, which their ranges show). */
+export const REFUSE_INFLATION = 10;
+
+// The drivers that make up a near-dependency: the direction of the correlation matrix with the least variance (the top direction of its
+// inverse, by power iteration) and the drivers that load on it. At least two, so that the group is never one driver alone.
+function groupOf(sol: Solved, mo: Moments): number[] {
+  const k = sol.m.length;
+  const size = mo.sxx.map((row, i) => root(row[i]));
+  const inverse = sol.m.map((row, i) => row.map((v, j) => dbl(v) * size[i] * size[j]));
+  let v = Array.from({ length: k }, (_, i) => 1 + i / 100);
+  for (let n = 0; n < 200; n++) {
+    const w = inverse.map((row) => row.reduce((t, x, j) => t + x * v[j], 0));
+    const length = Math.sqrt(w.reduce((t, x) => t + x * x, 0));
+    v = w.map((x) => x / length);
+  }
+  const load = v.map((x) => x * x);
+  const order = load.map((_, i) => i).sort((a, b) => load[b] - load[a]);
+  return order.filter((i, rank) => rank < 2 || load[i] > 0.05);
+}
 
 function reduce(rows: FitRow[], names: string[], k: number, ranks: number[]): Reduced {
   let cols = Array.from({ length: k }, (_, i) => i);
@@ -339,13 +362,19 @@ function reduce(rows: FitRow[], names: string[], k: number, ranks: number[]): Re
     } else {
       const inflation = idx.map((i) => mul(sol.m[i][i], mo.sxx[i][i]));
       const high = idx.filter((i) => cmp(inflation[i], whole(MOST_INFLATION)) > 0);
-      if (high.length === 0) return { cols, mo, sol, merged: names.flatMap((n, i) => (withs[i].length > 0 ? [{ kept: n, with: withs[i] }] : [])) };
+      const merged = names.flatMap((n, i) => (withs[i].length > 0 ? [{ kept: n, with: withs[i] }] : []));
+      if (high.length === 0) return { cols, mo, sol, merged, crowded: [] };
       // A pair is one driver where their link alone is as close as an inflation of 5: r² above 4/5. Drivers whose inflation is high
-      // only together (one is about the sum of two others, each pair linked by r² of 0.67) are a mix that no pair describes: no
-      // effect of any of them can be told from the others', so the fit says so and names them all.
+      // only together (one is about the sum of two others, each pair linked by r² of 0.67) are a mix that no pair describes.
       // Stryker disable next-line EqualityOperator: a pair linked by exactly 4/5 (an inflation of exactly 5 for the pair alone) is on the edge, and only a third driver would make it count
       const close = idx.flatMap((i) => idx.filter((j) => j > i && cmp(link(i, j), { num: BigInt(4), den: BigInt(5) }) > 0).map((j): [number, number] => [i, j]));
-      if (close.length === 0) return { refusals: [{ case: "refuse-drivers-mix", slots: { names: high.map((i) => names[cols[i]]).join(", ") } }] };
+      if (close.length === 0) {
+        // No pair to merge. Far above 5 no effect of the group can be told apart: refused, naming every driver that loads on the
+        // near-dependency. Between 5 and that the fit is made, with the crowded drivers named so that nobody reads their effects as clean.
+        if (cmp(inflation.reduce((x, y) => (cmp(y, x) > 0 ? y : x)), whole(REFUSE_INFLATION)) > 0) return { refusals: [{ case: "refuse-drivers-mix", slots: { names: groupOf(sol, mo).map((i) => names[cols[i]]).sort().join(", ") } }] };
+        // Named with the others that load on the same near-dependency, so that it is never one driver 'moving with' itself.
+        return { cols, mo, sol, merged, crowded: [...new Set([...high, ...groupOf(sol, mo)])].map((i) => names[cols[i]]).sort() };
+      }
       // Stryker disable next-line EqualityOperator,ConditionalExpression: of two close pairs either is merged first, and the other is merged next, to the same result
       pair = close.reduce((x, y) => (cmp(link(y[0], y[1]), link(x[0], x[1])) > 0 ? y : x));
     }
@@ -388,7 +417,7 @@ function without(rows: FitRow[], cols: number[], left: ReadonlySet<string>, top:
 }
 
 /** What a fit is made of in numbers: its drivers, what was treated as one, the periods and the totals. */
-export type Core = Pick<Fit, "drivers" | "merged" | "rows" | "n" | "df" | "from" | "to" | "intercept" | "explained" | "miss">;
+export type Core = Pick<Fit, "drivers" | "merged" | "crowded" | "rows" | "n" | "df" | "from" | "to" | "intercept" | "explained" | "miss">;
 
 /** The numbers of a fit on rows, with no checks (the references and the textbook datasets are held to this; every Method
  * goes through `fit`, which runs the checks first): `names` are the drivers' then the target's, `k` the number of drivers.
@@ -396,7 +425,7 @@ export type Core = Pick<Fit, "drivers" | "merged" | "rows" | "n" | "df" | "from"
 export function fitNumbers(rows: FitRow[], names: string[], k: number, ranks: number[] = names.map((_, i) => i)): { core: Core; cols: number[]; misses: { level: number; miss: number }[] } | Refused {
   const red = reduce(rows, names, k, ranks);
   if ("refusals" in red) return { ok: false, refusals: red.refusals };
-  const { cols, mo, sol, merged } = red;
+  const { cols, mo, sol, merged, crowded } = red;
   const { df, t, sigma2 } = spreadOf(mo, sol);
   const { shares, all: explainedAll } = lmg(mo);
   const n = mo.n;
@@ -438,6 +467,7 @@ export function fitNumbers(rows: FitRow[], names: string[], k: number, ranks: nu
   const core: Core = {
     drivers,
     merged,
+    crowded,
     rows: rows.map((r) => ({ period: r.period, y: r.y, x: cols.map((c) => r.x[c]) })),
     n,
     df,
@@ -452,7 +482,13 @@ export function fitNumbers(rows: FitRow[], names: string[], k: number, ranks: nu
 
 // The words about gaps for series of changes.
 const CHANGE_CASES: Record<string, Finding["case"]> = { "caution-gaps": "caution-gaps-change", "refuse-gaps": "refuse-gaps-change", "refuse-gap-run": "refuse-gap-run-change" };
-const aboutChanges = (f: Finding): Finding => ({ ...f, case: CHANGE_CASES[f.case] ?? f.case });
+// The periods of a series that have no value within the periods a fit uses (and the one before the first, which its first change needs).
+function missingLevels(points: Point[], span: Span, rows: FitRow[]): string[] {
+  const have = new Set(readSeries(points).map((p) => p.period));
+  const out: string[] = [];
+  for (let p = shiftPeriod(rows[0].period, span, -1); p <= rows[rows.length - 1].period; p = shiftPeriod(p, span, 1)) if (!have.has(p)) out.push(p);
+  return out;
+}
 
 /** Fits a line through several Metrics at once, with the other drivers held the same for each effect; runs the suitability
  * checks of a fit first and says what is found. An effect is per one unit of its driver. */
@@ -464,6 +500,11 @@ export function fit(input: FitInput): Fit | Refused {
   const prep = prepare(input);
   const base: SuitabilityInputs = { series: prep.series, span, periods: prep.rows.length, drivers: k, metrics: input.metrics };
   // Where compared by change, a missing value costs two changes: the findings about gaps count changes, and say so.
+  // The finding names which periods had no value (as their dates, which the Takeaway writes as names).
+  const aboutChanges = (f: Finding): Finding => {
+    const mine = f.case in CHANGE_CASES ? [input.target, ...input.drivers].find((d) => d.name === f.slots.name) : undefined;
+    return mine ? { case: CHANGE_CASES[f.case], slots: { ...f.slots, periods: missingLevels(mine.points, span, prep.rows).join(",") } } : f;
+  };
   const inChanges = (v: Verdict): Verdict => (prep.basis === "changes" ? { ...v, refusals: v.refusals.map(aboutChanges), cautions: v.cautions.map(aboutChanges) } : v);
   const early = inChanges(checkSuitability("fit", base));
   if (early.refusals.length > 0) return { ok: false, refusals: early.refusals };
@@ -476,7 +517,9 @@ export function fit(input: FitInput): Fit | Refused {
   const { core, cols, misses } = made;
   // Stryker disable next-line EqualityOperator: two drivers with exactly the same share are a tie, and the earlier is the top
   const top = core.drivers.reduce((a, b, i) => (b.share > core.drivers[a].share ? i : a), 0);
-  const verdict = inChanges(checkSuitability("fit", { ...base, misses, rerun: (left) => without(prep.rows, cols, left, top) }));
+  const checked = inChanges(checkSuitability("fit", { ...base, misses, rerun: (left) => without(prep.rows, cols, left, top) }));
+  // Crowded drivers are said above the answer, which then is never strong.
+  const verdict = core.crowded.length > 0 ? { ...checked, cautions: [...checked.cautions, { case: "caution-crowded" as const, slots: { names: core.crowded.join(", ") } }] } : checked;
   return { ok: true, basis: prep.basis, span, target: input.target.name, ...core, last: { y: prep.last.y, x: cols.map((c) => prep.last.x[c]) }, verdict };
 }
 
@@ -497,7 +540,7 @@ export function importance(input: FitInput): Importance {
 export type Outside = { name: string; side: "above" | "below"; limit: number; change: boolean };
 
 /** The lines of a fit's verdict that still hold for a value worked out from it: the gaps, the curve and the spread. */
-const KEPT = new Set<string>(["caution-gaps", "caution-curved", "caution-spread"]);
+const KEPT = new Set<string>(["caution-gaps", "caution-gaps-change", "caution-curved", "caution-spread", "caution-crowded"]);
 const carried = (m: Fit): Verdict => ({ refusals: [], cautions: m.verdict.cautions.filter((f) => KEPT.has(f.case)), switches: [] });
 const refuseInput = (what: string): Refused => ({ ok: false, refusals: [{ case: "refuse-input", slots: { what } }] });
 

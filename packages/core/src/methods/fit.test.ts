@@ -630,12 +630,58 @@ describe("drivers that cannot be told apart", () => {
       expect(f.drivers).toHaveLength(2);
     }
   });
+  it("keeps a fit whose inflation is only 5 to 10 for a mix, names the crowded drivers, never calls it strong, and keeps a free driver's effect", () => {
+    const free = (n: number) => Array.from({ length: n }, () => hundredths(rng() * 100));
+    const [x1, x2, free4] = [free(40), free(40), free(40)];
+    const noise = Array.from({ length: 40 }, () => gauss(rng));
+    const yy = x1.map((v, i) => hundredths(0.5 * v + 0.5 * x2[i] + 3 * free4[i] + gauss(rng) * 8));
+    let found: { x3: number[]; infl: number[] } | null = null;
+    for (let sd = 4; sd < 40 && !found; sd += 0.5) {
+      const x3 = x1.map((v, i) => hundredths(v + x2[i] + noise[i] * sd));
+      const refs = refRowsOf(yy, [x1, x2, x3, free4]);
+      const infl = [0, 1, 2, 3].map((j) => { const v = referenceInflation(refs, 4, j)!; return Number(v.num) / Number(v.den); });
+      if (Math.max(...infl) > 5.5 && Math.max(...infl) < 9.5) found = { x3, infl };
+    }
+    expect(found).not.toBeNull();
+    const f = made(fit(input(yy, [x1, x2, found!.x3, free4])));
+    const crowded = found!.infl.flatMap((v, j) => (v > 5 ? [NAMES[j]] : [])).sort();
+    expect(f.merged).toEqual([]);
+    expect(f.drivers).toHaveLength(4);
+    // Every driver with an inflation above 5 is named, and with at least one other, so it is never alone.
+    for (const n of crowded) expect(f.crowded).toContain(n);
+    expect(f.crowded.length).toBeGreaterThanOrEqual(2);
+    expect(f.verdict.cautions.map((c) => c.case)).toContain("caution-crowded");
+    // The free driver keeps its true effect (3), as the exact fit says, with its own range.
+    const ref = referenceFit(refRowsOf(yy, [x1, x2, found!.x3, free4]), [0, 1, 2, 3])!;
+    nearestTo(f.drivers[3].effect, ref.effects[3], "free driver");
+    expect(Math.abs(f.drivers[3].effect - 3)).toBeLessThan(0.5);
+  });
+  it("names two or more crowded drivers even where only one has an inflation above 5", () => {
+    const free = (n: number) => Array.from({ length: n }, () => hundredths(rng() * 100));
+    const [x1, x2] = [free(40), free(40)];
+    const noise = Array.from({ length: 40 }, () => gauss(rng));
+    const yy = x1.map((v, i) => hundredths(v + x2[i] + gauss(rng) * 8));
+    let hit = 0;
+    // The third driver is x1 + x2 + noise; the second has a small spread, so only the third crosses 5.
+    for (let sd = 6; sd < 60 && !hit; sd += 1) {
+      const small = x2.map((v) => hundredths(v / 4));
+      const x3 = x1.map((v, i) => hundredths(v + small[i] * 4 + noise[i] * sd));
+      const refs = refRowsOf(yy, [x1, small, x3]);
+      const infl = [0, 1, 2].map((j) => { const v = referenceInflation(refs, 3, j)!; return Number(v.num) / Number(v.den); });
+      if (infl.filter((v) => v > 5).length === 1 && Math.max(...infl) < 10) {
+        hit++;
+        const f = made(fit(input(yy, [x1, small, x3])));
+        expect(f.crowded.length).toBeGreaterThanOrEqual(2);
+      }
+    }
+    expect(hit).toBe(1);
+  });
   it("refuses drivers whose inflation is high only together (one is about the sum of two others), naming exactly those", () => {
     const [x1, x2, free4] = [free(36), free(36), free(36)];
     const x3 = x1.map((v, i) => hundredths(v + x2[i] + gauss(rng) * 3));
     const yy = x1.map((v, i) => hundredths(0.5 * v + x2[i] * 0.5 + free4[i] + gauss(rng) * 5));
     const r = fit(input(yy, [x1, x2, x3, free4]));
-    expect(r).toEqual({ ok: false, refusals: [{ case: "refuse-drivers-mix", slots: { names: "Visits, Price, Tickets" } }] });
+    expect(r).toEqual({ ok: false, refusals: [{ case: "refuse-drivers-mix", slots: { names: "Price, Tickets, Visits" } }] });
     // Each pair alone is far from the 4/5 that makes a pair one driver, and the inflation of each of the three is above 5.
     const rows = rowsOf(yy, [x1, x2, x3]);
     const refs = refRowsOf(yy, [x1, x2, x3]);

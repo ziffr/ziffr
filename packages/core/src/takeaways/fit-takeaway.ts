@@ -13,7 +13,7 @@ import { builtFrom, commonPeriod, pearson } from "../correlation";
 import { seriesBy, type Resolver } from "../display-periods";
 import { fit, needs, partialPeriods, type Fit, type Needed, type Outside, type Predicted, type Refused } from "../methods/fit";
 import { basisText, changes } from "../basis";
-import type { Span, YearStart } from "../periods";
+import { periodLabel, type Span, type YearStart } from "../periods";
 import { driversAllowed, type Verdict } from "../suitability";
 import type { Metric, Point } from "../types";
 import { strengthOf, type StrengthWord } from "./strength";
@@ -44,12 +44,9 @@ export function written(m: ValueUnit, v: number, ctx: TakeawayContext, like: num
   return formatValue({ ...m, decimals: decimalsFor(m, ...like) }, v, ctx.style);
 }
 
-/** A step to speak of an effect in: the power of ten at or below the driver's own spread ("per 1,000 Visits", not per one), made
- * larger where the effect per step would be below 1 ("per 1,000,000 Visits" for an effect of 0.000003 per Visit). */
-export function stepOf(spread: number, effect: number): number {
-  const small = effect === 0 ? -Infinity : Math.ceil(-Math.log10(Math.abs(effect)));
-  return 10 ** Math.min(15, Math.max(Math.floor(Math.log10(spread)), small));
-}
+/** A step to speak of an effect in: the power of ten at or below the driver's own spread ("per 1,000 Visits", not per one), so that it
+ * stays within what the driver has been; `written` shows the effect per step to two significant digits however small it is. */
+export const stepOf = (spread: number): number => 10 ** Math.floor(Math.log10(spread));
 
 function listOf(names: string[], ctx: TakeawayContext): string {
   const [and, comma] = [text("list-and", ctx), text("list-comma", ctx)];
@@ -71,9 +68,19 @@ const figure = (label: string, value: number, shown: string): Figure => ({ label
 const basisLine = (m: Pick<Fit, "basis" | "n" | "span">, ctx: TakeawayContext) => say("basis-over", { basis: text(m.basis === "changes" ? "basis-changes" : "basis-values", ctx), n: m.n, span: m.span }, ctxOf(ctx));
 const periodRange = (f: Fit) => `${f.from} – ${f.to}`;
 
+const NAMED = new Set<CaseKey>(["caution-crowded", "refuse-drivers-mix", "refuse-drivers-collinear"]);
+
 // The lines of a verdict, written; a far-off finding quotes the effect of the top driver without those periods.
 function lines(v: Verdict, ctx: TakeawayContext, result?: (value: number) => string) {
-  const one = (f: { case: CaseKey; slots: Slots }) => say(f.case, f.slots, { ...ctxOf(ctx), result });
+  // Gaps in changes name the periods that had no value, up to four, then how many more.
+  const which = (f: { case: CaseKey; slots: Slots }): Slots => {
+    // Several drivers named together are written as a list: "A, B and C".
+    if (NAMED.has(f.case)) return { ...f.slots, names: listOf(String(f.slots.names).split(", "), ctx) };
+    if (typeof f.slots.periods !== "string") return f.slots;
+    const all = f.slots.periods.split(",").filter(Boolean).map((p) => periodLabel(p, f.slots.span as Span, ctx.yearStart ?? 1));
+    return { ...f.slots, which: all.length > 4 ? listOf([...all.slice(0, 3), text("list-more", ctx, { n: all.length - 3 })], ctx) : listOf(all, ctx) };
+  };
+  const one = (f: { case: CaseKey; slots: Slots }) => say(f.case, which(f), { ...ctxOf(ctx), result });
   return { refusals: v.refusals.map(one), cautions: v.cautions.map(one), notes: v.switches.map(one) };
 }
 
@@ -91,13 +98,14 @@ function outsideText(o: Outside, m: ValueUnit, span: Span, ctx: TakeawayContext)
  * above, what was treated as one, the footer, and the numbers for Show the numbers. A refusal says what is missing. */
 export function movesTakeaway(target: Metric, drivers: Metric[], f: Fit | Refused, ctx: TakeawayContext, extra: string[] = []): MovesTakeaway {
   const method = text("numbers-method-fit", ctx);
-  if (!f.ok) return { ...refusalTakeaway(method, lines({ refusals: f.refusals, cautions: [], switches: [] }, ctx).refusals), rows: [] };
+  // A refusal after a first pass still says who was left out (words, no number).
+  if (!f.ok) return { ...refusalTakeaway(method, lines({ refusals: f.refusals, cautions: [], switches: [] }, ctx).refusals), notes: extra, rows: [] };
   const metricOf = (name: string) => drivers.find((d) => d.name === name)!;
   // Stryker disable next-line EqualityOperator: two drivers with exactly the same share are a tie, and the earlier is the one named
   const top = f.drivers.reduce((a, d) => (d.share > a.share ? d : a), f.drivers[0]);
   const stepFor = (name: string) => {
     const d = f.drivers.find((x) => x.name === name)!;
-    return stepOf(d.spread, d.effect);
+    return stepOf(d.spread);
   };
   const topMetric = metricOf(top.name);
   const topStep0 = stepFor(top.name);
@@ -143,6 +151,7 @@ export function movesTakeaway(target: Metric, drivers: Metric[], f: Fit | Refuse
     numbers.push(
       { label: `${d.name}: ${text("numbers-effect", ctx, { step: stepText })}`, text: written(target, effect, ctx, like) },
       { label: `${d.name}: ${text("numbers-range", ctx)}`, text: `${written(target, lo, ctx, like)} – ${written(target, hi, ctx, like)}` },
+      { label: `${d.name}: ${text("numbers-explains", ctx)}`, text: `${formatNumber(d.explains * 100, 0, ctx.style)} %` },
       { label: `${d.name}: ${text("numbers-explained-share", ctx)}`, text: `${formatNumber(d.share * 100, 0, ctx.style)} %` },
       { label: `${d.name}: ${text("numbers-moves-with", ctx)}`, text: formatNumber(d.inflation, 2, ctx.style) },
     );
@@ -296,8 +305,8 @@ function firstPass(target: Metric, drivers: Metric[], series: Point[][], span: S
     // No r (too few pairs) or none that is a number (a series that does not change) counts as 0.
     return Number.isFinite(r) ? Math.abs(r as number) : 0;
   });
-  // The same r the same way round: Metrics that tie keep the order they were given in (the sort is stable).
-  const order = [...all].sort((x, y) => link[y] - link[x]);
+  // Metrics that tie are told apart by Metric id (unique), as a fit tells drivers exactly in step apart: the same in any order given.
+  const order = [...all].sort((x, y) => link[y] - link[x] || drivers[x].id - drivers[y].id);
   let k = all.length;
   while (k > 1 && !keep(k, order).ok) k--;
   const chosen = order.slice(0, k);
@@ -306,7 +315,7 @@ function firstPass(target: Metric, drivers: Metric[], series: Point[][], span: S
   return {
     drivers: chosen.map((i) => drivers[i]),
     series: [series[0], ...chosen.map((i) => series[i + 1])],
-    notes: [text("switch-first-pass", opts.ctx, { drivers: drivers.length, have, allowed: k, span }), text("note-left-out", opts.ctx, { names: listOf(left, opts.ctx) })],
+    notes: [text("note-first-pass", opts.ctx, { drivers: drivers.length, have, allowed: k, span, target: target.name }), text("note-left-out", opts.ctx, { names: listOf(left, opts.ctx), target: target.name })],
   };
 }
 
@@ -336,16 +345,16 @@ export function whatMoves(target: Metric, others: Metric[], resolve: Resolver, o
  * 1,000 times the largest value the target has had is not worked out. */
 export function whatNeeds(target: Metric, others: Metric[], goal: number, resolve: Resolver, opts: FitRecipeOptions): NeedsTakeaway {
   const method = text("numbers-method-needs", opts.ctx);
-  const none = (lines: string[]): NeedsTakeaway => ({ ...refusalTakeaway(method, lines), rows: [] });
+  const none = (lines: string[], notes: string[] = []): NeedsTakeaway => ({ ...refusalTakeaway(method, lines), notes, rows: [] });
   const made = fitOf(target, others, resolve, opts);
   if (typeof made === "string") return none([made]);
   const { f, drivers, series, notes } = made;
-  if (!f.ok) return none(lines({ refusals: f.refusals, cautions: [], switches: [] }, opts.ctx).refusals);
+  if (!f.ok) return none(lines({ refusals: f.refusals, cautions: [], switches: [] }, opts.ctx).refusals, notes);
   const largest = Math.max(...series[0].map((p) => Math.abs(p.value)));
-  if (!Number.isFinite(goal) || Math.abs(goal) > 1000 * largest) return none([Number.isFinite(goal) ? text("refuse-goal-far", opts.ctx, { goal: written(target, goal, opts.ctx), target: target.name }) : text("refuse-goal-input", opts.ctx)]);
+  if (!Number.isFinite(goal) || Math.abs(goal) > 1000 * largest) return none([Number.isFinite(goal) ? text("refuse-goal-far", opts.ctx, { goal: written(target, goal, opts.ctx), target: target.name }) : text("refuse-goal-input", opts.ctx)], notes);
   // Stryker disable next-line EqualityOperator: two drivers with the very same name are the same to the reader, so which comes first is not seen
   const clear = f.drivers.map((_, i) => i).filter((i) => f.drivers[i].strength !== "cant-tell").sort((a, b) => f.drivers[b].share - f.drivers[a].share || (f.drivers[a].name < f.drivers[b].name ? -1 : 1));
-  if (clear.length === 0) return none([text("needs-none", opts.ctx, { n: f.n, span: f.span, target: target.name, goal: written(target, goal, opts.ctx) })]);
+  if (clear.length === 0) return none([text("needs-none", opts.ctx, { n: f.n, span: f.span, target: target.name, goal: written(target, goal, opts.ctx) })], notes);
   const rows = clear.map((i) => {
     const metric = drivers.find((d) => d.name === f.drivers[i].name)!;
     return { name: metric.name, takeaway: needsTakeaway(target, metric, f, goal, needs(f, { goal, driver: i }), opts.ctx, drivers) };
