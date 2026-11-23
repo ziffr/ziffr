@@ -439,6 +439,12 @@ describe("a pasted breakdown with a parent column (spec 0041, ticket 12)", () =>
     // "5\t9" is a label with a tab in it and a number, as before; the third cell is a number, not a parent.
     expect(parseBreakdown("A\t5\t9\nB 1", "1,234.5")?.rows.map((r) => [r.label, r.value, r.parent])).toEqual([["A\t5", 9, undefined], ["B", 1, undefined]]);
   });
+  it("reads a CSV file's three columns the same way", () => {
+    expect(parseBreakdown("Name,Value,Parent\nGermany,100,\nBerlin,60,Germany\n\"Hamburg, Nord\",5.5,\"Germany\"\nAustria,50", "1,234.5")).toEqual({
+      rows: [{ label: "Germany", value: 100 }, { label: "Berlin", value: 60, parent: "Germany" }, { label: "Hamburg, Nord", value: 5.5, parent: "Germany" }, { label: "Austria", value: 50 }],
+      total: null,
+    });
+  });
   it("keeps reading every other form as before: no parent", () => {
     expect(parseBreakdown("A 1;B 2", "1,234.5")).toEqual({ rows: [{ label: "A", value: 1 }, { label: "B", value: 2 }], total: null });
     expect(parseBreakdown("A\t1\nB\t2", "1,234.5")?.rows.every((r) => !("parent" in r))).toBe(true);

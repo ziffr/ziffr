@@ -10,16 +10,20 @@ const TOTAL = /^(total|gesamt|summe|sum)$/i;
 // as a label cannot, and an empty cell is a row at the top (there the line has only two cells, which is the plain case below).
 const WITH_PARENT = /^["']?(.+?)["']?\t+["']?([+\-−]?\d[\d.,'’ \u00a0\u202f]*)\s*(%|€|eur|k)?["']?\t+["']?(\D[^\t]*?)["']?$/i;
 
+// The same as a CSV file writes it: commas between the cells, the number with no comma of its own.
+const WITH_PARENT_CSV = /^["']?(.+?)["']?,\s*["']?([+\-−]?\d+(?:\.\d+)?)\s*(%|€|eur|k)?["']?\s*,\s*["']?(\D[^,]*?)["']?$/i;
+
 /** Reads "label value" lines (from Excel, CSV or a chat) into rows, each with the label of its parent when a third cell names one. Needs two or more rows to count as a breakdown. */
 export function parseBreakdown(text: string, style: NumberStyle): { rows: { label: string; value: number; parent?: string }[]; total: number | null } | null {
   const rows: { label: string; value: number; parent?: string }[] = [];
   let total: number | null = null;
   for (const raw of text.split(/\r?\n|;/)) {
     // Trimmed first, so a quote after leading spaces still opens the label. An empty line matches nothing below.
-    const line = raw.trim();
+    // A trailing comma is an empty last cell of a CSV line.
+    const line = raw.trim().replace(/,$/, "");
     // A tab, colon or comma, or spaces, between label and number: "Germany\t1 234,5" is Germany and 1234.5. One
     // pattern is enough: the lines are already split at ";", and every other separator is one of these.
-    const withParent = line.match(WITH_PARENT);
+    const withParent = line.match(WITH_PARENT) ?? line.match(WITH_PARENT_CSV);
     // Stryker disable next-line Regex: without the ^, a match found later in the line would also start at 0, since (.+?) takes any prefix; the first match is the same.
     const m = withParent ?? line.match(/^["']?(.+?)["']?(?:\s*[:\t,]\s*|\s+)["']?([+\-−]?\d[\d.,'’ \u00a0\u202f]*)\s*(%|€|eur|k)?["']?$/i);
     if (!m) continue;

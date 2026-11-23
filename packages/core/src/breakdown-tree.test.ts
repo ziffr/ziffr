@@ -274,7 +274,7 @@ describe("names", () => {
 
 describe("the tree from a widget's data (who may see what)", () => {
   const revenue = makeMetric({ id: 1, slug: "revenue", name: "Revenue", unit: "€", unit_position: "after", decimals: 0, period: "month" });
-  const data = (breakdowns: Record<number, Record<string, BreakdownRow[]>>, series: Record<string, { period: string; value: number }[]> = { revenue: [{ period: "2026-03-01", value: 150 }] }) => ({ series, breakdowns, yearStart: 1, numberStyle: STYLE });
+  const data = (breakdowns: Record<number, Record<string, BreakdownRow[]>>, series: Record<string, { period: string; value: number }[]> = { revenue: [{ period: "2026-03-01", value: 150 }] }) => ({ series, breakdowns, yearStart: 1 as const, numberStyle: STYLE });
 
   it("draws the newest Breakdown, under the Metric's value for that period", () => {
     const m = ok(breakdownTreeFromData(revenue, data({ 1: { "2026-02-01": [{ label: "Old", value: 1 }], "2026-03-01": GERMANY } })));
@@ -311,7 +311,7 @@ describe("the tree from a widget's data (who may see what)", () => {
   });
   it("uses the Metric's own unit and writes a number as the Workspace writes it", () => {
     const pct2 = makeMetric({ id: 3, slug: "rate", name: "Rate", unit: "%", unit_position: "after", decimals: 1, period: "month" });
-    const m = ok(breakdownTreeFromData(pct2, { series: {}, breakdowns: { 3: { "2026-03-01": [{ label: "Shoes", value: 1.55 }, { label: "Home", value: 0.45 }] } }, yearStart: 1, numberStyle: "1.234,5" }));
+    const m = ok(breakdownTreeFromData(pct2, { series: {}, breakdowns: { 3: { "2026-03-01": [{ label: "Shoes", value: 1.55 }, { label: "Home", value: 0.45 }] } }, yearStart: 1 as const, numberStyle: "1.234,5" as const }));
     expect(m.boxes.map((b) => b.text)).toEqual(["2,0 %", "1,6 %", "0,5 %"].map((t, i) => (i === 0 ? t : t)));
   });
 });

@@ -271,6 +271,8 @@ A **Breakdown** splits one value into labelled rows, such as revenue by country.
 
 When the rows add up to the total, a **Share** column shows each row's part. When they do not, a note says so: the total stays the Metric's value. Rates, for example, never add up. With no Breakdown yet, the box explains how to send one: add rows on the form, or send one line per row, such as "Germany 61,200".
 
+A row can be a **part** of another row of the same Breakdown, such as a city of a country: paste a third column with the name of the row it belongs to (see **Breakdown (optional)** below), or send `parent` with the row through the API. A Breakdown may go down 4 levels and hold 200 rows, every name is used once, and a row cannot be a part of itself or of its own parts; Ziffr refuses a list that breaks one of these and says which row is the problem. This box shows the rows at the top, which are the ones that add up to the value; a View Design's **tree** mark (see **Dashboards**) draws every level.
+
 ## The Analysis tab
 
 The tab lists the analyses Ziffr offers. In the demo, analyses still to come are shown with a lock and "coming soon"; they do nothing yet.
@@ -515,7 +517,7 @@ The form shows:
 - **For** the period the value will be recorded for: the period running today. If that period already has a value, the form says so and names the Submission Rule, such as "already has 84,000 € (overwrite with the newer value)".
 - When the request went by several ways and was already answered on Slack, Telegram or email, a note says **Already answered on** that way. A new value here still follows the Submission Rule.
 - The value, labelled with the Metric's name. Type it as you would write it.
-- **Breakdown (optional)**: paste two columns from a spreadsheet, one row per line, such as country and revenue, or choose **Load a CSV file**. Ziffr says how many rows it read, reading each number the way your Workspace writes them. If you leave the value empty, it becomes the sum of the rows. If you fill in both and they differ, the value you typed counts.
+- **Breakdown (optional)**: paste two columns from a spreadsheet, one row per line, such as country and revenue, or choose **Load a CSV file**. Add a third column with the name of another row, and the row is a part of it (leave the cell empty for a row at the top); a CSV file may use commas for the three columns. Ziffr says how many rows it read, reading each number the way your Workspace writes them. If you leave the value empty, it becomes the sum of the rows. If you fill in both and they differ, the value you typed counts.
 - **Submit**: sends the value. The form then says what happened, for example that the value was recorded, added up, replaced, refused because the period already has one, or sent to the Metric Owner because the period is locked. If the Metric has a Workflow, it also says what the Workflow does next, such as asking for Approval. The form shows only what Ziffr answered to your own submission: reloading the page or opening a link with extra words in its address shows the empty form again.
 
 When Ziffr cannot read the value, the reason appears under the field, such as "Type a number, such as 88 or 1,250." (the example follows your Workspace's number style). What you typed stays in the field and the cursor returns to it, so you can correct it and submit again. The field is emptied only after a value was recorded.
