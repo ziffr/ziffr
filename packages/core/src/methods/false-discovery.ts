@@ -18,7 +18,8 @@ export function benjaminiHochberg(ps: readonly number[], q: number): boolean[] {
   let cut = -1;
   // The largest rank k (from 1) whose chance is within q·k ÷ m; q·k ÷ m as q·k then ÷ m, the one rounding of the rule.
   for (let k = 1; k <= m; k++) if (sorted[k - 1] <= (q * k) / m) cut = sorted[k - 1];
-  return ps.map((p) => cut >= 0 && unit(p) <= cut);
+  // No rank qualified: `cut` is −1, below every chance.
+  return ps.map((p) => unit(p) <= cut);
 }
 
 /** The adjusted chances of the same rule: the smallest rate at which each pair would be reported, min over the pairs at or
@@ -26,8 +27,8 @@ export function benjaminiHochberg(ps: readonly number[], q: number): boolean[] {
  * chance is at most `q`. In the order of `ps`. */
 export function adjustedChances(ps: readonly number[]): number[] {
   const m = ps.length;
-  const order = ps.map((p, i) => ({ p: unit(p), i })).sort((x, y) => x.p - y.p || x.i - y.i);
-  const out = new Array<number>(m);
+  const order = ps.map((p, i) => ({ p: unit(p), i })).sort((x, y) => x.p - y.p);
+  const out: number[] = [];
   let running = 1;
   for (let k = m; k >= 1; k--) {
     running = Math.min(running, order[k - 1].p * (m / k));

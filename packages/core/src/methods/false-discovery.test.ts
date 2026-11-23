@@ -61,7 +61,7 @@ describe("worked by hand", () => {
     expect(adjustedChances([-1, 2, NaN])).toEqual([0, 1, 1]);
   });
   it("refuses a rate that is not above 0 and at most 1", () => {
-    for (const q of [0, -0.1, 1.5, NaN, Infinity]) expect(() => benjaminiHochberg([0.1], q), String(q)).toThrow(RangeError);
+    for (const q of [0, -0.1, 1.5, NaN, Infinity]) expect(() => benjaminiHochberg([0.1], q), String(q)).toThrow(new RangeError("The rate must be above 0 and at most 1."));
     expect(benjaminiHochberg([0.5, 0.9], 1)).toEqual([true, true]);
   });
 });

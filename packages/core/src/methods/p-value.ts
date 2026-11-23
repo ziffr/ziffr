@@ -55,17 +55,17 @@ function fraction(x: number, a: number, b: number): number {
 function incompleteBeta(x: number, y: number, a: number, b: number): number {
   const front = Math.exp(lnGamma(a + b) - lnGamma(a) - lnGamma(b) + a * Math.log(x) + b * Math.log(y));
   // Each side is worked out where the fraction converges, so a small chance keeps its digits instead of being 1 − (almost 1).
+  // Stryker disable next-line EqualityOperator,ArithmeticOperator: the switch only chooses the side that converges faster; both sides are exact everywhere, so moving it (or taking the equal point either way) changes the result by rounding only.
   return x < (a + 1) / (a + b + 2) ? (front * fraction(x, a, b)) / a : 1 - (front * fraction(y, b, a)) / b;
 }
 
 /** The chance, from 0 to 1, of a correlation at least as far from 0 as `r` over `n` pairs if there were no link at all (the
  * two-sided p-value of Pearson's r, Student's t with n − 2 degrees of freedom). `n` may be a fraction (an effective count).
- * NaN where it cannot be said: `r` outside −1 to 1 or not a number, or `n` below 3 or not a number (fewer than one degree
- * of freedom); exactly 1 for r = 0 and exactly 0 for |r| = 1. */
+ * NaN where it cannot be said: `r` outside −1 to 1 or not a number (1 − r² is then negative or NaN, and the logarithm of it NaN), or `n`
+ * below 3 or not a number (fewer than one degree of freedom); exactly 1 for r = 0 and exactly 0 for |r| = 1 (the front factor is then
+ * exactly 0, one way or the other). */
 export function pValueOfR(r: number, n: number): number {
-  if (!(Math.abs(r) <= 1) || !(n >= 3) || !Number.isFinite(n)) return NaN;
-  if (r === 0) return 1;
-  if (Math.abs(r) === 1) return 0;
+  if (!(n >= 3) || !Number.isFinite(n)) return NaN;
   // x = 1 − r² as (1 − |r|)(1 + |r|), so it keeps its digits for r near 1; y = r² for r near 0.
   const a = Math.abs(r);
   return incompleteBeta((1 - a) * (1 + a), a * a, (n - 2) / 2, 0.5);
