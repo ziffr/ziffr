@@ -144,8 +144,8 @@ export function checkedChangePoint(name: string, points: Point[], span: Span) {
   };
   const verdict = checkSuitability("changePoint", { series: [{ name, points: rows }], span, rerun });
   // Worked out only past the checks, so that values too wide to work out exactly (work-bound.ts) are refused before any exact arithmetic; a series that
-  // is refused has no result to read, and every reader looks at the refusals first.
-  const result: ChangePoint | NoChangePoint = verdict.refusals.length > 0 ? { ok: false, why: "huge" } : changePoint(rows, span);
+  // is refused for that has no result to read, and every reader looks at the refusals first.
+  const result: ChangePoint | NoChangePoint = verdict.refusals.some((f) => f.case === "refuse-exact-places" || f.case === "refuse-exact-orders") ? { ok: false, why: "huge" } : changePoint(rows, span);
   return { all, rows, result, verdict, found: () => last };
 }
 
