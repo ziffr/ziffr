@@ -77,6 +77,19 @@ export function buildGithubPost(feedback: FeedbackToPost, categoryId: string): G
   return kind === "problem" ? { target: "issue", title, body, labels: [FEEDBACK_LABEL] } : { target: "discussion", title, body, categoryId };
 }
 
+/** The first line of every comment made from a person's reply. */
+const REPLY_HEADER = "**A Ziffr user replied:**";
+const REPLY_LAST_LINE = /^Reference: ziffr-feedback-[0-9a-f]{16}-[1-9][0-9]{0,15}$/;
+
+/** Whether a comment body has the shape of one of OUR relayed replies: the header on its first line and the reply marker as
+ * its very last line. The person's words sit between, inside a fence the neutralising keeps closed, so they can never be the
+ * last line; a team comment (which may be written from the same GitHub account) that quotes a marker anywhere but last is
+ * therefore an answer, and only a comment written to look like a relayed reply (by someone with the account) is not. */
+export function isRelayedReply(body: string): boolean {
+  const lines = String(body).replace(/\r\n?/g, "\n").trim().split("\n");
+  return lines[0]?.trim() === REPLY_HEADER && REPLY_LAST_LINE.test((lines[lines.length - 1] ?? "").trim());
+}
+
 /** The marker a reply's comment carries as its last line, so a retry can find it again (the message id is ours, opaque). */
 export const replyMarkerFor = (publicRef: string, messageId: number): string => `${markerFor(publicRef)}-${messageId}`;
 
@@ -89,5 +102,5 @@ export function buildGithubReply(reply: { words: string; public_ref: string; mes
   const words = neutraliseWords(reply.words);
   if (words === "") throw new Error("Nothing to post.");
   const fence = fenceFor(words);
-  return ["**A Ziffr user replied:**", "", `${fence}\n${words}\n${fence}`, "", `Reference: ${replyMarkerFor(reply.public_ref, reply.message_id)}`].join("\n");
+  return [REPLY_HEADER, "", `${fence}\n${words}\n${fence}`, "", `Reference: ${replyMarkerFor(reply.public_ref, reply.message_id)}`].join("\n");
 }
