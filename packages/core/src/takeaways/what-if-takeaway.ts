@@ -316,6 +316,7 @@ export function whatIfRecipe(start: Metric, change: WhatIfChange, others: Metric
   const dropped = more.slice(room).map((f) => f.target.name);
   // The link of a Metric that is too far is left out, until the rest can be followed (the links made here never drive each other).
   const gone: string[] = [];
+  // Stryker disable next-line ConditionalExpression,LogicalOperator,EqualityOperator: the loop runs while the links are too far; with none left the plan is `none`, not too far, and `case` is only there on a finding, so each of these conditions says the same
   for (let p = planOf(start.name, found.map((f) => f.link)); found.length > 0 && "case" in p && p.case === "refuse-what-if-deep"; p = planOf(start.name, found.map((f) => f.link))) {
     const drop = found.find((f) => f.target.name === p.slots.name)!;
     gone.push(drop.target.name);
