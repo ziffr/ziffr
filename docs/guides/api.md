@@ -202,6 +202,10 @@ A program can share what its key's creator owns, manage Groups, and invite or re
 
 An invite link (`POST /api/v1/invitations/links`) is shown once and lets anyone who has it join: keep it as you would a password. Lists never contain an invitation's secret.
 
+## Analyses are not here yet
+
+The Takeaways of Analyze (forecasts, correlations, what-ifs, Heads-ups and the rest of the Methods library, [spec 0041](../specs/0041-analysis-in-plain-words.md)) are not in the API. The core functions that write them take the person first, so adding them later is a small step; until then, read a Metric's values and work on them yourself, or use Analyze.
+
 ## Scopes
 
 Every scope a key can have, generated from the code (`packages/core/src/actor.ts`); `pnpm test` fails when this table is out of date. The chapters above say what each one allows.

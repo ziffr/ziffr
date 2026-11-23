@@ -15,7 +15,7 @@ exports[`how the Recipe chooses what to follow > fits again without the driver t
  "assumptions": [
   "Everything else is taken as staying where it was.",
   "The effects were estimated from the same periods, so no independence between them is assumed: where a Metric rests on more than one, each range is cut wider, so that all of them hold together at least four times in five.",
-  "The links were picked for standing out from chance, which tends to make effects look larger than they are: read a range as a first look, not as a measurement.",
+  "The links shown were picked for standing out, which tends to make effects look larger than they are: read the numbers as a first look, not as a measurement.",
   "Which of two Metrics that move together comes first cannot be told from the numbers: the one that moves more closely with Base is read as coming first."
  ],
  "cautions": [],
@@ -195,7 +195,7 @@ exports[`how the Recipe chooses what to follow > says nothing of an order or of 
  "basis": "compared by value",
  "assumptions": [
   "Everything else is taken as staying where it was.",
-  "The links were picked for standing out from chance, which tends to make effects look larger than they are: read a range as a first look, not as a measurement."
+  "The links shown were picked for standing out, which tends to make effects look larger than they are: read the numbers as a first look, not as a measurement."
  ],
  "cautions": [],
  "notes": [],
@@ -578,7 +578,7 @@ exports[`whole Takeaways, word for word (golden: any change to a sentence, a fig
 "{
  "kind": "answer",
  "method": "Each link read from a straight line through the Metrics' history or from a Derived Metric's formula, one after the other",
- "sentence": "If Visits goes up by 1,000: Signups is estimated to go up by about 100. A change this size could take Visits lower than it has ever been (lowest −5.0). A change this size could be a bigger rise in one month than Revenue has ever had (largest 30 €), so treat it as a guess. Revenue is estimated to go up by about 100 €: how far that could be off cannot be said here, so treat it as a guess.",
+ "sentence": "If Visits goes up by 1,000: Signups is estimated to go up by about 100. A change this size could take Visits lower than it has ever been (lowest −5.0). A change this size could be a bigger rise in one month than Revenue has ever had (its largest was 30 €), so treat it as a guess. Revenue is estimated to go up by about 100 €: how far that could be off cannot be said here, so treat it as a guess.",
  "refusal": null,
  "strength": "strong",
  "strengthText": "strong",
@@ -663,7 +663,7 @@ exports[`whole Takeaways, word for word (golden: any change to a sentence, a fig
    "hi": null,
    "strength": "strong",
    "strengthText": "strong",
-   "sentence": "Signups is estimated to go up by about 100. A change this size could take Visits lower than it has ever been (lowest −5.0). A change this size could be a bigger rise in one month than Revenue has ever had (largest 30 €), so treat it as a guess."
+   "sentence": "Signups is estimated to go up by about 100. A change this size could take Visits lower than it has ever been (lowest −5.0). A change this size could be a bigger rise in one month than Revenue has ever had (its largest was 30 €), so treat it as a guess."
   },
   {
    "name": "Revenue",
@@ -1032,12 +1032,12 @@ exports[`whole Takeaways, word for word (golden: any change to a sentence, a fig
  "assumptions": [
   "Everything else is taken as staying where it was.",
   "The effects were estimated from the same periods, so no independence between them is assumed: where a Metric rests on more than one, each range is cut wider, so that all of them hold together at least four times in five.",
-  "The links were picked for standing out from chance, which tends to make effects look larger than they are: read a range as a first look, not as a measurement.",
+  "The links shown were picked for standing out, which tends to make effects look larger than they are: read the numbers as a first look, not as a measurement.",
   "Which of two Metrics that move together comes first cannot be told from the numbers: the one that moves more closely with Visits is read as coming first."
  ],
  "cautions": [],
  "notes": [
-  "Signups and Visits move so closely that Ziffr cannot tell which matters; treated as one, and the effect is in the unit of Signups."
+  "Signups and Visits move so closely together that Ziffr cannot tell which of them matters, so they are counted as one and the effect is shown for each unit of Signups."
  ],
  "track": null,
  "footer": "This shows what has gone together, not what caused what.",
@@ -1169,13 +1169,13 @@ exports[`whole Takeaways, word for word (golden: any change to a sentence, a fig
  "assumptions": [
   "Everything else is taken as staying where it was.",
   "The effects were estimated from the same periods, so no independence between them is assumed: where a Metric rests on more than one, each range is cut wider, so that all of them hold together at least four times in five.",
-  "The links were picked for standing out from chance, which tends to make effects look larger than they are: read a range as a first look, not as a measurement.",
+  "The links shown were picked for standing out, which tends to make effects look larger than they are: read the numbers as a first look, not as a measurement.",
   "Which of two Metrics that move together comes first cannot be told from the numbers: the one that moves more closely with Visits is read as coming first."
  ],
  "cautions": [],
  "notes": [
   "Left out, as they are more than 2 steps from the Metric that changes, so a change cannot be followed through them: Revenue per visit.",
-  "Signups and Visits move so closely that Ziffr cannot tell which matters; treated as one, and the effect is in the unit of Signups."
+  "Signups and Visits move so closely together that Ziffr cannot tell which of them matters, so they are counted as one and the effect is shown for each unit of Signups."
  ],
  "track": null,
  "footer": "This shows what has gone together, not what caused what.",
@@ -1288,7 +1288,7 @@ exports[`whole Takeaways, word for word (golden: any change to a sentence, a fig
  "basis": "compared by value",
  "assumptions": [
   "Everything else is taken as staying where it was.",
-  "The links were picked for standing out from chance, which tends to make effects look larger than they are: read a range as a first look, not as a measurement.",
+  "The links shown were picked for standing out, which tends to make effects look larger than they are: read the numbers as a first look, not as a measurement.",
   "Which of two Metrics that move together comes first cannot be told from the numbers: the one that moves more closely with Visits is read as coming first."
  ],
  "cautions": [],
@@ -1404,7 +1404,7 @@ exports[`whole Takeaways, word for word (golden: any change to a sentence, a fig
  "basis": "compared by value",
  "assumptions": [
   "Everything else is taken as staying where it was.",
-  "The links were picked for standing out from chance, which tends to make effects look larger than they are: read a range as a first look, not as a measurement."
+  "The links shown were picked for standing out, which tends to make effects look larger than they are: read the numbers as a first look, not as a measurement."
  ],
  "cautions": [],
  "notes": [],
@@ -1512,7 +1512,7 @@ exports[`whole Takeaways, word for word (golden: any change to a sentence, a fig
  "basis": "compared by value",
  "assumptions": [
   "Everything else is taken as staying where it was.",
-  "The links were picked for standing out from chance, which tends to make effects look larger than they are: read a range as a first look, not as a measurement."
+  "The links shown were picked for standing out, which tends to make effects look larger than they are: read the numbers as a first look, not as a measurement."
  ],
  "cautions": [],
  "notes": [],
@@ -1638,7 +1638,7 @@ exports[`whole Takeaways, word for word (golden: any change to a sentence, a fig
  "basis": "compared by value",
  "assumptions": [
   "Everything else is taken as staying where it was.",
-  "The links were picked for standing out from chance, which tends to make effects look larger than they are: read a range as a first look, not as a measurement."
+  "The links shown were picked for standing out, which tends to make effects look larger than they are: read the numbers as a first look, not as a measurement."
  ],
  "cautions": [
   "The misses grow as the level grows, so the ranges are rough."

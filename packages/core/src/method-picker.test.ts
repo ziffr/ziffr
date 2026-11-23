@@ -84,7 +84,7 @@ describe("the registry is whole", () => {
     const guide = readFileSync(repoFile("docs/guides/methods.md"), "utf8");
     for (const e of ENTRIES) expect(guide, `${e.id}'s entry`).toContain(`\n## ${e.catalogue}\n`);
     // A section with its Use it when and Don't use it when is a Method: offered by an entry, or one of the few that are not picked.
-    const NOT_PICKED = ["Drivers", "Importance", "Predict", "Heads-ups: moving together and stopped moving together", "Heads-ups about one Metric: change of direction, Target out of reach, unusual for the season"];
+    const NOT_PICKED = ["Drivers", "Importance", "Predict", "Track record", "Reach chance", "Heads-ups: moving together and stopped moving together", "Heads-ups about one Metric: change of direction, Target out of reach, unusual for the season"];
     const sections = [...guide.matchAll(/^## (.+)\n[\s\S]*?(?=^## |$(?![\s\S]))/gm)].filter((m) => m[0].includes("**Use it when.**")).map((m) => m[1]);
     const offered = new Set(ENTRIES.map((e) => e.catalogue as string));
     expect(sections.filter((s) => !offered.has(s) && !NOT_PICKED.includes(s)), "a Method of the guide the picker neither offers nor excuses").toEqual([]);
