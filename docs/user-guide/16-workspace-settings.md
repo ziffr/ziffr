@@ -394,7 +394,7 @@ The **Who gets what** tab: a table of **Delivery Preferences**: one row per pers
 
 ### Outbox
 
-The **Outbox** tab lists every **Delivery** you may see, newest first, drawn the way it looks on the other side. Each one shows the Connector, who it went to, when, whether it was answered or closed, and **Open thread** for a question or task.
+The **Outbox** tab lists every **Delivery** you may see, newest first, drawn the way it looks on the other side. Each one shows the Connector, who it went to, when, whether it was answered or closed, and **Open thread** for a question or task. A **Test** mark shows a Test Message you sent yourself to check a way (see [Send yourself a test message](04-connecting.md#send-yourself-a-test-message)); it asks for nothing and cannot be answered.
 
 A Delivery that never left Ziffr is marked **Simulated, not sent**, or with the reason it was kept back, such as "Kept in the Outbox: a trial never sends to a Contact". For email, Slack and Telegram, a small label says whether it really went out: **Waiting to send**, **Sending**, **Emailed**, **Sent on Slack**, **Sent on Telegram** or **Not sent** with the reason, such as "Not connected to Telegram" for someone who has not connected theirs. A Prompt you have not answered yet may offer **Open the form as** you, which opens your form. A Prompt that went by several ways shows one Delivery per way, each marked **One request, 3 ways**; once it is answered they all read **Answered on** and the way the answer came by, and one that was still waiting (for quiet hours, say) is not sent any more.
 
