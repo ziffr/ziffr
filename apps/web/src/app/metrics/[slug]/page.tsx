@@ -206,7 +206,7 @@ export default async function MetricPage({ params, searchParams }: { params: Pro
         <MetricToolbar
           id={metric.id} people={people} metric={{ id: metric.id, name: metric.name, slug: metric.slug, description: metric.description, unit: metric.unit, period: metric.period }} mcp={mcpAddress()} record={record} askable={askable}
           share={isOwner ? { name: metric.name, ownerId: metric.owner_id, shares, groups, canInvite: can(actor, "manage-members") } : null} alert={alertMe ? { mine: alertMe.mine, choices: alertMe.choices, webhooks: alertMe.webhooks } : null}
-          canDuplicate={can(actor, "create") && !metric.formula} canCreateDashboard={can(actor, "create")} dashboards={dashboards.filter((d) => d.role !== "viewer").map((d) => ({ id: d.id, name: d.name }))}
+          canDuplicate={can(actor, "create") && !metric.formula} canPaste={mayPaste(metric, tokens, actor.personId)} canCreateDashboard={can(actor, "create")} dashboards={dashboards.filter((d) => d.role !== "viewer").map((d) => ({ id: d.id, name: d.name }))}
           archive={{ allowed: archivable && !demo, archived: Boolean(metric.archived_at) }} canDelete={isOwner && !demo}
         />
       </PageHeader>
@@ -377,7 +377,7 @@ export default async function MetricPage({ params, searchParams }: { params: Pro
           {!metric.formula && (
             <section className="stock rounded-[var(--radius-card)] p-5">
               {/* Paste history is offered to whoever submits for the Metric on the web form; the core checks again when they paste. */}
-              <div className="mb-3 flex items-baseline justify-between gap-3"><h2 className="font-medium">Latest values</h2>{metric.sources.includes("web_form") && tokens.some((t) => t.submitter_id === actor.personId) && <Link href={`/paste-values?metric=${encodeURIComponent(metric.slug)}`} className="text-sm">Paste history</Link>}</div>
+              <div className="mb-3 flex items-baseline justify-between gap-3"><h2 className="font-medium">Latest values</h2>{mayPaste(metric, tokens, actor.personId) && <Link href={`/paste-values?metric=${encodeURIComponent(metric.slug)}`} className="text-sm">Paste history</Link>}</div>
               {obs.length === 0 ? <p className="text-sm text-muted-foreground">No values yet.</p> : (
                 <table className="w-full text-sm">
                   <thead className="text-left text-xs text-muted-foreground">
@@ -523,4 +523,9 @@ function basisOf(byValue: boolean): ["values" | "auto", Record<string, string>] 
 /** What a dot is when growth was removed: the change from the period before. */
 function changeNote(result: { basis: string; period: Parameters<typeof periodWord>[0] }): string {
   return result.basis === "changes" ? `, each the change from the ${periodWord(result.period)} before` : "";
+}
+
+/** Whether the person may paste or upload values for the Metric: it takes the web form, is not computed, and they submit it. The core checks again when they paste. */
+function mayPaste(metric: { formula?: unknown; sources: string[] }, tokens: { submitter_id: string }[], personId: string): boolean {
+  return !metric.formula && metric.sources.includes("web_form") && tokens.some((t) => t.submitter_id === personId);
 }
