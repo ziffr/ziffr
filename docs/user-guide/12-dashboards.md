@@ -161,7 +161,7 @@ A team Widget Template in the Pool has its own **⋯** menu. Everyone sees **Ver
 
 ### Filling a Widget Template's Slots
 
-When a template lands, a window named after it asks for each Slot, such as "Metric", "Metric with a breakdown", "First metric" and "Second metric", or "Metrics, one or more". A team template also says which Metrics it was made with ("In the original: …"), as far as you can see them. Once every Slot is filled, a Preview shows the Widget with your Metrics. Press **Add** (built-in templates) or **Use template** (team templates), or **Cancel**.
+When a template lands, a window named after it asks for each Slot, such as "Metric", "Metric with a breakdown", "First metric" and "Second metric", or "Metrics, one or more". A team template also says which Metrics it was made with ("In the original: …"), as far as you can see them. Once every Slot is filled, a Preview shows the Widget with your Metrics, drawn as wide as the window allows, also on a narrow screen. Press **Add** (built-in templates) or **Use template** (team templates), or **Cancel**.
 
 ## A widget's menu
 
