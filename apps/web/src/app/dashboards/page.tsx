@@ -11,7 +11,7 @@ import { homeDashboard, switchableDashboards } from "@ziffr/core/home";
 import { can } from "@ziffr/core/actor";
 import { newDashboard } from "@/app/home-actions";
 import { PageHeader } from "@/components/page-header";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import type { DashboardAccess } from "@/lib/access";
 import { dashboardTemplateChoices } from "@ziffr/core/dashboard-templates";
@@ -50,6 +50,7 @@ export default async function DashboardsPage() {
         {can(actor, "create") && (
           <NewDashboardButton templates={choices.templates} metrics={choices.metrics} tags={choices.tags} numberStyle={numberStyle} label="From a template…" variant="outline" />
         )}
+        <Link href="/gallery" className={buttonVariants({ variant: "outline" })}>Gallery</Link>
       </PageHeader>
       {!dashboards.length ? (
         <div className="rounded-[var(--radius-card)] border border-dashed border-[var(--color-rule-2)] p-10 text-center">
