@@ -5,7 +5,7 @@
 # (.github/scripts/calculation-paths-touched.sh).
 
 # The calculation modules.
-^packages/core/src/(numbers|display-periods|formula|compare|format|parse|basis|correlation|snapshot-periods|periods|workflow-rules|alert-rules|number-style|series-lines|attainment-method|units|exact|adding-up|series|forecast|export-values|recipe-functions|recipe-run|analysis-recipe|built-in-recipes|suitability|polar-marks|recipe-methods|mark-figures|formula-tree)\.ts$
+^packages/core/src/(numbers|display-periods|formula|compare|format|parse|basis|correlation|snapshot-periods|periods|workflow-rules|alert-rules|number-style|series-lines|attainment-method|units|exact|adding-up|series|forecast|export-values|recipe-functions|recipe-run|analysis-recipe|built-in-recipes|suitability|polar-marks|recipe-methods|mark-figures|formula-tree|breakdown-tree)\.ts$
 ^packages/core/src/numbers/
 ^packages/core/src/takeaways/
 ^packages/core/src/methods/

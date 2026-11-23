@@ -257,6 +257,11 @@ The database and the core refuse some changes with a code of their own (ZFnnn), 
 | `ZF450` | The period already has a value. |
 | `ZF451` | At most 8 dashboards can be pinned |
 | `ZF452` | A Guest cannot fill in for someone.; A value is entered for someone else.; This Submission Rule combines several people's values. |
+| `ZF460` | A Breakdown row cannot be its own ancestor.; A Breakdown row cannot be its own parent.; A parent must be a row of the same Breakdown.; A parent must be a row of the same Workspace. |
+| `ZF461` | A Breakdown has at most 4 levels. |
+| `ZF462` | A Breakdown with parents has at most 200 rows. |
+| `ZF463` | (in the core only) |
+| `ZF464` | (in the core only) |
 | `ZF4D0` | demo_read_only |
 | `ZF538` | Too many open Share Proposals. |
 | `ZF539` | Too many Share Proposals today. |

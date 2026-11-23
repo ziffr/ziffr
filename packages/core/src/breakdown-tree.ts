@@ -72,8 +72,9 @@ function chosen(top: Part[]): Set<Part> {
     const d = a.size.num * b.size.den - b.size.num * a.size.den;
     return d > ZERO.num ? -1 : d < ZERO.num ? 1 : a.order - b.order;
   });
-  for (let changed = true; changed; ) {
-    changed = false;
+  // The largest row that is eligible (its parent has a box) and fits is given one, and the search starts again: so a row larger than its parent comes after it, and a row that does not fit lets a smaller one in.
+  for (let again = true; again; ) {
+    again = false;
     for (const p of order) {
       if (kept.has(p) || (p.parent !== null && !kept.has(p.parent))) continue;
       // Keeping it: one more box, one "Other rows" fewer if it was its parent's last left out, one more if it has parts of its own.
@@ -85,7 +86,8 @@ function chosen(top: Part[]): Set<Part> {
       others += delta - 1;
       keptKids.set(p.parent, above + 1);
       keptKids.set(p, 0);
-      changed = true;
+      again = true;
+      break;
     }
   }
   return kept;
@@ -145,6 +147,14 @@ export function breakdownTree(source: BreakdownTreeSource, style: NumberStyle): 
     tooSmall ||= t === null || (v === 0 && f.num !== BigInt(0));
     return t ?? "no value";
   };
+  // Two different numbers written so that their texts differ: with the decimals the Metric shows, or as many more as it takes (a difference is never written as two equal numbers).
+  const apart = (a: Fraction, b: Fraction): [string, string] => {
+    for (let d = decimals; d <= 20; d++) {
+      const [x, y] = [write(nearest(a), source.unit, d, style), write(nearest(b), source.unit, d, style)];
+      if (x !== null && y !== null && x !== y) return [x, y];
+    }
+    return [say(a), say(b)];
+  };
   const place = (d: Draft, parent: number | null, share: Fraction | null): void => {
     const id = boxes.length;
     const level = parent === null ? 0 : boxes[parent].level + 1;
@@ -162,7 +172,7 @@ export function breakdownTree(source: BreakdownTreeSource, style: NumberStyle): 
       alt: "",
     });
     // Both numbers, when a row's parts add up to another number than the row's own.
-    const partsText = d.parts !== null && (d.parts.num * d.exact.den !== d.exact.num * d.parts.den) ? `${d.label}: its parts add up to ${say(d.parts)}, not to ${written}` : null;
+    const partsText = d.parts !== null && (d.parts.num * d.exact.den !== d.exact.num * d.parts.den) ? `${d.label}: its parts add up to ${apart(d.parts, d.exact)[0]}, not to ${apart(d.parts, d.exact)[1]}` : null;
     if (partsText) differing.push(partsText);
     // The sizes of the parts and their total, exactly: each share is a size over the total, so they add up to exactly 1.
     const total = sizesOf(d.kids);
@@ -178,7 +188,7 @@ export function breakdownTree(source: BreakdownTreeSource, style: NumberStyle): 
   // A name goes between direction isolates, so a name written right to left and the number after it never run together.
   const named = (b: TreeBox) => `⁨${b.label}⁩ ${b.text}`;
   for (const b of boxes) b.alt = [named(b), ...note(b, drafts[b.id])].join(", ");
-  for (const b of boxes) if (b.op !== null) lines.push(`${named(b)} is made of: ${boxes.filter((k) => k.parent === b.id).map((k) => k.alt).join("; ")}.`);
+  for (const b of boxes) if (b.op !== null) lines.push(`${named(b)}${b.parent === null && b.taken ? ", negative" : ""} is made of: ${boxes.filter((k) => k.parent === b.id).map((k) => k.alt).join("; ")}.`);
   const has = { negative: boxes.some((b) => b.taken), other: drafts.some((d) => d.grouped.length > 0), differ: differing.length > 0 };
   const rule = [
     derived ? `${name} has no value for ${source.period}, so the top box is its rows added up.` : `The top box is the value of ${name} for ${source.period}; the boxes under it are the rows of its breakdown, each as it was given.`,

@@ -426,6 +426,25 @@ describe("every form the readers know (#126)", () => {
   });
 });
 
+describe("a pasted breakdown with a parent column (spec 0041, ticket 12)", () => {
+  it("reads a third cell as the label of the row's parent, from a spreadsheet's tabs, and an empty cell as the top", () => {
+    const text = "Name\tValue\tParent\nGermany\t100\t\nBerlin\t60\tGermany\nMunich\t1.234,5 €\t Germany \nAustria\t50";
+    expect(parseBreakdown(text, "1.234,5")).toEqual({
+      rows: [{ label: "Germany", value: 100 }, { label: "Berlin", value: 60, parent: "Germany" }, { label: "Munich", value: 1234.5, parent: "Germany" }, { label: "Austria", value: 50 }],
+      total: null,
+    });
+  });
+  it("takes quotes round a parent, a total with a parent cell, signs and k, and leaves a parent that starts with a digit as no parent column", () => {
+    expect(parseBreakdown('A\t5\t"B"\nB\t-2k\t\nTotal\t3\tB', "1,234.5")).toEqual({ rows: [{ label: "A", value: 5, parent: "B" }, { label: "B", value: -2000 }], total: 3 });
+    // "5\t9" is a label with a tab in it and a number, as before; the third cell is a number, not a parent.
+    expect(parseBreakdown("A\t5\t9\nB 1", "1,234.5")?.rows.map((r) => [r.label, r.value, r.parent])).toEqual([["A\t5", 9, undefined], ["B", 1, undefined]]);
+  });
+  it("keeps reading every other form as before: no parent", () => {
+    expect(parseBreakdown("A 1;B 2", "1,234.5")).toEqual({ rows: [{ label: "A", value: 1 }, { label: "B", value: 2 }], total: null });
+    expect(parseBreakdown("A\t1\nB\t2", "1,234.5")?.rows.every((r) => !("parent" in r))).toBe(true);
+  });
+});
+
 describe("reading what Ziffr writes", () => {
   const { numRuns, seed } = runs();
   it(`reads every number written in a Number Style back in that style, exactly (${numRuns * 5} values, seed ${seed})`, () => {

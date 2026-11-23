@@ -74,7 +74,7 @@ const pageOf = <T extends z.ZodType>(item: T) => z.object({
 export const MetricList = pageOf(MetricDescription);
 
 /** A Breakdown row (GLOSSARY: Breakdown): one labelled part of a value. */
-const BreakdownRow = z.object({ label: z.string().describe("What the part is, such as a shop or a channel."), value: z.number() });
+const BreakdownRow = z.object({ label: z.string().describe("What the part is, such as a shop or a channel."), value: z.number(), parent: z.string().optional().describe("The label of the row this one is a part of (a row of the same breakdown); left out for a row at the top.") });
 
 /** A Metric's value for one period (GLOSSARY: Observation). */
 const ApiObservation = z.object({
@@ -236,7 +236,7 @@ export const FeedList = z.object({ items: z.array(z.object({ id: z.string(), nam
 export const SubmitObservation = z.object({
   value: z.number().describe("The value. With a breakdown, the total; the rows need not add up to it."),
   period: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional().describe("The period's first day, YYYY-MM-DD; the current period if left out."),
-  breakdown: z.array(z.object({ label: z.string().trim().min(1).max(200).describe("What the part is."), value: z.number() })).max(500).optional().describe("The value's parts, such as per shop."),
+  breakdown: z.array(z.object({ label: z.string().trim().min(1).max(200).describe("What the part is."), value: z.number(), parent: z.string().trim().min(1).max(200).nullish().describe("The label of the row this one is a part of: a row of the same list, at most 4 levels down, at most 200 rows in all, every label used once. Empty or left out for a row at the top.") })).max(500).optional().describe("The value's parts, such as per shop."),
 }).strict();
 
 /** POST /api/v1/metrics/{slug}/observations answers this when the value was taken. */
@@ -362,7 +362,7 @@ const FeedItem = z.object({
   metric: slugParam.describe("The Metric's slug, as GET /feed lists it."),
   period: periodDate.optional().describe("The period's first day, YYYY-MM-DD; the current period if left out."),
   value: z.number().describe("The value. With a breakdown, the total; the rows need not add up to it."),
-  breakdown: z.array(z.object({ label: z.string().trim().min(1).max(200), value: z.number() })).max(500).optional().describe("The value's parts, such as per region."),
+  breakdown: z.array(z.object({ label: z.string().trim().min(1).max(200), value: z.number(), parent: z.string().trim().min(1).max(200).nullish().describe("The label of the row this one is a part of: a row of the same list, at most 4 levels down, at most 200 rows in all, every label used once. Empty or left out for a row at the top.") })).max(500).optional().describe("The value's parts, such as per region."),
 }).strict();
 
 /** POST /api/v1/feed/observations takes this. */
