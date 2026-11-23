@@ -39,6 +39,13 @@ function rowOf(m: Metric, v: DesignValues): Row {
   };
 }
 
+/** What the card's width allows (container queries on the widget body, so a dashboard card, a phone, a Preview and a wall screen
+ * all choose for themselves): the name and latest value always; the change from 15rem; the target status from 22rem; the trend
+ * from 30rem. A narrower card drops the columns of least weight rather than scrolling sideways or cutting words in half. */
+const CHANGE_FROM = "hidden @min-[15rem]:table-cell";
+const TARGET_FROM = "hidden @min-[22rem]:table-cell";
+const TREND_FROM = "hidden @min-[30rem]:table-cell";
+
 /** One table of several Metrics: name, latest value, change, target status and a small trend. */
 export function ScoreboardMark({ v }: { v: DesignValues }) {
   const { metrics, data } = v;
@@ -56,9 +63,9 @@ export function ScoreboardMark({ v }: { v: DesignValues }) {
           <tr>
             <th scope="col" className="pb-1 text-left font-normal">Metric</th>
             <th scope="col" className="pb-1 text-right font-normal">Latest</th>
-            <th scope="col" className="pb-1 text-right font-normal">Change</th>
-            <th scope="col" className="pb-1 pl-2 text-left font-normal">Target</th>
-            <th scope="col" className="pb-1 pl-2 text-left font-normal">Trend</th>
+            <th scope="col" className={`pb-1 text-right font-normal ${CHANGE_FROM}`}>Change</th>
+            <th scope="col" className={`pb-1 pl-2 text-left font-normal ${TARGET_FROM}`}>Target</th>
+            <th scope="col" className={`pb-1 pl-2 text-left font-normal ${TREND_FROM}`}>Trend</th>
           </tr>
         </thead>
         <tbody>
@@ -78,7 +85,7 @@ export function ScoreboardMark({ v }: { v: DesignValues }) {
                   {when && <span className="widget-text-xs block truncate font-normal text-muted-foreground" title={pointName(last, by, m.period, data.yearStart)}>{when}</span>}
                 </th>
                 <td className="fig py-[0.43em] text-right whitespace-nowrap">{formatValue(m, last.value, ns)}</td>
-                <td className="py-[0.43em] text-right whitespace-nowrap">
+                <td className={`py-[0.43em] text-right whitespace-nowrap ${CHANGE_FROM}`}>
                   {change ? (
                     // Direction is an arrow and a sign in the text colour; colour is kept for the target (see target-chip).
                     <span className="inline-flex items-center gap-0.5 text-[var(--color-ink-2)]" title={change.title}>
@@ -89,8 +96,8 @@ export function ScoreboardMark({ v }: { v: DesignValues }) {
                     <span className="text-muted-foreground" title={why ?? undefined}>–</span>
                   )}
                 </td>
-                <td className="py-[0.43em] pl-2"><TargetChip metric={m} value={last.value} numberStyle={ns} /></td>
-                <td className="w-[28%] min-w-12 py-[0.43em] pl-2">
+                <td className={`py-[0.43em] pl-2 ${TARGET_FROM}`}><TargetChip metric={m} value={last.value} numberStyle={ns} /></td>
+                <td className={`w-[28%] min-w-12 py-[0.43em] pl-2 ${TREND_FROM}`}>
                   {trend.length > 1 ? (
                     <span role="img" aria-label={`${m.name}: ${formatValue(m, trend[0].value, ns)} to ${formatValue(m, last.value, ns)} over ${trend.length} periods`} className="block">
                       <Sparkline points={trend} height="1.6em" />
