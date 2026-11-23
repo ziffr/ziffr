@@ -62,7 +62,7 @@ class WF {
     return this.add("Settings", "n8n-nodes-base.set", { assignments: { assignments }, includeOtherFields: true, options: { includeBinary: true } }, x, y, 3.4);
   }
   note(text, height = 300) { return this.add("Read me", "n8n-nodes-base.stickyNote", { content: text, width: 460, height }, -60, -60); }
-  file() { return { name: this.name, nodes: this.nodes, connections: this.conn, settings: { executionOrder: "v1" }, pinData: {}, active: false, tags: [] }; }
+  file() { return { name: this.name, nodes: this.nodes, connections: this.conn, settings: { executionOrder: "v1", ...(this.timezone ? { timezone: this.timezone } : {}) }, pinData: {}, active: false, tags: [] }; }
 }
 
 /** The task-list workflows also name whose list this is: they take only that person's Tasks (a Webhook is sent every Action of the Workspace). */
@@ -288,32 +288,92 @@ function slackTo() {
 // Every one reads a few figures on a schedule, shapes them into { metric, period?, value } items (feed-shape.js), sends them
 // to the Feed endpoint with the Feed Key in an n8n credential, and fails the run when Ziffr refuses an item (feed-answers.js).
 const FEED_CRED = ["generic", "httpHeaderAuth", "Ziffr Feed Key"];
-const FEED_URL = "={{ $('Settings').first().json.ziffrUrl.replace(/\\/+$/, '') }}/api/v1/feed/observations";
+const FEED_BASE = "={{ $('Settings').first().json.ziffrUrl.replace(/\\/+$/, '') }}/api/v1/feed";
+const FEED_URL = `${FEED_BASE}/observations`;
 const SHEETS = {
   key: "google-sheets", id: "google-sheets", system: "sheets", label: "Google Sheets", file: "google-sheets-feed.json", guide: "google-sheets-feed.md",
   reads: "The rows of one sheet: a column metric (the Metric's slug), a column value, and optionally a column period (the period's first day).",
   needs: "A Google account that can read the sheet.",
   rows: true,
 };
-function feedFlow(s, readNode) {
+const DAILY = { name: "Every day at 9", rule: { interval: [{ triggerAtHour: 9 }] }, when: "every day at 9" };
+// Figures that are a month's total are sent once a month, for the month that has just ended: one value a period, never two.
+const MONTHLY = { name: "On the 1st at 9", rule: { interval: [{ field: "months", triggerAtDayOfMonth: 1, triggerAtHour: 9 }] }, when: "on the 1st of every month at 9, for the month that has just ended" };
+/** The key part every figure-shaping node ends with: the same figures give the same key, so a retried run records nothing twice. */
+const KEY = code("feed-key").trimEnd();
+const keyFor = (system) => fill(KEY, { SYSTEM: system });
+/** `reads` is a function that adds the read nodes (in order) and returns their names; `shape` is the shaping node's code. */
+function feedFlow(s, reads) {
+  const when = s.schedule ?? DAILY;
   const w = new WF(`${s.key}-feed`, `${s.label} to Ziffr (values)`);
-  w.note(`${s.label} to Ziffr: values\n\n1. Fill in the Settings node: your Ziffr address and where the figures are.\n2. Add the credentials: ${s.label} on the read node, and a Header Auth credential named "Ziffr Feed Key" (name Authorization, value Bearer <your Feed Key>) on Send to Ziffr. Make the key in Ziffr under Settings, Feeds, and add the Feed under Who submits on each Metric.\n3. Press Execute workflow once to try it, then activate it: it runs every day at 9.\n\n${s.reads}`, 340);
-  w.add("Every day at 9", "n8n-nodes-base.scheduleTrigger", { rule: { interval: [{ triggerAtHour: 9 }] } }, 0, 300, 1.2);
+  w.note(`${s.label} to Ziffr: values\n\n1. Fill in the Settings node: your Ziffr address and ${s.fillIn ?? "where the figures are"}.\n2. Add the credentials: ${s.label} on the read node${s.readNames?.length > 1 ? "s" : ""}, and a Header Auth credential named "Ziffr Feed Key" (name Authorization, value Bearer <your Feed Key>) on Send to Ziffr. Make the key in Ziffr under Settings, Feeds, and add the Feed under Who submits on each Metric.\n3. Press Execute workflow once to try it, then activate it: it runs ${when.when} (UTC).\n\n${s.reads}`, 340);
+  w.add(when.name, "n8n-nodes-base.scheduleTrigger", { rule: when.rule }, 0, 300, 1.2);
+  w.timezone = "UTC"; // "at 9" and "the month that has just ended" are both read in UTC, whatever zone the n8n server is set to
   w.settings(s.settings, 220, 300);
-  readNode(w, 440, 300);
-  w.code("Shape values", fill(code("feed-shape"), { LABEL: s.label, SYSTEM: s.system }), 660, 300);
-  w.http("Send to Ziffr", "POST", FEED_URL, FEED_CRED, 880, 300, { headers: [["Idempotency-Key", "={{ $json.key }}"]], body: "={{ JSON.stringify({ items: $json.items }) }}" });
-  w.code("Check the answers", code("feed-answers"), 1100, 300);
-  for (const [a, b] of [["Every day at 9", "Settings"], ["Settings", s.readName], ["" + s.readName, "Shape values"], ["Shape values", "Send to Ziffr"], ["Send to Ziffr", "Check the answers"]]) w.link(a, b);
+  w.http("What is filled", "GET", FEED_BASE, FEED_CRED, 440, 300, { query: [["limit", "200"]] });
+  const names = reads(w, 660, 300);
+  const x = 660 + 220 * names.length;
+  w.code("Shape values", s.shape ?? fill(code("feed-shape"), { LABEL: s.label, KEY: keyFor(s.system) }), x, 300);
+  w.http("Send to Ziffr", "POST", FEED_URL, FEED_CRED, x + 220, 300, { headers: [["Idempotency-Key", "={{ $json.key }}"]], body: "={{ JSON.stringify({ items: $json.items }) }}" });
+  w.code("Check the answers", code("feed-answers"), x + 440, 300);
+  const chain = [when.name, "Settings", "What is filled", ...names, "Shape values", "Send to Ziffr", "Check the answers"];
+  for (let i = 0; i + 1 < chain.length; i++) w.link(chain[i], chain[i + 1]);
   return w;
 }
-const sheetsFeed = () => feedFlow({ ...SHEETS, readName: "Read the sheet", settings: [["ziffrUrl", "https://REPLACE-WITH-YOUR-ZIFFR-ADDRESS"], ["spreadsheetId", "REPLACE-WITH-THE-SPREADSHEET-ID"], ["sheetName", "REPLACE-WITH-THE-SHEET-NAME"]] }, (w, x, y) => w.add("Read the sheet", "n8n-nodes-base.googleSheets", {
-  resource: "sheet", operation: "read",
-  documentId: { __rl: true, value: "={{ $('Settings').first().json.spreadsheetId }}", mode: "id" },
-  sheetName: { __rl: true, value: "={{ $('Settings').first().json.sheetName }}", mode: "name" },
-  options: {},
-}, x, y, 4.5, { credentials: { googleSheetsOAuth2Api: { name: "Google Sheets account" } } }));
-const FEED_TEMPLATES = [SHEETS];
+const sheetsFeed = () => feedFlow({ ...SHEETS, settings: [["ziffrUrl", "https://REPLACE-WITH-YOUR-ZIFFR-ADDRESS"], ["spreadsheetId", "REPLACE-WITH-THE-SPREADSHEET-ID"], ["sheetName", "REPLACE-WITH-THE-SHEET-NAME"]], fillIn: "where the figures are", readNames: ["Read the sheet"] }, (w, x, y) => {
+  w.add("Read the sheet", "n8n-nodes-base.googleSheets", {
+    resource: "sheet", operation: "read",
+    documentId: { __rl: true, value: "={{ $('Settings').first().json.spreadsheetId }}", mode: "id" },
+    sheetName: { __rl: true, value: "={{ $('Settings').first().json.sheetName }}", mode: "name" },
+    options: {},
+  }, x, y, 4.5, { credentials: { googleSheetsOAuth2Api: { name: "Google Sheets account" } } });
+  return ["Read the sheet"];
+});
+
+const STRIPE = {
+  key: "stripe", id: "stripe", system: "stripe", label: "Stripe", file: "stripe-feed.json", guide: "stripe-feed.md",
+  reads: "Your subscriptions, read only: monthly recurring revenue, customers with a subscription and customers who cancelled, for the month that has just ended.",
+  needs: "A Stripe restricted key that can read subscriptions and nothing else.",
+};
+/** A Stripe list read through every page (up to 50 of 100); a list that goes on after that fails the run in the shaping node. */
+const stripeList = (w, name, status, x, y) => w.http(name, "GET", "https://api.stripe.com/v1/subscriptions", ["predefined", "stripeApi", "Stripe account"], x, y, { query: [["limit", "100"], ...(status ? [["status", status]] : [])] });
+const stripeFeed = () => feedFlow({
+  ...STRIPE, fillIn: "which Metric each figure is for, and the currency",
+  settings: [["ziffrUrl", "https://REPLACE-WITH-YOUR-ZIFFR-ADDRESS"], ["mrrMetric", "REPLACE-WITH-THE-MRR-METRIC-SLUG-OR-EMPTY"], ["customersMetric", "REPLACE-WITH-THE-CUSTOMERS-METRIC-SLUG-OR-EMPTY"], ["churnedMetric", "REPLACE-WITH-THE-CHURNED-CUSTOMERS-METRIC-SLUG-OR-EMPTY"], ["currency", "REPLACE-WITH-THE-CURRENCY-CODE-SUCH-AS-eur"]],
+  schedule: MONTHLY, readNames: ["Read current subscriptions", "Read cancelled subscriptions"],
+  shape: fill(code("stripe-figures"), { KEY: keyFor("stripe") }),
+}, (w, x, y) => {
+  const paged = (n) => { n.parameters.options = { pagination: { pagination: { paginationMode: "updateAParameterInEachRequest", parameters: { parameters: [{ type: "qs", name: "starting_after", value: "={{ $response.body.data[$response.body.data.length - 1].id }}" }] }, paginationCompleteWhen: "other", completeExpression: "={{ !$response.body.has_more }}", limitPagesFetched: true, maxRequests: 50 } } }; };
+  paged(stripeList(w, "Read current subscriptions", null, x, y));
+  const cancelled = stripeList(w, "Read cancelled subscriptions", "canceled", x + 220, y);
+  paged(cancelled);
+  cancelled.executeOnce = true; // the first read hands over one item a page; this one is asked once, not once a page
+  return ["Read current subscriptions", "Read cancelled subscriptions"];
+});
+
+const HUBSPOT = {
+  key: "hubspot", id: "hubspot", system: "hubspot", label: "HubSpot", file: "hubspot-feed.json", guide: "hubspot-feed.md",
+  reads: "Two counts, read only: deals won and new contacts, for the month that has just ended.",
+  needs: "A HubSpot private app token with read access to deals and contacts.",
+};
+// The month that has just ended, as milliseconds since 1970 (what HubSpot's search takes): from its first day up to the next month's.
+const MONTH_FROM = "new Date(Date.UTC(new Date().getUTCFullYear(), new Date().getUTCMonth() - 1, 1)).getTime()";
+const MONTH_TO = "new Date(Date.UTC(new Date().getUTCFullYear(), new Date().getUTCMonth(), 1)).getTime()";
+const hubspotCount = (w, name, object, filters, x, y) => w.http(name, "POST", `https://api.hubapi.com/crm/v3/objects/${object}/search`, ["predefined", "hubspotAppToken", "HubSpot App Token"], x, y, {
+  body: `={{ JSON.stringify({ filterGroups: [{ filters: [${filters}] }], properties: ['hs_object_id'], limit: 1 }) }}`,
+});
+const hubspotFeed = () => feedFlow({
+  ...HUBSPOT, fillIn: "which Metric each figure is for",
+  settings: [["ziffrUrl", "https://REPLACE-WITH-YOUR-ZIFFR-ADDRESS"], ["dealsWonMetric", "REPLACE-WITH-THE-DEALS-WON-METRIC-SLUG-OR-EMPTY"], ["newContactsMetric", "REPLACE-WITH-THE-NEW-CONTACTS-METRIC-SLUG-OR-EMPTY"]],
+  schedule: MONTHLY, readNames: ["Count deals won", "Count new contacts"],
+  shape: fill(code("hubspot-figures"), { KEY: keyFor("hubspot") }),
+}, (w, x, y) => {
+  const range = (prop) => `{ propertyName: '${prop}', operator: 'GTE', value: String(${MONTH_FROM}) }, { propertyName: '${prop}', operator: 'LT', value: String(${MONTH_TO}) }`;
+  hubspotCount(w, "Count deals won", "deals", `{ propertyName: 'hs_is_closed_won', operator: 'EQ', value: 'true' }, ${range("closedate")}`, x, y);
+  hubspotCount(w, "Count new contacts", "contacts", range("createdate"), x + 220, y);
+  return ["Count deals won", "Count new contacts"];
+});
+const FEED_TEMPLATES = [SHEETS, STRIPE, HUBSPOT];
 
 export function generate() {
   const [todo, google, asana] = SYSTEMS_LIST;
@@ -325,7 +385,7 @@ export function generate() {
     "planner-from-ziffr.json": plannerFrom(), "planner-to-ziffr.json": plannerTo(),
     "slack-from-ziffr.json": slackFrom(), "slack-to-ziffr.json": slackTo(),
   };
-  const feeds = { "google-sheets-feed.json": sheetsFeed() };
+  const feeds = { "google-sheets-feed.json": sheetsFeed(), "stripe-feed.json": stripeFeed(), "hubspot-feed.json": hubspotFeed() };
   const index = { templates: FEED_TEMPLATES.map(({ id, label, file, guide, reads, needs, rows }) => ({ id, label, file, guide, reads, needs, ...(rows ? { rows } : {}) })) };
   return {
     ...Object.fromEntries(Object.entries({ ...all, ...feeds }).map(([f, w]) => [f, JSON.stringify(w.file(), null, 2) + "\n"])),

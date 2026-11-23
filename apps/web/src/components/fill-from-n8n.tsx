@@ -52,7 +52,7 @@ export function FillFromN8n({ metrics, feeds, templates }: { metrics: { id: numb
         <p className="font-medium">The n8n workflow for {chosen.label} is downloaded</p>
         <p className="text-xs text-muted-foreground">It is the Feed “{made.feed.name}” that sends the values, and it now takes values for {made.metrics.map((m) => m.name).join(", ")}.</p>
         <ol className="list-decimal space-y-1 pl-5 text-xs">
-          <li>In n8n, import <code>{made.fileName}</code> (Workflows → Import from file) and fill in its <strong>Settings</strong> node{chosen.rows ? ": the sheet's id and the tab's name" : ""}. Your Ziffr&rsquo;s address is in it already.</li>
+          <li>In n8n, import <code>{made.fileName}</code> (Workflows → Import from file) and fill in its <strong>Settings</strong> node{chosen.rows ? ": the sheet's id and the tab's name" : `: which Metric each figure is for (${made.metrics.map((m) => m.slug).join(", ")}) and what it asks`}. Your Ziffr&rsquo;s address is in it already.</li>
           {chosen.rows && made.startSheet && <li>Put the Metrics in your sheet: <button type="button" className="underline" onClick={() => save("ziffr-metrics.csv", made.startSheet!, "text/csv")}>download the starter sheet</button> (a column <code>metric</code> with these slugs, <code>value</code>, and an optional <code>period</code>).</li>}
           <li>{made.key ? "Make a Header Auth credential in n8n named Ziffr Feed Key: name Authorization, value Bearer followed by the key below." : "Use a Feed Key of this Feed (Settings → Feeds) in a Header Auth credential in n8n named Ziffr Feed Key: name Authorization, value Bearer followed by the key."}</li>
           <li>You need: {chosen.needs}</li>
@@ -78,7 +78,7 @@ export function FillFromN8n({ metrics, feeds, templates }: { metrics: { id: numb
     <div className="mt-3 space-y-3 rounded-[var(--radius-input)] border border-input p-3 text-sm">
       <div>
         <p className="font-medium">Fill {metrics.length === 1 ? metrics[0].name : `${metrics.length} Metrics`} from n8n</p>
-        <p className="text-xs text-muted-foreground">Downloads a ready n8n workflow with your Ziffr&rsquo;s address in it. You add the other system&rsquo;s login in n8n; Ziffr never sees it and never runs the workflow. The Feed you pick becomes a Submitter of {metrics.length === 1 ? "this Metric" : "these Metrics"}.</p>
+        <p className="text-xs text-muted-foreground">Downloads a ready n8n workflow with your Ziffr&rsquo;s address in it. You add the other system&rsquo;s login in n8n; Ziffr never sees it and never runs the workflow. The Feed you pick becomes a Submitter of {metrics.length === 1 ? "this Metric" : "these Metrics"}; a Feed Key works for every Metric its Feed submits to, so a new Feed keeps a key to these only.</p>
       </div>
       <label className="flex flex-wrap items-center gap-2">
         <span className="w-24 text-xs font-medium">Read from</span>

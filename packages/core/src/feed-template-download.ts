@@ -9,6 +9,8 @@
 // workflow, never by editing its text. The Feed Key is never in the file: n8n keeps it in a credential. The audit
 // event names the template and counts, never the file.
 import sheetsFeed from "../../../docs/automations/google-sheets-feed.json";
+import stripeFeed from "../../../docs/automations/stripe-feed.json";
+import hubspotFeed from "../../../docs/automations/hubspot-feed.json";
 import index from "../../../docs/automations/feed-templates.json";
 import { audit } from "./audit-log";
 import { Forbidden, type Actor } from "./actor";
@@ -23,7 +25,11 @@ type Node = { name: string; parameters: { assignments?: { assignments: { name: s
 type Workflow = { name: string; nodes: Node[] };
 
 /** The workflows this repository ships, by file; adding a template to the index needs a line here (a test says so). */
-const WORKFLOWS: Record<string, Workflow> = { "google-sheets-feed.json": sheetsFeed as unknown as Workflow };
+const WORKFLOWS: Record<string, Workflow> = {
+  "google-sheets-feed.json": sheetsFeed as unknown as Workflow,
+  "stripe-feed.json": stripeFeed as unknown as Workflow,
+  "hubspot-feed.json": hubspotFeed as unknown as Workflow,
+};
 const TEMPLATES = (index as { templates: IndexEntry[] }).templates;
 
 /** The most Metrics one download names. */
@@ -58,6 +64,10 @@ export type TemplateDownload = {
 
 /** Whether `address` is an address a workflow may send to: http or https, no spaces, quotes or end slash. */
 const ADDRESS = /^https?:\/\/[^\s"'\\<>]+[^\s"'\\<>/]$/;
+/** The longest slug the templates and feed-kit take; a Metric with a longer one cannot be named in a flow. */
+const SLUG = /^[a-z0-9][a-z0-9-]{0,99}$/;
+/** A Feed Key travels in a header: over plain http only to this computer, never to a name on a network. */
+const plainHttpIsLocal = (address: string) => !address.startsWith("http://") || /^http:\/\/(localhost|127\.0\.0\.1|\[::1\])(:\d+)?$/.test(address);
 
 /** Makes the download (Owners and Admins). Everything is checked before anything is made; the Feed, its place among
  * the Metrics' Submitters and its key are made through the core's own operations, audited as any. */
@@ -66,7 +76,7 @@ export async function automationTemplateFor(actor: Actor, siteUrl: string, input
   const template = typeof input?.template === "string" ? TEMPLATES.find((t) => t.id === input.template) : undefined;
   if (!template) throw new Error("Pick one of the templates offered.");
   const workflow = WORKFLOWS[template.file];
-  if (!workflow || !ADDRESS.test(siteUrl)) throw new Error("This Ziffr cannot make the file; its address is not set.");
+  if (!workflow || !ADDRESS.test(siteUrl) || !plainHttpIsLocal(siteUrl)) throw new Error("This Ziffr cannot make the file; its address is not set, or is not https (set ZIFFR_SITE_URL).");
   const asked = Array.isArray(input.metrics) ? input.metrics.map(Number) : [];
   if (!asked.length || asked.length > DOWNLOAD_METRICS_MAX || asked.some((id) => !Number.isSafeInteger(id) || id <= 0) || new Set(asked).size !== asked.length) {
     throw new Error(`Pick 1 to ${DOWNLOAD_METRICS_MAX} Metrics.`);
@@ -79,6 +89,8 @@ export async function automationTemplateFor(actor: Actor, siteUrl: string, input
   for (const id of asked) {
     const m = await editableMetric(actor, id, "who submits");
     if (m.formula) throw new Error(`“${m.name}” is computed from other Metrics; it takes no values.`);
+    // Checked again here, since a slug goes into a flow's settings and a starter sheet: one the templates would refuse stops everything.
+    if (!SLUG.test(String(m.slug))) throw new Error(`“${m.name}” has an address too long or odd for the templates; rename it first.`);
     metrics.push({ id, slug: String(m.slug), name: String(m.name) });
   }
   let feed: { id: string; name: string };
