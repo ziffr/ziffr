@@ -214,12 +214,12 @@ export async function deliverAlert(ws: string, input: { recipientId: string; sub
  * path as an Alert, with its own kind, so nothing can answer it. It is about one or two Metrics, named here so that it is checked
  * again at the moment it leaves: the person must still see ALL of them (internal/delivery-send.ts). The caller has checked, a
  * moment before, that they do, and `text` holds nothing of any Metric the person may not see. Returns the Delivery's id. */
-export async function deliverHeadsUp(ws: string, input: { recipientId: string; subject: string; text: string; link: string; metricIds: readonly [number] | readonly [number, number] }): Promise<number | null> {
-  return deliverPlain(ws, "heads_up", { recipientId: input.recipientId, senderId: null, subject: input.subject, text: input.text, link: input.link, headsUpMetrics: input.metricIds, queue: true });
+export async function deliverHeadsUp(ws: string, input: { recipientId: string; subject: string; text: string; link: string; metricIds: readonly [number] | readonly [number, number]; key: string }): Promise<number | null> {
+  return deliverPlain(ws, "heads_up", { recipientId: input.recipientId, senderId: null, subject: input.subject, text: input.text, link: input.link, headsUpMetrics: input.metricIds, headsUpKey: input.key, queue: true });
 }
 
 /** One plain message of a kind that is not about an Action: a notice, an Alert or a Heads-up. */
-async function deliverPlain(ws: string, kind: "notice" | "alert" | "heads_up", input: { recipientId: string; senderId: string | null; subject: string; text: string; link: string; via?: ConnectorId; quiet?: boolean; alertMetricId?: number | null; alertId?: number | null; tellWorkflowId?: number; queue?: boolean; headsUpMetrics?: readonly number[] }): Promise<number | null> {
+async function deliverPlain(ws: string, kind: "notice" | "alert" | "heads_up", input: { recipientId: string; senderId: string | null; subject: string; text: string; link: string; via?: ConnectorId; quiet?: boolean; alertMetricId?: number | null; alertId?: number | null; tellWorkflowId?: number; queue?: boolean; headsUpMetrics?: readonly number[]; headsUpKey?: string }): Promise<number | null> {
   const via = input.via ?? await connectorFor(ws, input.recipientId, "reply", null);
   // A Guest does not see who else is in the Workspace: a notice's text names no one else to them.
   const { data: member } = await db().from("memberships").select("role").eq("workspace_id", ws).eq("user_id", input.recipientId).maybeSingle();
@@ -232,7 +232,7 @@ async function deliverPlain(ws: string, kind: "notice" | "alert" | "heads_up", i
     connector: via, recipient_id: input.recipientId, sender_id: input.senderId, kind,
     // A message holds people's and things' names: on Slack they are escaped, so none can become a link or a mention.
     subject: input.subject, body: via === "slack" ? `${slackEscape(input.text)}\n<${linkTo(input.link)}|Open in Ziffr>` : `${input.text}\n${CONNECTORS[via].label === "Ticket system" ? "Ziffr" : "Open"}: ${linkTo(input.link)}`, mail_state, alert_metric_id: input.alertMetricId ?? null, alert_id: input.alertId ?? null, tell_workflow_id: input.tellWorkflowId ?? null,
-    heads_up_metric_a: input.headsUpMetrics?.[0] ?? null, heads_up_metric_b: input.headsUpMetrics?.[1] ?? null,
+    heads_up_metric_a: input.headsUpMetrics?.[0] ?? null, heads_up_metric_b: input.headsUpMetrics?.[1] ?? null, heads_up_key: input.headsUpKey ?? null,
   }, input.quiet ? "reminder" : kind);
   // An Alert is only queued, for the deliveries job to send: the value that caused it must not wait on the mail server.
   if (!input.queue && !d.held) await sendQueuedNow(d.id, mail_state, via);

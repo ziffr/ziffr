@@ -44,7 +44,7 @@ export async function deliverHeadsUpsTo(ws: string, personId: string, opts: { no
   const seen = await visibleMetricIds(ws, personId, metrics);
   let made = 0;
   for (const h of items) {
-    if (!h.metrics.every((id) => seen.has(id) && metrics.some((m) => m.id === id && !m.archived_at))) continue;
+    if (!h.metrics.every((id) => seen.has(id) && metrics.some((m) => m.id === id && !m.archived_at && !m.inputs_withheld))) continue;
     const message = headsUpMessage(h, h.named.map((m) => m.name));
     if (!message) continue;
     const { data: claim, error } = await db().rpc("claim_heads_up_message", { p_ws: ws, p_person: personId, p_key: h.key, p_cap: WEEKLY_CAP, p_now: now.toISOString() });
@@ -52,7 +52,7 @@ export async function deliverHeadsUpsTo(ws: string, personId: string, opts: { no
     // The week's messages are used up: the others wait in the app (and for a later run).
     if (claim === "cap") break;
     if (claim !== "send") continue;
-    await deliverHeadsUp(ws, { recipientId: personId, subject: message.subject, text: message.text, link: "/analyze#heads-ups", metricIds: h.metrics });
+    await deliverHeadsUp(ws, { recipientId: personId, subject: message.subject, text: message.text, link: "/analyze#heads-ups", metricIds: h.metrics, key: h.key });
     made++;
   }
   return made;

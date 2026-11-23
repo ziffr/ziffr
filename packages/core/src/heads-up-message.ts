@@ -13,7 +13,8 @@ const SUBJECT_MAX = 120;
 /** What the message of one Heads-up says: a subject naming its Metrics, and the text; null for a Heads-up that has no sentence to say. */
 export function headsUpMessage(h: Pick<HeadsUp, "takeaway">, names: readonly string[]): { subject: string; text: string } | null {
   const t = h.takeaway;
-  if (t.kind !== "answer" || !t.sentence) return null;
+  // The footer is part of what a Heads-up says: without it nothing is sent.
+  if (t.kind !== "answer" || !t.sentence || !t.footer) return null;
   const basis = t.basis ? `${t.basis[0].toUpperCase()}${t.basis.slice(1)}.` : null;
   const subject = `Heads-up: ${names.join(" and ")}`;
   return {

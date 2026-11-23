@@ -1,7 +1,7 @@
 // The budget of a person's Heads-up scans (GLOSSARY: Heads-up): what is kept, for how long, for which Metrics, and how many scans an
 // hour; every edge one step either side.
 import { describe, expect, it } from "vitest";
-import { AT_ONCE, KEEP_AT_MOST, KEEP_MS, SCANS_PER_HOUR, ScanBudget, limiter } from "./heads-up-budget";
+import { AT_ONCE, COUNT_AT_MOST, KEEP_AT_MOST, KEEP_MS, SCANS_PER_HOUR, STALE_MS, ScanBudget, limiter } from "./heads-up-budget";
 
 describe("the kept result", () => {
   it("answers only for exactly the same Metrics, in any order, and only while it is younger than ten minutes", () => {
@@ -24,25 +24,45 @@ describe("the kept result", () => {
     const b = new ScanBudget<string>();
     b.keep("w:p", [1, 2], "old", 0);
     b.keep("w:p", [1, 2, 3], "new", 5);
-    expect(b.stale("w:p", [1, 2])).toBeNull();
-    expect(b.stale("w:p", [3, 2, 1])).toBe("new");
-    expect(b.stale("w:p", [1, 2, 3, 4])).toBeNull();
-    expect(b.stale("w:q", [1, 2, 3])).toBeNull();
+    expect(b.stale("w:p", [1, 2], 5)).toBeNull();
+    expect(b.stale("w:p", [3, 2, 1], 5)).toBe("new");
+    expect(b.stale("w:p", [3, 2, 1], 5 + STALE_MS - 1)).toBe("new");
+    expect(b.stale("w:p", [3, 2, 1], 5 + STALE_MS)).toBeNull();
+    expect(b.stale("w:p", [3, 2, 1], 4)).toBeNull();
+    expect(b.stale("w:p", [1, 2, 3, 4], 0)).toBeNull();
+    expect(b.stale("w:q", [1, 2, 3], 0)).toBeNull();
     b.clear();
-    expect(b.stale("w:p", [1, 2, 3])).toBeNull();
+    expect(b.stale("w:p", [1, 2, 3], 0)).toBeNull();
   });
 
   it("keeps at most so many results, the oldest first out", () => {
     const b = new ScanBudget<number>();
     for (let i = 0; i < KEEP_AT_MOST + 1; i++) b.keep(`w:${i}`, [1], i, 0);
-    expect(b.stale("w:0", [1])).toBeNull();
-    expect(b.stale("w:1", [1])).toBe(1);
-    expect(b.stale(`w:${KEEP_AT_MOST}`, [1])).toBe(KEEP_AT_MOST);
+    expect(b.stale("w:0", [1], 0)).toBeNull();
+    expect(b.stale("w:1", [1], 0)).toBe(1);
+    expect(b.stale(`w:${KEEP_AT_MOST}`, [1], 0)).toBe(KEEP_AT_MOST);
     // A person kept again goes to the back of the line.
     b.keep("w:1", [1], 99, 0);
     b.keep("w:new", [1], 7, 0);
-    expect(b.stale("w:1", [1])).toBe(99);
-    expect(b.stale("w:2", [1])).toBeNull();
+    expect(b.stale("w:1", [1], 0)).toBe(99);
+    expect(b.stale("w:2", [1], 0)).toBeNull();
+  });
+});
+
+describe("keeping apart and clearing", () => {
+  it("tells sets of Metrics apart whose ids run together, and clears results and counts", () => {
+    const b = new ScanBudget<string>();
+    b.keep("w:p", [1, 23], "a", 0);
+    expect(b.fresh("w:p", [12, 3], 0)).toBeNull();
+    b.keep("w:q", [1, 2, 34], "b", 0);
+    expect(b.fresh("w:q", [12, 34], 0)).toBeNull();
+    expect(b.stale("w:q", [12, 34], 0)).toBeNull();
+    expect(b.fresh("w:p", [1, 23], 0)).toBe("a");
+    for (let i = 0; i < SCANS_PER_HOUR; i++) b.scanned("w:p", 0);
+    expect(b.mayScan("w:p", 1)).toBe(false);
+    b.clear();
+    expect(b.fresh("w:p", [1, 23], 0)).toBeNull();
+    expect(b.mayScan("w:p", 1)).toBe(true);
   });
 });
 
@@ -65,18 +85,20 @@ describe("the scans a person may start", () => {
     expect(b.mayScan("w:q", 6 * MIN)).toBe(true);
   });
 
-  it("forgets the counts of people who stopped asking, when there are too many", () => {
+  it("forgets the counts of people who stopped asking, when there are too many, the one who asks most last", () => {
     const b = new ScanBudget<string>();
-    for (let i = 0; i < SCANS_PER_HOUR; i++) b.scanned("w:0", 1);
+    for (let i = 0; i < SCANS_PER_HOUR; i++) { b.scanned("w:0", 1); b.scanned("w:1", 1); }
     expect(b.mayScan("w:0", 2)).toBe(false);
-    // As many other people as there is room for leave the first with room for one more only after they pass it.
-    for (let i = 1; i < KEEP_AT_MOST; i++) b.scanned(`w:${i}`, 1);
+    for (let i = 2; i < COUNT_AT_MOST; i++) b.scanned(`w:${i}`, 1);
     expect(b.mayScan("w:0", 2)).toBe(false);
-    b.scanned(`w:${KEEP_AT_MOST}`, 1);
-    expect(b.mayScan("w:0", 2)).toBe(true);
-    expect(b.mayScan("w:1", 2)).toBe(true);
-    for (let i = 0; i < SCANS_PER_HOUR; i++) b.scanned(`w:${KEEP_AT_MOST}`, 1);
-    expect(b.mayScan(`w:${KEEP_AT_MOST}`, 2)).toBe(false);
+    // The heaviest asks again, and moves to the back: the next one in line is forgotten, not them.
+    b.scanned("w:0", 3);
+    b.scanned(`w:${COUNT_AT_MOST}`, 1);
+    expect(b.mayScan("w:0", 4)).toBe(false);
+    expect(b.mayScan("w:1", 4)).toBe(true);
+    expect(b.mayScan("w:2", 4)).toBe(true);
+    for (let i = 0; i < SCANS_PER_HOUR; i++) b.scanned(`w:${COUNT_AT_MOST}`, 1);
+    expect(b.mayScan(`w:${COUNT_AT_MOST}`, 2)).toBe(false);
   });
 });
 

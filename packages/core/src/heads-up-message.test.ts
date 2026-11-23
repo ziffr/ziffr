@@ -20,7 +20,10 @@ describe("headsUpMessage", () => {
   });
 
   it("leaves out a basis or a footer that is not there, names one Metric alone, and says nothing for a refusal or no sentence", () => {
-    expect(headsUpMessage(takeaway({ basis: null, footer: null }), ["Only"])!.text.split("\n")).toHaveLength(2);
+    expect(headsUpMessage(takeaway({ basis: null }), ["Only"])!.text.split("\n")).toHaveLength(3);
+    // Without the footer nothing is said at all.
+    expect(headsUpMessage(takeaway({ footer: null }), ["Only"])).toBeNull();
+    expect(headsUpMessage(takeaway({ footer: "" }), ["Only"])).toBeNull();
     expect(headsUpMessage(takeaway({ basis: "" }), ["A"])!.text).not.toMatch(/\n\./);
     expect(headsUpMessage(takeaway({ kind: "refusal" }), ["A"])).toBeNull();
     expect(headsUpMessage(takeaway({ sentence: null }), ["A"])).toBeNull();
@@ -29,7 +32,7 @@ describe("headsUpMessage", () => {
 
   it("keeps a subject to 120 characters, one step either side, counting what a person sees as one", () => {
     const at = (n: number) => headsUpMessage(takeaway({}), ["x".repeat(n - "Heads-up: ".length)])!.subject;
-    expect(at(120)).toHaveLength(120);
+    expect(at(120)).toBe(`Heads-up: ${"x".repeat(110)}`);
     expect(at(119)).toHaveLength(119);
     expect([...at(121)]).toHaveLength(120);
     expect(at(121).endsWith("…")).toBe(true);

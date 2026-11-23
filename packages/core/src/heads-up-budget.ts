@@ -10,8 +10,12 @@
 export const KEEP_MS = 10 * 60_000;
 /** How many scans one person may start in an hour. */
 export const SCANS_PER_HOUR = 6;
-/** How many results are kept at most (the oldest go first), so memory stays small however many people ask. */
-export const KEEP_AT_MOST = 500;
+/** How many results are kept at most (the oldest go first): each holds up to 20,000 pair rows, so the number is small. */
+export const KEEP_AT_MOST = 20;
+/** How many people's scan counts are kept at most (a count is small). */
+export const COUNT_AT_MOST = 5000;
+/** How long a kept result may still answer for a person over their budget, in milliseconds. */
+export const STALE_MS = 60 * 60_000;
 /** How many scans run at the same time in one process; the others wait their turn. */
 export const AT_ONCE = 2;
 
@@ -30,10 +34,10 @@ export class ScanBudget<T> {
     return k && k.ids === idsText(ids) && now - k.at < KEEP_MS && now >= k.at ? k.value : null;
   }
 
-  /** The result kept for `who` over exactly `ids`, however old: what answers when the person is over their budget. */
-  stale(who: string, ids: readonly number[]): T | null {
+  /** The result kept for `who` over exactly `ids`, at most an hour old: what answers when the person is over their budget. */
+  stale(who: string, ids: readonly number[], now: number): T | null {
     const k = this.kept.get(who);
-    return k && k.ids === idsText(ids) ? k.value : null;
+    return k && k.ids === idsText(ids) && now - k.at < STALE_MS && now >= k.at ? k.value : null;
   }
 
   /** Whether `who` may start another scan now: fewer than SCANS_PER_HOUR in the last hour. */
@@ -43,9 +47,12 @@ export class ScanBudget<T> {
 
   /** Counts a scan `who` started. */
   scanned(who: string, now: number): void {
-    this.started.set(who, [...this.recent(who, now), now]);
-    // A person who stopped asking leaves no count behind for ever: the table holds at most as many people as results.
-    if (this.started.size > KEEP_AT_MOST) this.started.delete(this.started.keys().next().value!);
+    const counts = [...this.recent(who, now), now];
+    // Set again at the back of the line, so the one who asks most is the last to be forgotten.
+    this.started.delete(who);
+    this.started.set(who, counts);
+    // A person who stopped asking leaves no count behind for ever.
+    if (this.started.size > COUNT_AT_MOST) this.started.delete(this.started.keys().next().value!);
   }
 
   /** Keeps `value` as the result for `who` over `ids`. */

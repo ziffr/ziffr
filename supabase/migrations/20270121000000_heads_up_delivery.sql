@@ -81,13 +81,14 @@ end $$;
 revoke execute on function claim_heads_up_message(uuid, text, text, int, timestamptz) from public, anon, authenticated;
 grant execute on function claim_heads_up_message(uuid, text, text, int, timestamptz) to service_role;
 
--- Ends what no longer stands (every open row of the person whose key is not in `p_standing`) and forgets rows older than 30 days.
+-- Ends what no longer stands (every open row of the person whose key is not in `p_standing`) and forgets ended rows older than 30 days.
 create or replace function end_heads_up_told(p_ws uuid, p_person text, p_standing text[], p_now timestamptz) returns void
 language plpgsql security definer set search_path = public as $$
 begin
   perform pg_advisory_xact_lock(hashtext('heads_up_told:' || p_ws::text || ':' || p_person));
   update heads_up_told set ended_at = p_now where workspace_id = p_ws and person_id = p_person and ended_at is null and key <> all(p_standing);
-  delete from heads_up_told where workspace_id = p_ws and person_id = p_person and told_at < p_now - interval '30 days';
+  -- (Only ended rows: one that still stands stays open, or it would be said again.)
+  delete from heads_up_told where workspace_id = p_ws and person_id = p_person and ended_at is not null and told_at < p_now - interval '30 days';
 end $$;
 revoke execute on function end_heads_up_told(uuid, text, text[], timestamptz) from public, anon, authenticated;
 grant execute on function end_heads_up_told(uuid, text, text[], timestamptz) to service_role;
@@ -99,4 +100,6 @@ alter table deliveries add constraint deliveries_kind_check
   check (kind in ('question','task','reminder','reply','correction','decision','closed','done','prompt','notice','digest','alert','heads_up'));
 alter table deliveries add column heads_up_metric_a int references metrics(id) on delete cascade;
 alter table deliveries add column heads_up_metric_b int references metrics(id) on delete cascade;
+-- The Heads-up's key, so that a person's Not useful, mute or switch-off made while it waits stops it too.
+alter table deliveries add column heads_up_key text;
 alter table deliveries add constraint deliveries_heads_up_metrics check (kind <> 'heads_up' or heads_up_metric_a is not null);

@@ -30,7 +30,7 @@ export async function withFormLink(body: string, d: { workspace_id: string; form
 export const PROMPT_ANSWERED = "Not sent: the request was answered another way first.";
 
 /** What a Delivery is about, as far as its Metric goes. */
-type AboutMetric = { id: number; workspace_id: string; kind: string; recipient_id?: string; alert_metric_id?: number | null; heads_up_metric_a?: number | null; heads_up_metric_b?: number | null; tell_workflow_id?: number | null; prompt_id?: number | null; form_token_id?: number | null; action_id?: number | null };
+type AboutMetric = { id: number; workspace_id: string; kind: string; recipient_id?: string; alert_metric_id?: number | null; heads_up_metric_a?: number | null; heads_up_metric_b?: number | null; heads_up_key?: string | null; tell_workflow_id?: number | null; prompt_id?: number | null; form_token_id?: number | null; action_id?: number | null };
 
 /** Why a Delivery must not go out because its Metric is archived (GLOSSARY: Archived Metric), or null. Checked when it
  * is sent, not only when it was queued: a Prompt checked just before the archive and queued just after, or one put
@@ -58,7 +58,14 @@ export async function archivedMetricHolds(d: AboutMetric): Promise<string | null
     if (!about.length || !d.recipient_id) return "Not sent.";
     const metrics = await getMetrics(ws);
     const seen = await visibleMetricIds(ws, d.recipient_id, metrics);
-    return about.every((id) => seen.has(id) && metrics.some((m) => m.id === id && !m.archived_at && !m.inputs_withheld)) ? null : "Not sent.";
+    if (!about.every((id) => seen.has(id) && metrics.some((m) => m.id === id && !m.archived_at && !m.inputs_withheld))) return "Not sent.";
+    // The person's own choices made while it waited: switched off, a Metric muted, or this Heads-up marked Not useful.
+    const [{ data: set }, { data: mutes }, { data: no }] = await Promise.all([
+      db().from("heads_up_settings").select("show, by_message").eq("workspace_id", ws).eq("person_id", d.recipient_id).maybeSingle(),
+      db().from("heads_up_mutes").select("metric_id").eq("workspace_id", ws).eq("person_id", d.recipient_id).in("metric_id", about),
+      d.heads_up_key ? db().from("heads_up_dismissed").select("key").eq("workspace_id", ws).eq("person_id", d.recipient_id).eq("key", d.heads_up_key) : Promise.resolve({ data: [] as unknown[] }),
+    ]);
+    return set?.show && set?.by_message && !mutes?.length && !no?.length ? null : "Not sent.";
   }
   let metricId: number | null = null;
   if (d.kind === "prompt") {

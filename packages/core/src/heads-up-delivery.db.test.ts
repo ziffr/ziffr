@@ -307,7 +307,7 @@ describe("a message that waits is checked again when it leaves", () => {
     await on(ben);
     expect(await deliverHeadsUpsTo(w.id, ben)).toBe(1);
     const [m] = await messages(ben);
-    const about = { id: m.id, workspace_id: w.id, kind: "heads_up", recipient_id: ben, heads_up_metric_a: m.heads_up_metric_a, heads_up_metric_b: m.heads_up_metric_b };
+    const about = { id: m.id, workspace_id: w.id, kind: "heads_up", recipient_id: ben, heads_up_metric_a: m.heads_up_metric_a, heads_up_metric_b: m.heads_up_metric_b, heads_up_key: (await db().from("deliveries").select("heads_up_key").eq("id", m.id).single()).data!.heads_up_key as string };
     expect(await archivedMetricHolds(about)).toBeNull();
     expect((await connectorsView(actor(ben))).deliveries.some((d) => d.id === m.id)).toBe(true);
     // Lose sight of the second Metric only: it does not go, and it is not in the Outbox.
@@ -324,6 +324,41 @@ describe("a message that waits is checked again when it leaves", () => {
     // A Heads-up that names no Metric, or no recipient, never goes.
     expect(await archivedMetricHolds({ ...about, heads_up_metric_a: null, heads_up_metric_b: null })).toBe("Not sent.");
     expect(await archivedMetricHolds({ ...about, recipient_id: undefined })).toBe("Not sent.");
+  });
+
+  it("is not sent once the person muted a Metric, marked it Not useful or switched messages off while it waited", async () => {
+    const { w, ben, ids, actor, shareAll, on, messages } = await setup(["p0a", "p0b"]);
+    await shareAll(ben, ["p0a", "p0b"]);
+    await on(ben);
+    await deliverHeadsUpsTo(w.id, ben);
+    const [m] = await messages(ben);
+    const key = (await db().from("deliveries").select("heads_up_key").eq("id", m.id).single()).data!.heads_up_key as string;
+    expect(key).toBe(`moving-together:${Math.min(ids.p0a, ids.p0b)}:${Math.max(ids.p0a, ids.p0b)}`);
+    const about = { id: m.id, workspace_id: w.id, kind: "heads_up", recipient_id: ben, heads_up_metric_a: m.heads_up_metric_a, heads_up_metric_b: m.heads_up_metric_b, heads_up_key: key };
+    expect(await archivedMetricHolds(about)).toBeNull();
+    await muteMetric(actor(ben), ids.p0b);
+    expect(await archivedMetricHolds(about)).toBe("Not sent.");
+    await unmuteMetric(actor(ben), ids.p0b);
+    expect(await archivedMetricHolds(about)).toBeNull();
+    await markNotUseful(actor(ben), key);
+    expect(await archivedMetricHolds(about)).toBe("Not sent.");
+    await db().from("heads_up_dismissed").delete().eq("person_id", ben);
+    expect(await archivedMetricHolds(about)).toBeNull();
+    await setHeadsUpSettings(actor(ben), { byMessage: false });
+    expect(await archivedMetricHolds(about)).toBe("Not sent.");
+    await setHeadsUpSettings(actor(ben), { byMessage: true, show: false });
+    expect(await archivedMetricHolds(about)).toBe("Not sent.");
+  });
+
+  it("keeps what still stands as told for ever, and forgets only ended ones after 30 days", async () => {
+    const { w, sara } = await setup(["p0a", "p0b"]);
+    const old = new Date("2026-06-01T00:00:00Z").toISOString();
+    await db().from("heads_up_told").insert([
+      { workspace_id: w.id, person_id: sara, key: "moving-together:1:2", told_at: old },
+      { workspace_id: w.id, person_id: sara, key: "moving-together:1:3", told_at: old, ended_at: old },
+    ]);
+    await db().rpc("end_heads_up_told", { p_ws: w.id, p_person: sara, p_standing: ["moving-together:1:2"], p_now: new Date("2026-08-01T00:00:00Z").toISOString() });
+    expect((await rowsOf("heads_up_told", { workspace_id: w.id, person_id: sara })).map((r) => r.key)).toEqual(["moving-together:1:2"]);
   });
 
   it("goes with a deleted Metric, and a Heads-up message must name a Metric", async () => {

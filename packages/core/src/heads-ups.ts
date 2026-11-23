@@ -250,7 +250,7 @@ async function ownScan(ws: string, person: string, mine: Metric[], now: number):
   const running = underway.get(who);
   if (running && running.ids === idsKey) return running.rows;
   if (!budget.mayScan(who, now)) {
-    const old = budget.stale(who, ids);
+    const old = budget.stale(who, ids, now);
     if (old) return old;
     throw new Error("Heads-ups could not be read. Try again in a moment.");
   }
