@@ -8,7 +8,7 @@ import { changes } from "../basis";
 import { checkSuitability, type MethodId } from "../suitability";
 import { metric, months } from "../test/fixtures";
 import { say } from "../takeaways/wording";
-import { forecastTakeaway } from "../takeaways/forecast";
+import { forecastTakeaway, reachOf } from "../takeaways/forecast";
 import { driversTakeaway, emptyTakeaway, withinBudget } from "../takeaways/takeaway";
 import { rankCorrelations, correlate } from "../correlation";
 import { spend, wideReason, withWork } from "../work-bound";
@@ -581,5 +581,16 @@ describe("a refusal says nothing of a cut it did not make", () => {
     const t = usualRangeTakeaway("A", flat, "day", euro, ctx);
     expect(t.kind).toBe("refusal");
     expect(t.notes).toEqual([]);
+  });
+});
+
+describe("a forecast that spends its work allowance is a refusal in words, for the Takeaway and for the Heads-up", () => {
+  it("says what to do, and gives no reach", () => {
+    const m = metric({ period: "month", name: "Revenue" });
+    const y = series("ordinary", 1);
+    expect(forecastTakeaway(m, y, ctx, { allowance: 1000 })).toMatchObject({ kind: "refusal", refusal: "These values need too much exact work to finish in reasonable time: round the values, or use fewer Metrics where several are used." });
+    expect(forecastTakeaway(m, y, ctx).kind).toBe("answer");
+    expect(reachOf(m, y, ctx, { ends: { min: 1, max: null }, allowance: 1000 })).toBeNull();
+    expect(reachOf(m, y, ctx, { ends: { min: 1, max: null } })).not.toBeNull();
   });
 });
