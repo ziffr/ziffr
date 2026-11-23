@@ -15,7 +15,7 @@ export type Answers = { slots: Record<string, number[]>; settings: Record<string
 /** The Method's question in the words of the Metrics chosen so far (the generic words where a Slot is empty). */
 export function titleOf(e: EntryView, a: Answers, canvas: CanvasMetric[]): string {
   const nm = (slot: string) => canvas.find((m) => m.id === a.slots[slot]?.[0])?.name;
-  const picked: Picked = { metric: nm("metric"), first: nm("first"), second: nm("second"), held: (a.slots.held ?? []).flatMap((id) => canvas.find((m) => m.id === id)?.name ?? []), goal: a.settings.goal, by: a.settings.by, percent: a.settings.percent };
+  const picked: Picked = { metric: nm("metric"), first: nm("first"), second: nm("second"), held: (a.slots.held ?? []).flatMap((id) => canvas.find((m) => m.id === id)?.name ?? []), metrics: (a.slots.metrics ?? []).flatMap((id) => canvas.find((m) => m.id === id)?.name ?? []), goal: a.settings.goal, by: a.settings.by, percent: a.settings.percent };
   return questionFor(e.id, picked, e.generic);
 }
 

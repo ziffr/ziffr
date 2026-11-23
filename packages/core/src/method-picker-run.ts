@@ -22,6 +22,7 @@ import { whatMoves, whatNeeds } from "./takeaways/fit-takeaway";
 import { whatIfRecipe } from "./takeaways/what-if-takeaway";
 import { correlationTakeaway, refusalTakeaway, sayIn, type Takeaway, type TakeawayContext } from "./takeaways/takeaway";
 import type { CaseKey } from "./takeaways/wording";
+import { matrixTakeaway } from "./takeaways/matrix-takeaway";
 import type { BreakdownRow, Metric, Point } from "./types";
 import type { YearStart } from "./periods";
 
@@ -134,6 +135,8 @@ export const RUNNERS: Record<EntryId, Runner> = {
     const [a, b] = [one(p, "first"), one(p, "second")];
     return correlationTakeaway(a, b, correlate(a, b, resolverOf(w), { yearStart: w.yearStart, today: w.today }), w.ctx);
   },
+  /** How do these Metrics move together?: every pair, worded as the Correlation is. */
+  matrix: (w, p) => matrixTakeaway(p.slots.metrics, resolverOf(w), { yearStart: w.yearStart, today: w.today }, w.ctx),
   /** Rank correlation, for skewed values. */
   rank: (w, p) => compared("numbers-method-spearman", w, [one(p, "first"), one(p, "second")], (span, [a, b]) => {
     const pair = pairOn(a, b, span);

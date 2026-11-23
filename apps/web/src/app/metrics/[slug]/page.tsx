@@ -35,7 +35,7 @@ import { mcpAddress } from "@/lib/remote-mcp";
 import { FeedControls, RemoveFeed } from "./feed-picker";
 import { formatNumber, formatPercent, formatValue, POLARITY_LABEL, RULE_LABEL, SOURCE_LABEL, targetText } from "@ziffr/core/format";
 import { FORECAST_MIN_POINTS } from "@ziffr/core/forecast";
-import { bestForecast, forecastTooWide, NO_FORECAST_WIDE } from "@ziffr/core/methods/forecast-choice";
+import { bestForecast, forecastTooWide, NO_FORECAST_WIDE, withTakeawayBand } from "@ziffr/core/methods/forecast-choice";
 import { SEASON_LENGTH } from "@ziffr/core/suitability";
 import { rankCorrelations } from "@ziffr/core/correlation";
 import { AnalysisTab } from "./analysis-tab";
@@ -130,6 +130,8 @@ export default async function MetricPage({ params, searchParams }: { params: Pro
   const all = series[slug] ?? [];
   const points = metric.period === "day" ? all.slice(-DAILY_WINDOW) : all;
   const fc = bestForecast(points, metric.period, SEASON_LENGTH[metric.period]);
+  // The band drawn on the chart is the range the forecast Takeaway writes for the same period: one range, in the picture and in the words.
+  const fcBand = fc ? withTakeawayBand(fc.points) : null;
   const last = all[all.length - 1];
   const prev = all[all.length - 2];
   const change = last && prev && prev.value !== 0 ? (last.value - prev.value) / Math.abs(prev.value) : null;
@@ -246,7 +248,7 @@ export default async function MetricPage({ params, searchParams }: { params: Pro
               No values yet. They arrive by {metric.sources.map((s) => SOURCE_LABEL[s]).join(" or ")}. <Link href="?tab=settings" className="underline">See who submits</Link>.
             </div>
           ) : (
-            <MetricWorkspace numberStyle={numberStyle} metric={metric} points={points} forecast={fc?.points ?? null} forecastNote={!fc && points.length > 0 ? (forecastTooWide(points) ? NO_FORECAST_WIDE : `Forecast once there are ${FORECAST_MIN_POINTS} ${metric.period}s of values`) : null} markers={markers} people={people} viewer={viewer} yearStart={yearStart} />
+            <MetricWorkspace numberStyle={numberStyle} metric={metric} points={points} forecast={fcBand} forecastNote={!fc && points.length > 0 ? (forecastTooWide(points) ? NO_FORECAST_WIDE : `Forecast once there are ${FORECAST_MIN_POINTS} ${metric.period}s of values`) : null} markers={markers} people={people} viewer={viewer} yearStart={yearStart} />
           )}
           <div className="grid gap-6 lg:grid-cols-2">
             <section className="stock rounded-[var(--radius-card)] p-5">
@@ -313,7 +315,7 @@ export default async function MetricPage({ params, searchParams }: { params: Pro
       )}
 
       {tab === "analysis" && (
-        <AnalysisTab metric={metric} ready={ready} points={points} fc={fc} numberStyle={numberStyle} yearStart={yearStart} correlations={correlations} partner={partner} notCombined={notCombined} byValue={byValue} at={at} keepBasis={keepBasis} />
+        <AnalysisTab metric={metric} ready={ready} points={points} forecast={fcBand} numberStyle={numberStyle} yearStart={yearStart} correlations={correlations} partner={partner} notCombined={notCombined} byValue={byValue} at={at} keepBasis={keepBasis} />
       )}
 
       {tab === "targets" && (

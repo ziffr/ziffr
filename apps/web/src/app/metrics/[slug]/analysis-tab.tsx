@@ -11,7 +11,7 @@ import { formatNumber } from "@ziffr/core/format";
 import type { NumberStyle } from "@ziffr/core/number-style";
 import { type YearStart } from "@ziffr/core/periods";
 import type { Metric, Point } from "@ziffr/core/types";
-import type { bestForecast } from "@ziffr/core/methods/forecast-choice";
+import type { ForecastPoint } from "@ziffr/core/forecast";
 import { TakeawayView } from "@/components/takeaway-view";
 import { ScatterView } from "@/views/scatter";
 import { cn } from "@/lib/utils";
@@ -19,12 +19,12 @@ import { ReadyCards } from "./ready-cards";
 
 type Ranked = ReturnType<typeof rankCorrelations>["ranked"][number];
 type Props = {
-  metric: Metric; ready: ReadyCard[]; points: Point[]; fc: ReturnType<typeof bestForecast>; numberStyle: NumberStyle; yearStart: YearStart;
+  metric: Metric; ready: ReadyCard[]; points: Point[]; forecast: ForecastPoint[] | null; numberStyle: NumberStyle; yearStart: YearStart;
   correlations: Ranked[]; partner: Ranked | undefined; notCombined: string[]; byValue: boolean; at: (extra: Record<string, string>) => string; keepBasis: Record<string, string>;
 };
 
 /** The Analysis tab. */
-export function AnalysisTab({ metric, ready, points, fc, numberStyle, yearStart, correlations, partner, notCombined, byValue, at, keepBasis }: Props) {
+export function AnalysisTab({ metric, ready, points, forecast, numberStyle, yearStart, correlations, partner, notCombined, byValue, at, keepBasis }: Props) {
   const ctx = { style: numberStyle, yearStart };
   // The points of the chart of the selected link: all are kept, and a few far from the rest are named under it in words.
   const scatter = partner ? partner.result.pairs.map((p) => ({ period: p.period, x: p.y, y: p.x })) : [];
@@ -36,7 +36,7 @@ export function AnalysisTab({ metric, ready, points, fc, numberStyle, yearStart,
             cards={ready}
             metric={metric}
             points={points}
-            forecast={fc?.points ?? null}
+            forecast={forecast}
             numberStyle={numberStyle}
             yearStart={yearStart}
           />

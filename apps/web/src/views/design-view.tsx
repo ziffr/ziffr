@@ -16,7 +16,7 @@ import { dayAfter, heldText, isPartial, pointName, shownSeries, type DisplayPoin
 import { periodLabel } from "@ziffr/core/periods";
 import type { Flag, Part, Piece, TextShow, TextStyle, ViewDesign } from "@ziffr/core/view-design";
 import type { CanvasData, Metric, Widget } from "@ziffr/core/types";
-import { bestForecast, forecastTooWide, NO_FORECAST_WIDE } from "@ziffr/core/methods/forecast-choice";
+import { bestForecast, forecastTooWide, NO_FORECAST_WIDE, withTakeawayBand } from "@ziffr/core/methods/forecast-choice";
 import { SEASON_LENGTH } from "@ziffr/core/suitability";
 import { forecastTakeaway, endsOf } from "@ziffr/core/takeaways/forecast";
 import { chargedOnce, drawRecipe, formatOutput, newRecipeBudget, type RecipeBudget, type TableFigures } from "@ziffr/core/design-analysis";
@@ -104,7 +104,8 @@ function designValues(design: ViewDesign, widget: Pick<Widget, "settings">, metr
   const note = shown.reason ?? ([combined ? targets?.note : null, shown.note, noForecast].filter(Boolean).join(" ") || null);
   const flags: Record<Flag, boolean> = { showTarget: option("showTarget"), showForecast: option("showForecast"), hasForecast: false, hasNote: !!note, manyValues: pts.length > 1 };
   const projection = uses.forecast(flags) ? bestForecast(ahead, by, SEASON_LENGTH[by]) : null;
-  const fc = projection?.points ?? null;
+  // The band drawn is the range the Takeaway writes for the same period (withTakeawayBand).
+  const fc = projection ? withTakeawayBand(projection.points) : null;
   flags.hasForecast = !!fc?.length;
   const { correlation, drivers, matrix } = work;
   // The Takeaways (spec 0041): what the results say in words, after the suitability checks, from the one writer in the core.

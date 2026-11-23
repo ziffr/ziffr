@@ -12,6 +12,8 @@ describe("questionFor", () => {
     expect(questionFor("what-if", { metric: "Support tickets", percent: "10" }, generic("what-if"))).toBe("What if we change Support tickets by 10 %?");
     expect(questionFor("what-if", { metric: "Support tickets", by: "-250" }, generic("what-if"))).toBe("What if we change Support tickets by -250?");
     expect(questionFor("correlation", { first: "Support tickets", second: "Return rate" }, generic("correlation"))).toBe("Does Support tickets move with Return rate?");
+    expect(questionFor("matrix", { metrics: ["Cost", "Revenue", "Support tickets"] }, generic("matrix"))).toBe("How do Cost, Revenue and Support tickets move together?");
+    expect(questionFor("matrix", { metrics: ["Cost", "Revenue"] }, generic("matrix"))).toBe(generic("matrix"));
     expect(questionFor("partial", { first: "A1", second: "B1", held: ["C1", "D1"] }, generic("partial"))).toBe("Do A1 and B1 still move together when C1 and D1 is held the same?");
   });
 
@@ -27,7 +29,7 @@ describe("questionFor", () => {
   });
 
   it("words no entry with a letter once every Slot is filled, and never with a word that claims a cause", () => {
-    const all = { metric: "Cost", first: "Cost", second: "Revenue", held: ["Visits"], goal: "5", percent: "10" };
+    const all = { metric: "Cost", first: "Cost", second: "Revenue", held: ["Visits"], metrics: ["Cost", "Revenue", "Visits"], goal: "5", percent: "10" };
     for (const e of ENTRIES) {
       const q = questionFor(e.id, all, e.name);
       expect(q, e.id).not.toMatch(/\b[ABC]\b/);

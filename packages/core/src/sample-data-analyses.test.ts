@@ -13,6 +13,7 @@ import type { Period } from "./types";
 // For each entry: the Metrics in its Slots (by sample slug) and its settings. The sample Metrics are Revenue (with a Breakdown), Orders, Active customers,
 // Churn rate (a Target Range) and Operating cost: Revenue, Orders and Operating cost share one swing, so they move together; Churn rate and Active customers do not.
 const TABLE: Record<EntryId, { slots: Record<string, string[]>; settings?: Record<string, number | string>; why: string }> = {
+  matrix: { slots: { metrics: ["revenue", "orders", "cost"] }, why: "three Metrics that share a swing, every pair" },
   forecast: { slots: { metric: ["revenue"] }, why: "one Metric with a trend" },
   "reach-target": { slots: { metric: ["churn"] }, why: "the Metric with a Target Range" },
   correlation: { slots: { first: ["revenue"], second: ["orders"] }, why: "two Metrics that share a swing" },

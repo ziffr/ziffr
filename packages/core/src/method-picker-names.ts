@@ -5,7 +5,7 @@
 import type { EntryId } from "./method-picker";
 
 /** What is known of the answers so far, in words: the names of the Metrics in each Slot and the typed settings. */
-export type Picked = { metric?: string; first?: string; second?: string; held?: string[]; goal?: string; by?: string; percent?: string };
+export type Picked = { metric?: string; first?: string; second?: string; held?: string[]; metrics?: string[]; goal?: string; by?: string; percent?: string };
 
 const and = (names: string[]) => (names.length < 2 ? (names[0] ?? "") : `${names.slice(0, -1).join(", ")} and ${names.at(-1)}`);
 const typed = (s: string | undefined) => (s && s.trim() !== "" ? s.trim() : undefined);
@@ -15,6 +15,7 @@ const NAMED: Record<EntryId, (p: Picked) => string | null | undefined> = {
   forecast: (p) => p.metric && `Where is ${p.metric} heading?`,
   "reach-target": (p) => p.metric && `Will ${p.metric} reach its Target?`,
   correlation: (p) => p.first && p.second && `Does ${p.first} move with ${p.second}?`,
+  matrix: (p) => p.metrics && p.metrics.length >= 3 ? `How do ${and(p.metrics)} move together?` : null,
   rank: (p) => p.first && p.second && `Do ${p.first} and ${p.second} rise and fall in step, whatever their size?`,
   partial: (p) => p.first && p.second && p.held?.length ? `Do ${p.first} and ${p.second} still move together when ${and(p.held)} is held the same?` : null,
   lag: (p) => p.first && p.second && `Does ${p.first} come before ${p.second}? By how long?`,

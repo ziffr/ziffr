@@ -120,7 +120,7 @@ function defaultsOf(entry: PickerEntry, canvas: number[], fit: EntryFit): Record
 // The names of the Metrics each Slot starts on, for wording an entry's question: only canvas Metrics the actor sees are in `names`.
 function pickedOf(defaults: Record<string, number[]>, names: Map<number, string>): Picked {
   const one = (slot: string) => names.get(defaults[slot]?.[0] ?? -1);
-  return { metric: one("metric"), first: one("first"), second: one("second"), held: (defaults.held ?? []).flatMap((i) => names.get(i) ?? []) };
+  return { metric: one("metric"), first: one("first"), second: one("second"), held: (defaults.held ?? []).flatMap((i) => names.get(i) ?? []), metrics: (defaults.metrics ?? []).flatMap((i) => names.get(i) ?? []) };
 }
 
 // What fits the canvas comes first: a group with an entry that fits before one with none, and inside a group the entries that fit first;
