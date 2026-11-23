@@ -36,7 +36,7 @@ export function DesignRange({ figures, tone, caption }: { figures: RangeFigures 
           );
         })}
       </ul>
-      <p className="widget-text-xs text-muted-foreground">The bar is the range, the diamond the middle value, the thin line is 0. Each row has its own scale, which always includes 0 and ends at the row's lowest and highest value.</p>
+      <p className="widget-text-xs text-muted-foreground">The bar is the range, the diamond the middle value, the thin line is 0. Each row has its own scale, which always includes 0 and ends at the row&apos;s lowest and highest value.</p>
     </div>
   );
 }
