@@ -677,6 +677,13 @@ describe("the correlation work of one page shares one allowance, in the order th
     expect(reasons.Short).toMatch(/Not enough months in common/);
     expect(Object.values(reasons).filter((x) => x === pageWords).length).toBeGreaterThan(0);
   });
+  it("runs a call without a page under the call's own allowance too", () => {
+    const many = Array.from({ length: 160 }, (_, i) => metric({ id: 100 + i, slug: `q${i}`, name: `Q${i}`, period: "month" }));
+    const dense = series("dense", 7);
+    const r = rankCorrelations(ms[0], many, (slug) => (slug.startsWith("q") ? { metric: many.find((m) => m.slug === slug)!, points: dense } : resolve(slug)), { yearStart: 1, basis: "values", allowance: 50_000_000 });
+    expect(r.leftOut.filter((l) => l.why === "too-much").length).toBeGreaterThan(0);
+    expect(r.ranked.length).toBeGreaterThan(0);
+  });
   it("spends nothing of a page that has none, and leaves the others to the call's own allowance without a page", () => {
     expect(widgets({ exact: 0 }, 3)).toEqual([0, 0, 0]);
     expect(rankCorrelations(ms[0], ms.slice(1), resolve, { yearStart: 1, basis: "values" }).ranked.length).toBe(7);

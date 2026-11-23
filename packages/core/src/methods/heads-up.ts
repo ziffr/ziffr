@@ -152,6 +152,7 @@ export function headsUpsFrom(rows: readonly PairRow[], names: ReadonlyMap<number
   const mine = rows.filter((row) => names.has(row.a) && names.has(row.b) && valid(row));
   const rate = HEADS_UP.rate;
   // Pairs a scan did not get to (its work allowance was spent) count among the pairs looked at, each as a pair of chance 1: never a Heads-up from them, and the bar for the others is the one a full scan sets.
+  // Stryker disable next-line ArrowFunction: an entry that is not a number is never below the bar either, as a chance of 1 is not: the entries are only counted.
   const chances = [...mine.map((r) => r.full.p), ...Array.from({ length: notScanned }, () => 1)];
   const reported = benjaminiHochberg(chances, rate);
   const adjusted = adjustedChances(chances);
