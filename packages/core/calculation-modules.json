@@ -44,5 +44,11 @@
   "src/takeaways/forecast.ts",
   "src/methods/distributions.ts",
   "src/methods/fit.ts",
-  "src/takeaways/fit-takeaway.ts"
+  "src/takeaways/fit-takeaway.ts",
+  "src/takeaways/sizes.ts",
+  "src/methods/t-curve.ts",
+  "src/methods/before-after.ts",
+  "src/methods/change-point.ts",
+  "src/methods/fractions.ts",
+  "src/methods/carry-over.ts"
 ]

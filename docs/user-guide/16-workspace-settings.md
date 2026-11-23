@@ -251,7 +251,9 @@ Pick another role and it changes at once. Only an Owner can make someone an Owne
 
 ### Removing someone and handing over
 
-Choose **Remove…** next to a person. Ziffr asks **Who takes over?**: pick another person (not a Guest), then choose **Remove**, or **Cancel** to stop.
+A person who owns Metrics cannot be changed to Guest: hand the Metrics over first (see Handing a Metric over in the Metrics chapter), or remove them and pick who takes over.
+
+Choose **Remove…** next to a person. Ziffr asks who takes over their Metrics and everything else, and offers an Owner first: keep that choice or pick another person (not a Guest), then choose **Remove**, or **Cancel** to stop.
 
 When you remove someone:
 

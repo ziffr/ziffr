@@ -67,14 +67,14 @@ export function Members(props: {
               leaving === m.id ? (
                 <span className="flex items-center gap-2">
                   <select aria-label={`Who takes over from ${m.name}`} value={successor} onChange={(e) => setSuccessor(e.target.value)} className={field}>
-                    <option value="">Who takes over?</option>
+                    <option value="">Who takes over their Metrics and everything else?</option>
                     {members.filter((x) => x.id !== m.id && x.role !== "guest").map((x) => <option key={x.id} value={x.id}>{x.name}</option>)}
                   </select>
                   <Button size="sm" variant="outline" disabled={pending || !successor} onClick={() => run(async () => { unwrap(await removeMemberWithHandover(m.id, successor)); setLeaving(null); setSuccessor(""); }, "Removed; their things were handed over")} aria-label={`Remove ${m.name}`}>Remove</Button>
                   <Button size="sm" variant="ghost" onClick={() => setLeaving(null)} aria-label={`Cancel removing ${m.name}`}>Cancel</Button>
                 </span>
               ) : (
-                <Button size="sm" variant="ghost" disabled={pending} onClick={() => { setLeaving(m.id); setSuccessor(""); }} aria-label={`Remove ${m.name}…`}>Remove…</Button>
+                <Button size="sm" variant="ghost" disabled={pending} onClick={() => { setLeaving(m.id); setSuccessor(members.find((x) => x.role === "owner" && x.id !== m.id)?.id ?? ""); }} aria-label={`Remove ${m.name}…`}>Remove…</Button>
               )
             )}
           </li>

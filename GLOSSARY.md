@@ -51,7 +51,7 @@ The band of values a metric should stay within.
 _Avoid_: Threshold, goal, limits, expected range
 
 **Metric Owner**:
-The user responsible for a metric's description and for accepting corrections to its observations.
+The Member responsible for a Metric's description and for accepting Corrections to its observations; the Corrections, unlocking a Lock, Retention notices and the Escalation that "tells the Metric Owner" all follow whoever owns it now. Whoever creates a Metric owns it first. The Metric Owner can hand it over to another Member who already sees it, and an Owner or Admin can hand any Metric to any Member who can own things: never to a Guest, a Contact or an Access Key, and never by a program. The new owner is told through their Delivery Preference, after Quiet Hours; the previous owner stays on as Editor (told too, when an Owner or Admin did it), so they keep seeing and filling in the Metric until its new owner changes that, and if that Share ends their Derived Metrics, Alerts and Personal Webhooks on it stop; the Metric's Workflow stays with the Workflow's owner, and the open Questions waiting on the old owner as owner move to the new one; the Audit Log records from, to and by whom. A Metric never stays with someone who is no longer a Member: removing someone hands everything they own to the person picked in the removal screen (the Workspace's Owner is offered first), and a Member who owns Metrics cannot be made a Guest before they are handed over.
 _Avoid_: Admin, maintainer
 
 **Metric Catalog**:
@@ -280,7 +280,7 @@ The side panel that holds everything a user can drag onto a canvas: the metrics 
 _Avoid_: Library, palette, sidebar
 
 **Preview**:
-A Widget Template, Dashboard Template, saved widget or metric drawn small before it is placed, without its menus. A template's Preview draws Sample Data; a saved widget's or a metric's draws the viewer's own data.
+A Widget Template, Dashboard Template, saved widget or metric drawn small before it is placed, without its menus. A template's Preview draws Sample Data; a saved widget's draws the viewer's own data. A metric's Preview is a small card from the viewer's own data: what it counts (period, unit, description), its latest value and a sparkline.
 _Avoid_: Thumbnail, mock-up
 
 **Sample Data**:
@@ -320,7 +320,7 @@ The MIT package `@ziffr/extension-kit`, which an author writes an Extension agai
 _Avoid_: Plugin framework, SDK (the SDK is for programs that talk to Ziffr)
 
 **Takeaway**:
-The result of an Analysis as Ziffr says it: one sentence in the Metrics' own words and units, a strength in four words (strong, moderate, weak, "can't tell from chance"), what it was compared on, and one footer line of its kind ("This shows what has gone together, not what caused what." for a link between Metrics, "This carries the past forward; it is not a promise." for a forecast) Where the data does not suit the Method it carries one plain line above the sentence (a caution; a result with one is never strong) or, with too little data, is a refusal in words with no number. **Show the numbers** opens the numbers behind it. Every place a result is shown writes the same Takeaway. A forecast's Takeaway says where the Metric is expected to be with a "likely between" range (an 80 % range), with a Target how likely it is to be reached (in tenths), which Method worked it out and how its range for the next period would have held on the periods already known (its track record). A Takeaway about one Metric's own values, or a sum worked out exactly, makes no claim about what goes together and carries none.
+The result of an Analysis as Ziffr says it: one sentence in the Metrics' own words and units, a strength in four words (strong, moderate, weak, "can't tell from chance"), what it was compared on, and one footer line of its kind ("This shows what has gone together, not what caused what." for a link between Metrics, "This carries the past forward; it is not a promise." for a forecast, "This compares what happened with where the earlier trend pointed; it does not show what made the difference." for a before-and-after look, "This shows when the numbers changed, not what made them change." for a change point) Where the data does not suit the Method it carries one plain line above the sentence (a caution; a result with one is never strong) or, with too little data, is a refusal in words with no number. **Show the numbers** opens the numbers behind it. Every place a result is shown writes the same Takeaway. A forecast's Takeaway says where the Metric is expected to be with a "likely between" range (an 80 % range), with a Target how likely it is to be reached (in tenths), which Method worked it out and how its range for the next period would have held on the periods already known (its track record). A Takeaway about one Metric's own values, or a sum worked out exactly, makes no claim about what goes together and carries none.
 _Avoid_: Answer (an Answer is what someone replies to a Prompt), insight, verdict
 
 **Likely between**:
@@ -330,6 +330,10 @@ _Avoid_: Confidence interval, margin of error, error bars
 **Driver**:
 A Metric that moved with another in an Analysis (the Metric it is compared with is the target). A fit says what each Driver's share of the movement was and what an effect has been "with the others held the same"; Drivers that move so closely that they cannot be told apart are "treated as one".
 _Avoid_: Cause, factor, predictor, independent variable
+
+**Change point**:
+The one date at which a Metric's level or its trend most likely changed, found by trying every date that leaves at least four values each side, with how the Metric went before and since and the step in level at that date. It is called a change only when it beats what the dates tried would give by luck (the chance rule is shared among them); otherwise the Takeaway says nothing stands out. Used for the question "did something change, and when?". A "before and after" look is the same question with the date given: it compares the periods after a date with where the Metric's own trend pointed, and gives a range, not a verdict.
+_Avoid_: Breakpoint, inflection, anomaly, outlier
 
 **Analysis Recipe**:
 An Analysis written as steps of Ziffr's verified functions over the Metrics in its Slots. It holds no code, so every number it gives is verified.

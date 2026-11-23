@@ -132,6 +132,7 @@ Acts as the person, with their own sign-in, Slack or Telegram account or email a
 
 Settings an Owner or Installation Admin makes at the screen. Programs with a key do not change who runs the Workspace.
 
+- `handOverMetric` (metric-owner.ts): handing a Metric to another Member: a person's call at the Metric's page, so a key must not change who owns a Metric
 - `createAccessKey` (access-keys.ts): Access Keys: a key must not make or end keys
 - `revokeAccessKey` (access-keys.ts): Access Keys: a key must not make or end keys
 - `setJoinDomain` (invitations.ts): domain joining rests on the Owner's own verified address, which only a sign-in proves

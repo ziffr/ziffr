@@ -74,10 +74,12 @@ describe("proposing", () => {
   });
   it("refuses what the person may not share: another person's dashboard, a Guest, a missing dashboard", async () => {
     const { w, sara, ben, dash, key } = await setup();
-    await w.person("owner");
+    const keeper = await w.person("owner");
     const bens = await createDashboard(w.actor(ben, "member"), "Bens");
     await expect(proposeShareWithKey(key, viewLink(bens))).rejects.toEqual(forbidden);
     await expect(proposeShareWithKey(key, viewLink(999999999))).rejects.toEqual(forbidden);
+    // A Guest owns nothing: Sara's Metrics go to the other Owner before she becomes one.
+    await changeRows("metrics", { workspace_id: w.id, owner_id: sara }, { owner_id: keeper });
     await w.setRole(sara, "guest");
     const guest = { ...key, role: "guest" as const };
     await expect(proposeShareWithKey(guest, viewLink(dash))).rejects.toEqual(forbidden);

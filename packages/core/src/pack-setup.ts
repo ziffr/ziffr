@@ -24,7 +24,7 @@ import { recordVersion } from "./versions";
 import { tagNamesOf, TAGS_PER_ENTRY } from "./tag-names";
 import { getMetrics } from "./workspace-data";
 import { peopleIn } from "./submissions";
-import { graceNow, LimitReached, limitOf, limitRefusal, limitRule, metricCount, nextGraceOn } from "./workspace-limits";
+import { graceNow, LimitReached, limitOf, limitRefusal, limitRule, metricCount, metricsAllowed, nextGraceOn } from "./workspace-limits";
 import { trialLimitsInEffect } from "./trial-limits-in-effect";
 import type { Slot, WorkflowTemplateBody } from "./types";
 
@@ -48,7 +48,14 @@ export type PackSetupOptions = {
   metrics: { id: number; name: string }[];
   /** Why no Metric can be made now (the Workspace Limit), or null. */
   refusal: string | null;
+  /** What the Workspace's limit leaves, for the form to say before it asks; null where there is none. Counts only. */
+  room: PackSetupRoom | null;
 };
+
+/** The Workspace's count of Metrics against its limit, as the set-up form shows it. `left` is what the Size still
+ * holds; `allowed` is how many may be made now at all, the room and grace of spec 0029 included. A trial's cap is a
+ * limit with no Size name. The core checks again when a set-up is asked for: these numbers are only for reading. */
+export type PackSetupRoom = { count: number; limit: number; label: string | null; left: number; allowed: number; graceDays: number };
 
 /** What a person asks to be set up. Slots an entry made here fills are filled with it; `fills` names Metrics they see
  * for the other Slots, by Slot. */
@@ -147,6 +154,26 @@ async function roomFor(actor: Actor, n: number): Promise<string | null> {
   return null;
 }
 
+/** The count, limit, what is left and what may be made now, or null when nothing limits the Workspace. */
+async function roomNow(actor: Actor): Promise<PackSetupRoom | null> {
+  const ws = actor.workspaceId;
+  const [{ data: space }, limit, count, grace] = await Promise.all([
+    db().from("workspaces").select("trial_ends_at, over_limit_since, last_grace_started_at").eq("id", ws).maybeSingle(),
+    limitOf(ws), metricCount(ws), graceNow(),
+  ]);
+  if (space?.trial_ends_at) {
+    const { count: all } = await db().from("metrics").select("id", { count: "exact", head: true }).eq("workspace_id", ws);
+    const cap = (await trialLimitsInEffect()).metrics;
+    const left = Math.max(0, cap - (all ?? 0));
+    return { count: all ?? 0, limit: cap, label: null, left, allowed: left, graceDays: 0 };
+  }
+  if (!limit) return null;
+  const since = space?.over_limit_since ? new Date(space.over_limit_since as string) : null;
+  const last = space?.last_grace_started_at ? new Date(space.last_grace_started_at as string) : null;
+  const allowed = metricsAllowed(count, limit.metrics, since, new Date(), last, grace, MAX_ENTRIES);
+  return { count, limit: limit.metrics, label: limit.label, left: Math.max(0, limit.metrics - count), allowed, graceDays: grace.days };
+}
+
 /** What setting up from one of the Workspace's installed Packs offers (Owners and Admins). */
 export async function packSetupOptions(actor: Actor, installId: number): Promise<PackSetupOptions> {
   assertManages(actor);
@@ -170,6 +197,7 @@ export async function packSetupOptions(actor: Actor, installId: number): Promise
     templates: feedTemplates(),
     metrics: choices,
     refusal: await roomFor(actor, 1),
+    room: await roomNow(actor),
   };
 }
 

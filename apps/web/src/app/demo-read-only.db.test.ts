@@ -218,6 +218,7 @@ const CASES: Record<string, Case> = {
   "series-actions:saveSeriesRows": { args: (i) => [i.metric, "target", [{ period: i.period, value: 10 }], "Visitor target"] },
   "series-actions:removeSeriesRows": { args: (i) => [i.targetMetric, "target", [i.targetPeriod]] },
   "series-actions:deleteMetric": { nothing: "every Metric of the demo is in use, which is refused before anything changes", args: (i) => [i.ownMetric, i.ownMetricName] },
+  "series-actions:handOverMetricTo": { args: (i) => [i.ownMetric, "t-nobody"] },
   "series-actions:archiveMetric": { args: (i) => [i.ownMetric] },
   "series-actions:restoreMetric": { nothing: "no Metric of the demo is archived", args: (i) => [i.ownMetric] },
   "tag-actions:addTags": { args: (i) => [i.ownMetric, ["visitor"]] },

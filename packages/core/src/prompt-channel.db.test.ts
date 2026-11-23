@@ -161,11 +161,11 @@ describe("Ask me now and the Metric page say where it goes", () => {
     expect((await nextPromptWays(ok.w.actor(ok.sara), ok.m.id))[ok.ann]).toMatchObject({ ok: true, text: "By Slack", why: "They chose email, but this Metric does not take values by email." });
   });
 
-  it("a Guest who still owns the Metric sees no one else's line", async () => {
-    const { w, sara, ann, m } = await setup({ sources: ["slack"], slack: false });
-    await w.person("owner"); // a workspace keeps one
-    await w.setRole(sara, "guest");
-    expect(await nextPromptWays(w.actor(sara, "guest"), m.id)).toEqual({});
+  it("a Guest who edits the Metric sees no one else's line", async () => {
+    const { w, ann, m } = await setup({ sources: ["slack"], slack: false });
+    const gus = await w.person("guest");
+    await db().from("shares").insert({ workspace_id: w.id, object_type: "metric", object_id: m.id, user_id: gus, role: "editor" });
+    expect(await nextPromptWays(w.actor(gus, "guest"), m.id)).toEqual({});
     expect(Object.keys(await nextPromptWays(w.actor(ann), m.id))).toEqual([ann]);
   });
 });
