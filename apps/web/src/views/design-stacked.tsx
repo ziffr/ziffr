@@ -3,33 +3,18 @@
 // period's Breakdown. What is drawn (which rows are segments, their order, the sums, every word and the text
 // alternative) is worked out once by the core in stacked-marks.ts; this file only turns it into SVG from Theme tokens,
 // so a widget, a Snapshot, a View Link and a deck's picture show the same stack. It reaches no Metric but the widget's own.
-import { useLayoutEffect, useRef, useState, type ReactNode, type RefObject } from "react";
+import type { ReactNode } from "react";
 import { compactValue, formatValue } from "@ziffr/core/format";
 import { periodLabel } from "@ziffr/core/periods";
 import { stackedModel } from "@ziffr/core/stacked-marks";
 import type { DesignValues } from "./design-view";
+import { useBoxSize } from "./use-box-size";
 import { useWidgetScale } from "./widget-scale";
 
 // A colour per row, by its place in the stack, from Theme tokens: the same label has the same colour in every bar. Colour
 // never carries a row alone: the legend names each one and the text alternative gives every value. Other is muted.
 const FILLS = ["var(--color-data)", "var(--color-data-2)", "var(--color-data-4)", "var(--color-accent)", "color-mix(in oklab, var(--color-accent) 45%, var(--color-paper))"];
 const OTHER_FILL = "color-mix(in oklab, var(--color-muted) 35%, var(--color-paper))";
-
-/** The layout size of an element, followed as it changes (not the box on screen: a Preview scales its widget with a transform). */
-function useSize<T extends HTMLElement>(): [RefObject<T | null>, { w: number; h: number }] {
-  const ref = useRef<T>(null);
-  const [size, setSize] = useState({ w: 0, h: 0 });
-  useLayoutEffect(() => {
-    const el = ref.current;
-    if (!el || typeof ResizeObserver === "undefined") return;
-    const measure = () => setSize((o) => (o.w === el.clientWidth && o.h === el.clientHeight ? o : { w: el.clientWidth, h: el.clientHeight }));
-    measure();
-    const ro = new ResizeObserver(measure);
-    ro.observe(el);
-    return () => ro.disconnect();
-  }, []);
-  return [ref, size];
-}
 
 /** Stacked bars of a Metric's Breakdowns over its last periods. */
 export function StackedMark({ v }: { v: DesignValues }) {
@@ -60,8 +45,8 @@ function StackedChart({ v, model }: { v: DesignValues; model: Extract<ReturnType
   const { m, data } = v;
   const { bars, segments, max } = model;
   const scale = useWidgetScale();
-  const [whole, all] = useSize<HTMLDivElement>();
-  const [box, size] = useSize<HTMLDivElement>();
+  const [whole, all] = useBoxSize<HTMLDivElement>();
+  const [box, size] = useBoxSize<HTMLDivElement>();
   // Until the box is measured (the first render on the server, a drawing made without a screen) a nominal size is drawn.
   const measured = size.w > 0 && size.h > 0;
   const W = measured ? size.w : 260;
