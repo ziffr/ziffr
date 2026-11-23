@@ -49,6 +49,9 @@ function valid(row: PairRow): boolean {
 // Whether the chance rule of the strength words leaves a window with some strength to say: not "can't tell from chance".
 const clearOfChance = (w: Window) => strengthOf(w.r, w.nEff, false, w.tries) !== "cant-tell";
 
+// The order is by a number kept to 12 digits: a row read back from the database may differ from the scan's in the last digit.
+const roundedRank = (x: number) => Number(x.toPrecision(12));
+
 /** The chance as a person-sized text: four decimals, or "under 0.0001". */
 function chanceText(p: number, ctx: TakeawayContext): string {
   return p < 0.0001 ? sayIn("hu-chance-under", {}, ctx) : formatNumber(p, 4, ctx.style);
@@ -142,9 +145,9 @@ export function headsUpsFrom(rows: readonly PairRow[], names: ReadonlyMap<number
     const base = { metrics: [row.a, row.b] as [number, number], span: row.span, through: row.through };
     if (stopped.has(i)) {
       const before = row.before!;
-      out.push({ ...base, key: `stopped-moving-together:${row.a}:${row.b}`, kind: "stopped-moving-together", rank: Math.abs(before.r) - Math.sign(before.r) * before.recent!.r, takeaway: stoppedTakeaway(row, names, had.length, stopped.get(i)!, ctx) });
+      out.push({ ...base, key: `stopped-moving-together:${row.a}:${row.b}`, kind: "stopped-moving-together", rank: roundedRank(Math.abs(before.r) - Math.sign(before.r) * before.recent!.r), takeaway: stoppedTakeaway(row, names, had.length, stopped.get(i)!, ctx) });
     } else if (reported[i] && row.full.meets && clearOfChance(row.full)) {
-      out.push({ ...base, key: `moving-together:${row.a}:${row.b}`, kind: "moving-together", rank: Math.abs(row.full.r), takeaway: movingTakeaway(row, names, mine.length, adjusted[i], ctx) });
+      out.push({ ...base, key: `moving-together:${row.a}:${row.b}`, kind: "moving-together", rank: roundedRank(Math.abs(row.full.r)), takeaway: movingTakeaway(row, names, mine.length, adjusted[i], ctx) });
     }
   });
   const order: Record<HeadsUpKind, number> = { "moving-together": 0, "stopped-moving-together": 1 };

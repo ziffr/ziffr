@@ -101,40 +101,52 @@ function ingredients(metrics: readonly Metric[]): Map<number, Set<number>> {
   return new Map(metrics.map((m) => [m.id, of(m, new Set())]));
 }
 
-/** Scans one Workspace and replaces its rows of the pair table: the 200 most recently updated Metrics in use, every pair that
- * may be compared (the same Period, or one step apart) except a Derived Metric with a Metric it is worked out from, directly
- * or through others, or with another Derived Metric worked out from the same. `today` is for tests. The caller has claimed the
- * scan. Reads and writes only this Workspace. */
-export async function scanWorkspace(ws: string, scannedAt: string, today?: string): Promise<ScanResult> {
-  const day = today ?? (await workspaceToday(ws));
+/** Scans `subset` of a Workspace's Metrics (the ones in use) into pair rows, in memory: the 200 most recently updated of them, every
+ * pair that may be compared. Nothing here looks at a Metric outside `subset`, except that a Derived Metric's values come from its
+ * inputs (the values a person sees of it are those). `related` decides which pairs are left out. */
+async function scanSubset(ws: string, day: string, pick: (all: Metric[]) => Metric[], relatedOver: (all: Metric[]) => (a: number, b: number) => boolean): Promise<{ rows: PairRow[]; metrics: number; capped: boolean }> {
   const [metrics, yearStart] = await Promise.all([getMetrics(ws), yearStartOf(ws)]);
   // Only values of the last ten years are read: no series is longer than 120 periods, and a yearly Metric has few values.
   const observations = await getLatestObservations(ws, { from: shiftPeriod(day, "year", -10) });
   const series = buildSeries(metrics, observations);
   const resolve = resolverFrom(metrics, series);
-  // In use: not archived, and showing values (a Derived Metric whose inputs its owner may no longer share shows none).
-  const live = metrics.filter((m) => !m.archived_at && !m.inputs_withheld);
+  const chosen = pick(metrics);
   const byId = new Map(metrics.map((m) => [m.id, m]));
-  const inputs = ingredients(metrics);
-  // How recently a Metric was updated: when its latest value was recorded, a Derived Metric by its ingredients; this decides which
-  // 200 Metrics a Workspace with more is scanned for.
+  const inputs = ingredients(chosen);
+  // How recently a Metric was updated: when its latest value was recorded, a Derived Metric by its ingredients among `chosen`; this
+  // decides which 200 Metrics a set with more is scanned for.
   const recorded = new Map<number, string>();
   for (const o of observations) if (!(recorded.get(o.metric_id)! >= o.created_at)) recorded.set(o.metric_id, o.created_at);
   const updated = (m: Metric) => [m.id, ...inputs.get(m.id)!].reduce((top, id) => ((recorded.get(id) ?? "") > top ? recorded.get(id)! : top), "");
-  const withValues = live.filter((m) => (series[m.slug]?.length ?? 0) > 0).map((m) => ({ id: m.id, period: m.period as Span, latest: updated(m) }));
+  const withValues = chosen.filter((m) => (series[m.slug]?.length ?? 0) > 0).map((m) => ({ id: m.id, period: m.period as Span, latest: updated(m) }));
   const looked = capMetrics(withValues);
-  const share = (x: Set<number>, y: Set<number>) => [...x].some((id) => y.has(id));
-  const related = (a: number, b: number) => {
-    const [ma, mb] = [byId.get(a)!, byId.get(b)!];
-    return builtFrom(ma, mb) || inputs.get(a)!.has(b) || inputs.get(b)!.has(a) || share(inputs.get(a)!, inputs.get(b)!);
-  };
   // Each Metric's levels on a Common Period: only periods that are over (a period still running compares part with whole).
   const levels = (id: number, span: Span): Point[] | null => {
-    const m = byId.get(id)!;
-    const s = seriesBy(m, resolve, span, { yearStart, today: day });
+    const s = seriesBy(byId.get(id)!, resolve, span, { yearStart, today: day });
     return s.ok ? s.points.filter((p) => !p.toDate).map((p) => ({ period: p.period, value: p.value })) : null;
   };
-  const rows = scanPairs(looked, levels, related, day, yearStart);
+  return { rows: scanPairs(looked, levels, relatedOver(chosen), day, yearStart), metrics: looked.length, capped: withValues.length > looked.length };
+}
+
+/** The Metrics in use: not archived, and showing values (a Derived Metric whose inputs its owner may no longer share shows none). */
+const inUse = (metrics: Metric[]) => metrics.filter((m) => !m.archived_at && !m.inputs_withheld);
+
+/** Whether two of `chosen` are related: one is worked out from the other (directly or through others of `chosen`), or both from the
+ * same Metric of `chosen`. A Metric outside `chosen` is not followed, so a person's pairs never depend on one they may not see. */
+function relatedAmong(chosen: Metric[]): (a: number, b: number) => boolean {
+  const inputs = ingredients(chosen);
+  const byId = new Map(chosen.map((m) => [m.id, m]));
+  const share = (x: Set<number>, y: Set<number>) => [...x].some((id) => y.has(id));
+  return (a, b) => builtFrom(byId.get(a)!, byId.get(b)!) || inputs.get(a)!.has(b) || inputs.get(b)!.has(a) || share(inputs.get(a)!, inputs.get(b)!);
+}
+
+/** Scans one Workspace and replaces its rows of the pair table: the 200 most recently updated Metrics in use and every pair that
+ * may be compared (the same Period, or one step apart). Which pairs are related is NOT decided here (it is decided per person, over
+ * the Metrics they may see, when the rows are read), so the rows depend on no one's sight. `today` is for tests. The caller has
+ * claimed the scan. Reads and writes only this Workspace. */
+export async function scanWorkspace(ws: string, scannedAt: string, today?: string): Promise<ScanResult> {
+  const day = today ?? (await workspaceToday(ws));
+  const { rows, metrics, capped } = await scanSubset(ws, day, inUse, () => () => false);
   for (let i = 0; i < rows.length; i += CHUNK) {
     const { error } = await db().from("heads_up_pairs").upsert(rows.slice(i, i + CHUNK).map((r) => rowToDb(ws, r, scannedAt)), { onConflict: "workspace_id,metric_a,metric_b" });
     if (error) throw new Error("The pair table could not be written.");
@@ -142,9 +154,8 @@ export async function scanWorkspace(ws: string, scannedAt: string, today?: strin
   // What this scan did not refresh is gone: a pair that can no longer be compared, or a Metric no longer in use.
   const { error: staleError } = await db().from("heads_up_pairs").delete().eq("workspace_id", ws).lt("scanned_at", scannedAt);
   if (staleError) throw new Error("The pair table could not be cleaned.");
-  const result = { metrics: looked.length, pairs: rows.length, capped: withValues.length > looked.length };
-  await db().from("heads_up_scans").update({ metrics: result.metrics, pairs: result.pairs, capped: result.capped }).eq("workspace_id", ws);
-  return result;
+  await db().from("heads_up_scans").update({ metrics, pairs: rows.length, capped }).eq("workspace_id", ws);
+  return { metrics, pairs: rows.length, capped };
 }
 
 /** The Heads-up job (the route is the job secret's): for every Workspace but the demo whose scan is not recent, scans it; then
@@ -175,19 +186,29 @@ export async function headsUpJob(opts: { today?: string; budgetMs?: number } = {
   return result;
 }
 
-/** The Heads-ups a person may be told, strongest first: only about Metrics they may see that are in use, from the pair table's
- * rows for those Metrics alone (see the file's header). A person who sees fewer than two Metrics gets none. Takes the Actor
- * first; an Access Key is not an Actor here. */
+/** The Heads-ups a person may be told, strongest first: only about Metrics they may see that are in use, from pair rows for those
+ * Metrics alone, and nothing that depends on a Metric they may not see: the cap of 200 Metrics, the pairs left out as related and
+ * the count of pairs for the correction are all worked out over the Metrics they see. Where the Workspace's own scan was capped
+ * (it has more than 200 Metrics in use, which a person may not see), their pairs are scanned now over their own Metrics, so the
+ * cap cannot have left out a pair of theirs for the sake of one of someone else's. A person who sees fewer than two Metrics gets
+ * none. Takes the Actor first; an Access Key is not an Actor here. */
 export async function listHeadsUps(actor: Actor): Promise<HeadsUp[]> {
   const ws = actor.workspaceId;
   const metrics = await getMetrics(ws);
   const seen = await visibleMetricIds(ws, actor.personId, metrics);
-  // In use, and showing values, exactly as the scan was: a Metric archived or hidden since the last scan is left out here.
-  const mine = metrics.filter((m) => seen.has(m.id) && !m.archived_at && !m.inputs_withheld);
+  const mine = inUse(metrics.filter((m) => seen.has(m.id)));
   if (mine.length < 2) return [];
-  const ids = mine.map((m) => m.id);
-  const rows = await allRows<Record<string, unknown>>((from, to) => db().rpc("visible_heads_up_pairs", { p_ws: ws, p_ids: ids }).range(from, to));
   const names = new Map(mine.map((m) => [m.id, m.name]));
-  // Rows are read for these Metrics only; the filter is applied again where the rows are used (headsUpsFrom drops any naming another).
-  return headsUpsFrom(rows.map(rowFromDb), names, { style: await numberStyleOf(ws), yearStart: await yearStartOf(ws) });
+  const { data: scan } = await db().from("heads_up_scans").select("capped").eq("workspace_id", ws).maybeSingle();
+  let rows: PairRow[];
+  if (scan?.capped) {
+    rows = (await scanSubset(ws, await workspaceToday(ws), () => mine, () => () => false)).rows;
+  } else {
+    const ids = mine.map((m) => m.id);
+    rows = (await allRows<Record<string, unknown>>((from, to) => db().rpc("visible_heads_up_pairs", { p_ws: ws, p_ids: ids }).range(from, to))).map(rowFromDb);
+  }
+  // Pairs one of whose Metrics is worked out from the other, or both from the same, are left out: over the Metrics they see.
+  const related = relatedAmong(mine);
+  const kept = rows.filter((r) => names.has(r.a) && names.has(r.b) && !related(r.a, r.b));
+  return headsUpsFrom(kept, names, { style: await numberStyleOf(ws), yearStart: await yearStartOf(ws) });
 }

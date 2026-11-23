@@ -147,7 +147,7 @@ describe("the job", () => {
   }, 120_000);
 
   it("leaves out an archived Metric, takes a pair away that can no longer be compared, and never pairs a Derived Metric with what it is worked out from", async () => {
-    const { w, sara, ids, scan } = await setup();
+    const { w, sara, ids, scan, owner } = await setup();
     // Derived from Visits, and another derived from Visits too, and one derived from that: none of them pairs with Visits or with each other.
     const slug = async (id: number) => (await db().from("metrics").select("slug").eq("id", id).single()).data!.slug as string;
     const d1 = await w.metric(sara, { name: "Visits doubled", formula: `{${await slug(ids.visits)}}*2`, aggregation: "none" });
@@ -156,11 +156,11 @@ describe("the job", () => {
     await scan();
     const pairs = async () => ((await db().from("heads_up_pairs").select("metric_a, metric_b").eq("workspace_id", w.id)).data ?? []).map((r) => [r.metric_a as number, r.metric_b as number]);
     const has = (a: number, b: number) => pairs().then((all) => all.some(([x, y]) => (x === a && y === b) || (x === b && y === a)));
-    for (const d of [d1.id, d2.id, d3.id]) expect(await has(d, ids.visits), `derived ${d} with Visits`).toBe(false);
-    expect(await has(d1.id, d2.id)).toBe(false);
-    expect(await has(d1.id, d3.id)).toBe(false);
-    expect(await has(d2.id, d3.id)).toBe(false);
-    // A Derived Metric still pairs with a Metric it has nothing to do with.
+    // The table holds every pair (who is related is decided per person); the Owner's list leaves the related ones out.
+    expect(await has(d1.id, ids.visits)).toBe(true);
+    // No Heads-up pairs two of Visits and the three Derived Metrics (they all come from Visits); a Derived Metric still pairs with others.
+    const family = new Set([ids.visits, d1.id, d2.id, d3.id]);
+    for (const h of await listHeadsUps(owner)) expect(h.metrics.every((id) => family.has(id)), `${h.metrics}`).toBe(false);
     expect(await has(d1.id, ids.notes)).toBe(true);
     await db().from("metrics").update({ archived_at: new Date().toISOString() }).eq("id", ids.notes);
     await scan(new Date(Date.now() + 2000).toISOString());
@@ -277,6 +277,61 @@ describe("what a person is told", () => {
     }
     await scanWorkspace(w.id, new Date().toISOString(), TODAY);
     expect(await listHeadsUps(w.actor(sara))).toEqual([]);
+  });
+});
+
+describe("what is scanned does not depend on Metrics a person may not see", () => {
+  /** A workspace with Visits, Revenue and Notes (seen by Ben), and `extra` more Metrics he may not see, made after and so more recently updated. */
+  async function withHidden(extra: number) {
+    const w = await workspace();
+    cleanups.push(w.cleanup);
+    const [sara, ben] = [await w.person("owner"), await w.person("member")];
+    const base = changesOf(11);
+    const mine = { visits: levels(base), revenue: levels(followed(base, 1, 12)), notes: walk(14) };
+    const ids: Record<string, number> = {};
+    for (const [name, values] of Object.entries(mine)) {
+      const m = await w.metric(sara, { name: name[0].toUpperCase() + name.slice(1) });
+      ids[name] = m.id;
+      await db().from("observations").insert(values.map((value, k) => ({ metric_id: m.id, period_start: month(k), value, source: "api", workspace_id: w.id, created_at: "2026-01-01T00:00:00Z" })));
+      await w.share(m.id, ben);
+    }
+    if (extra > 0) {
+      const rows = Array.from({ length: extra }, (_, i) => ({ slug: `hid-${i}`, name: `Hidden ${i}`, owner_id: sara, workspace_id: w.id, unit: "", format: "number", decimals: 0, period: "month", submission_rule: "overwrite", polarity: "higher", sources: ["api"] }));
+      const { data } = await db().from("metrics").insert(rows).select("id, slug");
+      const values = data!.flatMap((m) => walk(Number(m.slug.slice(4)) + 700).map((value, k) => ({ metric_id: m.id, period_start: month(k), value, source: "api", workspace_id: w.id, created_at: "2026-06-01T00:00:00Z" })));
+      for (let i = 0; i < values.length; i += 500) await db().from("observations").insert(values.slice(i, i + 500));
+    }
+    const claimed = (await db().rpc("claim_heads_up_scan", { p_ws: w.id })).data as string;
+    await scanWorkspace(w.id, claimed, TODAY);
+    return { w, ben, ids };
+  }
+  /** What Ben is told, without anything that is an id of this Workspace. */
+  const told = async (w: Awaited<ReturnType<typeof withHidden>>) => (await listHeadsUps(w.w.actor(w.ben, "member"))).map((h) => ({ kind: h.kind, span: h.span, through: h.through, rank: h.rank, takeaway: h.takeaway }));
+
+  it("gives the same Heads-ups, in the same order, counts and words, with 250 hidden Metrics that push his out of the Workspace's scan", async () => {
+    const [alone, crowded] = [await withHidden(0), await withHidden(250)];
+    expect((await db().from("heads_up_scans").select("capped").eq("workspace_id", crowded.w.id).single()).data!.capped).toBe(true);
+    const [a, b] = [await told(alone), await told(crowded)];
+    expect(a).toHaveLength(1);
+    expect(JSON.stringify(b)).toBe(JSON.stringify(a));
+  }, 180_000);
+
+  it("leaves a pair out as related only through Metrics the person sees: two Derived Metrics of one hidden Metric are shown, of one they see are not", async () => {
+    const w = await workspace();
+    cleanups.push(w.cleanup);
+    const [sara, ben] = [await w.person("owner"), await w.person("member")];
+    const hidden = await w.metric(sara, { name: "Hidden source" });
+    const slug = (await db().from("metrics").select("slug").eq("id", hidden.id).single()).data!.slug as string;
+    await db().from("observations").insert(walk(31).map((value, k) => ({ metric_id: hidden.id, period_start: month(k), value, source: "api", workspace_id: w.id })));
+    const d1 = await w.metric(sara, { name: "Source doubled", formula: `{${slug}}*2`, aggregation: "none" });
+    const d2 = await w.metric(sara, { name: "Source plus one", formula: `{${slug}}+1`, aggregation: "none" });
+    await w.share(d1.id, ben);
+    await w.share(d2.id, ben);
+    await scanWorkspace(w.id, new Date().toISOString(), TODAY);
+    const benActor = w.actor(ben, "member");
+    expect((await listHeadsUps(benActor)).map((h) => h.takeaway.sentence)).toEqual([expect.stringContaining("Source doubled and Source plus one have started moving together")]);
+    await w.share(hidden.id, ben);
+    expect(await listHeadsUps(benActor)).toEqual([]);
   });
 });
 
