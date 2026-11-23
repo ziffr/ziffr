@@ -5,6 +5,7 @@ import { currentActor } from "@/lib/viewer";
 import { isDemo } from "@/lib/auth";
 import { getCanvasData } from "@/lib/access";
 import { PageHeader } from "@/components/page-header";
+import { ViewDesignGuideLink } from "@/components/view-design-guide-link";
 import { PlaygroundScreen } from "./screen";
 
 export default async function PlaygroundPage() {
@@ -13,7 +14,9 @@ export default async function PlaygroundPage() {
   const manages = !demo && (actor.role === "owner" || actor.role === "admin");
   return (
     <>
-      <PageHeader title="Playground" sub="Paste or upload a View Design and see it drawn as you type, with Sample Data or your own Metrics. Every mistake is named with its line." />
+      <PageHeader title="Playground" sub="Paste or upload a View Design and see it drawn as you type, with Sample Data or your own Metrics. Every mistake is named with its line.">
+        <ViewDesignGuideLink />
+      </PageHeader>
       <PlaygroundScreen data={data} manages={manages} />
     </>
   );

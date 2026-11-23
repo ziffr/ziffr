@@ -11,6 +11,8 @@ import { isDemo } from "@/lib/auth";
 import { listDashboardTemplates } from "@ziffr/core/dashboard-templates";
 import { listSnapshots } from "@ziffr/core/snapshots";
 import { countView } from "@/lib/count-view";
+import { DemoHomeRedirect } from "@/components/demo-visit-prefs";
+import { followDemoSuccessor } from "@/lib/demo-follow";
 import { visibleTags } from "@ziffr/core/tag-sight";
 import { isTagWidget } from "@ziffr/core/tag-widgets";
 
@@ -37,6 +39,7 @@ export async function DashboardView({ id, view }: { id?: number; view?: string }
     // Only a dashboard of this workspace; one elsewhere stays unknown.
     const owner = await closedDashboardOwner(actor, id);
     if (owner) closed = { id, owner };
+    else await followDemoSuccessor("dashboard", id, view === "read" ? "?view=read" : "");
   }
   const demo = await isDemo();
   // A workspace without dashboards gets the first-run checklist; what it may show depends on the role.
@@ -47,5 +50,9 @@ export async function DashboardView({ id, view }: { id?: number; view?: string }
   const own = current?.role === "owner" ? shares.filter((s) => s.object_type === "dashboard" && s.object_id === current.id) : [];
   // Only someone who may create starts a dashboard, so only they get the templates.
   const dashboardTemplates = can(actor, "create") ? await listDashboardTemplates(actor, new Set(data.metrics.map((m) => m.id))) : [];
-  return <DashboardScreen data={data} dashboards={dashboards} current={current} widgets={ws} saved={saved} shares={own} reveals={reveals} closed={closed} firstRun={firstRun} homeId={home?.id ?? null} pinned={current ? (await pinnedDashboards(actor)).some((d) => d.id === current.id) : false} demo={demo} canCreate={can(actor, "create")} canInvite={can(actor, "manage-members")} dashboardTemplates={dashboardTemplates} reading={view === "read"} snapshots={snapshots} />;
+  return <>
+    {/* Home is the visit's own where visitors may change the demo (demo-visit-prefs.tsx): go to it when it is not the one drawn. */}
+    {demo && !id && <DemoHomeRedirect shownId={current?.id ?? null} />}
+    <DashboardScreen data={data} dashboards={dashboards} current={current} widgets={ws} saved={saved} shares={own} reveals={reveals} closed={closed} firstRun={firstRun} homeId={home?.id ?? null} pinned={current ? (await pinnedDashboards(actor)).some((d) => d.id === current.id) : false} demo={demo} canCreate={can(actor, "create")} canInvite={can(actor, "manage-members")} dashboardTemplates={dashboardTemplates} reading={view === "read"} snapshots={snapshots} />
+  </>;
 }
