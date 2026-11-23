@@ -9,11 +9,11 @@
 import { Forbidden, type Actor } from "./actor";
 import { db } from "./db";
 import {
-  cleanAppVersion, cleanFeedbackWords, FEEDBACK_PER_PERSON_PER_DAY, FEEDBACK_PER_WORKSPACE_PER_DAY, feedbackKind, normalizeRoute,
-  type FeedbackKind, type FeedbackStatus,
+  cleanAppVersion, cleanFeedbackWords, FEEDBACK_PER_PERSON_PER_DAY, FEEDBACK_PER_WORKSPACE_PER_DAY, feedbackKind, feedbackMode, newFeedbackStatus, normalizeRoute,
+  type FeedbackKind, type FeedbackMode, type FeedbackStatus,
 } from "./feedback-rules";
 import { hostedByCloud } from "./installation-days";
-import { settingsInEffect } from "./settings-in-effect";
+import { settingsInEffect, settingsInEffectStrict } from "./settings-in-effect";
 import { DEMO_WORKSPACE_ID } from "./team";
 
 /** One message under a feedback: what the person wrote, or what came back from the Ziffr team. */
@@ -49,9 +49,11 @@ async function assertMayUse(actor: Actor): Promise<void> {
 
 /** The actor sends feedback: a kind, their words, and optionally the page route and app version the form adds. Every
  * value is checked here; the route is cut down to a plain path and dropped when it is not one. At most a few a day per
- * person and per Workspace, counted in the database. Returns the new feedback, waiting for review. */
+ * person and per Workspace, counted in the database. Returns the new feedback: open when the Installation posts
+ * directly (the default), waiting for review when its setting says review first. */
 export async function createFeedback(actor: Actor, input: { kind?: unknown; words?: unknown; route?: unknown; appVersion?: unknown }): Promise<MyFeedback> {
   await assertMayUse(actor);
+  const mode = await currentMode();
   const kind = feedbackKind(input?.kind);
   if (!kind) throw new Error("Choose what kind of feedback this is.");
   const clean = cleanFeedbackWords(input.words);
@@ -64,7 +66,21 @@ export async function createFeedback(actor: Actor, input: { kind?: unknown; word
   // A set: no row means a limit was reached. Checked by the id so an empty answer can never pass for a feedback.
   const made = (data as Row[] | null)?.[0];
   if (!made?.id) throw new Error("That is enough feedback for today. Please try again tomorrow.");
-  return view(made);
+  return view(await settle(made, mode));
+}
+
+// The mode is read here, on the server, when the feedback is made: a change affects only feedback made after it, and
+// what waits stays waiting. Fails closed: when the setting cannot be read the feedback waits for review.
+async function currentMode(): Promise<FeedbackMode> {
+  try { return feedbackMode(await settingsInEffectStrict()); } catch { return "review"; }
+}
+
+// The store makes every feedback waiting for review; in direct mode it is opened right after, only if it still waits.
+// If that step fails the feedback simply waits: safe, and a maintainer can approve it.
+async function settle(made: Row, mode: FeedbackMode): Promise<Row> {
+  if (newFeedbackStatus(mode) !== "open") return made;
+  const { data } = await db().from("feedback").update({ status: "open", updated_at: new Date().toISOString() }).eq("id", made.id).eq("status", "waiting_for_review").select(COLUMNS).maybeSingle();
+  return (data as Row | null) ?? made;
 }
 
 /** My feedback: what the actor sent, newest first, with its status. Never anyone else's. */

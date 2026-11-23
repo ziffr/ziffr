@@ -71,6 +71,8 @@ export const INSTALLATION_SETTINGS: SettingDefinition[] = [
     help: "500 to 100,000. The most original values one Metric's Retention condenses in a night. Years of values take weeks to catch up at 5,000; more is more work for the database at night." },
   { name: "ZIFFR_FEEDBACK_PROMPT", section: "feedback", label: "Ask people whether they like Ziffr", secret: false, choices: [{ value: "true", label: "Ask now and then" }, { value: "false", label: "Never ask" }],
     help: "A small card, at most three times per person, after they have submitted values on a few different days; never in the demo, for Guests or on View Links. Empty: on for hosted Ziffr, off everywhere else." },
+  { name: "ZIFFR_FEEDBACK_MODE", section: "feedback", label: "Feedback from people", secret: false, choices: [{ value: "direct", label: "Post directly" }, { value: "review", label: "Review first" }],
+    help: "The central version (ziffr.net) only. Post directly (the default): each feedback is filed on GitHub as it arrives. Review first: each waits in the review queue until a maintainer approves it, edits it or rejects it with a reason. A change applies to new feedback; what already waits stays waiting." },
   { name: "ZIFFR_DEMO", section: "demo", label: "Offer the demo", secret: false, choices: [{ value: "1", label: "Offered on the login page" }, { value: "0", label: "Not offered" }],
     help: "Whether the login page has Try the demo." },
   { name: "ZIFFR_DEFAULT_METRICS_LIMIT", section: "limits", label: "Default limit", secret: false, placeholder: "No limit",

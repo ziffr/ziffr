@@ -167,6 +167,7 @@ function Section({ section, canSeal, slack, siteUrl, limits, replies, usage, fee
         : <p className="max-w-[62ch] text-sm">This page cannot set it up yet. Until it can, it is set in the server&apos;s environment, as the self-hosting guide says.</p>}
       {slack && <SlackChecked slack={slack} section={section} />}
       {limits && <WorkspaceLimits rows={limits} pinned={section.settings.some((x) => x.source === "cloud")} />}
+      {section.settings.some((x) => x.name === "ZIFFR_FEEDBACK_MODE") && <p className="text-sm"><a href="/installation/feedback" className="underline underline-offset-2">Feedback waiting for review</a></p>}
       {feedback && <FeedbackWords words={feedback} />}
       {replies && <RepliesSetup replies={replies} section={section} siteUrl={siteUrl} canSeal={canSeal} />}
     </section>

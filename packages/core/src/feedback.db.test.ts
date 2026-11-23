@@ -32,10 +32,10 @@ async function signedIn(w: Awaited<ReturnType<typeof ws>>, role: "owner" | "admi
 const say = (a: Actor, over: Record<string, unknown> = {}) => createFeedback(a, { kind: "problem", words: "The chart is wrong.", ...over });
 
 describe("sending", () => {
-  it("stores the kind, the cleaned words, a plain route and the version, waiting for review, and answers with only those", async () => {
+  it("stores the kind, the cleaned words, a plain route and the version, open (the default posts directly), and answers with only those", async () => {
     const w = await ws(); const ben = await signedIn(w);
     const made = await say(w.actor(ben, "member"), { kind: "idea", words: "  More colours please\u0000 ", route: "/metrics/monthly-revenue?x=1#top", appVersion: "0.11.0" });
-    expect(made).toMatchObject({ kind: "idea", words: "More colours please", route: "/metrics/:name", appVersion: "0.11.0", status: "waiting_for_review" });
+    expect(made).toMatchObject({ kind: "idea", words: "More colours please", route: "/metrics/:name", appVersion: "0.11.0", status: "open" });
     expect(Object.keys(made).sort()).toEqual(["appVersion", "createdAt", "id", "kind", "route", "status", "words"]);
     const { data } = await db().from("feedback").select("*").eq("id", made.id).single();
     expect(data).toMatchObject({ person_id: ben, workspace_id: w.id, public_ref: expect.stringMatching(/^[0-9a-f]{16}$/) });
@@ -58,6 +58,31 @@ describe("sending", () => {
     delete process.env.ZIFFR_CLOUD_KEY; forgetStoredSettings();
     await expect(say(w.actor(ben, "member"))).rejects.toBeInstanceOf(Forbidden);
     await expect(listMyFeedback(w.actor(ben, "member"))).rejects.toBeInstanceOf(Forbidden);
+  });
+});
+
+describe("the mode", () => {
+  const savedMode = process.env.ZIFFR_FEEDBACK_MODE;
+  afterEach(() => { if (savedMode === undefined) delete process.env.ZIFFR_FEEDBACK_MODE; else process.env.ZIFFR_FEEDBACK_MODE = savedMode; forgetStoredSettings(); });
+  const setMode = (mode: string) => { process.env.ZIFFR_FEEDBACK_MODE = mode; forgetStoredSettings(); };
+  const statusOf = async (id: string) => (await db().from("feedback").select("status").eq("id", id).single()).data!.status;
+  it("makes new feedback waiting for review when the mode is review, and open when it is direct", async () => {
+    const w = await ws(); const ben = await signedIn(w); const a = w.actor(ben, "member");
+    setMode("review");
+    const waiting = await say(a, { words: "waits" });
+    expect(waiting.status).toBe("waiting_for_review");
+    setMode("direct");
+    const open = await say(a, { words: "goes" });
+    expect(open.status).toBe("open");
+    expect(await statusOf(waiting.id)).toBe("waiting_for_review");
+  });
+  it("leaves what waits waiting when the mode changes to direct", async () => {
+    const w = await ws(); const ben = await signedIn(w); const a = w.actor(ben, "member");
+    setMode("review");
+    const waiting = await say(a);
+    setMode("direct");
+    await say(a, { words: "another" });
+    expect(await statusOf(waiting.id)).toBe("waiting_for_review");
   });
 });
 

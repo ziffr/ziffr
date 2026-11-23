@@ -127,6 +127,9 @@ Acts as the person, with their own sign-in, Slack or Telegram account or email a
 - `createFeedback` (feedback.ts): the form that sends Feedback to the Ziffr team, on hosted Ziffr only (spec 0049, #915); not for programs, and never offered through the API, the SDK or the MCP server
 - `listMyFeedback` (feedback.ts): My feedback, the same form's list (spec 0049, #915)
 - `getMyFeedback` (feedback.ts): one of My feedback with its conversation (spec 0049, #915)
+- `listFeedbackQueue` (feedback-review.ts): the maintainers' review queue of Feedback, central version only (spec 0049, #919); an Installation Admin's screen, not for programs
+- `approveFeedback` (feedback-review.ts): the same queue, approving or editing and approving
+- `rejectFeedback` (feedback-review.ts): the same queue, rejecting with a reason
 - `optOutOfEmail` (email-opt-out.ts): one's own email choices
 - `optBackIn` (email-opt-out.ts): one's own email choices
 - `setTellStopped` (tell.ts): one's own "stop telling me" setting

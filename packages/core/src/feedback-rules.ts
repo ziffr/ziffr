@@ -68,6 +68,36 @@ export function storedRoute(input: unknown): string | null {
   return parts.every((p) => p === ":name" || p === ":id" || SEGMENT.test(p)) ? input : null;
 }
 
+/** Whether new feedback is filed at once (`direct`, the default) or waits for a maintainer (`review`). */
+export const FEEDBACK_MODES = ["direct", "review"] as const;
+/** One of FEEDBACK_MODES. */
+export type FeedbackMode = (typeof FEEDBACK_MODES)[number];
+
+/** The setting that holds the mode (an Installation Setting of the central version only). */
+export const FEEDBACK_MODE_SETTING = "ZIFFR_FEEDBACK_MODE";
+
+/** The mode in these settings: `review` only when it says so exactly, anything else (empty, unknown) is `direct`. */
+export function feedbackMode(settings: Record<string, string | undefined>): FeedbackMode {
+  return settings[FEEDBACK_MODE_SETTING]?.trim().toLowerCase() === "review" ? "review" : "direct";
+}
+
+/** The status a new feedback gets: open (the bridge files it) when posting directly, else waiting for a maintainer. */
+export function newFeedbackStatus(mode: FeedbackMode): FeedbackStatus {
+  return mode === "direct" ? "open" : "waiting_for_review";
+}
+
+/** The longest reason a maintainer gives when rejecting feedback, in characters. */
+export const FEEDBACK_REASON_MAX = 500;
+
+/** The reason for a rejection cleaned like words, or why it cannot be used: the person reads it, so it is required. */
+export function cleanRejectionReason(input: unknown): { ok: true; reason: string } | { ok: false; message: string } {
+  if (typeof input !== "string") return { ok: false, message: "Say why: the person reads it." };
+  const reason = input.replace(/\r\n?/g, "\n").replace(CONTROL, "").trim();
+  if (reason === "") return { ok: false, message: "Say why: the person reads it." };
+  if (reason.length > FEEDBACK_REASON_MAX) return { ok: false, message: `Keep the reason under ${FEEDBACK_REASON_MAX} characters.` };
+  return { ok: true, reason };
+}
+
 /** The app version when it is a plain number like 0.11.0, else null. */
 export function cleanAppVersion(input: unknown): string | null {
   return typeof input === "string" && VERSION.test(input) ? input : null;
