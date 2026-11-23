@@ -8,6 +8,7 @@ Ziffr keeps the record of your numbers: anyone, one person, a team or a business
 - `pnpm exec tsc --noEmit` and `pnpm lint`: must pass before you finish.
 - `pnpm typecheck`, `pnpm lint`, `pnpm test`: run across all packages, as CI does.
 - `pnpm --filter @ziffr/core test:db`: the core's operations against the local database (needs `supabase start`); CI runs it too.
+- `pnpm precheck`: the quick pull-request checks (release note, guide chapter, docs, client imports, migrations, glossary names) in seconds. Run it before every push: these are the commonest reason a pull request goes red, and CI finds them only after you pushed.
 - `pnpm ci:local`: everything CI runs, on this machine. Run it before pushing, and push a branch when it is ready rather than every fix-up.
 
 ## Rules
