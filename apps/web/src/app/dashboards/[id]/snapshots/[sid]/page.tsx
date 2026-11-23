@@ -24,7 +24,8 @@ export default async function SnapshotPage({ params }: { params: Promise<{ id: s
   if (snapshot.dashboardId !== dashboardId) redirect(`/dashboards/${snapshot.dashboardId}/snapshots/${snapshot.id}`);
   const actor = await currentActor();
   const people = await getProfileMap();
+  // A Snapshot keeps only the owners of its Metrics (shownData), so the Versions list names editors from the Workspace's people as this person may see them (a Guest only themselves).
   // View Links are the dashboard owner's, of a Snapshot that is shown (#178).
   const owner = snapshot.canDelete && Boolean(snapshot.shownAt);
-  return <SnapshotScreen snapshot={snapshot} takenBy={people[snapshot.takenBy]?.name ?? "someone"} canCreate={can(actor, "create")} viewLinks={owner && can(actor, "share")} />;
+  return <SnapshotScreen snapshot={snapshot} people={Object.values(people)} takenBy={people[snapshot.takenBy]?.name ?? "someone"} canCreate={can(actor, "create")} viewLinks={owner && can(actor, "share")} />;
 }

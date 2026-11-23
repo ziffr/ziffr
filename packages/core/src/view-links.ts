@@ -59,6 +59,14 @@ export type ViewPayload = {
 const pick = <T extends Record<string, unknown>>(o: T, keep: Set<number>) => Object.fromEntries(Object.entries(o).filter(([k]) => keep.has(Number(k)))) as T;
 const table = (type: "dashboard" | "deck") => (type === "deck" ? "decks" : "dashboards");
 
+/** The people a shown view refers to, as the page may draw them: only the owners of the shown Metrics (the one place a
+ * view names a person), by id, name and colour. No role, no contact details, and no one else of the Workspace, Guests
+ * and Contacts included (rule 3; ticket #902). Also cuts down frozen copies and Snapshots made with the whole list. */
+function peopleShown(people: CanvasData["people"], metrics: { owner_id: string }[]): CanvasData["people"] {
+  const owners = new Set(metrics.map((m) => m.owner_id));
+  return people.filter((p) => owners.has(p.id)).map((p) => ({ id: p.id, name: p.name, role: "", color: p.color, slack_handle: "", email: "", phone: null }));
+}
+
 /** What may go out with a View Link or a Snapshot (spec 0013) of what one person sees: only these Metrics and their
  * own series, people's names without contact details, the theme in use and the default, and nothing to act on. */
 export function shownData(full: CanvasData, ids: Set<number>, themeId: number | null): CanvasData {
@@ -70,7 +78,7 @@ export function shownData(full: CanvasData, ids: Set<number>, themeId: number | 
     viewer: "",
     metrics,
     series: Object.fromEntries(Object.entries(full.series).filter(([slug]) => slugs.has(slug))),
-    people: full.people.map((p) => ({ id: p.id, name: p.name, role: p.role, color: p.color, slack_handle: "", email: "", phone: null })),
+    people: peopleShown(full.people, metrics),
     openActions: {},
     submitters: {},
     targets: pick(full.targets, ids),
@@ -183,7 +191,8 @@ function mapStrings(value: unknown, change: (text: string) => string): unknown {
 export async function viewForLink(view: ViewPayload, workspaceId: string, showNames: boolean): Promise<ViewPayload> {
   // A Theme is drawn by its looks: never the id of whoever made it, also in a frozen copy made before that was left out.
   const themes = view.data.themes.map((t) => ({ ...t, owner_id: "" }));
-  if (showNames) return { ...view, data: { ...view.data, themes } };
+  // Served through the same cut as made: frozen copies and Snapshots kept the whole list before (ticket #902).
+  if (showNames) return { ...view, data: { ...view.data, themes, people: peopleShown(view.data.people, view.data.metrics) } };
   const people = [...(await peopleToHide(workspaceId)), ...view.data.people];
   const hide = nameHider(people);
   const mentions = mentionsPerson(people);

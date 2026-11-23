@@ -22,7 +22,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { formatDate, formatValue } from "@ziffr/core/format";
 import { TEMPLATES } from "@ziffr/core/widget-templates";
 import type { OpenSnapshot, SnapshotWords, WidgetWords, WordKey } from "@ziffr/core/snapshots";
-import type { Widget } from "@ziffr/core/types";
+import type { Profile, Widget } from "@ziffr/core/types";
 import { periodLabel } from "@ziffr/core/periods";
 
 /** The words a Finding carries, in the order they are read; other widgets only have a title. */
@@ -41,7 +41,7 @@ function wordsOf(w: Widget): WidgetWords {
 
 /** The Snapshot page. `takenBy` is the name of whoever took it; `canCreate` may make a deck of it (#178);
  * `viewLinks` for the dashboard's owner, who may make View Links to it once it is shown. */
-export function SnapshotScreen({ snapshot: s, takenBy, canCreate = false, viewLinks = false }: { snapshot: OpenSnapshot; takenBy: string; canCreate?: boolean; viewLinks?: boolean }) {
+export function SnapshotScreen({ snapshot: s, people, takenBy, canCreate = false, viewLinks = false }: { snapshot: OpenSnapshot; people: Profile[]; takenBy: string; canCreate?: boolean; viewLinks?: boolean }) {
   const router = useRouter();
   const [writing, setWriting] = useState(false);
   const showLinks = useShowViewLinks();
@@ -79,7 +79,7 @@ export function SnapshotScreen({ snapshot: s, takenBy, canCreate = false, viewLi
         )}
         {canCreate && <Button variant="outline" disabled={pending} onClick={() => run(() => makeDeckFromSnapshot(s.id))}><Presentation aria-hidden /> Make a deck</Button>}
         {viewLinks && <Button variant="outline" onClick={() => showLinks("dashboard", s.dashboardId, { id: s.id, label: s.label })}><Link2 aria-hidden /> View link</Button>}
-        <VersionsSheet type="snapshot" id={s.id} people={s.data.people} />
+        <VersionsSheet type="snapshot" id={s.id} people={people} />
         {s.canDelete && (
           <Button variant="outline" disabled={pending} onClick={async () => {
             if (await confirm({ title: `Delete the Snapshot of ${s.label}?`, description: "Its numbers and words go for good. The dashboard and its values stay.", confirmLabel: "Delete Snapshot" })) run(() => deleteSnapshot(s.id, s.dashboardId));

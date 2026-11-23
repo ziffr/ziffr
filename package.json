@@ -19,6 +19,7 @@
     "health:worst": "node scripts/code-health.mjs --worst",
     "changeset": "changeset",
     "release": "node scripts/release.mjs",
+    "precheck": "bash scripts/precheck.sh",
     "ci:local": "bash scripts/ci-local.sh",
     "hooks:install": "lefthook install",
     "hooks:uninstall": "lefthook uninstall",
