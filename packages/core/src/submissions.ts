@@ -21,7 +21,7 @@ import { deliver } from "./deliveries";
 import { onValue } from "./workflow-engine";
 import { settlePrompts } from "./prompt-ways";
 import { audit } from "./audit-log";
-import { ownerFillStage, standInFillStage, type Filled } from "./fill-in-check";
+import { ownerFillStage, standInFillStage, standInLateRefusal, type Filled } from "./fill-in-check";
 import { enteredByWords, settleFilled } from "./fill-in-tell";
 import { ARCHIVED_CODE, ARCHIVED_REFUSAL } from "./archived-metrics";
 import { CONDENSED_CODE, condensedOn, condensedRefusal, condensedWords } from "./condensed-values";
@@ -203,7 +203,12 @@ async function takeValue(input: SubmissionInput, effects: SubmissionEffects, pro
   if (condensedDay) return log({ ...base, ok: false, outcome: "rejected_period_condensed", detail: condensedRefusal(condensedDay) });
 
   // A locked period takes no more values: a late one becomes a proposal for the metric owner (GLOSSARY: Lock).
-  if (await isLocked(metric.id, period)) return log({ ...base, ...(await proposeLate({ ws: workspaceId, metric, period, value, senderName: sender?.name, senderId, preview, fv, when, notify: effects.notifyCorrection })) });
+  if (await isLocked(metric.id, period)) {
+    // A Stand-in's Token stays narrowed for a late value too: no Access Key, only the periods they were asked about (spec 0046).
+    const lateRefused = filled || ownerFill ? null : await standInLateRefusal(workspaceId, metric, period, { source: input.source }, senderId, token.stands_in_for ?? prompt?.stands_in_for ?? null);
+    if (lateRefused) return log({ ...base, ok: false, outcome: "rejected_fill_in", detail: lateRefused });
+    return log({ ...base, ...(await proposeLate({ ws: workspaceId, metric, period, value, senderName: sender?.name, senderId, preview, fv, when, notify: effects.notifyCorrection })) });
+  }
 
   // A Stand-in's answer to a Prompt sent in someone's place is the submitter's value, entered by the Stand-in; asked after
   // the Lock, so a late one is still proposed as a Correction, as any late value is.
