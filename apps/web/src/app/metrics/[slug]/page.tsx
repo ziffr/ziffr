@@ -105,6 +105,17 @@ function CreatedNote({ derived, note, demo, tagsLeftOut }: { derived: boolean; n
   );
 }
 
+/** Why some Metrics were not ranked on the page's own period or at all (not combined, or too much work to work out), each reason once. */
+function notCombinedReasons(leftOut: ReturnType<typeof rankCorrelations>["leftOut"]): string[] {
+  return [...new Set(leftOut.filter((l) => l.why === "not-combined" || l.why === "too-much").map((l) => l.reason))];
+}
+
+/** What the forecast area says when there is no forecast: not enough values yet, or values too fine or too wide to work out exactly. */
+function noForecastNote(fc: unknown, points: Parameters<typeof forecastTooWide>[0], period: string): string | null {
+  if (fc || points.length === 0) return null;
+  return forecastTooWide(points) ? NO_FORECAST_WIDE : `Forecast once there are ${FORECAST_MIN_POINTS} ${period}s of values`;
+}
+
 export default async function MetricPage({ params, searchParams }: { params: Promise<{ slug: string }>; searchParams: Promise<{ vs?: string; created?: string; bp?: string; full?: string; tab?: string; suggest?: string; basis?: string }> }) {
   const { slug } = await params;
   const sp = await searchParams;
@@ -129,7 +140,7 @@ export default async function MetricPage({ params, searchParams }: { params: Pro
   const [basisChoice, keepBasis] = basisOf(byValue);
   // Metrics of every period, each on its common period with this one (spec 0019); those kept to their own period say why.
   const { ranked: correlations, leftOut } = rankCorrelations(metric, metrics.filter((m) => visible.has(m.id)), resolverFrom(metrics, series), { yearStart, basis: basisChoice });
-  const notCombined = [...new Set(leftOut.filter((l) => l.why === "not-combined" || l.why === "too-much").map((l) => l.reason))];
+  const notCombined = notCombinedReasons(leftOut);
   const partner = correlations.find((c) => c.metric.slug === sp.vs) ?? correlations[0];
 
   if (!visible.has(metric.id)) {
@@ -243,7 +254,7 @@ export default async function MetricPage({ params, searchParams }: { params: Pro
               No values yet. They arrive by {metric.sources.map((s) => SOURCE_LABEL[s]).join(" or ")}. <Link href="?tab=settings" className="underline">See who submits</Link>.
             </div>
           ) : (
-            <MetricWorkspace numberStyle={numberStyle} metric={metric} points={points} forecast={fc?.points ?? null} forecastNote={!fc && points.length > 0 ? (forecastTooWide(points) ? NO_FORECAST_WIDE : `Forecast once there are ${FORECAST_MIN_POINTS} ${metric.period}s of values`) : null} markers={markers} people={people} viewer={viewer} yearStart={yearStart} />
+            <MetricWorkspace numberStyle={numberStyle} metric={metric} points={points} forecast={fc?.points ?? null} forecastNote={noForecastNote(fc, points, metric.period)} markers={markers} people={people} viewer={viewer} yearStart={yearStart} />
           )}
           <div className="grid gap-6 lg:grid-cols-2">
             <section className="stock rounded-[var(--radius-card)] p-5">
