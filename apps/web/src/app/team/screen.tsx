@@ -8,9 +8,12 @@ import { Input } from "@/components/ui/input";
 import { addContact, createGroup, deleteGroup, removeContact, renameGroup, setMember } from "@/app/team-actions";
 import { setAway } from "@/app/workflow-actions";
 import type { Group, Profile } from "@ziffr/core/types";
+import { BUSINESS_FUNCTION_LABELS, type BusinessFunction } from "@ziffr/pack/business-functions";
 import { useConfirm } from "@/components/confirm-dialog";
 
-export function TeamScreen({ people, contacts, groups, canEdit, viewer, away }: { people: Profile[]; contacts: Profile[]; groups: Group[]; canEdit: boolean; viewer: string; away: { user_id: string; starts: string; ends: string }[] }) {
+export function TeamScreen({ people, contacts, groups, canEdit, viewer, away, functions }: { people: Profile[]; contacts: Profile[]; groups: Group[]; canEdit: boolean; viewer: string; away: { user_id: string; starts: string; ends: string }[];
+  /** Each member's Business Function: given only to Owners and Admins (null for everyone else, who see no column). */
+  functions: { personId: string; function: BusinessFunction }[] | null }) {
   const [pending, start] = useTransition();
   const [name, setName] = useState("");
   const run = (f: () => Promise<unknown>, ok?: string) => start(async () => { try { unwrap(await f()); if (ok) toast.success(ok); } catch (err) { toast.error("Not done", { description: shown(err) }); } });
@@ -25,6 +28,7 @@ export function TeamScreen({ people, contacts, groups, canEdit, viewer, away }: 
             <tr className="text-left text-xs text-muted-foreground">
               <th className="py-2 pr-3 font-medium">Person</th>
               <th className="py-2 pr-3 font-medium">Away</th>
+              {functions && <th className="py-2 pr-3 font-medium">Works in</th>}
               {groups.map((g) => (
                 <th key={g.id} className="py-2 pr-3 font-medium">
                   {canEdit ? (
@@ -47,6 +51,7 @@ export function TeamScreen({ people, contacts, groups, canEdit, viewer, away }: 
               <tr key={p.id} className="border-t border-border">
                 <th scope="row" className="py-2 pr-3 text-left font-medium">{p.name}<span className="block text-xs font-normal text-muted-foreground">{p.role}</span></th>
                 <td className="py-2 pr-3"><AwayDates userId={p.id} current={away.find((a) => a.user_id === p.id)} can={canEdit || p.id === viewer} /></td>
+                {functions && <td className="py-2 pr-3">{labelFor(functions, p.id)}</td>}
                 {groups.map((g) => (
                   <td key={g.id} className="py-2 pr-3">
                     <input
@@ -75,6 +80,12 @@ export function TeamScreen({ people, contacts, groups, canEdit, viewer, away }: 
       <Contacts contacts={contacts} canEdit={canEdit} />
     </div>
   );
+}
+
+/** One member's Business Function in words, or a dash when they gave none. */
+function labelFor(functions: { personId: string; function: BusinessFunction }[], id: string) {
+  const f = functions.find((x) => x.personId === id);
+  return f ? BUSINESS_FUNCTION_LABELS[f.function] : <span className="text-muted-foreground">–</span>;
 }
 
 /** People without a login who submit values by Slack, email or their form link (GLOSSARY: Contact). */

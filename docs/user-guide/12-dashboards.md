@@ -311,7 +311,11 @@ A **Finding** is a Widget set as an editorial graphic: a headline that states wh
 | **Finding: annotated line** | The trend with callouts at the moments that matter. |
 | **Finding: composed** | A frame around one or more Panels. |
 
-The first three need a Metric with a Breakdown. Until it has one, the Finding says how to send one in: paste rows on the Metric's web form, or send label and value lines.
+What each Finding needs:
+
+- **Ranked bars, Part of the whole and 7 in 10** need a Metric with a Breakdown. They are offered only for such a Metric; if the Breakdown goes away, the Finding says how to send one in: paste rows on the Metric's web form, or send label and value lines.
+- **Annotated line** takes any one Metric.
+- **Composed** has a Metric for each Panel, chosen in the editor; a Panel without a Metric, or whose data does not fit its chart, says so in words.
 
 ### The Finding editor
 
@@ -557,3 +561,5 @@ Earlier, Ziffr had stories as a screen of their own. They are now dashboards wit
 ## Panels have their own address
 
 Share, Who can see this, View links, Versions and a Metric's quick look open as panels on the right, over the page; on a phone they fill the screen. The address of the page then ends in `?panel=share` (Who can see this and View links have no address of their own: they open from Share or the **⋯** menu, and **Back** in the panel returns to Share), `?panel=versions` or `?panel=metric-` and the Metric's short name, so you can send the link and whoever opens it sees the page with the panel open. While a panel is open the keys stay inside it; **Esc** or **Close** closes it and puts you back where you were.
+
+In the demo, where visitors may change it, a dashboard that the demo started fresh without sends you to its new copy, and the pins and the home dashboard you choose are remembered in your own browser, not shared with other visitors.

@@ -260,3 +260,5 @@ Ziffr's own screens, such as menus, settings and this guide, keep their look wha
 Every dashboard and deck has a theme picker, shown with a palette icon. The first choice is the team default, shown with its name and "(team default)". A dashboard or deck on that choice follows the team default, even when the default changes later. Any other choice sticks to that one theme.
 
 Whoever may change the dashboard or deck may pick its theme: its owner and its Editors. Viewers see it in the theme that was picked. The **Themes** link next to the picker opens the Themes page.
+
+In the demo, where visitors may change it, a deck that the demo started fresh without sends you to its new copy.

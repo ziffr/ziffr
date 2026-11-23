@@ -59,7 +59,16 @@ export async function resetDemoWorkspace(opts: { onlyWhenNeeded?: boolean; openT
   const filledIn = await db().rpc("prototype_seed_fill_in");
   if (filledIn.error) console.error("Demo: no Filled-in Values", filledIn.error.message);
   await seedDemoOutbox();
+  await markDemoSeedDone();
   return true;
+}
+
+/** Says the seed of this Generation is finished, by the database's clock: the rows the steps above wrote after the reset's
+ * transaction (Snapshots, the close, the Outbox) are the seed's, and visitors' row caps must not count them. Until it is
+ * said, a visitor's write to a capped table is refused as "starting fresh" (migration 20270126140000). */
+export async function markDemoSeedDone(): Promise<void> {
+  const { error } = await db().rpc("demo_seed_done");
+  if (error) console.error("Demo: the seed's end was not marked", error.message);
 }
 
 /** The demo's Outbox: what the morning's run sends, as its Owner would start it by hand. Never sent anywhere: the

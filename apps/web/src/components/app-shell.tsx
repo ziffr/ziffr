@@ -8,6 +8,7 @@ import { Fragment, useEffect, useRef, useState, useTransition } from "react";
 import { Activity, BarChart3, Blocks, Building2, CalendarClock, ChevronRight, ChevronsUpDown, CircleHelp, FlaskConical, Hash, KeyRound, LayoutDashboard, LogOut, MessageSquarePlus, MoreHorizontal, Package, Plug, Plus, Presentation, Rss, ScrollText, Search, Settings2, ShieldCheck, Users, Webhook, Workflow } from "lucide-react";
 import { INSTALLATION, MAIN, PhoneAccount, WorkspaceChoices, YOU, type Account, type NavItem } from "@/components/nav-parts";
 import { PinnedDashboards, type Pinned } from "@/components/pinned-dashboards";
+import { useShownPins } from "@/components/demo-visit-prefs";
 import { SettingsNav } from "@/components/settings-nav";
 import { inSettings, onPage, type TreeLink } from "@/lib/settings-links";
 import { OPEN_SEARCH, SearchDialog } from "@/components/search-dialog";
@@ -64,8 +65,10 @@ function isOn(path: string, href: string) {
 const sheetRow = "flex h-12 flex-1 flex-col items-center justify-center gap-0.5 text-xs text-muted-foreground outline-none focus-visible:bg-muted data-[active=true]:font-medium data-[active=true]:text-foreground [&_svg]:size-5";
 
 /** The whole frame. `demo` holds the demo's controls, `banners` the notes that sit above every page. */
-export function AppShell({ workspace, settings, pinned, due, account, guide, demo, people, banners, collapsed, children }: { workspace: TreeLink[]; settings: { label: string; links: TreeLink[] }[]; pinned: Pinned[]; due: number; account: Account | null; guide: string; demo?: React.ReactNode; people?: { profiles: Profile[]; current: string }; banners?: React.ReactNode; collapsed: boolean; children: React.ReactNode }) {
+export function AppShell({ workspace, settings, pinned: pinnedByServer, due, account, guide, demo, people, banners, collapsed, children }: { workspace: TreeLink[]; settings: { label: string; links: TreeLink[] }[]; pinned: Pinned[]; due: number; account: Account | null; guide: string; demo?: React.ReactNode; people?: { profiles: Profile[]; current: string }; banners?: React.ReactNode; collapsed: boolean; children: React.ReactNode }) {
   const path = usePathname();
+  // Where visitors may change the demo, the pins are this visit's own (demo-visit-prefs.tsx); else what the server sent.
+  const pinned: Pinned[] = useShownPins(pinnedByServer);
   return (
     <TooltipProvider delay={300}>
       <SlideOverProvider>

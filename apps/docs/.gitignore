@@ -5,3 +5,5 @@
 /dist/
 /.astro/
 /src/content/docs/index.mdx
+/public/schemas/
+/public/_headers

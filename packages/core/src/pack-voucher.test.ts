@@ -21,4 +21,8 @@ describe("packVoucher", () => {
   it("an upload never reads as vouched, even when it says it is signed", () => {
     expect(packVoucher({ id: "ziffr/x", signed: true, fromMarketplace: false, hasLogo: true }).vouched).toBe(false);
   });
+  it("says one of Ziffr's own Packs comes with this version, and only when the app says so and it is signed", () => {
+    expect(packVoucher({ id: "ziffr/sales", signed: true, fromMarketplace: false, hasLogo: false, included: true })).toEqual({ vouched: true, lines: ["Ziffr\u2019s own Pack: it comes with this version of Ziffr."] });
+    expect(packVoucher({ id: "ziffr/sales", signed: false, fromMarketplace: false, hasLogo: false, included: true }).vouched).toBe(false);
+  });
 });

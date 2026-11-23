@@ -187,6 +187,12 @@ Open it from your own menu at the bottom of the sidebar. Your profile is how oth
 
 In the demo, the made-up people keep their names and colours, the address is made up, and the last button is **Leave the demo** instead of **Sign out**.
 
+### In this Workspace
+
+Under the profile, **In this Workspace** asks one question, **What do you work on yourself?**, with the choices Sales, Marketing, Finance, Operations, Customer support, People and HR, Product and engineering, Management and Something else, or **Not said**. Choose **Save** to keep it. This is your **Business Function**: Ziffr uses it to suggest Packs and who is asked for what, so what it suggests fits your work and not only your company.
+
+It is optional and it is yours alone: pick the part you mainly work in, and change or clear it whenever you like. It is kept per Workspace, so you can answer differently in each one you belong to. Only you and the Workspace's Owners and Admins see it (Owners and Admins see it on [Members and Groups](16-workspace-settings.md#members-and-groups)). Other Members and Guests never do, it is not sent to programs or put into Exports, View Links or Snapshots, and it goes when you leave the Workspace. Changing it shows in the Workspace's Audit Log as the old and new choice, which Owners and Admins read. Guests are not asked, and the demo has no such question.
+
 ### Your limits
 
 Under your profile, **Your limits** lets you choose how much of this Workspace you want, in this Workspace only. Each field shows what is **In effect** and the range **Allowed**; leave it empty to follow the Workspace, and press **Save** to set or clear it. You can only go lower than what the Workspace allows.
@@ -392,3 +398,5 @@ You can have three, up to 1,000 messages a day (a trial has fewer, and only publ
 | The bin icon | Deletes it after asking, also while the Workspace's switch is off |
 
 Under each, **Log** lists its sends of the last 14 days: when, the event, what it is about, the state and the answer. A Webhook that keeps failing is switched off by Ziffr and you are told. An Owner or Admin sees that you have a Webhook, whose it is, the address masked and when it last sent, never what it sent, and can remove it; you are then told who did. It ends when you leave the Workspace. Messages leave Ziffr in clear text over TLS and the receiving system keeps them as it sees fit.
+
+In the demo, where visitors may change it, your pins and home dashboard are kept in your own browser.
