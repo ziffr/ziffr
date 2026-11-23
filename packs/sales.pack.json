@@ -1,0 +1,406 @@
+{
+  "format": "ziffr.pack/1",
+  "id": "ziffr/sales",
+  "name": "Sales",
+  "version": "1.0.0",
+  "summary": "New and qualified leads, deals won and lost, closed-won value, pipeline, sales cycle, win rate and average deal size, with a monthly dashboard and a Workflow that asks for the month's figures.",
+  "author": {
+    "name": "Ziffr"
+  },
+  "license": "CC-BY-4.0",
+  "ziffr": ">=0.11",
+  "listing": {
+    "homepage": "https://github.com/ziffr/ziffr/tree/main/packs"
+  },
+  "contents": {
+    "metrics": [
+      {
+        "key": "new-leads",
+        "metric": {
+          "format": "ziffr.metric/1",
+          "name": "New leads",
+          "description": "Contacts that became leads in the month, from any source.",
+          "category": "Sales",
+          "period": "month",
+          "aggregation": "sum",
+          "polarity": "higher",
+          "valueFormat": "number",
+          "decimals": 0,
+          "submissionRule": "overwrite",
+          "sources": [
+            "web_form",
+            "mail",
+            "slack",
+            "telegram",
+            "api"
+          ],
+          "tags": [
+            "Sales",
+            "Monthly report"
+          ]
+        }
+      },
+      {
+        "key": "qualified-leads",
+        "metric": {
+          "format": "ziffr.metric/1",
+          "name": "Qualified leads",
+          "description": "New leads that a person judged worth following up, in the month.",
+          "category": "Sales",
+          "period": "month",
+          "aggregation": "sum",
+          "polarity": "higher",
+          "valueFormat": "number",
+          "decimals": 0,
+          "submissionRule": "overwrite",
+          "sources": [
+            "web_form",
+            "mail",
+            "slack",
+            "telegram",
+            "api"
+          ],
+          "tags": [
+            "Sales"
+          ]
+        }
+      },
+      {
+        "key": "deals-won",
+        "metric": {
+          "format": "ziffr.metric/1",
+          "name": "Deals won",
+          "description": "Deals that were closed won in the month.",
+          "category": "Sales",
+          "period": "month",
+          "aggregation": "sum",
+          "polarity": "higher",
+          "valueFormat": "number",
+          "decimals": 0,
+          "submissionRule": "overwrite",
+          "sources": [
+            "web_form",
+            "mail",
+            "slack",
+            "telegram",
+            "api"
+          ],
+          "tags": [
+            "Sales",
+            "Monthly report"
+          ]
+        }
+      },
+      {
+        "key": "deals-lost",
+        "metric": {
+          "format": "ziffr.metric/1",
+          "name": "Deals lost",
+          "description": "Deals that were closed lost in the month.",
+          "category": "Sales",
+          "period": "month",
+          "aggregation": "sum",
+          "polarity": "lower",
+          "valueFormat": "number",
+          "decimals": 0,
+          "submissionRule": "overwrite",
+          "sources": [
+            "web_form",
+            "mail",
+            "slack",
+            "telegram",
+            "api"
+          ],
+          "tags": [
+            "Sales"
+          ]
+        }
+      },
+      {
+        "key": "won-value",
+        "metric": {
+          "format": "ziffr.metric/1",
+          "name": "Closed-won value",
+          "description": "The value of the deals won in the month.",
+          "category": "Sales",
+          "period": "month",
+          "aggregation": "sum",
+          "polarity": "higher",
+          "unit": "€",
+          "unitPosition": "after",
+          "valueFormat": "currency",
+          "decimals": 0,
+          "submissionRule": "overwrite",
+          "sources": [
+            "web_form",
+            "mail",
+            "slack",
+            "telegram",
+            "api"
+          ],
+          "tags": [
+            "Sales",
+            "Revenue",
+            "Monthly report"
+          ]
+        }
+      },
+      {
+        "key": "pipeline-value",
+        "metric": {
+          "format": "ziffr.metric/1",
+          "name": "Pipeline value",
+          "description": "The value of the open deals at month end.",
+          "category": "Sales",
+          "period": "month",
+          "aggregation": "last",
+          "polarity": "higher",
+          "unit": "€",
+          "unitPosition": "after",
+          "valueFormat": "currency",
+          "decimals": 0,
+          "submissionRule": "overwrite",
+          "sources": [
+            "web_form",
+            "mail",
+            "slack",
+            "telegram",
+            "api"
+          ],
+          "tags": [
+            "Sales"
+          ]
+        }
+      },
+      {
+        "key": "sales-cycle",
+        "metric": {
+          "format": "ziffr.metric/1",
+          "name": "Sales cycle",
+          "description": "The average number of days from first contact to a won deal, for the deals won in the month.",
+          "category": "Sales",
+          "period": "month",
+          "aggregation": "average",
+          "polarity": "lower",
+          "unit": "days",
+          "unitPosition": "after",
+          "valueFormat": "number",
+          "decimals": 0,
+          "submissionRule": "overwrite",
+          "sources": [
+            "web_form",
+            "mail",
+            "slack",
+            "telegram",
+            "api"
+          ],
+          "tags": [
+            "Sales"
+          ]
+        }
+      },
+      {
+        "key": "win-rate",
+        "metric": {
+          "format": "ziffr.metric/1",
+          "name": "Win rate",
+          "description": "Deals won as a share of the deals closed (won and lost) in the month.",
+          "category": "Sales",
+          "period": "month",
+          "aggregation": "none",
+          "polarity": "higher",
+          "unit": "%",
+          "unitPosition": "after",
+          "valueFormat": "percent",
+          "decimals": 0,
+          "formula": "{deals-won} / ({deals-won} + {deals-lost}) * 100",
+          "tags": [
+            "Sales",
+            "Monthly report"
+          ]
+        }
+      },
+      {
+        "key": "average-deal",
+        "metric": {
+          "format": "ziffr.metric/1",
+          "name": "Average deal size",
+          "description": "Closed-won value divided by the number of deals won in the month.",
+          "category": "Sales",
+          "period": "month",
+          "aggregation": "none",
+          "polarity": "higher",
+          "unit": "€",
+          "unitPosition": "after",
+          "valueFormat": "currency",
+          "decimals": 0,
+          "formula": "{won-value} / {deals-won}",
+          "tags": [
+            "Sales"
+          ]
+        }
+      }
+    ],
+    "dashboards": [
+      {
+        "key": "sales-monthly",
+        "template": {
+          "format": "ziffr.dashboard-template/1",
+          "name": "Sales monthly",
+          "description": "Deals won and what they were worth, how many leads came in and how many became deals, and the pipeline still to come.",
+          "slots": [
+            {
+              "label": "Deals won",
+              "suggests": "deals-won"
+            },
+            {
+              "label": "Closed-won value",
+              "suggests": "won-value"
+            },
+            {
+              "label": "Win rate",
+              "suggests": "win-rate"
+            },
+            {
+              "label": "Pipeline value",
+              "suggests": "pipeline-value"
+            },
+            {
+              "label": "New leads",
+              "suggests": "new-leads"
+            },
+            {
+              "label": "Sales cycle",
+              "suggests": "sales-cycle"
+            }
+          ],
+          "widgets": [
+            {
+              "view": "number",
+              "slots": [
+                0
+              ],
+              "x": 0,
+              "y": 0,
+              "w": 3,
+              "h": 4
+            },
+            {
+              "view": "number",
+              "slots": [
+                1
+              ],
+              "x": 3,
+              "y": 0,
+              "w": 3,
+              "h": 4
+            },
+            {
+              "view": "gauge",
+              "slots": [
+                2
+              ],
+              "x": 6,
+              "y": 0,
+              "w": 3,
+              "h": 4
+            },
+            {
+              "view": "number",
+              "slots": [
+                3
+              ],
+              "x": 9,
+              "y": 0,
+              "w": 3,
+              "h": 4
+            },
+            {
+              "view": "line",
+              "slots": [
+                1
+              ],
+              "x": 0,
+              "y": 4,
+              "w": 8,
+              "h": 6,
+              "settings": {
+                "window": 12
+              }
+            },
+            {
+              "view": "number",
+              "slots": [
+                5
+              ],
+              "x": 8,
+              "y": 4,
+              "w": 4,
+              "h": 6
+            },
+            {
+              "view": "bars",
+              "slots": [
+                4
+              ],
+              "x": 0,
+              "y": 10,
+              "w": 12,
+              "h": 6,
+              "settings": {
+                "window": 12
+              }
+            }
+          ]
+        }
+      }
+    ],
+    "workflows": [
+      {
+        "key": "monthly-sales",
+        "template": {
+          "format": "ziffr.workflow-template/1",
+          "name": "Monthly sales figures",
+          "description": "The month's sales figures are asked for on the second working day after the month, and published.",
+          "dueWorkingDays": 2,
+          "steps": [
+            {
+              "type": "remind",
+              "daysBefore": 1
+            },
+            {
+              "type": "escalate",
+              "to": "owner",
+              "daysAfter": 1
+            },
+            {
+              "type": "check",
+              "changePct": 40,
+              "outsideTarget": true
+            },
+            {
+              "type": "publish",
+              "lock": false
+            }
+          ]
+        }
+      }
+    ]
+  },
+  "feeds": [
+    {
+      "template": "hubspot",
+      "fills": [
+        "deals-won",
+        "new-leads"
+      ]
+    },
+    {
+      "template": "google-sheets",
+      "fills": [
+        "won-value",
+        "pipeline-value"
+      ]
+    }
+  ]
+}
