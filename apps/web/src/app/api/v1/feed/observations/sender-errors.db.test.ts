@@ -88,7 +88,7 @@ describe("a request that is not right is refused whole, with words that name wha
   ];
   it.each(BAD)("%s: 400, naming the field, and nothing is recorded", async (_what, body, o, status, words) => {
     const { m, bearer } = await setup();
-    const res = await send(typeof body === "object" && body !== null && JSON.stringify(body).includes('"x"') ? JSON.parse(JSON.stringify(body).replaceAll('"x"', JSON.stringify(m.slug))) : body, { auth: bearer, ...o });
+    const res = await send(typeof body === "object" && body !== null && JSON.stringify(body).includes('"x"') ? JSON.parse(JSON.stringify(body).split('"x"').join(JSON.stringify(m.slug))) : body, { auth: bearer, ...o });
     expect(res.status).toBe(status);
     const err = ((await res.json()) as { error: { code: string; message: string } }).error;
     expect(err.code).toBe("invalid_request");
@@ -136,7 +136,7 @@ describe("a value the Metric's rules refuse is that item's refusal, with a code,
 
   it("takes extreme numbers as numbers or refuses them in words, never a 500: negative, zero, tiny, huge, many digits", async () => {
     const { w, sara, feedId, bearer } = await setup();
-    const metrics = [];
+    const metrics: { id: number; slug: string }[] = [];
     for (let i = 0; i < 6; i++) { const x = await w.metric(sara, { name: `Edge ${i}`, sources: ["api"], submission_rule: "overwrite" }); await addFeedToMetric(w.actor(sara), x.id, feedId); metrics.push(x); }
     const values = [-5, 0, 1e-12, 1e15, 1e300, 123456789012345.6789];
     const res = await send({ items: metrics.map((x, i) => ({ metric: x.slug, value: values[i] })) }, { auth: bearer });
