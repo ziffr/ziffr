@@ -1,6 +1,6 @@
 # 0049 Feedback: people tell us what is wrong or missing, and hear back, without a GitHub account
 
-**Status:** in progress (tickets 1 and 3 built: the store and the bridge out, which needs a security review before it is switched on). **Ticket:** tracking issue #914, tickets #915, #916, #917, #918, #919, #920 (the owner's wish, 2026-11-23).
+**Status:** in progress (tickets 1, 3 and 5 built: the store, the bridge out and the review queue with the mode setting, which need a security review before they are switched on). **Ticket:** tracking issue #914, tickets #915, #916, #917, #918, #919, #920 (the owner's wish, 2026-11-23).
 
 ## Problem Statement
 
@@ -48,7 +48,7 @@ Most people who use Ziffr have no GitHub account and should not need one to tell
 
 ### The switch
 
-A central setting `feedback.mode` = `direct | review`, default `direct`, changed by an operator in the central operations area and recorded. In `review`, a maintainer sees the queue, may approve, edit (the person is told the words were edited) or reject with a reason that is sent to the person.
+A central setting `feedback.mode` = `direct | review`, default `direct` (built as the Installation Setting `ZIFFR_FEEDBACK_MODE` in the Feedback section of the Installation settings page, shown only in the central version), changed by an Installation Admin and recorded in the Installation's audit. In `review`, a maintainer (an Installation Admin of the central version) sees the queue at `/installation/feedback`, may approve, edit (the person is told the words were edited) or reject with a reason that is sent to the person.
 
 ## Testing Decisions
 

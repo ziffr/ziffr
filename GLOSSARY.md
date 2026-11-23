@@ -118,7 +118,7 @@ A small card in the corner of the app that asks a signed-in person "Enjoying Zif
 _Avoid_: Popup, survey, rating, nag
 
 **Feedback**:
-A message from a signed-in person to the Ziffr team, on hosted Ziffr only: a kind (a problem, an idea or a question), their words, and the page and app version it was sent from, kept with a status (waiting for review, open, answered, closed) and its own conversation. It lives outside every Workspace, is never added to a Workspace Export, carries no Metric name, value or other Workspace data, and is seen only by the person who sent it (My feedback) and by the Ziffr team. Not a Finding (an observation about numbers), a Question or a Task (asked of a person in their Workspace), nor the Feedback Prompt (the card that asks whether people like Ziffr).
+A message from a signed-in person to the Ziffr team, on hosted Ziffr only: a kind (a problem, an idea or a question), their words, and the page and app version it was sent from, kept with a status (waiting for review, open, answered, closed) and its own conversation. It lives outside every Workspace, is never added to a Workspace Export, carries no Metric name, value or other Workspace data, and is seen only by the person who sent it (My feedback) and by the Ziffr team. Feedback is posted directly (the default) or, when an Installation Admin of the central version sets review first, waits in the review queue: they approve it, edit its words (the person is told) or reject it with a reason the person reads. Not a Finding (an observation about numbers), a Question or a Task (asked of a person in their Workspace), nor the Feedback Prompt (the card that asks whether people like Ziffr).
 _Avoid_: Ticket, support request, report, review
 
 **Feed**:
