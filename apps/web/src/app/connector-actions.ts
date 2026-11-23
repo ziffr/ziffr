@@ -79,7 +79,9 @@ export async function disconnectSlack() {
 }
 
 /** "Send me a test" (spec 0052): a Test Message to the person themself by email, Slack or Telegram. The way is the only
- * input; the core decides the recipient (always the signed-in person) and the limits. */
+ * input; the core decides the recipient (always the signed-in person) and the limits. The buttons come with ticket 8
+ * of spec 0052 (Ways in and out), so nothing calls it yet.
+ * @public */
 export async function sendTestMessage(way: string) {
   return attempt(async () => {
     const result = await testMessage.sendTestMessage(await currentActor(), way);
