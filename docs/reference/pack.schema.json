@@ -100,6 +100,7 @@
           "template": {
             "enum": [
               "google-sheets",
+              "excel",
               "stripe",
               "hubspot"
             ],

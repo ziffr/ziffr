@@ -10,6 +10,15 @@
       "rows": true
     },
     {
+      "id": "excel",
+      "label": "Microsoft Excel",
+      "file": "excel-feed.json",
+      "guide": "excel-feed.md",
+      "reads": "The rows of one Excel table in a workbook on OneDrive or SharePoint: a column metric (the Metric's slug), a column value, and optionally a column period (the period's first day, a date cell).",
+      "needs": "A Microsoft account that can read the workbook, and an app registration for n8n.",
+      "rows": true
+    },
+    {
       "id": "stripe",
       "label": "Stripe",
       "file": "stripe-feed.json",

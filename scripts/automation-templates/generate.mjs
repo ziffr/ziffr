@@ -333,6 +333,24 @@ const sheetsFeed = () => feedFlow({ ...SHEETS, figures: fill(code("sheets-figure
   return ["Read the sheet"];
 });
 
+const EXCEL = {
+  key: "excel", id: "excel", system: "excel", label: "Microsoft Excel", file: "excel-feed.json", guide: "excel-feed.md",
+  reads: "The rows of one Excel table in a workbook on OneDrive or SharePoint: a column metric (the Metric's slug), a column value, and optionally a column period (the period's first day, a date cell).",
+  needs: "A Microsoft account that can read the workbook, and an app registration for n8n.",
+  rows: true,
+};
+const excelFeed = () => feedFlow({ ...EXCEL, figures: fill(code("excel-figures"), { LABEL: EXCEL.label }), settings: [["ziffrUrl", "https://REPLACE-WITH-YOUR-ZIFFR-ADDRESS"], ["workbookId", "REPLACE-WITH-THE-WORKBOOK-ID"], ["sheetName", "REPLACE-WITH-THE-SHEET-NAME"], ["tableName", "REPLACE-WITH-THE-TABLE-NAME"]], fillIn: "where the figures are (the workbook, its sheet and the table)", readNames: ["Read the table"] }, (w, x, y) => {
+  w.add("Read the table", "n8n-nodes-base.microsoftExcel", {
+    resource: "table", operation: "getRows",
+    workbook: { __rl: true, value: "={{ $('Settings').first().json.workbookId }}", mode: "id" },
+    worksheet: { __rl: true, value: "={{ $('Settings').first().json.sheetName }}", mode: "id" },
+    table: { __rl: true, value: "={{ $('Settings').first().json.tableName }}", mode: "id" },
+    returnAll: true,
+    options: {},
+  }, x, y, 2.2, { credentials: { microsoftExcelOAuth2Api: { name: "Microsoft Excel account" } } });
+  return ["Read the table"];
+});
+
 const STRIPE = {
   key: "stripe", id: "stripe", system: "stripe", label: "Stripe", file: "stripe-feed.json", guide: "stripe-feed.md",
   reads: "Your subscriptions, read only: monthly recurring revenue, customers with a subscription and customers who cancelled, for the month that has just ended.",
@@ -376,7 +394,7 @@ const hubspotFeed = () => feedFlow({
   hubspotCount(w, "Count new contacts", "contacts", range("createdate"), x + 220, y);
   return ["Count deals won", "Count new contacts"];
 });
-const FEED_TEMPLATES = [SHEETS, STRIPE, HUBSPOT];
+const FEED_TEMPLATES = [SHEETS, EXCEL, STRIPE, HUBSPOT];
 
 export function generate() {
   const [todo, google, asana] = SYSTEMS_LIST;
@@ -388,7 +406,7 @@ export function generate() {
     "planner-from-ziffr.json": plannerFrom(), "planner-to-ziffr.json": plannerTo(),
     "slack-from-ziffr.json": slackFrom(), "slack-to-ziffr.json": slackTo(),
   };
-  const feeds = { "google-sheets-feed.json": sheetsFeed(), "stripe-feed.json": stripeFeed(), "hubspot-feed.json": hubspotFeed() };
+  const feeds = { "google-sheets-feed.json": sheetsFeed(), "excel-feed.json": excelFeed(), "stripe-feed.json": stripeFeed(), "hubspot-feed.json": hubspotFeed() };
   const index = { templates: FEED_TEMPLATES.map(({ id, label, file, guide, reads, needs, rows }) => ({ id, label, file, guide, reads, needs, ...(rows ? { rows } : {}) })) };
   return {
     ...Object.fromEntries(Object.entries({ ...all, ...feeds }).map(([f, w]) => [f, JSON.stringify(w.file(), null, 2) + "\n"])),
