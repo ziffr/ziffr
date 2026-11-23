@@ -10,9 +10,9 @@
 // - A period without a Breakdown is not drawn, and the chart says how many were left out.
 // - One row, the one that gained the most places from the first to the last period drawn, is named in words ("up 3
 //   places"); colour never says it alone.
-import { shiftPeriod, type Span } from "./periods";
+import type { Span } from "./periods";
 import type { BreakdownRow } from "./types";
-import { windowProblem } from "./polar-marks";
+import { count, drawnPeriods, merged } from "./stacked-marks";
 
 /** How many rows are drawn; the rest are counted in the caption. */
 export const BUMP_ROWS = 8;
@@ -48,15 +48,6 @@ export type BumpInput = {
   write: (value: number) => string;
 };
 
-const count = (n: number, what: string) => `${n} ${what}${n === 1 ? "" : "s"}`;
-
-/** Rows by label, a label that appears twice added up, a value that is not a number left out. */
-function merged(rows: BreakdownRow[]): Map<string, number> {
-  const out = new Map<string, number>();
-  for (const r of rows) if (Number.isFinite(r.value)) out.set(r.label, (out.get(r.label) ?? 0) + r.value);
-  return out;
-}
-
 /** The rank of every row of one period: 1 for the highest value, rows with the same value sharing the better rank. */
 function ranksOf(values: Map<string, number>): Map<string, number> {
   const all = [...values.values()];
@@ -70,12 +61,9 @@ export function upWords(places: number): string {
 
 /** The bump chart of a Metric's Breakdowns over the last `window` periods ending at `to`, or why there is none. */
 export function bumpModel(input: BumpInput): BumpModel {
-  const problem = windowProblem(input.window);
-  if (problem) return { ok: false, reason: problem };
-  const from = shiftPeriod(input.to, input.by, 1 - input.window);
-  const inWindow = (p: string) => p >= from && p <= input.to;
-  const drawn = Object.keys(input.byPeriod).filter((p) => inWindow(p) && merged(input.byPeriod[p]).size > 0).sort();
-  if (drawn.length === 0) return { ok: false, reason: "No period shown has a breakdown to draw." };
+  const window = drawnPeriods(input);
+  if (!window.ok) return window;
+  const { drawn, leftOut } = window;
   if (drawn.length < 2) return { ok: false, reason: "A bump chart needs a breakdown in at least 2 periods; only 1 period shown has one." };
   const perPeriod = drawn.map((p) => merged(input.byPeriod[p]));
   const ranked = perPeriod.map(ranksOf);
@@ -117,8 +105,6 @@ export function bumpModel(input: BumpInput): BumpModel {
   });
   const lowest = Math.max(...rows.flatMap((r) => r.ranks.filter((x): x is number => x !== null)));
 
-  const candidates = new Set([...input.periods.filter(inWindow), ...Object.keys(input.byPeriod).filter(inWindow)]);
-  const leftOut = [...candidates].filter((p) => !drawn.includes(p)).length;
   const missing = rows.filter((r) => r.ranks.includes(null));
   const periods = drawn.map((period) => ({ period, label: input.label(period) }));
 

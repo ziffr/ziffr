@@ -5,13 +5,11 @@
 // file only turns it into SVG from Theme tokens, so a widget, a Snapshot, a View Link and a deck's picture show the same
 // chart. It reaches no Metric but the widget's own. Colour never carries meaning alone: the row that gained the most
 // places says "up 3 places" in its label, and every row is named at the end of its line.
-import type { ReactNode } from "react";
 import { formatValue } from "@ziffr/core/format";
-import { periodLabel } from "@ziffr/core/periods";
 import { bumpModel, upWords } from "@ziffr/core/bump-marks";
+import { breakdownInput } from "./breakdown-input";
 import type { DesignValues } from "./design-view";
-import { useBoxSize } from "./use-box-size";
-import { useWidgetScale } from "./widget-scale";
+import { ChartFrame, useChartSize, Words } from "./chart-frame";
 
 const NAME = 16;
 
@@ -30,22 +28,9 @@ function spread(wanted: number[], floor: number, gap: number): number[] {
 
 /** A bump chart of a Metric's Breakdowns over its last periods. */
 export function BumpMark({ v }: { v: DesignValues }) {
-  const { m, data } = v;
-  const last = v.all[v.all.length - 1];
-  const byPeriod = data.breakdowns[m.id] ?? {};
-  // The window ends at the newest period the Metric has a value or a Breakdown in.
-  const newest = [last?.period, ...Object.keys(byPeriod)].filter((p): p is string => !!p).sort().pop();
-  if (!newest) return <Words>{m.name} has no breakdown to draw.</Words>;
-  const model = bumpModel({
-    name: m.name,
-    by: v.by,
-    to: newest,
-    window: v.win,
-    byPeriod,
-    periods: v.all.map((p) => p.period),
-    label: (p) => periodLabel(p, v.by, data.yearStart, true),
-    write: (x) => formatValue(m, x, data.numberStyle),
-  });
+  const input = breakdownInput(v);
+  if (!input) return <Words>{v.m.name} has no breakdown to draw.</Words>;
+  const model = bumpModel(input);
   if (!model.ok) return <Words>{model.reason}</Words>;
   return <BumpChart v={v} model={model} />;
 }
@@ -56,13 +41,7 @@ export function BumpMark({ v }: { v: DesignValues }) {
 function BumpChart({ v, model }: { v: DesignValues; model: Extract<ReturnType<typeof bumpModel>, { ok: true }> }) {
   const { m, data } = v;
   const { periods, rows, lowest } = model;
-  const scale = useWidgetScale();
-  const [whole, all] = useBoxSize<HTMLDivElement>();
-  const [box, size] = useBoxSize<HTMLDivElement>();
-  // Until the box is measured (the first render on the server, a drawing made without a screen) a nominal size is drawn.
-  const measured = size.w > 0 && size.h > 0;
-  const W = measured ? size.w : 360;
-  const H = measured ? size.h : 190;
+  const { scale, whole, all, box, W, H } = useChartSize({ w: 360, h: 190 });
   const fs = 10 * scale;
   const detail = W / scale >= 430 ? "full" : W / scale >= 250 ? "mid" : "narrow";
   const n = periods.length;
@@ -85,8 +64,16 @@ function BumpChart({ v, model }: { v: DesignValues; model: Extract<ReturnType<ty
   const movers = rows.filter((r) => r.up !== null).map((r) => `${r.label} ${upWords(r.up!)}`);
   const tall = all.h === 0 || all.h / scale >= 190;
   return (
-    <div ref={whole} className="flex min-h-0 w-full flex-1 flex-col">
-      <div ref={box} className="relative min-h-[5rem] w-full flex-1">
+    <ChartFrame
+      whole={whole}
+      box={box}
+      below={
+        <>
+          {detail !== "full" && tall && movers.length > 0 && <Words>{movers.join(" · ")}</Words>}
+          {tall && <Words>{model.rule}</Words>}
+        </>
+      }
+    >
         <svg viewBox={`0 0 ${W} ${H}`} className="absolute inset-0 size-full" role="img" aria-label={model.alt}>
           <line x1={left} x2={W - right} y1={bottom} y2={bottom} stroke="var(--color-rule)" strokeWidth={0.8} />
           {Array.from({ length: lowest }, (_, k) => k + 1).map((rank) => (
@@ -135,13 +122,6 @@ function BumpChart({ v, model }: { v: DesignValues; model: Extract<ReturnType<ty
             );
           })}
         </svg>
-      </div>
-      {detail !== "full" && tall && movers.length > 0 && <Words>{movers.join(" · ")}</Words>}
-      {tall && <Words>{model.rule}</Words>}
-    </div>
+    </ChartFrame>
   );
-}
-
-function Words({ children }: { children: ReactNode }) {
-  return <p className="widget-text-xs mt-0.5 text-muted-foreground">{children}</p>;
 }
