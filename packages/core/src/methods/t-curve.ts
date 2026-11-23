@@ -7,7 +7,10 @@
 // Stegun 26.7.3 and 26.7.4), with s = t ÷ √(ν + t²) the sine and c = √ν ÷ √(ν + t²) the cosine of the angle θ = atan(t ÷ √ν):
 //   ν even: P(|T| ≤ t) = s · [1 + ½c² + (1·3)/(2·4) c⁴ + … + (1·3···(ν−3))/(2·4···(ν−2)) c^(ν−2)];
 //   ν odd:  P(|T| ≤ t) = (2/π) · [θ + s·c · (1 + ⅔c² + (2·4)/(3·5) c⁴ + … + (2·4···(ν−3))/(3·5···(ν−2)) c^(ν−3))]  (just 2θ/π for ν = 1).
-// Every term is positive, so nothing cancels. The quantile is found by bisection on that chance.
+// Every term is positive, so the chance within ±t loses nothing. The chance of a value far below 0 is a small difference of 0.5 and half
+// of that, which a double cannot keep, so the lower tail is worked out directly: ½ · I_x(ν/2, ½), x = ν ÷ (ν + t²), the regularized
+// incomplete beta function by Lentz's continued fraction (which converges fast where x is below (a + 1) ÷ (a + b + 2), the tail), with
+// ln Γ at whole and half-whole numbers from Stirling's series. The quantile is found by bisection on the curve.
 
 /** The 80 % range's tail: a chance of 0.9 below the point, so that the range around a result holds 80 %. */
 export const LIKELY = 0.9;
@@ -15,12 +18,44 @@ export const LIKELY = 0.9;
 /** The most degrees of freedom the curve is worked out for; the sum has about half as many terms. */
 export const MOST_DF = 100_000;
 
+// ln Γ(k ÷ 2) for a whole k ≥ 1: Stirling's series from 30 on, and below that Γ(z + 1) = z·Γ(z) up to it.
+function lnGammaHalf(k: number): number {
+  let [z, shift] = [k / 2, 0];
+  for (; z < 30; z += 1) shift -= Math.log(z);
+  return (z - 0.5) * Math.log(z) - z + 0.5 * Math.log(2 * Math.PI) + 1 / (12 * z) - 1 / (360 * z ** 3) + 1 / (1260 * z ** 5) - 1 / (1680 * z ** 7) + shift;
+}
+
+// I_x(ν/2, ½) for x below (ν/2 + 1) ÷ (ν/2 + 2.5): the front factor times Lentz's continued fraction ÷ a.
+function lowerBeta(x: number, df: number): number {
+  const [a, b] = [df / 2, 0.5];
+  const front = Math.exp(lnGammaHalf(df + 1) - lnGammaHalf(df) - 0.5 * Math.log(Math.PI) + a * Math.log(x) + b * Math.log1p(-x));
+  const tiny = 1e-300;
+  const nonzero = (v: number) => (Math.abs(v) < tiny ? tiny : v);
+  let [c, d] = [1, 1 / nonzero(1 - ((a + b) * x) / (a + 1))];
+  let h = d;
+  // Each pass takes two steps of the fraction; it has converged when the factor is 1 to the last digit (a few hundred passes at most).
+  for (let m = 1; ; m++) {
+    const m2 = 2 * m;
+    let factor = 1;
+    for (const aa of [(m * (b - m) * x) / ((a - 1 + m2) * (a + m2)), (-(a + m) * (a + b + m) * x) / ((a + m2) * (a + 1 + m2))]) {
+      d = 1 / nonzero(1 + aa * d);
+      c = nonzero(1 + aa / c);
+      factor = d * c;
+      h *= factor;
+    }
+    if (Math.abs(factor - 1) < 1e-16) return (front * h) / a;
+  }
+}
+
 /** The chance that a t value with `df` degrees of freedom lies at or below `t`; NaN for a `df` that is not a whole number from 1 to `MOST_DF`, or a `t` that is NaN. */
 export function tCdf(t: number, df: number): number {
   if (!Number.isInteger(df) || df < 1 || df > MOST_DF || Number.isNaN(t)) return NaN;
   // The ends of the line: all of the curve is beyond them.
   if (t === Infinity) return 1;
   if (t === -Infinity) return 0;
+  // Far below 0 the chance is a tail: worked out directly, where x is small enough for the fraction to converge.
+  const x = df / (df + t * t);
+  if (t < 0 && x < (df / 2 + 1) / (df / 2 + 2.5)) return 0.5 * lowerBeta(x, df);
   const root = Math.sqrt(df + t * t);
   // t ÷ √(ν + t²) cannot lose a digit to the square root, even for t as large as a double goes: hypot is not needed for ν ≥ 1.
   const [s, c] = [Math.abs(t) / root, Math.sqrt(df) / root];

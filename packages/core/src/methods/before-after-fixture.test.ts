@@ -37,8 +37,8 @@ describe("which Takeaways carry the footer", () => {
   const ctx = { style: "1,234.5" } as const;
   const unit = { unit: "€", unit_position: "after", decimals: 0 } as const;
   const wavy = (n: number) => Array.from({ length: n }, (_, i) => 100 + 3 * i + ((i * 37) % 11) - 5 + (i >= 12 ? 40 : 0));
-  it("belongs to before and after (its own line: it compares with where the earlier trend pointed) and not to the change point (a Metric's own values)", () => {
+  it("belongs to before and after (it compares with where the earlier trend pointed) and to the change point (it says when, not what made the change), each with a line of its own", () => {
     expect(afterDateTakeaway("A", series(wavy(24)), "month", "2025-01-01", unit, ctx).footer).toBe("This compares what happened with where the earlier trend pointed; it does not show what made the difference.");
-    expect(changePointTakeaway("A", series(wavy(24)), "month", unit, ctx).footer).toBeNull();
+    expect(changePointTakeaway("A", series(wavy(24)), "month", unit, ctx).footer).toBe("This shows when the numbers changed, not what made them change.");
   });
 });

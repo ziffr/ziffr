@@ -28,7 +28,7 @@ def two(v):
 t_dfs = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 12, 15, 20, 30, 50, 100, 500, 2000]
 t_ps = [0.001, 0.01, 0.05, 0.1, 0.25, 0.4, 0.5, 0.55, 0.6, 0.75, 0.8, 0.9, 0.95, 0.975, 0.99, 0.995, 0.999]
 t_ppf = [{"p": p, "df": df, "t": float(stats.t.ppf(p, df))} for df in t_dfs for p in t_ps]
-t_grid = [-60.0, -20.0, -8.0, -3.5, -2.0, -1.0, -0.25, 0.0, 0.25, 1.0, 2.0, 3.5, 8.0, 20.0, 60.0]
+t_grid = [-60.0, -50.0, -20.0, -10.0, -8.0, -5.0, -3.5, -2.0, -1.0, -0.25, 0.0, 0.25, 1.0, 2.0, 3.5, 8.0, 20.0, 60.0]
 t_cdf = [{"t": t, "df": df, "p": float(stats.t.cdf(t, df))} for df in t_dfs for t in t_grid]
 # The 80 % range's point for every number of degrees of freedom the Methods use (the line before a date has 4 or more).
 t_80 = [{"df": df, "t": float(stats.t.ppf(0.9, df))} for df in range(1, 201)]
@@ -59,7 +59,18 @@ def after_case(values, start):
     half = float(stats.t.ppf(0.9, n - 2) * np.sqrt(var))
     out = {"values": values, "start": start, "n": n, "m": m, "slope": float(beta[1]), "intercept": float(beta[0]), "sse": sse,
            "spread": float(np.sqrt(s2)), "expected": expected, "actual": float(np.mean(ya)), "gap": gap, "half": half, "lo": gap - half, "hi": gap + half}
-    out["share"] = None if expected <= 0 else {"gap": 100 * gap / expected, "lo": 100 * (gap - half) / expected, "hi": 100 * (gap + half) / expected}
+    # The share of the trend's level: Fieller's interval for the ratio actual ÷ expected, with the level's own uncertainty
+    # ((E - rho*Y)... solved here as the roots of A rho^2 - 2 Y E rho + (Y^2 - h) = 0, A = E^2 - g, g = t^2 s2 q, h = t^2 s2 / m).
+    tq = float(stats.t.ppf(0.9, n - 2))
+    q = float(c @ np.linalg.inv(design.T @ design) @ c)
+    g, h = tq ** 2 * s2 * q, tq ** 2 * s2 / m
+    big_a = expected ** 2 - g
+    out["share"] = None
+    if expected > 0 and big_a > 0:
+        y = float(np.mean(ya))
+        # A line with no miss has a double root, which numpy.roots cannot give to more than half the digits: that range is one point.
+        roots = [y / expected, y / expected] if s2 < 1e-12 else sorted(np.roots([big_a, -2 * y * expected, y * y - h]).real)
+        out["share"] = {"gap": 100 * gap / expected, "lo": 100 * (roots[0] - 1), "hi": 100 * (roots[1] - 1)}
     return out
 
 

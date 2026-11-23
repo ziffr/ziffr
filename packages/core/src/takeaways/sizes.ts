@@ -34,6 +34,18 @@ export function decimalsFor(values: readonly number[], base: number, style: Numb
   return decimals;
 }
 
+/** Like `decimalsFor`, and with as many more decimals as it takes for two values that are not equal to be written differently (with their signs),
+ * so that "up 1 a month; since, up 1 a month" never stands for 1.011 and 0.886; null where that cannot be done in 20 decimals. */
+export function decimalsApart(values: readonly number[], base: number, style: NumberStyle): number | null {
+  const start = decimalsFor(values, base, style);
+  if (start === null) return null;
+  for (let decimals = start; decimals <= MOST_DECIMALS; decimals++) {
+    const written = values.map((v) => writeNumber(v, decimals, style));
+    if (values.every((v, i) => values.every((w, j) => v === w || written[i] !== written[j]))) return decimals;
+  }
+  return null;
+}
+
 /** A size without its sign, in the unit: "3,400 €". */
 export function sizeText(v: number, unit: ValueUnit, decimals: number, style: NumberStyle): string {
   return writeNumber(Math.abs(v), decimals, style, { unit: unit.unit, side: unit.unit_position });

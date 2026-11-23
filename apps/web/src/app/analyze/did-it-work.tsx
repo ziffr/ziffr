@@ -44,6 +44,7 @@ export function DidItWork({ data, metrics }: { data: CanvasData; metrics: Metric
       </div>
       {date && others.length > candidates.length && <p className="text-xs text-muted-foreground">Metrics counted at another period than {metric.name} cannot be set beside it.</p>}
       <TakeawayView takeaway={takeaway} />
+      <p className="text-xs text-muted-foreground">Either answer shows what happened and when, not why it happened.</p>
     </section>
   );
 }

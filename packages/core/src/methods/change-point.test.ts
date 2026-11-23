@@ -307,13 +307,14 @@ const text = (t: ReturnType<typeof changePointTakeaway>) => [t.sentence, t.refus
 
 describe("the Takeaway of a change point", () => {
   const kink = (n: number, k: number, up: number, down: number, base = 50) => Array.from({ length: n }, (_, i) => base + (i < k ? up * i : up * k + down * (i - k)));
-  it("says where, how it went before and since, and the step, in the Metric's unit and period, with no strength word, no range and no footer", () => {
+  it("says where, how it went before and since, and the step, in the Metric's unit and period, with no strength word and no range, and the footer of its own", () => {
     const t = changePointTakeaway("Signups", series(kink(20, 10, 5, -3)), "month", euro, ctx);
     expect(t.kind).toBe("answer");
     expect(t.sentence).toBe("Around November 2024, Signups changed: before, it went up 5 € a month; since, down 3 € a month; and at that point its level was just where the earlier trend would have put it.");
-    expect([t.strength, t.strengthText, t.range, t.footer]).toEqual([null, null, null, null]);
+    expect([t.strength, t.strengthText, t.range]).toEqual([null, null, null]);
+    expect(t.footer).toBe("This shows when the numbers changed, not what made them change.");
     expect(t.basis).toBe("from a straight line before the date and another after it, over 20 months, with the bar for chance raised for the dates tried (13)");
-    expect(t.assumptions).toEqual(["This looks for one change only; the date is the one that fits best, and nearby dates may fit almost as well."]);
+    expect(t.assumptions).toEqual(["This looks for one change only; the date is the one that fits best, nearby dates may fit almost as well, and the ups and downs of each period are taken as not carrying over from the one before."]);
     expect(t.figures.map((f) => [f.label, f.value, f.text])).toEqual([["Trend before the date (per period)", 5, "5 €"], ["Trend after the date (per period)", 3, "3 €"], ["Step in level at the date", 0, "0 €"]]);
     expect(t.numbers.map((n) => [n.label, n.text])).toEqual([
       ["Method", "Change point"], ["Periods used", "20"], ["Dates tried", "13"], ["Best date", "2024-11-01"], ["Misses left, against one line", "0.0 %"],
@@ -336,8 +337,8 @@ describe("the Takeaway of a change point", () => {
     expect(t.basis).toContain("(23)");
     expect(t.numbers.map((n) => n.label)).toEqual(["Method", "Periods used", "Dates tried", "Best date", "Misses left, against one line"]);
     expect(t.numbers.map((n) => n.text)).toEqual(["Change point", "30", "23", "2024-07-01".replace("07", "07"), `${((c.sse1 / c.sse0) * 100).toFixed(1)} %`].map((x, i) => (i === 3 ? new Date(Date.UTC(2024, c.index, 1)).toISOString().slice(0, 10) : x)));
-    expect(t.assumptions).toEqual(["This looks for one change only; the date is the one that fits best, and nearby dates may fit almost as well."]);
-    expect(t.footer).toBeNull();
+    expect(t.assumptions).toEqual(["This looks for one change only; the date is the one that fits best, nearby dates may fit almost as well, and the ups and downs of each period are taken as not carrying over from the one before."]);
+    expect(t.footer).toBe("This shows when the numbers changed, not what made them change.");
     expect(t.figures.map((f) => f.value)).toEqual([30]);
   });
   it("is a refusal in words for too few periods (7 of 8, one step either side), a series that hardly changes, too many gaps and numbers too large, with no number, range, strength or footer", () => {
@@ -412,6 +413,41 @@ describe("the Takeaway of a change point", () => {
   it("does not run the far-off check when no change is found, and says nothing of far-off values then", () => {
     const flat = Array.from({ length: 20 }, (_, i) => 100 + noise(i));
     expect(changePointTakeaway("A", series(flat.map((v, i) => (i === 9 ? v + 1 : v))), "month", euro, ctx).cautions).toEqual([]);
+  });
+  it("writes two slopes that differ with digits that tell them apart, in the sentence and under Show the numbers: 1.011 and 0.886 a month are not both \"1 €\"", () => {
+    const values = Array.from({ length: 16 }, (_, i) => (i < 8 ? 100 + 1.011 * i : 100 + 1.011 * 7 + 30 + 0.886 * (i - 8)));
+    const t = changePointTakeaway("Signups", series(values.map((v) => Math.round(v * 1000) / 1000)), "month", euro, ctx);
+    expect(t.sentence).toContain("before, it went up 1.0 € a month; since, up 0.9 € a month");
+    const [a, b] = t.figures;
+    expect([a.text, b.text]).toEqual(["1.0 €", "0.9 €"]);
+    const rows = t.numbers.filter((n) => n.label.startsWith("Trend"));
+    expect(rows.map((n) => n.text)).toEqual(["+1.0 €", "+0.9 €"]);
+  });
+  it("finds and says a change on any span: weeks, quarters and years, the position of a value being its place in the calendar, equal to the reference", () => {
+    const starts: Record<string, (i: number) => string> = {
+      week: (i) => new Date(Date.UTC(2024, 0, 1 + 7 * i)).toISOString().slice(0, 10),
+      quarter: (i) => new Date(Date.UTC(2024, 3 * i, 1)).toISOString().slice(0, 10),
+      year: (i) => new Date(Date.UTC(2000 + i, 0, 1)).toISOString().slice(0, 10),
+    };
+    const values: (number | null)[] = [10, 11, 13, null, 14, 16, 15, 17, 40, 44, 47, null, 52, 55, 58, 60, 66];
+    for (const span of ["week", "quarter", "year"] as const) {
+      const rows = values.flatMap((v, i) => (v === null ? [] : [{ x: i, y: v, period: starts[span](i) }]));
+      const got = ok(changePoint(rows.map((r) => ({ period: r.period, value: r.y })), span));
+      const ref = referenceChange(rows.map((r) => r.x), rows.map((r) => exactOf(r.y)));
+      expect([got.index, got.found, got.before, got.after, got.step], span).toEqual([ref.index, ref.found, nearestDoubleOf(ref.left.slope), nearestDoubleOf(ref.right.slope), nearestDoubleOf(ref.step)]);
+      expect(got.found, span).toBe(true);
+      const t = changePointTakeaway("Sales", rows.map((r) => ({ period: r.period, value: r.y })), span, euro, ctx);
+      expect(t.sentence, span).toMatch(new RegExp(`a ${{ week: "week", quarter: "quarter", year: "year" }[span]};`));
+    }
+  });
+  it("asks the far-off check the same of the change point itself: without the spike the change point is exactly what the Method gives on the series with that period left out", () => {
+    const flat = Array.from({ length: 16 }, (_, i) => 100 + noise(i));
+    const spiky = flat.map((v, i) => (i === 12 ? v + 200 : v));
+    const rows = series(spiky);
+    expect(ok(changePoint(rows, "month")).found).toBe(true);
+    const without = ok(changePoint(rows.filter((p) => p.period !== rows[12].period), "month"));
+    expect(without.found).toBe(false);
+    expect(changePointTakeaway("A", rows, "month", euro, ctx).cautions[0]).toBe("This result is pulled by 1 month far from the rest; without them it reads no change at all.");
   });
   it("writes numbers in the Number Style and the Metric's unit, and no forbidden word anywhere", () => {
     const de = { style: "1.234,5" as const };

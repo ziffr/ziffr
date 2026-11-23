@@ -48,7 +48,30 @@ export function referenceAfter(before: { x: number; y: Exact }[], after: { x: nu
   const cx = divide(sumOf(after.map((p) => whole(p.x))), whole(m));
   const quadratic = divide(minus(plus(sxx, times(whole(n), times(cx, cx))), times(whole(2), times(cx, sx))), det);
   const variance = times(s2, plus(divide(whole(1), whole(m)), quadratic));
-  return { n, m, slope, intercept, sse, s2, expected, actual, gap, variance };
+  return { n, m, slope, intercept, sse, s2, expected, actual, gap, variance, quadratic };
+}
+
+/** The range of the share of the trend's level, by Fieller (the ratio ρ of the mean after to the level the line gives there): the ρ for which
+ * (Y − ρE)² ≤ t² · s² · (1/m + ρ² · q) holds, found by bisection outward from Y ÷ E, where it certainly holds; null where it has no end (E² ≤ t²s²q). In percent over the level. */
+export function referenceShareRange(ref: ReturnType<typeof referenceAfter>, nu: number): { lo: number; hi: number } | null {
+  const [E, Y, s2, q, m] = [nearestDoubleOf(ref.expected), nearestDoubleOf(ref.actual), nearestDoubleOf(ref.s2), nearestDoubleOf(ref.quadratic), ref.m];
+  const t2 = referenceTQuantile(0.9, nu) ** 2;
+  if (E * E <= t2 * s2 * q) return null;
+  // A line with no miss at all has no spread: the range is the one point.
+  if (s2 === 0) return { lo: 100 * (Y / E - 1), hi: 100 * (Y / E - 1) };
+  const inside = (rho: number) => (Y - rho * E) ** 2 <= t2 * s2 * (1 / m + rho * rho * q);
+  const edge = (direction: 1 | -1) => {
+    let [good, step] = [Y / E, 1];
+    while (inside(good + direction * step)) step *= 2;
+    let bad = good + direction * step;
+    for (let i = 0; i < 200; i++) {
+      const mid = (good + bad) / 2;
+      if (inside(mid)) good = mid;
+      else bad = mid;
+    }
+    return (good + bad) / 2;
+  };
+  return { lo: 100 * (edge(-1) - 1), hi: 100 * (edge(1) - 1) };
 }
 
 /** What the change point tries: for every date with at least 4 values each side, both parts fitted from scratch; the best date (the earliest of equal misses), and whether it clears the chance rule. */
@@ -82,10 +105,10 @@ export function referenceChange(x: readonly number[], y: readonly Exact[]) {
 
 // ---- Student's t curve ----
 
-/** ln Γ(k ÷ 2) for a whole k ≥ 1: Stirling's series from 12 on, and below that Γ(z + 1) = z·Γ(z) up to it. */
+/** ln Γ(k ÷ 2) for a whole k ≥ 1: Stirling's series from 30 on, and below that Γ(z + 1) = z·Γ(z) up to it. */
 function lnGammaHalf(k: number): number {
   let [z, shift] = [k / 2, 0];
-  for (; z < 12; z += 1) shift -= Math.log(z);
+  for (; z < 30; z += 1) shift -= Math.log(z);
   const stirling = (z - 0.5) * Math.log(z) - z + 0.5 * Math.log(2 * Math.PI) + 1 / (12 * z) - 1 / (360 * z ** 3) + 1 / (1260 * z ** 5) - 1 / (1680 * z ** 7);
   return stirling + shift;
 }
@@ -133,6 +156,20 @@ function beta(x: number, a2: number, b2: number): number {
 /** Student's t curve: the chance of a value at or below `t` with `nu` degrees of freedom. The chance of a value within ±|t| is
  * I_x(½, ν ÷ 2) with x = t² ÷ (ν + t²), which keeps its digits near 0; the curve is symmetric. */
 export function referenceTCdf(t: number, nu: number): number {
+  const x = nu / (nu + t * t);
+  // A tail (far below 0, x not near 1): ½ · I_x(ν/2, ½) from its power series x^a ÷ (a · B(a, ½)) · Σ (a)ₖ (½)ₖ ÷ ((a + 1)ₖ k!) xᵏ (A&S 6.6.8),
+  // a different route from the continued fraction, with no subtraction. Where x is near 1 the chance is not small, and the
+  // chance within ±t below keeps its digits.
+  if (t < 0 && x < 0.995) {
+    const a = nu / 2;
+    let [term, sum] = [1, 1];
+    for (let k = 1; term > 1e-18 * sum; k++) {
+      term *= ((a + k - 1) * (k - 0.5) * x) / ((a + k) * k);
+      sum += term;
+    }
+    const lnFront = a * Math.log(x) - Math.log(a) - (lnGammaHalf(nu) + 0.5 * Math.log(Math.PI) - lnGammaHalf(nu + 1));
+    return 0.5 * Math.exp(lnFront) * sum;
+  }
   const within = beta((t * t) / (nu + t * t), 1, nu);
   return t >= 0 ? 0.5 + within / 2 : 0.5 - within / 2;
 }

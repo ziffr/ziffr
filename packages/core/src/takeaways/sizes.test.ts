@@ -3,7 +3,7 @@
 import fc from "fast-check";
 import { describe, expect, it } from "vitest";
 import { runs } from "../test/reference/check";
-import { decimalsFor, plainValue, SHARE_UNIT, signedText, sizeText, valueText } from "./sizes";
+import { decimalsApart, decimalsFor, plainValue, SHARE_UNIT, signedText, sizeText, valueText } from "./sizes";
 
 const { numRuns, seed } = runs();
 const eur = { unit: "€", unit_position: "after", decimals: 0 } as const;
@@ -67,5 +67,37 @@ describe("how a size is written", () => {
   });
   it("leaves no stray space for a value with no unit", () => {
     expect(plainValue(3e-30, { unit: "", unit_position: "after", decimals: 0 }, 0, "1,234.5")).toBe("3.00e-30");
+  });
+});
+
+describe("decimals that tell values apart", () => {
+  it("are those of decimalsFor where every pair that differs already reads differently, and more where two would read the same (1.011 and 0.886 need one decimal, not 0)", () => {
+    expect(decimalsApart([5, 3], 0, "1,234.5")).toBe(0);
+    expect(decimalsApart([1.011, 0.886], 0, "1,234.5")).toBe(1);
+    expect(decimalsApart([1.04, 1.01], 0, "1,234.5")).toBe(2);
+    expect(decimalsApart([1.04, 1.01, 1.4], 1, "1,234.5")).toBe(2);
+    expect(decimalsApart([0.5, -0.5], 0, "1,234.5")).toBe(0);
+  });
+  it("leave equal values and a lone value alone, and count a sign as a difference", () => {
+    expect(decimalsApart([2, 2, 2], 0, "1,234.5")).toBe(0);
+    expect(decimalsApart([], 2, "1,234.5")).toBe(2);
+    expect(decimalsApart([0.4, -0.4], 0, "1,234.5")).toBe(1);
+    expect(decimalsApart([0, -0], 0, "1,234.5")).toBe(0);
+  });
+  it("are none where two values differ below the most decimals, or one is too small to show", () => {
+    expect(decimalsApart([3e-20, 3.4e-20], 0, "1,234.5")).toBeNull();
+    expect(decimalsApart([1e-20, 3e-20], 0, "1,234.5")).toBe(20);
+    expect(decimalsApart([4e-21], 0, "1,234.5")).toBeNull();
+  });
+  it(`never writes two values that differ the same when it gives decimals (${numRuns * 2} lists, seed ${seed})`, () => {
+    fc.assert(
+      fc.property(fc.array(fc.double({ min: -100, max: 100, noNaN: true }), { maxLength: 5 }), fc.integer({ min: 0, max: 3 }), (vs, base) => {
+        const d = decimalsApart(vs, base, "1,234.5");
+        if (d === null) return;
+        const text = vs.map((v) => signedText(v, { unit: "", unit_position: "after", decimals: 0 }, d, "1,234.5"));
+        for (const [i, v] of vs.entries()) for (const [j, w] of vs.entries()) if (v !== w) expect(text[i]).not.toBe(text[j]);
+      }),
+      { numRuns: numRuns * 2, seed },
+    );
   });
 });

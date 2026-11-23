@@ -8,7 +8,7 @@ import { describe, expect, it } from "vitest";
 import { formatValue, type ValueUnit } from "../format";
 import type { Span } from "../periods";
 import type { TakeawayContext } from "../takeaways/takeaway";
-import { referenceAfter, referenceHalf } from "../test/reference/before-after";
+import { referenceAfter, referenceHalf, referenceShareRange } from "../test/reference/before-after";
 import { runs } from "../test/reference/check";
 import { exactOf, nearestDoubleOf } from "../test/reference/exact";
 import { close, series } from "../test/reference/methods-fixture";
@@ -50,15 +50,15 @@ function expectReference(values: (number | null)[], start: number) {
   expect(close(got.half, half, 1e-12), `half ${got.half} vs ${half}`).toBe(true);
   expect(got.lo).toBe(got.gap - got.half);
   expect(got.hi).toBe(got.gap + got.half);
-  if (ref.expected.num > 0n) {
+  const range = ref.expected.num > 0n ? referenceShareRange(ref, ref.n - 2) : null;
+  if (range) {
     const hundred = nearestDoubleOf({ num: ref.gap.num * 100n * ref.expected.den, den: ref.gap.den * ref.expected.num });
     expect(got.share!.gap, "share").toBe(hundred);
-    const level = nearestDoubleOf(ref.expected);
-    // The ends are the share plus and minus its half-width: as close as the half-width is, which is the t curve's and a root's.
-    const wide = (half / level) * 100;
-    expect(Math.abs(got.share!.lo - (hundred - wide)) <= 1e-12 * (Math.abs(hundred) + wide), "share low").toBe(true);
-    expect(Math.abs(got.share!.hi - (hundred + wide)) <= 1e-12 * (Math.abs(hundred) + wide), "share high").toBe(true);
-  } else expect(got.share, "no share of a level at or below 0").toBeNull();
+    // The ends are Fieller's interval for the ratio of the mean after to the trend's level, which counts the uncertainty of the level.
+    const near = (a: number, b: number) => Math.abs(a - b) <= 1e-9 * (Math.abs(b) + 1);
+    expect(near(got.share!.lo, range.lo), `share low ${got.share!.lo} vs ${range.lo}`).toBe(true);
+    expect(near(got.share!.hi, range.hi), `share high ${got.share!.hi} vs ${range.hi}`).toBe(true);
+  } else expect(got.share, "no share of a level at or below 0, or not clearly above it").toBeNull();
   return got;
 }
 
@@ -324,8 +324,8 @@ describe("the Takeaway of a before-and-after look", () => {
   it("says a planted rise, with the range around it, as a share of where the trend pointed, and carries no strength word and the footer of its own", () => {
     const t = afterDateTakeaway("Signups", series(planted(24, 12, 150)), "month", monthStart(12), euro, ctx);
     expect(t.kind).toBe("answer");
-    expect(t.sentence).toBe("After 1 Jan 2025, Signups ran about 12.0 % above where its trend pointed (likely between +8.3 % and +15.6 %).");
-    expect(t.range).toEqual({ lo: expect.closeTo(8.3318, 3), hi: expect.closeTo(15.6108, 3), text: "+8.3 % – +15.6 %" });
+    expect(t.sentence).toBe("After 1 Jan 2025, Signups ran about 12.0 % above where its trend pointed (likely between +8.1 % and +16.2 %; that range leaves out zero).");
+    expect(t.range).toEqual({ lo: expect.closeTo(8.0586, 3), hi: expect.closeTo(16.1599, 3), text: "+8.1 % – +16.2 %" });
     expect([t.strength, t.strengthText]).toEqual([null, null]);
     expect(t.footer).toBe(FOOTER);
     expect(t.basis).toBe("from a straight line through the 12 months before 1 Jan 2025, compared with the 12 months since");
@@ -334,9 +334,9 @@ describe("the Takeaway of a before-and-after look", () => {
     expect(t.numbers.map((n) => [n.label, n.text])).toEqual([
       ["Method", "Before and after"], ["Date", "1 Jan 2025"], ["Periods before", "12"], ["Periods after", "12"], ["Trend before (per period)", "11 €"],
       ["Where the trend pointed (average)", "1,183 €"], ["What it was (average)", "1,324 €"], ["Difference", "142 €"], ["Likely between", "99 € – 185 €"],
-      ["Difference as a share of the trend", "+8.3 % – +15.6 %"], ["Typical miss", "29 €"],
+      ["Difference as a share of the trend", "+8.1 % – +16.2 %"], ["Typical miss", "29 €"],
     ]);
-    expect(t.figures.map((f) => [f.label, f.text])).toEqual([["Difference", "12.0 %"], ["Likely between (low)", "+8.3 %"], ["Likely between (high)", "+15.6 %"]]);
+    expect(t.figures.map((f) => [f.label, f.text])).toEqual([["Difference", "12.0 %"], ["Likely between (low)", "+8.1 %"], ["Likely between (high)", "+16.2 %"]]);
   });
   it("finds planted differences: the range holds the planted rise and fall, and excludes it for no planted change (the fixture's planted cases)", () => {
     for (const [name, c] of Object.entries(fixture.after)) {
@@ -349,12 +349,12 @@ describe("the Takeaway of a before-and-after look", () => {
     const rise = afterDateTakeaway("Signups", series(planted(24, 12, 150)), "month", monthStart(12), euro, ctx);
     expect(rise.range!.lo).toBeGreaterThan(0);
     const fall = afterDateTakeaway("Signups", series(planted(24, 12, -150)), "month", monthStart(12), euro, ctx);
-    expect(fall.sentence).toMatch(/ran about [\d.]+ % below where its trend pointed \(likely between −[\d.]+ % and −[\d.]+ %\)\.$/);
+    expect(fall.sentence).toMatch(/ran about [\d.]+ % below where its trend pointed \(likely between −[\d.]+ % and −[\d.]+ %; that range leaves out zero\)\.$/);
     expect(fall.range!.hi).toBeLessThan(0);
     const none = afterDateTakeaway("Signups", series(planted(24, 12, 0)), "month", monthStart(12), euro, ctx);
     expect(none.range!.lo).toBeLessThan(0);
     expect(none.range!.hi).toBeGreaterThan(0);
-    expect(none.sentence).toContain("but that is within the usual ups and downs");
+    expect(none.sentence).toContain("that range includes zero");
   });
   it("says the gap in the Metric's unit when the trend points to 0 or below, and exactly where it is exactly on the trend", () => {
     const f = fixture.after["falling-trend-below-zero"];
@@ -362,7 +362,7 @@ describe("the Takeaway of a before-and-after look", () => {
     expect(t.sentence).toMatch(/^After 1 Jan 2025, Debt ran about \d+ € (above|below) where its trend pointed/);
     expect(t.numbers.map((n) => n.label)).not.toContain("Difference as a share of the trend");
     const level = afterDateTakeaway("Debt", series(Array.from({ length: 16 }, (_, i) => 100 + 5 * i)), "month", monthStart(12), euro, ctx);
-    expect(level.sentence).toBe("After 1 Jan 2025, Debt ran exactly where its trend pointed (likely between ±0.0 % and ±0.0 %).");
+    expect(level.sentence).toBe("After 1 Jan 2025, Debt ran exactly where its trend pointed (likely between ±0.0 % and ±0.0 %; that range includes zero).");
     expect(level.cautions).toEqual(["The values before 1 Jan 2025 lie exactly on a straight line, so the range has no spread to go by and may be too sure."]);
   });
   it("never writes a size that is not zero as zero, or loses its sign: a gap of 0.3 € is written 0.3 €, one of −0.004 € −0.004 €, in the range too", () => {
@@ -385,13 +385,13 @@ describe("the Takeaway of a before-and-after look", () => {
     expect(t.numbers.filter((n) => n.label.startsWith("Visits: ")).length).toBe(9);
     const moved = series(Array.from({ length: 24 }, (_, i) => 500 + 5 * i + 6 * noise(i + 3) + (i >= 12 ? 120 : 0)));
     const t2 = afterDateTakeaway("Signups", own, "month", monthStart(12), euro, ctx, { name: "Visits", points: moved, unit: euro });
-    expect(t2.cautions).toEqual(["Visits, set beside it, also moved away from its trend, so something else may have moved both."]);
+    expect(t2.cautions).toEqual(["Visits, set beside it, also ran outside the same range around its own trend, which chance alone gives about 1 time in 5, so something else may have moved both, or it may be chance."]);
     expect(t2.footer).toBe(FOOTER);
   });
   it("says nothing of a Metric set beside it that ran exactly where its trend pointed, and carries the notes and cautions of the Metric set beside it", () => {
     const own = series(planted(24, 12, 150));
     const online = afterDateTakeaway("Signups", own, "month", monthStart(12), euro, ctx, { name: "Visits", points: series(Array.from({ length: 24 }, (_, i) => 500 + 5 * i)), unit: euro });
-    expect(online.sentence).toMatch(/Set beside it, Visits ran exactly where its trend pointed \(likely between ±0.0 % and ±0.0 %\)\.$/);
+    expect(online.sentence).toMatch(/Set beside it, Visits ran exactly where its trend pointed \(likely between ±0.0 % and ±0.0 %; that range includes zero\)\.$/);
     expect(online.cautions).toEqual(["The values before 1 Jan 2025 lie exactly on a straight line, so the range has no spread to go by and may be too sure."]);
     // A date inside a month: both leave that month out, and the Metric set beside it has two months without a value.
     const gappy = series(Array.from({ length: 24 }, (_, i): number | null => (i === 3 || i === 7 ? null : 500 + 5 * i + 6 * noise(i + 3))));
@@ -434,6 +434,49 @@ describe("the Takeaway of a before-and-after look", () => {
     const miss = t.numbers.find((n) => n.label === "Typical miss")!.text;
     expect(miss).toMatch(/^\d\.\d\de-\d+ €$/);
     expect(t.numbers.find((n) => n.label === "Trend before (per period)")!.text).toBe("1 €");
+  });
+  it("uses the first 120 periods since the date, and says so (a date years back would average a long, far extrapolation of the line)", () => {
+    const long = Array.from({ length: 12 + 130 }, (_, i) => 100 + 2 * i + 9 * noise(i) + (i >= 12 ? 40 : 0));
+    const t = afterDateTakeaway("A", series(long), "month", monthStart(12), euro, ctx);
+    expect(t.notes).toEqual(["Only the first 120 months with a value since 1 Jan 2025 are used."]);
+    const cut = afterDateTakeaway("A", series(long).slice(0, 12 + 120), "month", monthStart(12), euro, ctx);
+    expect(t.sentence).toBe(cut.sentence);
+    expect(t.basis).toContain("compared with the 120 months since");
+    expect(cut.notes).toEqual([]);
+  });
+  it("says no share where the level the trend points to is not clearly above 0 (the ratio has no finite range), though the gap and its range stand", () => {
+    const values = [-4, 5, -5, 4, -3, 6, -2, 7, 1, 0, 2];
+    const got = ok(afterDate(series(values), "month", monthStart(8)));
+    expect(got.expected).toBeGreaterThan(0);
+    expect(got.share).toBeNull();
+    expect(got.half).toBeGreaterThan(Math.abs(got.expected));
+    expect(afterDateTakeaway("A", series(values), "month", monthStart(8), euro, ctx).numbers.map((n) => n.label)).not.toContain("Difference as a share of the trend");
+  });
+  it("counts the uncertainty of the level the share is a share of: its range is wider than the gap's range over the level, and asymmetric", () => {
+    const c = fixture.after["no-change"];
+    const got = ok(afterDate(series(c.values), "month", monthStart(c.start)));
+    const naive = (got.half / got.expected) * 100;
+    expect(got.share!.hi - got.share!.gap).toBeGreaterThan(naive);
+    expect(got.share!.hi - got.share!.gap).not.toBeCloseTo(got.share!.gap - got.share!.lo, 3);
+  });
+  it("says what the range is, and never \"clear\": the false rate of a range that leaves out zero is about 1 in 5 for series with no change (400 and the 80 % range)", () => {
+    let state = 31;
+    const next = () => (state = (state * 1_664_525 + 1_013_904_223) % 4_294_967_296) / 4_294_967_296;
+    const gauss = () => Math.sqrt(-2 * Math.log(next() + 1e-12)) * Math.cos(2 * Math.PI * next());
+    let [outside, said] = [0, 0];
+    for (let r = 0; r < 1500; r++) {
+      const v = Array.from({ length: 24 }, (_, i) => Math.round((100 + 1.5 * i + 7 * gauss()) * 100) / 100);
+      const t = afterDateTakeaway("A", series(v), "month", monthStart(12), euro, ctx);
+      if (t.kind === "refusal") continue;
+      if (t.range!.lo > 0 || t.range!.hi < 0) {
+        outside++;
+        if (t.sentence!.includes("leaves out zero")) said++;
+      } else expect(t.sentence).toContain("that range includes zero");
+      expect(t.sentence).not.toMatch(/clear/i);
+    }
+    expect(said).toBe(outside);
+    expect(outside / 1500).toBeGreaterThan(0.15);
+    expect(outside / 1500).toBeLessThan(0.25);
   });
   it("holds the minimum to the periods before the date that the line is fitted to, in the sentence, the basis and the numbers alike (6 either side of the limit, with a gap and a period holding the date)", () => {
     // 7 months with a value, one of them the month that holds the date: 6 before.

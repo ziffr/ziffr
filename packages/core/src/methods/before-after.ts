@@ -18,10 +18,11 @@ import { fractionOf, nearest, type Fraction } from "../exact";
 import { formatDate, formatNumber, type ValueUnit } from "../format";
 import { periodEnd, periodsBetween, type Span } from "../periods";
 import { checkSuitability, type Finding } from "../suitability";
-import { decimalsFor, plainValue, SHARE_UNIT, signedText, sizeText } from "../takeaways/sizes";
+import { decimalsApart, plainValue, SHARE_UNIT, signedText, sizeText } from "../takeaways/sizes";
 import { answerTakeaway, refusalTakeaway, sayIn, type Figure, type NumberRow, type Takeaway, type TakeawayContext } from "../takeaways/takeaway";
 import type { CaseKey, Slots } from "../takeaways/wording";
 import type { Point } from "../types";
+import { carriesOver } from "./carry-over";
 import { add, div, mul, sub, total, whole } from "./fractions";
 import { LIKELY, tQuantile } from "./t-curve";
 
@@ -53,6 +54,8 @@ export type AfterDate = {
   spread: number;
   share: { gap: number; lo: number; hi: number } | null;
   fits: boolean;
+  /** The misses of the line before the date carry over from one period to the next (carry-over.ts): the range takes them as independent. */
+  carries: boolean;
 };
 
 /** Why there is no gap: the date is not a day, fewer than 3 values before it or none after it, or a number too large to work out. */
@@ -119,14 +122,21 @@ export function afterDate(points: Point[], span: Span, date: string): AfterDate 
   const [lo, hi] = [gapNumber - half, gapNumber + half];
   const spread = Math.sqrt(nearest(variance));
   if (![gapNumber, expectedNumber, half, lo, hi, spread].every(Number.isFinite)) return { ok: false, why: "huge" };
-  // A share of where the trend pointed is only said where that is above 0: a share of 0 or of a negative level means nothing.
+  // A share of where the trend pointed is only said where that is above 0: a share of 0 or of a negative level means nothing. Its range counts
+  // the uncertainty of the level it is a share of (Fieller's interval for the ratio ρ of the mean after to the trend's level: the ρ with
+  // (Y − ρE)² ≤ t²s²(1/m + ρ²q), q = 1/n + (x̄ₐ − x̄)² ÷ Sxx), written with u = Y ÷ E, g = t²s²q ÷ E² and h = t²s²/m ÷ E²:
+  // ρ = (u ± √(u²g + h(1 − g))) ÷ (1 − g). It holds 0 exactly where the range of the gap does. Where the level is not clearly above 0
+  // (g ≥ 1) the ratio has no finite range, and no share is said.
   let share: AfterDate["share"] = null;
   if (expected.num > ZERO) {
-    const [hundred, wide] = [nearest(div(mul(gap, whole(100)), expected)), (half / expectedNumber) * 100];
-    if (![hundred, wide].every(Number.isFinite)) return { ok: false, why: "huge" };
-    share = { gap: hundred, lo: hundred - wide, hi: hundred + wide };
+    const [t2, level2] = [tQuantile(LIKELY, n - 2) ** 2, mul(expected, expected)];
+    const [u, g, h] = [nearest(div(mya, expected)), t2 * nearest(div(mul(variance, add(div(whole(1), whole(n)), div(mul(reach, reach), sxx))), level2)), t2 * nearest(div(variance, mul(whole(after.length), level2)))];
+    const [hundred, root] = [nearest(div(mul(gap, whole(100)), expected)), Math.sqrt(u * u * g + h * (1 - g))];
+    if (g < 1 && ![hundred, root, (u - root) / (1 - g)].every(Number.isFinite)) return { ok: false, why: "huge" };
+    if (g < 1) share = { gap: hundred, lo: 100 * ((u - root) / (1 - g) - 1), hi: 100 * ((u + root) / (1 - g) - 1) };
   }
-  return { ok: true, before: n, after: after.length, slope: nearest(slope), expected: expectedNumber, actual: nearest(mya), gap: gapNumber, half, lo, hi, spread, share, fits: sse.num === ZERO };
+  const misses = before.map((p, i) => ({ x: Number(xs[i].num), miss: sub(dy[i], mul(slope, dx[i])) }));
+  return { ok: true, before: n, after: after.length, slope: nearest(slope), expected: expectedNumber, actual: nearest(mya), gap: gapNumber, half, lo, hi, spread, share, fits: sse.num === ZERO, carries: carriesOver(misses) };
 }
 
 /** One series said in words for `afterDateTakeaway`: the lines that refuse, or the sentence and the lines that go with it. */
@@ -143,24 +153,27 @@ function lookAt(name: string, points: Point[], span: Span, date: string, unit: V
   // Only the latest periods before the date are used; the rest are said to be left out.
   const split = splitAt(points, span, date)!;
   const used = split.before.slice(-MAX_PERIODS);
+  // A date years back would average a long, far extrapolation of the line: only the first periods since it are used.
+  const later = split.after.slice(0, MAX_PERIODS);
   const notes: string[] = [];
   if (used.length < split.before.length) notes.push(text("ba-note-latest", { n: used.length, since }));
+  if (later.length < split.after.length) notes.push(text("ba-note-first", { n: later.length, since }));
   if (split.straddle) notes.push(text("ba-note-straddle", { from: split.straddle.period, since }));
   // The checks look at the whole series (the values before, the one that holds the date, and those after); the minimum of 6 is
   // held to the periods before the date that the line is fitted to, which are the ones counted in `periods`.
-  const whole = [...used, split.straddle, ...split.after].filter((p): p is Point => p !== null);
+  const whole = [...used, split.straddle, ...later].filter((p): p is Point => p !== null);
   const verdict = checkSuitability("afterDate", { series: [{ name, points: whole }], span, periods: used.length });
   const found = (f: Finding) => text(f.case, f.slots);
   if (verdict.refusals.length > 0) return refuse(...verdict.refusals.map(found));
   const cautions = verdict.cautions.map(found);
-  if (split.after.length === 0) return refuse(text("refuse-no-after", { name, since }));
-  const result = afterDate([...used, ...split.after], span, date);
+  if (later.length === 0) return refuse(text("refuse-no-after", { name, since }));
+  const result = afterDate([...used, ...later], span, date);
   // Past the checks, only a number too large to work out is left to refuse.
   if (!result.ok) return refuse(text("refuse-huge-values", { name }));
   const style = ctx.style;
   // Where the trend pointed is above 0, the gap is said as a share of it; otherwise in the Metric's unit.
   const [unitUsed, values, base] = result.share ? [SHARE_UNIT, result.share, SHARE_UNIT.decimals] : [unit, { gap: result.gap, lo: result.lo, hi: result.hi }, unit.decimals];
-  const decimals = decimalsFor([values.gap, values.lo, values.hi], base, style);
+  const decimals = decimalsApart([values.gap, values.lo, values.hi], base, style);
   if (decimals === null) return refuse(text("refuse-tiny", { name }));
   const [lo, hi] = [signedText(values.lo, unitUsed, decimals, style), signedText(values.hi, unitUsed, decimals, style)];
   const clear = values.lo > 0 || values.hi < 0;
@@ -170,6 +183,7 @@ function lookAt(name: string, points: Point[], span: Span, date: string, unit: V
   const key = values.gap === 0 ? "ba-level" : clear ? "ba-clear" : "ba-unclear";
   const sentence = text(key, { lead: text(main ? "ba-lead-main" : "ba-lead-beside", { since }), name, gap: gapText, lo, hi });
   if (result.fits) cautions.push(text("caution-ba-fits", { since }));
+  if (result.carries) cautions.push(text("caution-carry-over", { name }));
   // Show the numbers: every figure in the Metric's unit, with as many decimals as keep it from reading as 0.
   const written = (v: number) => plainValue(v, unit, unit.decimals, style);
   const between = (a: string, b: string) => `${a} \u2013 ${b}`;

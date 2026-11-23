@@ -59,11 +59,11 @@ Except **Did it work?**, a Recipe replaces what is on the canvas with its own Me
 
 ### Did it work?
 
-The answer is a range, not a verdict: "After 1 Mar 2026, Signups ran about 12.0 % above where its trend pointed (likely between +8.3 % and +15.6 %)." The trend is a straight line through the periods before the day you named, so Ziffr needs at least six of them; the latest 120 are used. A period that began before the day and runs past it is left out, and the result says so. "Likely between" is the range the answer holds about four times in five.
+The answer is a range, not a verdict: "After 1 Mar 2026, Signups ran about 12.0 % above where its trend pointed (likely between +8.1 % and +16.2 %; that range leaves out zero)." The trend is a straight line through the periods before the day you named, so Ziffr needs at least six of them; the latest 120 are used, and the first 120 periods since the day. A period that began before the day and runs past it is left out, and the result says so. "Likely between" is the range the answer holds about four times in five.
 
 - Both ends of the range on the same side of zero: the Metric did run away from its trend, by about that much. Ziffr does not say why: other things may have changed on the same day.
-- The range holds zero: the sentence adds "but that is within the usual ups and downs".
-- With a metric set beside it, the result also says how that one ran against its own trend. If it moved away from its trend too, a line above says that something else may have moved both.
+- The range holds zero: the sentence adds "that range includes zero". A range that leaves out zero is no proof: with no real change, about 1 range in 5 does by chance.
+- With a metric set beside it, the result also says how that one ran against its own trend. If it ran outside the same range around its own trend, which chance alone gives about 1 time in 5, a line above says that something else may have moved both, or that it is chance.
 
 The result carries its basis, what it assumes, and the footer "This compares what happened with where the earlier trend pointed; it does not show what made the difference." **Show the numbers** has the trend, where it pointed, what the values were and the typical miss of the line. Where Ziffr cannot answer it says why in words: a day that is not a day, fewer than six periods before it, nothing on or after it, a Metric that has hardly changed, or too many periods without a value.
 

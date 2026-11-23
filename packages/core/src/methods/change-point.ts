@@ -18,11 +18,12 @@ import { fractionOf, nearest, type Fraction } from "../exact";
 import { formatNumber, type ValueUnit } from "../format";
 import { periodsBetween, type Span } from "../periods";
 import { checkSuitability, SUITABILITY, type Finding, type Rerun } from "../suitability";
-import { decimalsFor, plainValue, SHARE_UNIT, sizeText } from "../takeaways/sizes";
+import { decimalsApart, plainValue, SHARE_UNIT, sizeText, signedText } from "../takeaways/sizes";
 import { answerTakeaway, refusalTakeaway, sayIn, type Takeaway, type TakeawayContext } from "../takeaways/takeaway";
 import { say, type CaseKey, type Slots } from "../takeaways/wording";
 import type { Point } from "../types";
 import { MAX_PERIODS } from "./before-after";
+import { carriesOver } from "./carry-over";
 import { add, div, mul, sub, whole } from "./fractions";
 import { LIKELY, tQuantile } from "./t-curve";
 
@@ -49,6 +50,8 @@ export type ChangePoint = {
   kept: number | null;
   spread: number;
   slopeHalf: number;
+  /** The misses of one line through all the values carry over from one period to the next (carry-over.ts): the chance rule takes them as independent. */
+  carries: boolean;
 };
 
 /** Why there is no change point: fewer than 8 values, more than `MOST_VALUES`, or a number too large to work out. */
@@ -103,7 +106,11 @@ export function changePoint(points: Point[], span: Span): ChangePoint | NoChange
   const atStart = (l: Line) => add(l.my, mul(l.slope, sub(x, l.mx)));
   const variance = div(sse, whole(d));
   const slopeHalf = tQuantile(LIKELY, d) * Math.sqrt(nearest(mul(variance, add(div(whole(1), left.sxx), div(whole(1), right.sxx)))));
+  // The misses of the one line through everything: two lines would take a slow wave up into themselves and read it as white. A real change
+  // carries over too, which is why the caution says only that the date should be read with care.
+  const misses = rows.map((_r, i) => ({ x: Number(xs[i].num), miss: sub(ys[i], add(one.my, mul(one.slope, sub(xs[i], one.mx)))) }));
   const result = {
+    carries: carriesOver(misses),
     before: nearest(left.slope),
     after: nearest(right.slope),
     slopeChange: nearest(sub(right.slope, left.slope)),
@@ -151,6 +158,7 @@ export function changePointTakeaway(name: string, points: Point[], span: Span, u
   if (verdict.refusals.length > 0) return refusalTakeaway(method, lines(verdict.refusals));
   if (!result.ok) return refusalTakeaway(method, [text("refuse-huge-values", { name })]);
   const cautions = lines(verdict.cautions);
+  if (result.found && result.carries) cautions.push(text("caution-carry-over", { name }));
   const notes = all.length > rows.length ? [text("cp-note-latest", { n: rows.length })] : [];
   const style = ctx.style;
   const [n, tries] = [formatNumber(result.n, 0, style), formatNumber(result.tries, 0, style)];
@@ -165,14 +173,16 @@ export function changePointTakeaway(name: string, points: Point[], span: Span, u
   const answer = answerTakeaway(method);
   const basis = text("cp-basis", { n: result.n, tries: result.tries });
   if (!result.found) {
-    return { ...answer, sentence: text("cp-none", { name, n: result.n }), basis, assumptions: [text("cp-assumes")], cautions, notes, numbers: base, figures: [{ label: text("numbers-periods-used"), value: result.n, text: n }] };
+    return { ...answer, sentence: text("cp-none", { name, n: result.n }), basis, assumptions: [text("cp-assumes")], cautions, notes, footer: text("footer-change-point"), numbers: base, figures: [{ label: text("numbers-periods-used"), value: result.n, text: n }] };
   }
-  const decimals = decimalsFor([result.before, result.after, result.step], unit.decimals, style);
+  // Different slopes are written with digits that tell them apart, so "up 1 a month; since, up 1 a month" never hides 1.011 and 0.886.
+  const decimals = decimalsApart([result.before, result.after, result.step], unit.decimals, style);
   if (decimals === null) return refusalTakeaway(method, [text("refuse-tiny", { name })]);
   const step = text(result.step > 0 ? "cp-step-up" : result.step < 0 ? "cp-step-down" : "cp-step-none", { size: sizeText(result.step, unit, decimals, style) });
   const [before, after] = [moving(result.before, unit, decimals, ctx, span), moving(result.after, unit, decimals, ctx, span)];
   const written = (v: number) => plainValue(v, unit, unit.decimals, style);
-  const signed = (v: number) => (v > 0 ? `+${written(v)}` : v < 0 ? written(v) : `±${written(v)}`);
+  // The slopes and the step in Show the numbers carry the digits of the sentence, so two that differ never read the same there either.
+  const signed = (v: number) => signedText(v, unit, decimals, style);
   return {
     ...answer,
     sentence: text("cp-found", { name, from: result.period, before, after, step }),
@@ -180,6 +190,7 @@ export function changePointTakeaway(name: string, points: Point[], span: Span, u
     assumptions: [text("cp-assumes")],
     cautions,
     notes,
+    footer: text("footer-change-point"),
     // The numbers in the sentence, as they are written there: the size of each slope and of the step (the words say which way).
     figures: [
       { label: text("numbers-slope-before"), value: Math.abs(result.before), text: sizeText(result.before, unit, decimals, style) },
