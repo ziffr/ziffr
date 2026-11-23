@@ -216,6 +216,13 @@ describe("the other Methods refuse in words and stay quick on hostile values", (
     // A part that has no value on one side, and a whole that is not given, are not values to judge.
     expect(refusal(bridgeTakeaway("Revenue", [{ label: "A", before: null, after: 5 }, { label: "B", before: 3, after: null }], euro, ctx))).toBeNull();
   });
+  it("share, Pareto and bridge: a Metric whose whole alone is too wide is refused, one whose parts are fine and whole is fine is not", () => {
+    const parts = [{ label: "A", before: 1, after: 2 }, { label: "B", before: 3, after: 5 }];
+    expect(refusal(bridgeTakeaway("R", parts, euro, ctx, { before: 1e-300, after: 5 }))).toBe(places("R"));
+    expect(refusal(bridgeTakeaway("R", parts, euro, ctx, { before: 4, after: 1e-300 }))).toBe(places("R"));
+    expect(refusal(bridgeTakeaway("R", parts, euro, ctx, { before: 4, after: 7 }))).toBeNull();
+    expect(refusal(bridgeTakeaway("R", parts.map((p) => ({ ...p, before: p.label === "A" ? null : p.before })), euro, ctx, { before: 4, after: 7 }))).toBeNull();
+  });
   it("the pair scan leaves out a Metric whose changes are too wide, as it does one that cannot be combined, and is quick", () => {
     const ms = [1, 2, 3, 4].map((id) => ({ id, period: "month" as const }));
     // Walks of 30 months, each a sum of steps; Metric 4 moves exactly with Metric 1, at a size of 1e-300 or at the size of 1.
@@ -289,6 +296,11 @@ describe("correlation names what is too wide, in the order of the Metrics", () =
     expect(of(fine, tiny)).toMatchObject({ ok: false, why: "too-wide", reason: words("D2", "refuse-exact-places") });
     expect(of(tiny, tiny)).toMatchObject({ ok: false, why: "too-wide", reason: `${words("D1", "refuse-exact-places")} ${words("D2", "refuse-exact-places")}` });
     expect(of(spread, months("2024-01", [3, 1, 4, 1, 5, 9, 2, 6, 5, 3, 5, 8, 9, 7, 9, 3, 2]))).toMatchObject({ ok: false, why: "too-wide", n: 17, reason: words("D1", "refuse-exact-orders") });
+  });
+  it("judges the levels before it chooses a basis: levels that need more than the bounds are left out even where their changes would not", () => {
+    // 9.8e14 beside 1e-290: the changes of these are plain numbers, but choosing between values and changes is exact arithmetic on the levels.
+    const auto = correlate(a, b, (slug) => ({ metric: slug === "d1" ? a : b, points: slug === "d1" ? series("tiny", 1) : series("ordinary", 2) }), { yearStart: 1 });
+    expect(auto).toMatchObject({ ok: false, why: "too-wide", n: 120, reason: words("D1", "refuse-exact-places") });
   });
   it("and the changes it works out on, by the same words", () => {
     const rising = (shift: number): Point[] => months("2022-01", Array.from({ length: 30 }, (_, i) => (i < 20 ? Number(`${10 + i + shift}e-6`) : 1e14 + (i + shift) * 1e12)));
