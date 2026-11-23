@@ -69,26 +69,35 @@ export function MarketplaceSearch({ viewer, numberStyle }: { viewer: string; num
 
 /** "Version … on the Marketplace" on an installed Pack, and updating to it after seeing what changes. */
 export function MarketplaceUpdate({ installId, name, version }: { installId: number; name: string; version: string }) {
+  return <PackUpdate name={name} version={version} button={`Version ${version} on the Marketplace…`} from="From the Marketplace: its signature holds." read={() => readMarketplaceUpdatePlan(installId, version)} apply={(c) => updateFromTheMarketplace(installId, version, c)} />;
+}
+
+/** A newer version of an installed Pack, and updating to it after seeing what changes; `read` and `apply` are the server
+ * calls of where the version comes from (the Marketplace, or the Packs that come with Ziffr). */
+export function PackUpdate({ name, version, button, from, read: readPlan, apply }: {
+  name: string; version: string; button: string; from: string;
+  read: () => ReturnType<typeof readMarketplaceUpdatePlan>; apply: (c: { assistantTexts: boolean }) => ReturnType<typeof updateFromTheMarketplace>;
+}) {
   const router = useRouter();
   const [plan, setPlan] = useState<UpdatePlan | null>(null);
   const [okAssistant, setOkAssistant] = useState(false);
   const [pending, start] = useTransition();
   const run = (f: () => Promise<void>) => start(async () => { try { await f(); } catch (e) { toast.error("Not done", { description: shown(e) }); } });
   const read = () => run(async () => {
-    const res = unwrap(await readMarketplaceUpdatePlan(installId, version));
-    if (!res.ok) throw new Error(`The Marketplace's file is not a Pack Ziffr can install: ${res.problems[0]?.message ?? ""}`);
+    const res = unwrap(await readPlan());
+    if (!res.ok) throw new Error(`The file is not a Pack Ziffr can install: ${res.problems[0]?.message ?? ""}`);
     setOkAssistant(false);
     setPlan(res.plan);
   });
   const ready = !!plan && !plan.blocked && (okAssistant || !plan.assistantTexts.length);
   return (
     <>
-      <Button size="sm" disabled={pending} onClick={read}><RefreshCw aria-hidden /> Version {version} on the Marketplace…</Button>
+      <Button size="sm" disabled={pending} onClick={read}><RefreshCw aria-hidden /> {button}</Button>
       <Dialog open={!!plan} onOpenChange={(o) => { if (!o) setPlan(null); }}>
         {plan && (
           <DialogContent className="max-h-[90vh] max-w-2xl overflow-y-auto">
             <DialogTitle>Update {name} from {plan.from} to {plan.to}</DialogTitle>
-            <DialogDescription>From the Marketplace: its signature holds. What you changed stays as you made it; the new version is offered beside it.{plan.major ? " A new major version: it may change how things look or work." : ""}</DialogDescription>
+            <DialogDescription>{from} What you changed stays as you made it; the new version is offered beside it.{plan.major ? " A new major version: it may change how things look or work." : ""}</DialogDescription>
             <LogoChange logo={plan.logo} author={plan.author} />
             <ul className="space-y-1 text-sm">
               {plan.items.map((i) => <li key={i.key}>{i.name}: <span className="text-muted-foreground">{i.change}{i.changedHere ? ", changed here" : ""}</span></li>)}
@@ -99,7 +108,7 @@ export function MarketplaceUpdate({ installId, name, version }: { installId: num
             {plan.blocked && <p role="alert" className="text-sm font-medium">{plan.blocked}</p>}
             <div className="flex justify-end gap-2">
               <Button variant="outline" onClick={() => setPlan(null)}>Cancel</Button>
-              <Button disabled={!ready || pending} onClick={() => run(async () => { unwrap(await updateFromTheMarketplace(installId, version, { assistantTexts: okAssistant })); toast.success(`${name} updated to ${version}`); setPlan(null); router.refresh(); })}>Update to {version}</Button>
+              <Button disabled={!ready || pending} onClick={() => run(async () => { unwrap(await apply({ assistantTexts: okAssistant })); toast.success(`${name} updated to ${version}`); setPlan(null); router.refresh(); })}>Update to {version}</Button>
             </div>
           </DialogContent>
         )}

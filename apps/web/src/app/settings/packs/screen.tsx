@@ -17,12 +17,14 @@ import type { InstalledPack, PackPreview, PackPreviewItem } from "@ziffr/core/pa
 import type { OfferedItem } from "@ziffr/core/pack-updates";
 import { Offers, PackActions } from "./manage";
 import { MarketplaceSearch, MarketplaceUpdate } from "./marketplace";
+import { IncludedPacks, IncludedUpdate } from "./included";
 import type { NumberStyle } from "@ziffr/core/number-style";
 import type { ExportOptions } from "@ziffr/core/pack-export";
 import { Publisher } from "./pack-logo";
 import { ExportPack } from "./export";
 import { SetUpFromPack } from "./setup";
 import type { Problem } from "@ziffr/core/json-check";
+import type { IncludedPackListing } from "@ziffr/core/included-packs";
 
 const KIND_LABEL: Record<PackPreviewItem["kind"], string> = { metric: "Metric Catalog entries", dashboard: "Dashboard Templates", deck: "Deck Templates", workflow: "Workflow Templates", view: "View Designs", theme: "Themes" };
 const ORDER: PackPreviewItem["kind"][] = ["metric", "dashboard", "deck", "workflow", "view", "theme"];
@@ -41,14 +43,14 @@ function ListingLink({ href, children, unsigned = false }: { href?: string; chil
   );
 }
 
-export function PacksScreen({ installed, manages, exportable = null, authorName = "", offers = [], marketplace = false, updates = [], demo, guest, viewer, numberStyle }: { installed: (Omit<InstalledPack, "installedBy"> & { installedBy: string | null })[]; manages: boolean; exportable?: ExportOptions | null; authorName?: string; offers?: OfferedItem[]; marketplace?: boolean; updates?: { installId: number; version: string }[]; demo: boolean; guest: boolean; viewer: string; numberStyle: NumberStyle }) {
+export function PacksScreen({ installed, manages, exportable = null, authorName = "", offers = [], included = [], marketplace = false, updates = [], demo, guest, viewer, numberStyle }: { installed: (Omit<InstalledPack, "installedBy"> & { installedBy: string | null })[]; manages: boolean; exportable?: ExportOptions | null; authorName?: string; offers?: OfferedItem[]; included?: IncludedPackListing[]; marketplace?: boolean; updates?: { installId: number; version: string }[]; demo: boolean; guest: boolean; viewer: string; numberStyle: NumberStyle }) {
   return (
     <div className="space-y-8">
       {manages && <Offers offers={offers} />}
       <section aria-labelledby="installed-packs">
         <h2 id="installed-packs" className="mb-2 text-sm font-medium">Installed in this Workspace</h2>
         {guest ? <p className="text-sm text-muted-foreground">Guests do not see the Workspace&rsquo;s Packs.</p>
-          : !installed.length ? <p className="text-sm text-muted-foreground">No Pack yet.{manages ? " Install one from a file below." : ""}</p>
+          : !installed.length ? <p className="text-sm text-muted-foreground">No Pack yet.{manages ? " Install one of Ziffr\u2019s own below, or from a file." : ""}</p>
             : (
               <ul className="space-y-3">
                 {installed.map((p) => (
@@ -58,15 +60,16 @@ export function PacksScreen({ installed, manages, exportable = null, authorName 
                       <span className="fig text-muted-foreground">{p.version}</span>
                       <span className="text-xs text-muted-foreground">{p.license}</span>
                     </div>
-                    <div className="mt-2"><Publisher author={p.author} logo={p.logo} id={p.packId} signed={p.signed} fromMarketplace={p.source === "marketplace"} /></div>
+                    <div className="mt-2"><Publisher author={p.author} logo={p.logo} id={p.packId} signed={p.signed} fromMarketplace={p.source === "marketplace"} included={p.source === "included"} /></div>
                     <p className="mt-1 text-muted-foreground">{p.summary}</p>
                     <p className="mt-1 text-xs text-muted-foreground">
-                      {p.source === "upload" && !p.signed ? `${UNSIGNED} ` : "From the Marketplace. "}
+                      {p.source === "upload" && !p.signed ? `${UNSIGNED} ` : p.source === "included" ? "One of Ziffr\u2019s own Packs. " : "From the Marketplace. "}
                       Installed {new Date(p.installedAt).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}{p.installedBy ? ` by ${p.installedBy}` : ""}.
                     </p>
                     <p className="mt-1 flex gap-3 text-xs"><ListingLink href={p.listing.homepage} unsigned={!p.signed}>Its page</ListingLink><ListingLink href={p.listing.support} unsigned={!p.signed}>Help</ListingLink></p>
                     <AddedList added={p.added} />
                     {manages && <PackActions installId={p.id} name={p.name} />}
+                    {manages && included.filter((i) => i.installed?.installId === p.id && i.update).map((i) => <div key={i.update} className="mt-2"><IncludedUpdate installId={p.id} name={p.name} version={i.update!} /></div>)}
                     {updates.filter((u) => u.installId === p.id).map((u) => <div key={u.version} className="mt-2"><MarketplaceUpdate installId={p.id} name={p.name} version={u.version} /></div>)}
                     {manages && <SetUpFromPack installId={p.id} viewer={viewer} />}
                   </li>
@@ -74,6 +77,7 @@ export function PacksScreen({ installed, manages, exportable = null, authorName 
               </ul>
             )}
       </section>
+      {manages && included.length > 0 && <IncludedPacks packs={included} viewer={viewer} numberStyle={numberStyle} />}
       {marketplace && <MarketplaceSearch viewer={viewer} numberStyle={numberStyle} />}
       {manages && <InstallFromFile viewer={viewer} numberStyle={numberStyle} />}
       {exportable && <ExportPack options={exportable} defaultAuthor={authorName} />}
@@ -164,12 +168,12 @@ export function PackPreviewCard({ preview, viewer, numberStyle, pending, okUnsig
       <div>
         <p className="flex items-center gap-2 text-base font-medium"><Package aria-hidden className="size-4" /> {preview.manifest.name} <span className="fig text-sm font-normal text-muted-foreground">{preview.manifest.version}</span></p>
         <p className="text-muted-foreground">{preview.manifest.summary}</p>
-        <div className="mt-2"><Publisher author={preview.manifest.author.name} logo={preview.logo} id={preview.manifest.id} signed={!preview.unsigned} fromMarketplace={!preview.unsigned} /></div>
+        <div className="mt-2"><Publisher author={preview.manifest.author.name} logo={preview.logo} id={preview.manifest.id} signed={!preview.unsigned} fromMarketplace={preview.source === "marketplace"} included={preview.source === "included"} /></div>
         <p className="mt-1 text-xs text-muted-foreground">Under {preview.manifest.license}. <ListingLink href={preview.manifest.listing?.homepage} unsigned={preview.unsigned}>Its page</ListingLink></p>
       </div>
       {preview.unsigned
         ? <p className="flex items-start gap-2 rounded-[var(--radius-input)] bg-muted p-2.5"><TriangleAlert aria-hidden className="mt-0.5 size-4 shrink-0" /> {UNSIGNED}</p>
-        : <p className="rounded-[var(--radius-input)] bg-muted p-2.5">From the Marketplace: its signature holds. Ziffr checked the whole file as well.</p>}
+        : <p className="rounded-[var(--radius-input)] bg-muted p-2.5">{preview.source === "included" ? "One of Ziffr\u2019s own Packs: it comes with this version of Ziffr. Ziffr checked the whole file as well." : "From the Marketplace: its signature holds. Ziffr checked the whole file as well."}</p>}
       {preview.assistantTexts.length > 0 && (
         <div className="rounded-[var(--radius-input)] border border-input p-2.5">
           <p className="font-medium">Words aimed at AI assistants</p>

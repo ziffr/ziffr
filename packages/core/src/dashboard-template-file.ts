@@ -11,7 +11,9 @@ export * from "@ziffr/pack/dashboard-template-file";
  * `designs` does not hold. */
 export function templateWidgetSettings(s: WidgetSettingsFile | undefined, designs: ReadonlyMap<string, ViewDesign>): WidgetSettings | null {
   const { design, callouts, panels, ...rest } = s ?? {};
-  const body = typeof design === "string" ? designs.get(design) : design;
+  const named = typeof design === "string" ? designs.get(design) : design;
+  // A `$schema` in an inline design is for editors only (the checks accept and ignore it): the widget never keeps it.
+  const body = named && typeof named === "object" && "$schema" in named ? (({ $schema: _s, ...r }) => (void _s, r as ViewDesign))(named as ViewDesign & { $schema?: string }) : named;
   if (design !== undefined && !body) return null;
   return {
     ...rest,
