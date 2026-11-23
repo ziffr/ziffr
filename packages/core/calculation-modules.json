@@ -60,5 +60,6 @@
   "src/methods/what-if.ts",
   "src/takeaways/what-if-takeaway.ts",
   "src/work-bound.ts",
-  "src/polar-marks.ts"
+  "src/polar-marks.ts",
+  "src/mark-figures.ts"
 ]
