@@ -192,6 +192,7 @@ Mutation testing changes the code on purpose and expects a test to fail. A chang
 - `src/formula.ts` · Regex · Reading white space one character at a time instead of a run at a time leaves the same tokens, as white space is left out either way.
 - `src/formula.ts` · EqualityOperator · The 8,192-bit bound is a safety limit, not a rule of results: no value Ziffr keeps, in a formula within the bounds, comes to exactly 8,192 bits, so `>=` and `>` give the same.
 - `src/formula.ts` · ConditionalExpression · A numerator past 8,192 bits with a denominator within the bound is a value past the doubles, which `evaluate` gives no value for anyway; checking the numerator keeps the work small, and leaving it out changes no result.
+- `src/driver-tree.ts` · EqualityOperator · The 8,192-bit bound on a box's value is a safety limit, as in `formula.ts`: no number a formula within its bounds works out to comes to exactly 8,192 bits, so `<` gives the same; and a size is only ever used in a ratio of sizes, where turning every sign round (`>=`) or turning 0 round (`<=`, it is 0 still) leaves every share as it was.
 - `src/format.ts` · EqualityOperator · In `signed`, `v < 0` as `v <= 0` differs only at 0, whose digits hold no 1-9, so no minus is written either way.
 - `src/format.ts` · EqualityOperator · In `compactValue`, `x < 100` as `x <= 100` differs only at exactly 100, where both sides give 100.
 - `src/format.ts` · EqualityOperator · In `compactValue`, `v < 0` as `v <= 0` cannot differ: a value there is at least 10,000 in size, so it is never 0.

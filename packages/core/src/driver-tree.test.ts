@@ -272,10 +272,90 @@ describe("the formula tree, worked by hand", () => {
     expect(ok(de).boxes.map((b) => b.text)).toEqual(["1.502,5", "1.500,5", "2,0"]);
   });
 
+  it("names a box that is no Metric by its parts and their operators, in brackets where it stands in another", () => {
+    const leaves = Object.fromEntries(["a", "b", "c", "d"].map((k, i) => [k, leaf(k.toUpperCase(), i + 1, count)]));
+    const names = (f: string) => ok(tree(f, leaves)).boxes.filter((b) => b.op !== null).map((b) => b.label);
+    expect(names("({a} * {b} / {c}) + {d}")).toEqual(["Result", "A × B ÷ C"]);
+    expect(names("({a} + {b} - {c}) * {d}")).toEqual(["Result", "A + B − C"]);
+    expect(names("(-{a} + {b}) * {c}")).toEqual(["Result", "− A + B"]);
+    expect(names("({a} + {b}) * {c} / ({a} - {b})")).toEqual(["Result", "A + B", "A − B"]);
+    expect(ok(tree("({a} + {b}) * {c} / ({a} - {b})", leaves)).boxes.map((b) => b.label)).toEqual(["Result", "A + B", "A", "B", "C", "A − B", "A", "B"]);
+    // The name of the box above shows them in brackets: it is a bracket of a bracket.
+    expect(ok(tree("(({a} + {b}) * {c}) - {d}", leaves)).boxes[1].label).toBe("(A + B) × C");
+    expect(ok(tree("{a} / ({b} * {c})", leaves)).boxes.map((b) => [b.label, b.how, b.glyph])).toEqual([["Result", "root", null], ["A", "factor", null], ["B", "divisor", "÷"], ["C", "divisor", "÷"]]);
+    // A minus sign in front of a factor is a box of its own with that one part taken away.
+    const m = ok(tree("-{a} * {b}", leaves));
+    expect(m.boxes.map((b) => [b.label, b.how, b.op, b.taken, b.glyph])).toEqual([["Result", "root", "product", false, null], ["− A", "factor", "sum", false, null], ["A", "term", null, true, "−"], ["B", "factor", null, false, "×"]]);
+    expect(m.boxes[0].value).toBe(-2);
+  });
+
+  it("writes a sum in a unit only when every part has that unit, on its side, and with the decimals of its most exact part", () => {
+    const eur2 = { decimals: 2, unit: "€", unit_position: "after" as const };
+    const usd = { decimals: 0, unit: "$", unit_position: "before" as const };
+    const usdAfter = { decimals: 0, unit: "$", unit_position: "after" as const };
+    const eurBefore = { decimals: 0, unit: "€", unit_position: "before" as const };
+    const sums = (a: TreeLeaf, b: TreeLeaf) => ok(tree("({a} + {b}) * 1", { a, b }, { unit: count })).boxes[1].text;
+    expect(sums(leaf("A", 1, eur), leaf("B", 2, eur))).toBe(eurText(3));
+    // The same unit with more decimals: the sum has the most.
+    expect(sums(leaf("A", 1, eur), leaf("B", 0.25, eur2))).toBe(eurText(1.25, 2));
+    expect(sums(leaf("A", 1, eur2), leaf("B", 0.25, eur))).toBe(eurText(1.25, 2));
+    // Another unit, or the same one on the other side, is no unit: a plain number.
+    expect(sums(leaf("A", 1, eur), leaf("B", 2, usd))).toBe("3");
+    expect(sums(leaf("A", 1, usd), leaf("B", 2, usdAfter))).toBe("3");
+    expect(sums(leaf("A", 1, eur), leaf("B", 2, eurBefore))).toBe("3");
+    // A number among the parts takes the unit away, first or not.
+    expect(ok(tree("(5 + {a}) * 1", { a: leaf("A", 1) }, { unit: count })).boxes[1].text).toBe("6");
+    expect(ok(tree("({a} + 5) * 1", { a: leaf("A", 1) }, { unit: count })).boxes[1].text).toBe("6");
+  });
+
+  it("gives a ratio two decimals at least, and a product or a ratio of more exact parts theirs", () => {
+    const d3 = { decimals: 3, unit: "", unit_position: "after" as const };
+    const text = (f: string, v: Record<string, TreeLeaf>) => ok(tree(`(${f}) + 0`, v, { unit: count })).boxes[1].text;
+    expect(text("{a} / {b}", { a: leaf("A", 1, d3), b: leaf("B", 3, d3) })).toBe("0.333");
+    expect(text("{a} / {b}", { a: leaf("A", 1, count), b: leaf("B", 3, count) })).toBe("0.33");
+    // A product with no divisor keeps the decimals of its parts: 6, not 6.00.
+    expect(text("{a} * {b}", { a: leaf("A", 2, count), b: leaf("B", 3, count) })).toBe("6");
+    expect(text("{a} * {b}", { a: leaf("A", 1.5, { ...d3, decimals: 1 }), b: leaf("B", 3, count) })).toBe("4.5");
+  });
+
+  it("writes the smallest number that 20 decimals show, and refuses the next", () => {
+    expect(ok(tree("{a} + {b}", { a: leaf("A", 1, count), b: leaf("B", 1e-20, count) }, { unit: count })).boxes[2].text).toBe("0.00000000000000000001");
+    expect(refusal(tree("{a} + {b}", { a: leaf("A", 1, count), b: leaf("B", 1e-21, count) }, { unit: count }))).toBe("Not drawn: some numbers are too small to write out in full.");
+    // And a share: 1 of 10^22 is 10^-20 percent, 1 of 10^23 is one decimal beyond.
+    const share = (big: number) => tree("{a} + {b}", { a: leaf("A", big, count), b: leaf("B", 1, count) }, { unit: count });
+    expect(ok(share(1e22)).boxes[2].shareText).toBe(pct(1e-20, 20));
+    expect(refusal(share(1e23))).toBe("Not drawn: some numbers are too small to write out in full.");
+  });
+
+  it("a divisor of any size is told apart from a factor: only the factors of a sum's own parts are scaled", () => {
+    const m = ok(tree("({a} - {b}) / {c} * 100", { a: leaf("A", 5), b: leaf("B", 2), c: leaf("C", 3) }));
+    expect(m.boxes.map((b) => [b.label, b.how, b.scaled])).toEqual([["Result", "root", true], ["A − B", "factor", false], ["A", "term", true], ["B", "term", true], ["C", "divisor", false], ["Number", "factor", false]]);
+  });
+
+  it("says a plain sum's rule without the sentence about a part taken away, and a difference's with it", () => {
+    const sum = ok(tree("{a} + {b}", { a: leaf("A", 1), b: leaf("B", 2) }));
+    expect(sum.rule).toBe("Each box is one number of the formula, worked out exactly. Parts that are added up share the width of the box above them by their size.");
+    expect(sum.alt).toBe(`Formula tree of Result for March 2026. ${sum.rule} Result ${eurText(3)} is made of: A ${eurText(1)}, added, ${pct(33.3333333333333)} of the parts; B ${eurText(2)}, added, ${pct(66.6666666666667)} of the parts.`);
+    const two = ok(tree("({a} + {b}) * {c}", { a: leaf("A", 1), b: leaf("B", 2), c: leaf("C", 4) }));
+    expect(two.alt).toContain(`Result ${eurText(12)} is worked out from: A + B ${eurText(3)}, multiplies; C ${eurText(4)}, multiplies. A + B ${eurText(3)} is made of:`);
+  });
+
+  it("a part too fine to work out exactly has no value, and one the doubles cannot tell from 0 is refused, never written as 0", () => {
+    const divisors = (n: number) => Object.fromEntries([["a", leaf("A", 1, count)], ...Array.from({ length: n }, (_, i) => [`p${i}`, leaf(`P${i}`, 1e300, count)])]);
+    const chain = (n: number) => `{a}${Array.from({ length: n }, (_, i) => ` / {p${i}}`).join("")}`;
+    const fine = ok(tree(chain(9), divisors(9), { unit: count }));
+    expect([fine.boxes[0].value, fine.boxes[0].why]).toEqual([null, "it cannot be worked out exactly"]);
+    // Eight of them is 10^-2400: exact, but 0 as a double.
+    expect(refusal(tree(chain(8), divisors(8), { unit: count }))).toBe("Not drawn: some numbers are too small to write out in full.");
+    // One of them is a number the 20 decimals cannot show either; with a divisor of 10^10 it is shown.
+    expect(refusal(tree(chain(1), divisors(1), { unit: count }))).toBe("Not drawn: some numbers are too small to write out in full.");
+    expect(ok(tree("{a} / {b}", { a: leaf("A", 1, count), b: leaf("B", 1e10, count) }, { unit: count })).boxes[0].text).toBe("0.0000000001");
+  });
+
   it("a part too large to write out has no value", () => {
     const big = Object.fromEntries(Array.from({ length: 20 }, (_, i) => [`p${i}`, leaf(`P${i}`, 1e300, count)]));
     const m = ok(tree(Object.keys(big).map((k) => `{${k}}`).join(" * "), big));
-    expect([m.boxes[0].value, m.boxes[0].why]).toEqual([null, "it is too large to write out"]);
+    expect([m.boxes[0].value, m.boxes[0].why]).toEqual([null, "it cannot be worked out exactly"]);
     const sum = ok(tree(Object.keys(big).map((k) => `{${k}}`).join(" + "), big, { unit: count }));
     expect(sum.boxes[0].value).toBe(2e301);
   });

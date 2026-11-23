@@ -87,25 +87,33 @@ type Built = {
 };
 type Ctx = { leaves: Record<string, TreeLeaf | undefined>; count: number };
 
-const fits = (f: Fraction) => bitLength(f.num) <= FORMULA_MAX_BITS && bitLength(f.den) <= FORMULA_MAX_BITS;
+// Stryker disable next-line EqualityOperator: the bound is a safety limit, not a rule of results: no number a formula within its bounds comes to works out to exactly 8,192 bits, so `<` gives the same
+const within = (n: bigint) => bitLength(n) <= FORMULA_MAX_BITS;
+const fits = (f: Fraction) => within(f.num) && within(f.den);
 const unique = (xs: string[]) => [...new Set(xs)];
 const ZERO: Fraction = { num: BigInt(0), den: BigInt(1) };
 const ONE: Fraction = { num: BigInt(1), den: BigInt(1) };
+// The size of a number. Shares are ratios of sizes, so a size with every sign turned round, or 0 turned round (it is 0 still), gives the same shares.
+// Stryker disable next-line EqualityOperator: `<=` turns 0 into 0, and `>=` makes every size negative, which leaves every ratio of sizes as it is
 const sizeOf = (f: Fraction): Fraction => (f.num < BigInt(0) ? { num: -f.num, den: f.den } : f);
+// The operator of a node that has one; the kind is not checked, as any other node has none.
+const opOf = (n: FormulaNode): string | undefined => (n as { op?: string }).op;
+type OpNode = Extract<FormulaNode, { k: "op" }>;
+const isSum = (n: FormulaNode) => n.k === "neg" || opOf(n) === "+" || opOf(n) === "-";
 /** The terms of a sum through every + and − (and minus sign), each with whether it is taken away: a − (b − c) has a, b taken and c. */
 function termsOf(n: FormulaNode, taken: boolean, out: { n: FormulaNode; taken: boolean }[] = []) {
   if (n.k === "neg") termsOf(n.a, !taken, out);
-  else if (n.k === "op" && (n.op === "+" || n.op === "-")) {
-    termsOf(n.a, taken, out);
-    termsOf(n.b, n.op === "-" ? !taken : taken, out);
+  else if (opOf(n) === "+" || opOf(n) === "-") {
+    termsOf((n as OpNode).a, taken, out);
+    termsOf((n as OpNode).b, opOf(n) === "-" ? !taken : taken, out);
   } else out.push({ n, taken });
   return out;
 }
 /** The factors of a product through every × and ÷, each with whether it divides: a / (b / c) has a, b dividing and c. */
 function factorsOf(n: FormulaNode, divides: boolean, out: { n: FormulaNode; divides: boolean }[] = []) {
-  if (n.k === "op" && (n.op === "*" || n.op === "/")) {
-    factorsOf(n.a, divides, out);
-    factorsOf(n.b, n.op === "/" ? !divides : divides, out);
+  if (opOf(n) === "*" || opOf(n) === "/") {
+    factorsOf((n as OpNode).a, divides, out);
+    factorsOf((n as OpNode).b, opOf(n) === "/" ? !divides : divides, out);
   } else out.push({ n, divides });
   return out;
 }
@@ -127,13 +135,13 @@ function make(n: FormulaNode, level: number, how: Built["how"], taken: boolean, 
   const base = { how, taken, kids: [] as Built[], op: null as Built["op"], notes: [] as string[], why: null as string | null };
   // A formula that is a single value is a box with that one part: `alone` makes the root a sum of one.
   if (n.k === "num" && !alone) return { ...base, name: "Number", expr: n.v, exact: fractionOfText(n.v), unit: null, decimals: decimalsOfText(n.v) };
-  if ((n.k === "ref" || n.k === "back") && !alone) {
-    // `back` (prev, change) is refused before a tree is built, so what is left here is a Metric of the formula.
+  if (!alone && "slug" in n) {
+    // The nodes with a slug are a Metric and `back` (prev, change), which is refused before a tree is built: what is left is a Metric of the formula.
     const leaf = ctx.leaves[n.slug]!;
-    const known = leaf.value !== null && Number.isFinite(leaf.value);
+    const known = Number.isFinite(leaf.value);
     return { ...base, name: leaf.name, expr: leaf.name, notes: leaf.note ? [leaf.note] : [], exact: known ? fractionOf(leaf.value as number) : null, unit: leaf.unit, decimals: leaf.unit.decimals };
   }
-  const sum = alone || n.k === "neg" || (n.k === "op" && (n.op === "+" || n.op === "-"));
+  const sum = alone || isSum(n);
   const kids = sum ? termsOf(n, false).map((t) => make(t.n, level + 1, "term", t.taken, ctx)) : factorsOf(n, false).map((f) => make(f.n, level + 1, f.divides ? "divisor" : "factor", false, ctx));
   const name = expressionName(kids, sum ? "sum" : "product");
   const out: Built = { ...base, op: sum ? "sum" : "product", kids, name, expr: `(${name})`, notes: unique(kids.flatMap((k) => k.notes)), exact: null, unit: null, decimals: Math.max(...kids.map((k) => k.decimals)) };
@@ -153,7 +161,7 @@ function make(n: FormulaNode, level: number, how: Built["how"], taken: boolean, 
 }
 // A result past the bounds of a formula has no value, as for `evaluate`.
 function finish(b: Built, exact: Fraction): Built {
-  return fits(exact) ? { ...b, exact } : { ...b, why: "it is too large to write out" };
+  return fits(exact) ? { ...b, exact } : { ...b, why: "it cannot be worked out exactly" };
 }
 
 // A number written with at least `decimals` places and as many more as it takes for one that is not 0 never to be written as 0; null where even 20 do not.
@@ -185,7 +193,7 @@ export function driverTree(source: TreeSource, style: NumberStyle): TreeModel {
   if (!read.ok) return no(`Not drawn: the formula of ${source.name} cannot be read. ${read.reason}`);
   let top: Built;
   try {
-    top = make(read.node, 0, "root", false, { leaves: source.leaves, count: 0 }, read.node.k === "num" || read.node.k === "ref" || read.node.k === "back");
+    top = make(read.node, 0, "root", false, { leaves: source.leaves, count: 0 }, !("a" in read.node));
   } catch (e) {
     // Only `make` throws, and only to refuse a formula that is too big.
     return no((e as Refused).message);
@@ -204,8 +212,9 @@ export function driverTree(source: TreeSource, style: NumberStyle): TreeModel {
     const written = value === null ? null : write(value, root ? source.unit : b.unit, root ? source.unit.decimals : b.decimals, style);
     const pct = share === null ? null : nearest(times(share, { num: BigInt(100), den: BigInt(1) }));
     const shareText = pct === null ? null : writePercent(pct, style);
-    tooSmall ||= (value !== null && written === null) || (pct !== null && shareText === null);
-    const glyph = b.how === "root" ? null : b.how === "divisor" ? "÷" : b.how === "factor" ? (index ? "×" : null) : b.taken ? "−" : index ? "+" : null;
+    // A number the doubles cannot tell from 0 (the exact value is not 0, the nearest double is) is never written as 0.
+    tooSmall ||= (value !== null && written === null) || (pct !== null && shareText === null) || (value === 0 && b.exact!.num !== BigInt(0));
+    const glyph = b.how === "divisor" ? "÷" : b.how === "factor" ? (index ? "×" : null) : b.taken ? "−" : index ? "+" : null;
     boxes.push({
       id, parent, level: parent === null ? 0 : boxes[parent].level + 1, label: notes.length ? `${root ? source.name : b.name} (${notes.join(", ")})` : root ? source.name : b.name, how: b.how, glyph, taken: b.taken, op: b.op, value, text: written ?? "no value", why: b.why,
       share: share === null ? null : nearest(share), shareText, scaled: b.how !== "factor" && b.how !== "divisor", alt: "",
