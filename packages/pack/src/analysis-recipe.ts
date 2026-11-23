@@ -104,7 +104,8 @@ export function checkAnalysisRecipeValue(value: unknown, lines: Map<string, numb
   const fmt = value && typeof value === "object" && !Array.isArray(value) ? (value as { format?: unknown }).format : undefined;
   if (typeof fmt === "string" && fmt.startsWith("ziffr.analysis/") && !(ANALYSIS_FORMATS as readonly string[]).includes(fmt))
     return { ok: false, problems: [{ path: "format", line: lines.get("format") ?? null, message: `This file is in format ${fmt}; this Ziffr reads ${ANALYSIS_FORMATS.join(", ")}.` }] };
-  if (fmt === ANALYSIS_FORMAT) return checkFirst(value, lines);
+  // A file that names no format is held to the first one's checks, as it always was.
+  if (fmt === ANALYSIS_FORMAT || fmt === undefined) return checkFirst(value, lines);
   return checkSecond(value, lines);
 }
 
@@ -136,7 +137,7 @@ function checkFirst(value: unknown, lines: Map<string, number>): RecipeCheck {
 
 // ---- ziffr.analysis/2 ----
 
-/** What a step, or a Slot, gives: a series, one value, a table (rows with a label and a number), or a model (what a fit holds). */
+/** What a step, or a Slot, gives: a series, one value, a table (rows with a label and a number), or a fit (what a fit step holds). */
 export type Kind = "series" | "value" | "table" | "model";
 
 /** The exact limits a /2 recipe is held to: those of /1, and how many inputs steps may name in all, how many fits, and the lists in a step. */
@@ -205,7 +206,7 @@ export const ANALYSIS_RECIPE_SCHEMA_2: Schema = {
   $schema: "https://json-schema.org/draft/2020-12/schema",
   $id: "https://ziffr.net/schemas/ziffr.analysis-2.json",
   title: "Ziffr Analysis Recipe (ziffr.analysis/2)",
-  description: "An Analysis written as steps of Ziffr's verified functions over the Metrics in its Slots; a step may give a series, one value, a table or a model, and an output may be a Takeaway. It holds no code.",
+  description: "An Analysis written as steps of Ziffr's verified functions over the Metrics in its Slots; a step may give a series, one value, a table or a fit, and an output may be a Takeaway. It holds no code.",
   type: "object",
   properties: {
     format: { const: ANALYSIS_FORMAT_2 },
@@ -222,7 +223,7 @@ export const ANALYSIS_RECIPE_SCHEMA_2: Schema = {
         properties: {
           step: { type: "string", pattern: ID },
           label: { ...text(RECIPE_LIMITS_2.label), minLength: 1 },
-          shows: { enum: ["series", "value", "table", "takeaway"], description: "what it shows; a model is shown only through its Takeaway" },
+          shows: { enum: ["series", "value", "table", "takeaway"], description: "what it shows; a fit is shown only through its Takeaway" },
           unit: { enum: ["metric", "percent", "number"], description: "for a series or one value" },
           title: text(RECIPE_LIMITS_2.title),
           note: text(RECIPE_LIMITS_2.note),
@@ -236,7 +237,7 @@ export const ANALYSIS_RECIPE_SCHEMA_2: Schema = {
   additionalProperties: false,
 };
 
-const A_KIND: Record<Kind, string> = { series: "a series", value: "one value", table: "a table", model: "a model" };
+const A_KIND: Record<Kind, string> = { series: "a series", value: "one value", table: "a table", model: "a fit" };
 
 function checkSecond(value: unknown, lines: Map<string, number>): RecipeCheck {
   const problems = checkSchema(ANALYSIS_RECIPE_SCHEMA_2, value, lines);
@@ -251,7 +252,9 @@ function checkSecond(value: unknown, lines: Map<string, number>): RecipeCheck {
   r.steps.forEach((s, i) => {
     const here = `steps[${i}]`;
     const f = FUNCTIONS_2[s.fn] as Function2;
-    if (kinds.has(s.id)) at(`${here}.id`, `“${s.id}” is used already: each step needs a name of its own, and slot1 to slot4 are the Slots.`);
+    // slot1 to slot4 are the Slots' names for ever, so no step may take one, even beyond the Slots this recipe has.
+    if (kinds.has(s.id) || /^slot[1-4]$/.test(s.id)) at(`${here}.id`, `“${s.id}” is used already: each step needs a name of its own, and slot1 to slot4 are the Slots.`);
+    if (s.drivers?.includes(s.of)) at(`${here}.drivers`, `lists “${s.of}”, which is the series it explains; a series cannot be its own driver.`);
     const refs: [string, string, Kind][] = [[`${here}.of`, s.of, f.of]];
     if (s.with !== undefined) refs.push([`${here}.with`, s.with, "series"]);
     s.controls?.forEach((c, j) => refs.push([`${here}.controls[${j}]`, c, "series"]));
@@ -275,8 +278,9 @@ function checkSecond(value: unknown, lines: Map<string, number>): RecipeCheck {
     if (o.shows === "takeaway") {
       if (!("takeaway" in FUNCTIONS_2[s.fn])) at(`${here}.shows`, `${s.fn} has no Takeaway; show its ${A_KIND[gives]} instead.`);
       // The words of a Takeaway name Metrics and their units, so everything it is worked out from must be a Slot.
+      else if (s.fn === "laggedCorrelation" && s.maxLag !== 6) at(`${here}.shows`, `The Takeaway of a lagged correlation looks at all 6 delays; ${o.step} asks for ${s.maxLag}, so its table and its Takeaway would differ. Set maxLag to 6.`);
       else if (![s.of, s.with, ...(s.controls ?? []), ...(s.drivers ?? [])].every((x) => x === undefined || /^slot[1-4]$/.test(x))) at(`${here}.shows`, `A Takeaway is worked out from Slots only; ${o.step} works on another step.`);
-    } else if (gives === "model") at(`${here}.shows`, `“${o.step}” gives a model, which is shown only through its Takeaway.`);
+    } else if (gives === "model") at(`${here}.shows`, `“${o.step}” gives a fit, which is shown only through its Takeaway.`);
     else if (gives !== o.shows) at(`${here}.shows`, `“${o.step}” gives ${A_KIND[gives]}, not ${A_KIND[o.shows]}.`);
     const plain = o.shows === "series" || o.shows === "value";
     if (plain && o.unit === undefined) at(here, `needs the field “unit”: how a ${o.shows} is written.`);

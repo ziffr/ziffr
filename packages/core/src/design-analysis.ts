@@ -35,7 +35,7 @@ export function recipeInputs2(design: ViewDesign, metrics: Metric[], data: Pick<
     const m = metrics[i];
     if (!m) return [];
     const shown = shownSeries(m, data, design.options?.display ? settings.display : undefined, { today });
-    return [{ name: m.name, unit: m, period: shown.by, points: shown.points.slice(-RECIPE_INPUT_POINTS).map((p) => ({ period: p.period, value: p.value })) }];
+    return [{ meta: m, name: m.name, unit: m, period: shown.by, points: shown.points.slice(-RECIPE_INPUT_POINTS).map((p) => ({ period: p.period, value: p.value })) }];
   });
 }
 

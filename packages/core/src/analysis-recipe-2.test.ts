@@ -87,26 +87,29 @@ const HOSTILE: Case[] = [
   ["too many steps", withSteps(Array.from({ length: 13 }, (_, i) => ({ id: `s${i}`, fn: "growth", of: "slot1" }))), "13 entries; at most 12", '"steps"', "schema"],
   ["too many outputs", withOutputs(Array.from({ length: 7 }, (_, i) => ({ step: "rho", label: `o${i}`, shows: "value", unit: "number" }))), "7 entries; at most 6", '"outputs"', "schema"],
   ["too many Slots", text({ ...GOOD, slots: Array(5).fill({ label: "M" }) }), "5 entries; at most 4", '"slots"', "schema"],
+  ["a step named slot3 in a recipe with three Slots only", withSteps([{ id: "slot4", fn: "changes", of: "slot1" }], { outputs: [{ step: "slot4", label: "x", shows: "series", unit: "number" }] }), "“slot4” is used already", '"id": "slot4"', "meaning"],
+  ["a fit explained by itself", step(7, { drivers: ["slot1", "slot2"] }), "lists “slot1”, which is the series it explains", '"drivers"', "meaning"],
+  ["a lagged Takeaway that differs from its table", withOutputs([{ step: "lags", label: "x", shows: "takeaway" }]), "looks at all 6 delays; lags asks for 3", '"shows"', "meaning"],
   ["a Slot it does not have", step(2, { with: "slot4" }), "“slot4” is neither a Slot of this recipe nor an earlier step", '"slot4"', "meaning"],
   ["a later step", step(0, { of: "weights" }), "“weights” is neither a Slot of this recipe nor an earlier step", '"weights"', "meaning"],
   ["a step named twice", withSteps([{ id: "a", fn: "growth", of: "slot1" }, { id: "a", fn: "difference", of: "slot1" }], { outputs: [{ step: "a", label: "x", shows: "series", unit: "number" }] }), "“a” is used already", { last: '"id": "a"' }, "meaning"],
   ["a step named like a Slot", step(0, { id: "slot1" }), "is used already", '"id": "slot1"', "meaning"],
   ["a value where a series belongs", step(9, { of: "rho" }), "“rho” gives one value; movingAverage needs a series", '"of": "rho"', "meaning"],
   ["a table where a series belongs", step(9, { of: "lags" }), "“lags” gives a table; movingAverage needs a series", '"of": "lags"', "meaning"],
-  ["a model where a series belongs", step(9, { of: "model" }), "“model” gives a model; movingAverage needs a series", { last: '"of": "model"' }, "meaning"],
-  ["a series where a model belongs", step(8, { of: "slot1" }), "“slot1” gives a series; importance needs a model", { last: '"of": "slot1"' }, "meaning"],
+  ["a model where a series belongs", step(9, { of: "model" }), "“model” gives a fit; movingAverage needs a series", { last: '"of": "model"' }, "meaning"],
+  ["a series where a model belongs", step(8, { of: "slot1" }), "“slot1” gives a series; importance needs a fit", { last: '"of": "slot1"' }, "meaning"],
   ["a value as a driver", step(7, { drivers: ["slot2", "rho"] }), "“rho” gives one value; fit needs a series", { after: '"drivers": [', plus: 2 }, "meaning"],
   ["a table as a driver", step(7, { drivers: ["slot2", "lags"] }), "“lags” gives a table; fit needs a series", { after: '"drivers": [', plus: 2 }, "meaning"],
   ["an output of no step", withOutputs([{ step: "nothing", label: "x", shows: "value", unit: "number" }]), "“nothing” is not a step of this recipe", '"nothing"', "meaning"],
   ["a value shown as a series", withOutputs([{ step: "rho", label: "x", shows: "series", unit: "number" }]), "“rho” gives one value, not a series", '"series"', "meaning"],
-  ["a model shown as a series", withOutputs([{ step: "model", label: "x", shows: "series", unit: "number" }]), "gives a model, which is shown only through its Takeaway", '"series"', "meaning"],
+  ["a model shown as a series", withOutputs([{ step: "model", label: "x", shows: "series", unit: "number" }]), "gives a fit, which is shown only through its Takeaway", '"series"', "meaning"],
   ["a Takeaway of a step that has none", withOutputs([{ step: "chg", label: "x", shows: "takeaway" }]), "changes has no Takeaway; show its a series instead", '"takeaway"', "meaning"],
   ["a Takeaway of a step on another step", withOutputs([{ step: "smooth", label: "x", shows: "takeaway" }]), "movingAverage has no Takeaway", '"takeaway"', "meaning"],
   ["a Takeaway worked out from another step", withSteps([...GOOD.steps, { id: "r2", fn: "spearman", of: "chg", with: "slot2" }], { outputs: [{ step: "r2", label: "x", shows: "takeaway" }] }), "A Takeaway is worked out from Slots only; r2 works on another step", '"takeaway"', "meaning"],
   ["a series without its unit", withOutputs([{ step: "smooth", label: "x", shows: "series" }]), "needs the field “unit”", { after: '"outputs": [' }, "meaning"],
   ["a unit on a table", withOutputs([{ step: "lags", label: "x", shows: "table", unit: "number" }]), "is for a series or one value, not a table", '"unit"', "meaning"],
   ["a unit on a Takeaway", withOutputs([{ step: "usual", label: "x", shows: "takeaway", unit: "number" }]), "is for a series or one value, not a table", '"unit"', "meaning"],
-  ["a unit on the Takeaway of a fit", withOutputs([{ step: "model", label: "x", shows: "takeaway", unit: "number" }]), "is for a series or one value, not a model", '"unit"', "meaning"],
+  ["a unit on the Takeaway of a fit", withOutputs([{ step: "model", label: "x", shows: "takeaway", unit: "number" }]), "is for a series or one value, not a fit", '"unit"', "meaning"],
   ["a title on a table", withOutputs([{ step: "lags", label: "x", shows: "table", title: "t" }]), "is for a Takeaway", '"title"', "meaning"],
   ["a note on a value", withOutputs([{ step: "rho", label: "x", shows: "value", unit: "number", note: "n" }]), "is for a Takeaway", '"note"', "meaning"],
   ["three fits", withSteps(Array.from({ length: 3 }, (_, i) => ({ id: `m${i}`, fn: "fit", of: "slot1", drivers: ["slot2"] })), { outputs: [{ step: "m0", label: "x", shows: "takeaway" }] }), "have 3 fits; at most 2 are allowed", '"steps"', "meaning"],
@@ -173,6 +176,11 @@ describe("what is no file at all, and where a problem is named", () => {
     const res = checkAnalysisRecipeValue(value);
     expect(res.ok).toBe(false);
     expect(!res.ok && res.problems.length).toBeGreaterThan(0);
+  });
+  it("holds a file with no format to the first format's checks, as before", () => {
+    const res = checkAnalysisRecipeValue({ name: "x", slots: [{ label: "A" }], steps: [{ id: "a", fn: "growth", of: "slot1" }], outputs: [{ step: "a", label: "x", unit: "number" }] });
+    expect(!res.ok && res.problems.map((p) => p.message).join()).toContain("needs the field “format”");
+    expect(!res.ok && res.problems.map((p) => p.message).join()).not.toContain("shows");
   });
   it("names no line where it was not given the file's lines", () => {
     const lines = (v: unknown) => {

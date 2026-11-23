@@ -3,7 +3,6 @@
 // the tables the Methods give as rows. Each is the Method's own function, with its own references and tests; this module
 // only reads what the Method gives as rows with words from the Takeaway layer's wording, and refuses nothing silently:
 // a Method that gives no result gives no rows, a null or a model that says why. Pure.
-import type { Importance } from "./methods/fit";
 import type { FitInput, Fit, Refused } from "./methods/fit";
 import type { Lagged } from "./methods/lagged-correlation";
 import type { UsualRange } from "./methods/quantiles";
@@ -12,7 +11,7 @@ import type { Span } from "./periods";
 import type { Result } from "./recipe-functions";
 import { sayIn, type TakeawayContext } from "./takeaways/takeaway";
 import type { ValueUnit } from "./format";
-import type { Point } from "./types";
+import type { Metric, Point } from "./types";
 
 /** At most this many of the latest values of each Slot go into a recipe: a bound on the work any recipe can ask for. */
 export const RECIPE_POINTS = 120;
@@ -24,7 +23,7 @@ export type TableRow = { label: string; value: number | null };
 export type Result2 = Result | { kind: "table"; rows: TableRow[] } | { kind: "model"; input: FitInput; fit: Fit | Refused };
 
 /** A Slot's Metric as a recipe gets it: its name and unit for the words of a Takeaway, its period, and its series. */
-export type RecipeInput = { name: string; unit: ValueUnit; period: Span; points: Point[] };
+export type RecipeInput = { meta?: Pick<Metric, "slug" | "name" | "formula" | "period" | "aggregation">; name: string; unit: ValueUnit; period: Span; points: Point[] };
 
 /** The p-th percentile (1 to 99) of a series as one value, by `quantile` (type 7); none for no values. */
 export function percentile(points: Point[], percent: number): Result {
@@ -50,6 +49,6 @@ export function usualRows(u: UsualRange | null, ctx: TakeawayContext): TableRow[
 }
 
 /** A fit's importance as rows: each driver's share of what the fit explains (0 to 1, adding to 1); none where the fit was refused. */
-export function importanceRows(i: Importance): TableRow[] {
-  return i.ok ? i.drivers.map((d) => ({ label: d.name, value: d.share })) : [];
+export function importanceRows(f: Fit | Refused): TableRow[] {
+  return f.ok ? f.drivers.map((d) => ({ label: d.name, value: d.share })) : [];
 }

@@ -122,7 +122,7 @@ describe("a Takeaway output is the Method's own Takeaway", () => {
   };
   it("rank correlation, lagged correlation, partial correlation, the usual range and a fit", () => {
     expect(take({ id: "s", fn: "spearman", of: "slot1", with: "slot2" })).toEqual(spearmanTakeaway("Revenue", "Visits", a, b, "month", "values", ctx));
-    expect(take({ id: "l", fn: "laggedCorrelation", of: "slot1", with: "slot2", maxLag: 2 })).toEqual(laggedTakeaway("Revenue", "Visits", a, b, "month", "values", ctx));
+    expect(take({ id: "l", fn: "laggedCorrelation", of: "slot1", with: "slot2", maxLag: 6 })).toEqual(laggedTakeaway("Revenue", "Visits", a, b, "month", "values", ctx));
     expect(take({ id: "p", fn: "partialCorrelation", of: "slot1", with: "slot2", controls: ["slot3"] })).toEqual(partialTakeaway({ a: "Revenue", b: "Visits", held: ["Price"] }, a, b, [c], "month", ctx));
     expect(take({ id: "u", fn: "usualRange", of: "slot1" })).toEqual(usualRangeTakeaway("Revenue", a, "month", UNIT, ctx));
     const f = fit({ target: { name: "Revenue", points: a }, drivers: [{ name: "Visits", points: b }, { name: "Price", points: c }], span: "month" });
@@ -228,6 +228,34 @@ describe("what a recipe reaches and how it fails", () => {
     const pts = (n: number) => Array.from({ length: n }, (_, i) => (i === 0 ? 1000 : i));
     expect(val(out(runRecipe2(edge, [input("A", pts(RECIPE_POINTS + 1))], ctx), "q"))).toBe(quantile(at(pts(RECIPE_POINTS + 1)).slice(1), 0.99));
     expect(val(out(runRecipe2(edge, [input("A", pts(RECIPE_POINTS))], ctx), "q"))).toBe(quantile(at(pts(RECIPE_POINTS)), 0.99));
+  });
+  it("tells names apart even where a suffix is a real name, and the Takeaway of a fit finds each driver", () => {
+    const r = runRecipe2(rec([{ id: "m", fn: "fit", of: "slot1", drivers: ["slot2", "slot3"] }], [{ step: "m", label: "m", shows: "takeaway" }]), [input("Visits", va), input("Visits", vb), input("Visits (2)", vc)], ctx);
+    const model = r.steps.m as { input: { target: { name: string }; drivers: { name: string }[] } };
+    expect([model.input.target.name, ...model.input.drivers.map((d) => d.name)]).toEqual(["Visits", "Visits (2)", "Visits (2) (2)"]);
+    expect(((out(r, "m") as Extract<RunOutput, { shows: "takeaway" }>).takeaway).kind).toBe("answer");
+  });
+  it("does not fit again for the importance table", () => {
+    const x = wobble(30, 3);
+    const r = runRecipe2(rec([{ id: "m", fn: "fit", of: "slot1", drivers: ["slot2"] }, { id: "w", fn: "importance", of: "m" }], [{ step: "w", label: "w", shows: "table" }], 2), [input("Y", x.map((v, i) => v * 2 + (i % 3))), input("X", x)], ctx);
+    const f = (r.steps.m as { fit: { ok: true; drivers: { name: string; share: number }[] } }).fit;
+    expect((out(r, "w") as Extract<RunOutput, { shows: "table" }>).rows).toEqual(f.drivers.map((d) => ({ label: d.name, value: d.share })));
+  });
+  it("refuses a fit of a Metric built from its own driver, as the question does", () => {
+    const rev = { slug: "revenue", name: "Revenue", formula: "{price} * {volume}", period: "month" as const, aggregation: "sum" as const };
+    const mk = (n: string, slug: string) => ({ slug, name: n, formula: null, period: "month" as const, aggregation: "sum" as const });
+    const r = runRecipe2(rec([{ id: "m", fn: "fit", of: "slot1", drivers: ["slot2", "slot3"] }], [{ step: "m", label: "m", shows: "takeaway" }]), [{ ...input("Revenue", va), meta: rev }, { ...input("Price", vb), meta: mk("Price", "price") }, { ...input("Volume", vc), meta: mk("Volume", "volume") }], ctx);
+    expect(((out(r, "m") as Extract<RunOutput, { shows: "takeaway" }>).takeaway).kind).toBe("refusal");
+  });
+  it("tells the fit what its Metrics are only where it knows every one of them", () => {
+    const mk = (n: string, slug: string) => ({ slug, name: n, formula: null, period: "month" as const, aggregation: "sum" as const });
+    const run = (metas: (ReturnType<typeof mk> | undefined)[]) => {
+      const r = runRecipe2(rec([{ id: "m", fn: "fit", of: "slot1", drivers: ["slot2"] }], [{ step: "m", label: "m", shows: "takeaway" }], 2), [{ ...input("A", va), meta: metas[0] }, { ...input("B", vb), meta: metas[1] }], ctx);
+      return (r.steps.m as { input: { metrics?: { name: string; slug: string }[] } }).input.metrics;
+    };
+    expect(run([mk("A", "a"), mk("B", "b")])).toEqual([{ ...mk("A", "a") }, { ...mk("B", "b") }]);
+    expect(run([mk("A", "a"), undefined])).toBeUndefined();
+    expect(run([undefined, mk("B", "b")])).toBeUndefined();
   });
   it("tells two Slots of one name apart, so a fit never takes them for one driver", () => {
     const r = runRecipe2(rec([{ id: "m", fn: "fit", of: "slot1", drivers: ["slot2", "slot3"] }], [{ step: "m", label: "m", shows: "takeaway" }]), [input("Sales", va), input("Sales", vb), input("Sales", vc)], ctx);

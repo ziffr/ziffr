@@ -97,7 +97,7 @@ describe("a design that carries a /2 recipe", () => {
     expect(messages(bad({ ...RECIPE, format: "ziffr.analysis/3" }))).toContain("analysis.format: must be one of “ziffr.analysis/1”, “ziffr.analysis/2”");
     expect(messages(bad({ ...RECIPE, steps: [{ id: "x", fn: "eval", of: "slot1" }] }))).toContain("must be one of “movingAverage”");
     expect(messages(bad({ ...RECIPE, code: "x" }))).toContain("analysis.code: is not a field here");
-    expect(messages(bad({ ...RECIPE, steps: [...RECIPE.steps, { id: "w", fn: "importance", of: "slot1" }] }))).toContain("“slot1” gives a series; importance needs a model");
+    expect(messages(bad({ ...RECIPE, steps: [...RECIPE.steps, { id: "w", fn: "importance", of: "slot1" }] }))).toContain("“slot1” gives a series; importance needs a fit");
     expect(messages(bad({ ...RECIPE, slots: [...RECIPE.slots, { label: "C" }, { label: "D" }] }))).toContain("The analysis has 4 Slots; the design fills at most 2.");
     // A /1 recipe may not use a function of /2.
     expect(messages(bad({ ...WITH_RECIPE.analysis, steps: [{ id: "avg", fn: "changes", of: "slot1" }] }))).toContain("must be one of “movingAverage”");

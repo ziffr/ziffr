@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://ziffr.net/schemas/ziffr.analysis-2.json",
   "title": "Ziffr Analysis Recipe (ziffr.analysis/2)",
-  "description": "An Analysis written as steps of Ziffr's verified functions over the Metrics in its Slots; a step may give a series, one value, a table or a model, and an output may be a Takeaway. It holds no code.",
+  "description": "An Analysis written as steps of Ziffr's verified functions over the Metrics in its Slots; a step may give a series, one value, a table or a fit, and an output may be a Takeaway. It holds no code.",
   "type": "object",
   "properties": {
     "format": {
@@ -636,7 +636,7 @@
               "table",
               "takeaway"
             ],
-            "description": "what it shows; a model is shown only through its Takeaway"
+            "description": "what it shows; a fit is shown only through its Takeaway"
           },
           "unit": {
             "enum": [

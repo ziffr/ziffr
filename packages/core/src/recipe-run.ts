@@ -4,7 +4,7 @@
 // /1 is run by `runRecipe`, format /2 by `runRecipe2`. Pure.
 import { FUNCTIONS_2, type AnalysisRecipe, type AnalysisRecipe2, type Step2 } from "./analysis-recipe";
 import { basisFor, changes, detrended, readSeries } from "./basis";
-import { fit, importance, type FitInput } from "./methods/fit";
+import { fit, type FitInput } from "./methods/fit";
 import { laggedCorrelation, laggedTakeaway } from "./methods/lagged-correlation";
 import { partialCorrelation, partialTakeaway } from "./methods/partial-correlation";
 import { usualRange, usualRangeTakeaway } from "./methods/quantiles";
@@ -70,11 +70,13 @@ const PLAIN = { unit: "", unit_position: "after", decimals: 2 } as const;
 
 // Distinct names for what a step is given, so a fit never takes two drivers for one: a repeat is told apart by a number.
 function distinct(names: string[]): string[] {
-  const seen = new Map<string, number>();
+  const used = new Set<string>();
   return names.map((n) => {
-    const k = (seen.get(n) ?? 0) + 1;
-    seen.set(n, k);
-    return k === 1 ? n : `${n} (${k})`;
+    let name = n;
+    // A suffix may itself be a real name ("Visits (2)"): go on until the name is unused.
+    for (let k = 2; used.has(name); k++) name = `${n} (${k})`;
+    used.add(name);
+    return name;
   });
 }
 
@@ -86,7 +88,7 @@ export function runRecipe2(r: AnalysisRecipe2, inputs: RecipeInput[], ctx: Takea
   const slots = r.slots.map((s, i) => {
     const given = inputs[i];
     // Stryker disable next-line ArrayDeclaration: a Slot that was not given has no values; any element put there is no value (every function leaves out what is not finite), so the series is empty either way
-    return { name: given?.name ?? s.label, unit: given?.unit ?? PLAIN, period: given?.period ?? ("month" as Span), points: given ? readSeries(given.points).slice(-RECIPE_POINTS) : [] };
+    return { meta: given?.meta, name: given?.name ?? s.label, unit: given?.unit ?? PLAIN, period: given?.period ?? ("month" as Span), points: given ? readSeries(given.points).slice(-RECIPE_POINTS) : [] };
   });
   const names = distinct(slots.map((s) => s.name));
   const filled = slots.filter((s) => s.points.length > 0);
@@ -103,7 +105,7 @@ export function runRecipe2(r: AnalysisRecipe2, inputs: RecipeInput[], ctx: Takea
   const refusal = () => sayIn("recipe-mixed-periods", { names: names.join(", ") }, ctx);
   const steps: Record<string, Result2> = {};
   for (const s of r.steps) {
-    const res = mixed ? emptyResult(s, names) : step2(s, seriesOf, known, nameOf, span, ctx);
+    const res = mixed ? emptyResult(s, names) : step2(s, seriesOf, known, nameOf, (id) => { const i = slotAt.get(id); return i === undefined ? undefined : slots[i].meta; }, span, ctx);
     known.set(s.id, res);
     steps[s.id] = res;
   }
@@ -129,7 +131,7 @@ function emptyResult(s: Step2, names: string[]): Result2 {
   return { kind: "model", input: { target: { name: "", points: [] }, drivers: [], span: "month" }, fit: { ok: false, refusals: [{ case: "recipe-mixed-periods", slots: { names: names.join(", ") } }] } };
 }
 
-function step2(s: Step2, seriesOf: (id: string) => Point[], known: Map<string, Result2>, nameOf: (id: string) => string, span: Span, ctx: TakeawayContext): Result2 {
+function step2(s: Step2, seriesOf: (id: string) => Point[], known: Map<string, Result2>, nameOf: (id: string) => string, meta: (id: string) => RecipeInput["meta"], span: Span, ctx: TakeawayContext): Result2 {
   const a = () => seriesOf(s.of);
   const b = () => seriesOf(s.with!);
   const value = (v: number | undefined): Result2 => ({ kind: "value", value: Number.isFinite(v) ? (v as number) : null });
@@ -147,10 +149,12 @@ function step2(s: Step2, seriesOf: (id: string) => Point[], known: Map<string, R
     case "quantile": return percentile(a(), s.percent!);
     case "fit": {
       const named = distinct([s.of, ...s.drivers!].map(nameOf));
-      const input: FitInput = { target: { name: named[0], points: a() }, drivers: s.drivers!.map((d, i) => ({ name: named[i + 1], points: seriesOf(d) })), span };
+      // Where every series is a Slot's Metric, the fit is told what they are, so it refuses a Metric built from another or of mixed periods as "What moves B?" does.
+      const metas = [s.of, ...s.drivers!].map((id) => meta(id));
+      const input: FitInput = { target: { name: named[0], points: a() }, drivers: s.drivers!.map((d, i) => ({ name: named[i + 1], points: seriesOf(d) })), span, ...(metas.every((m) => m) ? { metrics: metas.map((m, i) => ({ ...m!, name: named[i] })) } : {}) };
       return { kind: "model", input, fit: fit(input) };
     }
-    case "importance": return { kind: "table", rows: importanceRows(importance((known.get(s.of) as Extract<Result2, { kind: "model" }>).input)) };
+    case "importance": return { kind: "table", rows: importanceRows((known.get(s.of) as Extract<Result2, { kind: "model" }>).fit) };
     default: return first(s, seriesOf);
   }
 }
@@ -171,8 +175,10 @@ function takeawayOf(s: Step2, steps: Record<string, Result2>, slots: { name: str
     case "usualRange": return usualRangeTakeaway(names[at(s.of)], x.points, span, x.unit, ctx);
     default: {
       // Only a fit is left: its Takeaway is "What moves B?" on the target and the drivers as given.
-      const drivers = s.drivers!.map((d) => ({ ...slots[at(d)].unit, name: names[at(d)] }));
-      return movesTakeaway({ ...x.unit, name: names[at(s.of)] }, drivers, (steps[s.id] as Extract<Result2, { kind: "model" }>).fit, ctx);
+      // The names are the ones the fit was made with (told apart), so each driver is found by its name.
+      const model = steps[s.id] as Extract<Result2, { kind: "model" }>;
+      const drivers = s.drivers!.map((d, i) => ({ ...slots[at(d)].unit, name: model.input.drivers[i].name }));
+      return movesTakeaway({ ...x.unit, name: model.input.target.name }, drivers, model.fit, ctx);
     }
   }
 }

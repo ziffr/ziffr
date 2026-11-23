@@ -69,7 +69,7 @@ What a step gives is one of four kinds, and each function says which kind it tak
 - a **series**: values by period;
 - one **value**;
 - a **table**: rows, each with a label and a number;
-- a **model**: what a fit holds. A recipe cannot show a model; it can only pass it to `importance`, or show its Takeaway.
+- a **fit**: what a fit step holds. A recipe cannot show a fit itself; it can only pass it to `importance`, or show its Takeaway.
 
 ```json
 {
@@ -102,12 +102,12 @@ The functions of `/1` are all there, and these are new:
 | `partialCorrelation` (`with`, `controls` 1 to 4) | series | a value | The link of the first two with the others held the same. |
 | `laggedCorrelation` (`with`, `maxLag` 0 to 6) | two series | a table | A row for each delay: "Same month", "1 month later", …, each with its r. |
 | `usualRange` | a series | a table | Usual low, lower quartile, median, upper quartile, usual high. |
-| `fit` (`drivers` 1 to 6) | series | a model | The target (`of`) and its drivers, each effect with the others held the same. |
-| `importance` | a model | a table | Each driver's share of what the fit explains; the shares add up to 1. |
+| `fit` (`drivers` 1 to 6) | series | a fit | The target (`of`) and its drivers, each effect with the others held the same. |
+| `importance` | a fit | a table | Each driver's share of what the fit explains; the shares add up to 1. |
 
 Each is the Method of the same name in the [Methods guide](methods.md), with its minimums and its refusals: where a Method has no answer for the data, a value is empty, a table has no rows, and a Takeaway says in words what is missing. A change too large to be a number is left out of a series, as everywhere in the library.
 
-**Outputs.** Each output says what it `shows`: `series`, `value`, `table` or `takeaway`. A series or a value also names its `unit` (as in `/1`); a table or a Takeaway has none. A Takeaway is available for `spearman`, `partialCorrelation`, `laggedCorrelation`, `usualRange` and `fit`, and is the Method's own: its sentence, strength, range, cautions and footer are written by Ziffr, in the same words as in the Analysis Canvas, and a recipe adds only a `title` and a `note` in plain text. Because those words name Metrics and their units, a Takeaway is worked out from Slots, not from another step. A Takeaway always uses the Method's own settings (a lagged correlation's Takeaway looks at all six delays, whatever `maxLag` the table asks for), and compares two Metrics that both grow by their changes, as everywhere.
+**Outputs.** Each output says what it `shows`: `series`, `value`, `table` or `takeaway`. A series or a value also names its `unit` (as in `/1`); a table or a Takeaway has none. A Takeaway is available for `spearman`, `partialCorrelation`, `laggedCorrelation`, `usualRange` and `fit`, and is the Method's own: its sentence, strength, range, cautions and footer are written by Ziffr, in the same words as in the Analysis Canvas, and a recipe adds only a `title` and a `note` in plain text. A Takeaway names Metrics and their units, so it is worked out from Slots, not from another step. A Takeaway always uses the Method's own settings (a lagged correlation Takeaway looks at all six delays, so it needs `maxLag` 6), and compares two Metrics that both grow by their changes, as everywhere.
 
 **Limits.** At most 4 Slots, 12 steps, 6 outputs, 4 controls and 6 drivers; at most 40 inputs named across all steps and 2 fits; a file of at most 32 KiB and 6 levels deep; names, titles and notes in plain text as in `/1` (a title up to 60 characters, a note up to 200). A recipe works on the latest 120 values of each Slot. Metrics of different periods are not compared: every output says to show them by the same period.
 
@@ -121,4 +121,4 @@ The **Correlation** recipe is the same Pearson's r the Correlation Analysis comp
 
 Everything a View Design's checks refuse, and also: a function the library does not have, a missing or extra parameter, a step that reads a later step or a Slot the recipe does not have, two steps with one name or a step named like a Slot, a value where a series belongs, and an output of no step. A recipe file is at most 32 KiB.
 
-In `/2` also: an input of the wrong kind (a value where a series belongs, a table where a model does), a list with a name twice, an output that does not match what its step gives, a Takeaway of a function that has none or of one that works on another step, a `unit` on a table or a Takeaway or none on a series, and more than 40 inputs or 2 fits.
+In `/2` also: an input of the wrong kind (a value where a series belongs, a table where a fit does), a list with a name twice, an output that does not match what its step gives, a Takeaway of a function that has none or of one that works on another step, a `unit` on a table or a Takeaway or none on a series, and more than 40 inputs or 2 fits.

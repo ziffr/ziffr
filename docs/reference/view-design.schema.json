@@ -1114,7 +1114,7 @@
                       "table",
                       "takeaway"
                     ],
-                    "description": "what it shows; a model is shown only through its Takeaway"
+                    "description": "what it shows; a fit is shown only through its Takeaway"
                   },
                   "unit": {
                     "enum": [
