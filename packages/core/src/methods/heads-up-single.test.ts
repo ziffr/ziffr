@@ -14,7 +14,7 @@ import type { Point } from "../types";
 import { changePoint } from "./change-point";
 import { carryOf } from "./carry-over";
 import { usualRange } from "./quantiles";
-import { changeChance, driftAbove, holds, testsOf, driftBelow, farApart, lineAbove, lineAt, lineBelow, newValueChance, onTheSide, reaches, recentDate, shiftChance, singleHeadsUpsFrom, SINGLE, targetHeadsUp, turned, wasOnPace, twoLinesMisses, unlikelyToReach, type SingleContext, type SingleLook } from "./heads-up-single";
+import { changeChance, driftAbove, holds, isCurrent, testsOf, driftBelow, farApart, lineAbove, lineAt, lineBelow, newValueChance, onTheSide, reaches, recentDate, shiftChance, singleHeadsUpsFrom, SINGLE, targetHeadsUp, turned, wasOnPace, twoLinesMisses, unlikelyToReach, type SingleContext, type SingleLook } from "./heads-up-single";
 
 const { numRuns, seed } = runs();
 const month = (k: number) => new Date(Date.UTC(2020, k, 1)).toISOString().slice(0, 10);
@@ -628,6 +628,15 @@ describe("a Target with both ends counts twice", () => {
   it("is not told for a turn whose slopes are too small to write, or too blurred to be a change", () => {
     expect(ups([{ metric: signups, points: series(turning(30, false).map((v) => v / 1e33)) }])).toEqual([]);
     expect(ups([{ metric: signups, points: series(turning(30, false).map((v, k) => v + 150 * noise(k))) }])).toEqual([]);
+  });
+});
+
+describe("data that is current", () => {
+  it("runs to within 6 periods before today's period (the running period counts as the first), one step either side, in every Period", () => {
+    expect([isCurrent("2026-01-01", "2026-07-15", "month", 1), isCurrent("2026-01-01", "2026-08-15", "month", 1)]).toEqual([true, false]);
+    expect([isCurrent("2026-06-29", "2026-07-20", "week", 1), isCurrent("2026-06-01", "2026-07-20", "week", 1)]).toEqual([true, false]);
+    expect([isCurrent("2025-04-01", "2026-07-15", "quarter", 1), isCurrent("2024-10-01", "2026-07-15", "quarter", 1)]).toEqual([true, false]);
+    expect([isCurrent("2020-04-01", "2026-07-15", "year", 4), isCurrent("2019-04-01", "2026-07-15", "year", 4)]).toEqual([true, false]);
   });
 });
 

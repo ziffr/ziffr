@@ -28,7 +28,7 @@
 // see.
 import { fractionOf, nearest, type Fraction } from "../exact";
 import { formatNumber, type ValueUnit } from "../format";
-import { periodStart, periodsBetween, shiftPeriod, type Span } from "../periods";
+import { periodStart, periodsBetween, shiftPeriod, type Span, type YearStart } from "../periods";
 import { readSeries } from "../basis";
 import { checkSuitability, SEASON_LENGTH, SUITABILITY, verdictOutcome } from "../suitability";
 import { decimalsApart, decimalsFor, plainValue, signedText, sizeText, valueText } from "../takeaways/sizes";
@@ -42,9 +42,14 @@ import { carriesOver, carryOf } from "./carry-over";
 import { adjustedChances, benjaminiHochberg } from "./false-discovery";
 import { add, div, mul, sub, total, whole } from "./fractions";
 import { chanceText, type HeadsUp, type MetricHeadsUp } from "./heads-up";
-import { HEADS_UP, isCurrent } from "./pair-scan";
+import { HEADS_UP } from "./pair-scan";
 import { standing, usualRange } from "./quantiles";
 import { tCdf } from "./t-curve";
+
+/** Whether data that runs to `through` is current: within the last `HEADS_UP.current` periods before `today` (the running period counts as the first), as the pair scan judges it. */
+export function isCurrent(through: string, today: string, span: Span, yearStart: YearStart): boolean {
+  return periodsBetween(through, periodStart(today, span, yearStart), span) <= HEADS_UP.current;
+}
 
 /** Every threshold of these Heads-ups, once. */
 export const SINGLE = {

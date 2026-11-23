@@ -352,11 +352,6 @@ function recentOf(a: Laid, b: Laid, earlier: { best: Lagged }, last: number, str
   return { r, n: pairs.at.length, low: strong && !exactAtLeast(pairs.lead, pairs.follow, 3, 10)!.atLeast, dropP };
 }
 
-/** Whether data that runs to `through` is current: within the last `HEADS_UP.current` periods before `today` (the running period counts as the first). */
-export function isCurrent(through: string, today: string, span: Span, yearStart: YearStart): boolean {
-  return periodsBetween(through, periodStart(today, span, yearStart), span) <= HEADS_UP.current;
-}
-
 /** A Metric as the scan needs it: its id and its Period. */
 export type ScanMetric = { id: number; period: Span };
 
@@ -415,7 +410,7 @@ export function scanPairs(metrics: readonly ScanMetric[], levels: (id: number, s
     if (!axis) continue;
     const scan = scanPair(laidOut(a, span), laidOut(b, span), axis);
     // Both Metrics current: the pair's last period is within a few periods of today.
-    if (scan && isCurrent(scan.through, today, span, yearStart)) out.push({ a: a.id, b: b.id, span, ...scan });
+    if (scan && periodsBetween(scan.through, periodStart(today, span, yearStart), span) <= HEADS_UP.current) out.push({ a: a.id, b: b.id, span, ...scan });
   }
   return out;
 }

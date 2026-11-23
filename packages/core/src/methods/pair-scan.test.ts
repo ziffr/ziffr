@@ -14,7 +14,7 @@ import { referencePearson } from "../test/reference/analyses";
 import { referenceChance, referenceEffective, referencePairs, referenceR, referenceRho } from "../test/reference/heads-up";
 import { FIXTURE, HASHES } from "../test/reference/heads-up-fixture";
 import { close, series } from "../test/reference/methods-fixture";
-import { adjacent, autocorrelations, axisOf, capMetrics, effectiveCount, exactAtLeast, HEADS_UP, isCurrent, layOut, scanPair, scanPairs, strongAndAgreeing, strongInBoth, type Axis, type Laid, type PairScan } from "./pair-scan";
+import { adjacent, autocorrelations, axisOf, capMetrics, effectiveCount, exactAtLeast, HEADS_UP, layOut, scanPair, scanPairs, strongAndAgreeing, strongInBoth, type Axis, type Laid, type PairScan } from "./pair-scan";
 
 const { numRuns, seed } = runs();
 
@@ -815,15 +815,5 @@ describe("the edges of the scan, each with its expected value worked out by hand
     const rows = scanPairs(metrics, (id) => levelsOf(id), () => false, "2026-07-15", 1);
     expect(rows.map((r) => [r.a, r.b])).toEqual([[3, 4]]);
     expect(scanPairs(metrics.slice(0, 2), (id) => levelsOf(id), () => false, "2026-07-15", 1)).toEqual([]);
-  });
-});
-
-describe("data that is current", () => {
-  it("runs to within 6 periods before today's period (the running period counts as the first), one step either side, in every Period", () => {
-    expect([isCurrent("2026-01-01", "2026-07-15", "month", 1), isCurrent("2026-01-01", "2026-08-15", "month", 1)]).toEqual([true, false]);
-    expect([isCurrent("2026-06-29", "2026-07-20", "week", 1), isCurrent("2026-06-01", "2026-07-20", "week", 1)]).toEqual([true, false]);
-    expect([isCurrent("2025-04-01", "2026-07-15", "quarter", 1), isCurrent("2024-10-01", "2026-07-15", "quarter", 1)]).toEqual([true, false]);
-    // A fiscal year starting in April runs from 1 April: the same date is in a different year.
-    expect([isCurrent("2020-04-01", "2026-07-15", "year", 4), isCurrent("2019-04-01", "2026-07-15", "year", 4)]).toEqual([true, false]);
   });
 });
