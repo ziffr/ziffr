@@ -67,7 +67,7 @@ function Row({ item }: { item: Item }) {
       </td>
       <td className="py-3 pr-3 font-mono text-xs break-all">{item.route ?? "—"}</td>
       <td className="py-3 pr-3 whitespace-nowrap">{item.appVersion ?? "—"}</td>
-      <td className="py-3 pr-3 whitespace-nowrap">{item.createdAt.slice(0, 10)}</td>
+      <td className="py-3 pr-3 whitespace-nowrap">{item.createdAt}</td>
       <td className="py-3">
         <div className="flex flex-wrap justify-end gap-2">
           {mode === null && (

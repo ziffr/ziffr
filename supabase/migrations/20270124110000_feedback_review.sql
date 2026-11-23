@@ -8,9 +8,10 @@ alter table feedback
 -- One review step in one transaction: moves a feedback that is still waiting for review to `open` (approve, so the
 -- bridge files it) or `closed` (reject), optionally with new words (edit), and writes the message the person reads in
 -- My feedback (from_team). Only a feedback that is waiting changes, so two maintainers at once cannot both decide.
--- Returns the feedback's opaque public_ref (what the Installation audit names), or null when it was not waiting.
+-- Returns {ref, edited}: the feedback's opaque public_ref (what the Installation audit names) and whether the words really
+-- changed, or null when it was not waiting.
 create or replace function feedback_review(p_id uuid, p_status text, p_words text, p_message text)
-returns text
+returns jsonb
 language plpgsql security definer set search_path = public as $$
 declare ref text; old_words text; edited boolean;
 begin
@@ -26,7 +27,7 @@ begin
     insert into feedback_messages (feedback_id, from_team, words)
       values (p_id, true, coalesce(p_message, 'The Ziffr team edited your words before they were posted. What you see above is what was posted.'));
   end if;
-  return ref;
+  return jsonb_build_object('ref', ref, 'edited', edited);
 end $$;
 revoke execute on function feedback_review(uuid, text, text, text) from public, anon, authenticated;
 grant execute on function feedback_review(uuid, text, text, text) to service_role;

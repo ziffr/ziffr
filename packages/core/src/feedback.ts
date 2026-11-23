@@ -14,7 +14,7 @@ import {
   type FeedbackKind, type FeedbackMode, type FeedbackStatus,
 } from "./feedback-rules";
 import { hostedByCloud } from "./installation-days";
-import { settingsInEffect, settingsInEffectStrict } from "./settings-in-effect";
+import { forgetStoredSettings, settingsInEffect, settingsInEffectStrict } from "./settings-in-effect";
 import { DEMO_WORKSPACE_ID } from "./team";
 
 /** One message under a feedback: what the person wrote, or what came back from the Ziffr team. */
@@ -79,9 +79,12 @@ async function currentMode(): Promise<FeedbackMode> {
 }
 
 // The store makes every feedback waiting for review; in direct mode it is opened right after, only if it still waits.
-// If that step fails the feedback simply waits: safe, and a maintainer can approve it.
+// The mode is read again here without the cache of a few seconds, so a switch to review that happened since the first
+// read holds this one back too. If anything fails the feedback simply waits: safe, and a maintainer can approve it.
 async function settle(made: Row, mode: FeedbackMode): Promise<Row> {
   if (newFeedbackStatus(mode) !== "open") return made;
+  forgetStoredSettings();
+  if (newFeedbackStatus(await currentMode()) !== "open") return made;
   const { data } = await db().from("feedback").update({ status: "open", updated_at: new Date().toISOString() }).eq("id", made.id).eq("status", "waiting_for_review").select(COLUMNS).maybeSingle();
   return (data as Row | null) ?? made;
 }

@@ -83,6 +83,15 @@ describe("FeedbackPanel", () => {
     expect(myFeedback).toHaveBeenCalledTimes(2);
   });
 
+  it("says the feedback is reviewed first when the server made it waiting for review", async () => {
+    sendFeedback.mockResolvedValue({ id: "a", status: "waiting_for_review" });
+    await render();
+    await act(async () => radio("problem").click());
+    await type("The chart is empty");
+    await send();
+    expect(host.querySelector('[role="status"]')!.textContent).toContain("reviewed first");
+  });
+
   it("shows the server's refusal (a limit, the demo) as words and keeps what was written", async () => {
     sendFeedback.mockResolvedValue({ error: "That is enough feedback for today. Please try again tomorrow." });
     await render();

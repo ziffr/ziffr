@@ -86,6 +86,9 @@ describe("approving", () => {
     const made = await send("same");
     await approveFeedback(admin, made.id, { words: "same" });
     expect(await row(made.id)).toMatchObject({ status: "open", edited_by_team: false });
+    const ref = (await row(made.id)).public_ref;
+    expect(await events("feedback.edited")).not.toContainEqual(expect.objectContaining({ subject: ref }));
+    expect(await events("feedback.approved")).toContainEqual(expect.objectContaining({ subject: ref }));
   });
   it("refuses empty or too long edited words and feedback that is not waiting", async () => {
     const { admin, send } = await setup();

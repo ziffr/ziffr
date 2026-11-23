@@ -14,7 +14,7 @@ import { ReviewQueue } from "./queue";
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
-const item = { id: "11111111-1111-4111-8111-111111111111", kind: "problem", words: "The chart is wrong.", route: "/metrics/:name", appVersion: "0.11.0", createdAt: "2027-01-24T10:00:00Z" };
+const item = { id: "11111111-1111-4111-8111-111111111111", kind: "problem", words: "The chart is wrong.", route: "/metrics/:name", appVersion: "0.11.0", createdAt: "2027-01-24" };
 let host: HTMLElement; let root: Root;
 const button = (label: RegExp) => [...host.querySelectorAll("button")].find((b) => label.test(b.textContent ?? "")) as HTMLButtonElement;
 const click = async (label: RegExp) => { await act(async () => { button(label).click(); }); };

@@ -76,9 +76,11 @@ export type FeedbackMode = (typeof FEEDBACK_MODES)[number];
 /** The setting that holds the mode (an Installation Setting of the central version only). */
 export const FEEDBACK_MODE_SETTING = "ZIFFR_FEEDBACK_MODE";
 
-/** The mode in these settings: `review` only when it says so exactly, anything else (empty, unknown) is `direct`. */
+/** The mode in these settings: `direct` when nothing is set (the default) or it says `direct` exactly; any other value
+ * (a typo, a stray word) means `review`, so a setting that cannot be understood never posts anything on its own. */
 export function feedbackMode(settings: Record<string, string | undefined>): FeedbackMode {
-  return settings[FEEDBACK_MODE_SETTING]?.trim().toLowerCase() === "review" ? "review" : "direct";
+  const value = settings[FEEDBACK_MODE_SETTING]?.trim().toLowerCase();
+  return value === undefined || value === "" || value === "direct" ? "direct" : "review";
 }
 
 /** The status a new feedback gets: open (the bridge files it) when posting directly, else waiting for a maintainer. */

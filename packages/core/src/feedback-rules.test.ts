@@ -8,11 +8,11 @@ import {
 import { INSTALLATION_SETTINGS } from "./installation-catalogue";
 
 describe("mode", () => {
-  it("is direct unless the setting says review exactly", () => {
+  it("is direct when unset or exactly direct, and review for any other value", () => {
     expect(feedbackMode({})).toBe("direct");
     expect(feedbackMode({ ZIFFR_FEEDBACK_MODE: "" })).toBe("direct");
     expect(feedbackMode({ ZIFFR_FEEDBACK_MODE: "direct" })).toBe("direct");
-    expect(feedbackMode({ ZIFFR_FEEDBACK_MODE: "anything" })).toBe("direct");
+    expect(feedbackMode({ ZIFFR_FEEDBACK_MODE: "anything" })).toBe("review");
     expect(feedbackMode({ ZIFFR_FEEDBACK_MODE: " Review " })).toBe("review");
   });
   it("gives new feedback open in direct and waiting for review in review", () => {
