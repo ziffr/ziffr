@@ -20,9 +20,8 @@ Under the steps, **What happened, period by period** shows a timeline for each p
 - Metrics published and locked,
 - **Checklist items** sent: "Sent ‘Invoices must be in by Friday.’ to 8 people",
 - **Checklist Tasks** given and ticked off: "‘Reconcile the bank account.’ was given to Ann", "‘Reconcile the bank account.’ was ticked off" with the first words of the note (see [Checklist Tasks](15-actions.md#checklist-tasks)); a Task you may not read shows only that one was given or ticked off,
-=======
 - **Snapshots** of dashboards that draw these Metrics, once shown,
->>>>>>> 42015797 (Finished Period and the Send Snapshot step: a link to the period's Snapshot to people who may open the dashboard, once per period (spec 0045, ticket 3))
+- **The Snapshot sent** by a Send Snapshot step: "Sent the Snapshot October 2026 of Board KPIs to 6 people" (the owner's line adds ", 2 could not open it"), and **"October 2026 is finished"** once the period is a finished one (see Finished period below).
 
 Everyone who can look at the Workflow sees the timeline, but only what they may see. A Metric you cannot see appears only as a count ("1 value"), never by name, value or sender. A checklist item shows its words only to those who may read them (see Checklist item below); to everyone else the line says only that "A checklist item was sent". What people said in a Thread shows only if you may read that Thread, and then only as the first words of a note, with a link to the whole Thread. A Thread you may not read is not on your timeline at all. The timeline records nothing of its own: it puts together what Ziffr already keeps. Assistants can read the same timeline with the `period_status` tool of the MCP server.
 
