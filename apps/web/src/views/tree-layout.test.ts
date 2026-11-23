@@ -58,6 +58,16 @@ describe("layoutTree", () => {
     expect([placed[1].w, placed[2].w]).toEqual([200, 140]);
   });
 
+  it("draws a result smaller than its parts at its own size on their scale, left-aligned", () => {
+    const placed = layoutTree(boxesOf("{a} - {b} - {c}", { a: leaf("A", 100), b: leaf("B", 70), c: leaf("C", 8) }), 356);
+    // Sizes 100 + 70 + 8 = 178 fill 356; the result 22 is 22 / 178 of it.
+    expect([placed[0].x, placed[0].w, placed[1].w]).toEqual([0, 44, 200]);
+    // A gap among the parts, or a plain sum, keeps the result as wide as its parts.
+    expect(layoutTree(boxesOf("{a} + {b}", { a: leaf("A", 1), b: leaf("B", 3) }), 400)[0].w).toBe(400);
+    expect(layoutTree(boxesOf("{a} - {b}", { a: leaf("A", 5), b: leaf("B", null) }), 400)[0].w).toBe(400);
+    expect(layoutTree(boxesOf("{a} - {b}", { a: leaf("A", 0), b: leaf("B", 0) }), 400)[0].w).toBe(400);
+  });
+
   it("keeps a gap a small place of its own, and shares the rest by size; all gaps share equally", () => {
     const placed = layoutTree(boxesOf("{a} + {b} + {c}", { a: leaf("A", 30), b: leaf("B", null), c: leaf("C", 10) }), 500);
     expect(placed[2].w).toBeCloseTo(500 * GAP_SHARE, 9);

@@ -43,6 +43,13 @@ export function layoutTree(boxes: TreeBox[], width: number = TREE_WIDTH): Placed
     }
   };
   place(boxes[0], 0, width);
+  // A result smaller than its parts (revenue less cost) is drawn at its own size on the scale of its parts, left-aligned over them, so it does not look as big as what it is made of.
+  const kids = kidsOf(0);
+  const sizes = kids.map((k) => (k.value === null ? null : Math.abs(k.value)));
+  if (boxes[0].op === "sum" && boxes[0].value !== null && kids.some((k) => k.taken) && sizes.every((z) => z !== null)) {
+    const total = sizes.reduce<number>((a, z) => a + (z as number), 0);
+    if (total > 0) out[0] = { ...out[0], w: (width * Math.abs(boxes[0].value)) / total };
+  }
   return out;
 }
 

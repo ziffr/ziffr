@@ -152,7 +152,7 @@ describe("the formula tree, worked by hand", () => {
     expect(m.boxes.map((b) => b.shareText)).toEqual([null, pct(58.8235294117647), pct(41.1764705882353)]);
     expect(m.alt).toContain(`Formula tree of Profit for March 2026.`);
     expect(m.alt).toContain(`Profit ${eurText(30)} is made of: Revenue ${eurText(100)}, added, ${pct(58.8235294117647)} of the parts; Cost ${eurText(70)}, taken away, ${pct(41.1764705882353)} of the parts.`);
-    expect(m.rule).toBe("Each box is one number of the formula, worked out exactly. Parts that are added up share the width of the box above them by their size. A part that is taken away is hatched and counts by its size, so its share is of the size of the parts, not of the total.");
+    expect(m.rule).toBe("Each box is one number of the formula, worked out exactly. Parts that are added up share the width of the box above them by their size. A part that is taken away is hatched and counts by its size, so its share is of the size of the parts, not of the total. The top box is drawn at its own size on the same scale as its parts, so a result smaller than its parts is narrower.");
   });
 
   it("is exact where doubles are not", () => {

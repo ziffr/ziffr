@@ -243,7 +243,7 @@ export function formulaTree(source: TreeSource, style: NumberStyle): TreeModel {
   const has = { sum: boxes.some((b) => b.op === "sum"), product: boxes.some((b) => b.op === "product"), taken: boxes.some((b) => b.taken), gap: boxes.some((b) => b.value === null) };
   const rule = [
     "Each box is one number of the formula, worked out exactly.",
-    has.sum ? `Parts that are added up share the width of the box above them by their size.${has.taken ? " A part that is taken away is hatched and counts by its size, so its share is of the size of the parts, not of the total." : ""}` : "",
+    has.sum ? `Parts that are added up share the width of the box above them by their size.${has.taken ? ` A part that is taken away is hatched and counts by its size, so its share is of the size of the parts, not of the total.${boxes[0].op === "sum" && boxes[0].value !== null && boxes.some((b) => b.parent === 0 && b.taken) ? " The top box is drawn at its own size on the same scale as its parts, so a result smaller than its parts is narrower." : ""}` : ""}` : "",
     has.product ? "The factors of a product or a ratio share the width equally and are not to scale: a product is not the sum of its factors." : "",
     has.gap ? `A box with no value is a gap, never a 0${has.sum ? ", and shares are of the parts that have a value" : ""}.` : "",
     noted ? "A note in brackets says why a number is not for a whole period." : "",
