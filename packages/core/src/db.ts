@@ -2,7 +2,7 @@
 // acts and in which Workspace; Row Level Security stays on with no policies, so nothing else can read the tables.
 import { AsyncLocalStorage } from "node:async_hooks";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
-import { DEMO_READ_ONLY_CODE, DEMO_STALE_CODE, DemoReadOnly, DemoStale } from "./demo";
+import { DEMO_READ_ONLY_CODE, DEMO_STALE_CODE, DemoReadOnly, DemoStale, protectedRefusal } from "./demo";
 import { visitHeaders } from "./demo-visit-scope";
 import { ServerFault } from "./server-fault";
 
@@ -17,7 +17,7 @@ const isDemoRefusal = (e: unknown) => typeof e === "object" && e !== null && (e 
 /** Whether a database error is its refusal of a visit's write because the demo started fresh since the page was drawn. */
 const isDemoStale = (e: unknown) => typeof e === "object" && e !== null && (e as { code?: unknown }).code === DEMO_STALE_CODE;
 /** The error a refusal of the demo's guard becomes: the stale one says to reload, any other that the demo can't be changed. */
-const refusal = (e: unknown): Error | null => (isDemoStale(e) ? new DemoStale() : isDemoRefusal(e) ? new DemoReadOnly() : null);
+const refusal = (e: unknown): Error | null => (isDemoStale(e) ? new DemoStale() : isDemoRefusal(e) ? new DemoReadOnly() : protectedRefusal(e));
 
 // Demo Mode is read-only (#271): the database refuses every write to the demo with one code, and here, where every
 // query passes, that refusal is thrown as DemoReadOnly. Core functions mostly turn `{ error }` into words of their own

@@ -16,5 +16,23 @@ export const DEMO_DIGEST = { plain: "ziffr-demo-read-only", trial: "ziffr-demo-r
 
 /** The sentence for a digest, or null for any other error. */
 export function demoWordsForDigest(digest: string | undefined): string | null {
-  return digest === DEMO_DIGEST.trial ? DEMO_READ_ONLY_TRIAL : digest === DEMO_DIGEST.plain ? DEMO_READ_ONLY : digest === DEMO_DIGEST.stale ? DEMO_STALE : null;
+  return digest === DEMO_DIGEST.trial ? DEMO_READ_ONLY_TRIAL : digest === DEMO_DIGEST.plain ? DEMO_READ_ONLY : digest === DEMO_DIGEST.stale ? DEMO_STALE : protectedWordsForDigest(digest);
+}
+
+// What the demo says for a change to its own words or its showcase (spec 0051, ticket 6): where visitors may change the
+// demo they may change what the seed made, but not its words and not the few objects the landing page and the tour
+// point at. The sentence names no kind of object, so it is true of every one.
+
+/** What a visitor reads for a showcase object. */
+export const DEMO_SHOWCASE = "Everyone sees this one as it is. Make your own to change it.";
+
+/** What a visitor reads for the words of something the seed made. */
+export const DEMO_SEEDED_WORDS = "Everyone sees this one's words as they are. Make your own to name it.";
+
+/** The digests these two refusals carry to the error screen. */
+export const DEMO_PROTECTED_DIGEST = { showcase: "ziffr-demo-showcase", words: "ziffr-demo-words" } as const;
+
+/** The sentence for a digest of the showcase or seeded-words refusals, or null for any other. */
+export function protectedWordsForDigest(digest: string | undefined): string | null {
+  return digest === DEMO_PROTECTED_DIGEST.showcase ? DEMO_SHOWCASE : digest === DEMO_PROTECTED_DIGEST.words ? DEMO_SEEDED_WORDS : null;
 }
