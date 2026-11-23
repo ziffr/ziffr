@@ -114,11 +114,12 @@ export function drawRecipe(design: ViewDesign, metrics: Metric[], data: Pick<Can
     const whole = a.steps.find((x) => x.id === t.step)?.of ?? "";
     const unit = t.mark === "bridge" ? metrics[Number(whole.slice(4)) - 1] ?? null : null;
     // A span still running, or one with fewer of its periods than the one before, is no fair end for a change: the bridge says so instead.
-    const slot = metrics[Number(whole.slice(4)) - 1];
+    const step = a.steps.find((x) => x.id === t.step);
     const today = settings.asOf ? dayAfter(settings.asOf) : undefined;
-    const latest = t.mark === "bridge" && slot ? shownSeries(slot, data, design.options?.display ? settings.display : undefined, { today }).points.at(-1) : undefined;
-    if (latest && (latest.toDate || isPartial(latest))) {
-      figures[t.step] = { mark: "bridge", ok: false, refusal: sayIn("bridge-running", { name: slot.name }, ctx) };
+    // Every Metric of the bridge, at its last two shown periods: a span still running or partial is no fair end or start for a change.
+    const short = t.mark === "bridge" ? [whole, ...(step?.parts ?? [])].map((id) => metrics[Number(id.slice(4)) - 1]).find((m) => m && shownSeries(m, data, design.options?.display ? settings.display : undefined, { today }).points.slice(-2).some((p) => p.toDate || isPartial(p))) : undefined;
+    if (short) {
+      figures[t.step] = { mark: "bridge", ok: false, refusal: sayIn("bridge-running", { name: short.name }, ctx) };
       continue;
     }
     figures[t.step] = out.refusal !== undefined && out.rows.length === 0 ? { mark: t.mark, ok: false, refusal: out.refusal } : t.mark === "bridge" ? bridgeFigures(out.rows, unit, ctx) : rangeFigures(out.rows, unit, ctx);

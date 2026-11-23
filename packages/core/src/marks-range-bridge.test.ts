@@ -473,6 +473,16 @@ describe("the number drawn is the number the Method gave", () => {
     const gap = drawRecipe(DESIGN, [metrics[0], undefined as never, metrics[2]], data, {}).figures.br;
     expect(gap).toEqual({ mark: "bridge", ok: false, refusal: "Orders has no value in either of the two periods, so it cannot be a part of the bridge." });
   });
+  it("does not compare with a partial earlier period or a part still running", () => {
+    const day = { ...DESIGN, options: { display: {} } } as ViewDesign;
+    const refused = (m: number, drop: number) => {
+      const cut = { ...data, today: "2026-12-31", series: { ...data.series, [metrics[m].slug]: data.series[metrics[m].slug].filter((p) => !(p.period >= "2026-0" + drop && p.period < "2026-0" + (drop + 1))) } };
+      return drawRecipe(day, metrics, cut, { display: "quarter" }).figures.br;
+    };
+    // A quarter missing a month, in the whole or in a part, is refused naming that Metric.
+    expect(refused(0, 4)).toMatchObject({ ok: false, refusal: expect.stringContaining(metrics[0].name) });
+    expect(refused(1, 4)).toMatchObject({ ok: false, refusal: expect.stringContaining(metrics[1].name) });
+  });
   it("does not compare a period still running with a full one", () => {
     const day = { ...DESIGN, options: { display: {} } } as ViewDesign;
     const running = drawRecipe(day, metrics, { ...data, today: "2026-05-10" }, { display: "quarter" }).figures.br;
