@@ -162,6 +162,10 @@ describe("rangeFigures", () => {
     expect(rangeFigures([R("D", 1e10, 1e10, 1e10 + 0.0001)], null, ctx).ok).toBe(true);
     expect(rangeFigures([R("D", 1e15, 1e15, 1e15 + 0.125)], null, ctx).ok).toBe(true);
   });
+  it("tells a narrow range's ends apart on a Metric with no decimals (the sentence a chart's label uses)", () => {
+    const f = rangeFigures([R("Rate, forecast", 0.003, 0.002977, 0.003035)], UNIT, ctx);
+    expect(f.ok && f.rows[0].alt).toBe("Rate, forecast: 0.00300 €, likely between 0.00298 € and 0.00304 €.");
+  });
   it("is a refusal that says what it is, with its mark", () => {
     expect(rangeFigures([], UNIT, ctx)).toEqual({ mark: "range", ok: false, refusal: "There is nothing to draw: the analysis gave no rows." });
     expect(bridgeFigures([], UNIT, ctx)).toEqual({ mark: "bridge", ok: false, refusal: "There is nothing to draw: the analysis gave no rows." });

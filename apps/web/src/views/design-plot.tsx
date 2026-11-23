@@ -6,6 +6,7 @@ import { useId, useRef, useState } from "react";
 import { Area, Bar, CartesianGrid, Cell, ComposedChart, Line, ReferenceArea, ReferenceDot, ReferenceLine, ResponsiveContainer, Scatter, Tooltip, XAxis, YAxis, ZAxis } from "recharts";
 import { axisLabels, compactValue, formatValue, health, niceAxis } from "@ziffr/core/format";
 import { formatOutput } from "@ziffr/core/design-analysis";
+import { rangeFigures } from "@ziffr/core/mark-figures";
 import { drawnOutputs } from "@ziffr/core/analysis-recipe";
 import { commonPeriod } from "@ziffr/core/correlation";
 import { isPartial, spanCount } from "@ziffr/core/display-periods";
@@ -18,7 +19,7 @@ import { ObservationTip } from "./observation-tip";
 
 type Plot = Extract<Part, { mark: "plot" }>;
 // A recipe output is kept on its row under "recipe:" and the step, never under a name a value could have.
-type Row = { period: string; value?: number; fc?: number; band?: [number, number]; partial?: number; target?: number; [recipe: `recipe:${string}`]: number | undefined };
+type Row = { period: string; value?: number; fc?: number; band?: [number, number]; rband?: [number, number]; rfc?: number; partial?: number; target?: number; [recipe: `recipe:${string}`]: number | undefined };
 
 // Theme tokens only: a design names a role, the Theme gives it a colour.
 export const TONE: Record<Exclude<Tone, "status">, string> = { data: "var(--color-data)", muted: "var(--color-muted)", ink: "var(--color-ink)", good: "var(--color-success)", bad: "var(--color-error)", accent: "var(--color-accent)" };
@@ -77,8 +78,8 @@ function PeriodPlot({ part, marks, v, onPointContext }: { part: Plot; marks: Plo
     }
     for (const f of fc) {
       const same = rows.find((r) => r.period === f.period);
-      if (same) Object.assign(same, { fc: f.value, band: [f.lo, f.hi] });
-      else rows.push({ period: f.period, fc: f.value, band: [f.lo, f.hi] });
+      if (same) Object.assign(same, { fc: f.value, band: [f.lo, f.hi], rband: [f.lo, f.hi], rfc: f.value });
+      else rows.push({ period: f.period, fc: f.value, band: [f.lo, f.hi], rband: [f.lo, f.hi], rfc: f.value });
     }
   }
   const tMin = bandOn ? m.target_min : null;
@@ -113,8 +114,9 @@ function PeriodPlot({ part, marks, v, onPointContext }: { part: Plot; marks: Plo
   // A popup on each point wherever there is an axis, and on a sparkline once it has room for its context.
   const tips = !none || !!ctx;
   const rangeEnd = marks.some((k) => k.mark === "range") ? fc?.[fc.length - 1] : undefined;
-  // A range is also said in words, so its numbers are not read off the drawing alone.
-  const aria = !tips ? undefined : none ? `${m.name}, ${spanCount(pts.length, v.by)}` : `${m.name}, ${spanCount(pts.length, v.by)}${pts.length ? `, latest ${formatValue(m, pts[pts.length - 1].value, data.numberStyle)}` : ""}${rangeEnd ? `, forecast ${formatValue(m, rangeEnd.value, data.numberStyle)}, likely between ${formatValue(m, rangeEnd.lo, data.numberStyle)} and ${formatValue(m, rangeEnd.hi, data.numberStyle)}` : ""}`;
+  // A range is also said in words, written as the table marks write theirs (decimals widened until the ends differ), so its numbers are not read off the drawing alone.
+  const said = rangeEnd ? rangeFigures([{ label: `${m.name}, forecast`, value: rangeEnd.value, low: rangeEnd.lo, high: rangeEnd.hi }], m, { style: data.numberStyle, yearStart: data.yearStart }) : null;
+  const aria = !tips ? undefined : none ? `${m.name}, ${spanCount(pts.length, v.by)}` : `${m.name}, ${spanCount(pts.length, v.by)}${pts.length ? `, latest ${formatValue(m, pts[pts.length - 1].value, data.numberStyle)}` : ""}${said ? `, ${said.ok ? said.alt : said.refusal}` : ""}`;
 
   const chart = (
       <ResponsiveContainer width="100%" height="100%">
@@ -196,8 +198,8 @@ function PeriodPlot({ part, marks, v, onPointContext }: { part: Plot; marks: Plo
               case "range":
                 // The forecast's likely range at each period as a bar from low to high (a floating bar), with the forecast as its middle value on request.
                 return fc ? [
-                  <Bar key={`${i}-range`} dataKey="band" barSize={Math.max(4, 8 * s)} radius={2} isAnimationActive={false} fill={lineTone(k.tone)} fillOpacity={0.3} stroke={lineTone(k.tone)} />,
-                  ...(k.centre ? [<Line key={`${i}-centre`} dataKey="fc" stroke="none" dot={{ r: 3 * s, fill: lineTone(k.tone), stroke: "var(--color-cotton)" }} activeDot={false} isAnimationActive={false} />] : []),
+                  <Bar key={`${i}-range`} dataKey="rband" barSize={Math.max(4, 8 * s)} radius={2} isAnimationActive={false} fill={lineTone(k.tone)} fillOpacity={0.3} stroke={lineTone(k.tone)} />,
+                  ...(k.centre ? [<Line key={`${i}-centre`} dataKey="rfc" stroke="none" dot={{ r: 3 * s, fill: lineTone(k.tone), stroke: "var(--color-cotton)" }} activeDot={false} isAnimationActive={false} />] : []),
                 ] : null;
               case "point":
                 return null;

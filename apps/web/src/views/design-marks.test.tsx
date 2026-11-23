@@ -104,6 +104,6 @@ describe("the forecast's range as an interval", () => {
   const design: ViewDesign = { ...DESIGN, analysis: undefined, kind: "metric", slots: [{ label: "Metric", metrics: "one" }], options: { showForecast: { default: true } }, parts: [{ mark: "plot", axes: "regular", scale: "padded", marks: [{ mark: "line", show: "values" }, { mark: "range", show: "forecast.range", centre: true }] }] };
   it("says its numbers in words beside the drawing: the forecast and the range it is likely between", () => {
     const html = renderToStaticMarkup(<WidgetBody widget={{ template: "design", metric_ids: [metrics[0].id], settings: { window: 18, design: { body: design } as never } }} data={live} />);
-    expect(labels(html)[0]).toMatch(/, forecast [^,]+, likely between [^,]+ and /);
+    expect(labels(html)[0]).toMatch(/, forecast: [^,]+, likely between [^,]+ and /);
   });
 });
