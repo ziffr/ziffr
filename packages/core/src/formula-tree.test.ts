@@ -1,15 +1,15 @@
 // The formula tree (spec 0041, ticket 11): every box a number the core worked out exactly, held to a reference written another way
-// (test/reference/driver-tree.ts) on generated formulas, then to hand-worked numbers, every refusal, and what a person who may not see
+// (test/reference/formula-tree.ts) on generated formulas, then to hand-worked numbers, every refusal, and what a person who may not see
 // an input is given: no box, no number and no name of it, and no "rest" that would hand its value over.
 import fc from "fast-check";
 import { describe, expect, it } from "vitest";
-import { driverTree, TREE, treeFromData, type TreeLeaf, type TreeModel, type TreeSource } from "./driver-tree";
+import { formulaTree, TREE, treeFromData, type TreeLeaf, type TreeModel, type TreeSource } from "./formula-tree";
 import { shownSeries } from "./display-periods";
 import { evaluate } from "./formula";
 import { buildSeries } from "./series";
 import { canvas, metric, months } from "./test/fixtures";
 import { exactOf, nearestDoubleOf, plus, same, ZERO, type Exact } from "./test/reference/exact";
-import { printExpr, referenceTree, type RefExpr } from "./test/reference/driver-tree";
+import { printExpr, referenceTree, type RefExpr } from "./test/reference/formula-tree";
 import { referenceNumber, referenceValue } from "./test/reference/write";
 import type { Metric, Observation } from "./types";
 
@@ -19,7 +19,7 @@ const eur = { decimals: 0, unit: "€", unit_position: "after" as const };
 const count = { decimals: 0, unit: "", unit_position: "after" as const };
 const leaf = (name: string, value: number | null, unit: TreeLeaf["unit"] = eur, note?: string): TreeLeaf => ({ name, value, unit, note });
 const source = (formula: string, leaves: Record<string, TreeLeaf | undefined>, over: Partial<TreeSource> = {}): TreeSource => ({ name: "Result", unit: eur, formula, period: "March 2026", leaves, ...over });
-const tree = (formula: string, leaves: Record<string, TreeLeaf | undefined>, over: Partial<TreeSource> = {}) => driverTree(source(formula, leaves, over), STYLE);
+const tree = (formula: string, leaves: Record<string, TreeLeaf | undefined>, over: Partial<TreeSource> = {}) => formulaTree(source(formula, leaves, over), STYLE);
 const ok = (m: TreeModel) => {
   if (!m.ok) throw new Error(`refused: ${m.refusal}`);
   return m;
@@ -247,6 +247,11 @@ describe("the formula tree, worked by hand", () => {
     expect(m.boxes[0].value).toBe(23000);
   });
 
+  it("puts the Metric's own note on the Metric alone, when its parts have none", () => {
+    expect(ok(tree("{a} + {b}", { a: leaf("A", 1), b: leaf("B", 2) }, { note: "so far" })).boxes.map((b) => b.label)).toEqual(["Result (so far)", "A", "B"]);
+    expect(ok(tree("{a} + {b}", { a: leaf("A", 1), b: leaf("B", 2) })).boxes[0].label).toBe("Result");
+  });
+
   it("writes a number that is not 0 with the decimals it takes, never as 0, and refuses what 20 decimals cannot show", () => {
     const m = ok(tree("{a} + {b}", { a: leaf("A", 1_000_000), b: leaf("B", 0.004) }));
     expect(m.boxes[2].text).toBe(eurText(0.004, 3));
@@ -268,7 +273,7 @@ describe("the formula tree, worked by hand", () => {
     const sums = ok(tree("{a} + 5", { a: leaf("A", 2) }, { unit: count }));
     expect(sums.boxes.map((b) => b.text)).toEqual(["7", eurText(2), "5"]);
     // The Number Style is the Workspace's.
-    const de = driverTree(source("{a} + {b}", { a: leaf("A", 1500.5, { decimals: 1, unit: "", unit_position: "after" }), b: leaf("B", 2, { decimals: 1, unit: "", unit_position: "after" }) }, { unit: { decimals: 1, unit: "", unit_position: "after" } }), "1.234,5");
+    const de = formulaTree(source("{a} + {b}", { a: leaf("A", 1500.5, { decimals: 1, unit: "", unit_position: "after" }), b: leaf("B", 2, { decimals: 1, unit: "", unit_position: "after" }) }, { unit: { decimals: 1, unit: "", unit_position: "after" } }), "1.234,5");
     expect(ok(de).boxes.map((b) => b.text)).toEqual(["1.502,5", "1.500,5", "2,0"]);
   });
 
@@ -302,6 +307,7 @@ describe("the formula tree, worked by hand", () => {
     // Another unit, or the same one on the other side, is no unit: a plain number.
     expect(sums(leaf("A", 1, eur), leaf("B", 2, usd))).toBe("3");
     expect(sums(leaf("A", 1, usd), leaf("B", 2, usdAfter))).toBe("3");
+    expect(sums(leaf("A", 1, eur), leaf("B", 2, usdAfter))).toBe("3");
     expect(sums(leaf("A", 1, eur), leaf("B", 2, eurBefore))).toBe("3");
     // A number among the parts takes the unit away, first or not.
     expect(ok(tree("(5 + {a}) * 1", { a: leaf("A", 1) }, { unit: count })).boxes[1].text).toBe("6");
@@ -437,10 +443,38 @@ describe("the tree from what the widget was given", () => {
     expect(refusal(treeFromData(PROFIT, data, { asOf: "2025-12-31" }))).toBe("There are no values to draw yet.");
   });
 
-  it("takes the newest period any part has a value in: a part with none yet is a gap, and so is the Metric", () => {
+  it("is for the Metric's own newest period; a part that runs ahead is not part of it", () => {
     const m = ok(treeFromData(PROFIT, dataOf(all, rows({ 1: [100, 120, 140, 160], 2: [60, 70, 80] }))));
+    expect(m.boxes.map((b) => [b.label, b.value])).toEqual([["Profit", 60], ["Revenue", 140], ["Operating cost", 80]]);
+    expect(m.period).toBe("March 2026");
+  });
+
+  it("falls back to the newest period any part has when the Metric has no value at all, and shows the gaps", () => {
+    const m = ok(treeFromData(PROFIT, dataOf(all, rows({ 1: [100, 120, 140, 160] }))));
     expect(m.boxes.map((b) => [b.label, b.value])).toEqual([["Profit", null], ["Revenue", 160], ["Operating cost", null]]);
     expect(m.period).toBe("April 2026");
+  });
+
+  it("on a running span adds up exactly what the Metric adds up: its own span, not a part's later value", () => {
+    // Revenue to May, cost to April, by quarter with the second quarter running: the Metric's Q2 is April alone.
+    const d = dataOf(all, rows({ 1: [100, 120, 140, 160, 180], 2: [60, 70, 80, 90] }), { today: "2026-05-20" });
+    const own = shownSeries(PROFIT, d, "quarter").points.at(-1)!;
+    const m = ok(treeFromData(PROFIT, d, { display: "quarter" }));
+    expect([m.period, m.boxes[0].value, m.boxes[0].value === own.value]).toEqual(["Q2 2026", own.value, true]);
+    expect(m.boxes.map((b) => b.value)).toEqual([own.value, 160, 90]);
+    expect(m.boxes.map((b) => b.label)).toEqual(["Profit (so far)", "Revenue (so far)", "Operating cost (so far)"]);
+  });
+
+  it("says the values are not loaded rather than showing a gap, and takes direction controls out of names", () => {
+    expect(refusal(treeFromData(PROFIT, { ...data, series: Object.fromEntries(Object.entries(data.series).filter(([k]) => k !== "cost")) }))).toBe("Not drawn: the values of its parts are not loaded yet.");
+    const evil = "\u202eevil";
+    const m = ok(tree("{a} - {b}", { a: leaf(evil, 5), b: leaf("B\u2067", 2) }, { name: `Net\u202c${evil}` }));
+    expect(m.alt).not.toMatch(/[\u202A-\u202E\u2066-\u2069]/);
+    expect(m.boxes.map((b) => b.label)).toEqual(["Netevil", "evil", "B"]);
+    expect(refusal(tree("{a}", { a: undefined }, { name: evil }))).toBe("Not drawn: evil is calculated from Metrics that are not all shared here, so its parts are not shown.");
+    expect(refusal(tree("{a} +", { a: leaf("A", 1) }, { name: evil }))).toContain("formula of evil cannot");
+    expect(refusal(tree("change({a})", { a: leaf("A", 1) }, { name: evil }))).toContain("Not drawn: evil is worked");
+    expect(refusal(treeFromData({ ...REV, name: evil }, data))).toBe("Not drawn: evil is not calculated from other Metrics, so it has no formula to draw.");
   });
 
   it("is shown by a longer period like everything else, with a period still running said on its boxes", () => {

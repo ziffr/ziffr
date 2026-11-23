@@ -1,10 +1,10 @@
 "use client";
 // The `tree` mark of a View Design (GLOSSARY: Formula Tree, View Design): the formula of a Derived Metric as boxes. What every box says (its
-// number, its share, the words for a gap, a note, a part taken away) is worked out once by the core in driver-tree.ts, exactly, so a widget,
+// number, its share, the words for a gap, a note, a part taken away) is worked out once by the core in formula-tree.ts, exactly, so a widget,
 // a Snapshot, a View Link and a deck's picture all show the same numbers; where each box goes is tree-layout.ts. This file only draws
 // them, from Theme tokens. It reaches no Metric the person may not see: the core refuses a formula with an input that is not in the data.
 import { useId, type ReactNode } from "react";
-import { treeFromData, type TreeBox, type TreeModel } from "@ziffr/core/driver-tree";
+import { treeFromData, type TreeBox, type TreeModel } from "@ziffr/core/formula-tree";
 import type { DesignValues } from "./design-view";
 import { fitWords } from "./label-fit";
 import { layoutTree, OPERATOR_WIDTH, ROW, TREE_WIDTH, treeHeight, type Placed } from "./tree-layout";

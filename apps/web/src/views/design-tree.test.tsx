@@ -3,7 +3,7 @@
 // says in words that the parts are not shared and draws none of them; what cannot be drawn honestly is said in words, and the words are plain text.
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
-import { treeFromData } from "@ziffr/core/driver-tree";
+import { treeFromData } from "@ziffr/core/formula-tree";
 import { shownSeries } from "@ziffr/core/display-periods";
 import { evaluate } from "@ziffr/core/formula";
 import { sampleCanvasData } from "@ziffr/core/sample-data";

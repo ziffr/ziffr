@@ -1,13 +1,13 @@
 // Where the boxes of a formula tree go (spec 0041, ticket 11): a rectangle's width is its value's share of the box above it, to well within a pixel,
 // the parts of a sum fill their box exactly, and the factors of a product are equal, so a drawing never says more than the numbers do.
 import { describe, expect, it } from "vitest";
-import { driverTree, type TreeBox, type TreeLeaf } from "@ziffr/core/driver-tree";
+import { formulaTree, type TreeBox, type TreeLeaf } from "@ziffr/core/formula-tree";
 import { GAP_SHARE, layoutTree, OPERATOR_WIDTH, ROW, TREE_WIDTH, treeHeight } from "./tree-layout";
 
 const eur = { decimals: 0, unit: "€", unit_position: "after" as const };
 const leaf = (name: string, value: number | null): TreeLeaf => ({ name, value, unit: eur });
 const boxesOf = (formula: string, leaves: Record<string, TreeLeaf>): TreeBox[] => {
-  const m = driverTree({ name: "Result", unit: eur, formula, period: "p", leaves }, "1,234.5");
+  const m = formulaTree({ name: "Result", unit: eur, formula, period: "p", leaves }, "1,234.5");
   if (!m.ok) throw new Error(m.refusal);
   return m.boxes;
 };

@@ -1,8 +1,8 @@
 // Where each box of a formula tree goes (GLOSSARY: Formula Tree; spec 0041, ticket 11): the geometry of the `tree` mark, apart from what
-// the numbers are (the core's driver-tree.ts gives those, exactly). Pure, so it is tested without a browser: the parts of a sum share the
-// width of the box above them exactly in proportion to their shares, so a rectangle's area is its value's share of the whole, and the
+// the numbers are (the core's formula-tree.ts gives those, exactly). Pure, so it is tested without a browser: the parts of a sum share the
+// width of the box above them exactly in proportion to their shares, so a rectangle's area is its share of the size of the parts, and the
 // factors of a product share it equally. Nothing here changes a number.
-import type { TreeBox } from "@ziffr/core/driver-tree";
+import type { TreeBox } from "@ziffr/core/formula-tree";
 
 /** The width of the drawing, in its own units (it scales to the widget). */
 export const TREE_WIDTH = 320;

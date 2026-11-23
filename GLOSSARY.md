@@ -344,7 +344,7 @@ An Analysis written as steps of Ziffr's verified functions over the Metrics in i
 _Avoid_: Script, model, custom analysis, formula
 
 **Formula Tree**:
-The formula of a Derived Metric drawn as boxes by a View Design's `tree` mark: the Metric's value for its newest period at the top, and under it each part of the formula (the terms of a sum, the factors of a product or a ratio, a bracket as a box with parts of its own), every box an exact number. The parts of a sum share the width of their box by size, a part taken away is hatched, and the factors of a product are laid side by side, equal and not to scale. It is drawn only from inputs the person may see; with one hidden, the whole tree is refused, never drawn with a rest.
+The formula of a Derived Metric drawn as boxes by a View Design's `tree` mark: the Metric's value for its own newest period at the top, and under it each part of the formula (the terms of a sum, the factors of a product or a ratio, a bracket as a box with parts of its own), every box an exact number. The parts of a sum share the width of their box by size, a part taken away is hatched, and the factors of a product are laid side by side, equal and not to scale. It is drawn only from inputs the person may see; with one hidden, the whole tree is refused, never drawn with a rest.
 _Avoid_: Driver tree (a Driver is a Metric that moved with another, which a formula's parts do not say), decision tree, treemap
 
 **Common Period**:

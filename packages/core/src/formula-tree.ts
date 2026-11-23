@@ -19,7 +19,7 @@ import { bitLength, fractionOf, fractionOfText, lowestTerms, minus, nearest, ove
 import { formulaInputs, FORMULA_MAX_BITS, inputsProblem, readFormula, usesPrevious, type FormulaNode } from "./formula";
 import { formatNumber, formatPercent, formatValue, type ValueUnit } from "./format";
 import type { NumberStyle } from "./number-style";
-import { dayAfter, shownSeries, type DisplayPeriod } from "./display-periods";
+import { dayAfter, periodCount, resolverFrom, shownSeries, valueOver, type DisplayPeriod } from "./display-periods";
 import { pointNote } from "./polar-marks";
 import { periodLabel } from "./periods";
 import type { CanvasData, Metric, WidgetSettings } from "./types";
@@ -91,6 +91,8 @@ type Ctx = { leaves: Record<string, TreeLeaf | undefined>; count: number };
 const within = (n: bigint) => bitLength(n) <= FORMULA_MAX_BITS;
 const fits = (f: Fraction) => within(f.num) && within(f.den);
 const unique = (xs: string[]) => [...new Set(xs)];
+// A name is somebody's text: direction controls are taken out, so one cannot turn the numbers beside it round where names and numbers are joined into one line.
+const plain = (name: string) => name.replace(/[\u202A-\u202E\u2066-\u2069]/g, "");
 const ZERO: Fraction = { num: BigInt(0), den: BigInt(1) };
 const ONE: Fraction = { num: BigInt(1), den: BigInt(1) };
 // The size of a number. Shares are ratios of sizes, so a size with every sign turned round, or 0 turned round (it is 0 still), gives the same shares.
@@ -119,9 +121,9 @@ function factorsOf(n: FormulaNode, divides: boolean, out: { n: FormulaNode; divi
 }
 
 /** The name of a box that is no Metric: its parts' names with the operators between them. */
-function expressionName(kids: Built[], op: "sum" | "product"): string {
+function expressionName(kids: Built[], sum: boolean): string {
   const parts = kids.map((k, i) => {
-    const sign = op === "sum" ? (k.taken ? "−" : i ? "+" : "") : k.how === "divisor" ? "÷" : i ? "×" : "";
+    const sign = sum ? (k.taken ? "−" : i ? "+" : "") : k.how === "divisor" ? "÷" : i ? "×" : "";
     return sign ? `${sign} ${k.expr}` : k.expr;
   });
   return parts.join(" ");
@@ -139,11 +141,11 @@ function make(n: FormulaNode, level: number, how: Built["how"], taken: boolean, 
     // The nodes with a slug are a Metric and `back` (prev, change), which is refused before a tree is built: what is left is a Metric of the formula.
     const leaf = ctx.leaves[n.slug]!;
     const known = Number.isFinite(leaf.value);
-    return { ...base, name: leaf.name, expr: leaf.name, notes: leaf.note ? [leaf.note] : [], exact: known ? fractionOf(leaf.value as number) : null, unit: leaf.unit, decimals: leaf.unit.decimals };
+    return { ...base, name: plain(leaf.name), expr: plain(leaf.name), notes: leaf.note ? [leaf.note] : [], exact: known ? fractionOf(leaf.value as number) : null, unit: leaf.unit, decimals: leaf.unit.decimals };
   }
   const sum = alone || isSum(n);
   const kids = sum ? termsOf(n, false).map((t) => make(t.n, level + 1, "term", t.taken, ctx)) : factorsOf(n, false).map((f) => make(f.n, level + 1, f.divides ? "divisor" : "factor", false, ctx));
-  const name = expressionName(kids, sum ? "sum" : "product");
+  const name = expressionName(kids, sum);
   const out: Built = { ...base, op: sum ? "sum" : "product", kids, name, expr: `(${name})`, notes: unique(kids.flatMap((k) => k.notes)), exact: null, unit: null, decimals: Math.max(...kids.map((k) => k.decimals)) };
   const missing = kids.find((k) => k.exact === null);
   if (missing) return { ...out, why: "a part of it has no value" };
@@ -154,7 +156,7 @@ function make(n: FormulaNode, level: number, how: Built["how"], taken: boolean, 
     out.unit = first && units.every((u) => u && same(u, first)) ? first : null;
     return finish(out, kids.reduce<Fraction>((acc, k) => lowestTerms(k.taken ? minus(acc, k.exact!) : plus(acc, k.exact!)), ZERO));
   }
-  if (kids.some((k) => k.how === "divisor") && out.decimals < 2) out.decimals = 2;
+  if (kids.some((k) => k.how === "divisor")) out.decimals = Math.max(out.decimals, 2);
   const zero = kids.find((k) => k.how === "divisor" && k.exact!.num === BigInt(0));
   if (zero) return { ...out, why: "it divides by 0" };
   return finish(out, kids.reduce<Fraction>((acc, k) => lowestTerms(k.how === "divisor" ? over(acc, k.exact!) : times(acc, k.exact!)), ONE));
@@ -166,15 +168,16 @@ function finish(b: Built, exact: Fraction): Built {
 
 // A number written with at least `decimals` places and as many more as it takes for one that is not 0 never to be written as 0; null where even 20 do not.
 function write(v: number, unit: ValueUnit | null, decimals: number, style: NumberStyle): string | null {
-  let d = decimals;
-  while (d < MOST_DECIMALS && v !== 0 && !/[1-9]/.test(formatNumber(v, d, style))) d++;
-  if (v !== 0 && !/[1-9]/.test(formatNumber(v, d, style))) return null;
-  return unit ? formatValue({ ...unit, decimals: d }, v, style) : formatNumber(v, d, style);
+  for (let d = decimals; d <= MOST_DECIMALS; d++) {
+    if (v === 0 || /[1-9]/.test(formatNumber(v, d, style))) return unit ? formatValue({ ...unit, decimals: d }, v, style) : formatNumber(v, d, style);
+  }
+  return null;
 }
 function writePercent(p: number, style: NumberStyle): string | null {
-  let d = 1;
-  while (d < MOST_DECIMALS && p !== 0 && !/[1-9]/.test(formatNumber(p, d, style))) d++;
-  return p !== 0 && !/[1-9]/.test(formatNumber(p, d, style)) ? null : formatPercent(p, style, d);
+  for (let d = 1; d <= MOST_DECIMALS; d++) {
+    if (p === 0 || /[1-9]/.test(formatNumber(p, d, style))) return formatPercent(p, style, d);
+  }
+  return null;
 }
 
 /** Where a part stands to the box above, in words. */
@@ -183,14 +186,14 @@ const roleWords = (b: TreeBox) => (b.how === "divisor" ? "divides" : b.how === "
 const head = (b: TreeBox, why: string | null) => (b.value === null ? `${b.label}: no value${why ? ` (${why})` : ""}` : `${b.label} ${b.text}`);
 
 /** The formula tree of a Derived Metric from the inputs the widget has: the boxes with their exact numbers, or why none is drawn. Hostile or odd formulas are refused in words; nothing is drawn from a part that could not be read whole. */
-export function driverTree(source: TreeSource, style: NumberStyle): TreeModel {
+export function formulaTree(source: TreeSource, style: NumberStyle): TreeModel {
   const no = (refusal: string): TreeModel => ({ ok: false, refusal });
-  if (usesPrevious(source.formula)) return no(`Not drawn: ${source.name} is worked out from the period before as well (prev or change), which a tree of parts cannot show.`);
+  if (usesPrevious(source.formula)) return no(`Not drawn: ${plain(source.name)} is worked out from the period before as well (prev or change), which a tree of parts cannot show.`);
   const slugs = formulaInputs(source.formula);
   // An input that is not shared with the person is neither named nor valued, nor drawn as "the rest": see the module's note.
-  if (slugs.some((s) => source.leaves[s] === undefined)) return no(`Not drawn: ${source.name} is calculated from Metrics that are not all shared here, so its parts are not shown.`);
+  if (slugs.some((s) => source.leaves[s] === undefined)) return no(`Not drawn: ${plain(source.name)} is calculated from Metrics that are not all shared here, so its parts are not shown.`);
   const read = readFormula(source.formula);
-  if (!read.ok) return no(`Not drawn: the formula of ${source.name} cannot be read. ${read.reason}`);
+  if (!read.ok) return no(`Not drawn: the formula of ${plain(source.name)} cannot be read. ${read.reason}`);
   let top: Built;
   try {
     top = make(read.node, 0, "root", false, { leaves: source.leaves, count: 0 }, !("a" in read.node));
@@ -208,6 +211,7 @@ export function driverTree(source: TreeSource, style: NumberStyle): TreeModel {
     const notes = unique([...b.notes, ...(parent === null && source.note ? [source.note] : [])]);
     noted ||= notes.length > 0;
     const root = parent === null;
+    const title = plain(source.name);
     const value = b.exact === null ? null : nearest(b.exact);
     const written = value === null ? null : write(value, root ? source.unit : b.unit, root ? source.unit.decimals : b.decimals, style);
     const pct = share === null ? null : nearest(times(share, { num: BigInt(100), den: BigInt(1) }));
@@ -216,8 +220,11 @@ export function driverTree(source: TreeSource, style: NumberStyle): TreeModel {
     tooSmall ||= (value !== null && written === null) || (pct !== null && shareText === null) || (value === 0 && b.exact!.num !== BigInt(0));
     const glyph = b.how === "divisor" ? "÷" : b.how === "factor" ? (index ? "×" : null) : b.taken ? "−" : index ? "+" : null;
     boxes.push({
-      id, parent, level: parent === null ? 0 : boxes[parent].level + 1, label: notes.length ? `${root ? source.name : b.name} (${notes.join(", ")})` : root ? source.name : b.name, how: b.how, glyph, taken: b.taken, op: b.op, value, text: written ?? "no value", why: b.why,
-      share: share === null ? null : nearest(share), shareText, scaled: b.how !== "factor" && b.how !== "divisor", alt: "",
+      id, parent, level: parent === null ? 0 : boxes[parent].level + 1, label: notes.length ? `${root ? title : b.name} (${notes.join(", ")})` : root ? title : b.name, how: b.how, glyph, taken: b.taken, op: b.op, value, text: written ?? "no value", why: b.why,
+      share: share === null ? null : nearest(share), shareText, scaled: b.how !== "factor" && b.how !== "divisor",
+      // Written once every box is known, below.
+      // Stryker disable next-line StringLiteral: a placeholder, written over below
+      alt: "",
     });
     whys.push(b.why);
     // The sizes of a sum's parts and their total, exactly: each share is a size over the total, so they add up to exactly 1.
@@ -240,7 +247,7 @@ export function driverTree(source: TreeSource, style: NumberStyle): TreeModel {
     has.gap ? `A box with no value is a gap, never a 0${has.sum ? ", and shares are of the parts that have a value" : ""}.` : "",
     noted ? "A note in brackets says why a number is not for a whole period." : "",
   ].filter(Boolean).join(" ");
-  return { ok: true, boxes, period: source.period, rule, alt: `Formula tree of ${source.name} for ${source.period}. ${rule} ${lines.join(" ")}` };
+  return { ok: true, boxes, period: source.period, rule, alt: `Formula tree of ${plain(source.name)} for ${source.period}. ${rule} ${lines.join(" ")}` };
 }
 
 const unitOf = (m: ValueUnit): ValueUnit => ({ decimals: m.decimals, unit: m.unit, unit_position: m.unit_position });
@@ -252,11 +259,13 @@ export type TreeOptions = { display?: DisplayPeriod | null; asOf?: WidgetSetting
 export function treeFromData(metric: Metric | undefined, data: Pick<CanvasData, "metrics" | "series" | "targets" | "yearStart" | "today" | "condensed" | "numberStyle">, opts: TreeOptions = {}): TreeModel {
   const no = (refusal: string): TreeModel => ({ ok: false, refusal });
   if (!metric) return no("There is no Metric to draw a tree of.");
-  if (!metric.formula) return no(`Not drawn: ${metric.name} is not calculated from other Metrics, so it has no formula to draw.`);
+  if (!metric.formula) return no(`Not drawn: ${plain(metric.name)} is not calculated from other Metrics, so it has no formula to draw.`);
   const bySlug = new Map(data.metrics.map((m) => [m.slug, m]));
   const slugs = formulaInputs(metric.formula);
   // Not named: the words are the same whichever input is missing, and for one that is withheld by its owner.
-  if (metric.inputs_withheld || slugs.some((s) => !bySlug.has(s))) return no(`Not drawn: ${metric.name} is calculated from Metrics that are not all shared here, so its parts are not shown.`);
+  if (metric.inputs_withheld || slugs.some((s) => !bySlug.has(s))) return no(`Not drawn: ${plain(metric.name)} is calculated from Metrics that are not all shared here, so its parts are not shown.`);
+  // A part whose values were not sent (a canvas still fetching them) is not a part with no value.
+  if (slugs.some((s) => data.series[s] === undefined)) return no("Not drawn: the values of its parts are not loaded yet.");
   const inputs = slugs.map((s) => bySlug.get(s)!);
   const problem = inputsProblem(metric, inputs);
   if (problem) return no(`Not drawn: ${problem}`);
@@ -269,15 +278,20 @@ export function treeFromData(metric: Metric | undefined, data: Pick<CanvasData, 
   const own = shown(metric);
   const parts = inputs.map((m) => ({ m, shown: shown(m) }));
   if (parts.some((p) => p.shown.by !== own.by)) return no("Not drawn: the parts of the formula cannot be shown by the same period here, so they cannot be set side by side.");
-  const periods = [...own.points, ...parts.flatMap((p) => p.shown.points)].filter((p) => Number.isFinite(p.value)).map((p) => p.period).sort();
-  const period = periods[periods.length - 1];
+  // The Metric's own newest period when it has a value; else the newest any part has, so that a part still missing is shown as the gap it is.
+  const ownLatest = [...own.points].reverse().find((p) => Number.isFinite(p.value));
+  const periods = [...own.points, ...parts.flatMap((p) => p.shown.points)].map((p) => p.period).sort();
+  const period = ownLatest?.period ?? periods[periods.length - 1];
   if (period === undefined) return no("There are no values to draw yet.");
   const at = (points: typeof own.points) => points.find((p) => p.period === period);
   if ([at(own.points), ...parts.map((p) => at(p.shown.points))].some((p) => p?.condensed)) return no(CONDENSED);
+  const resolve = resolverFrom(data.metrics, data.series);
   const leaves: Record<string, TreeLeaf> = Object.fromEntries(parts.map(({ m, shown: s }) => {
-    const p = at(s.points);
-    return [m.slug, { name: m.name, value: p && Number.isFinite(p.value) ? p.value : null, note: p ? pointNote(p, m.period) : undefined, unit: unitOf(m) }];
+    // Over the Metric's own span, as the Metric itself is combined: a part with a value later than the Metric's own latest does not add it to a running span.
+    const value = ownLatest ? valueOver(m.slug, ownLatest.period, ownLatest.through, resolve, periodCount(metric.period, ownLatest.period, ownLatest.through, data.yearStart)) : at(s.points)?.value;
+    const p = ownLatest ?? at(s.points);
+    return [m.slug, { name: m.name, value: value !== undefined && Number.isFinite(value) ? value : null, note: p ? pointNote(p, m.period) : undefined, unit: unitOf(m) }];
   }));
   const root = at(own.points);
-  return driverTree({ name: metric.name, unit: unitOf(metric), formula: metric.formula, period: periodLabel(period, own.by, data.yearStart), note: root ? pointNote(root, metric.period) : undefined, leaves }, data.numberStyle);
+  return formulaTree({ name: metric.name, unit: unitOf(metric), formula: metric.formula, period: periodLabel(period, own.by, data.yearStart), note: root ? pointNote(root, metric.period) : undefined, leaves }, data.numberStyle);
 }

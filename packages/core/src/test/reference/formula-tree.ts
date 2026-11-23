@@ -1,4 +1,4 @@
-// The reference for the formula tree (spec 0041, ticket 11; GLOSSARY: Formula Tree, Derived Metric). Written apart from driver-tree.ts:
+// The reference for the formula tree (spec 0041, ticket 11; GLOSSARY: Formula Tree, Derived Metric). Written apart from formula-tree.ts:
 // a formula is held here as a structure it was printed from, so the tree is found without reading any text, and each box's value is the
 // reference formula evaluator's (formula.ts in this folder: shunting-yard, exact) on the box's own printed formula, never a fold of its parts.
 // - A sum's terms are every operand reached through + and - (and a minus sign), a term taken away where an odd number of minus signs lie on
