@@ -866,6 +866,9 @@ describe("the work bound", () => {
     expect(refused(whatIf({ start: { name: "A", latest: 50 }, change: { by: 1 }, links: [s] }))[0]).toMatchObject({ case: "refuse-exact-places", slots: { name: "S" } });
     const rows = lb.fit.rows.map((r, i) => (i === 0 ? { ...r, y: 1e-290 } : r));
     expect(refused(whatIf({ start: { name: "A", latest: 50 }, change: { by: 1 }, links: [{ kind: "fit", fit: { ...lb.fit, rows } }] }))[0]).toMatchObject({ case: "refuse-exact-places", slots: { name: "B" } });
+    // A driver's values are looked at too, and named.
+    const rowsX = lb.fit.rows.map((r, i) => (i === 0 ? { ...r, x: [1e-290] } : r));
+    expect(refused(whatIf({ start: { name: "A", latest: 50 }, change: { by: 1 }, links: [{ kind: "fit", fit: { ...lb.fit, rows: rowsX } }] }))[0]).toMatchObject({ case: "refuse-exact-places", slots: { name: "A" } });
     // Malformed links are not read as wide: they are `linkProblem`'s.
     expect(refused(whatIf({ start: { name: "A", latest: 50 }, change: { by: 1 }, links: [{ kind: "fit", fit: { rows: 5 } } as never, { kind: "x" } as never] }))[0]).toMatchObject({ case: "refuse-input" });
   });

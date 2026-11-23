@@ -118,6 +118,7 @@ const productB = (a: Bounds, b: Bounds): Bounds => {
 };
 const refuse = (c: Finding["case"], slots: Finding["slots"] = {}): Refused => ({ ok: false, refusals: [{ case: c, slots }] });
 const refuseInput = (what: string) => refuse("refuse-input", { what });
+// Stryker disable next-line MethodExpression: it is asked of an effect and the two ends of its range, and an end past the doubles while the effect is not is out of reach (the range's spread overflows first and refuses), so `every` and `some` say the same
 const finiteAll = (xs: number[]) => xs.every((v) => Number.isFinite(v));
 
 // The weakest of the strength words, in the order a person reads them.
@@ -198,6 +199,7 @@ function wideIn(l: unknown): Finding[] {
       const names = [f.target, ...f.drivers.map((d) => d.name)].map(String);
       return wideColumns(names, [f.rows.map((r) => r.y), ...f.drivers.map((_, j) => f.rows.map((r) => r.x[j]))]);
     }
+    // Stryker disable next-line ConditionalExpression: a link of another kind has no levels, so reading them throws and the catch below gives the same none
     return x.kind === "worked" ? wideColumns([String(x.target)], [Object.values(x.levels as Record<string, number>)]) : [];
   } catch {
     // Nothing that can be read is too wide; the rest is `linkProblem`'s.
