@@ -9,6 +9,7 @@ import { db, seedingDemo } from "./db";
 import { shouldResetDemo, type DemoState } from "./demo-reset-decision";
 import { scanWorkspace } from "./heads-ups";
 import { seedDemoSnapshots } from "./demo-snapshots";
+import { clearDemoVisitCounts } from "./demo-visit";
 import { askForMissingValues, sendDueReminders } from "./questions";
 import { DEMO_WORKSPACE_ID } from "./team";
 
@@ -36,6 +37,9 @@ export async function resetDemoWorkspace(opts: { onlyWhenNeeded?: boolean } = {}
   } catch (e) {
     console.error("Demo: no Heads-ups", e instanceof Error ? e.message : e);
   }
+  // The visits' counts belong to the window that just ended (spec 0051); a new window starts at zero.
+  // A failure is logged and the reset carries on, as for the steps below: the counts are not worth a half-seeded demo.
+  try { await clearDemoVisitCounts(); } catch (e) { console.error("Demo: visit counts not emptied", e instanceof Error ? e.message : e); }
   // The pins are seeded by a function of their own, so no other migration has to carry them (#764).
   const pins = await db().rpc("prototype_seed_pins");
   if (pins.error) console.error("Demo: no pinned dashboards", pins.error.message);
