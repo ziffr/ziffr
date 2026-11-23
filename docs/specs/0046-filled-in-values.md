@@ -1,6 +1,6 @@
 # 0046 Filled-in Values: someone fills in the blank, the value stays the submitter's
 
-**Status:** draft. **Tracking issue:** #799 (label `tracking`); tickets #800 to #803 carry `spec:0046`. Built after spec 0045 (its last ticket, #794) and after #798 (handing over a Metric, PR #804).
+**Status:** done. **Tracking issue:** #799 (label `tracking`); tickets #800 to #803 carry `spec:0046`. Built after spec 0045 (its last ticket, #794) and after #798 (handing over a Metric, PR #804).
 
 ## Problem Statement
 
