@@ -13,6 +13,7 @@ import type { NumberStyle } from "../number-style";
 import type { YearStart } from "../periods";
 import { checkSuitability, type Finding, type Verdict } from "../suitability";
 import type { Metric } from "../types";
+import { wideColumns } from "../work-bound";
 import { strengthOf, type StrengthWord } from "./strength";
 import { say, type CaseKey, type Language, type SayContext, type Slots } from "./wording";
 
@@ -95,6 +96,13 @@ export function answerTakeaway(method: string): Takeaway {
 /** A refusal in words: no sentence, no number, no strength, no range, no footer (nothing is claimed). */
 export function refusalTakeaway(method: string, lines: string[]): Takeaway {
   return { ...emptyTakeaway(method), refusal: lines.join(" ") };
+}
+
+/** A refusal in words when some values are too wide to work out exactly in reasonable time (work-bound.ts: more than 30 decimal
+ * places, or more than 30 orders of magnitude), else null. For the Methods that work out a number before, or without, the suitability checks. */
+export function wideRefusal(method: string, columns: { name: string; values: readonly number[] }[], ctx: TakeawayContext): Takeaway | null {
+  const wide = wideColumns(columns.map((c) => c.name), columns.map((c) => c.values));
+  return wide.length > 0 ? refusalTakeaway(method, wide.map((f) => sayIn(f.case, f.slots, ctx))) : null;
 }
 
 /** The verdict of the suitability checks as the lines a person reads: refusals, cautions and what was done differently (a

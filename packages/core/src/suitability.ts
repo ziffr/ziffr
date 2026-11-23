@@ -14,6 +14,7 @@ import { periodsBetween, type Span } from "./periods";
 import { RANK_SPREAD, strengthOf } from "./takeaways/strength";
 import type { CaseKey, Slots } from "./takeaways/wording";
 import type { Metric, Point } from "./types";
+import { wideFindings } from "./work-bound";
 
 /** The Methods that run the checks; a Method's entry in `APPLIES` says which. */
 export type MethodId = "correlation" | "spearman" | "partial" | "drivers" | "lag" | "fit" | "predict" | "needs" | "whatIf" | "forecast" | "trend" | "seasonal" | "changePoint" | "afterDate" | "usualRange";
@@ -520,6 +521,9 @@ function tooMany(inputs: SuitabilityInputs, have: number): Slots | null {
 /** Runs the checks a Method is held to on the series it will use, and says what is found: refusals first (nothing else is
  * judged once the data is too thin), then cautions and switches to another Method. Reading the inputs changes none of them. */
 export function checkSuitability(method: MethodId, inputs: SuitabilityInputs): Verdict {
+  // Values that cannot be worked out exactly in reasonable time (work-bound.ts) are refused before anything else is done with them.
+  const wide = wideFindings(inputs.series);
+  if (wide.length > 0) return { refusals: wide, cautions: [], switches: [] };
   const applies = new Set(APPLIES[method]);
   const counts = inputs.series.map((s) => readSeries(s.points).length);
   const thin = enoughPeriods(method, inputs, counts);

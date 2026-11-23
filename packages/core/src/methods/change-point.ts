@@ -135,7 +135,6 @@ export function moving(v: number, unit: ValueUnit, decimals: number, ctx: Takeaw
 export function checkedChangePoint(name: string, points: Point[], span: Span) {
   const all = readSeries(points);
   const rows = all.slice(-MAX_PERIODS);
-  const result = changePoint(rows, span);
   let last: { found: boolean; period: string } | undefined;
   const rerun = (left: ReadonlySet<string>): Rerun => {
     const r = changePoint(rows.filter((p) => !left.has(p.period)), span);
@@ -144,6 +143,9 @@ export function checkedChangePoint(name: string, points: Point[], span: Span) {
     return { value: r.found ? r.slopeChange : 0, range: 2 * r.slopeHalf };
   };
   const verdict = checkSuitability("changePoint", { series: [{ name, points: rows }], span, rerun });
+  // Worked out only past the checks, so that values too wide to work out exactly (work-bound.ts) are refused before any exact arithmetic; a series that
+  // is refused has no result to read, and every reader looks at the refusals first.
+  const result: ChangePoint | NoChangePoint = verdict.refusals.length > 0 ? { ok: false, why: "huge" } : changePoint(rows, span);
   return { all, rows, result, verdict, found: () => last };
 }
 

@@ -382,7 +382,8 @@ describe("the Takeaway of a change point", () => {
     expect(t.numbers.find((n) => n.label === "Misses left, against one line")!.text).toBe("–");
   });
   it("says so, in words, when a difference is too small to write out, and writes a number of Show the numbers that no digit could show in scientific form", () => {
-    const tiny = Array.from({ length: 16 }, (_, i) => (i < 8 ? 1e-30 * i : 1e-30 * (50 + 3 * i)));
+    // Written as text, so that each value has no more than 30 decimal places (a product of doubles would have 45, which work-bound.ts refuses).
+    const tiny = Array.from({ length: 16 }, (_, i) => Number(`${i < 8 ? i : 50 + 3 * i}e-30`));
     expect(changePointTakeaway("A", series(tiny), "month", euro, ctx).refusal).toBe("A: the difference is too small to write out.");
     // Lines that fit but for a miss of 1e-25 (the first value is off its line by that): the typical miss is 1e-25, which no 20 decimals show.
     const t = changePointTakeaway("A", series([1e-25, 1, 2, 3, 20, 25, 30, 35, 40, 45]), "month", euro, ctx);
