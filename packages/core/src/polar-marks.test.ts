@@ -227,6 +227,13 @@ describe("radarModel", () => {
     expect(m.alt).toContain("A (so far): 1 (2026-03), still running");
   });
 
+  it("does not let a running period before set the scale either", () => {
+    const a = spoke("A", [{ period: month(0), value: 10 }, { period: month(1), value: 500, note: "so far" }, { period: month(2), value: 20 }]);
+    const m = ok(radar([a, three[1], three[2]], { against: "previous" }));
+    expect(m.shapes[0].marks[0]).toMatchObject({ text: "20", at: 1 });
+    expect(m.shapes[1].marks[0]).toMatchObject({ text: "500", at: null });
+  });
+
   it("refuses a Condensed Value in the period before", () => {
     const a = spoke("A", [{ period: month(2), value: 1, condensed: true }, { period: month(3), value: 5 }]);
     expect(radar([a, three[1], three[2]], { window: 1, against: "previous" })).toEqual({ ok: false, reason: expect.stringContaining("Condensed Values") });

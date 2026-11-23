@@ -95,7 +95,7 @@ export function radarModel(inputs: RadarInput[], opts: { window: number; against
   if (inputs.length > SPOKES.max) return { ok: false, reason: `A radar shows ${SPOKES.min} to ${SPOKES.max} Metrics and this has ${inputs.length}: more cannot be read. Pick fewer.` };
   const window = Math.max(1, Math.floor(opts.window));
   const lasts = inputs.flatMap((i) => i.points.filter(finite).map((p) => p.period));
-  const end = [...lasts].sort().pop() ?? "";
+  const end = [...lasts].sort().pop() as string;
   const now: Mark[] = [];
   const before: Mark[] = [];
   const kept: string[] = [];
