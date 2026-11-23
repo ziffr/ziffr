@@ -95,7 +95,9 @@ describe("the multiple fit on hostile values", () => {
     // (The changes of 9.8e14 and 1e-290 are worked out exactly and are plain numbers, so that is another series; one that is tiny throughout has tiny changes.)
     const minute = [1, 2, 3, 4].map((sd) => series("minute", sd));
     expect(timed(() => cases(fit(input(minute[0], minute.slice(1, 4), { basis: "changes" })))).result).toEqual(["refuse-exact-places", "refuse-exact-places", "refuse-exact-places", "refuse-exact-places"]);
-    expect(cases(fit(input(tiny[0], tiny.slice(1, 4), { basis: "changes" })))).toEqual(["answer"]);
+    // The levels are judged, not only the changes: choosing the basis is exact arithmetic on the levels.
+    expect(cases(fit(input(tiny[0], tiny.slice(1, 4), { basis: "changes" })))).toEqual(["refuse-exact-places", "refuse-exact-places", "refuse-exact-places", "refuse-exact-places"]);
+    expect(cases(fit(input(tiny[0], tiny.slice(1, 4), { basis: undefined })))).toEqual(["refuse-exact-places", "refuse-exact-places", "refuse-exact-places", "refuse-exact-places"]);
     const { result, ms } = timed(() => importance(input(tiny[0], tiny.slice(1, 7))));
     expect(ms).toBeLessThan(QUICK);
     expect(cases(result)).toHaveLength(7);
@@ -228,6 +230,14 @@ describe("the other Methods refuse in words and stay quick on hostile values", (
     // The others are scanned all the same: the rows of the three are what they are with Metric 4 absent.
     expect(wide.result).toEqual(scanPairs(ms.slice(0, 3), levels(1), () => false, "2026-07-15", 1));
     expect(found(wide.result)).toContain("1-2");
+  });
+});
+
+describe("ordinary values are never refused for how long the series is", () => {
+  it("answers a usual range over two years of daily values to the cent, which no work allowance may stop", () => {
+    const r = lcg(5);
+    const daily = Array.from({ length: 730 }, (_, i) => ({ period: new Date(Date.UTC(2022, 0, 1 + i)).toISOString().slice(0, 10), value: Math.round((100 + i * 0.5 + r() * 40) * 100) / 100 }));
+    expect(usualRangeTakeaway("A", daily, "day", euro, ctx).kind).toBe("answer");
   });
 });
 

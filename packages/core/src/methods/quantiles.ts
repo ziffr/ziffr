@@ -15,7 +15,7 @@ import { builtInMethod } from "../extensions";
 import { formatNumber, formatValue, type ValueUnit } from "../format";
 import { periodsBetween, type Span } from "../periods";
 import { checkSuitability, levelShift } from "../suitability";
-import { emptyTakeaway, refusalTakeaway, sayIn, verdictLines, withinBudget, type Takeaway, type TakeawayContext } from "../takeaways/takeaway";
+import { emptyTakeaway, refusalTakeaway, sayIn, verdictLines, type Takeaway, type TakeawayContext } from "../takeaways/takeaway";
 import type { Point } from "../types";
 
 // The p-quantile (0 to 1) of values already read: at least one, all of them numbers. The Extension has no answer for values
@@ -71,11 +71,6 @@ const from = (points: Point[], period: string) => readSeries(points).filter((p) 
  * unit, the median and the quartiles under Show the numbers, and, where a `value` is asked about, whether it is above, below
  * or within. */
 export function usualRangeTakeaway(name: string, points: Point[], span: Span, unit: ValueUnit, ctx: TakeawayContext, opts: { value?: number; season?: number; at?: string } = {}): Takeaway {
-  return withinBudget("numbers-method-usual", ctx, () => usualRangeTakeawayWithin(name, points, span, unit, ctx, opts));
-}
-
-// The Takeaway itself, worked out under the work budget of work-bound.ts.
-function usualRangeTakeawayWithin(name: string, points: Point[], span: Span, unit: ValueUnit, ctx: TakeawayContext, opts: { value?: number; season?: number; at?: string } = {}): Takeaway {
   const method = sayIn("numbers-method-usual", {}, ctx);
   const verdict = checkSuitability("usualRange", { series: [{ name, points }], span, canSwitchTo: ["data-after"] });
   const lines = verdictLines(verdict, ctx, 0);
