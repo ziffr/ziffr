@@ -348,6 +348,8 @@ A **Panel** is one chart inside a composed Finding. **Add panel** adds one (peri
 | Periods | For period bars and annotated lines: how many periods to show, from 2 to 36. |
 | **Highlight the last period** / **Highlight projections** | For period bars: which bars stand out. |
 | **Include projections** | For period bars: also draws **Projections** after the last actual period. |
+
+When a row of period bars shows projections, one line under the whole row says that the highlighted bars after the last actual are projections, so every chart in the row keeps the same height. Switching between **Grid** and **Read** and back keeps the grid at the width of the page.
 | **One scale for all metrics** | For period bars with several Metrics: draws all small multiples on the same scale, so their heights compare. |
 | Reference line | For period bars and Bridges: **No reference line**, **Target**, **Average** or **A fixed value** (then type the value). |
 

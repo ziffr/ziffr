@@ -225,8 +225,12 @@ function DashboardCanvas({ data, dashboards, current, widgets, saved, shares, re
                 )}
               </ObjectToolbar>
             </div>
+            {/* The element whose width the grid is laid out by stays in place in both views: the width hook observes the element it
+                first finds, so one that came and went with the Read view left the grid at the width of a removed node (0), and it
+                came back as a narrow single column. It has no padding of its own, so its width is the grid's. */}
+            <div ref={containerRef}>
             {reading ? <DashboardReader dashboard={{ id: current.id, name: current.name, intro: current.intro ?? "", theme_id: current.theme_id }} widgets={widgets} data={data} header={false} /> : (
-            <ThemeScope theme={themeFor(data.themes, current.theme_id)} ref={containerRef} className="desk relative min-h-[60vh] rounded-[var(--radius-card)]">
+            <ThemeScope theme={themeFor(data.themes, current.theme_id)} className="desk relative min-h-[60vh] rounded-[var(--radius-card)]">
               {widgets.length === 0 && (
                 <div className="pointer-events-none absolute inset-0 flex items-center justify-center text-sm text-muted-foreground">
                   {changing ? "Drag metrics or saved widgets from the Pool and drop them here." : editable ? "This dashboard is empty. Press Edit to add widgets." : "This dashboard is empty."}
@@ -271,6 +275,7 @@ function DashboardCanvas({ data, dashboards, current, widgets, saved, shares, re
               )}
             </ThemeScope>
             )}
+            </div>
           </>
         )}
       </div>
