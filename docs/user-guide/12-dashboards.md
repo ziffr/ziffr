@@ -167,7 +167,7 @@ When a template lands, a window named after it asks for each Slot, such as "Metr
 
 Every **Widget** has a **⋯** button in its title bar. Right-clicking the Widget opens the same menu. A line under the dashboard's name reminds you of this until you have opened a Widget's menu once.
 
-If a Widget's Metric has open questions or tasks, its title bar shows how many are open.  The reminder is remembered in your browser and is not shown on an empty dashboard.
+If a Widget's Metric has open questions or tasks, its title bar shows a speech bubble with how many are open (point at it for the words). A number or gauge Widget whose Metric has a Target Range also shows its status, **On target**, **Too low** or **Too high**, beside the title when the card is wide enough for it; in a narrower card the status stays under the value, so the title keeps its room.  The reminder is remembered in your browser and is not shown on an empty dashboard.
 
 | Option | Who sees it | What it does |
 | --- | --- | --- |

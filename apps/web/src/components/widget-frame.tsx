@@ -40,6 +40,8 @@ import { CONNECTORS, CONNECTOR_IDS, type ConnectorId } from "@ziffr/core/connect
 import { useSlotFill } from "@/components/slot-dialog";
 import { ReadOnlyFrame, frameTitle, type FrameWidget } from "./read-only-frame";
 import { WidgetScaleProvider, widgetScaleStyle, useMeasuredWidgetScale } from "@/views/widget-scale";
+import { HEADER_FITS, HeaderStatusProvider, type HeaderStatus } from "@/views/header-status";
+import { TargetChip } from "@/components/target-chip";
 import { ObservationDetailsProvider, cachedLoader } from "@/views/observation-tip";
 import { observationDetailsAction } from "@/app/observation-actions";
 import { markWidgetMenuSeen } from "@/lib/widget-menu-hint";
@@ -92,6 +94,8 @@ function InteractiveFrame({ widget, data, targets, editable = false, className, 
   // a Snapshot's deck (asOf) shows only what its data carries, like a View Link (read-only cards provide no loader).
   const details = useMemo(() => (widget.settings.asOf ? null : cachedLoader(observationDetailsAction)), [widget.settings.asOf]);
   const [panel, setPanel] = useState<Panel>(null);
+  // The target chip the body would draw, shown beside the title instead (views/header-status.tsx).
+  const [status, setStatus] = useState<HeaderStatus | null>(null);
   // The Takeaway words of an analysis open from the menu, not under the chart; the entry is there when the View has any.
   const [hasTakeaway, setHasTakeaway] = useState(false);
   const [takeawayOpen, setTakeawayOpen] = useState(false);
@@ -111,6 +115,7 @@ function InteractiveFrame({ widget, data, targets, editable = false, className, 
   const ownDesign = designOf(widget);
   const title = frameTitle(widget, ms);
   const open = ms.reduce((n, x) => n + (data.openActions[x.id] ?? 0), 0);
+  const openText = `${open} open ${open === 1 ? "question or task" : "questions or tasks"}`;
   const source: DropSource = widget.id ? { type: "widget", id: widget.id } : { type: "spec", template: widget.template, metricIds: widget.metric_ids, settings: widget.settings, title: widget.title ?? undefined };
 
   const openPanel = (p: Panel, k?: ActionKind) => {
@@ -307,19 +312,21 @@ function InteractiveFrame({ widget, data, targets, editable = false, className, 
         <ContextMenuTrigger
           ref={frame}
           style={widgetScaleStyle(scale)}
-          className={cn("stock group/widget flex h-full flex-col overflow-hidden rounded-[var(--radius-card)]", panel && "outline-2 outline-offset-2 outline-ring", className)}
+          className={cn("stock group/widget @container/frame flex h-full flex-col overflow-hidden rounded-[var(--radius-card)]", panel && "outline-2 outline-offset-2 outline-ring", className)}
           onContextMenuCapture={() => { setPeriod(null); setRow(null); }}
         >
           <WidgetScaleProvider value={scale}>
+          <HeaderStatusProvider value={setStatus}>
           <TakeawayHostProvider value={takeawayHost}>
           <ObservationDetailsProvider value={details}>
           <div className={cn("flex items-center gap-2 px-4 pt-3 pb-1", dragHandle && "widget-drag cursor-grab active:cursor-grabbing")}>
             {dragHandle && <GripVertical aria-hidden className="-ml-2 size-3.5 text-muted-foreground opacity-0 group-hover/widget:opacity-100" />}
             <span className="widget-text-sm truncate font-semibold">{title}</span>
+            {status && <span className={cn("shrink-0", HEADER_FITS.showHeader)}><TargetChip {...status} /></span>}
             {ms.length === 1 && <QuickLookButton slug={ms[0].slug} name={ms[0].name} className="inline-flex size-6 shrink-0 items-center justify-center rounded-md text-muted-foreground opacity-0 outline-none hover:bg-muted hover:text-foreground focus-visible:opacity-100 focus-visible:ring-2 focus-visible:ring-ring group-hover/widget:opacity-100 max-md:opacity-100" />}
             {/* It keeps drawing an Archived Metric's history, and says that no new values come (GLOSSARY: Archived Metric). */}
             {ms.some(isArchived) && <span title={ms.length > 1 ? "Some of its Metrics are archived: they take no new values." : "Its Metric is archived: it takes no new values."} className="widget-text-xs flex shrink-0 items-center gap-1 text-muted-foreground"><Archive aria-hidden className="size-[1.15em]" /> Archived</span>}
-            {open > 0 && <span title={`${open} open action(s)`} className="widget-text-xs flex shrink-0 items-center gap-1 text-muted-foreground"><MessageSquare aria-hidden className="size-[1.15em]" /><span className="fig">{open}</span> open</span>}
+            {open > 0 && <span title={openText} aria-label={openText} className="widget-text-xs flex shrink-0 items-center gap-1 text-muted-foreground"><MessageSquare aria-hidden className="size-[1.15em]" /><span className="fig">{open}</span></span>}
             <DropdownMenu onOpenChange={(o) => { if (o) markWidgetMenuSeen(data.viewer); }}>
               <DropdownMenuTrigger aria-label={`Options for ${title}`} className="-mr-1.5 ml-auto flex size-8 items-center justify-center rounded-[var(--radius-input)] text-muted-foreground opacity-60 group-hover/widget:opacity-100 hover:bg-muted focus-visible:opacity-100 data-popup-open:opacity-100" onMouseDown={(e) => e.stopPropagation()}>
                 <MoreHorizontal className="size-4" />
@@ -343,6 +350,7 @@ function InteractiveFrame({ widget, data, targets, editable = false, className, 
           </div>
           </ObservationDetailsProvider>
           </TakeawayHostProvider>
+          </HeaderStatusProvider>
           </WidgetScaleProvider>
         </ContextMenuTrigger>
         <ContextMenuContent className="w-56">{items(CM)}</ContextMenuContent>
