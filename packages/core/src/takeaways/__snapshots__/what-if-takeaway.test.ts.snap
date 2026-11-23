@@ -2,6 +2,123 @@
 
 exports[`how the Recipe chooses what to follow > does not fit a Metric on one that is made of it 1`] = `"[["Signups",1,[]],["Triple signups",2,["Signups"]]]"`;
 
+exports[`how the Recipe chooses what to follow > fits again without the driver that cannot be told from chance: T moves with B, not with A once B is held, so it is reached through B alone 1`] = `
+"{
+ "kind": "answer",
+ "method": "Each link read from a straight line through the Metrics' history or from a Derived Metric's formula, one after the other",
+ "sentence": "If Base goes up by 10: Mid is estimated to go up by about 5.7. This is higher than Base has ever been (highest 132), so treat it as a guess. End is estimated to go up by about 12, through Mid. This is higher than Base has ever been (highest 132). This is higher than Mid has ever been (highest 90), so treat it as a guess.",
+ "refusal": null,
+ "strength": "strong",
+ "strengthText": "strong",
+ "range": null,
+ "basis": "compared by value",
+ "assumptions": [
+  "Everything else is taken as staying where it was.",
+  "The effects were estimated from the same periods, so no independence between them is assumed: where a Metric rests on more than one, each range is cut wider, so that all of them hold together about four times in five.",
+  "The links were picked for standing out from chance, which tends to make effects look larger than they are: read a range as a first look, not as a measurement.",
+  "Which of two Metrics that move together comes first cannot be told from the numbers: the one that moves more closely with Base is read as coming first."
+ ],
+ "cautions": [],
+ "notes": [],
+ "track": null,
+ "footer": "This shows what has gone together, not what caused what.",
+ "figures": [
+  {
+   "label": "Base",
+   "value": 10,
+   "text": "10"
+  },
+  {
+   "label": "Mid",
+   "value": 5.6522699928794164,
+   "text": "5.7"
+  },
+  {
+   "label": "Base",
+   "value": 132,
+   "text": "132"
+  },
+  {
+   "label": "End",
+   "value": 11.733332881770375,
+   "text": "12"
+  },
+  {
+   "label": "Base",
+   "value": 132,
+   "text": "132"
+  },
+  {
+   "label": "Mid",
+   "value": 90,
+   "text": "90"
+  }
+ ],
+ "numbers": [
+  {
+   "label": "Method",
+   "text": "Each link read from a straight line through the Metrics' history or from a Derived Metric's formula, one after the other"
+  },
+  {
+   "label": "Base: the change",
+   "text": "goes up 10"
+  },
+  {
+   "label": "Mid: how it is known",
+   "text": "estimated from what has gone together"
+  },
+  {
+   "label": "Mid: estimated effects it rests on",
+   "text": "1"
+  },
+  {
+   "label": "Mid: change",
+   "text": "goes up 5.7"
+  },
+  {
+   "label": "End: how it is known",
+   "text": "estimated from what has gone together"
+  },
+  {
+   "label": "End: estimated effects it rests on",
+   "text": "2"
+  },
+  {
+   "label": "End: change",
+   "text": "goes up 12"
+  }
+ ],
+ "rows": [
+  {
+   "name": "Mid",
+   "step": 1,
+   "through": [],
+   "kind": "guess",
+   "effect": 5.6522699928794164,
+   "lo": null,
+   "hi": null,
+   "strength": "strong",
+   "strengthText": "strong",
+   "sentence": "Mid is estimated to go up by about 5.7. This is higher than Base has ever been (highest 132), so treat it as a guess."
+  },
+  {
+   "name": "End",
+   "step": 2,
+   "through": [
+    "Mid"
+   ],
+   "kind": "guess",
+   "effect": 11.733332881770375,
+   "lo": null,
+   "hi": null,
+   "strength": "strong",
+   "strengthText": "strong",
+   "sentence": "End is estimated to go up by about 12, through Mid. This is higher than Base has ever been (highest 132). This is higher than Mid has ever been (highest 90), so treat it as a guess."
+  }
+ ]
+}"
+`;
+
 exports[`how the Recipe chooses what to follow > says nothing of an order or of picked links where everything is worked out, and the order only where a Metric is reached through another 1`] = `
 "{
  "kind": "answer",
@@ -151,22 +268,154 @@ exports[`how the Recipe chooses what to follow > says nothing of an order or of 
 
 exports[`whole Takeaways, word for word (golden: any change to a sentence, a figure, a number row or an assumption shows here) > a fall by a percent, a range through 0, a guess, an unclear link and a refused one 1`] = `
 "{
- "kind": "refusal",
+ "kind": "answer",
  "method": "Each link read from a straight line through the Metrics' history or from a Derived Metric's formula, one after the other",
- "sentence": null,
- "refusal": "the Metrics cannot be used as it was given.",
- "strength": null,
- "strengthText": null,
+ "sentence": "If Visits goes down by 7.50 % (1,500): Signups is estimated to go down by about 20 (likely between 80 down and 40 up). Revenue is estimated to go up by about 100 €. This is higher than Visits has ever been (highest 51,000), so treat it as a guess. Revenue per visit: it cannot be told from chance how it moves when Visits changes.",
+ "refusal": null,
+ "strength": "cant-tell",
+ "strengthText": "can't tell from chance",
  "range": null,
  "basis": null,
- "assumptions": [],
+ "assumptions": [
+  "Everything else is taken as staying where it was."
+ ],
  "cautions": [],
  "notes": [],
  "track": null,
- "footer": null,
- "figures": [],
- "numbers": [],
- "rows": []
+ "footer": "This shows what has gone together, not what caused what.",
+ "figures": [
+  {
+   "label": "Visits",
+   "value": 1500,
+   "text": "1,500"
+  },
+  {
+   "label": "Signups",
+   "value": 20,
+   "text": "20"
+  },
+  {
+   "label": "Signups Likely between",
+   "value": 80,
+   "text": "80"
+  },
+  {
+   "label": "Signups Likely between",
+   "value": 40,
+   "text": "40"
+  },
+  {
+   "label": "Revenue",
+   "value": 100,
+   "text": "100 €"
+  },
+  {
+   "label": "Visits",
+   "value": 51000,
+   "text": "51,000"
+  },
+  {
+   "label": "Visits %",
+   "value": 7.5,
+   "text": "7.50"
+  }
+ ],
+ "numbers": [
+  {
+   "label": "Method",
+   "text": "Each link read from a straight line through the Metrics' history or from a Derived Metric's formula, one after the other"
+  },
+  {
+   "label": "Visits: the change",
+   "text": "goes down 1,500"
+  },
+  {
+   "label": "Signups: how it is known",
+   "text": "estimated from what has gone together"
+  },
+  {
+   "label": "Signups: estimated effects it rests on",
+   "text": "1"
+  },
+  {
+   "label": "Signups: change",
+   "text": "goes down 20"
+  },
+  {
+   "label": "Signups: likely between",
+   "text": "80 down – 40 up"
+  },
+  {
+   "label": "Revenue: how it is known",
+   "text": "estimated from what has gone together"
+  },
+  {
+   "label": "Revenue: estimated effects it rests on",
+   "text": "1"
+  },
+  {
+   "label": "Revenue: change",
+   "text": "goes up 100 €"
+  },
+  {
+   "label": "Revenue per visit: how it is known",
+   "text": "estimated from what has gone together"
+  },
+  {
+   "label": "Revenue per visit: estimated effects it rests on",
+   "text": "1"
+  }
+ ],
+ "rows": [
+  {
+   "name": "Signups",
+   "step": 1,
+   "through": [],
+   "kind": "estimated",
+   "effect": -20,
+   "lo": -80,
+   "hi": 40,
+   "strength": "strong",
+   "strengthText": "strong",
+   "sentence": "Signups is estimated to go down by about 20 (likely between 80 down and 40 up)."
+  },
+  {
+   "name": "Revenue",
+   "step": 1,
+   "through": [],
+   "kind": "guess",
+   "effect": 100,
+   "lo": null,
+   "hi": null,
+   "strength": "strong",
+   "strengthText": "strong",
+   "sentence": "Revenue is estimated to go up by about 100 €. This is higher than Visits has ever been (highest 51,000), so treat it as a guess."
+  },
+  {
+   "name": "Revenue per visit",
+   "step": 1,
+   "through": [],
+   "kind": "unclear",
+   "effect": null,
+   "lo": null,
+   "hi": null,
+   "strength": "cant-tell",
+   "strengthText": "can't tell from chance",
+   "sentence": "Revenue per visit: it cannot be told from chance how it moves when Visits changes."
+  },
+  {
+   "name": "Weather",
+   "step": 1,
+   "kind": "refused",
+   "effect": null,
+   "lo": null,
+   "hi": null,
+   "strength": null,
+   "strengthText": null,
+   "through": [],
+   "sentence": "Weather: The values are too large to work with."
+  }
+ ]
 }"
 `;
 

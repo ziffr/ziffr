@@ -235,6 +235,28 @@ describe("rows the picture draws", () => {
     expect(mixed.sentence).toMatch(/^If Visits goes up by 1,000: /);
     expect(mixed.assumptions).toContain("Where a link is compared by change, the change counts from the latest level, in the next month.");
   });
+  it("needs the Metric changed to be given only as the first argument, and names in a caution's list one at a time", () => {
+    const t = whatIfTakeaway(VISITS, [SIGNUPS], { ok: true, start: "Visits", by: 5, percent: null, span: "month", reached: [ok("Signups", { verdict: { refusals: [], switches: [], cautions: [{ case: "caution-crowded", slots: { names: "Visits, Signups" } }] } })] }, [], ctx);
+    expect(t.kind).toBe("answer");
+    expect(t.cautions).toEqual(["Visits and Signups move closely together, so their separate effects are less certain; the ranges show how much."]);
+  });
+  it("keeps the rows empty where the change cannot be written, and names the Metric whose numbers cannot", () => {
+    const t = whatIfTakeaway(VISITS, [VISITS, SIGNUPS], { ok: true, start: "Visits", by: 1e-16, percent: null, span: "month", reached: [ok("Signups")] }, [], ctx);
+    expect(t).toMatchObject({ kind: "refusal", rows: [], figures: [], numbers: [] });
+    const worked = say([ok("Revenue", { exact: true, effect: 1e-17, lo: null, hi: null, strength: null, coefficients: 0, level: 0 })]);
+    expect(worked.rows[0]).toMatchObject({ name: "Revenue", step: 1, kind: "refused", through: [], strength: null });
+    const some = say([ok("Revenue", { effect: 100, lo: 1e-17, hi: 120 })]).rows[0];
+    expect(some.kind).toBe("refused");
+  });
+  it("says a driver once however often it was outside, each edge of what was seen with its side and its size", () => {
+    const o = (side: "above" | "below", limit: number, name = "Visits") => ({ name, side, limit, change: false });
+    const t = say([ok("Revenue", { lo: null, hi: null, outside: [o("above", 9), o("above", 9), o("above", 12), o("below", 9), o("above", 9, "Signups")] })]);
+    expect(t.rows[0].sentence).toBe("Revenue is estimated to go up by about 100 €. This is higher than Visits has ever been (highest 9.0). This is higher than Visits has ever been (highest 12). This is lower than Visits has ever been (lowest 9.0). This is higher than Signups has ever been (highest 9.0), so treat it as a guess.");
+  });
+  it("puts no figure at 0 where a range reaches it", () => {
+    const t = say([ok("Signups", { effect: 20, lo: 0, hi: 80 })]);
+    expect(t.figures.filter((f) => f.label === "Signups Likely between").map((f) => f.value)).toEqual([80]);
+  });
   it("says a percent as asked, with the amount it comes to, and writes nothing about a Metric it was not given", () => {
     const t = whatIfTakeaway(VISITS, [VISITS, SIGNUPS], { ok: true, start: "Visits", by: 2027.2, percent: 5, span: "month", reached: [ok("Signups")] }, [], ctx);
     expect(t.sentence).toMatch(/^If Visits goes up by 5 % \(2,027\): /);
@@ -471,6 +493,17 @@ describe("how the Recipe chooses what to follow", () => {
     expect(t.rows.map((x) => x.name)).toEqual(expect.arrayContaining(["Noisy 00", "Noisy 01", "Noisy 02", "Noisy 03", "Noisy 04"]));
     expect(t.rows.map((x) => x.name)).not.toContain("Noisy 23");
   });
+  it("fits again without the driver that cannot be told from chance: T moves with B, not with A once B is held, so it is reached through B alone", () => {
+    const r = lcg(1);
+    const n = 30;
+    const a = Array.from({ length: n }, () => Math.round(100 + gauss(r) * 20));
+    const b = a.map((v) => Math.round(v * 0.6 + gauss(r) * 14));
+    const t = b.map((v) => Math.round(v * 2 + gauss(r) * 15));
+    const [A, B, T] = [mk(41, "base", "Base"), mk(42, "mid", "Mid"), mk(43, "end", "End")];
+    const out = whatIfRecipe(A, { by: 10 }, [B, T], resolverFrom([A, B, T], { base: months("2024-01", a), mid: months("2024-01", b), end: months("2024-01", t) }), opts);
+    expect(out.rows.map((x) => [x.name, x.step, x.through])).toEqual([["Mid", 1, []], ["End", 2, ["Mid"]]]);
+    expect(JSON.stringify(out, null, 1)).toMatchSnapshot();
+  });
   it("puts a Metric worked out from the changed one before any that is estimated, so that it is never the one left out", () => {
     const { r, visits } = spread();
     const metrics = Array.from({ length: 7 }, (_, i) => mk(600 + i, `e${i}`, `Even ${i}`));
@@ -513,7 +546,7 @@ describe("how the Recipe chooses what to follow", () => {
 
 describe("whole Takeaways, word for word (golden: any change to a sentence, a figure, a number row or an assumption shows here)", () => {
   const ok = (name: string, over: Partial<Reached> = {}): Reached => ({ ok: true, name, step: 1, exact: false, effect: 100, lo: 80, hi: 120, outside: [], beyond: [], noRange: false, through: [], coefficients: 1, level: 0.9, strength: "strong", byChange: false, verdict: { refusals: [], cautions: [], switches: [] }, ...over });
-  const made = (reached: (Reached | { ok: false; name: string; step: 1 | 2; refusal: { case: never; slots: never } })[], by = 1000, percent: number | null = null) => whatIfTakeaway(VISITS, [VISITS, SIGNUPS, REVENUE, RPV], { ok: true, start: "Visits", by, percent, span: "month", reached: reached as never }, [], ctx);
+  const made = (reached: (Reached | { ok: false; name: string; step: 1 | 2; refusal: { case: never; slots: never } })[], by = 1000, percent: number | null = null) => whatIfTakeaway(VISITS, [VISITS, SIGNUPS, REVENUE, RPV, NOISE], { ok: true, start: "Visits", by, percent, span: "month", reached: reached as never }, [], ctx);
   const caution = { case: "caution-spread" as const, slots: {} };
   const exact = { exact: true, lo: null, hi: null, strength: null, coefficients: 0, level: 0 };
   it("an amount up, with a range, a worked-out Metric and a two-step Metric", () => {

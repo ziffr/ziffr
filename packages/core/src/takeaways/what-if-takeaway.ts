@@ -20,7 +20,7 @@ import type { Resolver } from "../display-periods";
 import type { Metric, Point } from "../types";
 import type { StrengthWord } from "./strength";
 import { lines, onCommon, outsideText, written, type FitRecipeOptions } from "./fit-takeaway";
-import { footerText, listOf, refusalTakeaway, sayIn, strengthWordIn, type Figure, type NumberRow, type Takeaway, type TakeawayContext } from "./takeaway";
+import { answerTakeaway, footerText, listOf, refusalTakeaway, sayIn, strengthWordIn, type Figure, type NumberRow, type Takeaway, type TakeawayContext } from "./takeaway";
 import type { CaseKey, Slots } from "./wording";
 
 /** What a row of the picture is: a value worked out from a formula (no range), estimated with a range, estimated with only a point
@@ -67,16 +67,18 @@ export function whatIfTakeaway(start: Metric, metrics: Metric[], result: WhatIf,
   const startText = written(start, Math.abs(result.by), ctx);
   if (!legible(start, [Math.abs(result.by)], ctx)) return { ...refusalTakeaway(method, [`${start.name}: ${text("refuse-what-if-small", ctx)}`]), rows: [] };
   figures.push(figure(start.name, Math.abs(result.by), startText));
+  // Stryker disable next-line EqualityOperator: the change is never exactly 0 (`whatIf` refuses it), so `>` and `>=` say the same
   numbers.push({ label: text("numbers-change-in", ctx, { name: start.name }), text: `${text(result.by > 0 ? "whatif-goes-up" : "whatif-goes-down", ctx)} ${startText}` });
   const cautions: string[] = [];
   const rows: WhatIfRow[] = result.reached.map((r): WhatIfRow => {
-    if (!r.ok) return refusedRow(r, lines({ refusals: [r.refusal], cautions: [], switches: [] }, ctx).refusals.join(" "));
+    if (!r.ok) return refusedRow(r, lines({ refusals: [r.refusal], cautions: [], switches: [] }, ctx).refusals[0]);
     const m = metricOf(r.name);
     const through = r.through.length > 0 ? text("whatif-through", ctx, { names: listOf(r.through, ctx) }) : "";
     const base = { name: r.name, step: r.step, through: r.through };
     const kindText = text(r.exact ? "numbers-kind-worked" : "numbers-kind-estimated", ctx);
     numbers.push({ label: text("numbers-kind-on", ctx, { name: r.name }), text: kindText });
     if (r.exact) {
+      // Stryker disable next-line EqualityOperator: this value is never exactly 0 here, so `>` and `>=` say the same
       const moves = text(r.effect > 0 ? "whatif-goes-up" : "whatif-goes-down", ctx);
       const shown = written(m, Math.abs(r.effect), ctx);
       if (!legible(m, [Math.abs(r.effect)], ctx)) return refusedRow({ name: r.name, step: r.step }, text("refuse-what-if-small", ctx));
@@ -91,15 +93,18 @@ export function whatIfTakeaway(start: Metric, metrics: Metric[], result: WhatIf,
     numbers.push({ label: text("numbers-rests-on", ctx, { name: r.name }), text: formatNumber(r.coefficients, 0, ctx.style) });
     // A link that cannot be told from chance is said as that, with no number about its size; so is an effect of exactly 0.
     if (lowest === "cant-tell" || r.effect === 0) return { ...base, kind: "unclear", effect: null, lo: null, hi: null, strength: "cant-tell", strengthText: strengthWordIn("cant-tell", ctx), sentence: text("whatif-row-unclear", ctx, { name: r.name, start: start.name, through }) };
+    // Stryker disable next-line EqualityOperator: an estimated effect of exactly 0 is said as unclear before this
     const moves = text(r.effect > 0 ? "whatif-go-up" : "whatif-go-down", ctx);
     const [lo, hi] = [r.lo, r.hi];
-    const like = [Math.abs(r.effect), ...(lo === null || hi === null ? [] : [Math.abs(lo), Math.abs(hi)])];
+    // The range is there or not as a whole.
+    const like = [Math.abs(r.effect), ...(lo === null ? [] : [Math.abs(lo), Math.abs(hi!)])];
     // Numbers that cannot be told from 0 or from each other in 15 places are not written: the row says so instead.
     if (!legible(m, like, ctx)) return refusedRow({ name: r.name, step: r.step }, text("refuse-what-if-small", ctx));
     const shown = written(m, Math.abs(r.effect), ctx, like);
     figures.push(figure(r.name, Math.abs(r.effect), shown));
+    // Stryker disable next-line EqualityOperator: this value is never exactly 0 here, so `>` and `>=` say the same
     numbers.push({ label: text("numbers-effect-on", ctx, { name: r.name }), text: `${text(r.effect > 0 ? "whatif-goes-up" : "whatif-goes-down", ctx)} ${shown}` });
-    if (lo === null || hi === null) {
+    if (lo === null) {
       // Every driver that was outside is said, each with the edge of what was seen, the sign it has (a limit is a level, which may be below 0).
       const uniq = (os: Reached["outside"]) => os.filter((o, i) => os.findIndex((x) => x.name === o.name && x.side === o.side && x.limit === o.limit) === i);
       const [outs, beyonds] = [uniq(r.outside), uniq(r.beyond)];
@@ -110,14 +115,17 @@ export function whatIfTakeaway(start: Metric, metrics: Metric[], result: WhatIf,
       if (r.noRange) return { ...base, kind: "guess", effect: r.effect, lo: null, hi: null, strength: lowest, strengthText, sentence: text("whatif-row-norange", ctx, { name: r.name, moves, effect: shown, through }) };
       return { ...base, kind: "guess", effect: r.effect, lo: null, hi: null, strength: lowest, strengthText, sentence: text("whatif-row-guess", ctx, { name: r.name, moves, effect: shown, through, outside }) };
     }
+    const top = hi as number;
     // Where the range reaches 0 or crosses it, each end says which way it goes; else both are sizes in the direction of the effect.
-    const crossing = lo * hi <= 0;
-    const mag = [Math.abs(lo), Math.abs(hi)].sort((a, b) => a - b);
+    // Stryker disable next-line ArithmeticOperator: a quotient and a product of the two ends have the same sign wherever the ends are not both 0, and an effect that is not 0 has a range that is not 0 to 0
+    const crossing = lo * top <= 0;
+    const mag = [Math.abs(lo), Math.abs(top)].sort((a, b) => a - b);
+    // Stryker disable next-line EqualityOperator: the end is not 0 here (`v === 0` is the line before)
     const end = (v: number) => (v === 0 ? text("whatif-end-none", ctx) : text(v > 0 ? "whatif-end-up" : "whatif-end-down", ctx, { amount: written(m, Math.abs(v), ctx, like) }));
-    const [loText, hiText] = crossing ? [end(lo), end(hi)] : [written(m, mag[0], ctx, like), written(m, mag[1], ctx, like)];
-    for (const v of crossing ? [lo, hi].filter((v) => v !== 0) : mag) figures.push(figure(`${r.name} ${text("numbers-range", ctx)}`, Math.abs(v), written(m, Math.abs(v), ctx, like)));
+    const [loText, hiText] = crossing ? [end(lo), end(top)] : [written(m, mag[0], ctx, like), written(m, mag[1], ctx, like)];
+    for (const v of crossing ? [lo, top].filter((v) => v !== 0) : mag) figures.push(figure(`${r.name} ${text("numbers-range", ctx)}`, Math.abs(v), written(m, Math.abs(v), ctx, like)));
     numbers.push({ label: text("numbers-range-on", ctx, { name: r.name }), text: `${loText} – ${hiText}` });
-    return { ...base, kind: "estimated", effect: r.effect, lo, hi, strength: lowest, strengthText, sentence: text("whatif-row-range", ctx, { name: r.name, moves, effect: shown, lo: loText, hi: hiText, through }) };
+    return { ...base, kind: "estimated", effect: r.effect, lo, hi: top, strength: lowest, strengthText, sentence: text("whatif-row-range", ctx, { name: r.name, moves, effect: shown, lo: loText, hi: hiText, through }) };
   });
   const said = rows.filter((r) => r.kind !== "refused");
   if (said.length === 0) return { ...refusalTakeaway(method, rows.map((r) => r.sentence)), rows };
@@ -126,19 +134,18 @@ export function whatIfTakeaway(start: Metric, metrics: Metric[], result: WhatIf,
   const estimated = result.reached.filter((r): r is Reached => r.ok && !r.exact);
   // "Next month" belongs on the headline only where every estimated link counts a change; else it is said once as an assumption.
   const byChange = estimated.filter((r) => r.byChange).length;
-  const allByChange = estimated.length > 0 && byChange === estimated.length && result.reached.every((r) => r.ok && !r.exact);
+  const allByChange = byChange === estimated.length && result.reached.every((r) => r.ok && !r.exact);
+  // Stryker disable next-line EqualityOperator: this value is never exactly 0 here, so `>` and `>=` say the same
   const slots = { start: start.name, goes: text(result.by > 0 ? "whatif-goes-up" : "whatif-goes-down", ctx), by: startText, when: allByChange ? text("whatif-when-next", ctx, { span }) : "", pct: result.percent === null ? "" : formatNumber(Math.abs(result.percent), percentDigits(Math.abs(result.percent)), ctx.style) };
   const headline = text(result.percent === null ? "whatif-headline" : "whatif-headline-percent", ctx, slots);
   if (result.percent !== null) figures.push(figure(`${start.name} %`, Math.abs(result.percent), slots.pct));
   // The weakest of every estimated row, one that cannot be told from chance included.
-  const strength = WEAKEST.find((w) => rows.some((r) => r.kind !== "worked-out" && r.kind !== "refused" && r.strength === w)) ?? null;
+  const strength = WEAKEST.find((w) => rows.some((r) => r.strength === w)) ?? null;
   const modes = new Set(fits.map((f) => f.basis));
   const basis = fits.length === 0 ? null : modes.size > 1 ? text("basis-what-if-mixed", ctx) : text(fits[0].basis === "changes" ? "basis-changes" : "basis-values", ctx);
   const distinct = [...new Set(cautions)];
   return {
-    ...refusalTakeaway(method, []),
-    kind: "answer",
-    refusal: null,
+    ...answerTakeaway(method),
     sentence: [headline, ...first, ...(more > 0 ? [text("whatif-more", ctx, { n: more })] : [])].join(" "),
     strength,
     strengthText: strength === null ? null : strengthWordIn(strength, ctx),
