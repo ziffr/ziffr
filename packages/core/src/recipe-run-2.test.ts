@@ -10,7 +10,7 @@ import { laggedCorrelation, laggedTakeaway } from "./methods/lagged-correlation"
 import { partialCorrelation, partialTakeaway } from "./methods/partial-correlation";
 import { quantile, usualRangeTakeaway } from "./methods/quantiles";
 import { spearman, spearmanTakeaway } from "./methods/spearman";
-import { runRecipe, runRecipe2, type RunOutput } from "./recipe-run";
+import { runRecipe, runRecipe2, tooWide, MOST_PLACES, MOST_SIZE, WORK_BUDGET, type RunOutput } from "./recipe-run";
 import { RECIPE_POINTS, type RecipeInput } from "./recipe-methods";
 import { movesTakeaway } from "./takeaways/fit-takeaway";
 import type { Takeaway, TakeawayContext } from "./takeaways/takeaway";
@@ -28,6 +28,7 @@ const rec = (steps: AnalysisRecipe2["steps"], outputs: AnalysisRecipe2["outputs"
 const out = (r: { outputs: RunOutput[] }, step: string) => r.outputs.find((o) => o.step === step)!;
 const val = (o: RunOutput) => (o.shows === "value" || o.shows === "series" ? (o.result.kind === "value" ? o.result.value : o.result.points) : null);
 // The footer is the one line that says what a Takeaway is not ("not what caused what"), which the rule itself writes.
+const takeawayOf = (r: { outputs: RunOutput[] }, step: string) => (r.outputs.find((o) => o.step === step && o.shows === "takeaway") as Extract<RunOutput, { shows: "takeaway" }>).takeaway;
 const words = (t: Takeaway) => [t.sentence, t.refusal, t.basis, ...t.assumptions, ...t.cautions, ...t.notes].filter(Boolean).join(" ");
 
 const N = 36;
@@ -41,11 +42,13 @@ describe("the new functions give what their Methods give", () => {
     expect(val(out(r, "x"))).toEqual(changes(a, "month"));
     expect(val(out(r, "y"))).toEqual(detrended(b, "month"));
   });
-  it("spearman is worked out by hand: one pair swapped in eight is 1 − 6·2 ÷ 504 = 41/42", () => {
+  it("spearman is worked out by hand: two ranks moved by 3 in eight is 11/14", () => {
     const run = (x: number[], y: number[]) => runRecipe2(rec([{ id: "s", fn: "spearman", of: "slot1", with: "slot2" }], [{ step: "s", label: "s", shows: "value", unit: "number" }], 2), [input("A", x), input("B", y)], ctx);
-    expect(val(out(run([1, 2, 3, 4, 5, 6, 7, 8], [1, 2, 3, 4, 5, 6, 8, 7]), "s"))).toBeCloseTo(41 / 42, 14);
-    expect(val(out(run([1, 2, 3, 4, 5, 6, 7, 8], [8, 7, 6, 5, 4, 3, 2, 1]), "s"))).toBe(-1);
-    expect(val(out(run([1, 2, 3, 4, 5, 6, 7, 8], [1, 2, 3, 4, 5, 6, 7, 8]), "s"))).toBe(1);
+    // Neither series grows (a shuffle of 1 to 8), so they are compared by value. Swapping the first two values moves two ranks by 3: Σd² = 18, 1 − 6·18 ÷ 504 = 11/14.
+    const shuffled = [4, 1, 7, 3, 8, 2, 6, 5];
+    expect(val(out(run(shuffled, [1, 4, 7, 3, 8, 2, 6, 5]), "s"))).toBeCloseTo(11 / 14, 14);
+    expect(val(out(run(shuffled, shuffled.map((v) => 9 - v)), "s"))).toBe(-1);
+    expect(val(out(run(shuffled, shuffled), "s"))).toBe(1);
     // Fewer than six pairs, or a series that does not change: no number, never a made-up one.
     expect(val(out(run([1, 2, 3], [3, 1, 2]), "s"))).toBeNull();
     expect(val(out(run([1, 2, 3, 4, 5, 6, 7, 8], [5, 5, 5, 5, 5, 5, 5, 5]), "s"))).toBeNull();
@@ -158,12 +161,15 @@ describe("what each step holds", () => {
     ], [{ step: "s", label: "s", shows: "value", unit: "number" }], 2), slots.slice(0, 2), ctx);
     expect(Object.fromEntries(Object.entries(r.steps).map(([k, v]) => [k, v.kind]))).toEqual({ x: "series", s: "value", l: "table", u: "table", m: "model", w: "table" });
   });
-  it("leaves out a result too large to be a number, from a change and from a detrended series", () => {
+  it("refuses values so large that a change or a miss from a line could not be written as a number", () => {
     const big = 1.7e308;
     const r = runRecipe2(rec([{ id: "d", fn: "detrended", of: "slot1" }, { id: "c", fn: "changes", of: "slot1" }], [{ step: "d", label: "d", shows: "series", unit: "metric" }, { step: "c", label: "c", shows: "series", unit: "metric" }], 1), [input("A", [big, -big, big])], ctx);
-    // The middle value of the straight line's miss is −Infinity, and both changes are ±Infinity: none of these is written as a number.
-    expect(val(out(r, "d"))).toEqual([{ period: "2020-01-01", value: 1.1333333333333334e308 }, { period: "2020-03-01", value: 1.1333333333333334e308 }]);
+    expect(val(out(r, "d"))).toEqual([]);
     expect(val(out(r, "c"))).toEqual([]);
+    // At the largest size accepted, a change and a miss are numbers.
+    const ok = runRecipe2(rec([{ id: "d", fn: "detrended", of: "slot1" }, { id: "c", fn: "changes", of: "slot1" }], [{ step: "d", label: "d", shows: "series", unit: "metric" }, { step: "c", label: "c", shows: "series", unit: "metric" }], 1), [input("A", [1e15, -1e15, 1e15])], ctx);
+    expect((val(out(ok, "c")) as { value: number }[]).map((p) => p.value)).toEqual([-2e15, 2e15]);
+    expect((val(out(ok, "d")) as { value: number }[]).every((p) => Number.isFinite(p.value))).toBe(true);
   });
   it("names a step by its own id and a Slot by its Metric, even where an id looks like a Slot", () => {
     // `myslot1` and `slot1x` are good names for steps: only slot1 to slot4 exactly are Slots.
@@ -303,5 +309,157 @@ describe("what a recipe reaches and how it fails", () => {
     const started = Date.now();
     runRecipe2(big, many, ctx);
     expect(Date.now() - started).toBeLessThan(15_000);
+  });
+});
+
+describe("what a recipe may be asked to work out", () => {
+  const one = (vs: number[]) => runRecipe2(rec([{ id: "u", fn: "usualRange", of: "slot1" }, { id: "c", fn: "changes", of: "slot1" }], [{ step: "u", label: "u", shows: "takeaway" }, { step: "c", label: "c", shows: "series", unit: "metric" }], 1), [input("Sales", vs)], ctx);
+  const base = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
+
+  it("works on up to 30 decimal places and refuses the 31st, in words, with no number", () => {
+    expect(MOST_PLACES).toBe(30);
+    expect(tooWide(at([1e-30]))).toBe(false);
+    expect(tooWide(at([1e-31]))).toBe(true);
+    expect(tooWide(at([1.5e-29]))).toBe(false);
+    expect(tooWide(at([1.5e-30]))).toBe(true);
+    expect(tooWide(at([0.12345678901234567]))).toBe(false);
+    const ok = one([...base, 1e-30]);
+    expect(val(out(ok, "c"))).not.toEqual([]);
+    const wide = one([...base, 1e-31]);
+    expect(val(out(wide, "c"))).toEqual([]);
+    expect(takeawayOf(wide, "u").kind).toBe("refusal");
+    expect(takeawayOf(wide, "u").refusal).toBe("Sales hold values this recipe cannot work out exactly: more than 30 decimal places, or a value above 1,000,000,000,000,000. Round the values or leave out the far-off ones.");
+  });
+  it("works on values up to 1e15 and refuses the first double above it", () => {
+    expect(MOST_SIZE).toBe(1e15);
+    expect(tooWide(at([1e15, -1e15]))).toBe(false);
+    expect(tooWide(at([1e15 + 0.125]))).toBe(true);
+    expect(tooWide(at([-1e15 - 0.125]))).toBe(true);
+    expect(tooWide(at([1e300]))).toBe(true);
+    expect(takeawayOf(one([...base, 1e15]), "u").kind).toBe("answer");
+    expect(takeawayOf(one([...base, 1e15 + 0.125]), "u").kind).toBe("refusal");
+  });
+  it("refuses the same for every kind of step, and a fit says why in its own words", () => {
+    const r = runRecipe2(rec([{ id: "m", fn: "fit", of: "slot1", drivers: ["slot2"] }, { id: "s", fn: "spearman", of: "slot1", with: "slot2" }], [{ step: "m", label: "m", shows: "takeaway" }, { step: "s", label: "s", shows: "takeaway" }], 2), [input("A", [...va, 1e-31]), input("B", vb)], ctx);
+    expect(takeawayOf(r, "m").refusal).toContain("cannot work out exactly");
+    expect(takeawayOf(r, "s").refusal).toContain("cannot work out exactly");
+    expect(r.steps.s).toEqual({ kind: "value", value: null });
+    expect((r.steps.m as { fit: { ok: boolean } }).fit.ok).toBe(false);
+  });
+  it("stops at the same step on every machine when the work is spent, one step either side", () => {
+    expect(WORK_BUDGET).toBe(100_000);
+    // A lagged correlation of 6 delays on 120 values costs 120 × 7 × 2 = 1,680 units: 59 of them are 99,120, the 60th goes over.
+    const long = (k: number) => input(`M${k}`, wobble(RECIPE_POINTS, k));
+    const steps = (n: number) => Array.from({ length: n }, (_, i) => ({ id: `l${i}`, fn: "laggedCorrelation" as const, of: "slot1", with: "slot2", maxLag: 6 }));
+    const run = (n: number, shows: AnalysisRecipe2["outputs"] = [{ step: "l0", label: "l", shows: "table" }]) => runRecipe2(rec(steps(n), shows, 2), [long(3), long(5)], ctx);
+    const at59 = run(59);
+    expect((at59.steps.l58 as { rows: unknown[] }).rows.length).toBe(7);
+    const at60 = run(60);
+    expect((at60.steps.l58 as { rows: unknown[] }).rows.length).toBe(7);
+    expect((at60.steps.l59 as { rows: unknown[] }).rows).toEqual([]);
+    expect(JSON.stringify(run(60))).toBe(JSON.stringify(at60));
+    // A Takeaway counts too: a lagged one costs its step's work again.
+    const t = (n: number) => takeawayOf(run(n, [{ step: "l0", label: "t", shows: "takeaway" }]), "l0");
+    expect(t(29).kind).toBe("answer");
+    // 29 steps are 48,720 units and the Takeaway 1,680 more; 58 steps alone are 97,440, and with the Takeaway they are 99,120: still within.
+    expect(t(58).kind).toBe("answer");
+    // 59 steps are 99,120 and the Takeaway takes it to 100,800: over.
+    expect(t(59).kind).toBe("refusal");
+    expect(t(59).refusal).toBe("This recipe asks for more work than one result may take, so it stops here. Leave out some steps.");
+    // Steps that are not lagged: a fit of 3 drivers on 120 values is 1,920 units, a partial correlation with 2 controls 1,920, a Takeaway of the usual range 8 passes.
+    const fits = (n: number) => runRecipe2(rec(Array.from({ length: n }, (_, i) => ({ id: `m${i}`, fn: "fit" as const, of: "slot1", drivers: ["slot2", "slot3", "slot4"] })), [{ step: "m0", label: "m", shows: "table" }], 4), [1, 2, 3, 4].map((k) => input(`M${k}`, wobble(RECIPE_POINTS, k + 2))), ctx);
+    expect((fits(52).steps.m51 as { fit: { ok: boolean } }).fit.ok).toBe(true);
+    expect((fits(53).steps.m52 as { fit: { ok: boolean; refusals?: { case: string }[] } }).fit).toMatchObject({ ok: false, refusals: [{ case: "recipe-too-much" }] });
+    const partials = (n: number) => runRecipe2(rec(Array.from({ length: n }, (_, i) => ({ id: `p${i}`, fn: "partialCorrelation" as const, of: "slot1", with: "slot2", controls: ["slot3", "slot4"] })), [{ step: "p0", label: "m", shows: "value", unit: "number" }], 4), [1, 2, 3, 4].map((k) => input(`M${k}`, wobble(RECIPE_POINTS, k + 2))), ctx);
+    expect((partials(52).steps.p51 as { value: number | null }).value).not.toBeNull();
+    expect((partials(53).steps.p52 as { value: number | null }).value).toBeNull();
+  });
+  it("counts every step, and a Takeaway by its Method, to the unit: the budget is spent at 100,000 and not before", () => {
+    // 100 values in the longest Slot: a plain step costs 100 units, so 1,000 of them are exactly the budget and the 1,001st is over.
+    const hundred = (k: number) => input(`M${k}`, wobble(100, k));
+    const plain = (n: number) => Array.from({ length: n }, (_, i) => ({ id: `c${i}`, fn: "changes" as const, of: "slot1" }));
+    const fitStepOf = (): AnalysisRecipe2["steps"][number] => ({ id: "f", fn: "fit", of: "slot1", drivers: ["slot2", "slot3", "slot4"] });
+    const run = (steps: AnalysisRecipe2["steps"], shows: AnalysisRecipe2["outputs"]) => runRecipe2(rec(steps, shows, 4), [1, 2, 3, 4].map((k) => hundred(k + 2)), ctx);
+    const last = (r: ReturnType<typeof run>, id: string) => (r.steps[id] as { points: unknown[] }).points.length;
+    const keep: AnalysisRecipe2["outputs"] = [{ step: "c0", label: "c", shows: "series", unit: "metric" }];
+    expect(last(run(plain(1000), keep), "c999")).toBeGreaterThan(0);
+    expect(last(run(plain(1001), keep), "c1000")).toBe(0);
+    // A Takeaway of a step that works on one series costs 8 passes of the series: 999 plain steps and a usual range are 99,900, and 800 more is over.
+    const usual: AnalysisRecipe2["steps"] = [...plain(992), { id: "u", fn: "usualRange", of: "slot1" }];
+    expect(run(usual, [{ step: "u", label: "t", shows: "takeaway" }]).outputs[0]).toMatchObject({ takeaway: { kind: "refusal" } });
+    expect(run(usual.slice(0, 980).concat(usual.slice(-1)), [{ step: "u", label: "t", shows: "takeaway" }]).outputs[0]).toMatchObject({ takeaway: { kind: "answer" } });
+    const sp: AnalysisRecipe2["steps"] = [...plain(992), { id: "s", fn: "spearman", of: "slot1", with: "slot2" }];
+    expect(run(sp, [{ step: "s", label: "t", shows: "takeaway" }]).outputs[0]).toMatchObject({ takeaway: { kind: "refusal" } });
+    // Exactly the budget is not over it: 991 plain steps and a rank correlation are 99,200, its Takeaway 800 more.
+    expect(run([...plain(991), sp[992]], [{ step: "s", label: "t", shows: "takeaway" }]).outputs[0]).toMatchObject({ takeaway: { kind: "answer" } });
+    expect(run(usual, [{ step: "u", label: "t", shows: "takeaway" }]).outputs[0]).toMatchObject({ takeaway: { refusal: "This recipe asks for more work than one result may take, so it stops here. Leave out some steps." } });
+    const spent = run([...plain(1001), fitStepOf()], keep);
+    expect((spent.steps.f as { fit: unknown }).fit).toEqual({ ok: false, refusals: [{ case: "recipe-too-much", slots: { names: "M3, M4, M5, M6" } }] });
+    // A lagged correlation (6 delays: 1,400 units) and a partial correlation (2 controls: 1,600) cost their step's work again in a Takeaway; a fit's Takeaway costs nothing more.
+    const lag: AnalysisRecipe2["steps"] = [...plain(977), { id: "l", fn: "laggedCorrelation", of: "slot1", with: "slot2", maxLag: 6 }];
+    expect(run(lag, [{ step: "l", label: "t", shows: "takeaway" }]).outputs[0]).toMatchObject({ takeaway: { kind: "refusal" } });
+    expect(run([...plain(800), lag[977]], [{ step: "l", label: "t", shows: "takeaway" }]).outputs[0]).toMatchObject({ takeaway: { kind: "answer" } });
+    const par: AnalysisRecipe2["steps"] = [...plain(975), { id: "p", fn: "partialCorrelation", of: "slot1", with: "slot2", controls: ["slot3", "slot4"] }];
+    expect(run(par, [{ step: "p", label: "t", shows: "takeaway" }]).outputs[0]).toMatchObject({ takeaway: { kind: "refusal" } });
+    expect(run([...plain(800), par[975]], [{ step: "p", label: "t", shows: "takeaway" }]).outputs[0]).toMatchObject({ takeaway: { kind: "answer" } });
+    const fitStep = fitStepOf();
+    expect(run([...plain(980), fitStep], [{ step: "f", label: "t", shows: "takeaway" }]).outputs[0]).toMatchObject({ takeaway: { kind: "answer" } });
+  });
+  it("answers the hostile recipe on the widest values it accepts in a few seconds, as on ordinary values", () => {
+    const r7 = (x: number) => Number(x.toPrecision(7));
+    const wide = (k: number) => Array.from({ length: RECIPE_POINTS }, (_, i) => r7(i % 2 ? 4.87654321e14 * (1 + ((i * 7 + k) % 13) / 13) : 1.23456789e-23 * (1 + ((i * 5 + k) % 11) / 11)));
+    const four = (gen: (k: number) => number[]) => [1, 2, 3, 4].map((k) => input(`M${k}`, gen(k + 2)));
+    const big = rec(
+      [
+        { id: "m1", fn: "fit", of: "slot1", drivers: ["slot2", "slot3", "slot4"] }, { id: "m2", fn: "fit", of: "slot2", drivers: ["slot1", "slot3"] }, { id: "w", fn: "importance", of: "m1" },
+        { id: "l", fn: "laggedCorrelation", of: "slot1", with: "slot2", maxLag: 6 }, { id: "p", fn: "partialCorrelation", of: "slot1", with: "slot2", controls: ["slot3", "slot4"] },
+        { id: "u", fn: "usualRange", of: "slot1" }, { id: "s", fn: "spearman", of: "slot1", with: "slot2" },
+      ],
+      ["m1", "m2", "l", "p", "s"].map((step) => ({ step, label: step, shows: "takeaway" as const })),
+      4,
+    );
+    for (const gen of [wide, (k: number) => wobble(RECIPE_POINTS, k)]) {
+      const started = Date.now();
+      const r = runRecipe2(big, four(gen), ctx);
+      expect(Date.now() - started).toBeLessThan(3000);
+      expect(r.outputs.every((o) => o.shows === "takeaway" && o.takeaway.kind === "answer")).toBe(true);
+    }
+  });
+});
+
+describe("a pair is compared on the same basis in the table, the value and the Takeaway", () => {
+  const grow = (k: number, n = 36) => wobble(n, k).map((v, i) => v + i * 30);
+  const flat = (k: number, n = 36) => wobble(n, k);
+  const steps: AnalysisRecipe2["steps"] = [{ id: "s", fn: "spearman", of: "slot1", with: "slot2" }, { id: "l", fn: "laggedCorrelation", of: "slot1", with: "slot2", maxLag: 6 }];
+  const outputs: AnalysisRecipe2["outputs"] = [{ step: "s", label: "s", shows: "value", unit: "number" }, { step: "l", label: "l", shows: "table" }, { step: "s", label: "ts", shows: "takeaway" }, { step: "l", label: "tl", shows: "takeaway" }];
+  const go = (x: number[], y: number[]) => runRecipe2(rec(steps, outputs, 2), [input("A", x), input("B", y)], ctx);
+  const rows = (r: ReturnType<typeof go>) => (out(r, "l") as Extract<RunOutput, { shows: "table" }>).rows;
+  const tk = (r: ReturnType<typeof go>, step: string) => (r.outputs.find((o) => o.step === step && o.shows === "takeaway") as Extract<RunOutput, { shows: "takeaway" }>).takeaway;
+
+  it("two growing series are compared by change: a shared trend is not a link, and the output says so", () => {
+    const r = go(grow(3), grow(5));
+    const direct = spearman(changes(at(grow(3)), "month"), changes(at(grow(5)), "month"))!.rho;
+    expect(r.outputs.find((o) => o.shows === "value")).toMatchObject({ result: { value: direct } });
+    expect(Math.abs(direct)).toBeLessThan(0.9);
+    expect(rows(r).map((x) => x.value)).toEqual(laggedCorrelation(changes(at(grow(3)), "month"), changes(at(grow(5)), "month"), "month", 6).lags.map((l) => l.r));
+    for (const o of r.outputs.filter((x) => x.shows !== "takeaway")) expect((o as { basis?: string }).basis).toBe("compared by change, growth removed");
+    expect(tk(r, "s").basis).toContain("growth removed");
+    expect(tk(r, "l").basis).toContain("growth removed");
+  });
+  it("flat series, and a growing one beside a flat one, are compared by value", () => {
+    for (const [x, y] of [[flat(3), flat(5)], [grow(3), flat(5)]]) {
+      const r = go(x, y);
+      expect(r.outputs.find((o) => o.shows === "value")).toMatchObject({ result: { value: spearman(at(x), at(y))!.rho }, basis: "compared by value" });
+      expect(rows(r)[0].value).toBe(laggedCorrelation(at(x), at(y), "month", 6).lags[0].r);
+      expect(tk(r, "s").basis).not.toContain("growth removed");
+    }
+  });
+  it("two series that grow by exactly the same step each month have no change to compare: no number, and a refusal in words", () => {
+    const line = (k: number) => Array.from({ length: 36 }, (_, i) => 100 + i * k);
+    const r = go(line(5), line(7));
+    expect(r.outputs.find((o) => o.shows === "value")).toMatchObject({ result: { value: null } });
+    expect(rows(r).every((x) => x.value === null)).toBe(true);
+    expect(tk(r, "s").kind).toBe("refusal");
+    expect(tk(r, "s").refusal).toContain("hardly changed");
   });
 });

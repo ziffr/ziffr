@@ -309,7 +309,7 @@ function recipeUse(d: ViewDesign, lines: Map<string, number>, at: (path: string,
     if (!d.analysis) return at(path, `shows “${show}”, but the design has no analysis.`);
     const k = kind(step);
     if (!k) return at(path, `“${step}” is not an output of the design's analysis.`);
-    if (k === "other") return at(path, `“${show}” is a table, a model or a Takeaway, or has no unit; marks draw a series or one value.`);
+    if (k === "other") return at(path, `“${show}” is a table, a fit or a Takeaway, or has no unit; marks draw a series or one value.`);
     if (wants !== "any" && k !== wants) at(path, `“${show}” gives ${k === "series" ? "a series" : "one value"}; this mark needs ${wants === "series" ? "a series" : "one value"}.`);
   };
   const walk = (parts: Part[], path: string) =>

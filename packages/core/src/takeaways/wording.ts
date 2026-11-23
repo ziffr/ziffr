@@ -161,6 +161,8 @@ const EN = {
   "table-usual-median": "Median",
   "table-usual-q3": "Upper quartile",
   "table-usual-high": "Usual high",
+  "recipe-too-wide": "{names} hold values this recipe cannot work out exactly: more than 30 decimal places, or a value above 1,000,000,000,000,000. Round the values or leave out the far-off ones.",
+  "recipe-too-much": "This recipe asks for more work than one result may take, so it stops here. Leave out some steps.",
   "recipe-mixed-periods": "{names} are kept by different periods, and a recipe compares Metrics of one period. Show them by the same period first.",
   "numbers-method-pareto": "Pareto",
   "numbers-method-bridge": "Bridge",

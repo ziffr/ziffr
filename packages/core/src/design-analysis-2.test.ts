@@ -3,7 +3,7 @@
 // recipe's mistakes as they do for /1, and a Pack that holds a /2 recipe checks and installs as a design that draws it.
 import { describe, expect, it } from "vitest";
 import type { AnalysisRecipe2 } from "./analysis-recipe";
-import { designRecipe, designRun } from "./design-analysis";
+import { designRecipe, designRun, drawnPart } from "./design-analysis";
 import { designWithRecipe } from "./design-files";
 import { shownSeries } from "./display-periods";
 import { checkPack, type Pack } from "./pack";
@@ -64,6 +64,15 @@ describe("a design that carries a /2 recipe", () => {
     expect(got.chg).toEqual({ kind: "series", points: changes(points(revenue), revenue.period) });
     expect(got.mid).toEqual({ kind: "value", value: quantile(points(revenue), 0.5) });
   });
+  it("works out only what its marks draw: no Takeaway, no table, no step nothing drawn needs", () => {
+    const part = drawnPart(RECIPE);
+    expect(part.steps.map((s) => s.id)).toEqual(["chg", "mid"]);
+    expect(part.outputs.map((o) => [o.step, o.shows])).toEqual([["chg", "series"], ["mid", "value"]]);
+    // A drawn step keeps the steps it is worked out from; a recipe that draws nothing works out nothing.
+    const chained: AnalysisRecipe2 = { ...RECIPE, steps: [{ id: "chg", fn: "changes", of: "slot1" }, { id: "avg", fn: "movingAverage", of: "chg", window: 3 }, { id: "rho", fn: "spearman", of: "slot1", with: "slot2" }], outputs: [{ step: "avg", label: "a", shows: "series", unit: "metric" }, { step: "rho", label: "r", shows: "takeaway" }] };
+    expect(drawnPart(chained).steps.map((s) => s.id)).toEqual(["chg", "avg"]);
+    expect(designRecipe({ ...DESIGN, analysis: { ...RECIPE, outputs: [RECIPE.outputs[2], RECIPE.outputs[3]] }, parts: [{ mark: "text", content: ["x"] }] }, [revenue, orders], data, {})).toEqual({});
+  });
   it("gives the tables and Takeaways in full where asked", () => {
     const run = designRun(DESIGN, [revenue, orders], data, {})!;
     expect(run.outputs.map((o) => o.shows)).toEqual(["series", "value", "takeaway", "table", "takeaway"]);
@@ -83,7 +92,7 @@ describe("a design that carries a /2 recipe", () => {
     for (const step of ["lags", "usual", "rho"]) {
       const res = draw(`recipe.${step}`);
       expect(res.ok).toBe(false);
-      expect(!res.ok && res.problems.map((p) => p.message).join()).toContain(`“recipe.${step}” is a table, a model or a Takeaway, or has no unit; marks draw a series or one value.`);
+      expect(!res.ok && res.problems.map((p) => p.message).join()).toContain(`“recipe.${step}” is a table, a fit or a Takeaway, or has no unit; marks draw a series or one value.`);
     }
     const none = draw("recipe.model");
     expect(!none.ok && none.problems.map((p) => p.message).join()).toContain("“model” is not an output of the design's analysis");

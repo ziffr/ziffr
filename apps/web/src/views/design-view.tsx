@@ -4,7 +4,7 @@
 // Style), worked out once in `designValues`; the design only says which of them each mark shows and how it looks.
 // Security: a design is data. Its words are drawn as React text, never as markup, and it reaches no Metric outside
 // the widget's own.
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
 import { useTakeawayHost } from "./takeaway-host";
 import { compactValue, formatNumber, formatValue, health } from "@ziffr/core/format";
@@ -46,7 +46,7 @@ export type DesignValues = ReturnType<typeof designValues> & {
 };
 
 /** The numbers and words a design draws for a widget, each from the core's functions. */
-function designValues(design: ViewDesign, widget: Pick<Widget, "settings">, metrics: Metric[], data: CanvasData, basis: BasisChoice) {
+function designValues(design: ViewDesign, widget: Pick<Widget, "settings">, metrics: Metric[], data: CanvasData, basis: BasisChoice, recipe: ReturnType<typeof designRecipe>) {
   const uses = usage(design);
   const m = metrics[0];
   const s = widget.settings;
@@ -87,7 +87,6 @@ function designValues(design: ViewDesign, widget: Pick<Widget, "settings">, metr
   // The target band shows when there is a range, and, for a combined series, when its spans have one.
   const band = (!combined || !!targets?.range) && (m.target_min !== null || m.target_max !== null);
   // The design's Analysis Recipe, on the series the widget shows of its own Metrics, by the library's functions.
-  const recipe = designRecipe(design, metrics, data, s);
   return { basis, m, metrics, by, all, pts, last, combined, targets, note, flags, fc, correlation, correlationTake, forecastTake, drivers, driversTake, matrix, band, goal, name, data, settings: s, recipe, analysis: design.analysis ?? null };
 }
 
@@ -120,7 +119,9 @@ export function DesignView({ design, widget, metrics, data, onPointContext }: Pr
   const [basis, setBasis] = useState<BasisChoice>("auto");
   const roomy = useWidgetScale() > 1;
   const host = useTakeawayHost();
-  const v: DesignValues = { ...designValues(design, widget, metrics, data, basis), setBasis, roomy, behind: host !== null };
+  // The recipe is worked out once for its real inputs, not again whenever Show the numbers is toggled.
+  const recipe = useMemo(() => designRecipe(design, metrics, data, widget.settings), [design, metrics, data, widget.settings]);
+  const v: DesignValues = { ...designValues(design, widget, metrics, data, basis, recipe), setBasis, roomy, behind: host !== null };
   const { m } = v;
   // What the design needs and does not have says why, in the core's words where it has them.
   if (v.matrix && metrics.length < 2) return <Empty>{design.empty ?? "Needs at least two Metrics."}</Empty>;

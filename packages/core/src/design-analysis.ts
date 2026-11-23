@@ -5,7 +5,7 @@
 import { dayAfter, shownSeries } from "./display-periods";
 import { formatNumber, formatPercent, formatValue } from "./format";
 import { runRecipe, runRecipe2, type RecipeResults, type Run2 } from "./recipe-run";
-import { drawnOutputs, type Output } from "./analysis-recipe";
+import { drawnOutputs, type AnalysisRecipe2, type Output } from "./analysis-recipe";
 import { DEFAULT_NUMBER_STYLE } from "./number-style";
 import { RECIPE_POINTS, type RecipeInput } from "./recipe-methods";
 import type { Result } from "./recipe-functions";
@@ -39,22 +39,43 @@ export function recipeInputs2(design: ViewDesign, metrics: Metric[], data: Pick<
   });
 }
 
+/** The recipe of a design with only what its marks draw: the series and values it shows, and the steps they are worked out from. A table, a
+ * Takeaway or a step nothing drawn needs is left out, so drawing a widget never runs a Method for words nobody sees yet. */
+export function drawnPart(a: AnalysisRecipe2): AnalysisRecipe2 {
+  const drawn = drawnOutputs(a).map((o) => o.step);
+  const needed = new Set<string>();
+  const need = (id: string) => {
+    const s = a.steps.find((x) => x.id === id);
+    if (!s || needed.has(id)) return;
+    needed.add(id);
+    for (const src of [s.of, s.with, ...(s.controls ?? []), ...(s.drivers ?? [])]) if (src !== undefined) need(src);
+  };
+  drawn.forEach(need);
+  return { ...a, steps: a.steps.filter((s) => needed.has(s.id)), outputs: a.outputs.filter((o) => (o.shows === "series" || o.shows === "value") && drawn.includes(o.step)) };
+}
+
+function inputsFor(design: ViewDesign, a: AnalysisRecipe2, metrics: Metric[], data: Pick<CanvasData, "metrics" | "series" | "targets" | "yearStart" | "today">, settings: WidgetSettings): RecipeInput[] {
+  // A Slot left empty (no Metric placed) is empty, so the inputs keep their places: a missing Metric is a gap, never the next Metric moved up.
+  const filled = recipeInputs2(design, metrics, data, settings);
+  return a.slots.map((_, i) => (metrics[i] ? filled.shift() : undefined)) as RecipeInput[];
+}
+
 /** What a design's recipe gives in full, tables and Takeaways included, for a recipe in format /2; null for a design without one, or with one in /1. */
 export function designRun(design: ViewDesign, metrics: Metric[], data: Pick<CanvasData, "metrics" | "series" | "targets" | "yearStart" | "today"> & Partial<Pick<CanvasData, "numberStyle">>, settings: WidgetSettings): Run2 | null {
   const a = design.analysis;
   if (!a || a.format === "ziffr.analysis/1") return null;
-  // A Slot left empty (no Metric placed) is empty, so the inputs keep their places: a missing Metric is a gap, never the next Metric moved up.
-  const filled = recipeInputs2(design, metrics, data, settings);
-  const inputs = a.slots.map((_, i) => (metrics[i] ? filled.shift() : undefined)) as RecipeInput[];
-  return runRecipe2(a, inputs, { style: data.numberStyle ?? DEFAULT_NUMBER_STYLE, yearStart: data.yearStart });
+  return runRecipe2(a, inputsFor(design, a, metrics, data, settings), { style: data.numberStyle ?? DEFAULT_NUMBER_STYLE, yearStart: data.yearStart });
 }
 
-/** What a design's recipe gives for a widget as marks draw it (a series or one value by step), or null for a design without one. */
+/** What a design's recipe gives for a widget as marks draw it (a series or one value by step), or null for a design without one. Only the
+ * steps the drawn outputs need are worked out, and never a Takeaway: none is drawn yet. */
 export function designRecipe(design: ViewDesign, metrics: Metric[], data: Pick<CanvasData, "metrics" | "series" | "targets" | "yearStart" | "today">, settings: WidgetSettings): RecipeResults | null {
   const a = design.analysis;
   if (!a) return null;
   if (a.format === "ziffr.analysis/1") return runRecipe(a, recipeInputs(design, metrics, data, settings));
-  const run = designRun(design, metrics, data, settings)!;
+  const part = drawnPart(a);
+  if (part.outputs.length === 0) return {};
+  const run = runRecipe2(part, inputsFor(design, a, metrics, data, settings), { style: DEFAULT_NUMBER_STYLE, yearStart: data.yearStart });
   return Object.fromEntries(drawnOutputs(a).map((o) => [o.step, run.steps[o.step] as Result]));
 }
 

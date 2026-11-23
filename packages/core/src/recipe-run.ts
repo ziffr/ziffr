@@ -3,7 +3,8 @@
 // else, so a recipe cannot reach a Metric outside its Slots and every number it gives is one the library computed. Format
 // /1 is run by `runRecipe`, format /2 by `runRecipe2`. Pure.
 import { FUNCTIONS_2, type AnalysisRecipe, type AnalysisRecipe2, type Step2 } from "./analysis-recipe";
-import { basisFor, changes, detrended, readSeries } from "./basis";
+import { basisFor, basisText, changes, detrended, readSeries, type Basis } from "./basis";
+import { fractionOf } from "./exact";
 import { fit, type FitInput } from "./methods/fit";
 import { laggedCorrelation, laggedTakeaway } from "./methods/lagged-correlation";
 import { partialCorrelation, partialTakeaway } from "./methods/partial-correlation";
@@ -13,6 +14,7 @@ import type { Span } from "./periods";
 import { importanceRows, lagRows, percentile, RECIPE_POINTS, usualRows, type RecipeInput, type Result2, type TableRow } from "./recipe-methods";
 import { movesTakeaway } from "./takeaways/fit-takeaway";
 import { refusalTakeaway, sayIn, type Takeaway, type TakeawayContext } from "./takeaways/takeaway";
+import type { Finding } from "./suitability";
 import { correlation, difference, growth, linearTrend, mean, movingAverage, seasonalIndex, share, slope, standardDeviation, zScore, type Result } from "./recipe-functions";
 import type { Point } from "./types";
 
@@ -57,8 +59,8 @@ export function runRecipe(r: AnalysisRecipe, inputs: Point[][]): RecipeResults {
 
 /** What a /2 recipe gives for each output: a series or one value with its unit, a table, or a Takeaway (written by the Method's own wording). */
 export type RunOutput =
-  | { shows: "series" | "value"; step: string; label: string; unit: "metric" | "percent" | "number"; result: Result }
-  | { shows: "table"; step: string; label: string; rows: TableRow[] }
+  | { shows: "series" | "value"; step: string; label: string; unit: "metric" | "percent" | "number"; result: Result; basis?: string }
+  | { shows: "table"; step: string; label: string; rows: TableRow[]; basis?: string }
   | { shows: "takeaway"; step: string; label: string; takeaway: Takeaway; title?: string; note?: string };
 
 /** A /2 recipe's run: every step's result by id, and the outputs in the order the recipe lists them. */
@@ -67,6 +69,30 @@ export type Run2 = { steps: Record<string, Result2>; outputs: RunOutput[] };
 // The Method a Takeaway of each function names under Show the numbers.
 const METHOD = { spearman: "numbers-method-spearman", partialCorrelation: "numbers-method-partial", laggedCorrelation: "numbers-method-lag", usualRange: "numbers-method-usual", fit: "numbers-method-fit" } as const;
 const PLAIN = { unit: "", unit_position: "after", decimals: 2 } as const;
+
+/** The most decimal places a value of a recipe may need, and its largest size: beyond them the exact arithmetic of the steps (BigInt sums
+ * of every value at one scale) grows without a bound that is worth its answer, and the recipe says so instead. */
+export const MOST_PLACES = 30;
+/** The largest absolute value a Slot of a recipe may hold (the API's own limit for a value). */
+export const MOST_SIZE = 1e15;
+/** The work one run may ask for, in units counted from the steps and the series' length alone (never the clock), so that the same recipe on the same
+ * data stops at the same step on every machine. A fit of k drivers on n values is n·(k + 1)² units; a unit is about a microsecond. */
+export const WORK_BUDGET = 100_000;
+
+/** Whether a Slot's values are beyond what the steps work out exactly in a fair time: more than `MOST_PLACES` decimal places or above `MOST_SIZE`. */
+export function tooWide(points: Point[]): boolean {
+  return points.some((p) => Math.abs(p.value) > MOST_SIZE || fractionOf(p.value).den.toString().length - 1 > MOST_PLACES);
+}
+
+// What a step asks for, in work units: n is the longest Slot.
+function cost(s: Step2, n: number): number {
+  if (s.fn === "fit") return n * (s.drivers!.length + 1) ** 2;
+  if (s.fn === "partialCorrelation") return n * (s.controls!.length + 2) ** 2;
+  if (s.fn === "laggedCorrelation") return n * (s.maxLag! + 1) * 2;
+  return n;
+}
+// A Takeaway runs its Method again (a fit's is already made): the same work again, and for the rest a few passes of the series.
+const takeawayCost = (s: Step2, n: number) => (s.fn === "fit" ? 0 : s.fn === "laggedCorrelation" || s.fn === "partialCorrelation" ? cost(s, n) : 8 * n);
 
 // Distinct names for what a step is given, so a fit never takes two drivers for one: a repeat is told apart by a number.
 function distinct(names: string[]): string[] {
@@ -93,7 +119,12 @@ export function runRecipe2(r: AnalysisRecipe2, inputs: RecipeInput[], ctx: Takea
   const names = distinct(slots.map((s) => s.name));
   const filled = slots.filter((s) => s.points.length > 0);
   const span: Span = filled[0]?.period ?? "month";
-  const mixed = filled.some((s) => s.period !== span);
+  const names2 = names.join(", ");
+  // Why nothing is worked out, in words: Metrics of different periods, or values the exact arithmetic should not be asked for.
+  const stop: Finding | null = filled.some((s) => s.period !== span) ? { case: "recipe-mixed-periods", slots: { names: names2 } } : filled.some((s) => tooWide(s.points)) ? { case: "recipe-too-wide", slots: { names: names2 } } : null;
+  const longest = Math.max(1, ...slots.map((s) => s.points.length));
+  let spent = 0;
+  const tooMuch: Finding = { case: "recipe-too-much", slots: { names: names2 } };
   // Stryker disable next-line StringLiteral: the kind of a Slot is never read (seriesOf takes its points)
   const known = new Map<string, Result2>(slots.map((s, i) => [`slot${i + 1}`, { kind: "series", points: s.points }]));
   const slotAt = new Map(slots.map((_, i) => [`slot${i + 1}`, i]));
@@ -102,10 +133,13 @@ export function runRecipe2(r: AnalysisRecipe2, inputs: RecipeInput[], ctx: Takea
     return i === undefined ? id : names[i];
   };
   const seriesOf = (id: string) => (known.get(id) as Extract<Result2, { kind: "series" }>).points;
-  const refusal = () => sayIn("recipe-mixed-periods", { names: names.join(", ") }, ctx);
+  const refusal = (f: Finding) => sayIn(f.case, f.slots, ctx);
   const steps: Record<string, Result2> = {};
+  const bases: Record<string, Basis> = {};
   for (const s of r.steps) {
-    const res = mixed ? emptyResult(s, names) : step2(s, seriesOf, known, nameOf, (id) => { const i = slotAt.get(id); return i === undefined ? undefined : slots[i].meta; }, span, ctx);
+    spent += cost(s, longest);
+    const why = stop ?? (spent > WORK_BUDGET ? tooMuch : null);
+    const res = why ? emptyResult(s, why) : step2(s, seriesOf, known, nameOf, (id) => { const i = slotAt.get(id); return i === undefined ? undefined : slots[i].meta; }, span, ctx, (b) => (bases[s.id] = b));
     known.set(s.id, res);
     steps[s.id] = res;
   }
@@ -113,38 +147,41 @@ export function runRecipe2(r: AnalysisRecipe2, inputs: RecipeInput[], ctx: Takea
     const s = r.steps.find((x) => x.id === o.step)!;
     const res = steps[s.id];
     if (o.shows === "takeaway") {
-      const takeaway = mixed ? refusalTakeaway(sayIn(METHOD[s.fn as keyof typeof METHOD], {}, ctx), [refusal()]) : takeawayOf(s, steps, slots, names, span, ctx);
+      spent += takeawayCost(s, longest);
+      const why = stop ?? (spent > WORK_BUDGET ? tooMuch : null);
+      const takeaway = why ? refusalTakeaway(sayIn(METHOD[s.fn as keyof typeof METHOD], {}, ctx), [refusal(why)]) : takeawayOf(s, steps, slots, names, span, ctx);
       return { shows: "takeaway", step: o.step, label: o.label, takeaway, ...(o.title !== undefined ? { title: o.title } : {}), ...(o.note !== undefined ? { note: o.note } : {}) };
     }
-    if (o.shows === "table") return { shows: "table", step: o.step, label: o.label, rows: (res as { rows: TableRow[] }).rows };
-    return { shows: o.shows, step: o.step, label: o.label, unit: o.unit!, result: res as Result };
+    if (o.shows === "table") return { shows: "table", step: o.step, label: o.label, rows: (res as { rows: TableRow[] }).rows, ...(bases[s.id] ? { basis: basisText(bases[s.id]) } : {}) };
+    return { shows: o.shows, step: o.step, label: o.label, unit: o.unit!, result: res as Result, ...(bases[s.id] ? { basis: basisText(bases[s.id]) } : {}) };
   });
   return { steps, outputs };
 }
 
 // What a step gives when there is nothing to work on: no values, no rows, a refused fit.
-function emptyResult(s: Step2, names: string[]): Result2 {
+function emptyResult(s: Step2, why: Finding): Result2 {
   const gives = FUNCTIONS_2[s.fn].gives;
   if (gives === "series") return { kind: "series", points: [] };
   if (gives === "value") return { kind: "value", value: null };
   if (gives === "table") return { kind: "table", rows: [] };
-  return { kind: "model", input: { target: { name: "", points: [] }, drivers: [], span: "month" }, fit: { ok: false, refusals: [{ case: "recipe-mixed-periods", slots: { names: names.join(", ") } }] } };
+  return { kind: "model", input: { target: { name: "", points: [] }, drivers: [], span: "month" }, fit: { ok: false, refusals: [why] } };
 }
 
-function step2(s: Step2, seriesOf: (id: string) => Point[], known: Map<string, Result2>, nameOf: (id: string) => string, meta: (id: string) => RecipeInput["meta"], span: Span, ctx: TakeawayContext): Result2 {
+function step2(s: Step2, seriesOf: (id: string) => Point[], known: Map<string, Result2>, nameOf: (id: string) => string, meta: (id: string) => RecipeInput["meta"], span: Span, ctx: TakeawayContext, basisUsed: (b: Basis) => void): Result2 {
   const a = () => seriesOf(s.of);
   const b = () => seriesOf(s.with!);
   const value = (v: number | undefined): Result2 => ({ kind: "value", value: Number.isFinite(v) ? (v as number) : null });
   switch (s.fn) {
-    // A change too large to be a number (the gap between 1e308 and −1e308) is left out, as every function of the library leaves out what is not finite.
-    case "changes": return { kind: "series", points: changes(a(), span).filter((p) => Number.isFinite(p.value)) };
-    case "detrended": return { kind: "series", points: detrended(a(), span).filter((p) => Number.isFinite(p.value)) };
-    case "spearman": return value(spearman(a(), b())?.rho);
+    // Values are held to MOST_SIZE before any step runs, so a change or a miss from a line is always a number.
+    case "changes": return { kind: "series", points: changes(a(), span) };
+    case "detrended": return { kind: "series", points: detrended(a(), span) };
+    // Two series are compared on the basis the rule gives (by change where both grow), the one the Takeaway of the same step uses; the output says which.
+    case "spearman": { const p = pairOn(a(), b(), span); basisUsed(p.basis); return value(spearman(p.a, p.b)?.rho); }
     case "partialCorrelation": {
       const found = partialCorrelation(a(), b(), s.controls!.map(seriesOf));
       return value(found.ok ? found.r : undefined);
     }
-    case "laggedCorrelation": return { kind: "table", rows: lagRows(laggedCorrelation(a(), b(), span, s.maxLag!), span, ctx) };
+    case "laggedCorrelation": { const p = pairOn(a(), b(), span); basisUsed(p.basis); return { kind: "table", rows: lagRows(laggedCorrelation(p.a, p.b, span, s.maxLag!), span, ctx) }; }
     case "usualRange": return { kind: "table", rows: usualRows(usualRange(a(), span), ctx) };
     case "quantile": return percentile(a(), s.percent!);
     case "fit": {
@@ -159,15 +196,17 @@ function step2(s: Step2, seriesOf: (id: string) => Point[], known: Map<string, R
   }
 }
 
+// The basis a pair is compared on is the rule's (basisFor), as everywhere: by change where both grow. Steps and Takeaways share it.
+function pairOn(a: Point[], b: Point[], span: Span): { basis: Basis; a: Point[]; b: Point[] } {
+  const basis = basisFor(a, b, span);
+  return { basis, a: basis === "changes" ? changes(a, span) : a, b: basis === "changes" ? changes(b, span) : b };
+}
+
 // The Takeaway of a step's Method, written by the Method's own wording from the Slots it works on (the checks make sure they are Slots).
 function takeawayOf(s: Step2, steps: Record<string, Result2>, slots: { name: string; unit: RecipeInput["unit"]; points: Point[] }[], names: string[], span: Span, ctx: TakeawayContext): Takeaway {
   const at = (id: string) => Number(id.slice(4)) - 1;
   const [x, y] = [slots[at(s.of)], s.with ? slots[at(s.with)] : undefined];
-  // The basis a pair is compared on is the rule's (basisFor), as everywhere: by change where both grow.
-  const pair = () => {
-    const basis = basisFor(x.points, y!.points, span);
-    return { basis, a: basis === "changes" ? changes(x.points, span) : x.points, b: basis === "changes" ? changes(y!.points, span) : y!.points };
-  };
+  const pair = () => pairOn(x.points, y!.points, span);
   switch (s.fn) {
     case "spearman": { const p = pair(); return spearmanTakeaway(names[at(s.of)], names[at(s.with!)], p.a, p.b, span, p.basis, ctx); }
     case "laggedCorrelation": { const p = pair(); return laggedTakeaway(names[at(s.of)], names[at(s.with!)], p.a, p.b, span, p.basis, ctx); }
