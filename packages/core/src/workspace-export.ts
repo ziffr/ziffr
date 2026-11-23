@@ -564,8 +564,9 @@ async function* numbersOf(actor: Actor, m: Plan["metrics"][number], yearStart: n
 export function exportedBreakdown(rows: { id: number; parent: number | null; label: string; value: number }[]): { rows: { label: string; value: number; parent?: string }[]; left: boolean } {
   const named = rows.map((b) => ({ ...b, fits: fitsLabel(b.label, WORKSPACE_EXPORT_LIMITS.label) }));
   if (!named.some((b) => b.parent !== null)) return { rows: named.flatMap((b) => (b.fits ? [{ label: b.fits, value: b.value }] : [])), left: false };
+  // A row at the top has no parent (null), which no id matches.
   const label = new Map(named.map((b) => [b.id, b.fits]));
-  const out = named.map((b) => ({ label: b.fits, value: b.value, parent: b.parent === null ? undefined : label.get(b.parent) }));
+  const out = named.map((b) => ({ label: b.fits, value: b.value, parent: label.get(b.parent as number) }));
   const whole = out.every((b, i) => b.label && (named[i].parent === null || b.parent));
   if (!whole) return { rows: [], left: true };
   const listed = out.map((b) => ({ label: b.label as string, value: b.value, ...(b.parent ? { parent: b.parent } : {}) }));
