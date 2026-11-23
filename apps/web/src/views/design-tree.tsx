@@ -1,10 +1,12 @@
 "use client";
-// The `tree` mark of a View Design (GLOSSARY: Formula Tree, View Design): the formula of a Derived Metric as boxes. What every box says (its
+// The `tree` mark of a View Design (GLOSSARY: Formula Tree, Breakdown, View Design): the formula of a Derived Metric, or the rows of a Breakdown with their parents, as boxes. What every box says (its
 // number, its share, the words for a gap, a note, a part taken away) is worked out once by the core in formula-tree.ts, exactly, so a widget,
 // a Snapshot, a View Link and a deck's picture all show the same numbers; where each box goes is tree-layout.ts. This file only draws
 // them, from Theme tokens. It reaches no Metric the person may not see: the core refuses a formula with an input that is not in the data.
 import { useId, type ReactNode } from "react";
+import { breakdownTreeFromData } from "@ziffr/core/breakdown-tree";
 import { treeFromData, type TreeBox, type TreeModel } from "@ziffr/core/formula-tree";
+import type { Part } from "@ziffr/core/view-design";
 import type { DesignValues } from "./design-view";
 import { fitWords } from "./label-fit";
 import { layoutTree, OPERATOR_WIDTH, ROW, TREE_WIDTH, treeHeight, type Placed } from "./tree-layout";
@@ -42,6 +44,8 @@ function Box({ box, at, hatch }: { box: TreeBox; at: Placed; hatch: string }) {
       <rect x={at.x} y={at.y} width={at.w} height={at.h} fill={gap ? "none" : "var(--color-data)"} fillOpacity={box.level === 0 ? 0.3 : 0.14} stroke={gap ? "var(--color-muted)" : "var(--color-data)"} strokeWidth={0.9} strokeDasharray={gap ? "3 2" : undefined} />
       {box.taken && <rect x={at.x} y={at.y} width={at.w} height={at.h} fill={`url(#${hatch})`} />}
       {/* A box thinner than a line is still found: a mark as wide as the line, over its place. */}
+      {/* Parts that add up to another number than the box's own: a mark in its corner, which the rule under the drawing explains (never only in the tooltip). */}
+      {box.differs && <polygon data-differs points={`${at.x + at.w},${at.y} ${at.x + at.w - Math.min(7, at.w)},${at.y} ${at.x + at.w},${at.y + Math.min(7, at.w)}`} fill="var(--color-ink)" />}
       {at.w < 1.5 && <rect x={at.x + at.w / 2 - 0.75} y={at.y} width={1.5} height={at.h} fill="var(--color-ink)" />}
       {lines.map((ln, k) => <text key={k} x={left} y={first + k * STEP} fontSize={SIZE} fill={ln.muted ? "var(--color-muted)" : "var(--color-ink)"} fontWeight={k === lines.length - 1 ? 600 : 400} style={halo}>{ln.t}</text>)}
       {words && box.taken && <text x={at.x + at.w - 3} y={first + (lines.length - 1) * STEP} fontSize={SIZE} textAnchor="end" fill="var(--color-ink)" style={halo}>−</text>}
@@ -78,7 +82,10 @@ function TreeDrawing({ model }: { model: TreeModel }) {
   );
 }
 
-/** The formula of a Derived Metric as boxes: each part's number, in exact arithmetic, and its share of the box above. */
-export function TreeMark({ v }: { v: DesignValues }) {
-  return <TreeDrawing model={treeFromData(v.m, v.data, { display: v.offersDisplay ? v.settings.display : undefined, asOf: v.settings.asOf })} />;
+/** The formula of a Derived Metric, or the rows of a Metric's Breakdown with their parts, as boxes: each one's number, in exact arithmetic, and its share of the box above. */
+export function TreeMark({ part, v }: { part: Extract<Part, { mark: "tree" }>; v: DesignValues }) {
+  const model = part.show === "breakdown"
+    ? breakdownTreeFromData(v.m, v.data, { asOf: v.settings.asOf })
+    : treeFromData(v.m, v.data, { display: v.offersDisplay ? v.settings.display : undefined, asOf: v.settings.asOf });
+  return <TreeDrawing model={model} />;
 }

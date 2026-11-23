@@ -3,6 +3,7 @@
 // says in words that the parts are not shared and draws none of them; what cannot be drawn honestly is said in words, and the words are plain text.
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
+import { breakdownTreeFromData } from "@ziffr/core/breakdown-tree";
 import { treeFromData } from "@ziffr/core/formula-tree";
 import { shownSeries } from "@ziffr/core/display-periods";
 import { evaluate } from "@ziffr/core/formula";
@@ -104,5 +105,41 @@ describe("the top box of a tree", () => {
     if (!m.ok) return;
     expect(html).toContain(`>${m.boxes[0].text}</text>`);
     expect(m.alt.indexOf(m.boxes[0].label)).toBeLessThan(m.alt.indexOf(m.boxes[1].label));
+  });
+});
+
+describe("the tree mark of a Breakdown with parents (spec 0041, ticket 12)", () => {
+  const BD: ViewDesign = { ...DESIGN, name: "Where the rows add up", slots: [{ label: "Metric with a breakdown", metrics: "one" }], parts: [{ mark: "tree", show: "breakdown" }] };
+  const period = base.series["sample-revenue"].at(-1)!.period;
+  const rows = [{ label: "Germany", value: 100, parts: [{ label: "Berlin", value: 60 }, { label: "Munich", value: 30 }] }, { label: "Austria <b>x</b>", value: 50 }];
+  const withRows: CanvasData = { ...base, breakdowns: { ...base.breakdowns, [revenue.id]: { [period]: rows } } };
+  const w = (settings: WidgetSettings = {}) => ({ template: "design" as const, metric_ids: [revenue.id], settings: { ...settings, design: { body: BD } as never } });
+
+  it("draws the boxes the core worked out, with the text alternative and both numbers where parts do not add up", () => {
+    const html = draw(w(), withRows);
+    const model = breakdownTreeFromData(revenue, withRows);
+    expect(model.ok).toBe(true);
+    if (!model.ok) return;
+    expect(alt(html).replace(/&lt;/g, "<").replace(/&gt;/g, ">")).toBe(model.alt);
+    for (const b of model.boxes) expect(html, b.label).toContain(`<title>${b.alt.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")}</title>`);
+    expect(textOf(html)).toContain("Germany: its parts add up to");
+    // Marked on the drawing itself: Germany (100, parts 90) and the top box (value against 150), not Berlin, Munich or Austria.
+    expect(html.match(/data-differs/g)).toHaveLength(2);
+    // Markup in a name is text.
+    expect(html).not.toContain("<b>x</b>");
+    expect(html).toContain("&lt;b&gt;x&lt;/b&gt;");
+    // The same on a deck's slide, which draws from the viewer's own data.
+    expect(draw(w(), { ...withRows })).toBe(html);
+  });
+  it("says in words that there is no Breakdown, and names nothing, for a Metric the data holds none of (not shared, or none yet)", () => {
+    const hidden: CanvasData = { ...base, breakdowns: {} };
+    const html = draw(w(), hidden);
+    expect(textOf(html)).toContain(`${revenue.name} has no breakdown yet.`);
+    expect(html).not.toContain("<svg");
+    expect(html).not.toContain("Germany");
+  });
+  it("is drawn for the day a Snapshot is of", () => {
+    const html = draw(w({ asOf: "2000-01-01" }), withRows);
+    expect(textOf(html)).toContain("has no breakdown yet.");
   });
 });

@@ -1848,13 +1848,16 @@
         },
         {
           "type": "object",
-          "description": "The parts of a Derived Metric's formula as boxes, from the Metric's own value in its latest period down through each part, every box an exact number: the parts of a sum share the width of the box above them by their size, the factors of a product or a ratio are laid side by side equally and are not to scale. The first Slot must be a Derived Metric whose inputs are all shared with the viewer; at most 4 levels and 24 boxes.",
+          "description": "Boxes inside boxes, every box an exact number. `show` is `formula`: the parts of a Derived Metric's formula, from the Metric's own value in its latest period down through each part; the parts of a sum share the width of the box above them by their size, the factors of a product or a ratio are laid side by side equally and are not to scale; the first Slot must be a Derived Metric whose inputs are all shared with the viewer; at most 4 levels and 24 boxes. `show` is `breakdown`: the rows of the Metric's newest Breakdown, a row under the row it is a part of (a Breakdown row may name a parent row, at most 4 levels down and 200 rows), under the Metric's own value for that period; a row's number is its own as it was given and where its parts add up to another number both are said, a negative row is hatched, at most 24 boxes with the smallest rows grouped as Other rows.",
           "properties": {
             "mark": {
               "const": "tree"
             },
             "show": {
-              "const": "formula"
+              "enum": [
+                "formula",
+                "breakdown"
+              ]
             },
             "when": {
               "$ref": "#/$defs/when"

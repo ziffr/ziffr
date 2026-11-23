@@ -24,6 +24,7 @@ export const REFUSED: Record<string, string> = {
   rejected_source: "This Metric does not take values from the API.",
   rejected_period: "That is not the first day of one of this Metric's periods, or it is in the future.",
   rejected_no_value: "The value is not a number.",
+  rejected_breakdown: "The breakdown's rows cannot stand as they were given (a parent that is no row, a row that is a part of itself, or too many rows or levels).",
 };
 
 /** Values one key may submit in any 24 hours, unless ZIFFR_LIMIT_VALUES_PER_KEY_PER_DAY says otherwise (the default). */
@@ -32,7 +33,7 @@ export const VALUES_PER_DAY = sendingLimitDefault("valuesPerKey");
 export const IDEMPOTENCY_HOURS = 24;
 
 /** What a program sends: a value, optionally its period (first day; default the current one) and a Breakdown. */
-export type ApiSubmissionInput = { value: number; period?: string | null; breakdown?: { label: string; value: number }[] | null };
+export type ApiSubmissionInput = { value: number; period?: string | null; breakdown?: { label: string; value: number; parent?: string | null }[] | null };
 
 /** What became of a program's value (for a key without metrics:read: the value it sent, and words that hold no
  * earlier value or Metric name): recorded (published, or awaiting Approval as an Unusual Value or under a Workflow
@@ -60,7 +61,7 @@ export async function submitObservation(actor: Actor | KeyActor, slug: string, i
     return { ok: false, reason: "not_submitter", detail: `You do not submit values for ${metric.name}.` };
   }
   const value = Number(input.value);
-  const breakdown = (input.breakdown ?? []).map((r) => ({ label: String(r.label).slice(0, 200), value: Number(r.value) }));
+  const breakdown = (input.breakdown ?? []).map((r) => ({ label: Array.from(String(r.label)).slice(0, 200).join(""), value: Number(r.value), ...(typeof r.parent === "string" ? { parent: Array.from(r.parent).slice(0, 200).join("") } : {}) }));
   const period = input.period ?? periodStart(new Date(), metric.period, await yearStartFor(actor.workspaceId, metric.period));
   const result = await submitValue({
     source: "api", sender: tokens[0].code, text: JSON.stringify({ value, period, breakdown: breakdown.length ? breakdown : undefined }).slice(0, 4000),
@@ -75,7 +76,8 @@ export async function submitObservation(actor: Actor | KeyActor, slug: string, i
     const accepted = metric.sources.map((x) => SOURCE_LABEL[x] ?? x).join(", ") || "none";
     return { ok: false, reason: "refused", detail: `${metric.name} doesn’t accept values from the API. It accepts values from: ${accepted}. The Metric's owner or an Editor can turn the API Source on with update_metric (sources: list every Source to keep, api among them; PATCH /metrics/{slug} for programs), or in the Metric's settings in Ziffr.` };
   }
-  if (!result.ok) return { ok: false, reason: result.outcome === "rejected_no_token" ? "not_submitter" : "refused", detail: reads ? result.detail : REFUSED[result.outcome] ?? "The Metric's rules refused the value." };
+  // A refused breakdown is told in its own words even to a key that may not read: they name only the rows it sent.
+  if (!result.ok) return { ok: false, reason: result.outcome === "rejected_no_token" ? "not_submitter" : "refused", detail: reads || result.outcome === "rejected_breakdown" ? result.detail : REFUSED[result.outcome] ?? "The Metric's rules refused the value." };
   const { data: state } = await db().from("period_states").select("state").eq("metric_id", metric.id).eq("period_start", period).maybeSingle();
   const { data: latestRows } = await db().from("observations").select("id, value, value_sealed").eq("workspace_id", actor.workspaceId).eq("metric_id", metric.id).eq("period_start", period).order("created_at", { ascending: false }).limit(1);
   const [latest] = await openRows("observations", actor.workspaceId, (latestRows ?? []) as Record<string, unknown>[]);

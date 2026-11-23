@@ -735,7 +735,7 @@ export function createServer(ziffr: Ziffr): McpServer {
       slug,
       value: z.number().describe("The value."),
       period: period.optional().describe("The period's first day, YYYY-MM-DD; the current period if left out."),
-      breakdown: z.array(z.object({ label: z.string().min(1).max(200), value: z.number() })).max(500).optional().describe("The value's parts, such as per shop."),
+      breakdown: z.array(z.object({ label: z.string().min(1).max(200), value: z.number(), parent: z.string().max(200).nullish().describe("The label of the row this one is a part of (same list, at most 4 levels, 200 rows); left out at the top.") })).max(500).optional().describe("The value's parts, such as per shop."),
       idempotency_key: z.string().min(1).max(200).optional().describe("Send the same key again to retry without recording twice."),
     },
     annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false },
