@@ -7,6 +7,7 @@
 // `prototype:reset` seed it too, in SQL only.
 import { db, seedingDemo } from "./db";
 import { shouldResetDemo, type DemoState } from "./demo-reset-decision";
+import { scanWorkspace } from "./heads-ups";
 import { seedDemoSnapshots } from "./demo-snapshots";
 import { clearDemoVisitCounts } from "./demo-visit";
 import { askForMissingValues, sendDueReminders } from "./questions";
@@ -35,6 +36,15 @@ export async function resetDemoWorkspace(opts: { onlyWhenNeeded?: boolean; openT
   const { data: done, error } = await db().rpc("demo_reset");
   if (error) throw new Error("The demo could not be reset. Try again in a minute.");
   if (!done) return false;
+  // The three years of history are seeded by a function of their own (#987), before anything that reads the values: the Snapshots, the close.
+  const history = await db().rpc("prototype_seed_history");
+  if (history.error) console.error("Demo: no three years of history", history.error.message);
+  // The Heads-up job never scans the demo, so the pairs that move together are looked at here, once a night, as the job would look at a Workspace.
+  try {
+    await seedingDemo(() => scanWorkspace(DEMO_WORKSPACE_ID, new Date().toISOString()));
+  } catch (e) {
+    console.error("Demo: no Heads-ups", e instanceof Error ? e.message : e);
+  }
   // The visits' counts belong to the window that just ended (spec 0051); a new window starts at zero.
   // A failure is logged and the reset carries on, as for the steps below: the counts are not worth a half-seeded demo.
   try { await clearDemoVisitCounts(); } catch (e) { console.error("Demo: visit counts not emptied", e instanceof Error ? e.message : e); }
