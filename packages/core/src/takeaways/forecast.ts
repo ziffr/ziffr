@@ -7,10 +7,10 @@
 // assumes. The chance is the share of a normal curve around the forecast that lies within the Target's ends, with the spread the
 // Method showed on the past; the track record says how well such ranges held. The percentage shown is never 0 or 100: a forecast is not certain. "Likely between" is the 80 % range (1.2816 spreads).
 import { readSeries } from "../basis";
-import { formatNumber, formatValue } from "../format";
+import { formatNumber, formatValue, type ValueUnit } from "../format";
 import { HORIZON } from "../forecast";
 import { bestForecast, LATEST_PERIODS } from "../methods/forecast-choice";
-import { SMOOTHING } from "../methods/holt-winters";
+import { SMOOTHING, type SeasonalPoint } from "../methods/holt-winters";
 import { Z80 } from "../methods/normal-curve";
 import { reachChance, type TargetEnds } from "../methods/reach-chance";
 import { backtest, type Candidate } from "../methods/track-record";
@@ -47,14 +47,23 @@ export const maxAhead = (span: Span): number => Math.max(HORIZON[span], SEASON_L
 /** What is asked of a forecast Takeaway: the Target's ends (the Recipe "Will we reach the Target?") and the period to look at (the end of the default horizon where not given). */
 export type ForecastAsk = { ends?: TargetEnds; by?: string };
 
-/** The Takeaway of a Metric's forecast: the expected value and range, or with `ask.ends` the chance of reaching the Target, the Method used and why, its track
- * record, and the numbers. A refusal says what is missing. The points are only read. */
-export function forecastTakeaway(metric: Metric, points: Point[], ctx: TakeawayContext, ask: ForecastAsk = {}): Takeaway {
+/** What a forecast reads of a Metric: its name, its period and its unit. */
+export type ForecastMetric = Pick<Metric, "name" | "period"> & ValueUnit;
+
+// The wording of a Metric's forecast: each case in the Metric's period, numbers in its unit and the Workspace's Number Style.
+const wordsFor = (metric: ForecastMetric, ctx: TakeawayContext) => (key: CaseKey, slots: Slots = {}) => say(key, { span: metric.period, ...slots }, { style: ctx.style, language: ctx.language, yearStart: ctx.yearStart, result: (v) => formatValue(metric, v, ctx.style) });
+
+/** What a forecast works out before any words go round it: the latest periods, the Method chosen, the point for the period asked about
+ * (`ahead` periods after the last value) and the plain lines that go with the answer. */
+type Fit = { rows: Point[]; season: number; ahead: number; best: NonNullable<ReturnType<typeof bestForecast>>; method: Candidate; target: SeasonalPoint; cautions: string[]; notes: string[] };
+
+// A forecast, or the lines that say why there is none. The one place the checks, the Method's choice and the period asked about are decided,
+// for the Takeaway and for the Heads-up about a Target (reachOf) alike.
+function fitForecast(metric: ForecastMetric, points: Point[], ctx: TakeawayContext, ask: ForecastAsk): { refuse: string[] } | Fit {
   const span = metric.period;
   const season = SEASON_LENGTH[span];
-  const text = (key: CaseKey, slots: Slots = {}) => say(key, { span, ...slots }, { style: ctx.style, language: ctx.language, yearStart: ctx.yearStart, result: (v) => formatValue(metric, v, ctx.style) });
-  const value = (v: number) => ({ value: v, unit: metric });
-  const refuse = (...lines: string[]) => refusalTakeaway(text("numbers-method-holt"), lines);
+  const text = wordsFor(metric, ctx);
+  const refuse = (...lines: string[]) => ({ refuse: lines });
   const rows = readSeries(points).slice(-LATEST_PERIODS);
   const series = [{ name: metric.name, points: rows }];
   const check = (method: "forecast" | "seasonal", more: Partial<SuitabilityInputs> = {}) => checkSuitability(method, { series, span, seasonLength: season, ...more });
@@ -93,7 +102,29 @@ export function forecastTakeaway(metric: Metric, points: Point[], ctx: TakeawayC
     const why = best.choice.why === "holt-only" ? "fc-note-start-gap" : best.choice.why === "too-few" ? "fc-note-too-few" : "fc-note-holt-better";
     notes.push(text(why, { pattern }));
   }
+  return { rows, season, ahead, best, method, target, cautions, notes };
+}
 
+/** How likely a Metric is to reach its Target `by` a period, as the forecast says it and with none of its words: the chance (0 to 1), the
+ * period it is for and how many periods after the last value that is. Null where the forecast is refused, comes with a caution (a Heads-up
+ * is only made from a forecast that passes cleanly), or the Target cannot be read. */
+export function reachOf(metric: ForecastMetric, points: Point[], ctx: TakeawayContext, ask: { ends: TargetEnds; by?: string }): { chance: number; period: string; ahead: number } | null {
+  const fit = fitForecast(metric, points, ctx, ask);
+  if ("refuse" in fit || fit.cautions.length > 0) return null;
+  const chance = reachChance({ value: fit.target.value, sd: fit.target.sd }, ask.ends);
+  return chance === null ? null : { chance, period: fit.target.period, ahead: fit.ahead };
+}
+
+/** The Takeaway of a Metric's forecast: the expected value and range, or with `ask.ends` the chance of reaching the Target, the Method used and why, its track
+ * record, and the numbers. A refusal says what is missing. The points are only read. */
+export function forecastTakeaway(metric: Metric, points: Point[], ctx: TakeawayContext, ask: ForecastAsk = {}): Takeaway {
+  const fit = fitForecast(metric, points, ctx, ask);
+  const span = metric.period;
+  const text = wordsFor(metric, ctx);
+  const refuse = (...lines: string[]) => refusalTakeaway(text("numbers-method-holt"), lines);
+  if ("refuse" in fit) return refuse(...fit.refuse);
+  const { rows, season, best, method, target, cautions, notes } = fit;
+  const value = (v: number) => ({ value: v, unit: metric });
   const [lo, hi] = [target.value - Z80 * target.sd, target.value + Z80 * target.sd];
   const written = (v: number) => formatValue(metric, v, ctx.style);
   const figure = (label: string, v: number) => ({ label, value: v, text: written(v) });

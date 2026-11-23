@@ -1,6 +1,6 @@
 // The words of the Heads-ups (GLOSSARY: Heads-up, Takeaway; spec 0041, "Heads-ups"): data keyed by case like the rest of the
 // Takeaway wording (wording.ts spreads it into the one table), kept in a file of its own so a Heads-up's words are read in one
-// place. A Heads-up says what two Metrics have done together, never what caused what: the footer is the Takeaway's own.
+// place. A Heads-up says what two Metrics have done together, or what one Metric has done, never what caused what: the footer is the Takeaway's own.
 // No text here may hold a word a non-analyst would have to look up (the forbidden-word test walks them).
 
 /** The cases of a Heads-up's sentences, labels for Show the numbers and its chance written small. */
@@ -26,4 +26,20 @@ export const HEADS_UP_EN = {
   "numbers-hu-recent": "The last periods",
   "numbers-hu-drop": "Chance of a drop this big by luck, after correcting for the pairs looked at",
   "hu-chance-under": "under 0.0001",
+  "hu-turned": "{name} turned around in {from}: {before} before, {after} since.",
+  "hu-reach-min": "{name} is unlikely to reach {min} or more in {from} ({chance}).",
+  "hu-reach-max": "{name} is unlikely to stay at {max} or less in {from} ({chance}).",
+  "hu-reach-between": "{name} is unlikely to land between {min} and {max} in {from} ({chance}).",
+  "footer-hu-season": "This compares the value with the earlier ones at this time of year; it does not show what made it differ.",
+  "hu-was-on-pace": "Until its latest value, it was on pace.",
+  "hu-season-above": "{name}'s {value} in {from} is high for this time of year: it is usually between {low} and {high}.",
+  "hu-season-below": "{name}'s {value} in {from} is low for this time of year: it is usually between {low} and {high}.",
+  "numbers-method-hu-direction": "Change of direction: a straight line before a date and another after it, corrected for the dates tried and the Metrics looked at",
+  "numbers-method-hu-reach": "Target out of reach: the forecast's chance, and a straight line through the latest periods read against the Target, corrected for the Metrics looked at",
+  "numbers-method-hu-season": "Unusual for the season: the latest value against the earlier values at the same place in the season, corrected for the Metrics looked at",
+  "numbers-hu-gap": "Gap between the two trends at the latest period",
+  "numbers-hu-periods-left": "Periods left",
+  "numbers-hu-line": "Straight line, at that period",
+  "numbers-hu-checks": "Checks looked at",
+  "numbers-hu-luck-checks": "Chance of this by luck, after correcting for the checks looked at",
 } as const;

@@ -14,7 +14,7 @@ import { metric, months } from "../test/fixtures";
 import { runs } from "../test/reference/check";
 import { referenceNormalCdf } from "../test/reference/forecast";
 import type { Point } from "../types";
-import { CHANCE, chanceCase, forecastTakeaway, endsOf, maxAhead, TRACK_PERIODS } from "./forecast";
+import { CHANCE, chanceCase, forecastTakeaway, endsOf, maxAhead, reachOf, TRACK_PERIODS } from "./forecast";
 import { WORDING, type Language } from "./wording";
 
 const { numRuns, seed } = runs();
@@ -349,5 +349,33 @@ describe("the invariants over generated series", () => {
   });
   it("no text of any language holds a forbidden word (the footer, which says nothing is a cause, apart)", () => {
     for (const language of Object.keys(WORDING) as Language[]) for (const [key, text] of Object.entries(WORDING[language])) if (key !== "footer") expect(text, key).not.toMatch(FORBIDDEN);
+  });
+});
+
+describe("the reach of a Target without the words", () => {
+  const steady = Array.from({ length: 30 }, (_, i) => 1000 - 15 * i + ((i * 7) % 5) - 2);
+  const pts = months("2024-01", steady);
+  it("is the chance, the period and the periods ahead the Takeaway says: the same forecast, the same chance, for the default horizon and for a period asked", () => {
+    const ends = { min: 600, max: null };
+    const reach = reachOf(euro, pts, ctx, { ends })!;
+    expect(reach.ahead).toBe(3);
+    expect(reach.period).toBe(shiftPeriod(pts[pts.length - 1].period, "month", 3));
+    const said = forecastTakeaway(euro, pts, ctx, { ends });
+    expect(said.numbers.find((n) => n.label === "Chance of reaching the Target")!.text).toBe(`${chanceCase(reach.chance).percent} %`);
+    const later = reachOf(euro, pts, ctx, { ends, by: shiftPeriod(pts[pts.length - 1].period, "month", 5) })!;
+    expect(later.ahead).toBe(5);
+    expect(later.period).toBe(shiftPeriod(pts[pts.length - 1].period, "month", 5));
+    expect(later.chance).toBeGreaterThanOrEqual(0);
+  });
+  it("is nothing where the forecast is refused, comes with a caution, looks too far ahead or at the past, or the Target cannot be read", () => {
+    const ends = { min: 600, max: null };
+    expect(reachOf(euro, pts.slice(0, 3), ctx, { ends })).toBeNull();
+    expect(reachOf(euro, pts, ctx, { ends: { min: null, max: null } })).toBeNull();
+    expect(reachOf(euro, pts, ctx, { ends, by: shiftPeriod(pts[pts.length - 1].period, "month", 13) })).toBeNull();
+    expect(reachOf(euro, pts, ctx, { ends, by: pts[pts.length - 1].period })).toBeNull();
+    // A Target whose lower end is above its upper end cannot be read.
+    expect(reachOf(euro, pts, ctx, { ends: { min: 900, max: 600 } })).toBeNull();
+    // A past that fitted with no miss at all comes with a caution: no chance is given.
+    expect(reachOf(euro, months("2024-01", Array.from({ length: 20 }, (_, i) => 100 + 2 * i)), ctx, { ends })).toBeNull();
   });
 });

@@ -19,13 +19,27 @@ import { answerTakeaway, footerText, sayIn, strengthWordIn, type Takeaway, type 
 import { adjustedChances, benjaminiHochberg } from "./false-discovery";
 import { HEADS_UP, type PairRow, type Window } from "./pair-scan";
 
-/** The two kinds of Heads-up this ticket makes. */
-export type HeadsUpKind = "moving-together" | "stopped-moving-together";
+/** The kinds of Heads-up about two Metrics. */
+export type PairKind = "moving-together" | "stopped-moving-together";
 
-/** A Heads-up: its stable key (kind and the two Metrics, the lower id first), the Metrics, the period the pair was compared on
+/** The kinds of Heads-up about one Metric (heads-up-single.ts): its trend turned, its Target is out of reach, a value is unusual for its season. */
+export type MetricKind = "direction-change" | "target-out-of-reach" | "unusual-for-season";
+
+/** Every kind of Heads-up. */
+export type HeadsUpKind = PairKind | MetricKind;
+
+type Common = { key: string; span: Span; through: string; rank: number; takeaway: Takeaway };
+
+/** A Heads-up about two Metrics: its stable key (kind and the two Metrics, the lower id first), the Metrics, the period the pair was compared on
  * and the data runs to, the order it ranks in (stronger first) and its Takeaway: sentence, strength, basis, footer and the
  * numbers under Show the numbers. */
-export type HeadsUp = { key: string; kind: HeadsUpKind; metrics: [number, number]; span: Span; through: string; rank: number; takeaway: Takeaway };
+export type PairHeadsUp = Common & { kind: PairKind; metrics: [number, number] };
+
+/** A Heads-up about one Metric: the same, with the one Metric, and the period its latest value is for (`through`). */
+export type MetricHeadsUp = Common & { kind: MetricKind; metrics: [number] };
+
+/** A Heads-up of any kind. */
+export type HeadsUp = PairHeadsUp | MetricHeadsUp;
 
 // (Number.isFinite is false for null, undefined and anything that is not a number, with no conversion.)
 const finite = (...xs: (number | null)[]) => xs.every((x) => Number.isFinite(x));
@@ -54,8 +68,8 @@ const clearOfChance = (w: Window) => strengthOf(w.r, w.nEff, undefined, w.tries)
 // The order is by a number kept to 12 digits: a row read back from the database may differ from the scan's in the last digit.
 const roundedRank = (x: number) => Number(x.toPrecision(12));
 
-/** The chance as a person-sized text: four decimals, or "under 0.0001". */
-function chanceText(p: number, ctx: TakeawayContext): string {
+/** The chance as a person-sized text (exported for the Heads-ups about one Metric): four decimals, or "under 0.0001". */
+export function chanceText(p: number, ctx: TakeawayContext): string {
   return p < 0.0001 ? sayIn("hu-chance-under", {}, ctx) : formatNumber(p, 4, ctx.style);
 }
 
@@ -134,7 +148,7 @@ function stoppedTakeaway(row: PairRow, names: ReadonlyMap<number, string>, looke
  * a row whose numbers are not what the scan writes. The correction counts only these rows. Moving together first, the stronger
  * first (larger |r|), then stopped, the larger drop first; ties by the Metrics' ids. The same rows give the same Heads-ups in the
  * same order and words, whatever order they come in. */
-export function headsUpsFrom(rows: readonly PairRow[], names: ReadonlyMap<number, string>, ctx: TakeawayContext): HeadsUp[] {
+export function headsUpsFrom(rows: readonly PairRow[], names: ReadonlyMap<number, string>, ctx: TakeawayContext): PairHeadsUp[] {
   const mine = rows.filter((row) => names.has(row.a) && names.has(row.b) && valid(row));
   const rate = HEADS_UP.rate;
   const reported = benjaminiHochberg(mine.map((r) => r.full.p), rate);
@@ -149,7 +163,7 @@ export function headsUpsFrom(rows: readonly PairRow[], names: ReadonlyMap<number
   const dropAdjusted = adjustedChances(dropChances);
   const stopped = new Map<number, number>();
   had.forEach((x, k) => { if (x.row.before!.recent!.low && dropReported[k]) stopped.set(x.i, dropAdjusted[k]); });
-  const out: HeadsUp[] = [];
+  const out: PairHeadsUp[] = [];
   mine.forEach((row, i) => {
     const base = { metrics: [row.a, row.b] as [number, number], span: row.span, through: row.through };
     if (stopped.has(i)) {
@@ -159,6 +173,6 @@ export function headsUpsFrom(rows: readonly PairRow[], names: ReadonlyMap<number
       out.push({ ...base, key: `moving-together:${row.a}:${row.b}`, kind: "moving-together", rank: roundedRank(Math.abs(row.full.r)), takeaway: movingTakeaway(row, names, mine.length, adjusted[i], ctx) });
     }
   });
-  const order: Record<HeadsUpKind, number> = { "moving-together": 0, "stopped-moving-together": 1 };
+  const order: Record<PairKind, number> = { "moving-together": 0, "stopped-moving-together": 1 };
   return out.sort((x, y) => order[x.kind] - order[y.kind] || y.rank - x.rank || x.metrics[0] - y.metrics[0] || x.metrics[1] - y.metrics[1]);
 }

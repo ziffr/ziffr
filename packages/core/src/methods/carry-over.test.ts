@@ -7,7 +7,7 @@ import { fractionOf } from "../exact";
 import { runs } from "../test/reference/check";
 import { series } from "../test/reference/methods-fixture";
 import { afterDate } from "./before-after";
-import { carriesOver, CARRY_SPREADS } from "./carry-over";
+import { carriesOver, carryOf, CARRY_SPREADS } from "./carry-over";
 import { changePoint } from "./change-point";
 import { div, mul, sub, total, whole } from "./fractions";
 
@@ -118,5 +118,31 @@ describe("what the check does for series that carry over (24 months, or 24 befor
     }
     expect(carries / 300).toBeGreaterThan(0.2);
     expect(none / 300).toBeLessThan(0.05);
+  });
+});
+
+describe("how strongly misses carry over (r₁ itself)", () => {
+  it("is Σ eₜ·eₜ₊₁ ÷ Σ eₜ² over the neighbours: worked by hand, 1 for a constant run's pairs scaled by the unpaired end, -1 for a swing, 0 for none", () => {
+    // 1, 2, 3: products 2 + 6 = 8 over 1 + 4 + 9 = 14.
+    expect(carryOf(misses([1, 2, 3]))).toBeCloseTo(8 / 14, 15);
+    expect(carryOf(misses([1, -1, 1, -1]))).toBeCloseTo(-3 / 4, 15);
+    // A period without a value breaks a pair: 1, 2 · gap · 3 has the one pair 1·2 over 14.
+    expect(carryOf(misses([1, 2, 3], [0, 1, 3]))).toBeCloseTo(2 / 14, 15);
+    expect(carryOf(misses([0, 0, 0]))).toBe(0);
+    expect(carryOf([])).toBe(0);
+    expect(carryOf(misses([5]))).toBe(0);
+  });
+  it("agrees with the rule in doubles, and its sign is the sign carriesOver reads: positive only where the check can say so", () => {
+    fc.assert(
+      fc.property(fc.array(fc.integer({ min: -9, max: 9 }), { minLength: 2, maxLength: 24 }), (vs) => {
+        const r = carryOf(misses(vs));
+        const all = vs.reduce((s, v) => s + v * v, 0);
+        const along = vs.slice(1).reduce((s, v, i) => s + v * vs[i], 0);
+        expect(r).toBeCloseTo(all === 0 ? 0 : along / all, 12);
+        if (carriesOver(misses(vs))) expect(r).toBeGreaterThan(0);
+        expect(Math.abs(r)).toBeLessThanOrEqual(1);
+      }),
+      { numRuns, seed },
+    );
   });
 });
