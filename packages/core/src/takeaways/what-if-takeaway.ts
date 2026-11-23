@@ -226,6 +226,12 @@ export function closeness(a: Map<string, number>, b: Map<string, number>): numbe
   return Number.isFinite(r) ? Math.abs(r) : 0;
 }
 
+/** Whether a Derived Metric is made of another (its formula names it). */
+export const builds = (m: Metric, from: Metric): boolean => Boolean(m.formula?.includes(`{${from.slug}}`));
+
+/** The Metrics a Metric may be fitted on: the one changed and the pure first-step ones, but none that is made of it. */
+export const chainFor = (start: Metric, pure: Metric[], t: Metric): Metric[] => [start, ...pure].filter((m) => !builds(m, t));
+
 /** How clear a fit's link is: the largest partial link of its drivers (0 to 1). */
 export const strongest = (f: Pick<Fit, "drivers">): number => Math.max(...f.drivers.map((d) => Math.abs(d.partial)));
 
@@ -290,7 +296,6 @@ function whatIfRecipeWithin(start: Metric, change: WhatIfChange, others: Metric[
   const latest = last.value;
   const left = new Set<string>();
 
-  const builds = (m: Metric, from: Metric) => Boolean(m.formula?.includes(`{${from.slug}}`));
   // Stryker disable next-line ArrayDeclaration: the Metrics only let the fit see where an input is built from another or has no Aggregation, and every set tried here is one of Metrics counted the same way and not built from each other
   const fitOn = (target: Metric, drivers: Metric[]) => fit({ target: { name: target.name, points: series.get(target.id)! }, drivers: drivers.map((d) => ({ name: d.name, points: series.get(d.id)!, id: d.id })), span, metrics: [target, ...drivers] });
   // The Metrics worth fitting against `target`: the ones whose changes follow its own most closely (|r| of the changes, ties by id). This only chooses which
@@ -343,7 +348,7 @@ function whatIfRecipeWithin(start: Metric, change: WhatIfChange, others: Metric[
   // is only fitted on those whose own link has the changed Metric alone as its driver ("pure"), so that no change runs more than two steps.
   const pure: Metric[] = [];
   const linkFor = (t: Metric): Found | null => {
-    const chain = [start, ...pure].filter((m) => !builds(m, t));
+    const chain = chainFor(start, pure, t);
     if (chain.some((m) => builds(t, m))) return worked(t);
     const drivers = [start, ...closest(t, chain.filter((m) => m.id !== start.id), 2)];
     let f = fitOn(t, drivers);

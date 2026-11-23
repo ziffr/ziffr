@@ -14,7 +14,7 @@ import { numbersIn } from "../numbers";
 import { metric, months } from "../test/fixtures";
 import { runs } from "../test/reference/check";
 import type { Metric, Point } from "../types";
-import { anyEstimated, capLinks, closeness, isPure, MOST_FIRST, rankOrder, recipeNotes, strongest, whatIfRecipe, whatIfTakeaway, WHAT_IF_RECIPES, withoutTarget, type Found, type WhatIfTakeaway } from "./what-if-takeaway";
+import { anyEstimated, builds, capLinks, chainFor, closeness, isPure, MOST_FIRST, rankOrder, recipeNotes, strongest, whatIfRecipe, whatIfTakeaway, WHAT_IF_RECIPES, withoutTarget, type Found, type WhatIfTakeaway } from "./what-if-takeaway";
 import { WORK_BOUND } from "../work-bound";
 import { footerText, type Takeaway, type TakeawayContext } from "./takeaway";
 import { WORDING } from "./wording";
@@ -571,6 +571,14 @@ describe("the Recipe's choices, each worked out by hand", () => {
     expect(t.rows.find((x) => x.name === "Signups two")).toMatchObject({ step: 1, through: [] });
     expect(t.rows.find((x) => x.name === "Triple of signups two")).toBeDefined();
   });
+  it("leaves out of a Metric's drivers any Metric that is made of it", () => {
+    const [A, T, X, Y] = [mk(1, "a", "A"), mk(2, "t", "T"), mk(3, "x", "X", { formula: "{t} * 2" }), mk(4, "y", "Y")];
+    expect(builds(X, T)).toBe(true);
+    expect(builds(T, X)).toBe(false);
+    expect(builds(Y, T)).toBe(false);
+    expect(chainFor(A, [X, Y], T).map((m) => m.name)).toEqual(["A", "Y"]);
+    expect(chainFor(A, [], T).map((m) => m.name)).toEqual(["A"]);
+  });
   it("does not fit a Metric whose formula could not be used on another: it is left out, not tried against the first step", () => {
     const w = world();
     const ghost = mk(160, "ghost", "Ghost ratio", { formula: "{visits} / {nothing}" });
@@ -749,7 +757,7 @@ describe("values that cannot be worked out exactly in reasonable time", () => {
   it("refuses in words, in under a second, 12 Metrics of 120 months mixing 9.8e14 with 1e-290, and says which and why", () => {
     const { out, ms } = hostile("tiny");
     expect(ms).toBeLessThan(1000);
-    expect(out).toMatchObject({ kind: "refusal", sentence: null, rows: [], figures: [], numbers: [] });
+    expect(out).toMatchObject({ kind: "refusal", sentence: null, rows: [], figures: [], numbers: [], notes: [] });
     expect(out.refusal).toContain(`M0: its values go to more than ${WORK_BOUND.places} decimal places`);
   });
   it("refuses in words where the work budget is spent before the answer, and answers the same with enough of it", () => {
