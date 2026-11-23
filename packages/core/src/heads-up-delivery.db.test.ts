@@ -180,7 +180,8 @@ describe("telling people by message", () => {
     expect(await deliverHeadsUpsTo(w.id, ben)).toBe(0);
     await on(ben, { show: true });
     const contact = await w.contact({ email: "c@example.com" });
-    await db().from("heads_up_settings").insert({ workspace_id: w.id, person_id: contact, show: true, by_message: true });
+    // A Contact is no member: the database refuses their row, and a run for them makes nothing.
+    expect((await db().from("heads_up_settings").insert({ workspace_id: w.id, person_id: contact, show: true, by_message: true })).error).not.toBeNull();
     expect(await deliverHeadsUpsTo(w.id, contact)).toBe(0);
     await w.dropMember(ben);
     expect(await deliverHeadsUpsTo(w.id, ben)).toBe(0);
@@ -261,16 +262,16 @@ describe("telling people by message", () => {
     const { w, sara } = await setup(["p0a", "p0b"]);
     const now = new Date("2026-08-01T10:00:00Z");
     const claim = async (key: string, at = now) => (await db().rpc("claim_heads_up_message", { p_ws: w.id, p_person: sara, p_key: key, p_cap: 3, p_now: at.toISOString() })).data;
-    expect(await claim("moving-together:1:2")).toBe("send");
+    expect(await claim("moving-together:1:2")).toMatch(/^send:\d+$/);
     expect(await claim("moving-together:1:2")).toBe("told");
-    expect(await claim("moving-together:1:3")).toBe("send");
-    expect(await claim("moving-together:1:4")).toBe("send");
+    expect(await claim("moving-together:1:3")).toMatch(/^send:\d+$/);
+    expect(await claim("moving-together:1:4")).toMatch(/^send:\d+$/);
     expect(await claim("moving-together:1:5")).toBe("cap");
     // Only what was told counts: the refused ones left no row.
     expect((await rowsOf("heads_up_told", { workspace_id: w.id, person_id: sara }))).toHaveLength(3);
     // The oldest was told exactly a week ago: it no longer counts; one second less and it does.
     expect(await claim("moving-together:1:5", new Date(now.getTime() + 7 * 86_400_000 - 1000))).toBe("cap");
-    expect(await claim("moving-together:1:5", new Date(now.getTime() + 7 * 86_400_000))).toBe("send");
+    expect(await claim("moving-together:1:5", new Date(now.getTime() + 7 * 86_400_000))).toMatch(/^send:\d+$/);
   });
 
   it("says one again only when it has ended and returned, and ends one that is muted or no longer stands", async () => {
@@ -315,7 +316,7 @@ describe("a message that waits is checked again when it leaves", () => {
     await on(ben);
     expect(await deliverHeadsUpsTo(w.id, ben)).toBe(1);
     const [m] = await messages(ben);
-    const about = { id: m.id, workspace_id: w.id, kind: "heads_up", recipient_id: ben, heads_up_metric_a: m.heads_up_metric_a, heads_up_metric_b: m.heads_up_metric_b, heads_up_key: (await db().from("deliveries").select("heads_up_key").eq("id", m.id).single()).data!.heads_up_key as string };
+    const about = { id: m.id, workspace_id: w.id, kind: "heads_up", recipient_id: ben, heads_up_metric_a: m.heads_up_metric_a, heads_up_metric_b: m.heads_up_metric_b, heads_up_key: (await db().from("deliveries").select("heads_up_key").eq("id", m.id).single()).data!.heads_up_key as string, heads_up_told_id: (await db().from("deliveries").select("heads_up_told_id").eq("id", m.id).single()).data!.heads_up_told_id as number };
     expect(await archivedMetricHolds(about)).toBeNull();
     expect((await connectorsView(actor(ben))).deliveries.some((d) => d.id === m.id)).toBe(true);
     // Lose sight of the second Metric only: it does not go, and it is not in the Outbox.
@@ -342,7 +343,7 @@ describe("a message that waits is checked again when it leaves", () => {
     const [m] = await messages(ben);
     const key = (await db().from("deliveries").select("heads_up_key").eq("id", m.id).single()).data!.heads_up_key as string;
     expect(key).toBe(`moving-together:${Math.min(ids.p0a, ids.p0b)}:${Math.max(ids.p0a, ids.p0b)}`);
-    const about = { id: m.id, workspace_id: w.id, kind: "heads_up", recipient_id: ben, heads_up_metric_a: m.heads_up_metric_a, heads_up_metric_b: m.heads_up_metric_b, heads_up_key: key };
+    const about = { id: m.id, workspace_id: w.id, kind: "heads_up", recipient_id: ben, heads_up_metric_a: m.heads_up_metric_a, heads_up_metric_b: m.heads_up_metric_b, heads_up_key: key, heads_up_told_id: (await db().from("deliveries").select("heads_up_told_id").eq("id", m.id).single()).data!.heads_up_told_id as number };
     expect(await archivedMetricHolds(about)).toBeNull();
     await muteMetric(actor(ben), ids.p0b);
     expect(await archivedMetricHolds(about)).toBe("Not sent.");
@@ -415,17 +416,20 @@ describe("leaving, giving back, switching off and the limits in the database", (
     expect((await myHeadsUps(actor(ben))).items).toHaveLength(1);
   });
 
-  it("leaves out a person who is not a member when the run takes people, so their row takes no place", async () => {
-    const { w, sara, ben } = await setup(["p0a", "p0b"]);
-    await db().from("heads_up_settings").insert([{ workspace_id: w.id, person_id: ben, show: true, by_message: true }, { workspace_id: w.id, person_id: sara, show: true, by_message: true }]);
-    await db().from("memberships").delete().eq("workspace_id", w.id).eq("user_id", ben);
-    // (the trigger removed Ben's row with his membership; put one back as a stale row would be)
-    await db().from("heads_up_settings").insert({ workspace_id: w.id, person_id: ben, show: true, by_message: true });
-    const result = await deliverHeadsUps(w.id);
-    expect(result.people).toBe(1);
+  it("refuses a person who is not a member: no row, no claim, no settings", async () => {
+    const { w, ben, ids, actor, on } = await setup(["p0a", "p0b"]);
+    await on(ben).catch(() => undefined);
+    await w.dropMember(ben);
+    const gone = await db().rpc("claim_heads_up_message", { p_ws: w.id, p_person: ben, p_key: "moving-together:1:2", p_cap: 3, p_now: new Date().toISOString() });
+    expect(gone.data).toBe("gone");
+    expect(await rowsOf("heads_up_told", { workspace_id: w.id, person_id: ben })).toEqual([]);
+    await expect(setHeadsUpSettings(actor(ben), { byMessage: true })).rejects.toThrow();
+    expect((await db().from("heads_up_mutes").insert({ workspace_id: w.id, person_id: ben, metric_id: ids.p0a })).error).not.toBeNull();
+    expect((await db().from("heads_up_dismissed").insert({ workspace_id: w.id, person_id: ben, key: "moving-together:1:2" })).error).not.toBeNull();
+    expect(await deliverHeadsUps(w.id)).toEqual({ people: 0, sent: 0, failed: 0 });
   });
 
-  it("gives a counted place back when the send throws, and when the message is refused as it leaves, and counts it once", async () => {
+  it("gives a counted place back when the send throws and when the message fails for good, by its own row only", async () => {
     const { w, sara, on, messages } = await setup(["p0a", "p0b"]);
     await on(sara);
     failing.on = true;
@@ -434,15 +438,43 @@ describe("leaving, giving back, switching off and the limits in the database", (
     failing.on = false;
     expect(await deliverHeadsUpsTo(w.id, sara)).toBe(1);
     const [m] = await messages(sara);
-    const key = (await db().from("deliveries").select("heads_up_key").eq("id", m.id).single()).data!.heads_up_key as string;
-    const about = { id: m.id, workspace_id: w.id, kind: "heads_up", recipient_id: sara, heads_up_metric_a: m.heads_up_metric_a, heads_up_metric_b: m.heads_up_metric_b, heads_up_key: key };
-    await setHeadsUpSettings({ personId: sara, workspaceId: w.id, role: "owner" }, { byMessage: false, show: true });
-    // Switching off also ended it; put the open row back as it stood when the message was queued.
-    await db().from("heads_up_told").insert({ workspace_id: w.id, person_id: sara, key });
-    expect(await archivedMetricHolds(about)).toBe("Not sent.");
-    expect((await rowsOf("heads_up_told", { workspace_id: w.id, person_id: sara, key })).filter((r) => r.ended_at === null)).toEqual([]);
-    // Again: nothing more to give back, nothing breaks.
-    expect(await archivedMetricHolds(about)).toBe("Not sent.");
+    const open = async () => (await rowsOf("heads_up_told", { workspace_id: w.id, person_id: sara })).filter((r) => r.ended_at === null).length;
+    expect(await open()).toBe(1);
+    // Failed for good, whatever the reason (no address, opted out, not set up, attempts used up, refused as it left): the place comes back.
+    await db().from("deliveries").update({ mail_state: "failed" }).eq("id", m.id);
+    expect(await open()).toBe(0);
+    // Once: a second failure of the same message changes nothing.
+    await db().from("deliveries").update({ last_error: "again" }).eq("id", m.id);
+    expect(await open()).toBe(0);
+  });
+
+  it("does not send a message hours later for a Heads-up that ended meanwhile, and a refusal of the old one does not take the place of a new one", async () => {
+    const { w, sara, ids, actor, on, messages } = await setup(["p0a", "p0b"]);
+    await on(sara);
+    const t = (days: number) => new Date(Date.parse("2026-08-01T10:00:00Z") + days * 86_400_000);
+    expect(await deliverHeadsUpsTo(w.id, sara, { now: t(0) })).toBe(1);
+    const [d1] = await messages(sara);
+    const key = (await db().from("deliveries").select("heads_up_key").eq("id", d1.id).single()).data!.heads_up_key as string;
+    const toldId = (await db().from("deliveries").select("heads_up_told_id").eq("id", d1.id).single()).data!.heads_up_told_id as number;
+    const about = (id: number, told: number) => ({ id, workspace_id: w.id, kind: "heads_up", recipient_id: sara, heads_up_metric_a: d1.heads_up_metric_a, heads_up_metric_b: d1.heads_up_metric_b, heads_up_key: key, heads_up_told_id: told });
+    expect(await archivedMetricHolds(about(d1.id, toldId))).toBeNull();
+    // It ends (muted), returns (unmuted) and is said again: a second message with a row of its own.
+    await muteMetric(actor(sara), ids.p0a);
+    await deliverHeadsUpsTo(w.id, sara, { now: t(1) });
+    await unmuteMetric(actor(sara), ids.p0a);
+    expect(await deliverHeadsUpsTo(w.id, sara, { now: t(2) })).toBe(1);
+    const [, d2] = await messages(sara);
+    const toldId2 = (await db().from("deliveries").select("heads_up_told_id").eq("id", d2.id).single()).data!.heads_up_told_id as number;
+    expect(toldId2).not.toBe(toldId);
+    // The old message, held until now, is refused: its Heads-up ended. Failing it gives nothing back that is not its own.
+    expect(await archivedMetricHolds(about(d1.id, toldId))).toBe("Not sent.");
+    await db().from("deliveries").update({ mail_state: "failed" }).eq("id", d1.id);
+    const open = (await rowsOf("heads_up_told", { workspace_id: w.id, person_id: sara })).filter((r) => r.ended_at === null);
+    expect(open.map((r) => r.id)).toEqual([toldId2]);
+    expect(await archivedMetricHolds(about(d2.id, toldId2))).toBeNull();
+    // A message that names no row never goes.
+    expect(await archivedMetricHolds({ ...about(d2.id, toldId2), heads_up_told_id: null })).toBe("Not sent.");
+    expect(await archivedMetricHolds({ ...about(d2.id, 999999999), heads_up_told_id: 999999999 })).toBe("Not sent.");
   });
 
   it("ends what they were told when a person switches Heads-ups off, and when they use the link in the email", async () => {

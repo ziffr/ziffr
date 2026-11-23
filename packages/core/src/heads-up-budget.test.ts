@@ -1,7 +1,7 @@
 // The budget of a person's Heads-up scans (GLOSSARY: Heads-up): what is kept, for how long, for which Metrics, and how many scans an
 // hour; every edge one step either side.
 import { describe, expect, it } from "vitest";
-import { AT_ONCE, COUNT_AT_MOST, KEEP_AT_MOST, KEEP_MS, SCANS_PER_HOUR, KEEP_PER_WORKSPACE, STALE_MS, WAITING_AT_MOST, ScanBudget, limiter, signature } from "./heads-up-budget";
+import { AT_ONCE, COUNT_AT_MOST, KEEP_AT_MOST, KEEP_MS, SCANS_PER_HOUR, COUNT_PER_WORKSPACE, KEEP_PER_WORKSPACE, PER_PERSON, STALE_MS, WAITING_AT_MOST, ScanBudget, limiter, signature } from "./heads-up-budget";
 
 describe("the kept result", () => {
   it("answers only for exactly the same Metrics, in any order, and only while it is younger than ten minutes", () => {
@@ -83,6 +83,17 @@ describe("bounds per Workspace", () => {
   });
 });
 
+describe("fair room for results", () => {
+  it("takes room from the Workspace that holds most when the whole is full, never from a small one", () => {
+    const b = new ScanBudget<number>();
+    b.keep("small:p", signature([1]), 1, 0);
+    for (let w = 0; w < KEEP_AT_MOST / KEEP_PER_WORKSPACE; w++) for (let i = 0; i < KEEP_PER_WORKSPACE; i++) if (w * KEEP_PER_WORKSPACE + i < KEEP_AT_MOST - 1) b.keep(`big${w}:${i}`, signature([1]), 2, 0);
+    b.keep("another:p", signature([1]), 3, 0);
+    expect(b.stale("small:p", signature([1]), 0)).toBe(1);
+    expect(b.stale("another:p", signature([1]), 0)).toBe(3);
+  });
+});
+
 describe("keeping apart and clearing", () => {
   it("tells sets of Metrics apart whose ids run together, and clears results and counts", () => {
     const b = new ScanBudget<string>();
@@ -119,20 +130,27 @@ describe("the scans a person may start", () => {
     expect(b.mayScan("w:q", 6 * MIN)).toBe(true);
   });
 
-  it("forgets the counts of people who stopped asking, when there are too many, the one who asks most last", () => {
+  it("forgets counts within the Workspace that asks first, then from the Workspace that holds most, never for one that cycles people", () => {
     const b = new ScanBudget<string>();
-    for (let i = 0; i < SCANS_PER_HOUR; i++) { b.scanned("w:0", 1); b.scanned("w:1", 1); }
-    expect(b.mayScan("w:0", 2)).toBe(false);
-    for (let i = 2; i < COUNT_AT_MOST; i++) b.scanned(`w:${i}`, 1);
-    expect(b.mayScan("w:0", 2)).toBe(false);
-    // The heaviest asks again, and moves to the back: the next one in line is forgotten, not them.
-    b.scanned("w:0", 3);
-    b.scanned(`w:${COUNT_AT_MOST}`, 1);
-    expect(b.mayScan("w:0", 4)).toBe(false);
-    expect(b.mayScan("w:1", 4)).toBe(true);
-    expect(b.mayScan("w:2", 4)).toBe(true);
-    for (let i = 0; i < SCANS_PER_HOUR; i++) b.scanned(`w:${COUNT_AT_MOST}`, 1);
-    expect(b.mayScan(`w:${COUNT_AT_MOST}`, 2)).toBe(false);
+    // Another Workspace's person is at the limit.
+    for (let i = 0; i < SCANS_PER_HOUR; i++) b.scanned("quiet:p", 1);
+    expect(b.mayScan("quiet:p", 2)).toBe(false);
+    // A busy Workspace cycles through more people than it may hold: only its own oldest go.
+    for (let i = 0; i < COUNT_PER_WORKSPACE + 10; i++) b.scanned(`busy:${i}`, 1);
+    expect(b.mayScan("quiet:p", 2)).toBe(false);
+    for (let i = 0; i < SCANS_PER_HOUR; i++) b.scanned("busy:0", 1);
+    expect(b.mayScan("busy:0", 2)).toBe(false);
+    b.scanned(`busy:${COUNT_PER_WORKSPACE + 10}`, 1);
+    b.scanned(`busy:${COUNT_PER_WORKSPACE + 11}`, 1);
+    // busy:0 was moved to the back by its asking, so busy:1..12 went first, not it.
+    expect(b.mayScan("busy:0", 2)).toBe(false);
+    expect(b.mayScan("busy:1", 2)).toBe(true);
+    // Over the total, the Workspace with most gives up its oldest; a small one keeps its counts.
+    const c = new ScanBudget<string>();
+    for (let i = 0; i < SCANS_PER_HOUR; i++) c.scanned("small:p", 1);
+    for (let w = 0; w < COUNT_AT_MOST / COUNT_PER_WORKSPACE + 1; w++) for (let i = 0; i < COUNT_PER_WORKSPACE; i++) c.scanned(`big${w}:${i}`, 1);
+    expect(c.mayScan("small:p", 2)).toBe(false);
+    expect(c.mayScan("big0:0", 2)).toBe(true);
   });
 });
 
@@ -148,7 +166,7 @@ describe("the limiter", () => {
       await new Promise<void>((go) => open.push(go));
       running--;
       return i;
-    }));
+    }, `person${i}`));
     await new Promise((r) => setTimeout(r, 5));
     expect(running).toBe(2);
     while (open.length) { open.shift()!(); await new Promise((r) => setTimeout(r, 1)); }
@@ -161,13 +179,32 @@ describe("the limiter", () => {
     const run = limiter(1, 2);
     const open: (() => void)[] = [];
     const slow = () => new Promise<void>((go) => open.push(go));
-    const jobs = [run(slow), run(slow), run(slow)];
+    const jobs = [run(slow, "a"), run(slow, "b"), run(slow, "c")];
     await new Promise((r) => setTimeout(r, 5));
-    await expect(run(async () => 1)).rejects.toThrow("Try again in a moment.");
+    await expect(run(async () => 1, "d")).rejects.toThrow("Try again in a moment.");
     while (open.length) { open.shift()!(); await new Promise((r) => setTimeout(r, 1)); }
     await Promise.all(jobs);
     expect(await run(async () => "free")).toBe("free");
     expect(WAITING_AT_MOST).toBe(50);
+  });
+
+  it("lets one person have only so many running or waiting, in whatever Workspaces, and frees a place when one ends", async () => {
+    const run = limiter(1, 50, 2);
+    const open: (() => void)[] = [];
+    const slow = () => new Promise<void>((go) => open.push(go));
+    const mine = [run(slow, "p"), run(slow, "p")];
+    await new Promise((r) => setTimeout(r, 5));
+    await expect(run(async () => 1, "p")).rejects.toThrow("Try again in a moment.");
+    // Someone else still gets their turn in line.
+    const other = run(async () => "other", "q");
+    expect(PER_PERSON).toBe(2);
+    while (open.length) { open.shift()!(); await new Promise((r) => setTimeout(r, 1)); }
+    await Promise.all(mine);
+    expect(await other).toBe("other");
+    expect(await run(async () => "again", "p")).toBe("again");
+    // A refused call is not left counted: a failing run frees its place too.
+    await expect(run(async () => { throw new Error("x"); }, "p")).rejects.toThrow("x");
+    expect(await run(async () => 1, "p")).toBe(1);
   });
 
   it("gives its place back when a run fails", async () => {

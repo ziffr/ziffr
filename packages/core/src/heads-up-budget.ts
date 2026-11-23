@@ -16,8 +16,12 @@ export const SCANS_PER_HOUR = 6;
 export const KEEP_AT_MOST = 2000;
 /** How many results are kept at most for one Workspace. */
 export const KEEP_PER_WORKSPACE = 100;
-/** How many people's scan counts are kept at most (a count is small). */
+/** How many people's scan counts are kept at most (a count is small), and for one Workspace. */
 export const COUNT_AT_MOST = 5000;
+/** How many scan counts are kept at most for one Workspace. */
+export const COUNT_PER_WORKSPACE = 1000;
+/** How many scans of one person may be running or waiting at once, in all their Workspaces. */
+export const PER_PERSON = 2;
 /** How long a kept result may still answer for a person over their budget, in milliseconds. */
 export const STALE_MS = 60 * 60_000;
 /** How many scans run at the same time in one process for people at a page, and for the job (its own lane). */
@@ -28,6 +32,23 @@ export const WAITING_AT_MOST = 50;
 const HOUR_MS = 3_600_000;
 
 type Kept<T> = { at: number; sig: string; value: T };
+
+// Makes room fairly after `who` ("workspace:person") was put at the back of `map`: first within its own Workspace (its oldest go),
+// then, only if the map is over `total`, from the Workspace that holds the most (its oldest), never another's for the sake of a
+// Workspace that keeps asking: one Workspace cycling people cannot push out another's entries or counts.
+function makeRoom<V>(map: Map<string, V>, who: string, perWorkspace: number, total: number): void {
+  const workspaceOf = (key: string) => key.slice(0, key.indexOf(":"));
+  const mine = workspaceOf(who);
+  let same = [...map.keys()].filter((k) => workspaceOf(k) === mine);
+  for (const old of same.slice(0, Math.max(0, same.length - perWorkspace))) map.delete(old);
+  while (map.size > total) {
+    const counts = new Map<string, number>();
+    for (const k of map.keys()) counts.set(workspaceOf(k), (counts.get(workspaceOf(k)) ?? 0) + 1);
+    const biggest = [...counts.entries()].reduce((top, c) => (c[1] > top[1] ? c : top))[0];
+    same = [...map.keys()].filter((k) => workspaceOf(k) === biggest);
+    map.delete(same[0]);
+  }
+}
 
 /** The signature a kept result is matched against: the Metrics' ids in order, then `extra` (what else the words depend on). */
 export function signature(ids: readonly number[], extra = ""): string {
@@ -63,17 +84,14 @@ export class ScanBudget<T> {
     this.started.delete(who);
     this.started.set(who, counts);
     // A person who stopped asking leaves no count behind for ever.
-    if (this.started.size > COUNT_AT_MOST) this.started.delete(this.started.keys().next().value!);
+    makeRoom(this.started, who, COUNT_PER_WORKSPACE, COUNT_AT_MOST);
   }
 
   /** Keeps `value` as the result for `who` over `sig`; the oldest of the same Workspace go first, then the oldest of all. */
   keep(who: string, sig: string, value: T, now: number): void {
     this.kept.delete(who);
-    const prefix = `${who.split(":")[0]}:`;
-    const same = [...this.kept.keys()].filter((k) => k.startsWith(prefix));
-    for (const old of same.slice(0, Math.max(0, same.length + 1 - KEEP_PER_WORKSPACE))) this.kept.delete(old);
     this.kept.set(who, { at: now, sig, value });
-    if (this.kept.size > KEEP_AT_MOST) this.kept.delete(this.kept.keys().next().value!);
+    makeRoom(this.kept, who, KEEP_PER_WORKSPACE, KEEP_AT_MOST);
   }
 
   /** Forgets everything (for tests). */
@@ -87,23 +105,33 @@ export class ScanBudget<T> {
   }
 }
 
-/** Runs `work` with at most `limit` of them running at once in this process; the rest wait in turn, at most `waiting` of them
- * (a call beyond that is refused, so a crowd cannot queue for ever). */
-export function limiter(limit: number = AT_ONCE, waiting: number = WAITING_AT_MOST): <R>(work: () => Promise<R>) => Promise<R> {
+/** Runs `work` with at most `limit` of them running at once in this process; the rest wait in turn, at most `waiting` of them, and
+ * at most `perKey` of one `key` (a person) running or waiting (a call beyond either is refused in words, so one person or a crowd
+ * cannot fill the line). */
+export function limiter(limit: number = AT_ONCE, waiting: number = WAITING_AT_MOST, perKey: number = PER_PERSON): <R>(work: () => Promise<R>, key?: string) => Promise<R> {
   let running = 0;
   const queue: (() => void)[] = [];
-  return async <R>(work: () => Promise<R>): Promise<R> => {
-    // A finished run hands its place straight to the next in line, so the count never passes the limit.
-    if (running >= limit) {
-      if (queue.length >= waiting) throw new Error("Heads-ups could not be read. Try again in a moment.");
-      await new Promise<void>((go) => queue.push(go));
-    } else running++;
+  const held = new Map<string, number>();
+  const busy = () => new Error("Heads-ups could not be read. Try again in a moment.");
+  return async <R>(work: () => Promise<R>, key = ""): Promise<R> => {
+    if ((held.get(key) ?? 0) >= perKey) throw busy();
+    if (running >= limit && queue.length >= waiting) throw busy();
+    held.set(key, (held.get(key) ?? 0) + 1);
     try {
-      return await work();
+      // A finished run hands its place straight to the next in line, so the count never passes the limit.
+      if (running >= limit) await new Promise<void>((go) => queue.push(go));
+      else running++;
+      try {
+        return await work();
+      } finally {
+        const next = queue.shift();
+        if (next) next();
+        else running--;
+      }
     } finally {
-      const next = queue.shift();
-      if (next) next();
-      else running--;
+      const left = (held.get(key) ?? 1) - 1;
+      if (left <= 0) held.delete(key);
+      else held.set(key, left);
     }
   };
 }

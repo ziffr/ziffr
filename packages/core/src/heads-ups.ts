@@ -258,8 +258,8 @@ async function ownHeads(ws: string, person: string, sig: string, now: number, la
     if (old) return old;
     throw new Error("Heads-ups could not be read. Try again in a moment.");
   }
-  budget.scanned(who, now);
-  const heads = (lane === "job" ? jobLane : pageLane)(compute).then((r) => {
+  // Counted only when the lane admits it (a refused call used no scan), and by the person across all their Workspaces for the line.
+  const heads = (lane === "job" ? jobLane : pageLane)(async () => { budget.scanned(who, now); return compute(); }, person).then((r) => {
     if (lane === "page") budget.keep(who, sig, r, now);
     return r;
   });

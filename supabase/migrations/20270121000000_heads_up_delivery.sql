@@ -62,21 +62,27 @@ alter table heads_up_told enable row level security;
 revoke all on heads_up_told from public, anon, authenticated;
 select attach_demo_guard('heads_up_told');
 
--- Takes one message of the week for a person, in one step under a lock of that person: 'told' when this Heads-up was already sent
--- and has not ended, 'cap' when the person has had `p_cap` in the 7 days up to `p_now`, else 'send' (and it is counted). A message that is counted
--- but not sent gives its place back (release_heads_up_message, in the next migration).
+-- Takes one message of the week for a person, in one step under a lock of that person: 'gone' when they are not a member of the
+-- Workspace (now, in the same statement: someone who left cannot get a new row), 'told' when this Heads-up was already sent and has
+-- not ended, 'cap' when the person has had `p_cap` in the 7 days up to `p_now`, else 'send:<id of the new row>' (and it is
+-- counted). A message that is counted but does not leave gives its place back: when the delivery fails for good, a trigger in the
+-- next migration removes the row by its id.
 create or replace function claim_heads_up_message(p_ws uuid, p_person text, p_key text, p_cap int, p_now timestamptz) returns text
 language plpgsql security definer set search_path = public as $$
+declare new_id bigint;
 begin
   perform pg_advisory_xact_lock(hashtext('heads_up_told:' || p_ws::text || ':' || p_person));
+  if not exists (select 1 from memberships where workspace_id = p_ws and user_id = p_person) then
+    return 'gone';
+  end if;
   if exists (select 1 from heads_up_told where workspace_id = p_ws and person_id = p_person and key = p_key and ended_at is null) then
     return 'told';
   end if;
   if (select count(*) from heads_up_told where workspace_id = p_ws and person_id = p_person and told_at > p_now - interval '7 days' and told_at <= p_now) >= p_cap then
     return 'cap';
   end if;
-  insert into heads_up_told (workspace_id, person_id, key, told_at) values (p_ws, p_person, p_key, p_now);
-  return 'send';
+  insert into heads_up_told (workspace_id, person_id, key, told_at) values (p_ws, p_person, p_key, p_now) returning id into new_id;
+  return 'send:' || new_id::text;
 end $$;
 revoke execute on function claim_heads_up_message(uuid, text, text, int, timestamptz) from public, anon, authenticated;
 grant execute on function claim_heads_up_message(uuid, text, text, int, timestamptz) to service_role;

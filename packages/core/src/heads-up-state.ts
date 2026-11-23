@@ -60,6 +60,9 @@ export async function setHeadsUpSettings(actor: Actor, input: { show?: unknown; 
   own(actor);
   refuseInDemo(actor);
   for (const v of [input?.show, input?.byMessage]) if (v !== undefined && typeof v !== "boolean") throw new Error("Pick on or off.");
+  // Only a member has choices (the database refuses the row of someone who left, also when this call raced their leaving).
+  const { data: member } = await db().from("memberships").select("user_id").eq("workspace_id", actor.workspaceId).eq("user_id", actor.personId).maybeSingle();
+  if (!member) throw new Forbidden();
   const now = await settingsOf(actor.workspaceId, actor.personId);
   const next = { show: input.show === undefined ? now.show : (input.show as boolean), byMessage: input.byMessage === undefined ? now.byMessage : (input.byMessage as boolean) };
   const { error } = await db().from("heads_up_settings").upsert({ workspace_id: actor.workspaceId, person_id: actor.personId, show: next.show, by_message: next.byMessage, updated_at: new Date().toISOString() }, { onConflict: "workspace_id,person_id" });

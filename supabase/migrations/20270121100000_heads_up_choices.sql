@@ -54,13 +54,42 @@ begin
 end $$;
 create trigger deliveries_heads_up_same_workspace before insert or update on deliveries for each row when (new.heads_up_metric_a is not null or new.heads_up_metric_b is not null) execute function deliveries_heads_up_same_workspace();
 
--- Gives back the place of a message that was counted but not sent: removes the person's open row for the key, once (a second
--- call finds none and changes nothing).
-create or replace function release_heads_up_message(p_ws uuid, p_person text, p_key text) returns void
+-- The row of 'told' a Heads-up message was made for, so that its place is given back by that row and no other, and so that the
+-- message leaves only while that row is still open (a Heads-up that ended while the message waited is not sent).
+alter table deliveries add column heads_up_told_id bigint;
+
+-- Gives back the place of a message that was counted but not made: removes that row if it is still open and the person's (a
+-- second call finds none and changes nothing).
+create or replace function release_heads_up_message(p_ws uuid, p_person text, p_id bigint) returns void
 language plpgsql security definer set search_path = public as $$
 begin
   perform pg_advisory_xact_lock(hashtext('heads_up_told:' || p_ws::text || ':' || p_person));
-  delete from heads_up_told where id = (select id from heads_up_told where workspace_id = p_ws and person_id = p_person and key = p_key and ended_at is null order by id desc limit 1);
+  delete from heads_up_told where id = p_id and workspace_id = p_ws and person_id = p_person and ended_at is null;
 end $$;
-revoke execute on function release_heads_up_message(uuid, text, text) from public, anon, authenticated;
-grant execute on function release_heads_up_message(uuid, text, text) to service_role;
+revoke execute on function release_heads_up_message(uuid, text, bigint) from public, anon, authenticated;
+grant execute on function release_heads_up_message(uuid, text, bigint) to service_role;
+
+-- A message that fails for good (no address, opted out, not set up, attempts used up, refused as it leaves) gives its place back,
+-- by its own row. (A provider that accepted a mail whose status then could not be written can make a retry fail for good: the
+-- place is then given back for a message that went; bounded by the retries, accepted.)
+create or replace function deliveries_heads_up_failed() returns trigger language plpgsql security definer set search_path = public as $$
+begin
+  if new.heads_up_told_id is not null then
+    perform pg_advisory_xact_lock(hashtext('heads_up_told:' || new.workspace_id::text || ':' || new.recipient_id));
+    delete from heads_up_told where id = new.heads_up_told_id and workspace_id = new.workspace_id and person_id = new.recipient_id and ended_at is null;
+  end if;
+  return new;
+end $$;
+create trigger deliveries_heads_up_failed after insert or update of mail_state on deliveries for each row when (new.kind = 'heads_up' and new.mail_state = 'failed') execute function deliveries_heads_up_failed();
+
+-- Only a member has choices: someone who left (a call that was running meanwhile) cannot make a row.
+create or replace function heads_up_member_only() returns trigger language plpgsql set search_path = public as $$
+begin
+  if not exists (select 1 from memberships where workspace_id = new.workspace_id and user_id = new.person_id) then
+    raise exception 'Only a member of the Workspace has Heads-up choices' using errcode = '23514';
+  end if;
+  return new;
+end $$;
+create trigger heads_up_settings_member before insert on heads_up_settings for each row execute function heads_up_member_only();
+create trigger heads_up_dismissed_member before insert on heads_up_dismissed for each row execute function heads_up_member_only();
+create trigger heads_up_mutes_member before insert on heads_up_mutes for each row execute function heads_up_member_only();

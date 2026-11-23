@@ -51,12 +51,14 @@ export async function deliverHeadsUpsTo(ws: string, personId: string, opts: { no
     if (error) throw new Error("Heads-ups could not be recorded.");
     // The week's messages are used up: the others wait in the app (and for a later run).
     if (claim === "cap") break;
-    if (claim !== "send") continue;
+    // Told already, or the person left meanwhile: nothing is made.
+    const toldId = typeof claim === "string" && claim.startsWith("send:") ? Number(claim.slice(5)) : null;
+    if (toldId === null) continue;
     try {
-      await deliverHeadsUp(ws, { recipientId: personId, subject: message.subject, text: message.text, link: "/analyze#heads-ups", metricIds: h.metrics, key: h.key });
+      await deliverHeadsUp(ws, { recipientId: personId, subject: message.subject, text: message.text, link: "/analyze#heads-ups", metricIds: h.metrics, key: h.key, toldId });
     } catch (e) {
       // Counted but not made: its place in the week and its "told" are given back, so it is tried again at the next run.
-      await db().rpc("release_heads_up_message", { p_ws: ws, p_person: personId, p_key: h.key });
+      await db().rpc("release_heads_up_message", { p_ws: ws, p_person: personId, p_id: toldId });
       throw e;
     }
     made++;
