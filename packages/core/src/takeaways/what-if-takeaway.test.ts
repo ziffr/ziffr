@@ -449,6 +449,68 @@ describe("a what-if said from the Method's result", () => {
   });
 });
 
+describe("how the Recipe chooses what to follow", () => {
+  const spread = (n = 30, s = 11) => {
+    const r = lcg(s);
+    const visits = Array.from({ length: n }, () => 40000 + Math.round(r() * 20000));
+    return { r, visits };
+  };
+  it("looks at the 20 whose changes follow the Metric most closely and keeps the 5 with the clearest link, whatever their ids", () => {
+    const { r, visits } = spread();
+    // 24 Metrics, the noisier the later: ids run the other way, so neither the list's order nor the ids help.
+    const metrics = Array.from({ length: 24 }, (_, i) => mk(500 - i, `n${i}`, `Noisy ${String(i).padStart(2, "0")}`));
+    const series: Record<string, Point[]> = { visits: months("2024-01", visits) };
+    // The same shocks in every Metric, scaled: the clearer link is strictly the one with the smaller scale.
+    const shock = visits.map(() => gauss(r));
+    metrics.forEach((m, i) => (series[m.slug] = months("2024-01", visits.map((v, t) => v * 0.02 + shock[t] * (20 + 12 * i)))));
+    const t = whatIfRecipe(VISITS, { by: 1000 }, [...metrics].reverse(), resolverFrom([VISITS, ...metrics], series), opts);
+    const left = Array.from({ length: 15 }, (_, i) => `Noisy ${String(i + 5).padStart(2, "0")}`);
+    const named = t.notes.find((x) => x.startsWith("Only the 5 Metrics"))!;
+    expect(named.replace(/ and /, ", ")).toBe(`Only the 5 Metrics that moved most closely with Visits are followed; left out: ${left.join(", ")}.`);
+    expect(t.notes).toContain("4 other Metrics were not looked at: only the 20 whose changes follow Visits most closely were.");
+    expect(t.rows.map((x) => x.name)).toEqual(expect.arrayContaining(["Noisy 00", "Noisy 01", "Noisy 02", "Noisy 03", "Noisy 04"]));
+    expect(t.rows.map((x) => x.name)).not.toContain("Noisy 23");
+  });
+  it("puts a Metric worked out from the changed one before any that is estimated, so that it is never the one left out", () => {
+    const { r, visits } = spread();
+    const metrics = Array.from({ length: 7 }, (_, i) => mk(600 + i, `e${i}`, `Even ${i}`));
+    const double = mk(900, "double", "Double visits", { formula: "{visits} * 2" });
+    const series: Record<string, Point[]> = { visits: months("2024-01", visits), double: [] };
+    const shock = visits.map(() => gauss(r));
+    metrics.forEach((m, i) => (series[m.slug] = months("2024-01", visits.map((v, t) => v * 0.02 + shock[t] * (20 + 12 * i)))));
+    const t = whatIfRecipe(VISITS, { by: 1000 }, [...metrics, double], resolverFrom([VISITS, double, ...metrics], series), opts);
+    expect(t.rows.find((x) => x.name === "Double visits")).toMatchObject({ kind: "worked-out", step: 1 });
+    expect(t.notes.join(" ")).not.toContain("Double visits");
+    expect(t.notes[0]).toBe("Only the 5 Metrics that moved most closely with Visits are followed; left out: Even 4, Even 5 and Even 6.");
+  });
+  it("says nothing of an order or of picked links where everything is worked out, and the order only where a Metric is reached through another", () => {
+    const w = world();
+    const double = mk(13, "double", "Double visits", { formula: "{visits} * 2" });
+    const exact = recipe(VISITS, { by: 1000 }, [double], { ...w, series: { ...w.series, double: [] } });
+    expect(JSON.stringify(exact, null, 1)).toMatchSnapshot();
+    const one = recipe(VISITS, { by: 1000 }, [SIGNUPS], w);
+    expect(JSON.stringify(one, null, 1)).toMatchSnapshot();
+  });
+  it("leaves out a Derived Metric whose period is not the common one, and one whose inputs are Derived Metrics themselves", () => {
+    const w = world();
+    const q = mk(81, "q", "Quarterly", { period: "quarter" });
+    const double = mk(82, "double", "Double visits", { formula: "{visits} * 2" });
+    const qs = months("2024-01", w.visits).filter((_, i) => i % 3 === 0);
+    const t = whatIfRecipe(VISITS, { by: 1 }, [q, double, SIGNUPS], resolverFrom([VISITS, q, double, SIGNUPS], { ...w.series, q: qs, double: [] }), opts);
+    expect(t.notes).toContain("Left out, as the formula of Double visits could not be used here.");
+    const START = mk(83, "ratio", "Ratio", { formula: "{revenue} / {visits}" });
+    const twice = mk(84, "twice", "Twice the ratio", { formula: "{ratio} * 2" });
+    const t2 = whatIfRecipe(START, { by: 0.1 }, [VISITS, REVENUE, twice], resolverFrom([START, VISITS, REVENUE, twice], { ...w.series, ratio: months("2024-01", w.revenue.map((v, i) => v / w.visits[i])), twice: [] }), opts);
+    expect(t2.notes).toContain("Left out, as the formula of Twice the ratio could not be used here.");
+  });
+  it("does not fit a Metric on one that is made of it", () => {
+    const w = world();
+    const triple = mk(85, "triple", "Triple signups", { formula: "{signups} * 3" });
+    const t = recipe(VISITS, { by: 1000 }, [SIGNUPS, triple], { ...w, series: { ...w.series, triple: months("2024-01", w.signups.map((v) => v * 3)) } });
+    expect(JSON.stringify(t.rows.map((r) => [r.name, r.step, r.through]))).toMatchSnapshot();
+  });
+});
+
 describe("whole Takeaways, word for word (golden: any change to a sentence, a figure, a number row or an assumption shows here)", () => {
   const ok = (name: string, over: Partial<Reached> = {}): Reached => ({ ok: true, name, step: 1, exact: false, effect: 100, lo: 80, hi: 120, outside: [], beyond: [], noRange: false, through: [], coefficients: 1, level: 0.9, strength: "strong", byChange: false, verdict: { refusals: [], cautions: [], switches: [] }, ...over });
   const made = (reached: (Reached | { ok: false; name: string; step: 1 | 2; refusal: { case: never; slots: never } })[], by = 1000, percent: number | null = null) => whatIfTakeaway(VISITS, [VISITS, SIGNUPS, REVENUE, RPV], { ok: true, start: "Visits", by, percent, span: "month", reached: reached as never }, [], ctx);

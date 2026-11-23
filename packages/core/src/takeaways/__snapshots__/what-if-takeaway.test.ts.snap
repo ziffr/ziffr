@@ -1,5 +1,154 @@
 // Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
 
+exports[`how the Recipe chooses what to follow > does not fit a Metric on one that is made of it 1`] = `"[["Signups",1,[]],["Triple signups",2,["Signups"]]]"`;
+
+exports[`how the Recipe chooses what to follow > says nothing of an order or of picked links where everything is worked out, and the order only where a Metric is reached through another 1`] = `
+"{
+ "kind": "answer",
+ "method": "Each link read from a straight line through the Metrics' history or from a Derived Metric's formula, one after the other",
+ "sentence": "If Visits goes up by 1,000: Double visits goes up by 2,000: worked out from its formula, the Metrics it is made of otherwise as they are.",
+ "refusal": null,
+ "strength": null,
+ "strengthText": null,
+ "range": null,
+ "basis": null,
+ "assumptions": [
+  "Everything else is taken as staying where it was."
+ ],
+ "cautions": [],
+ "notes": [],
+ "track": null,
+ "footer": null,
+ "figures": [
+  {
+   "label": "Visits",
+   "value": 1000,
+   "text": "1,000"
+  },
+  {
+   "label": "Double visits",
+   "value": 2000,
+   "text": "2,000"
+  }
+ ],
+ "numbers": [
+  {
+   "label": "Method",
+   "text": "Each link read from a straight line through the Metrics' history or from a Derived Metric's formula, one after the other"
+  },
+  {
+   "label": "Visits: the change",
+   "text": "goes up 1,000"
+  },
+  {
+   "label": "Double visits: how it is known",
+   "text": "worked out from a formula"
+  },
+  {
+   "label": "Double visits: change",
+   "text": "goes up 2,000"
+  }
+ ],
+ "rows": [
+  {
+   "name": "Double visits",
+   "step": 1,
+   "through": [],
+   "kind": "worked-out",
+   "effect": 2000,
+   "lo": null,
+   "hi": null,
+   "strength": null,
+   "strengthText": null,
+   "sentence": "Double visits goes up by 2,000: worked out from its formula, the Metrics it is made of otherwise as they are."
+  }
+ ]
+}"
+`;
+
+exports[`how the Recipe chooses what to follow > says nothing of an order or of picked links where everything is worked out, and the order only where a Metric is reached through another 2`] = `
+"{
+ "kind": "answer",
+ "method": "Each link read from a straight line through the Metrics' history or from a Derived Metric's formula, one after the other",
+ "sentence": "If Visits goes up by 1,000: Signups is estimated to go up by about 19.8 (likely between 19.2 and 20.4).",
+ "refusal": null,
+ "strength": "strong",
+ "strengthText": "strong",
+ "range": null,
+ "basis": "compared by value",
+ "assumptions": [
+  "Everything else is taken as staying where it was.",
+  "The links were picked for standing out from chance, which tends to make effects look larger than they are: read a range as a first look, not as a measurement."
+ ],
+ "cautions": [],
+ "notes": [],
+ "track": null,
+ "footer": "This shows what has gone together, not what caused what.",
+ "figures": [
+  {
+   "label": "Visits",
+   "value": 1000,
+   "text": "1,000"
+  },
+  {
+   "label": "Signups",
+   "value": 19.80789327526803,
+   "text": "19.8"
+  },
+  {
+   "label": "Signups Likely between",
+   "value": 19.24497017345245,
+   "text": "19.2"
+  },
+  {
+   "label": "Signups Likely between",
+   "value": 20.370816377083603,
+   "text": "20.4"
+  }
+ ],
+ "numbers": [
+  {
+   "label": "Method",
+   "text": "Each link read from a straight line through the Metrics' history or from a Derived Metric's formula, one after the other"
+  },
+  {
+   "label": "Visits: the change",
+   "text": "goes up 1,000"
+  },
+  {
+   "label": "Signups: how it is known",
+   "text": "estimated from what has gone together"
+  },
+  {
+   "label": "Signups: estimated effects it rests on",
+   "text": "1"
+  },
+  {
+   "label": "Signups: change",
+   "text": "goes up 19.8"
+  },
+  {
+   "label": "Signups: likely between",
+   "text": "19.2 – 20.4"
+  }
+ ],
+ "rows": [
+  {
+   "name": "Signups",
+   "step": 1,
+   "through": [],
+   "kind": "estimated",
+   "effect": 19.80789327526803,
+   "lo": 19.24497017345245,
+   "hi": 20.370816377083603,
+   "strength": "strong",
+   "strengthText": "strong",
+   "sentence": "Signups is estimated to go up by about 19.8 (likely between 19.2 and 20.4)."
+  }
+ ]
+}"
+`;
+
 exports[`whole Takeaways, word for word (golden: any change to a sentence, a figure, a number row or an assumption shows here) > a fall by a percent, a range through 0, a guess, an unclear link and a refused one 1`] = `
 "{
  "kind": "refusal",
