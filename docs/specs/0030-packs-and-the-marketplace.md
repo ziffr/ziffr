@@ -100,6 +100,17 @@ The **Marketplace** lists Packs that passed automatic checks, and a person's rev
 - **Audit:** `pack.installed`, `pack.updated` and `pack.uninstalled`, with the Pack's id and version.
 - **Signatures:** the Marketplace signs each published version (Ed25519) and Ziffr ships the Marketplace's public key. A Pack from the Marketplace whose signature fails is refused. An uploaded file with a valid signature is shown as from the Marketplace; one without is installed as an uploaded file, after the warning above. the signature tells the person where a file came from; the checks, not the signature, are the protection.
 
+### Set up fits the Size (added 2026-11-22, the owner)
+
+Set up already checks the whole set before it makes anything (the Workspace Limit, the trial's cap), so a refused set-up leaves nothing half-built. What was missing is that a person learns it only after pressing the button. So:
+
+- **The form says what it makes, before:** "Makes 18 Metrics. 12 of 50 left in Size Small." The number counts the entries ticked and the inputs of Derived Metrics made with them, as it changes with every box. The core gives the form the Workspace's count, its limit and Size name, how many more Metrics fit within the Size (`left`) and how many may be made now at all, within the room and grace of spec 0029 (`allowed`).
+- **Three states:** it fits (`n` within `left`: plain line); it goes over the Size but within the room (`left` below `n` within `allowed`: the line says by how many, that the 14 days over the limit start, and links to Size and usage); it does not fit (`n` above `allowed`: an alert says how many fit, the button waits, and the way on is named: untick some, archive Metrics, or change the Size).
+- **The way on is a link, never a dead end:** to **Size and usage** in Workspace settings (Change Size where Ziffr Cloud is set up; "ask whoever runs this Ziffr" where a limit has no Size name).
+- **The core still decides.** The form's numbers are for reading only; Set up checks again, as before, and one test holds the form's `allowed` and the refusal the core gives to the same answer for every `n`.
+- **For creators:** a Pack's page and `docs/guides/packs.md` say how many Metrics a full Set up makes, and advise a core of about 8 to 12 entries with the rest in a second Pack, so a Pack fits Small (50) beside what a Workspace already has. This is advice, not a format rule.
+- **Nothing in a Pack changes:** no manifest field, no new check.
+
 ### Updating
 
 - **Offered, never applied:** Ziffr asks the Marketplace once a day which installed Packs have newer versions. The Packs page and a badge on Workspace settings show them to Owners and Admins. Uploaded Packs are updated by uploading the newer file.
