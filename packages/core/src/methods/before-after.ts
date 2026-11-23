@@ -225,6 +225,7 @@ function lookAt(name: string, points: Point[], span: Span, date: string, unit: V
  * its basis, and the one line of what it assumes. No strength word: it is a range, not a verdict. A Metric set `beside` must be kept in
  * the same period as the first, since both are cut at the same date, period by period. */
 export function afterDateTakeaway(name: string, points: Point[], span: Span, date: string, unit: ValueUnit, ctx: TakeawayContext, beside?: { name: string; points: Point[]; unit: ValueUnit }): Takeaway {
+  // Stryker disable next-line StringLiteral: the key names the Method in the refusal that only a spent allowance writes; the wording of that refusal is held by the test of withinBudget.
   return withinBudget("numbers-method-before-after", ctx, () => afterDateTakeawayWithin(name, points, span, date, unit, ctx, beside));
 }
 

@@ -98,7 +98,9 @@ export function partialCorrelation(a: Point[], b: Point[], controls: Point[][]):
 export function partialTakeaway(names: { a: string; b: string; held: string[] }, a: Point[], b: Point[], controls: Point[][], span: Span, ctx: TakeawayContext): Takeaway {
   const method = sayIn("numbers-method-partial", {}, ctx);
   // Values too wide to work out exactly are refused before the exact arithmetic is started (work-bound.ts).
+  // Stryker disable next-line ArrayDeclaration,ArrowFunction: without these values the check below refuses with the same words; this only saves the exact work before it.
   const wide = wideRefusal(method, [{ name: names.a, points: a }, { name: names.b, points: b }, ...controls.map((c, i) => ({ name: names.held[i], points: c }))].map((s) => ({ name: s.name, values: readSeries(s.points).map((p) => p.value) })), ctx);
+  // Stryker disable next-line ConditionalExpression: without this return the check below refuses with the same words; this only saves the exact work before it.
   if (wide) return wide;
   const result = partialCorrelation(a, b, controls);
   const refuse = (key: "refuse-controls" | "refuse-collinear" | "refuse-explained") => refusalTakeaway(method, [sayIn(key, { name: names.a, other: names.b, have: controls.length, least: CONTROLS.least, most: CONTROLS.most }, ctx)]);

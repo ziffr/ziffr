@@ -279,6 +279,25 @@ describe("correlation leaves out values that are too wide, once for each pair, b
   });
 });
 
+describe("correlation names what is too wide, in the order of the Metrics", () => {
+  const [a, b] = [1, 2].map((id) => metric({ id, slug: `d${id}`, name: `D${id}`, period: "month" }));
+  const of = (x: Point[], y: Point[]) => correlate(a, b, (slug) => ({ metric: slug === "d1" ? a : b, points: slug === "d1" ? x : y }), { yearStart: 1, basis: "values" });
+  const [fine, tiny, spread] = [series("ordinary", 1), series("minute", 2), months("2024-01", [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 1e21, 5, 6, 7, 8])];
+  const words = (name: string, case_: "refuse-exact-places" | "refuse-exact-orders") => say(case_, { name, places: 20, orders: 20 }, { style: "1,234.5" });
+  it("D1 alone, D2 alone, or both, in one line", () => {
+    expect(of(tiny, fine)).toMatchObject({ ok: false, why: "too-wide", period: "month", n: 120, reason: words("D1", "refuse-exact-places") });
+    expect(of(fine, tiny)).toMatchObject({ ok: false, why: "too-wide", reason: words("D2", "refuse-exact-places") });
+    expect(of(tiny, tiny)).toMatchObject({ ok: false, why: "too-wide", reason: `${words("D1", "refuse-exact-places")} ${words("D2", "refuse-exact-places")}` });
+    expect(of(spread, months("2024-01", [3, 1, 4, 1, 5, 9, 2, 6, 5, 3, 5, 8, 9, 7, 9, 3, 2]))).toMatchObject({ ok: false, why: "too-wide", n: 17, reason: words("D1", "refuse-exact-orders") });
+  });
+  it("and the changes it works out on, by the same words", () => {
+    const rising = (shift: number): Point[] => months("2022-01", Array.from({ length: 30 }, (_, i) => (i < 20 ? Number(`${10 + i + shift}e-6`) : 1e14 + (i + shift) * 1e12)));
+    const r = correlate(a, b, (slug) => ({ metric: slug === "d1" ? a : b, points: slug === "d1" ? rising(0) : rising(1) }), { yearStart: 1 });
+    expect(r).toMatchObject({ ok: false, why: "too-wide", reason: `${words("D1", "refuse-exact-orders")} ${words("D2", "refuse-exact-orders")}` });
+    expect((r as { n: number }).n).toBe(29);
+  });
+});
+
 describe("correlation judges the changes it works out on, not only the levels", () => {
   const [a, b] = [1, 2].map((id) => metric({ id, slug: `c${id}`, name: `C${id}`, period: "month" }));
   // Levels from 1e-5 to 1e14 (inside the bounds), rising throughout: compared by change, the steps are 1e-6 beside 1e14.

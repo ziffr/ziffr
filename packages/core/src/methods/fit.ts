@@ -58,6 +58,7 @@ const plainPlus = (a: F, b: F) => (charge(a, b), plus(a, b));
 const plainMinus = (a: F, b: F) => (charge(a, b), minus(a, b));
 const plainTimes = (a: F, b: F) => (charge(a, b), times(a, b));
 const cmp = (a: F, b: F) => {
+  // Stryker disable next-line CallExpression: counts work only; no number depends on it, and a fit that is not stopped gives the same numbers whatever is counted.
   charge(a, b);
   const [l, r] = [a.num * b.den, b.num * a.den];
   return l < r ? -1 : l > r ? 1 : 0;
@@ -135,7 +136,9 @@ function moments(rows: FitRow[], cols: number[]): Moments {
   const y = column(rows.map((r) => r.y));
   const all = [...xs, y];
   const sums = all.map((a) => a.ints.reduce((s, v) => s + v, ZERO));
+  // Stryker disable next-line MethodExpression: counts work only; no number depends on it, and a fit that is not stopped gives the same numbers whatever is counted.
   const wide = all.map((a) => Math.max(...a.ints.map(digits)));
+  // Stryker disable next-line ArithmeticOperator: counts work only; no number depends on it, and a fit that is not stopped gives the same numbers whatever is counted.
   const cross = (i: number, j: number): bigint => (spend(n * wide[i] * wide[j]), big * all[i].ints.reduce((s, v, r) => s + v * all[j].ints[r], ZERO) - sums[i] * sums[j]);
   const about = (i: number, j: number): F => reduceOf({ num: cross(i, j), den: big * TEN ** BigInt(all[i].places + all[j].places) });
   const k = cols.length;
@@ -175,6 +178,7 @@ function determinant(m: bigint[][]): bigint {
   for (let k = 0; k < size - 1; k++) {
     for (let i = k + 1; i < size; i++) {
       for (let j = k + 1; j < size; j++) {
+        // Stryker disable next-line CallExpression: counts work only; no number depends on it, and a fit that is not stopped gives the same numbers whatever is counted.
         spendOn(digits(a[i][j]), digits(a[k][k]));
         a[i][j] = (a[i][j] * a[k][k] - a[i][k] * a[k][j]) / before;
       }

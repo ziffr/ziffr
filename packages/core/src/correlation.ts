@@ -131,17 +131,22 @@ export function correlate(a: Metric, b: Metric, resolve: Resolver, opts: { yearS
   const tooFew = (n: number): Correlation => ({ ok: false, period, n, why: "too-few", reason: `Not enough ${NOUN[period][1]} in common (${n} of ${MIN_PAIRS}).` });
   if (levels.length < MIN_PAIRS) return tooFew(levels.length);
   // Values too wide to work out exactly in reasonable time (work-bound.ts) are left out, before the exact arithmetic: a ranking runs this for many pairs.
-  const wide = wideColumns([a.name, b.name], [levels.map((p) => p.x), levels.map((p) => p.y)]);
-  if (wide.length > 0) return { ok: false, period, n: levels.length, why: "too-wide", reason: wide.map((f) => say(f.case, f.slots, { style: "1,234.5" })).join(" ") };
+  // The levels are judged before the basis is chosen (that is exact arithmetic on them), and the pairs that are worked out on after it: the
+  // changes of values inside the bounds can be outside them (a step of 1e15 beside one of 1e-6).
+  const tooWide = (rows: Pair[]): Correlation | null => {
+    const wide = wideColumns([a.name, b.name], [rows.map((p) => p.x), rows.map((p) => p.y)]);
+    return wide.length > 0 ? { ok: false, period, n: rows.length, why: "too-wide", reason: wide.map((f) => say(f.case, f.slots, { style: "1,234.5" })).join(" ") } : null;
+  };
+  const wideLevels = tooWide(levels);
+  if (wideLevels) return wideLevels;
   // The basis is chosen on the periods both have; "values" is the choice under Show the numbers.
   const onX = levels.map((p) => ({ period: p.period, value: p.x }));
   const onY = levels.map((p) => ({ period: p.period, value: p.y }));
   const basis: Basis = opts.basis === "values" ? "values" : basisFor(onX, onY, period);
   const pairs = basis === "values" ? levels : pairUp(changes(onX, period), changes(onY, period));
   if (pairs.length < MIN_PAIRS) return tooFew(pairs.length);
-  // The changes of values inside the bounds can be outside them (a step of 1e15 beside one of 1e-6), and these are what is worked out on.
-  const wideChanges = basis === "values" ? [] : wideColumns([a.name, b.name], [pairs.map((p) => p.x), pairs.map((p) => p.y)]);
-  if (wideChanges.length > 0) return { ok: false, period, n: pairs.length, why: "too-wide", reason: wideChanges.map((f) => say(f.case, f.slots, { style: "1,234.5" })).join(" ") };
+  const widePairs = tooWide(pairs);
+  if (widePairs) return widePairs;
   const res = pearsonOf(pairs);
   if (!Number.isFinite(res.r)) return { ok: false, period, n: pairs.length, why: "flat", reason: basis === "values" ? "One of them does not change, so there is nothing to compare." : "Once growth is removed, one of them does not change, so there is nothing to compare." };
   return { ok: true, period, combined, basis, ...res };
