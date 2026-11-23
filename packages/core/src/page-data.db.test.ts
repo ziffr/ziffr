@@ -47,7 +47,7 @@ describe("page loaders", () => {
   });
   it("name only the Metrics the person sees, never the Workspace's whole list", async () => {
     const w = await ws(); const sara = await w.person("owner"); const ben = await w.person("member");
-    const secret = await w.metric(sara, { name: "Salaries" });
+    await w.metric(sara, { name: "Salaries" });
     const bens = await w.metric(ben, { name: "Ben's visits" });
     const forBen = await sourcesView(w.actor(ben, "member"));
     expect(forBen.metrics.map((m) => m.name)).toEqual(["Ben's visits"]);
