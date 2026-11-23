@@ -3,14 +3,14 @@
 // hand), a Takeaway output is the Method's own Takeaway, and a recipe reaches only the series of its Slots, in words where it
 // cannot answer.
 import { describe, expect, it } from "vitest";
-import { ANALYSIS_FORMAT_2, type AnalysisRecipe2 } from "./analysis-recipe";
+import { ANALYSIS_FORMAT_2, FUNCTIONS_2, type AnalysisRecipe2 } from "./analysis-recipe";
 import { changes, detrended } from "./basis";
 import { fit, importance } from "./methods/fit";
 import { laggedCorrelation, laggedTakeaway } from "./methods/lagged-correlation";
 import { partialCorrelation, partialTakeaway } from "./methods/partial-correlation";
 import { quantile, usualRangeTakeaway } from "./methods/quantiles";
 import { spearman, spearmanTakeaway } from "./methods/spearman";
-import { runRecipe, runRecipe2, tooWide, MOST_PLACES, MOST_SIZE, WORK_BUDGET, type RunOutput } from "./recipe-run";
+import { runRecipe, runRecipe2, tooWide, MOST_PLACES, MOST_SIZE, MOST_SPREAD, WORK_BUDGET, type RunOutput } from "./recipe-run";
 import { RECIPE_POINTS, type RecipeInput } from "./recipe-methods";
 import { movesTakeaway } from "./takeaways/fit-takeaway";
 import type { Takeaway, TakeawayContext } from "./takeaways/takeaway";
@@ -22,7 +22,7 @@ const UNIT = { unit: "€", unit_position: "after" as const, decimals: 0 };
 const month = (i: number, from = 2020) => `${from + Math.floor(i / 12)}-${String((i % 12) + 1).padStart(2, "0")}-01`;
 const at = (vs: number[], from = 2020): Point[] => vs.map((value, i) => ({ period: month(i, from), value }));
 // A steady wobble that is the same on every run: no randomness in a test of the numbers.
-const wobble = (n: number, k: number) => Array.from({ length: n }, (_, i) => 100 + ((i * 37 + k * 11) % 23) * 3 + Math.sin(i * k) * 9 + i * 0.5);
+const wobble = (n: number, k: number) => Array.from({ length: n }, (_, i) => Math.round((100 + ((i * 37 + k * 11) % 23) * 3 + Math.sin(i * k) * 9 + i * 0.5) * 100) / 100);
 const input = (name: string, vs: number[], period: RecipeInput["period"] = "month"): RecipeInput => ({ name, unit: UNIT, period, points: at(vs) });
 const rec = (steps: AnalysisRecipe2["steps"], outputs: AnalysisRecipe2["outputs"], slots = 3): AnalysisRecipe2 => ({ format: ANALYSIS_FORMAT_2, name: "t", slots: Array.from({ length: slots }, (_, i) => ({ label: `S${i + 1}` })), steps, outputs });
 const out = (r: { outputs: RunOutput[] }, step: string) => r.outputs.find((o) => o.step === step)!;
@@ -317,8 +317,10 @@ describe("what a recipe reaches and how it fails", () => {
 });
 
 describe("what a recipe may be asked to work out", () => {
-  const one = (vs: number[]) => runRecipe2(rec([{ id: "u", fn: "usualRange", of: "slot1" }, { id: "c", fn: "changes", of: "slot1" }], [{ step: "u", label: "u", shows: "takeaway" }, { step: "c", label: "c", shows: "series", unit: "metric" }], 1), [input("Sales", vs)], ctx);
+  const one = (vs: number[]) => runRecipe2(rec([{ id: "u", fn: "usualRange", of: "slot1" }, { id: "c", fn: "changes", of: "slot1" }], [{ step: "u", label: "u", shows: "takeaway" }, { step: "c", label: "c", shows: "series", unit: "metric" }], 1), [input("Sales", vs)], ctx, 1_000_000);
   const base = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
+  // The same at the scale of the 20th decimal place, which a series of the 20th place needs beside it.
+  const small = base.map((k) => Number(`${k}e-20`));
 
   it("works on up to 20 decimal places and refuses the 21st, in words, with no number", () => {
     expect(MOST_PLACES).toBe(20);
@@ -329,9 +331,9 @@ describe("what a recipe may be asked to work out", () => {
     expect(tooWide([{ period: "2020-01-01", value: NaN }, { period: "2020-02-01", value: 1 }])).toBe(true);
     expect(tooWide([{ period: "2020-01-01", value: Infinity }])).toBe(true);
     expect(tooWide(at([0.12345678901234567]))).toBe(false);
-    const ok = one([...base, 1e-20]);
+    const ok = one([...small, 1e-20]);
     expect(val(out(ok, "c"))).not.toEqual([]);
-    const wide = one([...base, 1e-21]);
+    const wide = one([...small, 1e-21]);
     expect(val(out(wide, "c"))).toEqual([]);
     expect(takeawayOf(wide, "u").kind).toBe("refusal");
     expect(takeawayOf(wide, "u").refusal).toBe("Sales hold values this recipe cannot work out exactly: more than 20 decimal places, or a value above 100,000,000,000,000,000,000. Round the values or leave out the far-off ones.");
@@ -354,64 +356,95 @@ describe("what a recipe may be asked to work out", () => {
     expect(r.steps.s).toEqual({ kind: "value", value: null });
     expect((r.steps.m as { fit: { ok: boolean } }).fit.ok).toBe(false);
   });
+  it("refuses a spread of more than 1e20 between the largest value and the smallest that is not 0, one step either side", () => {
+    expect(MOST_SPREAD).toBe(1e20);
+    // 1e20 beside 1 is a spread of exactly 1e20, and 1e20 beside 0.5 is 2e20.
+    expect(tooWide(at([1e20, 1]))).toBe(false);
+    expect(tooWide(at([1e20, 0.5]))).toBe(true);
+    expect(tooWide(at([1e20, 0, 1]))).toBe(false);
+    expect(tooWide(at([1e20, 1e-4]))).toBe(true);
+    expect(tooWide(at([-1e20, 1]))).toBe(false);
+    expect(tooWide(at([0, 0, 0]))).toBe(false);
+    expect(tooWide(at([1e-20, 1]))).toBe(false);
+    expect(tooWide(at([1e-20, 1.5]))).toBe(true);
+    expect(tooWide(at([1e-20, 1e20]))).toBe(true);
+    expect(tooWide(at([1e-10, 1e10]))).toBe(false);
+    const r = one([...base, 1e-20]);
+    expect(takeawayOf(r, "u").refusal).toContain("cannot work out exactly");
+  });
   it("stops at the same step on every machine when the work is spent, one step either side", () => {
-    expect(WORK_BUDGET).toBe(100_000);
-    // A lagged correlation of 6 delays on 120 values costs 120 × 7 × 2 = 1,680 units: 59 of them are 99,120, the 60th goes over.
+    expect(WORK_BUDGET).toBe(12_000);
+    // A lagged correlation of 6 delays on 120 values costs 120 × 8 = 960 units: 12 of them are 11,520, the 13th goes over.
     const long = (k: number) => input(`M${k}`, wobble(RECIPE_POINTS, k));
     const steps = (n: number) => Array.from({ length: n }, (_, i) => ({ id: `l${i}`, fn: "laggedCorrelation" as const, of: "slot1", with: "slot2", maxLag: 6 }));
     const run = (n: number, shows: AnalysisRecipe2["outputs"] = [{ step: "l0", label: "l", shows: "table" }]) => runRecipe2(rec(steps(n), shows, 2), [long(3), long(5)], ctx);
-    const at59 = run(59);
-    expect((at59.steps.l58 as { rows: unknown[] }).rows.length).toBe(7);
-    const at60 = run(60);
-    expect((at60.steps.l58 as { rows: unknown[] }).rows.length).toBe(7);
-    expect((at60.steps.l59 as { rows: unknown[] }).rows).toEqual([]);
-    expect(JSON.stringify(run(60))).toBe(JSON.stringify(at60));
-    // A Takeaway counts too: a lagged one costs its step's work again.
-    const t = (n: number) => takeawayOf(run(n, [{ step: "l0", label: "t", shows: "takeaway" }]), "l0");
-    expect(t(29).kind).toBe("answer");
-    // 29 steps are 48,720 units and the Takeaway 1,680 more; 58 steps alone are 97,440, and with the Takeaway they are 99,120: still within.
-    expect(t(58).kind).toBe("answer");
-    // 59 steps are 99,120 and the Takeaway takes it to 100,800: over.
-    expect(t(59).kind).toBe("refusal");
-    expect(t(59).refusal).toBe("This recipe asks for more work than one result may take, so it stops here. Leave out some steps.");
-    // Steps that are not lagged: a fit of 3 drivers on 120 values is 1,920 units, a partial correlation with 2 controls 1,920, a Takeaway of the usual range 8 passes.
-    const fits = (n: number) => runRecipe2(rec(Array.from({ length: n }, (_, i) => ({ id: `m${i}`, fn: "fit" as const, of: "slot1", drivers: ["slot2", "slot3", "slot4"] })), [{ step: "m0", label: "m", shows: "table" }], 4), [1, 2, 3, 4].map((k) => input(`M${k}`, wobble(RECIPE_POINTS, k + 2))), ctx);
-    expect((fits(41).steps.m40 as { fit: { ok: boolean } }).fit.ok).toBe(true);
-    expect((fits(42).steps.m41 as { fit: { ok: boolean; refusals?: { case: string }[] } }).fit).toMatchObject({ ok: false, refusals: [{ case: "recipe-too-much" }] });
-    const partials = (n: number) => runRecipe2(rec(Array.from({ length: n }, (_, i) => ({ id: `p${i}`, fn: "partialCorrelation" as const, of: "slot1", with: "slot2", controls: ["slot3", "slot4"] })), [{ step: "p0", label: "m", shows: "value", unit: "number" }], 4), [1, 2, 3, 4].map((k) => input(`M${k}`, wobble(RECIPE_POINTS, k + 2))), ctx);
-    expect((partials(52).steps.p51 as { value: number | null }).value).not.toBeNull();
-    expect((partials(53).steps.p52 as { value: number | null }).value).toBeNull();
+    expect((run(12).steps.l11 as { rows: unknown[] }).rows.length).toBe(7);
+    const at13 = run(13);
+    expect((at13.steps.l11 as { rows: unknown[] }).rows.length).toBe(7);
+    expect((at13.steps.l12 as { rows: unknown[] }).rows).toEqual([]);
+    expect(JSON.stringify(run(13))).toBe(JSON.stringify(at13));
+    expect(at13.limited).toBe(true);
+    expect(run(12).limited).toBe(false);
+    expect(run(12).spent).toBe(11_520);
+    expect(at13.spent).toBe(12_000);
+    // A fit of 3 drivers is 120 × 16 × 3 ÷ 2 = 2,880 units: 4 are 11,520, the 5th goes over; a partial correlation with 2 controls is 720: 16 and 17.
+    const four = [1, 2, 3, 4].map((k) => input(`M${k}`, wobble(RECIPE_POINTS, k + 2)));
+    const fits = (n: number) => runRecipe2(rec(Array.from({ length: n }, (_, i) => ({ id: `m${i}`, fn: "fit" as const, of: "slot1", drivers: ["slot2", "slot3", "slot4"] })), [{ step: "m0", label: "m", shows: "table" }], 4), four, ctx);
+    expect((fits(4).steps.m3 as { fit: { ok: boolean } }).fit.ok).toBe(true);
+    expect((fits(5).steps.m4 as { fit: unknown }).fit).toMatchObject({ ok: false, refusals: [{ case: "recipe-too-much" }] });
+    const partials = (n: number) => runRecipe2(rec(Array.from({ length: n }, (_, i) => ({ id: `p${i}`, fn: "partialCorrelation" as const, of: "slot1", with: "slot2", controls: ["slot3", "slot4"] })), [{ step: "p0", label: "m", shows: "value", unit: "number" }], 4), four, ctx);
+    expect((partials(16).steps.p15 as { value: number | null }).value).not.toBeNull();
+    expect((partials(17).steps.p16 as { value: number | null }).value).toBeNull();
   });
-  it("counts every step, and a Takeaway by its Method, to the unit: the budget is spent at 100,000 and not before", () => {
-    // 100 values in the longest Slot: a plain step costs 100 units, so 1,000 of them are exactly the budget and the 1,001st is over.
+  it("counts every step, and a Takeaway by its Method, to the unit: the budget is spent at 12,000 and not before", () => {
+    // 100 values in the longest Slot: a plain step costs 100 units, so 120 of them are exactly the budget and the 121st is over.
     const hundred = (k: number) => input(`M${k}`, wobble(100, k));
     const plain = (n: number) => Array.from({ length: n }, (_, i) => ({ id: `c${i}`, fn: "changes" as const, of: "slot1" }));
-    const fitStepOf = (): AnalysisRecipe2["steps"][number] => ({ id: "f", fn: "fit", of: "slot1", drivers: ["slot2", "slot3", "slot4"] });
     const run = (steps: AnalysisRecipe2["steps"], shows: AnalysisRecipe2["outputs"]) => runRecipe2(rec(steps, shows, 4), [1, 2, 3, 4].map((k) => hundred(k + 2)), ctx);
     const last = (r: ReturnType<typeof run>, id: string) => (r.steps[id] as { points: unknown[] }).points.length;
     const keep: AnalysisRecipe2["outputs"] = [{ step: "c0", label: "c", shows: "series", unit: "metric" }];
-    expect(last(run(plain(1000), keep), "c999")).toBeGreaterThan(0);
-    expect(last(run(plain(1001), keep), "c1000")).toBe(0);
-    // A Takeaway of a step that works on one series costs 8 passes of the series: 999 plain steps and a usual range are 99,900, and 800 more is over.
-    const usual: AnalysisRecipe2["steps"] = [...plain(992), { id: "u", fn: "usualRange", of: "slot1" }];
-    expect(run(usual, [{ step: "u", label: "t", shows: "takeaway" }]).outputs[0]).toMatchObject({ takeaway: { kind: "refusal" } });
-    expect(run(usual.slice(0, 980).concat(usual.slice(-1)), [{ step: "u", label: "t", shows: "takeaway" }]).outputs[0]).toMatchObject({ takeaway: { kind: "answer" } });
-    const sp: AnalysisRecipe2["steps"] = [...plain(992), { id: "s", fn: "spearman", of: "slot1", with: "slot2" }];
-    expect(run(sp, [{ step: "s", label: "t", shows: "takeaway" }]).outputs[0]).toMatchObject({ takeaway: { kind: "refusal" } });
-    // Exactly the budget is not over it: 991 plain steps and a rank correlation are 99,200, its Takeaway 800 more.
-    expect(run([...plain(991), sp[992]], [{ step: "s", label: "t", shows: "takeaway" }]).outputs[0]).toMatchObject({ takeaway: { kind: "answer" } });
-    expect(run(usual, [{ step: "u", label: "t", shows: "takeaway" }]).outputs[0]).toMatchObject({ takeaway: { refusal: "This recipe asks for more work than one result may take, so it stops here. Leave out some steps." } });
-    const spent = run([...plain(1001), fitStepOf()], keep);
+    expect(last(run(plain(120), keep), "c119")).toBeGreaterThan(0);
+    expect(last(run(plain(121), keep), "c120")).toBe(0);
+    expect(run(plain(120), keep).limited).toBe(false);
+    expect(run(plain(121), keep).limited).toBe(true);
+    const tk = (step: string): AnalysisRecipe2["outputs"] => [{ step, label: "t", shows: "takeaway" }];
+    const answers = (r: ReturnType<typeof run>) => (r.outputs[0] as { takeaway: { kind: string } }).takeaway.kind;
+    const check = (steps: AnalysisRecipe2["steps"], id: string, kind: string) => expect(answers(run(steps, tk(id))), `${id}: ${steps.length} steps`).toBe(kind);
+    // The usual range's Takeaway is 83 passes (8,300): 36 plain steps and the step are 3,700, and with it exactly 12,000.
+    const usual = { id: "u", fn: "usualRange" as const, of: "slot1" };
+    check([...plain(36), usual], "u", "answer");
+    check([...plain(37), usual], "u", "refusal");
+    expect(run([...plain(37), usual], tk("u")).outputs[0]).toMatchObject({ takeaway: { refusal: "This recipe asks for more work than one result may take, so it stops here. Leave out some steps." } });
+    // A rank correlation: the step costs 2 passes (200) and its Takeaway 5 (500).
+    const sp = { id: "s", fn: "spearman" as const, of: "slot1", with: "slot2" };
+    check([...plain(113), sp], "s", "answer");
+    check([...plain(114), sp], "s", "refusal");
+    // A lagged correlation (6 delays): 800, and 55 × 100 = 5,500 for its Takeaway.
+    const lag = { id: "l", fn: "laggedCorrelation" as const, of: "slot1", with: "slot2", maxLag: 6 };
+    check([...plain(57), lag], "l", "answer");
+    check([...plain(58), lag], "l", "refusal");
+    // A partial correlation with 2 controls: 600, and 9 × 100 × 3² = 8,100 for its Takeaway.
+    const par = { id: "p", fn: "partialCorrelation" as const, of: "slot1", with: "slot2", controls: ["slot3", "slot4"] };
+    check([...plain(33), par], "p", "answer");
+    check([...plain(34), par], "p", "refusal");
+    // A fit of 3 drivers: 2,400, and 1,000 for its Takeaway.
+    const fitStep = { id: "f", fn: "fit" as const, of: "slot1", drivers: ["slot2", "slot3", "slot4"] };
+    check([...plain(86), fitStep], "f", "answer");
+    check([...plain(87), fitStep], "f", "refusal");
+    // The steps alone: a detrended series costs 5 passes, a rank correlation 2.
+    const d = { id: "d", fn: "detrended" as const, of: "slot1" };
+    expect(last(run([...plain(115), d], [{ step: "d", label: "d", shows: "series", unit: "metric" }]), "d")).toBeGreaterThan(0);
+    expect(last(run([...plain(116), d], [{ step: "d", label: "d", shows: "series", unit: "metric" }]), "d")).toBe(0);
+    const value = (n: number) => (run([...plain(n), sp], [{ step: "s", label: "s", shows: "value", unit: "number" }]).outputs[0] as { refusal?: string }).refusal;
+    expect(value(118)).toBeUndefined();
+    expect(value(119)).toBe("This recipe asks for more work than one result may take, so it stops here. Leave out some steps.");
+    const spent = run([...plain(121), fitStep], keep);
     expect((spent.steps.f as { fit: unknown }).fit).toEqual({ ok: false, refusals: [{ case: "recipe-too-much", slots: { names: "M3, M4, M5, M6" } }] });
-    // A lagged correlation (6 delays: 1,400 units) and a partial correlation (2 controls: 1,600) cost their step's work again in a Takeaway; a fit's Takeaway costs nothing more.
-    const lag: AnalysisRecipe2["steps"] = [...plain(977), { id: "l", fn: "laggedCorrelation", of: "slot1", with: "slot2", maxLag: 6 }];
-    expect(run(lag, [{ step: "l", label: "t", shows: "takeaway" }]).outputs[0]).toMatchObject({ takeaway: { kind: "refusal" } });
-    expect(run([...plain(800), lag[977]], [{ step: "l", label: "t", shows: "takeaway" }]).outputs[0]).toMatchObject({ takeaway: { kind: "answer" } });
-    const par: AnalysisRecipe2["steps"] = [...plain(975), { id: "p", fn: "partialCorrelation", of: "slot1", with: "slot2", controls: ["slot3", "slot4"] }];
-    expect(run(par, [{ step: "p", label: "t", shows: "takeaway" }]).outputs[0]).toMatchObject({ takeaway: { kind: "refusal" } });
-    expect(run([...plain(800), par[975]], [{ step: "p", label: "t", shows: "takeaway" }]).outputs[0]).toMatchObject({ takeaway: { kind: "answer" } });
-    const fitStep = fitStepOf();
-    expect(run([...plain(978), fitStep], [{ step: "f", label: "t", shows: "takeaway" }]).outputs[0]).toMatchObject({ takeaway: { kind: "answer" } });
+    // A limit below the recipe's own is the page's share, and says so.
+    const page = runRecipe2(rec(plain(10), keep, 4), [1, 2, 3, 4].map((k) => hundred(k + 2)), ctx, 500);
+    expect(page.limited).toBe(true);
+    expect((page.outputs[0] as { refusal?: string }).refusal).toBeUndefined();
+    expect((runRecipe2(rec([...plain(10), usual], tk("u"), 4), [1, 2, 3, 4].map((k) => hundred(k + 2)), ctx, 500).outputs[0] as { takeaway: { refusal: string } }).takeaway.refusal).toBe("Too much analysis on this page to work out at once: open the widget on its own.");
   });
   it("holds what a step makes to the same limits, and every step that reads it", () => {
     // 1e-20 is admitted (20 places); a mean of three of them is 2.3333333333333335e-20 and has 36: no step may read it.
@@ -447,9 +480,33 @@ describe("what a recipe may be asked to work out", () => {
     expect((out(r, "w") as Extract<RunOutput, { shows: "table" }>).rows).toEqual([]);
     expect((out(r, "w") as Extract<RunOutput, { shows: "table" }>).refusal).toContain("cannot work out exactly");
   });
+  it("scales the work by how wide the numbers are: more than 6 digits at one scale cost (digits ÷ 6)² as much", () => {
+    const hundred = (vs: number[]) => runRecipe2(rec([{ id: "c", fn: "changes", of: "slot1" }], [{ step: "c", label: "c", shows: "series", unit: "metric" }], 1), [input("A", vs)], ctx);
+    const ints = Array.from({ length: 100 }, (_, i) => 1000 + i);
+    expect(hundred(ints).spent).toBe(100);
+    // 6 digits: 4 before the point and 2 after. A value with 3 places makes 7 digits: 100 × 49 ÷ 36 = 136.11, rounded up.
+    expect(hundred(ints.map((v, i) => (i === 0 ? v + 0.25 : v))).spent).toBe(100);
+    expect(hundred(ints.map((v, i) => (i === 0 ? v + 0.125 : v))).spent).toBe(137);
+    expect(hundred(ints.map((v, i) => (i === 0 ? v + 0.125 : v))).spent).toBe(Math.ceil((100 * 49) / 36));
+    // 12 digits (4 before, 8 after): × 4. The digits of the largest value count before the point: 10,000 has 5.
+    expect(hundred(ints.map((v, i) => (i === 0 ? v + 0.00000001 : v))).spent).toBe(400);
+    expect(hundred([9999.12, ...ints.slice(1)]).spent).toBe(100);
+    expect(hundred([10000.12, ...ints.slice(1)]).spent).toBe(Math.ceil((100 * 49) / 36));
+    expect(hundred([10000.123, ...ints.slice(1)]).spent).toBe(Math.ceil((100 * 64) / 36));
+    // The widest of the Slots counts, not the first or the narrowest.
+    const mixed = runRecipe2(rec([{ id: "c", fn: "changes", of: "slot1" }], [{ step: "c", label: "c", shows: "series", unit: "metric" }], 2), [input("A", ints), input("B", ints.map((v, i) => (i === 0 ? v + 0.125 : v)))], ctx);
+    expect(mixed.spent).toBe(137);
+    // A step that reads a series that was refused does no work and is not charged.
+    const tiny = [1, 3, 2, 5, 4, 1, 3, 2, 5, 4, 3, 2].map((k) => Number(`${k}e-20`));
+    const chain = (n: number) => runRecipe2(rec([{ id: "avg", fn: "movingAverage", of: "slot1", window: 3 }, ...Array.from({ length: n }, (_, i) => ({ id: `g${i}`, fn: "growth" as const, of: "avg" }))], [{ step: "avg", label: "a", shows: "series", unit: "metric" }], 1), [input("T", tiny)], ctx);
+    expect(chain(3).spent).toBe(chain(0).spent);
+    // What a step makes counts as well: a mean of seven is a repeating decimal, and the step after it is charged for its width.
+    const two = runRecipe2(rec([{ id: "a", fn: "movingAverage", of: "slot1", window: 7 }, { id: "c", fn: "changes", of: "a" }], [{ step: "c", label: "c", shows: "series", unit: "metric" }], 1), [input("A", ints.map((v) => v * 3 + (v % 5)))], ctx);
+    expect(two.spent).toBeGreaterThan(100 + 3 * 100);
+  });
   it("answers the hostile recipe on the widest values it accepts in a few seconds, as on ordinary values", () => {
     const r7 = (x: number) => Number(x.toPrecision(7));
-    const wide = (k: number) => Array.from({ length: RECIPE_POINTS }, (_, i) => r7(i % 2 ? 4.87654321e14 * (1 + ((i * 7 + k) % 13) / 13) : 1.23456789e-14 * (1 + ((i * 5 + k) % 11) / 11)));
+    const wide = (k: number) => Array.from({ length: RECIPE_POINTS }, (_, i) => r7(i % 2 ? 4.87654321e14 * (1 + ((i * 7 + k) % 13) / 13) : 1.23456789e-5 * (1 + ((i * 5 + k) % 11) / 11)));
     const four = (gen: (k: number) => number[]) => [1, 2, 3, 4].map((k) => input(`M${k}`, gen(k + 2)));
     const big = rec(
       [
@@ -457,12 +514,13 @@ describe("what a recipe may be asked to work out", () => {
         { id: "l", fn: "laggedCorrelation", of: "slot1", with: "slot2", maxLag: 6 }, { id: "p", fn: "partialCorrelation", of: "slot1", with: "slot2", controls: ["slot3", "slot4"] },
         { id: "u", fn: "usualRange", of: "slot1" }, { id: "s", fn: "spearman", of: "slot1", with: "slot2" },
       ],
-      ["m1", "m2", "l", "p", "s"].map((step) => ({ step, label: step, shows: "takeaway" as const })),
+      ["m1", "m2", "l", "p"].map((step) => ({ step, label: step, shows: "takeaway" as const })),
       4,
     );
     for (const gen of [wide, (k: number) => wobble(RECIPE_POINTS, k)]) {
       const started = Date.now();
-      const r = runRecipe2(big, four(gen), ctx);
+      // Every Takeaway is asked for here, so it is the speed that is held, not the budget.
+      const r = runRecipe2(big, four(gen), ctx, 1_000_000);
       expect(Date.now() - started).toBeLessThan(3000);
       expect(r.outputs.every((o) => o.shows === "takeaway" && o.takeaway.kind === "answer")).toBe(true);
     }
@@ -470,7 +528,7 @@ describe("what a recipe may be asked to work out", () => {
 });
 
 describe("a pair is compared on the same basis in the table, the value and the Takeaway", () => {
-  const grow = (k: number, n = 36) => wobble(n, k).map((v, i) => v + i * 30);
+  const grow = (k: number, n = 36) => wobble(n, k).map((v, i) => Math.round((v + i * 30) * 100) / 100);
   const flat = (k: number, n = 36) => wobble(n, k);
   const steps: AnalysisRecipe2["steps"] = [{ id: "s", fn: "spearman", of: "slot1", with: "slot2" }, { id: "l", fn: "laggedCorrelation", of: "slot1", with: "slot2", maxLag: 6 }];
   const outputs: AnalysisRecipe2["outputs"] = [{ step: "s", label: "s", shows: "value", unit: "number" }, { step: "l", label: "l", shows: "table" }, { step: "s", label: "ts", shows: "takeaway" }, { step: "l", label: "tl", shows: "takeaway" }];
@@ -503,5 +561,46 @@ describe("a pair is compared on the same basis in the table, the value and the T
     expect(rows(r).every((x) => x.value === null)).toBe(true);
     expect(tk(r, "s").kind).toBe("refusal");
     expect(tk(r, "s").refusal).toContain("hardly changed");
+  });
+});
+
+describe("the work units follow the time (calibration guard)", () => {
+  // Each kind of step and of Takeaway on 120 values, timed in this process (the best of five runs, so a busy machine does not count against
+  // one kind): microseconds per work unit may not be more than three times the median of all kinds. A kind charged too little would
+  // let a recipe take far longer than the budget says; the table of measured times is in docs/guides/analysis-recipes.md.
+  const slots = [1, 2, 3, 4, 5, 6, 7].map((k) => input(`M${k}`, wobble(RECIPE_POINTS, k + 1)));
+  const others = (n: number, from = 2) => Array.from({ length: n }, (_, i) => `slot${from + i}`);
+  const kinds: [string, AnalysisRecipe2["steps"][number], boolean][] = [
+    ["changes", { id: "x", fn: "changes", of: "slot1" }, false],
+    ["detrended", { id: "x", fn: "detrended", of: "slot1" }, false],
+    ["movingAverage", { id: "x", fn: "movingAverage", of: "slot1", window: 12 }, false],
+    ["quantile", { id: "x", fn: "quantile", of: "slot1", percent: 30 }, false],
+    ["spearman", { id: "x", fn: "spearman", of: "slot1", with: "slot2" }, true],
+    ["lagged, 6 delays", { id: "x", fn: "laggedCorrelation", of: "slot1", with: "slot2", maxLag: 6 }, true],
+    ["partial, 2 controls", { id: "x", fn: "partialCorrelation", of: "slot1", with: "slot2", controls: others(2, 3) }, true],
+    ["partial, 4 controls", { id: "x", fn: "partialCorrelation", of: "slot1", with: "slot2", controls: others(4, 3) }, true],
+    ["usual range", { id: "x", fn: "usualRange", of: "slot1" }, true],
+    ["fit, 2 drivers", { id: "x", fn: "fit", of: "slot1", drivers: others(2) }, true],
+    ["fit, 4 drivers", { id: "x", fn: "fit", of: "slot1", drivers: others(4) }, true],
+    ["fit, 6 drivers", { id: "x", fn: "fit", of: "slot1", drivers: others(6) }, true],
+  ];
+  it("no kind of step or Takeaway takes more than three times the median microseconds per unit", () => {
+    const perUnit = kinds.map(([name, step, takeaway]) => {
+      const gives = FUNCTIONS_2[step.fn].gives;
+      const shows: AnalysisRecipe2["outputs"] = [takeaway ? { step: "x", label: "t", shows: "takeaway" } : gives === "value" ? { step: "x", label: "t", shows: "value", unit: "number" } : { step: "x", label: "t", shows: "series", unit: "metric" }];
+      const r = rec([step], shows, 7);
+      let best = Infinity;
+      let spent = 0;
+      for (let i = 0; i < 5; i++) {
+        const t = performance.now();
+        const run = runRecipe2(r, slots, ctx, 1_000_000);
+        best = Math.min(best, performance.now() - t);
+        spent = run.spent;
+      }
+      return { name, us: (best * 1000) / spent };
+    });
+    const sorted = perUnit.map((p) => p.us).sort((a, b) => a - b);
+    const median = sorted[Math.floor(sorted.length / 2)];
+    for (const p of perUnit) expect(p.us, `${p.name}: ${p.us.toFixed(1)} µs per unit, median ${median.toFixed(1)}`).toBeLessThanOrEqual(3 * median);
   });
 });

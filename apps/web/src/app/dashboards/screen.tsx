@@ -1,4 +1,5 @@
 "use client";
+import { RecipeBudgetProvider } from "@/views/recipe-budget";
 import "react-grid-layout/css/styles.css";
 import "react-resizable/css/styles.css";
 import { inUse } from "@ziffr/core/metric-row";
@@ -233,6 +234,7 @@ function DashboardCanvas({ data, dashboards, current, widgets, saved, shares, re
                 </div>
               )}
               {mounted && (
+                <RecipeBudgetProvider data={data}>
                 <ReactGridLayout
                   layout={narrow ? stacked : layout}
                   width={width}
@@ -268,6 +270,7 @@ function DashboardCanvas({ data, dashboards, current, widgets, saved, shares, re
                     </div>
                   ))}
                 </ReactGridLayout>
+                </RecipeBudgetProvider>
               )}
             </ThemeScope>
             )}

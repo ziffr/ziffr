@@ -109,7 +109,23 @@ Each is the Method of the same name in the [Methods guide](methods.md), with its
 
 **Outputs.** Each output says what it `shows`: `series`, `value`, `table` or `takeaway`. A series or a value also names its `unit` (as in `/1`); a table or a Takeaway has none. A Takeaway is available for `spearman`, `partialCorrelation`, `laggedCorrelation`, `usualRange` and `fit`, and is the Method's own: its sentence, strength, range, cautions and footer are written by Ziffr, in the same words as in the Analysis Canvas, and a recipe adds only a `title` and a `note` in plain text. A Takeaway names Metrics and their units, so it is worked out from Slots, not from another step. A Takeaway always uses the Method's own settings (a lagged correlation Takeaway looks at all six delays, so it needs `maxLag` 6), and compares two Metrics that both grow by their changes, as everywhere.
 
-**Limits.** At most 4 Slots, 12 steps, 6 outputs, 4 controls and 6 drivers; at most 40 inputs named across all steps and 2 fits; a file of at most 32 KiB and 6 levels deep; names, titles and notes in plain text as in `/1` (a title up to 60 characters, a note up to 200). A recipe works on the latest 120 values of each Slot. Metrics of different periods are not compared: every output says to show them by the same period. A series with more than 20 decimal places, or a value above 100,000,000,000,000,000,000, is not worked out exactly in a fair time: this holds for a Slot's values and for what a step makes of them (a difference, a z-score, a line's misses), and every output that depends on it says so in words. A run also has a fixed work budget, counted from the steps and the length of the series (never the clock), so the same recipe on the same data stops at the same step everywhere; the steps after it, and any Takeaway, say that the recipe asks for too much.
+**Limits.** At most 4 Slots, 12 steps, 6 outputs, 4 controls and 6 drivers; at most 40 inputs named across all steps and 2 fits; a file of at most 32 KiB and 6 levels deep; names, titles and notes in plain text as in `/1` (a title up to 60 characters, a note up to 200). A recipe works on the latest 120 values of each Slot. Metrics of different periods are not compared: every output says to show them by the same period. A series with more than 20 decimal places, or a value above 100,000,000,000,000,000,000, is not worked out exactly in a fair time: this holds for a Slot's values and for what a step makes of them (a difference, a z-score, a line's misses), and every output that depends on it says so in words. A run also has a fixed work budget, counted in work units from the steps and the length and width of the series (never the clock), so the same recipe on the same data stops at the same step everywhere; the steps after it, and any Takeaway, say that the recipe asks for too much. A unit is about 10 microseconds of one core, a recipe's budget is 12,000 units (about 120 ms), and all the recipes drawn on one page (a dashboard, a View Link, a Snapshot) share 50,000 units: once the page has spent its share, the widgets after that, in the order they are drawn, say "Too much analysis on this page to work out at once: open the widget on its own." A series may also not spread more than 1e20 between its largest value and its smallest that is not 0.
+
+**What a step costs.** At 120 values of 6 digits or fewer at one scale (the numbers are exact, so wider numbers cost more: the work grows with (digits ÷ 6)², and a step made of a wide series is charged at its width). Measured on a laptop under load, so the times are on the high side; a test (`the work units follow the time`) fails if any kind takes more than three times the median microseconds per unit.
+
+| Kind | Units charged (n values) | Measured |
+|---|---|---|
+| `changes`, `movingAverage`, `quantile`, and every other step of `/1` | n | about 1 ms |
+| `detrended` | 5n | about 5 ms |
+| `spearman` | 2n | about 1.5 ms |
+| `laggedCorrelation` | n × (delays + 2) | about 6 ms at 6 delays |
+| `partialCorrelation` | 1.5n × (controls + 2) | 2 to 6 ms at 2 to 4 controls |
+| `fit` | 1.5n × (drivers + 1)² | 6 ms with 1 driver, 15 ms with 3, 65 to 85 ms with 6 (importance included) |
+| Takeaway of `spearman` | 5n | about 4 ms |
+| Takeaway of `laggedCorrelation` | 55n | about 65 ms |
+| Takeaway of `partialCorrelation` | 9n × (controls + 1)² | about 85 ms at 2 controls, about 200 ms at 4 |
+| Takeaway of `usualRange` | 83n | about 100 ms |
+| Takeaway of `fit` | 10n | about 14 ms |
 
 **Which basis.** `spearman` and `laggedCorrelation` compare two series by their changes where both grow, and by value otherwise, the same rule as their Takeaway; the output names the basis ("compared by change, growth removed"). `partialCorrelation` compares by value, as its own Takeaway says. Two series that grow by exactly the same step each month have no change to compare, and say so.
 

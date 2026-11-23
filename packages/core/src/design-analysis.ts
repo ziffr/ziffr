@@ -4,7 +4,8 @@
 // Security: only the widget's own Metrics, as the person may see them, ever reach a recipe. Pure.
 import { dayAfter, shownSeries } from "./display-periods";
 import { formatNumber, formatPercent, formatValue } from "./format";
-import { runRecipe, runRecipe2, type RecipeResults, type Run2 } from "./recipe-run";
+import { PAGE_BUDGET, runRecipe, runRecipe2, WORK_BUDGET, type RecipeResults, type Run2 } from "./recipe-run";
+import { sayIn } from "./takeaways/takeaway";
 import { drawnOutputs, type AnalysisRecipe2, type Output } from "./analysis-recipe";
 import { DEFAULT_NUMBER_STYLE } from "./number-style";
 import { RECIPE_POINTS, type RecipeInput } from "./recipe-methods";
@@ -67,16 +68,41 @@ export function designRun(design: ViewDesign, metrics: Metric[], data: Pick<Canv
   return runRecipe2(a, inputsFor(design, a, metrics, data, settings), { style: data.numberStyle ?? DEFAULT_NUMBER_STYLE, yearStart: data.yearStart });
 }
 
-/** What a design's recipe gives for a widget as marks draw it (a series or one value by step), or null for a design without one. Only the
- * steps the drawn outputs need are worked out, and never a Takeaway: none is drawn yet. */
-export function designRecipe(design: ViewDesign, metrics: Metric[], data: Pick<CanvasData, "metrics" | "series" | "targets" | "yearStart" | "today">, settings: WidgetSettings): RecipeResults | null {
+/** What the recipes drawn on one page may still ask for, in work units: one object made for each page or render (a React context in the app)
+ * and charged by every widget in the order they are drawn, so what is refused is the same every time. */
+export type RecipeBudget = { left: number };
+
+/** A fresh budget for one page. */
+export const newRecipeBudget = (): RecipeBudget => ({ left: PAGE_BUDGET });
+
+/** What a design's recipe gives for a widget as marks draw it, or why it was not worked out: the page has spent its share (`refusal`, in words),
+ * or the recipe asked for too much, which the results then leave out. Only the steps the drawn outputs need are worked out, and never a Takeaway:
+ * none is drawn yet. `budget` is the page's, charged by what this recipe used. */
+export function drawRecipe(design: ViewDesign, metrics: Metric[], data: Pick<CanvasData, "metrics" | "series" | "targets" | "yearStart" | "today">, settings: WidgetSettings, budget?: RecipeBudget): { results: RecipeResults | null; refusal: string | null } {
   const a = design.analysis;
-  if (!a) return null;
-  if (a.format === "ziffr.analysis/1") return runRecipe(a, recipeInputs(design, metrics, data, settings));
+  if (!a) return { results: null, refusal: null };
+  const page = () => ({ results: null, refusal: sayIn("recipe-page-too-much", {}, { style: DEFAULT_NUMBER_STYLE, yearStart: data.yearStart }) });
+  if (a.format === "ziffr.analysis/1") {
+    const inputs = recipeInputs(design, metrics, data, settings);
+    // A recipe of the first format is linear in its series: each step costs one pass over the longest Slot.
+    const used = a.steps.length * Math.max(1, ...inputs.map((i) => i.length));
+    if (budget && used > budget.left) return page();
+    if (budget) budget.left -= used;
+    return { results: runRecipe(a, inputs), refusal: null };
+  }
   const part = drawnPart(a);
-  if (part.outputs.length === 0) return {};
-  const run = runRecipe2(part, inputsFor(design, a, metrics, data, settings), { style: DEFAULT_NUMBER_STYLE, yearStart: data.yearStart });
-  return Object.fromEntries(drawnOutputs(a).map((o) => [o.step, run.steps[o.step] as Result]));
+  if (part.outputs.length === 0) return { results: {}, refusal: null };
+  const limit = Math.min(WORK_BUDGET, budget?.left ?? WORK_BUDGET);
+  if (limit <= 0) return page();
+  const run = runRecipe2(part, inputsFor(design, a, metrics, data, settings), { style: DEFAULT_NUMBER_STYLE, yearStart: data.yearStart }, limit);
+  if (budget) budget.left -= run.spent;
+  if (run.limited && limit < WORK_BUDGET) return page();
+  return { results: Object.fromEntries(drawnOutputs(a).map((o) => [o.step, run.steps[o.step] as Result])), refusal: null };
+}
+
+/** What a design's recipe gives for a widget as marks draw it (a series or one value by step), or null for a design without one or one not worked out. */
+export function designRecipe(design: ViewDesign, metrics: Metric[], data: Pick<CanvasData, "metrics" | "series" | "targets" | "yearStart" | "today">, settings: WidgetSettings, budget?: RecipeBudget): RecipeResults | null {
+  return drawRecipe(design, metrics, data, settings, budget).results;
 }
 
 /** A recipe output's number as text: in the Metric's unit and decimals, as a percentage, or as a plain number with

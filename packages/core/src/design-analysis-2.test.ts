@@ -3,7 +3,11 @@
 // recipe's mistakes as they do for /1, and a Pack that holds a /2 recipe checks and installs as a design that draws it.
 import { describe, expect, it } from "vitest";
 import type { AnalysisRecipe2 } from "./analysis-recipe";
-import { designRecipe, designRun, drawnPart } from "./design-analysis";
+import { designRecipe, designRun, drawnPart, drawRecipe, newRecipeBudget } from "./design-analysis";
+import { PAGE_BUDGET, WORK_BUDGET } from "./recipe-run";
+import { BUILT_IN_RECIPES, RECIPES } from "./built-in-recipes";
+import { readFileSync } from "node:fs";
+import { repoFile } from "./test/repo-file";
 import { designWithRecipe } from "./design-files";
 import { shownSeries } from "./display-periods";
 import { checkPack, type Pack } from "./pack";
@@ -133,5 +137,78 @@ describe("a Pack that holds a /2 recipe", () => {
     const res = checkPack(pack({ ...RECIPE, steps: [{ id: "x", fn: "eval", of: "slot1" }] }));
     expect(res.ok).toBe(false);
     expect(!res.ok && res.problems.map((p) => p.message).join()).toContain("must be one of “movingAverage”");
+  });
+});
+
+describe("what a page of recipes may ask for", () => {
+  // Three Metrics of 120 months each, so every step works on the longest series a recipe reads.
+  const long = (k: number) => Array.from({ length: 120 }, (_, i) => ({ period: `${2016 + Math.floor((i + 5) / 12)}-${String(((i + 5) % 12) + 1).padStart(2, "0")}-01`, value: Math.round((100 + ((i * 37 + k * 11) % 23) * 3 + Math.sin(i * k) * 9 + i * 0.5) * 100) / 100 }));
+  const big = { ...data, series: { ...data.series, [revenue.slug]: long(3), [orders.slug]: long(5), [data.metrics[2].slug]: long(7) } };
+  const three = [revenue, orders, data.metrics[2]];
+  // The dearest a recipe of drawn outputs can be: four changes and five partial correlations with 4 controls each (6 outputs at most).
+  const worst: ViewDesign = {
+    ...DESIGN,
+    slots: [{ label: "A", metrics: "one" }, { label: "B", metrics: "one" }, { label: "C", metrics: "one" }],
+    analysis: {
+      format: "ziffr.analysis/2", name: "Worst", slots: [{ label: "A" }, { label: "B" }, { label: "C" }],
+      steps: [
+        ...[1, 2, 3].map((k) => ({ id: `c${k}`, fn: "changes" as const, of: `slot${k}` })),
+        ...Array.from({ length: 5 }, (_, i) => ({ id: `p${i}`, fn: "partialCorrelation" as const, of: "slot1", with: "slot2", controls: ["slot3", "c1", "c2", "c3"] })),
+      ],
+      outputs: [...Array.from({ length: 5 }, (_, i) => ({ step: `p${i}`, label: `p${i}`, shows: "value" as const, unit: "number" as const })), { step: "c1", label: "c", shows: "series" as const, unit: "metric" as const }],
+    },
+    parts: [{ mark: "text", content: [{ show: "recipe.p0" }] }],
+  };
+
+  it("the worst recipe of drawn outputs the checks admit is within its budget and takes a fraction of a second", () => {
+    expect(checkViewDesignValue(worst).ok).toBe(true);
+    const started = Date.now();
+    const budget = newRecipeBudget();
+    const res = drawRecipe(worst, three, big, {}, budget);
+    expect(Date.now() - started).toBeLessThan(1500);
+    expect(res.refusal).toBeNull();
+    expect(Object.keys(res.results!).length).toBe(6);
+    // 3 changes (360) and 5 partial correlations of 4 controls (5 × 1,080).
+    expect(PAGE_BUDGET - budget.left).toBe(3 * 120 + 5 * 1080);
+  });
+  it("30 of them on one page: the page's share is spent after the first few, the rest say so, in the same order every time", () => {
+    const page = () => {
+      const budget = newRecipeBudget();
+      const started = Date.now();
+      const out = Array.from({ length: 30 }, () => drawRecipe(worst, three, big, {}, budget));
+      return { out, ms: Date.now() - started, left: budget.left };
+    };
+    const a = page();
+    expect(a.ms).toBeLessThan(3000);
+    const drawn = a.out.map((r) => r.refusal === null);
+    // 5,760 units each: 8 widgets fit in 50,000 (46,080); the 9th would take it over, so it and every later one is refused.
+    expect(drawn).toEqual(Array.from({ length: 30 }, (_, i) => i < 8));
+    expect(a.out[8].refusal).toBe("Too much analysis on this page to work out at once: open the widget on its own.");
+    expect(a.out[8].results).toBeNull();
+    expect(page().out.map((r) => r.refusal === null)).toEqual(drawn);
+    expect(a.left).toBe(0);
+    // Without a page, a widget has only its own budget.
+    expect(drawRecipe(worst, three, big, {}).refusal).toBeNull();
+    expect(drawRecipe(worst, three, big, {}, { left: 0 }).refusal).toContain("Too much analysis on this page");
+  });
+  it("a recipe in the first format is charged a pass of its longest series for each step", () => {
+    const budget = newRecipeBudget();
+    const d = designWithRecipe(BUILT_IN_RECIPES["moving-average"]);
+    expect(drawRecipe(d, [revenue], big, {}, budget).refusal).toBeNull();
+    expect(PAGE_BUDGET - budget.left).toBe(BUILT_IN_RECIPES["moving-average"].steps.length * 120);
+    expect(drawRecipe(d, [revenue], big, {}, { left: 119 }).refusal).toContain("Too much analysis");
+  });
+  it("every built-in recipe and every recipe of a shipped Pack uses under a fifth of a recipe's budget", () => {
+    const packs = (JSON.parse(readFileSync(repoFile("packs/saas-metrics.pack.json"), "utf8")).contents.analyses ?? []) as { recipe: { steps: unknown[] } }[];
+    const steps = [...RECIPES.map((id) => BUILT_IN_RECIPES[id].steps.length), ...packs.map((p) => p.recipe.steps.length)];
+    expect(steps.length).toBeGreaterThanOrEqual(7);
+    // Each step of the first format is one pass of the longest series (120 values).
+    for (const n of steps) expect(n * 120).toBeLessThan(WORK_BUDGET / 5);
+  });
+  it("a full run charges its Takeaways at their calibrated cost", () => {
+    const run = designRun(DESIGN, [revenue, orders], big, {})!;
+    // The usual range's Takeaway alone is 83 passes of the series.
+    expect(run.spent).toBeGreaterThanOrEqual(83 * 120);
+    expect(run.limited).toBe(false);
   });
 });

@@ -19,7 +19,9 @@ import type { CanvasData, Metric, Widget } from "@ziffr/core/types";
 import { bestForecast } from "@ziffr/core/methods/forecast-choice";
 import { SEASON_LENGTH } from "@ziffr/core/suitability";
 import { forecastTakeaway, endsOf } from "@ziffr/core/takeaways/forecast";
-import { designRecipe, formatOutput } from "@ziffr/core/design-analysis";
+import { drawRecipe, formatOutput, newRecipeBudget } from "@ziffr/core/design-analysis";
+import { useRecipeBudget } from "./recipe-budget";
+import type { RecipeResults } from "@ziffr/core/recipe-run";
 import { drawnOutputs } from "@ziffr/core/analysis-recipe";
 import { TargetChip } from "@/components/target-chip";
 import { cn } from "@/lib/utils";
@@ -46,7 +48,7 @@ export type DesignValues = ReturnType<typeof designValues> & {
 };
 
 /** The numbers and words a design draws for a widget, each from the core's functions. */
-function designValues(design: ViewDesign, widget: Pick<Widget, "settings">, metrics: Metric[], data: CanvasData, basis: BasisChoice, recipe: ReturnType<typeof designRecipe>) {
+function designValues(design: ViewDesign, widget: Pick<Widget, "settings">, metrics: Metric[], data: CanvasData, basis: BasisChoice, recipe: RecipeResults | null) {
   const uses = usage(design);
   const m = metrics[0];
   const s = widget.settings;
@@ -120,9 +122,13 @@ export function DesignView({ design, widget, metrics, data, onPointContext }: Pr
   const roomy = useWidgetScale() > 1;
   const host = useTakeawayHost();
   // The recipe is worked out once for its real inputs, not again whenever Show the numbers is toggled.
-  const recipe = useMemo(() => designRecipe(design, metrics, data, widget.settings), [design, metrics, data, widget.settings]);
+  const budget = useRecipeBudget();
+  const drawn = useMemo(() => drawRecipe(design, metrics, data, widget.settings, budget ?? newRecipeBudget()), [design, metrics, data, widget.settings, budget]);
+  const recipe = drawn.results;
   const v: DesignValues = { ...designValues(design, widget, metrics, data, basis, recipe), setBasis, roomy, behind: host !== null };
   const { m } = v;
+  // The page has spent its share of work on recipes: the words say so and no number is shown.
+  if (drawn.refusal) return <Empty>{drawn.refusal}</Empty>;
   // What the design needs and does not have says why, in the core's words where it has them.
   if (v.matrix && metrics.length < 2) return <Empty>{design.empty ?? "Needs at least two Metrics."}</Empty>;
   if (usage(design).pairs && !metrics[1]) return <Empty>{design.empty ?? "Needs two Metrics."}</Empty>;

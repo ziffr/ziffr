@@ -64,7 +64,7 @@ export type RunOutput =
   | { shows: "takeaway"; step: string; label: string; takeaway: Takeaway; title?: string; note?: string };
 
 /** A /2 recipe's run: every step's result by id, and the outputs in the order the recipe lists them. */
-export type Run2 = { steps: Record<string, Result2>; outputs: RunOutput[] };
+export type Run2 = { steps: Record<string, Result2>; outputs: RunOutput[]; /** The work units this run used, at most its limit. */ spent: number; /** Whether the limit stopped it. */ limited: boolean };
 
 // The Method a Takeaway of each function names under Show the numbers.
 const METHOD = { spearman: "numbers-method-spearman", partialCorrelation: "numbers-method-partial", laggedCorrelation: "numbers-method-lag", usualRange: "numbers-method-usual", fit: "numbers-method-fit" } as const;
@@ -75,27 +75,52 @@ const PLAIN = { unit: "", unit_position: "after", decimals: 2 } as const;
 export const MOST_PLACES = 20;
 /** The largest absolute value a series of a recipe may hold, a Slot's or what a step made of one (the API's own limit for a Metric's value is 1e15). */
 export const MOST_SIZE = 1e20;
-/** The work one run may ask for, in units counted from the steps and the series' length alone (never the clock), so that the same recipe on the same
- * data stops at the same step on every machine. A fit of k drivers on n values is n·(k + 1)² + 2^k·(k + 1)³ units; a unit is about a microsecond. */
-export const WORK_BUDGET = 100_000;
+/** The widest spread between the largest and the smallest value that is not 0 in one series. */
+export const MOST_SPREAD = 1e20;
+/** The work one recipe may ask for in one run, in work units: a unit is about 10 microseconds of one core (measured, see docs/guides/analysis-recipes.md),
+ * so 12,000 units are about 120 ms. Units are counted from the steps and the series' length alone, never the clock, so the same recipe on the same
+ * data stops at the same step on every machine. */
+export const WORK_BUDGET = 12_000;
+/** The work all the recipes drawn on one page may ask for together (a dashboard, a View Link, a Snapshot): about half a second. */
+export const PAGE_BUDGET = 50_000;
 
 /** Whether a series is beyond what the steps work out exactly in a fair time: a value that is not a number, more than `MOST_PLACES` decimal
  * places, or above `MOST_SIZE`. Held to every series, those of the Slots and those a step makes (a difference of two admitted values, a
  * z-score of small ones, a line's misses), so that no step reads what another could not. */
 export function tooWide(points: Point[]): boolean {
-  return points.some((p) => !Number.isFinite(p.value) || Math.abs(p.value) > MOST_SIZE || fractionOf(p.value).den.toString().length - 1 > MOST_PLACES);
+  if (points.some((p) => !Number.isFinite(p.value) || Math.abs(p.value) > MOST_SIZE || fractionOf(p.value).den.toString().length - 1 > MOST_PLACES)) return true;
+  // The spread: the largest value over the smallest that is not 0 may not pass `MOST_SPREAD` (1e20 beside 1e-4 needs 24 digits at one scale).
+  // A series of 0 only has no sizes: its largest over its smallest is not a number, which is not above the limit.
+  const sizes = points.map((p) => Math.abs(p.value)).filter((v) => v > 0);
+  return Math.max(...sizes) / Math.min(...sizes) > MOST_SPREAD;
 }
 
-// What a step asks for, in work units: n is the longest Slot.
-function cost(s: Step2, n: number): number {
-  // The normal equations (n·(k + 1)²), and the importance's 2^k submodels of at most k + 1 terms each, which every fit works out for its shares.
-  if (s.fn === "fit") return n * (s.drivers!.length + 1) ** 2 + 2 ** s.drivers!.length * (s.drivers!.length + 1) ** 3;
-  if (s.fn === "partialCorrelation") return n * (s.controls!.length + 2) ** 2;
-  if (s.fn === "laggedCorrelation") return n * (s.maxLag! + 1) * 2;
-  return n;
+// How wide the numbers are, as digits at one scale: the most decimal places any value needs and the digits before the point of the largest. The
+// exact arithmetic of the steps costs more than in proportion to this (BigInt products of every pair), so work units are scaled by it.
+function digitsOf(points: Point[]): number {
+  let places = 0;
+  let largest = 0;
+  for (const p of points) {
+    places = Math.max(places, fractionOf(p.value).den.toString().length - 1);
+    largest = Math.max(largest, Math.abs(p.value));
+  }
+  return places + Math.max(1, Math.floor(Math.log10(Math.max(largest, 1))) + 1);
 }
-// A Takeaway runs its Method again (a fit's is already made): the same work again, and for the rest a few passes of the series.
-const takeawayCost = (s: Step2, n: number) => (s.fn === "fit" ? 0 : s.fn === "laggedCorrelation" || s.fn === "partialCorrelation" ? cost(s, n) : 8 * n);
+/** The factor, over series of 6 digits or fewer (a 2-place value in the thousands is 6), by which the work grows with the width of the numbers: (digits ÷ 6)², as a pair. */
+const widthOf = (digits: number): number => Math.max(36, digits * digits);
+
+// What a step asks for, in work units (10 microseconds each, measured on every kind: docs/guides/analysis-recipes.md); n is the longest Slot.
+function cost(s: Step2, n: number, width: number): number {
+  const base = s.fn === "fit" ? (n * (s.drivers!.length + 1) ** 2 * 3) / 2 : s.fn === "partialCorrelation" ? (n * (s.controls!.length + 2) * 3) / 2 : s.fn === "laggedCorrelation" ? n * (s.maxLag! + 2) : s.fn === "detrended" ? 5 * n : s.fn === "spearman" ? 2 * n : n;
+  return Math.ceil((base * width) / 36);
+}
+// What a Takeaway asks for, in the same units: the Method's suitability checks and wording run on top of the step. The usual range's checks
+// (far-off values by leaving values out) are the dearest, about 100 ms on 120 values.
+function takeawayCost(s: Step2, n: number, width: number): number {
+  // Its checks run on the pairs of every series held fixed, so a partial correlation's cost grows with the square of the series it weighs.
+  const base = s.fn === "fit" ? 10 * n : s.fn === "laggedCorrelation" ? 55 * n : s.fn === "partialCorrelation" ? 9 * n * (s.controls!.length + 1) ** 2 : s.fn === "usualRange" ? 83 * n : 5 * n;
+  return Math.ceil((base * width) / 36);
+}
 
 // Distinct names for what a step is given, so a fit never takes two drivers for one: a repeat is told apart by a number.
 function distinct(names: string[]): string[] {
@@ -113,7 +138,7 @@ function distinct(names: string[]): string[] {
  * to nothing else; at most the latest `RECIPE_POINTS` values of each Slot are used. Metrics of different periods are not compared:
  * every output then says so in words, with no number. A Method that has no result for the data gives none (null, no rows, a
  * refused fit, a refusal as the Takeaway), never a quiet number. */
-export function runRecipe2(r: AnalysisRecipe2, inputs: RecipeInput[], ctx: TakeawayContext): Run2 {
+export function runRecipe2(r: AnalysisRecipe2, inputs: RecipeInput[], ctx: TakeawayContext, limit: number = WORK_BUDGET): Run2 {
   const slots = r.slots.map((s, i) => {
     const given = inputs[i];
     // Stryker disable next-line ArrayDeclaration: a Slot that was not given has no values; any element put there is no value (every function leaves out what is not finite), so the series is empty either way
@@ -126,8 +151,11 @@ export function runRecipe2(r: AnalysisRecipe2, inputs: RecipeInput[], ctx: Takea
   // Why nothing is worked out, in words: Metrics of different periods, or values the exact arithmetic should not be asked for.
   const stop: Finding | null = filled.some((s) => s.period !== span) ? { case: "recipe-mixed-periods", slots: { names: names2 } } : filled.some((s) => tooWide(s.points)) ? { case: "recipe-too-wide", slots: { names: names2 } } : null;
   const longest = Math.max(1, ...slots.map((s) => s.points.length));
+  // The widest numbers any series has so far, Slots' or made by a step: the cost of every step after is scaled by it.
+  let width = widthOf(Math.max(...slots.map((s) => digitsOf(s.points))));
   let spent = 0;
-  const tooMuch: Finding = { case: "recipe-too-much", slots: { names: names2 } };
+  // A limit below the recipe's own is the page's share: the words say the page asks for too much, not the recipe.
+  const tooMuch: Finding = { case: limit < WORK_BUDGET ? "recipe-page-too-much" : "recipe-too-much", slots: { names: names2 } };
   // Stryker disable next-line StringLiteral: the kind of a Slot is never read (seriesOf takes its points)
   const known = new Map<string, Result2>(slots.map((s, i) => [`slot${i + 1}`, { kind: "series", points: s.points }]));
   const slotAt = new Map(slots.map((_, i) => [`slot${i + 1}`, i]));
@@ -143,10 +171,12 @@ export function runRecipe2(r: AnalysisRecipe2, inputs: RecipeInput[], ctx: Takea
   const refused: Record<string, Finding> = {};
   const wide: Finding = { case: "recipe-too-wide", slots: { names: names2 } };
   for (const s of r.steps) {
-    spent += cost(s, longest);
     // Stryker disable next-line ArrayDeclaration: a step without controls or drivers names none; an id put there is no refused step, so nothing changes
     const inputs = [s.of, s.with ?? s.of, ...(s.controls ?? []), ...(s.drivers ?? [])];
-    const why = stop ?? (spent > WORK_BUDGET ? tooMuch : null) ?? (inputs.some((id) => id in refused) ? wide : null);
+    // A step that reads a refused series does no work, so it is not charged; it is refused for the reason that series was.
+    const blocked = inputs.some((id) => id in refused);
+    if (!blocked) spent += cost(s, longest, width);
+    const why = stop ?? (blocked ? wide : null) ?? (spent > limit ? tooMuch : null);
     let res = why ? emptyResult(s, why) : step2(s, seriesOf, known, nameOf, (id) => { const i = slotAt.get(id); return i === undefined ? undefined : slots[i].meta; }, span, ctx, (b) => (bases[s.id] = b));
     let found = why;
     // What a step makes is held to the same limits as what it was given.
@@ -155,6 +185,7 @@ export function runRecipe2(r: AnalysisRecipe2, inputs: RecipeInput[], ctx: Takea
       res = emptyResult(s, wide);
     }
     if (found) refused[s.id] = found;
+    else if (res.kind === "series") width = Math.max(width, widthOf(digitsOf(res.points)));
     known.set(s.id, res);
     steps[s.id] = res;
   }
@@ -163,15 +194,15 @@ export function runRecipe2(r: AnalysisRecipe2, inputs: RecipeInput[], ctx: Takea
     const s = r.steps.find((x) => x.id === o.step)!;
     const res = steps[s.id];
     if (o.shows === "takeaway") {
-      spent += takeawayCost(s, longest);
-      const w = stop ?? (spent > WORK_BUDGET ? tooMuch : null);
+      spent += takeawayCost(s, longest, width);
+      const w = stop ?? (spent > limit ? tooMuch : null);
       const takeaway = w ? refusalTakeaway(sayIn(METHOD[s.fn as keyof typeof METHOD], {}, ctx), [refusal(w)]) : takeawayOf(s, steps, slots, names, span, ctx);
       return { shows: "takeaway", step: o.step, label: o.label, takeaway, ...(o.title !== undefined ? { title: o.title } : {}), ...(o.note !== undefined ? { note: o.note } : {}) };
     }
     if (o.shows === "table") return { shows: "table", step: o.step, label: o.label, rows: (res as { rows: TableRow[] }).rows, ...(bases[s.id] ? { basis: basisText(bases[s.id]) } : {}), ...reason(s.id) };
     return { shows: o.shows, step: o.step, label: o.label, unit: o.unit!, result: res as Result, ...(bases[s.id] ? { basis: basisText(bases[s.id]) } : {}), ...reason(s.id) };
   });
-  return { steps, outputs };
+  return { steps, outputs, spent: Math.min(spent, limit), limited: spent > limit };
 }
 
 // What a step gives when there is nothing to work on: no values, no rows, a refused fit.
