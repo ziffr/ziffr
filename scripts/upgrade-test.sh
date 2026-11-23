@@ -43,6 +43,8 @@ psql -q <<'SQL'
 insert into profiles (id, name, role, color, slack_handle, email)
   values ('upgrade-test', 'Upgrade Test', 'Founder', '#336699', 'upgrade-test', 'upgrade-test@invalid.test');
 select create_trial_workspace('upgrade-test', 'Upgrade Test', 14, 100);
+-- The trial had opened the Trial Guide (spec 0052 moves its state into setup_guides).
+update workspaces set trial_guide_step = 'connect' where id <> 'd3e00000-0000-4000-8000-000000000001' and trial_ends_at is not null;
 SQL
 
 echo "== This branch's migrations on top, as the image's migrate step applies them"
@@ -50,5 +52,11 @@ db_url="postgresql://postgres:postgres@127.0.0.1:${prefix}22/postgres"
 rm -rf "$work/supabase/migrations" && mkdir "$work/supabase/migrations"
 cp "$repo"/supabase/migrations/* "$work/supabase/migrations/"
 (cd "$work" && SUPABASE_TELEMETRY_DISABLED=1 supabase db push --db-url "$db_url" --include-all --yes)
+
+echo "== The Trial Guide's state moved into the Setup Guide's tables, and the demo holds none"
+[ "$(psql -tA -c "select count(*) from setup_guides g join workspaces w on w.id = g.workspace_id where w.trial_guide_step = 'connect' and g.starting_point = 'scratch'")" = 1 ] \
+  || { echo "The trial's Trial Guide was not moved into setup_guides."; exit 1; }
+[ "$(psql -tA -c "select count(*) from setup_guides where workspace_id = 'd3e00000-0000-4000-8000-000000000001'")" = 0 ] \
+  || { echo "The demo Workspace must never have a Setup Guide."; exit 1; }
 
 echo "Upgrade test passed: $tag -> $(git rev-parse --short HEAD)."
