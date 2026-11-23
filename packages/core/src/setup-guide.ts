@@ -43,9 +43,9 @@ const isStep = (s: unknown): s is SetupStepId => typeof s === "string" && (SETUP
 
 /** Makes the Workspace's guide row when it has none (a new Workspace, or one that opens the guide from Help). Never
  * for the demo. Nothing is changed when the row is there. */
-export async function startSetupGuide(workspaceId: string): Promise<void> {
-  if (workspaceId === DEMO_WORKSPACE_ID) return;
-  const { error } = await db().from("setup_guides").upsert({ workspace_id: workspaceId }, { onConflict: "workspace_id", ignoreDuplicates: true });
+export async function startSetupGuide(actor: Actor): Promise<void> {
+  if (actor.workspaceId === DEMO_WORKSPACE_ID || (actor.role !== "owner" && actor.role !== "admin")) return;
+  const { error } = await db().from("setup_guides").upsert({ workspace_id: actor.workspaceId }, { onConflict: "workspace_id", ignoreDuplicates: true });
   if (error) throw new Error("The Setup Guide could not be started.");
 }
 
@@ -164,7 +164,7 @@ export async function skipSetupStep(actor: Actor, step: unknown): Promise<void> 
     if (error) throw new Error("The step could not be skipped.");
     added = data === true;
   } else {
-    await startSetupGuide(actor.workspaceId);
+    await startSetupGuide(actor);
     const { data, error } = await db().rpc("setup_guide_skip", { p_workspace: actor.workspaceId, p_step: step });
     if (error) throw new Error("The step could not be skipped.");
     added = data === true;
@@ -182,7 +182,7 @@ export async function hideSetupGuide(actor: Actor): Promise<void> {
  * before the guide opens it from Help). */
 export async function reopenSetupGuide(actor: Actor): Promise<void> {
   assertGuide(actor);
-  if (actor.role === "owner" || actor.role === "admin") await startSetupGuide(actor.workspaceId);
+  if (actor.role === "owner" || actor.role === "admin") await startSetupGuide(actor);
   await setPerson(actor, { hidden_at: null });
 }
 
@@ -212,7 +212,7 @@ export async function setupGuidePending(actor: Actor): Promise<boolean> {
 /** Chooses "Explore on my own" as the Workspace's starting point (Owners and Admins). */
 export async function chooseExploreOnMyOwn(actor: Actor): Promise<void> {
   assertManagesGuide(actor);
-  await startSetupGuide(actor.workspaceId);
+  await startSetupGuide(actor);
   const { error } = await db().from("setup_guides").update({ starting_point: "scratch", updated_at: new Date().toISOString() }).eq("workspace_id", actor.workspaceId);
   if (error) throw new Error("The choice could not be saved.");
 }
@@ -226,7 +226,7 @@ export async function setSetupFirstMetric(actor: Actor, metricId: number | null)
     const { data } = await db().from("metrics").select("id").eq("id", metricId).eq("workspace_id", actor.workspaceId).maybeSingle();
     if (!data || !(await canSee(actor, "metric", metricId))) throw new Forbidden();
   }
-  await startSetupGuide(actor.workspaceId);
+  await startSetupGuide(actor);
   const { error } = await db().from("setup_guides").update({ first_metric_id: metricId, updated_at: new Date().toISOString() }).eq("workspace_id", actor.workspaceId);
   if (error) throw new Error("The choice could not be saved.");
 }

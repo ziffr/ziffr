@@ -51,7 +51,7 @@ describe("who has a guide", () => {
     expect(await setupGuidePending(demo)).toBe(false);
     await expect(skipSetupStep(demo, "about")).rejects.toBeInstanceOf(Forbidden);
     // The demo guard refuses the row even to the service role.
-    await expect(startSetupGuide(DEMO_WORKSPACE_ID)).resolves.toBeUndefined();
+    await expect(startSetupGuide(demo)).resolves.toBeUndefined();
     expect((await db().from("setup_guides").select("workspace_id").eq("workspace_id", DEMO_WORKSPACE_ID)).data).toEqual([]);
     await expect((async () => { await db().from("setup_guides").insert({ workspace_id: DEMO_WORKSPACE_ID }); })()).rejects.toThrow(/demo/i);
     await expect((async () => { await db().from("business_functions").insert({ workspace_id: DEMO_WORKSPACE_ID, person_id: o.personId, function: "sales" }); })()).rejects.toThrow(/demo/i);
@@ -118,7 +118,7 @@ describe("the ticks from real rows", () => {
   it("First Metric: a Prompt out and a value in, by the viewer, for the guide's Metric; ticks for any Admin who did both", async () => {
     const { w, owner, o } = await fresh();
     const m = await w.metric(owner);
-    await startSetupGuide(w.id);
+    await startSetupGuide(o);
     await setSetupFirstMetric(o, m.id);
     expect((await setupGuide(o))!.firstMetric).toEqual({ id: m.id, name: "Field visits" });
     expect(await ids(o)).toEqual(["start"]);
@@ -140,7 +140,7 @@ describe("the ticks from real rows", () => {
     const m = await w.metric(owner);
     const other = await w.person("member");
     await w.value(m.id, "2026-12-01", 3, owner);
-    await startSetupGuide(w.id);
+    await startSetupGuide(o);
     await setSetupFirstMetric(o, m.id);
     await w.value(m.id, "2027-01-01", 9, other);
     const { data: p } = await db().from("prompts").insert({ metric_id: m.id, submitter_id: owner, source: "email", text: "?", period_start: "2027-01-01", workspace_id: w.id }).select("id").single();
@@ -159,7 +159,7 @@ describe("the ticks from real rows", () => {
   it("the guide's Metric is not named to a viewer who may not see it", async () => {
     const { w, owner, o } = await fresh();
     const m = await w.metric(owner);
-    await startSetupGuide(w.id);
+    await startSetupGuide(o);
     await setSetupFirstMetric(o, m.id);
     const member = await w.person("member");
     await db().from("setup_guides").update({ first_metric_id: m.id }).eq("workspace_id", w.id);
@@ -172,7 +172,7 @@ describe("the ticks from real rows", () => {
 describe("skips, hiding and finishing", () => {
   it("two Admins skipping at once lose neither, and the same skip is written once", async () => {
     const { w, o } = await fresh();
-    await startSetupGuide(w.id);
+    await startSetupGuide(o);
     const admin = w.actor(await w.person("admin"), "admin");
     await Promise.all([skipSetupStep(o, "about"), skipSetupStep(admin, "ways"), skipSetupStep(o, "team"), skipSetupStep(admin, "team")]);
     const { data } = await db().from("setup_guides").select("skipped").eq("workspace_id", w.id).single();
@@ -202,7 +202,7 @@ describe("skips, hiding and finishing", () => {
 
   it("finishes once, when every step an Owner sees is done, and the line goes for everyone", async () => {
     const { w, o } = await fresh();
-    await startSetupGuide(w.id);
+    await startSetupGuide(o);
     const member = w.actor(await w.person("member"), "member");
     expect((await setupGuide(member))!.lineShown).toBe(true);
     for (const s of SETUP_STEPS) await skipSetupStep(o, s);
@@ -234,8 +234,8 @@ describe("skips, hiding and finishing", () => {
   it("opens by itself once per person, and not for a Workspace made before the guide", async () => {
     const { w, owner, o } = await fresh();
     expect(await setupGuidePending(o)).toBe(false);
-    await startSetupGuide(w.id);
-    await startSetupGuide(w.id);
+    await startSetupGuide(o);
+    await startSetupGuide(o);
     expect(await setupGuidePending(o)).toBe(true);
     const member = w.actor(await w.person("member"), "member");
     expect(await setupGuidePending(member)).toBe(true);
@@ -251,7 +251,7 @@ describe("skips, hiding and finishing", () => {
 describe("the tables are the core's alone", () => {
   it("cannot be read or written by the public roles, nor their functions", async () => {
     const { w, owner, o } = await fresh();
-    await startSetupGuide(w.id);
+    await startSetupGuide(o);
     await markSetupGuideSeen(o);
     await db().from("business_functions").insert({ workspace_id: w.id, person_id: owner, function: "finance" });
     const { createClient } = await import("@supabase/supabase-js");
@@ -274,7 +274,7 @@ describe("the tables are the core's alone", () => {
   it("only takes the fixed lists", async () => {
     const { w, owner } = await fresh();
     expect((await db().from("business_functions").insert({ workspace_id: w.id, person_id: owner, function: "wizard" })).error).not.toBeNull();
-    await startSetupGuide(w.id);
+    await startSetupGuide(w.actor(owner, "owner"));
     expect((await db().from("setup_guides").update({ skipped: ["nowhere"] }).eq("workspace_id", w.id)).error).not.toBeNull();
     expect((await db().from("setup_guides").update({ starting_point: "magic" }).eq("workspace_id", w.id)).error).not.toBeNull();
     expect((await db().from("setup_guide_people").insert({ workspace_id: w.id, person_id: owner, skipped: ["team"] })).error).not.toBeNull();
