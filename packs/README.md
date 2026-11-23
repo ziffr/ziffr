@@ -1,6 +1,6 @@
 # Ziffr's starting Packs
 
-Twelve Packs made by Ziffr (seven for kinds of business and for Ziffr itself, five for the functions of a business), under CC BY 4.0, so a new Workspace starts from a good setup instead of an empty page. Each is one file; install it on **Workspace → Packs** with **Choose a Pack file…** (an Owner, for the board meeting deck, since it holds a Theme). Installing adds Metric Catalog entries, templates, designs and Themes, and makes no Metric until you use them.
+Twelve Packs made by Ziffr (seven for kinds of business and for Ziffr itself, five for the functions of a business), under CC BY 4.0, so a new Workspace starts from a good setup instead of an empty page. Each is one file, and each comes with the app: install it on **Workspace → Packs** from **Ziffr's own Packs**, or from the file with **Choose a Pack file…** (an Owner, for the board meeting deck, since it holds a Theme). Installing adds Metric Catalog entries, templates, designs and Themes, and makes no Metric until you use them.
 
 | File | What it holds |
 | --- | --- |

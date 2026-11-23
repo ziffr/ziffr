@@ -7,6 +7,7 @@ import { attempt } from "@/lib/action-result";
 import { installPackFile, readPackFile } from "@ziffr/core/packs";
 import { installFromMarketplace, readMarketplacePack, readMarketplaceUpdate, searchMarketplace, updateFromMarketplace } from "@ziffr/core/marketplace";
 import { exportPack, themeLogoForExport, type ExportChoice, type ExportManifest } from "@ziffr/core/pack-export";
+import { installIncludedPack, readIncludedPack, readIncludedUpdate, updateIncludedPack } from "@ziffr/core/included-packs";
 import { readPackUpdate, readUninstall, takeNewVersion, uninstallPack, updatePackFile } from "@ziffr/core/pack-updates";
 
 /** Reads an uploaded Pack file for its Preview; nothing is written. The problems come back with their lines. */
@@ -97,6 +98,34 @@ export async function readMarketplaceUpdatePlan(installId: number, version: stri
 export async function updateFromTheMarketplace(installId: number, version: string, confirmed: { assistantTexts: boolean }) {
   return attempt(async () => {
     const plan = await updateFromMarketplace(await currentActor(), Number(installId), String(version ?? ""), { assistantTexts: confirmed?.assistantTexts === true });
+    revalidatePath("/", "layout");
+    return plan;
+  });
+}
+
+/** One of Ziffr's own Packs' Preview, named by its id (looked up in the list that comes with Ziffr); nothing is written. */
+export async function readIncludedPackFile(packId: string) {
+  return attempt(async () => readIncludedPack(await currentActor(), String(packId ?? "")));
+}
+
+/** Installs one of Ziffr's own Packs, named by its id, by a person's click. */
+export async function installIncludedPackFile(packId: string, confirmed: { assistantTexts: boolean }) {
+  return attempt(async () => {
+    const id = await installIncludedPack(await currentActor(), String(packId ?? ""), { assistantTexts: confirmed?.assistantTexts === true });
+    revalidatePath("/", "layout");
+    return id;
+  });
+}
+
+/** What updating an installed one of Ziffr's own Packs to the version that comes with this Ziffr would do; nothing is written. */
+export async function readIncludedUpdatePlan(installId: number) {
+  return attempt(async () => readIncludedUpdate(await currentActor(), Number(installId)));
+}
+
+/** Updates an installed one of Ziffr's own Packs to the version that comes with this Ziffr. */
+export async function updateIncludedPackFile(installId: number, confirmed: { assistantTexts: boolean }) {
+  return attempt(async () => {
+    const plan = await updateIncludedPack(await currentActor(), Number(installId), { assistantTexts: confirmed?.assistantTexts === true });
     revalidatePath("/", "layout");
     return plan;
   });
