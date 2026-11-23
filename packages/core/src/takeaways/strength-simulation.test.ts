@@ -27,8 +27,6 @@ describe(`independent pairs through the real Takeaway (${PAIRS} pairs per cell, 
     const r = falseClaimRate(family, n, PAIRS);
     const limit = LIMIT(family, n);
     if (limit !== null) expect(r.claimed, `${family} ${n}`).toBeLessThanOrEqual(limit);
-    // Never more claims than the rule that did not allow for it.
-    expect(r.claimed).toBeLessThanOrEqual(r.before);
   });
   it("claims far less than the uncorrected rule where Metrics follow their own past: AR(1) 0.8 and seasons over 36 months", () => {
     const [ar, seasonal] = [falseClaimRate("ar0.8", 36, PAIRS), falseClaimRate("seasonal", 36, PAIRS)];

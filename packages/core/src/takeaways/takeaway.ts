@@ -154,6 +154,7 @@ export function correlationTakeaway(a: Metric, b: Metric, c: Correlation, ctx: T
   // Monthly Metrics follow their own past, so n pairs are worth fewer independent ones (effective-count.ts): the chance rule is judged on
   // that count, over as many delays as the Heads-ups allow for and up to a third of the pairs (a year of months and more where there are
   // more months). The sentence and the basis still say the real number of periods.
+  // Stryker disable next-line ArithmeticOperator: effectiveCount reads only the first n / 3 of the delays given, so asking for more changes nothing but work.
   const delays = Math.floor(c.n / 3);
   const nEff = effectiveCount(c.n, autocorrelations(c.pairs.map((p) => p.x), delays), autocorrelations(c.pairs.map((p) => p.y), delays));
   const lines = verdictLines(verdict, ctx, c.n, (r, left) => strengthOf(r, left * (nEff / c.n)));

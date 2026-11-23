@@ -7,7 +7,7 @@ export const AUTO_LAGS = { oneIn: 3, most: 12 } as const;
 
 const mean = (v: readonly number[]) => v.reduce((s, x) => s + x, 0) / v.length;
 
-/** The autocorrelations of a series at delays 1 to `most` (12): the sum of products of the centred values k places apart, over the
+/** The autocorrelations of a series at delays 1 to `most` (12 by default): the sum of products of the centred values k places apart, over the
  * sum of squares of the centred values, the mean and the sums taken over the values the series has. 0 at every delay for a series
  * that does not vary or has no value (it is never compared), NaN where the sum of squares is too large for a double. */
 export function autocorrelations(values: readonly number[], most: number = AUTO_LAGS.most): number[] {
@@ -24,7 +24,7 @@ export function autocorrelations(values: readonly number[], most: number = AUTO_
 }
 
 /** How many pairs of independent observations n pairs of two series are worth when each follows its own past: n ÷ (1 + 2·Σ ρx(k)·ρy(k))
- * over the first n ÷ 3 delays (at most 12), by Bartlett's rule, never more than n (a negative sum is not used to claim more).
+ * over the first n ÷ 3 delays (`rx` and `ry` hold how many were worked out), by Bartlett's rule, never more than n (a negative sum is not used to claim more).
  * `rx` and `ry` are the autocorrelations of the two series (autocorrelations). */
 export function effectiveCount(n: number, rx: readonly number[], ry: readonly number[]): number {
   let sum = 0;
