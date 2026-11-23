@@ -106,7 +106,8 @@ export type FitRow = { period: string; y: number; x: number[] };
 
 // The sums about the means as fractions (`sxx`, `sxy`, `syy`), and as the whole numbers G = n·S·10^(places), whose ratios are the
 // same and which need no reduction: the explained share of a subset of the drivers is worked out from their determinants.
-type Moments = { n: number; mx: F[]; my: F; sxx: F[][]; sxy: F[]; syy: F; gxx: bigint[][]; gxy: bigint[]; gyy: bigint };
+/** The moments of a fit's rows: sums about the means as fractions and as whole numbers. */
+export type Moments = { n: number; mx: F[]; my: F; sxx: F[][]; sxy: F[]; syy: F; gxx: bigint[][]; gxy: bigint[]; gyy: bigint };
 
 // The values of a column as whole numbers at one scale, so a sum of products is a BigInt sum: value = ints[i] / 10^places.
 function column(values: number[]): { ints: bigint[]; places: number } {
@@ -140,7 +141,8 @@ function moments(rows: FitRow[], cols: number[]): Moments {
   };
 }
 
-type Solved = { m: F[][]; beta: F[]; intercept: F; sse: F };
+/** A fit solved: the inverse of the sums about the means, the effects, the intercept and the sum of squared misses. */
+export type Solved = { m: F[][]; beta: F[]; intercept: F; sse: F };
 
 // The effects b = Sxx⁻¹·Sxy, the intercept ȳ − b·x̄ and SSE = Syy − b·Sxy; null where the drivers cannot be told apart.
 function solve(mo: Moments): Solved | null {
@@ -553,11 +555,13 @@ export type Outside = { name: string; side: "above" | "below"; limit: number; ch
 
 /** The lines of a fit's verdict that still hold for a value worked out from it: the gaps, the curve and the spread. */
 const KEPT = new Set<string>(["caution-gaps", "caution-gaps-change", "caution-curved", "caution-spread", "caution-crowded"]);
-const carried = (m: Fit): Verdict => ({ refusals: [], cautions: m.verdict.cautions.filter((f) => KEPT.has(f.case)), switches: [] });
+/** The lines of a fit's verdict that hold for a value worked out from it (the gaps, the curve, the spread, crowded drivers). */
+export const carried = (m: Fit): Verdict => ({ refusals: [], cautions: m.verdict.cautions.filter((f) => KEPT.has(f.case)), switches: [] });
 const refuseInput = (what: string): Refused => ({ ok: false, refusals: [{ case: "refuse-input", slots: { what } }] });
 
 // A model that a program handed over: its shape and numbers are checked, never trusted.
-function modelProblem(m: Fit): string | null {
+/** Why a model handed over is not one this module made, or null: its shape and numbers are checked, never trusted. */
+export function modelProblem(m: Fit): string | null {
   const k = m.drivers?.length;
   if (!Number.isInteger(k) || k < 1 || k > SUITABILITY.drivers.most) return "the fit";
   const rows = m.rows;
@@ -565,10 +569,12 @@ function modelProblem(m: Fit): string | null {
   return sound && finiteAll([...m.last.x, m.last.y]) && m.last.x.length === k && (m.basis === "values" || m.basis === "changes") ? null : "the fit";
 }
 
-type Again = { mo: Moments; sol: Solved; t: number; sigma2: F; k: number };
+/** A fit worked out again from its periods, exactly: the moments, the solution, the t quantile of its range and the variance of a miss. */
+export type Again = { mo: Moments; sol: Solved; t: number; sigma2: F; k: number };
 
 // The fit's moments and solution, from its rows; null where a model with rows like these has none (not one this module made).
-function again(m: Fit): Again | null {
+/** A fit's moments and solution worked out again from its rows; null where a model with rows like these has none. */
+export function again(m: Fit): Again | null {
   const k = m.drivers.length;
   const mo = moments(m.rows, Array.from({ length: k }, (_, i) => i));
   const sol = solve(mo);
