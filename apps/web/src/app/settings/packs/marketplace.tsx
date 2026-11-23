@@ -69,13 +69,13 @@ export function MarketplaceSearch({ viewer, numberStyle }: { viewer: string; num
 
 /** "Version … on the Marketplace" on an installed Pack, and updating to it after seeing what changes. */
 export function MarketplaceUpdate({ installId, name, version }: { installId: number; name: string; version: string }) {
-  return <PackUpdate installId={installId} name={name} version={version} button={`Version ${version} on the Marketplace…`} from="From the Marketplace: its signature holds." read={() => readMarketplaceUpdatePlan(installId, version)} apply={(c) => updateFromTheMarketplace(installId, version, c)} />;
+  return <PackUpdate name={name} version={version} button={`Version ${version} on the Marketplace…`} from="From the Marketplace: its signature holds." read={() => readMarketplaceUpdatePlan(installId, version)} apply={(c) => updateFromTheMarketplace(installId, version, c)} />;
 }
 
 /** A newer version of an installed Pack, and updating to it after seeing what changes; `read` and `apply` are the server
  * calls of where the version comes from (the Marketplace, or the Packs that come with Ziffr). */
-export function PackUpdate({ installId, name, version, button, from, read: readPlan, apply }: {
-  installId: number; name: string; version: string; button: string; from: string;
+export function PackUpdate({ name, version, button, from, read: readPlan, apply }: {
+  name: string; version: string; button: string; from: string;
   read: () => ReturnType<typeof readMarketplaceUpdatePlan>; apply: (c: { assistantTexts: boolean }) => ReturnType<typeof updateFromTheMarketplace>;
 }) {
   const router = useRouter();

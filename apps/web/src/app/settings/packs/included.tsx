@@ -65,5 +65,5 @@ export function IncludedPacks({ packs, viewer, numberStyle }: { packs: IncludedP
 
 /** "Version … comes with this Ziffr" on an installed one of Ziffr's own Packs, and updating to it after seeing what changes. */
 export function IncludedUpdate({ installId, name, version }: { installId: number; name: string; version: string }) {
-  return <PackUpdate installId={installId} name={name} version={version} button={`Version ${version} comes with this Ziffr…`} from="One of Ziffr’s own Packs: it comes with this version of Ziffr." read={() => readIncludedUpdatePlan(installId)} apply={(c) => updateIncludedPackFile(installId, c)} />;
+  return <PackUpdate name={name} version={version} button={`Version ${version} comes with this Ziffr…`} from="One of Ziffr’s own Packs: it comes with this version of Ziffr." read={() => readIncludedUpdatePlan(installId)} apply={(c) => updateIncludedPackFile(installId, c)} />;
 }
