@@ -32,8 +32,8 @@ const SPAN = TEN ** BigInt(WORK_BOUND.orders);
 export type Wide = "places" | "orders";
 
 /** Whether finite values need more than 20 decimal places or span more than 20 orders of magnitude, decided exactly on their text. A value that is not a number is no value and not looked at. */
-export function wideReason(values: readonly number[]): Wide | null {
-  const parts = values.filter((v) => Number.isFinite(v)).map(scaled);
+export function wideReason(values: readonly (number | null)[]): Wide | null {
+  const parts = values.filter((v): v is number => Number.isFinite(v)).map(scaled);
   if (parts.some((p) => p.places > WORK_BOUND.places)) return "places";
   // Every size on one scale of 10^-20 (no value has more places than that), so they are whole numbers and the largest over the smallest is a division-free comparison.
   // Stryker disable next-line EqualityOperator: for 0 the sign does not matter, and a size of 0 is left out below.
@@ -53,7 +53,7 @@ export function wideFindings(series: readonly { name: string; points: Point[] }[
 }
 
 /** The same for the columns of a fit's rows (the target's, then each driver's), named as given. */
-export function wideColumns(names: readonly string[], columns: readonly (readonly number[])[]): Finding[] {
+export function wideColumns(names: readonly string[], columns: readonly (readonly (number | null)[])[]): Finding[] {
   return columns.flatMap((c, i) => {
     const why = wideReason(c);
     return why ? [{ case: CASES[why], slots: { name: names[i], ...WORK_BOUND } }] : [];

@@ -100,7 +100,7 @@ export function refusalTakeaway(method: string, lines: string[]): Takeaway {
 
 /** A refusal in words when some values are too wide to work out exactly in reasonable time (work-bound.ts: more than 20 decimal
  * places, or more than 20 orders of magnitude), else null. For the Methods that work out a number before, or without, the suitability checks. */
-export function wideRefusal(method: string, columns: { name: string; values: readonly number[] }[], ctx: TakeawayContext): Takeaway | null {
+export function wideRefusal(method: string, columns: { name: string; values: readonly (number | null)[] }[], ctx: TakeawayContext): Takeaway | null {
   const wide = wideColumns(columns.map((c) => c.name), columns.map((c) => c.values));
   return wide.length > 0 ? refusalTakeaway(method, wide.map((f) => sayIn(f.case, f.slots, ctx))) : null;
 }

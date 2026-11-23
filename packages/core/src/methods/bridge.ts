@@ -56,7 +56,7 @@ export function bridge(parts: Part[], whole?: { before: number; after: number })
  * with a note naming parts that had no value on one side and, where the whole's change was given, what the parts leave out. */
 export function bridgeTakeaway(name: string, parts: Part[], unit: ValueUnit, ctx: TakeawayContext, whole?: { before: number; after: number }): Takeaway {
   const method = sayIn("numbers-method-bridge", {}, ctx);
-  const wide = wideRefusal(method, [{ name, values: [...parts.flatMap((p) => [p.before, p.after]).filter((v): v is number => v !== null), ...(whole ? [whole.before, whole.after] : [])] }], ctx);
+  const wide = wideRefusal(method, [{ name, values: [...parts.flatMap((p) => [p.before, p.after]), ...(whole ? [whole.before, whole.after] : [])] }], ctx);
   if (wide) return wide;
   const result = bridge(parts, whole);
   if (!result.ok) return refusalTakeaway(method, [sayIn(result.why === "none" ? "refuse-rows" : result.why === "weight" ? "refuse-weight" : "refuse-not-a-number", { name, have: 0, need: 1 }, ctx)]);

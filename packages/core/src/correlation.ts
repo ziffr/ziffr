@@ -135,6 +135,7 @@ export function correlate(a: Metric, b: Metric, resolve: Resolver, opts: { yearS
   // changes of values inside the bounds can be outside them (a step of 1e15 beside one of 1e-6).
   const tooWide = (rows: Pair[]): Correlation | null => {
     const wide = wideColumns([a.name, b.name], [rows.map((p) => p.x), rows.map((p) => p.y)]);
+    // Stryker disable next-line ObjectLiteral,StringLiteral: the style only writes the two bounds, whole numbers under 1000, the same in every style.
     return wide.length > 0 ? { ok: false, period, n: rows.length, why: "too-wide", reason: wide.map((f) => say(f.case, f.slots, { style: "1,234.5" })).join(" ") } : null;
   };
   const wideLevels = tooWide(levels);
