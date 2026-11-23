@@ -45,6 +45,14 @@ Function: `correlate` in `packages/core/src/correlation.ts`; its Takeaway is `co
 
 **Reference.** `referencePearson` in `packages/core/src/test/reference/analyses.ts` and `referenceBasis` in `basis.ts` work the same answer out another way. r equals the reference exactly up to the final square root. The basis choice is checked against NumPy and SciPy (`fixtures/basis.py`), the strength thresholds and the chance rule against the normal curve's 97.5 % point from SciPy (`fixtures/suitability.py`).
 
+### Correlation and monthly Metrics: why the number of months can count for less
+
+A Metric that is high this month is usually high next month too, so 36 months of it are not 36 separate looks. Fisher's z, which decides whether a correlation is clear of chance, counts every pair as a separate look. For two Metrics that each follow their own past it counts too many, and "moving together" came too easily. In a simulation of 2,000 pairs of Metrics with nothing to do with each other for each case (`takeaways/strength-simulation.test.ts`, through the same path as the Metric page), 5 % of white-noise pairs were called a strength, as the rule means, but 16 % to 34 % of pairs with a month-to-month carry-over of 0.8 over 12 to 60 months, 16 % to 53 % at a carry-over of 0.95, 18 % to 51 % of random walks and 56 % to 84 % of Metrics with a yearly season.
+
+Ziffr now judges the chance rule on the effective number of months: n ÷ (1 + 2 · Σ ρx(k) · ρy(k)) (Bartlett's rule), where ρ(k) is how closely each Metric follows itself k months before, over the first third of the months (the count the Heads-ups use, there up to 12 delays). The strength word still goes by the size of r alone (above 0.7 strong, above 0.4 moderate, above 0.2 weak); what the count changes is only whether it is clear of chance. The sentence and the basis say the real number of months. Where the count changed the word, the Takeaway says so and **Show the numbers** holds the effective number of months. Below 4, nothing is claimed.
+
+Measured again, 3 % to 6 % of independent pairs are given a strength at 12 to 60 months for white noise, carry-over of 0.5, 0.8 and 0.95, and random walks (5 % to 6 %), as for white noise. Two limits remain. Metrics that both have a yearly season still get a strength in 11 % to 17 % of pairs at 12, 36 and 60 months: a yearly pattern does not fade the way a carry-over does, so counting the delays up to a third of the months cannot fully allow for it, and with 12 months a season cannot be seen at all. Treat a strength between two seasonal Metrics as what they share through the year, not as a link. And the correction only judges chance; it does not say that two Metrics are linked.
+
 ## Drivers
 
 Function: `rankCorrelations` in `packages/core/src/correlation.ts`; its Takeaway is `driversTakeaway`.
