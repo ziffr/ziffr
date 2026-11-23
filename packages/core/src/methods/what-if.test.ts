@@ -312,6 +312,9 @@ describe("a formula worked out on ranges (the part of a what-if that follows an 
     const big = Array.from({ length: 9 }, () => "{a}").join(" * ");
     expect(range(big, { a: [1e308, 1e308] })).toBeNull();
     expect(range(Array.from({ length: 7 }, () => "{a}").join(" * "), { a: [1e308, 1e308] })).not.toBeNull();
+    // One end past the bound is enough, and a formula that is only a look back is null, not nothing.
+    expect(range(big, { a: [0, 1e308] })).toBeNull();
+    expect(evaluateRange("prev({a})", { a: { lo: fractionOf(1), hi: fractionOf(2) } })).toBeNull();
   });
   it(`equals the corners of the ranges, by the reference formula evaluator, for formulas that name each Metric once (${numRuns} generated)`, () => {
     const formulas = ["{a} * {b}", "{a} / {b}", "({a} - 7) / {b} * 100", "{a} + {b} * 2", "{b} / ({a} + 100)"];
@@ -802,7 +805,7 @@ describe("every check on what is handed over, one at a time (so that none can be
     const s: WorkedLink = { kind: "worked", target: "S", formula: "{a} * 2", names: { a: "A" }, levels: { A: 50 } };
     expect(whatIf({ start: { name: "A", latest: 50 }, change: { by: 1 }, links: [s] })).toMatchObject({ ok: true, span: null });
   });
-  it("refuses outside what was seen for every Metric a curved link feeds, not only the one it is the link of", () => {
+  it("refuses outside what was seen for every Metric a curved link feeds, since its own driver is outside for each of them", () => {
     const a = Array.from({ length: 24 }, (_, i) => i + 1);
     const curved = link("B", a.map((v) => v * v), [{ name: "A", x: a }]);
     expect(curved.fit.verdict.cautions.map((c) => c.case)).toContain("caution-curved");
@@ -811,6 +814,17 @@ describe("every check on what is handed over, one at a time (so that none can be
     const res = whatIf({ start: { name: "A", latest: 24 }, change: { by: 30 }, links: [curved, next] });
     if (!res.ok) throw new Error("refused");
     expect(res.reached.map((r) => (r.ok ? "ok" : r.refusal.case))).toEqual(["refuse-curved-outside", "refuse-curved-outside"]);
+  });
+  it("takes the percent of the size of the latest value, so that up is up where the value is below 0, and refuses a change beyond the doubles", () => {
+    const l = link("B", w.b, [{ name: "A", x: w.a }]);
+    expect(whatIf({ start: { name: "A", latest: -50 }, change: { percent: 10 }, links: [l] })).toMatchObject({ ok: true, by: 5, percent: 10 });
+    expect(whatIf({ start: { name: "A", latest: 1e300 }, change: { percent: 1e300 }, links: [l] })).toMatchObject({ ok: false, refusals: [{ case: "refuse-too-large" }] });
+  });
+  it("gives the drivers a fit treated as one, so that the Takeaway can say so", () => {
+    const merged = { kept: "A", with: ["Z"] };
+    const l = link("B", w.b, [{ name: "A", x: w.a }]);
+    const [r] = reachedOf(run([{ kind: "fit", fit: { ...l.fit, merged: [merged] } }], 1));
+    expect(r.merged).toEqual([merged]);
   });
   it("counts the lowest value a driver has been as inside, and one step below it as outside", () => {
     const l = link("B", w.b, [{ name: "A", x: w.a }]);

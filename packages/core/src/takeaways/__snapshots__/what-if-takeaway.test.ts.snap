@@ -14,7 +14,7 @@ exports[`how the Recipe chooses what to follow > fits again without the driver t
  "basis": "compared by value",
  "assumptions": [
   "Everything else is taken as staying where it was.",
-  "The effects were estimated from the same periods, so no independence between them is assumed: where a Metric rests on more than one, each range is cut wider, so that all of them hold together about four times in five.",
+  "The effects were estimated from the same periods, so no independence between them is assumed: where a Metric rests on more than one, each range is cut wider, so that all of them hold together at least four times in five.",
   "The links were picked for standing out from chance, which tends to make effects look larger than they are: read a range as a first look, not as a measurement.",
   "Which of two Metrics that move together comes first cannot be told from the numbers: the one that moves more closely with Base is read as coming first."
  ],
@@ -431,7 +431,7 @@ exports[`whole Takeaways, word for word (golden: any change to a sentence, a fig
  "basis": null,
  "assumptions": [
   "Everything else is taken as staying where it was.",
-  "The effects were estimated from the same periods, so no independence between them is assumed: where a Metric rests on more than one, each range is cut wider, so that all of them hold together about four times in five."
+  "The effects were estimated from the same periods, so no independence between them is assumed: where a Metric rests on more than one, each range is cut wider, so that all of them hold together at least four times in five."
  ],
  "cautions": [
   "The misses grow as the level grows, so the ranges are rough."
@@ -693,7 +693,7 @@ exports[`whole Takeaways, word for word (golden: any change to a sentence, a fig
  "basis": null,
  "assumptions": [
   "Everything else is taken as staying where it was.",
-  "The effects were estimated from the same periods, so no independence between them is assumed: where a Metric rests on more than one, each range is cut wider, so that all of them hold together about four times in five."
+  "The effects were estimated from the same periods, so no independence between them is assumed: where a Metric rests on more than one, each range is cut wider, so that all of them hold together at least four times in five."
  ],
  "cautions": [],
  "notes": [],
@@ -987,7 +987,7 @@ exports[`whole Takeaways, word for word (golden: any change to a sentence, a fig
   },
   {
    "label": "Revenue: change",
-   "text": "goes down 0 €"
+   "text": "no change"
   }
  ],
  "rows": [
@@ -1031,12 +1031,14 @@ exports[`whole Takeaways, word for word (golden: any change to a sentence, a fig
  "basis": "compared by value",
  "assumptions": [
   "Everything else is taken as staying where it was.",
-  "The effects were estimated from the same periods, so no independence between them is assumed: where a Metric rests on more than one, each range is cut wider, so that all of them hold together about four times in five.",
+  "The effects were estimated from the same periods, so no independence between them is assumed: where a Metric rests on more than one, each range is cut wider, so that all of them hold together at least four times in five.",
   "The links were picked for standing out from chance, which tends to make effects look larger than they are: read a range as a first look, not as a measurement.",
   "Which of two Metrics that move together comes first cannot be told from the numbers: the one that moves more closely with Visits is read as coming first."
  ],
  "cautions": [],
- "notes": [],
+ "notes": [
+  "Signups and Visits move so closely that Ziffr cannot tell which matters; treated as one, and the effect is in the unit of Signups."
+ ],
  "track": null,
  "footer": "This shows what has gone together, not what caused what.",
  "figures": [
@@ -1166,13 +1168,14 @@ exports[`whole Takeaways, word for word (golden: any change to a sentence, a fig
  "basis": "compared by value",
  "assumptions": [
   "Everything else is taken as staying where it was.",
-  "The effects were estimated from the same periods, so no independence between them is assumed: where a Metric rests on more than one, each range is cut wider, so that all of them hold together about four times in five.",
+  "The effects were estimated from the same periods, so no independence between them is assumed: where a Metric rests on more than one, each range is cut wider, so that all of them hold together at least four times in five.",
   "The links were picked for standing out from chance, which tends to make effects look larger than they are: read a range as a first look, not as a measurement.",
   "Which of two Metrics that move together comes first cannot be told from the numbers: the one that moves more closely with Visits is read as coming first."
  ],
  "cautions": [],
  "notes": [
-  "Left out, as they are more than 2 steps from the Metric that changes, so a change cannot be followed through them: Revenue per visit."
+  "Left out, as they are more than 2 steps from the Metric that changes, so a change cannot be followed through them: Revenue per visit.",
+  "Signups and Visits move so closely that Ziffr cannot tell which matters; treated as one, and the effect is in the unit of Signups."
  ],
  "track": null,
  "footer": "This shows what has gone together, not what caused what.",

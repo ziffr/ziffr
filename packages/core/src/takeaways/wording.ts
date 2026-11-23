@@ -320,7 +320,7 @@ const EN = {
   "whatif-end-none": "no change",
   "whatif-more": "{n} more are in the numbers below.",
   "whatif-assumes-rest": "Everything else is taken as staying where it was.",
-  "whatif-assumes-chain": "The effects were estimated from the same periods, so no independence between them is assumed: where a Metric rests on more than one, each range is cut wider, so that all of them hold together about four times in five.",
+  "whatif-assumes-chain": "The effects were estimated from the same periods, so no independence between them is assumed: where a Metric rests on more than one, each range is cut wider, so that all of them hold together at least four times in five.",
   "whatif-assumes-order": "Which of two Metrics that move together comes first cannot be told from the numbers: the one that moves more closely with {start} is read as coming first.",
   "basis-what-if-mixed": "compared by value or by change, as each link needed",
   "note-what-if-left": "Left out to stay within {most} Metrics: {names}.",

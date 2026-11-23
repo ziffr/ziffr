@@ -25,14 +25,14 @@
 // Outside what was seen (rule 7): where the driver's new value (or any end of its range) is higher or lower than the driver has been in the fit,
 // there is no range, only the point, and the Takeaway says to treat it as a guess; where the link looks curved there is nothing outside what was
 // seen at all (a refusal for that Metric). The cautions of the fits that are used (gaps, curve, spread, crowded drivers) are carried. A Metric
-// whose links are exact only is "worked out"; one with any estimated link is "estimated". A fit handed over is checked against its own rows.
+// whose links are exact only is "worked out"; one with any estimated link is "estimated". A fit handed over is checked against its own rows (its lowest and highest values, the strength word of each driver, the shape of the rest); its basis, last values, merged list and cautions are taken as given.
 import { fractionOf, lowestTerms, minus, nearest, over, plus, times, type Fraction } from "../exact";
 import type { Span } from "../periods";
 import { evaluateRange, formulaInputs, usesPrevious, type Bounds } from "../formula";
 import type { Finding, Verdict } from "../suitability";
 import { strengthOf, type StrengthWord } from "../takeaways/strength";
 import { tQuantile } from "./distributions";
-import { again, carried, modelProblem, partialPeriods, type Again, type Fit, type Outside, type Refused } from "./fit";
+import { again, carried, modelProblem, partialPeriods, type Again, type Fit, type Merged, type Outside, type Refused } from "./fit";
 
 /** The most steps a what-if follows: the Metrics the change reaches, and the Metrics those reach (spec 0041, "Limits"). */
 export const MOST_STEPS = 2;
@@ -84,6 +84,8 @@ export type Reached = {
   strength: StrengthWord | null;
   /** True where any fit it rests on is compared by change: the change is then in the next period, from the latest level. */
   byChange: boolean;
+  /** Drivers the fits it rests on treated as one with another (the one that stays is in the fit; the others' effects are in its). */
+  merged: Merged[];
   /** The cautions of the fits it rests on that still hold for a what-if. */
   verdict: Verdict;
 };
@@ -336,7 +338,7 @@ export function whatIf(input: WhatIfInput): WhatIf {
   if (bad) return refuseInput(bad);
   // A percent of nothing is nothing: the latest value must say what the change is a part of.
   if (kind === "percent" && start.latest === 0) return refuse("refuse-what-if-percent", { name: start.name });
-  const by = kind === "by" ? fractionOf(amount) : lowestTerms(over(mul(fractionOf(start.latest), fractionOf(amount)), { num: BigInt(100), den: ONE }));
+  const by = kind === "by" ? fractionOf(amount) : lowestTerms(over(mul(fractionOf(Math.abs(start.latest)), fractionOf(amount)), { num: BigInt(100), den: ONE }));
   if (by.num === ZERO) return refuseInput("the change");
   const targets = links.map(targetOf);
   if (new Set(targets).size !== targets.length) return refuseInput("the Metrics' names");
@@ -355,6 +357,8 @@ export function whatIf(input: WhatIfInput): WhatIf {
   if (spans.length > 1) return refuse("refuse-what-if-periods");
   const p0 = plan(start.name, links);
   if (isFinding(p0)) return { ok: false, refusals: [p0] };
+  // A change beyond the doubles is not worked out.
+  if (!Number.isFinite(nearest(by))) return refuse("refuse-too-large");
   const exactly = evaluate(p0, null, start.name, by);
   const reached = [...p0.order]
     .sort()
@@ -379,9 +383,9 @@ export function whatIf(input: WhatIfInput): WhatIf {
       const edges = fits.map((sn) => outsideOfFit(sn.link, sn.changes, start));
       const outside = outsides.flat();
       const beyond = edges.flat().filter((o) => !outside.some((x) => x.name === o.name));
-      // A link that looks curved gives nothing outside what was seen, point or range, anywhere along the chain.
-      const outer = [...outside, ...beyond];
-      if (outer.length > 0 && fits.some((sn) => carried(sn.link.fit).cautions.some((f) => f.case === "caution-curved"))) return { ok: false, name, step, refusal: { case: "refuse-curved-outside", slots: { name: outer[0].name } } };
+      // A link that looks curved gives nothing outside what was seen: refused where it is its own driver that is outside (point or range).
+      const curved = fits.findIndex((sn, i) => (outsides[i].length > 0 || edges[i].length > 0) && carried(sn.link.fit).cautions.some((f) => f.case === "caution-curved"));
+      if (curved >= 0) return { ok: false, name, step, refusal: { case: "refuse-curved-outside", slots: { name: [...outsides[curved], ...edges[curved]][0].name } } };
       const cautions = [...new Map(fits.flatMap((s) => carried(s.link.fit).cautions).map((f) => [JSON.stringify(f), f])).values()];
       const words = [...range.used.values()].map((c) => c.link.fit.drivers[c.j].strength);
       const weakest = words.length === 0 ? null : WEAKEST.find((w) => words.includes(w))!;
@@ -401,6 +405,7 @@ export function whatIf(input: WhatIfInput): WhatIf {
         level,
         byChange: fits.some((f) => f.link.fit.basis === "changes"),
         strength: weakest === "strong" && cautions.length > 0 ? "moderate" : weakest,
+        merged: [...new Map(fits.flatMap((sn) => sn.link.fit.merged).map((m) => [JSON.stringify(m), m])).values()],
         verdict: { refusals: [], cautions, switches: [] },
       };
     })

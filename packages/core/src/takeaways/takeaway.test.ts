@@ -171,7 +171,7 @@ describe("the wording", () => {
     "whatif-end-up": [{ amount: "300 €" }, "300 € up"], "whatif-end-down": [{ amount: "300 €" }, "300 € down"], "whatif-end-none": [{}, "no change"],
     "whatif-more": [SAMPLE, "18 more are in the numbers below."],
     "whatif-assumes-rest": [{}, "Everything else is taken as staying where it was."],
-    "whatif-assumes-chain": [{}, "The effects were estimated from the same periods, so no independence between them is assumed: where a Metric rests on more than one, each range is cut wider, so that all of them hold together about four times in five."],
+    "whatif-assumes-chain": [{}, "The effects were estimated from the same periods, so no independence between them is assumed: where a Metric rests on more than one, each range is cut wider, so that all of them hold together at least four times in five."],
     "whatif-assumes-order": [{ start: "Visits" }, "Which of two Metrics that move together comes first cannot be told from the numbers: the one that moves more closely with Visits is read as coming first."],
     "basis-what-if-mixed": [{}, "compared by value or by change, as each link needed"],
     "note-what-if-left": [SAMPLE, "Left out to stay within 12 Metrics: Visits and Price."],

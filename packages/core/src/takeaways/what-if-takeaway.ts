@@ -58,7 +58,7 @@ export function whatIfTakeaway(start: Metric, metrics: Metric[], result: WhatIf,
   // A Metric that is not among those given is never written in another Metric's unit: nothing is said.
   // Names in the lines a verdict or a refusal carries count too: nothing is written about a Metric that was not given.
   const inSlots = (f: { slots: Record<string, unknown> }) => [...(typeof f.slots.name === "string" ? [f.slots.name] : []), ...(typeof f.slots.names === "string" ? f.slots.names.split(", ") : [])];
-  const named = result.reached.flatMap((r) => (r.ok ? [r.name, ...r.through, ...r.outside.map((o) => o.name), ...r.beyond.map((o) => o.name), ...r.verdict.cautions.flatMap(inSlots)] : [r.name, ...inSlots(r.refusal)]));
+  const named = result.reached.flatMap((r) => (r.ok ? [r.name, ...r.through, ...r.outside.map((o) => o.name), ...r.beyond.map((o) => o.name), ...r.verdict.cautions.flatMap(inSlots), ...r.merged.flatMap((g) => [g.kept, ...g.with])] : [r.name, ...inSlots(r.refusal)]));
   if (named.some((n) => known(n) === undefined)) return { ...refusalTakeaway(method, [text("refuse-input", ctx, { what: "the Metrics" })]), rows: [] };
   const metricOf = (name: string) => known(name)!;
   const span = (result.span ?? start.period) as Span;
@@ -82,7 +82,8 @@ export function whatIfTakeaway(start: Metric, metrics: Metric[], result: WhatIf,
       const moves = text(r.effect > 0 ? "whatif-goes-up" : "whatif-goes-down", ctx);
       const shown = written(m, Math.abs(r.effect), ctx);
       if (!legible(m, [Math.abs(r.effect)], ctx)) return refusedRow({ name: r.name, step: r.step }, text("refuse-what-if-small", ctx));
-      numbers.push({ label: text("numbers-effect-on", ctx, { name: r.name }), text: `${moves} ${shown}` });
+      if (r.effect === 0) numbers.push({ label: text("numbers-effect-on", ctx, { name: r.name }), text: text("whatif-end-none", ctx) });
+      else numbers.push({ label: text("numbers-effect-on", ctx, { name: r.name }), text: `${moves} ${shown}` });
       if (r.effect === 0) return { ...base, kind: "worked-out", effect: 0, lo: null, hi: null, strength: null, strengthText: null, sentence: text("whatif-row-worked-same", ctx, { name: r.name }) };
       figures.push(figure(r.name, Math.abs(r.effect), shown));
       return { ...base, kind: "worked-out", effect: r.effect, lo: null, hi: null, strength: null, strengthText: null, sentence: text("whatif-row-worked", ctx, { name: r.name, moves, effect: shown }) };
@@ -140,12 +141,15 @@ export function whatIfTakeaway(start: Metric, metrics: Metric[], result: WhatIf,
   // Stryker disable next-line ConditionalExpression: the percent is written only for the percent headline, so a 0 written where there is none is never read
   const slots = { start: start.name, goes: text(result.by > 0 ? "whatif-goes-up" : "whatif-goes-down", ctx), by: startText, when: allByChange ? text("whatif-when-next", ctx, { span }) : "", pct: result.percent === null ? "" : formatNumber(Math.abs(result.percent), percentDigits(Math.abs(result.percent)), ctx.style) };
   const headline = text(result.percent === null ? "whatif-headline" : "whatif-headline-percent", ctx, slots);
+  if (result.percent !== null && !/[1-9]/.test(slots.pct)) return { ...refusalTakeaway(method, [`${start.name}: ${text("refuse-what-if-small", ctx)}`]), rows: [] };
   if (result.percent !== null) figures.push(figure(`${start.name} %`, Math.abs(result.percent), slots.pct));
   // The weakest of every estimated row, one that cannot be told from chance included.
   const strength = WEAKEST.find((w) => rows.some((r) => r.strength === w)) ?? null;
   const modes = new Set(fits.map((f) => f.basis));
   const basis = fits.length === 0 ? null : modes.size > 1 ? text("basis-what-if-mixed", ctx) : text(fits[0].basis === "changes" ? "basis-changes" : "basis-values", ctx);
   const distinct = [...new Set(cautions)];
+  // Drivers a fit treated as one are said, once each, in the words of the fits.
+  const merged = [...new Map(result.reached.flatMap((r) => (r.ok ? r.merged : [])).map((g) => [JSON.stringify(g), g])).values()].map((g) => text("note-merged", ctx, { names: listOf([g.kept, ...g.with], ctx), kept: g.kept }));
   return {
     ...answerTakeaway(method),
     sentence: [headline, ...first, ...(more > 0 ? [text("whatif-more", ctx, { n: more })] : [])].join(" "),
@@ -155,6 +159,7 @@ export function whatIfTakeaway(start: Metric, metrics: Metric[], result: WhatIf,
     basis,
     assumptions: [text("whatif-assumes-rest", ctx), ...(estimated.some((r) => r.coefficients > 1) ? [text("whatif-assumes-chain", ctx)] : []), ...(byChange > 0 && !allByChange ? [text("whatif-assumes-next", ctx, { span })] : [])],
     cautions: distinct,
+    notes: merged,
     footer: estimated.length > 0 ? footerText(ctx) : null,
     figures,
     numbers,
@@ -278,7 +283,8 @@ export function whatIfRecipe(start: Metric, change: WhatIfChange, others: Metric
   }
   const ranked = firstFound.sort(order);
   const first = ranked.slice(0, MOST_FIRST);
-  const cutFirst = ranked.slice(MOST_FIRST).map((f) => f.target.name);
+  const namesOf = (fs: Found[]) => fs.map((f) => f.target.name);
+  const cutFirst = namesOf(ranked.slice(MOST_FIRST));
   const firstMetrics = first.map((f) => f.target);
 
   // Each Metric that may have moved with the first step is fitted on the changed Metric and the first-step Metrics nearer to it, the ones that cannot be told
@@ -300,7 +306,10 @@ export function whatIfRecipe(start: Metric, change: WhatIfChange, others: Metric
     return f.ok && f.drivers.some((d) => d.strength !== "cant-tell") ? estimated(t, f) : null;
   };
   const isInFirst = new Set(first.map((f) => f.target.id));
-  const pool2 = [...new Map([...firstMetrics, ...firstMetrics.flatMap((b) => closest(b, pool.filter((m) => !isInFirst.has(m.id) && !builds(m, start)), MOST_PER_STEP))].map((m) => [m.id, m])).values()];
+  // Metrics left out of the first step, or not looked at, are not brought back in as the second: the notes say they were left out.
+  const looked = new Set(closest(start, candidates1, MOST_LOOKED_AT).map((m) => m.id));
+  const cutIds = new Set(ranked.slice(MOST_FIRST).map((f) => f.target.id));
+  const pool2 = [...new Map([...firstMetrics, ...firstMetrics.flatMap((b) => closest(b, pool.filter((m) => !isInFirst.has(m.id) && !builds(m, start) && looked.has(m.id) && !cutIds.has(m.id)), MOST_PER_STEP))].map((m) => [m.id, m])).values()];
   const links: Found[] = [];
   for (const t of pool2) {
     const l = linkFor(t);
@@ -313,7 +322,7 @@ export function whatIfRecipe(start: Metric, change: WhatIfChange, others: Metric
   const [sure, more] = [links.filter((f) => isInFirst.has(f.target.id)), links.filter((f) => !isInFirst.has(f.target.id)).sort(order)];
   const room = Math.max(0, MOST_METRICS - 1 - sure.length);
   let found = [...sure, ...more.slice(0, room)];
-  const dropped = more.slice(room).map((f) => f.target.name);
+  const dropped = namesOf(more.slice(room));
   // The link of a Metric that is too far is left out, until the rest can be followed (the links made here never drive each other).
   const gone: string[] = [];
   // Stryker disable next-line ConditionalExpression,LogicalOperator,EqualityOperator: the loop runs while the links are too far; with none left the plan is `none`, not too far, and `case` is only there on a finding, so each of these conditions says the same
