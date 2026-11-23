@@ -43,6 +43,7 @@ const LIMIT_NOUNS: Record<string, string> = {
 
 /** The sentence for a row cap that was reached; an unknown kind gets the general one. */
 export function demoLimitWords(kind: string): string {
+  if (kind === "starting") return "The demo is starting fresh. Try again in a moment.";
   const noun = LIMIT_NOUNS[kind];
   return noun ? `The demo is full of ${noun} for now. Try again when it starts fresh.` : "The demo is full for now. Try again when it starts fresh.";
 }

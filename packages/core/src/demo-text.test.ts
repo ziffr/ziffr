@@ -88,6 +88,7 @@ describe("the limits' numbers and words", () => {
     expect(DEMO_ROW_CAPS).toMatchObject({ dashboards: 25, widgets_per_dashboard: 40, saved_widgets: 50, decks: 15, snapshots: 20, metrics: 15, templates: 15, workflows: 10, groups: 10, tags: 20, open_actions: 300, values: 2000 });
     expect(demoLimitWords("dashboards")).toContain("dashboards");
     expect(demoLimitWords("nonsense")).toMatch(/full/);
+    expect(demoLimitWords("starting")).toBe("The demo is starting fresh. Try again in a moment.");
   });
 
   it("a deck's store is at most 512 KB in bytes", () => {

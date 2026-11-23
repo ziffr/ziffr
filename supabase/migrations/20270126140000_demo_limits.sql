@@ -37,10 +37,21 @@ insert into demo_limits (kind, max_rows, scope_column, filter_column, filter_val
 
 -- When the seed of this Generation was finished. A reset makes the demo in one transaction (`reset_at`, its start), but
 -- the core then writes more seed rows in steps of their own (Snapshots, the close, the Outbox), which are created after
--- `reset_at`. The core sets this when the last step is done; until then (and on a demo that was never reset since this
--- migration) the cap counts from `reset_at`, which can only make a cap fire early, never late. Seed rows are then never
--- counted against visitors.
+-- `reset_at`. The core says when the last step is done (`demo_seed_done`, which takes the DATABASE's clock, so the rows'
+-- created_at and this time are one clock); until then a visitor's write to a limited table is refused ("starting
+-- fresh"), so no visitor row is made in the gap, and seed rows are never counted against visitors.
 alter table demo_state add column seed_done_at timestamptz;
+
+-- On a demo that was never reset since this migration there is no end to wait for: it counts as done at its last reset.
+update demo_state set seed_done_at = reset_at where seed_done_at is null and reset_at is not null;
+
+-- Marks the seed of this Generation as finished, by the database's clock. Called by the core after the last seed step.
+create or replace function demo_seed_done() returns void
+language sql security definer set search_path = public as $$
+  update demo_state set seed_done_at = now() where id;
+$$;
+revoke execute on function demo_seed_done() from public, anon, authenticated;
+grant execute on function demo_seed_done() to service_role;
 
 -- Every seed of the demo makes its Workspace again: as before (20270125120000), the Generation moves and the flag clears
 -- in the same transaction, and now the seed's end is unknown again until the core says it is done.
@@ -54,7 +65,7 @@ end $$;
 revoke execute on function demo_state_on_reset() from public, anon, authenticated;
 
 -- The row-cap trigger: before a row is inserted into the demo, or changed so that it becomes one of a kind, counts the
--- rows of this kind that visitors made since the seed was done (created after it) and refuses with ZF4D2 when the cap is
+-- rows of this kind that visitors made since the seed was done (created after it; while the seed is unfinished the write is refused) and refuses with ZF4D2 when the cap is
 -- reached. It takes the demo Workspace's row lock first (NO KEY UPDATE: it does not conflict with the foreign-key checks
 -- of other inserts), so two requests at the last place cannot both pass. The seed is never limited.
 -- An UPDATE is checked only when it moves a row into a kind or into another scope (the trigger fires only for an UPDATE of
@@ -83,7 +94,9 @@ begin
     end if;
   end if;
   perform 1 from workspaces where id = 'd3e00000-0000-4000-8000-000000000001' for no key update;
-  select coalesce(seed_done_at, reset_at) into since from demo_state where id;
+  select seed_done_at into since from demo_state where id;
+  -- The seed is not finished (or there is no state): fail closed, never count from the reset's start.
+  if since is null then raise exception using errcode = 'ZF4D2', message = 'demo_limit:starting'; end if;
   execute format(
     'select count(*) from %I.%I where workspace_id = $1 and created_at > coalesce($2, ''-infinity''::timestamptz)%s%s',
     tg_table_schema, tg_table_name,

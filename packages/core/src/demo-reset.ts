@@ -63,11 +63,11 @@ export async function resetDemoWorkspace(opts: { onlyWhenNeeded?: boolean; openT
   return true;
 }
 
-/** Says the seed of this Generation is finished: the rows the steps above wrote after the reset's transaction (Snapshots,
- * the close, the Outbox) are the seed's, and visitors' row caps must not count them (migration 20270126140000). Not
- * done, the caps count from the reset's start instead, which is only ever stricter. */
+/** Says the seed of this Generation is finished, by the database's clock: the rows the steps above wrote after the reset's
+ * transaction (Snapshots, the close, the Outbox) are the seed's, and visitors' row caps must not count them. Until it is
+ * said, a visitor's write to a capped table is refused as "starting fresh" (migration 20270126140000). */
 export async function markDemoSeedDone(): Promise<void> {
-  const { error } = await db().from("demo_state").update({ seed_done_at: new Date().toISOString() }).eq("id", true);
+  const { error } = await db().rpc("demo_seed_done");
   if (error) console.error("Demo: the seed's end was not marked", error.message);
 }
 
