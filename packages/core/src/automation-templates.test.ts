@@ -83,7 +83,7 @@ describe("every template in docs/automations: shape", () => {
 
 // ---- Feed templates (spec 0043) ----
 
-const FEED_ALLOWED = new Set([...ALLOWED, "n8n-nodes-base.googleSheets"]);
+const FEED_ALLOWED = new Set([...ALLOWED, "n8n-nodes-base.googleSheets", "n8n-nodes-base.microsoftExcel"]);
 type FeedIndex = { templates: { id: string; label: string; file: string; guide: string; reads: string; needs: string }[] };
 
 describe("Feed templates in docs/automations (spec 0043)", () => {
@@ -200,6 +200,49 @@ describe("stripe-feed.json and hubspot-feed.json: only reads, only figures", () 
       expect(JSON.stringify(trigger.parameters)).toContain('"months"');
     });
   }
+});
+
+describe("excel-feed.json: from the rows of an Excel table to plain rows", () => {
+  const wf = load("excel-feed.json");
+  const figures = (rows: Param[]) => runNode(wf, "Figures", { items: rows.map((json) => ({ json })) }).then((x) => x[0].json as { rows: Param[]; none: string });
+  const shape = (rows: Param[]) => shaped(wf, { items: rows.map((json) => ({ json })) }).then((x) => x[0].json as { items: Param[]; skipped: { row: number; why: string }[] });
+  it("only reads: one table, Get Rows, with the login in n8n's credential", () => {
+    const read = wf.nodes.find((n) => n.name === "Read the table")!;
+    expect(read.parameters).toMatchObject({ resource: "table", operation: "getRows", returnAll: true });
+    expect(JSON.stringify(read)).toContain("microsoftExcelOAuth2Api");
+    expect(wf.nodes.filter((n) => n.type === "n8n-nodes-base.microsoftExcel")).toHaveLength(1);
+  });
+  it("turns an Excel date (days since 30 December 1899) into the day it stands for, and leaves a day written out alone", async () => {
+    const out = await figures([
+      { metric: "a", value: 1, period: 45931 },          // 2025-10-01
+      { metric: "b", value: 2, period: 46296 },          // 2026-10-01
+      { metric: "c", value: 3, period: "46296" },        // the same, as text
+      { metric: "d", value: 4, period: 46296.75 },       // a time of day on it: the day
+      { metric: "e", value: 5, period: "2026-10-01" },   // already a day
+      { metric: "f", value: 6 },                         // no period: the current one
+    ]);
+    expect(out.rows.map((r) => r.period)).toEqual(["2025-10-01", "2026-10-01", "2026-10-01", "2026-10-01", "2026-10-01", undefined]);
+  });
+  it("leaves a number that cannot be a date as it is, so it is refused with its row named", async () => {
+    const out = await shape([{ metric: "ok", value: 1 }, { metric: "x", value: 1, period: 5 }, { metric: "y", value: 1, period: 99999999 }]);
+    expect(out.items).toEqual([{ metric: "ok", value: 1 }]);
+    expect(out.skipped.map((s) => s.row)).toEqual([3, 4]);
+    expect(out.skipped.every((s) => /YYYY-MM-DD/.test(s.why))).toBe(true);
+  });
+  it("reads headers without regard to capitals or spaces, sends only the three columns, and skips what Ziffr would refuse", async () => {
+    const out = await shape([
+      { " Metric ": "headcount", VALUE: 42, Period: 45931, Notes: "left out", Secret: "left out" },
+      { metric: "Not A Slug", value: 1 },
+      { metric: "pct", value: "12%" },
+      { metric: "", value: "" },
+    ]);
+    expect(out.items).toEqual([{ metric: "headcount", period: "2025-10-01", value: 42 }]);
+    expect(JSON.stringify(out)).not.toMatch(/left out/);
+    expect(out.skipped.map((s) => s.row)).toEqual([3, 4]);
+  });
+  it("fails the run, in words, when the table holds nothing to send", async () => {
+    await expect(shape([{ metric: "", value: "" }])).rejects.toThrow(/the table has the columns metric, value/);
+  });
 });
 
 describe("stripe-feed.json: from subscriptions to three figures", () => {
@@ -341,6 +384,7 @@ describe("every Feed template meets the same contract", () => {
   const ids = (JSON.parse(readFileSync(new URL("feed-templates.json", dir), "utf8")) as FeedIndex).templates;
   /** For each template, what its source hands over for two Metrics, `m-a` (a past period) and `m-b`. */
   const SOURCES: Record<string, { items?: { json: Param }[]; nodes?: Record<string, { json: Param }[]>; past: string }> = {
+    excel: { items: [{ json: { metric: "m-a", value: 1, period: 45931 } }, { json: { Metric: "m-b", Value: 2 } }], past: "2025-10-01" },
     "google-sheets": { items: [{ json: { metric: "m-a", value: "1", period: "2025-10-01" } }, { json: { metric: "m-b", value: "2" } }], past: "2025-10-01" },
     stripe: {
       nodes: {
