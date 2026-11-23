@@ -145,7 +145,8 @@ export const MOST_PERIODS = 120;
 export function latestCommon(series: Point[][], most: number = MOST_PERIODS): { series: Point[][]; cut: number | null } {
   const read = series.map((s) => readSeries(s));
   const [first, ...others] = read.map((s) => new Set(s.map((p) => p.period)));
-  const common = [...first].filter((period) => others.every((o) => o.has(period))).sort();
+  // (`readSeries` gives the periods oldest first, and a set keeps the order it was given in.)
+  const common = [...first].filter((period) => others.every((o) => o.has(period)));
   if (common.length <= most) return { series: read, cut: null };
   const kept = new Set(common.slice(-most));
   return { series: read.map((s) => s.filter((p) => kept.has(p.period))), cut: most };

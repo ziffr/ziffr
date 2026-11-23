@@ -169,6 +169,7 @@ export function rankCorrelations(metric: Metric, metrics: Metric[], resolve: Res
   const leftOut: LeftOut[] = [];
   // One work allowance (work-bound.ts) for the whole ranking, so that a page with many Metrics cannot be kept busy: the pairs that are left when it is
   // spent are not compared, which is said (one note for them all), and the ranking of the ones that were is exact.
+  // Stryker disable next-line ObjectLiteral,StringLiteral: the style only writes numbers, and this note has none.
   const spent = say("note-not-compared", {}, { style: "1,234.5" });
   withWork(() => {
     for (const m of metrics) {

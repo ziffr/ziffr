@@ -245,6 +245,11 @@ describe("latestCommon", () => {
     expect(series[0].map((p) => p.period)).toEqual(series[1].map((p) => p.period));
     expect(series[0]).toHaveLength(120);
     expect(series[0][119].period).toBe(a[199].period);
+    // Periods the first series has and another lacks are not common: the cut is of the common ones, so each series keeps the same 120.
+    const holes = run(0, 200).filter((_, i) => i < 150 || i > 160);
+    const gap = latestCommon([run(0, 200), holes]);
+    expect(gap.series[0].map((p) => p.period)).toEqual(gap.series[1].map((p) => p.period));
+    expect(gap.series[0]).toHaveLength(120);
     const twice = latestCommon([[...run(0, 3, () => 1), ...run(0, 3, () => 2)]], 2);
     expect(twice.series[0].map((p) => p.value)).toEqual([2, 2]);
     expect(twice.cut).toBe(2);
