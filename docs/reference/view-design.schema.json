@@ -1560,6 +1560,51 @@
         },
         {
           "type": "object",
+          "description": "Values around a circle: the periods of a series as angles in the order given, the values as the distance from the centre, which is 0; 3 to 12 periods, none below 0.",
+          "properties": {
+            "mark": {
+              "const": "polar"
+            },
+            "show": {
+              "type": "string",
+              "pattern": "^(?:values|recipe\\.[a-z][a-zA-Z0-9]{0,23})$",
+              "description": "one of “values”, or “recipe.” and a step of the design's analysis (a series)"
+            },
+            "when": {
+              "$ref": "#/$defs/when"
+            }
+          },
+          "required": [
+            "mark",
+            "show"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "description": "Several Metrics as spokes on one shape, in the order of the Slots, 3 to 12 of them: each spoke has its own scale, from the Metric's lowest value of the periods shown at the centre to its highest at the rim. With against, the period before is drawn as a second, dashed shape.",
+          "properties": {
+            "mark": {
+              "const": "radar"
+            },
+            "show": {
+              "const": "latest"
+            },
+            "against": {
+              "const": "previous"
+            },
+            "when": {
+              "$ref": "#/$defs/when"
+            }
+          },
+          "required": [
+            "mark",
+            "show"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
           "description": "One bar per row, from its low to its high end, with its middle value: a driver's effect with its range (the table of the `effects` step of the design's analysis).",
           "properties": {
             "mark": {

@@ -49,7 +49,12 @@ export type Part =
   | { mark: "gauge"; show: "latest"; when?: Flag[] }
   | { mark: "rows"; show: "values" | "correlations" | "matrix" | "reasons"; limit?: "rows" | number; when?: Flag[] }
   | { mark: "range"; show: RecipeShow; tone?: Tone; when?: Flag[] }
-  | { mark: "bridge"; show: RecipeShow; when?: Flag[] };
+  | { mark: "bridge"; show: RecipeShow; when?: Flag[] }
+  | { mark: "polar"; show: "values" | RecipeShow; when?: Flag[] }
+  | { mark: "radar"; show: "latest"; against?: "previous"; when?: Flag[] };
+
+/** How many spokes (a radar) or periods (a polar plot) are drawn, at least and at most: fewer than 3 is a line, more than 12 cannot be read. */
+export const SPOKES = { min: 3, max: 12 } as const;
 
 /** A place a design is filled with Metrics when it is used (GLOSSARY: Slot): one, or several for small multiples. */
 export type DesignSlot = { label: string; metrics: "one" | "several"; min?: number };
@@ -215,6 +220,8 @@ export const VIEW_DESIGN_SCHEMA: Schema = {
         }, ["axes", "marks"]),
         mark("gauge", "Where the latest value sits against the target.", { show: { const: "latest" } }, ["show"]),
         mark("rows", "Table rows: the latest values; the Metrics ranked by how much they move with the first (correlations), or every pair (matrix); or why Metrics were left out of a comparison (reasons).", { show: { enum: ["values", "correlations", "matrix", "reasons"] }, limit: { oneOf: [{ type: "string", enum: ["rows"] }, { type: "integer", minimum: 1, maximum: 120 }] } }, ["show"]),
+        mark("polar", `Values around a circle: the periods of a series as angles in the order given, the values as the distance from the centre, which is 0; ${SPOKES.min} to ${SPOKES.max} periods, none below 0.`, { show: shows(["values"], true, "a series") }, ["show"]),
+        mark("radar", `Several Metrics as spokes on one shape, in the order of the Slots, ${SPOKES.min} to ${SPOKES.max} of them: each spoke has its own scale, from the Metric's lowest value of the periods shown at the centre to its highest at the rim. With against, the period before is drawn as a second, dashed shape.`, { show: { const: "latest" }, against: { const: "previous" } }, ["show"]),
         mark("range", "One bar per row, from its low to its high end, with its middle value: a driver's effect with its range (the table of the `effects` step of the design's analysis).", { show: recipeTable("a table with a low and a high end for each row, from the `effects` step"), tone }, ["show"]),
         mark("bridge", "Steps from a start, each part going up or down, and an end (the table of the `bridge` step of the design's analysis).", { show: recipeTable("the table of the `bridge` step") }, ["show"]),
       ],
@@ -261,6 +268,8 @@ function meaning(d: ViewDesign, lines: Map<string, number>): Problem[] {
   const out: Problem[] = [];
   const at = (path: string, message: string) => out.push({ path, line: lines.get(path) ?? null, message });
   const metrics = d.slots.reduce((n, s) => n + (s.metrics === "several" ? 2 : 1), 0);
+  // The fewest Metrics the design always has: a Slot of several holds at least its "min".
+  const fewest = d.slots.reduce((n, s) => n + (s.metrics === "several" ? (s.min ?? 1) : 1), 0);
   let count = 0;
   const flagsOk = (when: Flag[] | undefined, path: string) => {
     for (const [n, f] of (when ?? []).entries()) if ((f === "showTarget" || f === "showForecast") && !d.options?.[f]) at(`${path}.when[${n}]`, `uses the option “${f}”, which the design does not declare under options.`);
@@ -289,6 +298,7 @@ function meaning(d: ViewDesign, lines: Map<string, number>): Problem[] {
         });
       if (p.mark === "rows" && p.limit === "rows" && !d.options?.rows) at(`${here}.limit`, "uses the option “rows”, which the design does not declare under options.");
       if (p.mark === "rows" && p.show !== "values") needsTwo(here, `Rows of ${p.show}`);
+      if (p.mark === "radar" && (fewest < SPOKES.min || fewest > SPOKES.max)) at(here, `A radar needs ${SPOKES.min} to ${SPOKES.max} spokes: give the design ${SPOKES.min} Slots, or a Slot of several with “min”: ${SPOKES.min}, and no more than ${SPOKES.max} in all.`);
     });
   walk(d.parts, "parts");
   recipeUse(d, lines, at);
@@ -337,6 +347,7 @@ function recipeUse(d: ViewDesign, lines: Map<string, number>, at: (path: string,
       if (p.mark === "group") walk(p.parts, `${here}.parts`);
       if (p.mark === "range" || p.mark === "bridge") useTable(p.mark, p.show, `${here}.show`);
       if (p.mark === "plot") p.marks.forEach((m, k) => use(m.show, `${here}.marks[${k}].show`, m.mark === "rule" ? "value" : "series"));
+      if (p.mark === "polar") use(p.show, `${here}.show`, "series");
       if (p.mark === "text") p.content.forEach((c, k) => typeof c !== "string" && use(c.show, `${here}.content[${k}].show`, "any"));
     });
   walk(d.parts, "parts");

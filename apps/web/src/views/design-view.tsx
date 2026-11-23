@@ -29,6 +29,7 @@ import { ApprovalMark } from "./approval-mark";
 import { DesignPlot } from "./design-plot";
 import { DesignBridge } from "./design-bridge";
 import { DesignRange } from "./design-range";
+import { PolarMark, RadarMark } from "./design-polar";
 import { useWidgetScale } from "./widget-scale";
 
 type Props = {
@@ -93,7 +94,7 @@ function designValues(design: ViewDesign, widget: Pick<Widget, "settings">, metr
   // The target band shows when there is a range, and, for a combined series, when its spans have one.
   const band = (!combined || !!targets?.range) && (m.target_min !== null || m.target_max !== null);
   // The design's Analysis Recipe, on the series the widget shows of its own Metrics, by the library's functions.
-  return { basis, m, metrics, by, all, pts, last, combined, targets, note, flags, fc, correlation, correlationTake, forecastTake, drivers, driversTake, matrix, band, goal, name, data, settings: s, recipe, analysis: design.analysis ?? null };
+  return { basis, m, metrics, by, all, pts, last, combined, targets, note, flags, fc, correlation, correlationTake, forecastTake, drivers, driversTake, matrix, band, goal, name, data, settings: s, recipe, analysis: design.analysis ?? null, offersDisplay: !!design.options?.display, win };
 }
 
 /** Which of the core's results a design needs, so a number widget never runs a correlation. */
@@ -205,8 +206,8 @@ function TakeawayPanel({ v, host, title }: { v: DesignValues; host: Extract<NonN
 
 const drawn = (when: Flag[] | undefined, v: DesignValues) => (when ?? []).every((f) => v.flags[f]);
 
-/** Whether any part drawn takes the free space: a plot, a gauge or rows. */
-const growing = (parts: Part[], v: DesignValues): boolean => parts.some((p) => drawn(p.when, v) && (p.mark === "group" ? growing(p.parts, v) : p.mark === "plot" || p.mark === "gauge" || p.mark === "rows" || p.mark === "range" || p.mark === "bridge"));
+/** Whether any part drawn takes the free space: a plot, a gauge, a polar plot, a radar or rows. */
+const growing = (parts: Part[], v: DesignValues): boolean => parts.some((p) => drawn(p.when, v) && (p.mark === "group" ? growing(p.parts, v) : p.mark === "plot" || p.mark === "gauge" || p.mark === "rows" || p.mark === "polar" || p.mark === "radar" || p.mark === "range" || p.mark === "bridge"));
 
 function PartView({ part, v, ctx }: { part: Part; v: DesignValues; ctx?: (period: string) => void }): ReactNode {
   if (!drawn(part.when, v)) return null;
@@ -235,6 +236,10 @@ function PartView({ part, v, ctx }: { part: Part; v: DesignValues; ctx?: (period
       return <TableMark part={part} v={v} />;
     case "gauge":
       return <GaugeMark v={v} />;
+    case "polar":
+      return <PolarMark part={part} v={v} />;
+    case "radar":
+      return <RadarMark part={part} v={v} />;
     case "rows":
       if (part.show === "values") return <ValueRows v={v} limit={part.limit === "rows" ? v.settings.rows ?? 6 : part.limit ?? 6} ctx={ctx} />;
       if (part.show === "matrix") return <MatrixRows v={v} />;
