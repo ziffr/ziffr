@@ -21,7 +21,7 @@ concurrency:
   # the push run of the very commit it tags. The merge queue replaces groups itself.
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 jobs:
-  # Everything quick, in three jobs that run side by side and one `check` that answers for them (branch protection asks for
+  # Everything quick, in jobs that run side by side (hygiene, bookkeeping, static and the unit tests) and one `check` that answers for them (branch protection asks for
   # `check`): the quick hygiene scripts (a missing release note or guide chapter, a client component importing the database,
   # an edited migration, prose, secrets) need no install and fail in about a minute; types, lint and code health, the docs site
   # build and the audit of dependencies need the install; the unit tests (with the calculation modules' 100 % coverage) need it too.
@@ -98,7 +98,59 @@ jobs:
       - name: Known-vulnerable dependencies (production)
         run: pnpm audit --prod
 
-  unit:
+  # The tests that only check lists, docs and generated files against the code (api-coverage.md, the Extensions' registry, the
+  # Calculation Catalogue, the API reference, the help index, the demo's table of server actions): seconds each, so a forgotten
+  # line shows in the first minutes and not after the unit tests. They run in the unit shards too. `pnpm precheck` runs them.
+  bookkeeping:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          fetch-depth: 0
+      - uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: bash scripts/bookkeeping-tests.sh
+
+  # The unit tests, in three jobs that run side by side. The core's tests (6,000 of them, 11 minutes in one job, most of it the
+  # tests against the references) run in four shards that each write a blob report with their coverage; the modules under the 100 %
+  # coverage rule (spec 0022) are checked on the merged coverage, in `unit` below, so no threshold is lower and no test skipped.
+  unit-core:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3, 4]
+    name: unit-core (shard ${{ matrix.shard }} of 4)
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          fetch-depth: 0
+      - uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: The core's unit tests, shard ${{ matrix.shard }} of 4
+        working-directory: packages/core
+        env:
+          # A shard sees part of the tests: the coverage thresholds are checked on the merge (packages/core/vitest.config.ts).
+          ZIFFR_COVERAGE_SHARD: "1"
+        run: pnpm exec vitest run --coverage --reporter=blob --outputFile=unit-blobs/blob-${{ matrix.shard }}.json --shard=${{ matrix.shard }}/4
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: unit-blob-${{ matrix.shard }}
+          path: packages/core/unit-blobs/
+          retention-days: 1
+
+  # Every other package's unit tests, and the scripts' own.
+  unit-other:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -111,11 +163,36 @@ jobs:
           node-version: 22
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      - run: pnpm test
+      - run: pnpm -r --if-present --filter '!@ziffr/core' test
+      - run: node --test scripts/*.test.mjs .github/scripts/*.test.mjs docker/*.test.mjs
+
+  # The answer for the unit tests: merges the shards' reports (and their coverage) and enforces the core's thresholds.
+  unit:
+    needs: [unit-core, unit-other]
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          fetch-depth: 0
+      - uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          pattern: unit-blob-*
+          path: packages/core/unit-blobs
+          merge-multiple: true
+      - name: Merge the shards, with the 100 % coverage of the calculation modules
+        working-directory: packages/core
+        run: pnpm exec vitest run --merge-reports=unit-blobs --coverage
 
   # The one job branch protection asks for. It must fail when a part did not pass: a skipped required job would count as passed.
   check:
-    needs: [hygiene, static, unit]
+    needs: [hygiene, bookkeeping, static, unit]
     if: always()
     runs-on: ubuntu-latest
     timeout-minutes: 2
@@ -124,7 +201,7 @@ jobs:
         env:
           RESULTS: ${{ join(needs.*.result, ' ') }}
         run: |
-          echo "hygiene, static, unit: $RESULTS"
+          echo "hygiene, bookkeeping, static, unit: $RESULTS"
           for r in $RESULTS; do [ "$r" = success ] || { echo "::error::A part of check did not pass ($r)."; exit 1; }; done
 
   # The full verification of calculations (spec 0022, docs/guides/calculation-tests.md): every Aggregation, Display

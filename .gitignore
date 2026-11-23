@@ -59,3 +59,4 @@ packages/*/dist/
 
 # MCP scenario eval report (#614)
 packages/mcp/evals/report.md
+packages/core/unit-blobs/
