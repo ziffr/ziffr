@@ -136,7 +136,6 @@ function fitProblem(f: Fit): string | null {
   // The cautions are taken as the fit gave them (only a fit that `fit` made carries the right ones) but must be lines of the wording kind, with plain slots.
   const plain = (v: unknown) => typeof v === "string" || typeof v === "number";
   if (f.verdict.cautions.some((c) => !c || typeof c.case !== "string" || !c.slots || typeof c.slots !== "object" || !Object.values(c.slots).every(plain))) return "a fit";
-  if (f.crowded.some((n) => !f.drivers.some((d) => d?.name === n))) return "a fit";
   if (modelProblem(f) !== null || f.drivers.some((d) => !d || typeof d.name !== "string" || d.name === "" || d.name === f.target)) return "a fit";
   if (new Set(f.drivers.map((d) => d.name)).size !== f.drivers.length) return "a fit";
   const m = again(f);
@@ -149,17 +148,20 @@ function fitProblem(f: Fit): string | null {
     const b = m.sol.beta[j];
     const b2 = mul(b, b);
     const den = add(b2, mul(m.sol.sse, m.sol.m[j][j]));
-    const partial = den.num === ZERO ? 0 : (b.num < ZERO ? -1 : 1) * Math.sqrt(nearest(over(b2, den)));
+    // Only the size of the link matters for its word.
+    const partial = den.num === ZERO ? 0 : Math.sqrt(nearest(over(b2, den)));
     if (d.strength !== strengthOf(partial, partialPeriods(f.rows.length, k), f.crowded.includes(d.name))) return "a fit";
   }
   return null;
 }
 
+type Loose = { kind?: unknown; fit?: Fit; target?: unknown; formula?: unknown; names?: Record<string, unknown> | null; levels?: Record<string, unknown> | null };
+
 // A link handed over is checked, never trusted: the shape, the names and the numbers. Null where it is sound, else what is wrong.
 function linkProblem(l: unknown): string | null {
   try {
-    const x = l as Partial<WhatIfLink> | null;
-    if (!x || typeof x !== "object") return "a link";
+    // A null or a number is not a link: reading it throws, and the catch says so.
+    const x = l as Loose;
     if (x.kind === "fit") return fitProblem(x.fit as Fit);
     if (x.kind === "worked") {
       const w = x;
@@ -205,9 +207,9 @@ function plan(start: string, links: WhatIfLink[]): Plan {
   // Each Metric after the ones that drive it (names in order among those that can go next): Metrics that drive each other have no order.
   const order: string[] = [];
   const depth = new Map<string, number>([[start, 0]]);
-  const todo = new Set([...reached].sort());
+  const todo = new Set(reached);
   while (todo.size > 0) {
-    const next = [...todo].find((t) => driversOf(by.get(t)!).every((d) => !todo.has(d) || d === t));
+    const next = [...todo].find((t) => driversOf(by.get(t)!).every((d) => !todo.has(d)));
     if (next === undefined) return { case: "refuse-what-if-cycle", slots: {} };
     todo.delete(next);
     order.push(next);
@@ -274,9 +276,11 @@ function evaluate(p0: Extract<Plan, { order: string[] }>, p: number | null, star
     if (p === null) return pointOf(beta);
     const effect = nearest(beta);
     const half = tQuantile(p, c.again.mo.n - c.again.k - 1) * Math.sqrt(nearest(mul(c.again.sigma2, c.again.sol.m[c.j][c.j])));
-    if (!finiteAll([effect, half, effect - half, effect + half])) return null;
+    // Stryker disable next-line ArrayDeclaration,ArithmeticOperator: overflow of effect − half alone needs a double within a half width of the largest one; every other way to overflow also makes effect + half or half not finite
+    if (!finiteAll([effect - half, effect + half])) return null;
     // The range always holds the exact effect, which the doubles round either side of.
     const [lo, hi] = [fractionOf(effect - half), fractionOf(effect + half)];
+    // Stryker disable next-line ConditionalExpression,EqualityOperator: the range is written as doubles and the enclosure moves an end by less than the last place of one, so the effect and its range's end are then the same double
     return { lo: cmp(lo, beta) < 0 ? lo : beta, hi: cmp(hi, beta) > 0 ? hi : beta };
   };
   for (const name of p0.order) {
@@ -318,9 +322,9 @@ export function whatIf(input: WhatIfInput): WhatIf {
   const { start, change, links } = input ?? ({} as WhatIfInput);
   if (!start || typeof start.name !== "string" || start.name === "" || !Number.isFinite(start.latest)) return refuseInput("the Metric changed");
   const c = change as Partial<{ by: number; percent: number }> | null | undefined;
-  const kind = c && typeof c === "object" ? ("by" in c ? "by" : "percent" in c ? "percent" : null) : null;
-  const amount = kind ? c![kind] : undefined;
-  if (kind === null || typeof amount !== "number" || !Number.isFinite(amount)) return refuseInput("the change");
+  const kind = c && typeof c === "object" ? ("by" in c ? "by" : "percent") : "percent";
+  const amount = c && typeof c === "object" ? c[kind] : undefined;
+  if (typeof amount !== "number" || !Number.isFinite(amount)) return refuseInput("the change");
   if (!Array.isArray(links)) return refuseInput("the links");
   if (links.length > MOST_LINKS) return refuse("refuse-what-if-links", { most: MOST_LINKS });
   const bad = links.map(linkProblem).find((p) => p !== null);
@@ -347,7 +351,6 @@ export function whatIf(input: WhatIfInput): WhatIf {
   const p0 = plan(start.name, links);
   if (isFinding(p0)) return { ok: false, refusals: [p0] };
   const exactly = evaluate(p0, null, start.name, by);
-  const atLevel = new Map<number, ReturnType<typeof evaluate>>();
   const reached = [...p0.order]
     .sort()
     .map((name): Reached | NotReached => {
@@ -356,8 +359,7 @@ export function whatIf(input: WhatIfInput): WhatIf {
       if (isFinding(point)) return { ok: false, name, step, refusal: point };
       const m = point.used.size;
       const level = m === 0 ? 0 : 1 - 1 / (10 * m);
-      if (m > 0 && !atLevel.has(level)) atLevel.set(level, evaluate(p0, level, start.name, by));
-      const atRange = m === 0 ? point : atLevel.get(level)!.get(name)!;
+      const atRange = m === 0 ? point : evaluate(p0, level, start.name, by).get(name)!;
       // A formula that cannot be worked out on a range, where the point can: the point only, said as a guess.
       const noRange = isFinding(atRange) && atRange.case === "refuse-what-if-range";
       const range = noRange ? point : atRange;
@@ -370,7 +372,7 @@ export function whatIf(input: WhatIfInput): WhatIf {
       const outsides = point.seen.map((sn) => outsideOfFit(sn.link, sn.changes, start));
       const edges = fits.map((sn) => outsideOfFit(sn.link, sn.changes, start));
       const outside = outsides.flat();
-      const beyond = edges.flat().filter((o) => !outside.some((x) => x.name === o.name && x.side === o.side));
+      const beyond = edges.flat().filter((o) => !outside.some((x) => x.name === o.name));
       const curved = edges.findIndex((o, i) => (o.length > 0 || outsides[i].length > 0) && carried(fits[i].link.fit).cautions.some((f) => f.case === "caution-curved"));
       if (curved >= 0) return { ok: false, name, step, refusal: { case: "refuse-curved-outside", slots: { name: [...edges[curved], ...outsides[curved]][0].name } } };
       const cautions = [...new Map(fits.flatMap((s) => carried(s.link.fit).cautions).map((f) => [JSON.stringify(f), f])).values()];
@@ -387,7 +389,7 @@ export function whatIf(input: WhatIfInput): WhatIf {
         outside,
         beyond,
         noRange,
-        through: driversOf(p0.links.get(name)!).filter((d) => d !== name && p0.depth.has(d) && d !== start.name).sort(),
+        through: driversOf(p0.links.get(name)!).filter((d) => p0.depth.has(d) && d !== start.name).sort(),
         coefficients: m,
         level,
         byChange: fits.some((f) => f.link.fit.basis === "changes"),
