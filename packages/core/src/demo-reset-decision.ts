@@ -11,9 +11,11 @@ export type DemoState = {
   resetAt: Date | null;
 };
 
-/** Whether visitors may change the demo: `ZIFFR_DEMO_CHANGES=1`, in effect only in a demo-only Installation (`ZIFFR_DEMO_ONLY=1`). */
-export function demoChangesInEffect(env: Record<string, string | undefined>): boolean {
-  return env.ZIFFR_DEMO_CHANGES === "1" && env.ZIFFR_DEMO_ONLY === "1";
+/** Whether visitors may change the demo, from the settings in effect (settings-in-effect.ts): `ZIFFR_DEMO_CHANGES=1`, in
+ * effect only in a demo-only Installation (`ZIFFR_DEMO_ONLY=1`, a server setting). The one place that says so: the reset
+ * job, the visit's client (demo-visiting.ts) and the Installation Settings page all ask it. */
+export function demoChangesInEffect(settings: Record<string, string | undefined>): boolean {
+  return settings.ZIFFR_DEMO_CHANGES === "1" && settings.ZIFFR_DEMO_ONLY === "1";
 }
 
 const sameUtcDay = (a: Date, b: Date) => a.toISOString().slice(0, 10) === b.toISOString().slice(0, 10);

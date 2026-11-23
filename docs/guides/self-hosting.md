@@ -286,6 +286,7 @@ Generated from the Installation Settings catalogue (`packages/core/src/installat
 | Setting | On the page | Example or choices | What it does |
 | --- | --- | --- | --- |
 | `ZIFFR_DEMO` | Offer the demo | `1`, `0` | Whether the login page has Try the demo. |
+| `ZIFFR_DEMO_CHANGES` | Visitors may change the demo | `1`, `0` | Only in a demo-only Ziffr (ZIFFR_DEMO_ONLY on the server). What visitors change is seen by every visitor and gone when the demo starts fresh, every 15 minutes. Off, or in any other Ziffr, the demo is read-only. |
 <!-- /generated:installation-settings -->
 
 ## Sending limits
