@@ -492,6 +492,26 @@ describe("every condition on its own", () => {
   });
 });
 
+describe("the order", () => {
+  it("is the kinds in their order, the stronger first within a kind, ties by Metric id, whatever order the Metrics come in", () => {
+    const turn106 = (amount: number) => Array.from({ length: 106 }, (_, k) => (k < 100 ? 10 * k : 1000 - 10 * (k - 100)) + amount * noise(k));
+    const perfect = series(turn106(0));
+    const looks: SingleLook[] = [
+      { metric: metric({ id: 4, name: "Visits", polarity: "higher", target_min: null, target_max: null }), points: series(seasonal(106, 40)) },
+      { metric: metric({ id: 3, name: "Blurred", polarity: "higher", target_min: null, target_max: null }), points: series(turn106(2)) },
+      { metric: revenue({ id: 2, target_min: 1000 }), points: series(Array.from({ length: 106 }, (_, k) => 3000 - 20 * k + noise(k))) },
+      { metric: metric({ id: 5, name: "Perfect B", polarity: "higher", target_min: null, target_max: null }), points: perfect },
+      { metric: metric({ id: 1, name: "Perfect A", polarity: "higher", target_min: null, target_max: null }), points: perfect },
+    ];
+    const got = singleHeadsUpsFrom(looks, { ...ctx, today: month(107) });
+    expect(got.map((u) => u.key.split(":").slice(0, 2).join(":"))).toEqual(["direction-change:1", "direction-change:5", "direction-change:3", "target-out-of-reach:2", "unusual-for-season:4"]);
+    expect(got.slice(0, 3).map((u) => u.rank)).toEqual([300, 300, got[2].rank]);
+    expect(got[2].rank).toBeLessThan(300);
+    expect(got[2].rank).toBeGreaterThan(0);
+    expect(got.map((u) => u.rank).every((r) => Number(r.toPrecision(12)) === r)).toBe(true);
+  });
+});
+
 describe("the correction, at 1 %", () => {
   it("reports a value unusual for its season when its chance is at most 1 % ÷ the checks looked at (here 2: its direction and its season), one step either side of that", () => {
     const base = seasonal(106, 0);
