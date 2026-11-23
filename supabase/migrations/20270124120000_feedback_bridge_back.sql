@@ -5,7 +5,9 @@
 -- The webhook deliveries already handled (GitHub's X-GitHub-Delivery id), so a replay or a redelivery changes nothing.
 create table feedback_github_deliveries (
   delivery_id text primary key check (char_length(delivery_id) between 8 and 64),
-  received_at timestamptz not null default now()
+  received_at timestamptz not null default now(),
+  -- A delivery counts as handled only once its processing succeeded (done); until then a second one with the same id is told to wait.
+  done boolean not null default false
 );
 alter table feedback_github_deliveries enable row level security;
 revoke all on table feedback_github_deliveries from public, anon, authenticated;
@@ -23,22 +25,40 @@ alter table feedback_messages
 create unique index feedback_messages_comment_ref_idx on feedback_messages (github_comment_ref) where github_comment_ref is not null;
 create index feedback_messages_to_post_idx on feedback_messages (created_at) where from_team = false and posted_at is null;
 
--- Claims a webhook delivery: true the first time, false for a repeat. Old ids are dropped here (30 days is far beyond
--- any redelivery a maintainer would make by hand).
-create or replace function feedback_claim_github_delivery(p_id text) returns boolean
+-- Claims a webhook delivery: 'new' the first time (or when an earlier try crashed more than two minutes ago), 'busy' while
+-- another try is processing it, 'done' once one succeeded. Old ids are dropped here (30 days is far beyond any redelivery a
+-- maintainer would make by hand).
+create or replace function feedback_claim_github_delivery(p_id text) returns text
 language plpgsql security definer set search_path = public as $$
+declare d feedback_github_deliveries;
 begin
   delete from feedback_github_deliveries where received_at < now() - interval '30 days';
   insert into feedback_github_deliveries (delivery_id) values (p_id) on conflict do nothing;
-  return found;
+  if found then return 'new'; end if;
+  select * into d from feedback_github_deliveries where delivery_id = p_id for update;
+  if not found then return 'new'; end if;
+  if d.done then return 'done'; end if;
+  if d.received_at < now() - interval '2 minutes' then
+    update feedback_github_deliveries set received_at = now() where delivery_id = p_id;
+    return 'new';
+  end if;
+  return 'busy';
 end $$;
 revoke execute on function feedback_claim_github_delivery(text) from public, anon, authenticated;
 grant execute on function feedback_claim_github_delivery(text) to service_role;
 
+-- Marks a delivery as handled, after its processing succeeded.
+create or replace function feedback_complete_github_delivery(p_id text) returns void
+language sql security definer set search_path = public as $$
+  update feedback_github_deliveries set done = true where delivery_id = p_id;
+$$;
+revoke execute on function feedback_complete_github_delivery(text) from public, anon, authenticated;
+grant execute on function feedback_complete_github_delivery(text) to service_role;
+
 -- Gives a claim back when handling the event failed, so a redelivery can try again.
 create or replace function feedback_release_github_delivery(p_id text) returns void
 language sql security definer set search_path = public as $$
-  delete from feedback_github_deliveries where delivery_id = p_id;
+  delete from feedback_github_deliveries where delivery_id = p_id and not done;
 $$;
 revoke execute on function feedback_release_github_delivery(text) from public, anon, authenticated;
 grant execute on function feedback_release_github_delivery(text) to service_role;
@@ -62,6 +82,34 @@ begin
 end $$;
 revoke execute on function feedback_take_team_comment(text, int, text, text) from public, anon, authenticated;
 grant execute on function feedback_take_team_comment(text, int, text, text) to service_role;
+
+-- A team comment edited on GitHub: the stored words follow, only for a team message of the feedback filed as this post.
+create or replace function feedback_edit_team_comment(p_kind text, p_number int, p_ref text, p_words text) returns int
+language plpgsql security definer set search_path = public as $$
+declare n int;
+begin
+  update feedback_messages m set words = p_words
+    where m.github_comment_ref = p_ref and m.from_team
+      and m.feedback_id in (select id from feedback where github_kind = p_kind and github_number = p_number);
+  get diagnostics n = row_count;
+  return n;
+end $$;
+revoke execute on function feedback_edit_team_comment(text, int, text, text) from public, anon, authenticated;
+grant execute on function feedback_edit_team_comment(text, int, text, text) to service_role;
+
+-- A team comment deleted on GitHub: its words are replaced (the conversation keeps its shape, and the person sees it is gone).
+create or replace function feedback_remove_team_comment(p_kind text, p_number int, p_ref text) returns int
+language plpgsql security definer set search_path = public as $$
+declare n int;
+begin
+  update feedback_messages m set words = 'This answer was removed.'
+    where m.github_comment_ref = p_ref and m.from_team
+      and m.feedback_id in (select id from feedback where github_kind = p_kind and github_number = p_number);
+  get diagnostics n = row_count;
+  return n;
+end $$;
+revoke execute on function feedback_remove_team_comment(text, int, text) from public, anon, authenticated;
+grant execute on function feedback_remove_team_comment(text, int, text) to service_role;
 
 -- Sets the status GitHub moved a feedback to: closed from anywhere, open only from closed (a reopening), answered only from
 -- open. Says how many rows changed.
@@ -88,7 +136,8 @@ language plpgsql security definer set search_path = public as $$
 declare made feedback_messages;
 begin
   perform pg_advisory_xact_lock(hashtextextended('feedback-reply:' || p_person, 0));
-  if not exists (select 1 from feedback where id = p_feedback and person_id = p_person) then return; end if;
+  -- Only an open or answered feedback takes replies: one waiting for review has not been reviewed, a closed one is over.
+  if not exists (select 1 from feedback where id = p_feedback and person_id = p_person and status in ('open', 'answered')) then return; end if;
   if (select count(*) from feedback_messages where feedback_id = p_feedback) >= p_total then return; end if;
   if (select count(*) from feedback_messages where feedback_id = p_feedback and not from_team and created_at > now() - interval '24 hours') >= p_per_feedback then return; end if;
   if (select count(*) from feedback_messages m join feedback f on f.id = m.feedback_id where f.person_id = p_person and not m.from_team and m.created_at > now() - interval '24 hours') >= p_per_person then return; end if;
@@ -106,7 +155,7 @@ returns table (message_id bigint, message_words text, post_kind text, post_numbe
 language sql security definer set search_path = public as $$
   with picked as (
     select m.id from feedback_messages m join feedback f on f.id = m.feedback_id
-    where not m.from_team and m.posted_at is null and f.github_number is not null and m.post_attempts < p_max_attempts
+    where not m.from_team and m.posted_at is null and f.github_number is not null and f.status in ('open', 'answered') and m.post_attempts < p_max_attempts
       and (m.post_attempted_at is null or m.post_attempted_at < now() - make_interval(mins => p_retry_minutes))
     order by m.created_at limit least(greatest(p_limit, 0), 50) for update of m skip locked),
   upd as (

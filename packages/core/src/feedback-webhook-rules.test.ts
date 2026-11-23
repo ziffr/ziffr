@@ -76,9 +76,8 @@ describe("a comment from the team", () => {
     expect(readGithubEvent("issue_comment", issueComment({ body: 7 }), ctx)).toBeNull();
   });
 
-  it("is ignored when edited or deleted, on a pull request, from another repository, or malformed", () => {
-    expect(readGithubEvent("issue_comment", { ...issueComment(), action: "edited" }, ctx)).toBeNull();
-    expect(readGithubEvent("issue_comment", { ...issueComment(), action: "deleted" }, ctx)).toBeNull();
+  it("is ignored with any other action, on a pull request, from another repository, or malformed", () => {
+    expect(readGithubEvent("issue_comment", { ...issueComment(), action: "pinned" }, ctx)).toBeNull();
     expect(readGithubEvent("issue_comment", issueComment({}, { pull_request: { url: "x" } }), ctx)).toBeNull();
     expect(readGithubEvent("issue_comment", { ...issueComment(), repository: { full_name: "evil/ziffr" } }, ctx)).toBeNull();
     expect(readGithubEvent("issue_comment", { ...issueComment(), repository: undefined }, ctx)).toBeNull();
@@ -91,6 +90,21 @@ describe("a comment from the team", () => {
 
   it("reads the repository without regard to letter case", () => {
     expect(readGithubEvent("issue_comment", { ...issueComment(), repository: { full_name: "Ziffr/Ziffr" } }, ctx)).not.toBeNull();
+  });
+});
+
+describe("a team comment edited or deleted", () => {
+  it("follows an edit with the new words, under the same rules as a new comment", () => {
+    expect(readGithubEvent("issue_comment", { ...issueComment({ body: "Better words\u202e" }), action: "edited" }, ctx)).toEqual({ type: "edit", kind: "issue", number: 7, ref: "issue-comment:42", words: "Better words" });
+    expect(readGithubEvent("issue_comment", { ...issueComment({ author_association: "NONE" }), action: "edited" }, ctx)).toBeNull();
+    expect(readGithubEvent("issue_comment", { ...issueComment({ user: { login: "ziffr-feedback-bot", type: "User" } }), action: "edited" }, ctx)).toBeNull();
+    expect(readGithubEvent("issue_comment", { ...issueComment({ body: "\u200b" }), action: "edited" }, ctx)).toBeNull();
+  });
+  it("follows a deletion by its reference only, carrying no words and no author", () => {
+    const e = readGithubEvent("discussion_comment", { action: "deleted", repository, discussion: { number: 3 }, comment: { id: 9 } }, ctx);
+    expect(e).toEqual({ type: "remove", kind: "discussion", number: 3, ref: "discussion-comment:9" });
+    expect(readGithubEvent("issue_comment", { action: "deleted", repository: { full_name: "evil/ziffr" }, issue: { number: 7 }, comment: { id: 9 } }, ctx)).toBeNull();
+    expect(readGithubEvent("issue_comment", { action: "deleted", repository, issue: { number: 7, pull_request: {} }, comment: { id: 9 } }, ctx)).toBeNull();
   });
 });
 

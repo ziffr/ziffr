@@ -132,6 +132,27 @@ describe("a comment from the team", () => {
     delete process.env.ZIFFR_CLOUD_KEY; forgetStoredSettings();
     await expect(take("issue_comment", issueComment(1, 1))).rejects.toBeInstanceOf(Forbidden);
   });
+
+  it("follows an edit with the new words and a deletion with a plain line, for a team message only", async () => {
+    const s = await sender(); const number = num(); const id = await filed(s, number);
+    await take("issue_comment", issueComment(number, 30, "First words"));
+    await replyToFeedback(s.actor, id, "My reply");
+    await take("issue_comment", { ...issueComment(number, 30, "Corrected words"), action: "edited" });
+    expect((await getMyFeedback(s.actor, id))!.messages.map((m) => m.words)).toEqual(["Corrected words", "My reply"]);
+    await take("issue_comment", { action: "deleted", repository, issue: { number }, comment: { id: 30 } });
+    expect((await getMyFeedback(s.actor, id))!.messages.map((m) => m.words)).toEqual(["This answer was removed.", "My reply"]);
+  });
+
+  it("answers a second delivery of an id that is still being handled with an error, and a finished one with replay", async () => {
+    const s = await sender(); const number = num(); await filed(s, number);
+    const id = delivery();
+    // A claim that has not finished (another request is in the middle of it).
+    expect((await db().rpc("feedback_claim_github_delivery", { p_id: id })).data).toBe("new");
+    await expect(take("issue_comment", issueComment(number, 31), id)).rejects.toThrow("being handled");
+    await db().rpc("feedback_release_github_delivery", { p_id: id });
+    expect(await take("issue_comment", issueComment(number, 31), id)).toBe("comment");
+    expect(await take("issue_comment", issueComment(number, 31), id)).toBe("replay");
+  });
 });
 
 describe("closing and reopening on GitHub", () => {
@@ -168,6 +189,19 @@ describe("a person's reply", () => {
     for (let i = 0; i < FEEDBACK_REPLIES_PER_FEEDBACK_PER_DAY; i++) await replyToFeedback(s.actor, id, `reply ${i}`);
     await expect(replyToFeedback(s.actor, id, "one more")).rejects.toThrow("enough");
   });
+  it("is refused in plain words unless the feedback is open or answered", async () => {
+    const s = await sender(); const closed = await filed(s, num(), "issue", "closed");
+    const waiting = (await createFeedback(s.actor, { kind: "problem", words: "Not reviewed yet." })).id;
+    await expect(replyToFeedback(s.actor, closed, "Hello")).rejects.toThrow("This feedback is closed.");
+    await expect(replyToFeedback(s.actor, waiting, "Hello")).rejects.toThrow("You can reply once your feedback is open.");
+    expect((await getMyFeedback(s.actor, closed))!.messages).toHaveLength(0);
+    expect((await getMyFeedback(s.actor, waiting))!.messages).toHaveLength(0);
+  });
+  it("is refused by the database too, whatever the core checked", async () => {
+    const s = await sender(); const closed = await filed(s, num(), "issue", "closed");
+    const { data } = await db().rpc("feedback_reply_create", { p_person: s.id, p_feedback: closed, p_words: "x", p_per_feedback: 5, p_per_person: 15, p_total: 100 });
+    expect(data ?? []).toHaveLength(0);
+  });
   it("is refused to a Contact, a key and anyone off the central version", async () => {
     const s = await sender(); const id = await filed(s, num());
     await expect(replyToFeedback({ ...s.actor, key: { id: "k" } as never }, id, "hi")).rejects.toBeInstanceOf(Forbidden);
@@ -201,7 +235,8 @@ describe("posting a reply to GitHub", () => {
     const id = await filed(s, number);
     const waiting = (await createFeedback(s.actor, { kind: "problem", words: "Not filed yet." })).id;
     await replyToFeedback(s.actor, id, "It still fails on Tuesdays.");
-    await replyToFeedback(s.actor, waiting, "Waiting reply.");
+    // Written before it was refused (the way a reply queued before closing would be): the worker must not post it.
+    await db().from("feedback_messages").insert({ feedback_id: waiting, from_team: false, words: "Waiting reply." });
     expect(await postFeedbackReplies(g.client)).toMatchObject({ claimed: 1, posted: 1, failed: 0 });
     expect(await postFeedbackReplies(g.client)).toMatchObject({ claimed: 0 });
     expect(g.comments).toHaveLength(1);
@@ -210,6 +245,26 @@ describe("posting a reply to GitHub", () => {
     for (const leak of [s.id, s.w.id, "Not filed yet", "Waiting reply"]) expect(g.comments[0].body).not.toContain(leak);
     expect(await messageRow(id)).toMatchObject({ post_error: null, github_comment_ref: "issue-comment:900" });
     expect((await messageRow(id)).posted_at).not.toBeNull();
+  });
+
+  it("never posts a reply of a feedback that has been closed or is not open since it was written", async () => {
+    const s = await sender(); const g = fakeGithub(); const id = await filed(s, num());
+    await replyToFeedback(s.actor, id, "Queued before closing.");
+    await db().from("feedback").update({ status: "closed" }).eq("id", id);
+    expect(await postFeedbackReplies(g.client)).toMatchObject({ claimed: 0 });
+    expect(g.comments).toHaveLength(0);
+    await db().from("feedback").update({ status: "open" }).eq("id", id);
+    expect(await postFeedbackReplies(g.client)).toMatchObject({ claimed: 1, posted: 1 });
+  });
+
+  it("claims and posts one reply at a time", async () => {
+    const s = await sender(); const g = fakeGithub(); const id = await filed(s, num());
+    await replyToFeedback(s.actor, id, "One"); await replyToFeedback(s.actor, id, "Two");
+    const claims: number[] = [];
+    const real = db().rpc.bind(db());
+    vi.spyOn(db(), "rpc").mockImplementation(((name: string, args: Record<string, unknown>) => { if (name === "feedback_claim_replies") claims.push(Number(args.p_limit)); return real(name, args as never); }) as never);
+    expect(await postFeedbackReplies(g.client)).toMatchObject({ claimed: 2, posted: 2 });
+    expect(claims.slice(0, 2)).toEqual([1, 1]);
   });
 
   it("records a failure with a fixed phrase, retries later, and stops at the attempts cap", async () => {

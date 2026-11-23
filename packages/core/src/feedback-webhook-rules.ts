@@ -17,6 +17,8 @@ export const TEAM_ASSOCIATIONS: readonly string[] = ["OWNER", "MEMBER", "COLLABO
 /** What an event means for a feedback. `ref` is the comment's reference, one per comment, so a comment is taken once. */
 export type GithubFeedbackEvent =
   | { type: "comment"; kind: "issue" | "discussion"; number: number; ref: string; words: string }
+  | { type: "edit"; kind: "issue" | "discussion"; number: number; ref: string; words: string }
+  | { type: "remove"; kind: "issue" | "discussion"; number: number; ref: string }
   | { type: "status"; kind: "issue" | "discussion"; number: number; status: "open" | "closed" | "answered" };
 
 /** Whether the secret is long enough to be one. */
@@ -52,13 +54,16 @@ export function readGithubEvent(name: string, payload: unknown, ctx: { repo: str
     return status ? { type: "status", kind, number: post.number, status } : null;
   }
   if (name === "issue_comment" || name === "discussion_comment") {
-    if (action !== "created") return null;
+    if (action !== "created" && action !== "edited" && action !== "deleted") return null;
     const kind = name === "issue_comment" ? "issue" : "discussion";
     const post = obj(p[kind]);
     const comment = obj(p.comment);
-    if (!post || !comment || !positive(post.number) || !positive(comment.id) || typeof comment.body !== "string") return null;
+    if (!post || !comment || !positive(post.number) || !positive(comment.id) || (action !== "deleted" && typeof comment.body !== "string")) return null;
     // A comment on a pull request is not feedback.
     if (kind === "issue" && post.pull_request != null) return null;
+    const ref = `${kind}-comment:${comment.id}`;
+    // A deletion needs no author: it only ever touches a stored team message with this reference.
+    if (action === "deleted") return { type: "remove", kind, number: post.number, ref };
     const user = obj(comment.user);
     const login = user?.login;
     if (typeof login !== "string" || !LOGIN.test(login)) return null;
@@ -66,7 +71,8 @@ export function readGithubEvent(name: string, payload: unknown, ctx: { repo: str
     if (login.toLowerCase() === ctx.bot.toLowerCase() || user?.type === "Bot" || login.endsWith("[bot]")) return null;
     if (typeof comment.author_association !== "string" || !TEAM_ASSOCIATIONS.includes(comment.author_association)) return null;
     const words = plainWords(comment.body, TEAM_WORDS_MAX);
-    return words === "" ? null : { type: "comment", kind, number: post.number, ref: `${kind}-comment:${comment.id}`, words };
+    if (words === "") return null;
+    return { type: action === "edited" ? "edit" : "comment", kind, number: post.number, ref, words };
   }
   return null;
 }

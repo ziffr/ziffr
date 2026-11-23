@@ -17,8 +17,10 @@ import { settingsInEffect } from "./settings-in-effect";
 const REPLY_BATCH = 10;
 /** How many times a reply is tried before it is left for a maintainer. */
 const REPLY_MAX_ATTEMPTS = 5;
-/** Minutes a reply waits after a try, long enough for a comment a crashed try made to be listed. */
-const REPLY_RETRY_MINUTES = 5;
+/** Minutes a reply is leased after a claim: well beyond the worst time one reply can take (a few GitHub calls of 15 seconds each), and long enough for a comment a crashed try made to be listed. */
+const REPLY_RETRY_MINUTES = 15;
+/** Milliseconds after which no further reply is claimed in one call, so a slow GitHub cannot stretch a call past its lease. */
+const TIME_BUDGET_MS = 60_000;
 
 /** What a call did, in counts only. */
 export type ReplyCounts = { claimed: number; posted: number; found: number; failed: number };
@@ -29,9 +31,13 @@ type Row = { message_id: number; message_words: string; post_kind: "issue" | "di
 export async function postFeedbackReplies(client: GithubCommentClient, limit = REPLY_BATCH): Promise<ReplyCounts> {
   if (!hostedByCloud(await settingsInEffect())) throw new Forbidden();
   const counts: ReplyCounts = { claimed: 0, posted: 0, found: 0, failed: 0 };
-  const { data, error } = await db().rpc("feedback_claim_replies", { p_limit: Math.min(Math.max(Math.trunc(limit) || 0, 0), REPLY_BATCH), p_max_attempts: REPLY_MAX_ATTEMPTS, p_retry_minutes: REPLY_RETRY_MINUTES });
-  if (error) throw new Error("Replies to post could not be read.");
-  for (const row of (data ?? []) as Row[]) {
+  const started = Date.now();
+  // One reply is claimed, processed and recorded before the next is claimed, so a claim's lease never has to cover a whole batch.
+  for (let i = 0; i < Math.min(Math.max(Math.trunc(limit) || 0, 0), REPLY_BATCH) && Date.now() - started < TIME_BUDGET_MS; i++) {
+    const { data, error } = await db().rpc("feedback_claim_replies", { p_limit: 1, p_max_attempts: REPLY_MAX_ATTEMPTS, p_retry_minutes: REPLY_RETRY_MINUTES });
+    if (error) throw new Error("Replies to post could not be read.");
+    const row = ((data ?? []) as Row[])[0];
+    if (!row) break;
     counts.claimed++;
     try {
       const body = buildGithubReply({ words: row.message_words, public_ref: row.ref, message_id: row.message_id });

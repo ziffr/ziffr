@@ -26,25 +26,43 @@ export async function receiveGithubFeedbackEvent(input: { deliveryId: string; ev
   if (typeof input.deliveryId !== "string" || !DELIVERY_ID.test(input.deliveryId)) return "ignored";
   const event = readGithubEvent(input.event, input.payload, ctx);
   if (!event) return "ignored";
-  const { data: fresh, error: claimError } = await db().rpc("feedback_claim_github_delivery", { p_id: input.deliveryId });
+  const { data: claim, error: claimError } = await db().rpc("feedback_claim_github_delivery", { p_id: input.deliveryId });
   if (claimError) throw new Error("The delivery could not be recorded.");
-  if (fresh !== true) return "replay";
+  // Handled once before: nothing to do. Being handled right now: refused with an error, so GitHub shows a failure and the
+  // delivery can be redelivered, rather than answering "replay" for work that may still fail.
+  if (claim === "done") return "replay";
+  if (claim !== "new") throw new Error("The delivery is being handled.");
   try {
-    if (event.type === "status") {
-      const { error } = await db().rpc("feedback_set_status_from_github", { p_kind: event.kind, p_number: event.number, p_status: event.status });
-      if (error) throw new Error("The status could not be set.");
-      return "status";
-    }
-    const { data, error } = await db().rpc("feedback_take_team_comment", { p_kind: event.kind, p_number: event.number, p_ref: event.ref, p_words: event.words });
-    if (error) throw new Error("The comment could not be stored.");
-    const row = (data as { person_id: string; workspace_id: string | null; told: boolean }[] | null)?.[0];
-    if (row?.told) await tellPerson(row.person_id, row.workspace_id);
-    return "comment";
+    const outcome = await apply(event);
+    // Counted as handled only now that it succeeded.
+    await db().rpc("feedback_complete_github_delivery", { p_id: input.deliveryId });
+    return outcome;
   } catch (e) {
     // Given back, so a redelivery from GitHub's page can try again.
     await db().rpc("feedback_release_github_delivery", { p_id: input.deliveryId });
     throw e;
   }
+}
+
+// What an event does to the store; throws when the database refuses.
+async function apply(event: NonNullable<ReturnType<typeof readGithubEvent>>): Promise<GithubEventOutcome> {
+  if (event.type === "status") {
+    const { error } = await db().rpc("feedback_set_status_from_github", { p_kind: event.kind, p_number: event.number, p_status: event.status });
+    if (error) throw new Error("The status could not be set.");
+    return "status";
+  }
+  if (event.type === "edit" || event.type === "remove") {
+    const { error } = event.type === "edit"
+      ? await db().rpc("feedback_edit_team_comment", { p_kind: event.kind, p_number: event.number, p_ref: event.ref, p_words: event.words })
+      : await db().rpc("feedback_remove_team_comment", { p_kind: event.kind, p_number: event.number, p_ref: event.ref });
+    if (error) throw new Error("The comment could not be changed.");
+    return "comment";
+  }
+  const { data, error } = await db().rpc("feedback_take_team_comment", { p_kind: event.kind, p_number: event.number, p_ref: event.ref, p_words: event.words });
+  if (error) throw new Error("The comment could not be stored.");
+  const row = (data as { person_id: string; workspace_id: string | null; told: boolean }[] | null)?.[0];
+  if (row?.told) await tellPerson(row.person_id, row.workspace_id);
+  return "comment";
 }
 
 // The same notice Tasks and Questions use, through the person's own Connector and quiet hours, in the Workspace the
