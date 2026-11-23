@@ -10,6 +10,9 @@ import { DEMO_WORKSPACE_ID } from "./team";
 import { feedIdsAmong } from "./feed-people";
 import { fillInVerdict } from "./fill-in-check";
 import { getMetrics } from "./workspace-data";
+import { yearStartFor } from "./fiscal-year";
+import { workingPeriod } from "./workflow-rules";
+import type { Period } from "./types";
 
 /** One person the viewer may fill in for. `wait` is why filling in is not open yet, in words; null when it is open now. */
 type FillInPerson = { id: string; name: string; wait: string | null };
@@ -64,4 +67,24 @@ export async function guestStandIns(actor: Actor, metricId: number): Promise<Rec
   const { data: roles } = await db().from("memberships").select("user_id").eq("workspace_id", ws).eq("role", "guest").in("user_id", standIns);
   const guests = new Set((roles ?? []).map((r) => String(r.user_id)));
   return Object.fromEntries((tokens ?? []).filter((t) => guests.has(String(t.stand_in_id))).map((t) => [String(t.submitter_id), String(t.stand_in_id)]));
+}
+
+/** The "Fill in for …" offers on a Workflow's period view: for each of its Metrics the viewer sees, who they may fill in for
+ * in the period the Workflow is working on now (the last one that ended, as the Metric's own page does). The same rule decides
+ * as on the Metric's page (fillInOffer), so nothing is shown here that the core would refuse, and a Metric or submitter the
+ * viewer may not see is never named: it is simply not in the list. Empty for a Guest, an Access Key and the demo. */
+export async function workflowFillIns(actor: Actor, workflowId: number): Promise<FillInOffer[]> {
+  if (actor.key || !actor.personId || actor.role === "guest" || actor.workspaceId === DEMO_WORKSPACE_ID) return [];
+  const ws = actor.workspaceId;
+  const metrics = (await getMetrics(ws)).filter((m) => !m.formula && (m as typeof m & { workflow_id?: number | null }).workflow_id === workflowId);
+  if (!metrics.length) return [];
+  // The day the Metric page uses for "the period it is working on", so both pages offer the same period.
+  const today = new Date().toISOString().slice(0, 10);
+  const out: FillInOffer[] = [];
+  for (const m of metrics) {
+    const period = workingPeriod(today, m.period as Period, await yearStartFor(ws, m.period as Period));
+    const offer = await fillInOffer(actor, m.id, period);
+    if (offer) out.push(offer);
+  }
+  return out;
 }
