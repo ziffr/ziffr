@@ -98,6 +98,10 @@ export type Observation = {
   submitter_id: string | null;
   /** Who sent an imported value, as the Workspace Export named them (opened); null for a value recorded in the app. */
   submitted_by_name?: string | null;
+  /** Who entered it for the submitter (a Filled-in Value, spec 0046), as a person id; null when the submitter entered it. */
+  entered_by?: string | null;
+  /** Who entered an imported value for the submitter, as a name (opened), as submitted_by_name. */
+  entered_by_name?: string | null;
   source: string;
   original_value: number | null;
   /** The Access Key a program submitted it with, if any. */
@@ -111,7 +115,7 @@ export type Observation = {
 export type Point = { period: string; value: number };
 
 /** The standing permission that links one submitter to one metric (GLOSSARY: Token). */
-export type Token = { id: number; code: string; metric_id: number; submitter_id: string };
+export type Token = { id: number; code: string; metric_id: number; submitter_id: string; /** Set on a Stand-in's own Token: the submitter they stand in for. */ stands_in_for?: string | null };
 
 /** A message asking a submitter for a value (GLOSSARY: Prompt). */
 export type Prompt = {

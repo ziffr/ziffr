@@ -121,7 +121,7 @@ export type PromptOutcome = { connector: ConnectorId; state: "sent" | "queued" |
 /** Asks a submitter for a value through their reminder Connector (GLOSSARY: Prompt). Returns false if nobody was asked
  * (no Token, a Feed, a Derived or Archived Metric), else what became of the Prompt, read back after sending.
  * With `queue`, an email is only queued, for the deliveries job to send. */
-export async function deliverPrompt(input: { metricId: number; submitterId: string; senderId?: string | null; via?: ConnectorId | null; period?: string; note?: string; asStandIn?: boolean; queue?: boolean; /** A reminder goes only by the first of the person's ways, so several ways never ping three times. */ reminder?: boolean }): Promise<false | PromptOutcome> {
+export async function deliverPrompt(input: { metricId: number; submitterId: string; senderId?: string | null; via?: ConnectorId | null; period?: string; note?: string; /** Ziffr asks `submitterId` in this person's place: the Prompt is a Stand-in's, whatever other Tokens they hold (spec 0046). */ standingInFor?: string; queue?: boolean; /** A reminder goes only by the first of the person's ways, so several ways never ping three times. */ reminder?: boolean }): Promise<false | PromptOutcome> {
   // A Feed is a program (spec 0012): it is never asked, and its form link must never go out in a message.
   if ((await feedIdsAmong([input.submitterId])).size) return false;
   const [{ data: metricRow }, { data: person }, { data: tokens }] = await Promise.all([
@@ -141,10 +141,16 @@ export async function deliverPrompt(input: { metricId: number; submitterId: stri
   // The person's own Token. A Stand-in gets one of their own, marked as standing in: never the submitter's.
   // Asking a stand-in (re)opens their own Token for 14 days; it lapses as soon as they stop being the stand-in.
   const expires = new Date(Date.now() + 14 * 86400000).toISOString().slice(0, 10);
-  let token = tokens?.find((t) => t.submitter_id === input.submitterId && !t.stands_in_for);
+  // Asked in someone's place: only while they are that person's Stand-in, and by the Stand-in's Token, even when they
+  // hold one of their own for the Metric (the answer then records under the right name, spec 0046).
+  if (input.standingInFor && !tokens?.some((t) => t.submitter_id === input.standingInFor && t.stand_in_id === input.submitterId && !t.stands_in_for)) return false;
+  let token = input.standingInFor ? undefined : tokens?.find((t) => t.submitter_id === input.submitterId && !t.stands_in_for);
+  // Whom the Prompt stands in for, remembered on it: the answer is recorded for them, never guessed from the Tokens.
+  let promptStandsInFor: string | null = null;
   if (!token) {
-    const standsInFor = tokens?.find((t) => t.stand_in_id === input.submitterId && !t.stands_in_for)?.submitter_id;
+    const standsInFor = input.standingInFor ?? tokens?.find((t) => t.stand_in_id === input.submitterId && !t.stands_in_for)?.submitter_id;
     if (!standsInFor) return false;
+    promptStandsInFor = standsInFor;
     const mine = tokens?.find((t) => t.submitter_id === input.submitterId && t.stands_in_for === standsInFor);
     if (mine) {
       await db().from("tokens").update({ expires_at: expires }).eq("id", mine.id);
@@ -176,7 +182,7 @@ export async function deliverPrompt(input: { metricId: number; submitterId: stri
   const answersBy = (r: (typeof routes)[number]): string => (r.answerHere ? CONNECTORS[r.via].sourceId ?? "web_form" : "web_form");
   // One Prompt however many ways it goes by, so the first answer on any of them closes it for all (prompt-ways.ts).
   // The question names the Metric, so it is sealed with the Workspace Key (spec 0028).
-  const [prompt] = await insertSealed("prompts", metric.workspace_id, [{ metric_id: metric.id, submitter_id: person.id, source: answersBy(routes[0]), text: question, period_start: period }]) as { id: number }[];
+  const [prompt] = await insertSealed("prompts", metric.workspace_id, [{ metric_id: metric.id, submitter_id: person.id, source: answersBy(routes[0]), text: question, period_start: period, stands_in_for: promptStandsInFor }]) as { id: number }[];
   let first: PromptOutcome | null = null;
   for (const route of routes) {
     const via: ConnectorId = route.via;
@@ -236,8 +242,16 @@ export async function deliverChecklist(ws: string, input: { recipientId: string;
   return deliverPlain(ws, "checklist", { recipientId: input.recipientId, senderId: input.senderId, subject: input.subject, text: input.text, link: input.link, tellWorkflowId: input.workflowId, snapshotDashboardId: input.dashboardId, queue: true });
 }
 
-/** One plain message of a kind that is not about an Action: a notice, an Alert, a Heads-up or a Checklist Item. */
-async function deliverPlain(ws: string, kind: "notice" | "alert" | "heads_up" | "checklist", input: { recipientId: string; senderId: string | null; subject: string; text: string; link: string; via?: ConnectorId; quiet?: boolean; alertMetricId?: number | null; alertId?: number | null; tellWorkflowId?: number; snapshotDashboardId?: number; queue?: boolean; headsUpMetrics?: readonly number[]; headsUpKey?: string; headsUpToldId?: number }): Promise<number | null> {
+/** The message that tells a submitter someone entered a value for them (GLOSSARY: Filled-in Value; spec 0046): its own kind,
+ * held by Quiet Hours, never answerable. `text` holds the value and, where the recipient may read it, who entered it; it is
+ * about one Metric, named here so that it is checked again at the moment it leaves (internal/delivery-send.ts). A Contact
+ * has no sign-in: `formTokenId` is their own Token, whose personal form link is put in only as it is sent. */
+export async function deliverFilledIn(ws: string, input: { recipientId: string; senderId: string | null; observationId: number; subject: string; text: string; link: string; metricId: number; formTokenId: number | null }): Promise<number | null> {
+  return deliverPlain(ws, "filled_in", { recipientId: input.recipientId, senderId: input.senderId, filledInObservationId: input.observationId, subject: input.subject, text: input.text, link: input.link, alertMetricId: input.metricId, formTokenId: input.formTokenId, queue: true });
+}
+
+/** One plain message of a kind that is not about an Action: a notice, an Alert, a Heads-up, a Checklist Item or a Filled-in Value. */
+async function deliverPlain(ws: string, kind: "notice" | "alert" | "heads_up" | "checklist" | "filled_in", input: { recipientId: string; senderId: string | null; subject: string; text: string; link: string; via?: ConnectorId; quiet?: boolean; alertMetricId?: number | null; alertId?: number | null; tellWorkflowId?: number; snapshotDashboardId?: number; queue?: boolean; headsUpMetrics?: readonly number[]; headsUpKey?: string; headsUpToldId?: number; formTokenId?: number | null; filledInObservationId?: number }): Promise<number | null> {
   const via = input.via ?? await connectorFor(ws, input.recipientId, "reply", null);
   // A Guest does not see who else is in the Workspace: a notice's text names no one else to them.
   const { data: member } = await db().from("memberships").select("role").eq("workspace_id", ws).eq("user_id", input.recipientId).maybeSingle();
@@ -249,7 +263,8 @@ async function deliverPlain(ws: string, kind: "notice" | "alert" | "heads_up" | 
   const d = await insertDelivery(ws, {
     connector: via, recipient_id: input.recipientId, sender_id: input.senderId, kind,
     // A message holds people's and things' names: on Slack they are escaped, so none can become a link or a mention.
-    subject: input.subject, body: via === "slack" ? `${slackEscape(input.text)}\n<${linkTo(input.link)}|Open in Ziffr>` : `${input.text}\n${CONNECTORS[via].label === "Ticket system" ? "Ziffr" : "Open"}: ${linkTo(input.link)}`, mail_state, alert_metric_id: input.alertMetricId ?? null, alert_id: input.alertId ?? null, tell_workflow_id: input.tellWorkflowId ?? null, snapshot_dashboard_id: input.snapshotDashboardId ?? null,
+    // A Contact's link is their own personal form link, put in only as it is sent (FORM_LINK), never stored.
+    subject: input.subject, body: input.link === FORM_LINK ? `${via === "slack" ? slackEscape(input.text) : input.text}\n${FORM_LINK}` : via === "slack" ? `${slackEscape(input.text)}\n<${linkTo(input.link)}|Open in Ziffr>` : `${input.text}\n${CONNECTORS[via].label === "Ticket system" ? "Ziffr" : "Open"}: ${linkTo(input.link)}`, mail_state, form_token_id: input.formTokenId ?? null, filled_in_observation_id: input.filledInObservationId ?? null, alert_metric_id: input.alertMetricId ?? null, alert_id: input.alertId ?? null, tell_workflow_id: input.tellWorkflowId ?? null, snapshot_dashboard_id: input.snapshotDashboardId ?? null,
     heads_up_metric_a: input.headsUpMetrics?.[0] ?? null, heads_up_metric_b: input.headsUpMetrics?.[1] ?? null, heads_up_key: input.headsUpKey ?? null, heads_up_told_id: input.headsUpToldId ?? null,
   }, input.quiet ? "reminder" : kind);
   // An Alert is only queued, for the deliveries job to send: the value that caused it must not wait on the mail server.

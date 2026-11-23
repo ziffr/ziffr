@@ -311,8 +311,11 @@ export async function metricHistory(actor: Actor, metricId: number) {
     db().from("observation_history").select("*").eq("metric_id", metricId).eq("workspace_id", ws).order("superseded_at", { ascending: false }).limit(100),
   ]);
   // Values are sealed with the Workspace Key; one that does not open is left out, never shown as ciphertext.
-  const opened = (rows: Record<string, unknown>[] | null, table: "observations" | "observation_history") => openRows(table, ws, rows).then((r) => r.filter((x) => typeof x.value === "number").map(({ submitted_by_name: _name, ...rest }) => rest)); // eslint-disable-line @typescript-eslint/no-unused-vars
-  return { observations: await opened(obs, "observations"), actions, superseded: await opened(superseded, "observation_history") };
+  const opened = (rows: Record<string, unknown>[] | null, table: "observations" | "observation_history") => openRows(table, ws, rows).then((r) => r.filter((x) => typeof x.value === "number").map(({ submitted_by_name: _name, entered_by_name: _enteredName, ...rest }) => rest)); // eslint-disable-line @typescript-eslint/no-unused-vars
+  const [observations, history] = await Promise.all([opened(obs, "observations"), opened(superseded, "observation_history")]);
+  // A Guest does not see who submitted a value or who entered it for them (GLOSSARY: Guest): both ids go together.
+  const forGuest = <T extends Record<string, unknown>>(rows: T[]) => (actor.role === "guest" ? rows.map(({ submitter_id: _s, entered_by: _e, ...rest }) => rest as unknown as T) : rows); // eslint-disable-line @typescript-eslint/no-unused-vars
+  return { observations: forGuest(observations), actions, superseded: forGuest(history) };
 }
 
 /** The Metrics on the actor's Analysis Canvas in this workspace, in order. */
