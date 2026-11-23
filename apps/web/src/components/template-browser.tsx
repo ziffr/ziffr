@@ -1,9 +1,8 @@
 "use client";
 // GLOSSARY: Widget Template, Preview. Browse templates: every built-in and team template as a Preview, larger than
-// the Pool's list, to compare them. Previews draw Sample Data only (see preview.tsx), each once it scrolls into view.
+// the Pool's list, to compare them. It is the content of the side panel (spec 0050); the Pool opens it. Previews draw Sample Data only (see preview.tsx), each once it scrolls into view.
 import { useEffect, useRef, useState } from "react";
 import { Search } from "lucide-react";
-import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import type { DropSource } from "@/app/canvas-actions";
 import type { CanvasData, WidgetTemplate } from "@ziffr/core/types";
@@ -12,8 +11,11 @@ import { TEMPLATE_GROUPS, builtinTemplates } from "./template-groups";
 
 type Card = { key: string; name: string; blurb: string; draw: () => React.ReactNode; source: DropSource };
 
-/** The Browse templates dialog; `onUse` adds the chosen template the way the Pool's + does. */
-export function TemplateBrowser({ data, layouts, onUse, onClose }: { data: CanvasData; layouts: boolean; onUse: (s: DropSource) => void; onClose: () => void }) {
+/** The panel's title and line under it for Browse templates. */
+export const BROWSE_TEMPLATES = { title: "Browse templates", description: "Drawn with sample data. Pick one to choose its metrics." } as const;
+
+/** What Browse templates shows in the side panel; `onUse` adds the chosen template the way the Pool's + does. */
+export function TemplateBrowser({ data, layouts, onUse }: { data: CanvasData; layouts: boolean; onUse: (s: DropSource) => void }) {
   const [q, setQ] = useState("");
   const match = (...s: string[]) => s.some((x) => x.toLowerCase().includes(q.toLowerCase()));
   const groups: { title: string; cards: Card[] }[] = [
@@ -36,19 +38,16 @@ export function TemplateBrowser({ data, layouts, onUse, onClose }: { data: Canva
   ].filter((g) => g.cards.length);
 
   return (
-    <Dialog open onOpenChange={(o) => { if (!o) onClose(); }}>
-      <DialogContent className="flex max-h-[min(52rem,calc(100vh-2rem))] flex-col sm:max-w-4xl">
-        <DialogTitle>Browse templates</DialogTitle>
-        <DialogDescription>Drawn with sample data. Pick one to choose its metrics.</DialogDescription>
+    <div className="space-y-3">
         <label className="flex items-center gap-1.5 rounded-[var(--radius-input)] border border-input bg-card px-2.5 focus-within:outline-2 focus-within:outline-offset-1 focus-within:outline-ring">
           <Search aria-hidden className="size-4 text-muted-foreground" />
           <input autoFocus value={q} onChange={(e) => setQ(e.target.value)} placeholder="Filter" aria-label="Filter templates" className="h-9 w-full bg-transparent text-sm outline-none" />
         </label>
-        <div className="-mx-1 min-h-0 flex-1 space-y-5 overflow-y-auto px-1 pb-1">
+        <div className="space-y-5">
           {groups.map((g) => (
             <section key={g.title} aria-label={g.title}>
               <h3 className="pb-2 text-xs font-medium text-muted-foreground">{g.title}</h3>
-              <ul className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+              <ul className="grid gap-3">
                 {g.cards.map((c) => (
                   <li key={c.key} className="stock flex flex-col gap-2 rounded-[var(--radius-stock)] p-3">
                     <WhenVisible className="flex h-44 items-start justify-center overflow-hidden rounded-[var(--radius-input)] bg-[var(--color-paper-2)] p-2">{c.draw}</WhenVisible>
@@ -64,8 +63,7 @@ export function TemplateBrowser({ data, layouts, onUse, onClose }: { data: Canva
           ))}
           {groups.length === 0 && <p className="text-sm text-muted-foreground">No template matches.</p>}
         </div>
-      </DialogContent>
-    </Dialog>
+    </div>
   );
 }
 
