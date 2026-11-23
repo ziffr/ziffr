@@ -24,6 +24,16 @@ export function widgetWith(template: TemplateId, real: number[], period: Period)
   const order = sampleIds(sample);
   const map = (n: number) => real[Math.max(0, order.indexOf(n)) % real.length];
   const swap = (x: unknown): unknown => Array.isArray(x) ? x.map(swap) : x && typeof x === "object" ? Object.fromEntries(Object.entries(x).map(([k, v]) => [k, k === "metricIds" && Array.isArray(v) ? v.map((n) => map(Number(n))) : swap(v)])) : x;
-  return { ...sample, metric_ids: sample.metric_ids.map(map), settings: swap(sample.settings) as WidgetSettings };
+  const ids = sample.metric_ids.map(map);
+  // One bar per Metric: a Metric picked once is not drawn three times to fill the sample's three.
+  return { ...sample, metric_ids: template === "progress" ? [...new Set(ids)] : ids, settings: swap(sample.settings) as WidgetSettings };
 }
 
+
+/** The slope chart made with real Metrics: the rows of the first one's Breakdown, or, with `metrics`, all of them (the caller passes only Metrics of one unit). One Metric is one line, never repeated to fill the sample's three. */
+export function slopeWith(real: number[], period: Period, by: "rows" | "metrics"): FrameWidget {
+  const sample = sampleWidget("slope", period);
+  return by === "rows"
+    ? { ...sample, metric_ids: [real[0]], settings: { ...sample.settings, slope: "previous" } }
+    : { ...sample, metric_ids: real, settings: { ...sample.settings, slope: "metrics" } };
+}

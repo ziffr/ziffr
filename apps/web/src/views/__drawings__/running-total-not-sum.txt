@@ -1,0 +1,1 @@
+"A running total needs a Metric that adds up over the year (its Aggregation is sum)."

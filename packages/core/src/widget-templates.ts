@@ -13,6 +13,8 @@ export type TemplateDef = {
   kind: "metric" | "analysis" | "story" | "layout";
   /** Templates that draw a Breakdown (a Finding of one period's, or a View of every period's): offered only for a Metric that has one. */
   needsBreakdown?: boolean;
+  /** Templates that add a Metric up over the year: only a Metric whose Aggregation is sum can be drawn by them. */
+  needsSum?: boolean;
   /** The metrics it asks for when it is added (GLOSSARY: Slot); none for a free layout, which starts empty. */
   slots: Slot[];
   size: { w: number; h: number };
@@ -39,6 +41,12 @@ export const TEMPLATES: Record<TemplateId, TemplateDef> = {
   correlation: designed("correlation"),
   matrix: designed("matrix"),
   drivers: designed("drivers"),
+  scoreboard: designed("scoreboard"),
+  progress: designed("progress"),
+  stacked: designed("stacked", true),
+  pareto: { ...designed("pareto"), needsBreakdown: true },
+  slope: designed("slope"),
+  "running-total": { ...designed("running-total"), needsSum: true },
   bump: designed("bump", true),
   ranked: { id: "ranked", label: "Finding: ranked bars", blurb: "A breakdown, largest first, one row highlighted.", kind: "story", needsBreakdown: true, slots: withBreakdown, size: { w: 6, h: 9 }, settings: {} },
   share: { id: "share", label: "Finding: part of the whole", blurb: "How a breakdown divides the total.", kind: "story", needsBreakdown: true, slots: withBreakdown, size: { w: 6, h: 7 }, settings: {} },
@@ -56,6 +64,7 @@ export const DEFAULT_TEMPLATE: TemplateId = "number";
 export const METRIC_TEMPLATES = Object.values(TEMPLATES).filter((t) => t.kind === "metric" && t.id !== "design");
 /** Story templates. */
 export const STORY_TEMPLATES = Object.values(TEMPLATES).filter((t) => t.kind === "story");
+/** Templates one metric can be shown in: templates that need a breakdown (Stacked bars, Pareto, some Findings) only when it has one. */
 /** Templates one metric can be shown in: story templates that need a breakdown only when it has one. */
 export const templatesFor = (hasBreakdown: boolean) => [...METRIC_TEMPLATES, ...STORY_TEMPLATES, TEMPLATES.canvas].filter((t) => !t.needsBreakdown || hasBreakdown);
 

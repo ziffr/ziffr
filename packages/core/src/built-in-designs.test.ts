@@ -37,10 +37,10 @@ describe("the built-in View Designs", () => {
     expect(TEMPLATES.drivers.slots).toEqual([{ label: "Metric", multiple: false }, { label: "Compared with", multiple: true }]);
   });
 
-  it("offer the bump chart only for a Metric that has a Breakdown", () => {
-    expect(TEMPLATES.bump).toMatchObject({ label: "Bump chart", kind: "metric", needsBreakdown: true, size: { w: 8, h: 7 }, settings: { window: 12 } });
-    expect(templatesFor(true).map((t) => t.id)).toContain("bump");
-    expect(templatesFor(false).map((t) => t.id)).not.toContain("bump");
+  it("offer the stacked bars only for a Metric that has a Breakdown", () => {
+    expect(TEMPLATES.stacked).toMatchObject({ label: "Stacked bars over time", kind: "metric", needsBreakdown: true, size: { w: 6, h: 6 }, settings: { window: 12 } });
+    expect(templatesFor(true).map((t) => t.id)).toContain("stacked");
+    expect(templatesFor(false).map((t) => t.id)).not.toContain("stacked");
     expect(templatesFor(false).map((t) => t.id)).toContain("bars");
   });
 
@@ -48,9 +48,14 @@ describe("the built-in View Designs", () => {
     expect(DESIGNED_VIEWS.filter((id) => BUILT_IN_DESIGNS[id].options?.display)).toEqual([...SHOWN_BY]);
   });
 
+  it("marks the running total as needing a Metric that adds up, which the Gallery says", () => {
+    expect(TEMPLATES["running-total"].needsSum).toBe(true);
+    expect(TEMPLATES["running-total"]).toMatchObject({ label: "Running total against plan", kind: "metric", size: { w: 8, h: 6 } });
+  });
+
   it("go into PowerPoint as before: lines, bars, numbers and tables natively, the rest as pictures", () => {
     const form = Object.fromEntries(DESIGNED_VIEWS.map((id) => [id, nativeForm(BUILT_IN_DESIGNS[id], TEMPLATES[id].settings)]));
-    expect(form).toEqual({ number: "number", line: "line", bars: "bar", gauge: "picture", table: "table", forecast: "picture", correlation: "picture", matrix: "picture", drivers: "picture", bump: "picture" });
+    expect(form).toEqual({ number: "number", line: "line", bars: "bar", gauge: "picture", table: "table", forecast: "picture", correlation: "picture", matrix: "picture", drivers: "picture", scoreboard: "picture", progress: "picture", stacked: "picture", pareto: "picture", slope: "picture", "running-total": "picture", bump: "picture" });
     // A line with its forecast or target switched on is still a native line, the forecast and band left out as before.
     expect(nativeForm(BUILT_IN_DESIGNS.line, { showForecast: true, showTarget: true })).toBe("line");
     expect(nativeForm(BUILT_IN_DESIGNS.bars, { showTarget: false })).toBe("bar");

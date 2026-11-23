@@ -2,6 +2,7 @@
 // setting on the Workflow (`lockSummary`). It is sent once, by the Lock that makes every value the Workflow asks for
 // locked, through the owner's Delivery Preference, and says only what the owner may see: it is their own
 // period timeline, as a short notice. Nothing is recorded for it: a period unlocked and locked again sends it again.
+// When the Workflow has Checklist Tasks it also says how many of them are done (the Finished Period, period-finished.ts).
 import { openWorkflowRow } from "./workflow-rows";
 import { db } from "./db";
 import { deliverNotice } from "./deliveries";
@@ -41,7 +42,8 @@ async function summarise(ws: string, workflowId: number, period: string): Promis
   await deliverNotice(ws, {
     recipientId: wf.owner_id as string, senderId: null,
     subject: `${wf.name}: ${t.label} is locked`,
-    text: [`${wf.name}, ${t.label}: locked. ${t.in} of ${t.of} values in.`, ...happened].join("\n"),
+    // With Checklist Items the summary says how far the rest of the close is (spec 0045): counts, never their words.
+    text: [`${wf.name}, ${t.label}: locked. ${t.in} of ${t.of} values in.`, ...(t.checklist.of ? [`${t.checklist.done} of ${t.checklist.of} checklist items done.`] : []), ...happened].join("\n"),
     link: `/workflows?id=${workflowId}`,
   });
   return true;

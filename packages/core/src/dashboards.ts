@@ -18,6 +18,7 @@ import { firstFreePlace } from "./free-place";
 import { isDisplayPeriod, SHOWN_BY } from "./display-periods";
 import { checkTagSource } from "./tag-widgets";
 import { tagSourceId, takesTagSource, withoutNestedTagSources } from "./tag-source";
+import { SLOPE_CHOICES } from "./view-design";
 import type { TeamTemplate, TemplateId, Widget, WidgetSettings, WidgetTemplate } from "./types";
 
 /** What can be dropped onto a dashboard or saved to the Pool. */
@@ -39,6 +40,8 @@ function settings(s: unknown): WidgetSettings {
   if (v.asOf !== undefined && v.asOf !== null && !(typeof v.asOf === "string" && /^\d{4}-\d{2}-\d{2}$/.test(v.asOf))) throw new Error("This widget's day is not one.");
   // Show by (spec 0018): one of the Display Periods or nothing; any other text would draw nothing sensible.
   if (v.display !== undefined && !isDisplayPeriod(v.display)) throw new Error("A widget is shown by a week, month, quarter, half-year or year.");
+  // What a slope chart compares (spec 0024): one of the known choices, never other text.
+  if (v.slope !== undefined && !(SLOPE_CHOICES as readonly unknown[]).includes(v.slope)) throw new Error("A slope chart compares rows against the period before or a year earlier, or several Metrics.");
   // A free layout keeps a tldraw document: nothing in it may load from another site (spec 0009).
   assertNoOutsideContent((v as { canvas?: { document?: unknown } | null }).canvas?.document, "layout");
   // A View Design in a widget, in the widget a Free layout starts from, or in a widget on its artboard, is checked like
