@@ -199,6 +199,22 @@ describe("replacing and locking", () => {
     expect(r.outcome).toBe("proposed_locked");
     expect(await rowsOf(m.id, ago(2))).toEqual([expect.objectContaining({ entered_by: ben })]);
   });
+
+  it("a Stand-in's late value for a locked period keeps their Token narrowed: no Access Key, only periods they were asked about (#803)", async () => {
+    const { w, sara, tom, m, as, tomCode } = await setup();
+    await deliverPrompt({ metricId: m.id, submitterId: tom, standingInFor: sara, period: ago(2), queue: true });
+    for (const p of [ago(2), ago(3)]) await db().from("period_states").upsert({ metric_id: m.id, period_start: p, state: "locked", workspace_id: w.id });
+    const proposals = async () => (await db().from("actions").select("id").eq("metric_id", m.id).eq("purpose", "approval")).data ?? [];
+    const unasked = await recordOwnValue(as(tom), m.id, { value: "5", period: ago(3) }, quiet());
+    expect(unasked).toMatchObject({ ok: false, outcome: "rejected_fill_in" });
+    expect(unasked.detail).toMatch(/only for the periods you were asked about/);
+    const key = await submitValue({ source: "api", sender: tomCode, text: "5", value: { value: 5 }, period: ago(2), workspaceId: w.id }, quiet());
+    expect(key).toMatchObject({ ok: false, outcome: "rejected_fill_in" });
+    expect(await proposals()).toEqual([]);
+    // Asked, answered in the app: proposed as a Correction, as any late value is.
+    expect((await recordOwnValue(as(tom), m.id, { value: "5", period: ago(2) }, quiet())).outcome).toBe("proposed_locked");
+    expect(await proposals()).toHaveLength(1);
+  });
 });
 
 describe("telling the submitter", () => {
