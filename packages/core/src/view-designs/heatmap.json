@@ -1,0 +1,14 @@
+{
+  "format": "ziffr.view/1",
+  "name": "Heatmap",
+  "description": "A grid of periods shaded by value: see the weekdays, seasons and quiet spells at a glance.",
+  "kind": "metric",
+  "slots": [{ "label": "Metric by day, week or month", "metrics": "one" }],
+  "size": { "w": 8, "h": 5 },
+  "options": {
+    "window": { "label": "Weeks (by day) or years", "default": 26 }
+  },
+  "parts": [
+    { "mark": "heatmap", "show": "values" }
+  ]
+}

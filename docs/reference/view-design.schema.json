@@ -1825,6 +1825,26 @@
             "show"
           ],
           "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "description": "The periods of one Metric as a grid of squares shaded by value: a daily Metric as weeks in columns and weekdays in rows, a weekly one as ISO years by week 1 to 53, a monthly one as years by the months of the Workspace's year. Five steps of the data tone by each value's rank among the squares drawn; darker is a higher value, never a better one. A period without a value is an empty outline, never a 0. A Metric by quarter or year is refused in words. The option “window” counts weeks (daily) or years (weekly, monthly).",
+          "properties": {
+            "mark": {
+              "const": "heatmap"
+            },
+            "show": {
+              "const": "values"
+            },
+            "when": {
+              "$ref": "#/$defs/when"
+            }
+          },
+          "required": [
+            "mark",
+            "show"
+          ],
+          "additionalProperties": false
         }
       ]
     },

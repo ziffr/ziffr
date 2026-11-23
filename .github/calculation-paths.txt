@@ -16,7 +16,7 @@
 # Where values are stored, read and combined on their way to a widget, a Snapshot, a deck or a program.
 ^packages/core/src/(submissions|record-value|api-submissions|workspace-data|snapshots|auto-snapshots|deck-content|page-data|api-metrics|api-dashboards|metric-row|types)\.ts$
 ^apps/web/src/decks/export\.ts$
-^apps/web/src/views/(widget-body|metric-chart|design-view|design-plot|design-polar|design-scoreboard|design-progress|design-cumulative|design-bump)\.tsx$
+^apps/web/src/views/(widget-body|metric-chart|design-view|design-plot|design-polar|design-scoreboard|design-progress|design-cumulative|design-bump|design-heatmap)\.tsx$
 # The references, the tests that hold the code to them, the Calculation Catalogue, and how they run.
 ^docs/reference/calculations\.md$
 ^packages/core/src/test/reference/

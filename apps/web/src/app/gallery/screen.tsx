@@ -83,6 +83,7 @@ export function GalleryScreen({ data: sent, metricId, dashboards, canCreate, dem
       if (!alike.length) return { widget: null, why: `${metric.name} has no breakdown and no other Metric in its unit, so this shows sample data.` };
       return { widget: slopeWith([metric.id, ...alike], metric.period, "metrics"), why: null };
     }
+    if (id === "heatmap" && (metric.period === "quarter" || metric.period === "year")) return { widget: null, why: `${metric.name} is by ${metric.period}, and a heatmap needs a Metric by day, week or month, so this shows sample data.` };
     if (t.slots.length > 1 && partners.length + 1 < t.slots.length) return { widget: null, why: `Needs other Metrics with ${ENOUGH}+ months in common with ${metric.name}, so this shows sample data.` };
     return { widget: widgetWith(id, [metric.id, ...partners], metric.period), why: null };
   };

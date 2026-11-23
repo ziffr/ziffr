@@ -7,6 +7,7 @@ on:
   workflow_dispatch:
 permissions:
   contents: read
+  issues: write
 jobs:
   numbers:
     runs-on: ubuntu-latest
@@ -44,3 +45,15 @@ jobs:
             packages/core/reports/stryker-incremental.json
             packages/core/reports/stryker-baseline-date
           key: stryker-incremental-${{ github.run_id }}
+      # A failed night (a counterexample at full strength, a surviving mutant) opens one issue, or adds to the open one, so it is
+      # noticed even when nobody watches Actions; the pull requests' own runs are quick (ci.yml) and rely on this one.
+      - name: Report a failed night
+        if: failure()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RUN: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          title="The nightly Numbers run failed"
+          body="The run of $(date -u +%Y-%m-%d) failed: $RUN (a counterexample at full strength with its seed, or a mutant no test kills). Read the failing step, fix the cause in a pull request, and close this issue when a night passes."
+          open=$(gh issue list --repo "$GITHUB_REPOSITORY" --state open --search "\"$title\" in:title" --json number --jq '.[0].number' || true)
+          if [ -n "$open" ]; then gh issue comment "$open" --repo "$GITHUB_REPOSITORY" --body "$body"; else gh issue create --repo "$GITHUB_REPOSITORY" --title "$title" --body "$body"; fi
