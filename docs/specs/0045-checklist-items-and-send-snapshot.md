@@ -1,6 +1,6 @@
 # 0045 Checklist Items and Send Snapshot: the rest of a close, in the Workflow
 
-**Status:** draft. **Tracking issue:** #790 (label `tracking`); tickets #791 to #794 carry `spec:0045`.
+**Status:** done. **Tracking issue:** #790 (label `tracking`); tickets #791 to #794 carry `spec:0045`.
 
 ## Problem Statement
 
@@ -121,7 +121,7 @@ The owner's decisions (2026-11-22) are two additions to the Workflow:
 ### Workflow Templates, Packs and Workspace Exports
 
 - **Workflow Templates** keep Checklist Items with their kind, text, day and Due Date, and the Send Snapshot step without its dashboard; **people, Groups, Assignee, Stand-in, read Group and dashboard are left open**, as Approvers are. Making a Workflow from the template asks for each Assignee (or leaves the item at "nobody yet", paused) and lets the recipients and the dashboard be picked later in the editor. `WorkflowTemplateStep` gains the two step types without their people; `ziffr.workflow-template/1` files and the Pack checks in `packages/pack` accept them (a new optional step type in the same format version; older readers drop unknown steps, which `cleanConfig` already does).
-- A **Workspace Export** carries the steps with their people and dashboard ids mapped like every other id it carries, and the Checklist Tasks like other Actions; the import checks them as `cleanConfig` does.
+- A **Workspace Export** carries the steps with their people and dashboard ids mapped like every other id it carries, and the Checklist Tasks like other Actions; the import checks them as `cleanConfig` does. _As built (#791, #794):_ the export carries a Workflow as a Workflow Template does (an item's words, kind and day or Due Date; that there is a Send Snapshot step), the people, Groups and dashboard stay behind and the file says so, items its Owner may not read are left out, and no Checklist Task is carried, as no Action is.
 
 ### API and MCP
 

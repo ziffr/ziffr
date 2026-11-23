@@ -28,7 +28,13 @@ export async function periodFinishedAt(ws: string, workflowId: number, period: s
   // An item added after the period ended is not counted for it, nor is one that names nobody (it gives nothing).
   const end = periodEnd(period, asked[0].period as Period);
   const given = new Set((tasks ?? []).map((t) => String(t.checklist_item_id)));
-  if (tickItems((wf?.config as WorkflowConfig | undefined)?.steps ?? []).some((i) => i.assignee && (i.addedOn ?? "") <= end && !given.has(i.id))) return null;
+  const waiting = tickItems((wf?.config as WorkflowConfig | undefined)?.steps ?? []).filter((i) => i.assignee && (i.addedOn ?? "") <= end && !given.has(i.id));
+  if (waiting.length) {
+    // An Assignee who left the Workspace is given nothing (giveChecklistTasks), so their item names nobody and holds nothing back.
+    const { data: members } = await db().from("memberships").select("user_id").eq("workspace_id", ws).in("user_id", waiting.map((i) => i.assignee as string));
+    const still = new Set((members ?? []).map((m) => String(m.user_id)));
+    if (waiting.some((i) => still.has(i.assignee as string))) return null;
+  }
   return [...(locks ?? []), ...(tasks ?? [])].map((r) => String(r.updated_at)).sort().at(-1) ?? null;
 }
 
