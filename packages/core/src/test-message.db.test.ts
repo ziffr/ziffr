@@ -11,7 +11,7 @@ import { setMyQuietHours } from "./quiet-hours";
 import { finishSlackInstall, startSlackInstall } from "./slack-connection";
 import { setTelegramEnabled } from "./telegram-connection";
 import { sendTestMessage } from "./test-message";
-import { NO_WAY_HERE, TEST_PER_DAY, TEST_PER_WAY_PER_WINDOW, TEST_SUBJECT } from "./test-message-words";
+import { NO_WAY_HERE, TEST_PER_DAY, TEST_PER_DAY_IN_TRIAL, TEST_PER_WAY_PER_WINDOW, TEST_SUBJECT } from "./test-message-words";
 import { DEMO_WORKSPACE_ID } from "./team";
 import { fakeSlack } from "./test/fake-slack";
 import { fakeTelegram } from "./test/fake-telegram";
@@ -212,6 +212,12 @@ describe("the limits", () => {
     expect((await sendTestMessage(w.actor(ann.id), "email")).state).toBe("sent");
     const { data } = await db().from("trial_sends").select("delivery_id").eq("workspace_id", w.id);
     expect(data).toHaveLength(1);
+    // The day's cap in a trial is 5 a person: four more presses (spread over the ways) and the sixth is stopped.
+    await db().from("test_message_sends").insert(Array.from({ length: TEST_PER_DAY_IN_TRIAL - 2 }, (_, i) => ({ workspace_id: w.id, person_id: ann.id, way: ["slack", "telegram"][i % 2], at: new Date(Date.now() - (20 + i) * 60_000).toISOString() })));
+    expect((await sendTestMessage(w.actor(ann.id), "slack")).state).toBe("sent");
+    const over = await sendTestMessage(w.actor(ann.id), "slack");
+    expect(over).toMatchObject({ state: "limited" });
+    expect(over.note).toMatch(/^You sent 5 test messages today\./);
   });
 });
 

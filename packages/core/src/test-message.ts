@@ -6,7 +6,7 @@
 // the address is the one Ziffr keeps for that person (their sign-in address, or the Contact address on file if they also have one), and Slack and Telegram reach only the account that
 // person linked (or Slack found by that address). The text is fixed: the Workspace's name and the way, never anything
 // typed. Never through an Access Key, in the demo or for a Guest. At most 3 by one way in 10 minutes and 20 a day by
-// all ways, claimed in the database under a lock. The Audit Log keeps the way and the outcome, never an address.
+// all ways (5 in a trial), claimed in the database under a lock. The Audit Log keeps the way and the outcome, never an address.
 import { Forbidden, type Actor } from "./actor";
 import { audit } from "./audit-log";
 import { db } from "./db";
@@ -20,9 +20,10 @@ import { slackSends } from "./slack-send";
 import { telegramEnabled } from "./telegram-api";
 import { telegramOnIn } from "./telegram-connection";
 import { shownReason } from "./ask-now";
+import { trialEndsAt } from "./trials";
 import { CONNECTORS } from "./connectors/index";
 import {
-  limitWords, NO_WAY_HERE, TEST_PER_DAY, TEST_PER_WAY_PER_WINDOW, TEST_SUBJECT, TEST_WAYS, TEST_WINDOW_MINUTES, testText, type TestWay,
+  limitWords, NO_WAY_HERE, TEST_PER_DAY, TEST_PER_DAY_IN_TRIAL, TEST_PER_WAY_PER_WINDOW, TEST_SUBJECT, TEST_WAYS, TEST_WINDOW_MINUTES, testText, type TestWay,
 } from "./test-message-words";
 
 /** What became of a press: sent, waiting to be sent, kept in the Outbox (with why), or stopped by a limit (with when it resets). */
@@ -65,15 +66,17 @@ export async function sendTestMessage(actor: Actor, way: unknown): Promise<TestM
   const { data: member } = await db().from("memberships").select("role").eq("workspace_id", actor.workspaceId).eq("user_id", actor.personId).maybeSingle();
   if (!member || member.role === "guest") throw new Forbidden("Guests cannot send test messages.");
   const label = CONNECTORS[way].label;
+  // In a trial the day's cap is smaller, so tests cannot use up the trial's shared messages a day.
+  const perDay = (await trialEndsAt(actor.workspaceId)) ? TEST_PER_DAY_IN_TRIAL : TEST_PER_DAY;
   const { data: claim, error } = await db().rpc("claim_test_message", {
     p_workspace: actor.workspaceId, p_person: actor.personId, p_way: way,
-    p_per_window: TEST_PER_WAY_PER_WINDOW, p_window_minutes: TEST_WINDOW_MINUTES, p_per_day: TEST_PER_DAY,
+    p_per_window: TEST_PER_WAY_PER_WINDOW, p_window_minutes: TEST_WINDOW_MINUTES, p_per_day: perDay,
   });
   if (error || typeof claim !== "string") throw new Error("The test message could not be sent. Try again in a moment.");
   if (claim !== "ok") {
     const [limit, resetsAt] = claim.split("|");
     if ((limit !== "window" && limit !== "day") || !resetsAt) throw new Error("The test message could not be sent. Try again in a moment.");
-    return { way, label, state: "limited", note: limitWords(limit, resetsAt), resetsAt };
+    return { way, label, state: "limited", note: limitWords(limit, resetsAt, Date.now(), perDay), resetsAt };
   }
   const { data: ws } = await db().from("workspaces").select("name").eq("id", actor.workspaceId).maybeSingle();
   const keep = await missing(actor.workspaceId, actor.personId, way);

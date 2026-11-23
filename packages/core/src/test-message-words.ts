@@ -30,6 +30,9 @@ export const TEST_WINDOW_MINUTES = 10;
 /** The most Test Messages one person sends, by all ways together, in 24 hours. */
 export const TEST_PER_DAY = 20;
 
+/** The most Test Messages one person sends, by all ways together, in 24 hours in a Trial Workspace, so tests cannot use up the trial's messages a day. */
+export const TEST_PER_DAY_IN_TRIAL = 5;
+
 /** The subject of a Test Message. */
 export const TEST_SUBJECT = "Test message from Ziffr";
 
@@ -48,8 +51,8 @@ function untilWords(resetsAt: string, now: number): string {
 }
 
 /** What a person is told when a limit stops a press: which limit, and how long until it resets (`resetsAt` is an ISO time). */
-export function limitWords(limit: "window" | "day", resetsAt: string, now: number = Date.now()): string {
+export function limitWords(limit: "window" | "day", resetsAt: string, now: number = Date.now(), perDay: number = TEST_PER_DAY): string {
   return limit === "window"
     ? `You sent ${TEST_PER_WAY_PER_WINDOW} test messages by this way in the last ${TEST_WINDOW_MINUTES} minutes. Try again in ${untilWords(resetsAt, now)}.`
-    : `You sent ${TEST_PER_DAY} test messages today. Try again in ${untilWords(resetsAt, now)}.`;
+    : `You sent ${perDay} test messages today. Try again in ${untilWords(resetsAt, now)}.`;
 }

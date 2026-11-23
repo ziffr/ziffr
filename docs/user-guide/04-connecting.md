@@ -80,9 +80,9 @@ Everything Ziffr sends shows up in the **Outbox**, newest first, with what it sa
 
 To check how Ziffr reaches you, send yourself a **Test Message** by email, Slack or Telegram. It goes only to you: to the address you signed in with, or to the Slack and Telegram account you linked. The words are always the same (the Workspace's name and the way you tested), nothing in it can be answered, and Quiet Hours do not hold it. It shows in the Outbox marked **Test**.
 
-- You can send up to 3 test messages by one way in 10 minutes, and up to 20 a day in all. Over a limit, Ziffr says which one and how long until you can try again.
+- You can send up to 3 test messages by one way in 10 minutes, and up to 20 a day in all (5 a day in a trial). Over a limit, Ziffr says which one and how long until you can try again.
 - When a way is not set up, the test stays in the Outbox and says what is missing: no mail server, no Slack app or Telegram bot on this Ziffr (whoever runs it adds one on the Installation settings page), Slack or Telegram not turned on in this Workspace, or your own account not linked yet.
-- Test messages work in a trial, where they count towards the messages a day of the Trial Limits. They are not available in the demo, to Guests or through Access Keys.
+- Test messages work in a trial, where they count towards the messages a day of the Trial Limits, with a smaller cap of 5 a day for each person so they cannot use up the trial's messages. They are not available in the demo, to Guests or through Access Keys.
 - Owners and Admins can see in the Audit Log that someone sent a test, and by which way, never the address.
 
 ## How numbers go out
