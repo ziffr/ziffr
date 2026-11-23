@@ -123,6 +123,8 @@ const HOSTILE: [string, string, string, Where][] = [
   ["a polar plot with an unknown field", withPart({ mark: "polar", show: "values", rings: 9 }), "is not a field here", '"rings"'],
   ["a polar plot of a recipe output without an analysis", withPart({ mark: "polar", show: "recipe.avg" }), "but the design has no analysis", '"recipe.avg"'],
   ["a polar plot of one value", text({ ...WITH_RECIPE, parts: [{ mark: "polar", show: "recipe.sd" }] }), "“recipe.sd” gives one value; this mark needs a series", '"recipe.sd"'],
+  ["a stacked mark of something else", withPart({ mark: "stacked", show: "values" }), "must be “breakdown”", '"values"'],
+  ["a stacked mark with no show", withPart({ mark: "stacked" }), "needs the field “show”", { after: '"parts": [' }],
   ["a radar of something else", withPart({ mark: "radar", show: "values" }), "must be “latest”", '"values"'],
   ["a radar against a target", withPart({ mark: "radar", show: "latest", against: "target" }, { slots: [{ label: "M", metrics: "several", min: 3 }] }), "must be “previous”", '"target"'],
   ["a radar of one Metric", withPart({ mark: "radar", show: "latest" }), "A radar needs 3 to 12 spokes", { after: '"parts": [' }],
@@ -157,6 +159,8 @@ describe("checkViewDesign", () => {
     expect(res.ok ? [] : res.problems).toEqual([]);
     const withRecipe = checkViewDesign(text(WITH_RECIPE));
     expect(withRecipe.ok ? [] : withRecipe.problems).toEqual([]);
+    // A stacked mark of a Breakdown is a View Design like any other (the built-in Stacked bars over time).
+    expect(checkViewDesign(text({ ...EXAMPLE, parts: [{ mark: "stacked", show: "breakdown", when: ["manyValues"] }] })).ok).toBe(true);
     const polar = checkViewDesign(text(WITH_POLAR_AND_RADAR));
     expect(polar.ok ? [] : polar.problems).toEqual([]);
     // A progress mark takes a Slot of several, or one Metric: it is one bar each.

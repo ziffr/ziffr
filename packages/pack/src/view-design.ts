@@ -53,7 +53,8 @@ export type Part =
   | { mark: "polar"; show: "values" | RecipeShow; when?: Flag[] }
   | { mark: "radar"; show: "latest"; against?: "previous"; when?: Flag[] }
   | { mark: "progress"; show: "latest"; when?: Flag[] }
-  | { mark: "scoreboard"; show: "latest"; when?: Flag[] };
+  | { mark: "scoreboard"; show: "latest"; when?: Flag[] }
+  | { mark: "stacked"; show: "breakdown"; when?: Flag[] };
 
 /** How many Metrics a scoreboard has rows for, at least and at most: fewer than 3 read better as number Widgets, more than 12 cannot be taken in at a glance. */
 export const SCOREBOARD = { min: 3, max: 12 } as const;
@@ -234,6 +235,7 @@ export const VIEW_DESIGN_SCHEMA: Schema = {
         mark("scoreboard", `One row for each of ${SCOREBOARD.min} to ${SCOREBOARD.max} Metrics, in the order of the Slots: its name, latest value, change against the previous period, whether it is on target, and a small trend.`, { show: { const: "latest" } }, ["show"]),
         mark("range", "One bar per row, from its low to its high end, with its middle value: a driver's effect with its range (the table of the `effects` step of the design's analysis).", { show: recipeTable("a table with a low and a high end for each row, from the `effects` step"), tone }, ["show"]),
         mark("bridge", "Steps from a start, each part going up or down, and an end (the table of the `bridge` step of the design's analysis).", { show: recipeTable("the table of the `bridge` step") }, ["show"]),
+        mark("stacked", "One bar per period, stacked from that period's Breakdown: the largest rows of the newest period (at most 5) as their own segments in a stable order and colour, every other row as one muted Other; a period without a Breakdown is left out and counted, and a negative row is refused in words.", { show: { const: "breakdown" } }, ["show"]),
       ],
     },
     plotMark: {
