@@ -48,6 +48,7 @@ export const TEMPLATES: Record<TemplateId, TemplateDef> = {
   slope: designed("slope"),
   "running-total": { ...designed("running-total"), needsSum: true },
   bump: designed("bump", true),
+  heatmap: designed("heatmap"),
   ranked: { id: "ranked", label: "Finding: ranked bars", blurb: "A breakdown, largest first, one row highlighted.", kind: "story", needsBreakdown: true, slots: withBreakdown, size: { w: 6, h: 9 }, settings: {} },
   share: { id: "share", label: "Finding: part of the whole", blurb: "How a breakdown divides the total.", kind: "story", needsBreakdown: true, slots: withBreakdown, size: { w: 6, h: 7 }, settings: {} },
   pictogram: { id: "pictogram", label: "Finding: 7 in 10", blurb: "The largest share as ten figures.", kind: "story", needsBreakdown: true, slots: withBreakdown, size: { w: 4, h: 8 }, settings: {} },
