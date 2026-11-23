@@ -1,0 +1,383 @@
+{
+  "format": "ziffr.pack/1",
+  "id": "ziffr/fulfilment",
+  "name": "Operations and fulfilment",
+  "version": "1.0.0",
+  "summary": "Orders shipped, on-time delivery, backlog, stock, stock-outs, output, defects and downtime, with a weekly dashboard and a Workflow that asks for last week's figures on Monday.",
+  "author": {
+    "name": "Ziffr"
+  },
+  "license": "CC-BY-4.0",
+  "ziffr": ">=0.11",
+  "listing": {
+    "homepage": "https://github.com/ziffr/ziffr/tree/main/packs"
+  },
+  "contents": {
+    "metrics": [
+      {
+        "key": "orders-shipped",
+        "metric": {
+          "format": "ziffr.metric/1",
+          "name": "Orders shipped",
+          "description": "Orders handed to the carrier in the week.",
+          "category": "Operations",
+          "period": "week",
+          "aggregation": "sum",
+          "polarity": "higher",
+          "valueFormat": "number",
+          "decimals": 0,
+          "submissionRule": "overwrite",
+          "sources": [
+            "web_form",
+            "mail",
+            "slack",
+            "telegram",
+            "api"
+          ],
+          "tags": [
+            "Operations",
+            "Weekly report"
+          ]
+        }
+      },
+      {
+        "key": "on-time",
+        "metric": {
+          "format": "ziffr.metric/1",
+          "name": "On-time delivery",
+          "description": "The share of orders delivered by the promised date, in the week.",
+          "category": "Operations",
+          "period": "week",
+          "aggregation": "average",
+          "polarity": "higher",
+          "unit": "%",
+          "unitPosition": "after",
+          "valueFormat": "percent",
+          "decimals": 0,
+          "submissionRule": "overwrite",
+          "targetMin": 95,
+          "sources": [
+            "web_form",
+            "mail",
+            "slack",
+            "telegram",
+            "api"
+          ],
+          "tags": [
+            "Operations",
+            "Weekly report"
+          ]
+        }
+      },
+      {
+        "key": "backlog",
+        "metric": {
+          "format": "ziffr.metric/1",
+          "name": "Order backlog",
+          "description": "Orders received and not yet shipped, at the end of the week.",
+          "category": "Operations",
+          "period": "week",
+          "aggregation": "last",
+          "polarity": "lower",
+          "valueFormat": "number",
+          "decimals": 0,
+          "submissionRule": "overwrite",
+          "sources": [
+            "web_form",
+            "mail",
+            "slack",
+            "telegram",
+            "api"
+          ],
+          "tags": [
+            "Operations"
+          ]
+        }
+      },
+      {
+        "key": "stock-value",
+        "metric": {
+          "format": "ziffr.metric/1",
+          "name": "Stock value",
+          "description": "The value of stock on hand at the end of the week, at cost.",
+          "category": "Operations",
+          "period": "week",
+          "aggregation": "last",
+          "polarity": "target",
+          "unit": "€",
+          "unitPosition": "after",
+          "valueFormat": "currency",
+          "decimals": 0,
+          "submissionRule": "overwrite",
+          "sources": [
+            "web_form",
+            "mail",
+            "slack",
+            "telegram",
+            "api"
+          ],
+          "tags": [
+            "Operations"
+          ]
+        }
+      },
+      {
+        "key": "stock-outs",
+        "metric": {
+          "format": "ziffr.metric/1",
+          "name": "Stock-outs",
+          "description": "Products that were out of stock at some point in the week.",
+          "category": "Operations",
+          "period": "week",
+          "aggregation": "sum",
+          "polarity": "lower",
+          "valueFormat": "number",
+          "decimals": 0,
+          "submissionRule": "overwrite",
+          "sources": [
+            "web_form",
+            "mail",
+            "slack",
+            "telegram",
+            "api"
+          ],
+          "tags": [
+            "Operations"
+          ]
+        }
+      },
+      {
+        "key": "output",
+        "metric": {
+          "format": "ziffr.metric/1",
+          "name": "Units produced",
+          "description": "Units made or packed in the week.",
+          "category": "Operations",
+          "period": "week",
+          "aggregation": "sum",
+          "polarity": "higher",
+          "valueFormat": "number",
+          "decimals": 0,
+          "submissionRule": "overwrite",
+          "sources": [
+            "web_form",
+            "mail",
+            "slack",
+            "telegram",
+            "api"
+          ],
+          "tags": [
+            "Operations"
+          ]
+        }
+      },
+      {
+        "key": "defect-rate",
+        "metric": {
+          "format": "ziffr.metric/1",
+          "name": "Defect rate",
+          "description": "Units found defective, as a share of the units produced in the week.",
+          "category": "Operations",
+          "period": "week",
+          "aggregation": "average",
+          "polarity": "lower",
+          "unit": "%",
+          "unitPosition": "after",
+          "valueFormat": "percent",
+          "decimals": 1,
+          "submissionRule": "overwrite",
+          "targetMax": 2,
+          "sources": [
+            "web_form",
+            "mail",
+            "slack",
+            "telegram",
+            "api"
+          ],
+          "tags": [
+            "Operations",
+            "Weekly report"
+          ]
+        }
+      },
+      {
+        "key": "downtime",
+        "metric": {
+          "format": "ziffr.metric/1",
+          "name": "Downtime",
+          "description": "Hours that lines or machines stood still when they should have run, in the week.",
+          "category": "Operations",
+          "period": "week",
+          "aggregation": "sum",
+          "polarity": "lower",
+          "unit": "hours",
+          "unitPosition": "after",
+          "valueFormat": "number",
+          "decimals": 1,
+          "submissionRule": "overwrite",
+          "sources": [
+            "web_form",
+            "mail",
+            "slack",
+            "telegram",
+            "api"
+          ],
+          "tags": [
+            "Operations"
+          ]
+        }
+      }
+    ],
+    "dashboards": [
+      {
+        "key": "operations-weekly",
+        "template": {
+          "format": "ziffr.dashboard-template/1",
+          "name": "Operations weekly",
+          "description": "What went out, whether it arrived on time, what is waiting, and how the line is running.",
+          "slots": [
+            {
+              "label": "Orders shipped",
+              "suggests": "orders-shipped"
+            },
+            {
+              "label": "On-time delivery",
+              "suggests": "on-time"
+            },
+            {
+              "label": "Order backlog",
+              "suggests": "backlog"
+            },
+            {
+              "label": "Defect rate",
+              "suggests": "defect-rate"
+            },
+            {
+              "label": "Units produced",
+              "suggests": "output"
+            },
+            {
+              "label": "Downtime",
+              "suggests": "downtime"
+            }
+          ],
+          "widgets": [
+            {
+              "view": "number",
+              "slots": [
+                0
+              ],
+              "x": 0,
+              "y": 0,
+              "w": 3,
+              "h": 4
+            },
+            {
+              "view": "gauge",
+              "slots": [
+                1
+              ],
+              "x": 3,
+              "y": 0,
+              "w": 3,
+              "h": 4
+            },
+            {
+              "view": "number",
+              "slots": [
+                2
+              ],
+              "x": 6,
+              "y": 0,
+              "w": 3,
+              "h": 4
+            },
+            {
+              "view": "gauge",
+              "slots": [
+                3
+              ],
+              "x": 9,
+              "y": 0,
+              "w": 3,
+              "h": 4
+            },
+            {
+              "view": "line",
+              "slots": [
+                0
+              ],
+              "x": 0,
+              "y": 4,
+              "w": 8,
+              "h": 6,
+              "settings": {
+                "window": 12
+              }
+            },
+            {
+              "view": "number",
+              "slots": [
+                5
+              ],
+              "x": 8,
+              "y": 4,
+              "w": 4,
+              "h": 6
+            },
+            {
+              "view": "bars",
+              "slots": [
+                4
+              ],
+              "x": 0,
+              "y": 10,
+              "w": 12,
+              "h": 6,
+              "settings": {
+                "window": 12
+              }
+            }
+          ]
+        }
+      }
+    ],
+    "workflows": [
+      {
+        "key": "monday-operations-figures",
+        "template": {
+          "format": "ziffr.workflow-template/1",
+          "name": "Monday operations figures",
+          "description": "Last week's operations figures are asked for on Monday and published.",
+          "dueWorkingDays": 1,
+          "steps": [
+            {
+              "type": "remind",
+              "daysBefore": 1
+            },
+            {
+              "type": "escalate",
+              "to": "owner",
+              "daysAfter": 1
+            },
+            {
+              "type": "publish",
+              "lock": false
+            }
+          ]
+        }
+      }
+    ]
+  },
+  "feeds": [
+    {
+      "template": "google-sheets",
+      "fills": [
+        "orders-shipped",
+        "on-time",
+        "backlog",
+        "stock-value"
+      ]
+    }
+  ]
+}
