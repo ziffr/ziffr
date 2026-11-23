@@ -542,7 +542,7 @@ function fitWithin(input: FitInput): Fit | Refused {
   const [first] = latestCommon(given.map((d) => d.points), MOST_PERIODS + 1).series;
   const within = (points: Point[]) => readSeries(points).filter((p) => first.length > 0 && p.period >= first[0].period && p.period <= first[first.length - 1].period);
   const used = whole.length > 0 ? { ...input, target: { ...input.target, points: within(input.target.points) }, drivers: input.drivers.map((d) => ({ ...d, points: within(d.points) })) } : input;
-  const wide = whole.length > 0 ? wideFindings([used.target, ...used.drivers].map((d) => ({ name: d.name, points: d.points }))) : [];
+  const wide = wideFindings([used.target, ...used.drivers].map((d) => ({ name: d.name, points: d.points })));
   if (wide.length > 0) return { ok: false, refusals: wide };
   const prep = prepare(used);
   const base: SuitabilityInputs = { series: prep.series, span, periods: prep.rows.length, drivers: k, metrics: input.metrics };
