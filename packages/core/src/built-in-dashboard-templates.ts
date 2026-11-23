@@ -1,7 +1,7 @@
 // The Dashboard Templates Ziffr ships (GLOSSARY: Dashboard Template), so a new workspace has something to start from.
 // Plain data, built only from built-in Widget Templates; every workspace sees them and nobody changes them.
 import { TEMPLATES } from "./widget-templates";
-import type { DashboardTemplate, DashboardTemplateWidget, TemplateId } from "./types";
+import type { DashboardTemplate, DashboardTemplateWidget, TemplateId, WidgetSettings } from "./types";
 
 /** One widget at a place, with its view's default settings. */
 const at = (view: TemplateId, slots: number[], x: number, y: number, w: number, h: number): DashboardTemplateWidget => ({
@@ -130,7 +130,8 @@ export const BUILT_IN_DASHBOARD_TEMPLATES: DashboardTemplate[] = [
             kicker: "{metric}, {period}",
             headline: "{metric} {change yoy} on last year",
             subline: "Change against the same period a year earlier, in %",
-            panels: [{ type: "period-bars", metricIds: [], slot: 0, measure: "pct-yoy", periods: 6, highlight: "last" }],
+            // A template panel names its Slot, never Metrics (the file format has no metricIds); filling the Slots makes them.
+            panels: [{ type: "period-bars", slot: 0, measure: "pct-yoy", periods: 6, highlight: "last" }] as unknown as WidgetSettings["panels"],
           },
         },
         at("number", [0], 8, 0, 4, 5), at("number", [1], 8, 5, 4, 5),
