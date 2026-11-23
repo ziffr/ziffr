@@ -3,13 +3,17 @@
 // on nothing else: a person who sees A but not B is never given a Heads-up that names B or changes when B changes, the
 // correction counts only their own pairs, a Metric hidden, archived or deleted after a scan is gone from the list the same day,
 // and the sentences are the ones the pure rules write.
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { db } from "./db";
-import { headsUpJob, listHeadsUps, scanWorkspace } from "./heads-ups";
+import { deliverHeadsUpsTo } from "./heads-up-delivery";
+import { markNotUseful, muteMetric, setHeadsUpSettings } from "./heads-up-state";
+import { opened } from "./test/db-fixtures";
+import { headsUpJob, listHeadsUps, resetHeadsUpBudget, scanWorkspace } from "./heads-ups";
 import { DEMO_WORKSPACE_ID } from "./team";
 import { workspace } from "./test/db-fixtures";
 
 const cleanups: (() => Promise<void>)[] = [];
+beforeEach(() => resetHeadsUpBudget());
 afterEach(async () => { for (const c of cleanups.splice(0)) await c(); });
 
 /** A deterministic source of numbers in [0, 1). */
@@ -452,4 +456,219 @@ describe("the pair table is the core's alone", () => {
     expect(await tries({ metric_a: Number(row.metric_b), metric_b: Number(row.metric_a) })).not.toBeNull();
     void ids;
   });
+});
+
+describe("Heads-ups about one Metric (spec 0041, ticket 15)", () => {
+  // Months counted back from now, the latest two months ago, so that the periods are over and current whatever day the test runs.
+  const recent = (k: number, n: number) => { const now = new Date(); return new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - 1 - (n - k), 1)).toISOString().slice(0, 10); };
+  const N = 36;
+  const noise = (k: number) => ((k * 7) % 5) - 2;
+  // Up 10 a month, and down 10 a month over the last 6.
+  const turning = Array.from({ length: N }, (_, k) => (k < N - 6 ? 10 * k : 10 * (N - 6) - 10 * (k - (N - 6))) + noise(k));
+  const quiet = (i: number) => Array.from({ length: N }, (_, k) => 100 + (((k + 3 * i) * 7919) % 13) - 6);
+
+  async function room() {
+    const w = await workspace();
+    cleanups.push(w.cleanup);
+    const [sara, ben] = [await w.person("owner"), await w.person("member")];
+    const ids: Record<string, number> = {};
+    const add = async (name: string, values: number[], over: Record<string, unknown> = {}) => {
+      const m = await w.metric(sara, { name, ...over });
+      ids[name] = m.id;
+      const { error } = await db().from("observations").insert(values.map((value, k) => ({ metric_id: m.id, period_start: recent(k, values.length), value, source: "api", workspace_id: w.id })));
+      if (error) throw new Error(error.message);
+      return m.id;
+    };
+    await add("Signups", turning);
+    for (let i = 0; i < 4; i++) await add(`Quiet ${i}`, quiet(i));
+    return { w, sara, ben, ids, add, owner: w.actor(sara), mine: w.actor(ben, "member") };
+  }
+  const kinds = (ups: { kind: string; key: string }[]) => ups.map((u) => u.kind);
+
+  it("tells a person whose Metric turned around, in the sentence of the spec with the footer of a change point, and a person who may not see it nothing about it", async () => {
+    const { w, ben, ids, owner, mine } = await room();
+    const told = await listHeadsUps(owner);
+    expect(kinds(told)).toEqual(["direction-change"]);
+    expect(told[0]).toMatchObject({ key: `direction-change:${ids.Signups}`, metrics: [ids.Signups], span: "month" });
+    expect(told[0].takeaway.sentence).toMatch(/^Signups turned around in [A-Z][a-z]+ 20\d\d: up 10 a month before, down 1\d a month since\.$/);
+    expect(told[0].takeaway.footer).toBe("This shows when the numbers changed, not what made them change.");
+    // Ben sees one quiet Metric: nothing about Signups, in no word and no count.
+    await w.share(ids["Quiet 0"], ben);
+    const hidden = await listHeadsUps(mine);
+    expect(hidden).toEqual([]);
+    expect(JSON.stringify(hidden)).not.toMatch(/Signups/);
+    // Once he sees it too, he is told, and the checks looked at are his own (two Metrics, two kinds of test for each).
+    await w.share(ids.Signups, ben);
+    const both = await listHeadsUps(mine);
+    expect(kinds(both)).toEqual(["direction-change"]);
+    const checks = (u: (typeof both)[number]) => Number(u.takeaway.numbers.find((n) => n.label === "Checks looked at")!.text);
+    expect(checks(both[0])).toBeLessThan(checks(told[0]));
+  }, 60_000);
+
+  it("is not changed by a Metric the person may not see: rewrite the hidden Metrics' values and their Heads-ups are the same to the byte", async () => {
+    const { w, ben, ids, add, mine } = await room();
+    await w.share(ids.Signups, ben);
+    await w.share(ids["Quiet 0"], ben);
+    const before = JSON.stringify(await listHeadsUps(mine));
+    for (let i = 1; i < 4; i++) await db().from("observations").update({ value: 999 }).eq("metric_id", ids[`Quiet ${i}`]);
+    await add("Another hidden", turning);
+    expect(JSON.stringify(await listHeadsUps(mine))).toBe(before);
+  }, 60_000);
+
+  it("rests on final values only: a value waiting for Approval or sent back leaves its period out, so the turn goes, and comes back when the periods are final", async () => {
+    const { w, ids, owner } = await room();
+    for (const state of ["approval", "submitted"]) {
+      await db().from("period_states").insert(Array.from({ length: 5 }, (_, i) => ({ metric_id: ids.Signups, period_start: recent(N - 1 - i, N), state, workspace_id: w.id })));
+      expect(kinds(await listHeadsUps(owner)), state).toEqual([]);
+      await db().from("period_states").delete().eq("metric_id", ids.Signups);
+    }
+    expect(kinds(await listHeadsUps(owner))).toEqual(["direction-change"]);
+    await db().from("period_states").insert({ metric_id: ids.Signups, period_start: recent(N - 1, N), state: "locked", workspace_id: w.id });
+    expect(kinds(await listHeadsUps(owner))).toEqual(["direction-change"]);
+  }, 60_000);
+
+  it("is gone at once for an archived Metric, and tells a Target out of reach for a falling Metric with a Target Range", async () => {
+    const { ids, add, owner } = await room();
+    await db().from("metrics").update({ archived_at: new Date().toISOString() }).eq("id", ids.Signups);
+    expect(await listHeadsUps(owner)).toEqual([]);
+    await add("Revenue", Array.from({ length: N }, (_, k) => 1000 - 15 * k + noise(k)), { polarity: "higher", target_min: 600 });
+    const told = await listHeadsUps(owner);
+    expect(kinds(told)).toEqual(["target-out-of-reach"]);
+    expect(told[0].takeaway.sentence).toMatch(/^Revenue is unlikely to reach 600 or more in [A-Z][a-z]+ 20\d\d \(under 1 in 20\)\.$/);
+    expect(told[0].takeaway.footer).toBe("This carries the past forward; it is not a promise.");
+  }, 60_000);
+
+  it("tells a person with a single Metric about it, and a person with none nothing", async () => {
+    const { w, ben, ids, mine } = await room();
+    expect(await listHeadsUps(mine)).toEqual([]);
+    await w.share(ids.Signups, ben);
+    expect(kinds(await listHeadsUps(mine))).toEqual(["direction-change"]);
+  }, 60_000);
+});
+
+describe("Heads-ups about one Metric by message (spec 0041, ticket 15)", () => {
+  const recent = (k: number, n: number) => { const now = new Date(); return new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - 1 - (n - k), 1)).toISOString().slice(0, 10); };
+  const noise = (k: number) => ((k * 7) % 5) - 2;
+  const turning = Array.from({ length: 36 }, (_, k) => (k < 30 ? 10 * k : 300 - 10 * (k - 30)) + noise(k));
+  const falling = Array.from({ length: 36 }, (_, k) => 1000 - 15 * k + noise(k));
+  const seasonal = Array.from({ length: 106 }, (_, k) => 100 + 20 * Math.sin((2 * Math.PI * k) / 12) + noise(k) * 2 + (k === 105 ? 40 : 0));
+  const quiet = (i: number) => Array.from({ length: 36 }, (_, k) => 100 + (((k + 3 * i) * 7919) % 13) - 6);
+  const FOOTERS: Record<string, string> = { "direction-change": "This shows when the numbers changed, not what made them change.", "target-out-of-reach": "This carries the past forward; it is not a promise.", "unusual-for-season": "This compares the value with the earlier ones at this time of year; it does not show what made it differ." };
+
+  async function room(hidden = 0) {
+    const w = await workspace();
+    cleanups.push(w.cleanup);
+    const [sara, ben, cleo] = [await w.person("owner"), await w.person("member"), await w.person("member")];
+    const ids: Record<string, number> = {};
+    const add = async (name: string, values: number[], over: Record<string, unknown> = {}) => {
+      const m = await w.metric(sara, { name, ...over });
+      ids[name] = m.id;
+      const { error } = await db().from("observations").insert(values.map((value, k) => ({ metric_id: m.id, period_start: recent(k, values.length), value, source: "api", workspace_id: w.id })));
+      if (error) throw new Error(error.message);
+    };
+    await add("Signups", turning);
+    await add("Revenue", falling, { polarity: "higher", target_min: 600 });
+    await add("Visits", seasonal);
+    await add("Quiet 0", quiet(0));
+    for (let i = 0; i < hidden; i++) await add(`Hidden ${i}`, i % 2 ? turning : quiet(i + 5));
+    const messages = async (id: string) => (await opened("deliveries", w.id, (await db().from("deliveries").select("id, subject, body, kind, heads_up_metric_a, heads_up_metric_b").eq("recipient_id", id).eq("kind", "heads_up").order("id")).data ?? [])) as { subject: string; body: string; heads_up_metric_a: number; heads_up_metric_b: number | null }[];
+    return { w, sara, ben, cleo, ids, messages, add };
+  }
+
+  it("tells a person who may see the Metrics, once each, with the footer of each kind, and the message names only that one Metric", async () => {
+    const { w, ben, ids, messages } = await room();
+    for (const n of ["Signups", "Revenue", "Visits", "Quiet 0"]) await w.share(ids[n], ben);
+    await setHeadsUpSettings(w.actor(ben, "member"), { byMessage: true });
+    expect(await deliverHeadsUpsTo(w.id, ben)).toBe(3);
+    const sent = await messages(ben);
+    expect(sent.map((m) => m.subject).sort()).toEqual(["Heads-up: Revenue", "Heads-up: Signups", "Heads-up: Visits"]);
+    for (const m of sent) {
+      expect(m.heads_up_metric_b).toBeNull();
+      expect(Object.values(FOOTERS).some((f) => m.body.includes(f))).toBe(true);
+      expect(m.body).not.toMatch(/Hidden|Quiet/);
+    }
+    expect(sent.find((m) => m.subject.includes("Signups"))!.body).toContain(FOOTERS["direction-change"]);
+    expect(sent.find((m) => m.subject.includes("Revenue"))!.body).toContain(FOOTERS["target-out-of-reach"]);
+    expect(sent.find((m) => m.subject.includes("Visits"))!.body).toContain(FOOTERS["unusual-for-season"]);
+    // Told once: the next run makes nothing while they stand.
+    expect(await deliverHeadsUpsTo(w.id, ben)).toBe(0);
+  }, 120_000);
+
+  it("tells a person who may not see them nothing, no message and no trace, and a person who sees one of them is told only about that one", async () => {
+    const { w, ben, cleo, ids, messages } = await room();
+    await w.share(ids["Quiet 0"], cleo);
+    await w.share(ids.Signups, ben);
+    for (const who of [ben, cleo]) await setHeadsUpSettings(w.actor(who, "member"), { byMessage: true });
+    expect(await deliverHeadsUpsTo(w.id, cleo)).toBe(0);
+    expect(await messages(cleo)).toEqual([]);
+    expect(await deliverHeadsUpsTo(w.id, ben)).toBe(1);
+    const only = await messages(ben);
+    expect(only.map((m) => m.subject)).toEqual(["Heads-up: Signups"]);
+    expect(only[0].heads_up_metric_a).toBe(ids.Signups);
+  }, 120_000);
+
+  it("gives a person the same message with and without Metrics they may not see", async () => {
+    const [plain, crowded] = await Promise.all([room(0), room(6)]);
+    const run = async (r: Awaited<ReturnType<typeof room>>) => {
+      for (const n of ["Signups", "Revenue", "Visits", "Quiet 0"]) await r.w.share(r.ids[n], r.ben);
+      await setHeadsUpSettings(r.w.actor(r.ben, "member"), { byMessage: true });
+      await deliverHeadsUpsTo(r.w.id, r.ben);
+      return (await r.messages(r.ben)).map((m) => m.body.replace(/\d+ checks/, "")).sort();
+    };
+    const [a, b] = [await run(plain), await run(crowded)];
+    expect(b).toEqual(a);
+  }, 180_000);
+
+  it("tells at most 3 in 7 days across the kinds, once each until ended, and again when it has ended and returned", async () => {
+    const { w, ben, ids, add, messages } = await room();
+    await add("Signups B", turning);
+    for (const n of ["Signups", "Signups B", "Revenue", "Visits"]) await w.share(ids[n], ben);
+    await setHeadsUpSettings(w.actor(ben, "member"), { byMessage: true });
+    const day = (d: number) => ({ now: new Date(Date.now() + d * 86_400_000) });
+    expect(await deliverHeadsUpsTo(w.id, ben, day(0))).toBe(3);
+    expect(await deliverHeadsUpsTo(w.id, ben, day(1))).toBe(0);
+    // A week later the fourth is told, and then nothing: each is told once while it stands.
+    expect(await deliverHeadsUpsTo(w.id, ben, day(8))).toBe(1);
+    expect(await deliverHeadsUpsTo(w.id, ben, day(9))).toBe(0);
+    expect((await messages(ben)).length).toBe(4);
+    // Signups ends (its latest periods wait for Approval), is seen to have ended, returns, and is told again.
+    resetHeadsUpBudget();
+    await db().from("period_states").insert(Array.from({ length: 5 }, (_, i) => ({ metric_id: ids.Signups, period_start: recent(35 - i, 36), state: "approval", workspace_id: w.id })));
+    expect(await deliverHeadsUpsTo(w.id, ben, day(16))).toBe(0);
+    await db().from("period_states").delete().eq("metric_id", ids.Signups);
+    resetHeadsUpBudget();
+    expect(await deliverHeadsUpsTo(w.id, ben, day(17))).toBe(1);
+    expect((await messages(ben)).filter((m) => m.subject === "Heads-up: Signups").length).toBe(2);
+  }, 180_000);
+
+  it("stops a waiting message when the Metric is muted or the Heads-up marked Not useful, and for a Metric no longer shared or archived", async () => {
+    const { w, ben, ids, messages } = await room();
+    for (const n of ["Signups", "Revenue", "Visits"]) await w.share(ids[n], ben);
+    const actor = w.actor(ben, "member");
+    await setHeadsUpSettings(actor, { byMessage: true });
+    await muteMetric(actor, ids.Revenue);
+    await markNotUseful(actor, `unusual-for-season:${ids.Visits}`);
+    await w.unshare(ids.Signups, ben);
+    expect(await deliverHeadsUpsTo(w.id, ben)).toBe(0);
+    expect(await messages(ben)).toEqual([]);
+    // Shared again, but archived before the send: nothing either.
+    await w.share(ids.Signups, ben);
+    await db().from("metrics").update({ archived_at: new Date().toISOString() }).eq("id", ids.Signups);
+    resetHeadsUpBudget();
+    expect(await deliverHeadsUpsTo(w.id, ben)).toBe(0);
+    expect(await messages(ben)).toEqual([]);
+  }, 180_000);
+
+  it("keeps what it worked out for a few minutes, and never for values that have changed since", async () => {
+    const { w, ben, ids } = await room();
+    await w.share(ids.Signups, ben);
+    const actor = w.actor(ben, "member");
+    const first = await listHeadsUps(actor);
+    expect(first.map((u) => u.kind)).toEqual(["direction-change"]);
+    // A value of the latest periods waits for Approval: the answer is worked out again, not taken from what was kept.
+    await db().from("period_states").insert(Array.from({ length: 5 }, (_, i) => ({ metric_id: ids.Signups, period_start: recent(35 - i, 36), state: "approval", workspace_id: w.id })));
+    expect(await listHeadsUps(actor)).toEqual([]);
+    await db().from("period_states").delete().eq("metric_id", ids.Signups);
+    expect((await listHeadsUps(actor)).map((u) => u.kind)).toEqual(["direction-change"]);
+  }, 120_000);
 });

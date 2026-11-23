@@ -12,7 +12,7 @@ import { runs } from "../test/reference/check";
 import { exactOf, nearestDoubleOf } from "../test/reference/exact";
 import { close, series } from "../test/reference/methods-fixture";
 import type { Point } from "../types";
-import { changePoint, changePointTakeaway, MOST_VALUES, ONE_IN, type ChangePoint } from "./change-point";
+import { changePoint, changePointTakeaway, checkedChangePoint, MOST_VALUES, ONE_IN, type ChangePoint } from "./change-point";
 
 const { numRuns, seed } = runs();
 type ChangeCase = { values: number[]; positions?: number[]; n: number; tries: number; index: number; sse0: number; sse1: number; before: number; after: number; step: number; found: boolean; p: number | null; ratio: number; bar: number; slopeHalf?: number; kept?: number };
@@ -494,5 +494,24 @@ describe("the Takeaway of a change point", () => {
     expect(t.sentence).toMatch(/up 0\.004 € a month/);
     for (const f of t.figures) expect(f.text, f.label).toMatch(/[1-9]/);
     for (const n of t.numbers.filter((x) => x.label.startsWith("Trend") || x.label.startsWith("Step"))) expect(n.text, n.label).toMatch(/[+−][\d.,]*[1-9]/);
+  });
+});
+
+describe("the change point as the Takeaway and the Heads-up read it", () => {
+  it("is the change point of the latest 120 periods with the verdict of the checks, and the run the far-off check asked for last (none where it was not asked)", () => {
+    const points = at(Array.from({ length: 150 }, (_, i) => i), Array.from({ length: 150 }, (_, i) => (i < 100 ? 5 * i : 500 - 3 * (i - 100)) + noise(i)));
+    const plain = checkedChangePoint("Signups", points, "month");
+    expect(plain.rows.length).toBe(120);
+    expect(plain.all.length).toBe(150);
+    expect(plain.result).toEqual(changePoint(points.slice(-120), "month"));
+    expect(plain.verdict.refusals).toEqual([]);
+    // Too few periods: the checks refuse, with no result to read.
+    const few = checkedChangePoint("Signups", points.slice(0, 5), "month");
+    expect(few.verdict.refusals.length).toBeGreaterThan(0);
+    expect(few.result).toEqual({ ok: false, why: "few" });
+    expect(few.found()).toBeUndefined();
+    // A far-off value makes the far-off check ask for the change point without it: the run it asked for last is there.
+    const far = checkedChangePoint("Signups", points.slice(-60).map((p, i) => (i === 20 ? { ...p, value: p.value + 5000 } : p)), "month");
+    expect(far.found()).toBeDefined();
   });
 });

@@ -49,6 +49,7 @@
   "src/methods/false-discovery.ts",
   "src/methods/pair-scan.ts",
   "src/methods/heads-up.ts",
+  "src/methods/heads-up-single.ts",
   "src/takeaways/sizes.ts",
   "src/methods/t-curve.ts",
   "src/methods/before-after.ts",
