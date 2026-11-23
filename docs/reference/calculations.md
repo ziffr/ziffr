@@ -197,6 +197,8 @@ Mutation testing changes the code on purpose and expects a test to fail. A chang
 - `src/formula-tree.ts` · EqualityOperator · The 8,192-bit bound on a box's value is a safety limit, as in `formula.ts`: no number a formula within its bounds works out to comes to exactly 8,192 bits, so `<` gives the same; and a size is only ever used in a ratio of sizes, where turning every sign round (`>=`) or turning 0 round (`<=`, it is 0 still) leaves every share as it was.
 - `src/formula-tree.ts` · StringLiteral · A box's text alternative starts as an empty placeholder and is written over, for every box, before the tree is returned; what the placeholder holds cannot show.
 - `src/breakdown-tree.ts` · StringLiteral · A box's text alternative starts as an empty placeholder and is written over, for every box, before the tree is returned; what the placeholder holds cannot show.
+- `src/breakdown-tree.ts` · ConditionalExpression · Rows are sorted by size with a stable sort from a list in the order of the tree, so rows of one size keep that order whatever a tie returns.
+- `src/breakdown-tree.ts` · EqualityOperator · The same: the sort of rows of one size, whichever way a tie is answered, leaves them in the order of the tree.
 - `src/breakdown-tree.ts` · EqualityOperator · A size is only ever used in a ratio of sizes: `<=` turns 0 into 0, which is the same size.
 - `src/breakdown-tree.ts` · ArrayDeclaration · A row starts with an empty list of parts that the next lines replace with its real parts, and a series that is not there is replaced by an empty one: whatever stands in their place is never read.
 - `src/format.ts` · EqualityOperator · In `signed`, `v < 0` as `v <= 0` differs only at 0, whose digits hold no 1-9, so no minus is written either way.

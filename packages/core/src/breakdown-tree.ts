@@ -37,7 +37,7 @@ const sizeOf = (f: Fraction): Fraction => (f.num < BigInt(0) ? { num: -f.num, de
 export type BreakdownTreeSource = { name: string; unit: ValueUnit; period: string; total: number | null; rows: BreakdownRow[] };
 
 /** A row as the model works with it: its exact value, its parts, the row it is a part of and its place in the order of the tree. */
-type Part = { label: string; exact: Fraction; size: Fraction; kids: Part[]; parent: Part | null; order: number };
+type Part = { label: string; exact: Fraction; size: Fraction; kids: Part[]; parent: Part | null };
 class Refused extends Error {}
 
 /** The rows read into parts with their exact values; throws Refused for a Breakdown that is too deep, too big or has a number that is not one. */
@@ -51,7 +51,7 @@ function read(rows: BreakdownRow[]): Part[] {
       if (!Number.isFinite(r.value)) throw new Refused("Not drawn: a row of the breakdown has no number.");
       const exact = fractionOf(r.value);
       // Stryker disable next-line ArrayDeclaration: the parts are put in on the next lines, whatever this starts as
-      const part: Part = { label: plain(String(r.label)), exact, size: sizeOf(exact), kids: [], parent, order: all.length };
+      const part: Part = { label: plain(String(r.label)), exact, size: sizeOf(exact), kids: [], parent };
       all.push(part);
       part.kids = go(level + 1, Array.isArray(r.parts) ? r.parts : [], part);
       return part;
@@ -73,7 +73,8 @@ function chosen(top: Part[]): Set<Part> {
   let others = 1;
   const order = [...every].sort((a, b) => {
     const d = a.size.num * b.size.den - b.size.num * a.size.den;
-    return d > ZERO.num ? -1 : d < ZERO.num ? 1 : a.order - b.order;
+    // Stryker disable next-line ConditionalExpression,EqualityOperator: the sort is stable and the rows are listed in the order of the tree, so rows of one size keep that order whatever a tie returns
+    return d > ZERO.num ? -1 : d < ZERO.num ? 1 : 0;
   });
   // The largest row that is eligible (its parent has a box) and fits is given one, and the search starts again: so a row larger than its parent comes after it, and a row that does not fit lets a smaller one in.
   for (let again = true; again; ) {
