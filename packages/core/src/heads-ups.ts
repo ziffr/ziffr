@@ -161,15 +161,15 @@ async function finalValues(ws: string, day: string) {
 /** Scans `subset` of a Workspace's Metrics (the ones in use) into pair rows, in memory: the 200 most recently updated of them, every
  * pair that may be compared. Nothing here looks at a Metric outside `subset`, except that a Derived Metric's values come from its
  * inputs (the values a person sees of it are those). `related` decides which pairs are left out. */
-async function scanSubset(ws: string, day: string, pick: (all: Metric[]) => Metric[], relatedOver: (all: Metric[]) => (a: number, b: number) => boolean): Promise<{ rows: PairRow[]; metrics: number; capped: boolean; notScanned: number }> {
+async function scanSubset(ws: string, day: string, pick: (all: Metric[]) => Metric[], relatedOver: (all: Metric[]) => (a: number, b: number) => boolean): Promise<{ rows: PairRow[]; metrics: number; capped: boolean; notScanned: [number, number][] }> {
   const { metrics, yearStart, series, levels, updatedAmong } = await finalValues(ws, day);
   const chosen = pick(metrics);
   const updated = updatedAmong(chosen);
   const withValues = chosen.filter((m) => (series[m.slug]?.length ?? 0) > 0).map((m) => ({ id: m.id, period: m.period as Span, latest: updated(m) }));
   const looked = capMetrics(withValues);
-  const { rows, notScanned } = scanPairsCounted(looked, levels, relatedOver(chosen), day, yearStart);
+  const { rows, skipped } = scanPairsCounted(looked, levels, relatedOver(chosen), day, yearStart);
   // A scan that ran out of work has not looked at every pair, as one that was capped has not looked at every Metric: it is recorded as capped.
-  return { rows, metrics: looked.length, capped: withValues.length > looked.length || notScanned > 0, notScanned };
+  return { rows, metrics: looked.length, capped: withValues.length > looked.length || skipped.length > 0, notScanned: skipped };
 }
 
 /** The Metrics `mine` (the ones a person may see, in use) as the Heads-ups about one Metric look at them: the 200 most recently updated that have values, each with
@@ -341,9 +341,11 @@ async function pairHeadsUps(actor: Actor, mine: Metric[], names: Map<number, str
   if (readError || !answer) throw new Error("Heads-ups could not be read. Try again in a moment.");
   const { capped, rows: stored } = answer as { capped: boolean; rows: Record<string, unknown>[] };
   // Pairs one of whose Metrics is worked out from the other, or both from the same, are left out: over the Metrics they see.
-  const make = (rows: PairRow[], notScanned = 0) => {
+  const make = (rows: PairRow[], notScanned: readonly (readonly [number, number])[] = []) => {
     const related = relatedAmong(mine);
-    return headsUpsFrom(rows.filter((r) => names.has(r.a) && names.has(r.b) && !related(r.a, r.b)), names, ctx, notScanned);
+    const unrelated = (a: number, b: number) => names.has(a) && names.has(b) && !related(a, b);
+    // Only the pairs this person could have been told about count as not scanned: not one with a Metric they may not see, nor a related pair.
+    return headsUpsFrom(rows.filter((r) => unrelated(r.a, r.b)), names, ctx, notScanned.filter(([a, b]) => unrelated(a, b)).length);
   };
   const extra = hashOf([ctx, mine.map((m) => [m.id, m.name, m.slug, m.formula ?? null])]);
   return capped

@@ -3,8 +3,9 @@
 // recipe's mistakes as they do for /1, and a Pack that holds a /2 recipe checks and installs as a design that draws it.
 import { describe, expect, it } from "vitest";
 import type { AnalysisRecipe2 } from "./analysis-recipe";
-import { designRecipe, designRun, drawnPart, drawRecipe, newRecipeBudget } from "./design-analysis";
+import { chargedOnce, designRecipe, designRun, drawnPart, drawRecipe, newRecipeBudget } from "./design-analysis";
 import { PAGE_BUDGET, WORK_BUDGET } from "./recipe-run";
+import { PAGE_EXACT_BUDGET } from "./work-bound";
 import { BUILT_IN_RECIPES, RECIPES } from "./built-in-recipes";
 import { readFileSync } from "node:fs";
 import { repoFile } from "./test/repo-file";
@@ -184,13 +185,13 @@ describe("what a page of recipes may ask for", () => {
     const drawn = a.out.map((r) => r.refusal === null);
     // 5,760 units each: 8 widgets fit in 50,000 (46,080); the 9th would take it over, so it and every later one is refused.
     expect(drawn).toEqual(Array.from({ length: 30 }, (_, i) => i < 8));
-    expect(a.out[8].refusal).toBe("Too much analysis on this page to work out at once: open the widget on its own.");
+    expect(a.out[8].refusal).toBe("Too much analysis on this Dashboard to work out at once: open the widget on its own.");
     expect(a.out[8].results).toBeNull();
     expect(page().out.map((r) => r.refusal === null)).toEqual(drawn);
     expect(a.left).toBe(0);
     // Without a page, a widget has only its own budget.
     expect(drawRecipe(worst, three, big, {}).refusal).toBeNull();
-    expect(drawRecipe(worst, three, big, {}, { left: 0, exact: 0 }).refusal).toContain("Too much analysis on this page");
+    expect(drawRecipe(worst, three, big, {}, { left: 0, exact: 0 }).refusal).toContain("Too much analysis on this Dashboard");
   });
   it("a recipe in the first format is charged a pass of its longest series for each step", () => {
     const budget = newRecipeBudget();
@@ -211,5 +212,50 @@ describe("what a page of recipes may ask for", () => {
     // The usual range's Takeaway alone is 83 passes of the series.
     expect(run.spent).toBeGreaterThanOrEqual(83 * 120);
     expect(run.limited).toBe(false);
+  });
+});
+
+describe("a widget's work is charged to the page once", () => {
+  it("charges once however often the same widget is drawn, gives the same answer, and charges another widget or basis for itself", () => {
+    const budget = newRecipeBudget();
+    let calls = 0;
+    const draw = (key: string, cost: number) => chargedOnce(budget, key, () => { calls++; budget.exact -= cost; return { key, left: budget.exact }; });
+    const first = draw("a", 100);
+    for (let i = 0; i < 30; i++) expect(draw("a", 100)).toBe(first);
+    expect(calls).toBe(1);
+    expect(budget.exact).toBe(PAGE_EXACT_BUDGET - 100);
+    // Another widget, and the same widget on another basis, are each charged for themselves, once.
+    draw("b", 10);
+    draw("a:values", 1);
+    draw("b", 10);
+    draw("a:values", 1);
+    expect(calls).toBe(3);
+    expect(budget.exact).toBe(PAGE_EXACT_BUDGET - 111);
+  });
+  it("is the same under a development build that draws everything twice, and refuses the widgets after the allowance the same way each time", () => {
+    const once = (budget: ReturnType<typeof newRecipeBudget>, twice: boolean) => {
+      const out: string[] = [];
+      for (let w = 0; w < 6; w++) {
+        const key = `w${w}`;
+        const work = () => chargedOnce(budget, key, () => { if (budget.exact < 40) return "refused"; budget.exact -= 40; return "drawn"; });
+        const answer = work();
+        if (twice) expect(work()).toBe(answer);
+        out.push(answer);
+      }
+      return out;
+    };
+    const [a, b] = [{ ...newRecipeBudget(), exact: 100 }, { ...newRecipeBudget(), exact: 100 }];
+    const plain = once(a, false);
+    expect(plain).toEqual(["drawn", "drawn", "refused", "refused", "refused", "refused"]);
+    expect(once(b, true)).toEqual(plain);
+    expect(b.exact).toBe(a.exact);
+    // A render of the same widgets later gives the same answers, the refused ones too, and spends nothing more.
+    expect(once(a, true)).toEqual(plain);
+    expect(a.exact).toBe(20);
+  });
+  it("starts from a budget of a literal without a memory", () => {
+    const budget = { left: 1, exact: 1 };
+    expect(chargedOnce(budget, "k", () => 5)).toBe(5);
+    expect(chargedOnce(budget, "k", () => 6)).toBe(5);
   });
 });

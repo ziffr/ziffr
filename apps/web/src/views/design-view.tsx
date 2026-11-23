@@ -19,7 +19,7 @@ import type { CanvasData, Metric, Widget } from "@ziffr/core/types";
 import { bestForecast, forecastTooWide, NO_FORECAST_WIDE } from "@ziffr/core/methods/forecast-choice";
 import { SEASON_LENGTH } from "@ziffr/core/suitability";
 import { forecastTakeaway, endsOf } from "@ziffr/core/takeaways/forecast";
-import { drawRecipe, formatOutput, newRecipeBudget, type RecipeBudget, type TableFigures } from "@ziffr/core/design-analysis";
+import { chargedOnce, drawRecipe, formatOutput, newRecipeBudget, type RecipeBudget, type TableFigures } from "@ziffr/core/design-analysis";
 import { onPage, RANK_BUDGET } from "@ziffr/core/work-bound";
 import { useRecipeBudget } from "./recipe-budget";
 import type { RecipeResults } from "@ziffr/core/recipe-run";
@@ -152,10 +152,19 @@ export function DesignView({ design, widget, metrics, data, onPointContext }: Pr
   const host = useTakeawayHost();
   // The recipe is worked out once for its real inputs, not again whenever Show the numbers is toggled.
   const budget = useRecipeBudget();
-  const drawn = useMemo(() => drawRecipe(design, metrics, data, widget.settings, budget ?? newRecipeBudget()), [design, metrics, data, widget.settings, budget]);
+  // What a widget's work depends on besides the page's data: its design, its Metrics and its settings. The page's budget remembers the answer for this key (`chargedOnce`),
+  // so a widget drawn again (the parent re-rendered, a development build drew it twice) neither charges the page again nor gets another answer.
+  const ids = metrics.map((x) => x.id).join(",");
+  const key = useMemo(() => JSON.stringify([design, ids, widget.settings]), [design, ids, widget.settings]);
+  const drawn = useMemo(() => {
+    const page = budget ?? newRecipeBudget();
+    return chargedOnce(page, `recipe:${key}`, () => drawRecipe(design, metrics, data, widget.settings, page));
+  }, [design, metrics, data, widget.settings, budget, key]);
   const recipe = drawn.results;
-  // The correlation work is charged to the page's share once, not again at every render.
-  const work = useMemo(() => correlationWork(design, metrics, data, basis, budget ?? newRecipeBudget()), [design, metrics, data, basis, budget]);
+  const work = useMemo(() => {
+    const page = budget ?? newRecipeBudget();
+    return chargedOnce(page, `correlation:${key}:${basis}`, () => correlationWork(design, metrics, data, basis, page));
+  }, [design, metrics, data, basis, budget, key]);
   const v: DesignValues = { ...designValues(design, widget, metrics, data, basis, recipe, work), figures: drawn.figures, setBasis, roomy, behind: host !== null };
   const { m } = v;
   // The page has spent its share of work on recipes: the words say so and no number is shown.
