@@ -133,7 +133,7 @@ export function capped<T>(cap: number, f: () => T): T | null {
 }
 
 /** Runs `f` inside a bound that is running, and answers null where it stopped for want of work, with nothing left for what comes after: for a loop
- * that does the work of many parts and keeps the parts that were done. Outside a bound `f` is simply run. */
+ * that does the work of many parts and keeps the parts that were done. What comes after is not cut off wholesale: a part that needs no counted work is still done, so the parts kept are a subset of all of them, not the first ones. Outside a bound `f` is simply run. */
 export function tryWork<T>(f: () => T): T | null {
   try {
     return f();

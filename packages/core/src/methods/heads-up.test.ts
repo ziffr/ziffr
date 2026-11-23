@@ -46,6 +46,7 @@ describe("the words", () => {
     "numbers-hu-second-half": "Second half of the periods",
     "numbers-hu-half": "0.50 over 18 months",
     "numbers-hu-looked-at": "Pairs of Metrics looked at",
+    "numbers-hu-not-scanned": "Pairs not scanned (working them out exactly would take too long)",
     "numbers-hu-looked-at-stopped": "Pairs that had been moving together, looked at for a drop",
     "numbers-hu-luck": "Chance of this by luck, after correcting for the pairs looked at",
     "numbers-hu-before": "Before the last periods",
@@ -82,22 +83,80 @@ describe("the words", () => {
   });
 });
 
-describe("pairs a scan did not get to count among the pairs looked at, each with a chance of 1", () => {
-  it("raise the bar for the others as a full scan would, say how many pairs were looked at, and are never a Heads-up themselves", () => {
+describe("pairs a scan did not get to are not pairs looked at, but count in both corrections as pairs of chance 1", () => {
+  const find = (h: ReturnType<typeof headsUpsFrom>[number] | undefined, label: string) => h?.takeaway.numbers.find((x) => x.label === label)?.text;
+  it("raise the bar for the others, say how many pairs were looked at and how many were not scanned, and are never a Heads-up themselves", () => {
     const one = row(1, 2, { full: win({ lag: 2, r: 0.95, n: 24, nEff: 20, pDelays: 0.005, p: 0.005, tries: 5, rFirst: 0.96, nFirst: 12, rSecond: 0.94, nSecond: 12 }) });
-    const looked = (n: number) => headsUpsFrom([one], names(1, 2), ctx, n)[0]?.takeaway.numbers.find((x) => x.label === "Pairs of Metrics looked at")?.text;
-    expect(looked(0)).toBe("1");
-    // The chance after the correction is the chance over the pairs looked at: 0.005 over 1, 2 and 4 pairs.
+    const looked = (n: number) => find(headsUpsFrom([one], names(1, 2), ctx, n)[0], "Pairs of Metrics looked at");
+    const notScanned = (n: number) => find(headsUpsFrom([one], names(1, 2), ctx, n)[0], "Pairs not scanned (working them out exactly would take too long)");
+    // The pairs looked at are the ones with rows; the others are said to be not scanned, and only where there are some.
+    expect([looked(0), looked(1), looked(3)]).toEqual(["1", "1", "1"]);
+    expect([notScanned(0), notScanned(1), notScanned(3)]).toEqual([undefined, "1", "3"]);
+    // The chance after the correction is the chance over the pairs looked at and the ones not scanned: 0.005 over 1, 2 and 4 pairs.
     const after = (n: number) => headsUpsFrom([one], names(1, 2), ctx, n)[0].takeaway.numbers.find((x) => x.label.startsWith("Chance"))?.text;
     expect([after(0), after(1), after(3)]).toEqual(["0.0050", "0.0100", "0.0200"]);
     expect(headsUpsFrom([one], names(1, 2), ctx, 1)).toHaveLength(1);
-    // The bar is the rate over the pairs looked at (HEADS_UP.rate over 31 is below 0.005): with 3 more pairs it still holds, with 30 more it does not.
-    expect(looked(1)).toBe("2");
+    // The bar is the rate over the pairs counted (HEADS_UP.rate over 31 is below 0.005): with 3 more pairs it still holds, with 30 more it does not.
     expect(headsUpsFrom([one], names(1, 2), ctx, 3)).toHaveLength(1);
     expect(headsUpsFrom([one], names(1, 2), ctx, 30)).toEqual([]);
     expect(headsUpsFrom([], names(1, 2), ctx, 50)).toEqual([]);
   });
+  it("count for a pair that stopped moving together too: its earlier history and its drop are each tried among the pairs not scanned as well", () => {
+    const stoppedRow = (before0: number, drop: number) => row(1, 2, { full: win({ meets: false }), before: before({ pDelays: before0, p: before0 }, { r: 0.1, n: 6, low: true, dropP: drop }) });
+    const keys = (r: PairRow, n: number) => headsUpsFrom([r], names(1, 2), ctx, n).map((h) => h.key);
+    // A drop of 0.04 is reported alone (bar 0.1) and still among 1 (0.05) but not among 2 (0.0333); the earlier history's chance is held to the same bar.
+    expect([0, 1, 2].map((n) => keys(stoppedRow(1e-9, 0.04), n).length)).toEqual([1, 1, 0]);
+    expect([0, 1, 2].map((n) => keys(stoppedRow(0.04, 1e-9), n).length)).toEqual([1, 1, 0]);
+    const [h] = headsUpsFrom([stoppedRow(1e-9, 0.001)], names(1, 2), ctx, 3);
+    expect(find(h, "Pairs that had been moving together, looked at for a drop")).toBe("1");
+    expect(find(h, "Pairs not scanned (working them out exactly would take too long)")).toBe("3");
+    // The chance of the drop is the one over the pairs that might have been tried: 0.001 over 1 and 3 more, 4 pairs in all.
+    expect(find(h, "Chance of a drop this big by luck, after correcting for the pairs looked at")).toBe("0.0040");
+  });
+  // The chance a Heads-up says (4 decimals, or "under 0.0001", which is read as 0).
+  const luck = (h: ReturnType<typeof headsUpsFrom>[number] | undefined) => {
+    const text = find(h, "Chance of this by luck, after correcting for the pairs looked at") ?? find(h, "Chance of a drop this big by luck, after correcting for the pairs looked at");
+    return text === "under 0.0001" ? 0 : Number(text);
+  };
+  it("never report a Heads-up that the full scan would not, of either kind, and give the scanned pairs the same order and rank", () => {
+    const chance = fc.oneof(fc.constant(1e-9), fc.double({ min: 1e-6, max: 1, noNaN: true }));
+    const made = fc.record({
+      p: chance,
+      meets: fc.boolean(),
+      stoppedKind: fc.boolean(),
+      beforeP: chance,
+      drop: chance,
+      r: fc.double({ min: 0.7, max: 0.99, noNaN: true }),
+      skip: fc.boolean(),
+    });
+    fc.assert(
+      fc.property(fc.array(made, { minLength: 1, maxLength: 14 }), (specs) => {
+        const rows = specs.map((sp, i) =>
+          row(100 + i, 200 + i, {
+            full: win({ p: sp.p, pDelays: Math.min(sp.p, 1e-12), meets: !sp.stoppedKind && sp.meets, r: sp.r }),
+            before: sp.stoppedKind ? before({ p: sp.beforeP, pDelays: sp.beforeP }, { r: 0.1, n: 6, low: true, dropP: sp.drop }) : null,
+          }),
+        );
+        const ids = names(...rows.flatMap((r) => [r.a, r.b]));
+        const full = headsUpsFrom(rows, ids, ctx);
+        const scanned = rows.filter((_, i) => !specs[i].skip);
+        const some = headsUpsFrom(scanned, ids, ctx, rows.length - scanned.length);
+        const wanted = new Map(full.map((h) => [h.key, h]));
+        for (const h of some) {
+          const same = wanted.get(h.key);
+          expect(same, h.key).toBeDefined();
+          expect(h.rank).toBe(same!.rank);
+          expect(h.kind).toBe(same!.kind);
+          expect(luck(h)).toBeGreaterThanOrEqual(luck(same!));
+        }
+        // In the order of a full scan's: what is left keeps its relative order.
+        expect(some.map((h) => h.key)).toEqual(full.map((h) => h.key).filter((k) => some.some((h) => h.key === k)));
+      }),
+      { numRuns, seed },
+    );
+  });
 });
+
 
 describe("a pair that has started moving together", () => {
   it("is reported with its sentence in the leader's order, its strength, what it was compared on, the footer once, and the numbers the job used", () => {
