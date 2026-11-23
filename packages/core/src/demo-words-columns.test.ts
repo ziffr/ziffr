@@ -6,7 +6,9 @@ import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { DemoSeededWords, DemoShowcase, protectedRefusal } from "./demo";
 import { DEMO_SEEDED_WORDS, DEMO_SHOWCASE, demoWordsForDigest } from "./demo-words";
-import { DEMO_OPEN_CANDIDATES, DEMO_WORDS_COLUMNS, demoKeptRowTables, demoWordsColumnRows } from "./demo-words-columns";
+import { DEMO_OPEN_CANDIDATES, DEMO_WORDS_COLUMNS, SEALED_NOT_WORDS, demoKeptRowTables, demoWordsColumnRows } from "./demo-words-columns";
+import { SEALED_COLUMNS } from "./sealed-columns";
+import { SETTING_WORDS } from "./sealed-words";
 
 const MIGRATIONS = join(__dirname, "../../../supabase/migrations");
 const migration = (name: string) => readFileSync(join(MIGRATIONS, name), "utf8");
@@ -31,12 +33,41 @@ describe("the words columns", () => {
     expect([...body.matchAll(/\('([a-z_]+)'\)/g)].map((m) => m[1]).sort()).toEqual(demoKeptRowTables().sort());
   });
 
-  it("get the words trigger on every table that holds words", () => {
+  it("get the words trigger, and with it the fail-closed check, on every candidate table", () => {
     const attached = SHOWCASE.slice(SHOWCASE.indexOf("foreach t in array array["), SHOWCASE.indexOf("loop", SHOWCASE.indexOf("foreach t in array array[")));
     const tables = new Set([...attached.matchAll(/'([a-z_]+)'/g)].map((m) => m[1]));
-    for (const [table, t] of Object.entries(DEMO_WORDS_COLUMNS)) {
-      if (t.words.length > 0 || (t.kept ?? []).length > 0) expect(tables.has(table), `${table} holds words but has no words trigger`).toBe(true);
+    for (const table of DEMO_OPEN_CANDIDATES) expect(tables.has(table), `${table} is a candidate but has no words trigger`).toBe(true);
+  });
+
+  it("keep the keys of a widget's settings that hold words as the migration says, and cover SETTING_WORDS", () => {
+    const m = SHOWCASE.match(/set keys = array\[([^\]]*)\] where table_name = 'widgets' and column_name = 'settings'/);
+    const inMigration = [...(m?.[1] ?? "").matchAll(/'([A-Za-z]+)'/g)].map((x) => x[1]).sort();
+    expect(inMigration).toEqual([...DEMO_WORDS_COLUMNS.widgets.wordKeys!.settings].sort());
+    for (const key of SETTING_WORDS) expect(inMigration).toContain(key);
+    expect(inMigration).toContain("canvasSeed");
+  });
+
+  it("never call a column `other` that the code seals words into, unless it says why it is no words", () => {
+    for (const [table, columns] of Object.entries(SEALED_COLUMNS)) {
+      const t = DEMO_WORDS_COLUMNS[table];
+      if (!t) continue;
+      for (const column of columns as readonly string[]) {
+        if ((SEALED_NOT_WORDS[table] ?? []).includes(column)) continue;
+        expect([...t.words, ...(t.kept ?? [])], `${table}.${column} is sealed words but not classified as words`).toContain(column);
+      }
     }
+  });
+
+  it("have the jsonb columns that hold the seed's words classified as words", () => {
+    for (const [table, column] of [["widgets", "settings"], ["workflows", "config"], ["themes", "slides"], ["team_templates", "body"], ["team_templates", "slots"]]) {
+      expect(DEMO_WORDS_COLUMNS[table].words, `${table}.${column}`).toContain(column);
+    }
+  });
+
+  it("keeps the words trigger out of reach of the core, and refuses every visit while the showcase is not ready", () => {
+    expect(SHOWCASE).toContain("attach_demo_words_guard(regclass) from public, anon, authenticated, service_role");
+    expect(SHOWCASE).toContain("if not coalesce((select showcase_ready from demo_state where id), false) then raise exception using errcode = 'ZF4D0'");
+    expect(SHOWCASE).toContain("if new.generation is distinct from old.generation then new.showcase_ready := false");
   });
 
   it("classify every table that any migration opens to visitors", () => {

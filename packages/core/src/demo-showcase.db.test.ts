@@ -8,6 +8,7 @@ import { resetDemoWorkspace } from "./demo-reset";
 import { DEMO_OPEN_CANDIDATES, DEMO_WORDS_COLUMNS, demoKeptRowTables, demoWordsColumnRows } from "./demo-words-columns";
 import { DEMO_WORKSPACE_ID } from "./team";
 
+const RETIRES = /^(deleted|archived|hidden|retired|removed|shown)(_at|_by)?$/;
 const TEXTLIKE = new Set(["text", "character varying", "jsonb", "json", "ARRAY", "USER-DEFINED"]);
 
 beforeAll(async () => {
@@ -35,7 +36,8 @@ describe("the classification of the tables a visitor may one day write", () => {
     for (const table of DEMO_OPEN_CANDIDATES) {
       const { data, error } = await db().rpc("demo_text_columns", { t: table });
       expect(error).toBeNull();
-      const actual = new Set((data as { column_name: string; data_type: string }[]).filter((c) => TEXTLIKE.has(c.data_type)).map((c) => c.column_name));
+      // Text-like columns (words may sit in any), and any column that retires a row (archived, deleted, hidden): both must be said.
+      const actual = new Set((data as { column_name: string; data_type: string }[]).filter((c) => TEXTLIKE.has(c.data_type) || RETIRES.test(c.column_name)).map((c) => c.column_name));
       const t = DEMO_WORDS_COLUMNS[table];
       const named = new Set([...t.words, ...(t.kept ?? []), ...t.other]);
       const unclassified = [...actual].filter((c) => !named.has(c));
@@ -57,7 +59,7 @@ describe("the classification of the tables a visitor may one day write", () => {
     expect(open.filter((t) => !DEMO_OPEN_CANDIDATES.includes(t)), "a table is open but its words are not classified").toEqual([]);
   });
 
-  it("leaves no table with a words column without the words trigger", async () => {
+  it("leaves no table with words, and no open table, without the words trigger (the fail-closed check)", async () => {
     const { data, error } = await db().rpc("demo_words_tables_without_trigger");
     expect(error).toBeNull();
     expect(data).toEqual([]);
@@ -89,6 +91,26 @@ describe("what the seed fills after a Demo Reset", () => {
       expect((await db().from(t).insert({ table_name: "dashboards", row_key: "1", column_name: "x", kind: "words" })).error?.code, t).toBe("42501");
     }
     expect((await db().from("demo_showcase").delete().neq("row_key", "")).error?.code).toBe("42501");
+  });
+});
+
+describe("the fail-closed flag", () => {
+  it("is on after the seed, cleared by every Demo Reset until the seed function has run, and not turnable on by the core", async () => {
+    const ready = async () => (await db().from("demo_state").select("showcase_ready").single()).data!.showcase_ready as boolean;
+    expect(await ready()).toBe(true);
+    expect((await db().rpc("demo_reset", { min_gap: "0 seconds" })).error).toBeNull();
+    expect(await ready()).toBe(false);
+    // The core can write the row (the flag for the setting), but writing the flag on does nothing.
+    await db().from("demo_state").update({ showcase_ready: true }).eq("id", true);
+    expect(await ready()).toBe(false);
+    expect((await db().rpc("prototype_seed_showcase")).error).toBeNull();
+    expect(await ready()).toBe(true);
+  }, 120_000);
+
+  it("has the showcase records only the seed made: a second call while ready changes nothing", async () => {
+    const before = (await db().from("demo_showcase").select("*", { count: "exact", head: true })).count;
+    expect((await db().rpc("prototype_seed_showcase")).error).toBeNull();
+    expect((await db().from("demo_showcase").select("*", { count: "exact", head: true })).count).toBe(before);
   });
 });
 
@@ -149,6 +171,48 @@ describe("the check that the trigger runs", () => {
     // The same Metric in another month is everyone's to change.
     const other = await db().from("observations").select("*").eq("workspace_id", DEMO_WORKSPACE_ID).eq("metric_id", churn.id).neq("period_start", "2026-03-01").limit(1).single();
     expect(await reason("UPDATE", "observations", other.data, { ...other.data, value: 9 })).toBeNull();
+  });
+
+  it("refuses a change to the words in a seeded widget's settings, and lets its other settings be changed", async () => {
+    const dash = await demoRow("dashboards", { name: "Operations" });
+    const widget = await demoRow("widgets", { dashboard_id: dash.id as number });
+    const settings = (widget.settings ?? {}) as Record<string, unknown>;
+    expect(await reason("UPDATE", "widgets", widget, { ...widget, settings: { ...settings, headline: "Mine" } })).toBe("words");
+    expect(await reason("UPDATE", "widgets", widget, { ...widget, settings: { ...settings, canvasSeed: { settings: { headline: "Mine" } } } })).toBe("words");
+    expect(await reason("UPDATE", "widgets", widget, { ...widget, settings: { ...settings, color: "red" } })).toBeNull();
+  });
+
+  it("refuses a seeded Workflow's config, a Theme's slides and a template's body", async () => {
+    const wf = await demoRow("workflows", { name: "Operations, monthly" });
+    expect(await reason("UPDATE", "workflows", wf, { ...wf, config: { steps: [] } })).toBe("words");
+    const theme = await demoRow("themes");
+    if (theme.slides !== undefined) expect(await reason("UPDATE", "themes", theme, { ...theme, slides: { footer: "x" } })).toBe("words");
+  });
+
+  it("refuses to change the key of a row the seed made, so that it cannot hide from the check", async () => {
+    const ops = await demoRow("dashboards", { name: "Operations" });
+    expect(await reason("UPDATE", "dashboards", ops, { ...ops, id: 2_000_000_009 })).toBe("words");
+  });
+
+  it("covers what the showcase depends on: its Metrics, their targets, Prompts, Checklist Tasks, Deliveries, Themes and Versions", async () => {
+    const churn = await demoRow("metrics", { slug: "churn-rate" });
+    for (const change of [{ polarity: "lower" }, { period: "week" }, { target_min: 1 }, { formula: "1" }, { workflow_id: null }, { decimals: 4 }, { aggregation: "sum" }]) {
+      expect(await reason("UPDATE", "metrics", churn, { ...churn, ...change }), JSON.stringify(change)).toBe("showcase");
+    }
+    const prompt = await demoRow("prompts", { metric_id: churn.id as number, period_start: "2026-03-01" }).catch(() => null);
+    if (prompt) expect(await reason("INSERT", "prompts", null, { ...prompt, id: 2_000_000_010 })).toBe("showcase");
+    expect(await reason("INSERT", "series_values", null, { metric_id: churn.id, kind: "target", period_start: "2026-03-01" })).toBe("showcase");
+    const weekly = await demoRow("workflows", { name: "Weekly numbers" });
+    expect(await reason("INSERT", "actions", null, { workflow_id: weekly.id, metric_id: 1, period_start: "2026-01-01", question: "x" })).toBe("showcase");
+    const monthly = await demoRow("dashboards", { name: "Monthly overview" });
+    expect(await reason("INSERT", "deliveries", null, { snapshot_dashboard_id: monthly.id, subject: "x" })).toBe("showcase");
+    if (monthly.theme_id) expect(await reason("UPDATE", "themes", { id: monthly.theme_id }, { id: monthly.theme_id, name: "x" })).toBe("showcase");
+    for (const object_type of ["dashboard", "workflow"]) {
+      const id = object_type === "dashboard" ? monthly.id : weekly.id;
+      expect(await reason("INSERT", "versions", null, { object_type, object_id: id, version: 99 }), object_type).toBe("showcase");
+    }
+    const widget = await demoRow("widgets", { dashboard_id: monthly.id as number });
+    expect(await reason("INSERT", "versions", null, { object_type: "widget", object_id: widget.id, version: 99 })).toBe("showcase");
   });
 
   it("refuses the Weekly numbers Workflow and its weeks 46 and 47, and no other Workflow", async () => {

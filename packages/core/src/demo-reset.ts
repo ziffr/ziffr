@@ -61,7 +61,7 @@ export async function resetDemoWorkspace(opts: { onlyWhenNeeded?: boolean; openT
   await seedDemoOutbox();
   // Last, so it sees everything the steps above made: the seed's own rows and the showcase that visitors may not change (spec 0051).
   const showcase = await db().rpc("prototype_seed_showcase");
-  if (showcase.error) console.error("Demo: no showcase", showcase.error.message);
+  if (showcase.error) console.error("Demo: no showcase; visits stay refused until the next reset", showcase.error.message);
   return true;
 }
 
