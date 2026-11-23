@@ -1,11 +1,9 @@
 "use client";
 // Using a Widget Template: pick the metrics for each slot (GLOSSARY: Slot). One metric per slot, or one or more for a
 // slot drawn as small multiples. Team templates and built-in ones ask the same way; once every slot is filled, a
-// Preview shows the widget with the chosen metrics before it is placed (spec 0011).
+// Preview shows the widget with the chosen metrics before it is placed (spec 0011). It is drawn in the side panel (spec 0050).
 import { useCallback, useRef, useState } from "react";
 import { inUse } from "@ziffr/core/metric-row";
-import { LayoutTemplate } from "lucide-react";
-import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { fillsComplete, fromTemplate } from "@ziffr/core/team-templates";
 import { templateOf } from "@/views/templates";
@@ -13,11 +11,13 @@ import type { DropSource } from "@/app/canvas-actions";
 import type { CanvasData, Slot, TeamTemplate, TemplateId, WidgetSettings, WidgetTemplate } from "@ziffr/core/types";
 import { useBoxSize } from "@/views/use-box-size";
 import { Preview } from "./preview";
+import { SlideOverWindow } from "./slide-over-window";
+import { SlotFills } from "./slot-fills";
 import type { FrameWidget } from "./read-only-frame";
 
 /** What the dialog asks for: a team template, or a built-in one by id. */
 type Asked = { kind: "team"; t: WidgetTemplate } | { kind: "builtin"; id: TemplateId; settings?: WidgetSettings };
-type Ask = { asked: Asked; fills: number[][]; resolve: (f: number[][] | null) => void };
+type Ask = { id: number; asked: Asked; fills: number[][]; resolve: (f: number[][] | null) => void };
 
 // A built-in template, or a Workspace's View Design (its Slots come from the design it carries).
 const builtin = (a: Extract<Asked, { kind: "builtin" }>) => templateOf({ template: a.id, settings: a.settings ?? {} });
@@ -30,11 +30,10 @@ function made(a: Asked, fills: number[][]): { widget: FrameWidget; size: { w: nu
   return { widget: { template: a.id, metric_ids: fills.flat(), settings: { ...t.settings, ...(a.settings ?? {}) }, title: null }, size: t.size };
 }
 
-/** Returns a dialog to render and ask(): the fills for a template, or null when cancelled. */
+/** Returns a window to render (it opens the side panel) and ask(): the fills for a template, or null when cancelled. */
 export function useSlotFill(data: CanvasData) {
   const [state, setState] = useState<Ask | null>(null);
-  const ref = useRef(state);
-  ref.current = state;
+  const asks = useRef(0);
 
   const open = useCallback((asked: Asked, initial: number[] = []) => new Promise<number[][] | null>((resolve) => {
     // Start from the metrics at hand (the widget being changed) in slot order.
@@ -44,7 +43,7 @@ export function useSlotFill(data: CanvasData) {
     const fills = slots.map((s) => (s.multiple ? [] : queue.length ? [queue.shift()!] : []));
     const multi = slots.findIndex((s) => s.multiple);
     if (multi >= 0) fills[multi] = queue;
-    setState({ asked, fills, resolve });
+    setState({ id: ++asks.current, asked, fills, resolve });
   }), [data.metrics]);
 
   /** Asks for a team template's slots. */
@@ -63,91 +62,68 @@ export function useSlotFill(data: CanvasData) {
     return fills ? { ...s, fills } : null;
   }, [open, data.templates]);
 
-  const close = (f: number[][] | null) => {
-    ref.current?.resolve(f);
-    setState(null);
+  // Resolves this question once (a promise ignores a second answer: Cancel, then the panel closing, both end here).
+  const finish = (ask: Ask, f: number[][] | null) => {
+    ask.resolve(f);
+    setState((s) => (s === ask ? null : s));
   };
-
-  // Only names of metrics this viewer can see.
-  const example = (ids?: number[]) => (ids ?? []).map((id) => data.metrics.find((m) => m.id === id)?.name).filter(Boolean).join(", ");
-  const slots = state ? slotsOf(state.asked) : [];
-  const ready = !!state && fillsComplete(slots, state.fills);
-  const name = state && (state.asked.kind === "team" ? state.asked.t.name : builtin(state.asked).label);
-  const description = state && (state.asked.kind === "team" ? state.asked.t.description : builtin(state.asked).blurb);
-  // The Preview draws metrics the viewer picked from those the page has: nothing they could not place anyway.
-  const preview = state && ready ? made(state.asked, state.fills) : null;
   const dialog = state && (
-    <Dialog open onOpenChange={(o) => { if (!o) close(null); }}>
-      <DialogContent className="max-w-md">
-        <DialogTitle className="flex items-center gap-2"><LayoutTemplate aria-hidden className="size-4" /> {name}</DialogTitle>
-        {description && <DialogDescription>{description}</DialogDescription>}
-        <form
-          className="min-w-0 space-y-3"
-          onSubmit={(e) => {
-            e.preventDefault();
-            if (ready) close(state.fills);
-          }}
-        >
-          {slots.map((slot, i) => (
-            <fieldset key={i} className="space-y-1">
-              <legend className="text-sm font-medium">{slot.label}{slot.multiple && <span className="font-normal text-muted-foreground">, one or more</span>}</legend>
-              {example(slot.exampleIds) && <p className="text-xs text-muted-foreground">In the original: {example(slot.exampleIds)}</p>}
-              {slot.multiple ? (
-                <ul className="max-h-44 space-y-0.5 overflow-y-auto rounded-[var(--radius-input)] border border-input p-1.5">
-                  {inUse(data.metrics).map((m) => {
-                    const on = state.fills[i]?.includes(m.id);
-                    return (
-                      <li key={m.id}>
-                        <label className="flex min-h-8 items-center gap-2 rounded px-1.5 text-sm hover:bg-muted">
-                          <input
-                            type="checkbox"
-                            checked={on}
-                            onChange={() => setState({ ...state, fills: state.fills.map((f, j) => (j === i ? (on ? f.filter((x) => x !== m.id) : [...f, m.id]) : f)) })}
-                          />
-                          {m.name}
-                        </label>
-                      </li>
-                    );
-                  })}
-                </ul>
-              ) : (
-                <select
-                  aria-label={slot.label}
-                  value={state.fills[i]?.[0] ?? ""}
-                  onChange={(e) => setState({ ...state, fills: state.fills.map((f, j) => (j === i ? (e.target.value ? [Number(e.target.value)] : []) : f)) })}
-                  className="h-9 w-full rounded-[var(--radius-input)] border border-input bg-card px-2 text-sm"
-                >
-                  <option value="">Choose a metric</option>
-                  {inUse(data.metrics).map((m) => <option key={m.id} value={m.id}>{m.name}</option>)}
-                </select>
-              )}
-            </fieldset>
-          ))}
-          {preview && (
-            <div className="space-y-1">
-              <p className="text-xs font-medium text-muted-foreground">Preview</p>
-              <PreviewBox widget={preview.widget} data={data} size={preview.size} />
-            </div>
-          )}
-          <div className="flex justify-end gap-2 pt-1">
-            <Button type="button" variant="outline" onClick={() => close(null)}>Cancel</Button>
-            <Button type="submit" disabled={!ready}>{state.asked.kind === "team" ? "Use template" : "Add"}</Button>
-          </div>
-        </form>
-      </DialogContent>
-    </Dialog>
+    <SlideOverWindow
+      key={state.id}
+      title={(state.asked.kind === "team" ? state.asked.t.name : builtin(state.asked).label) || "Use this template"}
+      description={(state.asked.kind === "team" ? state.asked.t.description : builtin(state.asked).blurb) || undefined}
+      onClose={() => finish(state, null)}
+    >
+      <SlotForm asked={state.asked} initial={state.fills} data={data} onDone={(f) => finish(state, f)} />
+    </SlideOverWindow>
   );
 
   return { ask, complete, dialog };
 }
 
-/** The Preview in a frame, drawn as wide as the dialog allows (up to 380 px): a fixed width would push the dialog's whole column wider than the dialog on a narrow screen. */
+/** The questions in the panel: which Metrics fill each Slot, and the Preview once all are filled. Holds the choices itself, as the panel reads its content once. */
+function SlotForm({ asked, initial, data, onDone }: { asked: Asked; initial: number[][]; data: CanvasData; onDone: (f: number[][] | null) => void }) {
+  const [fills, setFills] = useState(initial);
+  const slots = slotsOf(asked);
+  const ready = fillsComplete(slots, fills);
+  // Only names of metrics this viewer can see.
+  const example = (ids?: number[]) => (ids ?? []).map((id) => data.metrics.find((m) => m.id === id)?.name).filter(Boolean).join(", ");
+  // The Preview draws metrics the viewer picked from those the page has: nothing they could not place anyway.
+  const preview = ready ? made(asked, fills) : null;
+  return (
+    <form
+      className="min-w-0 space-y-3"
+      onSubmit={(e) => {
+        e.preventDefault();
+        if (ready) onDone(fills);
+      }}
+    >
+      <SlotFills slots={slots} metrics={inUse(data.metrics)} fills={fills} onChange={setFills} original={(i) => example(slots[i].exampleIds)} />
+      {preview && (
+        <div className="space-y-1">
+          <p className="text-xs font-medium text-muted-foreground">Preview</p>
+          <PreviewBox widget={preview.widget} data={data} size={preview.size} />
+        </div>
+      )}
+      <div className="flex justify-end gap-2 pt-1">
+        <Button type="button" variant="outline" onClick={() => onDone(null)}>Cancel</Button>
+        <Button type="submit" disabled={!ready}>{asked.kind === "team" ? "Use template" : "Add"}</Button>
+      </div>
+    </form>
+  );
+}
+
+/** How wide the Preview is drawn in a frame `w` px wide: as wide as the frame allows (up to 380 px), 280 px until the frame is measured. */
+export function previewWidth(w: number) {
+  return w > 0 ? Math.max(160, Math.min(380, w - 16)) : 280;
+}
+
+/** The Preview in a frame, drawn as wide as the panel allows: a fixed width would push the panel's whole column wider than the panel on a narrow screen. */
 function PreviewBox(props: Omit<React.ComponentProps<typeof Preview>, "width">) {
   const [box, { w }] = useBoxSize<HTMLDivElement>();
-  const width = w > 0 ? Math.max(160, Math.min(380, w - 16)) : 280;
   return (
     <div ref={box} className="flex min-w-0 justify-center overflow-hidden rounded-[var(--radius-card)] bg-[var(--color-paper-2)] p-2">
-      <Preview {...props} width={width} />
+      <Preview {...props} width={previewWidth(w)} />
     </div>
   );
 }

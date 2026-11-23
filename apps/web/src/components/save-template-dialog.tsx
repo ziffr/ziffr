@@ -1,10 +1,9 @@
 "use client";
 // Saving as a team template (GLOSSARY: Widget Template, Deck Template): a widget, a whole slide as a layout, or a deck. Its metrics
-// become slots; notes tied to one period or row can follow a rule instead, or are left out.
+// become slots; notes tied to one period or row can follow a rule instead, or are left out. Drawn in the side panel (spec 0050).
 import { useMemo, useState, useTransition } from "react";
 import { toast } from "sonner";
 import { shown, unwrap } from "@/lib/action-error";
-import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { saveSlideLayout, saveTemplate } from "@/app/template-actions";
@@ -12,6 +11,7 @@ import { saveAsDeckTemplate } from "@/app/deck-workflow-template-actions";
 import { deckSpecifics, RULES_FOR, slideSpecifics, specifics, toDeckTemplate, toSlideLayout, toTemplate, type Choices, type Specific } from "@ziffr/core/team-templates";
 import type { CanvasData, Period, Slot, SlideShape, Widget } from "@ziffr/core/types";
 import { periodLabel } from "@ziffr/core/periods";
+import { SlideOverWindow } from "./slide-over-window";
 
 type Submit = { name: string; description: string; labels: string[]; choices: Choices; replaceId: number | null };
 
@@ -75,7 +75,7 @@ type Mine = { id: number; name: string; description: string; slots: Slot[] };
 const NOUN = { widget: "template", slide: "layout", deck: "Deck Template" } as const;
 const WHERE = { widget: "Find it under Templates in the Pool, or in Change view.", slide: "Find it under + Slide in any deck.", deck: "Find it under From a Deck Template on the Decks page." } as const;
 
-function TemplateSaveDialog({ kind, title, data, items, grain, defaultName, existing, preview: make, submit, onClose }: {
+type SaveProps = {
   kind: "widget" | "slide" | "deck";
   /** The viewer's own templates of this kind; left out, the widget templates and layouts the canvas has. */
   existing?: Mine[];
@@ -87,7 +87,18 @@ function TemplateSaveDialog({ kind, title, data, items, grain, defaultName, exis
   preview: (choices: Choices) => { slots: Slot[]; notices: string[] };
   submit: (x: Submit) => Promise<unknown>;
   onClose: () => void;
-}) {
+};
+
+/** The window: opens the side panel with the form in it, and tells the screen when the panel is closed. */
+function TemplateSaveDialog(props: SaveProps) {
+  return (
+    <SlideOverWindow title={props.title} description="Everyone on the team can use it with their own metrics. Only you can change it." onClose={props.onClose}>
+      <TemplateSaveForm {...props} />
+    </SlideOverWindow>
+  );
+}
+
+function TemplateSaveForm({ kind, data, items, grain, defaultName, existing, preview: make, submit, onClose }: SaveProps) {
   const mine: Mine[] = existing ?? data.templates.filter((t) => t.owner_id === data.viewer && t.kind === kind);
   const [choices, setChoices] = useState<Choices>(() => Object.fromEntries(items.map((x) => [x.key, RULES_FOR[x.kind][0].rule])));
   const [name, setName] = useState(defaultName);
@@ -100,10 +111,6 @@ function TemplateSaveDialog({ kind, title, data, items, grain, defaultName, exis
   const Noun = `${noun[0].toUpperCase()}${noun.slice(1)}`;
 
   return (
-    <Dialog open onOpenChange={(o) => { if (!o) onClose(); }}>
-      <DialogContent className="max-h-[90vh] max-w-lg overflow-y-auto">
-        <DialogTitle>{title}</DialogTitle>
-        <DialogDescription>Everyone on the team can use it with their own metrics. Only you can change it.</DialogDescription>
         <form
           className="space-y-4 text-sm"
           onSubmit={(e) => {
@@ -143,8 +150,8 @@ function TemplateSaveDialog({ kind, title, data, items, grain, defaultName, exis
               {preview.slots.length === 0 && <p className="text-xs text-muted-foreground">No metrics on it: it is used as it is.</p>}
             <ul className="space-y-1.5">
               {preview.slots.map((s, i) => (
-                <li key={i} className="flex items-center gap-2">
-                  <Input aria-label={`Slot ${i + 1} name`} value={labels[i] ?? ""} onChange={(e) => setLabels(labels.map((l, j) => (j === i ? e.target.value : l)))} className="max-w-48" />
+                <li key={i} className="flex flex-wrap items-center gap-2">
+                  <Input aria-label={`Slot ${i + 1} name`} value={labels[i] ?? ""} onChange={(e) => setLabels(labels.map((l, j) => (j === i ? e.target.value : l)))} className="w-full" />
                   <span className="text-xs text-muted-foreground">{s.multiple ? "one or more" : "one metric"}, now {(s.exampleIds ?? []).map((id) => data.metrics.find((m) => m.id === id)?.name).filter(Boolean).join(", ")}</span>
                 </li>
               ))}
@@ -157,9 +164,9 @@ function TemplateSaveDialog({ kind, title, data, items, grain, defaultName, exis
               <p className="mb-2 text-xs text-muted-foreground">Another metric will not have the same period or row. Let each note follow a rule, or leave it out.</p>
               <ul className="space-y-1.5">
                 {items.map((x) => (
-                  <li key={x.key} className="grid grid-cols-[minmax(0,1fr)_11rem] items-center gap-2">
+                  <li key={x.key} className="space-y-1">
                     <span className="truncate" title={x.text}>“{x.text}” <span className="text-xs text-muted-foreground">at {x.kind === "period" ? periodLabel(x.at, grain, data.yearStart, true) : x.at}</span></span>
-                    <select aria-label={`Rule for ${x.text}`} value={choices[x.key]} onChange={(e) => setChoices({ ...choices, [x.key]: e.target.value as Choices[string] })} className="h-9 rounded-[var(--radius-input)] border border-input bg-card px-2">
+                    <select aria-label={`Rule for ${x.text}`} value={choices[x.key]} onChange={(e) => setChoices({ ...choices, [x.key]: e.target.value as Choices[string] })} className="h-9 w-full rounded-[var(--radius-input)] border border-input bg-card px-2">
                       {RULES_FOR[x.kind].map((r) => <option key={r.rule} value={r.rule}>{r.label}</option>)}
                       <option value="drop">Leave out</option>
                     </select>
@@ -179,7 +186,5 @@ function TemplateSaveDialog({ kind, title, data, items, grain, defaultName, exis
             <Button type="submit" disabled={pending || !name.trim()}>{replaceId ? `Replace ${noun}` : `Save ${noun}`}</Button>
           </div>
         </form>
-      </DialogContent>
-    </Dialog>
   );
 }
