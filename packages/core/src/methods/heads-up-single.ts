@@ -487,7 +487,9 @@ export function testsOf(look: SingleLook, ctx: SingleContext): Test[] {
 export function testsOfScan(looks: readonly SingleLook[], ctx: SingleContext): { tests: Test[]; skipped: number } {
   let skipped = 0;
   const neutral = (look: SingleLook): Test[] => (["direction-change", "target-out-of-reach", "unusual-for-season"] as const).map((kind) => ({ kind, id: look.metric.id, gates: {}, chance: 1, p: 1, build: () => { throw new Error("a test with a chance of 1 is never reported"); } }));
-  const tests = withWork(() => looks.flatMap((look) => capped(METRIC_BUDGET, () => testsOf(look, ctx)) ?? (skipped++, neutral(look))), SCAN_BUDGET)!;
+  // In the order of the Metrics' ids, so that which Metrics the scan's allowance reaches never depends on the order they were given in.
+  const ordered = [...looks].sort((x, y) => x.metric.id - y.metric.id);
+  const tests = withWork(() => ordered.flatMap((look) => capped(METRIC_BUDGET, () => testsOf(look, ctx)) ?? (skipped++, neutral(look))), SCAN_BUDGET)!;
   return { tests, skipped };
 }
 

@@ -534,12 +534,14 @@ function fitWithin(input: FitInput): Fit | Refused {
   const k = input.drivers.length;
   if (k === 0) return { ok: false, refusals: [{ case: "refuse-no-drivers", slots: { target: input.target.name } }] };
   // The levels are held to the limits of work-bound.ts before anything is worked out on them: choosing the basis is exact least squares on them.
-  // Only the periods the fit uses are judged (the latest 120 they have in common, and one more for a basis of changes): where the whole history is too wide
-  // but those are not, the fit is made on those alone, so that one old odd value does not refuse a fit that does not read it.
+  // Only the periods the fit uses are judged (the range of the latest 120 they have in common, and one more for a basis of changes): where the whole history
+  // is too wide but those are not, the fit is made on the values of that range alone, each series keeping its own gaps, so that one old odd value does not
+  // refuse a fit that does not read it.
   const given = [input.target, ...input.drivers];
   const whole = wideFindings(given.map((d) => ({ name: d.name, points: d.points })));
-  const recent = latestCommon(given.map((d) => d.points), MOST_PERIODS + 1);
-  const used = whole.length > 0 ? { ...input, target: { ...input.target, points: recent.series[0] }, drivers: input.drivers.map((d, i) => ({ ...d, points: recent.series[i + 1] })) } : input;
+  const [first] = latestCommon(given.map((d) => d.points), MOST_PERIODS + 1).series;
+  const within = (points: Point[]) => readSeries(points).filter((p) => first.length > 0 && p.period >= first[0].period && p.period <= first[first.length - 1].period);
+  const used = whole.length > 0 ? { ...input, target: { ...input.target, points: within(input.target.points) }, drivers: input.drivers.map((d) => ({ ...d, points: within(d.points) })) } : input;
   const wide = whole.length > 0 ? wideFindings([used.target, ...used.drivers].map((d) => ({ name: d.name, points: d.points }))) : [];
   if (wide.length > 0) return { ok: false, refusals: wide };
   const prep = prepare(used);

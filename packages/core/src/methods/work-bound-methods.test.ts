@@ -270,7 +270,7 @@ describe("the Takeaways whose series are cut to 120 periods run under the work a
 describe("a Takeaway that spends its whole work budget is a refusal in words", () => {
   it("has the Method's name and no number, and a Takeaway that does not is left as it is", () => {
     const t = withinBudget("numbers-method-holt", ctx, () => { spend(WORK_BUDGET + 1); return emptyTakeaway("never"); });
-    expect(t).toMatchObject({ kind: "refusal", method: "Holt's linear trend", refusal: "These values need too much exact work to finish in reasonable time: use fewer Metrics or round the values.", sentence: null, figures: [] });
+    expect(t).toMatchObject({ kind: "refusal", method: "Holt's linear trend", refusal: "These values need too much exact work to finish in reasonable time: round the values, or use fewer Metrics where several are used.", sentence: null, figures: [] });
     expect(withinBudget("numbers-method-holt", ctx, () => emptyTakeaway("kept")).method).toBe("kept");
   });
 });
@@ -500,6 +500,20 @@ describe("the fit judges the periods it uses", () => {
     // The same history with the odd value inside the 120 latest periods is refused, naming that series.
     const inside = clean.map((s, i) => s.map((p, k) => (i === 1 && k === 150 ? { ...p, value: 1e-300 } : p)));
     expect(fit(input(inside[0], [inside[1], inside[2]]))).toEqual({ ok: false, refusals: [{ case: "refuse-exact-places", slots: { name: "Visits", places: 40, orders: 30 } }] });
+    // A period one series lacks is that series' gap alone, as in the clean history.
+    const gaps = (wideFirst: boolean) => {
+      const [t, d] = [series("ordinary", 11, 140), series("ordinary", 12, 140)];
+      const target = t.filter((_, i) => i !== 135).map((p, i) => (wideFirst && i === 0 ? { ...p, value: 1e-45 } : p));
+      const f = fit(input(target, [d]));
+      return f.ok ? f.verdict.cautions.filter((c) => c.case === "caution-gaps").map((c) => c.slots.name) : [];
+    };
+    expect(gaps(false)).toEqual(["Revenue"]);
+    expect(gaps(true)).toEqual(["Revenue"]);
+    // A series with no value has no range to judge: the others are not judged either, and the fit says there are too few periods.
+    expect(cases(fit(input([], [series("tiny", 1)])))).toEqual(["refuse-periods"]);
+    // Series with no period in common keep what they have, and a wide one is refused.
+    const [early, late] = [series("ordinary", 1, 20), months("2030-01", Array.from({ length: 20 }, (_, i) => 100 + i))];
+    expect(cases(fit(input(early.map((p, i) => (i === 0 ? { ...p, value: 1e-45 } : p)), [late])))).toEqual(["refuse-exact-places"]);
     // A short wide history is refused as before.
     expect(cases(fit(input(series("tiny", 1), [series("tiny", 2)])))).toEqual(["refuse-exact-places", "refuse-exact-places"]);
   });
@@ -518,7 +532,7 @@ describe("no forecast for values too wide is said, and the Drivers Takeaway says
     const data = { n1: series("ordinary", 1), n2: series("ordinary", 2) };
     const { ranked } = rankCorrelations(a, [b], (slug) => ({ metric: slug === "n1" ? a : b, points: data[slug as "n1"] }), { yearStart: 1, basis: "values" });
     expect(driversTakeaway(a, ranked, ctx).notes).toEqual([]);
-    expect(driversTakeaway(a, ranked, ctx, true).notes).toEqual(["This is among the Metrics that were compared: some were not, as there are too many of them to work out exactly in reasonable time."]);
+    expect(driversTakeaway(a, ranked, ctx, true).notes).toEqual(["This is among the Metrics that were compared: some were not, as working them out exactly would take too long."]);
   });
 });
 
@@ -544,5 +558,6 @@ describe("a scan of many Metrics for Heads-ups about one Metric runs under an al
     expect(() => neutral[0].build(1, 1)).toThrow("never reported");
     // The same looks give the same answer twice.
     expect(testsOfScan(looks("dense", 200), ctxOf).skipped).toBe(worst.result.skipped);
+    expect(testsOfScan(looks("dense", 200).reverse(), ctxOf).skipped).toBe(worst.result.skipped);
   });
 });
