@@ -189,6 +189,8 @@ Under **Copy to…**:
 | Option | Who sees it | What it does |
 | --- | --- | --- |
 | **Add to dashboard** | When you may change another dashboard | Places a copy on one of your other dashboards. |
+
+On a Metric's page, **⋯** → **Add to dashboard** lists your dashboards the same way and ends with **New dashboard with this Metric**, which makes a dashboard named for the Metric, puts the Metric on it and opens it (not offered to Guests).
 | **Add to deck…** | Everyone except Guests | Places a copy on a slide of a deck you own or may edit, or of a new deck named after the Widget: pick the deck, then a slide or **New slide at the end**. The deck opens on that slide; **Go back** in the message returns here. The copy draws only Metrics you see, and changing it leaves this Widget as it is. Also on a Finding of a story. |
 | **Save as Widget** | Everyone except Guests | Saves a copy to your Pool. |
 | **Save as template…** | The owner and Editors | Saves the Widget as a team Widget Template. Not offered for a Free layout. |
@@ -239,7 +241,7 @@ Press **Send question** or **Assign task**. A note says "Question put to …" or
 
 How many periods a View shows comes with its Widget Template: the last 12 periods for Number + sparkline, Line chart and Bars per period, and the last 6 values for History table. There is no setting to change it.
 
-Each of these Views, and the Analyses (Forecast, Correlation, Correlation matrix, Drivers), is a **View Design**: a file that says what the View draws, which Ziffr draws with one renderer of its own. They look as they always did, except that Drivers, Correlation and the Correlation matrix now say what they compared ("Compared by change, growth removed" where both Metrics grow, otherwise "Compared by value") and have a **Takeaway** (a sentence, a strength word, a plain line when the data makes the reading rough, and one footer) with **Show the numbers**, which gives r and the periods and switches to comparing the values as they are. The Drivers template now asks for two Slots when you place it: the Metric, and the Metrics to compare it with. A View Design of the Workspace can also draw an Analysis Recipe: its results show as lines, bars, a line across the chart or numbers in its words, and in the tooltip (see [Analysis Recipes](13-analyze.md#analysis-recipes)).
+Each of these Views, and the Analyses (Forecast, Correlation, Correlation matrix, Drivers), is a **View Design**: a file that says what the View draws, which Ziffr draws with one renderer of its own. They look as they always did, except that Drivers, Correlation and the Correlation matrix now say what they compared ("Compared by change, growth removed" where both Metrics grow, otherwise "Compared by value") and have a **Takeaway** (a sentence, a strength word, a plain line when the data makes the reading rough, and one footer) with **Show the numbers**, which gives r and the periods and switches to comparing the values as they are. The Drivers template now asks for two Slots when you place it: the Metric, and the Metrics to compare it with. A View Design of the Workspace can also draw an Analysis Recipe: its results show as lines, bars, a line across the chart or numbers in its words, and in the tooltip (see [Analysis Recipes](13-analyze.md#analysis-recipes)); a recipe in either of its formats draws its series and single values, and its tables and Takeaways are not drawn yet.
 
 ### A value's details
 

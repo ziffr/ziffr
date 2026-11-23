@@ -153,6 +153,8 @@ An **Analysis Recipe** is an Analysis written as steps of Ziffr's own functions:
 
 **Start from** also lists the built-in recipes (moving average, growth, linear trend, seasonality, unusual periods, correlation, share of a total), each inside a design that draws it. Once added to the Workspace, a design with a recipe is placed like any other, and goes onto dashboards, Snapshots, View Links, decks and the PowerPoint export, where it becomes a picture.
 
+A recipe can also be written in the newer format, `ziffr.analysis/2`, which adds rank, partial and lagged correlation, the usual range, percentiles and a fit with its importance as steps. A design draws only the series and single values such a recipe gives; its tables and Takeaways are not drawn by a mark yet, and a design that names one is refused with that said. Recipes in the first format work exactly as before. Packs and the [analysis recipes guide](../guides/analysis-recipes.md) describe the format.
+
 ## Saving a result
 
 Results are not kept when you leave the screen; save the ones you want. Each result has a **⋯** menu, which right-clicking also opens:

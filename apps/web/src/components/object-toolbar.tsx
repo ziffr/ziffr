@@ -2,7 +2,7 @@
 // The toolbar of a Dashboard or Metric page (GLOSSARY: Share, View Link, Version, Theme, Slide-over): Share is the one main
 // button, the page's own secondary buttons sit next to it, and everything else is in a ⋯ menu, so a page never
 // shows seven equal buttons.
-import { useState } from "react";
+import { Fragment, useState } from "react";
 import { Check, Eye, History, Link2, MoreHorizontal, Palette } from "lucide-react";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
@@ -42,7 +42,7 @@ export type ObjectToolbarProps = {
 type SheetRow = { label: string; icon: React.ReactNode; checked?: boolean; go: () => void };
 
 /** One entry of a page's ⋯ menu. */
-export type MenuEntry = { label: string; icon: React.ReactNode; onSelect?: () => void; sub?: { key: string | number; label: string; onSelect: () => void }[]; danger?: boolean; separated?: boolean; checked?: boolean; dimmed?: boolean; hint?: string };
+export type MenuEntry = { label: string; icon: React.ReactNode; onSelect?: () => void; sub?: { key: string | number; label: string; onSelect: () => void; separated?: boolean }[]; danger?: boolean; separated?: boolean; checked?: boolean; dimmed?: boolean; hint?: string };
 
 /** Share as the main button, the page's own buttons, and a ⋯ menu with Who can see this, View links, Theme and Versions. */
 export function ObjectToolbar({ type, id, people, children, phone, share, viewLinks, theme, menu, lead }: ObjectToolbarProps) {
@@ -130,7 +130,7 @@ function MenuRow({ m }: { m: MenuEntry }) {
         <DropdownMenuSub>
           <DropdownMenuSubTrigger>{m.icon} {m.label}</DropdownMenuSubTrigger>
           <DropdownMenuSubContent>
-            {m.sub.map((s) => <DropdownMenuItem key={s.key} onClick={s.onSelect}>{s.label}</DropdownMenuItem>)}
+            {m.sub.map((s) => (<Fragment key={s.key}>{s.separated && <DropdownMenuSeparator />}<DropdownMenuItem onClick={s.onSelect}>{s.label}</DropdownMenuItem></Fragment>))}
           </DropdownMenuSubContent>
         </DropdownMenuSub>
       </>
