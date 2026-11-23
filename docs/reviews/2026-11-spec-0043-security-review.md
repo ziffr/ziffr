@@ -20,3 +20,5 @@ Independent review of the whole spec (the download, the Pack `feeds` field, the 
 | L8 | A failure part-way through a download leaves a Feed and some links. | Low | Accepted (tidiness, not security); in the threat model. |
 
 **Checked and found sound:** who may download and which Workspace is touched; the one value set in the file and where it comes from; the Feed Key in no file, log or audit event; the Pack `feeds` checks; the quoting of the assistant text; Stripe and HubSpot read only; the interval and currency arithmetic apart from L6.
+
+**After the review.** Asked by the owner whether every template covers these errors, the flows were rebuilt on one skeleton with a contract test over all of them (#842), and the Feed endpoint's answers to sender mistakes became one tested table (#844). An automated review of the Send values tab then found that its picker took Metric names from an unfiltered list; it now comes from the core with the person's sight, and the same table test and a database test (`send-values-options.db.test.ts`) cover it.
