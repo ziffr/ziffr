@@ -102,7 +102,9 @@
               "google-sheets",
               "excel",
               "stripe",
-              "hubspot"
+              "hubspot",
+              "bigquery",
+              "snowflake"
             ],
             "description": "the id of one of the templates Ziffr ships, such as “google-sheets”"
           },
