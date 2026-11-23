@@ -185,7 +185,7 @@ describe("Approvals, Tasks and Questions", () => {
     const own = flat(await schedule(w.actor(ben, "member"), {}, NOW));
     expect(own.map((e) => [e.kind, e.actionId, e.text])).toEqual([["task", task, "Look"]]);
     // An Approval of a Metric never shared with its Approver shows too.
-    const approval = await action(w, { metric_id: m.id, period_start: "2026-10-01", asker_id: sara, assignee_id: ann, kind: "task", purpose: "approval", question: "Approve Secret: 5" });
+    const approval = await action(w, { metric_id: m.id, period_start: "2026-10-01", asker_id: sara, assignee_id: ann, kind: "task", purpose: "approval", question: "Approve Secret: 5", created_at: "2026-11-18T09:00:00Z" });
     expect(flat(await schedule(w.actor(ann, "admin"), {}, NOW)).map((e) => [e.kind, e.actionId])).toEqual([["approval", approval]]);
     // A teammate's Schedule still shows only what the asker sees: an Admin who does not see it gets nothing of Ben's.
     expect(brief(await schedule(w.actor(ann, "admin"), { personId: ben }, NOW))).toEqual([]);
