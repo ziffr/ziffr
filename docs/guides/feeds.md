@@ -83,6 +83,8 @@ WAREHOUSE_URL=postgres://readonly@warehouse/db ZIFFR_URL=... ZIFFR_FEED_KEY=... 
 
 `:period_start` and `:period_end` are bound as parameters, never pasted into the query. Every query runs in a read-only transaction with a 30-second limit (`statement_timeout_ms` changes it). Still, give it a database user that may only read.
 
+It also reads BigQuery and Snowflake: add `dialect: bigquery` or `dialect: snowflake` and install the vendor package yourself. The user guide's [Fill from a data warehouse](../user-guide/10-metrics.md#fill-from-a-data-warehouse) has the role, cost limit and a worked example for each, and says when the n8n templates are the better fit.
+
 ### From cron or a GitHub Action
 
 ```yaml

@@ -82,7 +82,7 @@ One value of a metric for one period.
 _Avoid_: Number, entry, data point, upload
 
 **Breakdown**:
-Labelled values that split one observation, such as revenue by country for October, uploaded with it. Labels are free text; the observation's value stays the metric's number even when the rows do not add up to it.
+Labelled values that split one observation, such as revenue by country for October, uploaded with it. Labels are free text; the observation's value stays the metric's number even when the rows do not add up to it. A row may name another row of the same Breakdown as its parent, by its label (a part of it, such as a city of a country: at most 4 levels down and 200 rows, every label used once, no cycles), which makes the Breakdown a tree; without parents it stays a flat list. A row's number is its own, as it was given, and its parts may add up to another number. Whoever may see the Metric sees every row, parts included; a flat chart reads only the rows at the top, so no row is counted twice.
 _Avoid_: Dimension, segment, table, drill-down
 
 ### Comparing
@@ -228,7 +228,7 @@ A way of drawing a metric, such as a number with sparkline, a line chart, bars, 
 _Avoid_: Chart type, visualization plugin
 
 **Slide-over**:
-A panel that opens on the right over the current page (full screen on a phone) for one job: Share, Version history, Alert me… or a Metric's Quick look. It has its own address (`?panel=…`), keeps the keys inside it, and Escape closes it.
+A panel that opens on the right over the current page (full screen on a phone) for one job: Share, Version history, Alert me… or a Metric's Quick look. It has its own address (`?panel=…`), keeps the keys inside it, and Escape closes it. One host in the app shell shows it (`useSlideOver`); when to use one and when a modal is in `docs/guides/side-panel.md`. Specs and tickets also call it the side panel; in code and screen text it is the Slide-over.
 _Avoid_: Drawer, side panel, modal, dialog (a dialog is a small window for a decision, such as a confirmation)
 
 **Quick look**:

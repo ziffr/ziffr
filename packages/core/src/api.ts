@@ -15,6 +15,7 @@ import { workflowFacts, type ApiMetricWorkflow, type ApiNextAsked, type ApiNextD
 import { linkTo } from "./deliveries";
 import { recordView } from "./usage";
 import { buildSeries, getBreakdowns, getLatestObservations, getMetrics, withInputs } from "./workspace-data";
+import { listRows, type ListedRow } from "./breakdown-parts";
 import type { Action, BreakdownRow, Metric } from "./types";
 
 /** At most this many items in one page of a list. */
@@ -135,7 +136,7 @@ export type ValueState = "recorded" | "awaiting_approval" | "locked";
  * about a Thread they may not read). */
 export type ApiObservation = {
   period: string; value: number; state: ValueState; submitter: string | null; submitter_name: string | null;
-  submitted_at: string | null; source: string | null; has_thread: boolean; breakdown: BreakdownRow[] | null;
+  submitted_at: string | null; source: string | null; has_thread: boolean; breakdown: ListedRow[] | null;
   /** Read only (spec 0046): the id and name of the person who entered the value for its submitter (a Filled-in Value),
    * or null when the submitter entered it. Always null for a key whose creator is a Guest, as submitters' names are. */
   entered_by?: string | null; entered_by_name?: string | null;
@@ -198,7 +199,7 @@ export async function listObservations(actor: Actor | KeyActor, slug: string, ra
   return {
     items: page.map((p) => p.condensed
       ? { period: p.period, period_end: p.condensed.periodEnd, condensed_from: p.condensed.held, value: p.value, state: "locked" as const, submitter: null, submitter_name: null, submitted_at: null, source: null, has_thread: false, breakdown: null, entered_by: null, entered_by_name: null }
-      : { period: p.period, value: p.value, state: stateOf.get(p.period) ?? "recorded", submitter: guest ? null : (latest.get(p.period)?.submitter_id ?? null), submitter_name: guest ? null : (names.get(latest.get(p.period)?.submitter_id ?? "") ?? null), submitted_at: latest.get(p.period)?.created_at ?? null, source: latest.get(p.period)?.source ?? null, has_thread: withThread.has(p.period), breakdown: breakdowns[metric.id]?.[p.period] ?? null, entered_by: enteredBy.get(p.period) ?? null, entered_by_name: names.get(enteredBy.get(p.period) ?? "") ?? null }),
+      : { period: p.period, value: p.value, state: stateOf.get(p.period) ?? "recorded", submitter: guest ? null : (latest.get(p.period)?.submitter_id ?? null), submitter_name: guest ? null : (names.get(latest.get(p.period)?.submitter_id ?? "") ?? null), submitted_at: latest.get(p.period)?.created_at ?? null, source: latest.get(p.period)?.source ?? null, has_thread: withThread.has(p.period), breakdown: breakdowns[metric.id]?.[p.period] ? listRows(breakdowns[metric.id][p.period]) : null, entered_by: enteredBy.get(p.period) ?? null, entered_by_name: names.get(enteredBy.get(p.period) ?? "") ?? null }),
     next: points.length > limit ? page[page.length - 1].period : null,
   };
 }

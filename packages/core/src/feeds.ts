@@ -251,7 +251,7 @@ export async function feedOverview(feed: FeedActor, page: { after?: number | nul
 
 /** One value in a Feed's batch: a Metric's slug, a period's first day (the current period if left out), the value,
  * and its Breakdown if any. Shapes are checked by the API before they get here; this checks them again. */
-export type FeedItem = { metric: string; period?: string | null; value: number; breakdown?: { label: string; value: number }[] | null };
+export type FeedItem = { metric: string; period?: string | null; value: number; breakdown?: { label: string; value: number; parent?: string | null }[] | null };
 
 /** What became of one item, in words that hold no earlier value: recorded (or awaiting Approval), locked (it went to
  * the Metric's owner as a proposed Correction), or refused with a stable code. `imported` marks an Import. */
@@ -310,7 +310,7 @@ export async function submitFeedObservations(feed: FeedActor, items: FeedItem[],
     // A Metric of another workspace, one the Feed does not feed and one whose API is off all read the same.
     if (!target) { results.push({ metric: slug, period: named, status: "refused", code: "not_found", detail: "This Feed does not submit values to that Metric." }); continue; }
     const value = Number(raw.value);
-    const breakdown = (Array.isArray(raw.breakdown) ? raw.breakdown : []).slice(0, 500).map((r) => ({ label: String(r?.label ?? "").slice(0, 200), value: Number(r?.value) }));
+    const breakdown = (Array.isArray(raw.breakdown) ? raw.breakdown : []).slice(0, 500).map((r) => ({ label: Array.from(String(r?.label ?? "")).slice(0, 200).join(""), value: Number(r?.value), ...(typeof r?.parent === "string" ? { parent: Array.from(r.parent).slice(0, 200).join("") } : {}) }));
     const period = named ?? periodStart(new Date(), target.metric.period, await yearStartFor(feed.workspaceId, target.metric.period));
     const r = await submitValue({
       source: "api", sender: target.token, workspaceId: feed.workspaceId, accessKeyId: Number(feed.key.id), import: true,
@@ -318,7 +318,7 @@ export async function submitFeedObservations(feed: FeedActor, items: FeedItem[],
       value: { value, breakdown }, period: named ?? undefined,
     }, effects);
     if (r.outcome === "proposed_locked") { results.push({ metric: slug, period, status: "locked", detail: "The period is locked; the value went to the Metric's owner as a proposed correction." }); continue; }
-    if (!r.ok) { results.push({ metric: slug, period, status: "refused", code: r.outcome.replace(/^rejected_/, ""), detail: REFUSED[r.outcome] ?? "The Metric's rules refused the value." }); continue; }
+    if (!r.ok) { results.push({ metric: slug, period, status: "refused", code: r.outcome.replace(/^rejected_/, ""), detail: r.outcome === "rejected_breakdown" ? r.detail : REFUSED[r.outcome] ?? "The Metric's rules refused the value." }); continue; }
     const { data: state } = await db().from("period_states").select("state").eq("metric_id", target.metric.id).eq("period_start", period).maybeSingle();
     const waiting = state?.state === "approval";
     results.push({ metric: slug, period, status: waiting ? "awaiting_approval" : "recorded", imported: Boolean(r.imported), detail: r.imported ? "Imported." : waiting ? `${DONE[r.outcome] ?? "Recorded."} It waits for Approval.` : DONE[r.outcome] ?? "Recorded." });

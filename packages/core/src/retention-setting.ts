@@ -571,23 +571,27 @@ export async function retentionValuesCsv(actor: Actor, metricId: number, rawSett
   for (let i = 0; i < ids.length; i += 200) {
     const chunk = ids.slice(i, i + 200);
     const [rows, history] = await Promise.all([
-      allRows<{ id: number; observation_id: number; label: string; value: unknown; value_sealed: unknown }>((a, b) => db().from("breakdown_rows").select("id, observation_id, label, value, value_sealed").eq("workspace_id", ws).in("observation_id", chunk).order("id").range(a, b)),
-      allRows<{ id: number; row_id: number | null; observation_id: number; label: string; value: unknown; value_sealed: unknown }>((a, b) => db().from("breakdown_history").select("id, row_id, observation_id, label, value, value_sealed").eq("workspace_id", ws).in("observation_id", chunk).order("id").range(a, b)),
+      allRows<{ id: number; observation_id: number; parent_id: number | null; label: string; value: unknown; value_sealed: unknown }>((a, b) => db().from("breakdown_rows").select("id, observation_id, parent_id, label, value, value_sealed").eq("workspace_id", ws).in("observation_id", chunk).order("id").range(a, b)),
+      allRows<{ id: number; row_id: number | null; observation_id: number; parent_row_id: number | null; label: string; value: unknown; value_sealed: unknown }>((a, b) => db().from("breakdown_history").select("id, row_id, observation_id, parent_row_id, label, value, value_sealed").eq("workspace_id", ws).in("observation_id", chunk).order("id").range(a, b)),
     ]);
     // Labels are sealed with the Workspace Key; one that does not open reads as a dash, never as ciphertext. A replaced row's label is sealed for its row's id.
     // Values are sealed too (spec 0028 step 2): a row whose value does not open is left out of the copy.
+    // A part names the row it was a part of in a last column, so a sum of the rows can leave the parts out (spec 0041, ticket 12).
+    const nameOf = new Map<number, string>();
+    for (const b of rows) nameOf.set(b.id, openRow(cipher, "breakdown_rows", b).label || "–");
+    for (const b of history) nameOf.set(b.row_id ?? -b.id, openRow(cipher, "breakdown_rows", { ...b, id: b.row_id ?? b.id }).label || "–");
     for (const b of rows) {
       const o = openRow(cipher, "breakdown_rows", b);
-      if (typeof o.value === "number") lines.push([periodOf.get(b.observation_id), "breakdown row", o.value, o.label || "–", "", ""]);
+      if (typeof o.value === "number") lines.push([periodOf.get(b.observation_id), "breakdown row", o.value, o.label || "–", "", "", b.parent_id === null ? "" : nameOf.get(b.parent_id) ?? ""]);
     }
     for (const b of history) {
       const o = openRow(cipher, "breakdown_history", b);
-      if (typeof o.value === "number") lines.push([periodOf.get(b.observation_id), "earlier breakdown row", o.value, openRow(cipher, "breakdown_rows", { ...b, id: b.row_id ?? b.id }).label || "–", "", ""]);
+      if (typeof o.value === "number") lines.push([periodOf.get(b.observation_id), "earlier breakdown row", o.value, nameOf.get(b.row_id ?? -b.id) ?? "–", "", "", b.parent_row_id === null ? "" : nameOf.get(b.parent_row_id) ?? ""]);
     }
   }
   for (const t of inPeriods(targets)) lines.push([t.period_start, "target", t.value, "", "", ""]);
   if (lines.length > EXPORT_ROWS) throw new Error("There are too many values to download at once. Ask whoever runs Ziffr for a copy of the database instead.");
   lines.sort((a, b) => String(a[0]).localeCompare(String(b[0])));
   await audit(actor, { kind: "export.retention_values", object: { type: "metric", id: m.id, name: m.name }, details: { periods: periods.size, rows: lines.length } });
-  return csvLine(["Metric", "Period", "What", "Value", "Label", "Recorded on", "Source"]) + lines.map((l) => csvLine([m.name, ...l])).join("");
+  return csvLine(["Metric", "Period", "What", "Value", "Label", "Recorded on", "Source", "Part of"]) + lines.map((l) => csvLine([m.name, ...l, ...(l.length < 7 ? [""] : [])])).join("");
 }

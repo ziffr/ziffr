@@ -221,6 +221,21 @@ describe("hostile files", () => {
     expect(messages(text(edit(at("target"), (r) => ({ kind: "target", metric: r.metric, period: r.period })))).join()).toContain("needs “min”");
     expect(messages(text(edit(at("value"), (r) => ({ ...r, breakdown: [{ label: "A", value: 1 }, { label: "A", value: 2 }] })))).join()).toContain("names a label twice");
   });
+  it("accepts a Breakdown with parents and refuses what the app would refuse (spec 0041, ticket 12)", () => {
+    const withRows = (breakdown: unknown[]) => text(edit(at("value"), (r) => ({ ...r, breakdown })));
+    const chain = (n: number) => Array.from({ length: n }, (_, i) => ({ label: `L${i}`, value: 1, ...(i ? { parent: `L${i - 1}` } : {}) }));
+    expect(problems(withRows([{ label: "DE", value: 9 }, { label: "Berlin", value: 5, parent: "de" }, { label: "AT", value: 1 }]))).toHaveLength(0);
+    expect(problems(withRows(chain(4)))).toHaveLength(0);
+    expect(messages(withRows(chain(5))).join()).toContain("5 levels down");
+    expect(messages(withRows([{ label: "A", value: 1, parent: "B" }, { label: "B", value: 1, parent: "A" }])).join()).toContain("among its own parents");
+    expect(messages(withRows([{ label: "A", value: 1, parent: "Z" }, { label: "B", value: 1 }])).join()).toContain("no row of the breakdown has that name");
+    expect(messages(withRows([{ label: "A", value: 1 }, { label: "a", value: 1, parent: "A" }])).join()).toContain("two rows");
+    expect(problems(withRows([{ label: "A", value: 1, parent: 3 }, { label: "B", value: 1 }]))).not.toHaveLength(0);
+    // 200 rows are the file's own limit already; a parent adds no way past it.
+    const many = Array.from({ length: 200 }, (_, i) => ({ label: `R${i}`, value: 1, ...(i ? { parent: "R0" } : {}) }));
+    expect(problems(withRows(many))).toHaveLength(0);
+    expect(problems(withRows([...many, { label: "R200", value: 1, parent: "R0" }]))).not.toHaveLength(0);
+  });
   it("refuses a newer format by name, an unknown record and a wrong kind", () => {
     expect(messages(text(edit(0, (r) => ({ ...r, format: "ziffr.workspace-export/2" }))))[0]).toContain("This file is in format ziffr.workspace-export/2; this Ziffr reads ziffr.workspace-export/1");
     expect(messages(text(edit(at("group"), (r) => ({ ...r, kind: "alert" }))))[0]).toContain("is not a record this Ziffr reads");
