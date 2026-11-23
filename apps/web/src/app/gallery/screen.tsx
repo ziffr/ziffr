@@ -83,6 +83,7 @@ export function GalleryScreen({ data: sent, metricId, dashboards, canCreate, dem
       if (!alike.length) return { widget: null, why: `${metric.name} has no breakdown and no other Metric in its unit, so this shows sample data.` };
       return { widget: slopeWith([metric.id, ...alike], metric.period, "metrics"), why: null };
     }
+    if (t.slots.length > 1 && partners.length + 1 < t.slots.length) return { widget: null, why: `Needs other Metrics with ${ENOUGH}+ months in common with ${metric.name}, so this shows sample data.` };
     return { widget: widgetWith(id, [metric.id, ...partners], metric.period), why: null };
   };
   const [destination, setDestination] = useState<DropSource | null>(null);

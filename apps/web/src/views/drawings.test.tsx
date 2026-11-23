@@ -142,6 +142,11 @@ const CASES: [string, TemplateId, number[], WidgetSettings, CanvasData][] = [
   ["scoreboard-comma", "scoreboard", [COST, REVENUE, CHURN], { window: 12 }, base("1.234,5")],
   ["scoreboard-few", "scoreboard", [REVENUE, CHURN], { window: 12 }, base()],
   ["scoreboard-empty-row", "scoreboard", [REVENUE, CHURN, ORDERS], { window: 12 }, withSeries(base(), ORDERS, [])],
+  ["running-total", "running-total", [REVENUE], { showTarget: true }, base()],
+  ["running-total-no-plan", "running-total", [ORDERS], { showTarget: true }, base()],
+  ["running-total-plan-off", "running-total", [REVENUE], { showTarget: false }, base()],
+  ["running-total-not-sum", "running-total", [CHURN], { showTarget: true }, base()],
+  ["running-total-comma", "running-total", [COST], { showTarget: true }, withMetric(base("1.234,5"), COST, { target_max: 60000 })],
 ];
 
 describe("the built-in Views draw as before", () => {

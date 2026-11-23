@@ -393,6 +393,7 @@
                 "stacked",
                 "pareto",
                 "slope",
+                "running-total",
                 "ranked",
                 "share",
                 "pictogram",

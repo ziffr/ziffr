@@ -56,7 +56,8 @@ export type Part =
   | { mark: "scoreboard"; show: "latest"; when?: Flag[] }
   | { mark: "stacked"; show: "breakdown"; when?: Flag[] }
   | { mark: "pareto"; show: "latest"; when?: Flag[] }
-  | { mark: "slope"; show: "latest"; when?: Flag[] };
+  | { mark: "slope"; show: "latest"; when?: Flag[] }
+  | { mark: "cumulative"; show: "year"; when?: Flag[] };
 
 /** How many Metrics a scoreboard has rows for, at least and at most: fewer than 3 read better as number Widgets, more than 12 cannot be taken in at a glance. */
 export const SCOREBOARD = { min: 3, max: 12 } as const;
@@ -255,6 +256,7 @@ export const VIEW_DESIGN_SCHEMA: Schema = {
         mark("stacked", "One bar per period, stacked from that period's Breakdown: the largest rows of the newest period (at most 5) as their own segments in a stable order and colour, every other row as one muted Other; a period without a Breakdown is left out and counted, and a negative row is refused in words.", { show: { const: "breakdown" } }, ["show"]),
         mark("pareto", "The rows of the Metric's latest Breakdown as bars from largest to smallest, ten at most and the rest in one muted \"Other\" bar, with a line of the running share of the total (0 to 100 %) and a reference at 80 %. Only positive rows count.", { show: { const: "latest" } }, ["show"]),
         mark("slope", `Two points per row joined by a line, on two vertical axes (before on the left, now on the right): the rows of a Breakdown in two periods, or ${SLOPE_ROWS} Metrics at most of one unit, each against its period before. Both sides share one scale; labels name each end and the change in words, and only the largest rise and the largest fall are highlighted. The option “slope” chooses what is compared.`, { show: { const: "latest" } }, ["show"]),
+        mark("cumulative", "The running total of the Metric since the start of its year, restarting each year, with a line for the plan (the running total of its Target Series, or of its target when that has one bound; drawn when the option showTarget is on) and a lighter one for last year. The Metric's Aggregation must be sum; any other is refused in words.", { show: { const: "year" } }, ["show"]),
       ],
     },
     plotMark: {

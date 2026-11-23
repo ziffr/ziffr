@@ -89,6 +89,8 @@ const HOSTILE: [string, string, string, Where][] = [
   ["a slope mark with a style field", withPart({ mark: "slope", show: "latest", color: "red" }), "is not a field here", '"color"'],
   ["a slope mark of 13 Metrics", withPart({ mark: "slope", show: "latest" }, { slots: [{ label: "A", metrics: "several", min: 12 }, { label: "B", metrics: "one" }] }), "A slope mark draws 12 rows at most", { after: '"parts": [' }],
   ["a slope option that is not a choice", withPart({ mark: "slope", show: "latest" }, { options: { slope: { default: "sideways" } } }), "must be one of", '"sideways"'],
+  ["a cumulative mark of something else", withPart({ mark: "cumulative", show: "values" }), "must be “year”", '"values"'],
+  ["a cumulative mark with a style field", withPart({ mark: "cumulative", show: "year", color: "red" }), "is not a field here", '"color"'],
   ["a part with no mark", withPart({ content: ["a"] }), "needs the field “mark”", { after: '"parts": [' }],
   ["a web address in a name", text({ ...EXAMPLE, name: "See https://evil.example" }), "plain text, without markup or web addresses", '"name"'],
   ["a bare www address", text({ ...EXAMPLE, name: "www.evil.example" }), "without markup or web addresses", '"name"'],
@@ -172,6 +174,8 @@ describe("checkViewDesign", () => {
     // A progress mark takes a Slot of several, or one Metric: it is one bar each.
     expect(checkViewDesign(text({ ...EXAMPLE, slots: [{ label: "Metrics", metrics: "several" }], parts: [{ mark: "progress", show: "latest" }] })).ok).toBe(true);
     expect(checkViewDesign(text({ ...EXAMPLE, parts: [{ mark: "progress", show: "latest" }] })).ok).toBe(true);
+    // A cumulative mark takes one Metric.
+    expect(checkViewDesign(text({ ...EXAMPLE, parts: [{ mark: "cumulative", show: "year" }] })).ok).toBe(true);
     // Three Slots of one Metric each are three spokes as well.
     expect(checkViewDesign(text({ ...WITH_POLAR_AND_RADAR, analysis: undefined, parts: [{ mark: "radar", show: "latest" }], slots: ["A", "B", "C"].map((label) => ({ label, metrics: "one" })) })).ok).toBe(true);
     // A scoreboard of a Slot of several with at least three, or of three Slots.

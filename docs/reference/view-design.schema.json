@@ -1785,6 +1785,26 @@
             "show"
           ],
           "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "description": "The running total of the Metric since the start of its year, restarting each year, with a line for the plan (the running total of its Target Series, or of its target when that has one bound; drawn when the option showTarget is on) and a lighter one for last year. The Metric's Aggregation must be sum; any other is refused in words.",
+          "properties": {
+            "mark": {
+              "const": "cumulative"
+            },
+            "show": {
+              "const": "year"
+            },
+            "when": {
+              "$ref": "#/$defs/when"
+            }
+          },
+          "required": [
+            "mark",
+            "show"
+          ],
+          "additionalProperties": false
         }
       ]
     },
