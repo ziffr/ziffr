@@ -110,11 +110,16 @@ end $$;
 revoke execute on function claim_heads_up_scan(uuid, interval) from public, anon, authenticated;
 grant execute on function claim_heads_up_scan(uuid, interval) to service_role;
 
--- The rows of a Workspace whose two Metrics are both among `p_ids` (the Metrics a person may see, decided by the core), in key
--- order so that it can be read page by page. Only the core's service key may call it.
+-- What a person's read needs, in ONE statement (one snapshot): whether the Workspace's scan was capped, and, only if it was not, the rows
+-- whose two Metrics are both among `p_ids` (the Metrics the person may see, decided by the core), in key order. A scan that is
+-- running meanwhile cannot make the two disagree. Only the core's service key may call it.
 create or replace function visible_heads_up_pairs(p_ws uuid, p_ids int[])
-returns setof heads_up_pairs language sql stable security definer set search_path = public as $$
-  select * from heads_up_pairs where workspace_id = p_ws and metric_a = any (p_ids) and metric_b = any (p_ids) order by metric_a, metric_b;
+returns jsonb language sql stable security definer set search_path = public as $$
+  select jsonb_build_object(
+    'capped', coalesce((select capped from heads_up_scans where workspace_id = p_ws), false),
+    'rows', case when coalesce((select capped from heads_up_scans where workspace_id = p_ws), false) then '[]'::jsonb
+      else coalesce((select jsonb_agg(to_jsonb(hp) order by metric_a, metric_b) from heads_up_pairs hp
+        where workspace_id = p_ws and metric_a = any (p_ids) and metric_b = any (p_ids)), '[]'::jsonb) end);
 $$;
 revoke execute on function visible_heads_up_pairs(uuid, int[]) from public, anon, authenticated;
 grant execute on function visible_heads_up_pairs(uuid, int[]) to service_role;

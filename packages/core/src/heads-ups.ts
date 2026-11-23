@@ -22,6 +22,7 @@ import { formulaInputs } from "./formula";
 import { capMetrics, scanPairs, type PairRow, type Window } from "./methods/pair-scan";
 import { headsUpsFrom, type HeadsUp } from "./methods/heads-up";
 import { periodStart, shiftPeriod, type Span } from "./periods";
+import { NOT_FINAL_STATES } from "./value-state";
 import { workspaceToday } from "./retention-setting";
 import { DEMO_WORKSPACE_ID } from "./team";
 import { allRows, buildSeries, getLatestObservations, getMetrics } from "./workspace-data";
@@ -107,8 +108,8 @@ function ingredients(metrics: readonly Metric[]): Map<number, Set<number>> {
 async function scanSubset(ws: string, day: string, pick: (all: Metric[]) => Metric[], relatedOver: (all: Metric[]) => (a: number, b: number) => boolean): Promise<{ rows: PairRow[]; metrics: number; capped: boolean }> {
   const [metrics, yearStart] = await Promise.all([getMetrics(ws), yearStartOf(ws)]);
   // Only values of the last ten years are read: no series is longer than 120 periods, and a yearly Metric has few values.
-  // A value that waits for Approval is not final: the period is left out (a gap), so no Heads-up rests on a value not approved yet.
-  const [all, { data: waiting }] = await Promise.all([getLatestObservations(ws, { from: shiftPeriod(day, "year", -10) }), db().from("period_states").select("metric_id, period_start").eq("workspace_id", ws).eq("state", "approval")]);
+  // A value that is not final (waiting for Approval, or sent back; value-state.ts, the rule Alerts read too) is not used: the period is left out (a gap), so no Heads-up rests on a value not approved yet.
+  const [all, { data: waiting }] = await Promise.all([getLatestObservations(ws, { from: shiftPeriod(day, "year", -10) }), db().from("period_states").select("metric_id, period_start").eq("workspace_id", ws).in("state", [...NOT_FINAL_STATES])]);
   const unapproved = new Set((waiting ?? []).map((w) => `${w.metric_id}:${w.period_start}`));
   const observations = all.filter((o) => !unapproved.has(`${o.metric_id}:${o.period_start}`));
   const series = buildSeries(metrics, observations);
@@ -216,16 +217,13 @@ export async function listHeadsUps(actor: Actor): Promise<HeadsUp[]> {
   const mine = inUse(metrics.filter((m) => seen.has(m.id)));
   if (mine.length < 2) return [];
   const names = new Map(mine.map((m) => [m.id, m.name]));
-  const { data: scan, error: scanError } = await db().from("heads_up_scans").select("capped").eq("workspace_id", ws).maybeSingle();
-  // Fail closed: without knowing whether the table's rows were chosen by the cap, nothing is told.
-  if (scanError) throw new Error("Heads-ups could not be read. Try again in a moment.");
-  let rows: PairRow[];
-  if (scan?.capped) {
-    rows = (await scanSubset(ws, await workspaceToday(ws), () => mine, () => () => false)).rows;
-  } else {
-    const ids = mine.map((m) => m.id);
-    rows = (await allRows<Record<string, unknown>>((from, to) => db().rpc("visible_heads_up_pairs", { p_ws: ws, p_ids: ids }).range(from, to))).map(rowFromDb);
-  }
+  // One statement answers both whether the table's rows were chosen by the cap and, only if not, the rows: they are read from one
+  // snapshot, so a scan running meanwhile cannot make them disagree (and while it runs the flag only gets stricter).
+  const { data: answer, error: readError } = await db().rpc("visible_heads_up_pairs", { p_ws: ws, p_ids: mine.map((m) => m.id) });
+  // Fail closed: without the answer, nothing is told.
+  if (readError || !answer) throw new Error("Heads-ups could not be read. Try again in a moment.");
+  const { capped, rows: stored } = answer as { capped: boolean; rows: Record<string, unknown>[] };
+  const rows: PairRow[] = capped ? (await scanSubset(ws, await workspaceToday(ws), () => mine, () => () => false)).rows : stored.map(rowFromDb);
   // Pairs one of whose Metrics is worked out from the other, or both from the same, are left out: over the Metrics they see.
   const related = relatedAmong(mine);
   const kept = rows.filter((r) => names.has(r.a) && names.has(r.b) && !related(r.a, r.b));

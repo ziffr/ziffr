@@ -146,17 +146,20 @@ describe("the job", () => {
     expect(out.left).toBeGreaterThanOrEqual(1);
   }, 120_000);
 
-  it("rests on no value that waits for Approval: the period is left out of the scan until it is approved", async () => {
+  it.each(["approval", "submitted"])("rests on no value whose period is in the state %s (not final, the rule Alerts read): the period is left out until it is final", async (state) => {
     const { w, ids, scan } = await setup();
     const through = async () => (await db().from("heads_up_pairs").select("through").eq("workspace_id", w.id).eq("metric_a", Math.min(ids.visits, ids.notes)).eq("metric_b", Math.max(ids.visits, ids.notes)).single()).data!.through;
     await scan();
     expect(await through()).toBe("2026-06-01");
-    await db().from("period_states").insert({ metric_id: ids.visits, period_start: month(MONTHS - 1), state: "approval", workspace_id: w.id });
+    await db().from("period_states").insert({ metric_id: ids.visits, period_start: month(MONTHS - 1), state, workspace_id: w.id });
     await scan(new Date(Date.now() + 5000).toISOString());
     expect(await through()).toBe("2026-05-01");
-    await db().from("period_states").update({ state: "locked" }).eq("metric_id", ids.visits).eq("period_start", month(MONTHS - 1));
-    await scan(new Date(Date.now() + 9000).toISOString());
-    expect(await through()).toBe("2026-06-01");
+    // A Derived Metric of Visits loses that period too.
+    for (const final of ["locked", "asked"]) {
+      await db().from("period_states").update({ state: final }).eq("metric_id", ids.visits).eq("period_start", month(MONTHS - 1));
+      await scan(new Date(Date.now() + (final === "locked" ? 9000 : 13000)).toISOString());
+      expect(await through(), final).toBe("2026-06-01");
+    }
   });
 
   it("leaves out an archived Metric, takes a pair away that can no longer be compared, and never pairs a Derived Metric with what it is worked out from", async () => {
@@ -185,7 +188,7 @@ describe("what a person is told", () => {
   it("is the Heads-up of the pair, in the leader's order, for a person who sees both Metrics", async () => {
     const { w, ben, ids, scan } = await setup();
     await scan();
-    await w.share(ids.visits, ben);
+        await w.share(ids.visits, ben);
     await w.share(ids.revenue, ben);
     const ups = await listHeadsUps(w.actor(ben, "member"));
     expect(ups).toHaveLength(1);
