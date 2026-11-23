@@ -73,8 +73,11 @@ export function chanceText(p: number, ctx: TakeawayContext): string {
   return p < 0.0001 ? sayIn("hu-chance-under", {}, ctx) : formatNumber(p, 4, ctx.style);
 }
 
+// The pairs a scan did not get to, as a line of the numbers: only where there were some, never as pairs looked at.
+const notScannedRow = (n: number, text: (n: number) => string, ctx: TakeawayContext) => (n > 0 ? [{ label: sayIn("numbers-hu-not-scanned", {}, ctx), text: text(n) }] : []);
+
 // The Takeaway of a pair moving together: the sentence in the leader's order, the strength, the basis, the footer, and the numbers.
-function movingTakeaway(row: PairRow, names: ReadonlyMap<number, string>, looked: number, adjusted: number, ctx: TakeawayContext): Takeaway {
+function movingTakeaway(row: PairRow, names: ReadonlyMap<number, string>, looked: number, notScanned: number, adjusted: number, ctx: TakeawayContext): Takeaway {
   const { full, span } = row;
   const [leader, follower] = full.lag >= 0 ? [row.a, row.b] : [row.b, row.a];
   const lag = Math.abs(full.lag);
@@ -105,6 +108,7 @@ function movingTakeaway(row: PairRow, names: ReadonlyMap<number, string>, looked
       { label: sayIn("numbers-hu-second-half", {}, ctx), text: half(full.rSecond, full.nSecond) },
       { label: sayIn("numbers-tries", {}, ctx), text: text(full.tries) },
       { label: sayIn("numbers-hu-looked-at", {}, ctx), text: text(looked) },
+      ...notScannedRow(notScanned, text, ctx),
       { label: sayIn("numbers-hu-luck", {}, ctx), text: chanceText(adjusted, ctx) },
       { label: sayIn("numbers-basis", {}, ctx), text: basis },
       { label: sayIn("numbers-strength", {}, ctx), text: strengthText },
@@ -113,7 +117,7 @@ function movingTakeaway(row: PairRow, names: ReadonlyMap<number, string>, looked
 }
 
 // The Takeaway of a pair that has stopped.
-function stoppedTakeaway(row: PairRow, names: ReadonlyMap<number, string>, looked: number, adjusted: number, ctx: TakeawayContext): Takeaway {
+function stoppedTakeaway(row: PairRow, names: ReadonlyMap<number, string>, looked: number, notScanned: number, adjusted: number, ctx: TakeawayContext): Takeaway {
   const before = row.before!;
   const recent = before.recent!;
   // The Metric that moved first comes first, as in a Heads-up of moving together; with no delay the lower id comes first.
@@ -137,6 +141,7 @@ function stoppedTakeaway(row: PairRow, names: ReadonlyMap<number, string>, looke
       { label: sayIn("numbers-hu-before", {}, ctx), text: sayIn("numbers-hu-half", { r: before.r, n: before.n, span: row.span }, ctx) },
       { label: sayIn("numbers-hu-recent", {}, ctx), text: sayIn("numbers-hu-half", { r: recent.r, n: recent.n, span: row.span }, ctx) },
       { label: sayIn("numbers-hu-looked-at-stopped", {}, ctx), text: text(looked) },
+      ...notScannedRow(notScanned, text, ctx),
       { label: sayIn("numbers-hu-drop", {}, ctx), text: chanceText(adjusted, ctx) },
       { label: sayIn("numbers-basis", {}, ctx), text: sayIn("basis-changes", {}, ctx) },
     ],
@@ -151,17 +156,20 @@ function stoppedTakeaway(row: PairRow, names: ReadonlyMap<number, string>, looke
 export function headsUpsFrom(rows: readonly PairRow[], names: ReadonlyMap<number, string>, ctx: TakeawayContext, notScanned = 0): PairHeadsUp[] {
   const mine = rows.filter((row) => names.has(row.a) && names.has(row.b) && valid(row));
   const rate = HEADS_UP.rate;
-  // Pairs a scan did not get to (its work allowance was spent) count among the pairs looked at, each as a pair of chance 1: never a Heads-up from them, and the bar for the others is the one a full scan sets.
+  // Pairs a scan did not get to (its work allowance was spent) are not looked at, but count in each correction as tests of chance 1: never a Heads-up from them, and the bar for
+  // the others is at least the one the full scan sets (a pair's chance can only be lower than 1, and Benjamini-Hochberg never reports less when a chance falls). That holds for
+  // both kinds: any of them might have been moving together before (the earlier history's correction) and have dropped since (the drop's), so each counts in both.
   // Stryker disable next-line ArrowFunction: an entry that is not a number is never below the bar either, as a chance of 1 is not: the entries are only counted.
-  const chances = [...mine.map((r) => r.full.p), ...Array.from({ length: notScanned }, () => 1)];
+  const skipped = Array.from({ length: notScanned }, () => 1);
+  const chances = [...mine.map((r) => r.full.p), ...skipped];
   const reported = benjaminiHochberg(chances, rate);
   const adjusted = adjustedChances(chances);
   // The history before the last 6 periods, judged as the whole history was, among the pairs that have one.
   const earlier = mine.map((row, i) => ({ row, i })).filter((x) => x.row.before !== null);
-  const earlierReported = benjaminiHochberg(earlier.map((x) => x.row.before!.p), rate);
+  const earlierReported = benjaminiHochberg([...earlier.map((x) => x.row.before!.p), ...skipped], rate);
   // The pairs that were moving together then and have the last 6 periods to judge: the drop is tried for each of them.
   const had = earlier.filter((x, k) => earlierReported[k] && x.row.before!.meets && clearOfChance(x.row.before!) && x.row.before!.recent !== null);
-  const dropChances = had.map((x) => x.row.before!.recent!.dropP);
+  const dropChances = [...had.map((x) => x.row.before!.recent!.dropP), ...skipped];
   const dropReported = benjaminiHochberg(dropChances, rate);
   const dropAdjusted = adjustedChances(dropChances);
   const stopped = new Map<number, number>();
@@ -171,9 +179,9 @@ export function headsUpsFrom(rows: readonly PairRow[], names: ReadonlyMap<number
     const base = { metrics: [row.a, row.b] as [number, number], span: row.span, through: row.through };
     if (stopped.has(i)) {
       const before = row.before!;
-      out.push({ ...base, key: `stopped-moving-together:${row.a}:${row.b}`, kind: "stopped-moving-together", rank: roundedRank(Math.abs(before.r) - Math.sign(before.r) * before.recent!.r), takeaway: stoppedTakeaway(row, names, had.length, stopped.get(i)!, ctx) });
+      out.push({ ...base, key: `stopped-moving-together:${row.a}:${row.b}`, kind: "stopped-moving-together", rank: roundedRank(Math.abs(before.r) - Math.sign(before.r) * before.recent!.r), takeaway: stoppedTakeaway(row, names, had.length, notScanned, stopped.get(i)!, ctx) });
     } else if (reported[i] && row.full.meets && clearOfChance(row.full)) {
-      out.push({ ...base, key: `moving-together:${row.a}:${row.b}`, kind: "moving-together", rank: roundedRank(Math.abs(row.full.r)), takeaway: movingTakeaway(row, names, mine.length + notScanned, adjusted[i], ctx) });
+      out.push({ ...base, key: `moving-together:${row.a}:${row.b}`, kind: "moving-together", rank: roundedRank(Math.abs(row.full.r)), takeaway: movingTakeaway(row, names, mine.length, notScanned, adjusted[i], ctx) });
     }
   });
   const order: Record<PairKind, number> = { "moving-together": 0, "stopped-moving-together": 1 };

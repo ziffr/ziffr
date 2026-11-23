@@ -73,10 +73,21 @@ export function designRun(design: ViewDesign, metrics: Metric[], data: Pick<Canv
 
 /** What the recipes drawn on one page may still ask for, in work units: one object made for each page or render (a React context in the app)
  * and charged by every widget in the order they are drawn, so what is refused is the same every time. */
-export type RecipeBudget = { left: number; /** What the page's correlation work may still spend, in the digit work of work-bound.ts. */ exact: number };
+export type RecipeBudget = { left: number; /** What the page's correlation work may still spend, in the digit work of work-bound.ts. */ exact: number; /** The answers already given, by the key of the work that gave them (see `chargedOnce`). */ done?: Map<string, unknown> };
+
+/** Works something out for the page and charges the page for it once: a second call with the same `key` (a widget drawn again, or drawn twice by a development
+ * build) gives the first answer and charges nothing, so what is refused depends on the widgets and their order, never on how often they were drawn.
+ * `key` must name everything the answer depends on except the page's data, which a budget belongs to. */
+export function chargedOnce<T>(budget: RecipeBudget, key: string, compute: () => T): T {
+  const done = (budget.done ??= new Map<string, unknown>());
+  if (done.has(key)) return done.get(key) as T;
+  const answer = compute();
+  done.set(key, answer);
+  return answer;
+}
 
 /** A fresh budget for one page. */
-export const newRecipeBudget = (): RecipeBudget => ({ left: PAGE_BUDGET, exact: PAGE_EXACT_BUDGET });
+export const newRecipeBudget = (): RecipeBudget => ({ left: PAGE_BUDGET, exact: PAGE_EXACT_BUDGET, done: new Map() });
 
 /** What a range or a bridge mark draws of a table of the recipe, by step: its figures, or why it cannot be drawn, in words. */
 export type TableFigures = Record<string, RangeFigures | BridgeFigures>;
