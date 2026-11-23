@@ -22,7 +22,7 @@ export { SPOKES };
 export type MarkPoint = { period: string; value: number; note?: string; condensed?: boolean };
 
 /** A spoke or period with its value written in the Metric's Number Style. `at` is how far out it is, from 0 (centre) to 1 (rim). */
-export type Mark = { label: string; text: string; at: number; period?: string } | { label: string; text: string | null; at: null; gap: string; period?: string };
+export type Mark = { label: string; text: string; at: number; period?: string } | { label: string; text: string | null; at: null; gap: string; why?: string; period?: string };
 
 /** What a polar plot draws: the periods in order as angles, or why it draws nothing. */
 export type PolarModel = { ok: true; marks: Mark[]; closed: boolean; top: string; rule: string; alt: string } | { ok: false; reason: string };
@@ -38,7 +38,13 @@ const finite = (p: MarkPoint) => Number.isFinite(p.value);
 const byPeriod = (a: MarkPoint, b: MarkPoint) => a.period.localeCompare(b.period);
 const named = (label: string, p?: MarkPoint) => (p?.note ? `${label} (${p.note})` : label);
 const RUNNING = "so far";
-const CONDENSED = "These values include Condensed Values, each of which stands for several periods, so they cannot be placed one period to a spoke. Show the periods by their own period.";
+const CONDENSED = "Some of these values are Condensed Values, each standing for several periods in one value, so this chart cannot place them. Show the values by their own period instead.";
+/** How far in from the rim a radar's lowest value sits, as a share of the radius: the centre itself is kept for "nothing", so a lowest value never looks like no value. */
+export const RADAR_INNER = 0.12;
+/** The distance from the centre, 0 to 1, at which a radar draws a place `at` (0 lowest, 1 highest): from the inner ring to the rim. */
+export const radarRadius = (at: number): number => RADAR_INNER + (1 - RADAR_INNER) * at;
+/** Why a window cannot be used, in words, or null when it is a whole number of periods of 1 or more. */
+export const windowProblem = (window: number): string | null => (Number.isInteger(window) && window >= 1 ? null : "The number of periods to look back must be a whole number of 1 or more.");
 
 /** Why a period is not a whole one: "so far" while it runs, "2 of 3 months" when it is over but has gaps; nothing for a whole one. */
 export function pointNote(p: { held: number; length: number; toDate: boolean }, own: Span): string | undefined {
@@ -48,29 +54,40 @@ export function pointNote(p: { held: number; length: number; toDate: boolean }, 
 /** A polar plot of a series over the periods `from` to `to` (a window, ends included): each period around the circle, oldest first, one with no value left as a gap, at the ends too. */
 export function polarModel(input: { name: string; points: MarkPoint[]; by: Span; from: string; to: string; label: (period: string) => string; write: (value: number) => string }): PolarModel {
   const { by } = input;
-  const pts = input.points.filter((p) => finite(p) && p.period >= input.from && p.period <= input.to);
-  if (pts.length === 0) return { ok: false, reason: "There are no values to draw." };
-  if (pts.some((p) => p.condensed)) return { ok: false, reason: CONDENSED };
-  // Every period of the window: a missing one keeps its place and shows as a gap. They are counted before they are listed, so a window of any length costs no more than the refusal.
-  const length = periodsBetween(input.from, input.to, by) + 1;
+  const inWindow = input.points.filter((p) => finite(p) && p.period >= input.from && p.period <= input.to);
+  if (inWindow.length === 0) return { ok: false, reason: "There are no values to draw." };
+  if (inWindow.some((p) => p.condensed)) return { ok: false, reason: CONDENSED };
+  // The circle starts at the first period that has a value: periods before it are not "missing", the Metric had nothing yet.
+  const from = inWindow.map((p) => p.period).sort()[0];
+  // Every period from there: a missing one keeps its place and shows as a gap. They are counted before they are listed, so a window of any length costs no more than the refusal.
+  const length = periodsBetween(from, input.to, by) + 1;
   if (length > SPOKES.max) return { ok: false, reason: `A polar plot shows ${SPOKES.min} to ${SPOKES.max} periods and these cover more. Show fewer periods.` };
-  if (length < SPOKES.min) return { ok: false, reason: `A polar plot needs at least ${SPOKES.min} periods and these cover ${Math.max(length, 0)}: a line shows so few better.` };
-  const periods = Array.from({ length }, (_, i) => shiftPeriod(input.from, by, i));
+  if (length < SPOKES.min) return { ok: false, reason: `A polar plot needs at least ${SPOKES.min} periods and these cover ${length}: a line shows so few better.` };
+  const periods = Array.from({ length }, (_, i) => shiftPeriod(from, by, i));
   // A value that does not fall on the grid of periods would be left out of the circle without a word.
-  if (pts.some((p) => !periods.includes(p.period))) return { ok: false, reason: "These values do not fall on whole periods, so they cannot be placed around the circle." };
-  if (pts.some((p) => p.value < 0)) return { ok: false, reason: "A polar plot measures from the centre outward, which is 0, so it cannot show a value below 0. A line chart shows these values." };
-  const max = Math.max(...pts.map((p) => p.value));
+  if (inWindow.some((p) => !periods.includes(p.period))) return { ok: false, reason: "These values do not fall on whole periods, so they cannot be placed around the circle." };
+  if (inWindow.some((p) => p.value < 0)) return { ok: false, reason: "A polar plot measures from the centre outward, which is 0, so it cannot show a value below 0. A line chart shows these values." };
+  // A period still running is written but neither sets the rim nor sits on the scale, or it would read as a collapse.
+  const whole = inWindow.filter((p) => p.note !== RUNNING);
+  if (whole.length === 0) return { ok: false, reason: "Every period shown is still running, so there is nothing to place on the circle yet." };
+  const max = Math.max(...whole.map((p) => p.value));
   if (max === 0) return { ok: false, reason: "Every value is 0, so there is nothing to draw around the circle." };
-  const at = new Map(pts.map((p) => [p.period, p]));
+  const at = new Map(inWindow.map((p) => [p.period, p]));
   const marks: Mark[] = periods.map((p) => {
     const v = at.get(p);
     const label = named(input.label(p), v);
-    return v === undefined ? { label, text: null, at: null, gap: "no value" } : { label, text: input.write(v.value), at: v.value / max };
+    if (v === undefined) return { label, text: null, at: null, gap: "no value" };
+    if (v.note === RUNNING) return { label, text: input.write(v.value), at: null, gap: "still running, so it is not placed", why: "not placed" };
+    return { label, text: input.write(v.value), at: v.value / max };
   });
   const top = input.write(max);
-  // The last period joins the first only when the periods are one whole cycle (12 months, 4 quarters, 2 halves, 7 days): else the line is left open.
-  const closed = CYCLE[by] === length;
-  const rule = `Distance from the centre is the value: 0 at the centre, ${top} at the rim. The first period is at the top and the others follow clockwise.${closed ? " The line joins the last period to the first: these are one whole cycle." : " The line is open: these periods are not one whole cycle."}`;
+  // The last period joins the first only for one whole cycle (12 months, 4 quarters, 2 halves, 7 days) with a value at both ends: the rule says what is drawn.
+  const cycle = CYCLE[by] === length;
+  const closed = cycle && marks[0].at !== null && marks[length - 1].at !== null;
+  const join = closed ? " The line joins the last period to the first: these are one whole cycle." : cycle ? " These are one whole cycle, but the line is not joined across a period that is not placed." : " The line is open: these periods are not one whole cycle.";
+  const start = from > input.from ? ` The circle starts at the first period with a value, ${input.label(from)}.` : "";
+  const running = marks.some((m) => m.at === null && m.text !== null) ? " A period still running is written but not placed, and does not set the rim." : "";
+  const rule = `Distance from the centre is the value: 0 at the centre, ${top} at the rim. The first period is at the top and the others follow clockwise.${start}${join}${running}`;
   const alt = `${input.name}, as a polar plot of ${periods.length} periods. ${rule} ${marks.map((m) => `${m.label}: ${m.text ?? "no value"}`).join("; ")}.`;
   return { ok: true, marks, closed, top, rule, alt };
 }
@@ -93,13 +110,17 @@ export function whereWords(at: number, style: NumberStyle): string {
 export function radarModel(inputs: RadarInput[], opts: { window: number; against?: "previous"; style: NumberStyle }): RadarModel {
   if (inputs.length < SPOKES.min) return { ok: false, reason: `A radar needs ${SPOKES.min} to ${SPOKES.max} Metrics and this has ${inputs.length}: a line or a table shows so few better.` };
   if (inputs.length > SPOKES.max) return { ok: false, reason: `A radar shows ${SPOKES.min} to ${SPOKES.max} Metrics and this has ${inputs.length}: more cannot be read. Pick fewer.` };
-  const window = Math.max(1, Math.floor(opts.window));
+  const problem = windowProblem(opts.window);
+  if (problem) return { ok: false, reason: problem };
+  const window = opts.window;
+  // Two Metrics with one name would draw two identical spokes: the Slot number tells them apart.
+  const names = inputs.map((i, k) => (inputs.filter((o) => o.name === i.name).length > 1 ? `${i.name} (Slot ${k + 1})` : i.name));
   const lasts = inputs.flatMap((i) => i.points.filter(finite).map((p) => p.period));
   const end = [...lasts].sort().pop() as string;
   const now: Mark[] = [];
   const before: Mark[] = [];
   const kept: string[] = [];
-  for (const i of inputs) {
+  for (const [k, i] of inputs.entries()) {
     const all = i.points.filter(finite);
     const shown = all.filter((p) => periodsBetween(p.period, end, i.by) < window).sort(byPeriod);
     if (shown.some((p) => p.condensed)) return { ok: false, reason: CONDENSED };
@@ -114,16 +135,16 @@ export function radarModel(inputs: RadarInput[], opts: { window: number; against
     // A value with no range to sit in is still said; it is just not placed on the spoke.
     const why = values.length === 1 ? "only one period is shown, so it has no range to sit in" : "the same in every period shown, so it has no range to sit in";
     const mark = (p: MarkPoint | undefined, none: string): Mark => {
-      if (!p) return { label: i.name, text: null, at: null, gap: none };
-      const label = named(i.name, p);
-      if (p.note === RUNNING) return { label, text: i.write(p.value), at: null, gap: "still running, so it is not placed on the scale", period: i.period(p.period) };
-      return hi === lo ? { label, text: i.write(p.value), at: null, gap: why, period: i.period(p.period) } : { label, text: i.write(p.value), at: along(p.value, lo, hi), period: i.period(p.period) };
+      if (!p) return { label: names[k], text: null, at: null, gap: none };
+      const label = named(names[k], p);
+      if (p.note === RUNNING) return { label, text: i.write(p.value), at: null, gap: "still running, so it is not placed on the scale", why: "not placed", period: i.period(p.period) };
+      return hi === lo ? { label, text: i.write(p.value), at: null, gap: why, why: values.length === 1 ? "one period only" : "same in every period", period: i.period(p.period) } : { label, text: i.write(p.value), at: along(p.value, lo, hi), period: i.period(p.period) };
     };
     now.push(mark(latest, `no value in the last ${count(window)}`));
     before.push(mark(prev, "no value in the period before"));
-    kept.push(i.name);
+    kept.push(names[k]);
   }
-  const rule = `Each spoke has its own scale, so that Metrics counted in different units can stand together: its lowest value of the last ${count(window)}${opts.against ? " and the period before" : ""} is at the centre and its highest at the rim. A radar shows where each value sits in its own range, not which Metric is larger.`;
+  const rule = `Each spoke has its own scale, so that Metrics counted in different units can stand together: its lowest value of the last ${count(window)}${opts.against ? " and the period before" : ""} is on the small inner ring and its highest at the rim. Further out means a higher value, not a better one. A radar shows where each value sits in its own range, not which Metric is larger.`;
   const shapes = [{ name: "Latest", marks: now }, ...(opts.against ? [{ name: "Period before", marks: before }] : [])];
   const said = (m: Mark) => (m.at === null ? `${m.label}: ${m.text === null ? "" : `${m.text} (${m.period}), `}${m.gap}` : `${m.label}: ${m.text} (${m.period}), ${whereWords(m.at, opts.style)}`);
   const alt = `A radar of ${kept.length} Metrics, spokes in this order: ${kept.join(", ")}. ${rule} ${shapes.map((s) => `${s.name}: ${s.marks.map(said).join("; ")}.`).join(" ")}`;

@@ -15,7 +15,7 @@ const data: CanvasData = { ...sampleCanvasData("v", "1.234,5"), today: "2026-06-
 const names = data.metrics.map((m) => m.id);
 const radarDesign = (against?: "previous", min = 3): ViewDesign => ({
   format: "ziffr.view/1", name: "Profile", kind: "analysis", slots: [{ label: "Metrics", metrics: "several", min }], size: { w: 6, h: 8 },
-  options: { window: { default: 12 } },
+  options: { window: { default: 12 }, display: {} },
   parts: [{ mark: "radar", show: "latest", ...(against ? { against } : {}) }],
 });
 const polarDesign: ViewDesign = { format: "ziffr.view/1", name: "Pattern", kind: "metric", slots: [{ label: "Metric", metrics: "one" }], size: { w: 6, h: 8 }, options: { window: { default: 12 } }, parts: [{ mark: "polar", show: "values" }] };
@@ -61,7 +61,7 @@ describe("radar", () => {
     expect(html).toContain("<rect");
     expect(words(html)).toContain("Dashed line with square dots: the period before.");
     expect(alt(html)).toContain("Period before:");
-    expect(drawIn(radarDesign(), ids, {})).not.toContain("stroke-dasharray");
+    expect(drawIn(radarDesign(), ids, {})).not.toContain('stroke-dasharray="4 3"');
   });
 
   it("leaves a Metric without values as a gap with no shape through the centre", () => {
@@ -77,6 +77,37 @@ describe("radar", () => {
     const old = data.series[m.slug].slice(0, 5);
     const text = alt(drawIn(radarDesign(), ids, {}, { ...data, series: { ...data.series, [m.slug]: old } }));
     expect(text).toContain(`${latest(ids[1]).m.name}: no value in the last 12 periods`);
+  });
+
+  it("writes why a value is not placed beside it, draws the lowest value on the inner ring, and shows only the key for shapes that are drawn", () => {
+    // Quarterly display, mid-quarter: every latest value is a quarter still running.
+    const running = [names[0], names[1], names[4]];
+    const html = drawIn(radarDesign("previous"), running, { display: "quarter" });
+    expect(words(html)).toContain("not placed");
+    expect(words(html)).not.toContain("Solid line with round dots");
+    // The period before is whole, so it is drawn and keyed.
+    expect(words(html)).toContain("Dashed line with square dots");
+    // Churn is kept by month, so it is placed, and the key names that shape again.
+    expect(words(drawIn(radarDesign("previous"), ids, { display: "quarter" }))).toContain("Solid line with round dots");
+    expect(words(html)).toContain("the small inner ring");
+    expect(html).toContain('stroke-dasharray="2 2"');
+    const flat = { ...data, series: { ...data.series, [data.metrics[0].slug]: data.series[data.metrics[0].slug].map((p) => ({ ...p, value: 5 })) } };
+    expect(words(drawIn(radarDesign(), ids, {}, flat))).toContain("same in every period");
+  });
+
+  it("fits long and wide names by their width and writes each line as its own text", () => {
+    const long = { ...data, metrics: data.metrics.map((m, i) => (i === 0 ? { ...m, name: "W".repeat(60) } : i === 1 ? { ...m, name: "売上高の月次推移と前年同月比の差異分析レポート" } : m)) };
+    const html = drawIn(radarDesign(), ids, {}, long);
+    expect(html).toContain("…");
+    expect(html.replace(/aria-label="[^"]*"/, "")).not.toContain("W".repeat(30));
+    expect(html).toContain("unicode-bidi:plaintext");
+    // The text alternative keeps the whole name.
+    expect(alt(html)).toContain("W".repeat(60));
+  });
+
+  it("refuses a window that is not a whole number, in words", () => {
+    expect(words(drawIn(radarDesign(), ids, { window: Number.NaN }))).toContain("must be a whole number of 1 or more");
+    expect(words(drawIn(polarDesign, [names[1]], { window: Number.NaN }))).toContain("must be a whole number of 1 or more");
   });
 
   it("refuses fewer than 3 and more than 12 Metrics in words", () => {
@@ -140,12 +171,22 @@ describe("polar", () => {
     expect(alt(html)).toContain(`: ${formatValue(m, avg(own.length - 1), data.numberStyle)}`);
   });
 
-  it("keeps a gap at the start of the window in its place", () => {
+  it("starts the circle at the first period with a value, and says so", () => {
     const m = data.metrics[1];
     const series = data.series[m.slug].filter((p) => p.period !== "2025-07-01");
-    const text = alt(drawIn(polarDesign, [m.id], {}, { ...data, series: { ...data.series, [m.slug]: series } }));
-    expect(text).toContain("Jul 25: no value");
-    expect(text).toContain("polar plot of 12 periods");
+    const html = drawIn(polarDesign, [m.id], {}, { ...data, series: { ...data.series, [m.slug]: series } });
+    expect(alt(html)).toContain("polar plot of 11 periods");
+    expect(alt(html)).not.toContain("Jul 25");
+    expect(words(html)).toContain("The circle starts at the first period with a value, Aug 25.");
+    expect(words(html)).toContain("The line is open");
+  });
+
+  it("keeps a gap inside the window in its place, with the words 'no value' on the chart", () => {
+    const m = data.metrics[1];
+    const series = data.series[m.slug].filter((p) => p.period !== "2026-03-01");
+    const html = drawIn(polarDesign, [m.id], {}, { ...data, series: { ...data.series, [m.slug]: series } });
+    expect(alt(html)).toContain("Mar 26: no value");
+    expect(words(html)).toContain("no value");
   });
 
   it("refuses a value below 0 and more periods than it can show, in words", () => {

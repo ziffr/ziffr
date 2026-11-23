@@ -3,8 +3,8 @@
 // double, and what they refuse is what the reference refuses.
 import fc from "fast-check";
 import { describe, expect, it } from "vitest";
-import { polarModel, radarModel, type MarkPoint } from "../../polar-marks";
-import { monthIndex, monthStart, nearestDoubleOf, referencePolar, referenceRadar, type RefPoint } from "./polar";
+import { radarRadius, polarModel, radarModel, type MarkPoint } from "../../polar-marks";
+import { monthIndex, monthStart, nearestDoubleOf, referencePolar, referenceRadar, referenceRadius, type RefPoint } from "./polar";
 
 const runs = Number(process.env.NUMBERS_RUNS ?? 100);
 const base = monthIndex(2025, 1);
@@ -41,6 +41,7 @@ describe("radar against the reference", () => {
             expect(m.period).toBe(monthStart(r.m));
             if (r.kind === "running") {
               expect(m.at).toBeNull();
+              expect(m.text).toBe(`${r.v}`);
               expect(m.label).toBe(`M${i} (so far)`);
               return;
             }
@@ -49,6 +50,8 @@ describe("radar against the reference", () => {
               return;
             }
             expect(m.at).toBe(nearestDoubleOf(r.at));
+            // Where it is drawn: from the inner ring (lowest) to the rim (highest).
+            expect(radarRadius(m.at!)).toBeCloseTo(nearestDoubleOf(referenceRadius(r.at)), 12);
             // A note is named on the period drawn, and on no other.
             expect(m.label).toBe(r.note ? `M${i} (${r.note})` : `M${i}`);
           });
@@ -85,10 +88,11 @@ describe("polar plot against the reference", () => {
         expect(got.ok).toBe(true);
         if (!got.ok) return;
         expect(got.marks.map((m) => m.at)).toEqual(ref.months.map((m) => (m.at ? nearestDoubleOf(m.at) : null)));
+        expect(got.closed).toBe(ref.closed);
         expect(got.marks.map((m) => m.label)).toEqual(ref.months.map((m) => (m.note ? `${monthStart(m.m)} (${m.note})` : monthStart(m.m))));
-        // The highest value is at the rim, and a missing month is never drawn as 0.
+        // The highest whole value is at the rim, and a missing month is never drawn as 0.
         expect(got.marks.some((m) => m.at === 1)).toBe(true);
-        expect(got.marks.filter((m) => m.text === null).length).toBe(ref.months.filter((m) => m.at === null).length);
+        expect(got.marks.filter((m) => m.text === null).length).toBe(ref.months.filter((m) => m.at === null && m.note !== "so far").length);
       }),
       { numRuns: runs },
     );

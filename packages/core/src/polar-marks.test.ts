@@ -2,7 +2,7 @@
 // hand-worked numbers and the properties a scale must keep, and every refusal against what the person is told.
 import fc from "fast-check";
 import { describe, expect, it } from "vitest";
-import { along, pointNote, polarModel, radarInputs, radarModel, SPOKES, whereWords, type MarkPoint, type RadarInput } from "./polar-marks";
+import { along, pointNote, polarModel, radarInputs, radarModel, radarRadius, RADAR_INNER, SPOKES, whereWords, windowProblem, type MarkPoint, type RadarInput } from "./polar-marks";
 import { periodLabel, shiftPeriod } from "./periods";
 import { sampleCanvasData } from "./sample-data";
 import { shownSeries } from "./display-periods";
@@ -53,13 +53,57 @@ describe("polarModel", () => {
     expect(ok(polar(pts)).marks.map((k) => k.label)).toEqual(["2026-01 (2 of 3 months)", "2026-02", "2026-03 (so far)"]);
   });
 
-  it("keeps the gaps at the ends of the window: a year with no January starts with its gap", () => {
-    const m = ok(polar(series(null, 5, 6, 7), { from: month(0), to: month(3) }));
-    expect(m.marks.map((k) => k.at)).toEqual([null, 5 / 7, 6 / 7, 1]);
+  it("starts the circle at the first period with a value and says so; a gap later in the window, or at its end, stays a gap", () => {
+    const lead = ok(polar(series(null, null, 5, 6, 7), { from: month(0), to: month(4) }));
+    expect(lead.marks.map((k) => k.label)).toEqual(["2026-03", "2026-04", "2026-05"]);
+    expect(lead.rule).toContain("The circle starts at the first period with a value, 2026-03.");
+    expect(ok(polar(series(5, 6, 7))).rule).not.toContain("starts at the first");
     const tail = ok(polar(series(5, 6, 7, null), { from: month(0), to: month(3) }));
     expect(tail.marks.map((k) => k.at)).toEqual([5 / 7, 6 / 7, 1, null]);
     // Values outside the window are not drawn.
     expect(ok(polar(series(9, 5, 6, 7), { from: month(1), to: month(3) })).marks.map((k) => k.at)).toEqual([5 / 7, 6 / 7, 1]);
+  });
+
+  it("writes a running period but neither places it nor lets it set the rim, and says so", () => {
+    const pts = series(100, 200, 345, 85).map((p, i) => (i === 3 ? { ...p, note: "so far" } : p));
+    const m = ok(polar(pts));
+    expect(m.marks.map((k) => k.at)).toEqual([100 / 345, 200 / 345, 1, null]);
+    expect(m.marks[3]).toMatchObject({ label: "2026-04 (so far)", text: "85 orders", at: null, gap: "still running, so it is not placed", why: "not placed" });
+    expect(m.top).toBe("345 orders");
+    expect(m.rule).toContain("A period still running is written but not placed, and does not set the rim.");
+    expect(m.alt).toContain("2026-04 (so far): 85 orders");
+    expect(polar(series(1, 2, 3).map((p) => ({ ...p, note: "so far" })))).toEqual({ ok: false, reason: "Every period shown is still running, so there is nothing to place on the circle yet." });
+  });
+
+  it("makes the rule say what is drawn: joined only for a whole cycle with a place at both ends", () => {
+    const year = (first: number | null, last: number | null) => series(first, ...Array(10).fill(5), last);
+    expect(ok(polar(year(1, 2))).rule).toContain("The line joins the last period to the first: these are one whole cycle.");
+    const open = ok(polar(year(1, null), { to: month(11) }));
+    expect(open.closed).toBe(false);
+    expect(open.rule).toContain("but the line is not joined across a period that is not placed.");
+    expect(open.rule).not.toContain("still running");
+    // A running period at the start is written but not placed either: no line joins across it.
+    const runningFirst = ok(polar(year(1, 2).map((p, i) => (i === 0 ? { ...p, note: "so far" } : p))));
+    expect(runningFirst.closed).toBe(false);
+    expect(runningFirst.rule).toContain("but the line is not joined");
+    expect(runningFirst.rule).toContain("still running");
+    expect(ok(polar(year(null, 2), { from: month(0), to: month(11) })).rule).toContain("The circle starts at the first period with a value");
+  });
+
+  it("leaves a value that is not a number, and one outside the window, out of the maximum and the places", () => {
+    const m = ok(polar([{ period: month(0), value: 2 }, { period: month(1), value: Number.NaN }, { period: month(2), value: 4 }, { period: month(3), value: 99 }], { from: month(0), to: month(2) }));
+    expect(m.marks.map((k) => k.at)).toEqual([0.5, null, 1]);
+    expect(m.top).toBe("4 orders");
+  });
+
+  it("gives the periods oldest first, whatever order they came in", () => {
+    const m = ok(polar([...series(10, 20, 30)].reverse()));
+    expect(m.marks.map((k) => k.label)).toEqual(["2026-01", "2026-02", "2026-03"]);
+  });
+
+  it("says why a period is not a whole one, on that period only", () => {
+    const pts = series(1, 2, 3).map((p, i) => (i === 2 ? { ...p, note: "so far" } : i === 0 ? { ...p, note: "2 of 3 months" } : p));
+    expect(ok(polar(pts)).marks.map((k) => k.label)).toEqual(["2026-01 (2 of 3 months)", "2026-02", "2026-03 (so far)"]);
   });
 
   it("closes the line only for one whole cycle: 12 months, 4 quarters", () => {
@@ -131,6 +175,8 @@ describe("radarModel", () => {
     expect(m.alt).toContain("A: 30 (2026-04), at its highest; B: 3 (2026-04), 50 % of the way up its range; C: -8 (2026-04), 80 % of the way up its range");
     expect(m.rule).toContain("Each spoke has its own scale");
     expect(m.rule).toContain("not which Metric is larger");
+    expect(m.rule).toContain("Further out means a higher value, not a better one.");
+    expect(m.rule).toContain("is on the small inner ring and its highest at the rim");
   });
 
   it("uses only the periods of the window for the scale", () => {
@@ -170,12 +216,12 @@ describe("radarModel", () => {
     const solo = ok(radar(one, { window: 1 }));
     expect(solo.shapes[0].marks[0]).toMatchObject({ text: "30", at: null });
     expect(solo.shapes[0].marks[0]).toMatchObject({ gap: "only one period is shown, so it has no range to sit in" });
-    expect(solo.rule).toContain("of the last 1 period is at the centre");
+    expect(solo.rule).toContain("of the last 1 period is on the small inner ring");
     expect(ok(radar([spoke("S", series(4, 4, 4)), three[0], three[1]])).shapes[0].marks[0]).toMatchObject({ gap: "the same in every period shown, so it has no range to sit in" });
     // With the period before, the scale reaches it, though the window does not.
     const both = ok(radar(one, { window: 1, against: "previous" }));
     expect(both.shapes.map((s) => s.marks[0].at)).toEqual([1, 0]);
-    expect(both.rule).toContain("of the last 1 period and the period before is at the centre");
+    expect(both.rule).toContain("of the last 1 period and the period before is on the small inner ring");
     expect(ok(radar(one, { window: 12 })).rule).toContain("of the last 12 periods is");
     // A Metric with no value has no period before either.
     expect(ok(radar([spoke("E", []), three[0], three[1]], { against: "previous" })).shapes[1].marks[0]).toMatchObject({ text: null, gap: "no value in the period before" });
@@ -280,6 +326,44 @@ describe("pointNote", () => {
     expect(pointNote({ held: 2, length: 3, toDate: true }, "month")).toBe("so far");
     expect(pointNote({ held: 2, length: 3, toDate: false }, "month")).toBe("2 of 3 months");
     expect(pointNote({ held: 3, length: 3, toDate: false }, "month")).toBeUndefined();
+  });
+});
+
+describe("the radar's inner ring", () => {
+  it("draws the lowest value on a small ring and the highest at the rim, never at the centre", () => {
+    expect(RADAR_INNER).toBe(0.12);
+    expect(radarRadius(0)).toBe(0.12);
+    expect(radarRadius(1)).toBe(1);
+    expect(radarRadius(0.5)).toBeCloseTo(0.56, 12);
+  });
+});
+
+describe("what a radar refuses and how it tells spokes apart", () => {
+  const three = ["A", "B", "C"].map((n) => spoke(n, series(1, 2, 3)));
+  it("refuses a window that is not a whole number of 1 or more, in words, never 'last NaN periods'", () => {
+    for (const w of [Number.NaN, 0, -2, 1.5, Number.POSITIVE_INFINITY]) {
+      expect(radar(three, { window: w })).toEqual({ ok: false, reason: "The number of periods to look back must be a whole number of 1 or more." });
+      expect(windowProblem(w)).not.toBeNull();
+    }
+    expect(windowProblem(12)).toBeNull();
+    expect(radar(three, { window: 1 }).ok).toBe(true);
+  });
+
+  it("names the Slot when two Metrics have one name", () => {
+    const m = ok(radar([spoke("Sales", series(1, 2, 3)), spoke("Sales", series(3, 2, 1)), spoke("Cost", series(1, 2, 3))]));
+    expect(m.spokes).toEqual(["Sales (Slot 1)", "Sales (Slot 2)", "Cost"]);
+    expect(m.shapes[0].marks.map((k) => k.label)).toEqual(["Sales (Slot 1)", "Sales (Slot 2)", "Cost"]);
+  });
+
+  it("says in a few words on the chart why a value is not placed", () => {
+    const run = spoke("R", [{ period: month(0), value: 1 }, { period: month(1), value: 2, note: "so far" }]);
+    const m = ok(radar([run, spoke("S", series(4, 4, 4)), spoke("O", series(null, null, 9))]));
+    expect(m.shapes[0].marks.map((k) => ("why" in k ? k.why : undefined))).toEqual(["not placed", "same in every period", "one period only"]);
+  });
+
+  it("says Condensed Values in plain words", () => {
+    const m = polar(series(1, 2, 3).map((p) => ({ ...p, condensed: true })));
+    expect(m).toEqual({ ok: false, reason: "Some of these values are Condensed Values, each standing for several periods in one value, so this chart cannot place them. Show the values by their own period instead." });
   });
 });
 

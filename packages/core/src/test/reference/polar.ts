@@ -51,20 +51,33 @@ export function referenceRadar(metrics: RefPoint[][], window: number, against: b
 }
 
 /** What the reference says a polar plot is: why it is refused, or each month of the grid with its exact position. */
-export type RefPolar = { refused: "few" | "many" | "negative" | "zeros" | "none" | "condensed" } | { refused: false; months: { m: number; at: Exact | null; note?: string }[] };
+export type RefPolar = { refused: "few" | "many" | "negative" | "zeros" | "none" | "condensed" | "running" } | { refused: false; closed: boolean; months: { m: number; at: Exact | null; note?: string }[] };
 
 /** The polar plot of monthly values over the months `from` to `to`. */
 export function referencePolar(points: RefPoint[], from: number, to: number): RefPolar {
   const inside = points.filter((p) => p.m >= from && p.m <= to);
   if (inside.length === 0) return { refused: "none" };
   if (inside.some((p) => p.condensed)) return { refused: "condensed" };
-  const n = to - from + 1;
+  // The circle starts at the first month with a value.
+  const first = Math.min(...inside.map((p) => p.m));
+  const n = to - first + 1;
   if (n > 12) return { refused: "many" };
   if (n < 3) return { refused: "few" };
   if (inside.some((p) => p.v < 0)) return { refused: "negative" };
-  const top = Math.max(...inside.map((p) => p.v));
+  // A month still running is written, but neither sets the top nor sits on the scale.
+  const whole = inside.filter((p) => p.note !== "so far");
+  if (whole.length === 0) return { refused: "running" };
+  const top = Math.max(...whole.map((p) => p.v));
   if (top === 0) return { refused: "zeros" };
-  return { refused: false, months: Array.from({ length: n }, (_, i) => { const p = inside.find((q) => q.m === from + i); return { m: from + i, at: p ? fraction(BigInt(p.v), BigInt(top)) : null, note: p?.note }; }) };
+  const months = Array.from({ length: n }, (_, i) => {
+    const p = inside.find((q) => q.m === first + i);
+    return { m: first + i, at: p && p.note !== "so far" ? fraction(BigInt(p.v), BigInt(top)) : null, note: p?.note };
+  });
+  // The line closes for one whole year of months with a place at both ends.
+  return { refused: false, closed: n === 12 && months[0].at !== null && months[11].at !== null, months };
 }
+
+/** The distance from the centre of a radar's place, exactly: 12 % of the radius for the lowest value, all of it for the highest. */
+export const referenceRadius = (at: Exact): Exact => fraction(3n * at.den + 22n * at.num, 25n * at.den);
 
 export { nearestDoubleOf };
