@@ -11,7 +11,7 @@ const PURE = new Set([
   "themes", "tokens", "types", "pack", "pack-voucher", "metric-file", "theme-file", "dashboard-template-file", "deck-template-file", "workflow-template-file", "file-text", "assistant-words", "assistant-backfill-prompt", "visibility", "widget-metrics", "widget-templates", "workflow-rules", "workspace-profile", "trial-guide-ways", "n8n-workflow", "units",
   "approval-question", "demo-words", "sealed-labels", "retention-rules", "retention-words", "alert-rules", "alert-limits", "asking-schedule", "schedule-calendar", "quiet-rules", "prompt-route",
   "connectors/index", "connectors/types", "connectors/email", "connectors/slack", "connectors/tickets", "connectors/whatsapp",
-  "feedback-rules",
+  "feedback-rules", "demo-reset-line",
   "canvas-roles", "chart-stretch", "method-picker-names", "polar-marks", "progress-bars", "stacked-marks", "pareto", "slope-chart", "running-total", "bump-marks", "heatmap-grid", "formula-tree", "breakdown-tree",
 ]);
 

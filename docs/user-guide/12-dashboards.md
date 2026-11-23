@@ -561,3 +561,5 @@ Earlier, Ziffr had stories as a screen of their own. They are now dashboards wit
 ## Panels have their own address
 
 Share, Who can see this, View links, Versions and a Metric's quick look open as panels on the right, over the page; on a phone they fill the screen. The address of the page then ends in `?panel=share` (Who can see this and View links have no address of their own: they open from Share or the **⋯** menu, and **Back** in the panel returns to Share), `?panel=versions` or `?panel=metric-` and the Metric's short name, so you can send the link and whoever opens it sees the page with the panel open. While a panel is open the keys stay inside it; **Esc** or **Close** closes it and puts you back where you were.
+
+In the demo, where visitors may change it, a dashboard that the demo started fresh without sends you to its new copy, and the pins and the home dashboard you choose are remembered in your own browser, not shared with other visitors.

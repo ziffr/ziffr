@@ -144,6 +144,7 @@ Acts as the person, with their own sign-in, Slack or Telegram account or email a
 - `setTellStopped` (tell.ts): one's own "stop telling me" setting
 - `updateMyProfile` (profile.ts): one's own profile
 - `setMyAppearance` (profile.ts): one's own Appearance
+- `setMyBusinessFunction` (business-function.ts): one's own Business Function, which no program may read or set: it is seen only by the person and the Workspace's Owners and Admins
 - `setPreference` (questions.ts): one's own reminder channel
 - `startSetupGuide` (setup-guide.ts): the Setup Guide is for people in the app (spec 0052); programs never set up a Workspace
 - `setupGuide` (setup-guide.ts): the viewer's own guide steps, for the app
@@ -363,6 +364,7 @@ Plumbing the core's other operations use, jobs the schedule runs, and the demo.
 - `applyRetentionToExisting` (retention-setting.ts): Apply to existing Metrics, Owners only, on the Workspace settings page (spec 0033)
 - `simulateMessage` (demo-channels.ts): the demo's pretend channels
 - `simulatePromptAnswer` (demo-channels.ts): the demo's pretend channels
+- `demoSuccessor` (demo-successor.ts): the demo's pages follow a reset; the demo has no API
 - `sendDueReminders` (questions.ts): what the schedule runs; the button asks for it now
 - `askForMissingValues` (questions.ts): what the schedule runs; the button asks for it now
 - `noticeEffectsFor` (sharing.ts): what the Share functions use to tell people

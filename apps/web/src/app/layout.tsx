@@ -31,6 +31,11 @@ import { overLimitBanner, sizeAndUsage } from "@ziffr/core/workspace-usage";
 import { Suspense } from "react";
 import { Toaster } from "@/components/ui/sonner";
 import { DemoRefusalLinks } from "@/components/demo-refusal";
+import { DemoResetLine } from "@/components/demo-reset-line";
+import { DemoVisitPrefs } from "@/components/demo-visit-prefs";
+import { switchableDashboards } from "@ziffr/core/home";
+import { demoChangesInEffect } from "@ziffr/core/demo-reset-decision";
+import { demoLineFacts } from "@ziffr/core/demo-line";
 import { LegalFooter } from "@/components/legal-footer";
 import { QuickLookHost } from "@/components/metric-quick-look";
 import { MetricActionsHost } from "@/components/metric-actions-panel";
@@ -125,11 +130,17 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
     </>
   ) : undefined;
   // The demo saves and sends nothing (spec 0021, #271): say so on every page, and where to get it for real when this Ziffr offers trials.
+  // Where visitors may change the demo (spec 0051), the line also says when it starts fresh; elsewhere it stays as it was.
+  const demoChanges = demo && demoChangesInEffect(await settingsInEffect());
+  const resetLine = demoChanges ? await demoLineFacts().catch(() => null) : null;
+  // And pins and Home are the visit's own, kept in its browser: it is told the dashboards the person viewed as may open (id and name only).
+  const visitPrefs = demoChanges ? { person: viewer, known: (await switchableDashboards(actor)).map((d) => ({ id: d.id, name: d.name })), demoPinned: pinned.map((p) => ({ id: p.id, name: p.name })) } : null;
   const demoNote = demo ? (
     <p className="px-4 pt-3 text-xs text-muted-foreground sm:px-6">
       {/* One line on a phone (#535): the short sentence, and the trial link only on bigger screens. */}
       <span className="md:hidden">The demo saves and sends nothing.</span>
       <span className="max-md:hidden">Look around as anyone: nothing you do in the demo is saved, and nothing is sent.</span>
+      {resetLine && <DemoResetLine key={`${resetLine.generation}:${resetLine.resetAt}:${resetLine.nextResetAt}`} {...resetLine} />}
       {offersTrials && <span className="max-md:hidden">{" "}<a href="/demo/leave" className="underline underline-offset-2 hover:text-foreground">Try it for real with a trial of your own</a>.</span>}
     </p>
   ) : null;
@@ -152,9 +163,11 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
         <link href="https://fonts.googleapis.com/css2?family=Geist+Mono:wght@400&display=swap" rel="stylesheet" />
       </head>
       <body className="min-h-screen bg-background font-sans antialiased">
+        <PrefsScope visit={visitPrefs}>
         <AppShell workspace={workspaceTree(role)} settings={settingsGroups(role)} pinned={pinned} due={due} guide={guideHref()} account={accountOf} demo={demoControls} people={demo ? { profiles: profiles.filter((p) => !p.contact), current: viewer } : undefined} collapsed={await sidebarCollapsed()} banners={<>{demoNote}{banners}</>}>
           {trial?.ended ? (role === "owner" || role === "admin" ? <TrialEnded deletedAt={trial.deletedAt} cancelled={trial.cancelled} isOwner={role === "owner"} workspaceExport={role === "owner" ? await workspaceExportState(actor, { sessionStartedAt: await sessionStartedAt() }).catch(() => null) : null} /> : <TrialEndedForMembers owner={trial.ownerName} cancelled={trial.cancelled} />) : children}
         </AppShell>
+        </PrefsScope>
         <LegalFooter className="border-t border-border" />
         {demo && offersTrials && <DemoRefusalLinks />}
         {feedback && <FeedbackPrompt askForStar={feedback.askForStar} />}
@@ -165,4 +178,9 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
       </body>
     </html>
   );
+}
+
+/** Gives the page the visit's own pins and Home where visitors may change the demo (spec 0051); elsewhere it adds nothing. */
+function PrefsScope({ visit, children }: { visit: { person: string; known: { id: number; name: string }[]; demoPinned: { id: number; name: string }[] } | null; children: React.ReactNode }) {
+  return visit ? <DemoVisitPrefs {...visit}>{children}</DemoVisitPrefs> : <>{children}</>;
 }

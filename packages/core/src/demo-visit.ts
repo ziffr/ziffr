@@ -21,27 +21,18 @@ export function visitKey(id: string): string {
 }
 
 const MINUTE = 60_000;
-/** A reset window: the demo starts fresh every 15 minutes, at 10, 25, 40 and 55 past the hour (spec 0051, The Demo Reset). */
-const WINDOW = 15 * MINUTE;
-const WINDOW_OFFSET = 10 * MINUTE;
-
-/** When the reset window that `at` is in began: the latest of 10, 25, 40 and 55 past the hour at or before it. */
-export function resetWindowStart(at: Date): Date {
-  return new Date(Math.floor((at.getTime() - WINDOW_OFFSET) / WINDOW) * WINDOW + WINDOW_OFFSET);
-}
-
-/** When the next reset window begins, that is, when the demo is next due to start fresh. */
-export function nextResetWindowStart(at: Date): Date {
-  return new Date(resetWindowStart(at).getTime() + WINDOW);
-}
+// The reset window arithmetic (10, 25, 40 and 55 past the hour) lives in demo-reset-line.ts, which a browser may import
+// (this file reaches for node:crypto); it is re-exported here for the limits.
+export { resetWindowStart, nextResetWindowStart } from "./demo-reset-line";
 
 /** When the minute that `at` is in began, for the "changes a minute" count. */
 export function minuteStart(at: Date): Date {
   return new Date(Math.floor(at.getTime() / MINUTE) * MINUTE);
 }
 
-/** What a count is about: one visit (its key), one network address (its hash) or the whole demo (no key). */
-export type VisitCountKind = "visit" | "address" | "demo";
+/** What a count is about: one visit's changes in a minute or in a window (its key), one network address or its network (keyed hashes)
+ * or the whole demo (no key). A minute's count is kept under the minute's start. */
+export type VisitCountKind = "visit_minute" | "visit" | "address" | "network" | "demo";
 
 /** The counts only exist for the demo: a real Workspace never counts a visit. */
 function inDemo(actor: Pick<Actor, "workspaceId">): void {

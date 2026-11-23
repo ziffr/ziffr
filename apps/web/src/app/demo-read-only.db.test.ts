@@ -253,6 +253,7 @@ const CASES: Record<string, Case> = {
   "series-actions:askMeNow": { blocked: (i) => [i.ownMetric] },
   "series-actions:recordValue": { blocked: (i) => [i.ownMetric, { value: "42" }] },
   "settings-actions:updateMyProfile": { blocked: () => [{ name: "Not Sara" }] },
+  "settings-actions:setMyBusinessFunction": { blocked: () => ["sales"] },
   "settings-actions:setAppearance": { outside: "in the demo the choice is a cookie of the visitor's browser, no row" },
   "settings-actions:renameWorkspace": { blocked: () => ["Visitor's company"] },
   "settings-actions:setYearStart": { blocked: () => [4] },

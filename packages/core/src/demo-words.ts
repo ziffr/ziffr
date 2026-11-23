@@ -14,6 +14,54 @@ export const DEMO_STALE = "The demo was reset; reload.";
 /** The digest a demo refusal carries to the error screen, by whether trials are offered, and for a stale page. */
 export const DEMO_DIGEST = { plain: "ziffr-demo-read-only", trial: "ziffr-demo-read-only-trial", stale: "ziffr-demo-stale" } as const;
 
+// What the demo's limits say (spec 0051, ticket 5): plain words, never a number or a column, always when it works again.
+
+/** A visit that changed too much in a minute. */
+export const DEMO_GOING_FAST = "You are going fast. Try again in a minute.";
+
+/** A visit or a network address that used up its changes until the demo starts fresh. */
+export const DEMO_BUDGET_USED = "You have made a lot of changes. Try again when the demo starts fresh.";
+
+/** The whole demo's changes are used up for this window, or a visit cannot be counted. */
+export const DEMO_BUSY = "The demo is busy. Try again in a few minutes.";
+
+/** What a row-cap refusal (code ZF4D2) says for a kind of row, by the name people use for it. */
+const LIMIT_NOUNS: Record<string, string> = {
+  dashboards: "dashboards",
+  widgets_per_dashboard: "widgets on a dashboard",
+  saved_widgets: "saved widgets",
+  decks: "decks",
+  snapshots: "Snapshots",
+  metrics: "Metrics",
+  templates: "templates",
+  workflows: "Workflows",
+  groups: "Groups",
+  tags: "Tags",
+  open_actions: "open Questions and Tasks",
+  values: "values",
+};
+
+/** The sentence for a row cap that was reached; an unknown kind gets the general one. */
+export function demoLimitWords(kind: string): string {
+  if (kind === "starting") return "The demo is starting fresh. Try again in a moment.";
+  const noun = LIMIT_NOUNS[kind];
+  return noun ? `The demo is full of ${noun} for now. Try again when it starts fresh.` : "The demo is full for now. Try again when it starts fresh.";
+}
+
+/** The kinds `demoLimitWords` knows, so a test can see that every kind the database limits has words. */
+export function demoLimitKinds(): string[] {
+  return Object.keys(LIMIT_NOUNS);
+}
+
+/** What a text refused by the text rules says, by why. */
+export const DEMO_TEXT_WORDS = {
+  empty: "Write something first.",
+  long: "That is too long for the demo.",
+  characters: "Use plain text only: no control characters.",
+  markup: "Use plain words: no tags.",
+  link: "Leave out web addresses in the demo.",
+} as const;
+
 /** The sentence for a digest, or null for any other error. */
 export function demoWordsForDigest(digest: string | undefined): string | null {
   return digest === DEMO_DIGEST.trial ? DEMO_READ_ONLY_TRIAL : digest === DEMO_DIGEST.plain ? DEMO_READ_ONLY : digest === DEMO_DIGEST.stale ? DEMO_STALE : null;
