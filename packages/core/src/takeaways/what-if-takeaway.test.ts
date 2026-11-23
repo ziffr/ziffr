@@ -14,7 +14,7 @@ import { numbersIn } from "../numbers";
 import { metric, months } from "../test/fixtures";
 import { runs } from "../test/reference/check";
 import type { Metric, Point } from "../types";
-import { MOST_FIRST, whatIfRecipe, whatIfTakeaway, WHAT_IF_RECIPES, type WhatIfTakeaway } from "./what-if-takeaway";
+import { anyEstimated, capLinks, closeness, isPure, MOST_FIRST, rankOrder, recipeNotes, strongest, whatIfRecipe, whatIfTakeaway, WHAT_IF_RECIPES, withoutTarget, type Found, type WhatIfTakeaway } from "./what-if-takeaway";
 import { footerText, type Takeaway, type TakeawayContext } from "./takeaway";
 import { WORDING } from "./wording";
 
@@ -172,7 +172,9 @@ describe("rows the picture draws", () => {
     expect(t.rows[1]).toMatchObject({ kind: "worked-out", effect: 0 });
     expect(t.rows[1].sentence).toBe("Revenue does not change: worked out from its formula.");
     // An estimated effect of exactly 0 is not a size either.
-    expect(say([ok("Signups", { effect: 0, lo: -5, hi: 5 })]).rows[0].kind).toBe("unclear");
+    const cancel = say([ok("Signups", { effect: 0, lo: -5, hi: 5, through: ["Visits"] })]).rows[0];
+    expect(cancel).toMatchObject({ kind: "estimated", effect: 0, lo: -5, hi: 5 });
+    expect(cancel.sentence).toBe("Signups is estimated not to change, through Visits: the effects on the way cancel out.");
   });
   it("names the Metric the change came through, up to the list of them", () => {
     const t = say([ok("Revenue", { step: 2, through: ["Signups", "Visits"] })]);
@@ -485,6 +487,89 @@ describe("a what-if said from the Method's result", () => {
     expect(say([f("values")])).toBe("compared by value");
     expect(say([f("changes")])).toBe("compared by change, growth removed");
     expect(say([f("values"), f("changes")])).toBe("compared by value or by change, as each link needed");
+  });
+});
+
+describe("the Recipe's choices, each worked out by hand", () => {
+  const map = (vs: number[]) => new Map(vs.map((v, i) => [`p${i}`, v]));
+  it("closeness is |r| of the periods both series have: 1 for a line either way up, 29/35 for a hand-worked pair, 0 for too few periods or a series that does not move", () => {
+    expect(closeness(map([1, 2, 3, 4, 5, 6, 7, 8]), map([2, 4, 6, 8, 10, 12, 14, 16]))).toBeCloseTo(1, 12);
+    expect(closeness(map([1, 2, 3, 4, 5, 6, 7, 8]), map([8, 7, 6, 5, 4, 3, 2, 1]))).toBeCloseTo(1, 12);
+    // x and y about 3.5: Σdxdy = 14.5, Σdx² = Σdy² = 17.5.
+    const [x, y] = [map([1, 2, 3, 4, 5, 6]), map([2, 1, 4, 3, 6, 5])];
+    expect(closeness(x, y)).toBeCloseTo(29 / 35, 12);
+    expect(closeness(map([1, 2, 3, 4, 5]), map([2, 1, 4, 3, 6]))).toBe(0);
+    // A period only one has is no pair, and a series that stays put has no r.
+    expect(closeness(new Map([...x, ["extra", 99]]), y)).toBeCloseTo(29 / 35, 12);
+    expect(closeness(x, new Map([...y, ["other", 7]]))).toBeCloseTo(29 / 35, 12);
+    expect(closeness(map([5, 5, 5, 5, 5, 5, 5]), map([1, 2, 3, 4, 5, 6, 7]))).toBe(0);
+    expect(closeness(new Map(), new Map())).toBe(0);
+  });
+  it("strongest is the largest partial link by size, whichever way it points", () => {
+    expect(strongest({ drivers: [{ partial: -0.3 }, { partial: 0.8 }] } as never)).toBe(0.8);
+    expect(strongest({ drivers: [{ partial: 0.3 }, { partial: -0.9 }] } as never)).toBe(0.9);
+  });
+  const found = (id: number, exact: boolean, partial: number, name = `M${id}`): Found => ({ target: mk(id, `m${id}`, name), exact, partial, fit: null, link: { kind: "worked", target: name, formula: "{a}", names: { a: "A" }, levels: { A: 1 } } });
+  it("ranks a worked-out link first, then the clearer, then the lower Metric id", () => {
+    const sorted = [found(5, false, 0.9), found(2, false, 0.5), found(7, true, 0), found(1, false, 0.9), found(3, false, 0.5)].sort(rankOrder).map((f) => f.target.id);
+    expect(sorted).toEqual([7, 1, 5, 2, 3]);
+    expect(rankOrder(found(1, false, 0.5), found(2, false, 0.5))).toBeLessThan(0);
+    expect(rankOrder(found(2, false, 0.5), found(1, false, 0.5))).toBeGreaterThan(0);
+    expect(rankOrder(found(1, false, 0.6), found(2, false, 0.5))).toBeLessThan(0);
+    expect(rankOrder(found(1, true, 0), found(2, false, 0.5))).toBeLessThan(0);
+  });
+  it("calls a fit pure only when the Metric changed is its only driver", () => {
+    expect(isPure({ drivers: [{ name: "A" }] } as never, "A")).toBe(true);
+    expect(isPure({ drivers: [{ name: "A" }, { name: "B" }] } as never, "A")).toBe(false);
+    expect(isPure({ drivers: [{ name: "B" }] } as never, "A")).toBe(false);
+    expect(isPure(null, "A")).toBe(false);
+  });
+  it("keeps every first-step link and the best of the rest up to 12 Metrics in all, and names the others", () => {
+    const first = [1, 2, 3, 4, 5].map((i) => found(i, false, 0.5));
+    const rest = Array.from({ length: 9 }, (_, i) => found(20 + i, false, 0.1 + i / 100));
+    const { found: kept, dropped } = capLinks([...rest, ...first], new Set([1, 2, 3, 4, 5]), 12);
+    // 12 − 1 (the Metric changed) − 5 = 6 of the rest: the six clearest, 28 to 23.
+    expect(kept.map((f) => f.target.id)).toEqual([1, 2, 3, 4, 5, 28, 27, 26, 25, 24, 23]);
+    expect(dropped).toEqual(["M22", "M21", "M20"]);
+    expect(capLinks(first, new Set([1, 2, 3, 4, 5]), 12)).toEqual({ found: first, dropped: [] });
+    expect(capLinks([...first, found(9, false, 0.9)], new Set([1, 2, 3, 4, 5]), 6)).toMatchObject({ dropped: ["M9"] });
+    expect(capLinks([...first, found(9, false, 0.9)], new Set([1, 2, 3, 4, 5]), 7).dropped).toEqual([]);
+  });
+  it("leaves out one link by the name of its Metric, and only that one", () => {
+    const all = [found(1, false, 0.5), found(2, false, 0.5), found(3, false, 0.5)];
+    expect(withoutTarget(all, "M2").map((f) => f.target.id)).toEqual([1, 3]);
+    expect(withoutTarget(all, "Nobody")).toHaveLength(3);
+  });
+  it("says 'picked from chance' unless every row is worked out or refused", () => {
+    expect(anyEstimated(["worked-out", "refused"])).toBe(false);
+    expect(anyEstimated([])).toBe(false);
+    for (const k of ["estimated", "guess", "unclear"] as const) expect(anyEstimated(["worked-out", k])).toBe(true);
+  });
+  it("writes one note for each kind of Metric left out, names in order, and none where none", () => {
+    expect(recipeNotes({ left: [], cutFirst: [], dropped: [], gone: [], unlooked: 0, start: "Visits" }, ctx)).toEqual([]);
+    expect(recipeNotes({ left: ["Zed", "Alpha"], cutFirst: ["Cy", "Bo"], dropped: ["Eve", "Di"], gone: ["Gus", "Fay"], unlooked: 4, start: "Visits" }, ctx)).toEqual([
+      "Left out, as the formula of Alpha and Zed could not be used here.",
+      "Only the 5 Metrics that moved most closely with Visits are followed; left out: Bo and Cy.",
+      "Left out to stay within 12 Metrics: Di and Eve.",
+      "Left out, as they are more than 2 steps from the Metric that changes, so a change cannot be followed through them: Fay and Gus.",
+      "4 other Metrics were not looked at: only the 20 whose changes follow Visits most closely were.",
+    ]);
+  });
+  it("does not fit a Metric on one that is made of it, even where that one is looked at first", () => {
+    const w = world();
+    // Triple signups (a lower id) is looked at before Signups (a higher id): Signups must not be fitted on a Metric built from it.
+    const S2 = mk(150, "signups2", "Signups two");
+    const triple = mk(149, "triple", "Triple of signups two", { formula: "{signups2} * 3" });
+    const series = { ...w.series, signups2: w.series.signups, triple: months("2024-01", w.signups.map((v) => v * 3)) };
+    const t = whatIfRecipe(VISITS, { by: 1000 }, [S2, triple], resolverFrom([VISITS, S2, triple], series), opts);
+    expect(t.rows.find((r) => r.name === "Signups two")).toMatchObject({ step: 1, through: [] });
+  });
+  it("does not fit a Metric whose formula could not be used on another: it is left out, not tried against the first step", () => {
+    const w = world();
+    const ghost = mk(160, "ghost", "Ghost ratio", { formula: "{visits} / {nothing}" });
+    const t = whatIfRecipe(VISITS, { by: 1000 }, [SIGNUPS, ghost], resolverFrom([VISITS, SIGNUPS, ghost], { ...w.series, ghost: w.series.signups }), opts);
+    expect(t.rows.map((r) => r.name)).toEqual(["Signups"]);
+    expect(t.notes).toContain("Left out, as the formula of Ghost ratio could not be used here.");
   });
 });
 

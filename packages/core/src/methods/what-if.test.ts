@@ -422,11 +422,11 @@ describe("the limits", () => {
     expect(run(some(MOST_LINKS), 1).ok).toBe(true);
     expect(refused(run(some(MOST_LINKS + 1), 1))).toEqual([{ case: "refuse-what-if-links", slots: { most: 120 } }]);
   });
-  it("reaches nothing in words when no link starts from the Metric changed, and ignores a link into the Metric changed", () => {
+  it("reaches nothing in words when no link starts from the Metric changed, and refuses in words a link into the Metric changed", () => {
     const l = mk(["M1"], () => ["Q"]);
     expect(refused(run(l, 1))).toEqual([{ case: "refuse-what-if-none", slots: { name: "A" } }]);
     const into = link("A", w.a, [{ name: "B", x: w.b }]);
-    expect(refused(run([into], 1))).toEqual([{ case: "refuse-what-if-none", slots: { name: "A" } }]);
+    expect(refused(run([into], 1))).toEqual([{ case: "refuse-what-if-feedback", slots: { name: "A" } }]);
   });
   it("follows a Metric of the first step one step further: C reached directly and through B is at step 2 with both paths", () => {
     const lb = link("B", w.b, [{ name: "A", x: w.a }]);
@@ -728,10 +728,10 @@ describe("every check on what is handed over, one at a time (so that none can be
     expect(r({ percent: 10 })).toMatchObject({ ok: true, percent: 10, by: 5 });
     expect(r({ by: 5 })).toMatchObject({ ok: true, percent: null, by: 5 });
   });
-  it("ignores a link into the Metric changed even where another Metric is driven by it", () => {
+  it("refuses a link into the Metric changed even where another Metric is driven by it: it would come back on itself", () => {
     const lb = link("B", w.b, [{ name: "A", x: w.a }]);
     const into = link("A", w.a, [{ name: "B", x: w.b }]);
-    expect(reachedOf(run([lb, into], 1)).map((r) => r.name)).toEqual(["B"]);
+    expect(refused(run([lb, into], 1))).toEqual([{ case: "refuse-what-if-feedback", slots: { name: "A" } }]);
   });
   it("says whether links can be followed, and why not", () => {
     const lb = link("B", w.b, [{ name: "A", x: w.a }]);
@@ -827,6 +827,22 @@ describe("every check on what is handed over, one at a time (so that none can be
     const l = link("B", w.b, [{ name: "A", x: w.a }]);
     const [r] = reachedOf(run([{ kind: "fit", fit: { ...l.fit, merged: [merged] } }], 1));
     expect(r.merged).toEqual([merged]);
+  });
+  it("refuses a curved link where only the end of a range is beyond what was seen, and gives a guess where the curved link is not the one that is beyond", () => {
+    const lb = link("B", w.b, [{ name: "A", x: w.a }]);
+    const lc = link("C", w.c, [{ name: "B", x: w.b }]);
+    const curvy = (l: FitLink): FitLink => ({ kind: "fit", fit: { ...l.fit, verdict: { refusals: [], switches: [], cautions: [{ case: "caution-curved", slots: {} }] } } });
+    const latest = (Math.min(...w.a) + Math.max(...w.a)) / 2;
+    const x = Array.from({ length: 60 }, (_, i) => (i + 1) / 2).find((v) => {
+      const c = reachedOf(run([lb, lc], v, latest))[1];
+      return c.outside.length === 0 && c.beyond.length > 0 && reachedOf(run([lb, lc], v, latest))[0].beyond.length === 0;
+    })!;
+    expect(x).toBeDefined();
+    const second = run([lb, curvy(lc)], x, latest);
+    expect(second.ok && second.reached[1]).toEqual({ ok: false, name: "C", step: 2, refusal: { case: "refuse-curved-outside", slots: { name: "B" } } });
+    // The curved link is the first one, and its driver is inside: the second link's end beyond is a guess, with no refusal.
+    const first = run([curvy(lb), lc], x, latest);
+    expect(first.ok && first.reached[1]).toMatchObject({ ok: true, lo: null });
   });
   it("counts the lowest value a driver has been as inside, and one step below it as outside", () => {
     const l = link("B", w.b, [{ name: "A", x: w.a }]);

@@ -296,13 +296,13 @@ exports[`whole Takeaways, word for word (golden: any change to a sentence, a fig
   },
   {
    "label": "Signups Likely between",
-   "value": 80,
-   "text": "80"
+   "value": -80,
+   "text": "80 down"
   },
   {
    "label": "Signups Likely between",
    "value": 40,
-   "text": "40"
+   "text": "40 up"
   },
   {
    "label": "Revenue",

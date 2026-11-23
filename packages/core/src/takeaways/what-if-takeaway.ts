@@ -92,9 +92,10 @@ export function whatIfTakeaway(start: Metric, metrics: Metric[], result: WhatIf,
     const strengthText = strengthWordIn(lowest, ctx);
     cautions.push(...lines(r.verdict, ctx).cautions);
     numbers.push({ label: text("numbers-rests-on", ctx, { name: r.name }), text: formatNumber(r.coefficients, 0, ctx.style) });
-    // A link that cannot be told from chance is said as that, with no number about its size; so is an effect of exactly 0.
-    if (lowest === "cant-tell" || r.effect === 0) return { ...base, kind: "unclear", effect: null, lo: null, hi: null, strength: "cant-tell", strengthText: strengthWordIn("cant-tell", ctx), sentence: text("whatif-row-unclear", ctx, { name: r.name, start: start.name, through }) };
-    // Stryker disable next-line EqualityOperator: an estimated effect of exactly 0 is said as unclear before this
+    // Strong links whose effects cancel are said as that, with the range; a link that cannot be told from chance is said as that.
+    if (lowest !== "cant-tell" && r.effect === 0) return { ...base, kind: "estimated", effect: 0, lo: r.lo, hi: r.hi, strength: lowest, strengthText, sentence: text("whatif-row-cancel", ctx, { name: r.name, through }) };
+    if (lowest === "cant-tell") return { ...base, kind: "unclear", effect: null, lo: null, hi: null, strength: "cant-tell", strengthText: strengthWordIn("cant-tell", ctx), sentence: text("whatif-row-unclear", ctx, { name: r.name, start: start.name, through }) };
+    // Stryker disable next-line EqualityOperator: an estimated effect of exactly 0 is said as cancelling before this
     const moves = text(r.effect > 0 ? "whatif-go-up" : "whatif-go-down", ctx);
     const [lo, hi] = [r.lo, r.hi];
     // The range is there or not as a whole.
@@ -125,7 +126,8 @@ export function whatIfTakeaway(start: Metric, metrics: Metric[], result: WhatIf,
     // Stryker disable next-line EqualityOperator: the end is not 0 here (`v === 0` is the line before)
     const end = (v: number) => (v === 0 ? text("whatif-end-none", ctx) : text(v > 0 ? "whatif-end-up" : "whatif-end-down", ctx, { amount: written(m, Math.abs(v), ctx, like) }));
     const [loText, hiText] = crossing ? [end(lo), end(top)] : [written(m, mag[0], ctx, like), written(m, mag[1], ctx, like)];
-    for (const v of crossing ? [lo, top].filter((v) => v !== 0) : mag) figures.push(figure(`${r.name} ${text("numbers-range", ctx)}`, Math.abs(v), written(m, Math.abs(v), ctx, like)));
+    // A range that reaches or crosses 0 keeps the sign of each end in its figure, with the words the sentence uses.
+    for (const v of crossing ? [lo, top].filter((v) => v !== 0) : mag) figures.push(figure(`${r.name} ${text("numbers-range", ctx)}`, crossing ? v : Math.abs(v), crossing ? end(v) : written(m, Math.abs(v), ctx, like)));
     numbers.push({ label: text("numbers-range-on", ctx, { name: r.name }), text: `${loText} – ${hiText}` });
     return { ...base, kind: "estimated", effect: r.effect, lo, hi: top, strength: lowest, strengthText, sentence: text("whatif-row-range", ctx, { name: r.name, moves, effect: shown, lo: loText, hi: hiText, through }) };
   });
@@ -138,7 +140,7 @@ export function whatIfTakeaway(start: Metric, metrics: Metric[], result: WhatIf,
   const byChange = estimated.filter((r) => r.byChange).length;
   const allByChange = byChange === estimated.length && result.reached.every((r) => r.ok && !r.exact);
   // Stryker disable next-line EqualityOperator: this value is never exactly 0 here, so `>` and `>=` say the same
-  // Stryker disable next-line ConditionalExpression: the percent is written only for the percent headline, so a 0 written where there is none is never read
+  // Stryker disable next-line ConditionalExpression,StringLiteral: the percent is written only for the percent headline, so a 0 written where there is none is never read
   const slots = { start: start.name, goes: text(result.by > 0 ? "whatif-goes-up" : "whatif-goes-down", ctx), by: startText, when: allByChange ? text("whatif-when-next", ctx, { span }) : "", pct: result.percent === null ? "" : formatNumber(Math.abs(result.percent), percentDigits(Math.abs(result.percent)), ctx.style) };
   const headline = text(result.percent === null ? "whatif-headline" : "whatif-headline-percent", ctx, slots);
   if (result.percent !== null && !/[1-9]/.test(slots.pct)) return { ...refusalTakeaway(method, [`${start.name}: ${text("refuse-what-if-small", ctx)}`]), rows: [] };
@@ -203,7 +205,58 @@ function levelsOf(inputs: Metric[], series: Map<number, Point[]>, period: string
   return maps.every((m) => m.has(period)) ? Object.fromEntries(inputs.map((m, i) => [m.name, maps[i].get(period)!])) : null;
 }
 
+/**
+ *
+ */
 type Found = { target: Metric; link: WhatIfLink; exact: boolean; partial: number; fit: Fit | null };
+export type { Found };
+
+/** How closely two series follow each other, as |r| of the values of the periods both have (in doubles: it only chooses which Metrics to look at, and every number
+ * given comes from the exact fits); 0 for fewer than `MIN_PAIRS` periods, or where a series does not vary. */
+export function closeness(a: Map<string, number>, b: Map<string, number>): number {
+  const pairs = [...a].flatMap(([period, x]) => (b.has(period) ? [[x, b.get(period)!]] : []));
+  // Stryker disable next-line EqualityOperator,ConditionalExpression: a Metric with so few pairs has too few periods for any fit, so whether it counts as 0 or as its r, it is never followed
+  if (pairs.length < MIN_PAIRS) return 0;
+  const [mx, my] = [0, 1].map((k) => pairs.reduce((t, p) => t + p[k], 0) / pairs.length);
+  const [sxx, syy, sxy] = pairs.reduce((t, p) => [t[0] + (p[0] - mx) ** 2, t[1] + (p[1] - my) ** 2, t[2] + (p[0] - mx) * (p[1] - my)], [0, 0, 0]);
+  const r = sxy / Math.sqrt(sxx * syy);
+  // A series that does not change has no r: it counts as 0.
+  return Number.isFinite(r) ? Math.abs(r) : 0;
+}
+
+/** How clear a fit's link is: the largest partial link of its drivers (0 to 1). */
+export const strongest = (f: Pick<Fit, "drivers">): number => Math.max(...f.drivers.map((d) => Math.abs(d.partial)));
+
+/** The order links are kept in: one worked out from a formula first, then the clearest, then the lower Metric id. */
+export const rankOrder = (a: Found, b: Found): number => Number(b.exact) - Number(a.exact) || b.partial - a.partial || a.target.id - b.target.id;
+
+/** Whether a fit's only driver is the Metric changed, so that a Metric fitted on it moves with nothing else (no change runs more than two steps). */
+export const isPure = (f: Pick<Fit, "drivers"> | null, start: string): boolean => f !== null && f.drivers.every((d) => d.name === start);
+
+/** The links kept: every first-step one, then the best of the others up to `most` Metrics in all (the changed one included); and the names of those left out. */
+export function capLinks(links: Found[], firstIds: ReadonlySet<number>, most: number): { found: Found[]; dropped: string[] } {
+  const [sure, more] = [links.filter((f) => firstIds.has(f.target.id)), links.filter((f) => !firstIds.has(f.target.id)).sort(rankOrder)];
+  const room = Math.max(0, most - 1 - sure.length);
+  return { found: [...sure, ...more.slice(0, room)], dropped: more.slice(room).map((f) => f.target.name) };
+}
+
+/** The links without the one of the Metric called `name`. */
+export const withoutTarget = (found: Found[], name: string): Found[] => found.filter((f) => f.target.name !== name);
+
+/** Whether any row is estimated (or a guess, or unclear), as against worked out or refused: only then were links picked for standing out from chance. */
+export const anyEstimated = (kinds: WhatIfKind[]): boolean => kinds.some((k) => k !== "worked-out" && k !== "refused");
+
+/** What the Recipe says it left out, one note for each kind, naming them in order of their names; none where none. */
+export function recipeNotes(o: { left: string[]; cutFirst: string[]; dropped: string[]; gone: string[]; unlooked: number; start: string }, ctx: TakeawayContext): string[] {
+  const note = (names: string[], key: CaseKey, slots: Slots = {}): string[] => (names.length > 0 ? [text(key, ctx, { ...slots, names: listOf([...names].sort(), ctx) })] : []);
+  return [
+    ...note(o.left, "note-what-if-formula"),
+    ...note(o.cutFirst, "note-what-if-first", { n: MOST_FIRST, start: o.start }),
+    ...note(o.dropped, "note-what-if-left", { most: MOST_METRICS }),
+    ...note(o.gone, "note-what-if-deep", { most: MOST_STEPS }),
+    ...(o.unlooked > 0 ? [text("note-what-if-unlooked", ctx, { n: o.unlooked, most: MOST_LOOKED_AT, start: o.start })] : []),
+  ];
+}
 
 /** "What if A changes?": `others` are the Metrics a person may see (nothing else is read or named), the history in `resolve`. The Metrics that
  * clearly moved with `start` (a straight line through each pair's history; a Derived Metric built from it is worked out exactly) are the
@@ -229,7 +282,7 @@ export function whatIfRecipe(start: Metric, change: WhatIfChange, others: Metric
   const left = new Set<string>();
 
   const builds = (m: Metric, from: Metric) => Boolean(m.formula?.includes(`{${from.slug}}`));
-  const strongest = (f: Fit) => Math.max(...f.drivers.map((d) => Math.abs(d.partial)));
+  // Stryker disable next-line ArrayDeclaration: the Metrics only let the fit see where an input is built from another or has no Aggregation, and every set tried here is one of Metrics counted the same way and not built from each other
   const fitOn = (target: Metric, drivers: Metric[]) => fit({ target: { name: target.name, points: series.get(target.id)! }, drivers: drivers.map((d) => ({ name: d.name, points: series.get(d.id)!, id: d.id })), span, metrics: [target, ...drivers] });
   // The Metrics worth fitting against `target`: the ones whose changes follow its own most closely (|r| of the changes, ties by id). This only chooses which
   // to look at, so it is worked out in doubles, once for each Metric's changes: every number given comes from the exact fits.
@@ -239,19 +292,9 @@ export function whatIfRecipe(start: Metric, change: WhatIfChange, others: Metric
     if (!changesOf.has(m.id)) changesOf.set(m.id, new Map(changes(series.get(m.id)!, span).map((p) => [p.period, p.value])));
     return changesOf.get(m.id)!;
   };
-  const closeness = (a: Metric, b: Metric): number => {
-    const other = changed(b);
-    const pairs = [...changed(a)].flatMap(([period, x]) => (other.has(period) ? [[x, other.get(period)!]] : []));
-    // Stryker disable next-line EqualityOperator,ConditionalExpression: a Metric with so few pairs has too few periods for any fit, so whether it counts as 0 or as its r, it is never followed
-    if (pairs.length < MIN_PAIRS) return 0;
-    const [mx, my] = [0, 1].map((k) => pairs.reduce((t, p) => t + p[k], 0) / pairs.length);
-    const [sxx, syy, sxy] = pairs.reduce((t, p) => [t[0] + (p[0] - mx) ** 2, t[1] + (p[1] - my) ** 2, t[2] + (p[0] - mx) * (p[1] - my)], [0, 0, 0]);
-    const r = sxy / Math.sqrt(sxx * syy);
-    // A series that does not change has no r: it counts as 0.
-    return Number.isFinite(r) ? Math.abs(r) : 0;
-  };
+  const closenessOf = (a: Metric, b: Metric): number => closeness(changed(a), changed(b));
   const closest = (target: Metric, among: Metric[], most: number) => {
-    const r = new Map(among.map((m) => [m.id, closeness(target, m)]));
+    const r = new Map(among.map((m) => [m.id, closenessOf(target, m)]));
     return [...among].sort((a, b) => r.get(b.id)! - r.get(a.id)! || a.id - b.id).slice(0, most);
   };
   // The formula of a Derived Metric as a link, where every Metric it names is here, counted by the common period, with none reaching back.
@@ -267,11 +310,10 @@ export function whatIfRecipe(start: Metric, change: WhatIfChange, others: Metric
     return { target: t, exact: true, partial: 0, fit: null, link: { kind: "worked", target: t.name, formula: t.formula!, names: Object.fromEntries(have.map((m) => [m.slug, m.name])), levels } };
   };
   const estimated = (t: Metric, f: Fit): Found => ({ target: t, exact: false, partial: strongest(f), fit: f, link: { kind: "fit", fit: f } });
-  const order = (a: Found, b: Found) => Number(b.exact) - Number(a.exact) || b.partial - a.partial || a.target.id - b.target.id;
 
   // The first step: what clearly moved with the Metric changed, each on its own.
   const firstFound: Found[] = [];
-  // Stryker disable next-line ConditionalExpression,LogicalOperator: a Metric built from the changed one is refused by the fit in any case, so it is the same whether it is also tried
+  // Stryker disable next-line ConditionalExpression,LogicalOperator,MethodExpression: a Metric built from the changed one is refused by the fit in any case, so it is the same whether it is also tried
   const candidates1 = pool.filter((m) => !builds(m, start) && !builds(start, m));
   for (const t of closest(start, candidates1, MOST_LOOKED_AT)) {
     const f = fitOn(t, [start]);
@@ -281,10 +323,9 @@ export function whatIfRecipe(start: Metric, change: WhatIfChange, others: Metric
     const w = worked(t);
     if (w) firstFound.push(w);
   }
-  const ranked = firstFound.sort(order);
+  const ranked = firstFound.sort(rankOrder);
   const first = ranked.slice(0, MOST_FIRST);
-  const namesOf = (fs: Found[]) => fs.map((f) => f.target.name);
-  const cutFirst = namesOf(ranked.slice(MOST_FIRST));
+  const cutFirst = ranked.slice(MOST_FIRST).map((f) => f.target.name);
   const firstMetrics = first.map((f) => f.target);
 
   // Each Metric that may have moved with the first step is fitted on the changed Metric and the first-step Metrics nearer to it, the ones that cannot be told
@@ -306,10 +347,10 @@ export function whatIfRecipe(start: Metric, change: WhatIfChange, others: Metric
     return f.ok && f.drivers.some((d) => d.strength !== "cant-tell") ? estimated(t, f) : null;
   };
   const isInFirst = new Set(first.map((f) => f.target.id));
+  const inRanked = new Set(ranked.map((f) => f.target.id));
   // Metrics left out of the first step, or not looked at, are not brought back in as the second: the notes say they were left out.
   const looked = new Set(closest(start, candidates1, MOST_LOOKED_AT).map((m) => m.id));
-  const cutIds = new Set(ranked.slice(MOST_FIRST).map((f) => f.target.id));
-  const pool2 = [...new Map([...firstMetrics, ...firstMetrics.flatMap((b) => closest(b, pool.filter((m) => !isInFirst.has(m.id) && !builds(m, start) && looked.has(m.id) && !cutIds.has(m.id)), MOST_PER_STEP))].map((m) => [m.id, m])).values()];
+  const pool2 = [...new Map([...firstMetrics, ...firstMetrics.flatMap((b) => closest(b, pool.filter((m) => !inRanked.has(m.id) && !builds(m, start) && looked.has(m.id)), MOST_PER_STEP))].map((m) => [m.id, m])).values()];
   const links: Found[] = [];
   for (const t of pool2) {
     const l = linkFor(t);
@@ -317,27 +358,23 @@ export function whatIfRecipe(start: Metric, change: WhatIfChange, others: Metric
     const mine = l ?? first.find((f) => f.target.id === t.id);
     if (!mine) continue;
     links.push(mine);
-    if (isInFirst.has(t.id) && mine.fit !== null && mine.fit.drivers.every((d) => d.name === start.name)) pure.push(t);
+    if (isInFirst.has(t.id) && isPure(mine.fit, start.name)) pure.push(t);
   }
-  const [sure, more] = [links.filter((f) => isInFirst.has(f.target.id)), links.filter((f) => !isInFirst.has(f.target.id)).sort(order)];
-  const room = Math.max(0, MOST_METRICS - 1 - sure.length);
-  let found = [...sure, ...more.slice(0, room)];
-  const dropped = namesOf(more.slice(room));
+  const capped = capLinks(links, isInFirst, MOST_METRICS);
+  let found = capped.found;
   // The link of a Metric that is too far is left out, until the rest can be followed (the links made here never drive each other).
   const gone: string[] = [];
   // Stryker disable next-line ConditionalExpression,LogicalOperator,EqualityOperator: the loop runs while the links are too far; with none left the plan is `none`, not too far, and `case` is only there on a finding, so each of these conditions says the same
   for (let p = planOf(start.name, found.map((f) => f.link)); found.length > 0 && "case" in p && p.case === "refuse-what-if-deep"; p = planOf(start.name, found.map((f) => f.link))) {
-    const drop = found.find((f) => f.target.name === p.slots.name)!;
-    gone.push(drop.target.name);
-    found = found.filter((f) => f !== drop);
+    const name = String(p.slots.name);
+    gone.push(name);
+    found = withoutTarget(found, name);
   }
-  // A note for each kind of Metric left out, naming them; none where none was.
-  const note = (names: string[], key: CaseKey, slots: Slots = {}): string[] => (names.length > 0 ? [text(key, opts.ctx, { ...slots, names: listOf([...names].sort(), opts.ctx) })] : []);
-  const notes = [...note([...left], "note-what-if-formula"), ...note(cutFirst, "note-what-if-first", { n: MOST_FIRST, start: start.name }), ...note(dropped, "note-what-if-left", { most: MOST_METRICS }), ...note(gone, "note-what-if-deep", { most: MOST_STEPS }), ...(candidates1.length > MOST_LOOKED_AT ? [text("note-what-if-unlooked", opts.ctx, { n: candidates1.length - MOST_LOOKED_AT, most: MOST_LOOKED_AT, start: start.name })] : [])];
+  const notes = recipeNotes({ left: [...left], cutFirst, dropped: capped.dropped, gone, unlooked: Math.max(0, candidates1.length - MOST_LOOKED_AT), start: start.name }, opts.ctx);
   const result = whatIf({ start: { name: start.name, latest }, change, links: found.map((f) => f.link) });
   const t = whatIfTakeaway(start, everyone, result, found.flatMap((f) => (f.fit ? [f.fit] : [])), opts.ctx);
   // Which of two Metrics that move together comes first is read, not known: said wherever a Metric is reached through another.
-  const chosen = t.rows.some((r) => r.kind !== "worked-out" && r.kind !== "refused") ? [text("whatif-assumes-chosen", opts.ctx)] : [];
+  const chosen = anyEstimated(t.rows.map((r) => r.kind)) ? [text("whatif-assumes-chosen", opts.ctx)] : [];
   const read = t.rows.some((r) => r.through.length > 0) ? [text("whatif-assumes-order", opts.ctx, { start: start.name })] : [];
   return { ...t, assumptions: [...t.assumptions, ...chosen, ...read], notes: [...notes, ...t.notes] };
 }

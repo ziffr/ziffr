@@ -194,7 +194,7 @@ export function planOf(start: string, links: WhatIfLink[]): { ok: true } | Findi
 }
 
 function plan(start: string, links: WhatIfLink[]): Plan {
-  const by = new Map(links.filter((l) => targetOf(l) !== start).map((l) => [targetOf(l), l]));
+  const by = new Map(links.map((l) => [targetOf(l), l]));
   // Every Metric the change can reach through the links, however far: found first, then judged.
   const reached = new Set<string>();
   for (let grew = true; grew; ) {
@@ -342,6 +342,8 @@ export function whatIf(input: WhatIfInput): WhatIf {
   if (by.num === ZERO) return refuseInput("the change");
   const targets = links.map(targetOf);
   if (new Set(targets).size !== targets.length) return refuseInput("the Metrics' names");
+  // A link into the Metric changed would have the change come back on itself: said in words, not left out unseen.
+  if (targets.includes(start.name)) return refuse("refuse-what-if-feedback", { name: start.name });
   // The levels the changes are counted from are one set: the same Metric is at the same level in every formula, and the one changed at its latest.
   const levels = new Map<string, number>();
   for (const l of links) {
@@ -383,9 +385,10 @@ export function whatIf(input: WhatIfInput): WhatIf {
       const edges = fits.map((sn) => outsideOfFit(sn.link, sn.changes, start));
       const outside = outsides.flat();
       const beyond = edges.flat().filter((o) => !outside.some((x) => x.name === o.name));
-      // A link that looks curved gives nothing outside what was seen: refused where it is its own driver that is outside (point or range).
-      const curved = fits.findIndex((sn, i) => (outsides[i].length > 0 || edges[i].length > 0) && carried(sn.link.fit).cautions.some((f) => f.case === "caution-curved"));
-      if (curved >= 0) return { ok: false, name, step, refusal: { case: "refuse-curved-outside", slots: { name: [...outsides[curved], ...edges[curved]][0].name } } };
+      // A link that looks curved gives nothing outside what was seen: refused where it is its own driver that is outside at the point or at an end of the range
+      // (the ends of the range hold the point, so an end outside is all that is asked).
+      const curved = fits.findIndex((sn, i) => edges[i].length > 0 && carried(sn.link.fit).cautions.some((f) => f.case === "caution-curved"));
+      if (curved >= 0) return { ok: false, name, step, refusal: { case: "refuse-curved-outside", slots: { name: edges[curved][0].name } } };
       const cautions = [...new Map(fits.flatMap((s) => carried(s.link.fit).cautions).map((f) => [JSON.stringify(f), f])).values()];
       const words = [...range.used.values()].map((c) => c.link.fit.drivers[c.j].strength);
       const weakest = words.length === 0 ? null : WEAKEST.find((w) => words.includes(w))!;

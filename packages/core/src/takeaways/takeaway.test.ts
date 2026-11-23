@@ -140,6 +140,8 @@ describe("the wording", () => {
     "refuse-what-if-none": [SAMPLE, "Nothing was found that clearly moves with Visits, so there is nothing to say about a change in it."],
     "refuse-what-if-many": [SAMPLE, "That would reach 18 Metrics: a what-if follows at most 12, the one that changes included. Pick fewer."],
     "refuse-what-if-formula": [SAMPLE, "it cannot be worked out for that change: its formula gives no value for it (a division by 0, for one)."],
+    "refuse-what-if-feedback": [{ name: "Visits" }, "Visits is moved by Metrics this change reaches, so a change in it would come back on itself: leave the link into Visits out."],
+    "whatif-row-cancel": [{ name: "Revenue", through: ", through Signups" }, "Revenue is estimated not to change, through Signups: the effects on the way cancel out."],
     "refuse-what-if-driver": [SAMPLE, "it rests on Visits, for which nothing can be said."],
     "whatif-beyond-above": [{ name: "Visits", limit: "51,000" }, "A change this size could take Visits higher than it has ever been (highest 51,000)"],
     "whatif-beyond-below": [{ name: "Visits", limit: "100" }, "A change this size could take Visits lower than it has ever been (lowest 100)"],

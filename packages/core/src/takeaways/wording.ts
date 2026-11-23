@@ -296,6 +296,8 @@ const EN = {
   "refuse-what-if-none": "Nothing was found that clearly moves with {name}, so there is nothing to say about a change in it.",
   "refuse-what-if-many": "That would reach {n} Metrics: a what-if follows at most {most}, the one that changes included. Pick fewer.",
   "refuse-what-if-formula": "it cannot be worked out for that change: its formula gives no value for it (a division by 0, for one).",
+  "refuse-what-if-feedback": "{name} is moved by Metrics this change reaches, so a change in it would come back on itself: leave the link into {name} out.",
+  "whatif-row-cancel": "{name} is estimated not to change{through}: the effects on the way cancel out.",
   "refuse-what-if-driver": "it rests on {name}, for which nothing can be said.",
   "whatif-beyond-above": "A change this size could take {name} higher than it has ever been (highest {limit})",
   "whatif-beyond-below": "A change this size could take {name} lower than it has ever been (lowest {limit})",
