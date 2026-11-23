@@ -27,7 +27,7 @@ function pageRoutes(dir = appDir, at = ""): string[] {
 
 describe("the help index", () => {
   it("matches the generated file", () => {
-    expect(readFileSync(indexPath, "utf8"), "help-index.generated.json is out of date: run pnpm --filter @ziffr/web help:index").toBe(json);
+    expect(readFileSync(indexPath, "utf8"), "help-index.generated.json is out of date with docs/user-guide: run `pnpm --filter @ziffr/web help:index` and commit the file").toBe(json);
   });
   const index = JSON.parse(readFileSync(indexPath, "utf8")) as HelpIndex;
   it("covers every chapter file, each with sections and a title", () => {
