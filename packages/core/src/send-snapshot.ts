@@ -31,6 +31,7 @@ import { mayTakeSnapshot, showSnapshot, takeSnapshot } from "./snapshots";
 import { tellRecipients } from "./tell-firing";
 import { DEMO_WORKSPACE_ID } from "./team";
 import { openWorkflowRow } from "./workflow-rows";
+import { TELL_PEOPLE_PER_STEP } from "./alert-limits";
 import { localTime } from "./workspace-clock";
 import type { Metric, Workflow, WorkflowConfig, WorkflowStep } from "./types";
 
@@ -40,6 +41,8 @@ type Step = Extract<WorkflowStep, { type: "send_snapshot" }>;
 const NOTE = { wait: "snapshot-wait", failed: "snapshot-failed", lost: "snapshot-lost", day: "snapshot-day" } as const;
 /** The day a note about the Workflow itself (not a period) is filed under. */
 const NO_PERIOD = "1970-01-01";
+/** The send's claim is made under one id for the Workflow whatever the step's own, so a step removed and added again sends no period twice. */
+const SEND_CLAIM = "send-snapshot";
 /** How many periods back a run looks for a finished one that has not gone yet: enough for weekly periods and 60 days. */
 const MAX_PERIODS_BACK = 12;
 
@@ -100,12 +103,11 @@ async function sendFinishedSnapshot(ws: string, wf: Workflow, period: string, to
   const p = snapshotPeriod(when.span as SnapshotPeriodKind, period, yearStart);
   // Only a period that is over, and not one that finished long after (the step waits MAX_WAIT_DAYS at most, as an automatic Snapshot does).
   if (!p || p.end >= today || today > format(addDays(parseISO(p.end), MAX_WAIT_DAYS), "yyyy-MM-dd")) return false;
-  const finishedAt = await periodFinishedAt(ws, wf.id, period);
-  if (!finishedAt) return false;
-  // A period that finished before the step was added is not sent: nothing finished after the owner asked for it.
-  const zone = (await db().from("workspaces").select("time_zone").eq("id", ws).maybeSingle()).data?.time_zone as string | undefined;
-  if (step.addedOn && localTime(new Date(finishedAt), zone ?? "UTC").day < step.addedOn) return false;
-  const { data: sent } = await db().from("workflow_step_runs").select("id").eq("workflow_id", wf.id).eq("workspace_id", ws).eq("step_id", step.id).eq("period_start", period).eq("kind", "send_snapshot").limit(1);
+  // A period that ended before the step was added is not sent: the owner asked for what comes after.
+  if (step.addedOn && p.end < step.addedOn) return false;
+  if (!(await periodFinishedAt(ws, wf.id, period))) return false;
+  // Any earlier send of this period, whatever the step's id then (a step removed and added again sends nothing twice).
+  const { data: sent } = await db().from("workflow_step_runs").select("id").eq("workflow_id", wf.id).eq("workspace_id", ws).eq("period_start", period).eq("kind", "send_snapshot").limit(1);
   if (sent?.length) return false;
 
   const { data: member } = await db().from("memberships").select("role").eq("workspace_id", ws).eq("user_id", wf.owner_id).maybeSingle();
@@ -121,16 +123,19 @@ async function sendFinishedSnapshot(ws: string, wf: Workflow, period: string, to
 
   // Which Snapshot: a shown one is sent as it is; an untouched automatic draft is shown; any other draft is waited for.
   const { data: existing } = await db().from("dashboard_snapshots").select("id, automatic, shown_at, words_changed_at").eq("workspace_id", ws).eq("dashboard_id", step.dashboardId).eq("period_kind", p.kind).eq("period_start", p.start).is("deleted_at", null).maybeSingle();
-  if (existing && !existing.shown_at) {
+  const waits = async () => {
+    if (!existing || existing.shown_at) return false;
     const { count: versions } = await db().from("versions").select("id", { count: "exact", head: true }).eq("object_type", "snapshot").eq("object_id", existing.id);
-    if (!existing.automatic || existing.words_changed_at || versions) {
-      await noteOnce(ws, wf, "wait", period, `The Snapshot ${p.label} of ${dash.name} is a draft that has been written in. Show it and the Workflow ${wf.name} sends it at its next run.`);
-      return false;
-    }
-  }
+    if (existing.automatic && !existing.words_changed_at && !versions) return false;
+    await noteOnce(ws, wf, "wait", period, `The Snapshot ${p.label} of ${dash.name} is a draft that has been written in. Show it and the Workflow ${wf.name} sends it at its next run.`);
+    return true;
+  };
+  if (await waits()) return false;
 
-  const claimed = await claim(ws, wf.id, step.id, period, "send_snapshot");
+  const claimed = await claim(ws, wf.id, SEND_CLAIM, period, "send_snapshot");
   if (claimed === null) return false;
+  // Asked again once the claim is ours: a draft written in between is left for its writer, and the period is not used up.
+  if (await waits()) { await db().from("workflow_step_runs").delete().eq("id", claimed).eq("workspace_id", ws); return false; }
   let snapshotId: number;
   try {
     snapshotId = existing ? (existing.id as number) : await takeSnapshot(owner, step.dashboardId, { kind: p.kind, start: p.start }, { automatic: true, today, workflowId: wf.id });
@@ -147,9 +152,14 @@ async function sendFinishedSnapshot(ws: string, wf: Workflow, period: string, to
   const counts = { sent: 0, skipped: 0 };
   try {
     const left = await sendLinks(ws, wf, step, { dashboardId: dash.id, dashboardName: dash.name, snapshotId, label: p.label, counts });
-    if (left.length) {
-      const names = await namesOf(ws, left);
-      await deliverNotice(ws, { recipientId: wf.owner_id, senderId: null, subject: `${wf.name}: ${left.length} could not open ${dash.name}`, text: `${left.length} ${left.length === 1 ? "person" : "people"} could not open ${dash.name} (${names.join(", ")}): share it with them and they get the next one.`, link: `/dashboards/${dash.id}` });
+    // Each person not sent to, with why, named to the owner only (nothing about the dashboard reaches them).
+    for (const [why, ids] of Object.entries(left)) {
+      if (!ids.length) continue;
+      const names = await namesOf(ws, ids);
+      const text = why === "open" ? `${ids.length} ${ids.length === 1 ? "person" : "people"} could not open ${dash.name} (${names.join(", ")}): share it with them and they get the next one.`
+        : why === "today" ? `${ids.length} ${ids.length === 1 ? "person" : "people"} did not get the link to ${dash.name} (${names.join(", ")}): over today's limit of messages.`
+        : `${ids.length} ${ids.length === 1 ? "person" : "people"} did not get the link to ${dash.name} (${names.join(", ")}): a Send Snapshot step sends to ${TELL_PEOPLE_PER_STEP} people at most.`;
+      await deliverNotice(ws, { recipientId: wf.owner_id, senderId: null, subject: `${wf.name}: ${ids.length} not sent the Snapshot`, text, link: why === "open" ? `/dashboards/${dash.id}` : `/workflows?id=${wf.id}` });
     }
   } finally {
     // The claim is made, so what was sent is written whatever happens while sending.
@@ -159,18 +169,23 @@ async function sendFinishedSnapshot(ws: string, wf: Workflow, period: string, to
   return true;
 }
 
-/** Sends the link to each person the step names who may open the dashboard, within the Alerts' daily limits; returns
- * the people who may not (skipped, to be named to the owner only). `counts` is filled as it goes. */
-async function sendLinks(ws: string, wf: Workflow, step: Step, what: { dashboardId: number; dashboardName: string; snapshotId: number; label: string; counts: { sent: number; skipped: number } }): Promise<string[]> {
+/** Sends the link to each person the step names who may open the dashboard, within the Alerts' daily limits. Returns the
+ * people not sent to by reason: they may not open the dashboard, they are over today's limit, or they are past the step's
+ * limit of people. `counts` is filled as it goes. */
+async function sendLinks(ws: string, wf: Workflow, step: Step, what: { dashboardId: number; dashboardName: string; snapshotId: number; label: string; counts: { sent: number; skipped: number } }): Promise<Record<"open" | "today" | "limit", string[]>> {
   const shares = await getShares(ws);
-  const left: string[] = [];
-  for (const person of await tellRecipients(ws, wf.id, step)) {
+  const left: Record<"open" | "today" | "limit", string[]> = { open: [], today: [], limit: [] };
+  const skip = (why: "open" | "today" | "limit", person: string) => { left[why].push(person); what.counts.skipped++; };
+  // A step sends to TELL_PEOPLE_PER_STEP people at most: the rest are named to the owner, not dropped in silence.
+  const everyone = await tellRecipients(ws, wf.id, step, { all: true });
+  for (const person of everyone.slice(TELL_PEOPLE_PER_STEP)) skip("limit", person);
+  for (const person of everyone.slice(0, TELL_PEOPLE_PER_STEP)) {
     // The moment of sending: may this person open the dashboard now? (Its owner, or an Editor or Viewer by a Share.)
-    if (!(await visibleDashboards(ws, person, shares)).some((d) => d.id === what.dashboardId)) { left.push(person); what.counts.skipped++; continue; }
+    if (!(await visibleDashboards(ws, person, shares)).some((d) => d.id === what.dashboardId)) { skip("open", person); continue; }
     const { data: slot } = await db().rpc("claim_alert_message", { p_ws: ws, p_person: person, p_day: new Date().toISOString().slice(0, 10), p_per_person: await effectiveLimit("alertMessagesPerPerson", ws, person), p_per_workspace: await sendingLimit("alertMessagesPerWorkspace") });
-    if (slot !== "send") continue;
+    if (slot !== "send") { skip("today", person); continue; }
     await deliverChecklist(ws, {
-      recipientId: person, senderId: wf.owner_id, workflowId: wf.id, subject: `${wf.name}: ${what.label} is finished`,
+      recipientId: person, senderId: wf.owner_id, workflowId: wf.id, dashboardId: what.dashboardId, subject: `${wf.name}: ${what.label} is finished`,
       // No value, no Metric name and none of the Snapshot's words: a link, which the person opens signed in.
       text: `${wf.name}: ${what.label} is finished. The Snapshot ${what.label} of ${what.dashboardName} is ready.\n\nYou are told by a Workflow; stop these in Your settings.`,
       link: `/dashboards/${what.dashboardId}/snapshots/${what.snapshotId}`,
@@ -206,7 +221,7 @@ export async function runSendSnapshot(ws: string, wf: Workflow, metrics: Metric[
     await noteOnce(ws, wf, "day", NO_PERIOD, `The Send Snapshot step of the Workflow ${wf.name} waits: a Snapshot covers a week or longer, and its Metrics have a period of a day.`);
     return [];
   }
-  const { data: runs } = await db().from("workflow_step_runs").select("period_start").eq("workflow_id", wf.id).eq("workspace_id", ws).eq("step_id", step.id).eq("kind", "send_snapshot");
+  const { data: runs } = await db().from("workflow_step_runs").select("period_start").eq("workflow_id", wf.id).eq("workspace_id", ws).eq("kind", "send_snapshot");
   const done = new Set((runs ?? []).map((r) => String(r.period_start)));
   const log: string[] = [];
   let period = when.period;

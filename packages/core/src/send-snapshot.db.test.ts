@@ -17,6 +17,7 @@ import { editSnapshotWords, listSnapshots, openSnapshot, showSnapshot, takeSnaps
 import { setTellStopped } from "./tell";
 import { runWorkflows, setLock } from "./workflow-engine";
 import { saveWorkflow } from "./workflows";
+import { archivedMetricHolds } from "./internal/delivery-send";
 import { updateWorkflowWithKey } from "./api-workflows";
 import { auditRowsOf, opened, workspace } from "./test/db-fixtures";
 import type { ChecklistItem, WorkflowStep } from "./types";
@@ -40,6 +41,7 @@ const LAST = format(startOfMonth(subMonths(new Date(), 1)), "yyyy-MM-dd");
 /** A run on the 5th of this month: the Workflow's period is last month. */
 const ASOF = format(addDays(startOfMonth(new Date()), 4), "yyyy-MM-dd");
 const SEND = "send-snap-aaaa";
+const CLAIM = "send-snapshot";
 const publish: WorkflowStep = { type: "publish", lock: true };
 const tick = (assignee: string): ChecklistItem => ({ type: "checklist", id: "tick-one-aaaa", kind: "tick", text: "Reconcile the bank account", assignee, dueWorkingDays: 3 });
 
@@ -69,6 +71,8 @@ async function setup(opts: { metrics?: number; annSees?: number; steps?: Workflo
   const count = opts.metrics ?? 2;
   const dash = await createDashboard(w.actor(sara), "Board KPIs");
   const flow = await saveWorkflow(w.actor(sara), null, "Month-end close", { dueWorkingDays: 2, steps: [...(opts.steps ?? []), ...(opts.send === false ? [] : [{ type: "send_snapshot", id: SEND, dashboardId: dash, people: (opts.people ?? ((p) => [p.ann, p.bob]))({ ann, bob }), groups: [] } as WorkflowStep]), publish] });
+  // Saved before the period ended (a step saved now sends nothing for a period that ended before it).
+  await makeOld(flow);
   const metrics: { id: number; slug: string }[] = [];
   for (let i = 1; i <= count; i++) {
     const m = await w.metric(sara, { name: `Secret metric ${i}`, workflow_id: flow });
@@ -104,9 +108,8 @@ describe("a finished period", () => {
     expect(await messages(w, bob)).toHaveLength(0);
     expect((await db().from("deliveries").select("id").eq("workspace_id", w.id).eq("recipient_id", bob)).data).toHaveLength(0);
     const [note] = await notices(w, sara);
-    expect(note.subject).toContain("could not open");
-    expect(note.body).toContain("Board KPIs");
-    expect(await runsOf(flow, "send_snapshot")).toEqual([{ step_id: SEND, period_start: LAST, kind: "send_snapshot", sent: 1, skipped: 1, snapshot_id: snap.id }]);
+    expect(note.body).toMatch(/could not open Board KPIs/);
+    expect(await runsOf(flow, "send_snapshot")).toEqual([{ step_id: CLAIM, period_start: LAST, kind: "send_snapshot", sent: 1, skipped: 1, snapshot_id: snap.id }]);
     // Never a Share (beyond Ann's own) and never a View Link.
     expect((await db().from("shares").select("user_id").eq("workspace_id", w.id).eq("object_type", "dashboard")).data).toEqual([{ user_id: ann }]);
     expect((await db().from("view_links").select("id").eq("workspace_id", w.id)).data).toHaveLength(0);
@@ -287,7 +290,7 @@ describe("who gets it", () => {
     for (const nobody of [bob, gwen, ann]) expect((await db().from("deliveries").select("id").eq("workspace_id", w.id).eq("recipient_id", nobody)).data).toHaveLength(0);
     // Only Sara hears who could not open it (Bob and Gwen); the removed member is no longer anyone to name.
     const [note] = await notices(w, sara);
-    expect(note.subject).toContain("2 could not open");
+    expect(note.body).toMatch(/2 people could not open Board KPIs/);
     expect((await runsOf(flow, "send_snapshot"))[0]).toMatchObject({ sent: 2, skipped: 2 });
     // A Guest's message names no one else.
     expect((await messages(w, gus))[0].body).not.toMatch(/owner t-|member t-/);
@@ -349,10 +352,61 @@ describe("the timeline and the lock summary", () => {
     const { periodTimeline } = await import("./period-timeline");
     const owner = await periodTimeline(w.actor(sara), (await db().from("workflows").select("id").eq("workspace_id", w.id).single()).data!.id as number, LAST);
     expect(owner.finished).toBe(true);
-    expect(owner.events.find((e) => e.kind === "snapshot_sent")?.text).toMatch(/Sent the Snapshot .* of Board KPIs to 1 person, 1 could not open it/);
+    expect(owner.events.find((e) => e.kind === "snapshot_sent")?.text).toMatch(/Sent the Snapshot .* of Board KPIs to 1 person, 1 not sent/);
     expect(owner.events.some((e) => e.kind === "finished" && /is finished/.test(e.text))).toBe(true);
     const viewer = await periodTimeline(w.actor(ann, "member"), (await db().from("workflows").select("id").eq("workspace_id", w.id).single()).data!.id as number, LAST);
     expect(viewer.events.find((e) => e.kind === "snapshot_sent")?.text).toBe(`Sent the Snapshot ${owner.label} of Board KPIs to 1 person`);
     expect(viewer.events.find((e) => e.kind === "snapshot_sent")?.path).toContain(`/dashboards/${dash}/snapshots/`);
+  });
+});
+
+describe("review fixes", () => {
+  it("does not send when the person may no longer open the dashboard by the time the message leaves", async () => {
+    const { w, sara, ann, dash, lockAll } = await setup({ people: (p) => [p.ann] });
+    await lockAll();
+    const { data } = await db().from("deliveries").select("id, workspace_id, recipient_id, kind, tell_workflow_id, snapshot_dashboard_id").eq("workspace_id", w.id).eq("recipient_id", ann).eq("kind", "checklist");
+    expect(data).toHaveLength(1);
+    expect(data![0].snapshot_dashboard_id).toBe(dash);
+    expect(await archivedMetricHolds(data![0] as never)).toBeNull();
+    await share(w.actor(sara), "dashboard", dash, ann, null);
+    expect(await archivedMetricHolds(data![0] as never)).toBe("Not sent.");
+  });
+
+  it("does not show a draft that was written in meanwhile", async () => {
+    const { w, sara, dash } = await setup({ people: (p) => [p.ann] });
+    const id = await takeSnapshot(w.actor(sara), dash, { kind: "month", start: LAST }, { automatic: true });
+    await editSnapshotWords(w.actor(sara), id, { intro: "By hand." });
+    await expect(showSnapshot(w.actor(sara), id, { workflowId: 1 })).rejects.toThrow(/written in/);
+    expect((await snapshotsOf(dash))[0].shown_at).toBeNull();
+  });
+
+  it("names those over today's limit or past the step's 20 people to the owner, with their reason", async () => {
+    const { w, sara, dash, flow, lockAll } = await setup({ people: () => [] });
+    const crowd: string[] = [];
+    for (let i = 0; i < 22; i++) { const p = await w.person("member", { email: address(`c${i}`) }); await share(w.actor(sara), "dashboard", dash, p, "viewer"); crowd.push(p); }
+    const config = (await db().from("workflows").select("config").eq("id", flow).single()).data!.config;
+    // Stored past the editor's limit (as a Group's members are): 22 people named.
+    await db().from("workflows").update({ config: { ...config, steps: config.steps.map((s: WorkflowStep) => (s.type === "send_snapshot" ? { ...s, people: crowd } : s)) } }).eq("id", flow);
+    await lockAll();
+    expect((await runsOf(flow, "send_snapshot"))[0]).toMatchObject({ sent: 20, skipped: 2 });
+    expect((await notices(w, sara)).some((n) => /at most/.test(n.body))).toBe(true);
+  });
+
+  it("sends nothing for a period that ended before the step was added, and nothing twice when the step is removed and added again", async () => {
+    const { w, sara, ann, flow, lockAll } = await setup({ people: (p) => [p.ann] });
+    const fresh = (await db().from("workflows").select("config").eq("id", flow).single()).data!.config;
+    // Added now: last month ended before it.
+    await db().from("workflows").update({ config: { ...fresh, steps: fresh.steps.map((s: { addedOn?: string }) => (s.addedOn ? { ...s, addedOn: format(new Date(), "yyyy-MM-dd") } : s)) } }).eq("id", flow);
+    await lockAll();
+    expect(await messages(w, ann)).toHaveLength(0);
+    await makeOld(flow);
+    await checkFinishedPeriod(w.id, flow, LAST);
+    expect(await messages(w, ann)).toHaveLength(1);
+    // Removed and added again under another id: the period is not sent twice.
+    const cur = (await db().from("workflows").select("config").eq("id", flow).single()).data!.config;
+    await saveWorkflow(w.actor(sara), flow, "Month-end close", { ...cur, steps: cur.steps.map((s: WorkflowStep) => (s.type === "send_snapshot" ? { ...s, id: "send-snap-zzzz" } : s)) });
+    await makeOld(flow);
+    await checkFinishedPeriod(w.id, flow, LAST);
+    expect(await messages(w, ann)).toHaveLength(1);
   });
 });

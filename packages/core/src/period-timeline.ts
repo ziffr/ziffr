@@ -9,6 +9,7 @@
 import { db } from "./db";
 import { openWorkflowRow } from "./workflow-rows";
 import { mayReadItem } from "./checklist-rules";
+import { periodFinishedAt } from "./period-finished";
 import { assertScope, Forbidden, type Actor, type KeyActor } from "./actor";
 import { getGroups, peopleFor, threadReader, visibleDashboards, visibleMetricIds } from "./access";
 import { getMetrics } from "./workspace-data";
@@ -353,7 +354,7 @@ export async function periodTimelineAbout(actor: Actor | KeyActor, workflowId: n
     raw.push({ at: new Date(s.shown_at as string), kind: "snapshot", metric: null, text: `Snapshot ${s.label} of ${dash.name} is ready`, path: `/dashboards/${dash.id}/snapshots/${s.id}` });
   }
 
-  const own = await workflowLines({ ws, workflowId, period, label, viewer, role: actor.role, groups, dashboards, countable, states: states ?? [], tasks: taskRows });
+  const own = await workflowLines({ ws, workflowId, period, label, viewer, role: actor.role, groups, dashboards, hasTasks: taskRows.length > 0 });
   raw.push(...own.lines);
   const finished = own.finished;
 
@@ -370,7 +371,7 @@ export async function periodTimelineAbout(actor: Actor | KeyActor, workflowId: n
  * finished. The words of a Checklist Item are shown only to someone who may read it; everyone else reads that one was sent. The
  * counts of people left out are the owner's alone. The words are the item's current ones, not the ones it had when it went
  * out: the claim keeps no words (rule 3). A Guest who may not open the Snapshot's dashboard is shown no line of it. */
-async function workflowLines(a: { ws: string; workflowId: number; period: string; label: string; viewer: string; role: Actor["role"]; groups: Awaited<ReturnType<typeof getGroups>>; dashboards: Awaited<ReturnType<typeof visibleDashboards>>; countable: Metric[]; states: { metric_id: unknown; state: unknown; updated_at: unknown }[]; tasks: { status: string; updated_at: string }[] }): Promise<{ lines: Raw[]; finished: boolean }> {
+async function workflowLines(a: { ws: string; workflowId: number; period: string; label: string; viewer: string; role: Actor["role"]; groups: Awaited<ReturnType<typeof getGroups>>; dashboards: Awaited<ReturnType<typeof visibleDashboards>>; hasTasks: boolean }): Promise<{ lines: Raw[]; finished: boolean }> {
   const { ws, workflowId, label, viewer, groups } = a;
   const lines: Raw[] = [];
   const flow = await openWorkflowRow(ws, (await db().from("workflows").select("id, owner_id, config").eq("id", workflowId).eq("workspace_id", ws).maybeSingle()).data);
@@ -378,30 +379,29 @@ async function workflowLines(a: { ws: string; workflowId: number; period: string
   const owner = Boolean(flow && flow.owner_id === viewer);
   const { data: stepRuns } = await db().from("workflow_step_runs").select("step_id, kind, ran_at, sent, skipped, snapshot_id").eq("workspace_id", ws).eq("workflow_id", workflowId).eq("period_start", a.period).in("kind", ["checklist", "send_snapshot"]).order("ran_at");
   const items = new Map(steps.filter((x): x is ChecklistItem => x.type === "checklist").map((x) => [x.id, x]));
-  const sendStep = steps.find((x) => x.type === "send_snapshot");
+  // The dashboard a sent Snapshot belongs to is the one the run kept (not whatever the step names now).
+  const snapIds = (stepRuns ?? []).flatMap((r) => (r.snapshot_id ? [r.snapshot_id as number] : []));
+  const { data: snaps } = snapIds.length ? await db().from("dashboard_snapshots").select("id, dashboard_id").eq("workspace_id", ws).in("id", snapIds) : { data: [] };
+  const dashOf = new Map((snaps ?? []).map((x) => [x.id as number, x.dashboard_id as number]));
   const me = { id: viewer, role: a.role, groupIds: groups.filter((g) => g.members.includes(viewer)).map((g) => g.id) };
   for (const r of stepRuns ?? []) {
     const left = Number(r.skipped);
     const to = plural(Number(r.sent), "person", "people");
     const at = new Date(r.ran_at as string);
     if (r.kind === "send_snapshot") {
-      // The dashboard's name only to someone who may open it.
-      const dash = sendStep && "dashboardId" in sendStep ? a.dashboards.find((d) => d.id === sendStep.dashboardId) : undefined;
-      if (dash || a.role !== "guest") lines.push({ at, kind: "snapshot_sent", metric: null, text: dash ? `Sent the Snapshot ${label} of ${dash.name} to ${to}${owner && left ? `, ${left} could not open it` : ""}` : `The Snapshot was sent to ${to}`, path: dash && r.snapshot_id ? `/dashboards/${dash.id}/snapshots/${r.snapshot_id}` : undefined });
+      // The dashboard's name and the link only to someone who may open it; a Guest who may not is shown no line at all.
+      const dash = a.dashboards.find((d) => d.id === dashOf.get(r.snapshot_id as number));
+      if (dash || a.role !== "guest") lines.push({ at, kind: "snapshot_sent", metric: null, text: dash ? `Sent the Snapshot ${label} of ${dash.name} to ${to}${owner && left ? `, ${left} not sent` : ""}` : `The Snapshot was sent to ${to}`, path: dash ? `/dashboards/${dash.id}/snapshots/${r.snapshot_id}` : undefined });
       continue;
     }
     const item = items.get(String(r.step_id));
     const may = Boolean(flow && item && mayReadItem(item, me, String(flow.owner_id)));
     lines.push({ at, kind: "checklist_sent", metric: null, text: may ? `Sent “${firstWords(item!.text)}” to ${to}` : "A checklist item was sent", detail: owner && left ? `${plural(left, "person", "people")} could not be told` : undefined });
   }
-  // The period is finished once every value is locked and every Checklist Task is done (the same rule as periodFinished): the
-  // line is for Workflows with a checklist or a Send Snapshot step, where it means something, and carries no word.
-  const locked = a.states.filter((r) => r.state === "locked" && a.countable.some((m) => m.id === r.metric_id));
-  const finished = a.countable.length > 0 && locked.length === a.countable.length && a.tasks.every((t) => t.status === "closed");
-  if (finished && (a.tasks.length > 0 || sendStep)) {
-    const at = [...locked.map((r) => String(r.updated_at)), ...a.tasks.map((t) => String(t.updated_at))].sort().at(-1)!;
-    lines.push({ at: new Date(at), kind: "finished", metric: null, text: `${label} is finished` });
-  }
+  // The same rule as the Send Snapshot step uses (period-finished.ts); the line is for Workflows with a checklist or the step, where it means something.
+  const at = await periodFinishedAt(ws, workflowId, a.period);
+  const finished = at !== null;
+  if (at && (a.hasTasks || steps.some((x) => x.type === "send_snapshot"))) lines.push({ at: new Date(at), kind: "finished", metric: null, text: `${label} is finished` });
   return { lines, finished };
 }
 

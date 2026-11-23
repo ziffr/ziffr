@@ -4,7 +4,7 @@
 // imports from core/internal (.github/scripts/app-db-access.mjs).
 import { db } from "../db";
 import { ARCHIVED_BEFORE_SENT } from "../archived-metrics";
-import { visibleMetricIds } from "../access";
+import { visibleDashboards, visibleMetricIds } from "../access";
 import { getMetrics } from "../workspace-data";
 
 /** Stands in a Prompt's stored text for the recipient's personal form link, which is added only when it is sent. */
@@ -30,7 +30,7 @@ export async function withFormLink(body: string, d: { workspace_id: string; form
 export const PROMPT_ANSWERED = "Not sent: the request was answered another way first.";
 
 /** What a Delivery is about, as far as its Metric goes. */
-type AboutMetric = { id: number; workspace_id: string; kind: string; recipient_id?: string; alert_metric_id?: number | null; heads_up_metric_a?: number | null; heads_up_metric_b?: number | null; heads_up_key?: string | null; heads_up_told_id?: number | null; tell_workflow_id?: number | null; prompt_id?: number | null; form_token_id?: number | null; action_id?: number | null };
+type AboutMetric = { id: number; workspace_id: string; kind: string; recipient_id?: string; alert_metric_id?: number | null; heads_up_metric_a?: number | null; heads_up_metric_b?: number | null; heads_up_key?: string | null; heads_up_told_id?: number | null; tell_workflow_id?: number | null; snapshot_dashboard_id?: number | null; prompt_id?: number | null; form_token_id?: number | null; action_id?: number | null };
 
 /** Why a message of a Workflow's (a Tell or a Checklist Item) must not go out: its recipient said "stop telling me" after it was queued. Null otherwise. */
 async function toldStop(d: AboutMetric): Promise<string | null> {
@@ -49,6 +49,9 @@ export async function archivedMetricHolds(d: AboutMetric): Promise<string | null
   if (d.kind === "checklist") {
     // Nor does it leave for someone who has left the Workspace since it was queued.
     if (!d.recipient_id || !(await db().from("memberships").select("user_id").eq("workspace_id", ws).eq("user_id", d.recipient_id).maybeSingle()).data) return "Not sent: the person is no longer in the Workspace.";
+    // A Send Snapshot message (spec 0045) leaves only while its recipient may still open the dashboard it links to: asked
+    // again here, when it is sent, not only when it was queued (rule 3).
+    if (d.snapshot_dashboard_id && !(await visibleDashboards(ws, d.recipient_id)).some((x) => x.id === d.snapshot_dashboard_id)) return "Not sent.";
     return toldStop(d);
   }
   // An Alert message (GLOSSARY: Alert) leaves only while its recipient may still see its Metric and it is in use: asked

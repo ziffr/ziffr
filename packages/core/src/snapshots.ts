@@ -440,6 +440,8 @@ export async function showSnapshot(actor: Actor, snapshotId: number, opts: { wor
   const { row, writer } = await readable(actor, snapshotId, "id, dashboard_id, label, shown_at");
   if (!writer) throw new Forbidden();
   if (row.shown_at) return;
+  // A Workflow shows only a draft nobody has written in (a Version exists once someone does); one written in meanwhile is left for its writer.
+  if (opts.workflowId && (await db().from("versions").select("id", { count: "exact", head: true }).eq("object_type", "snapshot").eq("object_id", snapshotId)).count) throw new Refused("This Snapshot has been written in: show it by hand.");
   const { error } = await db().from("dashboard_snapshots").update({ shown_at: new Date().toISOString(), shown_by: actor.personId }).eq("id", snapshotId).eq("workspace_id", actor.workspaceId).is("shown_at", null);
   if (error) throw new Error("The Snapshot could not be shown.");
   const { data: d } = await db().from("dashboards").select("name").eq("id", row.dashboard_id).eq("workspace_id", actor.workspaceId).maybeSingle();

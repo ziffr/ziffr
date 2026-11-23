@@ -10,6 +10,8 @@ alter table workflow_step_runs add constraint workflow_step_runs_kind_check
   check (kind in ('checklist', 'paused', 'task_step', 'send_snapshot', 'snapshot_note'));
 -- The Snapshot a send used. A deleted Snapshot keeps no frozen part; the row only forgets which one it was.
 alter table workflow_step_runs add column snapshot_id bigint references dashboard_snapshots(id) on delete set null;
+-- The dashboard a message links to, so that it is checked again when it leaves that its recipient may still open it (rule 3).
+alter table deliveries add column snapshot_dashboard_id int references dashboards(id) on delete set null;
 
 create or replace function claim_workflow_step(p_workspace uuid, p_workflow int, p_step text, p_period date, p_kind text)
 returns bigint language plpgsql security definer set search_path = public as $$
@@ -35,7 +37,7 @@ grant execute on function claim_workflow_step(uuid, int, text, date, text) to se
 create or replace function prototype_seed_close() returns void language plpgsql security definer set search_path = public as $$
 declare
   demo constant uuid := 'd3e00000-0000-4000-8000-000000000001';
-  fin int; board int; snap bigint; task int; bank text := 'demo-bank-reconcile'; cutoff text := 'demo-invoice-cutoff'; send text := 'demo-board-snapshot';
+  fin int; board int; snap bigint; task int; bank text := 'demo-bank-reconcile'; cutoff text := 'demo-invoice-cutoff'; send text := 'demo-board-snapshot'; send_claim constant text := 'send-snapshot';
   past date := (date_trunc('month', current_date) - interval '2 months')::date;
   current_p date := (date_trunc('month', current_date) - interval '1 month')::date;
   added date := (date_trunc('month', current_date) - interval '6 months')::date;
@@ -66,7 +68,7 @@ begin
   insert into workflow_step_runs (workspace_id, workflow_id, step_id, period_start, kind, ran_at, sent)
   values (demo, fin, cutoff, past, 'checklist', past + interval '1 month' + interval '1 day 9 hours', 2);
   insert into workflow_step_runs (workspace_id, workflow_id, step_id, period_start, kind, ran_at, sent, skipped, snapshot_id)
-  values (demo, fin, send, past, 'send_snapshot', past + interval '1 month' + interval '4 days 1 minute', 2, 0, snap);
+  values (demo, fin, send_claim, past, 'send_snapshot', past + interval '1 month' + interval '4 days 1 minute', 2, 0, snap);
   -- The current period: its Task is still open.
   insert into actions (workspace_id, workflow_id, checklist_item_id, period_start, asker_id, assignee_id, question, kind, purpose, status, due_date)
   values (demo, fin, bank, current_p, 'sara', 'ben', 'Reconcile the bank account', 'task', 'checklist', 'open', (current_p + interval '1 month' + interval '3 days')::date);
