@@ -1,0 +1,285 @@
+{
+  "name": "BigQuery to Ziffr (values)",
+  "nodes": [
+    {
+      "parameters": {
+        "content": "BigQuery to Ziffr: values\n\n1. Fill in the Settings node: your Ziffr address and the Google Cloud project id and the tables in Your query (the query names the Metrics).\n2. Add the credentials: BigQuery on the read node, and a Header Auth credential named \"Ziffr Feed Key\" (name Authorization, value Bearer <your Feed Key>) on Send to Ziffr. Make the key in Ziffr under Settings, Feeds, and add the Feed under Who submits on each Metric.\n3. Press Execute workflow once to try it, then activate it: it runs on the 1st of every month at 9, for the month that has just ended (UTC).\n\nThe rows of a query you write in BigQuery, read only: each row has a metric (the Metric's slug), a value and the period's first day. Runs once a month, for the month that has just ended.\n\nEdit the query in the node \"Your query\": it must return one row per figure with the columns metric (the Metric's slug), value (a number) and period (the first day of the month). The first date in the example query is :period_start and the second :period_end: leave them as they are, they are the month that has just ended.",
+        "width": 460,
+        "height": 420
+      },
+      "id": "147dcb7d-5aa2-5fa9-b27b-4254669650f4",
+      "name": "Read me",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -60,
+        -60
+      ]
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "months",
+              "triggerAtDayOfMonth": 1,
+              "triggerAtHour": 9
+            }
+          ]
+        }
+      },
+      "id": "ef7f87eb-cadc-56cc-8905-e6c7ae63e8c6",
+      "name": "On the 1st at 9",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        0,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "29b0d525-3b69-54f6-a6a3-2d3650e7029f",
+              "name": "ziffrUrl",
+              "value": "https://REPLACE-WITH-YOUR-ZIFFR-ADDRESS",
+              "type": "string"
+            }
+          ]
+        },
+        "includeOtherFields": true,
+        "options": {
+          "includeBinary": true
+        }
+      },
+      "id": "95b13339-c57a-54bd-b5a5-b4f21bfbf8a8",
+      "name": "Settings",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        220,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "={{ $('Settings').first().json.ziffrUrl.replace(/\\/+$/, '') }}/api/v1/feed",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "limit",
+              "value": "200"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "90cba771-9f81-57dd-ae37-bb7dab0d8f15",
+      "name": "What is filled",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        440,
+        300
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "name": "Ziffr Feed Key"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "resource": "database",
+        "operation": "executeQuery",
+        "projectId": {
+          "__rl": true,
+          "value": "REPLACE-WITH-YOUR-PROJECT-ID",
+          "mode": "id"
+        },
+        "sqlQuery": "=-- EDIT THIS QUERY. One row per figure: metric (the Metric's slug), value (a number), period (the month's first day).\n-- Add more Metrics with UNION ALL. Keep the dates as they are: they are the month that has just ended.\nSELECT 'revenue' AS metric, CAST(SUM(amount) AS NUMERIC) AS value, DATE '{{ $now.minus({ months: 1 }).startOf('month').toFormat('yyyy-MM-dd') }}' AS period\nFROM `my-project.my_dataset.orders`\nWHERE created_at >= TIMESTAMP '{{ $now.minus({ months: 1 }).startOf('month').toFormat('yyyy-MM-dd') }}' AND created_at < TIMESTAMP '{{ $now.startOf('month').toFormat('yyyy-MM-dd') }}'\nUNION ALL\nSELECT 'new-customers', COUNT(*), DATE '{{ $now.minus({ months: 1 }).startOf('month').toFormat('yyyy-MM-dd') }}'\nFROM `my-project.my_dataset.customers`\nWHERE created_at >= TIMESTAMP '{{ $now.minus({ months: 1 }).startOf('month').toFormat('yyyy-MM-dd') }}' AND created_at < TIMESTAMP '{{ $now.startOf('month').toFormat('yyyy-MM-dd') }}'",
+        "options": {}
+      },
+      "id": "7e087b31-6e23-5f6e-be43-cd2665947f37",
+      "name": "Your query",
+      "type": "n8n-nodes-base.googleBigQuery",
+      "typeVersion": 2.1,
+      "position": [
+        660,
+        300
+      ],
+      "credentials": {
+        "googleBigQueryOAuth2Api": {
+          "name": "Google BigQuery account"
+        }
+      },
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "jsCode": "// BigQuery -> Ziffr (spec 0048), the part that is about the source: the rows your query returned become plain rows\n// { row, metric, value, period }. The query gives each row the columns metric (the Metric's slug), value (a number) and\n// period (the period's first day). Column names are read without regard to capitals, because a warehouse may write them\n// in upper case (Snowflake does). A day that comes as a full timestamp (\"2026-10-01T00:00:00.000Z\") is cut to the day, in\n// UTC; a number the warehouse gave as text is left for the node after this one to check. Nothing else is copied out of a\n// row, so no other column leaves n8n. The checks, and what is sent, are in the node after this one.\nconst lower = (row) => Object.fromEntries(Object.entries(row).map(([k, v]) => [String(k).trim().toLowerCase(), v]));\nconst asDay = (p) => {\n  const v = p && typeof p === 'object' && 'value' in p ? p.value : p;\n  if (typeof v === 'string' && /^\\d{4}-\\d{2}-\\d{2}T/.test(v.trim())) return v.trim().slice(0, 10);\n  return v;\n};\nconst rows = $input.all().map((item, n) => {\n  const r = lower(item.json);\n  return { row: n + 1, metric: r.metric, value: r.value, period: asDay(r.period) };\n});\nreturn [{ json: { rows, none: 'The query returned no row with a Metric slug and a number: it must return the columns metric, value and period.' } }];\n"
+      },
+      "id": "250bf887-a837-5b9c-8b21-f55f9e331981",
+      "name": "Figures",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        880,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Shape values (spec 0043): the one node every Feed template shares. The source node before it hands over plain rows\n// { metric, value, period?, row? } and nothing else; this node is what makes them safe to send, whatever the source is:\n//  - each row is checked as Ziffr would check it (a Metric slug, a plain number, a period written as a day), a row that fails is\n//    skipped and said so, the same Metric and period twice is skipped, and at most 500 are sent;\n//  - Ziffr is asked which periods already hold a value (the node \"What is filled\", GET /api/v1/feed, as @ziffr/feed-kit does) and a\n//    past period that has one is not sent again, so a rerun, a manual run or a later run never overwrites, adds to or doubles what\n//    is there, whatever the Metric's Submission Rule; the current period is always sent, since its value may still change;\n//  - the key is made from the figures alone, so a retried run records nothing twice.\n// Only { metric, period, value } leaves: no other field of a row is read.\nconst SLUG = /^[a-z0-9][a-z0-9-]{0,99}$/;\nconst DAY = /^\\d{4}-\\d{2}-\\d{2}$/;\nconst NUMBER = /^-?\\d+(\\.\\d+)?$/;\nconst MAX_ITEMS = 500;\nconst given = $input.first().json;\nconst rows = Array.isArray(given.rows) ? given.rows : [];\nconst skipped = Array.isArray(given.skipped) ? [...given.skipped] : [];\nconst items = [];\nconst seen = new Set();\nrows.forEach((r, n) => {\n  const row = r.row ?? n + 1;\n  const metric = String(r.metric ?? '').trim();\n  const raw = typeof r.value === 'number' ? String(r.value) : String(r.value ?? '').trim();\n  const period = String(r.period ?? '').trim();\n  if (metric === '' && raw === '' && period === '') return;\n  if (!SLUG.test(metric)) { skipped.push({ row, why: 'the metric is not a Metric slug' }); return; }\n  if (!NUMBER.test(raw)) { skipped.push({ row, metric, why: 'the value is not a plain number' }); return; }\n  if (period !== '' && !DAY.test(period)) { skipped.push({ row, metric, why: 'the period is not a day written YYYY-MM-DD' }); return; }\n  const at = metric + '/' + period;\n  if (seen.has(at)) { skipped.push({ row, metric, why: 'the same Metric and period appear twice' }); return; }\n  seen.add(at);\n  if (items.length >= MAX_ITEMS) { skipped.push({ row, metric, why: 'more than ' + MAX_ITEMS + ' rows' }); return; }\n  items.push(period === '' ? { metric, value: Number(raw) } : { metric, period, value: Number(raw) });\n});\nif (items.length === 0) throw new Error(String(given.none || 'No figure to send: nothing holds a Metric slug and a number.'));\n\nconst overview = $('What is filled').first().json;\nconst listed = overview && overview.metrics && Array.isArray(overview.metrics.items) ? overview.metrics.items : [];\nif (overview && overview.metrics && overview.metrics.next) throw new Error('This Feed submits to more than 200 Metrics; this template reads that many at most. No figure was sent.');\nconst metricOf = new Map(listed.map((m) => [m.slug, m]));\nconst send = items.filter((i) => {\n  const m = metricOf.get(i.metric);\n  return !(m && i.period && i.period !== m.current && Array.isArray(m.filled) && m.filled.includes(i.period));\n});\nconst settled = items.length - send.length;\nif (send.length === 0) return [];\n\nlet h = 5381;\nconst body = JSON.stringify(send);\nfor (let i = 0; i < body.length; i++) h = ((h * 33) ^ body.charCodeAt(i)) >>> 0;\nconst key = 'bigquery-' + h.toString(36) + '-' + send.length;\nreturn [{ json: { items: send, skipped, settled, key } }];\n"
+      },
+      "id": "9f01be68-8594-546c-b3f2-c8334a13c1a3",
+      "name": "Shape values",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1100,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $('Settings').first().json.ziffrUrl.replace(/\\/+$/, '') }}/api/v1/feed/observations",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Idempotency-Key",
+              "value": "={{ $json.key }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "json",
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ items: $json.items }) }}",
+        "options": {}
+      },
+      "id": "5c196bfe-596c-5269-b946-46830ee131fc",
+      "name": "Send to Ziffr",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1320,
+        300
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "name": "Ziffr Feed Key"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Ziffr's answer to a batch of values (spec 0043): one result per item, in the order sent. A refused item fails the run,\n// so that n8n shows it as failed and its owner looks; the rest were recorded all the same (each item stands on its own).\nconst results = Array.isArray($input.first().json.results) ? $input.first().json.results : [];\nconst shaped = $('Shape values').first().json;\nconst refused = results.filter((r) => r.status === 'refused');\nif (refused.length) {\n  const why = refused.slice(0, 10).map((r) => String(r.metric) + ' ' + String(r.period ?? '') + ' (' + String(r.code ?? 'refused') + '): ' + String(r.detail)).join('; ');\n  throw new Error('Ziffr refused ' + refused.length + ' of ' + results.length + ' values: ' + why + (refused.length > 10 ? '; and more' : ''));\n}\nconst count = (s) => results.filter((r) => r.status === s).length;\nreturn [{ json: { recorded: count('recorded'), waitingForApproval: count('awaiting_approval'), proposedAsCorrection: count('locked'), alreadyThere: shaped.settled, skippedRows: shaped.skipped } }];\n"
+      },
+      "id": "ed4994a4-85b7-5c57-a287-747121e65547",
+      "name": "Check the answers",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1540,
+        300
+      ]
+    }
+  ],
+  "connections": {
+    "On the 1st at 9": {
+      "main": [
+        [
+          {
+            "node": "Settings",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Settings": {
+      "main": [
+        [
+          {
+            "node": "What is filled",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "What is filled": {
+      "main": [
+        [
+          {
+            "node": "Your query",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Your query": {
+      "main": [
+        [
+          {
+            "node": "Figures",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Figures": {
+      "main": [
+        [
+          {
+            "node": "Shape values",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Shape values": {
+      "main": [
+        [
+          {
+            "node": "Send to Ziffr",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send to Ziffr": {
+      "main": [
+        [
+          {
+            "node": "Check the answers",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "timezone": "UTC"
+  },
+  "pinData": {},
+  "active": false,
+  "tags": []
+}

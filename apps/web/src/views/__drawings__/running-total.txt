@@ -22,5 +22,5 @@
 <g data-line=now>
 <polyline fill=none points=69.38,187.48917163216413 100.52727272727273,167.48645954911234 131.67454545454547,147.6678681122919 162.82181818181817,126.74976657042816 193.9690909090909,106.45538116591929 225.11636363636362,85.34288039805885 stroke-linecap=round stroke-linejoin=round stroke-width=2.4 stroke=var(--color-error)>
 <circle cx=225.11636363636362 cy=85.34288039805885 fill=var(--color-error) r=3.2>
-"This year 809,970 € · Plan 953,947 € · Last year 1,302,320 €"
+"This year 809,970 € · Target 953,947 € · Last year 1,302,320 €"
 "Jun 26 is still running, so the comparison is made at May 26."

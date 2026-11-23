@@ -59,7 +59,7 @@ const records = (importerEmail: string): WorkspaceExportRecord[] => [
   { kind: "target", metric: "m1", period: "2026-04-01", min: 10, max: 20 },
   { kind: "target", metric: "m2", period: "2026-04-01", max: 7 },
   { kind: "projection", metric: "m1", period: "2027-04-01", value: 12.5 },
-  { kind: "value", metric: "m1", period: "2026-04-01", value: 14, recordedAt: "2026-05-01T08:00:00Z", source: "slack", submittedBy: "Ada", enteredBy: "Ben", breakdown: [{ label: "Germany", value: 9 }, { label: "France", value: 5 }] },
+  { kind: "value", metric: "m1", period: "2026-04-01", value: 14, recordedAt: "2026-05-01T08:00:00Z", source: "slack", submittedBy: "Ada", enteredBy: "Ben", breakdown: [{ label: "Berlin", value: 4, parent: "Germany" }, { label: "Germany", value: 9 }, { label: "France", value: 5 }] },
   { kind: "value", metric: "m1", period: "2026-07-01", value: 21.25 },
   { kind: "value", metric: "m3", period: "2026-04-01", value: 3 },
 ];
@@ -126,8 +126,11 @@ describe("a sound file", () => {
     // Sealed under this Workspace's own key: another Workspace's key (the importer's own) opens none of it.
     if (cipher.sealing) expect((await openRows("observations", w.id, obs!)).map((o) => o.value)).toEqual([null, null]);
     expect(new Date(obs![0].created_at as string).toISOString()).toBe("2026-05-01T08:00:00.000Z");
-    const { data: parts } = await db().from("breakdown_rows").select("id, label, label_index, value, value_sealed").eq("workspace_id", ws).order("position");
-    expect((await openRows("breakdown_rows", ws, parts!)).map((p) => [p.label, p.value])).toEqual([["Germany", 9], ["France", 5]]);
+    const { data: parts } = await db().from("breakdown_rows").select("id, parent_id, label, label_index, value, value_sealed").eq("workspace_id", ws).order("position");
+    const rows = await openRows("breakdown_rows", ws, parts!);
+    // A part of another row (spec 0041, ticket 12) is written under its parent, which comes first.
+    expect(rows.map((p) => [p.label, p.value])).toEqual([["Germany", 9], ["France", 5], ["Berlin", 4]]);
+    expect(rows.map((p) => p.parent_id)).toEqual([null, null, rows[0].id]);
     // A lower-is-better Metric's target is the file's upper end.
     const { data: targets } = await db().from("series_values").select("metric_id, kind, period_start, value, value_sealed").eq("workspace_id", ws);
     expect(targets).toHaveLength(3);

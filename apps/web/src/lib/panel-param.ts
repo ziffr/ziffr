@@ -8,6 +8,9 @@ import { useSearchParams } from "next/navigation";
 /** The name of a Metric's quick look in the address, `metric-<slug>`. */
 export const lookPanel = (slug: string) => `metric-${slug}`;
 
+/** The name of the panel with the open Actions about Metrics, `actions-<slug>[,<slug>]` (no slugs: the prefix alone). */
+export const actionsPanel = (slugs: readonly string[]) => `actions-${slugs.join(",")}`;
+
 /** Writes which panel is open into the address (none for null); only one panel is open at a time. */
 export function writePanel(name: string | null) {
   const url = new URL(window.location.href);

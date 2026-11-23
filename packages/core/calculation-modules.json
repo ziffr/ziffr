@@ -62,5 +62,7 @@
   "src/work-bound.ts",
   "src/polar-marks.ts",
   "src/mark-figures.ts",
-  "src/work-bound.ts"
+  "src/formula-tree.ts",
+  "src/work-bound.ts",
+  "src/breakdown-tree.ts"
 ]

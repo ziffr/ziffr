@@ -22,6 +22,6 @@
 <g data-line=now>
 <polyline fill=none points=58.22,188.58076131381392 90.38181818181818,170.25466471488488 122.54363636363635,152.6660966702777 154.70545454545453,134.10053975249156 186.8672727272727,116.32372544566147 219.02909090909088,98.13581452206516 stroke-linecap=round stroke-linejoin=round stroke-width=2.4 stroke=var(--color-error)>
 <circle cx=219.02909090909088 cy=98.13581452206516 fill=var(--color-error) r=3.2>
-"This year 467.564 € · Plan 720.000 € · Last year 840.941 €"
+"This year 467.564 € · Target 720.000 € · Last year 840.941 €"
 "Jun 26 is still running, so the comparison is made at May 26."
-"Plan: the target of 60.000 € each month, added up. A Target Series would plan it period by period."
+"The target of 60.000 € each month, added up. A Target Series would set it period by period."

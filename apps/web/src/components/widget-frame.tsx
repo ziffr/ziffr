@@ -10,7 +10,7 @@ import { toast } from "sonner";
 import { shown, unwrap } from "@/lib/action-error";
 import { told } from "@/lib/action-toast";
 import { format } from "date-fns";
-import { Archive, Tags, CalendarRange, Check, Copy, FileDown, GitBranch, Lightbulb, LayoutTemplate, PencilLine, Presentation, Scale, BookmarkPlus, ExternalLink, GripVertical, History, LayoutDashboard, ListTodo, MessageCircleQuestion, MessageSquare, MoreHorizontal, Palette, PanelRightOpen, Trash2 } from "lucide-react";
+import { Archive, Tags, CalendarRange, Check, Copy, FileDown, GitBranch, Lightbulb, LayoutTemplate, PencilLine, Presentation, Scale, BookmarkPlus, ExternalLink, GripVertical, History, LayoutDashboard, ListTodo, MessageCircleQuestion, MoreHorizontal, Palette, PanelRightOpen, Trash2 } from "lucide-react";
 import { ContextMenu, ContextMenuContent, ContextMenuItem, ContextMenuSeparator, ContextMenuSub, ContextMenuSubContent, ContextMenuSubTrigger, ContextMenuTrigger, ContextMenuCheckboxItem, ContextMenuRadioGroup, ContextMenuRadioItem } from "@/components/ui/context-menu";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuSub, DropdownMenuSubContent, DropdownMenuSubTrigger, DropdownMenuTrigger, DropdownMenuCheckboxItem, DropdownMenuRadioGroup, DropdownMenuRadioItem } from "@/components/ui/dropdown-menu";
 import { Popover, PopoverContent } from "@/components/ui/popover";
@@ -25,6 +25,7 @@ import { StoryEditor } from "@/components/story-editor";
 import { CompareStrip, DEFAULT_COMPARE } from "@/components/compare-strip";
 import { CompareTable } from "@/components/compare-table";
 import { openQuickLook, QuickLookButton } from "@/components/metric-quick-look";
+import { OpenActionsButton } from "@/components/metric-actions-panel";
 import { VersionsPanel } from "@/components/versions-panel";
 import { resolverFrom } from "@ziffr/core/compare";
 import { comparisonsFor, COMPARE_LABEL, type CompareKey } from "@ziffr/core/compare";
@@ -118,7 +119,7 @@ function InteractiveFrame({ widget, data, targets, editable = false, className, 
   const ownDesign = designOf(widget);
   const title = frameTitle(widget, ms);
   const open = ms.reduce((n, x) => n + (data.openActions[x.id] ?? 0), 0);
-  const openText = `${open} open ${open === 1 ? "question or task" : "questions or tasks"}`;
+  const openText = `${open} open ${open === 1 ? "question or task" : "questions or tasks"} for ${title}`;
   const source: DropSource = widget.id ? { type: "widget", id: widget.id } : { type: "spec", template: widget.template, metricIds: widget.metric_ids, settings: widget.settings, title: widget.title ?? undefined };
 
   const openPanel = (p: Panel, k?: ActionKind) => {
@@ -344,7 +345,7 @@ function InteractiveFrame({ widget, data, targets, editable = false, className, 
             {ms.length === 1 && <QuickLookButton slug={ms[0].slug} name={ms[0].name} className="inline-flex size-6 shrink-0 items-center justify-center rounded-md text-muted-foreground opacity-0 outline-none hover:bg-muted hover:text-foreground focus-visible:opacity-100 focus-visible:ring-2 focus-visible:ring-ring group-hover/widget:opacity-100 max-md:opacity-100" />}
             {/* It keeps drawing an Archived Metric's history, and says that no new values come (GLOSSARY: Archived Metric). */}
             {ms.some(isArchived) && <span title={ms.length > 1 ? "Some of its Metrics are archived: they take no new values." : "Its Metric is archived: it takes no new values."} className="widget-text-xs flex shrink-0 items-center gap-1 text-muted-foreground"><Archive aria-hidden className="size-[1.15em]" /> Archived</span>}
-            {open > 0 && <span title={openText} aria-label={openText} className="widget-text-xs flex shrink-0 items-center gap-1 text-muted-foreground"><MessageSquare aria-hidden className="size-[1.15em]" /><span className="fig">{open}</span></span>}
+            {open > 0 && <OpenActionsButton slugs={ms.map((x) => x.slug)} count={open} label={openText} />}
             <DropdownMenu onOpenChange={(o) => { if (o) markWidgetMenuSeen(data.viewer); }}>
               <DropdownMenuTrigger aria-label={`Options for ${title}`} className="-mr-1.5 ml-auto flex size-8 items-center justify-center rounded-[var(--radius-input)] text-muted-foreground opacity-60 group-hover/widget:opacity-100 hover:bg-muted focus-visible:opacity-100 data-popup-open:opacity-100" onMouseDown={(e) => e.stopPropagation()}>
                 <MoreHorizontal className="size-4" />
@@ -445,7 +446,7 @@ const DM = { Item: DropdownMenuItem, Separator: DropdownMenuSeparator, Sub: Drop
 
 function HistoryPanel({ metricId, data }: { metricId: number; data: CanvasData }) {
   const m = data.metrics.find((x) => x.id === metricId)!;
-  const [h, setH] = useState<{ observations: Observation[]; actions: Action[]; superseded: { id: number; period_start: string; value: number; superseded_at: string; change: string; submitter_id: string | null }[] } | null>(null);
+  const [h, setH] = useState<{ observations: Observation[]; actions: Action[]; superseded: { id: number; period_start: string; value: number; superseded_at: string; change: string; submitter_id: string | null; entered_by?: string | null }[] } | null>(null);
   useEffect(() => {
     getHistory(metricId).then((r) => setH(r as never));
   }, [metricId]);
@@ -493,7 +494,11 @@ function HistoryPanel({ metricId, data }: { metricId: number; data: CanvasData }
                 {o.original_value !== null && <span className="ml-1 text-muted-foreground line-through">{formatValue(m, Number(o.original_value), data.numberStyle)}</span>}
               </td>
               <td className="py-1.5 text-muted-foreground">{SOURCE_LABEL[o.source as keyof typeof SOURCE_LABEL] ?? o.source}</td>
-              <td className="py-1.5 pr-3 text-right text-muted-foreground">{o.submitter_id ? people[o.submitter_id]?.name.split(" ")[0] : ""}</td>
+              <td className="py-1.5 pr-3 text-right text-muted-foreground">
+                {o.submitter_id ? people[o.submitter_id]?.name.split(" ")[0] : ""}
+                {/* A Filled-in Value: who typed it. The core sends no ids to a Guest (metricHistory), so nothing shows for them. */}
+                {o.entered_by && <span className="block">entered by {people[o.entered_by]?.name.split(" ")[0] ?? "someone"}</span>}
+              </td>
             </tr>
           ))}
         </tbody>

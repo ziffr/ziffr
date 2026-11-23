@@ -21,4 +21,4 @@
 <circle cx=209.8981818181818 cy=88.42258754644746 fill=var(--color-data) r=3.2>
 "This year 10,765 · Last year 17,762"
 "Jun 26 is still running, so the comparison is made at May 26."
-"No plan set."
+"No target set."

@@ -271,6 +271,8 @@ A **Breakdown** splits one value into labelled rows, such as revenue by country.
 
 When the rows add up to the total, a **Share** column shows each row's part. When they do not, a note says so: the total stays the Metric's value. Rates, for example, never add up. With no Breakdown yet, the box explains how to send one: add rows on the form, or send one line per row, such as "Germany 61,200".
 
+A row can be a **part** of another row of the same Breakdown, such as a city of a country: paste a third column headed **Parent** with the name of the row it belongs to (see **Breakdown (optional)** below), or send `parent` with the row through the API. A Breakdown may go down 4 levels and hold 200 rows, every name is used once, and a row cannot be a part of itself or of its own parts; Ziffr refuses a list that breaks one of these and says which row is the problem. This box shows the rows at the top, which are the ones that add up to the value; a View Design's **tree** mark (see **Dashboards**) draws every level.
+
 ## The Analysis tab
 
 The tab lists the analyses Ziffr offers. In the demo, analyses still to come are shown with a lock and "coming soon"; they do nothing yet.
@@ -304,7 +306,7 @@ The Metric Owner and the Metric's **Editors** change this tab. Everyone else see
 | **Period** | The period the value is for, marked "unapproved" while its value waits for **Approval**. Click it to open the [period's page](#a-periods-page). |
 | **Value** | The value. A corrected value shows the earlier one struck through, marked "corrected". A value marked "pasted by …" came from [a paste](#paste-values-from-a-spreadsheet), and the name says who pasted it. A value marked "imported" is an **Import**: a **Feed**'s value for a past period, or a pasted one recorded as history, without the Unusual Value check. It counts at once, unless the Workflow approves every value and it is for the period being closed or later. |
 | **From** | The Source it arrived through, such as Web form or Slack. For a value from a program, also the name of the **Access Key** or **Feed Key** it used. |
-| **Submitted by** | The person, Contact or Feed who sent it. A value that came in with a [Workspace Export](16-workspace-settings.md#from-a-workspace-export) shows the name the file gave, with "(imported)" after it; Guests do not see these names. |
+| **Submitted by** | The person, Contact or Feed who sent it. A value that someone else entered for them (see [Filling in a value for someone](#filling-in-a-value-for-someone)) says "entered by" and the name of who typed it; a Guest is not told that someone entered it. A value that came in with a [Workspace Export](16-workspace-settings.md#from-a-workspace-export) shows the name the file gave, with "(imported)" after it, and the name of who entered it, if the file had one; Guests do not see these names. |
 
 A Derived Metric has no values of its own, so it has no such list. If you submit values for the Metric on the web form, **Paste history** beside the heading opens [Paste values](#paste-values-from-a-spreadsheet) for this Metric.
 
@@ -315,7 +317,8 @@ A Derived Metric has no values of its own, so it has no such list. If you submit
 Click a period on the History tab, or **Open this period** after clicking a point on the chart, to open one Metric's page for one period, such as `/metrics/churn-rate/2026-03-01` (a month may also be written `2026-03`). It shows:
 
 - the Metric, the period and its state (for example **Locked** or **Waiting for Approval**), with the value in large figures; after a Correction, the value it was submitted as is struck through;
-- **History**: every step of that period's value in order, with the person, the channel and the date: submitted, replaced by a newer value, a Correction proposed, accepted or declined, approved, sent back, published, locked, and unlocked with its reason. A replaced value is struck through;
+- **History**: every step of that period's value in order, with the person, the channel and the date: submitted, entered by someone for the person ("Entered 42 by Ben for Sara"), replaced by a newer value, a Correction proposed, accepted or declined, approved, sent back, published, locked, and unlocked with its reason. A replaced value is struck through, and a value entered for someone that they replaced stays in the list with who entered it;
+- **Fill in for …** under the value, for those who may (see [Filling in a value for someone](#filling-in-a-value-for-someone));
 - **Threads**: the Questions and tasks about the period that you may read, each with its first message and how many replies follow. Click one to open and answer it.
 
 You see the page only for a Metric you see. A Thread you may not read, and the Corrections proposed in it, are left out, as if there were none.
@@ -412,7 +415,8 @@ A **Workflow** is the path the Metric's value takes each period: who is asked, w
 - The **Workflow** menu chooses one of the Workspace's Workflows, or **None: values publish as they come**. Only the Metric Owner changes it.
 - With a Workflow, the box shows the last period that has ended, its **Due Date**, and where its value is, such as "asked, waiting for the value" or "published and locked", with a link to open the Workflow.
 - **Lock** or **Unlock** the last period, for the Metric Owner.
-- **Stand-ins**: for each Submitter, who is asked instead when they are **Away** or have not answered. Only the Metric Owner chooses.
+- **Stand-ins**: for each Submitter, who is asked instead when they are **Away** or have not answered. Only the Metric Owner chooses. A Guest cannot be chosen as a Stand-in; one chosen before keeps being asked, and the list says "A Guest cannot fill in for Sara: choose another Stand-in."
+- **Fill in for …**, for the Metric Owner and the Workflow's owner (see [Filling in a value for someone](#filling-in-a-value-for-someone)).
 
 ### Who submits
 
@@ -422,11 +426,81 @@ Under each person a line says where their next **Prompt** will go and why, for e
 
 A Feed is listed with the word "Feed". The owner and Editors see **Remove** next to it, which stops that Feed sending values. The values it already sent stay.
 
-**Fill from n8n** is under the Feeds, for Owners and Admins who may change this Metric's Submitters (not in the demo, and not for a Derived Metric). Choose which template to read from (**Google Sheets**, **Microsoft Excel**, **Stripe** or **HubSpot**), which Feed sends the values (one you have, or **A new Feed…** with a name), and whether to **Make a Feed Key for it and show it once**, then **Download the workflow**. You get an n8n workflow with your Ziffr's address already in it, and the Feed becomes a Submitter of the Metric. The Stripe and HubSpot templates send a few fixed figures once a month, for the month that has ended, so you type the slug of the Metric each figure is for into the workflow's Settings node (the page lists the slugs of the Metrics you picked). For a template that reads rows from a sheet or an Excel table, the page also offers a **starter sheet**: a `metric,value,period` header with this Metric's slug, to paste into your sheet. The key is shown once, beside the download, and is never written into the file: n8n keeps it in a credential named Ziffr Feed Key, as the template's guide says ([Google Sheets](../automations/google-sheets-feed.md), [Microsoft Excel](../automations/excel-feed.md), [Stripe](../automations/stripe-feed.md), [HubSpot](../automations/hubspot-feed.md)). You add the other system's login in n8n; Ziffr never sees it and never runs the workflow. The Audit log records that the template was downloaded, never the file.
+**Fill from n8n** is under the Feeds, for Owners and Admins who may change this Metric's Submitters (not in the demo, and not for a Derived Metric). Choose which template to read from (**Google Sheets**, **Microsoft Excel**, **Stripe**, **HubSpot**, **BigQuery** or **Snowflake**), which Feed sends the values (one you have, or **A new Feed…** with a name), and whether to **Make a Feed Key for it and show it once**, then **Download the workflow**. You get an n8n workflow with your Ziffr's address already in it, and the Feed becomes a Submitter of the Metric. The Stripe and HubSpot templates send a few fixed figures once a month, for the month that has ended, so you type the slug of the Metric each figure is for into the workflow's Settings node (the page lists the slugs of the Metrics you picked). The BigQuery and Snowflake templates run a query once a month for the month that has ended; you write that query in the workflow's **Your query** node, returning a row with the columns `metric` (a slug from that list), `value` and `period` for each figure. For a template that reads rows from a sheet or an Excel table, the page also offers a **starter sheet**: a `metric,value,period` header with this Metric's slug, to paste into your sheet. The key is shown once, beside the download, and is never written into the file: n8n keeps it in a credential named Ziffr Feed Key, as the template's guide says ([Google Sheets](../automations/google-sheets-feed.md), [Microsoft Excel](../automations/excel-feed.md), [Stripe](../automations/stripe-feed.md), [HubSpot](../automations/hubspot-feed.md), [BigQuery](../automations/bigquery-feed.md), [Snowflake](../automations/snowflake-feed.md)). You add the other system's login in n8n; Ziffr never sees it and never runs the workflow. The Audit log records that the template was downloaded, never the file.
 
 **Values from a Feed** (for the owner and Editors) adds one of the Workspace's Feeds as a Submitter: pick it and choose **Add**. Its values arrive through the API, so the **API and Feeds** Source is turned on by itself. Owners and Admins create Feeds (see [Connecting Ziffr](04-connecting.md#feeds-numbers-from-other-systems)); a Feed is never sent Prompts. The choice only appears when there is a Feed not yet on the list.
 
 People are chosen as Submitters when the Metric is created or duplicated. This box has no way yet to add or remove a person later.
+
+#### Fill from a data warehouse
+
+If your numbers sit in BigQuery or Snowflake, there are two ways to fill a Metric from them, and neither gives Ziffr your warehouse login ([ADR 0006](../adr/0006-feeds-run-outside-ziffr.md)): the query runs where you put it, with an identity you own, and only the figures it returns are sent.
+
+| You want | Use |
+| --- | --- |
+| A command-line Feed in a file you keep in git, run by cron, a container or a scheduled job; a query for each Metric, with an optional Breakdown | The SQL Feed, below |
+| To run nothing yourself, and you already use n8n | **Fill from n8n** with the **BigQuery** or **Snowflake** template, one query for all your Metrics, once a month ([BigQuery](../automations/bigquery-feed.md), [Snowflake](../automations/snowflake-feed.md)) |
+
+For the SQL Feed, an Owner or Admin first makes a Feed and a Feed Key under **Settings, Feeds**, and each Metric's owner adds the Feed under **Who submits**. You install the warehouse's own package next to the Feed yourself (`npm install @google-cloud/bigquery` or `npm install snowflake-sdk`); Ziffr does not ship them, and a file that asks for one that is missing stops with a message naming it. The file holds one query per Metric slug. Write `:period_start` (the period's first day) and `:period_end` (the day after its last); the Feed turns them into the warehouse's own bound parameters, so nothing is pasted into the query. A query returns one row whose first column is the value; no row, or null, means no value yet. Only a single `select` (or `with ... select`) is accepted.
+
+**BigQuery.** Save this as `warehouse.yaml`:
+
+```yaml
+name: Warehouse
+dialect: bigquery
+project: my-company-data
+max_bytes_billed: 10737418240 # optional; 10 GB is the default
+metrics:
+  monthly-revenue:
+    value: |
+      select sum(amount) from `my-company-data.sales.orders`
+      where order_date >= :period_start and order_date < :period_end
+```
+
+The Feed signs in with the Google Cloud application default credentials of the machine that runs it, so set `GOOGLE_APPLICATION_CREDENTIALS` to a service account's key file (or run it as an identity the machine already has). The project can instead come from `GOOGLE_CLOUD_PROJECT`.
+
+```sh skip="needs a Feed Key and a BigQuery project"
+export ZIFFR_URL=https://ziffr.example.com ZIFFR_FEED_KEY=zk_...
+export GOOGLE_APPLICATION_CREDENTIALS=/secure/ziffr-feed.json
+npx @ziffr/feed-sql run warehouse.yaml --dry-run
+npx @ziffr/feed-sql run warehouse.yaml --backfill 24
+```
+
+`--dry-run` runs the queries and shows what would be sent without sending anything; `--backfill 24` also fills the 24 periods before the current one that have no value yet (the first run). To keep it going, schedule `npx @ziffr/feed-sql run warehouse.yaml` once a month with cron, a GitHub Action or any scheduled job, with the same environment variables ([the Feeds guide](../guides/feeds.md) has an example).
+
+- **The role:** give the service account BigQuery Data Viewer on the datasets it reads and BigQuery Job User on the project, nothing that can write.
+- **The cost cap:** BigQuery bills by bytes scanned. Every query is dry-run first; if the estimate is above `max_bytes_billed` (10 GB unless you set it) the Feed stops with a message naming the estimate and the limit, and otherwise runs the job with the same limit. Filter on the table's partition column, as the example does, to stay far below it. The cap is a safety stop, not your bill: Ziffr does not know your prices.
+
+**Snowflake.** Save this as `warehouse.yaml`:
+
+```yaml
+name: Warehouse
+dialect: snowflake
+warehouse: FEED_WH
+role: ZIFFR_FEED_RO
+database: ANALYTICS
+metrics:
+  monthly-revenue:
+    value: select sum(amount) from orders where paid_at >= :period_start and paid_at < :period_end
+```
+
+Login is by key pair and comes from the environment only; the file names the warehouse, role, database and schema, never a secret. Create the key with `openssl genrsa 2048 | openssl pkcs8 -topk8 -inform PEM -out ziffr_feed.p8` and attach its public half to the Snowflake user with `alter user ZIFFR_FEED set rsa_public_key=...`.
+
+```sh skip="needs a Feed Key and a Snowflake account"
+export ZIFFR_URL=https://ziffr.example.com ZIFFR_FEED_KEY=zk_...
+export SNOWFLAKE_ACCOUNT=myorg-myaccount SNOWFLAKE_USER=ZIFFR_FEED
+export SNOWFLAKE_PRIVATE_KEY_PATH=/secure/ziffr_feed.p8
+npx @ziffr/feed-sql run warehouse.yaml --dry-run
+npx @ziffr/feed-sql run warehouse.yaml --backfill 24
+```
+
+Use `SNOWFLAKE_PRIVATE_KEY` for the key's text instead of a path, and `SNOWFLAKE_PRIVATE_KEY_PASSPHRASE` if the key is encrypted. The two options and the schedule work as for BigQuery.
+
+- **The role is the real control:** give the user a role that may only read, for example `usage` on the warehouse and the database and `select` on the tables it needs. The Feed's own check (one `select` statement, no batches) is a backup, not a substitute.
+- **Warehouse size:** point the Feed at an X-Small warehouse with auto-suspend, so a monthly run costs little.
+- **Timeout:** each query stops after 30 seconds unless you set `statement_timeout_ms` in the file.
+
+The Feed's [README](../../packages/feed-sql/README.md) has every setting of the file.
 
 ## Sharing a Metric
 
@@ -483,6 +557,18 @@ Ziffr refuses to delete a Metric while something still uses it, and says what:
 
 The demo's Metrics cannot be deleted: the demo can't be changed.
 
+## Filling in a value for someone
+
+When a Submitter has not sent a value, the **Metric Owner** or the owner of the Metric's **Workflow** can enter it for them. The value is recorded as the Submitter's, counts for them in their Schedule, the period's progress and the reports, and always shows who typed it: "Entered by Ben for Sara".
+
+**Fill in for …** appears under the value on the [period's page](#a-periods-page) and in the Workflow box of the Metric's page, for the period the box shows. It is there only for someone who may fill in, and only for a Submitter who holds a Token for the Metric. Before the **Due Date** it is greyed out, with the reason beside it; it opens after the Due Date has passed, or at any time while the Submitter is **Away**. A Metric without a Workflow has no Due Date, so it can be filled in only while the Submitter is Away. It is not offered for a Guest, a Feed, a period that already has a value, a locked or condensed period, a Derived or archived Metric, or a Metric whose Submission Rule adds up or keeps both values.
+
+**Fill in for …** opens a form with the person (when there are several), the value and an optional **Breakdown**, as on **Record a value**. The Metric's checks and Workflow apply as to any value: an Unusual Value is flagged, and nobody approves a value they entered or one entered for them. The Submitter is told by their Delivery Preference and can replace the value with their own until the period is locked: they send a value as usual (their form link, **Record a value**, a reply), and the value entered for them stays in the history, struck through, with who entered it. In a locked period their value becomes a proposed Correction.
+
+A **Stand-in** who is asked for a value in someone's place does not use **Fill in for …**: they answer the request, and the answer is the Submitter's value entered by the Stand-in. Their form link says so ("You answer in place of Sara"), and works only for the periods they were asked about.
+
+Guests never fill in for anyone, and are not told that a value was entered for someone: it reads as the submitter's own. View Links and Snapshots show no names at all. Each Filled-in Value is in the [Audit Log](16-workspace-settings.md#audit-log).
+
 ## Locks and corrections on a Metric
 
 A **Lock**ed period takes no more values. When someone sends a value for it anyway, it is not recorded. Instead the Metric Owner gets a question, "… is locked. … sent … late: accept it as a correction?", with **Accept** and **Decline**. The sender sees that their value went to the Metric Owner as a proposed Correction.
@@ -501,7 +587,7 @@ The form shows:
 - **For** the period the value will be recorded for: the period running today. If that period already has a value, the form says so and names the Submission Rule, such as "already has 84,000 € (overwrite with the newer value)".
 - When the request went by several ways and was already answered on Slack, Telegram or email, a note says **Already answered on** that way. A new value here still follows the Submission Rule.
 - The value, labelled with the Metric's name. Type it as you would write it.
-- **Breakdown (optional)**: paste two columns from a spreadsheet, one row per line, such as country and revenue, or choose **Load a CSV file**. Ziffr says how many rows it read, reading each number the way your Workspace writes them. If you leave the value empty, it becomes the sum of the rows. If you fill in both and they differ, the value you typed counts.
+- **Breakdown (optional)**: paste two columns from a spreadsheet, one row per line, such as country and revenue, or choose **Load a CSV file**. Add a third column headed **Parent** (or **Eltern**) with the name of another row, and the row is a part of it (leave the cell empty for a row at the top; without that heading a third cell is read as it always was); a CSV file may use commas for the three columns. Ziffr says how many rows it read, reading each number the way your Workspace writes them. If you leave the value empty, it becomes the sum of the rows. If you fill in both and they differ, the value you typed counts.
 - **Submit**: sends the value. The form then says what happened, for example that the value was recorded, added up, replaced, refused because the period already has one, or sent to the Metric Owner because the period is locked. If the Metric has a Workflow, it also says what the Workflow does next, such as asking for Approval. The form shows only what Ziffr answered to your own submission: reloading the page or opening a link with extra words in its address shows the empty form again.
 
 When Ziffr cannot read the value, the reason appears under the field, such as "Type a number, such as 88 or 1,250." (the example follows your Workspace's number style). What you typed stays in the field and the cursor returns to it, so you can correct it and submit again. The field is emptied only after a value was recorded.
@@ -510,4 +596,4 @@ At the bottom, **Open metric** leads to the Metric's page, for those who may sig
 
 Where the Workspace has Telegram on, the form also offers **Connect Telegram**: it gives a link that opens Ziffr's Telegram bot, valid for ten minutes. Tap **Start** there, and requests for numbers then reach you in Telegram as well. Once connected, the form says so. To stop, send `/stop` to the bot in Telegram; only then can the form connect another Telegram account. A form cannot disconnect, so a forwarded form link never moves your messages to someone else's Telegram. Only a Contact sees this on the form: members connect Telegram signed in, on the Connectors page.
 
-A Stand-in's form link works only while they stand in. A Feed has no form link; it sends values with its Feed Key. The form only works when the Web form is one of the Metric's Sources.
+A Stand-in's form link works only while they stand in, and for the periods they were asked about; its page says whom they answer for. A Feed has no form link; it sends values with its Feed Key. The form only works when the Web form is one of the Metric's Sources.
