@@ -58,21 +58,32 @@ describe("the words of a what-if", () => {
   const t = recipe(VISITS, { percent: 5 }, [SIGNUPS, REVENUE, RPV, NOISE], w);
   it("says the change in the Metric asked about, then each Metric reached, estimated ones with their range and a worked-out one as that", () => {
     expect(t.kind).toBe("answer");
-    expect(t.sentence).toMatch(/^If Visits goes up by 2,0\d\d: /);
+    expect(t.sentence).toMatch(/^If Visits goes up by 5 % \(2,0\d\d\): /);
     const by = (name: string) => t.rows.find((r) => r.name === name)!;
     expect(by("Signups")).toMatchObject({ step: 1, kind: "estimated", through: [] });
     expect(by("Signups").sentence).toMatch(/^Signups is estimated to go up by about \d+ \(likely between \d+ and \d+\)\.$/);
     expect(by("Revenue")).toMatchObject({ step: 2, kind: "estimated", through: ["Signups"] });
     expect(by("Revenue").sentence).toMatch(/^Revenue is estimated to go up by about [\d,]+ € \(likely between [\d,]+ € and [\d,]+ €\), through Signups\.$/);
-    expect(by("Revenue per visit")).toMatchObject({ step: 1, kind: "worked-out", lo: null, hi: null, strength: null });
-    expect(by("Revenue per visit").sentence).toMatch(/^Revenue per visit goes down by 0\.0\d+ €: worked out from its formula, the Metrics it is made of otherwise as they are\.$/);
+    // Revenue per visit is made of Revenue, which is two steps away: it would be three, so it is left out and said, not worked out with Revenue held still.
+    expect(t.rows.map((r) => r.name)).not.toContain("Revenue per visit");
+    expect(t.notes).toEqual([expect.stringContaining("Revenue per visit")]);
+  });
+  it("works a Metric made of one the change reaches from that Metric's change, as re-working the formula on the changed inputs does", () => {
+    const only = recipe(VISITS, { percent: 5 }, [REVENUE, RPV], w);
+    const row = (name: string) => only.rows.find((r) => r.name === name)!;
+    expect(row("Revenue")).toMatchObject({ step: 1, kind: "estimated" });
+    expect(row("Revenue per visit")).toMatchObject({ step: 2, kind: "estimated", through: ["Revenue"] });
+    const [v0, r0] = [w.visits[w.visits.length - 1], w.revenue[w.revenue.length - 1]];
+    const x = v0 * 0.05;
+    const expected = (r0 + row("Revenue").effect!) / (v0 + x) - r0 / v0;
+    expect(Math.abs(row("Revenue per visit").effect! - expected)).toBeLessThan(1e-9);
   });
   it("never names a Metric that moved with nothing, and says what it was compared on and the footer once", () => {
     expect(t.rows.map((r) => r.name)).not.toContain("Weather");
     expect(t.basis).toBe("compared by value");
     expect(t.footer).toBe(FOOTER);
     expect(texts(t).filter((x) => x === FOOTER)).toHaveLength(1);
-    expect(t.assumptions).toEqual(["Everything else is taken as staying where it was.", expect.stringContaining("no independence between them is assumed"), expect.stringContaining("Which of two Metrics that move together comes first cannot be told")]);
+    expect(t.assumptions).toEqual(["Everything else is taken as staying where it was.", expect.stringContaining("no independence between them is assumed"), expect.stringContaining("picked for standing out"), expect.stringContaining("Which of two Metrics that move together comes first cannot be told")]);
   });
   it("keeps worked out and estimated apart in the numbers, and gives the picture rows low and high only for what is estimated", () => {
     for (const r of t.rows) {
@@ -102,7 +113,7 @@ describe("the words of a what-if", () => {
       expect(s.kind).toBe("answer");
       expect(s.rows.find((r) => r.name === "Revenue")!.sentence).toContain("€");
     }
-    expect(recipe(VISITS, { percent: 5 }, [SIGNUPS, REVENUE], w, { style: "1.234,5" }).sentence).toMatch(/^If Visits goes up by 2\.0\d\d: /);
+    expect(recipe(VISITS, { percent: 5 }, [SIGNUPS, REVENUE], w, { style: "1.234,5" }).sentence).toMatch(/^If Visits goes up by 5 % \(2\.0\d\d\): /);
   });
 });
 
@@ -129,7 +140,7 @@ describe("a chain of estimated links is never read as a promise or a cause", () 
 
 describe("rows the picture draws", () => {
   const ok = (name: string, over: Partial<Reached> = {}): Reached => ({ ok: true, name, step: 1, exact: false, effect: 100, lo: 80, hi: 120, outside: [], through: [], coefficients: 1, level: 0.9, strength: "strong", byChange: false, verdict: { refusals: [], cautions: [], switches: [] }, ...over });
-  const result = (reached: WhatIf extends infer W ? (W extends { reached: infer R } ? R : never) : never, by = 1000, span: "month" | null = "month"): WhatIf => ({ ok: true, start: "Visits", by, span, reached });
+  const result = (reached: WhatIf extends infer W ? (W extends { reached: infer R } ? R : never) : never, by = 1000, span: "month" | null = "month"): WhatIf => ({ ok: true, start: "Visits", by, percent: null, span, reached });
   const say = (reached: Parameters<typeof result>[0], by = 1000, metrics: Metric[] = [VISITS, SIGNUPS, REVENUE]) => whatIfTakeaway(VISITS, metrics, result(reached, by), [], ctx);
   it("writes a fall as a fall and a rise as a rise, with the size as a size, whichever the sign", () => {
     const t = say([ok("Signups", { effect: -100, lo: -120, hi: -80 })], -1000);
@@ -178,7 +189,8 @@ describe("rows the picture draws", () => {
     expect(say([ok("Signups")]).sentence).toMatch(/^If Visits goes up by 1,000: /);
   });
   it("lists three Metrics in the sentence and says how many more are in the numbers, with all of them in the rows", () => {
-    const t = say(["A1", "A2", "A3", "A4", "A5"].map((n) => ok(n)), 1000, [VISITS]);
+    const names = ["A1", "A2", "A3", "A4", "A5"];
+    const t = say(names.map((n) => ok(n)), 1000, [VISITS, ...names.map((n, i) => mk(70 + i, n.toLowerCase(), n))]);
     expect(t.rows).toHaveLength(5);
     expect(t.sentence).toBe(`If Visits goes up by 1,000: ${t.rows.slice(0, 3).map((r) => r.sentence).join(" ")} 2 more are in the numbers below.`);
   });
@@ -189,7 +201,7 @@ describe("rows the picture draws", () => {
     const none = say([{ ok: false, name: "Signups", step: 1, refusal: { case: "refuse-what-if-formula", slots: { name: "Signups" } } }]);
     expect(none).toMatchObject({ kind: "refusal", sentence: null, footer: null, figures: [], numbers: [] });
     expect(none.rows[0]).toMatchObject({ kind: "refused", effect: null });
-    expect(none.refusal).toContain("Signups cannot be worked out for that change");
+    expect(none.refusal).toContain("Signups: it cannot be worked out for that change");
   });
   it("names the Metrics reached that were refused only as rows, and gives no number for them", () => {
     const t = say([ok("Signups"), { ok: false, name: "Revenue", step: 2, refusal: { case: "refuse-curved-outside", slots: { name: "Visits" } } }]);
@@ -197,6 +209,41 @@ describe("rows the picture draws", () => {
     expect(t.rows[1]).toMatchObject({ kind: "refused", effect: null, lo: null });
     expect(t.rows[1].sentence).toBe("Revenue: The link looks curved, so nothing can be read from it for a value of Visits outside what it has been.");
     expect(t.sentence).not.toContain("Revenue");
+  });
+  it("does not write what cannot be written: a change or an effect too small for 15 places is said in words, not as 0 or as two ends that read the same", () => {
+    const t = say([ok("Signups")], 1e-16);
+    expect(t).toMatchObject({ kind: "refusal", sentence: null, figures: [] });
+    expect(t.refusal).toBe("Visits: the numbers are too small to be written out in its unit: give a bigger change.");
+    const row = say([ok("Revenue", { effect: 1e-17, lo: 0.9e-17, hi: 1.1e-17 })]).rows[0];
+    expect(row).toMatchObject({ kind: "refused", effect: null });
+    expect(row.sentence).toBe("Revenue: the numbers are too small to be written out in its unit: give a bigger change.");
+    const worked = say([ok("Revenue", { exact: true, effect: 1e-17, lo: null, hi: null, strength: null, coefficients: 0, level: 0 })]).rows[0];
+    expect(worked.kind).toBe("refused");
+  });
+  it("keeps the sign of an edge of what was seen in the figure, and names every driver that was outside", () => {
+    const outside = [{ name: "Visits", side: "below" as const, limit: -791, change: false }, { name: "Signups", side: "above" as const, limit: 50, change: false }, { name: "Visits", side: "above" as const, limit: 300, change: true }];
+    const t = say([ok("Revenue", { lo: null, hi: null, outside })]);
+    const f = t.figures.find((x) => x.label === "Visits" && x.value === -791)!;
+    expect(f).toBeDefined();
+    expect(t.rows[0].sentence).toContain(`lowest ${f.text})`);
+    expect(t.rows[0].sentence).toContain("This is higher than Signups has ever been");
+  });
+  it("is as weak as its weakest estimated row, one that cannot be told from chance included, and says where a link counts a change", () => {
+    const t = say([ok("Signups"), ok("Revenue", { strength: "cant-tell" })]);
+    expect(t.strength).toBe("cant-tell");
+    const mixed = say([ok("Signups", { byChange: true }), ok("Revenue", { exact: true, effect: 5, lo: null, hi: null, strength: null, coefficients: 0, level: 0 })]);
+    expect(mixed.sentence).toMatch(/^If Visits goes up by 1,000: /);
+    expect(mixed.assumptions).toContain("Where a link is compared by change, the change counts from the latest level, in the next month.");
+  });
+  it("says a percent as asked, with the amount it comes to, and writes nothing about a Metric it was not given", () => {
+    const t = whatIfTakeaway(VISITS, [VISITS, SIGNUPS], { ok: true, start: "Visits", by: 2027.2, percent: 5, span: "month", reached: [ok("Signups")] }, [], ctx);
+    expect(t.sentence).toMatch(/^If Visits goes up by 5 % \(2,027\): /);
+    expect(t.figures.some((f) => f.label === "Visits %" && f.text === "5")).toBe(true);
+    const fraction = whatIfTakeaway(VISITS, [VISITS, SIGNUPS], { ok: true, start: "Visits", by: 100, percent: 2.5, span: "month", reached: [ok("Signups")] }, [], ctx);
+    expect(fraction.sentence).toMatch(/^If Visits goes up by 2\.50 % /);
+    const unknown = say([ok("Mystery")]);
+    expect(unknown).toMatchObject({ kind: "refusal", sentence: null, rows: [] });
+    expect(unknown.refusal).toBe("the Metrics cannot be used as it was given.");
   });
   it("generated: a sign is never lost, a number above 0 is never 0, no forbidden word, every number in a sentence is a figure", () => {
     fc.assert(
@@ -257,7 +304,7 @@ describe("what the Recipe does with the Metrics it is given", () => {
     const derived = mk(8, "ratio", "Hidden ratio", { formula: "{visits} / {secret}" });
     const t = whatIfRecipe(VISITS, { by: 1000 }, [SIGNUPS, REVENUE, derived], resolverFrom([VISITS, SIGNUPS, REVENUE, derived, hidden], { ...series, ratio: [] }), opts);
     expect(JSON.stringify(t)).not.toMatch(/Secret|secret/);
-    expect(t.notes).toContain("Hidden ratio: its formula could not be used here, so it is left out.");
+    expect(t.notes).toContain("Left out, as the formula of Hidden ratio could not be used here.");
     expect(t.rows.map((r) => r.name)).not.toContain("Hidden ratio");
   });
   it("is a refusal for Metrics with the same name, with no Metrics to compare, a percent of nothing, and Metrics that cannot be combined", () => {
@@ -267,7 +314,7 @@ describe("what the Recipe does with the Metrics it is given", () => {
     const zero = { ...w, series: { ...w.series, visits: months("2024-01", w.visits.map((_, i) => (i === w.visits.length - 1 ? 0 : w.visits[i]))) } };
     expect(recipe(VISITS, { percent: 5 }, [SIGNUPS], zero).refusal).toBe("Visits is at 0, so a percent of it is nothing: give the change as an amount.");
     expect(recipe(VISITS, { by: 1 }, [mk(12, "q", "Quarterly", { period: "quarter", aggregation: "none" })], { ...w, series: { ...w.series, q: [] } }).kind).toBe("refusal");
-    expect(recipe(VISITS, { by: 1 }, [SIGNUPS], { ...w, series: { ...w.series, visits: [] } }).refusal).toBe("Nothing was found that clearly moves with Visits, so there is nothing to say about a change in it.");
+    expect(recipe(VISITS, { by: 1 }, [SIGNUPS], { ...w, series: { ...w.series, visits: [] } }).refusal).toBe("Visits has no value to change from.");
   });
   it("says nothing found where nothing clearly moved with the Metric, and one Metric built from the changed one is worked out", () => {
     const t = recipe(VISITS, { by: 1000 }, [NOISE], w);
@@ -325,7 +372,7 @@ describe("the corners of the Recipe", () => {
     const series = { ...w.series, double: months("2024-01", w.visits.map((v) => v * 2)), sv: w.series.weather };
     const t = whatIfRecipe(START, { by: 1000 }, [VISITS, SIGNUPS, sum], resolverFrom([START, VISITS, SIGNUPS, sum], series), opts);
     expect(t.rows.map((r) => r.name)).toEqual(["Signups"]);
-    expect(t.notes).toContain("Signups plus visits: its formula could not be used here, so it is left out.");
+    expect(t.notes).toContain("Left out, as the formula of Signups plus visits could not be used here.");
   });
   it("looks past a Metric that never changes or has only a few months, and does not name it", () => {
     const flat = mk(61, "flat", "Flat");
@@ -347,7 +394,7 @@ describe("a what-if said from the Method's result", () => {
   const bare = { exact: false, effect: 100, lo: 80, hi: 120, outside: [], through: [], coefficients: 1, level: 0.9, byChange: false, verdict: { refusals: [], cautions: [], switches: [] } };
   it("says a link with no strength word as one that cannot be told from chance, and names what it was compared on, by value, by change or both", () => {
     const reached: Reached = { ok: true, name: "Signups", step: 1, strength: null, ...bare };
-    const t = whatIfTakeaway(VISITS, [VISITS, SIGNUPS], { ok: true, start: "Visits", by: 5, span: "month", reached: [reached] }, [], ctx);
+    const t = whatIfTakeaway(VISITS, [VISITS, SIGNUPS], { ok: true, start: "Visits", by: 5, percent: null, span: "month", reached: [reached] }, [], ctx);
     expect(t.rows[0].kind).toBe("unclear");
     expect(t.basis).toBeNull();
     const w2 = world();
@@ -356,7 +403,7 @@ describe("a what-if said from the Method's result", () => {
       if (!made.ok) throw new Error("refused");
       return made;
     };
-    const say = (fits: ReturnType<typeof f>[]) => whatIfTakeaway(VISITS, [VISITS, SIGNUPS], { ok: true, start: "Visits", by: 5, span: "month", reached: [reached] }, fits, ctx).basis;
+    const say = (fits: ReturnType<typeof f>[]) => whatIfTakeaway(VISITS, [VISITS, SIGNUPS], { ok: true, start: "Visits", by: 5, percent: null, span: "month", reached: [reached] }, fits, ctx).basis;
     expect(say([f("values")])).toBe("compared by value");
     expect(say([f("changes")])).toBe("compared by change, growth removed");
     expect(say([f("values"), f("changes")])).toBe("compared by value or by change, as each link needed");

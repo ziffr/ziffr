@@ -99,9 +99,8 @@ describe("the fixtures of NumPy and SciPy", () => {
       expect(close(c.effect, f.paths.effect, 1e-9, 1e-6)).toBe(true);
       expect(close(c.lo!, f.paths.lo, 1e-9, 1e-6) && close(c.hi!, f.paths.hi, 1e-9, 1e-6), `${c.lo} ${c.hi} vs ${f.paths.lo} ${f.paths.hi}`).toBe(true);
     });
-    it(`seed ${f.seed}: a third step is not followed: D, which C drives, is not reached`, () => {
-      const names = reachedOf(run([fb, fc, link("D", f.d, [{ name: "C", x: f.c }])], f.x)).map((r) => r.name);
-      expect(names).toEqual(["B", "C"]);
+    it(`seed ${f.seed}: a third step is refused in words, not cut short: D, which C drives, would be 3 steps from A`, () => {
+      expect(refused(run([fb, fc, link("D", f.d, [{ name: "C", x: f.c }])], f.x))).toEqual([{ case: "refuse-what-if-deep", slots: { most: 2, name: "D" } }]);
       expect(MOST_STEPS).toBe(2);
     });
   }
@@ -307,6 +306,8 @@ describe("a formula worked out on ranges (the part of a what-if that follows an 
     for (const b of [[-1, 1], [0, 1], [-1, 0], [0, 0]] as [number, number][]) expect(range("{a} / {b}", { a: [1, 2], b })).toBeNull();
     expect(range("{a} + {b}", { a: [1, 2] })).toBeNull();
     expect(range("{a} + prev({a})", { a: [1, 2] })).toBeNull();
+    // Only the ranges given count: a Metric named like something every object has is no range.
+    expect(range("{constructor} + 1", { a: [1, 2] })).toBeNull();
     expect(range("{a} +", { a: [1, 2] })).toBeNull();
     const big = Array.from({ length: 9 }, () => "{a}").join(" * ");
     expect(range(big, { a: [1e308, 1e308] })).toBeNull();
@@ -422,19 +423,63 @@ describe("the limits", () => {
     const into = link("A", w.a, [{ name: "B", x: w.b }]);
     expect(refused(run([into], 1))).toEqual([{ case: "refuse-what-if-none", slots: { name: "A" } }]);
   });
-  it("follows a Metric of the first step one step further: C reached directly and through B is at step 2 with both paths, and D, which C drives, is at step 2 through C", () => {
+  it("follows a Metric of the first step one step further: C reached directly and through B is at step 2 with both paths", () => {
     const lb = link("B", w.b, [{ name: "A", x: w.a }]);
     const lca = link("C", w.c, [{ name: "A", x: w.a }, { name: "B", x: w.b }]);
-    const lcb = link("D", w.d, [{ name: "C", x: w.c }]);
-    const rs = reachedOf(run([lb, lca, lcb], 2));
-    expect(rs.map((r) => [r.name, r.step])).toEqual([["B", 1], ["C", 2], ["D", 2]]);
-    expect(rs.map((r) => r.through)).toEqual([[], ["B"], ["C"]]);
+    const rs = reachedOf(run([lb, lca], 2));
+    expect(rs.map((r) => [r.name, r.step])).toEqual([["B", 1], ["C", 2]]);
+    expect(rs.map((r) => r.through)).toEqual([[], ["B"]]);
   });
-  it("puts a cycle right: B and C each driving the other are each reached directly and through the other, never further", () => {
+  it("refuses in words links that drive each other, and links that run three steps, instead of a number cut short", () => {
     const lb = link("B", w.b, [{ name: "A", x: w.a }, { name: "C", x: w.c }]);
     const lc = link("C", w.c, [{ name: "A", x: w.a }, { name: "B", x: w.b }]);
-    const rs = reachedOf(run([lb, lc], 2));
-    expect(rs.map((r) => [r.name, r.step, r.through])).toEqual([["B", 2, ["C"]], ["C", 2, ["B"]]]);
+    expect(refused(run([lb, lc], 2))).toEqual([{ case: "refuse-what-if-cycle", slots: {} }]);
+    const lb1 = link("B", w.b, [{ name: "A", x: w.a }]);
+    const lc1 = link("C", w.c, [{ name: "A", x: w.a }, { name: "B", x: w.b }]);
+    const ld1 = link("D", w.d, [{ name: "C", x: w.c }]);
+    expect(refused(run([lb1, lc1, ld1], 2))).toEqual([{ case: "refuse-what-if-deep", slots: { most: 2, name: "D" } }]);
+  });
+  it("works a Metric out once from every Metric that drives it: C driven by A, B1 and B2 uses each one's change as its own row shows it", () => {
+    const r = lcg(99);
+    const [b1, b2] = [w.b, w.a.map((v) => tenths(0.3 * v + gauss(r) * 40 + 20))];
+    const links = [link("B1", b1, [{ name: "A", x: w.a }]), link("B2", b2, [{ name: "A", x: w.a }]), link("C", w.c, [{ name: "A", x: w.a }, { name: "B1", x: b1 }, { name: "B2", x: b2 }])];
+    const rs = reachedOf(run(links, 1.5, 50));
+    const [r1, r2, rc] = ["B1", "B2", "C"].map((n) => rs.find((r) => r.name === n)!);
+    const c = links[2].fit.drivers;
+    const expected = c[0].effect * 1.5 + c[1].effect * r1.effect + c[2].effect * r2.effect;
+    expect(rc.step).toBe(2);
+    expect(close(rc.effect, expected, 1e-9, 1e-9), `${rc.effect} vs ${expected}`).toBe(true);
+    expect(rc.through).toEqual(["B1", "B2"]);
+    const refs = referenceWhatIf([{ kind: "fit", target: "B1", drivers: ["A"], rows: refRows(b1, [w.a]) }, { kind: "fit", target: "B2", drivers: ["A"], rows: refRows(b2, [w.a]) }, { kind: "fit", target: "C", drivers: ["A", "B1", "B2"], rows: refRows(w.c, [w.a, b1, b2]) }], "A", exactOf("1.5"));
+    expect(isNearestDouble(rc.effect, refs[2].effect)).toBe(true);
+  });
+  it("a formula that reads a Metric the change reaches uses that Metric's change: the same as re-working every formula on the changed inputs (generated)", () => {
+    const formsB = ["{a} * {x}", "{a} + {x}", "{a} * 3 - {x}"];
+    const formsC = ["{a} + {b}", "{b} * {a}", "{b} / {y}", "({a} - {b}) * 2", "{b} - {y} + {a}"];
+    {
+      fc.assert(
+        fc.property(fc.constantFrom(...formsB), fc.constantFrom(...formsC), fc.integer({ min: 1, max: 60 }), fc.integer({ min: 1, max: 60 }), fc.integer({ min: 1, max: 60 }), fc.integer({ min: -9, max: 9 }), (formB, formC, a, x, y, by) => {
+          fc.pre(by !== 0);
+          const ev = (f: string, v: Record<string, number>) => referenceEvaluate(f, Object.fromEntries(Object.entries(v).map(([k, n]) => [k, exactOf(n)])))!;
+          const bBefore = ev(formB, { a, x });
+          const bAfter = ev(formB, { a: a + by, x });
+          const toNumber = (e: { num: bigint; den: bigint }) => Number(e.num) / Number(e.den);
+          fc.pre(Number.isInteger(toNumber(bBefore)) && !(formC.includes("/ {y}") && y === 0));
+          const cBefore = referenceEvaluate(formC, { a: exactOf(a), b: bBefore, y: exactOf(y) })!;
+          const cAfter = referenceEvaluate(formC, { a: exactOf(a + by), b: bAfter, y: exactOf(y) })!;
+          const links: WhatIfLink[] = [
+            { kind: "worked", target: "B", formula: formB, names: { a: "A", x: "X" }, levels: { A: a, X: x } },
+            { kind: "worked", target: "C", formula: formC, names: { a: "A", b: "B", y: "Y" }, levels: { A: a, B: toNumber(bBefore), Y: y } },
+          ];
+          const rs = reachedOf(run(links, by, a));
+          expect(isNearestDouble(rs[0].effect, minusExact(bAfter, bBefore))).toBe(true);
+          const c = rs.find((r) => r.name === "C")!;
+          expect(isNearestDouble(c.effect, minusExact(cAfter, cBefore))).toBe(true);
+          expect(c.step).toBe(formC.includes("{b}") ? 2 : 1);
+        }),
+        { numRuns, seed },
+      );
+    }
   });
 });
 
@@ -479,7 +524,7 @@ describe("hostile input is refused in words and never gives a number", () => {
     for (const b of bad) expect(what(whatIf(input({ links: [{ kind: "fit", fit: b }] }))), JSON.stringify(b).slice(0, 80)).toEqual({ case: "refuse-input", slots: { what: "a fit" } });
   });
   it("refuses a formula link that is not sound: a name or a level missing, its own target as an input, reaching back, a name of an object's own", () => {
-    const ok: WorkedLink = { kind: "worked", target: "T", formula: "{a} * 2", names: { a: "A" }, levels: { A: 5 } };
+    const ok: WorkedLink = { kind: "worked", target: "T", formula: "{a} * 2", names: { a: "A" }, levels: { A: 50 } };
     expect(whatIf(input({ links: [ok] })).ok).toBe(true);
     const bad: unknown[] = [
       { ...ok, target: "" },
@@ -547,6 +592,58 @@ describe("values too large for a range, and a formula that fails inside a chain"
     const [r] = reachedOf(run([cautious], 1, 7));
     expect(r.strength).toBe("moderate");
     expect(reachedOf(run([l], 1, 7))[0].strength).toBe("strong");
+  });
+});
+
+
+describe("a fit handed over is checked against its own rows", () => {
+  const w = world(3, 30);
+  const f = link("B", w.b, [{ name: "A", x: w.a }]).fit;
+  const input = (fit: unknown): WhatIfInput => ({ start: { name: "A", latest: 50 }, change: { by: 1 }, links: [{ kind: "fit", fit: fit as Fit }] });
+  const bad = (fit: unknown) => refused(whatIf(input(fit)))[0];
+  it("refuses a lowest or highest value that the rows do not give, so that a value far outside what was seen cannot be given a range", () => {
+    for (const d of [{ ...f.drivers[0], low: -1e9, high: 1e9 }, { ...f.drivers[0], low: f.drivers[0].low - 1 }, { ...f.drivers[0], high: f.drivers[0].high + 1 }]) expect(bad({ ...f, drivers: [d] })).toEqual({ case: "refuse-input", slots: { what: "a fit" } });
+  });
+  it("works the strength word out again: a word that is not the fit's own is refused", () => {
+    const other = (["strong", "moderate", "weak", "cant-tell"] as const).find((x) => x !== f.drivers[0].strength)!;
+    expect(bad({ ...f, drivers: [{ ...f.drivers[0], strength: other }] })).toEqual({ case: "refuse-input", slots: { what: "a fit" } });
+    expect(bad({ ...f, crowded: [f.drivers[0].name] })).toEqual(f.drivers[0].strength === "strong" ? { case: "refuse-input", slots: { what: "a fit" } } : bad({ ...f, crowded: [f.drivers[0].name] }));
+  });
+  it("refuses, and does not throw, a fit with its verdict, last, span, crowded or drivers missing or of the wrong kind", () => {
+    const parts: Record<string, unknown> = { verdict: undefined, last: undefined, span: "fortnight", crowded: "x", rows: null, drivers: null, basis: "other" };
+    for (const [k, v] of Object.entries(parts)) expect(bad({ ...f, [k]: v }), k).toEqual({ case: "refuse-input", slots: { what: "a fit" } });
+    expect(bad({ ...f, verdict: { cautions: "none" } })).toEqual({ case: "refuse-input", slots: { what: "a fit" } });
+    expect(bad({ ...f, drivers: [null] })).toEqual({ case: "refuse-input", slots: { what: "a fit" } });
+    expect(bad({ ok: true, get target() { throw new Error("boom"); } })).toEqual({ case: "refuse-input", slots: { what: "a link" } });
+  });
+  it("accepts a fit whose misses are all 0 and whose effect is 0 (its link is worked out again as nothing), and a driver that does not change", () => {
+    const flat = { ...f, rows: f.rows.map((r) => ({ ...r, y: 5 })), drivers: [{ ...f.drivers[0], strength: "cant-tell" as const }] };
+    const [r] = reachedOf(whatIf(input(flat)));
+    expect([r.effect, r.strength]).toEqual([0, "cant-tell"]);
+    // A second driver that nothing changes is held, and a name given twice is refused.
+    const w2 = world(5, 30);
+    const two = link("B", w2.b, [{ name: "A", x: w2.a }, { name: "X", x: w2.d }]).fit;
+    expect(reachedOf(whatIf(input(two)))).toHaveLength(1);
+    expect(bad({ ...two, drivers: [two.drivers[0], { ...two.drivers[1], name: two.drivers[0].name }] })).toEqual({ case: "refuse-input", slots: { what: "a fit" } });
+  });
+  it("says in words where a formula has no value even at the levels given, before any change", () => {
+    const s: WorkedLink = { kind: "worked", target: "S", formula: "1 / {k}", names: { k: "K" }, levels: { K: 0 } };
+    const r = whatIf({ start: { name: "K", latest: 0 }, change: { by: 1 }, links: [s] });
+    expect(r.ok && r.reached[0]).toEqual({ ok: false, name: "S", step: 1, refusal: { case: "refuse-what-if-formula", slots: { name: "S" } } });
+  });
+  it("refuses levels that disagree: the Metric changed at another level than its latest, or one Metric at two levels in two formulas", () => {
+    const one: WorkedLink = { kind: "worked", target: "T", formula: "{a} * {k}", names: { a: "A", k: "K" }, levels: { A: 50, K: 2 } };
+    const two: WorkedLink = { kind: "worked", target: "U", formula: "{a} + {k}", names: { a: "A", k: "K" }, levels: { A: 50, K: 3 } };
+    expect(refused(whatIf({ start: { name: "A", latest: 50 }, change: { by: 1 }, links: [one, two] }))).toEqual([{ case: "refuse-input", slots: { what: "the levels" } }]);
+    expect(refused(whatIf({ start: { name: "A", latest: 49 }, change: { by: 1 }, links: [one] }))).toEqual([{ case: "refuse-input", slots: { what: "the levels" } }]);
+  });
+  it("says that the change is worked out but not how far off it could be, where only the range of a formula divides by 0", () => {
+    const l = link("B", w.b, [{ name: "A", x: w.a }]);
+    const point = reachedOf(run([l], 5, 50))[0].effect;
+    const s: WorkedLink = { kind: "worked", target: "S", formula: "1 / {b}", names: { b: "B" }, levels: { B: 0.001 - point } };
+    const res = whatIf({ start: { name: "A", latest: 50 }, change: { by: 5 }, links: [l, s] });
+    if (!res.ok) throw new Error("refused");
+    expect(res.reached[1]).toEqual({ ok: false, name: "S", step: 2, refusal: { case: "refuse-what-if-range", slots: { name: "S" } } });
   });
 });
 
