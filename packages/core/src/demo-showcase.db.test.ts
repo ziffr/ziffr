@@ -1,6 +1,6 @@
 // The demo's seeded words and showcase in the database (GLOSSARY: Demo Mode; spec 0051, ticket 6). No table is open to
 // visitors yet, so the trigger cannot be reached by a write; what is tried here is its one check, `demo_protected_reason`
-// (the trigger only turns its answer into ZF4D2 or ZF4D3), the tables the seed fills after every Demo Reset, and that the
+// (the trigger only turns its answer into ZF4D3 or ZF4D4), the tables the seed fills after every Demo Reset, and that the
 // list in demo-words-columns.ts says what the schema says: a table or text column nobody classified fails here.
 import { beforeAll, describe, expect, it } from "vitest";
 import { db } from "./db";

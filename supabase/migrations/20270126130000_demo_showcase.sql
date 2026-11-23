@@ -15,7 +15,7 @@
 --    (the ids change at each reset), as the keys (`demo_row_key`) of the rows the seed made, and of the showcase.
 --  * `demo_protected_reason`: the one check, and a row trigger `zz_demo_words_*` that runs it for a row of the demo. The
 --    trigger sorts after the demo guard (`zz_demo_read_only_*`), which refuses first unless the seed or an allowed visit
---    writes; the seed always passes here. It refuses with ZF4D2 (showcase) or ZF4D3 (words).
+--    writes; the seed always passes here. It refuses with ZF4D3 (showcase) or ZF4D4 (words).
 --
 -- The migration writes only its own new tables (and runs the seed function once, with ziffr.demo_seed on for its
 -- transaction, rule 5): no demo row is written, so it is safe where the demo exists.
@@ -118,8 +118,8 @@ declare why text;
 begin
   if demo_seeding() then return coalesce(new, old); end if;
   why := demo_protected_reason(tg_op, tg_table_name::text, case when tg_op = 'INSERT' then null else to_jsonb(old) end, case when tg_op = 'DELETE' then null else to_jsonb(new) end);
-  if why = 'showcase' then raise exception using errcode = 'ZF4D2', message = 'demo_showcase'; end if;
-  if why = 'words' then raise exception using errcode = 'ZF4D3', message = 'demo_words'; end if;
+  if why = 'showcase' then raise exception using errcode = 'ZF4D3', message = 'demo_showcase'; end if;
+  if why = 'words' then raise exception using errcode = 'ZF4D4', message = 'demo_words'; end if;
   return coalesce(new, old);
 end $$;
 revoke execute on function demo_words_guard() from public, anon, authenticated;

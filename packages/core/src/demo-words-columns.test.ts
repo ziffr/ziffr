@@ -69,8 +69,8 @@ describe("the refusals", () => {
   });
 
   it("are what the database's codes become, and nothing else is", () => {
-    expect(protectedRefusal({ code: "ZF4D2" })).toBeInstanceOf(DemoShowcase);
-    expect(protectedRefusal({ code: "ZF4D3" })).toBeInstanceOf(DemoSeededWords);
-    for (const e of [{ code: "ZF4D0" }, { code: "ZF4D1" }, { code: "23505" }, {}, null, undefined, "ZF4D2"]) expect(protectedRefusal(e)).toBeNull();
+    expect(protectedRefusal({ code: "ZF4D3" })).toBeInstanceOf(DemoShowcase);
+    expect(protectedRefusal({ code: "ZF4D4" })).toBeInstanceOf(DemoSeededWords);
+    for (const e of [{ code: "ZF4D0" }, { code: "ZF4D1" }, { code: "23505" }, {}, null, undefined, "ZF4D3"]) expect(protectedRefusal(e)).toBeNull();
   });
 });

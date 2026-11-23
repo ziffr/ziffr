@@ -44,10 +44,10 @@ export function refuseInDemo(actor: Pick<Actor, "workspaceId">, operation?: stri
 }
 
 /** The error code the database raises for a write that touches a showcase object (spec 0051, ticket 6). */
-export const DEMO_SHOWCASE_CODE = "ZF4D2";
+export const DEMO_SHOWCASE_CODE = "ZF4D3";
 
 /** The error code the database raises for a change to a word of something the seed made. */
-export const DEMO_WORDS_CODE = "ZF4D3";
+export const DEMO_WORDS_CODE = "ZF4D4";
 
 /** A change refused because it touches an object the landing page and the tour point at: everyone sees it as it is. */
 export class DemoShowcase extends Forbidden {
