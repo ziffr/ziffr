@@ -214,7 +214,7 @@ describe("the caution that the ups and downs carry over, on the change point", (
     let state = 9;
     const next = () => (state = (state * 1_664_525 + 1_013_904_223) % 4_294_967_296) / 4_294_967_296;
     const z = () => Math.sqrt(-2 * Math.log(next() + 1e-12)) * Math.cos(2 * Math.PI * next());
-    const text = "The ups and downs of Signups carry over from one month to the next, which a change does too, but so does a slow wave; read this with care, since the range or the chance may be too sure.";
+    const text = "The ups and downs of Signups run in long swings from one month to the next, and a long swing can look like a change; read this with care, it may look more certain than it is.";
     const seen = { foundCarries: 0, foundQuiet: 0, noneCarries: 0 };
     for (let r = 0; r < 200; r++) {
       let e = 0;
@@ -335,7 +335,7 @@ describe("the Takeaway of a change point", () => {
     expect(t.sentence).toBe("Around November 2024, Signups changed: before, it went up 5 € a month; since, down 3 € a month; and at that point its level was just where the earlier trend would have put it.");
     expect([t.strength, t.strengthText, t.range]).toEqual([null, null, null]);
     expect(t.footer).toBe("This shows when the numbers changed, not what made them change.");
-    expect(t.basis).toBe("from a straight line before the date and another after it, over 20 months, with the bar for chance raised for the dates tried (13)");
+    expect(t.basis).toBe("from a straight line before the date and another after it, over 20 months, and with 13 dates tried, a change must stand out more to count");
     expect(t.assumptions).toEqual(["This looks for one change only; the date is the one that fits best, nearby dates may fit almost as well, and the ups and downs of each period are taken as not carrying over from the one before."]);
     expect(t.figures.map((f) => [f.label, f.value, f.text])).toEqual([["Trend before the date (per period)", 5, "5 €"], ["Trend after the date (per period)", 3, "3 €"], ["Step in level at the date", 0, "0 €"]]);
     expect(t.numbers.map((n) => [n.label, n.text])).toEqual([
@@ -356,7 +356,7 @@ describe("the Takeaway of a change point", () => {
     const t = changePointTakeaway("Signups", series(c.values), "month", euro, ctx);
     expect(t.kind).toBe("answer");
     expect(t.sentence).toBe("Over 30 months, nothing in Signups stands out as a change in its level or in where it was heading.");
-    expect(t.basis).toContain("(23)");
+    expect(t.basis).toContain("with 23 dates tried");
     expect(t.numbers.map((n) => n.label)).toEqual(["Method", "Periods used", "Dates tried", "Best date", "Misses left, against one line"]);
     expect(t.numbers.map((n) => n.text)).toEqual(["Change point", "30", "23", "2024-07-01".replace("07", "07"), `${((c.sse1 / c.sse0) * 100).toFixed(1)} %`].map((x, i) => (i === 3 ? new Date(Date.UTC(2024, c.index, 1)).toISOString().slice(0, 10) : x)));
     expect(t.assumptions).toEqual(["This looks for one change only; the date is the one that fits best, nearby dates may fit almost as well, and the ups and downs of each period are taken as not carrying over from the one before."]);
@@ -407,7 +407,7 @@ describe("the Takeaway of a change point", () => {
     expect(t.basis).toContain("over 22 months");
     expect(t.numbers.find((n) => n.label === "Periods used")!.text).toBe("22");
     expect(t.numbers.find((n) => n.label === "Dates tried")!.text).toBe("15");
-    expect(t.basis).toContain("(15)");
+    expect(t.basis).toContain("with 15 dates tried");
   });
   it("uses the latest 120 periods, and says so, giving what the 120 give", () => {
     const long = Array.from({ length: 140 }, (_, i) => 100 + i + (i >= 100 ? 90 : 0) + 4 * noise(i));
