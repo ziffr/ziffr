@@ -55,15 +55,20 @@ function byMetric(rows: { metric_id: number; period_start: string; state: string
 
 /** Who may read a Thread (decided by the core): the people on it, anyone else only for a Metric they see
  * (`visible`, from visibleMetricIds for the same viewer), then everyone, or only its Group's members. */
-export function threadReader(viewer: string, groups: (Group & { workspace_id: string })[], metricOwner: (metricId: number) => string | undefined, ws: string, visible: ReadonlySet<number>) {
-  return (a: Pick<Action, "asker_id" | "assignee_id" | "metric_id" | "read_group_id"> & { workspace_id: string }) => canReadThread(ws, viewer, a, metricOwner(a.metric_id), groups, visible.has(a.metric_id));
+export function threadReader(viewer: string, groups: (Group & { workspace_id: string })[], metricOwner: (metricId: number) => string | undefined, ws: string, visible: ReadonlySet<number>, role?: Actor["role"]) {
+  // A Checklist Task has no Metric to see: Owners, Admins and Members read it (or its Group's people), a Guest only a Task
+  // they are on. Without the viewer's role nothing is assumed: only the people on it read it (spec 0045).
+  return (a: Pick<Action, "asker_id" | "assignee_id" | "metric_id" | "read_group_id"> & { previous_assignee_id?: string | null; workspace_id: string }) =>
+    a.metric_id === null
+      ? canReadThread(ws, viewer, a, undefined, groups, role !== undefined && role !== "guest")
+      : canReadThread(ws, viewer, a, metricOwner(a.metric_id), groups, visible.has(a.metric_id));
 }
 
 /** The Actions this viewer may read. */
 export async function readableActions(ws: string, viewer: string, filter?: { metricId?: number }) {
-  const [actions, groups, metrics] = await Promise.all([getActions(ws, filter), getGroups(ws), getMetrics(ws)]);
+  const [actions, groups, metrics, { data: member }] = await Promise.all([getActions(ws, filter), getGroups(ws), getMetrics(ws), db().from("memberships").select("role").eq("workspace_id", ws).eq("user_id", viewer).maybeSingle()]);
   const owners = new Map(metrics.map((m) => [m.id, m.owner_id]));
-  const can = threadReader(viewer, groups, (id) => owners.get(id), ws, await visibleMetricIds(ws, viewer, metrics));
+  const can = threadReader(viewer, groups, (id) => owners.get(id), ws, await visibleMetricIds(ws, viewer, metrics), member?.role as Actor["role"] | undefined);
   return actions.filter((a) => can(a as Action & { workspace_id: string }));
 }
 
@@ -183,7 +188,8 @@ export async function getCanvasData(ws: string, viewer: string, opts: { seriesOf
     getMetrics(ws), peopleIn(ws),
     // Only the Actions still open, with the columns that decide who may read them: the canvas only counts them.
     allRows<Pick<Action, "id" | "metric_id" | "status" | "asker_id" | "assignee_id" | "read_group_id"> & { workspace_id: string }>((from, to) =>
-      db().from("actions").select("id, metric_id, status, asker_id, assignee_id, read_group_id, workspace_id").eq("workspace_id", ws).neq("status", "closed").order("id").range(from, to),
+      // A Checklist Task has no Metric (metric_id null) and is no open Action of any Metric: the canvas counts Metrics' only.
+      db().from("actions").select("id, metric_id, status, asker_id, assignee_id, read_group_id, workspace_id").not("metric_id", "is", null).eq("workspace_id", ws).neq("status", "closed").order("id").range(from, to),
     ),
     db().from("tokens").select("metric_id, submitter_id").eq("workspace_id", ws),
     // Dashboard Templates stay out: a canvas never uses them, and their widgets can be large.
@@ -208,7 +214,7 @@ export async function getCanvasData(ws: string, viewer: string, opts: { seriesOf
   const owners = new Map(metrics.map((m) => [m.id, m.owner_id]));
   const canRead = threadReader(viewer, groups, (id) => owners.get(id), ws, ids);
   const openActions: Record<number, number> = {};
-  for (const a of actions) if (ids.has(a.metric_id) && canRead(a)) openActions[a.metric_id] = (openActions[a.metric_id] ?? 0) + 1;
+  for (const a of actions) if (a.metric_id !== null && ids.has(a.metric_id) && canRead(a)) openActions[a.metric_id] = (openActions[a.metric_id] ?? 0) + 1;
   return {
     viewer,
     metrics: visible,

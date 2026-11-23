@@ -6,6 +6,15 @@ When a number looks odd, ask the person who knows. An **Action** is a question o
 
 Everyone in the Workspace works with Actions, Guests included. This chapter also covers the **Changes** page, which shows what changed and when.
 
+## Checklist Tasks
+
+A Workflow can have **checklist items to tick off** (see [Workflows](11-workflows.md)). Each period such an item gives its Assignee a **Checklist Task**: a Task about the Workflow and its period, such as "Reconcile the bank account", with a Due Date counted in working days after the period ends. It has no Metric, so it shows the Workflow's name and the period (such as "Month-end close, March 2026") where a Metric's name would be, and there is no chart or value on its page.
+
+- It is in the Assignee's **To do** view and calendar like any Task. While the Assignee is **Away**, it goes to the item's Stand-in instead; the Thread says it was given to them as the stand-in, without naming anyone.
+- The Workflow's **Remind** steps remind the Assignee that many days before its Due Date, and its **Escalate** steps hand it to the Stand-in (who then reads and answers it, and the first Assignee keeps reading it) or tell the Workflow's owner, as for a missing value. Each happens once for a Task. Ziffr's general reminder of Tasks that are about to fall due leaves Checklist Tasks to these steps, so nobody is reminded twice.
+- The Assignee ticks it off with **Mark done**, with a note if they like (what is in the reply box becomes the note), or by replying "done" from Slack, email or Telegram (the words after "done" are the note). Ticking off **closes** the Task at once: the person who asked is told, nobody has to close it, and the Workflow's period counts it as in ("5 of 6 in" counts the values and these Tasks together). A reply that does not start with "done" is only a note. The person who asked, or the Assignee, can reopen it.
+- Webhooks hear nothing of Checklist Tasks.
+
 ## The Actions row
 
 **Schedule** in the sidebar holds your Actions. Its **To do** view lists the Questions and Tasks given to you among the other things waiting for you; **Asked by me** lists the ones you asked. The number next to Schedule counts the values due and the Actions waiting for you to close. The old address of the Actions page, `/actions`, opens **Asked by me**.
@@ -57,6 +66,8 @@ Anyone who can see a Metric can ask about it or give a Task on it, Guests and Vi
 ## Who can read an Action
 
 The asker, the Assignee and the Metric's Owner can always read an Action and its Thread. Anyone else can read it only if they see its Metric, through a Share or a dashboard or deck shared with them; being an Owner or Admin of the Workspace is not enough. Of those, everyone can read it, unless the asker chose a Group under **Who can read**. Then only the members of that Group who see the Metric can read it, besides those three people. This holds for the Tasks a Workflow makes too, such as Approvals.
+
+A Checklist Task has no Metric to see, so a different rule decides who reads it: the people on it (the Assignee, the Stand-in who holds it, the person who asked and an Assignee it was handed on from) always; the other Owners, Admins and Members of the Workspace unless the item names a Group to keep it to, and then only that Group's people; a Guest only when it is given to them. A Task kept to a Group does not appear in a Member's Schedule, Outbox or timeline if they are outside it. Of a Task you may not read, the Workflow's timeline shows only that one was given or ticked off.
 
 ## The Schedule views
 
@@ -117,7 +128,7 @@ Only the asker, the Assignee and the Metric Owner can reply. Everyone else who m
 | The text box | Your reply. For the Assignee it starts as "Explain what happened…". |
 | **Propose a correction** | A new value for the period, if the value is wrong. Shown when the period has a value. See [Corrections](#corrections). |
 | **Reply** | Sends your reply. The other person hears about it through their Connector. |
-| **Mark done** | For the Assignee of an open Task: says the Task is carried out. Its status becomes **Done**. If the Task is no longer open or no longer yours, the reason shows next to the button. Not on a Task that asks for Approval or for checking your own value. |
+| **Mark done** | For the Assignee of an open Task: says the Task is carried out, with the words in the box as a note when there are any. Its status becomes **Done** (**Closed** for a Checklist Task). Programs and assistants can do the same with `POST /api/v1/actions/{id}/done` and `mark_task_done`, with an optional `note` of at most 2,000 characters. If the Task is no longer open or no longer yours, the reason shows next to the button. Not on a Task that asks for Approval or for checking your own value. |
 | **Close Action** | For the asker: ends the Action. The Assignee hears that it was closed. Not offered on an open Approval: that ends when the Approver approves it or sends it back. |
 
 ### Approving a value

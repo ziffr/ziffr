@@ -62,7 +62,8 @@ const KIND_WORDS: Record<ScheduleEntry["kind"], string> = { value_due: "Value du
 
 /** One duty in a line: what, about which Metric and period, when, and where it is done. */
 function scheduleLine(e: ScheduleEntry): string {
-  const about = `${JSON.stringify(e.metric.name)} for ${e.period.name}`;
+  // A checklist Task is about its Workflow and period, with no Metric.
+  const about = `${JSON.stringify(e.metric?.name ?? e.workflow?.name ?? "")} for ${e.period.name}`;
   const what = e.text !== null ? `${KIND_WORDS[e.kind]}${e.escalation ? " (Escalation)" : ""}: ${JSON.stringify(e.text)} (${about})` : `${KIND_WORDS[e.kind]}: ${about}`;
   const notes = [
     e.overdue ? `${e.date}, ${e.overdue_working_days} working day${e.overdue_working_days === 1 ? "" : "s"} late` : null,
@@ -75,7 +76,7 @@ function scheduleLine(e: ScheduleEntry): string {
 
 /** A Workflow's period as text an assistant reads well: the count, then what happened in order. */
 export function periodStatusText(s: PeriodStatus): string {
-  const out = [`${JSON.stringify(s.workflow.name)}, ${s.period.name}: ${s.in} of ${s.of} in, ${s.published} published, ${s.locked} locked.`];
+  const out = [`${JSON.stringify(s.workflow.name)}, ${s.period.name}: ${s.in} of ${s.of} in, ${s.published} published, ${s.locked} locked${s.checklist?.of ? `, ${s.checklist.done} of ${s.checklist.of} checklist tasks done` : ""}.`];
   for (const e of s.events) out.push(`- ${e.day} ${e.time}: ${e.text}${e.items.length ? ` (${e.items.join("; ")})` : ""}${e.url ? ` ${e.url}` : ""}`);
   if (!s.events.length) out.push("- Nothing has happened in this period yet.");
   return out.join("\n");
@@ -662,10 +663,10 @@ function registerActionTools(server: McpServer, ziffr: Ziffr): void {
 
   server.registerTool("mark_task_done", {
     title: "Mark my Task done",
-    description: "Marks one of the user's own open Tasks done. Only when the user says it is done. Not for an Approval or a Self-check. Needs a key that may answer questions and tasks.",
-    inputSchema: { id: actionId },
+    description: "Marks one of the user's own open Tasks done, with a short note when the user gave one. Only when the user says it is done. Not for an Approval or a Self-check. A checklist Task (a step of a Workflow, about no Metric) is closed by it. Needs a key that may answer questions and tasks.",
+    inputSchema: { id: actionId, note: z.string().max(2000).optional().describe("A note for the person who asked, in the user's words; at most 2,000 characters.") },
     annotations: { ...own, idempotentHint: true },
-  }, ({ id }) => guarded(async () => answer({ action: await ziffr.actions.done(id) })));
+  }, ({ id, note }) => guarded(async () => answer({ action: await ziffr.actions.done(id, note) })));
 
   server.registerTool("self_check", {
     title: "Confirm or correct my value",

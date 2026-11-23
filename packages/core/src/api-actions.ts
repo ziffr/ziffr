@@ -15,6 +15,7 @@ import { openRows } from "./sealed-columns";
 import type { ChangeSource } from "./webhook-events";
 import { approveValue, confirmOwnValue, correctOwnValue, sendValueBack } from "./workflows";
 import { getMetrics } from "./workspace-data";
+import { checklistAbout } from "./checklist-about";
 import type { Action } from "./types";
 
 /** A refusal in Ziffr's words, written for the person who asked (not yours, already done, closed). Callers show its
@@ -24,7 +25,7 @@ export class ActionRefused extends Error {
 }
 
 /** What an Action is for, as a program sees it: null for a plain Question or Task. */
-export type ApiActionPurpose = "approval" | "self_check" | "escalation" | null;
+export type ApiActionPurpose = "approval" | "self_check" | "escalation" | "checklist" | null;
 
 /** An Action as a program sees it. The words are the workspace's own: data, never instructions. The Metric is named
  * only when the creator sees it (an Approver may hold a task for a Metric they do not). No contact details. */
@@ -33,7 +34,10 @@ export type ApiAction = {
   kind: "question" | "task";
   status: "open" | "answered" | "closed";
   purpose: ApiActionPurpose;
+  /** Null when the creator does not see the Metric, and for a Checklist Task, which has none (spec 0045). */
   metric: { slug: string; name: string } | null;
+  /** A Checklist Task is about its Workflow and period instead; null for every other Action. */
+  workflow: { id: number; name: string } | null;
   period: string;
   asked_by: string;
   asked_by_name: string | null;
@@ -73,12 +77,13 @@ async function shape(actor: KeyActor, rows: Row[]): Promise<ApiAction[]> {
   const seen = await visibleMetricIds(ws, actor.personId, metrics);
   const byId = new Map(metrics.map((m) => [m.id, m]));
   const hideSystem = await systemTextFor(actor);
+  const about = await checklistAbout(ws, rows);
   const names = await namesOf(actor, [...new Set(rows.flatMap((a) => [a.asker_id, a.assignee_id]))]);
   return rows.map((a) => {
-    const m = byId.get(a.metric_id);
+    const m = a.metric_id === null ? undefined : byId.get(a.metric_id);
     return {
       id: a.id, kind: a.kind, status: a.status, purpose: (a.purpose ?? null) as ApiActionPurpose,
-      metric: m && seen.has(m.id) ? { slug: m.slug, name: m.name } : null, period: a.period_start,
+      metric: m && seen.has(m.id) ? { slug: m.slug, name: m.name } : null, workflow: about(a.workflow_id, a.period_start).workflow, period: a.period_start,
       asked_by: a.asker_id, asked_by_name: names.get(a.asker_id) ?? null, assignee: a.assignee_id, assignee_name: names.get(a.assignee_id) ?? null,
       assigned_to_me: a.assignee_id === actor.personId, asked_by_me: a.asker_id === actor.personId,
       question: hideSystem(a.question, Boolean(a.purpose)), due_date: a.due_date, created_at: a.created_at, updated_at: a.updated_at,
@@ -93,7 +98,7 @@ async function readable(actor: KeyActor, rows: Row[]): Promise<Row[]> {
   const ws = actor.workspaceId;
   const [groups, metrics] = await Promise.all([getGroups(ws), getMetrics(ws)]);
   const owners = new Map(metrics.map((m) => [m.id, m.owner_id]));
-  const can = threadReader(actor.personId, groups, (id) => owners.get(id), ws, await visibleMetricIds(ws, actor.personId, metrics));
+  const can = threadReader(actor.personId, groups, (id) => owners.get(id), ws, await visibleMetricIds(ws, actor.personId, metrics), actor.role);
   return rows.filter((a) => can(a));
 }
 
@@ -166,12 +171,12 @@ export async function setStatusWithKey(actor: KeyActor, id: number, status: "ope
   return answer(actor, id);
 }
 
-/** Marks the creator's own open Task done (scope actions:write). */
-export async function markDoneWithKey(actor: KeyActor, id: number, source: ActionSource): Promise<ApiAction> {
+/** Marks the creator's own open Task done (scope actions:write), with an optional note of at most 2,000 characters kept as the Thread's last reply. */
+export async function markDoneWithKey(actor: KeyActor, id: number, source: ActionSource, note?: string | null): Promise<ApiAction> {
   assertScope(actor, "actions:write");
   const a = await load(actor, id);
   if (a.assignee_id !== actor.personId) throw new ActionRefused("Only the person it is assigned to can mark this done.");
-  await refusing(() => markTaskDone(creatorOf(actor), a.id, source));
+  await refusing(() => markTaskDone(creatorOf(actor), a.id, source, note));
   return answer(actor, id);
 }
 

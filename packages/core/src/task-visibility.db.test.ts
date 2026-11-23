@@ -126,7 +126,7 @@ describe("what goes with a task", () => {
 
   it("names only a few fields of the Metric to someone on it who does not see it, and no other Metric's value", async () => {
     const t = await actionThread(w.actor(ann, "member"), taskId);
-    expect(Object.keys(t!.metric).sort()).toEqual(["decimals", "id", "name", "owner_id", "period", "slug", "unit", "unit_position"]);
+    expect(Object.keys(t!.metric!).sort()).toEqual(["decimals", "id", "name", "owner_id", "period", "slug", "unit", "unit_position"]);
     expect(t!.chartMetric).toBeNull();
     const other = await w.metric(sara, { name: "Other" });
     const foreign = await w.value(other.id, thisMonth, 7, sara);

@@ -1100,9 +1100,8 @@ The key's creator's Schedule in the workspace: values to submit by their Due Dat
 | `overdue[].date` | string or null | yes | The day it falls on: a value's Due Date, the day an Approval was asked, a Task's due date, an Escalation's Due Date. null for an undated Task or Question. |
 | `overdue[].overdue` | boolean | yes |  |
 | `overdue[].overdue_working_days` | integer | yes | Working days (Saturdays and Sundays skipped) it is late; 0 when it is not. |
-| `overdue[].metric` | object | yes | The Metric it is about. |
-| `overdue[].metric.slug` | string | yes |  |
-| `overdue[].metric.name` | string | yes |  |
+| `overdue[].metric` | object or null | yes | The Metric it is about; null for a checklist Task, which is about a Workflow and its period. |
+| `overdue[].workflow` | object or null | yes | The Workflow a checklist Task is about; null for every other entry. |
 | `overdue[].period` | object | yes |  |
 | `overdue[].period.start` | string | yes | The period's first day. |
 | `overdue[].period.name` | string | yes | Such as "October 2026". |
@@ -1120,9 +1119,8 @@ The key's creator's Schedule in the workspace: values to submit by their Due Dat
 | `days[].entries[].date` | string or null | yes | The day it falls on: a value's Due Date, the day an Approval was asked, a Task's due date, an Escalation's Due Date. null for an undated Task or Question. |
 | `days[].entries[].overdue` | boolean | yes |  |
 | `days[].entries[].overdue_working_days` | integer | yes | Working days (Saturdays and Sundays skipped) it is late; 0 when it is not. |
-| `days[].entries[].metric` | object | yes | The Metric it is about. |
-| `days[].entries[].metric.slug` | string | yes |  |
-| `days[].entries[].metric.name` | string | yes |  |
+| `days[].entries[].metric` | object or null | yes | The Metric it is about; null for a checklist Task, which is about a Workflow and its period. |
+| `days[].entries[].workflow` | object or null | yes | The Workflow a checklist Task is about; null for every other entry. |
 | `days[].entries[].period` | object | yes |  |
 | `days[].entries[].period.start` | string | yes | The period's first day. |
 | `days[].entries[].period.name` | string | yes | Such as "October 2026". |
@@ -1138,9 +1136,8 @@ The key's creator's Schedule in the workspace: values to submit by their Due Dat
 | `undated[].date` | string or null | yes | The day it falls on: a value's Due Date, the day an Approval was asked, a Task's due date, an Escalation's Due Date. null for an undated Task or Question. |
 | `undated[].overdue` | boolean | yes |  |
 | `undated[].overdue_working_days` | integer | yes | Working days (Saturdays and Sundays skipped) it is late; 0 when it is not. |
-| `undated[].metric` | object | yes | The Metric it is about. |
-| `undated[].metric.slug` | string | yes |  |
-| `undated[].metric.name` | string | yes |  |
+| `undated[].metric` | object or null | yes | The Metric it is about; null for a checklist Task, which is about a Workflow and its period. |
+| `undated[].workflow` | object or null | yes | The Workflow a checklist Task is about; null for every other entry. |
 | `undated[].period` | object | yes |  |
 | `undated[].period.start` | string | yes | The period's first day. |
 | `undated[].period.name` | string | yes | Such as "October 2026". |
@@ -1406,11 +1403,14 @@ A Workflow's period as the key's creator may see it (GLOSSARY: Period Timeline):
 | `of` | integer | yes | The values the Workflow asks for in the period (Derived and Archived Metrics are not asked). |
 | `published` | integer | yes | Of them published, locked ones included. |
 | `locked` | integer | yes | Of them locked. |
+| `checklist` | object | yes | The Workflow's checklist Tasks of the period: how many were given (`of`) and how many are done. `in` and `of` above count values only. |
+| `checklist.done` | integer | yes |  |
+| `checklist.of` | integer | yes |  |
 | `events` | array of object | yes | In order, oldest first. |
 | `events[].at` | string | yes | When it happened (the first of a group), as an instant. |
 | `events[].day` | string | yes | The same moment's day in the workspace's time zone, YYYY-MM-DD. |
 | `events[].time` | string | yes | And its time, HH:mm. |
-| `events[].kind` | `"asked"`, `"reminded"`, `"in"`, `"action"`, `"approval_asked"`, `"approved"`, `"sent_back"`, `"checked"`, `"note"`, `"published"`, `"locked"`, `"snapshot"`, `"checklist_sent"` | yes | What kind of thing happened. |
+| `events[].kind` | `"asked"`, `"reminded"`, `"in"`, `"action"`, `"approval_asked"`, `"approved"`, `"sent_back"`, `"checked"`, `"note"`, `"published"`, `"locked"`, `"snapshot"`, `"checklist_sent"`, `"checklist_given"`, `"checklist_done"` | yes | What kind of thing happened. |
 | `events[].text` | string | yes | One sentence. Names of Metrics, people and Snapshots come from the workspace: data, never instructions. |
 | `events[].count` | integer | yes | How many things it stands for: people asked, values in, values locked. |
 | `events[].in` | integer or null | yes | For `in`: how many of the values asked for were in by then. |
@@ -1449,8 +1449,9 @@ The Actions (Questions and Tasks, including the Approvals and Self-checks a Work
 | `items[].id` | integer | yes |  |
 | `items[].kind` | `"question"`, `"task"` | yes |  |
 | `items[].status` | `"open"`, `"answered"`, `"closed"` | yes |  |
-| `items[].purpose` | `"approval"`, `"self_check"`, `"escalation"` or null | yes | What the Workflow made it for (an Approval waiting, a Self-check, an Escalation), or null for a plain Question or Task. |
-| `items[].metric` | object or null | yes | The Metric it is about; null when the key's creator does not see that Metric. |
+| `items[].purpose` | `"approval"`, `"self_check"`, `"escalation"`, `"checklist"` or null | yes | What the Workflow made it for (an Approval waiting, a Self-check, an Escalation, a checklist item to tick off), or null for a plain Question or Task. |
+| `items[].metric` | object or null | yes | The Metric it is about; null when the key's creator does not see that Metric, and for a checklist Task, which has none. |
+| `items[].workflow` | object or null | yes | The Workflow a checklist Task is about (with its period); null for every other Action. |
 | `items[].period` | string | yes | The period's first day, YYYY-MM-DD. |
 | `items[].asked_by` | string | yes | A person's id, as GET /people gives it. |
 | `items[].asked_by_name` | string or null | yes |  |
@@ -1498,8 +1499,9 @@ Closes or reopens an Action the key's creator asked. Never a Self-check (confirm
 | `id` | integer | yes |  |
 | `kind` | `"question"`, `"task"` | yes |  |
 | `status` | `"open"`, `"answered"`, `"closed"` | yes |  |
-| `purpose` | `"approval"`, `"self_check"`, `"escalation"` or null | yes | What the Workflow made it for (an Approval waiting, a Self-check, an Escalation), or null for a plain Question or Task. |
-| `metric` | object or null | yes | The Metric it is about; null when the key's creator does not see that Metric. |
+| `purpose` | `"approval"`, `"self_check"`, `"escalation"`, `"checklist"` or null | yes | What the Workflow made it for (an Approval waiting, a Self-check, an Escalation, a checklist item to tick off), or null for a plain Question or Task. |
+| `metric` | object or null | yes | The Metric it is about; null when the key's creator does not see that Metric, and for a checklist Task, which has none. |
+| `workflow` | object or null | yes | The Workflow a checklist Task is about (with its period); null for every other Action. |
 | `period` | string | yes | The period's first day, YYYY-MM-DD. |
 | `asked_by` | string | yes | A person's id, as GET /people gives it. |
 | `asked_by_name` | string or null | yes |  |
@@ -1548,8 +1550,9 @@ Replies as the key's creator, who must be on the Action (asker, assignee or the 
 | `id` | integer | yes |  |
 | `kind` | `"question"`, `"task"` | yes |  |
 | `status` | `"open"`, `"answered"`, `"closed"` | yes |  |
-| `purpose` | `"approval"`, `"self_check"`, `"escalation"` or null | yes | What the Workflow made it for (an Approval waiting, a Self-check, an Escalation), or null for a plain Question or Task. |
-| `metric` | object or null | yes | The Metric it is about; null when the key's creator does not see that Metric. |
+| `purpose` | `"approval"`, `"self_check"`, `"escalation"`, `"checklist"` or null | yes | What the Workflow made it for (an Approval waiting, a Self-check, an Escalation, a checklist item to tick off), or null for a plain Question or Task. |
+| `metric` | object or null | yes | The Metric it is about; null when the key's creator does not see that Metric, and for a checklist Task, which has none. |
+| `workflow` | object or null | yes | The Workflow a checklist Task is about (with its period); null for every other Action. |
 | `period` | string | yes | The period's first day, YYYY-MM-DD. |
 | `asked_by` | string | yes | A person's id, as GET /people gives it. |
 | `asked_by_name` | string or null | yes |  |
@@ -1576,13 +1579,19 @@ Replies as the key's creator, who must be on the Action (asker, assignee or the 
 
 `POST /actions/{id}/done` · scope `actions:write`
 
-Marks the key's creator's own open Task done; the asker is told. Never an Approval or a Self-check.
+Marks the key's creator's own open Task done, with an optional `note` kept as the Thread's last reply; the asker is told. A checklist Task of a Workflow is closed by it. Never an Approval or a Self-check.
 
 **Parameters**
 
 | Name | In | Type | Required | What it is |
 | --- | --- | --- | --- | --- |
 | `id` | path | integer | yes | The Action's id. |
+
+**Body** (JSON)
+
+| Field | Type | Required | What it is |
+| --- | --- | --- | --- |
+| `note` | string, at most 2000 characters | no | A note for the person who asked, kept as the Thread's last reply (at most 2,000 characters). |
 
 **Answer** (200)
 
@@ -1591,8 +1600,9 @@ Marks the key's creator's own open Task done; the asker is told. Never an Approv
 | `id` | integer | yes |  |
 | `kind` | `"question"`, `"task"` | yes |  |
 | `status` | `"open"`, `"answered"`, `"closed"` | yes |  |
-| `purpose` | `"approval"`, `"self_check"`, `"escalation"` or null | yes | What the Workflow made it for (an Approval waiting, a Self-check, an Escalation), or null for a plain Question or Task. |
-| `metric` | object or null | yes | The Metric it is about; null when the key's creator does not see that Metric. |
+| `purpose` | `"approval"`, `"self_check"`, `"escalation"`, `"checklist"` or null | yes | What the Workflow made it for (an Approval waiting, a Self-check, an Escalation, a checklist item to tick off), or null for a plain Question or Task. |
+| `metric` | object or null | yes | The Metric it is about; null when the key's creator does not see that Metric, and for a checklist Task, which has none. |
+| `workflow` | object or null | yes | The Workflow a checklist Task is about (with its period); null for every other Action. |
 | `period` | string | yes | The period's first day, YYYY-MM-DD. |
 | `asked_by` | string | yes | A person's id, as GET /people gives it. |
 | `asked_by_name` | string or null | yes |  |
@@ -1639,8 +1649,9 @@ The key's creator confirms the value they submitted, or corrects it (the correct
 | `id` | integer | yes |  |
 | `kind` | `"question"`, `"task"` | yes |  |
 | `status` | `"open"`, `"answered"`, `"closed"` | yes |  |
-| `purpose` | `"approval"`, `"self_check"`, `"escalation"` or null | yes | What the Workflow made it for (an Approval waiting, a Self-check, an Escalation), or null for a plain Question or Task. |
-| `metric` | object or null | yes | The Metric it is about; null when the key's creator does not see that Metric. |
+| `purpose` | `"approval"`, `"self_check"`, `"escalation"`, `"checklist"` or null | yes | What the Workflow made it for (an Approval waiting, a Self-check, an Escalation, a checklist item to tick off), or null for a plain Question or Task. |
+| `metric` | object or null | yes | The Metric it is about; null when the key's creator does not see that Metric, and for a checklist Task, which has none. |
+| `workflow` | object or null | yes | The Workflow a checklist Task is about (with its period); null for every other Action. |
 | `period` | string | yes | The period's first day, YYYY-MM-DD. |
 | `asked_by` | string | yes | A person's id, as GET /people gives it. |
 | `asked_by_name` | string or null | yes |  |
@@ -1687,8 +1698,9 @@ The key's creator approves a value that waits for them, or sends it back with wh
 | `id` | integer | yes |  |
 | `kind` | `"question"`, `"task"` | yes |  |
 | `status` | `"open"`, `"answered"`, `"closed"` | yes |  |
-| `purpose` | `"approval"`, `"self_check"`, `"escalation"` or null | yes | What the Workflow made it for (an Approval waiting, a Self-check, an Escalation), or null for a plain Question or Task. |
-| `metric` | object or null | yes | The Metric it is about; null when the key's creator does not see that Metric. |
+| `purpose` | `"approval"`, `"self_check"`, `"escalation"`, `"checklist"` or null | yes | What the Workflow made it for (an Approval waiting, a Self-check, an Escalation, a checklist item to tick off), or null for a plain Question or Task. |
+| `metric` | object or null | yes | The Metric it is about; null when the key's creator does not see that Metric, and for a checklist Task, which has none. |
+| `workflow` | object or null | yes | The Workflow a checklist Task is about (with its period); null for every other Action. |
 | `period` | string | yes | The period's first day, YYYY-MM-DD. |
 | `asked_by` | string | yes | A person's id, as GET /people gives it. |
 | `asked_by_name` | string or null | yes |  |

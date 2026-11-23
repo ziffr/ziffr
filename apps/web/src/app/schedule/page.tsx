@@ -37,7 +37,7 @@ function notes(e: ScheduleEntry): string[] {
   if (e.noDueDate) out.push("no Due Date set");
   if (e.escalation) out.push("Escalation");
   if (e.kind === "value_due" && !e.overdue && e.remindDaysBefore !== null) out.push(`Ziffr reminds you ${plural(e.remindDaysBefore, "day")} before`);
-  if (e.text && e.kind !== "value_due") out.push(`${e.metric.name}, ${e.period.label}`);
+  if (e.text && e.kind !== "value_due") out.push(`${e.metric?.name ?? e.workflow?.name}, ${e.period.label}`);
   return out;
 }
 
@@ -45,7 +45,7 @@ function Entries({ list }: { list: ScheduleEntry[] }) {
   return (
     <ul className="overflow-hidden stock rounded-[var(--radius-card)]">
       {list.map((e) => (
-        <li key={`${e.kind}-${e.metric.id}-${e.period.start}-${e.actionId ?? ""}`} className="border-b border-border last:border-0">
+        <li key={`${e.kind}-${e.metric?.id ?? `w${e.workflow?.id}`}-${e.period.start}-${e.actionId ?? ""}`} className="border-b border-border last:border-0">
           <Link href={e.path} className="flex flex-wrap items-baseline gap-x-3 gap-y-1 px-4 py-3 hover:bg-[var(--color-paper-2)]">
             <span className="min-w-[12rem] flex-1 font-medium">{entryTitle(e)}</span>
             <span className="text-xs text-muted-foreground">{notes(e).join(" · ")}</span>
@@ -66,7 +66,7 @@ function Section({ title, hint, children }: { title: string; hint?: string; chil
 }
 
 /** A duty as a calendar chip needs it: its words, its day and where it opens, nothing more than the list shows. */
-const duty = (e: ScheduleEntry): Duty => ({ key: `${e.kind}-${e.metric.id}-${e.period.start}-${e.actionId ?? ""}`, kind: e.kind, title: entryTitle(e), date: e.date!, overdue: e.overdue, lateDays: e.overdueWorkingDays, path: e.path });
+const duty = (e: ScheduleEntry): Duty => ({ key: `${e.kind}-${e.metric?.id ?? `w${e.workflow?.id}`}-${e.period.start}-${e.actionId ?? ""}`, kind: e.kind, title: entryTitle(e), date: e.date!, overdue: e.overdue, lateDays: e.overdueWorkingDays, path: e.path });
 
 const KINDS = [{ id: "", label: "All" }, { id: "value_due", label: "Values" }, { id: "approval", label: "Approvals" }, { id: "task", label: "Tasks" }, { id: "question", label: "Questions" }];
 

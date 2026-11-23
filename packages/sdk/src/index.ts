@@ -230,7 +230,10 @@ export type ScheduleEntry = {
   overdue: boolean;
   /** Working days (Saturdays and Sundays skipped) it is late; 0 when it is not. */
   overdue_working_days: number;
-  metric: { slug: string; name: string };
+  /** The Metric it is about; null for a checklist Task, which is about its Workflow (`workflow`) and period. */
+  metric: { slug: string; name: string } | null;
+  /** The Workflow a checklist Task is about; null for every other entry. */
+  workflow: { id: number; name: string } | null;
   period: { start: string; name: string };
   /** The Approval's, Task's or Question's id; null for a value due. */
   action_id: number | null;
@@ -283,7 +286,7 @@ export type TimelineEvent = {
   /** The same moment's day in the workspace's time zone, and its time (HH:mm). */
   day: string;
   time: string;
-  kind: "asked" | "reminded" | "in" | "action" | "approval_asked" | "approved" | "sent_back" | "checked" | "note" | "published" | "locked" | "snapshot" | "checklist_sent";
+  kind: "asked" | "reminded" | "in" | "action" | "approval_asked" | "approved" | "sent_back" | "checked" | "note" | "published" | "locked" | "snapshot" | "checklist_sent" | "checklist_given" | "checklist_done";
   /** One sentence; names in it come from the workspace. */
   text: string;
   count: number;
@@ -301,6 +304,8 @@ export type PeriodStatus = {
   period: { start: string; name: string };
   /** Values in, of the values the Workflow asks for; and how many of them are published and locked. */
   in: number; of: number; published: number; locked: number;
+  /** The Workflow's checklist Tasks of the period: how many were given (`of`) and how many are done. `in` and `of` count values only. */
+  checklist: { done: number; of: number };
   events: TimelineEvent[];
 };
 
@@ -320,9 +325,11 @@ export type Action = {
   kind: "question" | "task";
   status: "open" | "answered" | "closed";
   /** What a Workflow made it for (an Approval waiting, a Self-check, an Escalation); null for a plain one. */
-  purpose: "approval" | "self_check" | "escalation" | null;
-  /** The Metric it is about; null when the key's creator does not see it. */
+  purpose: "approval" | "self_check" | "escalation" | "checklist" | null;
+  /** The Metric it is about; null when the key's creator does not see it, and for a checklist Task, which has none. */
   metric: { slug: string; name: string } | null;
+  /** The Workflow a checklist Task is about (its period is `period`); null for every other Action. */
+  workflow: { id: number; name: string } | null;
   period: string;
   asked_by: string;
   asked_by_name: string | null;
@@ -731,8 +738,8 @@ export class Ziffr {
     close: async (id: number): Promise<Action> => (await this.request<Action>("PATCH", `/actions/${id}`, undefined, { status: "closed" })).body,
     /** Reopens one the creator asked. */
     reopen: async (id: number): Promise<Action> => (await this.request<Action>("PATCH", `/actions/${id}`, undefined, { status: "open" })).body,
-    /** Marks the creator's own open Task done. */
-    done: async (id: number): Promise<Action> => (await this.request<Action>("POST", `/actions/${id}/done`)).body,
+    /** Marks the creator's own open Task done, with an optional note (at most 2,000 characters) kept as the Thread's last reply. */
+    done: async (id: number, note?: string): Promise<Action> => (await this.request<Action>("POST", `/actions/${id}/done`, undefined, note === undefined ? undefined : { note })).body,
     /** Confirms the creator's own value in a Self-check. */
     confirm: async (id: number): Promise<Action> => (await this.request<Action>("POST", `/actions/${id}/self-check`, undefined, { decision: "confirm" })).body,
     /** Corrects the creator's own value in a Self-check. */

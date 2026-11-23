@@ -77,9 +77,9 @@ export async function setActionStatus(actor: Actor, actionId: number, status: "o
   }
 }
 
-/** The assignee marks their open task done. */
-export async function markTaskDone(actor: Actor, actionId: number, source: ChangeSource = FROM_APP) {
-  if (!(await finishTask(actor.workspaceId, Number(actionId), actor.personId, source))) throw new Error("That task is not open, or it is not yours.");
+/** The assignee marks their open task done, with an optional note (at most 2,000 characters) kept as the Thread's last reply. */
+export async function markTaskDone(actor: Actor, actionId: number, source: ChangeSource = FROM_APP, note?: string | null) {
+  if (!(await finishTask(actor.workspaceId, Number(actionId), actor.personId, source, note))) throw new Error("That task is not open, or it is not yours.");
 }
 
 /** Where a person hears about each kind of message. A person sets their own; the team default (personId null) is

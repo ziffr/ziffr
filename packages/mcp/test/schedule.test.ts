@@ -10,7 +10,7 @@ const cleanups: (() => Promise<void>)[] = [];
 afterEach(async () => { for (const c of cleanups.splice(0)) await c(); });
 
 const base: ScheduleEntry = {
-  kind: "value_due", date: "2026-11-04", overdue: true, overdue_working_days: 11, metric: { slug: "revenue", name: "Revenue" },
+  kind: "value_due", date: "2026-11-04", overdue: true, overdue_working_days: 11, metric: { slug: "revenue", name: "Revenue" }, workflow: null,
   period: { start: "2026-10-01", name: "October 2026" }, action_id: null, text: null, escalation: false, standing_in_for: "Ana",
   no_due_date: false, remind_days_before: 2, url: "https://ziffr.test/schedule/submit/revenue",
 };

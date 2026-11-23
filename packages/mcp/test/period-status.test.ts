@@ -10,7 +10,7 @@ const cleanups: (() => Promise<void>)[] = [];
 afterEach(async () => { for (const c of cleanups.splice(0)) await c(); });
 
 const STATUS: PeriodStatus = {
-  workflow: { id: 3, name: "Weekly numbers" }, period: { start: "2026-11-16", name: "Week 47, 2026" }, in: 5, of: 6, published: 0, locked: 0,
+  workflow: { id: 3, name: "Weekly numbers" }, period: { start: "2026-11-16", name: "Week 47, 2026" }, in: 5, of: 6, published: 0, locked: 0, checklist: { done: 1, of: 2 },
   events: [
     { at: "2026-11-16T08:00:00.000Z", day: "2026-11-16", time: "08:00", kind: "asked", text: "Asked 6 people by Email", count: 6, in: null, items: ["Mia: Revenue", "1 value"], url: null },
     { at: "2026-11-16T14:10:00.000Z", day: "2026-11-16", time: "14:10", kind: "in", text: "5 values came in (5 of 6 in)", count: 5, in: 5, items: [], url: "https://ziffr.test/actions/9" },
@@ -36,7 +36,7 @@ describe("period_status", () => {
     expect(res.isError).toBeFalsy();
     expect(asked.map((u) => `${u.pathname}${u.search}`)).toEqual(["/api/v1/workflows?limit=100", "/api/v1/workflows/3/period-status?period=2026-11-16"]);
     const text = (res.content as { text: string }[])[0].text;
-    expect(text).toContain("\"Weekly numbers\", Week 47, 2026: 5 of 6 in, 0 published, 0 locked.");
+    expect(text).toContain("\"Weekly numbers\", Week 47, 2026: 5 of 6 in, 0 published, 0 locked, 1 of 2 checklist tasks done.");
     expect(text).toContain("- 2026-11-16 08:00: Asked 6 people by Email (Mia: Revenue; 1 value)");
     expect(text).toContain("- 2026-11-16 14:10: 5 values came in (5 of 6 in) https://ziffr.test/actions/9");
   });

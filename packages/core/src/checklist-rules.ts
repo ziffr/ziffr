@@ -10,6 +10,11 @@ export type InfoItem = Extract<ChecklistItem, { kind: "info" }>;
 /** The Checklist Items for information of a stored config, in order. */
 export const infoItems = (steps: { type: string }[]): InfoItem[] => steps.filter((s): s is InfoItem => s.type === "checklist" && (s as ChecklistItem).kind === "info");
 
+/** An item to tick off: a Task for its Assignee each period. */
+export type TickItem = Extract<ChecklistItem, { kind: "tick" }>;
+/** The Checklist Items to tick off of a stored config, in order. */
+export const tickItems = (steps: { type: string }[]): TickItem[] => steps.filter((s): s is TickItem => s.type === "checklist" && (s as ChecklistItem).kind === "tick");
+
 /** A Workflow's period as its Metrics have it: the last ended period of the one period they share, or why it has none
  * (no Metric is asked for, or the Metrics differ: a monthly and a quarterly one). Derived and Archived Metrics are not asked. */
 export type WorkflowPeriod = { ok: true; period: string; span: Period } | { ok: false; why: "none" | "mixed" };

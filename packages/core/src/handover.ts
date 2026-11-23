@@ -40,7 +40,7 @@ export async function removeMember(actor: Actor, personId: string, successorId: 
     throw new Error(/at least one Owner/.test(error.message) ? "A workspace keeps at least one Owner. Make someone else Owner first." : "The handover did not work; nothing was changed.");
   }
   // The assignee changed (spec 0034: `action.updated`): each Webhook that chose it hears it once, so the external task follows to the successor.
-  for (const a of waiting ?? []) await queueWebhookEvent(ws, "action.updated", { type: "system" }, { actionId: a.id as number, metricId: a.metric_id as number, period: a.period_start as string });
+  for (const a of waiting ?? []) await queueWebhookEvent(ws, "action.updated", { type: "system" }, { actionId: a.id as number, metricId: a.metric_id as number | null, period: a.period_start as string });
   const from = (leaving.profiles as unknown as { name: string } | null)?.name ?? "a former member";
   const to = (successor.profiles as unknown as { name: string } | null)?.name ?? "a member";
   // Automatic Snapshots are taken in the owner's name, with what they see (spec 0013): the successor chooses again.
