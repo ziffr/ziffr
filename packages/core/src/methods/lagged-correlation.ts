@@ -11,7 +11,7 @@ import { formatNumber } from "../format";
 import { shiftPeriod, type Span } from "../periods";
 import { checkSuitability } from "../suitability";
 import { strengthOf } from "../takeaways/strength";
-import { pairsAnswer, refusalTakeaway, sayIn, strengthWordIn, verdictLines, wideRefusal, withinBudget, type Takeaway, type TakeawayContext } from "../takeaways/takeaway";
+import { pairsAnswer, refusalTakeaway, sayIn, strengthWordIn, verdictLines, wideRefusal, type Takeaway, type TakeawayContext } from "../takeaways/takeaway";
 import type { Point } from "../types";
 
 /** The longest lag tried, in periods. */
@@ -52,11 +52,6 @@ export function lagPairs(a: Point[], b: Point[], span: Span, lag: number): { x: 
  * run on the periods both series have (the lag minimum of 12) and, for variation, gaps, far-off values, skew and a link that
  * changed, on the pairs of the best delay; the chance rule is read at the bar for the delays tried. */
 export function laggedTakeaway(aName: string, bName: string, a: Point[], b: Point[], span: Span, basis: Basis, ctx: TakeawayContext): Takeaway {
-  return withinBudget("numbers-method-lag", ctx, () => laggedTakeawayWithin(aName, bName, a, b, span, basis, ctx));
-}
-
-// The Takeaway itself, worked out under the work budget of work-bound.ts.
-function laggedTakeawayWithin(aName: string, bName: string, a: Point[], b: Point[], span: Span, basis: Basis, ctx: TakeawayContext): Takeaway {
   const method = sayIn("numbers-method-lag", {}, ctx);
   // Values too wide to work out exactly are refused before the exact arithmetic is started (work-bound.ts).
   const wide = wideRefusal(method, [{ name: aName, values: readSeries(a).map((p) => p.value) }, { name: bName, values: readSeries(b).map((p) => p.value) }], ctx);

@@ -26,7 +26,7 @@ import { shiftPeriod, type Span } from "../periods";
 import { checkSuitability, SUITABILITY, type Finding, type SuitabilityInputs, type Verdict } from "../suitability";
 import { strengthOf, type StrengthWord } from "../takeaways/strength";
 import type { Point } from "../types";
-import { digits, spend, spendOn, widthOf, wideColumns, withWork } from "../work-bound";
+import { digits, spend, spendOn, widthOf, wideColumns, wideFindings, withWork } from "../work-bound";
 import { tQuantile } from "./distributions";
 
 /** How many periods a driver's partial link is judged on: the periods less the drivers held fixed (n − (k − 1)), so that the
@@ -529,6 +529,9 @@ function fitWithin(input: FitInput): Fit | Refused {
   const names = [...input.drivers.map((d) => d.name), input.target.name];
   const k = input.drivers.length;
   if (k === 0) return { ok: false, refusals: [{ case: "refuse-no-drivers", slots: { target: input.target.name } }] };
+  // The levels are held to the limits of work-bound.ts before anything is worked out on them: choosing the basis is exact least squares on them.
+  const wide = wideFindings([input.target, ...input.drivers].map((d) => ({ name: d.name, points: d.points })));
+  if (wide.length > 0) return { ok: false, refusals: wide };
   const prep = prepare(input);
   const base: SuitabilityInputs = { series: prep.series, span, periods: prep.rows.length, drivers: k, metrics: input.metrics };
   // Where compared by change, a missing value costs two changes: the findings about gaps count changes, and say so.
