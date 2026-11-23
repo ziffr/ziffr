@@ -18,6 +18,12 @@ export function startAnswers(e: EntryView): Answers {
   return { slots: Object.fromEntries(Object.entries(e.defaults).map(([k, v]) => [k, [...v]])), settings };
 }
 
+/** A Metric is chosen once for a Method: choosing it for one Slot takes it out of the others. */
+function chooseFor(answers: Answers, slot: string, ids: number[]): Answers {
+  const slots = Object.fromEntries(Object.entries(answers.slots).map(([k, v]) => [k, k === slot ? ids : v.filter((i) => !ids.includes(i))]));
+  return { ...answers, slots };
+}
+
 function SlotQuestion({ slot, canvas, chosen, onChange }: { slot: SlotDef; canvas: CanvasMetric[]; chosen: number[]; onChange: (ids: number[]) => void }) {
   if (slot.many) {
     return (
@@ -74,7 +80,7 @@ export function AskForm({ entry, canvas, answers, onChange, onRun, pending }: { 
     >
       <div className="grid gap-3 sm:grid-cols-2">
         {entry.slots.map((s) => (
-          <SlotQuestion key={s.id} slot={s} canvas={canvas} chosen={answers.slots[s.id] ?? []} onChange={(ids) => onChange({ ...answers, slots: { ...answers.slots, [s.id]: ids } })} />
+          <SlotQuestion key={s.id} slot={s} canvas={s.many ? canvas.filter((m) => !Object.entries(answers.slots).some(([k, v]) => k !== s.id && v.includes(m.id))) : canvas} chosen={answers.slots[s.id] ?? []} onChange={(ids) => onChange(chooseFor(answers, s.id, ids))} />
         ))}
         {entry.settings.map((d) => (
           <SettingQuestion key={d.id} def={d} value={answers.settings[d.id] ?? ""} onChange={(v) => onChange({ ...answers, settings: { ...answers.settings, [d.id]: v } })} />

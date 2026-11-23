@@ -92,7 +92,9 @@ describe("Choose a method", () => {
     const select = form.querySelector("select")!;
     expect(select.value).toBe("1");
     const boxes = [...form.querySelectorAll<HTMLInputElement>("input[type=checkbox]")];
-    expect(boxes.map((b) => b.checked)).toEqual([false, true, true]);
+    // The Metric to explain is not offered as its own driver.
+    expect(boxes.map((b) => b.checked)).toEqual([true, true]);
+    expect(boxes).toHaveLength(2);
     answer = { ok: false, message: "Which value should it reach? Give a number." };
     await act(async () => { form.requestSubmit(); });
     expect(ran).toEqual([{ entry: "needs", slots: { metric: [1], drivers: [2, 3] }, settings: {} }]);
