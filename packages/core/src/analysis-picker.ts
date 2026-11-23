@@ -1,0 +1,165 @@
+// The method picker on the Analysis Canvas, for a person (GLOSSARY: Analysis Canvas, Method, Takeaway; spec 0041, ticket 16). `listPicker`
+// gives the list of Methods grouped by what the person wants to know, fitted to the Metrics on their canvas; `runPicker` runs the one they
+// picked through the Takeaway layer. Both take the Actor first and work only on Metrics that Actor may see (their Shares, Groups, Tokens
+// and Stand-ins, through visibleMetricIds): a Metric they may not see is not on the list of Slots, not named in a reason, not counted, and
+// an id for one gets the same words as an id that does not exist. What the browser sends (ids, settings) is untrusted: read with limits in
+// method-picker-run.ts and refused in words. The screen only calls these.
+import type { Actor } from "./actor";
+import { seriesFor, visibleMetricIds } from "./access";
+import { yearStartOf } from "./fiscal-year";
+import { entryOf, textsOf, type EntryId, type PickerEntry, type SettingDef, type SlotDef } from "./method-picker";
+import { groupsFor, metricsNeeded, type CanvasFact, type EntryFit } from "./method-picker-fit";
+import { readSettings, readSlotIds, recipeFileOf, runEntry, type PickWorld } from "./method-picker-run";
+import { endsOf } from "./takeaways/forecast";
+import type { AnalysisRecipe2 } from "./analysis-recipe";
+import { seriesBy, type Resolver } from "./display-periods";
+import type { Span } from "./periods";
+import type { Takeaway } from "./takeaways/takeaway";
+import type { Metric } from "./types";
+import { numberStyleOf } from "./workspace-settings";
+import { getMetrics } from "./workspace-data";
+
+/** The most Metrics one request may name; a canvas is a handful. */
+export const MOST_PICKED = 50;
+/** What a person is told for an id that is not theirs to use: the same words whether the Metric is hidden or does not exist. */
+export const NOT_AVAILABLE = "One of those Metrics is not available to you.";
+
+/** A Metric on the canvas as the list shows it: its name and period, nothing else. */
+export type CanvasMetric = { id: number; name: string; period: Span };
+
+/** An entry as the list shows it. */
+export type EntryView = {
+  id: EntryId;
+  name: string;
+  sentence: string;
+  technical: string;
+  useWhen: string;
+  dontUseWhen: string[];
+  slots: SlotDef[];
+  settings: SettingDef[];
+  /** How many Metrics it needs on the canvas, in words. */
+  needs: string;
+  fit: EntryFit;
+  /** The Metrics each Slot is filled with from the canvas where the entry fits (ids, in canvas order); a Slot the person may change. */
+  defaults: Record<string, number[]>;
+  /** Whether the result can be had as an Analysis Recipe file. */
+  recipeFile: boolean;
+  /** The widget that shows the same Takeaway, so that the result can be saved as one the existing way. */
+  widget: PickerEntry["widget"];
+};
+
+/** The list: the canvas Metrics the person sees, and the groups of entries. */
+export type PickerList = { canvas: CanvasMetric[]; groups: { want: string; question: string; entries: EntryView[] }[] };
+
+/** The result of running an entry: a Takeaway, or why it could not be asked for. */
+export type PickerRun =
+  | { ok: true; entry: EntryId; takeaway: Takeaway; recipe: AnalysisRecipe2 | null; widget: { template: "forecast" | "correlation"; metricIds: number[]; showTarget: boolean } | null }
+  | { ok: false; message: string };
+
+// The ids a browser sent for a canvas: whole positive numbers, at most MOST_PICKED, each once, in the order sent.
+function readIds(raw: unknown): number[] | null {
+  if (!Array.isArray(raw) || raw.length > MOST_PICKED || !raw.every((i) => Number.isSafeInteger(i) && i > 0)) return null;
+  return [...new Set(raw as number[])];
+}
+
+type Loaded = { world: PickWorld; visible: Map<number, Metric> };
+
+// What the picker reads for these Metrics: the ones the actor sees among them, with their values and Breakdowns, and nothing of any other.
+async function load(actor: Actor, ids: number[]): Promise<Loaded> {
+  const ws = actor.workspaceId;
+  const metrics = await getMetrics(ws);
+  const seen = await visibleMetricIds(ws, actor.personId, metrics);
+  const visible = new Map(metrics.filter((m) => seen.has(m.id) && !m.archived_at).map((m) => [m.id, m]));
+  const wanted = ids.filter((i) => visible.has(i));
+  const [data, style, yearStart] = await Promise.all([seriesFor(ws, metrics, seen, wanted), numberStyleOf(ws), yearStartOf(ws)]);
+  // Only the Metrics asked for and the visible inputs of their formulas are in `series`; the world holds the visible Metrics only, so a lookup never finds another.
+  const world: PickWorld = { metrics: [...visible.values()], series: data.series, breakdowns: data.breakdowns, ctx: { style }, yearStart };
+  return { world, visible };
+}
+
+function factOf(w: PickWorld, m: Metric, canvas: Metric[]): CanvasFact {
+  const resolve: Resolver = (slug) => {
+    const metric = w.metrics.find((x) => x.slug === slug);
+    return metric && { metric, points: w.series[slug] ?? [] };
+  };
+  const own = seriesBy(m, resolve, m.period as Span, { yearStart: w.yearStart });
+  const points = own.ok ? own.points.filter((p) => !p.toDate) : [];
+  const [before, latest] = [points.at(-2)?.period, points.at(-1)?.period];
+  const ends = endsOf(m);
+  const has = (period: string | undefined) => period !== undefined && (w.breakdowns[m.id]?.[period]?.length ?? 0) > 0;
+  return {
+    id: m.id, name: m.name, period: m.period as Span, aggregation: m.aggregation, periods: points.length,
+    hasTarget: ends.min !== null || ends.max !== null, breakdownLatest: has(latest), breakdownBefore: has(before),
+    builtFrom: canvas.filter((x) => x.id !== m.id && m.formula?.includes(`{${x.slug}}`)).map((x) => x.id),
+  };
+}
+
+// The Metrics each Slot would be filled with from the canvas, as the list's defaults: one for each single Slot, the rest for a Slot that takes several.
+function defaultsOf(entry: PickerEntry, canvas: number[]): Record<string, number[]> {
+  const out: Record<string, number[]> = {};
+  let at = 0;
+  for (const s of entry.slots) {
+    const take = s.optional ? 0 : s.many ? Math.min(s.many.max, Math.max(0, canvas.length - at)) : 1;
+    out[s.id] = canvas.slice(at, at + take);
+    at += take;
+  }
+  return out;
+}
+
+const needsText = (e: PickerEntry): string => {
+  const n = metricsNeeded(e);
+  return `${n} Metric${n === 1 ? "" : "s"} on the canvas`;
+};
+
+/** The method picker's list for the Metrics on this person's canvas (`canvasIds` as sent; the ones they may not see are left out as if absent). */
+export async function listPicker(actor: Actor, canvasIds: unknown): Promise<PickerList> {
+  const ids = readIds(canvasIds);
+  if (!ids) return { canvas: [], groups: [] };
+  const { world, visible } = await load(actor, ids);
+  const canvas = ids.flatMap((i) => visible.get(i) ?? []);
+  const facts = canvas.map((m) => factOf(world, m, canvas));
+  const on = canvas.map((m) => m.id);
+  return {
+    canvas: canvas.map((m) => ({ id: m.id, name: m.name, period: m.period as Span })),
+    groups: groupsFor(facts).map((g) => ({
+      want: g.want,
+      question: g.question,
+      entries: g.entries.map((e): EntryView => ({
+        id: e.id, name: e.name, sentence: e.sentence, technical: e.technical, ...textsOf(e), slots: e.slots, settings: e.settings,
+        needs: needsText(e), fit: e.fit, defaults: defaultsOf(e, on), recipeFile: recipeFileOf(e) !== null, widget: e.widget,
+      })),
+    })),
+  };
+}
+
+/** Runs the entry a person picked, with the Metrics they chose for its Slots and its settings, through its Takeaway rule. Anything that is not theirs to use is refused in the same words. */
+export async function runPicker(actor: Actor, request: unknown): Promise<PickerRun> {
+  const r = (typeof request === "object" && request !== null && !Array.isArray(request) ? request : {}) as { entry?: unknown; slots?: unknown; settings?: unknown };
+  const entry = entryOf(r.entry);
+  if (!entry) return { ok: false, message: "Ziffr does not know that Method." };
+  const slotIds = readSlotIds(entry, r.slots);
+  if (!slotIds.ok) return slotIds;
+  const settings = readSettings(entry, r.settings);
+  if (!settings.ok) return settings;
+  const all = Object.values(slotIds.ids).flat();
+  const { world, visible } = await load(actor, all);
+  if (all.some((i) => !visible.has(i))) return { ok: false, message: NOT_AVAILABLE };
+  const slots = Object.fromEntries(Object.entries(slotIds.ids).map(([k, v]) => [k, v.map((i) => visible.get(i)!)]));
+  const early = beside(entry, slots);
+  if (early) return { ok: false, message: early };
+  const takeaway = runEntry(entry, world, { slots, settings: settings.settings });
+  const main = all.slice(0, entry.widget === "correlation" ? 2 : 1);
+  return {
+    ok: true,
+    entry: entry.id,
+    takeaway,
+    recipe: recipeFileOf(entry, slots.held?.length, slots.drivers?.length),
+    widget: entry.widget ? { template: entry.widget, metricIds: main, showTarget: entry.id === "reach-target" } : null,
+  };
+}
+
+// A Metric set beside another must be counted at the same period: both are cut at the same date, period by period.
+function beside(entry: PickerEntry, slots: Record<string, Metric[]>): string | null {
+  const b = slots.beside?.[0];
+  return entry.id === "after-date" && b && b.period !== slots.metric[0].period ? `${b.name} is not counted at the same period as ${slots.metric[0].name}, so it cannot be set beside it.` : null;
+}
