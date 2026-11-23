@@ -18,7 +18,7 @@ const MEMBER_STEPS = [
 const GUEST_STEPS = [
   { href: "/dashboards", title: "Look at what is shared", body: "Open a dashboard that was shared with you and click a number to see its history." },
   { href: "/metrics", title: "Submit a value", body: "Open a metric you submit and record its latest value, or answer the Prompt you get." },
-  { href: "/actions", title: "Answer a question", body: "Questions and tasks waiting for you are in Actions. Reply there." },
+  { href: "/schedule", title: "Answer a question", body: "Questions and tasks waiting for you are in Schedule. Reply there." },
 ];
 
 const KEY = "ziffr-tour-v4";

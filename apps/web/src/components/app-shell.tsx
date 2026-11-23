@@ -5,7 +5,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Fragment, useEffect, useState, useTransition } from "react";
-import { Activity, BarChart3, Blocks, Building2, CalendarClock, ChevronRight, ChevronsUpDown, CircleHelp, FlaskConical, Hash, Inbox, KeyRound, LayoutDashboard, LogOut, MoreHorizontal, Package, Plug, Plus, Presentation, Rss, ScrollText, Search, Settings2, ShieldCheck, Users, Webhook, Workflow } from "lucide-react";
+import { Activity, BarChart3, Blocks, Building2, CalendarClock, ChevronRight, ChevronsUpDown, CircleHelp, FlaskConical, Hash, KeyRound, LayoutDashboard, LogOut, MoreHorizontal, Package, Plug, Plus, Presentation, Rss, ScrollText, Search, Settings2, ShieldCheck, Users, Webhook, Workflow } from "lucide-react";
 import { GuideLink, INSTALLATION, MAIN, PhoneAccount, WorkspaceChoices, YOU, type Account, type NavItem } from "@/components/nav-parts";
 import { PinnedDashboards, type Pinned } from "@/components/pinned-dashboards";
 import { SettingsNav } from "@/components/settings-nav";
@@ -60,7 +60,7 @@ function isOn(path: string, href: string) {
 const sheetRow = "flex h-12 flex-1 flex-col items-center justify-center gap-0.5 text-xs text-muted-foreground outline-none focus-visible:bg-muted data-[active=true]:font-medium data-[active=true]:text-foreground [&_svg]:size-5";
 
 /** The whole frame. `demo` holds the demo's controls, `banners` the notes that sit above every page. */
-export function AppShell({ workspace, settings, pinned, due, open, account, guide, demo, people, banners, collapsed, children }: { workspace: TreeLink[]; settings: { label: string; links: TreeLink[] }[]; pinned: Pinned[]; due: number; open: number; account: Account | null; guide: string; demo?: React.ReactNode; people?: { profiles: Profile[]; current: string }; banners?: React.ReactNode; collapsed: boolean; children: React.ReactNode }) {
+export function AppShell({ workspace, settings, pinned, due, account, guide, demo, people, banners, collapsed, children }: { workspace: TreeLink[]; settings: { label: string; links: TreeLink[] }[]; pinned: Pinned[]; due: number; account: Account | null; guide: string; demo?: React.ReactNode; people?: { profiles: Profile[]; current: string }; banners?: React.ReactNode; collapsed: boolean; children: React.ReactNode }) {
   const path = usePathname();
   return (
     <TooltipProvider delay={300}>
@@ -75,8 +75,7 @@ export function AppShell({ workspace, settings, pinned, due, open, account, guid
           <SidebarContent>
             <nav aria-label="Main" className="flex flex-col gap-3">
               <SidebarGroup>
-                <SidebarItem render={<Link href="/actions" />} icon={<Inbox aria-hidden />} label="Actions" active={path.startsWith("/actions")} badge={open > 0 ? open : undefined} tooltip={open ? `Actions, ${open} waiting for you` : "Actions"} aria-label={open ? `Actions, ${open} waiting for you` : "Actions"} />
-                <SidebarItem render={<Link href="/schedule" />} icon={ICONS["/schedule"]} label="Schedule" active={isOn(path, "/schedule")} badge={due > 0 ? due : undefined} tooltip={due ? `Schedule, ${due} due` : "Schedule"} aria-label={due ? `Schedule, ${due} due` : "Schedule"} />
+                <SidebarItem render={<Link href="/schedule" />} icon={ICONS["/schedule"]} label="Schedule" active={isOn(path, "/schedule") || path.startsWith("/actions")} badge={due > 0 ? due : undefined} tooltip={due ? `Schedule, ${due} due` : "Schedule"} aria-label={due ? `Schedule, ${due} due` : "Schedule"} />
                 {TOP_ORDER.map((href) => MAIN.find((l) => l.href === href)!).map((l) => (
                   <Fragment key={l.href}>
                     {/* On a pinned dashboard the pin is marked, not Dashboards as well. */}
@@ -112,7 +111,7 @@ export function AppShell({ workspace, settings, pinned, due, open, account, guid
             ) : children}
           </main>
         </SidebarInset>
-        <TabBar open={open} due={due} pinned={pinned} workspace={workspace} account={account} guide={guide} demoPages={Boolean(people)} />
+        <TabBar due={due} pinned={pinned} workspace={workspace} account={account} guide={guide} demoPages={Boolean(people)} />
       </SidebarProvider>
     </TooltipProvider>
   );
@@ -243,7 +242,7 @@ function DemoMenu({ people }: { people: { profiles: Profile[]; current: string }
 }
 
 /** The phone's way around: four places and More, which opens everything else from the bottom. */
-function TabBar({ open, due, pinned, workspace, account, guide, demoPages }: { open: number; due: number; pinned: Pinned[]; workspace: TreeLink[]; account: Account | null; guide: string; demoPages: boolean }) {
+function TabBar({ due, pinned, workspace, account, guide, demoPages }: { due: number; pinned: Pinned[]; workspace: TreeLink[]; account: Account | null; guide: string; demoPages: boolean }) {
   const path = usePathname();
   const [more, setMore] = useState(false);
   // A page change closes More.
@@ -259,23 +258,23 @@ function TabBar({ open, due, pinned, workspace, account, guide, demoPages }: { o
       <nav aria-label="Tabs" className="fixed inset-x-0 bottom-0 z-40 flex border-t border-border bg-background pb-[env(safe-area-inset-bottom)] md:hidden">
         {link("/dashboards", "Dashboards", <LayoutDashboard aria-hidden />, isOn(path, "/dashboards"))}
         {link("/metrics", "Metrics", <Hash aria-hidden />, isOn(path, "/metrics"))}
-        {link("/actions", "Actions", <Inbox aria-hidden />, path.startsWith("/actions"), open)}
+        {link("/schedule", "Schedule", ICONS["/schedule"], isOn(path, "/schedule") || path.startsWith("/actions"), due)}
         <button type="button" className={sheetRow} aria-haspopup="dialog" onClick={() => window.dispatchEvent(new Event(OPEN_SEARCH))}><Search aria-hidden /><span>Search</span></button>
         <button type="button" className={sheetRow} aria-haspopup="dialog" data-active={more} onClick={() => setMore(true)}><MoreHorizontal aria-hidden /><span>More</span></button>
       </nav>
       <Sheet open={more} onOpenChange={setMore}>
         <SheetContent side="bottom" className="overflow-y-auto pb-[env(safe-area-inset-bottom)] md:hidden">
           <SheetHeader><SheetTitle>More</SheetTitle></SheetHeader>
-          <div className="px-2 pb-3"><MoreRows due={due} pinned={pinned} workspace={workspace} account={account} guide={guide} demoPages={demoPages} /></div>
+          <div className="px-2 pb-3"><MoreRows pinned={pinned} workspace={workspace} account={account} guide={guide} demoPages={demoPages} /></div>
         </SheetContent>
       </Sheet>
     </>
   );
 }
 
-/** What More lists (#529): only what the tabs do not (no Dashboards, Metrics, Actions or Search): the pinned dashboards (#509), Schedule, Decks,
+/** What More lists (#529): only what the tabs do not (no Dashboards, Metrics, Schedule or Search): the pinned dashboards (#509), Decks,
  * Analyze, the Workspace as one row that opens its pages, the guide, your own pages, switching, signing out. */
-function MoreRows({ due, pinned, workspace, account, guide, demoPages }: { due: number; pinned: Pinned[]; workspace: TreeLink[]; account: Account | null; guide: string; demoPages: boolean }) {
+function MoreRows({ pinned, workspace, account, guide, demoPages }: { pinned: Pinned[]; workspace: TreeLink[]; account: Account | null; guide: string; demoPages: boolean }) {
   const path = usePathname();
   const [pages, setPages] = useState(false);
   const row = "flex h-11 items-center gap-3 rounded-md px-2 text-sm hover:bg-muted focus-visible:outline-2 focus-visible:outline-ring [&_svg]:size-4 [&_svg]:text-muted-foreground";
@@ -292,7 +291,6 @@ function MoreRows({ due, pinned, workspace, account, guide, demoPages }: { due: 
         </>
       )}
       <ul>
-        {link({ href: "/schedule", label: "Schedule" }, ICONS["/schedule"], due > 0 ? <span className="fig ml-auto text-xs text-muted-foreground">{due}</span> : null)}
         {link({ href: "/decks", label: "Decks" }, ICONS["/decks"])}
         {link({ href: "/analyze", label: "Analyze" }, ICONS["/analyze"])}
         {workspace.length > 0 && (
