@@ -19,6 +19,8 @@ Decks, Themes, View Designs, the canvas, Packs and the pages that edit them are 
 - `sendableMetrics` (send-values-options.ts): the picker on Connectors → Send values in the app; a program lists the Metrics it sees, and the ones it may submit to, through the API
 - `pasteTemplate` (paste-template.ts): the template file on the Paste values page in the app; a program reads its Metrics through the API and sends values through a Feed or its own key
 - `saveLayout` (dashboards.ts): the dashboard canvas
+- `listPicker` (analysis-picker.ts): the list of Methods on the Analysis Canvas in the app, fitted to the Metrics on the canvas; analyses are not in the API yet
+- `runPicker` (analysis-picker.ts): runs the Method picked on the Analysis Canvas in the app; analyses are not in the API yet (the core takes the Actor first, so adding them later is a small step)
 - `createDashboardFromBody` (dashboard-templates.ts): the same as making a dashboard from a template, for a template that is not stored; only a Workspace import uses it
 - `writeFormula` (pack-setup.ts): sets the formula of a Derived Metric made from a Pack entry or a Workspace Export; a program writes a formula through the API's
 - `addThemeFromFile` (workspace-themes.ts): Themes, which are built at the screen

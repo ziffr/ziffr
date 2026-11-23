@@ -6,7 +6,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Fragment, useEffect, useRef, useState, useTransition } from "react";
 import { Activity, BarChart3, Blocks, Building2, CalendarClock, ChevronRight, ChevronsUpDown, CircleHelp, FlaskConical, Hash, KeyRound, LayoutDashboard, LogOut, MessageSquarePlus, MoreHorizontal, Package, Plug, Plus, Presentation, Rss, ScrollText, Search, Settings2, ShieldCheck, Users, Webhook, Workflow } from "lucide-react";
-import { GuideLink, INSTALLATION, MAIN, PhoneAccount, WorkspaceChoices, YOU, type Account, type NavItem } from "@/components/nav-parts";
+import { INSTALLATION, MAIN, PhoneAccount, WorkspaceChoices, YOU, type Account, type NavItem } from "@/components/nav-parts";
 import { PinnedDashboards, type Pinned } from "@/components/pinned-dashboards";
 import { SettingsNav } from "@/components/settings-nav";
 import { inSettings, onPage, type TreeLink } from "@/lib/settings-links";
@@ -16,7 +16,7 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sh
 import { SlideOverProvider, useSlideOver } from "@/components/slide-over-host";
 import { FeedbackPanel } from "@/components/feedback-panel";
 import { useOpenPanel, writePanel } from "@/lib/panel-param";
-import { HelpButton } from "@/components/help-panel";
+import { HelpButton, useOpenHelp } from "@/components/help-panel";
 import { Sidebar, SidebarContent, SidebarFooter, SidebarGroup, SidebarHeader, SidebarInset, SidebarItem, SidebarProvider, SidebarTrigger, useSidebar } from "@/components/ui/sidebar";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { signOut } from "@/app/auth-actions";
@@ -93,7 +93,7 @@ export function AppShell({ workspace, settings, pinned, due, account, guide, dem
             </nav>
           </SidebarContent>
           <SidebarFooter>
-            <SidebarItem render={<GuideLink href={guide}>{null}</GuideLink>} icon={<CircleHelp aria-hidden />} label="User guide" active={path.startsWith("/guide")} />
+            <HelpSidebarItem guide={guide} />
             {account && <UserMenu account={account} />}
             {people && <DemoMenu people={people} />}
           </SidebarFooter>
@@ -104,7 +104,7 @@ export function AppShell({ workspace, settings, pinned, due, account, guide, dem
             <Link href="/" className="text-base font-semibold tracking-[-0.03em] md:hidden">Ziffr</Link>
             {/* The demo's controls live in the sidebar footer like the signed-in menu; phones have no sidebar, so they keep this row. */}
             {demo && <div className="ml-auto flex flex-wrap items-center gap-x-3 md:hidden [&_label]:text-xs [&_select]:h-7 [&_a]:h-7 [&_a]:text-xs">{demo}</div>}
-            {/* Help for this screen opens in the side panel; the sidebar's "User guide" link stays for the whole guide. */}
+            {/* Help opens in the side panel: for this screen from here, at the list of chapters from the sidebar's Help entry. */}
             <HelpButton guide={guide} className={demo ? "md:ml-auto" : "ml-auto"} />
           </header>
           {banners}
@@ -123,6 +123,12 @@ export function AppShell({ workspace, settings, pinned, due, account, guide, dem
       </SlideOverProvider>
     </TooltipProvider>
   );
+}
+
+/** The sidebar's Help entry: opens the side panel at the list of chapters (the one for this screen on top), instead of leaving for the guide. */
+function HelpSidebarItem({ guide }: { guide: string }) {
+  const openHelp = useOpenHelp(guide);
+  return <SidebarItem icon={<CircleHelp aria-hidden />} label="Help" tooltip="Help: the user guide" aria-haspopup="dialog" onClick={() => openHelp("contents")} />;
 }
 
 /** The search inside the sidebar frame, which can toggle the sidebar. */
@@ -287,7 +293,7 @@ function TabBar({ due, pinned, workspace, account, guide, demoPages }: { due: nu
       <Sheet open={more} onOpenChange={setMore}>
         <SheetContent side="bottom" className="overflow-y-auto pb-[env(safe-area-inset-bottom)] md:hidden">
           <SheetHeader><SheetTitle>More</SheetTitle></SheetHeader>
-          <div className="px-2 pb-3"><MoreRows pinned={pinned} workspace={workspace} account={account} guide={guide} demoPages={demoPages} /></div>
+          <div className="px-2 pb-3"><MoreRows pinned={pinned} workspace={workspace} account={account} guide={guide} demoPages={demoPages} onHelp={() => setMore(false)} /></div>
         </SheetContent>
       </Sheet>
     </>
@@ -295,9 +301,10 @@ function TabBar({ due, pinned, workspace, account, guide, demoPages }: { due: nu
 }
 
 /** What More lists (#529): only what the tabs do not (no Dashboards, Metrics, Schedule or Search): the pinned dashboards (#509), Decks,
- * Analyze, the Workspace as one row that opens its pages, the guide, your own pages, switching, signing out. */
-function MoreRows({ pinned, workspace, account, guide, demoPages }: { pinned: Pinned[]; workspace: TreeLink[]; account: Account | null; guide: string; demoPages: boolean }) {
+ * Analyze, the Workspace as one row that opens its pages, Help, your own pages, switching, signing out. */
+function MoreRows({ pinned, workspace, account, guide, demoPages, onHelp }: { pinned: Pinned[]; workspace: TreeLink[]; account: Account | null; guide: string; demoPages: boolean; onHelp: () => void }) {
   const path = usePathname();
+  const openHelp = useOpenHelp(guide);
   const [pages, setPages] = useState(false);
   const row = "flex h-11 items-center gap-3 rounded-md px-2 text-sm hover:bg-muted focus-visible:outline-2 focus-visible:outline-ring [&_svg]:size-4 [&_svg]:text-muted-foreground";
   const link = (l: NavItem, icon?: React.ReactNode, note?: React.ReactNode) => (
@@ -323,7 +330,8 @@ function MoreRows({ pinned, workspace, account, guide, demoPages }: { pinned: Pi
             {pages && <ul id="more-workspace" className="ml-5 border-l border-border pl-2">{workspace.map((l) => link(l))}</ul>}
           </li>
         )}
-        <li><GuideLink href={guide} className={row}><CircleHelp aria-hidden />User guide</GuideLink></li>
+        {/* Help opens in the side panel; More closes first so the panel is the only sheet on screen. */}
+        <li><button type="button" className={cn(row, "w-full text-left")} aria-haspopup="dialog" onClick={() => { onHelp(); openHelp("contents"); }}><CircleHelp aria-hidden />Help</button></li>
       </ul>
       {demoPages && (
         <>
