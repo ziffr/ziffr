@@ -494,7 +494,7 @@ The demo has no Access Keys, because a key there would act as a made-up person f
 
 ### Calendar Links
 
-Owners and Admins also see, below the keys, who has a **Calendar Link**: a secret address that shows a person's schedule in their calendar app (see [My schedule and your calendar](17-your-settings.md#my-schedule-and-your-calendar)). Each line shows the person's name, when they made it, and when a calendar last fetched it. The address itself is never shown. The bin icon revokes the link at once, and it then answers "not found". Its person can make a new one. A Calendar Link also ends when its person leaves the Workspace.
+Owners and Admins also see, below the keys, who has a **Calendar Link**: a secret address that shows a person's schedule in their calendar app (see [My schedule and your calendar](17-your-settings.md#the-schedule-and-your-calendar)). Each line shows the person's name, when they made it, and when a calendar last fetched it. The address itself is never shown. The bin icon revokes the link at once, and it then answers "not found". Its person can make a new one. A Calendar Link also ends when its person leaves the Workspace.
 
 ## Feeds
 

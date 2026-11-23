@@ -153,7 +153,7 @@ Feeds have no Stand-in. When a Feed's value is missing, the Metric Owner hears o
 
 ## Approving a value
 
-When a value needs Approval, the Approver gets an Approval task. It appears among their **Actions** (**Actions** in the sidebar) and is sent to them like any task, by email or on Slack: "Approve Revenue for October 2026: 84,000 €, up 42.0 % on September 2026. Reply "approve", or "send back:" with what to check." In Ziffr itself the task shows only the question, the value with the period before and who submitted it, and the buttons **Approve**, **Send back** and **Correct the value** (see [Actions](15-actions.md)); the reply words belong to the message.
+When a value needs Approval, the Approver gets an Approval task. It appears on their **Schedule** (**Schedule** in the sidebar) and is sent to them like any task, by email or on Slack: "Approve Revenue for October 2026: 84,000 €, up 42.0 % on September 2026. Reply "approve", or "send back:" with what to check." In Ziffr itself the task shows only the question, the value with the period before and who submitted it, and the buttons **Approve**, **Send back** and **Correct the value** (see [Actions](15-actions.md)); the reply words belong to the message.
 
 On the task's page, the Approver sees a box, **You approve this value**:
 
