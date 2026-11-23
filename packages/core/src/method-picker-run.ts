@@ -122,37 +122,51 @@ const driversOf = (p: Picked): Metric[] => p.slots.drivers;
 
 /** The Takeaway rule of each entry: the function that writes its Recipe's Takeaway. An entry has no way to run without one, so no Method can skip a rule. */
 export const RUNNERS: Record<EntryId, Runner> = {
+  /** Where is it heading?: the forecast with its range. */
   forecast: (w, p) => forecastTakeaway(one(p, "metric"), ownPoints(w, one(p, "metric")), w.ctx),
+  /** Will we reach the Target?: the forecast and the chance of reaching it. */
   "reach-target": reachOf,
+  /** Does A move with B?: Pearson's r on the basis the rule gives. */
   correlation: (w, p) => {
     const [a, b] = [one(p, "first"), one(p, "second")];
     return correlationTakeaway(a, b, correlate(a, b, resolverOf(w), { yearStart: w.yearStart }), w.ctx);
   },
+  /** Rank correlation, for skewed values. */
   rank: (w, p) => compared("numbers-method-spearman", w, [one(p, "first"), one(p, "second")], (span, [a, b]) => {
     const pair = pairOn(a, b, span);
     return spearmanTakeaway(one(p, "first").name, one(p, "second").name, pair.a, pair.b, span, pair.basis, w.ctx);
   }),
+  /** Partial correlation with the Metrics held the same. */
   partial: (w, p) => compared("numbers-method-partial", w, [one(p, "first"), one(p, "second"), ...p.slots.held], (span, [a, b, ...held]) =>
     partialTakeaway({ a: one(p, "first").name, b: one(p, "second").name, held: p.slots.held.map((m) => m.name) }, a, b, held, span, w.ctx)),
+  /** Lagged correlation: which delay fits best. */
   lag: (w, p) => compared("numbers-method-lag", w, [one(p, "first"), one(p, "second")], (span, [a, b]) => {
     const pair = pairOn(a, b, span);
     return laggedTakeaway(one(p, "first").name, one(p, "second").name, pair.a, pair.b, span, pair.basis, w.ctx);
   }),
+  /** What moves B?: the multiple fit, as its Recipe. */
   moves: (w, p) => whatMoves(one(p, "metric"), driversOf(p), resolverOf(w), { yearStart: w.yearStart, ctx: w.ctx }),
+  /** What does B need?: the fit turned round, as its Recipe. */
   needs: (w, p) => whatNeeds(one(p, "metric"), driversOf(p), p.settings.goal as number, resolverOf(w), { yearStart: w.yearStart, ctx: w.ctx }),
+  /** Did it work?: the periods after a day against the earlier trend. */
   "after-date": (w, p) => {
     const m = one(p, "metric");
     const beside = p.slots.beside?.[0];
     return afterDateTakeaway(m.name, ownPoints(w, m), m.period as Span, p.settings.date as string, m, w.ctx, beside && { name: beside.name, points: ownPoints(w, beside), unit: beside });
   },
+  /** Did something change, and when?: the change point. */
   "change-point": (w, p) => changePointTakeaway(one(p, "metric").name, ownPoints(w, one(p, "metric")), one(p, "metric").period as Span, one(p, "metric"), w.ctx),
+  /** Why did it change?: the Breakdown rows of the last two periods as a bridge. */
   bridge: (w, p) => bridgeOf("numbers-method-bridge", w, p),
+  /** What is usual?: the usual range and where a value stands. */
   usual: (w, p) => {
     const m = one(p, "metric");
     const value = p.settings.value;
     return usualRangeTakeaway(m.name, ownPoints(w, m), m.period as Span, m, w.ctx, typeof value === "number" ? { value } : {});
   },
+  /** How much do the biggest rows make up?: the share of the top rows. */
   "top-share": (w, p) => shareOf("numbers-method-share", w, p, (name, rows) => topShareTakeaway(name, rows, p.settings.rows as number, w.ctx)),
+  /** Which few rows make up most of it?: the Pareto rows. */
   pareto: (w, p) => shareOf("numbers-method-pareto", w, p, (name, rows) => paretoTakeaway(name, rows, w.ctx)),
 };
 
