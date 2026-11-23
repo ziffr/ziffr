@@ -385,12 +385,19 @@ export async function submissionForm(code: string) {
   const { data: existingRows } = await db().from("observations").select("id, value, value_sealed").eq("workspace_id", String(token.workspace_id)).eq("metric_id", metric.id).eq("period_start", period).order("created_at", { ascending: false }).limit(1);
   const [existing] = await openRows("observations", String(token.workspace_id), (existingRows ?? []) as Record<string, unknown>[]);
   const [person] = await openNames(String(token.workspace_id), [token.profiles as { id: string; name: string }]);
+  // A Stand-in answering in someone's place is told whose value it is (spec 0046: their answer is a Filled-in Value, marked
+  // as entered by them). The name only of the person the Prompt they hold was sent for; a Guest, whose answer stays their own, is told nothing.
+  const { data: standIn } = token.stands_in_for ? await db().from("memberships").select("role").eq("workspace_id", token.workspace_id as string).eq("user_id", token.submitter_id as string).maybeSingle() : { data: null };
+  // A Contact has no membership and reads an unauthenticated page: "your colleague", never the name. A Guest is told nothing.
+  const standingInFor = !token.stands_in_for || standIn?.role === "guest" ? null
+    : !standIn ? "your colleague"
+    : ((await openNames(String(token.workspace_id), ((await db().from("profiles").select("id, name").eq("id", token.stands_in_for as string)).data ?? []) as { id: string; name: string }[]))[0]?.name ?? null);
   // A request that went by several ways and was answered on one says so on the others' form link (#613): the first answer
   // counted, and a new value follows the Metric's rule. Only the Source, never the value of someone else's answer.
   const { data: answered } = await db().from("prompts").select("answered_source").eq("workspace_id", String(token.workspace_id)).eq("metric_id", metric.id).eq("submitter_id", token.submitter_id as string).eq("period_start", period).not("answered_at", "is", null).not("answered_source", "is", null).neq("answered_source", "web_form").order("answered_at", { ascending: false }).limit(1);
   // The page wears the Workspace's Theme (ticket #542): only its look (name, logo, colours, fonts) goes to the browser.
   const look = publicLook(String(token.workspace_id), await workspaceLook(String(token.workspace_id)));
-  return { metric, person, period, yearStart, numberStyle, current: typeof existing?.value === "number" ? existing.value : null, answeredOn: answered?.[0] ? String(answered[0].answered_source) : null, look };
+  return { metric, person, period, yearStart, numberStyle, current: typeof existing?.value === "number" ? existing.value : null, answeredOn: answered?.[0] ? String(answered[0].answered_source) : null, look, standingInFor };
 }
 
 /** A signed-in person creates a workspace and becomes its Owner; it starts with the Theme Ziffr ships with. */

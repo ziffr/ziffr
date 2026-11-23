@@ -1845,6 +1845,26 @@
             "show"
           ],
           "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "description": "The parts of a Derived Metric's formula as boxes, from the Metric's own value in its latest period down through each part, every box an exact number: the parts of a sum share the width of the box above them by their size, the factors of a product or a ratio are laid side by side equally and are not to scale. The first Slot must be a Derived Metric whose inputs are all shared with the viewer; at most 4 levels and 24 boxes.",
+          "properties": {
+            "mark": {
+              "const": "tree"
+            },
+            "show": {
+              "const": "formula"
+            },
+            "when": {
+              "$ref": "#/$defs/when"
+            }
+          },
+          "required": [
+            "mark",
+            "show"
+          ],
+          "additionalProperties": false
         }
       ]
     },

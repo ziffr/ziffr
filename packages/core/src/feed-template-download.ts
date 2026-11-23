@@ -12,6 +12,8 @@ import sheetsFeed from "../../../docs/automations/google-sheets-feed.json";
 import excelFeed from "../../../docs/automations/excel-feed.json";
 import stripeFeed from "../../../docs/automations/stripe-feed.json";
 import hubspotFeed from "../../../docs/automations/hubspot-feed.json";
+import bigqueryFeed from "../../../docs/automations/bigquery-feed.json";
+import snowflakeFeed from "../../../docs/automations/snowflake-feed.json";
 import index from "../../../docs/automations/feed-templates.json";
 import { audit } from "./audit-log";
 import { Forbidden, type Actor } from "./actor";
@@ -31,6 +33,8 @@ const WORKFLOWS: Record<string, Workflow> = {
   "excel-feed.json": excelFeed as unknown as Workflow,
   "stripe-feed.json": stripeFeed as unknown as Workflow,
   "hubspot-feed.json": hubspotFeed as unknown as Workflow,
+  "bigquery-feed.json": bigqueryFeed as unknown as Workflow,
+  "snowflake-feed.json": snowflakeFeed as unknown as Workflow,
 };
 const TEMPLATES = (index as { templates: IndexEntry[] }).templates;
 

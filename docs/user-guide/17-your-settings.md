@@ -129,7 +129,7 @@ Each line links to where you do it:
 | **Revenue for October 2026 due** | The value's Due Date, set by the Metric's Workflow, such as the 3rd working day after the month ends. It says when Ziffr reminds you, such as "Ziffr reminds you 2 days before". A Metric without a Workflow has no Due Date: only its last ended period without a value is listed, on the first working day after it ends, marked "no Due Date set". | Your form for the Metric, or the Metric's page if you have no form for it |
 | **Approve: Cost for October 2026** | The day you were asked. It is overdue from the day after that period's Due Date. | The Approval |
 | **Task: …** | The Task's due date, or under **No date**. A checklist item of a Workflow gives you a Task with its Due Date, named by its words, and shows the Workflow and period in place of a Metric (see [Checklist Tasks](15-actions.md#checklist-tasks)); while you are Away it is in your Stand-in's list. | The Task |
-| **Question: …** | A Question the Workflow asked because a value is missing (an Escalation) falls on that value's Due Date. Other Questions are under **No date**. | The Question |
+| **Question: …** | A Question the Workflow asked because a value is missing (an Escalation) falls on that value's Due Date. Other Questions are under **No date**. An Escalation also has **Fill in the value…**, which opens the period's page, where the Metric Owner can enter the value for the submitter (see [Filling in a value for someone](10-metrics.md#filling-in-a-value-for-someone)). | The Question |
 
 A value due leaves the list as soon as the value is in. While a colleague is Away on a Due Date, their value is in their Stand-in's schedule, marked "standing in for …", and not in theirs. Only values of Metrics you may see are listed; an Approval, Task or Question you are assigned is listed even on a Metric you do not see. Values a Feed sends are never anyone's to do.
 
@@ -241,7 +241,7 @@ Owners also see **Email me when Metrics, dashboards or decks go unused**. It is 
 
 ### Away
 
-Pick the first and the last day you are **Away**. While you are away, Prompts meant for you go to your **Stand-in**. The dates are saved as soon as both are set; **Clear** removes them. Owners and Admins can also set your Away dates on **Members and Groups**.
+Pick the first and the last day you are **Away**. While you are away, Prompts meant for you go to your **Stand-in**, and the Metric Owner and the Workflow's owner may enter a value for you (marked as entered by them; you are told through your Delivery Preference, and Quiet Hours hold the message). You can replace it with your own until the period is locked. The dates are saved as soon as both are set; **Clear** removes them. Owners and Admins can also set your Away dates on **Members and Groups**.
 
 ### Heads-ups
 

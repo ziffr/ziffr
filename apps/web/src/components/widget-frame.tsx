@@ -446,7 +446,7 @@ const DM = { Item: DropdownMenuItem, Separator: DropdownMenuSeparator, Sub: Drop
 
 function HistoryPanel({ metricId, data }: { metricId: number; data: CanvasData }) {
   const m = data.metrics.find((x) => x.id === metricId)!;
-  const [h, setH] = useState<{ observations: Observation[]; actions: Action[]; superseded: { id: number; period_start: string; value: number; superseded_at: string; change: string; submitter_id: string | null }[] } | null>(null);
+  const [h, setH] = useState<{ observations: Observation[]; actions: Action[]; superseded: { id: number; period_start: string; value: number; superseded_at: string; change: string; submitter_id: string | null; entered_by?: string | null }[] } | null>(null);
   useEffect(() => {
     getHistory(metricId).then((r) => setH(r as never));
   }, [metricId]);
@@ -494,7 +494,11 @@ function HistoryPanel({ metricId, data }: { metricId: number; data: CanvasData }
                 {o.original_value !== null && <span className="ml-1 text-muted-foreground line-through">{formatValue(m, Number(o.original_value), data.numberStyle)}</span>}
               </td>
               <td className="py-1.5 text-muted-foreground">{SOURCE_LABEL[o.source as keyof typeof SOURCE_LABEL] ?? o.source}</td>
-              <td className="py-1.5 pr-3 text-right text-muted-foreground">{o.submitter_id ? people[o.submitter_id]?.name.split(" ")[0] : ""}</td>
+              <td className="py-1.5 pr-3 text-right text-muted-foreground">
+                {o.submitter_id ? people[o.submitter_id]?.name.split(" ")[0] : ""}
+                {/* A Filled-in Value: who typed it. The core sends no ids to a Guest (metricHistory), so nothing shows for them. */}
+                {o.entered_by && <span className="block">entered by {people[o.entered_by]?.name.split(" ")[0] ?? "someone"}</span>}
+              </td>
             </tr>
           ))}
         </tbody>

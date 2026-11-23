@@ -13,13 +13,14 @@ import { periodLabel } from "@ziffr/core/periods";
 import { StatusBadge } from "@/components/status";
 import { periodRecordUrl } from "@/lib/period-record-url";
 import type { PeriodStateName } from "@ziffr/core/types";
+import { FillIn } from "../fill-in";
 
 const STATE: Record<PeriodStateName, string> = { asked: "Asked, waiting for the value", submitted: "In, not approved yet", approval: "Waiting for Approval", published: "Published", locked: "Locked" };
 
 /** One step in the words of the history list; the value is struck through where a later step replaced it. */
 function StepLine({ s, text }: { s: PeriodStep; text: (v: number | null) => string }) {
   const words: Record<PeriodStep["kind"], string> = {
-    submitted: "Submitted", replaced: "Replaced by", correction_proposed: "Correction proposed", correction_accepted: "Correction accepted", correction_declined: "Correction declined",
+    submitted: "Submitted", filled_in: "Entered", replaced: "Replaced by", correction_proposed: "Correction proposed", correction_accepted: "Correction accepted", correction_declined: "Correction declined",
     approved: "Approved", sent_back: "Sent back", published: "Published", locked: "Period locked", unlocked: "Period unlocked",
   };
   return (
@@ -29,7 +30,8 @@ function StepLine({ s, text }: { s: PeriodStep; text: (v: number | null) => stri
         <span className="font-medium">{words[s.kind]}</span>
         {s.value !== null && <> <span className={s.superseded ? "fig text-muted-foreground line-through" : "fig"}>{text(s.value)}</span></>}
         <span className="text-muted-foreground">
-          {s.person && <> by {s.person}</>}
+          {/* A Filled-in Value says whose it is and who typed it (GLOSSARY: Filled-in Value): never one without the other. */}
+          {s.kind === "filled_in" && s.enteredBy ? <> by {s.enteredBy} for {s.person}</> : s.person && <> by {s.person}</>}
           {s.channel && <> via {s.channel}</>}
         </span>
         {s.reason && <span className="block text-xs text-muted-foreground">Reason: {s.reason}</span>}
@@ -62,6 +64,12 @@ export default async function PeriodRecordPage({ params }: { params: Promise<{ s
           {record.originalValue !== null && <span className="ml-3 align-middle text-lg font-normal text-muted-foreground line-through">{write(record.originalValue)}</span>}
         </h1>
         {record.note && <p className="mt-2 text-xs text-muted-foreground">{record.note}</p>}
+        {/* Only for the Metric's owner, its Workflow's owner and a Stand-in who may fill in (the core decides, fill-in-offer.ts). */}
+        {record.fillIn && (
+          <div id="fill-in" className="mt-4">
+            <FillIn offer={record.fillIn} metricName={m.name} periodLabel={periodLabel(record.period, m.period, yearStart)} placeholder={m.unit || "Value"} numberStyle={numberStyle} />
+          </div>
+        )}
       </section>
 
       <section className="mt-4 stock rounded-[var(--radius-card)] p-5">
