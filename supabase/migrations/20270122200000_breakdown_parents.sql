@@ -4,7 +4,8 @@
 --   - the parent is a row of the same value (a composite foreign key), and so of the same Workspace (checked again below);
 --   - a row is not its own parent, and there is no cycle;
 --   - a row is at most 4 levels down (a top-level row is level 1);
---   - a Breakdown that has parents holds at most 200 rows (a flat one keeps its own, older limit).
+--   - a Breakdown that has parents holds at most 200 rows (a flat one keeps its own, older limit); the guard fires on every
+--     change of a row's parent or of the value it belongs to, and finds whether a value has parents through a partial index.
 -- A parent's rows go with it: deleting a row deletes its parts, so a part is never left hanging at the top level.
 -- No policy and no grant change: the table is read and written by the core with the service role, as before. No demo
 -- row is touched.
@@ -14,6 +15,18 @@ alter table breakdown_rows add constraint breakdown_rows_id_observation_key uniq
 alter table breakdown_rows add constraint breakdown_rows_parent_fk foreign key (parent_id, observation_id) references breakdown_rows (id, observation_id) on delete cascade;
 alter table breakdown_rows add constraint breakdown_rows_not_own_parent check (parent_id is distinct from id);
 create index breakdown_rows_parent on breakdown_rows (parent_id) where parent_id is not null;
+-- Which Breakdowns have parents at all, found without reading a flat Breakdown's rows (a large flat one is not scanned per insert).
+create index breakdown_rows_with_parents on breakdown_rows (observation_id) where parent_id is not null;
+
+-- A replaced or deleted row keeps its place in the history: the id its parent had, which is that parent's own history entry's `row_id`.
+alter table breakdown_history add column parent_row_id bigint;
+create or replace function keep_breakdown_history() returns trigger
+language plpgsql as $$
+begin
+  insert into breakdown_history (observation_id, label, value, value_sealed, row_id, parent_row_id) values (old.observation_id, old.label, old.value, old.value_sealed, old.id, old.parent_id);
+  return old;
+end;
+$$;
 
 create function breakdown_rows_parent_guard() returns trigger language plpgsql set search_path = public as $$
 declare
@@ -51,13 +64,14 @@ begin
   -- Once a Breakdown has parents, it holds at most 200 rows.
   if new.parent_id is not null or exists (select 1 from breakdown_rows r where r.observation_id = new.observation_id and r.parent_id is not null) then
     select count(*) into v_rows from breakdown_rows r where r.observation_id = new.observation_id;
-    if tg_op = 'INSERT' then v_rows := v_rows + 1; end if;
+    -- An insert, or a row moved here from another value, is not counted among the rows yet.
+    if tg_op = 'INSERT' or old.observation_id is distinct from new.observation_id then v_rows := v_rows + 1; end if;
     if v_rows > 200 then raise exception 'A Breakdown with parents has at most 200 rows.' using errcode = 'ZF462'; end if;
   end if;
   return new;
 end $$;
 revoke all on function breakdown_rows_parent_guard() from public, anon, authenticated;
-create trigger breakdown_rows_parent_guard before insert or update of parent_id on breakdown_rows for each row execute function breakdown_rows_parent_guard();
+create trigger breakdown_rows_parent_guard before insert or update of parent_id, observation_id on breakdown_rows for each row execute function breakdown_rows_parent_guard();
 
 -- The Breakdown of each period of some Metrics, as before, with each row's parent.
 create or replace function latest_breakdowns(p_workspace uuid, p_metric_ids integer[], p_from date default null, p_to date default null)

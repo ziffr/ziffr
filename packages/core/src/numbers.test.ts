@@ -435,15 +435,26 @@ describe("a pasted breakdown with a parent column (spec 0041, ticket 12)", () =>
     });
   });
   it("takes quotes round a parent, a total with a parent cell, signs and k, and leaves a parent that starts with a digit as no parent column", () => {
-    expect(parseBreakdown('A\t5\t"B"\nB\t-2k\t\nTotal\t3\tB', "1,234.5")).toEqual({ rows: [{ label: "A", value: 5, parent: "B" }, { label: "B", value: -2000 }], total: 3 });
+    expect(parseBreakdown('Name\tAmount\tParent row\nA\t5\t"B"\nB\t-2k\t\nTotal\t3\tB', "1,234.5")).toEqual({ rows: [{ label: "A", value: 5, parent: "B" }, { label: "B", value: -2000 }], total: 3 });
     // "5\t9" is a label with a tab in it and a number, as before; the third cell is a number, not a parent.
-    expect(parseBreakdown("A\t5\t9\nB 1", "1,234.5")?.rows.map((r) => [r.label, r.value, r.parent])).toEqual([["A\t5", 9, undefined], ["B", 1, undefined]]);
+    expect(parseBreakdown("Parent\nA\t5\t9\nB 1", "1,234.5")?.rows.map((r) => [r.label, r.value, r.parent])).toEqual([["A\t5", 9, undefined], ["B", 1, undefined]]);
   });
   it("reads a CSV file's three columns the same way", () => {
     expect(parseBreakdown("Name,Value,Parent\nGermany,100,\nBerlin,60,Germany\n\"Hamburg, Nord\",5.5,\"Germany\"\nAustria,50", "1,234.5")).toEqual({
       rows: [{ label: "Germany", value: 100 }, { label: "Berlin", value: 60, parent: "Germany" }, { label: "Hamburg, Nord", value: 5.5, parent: "Germany" }, { label: "Austria", value: 50 }],
       total: null,
     });
+  });
+  it("reads a third cell as a parent only when the header says so: a paste without one keeps its old meaning (a unit or a note)", () => {
+    expect(parseBreakdown("Germany\t100\tEUR\nAustria\t50\t%\nFrance\t5\t\nItaly\t7\t€", "1,234.5")).toEqual({ rows: [{ label: "Germany", value: 100 }, { label: "Austria", value: 50 }, { label: "France", value: 5 }, { label: "Italy", value: 7 }], total: null });
+    // Commas between three cells without that header were never read: still no rows.
+    expect(parseBreakdown("Germany,100,EUR\nAustria,50,Total", "1,234.5")).toBeNull();
+    // Other words for it, in the languages the words for a total are in; a header that only contains the word is none.
+    for (const h of ["parent", "PARENT NAME", "Eltern", "Elternzeile", "Übergeordnete Zeile", "gehört zu", '"Parent"']) expect(parseBreakdown(`Name\tValue\t${h}\nA\t1\t\nB\t2\tA`, "1,234.5")?.rows[1].parent, h).toBe("A");
+    expect(parseBreakdown("Name\tValue\tParent company\nA\t1\t\nB\t2\tA", "1,234.5")?.rows[1].parent).toBeUndefined();
+    // The header is the first line that is not empty, wherever it stands in the paste.
+    expect(parseBreakdown("\n\nName\tValue\tParent\nA\t1\t\nB\t2\tA", "1,234.5")?.rows[1].parent).toBe("A");
+    expect(parseBreakdown("A\t1\t\nB\t2\tA\nParent\t1\t", "1,234.5")?.rows[1].parent).toBeUndefined();
   });
   it("keeps reading every other form as before: no parent", () => {
     expect(parseBreakdown("A 1;B 2", "1,234.5")).toEqual({ rows: [{ label: "A", value: 1 }, { label: "B", value: 2 }], total: null });

@@ -220,3 +220,41 @@ describe("the database holds the same rules as the core, whatever writes the row
     expect((await raw(w, two, "Flat 1", null)).error).toBeNull();
   });
 });
+
+describe("history, moves and large flat Breakdowns", () => {
+  it("keeps a replaced Breakdown's parents in its history, by the id each parent had", async () => {
+    const w = await setup("overwrite");
+    await w.send(ROWS, 150);
+    const before = await w.stored();
+    await w.send([{ label: "Only", value: 1 }, { label: "Part", value: 1, parent: "Only" }], 1);
+    const { data } = await db().from("breakdown_history").select("row_id, parent_row_id, label").eq("workspace_id", w.id).order("id");
+    const idOf = (label: string) => before.find((x) => x.label === label)!.id;
+    expect(data!.map((h) => [h.row_id, h.parent_row_id])).toEqual(before.map((r) => [r.id, r.parent_id]));
+    expect(data!.find((h) => h.row_id === idOf("Berlin"))!.parent_row_id).toBe(idOf("Germany"));
+  });
+
+  it("holds the 200 rows when a row is moved to another value, and does not scan a large flat Breakdown: 3,000 flat rows go in, and a part into them is refused", async () => {
+    const w = await setup("keep_both");
+    await w.send([{ label: "A", value: 1 }, { label: "B", value: 1 }], 2);
+    await w.send([{ label: "C", value: 1 }, { label: "D", value: 1, parent: "C" }], 2);
+    const { data: obs } = await db().from("observations").select("id").eq("metric_id", w.m.id).order("id");
+    const [flat, tree] = obs!.map((o) => Number(o.id));
+    const ids = (await Promise.all(Array.from({ length: 6 }, () => reserveIds("breakdown_rows", 500)))).flat();
+    const cipher = await workspaceCipher(w.id);
+    const rows = ids.map((id, i) => ({ id, observation_id: flat, label: cipher.sealing ? cipher.seal({ table: "breakdown_rows", column: "label", row: id }, `Flat ${i}`) : `Flat ${i}`, ...(cipher.sealing ? { value: null, value_sealed: cipher.seal({ table: "breakdown_rows", column: "value", row: id }, "1") } : { value: 1, value_sealed: null }) }));
+    for (let i = 0; i < rows.length; i += 500) expect((await db().from("breakdown_rows").insert(rows.slice(i, i + 500))).error).toBeNull();
+    expect((await db().from("breakdown_rows").select("id", { count: "exact", head: true }).eq("observation_id", flat)).count).toBe(3002);
+    // Rows without a parent are not held to 200, and the partial index finds the Breakdown that has parents.
+    expect((await raw(w, flat, "Flat more", null)).error).toBeNull();
+    // A part into the large one is refused (a Breakdown with parents holds 200 rows), and so is moving a row of it into the tree's value with its parts over the limit.
+    const first = (await db().from("breakdown_rows").select("id").eq("observation_id", flat).order("id").limit(1)).data![0];
+    expect((await raw(w, flat, "A part", Number(first.id))).error?.message).toMatch(/at most 200 rows/);
+    // Moving rows into a Breakdown with parents counts them: fill the tree's value to 200, then move one more in.
+    const have = (await db().from("breakdown_rows").select("id", { count: "exact", head: true }).eq("observation_id", tree)).count ?? 0;
+    for (let i = have; i < 200; i++) expect((await raw(w, tree, `Fill ${i}`, null)).error).toBeNull();
+    expect((await db().from("breakdown_rows").update({ observation_id: tree }).eq("id", first.id)).error?.message).toMatch(/at most 200 rows|violates/);
+    // Moving a part to another value is refused: its parent stays behind.
+    const part = (await db().from("breakdown_rows").select("id, parent_id").eq("observation_id", tree).not("parent_id", "is", null)).data![0];
+    expect((await db().from("breakdown_rows").update({ observation_id: flat }).eq("id", part.id)).error).not.toBeNull();
+  });
+});
