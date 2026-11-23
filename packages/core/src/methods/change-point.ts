@@ -19,7 +19,7 @@ import { formatNumber, type ValueUnit } from "../format";
 import { periodsBetween, type Span } from "../periods";
 import { checkSuitability, SUITABILITY, type Finding, type Rerun } from "../suitability";
 import { decimalsApart, plainValue, SHARE_UNIT, sizeText, signedText } from "../takeaways/sizes";
-import { answerTakeaway, refusalTakeaway, sayIn, type Takeaway, type TakeawayContext } from "../takeaways/takeaway";
+import { answerTakeaway, refusalTakeaway, sayIn, withinBudget, type Takeaway, type TakeawayContext } from "../takeaways/takeaway";
 import { say, type CaseKey, type Slots } from "../takeaways/wording";
 import type { Point } from "../types";
 import { MAX_PERIODS } from "./before-after";
@@ -155,6 +155,11 @@ export function checkedChangePoint(name: string, points: Point[], span: Span) {
  * change in slope by more than a fifth of its range, or makes the change go away), the note on the latest 120 periods, the basis
  * (which says the bar for chance was raised for the dates tried) and one line of what it assumes. No strength word. */
 export function changePointTakeaway(name: string, points: Point[], span: Span, unit: ValueUnit, ctx: TakeawayContext): Takeaway {
+  return withinBudget("numbers-method-change-point", ctx, () => changePointTakeawayWithin(name, points, span, unit, ctx));
+}
+
+// The Takeaway itself, worked out under the work budget of work-bound.ts.
+function changePointTakeawayWithin(name: string, points: Point[], span: Span, unit: ValueUnit, ctx: TakeawayContext): Takeaway {
   const method = sayIn("numbers-method-change-point", {}, ctx);
   const text = (key: CaseKey, slots: Slots = {}) => sayIn(key, { span, ...slots }, ctx);
   const { all, rows, result, verdict, found } = checkedChangePoint(name, points, span);

@@ -17,6 +17,7 @@ import { backtest, type Candidate } from "../methods/track-record";
 import { periodsBetween, type Span } from "../periods";
 import { checkSuitability, minimumPeriods, SEASON_LENGTH, type Finding, type Rerun, type SuitabilityInputs } from "../suitability";
 import type { Metric, Point } from "../types";
+import { withWork } from "../work-bound";
 import { answerTakeaway, refusalTakeaway, type Takeaway, type TakeawayContext } from "./takeaway";
 import { say, type CaseKey, type Slots } from "./wording";
 
@@ -60,6 +61,11 @@ type Fit = { rows: Point[]; season: number; ahead: number; best: NonNullable<Ret
 // A forecast, or the lines that say why there is none. The one place the checks, the Method's choice and the period asked about are decided,
 // for the Takeaway and for the Heads-up about a Target (reachOf) alike.
 function fitForecast(metric: ForecastMetric, points: Point[], ctx: TakeawayContext, ask: ForecastAsk): { refuse: string[] } | Fit {
+  // Under the work allowance of work-bound.ts: its series are cut to the latest 120 periods, so no ordinary values come near it.
+  return withWork(() => fitForecastWithin(metric, points, ctx, ask)) ?? { refuse: [wordsFor(metric, ctx)("refuse-exact-work")] };
+}
+
+function fitForecastWithin(metric: ForecastMetric, points: Point[], ctx: TakeawayContext, ask: ForecastAsk): { refuse: string[] } | Fit {
   const span = metric.period;
   const season = SEASON_LENGTH[span];
   const text = wordsFor(metric, ctx);

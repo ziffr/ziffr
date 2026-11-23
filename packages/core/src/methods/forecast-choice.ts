@@ -20,7 +20,7 @@ export const LATEST_PERIODS = 120;
 export type Projection = { method: Candidate; choice: Choice; points: SeasonalPoint[]; trendPerPeriod: number; sd: number };
 
 /** The forecast `horizon` periods ahead (the default of the span) by the Method the rule chooses, or null with fewer than four
- * values, or values that need more than 30 decimal places or span more than 30 orders of magnitude. `seasonal: false` rules the seasonal Method out (a check found that the pattern does not repeat). `season` is the length of a season in periods. */
+ * values, or values that need more than 20 decimal places or span more than 20 orders of magnitude. (One call takes under a fifth of a second for any values inside those limits; `forecastTakeaway`, which calls it for each far-off check, runs under the work budget.) `seasonal: false` rules the seasonal Method out (a check found that the pattern does not repeat). `season` is the length of a season in periods. */
 export function bestForecast(all: Point[], span: Span, season: number, opts: { horizon?: number; seasonal?: boolean } = {}): Projection | null {
   const points = all.slice(-LATEST_PERIODS);
   // Values too wide to work out exactly (work-bound.ts) have no forecast; forecastTakeaway says so in words before it gets here.

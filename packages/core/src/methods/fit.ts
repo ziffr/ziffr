@@ -47,10 +47,10 @@ const whole = (n: number | bigint): F => ({ num: BigInt(n), den: ONE });
 // Every step of exact arithmetic spends from the fit's work budget (work-bound.ts) before it is done, by the size of its operands: a fit
 // on values that need numbers of hundreds of digits is refused when the budget is spent, never worked out at length.
 const charge = (a: F, b: F) => spendOn(widthOf(a), widthOf(b));
-const add = (a: F, b: F) => (charge(a, b), lowestTerms(plus(a, b)));
-const sub = (a: F, b: F) => (charge(a, b), lowestTerms(minus(a, b)));
-const mul = (a: F, b: F) => (charge(a, b), lowestTerms(times(a, b)));
-const div = (a: F, b: F) => (charge(a, b), lowestTerms(over(a, b)));
+const add = (a: F, b: F) => lowestTerms(plus(a, b));
+const sub = (a: F, b: F) => lowestTerms(minus(a, b));
+const mul = (a: F, b: F) => lowestTerms(times(a, b));
+const div = (a: F, b: F) => lowestTerms(over(a, b));
 const total = (fs: F[]) => fs.reduce(add, zero);
 const isZero = (a: F) => a.num === ZERO;
 // The same steps left unreduced, where a fraction is as exact as it is and the reduction would cost more than the sum.
@@ -125,7 +125,7 @@ function column(values: number[]): { ints: bigint[]; places: number } {
 }
 
 // A fraction in lowest terms, which costs about the square of its size.
-const reduceOf = (a: F): F => (spendOn(widthOf(a), widthOf(a)), lowestTerms(a));
+const reduceOf = lowestTerms;
 
 // n·S_ab = n·Σ a·b − Σa·Σb on whole numbers, so S_ab = that ÷ (n · 10^(places a + places b)).
 function moments(rows: FitRow[], cols: number[]): Moments {

@@ -5,7 +5,7 @@
 // them and a View Link visitor starts the work. So two things are decided before and while the work is done, and both end in
 // a refusal in words, never in a wrong or a late number:
 //
-//   1. `wideFindings`: a series whose values need more than 30 decimal places, or whose largest size is more than 10^30 times
+//   1. `wideFindings`: a series whose values need more than 20 decimal places, or whose largest size is more than 10^20 times
 //      its smallest size that is not 0, is refused before any arithmetic. Decided exactly on the values' text, never on a
 //      double. Values that a person keeps (money to the cent, a rate to ten places, a share of a million) are far inside.
 //   2. `withWork` and `spend`: a Method that keeps many exact numbers at once (the multiple fit, which solves for every
@@ -21,9 +21,9 @@ import type { Finding } from "./suitability";
 import type { Point } from "./types";
 
 /** The limits: decimal places in the text of a value, and orders of magnitude (powers of ten) from the smallest size that is not 0 to the largest. */
-export const WORK_BOUND = { places: 30, orders: 30 } as const;
-/** The digit work one bounded Method may spend, in the units of `spend`: a fraction of a second on a laptop for the multiple fit: six drivers and 120 periods of values with 8 decimal places need under a tenth of it, and 2 decimal places a sixth. */
-export const WORK_BUDGET = 4_000_000_000;
+export const WORK_BOUND = { places: 20, orders: 20 } as const;
+/** The digit work one bounded Method may spend, in the units of `spend`: a fraction of a second on a laptop for the multiple fit: six drivers and 120 periods of values to 6 decimal places just fit, and values to the cent need a third of it. */
+export const WORK_BUDGET = 2_500_000_000;
 
 const [ZERO, TEN] = [BigInt(0), BigInt(10)];
 const SPAN = TEN ** BigInt(WORK_BOUND.orders);
@@ -31,11 +31,11 @@ const SPAN = TEN ** BigInt(WORK_BOUND.orders);
 /** What is too much about a list of values: the decimal places they need, or the orders of magnitude they span; null for none. */
 export type Wide = "places" | "orders";
 
-/** Whether finite values need more than 30 decimal places or span more than 30 orders of magnitude, decided exactly on their text. A value that is not a number is no value and not looked at. */
+/** Whether finite values need more than 20 decimal places or span more than 20 orders of magnitude, decided exactly on their text. A value that is not a number is no value and not looked at. */
 export function wideReason(values: readonly number[]): Wide | null {
   const parts = values.filter((v) => Number.isFinite(v)).map(scaled);
   if (parts.some((p) => p.places > WORK_BOUND.places)) return "places";
-  // Every size on one scale of 10^-30 (no value has more places than that), so they are whole numbers and the largest over the smallest is a division-free comparison.
+  // Every size on one scale of 10^-20 (no value has more places than that), so they are whole numbers and the largest over the smallest is a division-free comparison.
   // Stryker disable next-line EqualityOperator: for 0 the sign does not matter, and a size of 0 is left out below.
   const sizes = parts.map((p) => (p.digits < ZERO ? -p.digits : p.digits) * TEN ** BigInt(WORK_BOUND.places - p.places)).filter((s) => s !== ZERO);
   // Stryker disable next-line EqualityOperator: for equal sizes either is the largest (or the smallest), the same size.
