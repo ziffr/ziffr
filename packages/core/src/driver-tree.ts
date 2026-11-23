@@ -187,8 +187,8 @@ export function driverTree(source: TreeSource, style: NumberStyle): TreeModel {
   try {
     top = make(read.node, 0, "root", false, { leaves: source.leaves, count: 0 }, read.node.k === "num" || read.node.k === "ref" || read.node.k === "back");
   } catch (e) {
-    if (e instanceof Refused) return no(e.message);
-    throw e;
+    // Only `make` throws, and only to refuse a formula that is too big.
+    return no((e as Refused).message);
   }
   const boxes: TreeBox[] = [];
   const whys: (string | null)[] = [];
@@ -252,7 +252,11 @@ export function treeFromData(metric: Metric | undefined, data: Pick<CanvasData, 
   const problem = inputsProblem(metric, inputs);
   if (problem) return no(`Not drawn: ${problem}`);
   const today = opts.asOf ? dayAfter(opts.asOf) : undefined;
-  const shown = (m: Metric) => shownSeries(m, data, opts.display, { today });
+  // A Snapshot's day: later periods are not part of it, whatever the data holds.
+  const shown = (m: Metric) => {
+    const s = shownSeries(m, data, opts.display, { today });
+    return opts.asOf ? { ...s, points: s.points.filter((p) => p.period <= opts.asOf!) } : s;
+  };
   const own = shown(metric);
   const parts = inputs.map((m) => ({ m, shown: shown(m) }));
   if (parts.some((p) => p.shown.by !== own.by)) return no("Not drawn: the parts of the formula cannot be shown by the same period here, so they cannot be set side by side.");
