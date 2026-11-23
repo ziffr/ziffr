@@ -46,6 +46,7 @@ function fraction(x: number, a: number, b: number): number {
     c = 1 + odd / c;
     const step = d * c;
     h *= step;
+    // Stryker disable next-line EqualityOperator: a step exactly EPSILON from 1 is followed by one at the square of that, so stopping one round earlier or later differs by far less than a unit in the last place.
     if (Math.abs(step - 1) < EPSILON) break;
   }
   return h;

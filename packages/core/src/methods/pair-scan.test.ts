@@ -345,6 +345,16 @@ describe("strongInBoth", () => {
     expect(strongInBoth([1, 1, 1, 1, 1, 1, 1, 2, 3, 4, 5, 6], follow)).toBe(false);
     expect(strongInBoth([], [])).toBe(false);
   });
+  it("takes a value exactly on the bar (0.7 less a hair) and not one ulp under", () => {
+    const bar = HEADS_UP.strong - 1e-9;
+    expect(strongAndAgreeing(bar, [bar, bar])).toBe(true);
+    expect(strongAndAgreeing(-bar, [-bar, -bar])).toBe(true);
+    const under = bar - Number.EPSILON / 2;
+    expect(under).toBeLessThan(bar);
+    expect(strongAndAgreeing(under, [bar, bar])).toBe(false);
+    expect(strongAndAgreeing(bar, [under, bar])).toBe(false);
+    expect(strongAndAgreeing(bar, [bar, under])).toBe(false);
+  });
   it("is decided exactly at 0.7: r² = 49/100 over all of them and in each half is strong; one value moved by 1e-12 so that r² is a hair under is not, though the double is within 1e-14 of 0.7", () => {
     // x = (1, −1) three times over, twice; y = 7x + w with w orthogonal to x and to 1 and |w|² = 306 in each half: r² = 294 ÷ 600 = 49/100 exactly, whole and halves.
     const x = [1, -1, 1, -1, 1, -1, 1, -1, 1, -1, 1, -1];

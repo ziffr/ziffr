@@ -174,9 +174,10 @@ function pairsAt(a: readonly number[], b: readonly number[], lag: number, from: 
 // How many pairs a delay has in a window and their r, without building the pairs (a scan looks at millions): two passes over the
 // positions, the second on the centred values. A series whose pairs are all one value has no r, found by comparing, not by a sum
 // that rounding could leave a hair above 0.
-function lagStats(a: readonly number[], b: readonly number[], lag: number, from: number, to: number): { n: number; r: number } | null {
+function lagStats(a: readonly number[], b: readonly number[], lag: number, to: number): { n: number; r: number } | null {
   const { leader, follower, gap } = roles(a, b, lag);
-  const start = Math.max(from, gap);
+  // A delay's pairs start at the first place the leader has one `gap` places back.
+  const start = gap;
   let n = 0;
   let sx = 0;
   let sy = 0;
@@ -216,10 +217,10 @@ function lagStats(a: readonly number[], b: readonly number[], lag: number, from:
 }
 
 // The delays of a window with enough pairs and series that change, the best of them (with its pairs), and how many were looked at.
-function lagWindow(a: Laid, b: Laid, from: number, to: number): { best: Lagged; pairs: Pairs; tries: number } | null {
+function lagWindow(a: Laid, b: Laid, to: number): { best: Lagged; pairs: Pairs; tries: number } | null {
   const found: Lagged[] = [];
   for (const lag of DELAYS) {
-    const stats = lagStats(a.values, b.values, lag, from, to);
+    const stats = lagStats(a.values, b.values, lag, to);
     // (A sum of squares too large for a double makes r NaN: no result for that delay.)
     if (!stats || Number.isNaN(stats.r)) continue;
     const { n, r } = stats;
@@ -230,7 +231,7 @@ function lagWindow(a: Laid, b: Laid, from: number, to: number): { best: Lagged; 
   if (found.length === 0) return null;
   // Strictly smaller wins, so the earlier in DELAYS keeps a tie.
   const best = found.reduce((top, l) => (l.p < top.p ? l : top));
-  return { best, pairs: pairsAt(a.values, b.values, best.lag, from, to), tries: found.length };
+  return { best, pairs: pairsAt(a.values, b.values, best.lag, 0, to), tries: found.length };
 }
 
 /** What one window of a pair comes to. `lag` is positive where the first Metric moves first. `pDelays` is the chance of the best delay
@@ -309,12 +310,12 @@ export function scanPair(a: Laid, b: Laid, axis: Axis): PairScan | null {
   const [ea, eb] = [lastOf(a.values), lastOf(b.values)];
   if (Math.abs(ea - eb) > HEADS_UP.maxLag) return null;
   // Stryker disable next-line ArithmeticOperator: a place past the end reads undefined, which is skipped.
-  const all = lagWindow(a, b, 0, axis.length - 1);
+  const all = lagWindow(a, b, axis.length - 1);
   if (!all) return null;
   const last = Math.min(ea, eb);
-  const earlier = lagWindow(a, b, 0, last - HEADS_UP.recent);
+  const earlier = lagWindow(a, b, last - HEADS_UP.recent);
   const before = earlier && windowOf(earlier, a, b, axis);
-  return { through: shiftPeriod(axis.first, axis.span, last), full: windowOf(all, a, b, axis), before: earlier && before ? { ...before, recent: recentOf(a, b, earlier, last, before.meets) } : null };
+  return { through: shiftPeriod(axis.first, axis.span, last), full: windowOf(all, a, b, axis), before: before ? { ...before, recent: recentOf(a, b, earlier!, last, before.meets) } : null };
 }
 
 // A window's result: the best delay, its halves and the chance of the link in both of them.

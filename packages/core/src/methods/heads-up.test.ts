@@ -294,6 +294,18 @@ describe("what is left out and what comes first", () => {
       ["a drop chance above 1", row(1, 2, { before: before({}, { r: 0.1, n: 6, low: true, dropP: 2 }) })],
       ["a low that is not a boolean", row(1, 2, { before: before({}, { r: 0.1, n: 6, low: 1 as unknown as boolean, dropP: 0.01 }) })],
       ["an earlier history with NaN", row(1, 2, { before: before({ r: NaN }) })],
+      ["r that is null", row(1, 2, { full: { ...win(), r: null as unknown as number } })],
+      ["r that is undefined", row(1, 2, { full: { ...win(), r: undefined as unknown as number } })],
+      ["a chance that is null", row(1, 2, { full: { ...win(), p: null as unknown as number } })],
+      ["a delay that is null", row(1, 2, { full: { ...win(), lag: null as unknown as number } })],
+      ["a half r of Infinity", row(1, 2, { full: win({ rFirst: Infinity }) })],
+      ["pairs that are null", row(1, 2, { full: { ...win(), n: null as unknown as number } })],
+      ["an effective count of NaN", row(1, 2, { full: win({ nEff: NaN }) })],
+      ["delays looked at that are null", row(1, 2, { full: { ...win(), tries: null as unknown as number } })],
+      ["a last periods r that is null", row(1, 2, { before: before({}, { r: null as unknown as number, n: 6, low: true, dropP: 0.01 }) })],
+      ["a drop chance that is null", row(1, 2, { before: before({}, { r: 0.1, n: 6, low: true, dropP: null as unknown as number }) })],
+      ["a last periods count that is null", row(1, 2, { before: before({}, { r: 0.1, n: null as unknown as number, low: true, dropP: 0.01 }) })],
+      ["an earlier delay that is null", row(1, 2, { before: before({ lag: null as unknown as number }) })],
     ];
     const ids = new Map([...names(1, 2, 3, 4), [1.5, "Half"], [2.5, "Half two"]]);
     // Ten good pairs make the correction's list; a bad row among them neither makes a Heads-up nor changes the others'.
@@ -310,6 +322,10 @@ describe("what is left out and what comes first", () => {
     const keys = headsUpsFrom([fell(1, 2, 0.9, 0.5), fell(3, 4, 0.9, 0.05), fell(5, 6, -0.9, -0.05)], names(1, 2, 3, 4, 5, 6), ctx).map((h) => h.key);
     // The falls are 0.4, 0.85 and 0.85 (−0.9 to −0.05 is the same fall); the tie goes to the lower ids.
     expect(keys).toEqual(["stopped-moving-together:3:4", "stopped-moving-together:5:6", "stopped-moving-together:1:2"]);
+  });
+  it("takes one delay looked at (a window of 12 pairs at delay 0) and no delays at all is not a row", () => {
+    expect(headsUpsFrom([row(1, 2, { full: win({ tries: 1 }) })], names(1, 2), ctx)).toHaveLength(1);
+    expect(headsUpsFrom([row(1, 2, { full: win({ tries: 0 }) })], names(1, 2), ctx)).toEqual([]);
   });
   it("takes a row at the edges of what a scan writes: r of exactly 1 or -1, a half of exactly 1, a chance of 0 or 1, 12 pairs, a delay of 3", () => {
     const edge = (over: Partial<PairRow>) => headsUpsFrom([row(1, 2, over)], names(1, 2), ctx);
