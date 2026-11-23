@@ -1,11 +1,14 @@
 // The demo's write budget (GLOSSARY: Demo Mode; spec 0051, Limits: A write budget, ticket 5). Before every change a
-// visitor may make, `checkDemoBudget` counts it against four numbers and refuses in plain words past any of them. A
+// visitor may make, `checkDemoBudget` counts it against five numbers and refuses in plain words past any of them. A
 // visit's id is free to mint (a script sends a new cookie each time), so what protects the shared demo from a script is
-// the network address's count and the whole demo's; the visit's counts are for a person who clicks too fast.
+// the counts of the network address, of its network (an IPv4 /24 or an IPv6 /48) and of the whole demo; the visit's
+// counts are for a person who clicks too fast. The address's and the network's shares are small beside the demo's, so
+// one script cannot use up the demo's budget alone.
 //
-// The address is counted only as a KEYED hash (HMAC-SHA256 with ZIFFR_DEMO_ADDRESS_KEY, a server secret): the IPv4
-// space is small enough to reverse an unkeyed hash from a database dump. Without the key, or without an address that
-// can be trusted (ZIFFR_PROXY_HOPS, as the sign-in limits take it), a change is refused: the budget fails closed.
+// The address and network are counted only as KEYED hashes (HMAC-SHA256 with ZIFFR_DEMO_ADDRESS_KEY, a server secret):
+// the IPv4 space is small enough to reverse an unkeyed hash from a database dump. Without the key, or without an address
+// that can be trusted (ZIFFR_PROXY_HOPS, as the sign-in limits take it), a change is refused: the budget fails closed,
+// and says so once per window in the server's log, so a misconfiguration is not mistaken for a busy demo.
 import { createHmac } from "node:crypto";
 import { Forbidden, type Actor } from "./actor";
 import { DEMO_WRITE_BUDGET } from "./demo-limits";
@@ -24,22 +27,42 @@ export class DemoBudgetUsed extends Forbidden {
 /** The shortest secret accepted for the address key: 32 characters, as the job secret is. */
 const MIN_KEY_LENGTH = 32;
 
-/** The keyed hash of a network address: HMAC-SHA256 with the server's secret, as 32 hex characters (128 bits), or null
- * when there is no address or no usable secret (the budget then refuses). Stable for one secret, and not reversible
- * without it, so a database dump holds no address that anyone can recover. */
-export function addressKey(address: string | null, secret: string | undefined): string | null {
-  if (!address || !secret || secret.length < MIN_KEY_LENGTH) return null;
-  return createHmac("sha256", secret).update(`ziffr-demo-address:${address}`).digest("hex").slice(0, 32);
+/** A keyed hash of a value: HMAC-SHA256 with the server's secret, as 32 hex characters (128 bits), or null when there is
+ * no value or no usable secret. Stable for one secret and not reversible without it. `purpose` keeps an address's hash
+ * apart from its network's. */
+function keyed(purpose: string, value: string | null, secret: string | undefined): string | null {
+  if (!value || !secret || secret.length < MIN_KEY_LENGTH) return null;
+  return createHmac("sha256", secret).update(`ziffr-demo-${purpose}:${value}`).digest("hex").slice(0, 32);
 }
 
-/** The counts after one more change, and which of the four budgets they are over, if any; the order is the order they
- * are asked in, so a refused change does not count against the next budget. */
-export type BudgetCounts = { address: number; visitMinute: number; visitWindow: number; demo: number };
+/** The keyed hash of a network address, or null when there is no address or no usable secret (the budget then refuses). */
+export function addressKey(address: string | null, secret: string | undefined): string | null {
+  return keyed("address", address, secret);
+}
+
+/** The network an address belongs to: an IPv4 address's /24, or an IPv6 address's /48 (`networkAddress` gives an IPv6
+ * address as its /64, "a:b:c:d::/64"), or null for anything else. */
+export function networkOf(address: string | null): string | null {
+  if (!address) return null;
+  const v4 = /^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.\d{1,3}$/.exec(address);
+  if (v4) return `${v4[1]}.${v4[2]}.${v4[3]}.0/24`;
+  const v6 = /^([0-9a-f]{1,4}):([0-9a-f]{1,4}):([0-9a-f]{1,4}):[0-9a-f]{1,4}::\/64$/i.exec(address);
+  return v6 ? `${v6[1]}:${v6[2]}:${v6[3]}::/48`.toLowerCase() : null;
+}
+
+/** The keyed hash of an address's network, as `addressKey` is of the address. */
+export function networkKey(address: string | null, secret: string | undefined): string | null {
+  return keyed("network", networkOf(address), secret);
+}
+
+/** The counts after one more change, in the order they are asked in, so a refused change does not count against the next. */
+export type BudgetCounts = { address: number; network: number; visitMinute: number; visitWindow: number; demo: number };
 
 /** The words for the first budget that is over, or null when all hold. Counts that are not yet known are left out. */
 export function budgetRefusal(counts: Partial<BudgetCounts>): string | null {
   const b = DEMO_WRITE_BUDGET;
   if (counts.address !== undefined && counts.address > b.perAddressPerWindow) return DEMO_BUDGET_USED;
+  if (counts.network !== undefined && counts.network > b.perNetworkPerWindow) return DEMO_BUDGET_USED;
   if (counts.visitMinute !== undefined && counts.visitMinute > b.perVisitPerMinute) return DEMO_GOING_FAST;
   if (counts.visitWindow !== undefined && counts.visitWindow > b.perVisitPerWindow) return DEMO_BUDGET_USED;
   if (counts.demo !== undefined && counts.demo > b.demoPerWindow) return DEMO_BUSY;
@@ -48,6 +71,19 @@ export function budgetRefusal(counts: Partial<BudgetCounts>): string | null {
 
 /** What a request says about who makes the change: the visit's id from the cookie and its headers (for the address). */
 export type DemoRequester = { visitId: string; headers: { get(name: string): string | null } };
+
+// The windows for which a misconfiguration was already logged, by reason: one line per window, never one per request.
+const logged = new Map<string, number>();
+
+/** Logs a misconfiguration once per reset window (the demo's own clock) so an operator sees it; the visitor only ever
+ * reads "busy". The line names the setting to check and no address or visit. */
+function logOncePerWindow(reason: "key" | "address", window: Date): void {
+  if (logged.get(reason) === window.getTime()) return;
+  logged.set(reason, window.getTime());
+  console.error(reason === "key"
+    ? "demo: no usable address key: set ZIFFR_DEMO_ADDRESS_KEY (at least 32 characters); visitors' changes are refused"
+    : "demo: no trusted client address: check ZIFFR_PROXY_HOPS; visitors' changes are refused");
+}
 
 /** Counts one change of a visitor against the budget, in the demo only, and throws `DemoBudgetUsed` with the words to
  * show when any budget is over (or the visit or address cannot be counted: closed, never open). A later ticket calls it
@@ -58,15 +94,25 @@ export async function checkDemoBudget(
   now: Date = new Date(),
   secret: string | undefined = process.env.ZIFFR_DEMO_ADDRESS_KEY,
 ): Promise<void> {
+  const window = resetWindowStart(now);
   let visit: string;
   try { visit = visitKey(who.visitId); } catch { throw new DemoBudgetUsed(DEMO_BUSY); }
-  const address = addressKey(networkAddress(who.headers), secret);
-  if (!address) throw new DemoBudgetUsed(DEMO_BUSY);
-  const window = resetWindowStart(now);
+  const ip = networkAddress(who.headers);
+  const address = addressKey(ip, secret);
+  const network = networkKey(ip, secret);
+  if (!address || !network) {
+    if (!secret || secret.length < MIN_KEY_LENGTH) logOncePerWindow("key", window);
+    else logOncePerWindow("address", window);
+    throw new DemoBudgetUsed(DEMO_BUSY);
+  }
   const counts: Partial<BudgetCounts> = {};
-  // Address first, then the visit, then the demo: a script held by the address's count never uses up the demo's.
+  // Address, network, visit, demo: a refusal stops the rest, so a script held by its address never counts against the demo's.
   counts.address = await bumpDemoVisitCount(actor, "address", address, window);
   let refused = budgetRefusal(counts);
+  if (!refused) {
+    counts.network = await bumpDemoVisitCount(actor, "network", network, window);
+    refused = budgetRefusal(counts);
+  }
   if (!refused) {
     counts.visitMinute = await bumpDemoVisitCount(actor, "visit_minute", visit, minuteStart(now));
     counts.visitWindow = await bumpDemoVisitCount(actor, "visit", visit, window);

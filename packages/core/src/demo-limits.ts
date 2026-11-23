@@ -19,12 +19,16 @@ export const DEMO_ROW_CAPS = {
   values: 2000,
 } as const;
 
-/** How many changes may be counted, by what is counting them. The visit's id is free to mint, so only the address's and
- * the demo's limits hold against a script; the visit's are for a person who clicks too fast. */
+/** How many changes may be counted, by what is counting them. The visit's id is free to mint, so only the address's,
+ * the network's and the demo's limits hold against a script; the visit's are for a person who clicks too fast. One
+ * address (200) and one network (an IPv4 /24 or an IPv6 /48, 400) can each use up only a part of the demo's 3,000 a
+ * window, so one script cannot lock every visitor out alone: it takes eight networks. Who can rent that many can still
+ * use the demo up for a window; that is accepted (the demo starts fresh at the next window, and nothing else is hurt). */
 export const DEMO_WRITE_BUDGET = {
   perVisitPerMinute: 30,
-  perVisitPerWindow: 300,
-  perAddressPerWindow: 600,
+  perVisitPerWindow: 200,
+  perAddressPerWindow: 200,
+  perNetworkPerWindow: 400,
   demoPerWindow: 3000,
 } as const;
 

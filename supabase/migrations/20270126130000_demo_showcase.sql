@@ -246,8 +246,8 @@ begin
   -- seed made are recorded, never a visitor's. A second call finds it done.
   if coalesce(ready, false) then return; end if;
   perform set_config('ziffr.demo_seed', 'on', true);
-  delete from demo_showcase;
-  delete from demo_seeded_rows;
+  delete from demo_showcase where true;
+  delete from demo_seeded_rows where true;
   -- What the sign-in page's picture, the tour and the landing page's examples point at.
   insert into demo_showcase select 'dashboards', id::text from dashboards where workspace_id = demo and name in ('Monthly overview', 'October in short', 'Weekly numbers');
   insert into demo_showcase select 'decks', id::text from decks where workspace_id = demo;
