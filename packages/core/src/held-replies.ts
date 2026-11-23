@@ -75,6 +75,10 @@ export async function holdReply(d: RepliedDelivery, text: string, address: strin
     await say("Not recorded", "A checklist message cannot be answered; open the Workflow in Ziffr.");
     return "refused";
   }
+  if (d.kind === "test") {
+    await say("Not recorded", "This was a test message; nothing is recorded from a reply.");
+    return "refused";
+  }
   if (d.kind === "filled_in") {
     await say("Not recorded", "This message cannot be answered; to replace the value, open the Metric in Ziffr.");
     return "refused";

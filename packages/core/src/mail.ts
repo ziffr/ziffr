@@ -288,7 +288,7 @@ export async function sendDelivery(id: number, transport: MailTransport = smtpTr
   // Its own reply address, made the first time it is sent while replies come back (24 random bytes, unguessable).
   let replyTo: string | undefined;
   // An Alert, a Checklist Item or the message about a Filled-in Value cannot be answered (GLOSSARY: Alert, Checklist Item, Filled-in Value): its email has no reply address of its own.
-  if (!digest && inboundEnabled(settings) && claimed.kind !== "alert" && claimed.kind !== "heads_up" && claimed.kind !== "checklist" && claimed.kind !== "filled_in") {
+  if (!digest && inboundEnabled(settings) && claimed.kind !== "alert" && claimed.kind !== "heads_up" && claimed.kind !== "checklist" && claimed.kind !== "filled_in" && claimed.kind !== "test") {
     const token = claimed.reply_token ?? randomBytes(24).toString("base64url");
     if (!claimed.reply_token) await db().from("deliveries").update({ reply_token: token }).eq("id", id);
     replyTo = replyAddress(token, settings);
