@@ -4,7 +4,7 @@
 // It is the only layout of the app.
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Fragment, useEffect, useState, useTransition } from "react";
+import { Fragment, useEffect, useRef, useState, useTransition } from "react";
 import { Activity, BarChart3, Blocks, Building2, CalendarClock, ChevronRight, ChevronsUpDown, CircleHelp, FlaskConical, Hash, KeyRound, LayoutDashboard, LogOut, MessageSquarePlus, MoreHorizontal, Package, Plug, Plus, Presentation, Rss, ScrollText, Search, Settings2, ShieldCheck, Users, Webhook, Workflow } from "lucide-react";
 import { INSTALLATION, MAIN, PhoneAccount, WorkspaceChoices, YOU, type Account, type NavItem } from "@/components/nav-parts";
 import { PinnedDashboards, type Pinned } from "@/components/pinned-dashboards";
@@ -15,6 +15,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuGroup, DropdownMenuItem,
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { SlideOverProvider, useSlideOver } from "@/components/slide-over-host";
 import { FeedbackPanel } from "@/components/feedback-panel";
+import { useOpenPanel, writePanel } from "@/lib/panel-param";
 import { HelpButton, useOpenHelp } from "@/components/help-panel";
 import { Sidebar, SidebarContent, SidebarFooter, SidebarGroup, SidebarHeader, SidebarInset, SidebarItem, SidebarProvider, SidebarTrigger, useSidebar } from "@/components/ui/sidebar";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -198,6 +199,16 @@ function UserMenu({ account }: { account: Account }) {
   const [pending, start] = useTransition();
   const panel = useSlideOver();
   const path = usePathname();
+  // The notice about an answer links to `?panel=feedback`: that opens My feedback, once, and leaves the address clean.
+  const asked = useOpenPanel() === "feedback" && account.sendFeedback === true;
+  const handled = useRef(false);
+  useEffect(() => {
+    if (!asked) { handled.current = false; return; }
+    if (handled.current) return;
+    handled.current = true;
+    panel.open({ title: "Send feedback", description: "Tell the Ziffr team what is wrong or missing", content: <FeedbackPanel route={path} /> });
+    writePanel(null);
+  }, [asked, panel, path]);
   return (
     <DropdownMenu>
       <DropdownMenuTrigger disabled={pending} title={account.name} className={cn("flex h-9 w-full items-center gap-2 rounded-md px-1.5 text-[13px] outline-none hover:bg-sidebar-accent focus-visible:ring-2 focus-visible:ring-sidebar-ring", collapsed && "justify-center px-0")}>
