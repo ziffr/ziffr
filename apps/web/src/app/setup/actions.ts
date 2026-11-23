@@ -10,6 +10,7 @@ import * as workspace from "@ziffr/core/workspace-settings";
 import * as clock from "@ziffr/core/workspace-clock";
 import * as fiscalYear from "@ziffr/core/fiscal-year";
 import * as guide from "@ziffr/core/setup-guide";
+import { refuseInDemo } from "@ziffr/core/demo";
 
 /** What About you sends: each part only when the person answered it. */
 export type AboutYouInput = {
@@ -25,6 +26,8 @@ export type AboutYouInput = {
 export async function saveAboutYou(input: AboutYouInput) {
   return attempt(async () => {
     const actor = await currentActor();
+    // The demo never has a guide: say its one sentence before any part is tried.
+    refuseInDemo(actor);
     const i = (input && typeof input === "object" ? input : {}) as Partial<AboutYouInput>;
     if (i.businessFunction !== undefined) await businessFunction.setMyBusinessFunction(actor, i.businessFunction);
     if (i.profile !== undefined) await workspace.setWorkspaceProfile(actor, i.profile);
@@ -38,7 +41,9 @@ export async function saveAboutYou(input: AboutYouInput) {
 /** Skips one step of the guide (the core checks the step's name and who may skip it). */
 export async function skipStep(step: string) {
   return attempt(async () => {
-    await guide.skipSetupStep(await currentActor(), step);
+    const actor = await currentActor();
+    refuseInDemo(actor);
+    await guide.skipSetupStep(actor, step);
     revalidatePath("/setup");
   });
 }

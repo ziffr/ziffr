@@ -86,8 +86,6 @@ const OUTSIDE: readonly string[] = [
   "installation-feedback-actions:rejectFeedbackAction",
   "oauth/authorize/actions:answerConsent",
   "settings-actions:setAppearance",
-  "setup/actions:saveAboutYou",
-  "setup/actions:skipStep",
   "try/start/actions:askGuide",
   "try/start/actions:guideValue",
   "try/start/actions:makeN8nKey",
@@ -185,6 +183,8 @@ const BLOCKED: Record<BlockedReason, readonly string[]> = {
   ],
   // The Workspace's own settings, its people and roles, Retention: what every visitor sees would change for all of them.
   "changes-what-everyone-sees": [
+    "setup/actions:saveAboutYou",
+    "setup/actions:skipStep",
     "retention-actions:applyRetentionToAll",
     "retention-actions:cancelMetricRetention",
     "retention-actions:previewRetention",
