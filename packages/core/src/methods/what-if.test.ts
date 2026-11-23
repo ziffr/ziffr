@@ -914,6 +914,8 @@ describe("properties", () => {
       fc.property(worlds, fc.double({ min: 0.5, max: 3, noNaN: true }), fc.boolean(), ({ s, n }, k, flip) => {
         const v = world(s, n);
         const links = [link("B", v.b, [{ name: "A", x: v.a }]), link("C", v.c, [{ name: "B", x: v.b }])];
+        // A link that looks curved refuses what lies beyond what was seen (said, not worked out), so such worlds are not compared here.
+        fc.pre(links.every((l) => !l.fit.verdict.cautions.some((c) => c.case === "caution-curved")));
         const latest = v.a[v.a.length - 1];
         const [x, sign] = [0.3, flip ? -1 : 1];
         const one = reachedOf(run(links, x, latest));
@@ -940,6 +942,7 @@ describe("properties", () => {
         const v = world(s, n);
         const lb = link("B", v.b, [{ name: "A", x: v.a }]);
         const lc = link("C", v.c, [{ name: "B", x: v.b }]);
+        fc.pre([lb, lc].every((l) => !l.fit.verdict.cautions.some((c) => c.case === "caution-curved")));
         const [b, c] = reachedOf(run([lb, lc], 1, v.a[v.a.length - 1]));
         // The same two links, but with C's own range cut as a single effect: its half width at one effect is narrower than at two.
         const [, cOne] = reachedOf(run([lb, { kind: "worked", target: "C", formula: "{b} * 2", names: { b: "B" }, levels: { B: 3 } }], 1, v.a[v.a.length - 1]));
