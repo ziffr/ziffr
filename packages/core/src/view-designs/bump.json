@@ -1,0 +1,14 @@
+{
+  "format": "ziffr.view/1",
+  "name": "Bump chart",
+  "description": "How the order of a Breakdown's rows changes from period to period.",
+  "kind": "metric",
+  "slots": [{ "label": "Metric with a breakdown", "metrics": "one" }],
+  "size": { "w": 8, "h": 7 },
+  "options": {
+    "window": { "label": "Periods", "default": 12 }
+  },
+  "parts": [
+    { "mark": "bump", "show": "breakdown" }
+  ]
+}

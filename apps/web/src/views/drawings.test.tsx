@@ -85,6 +85,12 @@ const long = (d: CanvasData) => withSeries(d, REVENUE, Array.from({ length: 60 }
 const withBreakdowns = (d: CanvasData, id: number, by: CanvasData["breakdowns"][number]): CanvasData => ({ ...d, breakdowns: { ...d.breakdowns, [id]: by } });
 // Six rows in the newest period (one becomes Other), a period without a Breakdown, and a Metric that is not their sum.
 const sixRows = (d: CanvasData) => withBreakdowns(d, REVENUE, { ...Object.fromEntries(Object.entries(d.breakdowns[REVENUE]).filter(([p]) => p !== "2026-04-01")), "2026-06-01": [...d.breakdowns[REVENUE]["2026-06-01"], { label: "Partners", value: 900 }] });
+// Ten rows in the newest period, so two are not drawn, and a row ("Online") that is missing in one period.
+const tenRows = (d: CanvasData) => {
+  const by = Object.fromEntries(Object.entries(d.breakdowns[REVENUE]).map(([p, rows]) => [p, [...rows, ...["Alpha", "Beta", "Gamma", "Delta", "Epsilon"].map((label, i) => ({ label, value: 400 + 20 * i }))]]));
+  by["2026-05-01"] = by["2026-05-01"].filter((r) => r.label !== "Online");
+  return withBreakdowns(d, REVENUE, by);
+};
 const band = (d: CanvasData) => withMetric(d, REVENUE, { target_min: 100000, target_max: 130000 });
 const pending = (d: CanvasData): CanvasData => ({ ...d, pending: { [REVENUE]: ["2026-06-01"] }, locked: { [REVENUE]: ["2026-04-01", "2026-03-01"] } });
 
@@ -137,11 +143,20 @@ const CASES: [string, TemplateId, number[], WidgetSettings, CanvasData][] = [
   ["stacked-other", "stacked", [REVENUE], { window: 6 }, sixRows(base())],
   ["stacked-negative", "stacked", [REVENUE], { window: 12 }, withBreakdowns(base(), REVENUE, { "2026-06-01": [{ label: "Online", value: 5 }, { label: "Refunds", value: -2 }] })],
   ["stacked-none", "stacked", [REVENUE], { window: 12 }, withBreakdowns(base(), REVENUE, {})],
+  ["bump", "bump", [REVENUE], { window: 12 }, base()],
+  ["bump-many", "bump", [REVENUE], { window: 6 }, tenRows(base())],
+  ["bump-one-period", "bump", [REVENUE], { window: 12 }, withBreakdowns(base(), REVENUE, { "2026-06-01": [{ label: "Online", value: 5 }, { label: "North", value: 2 }] })],
+  ["bump-none", "bump", [REVENUE], { window: 12 }, withBreakdowns(base(), REVENUE, {})],
   ["drivers-comma", "drivers", [COST, REVENUE, CHURN], {}, base("1.234,5")],
   ["scoreboard", "scoreboard", [REVENUE, CHURN, CUSTOMERS, ORDERS], { window: 12 }, base()],
   ["scoreboard-comma", "scoreboard", [COST, REVENUE, CHURN], { window: 12 }, base("1.234,5")],
   ["scoreboard-few", "scoreboard", [REVENUE, CHURN], { window: 12 }, base()],
   ["scoreboard-empty-row", "scoreboard", [REVENUE, CHURN, ORDERS], { window: 12 }, withSeries(base(), ORDERS, [])],
+  ["running-total", "running-total", [REVENUE], { showTarget: true }, base()],
+  ["running-total-no-plan", "running-total", [ORDERS], { showTarget: true }, base()],
+  ["running-total-plan-off", "running-total", [REVENUE], { showTarget: false }, base()],
+  ["running-total-not-sum", "running-total", [CHURN], { showTarget: true }, base()],
+  ["running-total-comma", "running-total", [COST], { showTarget: true }, withMetric(base("1.234,5"), COST, { target_max: 60000 })],
 ];
 
 describe("the built-in Views draw as before", () => {

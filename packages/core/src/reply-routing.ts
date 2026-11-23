@@ -40,6 +40,11 @@ export async function routeReply(d: RepliedDelivery, text: string, via: ReplyCha
     await via.answer("Not recorded", "A checklist message cannot be answered; open the Workflow in Ziffr.");
     return "refused";
   }
+  // Nor is the message that tells someone a value was entered for them (spec 0046): they replace it in Ziffr.
+  if (d.kind === "filled_in") {
+    await via.answer("Not recorded", "This message cannot be answered; to replace the value, open the Metric in Ziffr.");
+    return "refused";
+  }
   if (d.kind === "prompt" && d.prompt_id) {
     const { data: prompt } = await db().from("prompts").select("id, source, metric_id, submitter_id").eq("id", d.prompt_id).eq("workspace_id", d.workspace_id).maybeSingle();
     if (!prompt || prompt.submitter_id !== d.recipient_id) return "unknown_token";

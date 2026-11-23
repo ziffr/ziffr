@@ -711,7 +711,7 @@ export function createServer(ziffr: Ziffr): McpServer {
 
   server.registerTool("get_metric", {
     title: "Get a Metric and its values",
-    description: `One Metric's description, its Workflow (\`workflow\`: id, name, and whether it is the key's creator's own; null when nobody is asked on a schedule) and the next day a value is due (\`next_due\`: its date and the period's first day), and its values, oldest first, for the periods from \`from\` to \`to\` (first days of periods, both optional). At most the ${MAX_VALUES} newest values. The description includes its Retention (\`retention\`, and \`retention_pending\` once confirmed but not started), read only: a value with \`condensed_from\` stands for that many periods (\`period\` to \`period_end\`) that were condensed, so never read it as one period. Nothing here can set a Retention: tell the user to do that in Ziffr, after its preview.`,
+    description: `One Metric's description, its Workflow (\`workflow\`: id, name, and whether it is the key's creator's own; null when nobody is asked on a schedule) and the next day a value is due (\`next_due\`: its date and the period's first day), and its values, oldest first, for the periods from \`from\` to \`to\` (first days of periods, both optional). At most the ${MAX_VALUES} newest values. The description includes its Retention (\`retention\`, and \`retention_pending\` once confirmed but not started), read only: a value with \`condensed_from\` stands for that many periods (\`period\` to \`period_end\`) that were condensed, so never read it as one period. Nothing here can set a Retention: tell the user to do that in Ziffr, after its preview. A value may carry \`entered_by\` and \`entered_by_name\`, read only: someone else entered it for its submitter (a Filled-in Value), so say it that way (\"Ben entered it for Sara\"); both are null when the submitter entered it, and always for a Guest. Nothing here enters a value for someone else.`,
     inputSchema: { slug, from: period.optional().describe("First period, YYYY-MM-DD."), to: period.optional().describe("Last period, YYYY-MM-DD.") },
     annotations: { readOnlyHint: true, openWorldHint: false },
     _meta: viewMeta("metric"),
@@ -923,7 +923,7 @@ export function createServer(ziffr: Ziffr): McpServer {
   const id = z.number().int().positive();
   const slugs = z.array(slug).min(1).max(50);
   const fills = z.array(slugs).max(50).describe("Metric slugs for each Slot, in the template's order (from list_templates).");
-  const view = z.enum(["number", "line", "bars", "gauge", "table", "forecast", "correlation", "matrix", "drivers", "scoreboard", "progress", "stacked", "ranked", "share", "pictogram", "story-line"]);
+  const view = z.enum(["number", "line", "bars", "gauge", "table", "forecast", "correlation", "matrix", "drivers", "scoreboard", "progress", "stacked", "pareto", "slope", "running-total", "bump", "ranked", "share", "pictogram", "story-line"]);
   const settings = z.object({
     window: z.number().int().min(1).max(120).optional().describe("Periods shown."),
     showTarget: z.boolean().optional(),

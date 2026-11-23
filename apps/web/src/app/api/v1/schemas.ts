@@ -85,6 +85,8 @@ const ApiObservation = z.object({
   submitter_name: z.string().nullable().describe("Their name; null with the submitter."),
   submitted_at: z.string().nullable().describe("When it was submitted, an ISO 8601 time; null for a Derived Metric."),
   source: z.string().nullable().describe("The Source it arrived through, such as web_form, mail, slack, telegram or api; null for a Derived Metric."),
+  entered_by: z.string().nullable().optional().describe("Read only: the id of the person who entered the value for its submitter (a Filled-in Value, see GLOSSARY), null when the submitter entered it. Always null when the key's creator is a Guest. Values cannot be entered for someone else through the API."),
+  entered_by_name: z.string().nullable().optional().describe("Their name; null with `entered_by`."),
   has_thread: z.boolean().describe("A Thread on this period that the key's creator may read exists: read it with GET /metrics/{slug}/thread. False also when the only Threads are ones they may not read."),
   breakdown: z.array(BreakdownRow).nullable().describe("The value's parts (GLOSSARY: Breakdown), or null."),
   condensed_from: z.number().int().optional().describe("Only on a Condensed Value (GLOSSARY: Condensed Value): how many of the Metric's periods it was made from. It is not one period: `period` is the span's first day and `period_end` its last."),
@@ -383,7 +385,7 @@ export const FeedBatchAnswer = z.object({ results: z.array(FeedItemResult).descr
 // number; nothing a program sends is used before it matches these.
 
 /** The views a key may place (GLOSSARY: View, Widget Template): no Free Layout and no composed Finding. */
-const KeyView = z.enum(["number", "line", "bars", "gauge", "table", "forecast", "correlation", "matrix", "drivers", "scoreboard", "progress", "stacked", "ranked", "share", "pictogram", "story-line"]).describe("A built-in view; GET /templates?kind=view lists them with what each is for.");
+const KeyView = z.enum(["number", "line", "bars", "gauge", "table", "forecast", "correlation", "matrix", "drivers", "scoreboard", "progress", "stacked", "pareto", "slope", "running-total", "bump", "ranked", "share", "pictogram", "story-line"]).describe("A built-in view; GET /templates?kind=view lists them with what each is for.");
 
 /** A Display Period (GLOSSARY): what a widget can show a Metric by. */
 const DisplayPeriodSchema = z.enum(["week", "month", "quarter", "half", "year"]);

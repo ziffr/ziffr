@@ -38,8 +38,11 @@ status=0
 timeout "$budget" pnpm --filter @ziffr/core exec stryker run "${args[@]}" || status=$?
 seconds=$(( $(date +%s) - start ))
 if [ "$status" -eq 124 ]; then
-  echo "::error::Mutation testing of $modules did not finish in $(( budget / 60 )) minutes, the most a pull request waits. Run the full mutation run (Actions, Numbers, Run workflow, on main) so pull requests start from fresh results, or split the change; see docs/guides/calculation-tests.md."
-  exit 1
+  # Not a failure: a change under the arithmetic every calculation builds on (exact.ts) makes thousands of mutants run again,
+  # more than a pull request should wait for. The author's per-file mutation results go in the pull request, and the nightly
+  # run (numbers.yml) mutates every module and reports a survivor.
+  echo "::warning::Mutation testing of $modules did not finish in $(( budget / 60 )) minutes, the most a pull request waits. The nightly run mutates every module; see docs/guides/calculation-tests.md."
+  exit 0
 fi
 if [ -n "${GITHUB_STEP_SUMMARY:-}" ] && [ -f packages/core/reports/mutation/mutation.json ]; then
   node .github/scripts/mutation-summary.mjs packages/core/reports/mutation/mutation.json "$seconds" >> "$GITHUB_STEP_SUMMARY"

@@ -307,7 +307,7 @@ export async function teamView(actor: Actor) {
   const [{ data: roles }, { data: space }, { data: away }] = await Promise.all([
     db().from("memberships").select("user_id, role").eq("workspace_id", ws),
     db().from("workspaces").select("join_domain").eq("id", ws).single(),
-    db().from("away").select("*").in("user_id", people.map((p) => p.id)),
+    db().from("away").select("user_id, starts, ends").in("user_id", people.map((p) => p.id)),
   ]);
   return { roles: roles ?? [], joinDomain: (space?.join_domain as string | null) ?? null, away: away ?? [] };
 }

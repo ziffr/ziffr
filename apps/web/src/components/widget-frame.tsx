@@ -49,6 +49,7 @@ import { designOf, duplicateAsDesign } from "@ziffr/core/design-files";
 import { downloadDesign } from "@/lib/design-download";
 import { Preview, TemplatePreview } from "./preview";
 import { periodLabel } from "@ziffr/core/periods";
+import type { SlopeChoice } from "@ziffr/core/slope-chart";
 import { takesTagSource, withoutTagSource } from "@ziffr/core/widget-templates";
 import { combines, DISPLAY_LABEL, displayPeriodsFor, NOT_COMBINED, SHOWN_BY, type DisplayPeriod } from "@ziffr/core/display-periods";
 
@@ -73,6 +74,8 @@ type Props = {
 type Panel = "history" | "ask" | "story" | "versions" | null;
 
 // The layout editor pulls in tldraw, so it loads only when opened.
+/** What a slope chart can compare, as the Compare menu words it. */
+const SLOPE_WAYS: [SlopeChoice, string][] = [["auto", "What I placed"], ["previous", "Rows against the period before"], ["year", "Rows against a year earlier"], ["metrics", "Several Metrics"]];
 const LayoutEditor = dynamic(() => import("@/canvas/layout-editor"), { ssr: false });
 
 export function WidgetFrame(props: Props) {
@@ -196,6 +199,21 @@ function InteractiveFrame({ widget, data, targets, editable = false, className, 
                 <p className="text-xs text-muted-foreground">{look.kind === "builtin" ? TEMPLATES[look.id].blurb : look.t.description || "Drawn with sample data."}</p>
               </div>
             )}
+          </K.SubContent>
+        </K.Sub>
+      )}
+      {widget.template === "slope" && editable && widget.id && (
+        <K.Sub>
+          <K.SubTrigger><Scale /> Compare</K.SubTrigger>
+          <K.SubContent>
+            {SLOPE_WAYS.map(([way, label]) => {
+              const on = (widget.settings.slope ?? "auto") === way;
+              return (
+                <K.Item key={way} onClick={() => change({ settings: { ...widget.settings, slope: way } })}>
+                  <Check aria-hidden className={on ? "" : "invisible"} /> {label}
+                </K.Item>
+              );
+            })}
           </K.SubContent>
         </K.Sub>
       )}
