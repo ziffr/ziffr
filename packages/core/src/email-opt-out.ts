@@ -20,6 +20,11 @@ export async function unsubscribeIsAlert(token: string): Promise<boolean> {
   return (await deliveryFor(token))?.kind === "alert";
 }
 
+/** Whether a token belongs to a Heads-up message, whose link switches off Heads-ups by message (for the page that asks). */
+export async function unsubscribeIsHeadsUp(token: string): Promise<boolean> {
+  return (await deliveryFor(token))?.kind === "heads_up";
+}
+
 /** Whether a token belongs to a Tell message, whose link says "stop telling me" for its Workflow (for the page that asks). */
 export async function unsubscribeIsTell(token: string): Promise<boolean> {
   return Boolean((await deliveryFor(token))?.tell_workflow_id);
@@ -28,7 +33,7 @@ export async function unsubscribeIsTell(token: string): Promise<boolean> {
 async function deliveryFor(token: string) {
   if (!TOKEN.test(String(token))) return null;
   const { data: d } = await db().from("deliveries").select("id, workspace_id, recipient_id, kind, action_id, prompt_id, alert_id, tell_workflow_id").eq("unsubscribe_token", token).maybeSingle();
-  if (!d || d.workspace_id === DEMO_WORKSPACE_ID || !(OPT_OUT_KINDS.includes(d.kind) || (d.kind === "alert" && (d.alert_id || d.tell_workflow_id)) || (d.kind === "checklist" && d.tell_workflow_id))) return null;
+  if (!d || d.workspace_id === DEMO_WORKSPACE_ID || !(OPT_OUT_KINDS.includes(d.kind) || (d.kind === "alert" && (d.alert_id || d.tell_workflow_id)) || d.kind === "heads_up" || (d.kind === "checklist" && d.tell_workflow_id))) return null;
   return d;
 }
 
@@ -40,6 +45,12 @@ export async function optOutByToken(token: string): Promise<boolean> {
   if ((d.kind === "alert" || d.kind === "checklist") && d.tell_workflow_id) {
     // A Tell message or a Checklist Item (GLOSSARY: Tell, Checklist Item): "stop telling me" for the Workflow it came from, the person's own switch (tell.ts).
     await db().from("tell_stops").upsert({ workflow_id: d.tell_workflow_id, person_id: d.recipient_id, workspace_id: d.workspace_id }, { onConflict: "workflow_id,person_id", ignoreDuplicates: true });
+    return true;
+  }
+  if (d.kind === "heads_up") {
+    // The person's own switch, as under Your Deliveries: no more Heads-ups by message (they stay in the list); open ones end.
+    await db().from("heads_up_settings").upsert({ workspace_id: d.workspace_id, person_id: d.recipient_id, by_message: false, updated_at: new Date().toISOString() }, { onConflict: "workspace_id,person_id" });
+    await db().rpc("end_heads_up_told", { p_ws: d.workspace_id, p_person: d.recipient_id, p_standing: [], p_now: new Date().toISOString() });
     return true;
   }
   if (d.kind === "alert") {

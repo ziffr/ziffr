@@ -30,7 +30,7 @@ export async function withFormLink(body: string, d: { workspace_id: string; form
 export const PROMPT_ANSWERED = "Not sent: the request was answered another way first.";
 
 /** What a Delivery is about, as far as its Metric goes. */
-type AboutMetric = { id: number; workspace_id: string; kind: string; recipient_id?: string; alert_metric_id?: number | null; tell_workflow_id?: number | null; prompt_id?: number | null; form_token_id?: number | null; action_id?: number | null };
+type AboutMetric = { id: number; workspace_id: string; kind: string; recipient_id?: string; alert_metric_id?: number | null; heads_up_metric_a?: number | null; heads_up_metric_b?: number | null; heads_up_key?: string | null; heads_up_told_id?: number | null; tell_workflow_id?: number | null; prompt_id?: number | null; form_token_id?: number | null; action_id?: number | null };
 
 /** Why a Delivery must not go out because its Metric is archived (GLOSSARY: Archived Metric), or null. Checked when it
  * is sent, not only when it was queued: a Prompt checked just before the archive and queued just after, or one put
@@ -60,6 +60,26 @@ export async function archivedMetricHolds(d: AboutMetric): Promise<string | null
       if (stopped) return "Not sent: the person asked not to be told by this Workflow.";
     }
     return null;
+  }
+  // A Heads-up message (GLOSSARY: Heads-up) leaves only while its recipient may still see EVERY Metric it is about and none is
+  // archived: asked again here, when it is sent (AGENTS.md rule 3). One that names no Metric does not go at all.
+  if (d.kind === "heads_up") {
+    const about = [d.heads_up_metric_a, d.heads_up_metric_b].filter((id): id is number => typeof id === "number");
+    if (!about.length || !d.recipient_id) return "Not sent.";
+    const metrics = await getMetrics(ws);
+    const seen = await visibleMetricIds(ws, d.recipient_id, metrics);
+    // It leaves only while the Heads-up it was made for still stands (its "told" row is open): one that ended while it waited is
+    // not sent hours later. A message that does not go gives its place back by itself (a trigger on a failed Delivery).
+    const { data: told } = d.heads_up_told_id ? await db().from("heads_up_told").select("id").eq("id", d.heads_up_told_id).eq("workspace_id", ws).eq("person_id", d.recipient_id).is("ended_at", null).maybeSingle() : { data: null };
+    if (!told) return "Not sent.";
+    if (!about.every((id) => seen.has(id) && metrics.some((m) => m.id === id && !m.archived_at && !m.inputs_withheld))) return "Not sent.";
+    // The person's own choices made while it waited: switched off, a Metric muted, or this Heads-up marked Not useful.
+    const [{ data: set }, { data: mutes }, { data: no }] = await Promise.all([
+      db().from("heads_up_settings").select("show, by_message").eq("workspace_id", ws).eq("person_id", d.recipient_id).maybeSingle(),
+      db().from("heads_up_mutes").select("metric_id").eq("workspace_id", ws).eq("person_id", d.recipient_id).in("metric_id", about),
+      d.heads_up_key ? db().from("heads_up_dismissed").select("key").eq("workspace_id", ws).eq("person_id", d.recipient_id).eq("key", d.heads_up_key) : Promise.resolve({ data: [] as unknown[] }),
+    ]);
+    return set?.show && set?.by_message && !mutes?.length && !no?.length ? null : "Not sent.";
   }
   let metricId: number | null = null;
   if (d.kind === "prompt") {

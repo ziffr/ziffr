@@ -243,9 +243,13 @@ Owners also see **Email me when Metrics, dashboards or decks go unused**. It is 
 
 Pick the first and the last day you are **Away**. While you are away, Prompts meant for you go to your **Stand-in**. The dates are saved as soon as both are set; **Clear** removes them. Owners and Admins can also set your Away dates on **Members and Groups**.
 
+### Heads-ups
+
+Under **Heads-ups** you choose whether Ziffr shows you the [Heads-ups](13-analyze.md#heads-ups) it notices and whether it also tells you by message. **Show me Heads-ups under Analyze** is on unless you turn it off; turning it off also stops the messages. **Also tell me by message** is off until you turn it on. Then the strongest Heads-ups you were not told yet reach you by your Delivery Preference for replies and updates, at most 3 in any 7 days, each once (one that ended and came back can be sent again). Quiet hours hold them like an Alert, and one is not sent after you lose sight of either of its Metrics. A message cannot be answered; open Ziffr. An email has a link to stop Heads-ups by message. Leaving a Workspace removes these choices. **Metrics you muted** lists the Metrics you muted from a Heads-up, with **Hear about it again**; only Metrics you can still see are listed. Heads-up choices are yours alone and can't be changed in the demo.
+
 ### Quiet hours
 
-Under **Quiet hours** you choose the hours of the night and the whole days (the weekend, say) when Ziffr should leave you alone: from 19:00 until 07:00, and all day Saturday and Sunday. Requests for numbers, reminders, Alerts and checklist items that would arrive then wait, and are sent when your quiet hours end; none is dropped. The times are in the time zone you pick there, or in the Workspace's. A Due Date does not move: only the message waits, so something due on Monday morning may be asked for first thing, when your quiet hours end.
+Under **Quiet hours** you choose the hours of the night and the whole days (the weekend, say) when Ziffr should leave you alone: from 19:00 until 07:00, and all day Saturday and Sunday. Requests for numbers, reminders, Alerts, Heads-ups and checklist items by message that would arrive then wait, and are sent when your quiet hours end; none is dropped. The times are in the time zone you pick there, or in the Workspace's. A Due Date does not move: only the message waits, so something due on Monday morning may be asked for first thing, when your quiet hours end.
 
 If you set nothing, you follow the Workspace's default, if its Owners or Admins set one (the page says so). **Use the Workspace's default** removes your own. To have none even though the Workspace has a default, set the same hour for **From** and **Until** and no days. You cannot choose all seven days. A message already waiting keeps its time if you change your quiet hours afterwards.
 

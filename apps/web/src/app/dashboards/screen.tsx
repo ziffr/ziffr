@@ -12,6 +12,10 @@ import { SaveDashboardTemplateDialog } from "@/components/save-dashboard-templat
 import type { DashboardTemplateSummary } from "@ziffr/core/dashboard-templates";
 import { Pool } from "@/components/pool";
 import { WidgetFrame } from "@/components/widget-frame";
+import { frameTitle } from "@/components/read-only-frame";
+import { OpenLarge } from "@/components/open-large";
+import { widgetMetrics } from "@/views/widget-body";
+import { largeHref } from "@/lib/open-large";
 import { SeriesProvider, useCanvasSeries } from "@/canvas/series-store";
 import { placeWidget, saveDashboardText, saveLayout, type DropSource } from "@/app/canvas-actions";
 import { getDrag, setDrag } from "@/lib/drag";
@@ -253,7 +257,14 @@ function DashboardCanvas({ data, dashboards, current, widgets, saved, shares, re
                 >
                   {widgets.map((w) => (
                     <div key={String(w.id)}>
-                      <WidgetFrame widget={w} data={data} targets={targets.filter((d) => d.id !== current.id)} editable={changing} dragHandle={changing} saved={saved} />
+                      {changing || !w.id ? (
+                        <WidgetFrame widget={w} data={data} targets={targets.filter((d) => d.id !== current.id)} editable={changing} dragHandle={changing} saved={saved} />
+                      ) : (
+                        // Outside Edit mode a tap on the card opens it large, as Present does one at a time (#826).
+                        <OpenLarge className="h-full" title={frameTitle(w, widgetMetrics(w, data))} onOpen={() => router.push(largeHref(current.id, w.id!))}>
+                          <WidgetFrame widget={w} data={data} targets={targets.filter((d) => d.id !== current.id)} editable={false} saved={saved} />
+                        </OpenLarge>
+                      )}
                     </div>
                   ))}
                 </ReactGridLayout>

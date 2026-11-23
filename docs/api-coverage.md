@@ -97,6 +97,11 @@ Decks, Themes, View Designs, the canvas, Packs and the pages that edit them are 
 
 Acts as the person, with their own sign-in, Slack or Telegram account or email address.
 
+- `setHeadsUpSettings` (heads-up-state.ts): a person's own Heads-up choices (spec 0041, ticket 14); the Heads-up list is for the app until the API is built for it
+- `markNotUseful` (heads-up-state.ts): a person's own Not useful on a Heads-up (spec 0041, ticket 14); the Heads-up list is for the app until the API is built for it
+- `muteMetric` (heads-up-state.ts): a person's own mute of a Metric for Heads-ups (spec 0041, ticket 14); the Heads-up list is for the app until the API is built for it
+- `unmuteMetric` (heads-up-state.ts): a person's own mute taken off (spec 0041, ticket 14); the Heads-up list is for the app until the API is built for it
+- `mutedMetrics` (heads-up-state.ts): the Metrics a person muted, for their settings page (spec 0041, ticket 14); the Heads-up list is for the app until the API is built for it
 - `pinnedDashboards` (pinned-dashboards.ts): one's own sidebar of pinned dashboards
 - `pinDashboard` (pinned-dashboards.ts): one's own sidebar of pinned dashboards
 - `unpinDashboard` (pinned-dashboards.ts): one's own sidebar of pinned dashboards
@@ -132,6 +137,7 @@ Acts as the person, with their own sign-in, Slack or Telegram account or email a
 
 Settings an Owner or Installation Admin makes at the screen. Programs with a key do not change who runs the Workspace.
 
+- `handOverMetric` (metric-owner.ts): handing a Metric to another Member: a person's call at the Metric's page, so a key must not change who owns a Metric
 - `createAccessKey` (access-keys.ts): Access Keys: a key must not make or end keys
 - `revokeAccessKey` (access-keys.ts): Access Keys: a key must not make or end keys
 - `setJoinDomain` (invitations.ts): domain joining rests on the Owner's own verified address, which only a sign-in proves
@@ -224,6 +230,8 @@ Settings an Owner or Installation Admin makes at the screen. Programs with a key
 
 Reads for a screen that also note that something was seen or logged; the API has its own reads.
 
+- `myHeadsUps` (heads-up-state.ts): the Heads-ups list of the Analyze page (spec 0041, ticket 14); the API for it is not built yet
+- `listHeadsUpsWith` (heads-ups.ts): the same list with the Metrics' names, for the page; the plain `listHeadsUps` carries the same rules
 - `auditLog` (audit-log.ts): the Audit Log page and its export
 - `exportAuditLog` (audit-log.ts): the Audit Log page and its export
 - `exportWorkspace` (workspace-export.ts): the Workspace Export download, for the Owner at the screen after a fresh sign-in; a key never exports a Workspace
@@ -335,3 +343,4 @@ Plumbing the core's other operations use, jobs the schedule runs, and the demo.
 - `runWorkflowsAsOf` (workflows.ts): what the schedule runs
 - `newMetricRefusal` (workspace-limits.ts): what the Metric functions use to refuse at a limit
 
+- `listHeadsUps` (heads-ups.ts): the Heads-ups list is in a later ticket of spec 0041 (the Analyze page); analyses are not in the API or MCP yet, and its cost in a Workspace over the cap needs a per-person cache first (ticket #707)

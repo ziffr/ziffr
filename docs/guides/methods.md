@@ -4,7 +4,7 @@ A **Method** is one calculation in Ziffr's library, such as a correlation or a f
 
 Every Method runs the [suitability checks](#the-suitability-checks) on the series it is given, every time. It gives a number, a number with a plain line above it (a caution), a different Method chosen by a written rule, or a refusal in words. It never gives a quiet number, and it never removes, smooths or fills in a value.
 
-The footer "This shows what has gone together, not what caused what." is on the Takeaways about two Metrics together (correlation, rank, partial and lagged correlation, Drivers). The usual range, share, Pareto and bridge say nothing about what goes together and carry none.
+The footer "This shows what has gone together, not what caused what." is on the Takeaways about two Metrics together (correlation, rank, partial and lagged correlation, Drivers). The usual range, share, Pareto and bridge say nothing about what goes together and carry none. The change point has its own line, "This shows when the numbers changed, not what made them change.", and before and after has its own line, since it compares a Metric with where its trend pointed: "This compares what happened with where the earlier trend pointed; it does not show what made the difference."
 
 ## The entry format
 
@@ -217,6 +217,182 @@ Function: `backtest`. **What it answers.** How often would this forecast have be
 
 Function: `reachChance`. **What it answers.** How likely is the forecast to land where the Target wants it? The share of a normal curve around the forecast value, with its spread, between the Target's two ends (at least the lower end where higher is better, at most the upper where lower is better, both for closer to target). Shown in tenths ("about 7 in 10"), "under 1 in 20" below 5 % and "at least 19 in 20" from 95 %. **Don't use it when** you read it as the chance the Metric really gets there: it is as good as the track record says. A past that fitted with no miss at all gives exactly 1 or 0, and the Takeaway says the chance may be too sure. **Reference.** SciPy's `norm.cdf` and a 150-digit series, to a relative 1e-9.
 
+## Multiple fit (What moves B?)
+
+Functions: `fit`, `fitNumbers`, `fitBasis` and `importance` in `packages/core/src/methods/fit.ts`; the t quantile is `tQuantile` in `packages/core/src/methods/distributions.ts`; the Takeaway is `movesTakeaway` and the Recipe `whatMoves` in `packages/core/src/takeaways/fit-takeaway.ts`.
+
+**What it answers.** Which of several Metrics have gone with B, with the others held the same, and how much of what moved does each account for?
+
+**How it is worked out.** B and its drivers (1 to 6 other Metrics) are put on their Common Period. Where B and at least one driver have a clear trend, each is turned into its change from the period before ("growth removed"); otherwise the values are used. At most the latest 120 periods that all of them have are used, and a period any of them lacks is a gap that is counted and said, never filled. A straight line through all of them is fitted by least squares: the normal equations (sums about the means, their inverse, the effects, the sum of squared misses) are worked out on fractions of the values' text, so they are exact, and only the last step to a double, a square root and the t quantile are not. Each driver's effect is its change in B per one unit of the driver with the other drivers held the same, and its range is the effect plus and minus t times its standard error, t being the 90 % point of the t curve with n − k − 1 degrees of freedom: that is the 80 % range, called "likely between". Each driver's share of what the line explains is found by averaging, over every order in which the drivers can join, how much the explained share rises when that driver joins (LMG); the shares add up to exactly 1. The strength word is read from the driver's partial correlation (its link to B with the others held fixed) over n − k + 1 periods. Effects are said per a power of ten at or below the driver's own spread ("per 1,000 Visits"), always written to at least two significant digits, so that a number above 0 is never written as 0.
+
+**Use it when.** Several Metrics may move B together and you want to know which matter most and by how much, with the others taken into account.
+
+**Don't use it when.**
+
+- You want to know what causes B: a fit only shows what has gone together, and the footer says so.
+- The history is short: a fit with k drivers needs 8 + 4k periods and at most one driver per 6 periods (and 6): Ziffr refuses and says how many it has and needs.
+- Two drivers move so closely that the line cannot tell them apart (a pair linked by r² above 4/5, which is an inflation above 5, or exactly in step): Ziffr treats them as one, leaves out the one with the weaker link to B (on a tie the Metric with the lower id, so the order they are listed in changes nothing), and says so and whose unit the effect is in. Where inflation is high only for a group of three or more with no such pair (one about the sum of the others): between 5 and 10 the fit is kept and the Takeaway names the crowded drivers (at least two), with a caution that their separate effects are less certain and the ranges show how much, and nothing is called strong; above 10, or where they are exactly one, it is refused, naming every driver that loads on the near-dependency (found as the direction of least variance of the correlation matrix). A driver counts as loading on that direction from 5 % of it (the square of its entry in the direction): a driver with an inflation under 5 can still be named as crowded when it loads, and one just under the cut is not. An exact mix is refused naming all its drivers ("one is exactly the others added up"). A crowded driver is never called strong.
+- More Metrics than the history can carry (one per 6 periods, at most 6): the Recipes first narrow them by how closely each one's changes follow B (Pearson's r of the changes, taken one Metric at a time, so it can miss one that only shows beside another; ties by Metric id, then name) and say how many there were, how many were kept and which were left out. A fit given more drivers directly is refused in words.
+- Metrics of different periods are all compared by the longest period among them, the others combined by their Aggregation; the Takeaway says which were combined. Where a value is missing and the fit compares changes, it names the months with no value (up to four, then how many more) and says the changes into and out of them were left out.
+- The link bends, the misses grow with the level, a few periods are far from the rest, the values are very uneven, or the link was different in the first half of the history: Ziffr gives the answer with a plain line above it, the effect without the far-off periods quoted, and never calls it strong.
+- A Metric has Aggregation none beside another period, or one is calculated from another: a refusal naming them.
+
+**Minimums and checks.** 8 + 4 per driver periods. Checks that apply: enough periods, enough that vary, gaps, mixed periods, far-off values, skew and ties (a caution), not a straight line, changing relationship, spread that grows, too many Metrics.
+
+**Worked example.** Twelve months, the Metric B = 2·x + (−1)^x for x = 1 to 12 and one driver x. With n = 12, Sxx = 143 and Sxy = 292, the effect is 292/143 = 2.04, the intercept 13 − 6.5 · 292/143 = −3/11, the sum of squared misses 608 − 292²/143 = 1680/143, and 5329/5434 = 98.1 % of what moved is explained. The typical miss is √(1680/1430) = 1.08, and with 10 degrees of freedom t = 1.372, so the effect is likely between 1.92 and 2.17 per unit.
+
+**Reference.** `packages/core/src/test/reference/fit.ts` works the same answer out another way: the design has a column of ones and no centring, the normal equations are solved by Cramer's rule with every determinant by Laplace expansion, the sum of squared misses is the sum of the squared residuals, every driver's LMG share is the mean over all k! orders, and the inflation (how well the other drivers account for a driver; 1 is not at all) and the partial link come from fits of their own. Effects, intercept, explained share, shares, inflation and partial links equal the exact fractions' nearest double (the partial link and the typical miss up to their final root); ranges agree to a relative 1e-9 with the reference's t quantile, which integrates the curve's density numerically. NumPy and SciPy fixtures (`fixtures/fit.py`, a test fails when the fixture is not from the script's current text) hold Anscombe's four data sets (intercept 3.0, effect 0.5, 66.7 % explained), a Longley-style set whose GNP and Population are nearly one Metric, an exact relation, and random sets with 1 to 6 drivers, to a relative 1e-9; the t quantile equals SciPy's `t.ppf` for 240 pairs of degrees of freedom and share. An exact linear relation gives its effects back exactly with a range of no width. A simulation of 800 series checks that the 80 % ranges hold the true effect and a new period's value about 80 % of the time.
+
+## Importance
+
+Function: `importance` in `packages/core/src/methods/fit.ts`.
+
+**What it answers.** Which drivers account for most of what moved B?
+
+**How it is worked out.** As the fit above, returning only each driver's share (LMG) and how much the drivers explain together. The explained share of every subset of the drivers is worked out exactly; a driver's share is the mean, over every order of adding the drivers, of the rise when it joins; the shares are divided by what is explained, so they add up to 1. For two drivers with explained shares a, b and a + b together (ab): the first's share is (a + (ab − b)) ÷ 2.
+
+**Use it when.** You want a ranking of drivers that does not depend on the order they are listed in.
+
+**Don't use it when.** As the fit; the shares are of what the line explains, not of B.
+
+**Minimums and checks.** As the fit.
+
+**Worked example.** One driver alone explains 50 % of B, another alone 30 %, and together 70 %. The first's LMG is (0.5 + (0.7 − 0.3)) ÷ 2 = 0.45 and the second's (0.3 + (0.7 − 0.5)) ÷ 2 = 0.25; together 0.70, so the shares of what is explained are 9/14 (64 %) and 5/14 (36 %).
+
+**Reference.** As the fit: the reference averages over all k! orders by listing them. A test checks the two-driver formula above on generated data.
+
+## Predict
+
+Function: `predict` in `packages/core/src/methods/fit.ts`; the Takeaway is `predictTakeaway`.
+
+**What it answers.** What is B likely to be if the drivers are these values?
+
+**How it is worked out.** The fit is worked out again exactly from its periods, then ŷ = ȳ + Σ b·(x − x̄) at the values given, exact. The 80 % range is for a single period, ŷ plus and minus t·σ·√(1 + h), with h = 1/n + (x − x̄)ᵀ·Sxx⁻¹·(x − x̄) the leverage of the values: it widens away from what the drivers have been. Where the fit compared changes, a driver value counts from its latest level and B from its latest level. A value outside what its driver has been gets no range, only the point, and the Takeaway says "treat it as a guess".
+
+**Use it when.** You want to read B off the line for values inside what the drivers have been.
+
+**Don't use it when.**
+
+- The values are outside what the drivers have been: the point is a guess and is said to be one.
+- The link looks curved: a straight-line reading is rough, and outside what was seen Ziffr refuses.
+- The values are not numbers, or the model is not one `fit` made: a refusal in words.
+
+**Minimums and checks.** As the fit; the lines of its checks that still hold for a value (gaps, a curve, spread that grows) are carried to the answer.
+
+**Worked example.** With the fit above (x from 1 to 12), x = 11 gives −3/11 + 11 · 292/143 = 22.19, and h = 1/12 + 4.5²/143 = 0.225, so the range is 22.19 plus and minus 1.372 · √(1680/1430 · 1.225) = 1.65: likely between 20.54 and 23.83. x = 13 is above the 12 seen: 26.27 as a point, no range.
+
+**Reference.** `referenceValue` and `referenceBandSquared` in `test/reference/fit.ts` take h from the cofactor inverse of the uncentred normal matrix with the intercept in the design; the value equals the nearest double of the exact fraction and the range agrees to a relative 1e-9 with the reference's t. SciPy fixtures hold a value and its range for each data set.
+
+## Needs (What does B need?)
+
+Function: `needs` in `packages/core/src/methods/fit.ts`; the Takeaway is `needsTakeaway` and the Recipe `whatNeeds`.
+
+**What it answers.** B has to reach a value wanted: what would one driver need to be, with the others at their latest values?
+
+**How it is worked out.** `predict` turned round for one driver: the value that gives the value wanted is exact, x̄ⱼ + (value wanted − ȳ − Σ of the others' b·(x − x̄)) ÷ bⱼ. Its range is the set of driver values whose range for a single period holds the value wanted; that is a quadratic in the driver value, bounded only where the driver's effect is clear (bⱼ² above t²σ²·(Sxx⁻¹)ⱼⱼ). Where it is not clear, or the value is outside what the driver has been, only the point is given and the Takeaway says "treat it as a guess". A value wanted more than 1,000 times the largest value B has had is not worked out. `predict` at the answer gives the value wanted.
+
+**Use it when.** You have a value wanted for B and want to know what to work on, and the driver's effect has been clear.
+
+**Don't use it when.**
+
+- The effect cannot be told from chance, or is exactly 0: only a point, or a refusal ("has not moved with it at all").
+- The value is higher or lower than the driver has ever been: the point is a guess, and with a curved link Ziffr refuses.
+- You expect the other drivers to change: they are held at their latest values unless you give others.
+
+**Minimums and checks.** As the fit.
+
+**Worked example.** With the fit above, B = 20 needs x = (20 + 3/11) · 143/292 = 9.93, likely between 9.15 and 10.73, inside the 1 to 12 seen. B = 30 would need x = 14.8, above the 12 seen: the point only, "treat it as a guess".
+
+**Reference.** `referenceNeedsRange` finds the ends of the range by halving the band's edge on fractions, from the answer outwards, which shares no step with the quadratic; the ends agree to a relative 1e-9 of the range's size. SciPy's `brentq` on the band's edge gives the fixtures' ends to 1e-7. Generated value wanteds check that `predict` at the answer gives the value wanted, and an exact relation gives a driver value back exactly.
+
+
+## Heads-ups: moving together and stopped moving together
+
+Functions: `pValueOfR` in `packages/core/src/methods/p-value.ts`; `benjaminiHochberg` and `adjustedChances` in `false-discovery.ts`; `scanPair`, `scanPairs`, `effectiveCount`, `autocorrelations`, `strongInBoth` and `exactAtLeast` in `pair-scan.ts`; `headsUpsFrom` in `heads-up.ts`. The job that fills the pair table and the one function that reads it for a person are `scanWorkspace`, `headsUpJob` and `listHeadsUps` in `packages/core/src/heads-ups.ts` (not a calculation module: it reads and writes, it does not calculate).
+
+**What it answers.** Which pairs of Metrics have started moving together, and which have stopped, with nothing said when nothing stands out?
+
+**How it is worked out.** For every pair of a Workspace's Metrics on their Common Period (the same Period, or one step apart), always on how each Metric changed from the period before (growth removed), over the latest 120 periods:
+
+1. *Delays.* For each delay from 3 periods either way to none (7 in all, the first Metric moving first for a positive delay) the pairs are "the leader's change that many periods before the follower's"; a delay needs at least 12 pairs and both series changing. r is Pearson's r in two passes over the centred values.
+2. *Pairs that count.* A Metric that follows its own past (a running total, a moving average) makes pairs of changes worth fewer than they look. Bartlett's rule gives the effective count: n ÷ (1 + 2·Σ ρx(k)·ρy(k)) over the first n ÷ 3 delays (at most 12), the autocorrelations ρ read from each whole series, never more than n.
+3. *The chance by luck* of r over that many pairs is the two-sided chance of Student's t with count − 2 degrees of freedom, worked out as the regularized incomplete beta function I at x = 1 − r² (`pValueOfR`). The best delay has the smallest chance; the pair's chance after the delays is that chance times the number of delays looked at, at most 1 (`pDelays`).
+4. *Both halves.* The pairs of the best delay in time order are cut in two. The pair's chance `p` is the largest of `pDelays` and the chance of each half on its own: a link is only as sure as its weaker half. This is what the correction reads.
+5. *Conditions.* A pair "meets" the conditions that do not depend on the other pairs when its `p` is at most 10 %, |r| is at least 0.7 over all the pairs and in each half, all on the same side of 0 (decided exactly, on the values' text, wherever a pair comes near 0.7), and every suitability check of a lag passes with nothing to say: a pair with a gap, a far-off value or very uneven values is left out, not shown with a caution.
+6. *The history before.* The same is worked out for the history before the last 6 periods (it needs 12 pairs again), and the correlation at that delay over the last 6 periods, with the chance that the link dropped: the drop of Fisher's z against the spread of both (one-sided, the normal curve).
+7. *The correction for the number of pairs looked at* is Benjamini and Hochberg's step-up rule at 10 %: with m chances sorted, find the largest rank k whose chance is at most 0.1·k ÷ m and report everything at or below it. **m is the number of rows the person may see**, not the Workspace's (see below). A pair is reported as moving together when it meets the conditions, is reported by the correction and its strength word is not "can't tell from chance"; as stopped when its history before would have been reported, its last 6 periods have |r| under 0.3 and the chance that the link dropped is reported by the same rule among the pairs that had been moving together. A pair that stopped is not also reported as moving together.
+
+**Use it when.** You want Ziffr to say, without being asked, that two Metrics have started or stopped moving together.
+
+**Don't use it when.**
+
+- You want to know whether two Metrics you picked move together: that is a correlation, which answers for any two Metrics and any history of 6 periods or more.
+- A Metric has seasons the other shares: the changes of two Metrics with the same yearly pattern correlate, and that is true and not new. Ziffr reports it as moving together.
+- You want what causes what: a Heads-up says what has gone together. The footer says so.
+
+**Minimums and checks.** 12 pairs of changes at a delay; both series changing; the two series end no more than 3 periods apart and the pair's last period is no more than 6 periods before today; at most 200 Metrics and 20,000 pairs a scan. The Heads-up needs a link of at least 0.7, so a weaker one is never reported however sure.
+
+**What is not the person's to see.** The pair table is computed once per Workspace and nobody but the core reads it. A person's Heads-ups read only the rows whose two Metrics they may see, and the correction counts only those rows: the same pair is reported or not whatever the person cannot see, and a Metric hidden, archived or deleted is gone at once. Nothing in a sentence, a count, the order or the chance under Show the numbers depends on a Metric they may not see: which pairs are related (a Derived Metric and what it is worked out from) is judged over the Metrics they see, and in a Workspace with more than 200 Metrics their pairs are scanned over their own Metrics, so the cap cannot drop a pair of theirs for another person's Metric.
+
+**Worked example.** (1) Over 4 pairs with r = 0.9 the chance by luck is exactly 1 − 0.9 = 0.1 (with 2 degrees of freedom the chance is 1 − |r|), and over 3 pairs r = 0.5 gives 2/3. (2) Twelve pairs of two series that each have ρ1 = 0.5 and nothing at the other delays are worth 12 ÷ (1 + 2 · 0.25) = 8 pairs. (3) The chances 0.005, 0.01, 0.03 and 0.04 at 10 % have the bounds 0.025, 0.05, 0.075 and 0.1, and all four are reported; 0.03 and 0.2 have the bounds 0.05 and 0.1, so only 0.03 is; 0.06 and 0.07 have the same bounds, the first is over its own bound and the second is within its, and a later rank rescues an earlier one, so both are reported.
+
+**Reference.** `test/reference/heads-up.ts`: the chance by the integral of cos^(ν−1) over the angle with sin = |r| (Gauss-Legendre, Stirling for ln Γ), the closed finite sums of Abramowitz and Stegun for whole degrees of freedom, and the cases above worked by hand; Benjamini and Hochberg's rule decided on exact fractions; the effective count from exact autocorrelations; each delay's pairs by position in a list and r from the exact r². SciPy and NumPy (`fixtures/heads-up.py`: Student t, `pearsonr`, `false_discovery_control`, `np.correlate`, `np.corrcoef`) agree to a relative 1e-9, and the whole scan of a pair is written out again in the script and agrees on every delay, chance, half and drop. `heads-up-simulation.test.ts`: 150 Metrics of independent noise, of trends and random walks, and of noise that follows its own past (autoregressive, moving averages up to 12 months, running totals of running totals) give no Heads-up in at least 99 of 100 runs each, a planted pair is found at every delay from 3 either way, and a pair that carries on is not said to have stopped.
+## Before and after
+
+Functions: `afterDate` in `packages/core/src/methods/before-after.ts`; its Takeaway is `afterDateTakeaway`; the t curve it reads is `tQuantile` in `packages/core/src/methods/t-curve.ts`.
+
+**What it answers.** Did this Metric run above or below where its own trend pointed after a date, and by how much? ("Did the March campaign work?") With a second Metric that should not have been touched, the same question for it, beside.
+
+**How it is worked out.** The trend is the least-squares straight line through the periods before the date, by their place in the calendar (a period without a value leaves a longer step and is never filled in). The periods that start on or after the date are "after"; the one period that began before the date and runs past it holds both and is left out of both, and the Takeaway says so. The gap is the mean of the values after, less the mean of the line's values there. Sums, means and the line are exact on the values' text; the gap is the double nearest to its exact value. The range is the textbook range for the mean of m new values about a line fitted to n: the gap ± t · s · √(1/m + 1/n + (x̄ₐ − x̄)² ÷ Sxx), with s² the squared misses of the line before the date ÷ (n − 2) and t the point of Student's t curve with n − 2 degrees of freedom below which 90 % lie (so that the range holds 80 %). Where the trend points above 0 the gap and its range are said as a share of it, with the range of the share counting the uncertainty of the level it is a share of: Fieller's interval for the ratio ρ of the mean after to the line's level there, the ρ with (Y − ρE)² ≤ t²s²(1/m + ρ²q), q = 1/n + (x̄ₐ − x̄)² ÷ Sxx, which holds zero exactly where the range of the gap does and is wider and lopsided where the level is not far above 0; where it is not clearly above 0 no share is said, and the gap is in the Metric's unit. The latest 120 periods before the date and the first 120 since it are used, and the Takeaway says when more were given. The sentence says what the range is ("that range leaves out zero" or "includes zero"), and does not call it a finding: with no real change about 1 range in 5 leaves out zero. A Metric set beside it that also ran outside the same range gets a line saying the same, with the same bar and the chance of it. No strength word is given: it is a range, not a verdict. If the misses of the line before the date carry over from one period to the next (below), a caution says the range is too narrow.
+
+**Use it when.** You know when something started and want to see whether the Metric ran away from its own path afterwards, and by how much.
+
+**Don't use it when.**
+
+- You have fewer than 6 periods before the date: refusal, with how many there are.
+- The Metric has a strong pattern through the year: the line knows nothing of seasons, so the ups and downs of the season count as spread (the range grows) or, if the periods after fall in another part of the year, can look like a change.
+- Something else changed on the same date: the Takeaway says it compares with the earlier trend and does not show what made the difference; a Metric set beside it, which the change should not have touched, helps, and a caution says when it moved too.
+- The values before the date lie exactly on a line: the range has no spread to go by (a caution says so).
+- The ups and downs carry over from one period to the next (a slow wave, a run of good months): the range counts each period as independent, so it is too narrow. The Takeaway says it assumes they do not, and a caution says when the misses of the line before the date carry over (r₁ above 2 spreads, see Ups and downs that carry over).
+
+**Minimums and checks.** 6 periods before the date (the periods the line is fitted to, counted the same in the sentence, the basis and Show the numbers). Checks that apply: enough periods, enough that vary and gaps (on the whole series, the values before, the period that holds the date and those after); a Method has no far-off or level-shift check, since a step is what it looks for. A date that is not a day, nothing after it, numbers too large to work out a range from, and a difference too small to write out are refusals in words.
+
+**Worked example.** Values 1, 3, 2, 5 before and 8, 9 after, one a month (the Takeaway needs 6 before; the arithmetic is the same). The line is 1.1 + 1.1 · position (positions 0 to 3). The periods after are at 4 and 5, mean 4.5, where the line points to 6.05; they average 8.5, so the gap is 2.45. The line misses by −0.1, 0.8, −1.3 and 0.6: squared 0.01 + 0.64 + 1.69 + 0.36 = 2.7, so s² = 1.35. 1/m + 1/n + (4.5 − 1.5)² ÷ 5 = 0.5 + 0.25 + 1.8 = 2.55. With 2 degrees of freedom the 90 % point is 1.8856, so the range is 2.45 ± 1.8856 · √(1.35 · 2.55) = 2.45 ± 3.50, between −1.05 and 5.95: the periods after are not clearly away from the trend.
+
+**Reference.** `referenceShareRange` finds the ends of the share's range by bisection on the inequality itself, where the code solves the quadratic; `referenceAfter` in `packages/core/src/test/reference/before-after.ts` solves the normal equations by Cramer's rule and sums the misses from the residuals, and gets the variance of the gap from the covariance matrix of the fit, c'(X'X)⁻¹c with c = (1, mean position after), where the code uses the closed form above; the t point is the incomplete beta function by Lentz's continued fraction and bisection, where the code uses the finite sums of Abramowitz and Stegun 26.7.3 and 26.7.4. The code equals the reference exactly in the line, the means and the gap (the double nearest to the exact value) and to a relative 1e-12 in the range. NumPy's `lstsq` and `linalg.inv`, SciPy's `linregress` and `t.ppf` (`fixtures/before-after.py`, with Anscombe's first set, a perfect line, gaps, one period after, a falling trend below 0, tiny values and 60 periods) agree to a relative 1e-9.
+
+## Change point
+
+Functions: `changePoint` in `packages/core/src/methods/change-point.ts`; its Takeaway is `changePointTakeaway`.
+
+**What it answers.** Did something change in this Metric, and when? The one date at which its level or its trend most likely changed, with how it went before and since, or "nothing stands out".
+
+**How it is worked out.** Every date that leaves at least 4 values each side is tried (n − 7 dates for n values). For each, a straight line is fitted to the values before it and another to the values from it on, by their place in the calendar, and the date whose two lines leave the smallest sum of squared misses wins (the earliest on a tie). Sums and lines are exact on the values' text. The step at the date is the later line's value at the date less the earlier line's value there. Whether the best date is a change or only the luckiest of those tried is the chance rule. Two lines against one are four numbers to fit against two, so the gain is judged by the F ratio with (2, n − 4) degrees of freedom, whose chance of being exceeded has a closed form for two degrees of freedom: (SSE₀ ÷ SSE₁)^(−(n − 4)/2), with SSE₀ the misses of one line through everything and SSE₁ the misses of the two lines. Because many dates were looked at, the chance rule is shared among them: the change is called real when that chance is below 1 in 20 divided by the number of dates tried, that is, when (SSE₀ ÷ SSE₁)^(n − 4) > (20 · dates)². This is decided exactly on whole numbers, so a ratio exactly at the bar is not called a change. No misses at all with two lines (and some with one) is a change; none with one line is not. The Takeaway reads "up 5 € a month before, down 3 € a month since", and "its level was 80 € higher than the earlier trend would have given" for the step; it says the date is the one that fits best, that nearby dates may fit almost as well, and that one change only is looked for. The latest 120 periods are used, and the Takeaway says when more were given. No strength word is given. Its footer is "This shows when the numbers changed, not what made them change." Two slopes or a step that differ are written with digits that tell them apart, in the sentence and under Show the numbers.
+
+**Use it when.** You do not know the date, and want to know whether, and when, a Metric's level or trend changed.
+
+**Don't use it when.**
+
+- You have fewer than 8 periods (4 each side): refusal.
+- You already know the date: use before and after.
+- The Metric changed more than once (it finds the one best date, not several), or has a pattern through the year that is not a change (a season looks like a change in trend).
+- One far-off value stands behind the change: the check below asks whether the change is still there without it.
+- The ups and downs carry over from one period to the next: a slow wave then looks like a change. In 24 months of noise with a gentle trend and no change, the chance rule calls a change in 4 % of series when the ups and downs are independent, in about 33 % at a carry-over of 0.5 and about 65 % at 0.8. A caution marks about 60 % and 85 % of those false changes (and about half of the real changes, which carry over too, which the caution says); it does not change the answer.
+
+**Minimums and checks.** 8 periods. Checks that apply: enough periods, enough that vary, gaps (a caution below the limit: the periods without a value are left out, and the dates are counted on the values that remain), far-off values. The far-off check is asked of the change point itself: what it reads without the 1 to 3 most extreme values (the change in slope, against 1/5 of its own range, and whether the change is still found at all), and it says so: "without them it reads no change at all" or "a change around January 2025". Nothing is removed. A series so large or with numbers so large that a range cannot be worked out, and a slope or step too small to write out, are refusals in words.
+
+**Worked example.** 2, 2, 2, 2, 10, 11, 12, 13. One line through all 8: SSE₀ = 185.5 − 81² ÷ 42 = 29.29. At the fifth value the two lines are exact (the first is flat at 2, the second goes 10 to 13, one a month): SSE₁ = 0, so it is a change at the fifth period, flat before, up 1 a month since, and the later line is at 10 where the earlier would have given 2: the level was 8 higher. With noise, say 24 values: 17 dates were tried, so the improvement must beat (20 · 17)² = 115,600 as a power of 20 of the ratio of misses, a ratio above 1.79; one date alone would have needed 1.35.
+
+**Reference.** `referenceChange` in `test/reference/before-after.ts` tries every date from scratch, solving each line by Cramer's rule and summing residuals, and applies the chance rule through the F ratio of the improvement; the code works from running sums of x, y, x², xy and y². They agree exactly in the date, the slopes, the step and the verdict. NumPy's `polyfit` and SciPy's `f.sf` and `t.ppf` (`fixtures/before-after.py`: a step in level, a turn, a speed-up, noise only, a straight line, two perfect lines, the least number of values, gaps) agree to a relative 1e-9, the closed form of the F chance against `f.sf` is asserted in the script itself, and a pair of series that differ only in the loudness of their noise stand just either side of the bar (chance ÷ bar 0.96 and 1.04) and are called as SciPy says. A simulation of 600 noisy series with a gentle trend and no change finds a change in at most 5 % (the bar shared among the dates is much stricter), and a planted step of 60 against noise of 7 is found in 99 of 100.
+
+## Ups and downs that carry over
+
+Function: `carriesOver` in `packages/core/src/methods/carry-over.ts`. The range of before and after and the chance rule of the change point take each period's miss as independent of the one before. **How it is worked out.** The first-order autocorrelation of the misses of a fit, r₁ = Σ eₜ·eₜ₊₁ ÷ Σ eₜ², over the pairs of periods that follow one another in the calendar (a gap breaks a pair; nothing is filled in), exact on fractions. Under independence r₁ is about 0 with a spread of 1 ÷ √m for m pairs; the check is r₁ > 0 and m · r₁² > 4 (above 2 spreads). For before and after the misses are those of the line before the date; for the change point they are those of the one line through everything (two lines would take a slow wave up into themselves and read it as white: about 2 to 8 % of the false changes would be marked, against 60 to 85 %). **Use it** as a caution only; it never changes a number.
+
+## Student's t curve
+
+Function: `tQuantile` (and `tCdf`) in `packages/core/src/methods/t-curve.ts`. The 80 % range of before and after and the far-off check of the change point read the point of Student's t curve below which 90 % lie, for a whole number of degrees of freedom from 1 to 100,000. For a whole number of degrees of freedom the chance of a value within ±t has a finite closed form (Abramowitz and Stegun 26.7.3 for an even and 26.7.4 for an odd number), all of whose terms are positive; the point is found by bisection. The lower tail is worked out directly (½ · I_x(ν/2, ½), x = ν ÷ (ν + t²), the incomplete beta function by Lentz's continued fraction), not as 0.5 less half of what lies within, which loses every digit far below 0 (t = −50 at 30 degrees of freedom is 9.4e-31, not 5.6e-17). Accurate to a relative 1e-9 in the quantile for chances from 0.001 to 0.999 and in the chance, tails included (against SciPy to a relative 1.3e-12, and the two tails of a point add to 1 within 1e-13); outside that, NaN. Checked against SciPy's `t.ppf` and `t.cdf` at 17 chances and 18 degrees of freedom from 1 to 2000, and every degree of freedom from 1 to 200 for the 90 % point, and against a reference by the incomplete beta function (the chance within ±t, and for a tail its power series, a different route from the continued fraction).
+
 ## The suitability checks
 
 Every Method calls `checkSuitability(method, inputs)` in `packages/core/src/suitability.ts`. The thresholds are one table, `SUITABILITY`, tested one step either side. The checks, in the order they are run; a refusal ends the run, since thin data cannot be judged further:
@@ -236,6 +412,6 @@ Every Method calls `checkSuitability(method, inputs)` in `packages/core/src/suit
 | Spread that grows | rank correlation of level and size of miss above 1/2 | Ranges as a share of the level where positive, else a caution |
 | Too many Metrics for the history | more than one driver per 6 periods, or 6 | A first pass where the Method has one, else a refusal |
 
-A Method says which other Methods it can switch to (`canSwitchTo`); where it cannot, the check is a caution (or, for too many drivers, a refusal). A result with a caution is never shown as strong. Not yet used by a Method in the library: the multiple fit, the seasonal and the changing-level Methods; the checks are ready for them and tested on their own. The first part of the library (rank, partial and lagged correlation, usual range) already runs them; the share, Pareto and bridge Methods work on rows, not series, and have the refusals written under their entries.
+A Method says which other Methods it can switch to (`canSwitchTo`); where it cannot, the check is a caution (or, for too many drivers, a refusal). A result with a caution is never shown as strong. Not yet used by a Method in the library: the multiple fit and the changing-level Methods; the checks are ready for them and tested on their own. Before and after and the change point run theirs (the change point asks the far-off check about the change itself). The first part of the library (rank, partial and lagged correlation, usual range) already runs them; the share, Pareto and bridge Methods work on rows, not series, and have the refusals written under their entries.
 
 **Reference.** `packages/core/src/test/reference/suitability.ts` works each check out another way: medians and deviations by sorting, skewness from central moments, the runs test by listing every arrangement of the signs, Spearman's r from counted ranks, the step in level from the normal equations by Cramer's rule, the yearly pattern and gaps by walking the series. SciPy and NumPy fixtures (`fixtures/suitability.py`, a test fails when the fixture is not from the script's current text) hold skewness, median and deviation, Spearman's r, the runs tail and the step fit to 1e-9; the decisions themselves are exact. A simulation of 1,000 straight lines with normal noise and no gaps checks that the checks are not too eager.

@@ -58,8 +58,8 @@ export async function waysFor(ws: string, recipientId: string, kind: DeliveryKin
 /** Makes one Delivery. A Prompt, reminder or Alert that will be sent while its recipient is in quiet hours (GLOSSARY:
  * Quiet Hours) is given a `not_before` at their end, so the sending queue holds it until then and never drops it; this is
  * the one place quiet hours are checked. Says whether it is held, so the caller does not send it at once. */
-async function insertDelivery(ws: string, row: { recipient_id: string; kind: string; mail_state: string } & Record<string, unknown>): Promise<{ id: number | undefined; held: boolean }> {
-  const until = row.mail_state === "queued" ? await holdFor(ws, row.recipient_id, row.kind) : null;
+async function insertDelivery(ws: string, row: { recipient_id: string; kind: string; mail_state: string } & Record<string, unknown>, holdAs: string = row.kind): Promise<{ id: number | undefined; held: boolean }> {
+  const until = row.mail_state === "queued" ? await holdFor(ws, row.recipient_id, holdAs) : null;
   const [d] = await insertSealed("deliveries", ws, [until ? { ...row, not_before: until.toISOString() } : row]) as { id: number }[];
   return { id: d?.id, held: until !== null };
 }
@@ -197,7 +197,7 @@ async function keepNotSent(n: { metric: { id: number; name: string; slug: string
 
 /** A plain notice through someone's Connector, not about a question or task (e.g. an access request). A null sender
  * is Ziffr itself, such as when an automatic Snapshot is ready to write up. */
-export async function deliverNotice(ws: string, input: { recipientId: string; senderId: string | null; subject: string; text: string; link: string; via?: ConnectorId }) {
+export async function deliverNotice(ws: string, input: { recipientId: string; senderId: string | null; subject: string; text: string; link: string; via?: ConnectorId; /** Waits for the recipient's Quiet Hours to end, as a reminder does. */ quiet?: boolean }) {
   if (input.senderId !== null && input.recipientId === input.senderId) return;
   await deliverPlain(ws, "notice", input);
 }
@@ -210,6 +210,14 @@ export async function deliverAlert(ws: string, input: { recipientId: string; sub
   return deliverPlain(ws, "alert", { ...input, senderId: null, alertMetricId: input.metricId, alertId: input.alertId, tellWorkflowId: input.tellWorkflowId, queue: true });
 }
 
+/** A Heads-up's message (GLOSSARY: Heads-up) through the person's Connector, by their Delivery Preference for updates: the same
+ * path as an Alert, with its own kind, so nothing can answer it. It is about one or two Metrics, named here so that it is checked
+ * again at the moment it leaves: the person must still see ALL of them (internal/delivery-send.ts). The caller has checked, a
+ * moment before, that they do, and `text` holds nothing of any Metric the person may not see. Returns the Delivery's id. */
+export async function deliverHeadsUp(ws: string, input: { recipientId: string; subject: string; text: string; link: string; metricIds: readonly [number] | readonly [number, number]; key: string; toldId: number }): Promise<number | null> {
+  return deliverPlain(ws, "heads_up", { recipientId: input.recipientId, senderId: null, subject: input.subject, text: input.text, link: input.link, headsUpMetrics: input.metricIds, headsUpKey: input.key, headsUpToldId: input.toldId, queue: true });
+}
+
 /** A Checklist Item's message (GLOSSARY: Checklist Item; spec 0045) from its Workflow's owner, through the person's
  * Connector: a plain message of its own kind that waits out Quiet Hours and that nothing can answer (no reply address,
  * as for an Alert). `tell_workflow_id` names the Workflow whose "stop telling me" applies to it. `text` is the owner's
@@ -218,8 +226,8 @@ export async function deliverChecklist(ws: string, input: { recipientId: string;
   return deliverPlain(ws, "checklist", { recipientId: input.recipientId, senderId: input.senderId, subject: input.subject, text: input.text, link: input.link, tellWorkflowId: input.workflowId, queue: true });
 }
 
-/** One plain message of a kind that is not about an Action: a notice, an Alert or a Checklist Item. */
-async function deliverPlain(ws: string, kind: "notice" | "alert" | "checklist", input: { recipientId: string; senderId: string | null; subject: string; text: string; link: string; via?: ConnectorId; alertMetricId?: number | null; alertId?: number | null; tellWorkflowId?: number; queue?: boolean }): Promise<number | null> {
+/** One plain message of a kind that is not about an Action: a notice, an Alert, a Heads-up or a Checklist Item. */
+async function deliverPlain(ws: string, kind: "notice" | "alert" | "heads_up" | "checklist", input: { recipientId: string; senderId: string | null; subject: string; text: string; link: string; via?: ConnectorId; quiet?: boolean; alertMetricId?: number | null; alertId?: number | null; tellWorkflowId?: number; queue?: boolean; headsUpMetrics?: readonly number[]; headsUpKey?: string; headsUpToldId?: number }): Promise<number | null> {
   const via = input.via ?? await connectorFor(ws, input.recipientId, "reply", null);
   // A Guest does not see who else is in the Workspace: a notice's text names no one else to them.
   const { data: member } = await db().from("memberships").select("role").eq("workspace_id", ws).eq("user_id", input.recipientId).maybeSingle();
@@ -232,7 +240,8 @@ async function deliverPlain(ws: string, kind: "notice" | "alert" | "checklist", 
     connector: via, recipient_id: input.recipientId, sender_id: input.senderId, kind,
     // A message holds people's and things' names: on Slack they are escaped, so none can become a link or a mention.
     subject: input.subject, body: via === "slack" ? `${slackEscape(input.text)}\n<${linkTo(input.link)}|Open in Ziffr>` : `${input.text}\n${CONNECTORS[via].label === "Ticket system" ? "Ziffr" : "Open"}: ${linkTo(input.link)}`, mail_state, alert_metric_id: input.alertMetricId ?? null, alert_id: input.alertId ?? null, tell_workflow_id: input.tellWorkflowId ?? null,
-  });
+    heads_up_metric_a: input.headsUpMetrics?.[0] ?? null, heads_up_metric_b: input.headsUpMetrics?.[1] ?? null, heads_up_key: input.headsUpKey ?? null, heads_up_told_id: input.headsUpToldId ?? null,
+  }, input.quiet ? "reminder" : kind);
   // An Alert is only queued, for the deliveries job to send: the value that caused it must not wait on the mail server.
   if (!input.queue && !d.held) await sendQueuedNow(d.id, mail_state, via);
   return d.id ?? null;

@@ -133,7 +133,7 @@ The **Workspace name** is what everyone sees in the Workspace switcher and in In
 
 ### Quiet hours
 
-On the same page as the Workspace's time, Owners and Admins can set the default **Quiet hours** for everyone who has set none of their own: the hours (such as 19:00 until 07:00) and the whole days (such as Saturday and Sunday) when Ziffr sends no request for numbers, reminder or Alert. They wait and go out when the quiet hours end. The default is read in the Workspace's time zone; people can set their own, in their own time zone, under **Your Deliveries**. **Remove** takes the default away. It is recorded in the **Audit Log**.
+On the same page as the Workspace's time, Owners and Admins can set the default **Quiet hours** for everyone who has set none of their own: the hours (such as 19:00 until 07:00) and the whole days (such as Saturday and Sunday) when Ziffr sends no request for numbers, reminder, Alert or Heads-up message. They wait and go out when the quiet hours end. The default is read in the Workspace's time zone; people can set their own, in their own time zone, under **Your Deliveries**. **Remove** takes the default away. It is recorded in the **Audit Log**.
 
 ### Workspace time
 
@@ -251,7 +251,9 @@ Pick another role and it changes at once. Only an Owner can make someone an Owne
 
 ### Removing someone and handing over
 
-Choose **Remove…** next to a person. Ziffr asks **Who takes over?**: pick another person (not a Guest), then choose **Remove**, or **Cancel** to stop.
+A person who owns Metrics cannot be changed to Guest: hand the Metrics over first (see Handing a Metric over in the Metrics chapter), or remove them and pick who takes over.
+
+Choose **Remove…** next to a person. Ziffr asks who takes over their Metrics and everything else, and offers an Owner first: keep that choice or pick another person (not a Guest), then choose **Remove**, or **Cancel** to stop.
 
 When you remove someone:
 

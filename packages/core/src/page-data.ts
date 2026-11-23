@@ -37,7 +37,7 @@ const isAdmin = async (actor: Actor) => actor.role === "owner" || actor.role ===
 /** The latest 80 Deliveries the person may be shown, taken per person first (their own, those they sent, those about a
  * thread), so other people's messages, such as Alerts, can never push theirs out of the 80; in the demo, anyone's. */
 async function recentDeliveries(actor: Actor) {
-  const columns = "id, connector, recipient_id, sender_id, kind, action_id, prompt_id, answer_source, alert_metric_id, subject, body, external_ref, status, created_at, mail_state, last_error, actions(kind, status), prompts(source, answered_at, answered_source, submitter_id, metric_id)";
+  const columns = "id, connector, recipient_id, sender_id, kind, action_id, prompt_id, answer_source, alert_metric_id, heads_up_metric_a, heads_up_metric_b, subject, body, external_ref, status, created_at, mail_state, last_error, actions(kind, status), prompts(source, answered_at, answered_source, submitter_id, metric_id)";
   const base = () => db().from("deliveries").select(columns).eq("workspace_id", actor.workspaceId).order("id", { ascending: false }).limit(80);
   if (inDemo(actor)) return base();
   const [mine, sent, threads] = await Promise.all([base().eq("recipient_id", actor.personId), base().eq("sender_id", actor.personId), base().not("action_id", "is", null)]);
@@ -72,10 +72,12 @@ export async function connectorsView(actor: Actor) {
   const opened = await openRows("deliveries", ws, deliveries);
   // An Alert message (GLOSSARY: Alert) about a Metric the person can no longer see disappears from the Outbox too:
   // its subject, its text and a "not sent" reason would each confirm the Metric (AGENTS.md rule 3).
-  const alertMetrics = opened.some((d) => d.alert_metric_id) ? await visibleMetricIds(ws, actor.personId, await getMetrics(ws)) : new Set<number>();
+  const alertMetrics = opened.some((d) => d.alert_metric_id || d.heads_up_metric_a) ? await visibleMetricIds(ws, actor.personId, await getMetrics(ws)) : new Set<number>();
   const visible = opened
     .filter((d) => !d.alert_metric_id || inDemo(actor) || alertMetrics.has(d.alert_metric_id as number))
-    .map((d) => ({ ...d, alert_metric_id: undefined }))
+    // A Heads-up message is listed only while the person sees both Metrics it is about, for the same reason.
+    .filter((d) => !d.heads_up_metric_a || inDemo(actor) || [d.heads_up_metric_a, d.heads_up_metric_b].every((id) => id === null || alertMetrics.has(id as number)))
+    .map((d) => ({ ...d, alert_metric_id: undefined, heads_up_metric_a: undefined, heads_up_metric_b: undefined }))
     .filter((d) => (d.action_id ? can.has(d.action_id) : inDemo(actor) || d.recipient_id === actor.personId || d.sender_id === actor.personId));
   // A Token code opens someone's submission form: only their own go to the browser, also in the demo (the demo refuses
   // the submission, but must teach the real rule for the person viewed as, ticket #609).

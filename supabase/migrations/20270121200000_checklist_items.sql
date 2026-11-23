@@ -4,7 +4,7 @@
 -- sent, as workflow_runs is made per day. The row holds ids, a kind and counts, never a word of the item or a person.
 alter table deliveries drop constraint deliveries_kind_check;
 alter table deliveries add constraint deliveries_kind_check
-  check (kind in ('question','task','reminder','reply','correction','decision','closed','done','prompt','notice','digest','alert','checklist'));
+  check (kind in ('question','task','reminder','reply','correction','decision','closed','done','prompt','notice','digest','alert','heads_up','checklist'));
 
 create table workflow_step_runs (
   id bigint generated always as identity primary key,

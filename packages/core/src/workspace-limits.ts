@@ -51,6 +51,20 @@ export function limitRule(count: number, limit: number | null, since: Date | nul
   return "over";
 }
 
+/** How many Metrics may be made one after another now, up to `cap`: the rule above applied to each in turn, the first
+ * one over the limit starting the grace as the database does. `limit` null is no limit. Pure; Set up from a Pack tells
+ * a person this before it asks. */
+export function metricsAllowed(count: number, limit: number | null, since: Date | null, now: Date, lastGrace: Date | null, grace: Grace, cap: number): number {
+  if (limit === null) return cap;
+  let at = since;
+  for (let i = 0; i < cap; i++) {
+    const rule = limitRule(count + i, limit, at, now, lastGrace, grace);
+    if (rule === "refuse") return i;
+    if (rule === "over" && !at) at = lastGrace && now.getTime() < lastGrace.getTime() + grace.days * 86_400_000 ? lastGrace : now;
+  }
+  return cap;
+}
+
 /** When the Workspace may next have a grace: GRACE_EVERY_DAYS after its last one started, or null when it may have one
  * now (never had one, or the 90 days have passed). */
 export function nextGraceOn(lastGrace: Date | null, now: Date, every = GRACE_EVERY_DAYS): Date | null {
