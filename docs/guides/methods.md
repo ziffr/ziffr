@@ -217,6 +217,95 @@ Function: `backtest`. **What it answers.** How often would this forecast have be
 
 Function: `reachChance`. **What it answers.** How likely is the forecast to land where the Target wants it? The share of a normal curve around the forecast value, with its spread, between the Target's two ends (at least the lower end where higher is better, at most the upper where lower is better, both for closer to target). Shown in tenths ("about 7 in 10"), "under 1 in 20" below 5 % and "at least 19 in 20" from 95 %. **Don't use it when** you read it as the chance the Metric really gets there: it is as good as the track record says. A past that fitted with no miss at all gives exactly 1 or 0, and the Takeaway says the chance may be too sure. **Reference.** SciPy's `norm.cdf` and a 150-digit series, to a relative 1e-9.
 
+## Multiple fit (What moves B?)
+
+Functions: `fit`, `fitNumbers`, `fitBasis` and `importance` in `packages/core/src/methods/fit.ts`; the t quantile is `tQuantile` in `packages/core/src/methods/distributions.ts`; the Takeaway is `movesTakeaway` and the Recipe `whatMoves` in `packages/core/src/takeaways/fit-takeaway.ts`.
+
+**What it answers.** Which of several Metrics have gone with B, with the others held the same, and how much of what moved does each account for?
+
+**How it is worked out.** B and its drivers (1 to 6 other Metrics) are put on their Common Period. Where B and at least one driver have a clear trend, each is turned into its change from the period before ("growth removed"); otherwise the values are used. At most the latest 120 periods that all of them have are used, and a period any of them lacks is a gap that is counted and said, never filled. A straight line through all of them is fitted by least squares: the normal equations (sums about the means, their inverse, the effects, the sum of squared misses) are worked out on fractions of the values' text, so they are exact, and only the last step to a double, a square root and the t quantile are not. Each driver's effect is its change in B per one unit of the driver with the other drivers held the same, and its range is the effect plus and minus t times its standard error, t being the 90 % point of the t curve with n − k − 1 degrees of freedom: that is the 80 % range, called "likely between". Each driver's share of what the line explains is found by averaging, over every order in which the drivers can join, how much the explained share rises when that driver joins (LMG); the shares add up to exactly 1. The strength word is read from the driver's partial correlation (its link to B with the others held fixed) over n − k + 1 periods. Effects are said per a power of ten at or below the driver's own spread ("per 1,000 Visits"), always written to at least two significant digits, so that a number above 0 is never written as 0.
+
+**Use it when.** Several Metrics may move B together and you want to know which matter most and by how much, with the others taken into account.
+
+**Don't use it when.**
+
+- You want to know what causes B: a fit only shows what has gone together, and the footer says so.
+- The history is short: a fit with k drivers needs 8 + 4k periods and at most one driver per 6 periods (and 6): Ziffr refuses and says how many it has and needs.
+- Two drivers move so closely that the line cannot tell them apart (a pair linked by r² above 4/5, which is an inflation above 5, or exactly in step): Ziffr treats them as one, leaves out the one with the weaker link to B (on a tie the Metric with the lower id, so the order they are listed in changes nothing), and says so and whose unit the effect is in. Where inflation is high only for a group of three or more with no such pair (one about the sum of the others): between 5 and 10 the fit is kept and the Takeaway names the crowded drivers (at least two), with a caution that their separate effects are less certain and the ranges show how much, and nothing is called strong; above 10, or where they are exactly one, it is refused, naming every driver that loads on the near-dependency (found as the direction of least variance of the correlation matrix). A driver counts as loading on that direction from 5 % of it (the square of its entry in the direction): a driver with an inflation under 5 can still be named as crowded when it loads, and one just under the cut is not. An exact mix is refused naming all its drivers ("one is exactly the others added up"). A crowded driver is never called strong.
+- More Metrics than the history can carry (one per 6 periods, at most 6): the Recipes first narrow them by how closely each one's changes follow B (Pearson's r of the changes, taken one Metric at a time, so it can miss one that only shows beside another; ties by Metric id, then name) and say how many there were, how many were kept and which were left out. A fit given more drivers directly is refused in words.
+- Metrics of different periods are all compared by the longest period among them, the others combined by their Aggregation; the Takeaway says which were combined. Where a value is missing and the fit compares changes, it names the months with no value (up to four, then how many more) and says the changes into and out of them were left out.
+- The link bends, the misses grow with the level, a few periods are far from the rest, the values are very uneven, or the link was different in the first half of the history: Ziffr gives the answer with a plain line above it, the effect without the far-off periods quoted, and never calls it strong.
+- A Metric has Aggregation none beside another period, or one is calculated from another: a refusal naming them.
+
+**Minimums and checks.** 8 + 4 per driver periods. Checks that apply: enough periods, enough that vary, gaps, mixed periods, far-off values, skew and ties (a caution), not a straight line, changing relationship, spread that grows, too many Metrics.
+
+**Worked example.** Twelve months, the Metric B = 2·x + (−1)^x for x = 1 to 12 and one driver x. With n = 12, Sxx = 143 and Sxy = 292, the effect is 292/143 = 2.04, the intercept 13 − 6.5 · 292/143 = −3/11, the sum of squared misses 608 − 292²/143 = 1680/143, and 5329/5434 = 98.1 % of what moved is explained. The typical miss is √(1680/1430) = 1.08, and with 10 degrees of freedom t = 1.372, so the effect is likely between 1.92 and 2.17 per unit.
+
+**Reference.** `packages/core/src/test/reference/fit.ts` works the same answer out another way: the design has a column of ones and no centring, the normal equations are solved by Cramer's rule with every determinant by Laplace expansion, the sum of squared misses is the sum of the squared residuals, every driver's LMG share is the mean over all k! orders, and the inflation (how well the other drivers account for a driver; 1 is not at all) and the partial link come from fits of their own. Effects, intercept, explained share, shares, inflation and partial links equal the exact fractions' nearest double (the partial link and the typical miss up to their final root); ranges agree to a relative 1e-9 with the reference's t quantile, which integrates the curve's density numerically. NumPy and SciPy fixtures (`fixtures/fit.py`, a test fails when the fixture is not from the script's current text) hold Anscombe's four data sets (intercept 3.0, effect 0.5, 66.7 % explained), a Longley-style set whose GNP and Population are nearly one Metric, an exact relation, and random sets with 1 to 6 drivers, to a relative 1e-9; the t quantile equals SciPy's `t.ppf` for 240 pairs of degrees of freedom and share. An exact linear relation gives its effects back exactly with a range of no width. A simulation of 800 series checks that the 80 % ranges hold the true effect and a new period's value about 80 % of the time.
+
+## Importance
+
+Function: `importance` in `packages/core/src/methods/fit.ts`.
+
+**What it answers.** Which drivers account for most of what moved B?
+
+**How it is worked out.** As the fit above, returning only each driver's share (LMG) and how much the drivers explain together. The explained share of every subset of the drivers is worked out exactly; a driver's share is the mean, over every order of adding the drivers, of the rise when it joins; the shares are divided by what is explained, so they add up to 1. For two drivers with explained shares a, b and a + b together (ab): the first's share is (a + (ab − b)) ÷ 2.
+
+**Use it when.** You want a ranking of drivers that does not depend on the order they are listed in.
+
+**Don't use it when.** As the fit; the shares are of what the line explains, not of B.
+
+**Minimums and checks.** As the fit.
+
+**Worked example.** One driver alone explains 50 % of B, another alone 30 %, and together 70 %. The first's LMG is (0.5 + (0.7 − 0.3)) ÷ 2 = 0.45 and the second's (0.3 + (0.7 − 0.5)) ÷ 2 = 0.25; together 0.70, so the shares of what is explained are 9/14 (64 %) and 5/14 (36 %).
+
+**Reference.** As the fit: the reference averages over all k! orders by listing them. A test checks the two-driver formula above on generated data.
+
+## Predict
+
+Function: `predict` in `packages/core/src/methods/fit.ts`; the Takeaway is `predictTakeaway`.
+
+**What it answers.** What is B likely to be if the drivers are these values?
+
+**How it is worked out.** The fit is worked out again exactly from its periods, then ŷ = ȳ + Σ b·(x − x̄) at the values given, exact. The 80 % range is for a single period, ŷ plus and minus t·σ·√(1 + h), with h = 1/n + (x − x̄)ᵀ·Sxx⁻¹·(x − x̄) the leverage of the values: it widens away from what the drivers have been. Where the fit compared changes, a driver value counts from its latest level and B from its latest level. A value outside what its driver has been gets no range, only the point, and the Takeaway says "treat it as a guess".
+
+**Use it when.** You want to read B off the line for values inside what the drivers have been.
+
+**Don't use it when.**
+
+- The values are outside what the drivers have been: the point is a guess and is said to be one.
+- The link looks curved: a straight-line reading is rough, and outside what was seen Ziffr refuses.
+- The values are not numbers, or the model is not one `fit` made: a refusal in words.
+
+**Minimums and checks.** As the fit; the lines of its checks that still hold for a value (gaps, a curve, spread that grows) are carried to the answer.
+
+**Worked example.** With the fit above (x from 1 to 12), x = 11 gives −3/11 + 11 · 292/143 = 22.19, and h = 1/12 + 4.5²/143 = 0.225, so the range is 22.19 plus and minus 1.372 · √(1680/1430 · 1.225) = 1.65: likely between 20.54 and 23.83. x = 13 is above the 12 seen: 26.27 as a point, no range.
+
+**Reference.** `referenceValue` and `referenceBandSquared` in `test/reference/fit.ts` take h from the cofactor inverse of the uncentred normal matrix with the intercept in the design; the value equals the nearest double of the exact fraction and the range agrees to a relative 1e-9 with the reference's t. SciPy fixtures hold a value and its range for each data set.
+
+## Needs (What does B need?)
+
+Function: `needs` in `packages/core/src/methods/fit.ts`; the Takeaway is `needsTakeaway` and the Recipe `whatNeeds`.
+
+**What it answers.** B has to reach a value wanted: what would one driver need to be, with the others at their latest values?
+
+**How it is worked out.** `predict` turned round for one driver: the value that gives the value wanted is exact, x̄ⱼ + (value wanted − ȳ − Σ of the others' b·(x − x̄)) ÷ bⱼ. Its range is the set of driver values whose range for a single period holds the value wanted; that is a quadratic in the driver value, bounded only where the driver's effect is clear (bⱼ² above t²σ²·(Sxx⁻¹)ⱼⱼ). Where it is not clear, or the value is outside what the driver has been, only the point is given and the Takeaway says "treat it as a guess". A value wanted more than 1,000 times the largest value B has had is not worked out. `predict` at the answer gives the value wanted.
+
+**Use it when.** You have a value wanted for B and want to know what to work on, and the driver's effect has been clear.
+
+**Don't use it when.**
+
+- The effect cannot be told from chance, or is exactly 0: only a point, or a refusal ("has not moved with it at all").
+- The value is higher or lower than the driver has ever been: the point is a guess, and with a curved link Ziffr refuses.
+- You expect the other drivers to change: they are held at their latest values unless you give others.
+
+**Minimums and checks.** As the fit.
+
+**Worked example.** With the fit above, B = 20 needs x = (20 + 3/11) · 143/292 = 9.93, likely between 9.15 and 10.73, inside the 1 to 12 seen. B = 30 would need x = 14.8, above the 12 seen: the point only, "treat it as a guess".
+
+**Reference.** `referenceNeedsRange` finds the ends of the range by halving the band's edge on fractions, from the answer outwards, which shares no step with the quadratic; the ends agree to a relative 1e-9 of the range's size. SciPy's `brentq` on the band's edge gives the fixtures' ends to 1e-7. Generated value wanteds check that `predict` at the answer gives the value wanted, and an exact relation gives a driver value back exactly.
+
+
 ## Heads-ups: moving together and stopped moving together
 
 Functions: `pValueOfR` in `packages/core/src/methods/p-value.ts`; `benjaminiHochberg` and `adjustedChances` in `false-discovery.ts`; `scanPair`, `scanPairs`, `effectiveCount`, `autocorrelations`, `strongInBoth` and `exactAtLeast` in `pair-scan.ts`; `headsUpsFrom` in `heads-up.ts`. The job that fills the pair table and the one function that reads it for a person are `scanWorkspace`, `headsUpJob` and `listHeadsUps` in `packages/core/src/heads-ups.ts` (not a calculation module: it reads and writes, it does not calculate).
