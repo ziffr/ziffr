@@ -79,7 +79,7 @@ describe("approving", () => {
     expect(mine?.messages).toHaveLength(1);
     expect(mine?.messages[0]).toMatchObject({ fromTeam: true });
     expect(mine?.messages[0].words).toMatch(/edited your words/);
-    expect(await events("feedback.edited")).toHaveLength(1);
+    expect(await events("feedback.edited")).toContainEqual(expect.objectContaining({ subject: (await row(made.id)).public_ref }));
   });
   it("treats an edit that changes nothing as a plain approval", async () => {
     const { admin, send } = await setup();
@@ -127,7 +127,7 @@ describe("rejecting", () => {
     const mine = await getMyFeedback(sender, made.id);
     expect(mine?.status).toBe("closed");
     expect(mine?.messages).toEqual([expect.objectContaining({ fromTeam: true, words: expect.stringContaining("This is a support request") })]);
-    expect(await events("feedback.rejected")).toHaveLength(1);
+    expect(await events("feedback.rejected")).toContainEqual(expect.objectContaining({ subject: (await row(made.id)).public_ref }));
   });
 });
 
