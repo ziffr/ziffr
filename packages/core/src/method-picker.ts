@@ -16,6 +16,7 @@ export const WANTS = [
   { id: "heading", question: "Where is it heading?" },
   { id: "together", question: "What moves with what?" },
   { id: "need", question: "What would it take?" },
+  { id: "if", question: "What would happen if?" },
   { id: "changed", question: "What changed?" },
   { id: "usual", question: "What is usual?" },
   { id: "concentrated", question: "Where is it concentrated?" },
@@ -24,7 +25,7 @@ export const WANTS = [
 export type WantId = (typeof WANTS)[number]["id"];
 
 /** The id of a picker entry. */
-export type EntryId = "forecast" | "reach-target" | "correlation" | "rank" | "partial" | "lag" | "moves" | "needs" | "after-date" | "change-point" | "bridge" | "usual" | "top-share" | "pareto";
+export type EntryId = "forecast" | "reach-target" | "correlation" | "rank" | "partial" | "lag" | "moves" | "needs" | "what-if" | "after-date" | "change-point" | "bridge" | "usual" | "top-share" | "pareto";
 
 /** A Metric the Method asks for, in words: "Which Metric do you want to explain?". A `many` Slot takes several. An optional Slot may stay empty. */
 export type SlotDef = { id: string; question: string; many?: { min: number; max: number }; optional?: boolean };
@@ -57,6 +58,8 @@ export type PickerEntry = {
   slots: SlotDef[];
   settings: SettingDef[];
   needs: Need[];
+  /** Settings of which exactly one must be given (an amount or a percent). */
+  oneOf?: string[];
   /** The widget template that shows the same Takeaway, so the result can be saved as a widget the existing way, or null. */
   widget: "forecast" | "correlation" | null;
 };
@@ -74,6 +77,7 @@ export const ENTRIES: readonly PickerEntry[] = [
   { id: "lag", want: "together", name: "Does A come before B? By how long?", sentence: "Tries delays of 0 to 6 periods and says which one fits best, if any stands out.", technical: "Lagged correlation", catalogue: "Lagged correlation", checks: "lag", recipe: null, slots: [{ id: "first", question: "Which Metric might come first?" }, { id: "second", question: "Which Metric might follow?" }], settings: NONE, needs: [], widget: null },
   { id: "moves", want: "together", name: "What moves B?", sentence: "Says which of the other Metrics matter most for B, and by how much, with the others held the same.", technical: "Multiple linear fit", catalogue: "Multiple fit (What moves B?)", checks: "fit", recipe: "what-moves", slots: [metric("Which Metric do you want to explain?"), { id: "drivers", question: "Which Metrics might move it?", many: { min: 1, max: 12 } }], settings: NONE, needs: [], widget: null },
   { id: "needs", want: "need", name: "What does B need to reach a value?", sentence: "Says what each Metric that moved with B would need to be for B to reach the value you want.", technical: "Multiple linear fit, turned round", catalogue: "Needs (What does B need?)", checks: "needs", recipe: "what-needs", slots: [metric("Which Metric do you want to reach a value?"), { id: "drivers", question: "Which Metrics might get it there?", many: { min: 1, max: 12 } }], settings: [{ id: "goal", question: "Which value should it reach?", hint: "A number, in the Metric's own unit.", kind: "number", required: true }], needs: [], widget: null },
+  { id: "what-if", want: "if", name: "What if A changes?", sentence: "Moves one Metric by an amount or a percent and says what follows for the Metrics that went with it, the ones worked out exactly set apart from the estimated.", technical: "What-if chain", catalogue: "What-if chain (What if A changes?)", checks: "whatIf", recipe: "what-if", slots: [metric("Which Metric do you want to change?"), { id: "others", question: "Which Metrics might follow it?", many: { min: 1, max: 12 } }], settings: [{ id: "by", question: "Change it by how much?", hint: "An amount in the Metric's own unit, such as 1000 or -250. Give this or a percent.", kind: "number", required: false }, { id: "percent", question: "Or by how many percent?", hint: "A number, such as 10 or -5. Give this or an amount.", kind: "number", required: false }], needs: [], oneOf: ["by", "percent"], widget: null },
   { id: "after-date", want: "changed", name: "Did it work?", sentence: "Compares the periods after a day with where the Metric's own trend pointed, as a range and not a verdict.", technical: "Before and after", catalogue: "Before and after", checks: "afterDate", recipe: "did-it-work", slots: [metric("Which Metric do you want to look at?"), { id: "beside", question: "A Metric it should not have touched (optional)", optional: true }], settings: [{ id: "date", question: "Which day did it start?", hint: "A day, such as 2026-03-01.", kind: "date", required: true }], needs: [], widget: null },
   { id: "change-point", want: "changed", name: "Did something change, and when?", sentence: "Finds the one day at which the Metric's level or trend most likely changed, or says that nothing stands out.", technical: "Change point", catalogue: "Change point", checks: "changePoint", recipe: "did-it-work", slots: [metric("Which Metric do you want to look at?")], settings: NONE, needs: [], widget: null },
   { id: "bridge", want: "changed", name: "Why did it change from last period?", sentence: "Splits the change since the period before into what each row of the Metric's Breakdown added or took away.", technical: "Bridge", catalogue: "Bridge", checks: null, recipe: null, slots: [metric("Which Metric has a Breakdown?")], settings: NONE, needs: ["breakdown", "breakdown-before"], widget: null },
@@ -97,7 +101,6 @@ export function textsOf(entry: Pick<PickerEntry, "catalogue">): { useWhen: strin
 export const NOT_OFFERED: Readonly<Partial<Record<MethodId, string>>> = {
   drivers: "the Drivers Analysis on the canvas ranks pairs and is offered there, not as a Method",
   predict: "reading B off the line for values you give belongs to what-if (spec 0041, ticket 5), which registers here when it ships",
-  whatIf: "what-if (spec 0041, ticket 5) registers here when it ships",
   trend: "the straight-line trend is part of the forecast and of Before and after",
   seasonal: "the seasonal forecast is chosen by the forecast's own rule, and says so",
 };

@@ -52,8 +52,8 @@ describe("Choose a method", () => {
   it("lists every Method grouped by what a person wants, greyed with a reason when it does not fit, asking only for the canvas's ids", async () => {
     await mount([fact(1, "Revenue")]);
     expect(asked).toEqual([[1]]);
-    expect([...host.querySelectorAll("h3")].map((h) => h.textContent)).toEqual(["Where is it heading?", "What moves with what?", "What would it take?", "What changed?", "What is usual?", "Where is it concentrated?"]);
-    expect(cards()).toHaveLength(14);
+    expect([...host.querySelectorAll("h3")].map((h) => h.textContent)).toEqual(["Where is it heading?", "What moves with what?", "What would it take?", "What would happen if?", "What changed?", "What is usual?", "Where is it concentrated?"]);
+    expect(cards()).toHaveLength(15);
     const corr = card("Does A move with B?");
     expect(corr.querySelector("button")!.disabled).toBe(true);
     expect(corr.textContent).toContain("Needs 2 Metrics on the canvas; there is 1.");

@@ -19,6 +19,7 @@ import { shiftPeriod, type Span } from "./periods";
 import { ANALYSIS_FORMAT_2, type AnalysisRecipe2 } from "./analysis-recipe";
 import { forecastTakeaway, endsOf, maxAhead } from "./takeaways/forecast";
 import { whatMoves, whatNeeds } from "./takeaways/fit-takeaway";
+import { whatIfRecipe } from "./takeaways/what-if-takeaway";
 import { correlationTakeaway, refusalTakeaway, sayIn, type Takeaway, type TakeawayContext } from "./takeaways/takeaway";
 import type { CaseKey } from "./takeaways/wording";
 import type { BreakdownRow, Metric, Point } from "./types";
@@ -146,6 +147,8 @@ export const RUNNERS: Record<EntryId, Runner> = {
   }),
   /** What moves B?: the multiple fit, as its Recipe. */
   moves: (w, p) => whatMoves(one(p, "metric"), driversOf(p), resolverOf(w), { yearStart: w.yearStart, ctx: w.ctx }),
+  /** What if A changes?: the what-if chain over the Metrics chosen, as its Recipe. */
+  "what-if": (w, p) => whatIfRecipe(one(p, "metric"), "by" in p.settings ? { by: p.settings.by as number } : { percent: p.settings.percent as number }, p.slots.others, resolverOf(w), { yearStart: w.yearStart, ctx: w.ctx }),
   /** What does B need?: the fit turned round, as its Recipe. */
   needs: (w, p) => whatNeeds(one(p, "metric"), driversOf(p), p.settings.goal as number, resolverOf(w), { yearStart: w.yearStart, ctx: w.ctx }),
   /** Did it work?: the periods after a day against the earlier trend. */
@@ -229,6 +232,8 @@ export function readSettings(entry: PickerEntry, raw: unknown): { ok: true; sett
     if (!got.ok) return got;
     if (got.value !== null) settings[def.id] = got.value;
   }
+  const given = (entry.oneOf ?? []).filter((id) => id in settings);
+  if (entry.oneOf && given.length !== 1) return { ok: false, message: `${entry.name} Give exactly one of: ${entry.oneOf.map((id) => entry.settings.find((d) => d.id === id)!.question).join(" or ")}` };
   return { ok: true, settings };
 }
 

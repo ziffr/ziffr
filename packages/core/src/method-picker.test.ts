@@ -15,6 +15,7 @@ import { RECIPE_POINTS } from "./recipe-methods";
 import { runRecipe2 } from "./recipe-run";
 import { APPLIES } from "./suitability";
 import { whatMoves, whatNeeds } from "./takeaways/fit-takeaway";
+import { whatIfRecipe } from "./takeaways/what-if-takeaway";
 import { endsOf, forecastTakeaway } from "./takeaways/forecast";
 import type { Takeaway, TakeawayContext } from "./takeaways/takeaway";
 import { metric } from "./test/fixtures";
@@ -55,7 +56,7 @@ describe("the registry is whole", () => {
       expect(dontUseWhen.length, `${e.id} says when not to use it`).toBeGreaterThan(0);
       expect(WANTS.map((w) => w.id), e.id).toContain(e.want);
       expect(["forecast", "correlation", null]).toContain(e.widget);
-      expect([null, "what-moves", "what-needs", "reach-target", "did-it-work"]).toContain(e.recipe);
+      expect([null, "what-moves", "what-needs", "what-if", "reach-target", "did-it-work"]).toContain(e.recipe);
     }
   });
 
@@ -96,7 +97,7 @@ describe("the registry is whole", () => {
   it("names, for each entry, a Method module that is in the Calculation Catalogue", () => {
     const MODULE: Record<EntryId, string> = {
       forecast: "src/takeaways/forecast.ts", "reach-target": "src/takeaways/forecast.ts", correlation: "src/correlation.ts", rank: "src/methods/spearman.ts",
-      partial: "src/methods/partial-correlation.ts", lag: "src/methods/lagged-correlation.ts", moves: "src/takeaways/fit-takeaway.ts", needs: "src/takeaways/fit-takeaway.ts",
+      partial: "src/methods/partial-correlation.ts", lag: "src/methods/lagged-correlation.ts", moves: "src/takeaways/fit-takeaway.ts", needs: "src/takeaways/fit-takeaway.ts", "what-if": "src/takeaways/what-if-takeaway.ts",
       "after-date": "src/methods/before-after.ts", "change-point": "src/methods/change-point.ts", bridge: "src/methods/bridge.ts", usual: "src/methods/quantiles.ts",
       "top-share": "src/methods/concentration.ts", pareto: "src/methods/concentration.ts",
     };
@@ -137,6 +138,7 @@ describe("the list against the canvas, state by state", () => {
       lag: "Needs 2 Metrics on the canvas; there is 1.",
       moves: "Needs 2 Metrics on the canvas; there is 1.",
       needs: "Needs 2 Metrics on the canvas; there is 1.",
+      "what-if": "Needs 2 Metrics on the canvas; there is 1.",
       bridge: "Revenue has no Breakdown for its latest period.",
       "top-share": "Revenue has no Breakdown for its latest period.",
       pareto: "Revenue has no Breakdown for its latest period.",
@@ -145,7 +147,7 @@ describe("the list against the canvas, state by state", () => {
 
   it("one Metric with a Target Range and Breakdowns for two periods: the Target and the rows entries run", () => {
     const g = greyed([{ ...rev, hasTarget: true, breakdownLatest: true, breakdownBefore: true }]);
-    expect(Object.keys(g).sort()).toEqual(["correlation", "lag", "moves", "needs", "partial", "rank"]);
+    expect(Object.keys(g).sort()).toEqual(["correlation", "lag", "moves", "needs", "partial", "rank", "what-if"]);
   });
 
   it("a Breakdown for the latest period only: shares run, the bridge says it has nothing to compare with", () => {
@@ -157,7 +159,7 @@ describe("the list against the canvas, state by state", () => {
 
   it("two Metrics: the pairs run; three Metrics: the held-the-same Metric runs too", () => {
     const two = greyed([rev, vis]);
-    for (const id of ["correlation", "rank", "lag", "moves", "needs"]) expect(two[id], id).toBeUndefined();
+    for (const id of ["correlation", "rank", "lag", "moves", "needs", "what-if"]) expect(two[id], id).toBeUndefined();
     expect(two.partial).toBe("Needs 3 Metrics on the canvas; there are 2.");
     expect(greyed([rev, vis, pri]).partial).toBeUndefined();
   });
@@ -270,7 +272,7 @@ describe("the list against the canvas, state by state", () => {
 
   it("counts the Metrics each entry needs from its Slots", () => {
     expect(Object.fromEntries(ENTRIES.map((e) => [e.id, metricsNeeded(e)]))).toEqual({
-      forecast: 1, "reach-target": 1, correlation: 2, rank: 2, partial: 3, lag: 2, moves: 2, needs: 2, "after-date": 1, "change-point": 1, bridge: 1, usual: 1, "top-share": 1, pareto: 1,
+      forecast: 1, "reach-target": 1, correlation: 2, rank: 2, partial: 3, lag: 2, moves: 2, needs: 2, "what-if": 2, "after-date": 1, "change-point": 1, bridge: 1, usual: 1, "top-share": 1, pareto: 1,
     });
   });
 });
@@ -285,6 +287,11 @@ describe("a picked Method gives its Recipe's Takeaway", () => {
   it("What moves B? and What does B need?: the Recipes' own functions", () => {
     same(runEntry(entryOf("moves")!, w, picked({ metric: [A], drivers: [B, C] })), whatMoves(A, [B, C], resolve(w), opts));
     same(runEntry(entryOf("needs")!, w, picked({ metric: [A], drivers: [B, C] }, { goal: 400 })), whatNeeds(A, [B, C], 400, resolve(w), opts));
+  });
+
+  it("What if A changes?: the Recipe's own function, by an amount and by a percent", () => {
+    same(runEntry(entryOf("what-if")!, w, picked({ metric: [A], others: [B, C] }, { by: 50 })), whatIfRecipe(A, { by: 50 }, [B, C], resolve(w), opts));
+    same(runEntry(entryOf("what-if")!, w, picked({ metric: [A], others: [B, C] }, { percent: 10 })), whatIfRecipe(A, { percent: 10 }, [B, C], resolve(w), opts));
   });
 
   it("Will we reach the Target? with its usual look ahead, and a set look ahead", () => {
@@ -326,7 +333,7 @@ describe("a picked Method gives its Recipe's Takeaway", () => {
   });
 
   it("makes no recipe file for an entry that is no composition of the library's functions", () => {
-    expect(ENTRIES.filter((e) => recipeFileOf(e) === null).map((e) => e.id).sort()).toEqual(["after-date", "bridge", "change-point", "correlation", "forecast", "needs", "pareto", "reach-target", "top-share"]);
+    expect(ENTRIES.filter((e) => recipeFileOf(e) === null).map((e) => e.id).sort()).toEqual(["after-date", "bridge", "change-point", "correlation", "forecast", "needs", "pareto", "reach-target", "top-share", "what-if"]);
   });
 });
 
@@ -346,10 +353,10 @@ const HOSTILE: Record<string, Point[]> = {
 };
 const SLOTS: Record<EntryId, (m: Metric[]) => Record<string, Metric[]>> = {
   forecast: ([a]) => ({ metric: [a] }), "reach-target": ([a]) => ({ metric: [a] }), correlation: ([a, b]) => ({ first: [a], second: [b] }), rank: ([a, b]) => ({ first: [a], second: [b] }),
-  partial: ([a, b, c]) => ({ first: [a], second: [b], held: [c] }), lag: ([a, b]) => ({ first: [a], second: [b] }), moves: ([a, b, c]) => ({ metric: [a], drivers: [b, c] }), needs: ([a, b, c]) => ({ metric: [a], drivers: [b, c] }),
+  partial: ([a, b, c]) => ({ first: [a], second: [b], held: [c] }), lag: ([a, b]) => ({ first: [a], second: [b] }), moves: ([a, b, c]) => ({ metric: [a], drivers: [b, c] }), "what-if": ([a, b, c]) => ({ metric: [a], others: [b, c] }), needs: ([a, b, c]) => ({ metric: [a], drivers: [b, c] }),
   "after-date": ([a, b]) => ({ metric: [a], beside: [b] }), "change-point": ([a]) => ({ metric: [a] }), bridge: ([a]) => ({ metric: [a] }), usual: ([a]) => ({ metric: [a] }), "top-share": ([a]) => ({ metric: [a] }), pareto: ([a]) => ({ metric: [a] }),
 };
-const SETTINGS: Partial<Record<EntryId, Picked["settings"]>> = { needs: { goal: 500 }, "after-date": { date: "2022-03-01" }, usual: { value: 100 }, "top-share": { rows: 2 }, "reach-target": { ahead: 3 } };
+const SETTINGS: Partial<Record<EntryId, Picked["settings"]>> = { "what-if": { percent: 10 }, needs: { goal: 500 }, "after-date": { date: "2022-03-01" }, usual: { value: 100 }, "top-share": { rows: 2 }, "reach-target": { ahead: 3 } };
 
 describe("no entry can give a number the Takeaway layer would not", () => {
   for (const [what, points] of Object.entries(HOSTILE)) {
@@ -440,6 +447,12 @@ describe("what a browser sends is read with its limits", () => {
     expect(ok(after, {}).ok).toBe(false);
     expect(ok(after, { date: "2026-02-30" }).ok).toBe(false);
     expect(ok(after, { date: "2026-02-28" })).toEqual({ ok: true, settings: { date: "2026-02-28" } });
+    const ifs = entryOf("what-if")!;
+    expect(ok(ifs, { by: 5 })).toEqual({ ok: true, settings: { by: 5 } });
+    expect(ok(ifs, { percent: "-5" })).toEqual({ ok: true, settings: { percent: -5 } });
+    expect(ok(ifs, {}).ok).toBe(false);
+    expect(ok(ifs, { by: 5, percent: 5 }).ok).toBe(false);
+    expect(ok(ifs, { by: "" , percent: 3 })).toEqual({ ok: true, settings: { percent: 3 } });
     const usual = entryOf("usual")!;
     expect(ok(usual, {})).toEqual({ ok: true, settings: {} });
     expect(ok(usual, { value: "" })).toEqual({ ok: true, settings: {} });

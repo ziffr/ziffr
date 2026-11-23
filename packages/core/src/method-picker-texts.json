@@ -89,6 +89,14 @@
       "You expect the other drivers to change: they are held at their latest values unless you give others."
     ]
   },
+  "What-if chain (What if A changes?)": {
+    "use": "You want to read what a change in one Metric has gone with in others, and what that goes with in turn, in the Metrics' own units.",
+    "dont": [
+      "The change would take the driver beyond what it has been: the point is given with \"treat it as a guess\" and no range, and where the link looks curved Ziffr refuses for that Metric.",
+      "Which of two Metrics that move together comes first matters: that cannot be told from the numbers. The Recipe reads the one that moves more closely with A as coming first, and says so; a Driver Map that a person confirms is a follow-up (spec 0041).",
+      "The change is 0, is not a number, is beyond the doubles, or is a percent of a latest value of 0: refused in words. A percent counts from the size of the latest value, so \"up 10 %\" is up even where the value is below 0."
+    ]
+  },
   "Heads-ups: moving together and stopped moving together": {
     "use": "You want Ziffr to say, without being asked, that two Metrics have started or stopped moving together.",
     "dont": [
