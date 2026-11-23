@@ -5,6 +5,7 @@
 // a number from the part it could read.
 import { bitLength, fractionOf, fractionOfText, lowestTerms, minus, nearest, over, plus, times, type Fraction } from "./exact";
 import type { Metric } from "./types";
+import { spendOn, widthOf } from "./work-bound";
 
 /** The slugs of the metrics a Derived Metric's formula reads, each once. */
 export function formulaInputs(formula: string): string[] {
@@ -163,6 +164,61 @@ export function evaluate(formula: string, vars: Record<string, number>, before: 
   const x = nearest(v);
   // −0 is 0; a result beyond the doubles (a division by a tiny value) is none.
   return Number.isFinite(x) ? x || 0 : null;
+}
+
+/** A range of exact values, both ends included. */
+export type Bounds = { lo: Fraction; hi: Fraction };
+
+// A formula worked out on ranges of values (interval arithmetic) on exact fractions: every operation returns the range that
+// holds the result for any values within the ranges, and for a formula that names each Metric once it is the range itself. Null
+// where a range holds 0 under a division, where a Metric is not given or the formula reaches back (prev, change), and past the bits bound.
+function runBounds(n: Node, vars: Record<string, Bounds>): Bounds | null {
+  switch (n.k) {
+    case "num": {
+      const v = fractionOfText(n.v);
+      return { lo: v, hi: v };
+    }
+    case "ref": return Object.prototype.hasOwnProperty.call(vars, n.slug) ? vars[n.slug] : null;
+    case "back": return null;
+    case "neg": {
+      const a = runBounds(n.a, vars);
+      return a && { lo: { num: -a.hi.num, den: a.hi.den }, hi: { num: -a.lo.num, den: a.lo.den } };
+    }
+    case "op": {
+      const a = runBounds(n.a, vars), b = runBounds(n.b, vars);
+      if (!a || !b) return null;
+      // The four products (or sums) of the ends are charged to the work budget of the Method that asked, by the size of their operands.
+      spendOn(2 * Math.max(widthOf(a.lo), widthOf(a.hi)), 2 * Math.max(widthOf(b.lo), widthOf(b.hi)));
+      let out: Bounds;
+      if (n.op === "+") out = { lo: plus(a.lo, b.lo), hi: plus(a.hi, b.hi) };
+      else if (n.op === "-") out = { lo: minus(a.lo, b.hi), hi: minus(a.hi, b.lo) };
+      else {
+        // A product has its ends among the products of the ends; a quotient is the product with the divisor's reciprocal, whose
+        // range is bounded only where the divisor is wholly above or wholly below 0.
+        let d = b;
+        if (n.op === "/") {
+          const zero = BigInt(0);
+          if (b.lo.num <= zero && b.hi.num >= zero) return null;
+          d = { lo: over({ num: BigInt(1), den: BigInt(1) }, b.hi), hi: over({ num: BigInt(1), den: BigInt(1) }, b.lo) };
+        }
+        const ends = [times(a.lo, d.lo), times(a.lo, d.hi), times(a.hi, d.lo), times(a.hi, d.hi)];
+        // Stryker disable next-line EqualityOperator: of two equal products either is the end
+        const below = (x: Fraction, y: Fraction) => x.num * y.den < y.num * x.den;
+        out = { lo: ends.reduce((x, y) => (below(y, x) ? y : x)), hi: ends.reduce((x, y) => (below(x, y) ? y : x)) };
+      }
+      const r = { lo: lowestTerms(out.lo), hi: lowestTerms(out.hi) };
+      // Stryker disable next-line EqualityOperator,ConditionalExpression: a safety bound, as in `run`
+      return [r.lo, r.hi].some((f) => bitLength(f.num) > FORMULA_MAX_BITS || bitLength(f.den) > FORMULA_MAX_BITS) ? null : r;
+    }
+  }
+}
+
+/** A formula's range of values for ranges of its inputs ({slug}: lo and hi), exact: where each Metric is named once it is the range
+ * the result takes; where a Metric is named more than once it holds every result the formula can give (never less). Null where it
+ * cannot be given: the formula cannot be read whole, an input has no range, a division is by a range that holds 0, or it reaches back. */
+export function evaluateRange(formula: string, vars: Record<string, Bounds>): Bounds | null {
+  const p = parse(formula);
+  return p.ok ? runBounds(p.node, vars) : null;
 }
 
 /** The Metrics a Derived Metric may be computed from: what `checkFormula` needs to know of each. */

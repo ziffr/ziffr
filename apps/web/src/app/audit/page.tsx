@@ -13,6 +13,7 @@ import { auditKeptWords } from "@ziffr/core/audit-retention";
 import { formatDate } from "@ziffr/core/format";
 import { monthName, toYearStart } from "@ziffr/core/periods";
 import { AUDIT_CATEGORIES, AUDIT_KINDS, kindsOf, type AuditFilter } from "@ziffr/core/audit-kinds";
+import { filledInDetail } from "./filled-in-detail";
 
 const ROLE: Record<string, string> = { owner: "Owner", admin: "Admin", member: "Member", guest: "Guest", viewer: "Viewer", editor: "Editor" };
 const NOUN: Record<string, string> = { metric: "Metric", dashboard: "dashboard", deck: "deck", group: "Group", person: "person", invitation: "invitation", access_key: "Access Key", workflow: "Workflow", workspace: "workspace", audit_log: "Audit Log" };
@@ -37,7 +38,7 @@ function about(e: AuditEvent) {
  * from before this was recorded say the country. */
 const followed = (d: Record<string, unknown>) => (d.followed === "default" ? "from the default" : "from the country");
 
-function detailText(e: AuditEvent): string {
+function detailText(e: AuditEvent, nameOf: (id: string) => string | undefined): string {
   const d = e.details;
   const role = (r: unknown) => ROLE[String(r)] ?? String(r);
   switch (e.kind) {
@@ -56,7 +57,8 @@ function detailText(e: AuditEvent): string {
     case "metric.workflow_set": return d.workflow_name ? `now ${d.workflow_name}` : "no Workflow now";
     case "period.locked": case "period.unlocked": case "approval.given": case "approval.sent_back": case "approval.skipped": case "self_check.confirmed": case "self_check.corrected": case "correction.accepted": case "correction.declined": return String(d.period ?? "");
     case "away.set": return `${d.from} to ${d.to}`;
-    case "value.filled_in": return `${String(d.period ?? "")}, as ${d.as === "stand_in" ? "the Stand-in" : d.as === "workflow_owner" ? "the Workflow's owner" : "the Metric's owner"}`;
+    // For whom, so the Audit Log answers "who put that number in" (spec 0046).
+    case "value.filled_in": return filledInDetail(d, nameOf);
     case "schedule.read": return `${d.from && d.to ? `${d.from} to ${d.to}` : ""}${d.key_name ? `, with the key ${d.key_name}` : ""}`;
     case "period.closed": return `${d.locked ?? 0} locked, as of ${d.as_of}`;
     case "workflow.run_now": return `${d.prompts ?? 0} Prompts, ${d.reminders ?? 0} reminders, ${d.escalations ?? 0} Escalations`;
@@ -89,6 +91,8 @@ export default async function AuditPage({ searchParams }: { searchParams: Promis
   const members = people.filter((p) => !p.contact);
   const named = new Map(members.map((p) => [p.id, p.name]));
   for (const e of events) if (e.actorId && !named.has(e.actorId)) named.set(e.actorId, e.actorName);
+  // A value can be filled in for a Contact too: the details name them, not only members.
+  const everyone = new Map(people.map((p) => [p.id, p.name]));
   const filtered = Boolean(filter.person || filter.kind || filter.category || filter.objectType || filter.from || filter.to);
 
   return (
@@ -163,7 +167,7 @@ export default async function AuditPage({ searchParams }: { searchParams: Promis
                       {e.label}
                       {object && <> {e.objectType && e.objectId ? <Link href={`/audit${query(filter, { type: e.objectType, id: e.objectId })}`} className={cn(e.hidden && "italic text-muted-foreground")}>{object}</Link> : object}</>}
                     </td>
-                    <td className="px-4 py-2 text-muted-foreground">{detailText(e)}</td>
+                    <td className="px-4 py-2 text-muted-foreground">{detailText(e, (id) => named.get(id) ?? everyone.get(id))}</td>
                   </tr>
                 );
               })}

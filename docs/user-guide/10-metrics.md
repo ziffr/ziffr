@@ -226,7 +226,7 @@ A Metric's page has one main button, and the rest sit in the **⋯** menu.
 | **⋯** → **Archive…** | Puts the Metric aside, keeping its values and history (see below). | Owners, Admins and the Metric Owner, outside the demo |
 | **⋯** → **Bring back** | On an Archived Metric: makes it a Metric in use again (see below). | Owners, Admins and the Metric Owner, outside the demo |
 | **⋯** → **Delete…** | Deletes the Metric (see below). | The Metric Owner, outside the demo |
-| **⋯** → **Who can see this** | Lists everyone with access and why: owner, a Share, a Group, a shared dashboard, or sending in values. For a Guest, people outside what is shared with them show as "Someone". | Everyone who sees the Metric |
+| **⋯** → **Who can see this** | Opens a panel on the right that lists everyone with access and why: owner, a Share, a Group, a shared dashboard, or sending in values. For a Guest, people outside what is shared with them show as "Someone". | Everyone who sees the Metric |
 | **⋯** → **Versions** | Shows earlier states of the description (see below). | Everyone who sees the Metric |
 
 ## The Overview tab

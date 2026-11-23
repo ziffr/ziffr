@@ -42,8 +42,8 @@ The **⋯** menu holds:
 | Entry | What it does |
 |---|---|
 | **Theme…** | Chooses the deck's Theme. **(team default)** follows whatever theme the team uses by default. |
-| **Who can see this** | Lists everyone who can open the deck, and why. |
-| **View links…** | Makes a link for someone outside the team. Only the deck's owner sees this entry. |
+| **Who can see this** | Opens a panel on the right that lists everyone who can open the deck, and why. |
+| **View links…** | Opens a panel on the right to make a link for someone outside the team. Only the deck's owner sees this entry. |
 | **Versions** | Opens a panel on the right with earlier states of the deck, and lets you go back to one. |
 | **Save as Deck Template…** | Saves every slide as a team Deck Template (see below). Only the deck's owner sees this entry. |
 | **Delete…** | Below a rule, in red. Deletes the deck after you confirm: its slides, Shares and View Links go with it. Widgets and Metrics stay. Only the deck's owner sees this entry. |
@@ -156,7 +156,7 @@ If an export fails, Ziffr says "Export failed". Try again, or remove the last th
 Sharing a deck works like sharing a dashboard. [Dashboards and Findings](12-dashboards.md) explains Shares, View Links and Versions in full. In short:
 
 - **Share** gives people or Groups a role on the deck. A **Viewer** can present it. An **Editor** can also change its slides, name, footer and Theme. Only the owner shares the deck and makes View Links.
-- **Invite someone…** at the bottom of the Share window invites a person who is not in the Workspace yet, by email, as **Member** or **Guest**; only Owners and Admins see it, others are told "Ask an Owner or Admin to invite them".
+- **Invite someone…** at the bottom of the Share panel invites a person who is not in the Workspace yet, by email, as **Member** or **Guest**; only Owners and Admins see it, others are told "Ask an Owner or Admin to invite them".
 - **View link** lets someone outside the team watch the deck slide by slide, without signing in. Under **For**, say who it is for; under **Works until**, choose when it ends (at most 90 days ahead). Tick **Freeze today's numbers** to keep the values as they are now; otherwise the link shows live numbers until it ends. You can copy or revoke each link.
 - **Versions** keeps earlier states of the deck. Going back to one makes a new version.
 
