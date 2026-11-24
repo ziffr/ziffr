@@ -26,6 +26,41 @@ export function demoRefusalOf(e: unknown): Error | null {
 
 type Shared = "metric" | "dashboard" | "deck";
 
+/** How far a calculated Metric's inputs are followed (a calculated Metric may read others): more than the formulas of the demo can nest. */
+const INPUT_DEPTH = 6;
+
+/** Adds to the set the Metrics a calculated Metric in it reads, and those they read, to a bounded depth: a calculated Metric shows all of them. */
+function withInputs(all: { id: number; slug: string; formula?: string | null }[], set: Set<number>): void {
+  let layer = [...set];
+  for (let depth = 0; depth < INPUT_DEPTH && layer.length; depth++) {
+    const fresh: number[] = [];
+    for (const m of layer) {
+      const formula = all.find((x) => x.id === m)?.formula;
+      if (formula) for (const slug of formulaInputs(formula)) { const input = all.find((x) => x.slug === slug); if (input && !set.has(input.id)) { set.add(input.id); fresh.push(input.id); } }
+    }
+    layer = fresh;
+  }
+}
+
+/** In a visit, refuses a new formula for a calculated Metric that is used anywhere: shown by a widget of any dashboard, in a deck, read by another
+ * calculated Metric, or shared. Changing it would change what the people those are shown to see, and the walk to find them all is not worth it:
+ * a visitor makes a new Metric with the formula they want. An unused one may change. Nothing outside a visit. */
+export async function visitorMetricUnused(actor: Pick<Actor, "workspaceId">, metricId: number, slug: string): Promise<void> {
+  if (!inDemoVisit(actor)) return;
+  const ws = actor.workspaceId;
+  const used = new DemoTextRefused(DEMO_METRIC_WORDS.used);
+  const [{ data: widgets }, { data: decks }, { data: shares }, all] = await Promise.all([
+    db().from("widgets").select("metric_ids, settings").eq("workspace_id", ws),
+    db().from("decks").select("document").eq("workspace_id", ws),
+    db().from("shares").select("id").eq("workspace_id", ws).eq("object_type", "metric").eq("object_id", metricId).limit(1),
+    getMetrics(ws),
+  ]);
+  if (shares?.length) throw used;
+  if ((widgets ?? []).some((w) => widgetMetricIds((w.metric_ids ?? []) as number[], w.settings).includes(metricId))) throw used;
+  if ((decks ?? []).some((d) => deckMetricIds(d.document).includes(metricId))) throw used;
+  if (all.some((m) => m.id !== metricId && m.formula && formulaInputs(m.formula).includes(slug))) throw used;
+}
+
 /** In a visit, refuses (in plain words) a Share that would show a recipient a Metric they do not see: the Metrics the object shows (a
  * dashboard's widgets, a deck's slides, a calculated Metric's inputs) must all be ones each recipient sees already, except the Metric being
  * shared itself, which is what is given. Without it a visitor could make a hidden Metric of the seed visible to another made-up person. */
@@ -42,11 +77,7 @@ export async function visitorShowsOnlySeen(actor: Pick<Actor, "workspaceId">, ty
     const { data } = await db().from("decks").select("document").eq("workspace_id", ws).eq("id", id).maybeSingle();
     for (const m of deckMetricIds(data?.document)) shown.add(m);
   }
-  // A calculated Metric shows its inputs' values too.
-  for (const m of [...shown]) {
-    const formula = all.find((x) => x.id === m)?.formula;
-    if (formula) for (const slug of formulaInputs(formula)) { const input = all.find((x) => x.slug === slug); if (input) shown.add(input.id); }
-  }
+  withInputs(all, shown);
   if (type === "metric") shown.delete(id);
   if (!shown.size) return;
   for (const person of new Set(recipients)) {
@@ -78,9 +109,8 @@ export async function visitorSharedStaysSeen(actor: Pick<Actor, "workspaceId">, 
   if (!recipients.length) return;
   const all = await getMetrics(ws);
   const next = new Set(shown);
-  const inputsOf = (f: string | null | undefined) => { if (f) for (const slug of formulaInputs(f)) { const m = all.find((x) => x.slug === slug); if (m) next.add(m.id); } };
-  inputsOf(formula);
-  for (const m of [...next]) inputsOf(all.find((x) => x.id === m)?.formula);
+  if (formula) for (const slug of formulaInputs(formula)) { const m = all.find((x) => x.slug === slug); if (m) next.add(m.id); }
+  withInputs(all, next);
   if (type === "metric") next.delete(id);
   for (const person of recipients) {
     const sees = await visibleMetricIds(ws, person, all);

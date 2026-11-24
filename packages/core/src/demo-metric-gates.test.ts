@@ -47,7 +47,7 @@ const WRITERS: [string, string, string[], string[]][] = [
   ["dashboards.ts", "placeWidget", ["visitorSharedStaysSeen("], ["insertSealed("]],
   ["dashboards.ts", "updateWidget", ["visitorSharedStaysSeen("], ['from("widgets").update']],
   ["dashboards.ts", "applyTemplate", ["visitorSharedStaysSeen("], ['from("widgets").update']],
-  ["derived-metrics.ts", "setMetricFormula", ["visitorSharedStaysSeen("], ['from("metrics").update']],
+  ["derived-metrics.ts", "setMetricFormula", ["visitorMetricUnused("], ['from("metrics").update']],
 ];
 
 describe("every writer of what the demo opens in this ticket", () => {

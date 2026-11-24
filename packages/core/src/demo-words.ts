@@ -91,6 +91,7 @@ export const DEMO_METRIC_WORDS = {
   team: "In the demo, only a Group made by a visitor changes who is in it.",
   everyone: "In the demo, one person sets only their own way of being asked.",
   hidden: "In the demo, that would show someone a Metric they do not see yet. Share the Metric with them first.",
+  used: "This Metric is used elsewhere. Make a new one with the formula you want.",
 } as const;
 
 /** The sentence for a digest, or null for any other error. */
