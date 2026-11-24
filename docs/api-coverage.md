@@ -31,6 +31,7 @@ Decks, Themes, View Designs, the canvas, Packs and the pages that edit them are 
 - `saveToPool` (dashboards.ts): the dashboard canvas
 - `deleteSavedWidget` (dashboards.ts): the dashboard canvas
 - `setDashboardTheme` (dashboards.ts): Themes
+- `visitorTemplateWidgets` (dashboards.ts): the demo's gate for the widgets a template makes, called by `createDashboardFromBody`; not an operation of its own
 - `fixTagLists` (tag-lists.ts): the View links window's Fix the list; a Tag source on a widget is not in the API yet (spec 0038)
 - `canvasAdd` (dashboards.ts): the dashboard canvas
 - `canvasRemove` (dashboards.ts): the dashboard canvas
