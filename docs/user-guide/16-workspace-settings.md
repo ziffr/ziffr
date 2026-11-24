@@ -46,6 +46,7 @@ After you sign in for the first time and belong to no Workspace yet, Ziffr opens
 
 - Type the **Name of the workspace**, such as your name, your team or your company, and choose **Create workspace**. You become its Owner, and Ziffr opens it.
 - If a colleague already uses Ziffr, it is better to ask them to invite you, so you join their Workspace instead of starting a second one.
+- The **Setup Guide** (**Set up your Workspace**, `/setup`) is where its steps are, starting with **About you**; see [Getting started](07-getting-started.md#the-setup-guide).
 
 You can start another Workspace at any time from the Workspace switcher at the top of the sidebar, with **New workspace**. Everything in one Workspace stays in it; nothing is shared between Workspaces.
 
@@ -109,7 +110,7 @@ If you were a **Contact** before, accepting the Invitation keeps your history: t
 
 ## General
 
-**Workspace → General** holds the Workspace's name, its time, its fiscal year, its Number Style, its Answer Languages, its limits and its Workspace Profile. Owners and Admins change them. Everyone else sees them, with the note "Only Owners and Admins change these."
+**Workspace → General** holds the Workspace's name, **About your business** (its Workspace Profile) right after it, its time, its fiscal year, its Number Style, its Answer Languages and its limits. Owners and Admins change them. Everyone else sees them, with the note "Only Owners and Admins change these."
 
 ### Size and usage
 
@@ -197,9 +198,11 @@ For Owners and Admins, a section **Limits** lists five values the Workspace may 
 
 Alerts per person, Alert messages per person per day and the View Link life can only go lower than the Installation allows, never higher. Lowering a limit never deletes or stops what exists: a person who holds more Alerts than you now allow keeps them and only cannot add new ones. Every change is written to the Audit Log. In the demo the section is not shown.
 
-### Workspace Profile
+### About your business
 
-The **Workspace Profile** says what kind of business this is, so Ziffr can suggest the Metrics such teams track. Each part is picked from a list; **Not set** leaves it open.
+**About your business**, which sits right after the Name, holds the **Workspace Profile**: what kind of business this is, so Ziffr can suggest the Metrics and Packs such teams use. Each part is picked from a list; **Not set** leaves it open. The same questions are asked in the Setup Guide's **About you** step ([Getting started](07-getting-started.md#the-setup-guide)); answer them in either place.
+
+What you answer here stays in this Workspace. It is not sent to Ziffr's makers or to anyone else. It is used only inside this Workspace, to suggest Metrics, Packs and settings that fit and who is asked for what. Owners and Admins of this Workspace see your function; other members do not. The section says so under its heading.
 
 | Option | What you pick |
 | --- | --- |

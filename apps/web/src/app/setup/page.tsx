@@ -1,0 +1,90 @@
+// The Setup Guide's page (spec 0052, ticket 3; GLOSSARY: Setup Guide, Workspace Profile, Business Function): the shell with
+// its step bar and the About you step. Owners and Admins see five steps and Members two; a Guest and the demo have none
+// and go on to the app. Steps that are not built yet say what they will do. Only the viewer's own steps and what they
+// may answer are read: a Member gets the Workspace's answers read-only and never another person's function.
+import Link from "next/link";
+import { redirect } from "next/navigation";
+import { currentActor } from "@/lib/viewer";
+import { isDemo } from "@/lib/auth";
+import { PageHeader } from "@/components/page-header";
+import { buttonVariants } from "@/components/ui/button";
+import { setupGuide, markSetupGuideSeen, startSetupGuide } from "@ziffr/core/setup-guide";
+import { SETUP_STEPS, type SetupStepId } from "@ziffr/core/setup-steps";
+import { workspaceProfile } from "@ziffr/core/workspace-settings";
+import { workspaceClock } from "@ziffr/core/workspace-clock";
+import { yearStartChoices } from "@ziffr/core/fiscal-year";
+import { myBusinessFunction } from "@ziffr/core/business-function";
+import { COUNTRIES, INDUSTRY_LABEL, REVENUE_LABEL, SEGMENT_LABEL, type WorkspaceProfile } from "@ziffr/core/workspace-profile";
+import { StepBar } from "./step-bar";
+import { STEP_INFO } from "./step-info";
+import { AboutYouMember, AboutYouWorkspace } from "./about-you";
+
+const countryName = (c: string) => new Intl.DisplayNames(["en"], { type: "region" }).of(c) ?? c;
+
+/** What a Member may read of the Workspace's answers, in words. */
+function answersOf(p: WorkspaceProfile): { label: string; value: string }[] {
+  const people = (b: string) => (b === "1000+" ? "More than 1,000" : b.replace("-", " to "));
+  return [
+    p.industry && { label: "What it does", value: INDUSTRY_LABEL[p.industry] },
+    p.segment && { label: "Who it sells to", value: SEGMENT_LABEL[p.segment] },
+    p.country && { label: "Where it is based", value: countryName(p.country) },
+    p.employeeBand && { label: "People", value: people(p.employeeBand) },
+    p.revenueBand && { label: "Revenue in a year", value: `${REVENUE_LABEL[p.revenueBand]}${p.currency ? ` ${p.currency}` : ""}` },
+  ].filter((x): x is { label: string; value: string } => Boolean(x));
+}
+
+/** The page. */
+export default async function SetupPage({ searchParams }: { searchParams: Promise<{ step?: string }> }) {
+  // The demo never has a guide: its guided steps are the tour's.
+  if (await isDemo()) redirect("/");
+  const actor = await currentActor();
+  const guide = await setupGuide(actor);
+  // A Guest has none; so does anyone for whom the core says there is no guide.
+  if (!guide) redirect("/");
+  // Opening it is asking for it: a Workspace made before the guide gets its row, and the person's first look is noted.
+  await startSetupGuide(actor);
+  await markSetupGuideSeen(actor);
+  const ids = guide.steps.map((s) => s.id);
+  const asked = (await searchParams).step;
+  const current: SetupStepId = (SETUP_STEPS as readonly string[]).includes(asked ?? "") && ids.includes(asked as SetupStepId) ? (asked as SetupStepId) : (guide.next ?? ids[0]);
+  const following = ids[Math.min(ids.indexOf("about") + 1, ids.length - 1)];
+  const info = STEP_INFO[current];
+  const manages = actor.role === "owner" || actor.role === "admin";
+
+  let body: React.ReactNode;
+  if (current === "about") {
+    const [fn, profile] = await Promise.all([myBusinessFunction(actor), workspaceProfile(actor)]);
+    if (manages) {
+      const [clock, year] = await Promise.all([workspaceClock(actor), yearStartChoices(actor)]);
+      const countries = COUNTRIES.map((code) => ({ code, name: countryName(code) })).sort((a, b) => a.name.localeCompare(b.name, "en"));
+      body = <AboutYouWorkspace profile={profile} countries={countries} timeZone={clock.timeZone} runHour={clock.runHour} yearStart={year.yearStart} allowedMonths={year.allowed} whyMonths={year.why} businessFunction={fn} following={following} />;
+    } else {
+      body = <AboutYouMember answers={answersOf(profile)} businessFunction={fn} following={following} />;
+    }
+  } else {
+    body = (
+      <div className="space-y-4">
+        <p className="text-sm">{info.willDo}</p>
+        <p className="text-sm text-muted-foreground">This step comes next. Until then, the rest of Ziffr works without it.</p>
+        <Link href="/setup?step=about" className={buttonVariants({ variant: "outline" })}>Back to About you</Link>
+      </div>
+    );
+  }
+
+  return (
+    <>
+      <PageHeader title="Set up your Workspace" sub="A few short steps. Every one can be skipped, and you can go to Ziffr at any time.">
+        <Link href="/" className={buttonVariants({ variant: "ghost" })}>Go to Ziffr</Link>
+      </PageHeader>
+      <div className="max-w-3xl">
+        <StepBar steps={guide.steps} current={current} />
+        <section aria-labelledby="step-heading">
+          <h2 id="step-heading" tabIndex={-1} className="text-lg font-medium">{current === "about" ? (manages ? "About you and your business" : "About you") : info.label}</h2>
+          {current === "about" && <p className="mb-4 mt-1 text-sm text-muted-foreground">{manages ? "So we can suggest Metrics and Packs that fit. Every question is optional." : "So we can suggest what fits your work. Every question is optional."}</p>}
+          {current !== "about" && <div className="mb-4" />}
+          {body}
+        </section>
+      </div>
+    </>
+  );
+}
