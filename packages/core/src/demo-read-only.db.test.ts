@@ -71,9 +71,12 @@ describe("the demo refuses every write", () => {
     expect((await db().from("demo_state").select("open_to_visitors").single()).data?.open_to_visitors).toBe(false);
   });
 
-  it("with every table closed today: the open list is empty", async () => {
-    const open = (await db().from("demo_open_tables").select("table_name")).data ?? [];
-    expect(open).toEqual([]);
+  it("with only the work around a value open (spec 0051, ticket 8): never a person's table, a setting, a key, a link or a message", async () => {
+    const open = ((await db().from("demo_open_tables").select("table_name")).data ?? []).map((r) => r.table_name as string);
+    const never = ["workspaces", "profiles", "memberships", "contacts", "away", "ask_now_claims", "invitations", "view_links", "calendar_links", "access_keys", "feeds", "webhooks", "slack_installations", "pack_installs", "audit_events", "dashboards", "decks", "metrics", "workflows", "groups", "shares", "themes"];
+    expect(open.filter((t) => never.includes(t))).toEqual([]);
+    // What a visit may write is decided by the list: the demo is still refused for the closed tables, whatever the request carries (demo-open-values.db.test.ts).
+    expect(open.length).toBeGreaterThan(0);
   });
 
   it("as one sentence, thrown, whether the query answers with an error or throws", async () => {
