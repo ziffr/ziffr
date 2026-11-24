@@ -201,6 +201,10 @@ Settings an Owner or Installation Admin makes at the screen. Programs with a key
 - `updateInstallationAnnouncement` (installation-announcements.ts): Installation administration
 - `setInstallationAnnouncementActive` (installation-announcements.ts): Installation administration
 - `deleteInstallationAnnouncement` (installation-announcements.ts): Installation administration
+- `createWorkspaceAnnouncement` (workspace-announcements.ts): Workspace administration, written in the settings screen
+- `updateWorkspaceAnnouncement` (workspace-announcements.ts): Workspace administration, written in the settings screen
+- `setWorkspaceAnnouncementActive` (workspace-announcements.ts): Workspace administration, written in the settings screen
+- `deleteWorkspaceAnnouncement` (workspace-announcements.ts): Workspace administration, written in the settings screen
 - `makeInboundSecret` (installation-replies.ts): Installation settings
 - `inboundMx` (installation-replies.ts): Installation settings
 - `startReplyTest` (installation-replies.ts): Installation settings
