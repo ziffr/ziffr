@@ -9,7 +9,7 @@ import { demoReadOnlyWords } from "@ziffr/core/demo";
 import { BUILT_IN_DESIGNS } from "@ziffr/core/built-in-designs";
 import { STANDARD_THEMES } from "@ziffr/core/standard-themes";
 import { themeToFile } from "@ziffr/core/theme-file";
-import { demoBackToSeed, demoFingerprint, demoFullSeed, demoGeneration, demoLatestId, demoOpenForVisitors, demoWalkClearCounts, demoWalkIds, demoWalkOutbound } from "@ziffr/core/test/demo-walk";
+import { assertDemoIsOnlyWorkspace, demoBackToSeed, demoFingerprint, demoFullSeed, demoGeneration, demoLatestId, demoOpenForVisitors, demoWalkClearCounts, demoWalkIds, demoWalkOutbound } from "@ziffr/core/test/demo-walk";
 import { demoCountRows, demoLatestRow } from "@ziffr/core/test/demo-walk-metrics";
 import { DEMO_BUDGET_USED, DEMO_BUSY, DEMO_GOING_FAST, DEMO_METRIC_WORDS, DEMO_SEEDED_WORDS, DEMO_SHOWCASE, DEMO_STALE, DEMO_VALUE_WORDS } from "@ziffr/core/demo-words";
 import { demoAllows, demoClassOf } from "@ziffr/core/demo-changes";
@@ -448,6 +448,7 @@ describe("with the setting in effect, a visit", () => {
   beforeAll(async () => {
     for (const n of ENV) savedEnv[n] = process.env[n];
     Object.assign(process.env, { ZIFFR_DEMO_ONLY: "1", ZIFFR_DEMO_CHANGES: "1", ZIFFR_DEMO_ADDRESS_KEY: "k".repeat(40), ZIFFR_PROXY_HOPS: "1" });
+    await assertDemoIsOnlyWorkspace();
     await demoOpenForVisitors();
     ids = (await demoWalkIds()) as Ids;
     jar["ziffr-demo"] = { value: VISIT };

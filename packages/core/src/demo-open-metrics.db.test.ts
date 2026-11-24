@@ -4,6 +4,7 @@
 // and Shares, the showcase, the words and the caps hold; nothing leaves the Outbox; with the setting off, without a visit, or with a
 // Generation of before the last Demo Reset the demo refuses as it always did. Written for the database test run of CI; the author
 // could not run it (spec 0051's tickets were built in parallel, without a database).
+import { assertDemoIsOnlyWorkspace } from "./test/demo-walk";
 import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
 import { db } from "./db";
 import { DemoLimit, DemoReadOnly, DemoSeededWords, DemoShowcase, DemoStale } from "./demo";
@@ -48,6 +49,7 @@ const thisMonth = () => { const d = new Date(); return new Date(Date.UTC(d.getUT
 
 const setCap = async (kind: string, n: number) => { expect((await db().from("demo_limits").update({ max_rows: n }).eq("kind", kind)).error).toBeNull(); };
 beforeAll(async () => {
+  await assertDemoIsOnlyWorkspace();
   // A fresh demo that is open to visitors, with its showcase recorded and its seed marked done.
   await resetDemoWorkspace({ openToVisitors: true });
   // This file makes more Metrics than a window holds: the caps are raised here, and the cap tests set their own.

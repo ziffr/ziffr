@@ -2,6 +2,7 @@
 // words and numbers nobody could guess and they are written down, with a control that is not sealed. CI then dumps the
 // whole test database and searches it for them (.github/scripts/dump-test.mjs): a hit in anything but the control
 // fails the build, the control missing means the search is broken. The Workspace is left in the database on purpose,
+// so CI runs this file last, alone, in a step of its own (after every test that needs the demo to be the only Workspace),
 // so this runs only where a dump follows (DUMP_NEEDLES_FILE set: CI's own step, in every shard) and a ZIFFR_SECRETS_KEY is set.
 import { randomUUID } from "node:crypto";
 import { writeFileSync } from "node:fs";

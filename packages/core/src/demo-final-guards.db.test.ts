@@ -2,29 +2,35 @@
 // demo is the Installation's only Workspace, and the end of a seed is marked for its own Generation alone. Written for CI: the
 // author could not run it against a database.
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "vitest";
-import { db } from "./db";
+import { db, seedingDemo } from "./db";
 import { DemoReadOnly } from "./demo";
 import { readDemoState, resetDemoWorkspace } from "./demo-reset";
 import { visitingDemo } from "./demo-visiting";
 import { forgetStoredSettings } from "./settings-in-effect";
 import { DEMO_WORKSPACE_ID } from "./team";
 import { workspace } from "./test/db-fixtures";
+import { assertDemoIsOnlyWorkspace } from "./test/demo-walk";
 
 const VISIT = "0123456789abcdef0123456789abcdef";
 const cleanups: (() => Promise<void>)[] = [];
 const setOpen = async (on: boolean) => { await db().from("demo_state").update({ open_to_visitors: on }).eq("id", true).throwOnError(); };
 
-beforeAll(() => {
+beforeAll(async () => {
+  await assertDemoIsOnlyWorkspace();
   vi.stubEnv("ZIFFR_DEMO_ONLY", "1");
   vi.stubEnv("ZIFFR_DEMO_CHANGES", "1");
   forgetStoredSettings();
 });
 afterEach(async () => { for (const c of cleanups.splice(0)) await c(); });
 afterAll(async () => {
+  // The demo back to a whole seed (the last test made a bare reset): the full reset as the job makes it, closed, its end marked.
+  // (A minute apart from the last reset is what it asks for.) It marks the seed's end itself.
+  await seedingDemo(async () => { await db().from("workspaces").update({ created_at: "2026-01-01T00:00:00Z" }).eq("id", DEMO_WORKSPACE_ID).throwOnError(); });
+  await resetDemoWorkspace();
   await setOpen(false);
   vi.unstubAllEnvs();
   forgetStoredSettings();
-});
+}, 180_000);
 
 describe("a visit may write only where the demo is the only Workspace (D6)", () => {
   it("is refused by the database, with the Installation open, while another Workspace exists", async () => {
