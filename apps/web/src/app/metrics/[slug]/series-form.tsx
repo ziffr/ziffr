@@ -135,7 +135,7 @@ export function TargetsEditor({ metric, targets, projections, canEdit, yearStart
                       aria-label={`Period of row ${i + 1}`}
                       value={r.period}
                       onChange={(e) => { const v = e.target.value; setList((all) => all.map((x) => (x.key === r.key ? { ...x, period: v } : x))); }}
-                      className="h-8 w-44 rounded-[var(--radius-input)] border border-input bg-card px-2 text-sm"
+                      className="h-8 w-28 sm:w-44 rounded-[var(--radius-input)] border border-input bg-card px-2 text-sm"
                     >
                       {(choices.includes(r.period) || !r.period ? choices : [r.period, ...choices]).map((p) => <option key={p} value={p}>{periodLabel(p, metric.period, yearStart)}</option>)}
                     </select>
@@ -146,7 +146,7 @@ export function TargetsEditor({ metric, targets, projections, canEdit, yearStart
                       aria-label={`Period of row ${i + 1}`}
                       value={month ? r.period.slice(0, 7) : r.period}
                       onChange={(e) => { const v = e.target.value; setList((all) => all.map((x) => (x.key === r.key ? { ...x, period: v ? (month ? `${v}-01` : periodStart(parseISO(v), metric.period, yearStart)) : "" } : x))); }}
-                      className="h-8 w-44"
+                      className="h-8 w-28 sm:w-44"
                     />
                   )}
                 </td>
@@ -157,7 +157,7 @@ export function TargetsEditor({ metric, targets, projections, canEdit, yearStart
                     aria-invalid={bad && r.value !== "" ? true : undefined}
                     value={r.value}
                     onChange={(e) => { const v = e.target.value; setList((all) => all.map((x) => (x.key === r.key ? { ...x, value: v } : x))); }}
-                    className={cn("fig h-8 w-40 text-right", read(r.value) !== r.saved && !bad && "border-[var(--color-accent-2)]")}
+                    className={cn("fig h-8 w-32 text-right sm:w-40", read(r.value) !== r.saved && !bad && "border-[var(--color-accent-2)]")}
                   />
                 </td>
                 <td className="py-1.5 text-right">
