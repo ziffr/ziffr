@@ -3,14 +3,16 @@
 // a Member's step carries no Workspace-level action, a Guest, an Access Key and the demo get nothing, and a saved
 // preference is what ticks the step (from state, not from a flag).
 import { randomUUID } from "node:crypto";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
 import { Forbidden, type Actor } from "./actor";
 import { db } from "./db";
 import { DemoReadOnly } from "./demo";
 import { setupGuide } from "./setup-guide";
 import { DEMO_WORKSPACE_ID } from "./team";
 import { workspace } from "./test/db-fixtures";
-import { waysInAndOut, setMyPromptWays } from "./ways-in-and-out";
+import { CONNECT_FIRST, waysInAndOut, setMyPromptWays } from "./ways-in-and-out";
+import { setTelegramEnabled } from "./telegram-connection";
+import { fakeTelegram } from "./test/fake-telegram";
 
 const MAIL = { ZIFFR_SMTP_URL: process.env.TEST_SMTP_URL ?? "smtp://127.0.0.1:55425", ZIFFR_MAIL_FROM: "Ziffr <ziffr@example.test>", ZIFFR_SITE_URL: "https://ziffr.example.test" };
 const made: Awaited<ReturnType<typeof workspace>>[] = [];
@@ -117,5 +119,32 @@ describe("what each person sees of the step", () => {
     expect(s.cards.find((c) => c.way === "email")).toMatchObject({ status: "missing-here", canTest: false });
     expect(s.cards.find((c) => c.way === "email")!.line).toContain("This Ziffr has no mail server yet.");
     expect(JSON.stringify(s)).not.toMatch(/@example\.test|xoxb-|bot_token/);
+  });
+});
+
+describe("a way the person has not linked", () => {
+  let tg: Awaited<ReturnType<typeof fakeTelegram>>;
+  beforeAll(async () => { tg = await fakeTelegram(); });
+  afterAll(async () => { await tg.stop(); });
+
+  it("is refused in words and shown locked until they link it, then it can be chosen", async () => {
+    Object.assign(process.env, MAIL);
+    process.env.ZIFFR_SITE_URL = "https://ziffr.example.test";
+    const { w, owner, member } = await fresh();
+    await setTelegramEnabled(owner, true);
+    // Telegram works in this Workspace, but this Member has not connected theirs.
+    await expect(setMyPromptWays(member, ["telegram"])).rejects.toThrow(CONNECT_FIRST.telegram);
+    await expect(setMyPromptWays(member, ["email", "telegram"])).rejects.toThrow(CONNECT_FIRST.telegram);
+    expect(await prefs(w.id, member.personId)).toEqual([]);
+    const before = await waysInAndOut(member);
+    expect(before.askable).toEqual(["email"]);
+    expect(before.locked).toEqual(["telegram"]);
+    // Linking (the chat the one-time link would record) makes it available.
+    await db().from("telegram_links").insert({ workspace_id: w.id, person_id: member.personId, telegram_user_id: Date.now(), chat_id: Date.now() });
+    await setMyPromptWays(member, ["telegram", "email"]);
+    expect(await prefs(w.id, member.personId)).toEqual(["telegram", "email"]);
+    const after = await waysInAndOut(member);
+    expect(after.askable).toEqual(["email", "telegram"]);
+    expect(after.locked).toEqual([]);
   });
 });

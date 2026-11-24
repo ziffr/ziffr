@@ -9,7 +9,7 @@ vi.mock("sonner", () => ({ toast: { success() {}, error() {} } }));
 vi.mock("@/app/connector-actions", () => ({ sendTestMessage: async () => ({}), setTelegram: async () => ({}), slackLinkCode: async () => ({}), telegramLinkStart: async () => ({}) }));
 vi.mock("./ways-actions", () => ({ connectSlackFromGuide: async () => ({}), saveAskMeBy: async () => ({}) }));
 vi.mock("./actions", () => ({ skipStep: async () => ({}) }));
-import { askableWays, wayCards, type WaysInAndOut } from "@ziffr/core/ways-in-and-out";
+import { askableWays, lockedWays, wayCards, type WaysInAndOut } from "@ziffr/core/ways-in-and-out";
 import { WAYS, type Way, type WayState } from "@ziffr/core/what-works-here";
 import { WaysInAndOutStep } from "./ways";
 
@@ -21,13 +21,14 @@ const states = (f: Facts): WayState[] => [
   f.telegram === "no-bot" ? s("telegram", "simulated") : f.telegram === "on" ? s("telegram", "real") : s("telegram", "off"),
   ...WAYS.filter((w) => !["email", "email-replies", "slack", "telegram"].includes(w)).map((w) => s(w, "real")),
 ];
-type Over = { role?: "owner" | "member"; installationAdmin?: boolean; telegramLinked?: boolean; askedBy?: ("email" | "slack" | "telegram")[] };
+type Over = { role?: "owner" | "member"; installationAdmin?: boolean; telegramLinked?: boolean; slackLinked?: boolean; askedBy?: ("email" | "slack" | "telegram")[] };
 function data(f: Facts, over: Over = {}): WaysInAndOut {
   const ways = states(f);
   const role = over.role ?? "owner";
+  const reach = { email: true, slack: over.slackLinked ?? true, telegram: over.telegramLinked ?? false };
   return {
     cards: wayCards({ ways, role, installationAdmin: over.installationAdmin ?? false, slackLink: null, telegramLinked: over.telegramLinked ?? false }),
-    askedBy: over.askedBy ?? [], askable: askableWays(ways), manages: role === "owner",
+    askedBy: over.askedBy ?? [], askable: askableWays(ways, reach), locked: lockedWays(ways, reach), manages: role === "owner",
     more: role === "owner" ? [{ label: "A program", href: "/settings/keys", what: "Access Keys" }] : [],
   };
 }
@@ -118,5 +119,15 @@ describe("everything on", () => {
     const h = html(data(all));
     expect(buttons(h)).toEqual(expect.arrayContaining(["Skip", "Save and go on"]));
     expect(h.match(/aria-labelledby="way-/g)).toHaveLength(5);
+  });
+  it("keeps a way the person has not linked disabled, with what to do first, and enables it once linked", () => {
+    const f: Facts = { mail: "both", slack: "connected", telegram: "on" };
+    const locked = html(data(f));
+    expect(locked).not.toContain('<option value="telegram">Telegram</option>');
+    expect(locked).toContain('<option value="telegram" disabled="">Telegram: connect it first</option>');
+    expect(locked).toContain("Press Connect my Telegram above first");
+    const linked = html(data(f, { telegramLinked: true }));
+    expect(linked).not.toContain("connect it first");
+    expect(html(data(f, { telegramLinked: true, askedBy: ["email"] }))).toContain("Telegram</option>");
   });
 });

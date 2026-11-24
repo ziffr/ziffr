@@ -4,7 +4,7 @@
 // what each way must say. No database: the facts are the states `whatWorksHere` returns.
 import { describe, expect, it } from "vitest";
 import type { WorkspaceRoleName } from "./actor";
-import { askableWays, HOW_TO, INSTALLATION_PAGE, wayCards, type CardInput, type WayCard } from "./ways-in-and-out";
+import { askableWays, lockedWays, HOW_TO, INSTALLATION_PAGE, wayCards, type CardInput, type WayCard } from "./ways-in-and-out";
 import { WAYS, type Way, type WayState } from "./what-works-here";
 
 type Facts = { mail: "none" | "send" | "both"; slack: "no-app" | "not-connected" | "connected"; telegram: "no-bot" | "off" | "on" };
@@ -100,5 +100,14 @@ describe("which ways a person may be asked by", () => {
     expect(askableWays(states({ mail: "none", slack: "no-app", telegram: "no-bot" }))).toEqual([]);
     expect(askableWays(states({ mail: "send", slack: "not-connected", telegram: "off" }))).toEqual(["email"]);
     expect(askableWays(states({ mail: "both", slack: "connected", telegram: "on" }))).toEqual(["email", "slack", "telegram"]);
+  });
+
+  it("keeps a way that works here but is not linked to the person out of the choice, and says it is locked", () => {
+    const all = states({ mail: "both", slack: "connected", telegram: "on" });
+    expect(askableWays(all, { email: true, slack: false, telegram: true })).toEqual(["email", "telegram"]);
+    expect(lockedWays(all, { email: true, slack: false, telegram: false })).toEqual(["slack", "telegram"]);
+    expect(lockedWays(all, { email: true, slack: true, telegram: true })).toEqual([]);
+    // A way that does not work on this Ziffr at all is missing, not locked.
+    expect(lockedWays(states({ mail: "both", slack: "no-app", telegram: "off" }), { email: true, slack: false, telegram: false })).toEqual([]);
   });
 });

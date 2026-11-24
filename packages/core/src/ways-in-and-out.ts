@@ -10,6 +10,7 @@ import { Forbidden, type Actor, type WorkspaceRoleName } from "./actor";
 import { MAX_PROMPT_WAYS } from "./prompt-route";
 import { db } from "./db";
 import { refuseInDemo } from "./demo";
+import { reachOf } from "./prompt-reach";
 import { isInstallationAdmin } from "./installation-admins";
 import { setPreference } from "./questions";
 import { mySlackLink } from "./slack-people";
@@ -137,9 +138,21 @@ export function wayCards(i: CardInput): WayCard[] {
 }
 
 /** The ways the viewer may pick for their Prompts: those that really go out here (not kept in the Outbox). */
-export function askableWays(ways: readonly WayState[]): ("email" | "slack" | "telegram")[] {
-  return PICKABLE.filter((w) => ways.some((x) => x.way === w && x.state === "real"));
+export function askableWays(ways: readonly WayState[], reach: Reach = { email: true, slack: true, telegram: true }): ("email" | "slack" | "telegram")[] {
+  return PICKABLE.filter((w) => reach[w] && ways.some((x) => x.way === w && x.state === "real"));
 }
+
+/** Where the person can be reached now (the delivery code's own `reachOf`): a way not linked to them would leave a Prompt
+ * with no way to arrive, so it is not offered until they link it. */
+export type Reach = Record<(typeof PICKABLE)[number], boolean>;
+
+/** Ways that work on this Ziffr but that the person has not linked yet: shown disabled, with what to do first. */
+export function lockedWays(ways: readonly WayState[], reach: Reach): ("slack" | "telegram")[] {
+  return (["slack", "telegram"] as const).filter((w) => !reach[w] && ways.some((x) => x.way === w && x.state === "real"));
+}
+
+/** What to do first, in words, for a way the person has not linked. */
+export const CONNECT_FIRST = { slack: "Connect your Slack first: link your account on the Ways in and out step.", telegram: "Connect your Telegram first: press Connect my Telegram on the Ways in and out step." } as const;
 
 /** The links of More ways: Access Keys, assistants, Feeds (with the warehouse Feeds), Send values and, in a trial, the
  * guide's key for n8n. Links only, and only to pages the viewer may open. */
@@ -152,6 +165,8 @@ export type WaysInAndOut = {
   askedBy: ("email" | "slack" | "telegram")[];
   /** The ways the viewer may pick for it: those that work here. */
   askable: ("email" | "slack" | "telegram")[];
+  /** Ways that work here but are not linked to this person yet: not pickable until they are. */
+  locked: ("slack" | "telegram")[];
   more: MoreWay[];
   /** Whether the viewer sees the Workspace-level cards (Owners and Admins) or only their own ways (Members). */
   manages: boolean;
@@ -170,6 +185,7 @@ export async function waysInAndOut(actor: Actor): Promise<WaysInAndOut> {
     myTelegramLink(actor),
     db().from("delivery_preferences").select("connector").eq("workspace_id", actor.workspaceId).eq("user_id", actor.personId).eq("kind", "reminder").order("position"),
   ]);
+  const reach = await reachOf(actor.workspaceId, actor.personId, true);
   const cards = wayCards({ ways, role: actor.role, installationAdmin, slackLink, telegramLinked: Boolean(telegramLink) });
   const askedBy = (prefs.data ?? []).map((p) => String(p.connector)).filter((c): c is (typeof PICKABLE)[number] => (PICKABLE as readonly string[]).includes(c));
   const owner = manages(actor.role);
@@ -188,7 +204,7 @@ export async function waysInAndOut(actor: Actor): Promise<WaysInAndOut> {
   } else {
     more.push({ label: "Your own key", href: "/settings/keys", what: "An Access Key sends values as you, for the Metrics you submit to." });
   }
-  return { cards, askedBy, askable: askableWays(ways), more, manages: owner };
+  return { cards, askedBy, askable: askableWays(ways, reach), locked: lockedWays(ways, reach), more, manages: owner };
 }
 
 /** Saves the actor's own Delivery Preference for Prompts: up to three ways in order, each once, only ways that really work
@@ -204,5 +220,8 @@ export async function setMyPromptWays(actor: Actor, ways: unknown): Promise<void
   const here = await whatWorksHere(actor);
   // Only a way that really goes out here: a way kept in the Outbox would leave the person with no request at all.
   if (list.some((w) => here.find((x) => x.way === w)?.state !== "real")) throw new Error("Only a way that works on this Ziffr can be chosen.");
+  // A way real here but not linked to this person would leave their Prompts with nowhere to arrive.
+  const reach = await reachOf(actor.workspaceId, actor.personId, true);
+  for (const w of list as ("email" | "slack" | "telegram")[]) if (w !== "email" && !reach[w]) throw new Error(CONNECT_FIRST[w]);
   await setPreference(actor, actor.personId, "reminder", list.length ? (list as ("email" | "slack" | "telegram")[]) : null);
 }

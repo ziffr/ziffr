@@ -144,11 +144,13 @@ export function WaysInAndOutStep({ data, following, notice }: { data: WaysInAndO
                 <select value={picked[i] ?? ""} disabled={pending} onChange={(e) => slot(i, e.target.value)} className={`mt-1 ${SELECT}`}>
                   {i > 0 && <option value="">None</option>}
                   {options(i).map((w) => <option key={w} value={w}>{WAY_LABEL[w as keyof typeof WAY_LABEL]}</option>)}
+                  {data.locked.map((w) => <option key={w} value={w} disabled>{WAY_LABEL[w]}: connect it first</option>)}
                 </select>
               </label>
             ))}
           </div>
         )}
+        {data.locked.length > 0 && <p className="mt-2 text-sm text-muted-foreground">{data.locked.map((w) => w === "slack" ? "Link your Slack account" : "Press Connect my Telegram").join(" and ")} above first: until then it cannot be chosen, because requests would have nowhere to arrive.</p>}
         {data.manages && (
           <p className="mt-3 text-sm text-muted-foreground">
             Telling people later needs a Metric or a dashboard first: <Link href="/guide/your-settings" className="underline">Alerts</Link>, <Link href="/guide/workflows" className="underline">a Workflow&rsquo;s Tell step</Link>, and <Link href="/guide/dashboards" className="underline">Snapshots by email and View Links</Link>.
