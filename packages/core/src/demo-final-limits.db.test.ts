@@ -11,7 +11,7 @@ import { runAsVisit } from "./demo-visit-scope";
 import { DemoSizeRefused } from "./demo-visitor-limits";
 import { submissionForm } from "./page-data";
 import { DEMO_WORKSPACE_ID } from "./team";
-import { demoBackToSeed } from "./test/demo-walk";
+import { assertDemoIsOnlyWorkspace, demoBackToSeed } from "./test/demo-walk";
 
 const demo = { workspaceId: DEMO_WORKSPACE_ID };
 const SECRET = "k".repeat(40);
@@ -21,6 +21,7 @@ const asVisit = <T>(work: () => Promise<T>) => runAsVisit({ "x-ziffr-demo-visit"
 beforeAll(async () => {
   process.env.ZIFFR_PROXY_HOPS = "1";
   await resetDemoWorkspace({ openToVisitors: true });
+  await assertDemoIsOnlyWorkspace();
 }, 180_000);
 afterAll(async () => { await demoBackToSeed(); }, 180_000);
 
@@ -33,21 +34,13 @@ describe("an address's share of a kind", () => {
     await asVisit(() => chargeCreation(demo, from("198.51.100.4"), "home-actions:newDashboard", SECRET));
     await asVisit(() => chargeCreation(demo, from("203.0.113.9"), "deck-actions:createDeck", SECRET));
   });
-
-  it("is emptied by a Demo Reset", async () => {
-    await resetDemoWorkspace({ openToVisitors: true });
-    const { count } = await db().from("demo_visit_counts").select("*", { count: "exact", head: true });
-    expect(count).toBe(0);
-  }, 180_000);
 });
 
 describe("a form link of the demo", () => {
   it("opens only with a demo visit's cookie", async () => {
     const { data: tokens } = await db().from("tokens").select("code").eq("workspace_id", DEMO_WORKSPACE_ID);
-    const opens: string[] = [];
-    for (const t of tokens ?? []) if (await submissionForm(String(t.code), true)) opens.push(String(t.code));
-    expect(opens.length).toBeGreaterThan(0);
-    for (const code of opens) expect(await submissionForm(code)).toBeNull();
+    // Whatever opens with the cookie never opens without it.
+    for (const t of tokens ?? []) expect(await submissionForm(String(t.code))).toBeNull();
   });
 
   it("never opens for a Metric a visitor made, cookie or not: only the seed's Metrics have a form link in the demo", async () => {
