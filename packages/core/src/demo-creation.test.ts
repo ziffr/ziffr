@@ -7,7 +7,7 @@ const rpc = vi.hoisted(() => vi.fn());
 vi.mock("./db", () => ({ db: () => ({ rpc }) }));
 
 import { demoClassOf, demoOperations } from "./demo-changes";
-import { chargeCreation, mayRecordAutoVersion } from "./demo-creation";
+import { chargeCreation, chargeMoreCreations, mayRecordAutoVersion } from "./demo-creation";
 import { DEMO_CREATES, DEMO_CREATION_EXEMPT, DEMO_ROW_CAPS, demoCreationShare } from "./demo-limits";
 import { runAsVisit } from "./demo-visit-scope";
 import { DemoSizeRefused } from "./demo-visitor-limits";
@@ -107,6 +107,28 @@ describe("chargeCreation", () => {
   it("says in the words of a kind what is used, and the general ones for an unknown kind", () => {
     expect(demoShareWords("versions")).toMatch(/Versions/);
     expect(demoShareWords("unknown")).toMatch(/Try again/);
+  });
+});
+
+describe("an action that makes many rows in one call", () => {
+  it("counts the rows beyond the first by the real number, before the work, and refuses a list past the share", async () => {
+    await visit(() => chargeMoreCreations(demo, who, "tag-actions:addTags", 4, SECRET));
+    expect(bumps().map((b) => b.p_by)).toEqual([3, 3]);
+    // One row (already counted by chargeCreation) and an unmapped action cost nothing more.
+    await visit(() => chargeMoreCreations(demo, who, "tag-actions:addTags", 1, SECRET));
+    await visit(() => chargeMoreCreations(demo, who, "canvas-actions:updateWidget", 50, SECRET));
+    expect(bumps().length).toBe(2);
+    // A list larger than the address's share (5 Tags, 125 rows of a Target Series) is refused.
+    counts.push(demoCreationShare(DEMO_ROW_CAPS.tags).address + 1);
+    await expect(visit(() => chargeMoreCreations(demo, who, "tag-actions:addTags", 20, SECRET))).rejects.toThrow(DemoSizeRefused);
+    counts.push(demoCreationShare(DEMO_ROW_CAPS.series_rows).address + 1);
+    await expect(visit(() => chargeMoreCreations(demo, who, "series-actions:saveSeriesRows", 126, SECRET))).rejects.toThrow(DemoSizeRefused);
+  });
+
+  it("is asked by every action that takes a list of what it makes (a scan of the two web actions)", () => {
+    for (const [file, op] of [["tag-actions.ts", "tag-actions:addTags"], ["series-actions.ts", "series-actions:saveSeriesRows"]]) {
+      expect(readFileSync(new URL(`../../../apps/web/src/app/${file}`, import.meta.url), "utf8"), file).toContain(`chargeMoreCreations(actor, who, "${op}"`);
+    }
   });
 });
 

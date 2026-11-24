@@ -12,8 +12,8 @@ import { visitWho } from "./demo-visit-scope";
 import { demoShareWords } from "./demo-words";
 
 /** Counts one row of `kind` against the address's and network's share of its cap, refusing in plain words past it. */
-async function chargeKind(actor: Pick<Actor, "workspaceId">, who: DemoRequester | null, kind: keyof typeof DEMO_ROW_CAPS, secret?: string, demo?: number): Promise<void> {
-  await chargeShares(actor, who, `create-${kind}`, 1, { ...demoCreationShare(DEMO_ROW_CAPS[kind]), demo }, demoShareWords(kind), secret);
+async function chargeKind(actor: Pick<Actor, "workspaceId">, who: DemoRequester | null, kind: keyof typeof DEMO_ROW_CAPS, secret?: string, demo?: number, by = 1): Promise<void> {
+  await chargeShares(actor, who, `create-${kind}`, by, { ...demoCreationShare(DEMO_ROW_CAPS[kind]), demo }, demoShareWords(kind), secret);
 }
 
 /** Counts one creation of the kind `operation` makes (`DEMO_CREATES`) against the visitor's address and network, before the write;
@@ -21,6 +21,14 @@ async function chargeKind(actor: Pick<Actor, "workspaceId">, who: DemoRequester 
 export async function chargeCreation(actor: Pick<Actor, "workspaceId">, who: DemoRequester | null, operation: string, secret?: string): Promise<void> {
   const kind = DEMO_CREATES[operation];
   if (kind) await chargeKind(actor, who, kind, secret);
+}
+
+/** For an action that may make many rows in one call (Tags from a list, rows of a Target Series): counts the rows beyond the one
+ * `chargeCreation` already counted, from the input and before the work writes, so a long list cannot slip under the share. */
+export async function chargeMoreCreations(actor: Pick<Actor, "workspaceId">, who: DemoRequester | null, operation: string, rows: number, secret?: string): Promise<void> {
+  const kind = DEMO_CREATES[operation];
+  const more = Math.min(100_000, Math.floor(rows)) - 1;
+  if (kind && more > 0) await chargeKind(actor, who, kind, secret, undefined, more);
 }
 
 /** Whether an automatic Version (or a baseline) may be written now: false past this address's or network's share of the Versions'

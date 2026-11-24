@@ -49,4 +49,11 @@ describe("a form link of the demo", () => {
     expect(opens.length).toBeGreaterThan(0);
     for (const code of opens) expect(await submissionForm(code)).toBeNull();
   });
+
+  it("never opens for a Metric a visitor made, cookie or not: only the seed's Metrics have a form link in the demo", async () => {
+    const { data: seeded } = await db().from("demo_seeded_rows").select("row_key").eq("table_name", "metrics");
+    const seededIds = new Set((seeded ?? []).map((r) => String(r.row_key)));
+    const { data: tokens } = await db().from("tokens").select("code, metric_id").eq("workspace_id", DEMO_WORKSPACE_ID);
+    for (const t of tokens ?? []) if (!seededIds.has(String(t.metric_id))) expect(await submissionForm(String(t.code), true)).toBeNull();
+  });
 });
