@@ -41,6 +41,9 @@ describe("the band of a forecast chart", () => {
     const best = bestForecast(points, "month", SEASON_LENGTH.month)!;
     const band = withTakeawayBand(best.points);
     expect(band.map((p) => [p.period, p.value, p.sd])).toEqual(best.points.map((p) => [p.period, p.value, p.sd]));
-    for (const p of band) expect(p.lo).toBeLessThan(p.value), expect(p.hi).toBeGreaterThan(p.value);
+    for (const p of band) {
+      expect(p.lo).toBeLessThan(p.value);
+      expect(p.hi).toBeGreaterThan(p.value);
+    }
   });
 });
