@@ -137,9 +137,10 @@ export async function setMetricFormula(actor: Actor, metricId: number, formula: 
   assertCan(actor, "create");
   const m = await editableMetric(actor, metricId, "its formula");
   if (!m.formula) throw new Refused("Only a Derived Metric has a formula.");
-  const next = await checkedFormula(actor, m, formula);
-  // In the demo only a calculated Metric that nothing uses changes its formula: otherwise what others see through it would change (spec 0051, ticket 11).
+  // In the demo only a calculated Metric that nothing uses changes its formula: otherwise what others see through it would change (spec 0051,
+  // ticket 11). Asked first, so a refused change says the demo's own reason.
   await visitorMetricUnused(actor, m.id, m.slug);
+  const next = await checkedFormula(actor, m, formula);
   const { error } = await db().from("metrics").update({ formula: next, inputs_checked: true }).eq("id", m.id).eq("workspace_id", actor.workspaceId);
   if (error) throw new Error("The formula could not be saved.");
   await recordVersion("metric", m.id, actor.personId, { message: "Changed its formula" });

@@ -243,7 +243,7 @@ describe("Shares, access requests and Groups among the made-up people", () => {
     const all = await getMetrics(DEMO_WORKSPACE_ID);
     const sees = await visibleMetricIds(DEMO_WORKSPACE_ID, guest, all);
     const hidden = all.find((m) => !sees.has(m.id) && m.owner_id === "sara" && !m.formula && m.aggregation !== "none" && !m.archived_at)!;
-    const seen = all.find((m) => sees.has(m.id) && m.owner_id === "sara" && !m.formula && m.aggregation !== "none" && !m.archived_at)!;
+    const seen = all.find((m) => sees.has(m.id) && m.owner_id === "sara" && !m.formula && m.aggregation !== "none" && !m.archived_at && m.period === hidden.period)!;
     const dashboards = await import("./dashboards");
     const { saveNamedVersion, restoreVersion } = await import("./version-history");
     const { setMetricFormula } = await import("./derived-metrics");
