@@ -193,9 +193,10 @@ export async function waysInAndOut(actor: Actor): Promise<WaysInAndOut> {
   if (owner) {
     more.push(
       { label: "A program", href: "/settings/keys", what: "Access Keys: a script or a system sends values with its own key." },
-      { label: "An assistant", href: "/settings/assistants", what: "Claude and other assistants record and read numbers." },
+      { label: "Connect Claude or another assistant", href: "/settings/assistants", what: "The connector address and the steps, so an assistant records and reads numbers." },
       { label: "A Feed", href: "/settings/feeds", what: "Feeds and Feed Keys, including warehouse Feeds and the n8n templates." },
       { label: "Send values", href: "/connectors/send", what: "A command to copy for one of your Metrics, and n8n." },
+      { label: "Send numbers on to other systems (Webhooks)", href: "/settings/webhooks", what: "Ziffr tells your own tool when something happens; the page says what a trial may add." },
     );
     // In a trial the Feed Key for n8n stays one of the more ways (the trial's Owner has it; spec 0052).
     if (actor.role === "owner" && (await trialEndsAt(actor.workspaceId)) && (await trialFeedKey(actor).catch(() => null))) {
