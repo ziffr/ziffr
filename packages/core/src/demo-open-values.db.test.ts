@@ -5,7 +5,7 @@
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import { db, seedingDemo } from "./db";
 import { DemoLimit, DemoReadOnly, DemoShowcase, DemoStale } from "./demo";
-import { markDemoSeedDone, resetDemoWorkspace } from "./demo-reset";
+import { markDemoSeedDone, readDemoState, resetDemoWorkspace } from "./demo-reset";
 import { checkDemoBudget, DemoBudgetUsed, takeDemoWorkflowRun } from "./demo-budget";
 import { DEMO_WRITE_BUDGET } from "./demo-limits";
 import { clearDemoVisitCounts } from "./demo-visit";
@@ -35,7 +35,7 @@ beforeAll(async () => {
   // A fresh seed, as the reset job makes it: the showcase filled, the seed marked done, the Installation open.
   expect((await db().rpc("demo_reset", { min_gap: "0 seconds" })).error).toBeNull();
   expect((await db().rpc("prototype_seed_showcase")).error).toBeNull();
-  await markDemoSeedDone();
+  await markDemoSeedDone(Number((await readDemoState())?.generation));
   await setOpen(true);
   generation = Number((await db().from("demo_state").select("generation").eq("id", true).single()).data?.generation);
   ids = await demoWalkIds();

@@ -9,6 +9,10 @@ export type DemoState = {
   changedSinceReset: boolean;
   lastChangeAt: Date | null;
   resetAt: Date | null;
+  /** Whether the showcase was seeded for this Generation (the database clears it at every reset and the showcase step sets it). */
+  showcaseReady: boolean;
+  /** When the core said this Generation's seed was finished; null until then. */
+  seedDoneAt: Date | null;
 };
 
 /** Whether visitors may change the demo, from the settings in effect (settings-in-effect.ts): `ZIFFR_DEMO_CHANGES=1`, in
@@ -26,6 +30,8 @@ export function shouldResetDemo(input: { changesInEffect: boolean; state: DemoSt
   if (!changesInEffect) return true;
   if (!state || !state.resetAt) return true;
   if (state.changedSinceReset) return true;
+  // A seed that did not finish (the state after a failed step): nothing could be changed by a visitor, so it looks clean and young, yet every visit is refused. Seed it again at once.
+  if (!state.showcaseReady || !state.seedDoneAt) return true;
   const young = now.getTime() - state.resetAt.getTime() < 24 * 3_600_000 && sameUtcDay(state.resetAt, now);
   return !young;
 }
