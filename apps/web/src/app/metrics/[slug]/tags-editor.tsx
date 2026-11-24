@@ -60,7 +60,7 @@ export function TagsEditor({ metricId, tags, suggestions, guest }: { metricId: n
         <input
           id={`tag-input-${metricId}`} value={text} onChange={(e) => setText(e.target.value)} list={`tag-offers-${metricId}`} maxLength={200} disabled={full}
           placeholder={full ? `At most ${TAGS_PER_METRIC} Tags` : guest ? "Pick one of the Tags you can see" : "Type a word, then Enter"}
-          className="h-8 w-56 rounded-[var(--radius-input)] border border-input bg-card px-2.5 text-sm"
+          className="h-8 w-32 sm:w-56 rounded-[var(--radius-input)] border border-input bg-card px-2.5 text-sm"
         />
         <datalist id={`tag-offers-${metricId}`}>{offered.map((s) => <option key={s} value={s} />)}</datalist>
         <Button type="submit" size="sm" variant="outline" disabled={pending || !text.trim() || full}>Add</Button>
