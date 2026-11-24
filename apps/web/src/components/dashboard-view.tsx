@@ -1,12 +1,11 @@
 import { currentActor, viewerId } from "@/lib/viewer";
-import { closedDashboardOwner, dashboardWidgets, hasVisibleValue, savedWidgets } from "@ziffr/core/page-data";
+import { closedDashboardOwner, dashboardWidgets, savedWidgets } from "@ziffr/core/page-data";
 import { getCanvasData, getRawShares, revealedBy } from "@/lib/access";
 import { homeDashboard, switchableDashboards } from "@ziffr/core/home";
 import { widgetMetricIds } from "@ziffr/core/widget-metrics";
 import { pinnedDashboards } from "@ziffr/core/pinned-dashboards";
 import { DashboardScreen } from "@/app/dashboards/screen";
 import { can } from "@ziffr/core/actor";
-import { workspaceClock } from "@ziffr/core/workspace-clock";
 import { isDemo } from "@/lib/auth";
 import { listDashboardTemplates } from "@ziffr/core/dashboard-templates";
 import { listSnapshots } from "@ziffr/core/snapshots";
@@ -42,10 +41,6 @@ export async function DashboardView({ id, view }: { id?: number; view?: string }
     else await followDemoSuccessor("dashboard", id, view === "read" ? "?view=read" : "");
   }
   const demo = await isDemo();
-  // A workspace without dashboards gets the first-run checklist; what it may show depends on the role.
-  const firstRun = !dashboards.length && !closed && !demo
-    ? { canCreate: can(actor, "create"), canManage: can(actor, "manage-members"), clockSet: can(actor, "manage-members") ? (await workspaceClock(actor)).timeZone !== "UTC" : true, hasValue: await hasVisibleValue(actor) }
-    : null;
   // Only the owner's Share dialog uses Shares, and only this dashboard's: nobody else gets the workspace's list.
   const own = current?.role === "owner" ? shares.filter((s) => s.object_type === "dashboard" && s.object_id === current.id) : [];
   // Only someone who may create starts a dashboard, so only they get the templates.
@@ -53,6 +48,6 @@ export async function DashboardView({ id, view }: { id?: number; view?: string }
   return <>
     {/* Home is the visit's own where visitors may change the demo (demo-visit-prefs.tsx): go to it when it is not the one drawn. */}
     {demo && !id && <DemoHomeRedirect shownId={current?.id ?? null} />}
-    <DashboardScreen data={data} dashboards={dashboards} current={current} widgets={ws} saved={saved} shares={own} reveals={reveals} closed={closed} firstRun={firstRun} homeId={home?.id ?? null} pinned={current ? (await pinnedDashboards(actor)).some((d) => d.id === current.id) : false} demo={demo} canCreate={can(actor, "create")} canInvite={can(actor, "manage-members")} dashboardTemplates={dashboardTemplates} reading={view === "read"} snapshots={snapshots} />
+    <DashboardScreen data={data} dashboards={dashboards} current={current} widgets={ws} saved={saved} shares={own} reveals={reveals} closed={closed} homeId={home?.id ?? null} pinned={current ? (await pinnedDashboards(actor)).some((d) => d.id === current.id) : false} demo={demo} canCreate={can(actor, "create")} canInvite={can(actor, "manage-members")} dashboardTemplates={dashboardTemplates} reading={view === "read"} snapshots={snapshots} />
   </>;
 }

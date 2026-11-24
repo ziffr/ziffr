@@ -182,6 +182,27 @@ async function setPerson(actor: Actor, change: { first_seen_at?: string; hidden_
   if (error) throw new Error("The Setup Guide could not be saved.");
 }
 
+/** What the layout draws for the actor: whether the guide applies to them at all (the menus offer to reopen it), and, when
+ * the Setup line is to be drawn, how far they are and what is next. Cheap when the line is not shown (no row, finished or
+ * hidden): the steps are only worked out when the line needs them. Never throws for a Guest or the demo: it says no. */
+export type SetupLine = { applies: boolean; shown: boolean; done: number; total: number; next: SetupStepId | null };
+
+/** The Setup line's facts for the actor (see SetupLine). */
+export async function setupLine(actor: Actor): Promise<SetupLine> {
+  const none = { applies: false, shown: false, done: 0, total: 0, next: null };
+  if (!hasGuide(actor)) return none;
+  const quiet = { ...none, applies: true };
+  const [{ data: g }, { data: p }] = await Promise.all([
+    db().from("setup_guides").select("finished_at").eq("workspace_id", actor.workspaceId).maybeSingle(),
+    db().from("setup_guide_people").select("hidden_at").eq("workspace_id", actor.workspaceId).eq("person_id", actor.personId).maybeSingle(),
+  ]);
+  if (!g || g.finished_at || p?.hidden_at) return quiet;
+  const guide = await setupGuide(actor);
+  if (!guide || !guide.lineShown) return quiet;
+  // Done is ticked or skipped, so the count and "next" agree.
+  return { applies: true, shown: true, done: guide.steps.filter((x) => x.done).length, total: guide.total, next: guide.next };
+}
+
 /** Whether the actor's home should lead to the guide by itself: the Workspace has a guide row, the actor is an Owner,
  * Admin or Member outside the demo, and they have not opened it yet. Never throws; false for everyone else. */
 export async function setupGuidePending(actor: Actor): Promise<boolean> {

@@ -31,7 +31,6 @@ import { ObjectToolbar } from "@/components/object-toolbar";
 import { ThemeScope } from "@/components/theme-scope";
 import { setDashboardTheme } from "@/app/theme-actions";
 import { themeFor } from "@ziffr/core/themes";
-import { FirstRun } from "@/components/first-run";
 import { DashboardSwitcher } from "@/components/dashboard-switcher";
 import { usePin } from "@/components/pinned-dashboards";
 import { useDemoPrefs } from "@/components/demo-visit-prefs";
@@ -68,8 +67,6 @@ type Props = {
   canCreate: boolean;
   /** May invite people (Owners and Admins): the Share panel then offers to invite someone. */
   canInvite?: boolean;
-  /** Set when the workspace has no dashboards yet: what the viewer may do about it (outside the demo). */
-  firstRun?: { canCreate: boolean; canManage: boolean; clockSet: boolean; hasValue: boolean } | null;
   /** Shows the Read view (spec 0013): the introduction, then the widgets top to bottom. Else the grid. */
   reading?: boolean;
   /** The current dashboard's Snapshots the viewer may open (spec 0013). */
@@ -97,7 +94,7 @@ export function DashboardScreen(props: Props) {
   return <SeriesProvider ensure={ensure}><DashboardCanvas {...props} data={data} /></SeriesProvider>;
 }
 
-function DashboardCanvas({ data, dashboards, current, widgets, saved, shares, reveals, closed, firstRun, homeId, pinned, demo = false, canCreate, canInvite, dashboardTemplates, reading = false, snapshots = [] }: Props) {
+function DashboardCanvas({ data, dashboards, current, widgets, saved, shares, reveals, closed, homeId, pinned, demo = false, canCreate, canInvite, dashboardTemplates, reading = false, snapshots = [] }: Props) {
   const router = useRouter();
   const [, start] = useTransition();
   // A refusal says why in a toast; anything unforeseen says only that it went wrong (lib/action-error.ts).
@@ -175,14 +172,6 @@ function DashboardCanvas({ data, dashboards, current, widgets, saved, shares, re
             <p className="font-medium">This dashboard isn&rsquo;t shared with you</p>
             <RequestAccess type="dashboard" id={closed.id} owner={closed.owner} />
           </div>
-        ) : !current && firstRun?.canCreate ? (
-          <FirstRun steps={[
-            { title: "Describe a metric", body: "Pick one from the catalog, such as revenue or customer satisfaction, and say who submits it.", done: data.metrics.length > 0, href: "/metrics/new" },
-            { title: "Add its first value", body: "Submit it yourself on the metric’s form link, or wait for the first answer.", done: firstRun.hasValue, href: "/metrics" },
-            ...(firstRun.canManage ? [{ title: "Invite a teammate", body: "They see what you share with them, and can submit values and answer questions.", done: data.people.filter((p) => !p.contact).length > 1, href: "/team" }] : []),
-            { title: "Build a dashboard", body: "Drag metrics from the Pool onto it and share it with the team.", done: false, action: <Button size="sm" onClick={newDashboard}>Create dashboard</Button> },
-            ...(firstRun.canManage ? [{ title: "Set the workspace time", body: "The time zone and hour when Ziffr asks for values and sends reminders each day.", done: firstRun.clockSet, href: "/settings/workspace" }] : []),
-          ]} />
         ) : !current ? (
           <div className="desk rounded-[var(--radius-card)] p-12 text-center">
             <LayoutDashboard className="mx-auto mb-3 size-8 text-muted-foreground" />
