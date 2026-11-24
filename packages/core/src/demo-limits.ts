@@ -31,6 +31,12 @@ export const DEMO_WRITE_BUDGET = {
   perVisitPerMinute: 30,
   perVisitPerWindow: 200,
   perAddressPerWindow: 200,
+  /** Values (a paste counts each) one address may write in a window: a quarter of the 2,000-value cap, so no address fills it for everyone. */
+  perAddressValuesPerWindow: 500,
+  /** Ask me now claims one address may make in a window. */
+  perAddressAskNowPerWindow: 10,
+  /** Minutes one address waits between two Workflow runs, so one script cannot hold the demo's one run a minute. */
+  workflowSlotMinutes: 5,
   perNetworkPerWindow: 400,
   demoPerWindow: 3000,
 } as const;
@@ -57,3 +63,9 @@ export const DEMO_DECK_STORE_MAX_BYTES = 512 * 1024;
 export function demoDeckStoreOk(store: string): boolean {
   return new TextEncoder().encode(store).length <= DEMO_DECK_STORE_MAX_BYTES;
 }
+
+/** What a visitor may enter as values and dates (spec 0051, Limits: Values; ticket 8): values for periods from this many months
+ * back up to the current one, never ahead; at most this many values (and lines of text) in one paste; Away of at most this many
+ * days, starting no earlier than today and ending within the days ahead; and "pretend it is another day" no further from today
+ * than this many days. */
+export const DEMO_VALUE_LIMITS = { monthsBack: 24, pasteRows: 100, pasteLines: 400, awayMaxDays: 30, awayAheadDays: 90, asOfDays: 90 } as const;

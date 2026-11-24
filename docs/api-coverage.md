@@ -377,6 +377,10 @@ Plumbing the core's other operations use, jobs the schedule runs, and the demo.
 - `applyRetentionToExisting` (retention-setting.ts): Apply to existing Metrics, Owners only, on the Workspace settings page (spec 0033)
 - `simulateMessage` (demo-channels.ts): the demo's pretend channels
 - `simulatePromptAnswer` (demo-channels.ts): the demo's pretend channels
+- `recordSimulatedMessage` (demo-channels.ts): the demo's pretend channels, recording the answer where visitors may change the demo
+- `recordSimulatedReply` (demo-channels.ts): the demo's pretend channels, recording the answer where visitors may change the demo
+- `recordSimulatedTicketClose` (demo-channels.ts): the demo's pretend channels, recording the answer where visitors may change the demo
+- `recordSimulatedPromptAnswer` (demo-channels.ts): the demo's pretend channels, recording the answer where visitors may change the demo
 - `demoSuccessor` (demo-successor.ts): the demo's pages follow a reset; the demo has no API
 - `sendDueReminders` (questions.ts): what the schedule runs; the button asks for it now
 - `askForMissingValues` (questions.ts): what the schedule runs; the button asks for it now

@@ -1,11 +1,13 @@
 "use client";
 // The demo's pretend Slack channel and inbox (GLOSSARY: Demo Mode, Source): a message sent here goes through the same
 // checks as a real one, and the answer says what would have happened. The demo can't be changed (#271), so nothing is
-// saved: what was tried stays on this screen only, marked so, until the page is left.
+// saved: what was tried stays on this screen only, marked so, until the page is left. Where visitors may change the demo
+// (spec 0051) the message is recorded instead, as a real one is, and shows in the log with the others.
 import { useState, useTransition } from "react";
 import { toast } from "sonner";
 import { AtSign, Bot, Hash, Mail, Reply, Send } from "lucide-react";
-import { simulateMessage } from "@/app/actions";
+import { recordSimulatedMessage, simulateMessage } from "@/app/actions";
+import { isActionError } from "@/lib/action-error";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import type { IntakeEntry, Profile, Prompt, SourceId } from "@ziffr/core/types";
@@ -19,12 +21,14 @@ type Props = {
   profiles: Profile[];
   viewer: string;
   metricNames: Record<number, string>;
+  /** Visitors may change the demo: a message is recorded, not only tried. */
+  changes?: boolean;
 };
 
 /** A message tried in this visit, with what it would have done; kept in the browser only. */
 type Tried = { id: number; at: string; sender: string; raw: string; outcome: string; detail: string };
 
-export function Simulator({ source, prompts, log, profiles, viewer, metricNames }: Props) {
+export function Simulator({ source, prompts, log, profiles, viewer, metricNames, changes = false }: Props) {
   const ident = (p: Profile) => (source === "slack" ? p.slack_handle : p.email);
   const stranger = source === "slack" ? "@max.stranger" : "max@unknown.example";
   const me = profiles.find((p) => p.id === viewer);
@@ -44,8 +48,15 @@ export function Simulator({ source, prompts, log, profiles, viewer, metricNames 
 
   const send = () =>
     start(async () => {
-      const r = await simulateMessage({ source, sender, text, promptId: replyTo?.id });
-      setTried((list) => [...list, { id: list.length, at: new Date().toISOString(), sender, raw: text, outcome: r.outcome, detail: r.detail }]);
+      if (changes) {
+        // Recorded: it comes back with the page's log. A refusal (the text rules, a limit) stays in the box, with its words.
+        const r = await recordSimulatedMessage({ source, sender, text, promptId: replyTo?.id });
+        if (isActionError(r)) { toast.error("Not recorded", { description: r.error }); return; }
+        toast.info(r.ok ? "Recorded in the demo" : "Not recorded", { description: r.detail });
+      } else {
+        const r = await simulateMessage({ source, sender, text, promptId: replyTo?.id });
+        setTried((list) => [...list, { id: list.length, at: new Date().toISOString(), sender, raw: text, outcome: r.outcome, detail: r.detail }]);
+      }
       setText("");
       setReplyTo(null);
     });

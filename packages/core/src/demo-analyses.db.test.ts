@@ -9,6 +9,7 @@ import { listPicker, runPicker } from "./analysis-picker";
 import { BUILT_IN_RECIPES, RECIPES } from "./built-in-recipes";
 import { correlate, rankCorrelations } from "./correlation";
 import { db, seedingDemo } from "./db";
+import { markDemoSeedDone } from "./demo-reset";
 import { latestOfEach } from "./display-periods";
 import { yearStartOf } from "./fiscal-year";
 import { breakdownTreeFromData } from "./breakdown-tree";
@@ -41,6 +42,8 @@ afterAll(async () => {
   for (const fn of ["demo_reset", "prototype_seed_history", "prototype_seed_pins", "prototype_seed_close", "prototype_seed_fill_in", "prototype_seed_showcase"]) {
     expect((await db().rpc(fn, fn === "demo_reset" ? { min_gap: "0 seconds" } : {})).error, fn).toBeNull();
   }
+  // The seed is done (spec 0051): the next file, which finds the demo reset a moment ago, would find visitors' row caps refused as "starting fresh" otherwise.
+  await markDemoSeedDone();
 }, 120_000);
 
 // Each picker entry with the canvas chosen to suit it: the Metrics on the canvas, in the Slots, the settings, and what it shows (`says`, a part of the sentence).
