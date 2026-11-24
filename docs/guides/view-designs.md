@@ -6,9 +6,9 @@ The exact format is the JSON Schema in [`docs/reference/view-design.schema.json`
 
 ## Start from something that works
 
-- **Export a built-in View.** On **Analyze → View Designs**, every built-in View has **Export**. You get two files: `line-chart.view.json`, the design, and `line-chart.sample.json`, Sample Data that fits its Slots. Neither holds any of your Workspace's values.
+- **Export a built-in View.** On **Workspace → Library**, every built-in View has **Export**. You get two files: `line-chart.view.json`, the design, and `line-chart.sample.json`, Sample Data that fits its Slots. Neither holds any of your Workspace's values.
 - **Duplicate a widget.** A widget's **⋯** menu has **Save as…** → **View Design**, and **Download View Design file** for the design as it is. You get the same files, with the widget's settings (how many periods, target band, forecast) as the design's defaults.
-- **Use the Playground.** **Analyze → Playground** shows the file and its drawing side by side. **Start from** loads any built-in View, or an Analysis Recipe inside a design that draws it. Its editor offers the fields and values the format allows at the cursor (Ctrl+Space asks for them) and shows what a field means when you point at it, all read from the schema below. Both **Analyze → View Designs** and the Playground link to this guide.
+- **Use the Playground.** the Playground in **Workspace → Library** shows the file and its drawing side by side. **Start from** loads any built-in View, or an Analysis Recipe inside a design that draws it. Its editor offers the fields and values the format allows at the cursor (Ctrl+Space asks for them) and shows what a field means when you point at it, all read from the schema below. Both **Workspace → Library** and the Playground link to this guide.
 
 ## Help in your own editor
 
@@ -24,7 +24,7 @@ Editors such as VS Code read it and give completion, hover help and warnings on 
 
 ## The built-in Views as designs
 
-Every built-in View below is itself a View Design, so you can export it from **Analyze → View Designs** and change it. A test fails when a built-in design is missing from this table. "Needs" is what the data must hold; when it does not, the Metric is not offered for the View, or the widget says so in words.
+Every built-in View below is itself a View Design, so you can export it from **Workspace → Library** and change it. A test fails when a built-in design is missing from this table. "Needs" is what the data must hold; when it does not, the Metric is not offered for the View, or the widget says so in words.
 
 | View | Made of | Needs |
 | --- | --- | --- |
@@ -147,6 +147,6 @@ Ziffr runs the same checks in the Playground as you type and on the server whene
 
 ## Bringing it back
 
-Owners and Admins add a design on **Analyze → View Designs** (paste or upload) or from the Playground. Everyone in the Workspace then finds it in the Pool under **The Workspace's View Designs**. A widget keeps its own copy of the design, so removing the design from the Workspace changes no widget already placed.
+Owners and Admins add a design on **Workspace → Library** (paste or upload) or from the Playground. Everyone in the Workspace then finds it in the Pool under **The Workspace's View Designs**. A widget keeps its own copy of the design, so removing the design from the Workspace changes no widget already placed.
 
 In PowerPoint, a design whose only drawn mark (besides the target and the forecast) is the values as a line or bars becomes an editable chart; rows of values become a table; the latest value with its period and status becomes text; anything else becomes a picture.

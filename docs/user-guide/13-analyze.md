@@ -1,5 +1,5 @@
 <!-- part: Screen by screen -->
-<!-- screens: apps/web/src/app/analyze/** -->
+<!-- screens: apps/web/src/app/analyze/**, apps/web/src/app/settings/library/** -->
 # Analyze
 
 **Analyze** in the sidebar opens the **Analysis Canvas**: a place to put a few Metrics side by side and ask simple questions of them. Where is this heading? Do these two move together? What moves Cost? You choose a **method** by what you want to know, and its result can go onto a dashboard.
@@ -121,28 +121,30 @@ Place it on a dashboard from the **Analyses** group of the Pool. A grid with eve
 
 ## View Designs
 
-**View Designs** at the top right of Analyze opens the list of designs. A **View Design** is a View written as a file: which Metrics it takes, what it draws and in which Theme colours. It holds no code. Ziffr checks the file and draws it with its own renderer, and every number in it is one Ziffr computes.
+**Workspace → Library** (Settings) is where View Designs, Analysis Recipes and the Playground are kept. They are for people who build things, so they are not on the Analyze screen. The old addresses (`/analyze/designs` and `/analyze/playground`) lead on to the Library. The **View Designs** part of the Library lists the designs. A **View Design** is a View written as a file: which Metrics it takes, what it draws and in which Theme colours. It holds no code. Ziffr checks the file and draws it with its own renderer, and every number in it is one Ziffr computes.
 
 - **The Workspace's View Designs**: the designs Owners and Admins added. Everyone in the Workspace finds them in the Pool, under **The Workspace's View Designs**, and places them like a built-in View.
 - **Built-in View Designs**: every built-in View and Analysis, drawn with Sample Data.
 - **Export** downloads the design's file and a Sample Data file that fits it. Neither holds any of your Workspace's values. The file starts with a `$schema` line, so an editor such as VS Code gives you completion and help on every field.
-- **How to write a View Design** at the top right opens the guide in a new tab: every field, with examples.
+- **How to write a View Design** at the top right of the Library opens the guide in a new tab: every field, with examples.
 
 Owners and Admins see **Add a View Design**: paste the file or upload it. Ziffr checks it as you paste and names every mistake with its line, such as "Line 12: parts[0].marks[1].tone must be one of “data”, “muted”…". **Add to the Workspace** checks it again on the server. A file with web addresses, markup, fields Ziffr does not know, or more than the limits allow is refused. **Remove** takes a design out of the Workspace; Widgets already drawn with it keep it. Adding and removing are in the Audit Log. The demo keeps no View Designs.
 
 ## Playground
 
-**Playground** at the top right of Analyze is where you work on a View Design's file. The file is on the left, the drawing on the right.
+The **Playground**, opened from the Library (**Open the Playground**, shown to Owners and Admins) or from **Write your own method** at the bottom of **Choose a method** (also Owners and Admins only), is where you work on a View Design's file. The file is on the left, the drawing on the right.
 
 - **Start from** loads a built-in View's design; **Upload** loads a file. You can also paste or type.
-- The file is in a code editor with colours. While you type, it offers the fields and values the format allows at the cursor (press Ctrl+Space to ask for them) and says what a field means when you rest the pointer on it or its value. The editor does not take the Tab key, so Tab moves on to the next control. If the editor cannot load, the file stays a plain text box. **How to write a View Design** at the top right opens the guide in a new tab.
+- The file is in a code editor with colours. While you type, it offers the fields and values the format allows at the cursor (press Ctrl+Space to ask for them) and says what a field means when you rest the pointer on it or its value. The editor does not take the Tab key, so Tab moves on to the next control. If the editor cannot load, the file stays a plain text box. **How to write a View Design** at the top right of the Library opens the guide in a new tab.
 - Ziffr checks the file as you type. Every mistake is listed above the file with its line, such as "Line 3: name must be plain text, without markup or web addresses". Click one to select that line. While the file has mistakes, the drawing keeps the last version that passed.
 - **Sample Data** draws the design with made-up Metrics. **My Metrics** asks for a Metric for each Slot, from those you can see and use (not Archived Metrics), and draws your values.
-- **Download with Sample Data** saves the file and a Sample Data file. For Owners and Admins, **Add to the Workspace** adds the design, checked again on the server, as on the View Designs page.
+- **Download with Sample Data** saves the file and a Sample Data file. For Owners and Admins, **Add to the Workspace** adds the design, checked again on the server, as in the Library.
 
 Nothing you type in the Playground is kept unless it is added to the Workspace.
 
 ### Analysis Recipes
+
+The Library lists the built-in recipes by name. Everyone but Guests sees the list; only Owners and Admins are shown the way into the Playground to write one.
 
 An **Analysis Recipe** is an Analysis written as steps of Ziffr's own functions: moving average, difference, growth, share, linear trend and slope, mean, standard deviation, z-score, seasonal index and correlation. A View Design can carry one under `analysis` and draw its results: as a line or bars (`recipe.` and the step's name), as a rule across a plot for one value, or as a number in its words. The recipe works on the Metrics in the design's first Slots, as the Widget shows them (by quarter, when it is shown by quarter), and on nothing else. Every number it gives is computed by Ziffr's verified functions, so it is as trustworthy as any other number in Ziffr.
 
