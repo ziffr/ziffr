@@ -18,6 +18,11 @@ import { COUNTRIES, INDUSTRY_LABEL, REVENUE_LABEL, SEGMENT_LABEL, type Workspace
 import { StepBar } from "./step-bar";
 import { STEP_INFO } from "./step-info";
 import { AboutYouMember, AboutYouWorkspace } from "./about-you";
+import { StartingPoint } from "./starting-point";
+import { recommendedPacks } from "@ziffr/core/included-packs";
+import { metricsOfLimit } from "@ziffr/core/workspace-usage";
+import { trialEndsAt } from "@ziffr/core/trials";
+import { getNumberStyle } from "@/lib/data";
 
 const countryName = (c: string) => new Intl.DisplayNames(["en"], { type: "region" }).of(c) ?? c;
 
@@ -61,6 +66,11 @@ export default async function SetupPage({ searchParams }: { searchParams: Promis
     } else {
       body = <AboutYouMember answers={answersOf(profile)} businessFunction={fn} following={following} />;
     }
+  } else if (current === "start") {
+    const [packs, usage, trial, numberStyle] = await Promise.all([recommendedPacks(actor), metricsOfLimit(actor), trialEndsAt(actor.workspaceId), getNumberStyle()]);
+    const step = guide.steps.find((x) => x.id === "start");
+    // A trial starts with its Test Metric, so the step has nothing to ask; the Packs may still be installed.
+    body = <StartingPoint packs={packs} startingPoint={guide.startingPoint} metrics={usage.metrics} firstMetric={guide.firstMetric} trial={trial ? { testMetric: "Cups of coffee" } : null} isOwner={actor.role === "owner"} viewer={actor.personId} numberStyle={numberStyle} following={ids[Math.min(ids.indexOf("start") + 1, ids.length - 1)]} ticked={Boolean(step?.ticked)} />;
   } else {
     body = (
       <div className="space-y-4">

@@ -9,6 +9,7 @@ import { createMetric, type MetricEffects } from "./metrics";
 import { recordVersion } from "./versions";
 import { saveWorkflow } from "./workflows";
 import { setPreference } from "./questions";
+import { chooseExploreOnMyOwn } from "./setup-guide";
 import type { PreferenceKind } from "./connectors/types";
 import type { WidgetSettings } from "./types";
 
@@ -53,5 +54,7 @@ export async function seedTrialWorkspace(actor: Actor): Promise<{ metricId: numb
   for (const w of widgets) {
     await placeWidget(actor, dashboardId, { type: "spec", template: w.template, metricIds: [metricId], settings: w.settings, title: w.title });
   }
+  // A trial starts from its Test Metric, which is the Setup Guide's starting point (spec 0052): it ticks the step by itself.
+  await chooseExploreOnMyOwn(actor);
   return { metricId, workflowId, dashboardId };
 }
