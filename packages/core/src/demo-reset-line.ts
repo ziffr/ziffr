@@ -5,8 +5,10 @@
 // the page is given the server's time with it, and the browser counts from the difference.
 
 const MINUTE = 60_000;
+/** How often the demo starts fresh, in minutes (spec 0051, The Demo Reset); the announcement on every page names it. */
+export const DEMO_RESET_MINUTES = 15;
 /** A reset window: the demo starts fresh every 15 minutes, at 10, 25, 40 and 55 past the hour (spec 0051, The Demo Reset). */
-const WINDOW = 15 * MINUTE;
+const WINDOW = DEMO_RESET_MINUTES * MINUTE;
 const WINDOW_OFFSET = 10 * MINUTE;
 
 /** How long after a reset the line says "starting fresh": the core's part of a reset (Snapshots, the Outbox) still runs. */

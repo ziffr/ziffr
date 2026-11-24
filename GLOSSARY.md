@@ -557,6 +557,10 @@ _Avoid_: Sandbox, test mode
 The demo returning to its seed as one step: every 15 minutes when a visitor changed it, and once a day (nightly where visitors may not change it) so that its periods reach up to today. What visitors made or changed is gone, and a page open at the time follows the demo's own dashboards and decks to their new versions. The screens say "starts fresh" ("the demo starts fresh at 14:25"), which is this term in plain words, not a second term.
 _Avoid_: Wipe, refresh, restore (a Version is restored), starting over
 
+**Announcement**:
+A line of plain words above every screen of the app for the current visit, until the person dismisses it with its Dismiss button; it comes back with every new sign-in and every new demo visit, because a dismissal is kept only for the browser tab and visit it was made in. It is decided on the server from the Installation alone and carries nothing private, since it reaches every visitor's browser. Today there is one: the demo's, which says that the demo is shared and starts fresh every 15 minutes after a change (or, where visitors may not change it, that it saves nothing), with the countdown of the Demo Reset at its end. Not a Heads-up (found in a person's own Metrics), not an Alert (a person's own standing request on one Metric), and not the Trial bar or the Setup line, which are about a Workspace.
+_Avoid_: Banner, notification (a message sent through a Delivery Preference), toast
+
 **Share**:
 Giving another user or a Group access to a metric or a dashboard. Sharing a dashboard also gives view access to every metric on it.
 _Avoid_: Invite, publish
