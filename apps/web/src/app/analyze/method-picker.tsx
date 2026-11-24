@@ -14,7 +14,7 @@ import { PickerGroups } from "./picker-list";
 import type { Done, ResultItem } from "./results";
 
 /** The names of the Metrics the answers name, once each, in the order of the Slots. */
-export function namesOf(answers: Answers, list: PickerList): string[] {
+function namesOf(answers: Answers, list: PickerList): string[] {
   const ids = [...new Set(Object.values(answers.slots).flat())];
   return ids.flatMap((id) => list.canvas.find((m) => m.id === id)?.name ?? []);
 }

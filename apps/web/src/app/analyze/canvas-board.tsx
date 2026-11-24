@@ -12,7 +12,7 @@ import { CanvasChips } from "./canvas-chips";
 import type { Example } from "./example";
 
 /** The three steps of an empty canvas, in words. */
-export const STEPS = ["Drop Metrics here (or click + in the Pool).", "Pick a question.", "Read the answer."] as const;
+const STEPS = ["Drop Metrics here (or click + in the Pool).", "Pick a question.", "Read the answer."] as const;
 
 function EmptyCanvas({ example, onExample }: { example: Example | null; onExample: (e: Example) => void }) {
   return (

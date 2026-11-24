@@ -9,7 +9,7 @@ import { markHeadsUpNotUseful, muteHeadsUpMetric } from "@/app/heads-up-actions"
 import { Button } from "@/components/ui/button";
 
 /** Not useful and one Mute button for each Metric of a Heads-up. `named` are Metrics the person sees. */
-export function HeadsUpButtons({ headsUpKey, named, readOnly, onDone }: { headsUpKey: string; named: { id: number; name: string }[]; readOnly: boolean; onDone?: () => void }) {
+function HeadsUpButtons({ headsUpKey, named, readOnly, onDone }: { headsUpKey: string; named: { id: number; name: string }[]; readOnly: boolean; onDone?: () => void }) {
   const router = useRouter();
   const [pending, start] = useTransition();
   const run = (work: () => Promise<unknown>, done: string) => start(async () => {
