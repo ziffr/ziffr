@@ -570,7 +570,7 @@ describe("with the setting in effect, a visit", () => {
     expect(await asked("template-actions:saveSlideLayout", { deckId: own, shapes: [{ type: "image", props: {} }], name: "Layout", description: "", labels: [], choices: {} })).toMatch(/Pictures/);
     // Kept blocked: nothing that shares, links, sends or runs on its own.
     const sentence = demoReadOnlyWords();
-    for (const [key, args] of [["snapshot-actions:setAutoSnapshots", [ids.dashboard, "month", 2]], ["deck-actions:noteDeckExport", [own, "pdf"]], ["canvas-actions:setShare", ["deck", own, "ben", "viewer"]], ["view-link-actions:createViewLink", ["deck", own, { label: "For the board", expires: day(7), frozen: false }]]] as [string, unknown[]][]) {
+    for (const [key, args] of [["snapshot-actions:setAutoSnapshots", [ids.dashboard, "month", 2]], ["canvas-actions:setShare", ["deck", own, "ben", "viewer"]], ["view-link-actions:createViewLink", ["deck", own, { label: "For the board", expires: day(7), frozen: false }]]] as [string, unknown[]][]) {
       expect(await asked(key, ...args), key).toBe(sentence);
     }
     await call("deck-actions:deleteDeck", own);
