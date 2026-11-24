@@ -11,5 +11,5 @@ Ziffr offers a demo next to the real workspaces of the same installation: "Try t
 
 - The demo's reset and seed work on one workspace and take every id from the database, because real rows share the same tables and sequences.
 - Everything a demo visit reaches goes through the same workspace checks as real work; a demo visitor is a demo person in the demo workspace, nothing more.
-- Visitors share one demo: what one changes, the next sees until someone resets it.
+- Visitors share one demo. Since spec 0029 it is read-only; on a demo-only Installation whose operator switches it on, visitors may change it, what one changes the next sees, and it starts fresh every 15 minutes after a change (ADR 0016, amending this consequence).
 - The demo's people can never sign in, and nobody can claim them by email.
