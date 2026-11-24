@@ -4,8 +4,8 @@
 // pure, so the classification and the test that no action is missing are tried without a database.
 //
 // Ticket 4 made every change `blocked`; each opening ticket of spec 0051 moves its keys from `not-yet` to `OPEN` or
-// `LIMITED` here and nowhere else (ticket 9: dashboards, widgets, the Pool, Themes of a visitor's own, Versions and
-// templates). `demoAllows` says no to everything unless the setting is in effect, so with it off the demo is as read-only as
+// `LIMITED` here and nowhere else (ticket 8: the work around a value, recording, approving, locking, the Workflows' run to the
+// Outbox, Stand-ins, Away; ticket 9: dashboards, widgets, the Pool, Themes of a visitor's own, Versions and templates). `demoAllows` says no to everything unless the setting is in effect, so with it off the demo is as read-only as
 // before. The database's list still has to hold the tables an action writes, so a forgotten line refuses a visitor and
 // opens nothing. The classification only ever opens what the database would also let through.
 import { demoChangesInEffect } from "./demo-reset-decision";
@@ -234,6 +234,7 @@ const BLOCKED: Record<BlockedReason, readonly string[]> = {
     "heads-up-actions:unmuteHeadsUpMetric",
     "snapshot-actions:setAutoSnapshots",
     "tell-actions:setTellStopped",
+    "workflow-actions:runTodayNow",
     "home-actions:setHome",
     "pin-actions:pinDashboard",
     "pin-actions:reorderPinned",
@@ -250,16 +251,12 @@ const BLOCKED: Record<BlockedReason, readonly string[]> = {
     "actions:createAction",
     "actions:createDerivedMetric",
     "actions:createMetric",
-    "actions:decideCorrection",
     "actions:replyToAction",
     "actions:setActionStatus",
-    "actions:submitWebForm",
     "canvas-actions:assignInPlace",
     "canvas-actions:markTaskDone",
     "canvas-actions:setGroupShare",
     "canvas-actions:setShare",
-    "connector-actions:askForMissingValues",
-    "connector-actions:sendDueReminders",
     "connector-actions:setPreference",
     "setup/ways-actions:saveAskMeBy",
     "convert-actions:addToDeck",
@@ -274,13 +271,9 @@ const BLOCKED: Record<BlockedReason, readonly string[]> = {
     "deck-workflow-template-actions:createWorkflowFromTemplate",
     "deck-workflow-template-actions:saveAsDeckTemplate",
     "deck-workflow-template-actions:saveAsWorkflowTemplate",
-    "fill-in-actions:fillInForSubmitter",
-    "paste-actions:recordPaste",
     "series-actions:archiveMetric",
-    "series-actions:askMeNow",
     "series-actions:deleteMetric",
     "series-actions:handOverMetricTo",
-    "series-actions:recordValue",
     "series-actions:removeSeriesRows",
     "series-actions:restoreMetric",
     "series-actions:saveSeriesRows",
@@ -303,20 +296,9 @@ const BLOCKED: Record<BlockedReason, readonly string[]> = {
     "team-actions:setMember",
     "template-actions:saveSlideLayout",
     "theme-actions:setDeckTheme",
-    "workflow-actions:approveValue",
-    "workflow-actions:closeWorkflowPeriod",
-    "workflow-actions:confirmOwnValue",
-    "workflow-actions:correctOwnValue",
     "workflow-actions:deleteWorkflow",
-    "workflow-actions:lockPeriod",
-    "workflow-actions:proposeValueCorrection",
-    "workflow-actions:runTodayNow",
-    "workflow-actions:runWorkflowsNow",
     "workflow-actions:saveWorkflow",
-    "workflow-actions:sendValueBack",
-    "workflow-actions:setAway",
     "workflow-actions:setMetricWorkflow",
-    "workflow-actions:setStandIn",
   ],
 };
 
@@ -325,6 +307,20 @@ const BLOCKED: Record<BlockedReason, readonly string[]> = {
  * (`checkDemoBudget`) and its words by the text rules (`demo-visitor-words.ts`) in the web app's `attemptAsVisitor`, and
  * the database lets it through only for a demo visit. */
 const OPEN: readonly string[] = [
+  // Ticket 8: the work around a value.
+  "actions:decideCorrection",
+  "connector-actions:recordSimulatedReply",
+  "connector-actions:recordSimulatedTicketClose",
+  "series-actions:askMeNow",
+  "workflow-actions:approveValue",
+  "workflow-actions:closeWorkflowPeriod",
+  "workflow-actions:confirmOwnValue",
+  "workflow-actions:correctOwnValue",
+  "workflow-actions:lockPeriod",
+  "workflow-actions:proposeValueCorrection",
+  "workflow-actions:sendValueBack",
+  "workflow-actions:setAway",
+  "workflow-actions:setStandIn",
   "canvas-actions:applyTemplate",
   "canvas-actions:deleteSavedWidget",
   "canvas-actions:removeWidget",
@@ -342,6 +338,20 @@ const OPEN: readonly string[] = [
 /** Server actions a visitor may use within a limit, by the limit's key (`demo-limits.ts`, the same kinds as `demo_limits`):
  * the ones that make rows of a kind that is capped. */
 const LIMITED: Readonly<Record<string, readonly string[]>> = {
+  // Ticket 8: `values` is the values' row cap (and their periods and a paste's rows); `workflow_run` the one run a minute in the whole demo.
+  values: [
+    "actions:recordSimulatedMessage",
+    "actions:submitWebForm",
+    "connector-actions:recordSimulatedPromptAnswer",
+    "fill-in-actions:fillInForSubmitter",
+    "paste-actions:recordPaste",
+    "series-actions:recordValue",
+  ],
+  workflow_run: [
+    "connector-actions:askForMissingValues",
+    "connector-actions:sendDueReminders",
+    "workflow-actions:runWorkflowsNow",
+  ],
   dashboards: [
     "canvas-actions:createDashboardNamed",
     "dashboard-template-actions:createFromDashboardTemplate",

@@ -5,6 +5,7 @@ import { sampleCanvasData } from "@ziffr/core/sample-data";
 
 vi.mock("server-only", () => ({}));
 vi.mock("@/lib/viewer", () => ({}));
+vi.mock("@/lib/demo-visit-action", () => ({}));
 vi.mock("@/app/canvas-actions", () => ({}));
 vi.mock("next/navigation", () => ({ useRouter: () => ({ refresh: vi.fn(), push: vi.fn() }), usePathname: () => "/", useSearchParams: () => new URLSearchParams() }));
 import { WidgetFrame } from "./widget-frame";

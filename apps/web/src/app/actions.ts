@@ -9,7 +9,10 @@ import { isDemo } from "@/lib/auth";
 import { Forbidden } from "@ziffr/core/actor";
 import { decideCorrection as coreDecideCorrection, submitValue, type SubmissionResult } from "@ziffr/core/submissions";
 import * as questions from "@ziffr/core/questions";
-import { simulateMessage as simulateChannelMessage } from "@ziffr/core/demo-channels";
+import { recordSimulatedMessage as recordChannelMessage, simulateMessage as simulateChannelMessage } from "@ziffr/core/demo-channels";
+import { demoTextForVisit } from "@ziffr/core/demo-text";
+import { demoVisitRefusal } from "@ziffr/core/demo-visit-action";
+import { inDemoVisit } from "@/lib/demo-visit-action";
 import { createMetric as coreCreateMetric } from "@ziffr/core/metrics";
 import { adoptSetupFirstMetric } from "@ziffr/core/setup-from-pack";
 import { createDerivedMetric as coreCreateDerivedMetric } from "@ziffr/core/derived-metrics";
@@ -76,19 +79,41 @@ export async function simulateMessage(input: { source: SourceId; sender: string;
   return simulateChannelMessage(await currentActor(), { source: input.source, sender: String(input.sender ?? ""), text: String(input.text ?? ""), promptId: input.promptId });
 }
 
+/** Records a value sent as someone on Slack or by mail in the demo, where visitors may change it (spec 0051): the same intake as a real
+ * message, and nothing is sent. The text goes through the text rules first. Elsewhere the demo refuses it, as it always did. */
+export async function recordSimulatedMessage(input: { source: SourceId; sender: string; text: string; promptId?: number }): Promise<SubmissionResult | ActionError> {
+  return attempt(() => inDemoVisit("actions:recordSimulatedMessage", async (visiting) => {
+    const text = demoTextForVisit(visiting, String(input.text ?? ""), "message");
+    const r = await recordChannelMessage(await currentActor(), { source: input.source, sender: String(input.sender ?? ""), text, promptId: input.promptId });
+    revalidatePath("/", "layout");
+    return r;
+  }));
+}
+
 /** What the form shows after a submission: the core's own words, handed back by the action, never through the URL. */
 export type WebFormResult = { ok: boolean; detail: string } | null;
 
 /** A personal form link submits a value (or a Breakdown). The result comes back to the form itself rather than in a
  * redirect's query string, so the page only ever shows text Ziffr wrote (ticket 183). */
 export async function submitWebForm(code: string, _previous: WebFormResult, form: FormData): Promise<WebFormResult> {
-  // A breakdown travels as "label value" lines; a filled-in total joins them as a Total line.
-  const value = String(form.get("value") ?? "").trim();
-  const breakdown = String(form.get("breakdown") ?? "").trim();
-  const text = breakdown ? `${breakdown}${value ? `\nTotal ${value}` : ""}` : value;
-  const r = await submitValue({ source: "web_form", sender: String(code), text: text.slice(0, 5000) });
-  revalidatePath("/", "layout");
-  return { ok: !r.outcome.startsWith("rejected"), detail: r.detail };
+  try {
+    return await inDemoVisit("actions:submitWebForm", async (visiting) => {
+      // The code is logged and shown as the sender: a visit's must be shaped like a form link's token before anything is looked up.
+      if (visiting && !/^tk-[A-Za-z0-9_-]{3,64}$/.test(String(code))) return { ok: false, detail: "This form link doesn’t match any Token." };
+      // A breakdown travels as "label value" lines; a filled-in total joins them as a Total line. A visitor's texts go through the text rules first (spec 0051).
+      const value = demoTextForVisit(visiting, String(form.get("value") ?? "").trim(), "name");
+      const breakdown = demoTextForVisit(visiting, String(form.get("breakdown") ?? "").trim(), "message");
+      const text = breakdown ? `${breakdown}${value ? `\nTotal ${value}` : ""}` : value;
+      const r = await submitValue({ source: "web_form", sender: String(code), text: text.slice(0, 5000) });
+      revalidatePath("/", "layout");
+      return { ok: !r.outcome.startsWith("rejected"), detail: r.detail };
+    });
+  } catch (e) {
+    // What a visit's change is refused with says why on the form itself; anything else is thrown on, as it always was.
+    const words = demoVisitRefusal(e);
+    if (words) return { ok: false, detail: words };
+    throw e;
+  }
 }
 
 /** Asks a member about a value. */
@@ -107,8 +132,10 @@ export async function replyToAction(actionId: number, form: FormData) {
 
 /** The Metric owner accepts or declines a Correction; the core decides who may and what changes. */
 export async function decideCorrection(messageId: number, accept: boolean) {
-  await coreDecideCorrection(await currentActor(), Number(messageId), Boolean(accept));
-  revalidatePath("/", "layout");
+  await inDemoVisit("actions:decideCorrection", async () => {
+    await coreDecideCorrection(await currentActor(), Number(messageId), Boolean(accept));
+    revalidatePath("/", "layout");
+  });
 }
 
 /** The asker closes or reopens an Action. */

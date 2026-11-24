@@ -5,6 +5,8 @@
 import { revalidatePath } from "next/cache";
 import { attempt } from "@/lib/action-result";
 import { currentActor } from "@/lib/viewer";
+import { inDemoVisit } from "@/lib/demo-visit-action";
+import { demoTextForVisit } from "@ziffr/core/demo-text";
 import { fillInValue } from "@ziffr/core/fill-in";
 
 /** What the form shows after a try: whether it was recorded, and the intake's own words. */
@@ -12,9 +14,13 @@ type FilledInAnswer = { ok: boolean; detail: string };
 
 /** The signed-in Metric owner or Workflow owner enters a value for a Submitter of the Metric, marked as entered by them. */
 export async function fillInForSubmitter(input: { metricId: number; period: string; for: string; value: string; breakdown?: string }): Promise<FilledInAnswer | { error: string }> {
-  return attempt(async () => {
-    const r = await fillInValue(await currentActor(), { metricId: Number(input?.metricId), period: String(input?.period ?? ""), for: String(input?.for ?? ""), value: String(input?.value ?? ""), breakdown: String(input?.breakdown ?? "") });
+  // A visitor's texts (the value, the Breakdown's labels) go through the text rules first (spec 0051).
+  return attempt(() => inDemoVisit("fill-in-actions:fillInForSubmitter", async (visiting) => {
+    const r = await fillInValue(await currentActor(), {
+      metricId: Number(input?.metricId), period: String(input?.period ?? ""), for: String(input?.for ?? ""),
+      value: demoTextForVisit(visiting, String(input?.value ?? ""), "name"), breakdown: demoTextForVisit(visiting, String(input?.breakdown ?? ""), "message"),
+    });
     revalidatePath("/", "layout");
     return { ok: r.ok, detail: r.detail };
-  });
+  }));
 }

@@ -9,7 +9,8 @@ import { demoReadOnlyWords } from "@ziffr/core/demo";
 import { BUILT_IN_DESIGNS } from "@ziffr/core/built-in-designs";
 import { STANDARD_THEMES } from "@ziffr/core/standard-themes";
 import { themeToFile } from "@ziffr/core/theme-file";
-import { demoBackToSeed, demoFingerprint, demoFullSeed, demoGeneration, demoLatestId, demoOpenForVisitors, demoWalkIds } from "@ziffr/core/test/demo-walk";
+import { demoBackToSeed, demoFingerprint, demoFullSeed, demoGeneration, demoLatestId, demoOpenForVisitors, demoWalkClearCounts, demoWalkIds, demoWalkOutbound } from "@ziffr/core/test/demo-walk";
+import { DEMO_BUDGET_USED, DEMO_BUSY, DEMO_GOING_FAST, DEMO_STALE, DEMO_VALUE_WORDS } from "@ziffr/core/demo-words";
 import { demoAllows, demoClassOf } from "@ziffr/core/demo-changes";
 
 vi.mock("server-only", () => ({}));
@@ -60,10 +61,16 @@ const CASES: Record<string, Case> = {
   "actions:createMetric": { blocked: () => [form({ name: "Visitor metric", period: "month", format: "number", submission_rule: "overwrite", polarity: "higher", aggregation: "sum", decimals: "0", sources: "web_form" })] },
   "actions:createDerivedMetric": { blocked: () => [null, form({ name: "Visitor calculation", formula: "{revenue} * 2" })] },
   "actions:simulateMessage": { reads: () => [{ source: "slack", sender: "@sara", text: "closed 2 deals" }] },
-  "actions:submitWebForm": { blocked: (i) => [i.formCode, null, form({ value: "42" })] },
+  // They record, where visitors may change the demo, what the previews only say would happen (spec 0051, ticket 8): the answer lands in the demo's
+  // Thread, values and Outbox, and nothing is sent. The previews above stay reads.
+  "actions:recordSimulatedMessage": { open: () => [{ source: "slack", sender: "@sara", text: "closed 2 deals" }] },
+  "connector-actions:recordSimulatedReply": { open: (i) => [i.actionDelivery, "Done, see the sheet"] },
+  "connector-actions:recordSimulatedTicketClose": { open: (i) => [i.ticketDelivery] },
+  "connector-actions:recordSimulatedPromptAnswer": { open: (i) => [i.promptDelivery, "42"] },
+  "actions:submitWebForm": { open: (i) => [i.formCode, null, form({ value: "42" })] },
   "actions:createAction": { blocked: (i) => [{ metricId: i.metric, period: i.period, assigneeId: "ben", question: "Why?" }] },
   "actions:replyToAction": { blocked: (i) => [i.action, form({ body: "A reply" })] },
-  "actions:decideCorrection": { nothing: "the demo holds no proposed Correction", blocked: (i) => [i.message, true] },
+  "actions:decideCorrection": { nothing: "the demo holds no proposed Correction", open: (i) => [i.message, true] },
   "actions:setActionStatus": { blocked: (i) => [i.action, "open"] },
   "assistant-actions:disconnectAssistant": { nothing: "the demo has no connected assistants", blocked: () => [1] },
   "auth-actions:sendSignInLink": { outside: "signing in, not the demo Workspace" },
@@ -121,8 +128,8 @@ const CASES: Record<string, Case> = {
   "connector-actions:setPreference": { blocked: () => ["sara", "question", "slack"] },
   "connector-actions:simulateReply": { reads: (i) => [i.actionDelivery, "Done, see the sheet"] },
   "connector-actions:simulateTicketClose": { reads: (i) => [i.ticketDelivery] },
-  "connector-actions:sendDueReminders": { nothing: "nothing is due right after the seed, which sent the reminders", blocked: () => [] },
-  "connector-actions:askForMissingValues": { nothing: "the seed already asked for every missing value", blocked: () => [] },
+  "connector-actions:sendDueReminders": { nothing: "nothing is due right after the seed, which sent the reminders", open: () => [] },
+  "connector-actions:askForMissingValues": { nothing: "the seed already asked for every missing value", open: () => [] },
   "connector-actions:simulatePromptAnswer": { reads: (i) => [i.promptDelivery, "42"] },
   "convert-actions:makeDeckFromSnapshot": { blocked: (i) => [i.snapshot] },
   "convert-actions:makeDeck": { blocked: (i) => [i.dashboard] },
@@ -146,7 +153,7 @@ const CASES: Record<string, Case> = {
   "deck-actions:noteDeckExport": { nothing: "it only records an Audit event, and the demo keeps no Audit Log", blocked: (i) => [i.deck, "pdf"] },
   "design-actions:addViewDesign": { blocked: () => [JSON.stringify(BUILT_IN_DESIGNS.number)] },
   "design-actions:removeViewDesign": { nothing: "the demo has no View Designs", blocked: () => [1] },
-  "fill-in-actions:fillInForSubmitter": { blocked: (i) => [{ metricId: i.metric, period: "2026-03-01", for: "someone", value: "42" }] },
+  "fill-in-actions:fillInForSubmitter": { open: (i) => [{ metricId: i.metric, period: "2026-03-01", for: "someone", value: "42" }] },
   "feed-actions:createFeed": { blocked: () => ["Visitor feed"] },
   "feed-actions:renameFeed": { blocked: () => ["feed-x", "Renamed"] },
   "feed-actions:deleteFeed": { blocked: () => ["feed-x"] },
@@ -202,7 +209,7 @@ const CASES: Record<string, Case> = {
   "oauth/authorize/actions:answerConsent": { outside: "connects an assistant to one's own Workspace; refused during a demo visit" },
   "observation-actions:observationDetailsAction": { reads: () => ["revenue", "2026-03-01"] },
   "paste-actions:previewPaste": { reads: () => [{ text: "Revenue\t42" }] },
-  "paste-actions:recordPaste": { blocked: () => [{ text: "Revenue\t42" }] },
+  "paste-actions:recordPaste": { open: () => [{ text: "Revenue\t42" }] },
   "paste-actions:pasteTemplateFile": { reads: () => [{ kind: "rows" }] },
   "quick-look-actions:metricQuickLook": { reads: () => ["revenue"] },
   "metric-actions-actions:metricActions": { reads: () => [["revenue"]] },
@@ -252,8 +259,8 @@ const CASES: Record<string, Case> = {
   "size-actions:archiveForRoom": { blocked: (i) => [[i.ownMetric]] },
   "series-actions:setMetricSources": { blocked: (i) => [i.ownMetric, ["web_form", "slack"]] },
   "series-actions:updateMetricDetails": { blocked: (i) => [i.ownMetric, { description: "Changed by a visitor" }] },
-  "series-actions:askMeNow": { blocked: (i) => [i.ownMetric] },
-  "series-actions:recordValue": { blocked: (i) => [i.ownMetric, { value: "42" }] },
+  "series-actions:askMeNow": { open: (i) => [i.ownMetric] },
+  "series-actions:recordValue": { open: (i) => [i.ownMetric, { value: "42" }] },
   "settings-actions:updateMyProfile": { blocked: () => [{ name: "Not Sara" }] },
   "settings-actions:setMyBusinessFunction": { blocked: () => ["sales"] },
   "settings-actions:setAppearance": { outside: "in the demo the choice is a cookie of the visitor's browser, no row" },
@@ -335,17 +342,17 @@ const CASES: Record<string, Case> = {
   "workflow-actions:saveWorkflow": { blocked: (i) => [i.workflow, "Renamed workflow", i.workflowConfig] },
   "workflow-actions:deleteWorkflow": { blocked: (i) => [i.workflow] },
   "workflow-actions:setMetricWorkflow": { blocked: (i) => [i.ownMetric, null] },
-  "workflow-actions:runWorkflowsNow": { blocked: () => [day()] },
+  "workflow-actions:runWorkflowsNow": { open: () => [day()] },
   "workflow-actions:runTodayNow": { blocked: () => [] },
-  "workflow-actions:approveValue": { nothing: "no Approval in the demo waits for Sara", blocked: (i) => [i.approval] },
-  "workflow-actions:sendValueBack": { nothing: "no Approval in the demo waits for Sara", blocked: (i) => [i.approval, "Please check"] },
-  "workflow-actions:proposeValueCorrection": { blocked: (i) => [i.action, 1, "Please check"] },
-  "workflow-actions:confirmOwnValue": { nothing: "no Self-check in the demo waits for Sara", blocked: (i) => [i.approval] },
-  "workflow-actions:correctOwnValue": { nothing: "no Self-check in the demo waits for Sara", blocked: (i) => [i.approval, 1] },
-  "workflow-actions:lockPeriod": { blocked: (i) => [i.ownMetric, i.twoMonthsAgo, false, "Reopening"] },
-  "workflow-actions:closeWorkflowPeriod": { blocked: (i) => [i.workflow, day()] },
-  "workflow-actions:setStandIn": { nothing: "Ben submits none of Sara's first Metric", blocked: (i) => [i.ownMetric, "ben", "anna"] },
-  "workflow-actions:setAway": { blocked: () => ["sara", day(1), day(5)] },
+  "workflow-actions:approveValue": { nothing: "no Approval in the demo waits for Sara", open: (i) => [i.approval] },
+  "workflow-actions:sendValueBack": { nothing: "no Approval in the demo waits for Sara", open: (i) => [i.approval, "Please check"] },
+  "workflow-actions:proposeValueCorrection": { open: (i) => [i.action, 1, "Please check"] },
+  "workflow-actions:confirmOwnValue": { nothing: "no Self-check in the demo waits for Sara", open: (i) => [i.approval] },
+  "workflow-actions:correctOwnValue": { nothing: "no Self-check in the demo waits for Sara", open: (i) => [i.approval, 1] },
+  "workflow-actions:lockPeriod": { open: (i) => [i.ownMetric, i.twoMonthsAgo, false, "Reopening"] },
+  "workflow-actions:closeWorkflowPeriod": { open: (i) => [i.workflow, day()] },
+  "workflow-actions:setStandIn": { nothing: "Ben submits none of Sara's first Metric", open: (i) => [i.ownMetric, "ben", "anna"] },
+  "workflow-actions:setAway": { open: () => ["sara", day(1), day(5)] },
 };
 
 let before: Record<string, string>;
@@ -487,6 +494,26 @@ describe("with the setting in effect, a visit", () => {
     await ok("canvas-actions:removeWidget", await demoLatestId("widgets", { dashboard_id: dash }));
     expect(wrong).toEqual([]);
   }, 180_000);
+
+  // Ticket 8: the work around a value. Not refused with the demo's own words, some row changes, and nothing leaves the Outbox.
+  it("lets the work around a value through, and sends nothing outside", async () => {
+    const mine = Object.keys(CASES).filter((k) => /^(actions:(submitWebForm|decideCorrection|recordSimulated)|connector-actions:(askForMissing|sendDue|recordSimulated)|fill-in-actions:|paste-actions:recordPaste|series-actions:(askMeNow|recordValue)|workflow-actions:)/.test(k) && "open" in CASES[k]);
+    // The walk's rows are the seed's: a Lock changes a seeded period's note, and the first Prompt's Delivery is the showcase's, so those two kinds of
+    // refusal ("everyone sees this one as it is") are the protection working. Everything else of the demo's words is a failure.
+    const demoWords = [demoReadOnlyWords(), DEMO_STALE, DEMO_BUSY, DEMO_BUDGET_USED, DEMO_GOING_FAST, DEMO_VALUE_WORDS.run];
+    const outboundAtStart = await demoWalkOutbound();
+    const fingerprintAtStart = await demoFingerprint();
+    const wrong: string[] = [];
+    for (const key of mine) {
+      await demoWalkClearCounts();
+      const r = await call(key, ...(CASES[key] as { open: (i: Ids) => unknown[] }).open(ids)).catch((e: unknown) => ({ error: e instanceof Error ? e.message : String(e) })) as { error?: string } | undefined;
+      if (typeof r?.error === "string" && demoWords.includes(r.error)) wrong.push(`${key}: refused with the demo's words: ${r.error}`);
+    }
+    expect(wrong).toEqual([]);
+    expect(await demoFingerprint(), "the open actions changed nothing").not.toEqual(fingerprintAtStart);
+    expect(await demoWalkOutbound()).toEqual(outboundAtStart);
+    expect(outboundAtStart).toEqual({ notInOutbox: 0, webhooks: 0, webhookSends: 0 });
+  }, 300_000);
 
   it("is refused, with the sentence, what the demo keeps blocked, and with the words of the demo what it protects", async () => {
     const sentence = demoReadOnlyWords();

@@ -28,6 +28,8 @@ import { CONDENSED_CODE, condensedOn, condensedRefusal, condensedWords } from ".
 import type { Metric, Profile, SourceId, Token } from "./types";
 import { JANUARY, periodLabel, periodStart, shiftPeriod, type Span, type YearStart } from "./periods";
 import { yearStartOf } from "./fiscal-year";
+import { visitHeaders } from "./demo-visit-scope";
+import { demoValuePeriodRefusal } from "./demo-values";
 
 /** A value as it arrived: who sent it on which Source, the text, and the Prompt it answers if any. */
 export type SubmissionInput = {
@@ -184,6 +186,12 @@ async function takeValue(input: SubmissionInput, effects: SubmissionEffects, pro
     if (!answer.ok) return log({ ...base, ok: false, ...askBack(answer, metric, workspaceYearStart, prompt?.period_start ?? current, input.source === "web_form" ? style : null) });
     value = answer.value;
     period = answer.period;
+  }
+  // A visitor of the demo (spec 0051) enters values for the last two years up to the current period only, whichever way the
+  // value came in (the form, a paste, a filled-in value, an answer in a simulated channel). The seed is never a visit.
+  if (!preview && visitHeaders()) {
+    const outside = demoValuePeriodRefusal(period, current, new Date());
+    if (outside) return log({ ...base, ok: false, outcome: "rejected_period", detail: outside });
   }
   // The reply writes values the way the workspace does, so a misreading shows at once.
   const fv = (v: number) => formatValue(metric, v, style);
