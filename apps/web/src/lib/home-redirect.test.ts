@@ -1,13 +1,11 @@
-// The order Home leads a person to a guide in (spec 0052): the Trial Guide first, the Setup Guide once, else the dashboard.
+// The order Home leads a person to the Setup Guide in (spec 0052, ticket 12): once to the guide, else the dashboard. A trial
+// has no guide of its own, so a new trial lands in /setup through the same rule, never on an empty dashboard.
 import { describe, expect, it } from "vitest";
 import { homeRedirect } from "./home-redirect";
 
 describe("homeRedirect", () => {
   it.each([
-    [{ trialGuide: false, setupGuide: false }, null],
-    [{ trialGuide: false, setupGuide: true }, "/setup"],
-    [{ trialGuide: true, setupGuide: false }, "/try/start"],
-    // A trial Workspace keeps the Trial Guide until ticket 12 joins them: it never meets both.
-    [{ trialGuide: true, setupGuide: true }, "/try/start"],
+    [{ setupGuide: false }, null],
+    [{ setupGuide: true }, "/setup"],
   ])("%j goes to %s", (pending, to) => expect(homeRedirect(pending)).toBe(to));
 });

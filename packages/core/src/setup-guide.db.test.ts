@@ -49,6 +49,10 @@ describe("who has a guide", () => {
     const demo = { personId: o.personId, workspaceId: DEMO_WORKSPACE_ID, role: "owner" as const };
     expect(await setupGuide(demo)).toBeNull();
     expect(await setupGuidePending(demo)).toBe(false);
+    // The demo shows none of it: no line, and every write is refused (spec 0052, ticket 12).
+    expect(await setupLine(demo)).toEqual({ applies: false, shown: false, done: 0, total: 0, next: null });
+    await expect(chooseExploreOnMyOwn(demo)).rejects.toBeInstanceOf(Forbidden);
+    await expect(setSetupFirstMetric(demo, null)).rejects.toBeInstanceOf(Forbidden);
     await expect(skipSetupStep(demo, "about")).rejects.toBeInstanceOf(Forbidden);
     // The demo guard refuses the row even to the service role.
     await expect(startSetupGuide(demo)).resolves.toBeUndefined();

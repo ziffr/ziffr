@@ -216,12 +216,8 @@ Settings an Owner or Installation Admin makes at the screen. Programs with a key
 - `slackConnection` (slack-connection.ts): the Slack connection
 - `telegramConnection` (telegram-connection.ts): the Telegram connection
 - `setTelegramEnabled` (telegram-connection.ts): the Telegram connection
-- `trialGuide` (trial-guide.ts): a Trial's guide
-- `saveTrialGuide` (trial-guide.ts): a Trial's guide
-- `finishTrialGuide` (trial-guide.ts): a Trial's guide
-- `askTrialGuide` (trial-guide.ts): a Trial's guide
-- `trialGuideValue` (trial-guide.ts): a Trial's guide
-- `makeGuideFeedKey` (trial-guide.ts): a Trial's guide
+- `trialFeedKey` (trial-feed-key.ts): a Trial's key for n8n
+- `makeGuideFeedKey` (trial-feed-key.ts): a Trial's key for n8n
 - `archiveMetrics` (usage-report.ts): the Usage page
 - `createWebhook` (webhooks.ts): Webhooks settings (#401)
 - `listWebhooks` (webhooks.ts): Webhooks settings (#401)

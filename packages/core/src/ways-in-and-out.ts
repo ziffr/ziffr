@@ -16,7 +16,7 @@ import { setPreference } from "./questions";
 import { mySlackLink } from "./slack-people";
 import { myTelegramLink } from "./telegram-people";
 import { trialEndsAt } from "./trials";
-import { trialGuide } from "./trial-guide";
+import { trialFeedKey } from "./trial-feed-key";
 import { whatWorksHere, type WayState } from "./what-works-here";
 
 /** The ways the step lists, in the order it lists them. */
@@ -193,13 +193,14 @@ export async function waysInAndOut(actor: Actor): Promise<WaysInAndOut> {
   if (owner) {
     more.push(
       { label: "A program", href: "/settings/keys", what: "Access Keys: a script or a system sends values with its own key." },
-      { label: "An assistant", href: "/settings/assistants", what: "Claude and other assistants record and read numbers." },
+      { label: "Connect Claude or another assistant", href: "/settings/assistants", what: "The connector address and the steps, so an assistant records and reads numbers." },
       { label: "A Feed", href: "/settings/feeds", what: "Feeds and Feed Keys, including warehouse Feeds and the n8n templates." },
       { label: "Send values", href: "/connectors/send", what: "A command to copy for one of your Metrics, and n8n." },
+      { label: "Send numbers on to other systems (Webhooks)", href: "/settings/webhooks", what: "Ziffr tells your own tool when something happens; the page says what a trial may add." },
     );
-    // In a trial the guide's Feed Key for n8n stays one of the more ways (the trial's Owner has it on the Trial Guide).
-    if (actor.role === "owner" && (await trialEndsAt(actor.workspaceId)) && (await trialGuide(actor).catch(() => null))) {
-      more.push({ label: "A key for n8n", href: "/try/start", what: "Make a Feed Key for n8n and download a ready workflow." });
+    // In a trial the Feed Key for n8n stays one of the more ways (the trial's Owner has it; spec 0052).
+    if (actor.role === "owner" && (await trialEndsAt(actor.workspaceId)) && (await trialFeedKey(actor).catch(() => null))) {
+      more.push({ label: "A key for n8n", href: "/try/n8n", what: "Make a Feed Key for n8n and download a ready workflow." });
     }
   } else {
     more.push({ label: "Your own key", href: "/settings/keys", what: "An Access Key sends values as you, for the Metrics you submit to." });
