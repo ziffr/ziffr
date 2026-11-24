@@ -12,6 +12,7 @@ import { audit } from "./audit-log";
 import { recordVersion } from "./versions";
 import { getMetrics } from "./workspace-data";
 import { visitorDerivedRoom, visitorFormula } from "./demo-visitor-metrics";
+import { visitorSharedStaysSeen } from "./demo-visitor-sharing";
 import type { Metric, Period } from "./types";
 
 const PERIODS: Period[] = ["day", "week", "month", "quarter", "year"];
@@ -137,6 +138,8 @@ export async function setMetricFormula(actor: Actor, metricId: number, formula: 
   const m = await editableMetric(actor, metricId, "its formula");
   if (!m.formula) throw new Refused("Only a Derived Metric has a formula.");
   const next = await checkedFormula(actor, m, formula);
+  // A calculated Metric that is shared reads only Metrics its recipients see (spec 0051, ticket 11).
+  await visitorSharedStaysSeen(actor, "metric", m.id, [], next);
   const { error } = await db().from("metrics").update({ formula: next, inputs_checked: true }).eq("id", m.id).eq("workspace_id", actor.workspaceId);
   if (error) throw new Error("The formula could not be saved.");
   await recordVersion("metric", m.id, actor.personId, { message: "Changed its formula" });

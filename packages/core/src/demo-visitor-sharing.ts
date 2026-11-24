@@ -55,6 +55,39 @@ export async function visitorShowsOnlySeen(actor: Pick<Actor, "workspaceId">, ty
   }
 }
 
+/** The people something is shared with now: each direct Share and every member of each Group it is shared with. */
+async function sharedWith(ws: string, type: Shared, id: number): Promise<string[]> {
+  const { data } = await db().from("shares").select("user_id, group_id").eq("workspace_id", ws).eq("object_type", type).eq("object_id", id);
+  const people = new Set<string>();
+  for (const s of data ?? []) {
+    if (s.user_id) people.add(String(s.user_id));
+    if (s.group_id) for (const p of await visitorGroupPeople({ workspaceId: ws }, Number(s.group_id))) people.add(p);
+  }
+  return [...people];
+}
+
+/** THE one place for an object that is ALREADY shared and changes what it shows: every write in a visit that puts Metrics on a dashboard or a
+ * deck, or changes a calculated Metric's formula (placing or changing a widget, applying a template, restoring a Version, saving a deck, a new
+ * formula), asks it first with the Metrics the object will show after the write (`shown`, a formula's inputs by `formula`). It refuses when any
+ * of them is a Metric one of the people it is shared with does not see yet; the Metrics the object shows now were checked when it was
+ * shared. Nothing outside a visit, and nothing for an object that is shared with nobody. */
+export async function visitorSharedStaysSeen(actor: Pick<Actor, "workspaceId">, type: Shared, id: number | null | undefined, shown: Iterable<number>, formula?: string): Promise<void> {
+  if (!inDemoVisit(actor) || id === null || id === undefined) return;
+  const ws = actor.workspaceId;
+  const recipients = await sharedWith(ws, type, id);
+  if (!recipients.length) return;
+  const all = await getMetrics(ws);
+  const next = new Set(shown);
+  const inputsOf = (f: string | null | undefined) => { if (f) for (const slug of formulaInputs(f)) { const m = all.find((x) => x.slug === slug); if (m) next.add(m.id); } };
+  inputsOf(formula);
+  for (const m of [...next]) inputsOf(all.find((x) => x.id === m)?.formula);
+  if (type === "metric") next.delete(id);
+  for (const person of recipients) {
+    const sees = await visibleMetricIds(ws, person, all);
+    if ([...next].some((m) => !sees.has(m))) throw new DemoTextRefused(DEMO_METRIC_WORDS.hidden);
+  }
+}
+
 /** In a visit, the people a Group holds now (everyone, for the built-in Group); nobody outside a visit. */
 export async function visitorGroupPeople(actor: Pick<Actor, "workspaceId">, groupId: number): Promise<string[]> {
   if (!inDemoVisit(actor)) return [];

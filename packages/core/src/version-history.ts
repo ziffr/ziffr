@@ -21,6 +21,7 @@ import { restorableWords, sealedWords, snapshotAccess } from "./snapshots";
 import { restoreMetricTags } from "./tags";
 import { visitorOptionalText, visitorVersionType } from "./demo-visitor-words";
 import { chargeVisitor } from "./demo-visitor-limits";
+import { visitorSharedStaysSeen } from "./demo-visitor-sharing";
 import { DEMO_STORE_MAX } from "./demo-limits";
 import { refuseSeeded } from "./demo-seeded-rows";
 
@@ -186,10 +187,13 @@ export async function restoreVersion(actor: Actor, versionId: number, effects: R
     case "widget":
       // A Version keeps what was stored; its View Designs are checked again before they are stored once more.
       assertSettingsDesigns(s.settings);
+      // A widget of a shared dashboard comes back showing only Metrics the dashboard's recipients see (spec 0051, ticket 11).
+      await visitorSharedStaysSeen(actor, "dashboard", (await db().from("widgets").select("dashboard_id").eq("id", id).eq("workspace_id", ws).maybeSingle()).data?.dashboard_id as number | null | undefined, widgetMetricIds((s.metric_ids as number[] | undefined) ?? [], s.settings as Parameters<typeof widgetMetricIds>[1]));
       await db().from("widgets").update(await sealedPatch("widgets", ws, id, { template: s.template, metric_ids: s.metric_ids, settings: s.settings, title: s.title })).eq("id", id).eq("workspace_id", ws);
       break;
     case "dashboard": {
       const { data: d } = await db().from("dashboards").select("owner_id").eq("id", id).eq("workspace_id", ws).single();
+      await visitorSharedStaysSeen(actor, "dashboard", id, ((s.widgets as Record<string, unknown>[]) ?? []).flatMap((w) => widgetMetricIds((w.metric_ids as number[] | undefined) ?? [], w.settings as Parameters<typeof widgetMetricIds>[1])));
       // Versions from before introductions were kept have none: the introduction then stays as it is.
       await db().from("dashboards").update(await sealedPatch("dashboards", ws, id, { name: s.name, ...(s.theme_id !== undefined ? { theme_id: s.theme_id } : {}), ...(typeof s.intro === "string" ? { intro: s.intro } : {}) })).eq("id", id).eq("workspace_id", ws);
       await db().from("widgets").delete().eq("dashboard_id", id).eq("workspace_id", ws);
