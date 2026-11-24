@@ -42,3 +42,9 @@ export const DEMO_DECK_STORE_MAX_BYTES = 512 * 1024;
 export function demoDeckStoreOk(store: string): boolean {
   return new TextEncoder().encode(store).length <= DEMO_DECK_STORE_MAX_BYTES;
 }
+
+/** What a visitor may enter as values and dates (spec 0051, Limits: Values; ticket 8): values for periods from this many months
+ * back up to the current one, never ahead; at most this many values (and lines of text) in one paste; Away of at most this many
+ * days, starting no earlier than today and ending within the days ahead; and "pretend it is another day" no further from today
+ * than this many days. */
+export const DEMO_VALUE_LIMITS = { monthsBack: 24, pasteRows: 100, pasteLines: 400, awayMaxDays: 30, awayAheadDays: 90, asOfDays: 90 } as const;

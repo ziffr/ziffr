@@ -2,8 +2,10 @@
 // the database themselves (.github/scripts/app-db-access.mjs), so the ids the walk calls the server actions with and
 // the fingerprint of the demo it compares are read here. Tests only.
 import { createHash } from "node:crypto";
-import { db } from "../db";
+import { db, seedingDemo } from "../db";
 import { seedDemoSnapshots } from "../demo-snapshots";
+import { markDemoSeedDone, resetDemoWorkspace } from "../demo-reset";
+import { clearDemoVisitCounts } from "../demo-visit";
 import { DEMO_WORKSPACE_ID } from "../team";
 import { idFreeRows } from "./demo-fingerprint-row";
 
@@ -26,6 +28,41 @@ export async function demoFingerprint(): Promise<Record<string, string>> {
   const { count: ws } = await db().from("workspaces").select("id", { count: "exact", head: true });
   out["workspaces (count)"] = String(ws);
   return out;
+}
+
+/** Opens the demo to visits for the walk's second pass (spec 0051, ticket 8): a fresh seed (the SQL reset, the showcase filled, the seed
+ * marked done) and the Installation's flag on, as the reset job leaves a demo where visitors may change it. Answers the Generation
+ * the pages of the pass are drawn in. Close it again with `demoWalkClose`. */
+export async function demoWalkOpen(): Promise<number> {
+  const reset = await db().rpc("demo_reset", { min_gap: "0 seconds" });
+  if (reset.error) throw new Error("The demo could not be reset for the walk.");
+  const showcase = await db().rpc("prototype_seed_showcase");
+  if (showcase.error) throw new Error("The demo's showcase could not be made for the walk.");
+  await markDemoSeedDone();
+  await clearDemoVisitCounts();
+  await db().from("demo_state").update({ open_to_visitors: true }).eq("id", true).throwOnError();
+  return Number((await db().from("demo_state").select("generation").eq("id", true).single()).data?.generation);
+}
+
+/** What of the demo could leave Ziffr: its Deliveries that are not in the Outbox (an email, Slack or Telegram message that was queued or sent), and
+ * its Webhooks and their queued sends. Every one must be zero (spec 0051: nothing outbound, ever). */
+export async function demoWalkOutbound(): Promise<{ notInOutbox: number; webhooks: number; webhookSends: number }> {
+  const rows = async (table: string) => (await db().from(table).select("id", { count: "exact", head: true }).eq("workspace_id", DEMO_WORKSPACE_ID)).count ?? 0;
+  const { count: notInOutbox } = await db().from("deliveries").select("id", { count: "exact", head: true }).eq("workspace_id", DEMO_WORKSPACE_ID).neq("mail_state", "outbox");
+  return { notInOutbox: notInOutbox ?? 0, webhooks: await rows("webhooks"), webhookSends: await rows("webhook_sends") };
+}
+
+/** Empties the visits' counts, so each action of the pass is counted from zero (one Workflow run a minute would stop the next). */
+export async function demoWalkClearCounts(): Promise<void> {
+  await clearDemoVisitCounts();
+}
+
+/** Closes the demo to visits and makes it as its seed again, with a Demo Reset (a minute apart from the last one is what it asks for, so the
+ * Workspace is made to look old first). */
+export async function demoWalkClose(): Promise<void> {
+  await db().from("demo_state").update({ open_to_visitors: false }).eq("id", true).throwOnError();
+  await seedingDemo(async () => { await db().from("workspaces").update({ created_at: "2026-01-01T00:00:00Z" }).eq("id", DEMO_WORKSPACE_ID).throwOnError(); });
+  await resetDemoWorkspace();
 }
 
 /** What the walk needs from the demo's seed, or a clear failure when the seed lacks it. */

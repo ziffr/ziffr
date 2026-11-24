@@ -4,8 +4,9 @@
 // the next visitor: control characters, hidden or blank-looking characters (which make one text read as another or as
 // nothing), piles of combining marks, tags, and anything that works as a web address, an email address or a link.
 // The text is first brought to NFKC, so full-width and compatibility forms are checked as what they look like.
-import { DEMO_TEXT_MAX } from "./demo-limits";
-import { DEMO_TEXT_WORDS } from "./demo-words";
+import { Forbidden } from "./actor";
+import { DEMO_TEXT_MAX, DEMO_VALUE_LIMITS } from "./demo-limits";
+import { DEMO_TEXT_WORDS, DEMO_VALUE_WORDS } from "./demo-words";
 
 /** The kinds of text and their length: `name` is a name or title, `message` a Question, Task or reply. */
 export type DemoTextKind = keyof typeof DEMO_TEXT_MAX;
@@ -68,4 +69,35 @@ export function demoTextOk(text: string, kind: DemoTextKind): DemoTextResult {
   if (MARKUP.test(clean)) return { ok: false, words: DEMO_TEXT_WORDS.markup };
   if (LINK.test(clean)) return { ok: false, words: DEMO_TEXT_WORDS.link };
   return { ok: true, text: clean };
+}
+
+/** A visitor's text refused by the rules above. A Forbidden, so every place that shows a refusal shows its words. */
+export class DemoTextRefused extends Forbidden {
+  constructor(words: string) {
+    super(words);
+    this.name = "DemoTextRefused";
+  }
+}
+
+/** The cleaned text of a visitor's, or a `DemoTextRefused` with the words to show. */
+function demoTextOrRefuse(text: string, kind: DemoTextKind): string {
+  const r = demoTextOk(text, kind);
+  if (!r.ok) throw new DemoTextRefused(r.words);
+  return r.text;
+}
+
+/** What a core operation takes of a text that may come from a visitor of the demo: while `visiting` (a change of an allowed
+ * action, made as a demo visit), a text that is not empty must pass the rules and is used cleaned; otherwise, and for an empty
+ * one, it is used as it is (the operation checks it as it always does). */
+export function demoTextForVisit(visiting: boolean, text: string, kind: DemoTextKind): string {
+  return visiting && String(text ?? "").trim() !== "" ? demoTextOrRefuse(String(text), kind) : text;
+}
+
+/** A paste's cells as lines, each checked and cleaned as a message of a visitor (tabs and new lines stay; blank lines are
+ * kept as they are), at most 400 lines. Refused whole with the words to show when any line is. */
+export function demoPasteText(text: string): string {
+  const lines = String(text ?? "").split(/\r?\n/);
+  if (lines.length > DEMO_VALUE_LIMITS.pasteLines) throw new DemoTextRefused(DEMO_VALUE_WORDS.pasteLong);
+  // A cell left empty at the start or end of a line is a column of its own: the tabs and spaces around a line stay as pasted.
+  return lines.map((l) => (l.trim() === "" ? "" : `${/^[ \t]*/.exec(l)![0]}${demoTextOrRefuse(l, "message")}${/[ \t]*$/.exec(l)![0]}`)).join("\n");
 }

@@ -62,6 +62,16 @@ export const DEMO_TEXT_WORDS = {
   link: "Leave out web addresses in the demo.",
 } as const;
 
+/** What a refused value, paste, Away or run says in the demo (spec 0051, ticket 8): plain words, never a column or a number of the database. */
+export const DEMO_VALUE_WORDS = {
+  period: "The demo takes values for the last two years, up to the current period.",
+  paste: "Paste at most 100 values at a time in the demo.",
+  pasteLong: "That paste is too long for the demo.",
+  away: "In the demo, Away starts today or later, lasts at most 30 days and ends within 90 days.",
+  asOf: "In the demo, pick a day within 90 days of today.",
+  run: "Another visitor just ran the Workflows. Try again in a minute.",
+} as const;
+
 /** The sentence for a digest, or null for any other error. */
 export function demoWordsForDigest(digest: string | undefined): string | null {
   return digest === DEMO_DIGEST.trial ? DEMO_READ_ONLY_TRIAL : digest === DEMO_DIGEST.plain ? DEMO_READ_ONLY : digest === DEMO_DIGEST.stale ? DEMO_STALE : protectedWordsForDigest(digest);

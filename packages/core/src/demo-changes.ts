@@ -3,10 +3,12 @@
 // and the export, "canvas-actions:placeWidget"), classified as the database's allow-list is (`demo_open_tables`). It is
 // pure, so the classification and the test that no action is missing are tried without a database.
 //
-// Today EVERY change is `blocked`: `demoAllows` says no to all of them, whatever the setting, so the demo is as read-only
-// as before. A later ticket (8 to 11) opens an area by moving its keys from `not-yet` to `OPEN` or `LIMITED` here and
-// nowhere else; the database's list still has to hold the tables it writes, so a forgotten line refuses a visitor
-// and opens nothing. The classification only ever opens what the database would also let through.
+// `demoAllows` says no to everything unless visitors may change the demo (the setting in effect, which needs a demo-only
+// Installation): with it off the demo is as read-only as before. Ticket 8 opened the work around a value (recording, the
+// web form, paste, filling in, the simulated channels, Approvals, Self-checks, Corrections, Locks, the Workflows' run to
+// the Outbox, Stand-ins, Away, Ask me now); tickets 9 to 11 open the rest by moving keys from `not-yet` to `OPEN` or
+// `LIMITED` here and nowhere else. The database's list still has to hold the tables an action writes, so a forgotten line
+// refuses a visitor and opens nothing. The classification only ever opens what the database would also let through.
 import { demoChangesInEffect } from "./demo-reset-decision";
 import { settingsInEffectNow } from "./settings-in-effect";
 
@@ -227,6 +229,7 @@ const BLOCKED: Record<BlockedReason, readonly string[]> = {
     "heads-up-actions:unmuteHeadsUpMetric",
     "snapshot-actions:setAutoSnapshots",
     "tell-actions:setTellStopped",
+    "workflow-actions:runTodayNow",
   ],
   // The everyday work spec 0051's inventory recommends opening; each later ticket (8 to 11) moves its actions to `OPEN` or `LIMITED`.
   "not-yet": [
@@ -235,10 +238,8 @@ const BLOCKED: Record<BlockedReason, readonly string[]> = {
     "actions:createAction",
     "actions:createDerivedMetric",
     "actions:createMetric",
-    "actions:decideCorrection",
     "actions:replyToAction",
     "actions:setActionStatus",
-    "actions:submitWebForm",
     "canvas-actions:applyTemplate",
     "canvas-actions:assignInPlace",
     "canvas-actions:canvasAdd",
@@ -256,8 +257,6 @@ const BLOCKED: Record<BlockedReason, readonly string[]> = {
     "canvas-actions:setGroupShare",
     "canvas-actions:setShare",
     "canvas-actions:updateWidget",
-    "connector-actions:askForMissingValues",
-    "connector-actions:sendDueReminders",
     "connector-actions:setPreference",
     "convert-actions:addToDeck",
     "convert-actions:makeDeck",
@@ -273,18 +272,14 @@ const BLOCKED: Record<BlockedReason, readonly string[]> = {
     "deck-workflow-template-actions:createWorkflowFromTemplate",
     "deck-workflow-template-actions:saveAsDeckTemplate",
     "deck-workflow-template-actions:saveAsWorkflowTemplate",
-    "fill-in-actions:fillInForSubmitter",
     "home-actions:newDashboard",
     "home-actions:setHome",
-    "paste-actions:recordPaste",
     "pin-actions:pinDashboard",
     "pin-actions:reorderPinned",
     "pin-actions:unpinDashboard",
     "series-actions:archiveMetric",
-    "series-actions:askMeNow",
     "series-actions:deleteMetric",
     "series-actions:handOverMetricTo",
-    "series-actions:recordValue",
     "series-actions:removeSeriesRows",
     "series-actions:restoreMetric",
     "series-actions:saveSeriesRows",
@@ -319,28 +314,48 @@ const BLOCKED: Record<BlockedReason, readonly string[]> = {
     "version-actions:nameVersion",
     "version-actions:restoreVersion",
     "version-actions:saveNamedVersion",
-    "workflow-actions:approveValue",
-    "workflow-actions:closeWorkflowPeriod",
-    "workflow-actions:confirmOwnValue",
-    "workflow-actions:correctOwnValue",
     "workflow-actions:deleteWorkflow",
-    "workflow-actions:lockPeriod",
-    "workflow-actions:proposeValueCorrection",
-    "workflow-actions:runTodayNow",
-    "workflow-actions:runWorkflowsNow",
     "workflow-actions:saveWorkflow",
-    "workflow-actions:sendValueBack",
-    "workflow-actions:setAway",
     "workflow-actions:setMetricWorkflow",
-    "workflow-actions:setStandIn",
   ],
 };
 
-/** Server actions a visitor may use freely. None yet. */
-const OPEN: readonly string[] = [];
+/** Server actions a visitor may use freely (ticket 8: the work around a value). Each still counts once against the write budget
+ * and takes its texts through the text rules (demo-visit-action.ts). */
+const OPEN: readonly string[] = [
+  "actions:decideCorrection",
+  "connector-actions:recordSimulatedReply",
+  "connector-actions:recordSimulatedTicketClose",
+  "series-actions:askMeNow",
+  "workflow-actions:approveValue",
+  "workflow-actions:closeWorkflowPeriod",
+  "workflow-actions:confirmOwnValue",
+  "workflow-actions:correctOwnValue",
+  "workflow-actions:lockPeriod",
+  "workflow-actions:proposeValueCorrection",
+  "workflow-actions:sendValueBack",
+  "workflow-actions:setAway",
+  "workflow-actions:setStandIn",
+];
 
-/** Server actions a visitor may use within a limit, by the limit's key (a list in the core, ticket 5). None yet. */
-const LIMITED: Readonly<Record<string, readonly string[]>> = {};
+/** Server actions a visitor may use within a limit, by the limit's key: a row cap of demo-limits.ts (`values`: the values' rows,
+ * counted by the database's trigger, and their periods and rows a paste by the core), or `workflow_run`, the one run a minute in
+ * the whole demo (demo-budget.ts). */
+const LIMITED: Readonly<Record<string, readonly string[]>> = {
+  values: [
+    "actions:recordSimulatedMessage",
+    "actions:submitWebForm",
+    "connector-actions:recordSimulatedPromptAnswer",
+    "fill-in-actions:fillInForSubmitter",
+    "paste-actions:recordPaste",
+    "series-actions:recordValue",
+  ],
+  workflow_run: [
+    "connector-actions:askForMissingValues",
+    "connector-actions:sendDueReminders",
+    "workflow-actions:runWorkflowsNow",
+  ],
+};
 
 function build(): ReadonlyMap<string, DemoClass> {
   const all = new Map<string, DemoClass>();

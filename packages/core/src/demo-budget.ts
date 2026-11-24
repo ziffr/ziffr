@@ -13,7 +13,7 @@ import { createHmac } from "node:crypto";
 import { Forbidden, type Actor } from "./actor";
 import { DEMO_WRITE_BUDGET } from "./demo-limits";
 import { bumpDemoVisitCount, minuteStart, resetWindowStart, visitKey } from "./demo-visit";
-import { DEMO_BUDGET_USED, DEMO_BUSY, DEMO_GOING_FAST } from "./demo-words";
+import { DEMO_BUDGET_USED, DEMO_BUSY, DEMO_GOING_FAST, DEMO_VALUE_WORDS } from "./demo-words";
 import { networkAddress } from "./sign-in-limits";
 
 /** A change refused because a budget is used up. A Forbidden, so every place that shows a refusal shows its words. */
@@ -123,4 +123,14 @@ export async function checkDemoBudget(
     refused = budgetRefusal(counts);
   }
   if (refused) throw new DemoBudgetUsed(refused);
+}
+
+/** The key under which the one Workflow run a minute is counted: a hash-shaped constant, as every count but the demo's is keyed. */
+const RUN_KEY = "0".repeat(32);
+
+/** Lets one Workflow run in the whole demo each minute (spec 0051, Limits: Expensive work): counts this call under the
+ * minute's start and throws `DemoBudgetUsed` for any past the first, in words that say when it works again. The count
+ * lives in `demo_visit_counts` and is emptied by each Demo Reset. */
+export async function takeDemoWorkflowRun(actor: Pick<Actor, "workspaceId">, now: Date = new Date()): Promise<void> {
+  if ((await bumpDemoVisitCount(actor, "workflow_run", RUN_KEY, minuteStart(now))) > 1) throw new DemoBudgetUsed(DEMO_VALUE_WORDS.run);
 }

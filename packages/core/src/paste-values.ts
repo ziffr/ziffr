@@ -27,6 +27,9 @@ import { getLatestObservations, getMetrics } from "./workspace-data";
 import { answerReadingOf, numberStyleOf } from "./workspace-settings";
 import type { NumberStyle } from "./number-style";
 import { refuseInDemo } from "./demo";
+import { DEMO_VALUE_LIMITS } from "./demo-limits";
+import { visitHeaders } from "./demo-visit-scope";
+import { DEMO_VALUE_WORDS } from "./demo-words";
 
 /** The most values one person may paste in any 24 hours, across all their pastes (spec 0026, "Limits"). */
 export const PASTED_VALUES_PER_DAY = sendingLimitDefault("valuesPerFeed");
@@ -344,8 +347,8 @@ const RECORDED: Record<string, PasteOutcome> = { recorded: "recorded", overwritt
  * ignored and the values are checked. A paste that would cross the day's limit is refused whole, before anything is
  * recorded. */
 export async function recordPastedValues(actor: Actor, input: PasteInput, effects: SubmissionEffects = submissionEffects): Promise<PasteReport | PasteRefusal> {
-  // The day's limit is claimed outside the demo's rows, before any value: refused before it (#271).
-  refuseInDemo(actor);
+  // The day's limit is claimed outside the demo's rows, before any value: refused before it (#271), unless visitors may change the demo (spec 0051).
+  refuseInDemo(actor, "paste-actions:recordPaste");
   const c = check(input);
   const s = await settingFor(actor);
   const read = readFor(s, c);
@@ -358,6 +361,8 @@ export async function recordPastedValues(actor: Actor, input: PasteInput, effect
     if (why) rows.set(v.place, refusedRow(v, s, why, leftOut, !leftOut && v.problem?.reason === "duplicate" ? "duplicate" : "refused"));
     else go.push(v);
   }
+  // A visitor of the demo pastes at most 100 values at a time (spec 0051), refused whole before anything is claimed or recorded.
+  if (visitHeaders() && go.length > DEMO_VALUE_LIMITS.pasteRows) return { ok: false, reason: "demo_rows", detail: `${DEMO_VALUE_WORDS.paste} Nothing was recorded.` };
   const claimed = go.length ? await claimPasted(actor, go.length) : s.leftToday;
   if (claimed < 0) {
     const left = (-1 - claimed).toLocaleString("en");
