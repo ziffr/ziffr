@@ -83,3 +83,19 @@ describe("state and order", () => {
     expect(sorted).toEqual(["warn-early", "warn-late", "no-start-info", "late-info"]);
   });
 });
+
+describe("hidden characters", () => {
+  it("removes zero-width, soft hyphen, joiner, word joiner, BOM and tag characters, and a lone surrogate", () => {
+    const hidden = ["\u200B", "\u200C", "\u200D", "\u2060", "\u2064", "\u00AD", "\u180E", "\u034F", "\uFEFF", "\u{E0041}", "\u{E007F}"];
+    for (const h of hidden) expect(plainLine(`a${h}b`), JSON.stringify(h)).toBe("ab");
+    expect(plainLine("a\uD83Db")).toBe("a\uFFFDb");
+    expect(announcementText("Maint\u200Benance")).toBe("Maintenance");
+  });
+  it("refuses them in a link rather than cleaning it", () => {
+    expect(() => announcementHref("https://a.test/\u200B")).toThrow(Refused);
+    expect(() => announcementHref("https://a.test/\u{E0041}")).toThrow(Refused);
+  });
+  it("keeps emoji whole", () => {
+    expect(plainLine("Up \u{1F600}")).toBe("Up \u{1F600}");
+  });
+});

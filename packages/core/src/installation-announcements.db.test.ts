@@ -224,6 +224,15 @@ describe("the audit", () => {
     expect(e.subject).toHaveLength(120);
   });
 
+  it("still leaves its event when the text is 140 emoji (cut by characters, not into half an emoji)", async () => {
+    const a = await admin();
+    const emoji = String.fromCodePoint(0x1f600);
+    await createInstallationAnnouncement(a, { text: "a" + emoji.repeat(139) });
+    const [e] = (await installationEvents(a, 200)).filter((x) => x.kind === "announcement.created" && x.subject?.startsWith("a" + emoji));
+    expect(e).toBeDefined();
+    expect(Array.from(e.subject!)).toHaveLength(120);
+  });
+
   it("leaves nothing for a refused write", async () => {
     const a = await admin();
     const n = await nobody();

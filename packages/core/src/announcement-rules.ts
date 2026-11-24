@@ -37,15 +37,20 @@ export type AnnouncementFields = {
 
 // Control characters (C0, DEL, C1), line and paragraph separators, and the characters that reorder text on screen
 // (bidirectional marks, embeddings, overrides and isolates), which can make a line read differently from what it says.
-const HIDDEN_CHARS = "\\u0000-\\u001F\\u007F-\\u009F\\u2028\\u2029\\u061C\\u200E\\u200F\\u202A-\\u202E\\u2066-\\u2069";
+const HIDDEN_CHARS = "\\u0000-\\u001F\\u007F-\\u009F\\u00AD\\u034F\\u061C\\u180E\\u200B-\\u200F\\u2028\\u2029\\u202A-\\u202E\\u2060-\\u2064\\u2066-\\u2069\\uFEFF\\u{E0000}-\\u{E007F}";
 const BREAKS = new RegExp("[\\t\\n\\r\\u2028\\u2029]+", "g");
-const HIDDEN = new RegExp(`[${HIDDEN_CHARS}]`, "g");
-const HIDDEN_OR_SPACE = new RegExp(`[\\s${HIDDEN_CHARS}]`);
+const HIDDEN = new RegExp(`[${HIDDEN_CHARS}]`, "gu");
+const HIDDEN_OR_SPACE = new RegExp(`[\\s${HIDDEN_CHARS}]`, "u");
 const BAD_LINK = "The link must be a web address starting with https://.";
+
+/** The string with every lone surrogate (half an emoji) made U+FFFD: the database refuses such text, and a write would fail. */
+export function wellFormed(s: string): string {
+  return s.replace(/[\uD800-\uDBFF](?![\uDC00-\uDFFF])|(?<![\uD800-\uDBFF])[\uDC00-\uDFFF]/g, "�");
+}
 
 /** Plain one-line words: line breaks and tabs made spaces, other hidden characters removed, whitespace runs made one space. */
 export function plainLine(raw: unknown): string {
-  return String(raw ?? "").replace(BREAKS, " ").replace(HIDDEN, "").replace(/\s+/g, " ").trim();
+  return wellFormed(String(raw ?? "")).replace(BREAKS, " ").replace(HIDDEN, "").replace(/\s+/g, " ").trim();
 }
 
 // A short text, checked: bounds the work before cleaning (far past the limit is refused, not scanned), then counts characters.
