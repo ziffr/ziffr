@@ -57,7 +57,9 @@ export async function visitorDerivedRoom(actor: Pick<Actor, "workspaceId">): Pro
   const state = demoData(await db().from("demo_state").select("seed_done_at").maybeSingle());
   if (!state?.seed_done_at) throw new DemoLimit("starting");
   const count = demoCount(await db().from("metrics").select("id", { count: "exact", head: true }).eq("workspace_id", actor.workspaceId).not("formula", "is", null).gt("created_at", state.seed_done_at as string));
-  if (count >= DEMO_ROW_CAPS.derived_metrics) throw new DemoLimit("derived_metrics");
+  // The number is the database's row (demo_limits, which the owner may change without a migration); the core's list is its starting value.
+  const cap = demoData(await db().from("demo_limits").select("max_rows").eq("kind", "derived_metrics").maybeSingle())?.max_rows ?? DEMO_ROW_CAPS.derived_metrics;
+  if (count >= Number(cap)) throw new DemoLimit("derived_metrics");
 }
 
 /** A Target Series or Projection call a visitor makes: at most 60 rows (or periods), each a day within two years of today, and each
