@@ -43,8 +43,9 @@ describe("the words columns", () => {
   });
 
   it("keep the keys of a widget's settings that hold words as the migration says, and cover SETTING_WORDS", () => {
-    const m = SHOWCASE.match(/set keys = array\[([^\]]*)\] where table_name = 'widgets' and column_name = 'settings'/);
-    const inMigration = [...(m?.[1] ?? "").matchAll(/'([A-Za-z]+)'/g)].map((x) => x[1]).sort();
+    // The last migration that sets them wins (ticket 9 added the highlight, callouts and panels).
+    const all = readdirSync(MIGRATIONS).filter((f) => f.endsWith(".sql")).sort().flatMap((f) => [...migration(f).matchAll(/set keys = array\[([^\]]*)\] where table_name = 'widgets' and column_name = 'settings'/g)].map((x) => x[1]));
+    const inMigration = [...(all[all.length - 1] ?? "").matchAll(/'([A-Za-z]+)'/g)].map((x) => x[1]).sort();
     expect(inMigration).toEqual([...DEMO_WORDS_COLUMNS.widgets.wordKeys!.settings].sort());
     for (const key of SETTING_WORDS) expect(inMigration).toContain(key);
     expect(inMigration).toContain("canvasSeed");

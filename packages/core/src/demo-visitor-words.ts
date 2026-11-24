@@ -61,6 +61,8 @@ export function visitorThemeSlides(actor: Pick<Actor, "workspaceId">, slides: Th
 const NO_FREE_LAYOUTS = "A free layout can't be saved in the demo. Try another view.";
 
 type Obj = Record<string, unknown>;
+/** Every key of WidgetSettings (types.ts) except `tagView`, which is never stored. The words among them are DEMO_SETTING_WORD_KEYS. */
+const SETTING_KEYS: readonly string[] = ["window", "display", "showTarget", "showForecast", "rows", "slope", "kicker", "footnote", "panels", "headline", "subline", "source", "highlight", "callouts", "period", "compare", "fullPeriods", "canvas", "asOf", "canvasSeed", "design", "tagSource"];
 const isObj = (v: unknown): v is Obj => typeof v === "object" && v !== null && !Array.isArray(v);
 
 /** Cleans one word of a settings object in place (on a copy), when it is a string. */
@@ -70,11 +72,12 @@ function cleanWord(actor: Pick<Actor, "workspaceId">, o: Obj, key: string, kind:
 
 /** A widget's settings with every word a visitor can type into them checked and cleaned: a Finding's kicker, headline,
  * subline, footnote and source, the highlighted row's label, callouts, and the titles, reference-line labels and notes of a
- * story's panels. A free layout is refused. Unchanged outside a visit. Words in a place not named here are not a visitor's
+ * story's panels. A free layout is refused and keys that are not a widget's settings are dropped. Unchanged outside a visit. Words in a place not named here are not a visitor's
  * to type (the editor offers no field for them), and the server drops what it does not keep. */
 export function visitorSettings(actor: Pick<Actor, "workspaceId">, settings: WidgetSettings): WidgetSettings {
   if (!inDemoVisit(actor)) return settings;
-  const s: Obj = { ...(settings as Obj) };
+  // Only the keys a widget's settings are made of (types.ts): anything else a browser sends is dropped, not stored (growth).
+  const s: Obj = Object.fromEntries(Object.entries(settings as Obj).filter(([k]) => SETTING_KEYS.includes(k)));
   if (isObj(s.canvas) && s.canvas.document !== null && s.canvas.document !== undefined) throw new DemoTextRefused(NO_FREE_LAYOUTS);
   for (const key of SETTING_WORDS) cleanWord(actor, s, key, key === "kicker" || key === "headline" ? "name" : "description");
   cleanWord(actor, s, "highlight", "name");

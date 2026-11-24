@@ -75,13 +75,21 @@ export async function demoWalkIds(): Promise<Record<string, unknown>> {
     lastMonth: new Date(Date.UTC(m.getUTCFullYear(), m.getUTCMonth() - 1, 1)).toISOString().slice(0, 10),
     twoMonthsAgo: new Date(Date.UTC(m.getUTCFullYear(), m.getUTCMonth() - 2, 1)).toISOString().slice(0, 10),
   };
-  Object.assign(ids, { workflowConfig: workflow.config, themeTokens: themes[0]?.tokens ?? {}, themeSlides: themes[0]?.slides ?? {} });
+  const other = themes.find((t) => !t.is_default) ?? themes[0];
+  // `otherTheme*` is the look of the Theme the walk copies and saves onto the copy: a Theme's own slides carry its own pictures.
+  Object.assign(ids, { workflowConfig: workflow.config, themeTokens: themes[0]?.tokens ?? {}, themeSlides: themes[0]?.slides ?? {}, otherThemeTokens: other?.tokens ?? {}, otherThemeSlides: other?.slides ?? {} });
   return ids;
 }
 
 /** The demo's current Generation, as a visit's page would have drawn it. */
 export async function demoGeneration(): Promise<number> {
   return Number((await db().from("demo_state").select("generation").single()).data?.generation);
+}
+
+/** A Demo Reset with its core steps (Snapshots, the close, the Outbox, the showcase), closed to visitors: the walk's baseline is
+ * the seed as a reset makes it, not the SQL seed alone, so a reset after the walk compares equal. */
+export async function demoFullSeed(): Promise<void> {
+  await freshDemo({});
 }
 
 /** Starts the demo fresh and open to visitors, as the reset job does where the setting is in effect: the walk's visit may then change it. */

@@ -3,7 +3,7 @@
 // Versions and templates of its own; the seed's words, the showcase and the caps hold; with the setting off, without a visit
 // or with a Generation of before the last Demo Reset the demo refuses as it always did. Written for the database test run of
 // CI; the author could not run it (spec 0051's tickets 8 and 9 were built in parallel, without a database).
-import { afterEach, beforeAll, describe, expect, it } from "vitest";
+import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
 import { db } from "./db";
 import { DemoLimit, DemoReadOnly, DemoSeededWords, DemoShowcase, DemoStale } from "./demo";
 import { DemoTextRefused } from "./demo-visitor-words";
@@ -16,6 +16,8 @@ import { nameVersion, restoreVersion, saveNamedVersion } from "./version-history
 import { deleteTheme, duplicateTheme, saveTheme } from "./workspace-themes";
 import { deleteTemplate, renameTemplate, saveDashboardTemplate, saveTemplate } from "./templates";
 import { DEMO_WORKSPACE_ID } from "./team";
+import { demoBackToSeed } from "./test/demo-walk";
+import { DemoSizeRefused } from "./demo-visitor-limits";
 import type { Actor } from "./actor";
 import type { ThemeSlides, ThemeTokens } from "./types";
 
@@ -40,14 +42,17 @@ beforeAll(async () => {
   metric = Number((await db().from("metrics").select("id").eq("workspace_id", DEMO_WORKSPACE_ID).limit(1).single()).data?.id);
 }, 180_000);
 
-/** A dashboard the seed made that is not in the showcase, with one of its widgets. */
-async function seededDashboard(): Promise<{ id: number; widget: number }> {
+// What the tests below make is a visitor's: the demo goes back to its seed, closed, so no other test finds it.
+afterAll(async () => { await demoBackToSeed(); }, 180_000);
+
+/** A dashboard the seed made that is not in the showcase, with one of its widgets, and the person who owns it. */
+async function seededDashboard(): Promise<{ id: number; widget: number; owner: Actor }> {
   const { data: showcase } = await db().from("demo_showcase").select("row_key").eq("table_name", "dashboards");
   const keep = new Set((showcase ?? []).map((r) => r.row_key as string));
-  const { data } = await db().from("dashboards").select("id, widgets!inner(id)").eq("workspace_id", DEMO_WORKSPACE_ID).eq("name", "Board stories");
+  const { data } = await db().from("dashboards").select("id, owner_id, widgets!inner(id)").eq("workspace_id", DEMO_WORKSPACE_ID);
   const row = (data ?? []).find((d) => !keep.has(String(d.id)));
-  expect(row, "the seed has a dashboard outside the showcase").toBeDefined();
-  return { id: row!.id as number, widget: (row!.widgets as { id: number }[])[0].id };
+  expect(row, "the seed has a dashboard with widgets outside the showcase").toBeDefined();
+  return { id: row!.id as number, widget: (row!.widgets as { id: number }[])[0].id, owner: { ...sara, personId: row!.owner_id as string } };
 }
 
 describe("what is open", () => {
@@ -135,8 +140,19 @@ describe("what the seed made", () => {
   it("keeps its words: a seeded dashboard is not renamed, but its layout may change", async () => {
     const d = await seededDashboard();
     await asVisit(async () => {
-      await expect(dash.saveDashboardText(sara, d.id, { name: "Renamed by a visitor" })).rejects.toBeInstanceOf(DemoSeededWords);
-      await dash.saveLayout(sara, d.id, [{ i: String(d.widget), x: 0, y: 0, w: 4, h: 3 }]);
+      await expect(dash.saveDashboardText(d.owner, d.id, { name: "Renamed by a visitor" })).rejects.toBeInstanceOf(DemoSeededWords);
+      await dash.saveLayout(d.owner, d.id, [{ i: String(d.widget), x: 0, y: 0, w: 4, h: 3 }]);
+    });
+  });
+
+  it("keeps its Theme and cannot be restored from an old state, with plain words and before anything is written", async () => {
+    const d = await seededDashboard();
+    const theme = (await db().from("themes").select("id").eq("workspace_id", DEMO_WORKSPACE_ID).limit(1).single()).data!.id as number;
+    await asVisit(async () => {
+      await expect(dash.setDashboardTheme(d.owner, d.id, theme)).rejects.toBeInstanceOf(DemoShowcase);
+      await dash.saveLayout(d.owner, d.id, [{ i: String(d.widget), x: 1, y: 1, w: 4, h: 3 }]);
+      const v = (await db().from("versions").select("id").eq("object_type", "dashboard").eq("object_id", d.id).limit(1).maybeSingle()).data;
+      if (v) await expect(restoreVersion(d.owner, v.id as number)).rejects.toBeInstanceOf(DemoShowcase);
     });
   });
 
@@ -158,6 +174,23 @@ describe("what the seed made", () => {
       const refused = (e: unknown) => e instanceof DemoSeededWords || e instanceof DemoShowcase;
       await expect(saveTheme(sara, t.id as number, t.name as string, other, t.slides as ThemeSlides)).rejects.toSatisfy(refused);
       await expect(deleteTheme(sara, t.id as number)).rejects.toSatisfy(refused);
+    });
+  });
+});
+
+describe("what a visitor stores", () => {
+  it("is small: a widget's settings are bounded and unknown keys are dropped, and a visit names only a few Versions", async () => {
+    await asVisit(async () => {
+      const id = await dash.createDashboard(sara, "Small things");
+      const w = await dash.placeWidget(sara, id, { type: "metric", id: metric });
+      await expect(dash.updateWidget(sara, w, { settings: { headline: "ok", callouts: Array.from({ length: 400 }, () => ({ period: "2026-03-01", text: "x".repeat(40) })) } })).rejects.toBeInstanceOf(DemoSizeRefused);
+      await dash.updateWidget(sara, w, { settings: { headline: "ok", junk: "x".repeat(100) } as never });
+      const { data } = await db().from("widgets").select("settings").eq("id", w).single();
+      expect(JSON.stringify(data?.settings)).not.toContain("junk");
+      for (let i = 0; i < 5; i++) await saveNamedVersion(sara, "dashboard", id, `Named ${i}`);
+      await expect(saveNamedVersion(sara, "dashboard", id, "One too many")).rejects.toBeInstanceOf(DemoSizeRefused);
+      // An edit goes on whatever the Versions: the automatic ones never fail it.
+      await dash.saveLayout(sara, id, [{ i: String(w), x: 2, y: 2, w: 4, h: 3 }]);
     });
   });
 });

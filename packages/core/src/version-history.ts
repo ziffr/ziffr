@@ -20,6 +20,9 @@ import { guestWorkflowIds } from "./period-timeline";
 import { restorableWords, sealedWords, snapshotAccess } from "./snapshots";
 import { restoreMetricTags } from "./tags";
 import { visitorOptionalText, visitorVersionType } from "./demo-visitor-words";
+import { chargeVisitor } from "./demo-visitor-limits";
+import { DEMO_STORE_MAX } from "./demo-limits";
+import { refuseSeeded } from "./demo-seeded-rows";
 
 /** How a restored Workflow is saved; tests may pass their own. */
 export type RestoreEffects = {
@@ -105,6 +108,18 @@ async function restorable(actor: Actor, versionId: number) {
   return v;
 }
 
+/** In a demo visit, refuses before any write a restore of a dashboard, widget, Theme or template the seed made (a restore writes
+ * its Theme, words and widgets back). */
+async function refuseSeededRestore(actor: Actor, type: string, id: number) {
+  if (type === "dashboard") await refuseSeeded(actor, "dashboards", id);
+  else if (type === "theme") await refuseSeeded(actor, "themes", id);
+  else if (type === "template") await refuseSeeded(actor, "team_templates", id);
+  else if (type === "widget") {
+    const { data } = await db().from("widgets").select("dashboard_id").eq("id", id).eq("workspace_id", actor.workspaceId).maybeSingle();
+    if (data?.dashboard_id) await refuseSeeded(actor, "dashboards", data.dashboard_id);
+  }
+}
+
 /** Names a version, like a git tag. */
 export async function nameVersion(actor: Actor, versionId: number, name: string) {
   await restorable(actor, versionId);
@@ -115,6 +130,8 @@ export async function nameVersion(actor: Actor, versionId: number, name: string)
 export async function saveNamedVersion(actor: Actor, type: VersionType, id: number, name: string) {
   if (!(await versionAccess(actor, type, id)).edit) throw new Forbidden();
   visitorVersionType(actor, type);
+  // Counted before anything is written: a visit names a few Versions a window, and the demo holds a limited number.
+  await chargeVisitor(actor, "named", 1, DEMO_STORE_MAX.namedVersionsPerVisit, "You have named a few versions already. Try again when the demo starts fresh.");
   await recordVersion(type, id, actor.personId, { name: String(visitorOptionalText(actor, String(name ?? ""), "name")).trim().slice(0, 80) || "Named version" });
 }
 
@@ -125,6 +142,7 @@ const HIDDEN = "This version shows metrics that are not shared with you, so it c
  * old version cannot bring back a Metric that was taken off a shared dashboard. */
 export async function restoreVersion(actor: Actor, versionId: number, effects: RestoreEffects = restoreEffectsFor(actor)) {
   const v = await restorable(actor, versionId);
+  await refuseSeededRestore(actor, v.object_type, v.object_id);
   const s = { ...(await openVersionSnapshot(actor.workspaceId, v.object_type, v.object_id, v.version, v.snapshot)) };
   const id = v.object_id as number;
   const ws = actor.workspaceId;

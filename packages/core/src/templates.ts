@@ -18,6 +18,8 @@ import { TEMPLATES } from "./widget-templates";
 import { getMetrics } from "./workspace-data";
 import { ensureBaseline, recordVersion } from "./versions";
 import { visitorOptionalText } from "./demo-visitor-words";
+import { chargeVisitorBytes, visitorSize } from "./demo-visitor-limits";
+import { DEMO_STORE_MAX } from "./demo-limits";
 import { assertWidgetDesigns } from "./widget-designs";
 import type { AnchorRule, SlideShape, Widget, WidgetSettings, WorkflowConfig } from "./types";
 
@@ -41,6 +43,9 @@ async function ownTemplate(actor: Actor, id: number, kind?: TemplateKind) {
 
 /** Writes a template, new or replacing one of the actor's own of the same kind, and records the version. */
 async function store(actor: Actor, kind: TemplateKind, replaceId: number | null | undefined, row: Record<string, unknown>): Promise<number> {
+  // A visitor's template is small, and counted against what the visit may write (spec 0051), before anything is stored.
+  const bytes = visitorSize(actor, { body: row.body, slots: row.slots }, DEMO_STORE_MAX.templateBodyBytes, "That is too large to save as a template in the demo.");
+  if (bytes) await chargeVisitorBytes(actor, bytes);
   if (replaceId) {
     await ownTemplate(actor, replaceId, kind);
     await ensureBaseline("template", replaceId, actor.personId);

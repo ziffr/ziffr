@@ -7,6 +7,11 @@
 
 import { SETTING_WORDS } from "./sealed-words";
 
+/** The keys of a widget's settings that hold words a visitor types, in one place for the database's list (`demo_words_columns.keys`,
+ * the migrations) and the text rules (`demo-visitor-words.ts`): a Finding's words, the highlighted row's label, and the callouts and
+ * panels (their titles, labels and notes). A seeded widget keeps them; `canvasSeed` is the widget a free layout started from. */
+export const DEMO_SETTING_WORD_KEYS: readonly string[] = [...SETTING_WORDS, "highlight", "callouts", "panels", "canvasSeed"];
+
 /** What the demo's guard knows about one table. */
 export type DemoTableWords = {
   /** Columns whose text a visitor reads as the seed's words: names, descriptions, intros, comments. Seeded rows keep them. */
@@ -24,9 +29,10 @@ export type DemoTableWords = {
 /** The tables behind the server actions that tickets 8 to 11 of spec 0051 open (the inventory's *open* and *open with
  * limits*), each with its columns told apart. A table a later ticket opens must be here first. */
 export const DEMO_WORDS_COLUMNS: Readonly<Record<string, DemoTableWords>> = {
-  dashboards: { words: ["name", "intro"], other: ["owner_id", "kind", "snapshot_every"], keepRows: true },
+  // A seeded dashboard keeps its Theme too (`theme_id`): a Theme changes how everyone sees it (ticket 9).
+  dashboards: { words: ["name", "intro"], kept: ["theme_id"], other: ["owner_id", "kind", "snapshot_every"], keepRows: true },
   // A widget's settings hold a Finding's words (SETTING_WORDS) and the widget a free layout started from (`canvasSeed`).
-  widgets: { words: ["title", "settings"], wordKeys: { settings: [...SETTING_WORDS, "canvasSeed"] }, other: ["owner_id", "template", "metric_ids"] },
+  widgets: { words: ["title", "settings"], wordKeys: { settings: DEMO_SETTING_WORD_KEYS }, other: ["owner_id", "template", "metric_ids"] },
   decks: { words: ["name", "footer"], other: ["owner_id", "document"], keepRows: true },
   metrics: {
     words: ["name", "description", "unit"],

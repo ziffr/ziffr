@@ -9,7 +9,7 @@ import { demoReadOnlyWords } from "@ziffr/core/demo";
 import { BUILT_IN_DESIGNS } from "@ziffr/core/built-in-designs";
 import { STANDARD_THEMES } from "@ziffr/core/standard-themes";
 import { themeToFile } from "@ziffr/core/theme-file";
-import { demoBackToSeed, demoFingerprint, demoGeneration, demoLatestId, demoOpenForVisitors, demoWalkIds } from "@ziffr/core/test/demo-walk";
+import { demoBackToSeed, demoFingerprint, demoFullSeed, demoGeneration, demoLatestId, demoOpenForVisitors, demoWalkIds } from "@ziffr/core/test/demo-walk";
 import { demoAllows, demoClassOf } from "@ziffr/core/demo-changes";
 
 vi.mock("server-only", () => ({}));
@@ -344,6 +344,8 @@ const CASES: Record<string, Case> = {
 
 let before: Record<string, string>;
 beforeAll(async () => {
+  // The baseline is the demo as a full Demo Reset makes it (the SQL seed alone lacks Snapshots, the close and the Outbox).
+  await demoFullSeed();
   ids = (await demoWalkIds()) as Ids;
   before = await demoFingerprint();
 });
@@ -469,7 +471,7 @@ describe("with the setting in effect, a visit", () => {
     await ok("version-actions:restoreVersion", version);
     await ok("theme-actions:duplicateTheme", ids.otherTheme);
     const theme = await demoLatestId("themes", {});
-    await ok("theme-actions:saveTheme", theme, "My look", ids.themeTokens, ids.themeSlides);
+    await ok("theme-actions:saveTheme", theme, "My look", ids.otherThemeTokens, ids.otherThemeSlides);
     await ok("theme-actions:setDashboardTheme", dash, theme);
     await ok("theme-actions:addStandardTheme", "tokyo");
     await ok("theme-actions:deleteTheme", theme);

@@ -18,7 +18,13 @@ insert into demo_limits (kind, max_rows, scope_column, filter_column, filter_val
   ('versions', 150, null, null, null)
 on conflict (kind) do nothing;
 
-insert into demo_words_columns (table_name, column_name, kind) values ('themes', 'tokens', 'words') on conflict do nothing;
+insert into demo_words_columns (table_name, column_name, kind) values ('themes', 'tokens', 'words'), ('dashboards', 'theme_id', 'kept') on conflict do nothing;
+-- A seeded dashboard keeps its Theme: a Theme changes how everyone sees it. (The Theme itself keeps its colours, above.)
+
+-- The words a widget's settings hold are the Finding's (kicker, headline, subline, footnote, source), the highlighted row's label,
+-- the callouts and the panels (titles, labels, notes), and the widget a free layout started from: one list, with the core's
+-- (demo-words-columns.ts, DEMO_SETTING_WORD_KEYS), so the database protects what the text rules treat as words.
+update demo_words_columns set keys = array['kicker', 'headline', 'subline', 'footnote', 'source', 'highlight', 'callouts', 'panels', 'canvasSeed'] where table_name = 'widgets' and column_name = 'settings';
 
 select open_demo_table('dashboards');
 select open_demo_table('widgets');

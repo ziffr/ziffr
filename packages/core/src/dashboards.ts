@@ -14,6 +14,9 @@ import { allowedDesign } from "./view-designs";
 import { assertSettingsDesigns, checkedDesignSetting } from "./widget-designs";
 import { ensureBaseline, recordVersion } from "./versions";
 import { visitorOptionalText, visitorSettings, visitorText } from "./demo-visitor-words";
+import { chargeVisitorBytes, DemoSizeRefused, visitorSize } from "./demo-visitor-limits";
+import { DEMO_STORE_MAX } from "./demo-limits";
+import { refuseSeeded } from "./demo-seeded-rows";
 import { assertNoOutsideContent } from "./deck-content";
 import { firstFreePlace } from "./free-place";
 import { isDisplayPeriod, SHOWN_BY } from "./display-periods";
@@ -66,6 +69,19 @@ function fromBrowser(s: unknown, keep?: WidgetSettings["canvasSeed"]): WidgetSet
   if (sent !== null && keep) v.canvasSeed = keep;
   else if (sent === null) v.canvasSeed = null;
   return v;
+}
+
+/** In a demo visit, checks that a widget's settings are small, that the dashboard's widgets stay under their total and that the visit
+ * has room in its window, before the write that holds them (no half-done change). Nothing elsewhere. */
+async function assertVisitorRoom(actor: Actor, dashboardId: number | null, newSettings: unknown, exceptWidget?: number) {
+  const bytes = visitorSize(actor, newSettings, DEMO_STORE_MAX.widgetSettingsBytes, "That widget is too large for the demo.");
+  if (!bytes) return;
+  if (dashboardId !== null) {
+    const { data } = await db().from("widgets").select("id, settings").eq("dashboard_id", dashboardId).eq("workspace_id", actor.workspaceId);
+    const others = (data ?? []).filter((w) => w.id !== exceptWidget).reduce((n, w) => n + JSON.stringify(w.settings ?? null).length, 0);
+    if (others + bytes > DEMO_STORE_MAX.dashboardWidgetsBytes) throw new DemoSizeRefused("This dashboard is full for the demo.");
+  }
+  await chargeVisitorBytes(actor, bytes);
 }
 
 /** The actor's role on a dashboard of their workspace, or null. */
@@ -168,8 +184,9 @@ export async function saveDashboardText(actor: Actor, dashboardId: number, text:
  * the first free place in reading order. Returns the new widget's id. */
 export async function placeWidget(actor: Actor, dashboardId: number, source: DropSource, pos?: { x: number; y: number }): Promise<number> {
   await assertCanEditDashboard(actor, dashboardId);
-  await ensureBaseline("dashboard", dashboardId, actor.personId);
   const spec = await specFrom(actor, source);
+  await assertVisitorRoom(actor, dashboardId, spec.settings);
+  await ensureBaseline("dashboard", dashboardId, actor.personId);
   let x = 0;
   let y = 0;
   if (pos) {
@@ -213,6 +230,7 @@ export async function updateWidget(actor: Actor, id: number, patch: { template?:
   if (patch.template && !newSettings && tagSourceId(cur.settings) && !takesTagSource({ template, settings: cur.settings })) throw new Refused("A widget that shows a Tag changes only to a view of a list of Metrics. Fix its list first.");
   if (tagged || (patch.template && !newSettings && tagSourceId(cur.settings))) metricIdsNow = [];
   if (metricIdsNow || newSettings) await assertSeesMetrics(actor, widgetMetricIds(metricIdsNow ?? cur.metric_ids ?? [], newSettings));
+  if (newSettings) await assertVisitorRoom(actor, cur.dashboard_id, newSettings, id);
   await ensureBaseline("widget", id, actor.personId);
   if (cur.dashboard_id) await ensureBaseline("dashboard", cur.dashboard_id, actor.personId);
   const update: Record<string, unknown> = {};
@@ -263,6 +281,7 @@ export async function removeWidget(actor: Actor, id: number) {
 export async function saveToPool(actor: Actor, source: DropSource, name: string) {
   assertCan(actor, "create");
   const spec = await specFrom(actor, source);
+  await assertVisitorRoom(actor, null, spec.settings);
   await insertSealed("widgets", actor.workspaceId, [{ ...spec, title: title(visitorOptionalText(actor, name, "name")), owner_id: actor.personId, dashboard_id: null, saved: true }]);
 }
 
@@ -274,6 +293,8 @@ export async function deleteSavedWidget(actor: Actor, id: number) {
 /** Gives a dashboard a Theme of the workspace, or null to follow the team default. */
 export async function setDashboardTheme(actor: Actor, dashboardId: number, themeId: number | null) {
   await assertCanEditDashboard(actor, dashboardId);
+  // A Theme changes how everyone sees what the seed made: a visitor puts one on their own dashboards only.
+  await refuseSeeded(actor, "dashboards", dashboardId);
   if (themeId !== null && !(await db().from("themes").select("id").eq("id", themeId).eq("workspace_id", actor.workspaceId).maybeSingle()).data) throw new Forbidden();
   await ensureBaseline("dashboard", dashboardId, actor.personId);
   await db().from("dashboards").update({ theme_id: themeId }).eq("id", dashboardId).eq("workspace_id", actor.workspaceId);
