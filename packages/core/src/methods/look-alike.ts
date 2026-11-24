@@ -56,6 +56,7 @@ export type LookAlikeRefusal = { ok: false; why: "metrics" | "too-many" | "perio
 // ---- the series ----
 
 // (Two series never share an id: an id is one Metric's.)
+// Stryker disable next-line EqualityOperator: with two equal ids, which comes first changes nothing, and no two Metrics share one.
 const byId = (a: LookAlikeSeries, b: LookAlikeSeries) => (a.id < b.id ? -1 : 1);
 
 /** The periods in which every Metric has a value (the latest 60) and each Metric's values there, the Metrics in the order of their ids: a Metric whose straight-line trend explains more than half of its variance is read as its distance from that line. No minimum is asked here. */
@@ -87,6 +88,7 @@ type Scaled = { n: number; a: bigint[][]; q: bigint[]; pc: bigint[] };
 
 function scaled(values: readonly (readonly Fraction[])[], n: number): Scaled | { constant: number } {
   const a = values.map((col) => {
+    // Stryker disable next-line ArithmeticOperator: any common multiple of the denominators does, and a column multiplied by a whole number changes no cost, gap or count.
     const lcm = col.reduce((l, f) => (l / gcd(l, f.den)) * f.den, ONE);
     return col.map((f) => f.num * (lcm / f.den));
   });
@@ -280,17 +282,22 @@ function cliffCount(values: readonly bigint[], kind: readonly number[]): Fractio
 type Mark = { metric: string; level: Level; count: Fraction };
 
 const markKey = (marks: readonly Mark[]) => JSON.stringify(marks.map((m) => [m.metric, m.level]).sort());
-// The Metrics a kind has a word on, the largest size of Cliff's count first, ties by the Metric's place in the order of the ids. Sizes are compared as
-// squares, so no sign has to be taken off.
-const ranked = (ids: readonly string[], counts: readonly Fraction[]): Mark[] =>
-  counts
-    .map((count, j) => ({ metric: ids[j], level: cliffLevel(count), count, j }))
-    .filter((m) => m.level !== null)
-    .sort((a, b) => {
-      const d = b.count.num * b.count.num * a.count.den * a.count.den - a.count.num * a.count.num * b.count.den * b.count.den;
-      return d < ZERO ? -1 : d > ZERO ? 1 : a.j - b.j;
-    })
-    .map((m) => ({ metric: m.metric, level: m.level!, count: m.count }));
+// Whether a count is larger in size than another (compared as squares, so no sign has to be taken off).
+const bigger = (x: Fraction, y: Fraction) => x.num * x.num * y.den * y.den > y.num * y.num * x.den * x.den;
+// The Metrics a kind has a word on, the largest size of Cliff's count first, a tie by the Metric's place in the order of the ids: the largest is taken
+// again and again from those left, the first of equals staying where it is.
+function ranked(ids: readonly string[], counts: readonly Fraction[]): Mark[] {
+  const left = counts.map((count, j) => ({ metric: ids[j], level: cliffLevel(count), count })).filter((m): m is Mark => m.level !== null);
+  const out: Mark[] = [];
+  while (left.length > 0) {
+    let best = 0;
+    left.forEach((m, i) => {
+      if (bigger(m.count, left[best].count)) best = i;
+    });
+    out.push(...left.splice(best, 1));
+  }
+  return out;
+}
 
 /** What marks each kind, from Cliff's count of each kind on each Metric (`counts[kind][metric]`, the Metrics in the order of their ids): the two Metrics with the largest size and a word; for kinds that would be named alike (the same Metrics and words) a third Metric that the kind has a word on and the others named alike do not; those still alike are numbered (`ordinal`) by their kind number. */
 export function nameKinds(ids: readonly string[], counts: readonly (readonly Fraction[])[]): { marks: Mark[]; ordinal: number | null }[] {
