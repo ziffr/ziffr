@@ -1,95 +1,18 @@
 "use client";
+// GLOSSARY: Contact, Away. Contacts (people without a login) and the Away dates of a person, shared with Your Deliveries.
 import { useState, useTransition } from "react";
 import { toast } from "sonner";
 import { shown, unwrap } from "@/lib/action-error";
 import { Plus, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { addContact, createGroup, deleteGroup, removeContact, renameGroup, setMember } from "@/app/team-actions";
+import { addContact, removeContact } from "@/app/team-actions";
 import { setAway } from "@/app/workflow-actions";
-import type { Group, Profile } from "@ziffr/core/types";
-import { BUSINESS_FUNCTION_LABELS, type BusinessFunction } from "@ziffr/pack/business-functions";
+import type { Profile } from "@ziffr/core/types";
 import { useConfirm } from "@/components/confirm-dialog";
 
-export function TeamScreen({ people, contacts, groups, canEdit, viewer, away, functions }: { people: Profile[]; contacts: Profile[]; groups: Group[]; canEdit: boolean; viewer: string; away: { user_id: string; starts: string; ends: string }[];
-  /** Each member's Business Function: given only to Owners and Admins (null for everyone else, who see no column). */
-  functions: { personId: string; function: BusinessFunction }[] | null }) {
-  const [pending, start] = useTransition();
-  const [name, setName] = useState("");
-  const run = (f: () => Promise<unknown>, ok?: string) => start(async () => { try { unwrap(await f()); if (ok) toast.success(ok); } catch (err) { toast.error("Not done", { description: shown(err) }); } });
-  const { confirm, dialog } = useConfirm();
-
-  return (
-    <div className="space-y-6">
-      {dialog}
-      <div className="overflow-x-auto">
-        <table className="w-full min-w-[36rem] text-sm">
-          <thead>
-            <tr className="text-left text-xs text-muted-foreground">
-              <th className="py-2 pr-3 font-medium">Person</th>
-              <th className="py-2 pr-3 font-medium">Away</th>
-              {functions && <th className="py-2 pr-3 font-medium">Works in</th>}
-              {groups.map((g) => (
-                <th key={g.id} className="py-2 pr-3 font-medium">
-                  {canEdit ? (
-                    <span className="flex items-center gap-1">
-                      <input
-                        aria-label={`Name of ${g.name}`}
-                        defaultValue={g.name}
-                        onBlur={(e) => { if (e.target.value.trim() && e.target.value.trim() !== g.name) run(() => renameGroup(g.id, e.target.value)); }}
-                        className="h-8 w-28 rounded-[var(--radius-input)] bg-transparent px-1 font-medium text-foreground hover:bg-muted focus-visible:bg-card focus-visible:outline-2 focus-visible:outline-ring"
-                      />
-                      <button type="button" aria-label={`Delete ${g.name}`} title="Delete group" disabled={pending} onClick={async () => { if (await confirm({ title: `Delete the group ${g.name}?`, description: "What was shared with it stops being shared, and threads limited to it become readable by everyone.", confirmLabel: "Delete group" })) run(() => deleteGroup(g.id), "Group deleted"); }} className="flex size-7 items-center justify-center rounded-[var(--radius-input)] hover:bg-muted"><Trash2 className="size-3.5" /></button>
-                    </span>
-                  ) : g.name}
-                </th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {people.map((p) => (
-              <tr key={p.id} className="border-t border-border">
-                <th scope="row" className="py-2 pr-3 text-left font-medium">{p.name}<span className="block text-xs font-normal text-muted-foreground">{p.role}</span></th>
-                <td className="py-2 pr-3"><AwayDates userId={p.id} current={away.find((a) => a.user_id === p.id)} can={canEdit || p.id === viewer} /></td>
-                {functions && <td className="py-2 pr-3">{labelFor(functions, p.id)}</td>}
-                {groups.map((g) => (
-                  <td key={g.id} className="py-2 pr-3">
-                    <input
-                      type="checkbox"
-                      aria-label={`${p.name} in ${g.name}`}
-                      checked={g.members.includes(p.id)}
-                      disabled={!canEdit || pending}
-                      onChange={(e) => run(() => setMember(g.id, p.id, e.target.checked))}
-                      className="size-4 accent-[var(--color-ink)]"
-                    />
-                  </td>
-                ))}
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-      {canEdit ? (
-        <form className="flex max-w-sm gap-2" onSubmit={(e) => { e.preventDefault(); run(async () => { unwrap(await createGroup(name)); setName(""); }, "Group created"); }}>
-          <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="New group, e.g. Finance" aria-label="New group name" />
-          <Button type="submit" variant="outline" disabled={pending || !name.trim()}><Plus aria-hidden /> Add</Button>
-        </form>
-      ) : (
-        <p className="text-sm text-muted-foreground">Only owners and admins of the workspace change groups.</p>
-      )}
-      <Contacts contacts={contacts} canEdit={canEdit} />
-    </div>
-  );
-}
-
-/** One member's Business Function in words, or a dash when they gave none. */
-function labelFor(functions: { personId: string; function: BusinessFunction }[], id: string) {
-  const f = functions.find((x) => x.personId === id);
-  return f ? BUSINESS_FUNCTION_LABELS[f.function] : <span className="text-muted-foreground">–</span>;
-}
-
 /** People without a login who submit values by Slack, email or their form link (GLOSSARY: Contact). */
-function Contacts({ contacts, canEdit }: { contacts: Profile[]; canEdit: boolean }) {
+export function Contacts({ contacts, canEdit }: { contacts: Profile[]; canEdit: boolean }) {
   const [pending, start] = useTransition();
   const empty = { name: "", email: "", slackHandle: "", phone: "" };
   const [form, setForm] = useState(empty);
