@@ -6,6 +6,8 @@ import { BaseBoxShapeUtil, HTMLContainer, T, type TLShape } from "tldraw";
 import { WidgetBody, widgetMetrics } from "@/views/widget-body";
 import { templateOf } from "@/views/templates";
 import type { CanvasData, TemplateId, WidgetSettings } from "@ziffr/core/types";
+import { fillWidgetText } from "@ziffr/core/placeholders";
+import { dataAsOf } from "@ziffr/core/snapshot-periods";
 
 export const WIDGET_SHAPE = "ziffr-widget";
 
@@ -40,7 +42,7 @@ function WidgetCard({ shape }: { shape: WidgetShape }) {
   const widget = widgetFromShape(shape);
   const ms = widgetMetrics(widget, data);
   const t = templateOf(widget);
-  const title = widget.title ?? (t.kind === "metric" ? ms[0]?.name : `${t.label}: ${ms.map((m) => m.name).join(" vs. ")}`);
+  const title = (widget.title ? fillWidgetText(widget.title, widget, widget.settings.asOf ? dataAsOf(data, widget.settings.asOf) : data) : undefined) ?? (t.kind === "metric" ? ms[0]?.name : `${t.label}: ${ms.map((m) => m.name).join(" vs. ")}`);
   const story = t.kind === "story";
   return (
     <div className="stock flex h-full w-full flex-col overflow-hidden rounded-[var(--radius-card)] font-sans">

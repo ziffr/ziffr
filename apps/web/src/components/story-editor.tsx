@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { storyBreakdown, storyDefaults } from "@/views/story";
 import { PanelEditor } from "@/components/panel-editor";
-import { PLACEHOLDERS } from "@ziffr/core/placeholders";
+import { PlaceholderHints } from "@/components/placeholder-hints";
 import { RULES_FOR } from "@ziffr/core/team-templates";
 import type { AnchorRule, CanvasData, Callout, Metric, Widget, WidgetSettings } from "@ziffr/core/types";
 import { periodLabel } from "@ziffr/core/periods";
@@ -112,13 +112,7 @@ export function StoryEditor({ widget, data, m, onSave, saveLabel = "Apply" }: { 
       <Labelled label="Source line">
         <Input value={s.source ?? ""} placeholder={d.source} onChange={(e) => set("source", e.target.value)} />
       </Labelled>
-      <details className="rounded-[var(--radius-input)] border border-border p-2 text-xs text-muted-foreground">
-        <summary className="cursor-pointer font-medium text-foreground">Words that fill themselves in</summary>
-        <ul className="mt-1.5 space-y-0.5">
-          {PLACEHOLDERS.map((p) => <li key={p.key}><code className="fig text-foreground">{`{${p.key}}`}</code> {p.hint}</li>)}
-        </ul>
-        <p className="mt-1.5">Add a number for another metric of the Finding, such as {"{metric 2}"}.</p>
-      </details>
+      <PlaceholderHints about="the Finding" />
       <Button type="submit" className="w-full">{saveLabel}</Button>
     </form>
   );

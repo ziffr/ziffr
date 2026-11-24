@@ -78,7 +78,7 @@ export function PresentDashboard({ dashboard, data, widgets, start, single, publ
           {ordered.map((w, n) => (
             <OpenLarge
               key={w.id}
-              title={frameTitle(w, widgetMetrics(w, data))}
+              title={frameTitle(w, widgetMetrics(w, data), data)}
               onOpen={() => { step.go(n); setMode("single"); }}
               className={cn("h-[max(16rem,calc(var(--h)*2.4rem))] min-w-0 sm:[grid-column:span_var(--sm)]", sparse ? "lg:h-[clamp(14rem,calc(var(--h)*3.5rem),26rem)] lg:[grid-column:auto]" : "lg:h-auto lg:[grid-column:var(--x)/span_var(--w)] lg:[grid-row:var(--y)/span_var(--h)]")}
               style={{ "--x": w.x + 1, "--y": w.y + 1, "--w": w.w, "--h": w.h, "--sm": w.w >= 6 ? 2 : 1 } as React.CSSProperties}

@@ -14,6 +14,7 @@ import { TakeawayView } from "@/components/takeaway-view";
 import { resolverFrom } from "@ziffr/core/compare";
 import { dayAfter, heldText, isPartial, pointName, shownSeries, type DisplayPoint } from "@ziffr/core/display-periods";
 import { periodLabel } from "@ziffr/core/periods";
+import { fillText } from "@ziffr/core/placeholders";
 import type { Flag, Part, Piece, TextShow, TextStyle, ViewDesign } from "@ziffr/core/view-design";
 import type { CanvasData, Metric, Widget } from "@ziffr/core/types";
 import { bestForecast, forecastTooWide, NO_FORECAST_WIDE, withTakeawayBand } from "@ziffr/core/methods/forecast-choice";
@@ -326,14 +327,14 @@ const ROOMY_VALUE = "text-[length:clamp(calc(var(--text-xl)*var(--widget-scale,1
 function TextView({ style, pieces, v }: { style?: TextStyle; pieces: Piece[]; v: DesignValues }) {
   // Words are React text: markup in them is shown as the characters it is made of, never run.
   const body = pieces.map((p, i) => {
-    if (typeof p === "string") return <span key={i}>{p}</span>;
+    if (typeof p === "string") return <span key={i}>{fillText(p, v.metrics, v.data)}</span>;
     const value = textValue(p.show, v);
     if (value === null || value === "") return null;
     return (
       <span key={i}>
-        {p.before}
+        {fillText(p.before, v.metrics, v.data)}
         {p.style === "strong" ? <span className="font-medium text-foreground">{value}</span> : value}
-        {p.after}
+        {fillText(p.after, v.metrics, v.data)}
       </span>
     );
   });
