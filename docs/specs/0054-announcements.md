@@ -84,3 +84,8 @@ An **Announcement** is one plain line shown on every screen of the app (the phon
 ## Further Notes
 
 The second group (tickets 5 and 6) comes after tickets 1 to 4 are merged, so the Installation level is proven first. The threat model row names what an Announcement can do if an admin account is taken over: put a link in front of everyone. That is why links are https only, labelled, never opened by themselves, and every change is in the audit trail.
+
+## Progress
+
+- Ticket 1 (#1085, #1095): table, core functions, `publicAnnouncements()`: merged.
+- Tickets 3 and 4 (#1087, #1088): built. The shell reads `activeInstallationAnnouncements({ demo })` (new, takes no person: it reads the Installation only, and a visit in the demo also gets the lines for the demo only), orders them with the built-in demo notice (first where visitors may change the demo, else ranked as an info), keys each dismissal by id and last change, shows three at once with "+N more", and gives a line that cannot be dismissed no button. The sign-in page shows `publicAnnouncements()` through the same component, with no dismissal there (as the spec says). Workspace Announcements (tickets 5 and 6) are not part of this.

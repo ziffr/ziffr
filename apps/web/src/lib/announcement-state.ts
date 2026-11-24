@@ -2,8 +2,13 @@
 // browser and no server code, so the line's component and its tests share it. A dismissal belongs to a visit (its
 // `scope`), so a new sign-in or a new demo visit, which has another scope, brings every Announcement back.
 
-/** One Announcement: a stable id, plain text and optionally one link. Nothing private: it reaches every visitor's browser. */
-export type Announcement = { id: string; text: string; link?: { href: string; label: string } };
+/** One Announcement: a stable id (it changes when the Announcement is edited, so a dismissed one comes back), plain text,
+ * optionally one link, a level (info when absent) and whether it can be dismissed (it can when absent). Nothing private:
+ * it reaches every visitor's browser. */
+export type Announcement = { id: string; text: string; link?: { href: string; label: string }; level?: "info" | "warning"; dismissible?: boolean };
+
+/** The most lines shown at once; the rest wait behind "more". */
+const SHOWN_AT_ONCE = 3;
 
 /** The sessionStorage key that holds the dismissals of this browser tab. */
 export const DISMISSED_KEY = "ziffr.announcements.dismissed";
@@ -26,7 +31,21 @@ export function withDismissed(raw: string | null, scope: string, id: string): st
   return JSON.stringify({ scope, ids: ids.includes(id) ? ids : [...ids, id] });
 }
 
-/** The Announcements still to show: those not dismissed in this visit. */
+/** The Announcements still to show: those not dismissed in this visit; one that cannot be dismissed always shows. */
 export function stillShown(items: Announcement[], dismissed: string[]): Announcement[] {
-  return items.filter((a) => !dismissed.includes(a.id));
+  return items.filter((a) => a.dismissible === false || !dismissed.includes(a.id));
+}
+
+/** The built-in notice and the Installation's, in the order they show: Installation Announcements arrive most urgent first.
+ * The demo's notice leads where visitors may change the demo (it says what will be lost); otherwise it ranks by its level. */
+export function shellOrder(builtIn: Announcement[], installation: Announcement[], changesOpen: boolean): Announcement[] {
+  if (changesOpen) return [...builtIn, ...installation];
+  const warnings = installation.filter((a) => a.level === "warning");
+  return [...warnings, ...builtIn, ...installation.filter((a) => a.level !== "warning")];
+}
+
+/** What fits on screen: the first `max` lines, and how many wait behind "more" (none when `expanded`). */
+export function capShown(items: Announcement[], expanded: boolean, max: number = SHOWN_AT_ONCE): { visible: Announcement[]; hidden: number } {
+  if (expanded || items.length <= max) return { visible: items, hidden: 0 };
+  return { visible: items.slice(0, max), hidden: items.length - max };
 }
