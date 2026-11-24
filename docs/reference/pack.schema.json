@@ -65,6 +65,124 @@
       "pattern": "^>=(?:0|[1-9][0-9]{0,3})\\.(?:0|[1-9][0-9]{0,3})(?:\\.(?:0|[1-9][0-9]{0,3}))?$",
       "description": "the oldest Ziffr that can install it, such as “>=0.12”"
     },
+    "audience": {
+      "type": "object",
+      "description": "Whom the Pack is for, so Ziffr can suggest it to a Workspace that fits and rank it higher. It never hides the Pack from anyone. Every part is optional and lists distinct keys from Ziffr's fixed lists; at least one part is needed (leave the field out instead of leaving it empty). A Pack that uses it must state a `ziffr` minimum, such as \">=0.16\", since an older Ziffr refuses the field.",
+      "properties": {
+        "industries": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 18,
+          "uniqueItems": true,
+          "items": {
+            "enum": [
+              "saas",
+              "ecommerce",
+              "retail",
+              "wholesale",
+              "manufacturing",
+              "construction",
+              "real_estate",
+              "professional_services",
+              "agency",
+              "financial_services",
+              "healthcare",
+              "education",
+              "hospitality",
+              "logistics",
+              "energy",
+              "media",
+              "agriculture",
+              "other"
+            ]
+          },
+          "description": "the industries it is for"
+        },
+        "segments": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 5,
+          "uniqueItems": true,
+          "items": {
+            "enum": [
+              "b2b",
+              "b2c",
+              "b2b2c",
+              "public_sector",
+              "non_profit"
+            ]
+          },
+          "description": "who the business sells to or serves"
+        },
+        "functions": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 9,
+          "uniqueItems": true,
+          "items": {
+            "enum": [
+              "sales",
+              "marketing",
+              "finance",
+              "operations",
+              "customer_support",
+              "people",
+              "product_engineering",
+              "management",
+              "other"
+            ]
+          },
+          "description": "the Business Functions it is for"
+        },
+        "employeeBands": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 6,
+          "uniqueItems": true,
+          "items": {
+            "enum": [
+              "1-10",
+              "11-50",
+              "51-200",
+              "201-500",
+              "501-1000",
+              "1000+"
+            ]
+          },
+          "description": "how many people work there"
+        },
+        "revenueBands": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 6,
+          "uniqueItems": true,
+          "items": {
+            "enum": [
+              "<1m",
+              "1m-10m",
+              "10m-50m",
+              "50m-250m",
+              "250m-1b",
+              "1b+"
+            ]
+          },
+          "description": "a year's revenue"
+        },
+        "countries": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 50,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "minLength": 2,
+            "maxLength": 2
+          },
+          "description": "ISO 3166-1 alpha-2 country codes, such as “DE”"
+        }
+      },
+      "additionalProperties": false
+    },
     "logo": {
       "type": "string",
       "maxLength": 170697,

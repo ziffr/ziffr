@@ -201,7 +201,7 @@ export function checkSchema(root: Schema, value: unknown, lines: Map<string, num
         // Only lists of texts and numbers are held to this: the one place a format asks for it (a step's list of inputs).
         const seen = new Set<unknown>();
         v.forEach((x, n) => {
-          if (typeof x !== "object" && seen.has(x)) at(`${path}[${n}]`, `“${String(x)}” is listed twice.`);
+          if (typeof x !== "object" && seen.has(x)) at(`${path}[${n}]`, `“${String(x).slice(0, 40)}” is listed twice.`);
           seen.add(x);
         });
       }

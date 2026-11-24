@@ -2,13 +2,22 @@
   "format": "ziffr.pack/1",
   "id": "ziffr/online-shop",
   "name": "Online shop",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "summary": "Orders, revenue by channel, average order value, conversion, returns and sessions, with a weekly dashboard and a Workflow that asks for the week's numbers on Monday.",
   "author": {
     "name": "Ziffr"
   },
   "license": "CC-BY-4.0",
   "ziffr": ">=0.11",
+  "audience": {
+    "industries": [
+      "ecommerce",
+      "retail"
+    ],
+    "segments": [
+      "b2c"
+    ]
+  },
   "listing": {
     "homepage": "https://github.com/ziffr/ziffr/tree/main/packs"
   },

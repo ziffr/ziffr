@@ -2,13 +2,18 @@
   "format": "ziffr.pack/1",
   "id": "ziffr/finance",
   "name": "Finance",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "summary": "Revenue, cost of goods sold, operating costs, cash and invoices, with gross margin and net result worked out, a monthly dashboard and a close Workflow that locks the month.",
   "author": {
     "name": "Ziffr"
   },
   "license": "CC-BY-4.0",
   "ziffr": ">=0.11",
+  "audience": {
+    "functions": [
+      "finance"
+    ]
+  },
   "listing": {
     "homepage": "https://github.com/ziffr/ziffr/tree/main/packs"
   },
