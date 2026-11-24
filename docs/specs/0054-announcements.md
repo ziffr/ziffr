@@ -21,7 +21,7 @@ An **Announcement** is one plain line shown on every screen of the app (the phon
 2. As an operator, I want people who cannot sign in to still read that it is down on purpose, so that they do not write to me.
 3. As an operator, I want the running maintenance notice to stay, so that nobody dismisses it and then wonders why saving fails.
 4. As an operator of a self-hosted Installation, I want the same, with no service of ours involved.
-5. As a Workspace admin, I want to tell my team one thing (a new deadline, a changed Metric) without email, and to see that it reaches only my team.
+5. As a Workspace admin, I want to tell my team one thing (a new Due Date, a changed Metric) without email, and to see that it reaches only my team.
 6. As a person, I want an Announcement to be one line I can dismiss, never a pop-up and never markup.
 7. As a demo visitor, I want to see the demo notice, and no visitor can write an Announcement.
 
