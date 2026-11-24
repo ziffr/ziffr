@@ -3,6 +3,7 @@
 // its own dashboards, one Snapshot at a time in the whole demo; the seed's decks and Snapshots and the showcase stay as they are,
 // a deck is small and its words are plain; with the setting off or without a visit the demo refuses as it always did. Written for
 // the database test run of CI; the author could not run it (spec 0051's tickets 8, 9 and 10 were built in parallel, without a database).
+import { assertDemoIsOnlyWorkspace } from "./test/demo-walk";
 import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
 import { db } from "./db";
 import { DemoLimit, DemoReadOnly, DemoShowcase } from "./demo";
@@ -57,6 +58,7 @@ const lastMonth = () => { const n = new Date(); return new Date(Date.UTC(n.getUT
 
 let metric = 0;
 beforeAll(async () => {
+  await assertDemoIsOnlyWorkspace();
   // A fresh demo that is open to visitors, with its showcase recorded and its seed marked done.
   await resetDemoWorkspace({ openToVisitors: true });
   metric = Number((await db().from("metrics").select("id").eq("workspace_id", DEMO_WORKSPACE_ID).limit(1).single()).data?.id);

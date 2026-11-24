@@ -1,5 +1,6 @@
 // What the web app's pages read (spec 0001: one core). Every loader takes the Actor first, reads one Workspace only,
 // and returns only what that person may see; pages render it and query nothing themselves.
+import { refuseNewWorkspaceInDemoOnly } from "./demo-only";
 import { withoutChecklistWords } from "./checklist";
 import { withoutSnapshotAudience } from "./send-snapshot";
 import { checklistAbout } from "./checklist-about";
@@ -409,6 +410,7 @@ export async function submissionForm(code: string, demoVisit = false) {
 
 /** A signed-in person creates a workspace and becomes its Owner; it starts with the Theme Ziffr ships with. */
 export async function createWorkspace(personId: string, name: string): Promise<string> {
+  refuseNewWorkspaceInDemoOnly();
   const title = String(name ?? "").trim().slice(0, 80);
   if (!title) throw new Error("Give the workspace a name.");
   // On an Installation that offers trials, every workspace is a Trial Workspace (spec 0021).

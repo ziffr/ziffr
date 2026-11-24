@@ -10,6 +10,7 @@
 // root to hand each file to its user; the keys themselves (/keys/keys.json) only root reads.
 import { createHmac, randomBytes } from "node:crypto";
 import { chmodSync, chownSync, existsSync, mkdirSync, readFileSync, renameSync, rmSync, writeFileSync } from "node:fs";
+import { demoSettingsForClock } from "./clock-schedule.mjs";
 
 const DIR = process.env.ZIFFR_KEYS_DIR || "/keys";
 const env = process.env;
@@ -154,6 +155,8 @@ const files = {
   // The Usage Feed is off unless both of its keys are set (then the clock starts it daily); its keys go here and nowhere else.
   clock: {
     ZIFFR_JOB_SECRET: jobSecret,
+    // The clock reads only this file: without these two it would call the demo's reset nightly only (spec 0051).
+    ...demoSettingsForClock(env),
     ...(set(env.ZIFFR_USAGE_KEY) && set(env.ZIFFR_USAGE_FEED_KEY) ? Object.fromEntries(USAGE_FEED_SETTINGS.filter((k) => set(env[k])).map((k) => [k, env[k]])) : {}),
   },
   // supabase/postgres: the superuser's password, which compose.yml's roles script also gives the roles Auth and

@@ -71,7 +71,9 @@ export async function workspace(name = "Test") {
     await db().from("breakdown_rows").delete().eq("workspace_id", id);
     await db().from("observations").delete().eq("workspace_id", id);
     await db().from("intake_log").delete().eq("workspace_id", id);
-    await db().from("workspaces").delete().eq("id", id);
+    // Not silent: a Workspace left behind breaks every demo test after it (the demo must be the only Workspace: assertDemoIsOnlyWorkspace).
+    const gone = await db().from("workspaces").delete().eq("id", id);
+    if (gone.error) console.error(`Test cleanup: Workspace ${id} was not deleted: ${gone.error.message}`);
     if (people.length) await db().from("profiles").delete().in("id", people);
   };
   /** Changes columns of a Metric as stored (a Source switched off, a Metric archived), for a test of what a sender then gets. */

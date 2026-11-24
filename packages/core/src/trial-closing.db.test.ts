@@ -19,7 +19,7 @@ const cleanups: (() => Promise<void>)[] = [];
 afterEach(async () => {
   for (const name of ["ZIFFR_DEFAULT_METRICS_LIMIT", "ZIFFR_DEFAULT_LIMIT_LABEL", "ZIFFR_ONE_DEFAULT_PER_PERSON"]) delete process.env[name];
   forgetStoredSettings(); await syncDefaultLimit(true);
-  for (const c of cleanups.splice(0)) await c().catch(() => {});
+  for (const c of cleanups.splice(0)) await c().catch((e) => console.error("Test cleanup failed (a stray Workspace may remain):", e instanceof Error ? e.message : e));
 });
 
 /** A Trial Workspace ending `hours` from now, with an Owner, a Contact, three Metrics and a key asking for 90 days. */

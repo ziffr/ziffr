@@ -1,7 +1,8 @@
 // Demo Mode is read-only (spec 0029, #271; GLOSSARY: Demo Mode): the database refuses every write to the demo, the
 // core says one sentence for it whichever function tried, the seed alone writes it, and the demo's simulated channels
 // say what would happen without saving anything. The walk of every server action is apps/web's demo-read-only test.
-import { afterEach, describe, expect, it } from "vitest";
+import { assertDemoIsOnlyWorkspace } from "./test/demo-walk";
+import { afterEach, beforeAll, describe, expect, it } from "vitest";
 import { db, seedingDemo } from "./db";
 import { visitingDemo } from "./demo-visiting";
 import { DemoReadOnly, DemoStale, demoReadOnlyWords } from "./demo";
@@ -18,6 +19,8 @@ const CLOUD = { ZIFFR_CLOUD_KEY: "k".repeat(32) };
 
 const sara: Actor = { personId: "sara", workspaceId: DEMO_WORKSPACE_ID, role: "owner" };
 const cleanups: (() => Promise<void>)[] = [];
+// A visit may write the demo only where it is the only Workspace (migration 20270131090000): say so at once if it is not.
+beforeAll(assertDemoIsOnlyWorkspace);
 afterEach(async () => { for (const c of cleanups.splice(0)) await c(); });
 
 /** How many rows a table holds in the demo. */

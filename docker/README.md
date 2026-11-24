@@ -55,7 +55,7 @@ All go in `.env` next to `compose.yml`, and all are optional. After changing one
 | `ZIFFR_DEMO` | Whether visitors can try the demo without an account. On at `http://localhost`, off on a domain unless `ZIFFR_DEMO=1` |
 | `ZIFFR_FEEDBACK_PROMPT` | `true` or `false`: whether signed-in people are asked now and then if they like Ziffr, with a link to the repository on GitHub. Empty: off here (on only for hosted Ziffr) |
 | `ZIFFR_DEMO_ONLY` | `1` makes this Ziffr a public demo and nothing else: the login page offers only the demo, nobody can sign in or make an account, and the demo starts fresh every night at 03:30 UTC. With `ZIFFR_DEMO_CHANGES=1` as well, visitors may change the demo (see [Running a public demo that visitors may change](#running-a-public-demo-that-visitors-may-change)) |
-| `ZIFFR_DEMO_CHANGES`, `ZIFFR_DEMO_ADDRESS_KEY` | Only with `ZIFFR_DEMO_ONLY=1`: `1` lets visitors change the demo, which starts fresh every 15 minutes after a change; the key (at least 32 characters, `openssl rand -hex 32`) is what their changes are counted under. The clock needs the two demo settings as well, see below |
+| `ZIFFR_DEMO_CHANGES`, `ZIFFR_DEMO_ADDRESS_KEY` | Only with `ZIFFR_DEMO_ONLY=1`: `1` lets visitors change the demo, which starts fresh every 15 minutes after a change; the key (at least 32 characters, `openssl rand -hex 32`) is what their changes are counted under. The init step passes them to the clock |
 | `ZIFFR_USAGE_KEY`, `ZIFFR_USAGE_FEED_KEY` | Turn on the Usage Feed (spec 0031): the Installation's daily totals, sent into a Workspace of your own. A Usage Key from the Installation Settings page and a Feed Key from that Workspace; both are needed, and with one missing nothing runs and nothing is sent. Only the clock reads them. `ZIFFR_USAGE_SOURCE_URL` and `ZIFFR_USAGE_FEED_URL` name another Installation to read or to send to. See [Usage](../docs/guides/usage.md) |
 | `ZIFFR_ONE_DEFAULT_PER_PERSON` | `1`: each person may own only one Workspace on the default Workspace Limit |
 | `ZIFFR_DEFAULT_METRICS_LIMIT` | The most Metrics a Workspace may hold unless it has a limit of its own (Archived Metrics not counted); unset means no limit. Also on the Installation Settings page |
@@ -95,16 +95,8 @@ Your proxy then forwards to `http://127.0.0.1:8930` (or `http://172.19.0.1:8930`
 
 A demo-only Ziffr (`ZIFFR_DEMO_ONLY=1`) can let visitors try the everyday work: what they change is seen by every visitor and gone when the demo starts fresh, every 15 minutes after a change. The whole guide, with the measuring scripts, what to watch, how to switch it off and a checklist, is [Running a public demo that visitors may change](../docs/guides/self-hosting.md#running-a-public-demo-that-visitors-may-change). With Docker Compose, three things are yours to set:
 
-- In the settings file next to `compose.yml`: `ZIFFR_DEMO_ONLY=1`, `ZIFFR_DEMO_CHANGES=1`, `ZIFFR_DEMO_ADDRESS_KEY` (from `openssl rand -hex 32`), and, behind a proxy of your own, `ZIFFR_PROXY_HOPS=2` with Caddy trusting that proxy (above). Never on an Installation that holds real Workspaces.
-- **The clock needs the two demo settings too.** It reads its own environment, and the settings file reaches the app, not the clock. Without them the clock keeps the nightly call and visitors' changes stay until 03:30 UTC. Put this in `compose.override.yml`:
-
-  ```yaml
-  services:
-    clock:
-      environment:
-        ZIFFR_DEMO_ONLY: "1"
-        ZIFFR_DEMO_CHANGES: "1"
-  ```
+- In the settings file next to `compose.yml`: `ZIFFR_DEMO_ONLY=1`, `ZIFFR_DEMO_CHANGES=1`, `ZIFFR_DEMO_ADDRESS_KEY` (from `openssl rand -hex 32`), and, behind a proxy of your own, `ZIFFR_PROXY_HOPS=2` with Caddy trusting that proxy (above). Never on an Installation that holds real Workspaces: the core refuses to open the demo to visitors, and the database refuses their writes, while a Workspace other than the demo exists, and a demo-only Ziffr takes no new Workspace.
+- **The clock follows the same two settings.** The init step writes both settings from the settings file into the clock's own file, so the 15-minute schedule follows them without anything more from you. A demo whose seed did not finish (a step failed, so every visit is refused) is reset again at the next call, not left closed until the next day.
 
 - After `docker compose up -d`, call the reset job once by hand so the database opens (`curl -fsS -X POST -H "Authorization: Bearer $ZIFFR_JOB_SECRET" https://<your domain>/api/jobs/demo-reset`); and to go back, remove `ZIFFR_DEMO_CHANGES` from both places, start again and call it once more.
 

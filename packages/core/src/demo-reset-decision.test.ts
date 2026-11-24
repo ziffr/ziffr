@@ -4,7 +4,7 @@ import { describe, expect, it } from "vitest";
 import { demoChangesInEffect, shouldResetDemo, type DemoState } from "./demo-reset-decision";
 
 const at = (s: string) => new Date(s);
-const clean: DemoState = { generation: 4, changedSinceReset: false, lastChangeAt: null, resetAt: at("2026-11-23T10:25:00Z") };
+const clean: DemoState = { generation: 4, changedSinceReset: false, lastChangeAt: null, resetAt: at("2026-11-23T10:25:00Z"), showcaseReady: true, seedDoneAt: at("2026-11-23T10:25:20Z") };
 
 describe("demoChangesInEffect", () => {
   it("is on only with the setting and a demo-only Installation", () => {
@@ -32,6 +32,11 @@ describe("shouldResetDemo", () => {
   it("resets a clean demo that is a day old, or from an earlier UTC date", () => {
     expect(shouldResetDemo({ changesInEffect: true, state: clean, now: at("2026-11-24T10:25:00Z") })).toBe(true);
     expect(shouldResetDemo({ changesInEffect: true, state: { ...clean, resetAt: at("2026-11-23T23:55:00Z") }, now: at("2026-11-24T00:10:00Z") })).toBe(true);
+  });
+  it("resets a clean, young demo whose seed did not finish, which every visit refuses", () => {
+    const now = at("2026-11-23T10:40:00Z");
+    expect(shouldResetDemo({ changesInEffect: true, state: { ...clean, showcaseReady: false }, now })).toBe(true);
+    expect(shouldResetDemo({ changesInEffect: true, state: { ...clean, seedDoneAt: null }, now })).toBe(true);
   });
   it("resets when its state or reset time is unknown", () => {
     const now = at("2026-11-23T10:40:00Z");

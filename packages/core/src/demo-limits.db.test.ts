@@ -62,7 +62,7 @@ describe("the end of the seed", () => {
     expect(before?.seed_done_at).toBeNull();
     // Marked by the database's clock (the function demo_seed_done), never by a time the app sends. While it is null, the
     // row-cap trigger refuses a visitor's write to a capped table as "starting fresh" (tried on a scratch Postgres).
-    await markDemoSeedDone();
+    await markDemoSeedDone(Number((await readDemoState())?.generation));
     const { data: after } = await db().from("demo_state").select("seed_done_at, reset_at").eq("id", true).single();
     expect(new Date(after?.seed_done_at as string).getTime()).toBeGreaterThanOrEqual(new Date(after?.reset_at as string).getTime());
     expect((await readDemoState())?.generation).toBeGreaterThan(0);
