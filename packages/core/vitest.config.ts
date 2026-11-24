@@ -18,7 +18,9 @@ export default defineConfig({
       provider: "v8",
       include: [...CALCULATION_MODULES, "src/schedule-calendar.ts"],
       reporter: ["text-summary", "text"],
-      thresholds: { perFile: true, lines: 100, branches: 100, functions: 100, statements: 100 },
+      // CI runs the unit tests in shards and merges their coverage; a shard sees only part of the tests, so the thresholds
+      // are checked on the merged run only (ZIFFR_COVERAGE_SHARD is set on the shards, never on the merge).
+      thresholds: process.env.ZIFFR_COVERAGE_SHARD ? {} : { perFile: true, lines: 100, branches: 100, functions: 100, statements: 100 },
     },
   },
 });
