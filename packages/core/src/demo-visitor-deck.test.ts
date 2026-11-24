@@ -115,6 +115,11 @@ describe("in a demo visit", () => {
     await expect(visit(() => visitorDeckDocument(demo, broken, null))).rejects.toThrow(DemoTextRefused);
     const big = deck(shape("shape:w1", "ziffr-widget", { template: "line", metricIds: [1], settings: JSON.stringify({ window: 12, callouts: Array.from({ length: 40 }, () => ({ text: "a".repeat(450) })) }) }));
     await expect(visit(() => visitorDeckDocument(demo, big, null))).rejects.toThrow(/too large for the demo/);
+    // A word that is an array or an object skips the text rules and is drawn for everyone (final review D3): refused by its shape.
+    for (const settings of [{ headline: ["see www.example.com"] }, { kicker: {} }, { callouts: [{ text: ["x"] }] }]) {
+      const bypass = deck(shape("shape:w1", "ziffr-widget", { template: "line", metricIds: [1], settings: JSON.stringify(settings) }));
+      await expect(visit(() => visitorDeckDocument(demo, bypass, null))).rejects.toThrow(DemoTextRefused);
+    }
   });
 
   it("refuses a deck over 512 KB, and one with too many records, before anything is written", async () => {

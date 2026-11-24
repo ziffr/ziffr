@@ -10,6 +10,7 @@ import { cookies, headers } from "next/headers";
 import { DemoReadOnly, DemoStale } from "@ziffr/core/demo";
 import { checkDemoBudget, type DemoRequester } from "@ziffr/core/demo-budget";
 import { demoAllows } from "@ziffr/core/demo-changes";
+import { chargeCreation } from "@ziffr/core/demo-creation";
 import { visitingDemo } from "@ziffr/core/demo-visiting";
 import { DEMO_WORKSPACE_ID } from "@ziffr/core/team";
 import { attempt } from "./action-result";
@@ -31,7 +32,9 @@ export async function asVisitor<T>(operation: string, work: (who: DemoRequester 
   // `who` is handed to the work too: the one change that needs the visitor's network address (taking a Snapshot) asks for it.
   const who: DemoRequester = { visitId: visit, headers: await headers() };
   await checkDemoBudget(actor, who);
-  return visitingDemo({ generation, visit }, () => work(who));
+  // The address's and network's share of what this action makes (spec 0051, final review D2) is counted inside the visit's scope
+  // (the shares act only in one), before the work writes anything.
+  return visitingDemo({ generation, visit }, async () => { await chargeCreation(actor, who, operation); return work(who); }, who);
 }
 
 /** `attempt` (a refusal answered as words) around `asVisitor`: how an opened server action is written. */

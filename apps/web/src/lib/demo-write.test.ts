@@ -15,6 +15,8 @@ const allows = vi.hoisted(() => vi.fn());
 vi.mock("@ziffr/core/demo-changes", () => ({ demoAllows: allows }));
 const budget = vi.hoisted(() => vi.fn(async () => undefined));
 vi.mock("@ziffr/core/demo-budget", () => ({ checkDemoBudget: budget }));
+const creation = vi.hoisted(() => vi.fn(async () => undefined));
+vi.mock("@ziffr/core/demo-creation", () => ({ chargeCreation: creation }));
 const visiting = vi.hoisted(() => vi.fn(async (_v: unknown, work: () => Promise<unknown>) => work()));
 vi.mock("@ziffr/core/demo-visiting", () => ({ visitingDemo: visiting }));
 
@@ -29,6 +31,7 @@ beforeEach(() => {
   actor.workspaceId = "d3e00000-0000-4000-8000-000000000001";
   allows.mockReset().mockReturnValue(true);
   budget.mockClear();
+  creation.mockClear();
   visiting.mockClear();
 });
 
@@ -37,7 +40,9 @@ describe("asVisitor", () => {
     const work = vi.fn(async () => "done");
     expect(await asVisitor("canvas-actions:placeWidget", work)).toBe("done");
     expect(budget).toHaveBeenCalledTimes(1);
-    expect(visiting).toHaveBeenCalledWith({ generation: 7, visit: VISIT }, expect.any(Function));
+    expect(visiting).toHaveBeenCalledWith({ generation: 7, visit: VISIT }, expect.any(Function), expect.objectContaining({ visitId: VISIT }));
+    // The address's and network's share of what the action makes is charged inside the visit, before the work (final review D2).
+    expect(creation).toHaveBeenCalledWith(actor, expect.objectContaining({ visitId: VISIT }), "canvas-actions:placeWidget");
     expect(work).toHaveBeenCalledTimes(1);
   });
 

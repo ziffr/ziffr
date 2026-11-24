@@ -56,6 +56,12 @@ export function demoLimitWords(kind: string): string {
   return noun ? `The demo is full of ${noun} for now. Try again when it starts fresh.` : "The demo is full for now. Try again when it starts fresh.";
 }
 
+/** The sentence for an address or network that made its share of a kind of row in this window (spec 0051, final review D2). */
+export function demoShareWords(kind: string): string {
+  const noun = LIMIT_NOUNS[kind];
+  return noun ? `You have made your share of ${noun} for now. Try again when the demo starts fresh.` : DEMO_BUDGET_USED;
+}
+
 /** The kinds `demoLimitWords` knows, so a test can see that every kind the database limits has words. */
 export function demoLimitKinds(): string[] {
   return Object.keys(LIMIT_NOUNS);

@@ -7,6 +7,7 @@
 // what is saved.
 import { Forbidden, type Actor } from "./actor";
 import { DemoReadOnly } from "./demo";
+import { checkedSettingsShape } from "./demo-settings-shape";
 import { demoTextOk, type DemoTextKind } from "./demo-text";
 import { visitHeaders } from "./demo-visit-scope";
 import { SETTING_WORDS } from "./sealed-words";
@@ -61,8 +62,6 @@ export function visitorThemeSlides(actor: Pick<Actor, "workspaceId">, slides: Th
 const NO_FREE_LAYOUTS = "A free layout can't be saved in the demo. Try another view.";
 
 type Obj = Record<string, unknown>;
-/** Every key of WidgetSettings (types.ts) except `tagView`, which is never stored. The words among them are DEMO_SETTING_WORD_KEYS. */
-const SETTING_KEYS: readonly string[] = ["window", "display", "showTarget", "showForecast", "rows", "slope", "kicker", "footnote", "panels", "headline", "subline", "source", "highlight", "callouts", "period", "compare", "fullPeriods", "canvas", "asOf", "canvasSeed", "design", "tagSource"];
 const isObj = (v: unknown): v is Obj => typeof v === "object" && v !== null && !Array.isArray(v);
 
 /** Cleans one word of a settings object in place (on a copy), when it is a string. */
@@ -76,9 +75,12 @@ function cleanWord(actor: Pick<Actor, "workspaceId">, o: Obj, key: string, kind:
  * to type (the editor offers no field for them), and the server drops what it does not keep. */
 export function visitorSettings(actor: Pick<Actor, "workspaceId">, settings: WidgetSettings): WidgetSettings {
   if (!inDemoVisit(actor)) return settings;
-  // Only the keys a widget's settings are made of (types.ts): anything else a browser sends is dropped, not stored (growth).
-  const s: Obj = Object.fromEntries(Object.entries(settings as Obj).filter(([k]) => SETTING_KEYS.includes(k)));
-  if (isObj(s.canvas) && s.canvas.document !== null && s.canvas.document !== undefined) throw new DemoTextRefused(NO_FREE_LAYOUTS);
+  // Only the keys a widget's settings are made of, each of its type (demo-settings-shape.ts): anything else a browser sends is dropped,
+  // and a word that is not a string (an array, an object, a number) is refused, so no text rule is skipped by its shape.
+  if (isObj(settings) && isObj(settings.canvas) && settings.canvas.document !== null && settings.canvas.document !== undefined) throw new DemoTextRefused(NO_FREE_LAYOUTS);
+  const checked = checkedSettingsShape(settings);
+  if (!checked.ok) throw new DemoTextRefused(checked.words);
+  const s: Obj = checked.settings;
   for (const key of SETTING_WORDS) cleanWord(actor, s, key, key === "kicker" || key === "headline" ? "name" : "description");
   cleanWord(actor, s, "highlight", "name");
   if (Array.isArray(s.callouts)) s.callouts = s.callouts.map((c) => (isObj(c) ? (() => { const o = { ...c }; cleanWord(actor, o, "text", "description"); return o; })() : c));
