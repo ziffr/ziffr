@@ -30,7 +30,7 @@ describe("a result worked out by the core", () => {
       if (e.id === "correlation" || e.id === "rank" || e.id === "lag") { slots.first = [a]; slots.second = [b]; }
       if (e.id === "partial") { slots.first = [a]; slots.second = [b]; slots.held = [c]; }
       if (e.id === "matrix") slots.metrics = [a, b, c];
-      const settings = e.id === "needs" ? { goal: "100000" } : e.id === "what-if" ? { percent: "10" } : e.id === "after-date" ? { date: "2026-03-01" } : {};
+      const settings: Record<string, string> = e.id === "needs" ? { goal: "100000" } : e.id === "what-if" ? { percent: "10" } : e.id === "after-date" ? { date: "2026-03-01" } : {};
       let t;
       try { t = runEntry(e, world, { slots, settings }); } catch { continue; }
       if (t.basis) seen.push(t.basis);
