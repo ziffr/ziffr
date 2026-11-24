@@ -52,6 +52,9 @@ export async function recordSimulatedMessage(actor: Actor, input: Omit<Submissio
   demoOnly(actor);
   refuseInDemo(actor, "actions:recordSimulatedMessage");
   messageSource(input);
+  // The sender is shown to every visitor (the intake log): only a handle or address of one of the demo's people, never words of the visitor's.
+  const known = (await peopleIn(DEMO_WORKSPACE_ID, { contactDetails: true })).flatMap((p) => [p.slack_handle, p.email]).filter(Boolean);
+  if (!known.includes(String(input.sender ?? ""))) throw new Forbidden("Pick one of the demo's people to send as.");
   return submitValue({ ...input, text: String(input.text ?? "").slice(0, 5000), workspaceId: DEMO_WORKSPACE_ID });
 }
 

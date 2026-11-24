@@ -94,6 +94,8 @@ export type WebFormResult = { ok: boolean; detail: string } | null;
 export async function submitWebForm(code: string, _previous: WebFormResult, form: FormData): Promise<WebFormResult> {
   try {
     return await inDemoVisit("actions:submitWebForm", async (visiting) => {
+      // The code is logged and shown as the sender: a visit's must be shaped like a form link's token before anything is looked up.
+      if (visiting && !/^tk-[A-Za-z0-9_-]{3,64}$/.test(String(code))) return { ok: false, detail: "This form link doesn’t match any Token." };
       // A breakdown travels as "label value" lines; a filled-in total joins them as a Total line. A visitor's texts go through the text rules first (spec 0051).
       const value = demoTextForVisit(visiting, String(form.get("value") ?? "").trim(), "name");
       const breakdown = demoTextForVisit(visiting, String(form.get("breakdown") ?? "").trim(), "message");

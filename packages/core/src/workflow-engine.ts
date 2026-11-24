@@ -97,7 +97,7 @@ export type RunScope = "all" | "unscheduled" | { workflowId: number };
 /** Runs the Workflows of one workspace's Metrics as of a day: asks, reminds and escalates for missing values, and
  * checks values that came in. Returns what happened, in words. With `queue`, emails wait for the deliveries job.
  */
-export async function runWorkflows(workspaceId: string, asOf: string, actorId: string, { queue = false, scope = "all" }: { queue?: boolean; scope?: RunScope } = {}) {
+export async function runWorkflows(workspaceId: string, asOf: string, actorId: string, { queue = false, scope = "all", skip }: { queue?: boolean; scope?: RunScope; /** Workflows left out of the run (the demo's showcase, which a visitor may not change). */ skip?: ReadonlySet<number> } = {}) {
   const [{ data: sealedRows }, { data: sealedFlows }] = await Promise.all([
     db().from("metrics").select("*").eq("workspace_id", workspaceId).not("workflow_id", "is", null),
     // The workspace's Workflows once, not again for each Metric.
@@ -112,6 +112,7 @@ export async function runWorkflows(workspaceId: string, asOf: string, actorId: s
   if (typeof scope === "string") await refreshAlertSight(workspaceId).catch((e) => console.error("Alerts could not be refreshed:", e instanceof Error ? e.message : e));
   for (const row of rows ?? []) {
     const own = workflows.get(row.workflow_id as number);
+    if (skip?.has(row.workflow_id as number)) continue;
     // A Workflow with an Asking Schedule is run by its own run, not by the Workspace's.
     if (scope === "unscheduled" ? own?.config.asking : typeof scope === "object" && row.workflow_id !== scope.workflowId) continue;
     const m = normalizeMetric(row) as Metric;

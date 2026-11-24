@@ -13,7 +13,7 @@ import { FROM_APP, type ChangeSource } from "./webhook-events";
 import { approve, closePeriod, confirmSelfCheck, correctSelfCheck, runWorkflows, sendBack, setLock } from "./workflow-engine";
 import { claimAskingDay, claimDay, runClaimedAskingDay, runClaimedDay, skipPassedAskingDay, type RunCounts } from "./scheduled-runs";
 import { cleanAsking } from "./asking-schedule";
-import { DEMO_READ_ONLY } from "./demo-words";
+import { DEMO_READ_ONLY, DEMO_SHOWCASE } from "./demo-words";
 import { visitHeaders } from "./demo-visit-scope";
 import { demoAsOfRefusal, demoAwayRefusal } from "./demo-values";
 import { DEMO_WORKSPACE_ID } from "./team";
@@ -287,7 +287,16 @@ export async function runWorkflowsAsOf(actor: Actor, asOf: string): Promise<stri
   // A visitor pretends a day near today only (spec 0051): a run walks every Metric and person of the shared demo.
   const tooFar = visitHeaders() ? demoAsOfRefusal(String(asOf), new Date()) : null;
   if (tooFar) throw new Forbidden(tooFar);
-  return runWorkflows(actor.workspaceId, day(asOf), actor.personId);
+  // The Workflows everyone sees as they are (the showcase) are left out of a visitor's run, so it never stops half-way on one of them.
+  const skip = visitHeaders() ? await showcaseWorkflowIds() : undefined;
+  const log = await runWorkflows(actor.workspaceId, day(asOf), actor.personId, skip?.size ? { skip } : {});
+  return skip?.size ? [...log, "Workflows everyone sees as they are were left out of this run."] : log;
+}
+
+/** The ids of the demo's Workflows that are part of the showcase (spec 0051): a visitor's change to them is refused. */
+async function showcaseWorkflowIds(): Promise<Set<number>> {
+  const { data } = await db().from("demo_showcase").select("row_key").eq("table_name", "workflows");
+  return new Set((data ?? []).map((r) => Number(r.row_key)).filter(Number.isInteger));
 }
 
 /** A day's run as the Workflows page shows it. */
@@ -377,6 +386,8 @@ export async function lockPeriod(actor: Actor, metricId: number, period: string,
 export async function closeWorkflowPeriod(actor: Actor, workflowId: number, asOf: string): Promise<number> {
   const tooFar = actor.workspaceId === DEMO_WORKSPACE_ID && visitHeaders() ? demoAsOfRefusal(String(asOf), new Date()) : null;
   if (tooFar) throw new Forbidden(tooFar);
+  // A showcase Workflow's periods stay as they are: said in plain words before anything is locked.
+  if (actor.workspaceId === DEMO_WORKSPACE_ID && visitHeaders() && (await showcaseWorkflowIds()).has(Number(workflowId))) throw new Forbidden(DEMO_SHOWCASE);
   // Only the demo pretends; elsewhere the period is the one that has ended as of the workspace's today.
   const asOfDay = actor.workspaceId === DEMO_WORKSPACE_ID ? day(asOf) : localTime(new Date(), (await workspaceClock(actor)).timeZone).day;
   const locked = await closePeriod(actor.workspaceId, Number(workflowId), asOfDay, actor.personId);
