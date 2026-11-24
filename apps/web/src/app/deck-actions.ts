@@ -8,6 +8,8 @@ import { currentActor } from "@/lib/viewer";
 import * as decks from "@ziffr/core/decks";
 import { recordDeckExport } from "@ziffr/core/audit-log";
 import { attemptAsVisitor } from "@/lib/demo-write";
+import { chargeDeckSave } from "@ziffr/core/demo-shares";
+import { DEMO_BUDGET_USED } from "@ziffr/core/demo-words";
 
 /** Creates a deck and opens it; a refusal is answered as words, shown by the form. */
 export async function createDeck(_previous: unknown, form: FormData) {
@@ -20,8 +22,11 @@ export async function createDeck(_previous: unknown, form: FormData) {
 
 /** Saves a deck's slides. */
 export async function saveDeck(id: number, document: unknown) {
-  return attemptAsVisitor("deck-actions:saveDeck", async () => {
-    await decks.saveDeck(await currentActor(), Number(id), document);
+  return attemptAsVisitor("deck-actions:saveDeck", async (who) => {
+    const actor = await currentActor();
+    // A deck saves itself after each change: in the demo the bytes of every save count against the address's, network's and demo's share.
+    await chargeDeckSave(actor, who, document, DEMO_BUDGET_USED);
+    await decks.saveDeck(actor, Number(id), document);
   });
 }
 

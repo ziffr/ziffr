@@ -18,6 +18,9 @@ const done = () => revalidatePath("/", "layout");
 export async function takeSnapshot(dashboardId: number, kind: string, start: string) {
   return attemptAsVisitor("snapshot-actions:takeSnapshot", async (who) => {
     const actor = await currentActor();
+    // A Snapshot certain to fail at the write is refused before the demo's one turn is taken, so it cannot keep the turn busy.
+    const period = { kind: String(kind), start: String(start) };
+    await snapshots.assertSnapshotRoom(actor, Number(dashboardId), period);
     const id = await withSnapshotTurn(actor, who, (turn) => snapshots.takeSnapshot(actor, Number(dashboardId), { kind: String(kind), start: String(start) }, turn ? { turn } : {}));
     done();
     redirect(`/dashboards/${Number(dashboardId)}/snapshots/${id}`);

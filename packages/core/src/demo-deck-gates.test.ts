@@ -116,6 +116,14 @@ describe("the web app's actions that run these writers", () => {
       ["snapshot-actions.ts", "snapshot-actions:takeSnapshot"], ["snapshot-actions.ts", "snapshot-actions:editSnapshotWords"], ["snapshot-actions.ts", "snapshot-actions:showSnapshot"], ["snapshot-actions.ts", "snapshot-actions:deleteSnapshot"],
     ]) expect(web(file), op).toContain(`attemptAsVisitor("${op}"`);
     const take = web("snapshot-actions.ts");
+    // A Snapshot certain to fail at the write is refused before the turn is taken, and again before the numbers are computed.
+    expect(take.indexOf("assertSnapshotRoom(")).toBeGreaterThan(-1);
+    expect(take.indexOf("assertSnapshotRoom(")).toBeLessThan(take.indexOf("withSnapshotTurn(actor"));
+    expect(body("snapshots.ts", "takeSnapshot").indexOf("assertSnapshotRoom(")).toBeLessThan(body("snapshots.ts", "takeSnapshot").indexOf("getCanvasData("));
+    // Every deck save is charged by its bytes before it is made.
+    const save = web("deck-actions.ts");
+    expect(save.indexOf("chargeDeckSave(")).toBeGreaterThan(-1);
+    expect(save.indexOf("chargeDeckSave(")).toBeLessThan(save.indexOf("decks.saveDeck("));
     expect(take).toContain("withSnapshotTurn(actor, who,");
     expect(take).toContain("{ turn }");
   });

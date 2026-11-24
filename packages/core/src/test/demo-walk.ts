@@ -3,8 +3,9 @@
 // the fingerprint of the demo it compares are read here. Tests only.
 import { createHash } from "node:crypto";
 import { db, seedingDemo } from "../db";
-import { resetDemoWorkspace } from "../demo-reset";
 import { seedDemoSnapshots } from "../demo-snapshots";
+import { resetDemoWorkspace } from "../demo-reset";
+import { clearDemoVisitCounts } from "../demo-visit";
 import { DEMO_WORKSPACE_ID } from "../team";
 import { idFreeRows } from "./demo-fingerprint-row";
 
@@ -27,6 +28,19 @@ export async function demoFingerprint(): Promise<Record<string, string>> {
   const { count: ws } = await db().from("workspaces").select("id", { count: "exact", head: true });
   out["workspaces (count)"] = String(ws);
   return out;
+}
+
+/** What of the demo could leave Ziffr: its Deliveries that are not in the Outbox (an email, Slack or Telegram message that was queued or sent), and
+ * its Webhooks and their queued sends. Every one must be zero (spec 0051: nothing outbound, ever). */
+export async function demoWalkOutbound(): Promise<{ notInOutbox: number; webhooks: number; webhookSends: number }> {
+  const rows = async (table: string) => (await db().from(table).select("id", { count: "exact", head: true }).eq("workspace_id", DEMO_WORKSPACE_ID)).count ?? 0;
+  const { count: notInOutbox } = await db().from("deliveries").select("id", { count: "exact", head: true }).eq("workspace_id", DEMO_WORKSPACE_ID).neq("mail_state", "outbox");
+  return { notInOutbox: notInOutbox ?? 0, webhooks: await rows("webhooks"), webhookSends: await rows("webhook_sends") };
+}
+
+/** Empties the visits' counts, so each action of the pass is counted from zero (one Workflow run a minute would stop the next). */
+export async function demoWalkClearCounts(): Promise<void> {
+  await clearDemoVisitCounts();
 }
 
 /** What the walk needs from the demo's seed, or a clear failure when the seed lacks it. */

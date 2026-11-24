@@ -147,6 +147,28 @@ describe("in a demo visit", () => {
     await expect(visit(() => visitorDeckDocument(demo, ok, same(ok)))).resolves.toBeDefined();
   });
 
+  it("bounds the shapes a deck draws: widgets, shapes on a slide, records, and positions, sizes, scale and turn", async () => {
+    const widget = (i: number) => shape(`shape:w${i}`, "ziffr-widget", { w: 10, h: 10, template: "line", metricIds: [1], title: "", settings: "{}" }, { parentId: "shape:s1" });
+    const slide = shape("shape:s1", "frame", { w: 1600, h: 900, name: "Slide 1" });
+    const widgets = (n: number) => deck(slide, ...Array.from({ length: n }, (_, i) => widget(i)));
+    await expect(visit(() => visitorDeckDocument(demo, widgets(60), same(widgets(60))))).resolves.toBeDefined();
+    await expect(visit(() => visitorDeckDocument(demo, widgets(61), null))).rejects.toThrow(DECK_TOO_LARGE);
+    const crowded = (n: number) => deck(slide, ...Array.from({ length: n }, (_, i) => shape(`shape:g${i}`, "geo", { w: 1, h: 1 }, { parentId: "shape:s1" })));
+    await expect(visit(() => visitorDeckDocument(demo, crowded(300), same(crowded(300))))).resolves.toBeDefined();
+    await expect(visit(() => visitorDeckDocument(demo, crowded(301), null))).rejects.toThrow(DECK_TOO_LARGE);
+    // 1,501 records, on many slides so that no slide is crowded.
+    const many = { store: Object.fromEntries(Array.from({ length: 1501 }, (_, i) => [`shape:m${i}`, shape(`shape:m${i}`, "geo", {}, { parentId: `shape:p${i % 50}` })])) };
+    await expect(visit(() => visitorDeckDocument(demo, many, null))).rejects.toThrow(DECK_TOO_LARGE);
+    for (const [key, value] of [["x", 20001], ["y", -20001], ["w", 1e9], ["h", Number.POSITIVE_INFINITY], ["scale", 0], ["scale", 21]] as const) {
+      const d = deck(shape("shape:g", "geo", key === "x" || key === "y" ? {} : { [key]: value }, key === "x" || key === "y" ? { [key]: value } : {}));
+      await expect(visit(() => visitorDeckDocument(demo, d, null)), `${key} ${value}`).rejects.toThrow(DemoTextRefused);
+    }
+    const turned = deck(shape("shape:g", "geo", {}, { rotation: 1e6 }));
+    await expect(visit(() => visitorDeckDocument(demo, turned, null))).rejects.toThrow(DemoTextRefused);
+    const fine = deck(shape("shape:g", "geo", { w: 20000, scale: 20 }, { x: -20000, y: 20000, rotation: 3.14 }));
+    await expect(visit(() => visitorDeckDocument(demo, fine, same(fine)))).resolves.toBeDefined();
+  });
+
   it("keeps a blank run as a space, so words on either side stay apart", async () => {
     const d = deck(shape("shape:t1", "text", { richText: rich("a", " ", "​", "b") }));
     const out = (await visit(() => visitorDeckDocument(demo, d, same(d)))) as typeof d;

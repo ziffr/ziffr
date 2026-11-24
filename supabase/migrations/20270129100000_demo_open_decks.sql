@@ -10,9 +10,12 @@
 -- are kept), and the words trigger is on both tables already. No demo row is read or written here.
 
 -- A Snapshot had no created_at (only taken_at, which a program may give), and the row-cap trigger counts rows by created_at.
--- The default is the time of the insert, which a visitor cannot choose; the rows that exist get the time of this migration,
--- before the seed's end of any later Generation, so they are never counted against visitors.
-alter table dashboard_snapshots add column created_at timestamptz not null default now();
+-- The rows that exist get the epoch (the column is added with that default, then the default is changed), so they predate every
+-- demo_state.seed_done_at and are never counted against visitors (the seed's Snapshots included, until the next Demo Reset makes
+-- them again). No row is updated, so no demo trigger fires and no ziffr.demo_seed is needed. A new row gets the time of its insert,
+-- which a visitor cannot choose.
+alter table dashboard_snapshots add column created_at timestamptz not null default 'epoch';
+alter table dashboard_snapshots alter column created_at set default now();
 
 select open_demo_table('decks');
 select open_demo_table('dashboard_snapshots');
@@ -21,13 +24,13 @@ select apply_demo_limits('decks', 'decks');
 select apply_demo_limits('dashboard_snapshots', 'snapshots');
 
 -- A deck's store is a large JSON, so its size is also held in the database: the core refuses a visitor's deck over 512 KB
--- before it writes (demo-visitor-deck.ts); this is the backstop for a write that did not come through it. A little more than the
--- core's number, since the core counts the text it sends and this counts the text the database keeps. The seed is exempt.
+-- before it writes (demo-visitor-deck.ts); this is the backstop for a write that did not come through it. Well above the
+-- core's 512 KB of compact JSON, since the database keeps the JSON re-spaced and this counts its bytes (octet_length). The seed is exempt.
 create or replace function demo_deck_size_check() returns trigger
 language plpgsql set search_path = public as $$
 begin
   if demo_seeding() then return new; end if;
-  if new.document is not null and length(new.document::text) > 600000 then
+  if new.document is not null and octet_length(new.document::text) > 900000 then
     raise exception using errcode = 'ZF4D2', message = 'demo_limit:deck_size';
   end if;
   return new;

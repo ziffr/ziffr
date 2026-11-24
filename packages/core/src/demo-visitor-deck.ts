@@ -36,7 +36,9 @@ const TOKEN = /^[A-Za-z0-9_:#-]{0,64}$/;
 const PATH = /^[A-Za-z0-9+/=]{0,40000}$/;
 const KEY = /^[A-Za-z0-9_$-]{1,64}$/;
 /** The most records, array items and depth a deck of the demo has: far above any slide, and a bound on the walk. */
-const MAX_RECORDS = 3000;
+const MAX_RECORDS = 1500;
+const MAX_WIDGETS = 60;
+const MAX_SHAPES_PER_SLIDE = 300;
 const MAX_ITEMS = 5000;
 const MAX_DEPTH = 10;
 
@@ -94,7 +96,12 @@ function widgetSettings(actor: Pick<Actor, "workspaceId">, text: string): string
 function value(actor: Pick<Actor, "workspaceId">, v: unknown, key: string, depth: number): unknown {
   if (depth > MAX_DEPTH) throw notKept();
   if (v === null || typeof v === "boolean") return v;
-  if (typeof v === "number") { if (!Number.isFinite(v)) throw notKept(); return v; }
+  if (typeof v === "number") {
+    // A position or a size beyond any slide, or a scale or turn beyond any use, is a way to make the editor draw without end.
+    const [lo, hi] = key === "scale" ? [0.01, 20] : key === "rotation" ? [-100, 100] : ["x", "y", "w", "h"].includes(key) ? [-20000, 20000] : [-Infinity, Infinity];
+    if (!Number.isFinite(v) || v < lo || v > hi) throw new DemoTextRefused(NOT_KEPT);
+    return v;
+  }
   if (typeof v === "string") {
     // An address on a shape: dropped, a link to outside the demo.
     if (key === "url") return "";
@@ -153,6 +160,9 @@ export async function visitorDeckDocument(actor: Pick<Actor, "workspaceId">, doc
   const records = Object.entries(document.store);
   if (records.length > MAX_RECORDS) throw new DemoTextRefused(DECK_TOO_LARGE);
   const store: Obj = {};
+  // The shapes a deck draws are bounded as its size is: widgets (each computes its numbers when shown), and shapes on a slide.
+  let widgets = 0;
+  const perParent = new Map<string, number>();
   for (const [id, r] of records) {
     if (!isObj(r) || r.id !== id || typeof r.typeName !== "string") throw notKept();
     if (r.typeName === "asset") throw new DemoTextRefused(PICTURES);
@@ -161,6 +171,10 @@ export async function visitorDeckDocument(actor: Pick<Actor, "workspaceId">, doc
       if (typeof r.type !== "string") throw notKept();
       if (OUTSIDE_SHAPES.includes(r.type)) throw new DemoTextRefused(PICTURES);
       if (!SHAPES.includes(r.type)) throw notKept();
+      if (r.type === "ziffr-widget" && ++widgets > MAX_WIDGETS) throw new DemoTextRefused(DECK_TOO_LARGE);
+      const parent = String(r.parentId);
+      perParent.set(parent, (perParent.get(parent) ?? 0) + 1);
+      if ((perParent.get(parent) ?? 0) > MAX_SHAPES_PER_SLIDE) throw new DemoTextRefused(DECK_TOO_LARGE);
     }
     store[id] = value(actor, r, "record", 0);
   }

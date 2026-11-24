@@ -93,6 +93,12 @@ describe("a visitor's own decks", () => {
       await nameVersion(sara, version, "Named again");
       await decks.saveDeck(sara, id, slideWith("Something else"));
       await restoreVersion(sara, version);
+      // A version too large to keep is refused when named, not left out (a deck of about 400 KB is over the 256 KB a Version may hold).
+      const bigDoc = slideWith("ok");
+      for (let i = 0; i < 40; i++) (bigDoc.store as Record<string, unknown>)[`shape:d${i}`] = { id: `shape:d${i}`, typeName: "shape", type: "draw", x: 0, y: 0, rotation: 0, isLocked: false, opacity: 1, parentId: "shape:slide1", index: "a2", meta: {}, props: { segments: [{ type: "free", path: "A".repeat(10_000) }] } };
+      await decks.saveDeck(sara, id, bigDoc);
+      await expect(saveNamedVersion(sara, "deck", id, "Too large")).rejects.toBeInstanceOf(DemoSizeRefused);
+      await decks.saveDeck(sara, id, slideWith("Small again"));
       const tpl = await saveDeckTemplate(sara, { deckId: id, name: "My deck template", description: "", labels: [], choices: {} });
       const copy = await createDeckFromTemplate(sara, { template: tpl, name: "From my template", fills: [] });
       await saveSlideLayout(sara, { deckId: id, shapes: [{ type: "text", x: 0, y: 0, rotation: 0, opacity: 1, props: { richText: { type: "doc", content: [{ type: "paragraph", content: [{ type: "text", text: "Layout words" }] }] } } }], name: "My layout", description: "", labels: [], choices: {} });
@@ -132,7 +138,7 @@ describe("what a visitor writes on a deck", () => {
       for (let i = 0; i < 60; i++) (big.store as Record<string, unknown>)[`shape:d${i}`] = { id: `shape:d${i}`, typeName: "shape", type: "draw", x: 0, y: 0, rotation: 0, isLocked: false, opacity: 1, parentId: "shape:slide1", index: "a2", meta: {}, props: { segments: [{ type: "free", path }] } };
       await expect(decks.saveDeck(sara, id, big)).rejects.toBeInstanceOf(DemoSizeRefused);
       // Past the core's gate, as a write that did not come through it: the trigger refuses with the limit's code.
-      const { error } = await db().from("decks").update({ document: { pad: "x".repeat(700_000) } }).eq("id", id);
+      const { error } = await db().from("decks").update({ document: { pad: "x".repeat(1_000_000) } }).eq("id", id);
       expect(error?.code).toBe("ZF4D2");
     });
   });
@@ -168,6 +174,18 @@ describe("a visitor's own Snapshots", () => {
       await db().rpc("demo_snapshot_lock_release", { p_holder: "another-visitor-holds-it" });
       expect(await withSnapshotTurn(sara, who, async () => "now")).toBe("now");
     }, 0, "abcdef0123456789abcdef0123456789");
+  });
+
+  it("that are certain to fail at the write are refused before the turn is taken or anything computed: a period taken already", async () => {
+    await asVisit(async () => {
+      const id = await dash.createDashboard(sara, "Doomed board");
+      await dash.placeWidget(sara, id, { type: "metric", id: metric });
+      await withSnapshotTurn(sara, who, (turn) => snapshots.takeSnapshot(sara, id, { kind: "month", start: lastMonth() }, { turn: turn ?? undefined }));
+      await expect(snapshots.assertSnapshotRoom(sara, id, { kind: "month", start: lastMonth() })).rejects.toThrow(/already/);
+      // The seed's Snapshots were made before the seed was done: they are not counted against the visitors' 20.
+      const seeded = (await db().from("dashboard_snapshots").select("created_at").eq("workspace_id", DEMO_WORKSPACE_ID).order("created_at").limit(1).single()).data;
+      expect(seeded).toBeDefined();
+    }, 0, "5555666677778888aaaabbbbccccdddd");
   });
 
   it("are the visitor's share: a visit takes three in a window, and the fourth is refused with words", async () => {

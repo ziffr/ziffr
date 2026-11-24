@@ -35,7 +35,8 @@ import { numberStyleOf } from "./workspace-settings";
 import { dayAfter } from "./display-periods";
 import { refuseSeeded, refuseShowcase } from "./demo-seeded-rows";
 import { assertSnapshotTurn, type SnapshotTurn } from "./demo-snapshot-lock";
-import { DEMO_SNAPSHOT_LIMITS } from "./demo-limits";
+import { DEMO_ROW_CAPS, DEMO_SNAPSHOT_LIMITS } from "./demo-limits";
+import { demoLimitWords } from "./demo-words";
 import { DemoSizeRefused } from "./demo-visitor-limits";
 import { inDemoVisit, visitorOptionalText } from "./demo-visitor-words";
 
@@ -143,6 +144,24 @@ export async function mayTakeSnapshot(actor: Actor, dashboardId: number): Promis
   }
 }
 
+/** In a demo visit, refuses in plain words, without computing anything, a Snapshot that is certain to fail at the write: the demo
+ * holds its most (visitors' Snapshots since the seed), or there is one of that dashboard and period already. Asked before the
+ * demo's one turn is taken, so a script cannot keep the turn busy with Snapshots that could never be saved, and again by
+ * `takeSnapshot` before it computes. Nothing outside a demo visit. */
+export async function assertSnapshotRoom(actor: Actor, dashboardId: number, period: { kind: unknown; start: unknown }): Promise<void> {
+  if (!inDemoVisit(actor) || !Number.isInteger(dashboardId)) return;
+  const ws = actor.workspaceId;
+  const { data: state } = await db().from("demo_state").select("seed_done_at").maybeSingle();
+  // The seed is not finished: the database refuses the write too ("starting fresh").
+  if (!state?.seed_done_at) throw new DemoSizeRefused(demoLimitWords("starting"));
+  const { count } = await db().from("dashboard_snapshots").select("id", { count: "exact", head: true }).eq("workspace_id", ws).gt("created_at", state.seed_done_at as string);
+  if ((count ?? 0) >= DEMO_ROW_CAPS.snapshots) throw new DemoSizeRefused(demoLimitWords("snapshots"));
+  const p = snapshotPeriod(period?.kind as SnapshotPeriodKind, String(period?.start ?? ""), await yearStartOf(ws));
+  if (!p) return;
+  const { data: same } = await db().from("dashboard_snapshots").select("id").eq("workspace_id", ws).eq("dashboard_id", dashboardId).eq("period_kind", p.kind).eq("period_start", p.start).is("deleted_at", null).limit(1);
+  if (same?.length) throw new Refused(`There is a Snapshot of ${p.label} already. Open it, or delete it first.`);
+}
+
 /** Takes a Snapshot of a dashboard for a week, month, quarter, half-year or year (`start` is its first day) that is over, within the
  * last ten years: the dashboard's owner and Editors, who must see every Metric on it. It starts as a draft. `today`
  * (yyyy-mm-dd) is the workspace's own day unless given, as the daily run does. Returns its id. */
@@ -156,6 +175,7 @@ export async function takeSnapshot(actor: Actor, dashboardId: number, period: { 
   // In the demo: only with the demo's one turn to take a Snapshot, and never of the showcase, which is refused before any numbers are computed.
   assertSnapshotTurn(actor, opts.turn);
   await refuseShowcase(actor, "dashboard", dashboardId);
+  await assertSnapshotRoom(actor, dashboardId, period);
   const ws = actor.workspaceId;
   // Only a period that is over: one still running or to come would keep today's values under its name. And not
   // further back than anyone reports on, so nobody fills the database with Snapshots of the 1900s.

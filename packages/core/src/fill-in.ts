@@ -31,9 +31,9 @@ const refused = (outcome: string, detail: string): SubmissionResult => ({ ok: fa
 
 /** The Metric's owner or its Workflow's owner fills in a value for a Submitter of the Metric (spec 0046). Returns the
  * submission's own words, a refusal in plain words included; throws Forbidden for an Access Key and for a Metric the actor does
- * not see. Nothing is recorded in the demo. */
+ * not see. In the demo it is recorded only where visitors may change it (spec 0051). */
 export async function fillInValue(actor: Actor, input: FillInInput, effects: SubmissionEffects = submissionEffects): Promise<SubmissionResult> {
-  refuseInDemo(actor);
+  refuseInDemo(actor, "fill-in-actions:fillInForSubmitter");
   // Never an Access Key, so neither the API nor the MCP Server fills in for anyone.
   if (actor.key || !actor.personId) throw new Forbidden("Values for someone else are entered in the app or by answering the Prompt.");
   const metricId = Number(input.metricId);

@@ -90,6 +90,11 @@ describe("in a demo visit", () => {
     expect(visitCall.p_kind).toBe("visit");
     expect(addressCall.p_kind).toBe("address");
     expect(addressCall.p_key).toMatch(/^[0-9a-f]{32}$/);
+    // The network's share (12) as well: the third count of a Snapshot.
+    counts.length = 0;
+    counts.push(3, 1, 13);
+    await expect(visit(() => withSnapshotTurn(demo, who, async () => "x", SECRET))).rejects.toThrow(DEMO_SNAPSHOT_USED);
+    expect(calls("demo_snapshot_lock_release")).toHaveLength(3);
     counts.length = 0;
     counts.push(3, 6);
     expect(await visit(() => withSnapshotTurn(demo, who, async () => "ok", SECRET))).toBe("ok");
