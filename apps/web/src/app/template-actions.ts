@@ -4,6 +4,7 @@
 import { revalidatePath } from "next/cache";
 import { currentActor } from "@/lib/viewer";
 import { attempt } from "@/lib/action-result";
+import { attemptAsVisitor } from "@/lib/demo-write";
 import * as templates from "@ziffr/core/templates";
 import type { Choices } from "@ziffr/core/team-templates";
 import type { SlideShape } from "@ziffr/core/types";
@@ -21,7 +22,7 @@ export async function saveSlideLayout(input: { deckId: number; shapes: SlideShap
 
 /** Saves a widget as a team template, new or replacing one of the viewer's own. */
 export async function saveTemplate(input: { widgetId: number; name: string; description: string; labels: string[]; choices: Choices; replaceId?: number | null }) {
-  return attempt(async () => {
+  return attemptAsVisitor("template-actions:saveTemplate", async () => {
     const id = await templates.saveTemplate(await currentActor(), input);
     done();
     return id;
@@ -30,7 +31,7 @@ export async function saveTemplate(input: { widgetId: number; name: string; desc
 
 /** Renames a template the viewer created. */
 export async function renameTemplate(id: number, name: string, description: string) {
-  return attempt(async () => {
+  return attemptAsVisitor("template-actions:renameTemplate", async () => {
     await templates.renameTemplate(await currentActor(), Number(id), String(name ?? ""), String(description ?? ""));
     done();
   });
@@ -38,7 +39,7 @@ export async function renameTemplate(id: number, name: string, description: stri
 
 /** Deletes a template the viewer created. */
 export async function deleteTemplate(id: number) {
-  return attempt(async () => {
+  return attemptAsVisitor("template-actions:deleteTemplate", async () => {
     await templates.deleteTemplate(await currentActor(), Number(id));
     done();
   });

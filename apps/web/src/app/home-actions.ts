@@ -4,6 +4,7 @@
 import { revalidatePath } from "next/cache";
 import { currentActor } from "@/lib/viewer";
 import { attempt } from "@/lib/action-result";
+import { attemptAsVisitor } from "@/lib/demo-write";
 import { setHomeDashboard } from "@ziffr/core/home";
 import { createDashboard } from "@ziffr/core/dashboards";
 import { redirect } from "next/navigation";
@@ -18,7 +19,7 @@ export async function setHome(dashboardId: number) {
 
 /** Starts a new dashboard from the dashboards list and opens it (in edit mode, being empty). */
 export async function newDashboard(_previous: unknown, form: FormData) {
-  return attempt(async () => {
+  return attemptAsVisitor("home-actions:newDashboard", async () => {
     const id = await createDashboard(await currentActor(), String(form.get("name") ?? ""));
     revalidatePath("/", "layout");
     redirect(`/dashboards/${id}`);

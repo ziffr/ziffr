@@ -17,6 +17,9 @@ export const DEMO_ROW_CAPS = {
   tags: 20,
   open_actions: 300,
   values: 2000,
+  // The spec gives no numbers for these two; starting points for the owner (ticket 9).
+  themes: 15,
+  versions: 150,
 } as const;
 
 /** How many changes may be counted, by what is counting them. The visit's id is free to mint, so only the address's,
@@ -34,6 +37,18 @@ export const DEMO_WRITE_BUDGET = {
 
 /** The longest text of each kind, in characters (code points): names and titles, descriptions, a Question, Task or reply, a Tag. */
 export const DEMO_TEXT_MAX = { name: 80, description: 500, message: 1000, tag: 40 } as const;
+
+/** How much a visitor may store (spec 0051, ticket 9; Limits: growth): a widget's settings, all the widgets of one dashboard, a
+ * Version's snapshot (past it the Version is not recorded), a template's body, what one visit may write in a reset window (in
+ * KB, counted with its other counts), and the Versions one visit may name. */
+export const DEMO_STORE_MAX = {
+  widgetSettingsBytes: 8 * 1024,
+  dashboardWidgetsBytes: 200 * 1024,
+  versionSnapshotBytes: 256 * 1024,
+  templateBodyBytes: 200 * 1024,
+  visitKbPerWindow: 2000,
+  namedVersionsPerVisit: 5,
+} as const;
 
 /** The largest a deck's store may be, in bytes (a deck made by a visitor). */
 export const DEMO_DECK_STORE_MAX_BYTES = 512 * 1024;
