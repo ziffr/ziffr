@@ -16,6 +16,7 @@ import { ensureBaseline, recordVersion } from "./versions";
 import { inDemoVisit, visitorOptionalText, visitorSettings, visitorText } from "./demo-visitor-words";
 import { chargeVisitorBytes, DemoSizeRefused, visitorSize } from "./demo-visitor-limits";
 import { visitorSharedStaysSeen } from "./demo-visitor-sharing";
+import { demoData } from "./demo-query";
 import { DEMO_STORE_MAX } from "./demo-limits";
 import { refuseSeeded } from "./demo-seeded-rows";
 import { assertNoOutsideContent } from "./deck-content";
@@ -78,7 +79,7 @@ async function assertVisitorRoom(actor: Actor, dashboardId: number | null, newSe
   const bytes = visitorSize(actor, newSettings, DEMO_STORE_MAX.widgetSettingsBytes, "That widget is too large for the demo.");
   if (!bytes) return;
   if (dashboardId !== null) {
-    const { data } = await db().from("widgets").select("id, settings").eq("dashboard_id", dashboardId).eq("workspace_id", actor.workspaceId);
+    const data = demoData(await db().from("widgets").select("id, settings").eq("dashboard_id", dashboardId).eq("workspace_id", actor.workspaceId));
     const others = (data ?? []).filter((w) => w.id !== exceptWidget).reduce((n, w) => n + JSON.stringify(w.settings ?? null).length, 0);
     if (others + bytes > DEMO_STORE_MAX.dashboardWidgetsBytes) throw new DemoSizeRefused("This dashboard is full for the demo.");
   }

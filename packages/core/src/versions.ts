@@ -130,7 +130,7 @@ export async function recordVersion(type: VersionType, id: number, author: strin
   const sameNote = Boolean(noted && !given.message && last?.message === noted);
   let fresh = last && last.author_id === author && !last.name && !opts.name && (sameNote || (!last.message && !opts.message)) && Date.now() - new Date(last.updated_at).getTime() < COALESCE_MS;
   // A visitor's edit never merges into a Version the seed made: its words are the seed's (spec 0051), so it gets a Version of its own.
-  if (fresh && visitHeaders() !== null && await madeBySeed("versions", last?.id ?? 0)) fresh = false;
+  if (fresh && visitHeaders() !== null && await madeBySeed("versions", last?.id ?? 0).catch(() => true)) fresh = false;
   if (fresh) {
     await db().from("versions").update({ snapshot: await sealedSnapshot(ws, type, id, last.version, snapshot), updated_at: new Date().toISOString(), message: opts.message ?? last.message }).eq("id", last.id);
     return;

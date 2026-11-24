@@ -22,6 +22,7 @@ import { restoreMetricTags } from "./tags";
 import { visitorOptionalText, visitorVersionType } from "./demo-visitor-words";
 import { chargeVisitor } from "./demo-visitor-limits";
 import { visitorSharedStaysSeen } from "./demo-visitor-sharing";
+import { demoData } from "./demo-query";
 import { DEMO_STORE_MAX } from "./demo-limits";
 import { refuseSeeded } from "./demo-seeded-rows";
 
@@ -190,7 +191,7 @@ export async function restoreVersion(actor: Actor, versionId: number, effects: R
       // A Version keeps what was stored; its View Designs are checked again before they are stored once more.
       assertSettingsDesigns(s.settings);
       // A widget of a shared dashboard comes back showing only Metrics the dashboard's recipients see (spec 0051, ticket 11).
-      await visitorSharedStaysSeen(actor, "dashboard", (await db().from("widgets").select("dashboard_id").eq("id", id).eq("workspace_id", ws).maybeSingle()).data?.dashboard_id as number | null | undefined, widgetMetricIds((s.metric_ids as number[] | undefined) ?? [], s.settings as Parameters<typeof widgetMetricIds>[1]));
+      await visitorSharedStaysSeen(actor, "dashboard", demoData(await db().from("widgets").select("dashboard_id").eq("id", id).eq("workspace_id", ws).maybeSingle())?.dashboard_id as number | null | undefined, widgetMetricIds((s.metric_ids as number[] | undefined) ?? [], s.settings as Parameters<typeof widgetMetricIds>[1]));
       await db().from("widgets").update(await sealedPatch("widgets", ws, id, { template: s.template, metric_ids: s.metric_ids, settings: s.settings, title: s.title })).eq("id", id).eq("workspace_id", ws);
       break;
     case "dashboard": {

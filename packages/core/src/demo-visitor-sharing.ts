@@ -4,6 +4,7 @@
 // recipient (access.ts), so in a visit every Metric a Share would put in front of a recipient must be one they see already. Nothing here acts
 // outside a demo visit.
 import { type Actor } from "./actor";
+import { demoData } from "./demo-query";
 import { visibleMetricIds } from "./access";
 import { db } from "./db";
 import { DEMO_LIMIT_CODE, DemoLimit, protectedRefusal } from "./demo";
@@ -49,12 +50,14 @@ export async function visitorMetricUnused(actor: Pick<Actor, "workspaceId">, met
   if (!inDemoVisit(actor)) return;
   const ws = actor.workspaceId;
   const used = new DemoTextRefused(DEMO_METRIC_WORDS.used);
-  const [{ data: widgets }, { data: decks }, { data: shares }, all] = await Promise.all([
+  // Every read fails closed: a query that failed is a refusal, never "nothing uses it".
+  const [w, d, s, all] = await Promise.all([
     db().from("widgets").select("metric_ids, settings").eq("workspace_id", ws),
     db().from("decks").select("document").eq("workspace_id", ws),
     db().from("shares").select("id").eq("workspace_id", ws).eq("object_type", "metric").eq("object_id", metricId).limit(1),
     getMetrics(ws),
   ]);
+  const widgets = demoData(w), decks = demoData(d), shares = demoData(s);
   if (shares?.length) throw used;
   if ((widgets ?? []).some((w) => widgetMetricIds((w.metric_ids ?? []) as number[], w.settings).includes(metricId))) throw used;
   if ((decks ?? []).some((d) => deckMetricIds(d.document).includes(metricId))) throw used;
@@ -71,10 +74,10 @@ export async function visitorShowsOnlySeen(actor: Pick<Actor, "workspaceId">, ty
   const shown = new Set<number>();
   if (type === "metric") shown.add(id);
   else if (type === "dashboard") {
-    const { data } = await db().from("widgets").select("metric_ids, settings").eq("workspace_id", ws).eq("dashboard_id", id);
+    const data = demoData(await db().from("widgets").select("metric_ids, settings").eq("workspace_id", ws).eq("dashboard_id", id));
     for (const w of data ?? []) for (const m of widgetMetricIds((w.metric_ids ?? []) as number[], w.settings)) shown.add(m);
   } else {
-    const { data } = await db().from("decks").select("document").eq("workspace_id", ws).eq("id", id).maybeSingle();
+    const data = demoData(await db().from("decks").select("document").eq("workspace_id", ws).eq("id", id).maybeSingle());
     for (const m of deckMetricIds(data?.document)) shown.add(m);
   }
   withInputs(all, shown);
@@ -88,7 +91,7 @@ export async function visitorShowsOnlySeen(actor: Pick<Actor, "workspaceId">, ty
 
 /** The people something is shared with now: each direct Share and every member of each Group it is shared with. */
 async function sharedWith(ws: string, type: Shared, id: number): Promise<string[]> {
-  const { data } = await db().from("shares").select("user_id, group_id").eq("workspace_id", ws).eq("object_type", type).eq("object_id", id);
+  const data = demoData(await db().from("shares").select("user_id, group_id").eq("workspace_id", ws).eq("object_type", type).eq("object_id", id));
   const people = new Set<string>();
   for (const s of data ?? []) {
     if (s.user_id) people.add(String(s.user_id));
@@ -122,16 +125,16 @@ export async function visitorSharedStaysSeen(actor: Pick<Actor, "workspaceId">, 
 export async function visitorGroupPeople(actor: Pick<Actor, "workspaceId">, groupId: number): Promise<string[]> {
   if (!inDemoVisit(actor)) return [];
   const ws = actor.workspaceId;
-  const { data: g } = await db().from("groups").select("everyone").eq("id", groupId).eq("workspace_id", ws).maybeSingle();
-  const { data } = g?.everyone
+  const g = demoData(await db().from("groups").select("everyone").eq("id", groupId).eq("workspace_id", ws).maybeSingle());
+  const data = demoData(g?.everyone
     ? await db().from("memberships").select("user_id").eq("workspace_id", ws)
-    : await db().from("group_members").select("user_id").eq("workspace_id", ws).eq("group_id", groupId);
+    : await db().from("group_members").select("user_id").eq("workspace_id", ws).eq("group_id", groupId));
   return (data ?? []).map((r) => String(r.user_id));
 }
 
 /** In a visit, before a person joins a Group: what the Group has been given must show that person only Metrics they see already. */
 export async function visitorJoinShowsOnlySeen(actor: Pick<Actor, "workspaceId">, groupId: number, personId: string): Promise<void> {
   if (!inDemoVisit(actor)) return;
-  const { data } = await db().from("shares").select("object_type, object_id").eq("workspace_id", actor.workspaceId).eq("group_id", groupId);
+  const data = demoData(await db().from("shares").select("object_type, object_id").eq("workspace_id", actor.workspaceId).eq("group_id", groupId));
   for (const s of data ?? []) await visitorShowsOnlySeen(actor, s.object_type as Shared, Number(s.object_id), [personId]);
 }

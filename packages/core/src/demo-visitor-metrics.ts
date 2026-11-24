@@ -6,6 +6,7 @@
 // change that passes none of them is refused in plain words before anything is written. The database holds the same lines as
 // its backstop (the words trigger, the showcase, the row caps of migration 20270130090000).
 import { type Actor } from "./actor";
+import { demoCount, demoData } from "./demo-query";
 import { db } from "./db";
 import { DemoLimit, DemoReadOnly, DemoShowcase } from "./demo";
 import { DEMO_METRIC_LIMITS, DEMO_ROW_CAPS } from "./demo-limits";
@@ -53,10 +54,10 @@ export function visitorFormula(actor: Pick<Actor, "workspaceId">, formula: strin
 /** Refuses, before a Derived Metric is made, when visitors made as many as the demo takes (the database counts too, as the backstop). */
 export async function visitorDerivedRoom(actor: Pick<Actor, "workspaceId">): Promise<void> {
   if (!inDemoVisit(actor)) return;
-  const { data: state } = await db().from("demo_state").select("seed_done_at").maybeSingle();
+  const state = demoData(await db().from("demo_state").select("seed_done_at").maybeSingle());
   if (!state?.seed_done_at) throw new DemoLimit("starting");
-  const { count } = await db().from("metrics").select("id", { count: "exact", head: true }).eq("workspace_id", actor.workspaceId).not("formula", "is", null).gt("created_at", state.seed_done_at as string);
-  if ((count ?? 0) >= DEMO_ROW_CAPS.derived_metrics) throw new DemoLimit("derived_metrics");
+  const count = demoCount(await db().from("metrics").select("id", { count: "exact", head: true }).eq("workspace_id", actor.workspaceId).not("formula", "is", null).gt("created_at", state.seed_done_at as string));
+  if (count >= DEMO_ROW_CAPS.derived_metrics) throw new DemoLimit("derived_metrics");
 }
 
 /** A Target Series or Projection call a visitor makes: at most 60 rows (or periods), each a day within two years of today, and each
@@ -88,7 +89,7 @@ export async function visitorMembersOnly(actor: Pick<Actor, "workspaceId">, pers
   if (!inDemoVisit(actor)) return;
   const ids = [...new Set(personIds.map(String))];
   if (!ids.length) return;
-  const { data } = await db().from("memberships").select("user_id").eq("workspace_id", actor.workspaceId).in("user_id", ids);
+  const data = demoData(await db().from("memberships").select("user_id").eq("workspace_id", actor.workspaceId).in("user_id", ids));
   if ((data ?? []).length !== ids.length) throw new DemoTextRefused(DEMO_METRIC_WORDS.people);
 }
 
