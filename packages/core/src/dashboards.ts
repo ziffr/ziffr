@@ -13,7 +13,7 @@ import { designSettings } from "./built-in-designs";
 import { allowedDesign } from "./view-designs";
 import { assertSettingsDesigns, checkedDesignSetting } from "./widget-designs";
 import { ensureBaseline, recordVersion } from "./versions";
-import { visitorOptionalText, visitorSettings, visitorText } from "./demo-visitor-words";
+import { inDemoVisit, visitorOptionalText, visitorSettings, visitorText } from "./demo-visitor-words";
 import { chargeVisitorBytes, DemoSizeRefused, visitorSize } from "./demo-visitor-limits";
 import { DEMO_STORE_MAX } from "./demo-limits";
 import { refuseSeeded } from "./demo-seeded-rows";
@@ -84,6 +84,21 @@ async function assertVisitorRoom(actor: Actor, dashboardId: number | null, newSe
   await chargeVisitorBytes(actor, bytes);
 }
 
+/** In a demo visit, the widgets a template makes, with their settings and titles through the text rules and the size gates,
+ * before the dashboard that holds them is made (so a refusal leaves nothing half done). Unchanged elsewhere. */
+export async function visitorTemplateWidgets<T extends { settings: WidgetSettings; title: string | null }>(actor: Actor, widgets: T[]): Promise<T[]> {
+  if (!inDemoVisit(actor)) return widgets;
+  let total = 0;
+  const out = widgets.map((w) => {
+    const s = visitorSettings(actor, w.settings);
+    total += visitorSize(actor, s, DEMO_STORE_MAX.widgetSettingsBytes, "That widget is too large for the demo.");
+    return { ...w, settings: s, title: w.title ? String(visitorOptionalText(actor, w.title, "name")) : w.title };
+  });
+  if (total > DEMO_STORE_MAX.dashboardWidgetsBytes) throw new DemoSizeRefused("This dashboard is full for the demo.");
+  await chargeVisitorBytes(actor, total);
+  return out;
+}
+
 /** The actor's role on a dashboard of their workspace, or null. */
 export async function dashboardRole(actor: Actor, dashboardId: number) {
   return (await visibleDashboards(actor.workspaceId, actor.personId)).find((d) => d.id === dashboardId)?.role ?? null;
@@ -112,7 +127,7 @@ async function fromTeamTemplate(actor: Actor, id: number, fills: number[][] | un
   if (!t || t.kind !== "widget" || !fills || !fillsComplete(t.slots, fills)) throw new Forbidden();
   const w = fromTemplate(t as WidgetTemplate, fills);
   // A team template keeps the checked copy of its widget's View Design, also after the design left the Workspace.
-  w.settings = settings(w.settings);
+  w.settings = visitorSettings(actor, settings(w.settings));
   await assertSeesMetrics(actor, widgetMetricIds(w.metric_ids, w.settings));
   return { ...w, w: t.w, h: t.h };
 }
@@ -261,6 +276,7 @@ export async function updateWidget(actor: Actor, id: number, patch: { template?:
 export async function applyTemplate(actor: Actor, id: number, templateId: number, fills: number[][]) {
   const cur = await editableWidget(actor, id);
   const w = await fromTeamTemplate(actor, templateId, fills);
+  await assertVisitorRoom(actor, cur.dashboard_id, w.settings, id);
   await ensureBaseline("widget", id, actor.personId);
   if (cur.dashboard_id) await ensureBaseline("dashboard", cur.dashboard_id, actor.personId);
   const { error } = await db().from("widgets").update(await sealedPatch("widgets", actor.workspaceId, id, { template: w.template, metric_ids: w.metric_ids, settings: w.settings, w: w.w, h: w.h, ...(w.title ? { title: w.title } : {}) })).eq("id", id).eq("workspace_id", actor.workspaceId);
