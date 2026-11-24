@@ -267,6 +267,7 @@ The database and the core refuse some changes with a code of their own (ZFnnn), 
 | `ZF462` | A Breakdown with parents has at most 200 rows. |
 | `ZF463` | (in the core only) |
 | `ZF464` | (in the core only) |
+| `ZF4A1` | installation_announcements_cap |
 | `ZF4D0` | demo_read_only |
 | `ZF4D1` | demo_stale |
 | `ZF4D2` | demo_limit:; demo_limit:deck_size; demo_limit:starting; demo_limit:unknown |

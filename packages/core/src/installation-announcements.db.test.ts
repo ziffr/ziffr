@@ -202,15 +202,17 @@ describe("the demo", () => {
 describe("the audit", () => {
   it("leaves one event per change, by the actor, with the text as it was then and nothing more", async () => {
     const a = await admin();
-    const id = await createInstallationAnnouncement(a, { text: "First words", link: { href: "https://a.test/secret-path", label: "More" } });
-    await updateInstallationAnnouncement(a, id, { text: "Second words" });
+    // The audit keeps every test's events, so these words are told apart by a mark of their own.
+    const mark = randomUUID().slice(0, 8);
+    const id = await createInstallationAnnouncement(a, { text: `First ${mark}`, link: { href: "https://a.test/secret-path", label: "More" } });
+    await updateInstallationAnnouncement(a, id, { text: `Second ${mark}` });
     await setInstallationAnnouncementActive(a, id, false);
     await setInstallationAnnouncementActive(a, id, true);
     await deleteInstallationAnnouncement(a, id);
-    const events = (await installationEvents(a, 20)).filter((e) => e.kind.startsWith("announcement.")).reverse();
+    const events = (await installationEvents(a, 200)).filter((e) => e.subject?.endsWith(mark)).reverse();
     expect(events.map((e) => [e.kind, e.subject])).toEqual([
-      ["announcement.created", "First words"], ["announcement.changed", "Second words"], ["announcement.switched_off", "Second words"],
-      ["announcement.switched_on", "Second words"], ["announcement.deleted", "Second words"],
+      ["announcement.created", `First ${mark}`], ["announcement.changed", `Second ${mark}`], ["announcement.switched_off", `Second ${mark}`],
+      ["announcement.switched_on", `Second ${mark}`], ["announcement.deleted", `Second ${mark}`],
     ]);
     expect(events.every((e) => e.actorName.startsWith("Admin"))).toBe(true);
   });
@@ -218,7 +220,7 @@ describe("the audit", () => {
   it("keeps at most 120 characters of the text", async () => {
     const a = await admin();
     await createInstallationAnnouncement(a, { text: "w".repeat(280) });
-    const [e] = (await installationEvents(a, 5)).filter((x) => x.kind === "announcement.created");
+    const [e] = (await installationEvents(a, 200)).filter((x) => x.kind === "announcement.created" && x.subject?.startsWith("www"));
     expect(e.subject).toHaveLength(120);
   });
 
