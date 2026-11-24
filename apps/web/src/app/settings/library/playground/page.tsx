@@ -1,6 +1,7 @@
-// The Playground under Analyze (spec 0024; GLOSSARY: Playground, View Design): paste or upload a View Design and see it
+// The Playground in the Library (Workspace settings) (spec 0024; GLOSSARY: Playground, View Design): paste or upload a View Design and see it
 // drawn at once, with Sample Data or with Metrics the person sees. The page sends the visible Metrics without series;
 // a Metric picked for a Slot fetches its own series through the core, so nothing arrives the person may not see.
+import Link from "next/link";
 import { currentActor } from "@/lib/viewer";
 import { isDemo } from "@/lib/auth";
 import { getCanvasData } from "@/lib/access";
@@ -15,7 +16,7 @@ export default async function PlaygroundPage() {
   return (
     <>
       <PageHeader title="Playground" sub="Paste or upload a View Design and see it drawn as you type, with Sample Data or your own Metrics. Every mistake is named with its line.">
-        <ViewDesignGuideLink />
+        <div className="flex flex-wrap gap-4"><Link href="/settings/library" className="text-sm text-muted-foreground underline-offset-2 hover:text-foreground hover:underline">Back to the Library</Link><ViewDesignGuideLink /></div>
       </PageHeader>
       <PlaygroundScreen data={data} manages={manages} />
     </>

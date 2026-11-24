@@ -1,5 +1,5 @@
 "use client";
-// The View Designs page (spec 0024; GLOSSARY: View Design, Sample Data): every design drawn with Sample Data, each to
+// The View Designs part of the Library (spec 0024; GLOSSARY: View Design, Sample Data): every design drawn with Sample Data, each to
 // export with a Sample Data file; Owners and Admins add one from a file, checked as they paste it and again on the
 // server, and remove one. Security: a design is drawn from its checked file only, with made-up Sample Data.
 import { useMemo, useRef, useState, useTransition } from "react";
