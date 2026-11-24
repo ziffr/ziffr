@@ -13,6 +13,8 @@ On the sign-in page, choose **Try the demo** under the form (the picture beside 
 
 On most Ziffrs the demo is read-only. Nothing you do in it is saved, and nothing is sent: an announcement line above the page says so (read-only: "This demo is read-only: look around as anyone. Nothing you do is saved and nothing is sent."). Choose the cross at its end to dismiss it for this visit; it comes back the next time you open the demo or sign in. Try any button or form; where it would change something, Ziffr says "The demo can't be changed." instead. Where this Ziffr offers trials (only hosted Ziffr does), that line, and every refusal, links to one of your own, in which email, Slack, Telegram, the API and assistants work for real. A trial starts with one Metric, Cups of coffee, which Ziffr asks you for each day, and no made-up numbers (see [Starting a Workspace](16-workspace-settings.md#on-a-ziffr-that-offers-trials)). When you are done, choose **Leave the demo**.
 
+A public demo has no sign-in at all: if your browser still holds an old sign-in from before the Ziffr became a public demo, it is ignored and removed, and you arrive at the demo's door like anyone else.
+
 A public demo may be set up differently, so that you can try the work yourself: see the next section. The announcement above the page tells you which kind you are in: if it says that this is a shared demo that anyone can change, you are in one that may be changed.
 
 ### When the demo lets you change things

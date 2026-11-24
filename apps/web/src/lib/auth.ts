@@ -9,7 +9,7 @@ import { db } from "./db";
 import type { SignedIn } from "@ziffr/core/invitations";
 import { PERSON_COLORS } from "@ziffr/core/profile";
 
-import { demoEnabled } from "./demo-mode";
+import { demoEnabled, demoOnly } from "./demo-mode";
 import { visitIdOf } from "./demo-visit-cookie";
 export { demoEnabled, demoOnly } from "./demo-mode";
 
@@ -51,6 +51,9 @@ export async function signedIn(): Promise<SignedIn | null> {
 /** The signed-in account, checked with Supabase (not just read from the cookie), or null. Asked once per request:
  * the layout, the current person and server actions all need it, and each ask is a round trip to Supabase. */
 export const sessionUser = cache(async () => {
+  // A demo-only Ziffr ignores any real session, e.g. one left from before it became demo-only (lib/demo-only-session.ts):
+  // nobody is signed in there, so the visitor gets the demo entry and no stale session reaches a Workspace or a write.
+  if (demoOnly()) return null;
   const { data } = await (await authClient()).auth.getUser();
   return data.user ?? null;
 });
