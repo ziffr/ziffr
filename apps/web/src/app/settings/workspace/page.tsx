@@ -1,6 +1,7 @@
 // Workspace settings, General (spec 0006, tickets #96 and #97; spec 0017, ticket #39; spec 0022, tickets #108 and #130;
 // GLOSSARY: Workspace, Workspace Profile, Fiscal Year, Number Style, Attainment): the workspace's name, its clock, its
-// year start, its Number Style, its Attainment method and its Workspace Profile. Owners and Admins change them;
+// year start, its Number Style, its Attainment method and its Workspace Profile
+// (shown as About your business, right after the name). Owners and Admins change them;
 // everyone else reads. Owners and Admins also see its Size and usage (spec 0029).
 import { currentActor } from "@/lib/viewer";
 import { isDemo } from "@/lib/auth";
@@ -50,6 +51,8 @@ export default async function WorkspaceSettingsPage() {
       <PageHeader title="Workspace" sub={canEdit ? "The workspace's name, its day, when its year starts, how it writes and reads numbers and computes Attainment, and what kind of business it is." : demo ? "The demo can't be changed." : "Only Owners and Admins change these."} />
       <div className="max-w-2xl space-y-8">
         <WorkspaceNameForm name={name} canEdit={canEdit} />
+        {/* About your business comes right after the name: the answers are what suggestions are made from (spec 0052). */}
+        <WorkspaceProfileForm profile={profile} canEdit={canEdit} countries={named(COUNTRIES, "region").sort((a, b) => a.name.localeCompare(b.name, "en"))} currencies={named(CURRENCIES, "currency")} />
         {/* Size and usage: Owners and Admins only (spec 0029); the demo has no limit to show. */}
         {usage && !demo && <div id="size" className="scroll-mt-4"><SizeAndUsage usage={usage} cloud={handoverOffered(actor)} /></div>}
         {/* The demo is never scheduled: its clock is the pretend date on the Workflows page. */}
@@ -69,7 +72,6 @@ export default async function WorkspaceSettingsPage() {
         <AttainmentMethodForm method={attainment} canEdit={canEdit} />
         {(actor.role === "owner" || actor.role === "admin") && !demo && <WorkspaceRetention retention={retention} canSet={actor.role === "owner"} />}
         {limits && <LimitsForm title="Limits" intro="What the people of this Workspace may do in a day or at most, within what this Installation allows. Lowering a limit never deletes or stops what exists: only what is new waits. Empty follows the Installation." limits={limits} canEdit save={setWorkspaceSettableLimit} />}
-        <WorkspaceProfileForm profile={profile} canEdit={canEdit} countries={named(COUNTRIES, "region").sort((a, b) => a.name.localeCompare(b.name, "en"))} currencies={named(CURRENCIES, "currency")} />
         {/* Owners only, in these words (spec 0028): no key, version or progress. */}
         {encrypted && <p className="text-sm text-muted-foreground">Encrypted with a key of its own. Deleting this Workspace destroys it.</p>}
       </div>

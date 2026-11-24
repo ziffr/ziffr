@@ -32,6 +32,7 @@ export const HELP_ROUTES: readonly (readonly [string, string])[] = [
   ["/sources", "workspace-settings"],
   ["/audit", "workspace-settings"],
   ["/welcome", "workspace-settings"],
+  ["/setup", "getting-started"],
   ["/try", "workspace-settings"],
   ["/invite", "workspace-settings"],
   ["/installation", "installation-settings"],
