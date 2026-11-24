@@ -6,6 +6,7 @@
 // one) and taken as an Analysis Recipe file, which goes into a Pack the existing way. Everything is asked of the core through server
 // actions: the list names only Metrics this person sees.
 import { useEffect, useRef, useState, useTransition } from "react";
+import Link from "next/link";
 import { toast } from "sonner";
 import { BookmarkPlus, FileDown } from "lucide-react";
 import type { EntryView, PickerList, PickerRun } from "@ziffr/core/analysis-picker";
@@ -92,7 +93,7 @@ function Open({ entry, list }: { entry: EntryView; list: PickerList }) {
 }
 
 /** The front door of the Analysis Canvas: the list of Methods for the Metrics on the canvas (`ids`), and the questions of the one chosen. */
-export function MethodPicker({ ids, explains = null, title = "Choose a method" }: { ids: number[]; explains?: number | null; title?: string }) {
+export function MethodPicker({ ids, explains = null, title = "Choose a method", writes = false }: { ids: number[]; explains?: number | null; title?: string; /** Owner or Admin: shows the way into the Playground at the end of the list. */ writes?: boolean }) {
   const [list, setList] = useState<(PickerList & { key: string }) | null>(null);
   const [openId, setOpenId] = useState<EntryView["id"] | null>(null);
   const [failed, setFailed] = useState(false);
@@ -112,6 +113,8 @@ export function MethodPicker({ ids, explains = null, title = "Choose a method" }
       {list?.notice && <p role="note" className="text-xs text-muted-foreground">{list.notice}</p>}
       {!list && !failed && <p className="text-xs text-muted-foreground">Loading the list…</p>}
       {list && <PickerGroups list={list} openId={openId} onPick={(id) => setOpenId((cur) => (cur === id ? null : id))} ask={(e) => <Open key={`${e.id}:${list.key}`} entry={e} list={list} />} />}
+      {/* Only those who may add a Method to the Workspace are shown the way to write one: for everyone else there is no link. */}
+      {writes && <p className="border-t border-[var(--color-rule-2)] pt-3 text-xs text-muted-foreground">Can&rsquo;t find the question you want? <Link href="/settings/library/playground" className="text-primary underline-offset-4 hover:underline">Write your own method</Link></p>}
     </section>
   );
 }
