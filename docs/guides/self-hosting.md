@@ -67,7 +67,7 @@ Ziffr keeps everything in Postgres. The server makes outgoing connections only t
    select prototype_seed_showcase();
    ```
 
-   The demo sits beside your real workspaces and reaches only its own made-up people ([ADR 0005](../adr/0005-demo-beside-real-accounts.md)). Visitors can reset it from the app at most once a minute.
+   The demo sits beside your real workspaces and reaches only its own made-up people ([ADR 0005](../adr/0005-demo-beside-real-accounts.md)). The demo is seeded again by the reset job (`POST /api/jobs/demo-reset`, [Scheduled jobs](jobs.md#the-demos-reset)), which does so at most once a minute; nothing in the app resets it for a visitor. To let visitors change it, see [Running a public demo that visitors may change](#running-a-public-demo-that-visitors-may-change).
 
 ### 2. Sign-in
 
@@ -93,6 +93,8 @@ Set these where the app runs. `.env.example` has them all with a comment each.
 | `ZIFFR_SITE_URL` | Where Ziffr is reached, with `https://`; links in emails and sign-in lead here |
 | `ZIFFR_AUTH_PROVIDERS` | Sign-in providers besides the email link, if any |
 | `ZIFFR_DEMO` | `0` to offer no demo, `1` to offer it; or choose on the Installation settings page |
+| `ZIFFR_DEMO_ONLY` | `1` makes this Ziffr a public demo and nothing else: nobody signs in or makes an account, and the sign-in page offers only the demo |
+| `ZIFFR_DEMO_ADDRESS_KEY` | Only where visitors may change the demo (`ZIFFR_DEMO_CHANGES`, in effect only with `ZIFFR_DEMO_ONLY=1`): a secret of at least 32 characters (`openssl rand -hex 32`) under which changes are counted per network address. See [Running a public demo that visitors may change](#running-a-public-demo-that-visitors-may-change) |
 | `ZIFFR_FEEDBACK_PROMPT` | `true` to ask signed-in people now and then whether they like Ziffr (with a link to the repository on GitHub), `false` never; off unless set, on for hosted Ziffr; or choose on the Installation settings page |
 | `ZIFFR_FEEDBACK_PER_DAY` | The most feedback the whole Installation takes in 24 hours, central version (ziffr.net) only; 20 to 100,000, `200` unless set; or choose on the Installation settings page |
 | `ZIFFR_USER_GUIDE_URL` | Where the app's "User guide" link leads, if your team keeps its guide elsewhere; without it, Ziffr's own guide at `/guide` ([user guide](../user-guide/README.md)) |
@@ -106,7 +108,7 @@ Set these where the app runs. `.env.example` has them all with a comment each.
 | `ZIFFR_INSTALLATION_ADMINS` | Email addresses of the people who run this Installation, separated by commas, optional: they are Installation Admins without the setup code ([Installation settings](#installation-settings)) |
 | `ZIFFR_JOB_SECRET` | The secret your scheduler sends to the jobs, at least 32 characters ([jobs](jobs.md)) |
 | `ZIFFR_INBOUND_DOMAIN`, `ZIFFR_INBOUND_SECRET`, `ZIFFR_INBOUND_AUTHSERV_ID` | Replies by email, optional ([email](email.md)). Without `ZIFFR_INBOUND_AUTHSERV_ID`, no provider vouches for senders, so each reply is held until the person confirms it with a one-time link emailed to the address on file (a forged sender never sees the link); the Installation Settings page says so while it is empty |
-| `ZIFFR_PROXY_HOPS` | How many proxies in front of Ziffr add to `X-Forwarded-For` (usually `1`). Lets the sign-in limit count per network address; without it only the per-address limits apply. Also lets the Webhook inbound gate count failed requests per address and remember real senders: without it a flood of failed requests past 600 a minute locks out the real sender until it stops |
+| `ZIFFR_PROXY_HOPS` | How many proxies in front of Ziffr add to `X-Forwarded-For` (usually `1`). Lets the sign-in limit count per network address; without it only the per-address limits apply. A public demo that visitors may change needs it, and `ZIFFR_DEMO_ADDRESS_KEY` beside it: see [Running a public demo that visitors may change](#running-a-public-demo-that-visitors-may-change). Also lets the Webhook inbound gate count failed requests per address and remember real senders: without it a flood of failed requests past 600 a minute locks out the real sender until it stops |
 | `ZIFFR_REMOTE_MCP` | The remote MCP Server at `<ZIFFR_SITE_URL>/mcp`, for assistants such as Claude.ai. On by default where `ZIFFR_SITE_URL` is https, off otherwise; `1` turns it on, `0` off. Never in a demo-only Ziffr |
 | `ZIFFR_TELEGRAM_BOT_TOKEN` (with `ZIFFR_SECRETS_KEY`) | Telegram, optional ([Telegram](telegram.md)); Telegram sends answers to `ZIFFR_SITE_URL`, which must be https |
 | `ZIFFR_SLACK_CLIENT_ID`, `ZIFFR_SLACK_CLIENT_SECRET`, `ZIFFR_SLACK_SIGNING_SECRET`, `ZIFFR_SECRETS_KEY` | Slack, optional ([Slack](slack.md)); or set the three Slack values on the [Installation settings](#installation-settings) page, which also makes the app from its manifest; back up `ZIFFR_SECRETS_KEY`, which seals the stored bot tokens; `ZIFFR_SECRETS_KEY_PREVIOUS` while changing it ([Slack](slack.md)) |
@@ -327,6 +329,119 @@ A Trial Workspace is something hosted Ziffr (ziffr.net) offers, not something an
 | `ZIFFR_TRIAL_LIMIT_WEBHOOK_SENDS_PER_DAY` | Webhook sends a trial makes a day | 10 to 1,000 | 200 |
 | `ZIFFR_TRIAL_LIMIT_VIEW_LINKS` | View Links that work | 0 to 20 | 5 |
 
+## Running a public demo that visitors may change
+
+A demo-only Ziffr (`ZIFFR_DEMO_ONLY=1`) can let visitors try the everyday work, not only look: enter values, make dashboards and decks, take Snapshots, define Metrics, ask Questions, share among the demo's made-up people. It is one shared demo: what a visitor changes, every other visitor sees, and it is gone when the demo starts fresh, every 15 minutes after a change ([spec 0051](../specs/0051-interactive-demo.md), [ADR 0016](../adr/0016-the-demo-opens-to-visitors-on-a-demo-only-installation.md); what visitors see: [Getting started](../user-guide/07-getting-started.md#when-the-demo-lets-you-change-things)). It is off unless you switch it on, and anything but a demo-only Installation ignores the switch. Nothing is ever sent from it: no email, Slack or Telegram message, no Webhook, no upload, no link to anything outside the demo.
+
+### What you need first
+
+- **An Installation that is a demo and nothing else**, with `ZIFFR_DEMO_ONLY=1`: nobody signs in or makes an account there. Never run it next to real Workspaces or on a database that holds real numbers; anonymous visitors write into that database. The demo beside real Workspaces on your company's Ziffr stays read-only whatever you set.
+- **The job secret** (`ZIFFR_JOB_SECRET`, at least 32 characters), because the reset is a job a clock calls ([Scheduled jobs](jobs.md#the-demos-reset)).
+- **A client address Ziffr can trust**, so that limits can count by address (below), and **a secret to count them under**.
+- **Room for a reset.** A reset seeds the made-up company again, at most 96 times a day and only after a change. Measure what one costs on your hardware before you open it (below).
+
+### The settings
+
+| Setting | Value | What it does |
+| --- | --- | --- |
+| `ZIFFR_DEMO_ONLY` | `1` | Makes this Ziffr a public demo and nothing else. A server setting, not on the Installation settings page |
+| `ZIFFR_DEMO_CHANGES` | `1` | Lets visitors change the demo. Off by default. In effect only together with `ZIFFR_DEMO_ONLY=1`. Also on the Installation settings page (Demo section) as **Visitors may change the demo**, but give it to the clock as well (below) |
+| `ZIFFR_DEMO_ADDRESS_KEY` | at least 32 characters | The secret under which a visitor's network address and network are counted as keyed hashes (HMAC-SHA256), never stored as they are. Without it every change is refused and the log says so |
+| `ZIFFR_PROXY_HOPS` | how many proxies add to `X-Forwarded-For` | Where the client address is read from. Behind Caddy alone it is `1` (the Docker default); behind another proxy as well, `2`. Without an address every change is refused and the log says so |
+
+Make the key once and keep it with your other secrets. Changing it only starts every address's count again; sharing it does nothing good.
+
+```sh skip="makes a secret for your settings file"
+openssl rand -hex 32
+```
+
+**Behind Nginx Proxy Manager, Traefik or another proxy** in front of Caddy, set `ZIFFR_PROXY_HOPS=2` and tell Caddy to trust that proxy (`trusted_proxies`), or Caddy replaces the client address with your proxy's and every visitor looks like one address. The steps are in the [Docker guide](../../docker/README.md#behind-a-reverse-proxy-you-already-run). Do not trust a wider range than your proxy: whoever it covers can claim any address and so dodge the limits.
+
+### The clock
+
+The reset is `POST /api/jobs/demo-reset`. Where visitors may change the demo, call it every 15 minutes, at 10, 25, 40 and 55 past the hour (away from the hourly Workflows and from a release follower that updates at 2, 17, 32 and 47 past). It resets only a demo that was changed since its last reset or that is no longer young (a day old, or from an earlier UTC date), so a quiet demo costs nothing. With your own scheduler:
+
+```sh skip="a crontab line with the job secret, which the test app does not set"
+10,25,40,55 * * * *  curl -fsS -X POST -H "Authorization: Bearer $ZIFFR_JOB_SECRET" https://demo.example.com/api/jobs/demo-reset
+```
+
+With Docker Compose the clock does this when it is told both settings. It reads its own environment only, and the settings file next to `compose.yml` reaches the app, not the clock, so give the clock the two settings in a `compose.override.yml`:
+
+```yaml
+services:
+  clock:
+    environment:
+      ZIFFR_DEMO_ONLY: "1"
+      ZIFFR_DEMO_CHANGES: "1"
+```
+
+Without them the clock calls the job once a night at 03:30 UTC, and what visitors changed stays until then. `docker compose logs clock` shows each call (`demo-reset: 200 {"reset":false}` for a demo nobody changed).
+
+### Measure before you open it
+
+Both scripts need a **copy** of the demo, never the live one: one resets it twice and the other hammers it.
+
+1. Make a copy: a dump of the demo's database restored into a second database, with the app started against it (on another port, with its own `ZIFFR_JOB_SECRET`). The copy of a demo-only Installation is itself a demo.
+2. **What a reset costs:** `scripts/demo-reset-measure.mjs` prints the time, the rows touched and the WAL written by `demo_reset` alone and by the whole job (the difference is the core's part: Snapshots, pins, the close, the Outbox). It needs `psql`, the app running against that database and the job secret, and `ZIFFR_DEMO_CHANGES` off (or the demo marked changed), since the job skips a clean, young demo where it is on. Watch the box's CPU while it runs. If a reset takes more than a few seconds, or writes more than you want 96 times a day, do not open the demo yet.
+
+   ```sh skip="needs a copy of the demo's database and a running app"
+   DATABASE_URL=postgresql://user:password@127.0.0.1:5432/postgres_copy \
+   ZIFFR_APP_URL=http://localhost:3000 ZIFFR_JOB_SECRET=... node scripts/demo-reset-measure.mjs
+   ```
+
+3. **Whether the limits hold:** `scripts/demo-load.mjs` writes from many made-up visits at once while the reset runs, and reports where the first refusal came, how long a plain page took before, during and after, and whether the reset finished. It exits 1 if no refusal comes within 1.5 times an address's budget, if a page slows to more than three times its idle time, or if the reset job does not answer 200. It needs a copy with `ZIFFR_DEMO_ONLY=1`, `ZIFFR_DEMO_CHANGES=1`, the address key and the proxy hops set, and a POST path a visitor's change goes through (`ZIFFR_DEMO_WRITE_PATH`). Use an https address (plain http only for localhost). The job secret is sent only with `--reset` and `--yes-this-is-the-demo`, only to the address you give it, and a redirect is never followed.
+
+   ```sh skip="needs a copy of the demo with visitors' changes on"
+   ZIFFR_DEMO_URL=https://demo-copy.example.com ZIFFR_DEMO_WRITE_PATH=/some/write \
+   ZIFFR_JOB_SECRET=... node scripts/demo-load.mjs --visits 20 --per-visit 40 --reset --yes-this-is-the-demo
+   ```
+
+### Switching it on
+
+1. **Upgrade first and reset once with the setting off.** The demo's own examples (the showcase) are marked by a reset, and the database refuses every visitor's change until one ran since the upgrade. With `ZIFFR_DEMO_CHANGES` still off, every call of the job resets, so call it once and wait for it to answer `{"reset":true}`.
+
+   ```sh skip="calls a server with the job secret"
+   curl -fsS -X POST -H "Authorization: Bearer $ZIFFR_JOB_SECRET" https://demo.example.com/api/jobs/demo-reset
+   ```
+
+2. Set `ZIFFR_DEMO_ONLY=1`, `ZIFFR_DEMO_CHANGES=1`, `ZIFFR_DEMO_ADDRESS_KEY` and `ZIFFR_PROXY_HOPS` (and, with Docker, the clock's two settings). Restart so every service has them (`docker compose up -d`).
+3. Call the job once more, the same way. Its first act is to tell the database that visitors may change the demo, and the database refuses a visitor until it has heard that. It answers `{"reset":false}` now, since the demo is clean and young; that is right. Without this call the door opens at the next quarter hour.
+4. Open the demo in a private window. The line above the page should end with "Resets in" and a number of minutes. Change a value, check that a second private window sees it, and that after the next 10, 25, 40 or 55 past the demo starts fresh.
+5. Watch the log for the first hour (next section).
+
+### What to watch
+
+What a visitor is told is always a plain sentence; the operator's reasons are in the server's log, once per 15-minute window, never one line per request, and never naming an address or a visit:
+
+| Log line (the app's log) | What it means and what to do |
+| --- | --- |
+| `demo: no trusted client address: check ZIFFR_PROXY_HOPS; visitors' changes are refused` | The address header has too few entries for `ZIFFR_PROXY_HOPS`. Visitors see "The demo is busy". Check the number of hops, and that Caddy trusts your proxy |
+| `demo: no usable address key: set ZIFFR_DEMO_ADDRESS_KEY (at least 32 characters); visitors' changes are refused` | The key is missing or too short |
+| `Demo: no showcase; visits stay refused until the next reset` | The step that protects the demo's own examples failed. The demo is closed to changes, never open; the next reset tries again. If it comes back every time, read the lines before it |
+| `demo-reset: 404` (the clock's log) | The demo is not offered here (`ZIFFR_DEMO=0`), or the job secret is wrong |
+| `demo-reset: 200 {"reset":false}` for hours while visitors say they change things | The job does not see the setting: check `ZIFFR_DEMO_CHANGES` where the app runs |
+
+Also watch the box: the CPU and the database's size and WAL around the quarter hours, and how many times a day the demo really resets.
+
+### Switching it off, and going back
+
+Set `ZIFFR_DEMO_CHANGES` to `0` (or remove it) and restart the app. From the next request the app no longer lets a visitor change anything: the demo says "The demo can't be changed." again, as before. The database closes its own door when the reset job next runs, which is the first thing the job does; the clock still on the 15-minute schedule does it within 15 minutes, and a call by hand does it at once (with the setting off every call also seeds the demo again, so what visitors made is gone). Remove the clock's `ZIFFR_DEMO_CHANGES` as well, so it goes back to the nightly call. Nothing else needs undoing: no table, no data and no migration is specific to switching it on.
+
+### Before you open it: a checklist
+
+- [ ] This Installation is a demo and nothing else (`ZIFFR_DEMO_ONLY=1`), and no real Workspace or real number is in its database
+- [ ] `ZIFFR_DEMO_ADDRESS_KEY` is set (32 characters or more) and kept with your other secrets
+- [ ] `ZIFFR_PROXY_HOPS` matches the proxies in front of it and, behind another proxy, Caddy trusts it: two private windows on different networks do not share one address's limits
+- [ ] `ZIFFR_JOB_SECRET` is set, and the clock (or your cron line) calls `demo-reset` at 10, 25, 40 and 55 past; with Docker, the clock has both demo settings
+- [ ] `scripts/demo-reset-measure.mjs` ran on a copy, and one reset is small enough 96 times a day
+- [ ] `scripts/demo-load.mjs` ran against a copy with visitors' changes on, and ended with "OK: the limits held."
+- [ ] One reset by hand with the setting off answered `{"reset":true}`, and after switching on the line on the demo's pages ends with "Resets in"
+- [ ] A change in one window shows in another and is gone after the next quarter hour
+- [ ] Email, Slack and Telegram are not set up here, and nothing arrives anywhere when a visitor answers a Prompt or shares something
+- [ ] You know where the log lines above show, and who looks at them in the first hour
+- [ ] You know how to switch it off (above), and tried it once on the copy
+- [ ] You have read the [threat model](../security/threat-model.md#the-shared-demo-that-visitors-may-change-spec-0051-adr-0016): there is no check against bots here, the limits are the protection, and a group of networks can use up the demo's changes for a window
+
 ## Upgrading
 
 With Docker: [docker/README.md](../../docker/README.md#upgrading). With your own Supabase project:
@@ -371,7 +486,7 @@ Start with the new key alone, without the old one in `ZIFFR_SECRETS_KEY_PREVIOUS
 - [ ] A sign-in link arrives, opens Ziffr and signs you in
 - [ ] Email: `ZIFFR_SMTP_URL` and `ZIFFR_MAIL_FROM` set, with SPF and DKIM for the sender's domain; an invitation reaches a test inbox
 - [ ] Scheduler: both jobs called with `ZIFFR_JOB_SECRET`; after the run hour, the Workflows page shows a run "by the clock"
-- [ ] The demo: filled in with `demo_reset`, or switched off with `ZIFFR_DEMO=0`
+- [ ] The demo: filled in with `demo_reset`, or switched off with `ZIFFR_DEMO=0`; if visitors may change it, the [checklist](#before-you-open-it-a-checklist) done
 - [ ] Replies by email, if used: the inbound domain's MX records, a signed forwarder, and `ZIFFR_INBOUND_AUTHSERV_ID`
 - [ ] Slack, if used: the app made from the manifest, its event and interactivity URLs verified by Slack, `ZIFFR_SECRETS_KEY` backed up
 - [ ] Decks: the slide editor uses tldraw, which needs a license from tldraw for production use

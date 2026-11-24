@@ -46,7 +46,7 @@ For the dashboards you open every day, press **Pin** in the row of buttons above
 - **A shrunk sidebar** shows each pin as a small tile with its first letter; hover or focus it to see the name.
 - **On a phone**, the pinned dashboards are the first thing **More** lists.
 - Pins are yours alone, in each Workspace. If a pinned dashboard stops being shared with you, it leaves your sidebar without a message, and it comes back if it is shared with you again and you are still within the eight.
-- In the demo pins are kept in your own browser and never saved, so the **Pinned** entry in the ⋯ menu (and the Pin button on the list of dashboards) shows as off and says "Pinning is off in the demo" when you hover or tap it. The demo's sidebar already has a few pinned dashboards, so you can see what pinning does; they cannot be moved or unpinned there.
+- Where visitors may change the demo, a pin is yours: it is kept in your own browser for the person you view as, works as a real one and stays when the demo starts fresh as long as the dashboard is still there. Where the demo is read-only, pins are kept in your own browser and never saved, so the **Pinned** entry in the ⋯ menu (and the Pin button on the list of dashboards) shows as off and says "Pinning is off in the demo" when you hover or tap it. The demo's sidebar already has a few pinned dashboards, so you can see what pinning does; they cannot be moved or unpinned there.
 
 ### Switching dashboards
 

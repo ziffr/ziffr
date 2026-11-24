@@ -12,7 +12,7 @@ Where the Ziffr has set it up, a short check against bots by Cloudflare sits abo
 
 On a Ziffr that offers **Trial Workspaces**, the page is the same, with one line under the heading: a new address gets an account from the same link, and after signing in you start your trial (see [On a Ziffr that offers trials](16-workspace-settings.md#on-a-ziffr-that-offers-trials)). While all new trials are taken, the page says so instead, and whoever has a trial still signs in to it. A Ziffr without trials has no such line.
 
-On a Ziffr that is only a public demo, the page is called **Try Ziffr**. It has no sign-in, only **Try the demo** and a link to run Ziffr yourself. Everyone there shares the demo, and nothing anyone does there is saved.
+On a Ziffr that is only a public demo, the page is called **Try Ziffr**. It has no sign-in, only **Try the demo** and a link to run Ziffr yourself. Everyone there shares the demo. Where its operator lets visitors change it, what you change is seen by every visitor and gone when the demo starts fresh, every 15 minutes after a change; otherwise nothing anyone does there is saved.
 
 | Option | What it does |
 | --- | --- |
@@ -37,11 +37,11 @@ On hosted Ziffr (the Ziffr you reach at ziffr.net) three links sit at the foot o
 
 ## The demo
 
-**Demo Mode** is a visit to a made-up online shop with its own made-up people. Every visitor shares it, and nothing done there is saved or reaches a real Workspace. It is the place to look around before you start; see also [Getting started](07-getting-started.md).
+**Demo Mode** is a visit to a made-up online shop with its own made-up people. Every visitor shares it, and nothing done there reaches a real Workspace. Mostly it is read-only; on a demo that lets visitors change it, what you change is shared and goes when the demo starts fresh (see [Getting started](07-getting-started.md#when-the-demo-lets-you-change-things)). It is the place to look around before you start; see also [Getting started](07-getting-started.md).
 
 ### Opening the demo
 
-Choose **Try the demo** on the sign-in page. If you are already signed in, Ziffr first asks **Open the demo?**: nothing you do there is saved, so your own numbers belong in your own Workspace. Choose **Open the demo**, or **Stay in my workspace**.
+Choose **Try the demo** on the sign-in page. If you are already signed in, Ziffr first asks **Open the demo?**: nothing you do there is saved, so your own numbers belong in your own Workspace. (A signed-in person only sees this on a Ziffr that is not a demo and nothing else, where the demo is always read-only.) Choose **Open the demo**, or **Stay in my workspace**.
 
 While you are in the demo, the footer of the sidebar shows your menu with **Viewing as**, your own pages and **Leave the demo**.
 
@@ -56,7 +56,7 @@ Some pages have a dashed box marked **Demo controls**. Its buttons show what wou
 
 ### Nothing is saved
 
-You can open every page, switch between the people and try every button and form, but the demo can't be changed: where something would be saved, Ziffr says "The demo can't be changed." Where this Ziffr offers trials, it adds a link, "Try it with a trial of your own." A form with no place of its own for the answer shows it on a screen headed **Nothing was saved**; **Back** returns to the form.
+This section is about a demo that is read-only, which is most of them. A demo that lets visitors change it says so in the line above every page and is described in [Getting started](07-getting-started.md#when-the-demo-lets-you-change-things): what you change is shared and goes when it starts fresh. In a read-only demo you can open every page, switch between the people and try every button and form, but the demo can't be changed: where something would be saved, Ziffr says "The demo can't be changed." Where this Ziffr offers trials, it adds a link, "Try it with a trial of your own." A form with no place of its own for the answer shows it on a screen headed **Nothing was saved**; **Back** returns to the form.
 
 The simulators on **Connectors → Sources** and in the **Outbox** answer with what would happen, such as "Would be: Recorded", and keep nothing. (Where visitors may change the demo, they record the answer instead, as a real Slack, email or ticket system would, and say "Recorded in the demo"; see [Trying values in a demo that can be changed](07-getting-started.md#trying-values-in-a-demo-that-can-be-changed).) What you tried in the Sources simulator stays on the page until you leave it, marked "not saved".
 
@@ -66,7 +66,7 @@ The demo's people keep their names and colours, and the demo sends no email (whe
 
 In the demo, the **Guided tour** sits at the bottom right. Choose it to open the steps, and click a step to go to its page:
 
-The tour reads first, because the demo can't be changed:
+The tour reads first, because a demo is mostly for looking:
 
 1. **Look at a dashboard** and click a number to see its history.
 2. **See what others see**: switch **Viewing as** to Anna and to the Guest.

@@ -39,7 +39,7 @@ curl -fsSL https://github.com/ziffr/ziffr/releases/latest/download/install.sh | 
 | `rest` | PostgREST, which Ziffr's core reads and writes through | inside only |
 | `init` | Makes the keys on the first start, then on every start writes each service a settings file only that service can read, then stops | — |
 | `migrate` | Applies new migrations on every start and fills in the demo the first time, then stops | — |
-| `clock` | Calls the jobs: Workflows every hour, emails due every five minutes; with the two Usage Feed keys set, also starts the Usage Feed daily at 05:00 UTC | — |
+| `clock` | Calls the jobs: Workflows every hour, emails due every five minutes, the demo's seed nightly (every 15 minutes where visitors may change it); with the two Usage Feed keys set, also starts the Usage Feed daily at 05:00 UTC | — |
 | `mail` | Mailpit: catches every email while no mail server is set. Anyone with a shell on the machine can read it, so on a server set a mail server before anyone else signs in | 127.0.0.1:8025 |
 
 ## Settings
@@ -54,7 +54,12 @@ All go in `.env` next to `compose.yml`, and all are optional. After changing one
 | `ZIFFR_AUTH_PROVIDERS` and `SUPABASE_AUTH_EXTERNAL_*` | Sign-in with Google, Microsoft, GitHub or LinkedIn, as in `.env.example`. The provider's redirect address is `https://<your domain>/auth/v1/callback` |
 | `ZIFFR_DEMO` | Whether visitors can try the demo without an account. On at `http://localhost`, off on a domain unless `ZIFFR_DEMO=1` |
 | `ZIFFR_FEEDBACK_PROMPT` | `true` or `false`: whether signed-in people are asked now and then if they like Ziffr, with a link to the repository on GitHub. Empty: off here (on only for hosted Ziffr) |
+<<<<<<< HEAD
 | `ZIFFR_DEMO_ONLY` | `1` makes this Ziffr a public demo and nothing else: the login page offers only the demo, nobody can sign in or make an account, and the demo starts fresh every night at 03:30 UTC. With `ZIFFR_DEMO_CHANGES=1` too, the init step passes both settings to the clock, which then calls the reset every 15 minutes |
+=======
+| `ZIFFR_DEMO_ONLY` | `1` makes this Ziffr a public demo and nothing else: the login page offers only the demo, nobody can sign in or make an account, and the demo starts fresh every night at 03:30 UTC. With `ZIFFR_DEMO_CHANGES=1` as well, visitors may change the demo (see [Running a public demo that visitors may change](#running-a-public-demo-that-visitors-may-change)) |
+| `ZIFFR_DEMO_CHANGES`, `ZIFFR_DEMO_ADDRESS_KEY` | Only with `ZIFFR_DEMO_ONLY=1`: `1` lets visitors change the demo, which starts fresh every 15 minutes after a change; the key (at least 32 characters, `openssl rand -hex 32`) is what their changes are counted under. The clock needs the two demo settings as well, see below |
+>>>>>>> origin/main
 | `ZIFFR_USAGE_KEY`, `ZIFFR_USAGE_FEED_KEY` | Turn on the Usage Feed (spec 0031): the Installation's daily totals, sent into a Workspace of your own. A Usage Key from the Installation Settings page and a Feed Key from that Workspace; both are needed, and with one missing nothing runs and nothing is sent. Only the clock reads them. `ZIFFR_USAGE_SOURCE_URL` and `ZIFFR_USAGE_FEED_URL` name another Installation to read or to send to. See [Usage](../docs/guides/usage.md) |
 | `ZIFFR_ONE_DEFAULT_PER_PERSON` | `1`: each person may own only one Workspace on the default Workspace Limit |
 | `ZIFFR_DEFAULT_METRICS_LIMIT` | The most Metrics a Workspace may hold unless it has a limit of its own (Archived Metrics not counted); unset means no limit. Also on the Installation Settings page |
@@ -90,6 +95,23 @@ services:
 
 Your proxy then forwards to `http://127.0.0.1:8930` (or `http://172.19.0.1:8930`). Do not put Caddy on your proxy's Docker network instead: Caddy finds the app, Auth and PostgREST by their short names (`app`, `auth`, `rest`), and a container of the same name on that network (Nginx Proxy Manager's is called `app`) would receive Ziffr's requests.
 
+## Running a public demo that visitors may change
+
+A demo-only Ziffr (`ZIFFR_DEMO_ONLY=1`) can let visitors try the everyday work: what they change is seen by every visitor and gone when the demo starts fresh, every 15 minutes after a change. The whole guide, with the measuring scripts, what to watch, how to switch it off and a checklist, is [Running a public demo that visitors may change](../docs/guides/self-hosting.md#running-a-public-demo-that-visitors-may-change). With Docker Compose, three things are yours to set:
+
+- In the settings file next to `compose.yml`: `ZIFFR_DEMO_ONLY=1`, `ZIFFR_DEMO_CHANGES=1`, `ZIFFR_DEMO_ADDRESS_KEY` (from `openssl rand -hex 32`), and, behind a proxy of your own, `ZIFFR_PROXY_HOPS=2` with Caddy trusting that proxy (above). Never on an Installation that holds real Workspaces.
+- **The clock needs the two demo settings too.** It reads its own environment, and the settings file reaches the app, not the clock. Without them the clock keeps the nightly call and visitors' changes stay until 03:30 UTC. Put this in `compose.override.yml`:
+
+  ```yaml
+  services:
+    clock:
+      environment:
+        ZIFFR_DEMO_ONLY: "1"
+        ZIFFR_DEMO_CHANGES: "1"
+  ```
+
+- After `docker compose up -d`, call the reset job once by hand so the database opens (`curl -fsS -X POST -H "Authorization: Bearer $ZIFFR_JOB_SECRET" https://<your domain>/api/jobs/demo-reset`); and to go back, remove `ZIFFR_DEMO_CHANGES` from both places, start again and call it once more.
+
 ## Upgrading
 
 Read the notes of every release between your version and the new one on the [Releases page](https://github.com/ziffr/ziffr/releases) (up to 0.11.0 in [CHANGELOG.md](../CHANGELOG.md)); notes for you are under "For self-hosters". The Installation settings page says which release runs. Then download the new version's `compose.yml` (each release has it attached) and start again:
@@ -122,7 +144,7 @@ Try a restore once before you rely on it. The dump can also move to a Supabase p
 - [ ] `ZIFFR_DOMAIN` set, and `https://` works
 - [ ] A mail server set, with SPF and DKIM for the sender's domain; a sign-in link and an invitation reach a real inbox
 - [ ] Backups of `ziffr_db` and `ziffr_keys`, and one restore tried
-- [ ] The demo off (the default on a domain), unless you set `ZIFFR_DEMO=1` to offer it
+- [ ] The demo off (the default on a domain), unless you set `ZIFFR_DEMO=1` to offer it; a demo that visitors may change only as a demo-only Ziffr, with the [checklist](../docs/guides/self-hosting.md#before-you-open-it-a-checklist) done
 - [ ] The workspace's time zone and run hour set on the Team page; after the run hour, the Workflows page shows a run "by the clock"
 - [ ] Decks: the slide editor uses tldraw, which needs a license from tldraw for production use
 
