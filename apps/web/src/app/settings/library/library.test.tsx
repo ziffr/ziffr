@@ -26,9 +26,9 @@ describe("the Library's Analysis Recipes", () => {
 
 describe("Choose a method", () => {
   it("ends with 'Write your own method' for Owners and Admins, and shows nothing of the kind to others", () => {
-    expect(renderToStaticMarkup(<MethodPicker ids={[]} writes />)).toContain(`href="${PLAYGROUND}"`);
-    expect(renderToStaticMarkup(<MethodPicker ids={[]} writes />)).toContain("Write your own method");
-    const other = renderToStaticMarkup(<MethodPicker ids={[]} />);
+    expect(renderToStaticMarkup(<MethodPicker ids={[]} writes onResult={() => {}} />)).toContain(`href="${PLAYGROUND}"`);
+    expect(renderToStaticMarkup(<MethodPicker ids={[]} writes onResult={() => {}} />)).toContain("Write your own method");
+    const other = renderToStaticMarkup(<MethodPicker ids={[]} onResult={() => {}} />);
     expect(other).not.toContain("Write your own method");
     expect(other).not.toContain("playground");
   });
