@@ -109,9 +109,9 @@ export function AppShell({ workspace, settings, pinned: pinnedByServer, due, acc
             <SidebarTrigger className="hidden md:flex" />
             <Link href="/" className="text-base font-semibold tracking-[-0.03em] md:hidden">Ziffr</Link>
             {/* The demo's controls live in the sidebar footer like the signed-in menu; phones have no sidebar, so they keep this row. */}
-            {demo && <div className="ml-auto flex flex-wrap items-center gap-x-3 md:hidden [&_label]:text-xs [&_select]:h-7 [&_a]:h-7 [&_a]:text-xs">{demo}</div>}
+            {demo && <div className="ml-auto flex flex-wrap max-md:order-3 items-center gap-x-3 md:hidden [&_label]:text-xs [&_select]:h-7 [&_a]:h-7 [&_a]:text-xs">{demo}</div>}
             {/* Help opens in the side panel: for this screen from here, at the list of chapters from the sidebar's Help entry. */}
-            <HelpButton guide={guide} className={demo ? "md:ml-auto" : "ml-auto"} />
+            <HelpButton guide={guide} className={demo ? "max-md:order-2 md:ml-auto" : "ml-auto"} />
           </header>
           {banners}
           <main id="main" className="mx-auto w-full max-w-7xl flex-1 px-4 py-6 pb-24 sm:px-6 md:pb-10">

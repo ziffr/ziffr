@@ -35,7 +35,7 @@ Choose **Workspace** in the sidebar to open its pages. They are:
 
 A Guest sees only what is shared with them, and never who else is in the Workspace: other people's names, emails and Slack handles do not appear anywhere. Whoever owns, edits, approves or comments on what is shared with them reads as "Someone", **Who can see this** shows them only their own line ("Viewer", or "Viewer through" a Group they are in), and search finds only themselves. A Version history of a Theme is not open to them. Their **Connectors** page shows their own Delivery Preferences, their **Workflows** are those of the Metrics shared with them (the page still opens from a link), and **Changes** lists changes to what they may see.
 
-General, Packs, Library, Access Keys, Feeds and Usage open inside the settings area. It has a side list with two parts: **You** (**My schedule**, your **Profile**, your **Appearance**, your **Deliveries**, your **Alerts** and your **Connected assistants**, see [Signing in and your own settings](17-your-settings.md)) and **Workspace**, the same pages as the menu. On a phone the side list becomes one row that you scroll sideways.
+General, Packs, Library, Access Keys, Feeds and Usage open inside the settings area. It has a side list with two parts: **You** (**My schedule**, your **Profile**, your **Appearance**, your **Deliveries**, your **Alerts** and your **Connected assistants**, see [Signing in and your own settings](17-your-settings.md)) and **Workspace**, the same pages as the menu. On a phone the side list becomes one row that you scroll sideways; the bar at the top keeps the ? button next to the Ziffr name.
 
 ### In the sidebar
 
