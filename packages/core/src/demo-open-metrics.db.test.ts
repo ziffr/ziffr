@@ -225,8 +225,8 @@ describe("Shares, access requests and Groups among the made-up people", () => {
       await shareWithGroup(me, "dashboard", plain, group, "viewer");
       await expect(setGroupMember(me, group, guest, true)).resolves.toBeUndefined();
       await setGroupMember(me, group, guest, false);
-      await dashboards.placeWidget(me, plain, { type: "metric", id: hidden.id });
-      await expect(setGroupMember(me, group, guest, true)).rejects.toThrow(DEMO_METRIC_WORDS.hidden);
+      // The hidden Metric cannot be added to a dashboard the Group already has: Ben, a member, does not see it either.
+      await expect(dashboards.placeWidget(me, plain, { type: "metric", id: hidden.id })).rejects.toThrow(DEMO_METRIC_WORDS.hidden);
       expect(await count("shares", { object_id: dash })).toBe(0);
     });
     // A refusal at a cap changes nothing: a changed role keeps the Share (checked in place, not deleted first).
