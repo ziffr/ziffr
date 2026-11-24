@@ -14,7 +14,8 @@ import { getShares } from "./access";
 import { audit } from "./audit-log";
 import { db } from "./db";
 import { refuseInDemoOutsideVisit } from "./demo-visitor-metrics";
-import { visitorText } from "./demo-visitor-words";
+import { chargeNewRows } from "./demo-creation";
+import { inDemoVisit, visitorText } from "./demo-visitor-words";
 import { demoRefusalOf } from "./demo-visitor-sharing";
 import { ServerFault } from "./server-fault";
 import { cleanTagNames, normaliseTagName, tagKey, tagNameProblem, TAGS_PER_METRIC, TAGS_PER_WORKSPACE } from "./tag-names";
@@ -67,6 +68,12 @@ export async function changeMetricTags(actor: Actor, metricId: number, change: T
   // What the actor sees before the change: a word that matches a Tag outside it is answered in the actor's own spelling, so the
   // answer never tells that the word exists out of sight, nor how it was first written.
   const before = new Set((await tagSight(actor)).tags.map((t) => t.id));
+  // In a demo visit only the NEW words use the visitor's share of Tags (final review): a word that exists costs nothing, and every way
+  // of putting words on a Metric (a Metric made from a catalog entry too) is counted here, before anything is written.
+  if (change !== "remove" && inDemoVisit(actor)) {
+    const exist = new Set((await readTags(actor.workspaceId)).map((t) => tagKey(t.name)));
+    await chargeNewRows(actor, "tags", cleaned.names.filter((n) => !exist.has(tagKey(n))).length);
+  }
   const cipher = await workspaceCipher(actor.workspaceId);
   const tags = cleaned.names.map((name) => {
     const id = randomUUID();

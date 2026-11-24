@@ -28,6 +28,7 @@ import { isAttainmentMethod } from "./attainment-method";
 import { limitReachedFrom, syncDefaultLimit } from "./workspace-limits";
 import { trialLimitMessage } from "./trials";
 import { announceDefaultRetention, assertRetentionFits, defaultRetentionFor } from "./retention-setting";
+import { chargeNewRows } from "./demo-creation";
 import { DemoTextRefused, inDemoVisit, visitorOptionalText, visitorText } from "./demo-visitor-words";
 import { visitorMembersOnly, visitorNumber, visitorSeries, visitorSlug } from "./demo-visitor-metrics";
 import { DEMO_METRIC_WORDS } from "./demo-words";
@@ -303,6 +304,15 @@ export async function saveSeriesRows(actor: Actor, metricId: number, kind: "targ
     // A day inside the period counts as that period, as in pasted lines.
     return { period: periodStart(new Date(`${period}T00:00:00`), m.period as Period, ys), value };
   });
+  // In a demo visit only the NEW periods use the visitor's share of rows (final review): a period that already has a value costs nothing.
+  // `read` is at most 60 rows here (`visitorSeries`), so this is one count, never a long loop.
+  if (inDemoVisit(actor)) {
+    const days = [...new Set(read.map((r) => r.period))];
+    const { data: have, error } = await db().from("series_values").select("period_start").eq("metric_id", metricId).eq("kind", kind).in("period_start", days);
+    if (error) throw new Error("The series could not be saved.");
+    const set = new Set((have ?? []).map((h) => String(h.period_start)));
+    await chargeNewRows(actor, "series_rows", days.filter((d) => !set.has(d)).length);
+  }
   return { saved: await upsertSeries(actor.workspaceId, metricId, kind, read, note) };
 }
 

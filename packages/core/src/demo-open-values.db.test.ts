@@ -180,6 +180,16 @@ describe("the simulated channels, recording", () => {
     await expect(recordSimulatedReply({ ...sara, workspaceId: "11111111-1111-4111-8111-111111111111" }, ids.actionDelivery, "Done")).rejects.toThrow();
   });
 
+  it("answer a Delivery once: a second answer to the same one is refused in plain words, and adds no message", async () => {
+    if (!ids.actionDelivery) return;
+    const messages = async () => (await db().from("thread_messages").select("id", { count: "exact", head: true }).eq("workspace_id", DEMO_WORKSPACE_ID)).count ?? 0;
+    // Whichever answer came first (the next test also answers it), the next one is refused.
+    await asVisit(() => recordSimulatedReply(sara, ids.actionDelivery, "First answer")).catch(() => undefined);
+    const before = await messages();
+    await expect(asVisit(() => recordSimulatedReply(sara, ids.actionDelivery, "Second answer"))).rejects.toThrow(/answered already/);
+    expect(await messages()).toBe(before);
+  });
+
   it("record the answer in the demo and send nothing: every Delivery they make stays in the Outbox", async () => {
     const fetched = vi.spyOn(globalThis, "fetch");
     const maxId = (await db().from("deliveries").select("id").eq("workspace_id", DEMO_WORKSPACE_ID).order("id", { ascending: false }).limit(1).single()).data!.id as number;

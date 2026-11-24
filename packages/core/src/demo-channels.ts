@@ -89,8 +89,14 @@ export async function recordSimulatedReply(actor: Actor, deliveryId: number, tex
   demoOnly(actor);
   refuseInDemo(actor, "connector-actions:recordSimulatedReply");
   const { a, d, body, correction, who } = await replyContext(deliveryId, text);
+  // A Delivery is answered once in a reset window (it stays "answered" until the next Demo Reset): otherwise one Delivery could be
+  // answered again and again, each answer a message in its Thread. A visit counts it as one reply (`thread_messages`).
+  // The claim is one conditional update, so two answers at once cannot both pass.
+  const ANSWERED = "This message has been answered already. Try another one, or wait until the demo starts fresh.";
+  if (d.status === "answered") throw new Error(ANSWERED);
+  const { data: claimed } = await db().from("deliveries").update({ status: "answered" }).eq("id", d.id).eq("workspace_id", DEMO_WORKSPACE_ID).neq("status", "answered").select("id");
+  if (!claimed?.length) throw new Error(ANSWERED);
   await postReply(DEMO_WORKSPACE_ID, d.action_id, d.recipient_id, body, correction, ANSWERED_FROM[d.connector as ConnectorId] ?? { type: "app" });
-  await db().from("deliveries").update({ status: "answered" }).eq("id", d.id).eq("workspace_id", DEMO_WORKSPACE_ID);
   if (a.purpose === "approval" && a.assignee_id === d.recipient_id && a.status === "open" && correction === null && /^\s*(approved?|send back)\b/i.test(body)) {
     return `${who}'s answer ${/^\s*approved?\b/i.test(body) ? "approved the value" : "sent the value back"}.`;
   }

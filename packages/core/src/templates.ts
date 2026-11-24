@@ -101,7 +101,7 @@ export async function saveSlideLayout(actor: Actor, input: { deckId: number; sha
   const { data: deck } = await db().from("decks").select("owner_id").eq("id", input.deckId).eq("workspace_id", actor.workspaceId).maybeSingle();
   if (!deck || deck.owner_id !== actor.personId) throw new Forbidden();
   // The shapes come from the editor and carry words: in a demo visit they are rebuilt as a deck's are (no picture, words through the text rules).
-  const { shapes, metricIds } = cleanSlideShapes(visitorSlideShapes(actor, input.shapes));
+  const { shapes, metricIds } = cleanSlideShapes(await visitorSlideShapes(actor, input.shapes));
   await assertSeesMetrics(actor, metricIds);
   const t = toSlideLayout(shapes, await getMetrics(actor.workspaceId), cleanChoices(input.choices), cleanLabels(actor, input.labels));
   return store(actor, "slide", input.replaceId, { ...names(actor, input.name, input.description, "Untitled layout"), view: "slide", slots: t.slots, body: t.body, w: 0, h: 0, updated_at: new Date().toISOString() });
