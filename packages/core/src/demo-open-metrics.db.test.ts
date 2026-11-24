@@ -57,7 +57,12 @@ const setCap = async (kind: string, n: number) => { expect((await db().from("dem
 beforeAll(async () => {
   await assertDemoIsOnlyWorkspace();
   // A fresh demo that is open to visitors, with its showcase recorded and its seed marked done.
-  await resetDemoWorkspace({ openToVisitors: true });
+  // The reset refuses within a minute of the last one (an earlier file's), which would leave that file's half-seeded demo
+  // ("starting fresh") for this one: so wait until it is done, as the reset job would at its next call.
+  for (let tries = 0; !(await resetDemoWorkspace({ openToVisitors: true })); tries++) {
+    if (tries >= 14) throw new Error("The demo could not be reset for this file.");
+    await new Promise((r) => setTimeout(r, 5_000));
+  }
   // This file makes more Metrics than a window holds: the caps are raised here, and the cap tests set their own.
   await setCap("metrics", 500);
   await setCap("derived_metrics", 500);
