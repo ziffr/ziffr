@@ -26,6 +26,8 @@ import { getNumberStyle } from "@/lib/data";
 import { waysInAndOut } from "@ziffr/core/ways-in-and-out";
 import { SLACK_OUTCOMES } from "@/lib/slack-back";
 import { WaysInAndOutStep } from "./ways";
+import { firstMetricStep } from "@ziffr/core/setup-first-metric";
+import { FirstMetricStepView } from "./first-metric";
 
 const countryName = (c: string) => new Intl.DisplayNames(["en"], { type: "region" }).of(c) ?? c;
 
@@ -85,6 +87,8 @@ export default async function SetupPage({ searchParams }: { searchParams: Promis
   } else if (current === "ways") {
     const slack = (SLACK_OUTCOMES as readonly string[]).includes(query.slack ?? "") ? SLACK_NOTICE[query.slack as (typeof SLACK_OUTCOMES)[number]] : null;
     body = <WaysInAndOutStep data={await waysInAndOut(actor)} following={ids[ids.indexOf("ways") + 1] ?? null} notice={slack} />;
+  } else if (current === "first_metric") {
+    body = <FirstMetricStepView step={await firstMetricStep(actor)} following={ids[ids.indexOf("first_metric") + 1] ?? null} />;
   } else {
     body = (
       <div className="space-y-4">
