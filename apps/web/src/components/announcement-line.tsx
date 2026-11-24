@@ -9,6 +9,18 @@ import { X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { DISMISSED_KEY, dismissedIn, stillShown, withDismissed, type Announcement } from "@/lib/announcement-state";
 
+/** The words of one Announcement as the line shows them: the text, what it ends with, and its link. The Installation
+ * settings preview draws the same piece, so what an admin sees there is what the line says. */
+export function AnnouncementWords({ a, extra }: { a: Announcement; extra?: React.ReactNode }) {
+  return (
+    <p className="min-w-0 flex-1 text-muted-foreground">
+      {a.text}
+      {extra}
+      {a.link && <>{" "}<a href={a.link.href} className="underline underline-offset-2 hover:text-foreground">{a.link.label}</a>.</>}
+    </p>
+  );
+}
+
 /** The line for each Announcement not dismissed in this visit. */
 export function AnnouncementLine({ items, scope, extra = {} }: { items: Announcement[]; scope: string; extra?: Record<string, React.ReactNode> }) {
   const [dismissed, setDismissed] = useState<string[]>([]);
@@ -27,11 +39,7 @@ export function AnnouncementLine({ items, scope, extra = {} }: { items: Announce
     <>
       {stillShown(items, dismissed).map((a) => (
         <section key={a.id} aria-label="Announcement" className="mx-auto flex w-full max-w-7xl items-start gap-2 px-4 pt-3 text-xs sm:px-6">
-          <p className="min-w-0 flex-1 text-muted-foreground">
-            {a.text}
-            {extra[a.id]}
-            {a.link && <>{" "}<a href={a.link.href} className="underline underline-offset-2 hover:text-foreground">{a.link.label}</a>.</>}
-          </p>
+          <AnnouncementWords a={a} extra={extra[a.id]} />
           <Button variant="ghost" size="icon-xs" className="shrink-0" onClick={() => dismiss(a.id)}>
             <X aria-hidden="true" />
             <span className="sr-only">Dismiss this announcement</span>

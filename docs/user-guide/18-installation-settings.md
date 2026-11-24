@@ -204,6 +204,23 @@ Under **The last 30 days**, the page lists the days newest first. With fewer tha
 
 **Workspace left out.** Pick one of the Workspaces you own, by name, usually the one that holds your own numbers, to leave it out of every figure and of the count of Workspaces, so those numbers do not count themselves. Only a Workspace you own can be picked, and only its Owner can change or remove the choice: leaving a Workspace out changes the next day's totals by exactly that Workspace, so two days side by side would show its size. It takes effect with the next day's count. The setting holds the Workspace's id (`ZIFFR_USAGE_EXCLUDE_WORKSPACE`); the endpoint never names the Workspace.
 
+## Announcements
+
+An **Announcement** is one plain line above every screen of the app, for a maintenance window or anything else everyone should read. The **Announcements** section lists them, a warning first, with their words, level, who sees them, whether the sign-in page shows them, their window and where they stand: **On**, **Scheduled** (not started yet), **Ended** or **Off**.
+
+**Add an Announcement** opens a panel at the side with these fields:
+
+- **Words**: plain text, at most 280 characters; the panel counts what is left. No markup.
+- **Link** and **Words for the link** (optional): the address must start with `https://`, and the words say what it is. It is never opened by itself.
+- **Level**: info, or warning. A warning is shown before an info.
+- **Starts** and **Ends** (optional): so that an Announcement can be written a day ahead and goes by itself. The times are in your browser's time zone, which the panel names beside them. Without a start it shows at once; without an end it stays until you switch it off.
+- **Shown to**: everyone, or the demo only.
+- **Also show it on the sign-in page**: for people who cannot sign in. Only offered for an Announcement for everyone, and the page then shows its words, link and level and nothing else.
+- **Cannot be dismissed**: for a maintenance window that is running; people see no Dismiss button.
+- **Switched on**.
+
+Under the fields, a **Preview** shows the line as people will see it. **Change** on a row opens the same panel. **Switch off** keeps an Announcement for later and **Switch on** brings it back; **Delete** asks first and removes it for good. At most 20 Announcements can be on at once; a refusal says so in the panel. Each change is listed under **Changes**, with the words as they were.
+
 ## Encryption
 
 Every Workspace has a **Workspace Key** of its own, kept only wrapped under this Installation's `ZIFFR_SECRETS_KEY`, and Ziffr seals the words people write, its Contacts' details and the Outbox, the intake log and the Audit Log with it. Rows written before an upgrade are in clear until a job seals them, a few hundred at a time, every five minutes; nothing stops while it runs. The **Encryption of Workspaces** section shows how far it is.
@@ -235,4 +252,4 @@ In the central version (ziffr.net), one GitHub account is enough for feedback: t
 
 ## Changes
 
-**Changes** lists who changed what, and when: claiming, adding and removing Installation Admins, saving or removing a setting such as the mail server, the replies signing secret, the Turnstile secret key, trials, the demo, the Telegram bot token or the Slack Client Secret, a Workspace's limit, test emails and replies tests. It names the setting, never its value. When Ziffr deletes a Workspace, such as a trial that ended, it shows one line by **Ziffr** with the Workspace's id, never its name, at the moment it destroys the Workspace's key, the first step of the deletion. What is left of it in the database, or in backups taken afterwards, can no longer be opened; backups from before the deletion open until they expire.
+**Changes** lists who changed what, and when: claiming, adding and removing Installation Admins, saving or removing a setting such as the mail server, the replies signing secret, the Turnstile secret key, trials, the demo, the Telegram bot token or the Slack Client Secret, a Workspace's limit, adding, changing, switching on or off and deleting an Announcement (with its words), test emails and replies tests. It names the setting, never its value. When Ziffr deletes a Workspace, such as a trial that ended, it shows one line by **Ziffr** with the Workspace's id, never its name, at the moment it destroys the Workspace's key, the first step of the deletion. What is left of it in the database, or in backups taken afterwards, can no longer be opened; backups from before the deletion open until they expire.
