@@ -5,7 +5,7 @@
 // Admins only, never through a key, never in the demo. Asking twice never makes a Metric twice: an entry that already
 // became a Metric of this Workspace is left alone. Nothing here is sent anywhere; only ids and names come back.
 import type { Actor } from "./actor";
-import { Forbidden } from "./actor";
+import { assertCan, Forbidden } from "./actor";
 import { db } from "./db";
 import { DEMO_WORKSPACE_ID } from "./team";
 import { setUpFromPack, type PackSetupInput, type PackSetupResult } from "./pack-setup";
@@ -25,6 +25,7 @@ export type GuidePackSetupResult = PackSetupResult & {
 function assertManages(actor: Actor): void {
   if ((actor as { key?: unknown }).key || actor.workspaceId === DEMO_WORKSPACE_ID) throw new Forbidden("There is no Setup Guide here.");
   if (actor.role !== "owner" && actor.role !== "admin") throw new Forbidden("Only Owners and Admins set up the Workspace.");
+  assertCan(actor, "create");
 }
 
 /** Makes the picked entries of an installed Pack into Metrics for the Setup Guide, leaving out any that already became a
@@ -48,7 +49,7 @@ export async function setUpGuideFromPack(actor: Actor, installId: number, input:
   const existing: typeof all = [];
   for (const m of all) if (await canSee(actor, "metric", m.id)) existing.push(m);
 
-  const asked = Array.isArray(input?.metrics) ? input.metrics.map(String) : [];
+  const asked = Array.isArray(input?.metrics) ? input.metrics.slice(0, 51).map(String) : [];
   const remaining = asked.filter((k) => !have.has(k));
   // A Derived Metric asked for again would make its inputs a second time: refuse in words, as the Packs page can handle it.
   for (const k of remaining) {
@@ -67,7 +68,7 @@ export async function setUpGuideFromPack(actor: Actor, installId: number, input:
     await startSetupGuide(actor);
     // Set the choice that the person's click made: the guide's Metric only when it has none, and the start as a Pack.
     await db().from("setup_guides").update({ first_metric_id: first.id, updated_at: new Date().toISOString() }).eq("workspace_id", ws).is("first_metric_id", null);
-    await db().from("setup_guides").update({ starting_point: "pack", updated_at: new Date().toISOString() }).eq("workspace_id", ws);
+    await db().from("setup_guides").update({ starting_point: "pack", updated_at: new Date().toISOString() }).eq("workspace_id", ws).is("starting_point", null);
   }
   const { data: g } = await db().from("setup_guides").select("first_metric_id").eq("workspace_id", ws).maybeSingle();
   return { ...made, existing, firstMetricId: (g?.first_metric_id as number | null | undefined) ?? null };
