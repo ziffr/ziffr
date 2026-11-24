@@ -17,15 +17,17 @@ import { visibleTags } from "./tag-sight";
 import { TEMPLATES } from "./widget-templates";
 import { getMetrics } from "./workspace-data";
 import { ensureBaseline, recordVersion } from "./versions";
+import { visitorOptionalText } from "./demo-visitor-words";
 import { assertWidgetDesigns } from "./widget-designs";
 import type { AnchorRule, SlideShape, Widget, WidgetSettings, WorkflowConfig } from "./types";
 
 const RULES: AnchorRule[] = ["max", "min", "last", "first", "largest-step"];
 const cleanChoices = (c: Choices): Choices => Object.fromEntries(Object.entries(c ?? {}).filter(([, v]) => v === "drop" || RULES.includes(v as AnchorRule)));
-const cleanLabels = (labels: unknown) => (Array.isArray(labels) ? labels.slice(0, 50).map((l) => String(l).slice(0, 40)) : []);
-const names = (name: string, description: string, fallback: string) => ({
-  name: String(name ?? "").trim().slice(0, 80) || fallback,
-  description: String(description ?? "").trim().slice(0, 300),
+// A visitor of the demo writes labels like any other words: checked by the demo's text rules before they are cut.
+const cleanLabels = (actor: Actor, labels: unknown) => (Array.isArray(labels) ? labels.slice(0, 50).map((l) => String(visitorOptionalText(actor, String(l), "name")).slice(0, 40)) : []);
+const names = (actor: Actor, name: string, description: string, fallback: string) => ({
+  name: String(visitorOptionalText(actor, String(name ?? ""), "name")).trim().slice(0, 80) || fallback,
+  description: String(visitorOptionalText(actor, String(description ?? ""), "description")).trim().slice(0, 300),
 });
 
 /** The kinds of template kept in one table: Widget Templates, slide layouts, Dashboard, Deck and Workflow Templates. */
@@ -94,8 +96,8 @@ export async function saveSlideLayout(actor: Actor, input: { deckId: number; sha
   if (!deck || deck.owner_id !== actor.personId) throw new Forbidden();
   const { shapes, metricIds } = cleanSlideShapes(input.shapes);
   await assertSeesMetrics(actor, metricIds);
-  const t = toSlideLayout(shapes, await getMetrics(actor.workspaceId), cleanChoices(input.choices), cleanLabels(input.labels));
-  return store(actor, "slide", input.replaceId, { ...names(input.name, input.description, "Untitled layout"), view: "slide", slots: t.slots, body: t.body, w: 0, h: 0, updated_at: new Date().toISOString() });
+  const t = toSlideLayout(shapes, await getMetrics(actor.workspaceId), cleanChoices(input.choices), cleanLabels(actor, input.labels));
+  return store(actor, "slide", input.replaceId, { ...names(actor, input.name, input.description, "Untitled layout"), view: "slide", slots: t.slots, body: t.body, w: 0, h: 0, updated_at: new Date().toISOString() });
 }
 
 /** Most slides and bytes a Deck Template keeps, so one cannot fill the database. */
@@ -126,8 +128,8 @@ export async function saveDeckTemplate(actor: Actor, input: { deckId: number; na
   if (slides.length > MAX_DECK_TEMPLATE.slides || JSON.stringify(slides).length > MAX_DECK_TEMPLATE.bytes) throw new Error("This deck is too large to save as a template.");
   const cleaned = slides.map(cleanSlideShapes);
   await assertSeesMetrics(actor, cleaned.flatMap((c) => c.metricIds));
-  const t = toDeckTemplate(cleaned.map((c) => c.shapes), await getMetrics(actor.workspaceId), cleanChoices(input.choices), cleanLabels(input.labels));
-  return store(actor, "deck", input.replaceId, { ...names(input.name, input.description, "Untitled deck template"), view: "deck", slots: t.slots, body: { ...t.body, themeId: deck.theme_id ?? null }, w: 0, h: 0, updated_at: new Date().toISOString() });
+  const t = toDeckTemplate(cleaned.map((c) => c.shapes), await getMetrics(actor.workspaceId), cleanChoices(input.choices), cleanLabels(actor, input.labels));
+  return store(actor, "deck", input.replaceId, { ...names(actor, input.name, input.description, "Untitled deck template"), view: "deck", slots: t.slots, body: { ...t.body, themeId: deck.theme_id ?? null }, w: 0, h: 0, updated_at: new Date().toISOString() });
 }
 
 /** Saves a Workflow of the actor's Workspace as a team Workflow Template, new or replacing one of the actor's own. Its
@@ -141,7 +143,7 @@ export async function saveWorkflowTemplate(actor: Actor, input: { workflowId: nu
   const config = data.config as WorkflowConfig;
   const readable = { ...config, steps: config.steps.filter((s) => s.type !== "checklist" || mayReadItem(s, { id: actor.personId, role: actor.role, groupIds }, String(data.owner_id))) };
   const body = toWorkflowTemplate(readable, { forTeam: true });
-  return store(actor, "workflow", input.replaceId, { ...names(input.name, input.description, `${data.name} template`), view: "workflow", slots: [], body, w: 0, h: 0, updated_at: new Date().toISOString() });
+  return store(actor, "workflow", input.replaceId, { ...names(actor, input.name, input.description, `${data.name} template`), view: "workflow", slots: [], body, w: 0, h: 0, updated_at: new Date().toISOString() });
 }
 
 /** The Tags the actor sees by id, for naming the Slots of Tag widgets: a Tag the actor does not see is not named. */
@@ -157,8 +159,8 @@ export async function saveTemplate(actor: Actor, input: { widgetId: number; name
   if (TEMPLATES[w.template].kind === "layout") throw new Error("Free layouts cannot be saved as templates yet.");
   // A widget of "all Metrics tagged X" becomes a Slot only as part of a dashboard (spec 0038).
   if (isTagWidget(w)) throw new Refused("A widget that shows all Metrics with a Tag is saved as part of its dashboard: save the dashboard as a template.");
-  const t = toTemplate(w, await getMetrics(actor.workspaceId), cleanChoices(input.choices), cleanLabels(input.labels));
-  return store(actor, "widget", input.replaceId, { ...names(input.name, input.description, "Untitled template"), view: w.template, slots: t.slots, body: t.body, w: w.w, h: w.h, updated_at: new Date().toISOString() });
+  const t = toTemplate(w, await getMetrics(actor.workspaceId), cleanChoices(input.choices), cleanLabels(actor, input.labels));
+  return store(actor, "widget", input.replaceId, { ...names(actor, input.name, input.description, "Untitled template"), view: w.template, slots: t.slots, body: t.body, w: w.w, h: w.h, updated_at: new Date().toISOString() });
 }
 
 /** Most widgets and bytes a Dashboard Template keeps, so one cannot fill the database. */
@@ -190,17 +192,17 @@ export async function dashboardTemplateDraft(actor: Actor, dashboardId: number) 
  * widgets, never from what the browser sends; `labels` name the Slots in the order the draft lists them. */
 export async function saveDashboardTemplate(actor: Actor, input: { dashboardId: number; name: string; description: string; labels: string[]; replaceId?: number | null }): Promise<number> {
   const widgets = await templatableDashboard(actor, Number(input.dashboardId));
-  const t = toDashboardTemplate(widgets, await getMetrics(actor.workspaceId), cleanLabels(input.labels), await tagNamesFor(actor));
+  const t = toDashboardTemplate(widgets, await getMetrics(actor.workspaceId), cleanLabels(actor, input.labels), await tagNamesFor(actor));
   if (!t.body.widgets.length) throw new Error("This dashboard has nothing a template can keep.");
   if (t.body.widgets.length > MAX_DASHBOARD_TEMPLATE.widgets || JSON.stringify(t.body).length > MAX_DASHBOARD_TEMPLATE.bytes) throw new Error("This dashboard is too large to save as a template.");
-  return store(actor, "dashboard", input.replaceId, { ...names(input.name, input.description, "Untitled dashboard template"), view: "dashboard", slots: t.slots, body: t.body, w: 0, h: 0, updated_at: new Date().toISOString() });
+  return store(actor, "dashboard", input.replaceId, { ...names(actor, input.name, input.description, "Untitled dashboard template"), view: "dashboard", slots: t.slots, body: t.body, w: 0, h: 0, updated_at: new Date().toISOString() });
 }
 
 /** Renames a template the actor created. */
 export async function renameTemplate(actor: Actor, id: number, name: string, description: string) {
   await ownTemplate(actor, id);
   await ensureBaseline("template", id, actor.personId);
-  await db().from("team_templates").update({ ...names(name, description, "Untitled template"), updated_at: new Date().toISOString() }).eq("id", id).eq("workspace_id", actor.workspaceId);
+  await db().from("team_templates").update({ ...names(actor, name, description, "Untitled template"), updated_at: new Date().toISOString() }).eq("id", id).eq("workspace_id", actor.workspaceId);
   await recordVersion("template", id, actor.personId);
 }
 

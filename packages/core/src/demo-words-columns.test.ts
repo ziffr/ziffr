@@ -24,7 +24,10 @@ describe("the words columns", () => {
 
   it("are the rows the migration puts in demo_words_columns", () => {
     const body = SHOWCASE.slice(SHOWCASE.indexOf("insert into demo_words_columns"), SHOWCASE.indexOf("insert into demo_kept_rows"));
-    const inMigration = [...body.matchAll(/\('([a-z_]+)', '([a-z_]+)', '(words|kept)'\)/g)].map((m) => `${m[1]}.${m[2]}.${m[3]}`).sort();
+    // A later migration may add a column to the words (ticket 9 added a Theme's tokens): its rows count as the database's copy too.
+    const later = readdirSync(MIGRATIONS).filter((f) => f.endsWith(".sql") && f > "20270126130000_demo_showcase.sql")
+      .flatMap((f) => [...migration(f).matchAll(/insert into demo_words_columns \(table_name, column_name, kind\) values ([^;]*);/g)].map((m) => m[1])).join("\n");
+    const inMigration = [...`${body}\n${later}`.matchAll(/\('([a-z_]+)', '([a-z_]+)', '(words|kept)'\)/g)].map((m) => `${m[1]}.${m[2]}.${m[3]}`).sort();
     expect(inMigration).toEqual(demoWordsColumnRows().map(([t, c, k]) => `${t}.${c}.${k}`).sort());
   });
 

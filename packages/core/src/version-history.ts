@@ -19,6 +19,7 @@ import { saveWorkflow } from "./workflows";
 import { guestWorkflowIds } from "./period-timeline";
 import { restorableWords, sealedWords, snapshotAccess } from "./snapshots";
 import { restoreMetricTags } from "./tags";
+import { visitorOptionalText, visitorVersionType } from "./demo-visitor-words";
 
 /** How a restored Workflow is saved; tests may pass their own. */
 export type RestoreEffects = {
@@ -99,19 +100,22 @@ export async function listVersions(actor: Actor, type: VersionType, id: number) 
 async function restorable(actor: Actor, versionId: number) {
   const { data: v } = await db().from("versions").select("*").eq("id", versionId).eq("workspace_id", actor.workspaceId).maybeSingle();
   if (!v || !(await versionAccess(actor, v.object_type, v.object_id)).edit) throw new Forbidden();
+  // In the demo only the kinds a visitor may make (dashboards, widgets, Themes, templates) are named or brought back.
+  visitorVersionType(actor, v.object_type);
   return v;
 }
 
 /** Names a version, like a git tag. */
 export async function nameVersion(actor: Actor, versionId: number, name: string) {
   await restorable(actor, versionId);
-  await db().from("versions").update({ name: String(name ?? "").trim().slice(0, 80) || null }).eq("id", versionId).eq("workspace_id", actor.workspaceId);
+  await db().from("versions").update({ name: String(visitorOptionalText(actor, String(name ?? ""), "name")).trim().slice(0, 80) || null }).eq("id", versionId).eq("workspace_id", actor.workspaceId);
 }
 
 /** Names the current state: a named version is never merged into. */
 export async function saveNamedVersion(actor: Actor, type: VersionType, id: number, name: string) {
   if (!(await versionAccess(actor, type, id)).edit) throw new Forbidden();
-  await recordVersion(type, id, actor.personId, { name: String(name ?? "").trim().slice(0, 80) || "Named version" });
+  visitorVersionType(actor, type);
+  await recordVersion(type, id, actor.personId, { name: String(visitorOptionalText(actor, String(name ?? ""), "name")).trim().slice(0, 80) || "Named version" });
 }
 
 const HIDDEN = "This version shows metrics that are not shared with you, so it cannot be restored by you. Ask the owner.";

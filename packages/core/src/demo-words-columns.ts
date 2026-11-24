@@ -37,7 +37,8 @@ export const DEMO_WORDS_COLUMNS: Readonly<Record<string, DemoTableWords>> = {
   // The config holds the text of Checklist Items (sealed-workflow.ts), so the whole of it is a seeded Workflow's words.
   workflows: { words: ["name", "config"], other: ["owner_id"], keepRows: true },
   groups: { words: ["name"], other: [], keepRows: true },
-  themes: { words: ["name", "slides"], other: ["owner_id", "tokens", "pack_key", "pack_hash", "pack_offer"], keepRows: true },
+  // A Theme's tokens (colours and fonts) are the seed's words too (ticket 9): they change what everyone sees, so a seeded Theme keeps them.
+  themes: { words: ["name", "slides", "tokens"], other: ["owner_id", "pack_key", "pack_hash", "pack_offer"], keepRows: true },
   team_templates: { words: ["name", "description", "body", "slots"], other: ["owner_id", "view", "kind", "pack_key", "pack_hash", "pack_offer"], keepRows: true },
   tags: { words: ["name", "name_index"], other: ["created_by"], keepRows: true },
   dashboard_snapshots: { words: ["label", "words", "frozen"], kept: ["deleted_at", "deleted_by", "shown_at", "shown_by"], other: ["period_kind", "taken_by"], keepRows: true },

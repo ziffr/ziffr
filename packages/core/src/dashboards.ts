@@ -13,6 +13,7 @@ import { designSettings } from "./built-in-designs";
 import { allowedDesign } from "./view-designs";
 import { assertSettingsDesigns, checkedDesignSetting } from "./widget-designs";
 import { ensureBaseline, recordVersion } from "./versions";
+import { visitorOptionalText, visitorSettings, visitorText } from "./demo-visitor-words";
 import { assertNoOutsideContent } from "./deck-content";
 import { firstFreePlace } from "./free-place";
 import { isDisplayPeriod, SHOWN_BY } from "./display-periods";
@@ -120,7 +121,7 @@ export async function specFrom(actor: Actor, source: DropSource) {
   if (source?.type === "template") return fromTeamTemplate(actor, Number(source.id), source.fills);
   if (source?.type !== "spec" || !(source.template in TEMPLATES)) throw new Forbidden();
   let metricIds = ids(source.metricIds);
-  const s = fromBrowser(source.settings ?? TEMPLATES[source.template].settings);
+  const s = visitorSettings(actor, fromBrowser(source.settings ?? TEMPLATES[source.template].settings));
   // "All Metrics tagged X" (spec 0038) replaces the list: nothing is stored of the Metrics the person sees now.
   if (await checkTagSource(actor, source.template, s)) metricIds = [];
   // A widget of a Workspace's View Design draws the design as the Workspace keeps it, never one the browser made up.
@@ -129,13 +130,13 @@ export async function specFrom(actor: Actor, source: DropSource) {
   if (source.template === "design" && !s.design) throw new Forbidden();
   await assertSeesMetrics(actor, widgetMetricIds(metricIds, s));
   const t = templateOf({ template: source.template, settings: s });
-  return { template: source.template, metric_ids: metricIds, settings: s, title: title(source.title), w: t.size.w, h: t.size.h };
+  return { template: source.template, metric_ids: metricIds, settings: s, title: title(visitorOptionalText(actor, source.title, "name")), w: t.size.w, h: t.size.h };
 }
 
 /** Creates a dashboard owned by the actor; Guests create nothing. */
 export async function createDashboard(actor: Actor, name: string): Promise<number> {
   assertCan(actor, "create");
-  const { data, error } = await db().from("dashboards").insert({ name: String(name ?? "").trim().slice(0, 120) || "Untitled", owner_id: actor.personId, workspace_id: actor.workspaceId }).select("id").single();
+  const { data, error } = await db().from("dashboards").insert({ name: visitorText(actor, String(name ?? ""), "name").trim().slice(0, 120) || "Untitled", owner_id: actor.personId, workspace_id: actor.workspaceId }).select("id").single();
   if (error || !data) throw new Error("The dashboard could not be created.");
   return data.id;
 }
@@ -149,12 +150,12 @@ export async function saveDashboardText(actor: Actor, dashboardId: number, text:
   await assertCanEditDashboard(actor, dashboardId);
   const update: Record<string, string> = {};
   if (text?.name !== undefined) {
-    const name = String(text.name ?? "").trim().slice(0, 120);
+    const name = visitorText(actor, String(text.name ?? ""), "name").trim().slice(0, 120);
     if (!name) throw new Error("Give the dashboard a name.");
     update.name = name;
   }
   // The introduction is sealed with the Workspace Key, bound to its dashboard (spec 0028).
-  if (text?.intro !== undefined) update.intro = (await sealRow("dashboards", actor.workspaceId, { id: dashboardId, intro: String(text.intro ?? "").slice(0, MAX_INTRO) })).intro as string;
+  if (text?.intro !== undefined) update.intro = (await sealRow("dashboards", actor.workspaceId, { id: dashboardId, intro: visitorOptionalText(actor, String(text.intro ?? ""), "description").slice(0, MAX_INTRO) })).intro as string;
   if (!Object.keys(update).length) return;
   await ensureBaseline("dashboard", dashboardId, actor.personId);
   const { error } = await db().from("dashboards").update(update).eq("id", dashboardId).eq("workspace_id", actor.workspaceId);
@@ -198,7 +199,7 @@ export async function updateWidget(actor: Actor, id: number, patch: { template?:
   const cur = await editableWidget(actor, id);
   if (patch.template && !(patch.template in TEMPLATES)) throw new Forbidden();
   const metricIds = patch.metricIds ? ids(patch.metricIds) : undefined;
-  const newSettings = patch.settings !== undefined ? fromBrowser(patch.settings, cur.settings?.canvasSeed) : undefined;
+  const newSettings = patch.settings !== undefined ? visitorSettings(actor, fromBrowser(patch.settings, cur.settings?.canvasSeed)) : undefined;
   // A View Design of the Workspace, or the one the widget has; any other view keeps none (spec 0024).
   const template = patch.template ?? cur.template;
   if (newSettings && template === "design") newSettings.design = await allowedDesign(actor, newSettings.design, cur.settings?.design);
@@ -214,7 +215,7 @@ export async function updateWidget(actor: Actor, id: number, patch: { template?:
   await ensureBaseline("widget", id, actor.personId);
   if (cur.dashboard_id) await ensureBaseline("dashboard", cur.dashboard_id, actor.personId);
   const update: Record<string, unknown> = {};
-  if (patch.title !== undefined) update.title = title(patch.title);
+  if (patch.title !== undefined) update.title = title(visitorOptionalText(actor, patch.title, "name"));
   if (metricIdsNow) update.metric_ids = metricIdsNow;
   if (newSettings) update.settings = newSettings;
   if (patch.template) {
@@ -261,7 +262,7 @@ export async function removeWidget(actor: Actor, id: number) {
 export async function saveToPool(actor: Actor, source: DropSource, name: string) {
   assertCan(actor, "create");
   const spec = await specFrom(actor, source);
-  await insertSealed("widgets", actor.workspaceId, [{ ...spec, title: title(name), owner_id: actor.personId, dashboard_id: null, saved: true }]);
+  await insertSealed("widgets", actor.workspaceId, [{ ...spec, title: title(visitorOptionalText(actor, name, "name")), owner_id: actor.personId, dashboard_id: null, saved: true }]);
 }
 
 /** Deletes one of the actor's saved widgets. */

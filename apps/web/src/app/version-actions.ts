@@ -4,7 +4,7 @@
 import { isActionError } from "@/lib/action-error";
 import { revalidatePath } from "next/cache";
 import { currentActor } from "@/lib/viewer";
-import { attempt } from "@/lib/action-result";
+import { attemptAsVisitor } from "@/lib/demo-write";
 import * as history from "@ziffr/core/version-history";
 import type { VersionType } from "@ziffr/core/versions";
 import type { WorkflowConfig } from "@ziffr/core/types";
@@ -16,14 +16,14 @@ export async function listVersions(type: VersionType, id: number) {
 
 /** Names a version. */
 export async function nameVersion(versionId: number, name: string) {
-  return attempt(async () => {
+  return attemptAsVisitor("version-actions:nameVersion", async () => {
     await history.nameVersion(await currentActor(), Number(versionId), String(name ?? ""));
   });
 }
 
 /** Restoring writes the old state back and records it as a new version: history only ever grows. */
 export async function restoreVersion(versionId: number) {
-  return attempt(async () => {
+  return attemptAsVisitor("version-actions:restoreVersion", async () => {
     await history.restoreVersion(await currentActor(), Number(versionId), {
       // A Workflow is restored through the same save as editing it, so its checks apply (the core's saveWorkflow, as the restorer).
       restoreWorkflow: async (id, name, config) => {
@@ -39,7 +39,7 @@ export async function restoreVersion(versionId: number) {
 
 /** Names the current state, like a git tag. */
 export async function saveNamedVersion(type: VersionType, id: number, name: string) {
-  return attempt(async () => {
+  return attemptAsVisitor("version-actions:saveNamedVersion", async () => {
     await history.saveNamedVersion(await currentActor(), type, Number(id), String(name ?? ""));
   });
 }

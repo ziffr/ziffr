@@ -7,6 +7,8 @@ import { mapVersionWords, opening, openObject, sealing, sealObject } from "./sea
 import { workspaceCipher } from "./workspace-keys";
 import { openWorkflowRow } from "./workflow-rows";
 import { tagNamesOfMetric } from "./tag-rows";
+import { madeBySeed } from "./demo-seeded-rows";
+import { visitHeaders } from "./demo-visit-scope";
 
 // Changes a program makes through an Access Key go through the same core functions as people's (spec 0014), and those
 // record Versions deep inside. Rather than thread a note through every signature, the key's call runs inside
@@ -115,7 +117,9 @@ export async function recordVersion(type: VersionType, id: number, author: strin
   // Merge only into a plain edit: never into a named version, the baseline or a restore.
   // A key's note merges into a version with the same note, so a program's burst of changes is one version too.
   const sameNote = Boolean(noted && !given.message && last?.message === noted);
-  const fresh = last && last.author_id === author && !last.name && !opts.name && (sameNote || (!last.message && !opts.message)) && Date.now() - new Date(last.updated_at).getTime() < COALESCE_MS;
+  let fresh = last && last.author_id === author && !last.name && !opts.name && (sameNote || (!last.message && !opts.message)) && Date.now() - new Date(last.updated_at).getTime() < COALESCE_MS;
+  // A visitor's edit never merges into a Version the seed made: its words are the seed's (spec 0051), so it gets a Version of its own.
+  if (fresh && visitHeaders() !== null && await madeBySeed("versions", last?.id ?? 0)) fresh = false;
   if (fresh) {
     await db().from("versions").update({ snapshot: await sealedSnapshot(ws, type, id, last.version, snapshot), updated_at: new Date().toISOString(), message: opts.message ?? last.message }).eq("id", last.id);
     return;

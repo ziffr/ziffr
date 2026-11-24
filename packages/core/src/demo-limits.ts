@@ -17,6 +17,9 @@ export const DEMO_ROW_CAPS = {
   tags: 20,
   open_actions: 300,
   values: 2000,
+  // The spec gives no numbers for these two; starting points for the owner (ticket 9).
+  themes: 15,
+  versions: 150,
 } as const;
 
 /** How many changes may be counted, by what is counting them. The visit's id is free to mint, so only the address's,

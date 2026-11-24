@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { currentActor } from "@/lib/viewer";
 import { attempt } from "@/lib/action-result";
+import { attemptAsVisitor } from "@/lib/demo-write";
 import { share as coreShare, shareWithGroup as coreShareWithGroup } from "@ziffr/core/sharing";
 import * as dash from "@ziffr/core/dashboards";
 import * as questions from "@ziffr/core/questions";
@@ -19,7 +20,7 @@ export type { DropSource } from "@ziffr/core/dashboards";
 
 /** Drops something onto a dashboard: always an independent copy (GLOSSARY: Widget). */
 export async function placeWidget(dashboardId: number, source: DropSource, pos?: { x: number; y: number }) {
-  return attempt(async () => {
+  return attemptAsVisitor("canvas-actions:placeWidget", async () => {
     await dash.placeWidget(await currentActor(), Number(dashboardId), source, pos);
     done();
   });
@@ -27,7 +28,7 @@ export async function placeWidget(dashboardId: number, source: DropSource, pos?:
 
 /** Changes a dashboard's name and introduction; the core lets only its owner and Editors. */
 export async function saveDashboardText(dashboardId: number, text: { name?: string; intro?: string }) {
-  return attempt(async () => {
+  return attemptAsVisitor("canvas-actions:saveDashboardText", async () => {
     await dash.saveDashboardText(await currentActor(), Number(dashboardId), { name: text?.name, intro: text?.intro });
     done();
   });
@@ -35,14 +36,14 @@ export async function saveDashboardText(dashboardId: number, text: { name?: stri
 
 /** Saves where the widgets of a dashboard sit and how large they are. */
 export async function saveLayout(dashboardId: number, items: { i: string; x: number; y: number; w: number; h: number }[]) {
-  return attempt(async () => {
+  return attemptAsVisitor("canvas-actions:saveLayout", async () => {
     await dash.saveLayout(await currentActor(), Number(dashboardId), items);
   });
 }
 
 /** Changes a widget's template, settings, title or Metrics. */
 export async function updateWidget(id: number, patch: { template?: TemplateId; settings?: WidgetSettings; title?: string | null; metricIds?: number[] }) {
-  return attempt(async () => {
+  return attemptAsVisitor("canvas-actions:updateWidget", async () => {
     await dash.updateWidget(await currentActor(), Number(id), patch ?? {});
     done();
   });
@@ -50,7 +51,7 @@ export async function updateWidget(id: number, patch: { template?: TemplateId; s
 
 /** Change view to a team template: the widget becomes the template, filled with these metrics. */
 export async function applyTemplate(id: number, templateId: number, fills: number[][]) {
-  return attempt(async () => {
+  return attemptAsVisitor("canvas-actions:applyTemplate", async () => {
     await dash.applyTemplate(await currentActor(), Number(id), Number(templateId), fills);
     done();
   });
@@ -58,7 +59,7 @@ export async function applyTemplate(id: number, templateId: number, fills: numbe
 
 /** Removes a widget. */
 export async function removeWidget(id: number) {
-  return attempt(async () => {
+  return attemptAsVisitor("canvas-actions:removeWidget", async () => {
     await dash.removeWidget(await currentActor(), Number(id));
     done();
   });
@@ -66,7 +67,7 @@ export async function removeWidget(id: number) {
 
 /** Save a copy of a widget (or an analysis result) into the viewer's Pool. */
 export async function saveToPool(source: DropSource, title: string) {
-  return attempt(async () => {
+  return attemptAsVisitor("canvas-actions:saveToPool", async () => {
     await dash.saveToPool(await currentActor(), source, String(title ?? ""));
     done();
   });
@@ -74,7 +75,7 @@ export async function saveToPool(source: DropSource, title: string) {
 
 /** Deletes one of the viewer's saved widgets. */
 export async function deleteSavedWidget(id: number) {
-  return attempt(async () => {
+  return attemptAsVisitor("canvas-actions:deleteSavedWidget", async () => {
     await dash.deleteSavedWidget(await currentActor(), Number(id));
     done();
   });
@@ -82,7 +83,7 @@ export async function deleteSavedWidget(id: number) {
 
 /** Creates a dashboard. */
 export async function createDashboardNamed(name: string) {
-  return attempt(async () => {
+  return attemptAsVisitor("canvas-actions:createDashboardNamed", async () => {
     const id = await dash.createDashboard(await currentActor(), String(name ?? ""));
     done();
     return id;

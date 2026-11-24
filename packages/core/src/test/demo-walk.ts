@@ -2,7 +2,8 @@
 // the database themselves (.github/scripts/app-db-access.mjs), so the ids the walk calls the server actions with and
 // the fingerprint of the demo it compares are read here. Tests only.
 import { createHash } from "node:crypto";
-import { db } from "../db";
+import { db, seedingDemo } from "../db";
+import { resetDemoWorkspace } from "../demo-reset";
 import { seedDemoSnapshots } from "../demo-snapshots";
 import { DEMO_WORKSPACE_ID } from "../team";
 import { idFreeRows } from "./demo-fingerprint-row";
@@ -76,4 +77,34 @@ export async function demoWalkIds(): Promise<Record<string, unknown>> {
   };
   Object.assign(ids, { workflowConfig: workflow.config, themeTokens: themes[0]?.tokens ?? {}, themeSlides: themes[0]?.slides ?? {} });
   return ids;
+}
+
+/** The demo's current Generation, as a visit's page would have drawn it. */
+export async function demoGeneration(): Promise<number> {
+  return Number((await db().from("demo_state").select("generation").single()).data?.generation);
+}
+
+/** Starts the demo fresh and open to visitors, as the reset job does where the setting is in effect: the walk's visit may then change it. */
+export async function demoOpenForVisitors(): Promise<void> {
+  await freshDemo({ openToVisitors: true });
+}
+
+/** Puts the demo back to its seed and closed again, as the next reset where the setting is off would. */
+export async function demoBackToSeed(): Promise<void> {
+  await freshDemo({});
+}
+
+/** A Demo Reset now: the gap the reset keeps between two is waived by making the demo look old, as the guard test does. */
+async function freshDemo(opts: { openToVisitors?: boolean }): Promise<void> {
+  await seedingDemo(async () => { await db().from("workspaces").update({ created_at: "2026-01-01T00:00:00Z" }).eq("id", DEMO_WORKSPACE_ID).throwOnError(); });
+  if (!(await resetDemoWorkspace(opts))) throw new Error("The demo could not be reset for the walk.");
+}
+
+/** The newest row's id of a table of the demo with these column values: what an action made, for the next call of the walk. */
+export async function demoLatestId(table: "widgets" | "versions" | "team_templates" | "themes" | "dashboards", where: Record<string, string | number | boolean>): Promise<number> {
+  let q = db().from(table).select("id").eq("workspace_id", DEMO_WORKSPACE_ID);
+  for (const [k, v] of Object.entries(where)) q = q.eq(k, v);
+  const { data } = await q.order("id", { ascending: false }).limit(1).maybeSingle();
+  if (!data) throw new Error(`The walk found no ${table} row for ${JSON.stringify(where)}.`);
+  return data.id as number;
 }
