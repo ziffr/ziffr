@@ -163,7 +163,45 @@ describe("at most 10 on at once, per Workspace", () => {
   });
 });
 
+describe("the total cap", () => {
+  it("keeps at most 50 Announcements of any kind per Workspace, so off and ended ones cannot pile up", async () => {
+    const t = await team();
+    const other = await team();
+    const row = (i: number) => ({ workspace_id: t.w.id, text: `Off ${i}`, active: false });
+    await db().from("workspace_announcements").insert(Array.from({ length: 50 }, (_, i) => row(i)));
+    await expect(createWorkspaceAnnouncement(t.owner, { text: "Over", active: false })).rejects.toBeInstanceOf(Refused);
+    expect((await db().from("workspace_announcements").insert(row(51))).error?.code).toBe("ZF4A4");
+    await expect(createWorkspaceAnnouncement(other.owner, { text: "Theirs" })).resolves.toBeTruthy();
+    const [first] = await workspaceAnnouncements(t.owner);
+    await deleteWorkspaceAnnouncement(t.owner, first.id);
+    await expect(createWorkspaceAnnouncement(t.owner, { text: "Room again", active: false })).resolves.toBeTruthy();
+    expect(await workspaceAnnouncements(t.owner)).toHaveLength(50);
+  });
+});
+
+describe("changing one", () => {
+  it("keeps it off when the change does not say, and records the switch when the value changes", async () => {
+    const t = await team();
+    const id = await createWorkspaceAnnouncement(t.owner, { text: "Parked", active: false });
+    await updateWorkspaceAnnouncement(t.owner, id, { text: "Parked, reworded" });
+    expect((await rowsOf(t.w.id))[0]).toMatchObject({ text: "Parked, reworded", active: false });
+    await updateWorkspaceAnnouncement(t.owner, id, { text: "Parked, reworded", active: true });
+    expect((await rowsOf(t.w.id))[0].active).toBe(true);
+    await updateWorkspaceAnnouncement(t.owner, id, { text: "Still on" });
+    expect((await rowsOf(t.w.id))[0].active).toBe(true);
+    const kinds = (await auditLog(t.owner, { kind: "announcement" })).events.map((e) => e.kind).reverse();
+    expect(kinds).toEqual(["announcement.created", "announcement.changed", "announcement.changed", "announcement.switched_on", "announcement.changed"]);
+  });
+});
+
 describe("what the shell reads", () => {
+  it("is not pushed out by many that are on but over, and at most 20 are read", async () => {
+    const t = await team();
+    await db().from("workspace_announcements").insert(Array.from({ length: 40 }, (_, i) => ({ workspace_id: t.w.id, text: `Over ${i}`, level: "warning", starts_at: at(-3 * hour), ends_at: at(-hour) })));
+    await createWorkspaceAnnouncement(t.owner, { text: "Running" });
+    expect((await activeWorkspaceAnnouncements(t.member)).map((r) => r.text)).toEqual(["Running"]);
+  });
+
   it("is the running ones of the person's own Workspace, most urgent first, with only what the line shows", async () => {
     const t = await team();
     const other = await team();

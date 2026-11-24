@@ -87,6 +87,8 @@ An **Announcement** is one plain line shown on every screen of the app (the phon
 
 The second group (tickets 5 and 6) comes after tickets 1 to 4 are merged, so the Installation level is proven first. The threat model row names what an Announcement can do if an admin account is taken over: put a link in front of everyone. That is why links are https only, labelled, never opened by themselves, and every change is in the audit trail.
 
+Announcement text is stored in clear, not sealed with the Workspace Key, like the names of dashboards: it is plain words meant for every person of the Workspace (or Installation), so sealing it would protect nothing from them, and the sign-in page and the shell read it for people who hold no Workspace Key. Sealing it can be added later if a reason comes.
+
 ## Progress
 
 - Ticket 1 (#1085, #1095): table, core functions, `publicAnnouncements()`: merged.

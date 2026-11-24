@@ -6,7 +6,7 @@
 // Changes are written to the Workspace's Audit Log: who, what kind, and the words as they were then.
 import { Forbidden, Refused, type Actor } from "./actor";
 import {
-  announcementId, announcementState, orderAnnouncements, workspaceAnnouncementFields, WORKSPACE_ANNOUNCEMENTS_ACTIVE_MAX,
+  announcementId, announcementState, keepingSwitch, orderAnnouncements, workspaceAnnouncementFields, WORKSPACE_ANNOUNCEMENTS_ACTIVE_MAX, WORKSPACE_ANNOUNCEMENTS_TOTAL_MAX,
   wellFormed, type AnnouncementLevel, type WorkspaceAnnouncementFields,
 } from "./announcement-rules";
 import { audit } from "./audit-log";
@@ -16,6 +16,8 @@ import { DEMO_WORKSPACE_ID } from "./team";
 
 /** The database's refusal when a write would make more than 10 active Announcements in a Workspace (see the migration). */
 const CAP_CODE = "ZF4A2";
+/** The database's refusal when a Workspace would keep more than 50 Announcements of any kind. */
+const TOTAL_CAP_CODE = "ZF4A4";
 
 /** One Workspace Announcement as an Owner or Admin lists it. */
 export type WorkspaceAnnouncementRow = WorkspaceAnnouncementFields & {
@@ -54,6 +56,7 @@ function stored(f: WorkspaceAnnouncementFields) {
 
 function fail(error: { code?: string } | null): never {
   if (error?.code === CAP_CODE) throw new Refused(`At most ${WORKSPACE_ANNOUNCEMENTS_ACTIVE_MAX} Announcements can be on at once. Switch one off or delete one first.`);
+  if (error?.code === TOTAL_CAP_CODE) throw new Refused(`A Workspace can keep at most ${WORKSPACE_ANNOUNCEMENTS_TOTAL_MAX} Announcements. Delete some that are over first.`);
   throw new Error("The Announcement could not be saved. Try again.");
 }
 
@@ -61,7 +64,8 @@ async function record(actor: Actor, kind: AuditKind, text: string): Promise<void
   await audit(actor, { kind, object: { type: "workspace", id: actor.workspaceId, name: subjectOf(text) } });
 }
 
-/** All Announcements of the actor's Workspace, most urgent first, for an Owner or Admin. */
+/** All Announcements of the actor's Workspace, most urgent first, for an Owner or Admin. A Workspace keeps at most 50, so
+ * the 500 read here never cuts the list. */
 export async function workspaceAnnouncements(actor: Actor): Promise<WorkspaceAnnouncementRow[]> {
   assertAdmin(actor);
   const { data } = await db().from("workspace_announcements").select(COLUMNS).eq("workspace_id", actor.workspaceId).limit(500);
@@ -99,11 +103,14 @@ export async function createWorkspaceAnnouncement(actor: Actor, input: unknown):
 export async function updateWorkspaceAnnouncement(actor: Actor, id: string, input: unknown): Promise<void> {
   assertAdmin(actor);
   const key = announcementId(id);
-  const f = workspaceAnnouncementFields(input);
+  const { data: before } = await db().from("workspace_announcements").select("active").eq("id", key).eq("workspace_id", actor.workspaceId).maybeSingle();
+  if (!before) throw new Forbidden("That Announcement does not exist.");
+  const f = workspaceAnnouncementFields(keepingSwitch(input, before.active === true));
   const { data, error } = await db().from("workspace_announcements").update({ ...stored(f), updated_by: actor.personId }).eq("id", key).eq("workspace_id", actor.workspaceId).select("id");
   if (error) fail(error);
   if (!data?.length) throw new Forbidden("That Announcement does not exist.");
   await record(actor, "announcement.changed", f.text);
+  if (f.active !== (before.active === true)) await record(actor, f.active ? "announcement.switched_on" : "announcement.switched_off", f.text);
 }
 
 /** Switches an Announcement of the actor's Workspace on or off, keeping it for later. Only an Owner or Admin. */
@@ -131,12 +138,16 @@ export async function deleteWorkspaceAnnouncement(actor: Actor, id: string): Pro
  * leaves here (AGENTS.md rule 3). A read the page can do without: on a failure it returns nothing. */
 export async function activeWorkspaceAnnouncements(actor: Actor): Promise<ActiveWorkspaceAnnouncement[]> {
   if (!actor || actor.key || typeof actor.workspaceId !== "string" || actor.workspaceId === DEMO_WORKSPACE_ID || !["owner", "admin", "member"].includes(actor.role)) return [];
+  // The window is decided in the query, so an Announcement that is on but over, or not yet started, can never push a
+  // running one out of the rows read.
+  const now = new Date().toISOString();
   const { data, error } = await db().from("workspace_announcements")
     .select("id, text, link_url, link_label, level, starts_at, ends_at, active, dismissible, created_at, updated_at")
-    .eq("workspace_id", actor.workspaceId).eq("active", true).limit(100);
+    .eq("workspace_id", actor.workspaceId).eq("active", true)
+    .or(`starts_at.is.null,starts_at.lte.${now}`).or(`ends_at.is.null,ends_at.gt.${now}`)
+    .order("level", { ascending: false }).order("created_at", { ascending: false }).limit(20);
   if (error || !Array.isArray(data)) return [];
-  const now = new Date();
-  const running = data.filter((r) => announcementState({ active: Boolean(r.active), startsAt: (r.starts_at as string | null) ?? null, endsAt: (r.ends_at as string | null) ?? null }, now) === "running");
+  const running = data.filter((r) => announcementState({ active: Boolean(r.active), startsAt: (r.starts_at as string | null) ?? null, endsAt: (r.ends_at as string | null) ?? null }, new Date(now)) === "running");
   return orderAnnouncements(running.map((r) => ({ r, level: r.level as string, startsAt: (r.starts_at as string | null) ?? null, createdAt: r.created_at as string })))
     .slice(0, WORKSPACE_ANNOUNCEMENTS_ACTIVE_MAX)
     .map(({ r }) => ({

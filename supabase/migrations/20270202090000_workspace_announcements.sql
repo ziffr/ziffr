@@ -28,9 +28,10 @@ create index on workspace_announcements (workspace_id, active);
 alter table workspace_announcements enable row level security;
 revoke all on table workspace_announcements from public, anon, authenticated;
 
--- Before a write: stamps the time, keeps the row in its Workspace, and keeps at most 10 active Announcements per Workspace
--- that have not ended. The count and the write are one transaction under one lock per Workspace, so two writes cannot
--- both pass the cap, and one Workspace's writes never wait for another's.
+-- Before a write: stamps the time, keeps the row in its Workspace, keeps at most 50 Announcements of any kind per Workspace
+-- (so off and ended ones cannot pile up) and at most 10 active ones that have not ended. The counts and the write are one
+-- transaction under one lock per Workspace, so two writes cannot both pass a cap, and one Workspace's writes never wait
+-- for another's.
 create or replace function workspace_announcements_guard() returns trigger
 language plpgsql set search_path = public as $$
 begin
@@ -39,8 +40,11 @@ begin
   if tg_op = 'UPDATE' and new.workspace_id is distinct from old.workspace_id then
     raise exception 'workspace_announcements_move' using errcode = 'ZF4A3';
   end if;
+  perform pg_advisory_xact_lock(hashtextextended('workspace-announcements:' || new.workspace_id::text, 0));
+  if tg_op = 'INSERT' and (select count(*) from workspace_announcements a where a.workspace_id = new.workspace_id) >= 50 then
+    raise exception using errcode = 'ZF4A4', message = 'workspace_announcements_total_cap';
+  end if;
   if new.active and (new.ends_at is null or new.ends_at > now()) then
-    perform pg_advisory_xact_lock(hashtextextended('workspace-announcements:' || new.workspace_id::text, 0));
     if (select count(*) from workspace_announcements a
         where a.workspace_id = new.workspace_id and a.active and (a.ends_at is null or a.ends_at > now()) and a.id <> new.id) >= 10 then
       raise exception using errcode = 'ZF4A2', message = 'workspace_announcements_cap';

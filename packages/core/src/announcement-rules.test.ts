@@ -2,7 +2,7 @@
 import { describe, expect, it } from "vitest";
 import { Refused } from "./actor";
 import {
-  announcementHref, announcementId, announcementState, announcementText, installationAnnouncementFields, orderAnnouncements, plainLine, workspaceAnnouncementFields,
+  announcementHref, announcementId, announcementState, keepingSwitch, announcementText, installationAnnouncementFields, orderAnnouncements, plainLine, workspaceAnnouncementFields,
 } from "./announcement-rules";
 
 describe("the text", () => {
@@ -110,5 +110,14 @@ describe("a Workspace Announcement's fields", () => {
   it("take ids of the shape of a uuid only", () => {
     expect(announcementId("0B6E0F2A-1C1D-4B7A-9C55-0123456789AB")).toBe("0b6e0f2a-1c1d-4b7a-9c55-0123456789ab");
     for (const bad of ["1 or 1=1", "", 7, null, "0b6e0f2a-1c1d-4b7a-9c55-0123456789ab,x"]) expect(() => announcementId(bad)).toThrow(/does not exist/);
+  });
+});
+
+describe("changing an Announcement", () => {
+  it("keeps the stored switch when none is sent, and takes the one that is sent", () => {
+    expect(keepingSwitch({ text: "x" }, false)).toEqual({ text: "x", active: false });
+    expect(keepingSwitch({ text: "x" }, true)).toEqual({ text: "x", active: true });
+    expect(keepingSwitch({ text: "x", active: true }, false)).toEqual({ text: "x", active: true });
+    expect(keepingSwitch(null, false)).toBeNull();
   });
 });

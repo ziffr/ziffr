@@ -14,6 +14,8 @@ export const ANNOUNCEMENT_URL_MAX = 500;
 export const INSTALLATION_ANNOUNCEMENTS_ACTIVE_MAX = 20;
 /** The most Announcements one Workspace may have switched on and not yet ended. */
 export const WORKSPACE_ANNOUNCEMENTS_ACTIVE_MAX = 10;
+/** The most Announcements one Workspace may keep, of any kind (on, off or over). */
+export const WORKSPACE_ANNOUNCEMENTS_TOTAL_MAX = 50;
 
 /** How urgent an Announcement is: a warning is shown before an info. */
 export const ANNOUNCEMENT_LEVELS = ["info", "warning"] as const;
@@ -136,6 +138,13 @@ export function installationAnnouncementFields(input: unknown): AnnouncementFiel
   if (i.public !== undefined && typeof i.public !== "boolean") throw new Refused("A switch is on or off.");
   if (i.public === true && audience !== "everyone") throw new Refused("Only an Announcement for everyone can be shown on the sign-in page.");
   return { ...common, audience: audience as AnnouncementAudience, public: i.public === true };
+}
+
+/** What a browser sent to change an Announcement, with the stored switch kept when it did not send one: leaving `active`
+ * out of a change must not switch an Announcement that is off back on. Not an object is left for the fields check to refuse. */
+export function keepingSwitch(input: unknown, storedActive: boolean): unknown {
+  if (!input || typeof input !== "object") return input;
+  return { ...(input as Record<string, unknown>), active: (input as Record<string, unknown>).active ?? storedActive };
 }
 
 /** Where an Announcement stands at `now`: switched off, not started, running or over. */

@@ -6,7 +6,7 @@ import { Forbidden, Refused } from "./actor";
 import { db } from "./db";
 import { assertInstallationAdmin, recordInstallationEvent, type InstallationActor } from "./installation-admins";
 import {
-  announcementId, announcementState, installationAnnouncementFields, orderAnnouncements,
+  announcementId, announcementState, keepingSwitch, installationAnnouncementFields, orderAnnouncements,
   INSTALLATION_ANNOUNCEMENTS_ACTIVE_MAX, type AnnouncementAudience, type AnnouncementFields, type AnnouncementLevel,
 } from "./announcement-rules";
 
@@ -80,11 +80,14 @@ export async function createInstallationAnnouncement(actor: InstallationActor, i
 export async function updateInstallationAnnouncement(actor: InstallationActor, id: string, input: unknown): Promise<void> {
   await assertInstallationAdmin(actor);
   const key = idOf(id);
-  const f = installationAnnouncementFields(input);
+  const { data: before } = await db().from("installation_announcements").select("active").eq("id", key).maybeSingle();
+  if (!before) throw new Forbidden("That Announcement does not exist.");
+  const f = installationAnnouncementFields(keepingSwitch(input, before.active === true));
   const { data, error } = await db().from("installation_announcements").update({ ...stored(f), updated_by: actor.personId }).eq("id", key).select("id");
   if (error) fail(error);
   if (!data?.length) throw new Forbidden("That Announcement does not exist.");
   await recordInstallationEvent(actor.personId, "announcement.changed", subjectOf(f.text));
+  if (f.active !== (before.active === true)) await recordInstallationEvent(actor.personId, f.active ? "announcement.switched_on" : "announcement.switched_off", subjectOf(f.text));
 }
 
 /** Switches an Announcement on or off, keeping it for later. Only an Installation Admin. */
