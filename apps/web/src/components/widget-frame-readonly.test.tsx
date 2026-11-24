@@ -25,7 +25,7 @@ describe("WidgetFrame readOnly", () => {
     const widget = { id: 1, template: "number", metric_ids: [hidden.id, seen.id], settings: {}, title: "A {metric} B {latest} C {metric 2}" } as unknown as Parameters<typeof WidgetFrame>[0]["widget"];
     // The viewer's data carries only the second Metric; the widget names two.
     const theirs = { ...data, metrics: [seen] };
-    const html = renderToStaticMarkup(<WidgetFrame readOnly widget={widget} data={theirs} />);
+    const html = renderToStaticMarkup(<WidgetFrame readOnly widget={widget} data={theirs} targets={[]} />);
     expect(html).toContain(`A  B  C ${seen.name}`);
     expect(html).not.toContain(hidden.name);
     expect(html).not.toContain("{metric");
