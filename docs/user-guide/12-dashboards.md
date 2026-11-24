@@ -1,5 +1,5 @@
 <!-- part: Screen by screen -->
-<!-- screens: apps/web/src/app/page.tsx, apps/web/src/app/dashboards/**, apps/web/src/app/gallery/**, apps/web/src/app/stories/**, apps/web/src/app/v/**, apps/web/src/views/**, apps/web/src/components/dashboard-*.tsx, apps/web/src/components/pool.tsx, apps/web/src/components/preview.tsx, apps/web/src/components/widget-frame.tsx, apps/web/src/components/panel-editor.tsx, apps/web/src/components/story-editor.tsx, apps/web/src/components/template-*.tsx, apps/web/src/components/slot-dialog.tsx, apps/web/src/components/save-*.tsx, apps/web/src/components/new-dashboard-dialog.tsx, apps/web/src/components/snapshot-menu.tsx, apps/web/src/components/present-dashboard.tsx, apps/web/src/components/read-only-frame.tsx, apps/web/src/components/share-sheet.tsx, apps/web/src/components/view-links.tsx, apps/web/src/components/who-can-see.tsx, apps/web/src/components/versions-*.tsx, apps/web/src/components/object-toolbar.tsx, apps/web/src/components/first-run.tsx, apps/web/src/canvas/layout-editor.tsx -->
+<!-- screens: apps/web/src/app/page.tsx, apps/web/src/app/dashboards/**, apps/web/src/app/gallery/**, apps/web/src/app/stories/**, apps/web/src/app/v/**, apps/web/src/views/**, apps/web/src/components/dashboard-*.tsx, apps/web/src/components/pool.tsx, apps/web/src/components/preview.tsx, apps/web/src/components/widget-frame.tsx, apps/web/src/components/panel-editor.tsx, apps/web/src/components/story-editor.tsx, apps/web/src/components/template-*.tsx, apps/web/src/components/slot-dialog.tsx, apps/web/src/components/save-*.tsx, apps/web/src/components/new-dashboard-dialog.tsx, apps/web/src/components/snapshot-menu.tsx, apps/web/src/components/present-dashboard.tsx, apps/web/src/components/read-only-frame.tsx, apps/web/src/components/share-sheet.tsx, apps/web/src/components/view-links.tsx, apps/web/src/components/who-can-see.tsx, apps/web/src/components/versions-*.tsx, apps/web/src/components/object-toolbar.tsx, apps/web/src/canvas/layout-editor.tsx -->
 # Dashboards and Findings
 
 A **Dashboard** is where you watch your Metrics as their values come in. This chapter goes through every screen and option that belongs to dashboards: the list of dashboards, building one, the menus of each Widget, Findings, presenting, sharing, View Links, Snapshots and Versions.
@@ -28,17 +28,9 @@ If there is no dashboard yet, the list says "No dashboards yet" and suggests nam
 
 Ziffr opens on your Home dashboard. You choose it yourself: open the dashboard, open its **⋯** menu and choose **Home dashboard**. The entry then shows a tick until you choose another. If you never chose one, Ziffr opens on the first dashboard you made, or else the first one shared with you. If your Home is no longer shared with you, the same rule picks another. In a new Trial Workspace, Ziffr opens on the Trial Guide instead until you finish or skip it.
 
-### The first-run checklist
+### A new Workspace
 
-In a new Workspace without any dashboard, the start screen shows **Get your workspace ready**: a short list of first steps, ticked off by themselves as you do them. Each open step has a **Start** link.
-
-1. **Describe a metric**: pick one from the Metric Catalog and say who submits it.
-2. **Add its first value**: submit it yourself on the Metric's form link, or wait for the first answer.
-3. **Invite a teammate** (Owners and Admins only).
-4. **Build a dashboard**, with a **Create dashboard** button.
-5. **Set the workspace time** (Owners and Admins only): the time zone and hour at which Ziffr asks for values.
-
-Steps that are done stay in the list, crossed out. The demo has no checklist. See also [Getting started](07-getting-started.md).
+A new Workspace opens on the Setup Guide, not on an empty dashboard list; see [Getting started](07-getting-started.md#the-setup-line-and-opening-by-itself). Until you make or are shown a dashboard, the list says "No dashboards yet".
 
 ## Opening a dashboard
 

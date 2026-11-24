@@ -445,17 +445,3 @@ export async function isMemberOf(personId: string, workspaceId: string): Promise
   const { data } = await db().from("memberships").select("workspace_id").eq("user_id", personId).eq("workspace_id", workspaceId).maybeSingle();
   return Boolean(data);
 }
-
-/** Whether any Metric the person sees has a value yet: the first-run checklist ticks "Add its first value" with it,
- * without the page reading every series. */
-export async function hasVisibleValue(actor: Actor): Promise<boolean> {
-  const metrics = await getMetrics(actor.workspaceId);
-  const ids = [...(await visibleMetricIds(actor.workspaceId, actor.personId, metrics))];
-  if (!ids.length) return false;
-  // In groups of 500 ids, so the request stays short however many Metrics a workspace has.
-  for (let i = 0; i < ids.length; i += 500) {
-    const { count } = await db().from("observations").select("id", { count: "exact", head: true }).eq("workspace_id", actor.workspaceId).in("metric_id", ids.slice(i, i + 500));
-    if ((count ?? 0) > 0) return true;
-  }
-  return false;
-}

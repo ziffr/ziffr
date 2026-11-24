@@ -12,6 +12,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useSlideOver } from "@/components/slide-over-host";
+import { SetupGuideButton, useSetupState } from "@/components/setup-panel";
 import type { HelpIndex } from "@/lib/help-index-build";
 import { chapterForPath } from "@/lib/help-routes";
 import { searchHelp } from "@/lib/help-search";
@@ -118,6 +119,7 @@ function HelpContent({ path, guide, start, load = loadIndex }: { path: string; g
   const [pages, setPages] = useState<Page[]>([]);
   const cache = useRef<Cache>(new Map());
   const inputId = useId();
+  const setup = useSetupState();
   useEffect(() => { let live = true; load().then((i) => live && setIndex(i), () => live && setFailed(true)); return () => { live = false; }; }, [load]);
 
   const inPanel = guide.startsWith("/");
@@ -179,7 +181,10 @@ function HelpContent({ path, guide, start, load = loadIndex }: { path: string; g
             {chapter && <> <button type="button" className={linkCls} onClick={() => setContents(false)}>About this screen</button></>}
           </p>
           <ul aria-label="Chapters" className="mt-2 flex flex-col gap-1">
+            {/* The Setup Guide first while its line is up, last once it is finished or hidden (spec 0052); clicking it reopens it. */}
+            {setup.shown && <li><SetupGuideButton className={linkCls} /></li>}
             {listed.map((c) => <li key={c.slug}>{entry(c.slug, "", c.title)}{c.slug === slug && <span className="text-xs text-muted-foreground"> (this screen)</span>}</li>)}
+            {setup.applies && !setup.shown && <li><SetupGuideButton className={linkCls} /></li>}
           </ul>
         </div>
       )}

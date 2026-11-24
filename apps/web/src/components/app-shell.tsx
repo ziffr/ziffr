@@ -5,7 +5,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Fragment, useEffect, useRef, useState, useTransition } from "react";
-import { Activity, BarChart3, Blocks, Building2, CalendarClock, ChevronRight, ChevronsUpDown, CircleHelp, FlaskConical, Hash, KeyRound, LayoutDashboard, LogOut, MessageSquarePlus, MoreHorizontal, Package, Plug, Plus, Presentation, Rss, ScrollText, Search, Settings2, ShieldCheck, Users, Webhook, Workflow } from "lucide-react";
+import { Activity, BarChart3, Blocks, Building2, CalendarClock, ChevronRight, ChevronsUpDown, CircleHelp, FlaskConical, Hash, KeyRound, ListChecks, LayoutDashboard, LogOut, MessageSquarePlus, MoreHorizontal, Package, Plug, Plus, Presentation, Rss, ScrollText, Search, Settings2, ShieldCheck, Users, Webhook, Workflow } from "lucide-react";
 import { INSTALLATION, MAIN, PhoneAccount, WorkspaceChoices, YOU, type Account, type NavItem } from "@/components/nav-parts";
 import { PinnedDashboards, type Pinned } from "@/components/pinned-dashboards";
 import { useShownPins } from "@/components/demo-visit-prefs";
@@ -18,6 +18,7 @@ import { SlideOverProvider, useSlideOver } from "@/components/slide-over-host";
 import { FeedbackPanel } from "@/components/feedback-panel";
 import { useOpenPanel, writePanel } from "@/lib/panel-param";
 import { HelpButton, useOpenHelp } from "@/components/help-panel";
+import { SetupOpener, SetupProvider, useOpenSetup, useSetupState, type SetupState } from "@/components/setup-panel";
 import { Sidebar, SidebarContent, SidebarFooter, SidebarGroup, SidebarHeader, SidebarInset, SidebarItem, SidebarProvider, SidebarTrigger, useSidebar } from "@/components/ui/sidebar";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { signOut } from "@/app/auth-actions";
@@ -65,13 +66,15 @@ function isOn(path: string, href: string) {
 const sheetRow = "flex h-12 flex-1 flex-col items-center justify-center gap-0.5 text-xs text-muted-foreground outline-none focus-visible:bg-muted data-[active=true]:font-medium data-[active=true]:text-foreground [&_svg]:size-5";
 
 /** The whole frame. `demo` holds the demo's controls, `banners` the notes that sit above every page. */
-export function AppShell({ workspace, settings, pinned: pinnedByServer, due, account, guide, demo, people, banners, collapsed, children }: { workspace: TreeLink[]; settings: { label: string; links: TreeLink[] }[]; pinned: Pinned[]; due: number; account: Account | null; guide: string; demo?: React.ReactNode; people?: { profiles: Profile[]; current: string }; banners?: React.ReactNode; collapsed: boolean; children: React.ReactNode }) {
+export function AppShell({ workspace, settings, pinned: pinnedByServer, due, account, guide, demo, people, banners, collapsed, setup = { applies: false, shown: false }, children }: { workspace: TreeLink[]; settings: { label: string; links: TreeLink[] }[]; pinned: Pinned[]; due: number; account: Account | null; guide: string; demo?: React.ReactNode; people?: { profiles: Profile[]; current: string }; banners?: React.ReactNode; collapsed: boolean; setup?: SetupState; children: React.ReactNode }) {
   const path = usePathname();
   // Where visitors may change the demo, the pins are this visit's own (demo-visit-prefs.tsx); else what the server sent.
   const pinned: Pinned[] = useShownPins(pinnedByServer);
   return (
     <TooltipProvider delay={300}>
+      <SetupProvider value={setup}>
       <SlideOverProvider>
+      <SetupOpener />
       <SidebarProvider defaultCollapsed={collapsed}>
         <a href="#main" className="sr-only focus:not-sr-only focus:fixed focus:top-2 focus:left-2 focus:z-50 focus:rounded-md focus:bg-background focus:px-3 focus:py-2 focus:text-sm">Skip to the page</a>
         <ShellSearch account={account} />
@@ -124,6 +127,7 @@ export function AppShell({ workspace, settings, pinned: pinnedByServer, due, acc
         <TabBar due={due} pinned={pinned} workspace={workspace} account={account} guide={guide} demoPages={Boolean(people)} />
       </SidebarProvider>
       </SlideOverProvider>
+      </SetupProvider>
     </TooltipProvider>
   );
 }
@@ -201,6 +205,8 @@ function UserMenu({ account }: { account: Account }) {
   const { collapsed } = useSidebar();
   const [pending, start] = useTransition();
   const panel = useSlideOver();
+  const setup = useSetupState();
+  const openSetup = useOpenSetup();
   const path = usePathname();
   // The notice about an answer links to `?panel=feedback`: that opens My feedback, once, and leaves the address clean.
   const asked = useOpenPanel() === "feedback" && account.sendFeedback === true;
@@ -224,6 +230,8 @@ function UserMenu({ account }: { account: Account }) {
           <DropdownMenuLabel>Your settings</DropdownMenuLabel>
           {yourPages(account).map((l) => <DropdownMenuItem key={l.href} render={<Link href={l.href} />}>{l.label}</DropdownMenuItem>)}
           {account.installationAdmin && <DropdownMenuItem render={<Link href={INSTALLATION.href} />}><ShieldCheck aria-hidden /> {INSTALLATION.label}</DropdownMenuItem>}
+          {/* Reopens the Setup Guide (and its line) for this person, where it applies to them (spec 0052). */}
+          {setup.applies && <DropdownMenuItem onClick={() => openSetup(true)}><ListChecks aria-hidden /> Setup Guide</DropdownMenuItem>}
         </DropdownMenuGroup>
         <DropdownMenuSeparator />
         <DropdownMenuGroup>
@@ -308,6 +316,8 @@ function TabBar({ due, pinned, workspace, account, guide, demoPages }: { due: nu
 function MoreRows({ pinned, workspace, account, guide, demoPages, onHelp }: { pinned: Pinned[]; workspace: TreeLink[]; account: Account | null; guide: string; demoPages: boolean; onHelp: () => void }) {
   const path = usePathname();
   const openHelp = useOpenHelp(guide);
+  const setup = useSetupState();
+  const openSetup = useOpenSetup();
   const [pages, setPages] = useState(false);
   const row = "flex h-11 items-center gap-3 rounded-md px-2 text-sm hover:bg-muted focus-visible:outline-2 focus-visible:outline-ring [&_svg]:size-4 [&_svg]:text-muted-foreground";
   const link = (l: NavItem, icon?: React.ReactNode, note?: React.ReactNode) => (
@@ -335,6 +345,7 @@ function MoreRows({ pinned, workspace, account, guide, demoPages, onHelp }: { pi
         )}
         {/* Help opens in the side panel; More closes first so the panel is the only sheet on screen. */}
         <li><button type="button" className={cn(row, "w-full text-left")} aria-haspopup="dialog" onClick={() => { onHelp(); openHelp("contents"); }}><CircleHelp aria-hidden />Help</button></li>
+        {setup.applies && <li><button type="button" className={cn(row, "w-full text-left")} aria-haspopup="dialog" onClick={() => { onHelp(); openSetup(true); }}><ListChecks aria-hidden />Setup Guide</button></li>}
       </ul>
       {demoPages && (
         <>

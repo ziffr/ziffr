@@ -1,5 +1,5 @@
 <!-- part: Understanding Ziffr -->
-<!-- screens: apps/web/src/app/setup/**, apps/web/src/components/privacy-statement.tsx -->
+<!-- screens: apps/web/src/app/setup/**, apps/web/src/components/privacy-statement.tsx, apps/web/src/components/setup-line.tsx, apps/web/src/components/setup-panel.tsx -->
 # Getting started
 
 This chapter takes you from nothing to a team that sees its numbers each month. Plan about an hour for the first steps; the routine then runs by itself.
@@ -99,6 +99,14 @@ A Workspace that has Metrics already says "You have 4 Metrics. Start from a Pack
 The step ticks once someone beside you is in the Workspace, an invitation is waiting, Domain Joining is on, or a Contact is asked for at least one Metric. A Contact that only exists does not count. Revoking the last invitation later does not reopen a finished guide.
 
 **In a trial**, invitations open once your first value has arrived, and the step says so ("Invitations open once your first value has arrived. Answer your first request in the First Metric step, then come back here."). A trial invites by email only: there is no link and no Domain Joining, as [the trial](16-workspace-settings.md#on-a-ziffr-that-offers-trials) describes. After the trial has ended, nobody can be invited.
+
+### The Setup line and opening by itself
+
+A new Workspace opens on the Setup Guide, because there is nothing else to look at yet. Someone who joins a Workspace, by invitation or because their company's domain may join, is led to the guide once as well, and sees only the short version: **About you** and **Ways in and out**. After that the guide never opens by force again: **Go to Ziffr** is always one click away, and the guide never blocks the app.
+
+While you have steps left, a thin line above every page says how far you are: "Setup: 2 of 5 done. Next: Ways in and out." **Continue** opens the steps beside the page, each with its tick (a step you skipped counts as done), the next one marked and **Skip** next to those still open; choose a step's name to do it on the full page. **Hide** puts the line away for you, in this Workspace only: nobody else's line changes, and nothing brings it back on its own. The line goes by itself once every step is done or skipped. A Guest sees no line, and the demo has none: it keeps its own guided steps.
+
+To bring the guide back, choose **Setup Guide** in **Help** (the list of chapters) or in your own menu at the bottom of the sidebar (in **More** on a phone). **Workspace → General** shows "Setup: 4 of 5 steps done" with **Open the Setup Guide**, for Owners and Admins. In a trial, the Trial Guide still opens first, and the line sits under the trial bar.
 
 ## 2. Describe your first Metric
 

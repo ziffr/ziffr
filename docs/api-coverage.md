@@ -157,6 +157,7 @@ Acts as the person, with their own sign-in, Slack or Telegram account or email a
 - `skipSetupStep` (setup-guide.ts): skipping a step of the guide, for the app
 - `hideSetupGuide` (setup-guide.ts): a person's own Setup line, for the app
 - `reopenSetupGuide` (setup-guide.ts): a person's own Setup line, for the app
+- `setupLine` (setup-guide.ts): the Setup line's counts for the app's layout, the viewer's own
 - `markSetupGuideSeen` (setup-guide.ts): that a person opened the guide, for the app
 - `chooseExploreOnMyOwn` (setup-guide.ts): the guide's starting point, for the app
 - `firstMetricStep` (setup-first-metric.ts): the Setup Guide's First Metric step for the viewer, in words; for the app's page only (spec 0052)

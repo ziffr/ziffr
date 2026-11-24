@@ -6,6 +6,8 @@ import { createRoot, type Root } from "react-dom/client";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 const url = vi.hoisted(() => ({ search: "" }));
+// The Setup Guide's server actions reach the core, which a component test never loads (spec 0052).
+vi.mock("@/app/setup/actions", () => ({ hideSetup: vi.fn(), reopenSetup: vi.fn(), skipStep: vi.fn(), readSetupSteps: vi.fn() }));
 vi.mock("next/navigation", () => ({ usePathname: () => "/dashboards", useRouter: () => ({ push() {}, refresh() {} }), useSearchParams: () => new URLSearchParams(url.search) }));
 vi.mock("@/app/feedback-actions", () => ({ sendFeedback: async () => ({}), myFeedback: async () => [] }));
 vi.mock("server-only", () => ({}));

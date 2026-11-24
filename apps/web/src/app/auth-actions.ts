@@ -87,8 +87,9 @@ export async function createWorkspace(name: string): Promise<{ error: string } |
   const jar = await cookies();
   jar.set(WORKSPACE_COOKIE, ws.id, { httpOnly: true, sameSite: "lax", path: "/" });
   jar.delete(DEMO_COOKIE); // working in one's own workspace ends a demo visit
-  // A new trial opens on its Trial Guide (ticket 193): a few steps to the first value its Owner answers.
-  redirect((await whatThisZiffrOffers()).trial ? "/try/start" : "/");
+  // A new trial opens on its Trial Guide (ticket 193): a few steps to the first value its Owner answers (it moves to the
+  // Setup Guide with spec 0052 ticket 12). Any other new Workspace opens on the Setup Guide (spec 0052), fixed paths only.
+  redirect((await whatThisZiffrOffers()).trial ? "/try/start" : "/setup");
 }
 
 /** Switches to another of the person's workspaces. */

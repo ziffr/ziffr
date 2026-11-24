@@ -26,6 +26,8 @@ import { workspaceExportState } from "@ziffr/core/workspace-export";
 import { sessionStartedAt } from "@/lib/session-start";
 import { TrialBar, TrialBarForMembers, TrialEnded, TrialEndedForMembers } from "@/components/trial-bar";
 import { reachedWords, trialUsage, usageLine } from "@ziffr/core/trial-usage";
+import { setupLine } from "@ziffr/core/setup-guide";
+import { SetupLine } from "@/components/setup-line";
 import { OverLimitBar } from "@/components/over-limit-bar";
 import { overLimitBanner, sizeAndUsage } from "@ziffr/core/workspace-usage";
 import { Suspense } from "react";
@@ -114,6 +116,9 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
   // Over the Workspace Limit (spec 0029): Owners and Admins see it on every page, with a way to Size and usage.
   const overLimit = !demo && (role === "owner" || role === "admin") ? overLimitBanner(await sizeAndUsage(await currentActor())) : null;
   // The Feedback Prompt (ticket #722): only a signed-in member, never the demo; the core decides, the page gets one flag.
+  // The Setup Guide's line (spec 0052): only for someone it applies to (never a Guest or the demo: the core says no), and
+  // only counts and a step name go to the browser. A trial that has ended shows its own screen instead.
+  const setup = demo || trial?.ended ? { applies: false, shown: false, done: 0, total: 0, next: null } : await setupLine(actor).catch(() => ({ applies: false, shown: false, done: 0, total: 0, next: null }));
   const feedback = demo ? null : await feedbackPromptFor(actor).catch(() => null);
   const offersTrials = demo && Boolean((await whatThisZiffrOffers()).trial);
   // Only the real person behind the session, never a demo visitor.
@@ -150,6 +155,8 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
       {trial && !trial.ended && (role === "owner" || role === "admin"
         ? <TrialBar daysLeft={trial.daysLeft} endsAt={trial.endsAt} isOwner={role === "owner"} keeps={trial.keeps} usage={usage} />
         : <TrialBarForMembers owner={trial.ownerName} endsAt={trial.endsAt} />)}
+      {/* Under the trial bar (spec 0052). */}
+      {setup.shown && <SetupLine done={setup.done} total={setup.total} next={setup.next} />}
       {overLimit && <OverLimitBar words={overLimit} />}
     </>
   );
@@ -164,7 +171,7 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
       </head>
       <body className="min-h-screen bg-background font-sans antialiased">
         <PrefsScope visit={visitPrefs}>
-        <AppShell workspace={workspaceTree(role)} settings={settingsGroups(role)} pinned={pinned} due={due} guide={guideHref()} account={accountOf} demo={demoControls} people={demo ? { profiles: profiles.filter((p) => !p.contact), current: viewer } : undefined} collapsed={await sidebarCollapsed()} banners={<>{demoNote}{banners}</>}>
+        <AppShell workspace={workspaceTree(role)} settings={settingsGroups(role)} pinned={pinned} due={due} guide={guideHref()} account={accountOf} demo={demoControls} people={demo ? { profiles: profiles.filter((p) => !p.contact), current: viewer } : undefined} collapsed={await sidebarCollapsed()} setup={{ applies: setup.applies, shown: setup.shown }} banners={<>{demoNote}{banners}</>}>
           {trial?.ended ? (role === "owner" || role === "admin" ? <TrialEnded deletedAt={trial.deletedAt} cancelled={trial.cancelled} isOwner={role === "owner"} workspaceExport={role === "owner" ? await workspaceExportState(actor, { sessionStartedAt: await sessionStartedAt() }).catch(() => null) : null} /> : <TrialEndedForMembers owner={trial.ownerName} cancelled={trial.cancelled} />) : children}
         </AppShell>
         </PrefsScope>
