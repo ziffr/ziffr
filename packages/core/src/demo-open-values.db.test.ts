@@ -54,7 +54,9 @@ afterAll(async () => {
 describe("the lists", () => {
   it("hold the tables of the work around a value as open and the rest as closed with a reason", async () => {
     const open = ((await db().from("demo_open_tables").select("table_name")).data ?? []).map((r) => r.table_name as string).sort();
-    expect(open).toEqual(["actions", "breakdown_history", "breakdown_rows", "deliveries", "intake_log", "observation_history", "observations", "period_states", "prompts", "thread_messages", "tokens"]);
+    // Later tickets open more tables (dashboards, decks, Snapshots): these eleven are open, and the people's, settings and outbound ones are not.
+    for (const t of ["actions", "breakdown_history", "breakdown_rows", "deliveries", "intake_log", "observation_history", "observations", "period_states", "prompts", "thread_messages", "tokens"]) expect(open, t).toContain(t);
+    for (const t of ["workspaces", "profiles", "memberships", "contacts", "invitations", "view_links", "calendar_links", "access_keys", "feeds", "webhooks", "pack_installs", "audit_events"]) expect(open, t).not.toContain(t);
     const closed = (await db().from("demo_closed_tables").select("table_name, reason")).data ?? [];
     expect(closed.length).toBeGreaterThan(20);
     for (const c of closed) expect(String(c.reason).length, c.table_name).toBeGreaterThan(20);
@@ -99,7 +101,6 @@ describe("a visit's write to an open table", () => {
   });
 
   it("is refused for a closed table, even as a visit of the current Generation", async () => {
-    await expect(asVisit(async () => { await db().from("dashboards").update({ intro: "x" }).eq("id", ids.dashboard).throwOnError(); })).rejects.toBeInstanceOf(DemoReadOnly);
     await expect(asVisit(async () => { await db().from("metrics").update({ description: "x" }).eq("id", ids.ownMetric).throwOnError(); })).rejects.toBeInstanceOf(DemoReadOnly);
     await expect(asVisit(async () => { await db().from("workspaces").update({ name: "x" }).eq("id", DEMO_WORKSPACE_ID).throwOnError(); })).rejects.toBeInstanceOf(DemoReadOnly);
   });
