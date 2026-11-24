@@ -10,7 +10,8 @@ import { BUILT_IN_DESIGNS } from "@ziffr/core/built-in-designs";
 import { STANDARD_THEMES } from "@ziffr/core/standard-themes";
 import { themeToFile } from "@ziffr/core/theme-file";
 import { demoBackToSeed, demoFingerprint, demoFullSeed, demoGeneration, demoLatestId, demoOpenForVisitors, demoWalkClearCounts, demoWalkIds, demoWalkOutbound } from "@ziffr/core/test/demo-walk";
-import { DEMO_BUDGET_USED, DEMO_BUSY, DEMO_GOING_FAST, DEMO_STALE, DEMO_VALUE_WORDS } from "@ziffr/core/demo-words";
+import { demoCountRows, demoLatestRow } from "@ziffr/core/test/demo-walk-metrics";
+import { DEMO_BUDGET_USED, DEMO_BUSY, DEMO_GOING_FAST, DEMO_METRIC_WORDS, DEMO_SEEDED_WORDS, DEMO_SHOWCASE, DEMO_STALE, DEMO_VALUE_WORDS } from "@ziffr/core/demo-words";
 import { demoAllows, demoClassOf } from "@ziffr/core/demo-changes";
 
 vi.mock("server-only", () => ({}));
@@ -55,11 +56,11 @@ const day = (n = 0) => new Date(Date.now() + n * 86400000).toISOString().slice(0
 type Case = { blocked: (i: Ids) => unknown[] } | { open: (i: Ids) => unknown[]; nothing?: string } | { reads: (i: Ids) => unknown[] } | { nothing: string; blocked: (i: Ids) => unknown[] } | { outside: string };
 const CASES: Record<string, Case> = {
   "access-actions:whoCanSee": { reads: (i) => ["dashboard", i.dashboard] },
-  "access-actions:requestAccess": { blocked: (i) => ["dashboard", i.otherDashboard] },
-  "access-actions:decideAccess": { nothing: "the demo holds no access request to decide", blocked: () => [1, true] },
+  "access-actions:requestAccess": { nothing: "Sara sees every dashboard of the demo, so there is nothing to ask for", open: (i) => ["dashboard", i.otherDashboard] },
+  "access-actions:decideAccess": { nothing: "the demo holds no access request to decide", open: () => [1, true] },
   "actions:setViewer": { outside: "chooses whose view is shown: a cookie, no row" },
-  "actions:createMetric": { blocked: () => [form({ name: "Visitor metric", period: "month", format: "number", submission_rule: "overwrite", polarity: "higher", aggregation: "sum", decimals: "0", sources: "web_form" })] },
-  "actions:createDerivedMetric": { blocked: () => [null, form({ name: "Visitor calculation", formula: "{revenue} * 2" })] },
+  "actions:createMetric": { open: () => [form({ name: "Visitor metric", period: "month", format: "number", submission_rule: "overwrite", polarity: "higher", aggregation: "sum", decimals: "0", sources: "web_form" })] },
+  "actions:createDerivedMetric": { open: () => [null, form({ name: "Visitor calculation", formula: "{revenue} * 2" })] },
   "actions:simulateMessage": { reads: () => [{ source: "slack", sender: "@sara", text: "closed 2 deals" }] },
   // They record, where visitors may change the demo, what the previews only say would happen (spec 0051, ticket 8): the answer lands in the demo's
   // Thread, values and Outbox, and nothing is sent. The previews above stay reads.
@@ -68,10 +69,10 @@ const CASES: Record<string, Case> = {
   "connector-actions:recordSimulatedTicketClose": { open: (i) => [i.ticketDelivery] },
   "connector-actions:recordSimulatedPromptAnswer": { open: (i) => [i.promptDelivery, "42"] },
   "actions:submitWebForm": { open: (i) => [i.formCode, null, form({ value: "42" })] },
-  "actions:createAction": { blocked: (i) => [{ metricId: i.metric, period: i.period, assigneeId: "ben", question: "Why?" }] },
-  "actions:replyToAction": { blocked: (i) => [i.action, form({ body: "A reply" })] },
+  "actions:createAction": { open: (i) => [{ metricId: i.metric, period: i.period, assigneeId: "ben", question: "Why?" }] },
+  "actions:replyToAction": { open: (i) => [i.action, form({ body: "A reply" })] },
   "actions:decideCorrection": { nothing: "the demo holds no proposed Correction", open: (i) => [i.message, true] },
-  "actions:setActionStatus": { blocked: (i) => [i.action, "open"] },
+  "actions:setActionStatus": { open: (i) => [i.action, "open"] },
   "assistant-actions:disconnectAssistant": { nothing: "the demo has no connected assistants", blocked: () => [1] },
   "auth-actions:sendSignInLink": { outside: "signing in, not the demo Workspace" },
   "auth-actions:signInWith": { outside: "signing in, not the demo Workspace" },
@@ -95,8 +96,8 @@ const CASES: Record<string, Case> = {
   "canvas-actions:saveToPool": { open: (i) => [{ type: "widget", id: i.widget }, "Pooled"] },
   "canvas-actions:deleteSavedWidget": { open: (i) => [i.savedWidget] },
   "canvas-actions:createDashboardNamed": { open: () => ["Visitor dashboard"] },
-  "canvas-actions:setShare": { blocked: (i) => ["dashboard", i.dashboard, "ben", "editor"] },
-  "canvas-actions:setGroupShare": { blocked: (i) => ["dashboard", i.dashboard, i.group, "viewer"] },
+  "canvas-actions:setShare": { open: (i) => ["dashboard", i.dashboard, "ben", "editor"] },
+  "canvas-actions:setGroupShare": { open: (i) => ["dashboard", i.dashboard, i.group, "viewer"] },
   "canvas-actions:canvasAdd": { blocked: (i) => [[i.metric]] },
   "canvas-actions:canvasRemove": { nothing: "nothing is on the demo's analysis canvas to remove", blocked: (i) => [i.metric] },
   "canvas-actions:canvasSet": { blocked: (i) => [[i.metric]] },
@@ -104,8 +105,8 @@ const CASES: Record<string, Case> = {
   "canvas-actions:getHistory": { reads: (i) => [i.metric] },
   "picker-actions:pickerList": { reads: (i) => [[i.metric]] },
   "picker-actions:pickerRun": { reads: (i) => [{ entry: "forecast", slots: { metric: [i.metric] } }] },
-  "canvas-actions:assignInPlace": { blocked: (i) => [{ metricId: i.metric, period: i.period, assigneeId: "ben", kind: "task", text: "Check this" }] },
-  "canvas-actions:markTaskDone": { nothing: "Sara has no open task in the demo", blocked: (i) => [i.task] },
+  "canvas-actions:assignInPlace": { open: (i) => [{ metricId: i.metric, period: i.period, assigneeId: "ben", kind: "task", text: "Check this" }] },
+  "canvas-actions:markTaskDone": { nothing: "Sara has no open task in the demo", open: (i) => [i.task] },
   "connector-actions:sendTestMessage": { blocked: () => ["email"] },
   "connector-actions:setTelegram": { blocked: () => [true] },
   "connector-actions:telegramLinkStart": { blocked: () => [] },
@@ -125,7 +126,7 @@ const CASES: Record<string, Case> = {
   "alert-actions:deleteAlert": { nothing: "the demo has no Alert of the visitor's own", blocked: () => [1] },
   "tell-actions:setTellStopped": { blocked: () => [1, true] },
   "connector-actions:unlinkSlack": { nothing: "nobody in the demo is linked to Slack", blocked: () => [] },
-  "connector-actions:setPreference": { blocked: () => ["sara", "question", "slack"] },
+  "connector-actions:setPreference": { open: () => ["sara", "question", "slack"] },
   "connector-actions:simulateReply": { reads: (i) => [i.actionDelivery, "Done, see the sheet"] },
   "connector-actions:simulateTicketClose": { reads: (i) => [i.ticketDelivery] },
   "connector-actions:sendDueReminders": { nothing: "nothing is due right after the seed, which sent the reminders", open: () => [] },
@@ -243,22 +244,22 @@ const CASES: Record<string, Case> = {
   "search-actions:searchEverything": { reads: () => ["churn march 2026"] },
   "search-actions:searchStart": { reads: () => [] },
   "series-actions:sameNamedMetrics": { reads: () => ["Revenue"] },
-  "series-actions:saveSeriesRows": { blocked: (i) => [i.metric, "target", [{ period: i.period, value: 10 }], "Visitor target"] },
-  "series-actions:removeSeriesRows": { blocked: (i) => [i.targetMetric, "target", [i.targetPeriod]] },
+  "series-actions:saveSeriesRows": { open: (i) => [i.metric, "target", [{ period: i.period, value: 10 }], "Visitor target"] },
+  "series-actions:removeSeriesRows": { open: (i) => [i.targetMetric, "target", [i.targetPeriod]] },
   "series-actions:deleteMetric": { nothing: "every Metric of the demo is in use, which is refused before anything changes", blocked: (i) => [i.ownMetric, i.ownMetricName] },
   "series-actions:handOverMetricTo": { blocked: (i) => [i.ownMetric, "t-nobody"] },
-  "series-actions:archiveMetric": { blocked: (i) => [i.ownMetric] },
-  "series-actions:restoreMetric": { nothing: "no Metric of the demo is archived", blocked: (i) => [i.ownMetric] },
-  "tag-actions:addTags": { blocked: (i) => [i.ownMetric, ["visitor"]] },
-  "tag-actions:removeTag": { blocked: (i) => [i.ownMetric, "visitor"] },
+  "series-actions:archiveMetric": { open: (i) => [i.ownMetric] },
+  "series-actions:restoreMetric": { nothing: "no Metric of the demo is archived", open: (i) => [i.ownMetric] },
+  "tag-actions:addTags": { open: (i) => [i.ownMetric, ["visitor"]] },
+  "tag-actions:removeTag": { open: (i) => [i.ownMetric, "visitor"] },
   "tag-actions:tagImpact": { reads: () => ["00000000-0000-4000-8000-000000000000"] },
-  "tag-actions:renameTag": { blocked: () => ["00000000-0000-4000-8000-000000000000", "Visitors"] },
-  "tag-actions:mergeTags": { blocked: () => ["00000000-0000-4000-8000-000000000000", "00000000-0000-4000-8000-000000000001"] },
-  "tag-actions:deleteTag": { blocked: () => ["00000000-0000-4000-8000-000000000000"] },
+  "tag-actions:renameTag": { open: () => ["00000000-0000-4000-8000-000000000000", "Visitors"] },
+  "tag-actions:mergeTags": { open: () => ["00000000-0000-4000-8000-000000000000", "00000000-0000-4000-8000-000000000001"] },
+  "tag-actions:deleteTag": { open: () => ["00000000-0000-4000-8000-000000000000"] },
   "usage-actions:archiveUnused": { blocked: (i) => [[i.ownMetric]] },
   "size-actions:archiveForRoom": { blocked: (i) => [[i.ownMetric]] },
-  "series-actions:setMetricSources": { blocked: (i) => [i.ownMetric, ["web_form", "slack"]] },
-  "series-actions:updateMetricDetails": { blocked: (i) => [i.ownMetric, { description: "Changed by a visitor" }] },
+  "series-actions:setMetricSources": { open: (i) => [i.ownMetric, ["web_form", "slack"]] },
+  "series-actions:updateMetricDetails": { open: (i) => [i.ownMetric, { description: "Changed by a visitor" }] },
   "series-actions:askMeNow": { open: (i) => [i.ownMetric] },
   "series-actions:recordValue": { open: (i) => [i.ownMetric, { value: "42" }] },
   "settings-actions:updateMyProfile": { blocked: () => [{ name: "Not Sara" }] },
@@ -285,10 +286,10 @@ const CASES: Record<string, Case> = {
   "snapshot-actions:editSnapshotWords": { nothing: "words for none of its widgets change nothing", blocked: (i) => [i.snapshot, { summary: "Changed" }] },
   "snapshot-actions:showSnapshot": { nothing: "the demo's Snapshots are shown already", blocked: (i) => [i.snapshot] },
   "snapshot-actions:deleteSnapshot": { blocked: (i) => [i.snapshot, i.snapshotDashboard] },
-  "team-actions:createGroup": { blocked: () => ["Visitors"] },
-  "team-actions:renameGroup": { blocked: (i) => [i.group, "Renamed group"] },
-  "team-actions:deleteGroup": { blocked: (i) => [i.group] },
-  "team-actions:setMember": { blocked: (i) => [i.group, "anna", true] },
+  "team-actions:createGroup": { open: () => ["Visitors"] },
+  "team-actions:renameGroup": { open: (i) => [i.group, "Renamed group"] },
+  "team-actions:deleteGroup": { open: (i) => [i.group] },
+  "team-actions:setMember": { open: (i) => [i.group, "anna", true] },
   "team-actions:addContact": { blocked: () => [{ name: "Ann Other", email: "ann@contact.test" }] },
   "team-actions:removeContact": { nothing: "the demo has no Contacts", blocked: () => ["nobody"] },
   "team-actions:inviteMember": { blocked: () => [{ email: "someone@invite.test", role: "member" }] },
@@ -515,11 +516,104 @@ describe("with the setting in effect, a visit", () => {
     expect(outboundAtStart).toEqual({ notInOutbox: 0, webhooks: 0, webhookSends: 0 });
   }, 300_000);
 
+  // Ticket 11: Metrics, Targets and Projections, Tags, Questions and Tasks, Shares and Groups among the made-up people, the preferred
+  // channel. A Metric of the visit's own is made first, so the changes below are to what a visitor made; the seed's Metric, Group and
+  // dashboard are refused in the demo's own words; nothing leaves the Outbox.
+  it("makes and changes a Metric of its own, asks and replies, shares and groups among the made-up people, and sends nothing outside", async () => {
+    const wrong: string[] = [];
+    const ok = async (key: string, ...args: unknown[]) => {
+      const r = await call(key, ...args);
+      if (refused(r)) wrong.push(`${key}: ${JSON.stringify(r)}`);
+      return r;
+    };
+    /** The words a refusal says, whether it is answered or thrown. */
+    const words = async (key: string, ...args: unknown[]) => {
+      const r = await call(key, ...args).catch((e: unknown) => ({ error: e instanceof Error ? e.message : String(e) })) as { error?: string };
+      return r?.error;
+    };
+    const viewAs = (who: string) => { jar["ziffr-viewer"] = { value: who }; };
+    await demoWalkClearCounts();
+    const outboundAtStart = await demoWalkOutbound();
+    try {
+      // A Metric, as the new-Metric form makes it (the form redirects when it works), asking Ben for its values; and one nobody sees yet.
+      const base = { period: "month", format: "number", submission_rule: "overwrite", polarity: "higher", aggregation: "sum", decimals: "0", sources: "web_form" };
+      await ok("actions:createMetric", form({ ...base, name: "Visitor metric", submitters: "ben" }));
+      const mine = await demoLatestRow("metrics", "id, slug");
+      const id = mine.id as number;
+      await ok("actions:createMetric", form({ ...base, name: "Private metric" }));
+      const priv = (await demoLatestRow("metrics", "id")).id as number;
+      await ok("actions:createDerivedMetric", null, form({ name: "Visitor calculation", formula: `{${mine.slug}} * 2` }));
+      await ok("series-actions:updateMetricDetails", id, { description: "A plain description.", targetMin: 1, targetMax: 100 });
+      await ok("series-actions:setMetricSources", id, ["web_form", "slack"]);
+      await ok("series-actions:saveSeriesRows", id, "target", [{ period: ids.period, value: 10 }, { period: ids.lastMonth, value: 9 }], "Visitor target");
+      await ok("series-actions:saveSeriesRows", id, "projection", [{ period: ids.period, value: 12 }], "Visitor projection");
+      await ok("series-actions:removeSeriesRows", id, "target", [ids.lastMonth]);
+      // Tags: put on, renamed, merged, deleted, put on and taken off.
+      await ok("tag-actions:addTags", id, ["visitor", "second"]);
+      const visitorTag = (await demoLatestRow("tags", "id", { name: "visitor" })).id as string;
+      const secondTag = (await demoLatestRow("tags", "id", { name: "second" })).id as string;
+      await ok("tag-actions:renameTag", visitorTag, "visitors");
+      await ok("tag-actions:mergeTags", secondTag, visitorTag);
+      await ok("tag-actions:deleteTag", visitorTag);
+      await ok("tag-actions:addTags", id, ["again"]);
+      await ok("tag-actions:removeTag", id, "again");
+      // A Group of its own, who is in it, a Share with it and with Ben, and taking them away again.
+      await ok("team-actions:createGroup", "Visitor group");
+      const group = (await demoLatestRow("groups", "id", { name: "Visitor group" })).id as number;
+      await ok("team-actions:renameGroup", group, "Visitor group 2");
+      await ok("team-actions:setMember", group, "anna", true);
+      await ok("canvas-actions:setGroupShare", "metric", id, group, "viewer");
+      await ok("canvas-actions:setShare", "metric", id, "ben", "editor");
+      await ok("canvas-actions:setShare", "metric", id, "ben", null);
+      await ok("canvas-actions:setGroupShare", "metric", id, group, null);
+      await ok("team-actions:setMember", group, "anna", false);
+      await ok("team-actions:deleteGroup", group);
+      // A Question to Ben, his reply, closing it; a Task for him, done. The words are written as the person each one is.
+      const question = (await ok("canvas-actions:assignInPlace", { metricId: id, period: ids.period, assigneeId: "ben", kind: "question", text: "Why this value?" })) as number;
+      const task = (await ok("canvas-actions:assignInPlace", { metricId: id, period: ids.period, assigneeId: "ben", kind: "task", text: "Check this", due: day(3) })) as number;
+      viewAs("ben");
+      await ok("actions:replyToAction", question, form({ body: "Because of the move." }));
+      await ok("canvas-actions:markTaskDone", task, undefined, form({ body: "Checked." }));
+      viewAs("sara");
+      await ok("actions:setActionStatus", question, "closed");
+      // Ben asks for the Metric nobody has shared with him, and Sara, its owner, grants it.
+      viewAs("ben");
+      await ok("access-actions:requestAccess", "metric", priv);
+      viewAs("sara");
+      await ok("access-actions:decideAccess", (await demoLatestRow("access_requests", "id")).id, true);
+      // A made-up person's preferred channel, and archiving a Metric of one's own and bringing it back.
+      await ok("connector-actions:setPreference", "sara", "question", "slack");
+      await ok("series-actions:archiveMetric", id);
+      await ok("series-actions:restoreMetric", id);
+      expect(wrong).toEqual([]);
+      expect(await demoCountRows("shares", { object_id: id })).toBe(0);
+
+      // What the seed made is everyone's: its Metric is not archived or shared, its Group is not changed, and its words stay.
+      expect([await words("series-actions:archiveMetric", ids.ownMetric), await words("canvas-actions:setShare", "dashboard", ids.dashboard, "ben", "editor"), await words("team-actions:setMember", ids.group, "anna", true), await words("team-actions:deleteGroup", ids.group)]
+        .every((w) => w === DEMO_SHOWCASE || w === DEMO_SEEDED_WORDS)).toBe(true);
+      expect([DEMO_SHOWCASE, DEMO_SEEDED_WORDS]).toContain(await words("team-actions:renameGroup", ids.group, "Renamed group"));
+      // Words, formulas, numbers and rows are held to the demo's rules, with its own words, and before anything is written.
+      expect(await words("team-actions:createGroup", "see www.example.com")).toMatch(/link|address/i);
+      expect(await words("actions:createDerivedMetric", null, form({ name: "Too many", formula: "{a}+{b}+{c}+{d}+{e}+{f}" }))).toBe(DEMO_METRIC_WORDS.formula);
+      expect(await words("series-actions:saveSeriesRows", id, "target", [{ period: ids.period, value: 1e15 }], "")).toBe(DEMO_METRIC_WORDS.number);
+      expect(await words("series-actions:saveSeriesRows", id, "target", Array.from({ length: 61 }, () => ({ period: ids.period, value: 1 })), "")).toBe(DEMO_METRIC_WORDS.rows);
+      expect(await words("canvas-actions:assignInPlace", { metricId: id, period: ids.period, assigneeId: "ben", kind: "task", text: "Soon", due: day(900) })).toBe(DEMO_METRIC_WORDS.due);
+      expect(await words("actions:createMetric", form({ ...base, name: "A Metric with a link: www.example.com" }))).toMatch(/link|address/i);
+      // A Contact or a hand-over stays outside, with the sentence.
+      expect(await words("team-actions:addContact", { name: "Ann Other", email: "ann@contact.test" })).toBe(demoReadOnlyWords());
+      expect(await words("series-actions:handOverMetricTo", id, "ben")).toBe(demoReadOnlyWords());
+    } finally {
+      viewAs("sara");
+    }
+    expect(await demoWalkOutbound()).toEqual(outboundAtStart);
+    expect(outboundAtStart).toEqual({ notInOutbox: 0, webhooks: 0, webhookSends: 0 });
+  }, 300_000);
+
   it("is refused, with the sentence, what the demo keeps blocked, and with the words of the demo what it protects", async () => {
     const sentence = demoReadOnlyWords();
     for (const [key, args] of [
       ["theme-actions:setDefaultTheme", [ids.otherTheme]], ["theme-actions:importTheme", [JSON.stringify(themeToFile("Our look", STANDARD_THEMES[0].tokens, STANDARD_THEMES[0].slides))]],
-      ["design-actions:addViewDesign", [JSON.stringify(BUILT_IN_DESIGNS.number)]], ["canvas-actions:setShare", ["dashboard", ids.dashboard, "ben", "editor"]],
+      ["design-actions:addViewDesign", [JSON.stringify(BUILT_IN_DESIGNS.number)]], ["series-actions:handOverMetricTo", [ids.ownMetric, "t-nobody"]], ["team-actions:addContact", [{ name: "Ann Other", email: "ann@contact.test" }]],
       ["view-link-actions:createViewLink", ["dashboard", ids.dashboard, { label: "For the board", expires: day(7), frozen: false }]],
     ] as [string, unknown[]][]) {
       // A refusal is answered as words, or thrown by an action that does not catch it: the sentence either way.

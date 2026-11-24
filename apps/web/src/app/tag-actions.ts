@@ -5,11 +5,12 @@
 import { revalidatePath } from "next/cache";
 import { addMetricTags as coreAdd, removeMetricTags as coreRemove, deleteTag as coreDelete, mergeTags as coreMerge, renameTag as coreRename, tagImpact as coreImpact } from "@ziffr/core/tags";
 import { attempt } from "@/lib/action-result";
+import { attemptAsVisitor } from "@/lib/demo-write";
 import { currentActor } from "@/lib/viewer";
 
 /** Puts the typed words on a Metric as someone who may change it; answers the Metric's Tags now. */
 export async function addTags(metricId: number, names: string[]) {
-  return attempt(async () => {
+  return attemptAsVisitor("tag-actions:addTags", async () => {
     const tags = await coreAdd(await currentActor(), Number(metricId), Array.isArray(names) ? names.slice(0, 20).map((n) => String(n ?? "")) : []);
     revalidatePath("/", "layout");
     return { tags };
@@ -18,7 +19,7 @@ export async function addTags(metricId: number, names: string[]) {
 
 /** Takes one Tag off a Metric as someone who may change it; answers the Metric's Tags now. */
 export async function removeTag(metricId: number, name: string) {
-  return attempt(async () => {
+  return attemptAsVisitor("tag-actions:removeTag", async () => {
     const tags = await coreRemove(await currentActor(), Number(metricId), [String(name ?? "")]);
     revalidatePath("/", "layout");
     return { tags };
@@ -32,7 +33,7 @@ export async function tagImpact(tagId: string) {
 
 /** Renames a Tag for the whole Workspace (Owners and Admins). */
 export async function renameTag(tagId: string, name: string) {
-  return attempt(async () => {
+  return attemptAsVisitor("tag-actions:renameTag", async () => {
     const r = await coreRename(await currentActor(), String(tagId ?? ""), String(name ?? ""));
     revalidatePath("/", "layout");
     return r;
@@ -41,7 +42,7 @@ export async function renameTag(tagId: string, name: string) {
 
 /** Merges one Tag into another (Owners and Admins). */
 export async function mergeTags(fromId: string, intoId: string) {
-  return attempt(async () => {
+  return attemptAsVisitor("tag-actions:mergeTags", async () => {
     const r = await coreMerge(await currentActor(), String(fromId ?? ""), String(intoId ?? ""));
     revalidatePath("/", "layout");
     return r;
@@ -50,7 +51,7 @@ export async function mergeTags(fromId: string, intoId: string) {
 
 /** Deletes a Tag from every Metric (Owners and Admins). */
 export async function deleteTag(tagId: string) {
-  return attempt(async () => {
+  return attemptAsVisitor("tag-actions:deleteTag", async () => {
     const r = await coreDelete(await currentActor(), String(tagId ?? ""));
     revalidatePath("/", "layout");
     return r;

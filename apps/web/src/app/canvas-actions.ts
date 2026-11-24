@@ -92,7 +92,7 @@ export async function createDashboardNamed(name: string) {
 
 /** Shares something the viewer owns with a member, or takes the Share away; the core decides who may. */
 export async function setShare(objectType: "metric" | "dashboard" | "deck", objectId: number, userId: string, role: ShareRole | null) {
-  return attempt(async () => {
+  return attemptAsVisitor("canvas-actions:setShare", async () => {
     await coreShare(await currentActor(), objectType, Number(objectId), String(userId), role);
     done();
   });
@@ -100,7 +100,7 @@ export async function setShare(objectType: "metric" | "dashboard" | "deck", obje
 
 /** Shares with a Group: everyone in it, now and later (GLOSSARY: Group). */
 export async function setGroupShare(objectType: "metric" | "dashboard" | "deck", objectId: number, groupId: number, role: ShareRole | null) {
-  return attempt(async () => {
+  return attemptAsVisitor("canvas-actions:setGroupShare", async () => {
     await coreShareWithGroup(await currentActor(), objectType, Number(objectId), Number(groupId), role);
     done();
   });
@@ -146,7 +146,7 @@ export async function getHistory(metricId: number) {
 
 /** Ask a Question or assign a Task right where the viewer is. */
 export async function assignInPlace(input: { metricId: number; period: string; assigneeId: string; kind: ActionKind; text: string; due?: string | null; breakdownLabel?: string | null; via?: ConnectorId | null; readGroupId?: number | null }) {
-  return attempt(async () => {
+  return attemptAsVisitor("canvas-actions:assignInPlace", async () => {
     const id = await questions.ask(await currentActor(), input);
     done();
     return id;
@@ -156,7 +156,7 @@ export async function assignInPlace(input: { metricId: number; period: string; a
 /** The assignee marks their task done, with the words in the reply box as its note, when there are any. */
 export async function markTaskDone(actionId: number, _previous?: unknown, form?: FormData) {
   const note = form?.get("body");
-  return attempt(async () => {
+  return attemptAsVisitor("canvas-actions:markTaskDone", async () => {
     await questions.markTaskDone(await currentActor(), Number(actionId), undefined, typeof note === "string" ? note : undefined);
     done();
   });

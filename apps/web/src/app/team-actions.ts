@@ -4,6 +4,7 @@
 import { revalidatePath } from "next/cache";
 import { currentActor } from "@/lib/viewer";
 import { attempt } from "@/lib/action-result";
+import { attemptAsVisitor } from "@/lib/demo-write";
 import * as team from "@ziffr/core/team";
 import * as inv from "@ziffr/core/invitations";
 import * as clock from "@ziffr/core/workspace-clock";
@@ -16,7 +17,7 @@ const done = () => revalidatePath("/", "layout");
 
 /** Creates a Group. */
 export async function createGroup(name: string) {
-  return attempt(async () => {
+  return attemptAsVisitor("team-actions:createGroup", async () => {
     await team.createGroup(await currentActor(), String(name ?? ""));
     done();
   });
@@ -24,7 +25,7 @@ export async function createGroup(name: string) {
 
 /** Renames a Group (not Everyone). */
 export async function renameGroup(id: number, name: string) {
-  return attempt(async () => {
+  return attemptAsVisitor("team-actions:renameGroup", async () => {
     await team.renameGroup(await currentActor(), Number(id), String(name ?? ""));
     done();
   });
@@ -32,7 +33,7 @@ export async function renameGroup(id: number, name: string) {
 
 /** Deletes a Group: what was shared with it stops being shared; threads limited to it become readable by everyone. */
 export async function deleteGroup(id: number) {
-  return attempt(async () => {
+  return attemptAsVisitor("team-actions:deleteGroup", async () => {
     await team.deleteGroup(await currentActor(), Number(id));
     done();
   });
@@ -40,7 +41,7 @@ export async function deleteGroup(id: number) {
 
 /** Puts a member into a Group or takes them out. */
 export async function setMember(groupId: number, userId: string, member: boolean) {
-  return attempt(async () => {
+  return attemptAsVisitor("team-actions:setMember", async () => {
     await team.setGroupMember(await currentActor(), Number(groupId), String(userId), Boolean(member));
     done();
   });

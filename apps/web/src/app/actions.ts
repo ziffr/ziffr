@@ -17,6 +17,7 @@ import { createMetric as coreCreateMetric } from "@ziffr/core/metrics";
 import { adoptSetupFirstMetric } from "@ziffr/core/setup-from-pack";
 import { createDerivedMetric as coreCreateDerivedMetric } from "@ziffr/core/derived-metrics";
 import { attempt } from "@/lib/action-result";
+import { asVisitor, attemptAsVisitor } from "@/lib/demo-write";
 import { isActionError, type ActionError } from "@/lib/action-error";
 import { LimitReached } from "@ziffr/core/workspace-limits";
 import type { SourceId } from "@ziffr/core/types";
@@ -36,7 +37,7 @@ export async function setViewer(id: string) {
 /** Creates a Metric from the form; the core checks the role and every field. */
 export async function createMetric(form: FormData) {
   const num = (k: string) => (form.get(k) === null || form.get(k) === "" ? null : Number(form.get(k)));
-  const made = await coreCreateMetric(await currentActor(), {
+  const made = await asVisitor("actions:createMetric", async () => coreCreateMetric(await currentActor(), {
     name: String(form.get("name") ?? ""), description: String(form.get("description") ?? ""), unit: String(form.get("unit") ?? ""), unitPosition: String(form.get("unit_position") ?? ""),
     format: String(form.get("format") ?? ""), decimals: Number(form.get("decimals") ?? 0), period: String(form.get("period") ?? ""),
     submissionRule: String(form.get("submission_rule") ?? ""), polarity: String(form.get("polarity") ?? ""), aggregation: String(form.get("aggregation") ?? ""),
@@ -47,7 +48,7 @@ export async function createMetric(form: FormData) {
     // The Workspace Limit: back to the same form, which says why (the words are read there, never sent in the URL).
     if (e instanceof LimitReached) return null;
     throw e;
-  });
+  }));
   if (!made) {
     const back = num("duplicate_of") ? `copy=${num("duplicate_of")}` : num("from_catalog_id") ? `catalog=${num("from_catalog_id")}` : "scratch=1";
     redirect(`/metrics/new?${back}${form.get("setup") === "1" ? "&setup=1" : ""}`);
@@ -65,7 +66,7 @@ export async function createMetric(form: FormData) {
 export async function createDerivedMetric(_previous: ActionError | null, form: FormData): Promise<ActionError | null> {
   const text = (k: string) => String(form.get(k) ?? "").trim() || undefined;
   const num = (k: string) => (text(k) === undefined || !Number.isFinite(Number(text(k))) ? undefined : Number(text(k)));
-  const made = await attempt(async () => coreCreateDerivedMetric(await currentActor(), {
+  const made = await attemptAsVisitor("actions:createDerivedMetric", async () => coreCreateDerivedMetric(await currentActor(), {
     name: String(form.get("name") ?? ""), formula: String(form.get("formula") ?? ""), description: text("description"), unit: text("unit"), decimals: num("decimals"),
     period: text("period"), polarity: text("polarity"), targetMin: num("target_min"), targetMax: num("target_max"),
   }));
@@ -118,16 +119,20 @@ export async function submitWebForm(code: string, _previous: WebFormResult, form
 
 /** Asks a member about a value. */
 export async function createAction(input: { metricId: number; period: string; assigneeId: string; question: string }) {
-  const id = await questions.ask(await currentActor(), { metricId: Number(input.metricId), period: String(input.period), assigneeId: String(input.assigneeId), text: String(input.question ?? ""), kind: "question" });
-  revalidatePath("/", "layout");
-  return id;
+  return asVisitor("actions:createAction", async () => {
+    const id = await questions.ask(await currentActor(), { metricId: Number(input.metricId), period: String(input.period), assigneeId: String(input.assigneeId), text: String(input.question ?? ""), kind: "question" });
+    revalidatePath("/", "layout");
+    return id;
+  });
 }
 
 /** Replies in a Thread; a "Correction" field proposes a new value. */
 export async function replyToAction(actionId: number, form: FormData) {
   const raw = form.get("correction");
-  await questions.reply(await currentActor(), Number(actionId), String(form.get("body") ?? ""), raw === null || raw === "" ? null : Number(raw));
-  revalidatePath("/", "layout");
+  await asVisitor("actions:replyToAction", async () => {
+    await questions.reply(await currentActor(), Number(actionId), String(form.get("body") ?? ""), raw === null || raw === "" ? null : Number(raw));
+    revalidatePath("/", "layout");
+  });
 }
 
 /** The Metric owner accepts or declines a Correction; the core decides who may and what changes. */
@@ -140,6 +145,8 @@ export async function decideCorrection(messageId: number, accept: boolean) {
 
 /** The asker closes or reopens an Action. */
 export async function setActionStatus(actionId: number, status: "open" | "closed") {
-  await questions.setActionStatus(await currentActor(), Number(actionId), status);
-  revalidatePath("/", "layout");
+  await asVisitor("actions:setActionStatus", async () => {
+    await questions.setActionStatus(await currentActor(), Number(actionId), status);
+    revalidatePath("/", "layout");
+  });
 }

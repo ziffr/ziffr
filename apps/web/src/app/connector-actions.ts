@@ -13,6 +13,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { currentActor } from "@/lib/viewer";
 import { attempt } from "@/lib/action-result";
+import { attemptAsVisitor } from "@/lib/demo-write";
 import { inDemoVisit } from "@/lib/demo-visit-action";
 import { demoTextForVisit } from "@ziffr/core/demo-text";
 import * as questions from "@ziffr/core/questions";
@@ -124,7 +125,7 @@ export async function unlinkSlack() {
 
 /** Sets a Delivery Preference. */
 export async function setPreference(userId: string | null, kind: PreferenceKind, connector: ConnectorId | ConnectorId[] | null) {
-  return attempt(async () => {
+  return attemptAsVisitor("connector-actions:setPreference", async () => {
     await questions.setPreference(await currentActor(), userId === null ? null : String(userId), kind, connector);
     done();
   });

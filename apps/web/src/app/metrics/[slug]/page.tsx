@@ -55,6 +55,7 @@ import { RequestAccess } from "@/components/who-can-see";
 import type { PeriodState, Workflow } from "@ziffr/core/types";
 import { getGroups, getRawShares, readableActions, visibleDashboards, visibleMetricIds } from "@/lib/access";
 import { isDemo } from "@/lib/auth";
+import { visitorsMayChangeDemo } from "@/lib/demo-visit-action";
 import { cn } from "@/lib/utils";
 import { StatusDot } from "@/components/status";
 import { Change, TargetChip } from "@/components/target-chip";
@@ -122,6 +123,8 @@ export default async function MetricPage({ params, searchParams }: { params: Pro
   // Links inside a tab keep the tab; everything else about the page is in its own parameter.
   const at = (extra: Record<string, string> = {}) => `?${new URLSearchParams({ ...(tab === "overview" ? {} : { tab }), ...extra })}`;
   const [{ metrics, series }, people, viewer, demo, yearStart, numberStyle, attainmentMethod] = await Promise.all([getAllSeries(), getProfiles(), viewerId(), isDemo(), getYearStart(), getNumberStyle(), getAttainmentMethod()]);
+  // Where visitors may change the demo (spec 0051) a Metric is archived and brought back there too; the core refuses the seed's own.
+  const demoChanges = demo && (await visitorsMayChangeDemo());
   const metric = metrics.find((m) => m.slug === slug);
   if (!metric) notFound();
   const visible = await visibleMetricIds(viewer, metrics);
@@ -213,7 +216,7 @@ export default async function MetricPage({ params, searchParams }: { params: Pro
           id={metric.id} people={people} metric={{ id: metric.id, name: metric.name, slug: metric.slug, description: metric.description, unit: metric.unit, period: metric.period }} mcp={mcpAddress()} record={record} askable={askable}
           share={isOwner ? { name: metric.name, ownerId: metric.owner_id, shares, groups, canInvite: can(actor, "manage-members") } : null} alert={alertMe ? { mine: alertMe.mine, choices: alertMe.choices, webhooks: alertMe.webhooks } : null}
           canDuplicate={can(actor, "create") && !metric.formula} canPaste={mayPaste(metric, tokens, actor.personId)} canCreateDashboard={can(actor, "create")} dashboards={dashboards.filter((d) => d.role !== "viewer").map((d) => ({ id: d.id, name: d.name }))}
-          archive={{ allowed: archivable && !demo, archived: Boolean(metric.archived_at) }} canDelete={isOwner && !demo}
+          archive={{ allowed: archivable && (!demo || demoChanges), archived: Boolean(metric.archived_at) }} canDelete={isOwner && !demo}
         />
       </PageHeader>
       <ArchivedNote archivedAt={metric.archived_at ?? null} /><MetricTagChips actor={actor} metricId={metric.id} />
