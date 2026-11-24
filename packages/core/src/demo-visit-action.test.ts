@@ -54,7 +54,8 @@ describe("runDemoVisit", () => {
     settings.value = on;
     await expect(runDemoVisit("series-actions:recordValue", who, seen)).resolves.toBe(true);
     expect(calls.budget).toHaveLength(1);
-    expect(calls.budget[0]).toEqual([{ workspaceId: DEMO_WORKSPACE_ID }, { visitId, headers: who.headers }]);
+    expect((calls.budget[0] as unknown[]).slice(0, 2)).toEqual([{ workspaceId: DEMO_WORKSPACE_ID }, { visitId, headers: who.headers }]);
+    expect((calls.budget[0] as unknown[])[4]).toMatchObject({ values: true });
     expect(calls.visits).toEqual([{ generation: 7, visit: visitId }]);
     expect(calls.run).toBe(0);
   });

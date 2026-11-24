@@ -6,7 +6,7 @@
 // is refused as it always was: `visiting` is false then, and the work must not treat its texts as a visitor's.
 import { type Actor } from "./actor";
 import { checkDemoBudget, DemoBudgetUsed, takeDemoWorkflowRun } from "./demo-budget";
-import { demoAllows } from "./demo-changes";
+import { demoAllows, demoClassOf } from "./demo-changes";
 import { DemoLimit, DemoReadOnly, DemoSeededWords, DemoShowcase, DemoStale } from "./demo";
 import { DemoTextRefused } from "./demo-text";
 import { visitingDemo } from "./demo-visiting";
@@ -18,7 +18,7 @@ import { DEMO_WORKSPACE_ID } from "./team";
 export type DemoRequest = { visitId: string | null; generation: number | null; headers: { get(name: string): string | null } };
 
 /** Options of one operation: whether it runs the Workflows, which only one visitor may do each minute. */
-export type DemoVisitOptions = { workflowRun?: boolean };
+export type DemoVisitOptions = { workflowRun?: boolean; /** How many values the change writes (a paste's rows), charged to the budget. */ weight?: number; askNow?: boolean };
 
 /** Runs a demo visit's work for one server action (its key in demo-changes.ts). The work is told whether it is a visit that may
  * change the demo (`visiting`): then the texts it takes must be cleaned first (`demoTextForVisit`). Refuses, before any
@@ -30,7 +30,10 @@ export async function runDemoVisit<T>(operation: string, who: DemoRequest, work:
   if (!who.visitId) throw new DemoReadOnly(settings);
   if (who.generation === null) throw new DemoStale();
   const actor: Pick<Actor, "workspaceId"> = { workspaceId: DEMO_WORKSPACE_ID };
-  await checkDemoBudget(actor, { visitId: who.visitId, headers: who.headers });
+  const c = demoClassOf(operation);
+  await checkDemoBudget(actor, { visitId: who.visitId, headers: who.headers }, new Date(), process.env.ZIFFR_DEMO_ADDRESS_KEY, {
+    by: options.weight, values: c?.class === "limited" && c.limit === "values", run: options.workflowRun, askNow: options.askNow,
+  });
   if (options.workflowRun) await takeDemoWorkflowRun(actor);
   return visitingDemo({ generation: who.generation, visit: who.visitId }, () => work(true));
 }

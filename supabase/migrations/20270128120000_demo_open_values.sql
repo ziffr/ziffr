@@ -53,7 +53,36 @@ select apply_demo_limits('actions', 'open_actions');
 
 -- 4. The one Workflow run a minute in the whole demo is counted in demo_visit_counts, under a kind of its own.
 alter table demo_visit_counts drop constraint demo_visit_counts_kind_check;
-alter table demo_visit_counts add constraint demo_visit_counts_kind_check check (kind in ('visit_minute', 'visit', 'address', 'network', 'demo', 'workflow_run'));
+alter table demo_visit_counts add constraint demo_visit_counts_kind_check check (kind in ('visit_minute', 'visit', 'address', 'network', 'demo', 'workflow_run', 'address_values', 'ask_now', 'workflow_slot'));
+
+-- 4b. The showcase for the tables this ticket opens that ticket 6 had no rule for: a Breakdown's rows and history and an intake log entry
+--     follow their value (a showcase period's observation); a token follows its Metric. The function is the one of 20270126130000 with
+--     these cases added; everything it refused before it refuses still.
+create or replace function demo_in_showcase(t text, r jsonb) returns boolean
+language sql stable set search_path = public as $$
+  select r is not null and (
+    exists (select 1 from demo_showcase s where s.table_name = t and s.row_key = demo_row_key(t, r))
+    or case
+      when t in ('widgets', 'dashboard_snapshots') then exists (select 1 from demo_showcase s where s.table_name = 'dashboards' and s.row_key = r ->> 'dashboard_id')
+      when t in ('shares', 'versions', 'access_requests') then demo_object_in_showcase(r ->> 'object_type', r ->> 'object_id')
+      when t = 'thread_messages' then exists (select 1 from demo_showcase s where s.table_name = 'actions' and s.row_key = r ->> 'action_id')
+      when t = 'actions' then exists (select 1 from demo_showcase s where s.table_name = 'period_states' and s.row_key = (r ->> 'metric_id') || ':' || (r ->> 'period_start'))
+        or exists (select 1 from demo_showcase s where s.table_name = 'workflows' and s.row_key = r ->> 'workflow_id')
+      when t = 'prompts' then exists (select 1 from demo_showcase s where s.table_name = 'prompts' and s.row_key = (r ->> 'metric_id') || ':' || (r ->> 'period_start'))
+      when t = 'series_values' then exists (select 1 from demo_showcase s where s.table_name = 'metrics' and s.row_key = r ->> 'metric_id')
+      when t = 'deliveries' then
+        exists (select 1 from demo_showcase s where s.table_name = 'actions' and s.row_key = r ->> 'action_id')
+        or exists (select 1 from demo_showcase s where s.table_name = 'dashboards' and s.row_key = r ->> 'snapshot_dashboard_id')
+        or exists (select 1 from prompts p join demo_showcase s on s.table_name = 'prompts' and s.row_key = p.metric_id::text || ':' || p.period_start::text where p.id::text = r ->> 'prompt_id')
+      when t in ('breakdown_rows', 'intake_log') then exists (select 1 from observations o join demo_showcase s on s.table_name = 'observations'
+        and s.row_key = o.metric_id::text || ':' || o.period_start::text where o.id::text = r ->> 'observation_id')
+      when t = 'breakdown_history' then exists (select 1 from observations o join demo_showcase s on s.table_name = 'observations'
+        and s.row_key = o.metric_id::text || ':' || o.period_start::text where o.id::text = r ->> 'observation_id')
+      when t = 'tokens' then exists (select 1 from demo_showcase s where s.table_name = 'metrics' and s.row_key = r ->> 'metric_id')
+      else false end)
+$$;
+revoke execute on function demo_in_showcase(text, jsonb) from public, anon, authenticated;
+grant execute on function demo_in_showcase(text, jsonb) to service_role;
 
 -- 5. Whether the request is a visit's that may write now, for the two tables that cannot be on the open list (they have no
 --    workspace_id: `away` is a person's, `ask_now_claims` a Metric's): the core's request (service role), the visit header, an

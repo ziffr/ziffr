@@ -363,7 +363,9 @@ export async function recordPastedValues(actor: Actor, input: PasteInput, effect
   }
   // A visitor of the demo pastes at most 100 values at a time (spec 0051), refused whole before anything is claimed or recorded.
   if (visitHeaders() && go.length > DEMO_VALUE_LIMITS.pasteRows) return { ok: false, reason: "demo_rows", detail: `${DEMO_VALUE_WORDS.paste} Nothing was recorded.` };
-  const claimed = go.length ? await claimPasted(actor, go.length) : s.leftToday;
+  // A visit's pastes are held by the demo's write budget (counted by the values), and never claim the person's day: the demo's people are
+  // shared, so one visitor could use up the day for everyone, and the claims outlive a Demo Reset.
+  const claimed = go.length && !visitHeaders() ? await claimPasted(actor, go.length) : s.leftToday;
   if (claimed < 0) {
     const left = (-1 - claimed).toLocaleString("en");
     return { ok: false, reason: "daily_limit", detail: `You may paste ${(await dailyLimit(actor)).toLocaleString("en")} values a day; ${left} are left today, and this paste holds ${go.length.toLocaleString("en")}. Nothing was recorded.` };

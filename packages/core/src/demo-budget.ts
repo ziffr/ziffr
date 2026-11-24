@@ -85,6 +85,10 @@ function logOncePerWindow(reason: "key" | "address", window: Date): void {
     : "demo: no trusted client address: check ZIFFR_PROXY_HOPS; visitors' changes are refused");
 }
 
+/** What a change weighs: `by` units (a paste of 100 values is 100), whether it writes values (counted per address against its share of the
+ * values' cap), whether it runs the Workflows (one run per address in the slot's minutes) and whether it is an Ask me now claim (capped per address). */
+export type BudgetWeight = { by?: number; values?: boolean; run?: boolean; askNow?: boolean };
+
 /** Counts one change of a visitor against the budget, in the demo only, and throws `DemoBudgetUsed` with the words to
  * show when any budget is over (or the visit or address cannot be counted: closed, never open). A later ticket calls it
  * before every change it opens. The counts live in `demo_visit_counts` and are emptied by each Demo Reset. */
@@ -93,7 +97,9 @@ export async function checkDemoBudget(
   who: DemoRequester,
   now: Date = new Date(),
   secret: string | undefined = process.env.ZIFFR_DEMO_ADDRESS_KEY,
+  weight: BudgetWeight = {},
 ): Promise<void> {
+  const by = Math.max(1, Math.min(1000, Math.floor(weight.by ?? 1)));
   const window = resetWindowStart(now);
   let visit: string;
   try { visit = visitKey(who.visitId); } catch { throw new DemoBudgetUsed(DEMO_BUSY); }
@@ -107,20 +113,28 @@ export async function checkDemoBudget(
   }
   const counts: Partial<BudgetCounts> = {};
   // Address, network, visit, demo: a refusal stops the rest, so a script held by its address never counts against the demo's.
-  counts.address = await bumpDemoVisitCount(actor, "address", address, window);
+  counts.address = await bumpDemoVisitCount(actor, "address", address, window, by);
   let refused = budgetRefusal(counts);
   if (!refused) {
-    counts.network = await bumpDemoVisitCount(actor, "network", network, window);
+    counts.network = await bumpDemoVisitCount(actor, "network", network, window, by);
     refused = budgetRefusal(counts);
   }
   if (!refused) {
     counts.visitMinute = await bumpDemoVisitCount(actor, "visit_minute", visit, minuteStart(now));
-    counts.visitWindow = await bumpDemoVisitCount(actor, "visit", visit, window);
+    counts.visitWindow = await bumpDemoVisitCount(actor, "visit", visit, window, by);
     refused = budgetRefusal(counts);
   }
   if (!refused) {
-    counts.demo = await bumpDemoVisitCount(actor, "demo", "", window);
+    counts.demo = await bumpDemoVisitCount(actor, "demo", "", window, by);
     refused = budgetRefusal(counts);
+  }
+  const b = DEMO_WRITE_BUDGET;
+  // One address's share of what the whole demo holds: values, Ask me now claims, and a slot to run the Workflows.
+  if (!refused && weight.values && (await bumpDemoVisitCount(actor, "address_values", address, window, by)) > b.perAddressValuesPerWindow) refused = DEMO_BUDGET_USED;
+  if (!refused && weight.askNow && (await bumpDemoVisitCount(actor, "ask_now", address, window)) > b.perAddressAskNowPerWindow) refused = DEMO_BUDGET_USED;
+  if (!refused && weight.run) {
+    const slot = new Date(Math.floor(now.getTime() / (b.workflowSlotMinutes * 60_000)) * b.workflowSlotMinutes * 60_000);
+    if ((await bumpDemoVisitCount(actor, "workflow_slot", address, slot)) > 1) refused = DEMO_VALUE_WORDS.run;
   }
   if (refused) throw new DemoBudgetUsed(refused);
 }

@@ -6,7 +6,8 @@ import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "vitest
 import { db, seedingDemo } from "./db";
 import { DemoLimit, DemoReadOnly, DemoShowcase, DemoStale } from "./demo";
 import { markDemoSeedDone, resetDemoWorkspace } from "./demo-reset";
-import { DemoBudgetUsed, takeDemoWorkflowRun } from "./demo-budget";
+import { checkDemoBudget, DemoBudgetUsed, takeDemoWorkflowRun } from "./demo-budget";
+import { DEMO_WRITE_BUDGET } from "./demo-limits";
 import { clearDemoVisitCounts } from "./demo-visit";
 import { DEMO_VALUE_WORDS } from "./demo-words";
 import { visitingDemo } from "./demo-visiting";
@@ -194,6 +195,44 @@ describe("the simulated channels, recording", () => {
     expect((await db().from("webhooks").select("id", { count: "exact", head: true }).eq("workspace_id", DEMO_WORKSPACE_ID)).count).toBe(0);
     expect((await db().from("webhook_sends").select("id", { count: "exact", head: true }).eq("workspace_id", DEMO_WORKSPACE_ID)).count).toBe(0);
   });
+});
+
+describe("one address's share of the demo", () => {
+  const secret = "k".repeat(40);
+  const from = (ip: string, id = visitId) => ({ visitId: id, headers: new Headers({ "x-forwarded-for": ip }) });
+  const now = new Date("2026-11-24T10:00:10Z");
+  const hops = process.env.ZIFFR_PROXY_HOPS;
+  const ready = async () => { process.env.ZIFFR_PROXY_HOPS = "1"; await clearDemoVisitCounts(); };
+  afterAll(() => { if (hops === undefined) delete process.env.ZIFFR_PROXY_HOPS; else process.env.ZIFFR_PROXY_HOPS = hops; });
+
+  it("charges a paste by its values and stops one address at its share of the values", async () => {
+    await ready();
+    const share = DEMO_WRITE_BUDGET.perAddressValuesPerWindow;
+    await checkDemoBudget(sara, from("203.0.113.5"), now, secret, { by: 100, values: true });
+    await checkDemoBudget(sara, from("203.0.113.5"), now, secret, { by: share - 100, values: true }).catch(() => undefined);
+    // Past the share (or the address's change budget, whichever is first) the same address is refused, another is not.
+    await expect(checkDemoBudget(sara, from("203.0.113.5"), now, secret, { by: 100, values: true })).rejects.toBeInstanceOf(DemoBudgetUsed);
+    await checkDemoBudget(sara, from("198.51.100.9"), now, secret, { by: 1, values: true });
+  });
+
+  it("lets an address take the Workflow slot once in five minutes and Ask me now ten times a window, and others still run", async () => {
+    await ready();
+    await checkDemoBudget(sara, from("203.0.113.6"), now, secret, { run: true });
+    await expect(checkDemoBudget(sara, from("203.0.113.6"), new Date("2026-11-24T10:02:00Z"), secret, { run: true })).rejects.toBeInstanceOf(DemoBudgetUsed);
+    await checkDemoBudget(sara, from("198.51.100.10"), new Date("2026-11-24T10:02:00Z"), secret, { run: true });
+    for (let i = 0; i < DEMO_WRITE_BUDGET.perAddressAskNowPerWindow; i++) await checkDemoBudget(sara, from("203.0.113.7"), now, secret, { askNow: true });
+    await expect(checkDemoBudget(sara, from("203.0.113.7"), now, secret, { askNow: true })).rejects.toBeInstanceOf(DemoBudgetUsed);
+    await clearDemoVisitCounts();
+  });
+});
+
+describe("the paste claims", () => {
+  it("are emptied for the demo's people by a Demo Reset, and a visit's paste never claims the day", async () => {
+    await db().from("paste_claims").insert({ person_id: "sara", value_count: 5 }).throwOnError();
+    await seedingDemo(async () => { await db().from("workspaces").update({ created_at: "2026-01-01T00:00:00Z" }).eq("id", DEMO_WORKSPACE_ID).throwOnError(); });
+    await resetDemoWorkspace();
+    expect((await db().from("paste_claims").select("id").eq("person_id", "sara")).data).toEqual([]);
+  }, 180_000);
 });
 
 describe("the one Workflow run a minute", () => {

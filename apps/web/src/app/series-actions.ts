@@ -85,7 +85,7 @@ export async function askMeNow(metricId: number): Promise<AskNowResult | { error
     const r = await coreAskMeNow(await currentActor(), Number(metricId));
     revalidatePath("/", "layout");
     return r;
-  }));
+  }, { askNow: true }));
 }
 
 /** What the Record a value form shows after sending: the intake's own words, and whether the value counted. */

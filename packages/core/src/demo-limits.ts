@@ -28,6 +28,12 @@ export const DEMO_WRITE_BUDGET = {
   perVisitPerMinute: 30,
   perVisitPerWindow: 200,
   perAddressPerWindow: 200,
+  /** Values (a paste counts each) one address may write in a window: a quarter of the 2,000-value cap, so no address fills it for everyone. */
+  perAddressValuesPerWindow: 500,
+  /** Ask me now claims one address may make in a window. */
+  perAddressAskNowPerWindow: 10,
+  /** Minutes one address waits between two Workflow runs, so one script cannot hold the demo's one run a minute. */
+  workflowSlotMinutes: 5,
   perNetworkPerWindow: 400,
   demoPerWindow: 3000,
 } as const;

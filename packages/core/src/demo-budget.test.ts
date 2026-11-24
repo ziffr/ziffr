@@ -50,7 +50,7 @@ describe("budgetRefusal", () => {
   });
 
   it("uses the spec's numbers", () => {
-    expect(B).toEqual({ perVisitPerMinute: 30, perVisitPerWindow: 200, perAddressPerWindow: 200, perNetworkPerWindow: 400, demoPerWindow: 3000 });
+    expect(B).toEqual({ perVisitPerMinute: 30, perVisitPerWindow: 200, perAddressPerWindow: 200, perNetworkPerWindow: 400, demoPerWindow: 3000, perAddressValuesPerWindow: 500, perAddressAskNowPerWindow: 10, workflowSlotMinutes: 5 });
   });
 
   it("lets no one address or network use up the demo alone: it takes at least eight networks", () => {

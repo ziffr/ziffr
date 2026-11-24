@@ -32,7 +32,7 @@ export function minuteStart(at: Date): Date {
 
 /** What a count is about: one visit's changes in a minute or in a window (its key), one network address or its network (keyed hashes)
  * or the whole demo (no key). A minute's count is kept under the minute's start. */
-export type VisitCountKind = "visit_minute" | "visit" | "address" | "network" | "demo" | "workflow_run";
+export type VisitCountKind = "visit_minute" | "visit" | "address" | "network" | "demo" | "workflow_run" | "address_values" | "ask_now" | "workflow_slot";
 
 /** The counts only exist for the demo: a real Workspace never counts a visit. */
 function inDemo(actor: Pick<Actor, "workspaceId">): void {

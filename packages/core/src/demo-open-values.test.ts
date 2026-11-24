@@ -39,6 +39,14 @@ describe("the tables the first opening opens", () => {
   });
 });
 
+describe("the showcase for the tables this ticket opens", () => {
+  it("follows a value's period for its Breakdown and intake log, and a Metric for its tokens, and keeps the old cases", () => {
+    for (const t of ["breakdown_rows", "breakdown_history", "intake_log", "tokens"]) expect(MIGRATION, t).toContain(t);
+    expect(MIGRATION).toContain("when t = 'prompts' then exists");
+    expect(MIGRATION).toContain("when t = 'tokens' then exists (select 1 from demo_showcase s where s.table_name = 'metrics'");
+  });
+});
+
 describe("the two people's tables the opening reaches", () => {
   it("lets a visit claim Ask me now and set Away only through demo_visit_current, never delete a claim", () => {
     expect(MIGRATION).toContain("if tg_op <> 'DELETE' and demo_visit_current() then return new; end if;");
