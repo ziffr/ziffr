@@ -11,10 +11,10 @@ import { changeRole, createInviteLink, decideJoin, inviteEveryone, inviteMember,
 import type { WorkspaceRoleName } from "@ziffr/core/actor";
 import type { Profile } from "@ziffr/core/types";
 import { formatDate } from "@ziffr/core/format";
+import { WORKSPACE_ROLE_ORDER, WORKSPACE_ROLE_WORDS } from "@ziffr/core/role-words";
 
-const ROLES: { id: WorkspaceRoleName; label: string }[] = [
-  { id: "owner", label: "Owner" }, { id: "admin", label: "Admin" }, { id: "member", label: "Member" }, { id: "guest", label: "Guest" },
-];
+// The role names come from the one place that words them, which the Setup Guide's Team step uses as well.
+const ROLES: { id: WorkspaceRoleName; label: string }[] = WORKSPACE_ROLE_ORDER.map((id) => ({ id, label: WORKSPACE_ROLE_WORDS[id].label }));
 const field = "h-9 rounded-[var(--radius-input)] border border-input bg-card px-2 text-sm";
 
 /** What an invitation did, from the core's answer: emailed, or made for the person to send the link themselves. */

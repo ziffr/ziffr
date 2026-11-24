@@ -244,7 +244,7 @@ Owners and Admins also see a **Works in** column: the **Business Function** each
 
 ### Members and their roles
 
-The list shows each person with their role. Owners and Admins see a menu next to each person instead:
+The list shows each person with their role. Owners and Admins see a menu next to each person instead. The Setup Guide's **Team** step ([Getting started](07-getting-started.md#the-setup-guide)) explains the four roles in one line each, as this page does, while you invite your first people:
 
 | Role | What the person may do |
 | --- | --- |

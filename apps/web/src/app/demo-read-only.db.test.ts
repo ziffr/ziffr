@@ -326,6 +326,7 @@ const CASES: Record<string, Case> = {
   "setup/first-metric-actions:pickMetric": { blocked: (i) => [i.ownMetric] },
   "setup/first-metric-actions:sendFirstValue": { blocked: () => ["42"] },
   "setup/first-metric-actions:checkFirstMetric": { reads: () => [] },
+  "setup/team-actions:askForMetric": { blocked: (i) => [i.metric, "someone"] },
   "try/start/actions:moveGuide": { outside: "a Trial Workspace's guide, never the demo" },
   "try/start/actions:skipGuide": { outside: "a Trial Workspace's guide, never the demo" },
   "try/start/actions:askGuide": { outside: "a Trial Workspace's guide, never the demo" },

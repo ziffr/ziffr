@@ -56,7 +56,7 @@ describe("the step bar", () => {
     expect(html.match(/<li>/g)?.length).toBe(5);
     expect(html).toContain("Done");
     expect(html).toContain("Skipped");
-    expect(html).toContain("Comes next");
+    expect(html).toContain("To do");
     expect(html.match(/aria-current="step"/g)?.length).toBe(1);
     // Every step is a link that goes somewhere: its own screen.
     for (const id of SETUP_STEPS) expect(html).toContain(`href="/setup?step=${id}"`);
