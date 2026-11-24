@@ -43,11 +43,12 @@ describe("a Demo Reset", () => {
     const key = visitKey("fedcba9876543210fedcba9876543210");
     expect(await bumpDemoVisitCount(demo, "visit", key, window, 5)).toBeGreaterThanOrEqual(5);
     // A reset is refused within a minute of the last one (the first failure of this test was that gap): the last one is made older here.
+    await expect(asVisit(() => chargeCreation(demo, from("203.0.113.9"), "home-actions:newDashboard", SECRET))).rejects.toThrow(DemoSizeRefused);
     await db().from("demo_state").update({ reset_at: new Date(Date.now() - 60 * 60_000).toISOString() }).gte("generation", 0);
     await resetDemoWorkspace({ openToVisitors: true });
     expect(await demoVisitCount(demo, "visit", key, window)).toBe(0);
-    // The shares of an address are counts too: the same reset emptied them.
-    await asVisit(() => chargeCreation(demo, from("203.0.113.77"), "home-actions:newDashboard", SECRET));
+    // The shares of an address are counts too: this address was filled to its share by the first test and is refused until the reset.
+    await asVisit(() => chargeCreation(demo, from("203.0.113.9"), "home-actions:newDashboard", SECRET));
   }, 180_000);
 });
 

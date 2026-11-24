@@ -7,7 +7,7 @@ const rpc = vi.hoisted(() => vi.fn());
 vi.mock("./db", () => ({ db: () => ({ rpc }) }));
 
 import { demoClassOf, demoOperations } from "./demo-changes";
-import { chargeCreation, chargeNewRows, mayRecordAutoVersion } from "./demo-creation";
+import { chargeCreation, chargeNewRows, demoVersionShares, mayRecordAutoVersion } from "./demo-creation";
 import { DEMO_CREATE_PURPOSE, DEMO_CREATES, DEMO_CREATION_EXEMPT, DEMO_METRIC_LIMITS, DEMO_ROW_CAPS, demoCreationShare } from "./demo-limits";
 import { runAsVisit } from "./demo-visit-scope";
 import { DemoSizeRefused } from "./demo-visitor-limits";
@@ -143,6 +143,27 @@ describe("a Version the visitor names", () => {
     const auto = bumps().map((b) => b.p_key);
     // The address's and the network's counts of named and automatic Versions are under different keys.
     expect(auto.slice(0, 2).some((k) => named.includes(k))).toBe(false);
+  });
+});
+
+describe("the shares of the Versions together", () => {
+  it("keep a network at half the cap for both kinds, and leave the demo's named ones the third the automatic ones do not use", () => {
+    const s = demoVersionShares(DEMO_ROW_CAPS.versions);
+    expect(s.network * 2).toBeLessThanOrEqual(demoCreationShare(DEMO_ROW_CAPS.versions).network);
+    expect(s.autoDemo + s.namedDemo).toBe(DEMO_ROW_CAPS.versions);
+    expect(s.namedDemo).toBe(50);
+  });
+
+  it("refuses a named Version past the network's quarter and past the demo's third, with a count of the whole demo", async () => {
+    const s = demoVersionShares(DEMO_ROW_CAPS.versions);
+    await visit(() => chargeCreation(demo, who, "version-actions:saveNamedVersion", SECRET));
+    expect(bumps().length).toBe(3);
+    counts.length = 0;
+    counts.push(1, s.network + 1);
+    await expect(visit(() => chargeCreation(demo, who, "version-actions:saveNamedVersion", SECRET))).rejects.toThrow(DemoSizeRefused);
+    counts.length = 0;
+    counts.push(1, 1, s.namedDemo + 1);
+    await expect(visit(() => chargeCreation(demo, who, "version-actions:saveNamedVersion", SECRET))).rejects.toThrow(DemoSizeRefused);
   });
 });
 

@@ -12,16 +12,26 @@ import { chargeShares } from "./demo-shares";
 import { visitWho } from "./demo-visit-scope";
 import { demoShareWords } from "./demo-words";
 
+/** The shares of the Versions, automatic and named alike: a network may use a quarter of the cap for each kind, so together they stay at
+ * half (what one network may make of any kind); the demo as a whole leaves automatic ones two thirds and named ones the rest, so neither
+ * kind can use up the other's room. */
+export function demoVersionShares(cap: number): { address: number; network: number; autoDemo: number; namedDemo: number } {
+  const auto = Math.floor((cap * 2) / 3);
+  return { address: demoCreationShare(cap).address, network: Math.max(1, Math.floor(cap / 4)), autoDemo: auto, namedDemo: cap - auto };
+}
+
 /** Counts one row of `kind` against the address's and network's share of its cap, refusing in plain words past it. */
 async function chargeKind(actor: Pick<Actor, "workspaceId">, who: DemoRequester | null, kind: keyof typeof DEMO_ROW_CAPS, secret?: string, demo?: number, by = 1, purpose: string = kind): Promise<void> {
-  await chargeShares(actor, who, `create-${purpose}`, by, { ...demoCreationShare(DEMO_ROW_CAPS[kind]), demo }, demoShareWords(kind), secret);
+  const shares = kind === "versions" ? { ...demoCreationShare(DEMO_ROW_CAPS.versions), network: demoVersionShares(DEMO_ROW_CAPS.versions).network, demo } : { ...demoCreationShare(DEMO_ROW_CAPS[kind]), demo };
+  await chargeShares(actor, who, `create-${purpose}`, by, shares, demoShareWords(kind), secret);
 }
 
 /** Counts one creation of the kind `operation` makes (`DEMO_CREATES`) against the visitor's address and network, before the write;
  * refuses in plain words past the share. An operation that makes nothing capped costs nothing here. Only in a demo visit. */
 export async function chargeCreation(actor: Pick<Actor, "workspaceId">, who: DemoRequester | null, operation: string, secret?: string): Promise<void> {
   const kind = DEMO_CREATES[operation];
-  if (kind) await chargeKind(actor, who, kind, secret, undefined, 1, DEMO_CREATE_PURPOSE[operation]);
+  const purpose = DEMO_CREATE_PURPOSE[operation];
+  if (kind) await chargeKind(actor, who, kind, secret, purpose ? demoVersionShares(DEMO_ROW_CAPS.versions).namedDemo : undefined, 1, purpose);
 }
 
 /** For a core function that makes a number of rows of `kind` it can only count itself (Tags that do not exist yet, rows of a Target
@@ -41,7 +51,7 @@ export async function mayRecordAutoVersion(actor: Pick<Actor, "workspaceId">): P
   if (!who) return true;
   try {
     // Automatic Versions also have a share of the whole demo, two thirds of the cap, so named ones always find room.
-    await chargeKind(actor, who, "versions", undefined, Math.floor((DEMO_ROW_CAPS.versions * 2) / 3));
+    await chargeKind(actor, who, "versions", undefined, demoVersionShares(DEMO_ROW_CAPS.versions).autoDemo);
     return true;
   } catch {
     return false;

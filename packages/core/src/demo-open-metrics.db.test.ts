@@ -380,6 +380,9 @@ describe("an address's share counts only what is new", () => {
     await fixed(async () => {
       const { id } = await createMetric(sara, { ...base, name: "Share metric two" });
       await expect(addMetricTags(sara, id, Array.from({ length: 9 }, (_, i) => `fresh-${i}`))).rejects.toBeInstanceOf(DemoSizeRefused);
+      // Refused before anything is written: no Tag of this list exists.
+      const { count } = await db().from("metric_tags").select("metric_id", { count: "exact", head: true }).eq("metric_id", id);
+      expect(count).toBe(0);
     });
   });
 });
