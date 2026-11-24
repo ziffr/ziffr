@@ -19,6 +19,7 @@ step "Changed screens come with their user guide chapter" node .github/scripts/g
 step "Changes people use or run come with a release note" .github/scripts/release-note-present.sh
 step "Migrations are only added, never changed" .github/scripts/migrations-add-only.sh
 step "New names in the UI are in the glossary" node scripts/glossary-names.mjs
+step "Bookkeeping tests (api coverage, lists, generated files, demo table)" bash scripts/bookkeeping-tests.sh
 step "Docs audit" node scripts/docs-audit.mjs
 if command -v vale >/dev/null 2>&1; then
   step "Prose (Vale)" vale --minAlertLevel=error docs/guides docs/user-guide docs/specs docs/security README.md CONTRIBUTING.md AGENTS.md SECURITY.md CHANGELOG.md

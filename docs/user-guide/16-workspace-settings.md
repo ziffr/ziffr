@@ -47,7 +47,7 @@ After you sign in for the first time and belong to no Workspace yet, Ziffr opens
 
 - Type the **Name of the workspace**, such as your name, your team or your company, and choose **Create workspace**. You become its Owner, and Ziffr opens it.
 - If a colleague already uses Ziffr, it is better to ask them to invite you, so you join their Workspace instead of starting a second one.
-- The **Setup Guide** (**Set up your Workspace**, `/setup`) is where its steps are, starting with **About you**; see [Getting started](07-getting-started.md#the-setup-guide).
+- A new Workspace opens on the **Setup Guide** (**Set up your Workspace**, `/setup`), where its steps are, starting with **About you**; see [Getting started](07-getting-started.md#the-setup-guide). A thin **Setup line** above every page keeps it one click away until you finish or **Hide** it, see [The Setup line](07-getting-started.md#the-setup-line-and-opening-by-itself). On a trial, **Start your trial** opens the Trial guide first.
 
 You can start another Workspace at any time from the Workspace switcher at the top of the sidebar, with **New workspace**. Everything in one Workspace stays in it; nothing is shared between Workspaces.
 
@@ -112,6 +112,8 @@ If you were a **Contact** before, accepting the Invitation keeps your history: t
 ## General
 
 **Workspace → General** holds the Workspace's name, **About your business** (its Workspace Profile) right after it, its time, its fiscal year, its Number Style, its Answer Languages and its limits. Owners and Admins change them. Everyone else sees them, with the note "Only Owners and Admins change these."
+
+Owners and Admins also see **Setup: 4 of 5 steps done** there, with **Open the Setup Guide**: the count is the Workspace's, shared by its Owners and Admins, and skipped steps count as done.
 
 ### Size and usage
 
@@ -244,7 +246,7 @@ Owners and Admins also see a **Works in** column: the **Business Function** each
 
 ### Members and their roles
 
-The list shows each person with their role. Owners and Admins see a menu next to each person instead:
+The list shows each person with their role. Owners and Admins see a menu next to each person instead. The Setup Guide's **Team** step ([Getting started](07-getting-started.md#the-setup-guide)) explains the four roles in one line each, as this page does, while you invite your first people:
 
 | Role | What the person may do |
 | --- | --- |

@@ -7,6 +7,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { HelpIndex } from "@/lib/help-index-build";
 
 let path = "/metrics";
+// The Setup Guide's server actions reach the core, which a component test never loads (spec 0052).
+vi.mock("@/app/setup/actions", () => ({ hideSetup: vi.fn(), reopenSetup: vi.fn(), skipStep: vi.fn(), readSetupSteps: vi.fn() }));
 vi.mock("next/navigation", () => ({ usePathname: () => path }));
 const index: HelpIndex = {
   chapters: [

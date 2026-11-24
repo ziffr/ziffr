@@ -11,7 +11,7 @@ import { setWorkspaceClock } from "./workspace-clock";
 import { setWorkspaceProfile } from "./workspace-settings";
 import {
   chooseExploreOnMyOwn, hideSetupGuide, markSetupGuideSeen, reopenSetupGuide, setSetupFirstMetric, setupGuide, setupGuidePending,
-  skipSetupStep, startSetupGuide,
+  setupLine, skipSetupStep, startSetupGuide,
 } from "./setup-guide";
 import { SETUP_STEPS } from "./setup-steps";
 import { workspace } from "./test/db-fixtures";
@@ -330,5 +330,40 @@ describe("the move of the Trial Guide's state", () => {
     const g = (await setupGuide(t.w.actor(t.owner, "owner")))!;
     expect(g.firstMetric).toEqual({ id: t.m.id, name: "Cups of coffee" });
     expect(g.steps.find((s) => s.id === "start")!.ticked).toBe(true);
+  });
+  it("the Setup line: shown while steps are left, quiet when hidden, none for a Guest or the demo, and one person's Hide never hides it for another", async () => {
+    const { w, o } = await fresh();
+    const admin = w.actor(await w.person("admin"), "admin");
+    const member = w.actor(await w.person("member"), "member");
+    const guest = w.actor(await w.person("guest"), "guest");
+    // No row yet: the guide applies to them (the menus offer it), the line is not drawn.
+    expect(await setupLine(o)).toMatchObject({ applies: true, shown: false });
+    await startSetupGuide(o);
+    expect(await setupLine(o)).toMatchObject({ applies: true, shown: true, total: 5 });
+    expect(await setupLine(member)).toMatchObject({ applies: true, shown: true, total: 2 });
+    expect(await setupLine(guest)).toEqual({ applies: false, shown: false, done: 0, total: 0, next: null });
+    await hideSetupGuide(o);
+    expect(await setupLine(o)).toMatchObject({ applies: true, shown: false });
+    expect(await setupLine(admin)).toMatchObject({ shown: true });
+    expect(await setupLine(member)).toMatchObject({ shown: true });
+    await reopenSetupGuide(o);
+    expect(await setupLine(o)).toMatchObject({ shown: true });
+    expect(await setupLine({ ...o, workspaceId: DEMO_WORKSPACE_ID })).toMatchObject({ applies: false, shown: false });
+  });
+
+  it("hiding is per Workspace: the same person hides one Workspace's guide and still sees the other's", async () => {
+    const first = await fresh();
+    const second = await workspace("Second Guide Co");
+    made.push(second);
+    const person = first.owner;
+    await db().from("memberships").insert({ workspace_id: second.id, user_id: person, role: "owner" });
+    const a = first.o;
+    await startSetupGuide(a);
+    await hideSetupGuide(a);
+    expect(await setupLine(a)).toMatchObject({ shown: false });
+    // The other Workspace has its own row for the same person: nothing was hidden there.
+    const b = { ...a, workspaceId: second.id };
+    await startSetupGuide(b);
+    expect(await setupLine(b)).toMatchObject({ shown: true });
   });
 });

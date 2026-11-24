@@ -28,6 +28,10 @@ import { SLACK_OUTCOMES } from "@/lib/slack-back";
 import { WaysInAndOutStep } from "./ways";
 import { firstMetricStep } from "@ziffr/core/setup-first-metric";
 import { FirstMetricStepView } from "./first-metric";
+import { teamSetup } from "@ziffr/core/team-setup";
+import { joinDomainOffer } from "@ziffr/core/invitations";
+import { signedIn } from "@/lib/auth";
+import { TeamStep } from "./team";
 
 const countryName = (c: string) => new Intl.DisplayNames(["en"], { type: "region" }).of(c) ?? c;
 
@@ -89,6 +93,9 @@ export default async function SetupPage({ searchParams }: { searchParams: Promis
     body = <WaysInAndOutStep data={await waysInAndOut(actor)} following={ids[ids.indexOf("ways") + 1] ?? null} notice={slack} />;
   } else if (current === "first_metric") {
     body = <FirstMetricStepView step={await firstMetricStep(actor)} following={ids[ids.indexOf("first_metric") + 1] ?? null} />;
+  } else if (current === "team") {
+    // Only Owners and Admins have this step, so the loader (which carries Business Functions) is never called for anyone else.
+    body = <TeamStep data={await teamSetup(actor)} domainOffer={actor.role === "owner" ? joinDomainOffer((await signedIn())?.verifiedEmail) : null} />;
   } else {
     body = (
       <div className="space-y-4">

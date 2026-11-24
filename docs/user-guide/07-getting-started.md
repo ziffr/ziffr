@@ -1,5 +1,5 @@
 <!-- part: Understanding Ziffr -->
-<!-- screens: apps/web/src/app/setup/**, apps/web/src/components/privacy-statement.tsx -->
+<!-- screens: apps/web/src/app/setup/**, apps/web/src/components/privacy-statement.tsx, apps/web/src/components/setup-line.tsx, apps/web/src/components/setup-panel.tsx -->
 # Getting started
 
 This chapter takes you from nothing to a team that sees its numbers each month. Plan about an hour for the first steps; the routine then runs by itself.
@@ -27,7 +27,7 @@ Sign in with your work email: Ziffr sends you a sign-in link (on hosted Ziffr th
 
 The **Setup Guide** is a short list of steps that sets a Workspace up: **About you**, **Starting point**, **Ways in and out**, **First Metric** and **Team**. It lives at **Set up your Workspace** (the address `/setup`, also reached from Help), shows the steps in a bar at the top with each one's state in words (Done, Skipped, To do, Comes next), and every step can be skipped. **Go to Ziffr** leaves it at any time. Owners and Admins see all five steps. A Member sees only the two about themselves, and a Guest and the demo have none.
 
-**About you**, **Starting point**, **Ways in and out** and **First Metric** are the steps to use today. **Team** opens and says what it will do, so you can see where the guide is going; the rest of Ziffr works without them, as the numbered steps below show.
+**About you**, **Starting point**, **Ways in and out**, **First Metric** and **Team** are the steps to use today; every step of the guide is built. The rest of Ziffr works without it, as the numbered steps below show.
 
 **About you** asks plain questions, one to a row, each optional and each saying what it is for. Choose **Skip this question** to leave one open, **Skip** to skip the whole step, or **Save and go on**.
 
@@ -82,6 +82,28 @@ You can change every answer later: the business and the time under **Workspace �
 
 A Workspace that has Metrics already says "You have 4 Metrics. Start from a Pack anyway?" and still offers everything. In a trial the step reads "Your trial starts with Cups of coffee" and is done by itself; Packs can still be installed within the trial's limits.
 
+**Team** is for Owners and Admins; a Member and a Guest never see it. It does the work of the Members and Groups page in one place, and everything it does is also there afterwards.
+
+| Part | What it does |
+| --- | --- |
+| **Who is here** | The members and Contacts with their role, and the invitations still waiting. An Owner or Admin also sees what each member said they work in, because functions are visible to Owners and Admins only. |
+| **Invite people** | Type an address, pick a role and choose **Invite**: Ziffr emails the link where this Ziffr has a mail server, and otherwise says so and gives you the link to send yourself. **Make a link for Members** makes a link anyone who has it can join by, for 7 days. The four roles are explained in one line each under the form: an Owner manages everything, an Admin manages settings, Groups and members but cannot remove Owners, a Member makes and shares Metrics, dashboards and decks and sends in values, and a Guest sees only what is shared with them and makes nothing. Only an Owner can invite an Owner. |
+| **Colleagues at your company** | Owners only. **Let people with an address at your company's domain ask to join** switches [Domain Joining](16-workspace-settings.md) on for the domain of your own verified address; it is not offered for a public mail provider, and each person still waits for you or an Admin to let them in. |
+| **A first Group** | An optional Group such as Finance, with a box per member to put people in it. |
+| **Who is asked for what** | Each Metric you can change, with who is asked for it now. Where the Metric came from a Pack that says which Business Function it is for, and a member has that function, a button reads **Suggested: Ben (Finance)**. Pressing a name, or choosing **Ask someone else** and **Ask**, makes that person a Submitter and sends them their first request; Contacts can be asked too. Nothing is assigned until you press. |
+
+The step ticks once someone beside you is in the Workspace, an invitation is waiting, Domain Joining is on, or a Contact is asked for at least one Metric. A Contact that only exists does not count. Revoking the last invitation later does not reopen a finished guide.
+
+**In a trial**, invitations open once your first value has arrived, and the step says so ("Invitations open once your first value has arrived. Answer your first request in the First Metric step, then come back here."). A trial invites by email only: there is no link and no Domain Joining, as [the trial](16-workspace-settings.md#on-a-ziffr-that-offers-trials) describes. After the trial has ended, nobody can be invited.
+
+### The Setup line and opening by itself
+
+A new Workspace opens on the Setup Guide, because there is nothing else to look at yet. Someone who joins a Workspace, by invitation or because their company's domain may join, is led to the guide once as well, and sees only the short version: **About you** and **Ways in and out**. After that the guide never opens by force again: **Go to Ziffr** is always one click away, and the guide never blocks the app.
+
+While you have steps left, a thin line above every page says how far you are: "Setup: 2 of 5 done. Next: Ways in and out." **Continue** opens the steps beside the page, each with its tick (a step you skipped counts as done), the next one marked and **Skip** next to those still open; choose a step's name to do it on the full page. **Hide** puts the line away for you, in this Workspace only: nobody else's line changes, and nothing brings it back on its own. The line goes by itself once every step is done or skipped. A Guest sees no line, and the demo has none: it keeps its own guided steps.
+
+To bring the guide back, choose **Setup Guide** in **Help** (the list of chapters) or in your own menu at the bottom of the sidebar (in **More** on a phone). **Workspace → General** shows "Setup: 4 of 5 steps done" with **Open the Setup Guide**, for Owners and Admins. In a trial, the Trial Guide still opens first, and the line sits under the trial bar.
+
 ## 2. Describe your first Metric
 
 Go to **Metrics** and choose **New metric**. The easiest start is the Metric Catalog: pick a number you already track, such as "Revenue" or "Customer satisfaction". Ziffr fills in its description, and you check:
@@ -99,7 +121,7 @@ Open the Metric and send in a value yourself on its form link, or wait until its
 
 ## 4. Invite your team
 
-Under **Workspace → Members and Groups**, invite colleagues by email or with a link, and choose their role:
+The Setup Guide's **Team** step (above) does this in one place; later, under **Workspace → Members and Groups**, invite colleagues by email or with a link, and choose their role:
 
 - **Member** for people who build dashboards and describe Metrics,
 - **Guest** for people who only look at what you share with them and send in their numbers,
