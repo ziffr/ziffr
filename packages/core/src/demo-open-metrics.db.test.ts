@@ -9,6 +9,7 @@ import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
 import { db } from "./db";
 import { DemoLimit, DemoReadOnly, DemoSeededWords, DemoShowcase, DemoStale } from "./demo";
 import { DemoTextRefused } from "./demo-visitor-words";
+import { DemoSizeRefused } from "./demo-visitor-limits";
 import { visitingDemo } from "./demo-visiting";
 import { resetDemoWorkspace } from "./demo-reset";
 import { forgetStoredSettings } from "./settings-in-effect";
@@ -27,16 +28,21 @@ import type { Actor } from "./actor";
 const sara: Actor = { personId: "sara", workspaceId: DEMO_WORKSPACE_ID, role: "owner" };
 const ben: Actor = { personId: "ben", workspaceId: DEMO_WORKSPACE_ID, role: "member" };
 const VISIT = "0123456789abcdef0123456789abcdef";
-const saved = { changes: process.env.ZIFFR_DEMO_CHANGES, only: process.env.ZIFFR_DEMO_ONLY };
+const saved = { changes: process.env.ZIFFR_DEMO_CHANGES, only: process.env.ZIFFR_DEMO_ONLY, key: process.env.ZIFFR_DEMO_ADDRESS_KEY, hops: process.env.ZIFFR_PROXY_HOPS };
 const restore = (name: string, value: string | undefined) => { if (value === undefined) delete process.env[name]; else process.env[name] = value; };
-const turnOn = () => { process.env.ZIFFR_DEMO_CHANGES = "1"; process.env.ZIFFR_DEMO_ONLY = "1"; forgetStoredSettings(); };
-afterEach(() => { restore("ZIFFR_DEMO_CHANGES", saved.changes); restore("ZIFFR_DEMO_ONLY", saved.only); forgetStoredSettings(); });
+const turnOn = () => { Object.assign(process.env, { ZIFFR_DEMO_CHANGES: "1", ZIFFR_DEMO_ONLY: "1", ZIFFR_DEMO_ADDRESS_KEY: "k".repeat(40), ZIFFR_PROXY_HOPS: "1" }); forgetStoredSettings(); };
+afterEach(() => { restore("ZIFFR_DEMO_CHANGES", saved.changes); restore("ZIFFR_DEMO_ONLY", saved.only); restore("ZIFFR_DEMO_ADDRESS_KEY", saved.key); restore("ZIFFR_PROXY_HOPS", saved.hops); forgetStoredSettings(); });
+// Each visit comes from an address of its own: the core counts the NEW Tags and rows of a Target Series against the address's share
+// (final review), and this file makes more of them than one address may.
+let nextAddress = 0;
 
 const generation = async () => Number((await db().from("demo_state").select("generation").single()).data?.generation);
 /** Runs work as a visit of the current Generation, with the setting in effect. */
 async function asVisit<T>(work: () => Promise<T>, generationOffset = 0): Promise<T> {
   turnOn();
-  return visitingDemo({ generation: (await generation()) + generationOffset, visit: VISIT }, work);
+  nextAddress += 1;
+  const who = { visitId: VISIT, headers: new Headers({ "x-forwarded-for": `198.${(nextAddress >> 8) & 255}.${nextAddress & 255}.7` }) };
+  return visitingDemo({ generation: (await generation()) + generationOffset, visit: VISIT }, work, who);
 }
 const count = async (table: string, where: Record<string, string | number> = {}) => {
   let q = db().from(table).select("*", { count: "exact", head: true }).eq("workspace_id", DEMO_WORKSPACE_ID);
@@ -349,6 +355,34 @@ describe("the caps", () => {
       const own = (await db().from("groups").select("id", { count: "exact", head: true }).eq("workspace_id", DEMO_WORKSPACE_ID).gt("created_at", (await db().from("demo_state").select("seed_done_at").single()).data!.seed_done_at)).count ?? 0;
       for (let i = own; i < 10; i++) await createGroup(sara, `Cap group ${i}`);
       await expect(createGroup(sara, "One too many")).rejects.toBeInstanceOf(DemoLimit);
+    });
+  });
+});
+
+describe("an address's share counts only what is new", () => {
+  const fixed = async <T>(work: () => Promise<T>): Promise<T> => {
+    turnOn();
+    const who = { visitId: VISIT, headers: new Headers({ "x-forwarded-for": "192.0.2.77" }) };
+    return visitingDemo({ generation: await generation(), visit: VISIT }, work, who);
+  };
+
+  it("lets a Tag that exists, and a period that is set, be put again and again without using the share up", async () => {
+    await fixed(async () => {
+      const { id } = await createMetric(sara, { ...base, name: "Share metric" });
+      // The share of Tags is 5 an address: one word, put 12 times, is one Tag.
+      for (let i = 0; i < 12; i++) await addMetricTags(sara, id, ["share-word"]);
+      // The share of rows is 125 an address: the same period saved 130 times is one row.
+      for (let i = 0; i < 130; i++) await saveSeriesRows(sara, id, "target", [{ period: thisMonth(), value: i }], "");
+    });
+  }, 120_000);
+
+  it("refuses new words past the share, in plain words", async () => {
+    await fixed(async () => {
+      const { id } = await createMetric(sara, { ...base, name: "Share metric two" });
+      await expect(addMetricTags(sara, id, Array.from({ length: 9 }, (_, i) => `fresh-${i}`))).rejects.toBeInstanceOf(DemoSizeRefused);
+      // Refused before anything is written: no Tag of this list exists.
+      const { count } = await db().from("metric_tags").select("metric_id", { count: "exact", head: true }).eq("metric_id", id);
+      expect(count).toBe(0);
     });
   });
 });

@@ -1,7 +1,13 @@
 // What a visitor may put on a deck (GLOSSARY: Demo Mode, Deck; spec 0051, ticket 10), without a database: outside a demo visit
 // a deck is saved as it always was, and in one every record is rebuilt, every word goes through the text rules, and what comes
 // from outside the demo (a picture, a link, an embedded page) is refused, before anything is written.
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
+import { BUILT_IN_DESIGNS } from "./built-in-designs";
+
+// The View Designs the Workspace holds, as the deck's rule reads them (view_designs: id, body).
+const held = vi.hoisted(() => ({ rows: [] as { id: number; body: unknown }[] }));
+vi.mock("./db", () => ({ db: () => ({ rpc: async () => ({ data: 1, error: null }), from: () => ({ select: () => ({ eq: async () => ({ data: held.rows, error: null }) }) }) }) }));
+
 import { runAsVisit } from "./demo-visit-scope";
 import { DECK_TOO_LARGE, visitorDeckDocument, visitorSlideShapes } from "./demo-visitor-deck";
 import { DemoTextRefused } from "./demo-visitor-words";
@@ -34,7 +40,7 @@ describe("outside a demo visit", () => {
     expect(await visitorDeckDocument(real, d, null)).toBe(d);
     await visit(async () => expect(await visitorDeckDocument(real, d, null)).toBe(d));
     const shapes = [{ type: "image" }];
-    expect(visitorSlideShapes(demo, shapes)).toBe(shapes);
+    expect(await visitorSlideShapes(demo, shapes)).toBe(shapes);
   });
 });
 
@@ -120,6 +126,30 @@ describe("in a demo visit", () => {
       const bypass = deck(shape("shape:w1", "ziffr-widget", { template: "line", metricIds: [1], settings: JSON.stringify(settings) }));
       await expect(visit(() => visitorDeckDocument(demo, bypass, null))).rejects.toThrow(DemoTextRefused);
     }
+  });
+
+  it("lets a widget carry only a View Design the Workspace holds, drawn from the Workspace's copy (as a dashboard's is)", async () => {
+    held.rows = [{ id: 7, body: BUILT_IN_DESIGNS.line }];
+    const withDesign = (design: unknown) => deck(shape("shape:w1", "ziffr-widget", { template: "design", metricIds: [1], settings: JSON.stringify({ window: 6, design }) }));
+    // A design of the Workspace passes, and the copy saved is the Workspace's, whatever body the browser sent.
+    const own = { id: 7, body: { ...BUILT_IN_DESIGNS.line, name: "Sent by the browser" } };
+    const out = (await visit(() => visitorDeckDocument(demo, withDesign(own), null))) as Deck;
+    const saved = JSON.parse((out.store["shape:w1"] as { props: { settings: string } }).props.settings);
+    expect(saved.design).toEqual({ id: 7, body: BUILT_IN_DESIGNS.line });
+    // One with words and a link of a visitor's own, with no id or an id the Workspace does not hold, is refused.
+    const words = { ...BUILT_IN_DESIGNS.line, name: "Click www.example.com", parts: [{ mark: "text", content: ["Visit evil.com/login now"] }] };
+    for (const design of [{ id: null, body: words }, { id: 99, body: words }, { id: "7", body: words }, { body: words }, "x", []]) {
+      await expect(visit(() => visitorDeckDocument(demo, withDesign(design), null)), JSON.stringify(design).slice(0, 40)).rejects.toThrow(DemoTextRefused);
+    }
+    // A design on the widget a Free layout starts from is held to the same rule, and a slide layout's shapes too.
+    const seeded = deck(shape("shape:w1", "ziffr-widget", { template: "canvas", metricIds: [], settings: JSON.stringify({ canvasSeed: { template: "design", metric_ids: [], settings: { design: { id: 99, body: words } } } }) }));
+    await expect(visit(() => visitorDeckDocument(demo, seeded, null))).rejects.toThrow(DemoTextRefused);
+    const widget = (design: unknown) => [{ type: "ziffr-widget", props: { template: "design", metricIds: [1], settings: JSON.stringify({ design }) } }];
+    await expect(visit(() => visitorSlideShapes(demo, widget({ id: 99, body: words })))).rejects.toThrow(DemoTextRefused);
+    await expect(visit(() => visitorSlideShapes(demo, widget(own)))).resolves.toHaveLength(1);
+    // A deck with no design in it does not need the database's.
+    held.rows = [];
+    await expect(visit(() => visitorDeckDocument(demo, withDesign(null), null))).resolves.toBeTruthy();
   });
 
   it("refuses a deck over 512 KB, and one with too many records, before anything is written", async () => {

@@ -7,8 +7,8 @@ const rpc = vi.hoisted(() => vi.fn());
 vi.mock("./db", () => ({ db: () => ({ rpc }) }));
 
 import { demoClassOf, demoOperations } from "./demo-changes";
-import { chargeCreation, chargeMoreCreations, mayRecordAutoVersion } from "./demo-creation";
-import { DEMO_CREATES, DEMO_CREATION_EXEMPT, DEMO_ROW_CAPS, demoCreationShare } from "./demo-limits";
+import { chargeCreation, chargeNewRows, demoVersionShares, mayRecordAutoVersion } from "./demo-creation";
+import { DEMO_CREATE_PURPOSE, DEMO_CREATES, DEMO_CREATION_EXEMPT, DEMO_METRIC_LIMITS, DEMO_ROW_CAPS, demoCreationShare } from "./demo-limits";
 import { runAsVisit } from "./demo-visit-scope";
 import { DemoSizeRefused } from "./demo-visitor-limits";
 import { demoShareWords } from "./demo-words";
@@ -70,8 +70,12 @@ describe("the table of creating actions", () => {
 
   it("covers every opened action whose name says it makes something", () => {
     // An opened (not limited) action that makes rows would escape the table by being `open`: a verb of making must be mapped or named here.
-    const MAKES = /:(create|make|add|duplicate|new|request|saveAs|saveTo)/;
-    const NOT_A_NEW_ROW = ["canvas-actions:applyTemplate"]; // fills a widget that exists (a dashboard's widgets are capped per dashboard)
+    const MAKES = /:(create|make|add|duplicate|new|request|saveAs|saveTo|propose|record|reply|decide|answer)/;
+    const NOT_A_NEW_ROW = [
+      "canvas-actions:applyTemplate", // fills a widget that exists (a dashboard's widgets are capped per dashboard)
+      "connector-actions:recordSimulatedTicketClose", // closes a Task that is open: once per Task, and the Task already exists
+      "actions:decideCorrection", // decides a Correction that exists; the value it writes is the values' cap's (a trigger)
+    ];
     for (const operation of demoOperations()) {
       if (demoClassOf(operation)?.class !== "open" || !MAKES.test(operation)) continue;
       expect(operation in DEMO_CREATES || NOT_A_NEW_ROW.includes(operation), `${operation} makes rows but has no share`).toBe(true);
@@ -110,25 +114,89 @@ describe("chargeCreation", () => {
   });
 });
 
-describe("an action that makes many rows in one call", () => {
-  it("counts the rows beyond the first by the real number, before the work, and refuses a list past the share", async () => {
-    await visit(() => chargeMoreCreations(demo, who, "tag-actions:addTags", 4, SECRET));
-    expect(bumps().map((b) => b.p_by)).toEqual([3, 3]);
-    // One row (already counted by chargeCreation) and an unmapped action cost nothing more.
-    await visit(() => chargeMoreCreations(demo, who, "tag-actions:addTags", 1, SECRET));
-    await visit(() => chargeMoreCreations(demo, who, "canvas-actions:updateWidget", 50, SECRET));
-    expect(bumps().length).toBe(2);
-    // A list larger than the address's share (5 Tags, 125 rows of a Target Series) is refused.
-    counts.push(demoCreationShare(DEMO_ROW_CAPS.tags).address + 1);
-    await expect(visit(() => chargeMoreCreations(demo, who, "tag-actions:addTags", 20, SECRET))).rejects.toThrow(DemoSizeRefused);
-    counts.push(demoCreationShare(DEMO_ROW_CAPS.series_rows).address + 1);
-    await expect(visit(() => chargeMoreCreations(demo, who, "series-actions:saveSeriesRows", 126, SECRET))).rejects.toThrow(DemoSizeRefused);
+describe("the actions that were open and make a message or a share", () => {
+  it("are limited and counted by the kind they make", () => {
+    expect(DEMO_CREATES["workflow-actions:proposeValueCorrection"]).toBe("thread_messages");
+    expect(DEMO_CREATES["connector-actions:recordSimulatedReply"]).toBe("thread_messages");
+    expect(DEMO_CREATES["access-actions:decideAccess"]).toBe("shares");
   });
 
-  it("is asked by every action that takes a list of what it makes (a scan of the two web actions)", () => {
-    for (const [file, op] of [["tag-actions.ts", "tag-actions:addTags"], ["series-actions.ts", "series-actions:saveSeriesRows"]]) {
-      expect(readFileSync(new URL(`../../../apps/web/src/app/${file}`, import.meta.url), "utf8"), file).toContain(`chargeMoreCreations(actor, who, "${op}"`);
-    }
+  it("charge before the write, one count of the kind for the address and the network", async () => {
+    await visit(() => chargeCreation(demo, who, "workflow-actions:proposeValueCorrection", SECRET));
+    expect(bumps().map((b) => b.p_by)).toEqual([1, 1]);
+    counts.push(demoCreationShare(DEMO_ROW_CAPS.thread_messages).address + 1);
+    await expect(visit(() => chargeCreation(demo, who, "connector-actions:recordSimulatedReply", SECRET))).rejects.toThrow(demoShareWords("thread_messages"));
+    counts.length = 0;
+    counts.push(demoCreationShare(DEMO_ROW_CAPS.shares).address + 1);
+    await expect(visit(() => chargeCreation(demo, who, "access-actions:decideAccess", SECRET))).rejects.toThrow(demoShareWords("shares"));
+  });
+});
+
+describe("a Version the visitor names", () => {
+  it("has a share of its own, so automatic Versions cannot use it up", async () => {
+    expect(DEMO_CREATE_PURPOSE["version-actions:saveNamedVersion"]).toBe("named-versions");
+    await visit(() => chargeCreation(demo, who, "version-actions:saveNamedVersion", SECRET));
+    const named = bumps().map((b) => b.p_key);
+    rpc.mockClear();
+    vi.stubEnv("ZIFFR_DEMO_ADDRESS_KEY", SECRET);
+    await visit(() => mayRecordAutoVersion(demo));
+    const auto = bumps().map((b) => b.p_key);
+    // The address's and the network's counts of named and automatic Versions are under different keys.
+    expect(auto.slice(0, 2).some((k) => named.includes(k))).toBe(false);
+  });
+});
+
+describe("the shares of the Versions together", () => {
+  it("keep a network at half the cap for both kinds, and leave the demo's named ones the third the automatic ones do not use", () => {
+    const s = demoVersionShares(DEMO_ROW_CAPS.versions);
+    expect(s.network * 2).toBeLessThanOrEqual(demoCreationShare(DEMO_ROW_CAPS.versions).network);
+    expect(s.autoDemo + s.namedDemo).toBe(DEMO_ROW_CAPS.versions);
+    expect(s.namedDemo).toBe(50);
+  });
+
+  it("refuses a named Version past the network's quarter and past the demo's third, with a count of the whole demo", async () => {
+    const s = demoVersionShares(DEMO_ROW_CAPS.versions);
+    await visit(() => chargeCreation(demo, who, "version-actions:saveNamedVersion", SECRET));
+    expect(bumps().length).toBe(3);
+    counts.length = 0;
+    counts.push(1, s.network + 1);
+    await expect(visit(() => chargeCreation(demo, who, "version-actions:saveNamedVersion", SECRET))).rejects.toThrow(DemoSizeRefused);
+    counts.length = 0;
+    counts.push(1, 1, s.namedDemo + 1);
+    await expect(visit(() => chargeCreation(demo, who, "version-actions:saveNamedVersion", SECRET))).rejects.toThrow(DemoSizeRefused);
+  });
+});
+
+describe("rows the core counts itself (new Tags, new rows of a Target Series)", () => {
+  it("counts the number of NEW rows in one step, before the write; none costs nothing", async () => {
+    await visit(() => chargeNewRows(demo, "tags", 3, SECRET));
+    expect(bumps().map((b) => b.p_by)).toEqual([3, 3]);
+    rpc.mockClear();
+    await visit(() => chargeNewRows(demo, "tags", 0, SECRET));
+    await chargeNewRows(demo, "series_rows", 5, SECRET);
+    expect(bumps()).toEqual([]);
+  });
+
+  it("never counts more than a call may hold (60 rows), so a huge number is one count, not a long loop", async () => {
+    await visit(() => chargeNewRows(demo, "series_rows", 100_000, SECRET));
+    expect(bumps().map((b) => b.p_by)).toEqual([DEMO_METRIC_LIMITS.seriesRowsPerCall, DEMO_METRIC_LIMITS.seriesRowsPerCall]);
+    expect(bumps().length).toBe(2);
+  });
+
+  it("refuses past the share, in the words of the kind", async () => {
+    counts.push(demoCreationShare(DEMO_ROW_CAPS.tags).address + 1);
+    await expect(visit(() => chargeNewRows(demo, "tags", 6, SECRET))).rejects.toThrow(DemoSizeRefused);
+    counts.push(demoCreationShare(DEMO_ROW_CAPS.series_rows).address + 1);
+    await expect(visit(() => chargeNewRows(demo, "series_rows", 60, SECRET))).rejects.toThrow(demoShareWords("series_rows"));
+  });
+
+  it("is asked by the core where Tags and rows of a Target Series are made, once the words and rows are limited (a scan)", () => {
+    const tags = readFileSync(new URL("tags.ts", import.meta.url), "utf8");
+    expect(tags).toMatch(/chargeNewRows\(actor, "tags"/);
+    const metrics = readFileSync(new URL("metrics.ts", import.meta.url), "utf8");
+    expect(metrics).toMatch(/chargeNewRows\(actor, "series_rows"/);
+    // The web actions do not count them again.
+    for (const file of ["tag-actions.ts", "series-actions.ts"]) expect(readFileSync(new URL(`../../../apps/web/src/app/${file}`, import.meta.url), "utf8")).not.toContain("chargeMoreCreations");
   });
 });
 

@@ -111,7 +111,13 @@ export function demoCreationShare(cap: number): { address: number; network: numb
 /** The kinds of `DEMO_ROW_CAPS` that have no creation share of this kind, and why: values, Snapshots and runs have shares of their
  * own (demo-budget.ts, demo-shares.ts), Workflows are never made by a visitor, and a dashboard's widgets are capped per dashboard
  * (one dashboard full locks nobody else out). */
-export const DEMO_CREATION_EXEMPT: readonly string[] = ["values", "snapshots", "workflows", "workflow_run", "widgets_per_dashboard"];
+export const DEMO_CREATION_EXEMPT: readonly string[] = ["values", "snapshots", "workflows", "workflow_run", "widgets_per_dashboard", "tags", "series_rows"];
+// tags and series_rows: the core counts the NEW Tags and the NEW rows of a Target Series itself (`chargeNewRows`, demo-creation.ts), so a
+// word that exists or a period already set never uses up the share, and every way of making a Tag (a Metric from a catalog entry too) is counted.
+
+/** Creations that are counted under a purpose of their own instead of the kind's: a Version the visitor names has its own share, so
+ * the automatic ones (which share the kind's cap) cannot use up the visitor's right to name one. */
+export const DEMO_CREATE_PURPOSE: Readonly<Record<string, string>> = { "version-actions:saveNamedVersion": "named-versions" };
 
 /** Which capped kind each server action that makes rows of it counts against (spec 0051, final review D2): the single table the
  * visitor's wrapper reads. Keys are the actions' keys in demo-changes.ts; a test fails for a `limited` action that is in neither
@@ -133,6 +139,9 @@ export const DEMO_CREATES: Readonly<Record<string, keyof typeof DEMO_ROW_CAPS>> 
   "theme-actions:addStandardTheme": "themes",
   "theme-actions:duplicateTheme": "themes",
   "version-actions:saveNamedVersion": "versions",
+  "workflow-actions:proposeValueCorrection": "thread_messages",
+  "connector-actions:recordSimulatedReply": "thread_messages",
+  "access-actions:decideAccess": "shares",
   "access-actions:requestAccess": "access_requests",
   "actions:createAction": "open_actions",
   "canvas-actions:assignInPlace": "open_actions",
@@ -142,8 +151,6 @@ export const DEMO_CREATES: Readonly<Record<string, keyof typeof DEMO_ROW_CAPS>> 
   "canvas-actions:markTaskDone": "thread_messages",
   "canvas-actions:setShare": "shares",
   "canvas-actions:setGroupShare": "shares",
-  "series-actions:saveSeriesRows": "series_rows",
-  "tag-actions:addTags": "tags",
   "team-actions:createGroup": "groups",
   "team-actions:setMember": "group_members",
 };

@@ -10,6 +10,8 @@ import { demoTextOk } from "./demo-text";
 import { DEMO_DECK_STORE_MAX_BYTES } from "./demo-limits";
 import { chargeVisitorBytes, visitorSize } from "./demo-visitor-limits";
 import { DEMO_TEXT_WORDS } from "./demo-words";
+import { db } from "./db";
+import { checkedDesignSetting } from "./widget-designs";
 import type { Actor } from "./actor";
 import type { WidgetSettings } from "./types";
 
@@ -85,7 +87,8 @@ function widgetSettings(actor: Pick<Actor, "workspaceId">, text: string): string
   let parsed: unknown;
   try { parsed = JSON.parse(text || "{}"); } catch { throw notKept(); }
   if (!isObj(parsed)) throw notKept();
-  const clean = visitorSettings(actor, parsed as WidgetSettings);
+  const clean = visitorSettings(actor, parsed as WidgetSettings) as Obj;
+  heldDesignOnly(clean);
   const out = JSON.stringify(clean);
   visitorSize(actor, out, 8 * 1024, "That widget is too large for the demo.");
   return out;
@@ -128,17 +131,53 @@ function value(actor: Pick<Actor, "workspaceId">, v: unknown, key: string, depth
   throw notKept();
 }
 
+/** What a design the Workspace does not hold is refused with. */
+const DESIGN_NOT_HELD = "That View Design is not one of this Workspace's. Pick one from the list.";
+/** The View Designs the Workspace holds, by id, as the synchronous walk below reads them. Set just before the walk and cleared right
+ * after it (`withDesigns`); the walk has no await, so nothing else runs in between. */
+let heldDesigns: Map<number, unknown> | null = null;
+
+/** Runs a synchronous walk over a deck's records with the Workspace's View Designs at hand. They are read only when the text holds
+ * the word "design" at all, as a deck saves itself after each change. */
+async function withDesigns<T>(actor: Pick<Actor, "workspaceId">, subject: unknown, walk: () => T): Promise<T> {
+  let held: Map<number, unknown> | null = null;
+  if (JSON.stringify(subject ?? null).includes("design")) {
+    const { data, error } = await db().from("view_designs").select("id, body").eq("workspace_id", actor.workspaceId);
+    if (error) throw notKept();
+    held = new Map((data ?? []).map((r) => [Number(r.id), r.body]));
+  }
+  heldDesigns = held;
+  try { return walk(); } finally { heldDesigns = null; }
+}
+
+/** A widget's `design` in a visit, by the rule a dashboard's has (`allowedDesign`, view-designs.ts): only a View Design the Workspace
+ * holds, drawn from the Workspace's own copy by its id, so a visitor's own words or links in a design never reach a deck. Applies to
+ * the Free layout's seed too. Changes `s` in place. */
+function heldDesignOnly(s: Obj): void {
+  if (s.design !== undefined && s.design !== null) {
+    const id = isObj(s.design) ? s.design.id : null;
+    const body = typeof id === "number" ? heldDesigns?.get(id) : undefined;
+    if (body === undefined) throw new DemoTextRefused(DESIGN_NOT_HELD);
+    s.design = checkedDesignSetting({ id, body });
+  }
+  if (isObj(s.canvasSeed) && isObj(s.canvasSeed.settings)) {
+    const inner: Obj = { ...s.canvasSeed.settings };
+    heldDesignOnly(inner);
+    s.canvasSeed = { ...s.canvasSeed, settings: inner };
+  }
+}
+
 /** The words of the shapes of one slide (a slide layout's shapes come from the editor, as a deck's records do): in a demo
  * visit each shape is rebuilt as a deck's are. Unchanged elsewhere. */
-export function visitorSlideShapes<T>(actor: Pick<Actor, "workspaceId">, shapes: T): T {
+export async function visitorSlideShapes<T>(actor: Pick<Actor, "workspaceId">, shapes: T): Promise<T> {
   if (!inDemoVisit(actor)) return shapes;
   if (!Array.isArray(shapes) || shapes.length > 80) throw notKept();
-  return shapes.map((sh) => {
+  return withDesigns(actor, shapes, () => shapes.map((sh) => {
     if (!isObj(sh) || typeof sh.type !== "string") throw notKept();
     if (OUTSIDE_SHAPES.includes(sh.type)) throw new DemoTextRefused(PICTURES);
     if (!SHAPES.includes(sh.type)) throw notKept();
     return value(actor, sh, "shape", 0);
-  }) as T;
+  }) as T);
 }
 
 /** The editor's schema: version numbers by the names of what they version ("com.tldraw.shape.geo": 3), shown nowhere. Kept
@@ -163,7 +202,7 @@ export async function visitorDeckDocument(actor: Pick<Actor, "workspaceId">, doc
   // The shapes a deck draws are bounded as its size is: widgets (each computes its numbers when shown), and shapes on a slide.
   let widgets = 0;
   const perParent = new Map<string, number>();
-  for (const [id, r] of records) {
+  await withDesigns(actor, document.store, () => { for (const [id, r] of records) {
     if (!isObj(r) || r.id !== id || typeof r.typeName !== "string") throw notKept();
     if (r.typeName === "asset") throw new DemoTextRefused(PICTURES);
     if (!RECORDS.includes(r.typeName)) throw notKept();
@@ -177,7 +216,7 @@ export async function visitorDeckDocument(actor: Pick<Actor, "workspaceId">, doc
       if ((perParent.get(parent) ?? 0) > MAX_SHAPES_PER_SLIDE) throw new DemoTextRefused(DECK_TOO_LARGE);
     }
     store[id] = value(actor, r, "record", 0);
-  }
+  } });
   const clean = { store, ...(document.schema === undefined ? {} : { schema: schemaOf(document.schema) }) };
   const bytes = visitorSize(actor, clean, DEMO_DECK_STORE_MAX_BYTES, DECK_TOO_LARGE);
   const had = new TextEncoder().encode(JSON.stringify(before ?? null)).length;

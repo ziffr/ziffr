@@ -7,6 +7,7 @@ import { db } from "./db";
 import { chargeCreation } from "./demo-creation";
 import { DEMO_ROW_CAPS, demoCreationShare } from "./demo-limits";
 import { resetDemoWorkspace } from "./demo-reset";
+import { bumpDemoVisitCount, clearDemoVisitCounts, demoVisitCount, resetWindowStart, visitKey } from "./demo-visit";
 import { runAsVisit } from "./demo-visit-scope";
 import { DemoSizeRefused } from "./demo-visitor-limits";
 import { submissionForm } from "./page-data";
@@ -34,6 +35,21 @@ describe("an address's share of a kind", () => {
     await asVisit(() => chargeCreation(demo, from("198.51.100.4"), "home-actions:newDashboard", SECRET));
     await asVisit(() => chargeCreation(demo, from("203.0.113.9"), "deck-actions:createDeck", SECRET));
   });
+});
+
+describe("a Demo Reset", () => {
+  it("empties the visit counts, so a new window starts at zero", async () => {
+    const window = resetWindowStart(new Date());
+    const key = visitKey("fedcba9876543210fedcba9876543210");
+    expect(await bumpDemoVisitCount(demo, "visit", key, window, 5)).toBeGreaterThanOrEqual(5);
+    // demo_reset refuses within a minute of the Workspace's creation (not of demo_state.reset_at: backdating that changed nothing, and the
+    // reset returned false), so the step a Demo Reset makes is run itself; demo-reset.test.ts checks that every reset calls it.
+    await expect(asVisit(() => chargeCreation(demo, from("203.0.113.9"), "home-actions:newDashboard", SECRET))).rejects.toThrow(DemoSizeRefused);
+    await clearDemoVisitCounts();
+    expect(await demoVisitCount(demo, "visit", key, window)).toBe(0);
+    // The shares of an address are counts too: this address was filled to its share by the first test and is refused until the reset.
+    await asVisit(() => chargeCreation(demo, from("203.0.113.9"), "home-actions:newDashboard", SECRET));
+  }, 180_000);
 });
 
 describe("a form link of the demo", () => {
