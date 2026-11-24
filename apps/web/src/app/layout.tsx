@@ -87,6 +87,8 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
   const person = user ? await personFor(user) : null;
   const workspaces = person ? await myWorkspaces(person) : [];
   if (!demo && !workspaces.length) {
+    // Signed in without a Workspace yet: the Installation's lines still show (the same read as the shell, nothing of a person).
+    const lines = user ? fromInstallation(await activeInstallationAnnouncements({ demo: false })) : [];
     return (
       <html lang="en" data-appearance={await browserAppearance()}>
         <head>
@@ -99,6 +101,7 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
             <span className="text-lg font-semibold tracking-[-0.03em]">Ziffr</span>
             <GuideLink href={guideHref()} className="text-sm text-muted-foreground underline-offset-4 hover:text-foreground hover:underline">User guide</GuideLink>
           </header>
+          {lines.length > 0 && <AnnouncementLine items={shellOrder([], lines, false)} scope={await announcementScope(false)} />}
           <main className="mx-auto max-w-7xl px-4 py-8 sm:px-6">{children}</main>
           <LegalFooter />
           <Toaster />

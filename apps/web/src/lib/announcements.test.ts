@@ -4,7 +4,7 @@ import { DEMO_RESET_MINUTES } from "@ziffr/core/demo-reset-line";
 
 vi.mock("next/headers", () => ({ cookies: async () => ({ get: () => undefined }) }));
 vi.mock("@/lib/session-start", () => ({ sessionStartedAt: async () => null }));
-import { announcementsFor, DEMO_RESET_ANNOUNCEMENT, fromInstallation, fromPublic } from "./announcements";
+import { announcementsFor, DEMO_RESET_ANNOUNCEMENT, fromInstallation, fromPublic, signInAnnouncements } from "./announcements";
 
 describe("announcementsFor", () => {
   it("says nothing outside the demo", () => {
@@ -42,5 +42,19 @@ describe("fromInstallation and fromPublic", () => {
     expect(one.link).toEqual({ href: "https://status.example.org/", label: "Status" });
     expect(Object.keys(one).sort()).toEqual(["dismissible", "id", "level", "link", "text"]);
     expect(one.dismissible).toBe(false);
+  });
+});
+
+describe("signInAnnouncements", () => {
+  const rows = [{ text: "Down", level: "info" as const }];
+  it("shows the public lines, and reads them only when it needs them", async () => {
+    const load = vi.fn(async () => rows);
+    expect((await signInAnnouncements(false, load)).map((a) => a.text)).toEqual(["Down"]);
+    expect(load).toHaveBeenCalledOnce();
+  });
+  it("adds nothing for a demo visitor, whose shell shows the same lines already", async () => {
+    const load = vi.fn(async () => rows);
+    expect(await signInAnnouncements(true, load)).toEqual([]);
+    expect(load).not.toHaveBeenCalled();
   });
 });

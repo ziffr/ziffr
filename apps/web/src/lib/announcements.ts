@@ -37,3 +37,9 @@ export async function announcementScope(demo: boolean): Promise<string> {
   const source = demo ? ((await cookies()).get(DEMO_VISIT_COOKIE)?.value ?? "demo") : String((await sessionStartedAt())?.getTime() ?? "session");
   return createHash("sha256").update(source).digest("hex").slice(0, 12);
 }
+
+/** What the sign-in page adds of its own: the public lines, read only when nobody is in the demo. A demo visitor on the sign-in
+ * page already has the shell, which shows the same lines (the Installation's, for everyone), so adding them again would show each twice. */
+export async function signInAnnouncements(demo: boolean, load: () => Promise<PublicAnnouncement[]>): Promise<Announcement[]> {
+  return demo ? [] : fromPublic(await load());
+}
