@@ -8,7 +8,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { sampleCanvasData } from "@ziffr/core/sample-data";
 import { entryOf, type EntryId } from "@ziffr/core/method-picker";
 import { runEntry, type PickWorld, type Picked } from "@ziffr/core/method-picker-run";
-import type { BarsChart, EffectsChart, GridChart, LinesChart, ResultChart } from "@ziffr/core/result-chart";
+import type { BarsChart, EffectsChart, ForecastChart, GridChart, LinesChart, ResultChart } from "@ziffr/core/result-chart";
 import { ResultCharts } from "./index";
 
 // Charts measure their box in a browser; here every chart gets the same fixed size.
