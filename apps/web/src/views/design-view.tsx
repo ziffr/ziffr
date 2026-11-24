@@ -14,7 +14,7 @@ import { TakeawayView } from "@/components/takeaway-view";
 import { resolverFrom } from "@ziffr/core/compare";
 import { dayAfter, heldText, isPartial, pointName, shownSeries, type DisplayPoint } from "@ziffr/core/display-periods";
 import { periodLabel } from "@ziffr/core/periods";
-import { fillText } from "@ziffr/core/placeholders";
+import { fillWidgetText } from "@ziffr/core/placeholders";
 import type { Flag, Part, Piece, TextShow, TextStyle, ViewDesign } from "@ziffr/core/view-design";
 import type { CanvasData, Metric, Widget } from "@ziffr/core/types";
 import { bestForecast, forecastTooWide, NO_FORECAST_WIDE, withTakeawayBand } from "@ziffr/core/methods/forecast-choice";
@@ -61,6 +61,8 @@ export type DesignValues = ReturnType<typeof designValues> & {
   roomy: boolean;
   /** The Takeaway words are not drawn under the chart: a card hides them, or opens them from its ⋯ menu. */
   behind: boolean;
+  /** The widget's own Metric ids in slot order, so a Placeholder in a text follows the slot even if a Metric is not in `metrics`. */
+  widgetIds?: number[];
 };
 
 /** The numbers and words a design draws for a widget, each from the core's functions. */
@@ -167,7 +169,7 @@ export function DesignView({ design, widget, metrics, data, onPointContext }: Pr
     const page = budget ?? newRecipeBudget();
     return chargedOnce(page, `correlation:${key}:${basis}`, () => correlationWork(design, metrics, data, basis, page));
   }, [design, metrics, data, basis, budget, key]);
-  const v: DesignValues = { ...designValues(design, widget, metrics, data, basis, recipe, work), figures: drawn.figures, setBasis, roomy, behind: host !== null };
+  const v: DesignValues = { ...designValues(design, widget, metrics, data, basis, recipe, work), figures: drawn.figures, setBasis, roomy, behind: host !== null, widgetIds: widget.metric_ids };
   const { m } = v;
   // The page has spent its share of work on recipes: the words say so and no number is shown.
   if (drawn.refusal) return <Empty>{drawn.refusal}</Empty>;
@@ -324,17 +326,20 @@ const STYLE: Record<TextStyle, string> = {
 
 const ROOMY_VALUE = "text-[length:clamp(calc(var(--text-xl)*var(--widget-scale,1)),6cqw,calc(var(--text-xl)*var(--widget-scale,1)*2.2))]";
 
+/** A design's words with their Placeholders filled in, by the widget's Metric slots (a Metric the viewer may not see is empty). */
+const say = (text: string | undefined, v: DesignValues) => fillWidgetText(text, { metric_ids: v.widgetIds ?? v.metrics.map((m) => m.id), settings: v.settings }, v.data);
+
 function TextView({ style, pieces, v }: { style?: TextStyle; pieces: Piece[]; v: DesignValues }) {
   // Words are React text: markup in them is shown as the characters it is made of, never run.
   const body = pieces.map((p, i) => {
-    if (typeof p === "string") return <span key={i}>{fillText(p, v.metrics, v.data)}</span>;
+    if (typeof p === "string") return <span key={i}>{say(p, v)}</span>;
     const value = textValue(p.show, v);
     if (value === null || value === "") return null;
     return (
       <span key={i}>
-        {fillText(p.before, v.metrics, v.data)}
+        {say(p.before, v)}
         {p.style === "strong" ? <span className="font-medium text-foreground">{value}</span> : value}
-        {fillText(p.after, v.metrics, v.data)}
+        {say(p.after, v)}
       </span>
     );
   });
