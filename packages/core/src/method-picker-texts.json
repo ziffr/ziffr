@@ -82,7 +82,7 @@
   "Multiple fit (What moves B?)": {
     "use": "Several Metrics may move B together and you want to know which matter most and by how much, with the others taken into account.",
     "dont": [
-      "The history is short: a fit with k drivers needs 8 + 4k periods and at most one driver per 6 periods (and 6): Ziffr refuses and says how many it has and needs.",
+      "The history is short: it needs at least 8 periods plus 4 more for every Metric that might move B (with 3 such Metrics, 20 periods), and no more than one such Metric for every 6 periods, up to 6. Ziffr refuses and says how many periods it has and needs.",
       "Metrics of different periods are all compared by the longest period among them, the others combined by their Aggregation; the Takeaway says which were combined. Where a value is missing and the fit compares changes, it names the months with no value (up to four, then how many more) and says the changes into and out of them were left out.",
       "A Metric has Aggregation none beside another period, or one is calculated from another: a refusal naming them."
     ]

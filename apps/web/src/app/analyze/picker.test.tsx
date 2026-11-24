@@ -136,7 +136,7 @@ describe("Choose a method", () => {
     const result = host.querySelector("main section")!;
     expect(result.textContent).toContain("At this pace Revenue reaches 150 € in March: about 7 in 10.");
     expect(result.textContent).toContain("This carries the past forward; it is not a promise.");
-    expect(result.textContent).toContain("This Method is not an Analysis Recipe yet");
+    expect(result.textContent).not.toContain("Analysis Recipe");
     const save = [...result.querySelectorAll<HTMLButtonElement>("[id^=result-] button")].find((b) => b.textContent?.includes("Save as widget"))!;
     window.prompt = vi.fn(() => "My forecast");
     await act(async () => { save.click(); });
@@ -154,7 +154,7 @@ describe("Choose a method", () => {
     await act(async () => { host.querySelector("form")!.requestSubmit(); });
     const result = host.querySelector("main section")!;
     expect(result.textContent).toContain("Not enough months yet: 4 of 6 needed.");
-    expect(result.textContent).toContain("This result cannot be saved as a widget yet.");
+    expect(result.textContent).toContain("You can\u2019t save this one as a widget yet.");
     expect([...result.querySelectorAll("[id^=result-] button")].map((b) => b.textContent)).toEqual([" Download as Analysis Recipe"]);
     expect(result.textContent).toContain("An Owner or Admin can add it to the Workspace from the Playground");
   });

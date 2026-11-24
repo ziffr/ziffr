@@ -47,10 +47,9 @@ function ResultActions({ item, pending, save }: { item: ResultItem; pending: boo
           <button type="button" onClick={() => download(`${entry.id}.analysis.json`, `${JSON.stringify(done.recipe, null, 2)}\n`)} className="stock flex min-h-9 items-center gap-1.5 rounded-[var(--radius-stock)] px-3 text-sm text-foreground"><FileDown className="size-3.5" /> Download as Analysis Recipe</button>
         )}
       </div>
-      {!done.widget && <p>This result cannot be saved as a widget yet.</p>}
-      {done.recipe
-        ? <p>The Analysis Recipe is this Method with its Slots left open. An Owner or Admin can add it to the Workspace from the Playground, and export it in a Pack under Settings.</p>
-        : <p>This Method is not an Analysis Recipe yet, so it has no file to take away.</p>}
+      {!done.widget && <p>You can&rsquo;t save this one as a widget yet.</p>}
+      {/* The file is only spoken of where there is one to take. */}
+      {done.recipe && <p>The Analysis Recipe is this Method with its Slots left open. An Owner or Admin can add it to the Workspace from the Playground, and export it in a Pack under Settings.</p>}
     </div>
   );
 }
