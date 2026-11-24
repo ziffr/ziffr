@@ -86,7 +86,8 @@ export function AskForm({ entry, title, canvas, answers, onChange, onRun, pendin
       className="mt-3 space-y-3 border-t border-[var(--color-rule-2)] pt-3"
       onSubmit={(ev) => { ev.preventDefault(); onRun(); }}
     >
-      <h4 className="text-sm font-medium">{title}</h4>
+      {/* The card above already names the question; the title is repeated only when the chosen Metrics have changed it. */}
+      {title !== entry.name && <h4 className="text-sm font-medium">{title}</h4>}
       <div className="grid gap-3 sm:grid-cols-2">
         {entry.slots.map((s) => (
           <SlotQuestion key={s.id} slot={s} canvas={s.many ? canvas.filter((m) => !Object.entries(answers.slots).some(([k, v]) => k !== s.id && v.includes(m.id))) : canvas} chosen={answers.slots[s.id] ?? []} onChange={(ids) => onChange(chooseFor(answers, s.id, ids))} />
