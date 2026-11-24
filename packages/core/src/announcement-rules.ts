@@ -2,7 +2,7 @@
 // audience may be, and the order several are shown in. Everything from a browser is checked here again on the server;
 // the text is plain words, never markup, and reaches every visitor's browser, so nothing private belongs in it.
 
-import { Refused } from "./actor";
+import { Forbidden, Refused } from "./actor";
 
 /** The longest text of an Announcement, in characters. */
 export const ANNOUNCEMENT_TEXT_MAX = 280;
@@ -12,6 +12,8 @@ export const ANNOUNCEMENT_LABEL_MAX = 40;
 export const ANNOUNCEMENT_URL_MAX = 500;
 /** The most Announcements an Installation may have switched on and not yet ended. */
 export const INSTALLATION_ANNOUNCEMENTS_ACTIVE_MAX = 20;
+/** The most Announcements one Workspace may have switched on and not yet ended. */
+export const WORKSPACE_ANNOUNCEMENTS_ACTIVE_MAX = 10;
 
 /** How urgent an Announcement is: a warning is shown before an info. */
 export const ANNOUNCEMENT_LEVELS = ["info", "warning"] as const;
@@ -22,8 +24,8 @@ export const ANNOUNCEMENT_AUDIENCES = ["everyone", "demo"] as const;
 /** One audience of an Installation Announcement. */
 export type AnnouncementAudience = (typeof ANNOUNCEMENT_AUDIENCES)[number];
 
-/** What an Installation Admin enters for an Announcement, as it is stored. */
-export type AnnouncementFields = {
+/** What a Workspace Admin enters for a Workspace Announcement, as it is stored: no audience and no sign-in page. */
+export type WorkspaceAnnouncementFields = {
   text: string;
   link: { href: string; label: string } | null;
   level: AnnouncementLevel;
@@ -31,6 +33,10 @@ export type AnnouncementFields = {
   endsAt: string | null;
   active: boolean;
   dismissible: boolean;
+};
+
+/** What an Installation Admin enters for an Announcement, as it is stored. */
+export type AnnouncementFields = WorkspaceAnnouncementFields & {
   audience: AnnouncementAudience;
   public: boolean;
 };
@@ -96,15 +102,13 @@ function instant(raw: unknown, what: string): string | null {
   return t.toISOString();
 }
 
-/** Every field of an Installation Announcement checked, from what a browser sent. Throws a sentence for the person. */
-export function installationAnnouncementFields(input: unknown): AnnouncementFields {
+/** The fields both kinds of Announcement share, checked, from what a browser sent. Throws a sentence for the person. */
+export function workspaceAnnouncementFields(input: unknown): WorkspaceAnnouncementFields {
   if (!input || typeof input !== "object") throw new Refused("Write the words of the Announcement.");
   const i = input as Record<string, unknown>;
   const level = i.level === undefined ? "info" : i.level;
   if (!ANNOUNCEMENT_LEVELS.includes(level as AnnouncementLevel)) throw new Refused("The level is info or warning.");
-  const audience = i.audience === undefined ? "everyone" : i.audience;
-  if (!ANNOUNCEMENT_AUDIENCES.includes(audience as AnnouncementAudience)) throw new Refused("The audience is everyone or the demo.");
-  for (const flag of ["active", "dismissible", "public"] as const) if (i[flag] !== undefined && typeof i[flag] !== "boolean") throw new Refused("A switch is on or off.");
+  for (const flag of ["active", "dismissible"] as const) if (i[flag] !== undefined && typeof i[flag] !== "boolean") throw new Refused("A switch is on or off.");
   if (i.link !== undefined && i.link !== null && typeof i.link !== "object") throw new Refused(BAD_LINK);
   const link = (i.link ?? {}) as Record<string, unknown>;
   const hasHref = link.href !== undefined && link.href !== null && link.href !== "";
@@ -113,7 +117,6 @@ export function installationAnnouncementFields(input: unknown): AnnouncementFiel
   const startsAt = instant(i.startsAt, "start");
   const endsAt = instant(i.endsAt, "end");
   if (startsAt && endsAt && new Date(endsAt) <= new Date(startsAt)) throw new Refused("The end must be after the start.");
-  if (i.public === true && audience !== "everyone") throw new Refused("Only an Announcement for everyone can be shown on the sign-in page.");
   return {
     text: announcementText(i.text),
     link: hasHref ? { href: announcementHref(link.href), label: announcementLabel(link.label) } : null,
@@ -121,9 +124,18 @@ export function installationAnnouncementFields(input: unknown): AnnouncementFiel
     startsAt, endsAt,
     active: i.active !== false,
     dismissible: i.dismissible !== false,
-    audience: audience as AnnouncementAudience,
-    public: i.public === true,
   };
+}
+
+/** Every field of an Installation Announcement checked, from what a browser sent. Throws a sentence for the person. */
+export function installationAnnouncementFields(input: unknown): AnnouncementFields {
+  const common = workspaceAnnouncementFields(input);
+  const i = input as Record<string, unknown>;
+  const audience = i.audience === undefined ? "everyone" : i.audience;
+  if (!ANNOUNCEMENT_AUDIENCES.includes(audience as AnnouncementAudience)) throw new Refused("The audience is everyone or the demo.");
+  if (i.public !== undefined && typeof i.public !== "boolean") throw new Refused("A switch is on or off.");
+  if (i.public === true && audience !== "everyone") throw new Refused("Only an Announcement for everyone can be shown on the sign-in page.");
+  return { ...common, audience: audience as AnnouncementAudience, public: i.public === true };
 }
 
 /** Where an Announcement stands at `now`: switched off, not started, running or over. */
@@ -140,4 +152,12 @@ export function orderAnnouncements<T extends { level: string; startsAt: string |
     Number(b.level === "warning") - Number(a.level === "warning")
     || (a.startsAt ?? "").localeCompare(b.startsAt ?? "")
     || a.createdAt.localeCompare(b.createdAt));
+}
+
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/** An Announcement's id from a browser, checked for its shape so nothing else reaches a query. Throws as if it did not exist. */
+export function announcementId(id: unknown): string {
+  if (typeof id !== "string" || !UUID.test(id)) throw new Forbidden("That Announcement does not exist.");
+  return id.toLowerCase();
 }

@@ -2,7 +2,7 @@
 import { describe, expect, it } from "vitest";
 import { Refused } from "./actor";
 import {
-  announcementHref, announcementState, announcementText, installationAnnouncementFields, orderAnnouncements, plainLine,
+  announcementHref, announcementId, announcementState, announcementText, installationAnnouncementFields, orderAnnouncements, plainLine, workspaceAnnouncementFields,
 } from "./announcement-rules";
 
 describe("the text", () => {
@@ -97,5 +97,18 @@ describe("hidden characters", () => {
   });
   it("keeps emoji whole", () => {
     expect(plainLine("Up \u{1F600}")).toBe("Up \u{1F600}");
+  });
+});
+
+describe("a Workspace Announcement's fields", () => {
+  it("have the same rules without an audience or a sign-in page, and ignore those if sent", () => {
+    expect(workspaceAnnouncementFields({ text: "New due date", audience: "demo", public: true })).toEqual({ text: "New due date", link: null, level: "info", startsAt: null, endsAt: null, active: true, dismissible: true });
+    expect(() => workspaceAnnouncementFields({ text: "x", link: { href: "http://a.test", label: "x" } })).toThrow(Refused);
+    expect(() => workspaceAnnouncementFields({ text: "x", level: "error" })).toThrow(Refused);
+    expect(() => workspaceAnnouncementFields(null)).toThrow(Refused);
+  });
+  it("take ids of the shape of a uuid only", () => {
+    expect(announcementId("0B6E0F2A-1C1D-4B7A-9C55-0123456789AB")).toBe("0b6e0f2a-1c1d-4b7a-9c55-0123456789ab");
+    for (const bad of ["1 or 1=1", "", 7, null, "0b6e0f2a-1c1d-4b7a-9c55-0123456789ab,x"]) expect(() => announcementId(bad)).toThrow(/does not exist/);
   });
 });

@@ -6,7 +6,7 @@ import { Forbidden, Refused } from "./actor";
 import { db } from "./db";
 import { assertInstallationAdmin, recordInstallationEvent, type InstallationActor } from "./installation-admins";
 import {
-  announcementState, installationAnnouncementFields, orderAnnouncements,
+  announcementId, announcementState, installationAnnouncementFields, orderAnnouncements,
   INSTALLATION_ANNOUNCEMENTS_ACTIVE_MAX, type AnnouncementAudience, type AnnouncementFields, type AnnouncementLevel,
 } from "./announcement-rules";
 
@@ -27,13 +27,7 @@ export type InstallationAnnouncementRow = AnnouncementFields & {
 export type PublicAnnouncement = { text: string; link?: { href: string; label: string }; level: AnnouncementLevel };
 
 const COLUMNS = "id, text, link_url, link_label, level, starts_at, ends_at, active, dismissible, audience, public, created_by, updated_by, created_at, updated_at";
-const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-
-function idOf(id: unknown): string {
-  // The id comes from a browser: a shape check, so nothing else reaches a query.
-  if (typeof id !== "string" || !UUID.test(id)) throw new Forbidden("That Announcement does not exist.");
-  return id.toLowerCase();
-}
+const idOf = announcementId;
 
 function stored(f: AnnouncementFields) {
   return {
