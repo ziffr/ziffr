@@ -10,7 +10,7 @@ import { widgetMetrics } from "@/views/widget-body";
 import type { CanvasData } from "@ziffr/core/types";
 
 /** The longest title the core keeps (dashboards.ts cuts at 200 characters). */
-export const MAX_TITLE = 200;
+const MAX_TITLE = 200;
 
 /** The title as the card would draw it with this text, an empty text falling back to the default. */
 export function previewTitle(widget: FrameWidget, data: CanvasData, text: string): string {
