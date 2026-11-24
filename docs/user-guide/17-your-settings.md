@@ -60,7 +60,7 @@ You can open every page, switch between the people and try every button and form
 
 The simulators on **Connectors → Sources** and in the **Outbox** answer with what would happen, such as "Would be: Recorded", and keep nothing. (Where visitors may change the demo, they record the answer instead, as a real Slack, email or ticket system would, and say "Recorded in the demo"; see [Trying values in a demo that can be changed](07-getting-started.md#trying-values-in-a-demo-that-can-be-changed).) What you tried in the Sources simulator stays on the page until you leave it, marked "not saved".
 
-The demo's people keep their names and colours, and the demo sends no email. It has no Access Keys, Feeds or Audit Log.
+The demo's people keep their names and colours, and the demo sends no email (where visitors may change the demo, what would be sent, such as a request for access or a Question, waits in the Outbox). It has no Access Keys, Feeds or Audit Log.
 
 ### The guided tour
 
@@ -73,7 +73,7 @@ The tour reads first, because the demo can't be changed:
 3. **Analyze**: run a Recipe and look at what it finds.
 4. **Open a deck** and click through its slides.
 5. **Capture a value** by answering a Slack Prompt, and send a second one to see the Submission Rule. Where visitors may change the demo, the answer is recorded and the dashboard moves.
-6. **Define a metric** from the catalog; the demo won't save it, which is what a trial is for.
+6. **Define a metric** from the catalog. Where visitors may change the demo, it is saved and everyone in the demo sees it until the demo starts fresh; elsewhere the demo won't save it, which is what a trial is for.
 
 A Guest gets a shorter tour of three steps, since they create nothing: **Look at what is shared**, **Submit a value** and **Answer a question**.
 

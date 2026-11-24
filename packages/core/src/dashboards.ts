@@ -15,6 +15,8 @@ import { assertSettingsDesigns, checkedDesignSetting } from "./widget-designs";
 import { ensureBaseline, recordVersion } from "./versions";
 import { inDemoVisit, visitorOptionalText, visitorSettings, visitorText } from "./demo-visitor-words";
 import { chargeVisitorBytes, DemoSizeRefused, visitorSize } from "./demo-visitor-limits";
+import { visitorSharedStaysSeen } from "./demo-visitor-sharing";
+import { demoData } from "./demo-query";
 import { DEMO_STORE_MAX } from "./demo-limits";
 import { refuseSeeded } from "./demo-seeded-rows";
 import { assertNoOutsideContent } from "./deck-content";
@@ -77,7 +79,7 @@ async function assertVisitorRoom(actor: Actor, dashboardId: number | null, newSe
   const bytes = visitorSize(actor, newSettings, DEMO_STORE_MAX.widgetSettingsBytes, "That widget is too large for the demo.");
   if (!bytes) return;
   if (dashboardId !== null) {
-    const { data } = await db().from("widgets").select("id, settings").eq("dashboard_id", dashboardId).eq("workspace_id", actor.workspaceId);
+    const data = demoData(await db().from("widgets").select("id, settings").eq("dashboard_id", dashboardId).eq("workspace_id", actor.workspaceId));
     const others = (data ?? []).filter((w) => w.id !== exceptWidget).reduce((n, w) => n + JSON.stringify(w.settings ?? null).length, 0);
     if (others + bytes > DEMO_STORE_MAX.dashboardWidgetsBytes) throw new DemoSizeRefused("This dashboard is full for the demo.");
   }
@@ -201,6 +203,8 @@ export async function placeWidget(actor: Actor, dashboardId: number, source: Dro
   await assertCanEditDashboard(actor, dashboardId);
   const spec = await specFrom(actor, source);
   await assertVisitorRoom(actor, dashboardId, spec.settings);
+  // A dashboard that is shared shows only Metrics its recipients see (spec 0051, ticket 11).
+  await visitorSharedStaysSeen(actor, "dashboard", dashboardId, widgetMetricIds(spec.metric_ids ?? [], spec.settings));
   await ensureBaseline("dashboard", dashboardId, actor.personId);
   let x = 0;
   let y = 0;
@@ -245,6 +249,7 @@ export async function updateWidget(actor: Actor, id: number, patch: { template?:
   if (patch.template && !newSettings && tagSourceId(cur.settings) && !takesTagSource({ template, settings: cur.settings })) throw new Refused("A widget that shows a Tag changes only to a view of a list of Metrics. Fix its list first.");
   if (tagged || (patch.template && !newSettings && tagSourceId(cur.settings))) metricIdsNow = [];
   if (metricIdsNow || newSettings) await assertSeesMetrics(actor, widgetMetricIds(metricIdsNow ?? cur.metric_ids ?? [], newSettings));
+  if (metricIdsNow || newSettings) await visitorSharedStaysSeen(actor, "dashboard", cur.dashboard_id, widgetMetricIds(metricIdsNow ?? cur.metric_ids ?? [], newSettings ?? cur.settings));
   if (newSettings) await assertVisitorRoom(actor, cur.dashboard_id, newSettings, id);
   await ensureBaseline("widget", id, actor.personId);
   if (cur.dashboard_id) await ensureBaseline("dashboard", cur.dashboard_id, actor.personId);
@@ -277,6 +282,7 @@ export async function applyTemplate(actor: Actor, id: number, templateId: number
   const cur = await editableWidget(actor, id);
   const w = await fromTeamTemplate(actor, templateId, fills);
   await assertVisitorRoom(actor, cur.dashboard_id, w.settings, id);
+  await visitorSharedStaysSeen(actor, "dashboard", cur.dashboard_id, widgetMetricIds(w.metric_ids ?? [], w.settings));
   await ensureBaseline("widget", id, actor.personId);
   if (cur.dashboard_id) await ensureBaseline("dashboard", cur.dashboard_id, actor.personId);
   const { error } = await db().from("widgets").update(await sealedPatch("widgets", actor.workspaceId, id, { template: w.template, metric_ids: w.metric_ids, settings: w.settings, w: w.w, h: w.h, ...(w.title ? { title: w.title } : {}) })).eq("id", id).eq("workspace_id", actor.workspaceId);

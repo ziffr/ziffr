@@ -37,8 +37,9 @@ describe("the inputs of the opened actions", () => {
 
   it("are all listed here", () => {
     for (const k of Object.keys(INPUTS)) expect(opened, k).toContain(k);
-    // What else is open belongs to another ticket (9: dashboards, widgets, the Pool, Themes, Versions, templates; 10: decks and Snapshots), which lists its own inputs.
-    for (const k of opened.filter((x) => !(x in INPUTS))) expect(k, "an opened action no ticket listed the inputs of").toMatch(/^(canvas-actions|convert-actions|dashboard-template-actions|deck-actions|deck-workflow-template-actions|home-actions|snapshot-actions|template-actions|theme-actions|version-actions):/);
+    // What else is open belongs to another ticket (9: dashboards, widgets, the Pool, Themes, Versions, templates; 10: decks and Snapshots; 11: Metrics, Threads and sharing), which lists its own inputs.
+    for (const k of opened.filter((x) => !(x in INPUTS))) expect(k, "an opened action no ticket listed the inputs of").toMatch(/^(canvas-actions|convert-actions|dashboard-template-actions|deck-actions|deck-workflow-template-actions|home-actions|snapshot-actions|template-actions|theme-actions|version-actions):|^(access-actions|tag-actions|team-actions):|^actions:(createAction|createDerivedMetric|createMetric|replyToAction|setActionStatus)$|^series-actions:(archiveMetric|restoreMetric|removeSeriesRows|saveSeriesRows|setMetricSources|updateMetricDetails)$|^connector-actions:setPreference$/);
+    // Ticket 11's actions (Metrics, Threads, sharing) list their inputs in packages/core/src/demo-metric-gates.test.ts: every writer's gate comes before its first write.
   });
 
   it("are each checked in the action's own source", () => {

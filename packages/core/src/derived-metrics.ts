@@ -11,6 +11,8 @@ import { createMetric, deleteMetric, editableMetric, metricEffects, type MetricE
 import { audit } from "./audit-log";
 import { recordVersion } from "./versions";
 import { getMetrics } from "./workspace-data";
+import { visitorDerivedRoom, visitorFormula } from "./demo-visitor-metrics";
+import { visitorMetricUnused } from "./demo-visitor-sharing";
 import type { Metric, Period } from "./types";
 
 const PERIODS: Period[] = ["day", "week", "month", "quarter", "year"];
@@ -65,6 +67,9 @@ export async function createDerivedMetric(actor: Actor, input: DerivedMetricInpu
   const formula = typeof input.formula === "string" ? input.formula.trim() : "";
   if (!formula) throw new Refused("Write the formula, such as {revenue} / {orders}.");
   if (formula.length > FORMULA_MAX_LENGTH) throw new Refused(`The formula is longer than ${FORMULA_MAX_LENGTH} characters.`);
+  // A visitor of the demo: a short formula over few Metrics, and only so many calculated Metrics at once (spec 0051, ticket 11).
+  visitorFormula(actor, formula);
+  await visitorDerivedRoom(actor);
   if (input.period !== undefined && !PERIODS.includes(input.period as Period)) throw new Refused(`The period must be one of ${PERIODS.join(", ")}.`);
   // Only the Metrics the actor sees are inputs: one they may not see is "not a Metric of this Workspace", the same
   // words as for one that is not there, so a formula never tells them which Metrics exist.
@@ -132,6 +137,9 @@ export async function setMetricFormula(actor: Actor, metricId: number, formula: 
   assertCan(actor, "create");
   const m = await editableMetric(actor, metricId, "its formula");
   if (!m.formula) throw new Refused("Only a Derived Metric has a formula.");
+  // In the demo only a calculated Metric that nothing uses changes its formula: otherwise what others see through it would change (spec 0051,
+  // ticket 11). Asked first, so a refused change says the demo's own reason.
+  await visitorMetricUnused(actor, m.id, m.slug);
   const next = await checkedFormula(actor, m, formula);
   const { error } = await db().from("metrics").update({ formula: next, inputs_checked: true }).eq("id", m.id).eq("workspace_id", actor.workspaceId);
   if (error) throw new Error("The formula could not be saved.");

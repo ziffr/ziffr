@@ -38,6 +38,7 @@ import { assertSnapshotTurn, type SnapshotTurn } from "./demo-snapshot-lock";
 import { DEMO_ROW_CAPS, DEMO_SNAPSHOT_LIMITS } from "./demo-limits";
 import { demoLimitWords } from "./demo-words";
 import { DemoSizeRefused } from "./demo-visitor-limits";
+import { demoCount, demoData } from "./demo-query";
 import { inDemoVisit, visitorOptionalText } from "./demo-visitor-words";
 
 /** The words of a widget a Snapshot keeps editable: its title and a Finding's kicker, headline, subline, footnote
@@ -151,14 +152,14 @@ export async function mayTakeSnapshot(actor: Actor, dashboardId: number): Promis
 export async function assertSnapshotRoom(actor: Actor, dashboardId: number, period: { kind: unknown; start: unknown }): Promise<void> {
   if (!inDemoVisit(actor) || !Number.isInteger(dashboardId)) return;
   const ws = actor.workspaceId;
-  const { data: state } = await db().from("demo_state").select("seed_done_at").maybeSingle();
+  const state = demoData(await db().from("demo_state").select("seed_done_at").maybeSingle());
   // The seed is not finished: the database refuses the write too ("starting fresh").
   if (!state?.seed_done_at) throw new DemoSizeRefused(demoLimitWords("starting"));
-  const { count } = await db().from("dashboard_snapshots").select("id", { count: "exact", head: true }).eq("workspace_id", ws).gt("created_at", state.seed_done_at as string);
-  if ((count ?? 0) >= DEMO_ROW_CAPS.snapshots) throw new DemoSizeRefused(demoLimitWords("snapshots"));
+  const count = demoCount(await db().from("dashboard_snapshots").select("id", { count: "exact", head: true }).eq("workspace_id", ws).gt("created_at", state.seed_done_at as string));
+  if (count >= DEMO_ROW_CAPS.snapshots) throw new DemoSizeRefused(demoLimitWords("snapshots"));
   const p = snapshotPeriod(period?.kind as SnapshotPeriodKind, String(period?.start ?? ""), await yearStartOf(ws));
   if (!p) return;
-  const { data: same } = await db().from("dashboard_snapshots").select("id").eq("workspace_id", ws).eq("dashboard_id", dashboardId).eq("period_kind", p.kind).eq("period_start", p.start).is("deleted_at", null).limit(1);
+  const same = demoData(await db().from("dashboard_snapshots").select("id").eq("workspace_id", ws).eq("dashboard_id", dashboardId).eq("period_kind", p.kind).eq("period_start", p.start).is("deleted_at", null).limit(1));
   if (same?.length) throw new Refused(`There is a Snapshot of ${p.label} already. Open it, or delete it first.`);
 }
 

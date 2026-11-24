@@ -101,7 +101,7 @@ describe("a visit's write to an open table", () => {
   });
 
   it("is refused for a closed table, even as a visit of the current Generation", async () => {
-    await expect(asVisit(async () => { await db().from("metrics").update({ description: "x" }).eq("id", ids.ownMetric).throwOnError(); })).rejects.toBeInstanceOf(DemoReadOnly);
+    await expect(asVisit(async () => { await db().from("workflows").update({ name: "x" }).eq("workspace_id", DEMO_WORKSPACE_ID).throwOnError(); })).rejects.toBeInstanceOf(DemoReadOnly);
     await expect(asVisit(async () => { await db().from("workspaces").update({ name: "x" }).eq("id", DEMO_WORKSPACE_ID).throwOnError(); })).rejects.toBeInstanceOf(DemoReadOnly);
   });
 

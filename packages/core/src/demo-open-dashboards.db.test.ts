@@ -66,7 +66,7 @@ describe("what is open", () => {
 
   it("opens nothing that sends, shares, publishes or reaches a person", async () => {
     const open = ((await db().from("demo_open_tables").select("table_name")).data ?? []).map((r) => r.table_name as string);
-    for (const t of ["profiles", "memberships", "contacts", "workspaces", "invitations", "view_links", "calendar_links", "webhooks", "feeds", "access_keys", "pack_installs", "shares"]) expect(open, t).not.toContain(t);
+    for (const t of ["profiles", "memberships", "contacts", "workspaces", "invitations", "view_links", "calendar_links", "webhooks", "feeds", "access_keys", "pack_installs"]) expect(open, t).not.toContain(t);
   });
 });
 

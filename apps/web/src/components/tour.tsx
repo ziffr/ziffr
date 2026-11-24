@@ -5,7 +5,7 @@ import { useEffect, useState } from "react";
 import { CheckCircle2, Circle, ChevronDown, ChevronUp, Compass, Minus } from "lucide-react";
 
 /** The demo changes nothing, so the tour reads first and only then tries what the demo will refuse (#528). Where visitors may change
- * the demo (spec 0051) the steps that enter a value say it is recorded; defining a Metric stays refused until a later ticket opens it. */
+ * the demo (spec 0051) the steps that enter a value or define a Metric say it works. */
 const MEMBER_STEPS = [
   { href: "/", title: "Look at a dashboard", body: "Open the Monthly overview and click a number to see its history. Right-click a widget → Change view." },
   { href: "/", title: "See what others see", body: "Switch “Viewing as” to Anna, then to the Guest, and watch what each can open. Roles decide it." },
@@ -18,6 +18,7 @@ const MEMBER_STEPS = [
 /** The steps' words where visitors may change the demo: what the last steps do now works, and is shared until the demo starts fresh. */
 const CHANGES_WORDS: Record<string, string> = {
   "Capture a value": "Answer Anna’s Slack Prompt with a number: it is recorded, and the dashboard moves. Send a second one and watch the Submission Rule.",
+  "Define a metric": "Pick “Customer satisfaction” from the catalog and choose who reports it. The Metric is saved, and everyone in the demo sees it until the demo starts fresh.",
   "Submit a value": "Open a metric you submit and record its latest value, or answer the Prompt you get. Everyone in the demo sees it until the demo starts fresh.",
 };
 

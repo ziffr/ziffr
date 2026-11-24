@@ -6,6 +6,7 @@ import { revalidatePath } from "next/cache";
 import { currentActor } from "@/lib/viewer";
 import { attempt } from "@/lib/action-result";
 import { inDemoVisit } from "@/lib/demo-visit-action";
+import { attemptAsVisitor } from "@/lib/demo-write";
 import { demoTextForVisit } from "@ziffr/core/demo-text";
 import { askMeNow as coreAskMeNow, type AskNowResult } from "@ziffr/core/ask-now";
 import { recordOwnValue } from "@ziffr/core/record-own-value";
@@ -16,7 +17,7 @@ import { deleteMetric as coreDeleteMetric, setMetricSources as coreSetMetricSour
 
 /** The Metric's owner or an Editor saves rows edited in the targets table; the core checks every row. */
 export async function saveSeriesRows(metricId: number, kind: "target" | "projection", rows: { period: string; value: number }[], note: string) {
-  return attempt(async () => {
+  return attemptAsVisitor("series-actions:saveSeriesRows", async () => {
     const r = await coreSaveSeriesRows(await currentActor(), Number(metricId), kind, rows, String(note ?? ""));
     revalidatePath("/", "layout");
     return r;
@@ -25,7 +26,7 @@ export async function saveSeriesRows(metricId: number, kind: "target" | "project
 
 /** The Metric's owner or an Editor removes saved rows from the targets table, by period; the core checks every period. */
 export async function removeSeriesRows(metricId: number, kind: "target" | "projection", periods: string[]) {
-  return attempt(async () => {
+  return attemptAsVisitor("series-actions:removeSeriesRows", async () => {
     const r = await coreRemoveSeriesRows(await currentActor(), Number(metricId), kind, periods);
     revalidatePath("/", "layout");
     return r;
@@ -43,7 +44,7 @@ export async function deleteMetric(metricId: number, confirmName: string) {
 
 /** An Owner, an Admin or the Metric's owner archives it (GLOSSARY: Archived Metric); the core checks who. */
 export async function archiveMetric(metricId: number) {
-  return attempt(async () => {
+  return attemptAsVisitor("series-actions:archiveMetric", async () => {
     const r = await coreArchiveMetric(await currentActor(), Number(metricId));
     revalidatePath("/", "layout");
     return r;
@@ -52,7 +53,7 @@ export async function archiveMetric(metricId: number) {
 
 /** An Owner, an Admin or the Metric's owner brings an Archived Metric back; the core checks who. */
 export async function restoreMetric(metricId: number) {
-  return attempt(async () => {
+  return attemptAsVisitor("series-actions:restoreMetric", async () => {
     const r = await coreRestoreMetric(await currentActor(), Number(metricId));
     revalidatePath("/", "layout");
     return r;
@@ -61,7 +62,7 @@ export async function restoreMetric(metricId: number) {
 
 /** The Metric's owner or an Editor changes how its values may arrive; the core checks who and the list. */
 export async function setMetricSources(metricId: number, sources: string[]) {
-  return attempt(async () => {
+  return attemptAsVisitor("series-actions:setMetricSources", async () => {
     const r = await coreSetMetricSources(await currentActor(), Number(metricId), sources);
     revalidatePath("/", "layout");
     return r;
@@ -70,7 +71,7 @@ export async function setMetricSources(metricId: number, sources: string[]) {
 
 /** The Metric's owner or an Editor changes its description; the core checks who and every field. */
 export async function updateMetricDetails(metricId: number, details: MetricDetails) {
-  return attempt(async () => {
+  return attemptAsVisitor("series-actions:updateMetricDetails", async () => {
     await coreUpdateMetricDetails(await currentActor(), Number(metricId), details);
     revalidatePath("/", "layout");
   });

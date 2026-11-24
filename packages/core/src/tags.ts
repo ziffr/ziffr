@@ -13,7 +13,9 @@ import { Forbidden, Refused, type Actor } from "./actor";
 import { getShares } from "./access";
 import { audit } from "./audit-log";
 import { db } from "./db";
-import { refuseInDemo } from "./demo";
+import { refuseInDemoOutsideVisit } from "./demo-visitor-metrics";
+import { visitorText } from "./demo-visitor-words";
+import { demoRefusalOf } from "./demo-visitor-sharing";
 import { ServerFault } from "./server-fault";
 import { cleanTagNames, normaliseTagName, tagKey, tagNameProblem, TAGS_PER_METRIC, TAGS_PER_WORKSPACE } from "./tag-names";
 import { readTags, tagIndexes } from "./tag-rows";
@@ -47,11 +49,14 @@ export async function mayTag(actor: Actor, metricId: number): Promise<boolean> {
  * it; a new word is made within the Workspace's 200, and a limit says what to do. A Guest Editor gets only Tags they
  * see. The change is a Version of the Metric with its author. Refused with words for a bad name, a limit or a Viewer. */
 export async function changeMetricTags(actor: Actor, metricId: number, change: TagChange, input: unknown): Promise<string[]> {
-  // The demo is read-only for everyone (GLOSSARY: Demo Mode): said before anything else is looked at.
-  refuseInDemo(actor);
+  // The demo is read-only for everyone but a visit its server action opened (GLOSSARY: Demo Mode; spec 0051, ticket 11): said before
+  // anything else is looked at.
+  refuseInDemoOutsideVisit(actor);
   if (change !== "set" && change !== "add" && change !== "remove") throw new Forbidden();
   const cleaned = cleanTagNames(input);
   if ("error" in cleaned) throw new Refused(cleaned.error);
+  // A visitor's new words pass the text rules too (a Tag is 40 characters, plain text); taking a Tag off needs none.
+  if (change !== "remove") cleaned.names = cleaned.names.map((n) => visitorText(actor, n, "tag"));
   if (!(await mayTag(actor, metricId))) throw new Forbidden("Only the Metric's owner and its Editors change its Tags.");
   const guest = actor.role === "guest";
   if (guest && change !== "remove") {
@@ -71,6 +76,7 @@ export async function changeMetricTags(actor: Actor, metricId: number, change: T
   const { data, error } = await db().rpc("set_metric_tags", {
     p_ws: actor.workspaceId, p_metric: metricId, p_by: actor.personId, p_mode: change, p_tags: tags, p_allow_new: !guest, p_max_metric: TAGS_PER_METRIC, p_max_ws: TAGS_PER_WORKSPACE,
   });
+  if (error) { const demo = demoRefusalOf(error); if (demo) throw demo; }
   if (error || !data) throw new ServerFault("The Tags could not be saved.");
   const status = (data as { status?: string }).status;
   if (status === "metric_limit") throw new Refused(AT_LIMIT_METRIC);
@@ -145,10 +151,10 @@ export async function tagImpact(actor: Actor, tagId: string): Promise<{ name: st
  * another Tag the actor sees already has is refused and says to merge; one that only Metrics the actor does not see carry
  * is the same Tag Workspace-wide, so the two are merged without a word about those Metrics. Audit Log: tag.renamed. */
 export async function renameTag(actor: Actor, tagId: string, name: unknown): Promise<{ name: string }> {
-  refuseInDemo(actor);
+  refuseInDemoOutsideVisit(actor);
   assertKeeper(actor);
   const { tag, all } = await seenTag(actor, tagId);
-  const next = normaliseTagName(name);
+  const next = normaliseTagName(visitorText(actor, String(name ?? ""), "tag"));
   const problem = tagNameProblem(next);
   if (problem) throw new Refused(problem);
   const other = (await readTags(actor.workspaceId)).find((t) => t.id !== tag.id && tagKey(t.name) === tagKey(next));
@@ -164,6 +170,7 @@ export async function renameTag(actor: Actor, tagId: string, name: unknown): Pro
   const cipher = await workspaceCipher(actor.workspaceId);
   const index = tagIndexes(cipher, next);
   const { data, error } = await db().rpc("rename_tag", { p_ws: actor.workspaceId, p_id: tag.id, p_name: cipher.seal({ table: "tags", column: "name", row: tag.id }, next), p_index: index.current, p_indexes: index.all });
+  if (error) { const demo = demoRefusalOf(error); if (demo) throw demo; }
   if (error) throw new ServerFault("The Tag could not be renamed.");
   // Another Tag took the name between the check and the change: said as a merge, with no word about which.
   if (data === "exists") throw new Refused("There is already a Tag with that name. Merge the two instead.");
@@ -176,7 +183,7 @@ export async function renameTag(actor: Actor, tagId: string, name: unknown): Pro
  * actor does not see that carry the first carry the other afterwards, and the actor learns nothing about them. A Metric
  * with both keeps one. Audit Log: tag.merged. */
 export async function mergeTags(actor: Actor, fromId: string, intoId: string): Promise<{ metrics: number }> {
-  refuseInDemo(actor);
+  refuseInDemoOutsideVisit(actor);
   assertKeeper(actor);
   const [{ tag: from }, { tag: into }] = [await seenTag(actor, fromId), await seenTag(actor, intoId)];
   if (from.id === into.id) throw new Refused("Pick two different Tags to merge.");
@@ -186,6 +193,7 @@ export async function mergeTags(actor: Actor, fromId: string, intoId: string): P
 
 async function mergeInto(actor: Actor, from: Pick<VisibleTag, "id" | "name" | "metrics">, into: { id: string; name: string }, record = true): Promise<void> {
   const { data, error } = await db().rpc("merge_tags", { p_ws: actor.workspaceId, p_from: from.id, p_into: into.id });
+  if (error) { const demo = demoRefusalOf(error); if (demo) throw demo; }
   if (error) throw new ServerFault("The Tags could not be merged.");
   if (data !== "ok") throw new Forbidden();
   // Dashboards that showed "all Metrics tagged" the first Tag follow the other (spec 0038).
@@ -197,10 +205,11 @@ async function mergeInto(actor: Actor, from: Pick<VisibleTag, "id" | "name" | "m
 /** Removes a Tag from every Metric, those the actor does not see included, as Owners and Admins for a Tag they see. Answers
  * how many Metrics the actor saw it on. Audit Log: tag.deleted. */
 export async function deleteTag(actor: Actor, tagId: string): Promise<{ metrics: number }> {
-  refuseInDemo(actor);
+  refuseInDemoOutsideVisit(actor);
   assertKeeper(actor);
   const { tag } = await seenTag(actor, tagId);
   const { data, error } = await db().rpc("delete_tag", { p_ws: actor.workspaceId, p_id: tag.id });
+  if (error) { const demo = demoRefusalOf(error); if (demo) throw demo; }
   if (error) throw new ServerFault("The Tag could not be deleted.");
   if (data !== "ok") throw new Forbidden();
   await audit(actor, { kind: "tag.deleted", object: { type: "tag", id: tag.id, name: tag.name }, details: { metrics: tag.metrics } });

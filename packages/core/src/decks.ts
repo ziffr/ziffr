@@ -12,6 +12,7 @@ import { ensureBaseline, recordVersion } from "./versions";
 import { assertNoOutsideContent } from "./deck-content";
 import { refuseSeeded } from "./demo-seeded-rows";
 import { visitorDeckDocument } from "./demo-visitor-deck";
+import { visitorSharedStaysSeen } from "./demo-visitor-sharing";
 import { visitorOptionalText } from "./demo-visitor-words";
 
 /** The largest deck document stored, so a browser cannot fill the database. */
@@ -66,6 +67,8 @@ export async function saveDeck(actor: Actor, id: number, document: unknown) {
   const added = deckMetricIds(document).filter((m) => !had.has(m));
   if (added.some((m) => !Number.isFinite(m))) throw new Error("A widget on this deck names its metrics in a way Ziffr cannot read. Remove or recreate that widget, then save.");
   await assertSeesMetrics(actor, added);
+  // A deck that is shared shows only Metrics its recipients see (spec 0051, ticket 11).
+  await visitorSharedStaysSeen(actor, "deck", id, deckMetricIds(document));
   await ensureBaseline("deck", id, actor.personId);
   await db().from("decks").update({ document, updated_at: touch() }).eq("id", id).eq("workspace_id", actor.workspaceId);
   await recordVersion("deck", id, actor.personId);

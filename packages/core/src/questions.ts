@@ -17,7 +17,9 @@ import { CONNECTOR_IDS, type ConnectorId, type PreferenceKind } from "./connecto
 import type { ActionKind, Period } from "./types";
 import { periodStart } from "./periods";
 import { yearStartFor } from "./fiscal-year";
-import { DemoReadOnly } from "./demo";
+import { DemoTextRefused, inDemoVisit, visitorOptionalText } from "./demo-visitor-words";
+import { visitorDue, visitorNumber } from "./demo-visitor-metrics";
+import { DEMO_METRIC_WORDS } from "./demo-words";
 
 const DAY = /^\d{4}-\d{2}-\d{2}$/;
 const KINDS: PreferenceKind[] = ["question", "task", "reminder", "update"];
@@ -34,8 +36,12 @@ export async function ask(actor: Actor, input: AskInput): Promise<number> {
   if (kind !== "question" && kind !== "task") throw new Forbidden();
   if (!DAY.test(String(input.period))) throw new Forbidden();
   if (input.due && !DAY.test(String(input.due))) throw new Error("Pick a due date.");
-  const text = String(input.text ?? "").trim().slice(0, 2000);
+  // A visitor of the demo (spec 0051, ticket 11): the words pass the text rules and a Task is due within a year; only the demo's made-up
+  // Members are asked (checked below, as for everyone). Nothing changes outside a visit.
+  visitorDue(actor, input.due);
+  const text = String(visitorOptionalText(actor, String(input.text ?? ""), "message")).trim().slice(0, 2000);
   if (!text) throw new Error("Write the question first.");
+  const breakdownLabel = input.breakdownLabel ? String(visitorOptionalText(actor, String(input.breakdownLabel), "name")).slice(0, 200) : null;
   await assertSeesMetrics(actor, [Number(input.metricId)]);
   await assertMembersIn(actor, [String(input.assigneeId)]);
   const ws = actor.workspaceId;
@@ -44,9 +50,9 @@ export async function ask(actor: Actor, input: AskInput): Promise<number> {
   const [data] = await insertSealed("actions", ws, [{
     metric_id: input.metricId, period_start: input.period, observation_id: obs?.[0]?.id ?? null, asker_id: actor.personId,
     assignee_id: input.assigneeId, question: text, kind, due_date: input.due || null,
-    breakdown_label: input.breakdownLabel ? String(input.breakdownLabel).slice(0, 200) : null,
+    breakdown_label: breakdownLabel,
     read_group_id: group ? input.readGroupId : null,
-  }]).catch((e) => { throw e instanceof DemoReadOnly ? e : new Error("The question could not be sent."); }) as { id: number }[];
+  }]).catch((e) => { throw e instanceof Forbidden ? e : new Error("The question could not be sent."); }) as { id: number }[];
   // The assignee hears it where they want to, or where the asker chose for this one message.
   const via = input.via && CONNECTOR_IDS.includes(input.via) ? input.via : null;
   await deliver({ kind, actionId: data.id, senderId: actor.personId, recipientId: input.assigneeId, via });
@@ -56,7 +62,10 @@ export async function ask(actor: Actor, input: AskInput): Promise<number> {
 /** Replies in an Action's Thread; only the people on it may. A "Correction: …" line proposes a new value. */
 export async function reply(actor: Actor, actionId: number, body: string, correction: number | null, source: ChangeSource = FROM_APP, commands = true) {
   const value = correction === null || correction === undefined || !Number.isFinite(Number(correction)) ? null : Number(correction);
-  await postReply(actor.workspaceId, Number(actionId), actor.personId, String(body ?? "").trim().slice(0, 5000), value, source, commands);
+  // A visitor of the demo: the words pass the text rules and a proposed value is a reasonable number (spec 0051, ticket 11).
+  visitorNumber(actor, value);
+  const words = String(visitorOptionalText(actor, String(body ?? ""), "message"));
+  await postReply(actor.workspaceId, Number(actionId), actor.personId, words.trim().slice(0, 5000), value, source, commands);
 }
 
 /** The asker closes or reopens an Action. Never a Self-check: its submitter is its asker too, and one closed by hand
@@ -81,6 +90,8 @@ export async function setActionStatus(actor: Actor, actionId: number, status: "o
 
 /** The assignee marks their open task done, with an optional note (at most 2,000 characters) kept as the Thread's last reply. */
 export async function markTaskDone(actor: Actor, actionId: number, source: ChangeSource = FROM_APP, note?: string | null) {
+  // A visitor of the demo: the note passes the text rules (spec 0051, ticket 11).
+  note = visitorOptionalText(actor, note, "message");
   if (!(await finishTask(actor.workspaceId, Number(actionId), actor.personId, source, note))) throw new Error("That task is not open, or it is not yours.");
 }
 
@@ -92,6 +103,8 @@ export async function setPreference(actor: Actor, personId: string | null, kind:
   const ways = connector === null ? [] : Array.isArray(connector) ? connector : [connector];
   const valid = ways.every((c) => CONNECTOR_IDS.includes(c)) && new Set(ways).size === ways.length && ways.length <= (kind === "reminder" ? MAX_PROMPT_WAYS : 1);
   if (!KINDS.includes(kind) || !valid) throw new Forbidden();
+  // The team's default changes what every visitor is shown, so in the demo a visit sets only its own person's way (spec 0051, ticket 11).
+  if (personId === null && inDemoVisit(actor)) throw new DemoTextRefused(DEMO_METRIC_WORDS.everyone);
   if (personId === null) {
     assertCan(actor, "manage-members");
     if (!ways.length) throw new Forbidden();
