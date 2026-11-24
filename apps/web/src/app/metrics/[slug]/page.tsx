@@ -11,6 +11,7 @@ import { CompareTable } from "@/components/compare-table";
 import { resolverFrom } from "@ziffr/core/compare";
 import { inputsProblem } from "@ziffr/core/formula";
 import { TargetsEditor } from "./series-form";
+import { MetricTabs } from "./metric-tabs";
 import { ArchivedNote } from "./archived-note";
 import { RetentionBox } from "./retention-box";
 import { canArchiveMetric } from "@ziffr/core/archived-metrics";
@@ -221,25 +222,19 @@ export default async function MetricPage({ params, searchParams }: { params: Pro
       </PageHeader>
       <ArchivedNote archivedAt={metric.archived_at ?? null} /><MetricTagChips actor={actor} metricId={metric.id} />
 
-      <div className="mb-4 grid gap-3 sm:grid-cols-3">
+      <div className="mb-4 grid grid-cols-2 gap-2 sm:grid-cols-3 sm:gap-3">
         <Stat label={last ? `Latest, ${periodLabel(last.period, metric.period, yearStart)}` : "Latest"}>
           <span className="flex flex-wrap items-center gap-2">{last ? formatValue(metric, last.value, numberStyle) : "–"}{last && pending.includes(last.period) && <NotApprovedMark />}<TargetChip numberStyle={numberStyle} metric={periodTarget && metric.polarity !== "target" ? { ...metric, target_min: metric.polarity === "lower" ? null : periodTarget.value, target_max: metric.polarity === "lower" ? periodTarget.value : null } : metric} value={last?.value} /></span>
         </Stat>
         <Stat label="Change vs. previous period">
           <Change numberStyle={numberStyle} pct={change} size="size-5" />
         </Stat>
-        <Stat label={`Target, ${POLARITY_LABEL[metric.polarity].toLowerCase()}`} note={periodTarget ? `From the target series for ${periodLabel(periodTarget.period, metric.period, yearStart)}. Other periods without one use ${targetText(metric, numberStyle).toLowerCase()}.` : tSeries.length ? "The target range; periods in the target series use their own target." : undefined}>
+        <Stat wide label={`Target, ${POLARITY_LABEL[metric.polarity].toLowerCase()}`} note={periodTarget ? `From the target series for ${periodLabel(periodTarget.period, metric.period, yearStart)}. Other periods without one use ${targetText(metric, numberStyle).toLowerCase()}.` : tSeries.length ? "The target range; periods in the target series use their own target." : undefined}>
           <span className="fig">{periodTarget ? formatValue(metric, periodTarget.value, numberStyle) : targetText(metric, numberStyle)}</span>
         </Stat>
       </div>
 
-      <nav aria-label="Metric sections" className="mb-6 flex gap-1 overflow-x-auto border-b border-border">
-        {TABS.map((t) => (
-          <Link key={t.id} href={t.id === "overview" ? "?" : `?tab=${t.id}`} scroll={false} aria-current={tab === t.id ? "page" : undefined} className={cn("-mb-px shrink-0 border-b-2 px-3 py-2 text-sm no-underline", tab === t.id ? "border-[var(--color-ink)] font-medium text-foreground" : "border-transparent text-muted-foreground hover:text-foreground")}>
-            {t.label}
-          </Link>
-        ))}
-      </nav>
+      <MetricTabs tabs={TABS.map((t) => ({ ...t, href: t.id === "overview" ? "?" : `?tab=${t.id}` }))} active={tab} />
 
       {tab === "overview" && (
         <div className="space-y-6">
@@ -437,11 +432,12 @@ export default async function MetricPage({ params, searchParams }: { params: Pro
   );
 }
 
-function Stat({ label, note, children }: { label: string; note?: string; children: React.ReactNode }) {
+/** One figure card; on a phone the cards sit two to a row, and a `wide` one takes the whole row. */
+function Stat({ label, note, wide, children }: { label: string; note?: string; wide?: boolean; children: React.ReactNode }) {
   return (
-    <div className="stock rounded-[var(--radius-card)] p-4">
+    <div className={cn("stock rounded-[var(--radius-card)] p-3 sm:p-4", wide && "col-span-2 sm:col-span-1")}>
       <div className="text-xs text-muted-foreground">{label}</div>
-      <div className="mt-1 text-2xl font-semibold tracking-tight">{children}</div>
+      <div className="mt-1 text-xl font-semibold tracking-tight sm:text-2xl">{children}</div>
       {note && <p className="mt-1 text-xs text-muted-foreground">{note}</p>}
     </div>
   );
