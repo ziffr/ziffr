@@ -220,6 +220,21 @@ What you answer here stays in this Workspace. It is not sent to Ziffr's makers o
 
 Choose **Save** when you are done. Teams within your company, such as Sales or Finance, are not part of the profile: make them Groups on **Members and Groups**.
 
+### Announcements
+
+Owners and Admins see an **Announcements** section on the General page, below Retention and Limits. An **Announcement** is one plain line above every screen for the people of this Workspace, for a change in how you work or anything else they should read. It reaches Owners, Admins and Members; Guests do not see it, and neither does anyone in another Workspace. The section lists them, a warning first, with their words, level, window and where they stand: **On**, **Scheduled** (not started yet), **Ended** or **Off**.
+
+**Add an Announcement** opens a panel at the side with these fields:
+
+- **Words**: plain text, at most 280 characters; the panel counts what is left. No markup.
+- **Link** and **Words for the link** (optional): the address must start with `https://`, and the words say what it is. It is never opened by itself.
+- **Level**: info, or warning. A warning is shown before an info.
+- **Starts** and **Ends** (optional): so that one can be written ahead and goes by itself. The times are in your browser's time zone, which the panel names beside them. Without a start it shows at once; without an end it stays until you switch it off.
+- **Cannot be dismissed**: people see no Dismiss button, so keep it for what must be read.
+- **Switched on**.
+
+Under the fields, a **Preview** shows the line as people will see it. **Change** on a row opens the same panel. **Switch off** keeps an Announcement for later and **Switch on** brings it back; **Delete** asks first and removes it for good. At most 10 can be on at once and a Workspace keeps at most 50; a refusal says so in the panel. People see them below the Installation's own lines (see [Announcements](17-your-settings.md#announcements)), three at once with the rest behind **+N more**. Each change is in the Audit log, with the words as they were. The demo has no Workspace Announcements.
+
 ### Encryption
 
 Owners see one line at the end of the page: **Encrypted with a key of its own. Deleting this Workspace destroys it.** The Workspace's words and numbers (Thread replies, questions and tasks, Contacts' details, Metric names, values, notes on a period, the Outbox, the Audit Log and the Slack connection's token) are encrypted with that key as they are written, and what was written before is encrypted as Ziffr gets to it, so a copy of the database alone does not show what is already encrypted. Ziffr itself still reads them to do its work: this is not end-to-end encryption. When a Workspace is deleted (today: a trial), its key goes first, so what is left of it can no longer be opened; backups made before then become unreadable once their retention period is over.

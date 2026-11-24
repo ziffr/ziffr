@@ -18,8 +18,17 @@ import type { UsageDay, UsageKeyInfo } from "@ziffr/core/installation-usage";
 import { WorkspaceLimits } from "./workspace-limits";
 import { UsageSection } from "./usage";
 import { EncryptionSection } from "./encryption";
-import { AnnouncementsSection } from "./announcements";
+import { AnnouncementsSection, type AnnouncementsKind } from "@/components/announcements-editor";
+import { createInstallationAnnouncement, deleteInstallationAnnouncement, setInstallationAnnouncementActive, updateInstallationAnnouncement } from "@/app/installation-actions";
+import { INSTALLATION_ANNOUNCEMENTS_ACTIVE_MAX } from "@ziffr/core/announcement-rules";
 import type { InstallationAnnouncementRow } from "@ziffr/core/installation-announcements";
+
+// The Installation's Announcements: two more fields than a Workspace's, and its own server actions.
+const INSTALLATION_ANNOUNCEMENTS: AnnouncementsKind = {
+  activeMax: INSTALLATION_ANNOUNCEMENTS_ACTIVE_MAX, installation: true,
+  intro: "One plain line above every screen, for a maintenance window or anything else everyone should read.",
+  create: createInstallationAnnouncement, update: updateInstallationAnnouncement, setActive: setInstallationAnnouncementActive, remove: deleteInstallationAnnouncement,
+};
 import type { KeyProgress } from "@ziffr/core/workspace-key-progress";
 
 /** The words the page uses for each kind of event of the Installation's audit. */
@@ -85,7 +94,7 @@ export function InstallationScreen({ announcements, view, admins, events, limits
       <div className="min-w-0 space-y-12">
         <AdminsSection admins={admins} />
         {view.sections.map((s) => <Section key={s.id} feedback={s.id === "feedback" ? feedback : undefined} section={s} canSeal={view.canSeal} slack={s.id === "slack" ? view.slack : undefined} siteUrl={view.siteUrl} limits={s.id === "limits" ? limits : undefined} replies={s.id === "replies" ? replies : undefined} usage={s.id === "usage" ? { key: usage.key, days: usage.days, workspaces: usage.leaveOut } : undefined} />)}
-        <AnnouncementsSection rows={announcements} />
+        <AnnouncementsSection rows={announcements} kind={INSTALLATION_ANNOUNCEMENTS} />
         <EncryptionSection progress={encryption} />
         <section id="changes" aria-labelledby="changes-heading" className="scroll-mt-20 space-y-3">
           <h2 id="changes-heading" className="text-lg font-medium">Changes</h2>

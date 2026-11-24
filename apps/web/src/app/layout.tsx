@@ -38,6 +38,7 @@ import { AnnouncementLine } from "@/components/announcement-line";
 import { DEMO_RESET_ANNOUNCEMENT, announcementScope, announcementsFor, fromInstallation } from "@/lib/announcements";
 import { shellOrder } from "@/lib/announcement-state";
 import { activeInstallationAnnouncements } from "@ziffr/core/installation-announcements";
+import { activeWorkspaceAnnouncements } from "@ziffr/core/workspace-announcements";
 import { DemoVisitPrefs } from "@/components/demo-visit-prefs";
 import { switchableDashboards } from "@ziffr/core/home";
 import { demoChangesInEffect } from "@ziffr/core/demo-reset-decision";
@@ -148,9 +149,9 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
   // And pins and Home are the visit's own, kept in its browser: it is told the dashboards the person viewed as may open (id and name only).
   const visitPrefs = demoChanges ? { person: viewer, known: (await switchableDashboards(actor)).map((d) => ({ id: d.id, name: d.name })), demoPinned: pinned.map((p) => ({ id: p.id, name: p.name })) } : null;
   // The Announcement line (GLOSSARY: Announcement): the demo's built-in notice that it is shared or read-only and when it starts
-  // fresh (it carries the countdown, so the screen has one notice, not two), then those an Installation Admin wrote that are
-  // on now for this visit. Each is dismissable for the visit unless it cannot be; only what the line shows is sent.
-  const announcements = shellOrder(announcementsFor({ demo, changes: Boolean(demoChanges), offersTrials }), fromInstallation(await activeInstallationAnnouncements({ demo })), Boolean(demoChanges));
+  // fresh (it carries the countdown, so the screen has one notice, not two), then those an Installation Admin wrote, then those
+  // an Owner or Admin of this Workspace wrote (none for a Guest or in the demo), all on now for this visit. Each is dismissable for the visit unless it cannot be; only what the line shows is sent.
+  const announcements = shellOrder(announcementsFor({ demo, changes: Boolean(demoChanges), offersTrials }), fromInstallation(await activeInstallationAnnouncements({ demo })), Boolean(demoChanges), fromInstallation(await activeWorkspaceAnnouncements(actor)));
   const demoNote = announcements.length ? (
     <AnnouncementLine
       items={announcements}

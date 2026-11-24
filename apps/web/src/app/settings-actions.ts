@@ -15,6 +15,7 @@ import * as workspace from "@ziffr/core/workspace-settings";
 import * as fiscalYear from "@ziffr/core/fiscal-year";
 import * as quiet from "@ziffr/core/quiet-hours";
 import * as limits from "@ziffr/core/limits";
+import * as announcements from "@ziffr/core/workspace-announcements";
 
 /** Changes your own name and colour. */
 export async function updateMyProfile(input: { name?: string; color?: string }) {
@@ -146,5 +147,43 @@ export async function setMySettableLimit(key: string, value: number | null) {
   return attempt(async () => {
     await limits.setMySettableLimit(await currentActor(), key, value);
     revalidatePath("/", "layout");
+  });
+}
+
+// Workspace Announcements (spec 0054; GLOSSARY: Announcement): the core checks Owner or Admin, the Workspace and every field again.
+
+/** Makes an Announcement for the Workspace from what the form sent (Owners and Admins). */
+export async function createWorkspaceAnnouncement(input: unknown) {
+  return attempt(async () => {
+    await announcements.createWorkspaceAnnouncement(await currentActor(), input);
+    revalidatePath("/settings/workspace");
+    return { ok: true as const, message: "Announcement added." };
+  });
+}
+
+/** Changes every field of one of the Workspace's Announcements (Owners and Admins). */
+export async function updateWorkspaceAnnouncement(id: string, input: unknown) {
+  return attempt(async () => {
+    await announcements.updateWorkspaceAnnouncement(await currentActor(), String(id ?? ""), input);
+    revalidatePath("/settings/workspace");
+    return { ok: true as const, message: "Announcement saved." };
+  });
+}
+
+/** Switches one of the Workspace's Announcements on or off (Owners and Admins). */
+export async function setWorkspaceAnnouncementActive(id: string, active: boolean) {
+  return attempt(async () => {
+    await announcements.setWorkspaceAnnouncementActive(await currentActor(), String(id ?? ""), active === true);
+    revalidatePath("/settings/workspace");
+    return { ok: true as const, message: active === true ? "Announcement switched on." : "Announcement switched off." };
+  });
+}
+
+/** Deletes one of the Workspace's Announcements for good (Owners and Admins). */
+export async function deleteWorkspaceAnnouncement(id: string) {
+  return attempt(async () => {
+    await announcements.deleteWorkspaceAnnouncement(await currentActor(), String(id ?? ""));
+    revalidatePath("/settings/workspace");
+    return { ok: true as const, message: "Announcement deleted." };
   });
 }
