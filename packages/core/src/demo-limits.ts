@@ -71,9 +71,11 @@ export function demoDeckStoreOk(store: string): boolean {
   return new TextEncoder().encode(store).length <= DEMO_DECK_STORE_MAX_BYTES;
 }
 
-/** What the saves of decks may write in a reset window (spec 0051, ticket 10): a deck saves itself after each change, so the bytes
- * of every save above `thresholdBytes` are counted (in KB) per network address, per network and for the whole demo. */
-export const DEMO_DECK_BYTES = { thresholdBytes: 8 * 1024, maxCountedBytes: 600 * 1024, perAddressKb: 20_000, perNetworkKb: 50_000, demoKb: 300_000 } as const;
+/** What the saves of decks may write in a reset window (spec 0051, ticket 10; lowered after the final review): a deck saves itself after
+ * each change, so the bytes of every save above `thresholdBytes` are counted (in KB) per network address (5 MB), per network (10 MB)
+ * and for the whole demo (40 MB). A deck is rewritten whole (TOAST), so 300 MB a window would have been about 29 GB a day of
+ * write-ahead log on the shared box. */
+export const DEMO_DECK_BYTES = { thresholdBytes: 8 * 1024, maxCountedBytes: 600 * 1024, perAddressKb: 5_000, perNetworkKb: 10_000, demoKb: 40_000 } as const;
 
 /** Taking a Snapshot freezes a whole dashboard's numbers, so it is the demo's most expensive change (spec 0051, Limits:
  * Expensive work, ticket 10): one at a time in the whole demo (a lease of `lockSeconds`, so a crash cannot hold it), a few
@@ -98,3 +100,50 @@ export const DEMO_VALUE_LIMITS = { monthsBack: 24, pasteRows: 100, pasteLines: 4
  * allows no Derived input, so it never nests); a Target Series or Projection call of at most this many rows within this many months of
  * today; the largest number a visitor types as a target or a value of a series; the furthest a Task's due date may be. */
 export const DEMO_METRIC_LIMITS = { formulaChars: 200, formulaInputs: 5, formulaOperations: 20, seriesRowsPerCall: 60, seriesMonths: 24, numberMax: 1e12, dueDays: 366 } as const;
+
+/** What one network address and one network (an IPv4 /24 or IPv6 /48) may CREATE of a capped kind in a reset window, by the kind's
+ * cap (spec 0051, final review D2): a quarter of it for an address and half for a network (at least 1), so no script from one place
+ * can fill a kind for every visitor. Counted by `chargeCreation` (demo-creation.ts) under the same keyed hashes as the values' share. */
+export function demoCreationShare(cap: number): { address: number; network: number } {
+  return { address: Math.max(1, Math.floor(cap / 4)), network: Math.max(1, Math.floor(cap / 2)) };
+}
+
+/** The kinds of `DEMO_ROW_CAPS` that have no creation share of this kind, and why: values, Snapshots and runs have shares of their
+ * own (demo-budget.ts, demo-shares.ts), Workflows are never made by a visitor, and a dashboard's widgets are capped per dashboard
+ * (one dashboard full locks nobody else out). */
+export const DEMO_CREATION_EXEMPT: readonly string[] = ["values", "snapshots", "workflows", "workflow_run", "widgets_per_dashboard"];
+
+/** Which capped kind each server action that makes rows of it counts against (spec 0051, final review D2): the single table the
+ * visitor's wrapper reads. Keys are the actions' keys in demo-changes.ts; a test fails for a `limited` action that is in neither
+ * this table nor `DEMO_CREATION_EXEMPT`'s kinds, so a new opening cannot forget its share. */
+export const DEMO_CREATES: Readonly<Record<string, keyof typeof DEMO_ROW_CAPS>> = {
+  "canvas-actions:createDashboardNamed": "dashboards",
+  "dashboard-template-actions:createFromDashboardTemplate": "dashboards",
+  "home-actions:newDashboard": "dashboards",
+  "canvas-actions:saveToPool": "saved_widgets",
+  "convert-actions:addToDeck": "decks",
+  "convert-actions:makeDeck": "decks",
+  "convert-actions:makeDeckFromSnapshot": "decks",
+  "deck-actions:createDeck": "decks",
+  "deck-workflow-template-actions:createDeckFromTemplate": "decks",
+  "dashboard-template-actions:saveAsDashboardTemplate": "templates",
+  "deck-workflow-template-actions:saveAsDeckTemplate": "templates",
+  "template-actions:saveSlideLayout": "templates",
+  "template-actions:saveTemplate": "templates",
+  "theme-actions:addStandardTheme": "themes",
+  "theme-actions:duplicateTheme": "themes",
+  "version-actions:saveNamedVersion": "versions",
+  "access-actions:requestAccess": "access_requests",
+  "actions:createAction": "open_actions",
+  "canvas-actions:assignInPlace": "open_actions",
+  "actions:createMetric": "metrics",
+  "actions:createDerivedMetric": "derived_metrics",
+  "actions:replyToAction": "thread_messages",
+  "canvas-actions:markTaskDone": "thread_messages",
+  "canvas-actions:setShare": "shares",
+  "canvas-actions:setGroupShare": "shares",
+  "series-actions:saveSeriesRows": "series_rows",
+  "tag-actions:addTags": "tags",
+  "team-actions:createGroup": "groups",
+  "team-actions:setMember": "group_members",
+};

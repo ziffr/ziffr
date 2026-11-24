@@ -15,6 +15,7 @@ import { getMetrics, getObservation, getSeriesOf } from "./workspace-data";
 import { peopleIn, peopleToHide } from "./submissions";
 import { assertSeesMetrics } from "./sharing";
 import { DEMO_WORKSPACE_ID } from "./team";
+import { madeBySeed } from "./demo-seeded-rows";
 import { mayManageWebhooks } from "./webhooks";
 import { normalizeMetric } from "./metric-row";
 import { tokenValid } from "./tokens";
@@ -369,11 +370,17 @@ export async function actionThread(actor: Actor, id: number) {
 }
 
 /** A personal form link's page, for anyone holding the code: the Metric, whose form it is, and this period's value.
- * Null when the code is unknown or a stand-in's link no longer works. */
-export async function submissionForm(code: string) {
+ * Null when the code is unknown or a stand-in's link no longer works. `demoVisit` says whether the request carries a demo visit's
+ * cookie: a form of the demo Workspace opens only with one (spec 0051), because a visitor's Metric name and description would
+ * otherwise be shown in large type, on the demo's own domain, to anyone holding the link (a phishing page). */
+export async function submissionForm(code: string, demoVisit = false) {
   if (!/^[A-Za-z0-9_-]{4,80}$/.test(String(code))) return null;
   const { data: token } = await db().from("tokens").select("*, metrics(*), profiles!tokens_submitter_id_fkey(id, name)").eq("code", code).maybeSingle();
   if (!token) return null;
+  // In the demo only a Metric the seed made has a form link, and only for a request with a visit's cookie. A visit's id is free to mint,
+  // so the cookie alone proves little: the link of a Metric a visitor made (their words, in large type, on the demo's domain) is never
+  // a page for anyone else, whoever holds it.
+  if (token.workspace_id === DEMO_WORKSPACE_ID && (!demoVisit || !(await madeBySeed("metrics", Number(token.metric_id))))) return null;
   // A Feed's Token opens no form: a Feed presents its key, and its form would show the period's value (spec 0012).
   if ((await feedIdsAmong([token.submitter_id as string])).size) return null;
   if (token.stands_in_for) {

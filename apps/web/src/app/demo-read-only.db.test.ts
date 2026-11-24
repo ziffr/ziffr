@@ -18,9 +18,12 @@ vi.mock("server-only", () => ({}));
 vi.mock("next/cache", () => ({ revalidatePath: vi.fn(), revalidateTag: vi.fn() }));
 // A demo visit as Sara, the demo's Owner, who may try everything a role allows.
 const jar = vi.hoisted(() => ({ "ziffr-demo": { value: "1" }, "ziffr-viewer": { value: "sara" } } as Record<string, { value: string }>));
+// Each change comes from an address of its own (a network of its own): the walk makes far more of a kind than one address may in a
+// window (its share of the cap, final review D2), and the shares are tried by their own tests.
+const from = vi.hoisted(() => ({ n: 0 }));
 vi.mock("next/headers", () => ({
   cookies: async () => ({ get: (name: string) => jar[name], set: () => {}, delete: () => {}, getAll: () => [] }),
-  headers: async () => new Headers({ host: "ziffr.test", "x-forwarded-for": "203.0.113.9" }),
+  headers: async () => { from.n += 1; return new Headers({ host: "ziffr.test", "x-forwarded-for": `198.${(from.n >> 8) & 255}.${from.n & 255}.9` }); },
 }));
 
 const APP = join(__dirname);

@@ -1,5 +1,6 @@
 // The personal form link (GLOSSARY: Token, Stand-in, Submission Rule): a Submitter enters a Metric's value without
 // signing in. The code in the address is the credential; nothing else from the address is ever shown (ticket 183).
+import { cookies } from "next/headers";
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import { submissionForm } from "@ziffr/core/page-data";
@@ -10,13 +11,15 @@ import { TelegramConnect } from "./telegram-connect";
 import { periodLabel } from "@ziffr/core/periods";
 import { BrandBar } from "@/components/brand-bar";
 import { LookScope } from "@/components/look-scope";
+import { DEMO_VISIT_COOKIE, visitIdOf } from "@/lib/demo-visit-cookie";
 
 /** The personal form link's page. It reads nothing from its query string: the result of a submission comes back from
  * the server action into the form (ticket 183), so no link can put its own words on this page. */
 export default async function SubmitPage({ params }: { params: Promise<{ code: string }> }) {
   const { code } = await params;
   // The code is the credential; a stand-in's form works only while they are the stand-in (GLOSSARY: Stand-in).
-  const form = await submissionForm(code);
+  // A form of the demo Workspace opens only with a demo visit's cookie (spec 0051): a link a visitor made is no page for anyone else.
+  const form = await submissionForm(code, visitIdOf((await cookies()).get(DEMO_VISIT_COOKIE)?.value) !== null);
   if (!form) notFound();
   // Telegram is offered only where the workspace turned it on (spec 0016).
   const telegram = await formTelegramLink(code);

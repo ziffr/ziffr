@@ -315,6 +315,15 @@ describe("$schema from outside", () => {
   });
 });
 
+describe("Placeholders in a design's texts", () => {
+  it("accepts the known ones in words, before and after, and refuses any other braces", () => {
+    const ok = withPart({ mark: "text", content: ["{metric}: {latest} ({change yoy}) vs {metric 2}", { show: "latest.value", before: "{period} ", after: " {target}" }] });
+    expect(checkViewDesign(ok).ok).toBe(true);
+    expect(checkViewDesign(withPart({ mark: "text", content: ["{unknown}"] })).ok).toBe(false);
+    expect(checkViewDesign(withPart({ mark: "text", content: [{ show: "latest.value", before: "{x}" }] })).ok).toBe(false);
+  });
+});
+
 describe("the published schema", () => {
   // The schema in docs/reference is generated from VIEW_DESIGN_SCHEMA, never written by hand. UPDATE_REFERENCE=1 writes it.
   const path = repoFile("docs/reference/view-design.schema.json");

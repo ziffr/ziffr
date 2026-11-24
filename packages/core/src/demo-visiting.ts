@@ -23,7 +23,7 @@ export function demoVisitHeaders(visit: DemoVisit, settings: Record<string, stri
 
 /** Runs a demo visit's work with its client's headers, where the setting is in effect; otherwise runs it as it is, and the
  * database refuses what the demo refuses. Never for the seed, whose client wins inside seedingDemo. */
-export async function visitingDemo<T>(visit: DemoVisit, work: () => Promise<T>): Promise<T> {
+export async function visitingDemo<T>(visit: DemoVisit, work: () => Promise<T>, who: { visitId: string; headers: { get(name: string): string | null } } | null = null): Promise<T> {
   const headers = demoVisitHeaders(visit, await settingsInEffect());
-  return headers ? runAsVisit(headers, work) : work();
+  return headers ? runAsVisit(headers, work, who) : work();
 }

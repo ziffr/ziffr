@@ -155,6 +155,10 @@ A team Widget Template in the Pool has its own **⋯** menu. Everyone sees **Ver
 
 When a template lands, a panel beside the page, named after the template, asks for each Slot, such as "Metric", "Metric with a breakdown", "First metric" and "Second metric", or "Metrics, one or more". A team template also says which Metrics it was made with ("In the original: …"), as far as you can see them. Once every Slot is filled, a Preview shows the Widget with your Metrics, drawn as wide as the panel allows, also on a narrow screen. Press **Add** (built-in templates) or **Use template** (team templates), or **Cancel**; Escape and **Close** cancel too, and nothing is placed.
 
+### Words in a widget's title
+
+A Widget's **title** can use the same **Placeholders** as a Finding's words, such as "{metric}: {latest} ({change yoy})". The title then reads "Revenue: 120 € (up 20.0 %)" and stays right when the values move on. This works for every Widget, built-in Views and View Designs alike, on a dashboard, in a Snapshot (as of its day), on a View Link, when presenting and on a slide. You write a title where the dashboard offers it, in **Write** of a Snapshot and through the API or an assistant; the list under **Words that fill themselves in** (also in the Finding editor) says what each Placeholder becomes. {metric 2} is the Widget's second Metric. A Placeholder of a Metric the viewer may not see is left empty, so a shared page never shows a name or value they could not see otherwise; a word in braces that is not a Placeholder stays as written. A View Design can use Placeholders in its own texts too (see the View Design guide).
+
 ## A widget's menu
 
 Every **Widget** has a **⋯** button in its title bar. Right-clicking the Widget opens the same menu. A line under the dashboard's name reminds you of this until you have opened a Widget's menu once.
@@ -504,7 +508,7 @@ The owner and Editors have these buttons:
 
 | Button | What it does |
 | --- | --- |
-| **Write** / **Done** | Opens the words to write: the **Introduction** ("What happened in this period, in a sentence or two"), then each part: a **Title**, or for a Finding its **Kicker**, **Headline**, **Subline**, **Footnote** and **Source**. Empty fields fall back to what the data says. **Save words** keeps them. Only the words change; the values, charts and layout stay as they were. |
+| **Write** / **Done** | Opens the words to write: the **Introduction** ("What happened in this period, in a sentence or two"), then each part: a **Title** (which may use Placeholders), or for a Finding its **Kicker**, **Headline**, **Subline**, **Footnote** and **Source**. Empty fields fall back to what the data says. **Save words** keeps them. Only the words change; the values, charts and layout stay as they were. |
 | **Show to everyone with access** | Ends the draft. From then on, whoever may open the dashboard may open the Snapshot, and sees in it only the Metrics they may see now. |
 | **Versions** | Every change to its words (see [Versions](#versions)). Everyone who can open it sees this. |
 | **Delete** | The owner only. Asks first; the Snapshot's values and words go for good, the dashboard and its values stay. |

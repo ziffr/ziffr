@@ -12,6 +12,7 @@ import { DemoLimit } from "./demo";
 import { DemoSizeRefused } from "./demo-visitor-limits";
 import { DEMO_STORE_MAX } from "./demo-limits";
 import { visitHeaders } from "./demo-visit-scope";
+import { mayRecordAutoVersion } from "./demo-creation";
 
 // Changes a program makes through an Access Key go through the same core functions as people's (spec 0014), and those
 // record Versions deep inside. Rather than thread a note through every signature, the key's call runs inside
@@ -135,6 +136,8 @@ export async function recordVersion(type: VersionType, id: number, author: strin
     await db().from("versions").update({ snapshot: await sealedSnapshot(ws, type, id, last.version, snapshot), updated_at: new Date().toISOString(), message: opts.message ?? last.message }).eq("id", last.id);
     return;
   }
+  // An address's share of the demo's Versions is counted before an automatic one is written (final review D2): past it the Version is left out.
+  if (inVisit && !opts.name && !(await mayRecordAutoVersion({ workspaceId: ws }))) return;
   const version = (last?.version ?? 0) + 1;
   try {
     await db().from("versions").insert({
@@ -153,6 +156,7 @@ export async function ensureBaseline(type: VersionType, id: number, author: stri
   if (count) return;
   const loaded = await loadSnapshot(type, id);
   if (!loaded) return;
+  if (visitHeaders() !== null && !(await mayRecordAutoVersion({ workspaceId: loaded.ws }))) return;
   try {
     await db().from("versions").insert({ object_type: type, object_id: id, version: 1, snapshot: await sealedSnapshot(loaded.ws, type, id, 1, loaded.snapshot), author_id: author, message: "Before version history" });
   } catch (e) {

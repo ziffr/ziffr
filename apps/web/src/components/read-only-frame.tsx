@@ -5,6 +5,8 @@ import { WidgetBody, widgetMetrics } from "@/views/widget-body";
 import { templateOf } from "@/views/templates";
 import { CompareStrip, DEFAULT_COMPARE } from "@/components/compare-strip";
 import type { CanvasData, Metric, Widget } from "@ziffr/core/types";
+import { fillWidgetText } from "@ziffr/core/placeholders";
+import { dataAsOf } from "@ziffr/core/snapshot-periods";
 import { cn } from "@/lib/utils";
 import { useRef } from "react";
 import { TakeawayHostProvider, HIDDEN_TAKEAWAYS } from "@/views/takeaway-host";
@@ -21,9 +23,10 @@ const ANALYSIS_TITLE: Record<string, (ms: Metric[]) => string> = {
 };
 
 /** The title on a widget's card: its own, else the metric's name or what the analysis compares. Findings and free
- * layouts carry their own headline, so their header stays quiet. */
-export function frameTitle(widget: FrameWidget, ms: Metric[]): string {
-  if (widget.title) return widget.title;
+ * layouts carry their own headline, so their header stays quiet. A title's Placeholders ({latest}, {change yoy}) are filled in
+ * from the data this viewer has for the widget (as of its Snapshot's day), so a hidden Metric's are empty. */
+export function frameTitle(widget: FrameWidget, ms: Metric[], data: CanvasData): string {
+  if (widget.title) return fillWidgetText(widget.title, widget, widget.settings.asOf ? dataAsOf(data, widget.settings.asOf) : data) ?? "";
   const kind = templateOf(widget).kind;
   if (kind === "story" || kind === "layout") return "";
   // A Workspace's analysis design is titled by its name and what it compares.
@@ -36,7 +39,7 @@ export function ReadOnlyFrame({ widget, data, className, wordsUnder = false }: {
   const ms = widgetMetrics(widget, data);
   const m = ms[0];
   const kind = templateOf(widget).kind;
-  const title = frameTitle(widget, ms);
+  const title = frameTitle(widget, ms, data);
   // Its words, rows and axes grow with the card, as on a dashboard (#763).
   const card = useRef<HTMLDivElement>(null);
   const scale = useMeasuredWidgetScale(card);

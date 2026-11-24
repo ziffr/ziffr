@@ -5,13 +5,18 @@
 import { revalidatePath } from "next/cache";
 import { addMetricTags as coreAdd, removeMetricTags as coreRemove, deleteTag as coreDelete, mergeTags as coreMerge, renameTag as coreRename, tagImpact as coreImpact } from "@ziffr/core/tags";
 import { attempt } from "@/lib/action-result";
+import { chargeMoreCreations } from "@ziffr/core/demo-creation";
 import { attemptAsVisitor } from "@/lib/demo-write";
 import { currentActor } from "@/lib/viewer";
 
 /** Puts the typed words on a Metric as someone who may change it; answers the Metric's Tags now. */
 export async function addTags(metricId: number, names: string[]) {
-  return attemptAsVisitor("tag-actions:addTags", async () => {
-    const tags = await coreAdd(await currentActor(), Number(metricId), Array.isArray(names) ? names.slice(0, 20).map((n) => String(n ?? "")) : []);
+  return attemptAsVisitor("tag-actions:addTags", async (who) => {
+    const actor = await currentActor();
+    const list = Array.isArray(names) ? names.slice(0, 20).map((n) => String(n ?? "")) : [];
+    // Every name may make a Tag: the demo counts them all against the address's share before any is written.
+    await chargeMoreCreations(actor, who, "tag-actions:addTags", list.length);
+    const tags = await coreAdd(actor, Number(metricId), list);
     revalidatePath("/", "layout");
     return { tags };
   });

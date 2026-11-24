@@ -185,7 +185,7 @@ describe("what a visitor stores", () => {
     await asVisit(async () => {
       const id = await dash.createDashboard(sara, "Small things");
       const w = await dash.placeWidget(sara, id, { type: "metric", id: metric });
-      await expect(dash.updateWidget(sara, w, { settings: { headline: "ok", callouts: Array.from({ length: 400 }, () => ({ period: "2026-03-01", text: "x".repeat(40) })) } })).rejects.toBeInstanceOf(DemoSizeRefused);
+      await expect(dash.updateWidget(sara, w, { settings: { headline: "ok", callouts: Array.from({ length: 50 }, () => ({ period: "2026-03-01", text: "x".repeat(200) })) } })).rejects.toBeInstanceOf(DemoSizeRefused);
       await dash.updateWidget(sara, w, { settings: { headline: "ok", junk: "x".repeat(100) } as never });
       const { data } = await db().from("widgets").select("settings").eq("id", w).single();
       expect(JSON.stringify(data?.settings)).not.toContain("junk");
