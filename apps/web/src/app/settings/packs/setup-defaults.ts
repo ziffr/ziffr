@@ -24,7 +24,7 @@ export function setupStart(options: PackSetupOptions, viewer: string): SetupStar
 }
 
 /** How many Metrics the Setup Guide ticks to begin with: a few, so the first Metric exists quickly and the rest is a choice. */
-export const GUIDE_METRICS = 3;
+const GUIDE_METRICS = 3;
 
 /** The entries a Dashboard Template's Slots suggest, in order, or null when one Slot suggests none (it could not be filled
  * from the entries made here). Used to say what ticking the dashboard adds. */
