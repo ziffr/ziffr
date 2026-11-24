@@ -2,8 +2,7 @@ import { currentWorkspaceId, viewerId } from "@/lib/viewer";
 import { getPeopleIn, getProfiles } from "@/lib/data";
 import { getGroups } from "@/lib/access";
 import { PageHeader } from "@/components/page-header";
-import { TeamScreen } from "./screen";
-import { Members } from "./members";
+import { TeamTabs } from "./team-tabs";
 import { currentActor } from "@/lib/viewer";
 import { businessFunctions } from "@ziffr/core/business-function";
 import { teamView } from "@ziffr/core/page-data";
@@ -30,14 +29,12 @@ export default async function TeamPage() {
   // Business Functions go to Owners and Admins only (GLOSSARY: Business Function): for a Member the loader is not even
   // called, so nothing of them reaches this page's props, HTML or data.
   const functions = canEdit ? await businessFunctions(actor) : null;
-  const members = people.filter((p) => !p.contact).map((p) => ({ id: p.id, name: p.name, role: (team.roles.find((r) => r.user_id === p.id)?.role ?? "member") as WorkspaceRoleName }));
   // Away dates of this workspace's people only (teamView); nobody else's reach the browser.
-  const away = team.away;
+  const members = people.filter((p) => !p.contact).map((p) => ({ ...p, workspaceRole: (team.roles.find((r) => r.user_id === p.id)?.role ?? "member") as WorkspaceRoleName }));
   return (
     <>
-      <PageHeader title="Members and Groups" sub="The people in this workspace and their groups. Share with a group, or limit a question to one, and whoever joins later is included. Everyone in the workspace is a group of its own: all members except guests." />
-      <Members viewer={viewer} members={members} canEdit={canEdit} isOwner={actor.role === "owner"} invitations={invitations} mailOn={await mailOn()} joinRequests={joinRequests} joinDomain={team.joinDomain} myDomain={who?.verifiedEmail?.split("@")[1] ?? null} contacts={contacts} trial={Boolean(await trialEndsAt(actor.workspaceId))} />
-      <TeamScreen people={people.filter((p) => !p.contact)} contacts={contacts} groups={groups.filter((g) => !g.everyone)} canEdit={canEdit} viewer={viewer} away={away ?? []} functions={functions} />
+      <PageHeader title="Members and Groups" sub="The people in this workspace and their groups." />
+      <TeamTabs data={{ viewer, canEdit, isOwner: actor.role === "owner", people: members, contacts, groups: groups.filter((g) => !g.everyone), away: team.away ?? [], functions, invitations, joinRequests, mailOn: await mailOn(), joinDomain: team.joinDomain, myDomain: who?.verifiedEmail?.split("@")[1] ?? null, trial: Boolean(await trialEndsAt(actor.workspaceId)) }} />
     </>
   );
 }
