@@ -4,7 +4,7 @@
 // that honour it, and the light colours already checked for contrast for the ones that do not). Everything a person
 // wrote is escaped, and a link is made only from an https: or http: address. The plain-text part is the caller's own
 // text and is always sent too. Pure.
-import { contrastRatio, readableOn, type ThemeLook } from "./theme-look";
+import { contrastRatio, onFill, readableOn, type ThemeLook } from "./theme-look";
 import { FONTS } from "./themes";
 
 /** The content id the logo is attached under; the layout refers to it as cid:ziffr-logo. */
@@ -33,6 +33,9 @@ export function emailLogo(look: Pick<ThemeLook, "logo">, max = 150_000): { conte
 /** What an email says, besides the brand: its paragraphs (the plain text, blank lines between them), a line under it
  * for the one-click stop link, and a short line shown before it opens (the preheader). */
 export type EmailContent = { text: string; stop?: { label: string; url: string }; preheader?: string;
+  /** One button under the text (a sign-in link): its label and address. The address is also printed once under the
+   * button, small and not as a link, for the reader whose app does not draw buttons. `after` is the paragraphs below it. */
+  action?: { label: string; url: string; fallback: string }; after?: string;
   /** Who is really behind the message, in Ziffr's own words; a fixed line in the footer that no Theme can change or remove. */
   sentBy?: string };
 
@@ -84,8 +87,11 @@ export function emailHtml(look: ThemeLook, content: EmailContent, opts: { logo?:
       .muted { color: ${night.muted} !important; }
       .accent { color: ${night.accent} !important; }
       .bar { background-color: ${night.accent} !important; }
+      .btn { color: ${onFill(night.accent)} !important; }
       .rule { border-color: ${night.rule} !important; }
     }`}`;
+  const safeUrl = (u: string) => /^https?:\/\//i.test(u) ? u : "#";
+  const action = content.action ? `<table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin:8px 0 16px;"><tr><td class="bar" align="center" style="background-color:${base.accent};border-radius:6px;"><a href="${esc(safeUrl(content.action.url))}" class="btn" style="display:inline-block;padding:12px 24px;font:600 16px/1.2 ${stack(heading)};color:${onFill(base.accent)};text-decoration:none;border-radius:6px;">${esc(content.action.label)}</a></td></tr></table><p class="muted" style="margin:0 0 16px;font-size:12px;line-height:1.5;color:${base.muted};word-break:break-all;">${esc(content.action.fallback)}<br>${esc(content.action.url)}</p>${content.after ? paragraphs(content.after, base.accent, base.rule) : ""}` : "";
   const stop = content.stop ? `<p class="muted" style="margin:16px 0 0;font-size:13px;line-height:1.5;color:${base.muted};">${esc(content.stop.label)}: <a href="${esc(content.stop.url)}" class="accent" style="color:${base.accent};text-decoration:underline;">${esc(content.stop.url)}</a></p>` : "";
   const html = `<!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="color-scheme" content="light dark"><meta name="supported-color-schemes" content="light dark"><title>${esc(look.name)}</title><style>${css}</style></head>
@@ -95,7 +101,7 @@ ${content.preheader ? `<div style="display:none;max-height:0;overflow:hidden;opa
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" class="card" style="max-width:560px;background-color:${base.surface};border-radius:8px;overflow:hidden;">
 <tr><td class="bar" height="4" style="height:4px;line-height:4px;font-size:4px;background-color:${base.accent};">&nbsp;</td></tr>
 <tr><td style="padding:24px 28px 8px;">${header}</td></tr>
-<tr><td class="ink" style="padding:8px 28px 24px;font:16px/1.55 ${stack(body)};color:${base.ink};">${paragraphs(content.text, base.accent, base.rule)}${stop}</td></tr>
+<tr><td class="ink" style="padding:8px 28px 24px;font:16px/1.55 ${stack(body)};color:${base.ink};">${paragraphs(content.text, base.accent, base.rule)}${action}${stop}</td></tr>
 <tr><td class="rule muted" style="padding:16px 28px;border-top:1px solid ${base.rule};font:12px/1.5 ${stack(body)};color:${base.muted};">${footer.map(esc).join("<br>")}</td></tr>
 </table></td></tr></table></body></html>`;
   return html;

@@ -16,7 +16,7 @@ ZIFFR_SMTP_URL=smtps://user:password@smtp.example.com:465
 ZIFFR_MAIL_FROM="Ziffr <ziffr@example.com>"
 ```
 
-Any provider with SMTP works. Use an address on a domain whose SPF and DKIM include that provider, or the mail lands in spam. Emails are plain text.
+Any provider with SMTP works. Use an address on a domain whose SPF and DKIM include that provider, or the mail lands in spam. Every email has a plain-text part, and most also an HTML part in the Workspace's Theme. A sign-in link has no Workspace yet, so its HTML part is Ziffr's own look: the name Ziffr, a button with the link (the address itself only as a small line under it, for apps that draw no buttons), and colours that stay readable in a dark mail app.
 
 A send that fails is tried again after 1, 2, 4 and 8 minutes, then marked as not sent. Something has to run the retries: have a scheduler call the job every few minutes ([scheduled jobs](jobs.md)).
 
