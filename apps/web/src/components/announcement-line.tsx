@@ -11,6 +11,25 @@ import { Info, TriangleAlert, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { DISMISSED_KEY, capShown, dismissedIn, stillShown, withDismissed, type Announcement } from "@/lib/announcement-state";
 
+/** One Announcement as the line shows it, without its Dismiss button: the level (an icon, and "Warning:" in words), the text,
+ * what it ends with, and its link (an https one opens in a new tab). The Installation settings preview draws the same
+ * piece, so what an admin sees there is what the line says. */
+export function AnnouncementWords({ a, extra }: { a: Announcement; extra?: React.ReactNode }) {
+  return (
+    <>
+      {a.level === "warning"
+        ? <TriangleAlert aria-hidden="true" className="mt-0.5 size-3.5 shrink-0" />
+        : <Info aria-hidden="true" className="mt-0.5 size-3.5 shrink-0 text-muted-foreground" />}
+      <p className="min-w-0 flex-1 text-muted-foreground">
+        {a.level === "warning" && <strong className="font-semibold text-foreground">Warning: </strong>}
+        {a.text}
+        {extra}
+        {a.link && <>{" "}<a href={a.link.href} {...(a.link.href.startsWith("https://") ? { target: "_blank", rel: "noopener noreferrer" } : {})} className="underline underline-offset-2 hover:text-foreground">{a.link.label}</a>.</>}
+      </p>
+    </>
+  );
+}
+
 /** The line for each Announcement not dismissed in this visit. */
 export function AnnouncementLine({ items, scope, extra = {} }: { items: Announcement[]; scope: string; extra?: Record<string, React.ReactNode> }) {
   const [dismissed, setDismissed] = useState<string[]>([]);
@@ -32,15 +51,7 @@ export function AnnouncementLine({ items, scope, extra = {} }: { items: Announce
     <>
       {visible.map((a) => (
         <section key={a.id} aria-label="Announcement" className="mx-auto flex w-full max-w-7xl items-start gap-2 px-4 pt-3 text-xs sm:px-6">
-          {a.level === "warning"
-            ? <TriangleAlert aria-hidden="true" className="mt-0.5 size-3.5 shrink-0" />
-            : <Info aria-hidden="true" className="mt-0.5 size-3.5 shrink-0 text-muted-foreground" />}
-          <p className="min-w-0 flex-1 text-muted-foreground">
-            {a.level === "warning" && <strong className="font-semibold text-foreground">Warning: </strong>}
-            {a.text}
-            {extra[a.id]}
-            {a.link && <>{" "}<a href={a.link.href} {...(a.link.href.startsWith("https://") ? { target: "_blank", rel: "noopener noreferrer" } : {})} className="underline underline-offset-2 hover:text-foreground">{a.link.label}</a>.</>}
-          </p>
+          <AnnouncementWords a={a} extra={extra[a.id]} />
           {a.dismissible !== false && (
             <Button variant="ghost" size="icon-xs" className="shrink-0" onClick={() => dismiss(a.id)}>
               <X aria-hidden="true" />
