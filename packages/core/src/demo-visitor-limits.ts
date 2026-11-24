@@ -29,7 +29,7 @@ export function visitorSize(actor: Pick<Actor, "workspaceId">, value: unknown, m
 
 /** Counts `by` of a purpose against the visit's cap for the window and refuses in the demo's words when it is over. Fails
  * closed without a visit's key. Only in a demo visit. */
-export async function chargeVisitor(actor: Pick<Actor, "workspaceId">, purpose: "bytes" | "named", by: number, cap: number, words: string = DEMO_BUDGET_USED): Promise<void> {
+export async function chargeVisitor(actor: Pick<Actor, "workspaceId">, purpose: "bytes" | "named" | "snapshots", by: number, cap: number, words: string = DEMO_BUDGET_USED): Promise<void> {
   if (!inDemoVisit(actor)) return;
   const own = visitHeaders()?.["x-ziffr-demo-visit-key"];
   if (!own || !/^[0-9a-f]{32}$/.test(own)) throw new DemoSizeRefused(DEMO_BUSY);

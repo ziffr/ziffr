@@ -8,6 +8,7 @@ import { isDark, slideDesign, themeFor } from "@ziffr/core/themes";
 import { tokensForViewer } from "@ziffr/core/theme-dark";
 import { useViewerDark } from "@/lib/use-viewer-dark";
 import { toast } from "sonner";
+import { isActionError } from "@/lib/action-error";
 import { ChevronDown, Eye, FileDown, Group as GroupIcon, History, LayoutTemplate, Link2, MonitorPlay, MoreHorizontal, Palette, Plus, Presentation, Printer, Trash2, Ungroup } from "lucide-react";
 import { createShapeId, DefaultDashStyle, DefaultFontStyle, DefaultStylePanel, getSnapshot, Tldraw, useEditor, useValue, type Editor, type TLComponents, type TLEditorSnapshot, type TLUiStylePanelProps } from "tldraw";
 import { Pool } from "@/components/pool";
@@ -134,7 +135,10 @@ function DeckCanvas({ deck, data, saved, sharing, seed, templateSeed, deckTempla
           setStatus("saving");
           // Plain JSON only: tldraw records can hold class instances that server actions cannot carry.
           saveDeck(deck.id, JSON.parse(JSON.stringify(getSnapshot(ed.store).document)))
-            .then(() => setStatus("saved"))
+            .then((r) => {
+              // A refusal (in the demo: words the demo does not take, a deck it keeps as it is) is answered as words, not thrown.
+              if (isActionError(r)) { setStatus("unsaved"); toast.error("Not saved", { id: "deck-save", description: r.error }); } else setStatus("saved");
+            })
             .catch(() => setStatus("unsaved"));
         }, 800);
       };
@@ -288,7 +292,7 @@ function DeckCanvas({ deck, data, saved, sharing, seed, templateSeed, deckTempla
           <input
             value={name}
             onChange={(e) => setName(e.target.value)}
-            onBlur={() => start(() => renameDeck(deck.id, name))}
+            onBlur={() => start(async () => { const r = await renameDeck(deck.id, name); if (isActionError(r)) toast.error("Not renamed", { description: r.error }); })}
             className="w-full max-w-xl rounded-[var(--radius-input)] bg-transparent px-1 text-[length:var(--text-xl)] font-semibold tracking-[-0.03em] outline-none hover:bg-muted focus-visible:bg-card focus-visible:outline-2 focus-visible:outline-ring"
           />
         </label>
@@ -374,7 +378,7 @@ function DeckCanvas({ deck, data, saved, sharing, seed, templateSeed, deckTempla
             <Input
               defaultValue={footer ?? ""}
               placeholder={theme?.slides.footer || "No footer"}
-              onBlur={(e) => { const v = e.target.value.trim() || null; if (v !== footer) { setFooter(v); start(() => setDeckFooter(deck.id, v)); } }}
+              onBlur={(e) => { const v = e.target.value.trim() || null; if (v !== footer) { setFooter(v); start(async () => { const r = await setDeckFooter(deck.id, v); if (isActionError(r)) toast.error("Footer not saved", { description: r.error }); }); } }}
             />
             <span className="mt-1 block text-xs text-muted-foreground">Empty uses the theme&rsquo;s footer. Logo, slide numbers and type come from the theme.</span>
           </label>

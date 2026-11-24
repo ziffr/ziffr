@@ -5,7 +5,8 @@
 //
 // Ticket 4 made every change `blocked`; each opening ticket of spec 0051 moves its keys from `not-yet` to `OPEN` or
 // `LIMITED` here and nowhere else (ticket 8: the work around a value, recording, approving, locking, the Workflows' run to the
-// Outbox, Stand-ins, Away; ticket 9: dashboards, widgets, the Pool, Themes of a visitor's own, Versions and templates). `demoAllows` says no to everything unless the setting is in effect, so with it off the demo is as read-only as
+// Outbox, Stand-ins, Away; ticket 9: dashboards, widgets, the Pool, Themes of a visitor's own, Versions and templates; ticket 10: decks, their
+// templates and slide layouts, and Snapshots). `demoAllows` says no to everything unless the setting is in effect, so with it off the demo is as read-only as
 // before. The database's list still has to hold the tables an action writes, so a forgotten line refuses a visitor and
 // opens nothing. The classification only ever opens what the database would also let through.
 import { demoChangesInEffect } from "./demo-reset-decision";
@@ -262,17 +263,7 @@ const BLOCKED: Record<BlockedReason, readonly string[]> = {
     "canvas-actions:setShare",
     "connector-actions:setPreference",
     "setup/ways-actions:saveAskMeBy",
-    "convert-actions:addToDeck",
-    "convert-actions:makeDeck",
-    "convert-actions:makeDeckFromSnapshot",
-    "deck-actions:createDeck",
-    "deck-actions:deleteDeck",
-    "deck-actions:renameDeck",
-    "deck-actions:saveDeck",
-    "deck-actions:setDeckFooter",
-    "deck-workflow-template-actions:createDeckFromTemplate",
     "deck-workflow-template-actions:createWorkflowFromTemplate",
-    "deck-workflow-template-actions:saveAsDeckTemplate",
     "deck-workflow-template-actions:saveAsWorkflowTemplate",
     "series-actions:archiveMetric",
     "setup/first-metric-actions:askMeForIt",
@@ -284,10 +275,6 @@ const BLOCKED: Record<BlockedReason, readonly string[]> = {
     "series-actions:saveSeriesRows",
     "series-actions:setMetricSources",
     "series-actions:updateMetricDetails",
-    "snapshot-actions:deleteSnapshot",
-    "snapshot-actions:editSnapshotWords",
-    "snapshot-actions:showSnapshot",
-    "snapshot-actions:takeSnapshot",
     "tag-actions:addTags",
     "tag-actions:deleteTag",
     "tag-actions:mergeTags",
@@ -299,8 +286,6 @@ const BLOCKED: Record<BlockedReason, readonly string[]> = {
     "team-actions:removeContact",
     "team-actions:renameGroup",
     "team-actions:setMember",
-    "template-actions:saveSlideLayout",
-    "theme-actions:setDeckTheme",
     "workflow-actions:deleteWorkflow",
     "workflow-actions:saveWorkflow",
     "workflow-actions:setMetricWorkflow",
@@ -332,11 +317,20 @@ const OPEN: readonly string[] = [
   "canvas-actions:saveDashboardText",
   "canvas-actions:saveLayout",
   "canvas-actions:updateWidget",
+  // Ticket 10: a visitor's own decks and Snapshots (the seed's refuse, in the core and in the database).
+  "deck-actions:deleteDeck",
+  "deck-actions:renameDeck",
+  "deck-actions:saveDeck",
+  "deck-actions:setDeckFooter",
+  "snapshot-actions:deleteSnapshot",
+  "snapshot-actions:editSnapshotWords",
+  "snapshot-actions:showSnapshot",
   "template-actions:deleteTemplate",
   "template-actions:renameTemplate",
   "theme-actions:deleteTheme",
   "theme-actions:saveTheme",
   "theme-actions:setDashboardTheme",
+  "theme-actions:setDeckTheme",
   "version-actions:nameVersion",
 ];
 
@@ -369,8 +363,20 @@ const LIMITED: Readonly<Record<string, readonly string[]>> = {
   saved_widgets: [
     "canvas-actions:saveToPool",
   ],
+  decks: [
+    "convert-actions:addToDeck",
+    "convert-actions:makeDeck",
+    "convert-actions:makeDeckFromSnapshot",
+    "deck-actions:createDeck",
+    "deck-workflow-template-actions:createDeckFromTemplate",
+  ],
+  snapshots: [
+    "snapshot-actions:takeSnapshot",
+  ],
   templates: [
     "dashboard-template-actions:saveAsDashboardTemplate",
+    "deck-workflow-template-actions:saveAsDeckTemplate",
+    "template-actions:saveSlideLayout",
     "template-actions:saveTemplate",
   ],
   themes: [
