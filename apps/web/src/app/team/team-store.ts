@@ -8,10 +8,10 @@ import type { Group, Profile } from "@ziffr/core/types";
 import type { BusinessFunction } from "@ziffr/pack/business-functions";
 
 /** One invitation that is open, as the page loads it (Owners and Admins only). */
-export type OpenInvitation = { id: number; email: string | null; role: string; expires_at: string; email_sent_at: string | null; email_sends: number; email_error: string | null; held_at: string | null; name: string | null };
+type OpenInvitation = { id: number; email: string | null; role: string; expires_at: string; email_sent_at: string | null; email_sends: number; email_error: string | null; held_at: string | null; name: string | null };
 
 /** A person with a login and their Workspace Role (the job title is `role` of the profile). */
-export type Member = Profile & { workspaceRole: WorkspaceRoleName };
+type Member = Profile & { workspaceRole: WorkspaceRoleName };
 
 /** Everything the People and Groups tabs and their panels show; the server page builds it from what the viewer may see. */
 export type TeamData = {
