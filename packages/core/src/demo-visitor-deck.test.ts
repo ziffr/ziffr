@@ -126,6 +126,27 @@ describe("in a demo visit", () => {
     await expect(visit(() => visitorDeckDocument(demo, drawn, null))).rejects.toThrow(DemoSizeRefused);
   });
 
+  it("checks the runs of a block joined, as a reader sees them: a link split across runs, marks or breaks is refused", async () => {
+    const bold = (text: string) => ({ type: "text", text, marks: [{ type: "bold" }] });
+    const plain = (text: string) => ({ type: "text", text });
+    const refuse = async (content: object[], wrap: (p: object) => object = (p) => p) => {
+      const d = deck(shape("shape:t1", "text", { richText: { type: "doc", content: [wrap({ type: "paragraph", content })] } }));
+      await expect(visit(() => visitorDeckDocument(demo, d, same(d)))).rejects.toThrow(DemoTextRefused);
+    };
+    await refuse([plain("go to evil"), bold(".com/login")]);
+    await refuse([plain("see ww"), bold("w.evil"), plain("x")]);
+    await refuse([plain("[click]"), bold("(http"), plain("s://x)")]);
+    await refuse([plain("a@evil"), { type: "hardBreak" }, plain("b")].slice(0, 1).concat([bold(".com")]));
+    await refuse([plain("<"), bold("script>")]);
+    await refuse([plain("evil\u200d"), plain(".com/x")]);
+    // In a heading and in a list item.
+    await refuse([plain("evil"), bold(".com/x")], (p) => ({ type: "heading", attrs: { level: 1 }, content: (p as { content: object[] }).content }));
+    await refuse([plain("evil"), bold(".com/x")], (p) => ({ type: "bulletList", content: [{ type: "listItem", content: [p] }] }));
+    // Words in two paragraphs are two lines, and fine.
+    const ok = deck(shape("shape:t1", "text", { richText: { type: "doc", content: [{ type: "paragraph", content: [plain("Revenue")] }, { type: "paragraph", content: [plain("and "), bold("cost")] }] } }));
+    await expect(visit(() => visitorDeckDocument(demo, ok, same(ok)))).resolves.toBeDefined();
+  });
+
   it("keeps a blank run as a space, so words on either side stay apart", async () => {
     const d = deck(shape("shape:t1", "text", { richText: rich("a", " ", "​", "b") }));
     const out = (await visit(() => visitorDeckDocument(demo, d, same(d)))) as typeof d;

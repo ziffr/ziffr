@@ -64,6 +64,14 @@ function richText(node: unknown, depth: number): unknown {
   if (Array.isArray(node.content)) {
     if (node.content.length > 500) throw notKept();
     out.content = node.content.map((c) => richText(c, depth + 1));
+    // Runs next to each other draw as one line ("evil" + ".com/login"): the words are checked joined, as a reader sees them,
+    // each run alone being only normalised. A hard break reads as a space.
+    const runs = (out.content as Obj[]).filter((c) => c.type === "text" || c.type === "hardBreak");
+    if (runs.length > 1) {
+      const joined = runs.map((c) => (c.type === "text" ? String(c.text) : " ")).join("");
+      const r = demoTextOk(joined, "description");
+      if (!r.ok && r.words !== DEMO_TEXT_WORDS.empty) throw new DemoTextRefused(r.words);
+    }
   }
   if (Array.isArray(node.marks)) out.marks = node.marks.filter((m) => isObj(m) && typeof m.type === "string" && MARKS.includes(m.type)).map((m) => ({ type: (m as Obj).type }));
   if (isObj(node.attrs)) out.attrs = Object.fromEntries(Object.entries(node.attrs).filter(([k, v]) => KEY.test(k) && (v === null || typeof v === "number" || typeof v === "boolean")));
