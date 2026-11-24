@@ -63,7 +63,7 @@ function isOn(path: string, href: string) {
   return path === href || path.startsWith(href + "/") || (href === "/dashboards" && path === "/");
 }
 
-const sheetRow = "flex h-12 flex-1 flex-col items-center justify-center gap-0.5 text-xs text-muted-foreground outline-none focus-visible:bg-muted data-[active=true]:font-medium data-[active=true]:text-foreground [&_svg]:size-5";
+const sheetRow = "flex h-12 min-w-0 flex-1 flex-col items-center justify-center gap-0.5 text-xs max-[359px]:text-[11px] text-muted-foreground outline-none focus-visible:bg-muted data-[active=true]:font-medium data-[active=true]:text-foreground [&_svg]:size-5";
 
 /** The whole frame. `demo` holds the demo's controls, `banners` the notes that sit above every page. */
 export function AppShell({ workspace, settings, pinned: pinnedByServer, due, account, guide, demo, people, banners, collapsed, setup = { applies: false, shown: false }, children }: { workspace: TreeLink[]; settings: { label: string; links: TreeLink[] }[]; pinned: Pinned[]; due: number; account: Account | null; guide: string; demo?: React.ReactNode; people?: { profiles: Profile[]; current: string }; banners?: React.ReactNode; collapsed: boolean; setup?: SetupState; children: React.ReactNode }) {

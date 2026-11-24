@@ -630,7 +630,7 @@ Owners (not Admins) get one plain-text email a month about the same lists, in th
 
 **Workspace → Audit log** is for Owners and Admins only. It is the **Audit Log**: who changed who may see or do what, and the decisions taken on numbers. Nothing in it can be changed or removed, and events are kept for two years, or for the days the Installation Admin has set (the page says how long). Times are shown in the Workspace's time zone.
 
-On a phone the filter (**Person**, **What happened**, **From**, **To**, **Show**) stacks one field under the other, and the row of Settings pages above it scrolls sideways and fades out at its right edge to say so.
+On a phone the filter (**Person**, **What happened**, **From**, **To**, **Show**) stacks one field under the other, and the row of Settings pages above it scrolls sideways and fades out at its right edge to say so. The bar at the bottom of the screen fits even a phone 320 px wide.
 
 ### What is recorded
 
