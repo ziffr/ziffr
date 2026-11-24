@@ -11,6 +11,7 @@ import type { ShareRole } from "./types";
 import { deliverNotice } from "./deliveries";
 import { audit } from "./audit-log";
 import { refuseSeededOne, visitorMembersOnly } from "./demo-visitor-metrics";
+import { visitorGroupPeople, visitorShowsOnlySeen } from "./demo-visitor-sharing";
 
 const TYPES: ObjectType[] = ["metric", "dashboard", "deck"];
 const table = (t: ObjectType) => (t === "metric" ? "metrics" : t === "deck" ? "decks" : "dashboards");
@@ -77,8 +78,13 @@ export async function share(actor: Actor, type: ObjectType, id: number, personId
   const obj = await ownedForSharing(actor, type, id, role);
   if (personId === actor.personId) throw new Forbidden();
   await assertMembersIn(actor, [personId]);
-  const { data: was } = await db().from("shares").delete().eq("workspace_id", actor.workspaceId).eq("object_type", type).eq("object_id", id).eq("user_id", personId).select("role");
-  if (role) await db().from("shares").insert({ object_type: type, object_id: id, user_id: personId, role, workspace_id: actor.workspaceId });
+  // In the demo a Share may only show the recipient Metrics they see already (spec 0051, ticket 11).
+  if (role) await visitorShowsOnlySeen(actor, type, id, [personId]);
+  // Changed in place, so a refusal (a full cap) leaves the Share as it was.
+  const { data: was } = await db().from("shares").select("role").eq("workspace_id", actor.workspaceId).eq("object_type", type).eq("object_id", id).eq("user_id", personId);
+  if (!role) { if (was?.length) await db().from("shares").delete().eq("workspace_id", actor.workspaceId).eq("object_type", type).eq("object_id", id).eq("user_id", personId); }
+  else if (!was?.length) await db().from("shares").insert({ object_type: type, object_id: id, user_id: personId, role, workspace_id: actor.workspaceId });
+  else if (was[0].role !== role) await db().from("shares").update({ role }).eq("workspace_id", actor.workspaceId).eq("object_type", type).eq("object_id", id).eq("user_id", personId);
   const { data: p } = await db().from("profiles").select("name").eq("id", personId).maybeSingle();
   await auditShare(actor, type, obj, (was?.[0]?.role as ShareRole | undefined) ?? null, role, { to_type: "person", to_id: personId, to_name: (p?.name as string | undefined) ?? null });
 }
@@ -94,8 +100,11 @@ export async function shareWithGroup(actor: Actor, type: ObjectType, id: number,
   const obj = await ownedForSharing(actor, type, id, role);
   const { data: g } = await db().from("groups").select("id, name").eq("id", groupId).eq("workspace_id", actor.workspaceId).maybeSingle();
   if (!g) throw new Forbidden();
-  const { data: was } = await db().from("shares").delete().eq("workspace_id", actor.workspaceId).eq("object_type", type).eq("object_id", id).eq("group_id", groupId).select("role");
-  if (role) await db().from("shares").insert({ object_type: type, object_id: id, group_id: groupId, role, workspace_id: actor.workspaceId });
+  if (role) await visitorShowsOnlySeen(actor, type, id, await visitorGroupPeople(actor, groupId));
+  const { data: was } = await db().from("shares").select("role").eq("workspace_id", actor.workspaceId).eq("object_type", type).eq("object_id", id).eq("group_id", groupId);
+  if (!role) { if (was?.length) await db().from("shares").delete().eq("workspace_id", actor.workspaceId).eq("object_type", type).eq("object_id", id).eq("group_id", groupId); }
+  else if (!was?.length) await db().from("shares").insert({ object_type: type, object_id: id, group_id: groupId, role, workspace_id: actor.workspaceId });
+  else if (was[0].role !== role) await db().from("shares").update({ role }).eq("workspace_id", actor.workspaceId).eq("object_type", type).eq("object_id", id).eq("group_id", groupId);
   await auditShare(actor, type, obj, (was?.[0]?.role as ShareRole | undefined) ?? null, role, { to_type: "group", to_id: groupId, to_name: g.name as string });
 }
 

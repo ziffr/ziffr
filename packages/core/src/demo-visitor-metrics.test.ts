@@ -41,6 +41,10 @@ describe("a visitor's formula", () => {
     });
   });
 
+  it("does not count the hyphens of a {slug} as operations", async () => {
+    await visit(() => visitorFormula(demo, "{visitor-metric-a1b2c3} + {visitor-metric-d4e5f6} + {another-long-slug-a1b2c3} * {yet-another-slug-d4e5f6}"));
+  });
+
   it("counts the same Metric once, as the formula reads it", async () => {
     await visit(() => visitorFormula(demo, "{a}*{a}*{a}*{a}*{a}*{a}*{a}"));
   });

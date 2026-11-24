@@ -190,6 +190,44 @@ describe("Shares, access requests and Groups among the made-up people", () => {
     });
   });
 
+  it("never make a Metric of the seed that a person does not see visible to them: not by a dashboard, a calculated Metric or a Group joined later", async () => {
+    // Greta, the Guest, sees two Metrics only; take a seeded Metric of Sara's that she does not see.
+    const guest = (await db().from("memberships").select("user_id").eq("workspace_id", DEMO_WORKSPACE_ID).eq("role", "guest").limit(1).single()).data!.user_id as string;
+    const { visibleMetricIds } = await import("./access");
+    const { getMetrics } = await import("./workspace-data");
+    const all = await getMetrics(DEMO_WORKSPACE_ID);
+    const sees = await visibleMetricIds(DEMO_WORKSPACE_ID, guest, all);
+    const hidden = all.find((m) => !sees.has(m.id) && m.owner_id === "sara" && !m.formula)!;
+    await asVisit(async () => {
+      const dash = await (await import("./dashboards")).createDashboard(sara, "Shows a hidden Metric");
+      await (await import("./dashboards")).placeWidget(sara, dash, { type: "metric", id: hidden.id });
+      await expect(share(sara, "dashboard", dash, guest, "viewer")).rejects.toThrow(DEMO_METRIC_WORDS.hidden);
+      // A calculated Metric over the hidden input shows the input's values.
+      const calc = await createDerivedMetric(sara, { name: "Hidden times one", formula: `{${hidden.slug}} * 1` });
+      await expect(share(sara, "metric", calc.id, guest, "viewer")).rejects.toThrow(DEMO_METRIC_WORDS.hidden);
+      // A Group shared with, then a Guest added later.
+      const group = await createGroup(sara, "Later group");
+      await setGroupMember(sara, group, "ben", true);
+      await expect(shareWithGroup(sara, "dashboard", dash, group, "viewer")).rejects.toThrow(DEMO_METRIC_WORDS.hidden);
+      // A dashboard of Metrics Ben sees already is shared with the Group; the hidden one is added after, and the Guest may not join.
+      const dashboards = await import("./dashboards");
+      const plain = await dashboards.createDashboard(sara, "Only seen Metrics");
+      await shareWithGroup(sara, "dashboard", plain, group, "viewer");
+      await expect(setGroupMember(sara, group, guest, true)).resolves.toBeUndefined();
+      await setGroupMember(sara, group, guest, false);
+      await dashboards.placeWidget(sara, plain, { type: "metric", id: hidden.id });
+      await expect(setGroupMember(sara, group, guest, true)).rejects.toThrow(DEMO_METRIC_WORDS.hidden);
+      expect(await count("shares", { object_id: dash })).toBe(0);
+    });
+    // A refusal at a cap changes nothing: a changed role keeps the Share (checked in place, not deleted first).
+    await asVisit(async () => {
+      const { id } = await createMetric(sara, { ...base, name: "Role change" });
+      await share(sara, "metric", id, "ben", "viewer");
+      await share(sara, "metric", id, "ben", "editor");
+      expect((await db().from("shares").select("role").eq("object_id", id).eq("user_id", "ben")).data).toEqual([{ role: "editor" }]);
+    });
+  });
+
   it("let Ben ask for a Metric Sara has not shared, and Sara grant it, with both notices in the Outbox and nothing sent", async () => {
     const before = await demoWalkOutbound();
     await asVisit(async () => {

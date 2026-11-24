@@ -12,6 +12,7 @@ import { audit } from "./audit-log";
 import { refuseInDemo } from "./demo";
 import { refuseSeededOne } from "./demo-visitor-metrics";
 import { visitorText } from "./demo-visitor-words";
+import { visitorJoinShowsOnlySeen } from "./demo-visitor-sharing";
 import { sendingLimit } from "./sending-limit";
 import { sendingLimitDefault } from "./sending-limits";
 
@@ -83,8 +84,11 @@ export async function setGroupMember(actor: Actor, groupId: number, personId: st
   await refuseSeededOne(actor, "groups", groupId);
   await assertMembersIn(actor, [personId]);
   const { data: was } = await db().from("group_members").select("user_id").eq("group_id", groupId).eq("user_id", personId).eq("workspace_id", actor.workspaceId).maybeSingle();
-  if (member) await db().from("group_members").upsert({ group_id: groupId, user_id: personId, workspace_id: actor.workspaceId });
-  else await db().from("group_members").delete().eq("group_id", groupId).eq("user_id", personId).eq("workspace_id", actor.workspaceId);
+  // In the demo a person joins a Group only if what it was given shows them nothing they do not see (spec 0051, ticket 11); one who is in
+  // already is left alone, so a full cap changes nothing.
+  if (member && !was) await visitorJoinShowsOnlySeen(actor, groupId, personId);
+  if (member && !was) await db().from("group_members").insert({ group_id: groupId, user_id: personId, workspace_id: actor.workspaceId });
+  else if (!member && was) await db().from("group_members").delete().eq("group_id", groupId).eq("user_id", personId).eq("workspace_id", actor.workspaceId);
   // Only a real change is an event: ticking a box that was ticked records nothing.
   if (Boolean(was) !== member) {
     const { data: p } = await db().from("profiles").select("name").eq("id", personId).maybeSingle();

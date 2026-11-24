@@ -90,6 +90,7 @@ export const DEMO_METRIC_WORDS = {
   workflow: "In the demo a Metric is not added to a Workflow.",
   team: "In the demo, only a Group made by a visitor changes who is in it.",
   everyone: "In the demo, one person sets only their own way of being asked.",
+  hidden: "In the demo, that would show someone a Metric they do not see yet. Share the Metric with them first.",
 } as const;
 
 /** The sentence for a digest, or null for any other error. */

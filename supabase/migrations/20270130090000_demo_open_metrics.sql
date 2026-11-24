@@ -13,9 +13,12 @@
 -- No row of the demo is read or written here (rule 5): only lists, triggers, a column on two tables and the caps' numbers.
 
 -- 1. Shares and Group members had no creation time, so a row cap (counted by creation since the seed was done) could not be put on
---    them. A column with a constant default is a metadata change in Postgres: no table is rewritten.
-alter table shares add column created_at timestamptz not null default now();
-alter table group_members add column created_at timestamptz not null default now();
+--    them. Existing rows get '-infinity' (a constant, so no table is rewritten, and every row that exists now counts as older than the
+--    seed's end, never against a visitor's cap); rows made from now on get the time they are made.
+alter table shares add column created_at timestamptz not null default '-infinity';
+alter table shares alter column created_at set default now();
+alter table group_members add column created_at timestamptz not null default '-infinity';
+alter table group_members alter column created_at set default now();
 
 -- 2. The caps of the kinds that grow with a visitor's work. The numbers are starting points for the owner (the spec gives none
 --    for these): the core's list (packages/core/src/demo-limits.ts) holds the same, and a database test compares the two.

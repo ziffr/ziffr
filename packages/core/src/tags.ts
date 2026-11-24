@@ -15,6 +15,7 @@ import { audit } from "./audit-log";
 import { db } from "./db";
 import { refuseInDemoOutsideVisit } from "./demo-visitor-metrics";
 import { visitorText } from "./demo-visitor-words";
+import { demoRefusalOf } from "./demo-visitor-sharing";
 import { ServerFault } from "./server-fault";
 import { cleanTagNames, normaliseTagName, tagKey, tagNameProblem, TAGS_PER_METRIC, TAGS_PER_WORKSPACE } from "./tag-names";
 import { readTags, tagIndexes } from "./tag-rows";
@@ -75,6 +76,7 @@ export async function changeMetricTags(actor: Actor, metricId: number, change: T
   const { data, error } = await db().rpc("set_metric_tags", {
     p_ws: actor.workspaceId, p_metric: metricId, p_by: actor.personId, p_mode: change, p_tags: tags, p_allow_new: !guest, p_max_metric: TAGS_PER_METRIC, p_max_ws: TAGS_PER_WORKSPACE,
   });
+  if (error) { const demo = demoRefusalOf(error); if (demo) throw demo; }
   if (error || !data) throw new ServerFault("The Tags could not be saved.");
   const status = (data as { status?: string }).status;
   if (status === "metric_limit") throw new Refused(AT_LIMIT_METRIC);
@@ -168,6 +170,7 @@ export async function renameTag(actor: Actor, tagId: string, name: unknown): Pro
   const cipher = await workspaceCipher(actor.workspaceId);
   const index = tagIndexes(cipher, next);
   const { data, error } = await db().rpc("rename_tag", { p_ws: actor.workspaceId, p_id: tag.id, p_name: cipher.seal({ table: "tags", column: "name", row: tag.id }, next), p_index: index.current, p_indexes: index.all });
+  if (error) { const demo = demoRefusalOf(error); if (demo) throw demo; }
   if (error) throw new ServerFault("The Tag could not be renamed.");
   // Another Tag took the name between the check and the change: said as a merge, with no word about which.
   if (data === "exists") throw new Refused("There is already a Tag with that name. Merge the two instead.");
@@ -190,6 +193,7 @@ export async function mergeTags(actor: Actor, fromId: string, intoId: string): P
 
 async function mergeInto(actor: Actor, from: Pick<VisibleTag, "id" | "name" | "metrics">, into: { id: string; name: string }, record = true): Promise<void> {
   const { data, error } = await db().rpc("merge_tags", { p_ws: actor.workspaceId, p_from: from.id, p_into: into.id });
+  if (error) { const demo = demoRefusalOf(error); if (demo) throw demo; }
   if (error) throw new ServerFault("The Tags could not be merged.");
   if (data !== "ok") throw new Forbidden();
   // Dashboards that showed "all Metrics tagged" the first Tag follow the other (spec 0038).
@@ -205,6 +209,7 @@ export async function deleteTag(actor: Actor, tagId: string): Promise<{ metrics:
   assertKeeper(actor);
   const { tag } = await seenTag(actor, tagId);
   const { data, error } = await db().rpc("delete_tag", { p_ws: actor.workspaceId, p_id: tag.id });
+  if (error) { const demo = demoRefusalOf(error); if (demo) throw demo; }
   if (error) throw new ServerFault("The Tag could not be deleted.");
   if (data !== "ok") throw new Forbidden();
   await audit(actor, { kind: "tag.deleted", object: { type: "tag", id: tag.id, name: tag.name }, details: { metrics: tag.metrics } });

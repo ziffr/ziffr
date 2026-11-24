@@ -43,7 +43,8 @@ export function visitorNumber(actor: Pick<Actor, "workspaceId">, n: number | nul
  * nests and cannot cycle. Unchanged outside a visit. */
 export function visitorFormula(actor: Pick<Actor, "workspaceId">, formula: string): void {
   if (!inDemoVisit(actor)) return;
-  const operations = formula.match(/[-+*/]/g)?.length ?? 0;
+  // The hyphens inside a {slug} are not operations.
+  const operations = formula.replace(/\{[a-z0-9-]+\}/g, "").match(/[-+*/]/g)?.length ?? 0;
   if (formula.length > DEMO_METRIC_LIMITS.formulaChars || formulaInputs(formula).length > DEMO_METRIC_LIMITS.formulaInputs || operations > DEMO_METRIC_LIMITS.formulaOperations) {
     throw new DemoTextRefused(DEMO_METRIC_WORDS.formula);
   }
