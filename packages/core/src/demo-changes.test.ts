@@ -51,7 +51,8 @@ describe("demoAllows", () => {
   it("gives every limited action a limit the database and the core both have", () => {
     for (const k of OPENED) {
       const c = demoClassOf(k);
-      if (c?.class === "limited") expect(Object.keys(DEMO_ROW_CAPS), k).toContain(c.limit);
+      // `workflow_run` is the one Workflow run a minute (demo_visit_counts), not a row cap.
+      if (c?.class === "limited") expect([...Object.keys(DEMO_ROW_CAPS), "workflow_run"], k).toContain(c.limit);
     }
   });
 
@@ -105,7 +106,7 @@ describe("refuseInDemo", () => {
     vi.stubEnv("ZIFFR_DEMO_ONLY", "1");
     vi.stubEnv("ZIFFR_DEMO_CHANGES", "1");
     expect(() => refuseInDemo(demo, "series-actions:recordValue")).not.toThrow();
-    expect(() => refuseInDemo(demo, "canvas-actions:placeWidget")).toThrow(DemoReadOnly);
+    expect(() => refuseInDemo(demo, "canvas-actions:setShare")).toThrow(DemoReadOnly);
     expect(() => refuseInDemo(demo, "made-up-actions:doSomething")).toThrow(DemoReadOnly);
     // A place that cannot name its operation always refuses, whatever the list says.
     expect(() => refuseInDemo(demo)).toThrow(DemoReadOnly);

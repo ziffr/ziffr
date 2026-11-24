@@ -10,7 +10,7 @@ import { BUILT_IN_DESIGNS } from "@ziffr/core/built-in-designs";
 import { STANDARD_THEMES } from "@ziffr/core/standard-themes";
 import { themeToFile } from "@ziffr/core/theme-file";
 import { demoBackToSeed, demoFingerprint, demoFullSeed, demoGeneration, demoLatestId, demoOpenForVisitors, demoWalkClearCounts, demoWalkIds, demoWalkOutbound } from "@ziffr/core/test/demo-walk";
-import { DEMO_BUDGET_USED, DEMO_BUSY, DEMO_GOING_FAST, DEMO_SEEDED_WORDS, DEMO_SHOWCASE, DEMO_STALE, DEMO_VALUE_WORDS } from "@ziffr/core/demo-words";
+import { DEMO_BUDGET_USED, DEMO_BUSY, DEMO_GOING_FAST, DEMO_STALE, DEMO_VALUE_WORDS } from "@ziffr/core/demo-words";
 import { demoAllows, demoClassOf } from "@ziffr/core/demo-changes";
 
 vi.mock("server-only", () => ({}));
@@ -496,7 +496,9 @@ describe("with the setting in effect, a visit", () => {
   // Ticket 8: the work around a value. Not refused with the demo's own words, some row changes, and nothing leaves the Outbox.
   it("lets the work around a value through, and sends nothing outside", async () => {
     const mine = Object.keys(CASES).filter((k) => /^(actions:(submitWebForm|decideCorrection|recordSimulated)|connector-actions:(askForMissing|sendDue|recordSimulated)|fill-in-actions:|paste-actions:recordPaste|series-actions:(askMeNow|recordValue)|workflow-actions:)/.test(k) && "open" in CASES[k]);
-    const demoWords = [demoReadOnlyWords(), DEMO_STALE, DEMO_BUSY, DEMO_BUDGET_USED, DEMO_GOING_FAST, DEMO_SHOWCASE, DEMO_SEEDED_WORDS, DEMO_VALUE_WORDS.run];
+    // The walk's rows are the seed's: a Lock changes a seeded period's note, and the first Prompt's Delivery is the showcase's, so those two kinds of
+    // refusal ("everyone sees this one as it is") are the protection working. Everything else of the demo's words is a failure.
+    const demoWords = [demoReadOnlyWords(), DEMO_STALE, DEMO_BUSY, DEMO_BUDGET_USED, DEMO_GOING_FAST, DEMO_VALUE_WORDS.run];
     const outboundAtStart = await demoWalkOutbound();
     const fingerprintAtStart = await demoFingerprint();
     const wrong: string[] = [];

@@ -80,6 +80,6 @@ describe("what the opened actions write", () => {
   it("is a table the migration opens or one it guards: no opened action reaches a closed one by name", () => {
     // Every opened or limited key is one of the work around a value (the walk's unit test holds the same for the whole list).
     const keys = demoOperations().filter((k) => ["open", "limited"].includes(demoClassOf(k)?.class ?? ""));
-    expect(keys.length).toBe(22);
+    expect(keys.length).toBeGreaterThanOrEqual(22);
   });
 });

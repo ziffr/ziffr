@@ -14,8 +14,7 @@
 
 -- 1. Three tables the work writes that no ticket had classified: what a message said (the intake log), and a Breakdown's labels
 --    (and their history). Their words are a visitor's too, so a row the seed made keeps them.
-insert into demo_words_columns (table_name, column_name, kind) values
-  ('intake_log', 'sender', 'words'), ('intake_log', 'raw', 'words'), ('intake_log', 'detail', 'words'),
+insert into demo_words_columns (table_name, column_name, kind) values ('intake_log', 'sender', 'words'), ('intake_log', 'raw', 'words'), ('intake_log', 'detail', 'words'),
   ('breakdown_rows', 'label', 'words'),
   ('breakdown_history', 'label', 'words');
 select attach_demo_words_guard('intake_log');
