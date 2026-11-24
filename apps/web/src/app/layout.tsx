@@ -34,6 +34,8 @@ import { Suspense } from "react";
 import { Toaster } from "@/components/ui/sonner";
 import { DemoRefusalLinks } from "@/components/demo-refusal";
 import { DemoResetLine } from "@/components/demo-reset-line";
+import { AnnouncementLine } from "@/components/announcement-line";
+import { DEMO_RESET_ANNOUNCEMENT, announcementScope, announcementsFor } from "@/lib/announcements";
 import { DemoVisitPrefs } from "@/components/demo-visit-prefs";
 import { switchableDashboards } from "@ziffr/core/home";
 import { demoChangesInEffect } from "@ziffr/core/demo-reset-decision";
@@ -140,14 +142,15 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
   const resetLine = demoChanges ? await demoLineFacts().catch(() => null) : null;
   // And pins and Home are the visit's own, kept in its browser: it is told the dashboards the person viewed as may open (id and name only).
   const visitPrefs = demoChanges ? { person: viewer, known: (await switchableDashboards(actor)).map((d) => ({ id: d.id, name: d.name })), demoPinned: pinned.map((p) => ({ id: p.id, name: p.name })) } : null;
-  const demoNote = demo ? (
-    <p className="px-4 pt-3 text-xs text-muted-foreground sm:px-6">
-      {/* One line on a phone (#535): the short sentence, and the trial link only on bigger screens. */}
-      <span className="md:hidden">{demoChanges ? "What you change is shared. Nothing is sent." : "The demo saves and sends nothing."}</span>
-      <span className="max-md:hidden">{demoChanges ? "Enter values and answer as anyone: what you change is shared with every visitor and gone when the demo starts fresh. Nothing is sent." : "Look around as anyone: nothing you do in the demo is saved, and nothing is sent."}</span>
-      {resetLine && <DemoResetLine key={`${resetLine.generation}:${resetLine.resetAt}:${resetLine.nextResetAt}`} {...resetLine} />}
-      {offersTrials && <span className="max-md:hidden">{" "}<a href="/demo/leave" className="underline underline-offset-2 hover:text-foreground">Try it for real with a trial of your own</a>.</span>}
-    </p>
+  // The Announcement line (GLOSSARY: Announcement): the demo's notice that it is shared or read-only and when it starts fresh,
+  // dismissable for the visit. It carries the countdown, so the screen has one notice, not two.
+  const announcements = announcementsFor({ demo, changes: Boolean(demoChanges), offersTrials });
+  const demoNote = announcements.length ? (
+    <AnnouncementLine
+      items={announcements}
+      scope={await announcementScope(demo)}
+      extra={resetLine ? { [DEMO_RESET_ANNOUNCEMENT]: <DemoResetLine key={`${resetLine.generation}:${resetLine.resetAt}:${resetLine.nextResetAt}`} {...resetLine} /> } : {}}
+    />
   ) : null;
   const banners = (
     <>
