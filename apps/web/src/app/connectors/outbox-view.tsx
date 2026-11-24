@@ -1,7 +1,8 @@
 "use client";
 // Workspace → Connectors → Outbox (GLOSSARY: Delivery, Outbox). Email goes out for real once it is set up (spec 0004);
 // for the simulated Connectors, and in the demo, the buttons under each Delivery play the recipient answering: they say
-// what would happen, and save nothing (#271).
+// what would happen, and save nothing (#271). Where visitors may change the demo (spec 0051) they record the answer, as the
+// real Connector would; nothing is ever sent.
 import { isActionError, shown as refusal, unwrap, type ActionError } from "@/lib/action-error";
 import { RelativeTime } from "@/components/relative-time";
 import Link from "next/link";
@@ -10,7 +11,7 @@ import { toast } from "sonner";
 import { BellRing, Hash } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { askForMissingValues, sendDueReminders, simulatePromptAnswer, simulateReply, simulateTicketClose } from "@/app/connector-actions";
+import { askForMissingValues, recordSimulatedPromptAnswer, recordSimulatedReply, recordSimulatedTicketClose, sendDueReminders, simulatePromptAnswer, simulateReply, simulateTicketClose } from "@/app/connector-actions";
 import { CONNECTORS, type ConnectorId } from "@ziffr/core/connectors/index";
 import type { Profile } from "@ziffr/core/types";
 import { cn } from "@/lib/utils";
@@ -30,7 +31,7 @@ export type DeliveryRow = {
 type TokenRow = { code: string; metric_id: number; submitter_id: string };
 
 /** The Outbox: every Delivery the person may see, newest first, and the Run now buttons. */
-export function Outbox({ isOwner, people, deliveries, tokens, demo }: { isOwner: boolean; people: Profile[]; deliveries: DeliveryRow[]; tokens: TokenRow[]; demo: boolean }) {
+export function Outbox({ isOwner, people, deliveries, tokens, demo, changes = false }: { isOwner: boolean; people: Profile[]; deliveries: DeliveryRow[]; tokens: TokenRow[]; demo: boolean; /** Visitors may change the demo: answers are recorded. */ changes?: boolean }) {
   const [pending, start] = useTransition();
   // Asking and reminding by hand is what the schedule does each morning: in the demo anyone sees it (and is told the
   // demo can't be changed); elsewhere owners and admins get it as a fallback, explained, and members do not see it.
@@ -54,7 +55,7 @@ export function Outbox({ isOwner, people, deliveries, tokens, demo }: { isOwner:
       </div>
     </div>
     {demo ? (
-      <DemoControls className="mt-4" hint="In a real workspace Ziffr asks for missing values and reminds people of due tasks by itself each morning, and an Owner or Admin can start it here.">{runNow}</DemoControls>
+      <DemoControls className="mt-4" hint={changes ? "In a real workspace Ziffr asks for missing values and reminds people of due tasks by itself each morning. Here the requests land in this Outbox and nothing is sent." : "In a real workspace Ziffr asks for missing values and reminds people of due tasks by itself each morning, and an Owner or Admin can start it here."}>{runNow}</DemoControls>
     ) : isOwner && (
       <details className="mt-4 rounded-[var(--radius-card)] border border-border p-4 text-sm">
         <summary className="cursor-pointer font-medium">Run now</summary>
@@ -66,7 +67,7 @@ export function Outbox({ isOwner, people, deliveries, tokens, demo }: { isOwner:
       <p className="mt-4 rounded-[var(--radius-card)] border border-dashed border-[var(--color-rule-2)] p-6 text-sm text-muted-foreground">Nothing sent yet. On a dashboard, open a widget&rsquo;s ⋯ menu to ask a question or assign a task.</p>
     ) : (
       <ol className="mt-4 space-y-3">
-        {deliveries.map((d) => <DeliveryCard key={d.id} d={d} demo={demo} ways={d.prompt_id ? deliveries.filter((x) => x.prompt_id === d.prompt_id).length : 1} to={name(d.recipient_id)} formCode={d.prompts ? tokens.find((t) => t.metric_id === d.prompts!.metric_id && t.submitter_id === d.prompts!.submitter_id)?.code : undefined} />)}
+        {deliveries.map((d) => <DeliveryCard key={d.id} d={d} demo={demo} changes={changes} ways={d.prompt_id ? deliveries.filter((x) => x.prompt_id === d.prompt_id).length : 1} to={name(d.recipient_id)} formCode={d.prompts ? tokens.find((t) => t.metric_id === d.prompts!.metric_id && t.submitter_id === d.prompts!.submitter_id)?.code : undefined} />)}
       </ol>
     )}
   </section>
@@ -74,7 +75,7 @@ export function Outbox({ isOwner, people, deliveries, tokens, demo }: { isOwner:
 }
 
 /** One Delivery, drawn the way its system shows it. */
-function DeliveryCard({ d, to, formCode, demo, ways }: { d: DeliveryRow; to: string; formCode?: string; demo: boolean; ways: number }) {
+function DeliveryCard({ d, to, formCode, demo, changes, ways }: { d: DeliveryRow; to: string; formCode?: string; demo: boolean; changes: boolean; ways: number }) {
   const [reply, setReply] = useState("");
   const [open, setOpen] = useState(false);
   const [pending, start] = useTransition();
@@ -86,8 +87,8 @@ function DeliveryCard({ d, to, formCode, demo, ways }: { d: DeliveryRow; to: str
   // Playing the recipient works in the demo only; the core refuses it elsewhere, so the buttons stay away too.
   const canReply = demo && ((c.capabilities.includes("replies") && d.action_id) || answerHere);
   const canClose = demo && d.connector === "tickets" && d.actions?.kind === "task" && d.actions.status === "open";
-  // In the demo nothing is saved: the answer says what would have happened.
-  const play = (f: () => Promise<string | ActionError>) => start(async () => { try { toast.info("Not saved: this is the demo", { description: unwrap(await f()) }); setOpen(false); setReply(""); } catch (err) { toast.error("Not done", { description: refusal(err) }); } });
+  // In the demo nothing is saved, unless visitors may change it: then the answer is recorded and says what it did.
+  const play = (f: () => Promise<string | ActionError>) => start(async () => { try { toast.info(changes ? "Recorded in the demo" : "Not saved: this is the demo", { description: unwrap(await f()) }); setOpen(false); setReply(""); } catch (err) { toast.error("Not done", { description: refusal(err) }); } });
 
   return (
     <li className="stock rounded-[var(--radius-card)] p-4 text-sm">
@@ -117,18 +118,18 @@ function DeliveryCard({ d, to, formCode, demo, ways }: { d: DeliveryRow; to: str
           {!open ? (
             <div className="flex flex-wrap gap-1">
               {canReply && <Button variant="ghost" size="sm" onClick={() => setOpen(true)}>Answer as {to}</Button>}
-              {canClose && <Button variant="ghost" size="sm" disabled={pending} onClick={() => play(() => simulateTicketClose(d.id))}>Close ticket as {to}</Button>}
+              {canClose && <Button variant="ghost" size="sm" disabled={pending} onClick={() => play(() => (changes ? recordSimulatedTicketClose : simulateTicketClose)(d.id))}>Close ticket as {to}</Button>}
             </div>
           ) : (
             <form className="space-y-2" onSubmit={(e) => {
               e.preventDefault();
               if (isPrompt) start(async () => {
-                const r = await simulatePromptAnswer(d.id, reply);
+                const r = await (changes ? recordSimulatedPromptAnswer : simulatePromptAnswer)(d.id, reply);
                 if (isActionError(r)) { toast.error("Not recorded", { description: r.error }); return; }
-                (r.ok ? toast.info : toast.error)(r.ok ? "Would be recorded; not saved in the demo" : "Would not be recorded", { description: r.detail });
+                (r.ok ? toast.info : toast.error)(r.ok ? (changes ? "Recorded in the demo" : "Would be recorded; not saved in the demo") : (changes ? "Not recorded" : "Would not be recorded"), { description: r.detail });
                 if (r.ok) { setOpen(false); setReply(""); }
               });
-              else play(() => simulateReply(d.id, reply));
+              else play(() => (changes ? recordSimulatedReply : simulateReply)(d.id, reply));
             }}>
               <Textarea rows={2} value={reply} onChange={(e) => setReply(e.target.value)} placeholder={`Answer as ${to} in ${c.label}`} aria-label={`Answer as ${to}`} autoFocus />
               <p className="text-xs text-muted-foreground">{isPrompt ? "Reply with the number, e.g. 42, or a breakdown with one row per line." : c.replyHint}</p>

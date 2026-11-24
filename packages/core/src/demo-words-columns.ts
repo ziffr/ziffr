@@ -67,6 +67,11 @@ export const DEMO_WORDS_COLUMNS: Readonly<Record<string, DemoTableWords>> = {
   metric_tags: { words: [], other: [] },
   tokens: { words: [], other: ["code", "submitter_id", "stand_in_id", "stands_in_for"] },
   workflow_runs: { words: [], other: ["trigger", "state", "error"] },
+  // Added by ticket 8 (migration 20270128120000), the tables the work around a value writes beyond the ones above: what a message said,
+  // and a Breakdown's labels with their history (a label is a visitor's words; its index is a keyed hash, its number sealed).
+  intake_log: { words: ["sender", "raw", "detail"], other: ["source", "sender_id", "token_code", "outcome", "marks"] },
+  breakdown_rows: { words: ["label"], other: ["label_index", "value_sealed"] },
+  breakdown_history: { words: ["label"], other: ["value_sealed"] },
 };
 
 /** The tables that may one day be opened to visitors. */

@@ -8,6 +8,7 @@ import { Person } from "@/components/avatar";
 import { Simulator } from "./simulator";
 import { DemoControls } from "@/components/demo-controls";
 import { isDemo } from "@/lib/auth";
+import { visitorsMayChangeDemo } from "@/lib/demo-visit-action";
 import type { IntakeEntry, Prompt } from "@ziffr/core/types";
 
 // Connectors → Sources (spec 0021; GLOSSARY: Source, Prompt): where values come from, and in the demo the Slack and Mail
@@ -15,7 +16,7 @@ import type { IntakeEntry, Prompt } from "@ziffr/core/types";
 export default async function SourcesPage() {
   const actor = await currentActor();
   const viewer = actor.personId;
-  const [shown, { prompts, log, tokens, metrics }, demo] = await Promise.all([getProfiles(), sourcesView(actor), isDemo()]);
+  const [shown, { prompts, log, tokens, metrics }, demo, changes] = await Promise.all([getProfiles(), sourcesView(actor), isDemo(), visitorsMayChangeDemo()]);
   // The demo's simulator writes as someone by their Slack handle or address: made-up people, so theirs are shown.
   const profiles = demo ? await getPeopleIn(actor.workspaceId, { contactDetails: true }) : shown;
   const metricNames = Object.fromEntries(metrics.map((m) => [m.id, m.name]));
@@ -31,10 +32,10 @@ export default async function SourcesPage() {
     <>
       <p className="mb-6 max-w-prose text-sm text-muted-foreground">Where values come from: a reply in Slack or by mail, a personal form link, or a program through the API. Ziffr checks who sent each one and whether they may submit it.</p>
       {demo && (
-        <DemoControls className="mb-6" hint="Slack and Mail are played here: send a message as anyone. It goes through the same checks as a real one, so you can see whether a value would be accepted, rejected or added up. Nothing is saved.">
+        <DemoControls className="mb-6" hint={changes ? "Slack and Mail are played here: send a message as anyone. It goes through the same checks as a real one and is recorded, shared with every visitor until the demo starts fresh. Nothing is sent." : "Slack and Mail are played here: send a message as anyone. It goes through the same checks as a real one, so you can see whether a value would be accepted, rejected or added up. Nothing is saved."}>
           <div className="grid gap-6 lg:grid-cols-2">
-            <Simulator source="slack" {...by("slack")} profiles={profiles} viewer={viewer} metricNames={metricNames} />
-            <Simulator source="mail" {...by("mail")} profiles={profiles} viewer={viewer} metricNames={metricNames} />
+            <Simulator source="slack" {...by("slack")} profiles={profiles} viewer={viewer} metricNames={metricNames} changes={changes} />
+            <Simulator source="mail" {...by("mail")} profiles={profiles} viewer={viewer} metricNames={metricNames} changes={changes} />
           </div>
         </DemoControls>
       )}

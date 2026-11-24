@@ -115,7 +115,7 @@ const refused = (outcome: string, detail: string): SubmissionResult => ({ ok: fa
  * The text is read here with the Workspace's Number Style, the period must be one the form offers, and nothing a
  * browser sends reaches submitValue except as that read value. */
 export async function recordOwnValue(actor: Actor, metricId: number, input: RecordInput, effects: SubmissionEffects = submissionEffects): Promise<SubmissionResult> {
-  refuseInDemo(actor);
+  refuseInDemo(actor, "series-actions:recordValue");
   const own = await ownToken(actor, Number(metricId));
   if (!own) throw new Forbidden("You do not submit this Metric, so you cannot record a value for it here.");
   const { metric, code, yearStart } = own;

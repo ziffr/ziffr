@@ -13,6 +13,8 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { currentActor } from "@/lib/viewer";
 import { attempt } from "@/lib/action-result";
+import { inDemoVisit } from "@/lib/demo-visit-action";
+import { demoTextForVisit } from "@ziffr/core/demo-text";
 import * as questions from "@ziffr/core/questions";
 import * as demo from "@ziffr/core/demo-channels";
 import type { ConnectorId, PreferenceKind } from "@ziffr/core/connectors/index";
@@ -133,6 +135,25 @@ export async function simulateReply(deliveryId: number, text: string) {
   return attempt(async () => demo.simulateReply(await currentActor(), Number(deliveryId), String(text ?? "")));
 }
 
+/** Records the recipient's answer where the Delivery reached them (demo only, where visitors may change it, spec 0051): in the
+ * Thread, as the real Connector does. Nothing is sent. The text goes through the text rules first. */
+export async function recordSimulatedReply(deliveryId: number, text: string) {
+  return attempt(() => inDemoVisit("connector-actions:recordSimulatedReply", async (visiting) => {
+    const r = await demo.recordSimulatedReply(await currentActor(), Number(deliveryId), demoTextForVisit(visiting, String(text ?? ""), "message"));
+    done();
+    return r;
+  }));
+}
+
+/** Closes the ticket as the ticket system would (demo only, where visitors may change it, spec 0051). */
+export async function recordSimulatedTicketClose(deliveryId: number) {
+  return attempt(() => inDemoVisit("connector-actions:recordSimulatedTicketClose", async () => {
+    const r = await demo.recordSimulatedTicketClose(await currentActor(), Number(deliveryId));
+    done();
+    return r;
+  }));
+}
+
 /** What closing the ticket would do (demo only); nothing is saved. */
 export async function simulateTicketClose(deliveryId: number) {
   return attempt(async () => demo.simulateTicketClose(await currentActor(), Number(deliveryId)));
@@ -140,20 +161,31 @@ export async function simulateTicketClose(deliveryId: number) {
 
 /** What a scheduler would do each morning: remind assignees of open tasks due within two days. */
 export async function sendDueReminders() {
-  return attempt(async () => {
+  // In the demo the reminders go to the Outbox, and one Workflow run a minute is all the demo takes (spec 0051).
+  return attempt(() => inDemoVisit("connector-actions:sendDueReminders", async () => {
     const n = await questions.sendDueReminders(await currentActor());
     done();
     return n;
-  });
+  }, { workflowRun: true }));
 }
 
 /** What a scheduler would do each period: ask every submitter whose value is missing. */
 export async function askForMissingValues() {
-  return attempt(async () => {
+  return attempt(() => inDemoVisit("connector-actions:askForMissingValues", async () => {
     const n = await questions.askForMissingValues(await currentActor());
     done();
     return n;
-  });
+  }, { workflowRun: true }));
+}
+
+/** Records the submitter's answer to a Prompt where it reached them (demo only, where visitors may change it, spec 0051): through
+ * intake, as the real Connector does. Nothing is sent. The text goes through the text rules first. */
+export async function recordSimulatedPromptAnswer(deliveryId: number, text: string) {
+  return attempt(() => inDemoVisit("connector-actions:recordSimulatedPromptAnswer", async (visiting) => {
+    const r = await demo.recordSimulatedPromptAnswer(await currentActor(), Number(deliveryId), demoTextForVisit(visiting, String(text ?? ""), "message"));
+    done();
+    return r;
+  }));
 }
 
 /** What the submitter's answer to a Prompt where it reached them would do (demo only); nothing is saved. */

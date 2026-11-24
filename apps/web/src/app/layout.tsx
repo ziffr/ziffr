@@ -138,8 +138,8 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
   const demoNote = demo ? (
     <p className="px-4 pt-3 text-xs text-muted-foreground sm:px-6">
       {/* One line on a phone (#535): the short sentence, and the trial link only on bigger screens. */}
-      <span className="md:hidden">The demo saves and sends nothing.</span>
-      <span className="max-md:hidden">Look around as anyone: nothing you do in the demo is saved, and nothing is sent.</span>
+      <span className="md:hidden">{demoChanges ? "What you change is shared. Nothing is sent." : "The demo saves and sends nothing."}</span>
+      <span className="max-md:hidden">{demoChanges ? "Enter values and answer as anyone: what you change is shared with every visitor and gone when the demo starts fresh. Nothing is sent." : "Look around as anyone: nothing you do in the demo is saved, and nothing is sent."}</span>
       {resetLine && <DemoResetLine key={`${resetLine.generation}:${resetLine.resetAt}:${resetLine.nextResetAt}`} {...resetLine} />}
       {offersTrials && <span className="max-md:hidden">{" "}<a href="/demo/leave" className="underline underline-offset-2 hover:text-foreground">Try it for real with a trial of your own</a>.</span>}
     </p>
@@ -171,7 +171,7 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
         <LegalFooter className="border-t border-border" />
         {demo && offersTrials && <DemoRefusalLinks />}
         {feedback && <FeedbackPrompt askForStar={feedback.askForStar} />}
-        {demo && <Tour key={can(actor, "create") ? "member" : "guest"} guest={!can(actor, "create")} />}
+        {demo && <Tour key={can(actor, "create") ? "member" : "guest"} guest={!can(actor, "create")} changes={Boolean(demoChanges)} />}
         <Toaster />
         <Suspense fallback={null}><QuickLookHost /><MetricActionsHost /></Suspense>
         <ServiceWorker />
