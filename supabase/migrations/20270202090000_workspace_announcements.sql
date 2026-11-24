@@ -51,6 +51,9 @@ end $$;
 create trigger workspace_announcements_guard before insert or update on workspace_announcements
   for each row execute function workspace_announcements_guard();
 
+-- The demo's guard refuses a visitor's write, as on every table that has a workspace_id.
+select attach_demo_guard('workspace_announcements');
+
 -- Closed to the demo's visitors (spec 0051): a visitor never writes an Announcement. There is no demo seed.
 insert into demo_closed_tables (table_name, reason) values
   ('workspace_announcements', 'Only an Owner or Admin of a Workspace writes its Announcements; a visitor never does (spec 0054).')
