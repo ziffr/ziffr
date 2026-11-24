@@ -13,6 +13,8 @@ import { SETTING_WORDS } from "./sealed-words";
 const MIGRATIONS = join(__dirname, "../../../supabase/migrations");
 const migration = (name: string) => readFileSync(join(MIGRATIONS, name), "utf8");
 const SHOWCASE = migration("20270126130000_demo_showcase.sql");
+/** What ticket 8 added to the lists: three more tables, their words columns and their triggers. */
+const OPEN_VALUES = migration("20270128120000_demo_open_values.sql");
 
 describe("the words columns", () => {
   it("name every column once: a column is words, kept or other, never two", () => {
@@ -24,7 +26,10 @@ describe("the words columns", () => {
 
   it("are the rows the migration puts in demo_words_columns", () => {
     const body = SHOWCASE.slice(SHOWCASE.indexOf("insert into demo_words_columns"), SHOWCASE.indexOf("insert into demo_kept_rows"));
-    const inMigration = [...body.matchAll(/\('([a-z_]+)', '([a-z_]+)', '(words|kept)'\)/g)].map((m) => `${m[1]}.${m[2]}.${m[3]}`).sort();
+    // A later migration may add a column to the words (ticket 9 added a Theme's tokens): its rows count as the database's copy too.
+    const later = readdirSync(MIGRATIONS).filter((f) => f.endsWith(".sql") && f > "20270126130000_demo_showcase.sql")
+      .flatMap((f) => [...migration(f).matchAll(/insert into demo_words_columns \(table_name, column_name, kind\) values ([^;]*);/g)].map((m) => m[1])).join("\n");
+    const inMigration = [...`${body}\n${later}`.matchAll(/\('([a-z_]+)', '([a-z_]+)', '(words|kept)'\)/g)].map((m) => `${m[1]}.${m[2]}.${m[3]}`).sort();
     expect(inMigration).toEqual(demoWordsColumnRows().map(([t, c, k]) => `${t}.${c}.${k}`).sort());
   });
 
@@ -35,13 +40,14 @@ describe("the words columns", () => {
 
   it("get the words trigger, and with it the fail-closed check, on every candidate table", () => {
     const attached = SHOWCASE.slice(SHOWCASE.indexOf("foreach t in array array["), SHOWCASE.indexOf("loop", SHOWCASE.indexOf("foreach t in array array[")));
-    const tables = new Set([...attached.matchAll(/'([a-z_]+)'/g)].map((m) => m[1]));
+    const tables = new Set([...attached.matchAll(/'([a-z_]+)'/g), ...OPEN_VALUES.matchAll(/attach_demo_words_guard\('([a-z_]+)'\)/g)].map((m) => m[1]));
     for (const table of DEMO_OPEN_CANDIDATES) expect(tables.has(table), `${table} is a candidate but has no words trigger`).toBe(true);
   });
 
   it("keep the keys of a widget's settings that hold words as the migration says, and cover SETTING_WORDS", () => {
-    const m = SHOWCASE.match(/set keys = array\[([^\]]*)\] where table_name = 'widgets' and column_name = 'settings'/);
-    const inMigration = [...(m?.[1] ?? "").matchAll(/'([A-Za-z]+)'/g)].map((x) => x[1]).sort();
+    // The last migration that sets them wins (ticket 9 added the highlight, callouts and panels).
+    const all = readdirSync(MIGRATIONS).filter((f) => f.endsWith(".sql")).sort().flatMap((f) => [...migration(f).matchAll(/set keys = array\[([^\]]*)\] where table_name = 'widgets' and column_name = 'settings'/g)].map((x) => x[1]));
+    const inMigration = [...(all[all.length - 1] ?? "").matchAll(/'([A-Za-z]+)'/g)].map((x) => x[1]).sort();
     expect(inMigration).toEqual([...DEMO_WORDS_COLUMNS.widgets.wordKeys!.settings].sort());
     for (const key of SETTING_WORDS) expect(inMigration).toContain(key);
     expect(inMigration).toContain("canvasSeed");

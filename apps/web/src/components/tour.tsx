@@ -4,7 +4,8 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { CheckCircle2, Circle, ChevronDown, ChevronUp, Compass, Minus } from "lucide-react";
 
-/** The demo changes nothing, so the tour reads first and only then tries what the demo will refuse (#528). */
+/** The demo changes nothing, so the tour reads first and only then tries what the demo will refuse (#528). Where visitors may change
+ * the demo (spec 0051) the steps that enter a value say it is recorded; defining a Metric stays refused until a later ticket opens it. */
 const MEMBER_STEPS = [
   { href: "/", title: "Look at a dashboard", body: "Open the Monthly overview and click a number to see its history. Right-click a widget → Change view." },
   { href: "/", title: "See what others see", body: "Switch “Viewing as” to Anna, then to the Guest, and watch what each can open. Roles decide it." },
@@ -13,6 +14,12 @@ const MEMBER_STEPS = [
   { href: "/connectors/sources", title: "Capture a value", body: "Answer Anna’s Slack Prompt with a number. Send a second one and watch the Submission Rule." },
   { href: "/metrics/new", title: "Define a metric", body: "Pick “Customer satisfaction” from the catalog and choose who reports it. The demo won’t save it: that is what a trial is for." },
 ];
+
+/** The steps' words where visitors may change the demo: what the last steps do now works, and is shared until the demo starts fresh. */
+const CHANGES_WORDS: Record<string, string> = {
+  "Capture a value": "Answer Anna’s Slack Prompt with a number: it is recorded, and the dashboard moves. Send a second one and watch the Submission Rule.",
+  "Submit a value": "Open a metric you submit and record its latest value, or answer the Prompt you get. Everyone in the demo sees it until the demo starts fresh.",
+};
 
 /** A Guest creates nothing (GLOSSARY: Workspace Role), so their tour only looks at what is shared with them. */
 const GUEST_STEPS = [
@@ -24,8 +31,9 @@ const GUEST_STEPS = [
 const KEY = "ziffr-tour-v4";
 
 /** The demo's guided tour, bottom right; it folds down to a small round button so it never covers controls. */
-export function Tour({ guest = false }: { guest?: boolean }) {
-  const STEPS = guest ? GUEST_STEPS : MEMBER_STEPS;
+export function Tour({ guest = false, changes = false }: { guest?: boolean; /** Visitors may change the demo: the steps that enter a value say it works. */ changes?: boolean }) {
+  const base = guest ? GUEST_STEPS : MEMBER_STEPS;
+  const STEPS = changes ? base.map((s) => ({ ...s, body: CHANGES_WORDS[s.title] ?? s.body })) : base;
   const [done, setDone] = useState<boolean[]>(STEPS.map(() => false));
   const key = guest ? `${KEY}-guest` : KEY;
   const [open, setOpen] = useState(false);

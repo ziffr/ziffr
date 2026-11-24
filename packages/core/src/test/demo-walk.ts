@@ -2,8 +2,10 @@
 // the database themselves (.github/scripts/app-db-access.mjs), so the ids the walk calls the server actions with and
 // the fingerprint of the demo it compares are read here. Tests only.
 import { createHash } from "node:crypto";
-import { db } from "../db";
+import { db, seedingDemo } from "../db";
 import { seedDemoSnapshots } from "../demo-snapshots";
+import { resetDemoWorkspace } from "../demo-reset";
+import { clearDemoVisitCounts } from "../demo-visit";
 import { DEMO_WORKSPACE_ID } from "../team";
 import { idFreeRows } from "./demo-fingerprint-row";
 
@@ -26,6 +28,19 @@ export async function demoFingerprint(): Promise<Record<string, string>> {
   const { count: ws } = await db().from("workspaces").select("id", { count: "exact", head: true });
   out["workspaces (count)"] = String(ws);
   return out;
+}
+
+/** What of the demo could leave Ziffr: its Deliveries that are not in the Outbox (an email, Slack or Telegram message that was queued or sent), and
+ * its Webhooks and their queued sends. Every one must be zero (spec 0051: nothing outbound, ever). */
+export async function demoWalkOutbound(): Promise<{ notInOutbox: number; webhooks: number; webhookSends: number }> {
+  const rows = async (table: string) => (await db().from(table).select("id", { count: "exact", head: true }).eq("workspace_id", DEMO_WORKSPACE_ID)).count ?? 0;
+  const { count: notInOutbox } = await db().from("deliveries").select("id", { count: "exact", head: true }).eq("workspace_id", DEMO_WORKSPACE_ID).neq("mail_state", "outbox");
+  return { notInOutbox: notInOutbox ?? 0, webhooks: await rows("webhooks"), webhookSends: await rows("webhook_sends") };
+}
+
+/** Empties the visits' counts, so each action of the pass is counted from zero (one Workflow run a minute would stop the next). */
+export async function demoWalkClearCounts(): Promise<void> {
+  await clearDemoVisitCounts();
 }
 
 /** What the walk needs from the demo's seed, or a clear failure when the seed lacks it. */
@@ -74,6 +89,44 @@ export async function demoWalkIds(): Promise<Record<string, unknown>> {
     lastMonth: new Date(Date.UTC(m.getUTCFullYear(), m.getUTCMonth() - 1, 1)).toISOString().slice(0, 10),
     twoMonthsAgo: new Date(Date.UTC(m.getUTCFullYear(), m.getUTCMonth() - 2, 1)).toISOString().slice(0, 10),
   };
-  Object.assign(ids, { workflowConfig: workflow.config, themeTokens: themes[0]?.tokens ?? {}, themeSlides: themes[0]?.slides ?? {} });
+  const other = themes.find((t) => !t.is_default) ?? themes[0];
+  // `otherTheme*` is the look of the Theme the walk copies and saves onto the copy: a Theme's own slides carry its own pictures.
+  Object.assign(ids, { workflowConfig: workflow.config, themeTokens: themes[0]?.tokens ?? {}, themeSlides: themes[0]?.slides ?? {}, otherThemeTokens: other?.tokens ?? {}, otherThemeSlides: other?.slides ?? {} });
   return ids;
+}
+
+/** The demo's current Generation, as a visit's page would have drawn it. */
+export async function demoGeneration(): Promise<number> {
+  return Number((await db().from("demo_state").select("generation").single()).data?.generation);
+}
+
+/** A Demo Reset with its core steps (Snapshots, the close, the Outbox, the showcase), closed to visitors: the walk's baseline is
+ * the seed as a reset makes it, not the SQL seed alone, so a reset after the walk compares equal. */
+export async function demoFullSeed(): Promise<void> {
+  await freshDemo({});
+}
+
+/** Starts the demo fresh and open to visitors, as the reset job does where the setting is in effect: the walk's visit may then change it. */
+export async function demoOpenForVisitors(): Promise<void> {
+  await freshDemo({ openToVisitors: true });
+}
+
+/** Puts the demo back to its seed and closed again, as the next reset where the setting is off would. */
+export async function demoBackToSeed(): Promise<void> {
+  await freshDemo({});
+}
+
+/** A Demo Reset now: the gap the reset keeps between two is waived by making the demo look old, as the guard test does. */
+async function freshDemo(opts: { openToVisitors?: boolean }): Promise<void> {
+  await seedingDemo(async () => { await db().from("workspaces").update({ created_at: "2026-01-01T00:00:00Z" }).eq("id", DEMO_WORKSPACE_ID).throwOnError(); });
+  if (!(await resetDemoWorkspace(opts))) throw new Error("The demo could not be reset for the walk.");
+}
+
+/** The newest row's id of a table of the demo with these column values: what an action made, for the next call of the walk. */
+export async function demoLatestId(table: "widgets" | "versions" | "team_templates" | "themes" | "dashboards", where: Record<string, string | number | boolean>): Promise<number> {
+  let q = db().from(table).select("id").eq("workspace_id", DEMO_WORKSPACE_ID);
+  for (const [k, v] of Object.entries(where)) q = q.eq(k, v);
+  const { data } = await q.order("id", { ascending: false }).limit(1).maybeSingle();
+  if (!data) throw new Error(`The walk found no ${table} row for ${JSON.stringify(where)}.`);
+  return data.id as number;
 }

@@ -17,6 +17,9 @@ export const DEMO_ROW_CAPS = {
   tags: 20,
   open_actions: 300,
   values: 2000,
+  // The spec gives no numbers for these two; starting points for the owner (ticket 9).
+  themes: 15,
+  versions: 150,
 } as const;
 
 /** How many changes may be counted, by what is counting them. The visit's id is free to mint, so only the address's,
@@ -28,12 +31,30 @@ export const DEMO_WRITE_BUDGET = {
   perVisitPerMinute: 30,
   perVisitPerWindow: 200,
   perAddressPerWindow: 200,
+  /** Values (a paste counts each) one address may write in a window: a quarter of the 2,000-value cap, so no address fills it for everyone. */
+  perAddressValuesPerWindow: 500,
+  /** Ask me now claims one address may make in a window. */
+  perAddressAskNowPerWindow: 10,
+  /** Minutes one address waits between two Workflow runs, so one script cannot hold the demo's one run a minute. */
+  workflowSlotMinutes: 5,
   perNetworkPerWindow: 400,
   demoPerWindow: 3000,
 } as const;
 
 /** The longest text of each kind, in characters (code points): names and titles, descriptions, a Question, Task or reply, a Tag. */
 export const DEMO_TEXT_MAX = { name: 80, description: 500, message: 1000, tag: 40 } as const;
+
+/** How much a visitor may store (spec 0051, ticket 9; Limits: growth): a widget's settings, all the widgets of one dashboard, a
+ * Version's snapshot (past it the Version is not recorded), a template's body, what one visit may write in a reset window (in
+ * KB, counted with its other counts), and the Versions one visit may name. */
+export const DEMO_STORE_MAX = {
+  widgetSettingsBytes: 8 * 1024,
+  dashboardWidgetsBytes: 200 * 1024,
+  versionSnapshotBytes: 256 * 1024,
+  templateBodyBytes: 200 * 1024,
+  visitKbPerWindow: 2000,
+  namedVersionsPerVisit: 5,
+} as const;
 
 /** The largest a deck's store may be, in bytes (a deck made by a visitor). */
 export const DEMO_DECK_STORE_MAX_BYTES = 512 * 1024;
@@ -42,3 +63,9 @@ export const DEMO_DECK_STORE_MAX_BYTES = 512 * 1024;
 export function demoDeckStoreOk(store: string): boolean {
   return new TextEncoder().encode(store).length <= DEMO_DECK_STORE_MAX_BYTES;
 }
+
+/** What a visitor may enter as values and dates (spec 0051, Limits: Values; ticket 8): values for periods from this many months
+ * back up to the current one, never ahead; at most this many values (and lines of text) in one paste; Away of at most this many
+ * days, starting no earlier than today and ending within the days ahead; and "pretend it is another day" no further from today
+ * than this many days. */
+export const DEMO_VALUE_LIMITS = { monthsBack: 24, pasteRows: 100, pasteLines: 400, awayMaxDays: 30, awayAheadDays: 90, asOfDays: 90 } as const;

@@ -4,6 +4,7 @@
 import { revalidatePath } from "next/cache";
 import { currentActor } from "@/lib/viewer";
 import { attempt } from "@/lib/action-result";
+import { attemptAsVisitor } from "@/lib/demo-write";
 import * as themes from "@ziffr/core/workspace-themes";
 import { setDashboardTheme as coreSetDashboardTheme } from "@ziffr/core/dashboards";
 import { setDeckTheme as coreSetDeckTheme } from "@ziffr/core/decks";
@@ -14,7 +15,7 @@ const themeId = (v: number | null) => (v === null ? null : Number(v));
 
 /** Saves a Theme. */
 export async function saveTheme(id: number, name: string, tokens: ThemeTokens, slides: ThemeSlides) {
-  return attempt(async () => {
+  return attemptAsVisitor("theme-actions:saveTheme", async () => {
     await themes.saveTheme(await currentActor(), Number(id), String(name ?? ""), tokens, slides);
     done();
   });
@@ -22,7 +23,7 @@ export async function saveTheme(id: number, name: string, tokens: ThemeTokens, s
 
 /** A new theme starts as a copy of another. */
 export async function duplicateTheme(fromId: number) {
-  return attempt(async () => {
+  return attemptAsVisitor("theme-actions:duplicateTheme", async () => {
     const id = await themes.duplicateTheme(await currentActor(), Number(fromId));
     done();
     return id;
@@ -31,7 +32,7 @@ export async function duplicateTheme(fromId: number) {
 
 /** Adds one of Ziffr's standard Themes to the Workspace as a Theme of its own. */
 export async function addStandardTheme(key: string) {
-  return attempt(async () => {
+  return attemptAsVisitor("theme-actions:addStandardTheme", async () => {
     const id = await themes.addStandardTheme(await currentActor(), String(key ?? ""));
     done();
     return id;
@@ -49,7 +50,7 @@ export async function importTheme(text: string) {
 
 /** Deletes a Theme (not the default). */
 export async function deleteTheme(id: number) {
-  return attempt(async () => {
+  return attemptAsVisitor("theme-actions:deleteTheme", async () => {
     await themes.deleteTheme(await currentActor(), Number(id));
     done();
   });
@@ -70,7 +71,7 @@ export async function setDefaultTheme(id: number) {
 
 /** null: follow the team default. */
 export async function setDashboardTheme(dashboardId: number, id: number | null) {
-  return attempt(async () => {
+  return attemptAsVisitor("theme-actions:setDashboardTheme", async () => {
     await coreSetDashboardTheme(await currentActor(), Number(dashboardId), themeId(id));
     done();
   });

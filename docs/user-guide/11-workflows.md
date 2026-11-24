@@ -132,7 +132,7 @@ Running today's steps by hand answers with "Done: N requests, N reminders and N 
 
 If the panel says that nothing has run by the clock yet, whoever runs Ziffr for this workspace still has to switch on its hourly schedule. Until then, run today's steps by hand each day.
 
-**In the demo**, last month's close is under way when you open it: earlier months are published (and locked on **Monthly finance close**), Orders and Cost for last month are published and locked, Revenue waits for Ben's approval, and Return rate is still waited for. Nothing runs by the clock. A box marked **Demo controls** lets you pretend: pick a day under **Pretend today is** to see the Workflows as of that day. **Run workflows** says "The demo can't be changed.", since running them would save Prompts and reminders.
+**In the demo**, last month's close is under way when you open it: earlier months are published (and locked on **Monthly finance close**), Orders and Cost for last month are published and locked, Revenue waits for Ben's approval, and Return rate is still waited for. Nothing runs by the clock. A box marked **Demo controls** lets you pretend: pick a day under **Pretend today is** to see the Workflows as of that day. **Run workflows** says "The demo can't be changed.", since running them would save Prompts and reminders. Where visitors may change the demo, it runs the Workflows as of a day within 90 days of today, once a minute for the whole demo: the Prompts and reminders land in the Outbox and nothing is sent.
 
 ### Close the period
 

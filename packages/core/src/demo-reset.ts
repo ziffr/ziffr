@@ -48,6 +48,12 @@ export async function resetDemoWorkspace(opts: { onlyWhenNeeded?: boolean; openT
   // The visits' counts belong to the window that just ended (spec 0051); a new window starts at zero.
   // A failure is logged and the reset carries on, as for the steps below: the counts are not worth a half-seeded demo.
   try { await clearDemoVisitCounts(); } catch (e) { console.error("Demo: visit counts not emptied", e instanceof Error ? e.message : e); }
+  // The demo's people's paste claims (their day's limit, kept per person, no workspace_id) are the old window's too.
+  try {
+    const { data: people } = await db().from("memberships").select("user_id").eq("workspace_id", DEMO_WORKSPACE_ID);
+    const ids = (people ?? []).map((p) => String(p.user_id));
+    if (ids.length) await db().from("paste_claims").delete().in("person_id", ids);
+  } catch (e) { console.error("Demo: paste claims not emptied", e instanceof Error ? e.message : e); }
   // The pins are seeded by a function of their own, so no other migration has to carry them (#764).
   const pins = await db().rpc("prototype_seed_pins");
   if (pins.error) console.error("Demo: no pinned dashboards", pins.error.message);

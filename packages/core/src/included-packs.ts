@@ -152,6 +152,10 @@ export type RecommendedPack = {
   suggested: boolean;
   /** Already installed in this Workspace: shown as Installed, never offered again. */
   installed: boolean;
+  /** The id of this Workspace's install, for "Set up from this Pack" in the guide; null when not installed. */
+  installId: number | null;
+  /** Installing it needs an Owner (it holds Themes). */
+  needsOwner: boolean;
 };
 
 /** Ziffr's own Packs in the order that fits this Workspace best, every one of them, for the Setup Guide's Starting point.
@@ -176,6 +180,6 @@ export async function recommendedPacks(actor: Actor): Promise<RecommendedPack[]>
   const top = new Set(ranked.filter((r) => r.score > 0).slice(0, SUGGESTED).map((r) => r.id));
   return ranked.map((r) => {
     const l = byId.get(r.id)!;
-    return { id: l.id, name: l.name, summary: l.summary, logo: l.logo, brings: l.brings, because: r.because, suggested: top.has(r.id), installed: l.installed !== null };
+    return { id: l.id, name: l.name, summary: l.summary, logo: l.logo, brings: l.brings, because: r.because, suggested: top.has(r.id), installed: l.installed !== null, installId: l.installed?.installId ?? null, needsOwner: l.needsOwner };
   });
 }
