@@ -17,7 +17,7 @@ On a Ziffr that is only a public demo, the page is called **Try Ziffr**. It has 
 | Option | What it does |
 | --- | --- |
 | **Work email** | The address you sign in with |
-| **Send me a sign-in link** | Ziffr emails you a link. Open it to sign in. It works once. |
+| **Send me a sign-in link** | Ziffr emails you a link. Open it, or choose the **Sign in to Ziffr** button in the email, to sign in. It works once, for an hour. |
 | **Continue with** Google, Microsoft, GitHub or LinkedIn | Shown only for the ways of signing in your Ziffr has set up. Signs you in with that account. |
 | **Try the demo** | Opens the demo without an account, where your Ziffr offers it |
 

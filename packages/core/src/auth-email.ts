@@ -5,6 +5,8 @@
 // link goes to Supabase Auth's own verify address and comes back only to this Ziffr's address.
 import { createHmac, timingSafeEqual } from "node:crypto";
 import { isAddress, mailEnabled, sendMail, type MailTransport } from "./mail";
+import { emailHtml } from "./branded-email";
+import { themeLook } from "./theme-look";
 import { settingsInEffect } from "./settings-in-effect";
 
 /** How far a hook call's timestamp may be from now, in seconds, either way. */
@@ -78,14 +80,24 @@ function authAddress(): string {
 const TOKEN_HASH = /^[A-Za-z0-9_-]{8,200}$/;
 
 /** Ziffr's words for each kind; the link is the only thing taken from the call. */
-const WORDS: Record<Exclude<AuthEmailKind, "email_change">, { subject: string; lead: string }> = {
-  magiclink: { subject: "Your Ziffr sign-in link", lead: "Open this link to sign in to Ziffr:" },
-  signup: { subject: "Your Ziffr sign-in link", lead: "Open this link to sign in to Ziffr for the first time:" },
-  recovery: { subject: "Your Ziffr sign-in link", lead: "Open this link to sign in to Ziffr:" },
-  invite: { subject: "You are invited to Ziffr", lead: "Open this link to accept and sign in to Ziffr:" },
+const WORDS: Record<Exclude<AuthEmailKind, "email_change">, { subject: string; lead: string; button: string }> = {
+  magiclink: { subject: "Your Ziffr sign-in link", lead: "Open this link to sign in to Ziffr:", button: "Sign in to Ziffr" },
+  signup: { subject: "Your Ziffr sign-in link", lead: "Open this link to sign in to Ziffr for the first time:", button: "Sign in to Ziffr" },
+  recovery: { subject: "Your Ziffr sign-in link", lead: "Open this link to sign in to Ziffr:", button: "Sign in to Ziffr" },
+  invite: { subject: "You are invited to Ziffr", lead: "Open this link to accept and sign in to Ziffr:", button: "Accept and sign in" },
 };
 
-const ENDING = "\n\nThe link works once, for an hour. If you did not ask for it, ignore this email: nobody signs in without the link.";
+const ENDING = "The link works once, for an hour. If you did not ask for it, ignore this email: nobody signs in without the link.";
+
+/** One email: the plain text (always sent, the link as it is) and the same words as HTML in Ziffr's own look. A sign-in
+ * email goes out before the person has a Workspace, so it carries the Installation's look (Ziffr's default Theme, its
+ * name as the wordmark) and never anything of a Workspace. The link is a button; the address is only a small line
+ * under it. */
+export function authMail(to: string, subject: string, lead: string, button: string, url: string) {
+  const look = themeLook(undefined, "Ziffr");
+  const html = emailHtml(look, { text: lead.replace(/:$/, "."), action: { label: button, url, fallback: "Or copy this address into your browser:" }, after: ENDING, preheader: ENDING, sentBy: "Sent by Ziffr because this address was used to sign in." });
+  return { to, subject, text: `${lead}\n\n${url}\n\n${ENDING}`, html };
+}
 
 /** Sends the email of one hook call, already checked for its signature: the sign-in link for its kind, to the
  * address Auth names, through the mail server in effect. Throws AuthEmailRefused for anything it does not send. */
@@ -105,17 +117,17 @@ export async function sendAuthEmail(payload: unknown, transport?: MailTransport)
     if (typeof hash !== "string" || !TOKEN_HASH.test(hash)) throw new AuthEmailRefused("bad_payload");
     return `${authAddress()}/auth/v1/verify?token=${encodeURIComponent(hash)}&type=${encodeURIComponent(type)}&redirect_to=${encodeURIComponent(back)}`;
   };
-  const mails: { to: string; subject: string; text: string }[] = [];
+  const mails: ReturnType<typeof authMail>[] = [];
   if (kind === "email_change") {
     // Auth's names are crossed for backward compatibility: token_hash goes to the new address, token_hash_new to the
     // current one. Both must confirm when Auth asks for both.
     const fresh = typeof p?.user?.new_email === "string" ? p.user.new_email.toLowerCase() : "";
     if (!isAddress(fresh)) throw new AuthEmailRefused("bad_payload");
-    mails.push({ to: fresh, subject: "Confirm your new address for Ziffr", text: `Open this link to use ${fresh} for Ziffr from now on:\n\n${link(data.token_hash, "email_change")}${ENDING}` });
-    if (data.token_hash_new) mails.push({ to: email, subject: "Confirm the change of your Ziffr address", text: `Open this link to confirm that ${fresh} replaces this address for Ziffr:\n\n${link(data.token_hash_new, "email_change")}${ENDING}` });
+    mails.push(authMail(fresh, "Confirm your new address for Ziffr", `Open this link to use ${fresh} for Ziffr from now on:`, "Confirm the new address", link(data.token_hash, "email_change")));
+    if (data.token_hash_new) mails.push(authMail(email, "Confirm the change of your Ziffr address", `Open this link to confirm that ${fresh} replaces this address for Ziffr:`, "Confirm the change", link(data.token_hash_new, "email_change")));
   } else {
     const w = WORDS[kind as Exclude<AuthEmailKind, "email_change">];
-    mails.push({ to: email, subject: w.subject, text: `${w.lead}\n\n${link(data.token_hash, kind as string)}${ENDING}` });
+    mails.push(authMail(email, w.subject, w.lead, w.button, link(data.token_hash, kind as string)));
   }
   for (const m of mails) {
     try {
