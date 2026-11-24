@@ -202,7 +202,7 @@ Alerts per person, Alert messages per person per day and the View Link life can 
 
 **About your business**, which sits right after the Name, holds the **Workspace Profile**: what kind of business this is, so Ziffr can suggest the Metrics and Packs such teams use. Each part is picked from a list; **Not set** leaves it open. The same questions are asked in the Setup Guide's **About you** step ([Getting started](07-getting-started.md#the-setup-guide)); answer them in either place.
 
-What you answer here stays in this Workspace. It is not sent to Ziffr's makers or to anyone else, and it is used only to suggest Metrics and Packs here and who is asked for what. Owners and Admins of this Workspace see your function; other members do not. The section says so under its heading.
+What you answer here stays in this Workspace. It is not sent to Ziffr's makers or to anyone else. It is used only inside this Workspace, to suggest Metrics, Packs and settings that fit and who is asked for what. Owners and Admins of this Workspace see your function; other members do not. The section says so under its heading.
 
 | Option | What you pick |
 | --- | --- |

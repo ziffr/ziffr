@@ -18,7 +18,9 @@ describe("About you for Owners and Admins", () => {
   it("asks the nine questions, each with a label and what it is for", () => {
     const labels = [...owner.matchAll(/<label for="(about-[a-z]+)"/g)].map((m) => m[1]);
     expect(labels).toEqual(["about-industry", "about-segment", "about-country", "about-people", "about-revenue", "about-function", "about-zone", "about-hour", "about-year"]);
-    for (const id of labels) {
+    // The section line says what the business questions are for; the others say what they are used for themselves.
+    const specific = labels.filter((id) => !["about-industry", "about-segment", "about-people"].includes(id));
+    for (const id of specific) {
       expect(owner).toContain(`id="${id}-hint"`);
       expect(owner).toContain(`<select id="${id}" aria-describedby="${id}-hint"`);
     }
@@ -29,7 +31,7 @@ describe("About you for Owners and Admins", () => {
   it("lets every question be skipped and says the privacy statement in the spec's words", () => {
     expect(owner).toContain("Skip this question");
     expect(owner.replaceAll("&#x27;", "'")).toContain(PRIVACY_STATEMENT);
-    expect(PRIVACY_STATEMENT).toBe("What you answer here stays in this Workspace. It is not sent to Ziffr's makers or to anyone else, and it is used only to suggest Metrics and Packs here and who is asked for what. Owners and Admins of this Workspace see your function; other members do not.");
+    expect(PRIVACY_STATEMENT).toBe("What you answer here stays in this Workspace. It is not sent to Ziffr's makers or to anyone else. It is used only inside this Workspace, to suggest Metrics, Packs and settings that fit and who is asked for what. Owners and Admins of this Workspace see your function; other members do not.");
   });
 });
 

@@ -25,7 +25,7 @@ export function BusinessFunctionForm({ value }: { value: BusinessFunction | null
       <h2 id="in-workspace-heading" className="font-medium">In this Workspace</h2>
       <form className="space-y-3" onSubmit={(e) => { e.preventDefault(); save(); }}>
         <label className="block text-sm font-medium">
-          What do you work on yourself?
+          What do you do here?
           <select value={pick} onChange={(e) => setPick(e.target.value)} disabled={pending} className="mt-1 block h-9 w-full rounded-[var(--radius-input)] border border-input bg-card px-2 text-sm">
             <option value="">Not said</option>
             {BUSINESS_FUNCTIONS.map((k) => <option key={k} value={k}>{BUSINESS_FUNCTION_LABELS[k]}</option>)}

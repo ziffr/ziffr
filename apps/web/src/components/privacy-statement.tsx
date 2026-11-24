@@ -4,7 +4,7 @@
 
 /** The words, exactly as the spec has them. */
 export const PRIVACY_STATEMENT =
-  "What you answer here stays in this Workspace. It is not sent to Ziffr's makers or to anyone else, and it is used only to suggest Metrics and Packs here and who is asked for what. Owners and Admins of this Workspace see your function; other members do not.";
+  "What you answer here stays in this Workspace. It is not sent to Ziffr's makers or to anyone else. It is used only inside this Workspace, to suggest Metrics, Packs and settings that fit and who is asked for what. Owners and Admins of this Workspace see your function; other members do not.";
 
 /** The statement as a paragraph. */
 export function PrivacyStatement({ className }: { className?: string }) {

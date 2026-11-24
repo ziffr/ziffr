@@ -18,7 +18,6 @@ import {
 import { monthName, type YearStart } from "@ziffr/core/periods";
 
 const field = "block h-9 w-full rounded-[var(--radius-input)] border border-input bg-card px-2 text-sm disabled:opacity-70";
-const SO_WE_CAN_SUGGEST = "So we can suggest Metrics and Packs that fit.";
 const SKIP = "Skip this question";
 
 /** A country or currency with the name it is shown by. */
@@ -30,7 +29,7 @@ function Row({ id, label, hint, children }: { id: string; label: string; hint: s
     <li className="grid gap-2 border-b border-border py-4 sm:grid-cols-[minmax(0,17rem)_minmax(0,1fr)] sm:gap-6">
       <div>
         <label htmlFor={id} className="block text-sm font-medium">{label}</label>
-        <p id={`${id}-hint`} className="mt-0.5 text-xs text-muted-foreground">{hint}</p>
+        {hint && <p id={`${id}-hint`} className="mt-0.5 text-xs text-muted-foreground">{hint}</p>}
       </div>
       <div className="min-w-0">{children}</div>
     </li>
@@ -39,7 +38,7 @@ function Row({ id, label, hint, children }: { id: string; label: string; hint: s
 
 function FunctionRow({ value, onChange, disabled }: { value: string; onChange: (v: string) => void; disabled: boolean }) {
   return (
-    <Row id="about-function" label="What do you work on yourself?" hint="So we can suggest Packs and who is asked for what. Only you and this Workspace's Owners and Admins see it.">
+    <Row id="about-function" label="What do you do here?" hint="So we can suggest Packs and who is asked for what. Only you and this Workspace's Owners and Admins see it.">
       <select id="about-function" aria-describedby="about-function-hint" value={value} disabled={disabled} onChange={(e) => onChange(e.target.value)} className={field}>
         <option value="">{SKIP}</option>
         {BUSINESS_FUNCTIONS.map((k) => <option key={k} value={k}>{BUSINESS_FUNCTION_LABELS[k]}</option>)}
@@ -113,7 +112,7 @@ export function AboutYouWorkspace({ profile, countries, timeZone, runHour, yearS
     return next;
   });
   const pick = (k: keyof WorkspaceProfile, id: string, options: { v: string; label: string }[]) => (
-    <select id={id} aria-describedby={`${id}-hint`} value={p[k] ?? ""} disabled={pending} onChange={(e) => set(k, e.target.value)} className={field}>
+    <select id={id} aria-describedby={["about-country", "about-revenue"].includes(id) ? `${id}-hint` : undefined} value={p[k] ?? ""} disabled={pending} onChange={(e) => set(k, e.target.value)} className={field}>
       <option value="">{SKIP}</option>
       {options.map((o) => <option key={o.v} value={o.v}>{o.label}</option>)}
     </select>
@@ -127,10 +126,10 @@ export function AboutYouWorkspace({ profile, countries, timeZone, runHour, yearS
   return (
     <form onSubmit={(e) => { e.preventDefault(); save(); }} aria-label="About you and your business">
       <ol className="border-t border-border">
-        <Row id="about-industry" label="What does your business do?" hint={SO_WE_CAN_SUGGEST}>
+        <Row id="about-industry" label="What does your business do?" hint="">
           {pick("industry", "about-industry", INDUSTRIES.map((v) => ({ v, label: INDUSTRY_LABEL[v] })))}
         </Row>
-        <Row id="about-segment" label="Who do you sell to?" hint={SO_WE_CAN_SUGGEST}>
+        <Row id="about-segment" label="Who do you sell to?" hint="">
           {pick("segment", "about-segment", SEGMENTS.map((v) => ({ v, label: SEGMENT_LABEL[v] })))}
         </Row>
         <Row id="about-country" label="Where is it based?" hint="So numbers and money are written the way you write them.">
@@ -139,10 +138,10 @@ export function AboutYouWorkspace({ profile, countries, timeZone, runHour, yearS
             {p.currency ? `Currency: ${p.currency}. ` : ""}The country proposes the currency, number style and answer languages until someone sets them on Workspace → General.
           </p>
         </Row>
-        <Row id="about-people" label="How many people work there?" hint={SO_WE_CAN_SUGGEST}>
+        <Row id="about-people" label="How many people work there?" hint="">
           {pick("employeeBand", "about-people", EMPLOYEE_BANDS.map((v) => ({ v, label: v === "1000+" ? "More than 1,000" : v.replace("-", " to ") })))}
         </Row>
-        <Row id="about-revenue" label="Revenue in a year" hint={`In the currency above, roughly. ${SO_WE_CAN_SUGGEST}`}>
+        <Row id="about-revenue" label="Revenue in a year" hint="In the currency above, roughly.">
           {pick("revenueBand", "about-revenue", REVENUE_BANDS.map((v) => ({ v, label: `${REVENUE_LABEL[v]}${p.currency ? ` ${p.currency}` : ""}` })))}
         </Row>
         <FunctionRow value={fn} onChange={setFn} disabled={pending} />

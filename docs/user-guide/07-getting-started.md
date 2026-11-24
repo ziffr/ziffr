@@ -32,12 +32,12 @@ Today **About you** is the step to use. The other four open and say what they wi
 | **What does your business do?**, **Who do you sell to?**, **How many people work there?** | Owners and Admins | So Ziffr can suggest Metrics and Packs that fit |
 | **Where is it based?** | Owners and Admins | So numbers and money are written the way you write them: the country proposes the currency, how numbers are written and the languages answers are read in, until someone sets them on **Workspace → General** |
 | **Revenue in a year** | Owners and Admins | The same suggestions; it is roughly, in the currency of the country |
-| **What do you work on yourself?** | Everyone who has the step | Your **Business Function**: so Ziffr can suggest Packs and who is asked for what |
+| **What do you do here?** | Everyone who has the step | Your **Business Function**: so Ziffr can suggest Packs and who is asked for what |
 | **Your Workspace's time zone**, **Ziffr asks for numbers at**, **Your year starts in** | Owners and Admins | Which day it is for your team, when each day's requests go out, and where quarters and years begin. Ziffr proposes this browser's time zone while the Workspace still has the default, UTC |
 
 The Workspace's time counts as answered once an Owner or Admin has saved it, even when it is UTC. A Member sees what the Owners and Admins said about the business, read-only, and answers only their own function.
 
-What you answer stays in this Workspace. It is not sent to Ziffr's makers or to anyone else, and it is used only to suggest Metrics and Packs here and who is asked for what. Owners and Admins of this Workspace see your function; other members do not. (On hosted Ziffr, ziffr.net runs the database, as for everything else in the Workspace.)
+What you answer stays in this Workspace. It is not sent to Ziffr's makers or to anyone else. It is used only inside this Workspace, to suggest Metrics, Packs and settings that fit and who is asked for what. Owners and Admins of this Workspace see your function; other members do not. (On hosted Ziffr, ziffr.net runs the database, as for everything else in the Workspace.)
 
 You can change every answer later: the business and the time under **Workspace → General**, in the section **About your business**, and your function under **Your profile**.
 
