@@ -35,7 +35,9 @@ import { Toaster } from "@/components/ui/sonner";
 import { DemoRefusalLinks } from "@/components/demo-refusal";
 import { DemoResetLine } from "@/components/demo-reset-line";
 import { AnnouncementLine } from "@/components/announcement-line";
-import { DEMO_RESET_ANNOUNCEMENT, announcementScope, announcementsFor } from "@/lib/announcements";
+import { DEMO_RESET_ANNOUNCEMENT, announcementScope, announcementsFor, fromInstallation } from "@/lib/announcements";
+import { shellOrder } from "@/lib/announcement-state";
+import { activeInstallationAnnouncements } from "@ziffr/core/installation-announcements";
 import { DemoVisitPrefs } from "@/components/demo-visit-prefs";
 import { switchableDashboards } from "@ziffr/core/home";
 import { demoChangesInEffect } from "@ziffr/core/demo-reset-decision";
@@ -85,6 +87,8 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
   const person = user ? await personFor(user) : null;
   const workspaces = person ? await myWorkspaces(person) : [];
   if (!demo && !workspaces.length) {
+    // Signed in without a Workspace yet: the Installation's lines still show (the same read as the shell, nothing of a person).
+    const lines = user ? fromInstallation(await activeInstallationAnnouncements({ demo: false })) : [];
     return (
       <html lang="en" data-appearance={await browserAppearance()}>
         <head>
@@ -97,6 +101,7 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
             <span className="text-lg font-semibold tracking-[-0.03em]">Ziffr</span>
             <GuideLink href={guideHref()} className="text-sm text-muted-foreground underline-offset-4 hover:text-foreground hover:underline">User guide</GuideLink>
           </header>
+          {lines.length > 0 && <AnnouncementLine items={shellOrder([], lines, false)} scope={await announcementScope(false)} />}
           <main className="mx-auto max-w-7xl px-4 py-8 sm:px-6">{children}</main>
           <LegalFooter />
           <Toaster />
@@ -142,9 +147,10 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
   const resetLine = demoChanges ? await demoLineFacts().catch(() => null) : null;
   // And pins and Home are the visit's own, kept in its browser: it is told the dashboards the person viewed as may open (id and name only).
   const visitPrefs = demoChanges ? { person: viewer, known: (await switchableDashboards(actor)).map((d) => ({ id: d.id, name: d.name })), demoPinned: pinned.map((p) => ({ id: p.id, name: p.name })) } : null;
-  // The Announcement line (GLOSSARY: Announcement): the demo's notice that it is shared or read-only and when it starts fresh,
-  // dismissable for the visit. It carries the countdown, so the screen has one notice, not two.
-  const announcements = announcementsFor({ demo, changes: Boolean(demoChanges), offersTrials });
+  // The Announcement line (GLOSSARY: Announcement): the demo's built-in notice that it is shared or read-only and when it starts
+  // fresh (it carries the countdown, so the screen has one notice, not two), then those an Installation Admin wrote that are
+  // on now for this visit. Each is dismissable for the visit unless it cannot be; only what the line shows is sent.
+  const announcements = shellOrder(announcementsFor({ demo, changes: Boolean(demoChanges), offersTrials }), fromInstallation(await activeInstallationAnnouncements({ demo })), Boolean(demoChanges));
   const demoNote = announcements.length ? (
     <AnnouncementLine
       items={announcements}

@@ -194,8 +194,8 @@ function AnnouncementForm({ row }: { row?: InstallationAnnouncementRow }) {
       <div className="space-y-1">
         <p className="font-medium" id={`${uid}-preview`}>Preview</p>
         <div role="group" aria-labelledby={`${uid}-preview`} className="flex items-start gap-2 rounded-[var(--radius-input)] border border-dashed border-border px-3 py-2 text-xs">
-          <AnnouncementWords a={{ id: "preview", text: text.trim() || "Your words show here.", ...(href.trim() && label.trim() ? { link: { href: href.trim(), label: label.trim() } } : {}) }} />
-          <span className="shrink-0 text-muted-foreground">{level === "warning" ? "Warning" : "Info"}{dismissible ? "" : ", stays"}</span>
+          <AnnouncementWords a={{ id: "preview", text: text.trim() || "Your words show here.", level, dismissible, ...(href.trim() && label.trim() ? { link: { href: href.trim(), label: label.trim() } } : {}) }} />
+          <span className="shrink-0 text-muted-foreground">{dismissible ? "Can be dismissed" : "Stays: no dismiss button"}</span>
         </div>
       </div>
       {error && <p role="alert" className="text-destructive">{error}</p>}

@@ -42,3 +42,42 @@ describe("AnnouncementLine", () => {
     expect(host.querySelector("section")).not.toBeNull();
   });
 });
+
+describe("AnnouncementLine with several", () => {
+  const several = [
+    { id: "w", text: "Down at six.", level: "warning" as const, dismissible: false },
+    { id: "i1", text: "One." },
+    { id: "i2", text: "Two." },
+    { id: "i3", text: "Three.", link: { href: "https://status.example.org/", label: "Status" } },
+  ];
+  const drawMany = () => act(() => root.render(<AnnouncementLine items={several} scope="s1" />));
+  it("keeps the order, says Warning in words, and gives the line that cannot be dismissed no button", () => {
+    drawMany();
+    const lines = [...host.querySelectorAll("section")];
+    expect(lines.length).toBe(3);
+    expect(lines[0].textContent).toContain("Warning: Down at six.");
+    expect(lines[0].querySelector("button")).toBeNull();
+    expect(lines[1].querySelector("button")).not.toBeNull();
+  });
+  it("shows three and the rest behind a named button, and dismissing one lets the next in", () => {
+    drawMany();
+    const more = [...host.querySelectorAll("button")].find((b) => b.textContent?.includes("more"));
+    expect(more?.textContent).toBe("+1 more announcement");
+    act(() => host.querySelectorAll("section")[1].querySelector("button")!.click());
+    expect(host.textContent).not.toContain("One.");
+    expect(host.textContent).toContain("Three.");
+    expect(host.textContent).not.toContain("more announcement");
+  });
+  it("opens an external link in a new tab safely, and renders markup as plain text", () => {
+    act(() => root.render(<AnnouncementLine items={[{ id: "x", text: "<b>bold</b> [x](y)", link: { href: "https://status.example.org/", label: "Status" } }]} scope="s1" />));
+    expect(host.querySelector("b")).toBeNull();
+    expect(host.textContent).toContain("<b>bold</b> [x](y)");
+    const link = host.querySelector("a")!;
+    expect(link.getAttribute("rel")).toBe("noopener noreferrer");
+    expect(link.getAttribute("target")).toBe("_blank");
+  });
+  it("opens a link inside the app in the same tab", () => {
+    act(() => root.render(<AnnouncementLine items={[{ id: "x", text: "Demo.", link: { href: "/demo/leave", label: "Leave" } }]} scope="s1" />));
+    expect(host.querySelector("a")!.getAttribute("target")).toBeNull();
+  });
+});
