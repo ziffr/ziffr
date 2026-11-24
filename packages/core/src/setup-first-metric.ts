@@ -7,7 +7,7 @@
 // and a Guest are refused. A form code goes to the browser only once the viewer has asked.
 import { Forbidden, type Actor } from "./actor";
 import { addSubmitters } from "./metrics";
-import { askMeNowBy, canAskNow, shownReason, type AskNowResult } from "./ask-now";
+import { ASK_NOW_EVERY_MINUTES, askMeNowBy, canAskNow, shownReason, type AskNowResult } from "./ask-now";
 import { CONNECTORS } from "./connectors/index";
 import type { ConnectorId } from "./connectors/types";
 import { db } from "./db";
@@ -27,7 +27,8 @@ import { whatWorksHere } from "./what-works-here";
 import { numberStyleOf } from "./workspace-settings";
 import { workspaceClock } from "./workspace-clock";
 import { getMetrics } from "./workspace-data";
-import { cooldownWords, didntArrive, loopWorks, quietAfter, quietBefore, quietUntilWords, whatToLookFor, type Check } from "./first-metric-words";
+import { TEST_PER_DAY, TEST_PER_DAY_IN_TRIAL } from "./test-message-words";
+import { askForItLimitWords, cooldownWords, didntArrive, loopWorks, quietAfter, quietBefore, quietUntilWords, whatToLookFor, type Check } from "./first-metric-words";
 import { waysInAndOut } from "./ways-in-and-out";
 
 /** How many Metrics "Another Metric" lists at most. */
@@ -243,7 +244,21 @@ export async function askMeForFirstMetric(actor: Actor): Promise<void> {
   if (!guide?.firstMetricId) throw new Error("Choose a Metric to try first.");
   const { data: m } = await db().from("metrics").select("owner_id").eq("id", guide.firstMetricId).eq("workspace_id", actor.workspaceId).is("archived_at", null).maybeSingle();
   if (!m || m.owner_id !== actor.personId) throw new Forbidden("Only a Metric’s owner can ask to be asked for it.");
-  await addSubmitters(actor, guide.firstMetricId, [actor.personId]);
+  const id = guide.firstMetricId;
+  // Already one of the Submitters: nothing is added, so no Prompt is sent and nothing is claimed.
+  const { data: has } = await db().from("tokens").select("id").eq("metric_id", id).eq("submitter_id", actor.personId).is("stands_in_for", null).maybeSingle();
+  if (has) return;
+  // Adding a Submitter sends their first Prompt, so it is held to the limits of Ask me now: the ten minutes per Metric
+  // (the same claim, so the two share it) and a cap a day per person that Test Messages count in too (5 in a trial, so
+  // presses cannot use up the trial's messages a day). Both are claimed in the database, so parallel presses add one.
+  const { data: claimed, error } = await db().rpc("claim_ask_now", { p_metric: id });
+  if (error) throw new Error("Asking did not work. Try again.");
+  if (!claimed) throw new Error(`It was asked a moment ago. Ask again in ${ASK_NOW_EVERY_MINUTES} minutes.`);
+  const perDay = (await trialEndsAt(actor.workspaceId)) ? TEST_PER_DAY_IN_TRIAL : TEST_PER_DAY;
+  const { data: day, error: dayError } = await db().rpc("claim_test_message", { p_workspace: actor.workspaceId, p_person: actor.personId, p_way: "email", p_per_window: 1_000_000, p_window_minutes: 1, p_per_day: perDay });
+  if (dayError || typeof day !== "string") throw new Error("Asking did not work. Try again.");
+  if (day !== "ok") throw new Error(askForItLimitWords(day.split("|")[1] ?? "", perDay));
+  await addSubmitters(actor, id, [actor.personId]);
 }
 
 /** Picks another Metric to try: one the viewer owns and may ask for (not Derived, not archived). */

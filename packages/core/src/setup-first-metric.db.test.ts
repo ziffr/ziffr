@@ -236,6 +236,48 @@ describe("Ask me for it and picking another Metric", () => {
   });
 });
 
+describe("Ask me for it is limited like Ask me now", () => {
+  it("claims the ten minutes, so two presses at once add and ask once, and a later one says to wait", async () => {
+    const { w, o, m, owner } = await fresh({ submits: false });
+    const both = await Promise.allSettled([askMeForFirstMetric(o), askMeForFirstMetric(o)]);
+    expect(both.filter((r) => r.status === "fulfilled").length).toBeGreaterThanOrEqual(1);
+    const { count } = await db().from("tokens").select("id", { count: "exact", head: true }).eq("metric_id", m.id).eq("submitter_id", owner);
+    expect(count).toBe(1);
+    const { count: prompts } = await db().from("prompts").select("id", { count: "exact", head: true }).eq("metric_id", m.id);
+    expect(prompts).toBe(1);
+    // Taken off and put back within the ten minutes: refused in words, and nothing is sent.
+    await db().from("tokens").delete().eq("metric_id", m.id).eq("submitter_id", owner);
+    await expect(askMeForFirstMetric(o)).rejects.toThrow(/a moment ago\. Ask again in 10 minutes/);
+    expect((await db().from("prompts").select("id", { count: "exact", head: true }).eq("metric_id", m.id)).count).toBe(1);
+    expect(w.id).toBeTruthy();
+  });
+
+  it("stops at 20 a day with the number and the wait, counting Test Messages, and at 5 in a trial", async () => {
+    for (const trial of [false, true]) {
+      const { w, o, m, owner } = await fresh({ submits: false });
+      if (trial) await w.trial("2099-01-01");
+      const cap = trial ? 5 : 20;
+      // The day's places are used up (by Test Messages and earlier presses).
+      await db().from("test_message_sends").insert(Array.from({ length: cap }, () => ({ workspace_id: w.id, person_id: owner, way: "email", at: new Date(Date.now() - 3_600_000).toISOString() })));
+      await expect(askMeForFirstMetric(o)).rejects.toThrow(new RegExp(`${cap} times today, counting test messages\\. Try again in \\d+ (minutes|hours)\\.`));
+      expect((await db().from("tokens").select("id", { count: "exact", head: true }).eq("metric_id", m.id).eq("submitter_id", owner)).count).toBe(0);
+      expect((await db().from("prompts").select("id", { count: "exact", head: true }).eq("metric_id", m.id)).count).toBe(0);
+      // One place fewer is used: it goes through.
+      await db().from("ask_now_claims").delete().eq("metric_id", m.id);
+      const one = await db().from("test_message_sends").select("id").eq("workspace_id", w.id).eq("person_id", owner).limit(1);
+      await db().from("test_message_sends").delete().eq("id", one.data![0].id as number);
+      await askMeForFirstMetric(o);
+      expect((await firstMetricStep(o)).metric?.submitting).toBe(true);
+    }
+  });
+
+  it("claims nothing when the person already submits it", async () => {
+    const { o, m } = await fresh();
+    await askMeForFirstMetric(o);
+    expect((await db().from("ask_now_claims").select("metric_id").eq("metric_id", m.id)).data).toEqual([]);
+  });
+});
+
 describe("a trial's Test Metric", () => {
   it("is the First Metric from the start, the Owner's own value ticks the in half, and Ask me for it works as anywhere", async () => {
     const w = await workspace("Trial Co"); made.push(w);

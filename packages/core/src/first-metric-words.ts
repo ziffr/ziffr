@@ -77,3 +77,10 @@ export function didntArrive(i: CheckInput): Check[] {
   out.push({ text: "See it in the Outbox: it says why a message stayed.", href: "/connectors/outbox", label: "Open the Outbox" });
   return out;
 }
+
+/** What a person is told when the daily cap stops "Ask me for it": the number and how long until it resets (`resetsAt` is an ISO time). */
+export function askForItLimitWords(resetsAt: string, perDay: number, now: number = Date.now()): string {
+  const minutes = Math.max(1, Math.ceil((Date.parse(resetsAt) - now) / 60_000));
+  const wait = minutes <= 90 ? `${minutes} minute${minutes === 1 ? "" : "s"}` : `${Math.ceil(minutes / 60)} hours`;
+  return `You have asked Ziffr to message you ${perDay} times today, counting test messages. Try again in ${wait}.`;
+}
