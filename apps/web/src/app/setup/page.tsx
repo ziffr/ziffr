@@ -21,6 +21,10 @@ import { AboutYouMember, AboutYouWorkspace } from "./about-you";
 import { waysInAndOut } from "@ziffr/core/ways-in-and-out";
 import { SLACK_OUTCOMES } from "@/lib/slack-back";
 import { WaysInAndOutStep } from "./ways";
+import { teamSetup } from "@ziffr/core/team-setup";
+import { joinDomainOffer } from "@ziffr/core/invitations";
+import { signedIn } from "@/lib/auth";
+import { TeamStep } from "./team";
 
 const countryName = (c: string) => new Intl.DisplayNames(["en"], { type: "region" }).of(c) ?? c;
 
@@ -75,6 +79,9 @@ export default async function SetupPage({ searchParams }: { searchParams: Promis
   } else if (current === "ways") {
     const slack = (SLACK_OUTCOMES as readonly string[]).includes(query.slack ?? "") ? SLACK_NOTICE[query.slack as (typeof SLACK_OUTCOMES)[number]] : null;
     body = <WaysInAndOutStep data={await waysInAndOut(actor)} following={ids[ids.indexOf("ways") + 1] ?? null} notice={slack} />;
+  } else if (current === "team") {
+    // Only Owners and Admins have this step, so the loader (which carries Business Functions) is never called for anyone else.
+    body = <TeamStep data={await teamSetup(actor)} domainOffer={actor.role === "owner" ? joinDomainOffer((await signedIn())?.verifiedEmail) : null} />;
   } else {
     body = (
       <div className="space-y-4">

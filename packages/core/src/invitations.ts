@@ -314,6 +314,13 @@ export async function setRole(actor: Actor, personId: string, role: WorkspaceRol
   if (current.role !== role) await audit(actor, { kind: "member.role_changed", object: { type: "person", id: personId, name: await personName(personId, actor.workspaceId) }, details: { from: current.role, to: role } });
 }
 
+/** The company domain Domain Joining could be switched on for, from an Owner's verified address: null when the address is
+ * missing or its domain is a public mail provider. The same test `setJoinDomain` applies, so a screen never offers what is refused. */
+export function joinDomainOffer(verifiedEmail: string | null | undefined): string | null {
+  const domain = verifiedEmail ? domainOf(verifiedEmail) : "";
+  return domain && !PUBLIC_DOMAINS.has(domain) ? domain : null;
+}
+
 /** Switches domain joining on for the domain of the Owner's own verified address, or off with null. */
 export async function setJoinDomain(actor: Actor, ownerEmail: string | null, on: boolean) {
   notDemo(actor);

@@ -149,6 +149,7 @@ const BLOCKED: Record<BlockedReason, readonly string[]> = {
   sends: [
     "connector-actions:connectSlack",
     "setup/ways-actions:connectSlackFromGuide",
+    "setup/team-actions:askForMetric",
     "connector-actions:disconnectSlack",
     "connector-actions:emailRemindersAgain",
     "connector-actions:sendTestMessage",

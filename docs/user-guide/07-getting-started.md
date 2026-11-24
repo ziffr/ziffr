@@ -23,7 +23,7 @@ Sign in with your work email: Ziffr sends you a sign-in link (on hosted Ziffr th
 
 The **Setup Guide** is a short list of steps that sets a Workspace up: **About you**, **Starting point**, **Ways in and out**, **First Metric** and **Team**. It lives at **Set up your Workspace** (the address `/setup`, also reached from Help), shows the steps in a bar at the top with each one's state in words (Done, Skipped, To do, Comes next), and every step can be skipped. **Go to Ziffr** leaves it at any time. Owners and Admins see all five steps. A Member sees only the two about themselves, and a Guest and the demo have none.
 
-Today **About you** and **Ways in and out** are the steps to use. The other three open and say what they will do, so you can see where the guide is going; the rest of Ziffr works without them, as the numbered steps below show.
+Today **About you**, **Ways in and out** and **Team** are the steps to use. The other two open and say what they will do, so you can see where the guide is going; the rest of Ziffr works without them, as the numbered steps below show.
 
 **About you** asks plain questions, one to a row, each optional and each saying what it is for. Choose **Skip this question** to leave one open, **Skip** to skip the whole step, or **Save and go on**.
 
@@ -55,6 +55,20 @@ What you answer stays in this Workspace. It is not sent to Ziffr's makers or to 
 
 You can change every answer later: the business and the time under **Workspace → General**, in the section **About your business**, and your function under **Your profile**.
 
+**Team** is for Owners and Admins; a Member and a Guest never see it. It does the work of the Members and Groups page in one place, and everything it does is also there afterwards.
+
+| Part | What it does |
+| --- | --- |
+| **Who is here** | The members and Contacts with their role, and the invitations still waiting. An Owner or Admin also sees what each member said they work in, because functions are visible to Owners and Admins only. |
+| **Invite people** | Type an address, pick a role and choose **Invite**: Ziffr emails the link where this Ziffr has a mail server, and otherwise says so and gives you the link to send yourself. **Make a link for Members** makes a link anyone who has it can join by, for 7 days. The four roles are explained in one line each under the form: an Owner manages everything, an Admin manages settings, Groups and members but cannot remove Owners, a Member makes and shares Metrics, dashboards and decks and sends in values, and a Guest sees only what is shared with them and makes nothing. Only an Owner can invite an Owner. |
+| **Colleagues at your company** | Owners only. **Let people with an address at your company's domain ask to join** switches [Domain Joining](16-workspace-settings.md) on for the domain of your own verified address; it is not offered for a public mail provider, and each person still waits for you or an Admin to let them in. |
+| **A first Group** | An optional Group such as Finance, with a box per member to put people in it. |
+| **Who is asked for what** | Each Metric you can change, with who is asked for it now. Where the Metric came from a Pack that says which Business Function it is for, and a member has that function, a button reads **Suggested: Ben (Finance)**. Pressing a name, or choosing **Ask someone else** and **Ask**, makes that person a Submitter and sends them their first request; Contacts can be asked too. Nothing is assigned until you press. |
+
+The step ticks once someone beside you is in the Workspace, an invitation is waiting, Domain Joining is on, or a Contact is asked for at least one Metric. A Contact that only exists does not count. Revoking the last invitation later does not reopen a finished guide.
+
+**In a trial**, invitations open once your first value has arrived, and the step says so ("Invitations open once your first value has arrived. Answer your first request in the First Metric step, then come back here."). A trial invites by email only: there is no link and no Domain Joining, as [the trial](16-workspace-settings.md#on-a-ziffr-that-offers-trials) describes. After the trial has ended, nobody can be invited.
+
 ## 2. Describe your first Metric
 
 Go to **Metrics** and choose **New metric**. The easiest start is the Metric Catalog: pick a number you already track, such as "Revenue" or "Customer satisfaction". Ziffr fills in its description, and you check:
@@ -72,7 +86,7 @@ Open the Metric and send in a value yourself on its form link, or wait until its
 
 ## 4. Invite your team
 
-Under **Workspace → Members and Groups**, invite colleagues by email or with a link, and choose their role:
+The Setup Guide's **Team** step (above) does this in one place; later, under **Workspace → Members and Groups**, invite colleagues by email or with a link, and choose their role:
 
 - **Member** for people who build dashboards and describe Metrics,
 - **Guest** for people who only look at what you share with them and send in their numbers,
