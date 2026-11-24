@@ -229,7 +229,8 @@ export async function askForFirstMetric(actor: Actor): Promise<FirstMetricAsk> {
   return {
     results: results.map((r) => ({ ...r, look: whatToLookFor(r.connector, { metric: name, email: (me?.email as string | null) ?? null, repliesByEmail: here.find((x) => x.way === "email-replies")?.state === "real" }) })),
     held: hold ? quietAfter(quietUntilWords(hold, now, zone)) : null,
-    formCode: (token?.code as string | undefined) ?? null,
+    // The viewer's own code, and only when at least one way was really asked.
+    formCode: results.some((r) => r.state !== "failed") ? ((token?.code as string | undefined) ?? null) : null,
   };
 }
 
@@ -240,7 +241,7 @@ export async function askMeForFirstMetric(actor: Actor): Promise<void> {
   assertStep(actor);
   const guide = await guideRow(actor);
   if (!guide?.firstMetricId) throw new Error("Choose a Metric to try first.");
-  const { data: m } = await db().from("metrics").select("owner_id").eq("id", guide.firstMetricId).eq("workspace_id", actor.workspaceId).maybeSingle();
+  const { data: m } = await db().from("metrics").select("owner_id").eq("id", guide.firstMetricId).eq("workspace_id", actor.workspaceId).is("archived_at", null).maybeSingle();
   if (!m || m.owner_id !== actor.personId) throw new Forbidden("Only a Metric’s owner can ask to be asked for it.");
   await addSubmitters(actor, guide.firstMetricId, [actor.personId]);
 }
