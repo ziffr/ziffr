@@ -15,6 +15,12 @@ tag=$(git tag --list 'v[0-9]*' --merged HEAD | sort -V | tail -1)
 [ -n "$tag" ] || { echo "No release tag in this checkout (CI: fetch tags and history)."; exit 1; }
 echo "Upgrading from $tag to $(git rev-parse --short HEAD)"
 
+# True when the newest release already contains this migration file. Assertions about what ONE migration does to
+# existing rows only mean something while the release does not have it yet (else it ran before the test data existed).
+migration_in_release() { git cat-file -e "$tag:supabase/migrations/$1" 2>/dev/null; }
+# Release-specific assertions below name their migration; remove each one once a release contains it for good.
+setup_guide_migration=20270126120000_setup_guide.sql
+
 work=$(mktemp -d)
 project="ziffr-upgrade-$prefix"
 stack() { supabase "$@" --workdir "$work"; }
@@ -54,8 +60,13 @@ cp "$repo"/supabase/migrations/* "$work/supabase/migrations/"
 (cd "$work" && SUPABASE_TELEMETRY_DISABLED=1 supabase db push --db-url "$db_url" --include-all --yes)
 
 echo "== The Trial Guide's state moved into the Setup Guide's tables, and the demo holds none"
-[ "$(psql -tA -c "select count(*) from setup_guides g join workspaces w on w.id = g.workspace_id where w.trial_guide_step = 'connect' and g.starting_point = 'scratch'")" = 1 ] \
-  || { echo "The trial's Trial Guide was not moved into setup_guides."; exit 1; }
+# Release-specific (spec 0052): remove this check once the release has the migration (v0.16.0 does).
+if migration_in_release "$setup_guide_migration"; then
+  echo "skipped: the last release already has $setup_guide_migration"
+else
+  [ "$(psql -tA -c "select count(*) from setup_guides g join workspaces w on w.id = g.workspace_id where w.trial_guide_step = 'connect' and g.starting_point = 'scratch'")" = 1 ] \
+    || { echo "The trial's Trial Guide was not moved into setup_guides."; exit 1; }
+fi
 [ "$(psql -tA -c "select count(*) from setup_guides where workspace_id = 'd3e00000-0000-4000-8000-000000000001'")" = 0 ] \
   || { echo "The demo Workspace must never have a Setup Guide."; exit 1; }
 
