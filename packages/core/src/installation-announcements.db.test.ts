@@ -199,6 +199,20 @@ describe("the demo", () => {
   });
 });
 
+describe("changing one", () => {
+  it("keeps it off when the change does not say, and records the switch when the value changes", async () => {
+    const a = await admin();
+    const mark = randomUUID().slice(0, 8);
+    const id = await createInstallationAnnouncement(a, { text: `Parked ${mark}`, active: false });
+    await updateInstallationAnnouncement(a, id, { text: `Reworded ${mark}` });
+    expect((await rows())[0]).toMatchObject({ text: `Reworded ${mark}`, active: false });
+    await updateInstallationAnnouncement(a, id, { text: `Reworded ${mark}`, active: true });
+    expect((await rows())[0].active).toBe(true);
+    const events = (await installationEvents(a, 200)).filter((e) => e.subject?.endsWith(mark)).reverse();
+    expect(events.map((e) => e.kind)).toEqual(["announcement.created", "announcement.changed", "announcement.changed", "announcement.switched_on"]);
+  });
+});
+
 describe("the audit", () => {
   it("leaves one event per change, by the actor, with the text as it was then and nothing more", async () => {
     const a = await admin();
