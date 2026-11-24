@@ -113,6 +113,30 @@ export async function deleteInstallationAnnouncement(actor: InstallationActor, i
   await recordInstallationEvent(actor.personId, "announcement.deleted", subjectOf(data[0].text as string));
 }
 
+/** What the shell may show of an Installation Announcement: the words, the link, the level, whether it can be dismissed,
+ * and when it was last changed (so an edit brings a dismissed line back). No audience, window, switch or person. */
+export type ActiveAnnouncement = { id: string; text: string; link?: { href: string; label: string }; level: AnnouncementLevel; dismissible: boolean; updatedAt: string };
+
+/** The Installation Announcements to show now, most urgent first, for a signed-in visit or the demo (`demo`: this visit is
+ * in the demo, which also gets the lines for the demo only). Not gated by a person: it reads the Installation and no
+ * Workspace, and only what the line shows leaves here (AGENTS.md rule 3). A read the page can do without: on a failure
+ * it returns nothing rather than breaking every page. */
+export async function activeInstallationAnnouncements(visit: { demo: boolean }): Promise<ActiveAnnouncement[]> {
+  const audiences = visit.demo === true ? ["everyone", "demo"] : ["everyone"];
+  const { data, error } = await db().from("installation_announcements")
+    .select("id, text, link_url, link_label, level, starts_at, ends_at, active, dismissible, created_at, updated_at")
+    .eq("active", true).in("audience", audiences).limit(100);
+  if (error || !Array.isArray(data)) return [];
+  const now = new Date();
+  const running = data.filter((r) => announcementState({ active: Boolean(r.active), startsAt: (r.starts_at as string | null) ?? null, endsAt: (r.ends_at as string | null) ?? null }, now) === "running");
+  return orderAnnouncements(running.map((r) => ({ r, level: r.level as string, startsAt: (r.starts_at as string | null) ?? null, createdAt: r.created_at as string })))
+    .slice(0, INSTALLATION_ANNOUNCEMENTS_ACTIVE_MAX)
+    .map(({ r }) => ({
+      id: r.id as string, text: r.text as string, ...(r.link_url && r.link_label ? { link: { href: r.link_url as string, label: r.link_label as string } } : {}),
+      level: r.level as AnnouncementLevel, dismissible: r.dismissible !== false, updatedAt: r.updated_at as string,
+    }));
+}
+
 /** The Announcements the sign-in page shows, for anyone: public, switched on and inside their window, most urgent
  * first. Only the text, link and level leave here (AGENTS.md rule 3); called from the sign-in page and nothing else. */
 export async function publicAnnouncements(): Promise<PublicAnnouncement[]> {

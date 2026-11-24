@@ -1,6 +1,6 @@
 # 0054 Announcements: an Installation or a Workspace tells everyone one plain line, for a while
 
-**Status:** draft. **Ticket:** tracking issue #1084, tickets #1085, #1086, #1087, #1088, #1089, #1090, #1091 (the owner's decisions, 2026-11-24).
+**Status:** in progress (tickets 1 to 4 and 7 built; 5 and 6 to come). **Ticket:** tracking issue #1084, tickets #1085, #1086, #1087, #1088, #1089, #1090, #1091 (the owner's decisions, 2026-11-24).
 
 **Progress, ticket 2 done:** the Announcements section of the Installation settings (`apps/web/src/app/installation/announcements.tsx`): the list, a side panel to add or change (fields of the spec, character count, preview drawn by the shell's own `AnnouncementWords`), switch off or on, and delete behind a confirmation; times are typed and shown in the browser's time zone, named beside the field; the five audit kinds have words under Changes; the four server actions are classified as outside the demo; the user guide chapter 18 has the section. The shell does not yet show the level, so the preview shows it as a word beside the line until ticket 3.
 
@@ -86,3 +86,9 @@ An **Announcement** is one plain line shown on every screen of the app (the phon
 ## Further Notes
 
 The second group (tickets 5 and 6) comes after tickets 1 to 4 are merged, so the Installation level is proven first. The threat model row names what an Announcement can do if an admin account is taken over: put a link in front of everyone. That is why links are https only, labelled, never opened by themselves, and every change is in the audit trail.
+
+## Progress
+
+- Ticket 1 (#1085, #1095): table, core functions, `publicAnnouncements()`: merged.
+- Tickets 3 and 4 (#1087, #1088): built. The shell reads `activeInstallationAnnouncements({ demo })` (new, takes no person: it reads the Installation only, and a visit in the demo also gets the lines for the demo only), orders them with the built-in demo notice (first where visitors may change the demo, else ranked as an info), keys each dismissal by id and last change, shows three at once with "+N more", and gives a line that cannot be dismissed no button. The sign-in page shows `publicAnnouncements()` through the same component, with no dismissal there (as the spec says). Workspace Announcements (tickets 5 and 6) are not part of this.
+- Ticket 7 (#1091): the section "Announcing maintenance" in the operator guide and row 29 of the threat model, for the Installation level. Both are extended when tickets 5 and 6 (Workspace Announcements) are built.

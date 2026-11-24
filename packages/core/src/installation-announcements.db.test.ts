@@ -9,7 +9,7 @@ import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from
 import { Forbidden, Refused } from "./actor";
 import { db } from "./db";
 import {
-  createInstallationAnnouncement, deleteInstallationAnnouncement, installationAnnouncements, publicAnnouncements,
+  activeInstallationAnnouncements, createInstallationAnnouncement, deleteInstallationAnnouncement, installationAnnouncements, publicAnnouncements,
   setInstallationAnnouncementActive, updateInstallationAnnouncement,
 } from "./installation-announcements";
 import { installationEvents } from "./installation-admins";
@@ -240,5 +240,30 @@ describe("the audit", () => {
     await expect(createInstallationAnnouncement(n, { text: "No" })).rejects.toBeInstanceOf(Forbidden);
     await expect(createInstallationAnnouncement(a, { text: "" })).rejects.toBeInstanceOf(Refused);
     expect((await installationEvents(a, 200)).length).toBe(had);
+  });
+});
+
+describe("activeInstallationAnnouncements", () => {
+  it("returns only running rows for the audience, most urgent first, with only the shell's fields", async () => {
+    const a = await admin();
+    await createInstallationAnnouncement(a, { text: "Info for all" });
+    await createInstallationAnnouncement(a, { text: "Warning for all", level: "warning", dismissible: false });
+    await createInstallationAnnouncement(a, { text: "Demo only", audience: "demo" });
+    await createInstallationAnnouncement(a, { text: "Off", active: false });
+    await createInstallationAnnouncement(a, { text: "Later", startsAt: at(hour), endsAt: at(2 * hour) });
+    await createInstallationAnnouncement(a, { text: "Over", startsAt: at(-2 * hour), endsAt: at(-hour) });
+    const real = await activeInstallationAnnouncements({ demo: false });
+    expect(real.map((r) => r.text)).toEqual(["Warning for all", "Info for all"]);
+    expect(real[0].dismissible).toBe(false);
+    expect(real[1].dismissible).toBe(true);
+    expect(Object.keys(real[0]).sort()).toEqual(["dismissible", "id", "level", "text", "updatedAt"]);
+    const demo = await activeInstallationAnnouncements({ demo: true });
+    expect(demo.map((r) => r.text).sort()).toEqual(["Demo only", "Info for all", "Warning for all"]);
+  });
+  it("carries the link and needs no person", async () => {
+    const a = await admin();
+    await createInstallationAnnouncement(a, { text: "See", link: { href: "https://status.example.org/", label: "Status" } });
+    const [one] = await activeInstallationAnnouncements({ demo: false });
+    expect(one.link).toEqual({ href: "https://status.example.org/", label: "Status" });
   });
 });

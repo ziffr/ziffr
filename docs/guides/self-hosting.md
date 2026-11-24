@@ -432,6 +432,25 @@ Set `ZIFFR_DEMO_CHANGES` to `0` (or remove it) and restart the app. From the nex
 - [ ] You know how to switch it off (above), and tried it once on the copy
 - [ ] You have read the [threat model](../security/threat-model.md#the-shared-demo-that-visitors-may-change-spec-0051-adr-0016): there is no check against bots here, the limits are the protection, and a group of networks can use up the demo's changes for a window
 
+## Announcing maintenance
+
+An **Announcement** is one plain line above every screen of the app. An Installation Admin writes it under **Installation settings, Announcements** ([the page](../user-guide/18-installation-settings.md#announcements)); nothing outside your own Installation is involved. Use it for a maintenance window, a new release or a fix people have waited for.
+
+- **Fields.** The words (plain text, 1 to 280 characters, never markup; control and direction-changing characters are removed), an optional link (an `https://` address of at most 500 characters with no name or password in it, plus a label of at most 40 characters; `http:`, `javascript:` and `data:` are refused), a level (**info** or **warning**), an optional start and end, who sees it (everyone, or the demo only), **Also show it on the sign-in page**, **Cannot be dismissed** and **Switched on**.
+- **The window.** Without a start an Announcement shows at once; without an end it stays until you switch it off. With both it can be written a day ahead and goes by itself, and the end shows within about a minute. Times are typed and shown in the time zone of your browser, which the panel names beside the field: check it when you announce a window in UTC.
+- **Level.** Use a warning for maintenance: it is shown before an info and begins with the word "Warning:", so it is never told by colour alone.
+- **Cannot be dismissed.** Tick it while a window is running, so nobody dismisses the notice and then wonders why saving fails. Otherwise a person dismisses an Announcement for their visit only: it comes back with the next sign-in, and when its words change.
+- **The sign-in page.** Tick **Also show it on the sign-in page** (offered for an Announcement for everyone) so that people who cannot sign in read that it is down on purpose. The page shows only the words, the link and the level of public Announcements that are on and inside their window, and has no Dismiss button.
+- **The demo.** The demo's own reset notice is built in: it shows whenever the demo is on, and cannot be edited or deleted. An Announcement for the demo only shows to visitors of the demo, after it.
+- **Limits.** At most 20 Announcements switched on at once (a refusal says so). Three show at once, the rest behind "+N more announcements", a warning before an info and then the earlier start.
+- **What is recorded.** Adding, changing, switching on or off and deleting are in the Installation's log (**Changes**), with who did it and the words at the time. Only Installation Admins can change an Announcement, and a link is never opened by itself, so keep the Installation Admins few. See [the threat model](../security/threat-model.md).
+
+Worked examples, each one **Add an Announcement**:
+
+1. **Maintenance on Saturday, 02:00 to 03:00 UTC.** Words: "Ziffr is down for maintenance on Saturday from 02:00 to 03:00 UTC." Level warning, shown to everyone, **Also show it on the sign-in page** on. **Starts** a day ahead, on Friday at 02:00 UTC, and **Ends** on Saturday at 03:00 UTC; if your browser is not on UTC, type the times of your zone that match. People can plan, and it ends by itself. While the work runs it should not be dismissed: either tick **Cannot be dismissed** (then the day-ahead notice cannot be dismissed either), or write a second Announcement that starts on Saturday at 02:00 UTC with that box ticked and leave the first one dismissible.
+2. **New release 0.17.** Words: "Ziffr 0.17 is installed." Link `https://github.com/ziffr/ziffr/releases` with the words "Release notes". Level info, **Ends** a week later, dismissible, not public.
+3. **A known bug is fixed.** Words: "Saving a value from the phone works again. If it failed for you, enter it once more." Level info, no link, **Ends** after a few days, dismissible. Switch it off early once people have read it, and **Delete** it when you no longer want it in the list.
+
 ## Upgrading
 
 With Docker: [docker/README.md](../../docker/README.md#upgrading). With your own Supabase project:
