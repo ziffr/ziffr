@@ -11,7 +11,11 @@ const add = vi.fn(async (ids: number[]) => { void ids; return refused; });
 const set = vi.fn(async (ids: number[]) => { void ids; return refused; });
 const remove = vi.fn(async (id: number) => { void id; return refused; });
 const shownError = vi.fn();
+const explain = vi.fn(async (id: number) => { void id; return {}; });
+const listed = vi.fn(async (ids: number[], mark?: number | null) => { void ids; void mark; return { canvas: [], groups: [] }; });
+vi.mock("@/app/picker-actions", () => ({ pickerList: (ids: number[], mark?: number | null) => listed(ids, mark), pickerRun: async () => ({ ok: false, message: "" }) }));
 vi.mock("@/app/canvas-actions", () => ({
+  canvasExplain: (id: number) => explain(id),
   canvasAdd: (ids: number[]) => add(ids),
   canvasSet: (ids: number[]) => set(ids),
   canvasRemove: (id: number) => remove(id),
@@ -29,9 +33,9 @@ import { SlideOverProvider } from "@/components/slide-over-host";
 const data = sampleCanvasData("sara", "1,234.5");
 const first = data.metrics[0];
 let host: HTMLElement; let root: Root;
-async function mount(demo: boolean, onCanvas: number[] = []) {
+async function mount(demo: boolean, onCanvas: number[] = [], explained: number | null = null) {
   host = document.createElement("div"); document.body.appendChild(host); root = createRoot(host);
-  await act(async () => { root.render(<SlideOverProvider><AnalyzeScreen data={data} onCanvas={onCanvas} targets={[]} demo={demo} /></SlideOverProvider>); });
+  await act(async () => { root.render(<SlideOverProvider><AnalyzeScreen data={data} onCanvas={onCanvas} explained={explained} demo={demo} /></SlideOverProvider>); });
 }
 const button = (label: string) => host.querySelector<HTMLButtonElement>(`button[aria-label="${label}"]`)!;
 const onCanvas = () => [...host.querySelectorAll("button[aria-label^='Take ']")].map((b) => b.getAttribute("aria-label")!.replace(/^Take | off the canvas$/g, ""));
@@ -48,7 +52,7 @@ describe("adding a Metric to the Analysis Canvas", () => {
 
   it("in the demo, a drop from the Pool lands too, once, and the × takes it off again", async () => {
     await mount(true);
-    const canvas = host.querySelector<HTMLElement>(".desk")!;
+    const canvas = host.querySelector<HTMLElement>("[data-canvas]")!;
     const dropped = () => {
       const e = new Event("drop", { bubbles: true, cancelable: true }) as Event & { dataTransfer: unknown };
       e.dataTransfer = { getData: () => JSON.stringify({ type: "metric", id: first.id }) };
@@ -70,5 +74,68 @@ describe("adding a Metric to the Analysis Canvas", () => {
     expect(shownError).toHaveBeenCalledWith(refused.error);
     // What is drawn is what the server sends: nothing, until the page comes back with the Metric on it.
     expect(onCanvas()).toEqual([]);
+  });
+});
+
+// The Metric to explain (#988): its own mark, shown in words, never the order of the Metrics.
+describe("the Metric to explain", () => {
+  const [a, b, c] = data.metrics;
+  const role = (name: string) => host.querySelector<HTMLButtonElement>(`button[aria-label$="${name} the one to explain"], button[aria-label="${name} is the one to explain"]`)!;
+  const pressed = () => [...host.querySelectorAll("button[aria-pressed='true'][aria-label$='is the one to explain']")].map((x) => x.getAttribute("aria-label")!.replace(" is the one to explain", ""));
+  // The picker is asked for the list with the Metric to explain, which starts its Slots.
+  const askedWith = async () => { await act(async () => { [...host.querySelectorAll("button")].find((x) => x.textContent?.includes("Choose a method"))!.click(); }); return listed.mock.calls.at(-1)![1]; };
+
+  it("is the first Metric when none is marked, and the marked one wherever it stands, in words", async () => {
+    await mount(false, [a.id, b.id, c.id]);
+    expect(pressed()).toEqual([a.name]);
+    expect(role(b.name).getAttribute("aria-pressed")).toBe("false");
+    expect(role(b.name).getAttribute("aria-label")).toBe(`Make ${b.name} the one to explain`);
+    expect(await askedWith()).toBe(a.id);
+  });
+
+  it("follows the mark, not the order, and the picker is asked with it", async () => {
+    await mount(false, [a.id, b.id, c.id], b.id);
+    expect(pressed()).toEqual([b.name]);
+    expect(await askedWith()).toBe(b.id);
+    expect(host.textContent).toContain("Compared with");
+  });
+
+  it("is asked of the server when another is chosen, and in the demo is kept on the page with nothing deleted", async () => {
+    await mount(false, [a.id, b.id, c.id]);
+    await act(async () => { role(c.name).click(); });
+    expect(explain).toHaveBeenCalledWith(c.id);
+    expect(onCanvas()).toEqual([a.name, b.name, c.name]);
+    act(() => root.unmount()); host.remove();
+    await mount(true, [a.id, b.id, c.id]);
+    await act(async () => { role(b.name).click(); });
+    expect(pressed()).toEqual([b.name]);
+    expect(onCanvas()).toEqual([a.name, b.name, c.name]);
+    expect(explain).toHaveBeenCalledTimes(1);
+  });
+
+  it("moves to the next Metric when the marked one is taken off, and is the only Metric when one is left", async () => {
+    await mount(true, [a.id, b.id, c.id], b.id);
+    await act(async () => { button(`Take ${b.name} off the canvas`).click(); });
+    expect(pressed()).toEqual([c.name]);
+    await act(async () => { button(`Take ${c.name} off the canvas`).click(); });
+    expect(host.textContent).toContain("The one to explain");
+    expect(pressed()).toEqual([]);
+  });
+});
+
+describe("the front door", () => {
+  it("opens the picker on an empty canvas, says so, and offers no locked tile", async () => {
+    await mount(true);
+    expect(host.textContent).toContain("Drop Metrics here, or choose a method.");
+    expect(host.querySelector("section[aria-label='Choose a method']")).not.toBeNull();
+    expect(host.textContent).not.toMatch(/Forecast|Correlation matrix|What drives/);
+  });
+
+  it("keeps the picker shut with Metrics on the canvas until it is asked for, and then opens it", async () => {
+    await mount(true, [first.id]);
+    expect(host.querySelector("section[aria-label='Choose a method']")).toBeNull();
+    const choose = [...host.querySelectorAll("button")].find((x) => x.textContent?.includes("Choose a method"))!;
+    await act(async () => { choose.click(); });
+    expect(host.querySelector("section[aria-label='Choose a method']")).not.toBeNull();
   });
 });

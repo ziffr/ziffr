@@ -180,7 +180,7 @@ If a Widget's Metric has open questions or tasks, its title bar shows a speech b
 | **Edit Finding…** | The owner and Editors, in edit mode, for Findings | Opens the Finding editor (see [Findings](#findings)). |
 | **Edit layout…** | The owner and Editors, in edit mode, for a Free layout | Opens the layout editor (see [Free layout](#free-layout)). |
 | **Versions…** | Everyone | The Widget's own history of changes. |
-| **Takeaway…** | Everyone, for a Widget that says something about its numbers (a forecast, drivers, a link between two Metrics) | Opens the Takeaway in a panel: the sentence, how it was worked out, how it did on the past, the line that it is not a promise or not a cause, and **Show the numbers**. The Widget itself shows only the chart and its footer line; View Links, Present, Previews and a Snapshot's dashboard show no Takeaway. A Metric's page and a deck's slides keep the words under the chart. |
+| **Takeaway…** | Everyone, for a Widget that says something about its numbers (a forecast, drivers, a link between two Metrics) | Opens the Takeaway in a panel: the sentence first, then how it was worked out, any plain line of caution about the data, how it did on the past, the line that it is not a promise or not a cause, and **Show the numbers**. The Widget itself shows only the chart and its footer line; View Links, Present, Previews and a Snapshot's dashboard show no Takeaway. A Metric's page and a deck's slides keep the words under the chart. |
 | **Add to…** | Everyone | Opens a submenu of the places a copy of the Widget can go: **Dashboard** and **Deck…**, below. |
 | **Save as…** | Everyone | Opens a submenu of the ways to keep the Widget: **Widget**, **Template…** and **View Design**, below. |
 

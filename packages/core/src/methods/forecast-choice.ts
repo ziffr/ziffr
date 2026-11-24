@@ -10,6 +10,7 @@ import { forecast, HORIZON, holtSpreadFactor } from "../forecast";
 import type { Span } from "../periods";
 import type { Point } from "../types";
 import { wideReason } from "../work-bound";
+import { Z80 } from "./normal-curve";
 import { holtWinters, type SeasonalPoint } from "./holt-winters";
 import { chooseMethod, type Candidate, type Choice } from "./track-record";
 
@@ -39,4 +40,13 @@ export function bestForecast(all: Point[], span: Span, season: number, opts: { h
   const fc = forecast(points, span, horizon);
   if (!fc) return null;
   return { method: "holt", choice, points: fc.points.map((p, i) => ({ ...p, sd: Math.sqrt(nearest(times(fc.meanSquare, holtSpreadFactor(i + 1)))) })), trendPerPeriod: fc.trendPerPeriod, sd: fc.sd };
+}
+
+/**
+ * The forecast's points with the band the Takeaway states: the value and the range it is likely between (80 %, `Z80` spreads either side),
+ * the very range forecastTakeaway writes for the same period. A chart draws this band, so that no screen shows one range in the picture and
+ * another in the words. (The points' own `lo` and `hi` are a wider 95 % band, kept for the checks that compare ranges with each other.)
+ */
+export function withTakeawayBand<P extends { value: number; sd: number }>(points: readonly P[]): (P & { lo: number; hi: number })[] {
+  return points.map((p) => ({ ...p, lo: p.value - Z80 * p.sd, hi: p.value + Z80 * p.sd }));
 }

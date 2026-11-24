@@ -34,7 +34,7 @@ function listFor(facts: CanvasFact[]): PickerList {
     canvas: facts.map((f) => ({ id: f.id, name: f.name, period: f.period })),
     groups: groupsFor(facts).map((g) => ({
       want: g.want, question: g.question,
-      entries: g.entries.map((e): EntryView => ({ id: e.id, name: e.name, sentence: e.sentence, technical: e.technical, ...textsOf(e), slots: e.slots, settings: e.settings, needs: `${metricsNeeded(e)} Metrics on the canvas`, fit: e.fit, defaults: Object.fromEntries(e.slots.map((s, i) => [s.id, s.optional ? [] : s.many ? on.slice(i) : on.slice(i, i + 1)])), recipeFile: false, widget: e.widget })),
+      entries: g.entries.map((e): EntryView => ({ id: e.id, name: e.name, generic: e.name, sentence: e.sentence, technical: e.technical, ...textsOf(e), slots: e.slots, settings: e.settings, needs: `${metricsNeeded(e)} Metrics on the canvas`, fit: e.fit, defaults: Object.fromEntries(e.slots.map((s, i) => [s.id, s.optional ? [] : s.many ? on.slice(i) : on.slice(i, i + 1)])), recipeFile: false, widget: e.widget })),
     })),
   };
 }
@@ -54,7 +54,7 @@ describe("Choose a method", () => {
     await mount([fact(1, "Revenue")]);
     expect(asked).toEqual([[1]]);
     expect([...host.querySelectorAll("h3")].map((h) => h.textContent)).toEqual(["Where is it heading?", "What moves with what?", "What would it take?", "What would happen if?", "What changed?", "What is usual?", "Where is it concentrated?"]);
-    expect(cards()).toHaveLength(15);
+    expect(cards()).toHaveLength(16);
     const corr = card("Does A move with B?");
     expect(corr.querySelector("button")!.disabled).toBe(true);
     expect(corr.textContent).toContain("Needs 2 Metrics on the canvas; there is 1.");

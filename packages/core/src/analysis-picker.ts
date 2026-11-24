@@ -6,7 +6,9 @@
 // method-picker-run.ts and refused in words. The screen only calls these.
 import type { Actor } from "./actor";
 import { seriesFor, visibleMetricIds } from "./access";
+import { explainedFirst } from "./canvas-roles";
 import { yearStartOf } from "./fiscal-year";
+import { questionFor, sentenceFor, type Picked } from "./method-picker-names";
 import { entryOf, textsOf, type EntryId, type PickerEntry, type SettingDef, type SlotDef } from "./method-picker";
 import { groupsFor, metricsNeeded, type CanvasFact, type EntryFit } from "./method-picker-fit";
 import { readSettings, readSlotIds, recipeFileOf, runEntry, type PickWorld } from "./method-picker-run";
@@ -32,7 +34,10 @@ export type CanvasMetric = { id: number; name: string; period: Span };
 /** An entry as the list shows it. */
 export type EntryView = {
   id: EntryId;
+  /** The question in the words of the Metrics it starts on ("What moves Cost?"); the generic words where none is chosen. */
   name: string;
+  /** The generic question ("What moves B?"), for the screen to word again once the person has chosen other Metrics. */
+  generic: string;
   sentence: string;
   technical: string;
   useWhen: string;
@@ -112,28 +117,51 @@ function defaultsOf(entry: PickerEntry, canvas: number[], fit: EntryFit): Record
   return out;
 }
 
+// The names of the Metrics each Slot starts on, for wording an entry's question: only canvas Metrics the actor sees are in `names`.
+function pickedOf(defaults: Record<string, number[]>, names: Map<number, string>): Picked {
+  const one = (slot: string) => names.get(defaults[slot]?.[0] ?? -1);
+  return { metric: one("metric"), first: one("first"), second: one("second"), held: (defaults.held ?? []).flatMap((i) => names.get(i) ?? []), metrics: (defaults.metrics ?? []).flatMap((i) => names.get(i) ?? []) };
+}
+
+// What fits the canvas comes first: a group with an entry that fits before one with none, and inside a group the entries that fit first;
+// otherwise the order of the registry. Nothing is left out, a Method that does not fit stays, greyed, after them.
+function ranked<G extends { entries: { fit: { ok: boolean } }[] }>(groups: G[]): G[] {
+  const fits = (g: G) => g.entries.some((e) => e.fit.ok);
+  return groups
+    .map((g) => ({ ...g, entries: [...g.entries.filter((e) => e.fit.ok), ...g.entries.filter((e) => !e.fit.ok)] }))
+    .map((g, i) => ({ g, i }))
+    .sort((a, b) => Number(fits(b.g)) - Number(fits(a.g)) || a.i - b.i)
+    .map((x) => x.g);
+}
+
 const needsText = (e: PickerEntry): string => {
   const n = metricsNeeded(e);
   return `${n} Metric${n === 1 ? "" : "s"} on the canvas`;
 };
 
-/** The method picker's list for the Metrics on this person's canvas (`canvasIds` as sent; the ones they may not see are left out as if absent). */
-export async function listPicker(actor: Actor, canvasIds: unknown): Promise<PickerList> {
-  const ids = readIds(canvasIds);
-  if (!ids) return { canvas: [], groups: [], notice: ids === null && Array.isArray(canvasIds) && canvasIds.length > MOST_PICKED ? `Ziffr can look at ${MOST_PICKED} Metrics at a time: take some off the canvas.` : undefined };
+/** The method picker's list for the Metrics on this person's canvas (`canvasIds` as sent; the ones they may not see are left out as if absent). `explains` is the Metric to explain: the Slots that ask which Metric to explain start on it (one that is not on the canvas counts as none). */
+export async function listPicker(actor: Actor, canvasIds: unknown, explains?: unknown): Promise<PickerList> {
+  const read = readIds(canvasIds);
+  const ids = read && explainedFirst(read, typeof explains === "number" ? explains : null);
+  if (!ids) return { canvas: [], groups: [], notice: read === null && Array.isArray(canvasIds) && canvasIds.length > MOST_PICKED ? `Ziffr can look at ${MOST_PICKED} Metrics at a time: take some off the canvas.` : undefined };
   const { world, visible } = await load(actor, ids);
   const canvas = ids.flatMap((i) => visible.get(i) ?? []);
   const facts = canvas.map((m) => factOf(world, m, canvas));
   const on = canvas.map((m) => m.id);
+  const names = new Map(canvas.map((m) => [m.id, m.name]));
   return {
     canvas: canvas.map((m) => ({ id: m.id, name: m.name, period: m.period as Span })),
-    groups: groupsFor(facts).map((g) => ({
+    groups: ranked(groupsFor(facts)).map((g) => ({
       want: g.want,
       question: g.question,
-      entries: g.entries.map((e): EntryView => ({
-        id: e.id, name: e.name, sentence: e.sentence, technical: e.technical, ...textsOf(e), slots: e.slots, settings: e.settings,
-        needs: needsText(e), fit: e.fit, defaults: defaultsOf(e, on, e.fit), recipeFile: recipeFileOf(e) !== null, widget: e.widget,
-      })),
+      entries: g.entries.map((e): EntryView => {
+        const defaults = defaultsOf(e, on, e.fit);
+        const picked = pickedOf(defaults, names);
+        return {
+        id: e.id, name: questionFor(e.id, picked, e.name), generic: e.name, sentence: sentenceFor(e.id, e.sentence, picked), technical: e.technical, ...textsOf(e), slots: e.slots, settings: e.settings,
+        needs: needsText(e), fit: e.fit, defaults, recipeFile: recipeFileOf(e) !== null, widget: e.widget,
+        };
+      }),
     })),
   };
 }
@@ -168,4 +196,35 @@ export async function runPicker(actor: Actor, request: unknown): Promise<PickerR
 function beside(entry: PickerEntry, slots: Record<string, Metric[]>): string | null {
   const b = slots.beside?.[0];
   return entry.id === "after-date" && b && b.period !== slots.metric[0].period ? `${b.name} is not counted at the same period as ${slots.metric[0].name}, so it cannot be set beside it.` : null;
+}
+
+/** One analysis that is ready for a Metric: its question in the Metric's words, its Takeaway, and the widget that shows the same where there is one. */
+export type ReadyCard = { entry: EntryId; title: string; takeaway: Takeaway; widget: { template: "forecast" | "correlation"; metricIds: number[]; showTarget: boolean } | null };
+
+/** The single-Metric analyses worked out for a Metric's page, in the order shown: the forecast, the usual range, whether it will reach its Target Range (only where it has one), and when it changed. */
+const READY: readonly EntryId[] = ["forecast", "usual", "reach-target", "change-point"];
+
+/**
+ * What Ziffr already knows about one Metric, for its page (GLOSSARY: Metric, Method, Takeaway; ticket #988). Each analysis runs on the
+ * Metric's own values and is kept only when it answers: a refusal (too few values, a flat Metric, nothing to reach) is left out and
+ * nothing is said about it. At most four analyses run for a page view, each under its own work bound (work-bound.ts: WORK_BUDGET), so a
+ * page can never cost more than four bounded runs. The Metric must be one the actor sees, otherwise the list is empty, the same as
+ * for a Metric that does not exist.
+ */
+export async function readyFor(actor: Actor, metricId: unknown): Promise<ReadyCard[]> {
+  const ids = readIds([metricId]);
+  if (!ids) return [];
+  const { world, visible } = await load(actor, ids);
+  const m = visible.get(ids[0]);
+  if (!m) return [];
+  const fact = factOf(world, m, [m]);
+  const cards: ReadyCard[] = [];
+  for (const id of READY) {
+    const entry = entryOf(id)!;
+    if (id === "reach-target" && !fact.hasTarget) continue;
+    const takeaway = runEntry(entry, world, { slots: { metric: [m] }, settings: {} });
+    if (takeaway.kind !== "answer") continue;
+    cards.push({ entry: id, title: questionFor(id, { metric: m.name }, entry.name), takeaway, widget: entry.widget ? { template: entry.widget, metricIds: [m.id], showTarget: id === "reach-target" } : null });
+  }
+  return cards;
 }
