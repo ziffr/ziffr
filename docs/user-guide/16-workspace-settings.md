@@ -240,13 +240,13 @@ In the demo nobody changes these settings, also where visitors may change the re
 
 ## Members and Groups
 
-**Workspace → Members and Groups** shows everyone in the Workspace, their roles, their Groups, their Away dates and the Contacts. Owners, Admins and Members see it; only Owners and Admins see the buttons that change people and Groups. A Guest sees only what is shared with them, so the page shows them none of this.
+**Workspace → Members and Groups** has three tabs: **People** (the first), **Groups** and **Contacts**. The open tab is in the address (`?tab=groups`), so a link opens it and Back returns to the one before. Owners, Admins and Members see the page; only Owners and Admins see the buttons that change people and Groups. A Guest sees only what is shared with them, so the page shows them none of this.
 
-Owners and Admins also see a **Works in** column: the **Business Function** each person chose under **Your profile → In this Workspace** (Sales, Finance and so on, or a dash when they gave none). Ziffr shows it to no one else: Members and Guests have no such column, and it is in no Export, View Link, Snapshot or answer to a program. See [In this Workspace](17-your-settings.md#in-this-workspace).
+**People** has one row per person: name and job, role, their Groups as small tags and, only when it applies, "Away" with the dates. Search by name or email, or filter by role or Group. Choose a row to open the person beside the page (see [Members and their roles](#members-and-their-roles)). Owners and Admins also see **Works in** in that panel: the **Business Function** each person chose under **Your profile → In this Workspace** (Sales, Finance and so on, or a dash when they gave none). Ziffr shows it to no one else: Members and Guests do not see it, and it is in no Export, View Link, Snapshot or answer to a program. See [In this Workspace](17-your-settings.md#in-this-workspace).
 
 ### Members and their roles
 
-The list shows each person with their role. Owners and Admins see a menu next to each person instead. The Setup Guide's **Team** step ([Getting started](07-getting-started.md#the-setup-guide)) explains the four roles in one line each, as this page does, while you invite your first people:
+The list shows each person with their role. Choose a person and a panel opens beside the page with their role (Owners and Admins get a menu to change it), their Groups, their Away dates and, for Owners and Admins, **Remove…** at the bottom. The Setup Guide's **Team** step ([Getting started](07-getting-started.md#the-setup-guide)) explains the four roles in one line each, as this page does, while you invite your first people:
 
 | Role | What the person may do |
 | --- | --- |
@@ -261,7 +261,7 @@ Pick another role and it changes at once. Only an Owner can make someone an Owne
 
 A person who owns Metrics cannot be changed to Guest: hand the Metrics over first (see Handing a Metric over in the Metrics chapter), or remove them and pick who takes over.
 
-Choose **Remove…** next to a person. Ziffr asks who takes over their Metrics and everything else, and offers an Owner first: keep that choice or pick another person (not a Guest), then choose **Remove**, or **Cancel** to stop.
+Choose **Remove…** at the bottom of the person's panel. Ziffr asks who takes over their Metrics and everything else, and offers an Owner first: keep that choice or pick another person (not a Guest), then choose **Remove**, or **Cancel** to stop.
 
 When you remove someone:
 
@@ -273,7 +273,7 @@ You cannot remove yourself: ask another Owner or Admin. Only an Owner can remove
 
 ### Inviting people
 
-Owners and Admins see the invitation form below the list.
+Owners and Admins choose **Invite** at the top of **People**; the form opens beside the page.
 
 | Option | What it does |
 | --- | --- |
@@ -288,9 +288,9 @@ After either, the page shows the link so you can send it yourself, for example i
 - An email Invitation works for 14 days, once, and only for that address.
 - A link works for 7 days, for anyone who has it, until it ends or you revoke it.
 
-Below the form, open Invitations are listed with their address (or "Link"), their role and the day they end. Where Ziffr sends email, each line also says whether it was emailed, or why not. **Resend** emails it again; an Invitation can be emailed at most three times. The bin icon revokes it.
+Open Invitations are listed in **People** after the people, marked "Invited", with their address (or "Link"), their role and the day they end. Where Ziffr sends email, each line also says whether it was emailed, or why not. **Resend** emails it again; an Invitation can be emailed at most three times. The bin icon revokes it.
 
-People from an imported Workspace Export are listed here too, with "not invited yet" instead of a day: they are on hold and cannot accept anything. **Invite everyone**, shown to the Owner above the list, releases all of them for 14 days and emails each the link where Ziffr sends email. Pressing it again does nothing for people already released.
+People from an imported Workspace Export are listed here too, with "not invited yet" instead of a day: they are on hold and cannot accept anything. **Invite everyone**, shown to the Owner above the list on **People**, releases all of them for 14 days and emails each the link where Ziffr sends email. Pressing it again does nothing for people already released.
 
 There are no Invitations in the demo.
 
@@ -306,24 +306,22 @@ Domain Joining is off by default and does not work for public mail providers.
 
 ### Groups and Away dates
 
-The table below the members has one row per person and these columns:
+A **Group** is a named set of people, such as Management or Sales. You share things with a Group, or limit a question's Thread to one, and whoever joins the Group later gets the same.
 
-- **Person**: their name and job.
-- **Away**: the dates they are not available, from and to. While someone is **Away**, Prompts meant for them go to their **Stand-in**. Each person sets their own dates here or under **Your Deliveries**. Owners and Admins can set them for anyone. **Clear** removes them.
-- **One column per Group**: a tick means the person is in that Group.
+**Away.** The dates a person is not available, from and to. While someone is **Away**, Prompts meant for them go to their **Stand-in**. Each person sets their own dates in their panel on **People** or under **Your Deliveries**. Owners and Admins can set them for anyone. **Clear** removes them. The person's row shows "Away" with the dates while they apply.
 
-A **Group** is a named set of people, such as Management or Sales. You share things with a Group, or limit a question's Thread to one, and whoever joins the Group later gets the same. Owners and Admins:
+**Groups tab.** It lists each Group with the number of people in it. **Everyone in the workspace** comes first and is fixed: all members except Guests, kept up to date by Ziffr. Choose a Group to open its people beside the page. Owners and Admins:
 
-- add a Group by typing its name under the table, such as "Finance", and choosing **Add**;
-- rename a Group by clicking its name in the table's header and typing;
-- put people in or take them out with the tick boxes;
-- delete a Group with the bin icon next to its name. Ziffr asks first: whatever was shared with the Group stops being shared, and Threads limited to it become readable by everyone.
+- add a Group with **New group**, typing its name, such as "Finance", and choosing **Add**;
+- rename a Group in its panel;
+- put people in with **Add people** (search by name or email) and take them out with the cross beside their name;
+- delete a Group with **Delete group…** at the bottom of its panel. Ziffr asks first: whatever was shared with the Group stops being shared, and Threads limited to it become readable by everyone.
 
-Every Workspace also has the Group **Everyone in the workspace**: all its members except Guests. Ziffr keeps it up to date, so it is not in the table.
+A person's own panel also has a tick for each Group, as a quicker way to put them in several. Everyone else sees the Groups and who is in them, without the buttons.
 
 ### Contacts
 
-A **Contact** is someone without a login, such as a field worker or an outside bookkeeper. They send in values by Slack, by email or with their personal form link, and the values are recorded under their name. They see nothing in Ziffr.
+The **Contacts** tab is for people who are not members. A **Contact** is someone without a login, such as a field worker or an outside bookkeeper. They send in values by Slack, by email or with their personal form link, and the values are recorded under their name. They see nothing in Ziffr.
 
 Owners and Admins add a Contact with **Name** and at least one of **Email**, **Slack handle** (such as @cleo) or **Phone**, then **Add contact**. The address or handle must not belong to anyone else in the Workspace. Owners and Admins also see each Contact's details, and the bin icon removes a Contact. A Workspace keeps 1,000 Contacts unless the person who runs this Ziffr has set another number under **Sending limits**. Their values stay; their form link stops working and they can no longer send in values.
 
