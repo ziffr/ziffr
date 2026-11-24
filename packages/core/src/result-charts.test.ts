@@ -78,7 +78,7 @@ describe("every picker result with a picture", () => {
       if (e.id === "partial") { slots.first = [V]; slots.second = [R]; slots.held = [P]; }
       if (e.id === "matrix") slots.metrics = [V, R, P];
       if (e.id === "moves" || e.id === "needs" || e.id === "what-if") { slots.metric = [R]; slots.drivers = [V, P]; slots.others = [V, P]; }
-      const settings = e.id === "needs" ? { goal: 800 } : e.id === "what-if" ? { percent: 10 } : e.id === "after-date" ? { date: "2026-03-01" } : {};
+      const settings: Picked["settings"] = e.id === "needs" ? { goal: 800 } : e.id === "what-if" ? { percent: 10 } : e.id === "after-date" ? { date: "2026-03-01" } : {};
       const t = run(e.id, slots, settings);
       if (t.kind === "refusal") continue;
       expect(t.chart?.length, e.id).toBeGreaterThan(0);
