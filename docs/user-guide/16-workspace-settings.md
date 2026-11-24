@@ -43,11 +43,11 @@ In the sidebar (see [Signing in and your own settings](17-your-settings.md#the-s
 
 ## Starting a Workspace
 
-After you sign in for the first time and belong to no Workspace yet, Ziffr opens **Start a workspace**, in the same plain column as the sign-in page: the Ziffr mark and a card with the form. **Start your trial**, an Invitation's page and the Trial guide share that look.
+After you sign in for the first time and belong to no Workspace yet, Ziffr opens **Start a workspace**, in the same plain column as the sign-in page: the Ziffr mark and a card with the form. **Start your trial**, an Invitation's page and the Setup Guide share that look.
 
 - Type the **Name of the workspace**, such as your name, your team or your company, and choose **Create workspace**. You become its Owner, and Ziffr opens it.
 - If a colleague already uses Ziffr, it is better to ask them to invite you, so you join their Workspace instead of starting a second one.
-- A new Workspace opens on the **Setup Guide** (**Set up your Workspace**, `/setup`), where its steps are, starting with **About you**; see [Getting started](07-getting-started.md#the-setup-guide). A thin **Setup line** above every page keeps it one click away until you finish or **Hide** it, see [The Setup line](07-getting-started.md#the-setup-line-and-opening-by-itself). On a trial, **Start your trial** opens the Trial guide first.
+- A new Workspace opens on the **Setup Guide** (**Set up your Workspace**, `/setup`), where its steps are, starting with **About you**; see [Getting started](07-getting-started.md#the-setup-guide). A thin **Setup line** above every page keeps it one click away until you finish or **Hide** it, see [The Setup line](07-getting-started.md#the-setup-line-and-opening-by-itself). On a trial, **Start your trial** opens the same Setup Guide.
 
 You can start another Workspace at any time from the Workspace switcher at the top of the sidebar, with **New workspace**. Everything in one Workspace stays in it; nothing is shared between Workspaces.
 

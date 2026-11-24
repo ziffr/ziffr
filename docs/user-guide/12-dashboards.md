@@ -26,7 +26,7 @@ If there is no dashboard yet, the list says "No dashboards yet" and suggests nam
 
 ### Your Home dashboard
 
-Ziffr opens on your Home dashboard. You choose it yourself: open the dashboard, open its **⋯** menu and choose **Home dashboard**. The entry then shows a tick until you choose another. If you never chose one, Ziffr opens on the first dashboard you made, or else the first one shared with you. If your Home is no longer shared with you, the same rule picks another. In a new Trial Workspace, Ziffr opens on the Trial Guide instead until you finish or skip it.
+Ziffr opens on your Home dashboard. You choose it yourself: open the dashboard, open its **⋯** menu and choose **Home dashboard**. The entry then shows a tick until you choose another. If you never chose one, Ziffr opens on the first dashboard you made, or else the first one shared with you. If your Home is no longer shared with you, the same rule picks another. A new Workspace, a trial included, opens on the Setup Guide first.
 
 ### A new Workspace
 
