@@ -34,22 +34,9 @@ export function TeamStep({ data, domainOffer }: { data: TeamSetup; domainOffer: 
   const closed = !data.trial.invitationsOpen;
   // One press: its words on a refusal, a refresh on success so the lists and the step bar say the new truth.
   const run = (work: () => Promise<unknown>, done?: (r: unknown) => void) => start(async () => {
-    setError(null);
-    try {
-      const r = await work();
-      if (isActionError(r)) { setError(r.error); return; }
-      done?.(r);
-      router.refresh();
-    } catch { setError(UNEXPECTED); }
-  });
-  const finish = () => start(async () => { router.push("/"); });
-  const skip = () => start(async () => {
-    setError(null);
-    try {
-      const r = await skipStep("team");
-      if (isActionError(r)) { setError(r.error); return; }
-      router.push("/");
-    } catch { setError(UNEXPECTED); }
+    const r = await work().catch(() => ({ error: UNEXPECTED }));
+    setError(isActionError(r) ? r.error : null);
+    if (!isActionError(r)) { done?.(r); router.refresh(); }
   });
   const candidates = data.people;
   return (
@@ -158,8 +145,8 @@ export function TeamStep({ data, domainOffer }: { data: TeamSetup; domainOffer: 
       <div className="space-y-3 border-t border-border pt-4">
         <p role="alert" className="min-h-5 text-sm text-destructive">{error}</p>
         <div className="flex flex-wrap justify-end gap-2">
-          <Button type="button" variant="ghost" disabled={pending} onClick={skip}>Skip</Button>
-          <Button type="button" disabled={pending} onClick={finish}>Go to Ziffr</Button>
+          <Button type="button" variant="ghost" disabled={pending} onClick={() => run(() => skipStep("team"), () => router.push("/"))}>Skip</Button>
+          <Button type="button" disabled={pending} onClick={() => router.push("/")}>Go to Ziffr</Button>
         </div>
       </div>
     </div>
