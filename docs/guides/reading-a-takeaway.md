@@ -92,7 +92,7 @@ Some lines are about the data, not the result. Read them as the reason to wait o
 
 ## Heads-ups
 
-A Heads-up is a Takeaway Ziffr tells you without being asked. It has the same words and the same footer. Quiet is a result: the list says "Nothing stands out right now" when that is true. There are five kinds:
+A Heads-up is a Takeaway Ziffr tells you without being asked. It has the same words and the same footer. Quiet is a result: the hint says "No Heads-ups right now" when that is true. There are five kinds:
 
 | Kind | Reads like | What it does not say |
 | --- | --- | --- |
