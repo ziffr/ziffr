@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
-import { isDemo, personFor, sessionUser, signedIn } from "@/lib/auth";
+import { demoOnly, isDemo, personFor, sessionUser, signedIn } from "@/lib/auth";
 import { joinableWorkspaces } from "@ziffr/core/invitations";
 import { AskToJoin } from "./ask";
 import { myWorkspaces } from "@/lib/viewer";
@@ -10,6 +10,8 @@ import { importOffered } from "@ziffr/core/workspace-import";
 import Link from "next/link";
 
 export default async function WelcomePage({ searchParams }: { searchParams: Promise<{ another?: string }> }) {
+  // A demo-only Ziffr takes no new Workspace and no sign-in: a leftover session must not show "Start a workspace".
+  if (demoOnly()) redirect("/login");
   if (await isDemo()) redirect("/");
   const user = await sessionUser();
   if (!user) redirect("/login");

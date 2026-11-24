@@ -1,13 +1,16 @@
 // An Invitation's page (GLOSSARY: Invitation): which workspace and role it offers, and joining it. Only for people
 // who have signed in; the middleware sends everyone else to sign in first and back here.
 import { invitationFor } from "@ziffr/core/invitations";
-import { signedIn } from "@/lib/auth";
+import { redirect } from "next/navigation";
+import { demoOnly, signedIn } from "@/lib/auth";
 import { AuthHeading, AuthShell } from "@/components/auth-shell";
 import { JoinButton } from "./join";
 
 const ROLE: Record<string, string> = { owner: "Owner", admin: "Admin", member: "Member", guest: "Guest" };
 
 export default async function InvitePage({ params }: { params: Promise<{ token: string }> }) {
+  // Nobody joins anything in a demo-only Ziffr; the way in is the demo.
+  if (demoOnly()) redirect("/login");
   const { token } = await params;
   const [info, who] = await Promise.all([invitationFor(token), signedIn()]);
   if (!info || !info.usable) {

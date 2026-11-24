@@ -21,6 +21,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { createServerClient } from "@supabase/ssr";
 import { authSettings } from "@/lib/auth-settings";
 import { ownOrigins } from "@/lib/own-origins";
+import { countsAsSignedIn, staleSessionCookies } from "@/lib/demo-only-session";
 import { DEMO_VISIT_COOKIE, newVisitId, visitCookieOptions, visitFromCookie, withCookie } from "@/lib/demo-visit-cookie";
 
 // The same name as DEMO_COOKIE in lib/auth.ts, which is server-only and cannot be imported here. It holds the
@@ -42,6 +43,12 @@ async function sessionClaims(req: NextRequest) {
   const { url, anonKey } = authSettings();
   const supabase = createServerClient(url, anonKey, { cookies: { getAll: () => req.cookies.getAll(), setAll: () => {} } });
   return supabase.auth.getClaims().then(({ data }) => data?.claims ?? null, () => null);
+}
+
+/** In a demo-only Ziffr, expires the browser's leftover sign-in cookies on this response, best effort, so the stale token is not sent for ever. */
+function dropStaleSession<T extends NextResponse>(req: NextRequest, res: T): T {
+  for (const name of staleSessionCookies(process.env.ZIFFR_DEMO_ONLY === "1", req.cookies.getAll().map((c) => c.name))) res.cookies.delete(name);
+  return res;
 }
 
 export async function middleware(req: NextRequest) {
@@ -71,7 +78,8 @@ export async function middleware(req: NextRequest) {
     // A session cookie alone is not enough: an expired or ended session would send the person to the confirm page,
     // which asks for a valid one and sends them to sign in, whose "Try the demo" leads here again (a loop). So the
     // token is checked as for every other page; a stale cookie counts as signed out.
-    const hasCookie = req.cookies.getAll().some((c) => c.name.startsWith("sb-") && c.name.includes("auth-token"));
+    // A demo-only Ziffr counts nobody as signed in: a leftover session goes to the demo like a visitor.
+    const hasCookie = countsAsSignedIn(process.env.ZIFFR_DEMO_ONLY === "1", req.cookies.getAll().some((c) => c.name.startsWith("sb-") && c.name.includes("auth-token")));
     const signedIn = hasCookie && (await sessionClaims(req)) !== null;
     // Every POST is checked, signed in or not: a browser leaves the session cookie (SameSite=Lax) off a post from
     // another site, so such a post would look like a visitor's, and the GET after it would carry the session.
@@ -82,7 +90,7 @@ export async function middleware(req: NextRequest) {
     const out = NextResponse.redirect(new URL(starts ? "/" : "/login", req.url), 303);
     if (starts) out.cookies.set(DEMO_COOKIE, newVisitId(), visitCookieOptions(overHttps(req)));
     else out.cookies.delete(DEMO_COOKIE);
-    return out;
+    return dropStaleSession(req, out);
   }
   const visit = demoOffered ? visitFromCookie(req.cookies.get(DEMO_COOKIE)?.value) : null;
   if (visit) {
@@ -93,7 +101,16 @@ export async function middleware(req: NextRequest) {
       res = NextResponse.next({ request: { headers } });
       res.cookies.set(DEMO_COOKIE, visit.id, visitCookieOptions(overHttps(req)));
     }
-    return res;
+    return dropStaleSession(req, res);
+  }
+
+  // A demo-only Ziffr ignores any real session: no check of it, so the visitor is sent to the demo entry (/login) as if signed out.
+  if (process.env.ZIFFR_DEMO_ONLY === "1") {
+    if (OPEN.some((r) => r.test(path))) return dropStaleSession(req, res);
+    const to = req.nextUrl.clone();
+    to.pathname = "/login";
+    to.search = "";
+    return dropStaleSession(req, NextResponse.redirect(to));
   }
 
   const { url, anonKey } = authSettings();

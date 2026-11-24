@@ -9,7 +9,7 @@ import { join, relative } from "node:path";
 
 const ROOT = "apps/web/src";
 // middleware.ts refreshes the sign-in session with the Supabase client; it reads no data.
-const ALLOWED = new Set(["lib/db.ts", "lib/auth.ts", "lib/viewer.ts", "app/actions.ts", "middleware.ts"]);
+const ALLOWED = new Set(["lib/db.ts", "lib/auth.ts", "lib/viewer.ts", "app/actions.ts", "middleware.ts", "middleware.test.ts"]);
 const RULES = [
   [/["'](?:[^"']*\/)?lib\/db(?:\.[jt]s)?["']/, "imports the app's database module"],
   [/["']@ziffr\/core\/(?:src\/)?db(?:\.[jt]s)?["']/, "imports the core's database module"],
