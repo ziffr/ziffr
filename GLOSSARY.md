@@ -315,7 +315,7 @@ The page under Analyze where a View Design or an Analysis Recipe is pasted or up
 _Avoid_: Editor, sandbox, studio
 
 **Analysis**:
-A statistical method run on one or more metrics, such as forecast, correlation, clustering or impact analysis. Its result can be saved as a widget. Ziffr ships its own Analyses; more can be written as Analysis Recipes.
+A statistical method run on one or more metrics, such as forecast, correlation, which periods look alike or impact analysis. Its result can be saved as a widget. Ziffr ships its own Analyses; more can be written as Analysis Recipes.
 _Avoid_: Stats, model, insight
 
 **Method**:
@@ -357,6 +357,9 @@ _Avoid_: Insight, notification, alert, anomaly
 **Change point**:
 The one date at which a Metric's level or its trend most likely changed, found by trying every date that leaves at least four values each side, with how the Metric went before and since and the step in level at that date. It is called a change only when it beats what the dates tried would give by luck (the chance rule is shared among them); otherwise the Takeaway says nothing stands out. Used for the question "did something change, and when?". A "before and after" look is the same question with the date given: it compares the periods after a date with where the Metric's own trend pointed, and gives a range, not a verdict.
 _Avoid_: Breakpoint, inflection, anomaly, outlier
+**Look-alike**:
+The Analysis "Which months look alike?" (in the Period's own word: weeks, quarters): it puts the periods in which 2 to 6 Metrics all have a value (the latest 60) into 2 to 4 **kinds** by how the Metrics stood in them, each Metric on its own scale and, where it clearly trends, read for its distance from its trend. It uses Ward's method, which has no random start and a written rule for ties, so the same values always give the same kinds, and a kind is only made of at least a sixth of the periods (at least 3). The person picks 2, 3 or 4 kinds, or leaves it to Ziffr, which takes the count whose kinds stand furthest apart and says so. A **kind** (of period) is one of the sets of periods it puts together ("months with high Returns and high Support tickets"), numbered by its earliest period and named by at most two Metrics on which its periods lie clearly above or below the other periods (Cliff's count: how often a period of the kind is higher than one outside it, less how often lower), or "close to the usual on every Metric". A kind that keeps to the same time of year says so. The **gap** between kinds is how far apart two kinds stand: the distance between their middles, counted in the typical spread of their periods along the line that joins the middles (a bell-shaped cloud of noise cut in two has a gap of about 2.65); it is worked out exactly and used in documents and **Show the numbers**. A later step checks whether the kinds are clearer than shuffled Metrics would give; it describes which periods look alike, never why.
+_Avoid_: Clustering, segmentation, cluster analysis (for kind: cluster, group, segment, class, cohort, bucket)
 
 **Analysis Recipe**:
 An Analysis written as steps of Ziffr's verified functions over the Metrics in its Slots. It holds no code, so every number it gives is verified. In format `ziffr.analysis/2` a step may also give a table (rows with a label and a number) or what a fit holds, and an output may be a Takeaway, written by the Method's own words: a recipe's author writes no sentence about statistics. Format `/1` is read for ever.
