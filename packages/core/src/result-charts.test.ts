@@ -6,7 +6,6 @@ import { ENTRIES, entryOf, type EntryId } from "./method-picker";
 import { runEntry, type PickWorld, type Picked } from "./method-picker-run";
 import { formatNumber } from "./format";
 import { metric, months } from "./test/fixtures";
-import type { Metric } from "./types";
 import type { BarsChart, ChartPart, ForecastChart, GridChart, LinesChart, ScatterChart, EffectsChart } from "./result-chart";
 import type { Takeaway } from "./takeaways/takeaway";
 import type { WhatIfTakeaway } from "./takeaways/what-if-takeaway";
@@ -352,7 +351,3 @@ describe("every picker result with a picture", () => {
     expect(JSON.stringify(t.chart)).not.toContain("Tickets");
   });
 });
-
-// A Metric for the helpers' types.
-const _unused: Metric | null = null;
-void _unused;
