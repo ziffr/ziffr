@@ -27,6 +27,7 @@ const PAGES: Entry[] = [
   page("/workflows", "Workflows", "Workspace settings", "approval approvals schedule asking reminders steps close lock process"),
   page("/connectors/sources", "Sources", "Connectors", "intake prompts messages incoming replies"),
   page("/settings/packs", "Packs", "Workspace settings", "templates marketplace export import setup"),
+  page("/settings/library", "Library", "Workspace settings", "view designs recipes analysis playground write method custom"),
   page("/settings/keys", "Access Keys", "Workspace settings", "api token tokens key mcp calendar link"),
   page("/settings/feeds", "Feeds", "Workspace settings", "sql import automatic programs"),
   page("/settings/webhooks", "Webhooks", "Workspace settings", "webhook callback events http notify"),
