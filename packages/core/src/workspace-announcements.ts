@@ -12,6 +12,7 @@ import {
 import { audit } from "./audit-log";
 import type { AuditKind } from "./audit-kinds";
 import { db } from "./db";
+import { DemoReadOnly } from "./demo";
 import { DEMO_WORKSPACE_ID } from "./team";
 
 /** The database's refusal when a write would make more than 10 active Announcements in a Workspace (see the migration). */
@@ -38,7 +39,9 @@ const NOT_ADMIN = "Only Owners and Admins write the Workspace's Announcements.";
 
 // A Workspace's Announcements are for its Owners and Admins to write: never a key, a Guest, a Member or the demo.
 function assertAdmin(actor: Actor): void {
-  if (!actor || actor.key || typeof actor.workspaceId !== "string" || !actor.workspaceId || actor.workspaceId === DEMO_WORKSPACE_ID
+  // The demo says its one sentence (a DemoReadOnly is a Forbidden), as every other refused change in the demo does.
+  if (actor && !actor.key && actor.workspaceId === DEMO_WORKSPACE_ID) throw new DemoReadOnly();
+  if (!actor || actor.key || typeof actor.workspaceId !== "string" || !actor.workspaceId
     || (actor.role !== "owner" && actor.role !== "admin")) throw new Forbidden(NOT_ADMIN);
 }
 
