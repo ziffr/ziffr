@@ -30,6 +30,7 @@ const READS: readonly string[] = [
   "access-actions:whoCanSee",
   "actions:simulateMessage",
   "setup/first-metric-actions:checkFirstMetric",
+  "setup/actions:readSetupSteps",
   "canvas-actions:getHistory",
   "connector-actions:simulatePromptAnswer",
   "connector-actions:simulateReply",
@@ -192,6 +193,8 @@ const BLOCKED: Record<BlockedReason, readonly string[]> = {
   "changes-what-everyone-sees": [
     "setup/actions:saveAboutYou",
     "setup/actions:skipStep",
+    "setup/actions:hideSetup",
+    "setup/actions:reopenSetup",
     "setup/actions:chooseExplore",
     "setup/first-metric-actions:pickMetric",
     "retention-actions:applyRetentionToAll",

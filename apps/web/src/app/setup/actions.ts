@@ -71,3 +71,34 @@ export async function setUpFromPackInGuide(installId: number, input: PackSetupIn
     return made;
   });
 }
+
+/** Hides the Setup line for this person in this Workspace until they reopen it (spec 0052; nothing brings it back on its own). */
+export async function hideSetup() {
+  return attempt(async () => {
+    const actor = await currentActor();
+    refuseInDemo(actor);
+    await guide.hideSetupGuide(actor);
+    revalidatePath("/", "layout");
+  });
+}
+
+/** Reopens the guide for this person: the Setup line is shown again, and a Workspace made before the guide gets its row. */
+export async function reopenSetup() {
+  return attempt(async () => {
+    const actor = await currentActor();
+    refuseInDemo(actor);
+    await guide.reopenSetupGuide(actor);
+    revalidatePath("/", "layout");
+  });
+}
+
+/** What the Slide-over lists: only the viewer's own steps with their state (ids and ticks, no values or people). */
+export type SetupPanelData = { steps: { id: string; ticked: boolean; skipped: boolean; next: boolean }[]; ticked: number; total: number };
+
+/** Reads the viewer's steps for the Slide-over, or nothing when they have no guide (a Guest). Changes nothing. */
+export async function readSetupSteps() {
+  return attempt(async (): Promise<SetupPanelData | null> => {
+    const g = await guide.setupGuide(await currentActor());
+    return g ? { steps: g.steps.map((s) => ({ id: s.id, ticked: s.ticked, skipped: s.skipped, next: s.next })), ticked: g.ticked, total: g.total } : null;
+  });
+}
