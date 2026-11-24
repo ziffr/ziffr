@@ -197,6 +197,10 @@ Settings an Owner or Installation Admin makes at the screen. Programs with a key
 - `claimInstallation` (installation-admins.ts): claiming the Installation's first admin seat
 - `addInstallationAdmin` (installation-admins.ts): Installation administration
 - `removeInstallationAdmin` (installation-admins.ts): Installation administration
+- `createInstallationAnnouncement` (installation-announcements.ts): Installation administration
+- `updateInstallationAnnouncement` (installation-announcements.ts): Installation administration
+- `setInstallationAnnouncementActive` (installation-announcements.ts): Installation administration
+- `deleteInstallationAnnouncement` (installation-announcements.ts): Installation administration
 - `makeInboundSecret` (installation-replies.ts): Installation settings
 - `inboundMx` (installation-replies.ts): Installation settings
 - `startReplyTest` (installation-replies.ts): Installation settings

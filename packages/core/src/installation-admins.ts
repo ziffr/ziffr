@@ -6,6 +6,7 @@ import { createHash, randomInt } from "node:crypto";
 import { Forbidden, type Actor } from "./actor";
 import { db } from "./db";
 import { isAddress } from "./mail";
+import { wellFormed } from "./announcement-rules";
 
 /** A signed-in person acting on the Installation, outside any Workspace. Every function here checks who they are. */
 export type InstallationActor = Pick<Actor, "personId">;
@@ -167,13 +168,19 @@ export async function removeInstallationAdmin(actor: InstallationActor, personId
   await recordInstallationEvent(actor.personId, "installation_admin.removed", person?.name ?? "A former person");
 }
 
+/** Words for the audit as the database keeps them: lone surrogates removed, cut at 120 characters (not UTF-16 units, so an
+ * emoji is never split into a half that Postgres refuses, which would drop the event). */
+export function auditWords(raw: unknown): string {
+  return Array.from(wellFormed(String(raw))).slice(0, 120).join("");
+}
+
 /** Records an event in the Installation's own audit: the person's name as it is now, the kind and what it was about
  * (a person's name or a setting's name, never a value). Best effort, like the Audit Log. */
 export async function recordInstallationEvent(by: string, kind: string, subject: string | null): Promise<void> {
   try {
     const person = await personOf(by);
     const { error } = await db().from("installation_audit_events").insert({
-      actor_id: String(by).slice(0, 64), actor_name: String(person?.name ?? "Someone").trim().slice(0, 120) || "Someone", kind, subject: subject === null ? null : String(subject).slice(0, 120),
+      actor_id: String(by).slice(0, 64), actor_name: auditWords(String(person?.name ?? "Someone").trim()) || "Someone", kind, subject: subject === null ? null : auditWords(subject),
     });
     if (error) throw error;
   } catch (e) {
@@ -190,6 +197,6 @@ export async function installationEvents(actor: InstallationActor, limit = 30): 
 
 /** Records an event of the Installation's audit done by a service, not a person (such as Ziffr Cloud setting a limit). */
 export async function recordServiceEvent(service: string, kind: string, subject: string | null): Promise<void> {
-  const { error } = await db().from("installation_audit_events").insert({ actor_id: null, actor_name: service.slice(0, 120), kind, subject: subject === null ? null : String(subject).slice(0, 120) });
+  const { error } = await db().from("installation_audit_events").insert({ actor_id: null, actor_name: auditWords(service), kind, subject: subject === null ? null : auditWords(subject) });
   if (error) console.error(`Installation audit: could not record ${kind} (${error.code ?? "error"})`);
 }
