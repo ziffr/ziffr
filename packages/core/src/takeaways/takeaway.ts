@@ -228,7 +228,7 @@ export function listOf(names: string[], ctx: TakeawayContext): string {
  * that the answer is among the Metrics that were compared. */
 export function driversTakeaway(target: Metric, ranked: Ranked[], ctx: TakeawayContext, notCompared = false): DriversTakeaway {
   const method = say("numbers-method-pearson", {}, ctxOf(ctx));
-  const rows = ranked.map(({ metric, result }) => ({ metric, result, takeaway: correlationTakeaway(target, metric, result, ctx, { footer: false }) }));
+  const rows = ranked.map(({ metric, result }) => ({ metric, result, takeaway: correlationTakeaway(target, metric, result, ctx, { footer: false, chart: false }) }));
   const text = (k: CaseKey) => say(k, {}, ctxOf(ctx));
   const top = rows.find((r) => r.takeaway.kind === "answer");
   if (!top) return { ...refusalTakeaway(method, [say("drivers-empty", { target: target.name }, ctxOf(ctx))]), rows };
