@@ -222,7 +222,7 @@ Choose **Save** when you are done. Teams within your company, such as Sales or F
 
 ### Announcements
 
-Owners and Admins see an **Announcements** section on the General page, below Retention and Limits. An **Announcement** is one plain line above every screen for the people of this Workspace, for a change in how you work, a deadline or anything else they should read. It reaches Owners, Admins and Members; Guests do not see it, and neither does anyone in another Workspace. The section lists them, a warning first, with their words, level, window and where they stand: **On**, **Scheduled** (not started yet), **Ended** or **Off**.
+Owners and Admins see an **Announcements** section on the General page, below Retention and Limits. An **Announcement** is one plain line above every screen for the people of this Workspace, for a change in how you work or anything else they should read. It reaches Owners, Admins and Members; Guests do not see it, and neither does anyone in another Workspace. The section lists them, a warning first, with their words, level, window and where they stand: **On**, **Scheduled** (not started yet), **Ended** or **Off**.
 
 **Add an Announcement** opens a panel at the side with these fields:
 

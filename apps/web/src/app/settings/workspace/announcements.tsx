@@ -8,7 +8,7 @@ import { WORKSPACE_ANNOUNCEMENTS_ACTIVE_MAX } from "@ziffr/core/announcement-rul
 
 const KIND: AnnouncementsKind = {
   activeMax: WORKSPACE_ANNOUNCEMENTS_ACTIVE_MAX, installation: false,
-  intro: "One plain line above every screen for the people of this Workspace, for a change in how you work, a deadline or anything else they should read. Guests do not see it.",
+  intro: "One plain line above every screen for the people of this Workspace, for a change in how you work or anything else they should read. Guests do not see it.",
   create: createWorkspaceAnnouncement, update: updateWorkspaceAnnouncement, setActive: setWorkspaceAnnouncementActive, remove: deleteWorkspaceAnnouncement,
 };
 
