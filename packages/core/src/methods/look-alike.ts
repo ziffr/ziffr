@@ -55,7 +55,8 @@ export type LookAlikeRefusal = { ok: false; why: "metrics" | "too-many" | "perio
 
 // ---- the series ----
 
-const byId = (a: LookAlikeSeries, b: LookAlikeSeries) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0);
+// (Two series never share an id: an id is one Metric's.)
+const byId = (a: LookAlikeSeries, b: LookAlikeSeries) => (a.id < b.id ? -1 : 1);
 
 /** The periods in which every Metric has a value (the latest 60) and each Metric's values there, the Metrics in the order of their ids: a Metric whose straight-line trend explains more than half of its variance is read as its distance from that line. No minimum is asked here. */
 export function readLookAlike(series: readonly LookAlikeSeries[], span: Span): Prepared {
@@ -89,7 +90,9 @@ function scaled(values: readonly (readonly Fraction[])[], n: number): Scaled | {
     const lcm = col.reduce((l, f) => (l / gcd(l, f.den)) * f.den, ONE);
     return col.map((f) => f.num * (lcm / f.den));
   });
-  const q = a.map((col) => BigInt(n) * col.reduce((t, x) => t + x * x, ZERO) - col.reduce((t, x) => t + x, ZERO) ** BigInt(2));
+  // Stryker disable next-line ArithmeticOperator: the sum is only ever used squared, so turning its sign cannot change a result.
+  const sum = (col: readonly bigint[]) => col.reduce((t, x) => t + x, ZERO);
+  const q = a.map((col) => BigInt(n) * col.reduce((t, x) => t + x * x, ZERO) - sum(col) ** BigInt(2));
   const constant = q.findIndex((x) => x === ZERO);
   if (constant >= 0) return { constant };
   const all = q.reduce((p, x) => p * x, ONE);
@@ -125,13 +128,15 @@ function ward(s: Scaled): { merges: Merge[]; states: Map<number, number[][]> } {
   // The cost of each pair is kept by the earliest periods of the two kinds and worked out again only for a kind that was just made.
   const known = new Map<string, Cost>();
   while (live.length > 1) {
-    if (live.length <= 4) states.set(live.length, live.map((k) => k.members));
+    states.set(live.length, live.map((k) => k.members));
     let best: { i: number; j: number; cost: Cost } | null = null;
     // The kinds are kept by earliest period, so scanning in order and replacing only on a strictly smaller cost is the tie rule.
+    // Stryker disable next-line EqualityOperator: for the last kind there is no kind after it, so one more round of the loop does nothing.
     for (let i = 0; i < live.length; i++) {
       for (let j = i + 1; j < live.length; j++) {
         const key = `${live[i].first} ${live[j].first}`;
         let cost = known.get(key);
+        // Stryker disable next-line ConditionalExpression: the kept costs only save work; working a cost out again gives the same cost.
         if (!cost) known.set(key, (cost = costOf(live[i], live[j])));
         if (!best || lessCost(cost, best.cost)) best = { i, j, cost };
       }
@@ -142,6 +147,7 @@ function ward(s: Scaled): { merges: Merge[]; states: Map<number, number[][]> } {
     live.splice(j, 1);
     live[i] = { members: [...x.members, ...y.members].sort((p, q) => p - q), sums: x.sums.map((v, k) => v + y.sums[k]), first: x.first };
     // The kind just made has new costs against every kind left: the old ones, kept by its earliest period, are dropped.
+    // Stryker disable next-line EqualityOperator: for the kind just made the two spellings of its key are the same.
     for (const k of live) known.delete(k.first < x.first ? `${k.first} ${x.first}` : `${x.first} ${k.first}`);
   }
   return { merges, states };
@@ -165,11 +171,13 @@ export function compareGaps(a: Gap, b: Gap): number {
 function gapBetween(s: Scaled, A: readonly number[], B: readonly number[]): Gap {
   const m = s.a.length;
   const [nA, nB] = [BigInt(A.length), BigInt(B.length)];
+  // Stryker disable next-line ArithmeticOperator: a sum turned in sign turns every e below, and e, M and T only use products of two of them.
   const sum = (g: readonly number[], j: number) => g.reduce((t, i) => t + s.a[j][i], ZERO);
   const spread = (g: readonly number[], j: number, l: number) => BigInt(g.length) * g.reduce((t, i) => t + s.a[j][i] * s.a[l][i], ZERO) - sum(g, j) * sum(g, l);
   const e = s.a.map((_, j) => nB * sum(A, j) - nA * sum(B, j));
   let [M, T] = [ZERO, ZERO];
   for (let j = 0; j < m; j++) {
+    // Stryker disable next-line AssignmentOperator: M is only used squared and compared with 0, so its sign cannot matter.
     M += e[j] * e[j] * s.pc[j];
     for (let l = 0; l < m; l++) T += e[j] * e[l] * (nB * spread(A, j, l) + nA * spread(B, j, l)) * s.pc[j] * s.pc[l];
   }
@@ -186,6 +194,7 @@ export function gapOf(prepared: Prepared, a: readonly number[], b: readonly numb
 // The smallest gap of any two of some kinds, and every pair's (kinds numbered from 1 by earliest period).
 function gapsOf(s: Scaled, kinds: readonly (readonly number[])[]): { gap: Gap; pairs: { a: number; b: number; gap: Gap }[] } {
   const pairs = kinds.flatMap((x, i) => kinds.slice(i + 1).map((y, k) => ({ a: i + 1, b: i + k + 2, gap: gapBetween(s, x, y) })));
+  // Stryker disable next-line EqualityOperator: of two equal gaps either is the smallest.
   return { gap: pairs.map((p) => p.gap).reduce((lo, g) => (compareGaps(g, lo) < 0 ? g : lo)), pairs };
 }
 
@@ -235,8 +244,7 @@ function solve(prepared: Prepared, asked: number | null): { ok: true; choice: Ch
   const tried = (asked === null ? options : [options[options.length - 1]]).map((count) => ({ count, ...gapsOf(s, states.get(count)!) }));
   const best = tried.reduce((b, t) => (compareGaps(t.gap, b.gap) > 0 ? t : b));
   const kinds = states.get(best.count)!;
-  const labels = new Array<number>(n);
-  kinds.forEach((k, i) => k.forEach((p) => (labels[p] = i + 1)));
+  const labels = Array.from({ length: n }, (_, p) => kinds.findIndex((k) => k.includes(p)) + 1);
   const choice: Choice = { ok: true, n, asked, shown: best.count, smallest, labels, groups: kinds, gap: best.gap, pairs: best.pairs, tried: tried.map((t) => ({ count: t.count, gap: t.gap })), merges };
   return { ok: true, choice, s };
 }
@@ -271,28 +279,29 @@ function cliffCount(values: readonly bigint[], kind: readonly number[]): Fractio
 /** One Metric that marks a kind: the Metric's id, how the kind stands on it and Cliff's count behind the word. */
 type Mark = { metric: string; level: Level; count: Fraction };
 
-const markKey = (marks: readonly Mark[]) => marks.map((m) => `${m.metric} ${m.level}`).sort().join(",");
-const size = (f: Fraction) => ({ num: f.num < ZERO ? -f.num : f.num, den: f.den });
-// The Metrics a kind has a word on, the largest size of Cliff's count first, ties by the Metric's id (the Metrics are kept in the order of their ids).
+const markKey = (marks: readonly Mark[]) => JSON.stringify(marks.map((m) => [m.metric, m.level]).sort());
+// The Metrics a kind has a word on, the largest size of Cliff's count first, ties by the Metric's place in the order of the ids. Sizes are compared as
+// squares, so no sign has to be taken off.
 const ranked = (ids: readonly string[], counts: readonly Fraction[]): Mark[] =>
   counts
-    .map((count, j) => ({ metric: ids[j], level: cliffLevel(count), count }))
-    .filter((m): m is Mark => m.level !== null)
+    .map((count, j) => ({ metric: ids[j], level: cliffLevel(count), count, j }))
+    .filter((m) => m.level !== null)
     .sort((a, b) => {
-      const d = size(b.count).num * size(a.count).den - size(a.count).num * size(b.count).den;
-      return d < ZERO ? -1 : d > ZERO ? 1 : 0;
-    });
+      const d = b.count.num * b.count.num * a.count.den * a.count.den - a.count.num * a.count.num * b.count.den * b.count.den;
+      return d < ZERO ? -1 : d > ZERO ? 1 : a.j - b.j;
+    })
+    .map((m) => ({ metric: m.metric, level: m.level!, count: m.count }));
 
-// What marks each kind: its two largest, and for kinds that would be named alike (the same Metrics and words) a third that one of them has and the
-// others do not; those still alike are numbered by their earliest period.
-function marksOf(ids: readonly string[], counts: readonly (readonly Fraction[])[]): { marks: Mark[]; ordinal: number | null }[] {
+/** What marks each kind, from Cliff's count of each kind on each Metric (`counts[kind][metric]`, the Metrics in the order of their ids): the two Metrics with the largest size and a word; for kinds that would be named alike (the same Metrics and words) a third Metric that the kind has a word on and the others named alike do not; those still alike are numbered (`ordinal`) by their kind number. */
+export function nameKinds(ids: readonly string[], counts: readonly (readonly Fraction[])[]): { marks: Mark[]; ordinal: number | null }[] {
   const all = counts.map((c) => ranked(ids, c));
   const marks = all.map((r) => r.slice(0, 2));
   const alike = marks.map((m) => marks.filter((o) => markKey(o) === markKey(m)));
   const named = marks.map((m, k) => {
     if (alike[k].length === 1) return m;
     const others = all.filter((_, o) => o !== k && markKey(marks[o]) === markKey(m));
-    const third = all[k].slice(2).find((x) => others.every((o) => !o.some((y) => y.metric === x.metric && y.level === x.level)));
+    // (The kind's top two are the twins' too, so they are never a Metric the others lack.)
+    const third = all[k].find((x) => others.every((o) => !o.some((y) => y.metric === x.metric && y.level === x.level)));
     return third ? [...m, third] : m;
   });
   return named.map((m, k) => {
@@ -378,7 +387,7 @@ export function kindsOf(prepared: Prepared, options: LookAlikeOptions = {}): Loo
   const { choice, s } = solved;
   const { groups, ...rest } = choice;
   const counts = groups.map((g) => s.a.map((col) => cliffCount(col, g)));
-  const named = marksOf(prepared.ids, counts);
+  const named = nameKinds(prepared.ids, counts);
   const kinds = groups.map((g, k): Kind => {
     const periods = g.map((i) => prepared.periods[i]);
     return { number: k + 1, places: g, periods, runs: periodRuns(periods, prepared.span), counts: counts[k], ...named[k], season: seasonOf(prepared.periods, g, prepared.span, options.yearStart) };

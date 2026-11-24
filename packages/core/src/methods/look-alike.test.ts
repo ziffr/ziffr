@@ -10,7 +10,7 @@ import { runs } from "../test/reference/check";
 import { dayOf, monthsLater, textOf } from "../test/reference/calendar";
 import { fraction } from "../test/reference/exact";
 import { referenceGap, referenceKinds, referenceLookAlike, type ReferenceView } from "../test/reference/look-alike";
-import { choiceOf, cliffLevel, compareGaps, gapOf, kindsOf, LOOK_ALIKE, lookAlike, periodRuns, readLookAlike, seasonOf, type Gap, type LookAlike, type LookAlikeRefusal, type Prepared } from "./look-alike";
+import { choiceOf, cliffLevel, compareGaps, gapOf, kindsOf, LOOK_ALIKE, lookAlike, nameKinds, periodRuns, readLookAlike, seasonOf, type Gap, type LookAlike, type LookAlikeRefusal, type Prepared } from "./look-alike";
 
 const { seed } = runs();
 // Generated cases: 500 by default; a full-strength run (NUMBERS_RUNS of 200 or more) takes the larger of that and 500; mutation testing (a few) takes what it is given.
@@ -221,7 +221,19 @@ describe("the gap", () => {
   });
 });
 
+describe("values with different numbers of decimals", () => {
+  it("are put on one denominator per Metric without changing a result", () => {
+    const p = prep([[0.5, 0.25, 0.125, 10, 10.5, 11.25], [1, 2.5, 1.75, 8, 9.125, 7]]);
+    const r = same(p, null)!;
+    expect(r.labels).toEqual([1, 1, 1, 2, 2, 2]);
+  });
+});
+
 describe("a Metric that does not vary", () => {
+  it("makes no kinds from fewer than 4 periods, and does not fail", () => {
+    expect(kindsOf(prep([[1, 5, 9], [2, 7, 1]]))).toEqual({ ok: false, why: "no-split" });
+    expect(kindsOf(prep([[1], [2]]))).toEqual({ ok: false, why: "constant", metric: "a" });
+  });
   it("is refused by its id, and no kinds are made", () => {
     expect(kindsOf(prep([[1, 2, 3, 4, 5, 6], [7, 7, 7, 7, 7, 7]]))).toEqual({ ok: false, why: "constant", metric: "b" });
     expect(choiceOf(prep([[3, 3, 3, 3, 3, 3], [1, 2, 3, 4, 5, 6]]), null)).toEqual({ ok: false, why: "constant", metric: "a" });
@@ -327,6 +339,48 @@ describe("Cliff's count and its words", () => {
   });
 });
 
+describe("naming kinds from Cliff's counts", () => {
+  const f = (tenths: number): Fraction => ({ num: BigInt(tenths), den: BigInt(10) });
+  const ids = ["a", "b", "c", "d"];
+  const names = (...kinds: number[][]) => nameKinds(ids, kinds.map((k) => k.map(f))).map((n) => ({ marks: n.marks.map((m) => `${m.metric} ${m.level}`), ordinal: n.ordinal }));
+  it("takes the two Metrics with the largest size, a tie by the Metric's place in the order of the ids, whatever the signs", () => {
+    expect(names([9, -9, 9, 6])).toEqual([{ marks: ["a very-high", "b very-low"], ordinal: null }]);
+    expect(names([6, 9, 9, 6])).toEqual([{ marks: ["b very-high", "c very-high"], ordinal: null }]);
+    expect(names([9, 6, 9, -9])).toEqual([{ marks: ["a very-high", "c very-high"], ordinal: null }]);
+    expect(names([-6, 9, -9, 0])).toEqual([{ marks: ["b very-high", "c very-low"], ordinal: null }]);
+    expect(names([0, 0, 0, 0])).toEqual([{ marks: [], ordinal: null }]);
+    expect(names([4, 5, -5, 0])).toEqual([{ marks: ["b high", "c low"], ordinal: null }]);
+  });
+  it("tells kinds named alike apart by the first further Metric that one has and the others named alike do not", () => {
+    // c is high in both kinds: it tells nothing. d is high in one and low in the other.
+    expect(names([9, 9, 6, 5], [9, 9, 6, -5])).toEqual([
+      { marks: ["a very-high", "b very-high", "d high"], ordinal: null },
+      { marks: ["a very-high", "b very-high", "d low"], ordinal: null },
+    ]);
+  });
+  it("gives a third Metric only when no other kind named alike has it, and numbers the kinds still alike by their kind number", () => {
+    // Three kinds alike on a and b: d is high in two of them, so it tells none of them apart from all the others.
+    expect(names([9, 9, 0, 5], [9, 9, 0, 5], [9, 9, 0, 0])).toEqual([
+      { marks: ["a very-high", "b very-high"], ordinal: 1 },
+      { marks: ["a very-high", "b very-high"], ordinal: 2 },
+      { marks: ["a very-high", "b very-high"], ordinal: 3 },
+    ]);
+  });
+  it("takes kinds with the same Metrics and words in another order of size as alike", () => {
+    expect(names([10, 9, 0, 0], [9, 10, 0, 0])).toEqual([
+      { marks: ["a very-high", "b very-high"], ordinal: 1 },
+      { marks: ["b very-high", "a very-high"], ordinal: 2 },
+    ]);
+  });
+  it("leaves a kind with one name alone and numbers two kinds that no Metric marks", () => {
+    expect(names([9, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0])).toEqual([
+      { marks: ["a very-high"], ordinal: null },
+      { marks: [], ordinal: 1 },
+      { marks: [], ordinal: 2 },
+    ]);
+  });
+});
+
 // ---- periods and seasons ----
 
 describe("periods as runs", () => {
@@ -387,6 +441,21 @@ describe("the time of year", () => {
     const split = every.map((_, i) => i).filter((i) => [0, 1, 4, 10, 11].includes(i % 12));
     expect(seasonOf(every, split, "month")).toEqual({ places: [1, 2, 5, 11, 12], runs: [{ from: 5, to: 5 }, { from: 11, to: 2 }] });
   });
+  it("lists the places of a kind in the order of the season, and joins a run round the year end only where one ends at the last place and one starts at the first", () => {
+    // A window from November 2020 to October 2022: every place has 2 periods, and a kind in November, December and January in both years.
+    const window = Array.from({ length: 24 }, (_, i) => month(10 + i));
+    const winter = window.map((_, i) => i).filter((i) => [10, 11, 0].includes((i + 10) % 12));
+    expect(seasonOf(window, winter, "month")).toEqual({ places: [1, 11, 12], runs: [{ from: 11, to: 1 }] });
+    const ends = window.map((_, i) => i).filter((i) => [4, 11].includes((i + 10) % 12));
+    expect(seasonOf(window, ends, "month")).toEqual({ places: [5, 12], runs: [{ from: 5, to: 5 }, { from: 12, to: 12 }] });
+    const starts = window.map((_, i) => i).filter((i) => [0, 4].includes((i + 10) % 12));
+    expect(seasonOf(window, starts, "month")).toEqual({ places: [1, 5], runs: [{ from: 1, to: 1 }, { from: 5, to: 5 }] });
+  });
+  it("has no season for weeks even where every week is in the same place of the calendar", () => {
+    const mondays = Array.from({ length: 3 }, (_, i) => textOf(dayOf("2024-01-01") + 7 * i));
+    expect(seasonOf(mondays, [0, 1, 2], "week")).toBeNull();
+    expect(seasonOf(mondays, [0, 1, 2], "day")).toEqual({ places: [1], runs: [{ from: 1, to: 1 }] });
+  });
   it("reads quarters by the Fiscal Year and days by the day of the week from Monday, and none for weeks, halves and years", () => {
     const quarters = Array.from({ length: 12 }, (_, i) => textOf(monthsLater(dayOf("2020-04-01"), 3 * i)));
     // A Fiscal Year from April: April is the first quarter, January the fourth.
@@ -443,11 +512,6 @@ describe("the series a Look-alike works on", () => {
     const r = readLookAlike([{ id: "a", points: at.map((x) => ({ period: month(x), value: x })) }, { id: "b", points: at.map((x, i) => ({ period: month(x), value: [5, 1, 4, 1, 5, 2][i] })) }], "month");
     expect(r.reading).toEqual(["trend", "values"]);
     expect(r.values[0].map(frac)).toEqual(Array(6).fill("0/1"));
-  });
-  it("keeps two series with the same id in the order given (an id is one Metric's, so this does not happen)", () => {
-    const r = readLookAlike([{ id: "a", points: points([1, 9, 2]) }, { id: "a", points: points([5, 2, 8]) }], "month");
-    expect(r.ids).toEqual(["a", "a"]);
-    expect(r.values.map((c) => c.map(frac))).toEqual([["1/1", "9/1", "2/1"], ["5/1", "2/1", "8/1"]]);
   });
   it("has no periods and no Metrics for nothing", () => {
     expect(readLookAlike([], "month")).toEqual({ span: "month", periods: [], ids: [], reading: [], values: [] });
