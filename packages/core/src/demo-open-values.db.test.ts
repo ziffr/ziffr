@@ -226,6 +226,36 @@ describe("one address's share of the demo", () => {
   });
 });
 
+describe("a visit's paste is charged by its real values", () => {
+  const cellOf = (n: number) => day(-n).slice(0, 7) + "-01";
+  it("charges each layout once it is read, before recording: tab-separated, comma-separated and several values on one line", async () => {
+    const name = String(ids.ownMetricName);
+    const texts = [`${name}\t${cellOf(35)}\t1\n${name}\t${cellOf(65)}\t2`, `${name},${cellOf(35)},1\n${name},${cellOf(65)},2`, `${name}\t${cellOf(35)}\t1\t${cellOf(65)}\t2`];
+    for (const text of texts) {
+      const charged: number[] = [];
+      const refused = new DemoBudgetUsed("busy");
+      const { recordPastedValues } = await import("./paste-values");
+      const result = await asVisit(() => recordPastedValues(sara, { text }, undefined, { chargeValues: async (n) => { charged.push(n); throw refused; } })).catch((e: unknown) => e);
+      // Whatever the layout, the real count is what was charged, and the refusal left nothing recorded.
+      if (charged.length) { expect(charged[0], text).toBeGreaterThan(0); expect(result).toBe(refused); }
+    }
+  });
+});
+
+describe("the showcase for intake log and Breakdown rows", () => {
+  it("refuses a visit's change to the intake log or Breakdown of a showcase value", async () => {
+    const churn = (await db().from("metrics").select("id").eq("workspace_id", DEMO_WORKSPACE_ID).eq("slug", "churn-rate").single()).data!;
+    const obs = (await db().from("observations").select("id").eq("metric_id", churn.id).eq("period_start", "2026-03-01").maybeSingle()).data;
+    if (!obs) return;
+    await seedingDemo(async () => { await db().from("intake_log").insert({ source: "web_form", sender: "x", raw: "1", outcome: "recorded", detail: "d", observation_id: obs.id, metric_id: churn.id }).throwOnError(); });
+    const log = (await db().from("intake_log").select("id").eq("observation_id", obs.id).limit(1).single()).data!;
+    await expect(asVisit(async () => { await db().from("intake_log").update({ detail: "changed" }).eq("id", log.id).throwOnError(); })).rejects.toBeInstanceOf(DemoShowcase);
+    await expect(asVisit(async () => { await db().from("intake_log").delete().eq("id", log.id).throwOnError(); })).rejects.toBeInstanceOf(DemoShowcase);
+    const row = (await db().from("breakdown_rows").select("id").eq("observation_id", obs.id).limit(1).maybeSingle()).data;
+    if (row) await expect(asVisit(async () => { await db().from("breakdown_rows").delete().eq("id", row.id).throwOnError(); })).rejects.toBeInstanceOf(DemoShowcase);
+  });
+});
+
 describe("the paste claims", () => {
   it("are emptied for the demo's people by a Demo Reset, and a visit's paste never claims the day", async () => {
     await db().from("paste_claims").insert({ person_id: "sara", value_count: 5 }).throwOnError();

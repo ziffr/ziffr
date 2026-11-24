@@ -39,6 +39,17 @@ describe("the tables the first opening opens", () => {
   });
 });
 
+describe("a visit's paste", () => {
+  const src = readFileSync(join(__dirname, "paste-values.ts"), "utf8");
+  it("is charged by the values it really holds, after it is read and before anything is recorded", () => {
+    const charge = src.indexOf("await hooks.chargeValues(go.length)");
+    expect(charge).toBeGreaterThan(src.indexOf("const go: PasteValue[]"));
+    expect(charge).toBeLessThan(src.indexOf("await submitValue("));
+    // Not by lines: no weight is taken from the text in the web action.
+    expect(readFileSync(join(__dirname, "../../../apps/web/src/app/paste-actions.ts"), "utf8")).not.toContain("split(");
+  });
+});
+
 describe("the showcase for the tables this ticket opens", () => {
   it("follows a value's period for its Breakdown and intake log, and a Metric for its tokens, and keeps the old cases", () => {
     for (const t of ["breakdown_rows", "breakdown_history", "intake_log", "tokens"]) expect(MIGRATION, t).toContain(t);

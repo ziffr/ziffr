@@ -346,7 +346,7 @@ const RECORDED: Record<string, PasteOutcome> = { recorded: "recorded", overwritt
  * now. Record as history is honoured only for Metrics the person may record as history; for any other it is
  * ignored and the values are checked. A paste that would cross the day's limit is refused whole, before anything is
  * recorded. */
-export async function recordPastedValues(actor: Actor, input: PasteInput, effects: SubmissionEffects = submissionEffects): Promise<PasteReport | PasteRefusal> {
+export async function recordPastedValues(actor: Actor, input: PasteInput, effects: SubmissionEffects = submissionEffects, hooks: { chargeValues?: (values: number) => Promise<void> } = {}): Promise<PasteReport | PasteRefusal> {
   // The day's limit is claimed outside the demo's rows, before any value: refused before it (#271), unless visitors may change the demo (spec 0051).
   refuseInDemo(actor, "paste-actions:recordPaste");
   const c = check(input);
@@ -365,6 +365,11 @@ export async function recordPastedValues(actor: Actor, input: PasteInput, effect
   if (visitHeaders() && go.length > DEMO_VALUE_LIMITS.pasteRows) return { ok: false, reason: "demo_rows", detail: `${DEMO_VALUE_WORDS.paste} Nothing was recorded.` };
   // A visit's pastes are held by the demo's write budget (counted by the values), and never claim the person's day: the demo's people are
   // shared, so one visitor could use up the day for everyone, and the claims outlive a Demo Reset.
+  // The values it really holds are charged to the demo's budget before anything is recorded: a refusal leaves nothing half-done.
+  if (visitHeaders() && go.length) {
+    if (!hooks.chargeValues) throw new Forbidden(DEMO_VALUE_WORDS.paste);
+    await hooks.chargeValues(go.length);
+  }
   const claimed = go.length && !visitHeaders() ? await claimPasted(actor, go.length) : s.leftToday;
   if (claimed < 0) {
     const left = (-1 - claimed).toLocaleString("en");

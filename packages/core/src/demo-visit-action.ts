@@ -17,25 +17,30 @@ import { DEMO_WORKSPACE_ID } from "./team";
  * (the demo bar's cookie, null when absent) and the headers, for the network address. Only ever read from the request. */
 export type DemoRequest = { visitId: string | null; generation: number | null; headers: { get(name: string): string | null } };
 
+/** Charges a change that writes this many values to the budget (and the address's share of the values), or throws `DemoBudgetUsed`. */
+export type ChargeValues = (values: number) => Promise<void>;
+
 /** Options of one operation: whether it runs the Workflows, which only one visitor may do each minute. */
-export type DemoVisitOptions = { workflowRun?: boolean; /** How many values the change writes (a paste's rows), charged to the budget. */ weight?: number; askNow?: boolean };
+export type DemoVisitOptions = { workflowRun?: boolean; askNow?: boolean };
 
 /** Runs a demo visit's work for one server action (its key in demo-changes.ts). The work is told whether it is a visit that may
  * change the demo (`visiting`): then the texts it takes must be cleaned first (`demoTextForVisit`). Refuses, before any
  * work, a visit with no id or no Generation, one past a budget, and a second Workflow run in a minute. */
-export async function runDemoVisit<T>(operation: string, who: DemoRequest, work: (visiting: boolean) => Promise<T>, options: DemoVisitOptions = {}): Promise<T> {
+export async function runDemoVisit<T>(operation: string, who: DemoRequest, work: (visiting: boolean, charge: ChargeValues) => Promise<T>, options: DemoVisitOptions = {}): Promise<T> {
   const settings = await settingsInEffect();
-  if (!demoAllows(operation, settings)) return work(false);
+  if (!demoAllows(operation, settings)) return work(false, async () => {});
   // No id or no Generation: a page that was not drawn by the demo bar. Refused like a change the demo does not take.
   if (!who.visitId) throw new DemoReadOnly(settings);
   if (who.generation === null) throw new DemoStale();
   const actor: Pick<Actor, "workspaceId"> = { workspaceId: DEMO_WORKSPACE_ID };
   const c = demoClassOf(operation);
   await checkDemoBudget(actor, { visitId: who.visitId, headers: who.headers }, new Date(), process.env.ZIFFR_DEMO_ADDRESS_KEY, {
-    by: options.weight, values: c?.class === "limited" && c.limit === "values", run: options.workflowRun, askNow: options.askNow,
+    values: c?.class === "limited" && c.limit === "values", run: options.workflowRun, askNow: options.askNow,
   });
   if (options.workflowRun) await takeDemoWorkflowRun(actor);
-  return visitingDemo({ generation: who.generation, visit: who.visitId }, () => work(true));
+  // The real number of values a change writes is known only once it is read (a paste): the work charges it before it records anything.
+  const charge: ChargeValues = (n) => checkDemoBudget(actor, { visitId: who.visitId!, headers: who.headers }, new Date(), process.env.ZIFFR_DEMO_ADDRESS_KEY, { by: n, values: true });
+  return visitingDemo({ generation: who.generation, visit: who.visitId }, () => work(true, charge));
 }
 
 /** The words of an error that a visit's change is refused with in the demo (budget, text rules, a stale page, a full limit,

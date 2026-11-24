@@ -18,13 +18,12 @@ export async function previewPaste(input: PasteInput) {
 /** Records the paste's values that were not left out, each with the outcome it gets now. */
 export async function recordPaste(input: PasteInput) {
   // A visitor's pasted cells go through the text rules line by line, at most 100 values (the core counts them), first (spec 0051).
-  // Charged by the values it holds (at most 100), not as one change.
-  const weight = Math.min(100, Math.max(1, String(input?.text ?? "").split("\n").filter((l) => l.trim()).length));
-  return attempt(() => inDemoVisit("paste-actions:recordPaste", async (visiting) => {
-    const r = await coreRecordPastedValues(await currentActor(), visiting && typeof input?.text === "string" ? { ...input, text: demoPasteText(input.text) } : input);
+  // Charged by the values it really holds once the core has read it (not by its lines: cells may be tab- or comma-separated).
+  return attempt(() => inDemoVisit("paste-actions:recordPaste", async (visiting, charge) => {
+    const r = await coreRecordPastedValues(await currentActor(), visiting && typeof input?.text === "string" ? { ...input, text: demoPasteText(input.text) } : input, undefined, visiting ? { chargeValues: charge } : {});
     revalidatePath("/", "layout");
     return r;
-  }, { weight }));
+  }));
 }
 
 /** A template file to fill in and paste back: the person's own Metrics by slug and the periods they wait for. Records nothing. */

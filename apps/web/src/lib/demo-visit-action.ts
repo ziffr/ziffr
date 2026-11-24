@@ -3,7 +3,7 @@ import "server-only";
 // cookies (its id, and the Generation the page was drawn in) and hands them to the core's one door, `runDemoVisit`. Outside the
 // demo, and wherever visitors may not change it or the action is not open, the work runs as it always did.
 import { cookies, headers } from "next/headers";
-import { runDemoVisit, type DemoVisitOptions } from "@ziffr/core/demo-visit-action";
+import { runDemoVisit, type ChargeValues, type DemoVisitOptions } from "@ziffr/core/demo-visit-action";
 import { demoChangesInEffect } from "@ziffr/core/demo-reset-decision";
 import { settingsInEffect } from "@ziffr/core/settings-in-effect";
 import { isDemo } from "./auth";
@@ -22,8 +22,8 @@ export async function visitorsMayChangeDemo(): Promise<boolean> {
 
 /** Runs the work of one server action (its key in packages/core/src/demo-changes.ts). `visiting` tells the work whether it is a
  * visit that may change the demo: then the texts it takes go through the text rules (`demoTextForVisit`) first. */
-export async function inDemoVisit<T>(operation: string, work: (visiting: boolean) => Promise<T>, options: DemoVisitOptions = {}): Promise<T> {
-  if (!(await isDemo())) return work(false);
+export async function inDemoVisit<T>(operation: string, work: (visiting: boolean, charge: ChargeValues) => Promise<T>, options: DemoVisitOptions = {}): Promise<T> {
+  if (!(await isDemo())) return work(false, async () => {});
   const jar = await cookies();
   return runDemoVisit(operation, { visitId: visitIdOf(jar.get(DEMO_VISIT_COOKIE)?.value), generation: generationOf(jar.get(DEMO_GENERATION_COOKIE)?.value), headers: await headers() }, work, options);
 }
