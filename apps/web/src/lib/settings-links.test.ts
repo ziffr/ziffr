@@ -14,6 +14,15 @@ describe("the sidebar's Workspace tree and Settings list", () => {
     expect(hrefs("member")).toEqual(expect.arrayContaining(["/settings/workspace", "/themes", "/settings/packs", "/settings/keys", "/changes"]));
     expect(workspaceTree("member").map((l) => l.label)).toEqual(["Members and Groups", "Workflows", "Connectors", "Settings"]);
   });
+  it("lists the Library, next to Packs, for everyone but Guests", () => {
+    for (const role of ["owner", "admin", "member"] as const) {
+      expect(hrefs(role)).toContain("/settings/library");
+      expect(workspaceLinks(role).map((l) => l.href)).toContain("/settings/library");
+      expect(hrefs(role).indexOf("/settings/library")).toBe(hrefs(role).indexOf("/settings/packs") + 1);
+    }
+    expect(workspaceLinks("guest").map((l) => l.href)).not.toContain("/settings/library");
+    expect(hrefs("guest")).toEqual([]);
+  });
   it("lists Tags for everyone but Guests", () => {
     for (const role of ["owner", "admin", "member"] as const) expect(hrefs(role)).toContain("/settings/tags");
     expect(workspaceLinks("guest").map((l) => l.href)).not.toContain("/settings/tags");

@@ -15,7 +15,7 @@ import { CanvasChips } from "./canvas-chips";
 import { MethodPicker } from "./method-picker";
 import { cn } from "@/lib/utils";
 
-type AnalyzeProps = { data: CanvasData; onCanvas: number[]; explained?: number | null; /** Open the list from the start (sent from a Metric page). */ open?: boolean; demo?: boolean };
+type AnalyzeProps = { data: CanvasData; onCanvas: number[]; explained?: number | null; /** Open the list from the start (sent from a Metric page). */ open?: boolean; demo?: boolean; /** An Owner or Admin: the list ends with the way to write a Method of one's own. */ writes?: boolean };
 
 /** The Analysis Canvas. The page sends the series of what is on it; an analysis of another Metric fetches its own
  * (ticket #125). */
@@ -24,7 +24,7 @@ export function AnalyzeScreen(props: AnalyzeProps) {
   return <SeriesProvider ensure={ensure}><AnalyzeCanvas {...props} data={data} /></SeriesProvider>;
 }
 
-function AnalyzeCanvas({ data, onCanvas, explained = null, open = false, demo = false }: AnalyzeProps) {
+function AnalyzeCanvas({ data, onCanvas, explained = null, open = false, demo = false, writes = false }: AnalyzeProps) {
   const [over, setOver] = useState(false);
   // The picker is the front door: open on an empty canvas, shut (one button away) once there are Metrics to fit it to.
   const [choosing, setChoosing] = useState(open || onCanvas.length === 0);
@@ -61,7 +61,7 @@ function AnalyzeCanvas({ data, onCanvas, explained = null, open = false, demo = 
           <span className="text-xs text-muted-foreground">Pick by what you want to know. The list starts with what fits the Metrics on the canvas.</span>
         </div>
 
-        {choosing && <MethodPicker ids={ids} explains={explainedId} />}
+        {choosing && <MethodPicker ids={ids} explains={explainedId} writes={writes} />}
 
         <div
           data-canvas
