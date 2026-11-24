@@ -18,6 +18,10 @@ Choose **Preview with Sample Data** to see everything the Pack adds, drawn with 
 
 When a newer Ziffr brings a newer version of a Pack you installed, that Pack shows **Version … comes with this Ziffr…**, which shows what an update changes before it is done, as under Updating a Pack. It is never applied by itself.
 
+## Whom a Pack is for
+
+Each of Ziffr's own Packs says whom it is for: the industries, the kinds of customers, the Business Functions, the sizes and the countries it was made for. Ziffr uses this only to suggest first the Packs that fit what your Workspace and the people who manage it have told it, with the reason ("your industry", "your function"). It never hides a Pack: every one stays in the list. A Pack from a file or the Marketplace may say it too. What you answered about your Workspace and your function stays in your Workspace; nothing is sent anywhere to rank Packs.
+
 ## Installing from a file
 
 Ziffr makes starting Packs: SaaS metrics, Online shop, Agency or freelancer, Sports club and a Board meeting deck, and five for the functions of a business that any company can use: Sales, Finance, People and HR, Customer support, and Operations and fulfilment. Each brings its Metrics, a dashboard and a Workflow, and names the ready n8n templates that can fill them. They come with Ziffr: install one from **Ziffr's own Packs**, below, with no download. Their files are also in the `packs` folder of Ziffr's repository, to read or to install as a file.

@@ -2,13 +2,25 @@
   "format": "ziffr.pack/1",
   "id": "ziffr/saas-metrics",
   "name": "SaaS metrics",
-  "version": "2.0.0",
+  "version": "2.1.0",
   "summary": "MRR and its movements, customers, churn, retention, CAC, cash and runway, with a monthly management report as dashboard and deck, a quarterly board deck, and the Workflows for the monthly and quarterly close.",
   "author": {
     "name": "Ziffr"
   },
   "license": "CC-BY-4.0",
   "ziffr": ">=0.11",
+  "audience": {
+    "industries": [
+      "saas"
+    ],
+    "segments": [
+      "b2b"
+    ],
+    "functions": [
+      "management",
+      "finance"
+    ]
+  },
   "logo": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA2NCA2NCIgd2lkdGg9IjY0IiBoZWlnaHQ9IjY0Ij48dGl0bGU+U2FhUyBtZXRyaWNzPC90aXRsZT48cmVjdCB3aWR0aD0iNjQiIGhlaWdodD0iNjQiIHJ4PSIxMiIgZmlsbD0iIzBGNUM1NCIvPjxyZWN0IHg9IjEyIiB5PSIzOCIgd2lkdGg9IjkiIGhlaWdodD0iMTQiIHJ4PSIyIiBmaWxsPSIjOUZFMEQ1Ii8+PHJlY3QgeD0iMjcuNSIgeT0iMjgiIHdpZHRoPSI5IiBoZWlnaHQ9IjI0IiByeD0iMiIgZmlsbD0iIzlGRTBENSIvPjxyZWN0IHg9IjQzIiB5PSIxNCIgd2lkdGg9IjkiIGhlaWdodD0iMzgiIHJ4PSIyIiBmaWxsPSIjRkZGRkZGIi8+PC9zdmc+",
   "listing": {
     "homepage": "https://github.com/ziffr/ziffr/tree/main/packs"

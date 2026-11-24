@@ -3,7 +3,7 @@
 // Timeline name a Filled-in Value, and that a Guest reads "Someone" and is offered nothing.
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { db } from "./db";
-import { fillInOffer, guestStandIns } from "./fill-in-offer";
+import { fillInOffer, guestStandIns, workflowFillIns } from "./fill-in-offer";
 import { fillInValue } from "./fill-in";
 import { JANUARY, periodStart, shiftPeriod } from "./periods";
 import { periodRecord } from "./period-record";
@@ -62,6 +62,21 @@ describe("the Fill in for … offer", () => {
     expect(early?.people).toEqual([expect.objectContaining({ id: sara, wait: expect.stringMatching(/after the Due Date/) })]);
     await db().from("away").insert({ user_id: sara, starts: new Date().toISOString().slice(0, 10), ends: new Date().toISOString().slice(0, 10), set_by: sara });
     expect((await fillInOffer(as(ben), m.id, thisMonth()))?.people[0].wait).toBeNull();
+  });
+
+  it("offers on the Workflow's period view the same people as on the Metric's page, for the period it works on, and nobody else", async () => {
+    const { w, ben, mia, zed, sara, tom, guest, m, wf, as } = await setup();
+    const open = [{ metricId: m.id, period: ago(1), people: [expect.objectContaining({ id: sara, name: await nameOf(sara) })] }];
+    expect(await workflowFillIns(as(ben), wf)).toEqual(open);
+    expect(await workflowFillIns(as(mia), wf)).toEqual(open);
+    // The others, a Guest, an Access Key and the demo get nothing; neither does another Workflow.
+    for (const actor of [as(zed), as(sara), as(tom), w.actor(guest, "guest")]) expect(await workflowFillIns(actor, wf)).toEqual([]);
+    expect(await workflowFillIns({ ...as(ben), key: { id: 1, scopes: ["metrics:read"] } } as never, wf)).toEqual([]);
+    expect(await workflowFillIns({ personId: ben, workspaceId: DEMO_WORKSPACE_ID, role: "owner" }, wf)).toEqual([]);
+    expect(await workflowFillIns(as(ben), wf + 100000)).toEqual([]);
+    // A Workflow owner who does not see the Metric is offered nothing for it.
+    await w.unshare(m.id, mia);
+    expect(await workflowFillIns(as(mia), wf)).toEqual([]);
   });
 
   it("disappears once the period has a value", async () => {

@@ -11,6 +11,10 @@ import { checkPack, versionBelow, type Pack } from "./pack";
 import { INCLUDED_PACK_FILES } from "./included-packs.generated";
 import { assertManages, installPack, previewPack, safeLogo, type PackOrigin, type PackRead } from "./packs";
 import { readPackUpdate, updatePack, type UpdatePlan } from "./pack-updates";
+import { rankPacks, SUGGESTED, type RankAnswers, type Reason } from "./pack-ranking";
+import { businessFunctions, myBusinessFunction, type BusinessFunction } from "./business-function";
+import { workspaceProfile } from "./workspace-settings";
+import { DEMO_WORKSPACE_ID } from "./team";
 
 /** Where an install of one of Ziffr's own Packs is recorded: signed, because it is part of Ziffr's code. */
 export const INCLUDED: PackOrigin = { source: "included", signed: true };
@@ -133,4 +137,45 @@ export async function readIncludedUpdate(actor: Actor, installId: number) {
 export async function updateIncludedPack(actor: Actor, installId: number, confirmed: { assistantTexts?: boolean } = {}): Promise<UpdatePlan> {
   assertManages(actor);
   return updatePack(actor, Number(installId), (await includedInstall(actor, Number(installId))).text, INCLUDED, { unsigned: false, assistantTexts: confirmed?.assistantTexts === true });
+}
+
+/** One of Ziffr's own Packs as the Setup Guide suggests it: what the Pack file says of itself and why it fits, nothing more. */
+export type RecommendedPack = {
+  id: string; name: string; summary: string;
+  /** The Pack's logo as a checked data address, or null; drawn in an `img` only. */
+  logo: string | null;
+  /** What it brings, by kind: counts and the first names, from the Pack file. */
+  brings: IncludedBrings[];
+  /** Which parts of its audience matched the answers, best first; empty when none did. */
+  because: Reason[];
+  /** Among the first three with a match: the ones the guide puts on top. Every Pack is still in the list. */
+  suggested: boolean;
+  /** Already installed in this Workspace: shown as Installed, never offered again. */
+  installed: boolean;
+};
+
+/** Ziffr's own Packs in the order that fits this Workspace best, every one of them, for the Setup Guide's Starting point.
+ * Owners and Admins only (they alone can install): a Member, a Guest, an Access Key and the demo get nothing. It reads the
+ * Workspace Profile, the viewer's own Business Function and the functions of the Workspace's Owners and Admins (whom the
+ * viewer may see them of anyway), and returns per Pack only the Pack file's own words, what it brings and the reasons as
+ * keys: never a person, a function's owner or another Workspace's data. Computed on every call, never stored. */
+export async function recommendedPacks(actor: Actor): Promise<RecommendedPack[]> {
+  if ((actor as { key?: unknown }).key || (actor.role !== "owner" && actor.role !== "admin") || actor.workspaceId === DEMO_WORKSPACE_ID) return [];
+  const [listing, profile, mine, all, { data: managers }] = await Promise.all([
+    listIncludedPacks(actor), workspaceProfile(actor), myBusinessFunction(actor), businessFunctions(actor),
+    db().from("memberships").select("user_id").eq("workspace_id", actor.workspaceId).in("role", ["owner", "admin"]),
+  ]);
+  if (listing.length === 0) return [];
+  const managing = new Set((managers ?? []).map((m) => String(m.user_id)));
+  const functions = new Set<BusinessFunction>(all.filter((f) => managing.has(f.personId)).map((f) => f.function));
+  if (mine) functions.add(mine);
+  const answers: RankAnswers = { industry: profile.industry, segment: profile.segment, country: profile.country, employeeBand: profile.employeeBand, revenueBand: profile.revenueBand, functions: [...functions] };
+  const bundle = bundledPacks();
+  const ranked = rankPacks(answers, listing.map((l) => ({ id: l.id, name: l.name, audience: bundle.get(l.id)?.pack.audience })), INCLUDED_PACK_ORDER);
+  const byId = new Map(listing.map((l) => [l.id, l]));
+  const top = new Set(ranked.filter((r) => r.score > 0).slice(0, SUGGESTED).map((r) => r.id));
+  return ranked.map((r) => {
+    const l = byId.get(r.id)!;
+    return { id: l.id, name: l.name, summary: l.summary, logo: l.logo, brings: l.brings, because: r.because, suggested: top.has(r.id), installed: l.installed !== null };
+  });
 }

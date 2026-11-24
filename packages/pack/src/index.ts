@@ -15,3 +15,4 @@ export { checkWorkspaceExport, WorkspaceExportChecker, WORKSPACE_EXPORT_FORMAT, 
 export { TAG_NAME_MAX, TAGS_PER_ENTRY, normaliseTagName, tagNameProblem } from "./tag-names.js";
 export { BREAKDOWN_PARENTS, hasParents, nameKey, readParents, type ParentsRead, type PartRow } from "./breakdown-parents.js";
 export { BUSINESS_FUNCTIONS, BUSINESS_FUNCTION_LABELS, isBusinessFunction, type BusinessFunction } from "./business-functions.js";
+export { AUDIENCE_LIMITS, AUDIENCE_PARTS, AUDIENCE_SCHEMA, AUDIENCE_SINCE, COUNTRIES, EMPLOYEE_BANDS, INDUSTRIES, REVENUE_BANDS, SEGMENTS, checkAudience, type AudiencePart, type EmployeeBand, type Industry, type PackAudience, type RevenueBand, type Segment } from "./audience.js";

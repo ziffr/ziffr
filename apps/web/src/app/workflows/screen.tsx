@@ -24,6 +24,9 @@ import { periodLabel, type YearStart } from "@ziffr/core/periods";
 import type { WorkflowTemplateSummary } from "@ziffr/core/workflow-templates";
 import { NewWorkflowFromTemplate, SaveWorkflowTemplate } from "./templates";
 import type { PeriodTimeline } from "@ziffr/core/period-timeline";
+import { FillIn } from "@/app/metrics/[slug]/fill-in";
+import type { NumberStyle } from "@ziffr/core/number-style";
+import type { FillInOffer } from "@ziffr/core/fill-in-offer";
 import { PeriodTimelines } from "./period-timeline";
 import { AskingFields, AskingSentence, type AskingClock } from "./asking-fields";
 
@@ -49,7 +52,10 @@ type Tok = { metric_id: number; submitter_id: string; stand_in_id: string | null
 /** When Workflows run in a real workspace, and its last run; null in the demo, which pretends a day instead. */
 type Schedule = { timeZone: string; runHour: number; today: string; hour: number; todayRan: boolean; lastRun: RunInfo | null; scheduled: boolean };
 
-export function WorkflowsScreen({ viewer, people, feeds = [], metrics, workflows, current, states, tokens, asOf, schedule, askingRun = null, canRun, yearStart, templates = [], canCreate = true, timelines = [], tellFacts = { groups: [], webhooks: [], steps: [] }, checklistPaused = null, dashboards = [] }: {
+export function WorkflowsScreen({ viewer, people, feeds = [], metrics, workflows, current, states, tokens, asOf, schedule, askingRun = null, canRun, yearStart, templates = [], canCreate = true, timelines = [], tellFacts = { groups: [], webhooks: [], steps: [] }, checklistPaused = null, dashboards = [], fillIns = [], numberStyle }: {
+  numberStyle: NumberStyle;
+  /** Where the viewer may fill in for a submitter, by Metric (decided in the core, which checks again on saving). */
+  fillIns?: FillInOffer[];
   /** The dashboards this viewer may open, and whether they may pick one for a Send Snapshot step (decided in the core). */
   dashboards?: { id: number; name: string; pick: boolean }[];
   /** Why this Workflow's checklist items wait, for its owner (decided in the core). */
@@ -64,7 +70,7 @@ export function WorkflowsScreen({ viewer, people, feeds = [], metrics, workflows
   templates?: WorkflowTemplateSummary[];
   /** May make Workflows and templates: not a Guest. */
   canCreate?: boolean;
-  yearStart: YearStart; schedule: Schedule | null; canRun: boolean; viewer: string; people: Profile[]; feeds?: { id: string; name: string }[]; metrics: (Pick<Metric, "id" | "name" | "slug" | "period"> & { workflow_id: number | null; mine: boolean })[]; workflows: Workflow[]; current: Workflow | null; states: PeriodState[]; tokens: Tok[]; asOf: string }) {
+  yearStart: YearStart; schedule: Schedule | null; canRun: boolean; viewer: string; people: Profile[]; feeds?: { id: string; name: string }[]; metrics: (Pick<Metric, "id" | "name" | "slug" | "period" | "unit"> & { workflow_id: number | null; mine: boolean })[]; workflows: Workflow[]; current: Workflow | null; states: PeriodState[]; tokens: Tok[]; asOf: string }) {
   const router = useRouter();
   const isNew = !current;
   const [name, setName] = useState(current?.name ?? "New workflow");
@@ -184,6 +190,7 @@ export function WorkflowsScreen({ viewer, people, feeds = [], metrics, workflows
                         <span className={cn("rounded-[var(--radius-input)] border px-1.5 py-0.5", st?.state === "locked" ? "border-[var(--color-ink)]" : st?.state === "approval" ? "border-[var(--color-accent-2)] text-[var(--color-accent-2)]" : "border-border")}>{st ? STATE_LABEL[st.state] : "Not started"}</span>
                       </div>
                       {st?.note && <p className="mt-1 text-xs text-muted-foreground">{st.note}</p>}
+                      {(() => { const offer = fillIns.find((f) => f.metricId === m.id && f.period === period); return offer ? <div className="mt-2"><FillIn offer={offer} metricName={m.name} periodLabel={periodLabel(period, m.period, yearStart)} placeholder={m.unit || "Value"} numberStyle={numberStyle} /></div> : null; })()}
                       <p className="mt-1 flex items-center gap-1 text-xs text-muted-foreground"><CircleUserRound aria-hidden className="size-3.5" /> {toks.map((t) => `${submitter(t.submitter_id)}${t.stand_in_id ? `, stand-in ${first(t.stand_in_id)}` : ""}`).join("; ") || "No submitter"}</p>
                     </li>
                   );

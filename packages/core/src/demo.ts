@@ -3,7 +3,7 @@
 // (migration 20261225110000_demo_read_only.sql); db.ts turns that code into DemoReadOnly, so whichever core function
 // tried, the person reads the same sentence.
 import { Forbidden, type Actor } from "./actor";
-import { DEMO_DIGEST, DEMO_READ_ONLY, DEMO_READ_ONLY_TRIAL, DEMO_STALE, demoLimitWords } from "./demo-words";
+import { DEMO_DIGEST, DEMO_PROTECTED_DIGEST, DEMO_READ_ONLY, DEMO_READ_ONLY_TRIAL, DEMO_SEEDED_WORDS, DEMO_SHOWCASE, DEMO_STALE, demoLimitWords } from "./demo-words";
 import { DEMO_WORKSPACE_ID } from "./team";
 import { trialsOffered } from "./trials";
 import { settingsInEffectNow } from "./settings-in-effect";
@@ -44,6 +44,38 @@ export function refuseInDemo(actor: Pick<Actor, "workspaceId">, operation?: stri
   if (actor.workspaceId !== DEMO_WORKSPACE_ID) return;
   if (operation !== undefined && demoAllows(operation)) return;
   throw new DemoReadOnly();
+}
+
+/** The error code the database raises for a write that touches a showcase object (spec 0051, ticket 6). */
+export const DEMO_SHOWCASE_CODE = "ZF4D3";
+
+/** The error code the database raises for a change to a word of something the seed made. */
+export const DEMO_WORDS_CODE = "ZF4D4";
+
+/** A change refused because it touches an object the landing page and the tour point at: everyone sees it as it is. */
+export class DemoShowcase extends Forbidden {
+  /** Kept by Next.js in production for a plain form's error screen, which says the sentence for this fixed code. */
+  readonly digest = DEMO_PROTECTED_DIGEST.showcase;
+  constructor() {
+    super(DEMO_SHOWCASE);
+    this.name = "DemoShowcase";
+  }
+}
+
+/** A change refused because it renames or rewrites something the seed made. */
+export class DemoSeededWords extends Forbidden {
+  /** As for DemoShowcase. */
+  readonly digest = DEMO_PROTECTED_DIGEST.words;
+  constructor() {
+    super(DEMO_SEEDED_WORDS);
+    this.name = "DemoSeededWords";
+  }
+}
+
+/** The error a database error becomes when it is the showcase's or the seeded words' refusal, else null. */
+export function protectedRefusal(e: unknown): Error | null {
+  const code = typeof e === "object" && e !== null ? (e as { code?: unknown }).code : undefined;
+  return code === DEMO_SHOWCASE_CODE ? new DemoShowcase() : code === DEMO_WORDS_CODE ? new DemoSeededWords() : null;
 }
 
 /** A visit's change refused because the demo started fresh since its page was drawn (spec 0051): what the page shows is gone. */
