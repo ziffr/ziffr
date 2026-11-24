@@ -5,6 +5,7 @@ import { limitWords, NO_WAY_HERE, TEST_PER_DAY, TEST_PER_WAY_PER_WINDOW, TEST_WI
 describe("the text of a Test Message", () => {
   it("names the Workspace and the way, and asks for nothing", () => {
     expect(testText("Acme", "slack")).toBe("This is a test from Ziffr for Acme. If you can read it here, Ziffr reaches you on Slack. Nothing to answer.");
+    expect(testText("<!here> A&B <https://x|go>", "slack")).not.toMatch(/[<>&]/);
     expect(testText("Acme", "email")).toContain("on email");
     expect(testText("", "telegram")).toBe("This is a test from Ziffr. If you can read it here, Ziffr reaches you on Telegram. Nothing to answer.");
   });

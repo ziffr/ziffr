@@ -133,6 +133,8 @@ Call `POST /api/jobs/workflows` every hour and `POST /api/jobs/deliveries` every
 
 Open Ziffr, sign in with an email link, and create a workspace: you are its Owner. To run the Installation from the page as well, claim it at `/installation` with the setup code from the log ([Installation settings](#installation-settings)). On the Team page, set the workspace's time zone and the hour its Workflows run, and invite the others.
 
+A new Workspace opens on the Setup Guide ([Getting started](../user-guide/07-getting-started.md#the-setup-guide)), which asks for the time zone and the hour in its first step, and needs nothing from outside your server. Ziffr's own twelve Packs come with the image (and with a build from source), so **Workspace → Packs → Ziffr's own Packs** installs them with no download and no Marketplace. A way your server lacks (a mail server, a Slack app, a Telegram bot) is said in words in the guide's **Ways in and out** step, with a link to the [Installation settings](#installation-settings) for whoever runs it; the web form and paste still let the first Metric finish.
+
 ## Installation settings
 
 Some of what an Installation talks to can be set on a page instead of in the settings file: `/installation`, for its **Installation Admins** only. For now that is the mail server and the sender (`ZIFFR_SMTP_URL`, `ZIFFR_MAIL_FROM`); replies by email, Telegram, Slack, the check against bots, trials and the demo follow. The [user guide](../user-guide/18-installation-settings.md) shows the page.
