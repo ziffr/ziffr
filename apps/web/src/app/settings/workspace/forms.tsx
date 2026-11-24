@@ -1,11 +1,12 @@
 "use client";
-// The workspace's name and its Workspace Profile (spec 0006, tickets #96 and #97; GLOSSARY: Workspace Profile). The
-// lists come from the core, which checks every value again on the server.
+// The workspace's name and its Workspace Profile, shown as "About your business" (spec 0006, tickets #96 and #97; spec
+// 0052; GLOSSARY: Workspace Profile). The lists come from the core, which checks every value again on the server.
 import { shown, unwrap } from "@/lib/action-error";
 import { useState, useTransition } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { PrivacyStatement } from "@/components/privacy-statement";
 import { renameWorkspace, setWorkspaceProfile } from "@/app/settings-actions";
 import {
   currencyFor, EMPLOYEE_BANDS, INDUSTRIES, INDUSTRY_LABEL, REVENUE_BANDS, REVENUE_LABEL, SEGMENTS, SEGMENT_LABEL,
@@ -66,8 +67,9 @@ export function WorkspaceProfileForm({ profile, canEdit, countries, currencies }
   return (
     <section aria-labelledby="profile-heading" className="space-y-3 border-t border-border pt-6">
       <div>
-        <h2 id="profile-heading" className="font-medium">Workspace Profile</h2>
-        <p className="text-sm text-muted-foreground">What kind of business this is, so Ziffr can suggest the Metrics such teams track. Teams within the workspace are Groups, on Members and Groups.</p>
+        <h2 id="profile-heading" className="font-medium">About your business</h2>
+        <p className="text-sm text-muted-foreground">Your Workspace Profile: what kind of business this is, so Ziffr can suggest the Metrics and Packs such teams use. Teams within the workspace are Groups, on Members and Groups.</p>
+        <PrivacyStatement className="mt-2 text-sm text-muted-foreground" />
       </div>
       <form className="grid gap-4 sm:grid-cols-2" onSubmit={(e) => { e.preventDefault(); start(() => save(() => setWorkspaceProfile(p))); }}>
         {select("industry", "Industry", INDUSTRIES.map((v) => ({ v, label: INDUSTRY_LABEL[v] })))}

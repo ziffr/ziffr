@@ -308,6 +308,8 @@ const CASES: Record<string, Case> = {
   "theme-actions:setDefaultTheme": { blocked: (i) => [i.theme] },
   "theme-actions:setDashboardTheme": { open: (i) => [i.dashboard, i.theme] },
   "theme-actions:setDeckTheme": { blocked: (i) => [i.deck, i.theme] },
+  "setup/actions:saveAboutYou": { blocked: () => [{ profile: { industry: "retail" }, clock: { timeZone: "Europe/Berlin", runHour: 7 }, yearStart: 4 }] },
+  "setup/actions:skipStep": { blocked: () => ["about"] },
   "try/start/actions:moveGuide": { outside: "a Trial Workspace's guide, never the demo" },
   "try/start/actions:skipGuide": { outside: "a Trial Workspace's guide, never the demo" },
   "try/start/actions:askGuide": { outside: "a Trial Workspace's guide, never the demo" },
