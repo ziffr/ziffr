@@ -409,7 +409,7 @@ You see Deliveries about Threads you may read, and Prompts and notices you sent 
 
 ### In the demo
 
-The two **Run now** buttons sit in a dashed **Demo controls** box; using them says "The demo can't be changed." Under each Delivery you can play the recipient: **Answer as** the person, then **Send in** the Connector, or **Close ticket as** the person for a ticket. Ziffr then says what would happen, such as that the answer would land in the thread or that the value would be recorded, and saves nothing. **Try sending a value** on the Email and Slack cards leads to the **Sources** tab.
+The two **Run now** buttons sit in a dashed **Demo controls** box; using them says "The demo can't be changed." Under each Delivery you can play the recipient: **Answer as** the person, then **Send in** the Connector, or **Close ticket as** the person for a ticket. Ziffr then says what would happen, such as that the answer would land in the thread or that the value would be recorded, and saves nothing. Where visitors may change the demo, the answer is recorded instead, as the Connector would do it ("Recorded in the demo"), the two **Run now** buttons make their requests in the Outbox (the demo takes one run of the Workflows a minute), and nothing is sent. **Try sending a value** on the Email and Slack cards leads to the **Sources** tab.
 
 ## Sources
 

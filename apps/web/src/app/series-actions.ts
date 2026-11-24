@@ -5,6 +5,8 @@
 import { revalidatePath } from "next/cache";
 import { currentActor } from "@/lib/viewer";
 import { attempt } from "@/lib/action-result";
+import { inDemoVisit } from "@/lib/demo-visit-action";
+import { demoTextForVisit } from "@ziffr/core/demo-text";
 import { askMeNow as coreAskMeNow, type AskNowResult } from "@ziffr/core/ask-now";
 import { recordOwnValue } from "@ziffr/core/record-own-value";
 import { handOverMetric } from "@ziffr/core/metric-owner";
@@ -78,11 +80,12 @@ export async function updateMetricDetails(metricId: number, details: MetricDetai
  * often, and says where the Prompt went. */
 export async function askMeNow(metricId: number): Promise<AskNowResult | { error: string }> {
   // Words for the person (asked a moment ago, not theirs to ask) come back as a value: production hides thrown ones.
-  return attempt(async () => {
+  // In the demo the Prompt goes to the Outbox, where it can be answered as the person it went to (spec 0051).
+  return attempt(() => inDemoVisit("series-actions:askMeNow", async () => {
     const r = await coreAskMeNow(await currentActor(), Number(metricId));
     revalidatePath("/", "layout");
     return r;
-  });
+  }));
 }
 
 /** What the Record a value form shows after sending: the intake's own words, and whether the value counted. */
@@ -91,11 +94,14 @@ export type RecordedValue = { ok: boolean; detail: string };
 /** A Submitter records a value for a Metric from its page, through the same intake as their form link (Submission Rule,
  * Locks, Approvals, Retention); the core checks they submit it and reads the text, so only strings are taken here. */
 export async function recordValue(metricId: number, input: { value: string; breakdown?: string; period?: string }): Promise<RecordedValue | { error: string }> {
-  return attempt(async () => {
-    const r = await recordOwnValue(await currentActor(), Number(metricId), { value: String(input?.value ?? ""), breakdown: String(input?.breakdown ?? ""), period: input?.period ? String(input.period) : undefined });
+  // A visitor's texts (the total, the Breakdown's labels) go through the text rules first (spec 0051).
+  return attempt(() => inDemoVisit("series-actions:recordValue", async (visiting) => {
+    const r = await recordOwnValue(await currentActor(), Number(metricId), {
+      value: demoTextForVisit(visiting, String(input?.value ?? ""), "name"), breakdown: demoTextForVisit(visiting, String(input?.breakdown ?? ""), "message"), period: input?.period ? String(input.period) : undefined,
+    });
     revalidatePath("/", "layout");
     return { ok: r.ok, detail: r.detail };
-  });
+  }));
 }
 
 /** Metrics the person sees that already have this name, to warn before a Metric gets it (a warning, not a refusal). */

@@ -5,6 +5,8 @@
 import { revalidatePath } from "next/cache";
 import { attempt } from "@/lib/action-result";
 import { currentActor } from "@/lib/viewer";
+import { inDemoVisit } from "@/lib/demo-visit-action";
+import { demoPasteText } from "@ziffr/core/demo-text";
 import { previewValues as corePreviewValues, recordPastedValues as coreRecordPastedValues, type PasteInput } from "@ziffr/core/paste-values";
 import { pasteTemplate, type PasteTemplateInput } from "@ziffr/core/paste-template";
 
@@ -15,11 +17,12 @@ export async function previewPaste(input: PasteInput) {
 
 /** Records the paste's values that were not left out, each with the outcome it gets now. */
 export async function recordPaste(input: PasteInput) {
-  return attempt(async () => {
-    const r = await coreRecordPastedValues(await currentActor(), input);
+  // A visitor's pasted cells go through the text rules line by line, at most 100 values (the core counts them), first (spec 0051).
+  return attempt(() => inDemoVisit("paste-actions:recordPaste", async (visiting) => {
+    const r = await coreRecordPastedValues(await currentActor(), visiting && typeof input?.text === "string" ? { ...input, text: demoPasteText(input.text) } : input);
     revalidatePath("/", "layout");
     return r;
-  });
+  }));
 }
 
 /** A template file to fill in and paste back: the person's own Metrics by slug and the periods they wait for. Records nothing. */

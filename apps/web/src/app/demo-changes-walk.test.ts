@@ -36,20 +36,23 @@ describe("the demo's classification of server actions", () => {
     expect(known.filter((k) => !actions.includes(k)), "classified but gone: remove from packages/core/src/demo-changes.ts").toEqual([]);
   });
 
-  it("blocks every change today and gives every blocked one its reason", () => {
+  it("opens only the work around a value (ticket 8) and gives every blocked action its reason", () => {
+    // The areas of tickets 9 to 11 are still `not-yet`: a key moves out of it in the ticket that opens its area, not by accident.
+    const everyday = (key: string) => key.startsWith("workflow-actions:") || key.startsWith("connector-actions:") || ["actions", "fill-in-actions", "paste-actions", "series-actions"].includes(key.split(":")[0]);
     for (const key of demoOperations()) {
       const c = demoClassOf(key);
       expect(c, key).not.toBeNull();
-      expect(["reads", "outside", "blocked"], `${key} is ${c?.class}; nothing is open yet`).toContain(c?.class);
+      if (c?.class === "open" || c?.class === "limited") expect(everyday(key), `${key} is opened outside the work around a value`).toBe(true);
       if (c?.class === "blocked") expect(c.reason).toBeTruthy();
     }
   });
 
-  it("allows nothing, with the setting off or in effect, and nothing that is not classified", () => {
+  it("allows nothing with the setting off, only the opened actions with it in effect, and nothing that is not classified", () => {
     const on = { ZIFFR_DEMO_ONLY: "1", ZIFFR_DEMO_CHANGES: "1" };
     for (const key of demoOperations()) {
+      const c = demoClassOf(key)?.class;
       expect(demoAllows(key, {}), key).toBe(false);
-      expect(demoAllows(key, on), key).toBe(false);
+      expect(demoAllows(key, on), key).toBe(c === "open" || c === "limited");
     }
     expect(demoAllows("made-up-actions:doSomething", on)).toBe(false);
   });
