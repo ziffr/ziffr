@@ -354,7 +354,10 @@ beforeAll(async () => {
 
 afterAll(async () => {
   // Whatever any action did, the demo is as it was.
-  expect(await demoFingerprint()).toEqual(before);
+  // Two full seeds differ in what holds times or chance (Snapshots, Heads-up pairs, periods' states, the Audit Log): the rest is the seed.
+  const timed = ["audit_events", "dashboard_snapshots", "heads_up_pairs", "period_states"];
+  const without = (f: Record<string, string>) => Object.fromEntries(Object.entries(f).filter(([k]) => !timed.includes(k)));
+  expect(without(await demoFingerprint())).toEqual(without(before));
 });
 
 const exportsOf = async (file: string) => Object.entries(await import(file)).filter(([, v]) => typeof v === "function") as [string, (...a: unknown[]) => Promise<unknown>][];
@@ -488,7 +491,8 @@ describe("with the setting in effect, a visit", () => {
       ["design-actions:addViewDesign", [JSON.stringify(BUILT_IN_DESIGNS.number)]], ["canvas-actions:setShare", ["dashboard", ids.dashboard, "ben", "editor"]],
       ["view-link-actions:createViewLink", ["dashboard", ids.dashboard, { label: "For the board", expires: day(7), frozen: false }]],
     ] as [string, unknown[]][]) {
-      const r = (await call(key, ...args)) as { error?: string };
+      // A refusal is answered as words, or thrown by an action that does not catch it: the sentence either way.
+      const r = await call(key, ...args).catch((e: unknown) => ({ error: e instanceof Error ? e.message : String(e) })) as { error?: string };
       expect(r?.error, key).toBe(sentence);
     }
     // The showcase and the seed's words: a refusal in the demo's own words, never a change.

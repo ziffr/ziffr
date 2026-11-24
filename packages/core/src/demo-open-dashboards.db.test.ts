@@ -30,9 +30,9 @@ afterEach(() => { restore("ZIFFR_DEMO_CHANGES", saved.changes); restore("ZIFFR_D
 
 const generation = async () => Number((await db().from("demo_state").select("generation").single()).data?.generation);
 /** Runs work as a visit of the current Generation, with the setting in effect. */
-async function asVisit<T>(work: () => Promise<T>, generationOffset = 0): Promise<T> {
+async function asVisit<T>(work: () => Promise<T>, generationOffset = 0, visit = VISIT): Promise<T> {
   turnOn();
-  return visitingDemo({ generation: (await generation()) + generationOffset, visit: VISIT }, work);
+  return visitingDemo({ generation: (await generation()) + generationOffset, visit }, work);
 }
 
 let metric = 0;
@@ -191,7 +191,8 @@ describe("what a visitor stores", () => {
       await expect(saveNamedVersion(sara, "dashboard", id, "One too many")).rejects.toBeInstanceOf(DemoSizeRefused);
       // An edit goes on whatever the Versions: the automatic ones never fail it.
       await dash.saveLayout(sara, id, [{ i: String(w), x: 2, y: 2, w: 4, h: 3 }]);
-    });
+    // A visit of its own: the Versions the other tests named count against theirs.
+    }, 0, "fedcba9876543210fedcba9876543210");
   });
 });
 

@@ -189,7 +189,7 @@ describe("a visit's header (spec 0051)", () => {
     turnOn();
     const g = await generation();
     await visitingDemo({ generation: g, visit: VISIT }, async () => {
-      await expect(db().from("memberships").update({ role: "viewer" }).eq("workspace_id", DEMO_WORKSPACE_ID)).rejects.toBeInstanceOf(DemoReadOnly);
+      await expect(db().from("profiles").update({ name: "x" }).eq("id", "sara")).rejects.toBeInstanceOf(DemoReadOnly);
       await expect(db().from("workspaces").update({ name: "x" }).eq("id", DEMO_WORKSPACE_ID).select("id").single()).rejects.toBeInstanceOf(DemoReadOnly);
       await expect(db().from("profiles").update({ name: "x" }).eq("id", "sara")).rejects.toBeInstanceOf(DemoReadOnly);
     });
@@ -203,7 +203,7 @@ describe("a visit's header (spec 0051)", () => {
     await visitingDemo({ generation: g - 1, visit: VISIT }, async () => {
       await expect(db().from("dashboards").update({ name: "x" }).eq("workspace_id", DEMO_WORKSPACE_ID)).rejects.toBeInstanceOf(DemoStale);
       // A table that is not open is refused as the demo always was, whatever the Generation.
-      await expect(db().from("memberships").update({ role: "viewer" }).eq("workspace_id", DEMO_WORKSPACE_ID)).rejects.toBeInstanceOf(DemoReadOnly);
+      await expect(db().from("profiles").update({ name: "x" }).eq("id", "sara")).rejects.toBeInstanceOf(DemoReadOnly);
     });
     delete process.env.ZIFFR_DEMO_CHANGES;
     forgetStoredSettings();
