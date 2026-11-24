@@ -14,6 +14,7 @@ import { demoTextForVisit } from "@ziffr/core/demo-text";
 import { demoVisitRefusal } from "@ziffr/core/demo-visit-action";
 import { inDemoVisit } from "@/lib/demo-visit-action";
 import { createMetric as coreCreateMetric } from "@ziffr/core/metrics";
+import { adoptSetupFirstMetric } from "@ziffr/core/setup-from-pack";
 import { createDerivedMetric as coreCreateDerivedMetric } from "@ziffr/core/derived-metrics";
 import { attempt } from "@/lib/action-result";
 import { isActionError, type ActionError } from "@/lib/action-error";
@@ -49,10 +50,13 @@ export async function createMetric(form: FormData) {
   });
   if (!made) {
     const back = num("duplicate_of") ? `copy=${num("duplicate_of")}` : num("from_catalog_id") ? `catalog=${num("from_catalog_id")}` : "scratch=1";
-    redirect(`/metrics/new?${back}`);
+    redirect(`/metrics/new?${back}${form.get("setup") === "1" ? "&setup=1" : ""}`);
   }
+  // Made with the Setup Guide's return link: the Metric becomes the guide's when it has none, and the person goes back to it.
+  const fromGuide = form.get("setup") === "1";
+  if (fromGuide) await adoptSetupFirstMetric(await currentActor(), made.id);
   revalidatePath("/", "layout");
-  redirect(`/metrics/${made.slug}?created=1`);
+  redirect(fromGuide ? "/setup?step=start" : `/metrics/${made.slug}?created=1`);
 }
 
 /** Creates a Derived Metric from the "Calculated from other Metrics" form: back to the form with the core's words

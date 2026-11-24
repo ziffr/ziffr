@@ -77,7 +77,7 @@ describe("recommendedPacks", () => {
     const { owner } = await fresh();
     await setWorkspaceProfile(owner, { industry: "saas", segment: "b2b" });
     const [first] = await recommendedPacks(owner);
-    expect(Object.keys(first).sort()).toEqual(["because", "brings", "id", "installed", "logo", "name", "suggested", "summary"]);
+    expect(Object.keys(first).sort()).toEqual(["because", "brings", "id", "installId", "installed", "logo", "name", "needsOwner", "suggested", "summary"]);
     const text = JSON.stringify(await recommendedPacks(owner));
     expect(text).not.toContain(owner.personId);
     expect(text).not.toContain(owner.workspaceId);
