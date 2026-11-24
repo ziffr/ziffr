@@ -12,10 +12,8 @@ import { canSee } from "./sharing";
 import { DEMO_WORKSPACE_ID } from "./team";
 import { whatWorksHere } from "./what-works-here";
 import { openOne } from "./sealed-columns";
+import { loopOf } from "./first-metric-loop";
 import { SETUP_STEPS, MEMBER_STEPS, setupSteps, stepsFor, type SetupFacts, type SetupStepId, type SetupSteps } from "./setup-steps";
-
-/** The Sources whose value, entered by the viewer, counts as "in" for the First Metric step. */
-const IN_SOURCES = ["mail", "slack", "telegram", "web_form", "api"] as const;
 
 /** What the guide shows the viewer. Their own steps; the Workspace's progress only as counts and ticks. */
 export type SetupGuide = SetupSteps & {
@@ -68,22 +66,8 @@ async function readFacts(actor: Actor, guide: { started_at: string; first_metric
     db().from("deliveries").select("id", head).eq("workspace_id", ws).eq("recipient_id", me).eq("kind", "test").eq("mail_state", "sent"),
   ]);
   const first = pref.data?.connector as string | undefined;
-  let promptOut = false;
-  let valueIn = false;
-  if (metricId !== null && guide) {
-    const { data: prompts } = await db().from("prompts").select("id").eq("workspace_id", ws).eq("metric_id", metricId).eq("submitter_id", me).order("id", { ascending: false }).limit(50);
-    const ids = (prompts ?? []).map((p) => p.id as number);
-    const [out, inn] = await Promise.all([
-      ids.length
-        // Sent, or held only by the viewer's Quiet Hours (queued with a time to wait for): either way it was asked.
-        ? db().from("deliveries").select("id", head).eq("workspace_id", ws).eq("recipient_id", me).eq("kind", "prompt").in("prompt_id", ids)
-          .or("mail_state.eq.sent,and(mail_state.eq.queued,not_before.not.is.null)")
-        : Promise.resolve({ count: 0 }),
-      db().from("observations").select("id", head).eq("workspace_id", ws).eq("metric_id", metricId).eq("submitter_id", me).in("source", [...IN_SOURCES]).gte("created_at", guide.started_at),
-    ]);
-    promptOut = (out.count ?? 0) > 0;
-    valueIn = (inn.count ?? 0) > 0;
-  }
+  // Both halves of the First Metric loop, counted for the viewer's own rows (first-metric-loop.ts).
+  const { promptOut, valueIn } = metricId !== null && guide ? await loopOf(ws, me, metricId, guide.started_at) : { promptOut: false, valueIn: false };
   return {
     profileAnswered: Boolean(w.data?.industry) && Boolean(w.data?.country),
     clockSet: Boolean(w.data?.clock_set_at),
