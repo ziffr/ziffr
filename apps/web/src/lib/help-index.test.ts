@@ -64,6 +64,9 @@ describe("the route table", () => {
     expect(chapterForPath("/settings/packs")).toBe("packs");
     expect(chapterForPath("/settings/profile")).toBe("your-settings");
     expect(chapterForPath("/settings/keys")).toBe("workspace-settings");
+    // The Setup Guide opens the chapter that describes it, the page and its steps alike (spec 0052).
+    expect(chapterForPath("/setup")).toBe("getting-started");
+    expect(chapterForPath("/setup/anything")).toBe("getting-started");
     expect(chapterForPath("/settingsx")).toBeNull();
     expect(chapterForPath("/guide/metrics")).toBeNull();
   });
@@ -74,6 +77,7 @@ describe("searching the help", () => {
   it("finds the chapter a person would expect", () => {
     expect(searchHelp(index, "pack marketplace")[0]?.chapter).toBe("packs");
     expect(searchHelp(index, "paste values spreadsheet")[0]?.chapter).toBe("metrics");
+    expect(searchHelp(index, "setup guide about you")[0]?.chapter).toBe("getting-started");
     expect(searchHelp(index, "audit log")[0]?.chapter).toBe("workspace-settings");
     expect(searchHelp(index, "deck theme").some((h) => h.chapter === "decks-and-themes")).toBe(true);
   });

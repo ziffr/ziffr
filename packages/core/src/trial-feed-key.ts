@@ -20,6 +20,7 @@ async function assertTrialOwner(actor: Actor): Promise<void> {
 /** The Test Metric and the working key of the guide's Feed, as the Owner of a running trial may see them; null for anyone
  * else or when the trial has no Test Metric. Never the secret: the prefix and last day only. */
 export async function trialFeedKey(actor: Actor): Promise<{ metric: { name: string; slug: string }; key: GuideFeedKey | null } | null> {
+  if (actor.key) return null;
   try { await assertTrialOwner(actor); } catch { return null; }
   const { data: ws } = await db().from("workspaces").select("trial_test_metric_id").eq("id", actor.workspaceId).single();
   if (!ws?.trial_test_metric_id) return null;

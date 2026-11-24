@@ -1,5 +1,5 @@
 // The n8n workflow for a Feed (docs/guides/feeds.md): the shape n8n imports, the values filled in, and the generic
-// copy in docs/guides kept the same as what the Trial guide builds.
+// copy in docs/guides kept the same as what the Setup Guide of a trial builds.
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { N8N_PLACEHOLDERS, n8nFeedWorkflow } from "./n8n-workflow";
