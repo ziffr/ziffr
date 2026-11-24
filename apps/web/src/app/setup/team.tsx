@@ -142,13 +142,13 @@ export function TeamStep({ data, domainOffer }: { data: TeamSetup; domainOffer: 
         )}
       </section>
 
-      <div className="space-y-3 border-t border-border pt-4">
+      <footer className="border-t border-border pt-4">
         <p role="alert" className="min-h-5 text-sm text-destructive">{error}</p>
-        <div className="flex flex-wrap justify-end gap-2">
-          <Button type="button" variant="ghost" disabled={pending} onClick={() => run(() => skipStep("team"), () => router.push("/"))}>Skip</Button>
+        <div className="mt-2 flex items-center justify-end gap-3">
+          <button type="button" disabled={pending} className="text-sm underline disabled:opacity-60" onClick={() => run(() => skipStep("team"), () => router.push("/"))}>Skip</button>
           <Button type="button" disabled={pending} onClick={() => router.push("/")}>Go to Ziffr</Button>
         </div>
-      </div>
+      </footer>
     </div>
   );
 }
