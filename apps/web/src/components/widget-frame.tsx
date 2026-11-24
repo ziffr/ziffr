@@ -118,7 +118,7 @@ function InteractiveFrame({ widget, data, targets, editable = false, className, 
   const isLayout = templateOf(widget).kind === "layout";
   // The View Design the widget is drawn with, to take away as a file: none for a Finding or a Free layout.
   const ownDesign = designOf(widget);
-  const title = frameTitle(widget, ms);
+  const title = frameTitle(widget, ms, data);
   const open = ms.reduce((n, x) => n + (data.openActions[x.id] ?? 0), 0);
   const openText = `${open} open ${open === 1 ? "question or task" : "questions or tasks"} for ${title}`;
   const source: DropSource = widget.id ? { type: "widget", id: widget.id } : { type: "spec", template: widget.template, metricIds: widget.metric_ids, settings: widget.settings, title: widget.title ?? undefined };

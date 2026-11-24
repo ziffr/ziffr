@@ -275,7 +275,7 @@ A place in a Widget Template or Dashboard Template that is filled with a metric 
 _Avoid_: Variable, parameter, input
 
 **Placeholder**:
-A word in a template's text that is filled in from the data when the template is used, such as the metric's name, the latest period or the change against last year.
+A word in braces in a text that is filled in from the data, such as the metric's name, the latest period or the change against last year. It works in a Finding's words, a widget's title, the texts of a View Design and a deck slide, and shows only what the viewer may see.
 _Avoid_: Token, variable, merge field
 
 **Widget**:

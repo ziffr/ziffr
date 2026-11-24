@@ -19,6 +19,7 @@ import { VersionsSheet } from "@/components/versions-sheet";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { PlaceholderHints } from "@/components/placeholder-hints";
 import { formatDate, formatValue } from "@ziffr/core/format";
 import { TEMPLATES } from "@ziffr/core/widget-templates";
 import type { OpenSnapshot, SnapshotWords, WidgetWords, WordKey } from "@ziffr/core/snapshots";
@@ -151,6 +152,7 @@ function Words({ snapshot: s, pending, onSave }: { snapshot: OpenSnapshot; pendi
           </fieldset>
         );
       })}
+      <PlaceholderHints />
       <Button type="submit" disabled={pending}>Save words</Button>
     </form>
   );

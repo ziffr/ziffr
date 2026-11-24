@@ -76,7 +76,7 @@ The **Pool** on the left holds the Metrics you can see, your saved Widgets and t
 
 - A Metric dropped on a slide becomes a line chart. You can change that afterwards.
 - A Widget Template asks for its Metrics first.
-- A Widget shows live numbers: whenever a new value arrives, the slide shows it.
+- A Widget shows live numbers: whenever a new value arrives, the slide shows it. A Widget's title may use Placeholders such as {latest} and {change yoy}, which fill in from the same numbers, on the slide and in the PowerPoint export.
 
 You can only place Metrics you may see. Everyone you share the deck with can see the Metrics on its slides.
 

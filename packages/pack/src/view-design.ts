@@ -4,7 +4,7 @@
 // Security: nothing in a design is run. It holds no web addresses, HTML, scripts or styles, unknown fields are
 // refused, and every number it shows comes from the core's verified functions, never from the file.
 import { checkSchema, parseJson, type Problem, type Schema } from "./json-check.js";
-import { plainText } from "./file-text.js";
+import { plainText, words } from "./file-text.js";
 import { ANALYSIS_RECIPE_SCHEMA, ANALYSIS_RECIPE_SCHEMA_2, checkAnalysisRecipeValue, drawnOutputs, type AnyAnalysisRecipe } from "./analysis-recipe.js";
 
 /** The format this Ziffr writes; it reads every version in `VIEW_FORMATS`. */
@@ -221,15 +221,15 @@ export const VIEW_DESIGN_SCHEMA: Schema = {
     },
     piece: {
       oneOf: [
-        text(VIEW_LIMITS.text, "plain text, without markup or web addresses"),
+        words(VIEW_LIMITS.text),
         {
           type: "object",
           description: "A value the core writes, in the Workspace's Number Style.",
           properties: {
             show: shows(TEXT_SHOWS, true, "a value the core writes"),
             style: { enum: ["strong"] },
-            before: text(VIEW_LIMITS.label, "plain text, without markup or web addresses"),
-            after: text(VIEW_LIMITS.label, "plain text, without markup or web addresses"),
+            before: words(VIEW_LIMITS.label),
+            after: words(VIEW_LIMITS.label),
           },
           required: ["show"],
           additionalProperties: false,

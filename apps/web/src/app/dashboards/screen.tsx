@@ -260,7 +260,7 @@ function DashboardCanvas({ data, dashboards, current, widgets, saved, shares, re
                         <WidgetFrame widget={w} data={data} targets={targets.filter((d) => d.id !== current.id)} editable={changing} dragHandle={changing} saved={saved} />
                       ) : (
                         // Outside Edit mode a tap on the card opens it large, as Present does one at a time (#826).
-                        <OpenLarge className="h-full" title={frameTitle(w, widgetMetrics(w, data))} onOpen={() => router.push(largeHref(current.id, w.id!))}>
+                        <OpenLarge className="h-full" title={frameTitle(w, widgetMetrics(w, data), data)} onOpen={() => router.push(largeHref(current.id, w.id!))}>
                           <WidgetFrame widget={w} data={data} targets={targets.filter((d) => d.id !== current.id)} editable={false} saved={saved} />
                         </OpenLarge>
                       )}

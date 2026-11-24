@@ -19,4 +19,15 @@ describe("WidgetFrame readOnly", () => {
     expect(html.length).toBeGreaterThan(0);
     expect(html).not.toMatch(/Add to…|Save as…|Copy to|For View Designs/);
   });
+
+  it("fills the Placeholders of its title from the data the viewer has, and leaves a Metric they may not see empty", () => {
+    const [seen, hidden] = data.metrics;
+    const widget = { id: 1, template: "number", metric_ids: [hidden.id, seen.id], settings: {}, title: "A {metric} B {latest} C {metric 2}" } as unknown as Parameters<typeof WidgetFrame>[0]["widget"];
+    // The viewer's data carries only the second Metric; the widget names two.
+    const theirs = { ...data, metrics: [seen] };
+    const html = renderToStaticMarkup(<WidgetFrame readOnly widget={widget} data={theirs} targets={[]} />);
+    expect(html).toContain(`A  B  C ${seen.name}`);
+    expect(html).not.toContain(hidden.name);
+    expect(html).not.toContain("{metric");
+  });
 });

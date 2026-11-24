@@ -89,7 +89,7 @@ Every built-in View below is itself a View Design, so you can export it from **W
 
 | Part | What it draws |
 |---|---|
-| `text` | Words and values. `content` is a list of plain texts and `{ "show": … }` values; `style` is `headline`, `value`, `caption`, `body` or `note`. A value can have `before` and `after` words and be `strong`. |
+| `text` | Words and values. `content` is a list of plain texts and `{ "show": … }` values; `style` is `headline`, `value`, `caption`, `body` or `note`. A value can have `before` and `after` words and be `strong`. A plain text (and a `before` or `after`) may hold **Placeholders** such as `{metric}`, `{latest}` or `{change yoy}`, filled in from the widget's data when it is drawn, with the same list and rules as a Finding's words (see "Words that fill themselves in" in the user guide); `{metric 2}` is the design's second Metric. A Metric the viewer may not see leaves its Placeholder empty, and one Ziffr cannot fill stays as written. |
 | `group` | Parts side by side (`direction: "row"`) or stacked (`"column"`), `align: "center"` to centre them. |
 | `plot` | A chart. `axes`: `none`, `compact` or `regular`. `x`: `period` (default) or `value` for pairs. `grid`: `none`, `horizontal`, `both`. `scale`: `padded`, `auto` or `tight`. `marks` are drawn in order. |
 | `gauge` | Where the latest value sits against the target. |
@@ -138,7 +138,7 @@ A file is refused, with every problem named by its path and line, when it:
 
 - is not JSON, is larger than 64 KiB, or is nested more than 10 deep;
 - has a field Ziffr does not know, or a field twice;
-- has a text with `<` or `>`, braces, brackets, a backslash, a line break, or a web address or scheme (`://`, `www.`, `javascript:`, `data:`, `url(`);
+- has a text with `<` or `>`, braces other than a Placeholder, brackets, a backslash, a line break, or a web address or scheme (`://`, `www.`, `javascript:`, `data:`, `url(`);
 - is in a format version this Ziffr does not read;
 - breaks a limit: 4 Slots, 12 parts at the top and in a group, 12 marks in a plot, 12 pieces in a text, 48 parts and marks in all, names up to 80 characters, descriptions 300, labels 60, texts 200;
 - uses an option it does not declare, pairs or correlations with one Metric, or a recipe output it does not have.

@@ -55,23 +55,38 @@ function value(key: string, m: Metric, data: CanvasData): string | undefined {
 /** "Revenue, Orders and Cost" */
 export const listOf = (names: string[]) => (names.length < 2 ? names.join("") : `${names.slice(0, -1).join(", ")} and ${names[names.length - 1]}`);
 
-/** Fills every placeholder it can; one it cannot fill stays visible, so the author sees what is missing. */
+/** One text filled in from the widget's Metric slots. A slot that is `null` is a Metric the viewer may not see: its Placeholders
+ * become empty words, never its name and never the next Metric's value (rule 3). Any other Placeholder one cannot fill stays
+ * visible, so the author sees what is missing. */
+function fill(text: string, slots: (Metric | null)[], data: CanvasData): string {
+  return text.replace(PATTERN, (all, key: string, n?: string) => {
+    const seen = slots.filter((m): m is Metric => !!m);
+    if (key.toLowerCase() === "metrics") return seen.length ? listOf(seen.map((m) => m.name)) : all;
+    const i = (n ? Number(n) : 1) - 1;
+    if (i >= 0 && i < slots.length && !slots[i]) return "";
+    const m = slots[i];
+    return (m && value(key.toLowerCase(), m, data)) ?? all;
+  });
+}
 
 /** Fills every Placeholder it can in a text; one it cannot fill stays visible, so the author sees what is missing. */
 export function fillText(text: string | undefined, metrics: Metric[], data: CanvasData): string | undefined {
   if (!text || !text.includes("{")) return text;
-  return text.replace(PATTERN, (all, key: string, n?: string) => {
-    if (key.toLowerCase() === "metrics") return metrics.length ? listOf(metrics.map((m) => m.name)) : all;
-    const m = metrics[(n ? Number(n) : 1) - 1];
-    return (m && value(key.toLowerCase(), m, data)) ?? all;
-  });
+  return fill(text, metrics, data);
+}
+
+/** A widget's title (or any text of its own) filled in from the data this viewer gets for it: {metric 2} is the widget's second
+ * Metric even when the first is one the viewer may not see, which is then empty, so a shared surface says nothing about it. */
+export function fillWidgetText(text: string | undefined, widget: Pick<Widget, "metric_ids" | "settings">, data: CanvasData): string | undefined {
+  if (!text || !text.includes("{")) return text;
+  const ids = [...new Set([...widget.metric_ids, ...(widget.settings.panels ?? []).flatMap((p) => p.metricIds)])];
+  return fill(text, ids.map((id) => data.metrics.find((m) => m.id === id) ?? null), data);
 }
 
 /** The widget with all its words filled in, ready to draw. */
 export function fillSettings(widget: Pick<Widget, "metric_ids" | "settings">, data: CanvasData): WidgetSettings {
   const s = widget.settings;
-  const ms = metricsInOrder(widget, data.metrics);
-  const f = (t: string | undefined) => fillText(t, ms, data);
+  const f = (t: string | undefined) => fillWidgetText(t, widget, data);
   return {
     ...s,
     kicker: f(s.kicker), headline: f(s.headline), subline: f(s.subline), footnote: f(s.footnote), source: f(s.source),

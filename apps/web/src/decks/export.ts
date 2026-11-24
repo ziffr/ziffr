@@ -13,7 +13,7 @@ import { orderedSlides, SLIDE_W, SLIDE_H } from "./layouts";
 import { WIDGET_SHAPE, widgetFromShape, type WidgetShape } from "./widget-shape";
 import { widgetMetrics } from "@/views/widget-body";
 import { storyBreakdown, storyDefaults } from "@/views/story";
-import { fillSettings } from "@ziffr/core/placeholders";
+import { fillSettings, fillWidgetText } from "@ziffr/core/placeholders";
 import { FONTS } from "@ziffr/core/themes";
 import { dataAsOf } from "@ziffr/core/snapshot-periods";
 import type { Theme } from "@ziffr/core/types";
@@ -206,7 +206,7 @@ async function addWidget(pptx: Pptx, slide: Slide, shape: WidgetShape, at: { x: 
   const name = (p: DisplayPoint, short = false) => pointName(p, by, m.period, data.yearStart, short);
   // A span's target when combined (see targetsBy), else the Metric's range as always.
   const goal = (p: DisplayPoint | undefined) => (shown.combined ? { min: shown.targets?.at[p?.period ?? ""]?.min ?? null, max: shown.targets?.at[p?.period ?? ""]?.max ?? null } : { min: m.target_min, max: m.target_max });
-  const title = widget.title ?? m.name;
+  const title = fillWidgetText(widget.title ?? undefined, widget, data) ?? m.name;
 
   // Card behind every widget, like the cotton sheet in the app.
   slide.addShape(pptx.ShapeType.roundRect, { ...at, rectRadius: 0.06, fill: { color: COTTON }, line: { color: RULE, width: 0.75 }, shadow: { type: "outer", angle: 45, blur: 6, offset: 2, color: "8A7A6C", opacity: 0.25 } });
