@@ -17,7 +17,7 @@ On a Ziffr that is only a public demo, the page is called **Try Ziffr**. It has 
 | Option | What it does |
 | --- | --- |
 | **Work email** | The address you sign in with |
-| **Send me a sign-in link** | Ziffr emails you a link. Open it to sign in. It works once. |
+| **Send me a sign-in link** | Ziffr emails you a link. Open it, or choose the **Sign in to Ziffr** button in the email, to sign in. It works once, for an hour. |
 | **Continue with** Google, Microsoft, GitHub or LinkedIn | Shown only for the ways of signing in your Ziffr has set up. Signs you in with that account. |
 | **Try the demo** | Opens the demo without an account, where your Ziffr offers it |
 
@@ -30,6 +30,12 @@ After you ask for a link, the page says "Check your inbox". If a link has been u
 Your address counts as proven when you signed in with the email link or a provider that proves it, such as Google. A proven address is what an email Invitation and Domain Joining check.
 
 After signing in for the first time, you start a Workspace or join one; see [Workspace settings](16-workspace-settings.md#starting-a-workspace).
+
+## Announcements
+
+Whoever runs your Ziffr can put a short line of plain words above every page, for example that Ziffr will be down tomorrow evening for maintenance. It has a small icon, and a warning begins with the word "Warning:". It may end with a link, which opens in a new tab. Choose the cross at its end to dismiss it for this visit; it comes back the next time you sign in, or when its words are changed. A line that is for a running maintenance has no cross: it stays until it is over. If there are more than three, the first three show and **+2 more announcements** (for two more) shows the rest. In the demo, its own notice (see [The demo](#the-demo)) comes first where visitors may change the demo.
+
+A line the operator marked as public is also on the sign-in page, above the form, so that you can read it before you are signed in. There it shows only the words, the link and the level, and has no cross.
 
 ## Imprint, Privacy notice and Terms
 
