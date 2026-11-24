@@ -92,9 +92,8 @@ const shareText = (percent: number, ctx: TakeawayContext) => formatPercent(perce
 // What both Takeaways share: the notes at a tie, the share as a figure, and the numbers (the share and each row's).
 /** Every row's share of the whole, largest first, with the running share across them, the first `top` rows marked: the rows the sentence names are the ones marked. */
 function shareBars(name: string, rows: Row[], top: number): ChartPart[] {
-  const found = order(rows);
   // The rows were accepted by the Method before this is asked for, so they have a whole to take shares of.
-  if (isNoShare(found)) return [];
+  const found = order(rows) as Exclude<ReturnType<typeof order>, NoShare>;
   let running: Fraction = { num: BigInt(0), den: BigInt(1) };
   const cumulative: number[] = [];
   for (const r of found.sorted) {

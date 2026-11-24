@@ -238,6 +238,16 @@ describe("every picker result with a picture", () => {
     for (const r of c.rows) if (r.lo !== null && r.hi !== null) { expect(r.lo).toBeLessThanOrEqual(r.effect!); expect(r.hi).toBeGreaterThanOrEqual(r.effect!); }
   });
 
+  it("What if: a Metric worked out exactly from a formula is a row with no range, noted as worked out", () => {
+    const D = metric({ id: 5, slug: "double", name: "Double visits", unit: "", target_min: null, formula: "{visits} * 2" });
+    const w = world({ metrics: [V, R, P, T, D], series: { ...series, double: months("2024-01", series.visits.map((p) => p.value * 2)) } });
+    const t = run("what-if", { metric: [V], others: [D] }, { by: 10 }, w);
+    const c = part(t, "effects") as EffectsChart;
+    const exact = c.rows.find((r) => r.label === "Double visits")!;
+    expect(exact).toMatchObject({ effect: 20, lo: null, hi: null });
+    expect(exact.note).toBeTruthy();
+  });
+
   it("Did it work: the day is marked, and the two levels are the numbers of the answer over the periods since", () => {
     const t = run("after-date", { metric: [R] }, { date: "2026-03-01" });
     const lines = part(t, "lines");
