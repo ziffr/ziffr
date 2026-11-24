@@ -513,6 +513,20 @@ describe("the series a Look-alike works on", () => {
     expect(r.reading).toEqual(["trend", "values"]);
     expect(r.values[0].map(frac)).toEqual(Array(6).fill("0/1"));
   });
+  it("is exact on the prepared series only: a trending Metric is detrended by the house helper in doubles, and its kinds hold under a perturbation within that rounding", () => {
+    const n = 30;
+    const trend = Array.from({ length: n }, (_, i) => 2 * i + (i % 10 < 5 ? 0 : 40) + (i % 3));
+    const other = Array.from({ length: n }, (_, i) => (i % 10 < 5 ? 1 : 9) + (i % 2));
+    const run = (nudge: number) => lookAlike([{ id: "a", points: points(trend.map((v, i) => v + nudge * i / 3)) }, { id: "b", points: points(other) }], "month", { kinds: 2 });
+    const base = ok(run(0)) as LookAlike;
+    expect(base.reading).toEqual(["trend", "values"]);
+    // The leftovers are the decimal text of doubles, so on a power of ten, not the exact thirds of the line.
+    expect(readLookAlike([{ id: "a", points: points(trend.map((v, i) => v + i / 3)) }, { id: "b", points: points(other) }], "month").values[0].every((f) => /^10*$/.test(f.den.toString()))).toBe(true);
+    for (const nudge of [1e-12, -1e-12]) {
+      const moved = ok(run(nudge)) as LookAlike;
+      expect([moved.labels, moved.shown]).toEqual([base.labels, base.shown]);
+    }
+  });
   it("has no periods and no Metrics for nothing", () => {
     expect(readLookAlike([], "month")).toEqual({ span: "month", periods: [], ids: [], reading: [], values: [] });
     expect(readLookAlike([{ id: "a", points: [] }, { id: "b", points: points([1, 2]) }], "month").periods).toEqual([]);
