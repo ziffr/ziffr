@@ -225,6 +225,25 @@ function fitWords(room: PackSetupRoom | null, refusal: string | null, n: number)
   return null;
 }
 
+/** The entries to make: those ticked, the inputs of a calculated one, and what a ticked dashboard's Slots suggest. */
+function withInputs(picked: Set<string>, byKey: Map<string, PackSetupOptions["entries"][number]>, extra: string[] | null): Set<string> {
+  const out = new Set(picked);
+  for (const k of picked) for (const i of byKey.get(k)?.inputs ?? []) out.add(i);
+  for (const k of extra ?? []) out.add(k);
+  return out;
+}
+
+/** One Metric to make, as a checkbox with its period and unit; one that another needs is shown ticked and cannot be unticked. */
+function EntryBox({ entry, on, forced, onChange }: { entry: PackSetupOptions["entries"][number]; on: boolean; forced: boolean; onChange: (on: boolean) => void }) {
+  const detail = [`by ${entry.period}`, entry.unit && `in ${entry.unit}`, entry.derived && "calculated from others, which are made too", forced && "made for another"].filter(Boolean).join(", ");
+  return (
+    <label className="flex items-start gap-2">
+      <input type="checkbox" checked={on} disabled={forced} onChange={(ev) => onChange(ev.target.checked)} className="mt-0.5 accent-[var(--color-ink)]" />
+      <span>{entry.name} <span className="text-xs text-muted-foreground">{detail}</span></span>
+    </label>
+  );
+}
+
 /** "Set up from this Pack": the first Metrics ticked, the person asked for them, then made in place. */
 function SetUpHere({ options, viewer, following, onClose }: { options: PackSetupOptions; viewer: string; following: string; onClose: () => void }) {
   const router = useRouter();
@@ -240,14 +259,7 @@ function SetUpHere({ options, viewer, following, onClose }: { options: PackSetup
   const [error, setError] = useState<string | null>(null);
   const [pending, start] = useTransition();
   const byKey = useMemo(() => new Map(options.entries.map((e) => [e.key, e])), [options.entries]);
-
-  // What will be made: the ticked entries, the inputs of a Derived one, and what an ticked dashboard's Slots suggest.
-  const making = useMemo(() => {
-    const all = new Set(picked);
-    for (const k of picked) for (const i of byKey.get(k)?.inputs ?? []) all.add(i);
-    if (dashboardOn && needs) for (const k of needs) all.add(k);
-    return all;
-  }, [picked, byKey, dashboardOn, needs]);
+  const making = useMemo(() => withInputs(picked, byKey, dashboardOn ? needs : null), [picked, byKey, dashboardOn, needs]);
   const why = fitWords(options.room, options.refusal, making.size);
   const ready = making.size > 0 && !why && !pending;
 
@@ -289,15 +301,9 @@ function SetUpHere({ options, viewer, following, onClose }: { options: PackSetup
     <div className="mt-3 space-y-3 rounded-[var(--radius-input)] border border-input p-3">
       <fieldset className="space-y-1">
         <legend className="mb-1 text-xs font-medium">Metrics to make</legend>
-        {options.entries.map((e) => {
-          const needed = !picked.has(e.key) && making.has(e.key);
-          return (
-            <label key={e.key} className="flex items-start gap-2">
-              <input type="checkbox" checked={making.has(e.key)} disabled={needed} onChange={(ev) => toggle(e.key, ev.target.checked)} className="mt-0.5 accent-[var(--color-ink)]" />
-              <span>{e.name} <span className="text-xs text-muted-foreground">by {e.period}{e.unit ? `, in ${e.unit}` : ""}{e.derived ? ", calculated from others, which are made too" : ""}{needed ? ", made for another" : ""}</span></span>
-            </label>
-          );
-        })}
+        {options.entries.map((e) => (
+          <EntryBox key={e.key} entry={e} on={making.has(e.key)} forced={!picked.has(e.key) && making.has(e.key)} onChange={(on) => toggle(e.key, on)} />
+        ))}
       </fieldset>
       <label className="flex items-start gap-2"><input type="checkbox" checked={askMe} onChange={(e) => setAskMe(e.target.checked)} className="mt-0.5 accent-[var(--color-ink)]" /> Ask me for their values (a first request goes out when you press Make them)</label>
       {first && (
