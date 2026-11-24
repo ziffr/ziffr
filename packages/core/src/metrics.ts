@@ -28,6 +28,9 @@ import { isAttainmentMethod } from "./attainment-method";
 import { limitReachedFrom, syncDefaultLimit } from "./workspace-limits";
 import { trialLimitMessage } from "./trials";
 import { announceDefaultRetention, assertRetentionFits, defaultRetentionFor } from "./retention-setting";
+import { DemoTextRefused, inDemoVisit, visitorOptionalText, visitorText } from "./demo-visitor-words";
+import { visitorMembersOnly, visitorNumber, visitorSeries, visitorSlug } from "./demo-visitor-metrics";
+import { DEMO_METRIC_WORDS } from "./demo-words";
 
 const FORMATS: Format[] = ["number", "currency", "percent"];
 const PERIODS: Period[] = ["day", "week", "month", "quarter", "year"];
@@ -89,9 +92,17 @@ export class TooManyMetrics extends Error {
  * program created it with (spec 0003); the database then holds the key to its daily limit. */
 export async function createMetric(actor: Actor, input: MetricInput, effects: MetricEffects = metricEffects, origin: { accessKeyId?: number } = {}): Promise<{ id: number; slug: string; submitters: number; asked: FirstAsk[]; tagsLeftOut: string[] }> {
   assertCan(actor, "create");
-  const name = String(input.name ?? "").trim().slice(0, 120);
+  // A visitor of the demo (spec 0051, ticket 11): every text passes the text rules, the people asked are the demo's made-up Members, no
+  // Workflow takes the Metric (the showcase Workflow's period stays as it is), and a target is a reasonable number. Nothing outside a visit.
+  const name = visitorText(actor, String(input.name ?? ""), "name").trim().slice(0, 120);
   if (!name) throw new Error("Give the Metric a name.");
   const submitters = [...new Set((input.submitters ?? []).map(String))];
+  await visitorMembersOnly(actor, submitters);
+  visitorNumber(actor, numOrNull(input.targetMin));
+  visitorNumber(actor, numOrNull(input.targetMax));
+  const description = String(visitorOptionalText(actor, String(input.description ?? ""), "description"));
+  const unitText = input.unit === undefined ? undefined : String(visitorOptionalText(actor, String(input.unit ?? ""), "name"));
+  if (inDemoVisit(actor) && numOrNull(input.workflowId) !== null) throw new DemoTextRefused(DEMO_METRIC_WORDS.workflow);
   await assertSubmittersIn(actor, submitters);
   const workflowId = numOrNull(input.workflowId);
   if (workflowId !== null && !(await db().from("workflows").select("id").eq("id", workflowId).eq("workspace_id", actor.workspaceId).maybeSingle()).data) throw new Forbidden();
@@ -103,11 +114,12 @@ export async function createMetric(actor: Actor, input: MetricInput, effects: Me
   const fromCatalog = catalogId === null ? null : (await db().from("catalog_metrics").select("id, workspace_id, tags").eq("id", catalogId).maybeSingle()).data;
   const fromCatalogId = fromCatalog && (fromCatalog.workspace_id === null || fromCatalog.workspace_id === actor.workspaceId) ? catalogId : null;
   let slug = slugify(name) || "metric";
+  if (inDemoVisit(actor)) slug = visitorSlug(slug, randomBytes(3).toString("hex"));
   const { data: clash } = await db().from("metrics").select("id").eq("slug", slug).eq("workspace_id", actor.workspaceId);
   if (clash?.length) slug = `${slug}-${Date.now().toString(36)}`;
   const format = pick(input.format, FORMATS, "number");
   // A unit left out (a program may) is the one the form proposes: the workspace's currency for money, % for a percent.
-  const unit = input.unit !== undefined ? { unit: String(input.unit ?? "").slice(0, 20), unit_position: pick(input.unitPosition, UNIT_POSITIONS, "after") }
+  const unit = unitText !== undefined ? { unit: unitText.slice(0, 20), unit_position: pick(input.unitPosition, UNIT_POSITIONS, "after") }
     : format === "currency" ? moneyUnit((await workspaceProfile(actor)).currency)
     : { unit: format === "percent" ? "%" : "", unit_position: pick(input.unitPosition, UNIT_POSITIONS, "after") };
   // The trigger checks the Workspace Limit against the Installation's default in effect.
@@ -119,7 +131,7 @@ export async function createMetric(actor: Actor, input: MetricInput, effects: Me
   // The description is sealed for its row, so the row's id is taken first (spec 0028).
   const [metricId] = await reserveIds("metrics", 1);
   // The name and the Target Range are sealed with it, for the same row (ticket #248).
-  const words = await sealRow("metrics", actor.workspaceId, { id: metricId, name, description: String(input.description ?? "").slice(0, 2000), target_min: numOrNull(input.targetMin), target_max: numOrNull(input.targetMax) });
+  const words = await sealRow("metrics", actor.workspaceId, { id: metricId, name, description: description.slice(0, 2000), target_min: numOrNull(input.targetMin), target_max: numOrNull(input.targetMax) });
   const { data: metric, error } = await db().from("metrics").insert({
     id: metricId, slug, name: words.name, workspace_id: actor.workspaceId, owner_id: actor.personId, retention_pending: retentionPending,
     description: words.description,
@@ -278,6 +290,9 @@ async function removeValuesAndHistory(ws: string, metricId: number): Promise<voi
  * period or value that cannot be read are refused as a whole, since the table checked them already. */
 export async function saveSeriesRows(actor: Actor, metricId: number, kind: "target" | "projection", rows: unknown, note: string) {
   const m = await seriesOwnerMetric(actor, metricId, kind);
+  // A visitor of the demo saves at most 60 rows, within two years of today, of reasonable numbers; the note is words (spec 0051, ticket 11).
+  visitorSeries(actor, rows);
+  note = String(visitorOptionalText(actor, String(note ?? ""), "name"));
   // Rows come from a browser: check the shape, the size and every value before anything is written.
   if (!Array.isArray(rows) || rows.length > 2000) throw new Error("Send at most 2,000 rows.");
   const ys = await yearStartFor(actor.workspaceId, m.period as Period);
@@ -295,6 +310,7 @@ export async function saveSeriesRows(actor: Actor, metricId: number, kind: "targ
  * were removed; a period without a value is left alone. */
 export async function removeSeriesRows(actor: Actor, metricId: number, kind: "target" | "projection", periods: unknown) {
   await seriesOwnerMetric(actor, metricId, kind);
+  visitorSeries(actor, periods);
   // Periods come from a browser: only real days, at most 2,000; never a filter built from a string.
   if (!Array.isArray(periods) || periods.length > 2000) throw new Error("Send at most 2,000 periods.");
   const days = periods.map((p) => (typeof p === "string" && /^\d{4}-\d{2}-\d{2}$/.test(p) && !Number.isNaN(Date.parse(`${p}T00:00:00Z`)) ? p : null));
@@ -416,13 +432,18 @@ export async function updateMetricDetails(actor: Actor, metricId: number, patch:
   const m = await editableMetric(actor, metricId, "its description");
   const p = (patch && typeof patch === "object" ? patch : {}) as MetricDetails;
   const update: Record<string, unknown> = {};
+  // A visitor of the demo (spec 0051, ticket 11): a word that is changed passes the text rules (one sent back as it was stays as it
+  // is, since the form sends them all), and a target is a reasonable number. The database holds the seed's words as well.
+  const changedWord = (next: unknown, now: unknown, kind: "name" | "description") => (String(next ?? "") === String(now ?? "") ? String(next ?? "") : String(visitorOptionalText(actor, String(next ?? ""), kind)));
+  visitorNumber(actor, numOrNull(p.targetMin));
+  visitorNumber(actor, numOrNull(p.targetMax));
   if (p.name !== undefined) {
-    const name = String(p.name ?? "").trim().slice(0, 120);
+    const name = changedWord(p.name, m.name, "name").trim().slice(0, 120);
     if (!name) throw new Error("Give the Metric a name.");
     update.name = name;
   }
-  if (p.description !== undefined) update.description = String(p.description ?? "").slice(0, 2000);
-  if (p.unit !== undefined) update.unit = String(p.unit ?? "").slice(0, 20);
+  if (p.description !== undefined) update.description = changedWord(p.description, m.description, "description").slice(0, 2000);
+  if (p.unit !== undefined) update.unit = changedWord(p.unit, m.unit, "name").slice(0, 20);
   if (p.unitPosition !== undefined) update.unit_position = pick(p.unitPosition, UNIT_POSITIONS, m.unit_position);
   if (p.format !== undefined) update.format = pick(p.format, FORMATS, m.format);
   if (p.decimals !== undefined) update.decimals = Math.min(6, Math.max(0, Math.round(Number(p.decimals) || 0)));

@@ -24,7 +24,17 @@ const OPENED_9 = [
   "theme-actions:addStandardTheme", "theme-actions:deleteTheme", "theme-actions:duplicateTheme", "theme-actions:saveTheme", "theme-actions:setDashboardTheme",
   "version-actions:nameVersion", "version-actions:restoreVersion", "version-actions:saveNamedVersion",
 ];
-const OPENED = [...OPENED_8, ...OPENED_9].sort();
+/** What ticket 11 opened: Metrics, Targets and Projections, Tags, Questions and Tasks, Shares and Groups among the made-up people, the preferred channel. */
+const OPENED_11 = [
+  "access-actions:decideAccess", "access-actions:requestAccess",
+  "actions:createAction", "actions:createDerivedMetric", "actions:createMetric", "actions:replyToAction", "actions:setActionStatus",
+  "canvas-actions:assignInPlace", "canvas-actions:markTaskDone", "canvas-actions:setGroupShare", "canvas-actions:setShare",
+  "connector-actions:setPreference",
+  "series-actions:archiveMetric", "series-actions:removeSeriesRows", "series-actions:restoreMetric", "series-actions:saveSeriesRows", "series-actions:setMetricSources", "series-actions:updateMetricDetails",
+  "tag-actions:addTags", "tag-actions:deleteTag", "tag-actions:mergeTags", "tag-actions:removeTag", "tag-actions:renameTag",
+  "team-actions:createGroup", "team-actions:deleteGroup", "team-actions:renameGroup", "team-actions:setMember",
+];
+const OPENED = [...OPENED_8, ...OPENED_9, ...OPENED_11].sort();
 
 describe("demoAllows", () => {
   it("says no to every operation unless the setting is in effect, whichever operation it is", () => {
@@ -62,7 +72,14 @@ describe("demoAllows", () => {
     expect(demoClassOf("theme-actions:importTheme")).toEqual({ class: "blocked", reason: "reaches-outside" });
     expect(demoClassOf("design-actions:addViewDesign")).toEqual({ class: "blocked", reason: "reaches-outside" });
     expect(demoClassOf("pack-actions:installPack")).toEqual({ class: "blocked", reason: "reaches-outside" });
-    expect(demoClassOf("canvas-actions:setShare")).toEqual({ class: "blocked", reason: "not-yet" });
+    expect(demoClassOf("canvas-actions:setShare")).toEqual({ class: "limited", limit: "shares" });
+    // Ticket 11 keeps these blocked: a person outside the demo, a deletion and a hand-over, Workflows, the Setup Guide's way of being asked.
+    expect(demoClassOf("team-actions:addContact")).toEqual({ class: "blocked", reason: "reaches-outside" });
+    expect(demoClassOf("team-actions:removeContact")).toEqual({ class: "blocked", reason: "reaches-outside" });
+    for (const k of ["series-actions:deleteMetric", "series-actions:handOverMetricTo", "workflow-actions:setMetricWorkflow", "workflow-actions:saveWorkflow"]) expect(demoClassOf(k), k).toEqual({ class: "blocked", reason: "not-yet" });
+    expect(demoClassOf("setup/ways-actions:saveAskMeBy")).toEqual({ class: "blocked", reason: "does-nothing" });
+    // Nothing that sends, keys, feeds, invites or installs is opened by the sharing and Metrics ticket.
+    for (const k of ["feed-actions:createFeed", "key-actions:createKey", "webhook-actions:createWebhook", "team-actions:inviteMember", "pack-actions:installPack"]) expect(demoClassOf(k)?.class, k).toBe("blocked");
     expect(demoClassOf("settings-actions:renameWorkspace")).toEqual({ class: "blocked", reason: "changes-what-everyone-sees" });
     expect(demoClassOf("theme-actions:setDefaultTheme")).toEqual({ class: "blocked", reason: "changes-what-everyone-sees" });
     expect(demoClassOf("pin-actions:pinDashboard")).toEqual({ class: "blocked", reason: "does-nothing" });
@@ -106,7 +123,8 @@ describe("refuseInDemo", () => {
     vi.stubEnv("ZIFFR_DEMO_ONLY", "1");
     vi.stubEnv("ZIFFR_DEMO_CHANGES", "1");
     expect(() => refuseInDemo(demo, "series-actions:recordValue")).not.toThrow();
-    expect(() => refuseInDemo(demo, "canvas-actions:setShare")).toThrow(DemoReadOnly);
+    expect(() => refuseInDemo(demo, "canvas-actions:setShare")).not.toThrow();
+    expect(() => refuseInDemo(demo, "series-actions:deleteMetric")).toThrow(DemoReadOnly);
     expect(() => refuseInDemo(demo, "made-up-actions:doSomething")).toThrow(DemoReadOnly);
     // A place that cannot name its operation always refuses, whatever the list says.
     expect(() => refuseInDemo(demo)).toThrow(DemoReadOnly);

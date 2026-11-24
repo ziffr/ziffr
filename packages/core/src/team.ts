@@ -10,6 +10,8 @@ import { peopleIn } from "./submissions";
 import { assertMembersIn } from "./sharing";
 import { audit } from "./audit-log";
 import { refuseInDemo } from "./demo";
+import { refuseSeededOne } from "./demo-visitor-metrics";
+import { visitorText } from "./demo-visitor-words";
 import { sendingLimit } from "./sending-limit";
 import { sendingLimitDefault } from "./sending-limits";
 
@@ -42,6 +44,8 @@ const nameError = (e: { code?: string; message: string } | null) => {
 /** Creates a Group in the actor's workspace and returns its id. */
 export async function createGroup(actor: Actor, name: string): Promise<number> {
   assertCan(actor, "manage-groups");
+  // A visitor of the demo names a Group in plain words (spec 0051, ticket 11).
+  name = visitorText(actor, String(name ?? ""), "name");
   if (!groupName(name)) throw new Error("Give the group a name.");
   const { data, error } = await db().from("groups").insert({ name: groupName(name), workspace_id: actor.workspaceId }).select("id").single();
   nameError(error);
@@ -53,8 +57,10 @@ export async function createGroup(actor: Actor, name: string): Promise<number> {
 /** Renames a Group. */
 export async function renameGroup(actor: Actor, id: number, name: string) {
   assertCan(actor, "manage-groups");
+  name = visitorText(actor, String(name ?? ""), "name");
   if (!groupName(name)) throw new Error("Give the group a name.");
   const before = await ordinaryGroup(actor, id);
+  await refuseSeededOne(actor, "groups", id);
   const { error } = await db().from("groups").update({ name: groupName(name) }).eq("id", id).eq("workspace_id", actor.workspaceId);
   nameError(error);
   if (before.name !== groupName(name)) await audit(actor, { kind: "group.renamed", object: { type: "group", id, name: groupName(name) }, details: { from: before.name, to: groupName(name) } });
@@ -64,6 +70,7 @@ export async function renameGroup(actor: Actor, id: number, name: string) {
 export async function deleteGroup(actor: Actor, id: number) {
   assertCan(actor, "manage-groups");
   const group = await ordinaryGroup(actor, id);
+  await refuseSeededOne(actor, "groups", id);
   await db().from("groups").delete().eq("id", id).eq("workspace_id", actor.workspaceId);
   await audit(actor, { kind: "group.deleted", object: { type: "group", id, name: group.name } });
 }
@@ -72,6 +79,8 @@ export async function deleteGroup(actor: Actor, id: number) {
 export async function setGroupMember(actor: Actor, groupId: number, personId: string, member: boolean) {
   assertCan(actor, "manage-groups");
   const group = await ordinaryGroup(actor, groupId);
+  // In the demo, who is in a Group changes who sees what: a visitor changes it for their own Groups only, so the seed's shares hold.
+  await refuseSeededOne(actor, "groups", groupId);
   await assertMembersIn(actor, [personId]);
   const { data: was } = await db().from("group_members").select("user_id").eq("group_id", groupId).eq("user_id", personId).eq("workspace_id", actor.workspaceId).maybeSingle();
   if (member) await db().from("group_members").upsert({ group_id: groupId, user_id: personId, workspace_id: actor.workspaceId });

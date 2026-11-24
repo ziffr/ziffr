@@ -5,7 +5,7 @@
 //
 // Ticket 4 made every change `blocked`; each opening ticket of spec 0051 moves its keys from `not-yet` to `OPEN` or
 // `LIMITED` here and nowhere else (ticket 8: the work around a value, recording, approving, locking, the Workflows' run to the
-// Outbox, Stand-ins, Away; ticket 9: dashboards, widgets, the Pool, Themes of a visitor's own, Versions and templates). `demoAllows` says no to everything unless the setting is in effect, so with it off the demo is as read-only as
+// Outbox, Stand-ins, Away; ticket 9: dashboards, widgets, the Pool, Themes of a visitor's own, Versions and templates; ticket 11: Metrics, Targets, Tags, Questions and Tasks, Shares and Groups among the made-up people, the preferred channel). `demoAllows` says no to everything unless the setting is in effect, so with it off the demo is as read-only as
 // before. The database's list still has to hold the tables an action writes, so a forgotten line refuses a visitor and
 // opens nothing. The classification only ever opens what the database would also let through.
 import { demoChangesInEffect } from "./demo-reset-decision";
@@ -140,6 +140,8 @@ const BLOCKED: Record<BlockedReason, readonly string[]> = {
     "pack-setup-actions:setUpPack",
     "setup/actions:setUpFromPackInGuide",
     "share-proposal-actions:confirmProposal",
+    "team-actions:addContact",
+    "team-actions:removeContact",
     "share-proposal-actions:declineProposal",
     "theme-actions:importTheme",
     "view-link-actions:createViewLink",
@@ -235,6 +237,8 @@ const BLOCKED: Record<BlockedReason, readonly string[]> = {
     "snapshot-actions:setAutoSnapshots",
     "tell-actions:setTellStopped",
     "workflow-actions:runTodayNow",
+    // The Setup Guide is for a Workspace of one's own: the demo never shows it, and a person's way of being asked is set on the Delivery settings (`setPreference`).
+    "setup/ways-actions:saveAskMeBy",
     "home-actions:setHome",
     "pin-actions:pinDashboard",
     "pin-actions:reorderPinned",
@@ -244,21 +248,10 @@ const BLOCKED: Record<BlockedReason, readonly string[]> = {
     "canvas-actions:canvasRemove",
     "canvas-actions:canvasSet",
   ],
-  // The everyday work spec 0051's inventory recommends opening; each later ticket (8 to 11) moves its actions to `OPEN` or `LIMITED`.
+  // The everyday work spec 0051's inventory recommends opening; each later ticket (8 to 11) moves its actions to `OPEN` or `LIMITED`. Ticket 11
+  // leaves two of its own here on purpose: deleting a Metric and handing one over (the hand-over rewrites Shares and open Questions of
+  // the seed's people and sends Notices; a deletion removes what dashboards of other visitors may show) wait for a decision of the owner.
   "not-yet": [
-    "access-actions:decideAccess",
-    "access-actions:requestAccess",
-    "actions:createAction",
-    "actions:createDerivedMetric",
-    "actions:createMetric",
-    "actions:replyToAction",
-    "actions:setActionStatus",
-    "canvas-actions:assignInPlace",
-    "canvas-actions:markTaskDone",
-    "canvas-actions:setGroupShare",
-    "canvas-actions:setShare",
-    "connector-actions:setPreference",
-    "setup/ways-actions:saveAskMeBy",
     "convert-actions:addToDeck",
     "convert-actions:makeDeck",
     "convert-actions:makeDeckFromSnapshot",
@@ -271,29 +264,12 @@ const BLOCKED: Record<BlockedReason, readonly string[]> = {
     "deck-workflow-template-actions:createWorkflowFromTemplate",
     "deck-workflow-template-actions:saveAsDeckTemplate",
     "deck-workflow-template-actions:saveAsWorkflowTemplate",
-    "series-actions:archiveMetric",
     "series-actions:deleteMetric",
     "series-actions:handOverMetricTo",
-    "series-actions:removeSeriesRows",
-    "series-actions:restoreMetric",
-    "series-actions:saveSeriesRows",
-    "series-actions:setMetricSources",
-    "series-actions:updateMetricDetails",
     "snapshot-actions:deleteSnapshot",
     "snapshot-actions:editSnapshotWords",
     "snapshot-actions:showSnapshot",
     "snapshot-actions:takeSnapshot",
-    "tag-actions:addTags",
-    "tag-actions:deleteTag",
-    "tag-actions:mergeTags",
-    "tag-actions:removeTag",
-    "tag-actions:renameTag",
-    "team-actions:addContact",
-    "team-actions:createGroup",
-    "team-actions:deleteGroup",
-    "team-actions:removeContact",
-    "team-actions:renameGroup",
-    "team-actions:setMember",
     "template-actions:saveSlideLayout",
     "theme-actions:setDeckTheme",
     "workflow-actions:deleteWorkflow",
@@ -333,6 +309,22 @@ const OPEN: readonly string[] = [
   "theme-actions:saveTheme",
   "theme-actions:setDashboardTheme",
   "version-actions:nameVersion",
+  // Ticket 11: Metrics (archive and restore of a visitor's own, their details and Sources), Targets and Projections removed, Tags,
+  // Groups of a visitor's own, a made-up person's preferred channel, and the Threads' status and access requests decided.
+  "access-actions:decideAccess",
+  "actions:setActionStatus",
+  "connector-actions:setPreference",
+  "series-actions:archiveMetric",
+  "series-actions:removeSeriesRows",
+  "series-actions:restoreMetric",
+  "series-actions:setMetricSources",
+  "series-actions:updateMetricDetails",
+  "tag-actions:deleteTag",
+  "tag-actions:mergeTags",
+  "tag-actions:removeTag",
+  "tag-actions:renameTag",
+  "team-actions:deleteGroup",
+  "team-actions:renameGroup",
 ];
 
 /** Server actions a visitor may use within a limit, by the limit's key (`demo-limits.ts`, the same kinds as `demo_limits`):
@@ -374,6 +366,49 @@ const LIMITED: Readonly<Record<string, readonly string[]>> = {
   ],
   versions: [
     "version-actions:saveNamedVersion",
+  ],
+  // Ticket 11: `access_requests`.
+  access_requests: [
+    "access-actions:requestAccess",
+  ],
+  // Ticket 11: `open_actions`.
+  open_actions: [
+    "actions:createAction",
+    "canvas-actions:assignInPlace",
+  ],
+  // Ticket 11: `metrics`.
+  metrics: [
+    "actions:createMetric",
+  ],
+  // Ticket 11: `derived_metrics`.
+  derived_metrics: [
+    "actions:createDerivedMetric",
+  ],
+  // Ticket 11: `thread_messages`.
+  thread_messages: [
+    "actions:replyToAction",
+    "canvas-actions:markTaskDone",
+  ],
+  // Ticket 11: `shares`.
+  shares: [
+    "canvas-actions:setShare",
+    "canvas-actions:setGroupShare",
+  ],
+  // Ticket 11: `series_rows`.
+  series_rows: [
+    "series-actions:saveSeriesRows",
+  ],
+  // Ticket 11: `tags`.
+  tags: [
+    "tag-actions:addTags",
+  ],
+  // Ticket 11: `groups`.
+  groups: [
+    "team-actions:createGroup",
+  ],
+  // Ticket 11: `group_members`.
+  group_members: [
+    "team-actions:setMember",
   ],
 };
 

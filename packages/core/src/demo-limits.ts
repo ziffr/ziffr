@@ -20,6 +20,13 @@ export const DEMO_ROW_CAPS = {
   // The spec gives no numbers for these two; starting points for the owner (ticket 9).
   themes: 15,
   versions: 150,
+  // Ticket 11 (Metrics, Threads and sharing): the spec gives no numbers for these either; starting points for the owner.
+  derived_metrics: 5,
+  series_rows: 500,
+  thread_messages: 1500,
+  shares: 300,
+  group_members: 200,
+  access_requests: 100,
 } as const;
 
 /** How many changes may be counted, by what is counting them. The visit's id is free to mint, so only the address's,
@@ -69,3 +76,9 @@ export function demoDeckStoreOk(store: string): boolean {
  * days, starting no earlier than today and ending within the days ahead; and "pretend it is another day" no further from today
  * than this many days. */
 export const DEMO_VALUE_LIMITS = { monthsBack: 24, pasteRows: 100, pasteLines: 400, awayMaxDays: 30, awayAheadDays: 90, asOfDays: 90 } as const;
+
+/** What a visitor may make of a Metric, a Target Series, a Question or a Share (spec 0051, ticket 11): a Derived Metric's formula is
+ * code-like and is recomputed on every value change of every input, so it is held to a short one over few inputs (its grammar already
+ * allows no Derived input, so it never nests); a Target Series or Projection call of at most this many rows within this many months of
+ * today; the largest number a visitor types as a target or a value of a series; the furthest a Task's due date may be. */
+export const DEMO_METRIC_LIMITS = { formulaChars: 200, formulaInputs: 5, formulaOperations: 20, seriesRowsPerCall: 60, seriesMonths: 24, numberMax: 1e12, dueDays: 366 } as const;

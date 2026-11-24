@@ -10,6 +10,7 @@ import { getMetrics } from "./workspace-data";
 import type { ShareRole } from "./types";
 import { deliverNotice } from "./deliveries";
 import { audit } from "./audit-log";
+import { refuseSeededOne, visitorMembersOnly } from "./demo-visitor-metrics";
 
 const TYPES: ObjectType[] = ["metric", "dashboard", "deck"];
 const table = (t: ObjectType) => (t === "metric" ? "metrics" : t === "deck" ? "decks" : "dashboards");
@@ -65,6 +66,8 @@ async function ownedForSharing(actor: Actor, type: ObjectType, id: number, role:
   if (role !== null && role !== "viewer" && role !== "editor") throw new Forbidden();
   const obj = await sharedObject(actor.workspaceId, type, id);
   if (!obj || obj.owner_id !== actor.personId) throw new Forbidden();
+  // In the demo a visitor shares only what a visitor made, with the demo's made-up people: the seed's Shares are everyone's (spec 0051, ticket 11).
+  await refuseSeededOne(actor, table(type), id);
   if (type === "deck" && role) await assertSeesMetrics(actor, deckMetricIds(obj.document));
   return obj;
 }
@@ -115,6 +118,8 @@ export async function requestAccess(actor: Actor, type: ObjectType, id: number, 
   const obj = await sharedObject(actor.workspaceId, type, id);
   if (!obj) throw new Forbidden();
   if (await canSee(actor, type, id)) return "You can see it already.";
+  // In the demo the owner must be one of its made-up people: the notice goes to the Outbox, never anywhere else.
+  await visitorMembersOnly(actor, [obj.owner_id]);
   const { data: open } = await db().from("access_requests").select("id").eq("workspace_id", actor.workspaceId).eq("requester_id", actor.personId).eq("object_type", type).eq("object_id", id).eq("status", "open").maybeSingle();
   if (open) return "You asked already; the owner has it.";
   await db().from("access_requests").insert({ requester_id: actor.personId, object_type: type, object_id: id, workspace_id: actor.workspaceId });

@@ -41,6 +41,12 @@ const LIMIT_NOUNS: Record<string, string> = {
   values: "values",
   themes: "Themes",
   versions: "Versions",
+  derived_metrics: "calculated Metrics",
+  series_rows: "targets and projections",
+  thread_messages: "replies",
+  shares: "shares",
+  group_members: "Group members",
+  access_requests: "requests for access",
 };
 
 /** The sentence for a row cap that was reached; an unknown kind gets the general one. */
@@ -72,6 +78,18 @@ export const DEMO_VALUE_WORDS = {
   away: "In the demo, Away starts today or later, lasts at most 30 days and ends within 90 days.",
   asOf: "In the demo, pick a day within 90 days of today.",
   run: "Another visitor just ran the Workflows. Try again in a minute.",
+} as const;
+
+/** What a refused Metric, formula, target, Question or Share says in the demo (spec 0051, ticket 11): plain words, never a column or a number of the database. */
+export const DEMO_METRIC_WORDS = {
+  formula: "In the demo a formula has at most 200 characters, 5 Metrics and 20 operations.",
+  rows: "In the demo, save at most 60 targets at a time, for the last two years and the next two.",
+  number: "That number is too large for the demo.",
+  due: "In the demo, a Task is due within a year.",
+  people: "In the demo, only its made-up people can be asked, or take part.",
+  workflow: "In the demo a Metric is not added to a Workflow.",
+  team: "In the demo, only a Group made by a visitor changes who is in it.",
+  everyone: "In the demo, one person sets only their own way of being asked.",
 } as const;
 
 /** The sentence for a digest, or null for any other error. */
