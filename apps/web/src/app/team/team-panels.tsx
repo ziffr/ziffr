@@ -54,7 +54,6 @@ export function PersonPanel({ id }: { id: string }) {
       <div>
         <p className="text-base font-medium">{person.name}</p>
         {person.role && <p className="text-muted-foreground">{person.role}</p>}
-        {canEdit && person.email && <p className="text-muted-foreground">{person.email}</p>}
         {fn && <p className="text-muted-foreground">Works in {BUSINESS_FUNCTION_LABELS[fn.function]}</p>}
       </div>
       <section aria-labelledby="person-role" className="space-y-2">

@@ -69,8 +69,8 @@ function People({ data }: { data: TeamData }) {
     if (group && !data.groups.find((g) => String(g.id) === group)?.members.includes(p.id)) return false;
     return true;
   }), [data.people, data.groups, q, role, group]);
-  const invitations = data.invitations.filter((i) => !q || (i.email ?? "").toLowerCase().includes(q) || (i.name ?? "").toLowerCase().includes(q));
-  const requests = data.joinRequests.filter((r) => !q || r.person.name.toLowerCase().includes(q) || (r.person.email ?? "").toLowerCase().includes(q));
+  const invitations = (data.canEdit ? data.invitations : []).filter((i) => !q || (i.email ?? "").toLowerCase().includes(q) || (i.name ?? "").toLowerCase().includes(q));
+  const requests = (data.canEdit ? data.joinRequests : []).filter((r) => !q || r.person.name.toLowerCase().includes(q) || (r.person.email ?? "").toLowerCase().includes(q));
   const held = data.invitations.filter((i) => i.held_at);
   return (
     <section aria-label="People" className="space-y-3">
