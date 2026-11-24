@@ -205,33 +205,35 @@ describe("Shares, access requests and Groups among the made-up people", () => {
     const { getMetrics } = await import("./workspace-data");
     const all = await getMetrics(DEMO_WORKSPACE_ID);
     const sees = await visibleMetricIds(DEMO_WORKSPACE_ID, guest, all);
-    const hidden = all.find((m) => !sees.has(m.id) && m.owner_id === "sara" && !m.formula && m.aggregation !== "none" && !m.archived_at)!;
+    const hidden = all.find((m) => !sees.has(m.id) && !m.formula && m.aggregation !== "none" && !m.archived_at)!;
+    expect(hidden, "the seed has a Metric the Guest does not see and a formula may read").toBeDefined();
+    const me = owner(hidden.owner_id);
     await asVisit(async () => {
-      const dash = await (await import("./dashboards")).createDashboard(sara, "Shows a hidden Metric");
-      await (await import("./dashboards")).placeWidget(sara, dash, { type: "metric", id: hidden.id });
-      await expect(share(sara, "dashboard", dash, guest, "viewer")).rejects.toThrow(DEMO_METRIC_WORDS.hidden);
+      const dash = await (await import("./dashboards")).createDashboard(me, "Shows a hidden Metric");
+      await (await import("./dashboards")).placeWidget(me, dash, { type: "metric", id: hidden.id });
+      await expect(share(me, "dashboard", dash, guest, "viewer")).rejects.toThrow(DEMO_METRIC_WORDS.hidden);
       // A calculated Metric over the hidden input shows the input's values.
-      const calc = await createDerivedMetric(sara, { name: "Hidden times one", formula: `{${hidden.slug}} * 1` });
-      await expect(share(sara, "metric", calc.id, guest, "viewer")).rejects.toThrow(DEMO_METRIC_WORDS.hidden);
+      const calc = await createDerivedMetric(me, { name: "Hidden times one", formula: `{${hidden.slug}} * 1` });
+      await expect(share(me, "metric", calc.id, guest, "viewer")).rejects.toThrow(DEMO_METRIC_WORDS.hidden);
       // A Group shared with, then a Guest added later.
-      const group = await createGroup(sara, "Later group");
-      await setGroupMember(sara, group, "ben", true);
-      await expect(shareWithGroup(sara, "dashboard", dash, group, "viewer")).rejects.toThrow(DEMO_METRIC_WORDS.hidden);
+      const group = await createGroup(me, "Later group");
+      await setGroupMember(me, group, "ben", true);
+      await expect(shareWithGroup(me, "dashboard", dash, group, "viewer")).rejects.toThrow(DEMO_METRIC_WORDS.hidden);
       // A dashboard of Metrics Ben sees already is shared with the Group; the hidden one is added after, and the Guest may not join.
       const dashboards = await import("./dashboards");
-      const plain = await dashboards.createDashboard(sara, "Only seen Metrics");
-      await shareWithGroup(sara, "dashboard", plain, group, "viewer");
-      await expect(setGroupMember(sara, group, guest, true)).resolves.toBeUndefined();
-      await setGroupMember(sara, group, guest, false);
-      await dashboards.placeWidget(sara, plain, { type: "metric", id: hidden.id });
-      await expect(setGroupMember(sara, group, guest, true)).rejects.toThrow(DEMO_METRIC_WORDS.hidden);
+      const plain = await dashboards.createDashboard(me, "Only seen Metrics");
+      await shareWithGroup(me, "dashboard", plain, group, "viewer");
+      await expect(setGroupMember(me, group, guest, true)).resolves.toBeUndefined();
+      await setGroupMember(me, group, guest, false);
+      await dashboards.placeWidget(me, plain, { type: "metric", id: hidden.id });
+      await expect(setGroupMember(me, group, guest, true)).rejects.toThrow(DEMO_METRIC_WORDS.hidden);
       expect(await count("shares", { object_id: dash })).toBe(0);
     });
     // A refusal at a cap changes nothing: a changed role keeps the Share (checked in place, not deleted first).
     await asVisit(async () => {
-      const { id } = await createMetric(sara, { ...base, name: "Role change" });
-      await share(sara, "metric", id, "ben", "viewer");
-      await share(sara, "metric", id, "ben", "editor");
+      const { id } = await createMetric(me, { ...base, name: "Role change" });
+      await share(me, "metric", id, "ben", "viewer");
+      await share(me, "metric", id, "ben", "editor");
       expect((await db().from("shares").select("role").eq("object_id", id).eq("user_id", "ben")).data).toEqual([{ role: "editor" }]);
     });
   });
@@ -242,47 +244,51 @@ describe("Shares, access requests and Groups among the made-up people", () => {
     const { getMetrics } = await import("./workspace-data");
     const all = await getMetrics(DEMO_WORKSPACE_ID);
     const sees = await visibleMetricIds(DEMO_WORKSPACE_ID, guest, all);
-    const hidden = all.find((m) => !sees.has(m.id) && m.owner_id === "sara" && !m.formula && m.aggregation !== "none" && !m.archived_at)!;
-    const seen = all.find((m) => sees.has(m.id) && m.owner_id === "sara" && !m.formula && m.aggregation !== "none" && !m.archived_at && m.period === hidden.period)!;
+    const hidden = all.find((m) => !sees.has(m.id) && !m.formula && m.aggregation !== "none" && !m.archived_at)!;
+    expect(hidden, "the seed has a Metric the Guest does not see and a formula may read").toBeDefined();
+    const me = owner(hidden.owner_id);
     const dashboards = await import("./dashboards");
     const { saveNamedVersion, restoreVersion } = await import("./version-history");
     const { setMetricFormula } = await import("./derived-metrics");
     await asVisit(async () => {
-      const dash = await dashboards.createDashboard(sara, "Shared with the Guest");
-      const widget = await dashboards.placeWidget(sara, dash, { type: "metric", id: seen.id });
-      await saveNamedVersion(sara, "dashboard", dash, "Before");
+      // A Metric of the visitor's own that the Guest may see: made here, with the hidden one's period, and shared with the Guest.
+      const seen = await createMetric(me, { ...base, period: hidden.period, aggregation: "sum", name: "Seen by the Guest" });
+      await share(me, "metric", seen.id, guest, "viewer");
+      const dash = await dashboards.createDashboard(me, "Shared with the Guest");
+      const widget = await dashboards.placeWidget(me, dash, { type: "metric", id: seen.id });
+      await saveNamedVersion(me, "dashboard", dash, "Before");
       const before = (await db().from("versions").select("id").eq("object_type", "dashboard").eq("object_id", dash).eq("name", "Before").single()).data!.id as number;
-      await share(sara, "dashboard", dash, guest, "viewer");
-      await expect(dashboards.placeWidget(sara, dash, { type: "metric", id: hidden.id })).rejects.toThrow(DEMO_METRIC_WORDS.hidden);
-      await expect(dashboards.updateWidget(sara, widget, { metricIds: [hidden.id] })).rejects.toThrow(DEMO_METRIC_WORDS.hidden);
+      await share(me, "dashboard", dash, guest, "viewer");
+      await expect(dashboards.placeWidget(me, dash, { type: "metric", id: hidden.id })).rejects.toThrow(DEMO_METRIC_WORDS.hidden);
+      await expect(dashboards.updateWidget(me, widget, { metricIds: [hidden.id] })).rejects.toThrow(DEMO_METRIC_WORDS.hidden);
       expect(before).toBeGreaterThan(0);
       // A Version that held a hidden Metric does not come back onto a dashboard that is shared since: made while it was not.
-      const other = await dashboards.createDashboard(sara, "Shared later");
-      const hiddenWidget = await dashboards.placeWidget(sara, other, { type: "metric", id: hidden.id });
-      await saveNamedVersion(sara, "dashboard", other, "With hidden");
-      await dashboards.removeWidget(sara, hiddenWidget);
-      await share(sara, "dashboard", other, guest, "viewer");
+      const other = await dashboards.createDashboard(me, "Shared later");
+      const hiddenWidget = await dashboards.placeWidget(me, other, { type: "metric", id: hidden.id });
+      await saveNamedVersion(me, "dashboard", other, "With hidden");
+      await dashboards.removeWidget(me, hiddenWidget);
+      await share(me, "dashboard", other, guest, "viewer");
       const withHidden = (await db().from("versions").select("id").eq("object_type", "dashboard").eq("object_id", other).eq("name", "With hidden").single()).data!.id as number;
-      await expect(restoreVersion(sara, withHidden)).rejects.toThrow(DEMO_METRIC_WORDS.hidden);
+      await expect(restoreVersion(me, withHidden)).rejects.toThrow(DEMO_METRIC_WORDS.hidden);
       // A calculated Metric shared with the Guest keeps to inputs the Guest sees.
-      const calc = await createDerivedMetric(sara, { name: "Seen times one", formula: `{${seen.slug}} * 1` });
-      await share(sara, "metric", calc.id, guest, "viewer");
+      const calc = await createDerivedMetric(me, { name: "Seen times one", formula: `{${seen.slug}} * 1` });
+      await share(me, "metric", calc.id, guest, "viewer");
       // A shared calculated Metric is used, so its formula does not change at all; an unused one does.
-      await expect(setMetricFormula(sara, calc.id, `{${hidden.slug}} * 1`)).rejects.toThrow(DEMO_METRIC_WORDS.used);
-      const loose = await createDerivedMetric(sara, { name: "Unused calc", formula: `{${seen.slug}} * 2` });
-      await setMetricFormula(sara, loose.id, `{${seen.slug}} * 3`);
+      await expect(setMetricFormula(me, calc.id, `{${hidden.slug}} * 1`)).rejects.toThrow(DEMO_METRIC_WORDS.used);
+      const loose = await createDerivedMetric(me, { name: "Unused calc", formula: `{${seen.slug}} * 2` });
+      await setMetricFormula(me, loose.id, `{${seen.slug}} * 3`);
       // Shown on a dashboard, or read by another calculated Metric: used.
-      const shownOn = await dashboards.createDashboard(sara, "Shows loose");
-      await dashboards.placeWidget(sara, shownOn, { type: "metric", id: loose.id });
-      await expect(setMetricFormula(sara, loose.id, `{${seen.slug}} * 4`)).rejects.toThrow(DEMO_METRIC_WORDS.used);
-      const base2 = await createDerivedMetric(sara, { name: "Base calc", formula: `{${seen.slug}} * 5` });
-      await createDerivedMetric(sara, { name: "Reads base", formula: `{${base2.slug}} * 1` }).catch(() => undefined);
+      const shownOn = await dashboards.createDashboard(me, "Shows loose");
+      await dashboards.placeWidget(me, shownOn, { type: "metric", id: loose.id });
+      await expect(setMetricFormula(me, loose.id, `{${seen.slug}} * 4`)).rejects.toThrow(DEMO_METRIC_WORDS.used);
+      const base2 = await createDerivedMetric(me, { name: "Base calc", formula: `{${seen.slug}} * 5` });
+      await createDerivedMetric(me, { name: "Reads base", formula: `{${base2.slug}} * 1` }).catch(() => undefined);
       // A calculated Metric over a calculated Metric over a hidden one, placed on a dashboard shared with the Guest: refused, through both.
-      const hiddenCalc = await createDerivedMetric(sara, { name: "Hidden calc", formula: `{${hidden.slug}} * 1` });
-      const outer = await createDerivedMetric(sara, { name: "Outer calc", formula: `{${hiddenCalc.slug}} * 1` }).catch(() => null);
-      const sharedDash = await dashboards.createDashboard(sara, "Shared deep");
-      await share(sara, "dashboard", sharedDash, guest, "viewer");
-      await expect(dashboards.placeWidget(sara, sharedDash, { type: "metric", id: (outer ?? hiddenCalc).id })).rejects.toThrow(DEMO_METRIC_WORDS.hidden);
+      const hiddenCalc = await createDerivedMetric(me, { name: "Hidden calc", formula: `{${hidden.slug}} * 1` });
+      const outer = await createDerivedMetric(me, { name: "Outer calc", formula: `{${hiddenCalc.slug}} * 1` }).catch(() => null);
+      const sharedDash = await dashboards.createDashboard(me, "Shared deep");
+      await share(me, "dashboard", sharedDash, guest, "viewer");
+      await expect(dashboards.placeWidget(me, sharedDash, { type: "metric", id: (outer ?? hiddenCalc).id })).rejects.toThrow(DEMO_METRIC_WORDS.hidden);
     });
   });
 
