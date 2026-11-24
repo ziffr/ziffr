@@ -102,7 +102,7 @@ A new Workspace opens on the Setup Guide, because there is nothing else to look 
 
 While you have steps left, a thin line above every page says how far you are: "Setup: 2 of 5 done. Next: Ways in and out." **Continue** opens the steps beside the page, each with its tick (a step you skipped counts as done), the next one marked and **Skip** next to those still open; choose a step's name to do it on the full page. **Hide** puts the line away for you, in this Workspace only: nobody else's line changes, and nothing brings it back on its own. The line goes by itself once every step is done or skipped. A Guest sees no line, and the demo has none: it keeps its own guided steps.
 
-To bring the guide back, choose **Setup Guide** in **Help** (the list of chapters) or in your own menu at the bottom of the sidebar (in **More** on a phone). **Workspace → General** shows "Setup: 4 of 5 steps done" with **Open the Setup Guide**, for Owners and Admins. In a trial, the Trial Guide still opens first, and the line sits under the trial bar.
+To bring the guide back, choose **Setup Guide** in **Help** (the list of chapters) or in your own menu at the bottom of the sidebar (in **More** on a phone). **Workspace → General** shows "Setup: 4 of 5 steps done" with **Open the Setup Guide**, for Owners and Admins. A trial has no guide of its own: its Owner lands in the same Setup Guide when the trial starts, the trial bar's **Setup Guide** link opens it, and the line sits under the trial bar. In the demo there is none of it: no line, no Setup Guide, and its address goes back to the dashboard.
 
 ## 2. Describe your first Metric
 

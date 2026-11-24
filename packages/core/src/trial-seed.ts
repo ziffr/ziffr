@@ -1,5 +1,5 @@
 // What a new Trial Workspace starts with (spec 0021, ticket 263; GLOSSARY: Trial Workspace, Test Metric): the Test
-// Metric the Trial Guide asks for, a Workflow that asks its Owner for it each day, and a small dashboard showing it.
+// Metric the Setup Guide asks for, a Workflow that asks its Owner for it each day, and a small dashboard showing it.
 // Nothing made up: the first value the trial holds is the Owner's own. Made with the core's own operations, so a
 // trial is no different from a workspace someone filled by hand.
 import { db } from "./db";
@@ -9,18 +9,18 @@ import { createMetric, type MetricEffects } from "./metrics";
 import { recordVersion } from "./versions";
 import { saveWorkflow } from "./workflows";
 import { setPreference } from "./questions";
-import { chooseExploreOnMyOwn } from "./setup-guide";
+import { chooseExploreOnMyOwn, setSetupFirstMetric } from "./setup-guide";
 import type { PreferenceKind } from "./connectors/types";
 import type { WidgetSettings } from "./types";
 
-/** The Test Metric (GLOSSARY: Test Metric): asked daily of the Owner, without history, answered by hand. The Trial
+/** The Test Metric (GLOSSARY: Test Metric): asked daily of the Owner, without history, answered by hand. The Setup
  * Guide asks for it, so the first value a new trial records is the Owner's own. */
 export const TEST_METRIC = {
   name: "Cups of coffee", description: "Cups of coffee you had today. Ziffr asks for it so you can see how asking works.",
   unit: "cups", format: "number", decimals: 0, period: "day", submissionRule: "overwrite", polarity: "higher", aggregation: "sum",
 } as const;
 
-// Making the Metric sends no first Prompt: the Owner asks for one with the guide's Ask me now, and the Workflow asks
+// Making the Metric sends no first Prompt: the Owner asks for one with the Setup Guide's Ask me now, and the Workflow asks
 // them from the next day on.
 const quiet: MetricEffects = {
   recordCreated: async (metricId, by, message) => { await recordVersion("metric", metricId, by, { message }); },
@@ -43,7 +43,7 @@ export async function seedTrialWorkspace(actor: Actor): Promise<{ metricId: numb
     ...TEST_METRIC, targetMin: null, targetMax: null,
     sources: ["web_form", "mail", "slack", "telegram"], submitters: [actor.personId], workflowId,
   }, quiet);
-  await db().from("workspaces").update({ trial_test_metric_id: metricId, trial_guide_step: "welcome" }).eq("id", actor.workspaceId);
+  await db().from("workspaces").update({ trial_test_metric_id: metricId }).eq("id", actor.workspaceId);
 
   const dashboardId = await createDashboard(actor, "Your coffee");
   const widgets: { template: "bars" | "number"; settings?: WidgetSettings; title: string }[] = [
@@ -54,7 +54,9 @@ export async function seedTrialWorkspace(actor: Actor): Promise<{ metricId: numb
   for (const w of widgets) {
     await placeWidget(actor, dashboardId, { type: "spec", template: w.template, metricIds: [metricId], settings: w.settings, title: w.title });
   }
-  // A trial starts from its Test Metric, which is the Setup Guide's starting point (spec 0052): it ticks the step by itself.
+  // A trial starts from its Test Metric, which is the Setup Guide's starting point and its First Metric (spec 0052): the
+  // Starting point ticks by itself and the First Metric step opens on the Test Metric.
   await chooseExploreOnMyOwn(actor);
+  await setSetupFirstMetric(actor, metricId);
   return { metricId, workflowId, dashboardId };
 }

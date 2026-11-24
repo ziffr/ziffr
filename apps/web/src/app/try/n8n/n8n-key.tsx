@@ -1,14 +1,12 @@
 "use client";
-// Other ways to send numbers, at the end of the Trial Guide (ticket 193; GLOSSARY: Trial Guide, MCP Server, Feed,
-// Feed Key, Test Metric): the ways in that need no asking. An AI assistant connects through the MCP Server at this
-// Ziffr's /mcp; a program such as n8n sends values with a Feed Key the guide makes through the core. The secret is
-// held only in this component's state, shown once, and never stored by the page.
+// The trial's Feed Key for n8n (spec 0052, ticket 12; GLOSSARY: Feed, Feed Key, Test Metric): a program sends the Test
+// Metric's values with a Feed Key made through the core. The secret is held only in this component's state, shown once,
+// and never stored by the page.
 import { useState, useTransition } from "react";
-import Link from "next/link";
 import { toast } from "sonner";
 import { Copy, Download, KeyRound } from "lucide-react";
 import { N8N_WORKFLOW_FILE, n8nFeedWorkflow } from "@ziffr/core/n8n-workflow";
-import type { GuideFeedKey, GuideFeedKeyResult } from "@ziffr/core/trial-guide";
+import type { GuideFeedKey, GuideFeedKeyResult } from "@ziffr/core/trial-feed-key";
 import { Button } from "@/components/ui/button";
 import { makeN8nKey } from "./actions";
 
@@ -48,15 +46,8 @@ function N8nWorkflow({ siteUrl, metricSlug, feedKey }: { siteUrl: string; metric
   );
 }
 
-/** The two cards: an AI assistant (only where this Ziffr serves /mcp) and a program with a Feed Key. */
-export function OtherWays({ siteUrl, mcpUrl, metric, feedKey, webhooks }: {
-  siteUrl: string;
-  mcpUrl: string | null;
-  metric: { name: string; slug: string };
-  feedKey: GuideFeedKey | null;
-  /** How many Webhooks this trial may add, or null where Webhooks are switched off for trials. */
-  webhooks: number | null;
-}) {
+/** The card: a program such as n8n with a Feed Key. */
+export function N8nKey({ siteUrl, metric, feedKey }: { siteUrl: string; metric: { name: string; slug: string }; feedKey: GuideFeedKey | null }) {
   const [key, setKey] = useState<GuideFeedKey | null>(feedKey);
   const [secret, setSecret] = useState<string | null>(null);
   const [pending, start] = useTransition();
@@ -74,28 +65,12 @@ export function OtherWays({ siteUrl, mcpUrl, metric, feedKey, webhooks }: {
   // The key comes from a variable, so it stays out of the shell's history and the process list.
   const exportKey = `export ZIFFR_KEY='${shown}'`;
   const curl = `curl -X POST ${endpoint} -H "Authorization: Bearer $ZIFFR_KEY" -H "Content-Type: application/json" -d '${body}'`;
-  const question = `How many ${metric.name.toLowerCase()} did I record this week?`;
 
   return (
-    <section aria-labelledby="other-ways-h" className="mt-8">
-      <h2 id="other-ways-h" className="text-[length:var(--text-lg)]">Other ways to send numbers</h2>
-      <p className="mt-1 text-sm text-muted-foreground">These need no asking: an assistant or a program sends the values itself.</p>
-      <ul className="mt-4 space-y-3">
-        {mcpUrl && (
-          <li className="stock rounded-[var(--radius-card)] p-4 text-sm">
-            <h3 className="font-semibold">Claude or another AI assistant</h3>
-            <p className="mt-1 text-muted-foreground">Connect it to Ziffr with this address:</p>
-            <CopyLine text={mcpUrl} label="Address" />
-            <ol className="mt-3 list-decimal space-y-1 pl-5">
-              <li>In Claude.ai, open Settings, then Connectors, then Add custom connector, and paste the address.</li>
-              <li>Press Connect. On Ziffr&apos;s page pick this workspace (tick Submit values if Claude should record numbers too), then press Connect.</li>
-              <li>Ask Claude: &ldquo;{question}&rdquo;</li>
-            </ol>
-            <p className="mt-2 text-xs text-muted-foreground">A trial can have one connected assistant at a time. <Link href="/settings/assistants" className="underline">Connected assistants</Link></p>
-          </li>
-        )}
+    <section aria-labelledby="n8n-h" className="max-w-prose">
+      <ul className="space-y-3">
         <li className="stock rounded-[var(--radius-card)] p-4 text-sm">
-          <h3 className="font-semibold">A program such as n8n</h3>
+          <h2 id="n8n-h" className="font-semibold">A program such as n8n</h2>
           <p className="mt-1 text-muted-foreground">
             A Feed sends values for {metric.name} with a Feed Key. The key works until your trial ends.
           </p>
@@ -128,15 +103,6 @@ export function OtherWays({ siteUrl, mcpUrl, metric, feedKey, webhooks }: {
             </>
           )}
         </li>
-        {webhooks !== null && (
-          <li className="stock rounded-[var(--radius-card)] p-4 text-sm">
-            <h3 className="font-semibold">A Webhook</h3>
-            <p className="mt-1 text-muted-foreground">
-              Ziffr tells your own tool when something happens, such as a new Question or a Task for you. A trial can add {webhooks} Webhooks, to public https addresses only.
-            </p>
-            <p className="mt-2"><Link href="/settings/webhooks" className="underline">Add a Webhook</Link></p>
-          </li>
-        )}
       </ul>
     </section>
   );

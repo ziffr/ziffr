@@ -35,7 +35,10 @@ describe("a new Trial Workspace", () => {
     expect(metrics).toHaveLength(1);
     const read = await opened("metrics", t.id, metrics);
     const { data: ws } = await db().from("workspaces").select("trial_test_metric_id, trial_guide_step").eq("id", t.id).single();
-    expect(ws!.trial_guide_step).toBe("welcome");
+    // The Setup Guide (spec 0052) is the only guide: the Trial Guide's old column is no longer written.
+    expect(ws!.trial_guide_step).toBeNull();
+    const { data: guide } = await db().from("setup_guides").select("starting_point, first_metric_id").eq("workspace_id", t.id).single();
+    expect(guide).toEqual({ starting_point: "scratch", first_metric_id: ws!.trial_test_metric_id });
     const m = read[0];
     expect(m.id).toBe(ws!.trial_test_metric_id);
     expect(m).toMatchObject({ name: "Cups of coffee", unit: "cups", period: "day", owner_id: t.owner });
