@@ -19,7 +19,7 @@ export function EffectsView({ chart: c, style }: { chart: EffectsChart; style: N
         return (
           <li key={i} className="grid grid-cols-[minmax(0,6rem)_minmax(0,1fr)] items-center gap-2 sm:grid-cols-[minmax(0,8rem)_minmax(0,1fr)_minmax(0,11rem)]" data-label={r.label} data-value={r.effect ?? ""}>
             <span dir="auto" className="break-words text-xs">{i === 0 ? `${r.label} (the change asked for)` : r.label}{r.note && <span className="block text-muted-foreground">{r.note}</span>}</span>
-            <span className="relative block h-4" aria-hidden>
+            <span className="relative mx-2 block h-4" aria-hidden>
               {r.effect !== null && (
                 <>
                   <span className="absolute inset-x-0 top-1/2 h-px bg-[var(--color-rule-2)]" />
