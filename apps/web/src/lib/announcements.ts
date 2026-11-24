@@ -8,6 +8,7 @@ import { DEMO_RESET_MINUTES } from "@ziffr/core/demo-reset-line";
 import { sessionStartedAt } from "@/lib/session-start";
 import { DEMO_VISIT_COOKIE } from "@/lib/demo-visit-cookie";
 import type { ActiveAnnouncement, PublicAnnouncement } from "@ziffr/core/installation-announcements";
+import type { ActiveWorkspaceAnnouncement } from "@ziffr/core/workspace-announcements";
 import type { Announcement } from "@/lib/announcement-state";
 
 /** The id of the demo's reset notice. */
@@ -22,8 +23,8 @@ export function announcementsFor(input: { demo: boolean; changes: boolean; offer
   return [{ id: DEMO_RESET_ANNOUNCEMENT, text, ...(input.offersTrials ? { link: { href: "/demo/leave", label: "Try it for real with a trial of your own" } } : {}) }];
 }
 
-/** An Installation Announcement as the line takes it. Its key holds the time of its last change, so an edited one comes back after a dismissal. */
-export function fromInstallation(rows: ActiveAnnouncement[]): Announcement[] {
+/** An Installation or Workspace Announcement as the line takes it (they have the same shape; their ids never meet). Its key holds the time of its last change, so an edited one comes back after a dismissal. */
+export function fromInstallation(rows: ActiveAnnouncement[] | ActiveWorkspaceAnnouncement[]): Announcement[] {
   return rows.map((r) => ({ id: `${r.id}:${r.updatedAt}`, text: r.text, level: r.level, dismissible: r.dismissible, ...(r.link ? { link: r.link } : {}) }));
 }
 

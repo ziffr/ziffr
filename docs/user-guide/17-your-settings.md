@@ -35,6 +35,8 @@ After signing in for the first time, you start a Workspace or join one; see [Wor
 
 Whoever runs your Ziffr can put a short line of plain words above every page, for example that Ziffr will be down tomorrow evening for maintenance. It has a small icon, and a warning begins with the word "Warning:". It may end with a link, which opens in a new tab. Choose the cross at its end to dismiss it for this visit; it comes back the next time you sign in, or when its words are changed. A line that is for a running maintenance has no cross: it stays until it is over. If there are more than three, the first three show and **+2 more announcements** (for two more) shows the rest. In the demo, its own notice (see [The demo](#the-demo)) comes first where visitors may change the demo.
 
+An Owner or Admin of your Workspace can also put a line above every page for the people of the Workspace (see [Announcements](16-workspace-settings.md#announcements)). It looks and is dismissed the same way. The lines of whoever runs your Ziffr always come first, and within each group a warning comes before an info. Guests do not see a Workspace's lines.
+
 A line the operator marked as public is also on the sign-in page, above the form, so that you can read it before you are signed in. There it shows only the words, the link and the level, and has no cross.
 
 ## Imprint, Privacy notice and Terms

@@ -219,7 +219,7 @@ An **Announcement** is one plain line above every screen of the app, for a maint
 - **Cannot be dismissed**: for a maintenance window that is running; people see no Dismiss button.
 - **Switched on**.
 
-Under the fields, a **Preview** shows the line as people will see it, with its icon and, for a warning, the word "Warning:" in front, and says beside it whether people can dismiss it or it stays (then it has no cross). **Change** on a row opens the same panel. **Switch off** keeps an Announcement for later and **Switch on** brings it back; **Delete** asks first and removes it for good. At most 20 Announcements can be on at once; a refusal says so in the panel. Each change is listed under **Changes**, with the words as they were.
+Under the fields, a **Preview** shows the line as people will see it, with its icon and, for a warning, the word "Warning:" in front, and says beside it whether people can dismiss it or it stays (then it has no cross). **Change** on a row opens the same panel. **Switch off** keeps an Announcement for later and **Switch on** brings it back; **Delete** asks first and removes it for good. At most 20 Announcements can be on at once; a refusal says so in the panel. Each change is listed under **Changes**, with the words as they were. A Workspace's Owners and Admins can write lines of their own for their Workspace; yours always show above them (see [Announcements](16-workspace-settings.md#announcements)).
 
 ## Encryption
 

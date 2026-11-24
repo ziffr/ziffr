@@ -1,8 +1,9 @@
 "use client";
-// GLOSSARY: Announcement, Installation Admin. The Announcements section of the Installation settings page (spec 0054):
-// the list, and a side panel (docs/guides/side-panel.md) to add or change one, with a preview of the line as the shell
-// shows it. Deleting asks first, in a small confirmation. The server checks the Installation Admin and every field
-// again; this only shows what the core's refusals say. Times are typed and shown in the browser's time zone.
+// GLOSSARY: Announcement, Installation Admin, Workspace Role. The Announcements section of the Installation settings page
+// and of the Workspace settings page (spec 0054): the list, and a side panel (docs/guides/side-panel.md) to add or change
+// one, with a preview of the line as the shell shows it. The Installation's has two more fields (who it is shown to, and
+// the sign-in page); the Workspace's has none. Deleting asks first, in a small confirmation. The server checks who may
+// and every field again; this only shows what the core's refusals say. Times are typed and shown in the browser's time zone.
 import { useEffect, useId, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
@@ -12,13 +13,30 @@ import { Textarea } from "@/components/ui/textarea";
 import { AnnouncementWords } from "@/components/announcement-line";
 import { useConfirm } from "@/components/confirm-dialog";
 import { useSlideOver } from "@/components/slide-over-host";
-import { createInstallationAnnouncement, deleteInstallationAnnouncement, setInstallationAnnouncementActive, updateInstallationAnnouncement } from "@/app/installation-actions";
-import { ANNOUNCEMENT_LABEL_MAX, ANNOUNCEMENT_TEXT_MAX, ANNOUNCEMENT_URL_MAX, INSTALLATION_ANNOUNCEMENTS_ACTIVE_MAX, type AnnouncementAudience, type AnnouncementLevel } from "@ziffr/core/announcement-rules";
-import type { InstallationAnnouncementRow } from "@ziffr/core/installation-announcements";
+import { ANNOUNCEMENT_LABEL_MAX, ANNOUNCEMENT_TEXT_MAX, ANNOUNCEMENT_URL_MAX, type AnnouncementAudience, type AnnouncementLevel, type WorkspaceAnnouncementFields } from "@ziffr/core/announcement-rules";
 import { RelativeTime } from "@/components/relative-time";
 import { fromLocalInput, STATE_WORDS, toLocalInput, windowWords } from "./announcement-form";
 
 type Result = { error: string } | { ok: true; message?: string };
+
+/** One row of the list: the fields every Announcement has, and for an Installation's also who it is shown to and whether
+ * the sign-in page shows it. */
+export type AnnouncementRow = WorkspaceAnnouncementFields & {
+  id: string; state: "off" | "scheduled" | "running" | "ended"; updatedAt: string; updatedByName: string | null;
+  audience?: AnnouncementAudience; public?: boolean;
+};
+
+/** What the section needs to know of where it is: how many can be on, whether it is the Installation's, the words that
+ * say what it is for, and the server actions to call. */
+export type AnnouncementsKind = {
+  activeMax: number;
+  installation: boolean;
+  intro: string;
+  create: (input: unknown) => Promise<Result>;
+  update: (id: string, input: unknown) => Promise<Result>;
+  setActive: (id: string, active: boolean) => Promise<Result>;
+  remove: (id: string) => Promise<Result>;
+};
 
 /** The browser's time zone, known only after the first draw (the server draws in UTC), so page and server agree. */
 function useZone(): string {
@@ -30,7 +48,7 @@ function useZone(): string {
 const short = (text: string) => ([...text].length > 40 ? `${[...text].slice(0, 40).join("")}…` : text);
 
 /** The section: what an Announcement is, the list with its actions, and the Add button. */
-export function AnnouncementsSection({ rows }: { rows: InstallationAnnouncementRow[] }) {
+export function AnnouncementsSection({ rows, kind }: { rows: AnnouncementRow[]; kind: AnnouncementsKind }) {
   const panel = useSlideOver();
   const router = useRouter();
   const zone = useZone();
@@ -43,27 +61,27 @@ export function AnnouncementsSection({ rows }: { rows: InstallationAnnouncementR
     if ("error" in r) toast.error("Not done", { description: r.error });
     else { toast.success(r.message ?? "Done."); router.refresh(); }
   });
-  const openForm = (row?: InstallationAnnouncementRow) => panel.open({
+  const openForm = (row?: AnnouncementRow) => panel.open({
     title: row ? "Change the Announcement" : "Add an Announcement",
     description: "One plain line, shown above every screen.",
-    content: <AnnouncementForm row={row} />,
+    content: <AnnouncementForm row={row} kind={kind} />,
   });
 
   return (
     <section id="announcements" aria-labelledby="announcements-heading" className="scroll-mt-20 space-y-3">
       <h2 id="announcements-heading" className="text-lg font-medium">Announcements</h2>
-      <p className="max-w-[62ch] text-sm text-muted-foreground">One plain line above every screen, for a maintenance window or anything else everyone should read. Each person can dismiss it for their visit, unless you make it one that stays. Several that are on show one after the other, a warning first. At most {INSTALLATION_ANNOUNCEMENTS_ACTIVE_MAX} can be on at once ({on} now).</p>
+      <p className="max-w-[62ch] text-sm text-muted-foreground">{kind.intro} Each person can dismiss it for their visit, unless you make it one that stays. Several that are on show one after the other, a warning first. At most {kind.activeMax} can be on at once ({on} now).</p>
       <div><Button type="button" onClick={() => openForm()}>Add an Announcement</Button></div>
       {rows.length ? (
         <div className="overflow-x-auto rounded-[var(--radius-card,0.5rem)] border border-border">
-          <table className="w-full min-w-[44rem] text-left text-sm">
+          <table className={kind.installation ? "w-full min-w-[44rem] text-left text-sm" : "w-full min-w-[34rem] text-left text-sm"}>
             <caption className="sr-only">Announcements, a warning first. Times are in {zone}.</caption>
             <thead className="text-xs text-muted-foreground">
               <tr>
                 <th scope="col" className="px-3 py-2 font-medium">Words</th>
                 <th scope="col" className="px-3 py-2 font-medium">Level</th>
-                <th scope="col" className="px-3 py-2 font-medium">Shown to</th>
-                <th scope="col" className="px-3 py-2 font-medium">On the sign-in page</th>
+                {kind.installation && <th scope="col" className="px-3 py-2 font-medium">Shown to</th>}
+                {kind.installation && <th scope="col" className="px-3 py-2 font-medium">On the sign-in page</th>}
                 <th scope="col" className="px-3 py-2 font-medium">Window ({zone})</th>
                 <th scope="col" className="px-3 py-2 font-medium">Status</th>
                 <th scope="col" className="px-3 py-2 font-medium"><span className="sr-only">Actions</span></th>
@@ -79,8 +97,8 @@ export function AnnouncementsSection({ rows }: { rows: InstallationAnnouncementR
                     <span className="block text-xs text-muted-foreground">{r.updatedByName ? `Last changed by ${r.updatedByName}, ` : "Changed "}<RelativeTime at={r.updatedAt} /></span>
                   </td>
                   <td className="px-3 py-2">{r.level === "warning" ? "Warning" : "Info"}</td>
-                  <td className="px-3 py-2">{r.audience === "demo" ? "The demo only" : "Everyone"}</td>
-                  <td className="px-3 py-2">{r.public ? "Yes" : "No"}</td>
+                  {kind.installation && <td className="px-3 py-2">{r.audience === "demo" ? "The demo only" : "Everyone"}</td>}
+                  {kind.installation && <td className="px-3 py-2">{r.public ? "Yes" : "No"}</td>}
                   <td className="px-3 py-2">{windowWords(r.startsAt, r.endsAt, zone)}</td>
                   <td className="px-3 py-2"><span className={r.state === "running" ? "pressed text-xs" : "inline-flex items-center rounded-[var(--radius-input)] border border-[var(--color-rule-2)] px-1.5 text-xs text-[var(--color-ink-2)]"}>{STATE_WORDS[r.state]}</span></td>
                   <td className="px-3 py-2">
@@ -88,11 +106,11 @@ export function AnnouncementsSection({ rows }: { rows: InstallationAnnouncementR
                       <Button type="button" size="sm" variant="outline" aria-label={`Change: ${short(r.text)}`} onClick={() => openForm(r)}>Change</Button>
                       {r.state !== "ended" && (
                         <Button type="button" size="sm" variant="outline" disabled={pending} aria-label={`${r.state === "off" ? "Switch on" : "Switch off"}: ${short(r.text)}`}
-                          onClick={() => run(setInstallationAnnouncementActive(r.id, r.state === "off"))}>{r.state === "off" ? "Switch on" : "Switch off"}</Button>
+                          onClick={() => run(kind.setActive(r.id, r.state === "off"))}>{r.state === "off" ? "Switch on" : "Switch off"}</Button>
                       )}
                       <Button type="button" size="sm" variant="outline" disabled={pending} aria-label={`Delete: ${short(r.text)}`}
                         onClick={async () => {
-                          if (await confirm({ title: "Delete this Announcement?", description: `"${short(r.text)}" goes for good. To keep it for later, switch it off instead.`, confirmLabel: "Delete" })) run(deleteInstallationAnnouncement(r.id));
+                          if (await confirm({ title: "Delete this Announcement?", description: `"${short(r.text)}" goes for good. To keep it for later, switch it off instead.`, confirmLabel: "Delete" })) run(kind.remove(r.id));
                         }}>Delete</Button>
                     </div>
                   </td>
@@ -108,7 +126,7 @@ export function AnnouncementsSection({ rows }: { rows: InstallationAnnouncementR
 }
 
 /** The form in the side panel: every field of an Announcement, a live preview, and the core's refusals in words. */
-function AnnouncementForm({ row }: { row?: InstallationAnnouncementRow }) {
+function AnnouncementForm({ row, kind }: { row?: AnnouncementRow; kind: AnnouncementsKind }) {
   const panel = useSlideOver();
   const router = useRouter();
   const zone = useZone();
@@ -130,11 +148,13 @@ function AnnouncementForm({ row }: { row?: InstallationAnnouncementRow }) {
 
   const save = () => start(async () => {
     setError(null);
+    // `active` is always sent, so an update says what it means and never leans on the stored value.
     const input = {
-      text, link: hasLink ? { href: href.trim(), label } : null, level, audience, public: audience === "everyone" && isPublic,
+      text, link: hasLink ? { href: href.trim(), label } : null, level,
+      ...(kind.installation ? { audience, public: audience === "everyone" && isPublic } : {}),
       startsAt: fromLocalInput(startsAt), endsAt: fromLocalInput(endsAt), dismissible, active,
     };
-    const r: Result = await (row ? updateInstallationAnnouncement(row.id, input) : createInstallationAnnouncement(input));
+    const r: Result = await (row ? kind.update(row.id, input) : kind.create(input));
     if ("error" in r) { setError(r.error); return; }
     toast.success(r.message ?? "Saved.");
     router.refresh();
@@ -177,15 +197,15 @@ function AnnouncementForm({ row }: { row?: InstallationAnnouncementRow }) {
         </div>
       </div>
       <p className="-mt-2 text-xs text-muted-foreground">Times are in your browser&apos;s time zone ({zone}). Without a start it shows at once; without an end it stays until you switch it off.</p>
-      <div className="space-y-1">
+      {kind.installation && <div className="space-y-1">
         <label htmlFor={`${uid}-audience`} className="block font-medium">Shown to</label>
         <select id={`${uid}-audience`} value={audience} onChange={(e) => { setAudience(e.target.value as AnnouncementAudience); if (e.target.value !== "everyone") setIsPublic(false); }} className="h-9 w-full rounded-[var(--radius-input)] border border-input bg-card px-2 text-sm">
           <option value="everyone">Everyone</option>
           <option value="demo">The demo only</option>
         </select>
-      </div>
+      </div>}
       <div className="space-y-2">
-        {audience === "everyone" && (
+        {kind.installation && audience === "everyone" && (
           <label className="flex items-start gap-2"><input type="checkbox" className="mt-0.5 size-4" checked={isPublic} onChange={(e) => setIsPublic(e.target.checked)} /><span>Also show it on the sign-in page, to people who are not signed in</span></label>
         )}
         <label className="flex items-start gap-2"><input type="checkbox" className="mt-0.5 size-4" checked={!dismissible} onChange={(e) => setDismissible(!e.target.checked)} /><span>Cannot be dismissed (for a maintenance window that is running)</span></label>

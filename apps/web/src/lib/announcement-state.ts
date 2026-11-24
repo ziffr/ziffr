@@ -36,12 +36,15 @@ export function stillShown(items: Announcement[], dismissed: string[]): Announce
   return items.filter((a) => a.dismissible === false || !dismissed.includes(a.id));
 }
 
-/** The built-in notice and the Installation's, in the order they show: Installation Announcements arrive most urgent first.
- * The demo's notice leads where visitors may change the demo (it says what will be lost); otherwise it ranks by its level. */
-export function shellOrder(builtIn: Announcement[], installation: Announcement[], changesOpen: boolean): Announcement[] {
-  if (changesOpen) return [...builtIn, ...installation];
+/** The built-in notice, the Installation's and the Workspace's, in the order they show: the Installation's always rank above
+ * the Workspace's (they are for everyone, however small the Workspace), and within each group a warning comes before info.
+ * The demo's notice leads where visitors may change the demo (it says what will be lost); otherwise it ranks by its level
+ * among the Installation's. */
+export function shellOrder(builtIn: Announcement[], installation: Announcement[], changesOpen: boolean, workspace: Announcement[] = []): Announcement[] {
+  const warningsFirst = (items: Announcement[]) => [...items.filter((a) => a.level === "warning"), ...items.filter((a) => a.level !== "warning")];
+  if (changesOpen) return [...builtIn, ...installation, ...warningsFirst(workspace)];
   const warnings = installation.filter((a) => a.level === "warning");
-  return [...warnings, ...builtIn, ...installation.filter((a) => a.level !== "warning")];
+  return [...warnings, ...builtIn, ...installation.filter((a) => a.level !== "warning"), ...warningsFirst(workspace)];
 }
 
 /** What fits on screen: the first `max` lines, and how many wait behind "more" (none when `expanded`). */

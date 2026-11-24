@@ -49,6 +49,13 @@ describe("order, cap and the one that cannot be dismissed", () => {
   it("is the Installation's order alone without the demo", () => {
     expect(shellOrder([], [warn, info], false)).toEqual([warn, info]);
   });
+  it("puts the Workspace's lines after every Installation line, a warning before an info in each group", () => {
+    const wInfo: Announcement = { id: "wi", text: "WI", level: "info" };
+    const wWarn: Announcement = { id: "ww", text: "WW", level: "warning" };
+    expect(shellOrder([], [info, warn], false, [wInfo, wWarn]).map((x) => x.id)).toEqual(["w", "i", "ww", "wi"]);
+    expect(shellOrder([demo], [info], true, [wInfo, wWarn]).map((x) => x.id)).toEqual(["demo-reset", "i", "ww", "wi"]);
+    expect(shellOrder([], [], false, [wInfo, wWarn]).map((x) => x.id)).toEqual(["ww", "wi"]);
+  });
   it("keeps a line that cannot be dismissed even if its key is stored as dismissed", () => {
     const fixed: Announcement = { id: "f", text: "F", dismissible: false };
     expect(stillShown([fixed, a], ["f", "a"])).toEqual([fixed]);

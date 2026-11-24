@@ -1,6 +1,6 @@
 // Workspace settings, General (spec 0006, tickets #96 and #97; spec 0017, ticket #39; spec 0022, tickets #108 and #130;
 // GLOSSARY: Workspace, Workspace Profile, Fiscal Year, Number Style, Attainment): the workspace's name, its clock, its
-// year start, its Number Style, its Attainment method and its Workspace Profile
+// year start, its Announcements (spec 0054), its Number Style, its Attainment method and its Workspace Profile
 // (shown as About your business, right after the name). Owners and Admins change them;
 // everyone else reads. Owners and Admins also see its Size and usage (spec 0029).
 import { currentActor } from "@/lib/viewer";
@@ -32,6 +32,8 @@ import { handoverOffered } from "@ziffr/core/cloud-api";
 import { workspaceSettableLimits } from "@ziffr/core/limits";
 import { LimitsForm } from "@/components/limits-form";
 import { setWorkspaceSettableLimit } from "@/app/settings-actions";
+import { workspaceAnnouncements } from "@ziffr/core/workspace-announcements";
+import { WorkspaceAnnouncements } from "./announcements";
 
 // Names for country and currency codes, in English like the rest of the app; the code itself where none is known.
 const named = (codes: readonly string[], type: "region" | "currency") => {
@@ -48,6 +50,8 @@ export default async function WorkspaceSettingsPage() {
   const limits = (actor.role === "owner" || actor.role === "admin") && !demo ? await workspaceSettableLimits(actor) : null;
   // Setup: n of 5 steps done (spec 0052), for Owners and Admins, who share the Workspace's progress; none in the demo.
   const setup = (actor.role === "owner" || actor.role === "admin") && !demo ? await setupGuide(actor) : null;
+  // The Workspace's Announcements are for Owners and Admins to manage (spec 0054); the demo has none.
+  const announcements = (actor.role === "owner" || actor.role === "admin") && !demo ? await workspaceAnnouncements(actor) : null;
   const countryName = (c: string | null) => c && (new Intl.DisplayNames(["en"], { type: "region" }).of(c) ?? c);
   // The demo is shared by every visitor, so nobody changes it; the core refuses it too.
   const canEdit = !demo && (actor.role === "owner" || actor.role === "admin");
@@ -83,6 +87,7 @@ export default async function WorkspaceSettingsPage() {
         <AttainmentMethodForm method={attainment} canEdit={canEdit} />
         {(actor.role === "owner" || actor.role === "admin") && !demo && <WorkspaceRetention retention={retention} canSet={actor.role === "owner"} />}
         {limits && <LimitsForm title="Limits" intro="What the people of this Workspace may do in a day or at most, within what this Installation allows. Lowering a limit never deletes or stops what exists: only what is new waits. Empty follows the Installation." limits={limits} canEdit save={setWorkspaceSettableLimit} />}
+        {announcements && <div className="border-t border-border pt-6"><WorkspaceAnnouncements rows={announcements} /></div>}
         {/* Owners only, in these words (spec 0028): no key, version or progress. */}
         {encrypted && <p className="text-sm text-muted-foreground">Encrypted with a key of its own. Deleting this Workspace destroys it.</p>}
       </div>
