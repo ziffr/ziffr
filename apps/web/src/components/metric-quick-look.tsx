@@ -105,7 +105,7 @@ export function QuickLookHost() {
 /** The small "Quick look" button beside a Metric's name. */
 export function QuickLookButton({ slug, name, className }: { slug: string; name: string; className?: string }) {
   return (
-    <button type="button" aria-label={`Quick look at ${name}`} title="Quick look" onClick={(e) => { e.stopPropagation(); openQuickLook(slug); }} className={className ?? "relative z-10 ml-1 inline-flex size-6 items-center justify-center rounded-md text-muted-foreground opacity-0 outline-none hover:bg-muted hover:text-foreground focus-visible:opacity-100 focus-visible:ring-2 focus-visible:ring-ring group-hover:opacity-100 max-md:opacity-100"}>
+    <button type="button" aria-label={`Quick look at ${name}`} title="Quick look" onClick={(e) => { e.stopPropagation(); openQuickLook(slug); }} className={className ?? "relative z-10 ml-1 inline-flex size-6 items-center justify-center rounded-md text-muted-foreground opacity-0 outline-none hover:bg-muted hover:text-foreground focus-visible:opacity-100 focus-visible:ring-2 focus-visible:ring-ring group-hover:opacity-100 max-md:opacity-100 max-sm:size-11"}>
       <PanelRightOpen aria-hidden className="size-3.5" />
     </button>
   );
