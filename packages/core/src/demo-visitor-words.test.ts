@@ -79,8 +79,8 @@ describe("in a demo visit", () => {
 
   it("names the Versions a visitor may keep: only of what they may make", async () => {
     await visit(() => {
-      for (const ok of ["dashboard", "widget", "theme", "template"]) expect(() => visitorVersionType(demo, ok)).not.toThrow();
-      for (const no of ["metric", "workflow", "deck", "snapshot"]) expect(() => visitorVersionType(demo, no)).toThrow(DemoReadOnly);
+      for (const ok of ["dashboard", "widget", "theme", "template", "deck"]) expect(() => visitorVersionType(demo, ok)).not.toThrow();
+      for (const no of ["metric", "workflow", "snapshot"]) expect(() => visitorVersionType(demo, no)).toThrow(DemoReadOnly);
     });
   });
 

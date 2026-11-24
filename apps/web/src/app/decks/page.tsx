@@ -7,6 +7,7 @@ import { getProfileMap } from "@/lib/data";
 import { currentActor, viewerId } from "@/lib/viewer";
 import { deckDocuments } from "@ziffr/core/page-data";
 import { createDeck } from "@/app/deck-actions";
+import { AnsweredForm } from "@/components/answered-form";
 import { deckTemplateChoices } from "@ziffr/core/deck-templates";
 import { NewDeckFromTemplate } from "@/components/new-deck-dialog";
 import { PageHeader } from "@/components/page-header";
@@ -27,10 +28,10 @@ export default async function DecksPage() {
       <PageHeader title="Decks" sub="Lay out widgets, text and arrows on 16:9 slides, then export a PowerPoint or a PDF with today’s values.">
         {can(actor, "create") && <Link href="/themes" className="text-sm underline">Themes</Link>}
         {can(actor, "create") && (
-          <form action={createDeck} className="flex gap-2">
+          <AnsweredForm action={createDeck} className="flex gap-2">
             <Input name="name" placeholder="Name of the new deck" aria-label="Name of the new deck" className="w-56" />
             <Button type="submit">New deck</Button>
-          </form>
+          </AnsweredForm>
         )}
         {choices.templates.length > 0 && <NewDeckFromTemplate templates={choices.templates} metrics={choices.metrics} people={Object.fromEntries(choices.templates.map((t) => [t.owner_id, { name: people[t.owner_id]?.name ?? "" }]))} />}
       </PageHeader>

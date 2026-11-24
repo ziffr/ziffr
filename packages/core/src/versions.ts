@@ -9,6 +9,7 @@ import { openWorkflowRow } from "./workflow-rows";
 import { tagNamesOfMetric } from "./tag-rows";
 import { madeBySeed } from "./demo-seeded-rows";
 import { DemoLimit } from "./demo";
+import { DemoSizeRefused } from "./demo-visitor-limits";
 import { DEMO_STORE_MAX } from "./demo-limits";
 import { visitHeaders } from "./demo-visit-scope";
 
@@ -121,7 +122,11 @@ export async function recordVersion(type: VersionType, id: number, author: strin
   // In a demo visit an automatic Version is a courtesy: one too large, or one the demo has no room for, is not recorded, and
   // never fails the edit it follows. A named one is the visitor's own request, asked for (and counted) before this is called.
   const inVisit = visitHeaders() !== null;
-  if (inVisit && !opts.name && new TextEncoder().encode(JSON.stringify(snapshot)).length > DEMO_STORE_MAX.versionSnapshotBytes) return;
+  if (inVisit && new TextEncoder().encode(JSON.stringify(snapshot)).length > DEMO_STORE_MAX.versionSnapshotBytes) {
+    // A named one is asked for: it is refused in words, before it is written, not left out.
+    if (opts.name) throw new DemoSizeRefused("This is too large to name as a version in the demo.");
+    return;
+  }
   const sameNote = Boolean(noted && !given.message && last?.message === noted);
   let fresh = last && last.author_id === author && !last.name && !opts.name && (sameNote || (!last.message && !opts.message)) && Date.now() - new Date(last.updated_at).getTime() < COALESCE_MS;
   // A visitor's edit never merges into a Version the seed made: its words are the seed's (spec 0051), so it gets a Version of its own.

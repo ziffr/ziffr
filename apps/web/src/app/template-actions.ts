@@ -3,7 +3,6 @@
 // (@ziffr/core/templates). Everyone uses them, only the creator changes them.
 import { revalidatePath } from "next/cache";
 import { currentActor } from "@/lib/viewer";
-import { attempt } from "@/lib/action-result";
 import { attemptAsVisitor } from "@/lib/demo-write";
 import * as templates from "@ziffr/core/templates";
 import type { Choices } from "@ziffr/core/team-templates";
@@ -13,7 +12,7 @@ const done = () => revalidatePath("/", "layout");
 
 /** Saves a slide of the viewer's own deck as a team slide layout. */
 export async function saveSlideLayout(input: { deckId: number; shapes: SlideShape[]; name: string; description: string; labels: string[]; choices: Choices; replaceId?: number | null }) {
-  return attempt(async () => {
+  return attemptAsVisitor("template-actions:saveSlideLayout", async () => {
     const id = await templates.saveSlideLayout(await currentActor(), input);
     done();
     return id;

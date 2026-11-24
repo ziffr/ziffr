@@ -79,7 +79,7 @@ export async function setDashboardTheme(dashboardId: number, id: number | null) 
 
 /** null: follow the team default. */
 export async function setDeckTheme(deckId: number, id: number | null) {
-  return attempt(async () => {
+  return attemptAsVisitor("theme-actions:setDeckTheme", async () => {
     await coreSetDeckTheme(await currentActor(), Number(deckId), themeId(id));
     done();
   });

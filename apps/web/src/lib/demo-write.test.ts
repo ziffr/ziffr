@@ -37,8 +37,19 @@ describe("asVisitor", () => {
     const work = vi.fn(async () => "done");
     expect(await asVisitor("canvas-actions:placeWidget", work)).toBe("done");
     expect(budget).toHaveBeenCalledTimes(1);
-    expect(visiting).toHaveBeenCalledWith({ generation: 7, visit: VISIT }, work);
+    expect(visiting).toHaveBeenCalledWith({ generation: 7, visit: VISIT }, expect.any(Function));
     expect(work).toHaveBeenCalledTimes(1);
+  });
+
+  it("hands the work who asked (the visit and its request's headers), and nothing where the demo is not open", async () => {
+    const seen = vi.fn(async (who: unknown) => (who ? "done" : "none"));
+    await asVisitor("snapshot-actions:takeSnapshot", seen);
+    const who = seen.mock.calls[0][0] as { visitId: string; headers: Headers };
+    expect(who.visitId).toBe(VISIT);
+    expect(who.headers.get("x-forwarded-for")).toBe("203.0.113.5");
+    allows.mockReturnValue(false);
+    await asVisitor("snapshot-actions:takeSnapshot", seen);
+    expect(seen.mock.calls[1][0]).toBeNull();
   });
 
   it("runs the work as it was, with no budget and no visit, for any other Workspace", async () => {

@@ -131,25 +131,25 @@ const CASES: Record<string, Case> = {
   "connector-actions:sendDueReminders": { nothing: "nothing is due right after the seed, which sent the reminders", open: () => [] },
   "connector-actions:askForMissingValues": { nothing: "the seed already asked for every missing value", open: () => [] },
   "connector-actions:simulatePromptAnswer": { reads: (i) => [i.promptDelivery, "42"] },
-  "convert-actions:makeDeckFromSnapshot": { blocked: (i) => [i.snapshot] },
-  "convert-actions:makeDeck": { blocked: (i) => [i.dashboard] },
+  "convert-actions:makeDeckFromSnapshot": { open: (i) => [i.snapshot] },
+  "convert-actions:makeDeck": { open: (i) => [i.dashboard] },
   "convert-actions:deckChoices": { reads: () => [] },
   // Clears this browser's own Add to deck… cookie; nothing of the demo.
   "convert-actions:doneAddingToDeck": { reads: () => [] },
-  // Onto a new deck: making it is the change refused.
-  "convert-actions:addToDeck": { blocked: (i) => [i.widget, null, null] },
+  // Onto a new deck: making it is the change.
+  "convert-actions:addToDeck": { open: (i) => [i.widget, null, null] },
   "dashboard-template-actions:createFromDashboardTemplate": { open: (i) => ["overview", "From a template", [[i.metric], [i.metric], [i.metric], [i.metric]]] },
   "dashboard-template-actions:draftDashboardTemplate": { reads: (i) => [i.dashboard] },
   "dashboard-template-actions:saveAsDashboardTemplate": { open: (i) => [{ dashboardId: i.dashboard, name: "Visitor template", description: "", labels: [] }] },
-  "deck-workflow-template-actions:saveAsDeckTemplate": { blocked: (i) => [{ deckId: i.deck, name: "Visitor deck template", description: "", labels: [], choices: {} }] },
-  "deck-workflow-template-actions:createDeckFromTemplate": { nothing: "the demo has no Deck Templates", blocked: () => [1, "From a template", []] },
+  "deck-workflow-template-actions:saveAsDeckTemplate": { open: (i) => [{ deckId: i.deck, name: "Visitor deck template", description: "", labels: [], choices: {} }] },
+  "deck-workflow-template-actions:createDeckFromTemplate": { nothing: "the demo has no Deck Templates", open: () => [1, "From a template", []] },
   "deck-workflow-template-actions:saveAsWorkflowTemplate": { blocked: (i) => [{ workflowId: i.workflow, name: "Visitor workflow template", description: "" }] },
   "deck-workflow-template-actions:createWorkflowFromTemplate": { nothing: "the demo has no Workflow Templates", blocked: () => [1, "From a template", []] },
-  "deck-actions:createDeck": { blocked: () => [form({ name: "Visitor deck" })] },
-  "deck-actions:saveDeck": { blocked: (i) => [i.deck, { store: {}, schema: {} }] },
-  "deck-actions:renameDeck": { blocked: (i) => [i.deck, "Renamed deck"] },
-  "deck-actions:deleteDeck": { blocked: (i) => [i.deck] },
-  "deck-actions:setDeckFooter": { blocked: (i) => [i.deck, "A footer"] },
+  "deck-actions:createDeck": { open: () => [null, form({ name: "Visitor deck" })] },
+  "deck-actions:saveDeck": { open: (i) => [i.deck, { store: {}, schema: {} }] },
+  "deck-actions:renameDeck": { open: (i) => [i.deck, "Renamed deck"] },
+  "deck-actions:deleteDeck": { open: (i) => [i.deck] },
+  "deck-actions:setDeckFooter": { open: (i) => [i.deck, "A footer"] },
   "deck-actions:noteDeckExport": { nothing: "it only records an Audit event, and the demo keeps no Audit Log", blocked: (i) => [i.deck, "pdf"] },
   "design-actions:addViewDesign": { blocked: () => [JSON.stringify(BUILT_IN_DESIGNS.number)] },
   "design-actions:removeViewDesign": { nothing: "the demo has no View Designs", blocked: () => [1] },
@@ -280,11 +280,11 @@ const CASES: Record<string, Case> = {
   "heads-up-actions:unmuteHeadsUpMetric": { blocked: () => [1] },
   "heads-up-actions:setHeadsUpChoices": { blocked: () => [{ byMessage: true }] },
   "settings-actions:setUsageDigestOn": { blocked: () => [false] },
-  "snapshot-actions:takeSnapshot": { blocked: (i) => [i.dashboard, "month", i.lastMonth] },
+  "snapshot-actions:takeSnapshot": { open: (i) => [i.dashboard, "month", i.lastMonth] },
   "snapshot-actions:setAutoSnapshots": { blocked: (i) => [i.dashboard, "month", 2] },
-  "snapshot-actions:editSnapshotWords": { nothing: "words for none of its widgets change nothing", blocked: (i) => [i.snapshot, { summary: "Changed" }] },
-  "snapshot-actions:showSnapshot": { nothing: "the demo's Snapshots are shown already", blocked: (i) => [i.snapshot] },
-  "snapshot-actions:deleteSnapshot": { blocked: (i) => [i.snapshot, i.snapshotDashboard] },
+  "snapshot-actions:editSnapshotWords": { nothing: "words for none of its widgets change nothing", open: (i) => [i.snapshot, { summary: "Changed" }] },
+  "snapshot-actions:showSnapshot": { nothing: "the demo's Snapshots are shown already", open: (i) => [i.snapshot] },
+  "snapshot-actions:deleteSnapshot": { open: (i) => [i.snapshot, i.snapshotDashboard] },
   "team-actions:createGroup": { blocked: () => ["Visitors"] },
   "team-actions:renameGroup": { blocked: (i) => [i.group, "Renamed group"] },
   "team-actions:deleteGroup": { blocked: (i) => [i.group] },
@@ -302,7 +302,7 @@ const CASES: Record<string, Case> = {
   "team-actions:setDomainJoining": { nothing: "it needs the Owner's own signed-in address, which a demo visit has not", blocked: () => [true] },
   "team-actions:decideJoin": { nothing: "the demo has no requests to join", blocked: () => [1, true] },
   "team-actions:removeMemberWithHandover": { blocked: () => ["ben", "anna"] },
-  "template-actions:saveSlideLayout": { blocked: (i) => [{ deckId: i.deck, shapes: [], name: "Layout", description: "", labels: [], choices: {} }] },
+  "template-actions:saveSlideLayout": { open: (i) => [{ deckId: i.deck, shapes: [], name: "Layout", description: "", labels: [], choices: {} }] },
   "template-actions:saveTemplate": { open: (i) => [{ widgetId: i.widget, name: "Visitor template", description: "", labels: [], choices: {} }] },
   "template-actions:renameTemplate": { open: (i) => [i.template, "Renamed", ""] },
   "template-actions:deleteTemplate": { open: (i) => [i.template] },
@@ -314,7 +314,7 @@ const CASES: Record<string, Case> = {
   "theme-actions:deleteTheme": { open: (i) => [i.otherTheme] },
   "theme-actions:setDefaultTheme": { blocked: (i) => [i.theme] },
   "theme-actions:setDashboardTheme": { open: (i) => [i.dashboard, i.theme] },
-  "theme-actions:setDeckTheme": { blocked: (i) => [i.deck, i.theme] },
+  "theme-actions:setDeckTheme": { open: (i) => [i.deck, i.theme] },
   "setup/actions:saveAboutYou": { blocked: () => [{ profile: { industry: "retail" }, clock: { timeZone: "Europe/Berlin", runHour: 7 }, yearStart: 4 }] },
   "setup/actions:skipStep": { blocked: () => ["about"] },
   "setup/actions:chooseExplore": { blocked: () => [] },
@@ -499,6 +499,87 @@ describe("with the setting in effect, a visit", () => {
     await ok("theme-actions:deleteTheme", theme);
     await ok("canvas-actions:removeWidget", await demoLatestId("widgets", { dashboard_id: dash }));
     expect(wrong).toEqual([]);
+  }, 180_000);
+
+  // A slide as the deck editor saves it: one frame with a text in it (and, for a layout, the same text as a shape of the slide).
+  const slideWith = (text: string) => ({
+    schema: { schemaVersion: 2, sequences: { "com.tldraw.store": 4 } },
+    store: {
+      "document:document": { id: "document:document", typeName: "document", name: "", gridSize: 10, meta: {} },
+      "page:page": { id: "page:page", typeName: "page", name: "Page 1", index: "a1", meta: {} },
+      "shape:slide1": { id: "shape:slide1", typeName: "shape", type: "frame", x: 0, y: 0, rotation: 0, isLocked: false, opacity: 1, parentId: "page:page", index: "a1", meta: {}, props: { w: 1600, h: 900, name: "Slide 1" } },
+      "shape:text1": { id: "shape:text1", typeName: "shape", type: "text", x: 40, y: 40, rotation: 0, isLocked: false, opacity: 1, parentId: "shape:slide1", index: "a1", meta: {}, props: { richText: { type: "doc", content: [{ type: "paragraph", content: [{ type: "text", text }] }] }, size: "m", font: "sans", textAlign: "start", autoSize: true, w: 400, scale: 1, color: "black" } },
+    },
+  });
+
+  // Spec 0051, ticket 10. Decks and Snapshots, as one made-up person: every opened action once, each on the visitor's own.
+  it("makes, writes, versions and removes its own decks and Snapshots, and takes the Snapshot's turn and gives it back", async () => {
+    // Another visit: one visit may change 30 things a minute, and the test above has used much of it.
+    jar["ziffr-demo"] = { value: "1123456789abcdef0123456789abcdef" };
+    const wrong: string[] = [];
+    const ok = async (key: string, ...args: unknown[]) => {
+      const r = await call(key, ...args);
+      if (refused(r)) wrong.push(`${key}: ${JSON.stringify(r)}`);
+      return r;
+    };
+    await ok("deck-actions:createDeck", null, form({ name: "Visitor deck" }));
+    const deck = await demoLatestId("decks", {});
+    await ok("deck-actions:renameDeck", deck, "Renamed deck");
+    await ok("deck-actions:setDeckFooter", deck, "A footer");
+    await ok("deck-actions:saveDeck", deck, slideWith("Revenue against cost"));
+    await ok("theme-actions:setDeckTheme", deck, null);
+    await ok("version-actions:saveNamedVersion", "deck", deck, "A deck version");
+    await ok("version-actions:restoreVersion", await demoLatestId("versions", { object_type: "deck", object_id: deck }));
+    await ok("convert-actions:addToDeck", ids.widget, deck, null);
+    await ok("convert-actions:makeDeck", ids.dashboard);
+    await ok("convert-actions:makeDeckFromSnapshot", ids.snapshot);
+    await ok("deck-workflow-template-actions:saveAsDeckTemplate", { deckId: deck, name: "Visitor deck template", description: "", labels: [], choices: {} });
+    const deckTemplate = await demoLatestId("team_templates", { kind: "deck" });
+    await ok("deck-workflow-template-actions:createDeckFromTemplate", deckTemplate, "From a deck template", []);
+    await ok("template-actions:saveSlideLayout", { deckId: deck, shapes: [{ type: "text", x: 0, y: 0, rotation: 0, opacity: 1, props: { richText: { type: "doc", content: [{ type: "paragraph", content: [{ type: "text", text: "Layout words" }] }] } } }], name: "Visitor layout", description: "", labels: [], choices: {} });
+    await ok("template-actions:deleteTemplate", await demoLatestId("team_templates", { kind: "slide" }));
+    await ok("template-actions:deleteTemplate", deckTemplate);
+    await ok("deck-actions:deleteDeck", deck);
+    // A Snapshot of a dashboard of its own, written up, shown and deleted.
+    const dash = (await ok("canvas-actions:createDashboardNamed", "Snapshot dashboard")) as number;
+    await ok("canvas-actions:placeWidget", dash, { type: "metric", id: ids.metric });
+    await ok("snapshot-actions:takeSnapshot", dash, "month", ids.lastMonth);
+    const snapshot = await demoLatestId("dashboard_snapshots", { dashboard_id: dash });
+    await ok("snapshot-actions:editSnapshotWords", snapshot, { intro: "A plain note." });
+    await ok("snapshot-actions:showSnapshot", snapshot);
+    await ok("deck-actions:createDeck", null, form({ name: "From a Snapshot" }));
+    await ok("convert-actions:makeDeckFromSnapshot", snapshot);
+    await ok("snapshot-actions:deleteSnapshot", snapshot, dash);
+    expect(wrong).toEqual([]);
+    // The turn was given back: a second Snapshot of the same dashboard is not refused as busy.
+    const again = (await call("snapshot-actions:takeSnapshot", dash, "month", ids.lastMonth)) as { error?: string };
+    expect(again?.error ?? "").not.toMatch(/Another visitor/);
+  }, 180_000);
+
+  it("refuses, in the demo's words and before anything is written, what would change what the seed made or break the demo's rules", async () => {
+    jar["ziffr-demo"] = { value: "2123456789abcdef0123456789abcdef" };
+    const asked =async (key: string, ...args: unknown[]) => ((await call(key, ...args).catch((e: unknown) => ({ error: e instanceof Error ? e.message : String(e) }))) as { error?: string })?.error;
+    const kept = "Everyone sees this one as it is. Make your own to change it.";
+    // The seed's deck and Snapshots, and a Snapshot of a showcase dashboard.
+    expect(await asked("deck-actions:saveDeck", ids.deck, slideWith("Changed"))).toBe(kept);
+    expect(await asked("deck-actions:renameDeck", ids.deck, "Renamed")).toBe(kept);
+    expect(await asked("deck-actions:deleteDeck", ids.deck)).toBe(kept);
+    expect(await asked("snapshot-actions:deleteSnapshot", ids.snapshot, ids.snapshotDashboard)).toBe(kept);
+    expect(await asked("snapshot-actions:takeSnapshot", ids.dashboard, "month", ids.lastMonth)).toBe(kept);
+    // Words that fail the text rules, and what comes from outside the demo.
+    expect(await asked("deck-actions:createDeck", null, form({ name: "see www.example.com" }))).toMatch(/web address/i);
+    await call("deck-actions:createDeck", null, form({ name: "Words deck" })).catch(() => undefined);
+    const own = await demoLatestId("decks", {});
+    expect(await asked("deck-actions:saveDeck", own, slideWith("see www.example.com"))).toMatch(/web address/i);
+    expect(await asked("deck-actions:saveDeck", own, { store: { "asset:a": { id: "asset:a", typeName: "asset", type: "image", props: { src: "data:image/png;base64,AAAA" } } } })).toMatch(/Pictures/);
+    expect(await asked("deck-actions:setDeckFooter", own, "see www.example.com")).toMatch(/web address/i);
+    expect(await asked("template-actions:saveSlideLayout", { deckId: own, shapes: [{ type: "image", props: {} }], name: "Layout", description: "", labels: [], choices: {} })).toMatch(/Pictures/);
+    // Kept blocked: nothing that shares, links, sends or runs on its own.
+    const sentence = demoReadOnlyWords();
+    for (const [key, args] of [["snapshot-actions:setAutoSnapshots", [ids.dashboard, "month", 2]], ["canvas-actions:setShare", ["deck", own, "ben", "viewer"]], ["view-link-actions:createViewLink", ["deck", own, { label: "For the board", expires: day(7), frozen: false }]]] as [string, unknown[]][]) {
+      expect(await asked(key, ...args), key).toBe(sentence);
+    }
+    await call("deck-actions:deleteDeck", own);
   }, 180_000);
 
   // Ticket 8: the work around a value. Not refused with the demo's own words, some row changes, and nothing leaves the Outbox.

@@ -42,9 +42,9 @@ export function visitorOptionalText<T extends string | null | undefined>(actor: 
 }
 
 /** The kinds of object whose Versions a visitor may name or bring back: only those they may make or change (their tables are open). */
-const VISITOR_VERSION_TYPES: readonly string[] = ["dashboard", "widget", "theme", "template"];
+const VISITOR_VERSION_TYPES: readonly string[] = ["dashboard", "widget", "theme", "template", "deck"];
 
-/** Refuses, in a demo visit, a Version of a kind a visitor may not change (a Metric, a Workflow, a deck, a Snapshot). */
+/** Refuses, in a demo visit, a Version of a kind a visitor may not change (a Metric, a Workflow, a Snapshot). */
 export function visitorVersionType(actor: Pick<Actor, "workspaceId">, type: string): void {
   if (inDemoVisit(actor) && !VISITOR_VERSION_TYPES.includes(type)) throw new DemoReadOnly();
 }

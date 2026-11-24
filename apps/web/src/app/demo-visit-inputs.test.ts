@@ -37,8 +37,8 @@ describe("the inputs of the opened actions", () => {
 
   it("are all listed here", () => {
     for (const k of Object.keys(INPUTS)) expect(opened, k).toContain(k);
-    // What else is open belongs to another ticket (9: dashboards, widgets, the Pool, Themes, Versions, templates), which lists its own inputs.
-    for (const k of opened.filter((x) => !(x in INPUTS))) expect(k, "an opened action no ticket listed the inputs of").toMatch(/^(canvas-actions|dashboard-template-actions|home-actions|template-actions|theme-actions|version-actions):/);
+    // What else is open belongs to another ticket (9: dashboards, widgets, the Pool, Themes, Versions, templates; 10: decks and Snapshots), which lists its own inputs.
+    for (const k of opened.filter((x) => !(x in INPUTS))) expect(k, "an opened action no ticket listed the inputs of").toMatch(/^(canvas-actions|convert-actions|dashboard-template-actions|deck-actions|deck-workflow-template-actions|home-actions|snapshot-actions|template-actions|theme-actions|version-actions):/);
   });
 
   it("are each checked in the action's own source", () => {

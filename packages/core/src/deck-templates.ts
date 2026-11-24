@@ -83,7 +83,9 @@ export async function createDeckFromTemplate(actor: Actor, input: { template: nu
   if (!t) throw new Forbidden();
   const fills = Array.isArray(input.fills) ? input.fills.map((f) => (Array.isArray(f) ? f.map(Number).filter(Number.isInteger).slice(0, 50) : [])).slice(0, t.slots.length) : [];
   await checkedFills(actor, t, fills);
-  const id = await createDeck(actor, String(input.name ?? "").trim() || t.name);
+  const given = String(input.name ?? "").trim();
+  // The template's own name was checked when it was saved (or is the seed's); a name typed here is a visitor's words.
+  const id = await createDeck(actor, given || t.name, { derived: !given });
   if (t.body.themeId) await setDeckTheme(actor, id, t.body.themeId).catch(() => undefined); // a Theme removed since: the default
   return id;
 }
