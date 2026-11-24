@@ -91,9 +91,9 @@ export default async function MetricsPage({ searchParams }: { searchParams: Prom
         <>
         <p className="mb-2 text-xs text-muted-foreground">{COLOUR_LEGEND}</p>
         <div className="stock overflow-x-auto rounded-[var(--radius-card)]">
-          <table className="w-full text-sm">
+          <table className="w-full text-sm max-sm:block">
             <caption className="sr-only">Metrics with their latest value, change, trend, target and owner</caption>
-            <thead>
+            <thead className="max-sm:sr-only">
               <tr className="border-b border-border text-left text-xs text-muted-foreground">
                 <th scope="col" className="px-4 py-2.5 font-medium">Metric</th>
                 <th scope="col" className="px-4 py-2.5 text-right font-medium">Latest</th>
@@ -103,7 +103,7 @@ export default async function MetricsPage({ searchParams }: { searchParams: Prom
                 <th scope="col" className="hidden px-4 py-2.5 font-medium lg:table-cell">Owner</th>
               </tr>
             </thead>
-            <tbody>
+            <tbody className="max-sm:block">
               {metrics.map((m) => {
                 const pts = series[m.slug] ?? [];
                 const last = pts[pts.length - 1];
@@ -111,8 +111,8 @@ export default async function MetricsPage({ searchParams }: { searchParams: Prom
                 const tone = health(m, last?.value);
                 const change = last && prev && prev.value ? (last.value - prev.value) / Math.abs(prev.value) : null;
                 return (
-                  <tr key={m.id} className="group relative cursor-pointer border-b border-border last:border-0 hover:bg-[var(--color-paper-2)]">
-                    <td className="px-4 py-3">
+                  <tr key={m.id} className="group relative cursor-pointer border-b border-border last:border-0 hover:bg-[var(--color-paper-2)] max-sm:grid max-sm:grid-cols-[minmax(0,1fr)_auto] max-sm:items-center max-sm:gap-x-3 max-sm:px-4 max-sm:py-3">
+                    <td className="px-4 py-3 max-sm:col-span-2 max-sm:p-0">
                       <Link href={`/metrics/${m.slug}`} className="font-medium no-underline after:absolute after:inset-0 group-hover:underline">
                         {m.name}
                       </Link>
@@ -123,14 +123,14 @@ export default async function MetricsPage({ searchParams }: { searchParams: Prom
                       <div className="fig mt-0.5 text-xs text-[var(--color-ink-2)] sm:hidden">Target {targetText(m, numberStyle)}</div>
                       <TagChips names={sight.namesByMetric.get(m.id) ?? []} className="mt-1" />
                     </td>
-                    <td className="px-4 py-3 text-right">
-                      <div className="fig whitespace-nowrap">{last ? formatValue(m, last.value, numberStyle) : "–"}</div>
-                      <div className="flex items-center justify-end gap-1.5 text-xs text-muted-foreground">
+                    <td className="px-4 py-3 text-right max-sm:mt-2 max-sm:min-w-0 max-sm:p-0 max-sm:text-left">
+                      <div className="fig whitespace-nowrap max-sm:text-base max-sm:font-medium">{last ? formatValue(m, last.value, numberStyle) : "–"}</div>
+                      <div className="flex flex-wrap items-center justify-end gap-x-1.5 gap-y-1 text-xs text-muted-foreground max-sm:justify-start">
                         <TargetChip numberStyle={numberStyle} metric={m} value={last?.value} />
-                        {last ? periodLabel(last.period, m.period, yearStart, true) : "No values yet"}
+                        <span className="whitespace-nowrap">{last ? periodLabel(last.period, m.period, yearStart, true) : "No values yet"}</span>
                       </div>
                     </td>
-                    <td className="px-4 py-3 text-right text-xs text-[var(--color-ink-2)]"><Change numberStyle={numberStyle} pct={change} /></td>
+                    <td className="px-4 py-3 text-right text-xs text-[var(--color-ink-2)] max-sm:mt-2 max-sm:p-0"><Change numberStyle={numberStyle} pct={change} /></td>
                     <td className="hidden w-32 px-4 py-3 md:table-cell">{pts.length > 1 && <Sparkline points={pts.slice(-30)} height={28} tone={tone} />}</td>
                     <td className="fig hidden px-4 py-3 text-xs text-[var(--color-ink-2)] sm:table-cell">{targetText(m, numberStyle)}</td>
                     <td className="hidden px-4 py-3 lg:table-cell"><Person p={people[m.owner_id]} /></td>
