@@ -4,15 +4,28 @@
 
 **Analyze** in the sidebar opens the **Analysis Canvas**: a place to put a few Metrics side by side and ask simple questions of them. Where is this heading? Do these two move together? What moves Cost? You choose a **method** by what you want to know, and its result can go onto a dashboard.
 
+Three steps are all it takes: drop Metrics on the canvas, pick a question, read the answer. An empty canvas says so, and offers one question to try.
+
 Everyone in the Workspace can use Analyze, with the Metrics they can see. The page needs no setup and changes nothing for anyone else.
 
 ## The screen
 
-The screen has three parts:
+From the top, the screen has these parts:
 
-- **The Pool** on the left (below on a narrow screen), with the Metrics you can see. Here it holds only Metrics, no saved Widgets or Widget Templates. **Filter** narrows it by name.
-- **Choose a method** at the top: the one way to run an analysis here. It is a list of questions grouped by what you want to know (see [Choose a method](#choose-a-method)). On an empty canvas the list is already open.
-- **The Analysis canvas**, with the Metrics on it and which of them is the one to explain.
+- **Heads-ups**, one slim line under the title: "3 Heads-ups for you. **Look**", or "No Heads-ups right now." **Look** opens the list in the side panel (see [Heads-ups](#heads-ups)).
+- **The Analysis canvas**, large, with the Metrics on it and which of them is the one to explain. Left of it is **The Pool** (below it on a narrow screen), with the Metrics you can see. Here it holds only Metrics, no saved Widgets or Widget Templates. **Filter** narrows it by name.
+- **Choose a method**, the button above the canvas: the one way to run an analysis here. It opens the **methods panel**, a list of questions grouped by what you want to know (see [Choose a method](#choose-a-method)).
+- **The results**, directly under the canvas: the answer to the question you asked, newest first.
+
+## The empty canvas
+
+When nothing is on the canvas, it tells you what to do:
+
+1. Drop Metrics here (or click **+** in the Pool).
+2. Pick a question.
+3. Read the answer.
+
+Under the steps, **Try: What moves Cost?** is one question picked for you from the Metrics you can see. Choosing it puts those Metrics on the canvas, marks the one to explain and opens the question in the methods panel, ready to **Work it out**. The Metrics in it differ from Workspace to Workspace. When there are too few Metrics, or too few values, for any question to fit, the example is not shown.
 
 ## Putting Metrics on the canvas
 
@@ -22,7 +35,7 @@ Each Metric on the canvas shows its name and how often it is counted, such as "m
 
 The Metrics on your canvas stay there until you take them off, also when you leave and come back. The canvas is yours alone; colleagues have their own. In the demo nothing is saved: the canvas works the same way, but starts over when you leave the page.
 
-An empty canvas says "Drop Metrics here, or choose a method." The list below it is open from the start; once there are Metrics on the canvas it starts with the questions that fit them.
+The methods panel opens only when you ask for it, or when you come from a Metric's page; once there are Metrics on the canvas it starts with the questions that fit them.
 
 ### The Metric to explain
 
@@ -32,15 +45,21 @@ Choose another Metric's button and nothing is taken off the canvas; the list sta
 
 ## Choose a method
 
-**Choose a method**, at the top of the screen, is the one way to run an analysis: it is for when you know what you want to know and not which Method gives it. It opens a list grouped by the question: **Where is it heading?**, **What moves with what?**, **What would it take?**, **What would happen if?**, **What changed?**, **What is usual?** and **Where is it concentrated?**. Each entry has its plain name ("Does A move with B?"), the technical name in small type after it, one sentence of what it tells you, and **Use it when / Don't use it when** under it, the same words as the Methods guide.
+**Choose a method**, above the canvas, is the one way to run an analysis: it is for when you know what you want to know and not which Method gives it. It opens the **methods panel** at the right of the page. On a wide screen the panel sits beside the canvas, so the canvas and the Pool stay usable while it is open: drag a Metric from the Pool onto the canvas, then pick a question. On a narrow screen it covers the page from the right and closes when you ask a question, so that the answer is in view. **Esc** or the close button closes it, and the address `?panel=methods` opens it from a link.
 
-The list fits the canvas, and what fits comes first: groups with a question that fits are above the others, and inside a group the ones that fit are above the greyed ones. The questions use the Metrics' own names: with Cost on the canvas as the one to explain you see "What moves Cost?" instead of "What moves B?", "What does Revenue need to reach 1.2m?" once you type the value, and "What if we change Support tickets by 10 %?" once you give the change. Where nothing is chosen yet the general words stay. A Method that cannot work on what is on the canvas now stays in the list, greyed, with the reason in words: "Needs at least 12 months of values; Revenue has 7.", "Revenue has no Target Range, so there is nothing to reach.", "Needs 3 Metrics on the canvas; there are 2." With nothing on the canvas every entry says "Drop a Metric on the canvas first." The list names only Metrics you can see.
+The panel lists the questions grouped by what you want to know: **Where is it heading?**, **What moves with what?**, **What would it take?**, **What would happen if?**, **What changed?**, **What is usual?** and **Where is it concentrated?**. To start with there are only the headings and the questions under them, in the Metrics' own words ("What moves Cost?").
 
-Choosing an entry asks for what it needs, in words, with the canvas filling in what it can: which Metric you want to explain, which might move it, the day it started, the value you want it to reach. Each question says what it takes (a day that exists, a number, a whole number from 1 to 10). **What if A changes?** asks for the Metric to change, the Metrics that might follow it, and the change as an amount or as a percent (one of the two). **Work it out** gives a Takeaway in the same words, ranges, strength words and footers as a Recipe's: picking a Method yourself turns none of that off, and a Method that does not apply (too little history, a flat Metric) says so in the same words as a Recipe does.
+**Choose a question** and it opens in place: what it is in plain words, the technical name in small type, **Use it when** and **Don't use it when** (the same words as the Methods guide), what it needs of the canvas and the fields that set it up. One question is open at a time; choose it again to close it. The list fits the canvas, and what fits comes first: groups with a question that fits are above the others, and inside a group the ones that fit are above the greyed ones. The questions use the Metrics' own names: with Cost on the canvas as the one to explain you see "What moves Cost?" instead of "What moves B?", "What does Revenue need to reach 1.2m?" once you type the value, and "What if we change Support tickets by 10 %?" once you give the change. Where nothing is chosen yet the general words stay. A Method that cannot work on what is on the canvas now stays in the list, greyed, with the reason in one line beside it: "Needs at least 12 months of values; Revenue has 7.", "Revenue has no Target Range, so there is nothing to reach.", "Needs 3 Metrics on the canvas; there are 2." With nothing on the canvas every entry says "Drop a Metric on the canvas first." The list names only Metrics you can see.
+
+The fields of an open question ask for what it needs, in words, with the canvas filling in what it can: which Metric you want to explain, which might move it, the day it started, the value you want it to reach. Each question says what it takes (a day that exists, a number, a whole number from 1 to 10). **What if A changes?** asks for the Metric to change, the Metrics that might follow it, and the change as an amount or as a percent (one of the two). **Work it out** gives a Takeaway, under the canvas, in the same words, ranges, strength words and footers as a Recipe's: picking a Method yourself turns none of that off, and a Method that does not apply (too little history, a flat Metric) says so in the same words as a Recipe does.
 
 **How do these Metrics move together?**, under **What moves with what?**, takes three to twelve Metrics from the canvas (all of them are chosen at the start) and compares every pair as **Does A move with B?** does. Its Takeaway has the sentence of the pair that moved together most closely, with that pair's strength word, what it was compared on and the footer; **Show the numbers** lists every pair with its link number r, its strength word and what it was compared on, and says why a pair could not be compared. Any plain line about the data of a pair is given, naming its Metrics. It draws no grid: the Correlation matrix Widget on a dashboard does, and it cannot be saved as a widget from here.
 
-Under the result, **Save as widget** keeps it in your widgets where the Method has a widget of its own (the forecast, with its Target, and the correlation); the others say "This result cannot be saved as a widget yet." **Download as Analysis Recipe** gives the Method as a file with its Slots left open, for the ones an Analysis Recipe can say (rank correlation, partial correlation, lagged correlation, the usual range and What moves B?). An Owner or Admin adds the file to the Workspace from the [Playground](#playground), and exports it in a Pack under Settings.
+### The results
+
+The answer is not in the panel but directly under the canvas, so you read the Metrics and what Ziffr says about them together. Its title is the question with the names of the Metrics it is about ("About Cost, Visits and Price"), and a place above the Takeaway is kept for a chart. The page keeps the last three answers, newest first; each can be folded away with its title. Take a Metric off the canvas and its answers stay until you leave the page or press **Clear**, which empties the canvas and its answers. Nothing is kept for later until you save it as a widget.
+
+Under a result, **Save as widget** keeps it in your widgets where the Method has a widget of its own (the forecast, with its Target, and the correlation); the others say "This result cannot be saved as a widget yet." **Download as Analysis Recipe** gives the Method as a file with its Slots left open, for the ones an Analysis Recipe can say (rank correlation, partial correlation, lagged correlation, the usual range and What moves B?). An Owner or Admin adds the file to the Workspace from the [Playground](#playground), and exports it in a Pack under Settings.
 
 ### Did it work?
 
@@ -57,7 +76,7 @@ The result carries its basis, what it assumes, and the footer "This compares wha
 
 ## Heads-ups
 
-At the top of Analyze, a list called **Heads-ups** shows what Ziffr noticed in the Metrics you can see, without being asked. There are five kinds:
+Under the title of Analyze, a slim line says how many **Heads-ups** there are for you: "3 Heads-ups for you." With none it reads "No Heads-ups right now."; with Heads-ups turned off for yourself it says so and where to turn them on; if they cannot be read just now it says that and nothing more. **Look** opens the list in the side panel, so it never pushes the canvas down, and `?panel=headsups` opens it from a link. The list shows what Ziffr noticed in the Metrics you can see, without being asked. There are five kinds:
 
 - **Two Metrics have started moving together** ("A and B have started moving together: when A rises, B follows one month later (strong, over 18 months)"), or **used to and have stopped** ("A and B used to move together. Over the last 6 months, they have not.").
 - **A Metric turned around** ("Signups turned around in January 2026: up 3 a month before, down 9 a month since").
@@ -66,9 +85,9 @@ At the top of Analyze, a list called **Heads-ups** shows what Ziffr noticed in t
 
 Each one reads as a short sentence, says what it is based on, and ends with the line of its kind: "This shows what has gone together, not what caused what." for two Metrics, "This shows when the numbers changed, not what made them change." for a turn, "This carries the past forward; it is not a promise." for a Target, and "This compares the value with the earlier ones at this time of year; it does not show what made it differ." for a season. **Show the numbers** opens the numbers behind it. The strongest come first. See [Reading a Takeaway](../guides/reading-a-takeaway.md#heads-ups).
 
-Ziffr looks again every few hours and says nothing when nothing stands out: then the list reads "Nothing stands out right now." That is a result, not a fault: a Heads-up is only shown when it stands out from what chance alone gives among everything Ziffr looked at, so in a Workspace with many Metrics only a clear link is reported. A Heads-up about two Metrics is shown only if you can see both; one about a Metric, only if you can see it. It never asks anyone to approve anything and never changes a value.
+Ziffr looks again every few hours and says nothing when nothing stands out: then the line reads "No Heads-ups right now." That is a result, not a fault: a Heads-up is only shown when it stands out from what chance alone gives among everything Ziffr looked at, so in a Workspace with many Metrics only a clear link is reported. A Heads-up about two Metrics is shown only if you can see both; one about a Metric, only if you can see it. It never asks anyone to approve anything and never changes a value.
 
-Under each Heads-up:
+Under each Heads-up in the panel:
 
 - **Not useful** hides that Heads-up for you, for good. Nobody else's list changes.
 - **Mute** and the name of a Metric hide every Heads-up about that Metric, in the list and by message. You can undo it under **Your Deliveries**, where the muted Metrics are listed.
@@ -154,7 +173,7 @@ A recipe can also be written in the newer format, `ziffr.analysis/2`, which adds
 
 ## Saving a result
 
-Results are not kept when you leave the screen; save the ones you want. A result of **Choose a method** has **Save as widget** under it (see above). A Widget on a dashboard has a **⋯** menu, which right-clicking also opens:
+Results are not kept when you leave the screen; save the ones you want. A result of **Choose a method** has **Save as widget** under it (see [The results](#the-results)). A Widget on a dashboard has a **⋯** menu, which right-clicking also opens:
 
 | Option | What it does |
 | --- | --- |
