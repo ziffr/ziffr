@@ -335,7 +335,7 @@ A demo-only Ziffr (`ZIFFR_DEMO_ONLY=1`) can let visitors try the everyday work, 
 
 ### What you need first
 
-- **An Installation that is a demo and nothing else**, with `ZIFFR_DEMO_ONLY=1`: nobody signs in or makes an account there. Never run it next to real Workspaces or on a database that holds real numbers; anonymous visitors write into that database. The demo beside real Workspaces on your company's Ziffr stays read-only whatever you set.
+- **An Installation that is a demo and nothing else**, with `ZIFFR_DEMO_ONLY=1`: nobody signs in or makes an account there. Never run it next to real Workspaces or on a database that holds real numbers; anonymous visitors write into that database. The demo beside real Workspaces on your company's Ziffr stays read-only whatever you set. This is enforced: the core will not open the demo to visitors, and the database refuses their writes, while a Workspace other than the demo exists, and a demo-only Ziffr takes no new Workspace ("This Ziffr is a demo and takes no new Workspaces.").
 - **The job secret** (`ZIFFR_JOB_SECRET`, at least 32 characters), because the reset is a job a clock calls ([Scheduled jobs](jobs.md#the-demos-reset)).
 - **A client address Ziffr can trust**, so that limits can count by address (below), and **a secret to count them under**.
 - **Room for a reset.** A reset seeds the made-up company again, at most 96 times a day and only after a change. Measure what one costs on your hardware before you open it (below).
@@ -365,17 +365,7 @@ The reset is `POST /api/jobs/demo-reset`. Where visitors may change the demo, ca
 10,25,40,55 * * * *  curl -fsS -X POST -H "Authorization: Bearer $ZIFFR_JOB_SECRET" https://demo.example.com/api/jobs/demo-reset
 ```
 
-With Docker Compose the clock does this when it is told both settings. It reads its own environment only, and the settings file next to `compose.yml` reaches the app, not the clock, so give the clock the two settings in a `compose.override.yml`:
-
-```yaml
-services:
-  clock:
-    environment:
-      ZIFFR_DEMO_ONLY: "1"
-      ZIFFR_DEMO_CHANGES: "1"
-```
-
-Without them the clock calls the job once a night at 03:30 UTC, and what visitors changed stays until then. `docker compose logs clock` shows each call (`demo-reset: 200 {"reset":false}` for a demo nobody changed).
+With Docker Compose the clock does this on its own when both settings are in the settings file next to `compose.yml`: the init step copies `ZIFFR_DEMO_ONLY` and `ZIFFR_DEMO_CHANGES` into the clock's own file, which is all the clock reads. With only one of them, the clock calls the job once a night at 03:30 UTC, and what visitors changed stays until then. A demo whose seed did not finish (a step failed, so every visit is refused) is reset again at the next call, whatever the schedule's cheap checks say, and the server log says so each time. `docker compose logs clock` shows each call (`demo-reset: 200 {"reset":false}` for a demo nobody changed).
 
 ### Measure before you open it
 
@@ -404,7 +394,7 @@ Both scripts need a **copy** of the demo, never the live one: one resets it twic
    curl -fsS -X POST -H "Authorization: Bearer $ZIFFR_JOB_SECRET" https://demo.example.com/api/jobs/demo-reset
    ```
 
-2. Set `ZIFFR_DEMO_ONLY=1`, `ZIFFR_DEMO_CHANGES=1`, `ZIFFR_DEMO_ADDRESS_KEY` and `ZIFFR_PROXY_HOPS` (and, with Docker, the clock's two settings). Restart so every service has them (`docker compose up -d`).
+2. Set `ZIFFR_DEMO_ONLY=1`, `ZIFFR_DEMO_CHANGES=1`, `ZIFFR_DEMO_ADDRESS_KEY` and `ZIFFR_PROXY_HOPS` (the Docker clock gets the two demo settings from the init step). Restart so every service has them (`docker compose up -d`).
 3. Call the job once more, the same way. Its first act is to tell the database that visitors may change the demo, and the database refuses a visitor until it has heard that. It answers `{"reset":false}` now, since the demo is clean and young; that is right. Without this call the door opens at the next quarter hour.
 4. Open the demo in a private window. The line above the page should end with "Resets in" and a number of minutes. Change a value, check that a second private window sees it, and that after the next 10, 25, 40 or 55 past the demo starts fresh.
 5. Watch the log for the first hour (next section).

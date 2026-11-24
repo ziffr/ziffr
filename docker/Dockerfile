@@ -61,7 +61,7 @@ COPY --chown=node:node GLOSSARY.md ./GLOSSARY.md
 # `supabase db push` works in /app; it writes its own notes under supabase/.temp, so the folder belongs to node.
 COPY --chown=node:node supabase/config.toml ./supabase/config.toml
 COPY --chown=node:node supabase/migrations ./supabase/migrations
-COPY --chown=node:node docker/entrypoint.sh docker/init.mjs docker/migrate.mjs docker/demo-seed.mjs docker/clock.mjs ./docker/
+COPY --chown=node:node docker/entrypoint.sh docker/init.mjs docker/migrate.mjs docker/demo-seed.mjs docker/clock.mjs docker/clock-schedule.mjs ./docker/
 COPY --from=build --chown=node:node /repo/packages/feed-usage/dist/usage-feed.mjs ./docker/usage-feed.mjs
 # The keys volume takes this folder's owner when Docker first makes it, so node can write the keys.
 RUN mkdir -p /keys && chown node:node /keys && chmod 755 /app/docker/entrypoint.sh

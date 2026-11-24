@@ -3,6 +3,7 @@
 // five minutes. A failed call is logged and tried at the next turn; the jobs themselves catch up on what was missed.
 import { spawn } from "node:child_process";
 import { writeFileSync } from "node:fs";
+import { demoChangesOn, demoResetDue } from "./clock-schedule.mjs";
 
 const APP = process.env.ZIFFR_APP_URL || "http://app:3000";
 // Touched on every turn; the health check in docker/compose.yml looks at its age.
@@ -36,7 +37,8 @@ const DEMO_RESET = process.env.ZIFFR_DEMO_RESET !== "0";
 // Where visitors may change the demo (spec 0051: ZIFFR_DEMO_CHANGES, in effect only in a demo-only Ziffr; the setting
 // does not exist as a page setting yet), the job is called every 15 minutes, at 10, 25, 40 and 55 past, and resets only
 // a demo a visitor changed or one that is no longer young. Off, as today: nightly at 03:30 UTC.
-const DEMO_CHANGES = process.env.ZIFFR_DEMO_CHANGES === "1" && process.env.ZIFFR_DEMO_ONLY === "1";
+// The clock sees both settings only because docker/init.mjs writes them into its settings file (docker/clock-schedule.mjs).
+const DEMO_CHANGES = demoChangesOn(process.env);
 const TRIAL_CLEANUP = process.env.ZIFFR_TRIAL_CLEANUP !== "0";
 
 // The Usage Feed (spec 0031) is a Feed, outside Ziffr (ADR 0006): a program of its own that the clock only starts, as
@@ -78,8 +80,7 @@ setInterval(() => {
   if (now.getUTCMinutes() === 0) void call("workflows");
   // Heads-ups (spec 0041): every hour, ten past; a Workspace is scanned at most every six hours, so most calls are a few counts.
   if (now.getUTCMinutes() === 10) void call("heads-ups");
-  if (DEMO_RESET && !DEMO_CHANGES && now.getUTCHours() === 3 && now.getUTCMinutes() === 30) void call("demo-reset", true);
-  if (DEMO_RESET && DEMO_CHANGES && now.getUTCMinutes() % 15 === 10) void call("demo-reset", true);
+  if (demoResetDue(now, process.env)) void call("demo-reset", true);
   if (TRIAL_CLEANUP && now.getUTCMinutes() === 20) void call("trial-cleanup", true);
   // Unused Workspaces (spec 0029): daily at 04:10 UTC; it does nothing unless ZIFFR_DELETE_UNUSED_AFTER_DAYS is set.
   if (now.getUTCHours() === 4 && now.getUTCMinutes() === 10) void call("unused-workspaces");
