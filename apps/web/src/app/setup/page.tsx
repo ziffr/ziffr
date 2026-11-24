@@ -23,6 +23,9 @@ import { recommendedPacks } from "@ziffr/core/included-packs";
 import { metricsOfLimit } from "@ziffr/core/workspace-usage";
 import { trialEndsAt } from "@ziffr/core/trials";
 import { getNumberStyle } from "@/lib/data";
+import { waysInAndOut } from "@ziffr/core/ways-in-and-out";
+import { SLACK_OUTCOMES } from "@/lib/slack-back";
+import { WaysInAndOutStep } from "./ways";
 
 const countryName = (c: string) => new Intl.DisplayNames(["en"], { type: "region" }).of(c) ?? c;
 
@@ -39,7 +42,14 @@ function answersOf(p: WorkspaceProfile): { label: string; value: string }[] {
 }
 
 /** The page. */
-export default async function SetupPage({ searchParams }: { searchParams: Promise<{ step?: string }> }) {
+/** What "Add to Slack" came to, in words; only the outcomes the core names are shown, never anything from the address. */
+const SLACK_NOTICE: Record<(typeof SLACK_OUTCOMES)[number], string> = {
+  connected: "Slack is connected.", cancelled: "Slack was not connected.", refused: "That did not work: press Add to Slack again.",
+  elsewhere: "That Slack workspace is already connected to another Ziffr workspace.", org_install: "Connect one Slack workspace, not a whole Enterprise organisation.",
+  failed: "Slack did not answer as expected. Try again in a moment.",
+};
+
+export default async function SetupPage({ searchParams }: { searchParams: Promise<{ step?: string; slack?: string }> }) {
   // The demo never has a guide: its guided steps are the tour's.
   if (await isDemo()) redirect("/");
   const actor = await currentActor();
@@ -50,7 +60,8 @@ export default async function SetupPage({ searchParams }: { searchParams: Promis
   await startSetupGuide(actor);
   await markSetupGuideSeen(actor);
   const ids = guide.steps.map((s) => s.id);
-  const asked = (await searchParams).step;
+  const query = await searchParams;
+  const asked = query.step;
   const current: SetupStepId = (SETUP_STEPS as readonly string[]).includes(asked ?? "") && ids.includes(asked as SetupStepId) ? (asked as SetupStepId) : (guide.next ?? ids[0]);
   const following = ids[Math.min(ids.indexOf("about") + 1, ids.length - 1)];
   const info = STEP_INFO[current];
@@ -71,6 +82,9 @@ export default async function SetupPage({ searchParams }: { searchParams: Promis
     const step = guide.steps.find((x) => x.id === "start");
     // A trial starts with its Test Metric, so the step has nothing to ask; the Packs may still be installed.
     body = <StartingPoint packs={packs} startingPoint={guide.startingPoint} metrics={usage.metrics} firstMetric={guide.firstMetric} trial={trial ? { testMetric: "Cups of coffee" } : null} isOwner={actor.role === "owner"} viewer={actor.personId} numberStyle={numberStyle} following={ids[Math.min(ids.indexOf("start") + 1, ids.length - 1)]} ticked={Boolean(step?.ticked)} />;
+  } else if (current === "ways") {
+    const slack = (SLACK_OUTCOMES as readonly string[]).includes(query.slack ?? "") ? SLACK_NOTICE[query.slack as (typeof SLACK_OUTCOMES)[number]] : null;
+    body = <WaysInAndOutStep data={await waysInAndOut(actor)} following={ids[ids.indexOf("ways") + 1] ?? null} notice={slack} />;
   } else {
     body = (
       <div className="space-y-4">

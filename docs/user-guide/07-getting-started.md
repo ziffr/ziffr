@@ -23,7 +23,7 @@ Sign in with your work email: Ziffr sends you a sign-in link (on hosted Ziffr th
 
 The **Setup Guide** is a short list of steps that sets a Workspace up: **About you**, **Starting point**, **Ways in and out**, **First Metric** and **Team**. It lives at **Set up your Workspace** (the address `/setup`, also reached from Help), shows the steps in a bar at the top with each one's state in words (Done, Skipped, To do, Comes next), and every step can be skipped. **Go to Ziffr** leaves it at any time. Owners and Admins see all five steps. A Member sees only the two about themselves, and a Guest and the demo have none.
 
-**About you** and **Starting point** are the steps to use today. The other three open and say what they will do, so you can see where the guide is going; the rest of Ziffr works without them, as the numbered steps below show.
+**About you**, **Starting point** and **Ways in and out** are the steps to use today. The other two open and say what they will do, so you can see where the guide is going; the rest of Ziffr works without them, as the numbered steps below show.
 
 **About you** asks plain questions, one to a row, each optional and each saying what it is for. Choose **Skip this question** to leave one open, **Skip** to skip the whole step, or **Save and go on**.
 
@@ -38,6 +38,20 @@ The **Setup Guide** is a short list of steps that sets a Workspace up: **About y
 The Workspace's time counts as answered once an Owner or Admin has saved it, even when it is UTC. A Member sees what the Owners and Admins said about the business, read-only, and answers only their own function.
 
 What you answer stays in this Workspace. It is not sent to Ziffr's makers or to anyone else. It is used only inside this Workspace, to suggest Metrics, Packs and settings that fit and who is asked for what. Owners and Admins of this Workspace see your function; other members do not. (On hosted Ziffr, ziffr.net runs the database, as for everything else in the Workspace.)
+
+**Ways in and out** asks two questions on one screen. **How should numbers come in?** lists the ways a number reaches Ziffr, one card each, with its state in words:
+
+| Way | What the card says | What you can press |
+| --- | --- | --- |
+| **Web form** | Every request carries a personal link that works without signing in. Always ready. | Nothing to set up |
+| **Email** | Ready where this Ziffr has a mail server, and says whether replying with the number works too. | **Send me a test** |
+| **Slack** | Ready once an Owner or Admin has connected a Slack workspace; a Member is told whom to ask. | **Add to Slack** (Owners and Admins; Slack then brings you back to this step), **Link my Slack account** (when your Slack address is another one), **Send me a test** |
+| **Telegram** | Off until an Owner or Admin turns it on in this Workspace, then ready once you connect your own Telegram. | **Turn on Telegram** (Owners and Admins), **Connect my Telegram** (everyone), **Send me a test** |
+| **Paste** | Paste rows from a spreadsheet: the easiest way in when the numbers already sit in one. | **Try it** opens [Paste values](10-metrics.md#paste-values-from-a-spreadsheet) |
+
+**Send me a test** sends one [Test Message](04-connecting.md#send-yourself-a-test-message) to you, and the card says what came of it: sent, waiting to be sent, or kept in the Outbox with the reason; over a limit it says which and when you can try again. There is no button for a way that cannot work here. Where this Ziffr has no mail server, Slack app or Telegram bot, the card says so ("This Ziffr has no Slack app yet. Whoever runs it adds one on its Installation settings page."), links how to add it, and, for an Installation Admin, links the [Installation settings](18-installation-settings.md) page. The web form and paste still work, so you can finish the first Metric without any of the others. **More ways** lists links for Owners and Admins: Access Keys, assistants, Feeds (with the warehouse Feeds and n8n templates), **Send values**, and in a trial **A key for n8n**. A Member sees no More ways, only a link to their own key.
+
+**How should people be asked and told?** is your own choice: **Ask me by** takes up to three ways in order, from the ones that work here, saved only for you. Others are asked by what they choose, and the default is the first way that reaches them. Telling people through Alerts, a Workflow's Tell step, Snapshots by email, View Links and Webhooks needs a Metric or a dashboard first, so the step only links to them. The step ticks once you have saved a way that works here, or a Test Message to you was sent; a Member's step counts only their own choice, and a Member never sees the Workspace-level setup.
 
 You can change every answer later: the business and the time under **Workspace → General**, in the section **About your business**, and your function under **Your profile**.
 

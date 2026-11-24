@@ -149,6 +149,7 @@ const BLOCKED: Record<BlockedReason, readonly string[]> = {
   // Messages: email, Slack, Telegram, an invitation, a Webhook.
   sends: [
     "connector-actions:connectSlack",
+    "setup/ways-actions:connectSlackFromGuide",
     "connector-actions:disconnectSlack",
     "connector-actions:emailRemindersAgain",
     "connector-actions:sendTestMessage",
@@ -263,6 +264,7 @@ const BLOCKED: Record<BlockedReason, readonly string[]> = {
     "connector-actions:askForMissingValues",
     "connector-actions:sendDueReminders",
     "connector-actions:setPreference",
+    "setup/ways-actions:saveAskMeBy",
     "convert-actions:addToDeck",
     "convert-actions:makeDeck",
     "convert-actions:makeDeckFromSnapshot",

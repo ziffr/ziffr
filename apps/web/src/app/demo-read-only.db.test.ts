@@ -311,6 +311,8 @@ const CASES: Record<string, Case> = {
   "setup/actions:skipStep": { blocked: () => ["about"] },
   "setup/actions:chooseExplore": { blocked: () => [] },
   "setup/actions:setUpFromPackInGuide": { nothing: "the demo has no installed Pack to set up from", blocked: () => [1, { metrics: ["orders"] }] },
+  "setup/ways-actions:saveAskMeBy": { blocked: () => [["email"]] },
+  "setup/ways-actions:connectSlackFromGuide": { blocked: () => [] },
   "try/start/actions:moveGuide": { outside: "a Trial Workspace's guide, never the demo" },
   "try/start/actions:skipGuide": { outside: "a Trial Workspace's guide, never the demo" },
   "try/start/actions:askGuide": { outside: "a Trial Workspace's guide, never the demo" },
