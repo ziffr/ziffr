@@ -40,6 +40,7 @@ import { WidgetKeepMenu, type KeepMenuKit } from "@/components/widget-keep-menu"
 import { AddToDeckDialog } from "@/components/add-to-deck-dialog";
 import { CONNECTORS, CONNECTOR_IDS, type ConnectorId } from "@ziffr/core/connectors/index";
 import { useSlotFill } from "@/components/slot-dialog";
+import { WidgetTitleEditor } from "./widget-title-editor";
 import { ReadOnlyFrame, frameTitle, type FrameWidget } from "./read-only-frame";
 import { WidgetScaleProvider, widgetScaleStyle, useMeasuredWidgetScale } from "@/views/widget-scale";
 import { HEADER_FITS, HeaderStatusProvider, type HeaderStatus } from "@/views/header-status";
@@ -73,7 +74,7 @@ type Props = {
   readOnly?: boolean;
 };
 
-type Panel = "history" | "ask" | "story" | "versions" | null;
+type Panel = "history" | "ask" | "story" | "title" | "versions" | null;
 
 // The layout editor pulls in tldraw, so it loads only when opened.
 /** What a slope chart can compare, as the Compare menu words it. */
@@ -275,6 +276,7 @@ function InteractiveFrame({ widget, data, targets, editable = false, className, 
           </K.SubContent>
         </K.Sub>
       )}
+      {editable && widget.id && !isLayout && <K.Item onClick={() => openPanel("title")}><PencilLine /> Title…</K.Item>}
       {isStory && editable && widget.id && <K.Item onClick={() => openPanel("story")}><PencilLine /> Edit Finding…</K.Item>}
       {isLayout && editable && widget.id && <K.Item onClick={() => setTimeout(() => setLayoutOpen(true), 0)}><PencilLine /> Edit layout…</K.Item>}
       {widget.id && <K.Item onClick={() => openPanel("versions")}><GitBranch /> Versions…</K.Item>}
@@ -398,6 +400,9 @@ function InteractiveFrame({ widget, data, targets, editable = false, className, 
               m={m}
               onSave={(settings) => start(async () => { if (told(await updateWidget(widget.id!, { settings }), "Not saved")) return; setPanel(null); })}
             />
+          )}
+          {panel === "title" && widget.id && (
+            <WidgetTitleEditor widget={widget} data={data} onSave={(title) => start(async () => { if (told(await updateWidget(widget.id!, { title }), "Not saved")) return; setPanel(null); })} />
           )}
           {panel === "ask" && m && (
             <AskPanel
