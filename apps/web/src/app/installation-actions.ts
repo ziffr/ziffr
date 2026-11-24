@@ -12,6 +12,7 @@ import * as telegramTest from "@ziffr/core/installation-telegram-test";
 import * as limits from "@ziffr/core/workspace-limits-admin";
 import * as keyChange from "@ziffr/core/workspace-key-change";
 import * as usage from "@ziffr/core/installation-usage";
+import * as announcements from "@ziffr/core/installation-announcements";
 import { installationActor } from "@/lib/installation";
 
 /** What an action answers: what went wrong in the page's words, or that it worked, with a line to show and a
@@ -154,4 +155,26 @@ export async function makeUsageKey(): Promise<{ error: string } | { secret: stri
 /** Revokes the live Usage Key. */
 export async function revokeUsageKey(): Promise<Result> {
   return run((a) => usage.revokeUsageKey(a));
+}
+
+// Announcements (spec 0054; GLOSSARY: Announcement): the core checks every field again and the Installation Admin.
+
+/** Makes an Announcement from what the form sent. */
+export async function createInstallationAnnouncement(input: unknown): Promise<Result> {
+  return run(async (a) => { await announcements.createInstallationAnnouncement(a, input); return "Announcement added."; });
+}
+
+/** Changes every field of an Announcement. */
+export async function updateInstallationAnnouncement(id: string, input: unknown): Promise<Result> {
+  return run(async (a) => { await announcements.updateInstallationAnnouncement(a, String(id ?? ""), input); return "Announcement saved."; });
+}
+
+/** Switches an Announcement on or off. */
+export async function setInstallationAnnouncementActive(id: string, active: boolean): Promise<Result> {
+  return run(async (a) => { await announcements.setInstallationAnnouncementActive(a, String(id ?? ""), active === true); return active === true ? "Announcement switched on." : "Announcement switched off."; });
+}
+
+/** Deletes an Announcement for good. */
+export async function deleteInstallationAnnouncement(id: string): Promise<Result> {
+  return run(async (a) => { await announcements.deleteInstallationAnnouncement(a, String(id ?? "")); return "Announcement deleted."; });
 }

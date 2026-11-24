@@ -2,6 +2,8 @@
 
 **Status:** draft. **Ticket:** tracking issue #1084, tickets #1085, #1086, #1087, #1088, #1089, #1090, #1091 (the owner's decisions, 2026-11-24).
 
+**Progress, ticket 2 done:** the Announcements section of the Installation settings (`apps/web/src/app/installation/announcements.tsx`): the list, a side panel to add or change (fields of the spec, character count, preview drawn by the shell's own `AnnouncementWords`), switch off or on, and delete behind a confirmation; times are typed and shown in the browser's time zone, named beside the field; the five audit kinds have words under Changes; the four server actions are classified as outside the demo; the user guide chapter 18 has the section. The shell does not yet show the level, so the preview shows it as a word beside the line until ticket 3.
+
 ## Problem Statement
 
 An operator who is about to take Ziffr down for maintenance, or a Workspace admin who wants their team to read one thing, has no way to say it inside the app. Today the only Announcement is the demo's reset notice, fixed in code. The mechanism is built (the Announcement line, pull request #1083, branch `announcement-line`); what is missing is that people can write Announcements themselves, with a window in time, and that they work the same on ziffr.net and on a self-hosted Installation.
