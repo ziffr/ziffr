@@ -225,8 +225,8 @@ A Metric's page has one main button, and the rest sit in the **⋯** menu.
 | **⋯** → **Analyze** | Opens the Metric on an **Analysis Canvas** (see [Analyze](13-analyze.md)). | Everyone who sees the Metric |
 | **⋯** → **Duplicate** | Starts a new Metric with the same description (see below). | Owners, Admins and Members; not for a Derived Metric |
 | **⋯** → **Add to dashboard** | Places the Metric on one of your dashboards as a widget drawn with the default **Widget Template**. Lists the dashboards you own or may edit, and, below them, **New dashboard with this Metric**: it makes a dashboard named for the Metric, puts the Metric on it and opens it (rename it there). | Everyone who may make dashboards (not Guests); a Guest sees the list only, and nothing when they have no such dashboard |
-| **⋯** → **Archive…** | Puts the Metric aside, keeping its values and history (see below). | Owners, Admins and the Metric Owner, outside the demo |
-| **⋯** → **Bring back** | On an Archived Metric: makes it a Metric in use again (see below). | Owners, Admins and the Metric Owner, outside the demo |
+| **⋯** → **Archive…** | Puts the Metric aside, keeping its values and history (see below). | Owners, Admins and the Metric Owner, outside the demo; in a demo that visitors may change, for a Metric a visitor made |
+| **⋯** → **Bring back** | On an Archived Metric: makes it a Metric in use again (see below). | Owners, Admins and the Metric Owner, outside the demo; in a demo that visitors may change, for a Metric a visitor made |
 | **⋯** → **Delete…** | Deletes the Metric (see below). | The Metric Owner, outside the demo |
 | **⋯** → **Who can see this** | Opens a panel on the right that lists everyone with access and why: owner, a Share, a Group, a shared dashboard, or sending in values. For a Guest, people outside what is shared with them show as "Someone". | Everyone who sees the Metric |
 | **⋯** → **Versions** | Shows earlier states of the description (see below). | Everyone who sees the Metric |
@@ -565,7 +565,7 @@ Ziffr refuses to delete a Metric while something still uses it, and says what:
 - it is shown in a widget or a deck (take it out first),
 - a **View Link** that still works shows it (revoke the link first).
 
-The demo's Metrics cannot be deleted: the demo can't be changed.
+The demo's Metrics cannot be deleted: the demo can't be changed. Where visitors may change the demo, they can define Metrics of their own, change their details, Sources, targets and projections, tag, archive and bring them back, but not delete or hand them over, and not change the names and descriptions of the Metrics the demo started with (see [Trying Metrics, questions and sharing in a demo that can be changed](07-getting-started.md#trying-metrics-questions-and-sharing-in-a-demo-that-can-be-changed)).
 
 ## Filling in a value for someone
 
