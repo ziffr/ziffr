@@ -2,7 +2,7 @@
 // acts and in which Workspace; Row Level Security stays on with no policies, so nothing else can read the tables.
 import { AsyncLocalStorage } from "node:async_hooks";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
-import { DEMO_LIMIT_CODE, DEMO_READ_ONLY_CODE, DEMO_STALE_CODE, DemoLimit, DemoReadOnly, DemoStale } from "./demo";
+import { DEMO_LIMIT_CODE, DEMO_READ_ONLY_CODE, DEMO_STALE_CODE, DemoLimit, DemoReadOnly, DemoStale, protectedRefusal } from "./demo";
 import { visitHeaders } from "./demo-visit-scope";
 import { ServerFault } from "./server-fault";
 
@@ -17,7 +17,7 @@ const isDemoRefusal = (e: unknown) => typeof e === "object" && e !== null && (e 
 /** Whether a database error is its refusal of a visit's write because the demo started fresh since the page was drawn. */
 const isDemoStale = (e: unknown) => typeof e === "object" && e !== null && (e as { code?: unknown }).code === DEMO_STALE_CODE;
 /** The error a refusal of the demo's guard becomes: the stale one says to reload, any other that the demo can't be changed. */
-const refusal = (e: unknown): Error | null => (isDemoStale(e) ? new DemoStale() : isDemoRefusal(e) ? new DemoReadOnly() : demoLimitOf(e));
+const refusal = (e: unknown): Error | null => (isDemoStale(e) ? new DemoStale() : isDemoRefusal(e) ? new DemoReadOnly() : (demoLimitOf(e) ?? protectedRefusal(e)));
 /** The refusal of a row cap (code ZF4D2, message "demo_limit:<kind>"): the kind is read only to choose the words, never shown. */
 const demoLimitOf = (e: unknown): Error | null => {
   if (typeof e !== "object" || e === null || (e as { code?: unknown }).code !== DEMO_LIMIT_CODE) return null;

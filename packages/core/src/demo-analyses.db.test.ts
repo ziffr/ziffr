@@ -38,7 +38,7 @@ beforeAll(async () => {
 afterEach(() => { vi.useRealTimers(); });
 // Other files read the demo as supabase/seed.sql leaves it (the pinned dashboards, the finished period of the close): this file seeds it again, so it leaves it so.
 afterAll(async () => {
-  for (const fn of ["demo_reset", "prototype_seed_history", "prototype_seed_pins", "prototype_seed_close", "prototype_seed_fill_in"]) {
+  for (const fn of ["demo_reset", "prototype_seed_history", "prototype_seed_pins", "prototype_seed_close", "prototype_seed_fill_in", "prototype_seed_showcase"]) {
     expect((await db().rpc(fn, fn === "demo_reset" ? { min_gap: "0 seconds" } : {})).error, fn).toBeNull();
   }
 }, 120_000);
