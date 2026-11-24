@@ -12,6 +12,7 @@ import { whatThisZiffrOffers } from "@ziffr/core/what-works-here";
 import { trialsOpen } from "@ziffr/core/trials";
 import { turnstileSiteKey } from "@/lib/turnstile";
 import { settingsInEffect } from "@ziffr/core/settings-in-effect";
+import { demoChangesInEffect } from "@ziffr/core/demo-reset-decision";
 
 /** The way into the shared demo. A plain link, so a full page load: /demo sets the cookie in the middleware, and the
  * root layout's header must be drawn again for it (#14). */
@@ -22,9 +23,15 @@ export default async function LoginPage({ searchParams }: { searchParams: Promis
   if (await sessionUser()) redirect("/");
   // A public demo (ZIFFR_DEMO_ONLY=1): no sign-in, only the way in to the demo and to Ziffr itself.
   if (demoOnly()) {
+    // Where visitors may change the demo (spec 0051) the page says so; with the setting off the old words stay.
+    const mayChange = demoChangesInEffect(await settingsInEffect());
     return (
       <AuthShell below={<>To use Ziffr with your own numbers, run it yourself: <a href="https://github.com/ziffr/ziffr" className="underline underline-offset-4 hover:text-foreground">github.com/ziffr/ziffr</a>.</>}>
-        <AuthHeading title="Try Ziffr">Look around a made-up online shop. No account needed, and nothing you do there is saved.</AuthHeading>
+        <AuthHeading title="Try Ziffr">
+          {mayChange
+            ? "Try a made-up online shop. No account needed. What you change is shared with every visitor and gone when the demo starts fresh, every 15 minutes."
+            : "Look around a made-up online shop. No account needed, and nothing you do there is saved."}
+        </AuthHeading>
         <a href="/demo" className={cn(buttonVariants({ variant: "default", size: "lg" }), "w-full")}>Try the demo</a>
       </AuthShell>
     );
