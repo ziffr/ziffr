@@ -89,11 +89,7 @@ const OUTSIDE: readonly string[] = [
   "installation-feedback-actions:rejectFeedbackAction",
   "oauth/authorize/actions:answerConsent",
   "settings-actions:setAppearance",
-  "try/start/actions:askGuide",
-  "try/start/actions:guideValue",
-  "try/start/actions:makeN8nKey",
-  "try/start/actions:moveGuide",
-  "try/start/actions:skipGuide",
+  "try/n8n/actions:makeN8nKey",
   "workspace-import-actions:openImported",
 ];
 

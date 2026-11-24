@@ -99,7 +99,7 @@ describe("what each person sees of the step", () => {
     expect(s.cards.find((c) => c.way === "email")).toMatchObject({ status: "ready", canTest: true });
     expect(s.askedBy).toEqual(["email"]);
     expect(s.askable).toEqual(["email"]);
-    expect(s.more.map((m) => m.href)).toEqual(["/settings/keys", "/settings/assistants", "/settings/feeds", "/connectors/send"]);
+    expect(s.more.map((m) => m.href)).toEqual(["/settings/keys", "/settings/assistants", "/settings/feeds", "/connectors/send", "/settings/webhooks"]);
   });
 
   it("gives a Member only their own ways: no Workspace-level action, no Workspace links, nothing of the Owner's choice", async () => {

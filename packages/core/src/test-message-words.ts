@@ -38,7 +38,7 @@ export const TEST_SUBJECT = "Test message from Ziffr";
 
 /** The fixed text of a Test Message: the Workspace's name and the way, nothing else. */
 export function testText(workspaceName: string, way: ConnectorId & TestWay): string {
-  const name = workspaceName.replace(/\s+/g, " ").trim().slice(0, 80);
+  const name = workspaceName.replace(/[<>&]/g, "").replace(/\s+/g, " ").trim().slice(0, 80);
   return `This is a test from Ziffr${name ? ` for ${name}` : ""}. If you can read it here, Ziffr reaches you on ${WAY_WORDS[way]}. Nothing to answer.`;
 }
 

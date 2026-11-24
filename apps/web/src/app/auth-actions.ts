@@ -7,7 +7,6 @@ import { forBrowser } from "@/lib/auth-settings";
 import { authClient, DEMO_COOKIE, demoOnly, sessionUser, personFor, signedIn } from "@/lib/auth";
 import { acceptInvitation, requestToJoin } from "@ziffr/core/invitations";
 import { createWorkspace as coreCreateWorkspace, isMemberOf } from "@ziffr/core/page-data";
-import { whatThisZiffrOffers } from "@ziffr/core/what-works-here";
 import { currentActor, WORKSPACE_COOKIE } from "@/lib/viewer";
 import { endTrialNow as coreEndTrialNow } from "@ziffr/core/trial-end";
 import { safeNext, SITE_URL, enabledProviders, type Provider } from "@/lib/sign-in";
@@ -87,9 +86,8 @@ export async function createWorkspace(name: string): Promise<{ error: string } |
   const jar = await cookies();
   jar.set(WORKSPACE_COOKIE, ws.id, { httpOnly: true, sameSite: "lax", path: "/" });
   jar.delete(DEMO_COOKIE); // working in one's own workspace ends a demo visit
-  // A new trial opens on its Trial Guide (ticket 193): a few steps to the first value its Owner answers (it moves to the
-  // Setup Guide with spec 0052 ticket 12). Any other new Workspace opens on the Setup Guide (spec 0052), fixed paths only.
-  redirect((await whatThisZiffrOffers()).trial ? "/try/start" : "/setup");
+  // Every new Workspace, a trial included, opens on the Setup Guide (spec 0052): a fixed path.
+  redirect("/setup");
 }
 
 /** Switches to another of the person's workspaces. */

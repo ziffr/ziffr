@@ -81,7 +81,7 @@ export async function adoptSetupFirstMetric(actor: Actor, metricId: number): Pro
   if ((actor as { key?: unknown }).key || actor.workspaceId === DEMO_WORKSPACE_ID || (actor.role !== "owner" && actor.role !== "admin")) return;
   if (!Number.isSafeInteger(metricId) || metricId <= 0) return;
   const { data: m } = await db().from("metrics").select("id").eq("id", metricId).eq("workspace_id", actor.workspaceId).maybeSingle();
-  if (!m) return;
+  if (!m || !(await canSee(actor, "metric", metricId))) return;
   await startSetupGuide(actor);
   await db().from("setup_guides").update({ first_metric_id: metricId, updated_at: new Date().toISOString() }).eq("workspace_id", actor.workspaceId).is("first_metric_id", null);
 }
