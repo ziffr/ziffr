@@ -34,13 +34,13 @@ function SheetContent({
     <SheetPrimitive.Portal>
       <SheetPrimitive.Backdrop
         data-slot="sheet-overlay"
-        className="fixed inset-0 isolate z-50 bg-[color-mix(in_oklab,var(--color-ink)_22%,transparent)] duration-150 data-open:animate-in data-open:fade-in-0 data-closed:animate-out data-closed:fade-out-0"
+        className="fixed inset-0 isolate z-[var(--z-popup)] bg-[color-mix(in_oklab,var(--color-ink)_22%,transparent)] duration-150 data-open:animate-in data-open:fade-in-0 data-closed:animate-out data-closed:fade-out-0"
       />
       <SheetPrimitive.Popup
         data-slot="sheet-content"
         data-side={side}
         className={cn(
-          "fixed z-50 flex flex-col gap-3 bg-popover text-sm text-popover-foreground shadow-lg ring-1 ring-foreground/10 outline-none duration-200 ease-out data-open:animate-in data-closed:animate-out motion-reduce:animate-none",
+          "fixed z-[var(--z-popup)] flex flex-col gap-3 bg-popover text-sm text-popover-foreground shadow-lg ring-1 ring-foreground/10 outline-none duration-200 ease-out data-open:animate-in data-closed:animate-out motion-reduce:animate-none",
           side === "right" && "inset-y-0 right-0 h-full w-full max-w-[26rem] data-open:slide-in-from-right data-closed:slide-out-to-right",
           side === "left" && "inset-y-0 left-0 h-full w-full max-w-[20rem] data-open:slide-in-from-left data-closed:slide-out-to-left",
           side === "bottom" && "inset-x-0 bottom-0 max-h-[85dvh] rounded-t-xl data-open:slide-in-from-bottom data-closed:slide-out-to-bottom",
