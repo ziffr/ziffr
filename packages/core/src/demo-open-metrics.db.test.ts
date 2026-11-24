@@ -205,7 +205,7 @@ describe("Shares, access requests and Groups among the made-up people", () => {
     const { getMetrics } = await import("./workspace-data");
     const all = await getMetrics(DEMO_WORKSPACE_ID);
     const sees = await visibleMetricIds(DEMO_WORKSPACE_ID, guest, all);
-    const hidden = all.find((m) => !sees.has(m.id) && m.owner_id === "sara" && !m.formula)!;
+    const hidden = all.find((m) => !sees.has(m.id) && m.owner_id === "sara" && !m.formula && m.aggregation !== "none" && !m.archived_at)!;
     await asVisit(async () => {
       const dash = await (await import("./dashboards")).createDashboard(sara, "Shows a hidden Metric");
       await (await import("./dashboards")).placeWidget(sara, dash, { type: "metric", id: hidden.id });
@@ -242,8 +242,8 @@ describe("Shares, access requests and Groups among the made-up people", () => {
     const { getMetrics } = await import("./workspace-data");
     const all = await getMetrics(DEMO_WORKSPACE_ID);
     const sees = await visibleMetricIds(DEMO_WORKSPACE_ID, guest, all);
-    const hidden = all.find((m) => !sees.has(m.id) && m.owner_id === "sara" && !m.formula)!;
-    const seen = all.find((m) => sees.has(m.id) && m.owner_id === "sara" && !m.formula)!;
+    const hidden = all.find((m) => !sees.has(m.id) && m.owner_id === "sara" && !m.formula && m.aggregation !== "none" && !m.archived_at)!;
+    const seen = all.find((m) => sees.has(m.id) && m.owner_id === "sara" && !m.formula && m.aggregation !== "none" && !m.archived_at)!;
     const dashboards = await import("./dashboards");
     const { saveNamedVersion, restoreVersion } = await import("./version-history");
     const { setMetricFormula } = await import("./derived-metrics");
