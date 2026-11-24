@@ -18,6 +18,7 @@ import { TEMPLATES } from "./widget-templates";
 import { getMetrics } from "./workspace-data";
 import { ensureBaseline, recordVersion } from "./versions";
 import { visitorOptionalText } from "./demo-visitor-words";
+import { visitorSlideShapes } from "./demo-visitor-deck";
 import { chargeVisitorBytes, visitorSize } from "./demo-visitor-limits";
 import { DEMO_STORE_MAX } from "./demo-limits";
 import { assertWidgetDesigns } from "./widget-designs";
@@ -99,7 +100,8 @@ export function cleanSlideShapes(shapes: unknown): { shapes: SlideShape[]; metri
 export async function saveSlideLayout(actor: Actor, input: { deckId: number; shapes: SlideShape[]; name: string; description: string; labels: string[]; choices: Choices; replaceId?: number | null }): Promise<number> {
   const { data: deck } = await db().from("decks").select("owner_id").eq("id", input.deckId).eq("workspace_id", actor.workspaceId).maybeSingle();
   if (!deck || deck.owner_id !== actor.personId) throw new Forbidden();
-  const { shapes, metricIds } = cleanSlideShapes(input.shapes);
+  // The shapes come from the editor and carry words: in a demo visit they are rebuilt as a deck's are (no picture, words through the text rules).
+  const { shapes, metricIds } = cleanSlideShapes(visitorSlideShapes(actor, input.shapes));
   await assertSeesMetrics(actor, metricIds);
   const t = toSlideLayout(shapes, await getMetrics(actor.workspaceId), cleanChoices(input.choices), cleanLabels(actor, input.labels));
   return store(actor, "slide", input.replaceId, { ...names(actor, input.name, input.description, "Untitled layout"), view: "slide", slots: t.slots, body: t.body, w: 0, h: 0, updated_at: new Date().toISOString() });

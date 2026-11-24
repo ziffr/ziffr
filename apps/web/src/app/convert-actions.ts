@@ -7,6 +7,7 @@ import { DECK_ADD_COOKIE, DECK_ADD_SECONDS, newIntent } from "@/lib/deck-add-int
 import { revalidatePath } from "next/cache";
 import { currentActor } from "@/lib/viewer";
 import { attempt } from "@/lib/action-result";
+import { attemptAsVisitor } from "@/lib/demo-write";
 import { deckSeed } from "@ziffr/core/conversions";
 import { createDeck } from "@ziffr/core/decks";
 import { snapshotDeckSeed } from "@ziffr/core/snapshots";
@@ -14,10 +15,11 @@ import { deckAddition, deckTargets, newDeckFor } from "@ziffr/core/deck-addition
 
 /** Starts a deck from a Snapshot (spec 0013) and opens it: its slides draw the values of the Snapshot's period. */
 export async function makeDeckFromSnapshot(snapshotId: number) {
-  return attempt(async () => {
+  return attemptAsVisitor("convert-actions:makeDeckFromSnapshot", async () => {
     const actor = await currentActor();
     const seed = await snapshotDeckSeed(actor, Number(snapshotId));
-    const id = await createDeck(actor, seed.name);
+    // Named after the Snapshot's dashboard, whose name is checked or the seed's.
+    const id = await createDeck(actor, seed.name, { derived: true });
     revalidatePath("/", "layout");
     redirect(`/decks/${id}?snapshot=${Number(snapshotId)}`);
   });
@@ -25,10 +27,10 @@ export async function makeDeckFromSnapshot(snapshotId: number) {
 
 /** Starts a deck named after this dashboard and opens it; the deck editor lays out its slides. */
 export async function makeDeck(sourceId: number) {
-  return attempt(async () => {
+  return attemptAsVisitor("convert-actions:makeDeck", async () => {
     const actor = await currentActor();
     const seed = await deckSeed(actor, Number(sourceId));
-    const id = await createDeck(actor, seed.name);
+    const id = await createDeck(actor, seed.name, { derived: true });
     revalidatePath("/", "layout");
     redirect(`/decks/${id}?from=${Number(sourceId)}`);
   });
@@ -43,7 +45,7 @@ export async function deckChoices() {
  * new slide. The core checks the viewer may open the widget, change the deck and see every Metric, here and again
  * when the deck is opened and saved. */
 export async function addToDeck(widgetId: number, deckId: number | null, slide: string | null) {
-  return attempt(async () => {
+  return attemptAsVisitor("convert-actions:addToDeck", async () => {
     const actor = await currentActor();
     const id = deckId === null ? await newDeckFor(actor, Number(widgetId)) : Number(deckId);
     const added = await deckAddition(actor, id, Number(widgetId), slide);

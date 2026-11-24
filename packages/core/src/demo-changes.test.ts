@@ -23,6 +23,11 @@ const OPENED_9 = [
   "template-actions:deleteTemplate", "template-actions:renameTemplate", "template-actions:saveTemplate",
   "theme-actions:addStandardTheme", "theme-actions:deleteTheme", "theme-actions:duplicateTheme", "theme-actions:saveTheme", "theme-actions:setDashboardTheme",
   "version-actions:nameVersion", "version-actions:restoreVersion", "version-actions:saveNamedVersion",
+  // Ticket 10: decks and Snapshots.
+  "convert-actions:addToDeck", "convert-actions:makeDeck", "convert-actions:makeDeckFromSnapshot", "deck-actions:createDeck", "deck-actions:deleteDeck", "deck-actions:renameDeck",
+  "deck-actions:saveDeck", "deck-actions:setDeckFooter", "deck-workflow-template-actions:createDeckFromTemplate", "deck-workflow-template-actions:saveAsDeckTemplate",
+  "snapshot-actions:deleteSnapshot", "snapshot-actions:editSnapshotWords", "snapshot-actions:showSnapshot", "snapshot-actions:takeSnapshot",
+  "template-actions:saveSlideLayout", "theme-actions:setDeckTheme",
 ];
 const OPENED = [...OPENED_8, ...OPENED_9].sort();
 
@@ -66,7 +71,12 @@ describe("demoAllows", () => {
     expect(demoClassOf("settings-actions:renameWorkspace")).toEqual({ class: "blocked", reason: "changes-what-everyone-sees" });
     expect(demoClassOf("theme-actions:setDefaultTheme")).toEqual({ class: "blocked", reason: "changes-what-everyone-sees" });
     expect(demoClassOf("pin-actions:pinDashboard")).toEqual({ class: "blocked", reason: "does-nothing" });
-    expect(demoClassOf("deck-actions:createDeck")).toEqual({ class: "blocked", reason: "not-yet" });
+    expect(demoClassOf("deck-actions:createDeck")).toEqual({ class: "limited", limit: "decks" });
+    expect(demoClassOf("snapshot-actions:takeSnapshot")).toEqual({ class: "limited", limit: "snapshots" });
+    // Ticket 10 opens no Workflow Template, no automatic Snapshot and no export record.
+    expect(demoClassOf("deck-workflow-template-actions:saveAsWorkflowTemplate")).toEqual({ class: "blocked", reason: "not-yet" });
+    expect(demoClassOf("snapshot-actions:setAutoSnapshots")).toEqual({ class: "blocked", reason: "does-nothing" });
+    expect(demoClassOf("deck-actions:noteDeckExport")).toEqual({ class: "blocked", reason: "does-nothing" });
     expect(demoClassOf("search-actions:searchEverything")).toEqual({ class: "reads" });
   });
 
