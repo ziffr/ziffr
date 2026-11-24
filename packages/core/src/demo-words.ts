@@ -39,6 +39,8 @@ const LIMIT_NOUNS: Record<string, string> = {
   tags: "Tags",
   open_actions: "open Questions and Tasks",
   values: "values",
+  themes: "Themes",
+  versions: "Versions",
 };
 
 /** The sentence for a row cap that was reached; an unknown kind gets the general one. */

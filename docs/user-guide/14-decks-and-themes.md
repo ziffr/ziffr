@@ -262,3 +262,5 @@ Every dashboard and deck has a theme picker, shown with a palette icon. The firs
 Whoever may change the dashboard or deck may pick its theme: its owner and its Editors. Viewers see it in the theme that was picked. The **Themes** link next to the picker opens the Themes page.
 
 In the demo, where visitors may change it, a deck that the demo started fresh without sends you to its new copy.
+
+In the demo, where visitors may change it, you may copy a Theme, add a standard one, shape it, pick it for your own dashboards and delete it. A Theme the demo came with keeps its colours and name, the team default cannot be changed, and no logo or background picture can be added.

@@ -8,6 +8,7 @@ import { standardTheme } from "./standard-themes";
 import { checkThemeFile, themeFromFile, type ThemeFile } from "./theme-file";
 import type { Problem } from "./json-check";
 import { ensureBaseline, recordVersion } from "./versions";
+import { visitorThemeSlides, visitorText } from "./demo-visitor-words";
 import { cleanLogo, PACK_LOGO_MAX_BYTES } from "@ziffr/pack/logo";
 import type { ThemeSlides, ThemeTokens } from "./types";
 
@@ -23,9 +24,12 @@ export async function saveTheme(actor: Actor, id: number, name: string, tokens: 
   assertCan(actor, "manage-themes");
   const clean = cleanTokens(tokens);
   if (!clean) throw new Error("Some colours or fonts are not valid.");
-  await themeOf(actor, id);
+  const stored = await themeOf(actor, id);
+  // In the demo a visitor's words are checked and no picture comes in (spec 0051): the footer is words, a logo or a background a file.
+  const words = visitorText(actor, String(name ?? ""), "name");
+  const keptSlides = visitorThemeSlides(actor, slides, stored.slides as ThemeSlides | null);
   await ensureBaseline("theme", id, actor.personId);
-  const { error } = await db().from("themes").update({ name: String(name ?? "").trim().slice(0, 60) || "Untitled theme", tokens: clean, slides: cleanSlides(slides), updated_at: new Date().toISOString() }).eq("id", id).eq("workspace_id", actor.workspaceId);
+  const { error } = await db().from("themes").update({ name: words.trim().slice(0, 60) || "Untitled theme", tokens: clean, slides: cleanSlides(keptSlides), updated_at: new Date().toISOString() }).eq("id", id).eq("workspace_id", actor.workspaceId);
   if (error) throw new Error("The theme could not be saved.");
   await recordVersion("theme", id, actor.personId);
 }

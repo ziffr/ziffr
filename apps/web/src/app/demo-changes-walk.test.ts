@@ -36,20 +36,21 @@ describe("the demo's classification of server actions", () => {
     expect(known.filter((k) => !actions.includes(k)), "classified but gone: remove from packages/core/src/demo-changes.ts").toEqual([]);
   });
 
-  it("blocks every change today and gives every blocked one its reason", () => {
+  it("gives every blocked action its reason, and opens only what a ticket of spec 0051 opened", () => {
     for (const key of demoOperations()) {
       const c = demoClassOf(key);
       expect(c, key).not.toBeNull();
-      expect(["reads", "outside", "blocked"], `${key} is ${c?.class}; nothing is open yet`).toContain(c?.class);
+      expect(["reads", "outside", "blocked", "open", "limited"], key).toContain(c?.class);
       if (c?.class === "blocked") expect(c.reason).toBeTruthy();
     }
   });
 
-  it("allows nothing, with the setting off or in effect, and nothing that is not classified", () => {
+  it("allows nothing with the setting off, and with it in effect exactly the open and limited actions", () => {
     const on = { ZIFFR_DEMO_ONLY: "1", ZIFFR_DEMO_CHANGES: "1" };
     for (const key of demoOperations()) {
+      const c = demoClassOf(key)?.class;
       expect(demoAllows(key, {}), key).toBe(false);
-      expect(demoAllows(key, on), key).toBe(false);
+      expect(demoAllows(key, on), key).toBe(c === "open" || c === "limited");
     }
     expect(demoAllows("made-up-actions:doSomething", on)).toBe(false);
   });
