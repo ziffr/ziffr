@@ -5,7 +5,6 @@ import { PageHeader } from "@/components/page-header";
 import { isDemo } from "@/lib/auth";
 import { AnalyzeScreen } from "./screen";
 import { HeadsUpsSection } from "./heads-ups";
-import Link from "next/link";
 import { Suspense } from "react";
 
 export default async function AnalyzePage({ searchParams }: { searchParams: Promise<{ add?: string; metric?: string }> }) {
@@ -31,17 +30,12 @@ export default async function AnalyzePage({ searchParams }: { searchParams: Prom
   const onCanvas = canvas.filter((id) => data.metrics.some((m) => m.id === id));
   return (
     <>
-      <PageHeader title="Analyze" sub="Drop metrics on the canvas, then choose a method: pick by what you want to know. Save any result as a widget.">
-        <div className="flex gap-4">
-          <Link href="/analyze/designs" className="text-sm text-muted-foreground underline-offset-2 hover:text-foreground hover:underline">View Designs</Link>
-          <Link href="/analyze/playground" className="text-sm text-muted-foreground underline-offset-2 hover:text-foreground hover:underline">Playground</Link>
-        </div>
-      </PageHeader>
+      <PageHeader title="Analyze" sub="Drop metrics on the canvas, then choose a method: pick by what you want to know. Save any result as a widget." />
       {/* In a Workspace over the scan's cap the list scans the person's own Metrics: the page does not wait for it. */}
       <Suspense fallback={<p className="mb-6 text-sm text-muted-foreground">Looking for Heads-ups…</p>}>
         <HeadsUpsSection actor={actor} demo={demo} />
       </Suspense>
-      <AnalyzeScreen data={data} demo={demo} onCanvas={onCanvas} explained={demo ? named : state.explains !== null && onCanvas.includes(state.explains) ? state.explains : null} open={named !== null} />
+      <AnalyzeScreen data={data} demo={demo} onCanvas={onCanvas} writes={actor.role === "owner" || actor.role === "admin"} explained={demo ? named : state.explains !== null && onCanvas.includes(state.explains) ? state.explains : null} open={named !== null} />
     </>
   );
 }

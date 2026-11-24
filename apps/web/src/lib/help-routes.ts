@@ -27,6 +27,7 @@ export const HELP_ROUTES: readonly (readonly [string, string])[] = [
   ["/settings/your-webhooks", "your-settings"],
   ["/settings/schedule", "your-settings"],
   ["/settings/packs", "packs"],
+  ["/settings/library", "analyze"],
   ["/team", "workspace-settings"],
   ["/connectors", "workspace-settings"],
   ["/sources", "workspace-settings"],
