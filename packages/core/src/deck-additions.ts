@@ -10,6 +10,7 @@ import { assertCan, can, Forbidden, type Actor } from "./actor";
 import { visibleDecks } from "./access";
 import { specFrom } from "./dashboards";
 import { createDeck } from "./decks";
+import { refuseSeeded } from "./demo-seeded-rows";
 import type { Widget } from "./types";
 
 /** A slide of a deck, by its shape id and the name the editor gave it ("Slide 3"), in reading order. */
@@ -60,6 +61,8 @@ export async function deckAddition(actor: Actor, deckId: number, widgetId: numbe
   if (!Number.isSafeInteger(deckId) || !Number.isSafeInteger(widgetId) || widgetId <= 0) throw new Forbidden();
   const role = (await visibleDecks(actor.workspaceId, actor.personId)).find((d) => d.id === deckId)?.role;
   if (role !== "owner" && role !== "editor") throw new Forbidden("Only the deck's owner and its Editors add to it.");
+  // In the demo a deck the seed made is kept as it is: said now, not when the editor's save is refused.
+  await refuseSeeded(actor, "decks", deckId);
   const spec = await specFrom(actor, { type: "widget", id: widgetId });
   let on: string | null = null;
   if (typeof slide === "string" && SLIDE_ID.test(slide)) {
@@ -77,5 +80,6 @@ export async function newDeckFor(actor: Actor, widgetId: number): Promise<number
   assertCan(actor, "create");
   if (!Number.isSafeInteger(widgetId) || widgetId <= 0) throw new Forbidden();
   const spec = await specFrom(actor, { type: "widget", id: widgetId });
-  return createDeck(actor, spec.title || "New deck");
+  // Named after the widget, whose title was checked when it was written (or is the seed's).
+  return createDeck(actor, spec.title || "New deck", { derived: true });
 }

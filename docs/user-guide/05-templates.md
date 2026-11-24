@@ -60,7 +60,7 @@ In the demo, where visitors may change it, you may make a dashboard from a templ
 
 ## Deck Templates and Workflow Templates
 
-A **Deck Template** is a starting point for a whole deck: its slides with their Widgets, words and boxes, the Metrics left open as Slots. Save a deck as one with **Save as Deck Template…** in the deck editor, and start a deck from one on the Decks page (Decks and Themes).
+A **Deck Template** is a starting point for a whole deck: its slides with their Widgets, words and boxes, the Metrics left open as Slots. Save a deck as one with **Save as Deck Template…** in the deck editor, and start a deck from one on the Decks page (Decks and Themes). In the demo, where visitors may change it, you may save a deck as a Deck Template, save a slide as a layout and start a deck from a Deck Template, with plain words and no pictures; Workflow Templates stay off.
 
 A **Workflow Template** is a starting point for a Workflow: its Due Date, steps and reminders, with the people left open. Its **checklist items** come along with their words, day and Due Date, but never the people they go to, the Group that reads them or the person who ticks them off: you pick those in the editor after you start a Workflow from it. Save a Workflow as one with **Save as template…**, and start one with **New from a template** on the Workflows page (Workflows and approvals).
 

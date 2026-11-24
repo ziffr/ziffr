@@ -68,10 +68,10 @@ export function detrended(points: Point[], span: Span): Point[] {
   return s.map((p, i) => ({ period: p.period, value: nearest(minus(ys[i], plus(meanY, times(slope, minus(xs[i], meanX))))) }));
 }
 
-/** Whether the straight-line trend explains more than half of the series' variance: R² = Sxy² ÷ (Sxx · Syy) above ½,
+/** Whether the straight-line trend explains more than half of the series' variance (the one-series check of `basisFor`, which a Look-alike asks of each Metric): R² = Sxy² ÷ (Sxx · Syy) above ½,
  * decided exactly as 2 · Sxy² > Sxx · Syy. A series that does not change (Syy 0) or has fewer than two values (all three 0)
  * has no trend to speak of: the comparison is 0 > 0. */
-function trends(points: Point[], span: Span): boolean {
+export function trendsClearly(points: Point[], span: Span): boolean {
   const { sxy, sxx, syy } = line(points, span);
   const [a, b] = [times(whole(2), times(sxy, sxy)), times(sxx, syy)];
   return a.num * b.den > b.num * a.den;
@@ -80,5 +80,5 @@ function trends(points: Point[], span: Span): boolean {
 /** The basis two series are compared on: "changes" where both trend, else "values". `a` and `b` are on the same
  * periods, each `span` long. */
 export function basisFor(a: Point[], b: Point[], span: Span): Basis {
-  return trends(a, span) && trends(b, span) ? "changes" : "values";
+  return trendsClearly(a, span) && trendsClearly(b, span) ? "changes" : "values";
 }

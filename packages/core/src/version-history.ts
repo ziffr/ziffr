@@ -115,6 +115,7 @@ async function refuseSeededRestore(actor: Actor, type: string, id: number) {
   if (type === "dashboard") await refuseSeeded(actor, "dashboards", id);
   else if (type === "theme") await refuseSeeded(actor, "themes", id);
   else if (type === "template") await refuseSeeded(actor, "team_templates", id);
+  else if (type === "deck") await refuseSeeded(actor, "decks", id);
   else if (type === "widget") {
     const { data } = await db().from("widgets").select("dashboard_id").eq("id", id).eq("workspace_id", actor.workspaceId).maybeSingle();
     if (data?.dashboard_id) await refuseSeeded(actor, "dashboards", data.dashboard_id);
@@ -131,6 +132,7 @@ export async function nameVersion(actor: Actor, versionId: number, name: string)
 export async function saveNamedVersion(actor: Actor, type: VersionType, id: number, name: string) {
   if (!(await versionAccess(actor, type, id)).edit) throw new Forbidden();
   visitorVersionType(actor, type);
+  if (type === "deck") await refuseSeeded(actor, "decks", id);
   // Counted before anything is written: a visit names a few Versions a window, and the demo holds a limited number.
   await chargeVisitor(actor, "named", 1, DEMO_STORE_MAX.namedVersionsPerVisit, "You have named a few versions already. Try again when the demo starts fresh.");
   await recordVersion(type, id, actor.personId, { name: String(visitorOptionalText(actor, String(name ?? ""), "name")).trim().slice(0, 80) || "Named version" });
@@ -209,6 +211,7 @@ export async function restoreVersion(actor: Actor, versionId: number, effects: R
     }
     case "deck":
       assertWidgetDesigns(s.document);
+      await visitorSharedStaysSeen(actor, "deck", id, deckMetricIds(s.document));
       await db().from("decks").update({ name: s.name, ...(s.theme_id !== undefined ? { theme_id: s.theme_id } : {}), ...(s.footer !== undefined ? { footer: s.footer } : {}), document: s.document, updated_at: at }).eq("id", id).eq("workspace_id", ws);
       break;
     case "snapshot": {

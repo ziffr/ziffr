@@ -71,6 +71,22 @@ export function demoDeckStoreOk(store: string): boolean {
   return new TextEncoder().encode(store).length <= DEMO_DECK_STORE_MAX_BYTES;
 }
 
+/** What the saves of decks may write in a reset window (spec 0051, ticket 10): a deck saves itself after each change, so the bytes
+ * of every save above `thresholdBytes` are counted (in KB) per network address, per network and for the whole demo. */
+export const DEMO_DECK_BYTES = { thresholdBytes: 8 * 1024, maxCountedBytes: 600 * 1024, perAddressKb: 20_000, perNetworkKb: 50_000, demoKb: 300_000 } as const;
+
+/** Taking a Snapshot freezes a whole dashboard's numbers, so it is the demo's most expensive change (spec 0051, Limits:
+ * Expensive work, ticket 10): one at a time in the whole demo (a lease of `lockSeconds`, so a crash cannot hold it), a few
+ * for one visit and for one network address in a reset window (a visit's id is free to mint, so the address's share holds
+ * against a script), and what one keeps is bounded in bytes of its sealed frozen part. */
+export const DEMO_SNAPSHOT_LIMITS = {
+  perVisitPerWindow: 3,
+  perAddressPerWindow: 6,
+  perNetworkPerWindow: 12,
+  lockSeconds: 90,
+  frozenBytes: 1024 * 1024,
+} as const;
+
 /** What a visitor may enter as values and dates (spec 0051, Limits: Values; ticket 8): values for periods from this many months
  * back up to the current one, never ahead; at most this many values (and lines of text) in one paste; Away of at most this many
  * days, starting no earlier than today and ending within the days ahead; and "pretend it is another day" no further from today

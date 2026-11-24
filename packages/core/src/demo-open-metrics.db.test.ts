@@ -259,7 +259,22 @@ describe("Shares, access requests and Groups among the made-up people", () => {
       // A calculated Metric shared with the Guest keeps to inputs the Guest sees.
       const calc = await createDerivedMetric(sara, { name: "Seen times one", formula: `{${seen.slug}} * 1` });
       await share(sara, "metric", calc.id, guest, "viewer");
-      await expect(setMetricFormula(sara, calc.id, `{${hidden.slug}} * 1`)).rejects.toThrow(DEMO_METRIC_WORDS.hidden);
+      // A shared calculated Metric is used, so its formula does not change at all; an unused one does.
+      await expect(setMetricFormula(sara, calc.id, `{${hidden.slug}} * 1`)).rejects.toThrow(DEMO_METRIC_WORDS.used);
+      const loose = await createDerivedMetric(sara, { name: "Unused calc", formula: `{${seen.slug}} * 2` });
+      await setMetricFormula(sara, loose.id, `{${seen.slug}} * 3`);
+      // Shown on a dashboard, or read by another calculated Metric: used.
+      const shownOn = await dashboards.createDashboard(sara, "Shows loose");
+      await dashboards.placeWidget(sara, shownOn, { type: "metric", id: loose.id });
+      await expect(setMetricFormula(sara, loose.id, `{${seen.slug}} * 4`)).rejects.toThrow(DEMO_METRIC_WORDS.used);
+      const base2 = await createDerivedMetric(sara, { name: "Base calc", formula: `{${seen.slug}} * 5` });
+      await createDerivedMetric(sara, { name: "Reads base", formula: `{${base2.slug}} * 1` }).catch(() => undefined);
+      // A calculated Metric over a calculated Metric over a hidden one, placed on a dashboard shared with the Guest: refused, through both.
+      const hiddenCalc = await createDerivedMetric(sara, { name: "Hidden calc", formula: `{${hidden.slug}} * 1` });
+      const outer = await createDerivedMetric(sara, { name: "Outer calc", formula: `{${hiddenCalc.slug}} * 1` }).catch(() => null);
+      const sharedDash = await dashboards.createDashboard(sara, "Shared deep");
+      await share(sara, "dashboard", sharedDash, guest, "viewer");
+      await expect(dashboards.placeWidget(sara, sharedDash, { type: "metric", id: (outer ?? hiddenCalc).id })).rejects.toThrow(DEMO_METRIC_WORDS.hidden);
     });
   });
 

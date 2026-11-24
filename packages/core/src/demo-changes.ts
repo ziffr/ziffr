@@ -5,7 +5,7 @@
 //
 // Ticket 4 made every change `blocked`; each opening ticket of spec 0051 moves its keys from `not-yet` to `OPEN` or
 // `LIMITED` here and nowhere else (ticket 8: the work around a value, recording, approving, locking, the Workflows' run to the
-// Outbox, Stand-ins, Away; ticket 9: dashboards, widgets, the Pool, Themes of a visitor's own, Versions and templates; ticket 11: Metrics, Targets, Tags, Questions and Tasks, Shares and Groups among the made-up people, the preferred channel). `demoAllows` says no to everything unless the setting is in effect, so with it off the demo is as read-only as
+// Outbox, Stand-ins, Away; ticket 9: dashboards, widgets, the Pool, Themes of a visitor's own, Versions and templates; ticket 11: Metrics, Targets, Tags, Questions and Tasks, Shares and Groups among the made-up people, the preferred channel; ticket 10: decks, their templates and slide layouts, and Snapshots). `demoAllows` says no to everything unless the setting is in effect, so with it off the demo is as read-only as
 // before. The database's list still has to hold the tables an action writes, so a forgotten line refuses a visitor and
 // opens nothing. The classification only ever opens what the database would also let through.
 import { demoChangesInEffect } from "./demo-reset-decision";
@@ -255,28 +255,12 @@ const BLOCKED: Record<BlockedReason, readonly string[]> = {
   // leaves two of its own here on purpose: deleting a Metric and handing one over (the hand-over rewrites Shares and open Questions of
   // the seed's people and sends Notices; a deletion removes what dashboards of other visitors may show) wait for a decision of the owner.
   "not-yet": [
-    "convert-actions:addToDeck",
-    "convert-actions:makeDeck",
-    "convert-actions:makeDeckFromSnapshot",
-    "deck-actions:createDeck",
-    "deck-actions:deleteDeck",
-    "deck-actions:renameDeck",
-    "deck-actions:saveDeck",
-    "deck-actions:setDeckFooter",
-    "deck-workflow-template-actions:createDeckFromTemplate",
     "deck-workflow-template-actions:createWorkflowFromTemplate",
-    "deck-workflow-template-actions:saveAsDeckTemplate",
     "deck-workflow-template-actions:saveAsWorkflowTemplate",
     "setup/first-metric-actions:askMeForIt",
     "setup/first-metric-actions:sendFirstValue",
     "series-actions:deleteMetric",
     "series-actions:handOverMetricTo",
-    "snapshot-actions:deleteSnapshot",
-    "snapshot-actions:editSnapshotWords",
-    "snapshot-actions:showSnapshot",
-    "snapshot-actions:takeSnapshot",
-    "template-actions:saveSlideLayout",
-    "theme-actions:setDeckTheme",
     "workflow-actions:deleteWorkflow",
     "workflow-actions:saveWorkflow",
     "workflow-actions:setMetricWorkflow",
@@ -308,11 +292,20 @@ const OPEN: readonly string[] = [
   "canvas-actions:saveDashboardText",
   "canvas-actions:saveLayout",
   "canvas-actions:updateWidget",
+  // Ticket 10: a visitor's own decks and Snapshots (the seed's refuse, in the core and in the database).
+  "deck-actions:deleteDeck",
+  "deck-actions:renameDeck",
+  "deck-actions:saveDeck",
+  "deck-actions:setDeckFooter",
+  "snapshot-actions:deleteSnapshot",
+  "snapshot-actions:editSnapshotWords",
+  "snapshot-actions:showSnapshot",
   "template-actions:deleteTemplate",
   "template-actions:renameTemplate",
   "theme-actions:deleteTheme",
   "theme-actions:saveTheme",
   "theme-actions:setDashboardTheme",
+  "theme-actions:setDeckTheme",
   "version-actions:nameVersion",
   // Ticket 11: Metrics (archive and restore of a visitor's own, their details and Sources), Targets and Projections removed, Tags,
   // Groups of a visitor's own, a made-up person's preferred channel, and the Threads' status and access requests decided.
@@ -361,8 +354,20 @@ const LIMITED: Readonly<Record<string, readonly string[]>> = {
   saved_widgets: [
     "canvas-actions:saveToPool",
   ],
+  decks: [
+    "convert-actions:addToDeck",
+    "convert-actions:makeDeck",
+    "convert-actions:makeDeckFromSnapshot",
+    "deck-actions:createDeck",
+    "deck-workflow-template-actions:createDeckFromTemplate",
+  ],
+  snapshots: [
+    "snapshot-actions:takeSnapshot",
+  ],
   templates: [
     "dashboard-template-actions:saveAsDashboardTemplate",
+    "deck-workflow-template-actions:saveAsDeckTemplate",
+    "template-actions:saveSlideLayout",
     "template-actions:saveTemplate",
   ],
   themes: [

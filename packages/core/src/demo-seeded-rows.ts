@@ -16,6 +16,15 @@ export async function madeBySeed(table: string, id: number | string): Promise<bo
 
 /** In a demo visit, refuses in plain words a change to how a thing the seed made looks or is (its Theme, a restore of an old
  * state), which the database's words list would refuse too: the refusal here comes before any write, so no change is half done. */
-export async function refuseSeeded(actor: Pick<Actor, "workspaceId">, table: "dashboards" | "themes" | "team_templates", id: number): Promise<void> {
+export async function refuseSeeded(actor: Pick<Actor, "workspaceId">, table: "dashboards" | "themes" | "team_templates" | "decks" | "dashboard_snapshots", id: number): Promise<void> {
   if (inDemoVisit(actor) && await madeBySeed(table, id)) throw new DemoShowcase();
+}
+
+/** In a demo visit, refuses in plain words, before any work or write, a change to an object of the showcase (the landing
+ * page's dashboards, the tour's decks and what hangs off them: `demo_object_in_showcase`), which the database refuses too.
+ * Taking a Snapshot of a showcase dashboard is one, and is refused here before its numbers are computed. Fails closed. */
+export async function refuseShowcase(actor: Pick<Actor, "workspaceId">, kind: "dashboard" | "deck" | "snapshot", id: number): Promise<void> {
+  if (!inDemoVisit(actor)) return;
+  const { data, error } = await db().rpc("demo_object_in_showcase", { kind, id_text: String(id) });
+  if (error || data === true) throw new DemoShowcase();
 }

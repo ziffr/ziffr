@@ -44,6 +44,7 @@ const WRITERS: [string, string, string[], string[]][] = [
   ["questions.ts", "markTaskDone", ["visitorOptionalText("], ["finishTask("]],
   ["questions.ts", "setPreference", ["inDemoVisit("], [".delete()"]],
   // Whatever changes what an object that is already shared shows passes visitorSharedStaysSeen first (ticket 11, after the security review).
+  ["decks.ts", "saveDeck", ["visitorSharedStaysSeen("], ['from("decks").update']],
   ["dashboards.ts", "placeWidget", ["visitorSharedStaysSeen("], ["insertSealed("]],
   ["dashboards.ts", "updateWidget", ["visitorSharedStaysSeen("], ['from("widgets").update']],
   ["dashboards.ts", "applyTemplate", ["visitorSharedStaysSeen("], ['from("widgets").update']],
@@ -65,10 +66,10 @@ describe("every writer of what the demo opens in this ticket", () => {
 
   it("checks a restored dashboard or widget before it writes, and names no writer of a deck's Metrics until the decks are open", () => {
     const s = src("version-history.ts");
-    expect(s.match(/visitorSharedStaysSeen\(/g)?.length).toBe(2);
+    expect(s.match(/visitorSharedStaysSeen\(/g)?.length).toBe(3);
     expect(s.indexOf('visitorSharedStaysSeen(actor, "dashboard", id')).toBeLessThan(s.indexOf('await db().from("widgets").delete()'));
-    // A deck is written by no visit yet (a Version of a deck is refused to a visitor, and the deck actions are blocked): saveDeck gets the call with ticket 10.
-    expect(src("decks.ts")).not.toContain("visitorSharedStaysSeen");
+    // A deck's Metrics change by saving it or restoring a Version of it (templates and slide layouts make new, unshared decks).
+    expect(s.indexOf('visitorSharedStaysSeen(actor, "deck", id')).toBeLessThan(s.indexOf('await db().from("decks").update({ name: s.name'));
   });
 
   it("leaves no bare refusal of the demo in the Tags, which a visit's server action would meet", () => {
