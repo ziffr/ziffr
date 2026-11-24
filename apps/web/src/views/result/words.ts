@@ -1,8 +1,9 @@
 // The words a chart of an analysis result says for itself (GLOSSARY: Takeaway; ticket #1076): its title, what each line is, what each
 // level and mark stands for. The core's chart carries only structure and numbers, so the words are chosen here, in one place, from
 // the names of the Metrics the result is about. The Takeaway above or below it is the chart's text alternative.
-import type { BarsChart, ChartLevel, ChartLine, ChartMark, ForecastChart, LinesChart, ScatterChart } from "@ziffr/core/result-chart";
-import { formatDate } from "@ziffr/core/format";
+import type { BarsChart, ChartUnit, ChartLevel, ChartLine, ChartMark, ForecastChart, LinesChart, ScatterChart } from "@ziffr/core/result-chart";
+import { formatDate, formatValue } from "@ziffr/core/format";
+import type { NumberStyle } from "@ziffr/core/number-style";
 
 /** What a line is called in the legend: the Metric, said as what it is (its values, its change, what the fit expects, a trend). */
 export function lineName(l: Pick<ChartLine, "name" | "role">): string {
@@ -24,6 +25,13 @@ export function levelName(l: Pick<ChartLevel, "kind">): string {
 /** What a mark is called. */
 export function markName(m: ChartMark): string {
   return m.kind === "change" ? "The change" : m.day ? `From ${formatDate(m.day)}` : "The day it started";
+}
+
+/** A number in a Metric's unit with decimals widened until none that is not 0 reads as 0 (as the Takeaway writes the same numbers), up to 15. */
+export function written(unit: ChartUnit, v: number, like: number[], style: NumberStyle): string {
+  let decimals = unit.decimals;
+  while (decimals < 15 && like.some((x) => x !== 0 && Math.abs(x) * 10 ** decimals < 0.5)) decimals++;
+  return formatValue({ ...unit, decimals }, v, style);
 }
 
 const names = (l: LinesChart) => l.lines.map((x) => x.name);
@@ -52,7 +60,7 @@ export function barsTitle(c: BarsChart): string {
   const [a, b] = c.about;
   switch (c.measure) {
     case "delay": return `How closely ${b} follows ${a}, for each delay (in ${c.span}s)`;
-    case "importance": return `What moves ${a}: each Metric's share`;
+    case "importance": return `What moves ${a}: each Metric's share of the movement`;
     case "change": return `What changed ${a}, row by row`;
     default: return `The rows of ${a}: each one's share of the whole, and the running total`;
   }

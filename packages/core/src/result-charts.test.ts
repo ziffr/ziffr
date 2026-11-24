@@ -200,9 +200,9 @@ describe("every picker result with a picture", () => {
     actual.forEach((a, i) => near(a, y[i + offset]));
     fitted.forEach((f, i) => near(f, expected[i + offset], 1e-7));
     // The bars are the shares of the fit, as percentages that add up to the whole, in the order of the sentence (largest first).
-    near(bars.bars.reduce((s, b) => s + b.value, 0), 100, 1e-9);
+    near(bars.bars.reduce((s, b) => s + b.value, 0), num(row(t, /how much of the movement/i)), 0.5);
     expect(bars.bars.map((b) => b.value)).toEqual([...bars.bars.map((b) => b.value)].sort((a, b) => b - a));
-    for (const b of bars.bars) expect(t.numbers.find((n) => n.label.startsWith(`${b.label}:`) && /what the line explains/i.test(n.label))!.text).toBe(`${formatNumber(b.value, 0, "1,234.5")} %`);
+    for (const b of bars.bars) expect(t.numbers.find((n) => n.label.startsWith(`${b.label}:`) && /share of all the movement/i.test(n.label))!.text).toBe(`${formatNumber(b.value, 0, "1,234.5")} %`);
     expect(bars.bars.every((b) => typeof b.note === "string" && b.note.length > 0)).toBe(true);
   });
 

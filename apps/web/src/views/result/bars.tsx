@@ -3,10 +3,10 @@
 // Breakdown with the running total across them, each driver's share of what moved a Metric and each row's contribution to a change. It draws the numbers
 // the core's chart holds; a bar the words are about is told apart by a solid fill against hatching and by a word under it, not by colour alone.
 import { Bar, CartesianGrid, ComposedChart, Line, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
-import { formatNumber, formatValue } from "@ziffr/core/format";
+import { formatNumber } from "@ziffr/core/format";
 import type { NumberStyle } from "@ziffr/core/number-style";
 import type { BarsChart, ChartBar } from "@ziffr/core/result-chart";
-import { tagWords } from "./words";
+import { tagWords, written } from "./words";
 
 const percent = (v: number, style: NumberStyle) => `${formatNumber(v, v % 1 === 0 ? 0 : 1, style)} %`;
 const HATCH = "result-hatch";
@@ -64,7 +64,7 @@ function Columns({ chart: c, style }: { chart: BarsChart; style: NumberStyle }) 
   );
 }
 
-const rowText = (b: ChartBar, c: BarsChart, style: NumberStyle): string => (c.measure === "importance" ? percent(b.value, style) : `${b.value > 0 ? "+" : ""}${formatValue(c.unit!, b.value, style)}`);
+const rowText = (b: ChartBar, c: BarsChart, style: NumberStyle): string => (c.measure === "importance" ? percent(b.value, style) : `${b.value > 0 ? "+" : ""}${written(c.unit!, b.value, c.bars.map((x) => x.value), style)}`);
 
 /** The rows: each driver's share of what moved a Metric, or each row's contribution to a change (from the middle, up to the right, down to the left). */
 function Rows({ chart: c, style }: { chart: BarsChart; style: NumberStyle }) {

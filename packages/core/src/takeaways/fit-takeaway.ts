@@ -372,6 +372,6 @@ export function whatNeeds(target: Metric, others: Metric[], goal: number, resolv
     return { name: metric.name, takeaway: needsTakeaway(target, metric, f, goal, needs(f, { goal, driver: i }), opts.ctx, drivers) };
   });
   // The target as it was and as the fit expects it, with the goal where the fit is on levels.
-  const chart = opts.ctx.charts ? { chart: [fitLines(target.name, target, f.span, f.basis, f.rows, f.fitted, goal)] } : {};
+  const chart = opts.ctx.charts && rows[0].takeaway.kind === "answer" ? { chart: [fitLines(target.name, target, f.span, f.basis, f.rows, f.fitted, goal)] } : {};
   return { ...rows[0].takeaway, notes: [...notes, ...rows[0].takeaway.notes], rows, ...chart };
 }

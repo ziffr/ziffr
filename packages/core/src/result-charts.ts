@@ -79,9 +79,9 @@ export function fitLines(name: string, unit: ValueUnit, span: Span, basis: Basis
   });
 }
 
-/** Drivers as bars of their share of what moved the Metric, in the order the words name them; `notes` are the strength words the Takeaway wrote. */
-export function importanceBars(target: string, drivers: readonly { name: string; share: number }[], notes: readonly string[]): BarsChart {
-  return { kind: "bars", measure: "importance", about: [target], bars: drivers.map((d, i) => ({ label: d.name, value: d.share * 100, note: notes[i] })) };
+/** Drivers as bars of their share of all the movement of the Metric (the share the words say "about a third" of), in the order the words name them; `notes` are the strength words the Takeaway wrote. */
+export function importanceBars(target: string, drivers: readonly { name: string; explains: number }[], notes: readonly string[]): BarsChart {
+  return { kind: "bars", measure: "importance", about: [target], bars: drivers.map((d, i) => ({ label: d.name, value: d.explains * 100, note: notes[i] })) };
 }
 
 /** The series a change point was found in, the two lines it fitted (each from its level at the change date, with its slope per period) and the change date. Without a change found, the series alone. */

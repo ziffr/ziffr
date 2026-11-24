@@ -2,11 +2,11 @@
 // What a what-if reaches (GLOSSARY: Takeaway; ticket #1076): the change asked for, and for each Metric it reaches its change and the range it is likely
 // between. The Metrics are in their own units, so each row has its own scale from the lowest to the highest number it holds, with 0 marked: no row is
 // compared with another by its length. The number is written on the row, and a row nothing can be said of has no bar.
-import { formatValue } from "@ziffr/core/format";
+import { written } from "./words";
 import type { NumberStyle } from "@ziffr/core/number-style";
 import type { EffectsChart } from "@ziffr/core/result-chart";
 
-const signed = (u: EffectsChart["rows"][number]["unit"], v: number, style: NumberStyle) => `${v > 0 ? "+" : ""}${formatValue(u, v, style)}`;
+const signed = (u: EffectsChart["rows"][number]["unit"], v: number, like: number[], style: NumberStyle) => `${v > 0 ? "+" : ""}${written(u, v, like, style)}`;
 
 /** The rows of a what-if, each on its own scale. */
 export function EffectsView({ chart: c, style }: { chart: EffectsChart; style: NumberStyle }) {
@@ -29,7 +29,7 @@ export function EffectsView({ chart: c, style }: { chart: EffectsChart; style: N
                 </>
               )}
             </span>
-            <span className="fig col-span-2 text-xs sm:col-span-1">{r.effect === null ? "can’t tell" : `${signed(r.unit, r.effect, style)}${r.lo !== null && r.hi !== null ? ` (${signed(r.unit, r.lo, style)} to ${signed(r.unit, r.hi, style)})` : ""}`}</span>
+            <span className="fig col-span-2 text-xs sm:col-span-1">{r.effect === null ? "can’t tell" : `${signed(r.unit, r.effect, nums, style)}${r.lo !== null && r.hi !== null ? ` (${signed(r.unit, r.lo, nums, style)} to ${signed(r.unit, r.hi, nums, style)})` : ""}`}</span>
           </li>
         );
       })}

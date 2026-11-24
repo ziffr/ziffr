@@ -110,4 +110,12 @@ describe("the chart of a result", () => {
     for (const cell of grid.cells) expect(host.textContent).toContain(cell.word!);
     expect(host.querySelector("table caption")).toBeTruthy();
   });
+
+  it("writes small changes with the decimals the words use, never as 0", async () => {
+    const unit = { name: "M", unit: "€", unit_position: "after" as const, decimals: 0 };
+    await draw([{ kind: "bars", measure: "change", unit, about: ["M"], bars: [{ label: "A", value: 0.4 }, { label: "B", value: -0.3 }, { label: "", value: 0.1, tag: "total" }] }]);
+    const text = host.textContent!.replace(/\s/g, " ");
+    expect(text).toContain("+0.4 €");
+    expect(text).toMatch(/[−-]0\.3 €/);
+  });
 });
