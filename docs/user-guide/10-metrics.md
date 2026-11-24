@@ -98,6 +98,8 @@ The preview lists every value, grouped by Metric: its cell (such as C7), the per
 | **refused** | With the reason, such as "not a Metric you submit for", a Derived Metric, a Metric that does not take values from the web form, a period in the future, or "not a number". A Metric you cannot see is named in the same words whether it exists or not. |
 | **as history** | Recorded as history (below). |
 
+In the demo, the personal form link of a Metric the demo came with opens only in a demo visit; a Metric you made there has none to open for anyone else.
+
 You record values only for Metrics you submit for, through the same rules as the personal form link: the Submission Rule, Locks, the Unusual Value check and Approvals. Pasting is filling in the web form, so a Metric that has turned the web form off takes no pasted values. While you stand in for someone who is Away, you may paste for their Metrics too.
 
 Untick a value to leave it out, or the box beside a Metric's name to leave out all of its values. A line under the summary says when values would ask someone for Approval, such as "14 values would ask Ana for Approval".

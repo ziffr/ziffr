@@ -7,6 +7,8 @@
 import { type Actor } from "./actor";
 import { checkDemoBudget, DemoBudgetUsed, takeDemoWorkflowRun } from "./demo-budget";
 import { demoAllows, demoClassOf } from "./demo-changes";
+import { chargeCreation } from "./demo-creation";
+import { DemoSizeRefused } from "./demo-visitor-limits";
 import { DemoLimit, DemoReadOnly, DemoSeededWords, DemoShowcase, DemoStale } from "./demo";
 import { DemoTextRefused } from "./demo-text";
 import { visitingDemo } from "./demo-visiting";
@@ -40,11 +42,14 @@ export async function runDemoVisit<T>(operation: string, who: DemoRequest, work:
   if (options.workflowRun) await takeDemoWorkflowRun(actor);
   // The real number of values a change writes is known only once it is read (a paste): the work charges it before it records anything.
   const charge: ChargeValues = (n) => checkDemoBudget(actor, { visitId: who.visitId!, headers: who.headers }, new Date(), process.env.ZIFFR_DEMO_ADDRESS_KEY, { by: n, values: true });
-  return visitingDemo({ generation: who.generation, visit: who.visitId }, () => work(true, charge));
+  // The address's and network's share of what this action makes (final review D2) is counted inside the visit's scope (the shares act
+  // only in one), before the work writes anything.
+  const requester = { visitId: who.visitId, headers: who.headers };
+  return visitingDemo({ generation: who.generation, visit: who.visitId }, async () => { await chargeCreation(actor, requester, operation); return work(true, charge); }, requester);
 }
 
 /** The words of an error that a visit's change is refused with in the demo (budget, text rules, a stale page, a full limit,
  * the showcase or seeded words), or null for any other error, so a form that does not use `attempt` shows these and nothing else. */
 export function demoVisitRefusal(e: unknown): string | null {
-  return e instanceof DemoBudgetUsed || e instanceof DemoTextRefused || e instanceof DemoStale || e instanceof DemoLimit || e instanceof DemoShowcase || e instanceof DemoSeededWords ? e.message : null;
+  return e instanceof DemoBudgetUsed || e instanceof DemoSizeRefused || e instanceof DemoTextRefused || e instanceof DemoStale || e instanceof DemoLimit || e instanceof DemoShowcase || e instanceof DemoSeededWords ? e.message : null;
 }
