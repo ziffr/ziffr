@@ -524,6 +524,8 @@ describe("the minimums of a Look-alike", () => {
   it("refuses fewer than 2 Metrics and more than 6 in codes, without a number", () => {
     expect(lookAlike(series(1, 30), "month")).toEqual({ ok: false, why: "metrics" });
     expect(lookAlike([], "month")).toEqual({ ok: false, why: "metrics" });
+    const two = series(2, 30);
+    expect(lookAlike([two[0], { ...two[1], id: two[0].id }], "month")).toEqual({ ok: false, why: "metrics" });
     expect(lookAlike(series(7, 60), "month")).toEqual({ ok: false, why: "too-many" });
     expect(lookAlike(series(6, 36), "month")).toMatchObject({ ok: true });
   });

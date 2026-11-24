@@ -405,7 +405,8 @@ export function kindsOf(prepared: Prepared, options: LookAlikeOptions = {}): Loo
 /** The Look-alike of Metrics' series on one Period: refused (in codes, never a number) with fewer than 2 or more than 6 Metrics, fewer than 24 periods in common, more than one Metric to 6 periods, values too wide to work out exactly, or a Metric that does not vary; else `kindsOf` the latest 60 periods they have in common. */
 export function lookAlike(series: readonly LookAlikeSeries[], span: Span, options: LookAlikeOptions = {}): LookAlike | LookAlikeRefusal {
   const { metrics, fewest } = LOOK_ALIKE;
-  if (series.length < metrics.fewest) return { ok: false, why: "metrics" };
+  // A Metric is not compared with itself: two series with one id are one Metric too few.
+  if (series.length < metrics.fewest || new Set(series.map((x) => x.id)).size < series.length) return { ok: false, why: "metrics" };
   if (series.length > metrics.most) return { ok: false, why: "too-many" };
   if (series.some((s) => wideReason(readSeries(s.points).map((p) => p.value)) !== null)) return { ok: false, why: "wide" };
   const prepared = readLookAlike(series, span);
