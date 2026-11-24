@@ -5,10 +5,10 @@ import type { ReactNode } from "react";
 import type { Takeaway } from "@ziffr/core/takeaways/takeaway";
 
 /** A Takeaway: the sentence (or the refusal), notes, its basis, cautions, assumptions, the footer, and Show the numbers; `children` go inside Show the numbers. */
-export function TakeawayView({ takeaway: t, children }: { takeaway: Takeaway; children?: ReactNode }) {
-  if (t.kind === "refusal") return <p className="mt-1 widget-text-sm text-muted-foreground">{t.refusal}</p>;
+export function TakeawayView({ takeaway: t, children, id }: { takeaway: Takeaway; children?: ReactNode; /** An id for the words, so a chart above them can be described by them. */ id?: string }) {
+  if (t.kind === "refusal") return <p id={id} className="mt-1 widget-text-sm text-muted-foreground">{t.refusal}</p>;
   return (
-    <div className="mt-1 space-y-1 widget-text-sm text-muted-foreground">
+    <div id={id} className="mt-1 space-y-1 widget-text-sm text-muted-foreground">
       <p className="text-foreground">{t.sentence}</p>
       {t.notes.map((n) => <p key={n} className="widget-text-xs">{n}</p>)}
       {t.basis && <p className="widget-text-xs">{t.basis[0].toUpperCase() + t.basis.slice(1)}.</p>}

@@ -9,6 +9,7 @@
 import { fractionOf, lowestTerms, minus, nearest, over, plus, times, type Fraction } from "../exact";
 import { builtInMethod } from "../extensions";
 import { formatPercent } from "../format";
+import type { ChartPart } from "../result-chart";
 import { emptyTakeaway, listOf, refusalTakeaway, sayIn, wideRefusal, type Takeaway, type TakeawayContext } from "../takeaways/takeaway";
 
 /** One row of a Breakdown: its label and its value. */
@@ -89,7 +90,20 @@ const refusalFor = (why: NoShare, name: string, rows: number, ctx: TakeawayConte
 const shareText = (percent: number, ctx: TakeawayContext) => formatPercent(percent, ctx.style);
 
 // What both Takeaways share: the notes at a tie, the share as a figure, and the numbers (the share and each row's).
-function shareAnswer(method: string, sentence: string, result: { tied: boolean; percent: number; top: Part[] }, ctx: TakeawayContext): Takeaway {
+/** Every row's share of the whole, largest first, with the running share across them, the first `top` rows marked: the rows the sentence names are the ones marked. */
+function shareBars(name: string, rows: Row[], top: number): ChartPart[] {
+  // The rows were accepted by the Method before this is asked for, so they have a whole to take shares of.
+  const found = order(rows) as Exclude<ReturnType<typeof order>, NoShare>;
+  let running: Fraction = { num: BigInt(0), den: BigInt(1) };
+  const cumulative: number[] = [];
+  for (const r of found.sorted) {
+    running = lowestTerms(plus(running, r.exact));
+    cumulative.push(percentOf(running, found.total));
+  }
+  return [{ kind: "bars", measure: "share", about: [name], bars: found.sorted.map((r, i) => ({ label: r.label, value: percentOf(r.exact, found.total), ...(i < top ? { tag: "top" as const } : {}) })), line: cumulative }];
+}
+
+function shareAnswer(method: string, sentence: string, result: { tied: boolean; percent: number; top: Part[] }, ctx: TakeawayContext, chart?: ChartPart[]): Takeaway {
   return {
     ...emptyTakeaway(method),
     kind: "answer",
@@ -101,6 +115,7 @@ function shareAnswer(method: string, sentence: string, result: { tied: boolean; 
       { label: sayIn("numbers-share", {}, ctx), text: shareText(result.percent, ctx) },
       ...result.top.map((r) => ({ label: r.label, text: shareText(r.percent, ctx) })),
     ],
+    ...(chart ? { chart } : {}),
   };
 }
 
@@ -112,7 +127,7 @@ export function topShareTakeaway(name: string, rows: Row[], n: number, ctx: Take
   const result = topShare(rows, n);
   if (!result.ok) return refusalFor(result.why, name, rows.length, ctx);
   const method = sayIn("numbers-method-share", {}, ctx);
-  return shareAnswer(method, sayIn("share-top", { name, top: n, rows: result.rows, share: shareText(result.percent, ctx), names: listOf(result.top.map((r) => r.label), ctx) }, ctx), result, ctx);
+  return shareAnswer(method, sayIn("share-top", { name, top: n, rows: result.rows, share: shareText(result.percent, ctx), names: listOf(result.top.map((r) => r.label), ctx) }, ctx), result, ctx, ctx.charts ? shareBars(name, rows, n) : undefined);
 }
 
 /** The Takeaway of a Pareto: "Worked out: 3 of 8 rows make up 71.0 % of Revenue, the fewest that reach 70.0 %: A, B and C." */
@@ -122,5 +137,5 @@ export function paretoTakeaway(name: string, rows: Row[], ctx: TakeawayContext, 
   const result = pareto(rows, target);
   if (!result.ok) return refusalFor(result.why, name, rows.length, ctx);
   const method = sayIn("numbers-method-pareto", {}, ctx);
-  return shareAnswer(method, sayIn("share-pareto", { name, top: result.count, rows: result.rows, share: shareText(result.percent, ctx), target: shareText(result.target * 100, ctx), names: listOf(result.top.map((r) => r.label), ctx) }, ctx), result, ctx);
+  return shareAnswer(method, sayIn("share-pareto", { name, top: result.count, rows: result.rows, share: shareText(result.percent, ctx), target: shareText(result.target * 100, ctx), names: listOf(result.top.map((r) => r.label), ctx) }, ctx), result, ctx, ctx.charts ? shareBars(name, rows, result.count) : undefined);
 }

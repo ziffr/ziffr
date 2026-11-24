@@ -94,7 +94,7 @@ function AnalyzeCanvas(props: AnalyzeProps) {
           <span className="text-xs text-muted-foreground">Pick the question you want answered about the Metrics on the canvas.</span>
         </div>
         <CanvasBoard ms={inOrder} explainedId={explainedId} example={example} pending={pending} onDrop={drop} onClear={clear} onExplain={explain} onRemove={take} onExample={(e) => void tryExample(e)} />
-        <Results items={results} />
+        <Results items={results} writing={{ style: data.numberStyle, yearStart: data.yearStart }} />
       </div>
       {choosing && docked && (
         <aside ref={aside} tabIndex={-1} aria-label="Choose a method" onKeyDown={(e) => { if (e.key === "Escape") { e.stopPropagation(); close(); } }} className="order-3 max-h-[calc(100dvh-2rem)] min-w-0 self-start overflow-y-auto rounded-[var(--radius-card)] border border-[var(--color-rule-2)] bg-card p-4 outline-none xl:sticky xl:top-4">

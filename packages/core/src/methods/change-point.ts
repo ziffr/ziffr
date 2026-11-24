@@ -17,6 +17,8 @@ import { readSeries } from "../basis";
 import { fractionOf, nearest, type Fraction } from "../exact";
 import { formatNumber, type ValueUnit } from "../format";
 import { periodsBetween, type Span } from "../periods";
+import type { ChartPart } from "../result-chart";
+import { changeChart } from "../result-charts";
 import { checkSuitability, SUITABILITY, type Finding, type Rerun } from "../suitability";
 import { decimalsApart, plainValue, SHARE_UNIT, sizeText, signedText } from "../takeaways/sizes";
 import { answerTakeaway, refusalTakeaway, sayIn, withinBudget, type Takeaway, type TakeawayContext } from "../takeaways/takeaway";
@@ -46,6 +48,9 @@ export type ChangePoint = {
   after: number;
   slopeChange: number;
   step: number;
+  /** Where each of the two lines stands at the change date, in the Metric's unit: the picture draws a line from each, with its slope per period. */
+  levelBefore: number;
+  levelAfter: number;
   found: boolean;
   kept: number | null;
   spread: number;
@@ -115,11 +120,13 @@ export function changePoint(points: Point[], span: Span): ChangePoint | NoChange
     after: nearest(right.slope),
     slopeChange: nearest(sub(right.slope, left.slope)),
     step: nearest(sub(atStart(right), atStart(left))),
+    levelBefore: nearest(atStart(left)),
+    levelAfter: nearest(atStart(right)),
     spread: Math.sqrt(nearest(variance)),
     slopeHalf,
     kept: one.sse.num === ZERO ? null : nearest(div(sse, one.sse)),
   };
-  if (![result.before, result.after, result.slopeChange, result.step, result.spread, result.slopeHalf].every(Number.isFinite)) return { ok: false, why: "huge" };
+  if (![result.before, result.after, result.slopeChange, result.step, result.levelBefore, result.levelAfter, result.spread, result.slopeHalf].every(Number.isFinite)) return { ok: false, why: "huge" };
   return { ok: true, n, tries, index: k, period: rows[k].period, found, ...result };
 }
 
@@ -186,9 +193,11 @@ function changePointTakeawayWithin(name: string, points: Point[], span: Span, un
     { label: text("numbers-kept"), text: kept },
   ];
   const answer = answerTakeaway(method);
+  // The values the Method looked at, and (where it found a change) the two lines it fitted and the date: the numbers of the sentence.
+  const picture = (found: typeof result | null): { chart?: ChartPart[] } => (ctx.charts ? { chart: [changeChart(name, unit, span, rows, found && found.ok ? found : null)] } : {});
   const basis = text("cp-basis", { n: result.n, tries: result.tries });
   if (!result.found) {
-    return { ...answer, sentence: text("cp-none", { name, n: result.n }), basis, assumptions: [text("cp-assumes")], cautions, notes, footer: text("footer-change-point"), numbers: base, figures: [{ label: text("numbers-periods-used"), value: result.n, text: n }] };
+    return { ...answer, sentence: text("cp-none", { name, n: result.n }), basis, assumptions: [text("cp-assumes")], cautions, notes, footer: text("footer-change-point"), numbers: base, figures: [{ label: text("numbers-periods-used"), value: result.n, text: n }], ...picture(null) };
   }
   // Different slopes are written with digits that tell them apart, so "up 1 a month; since, up 1 a month" never hides 1.011 and 0.886.
   const decimals = decimalsApart([result.before, result.after, result.step], unit.decimals, style);
@@ -201,6 +210,7 @@ function changePointTakeawayWithin(name: string, points: Point[], span: Span, un
   return {
     ...answer,
     sentence: text("cp-found", { name, from: result.period, before, after, step }),
+    ...picture(result),
     basis,
     assumptions: [text("cp-assumes")],
     cautions,

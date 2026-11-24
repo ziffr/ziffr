@@ -14,6 +14,7 @@ import { readSeries } from "../basis";
 import { builtInMethod } from "../extensions";
 import { formatNumber, formatValue, type ValueUnit } from "../format";
 import { periodsBetween, type Span } from "../periods";
+import { usualChart } from "../result-charts";
 import { checkSuitability, levelShift } from "../suitability";
 import { emptyTakeaway, refusalTakeaway, sayIn, verdictLines, onLatest, type Takeaway, type TakeawayContext } from "../takeaways/takeaway";
 import type { Point } from "../types";
@@ -110,5 +111,7 @@ function usualRangeWithin(name: string, points: Point[], span: Span, unit: Value
       { label: sayIn("numbers-usual", {}, ctx), text: `${write(found.low)} – ${write(found.high)}` },
       { label: sayIn("numbers-values", {}, ctx), text: formatNumber(found.n, 0, ctx.style) },
     ],
+    // The values with the range and the median the sentence gives, across the periods they were taken from. A range from the same place in the season is not a flat band, so it has no picture.
+    ...(ctx.charts && !seasonal ? { chart: [usualChart(name, unit, span, readSeries(points), readSeries(history)[0].period, found, opts.value)] } : {}),
   };
 }

@@ -13,6 +13,7 @@ import { builtFrom, commonPeriod, pearson } from "../correlation";
 import { seriesBy, type Resolver } from "../display-periods";
 import { fit, fitBasis, needs, partialPeriods, type Fit, type Needed, type Outside, type Predicted, type Refused } from "../methods/fit";
 import { basisText, changes } from "../basis";
+import { fitLines, importanceBars } from "../result-charts";
 import { periodLabel, type Span, type YearStart } from "../periods";
 import { driversAllowed, type Verdict } from "../suitability";
 import type { Metric, Point } from "../types";
@@ -190,6 +191,8 @@ export function movesTakeaway(target: Named, drivers: Named[], f: Fit | Refused,
     figures,
     numbers,
     rows: order.map((i) => rows[i]),
+    // The target as it was and as the fit expects it, and each driver's share, in the order the words name them: the numbers of the fit.
+    ...(ctx.charts ? { chart: [fitLines(target.name, target, f.span, f.basis, f.rows, f.fitted), importanceBars(target.name, sorted, rows.map((r) => r.strengthText))] } : {}),
   };
 }
 
@@ -368,5 +371,7 @@ export function whatNeeds(target: Metric, others: Metric[], goal: number, resolv
     const metric = drivers.find((d) => d.name === f.drivers[i].name)!;
     return { name: metric.name, takeaway: needsTakeaway(target, metric, f, goal, needs(f, { goal, driver: i }), opts.ctx, drivers) };
   });
-  return { ...rows[0].takeaway, notes: [...notes, ...rows[0].takeaway.notes], rows };
+  // The target as it was and as the fit expects it, with the goal where the fit is on levels.
+  const chart = opts.ctx.charts && rows[0].takeaway.kind === "answer" ? { chart: [fitLines(target.name, target, f.span, f.basis, f.rows, f.fitted, goal)] } : {};
+  return { ...rows[0].takeaway, notes: [...notes, ...rows[0].takeaway.notes], rows, ...chart };
 }

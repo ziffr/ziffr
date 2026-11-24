@@ -36,7 +36,7 @@ function Harness({ ids, openEntry = null }: { ids: number[]; openEntry?: EntryVi
   return (
     <>
       <aside><MethodPicker ids={ids} openEntry={openEntry} onResult={(r) => setItems((l) => addResult(l, { ...r, key: l.length + (l[0]?.key ?? 0) + 1 }))} /></aside>
-      <main><Results items={items} /></main>
+      <main><Results items={items} writing={{ style: "1,234.5", yearStart: 1 }} /></main>
     </>
   );
 }

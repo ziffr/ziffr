@@ -7,6 +7,8 @@
 // a caution is never "strong"; a Method's numbers are written through the Workspace's Number Style; the same footer once;
 // nothing says what caused what.
 import { basisText } from "../basis";
+import type { ResultChart } from "../result-chart";
+import { chartUnit, pairCharts } from "../result-charts";
 import { autocorrelations, effectiveCount } from "../effective-count";
 import { pearson, type Correlation, type Ranked } from "../correlation";
 import { formatNumber } from "../format";
@@ -19,7 +21,7 @@ import { strengthOf, type StrengthWord } from "./strength";
 import { say, type CaseKey, type Language, type SayContext, type Slots } from "./wording";
 
 /** How Takeaways are written: the Workspace's Number Style, the language and the Fiscal Year start. */
-export type TakeawayContext = { style: NumberStyle; language?: Language; yearStart?: YearStart };
+export type TakeawayContext = { style: NumberStyle; language?: Language; yearStart?: YearStart; /** Fill in `chart`: the picker asks for it; a widget, a Heads-up or a row of a longer Takeaway does not, and costs nothing for it. */ charts?: boolean };
 
 /** A number written in a sentence: what it is, its value and the text it was written as, so a test can hold the text to the value. */
 export type Figure = { label: string; value: number; text: string };
@@ -53,6 +55,8 @@ export type Takeaway = {
   figures: Figure[];
   /** The numbers for Show the numbers. */
   numbers: NumberRow[];
+  /** The picture of the result, drawn from the very numbers the sentence is written from (result-chart.ts); only where the context asked for it and the Method has one. */
+  chart?: ResultChart;
 };
 
 /** A Drivers result as one Takeaway, with one Takeaway for each Metric compared. */
@@ -134,7 +138,7 @@ function basisLine(c: Extract<Correlation, { ok: true }>, ctx: TakeawayContext):
 /** The Takeaway of two Metrics' correlation: after the suitability checks (a refusal says what is missing, a caution is
  * said above the answer and keeps the strength below "strong"), the sentence, the strength word, its basis, the footer
  * (`footer: false` for a row inside a longer Takeaway) and the numbers for Show the numbers. */
-export function correlationTakeaway(a: Metric, b: Metric, c: Correlation, ctx: TakeawayContext, opts: { footer?: boolean } = {}): Takeaway {
+export function correlationTakeaway(a: Metric, b: Metric, c: Correlation, ctx: TakeawayContext, opts: { footer?: boolean; /** `false` for a row inside a longer Takeaway, which has no picture of its own. */ chart?: boolean } = {}): Takeaway {
   const method = say("numbers-method-pearson", {}, ctxOf(ctx));
   if (!c.ok) return refusalTakeaway(method, [c.reason]);
   const point = (side: "x" | "y") => c.pairs.map((p) => ({ period: p.period, value: p[side] }));
@@ -189,6 +193,8 @@ export function correlationTakeaway(a: Metric, b: Metric, c: Correlation, ctx: T
       { label: text("numbers-basis"), text: basisText(c.basis) },
       { label: text("numbers-strength"), text: strengthText },
     ],
+    // The two Metrics over time and against each other, the very pairs the correlation was worked out on.
+    ...(ctx.charts && opts.chart !== false ? { chart: pairCharts(chartUnit(a.name, a), chartUnit(b.name, b), c.period, c.pairs, c.basis) } : {}),
   };
 }
 
@@ -222,7 +228,7 @@ export function listOf(names: string[], ctx: TakeawayContext): string {
  * that the answer is among the Metrics that were compared. */
 export function driversTakeaway(target: Metric, ranked: Ranked[], ctx: TakeawayContext, notCompared = false): DriversTakeaway {
   const method = say("numbers-method-pearson", {}, ctxOf(ctx));
-  const rows = ranked.map(({ metric, result }) => ({ metric, result, takeaway: correlationTakeaway(target, metric, result, ctx, { footer: false }) }));
+  const rows = ranked.map(({ metric, result }) => ({ metric, result, takeaway: correlationTakeaway(target, metric, result, ctx, { footer: false, chart: false }) }));
   const text = (k: CaseKey) => say(k, {}, ctxOf(ctx));
   const top = rows.find((r) => r.takeaway.kind === "answer");
   if (!top) return { ...refusalTakeaway(method, [say("drivers-empty", { target: target.name }, ctxOf(ctx))]), rows };
