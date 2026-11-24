@@ -22,7 +22,7 @@ const suits = (c: CatalogMetric, fit: CatalogFit) =>
 
 /** The catalog as a searchable list of cards, grouped by category; with a Workspace Profile, a filter for the
  * Metrics written for its industry. */
-export function CatalogBrowser({ items, fit, money, numberStyle }: { items: CatalogMetric[]; fit?: CatalogFit | null; money: { unit: string; unit_position: UnitPosition }; numberStyle: NumberStyle }) {
+export function CatalogBrowser({ items, fit, money, numberStyle, fromGuide }: { items: CatalogMetric[]; fit?: CatalogFit | null; money: { unit: string; unit_position: UnitPosition }; numberStyle: NumberStyle; /** Opened from the Setup Guide: the links keep its return (`setup=1`). */ fromGuide?: boolean }) {
   const [query, setQuery] = useState("");
   const [category, setCategory] = useState<string | null>(null);
   const suited = useMemo(() => (fit ? items.filter((c) => suits(c, fit)) : []), [items, fit]);
@@ -62,7 +62,7 @@ export function CatalogBrowser({ items, fit, money, numberStyle }: { items: Cata
               <h3 className="mb-2 text-sm font-medium tracking-normal text-muted-foreground">{cat}</h3>
               <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
                 {list!.map((c) => (
-                  <Link key={c.id} href={`/metrics/new?catalog=${c.id}`} className="stock rounded-[var(--radius-card)] p-4 transition-[transform,box-shadow] hover:-translate-y-px hover:[box-shadow:var(--edge-stock),var(--cast-stock-lift)]">
+                  <Link key={c.id} href={`/metrics/new?catalog=${c.id}${fromGuide ? "&setup=1" : ""}`} className="stock rounded-[var(--radius-card)] p-4 transition-[transform,box-shadow] hover:-translate-y-px hover:[box-shadow:var(--edge-stock),var(--cast-stock-lift)]">
                     <div className="font-medium">{c.name}</div>
                     <p className="mt-1 line-clamp-3 text-xs text-muted-foreground">{c.description}</p>
                     <div className="mt-3 flex flex-wrap gap-1.5 text-xs text-[var(--color-ink-2)]">

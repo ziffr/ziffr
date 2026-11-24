@@ -138,6 +138,7 @@ const BLOCKED: Record<BlockedReason, readonly string[]> = {
     "pack-actions:updatePack",
     "pack-setup-actions:packSetup",
     "pack-setup-actions:setUpPack",
+    "setup/actions:setUpFromPackInGuide",
     "share-proposal-actions:confirmProposal",
     "share-proposal-actions:declineProposal",
     "theme-actions:importTheme",
@@ -188,6 +189,7 @@ const BLOCKED: Record<BlockedReason, readonly string[]> = {
   "changes-what-everyone-sees": [
     "setup/actions:saveAboutYou",
     "setup/actions:skipStep",
+    "setup/actions:chooseExplore",
     "retention-actions:applyRetentionToAll",
     "retention-actions:cancelMetricRetention",
     "retention-actions:previewRetention",

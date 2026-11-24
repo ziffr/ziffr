@@ -23,7 +23,7 @@ Sign in with your work email: Ziffr sends you a sign-in link (on hosted Ziffr th
 
 The **Setup Guide** is a short list of steps that sets a Workspace up: **About you**, **Starting point**, **Ways in and out**, **First Metric** and **Team**. It lives at **Set up your Workspace** (the address `/setup`, also reached from Help), shows the steps in a bar at the top with each one's state in words (Done, Skipped, To do, Comes next), and every step can be skipped. **Go to Ziffr** leaves it at any time. Owners and Admins see all five steps. A Member sees only the two about themselves, and a Guest and the demo have none.
 
-Today **About you**, **Ways in and out** and **Team** are the steps to use. The other two open and say what they will do, so you can see where the guide is going; the rest of Ziffr works without them, as the numbered steps below show.
+**About you**, **Starting point**, **Ways in and out** and **Team** are the steps to use today; **First Metric** opens and says what it will do, so you can see where the guide is going. The rest of Ziffr works without it, as the numbered steps below show.
 
 **About you** asks plain questions, one to a row, each optional and each saying what it is for. Choose **Skip this question** to leave one open, **Skip** to skip the whole step, or **Save and go on**.
 
@@ -54,6 +54,18 @@ What you answer stays in this Workspace. It is not sent to Ziffr's makers or to 
 **How should people be asked and told?** is your own choice: **Ask me by** takes up to three ways in order, from the ones that work here, saved only for you. Others are asked by what they choose, and the default is the first way that reaches them. Telling people through Alerts, a Workflow's Tell step, Snapshots by email, View Links and Webhooks needs a Metric or a dashboard first, so the step only links to them. The step ticks once you have saved a way that works here, or a Test Message to you was sent; a Member's step counts only their own choice, and a Member never sees the Workspace-level setup.
 
 You can change every answer later: the business and the time under **Workspace → General**, in the section **About your business**, and your function under **Your profile**.
+
+**Starting point** is for Owners and Admins, and asks how you want to begin. A Member never sees it. Nothing is installed or made until you press a button.
+
+| Choice | What it does |
+| --- | --- |
+| **Explore on my own** | Starts from scratch: it opens the Metric Catalog, suggested by your answers in About you, with **Back to the Setup Guide** on top. The Metric you make there, from the catalog or from scratch, becomes your first Metric, and you land back in the guide. |
+| **Start from a Pack** | Lists Ziffr's own Packs, the ones that fit your answers first, each with why ("Suggested because of: your industry and your function") and **What you get**: how many Metrics (with the first names), Workflows, dashboards and other items it brings. The first three are shown; **See all** shows every Pack, none is hidden. When you have not answered About you yet, the list says so and keeps the usual order. |
+| **Preview** | Opens the Pack in the side panel, drawn with Sample Data and never your own values. Nothing is installed by looking. |
+| **Install** | Adds the Pack to the Workspace, as on [Packs](19-packs.md): Owners and Admins only (a Pack that holds a Theme needs an Owner). A Pack with texts aimed at assistants opens its Preview first, where you confirm you read them. |
+| **Set up from this Pack** | Appears once it is installed. It lists the Pack's Metrics with the first three that take values ticked, you as the one who is asked for them, the Pack's first Workflow with you as its Approver when it asks for one, and its first dashboard when those Metrics fill all its places. Untick or add what you like, then press **Make them**. The first Metric made becomes your first Metric for the next steps. Pressing it again makes nothing twice. |
+
+A Workspace that has Metrics already says "You have 4 Metrics. Start from a Pack anyway?" and still offers everything. In a trial the step reads "Your trial starts with Cups of coffee" and is done by itself; Packs can still be installed within the trial's limits.
 
 **Team** is for Owners and Admins; a Member and a Guest never see it. It does the work of the Members and Groups page in one place, and everything it does is also there afterwards.
 

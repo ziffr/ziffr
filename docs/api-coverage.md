@@ -160,6 +160,8 @@ Acts as the person, with their own sign-in, Slack or Telegram account or email a
 - `markSetupGuideSeen` (setup-guide.ts): that a person opened the guide, for the app
 - `chooseExploreOnMyOwn` (setup-guide.ts): the guide's starting point, for the app
 - `setSetupFirstMetric` (setup-guide.ts): the Metric the guide tries both ways, for the app
+- `setUpGuideFromPack` (setup-from-pack.ts): the guide's first Metrics from an installed Pack, for the app (a program sets up from a Pack through the Packs page's own operation)
+- `adoptSetupFirstMetric` (setup-from-pack.ts): the Metric made from the Metric Catalog with the guide's return link becomes the guide's Metric, for the app
 - `startSlackLink` (slack-people.ts): linking oneself to Slack
 - `slackOptBackIn` (slack-people.ts): linking oneself to Slack
 - `unlinkSlack` (slack-people.ts): linking oneself to Slack
