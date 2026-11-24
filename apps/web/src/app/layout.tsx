@@ -48,7 +48,7 @@ import { QuickLookHost } from "@/components/metric-quick-look";
 import { MetricActionsHost } from "@/components/metric-actions-panel";
 import { ServiceWorker } from "@/components/service-worker";
 import { APP_COLOURS } from "@/lib/app-colours";
-import { appearanceFor, browserAppearance } from "@/lib/appearance";
+import { appearanceFor, appearanceForPerson } from "@/lib/appearance";
 
 export const metadata: Metadata = {
   title: "Ziffr",
@@ -91,7 +91,7 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
     // Signed in without a Workspace yet: the Installation's lines still show (the same read as the shell, nothing of a person).
     const lines = user ? fromInstallation(await activeInstallationAnnouncements({ demo: false })) : [];
     return (
-      <html lang="en" data-appearance={await browserAppearance()}>
+      <html lang="en" data-appearance={await appearanceForPerson(person)}>
         <head>
           <link href="https://api.fontshare.com/v2/css?f[]=general-sans@400,500,600&display=swap" rel="stylesheet" />
           {/* eslint-disable-next-line @next/next/no-page-custom-font */}

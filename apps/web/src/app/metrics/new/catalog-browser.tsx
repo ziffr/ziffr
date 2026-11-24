@@ -30,7 +30,11 @@ export function CatalogBrowser({ items, fit, money, numberStyle, fromGuide }: { 
   const categories = useMemo(() => [...new Set(items.map((c) => c.category))], [items]);
   const words = query.toLowerCase().split(/\s+/).filter(Boolean);
   const shown = items.filter((c) => (!onlySuited || suits(c, fit!)) && (!category || c.category === category) && words.every((w) => `${c.name} ${c.description} ${c.unit}`.toLowerCase().includes(w)));
-  const groups = Object.entries(Object.groupBy(shown, (c) => c.category));
+  // Opened from the Setup Guide with an answer about the business: the entries written for it come first, and every other
+  // entry follows under its own heading, so nothing is hidden (they stay reachable and searchable).
+  const first = fromGuide && fit && suited.length > 0 && !onlySuited ? shown.filter((c) => suits(c, fit)) : [];
+  const groups = [...(first.length ? [[`For ${fit!.label}`, first] as const] : []), ...Object.entries(Object.groupBy(first.length ? shown.filter((c) => !first.includes(c)) : shown, (c) => c.category))];
+  const restFrom = first.length ? 1 : -1;
   const chip = (active: boolean) => cn("rounded-full border px-3 py-1 text-xs", active ? "border-primary bg-primary text-primary-foreground" : "border-input hover:bg-muted/60");
 
   return (
@@ -50,6 +54,7 @@ export function CatalogBrowser({ items, fit, money, numberStyle, fromGuide }: { 
           ))}
         </div>
       </div>
+      {fromGuide && <p className="mb-4 text-sm text-muted-foreground">Pick single Metrics here. A Pack gives you a set of Metrics, a sample dashboard and a Workflow that asks for them in one go.</p>}
       <p aria-live="polite" className="sr-only">{shown.length} metrics shown</p>
       {shown.length === 0 ? (
         <div className="rounded-[var(--radius-card)] border border-dashed border-[var(--color-rule-2)] p-8 text-center text-sm text-muted-foreground">
@@ -57,8 +62,9 @@ export function CatalogBrowser({ items, fit, money, numberStyle, fromGuide }: { 
         </div>
       ) : (
         <div className="space-y-6">
-          {groups.map(([cat, list]) => (
+          {groups.map(([cat, list], i) => (
             <section key={cat}>
+              {i === restFrom && <h2 className="mb-3 border-t border-border pt-5 text-base font-medium">All other Metrics</h2>}
               <h3 className="mb-2 text-sm font-medium tracking-normal text-muted-foreground">{cat}</h3>
               <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
                 {list!.map((c) => (

@@ -7,11 +7,17 @@ import { myAppearance } from "@ziffr/core/profile";
 import type { Actor } from "@ziffr/core/actor";
 
 /** The choice this browser last made; System without one. */
-export async function browserAppearance(): Promise<Appearance> {
+async function browserAppearance(): Promise<Appearance> {
   return parseAppearance((await cookies()).get(APPEARANCE_COOKIE)?.value);
 }
 
 /** The choice to draw with: the actor's stored one, or the browser's where there is no real person (the demo). */
 export async function appearanceFor(actor: Actor | null, demo: boolean): Promise<Appearance> {
   return actor && !demo ? myAppearance(actor) : browserAppearance();
+}
+
+/** The choice for a page before any Workspace exists (starting one): the signed-in person's stored choice, as on every page
+ * after it, else the browser's, so the page before and the page after never differ in light or dark. */
+export async function appearanceForPerson(personId: string | null): Promise<Appearance> {
+  return personId ? myAppearance({ personId }) : browserAppearance();
 }

@@ -17,7 +17,7 @@ import type { PackSetupInput } from "@ziffr/core/pack-setup";
 /** What About you sends: each part only when the person answered it. */
 export type AboutYouInput = {
   profile?: Record<string, string | null>;
-  clock?: { timeZone: string; runHour: number };
+  clock?: { timeZone: string; runHour: number; weekStart?: number };
   yearStart?: number;
   businessFunction?: string | null;
 };
@@ -33,7 +33,7 @@ export async function saveAboutYou(input: AboutYouInput) {
     const i = (input && typeof input === "object" ? input : {}) as Partial<AboutYouInput>;
     if (i.businessFunction !== undefined) await businessFunction.setMyBusinessFunction(actor, i.businessFunction);
     if (i.profile !== undefined) await workspace.setWorkspaceProfile(actor, i.profile);
-    if (i.clock !== undefined) await clock.setWorkspaceClock(actor, { timeZone: String(i.clock?.timeZone ?? ""), runHour: Number(i.clock?.runHour) });
+    if (i.clock !== undefined) await clock.setWorkspaceClock(actor, { timeZone: String(i.clock?.timeZone ?? ""), runHour: Number(i.clock?.runHour), weekStart: i.clock?.weekStart === undefined ? undefined : Number(i.clock.weekStart) });
     if (i.yearStart !== undefined) await fiscalYear.setYearStart(actor, Number(i.yearStart));
     revalidatePath("/setup");
     revalidatePath("/settings/workspace");
