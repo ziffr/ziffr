@@ -274,7 +274,6 @@ const BLOCKED: Record<BlockedReason, readonly string[]> = {
 const OPEN: readonly string[] = [
   // Ticket 8: the work around a value.
   "actions:decideCorrection",
-  "connector-actions:recordSimulatedReply",
   "connector-actions:recordSimulatedTicketClose",
   "series-actions:askMeNow",
   "workflow-actions:approveValue",
@@ -282,7 +281,6 @@ const OPEN: readonly string[] = [
   "workflow-actions:confirmOwnValue",
   "workflow-actions:correctOwnValue",
   "workflow-actions:lockPeriod",
-  "workflow-actions:proposeValueCorrection",
   "workflow-actions:sendValueBack",
   "workflow-actions:setAway",
   "workflow-actions:setStandIn",
@@ -309,7 +307,6 @@ const OPEN: readonly string[] = [
   "version-actions:nameVersion",
   // Ticket 11: Metrics (archive and restore of a visitor's own, their details and Sources), Targets and Projections removed, Tags,
   // Groups of a visitor's own, a made-up person's preferred channel, and the Threads' status and access requests decided.
-  "access-actions:decideAccess",
   "actions:setActionStatus",
   "connector-actions:setPreference",
   "series-actions:archiveMetric",
@@ -398,9 +395,12 @@ const LIMITED: Readonly<Record<string, readonly string[]>> = {
   thread_messages: [
     "actions:replyToAction",
     "canvas-actions:markTaskDone",
+    "connector-actions:recordSimulatedReply",
+    "workflow-actions:proposeValueCorrection",
   ],
   // Ticket 11: `shares`.
   shares: [
+    "access-actions:decideAccess",
     "canvas-actions:setShare",
     "canvas-actions:setGroupShare",
   ],

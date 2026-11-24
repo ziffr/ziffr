@@ -121,7 +121,7 @@ export async function recordVersion(type: VersionType, id: number, author: strin
   // Merge only into a plain edit: never into a named version, the baseline or a restore.
   // A key's note merges into a version with the same note, so a program's burst of changes is one version too.
   // In a demo visit an automatic Version is a courtesy: one too large, or one the demo has no room for, is not recorded, and
-  // never fails the edit it follows. A named one is the visitor's own request, asked for (and counted) before this is called.
+  // never fails the edit it follows. A named one is the visitor's own request, counted before this is called under its own share (`create-named-versions`), so the automatic ones, which have `create-versions`, cannot use it up.
   const inVisit = visitHeaders() !== null;
   if (inVisit && new TextEncoder().encode(JSON.stringify(snapshot)).length > DEMO_STORE_MAX.versionSnapshotBytes) {
     // A named one is asked for: it is refused in words, before it is written, not left out.

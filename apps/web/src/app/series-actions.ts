@@ -6,7 +6,6 @@ import { revalidatePath } from "next/cache";
 import { currentActor } from "@/lib/viewer";
 import { attempt } from "@/lib/action-result";
 import { inDemoVisit } from "@/lib/demo-visit-action";
-import { chargeMoreCreations } from "@ziffr/core/demo-creation";
 import { attemptAsVisitor } from "@/lib/demo-write";
 import { demoTextForVisit } from "@ziffr/core/demo-text";
 import { askMeNow as coreAskMeNow, type AskNowResult } from "@ziffr/core/ask-now";
@@ -18,11 +17,9 @@ import { deleteMetric as coreDeleteMetric, setMetricSources as coreSetMetricSour
 
 /** The Metric's owner or an Editor saves rows edited in the targets table; the core checks every row. */
 export async function saveSeriesRows(metricId: number, kind: "target" | "projection", rows: { period: string; value: number }[], note: string) {
-  return attemptAsVisitor("series-actions:saveSeriesRows", async (who) => {
-    const actor = await currentActor();
-    // Every row may make a row of the Target Series: the demo counts them all against the address's share before any is written.
-    await chargeMoreCreations(actor, who, "series-actions:saveSeriesRows", Array.isArray(rows) ? rows.length : 1);
-    const r = await coreSaveSeriesRows(actor, Number(metricId), kind, rows, String(note ?? ""));
+  return attemptAsVisitor("series-actions:saveSeriesRows", async () => {
+    // In a demo visit the core counts the NEW rows against the address's share, after it has limited the call to 60 rows.
+    const r = await coreSaveSeriesRows(await currentActor(), Number(metricId), kind, rows, String(note ?? ""));
     revalidatePath("/", "layout");
     return r;
   });

@@ -7,6 +7,7 @@ import { db } from "./db";
 import { chargeCreation } from "./demo-creation";
 import { DEMO_ROW_CAPS, demoCreationShare } from "./demo-limits";
 import { resetDemoWorkspace } from "./demo-reset";
+import { bumpDemoVisitCount, demoVisitCount, resetWindowStart, visitKey } from "./demo-visit";
 import { runAsVisit } from "./demo-visit-scope";
 import { DemoSizeRefused } from "./demo-visitor-limits";
 import { submissionForm } from "./page-data";
@@ -36,7 +37,30 @@ describe("an address's share of a kind", () => {
   });
 });
 
+describe("a Demo Reset", () => {
+  it("empties the visit counts, so a new window starts at zero", async () => {
+    const window = resetWindowStart(new Date());
+    const key = visitKey("fedcba9876543210fedcba9876543210");
+    expect(await bumpDemoVisitCount(demo, "visit", key, window, 5)).toBeGreaterThanOrEqual(5);
+    // A reset is refused within a minute of the last one (the first failure of this test was that gap): the last one is made older here.
+    await db().from("demo_state").update({ reset_at: new Date(Date.now() - 60 * 60_000).toISOString() }).gte("generation", 0);
+    await resetDemoWorkspace({ openToVisitors: true });
+    expect(await demoVisitCount(demo, "visit", key, window)).toBe(0);
+    // The shares of an address are counts too: the same reset emptied them.
+    await asVisit(() => chargeCreation(demo, from("203.0.113.77"), "home-actions:newDashboard", SECRET));
+  }, 180_000);
+});
+
 describe("a form link of the demo", () => {
+  it("opens with a demo visit's cookie for a Metric the seed made (and only then)", async () => {
+    const { data: tokens } = await db().from("tokens").select("code").eq("workspace_id", DEMO_WORKSPACE_ID);
+    const codes = (tokens ?? []).map((t) => String(t.code));
+    const withCookie = await Promise.all(codes.map((c) => submissionForm(c, true)));
+    // At least one of the seed's form links opens with the cookie; the same links do not open without it.
+    expect(withCookie.some((f) => f !== null)).toBe(true);
+    for (const [i, c] of codes.entries()) if (withCookie[i] !== null) expect(await submissionForm(c, false)).toBeNull();
+  });
+
   it("opens only with a demo visit's cookie", async () => {
     const { data: tokens } = await db().from("tokens").select("code").eq("workspace_id", DEMO_WORKSPACE_ID);
     // Whatever opens with the cookie never opens without it.

@@ -6,6 +6,7 @@
 // The words among the strings are then cleaned by `visitorSettings` (demo-visitor-words.ts).
 import { COMPARE_LABEL } from "./compare";
 import { isDisplayPeriod } from "./display-periods";
+import type { Panel, WidgetSettings } from "./types";
 import { SLOPE_CHOICES } from "./view-design";
 
 type Obj = Record<string, unknown>;
@@ -49,17 +50,20 @@ const shape = (spec: Record<string, Check>): Check => (v) => {
 const anchor = shape({ type: oneOf(["rule", "period", "row"]), rule: text(20), period: text(40), label: text(WORD_MAX) });
 const annotation = shape({ kind: oneOf(["callout", "ring", "note"]), anchor, text: text(), arrow: flag });
 const callout = shape({ period: text(40), text: text(), rule: text(20) });
-const panel = shape({
+/** Typed by the keys of `Panel` (types.ts): a key added there and not here fails the type check, because a key missing from the table
+ * is dropped, and a visitor's update would then delete it from the saved settings. */
+const PANEL: Record<keyof Panel, Check> = {
   annotations: list(annotation, 50), type: text(30), metricIds: list(number, 20), slot: number, measure: text(20), periods: number,
   highlight: text(80), projections: flag, sharedScale: flag,
   refLine: shape({ kind: text(20), value: number, label: text() }),
   bridge: shape({ mode: text(20), period: text(40), from: text(40) }),
   title: text(),
-});
+};
+const panel = shape(PANEL);
 
 /** Every key of a widget's settings (types.ts) except `tagView`, which is never stored, with its type: the one list the demo
- * checks them by. The words (a Finding's, a callout's, a panel's) are `DEMO_SETTING_WORD_KEYS` (demo-words-columns.ts). */
-const SETTINGS: Record<string, Check> = {
+ * checks them by. Typed by the keys of `WidgetSettings` (types.ts), so a setting added there and not here fails the type check. The words (a Finding's, a callout's, a panel's) are `DEMO_SETTING_WORD_KEYS` (demo-words-columns.ts). */
+const SETTINGS: Record<Exclude<keyof WidgetSettings, "tagView">, Check> = {
   window: number, display: (v) => (isDisplayPeriod(v) ? v : BAD), showTarget: flag, showForecast: flag, rows: number,
   slope: oneOf(SLOPE_CHOICES), kicker: text(), footnote: text(), panels: list(panel, 20), headline: text(), subline: text(), source: text(),
   highlight: text(), callouts: list(callout, 50), period: text(40), compare: list(oneOf(Object.keys(COMPARE_LABEL)), 7),
@@ -67,7 +71,8 @@ const SETTINGS: Record<string, Check> = {
   // The widget a free layout started from: its own settings are checked by the caller, as the top level's are.
   canvasSeed: (v) => (isObj(v) && typeof v.template === "string" && v.template.length <= 40 && isObj(v.settings)
     ? { template: v.template, metric_ids: list(number, 50)(v.metric_ids ?? []), settings: v.settings } : BAD),
-  // A View Design is a checked copy made by the server (`checkedDesignSetting`), never typed by a visitor.
+  // A View Design is only ever one the Workspace holds, by its id: a dashboard's goes through `allowedDesign` (view-designs.ts), a deck's
+  // and a slide layout's through `heldDesignOnly` (demo-visitor-deck.ts). This only says it is an object; a visitor's own is refused there.
   design: (v) => (isObj(v) ? v : BAD),
   tagSource: shape({ id: text(64) }),
 };
