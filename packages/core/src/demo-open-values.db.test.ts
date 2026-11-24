@@ -2,10 +2,11 @@
 // work around a value, but only with the setting in effect, the Installation open, a ready showcase and the current Generation; the
 // closed tables and the showcase refuse it as before; Away and Ask me now (tables of their own) follow the same door; and nothing the
 // work does leaves the Outbox. Written for CI: the author could not run it against a database.
+import { assertDemoIsOnlyWorkspace } from "./test/demo-walk";
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import { db, seedingDemo } from "./db";
 import { DemoLimit, DemoReadOnly, DemoShowcase, DemoStale } from "./demo";
-import { markDemoSeedDone, resetDemoWorkspace } from "./demo-reset";
+import { markDemoSeedDone, readDemoState, resetDemoWorkspace } from "./demo-reset";
 import { checkDemoBudget, DemoBudgetUsed, takeDemoWorkflowRun } from "./demo-budget";
 import { DEMO_WRITE_BUDGET } from "./demo-limits";
 import { clearDemoVisitCounts } from "./demo-visit";
@@ -30,12 +31,13 @@ const asVisit = <T>(work: () => Promise<T>, gen = generation) => visitingDemo({ 
 const writePeriodState = async (metric: number, period: string): Promise<void> => { await db().from("period_states").upsert({ metric_id: metric, period_start: period, state: "asked" }, { onConflict: "metric_id,period_start" }).throwOnError(); };
 
 beforeAll(async () => {
+  await assertDemoIsOnlyWorkspace();
   vi.stubEnv("ZIFFR_DEMO_ONLY", "1");
   vi.stubEnv("ZIFFR_DEMO_CHANGES", "1");
   // A fresh seed, as the reset job makes it: the showcase filled, the seed marked done, the Installation open.
   expect((await db().rpc("demo_reset", { min_gap: "0 seconds" })).error).toBeNull();
   expect((await db().rpc("prototype_seed_showcase")).error).toBeNull();
-  await markDemoSeedDone();
+  await markDemoSeedDone(Number((await readDemoState())?.generation));
   await setOpen(true);
   generation = Number((await db().from("demo_state").select("generation").eq("id", true).single()).data?.generation);
   ids = await demoWalkIds();

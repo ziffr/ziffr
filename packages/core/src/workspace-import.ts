@@ -11,6 +11,7 @@
 // after fixed text). The job runs only on an Installation that is not hosted Ziffr, for a person who may make a
 // Workspace, one at a time per person and two at a time on an Installation; the file is read from a temporary file the
 // upload route wrote within the size limit, which is deleted however the job ends.
+import { refuseNewWorkspaceInDemoOnly } from "./demo-only";
 import { createReadStream } from "node:fs";
 import { readdir, rm, stat } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -146,6 +147,7 @@ function wordsOf(e: unknown): string | null {
  * counts against the person only, so a slow upload blocks nobody else; the Installation's limit is held when the
  * import begins. Words for the person. The upload route calls this first, then `beginImport` or `dropUpload`. */
 export async function claimUpload(personId: string): Promise<string> {
+  refuseNewWorkspaceInDemoOnly();
   if (!importOffered()) throw new Error("A new Workspace on hosted Ziffr is a trial: import a Workspace Export on an Installation of your own.");
   await assertMayOwnDefault(personId);
   await endStaleImports();

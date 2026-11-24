@@ -130,3 +130,13 @@ export async function demoLatestId(table: "widgets" | "versions" | "team_templat
   if (!data) throw new Error(`The walk found no ${table} row for ${JSON.stringify(where)}.`);
   return data.id as number;
 }
+
+/** Fails, naming the cause, unless the demo is the only Workspace in this database. A visit may write the demo only then (the database's guard, migration 20270131090000), so every test file where a visitor writes calls this in `beforeAll`: a Workspace left behind by an earlier test or run would otherwise make its tests fail with a refusal that says nothing of the cause. */
+export async function assertDemoIsOnlyWorkspace(): Promise<void> {
+  const { data, error } = await db().from("workspaces").select("id, name").neq("id", DEMO_WORKSPACE_ID);
+  if (error) throw new Error(`Could not look for other Workspaces: ${error.message}`);
+  if ((data ?? []).length) {
+    const list = (data ?? []).map((w) => `${w.id} (${w.name})`).join(", ");
+    throw new Error(`These tests need the demo to be the only Workspace in the database (visitors may write only then), but there are others: ${list}. An earlier test or run left them behind: delete them, or run pnpm prototype:reset.`);
+  }
+}

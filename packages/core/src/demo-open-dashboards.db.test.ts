@@ -3,6 +3,7 @@
 // Versions and templates of its own; the seed's words, the showcase and the caps hold; with the setting off, without a visit
 // or with a Generation of before the last Demo Reset the demo refuses as it always did. Written for the database test run of
 // CI; the author could not run it (spec 0051's tickets 8 and 9 were built in parallel, without a database).
+import { assertDemoIsOnlyWorkspace } from "./test/demo-walk";
 import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
 import { db } from "./db";
 import { DemoLimit, DemoReadOnly, DemoSeededWords, DemoShowcase, DemoStale } from "./demo";
@@ -37,6 +38,7 @@ async function asVisit<T>(work: () => Promise<T>, generationOffset = 0, visit = 
 
 let metric = 0;
 beforeAll(async () => {
+  await assertDemoIsOnlyWorkspace();
   // A fresh demo that is open to visitors, with its showcase recorded and its seed marked done.
   await resetDemoWorkspace({ openToVisitors: true });
   metric = Number((await db().from("metrics").select("id").eq("workspace_id", DEMO_WORKSPACE_ID).limit(1).single()).data?.id);
