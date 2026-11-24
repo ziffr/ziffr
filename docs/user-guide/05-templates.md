@@ -56,6 +56,8 @@ A **Dashboard Template** is a starting point for a whole dashboard: its Widgets,
 
 When you have built a dashboard the team likes, such as "Monthly board pack", you can save it as a team Dashboard Template, so the next one starts from it. You can do this when you may change the dashboard and see every Metric on it.
 
+In the demo, where visitors may change it, you may make a dashboard from a template and save a widget or a dashboard as a template of your own, with a short name and plain words. What you save is seen by every visitor and gone when the demo starts fresh.
+
 ## Deck Templates and Workflow Templates
 
 A **Deck Template** is a starting point for a whole deck: its slides with their Widgets, words and boxes, the Metrics left open as Slots. Save a deck as one with **Save as Deck Template…** in the deck editor, and start a deck from one on the Decks page (Decks and Themes).

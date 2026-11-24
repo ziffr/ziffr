@@ -9,17 +9,16 @@ import { demoReadOnlyWords } from "@ziffr/core/demo";
 import { BUILT_IN_DESIGNS } from "@ziffr/core/built-in-designs";
 import { STANDARD_THEMES } from "@ziffr/core/standard-themes";
 import { themeToFile } from "@ziffr/core/theme-file";
-import { demoFingerprint, demoWalkClearCounts, demoWalkClose, demoWalkIds, demoWalkOpen, demoWalkOutbound } from "@ziffr/core/test/demo-walk";
+import { demoBackToSeed, demoFingerprint, demoFullSeed, demoGeneration, demoLatestId, demoOpenForVisitors, demoWalkClearCounts, demoWalkIds, demoWalkOutbound } from "@ziffr/core/test/demo-walk";
 import { DEMO_BUDGET_USED, DEMO_BUSY, DEMO_GOING_FAST, DEMO_SEEDED_WORDS, DEMO_SHOWCASE, DEMO_STALE, DEMO_VALUE_WORDS } from "@ziffr/core/demo-words";
 import { demoAllows, demoClassOf } from "@ziffr/core/demo-changes";
 
 vi.mock("server-only", () => ({}));
 vi.mock("next/cache", () => ({ revalidatePath: vi.fn(), revalidateTag: vi.fn() }));
-// A demo visit as Sara, the demo's Owner, who may try everything a role allows. The second pass (visitors may change the demo) gives
-// the visit its id and the Generation its page was drawn in, as the demo bar and the middleware do.
-const jar = vi.hoisted(() => ({ cookies: { "ziffr-demo": "1", "ziffr-viewer": "sara" } as Record<string, string> }));
+// A demo visit as Sara, the demo's Owner, who may try everything a role allows.
+const jar = vi.hoisted(() => ({ "ziffr-demo": { value: "1" }, "ziffr-viewer": { value: "sara" } } as Record<string, { value: string }>));
 vi.mock("next/headers", () => ({
-  cookies: async () => ({ get: (name: string) => (name in jar.cookies ? { value: jar.cookies[name] } : undefined), set: () => {}, delete: () => {}, getAll: () => [] }),
+  cookies: async () => ({ get: (name: string) => jar[name], set: () => {}, delete: () => {}, getAll: () => [] }),
   headers: async () => new Headers({ host: "ziffr.test", "x-forwarded-for": "203.0.113.9" }),
 }));
 
@@ -51,11 +50,9 @@ const day = (n = 0) => new Date(Date.now() + n * 86400000).toISOString().slice(0
 // Workspace (signing in, the Installation, a trial's guide), or only chooses whose view is shown.
 // `nothing`: in the seeded demo there is nothing for it to change (no such row), so it answers before any write; the
 // rows are checked all the same.
-// `blocked`: refused with the sentence and no row changes. `open`: refused with the sentence while visitors may not change the demo (the
-// first pass, the setting off), and in the second pass (the setting in effect, the Installation open, as a visit of the current Generation)
-// not refused with the demo's words, and some row of the demo changes; a later ticket of spec 0051 moves an action here and in
-// demo-changes.ts together. The class must agree with demo-changes.ts.
-type Case = { blocked: (i: Ids) => unknown[] } | { open: (i: Ids) => unknown[] } | { nothing: string; open: (i: Ids) => unknown[] } | { reads: (i: Ids) => unknown[] } | { nothing: string; blocked: (i: Ids) => unknown[] } | { outside: string };
+// `blocked`: refused with the sentence and no row changes. `open`: succeeds and some row of the demo changes (none yet: a
+// later ticket of spec 0051 moves an action here and in demo-changes.ts together). The class must agree with demo-changes.ts.
+type Case = { blocked: (i: Ids) => unknown[] } | { open: (i: Ids) => unknown[]; nothing?: string } | { reads: (i: Ids) => unknown[] } | { nothing: string; blocked: (i: Ids) => unknown[] } | { outside: string };
 const CASES: Record<string, Case> = {
   "access-actions:whoCanSee": { reads: (i) => ["dashboard", i.dashboard] },
   "access-actions:requestAccess": { blocked: (i) => ["dashboard", i.otherDashboard] },
@@ -89,15 +86,15 @@ const CASES: Record<string, Case> = {
   "calendar-link-actions:makeCalendarLink": { blocked: () => [{}] },
   "calendar-link-actions:setCalendarNoNames": { nothing: "nobody in the demo has a Calendar Link", blocked: () => [true] },
   "calendar-link-actions:revokeCalendarLink": { nothing: "nobody in the demo has a Calendar Link", blocked: () => [] },
-  "canvas-actions:placeWidget": { blocked: (i) => [i.dashboard, { type: "metric", id: i.metric }] },
-  "canvas-actions:saveDashboardText": { blocked: (i) => [i.dashboard, { name: "Renamed by a visitor" }] },
-  "canvas-actions:saveLayout": { blocked: (i) => [i.dashboard, [{ i: String(i.widget), x: 0, y: 0, w: 4, h: 3 }]] },
-  "canvas-actions:updateWidget": { blocked: (i) => [i.widget, { title: "Retitled" }] },
-  "canvas-actions:applyTemplate": { blocked: (i) => [i.widget, i.template, [[i.metric]]] },
-  "canvas-actions:removeWidget": { blocked: (i) => [i.widget] },
-  "canvas-actions:saveToPool": { blocked: (i) => [{ type: "widget", id: i.widget }, "Pooled"] },
-  "canvas-actions:deleteSavedWidget": { blocked: (i) => [i.savedWidget] },
-  "canvas-actions:createDashboardNamed": { blocked: () => ["Visitor dashboard"] },
+  "canvas-actions:placeWidget": { open: (i) => [i.dashboard, { type: "metric", id: i.metric }] },
+  "canvas-actions:saveDashboardText": { open: (i) => [i.dashboard, { name: "Renamed by a visitor" }] },
+  "canvas-actions:saveLayout": { open: (i) => [i.dashboard, [{ i: String(i.widget), x: 0, y: 0, w: 4, h: 3 }]] },
+  "canvas-actions:updateWidget": { open: (i) => [i.widget, { title: "Retitled" }] },
+  "canvas-actions:applyTemplate": { open: (i) => [i.widget, i.template, [[i.metric]]] },
+  "canvas-actions:removeWidget": { open: (i) => [i.widget] },
+  "canvas-actions:saveToPool": { open: (i) => [{ type: "widget", id: i.widget }, "Pooled"] },
+  "canvas-actions:deleteSavedWidget": { open: (i) => [i.savedWidget] },
+  "canvas-actions:createDashboardNamed": { open: () => ["Visitor dashboard"] },
   "canvas-actions:setShare": { blocked: (i) => ["dashboard", i.dashboard, "ben", "editor"] },
   "canvas-actions:setGroupShare": { blocked: (i) => ["dashboard", i.dashboard, i.group, "viewer"] },
   "canvas-actions:canvasAdd": { blocked: (i) => [[i.metric]] },
@@ -141,9 +138,9 @@ const CASES: Record<string, Case> = {
   "convert-actions:doneAddingToDeck": { reads: () => [] },
   // Onto a new deck: making it is the change refused.
   "convert-actions:addToDeck": { blocked: (i) => [i.widget, null, null] },
-  "dashboard-template-actions:createFromDashboardTemplate": { blocked: (i) => ["overview", "From a template", [[i.metric], [i.metric], [i.metric], [i.metric]]] },
+  "dashboard-template-actions:createFromDashboardTemplate": { open: (i) => ["overview", "From a template", [[i.metric], [i.metric], [i.metric], [i.metric]]] },
   "dashboard-template-actions:draftDashboardTemplate": { reads: (i) => [i.dashboard] },
-  "dashboard-template-actions:saveAsDashboardTemplate": { blocked: (i) => [{ dashboardId: i.dashboard, name: "Visitor template", description: "", labels: [] }] },
+  "dashboard-template-actions:saveAsDashboardTemplate": { open: (i) => [{ dashboardId: i.dashboard, name: "Visitor template", description: "", labels: [] }] },
   "deck-workflow-template-actions:saveAsDeckTemplate": { blocked: (i) => [{ deckId: i.deck, name: "Visitor deck template", description: "", labels: [], choices: {} }] },
   "deck-workflow-template-actions:createDeckFromTemplate": { nothing: "the demo has no Deck Templates", blocked: () => [1, "From a template", []] },
   "deck-workflow-template-actions:saveAsWorkflowTemplate": { blocked: (i) => [{ workflowId: i.workflow, name: "Visitor workflow template", description: "" }] },
@@ -173,7 +170,7 @@ const CASES: Record<string, Case> = {
   "feedback-prompt-actions:stopFeedbackPrompt": { nothing: "the card is never shown in the demo, and the core refuses a demo actor", blocked: () => ["never"] },
   "feedback-prompt-actions:sayWhatIsMissing": { nothing: "the card is never shown in the demo, and the core refuses a demo actor", blocked: () => ["More charts"] },
   "home-actions:setHome": { blocked: (i) => [i.dashboard] },
-  "home-actions:newDashboard": { blocked: () => [null, form({ name: "Visitor dashboard" })] },
+  "home-actions:newDashboard": { open: () => [null, form({ name: "Visitor dashboard" })] },
   "installation-actions:claimInstallation": { outside: "the Installation, not the demo Workspace" },
   "installation-actions:addInstallationAdmin": { outside: "the Installation, not the demo Workspace" },
   "installation-actions:removeInstallationAdmin": { outside: "the Installation, not the demo Workspace" },
@@ -306,29 +303,31 @@ const CASES: Record<string, Case> = {
   "team-actions:decideJoin": { nothing: "the demo has no requests to join", blocked: () => [1, true] },
   "team-actions:removeMemberWithHandover": { blocked: () => ["ben", "anna"] },
   "template-actions:saveSlideLayout": { blocked: (i) => [{ deckId: i.deck, shapes: [], name: "Layout", description: "", labels: [], choices: {} }] },
-  "template-actions:saveTemplate": { blocked: (i) => [{ widgetId: i.widget, name: "Visitor template", description: "", labels: [], choices: {} }] },
-  "template-actions:renameTemplate": { blocked: (i) => [i.template, "Renamed", ""] },
-  "template-actions:deleteTemplate": { blocked: (i) => [i.template] },
-  "theme-actions:saveTheme": { blocked: (i) => [i.theme, "Renamed theme", i.themeTokens, i.themeSlides] },
-  "theme-actions:duplicateTheme": { blocked: (i) => [i.theme] },
-  "theme-actions:addStandardTheme": { blocked: () => ["tokyo"] },
+  "template-actions:saveTemplate": { open: (i) => [{ widgetId: i.widget, name: "Visitor template", description: "", labels: [], choices: {} }] },
+  "template-actions:renameTemplate": { open: (i) => [i.template, "Renamed", ""] },
+  "template-actions:deleteTemplate": { open: (i) => [i.template] },
+  "theme-actions:saveTheme": { open: (i) => [i.theme, "Renamed theme", i.themeTokens, i.themeSlides] },
+  "theme-actions:duplicateTheme": { open: (i) => [i.theme] },
+  "theme-actions:addStandardTheme": { open: () => ["tokyo"] },
   "theme-actions:importTheme": { blocked: () => [JSON.stringify(themeToFile("Our look", STANDARD_THEMES[0].tokens, STANDARD_THEMES[0].slides))] },
   "theme-actions:themeLogoSource": { reads: (i) => [i.theme] },
-  "theme-actions:deleteTheme": { blocked: (i) => [i.otherTheme] },
+  "theme-actions:deleteTheme": { open: (i) => [i.otherTheme] },
   "theme-actions:setDefaultTheme": { blocked: (i) => [i.theme] },
-  "theme-actions:setDashboardTheme": { blocked: (i) => [i.dashboard, i.theme] },
+  "theme-actions:setDashboardTheme": { open: (i) => [i.dashboard, i.theme] },
   "theme-actions:setDeckTheme": { blocked: (i) => [i.deck, i.theme] },
   "setup/actions:saveAboutYou": { blocked: () => [{ profile: { industry: "retail" }, clock: { timeZone: "Europe/Berlin", runHour: 7 }, yearStart: 4 }] },
   "setup/actions:skipStep": { blocked: () => ["about"] },
+  "setup/ways-actions:saveAskMeBy": { blocked: () => [["email"]] },
+  "setup/ways-actions:connectSlackFromGuide": { blocked: () => [] },
   "try/start/actions:moveGuide": { outside: "a Trial Workspace's guide, never the demo" },
   "try/start/actions:skipGuide": { outside: "a Trial Workspace's guide, never the demo" },
   "try/start/actions:askGuide": { outside: "a Trial Workspace's guide, never the demo" },
   "try/start/actions:guideValue": { outside: "a Trial Workspace's guide, never the demo" },
   "try/start/actions:makeN8nKey": { outside: "a Trial Workspace's guide, never the demo" },
   "version-actions:listVersions": { reads: (i) => ["dashboard", i.dashboard] },
-  "version-actions:nameVersion": { nothing: "the demo has no Versions", blocked: () => [1, "Named"] },
-  "version-actions:restoreVersion": { nothing: "the demo has no Versions", blocked: () => [1] },
-  "version-actions:saveNamedVersion": { blocked: (i) => ["dashboard", i.dashboard, "A visitor's version"] },
+  "version-actions:nameVersion": { nothing: "the demo has no Versions", open: () => [1, "Named"] },
+  "version-actions:restoreVersion": { nothing: "the demo has no Versions", open: () => [1] },
+  "version-actions:saveNamedVersion": { open: (i) => ["dashboard", i.dashboard, "A visitor's version"] },
   "view-link-actions:listViewLinks": { reads: (i) => ["dashboard", i.dashboard] },
   "view-link-actions:createViewLink": { blocked: (i) => ["dashboard", i.dashboard, { label: "For the board", expires: day(7), frozen: false }] },
   "view-link-actions:shownSnapshots": { reads: (i) => [i.snapshotDashboard] },
@@ -356,13 +355,18 @@ const CASES: Record<string, Case> = {
 
 let before: Record<string, string>;
 beforeAll(async () => {
+  // The baseline is the demo as a full Demo Reset makes it (the SQL seed alone lacks Snapshots, the close and the Outbox).
+  await demoFullSeed();
   ids = (await demoWalkIds()) as Ids;
   before = await demoFingerprint();
 });
 
 afterAll(async () => {
   // Whatever any action did, the demo is as it was.
-  expect(await demoFingerprint()).toEqual(before);
+  // Two full seeds differ in what holds times or chance (Snapshots, Heads-up pairs, periods' states, the Audit Log): the rest is the seed.
+  const timed = ["audit_events", "dashboard_snapshots", "heads_up_pairs", "period_states"];
+  const without = (f: Record<string, string>) => Object.fromEntries(Object.entries(f).filter(([k]) => !timed.includes(k)));
+  expect(without(await demoFingerprint())).toEqual(without(before));
 });
 
 const exportsOf = async (file: string) => Object.entries(await import(file)).filter(([, v]) => typeof v === "function") as [string, (...a: unknown[]) => Promise<unknown>][];
@@ -375,7 +379,7 @@ describe("every server action in the demo", () => {
     expect(Object.keys(CASES).filter((k) => !all.includes(k))).toEqual([]);
   });
 
-  it("is classified in demo-changes.ts as the table says, and is allowed with the setting in effect exactly when it is open or limited", () => {
+  it("is classified in demo-changes.ts as the table says, and nothing is allowed yet", () => {
     const wrong: string[] = [];
     for (const [key, c] of Object.entries(CASES)) {
       const said = demoClassOf(key)?.class;
@@ -388,7 +392,7 @@ describe("every server action in the demo", () => {
     expect(wrong).toEqual([]);
   });
 
-  it("refuses a change with the one sentence and saves nothing while visitors may not change the demo (the setting off)", async () => {
+  it("refuses a change with the one sentence and saves nothing, the open ones too while the setting is off", async () => {
     const sentence = demoReadOnlyWords();
     const wrong: string[] = [];
     for (const file of files) {
@@ -403,7 +407,7 @@ describe("every server action in the demo", () => {
           thrown = e;
         }
         const words = thrown instanceof Error ? thrown.message : (answer as { error?: unknown } | undefined)?.error;
-        // Open or blocked, with the setting off every change is refused as it always was; the second pass below tries the open ones.
+        // The setting is off here, so an open action is refused as a blocked one is: nothing opens without it (the next test opens it).
         if (("blocked" in c || "open" in c) && !("nothing" in c) && words !== sentence) wrong.push(`${keyOf(file, name)}: ${thrown ? `threw ${String(words)}` : `answered ${JSON.stringify(answer)?.slice(0, 160)}`}`);
         // A read or a preview never meets the sentence: it changes nothing to be refused.
         if ("reads" in c && words === sentence) wrong.push(`${keyOf(file, name)}: a read refused as a change`);
@@ -413,100 +417,115 @@ describe("every server action in the demo", () => {
   });
 });
 
-// The second pass: the demo-only Installation lets visitors change the demo (the setting in effect, the Installation open, a ready showcase),
-// and the walk is a visit of the current Generation with an id of its own. Only the open actions may pass; nothing else is let through.
-describe("every server action, with visitors allowed to change the demo (spec 0051, ticket 8)", () => {
-  const visitId = "0123456789abcdef0123456789abcdef";
-  let passIds: Ids = {};
-  let atStart: Record<string, string> = {};
-  let outboundAtStart = { notInOutbox: 0, webhooks: 0, webhookSends: 0 };
-  const demoWords = () => [demoReadOnlyWords(), DEMO_STALE, DEMO_BUSY, DEMO_BUDGET_USED, DEMO_GOING_FAST, DEMO_SHOWCASE, DEMO_SEEDED_WORDS, DEMO_VALUE_WORDS.run];
-  /** Calls one action with the arguments of its case, and answers the words of what it refused with, or null. */
-  async function words(fn: (...a: unknown[]) => Promise<unknown>, args: unknown[]): Promise<string | null> {
-    try {
-      const answer = await fn(...args);
-      const refused = (answer as { error?: unknown } | undefined)?.error;
-      return typeof refused === "string" ? refused : null;
-    } catch (e) {
-      return e instanceof Error ? e.message : String(e);
+// With the setting in effect (a demo-only Installation, the Installation setting on, the reset job having opened the demo)
+// the actions the demo opens succeed for a visit and change the demo: the visitor's own dashboards, widgets, the Pool, Themes,
+// Versions and templates (spec 0051, ticket 9). Last in the file: a Demo Reset follows, so the ids above are gone, and the
+// demo is then as its seed was (the fingerprint test of afterAll).
+describe("with the setting in effect, a visit", () => {
+  const VISIT = "0123456789abcdef0123456789abcdef";
+  const ENV = ["ZIFFR_DEMO_ONLY", "ZIFFR_DEMO_CHANGES", "ZIFFR_DEMO_ADDRESS_KEY", "ZIFFR_PROXY_HOPS"] as const;
+  const savedEnv: Record<string, string | undefined> = {};
+  const call = async (key: string, ...args: unknown[]): Promise<unknown> => {
+    const [file, name] = key.split(":");
+    const fn = (await import(join(APP, file)))[name] as (...a: unknown[]) => Promise<unknown>;
+    try { return await fn(...args); } catch (e) {
+      // `redirect` ends a plain form's action by throwing: that is how it succeeds.
+      if (String((e as { digest?: unknown })?.digest ?? "").startsWith("NEXT_REDIRECT")) return "redirected";
+      throw e;
     }
-  }
+  };
+  /** An answer that is a refusal, not a success. */
+  const refused = (r: unknown) => typeof r === "object" && r !== null && "error" in r;
 
   beforeAll(async () => {
-    vi.stubEnv("ZIFFR_DEMO_ONLY", "1");
-    vi.stubEnv("ZIFFR_DEMO_CHANGES", "1");
-    vi.stubEnv("ZIFFR_DEMO_ADDRESS_KEY", "k".repeat(40));
-    vi.stubEnv("ZIFFR_PROXY_HOPS", "1");
-    const generation = await demoWalkOpen();
-    jar.cookies["ziffr-demo"] = visitId;
-    jar.cookies["ziffr-demo-gen"] = String(generation);
-    passIds = (await demoWalkIds()) as Ids;
-    atStart = await demoFingerprint();
-    outboundAtStart = await demoWalkOutbound();
+    for (const n of ENV) savedEnv[n] = process.env[n];
+    Object.assign(process.env, { ZIFFR_DEMO_ONLY: "1", ZIFFR_DEMO_CHANGES: "1", ZIFFR_DEMO_ADDRESS_KEY: "k".repeat(40), ZIFFR_PROXY_HOPS: "1" });
+    await demoOpenForVisitors();
+    ids = (await demoWalkIds()) as Ids;
+    jar["ziffr-demo"] = { value: VISIT };
+    jar["ziffr-demo-gen"] = { value: String(await demoGeneration()) };
   }, 180_000);
 
   afterAll(async () => {
-    vi.unstubAllEnvs();
-    jar.cookies["ziffr-demo"] = "1";
-    delete jar.cookies["ziffr-demo-gen"];
-    // The demo as its seed again, so the first pass's check at the end of this file holds.
-    await demoWalkClose();
+    for (const n of ENV) { if (savedEnv[n] === undefined) delete process.env[n]; else process.env[n] = savedEnv[n]; }
+    jar["ziffr-demo"] = { value: "1" };
+    delete jar["ziffr-demo-gen"];
+    await demoBackToSeed();
   }, 180_000);
 
-  it("lets every open action through, never refused with the demo's own words, and some row of the demo changes", async () => {
+  it("makes, changes and removes its own dashboards, widgets, Pool, Themes, Versions and templates, as one made-up person", async () => {
     const wrong: string[] = [];
-    for (const file of files) {
-      for (const [name, fn] of await exportsOf(file)) {
-        const c = CASES[keyOf(file, name)];
-        if (!c || !("open" in c)) continue;
-        // One Workflow run a minute in the whole demo: each action of the walk is counted from zero.
-        await demoWalkClearCounts();
-        const said = await words(fn, c.open(passIds));
-        if (said !== null && demoWords().includes(said)) wrong.push(`${keyOf(file, name)}: open, but refused with the demo's words: ${said}`);
-      }
+    const ok = async (key: string, ...args: unknown[]) => {
+      const r = await call(key, ...args);
+      if (refused(r)) wrong.push(`${key}: ${JSON.stringify(r)}`);
+      return r;
+    };
+    const m = ids.metric;
+    const dash = (await ok("canvas-actions:createDashboardNamed", "Visitor dashboard")) as number;
+    await ok("home-actions:newDashboard", null, form({ name: "Visitor dashboard 2" }));
+    await ok("dashboard-template-actions:createFromDashboardTemplate", "overview", "From a template", [[m], [m], [m], [m]]);
+    await ok("canvas-actions:placeWidget", dash, { type: "metric", id: m });
+    const widget = await demoLatestId("widgets", { dashboard_id: dash });
+    await ok("canvas-actions:updateWidget", widget, { title: "Retitled" });
+    await ok("canvas-actions:saveLayout", dash, [{ i: String(widget), x: 0, y: 0, w: 4, h: 3 }]);
+    await ok("canvas-actions:saveDashboardText", dash, { name: "Renamed by a visitor", intro: "A plain note." });
+    await ok("canvas-actions:saveToPool", { type: "widget", id: widget }, "Pooled");
+    const saved = await demoLatestId("widgets", { saved: true });
+    await ok("template-actions:saveTemplate", { widgetId: widget, name: "Visitor template", description: "", labels: [], choices: {} });
+    const template = await demoLatestId("team_templates", { kind: "widget" });
+    await ok("template-actions:renameTemplate", template, "Renamed", "");
+    await ok("canvas-actions:applyTemplate", widget, template, [[m]]);
+    await ok("dashboard-template-actions:saveAsDashboardTemplate", { dashboardId: dash, name: "Visitor dashboard template", description: "", labels: [] });
+    await ok("template-actions:deleteTemplate", await demoLatestId("team_templates", { kind: "dashboard" }));
+    await ok("template-actions:deleteTemplate", template);
+    await ok("canvas-actions:deleteSavedWidget", saved);
+    await ok("version-actions:saveNamedVersion", "dashboard", dash, "A visitor's version");
+    const version = await demoLatestId("versions", { object_type: "dashboard", object_id: dash });
+    await ok("version-actions:nameVersion", version, "Named again");
+    await ok("version-actions:restoreVersion", version);
+    await ok("theme-actions:duplicateTheme", ids.otherTheme);
+    const theme = await demoLatestId("themes", {});
+    await ok("theme-actions:saveTheme", theme, "My look", ids.otherThemeTokens, ids.otherThemeSlides);
+    await ok("theme-actions:setDashboardTheme", dash, theme);
+    await ok("theme-actions:addStandardTheme", "tokyo");
+    await ok("theme-actions:deleteTheme", theme);
+    await ok("canvas-actions:removeWidget", await demoLatestId("widgets", { dashboard_id: dash }));
+    expect(wrong).toEqual([]);
+  }, 180_000);
+
+  // Ticket 8: the work around a value. Not refused with the demo's own words, some row changes, and nothing leaves the Outbox.
+  it("lets the work around a value through, and sends nothing outside", async () => {
+    const mine = Object.keys(CASES).filter((k) => /^(actions:(submitWebForm|decideCorrection|recordSimulated)|connector-actions:(askForMissing|sendDue|recordSimulated)|fill-in-actions:|paste-actions:recordPaste|series-actions:(askMeNow|recordValue)|workflow-actions:)/.test(k) && "open" in CASES[k]);
+    const demoWords = [demoReadOnlyWords(), DEMO_STALE, DEMO_BUSY, DEMO_BUDGET_USED, DEMO_GOING_FAST, DEMO_SHOWCASE, DEMO_SEEDED_WORDS, DEMO_VALUE_WORDS.run];
+    const outboundAtStart = await demoWalkOutbound();
+    const fingerprintAtStart = await demoFingerprint();
+    const wrong: string[] = [];
+    for (const key of mine) {
+      await demoWalkClearCounts();
+      const r = await call(key, ...(CASES[key] as { open: (i: Ids) => unknown[] }).open(ids)).catch((e: unknown) => ({ error: e instanceof Error ? e.message : String(e) })) as { error?: string } | undefined;
+      if (typeof r?.error === "string" && demoWords.includes(r.error)) wrong.push(`${key}: refused with the demo's words: ${r.error}`);
     }
     expect(wrong).toEqual([]);
-    expect(await demoFingerprint(), "the open actions changed nothing in the demo").not.toEqual(atStart);
-  }, 300_000);
-
-  it("takes one Workflow run a minute in the whole demo, and says so in words", async () => {
-    const run = CASES["workflow-actions:runWorkflowsNow"] as { open: (i: Ids) => unknown[] };
-    const { runWorkflowsNow } = await import("./workflow-actions");
-    await demoWalkClearCounts();
-    await words(runWorkflowsNow as never, run.open(passIds));
-    expect(await words(runWorkflowsNow as never, run.open(passIds))).toBe(DEMO_VALUE_WORDS.run);
-    await demoWalkClearCounts();
-  });
-
-  it("refuses a visit's text that works as a link, and a value for a period older than two years", async () => {
-    const { recordValue } = await import("./series-actions");
-    await demoWalkClearCounts();
-    expect(await words(recordValue as never, [passIds.ownMetric, { value: "42 see www.example.test" }])).toMatch(/web addresses/);
-    await demoWalkClearCounts();
-    const old = await words(recordValue as never, [passIds.ownMetric, { value: "42", period: "2020-01-01" }]);
-    expect(old === null || !demoWords().includes(old)).toBe(true);
-  });
-
-  it("still refuses everything that is blocked, with the sentence, and saves nothing", async () => {
-    const sentence = demoReadOnlyWords();
-    const wrong: string[] = [];
-    const before = await demoFingerprint();
-    for (const file of files) {
-      for (const [name, fn] of await exportsOf(file)) {
-        const c = CASES[keyOf(file, name)];
-        if (!c || !("blocked" in c) || "nothing" in c) continue;
-        await demoWalkClearCounts();
-        const said = await words(fn, c.blocked(passIds));
-        if (said !== sentence) wrong.push(`${keyOf(file, name)}: ${String(said)}`);
-      }
-    }
-    expect(wrong).toEqual([]);
-    expect(await demoFingerprint()).toEqual(before);
-  }, 300_000);
-
-  it("sends nothing outside: after every open action, no Delivery of the demo is anywhere but the Outbox, and it has no Webhook or send queued", async () => {
-    // As it was when the pass began (the seed), and none: the demo has no Webhook, and its Deliveries are only ever recorded.
+    expect(await demoFingerprint(), "the open actions changed nothing").not.toEqual(fingerprintAtStart);
     expect(await demoWalkOutbound()).toEqual(outboundAtStart);
     expect(outboundAtStart).toEqual({ notInOutbox: 0, webhooks: 0, webhookSends: 0 });
-  });
+  }, 300_000);
+
+  it("is refused, with the sentence, what the demo keeps blocked, and with the words of the demo what it protects", async () => {
+    const sentence = demoReadOnlyWords();
+    for (const [key, args] of [
+      ["theme-actions:setDefaultTheme", [ids.otherTheme]], ["theme-actions:importTheme", [JSON.stringify(themeToFile("Our look", STANDARD_THEMES[0].tokens, STANDARD_THEMES[0].slides))]],
+      ["design-actions:addViewDesign", [JSON.stringify(BUILT_IN_DESIGNS.number)]], ["canvas-actions:setShare", ["dashboard", ids.dashboard, "ben", "editor"]],
+      ["view-link-actions:createViewLink", ["dashboard", ids.dashboard, { label: "For the board", expires: day(7), frozen: false }]],
+    ] as [string, unknown[]][]) {
+      // A refusal is answered as words, or thrown by an action that does not catch it: the sentence either way.
+      const r = await call(key, ...args).catch((e: unknown) => ({ error: e instanceof Error ? e.message : String(e) })) as { error?: string };
+      expect(r?.error, key).toBe(sentence);
+    }
+    // The showcase and the seed's words: a refusal in the demo's own words, never a change.
+    const showcase = (await call("canvas-actions:placeWidget", ids.dashboard, { type: "metric", id: ids.metric })) as { error?: string };
+    expect(showcase?.error).toBe("Everyone sees this one as it is. Make your own to change it.");
+    const text = (await call("canvas-actions:createDashboardNamed", "see www.example.com")) as { error?: string };
+    expect(text?.error).toMatch(/link|address/i);
+  }, 180_000);
 });

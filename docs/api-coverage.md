@@ -31,6 +31,7 @@ Decks, Themes, View Designs, the canvas, Packs and the pages that edit them are 
 - `saveToPool` (dashboards.ts): the dashboard canvas
 - `deleteSavedWidget` (dashboards.ts): the dashboard canvas
 - `setDashboardTheme` (dashboards.ts): Themes
+- `visitorTemplateWidgets` (dashboards.ts): the demo's gate for the widgets a template makes, called by `createDashboardFromBody`; not an operation of its own
 - `fixTagLists` (tag-lists.ts): the View links window's Fix the list; a Tag source on a widget is not in the API yet (spec 0038)
 - `canvasAdd` (dashboards.ts): the dashboard canvas
 - `canvasRemove` (dashboards.ts): the dashboard canvas
@@ -148,6 +149,8 @@ Acts as the person, with their own sign-in, Slack or Telegram account or email a
 - `setMyBusinessFunction` (business-function.ts): one's own Business Function, which no program may read or set: it is seen only by the person and the Workspace's Owners and Admins
 - `setPreference` (questions.ts): one's own reminder channel
 - `sendTestMessage` (test-message.ts): a Test Message to oneself, for the app's buttons; a program cannot message a person (spec 0052)
+- `setMyPromptWays` (ways-in-and-out.ts): one's own Delivery Preference for Prompts from the Setup Guide's Ways in and out step, only with ways that work here (spec 0052); a program sets its person's preference through the app
+- `waysInAndOut` (ways-in-and-out.ts): the Setup Guide's Ways in and out step for the viewer, in words; for the app's page only (spec 0052)
 - `startSetupGuide` (setup-guide.ts): the Setup Guide is for people in the app (spec 0052); programs never set up a Workspace
 - `setupGuide` (setup-guide.ts): the viewer's own guide steps, for the app
 - `skipSetupStep` (setup-guide.ts): skipping a step of the guide, for the app

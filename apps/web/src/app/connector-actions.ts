@@ -1,6 +1,8 @@
 "use server";
 // Connectors (GLOSSARY: Connector, Delivery, Delivery Preference): thin calls into the core. In the demo anyone may
 // play the recipient on Slack, email, WhatsApp or a ticket system (@ziffr/core/demo-channels); elsewhere those refuse.
+import { cookies } from "next/headers";
+import { SLACK_BACK_COOKIE } from "@/lib/slack-back";
 import * as optOut from "@ziffr/core/email-opt-out";
 import * as slackConnection from "@ziffr/core/slack-connection";
 import * as slackPeople from "@ziffr/core/slack-people";
@@ -69,7 +71,12 @@ export async function emailRemindersAgain() {
 /** "Add to Slack" (spec 0007): an Owner or Admin is sent to Slack with a one-time state; the core checks the role. */
 export async function connectSlack() {
   // The redirect passes through attempt(); a refusal comes back as words for the form to show.
-  return attempt(async () => redirect(await slackConnection.startSlackInstall(await currentActor())));
+  return attempt(async () => {
+    const url = await slackConnection.startSlackInstall(await currentActor());
+    // An unfinished "Add to Slack" from the Setup Guide must not send this one there.
+    (await cookies()).delete(SLACK_BACK_COOKIE);
+    redirect(url);
+  });
 }
 
 /** Disconnects the workspace's Slack (Owners and Admins; the core checks). */

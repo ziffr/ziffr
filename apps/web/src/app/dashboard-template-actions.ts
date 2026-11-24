@@ -4,12 +4,13 @@
 import { revalidatePath } from "next/cache";
 import { currentActor } from "@/lib/viewer";
 import { attempt } from "@/lib/action-result";
+import { attemptAsVisitor } from "@/lib/demo-write";
 import { createDashboardFromTemplate } from "@ziffr/core/dashboard-templates";
 import { dashboardTemplateDraft, saveDashboardTemplate } from "@ziffr/core/templates";
 
 /** Makes a dashboard of the viewer's from a template, with one list of Metric ids per Slot; returns its id. */
 export async function createFromDashboardTemplate(template: number | string, name: string, fills: number[][], tagFills: (string | null)[] = []) {
-  return attempt(async () => {
+  return attemptAsVisitor("dashboard-template-actions:createFromDashboardTemplate", async () => {
     const id = await createDashboardFromTemplate(await currentActor(), { template: typeof template === "number" ? template : String(template), name: String(name ?? ""), fills, tagFills });
     revalidatePath("/", "layout");
     return id;
@@ -23,7 +24,7 @@ export async function draftDashboardTemplate(dashboardId: number) {
 
 /** Saves the dashboard as a team Dashboard Template, new or replacing one of the viewer's own. */
 export async function saveAsDashboardTemplate(input: { dashboardId: number; name: string; description: string; labels: string[]; replaceId?: number | null }) {
-  return attempt(async () => {
+  return attemptAsVisitor("dashboard-template-actions:saveAsDashboardTemplate", async () => {
     const id = await saveDashboardTemplate(await currentActor(), input);
     revalidatePath("/", "layout");
     return id;

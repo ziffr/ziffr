@@ -38,7 +38,7 @@ export class DemoReadOnly extends Forbidden {
 /** Refuses the demo before a change that does something the database cannot take back: a row outside the demo's
  * (a new person), a call to Slack or Telegram, an email. Everything else the database refuses itself. Named with the
  * server action it is for (demo-changes.ts), it lets the change on when the classification allows it (spec 0051:
- * the one place that asks; today it allows none, so the demo is as read-only as before); a place that cannot name one
+ * the one place that asks; it allows only what a ticket of the spec opened, and only with the setting in effect); a place that cannot name one
  * always refuses, whatever the list says. */
 export function refuseInDemo(actor: Pick<Actor, "workspaceId">, operation?: string): void {
   if (actor.workspaceId !== DEMO_WORKSPACE_ID) return;

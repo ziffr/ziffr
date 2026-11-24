@@ -3,12 +3,11 @@
 // and the export, "canvas-actions:placeWidget"), classified as the database's allow-list is (`demo_open_tables`). It is
 // pure, so the classification and the test that no action is missing are tried without a database.
 //
-// `demoAllows` says no to everything unless visitors may change the demo (the setting in effect, which needs a demo-only
-// Installation): with it off the demo is as read-only as before. Ticket 8 opened the work around a value (recording, the
-// web form, paste, filling in, the simulated channels, Approvals, Self-checks, Corrections, Locks, the Workflows' run to
-// the Outbox, Stand-ins, Away, Ask me now); tickets 9 to 11 open the rest by moving keys from `not-yet` to `OPEN` or
-// `LIMITED` here and nowhere else. The database's list still has to hold the tables an action writes, so a forgotten line
-// refuses a visitor and opens nothing. The classification only ever opens what the database would also let through.
+// Ticket 4 made every change `blocked`; each opening ticket of spec 0051 moves its keys from `not-yet` to `OPEN` or
+// `LIMITED` here and nowhere else (ticket 8: the work around a value, recording, approving, locking, the Workflows' run to the
+// Outbox, Stand-ins, Away; ticket 9: dashboards, widgets, the Pool, Themes of a visitor's own, Versions and templates). `demoAllows` says no to everything unless the setting is in effect, so with it off the demo is as read-only as
+// before. The database's list still has to hold the tables an action writes, so a forgotten line refuses a visitor and
+// opens nothing. The classification only ever opens what the database would also let through.
 import { demoChangesInEffect } from "./demo-reset-decision";
 import { settingsInEffectNow } from "./settings-in-effect";
 
@@ -150,6 +149,7 @@ const BLOCKED: Record<BlockedReason, readonly string[]> = {
   // Messages: email, Slack, Telegram, an invitation, a Webhook.
   sends: [
     "connector-actions:connectSlack",
+    "setup/ways-actions:connectSlackFromGuide",
     "connector-actions:disconnectSlack",
     "connector-actions:emailRemindersAgain",
     "connector-actions:sendTestMessage",
@@ -215,6 +215,7 @@ const BLOCKED: Record<BlockedReason, readonly string[]> = {
     "team-actions:setHeldRole",
     "team-actions:setWorkspaceClock",
     "usage-actions:archiveUnused",
+    "theme-actions:setDefaultTheme",
   ],
   // Promises what does not happen in the demo (an Alert, a Heads-up, an automatic Snapshot) or records nothing there.
   "does-nothing": [
@@ -232,6 +233,14 @@ const BLOCKED: Record<BlockedReason, readonly string[]> = {
     "snapshot-actions:setAutoSnapshots",
     "tell-actions:setTellStopped",
     "workflow-actions:runTodayNow",
+    "home-actions:setHome",
+    "pin-actions:pinDashboard",
+    "pin-actions:reorderPinned",
+    "pin-actions:unpinDashboard",
+    "canvas-actions:canvasAdd",
+    "canvas-actions:canvasExplain",
+    "canvas-actions:canvasRemove",
+    "canvas-actions:canvasSet",
   ],
   // The everyday work spec 0051's inventory recommends opening; each later ticket (8 to 11) moves its actions to `OPEN` or `LIMITED`.
   "not-yet": [
@@ -242,29 +251,15 @@ const BLOCKED: Record<BlockedReason, readonly string[]> = {
     "actions:createMetric",
     "actions:replyToAction",
     "actions:setActionStatus",
-    "canvas-actions:applyTemplate",
     "canvas-actions:assignInPlace",
-    "canvas-actions:canvasAdd",
-    "canvas-actions:canvasRemove",
-    "canvas-actions:canvasSet",
-    "canvas-actions:canvasExplain",
-    "canvas-actions:createDashboardNamed",
-    "canvas-actions:deleteSavedWidget",
     "canvas-actions:markTaskDone",
-    "canvas-actions:placeWidget",
-    "canvas-actions:removeWidget",
-    "canvas-actions:saveDashboardText",
-    "canvas-actions:saveLayout",
-    "canvas-actions:saveToPool",
     "canvas-actions:setGroupShare",
     "canvas-actions:setShare",
-    "canvas-actions:updateWidget",
     "connector-actions:setPreference",
+    "setup/ways-actions:saveAskMeBy",
     "convert-actions:addToDeck",
     "convert-actions:makeDeck",
     "convert-actions:makeDeckFromSnapshot",
-    "dashboard-template-actions:createFromDashboardTemplate",
-    "dashboard-template-actions:saveAsDashboardTemplate",
     "deck-actions:createDeck",
     "deck-actions:deleteDeck",
     "deck-actions:renameDeck",
@@ -274,11 +269,6 @@ const BLOCKED: Record<BlockedReason, readonly string[]> = {
     "deck-workflow-template-actions:createWorkflowFromTemplate",
     "deck-workflow-template-actions:saveAsDeckTemplate",
     "deck-workflow-template-actions:saveAsWorkflowTemplate",
-    "home-actions:newDashboard",
-    "home-actions:setHome",
-    "pin-actions:pinDashboard",
-    "pin-actions:reorderPinned",
-    "pin-actions:unpinDashboard",
     "series-actions:archiveMetric",
     "series-actions:deleteMetric",
     "series-actions:handOverMetricTo",
@@ -302,29 +292,20 @@ const BLOCKED: Record<BlockedReason, readonly string[]> = {
     "team-actions:removeContact",
     "team-actions:renameGroup",
     "team-actions:setMember",
-    "template-actions:deleteTemplate",
-    "template-actions:renameTemplate",
     "template-actions:saveSlideLayout",
-    "template-actions:saveTemplate",
-    "theme-actions:addStandardTheme",
-    "theme-actions:deleteTheme",
-    "theme-actions:duplicateTheme",
-    "theme-actions:saveTheme",
-    "theme-actions:setDashboardTheme",
     "theme-actions:setDeckTheme",
-    "theme-actions:setDefaultTheme",
-    "version-actions:nameVersion",
-    "version-actions:restoreVersion",
-    "version-actions:saveNamedVersion",
     "workflow-actions:deleteWorkflow",
     "workflow-actions:saveWorkflow",
     "workflow-actions:setMetricWorkflow",
   ],
 };
 
-/** Server actions a visitor may use freely (ticket 8: the work around a value). Each still counts once against the write budget
- * and takes its texts through the text rules (demo-visit-action.ts). */
+/** Server actions a visitor may use freely: they change rows of tables that are open (spec 0051, ticket 9: dashboards,
+ * widgets, Versions, Themes, templates) but make no new kind of row beyond a Version. Each is checked by the budget
+ * (`checkDemoBudget`) and its words by the text rules (`demo-visitor-words.ts`) in the web app's `attemptAsVisitor`, and
+ * the database lets it through only for a demo visit. */
 const OPEN: readonly string[] = [
+  // Ticket 8: the work around a value.
   "actions:decideCorrection",
   "connector-actions:recordSimulatedReply",
   "connector-actions:recordSimulatedTicketClose",
@@ -338,12 +319,24 @@ const OPEN: readonly string[] = [
   "workflow-actions:sendValueBack",
   "workflow-actions:setAway",
   "workflow-actions:setStandIn",
+  "canvas-actions:applyTemplate",
+  "canvas-actions:deleteSavedWidget",
+  "canvas-actions:removeWidget",
+  "canvas-actions:saveDashboardText",
+  "canvas-actions:saveLayout",
+  "canvas-actions:updateWidget",
+  "template-actions:deleteTemplate",
+  "template-actions:renameTemplate",
+  "theme-actions:deleteTheme",
+  "theme-actions:saveTheme",
+  "theme-actions:setDashboardTheme",
+  "version-actions:nameVersion",
 ];
 
-/** Server actions a visitor may use within a limit, by the limit's key: a row cap of demo-limits.ts (`values`: the values' rows,
- * counted by the database's trigger, and their periods and rows a paste by the core), or `workflow_run`, the one run a minute in
- * the whole demo (demo-budget.ts). */
+/** Server actions a visitor may use within a limit, by the limit's key (`demo-limits.ts`, the same kinds as `demo_limits`):
+ * the ones that make rows of a kind that is capped. */
 const LIMITED: Readonly<Record<string, readonly string[]>> = {
+  // Ticket 8: `values` is the values' row cap (and their periods and a paste's rows); `workflow_run` the one run a minute in the whole demo.
   values: [
     "actions:recordSimulatedMessage",
     "actions:submitWebForm",
@@ -356,6 +349,29 @@ const LIMITED: Readonly<Record<string, readonly string[]>> = {
     "connector-actions:askForMissingValues",
     "connector-actions:sendDueReminders",
     "workflow-actions:runWorkflowsNow",
+  ],
+  dashboards: [
+    "canvas-actions:createDashboardNamed",
+    "dashboard-template-actions:createFromDashboardTemplate",
+    "home-actions:newDashboard",
+  ],
+  widgets_per_dashboard: [
+    "canvas-actions:placeWidget",
+    "version-actions:restoreVersion",
+  ],
+  saved_widgets: [
+    "canvas-actions:saveToPool",
+  ],
+  templates: [
+    "dashboard-template-actions:saveAsDashboardTemplate",
+    "template-actions:saveTemplate",
+  ],
+  themes: [
+    "theme-actions:addStandardTheme",
+    "theme-actions:duplicateTheme",
+  ],
+  versions: [
+    "version-actions:saveNamedVersion",
   ],
 };
 
@@ -388,7 +404,7 @@ export function demoClassOf(operation: string): DemoClass | null {
 
 /** Whether a visitor's change by this server action may go on: only where visitors may change the demo (the setting in
  * effect) and the action is `open` or `limited`. Anything unknown, blocked, or asked with the setting off is no. The
- * refusal point (`refuseInDemo`) asks it; today it is no for every action. */
+ * refusal point (`refuseInDemo`) asks it. */
 export function demoAllows(operation: string, settings: Record<string, string | undefined> = settingsInEffectNow()): boolean {
   if (!demoChangesInEffect(settings)) return false;
   const c = CLASSES.get(operation);
