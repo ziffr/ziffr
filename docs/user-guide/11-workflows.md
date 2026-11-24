@@ -140,6 +140,10 @@ If the panel says that nothing has run by the clock yet, whoever runs Ziffr for 
 
 Only the Workflow's owner sees this button, and only while Metrics use the Workflow.
 
+## Filling in from the Workflows page
+
+Under each Metric in **Metrics on it** the Workflows page shows **Fill in for …** for the period the Workflow is working on, when a Submitter has not sent the value and you may fill in for them: you are the Metric Owner or the Workflow's owner, you see the Metric, and the period has no value yet. It is greyed out, with the reason, before the Due Date unless the Submitter is **Away**. It opens the same form as on the Metric's page and goes through the same checks: the core decides again when you save. A Guest is never shown it, and you see only the Metrics and Submitters you may see anyway. See [Filling in a value for someone](10-metrics.md#filling-in-a-value-for-someone).
+
 ## A Metric's Workflow box
 
 Each Metric's page has a **Workflow** box on its **Description** tab (see [The Metrics screens](10-metrics.md#workflow)). A Derived Metric has none: it is calculated, never sent in.

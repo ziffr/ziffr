@@ -7,6 +7,14 @@
       "A few periods are far from the rest and pull the result: Ziffr gives the result and says what it reads without them."
     ]
   },
+  "Correlation matrix": {
+    "use": "You have three or more Metrics and want to see which of them have gone up and down together, over a stretch of time.",
+    "dont": [
+      "You want to know whether one named pair moves together: use Correlation for that pair, with its own sentence.",
+      "You want to know what moves one Metric when the others are held the same: use What moves B?",
+      "Some of the Metrics have hardly changed or have too few values: their pairs are listed with the reason, and the sentence is about the pairs that could be compared."
+    ]
+  },
   "Drivers": {
     "use": "You have a Metric you care about and want a short list of where to look first.",
     "dont": [

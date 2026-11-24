@@ -35,6 +35,8 @@ Decks, Themes, View Designs, the canvas, Packs and the pages that edit them are 
 - `canvasAdd` (dashboards.ts): the dashboard canvas
 - `canvasRemove` (dashboards.ts): the dashboard canvas
 - `canvasSet` (dashboards.ts): the dashboard canvas
+- `canvasExplain` (dashboards.ts): the dashboard canvas
+- `readyFor` (analysis-picker.ts): what is ready for one Metric on its page; the analyses are reached through the Takeaway reads, not as an operation of their own
 - `newDeckFor` (deck-additions.ts): Deck building
 - `createDeckFromTemplate` (deck-templates.ts): Deck Templates
 - `createDeck` (decks.ts): Deck building
@@ -79,6 +81,7 @@ Decks, Themes, View Designs, the canvas, Packs and the pages that edit them are 
 - `recordOwnValue` (record-own-value.ts): a person's Record a value form on the Metric page; a program submits through the API's own path (values with its Access Key)
 - `fillInValue` (fill-in.ts): the Metric's or Workflow's owner filling in for a Submitter, on the Period Record in the app; the API and the MCP Server do not fill in for anyone (spec 0046, owner's decision), and a program submits its own values with its Access Key
 - `fillInOffer` (fill-in-offer.ts): reads whom the viewer may be offered to fill in for, to draw the button in the app; changes nothing, and the API and the MCP Server do not fill in for anyone
+- `workflowFillIns` (fill-in-offer.ts): reads whom the viewer may be offered to fill in for on the Workflows page, to draw the buttons in the app; changes nothing, and the API and the MCP Server do not fill in for anyone
 - `guestStandIns` (fill-in-offer.ts): reads which Stand-ins are Guests, for the note on the Stand-ins list in the app; changes nothing
 - `editSnapshotWords` (snapshots.ts): a Snapshot's words, showing it and deleting it stay with people (programs take and read Snapshots)
 - `showSnapshot` (snapshots.ts): a Snapshot's words, showing it and deleting it stay with people (programs take and read Snapshots)

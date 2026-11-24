@@ -96,6 +96,8 @@ function breakdownReason(entry: PickerEntry, used: CanvasFact[]): string | null 
 // Metrics of different periods are compared on the longest; one that cannot be combined (Aggregation none) cannot be, and a Metric calculated
 // from another is never compared with it.
 function pairReason(entry: PickerEntry, used: CanvasFact[]): string | null {
+  // The matrix compares every pair it can and lists the ones it cannot, each with its reason: one such pair does not stop it.
+  if (entry.id === "matrix") return null;
   const span = used.map((m) => m.period).reduce(commonPeriod);
   // A fit leaves out the drivers it cannot use and says so: only the Metric to explain stops it.
   const fits = entry.id === "moves" || entry.id === "needs";

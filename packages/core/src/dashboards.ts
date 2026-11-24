@@ -21,6 +21,7 @@ import { checkTagSource } from "./tag-widgets";
 import { tagSourceId, takesTagSource, withoutNestedTagSources } from "./tag-source";
 import { SLOPE_CHOICES } from "./view-design";
 import type { TeamTemplate, TemplateId, Widget, WidgetSettings, WidgetTemplate } from "./types";
+import { explainedOf, markAfterRemoval } from "./canvas-roles";
 
 /** What can be dropped onto a dashboard or saved to the Pool. */
 export type DropSource =
@@ -289,17 +290,35 @@ export async function canvasAdd(actor: Actor, metricIds: number[]) {
   if (rows.length) await db().from("analysis_canvas").insert(rows);
 }
 
-/** Takes a Metric off the actor's Analysis Canvas. */
+/** Takes a Metric off the actor's Analysis Canvas; if it was the one to explain, the mark moves to the next Metric. */
 export async function canvasRemove(actor: Actor, metricId: number) {
+  const { ids: before, explains } = await canvasState(actor);
   await db().from("analysis_canvas").delete().eq("user_id", actor.personId).eq("metric_id", metricId).eq("workspace_id", actor.workspaceId);
+  const next = markAfterRemoval(before, explains, metricId);
+  if (next !== null && before.includes(metricId) && next !== explainedOf(before, explains)) await markExplained(actor, next);
 }
 
-/** Sets the Metrics on the actor's Analysis Canvas, in this order. */
-export async function canvasSet(actor: Actor, metricIds: number[]) {
+/** Sets the Metrics on the actor's Analysis Canvas, in this order. The one to explain stays as it was if it is still there; `explains` names another (it must be one of them). */
+export async function canvasSet(actor: Actor, metricIds: number[], explains?: number | null) {
   const wanted = ids(metricIds);
   await assertSeesMetrics(actor, wanted);
+  const before = await canvasState(actor);
+  const keep = explains != null && wanted.includes(explains) ? explains : before.explains !== null && wanted.includes(before.explains) ? before.explains : null;
   await db().from("analysis_canvas").delete().eq("user_id", actor.personId).eq("workspace_id", actor.workspaceId);
-  if (wanted.length) await db().from("analysis_canvas").insert(wanted.map((m, i) => ({ user_id: actor.personId, metric_id: m, position: i })));
+  if (wanted.length) await db().from("analysis_canvas").insert(wanted.map((m, i) => ({ user_id: actor.personId, metric_id: m, position: i, explains: m === keep })));
+}
+
+/** Marks which Metric on the actor's Analysis Canvas is the one to explain. A Metric that is not on it is refused in words; the order of the canvas is not touched. */
+export async function canvasExplain(actor: Actor, metricId: number) {
+  const { ids: on } = await canvasState(actor);
+  if (!Number.isSafeInteger(metricId) || !on.includes(metricId)) throw new Error("That Metric is not on the canvas.");
+  await markExplained(actor, metricId);
+}
+
+// Clears the mark and sets it on one row; the unique index allows only one.
+async function markExplained(actor: Actor, metricId: number) {
+  await db().from("analysis_canvas").update({ explains: false }).eq("user_id", actor.personId).eq("workspace_id", actor.workspaceId).eq("explains", true);
+  await db().from("analysis_canvas").update({ explains: true }).eq("user_id", actor.personId).eq("workspace_id", actor.workspaceId).eq("metric_id", metricId);
 }
 
 /** A Metric's history for the history popover: every value, the Actions the actor may read, superseded values. */
@@ -321,6 +340,12 @@ export async function metricHistory(actor: Actor, metricId: number) {
 
 /** The Metrics on the actor's Analysis Canvas in this workspace, in order. */
 export async function canvasMetricIds(actor: Actor): Promise<number[]> {
-  const { data } = await db().from("analysis_canvas").select("metric_id").eq("user_id", actor.personId).eq("workspace_id", actor.workspaceId).order("position");
-  return (data ?? []).map((r) => r.metric_id as number);
+  return (await canvasState(actor)).ids;
+}
+
+/** The actor's Analysis Canvas: its Metrics in order and the one marked to explain (null: none marked, the first counts). */
+export async function canvasState(actor: Actor): Promise<{ ids: number[]; explains: number | null }> {
+  const { data } = await db().from("analysis_canvas").select("metric_id, explains").eq("user_id", actor.personId).eq("workspace_id", actor.workspaceId).order("position");
+  const rows = data ?? [];
+  return { ids: rows.map((r) => r.metric_id as number), explains: (rows.find((r) => r.explains) as { metric_id: number } | undefined)?.metric_id ?? null };
 }

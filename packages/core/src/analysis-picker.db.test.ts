@@ -3,7 +3,7 @@
 // named in a reason, not counted), an id for one gets the same words as an id that does not exist, and a Metric that stops being
 // shared drops off the list on the next call.
 import { afterEach, describe, expect, it } from "vitest";
-import { listPicker, runPicker, NOT_AVAILABLE, MOST_PICKED } from "./analysis-picker";
+import { listPicker, readyFor, runPicker, NOT_AVAILABLE, MOST_PICKED } from "./analysis-picker";
 import { workspace } from "./test/db-fixtures";
 
 const cleanups: (() => Promise<void>)[] = [];
@@ -29,6 +29,57 @@ async function setup() {
 }
 
 describe("the method picker's list", () => {
+  it("starts the Slots that ask which Metric to explain on the marked one, whatever the order, and never names a hidden one (#988)", async () => {
+    const t = await setup();
+    const entries = (list: Awaited<ReturnType<typeof listPicker>>) => list.groups.flatMap((g) => g.entries);
+    const moves = async (...args: Parameters<typeof listPicker> extends [unknown, ...infer R] ? R : never) => entries(await listPicker(t.as, ...args)).find((e) => e.id === "moves")!;
+    const plain = await moves([t.visits.id, t.revenue.id]);
+    expect(plain.defaults.metric).toEqual([t.visits.id]);
+    const marked = await moves([t.visits.id, t.revenue.id], t.revenue.id);
+    expect(marked.defaults.metric).toEqual([t.revenue.id]);
+    // Reordering the canvas does not change it.
+    expect((await moves([t.revenue.id, t.visits.id], t.revenue.id)).defaults.metric).toEqual([t.revenue.id]);
+    // A mark on a Metric that is hidden, or not on the canvas, counts as none.
+    expect((await moves([t.visits.id, t.revenue.id], t.secret.id)).defaults.metric).toEqual([t.visits.id]);
+    expect((await moves([t.visits.id, t.revenue.id], "x")).defaults.metric).toEqual([t.visits.id]);
+  });
+
+  it("words the questions with the names of the Metrics it starts on, and lists what fits first (#988)", async () => {
+    const t = await setup();
+    const list = await listPicker(t.as, [t.visits.id, t.revenue.id], t.revenue.id);
+    const entries = list.groups.flatMap((g) => g.entries);
+    expect(entries.find((e) => e.id === "moves")!.name).toBe("What moves Revenue?");
+    expect(entries.find((e) => e.id === "moves")!.generic).toBe("What moves B?");
+    expect(entries.find((e) => e.id === "correlation")!.name).toBe("Does Revenue move with Visits?");
+    // A group with an entry that fits comes before one with none; inside a group what fits comes first.
+    const fits = list.groups.map((g) => g.entries.some((e) => e.fit.ok));
+    expect(fits).toEqual([...fits].sort((a, b) => Number(b) - Number(a)));
+    for (const g of list.groups) { const ok = g.entries.map((e) => e.fit.ok); expect(ok).toEqual([...ok].sort((a, b) => Number(b) - Number(a))); }
+    // With nothing on the canvas the generic words stay, and no hidden name is ever in the words.
+    expect((await listPicker(t.as, [])).groups.flatMap((g) => g.entries).every((e) => e.name === e.generic)).toBe(true);
+    expect(JSON.stringify(await listPicker(t.as, [t.visits.id, t.secret.id], t.secret.id))).not.toContain("Secret payroll");
+  });
+
+  it("works out what is ready for one Metric: the forecast first, only what answers, nothing for a Metric the person does not see (#988)", async () => {
+    const t = await setup();
+    const cards = await readyFor(t.as, t.visits.id);
+    expect(cards.length).toBeGreaterThan(0);
+    expect(cards[0].entry).toBe("forecast");
+    expect(cards[0].title).toBe("Where is Visits heading?");
+    expect(cards.every((c) => c.takeaway.kind === "answer")).toBe(true);
+    // The Metrics of the setup have a Target Range, so the outlook is there too; the widget is the forecast's.
+    expect(cards.map((c) => c.entry)).toContain("reach-target");
+    expect(cards[0].widget).toEqual({ template: "forecast", metricIds: [t.visits.id], showTarget: false });
+    // A Metric that is not theirs and one that does not exist give the same: nothing.
+    expect(await readyFor(t.as, t.secret.id)).toEqual([]);
+    expect(await readyFor(t.as, 999999999)).toEqual([]);
+    expect(await readyFor(t.as, "x")).toEqual([]);
+    // A Metric with no values has no card: nothing is said about what cannot be answered.
+    const empty = await t.w.metric(t.sara, { name: "Empty" });
+    await t.w.share(empty.id, t.bob);
+    expect(await readyFor(t.as, empty.id)).toEqual([]);
+  });
+
   it("lists what fits the canvas of the Metrics the person sees, with the reasons in words", async () => {
     const t = await setup();
     const list = await listPicker(t.as, [t.visits.id, t.revenue.id]);

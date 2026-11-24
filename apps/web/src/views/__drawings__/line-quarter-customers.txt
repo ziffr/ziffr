@@ -6,7 +6,7 @@
 <line fill=none height=198 stroke=var(--color-rule) width=392 x1=76 x2=468 x=76 y1=51.599999999999994 y2=51.599999999999994 y=12>
 <line fill=none height=198 stroke=var(--color-rule) width=392 x1=76 x2=468 x=76 y1=12 y2=12 y=12>
 <rect height=198 width=392 x=76 y=12>
-<path d=M370,82.1712L419,62.77873379621978L468,43.88918357113552L468,60.919584644864464L419,74.82104588178015L370,82.1712Z fill-opacity=0.07 fill=var(--color-data) height=198 stroke-width=1 stroke=none width=392>
+<path d=M370,82.1712L419,64.86293986297278L468,47.70883881492744L468,57.099929401072515L419,72.73683981502715L370,82.1712Z fill-opacity=0.07 fill=var(--color-data) height=198 stroke-width=1 stroke=none width=392>
 <path d=M370,82.1712L419,68.79988983899996L468,52.40438410799999 fill=none height=198 stroke-dasharray=5 4 stroke-width=1 stroke=var(--color-muted) width=392>
 <path d=M76,177.68640000000002L125,161.2128L174,143.472L223,125.09759999999999L272,105.61439999999999L321,85.18080000000002L370,63.638400000000004L419,40.987199999999994 fill=none height=198 stroke-opacity=0.8 stroke-width=1 stroke=var(--color-muted) width=392>
 <path d=M370,82.1712L419,65.85600000000001 fill=none height=198 stroke-dasharray=2 3 stroke-width=1.75 stroke=var(--color-data) width=392>

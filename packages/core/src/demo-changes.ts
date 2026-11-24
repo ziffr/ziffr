@@ -234,6 +234,7 @@ const BLOCKED: Record<BlockedReason, readonly string[]> = {
     "pin-actions:reorderPinned",
     "pin-actions:unpinDashboard",
     "canvas-actions:canvasAdd",
+    "canvas-actions:canvasExplain",
     "canvas-actions:canvasRemove",
     "canvas-actions:canvasSet",
   ],

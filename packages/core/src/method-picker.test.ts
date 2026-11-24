@@ -105,7 +105,7 @@ describe("the registry is whole", () => {
       forecast: "src/takeaways/forecast.ts", "reach-target": "src/takeaways/forecast.ts", correlation: "src/correlation.ts", rank: "src/methods/spearman.ts",
       partial: "src/methods/partial-correlation.ts", lag: "src/methods/lagged-correlation.ts", moves: "src/takeaways/fit-takeaway.ts", needs: "src/takeaways/fit-takeaway.ts", "what-if": "src/takeaways/what-if-takeaway.ts",
       "after-date": "src/methods/before-after.ts", "change-point": "src/methods/change-point.ts", bridge: "src/methods/bridge.ts", usual: "src/methods/quantiles.ts",
-      "top-share": "src/methods/concentration.ts", pareto: "src/methods/concentration.ts",
+      "top-share": "src/methods/concentration.ts", pareto: "src/methods/concentration.ts", matrix: "src/correlation.ts",
     };
     const modules: string[] = JSON.parse(readFileSync(new URL("../calculation-modules.json", import.meta.url), "utf8"));
     const catalogue = readFileSync(repoFile("docs/reference/calculations.md"), "utf8");
@@ -140,6 +140,7 @@ describe("the list against the canvas, state by state", () => {
       "reach-target": "Revenue has no Target Range, so there is nothing to reach.",
       correlation: "Needs 2 Metrics on the canvas; there is 1.",
       rank: "Needs 2 Metrics on the canvas; there is 1.",
+      matrix: "Needs 3 Metrics on the canvas; there is 1.",
       partial: "Needs 3 Metrics on the canvas; there is 1.",
       lag: "Needs 2 Metrics on the canvas; there is 1.",
       moves: "Needs 2 Metrics on the canvas; there is 1.",
@@ -153,7 +154,7 @@ describe("the list against the canvas, state by state", () => {
 
   it("one Metric with a Target Range and Breakdowns for two periods: the Target and the rows entries run", () => {
     const g = greyed([{ ...rev, hasTarget: true, breakdownLatest: true, breakdownBefore: true }]);
-    expect(Object.keys(g).sort()).toEqual(["correlation", "lag", "moves", "needs", "partial", "rank", "what-if"]);
+    expect(Object.keys(g).sort()).toEqual(["correlation", "lag", "matrix", "moves", "needs", "partial", "rank", "what-if"]);
   });
 
   it("a Breakdown for the latest period only: shares run, the bridge says it has nothing to compare with", () => {
@@ -168,6 +169,15 @@ describe("the list against the canvas, state by state", () => {
     for (const id of ["correlation", "rank", "lag", "moves", "needs", "what-if"]) expect(two[id], id).toBeUndefined();
     expect(two.partial).toBe("Needs 3 Metrics on the canvas; there are 2.");
     expect(greyed([rev, vis, pri]).partial).toBeUndefined();
+  });
+
+  it("the matrix: 3 Metrics needed, history as for Correlation, and a pair built from the other does not stop it (#988)", () => {
+    expect(greyed([rev, vis]).matrix).toBe("Needs 3 Metrics on the canvas; there are 2.");
+    expect(greyed([rev, vis, pri]).matrix).toBeUndefined();
+    const many = Array.from({ length: 14 }, (_, i) => fact({ id: 100 + i, name: `M${i}` }));
+    expect(greyed(many).matrix).toBeUndefined();
+    expect(greyed([rev, vis, { ...pri, periods: 5 }]).matrix).toBe("Needs at least 6 months of values; Price has 5.");
+    expect(greyed([{ ...rev, builtFrom: [vis.id] }, vis, pri]).matrix).toBeUndefined();
   });
 
   it("history one step either side of each Method's minimum", () => {
@@ -278,7 +288,7 @@ describe("the list against the canvas, state by state", () => {
 
   it("counts the Metrics each entry needs from its Slots", () => {
     expect(Object.fromEntries(ENTRIES.map((e) => [e.id, metricsNeeded(e)]))).toEqual({
-      forecast: 1, "reach-target": 1, correlation: 2, rank: 2, partial: 3, lag: 2, moves: 2, needs: 2, "what-if": 2, "after-date": 1, "change-point": 1, bridge: 1, usual: 1, "top-share": 1, pareto: 1,
+      forecast: 1, matrix: 3, "reach-target": 1, correlation: 2, rank: 2, partial: 3, lag: 2, moves: 2, needs: 2, "what-if": 2, "after-date": 1, "change-point": 1, bridge: 1, usual: 1, "top-share": 1, pareto: 1,
     });
   });
 });
@@ -339,7 +349,7 @@ describe("a picked Method gives its Recipe's Takeaway", () => {
   });
 
   it("makes no recipe file for an entry that is no composition of the library's functions", () => {
-    expect(ENTRIES.filter((e) => recipeFileOf(e) === null).map((e) => e.id).sort()).toEqual(["after-date", "bridge", "change-point", "correlation", "forecast", "needs", "pareto", "reach-target", "top-share", "what-if"]);
+    expect(ENTRIES.filter((e) => recipeFileOf(e) === null).map((e) => e.id).sort()).toEqual(["after-date", "bridge", "change-point", "correlation", "forecast", "matrix", "needs", "pareto", "reach-target", "top-share", "what-if"]);
   });
 });
 
@@ -358,7 +368,7 @@ const HOSTILE: Record<string, Point[]> = {
   "far beyond the work allowance": at(Array.from({ length: 30 }, (_, i) => (i % 2 ? 1e15 + 0.123456789 * i : 1e-9 * i))),
 };
 const SLOTS: Record<EntryId, (m: Metric[]) => Record<string, Metric[]>> = {
-  forecast: ([a]) => ({ metric: [a] }), "reach-target": ([a]) => ({ metric: [a] }), correlation: ([a, b]) => ({ first: [a], second: [b] }), rank: ([a, b]) => ({ first: [a], second: [b] }),
+  matrix: ([a, b, c]) => ({ metrics: [a, b, c] }), forecast: ([a]) => ({ metric: [a] }), "reach-target": ([a]) => ({ metric: [a] }), correlation: ([a, b]) => ({ first: [a], second: [b] }), rank: ([a, b]) => ({ first: [a], second: [b] }),
   partial: ([a, b, c]) => ({ first: [a], second: [b], held: [c] }), lag: ([a, b]) => ({ first: [a], second: [b] }), moves: ([a, b, c]) => ({ metric: [a], drivers: [b, c] }), "what-if": ([a, b, c]) => ({ metric: [a], others: [b, c] }), needs: ([a, b, c]) => ({ metric: [a], drivers: [b, c] }),
   "after-date": ([a, b]) => ({ metric: [a], beside: [b] }), "change-point": ([a]) => ({ metric: [a] }), bridge: ([a]) => ({ metric: [a] }), usual: ([a]) => ({ metric: [a] }), "top-share": ([a]) => ({ metric: [a] }), pareto: ([a]) => ({ metric: [a] }),
 };
