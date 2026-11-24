@@ -144,7 +144,10 @@ describe("the check that the trigger runs", () => {
   it("refuses deleting what the seed made in a kept table, but not a widget", async () => {
     const ops = await demoRow("dashboards", { name: "Operations" });
     expect(await reason("DELETE", "dashboards", ops, null)).toBe("words");
-    const metric = await demoRow("metrics");
+    // Any seeded Metric that is not in the showcase (the first row is arbitrary, and the showcase's Metrics are protected as a whole).
+    const keep = new Set(((await db().from("demo_showcase").select("row_key").eq("table_name", "metrics")).data ?? []).map((r) => r.row_key as string));
+    const plain = ((await db().from("metrics").select("*").eq("workspace_id", DEMO_WORKSPACE_ID).order("id")).data ?? []).find((m) => !keep.has(String(m.id)))!;
+    const metric = plain as Record<string, unknown>;
     expect(await reason("DELETE", "metrics", metric, null)).toBe("words");
     expect(await reason("UPDATE", "metrics", metric, { ...metric, archived_at: new Date().toISOString() })).toBe("words");
     expect(await reason("UPDATE", "metrics", metric, { ...metric, target_min: 1, sources: ["web_form"] })).toBeNull();

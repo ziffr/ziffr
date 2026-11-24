@@ -46,11 +46,15 @@ const base = { period: "month", format: "number", sources: ["web_form"] };
 const day = (n = 0) => new Date(Date.now() + n * 86400000).toISOString().slice(0, 10);
 const thisMonth = () => { const d = new Date(); return new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), 1)).toISOString().slice(0, 10); };
 
+const setCap = async (kind: string, n: number) => { expect((await db().from("demo_limits").update({ max_rows: n }).eq("kind", kind)).error).toBeNull(); };
 beforeAll(async () => {
   // A fresh demo that is open to visitors, with its showcase recorded and its seed marked done.
   await resetDemoWorkspace({ openToVisitors: true });
+  // This file makes more Metrics than a window holds: the caps are raised here, and the cap tests set their own.
+  await setCap("metrics", 500);
+  await setCap("derived_metrics", 500);
 }, 180_000);
-afterAll(async () => { await demoBackToSeed(); }, 180_000);
+afterAll(async () => { await setCap("metrics", 15); await setCap("derived_metrics", 5); await demoBackToSeed(); }, 180_000);
 
 /** A seeded Metric that is not in the showcase, a showcase one (Churn rate), and the seed's Group. */
 async function seeded() {
@@ -121,8 +125,12 @@ describe("a visitor's own Metric", () => {
       expect(first.slug).toBeTruthy();
       await expect(createDerivedMetric(sara, { name: "Calc long", formula: "{a}+{b}+{c}+{d}+{e}+{f}" })).rejects.toThrow(DEMO_METRIC_WORDS.formula);
       await expect(createDerivedMetric(sara, { name: "Calc ops", formula: `{${slug}}${"+1".repeat(21)}` })).rejects.toThrow(DEMO_METRIC_WORDS.formula);
-      for (let i = 2; i <= 5; i++) await createDerivedMetric(sara, { name: `Calc ${i}`, formula: `{${slug}} * ${i}` });
-      await expect(createDerivedMetric(sara, { name: "Calc 6", formula: `{${slug}} * 6` })).rejects.toBeInstanceOf(DemoLimit);
+      // The cap, as the demo holds it: set to one more than the calculated Metrics made so far in this window.
+      const made = (await db().from("metrics").select("id", { count: "exact", head: true }).eq("workspace_id", DEMO_WORKSPACE_ID).not("formula", "is", null).gt("created_at", (await db().from("demo_state").select("seed_done_at").single()).data!.seed_done_at)).count ?? 0;
+      await setCap("derived_metrics", made + 1);
+      await createDerivedMetric(sara, { name: "Calc 2", formula: `{${slug}} * 2` });
+      await expect(createDerivedMetric(sara, { name: "Calc 3", formula: `{${slug}} * 3` })).rejects.toBeInstanceOf(DemoLimit);
+      await setCap("derived_metrics", 500);
     });
   });
 });

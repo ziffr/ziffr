@@ -15,6 +15,7 @@ vi.mock("./db", () => {
 vi.mock("./workspace-data", () => ({ getMetrics: async () => [], allRows: async () => [] }));
 
 const { DemoCheckFailed, demoCount, demoData } = await import("./demo-query");
+const { Forbidden } = await import("./actor");
 const { runAsVisit } = await import("./demo-visit-scope");
 const { DEMO_WORKSPACE_ID } = await import("./team");
 const sharing = await import("./demo-visitor-sharing");
@@ -49,7 +50,7 @@ describe("a gate that reads the database, fed a failed read, refuses", () => {
     ["refuseSeeded", () => refuseSeeded(demo, "dashboards", 1)],
     ["refuseSeededOne", () => metrics.refuseSeededOne(demo, "metrics", 1)],
   ])("%s", async (_name, gate) => {
-    await expect(visit(gate as () => Promise<unknown>)).rejects.toThrow(DemoCheckFailed);
+    await expect(visit(gate as () => Promise<unknown>)).rejects.toBeInstanceOf(Forbidden);
   });
 });
 

@@ -96,7 +96,7 @@ const CASES: Record<string, Case> = {
   "canvas-actions:saveToPool": { open: (i) => [{ type: "widget", id: i.widget }, "Pooled"] },
   "canvas-actions:deleteSavedWidget": { open: (i) => [i.savedWidget] },
   "canvas-actions:createDashboardNamed": { open: () => ["Visitor dashboard"] },
-  "canvas-actions:setShare": { open: (i) => ["dashboard", i.dashboard, "ben", "editor"] },
+  "canvas-actions:setShare": { nothing: "Ben may hold this Share already, so nothing changes", open: (i) => ["dashboard", i.dashboard, "ben", "editor"] },
   "canvas-actions:setGroupShare": { open: (i) => ["dashboard", i.dashboard, i.group, "viewer"] },
   "canvas-actions:canvasAdd": { blocked: (i) => [[i.metric]] },
   "canvas-actions:canvasRemove": { nothing: "nothing is on the demo's analysis canvas to remove", blocked: (i) => [i.metric] },
@@ -577,7 +577,7 @@ describe("with the setting in effect, a visit", () => {
     expect(await asked("template-actions:saveSlideLayout", { deckId: own, shapes: [{ type: "image", props: {} }], name: "Layout", description: "", labels: [], choices: {} })).toMatch(/Pictures/);
     // Kept blocked: nothing that shares, links, sends or runs on its own.
     const sentence = demoReadOnlyWords();
-    for (const [key, args] of [["snapshot-actions:setAutoSnapshots", [ids.dashboard, "month", 2]], ["canvas-actions:setShare", ["deck", own, "ben", "viewer"]], ["view-link-actions:createViewLink", ["deck", own, { label: "For the board", expires: day(7), frozen: false }]]] as [string, unknown[]][]) {
+    for (const [key, args] of [["snapshot-actions:setAutoSnapshots", [ids.dashboard, "month", 2]], ["series-actions:handOverMetricTo", [ids.ownMetric, "t-nobody"]], ["view-link-actions:createViewLink", ["deck", own, { label: "For the board", expires: day(7), frozen: false }]]] as [string, unknown[]][]) {
       expect(await asked(key, ...args), key).toBe(sentence);
     }
     await call("deck-actions:deleteDeck", own);
@@ -609,12 +609,15 @@ describe("with the setting in effect, a visit", () => {
   it("makes and changes a Metric of its own, asks and replies, shares and groups among the made-up people, and sends nothing outside", async () => {
     const wrong: string[] = [];
     const ok = async (key: string, ...args: unknown[]) => {
+      // One visit changes at most 30 things a minute: the walk counts each from zero, as the other passes do.
+      await demoWalkClearCounts();
       const r = await call(key, ...args);
       if (refused(r)) wrong.push(`${key}: ${JSON.stringify(r)}`);
       return r;
     };
     /** The words a refusal says, whether it is answered or thrown. */
     const words = async (key: string, ...args: unknown[]) => {
+      await demoWalkClearCounts();
       const r = await call(key, ...args).catch((e: unknown) => ({ error: e instanceof Error ? e.message : String(e) })) as { error?: string };
       return r?.error;
     };
@@ -708,6 +711,7 @@ describe("with the setting in effect, a visit", () => {
       expect(r?.error, key).toBe(sentence);
     }
     // The showcase and the seed's words: a refusal in the demo's own words, never a change.
+    await demoWalkClearCounts();
     const showcase = (await call("canvas-actions:placeWidget", ids.dashboard, { type: "metric", id: ids.metric })) as { error?: string };
     expect(showcase?.error).toBe("Everyone sees this one as it is. Make your own to change it.");
     const text = (await call("canvas-actions:createDashboardNamed", "see www.example.com")) as { error?: string };

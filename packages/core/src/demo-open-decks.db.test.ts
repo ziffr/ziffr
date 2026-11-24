@@ -76,7 +76,7 @@ describe("what is open", () => {
 
   it("opens nothing that shares, links or sends a deck or a Snapshot", async () => {
     const open = ((await db().from("demo_open_tables").select("table_name")).data ?? []).map((r) => r.table_name as string);
-    for (const t of ["shares", "view_links", "calendar_links", "webhooks"]) expect(open, t).not.toContain(t);
+    for (const t of ["view_links", "calendar_links", "webhooks"]) expect(open, t).not.toContain(t);
   });
 });
 

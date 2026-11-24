@@ -17,7 +17,6 @@ import { CONNECTOR_IDS, type ConnectorId, type PreferenceKind } from "./connecto
 import type { ActionKind, Period } from "./types";
 import { periodStart } from "./periods";
 import { yearStartFor } from "./fiscal-year";
-import { DemoReadOnly } from "./demo";
 import { DemoTextRefused, inDemoVisit, visitorOptionalText } from "./demo-visitor-words";
 import { visitorDue, visitorNumber } from "./demo-visitor-metrics";
 import { DEMO_METRIC_WORDS } from "./demo-words";
@@ -53,7 +52,7 @@ export async function ask(actor: Actor, input: AskInput): Promise<number> {
     assignee_id: input.assigneeId, question: text, kind, due_date: input.due || null,
     breakdown_label: breakdownLabel,
     read_group_id: group ? input.readGroupId : null,
-  }]).catch((e) => { throw e instanceof DemoReadOnly ? e : new Error("The question could not be sent."); }) as { id: number }[];
+  }]).catch((e) => { throw e instanceof Forbidden ? e : new Error("The question could not be sent."); }) as { id: number }[];
   // The assignee hears it where they want to, or where the asker chose for this one message.
   const via = input.via && CONNECTOR_IDS.includes(input.via) ? input.via : null;
   await deliver({ kind, actionId: data.id, senderId: actor.personId, recipientId: input.assigneeId, via });

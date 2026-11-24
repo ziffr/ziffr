@@ -5,6 +5,7 @@
 // outside a demo visit.
 import { type Actor } from "./actor";
 import { demoData } from "./demo-query";
+import { refuseShowcase } from "./demo-seeded-rows";
 import { visibleMetricIds } from "./access";
 import { db } from "./db";
 import { DEMO_LIMIT_CODE, DemoLimit, protectedRefusal } from "./demo";
@@ -107,6 +108,8 @@ async function sharedWith(ws: string, type: Shared, id: number): Promise<string[
  * shared. Nothing outside a visit, and nothing for an object that is shared with nobody. */
 export async function visitorSharedStaysSeen(actor: Pick<Actor, "workspaceId">, type: Shared, id: number | null | undefined, shown: Iterable<number>, formula?: string): Promise<void> {
   if (!inDemoVisit(actor) || id === null || id === undefined) return;
+  // What everyone sees as it is is refused in its own words first, as the database would.
+  if (type !== "metric") await refuseShowcase(actor, type, id);
   const ws = actor.workspaceId;
   const recipients = await sharedWith(ws, type, id);
   if (!recipients.length) return;
