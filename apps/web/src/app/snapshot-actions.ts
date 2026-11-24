@@ -1,19 +1,24 @@
 "use server";
 // Snapshots (spec 0013, ticket #175; GLOSSARY: Snapshot): server actions for taking, writing, showing and deleting
 // one. The core decides who may: the dashboard's owner and Editors take, write and show; only its owner deletes.
+// In the demo (spec 0051, ticket 10) a visitor takes Snapshots of their own dashboards one at a time in the whole demo
+// (`withSnapshotTurn`) and writes, shows and deletes those; the seed's Snapshots stay as they are.
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { currentActor } from "@/lib/viewer";
 import { attempt } from "@/lib/action-result";
+import { attemptAsVisitor } from "@/lib/demo-write";
 import * as snapshots from "@ziffr/core/snapshots";
+import { withSnapshotTurn } from "@ziffr/core/demo-snapshot-lock";
 import * as autoSnapshots from "@ziffr/core/auto-snapshots";
 
 const done = () => revalidatePath("/", "layout");
 
 /** Takes a Snapshot of a dashboard for a week, month, quarter, half-year or year and opens it, to write it up. */
 export async function takeSnapshot(dashboardId: number, kind: string, start: string) {
-  return attempt(async () => {
-    const id = await snapshots.takeSnapshot(await currentActor(), Number(dashboardId), { kind: String(kind), start: String(start) });
+  return attemptAsVisitor("snapshot-actions:takeSnapshot", async (who) => {
+    const actor = await currentActor();
+    const id = await withSnapshotTurn(actor, who, (turn) => snapshots.takeSnapshot(actor, Number(dashboardId), { kind: String(kind), start: String(start) }, turn ? { turn } : {}));
     done();
     redirect(`/dashboards/${Number(dashboardId)}/snapshots/${id}`);
   });
@@ -30,7 +35,7 @@ export async function setAutoSnapshots(dashboardId: number, every: string | null
 
 /** Saves what is written about a Snapshot: its introduction and its widgets' words. */
 export async function editSnapshotWords(snapshotId: number, words: snapshots.SnapshotWords) {
-  return attempt(async () => {
+  return attemptAsVisitor("snapshot-actions:editSnapshotWords", async () => {
     await snapshots.editSnapshotWords(await currentActor(), Number(snapshotId), words);
     done();
   });
@@ -38,7 +43,7 @@ export async function editSnapshotWords(snapshotId: number, words: snapshots.Sna
 
 /** Ends a Snapshot's draft, so everyone who may open the dashboard sees it. */
 export async function showSnapshot(snapshotId: number) {
-  return attempt(async () => {
+  return attemptAsVisitor("snapshot-actions:showSnapshot", async () => {
     await snapshots.showSnapshot(await currentActor(), Number(snapshotId));
     done();
   });
@@ -46,7 +51,7 @@ export async function showSnapshot(snapshotId: number) {
 
 /** Deletes a Snapshot and goes back to its dashboard. */
 export async function deleteSnapshot(snapshotId: number, dashboardId: number) {
-  return attempt(async () => {
+  return attemptAsVisitor("snapshot-actions:deleteSnapshot", async () => {
     await snapshots.deleteSnapshot(await currentActor(), Number(snapshotId));
     done();
     redirect(`/dashboards/${Number(dashboardId)}`);

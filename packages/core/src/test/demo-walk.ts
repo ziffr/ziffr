@@ -109,7 +109,7 @@ async function freshDemo(opts: { openToVisitors?: boolean }): Promise<void> {
 }
 
 /** The newest row's id of a table of the demo with these column values: what an action made, for the next call of the walk. */
-export async function demoLatestId(table: "widgets" | "versions" | "team_templates" | "themes" | "dashboards", where: Record<string, string | number | boolean>): Promise<number> {
+export async function demoLatestId(table: "widgets" | "versions" | "team_templates" | "themes" | "dashboards" | "decks" | "dashboard_snapshots", where: Record<string, string | number | boolean>): Promise<number> {
   let q = db().from(table).select("id").eq("workspace_id", DEMO_WORKSPACE_ID);
   for (const [k, v] of Object.entries(where)) q = q.eq(k, v);
   const { data } = await q.order("id", { ascending: false }).limit(1).maybeSingle();

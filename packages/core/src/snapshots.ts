@@ -33,6 +33,11 @@ import { keptMethod } from "./attainment-method";
 import { normalizeMetric } from "./metric-row";
 import { numberStyleOf } from "./workspace-settings";
 import { dayAfter } from "./display-periods";
+import { refuseSeeded, refuseShowcase } from "./demo-seeded-rows";
+import { assertSnapshotTurn, type SnapshotTurn } from "./demo-snapshot-lock";
+import { DEMO_SNAPSHOT_LIMITS } from "./demo-limits";
+import { DemoSizeRefused } from "./demo-visitor-limits";
+import { inDemoVisit, visitorOptionalText } from "./demo-visitor-words";
 
 /** The words of a widget a Snapshot keeps editable: its title and a Finding's kicker, headline, subline, footnote
  * and source. Everything else about it is frozen. */
@@ -141,13 +146,16 @@ export async function mayTakeSnapshot(actor: Actor, dashboardId: number): Promis
 /** Takes a Snapshot of a dashboard for a week, month, quarter, half-year or year (`start` is its first day) that is over, within the
  * last ten years: the dashboard's owner and Editors, who must see every Metric on it. It starts as a draft. `today`
  * (yyyy-mm-dd) is the workspace's own day unless given, as the daily run does. Returns its id. */
-export async function takeSnapshot(actor: Actor, dashboardId: number, period: { kind: unknown; start: unknown }, opts: { automatic?: boolean; today?: string; accessKeyId?: number; workflowId?: number } = {}): Promise<number> {
+export async function takeSnapshot(actor: Actor, dashboardId: number, period: { kind: unknown; start: unknown }, opts: { automatic?: boolean; today?: string; accessKeyId?: number; workflowId?: number; turn?: SnapshotTurn } = {}): Promise<number> {
   assertCan(actor, "create");
   if (!Number.isInteger(dashboardId)) throw new Forbidden();
   const p = snapshotPeriod(period?.kind as SnapshotPeriodKind, String(period?.start ?? ""), await yearStartOf(actor.workspaceId));
   if (!p) throw new Refused("Pick a week, month, quarter, half-year or year to take the Snapshot of.");
   const dash = await roleOn(actor, dashboardId);
   if (!dash || (dash.role !== "owner" && dash.role !== "editor")) throw new Forbidden();
+  // In the demo: only with the demo's one turn to take a Snapshot, and never of the showcase, which is refused before any numbers are computed.
+  assertSnapshotTurn(actor, opts.turn);
+  await refuseShowcase(actor, "dashboard", dashboardId);
   const ws = actor.workspaceId;
   // Only a period that is over: one still running or to come would keep today's values under its name. And not
   // further back than anyone reports on, so nobody fills the database with Snapshots of the 1900s.
@@ -177,6 +185,8 @@ export async function takeSnapshot(actor: Actor, dashboardId: number, period: { 
   // Then the whole data, with its values, names and Targets, as one sealed text.
   const sealedFrozen = sealFrozenData(cipher, "dashboard_snapshots", snapshotId, labelled);
   if (JSON.stringify(sealedFrozen).length > MAX_FROZEN) throw new Refused("This dashboard holds too much to keep as a Snapshot. Take one of a smaller dashboard.");
+  // A visitor's Snapshot is smaller still: the demo holds twenty of them, and the size is known before anything is written.
+  if (inDemoVisit(actor) && JSON.stringify(sealedFrozen).length > DEMO_SNAPSHOT_LIMITS.frozenBytes) throw new DemoSizeRefused("This dashboard holds too much to keep as a Snapshot in the demo. Take one of a smaller dashboard.");
   const { data: made, error } = await db().from("dashboard_snapshots").insert({
     id: snapshotId, workspace_id: ws, dashboard_id: dashboardId, period_kind: p.kind, period_start: p.start, period_end: p.end, label: p.label,
     taken_by: actor.personId, automatic: Boolean(opts.automatic), frozen: sealedFrozen, words: await sealedWords(ws, snapshotId, words),
@@ -377,10 +387,13 @@ async function correctionsFor(actor: Actor, kept: CanvasData): Promise<Correctio
 }
 
 /** Only the words a Snapshot keeps editable, each a string within size, for widgets it has. */
-function cleanWords(input: unknown, widgetIds: Set<string>, current: SnapshotWords): SnapshotWords {
+function cleanWords(actor: Actor, input: unknown, widgetIds: Set<string>, current: SnapshotWords): SnapshotWords {
   const src = (input && typeof input === "object" ? input : {}) as { intro?: unknown; widgets?: unknown };
   const out: SnapshotWords = { intro: current.intro ?? "", widgets: { ...(current.widgets ?? {}) } };
-  if (src.intro !== undefined) out.intro = String(src.intro ?? "").slice(0, MAX_INTRO);
+  // A visitor's words go through the demo's text rules (the cleaned text is what is kept); words left as they were are not asked
+  // again, since the editor sends them all back (spec 0051, ticket 10).
+  const asked = (text: string, before: string | undefined, kind: "name" | "description") => (inDemoVisit(actor) && text !== (before ?? "") ? String(visitorOptionalText(actor, text, kind)) : text);
+  if (src.intro !== undefined) out.intro = asked(String(src.intro ?? ""), current.intro, "description").slice(0, MAX_INTRO);
   if (src.widgets !== undefined) {
     if (!src.widgets || typeof src.widgets !== "object" || Array.isArray(src.widgets)) throw new Error("These words cannot be saved.");
     for (const [id, w] of Object.entries(src.widgets as Record<string, unknown>)) {
@@ -389,7 +402,7 @@ function cleanWords(input: unknown, widgetIds: Set<string>, current: SnapshotWor
       const next: WidgetWords = {};
       for (const [k, v] of Object.entries(w as Record<string, unknown>)) {
         if (!(WORD_KEYS as readonly string[]).includes(k)) throw new Error("Only the words of a Snapshot can be changed.");
-        const text = String(v ?? "").slice(0, MAX_WORD);
+        const text = asked(String(v ?? ""), current.widgets?.[id]?.[k as WordKey], k === "title" || k === "kicker" || k === "headline" ? "name" : "description").slice(0, MAX_WORD);
         if (text) next[k as WordKey] = text;
       }
       out.widgets![id] = next;
@@ -403,11 +416,13 @@ function cleanWords(input: unknown, widgetIds: Set<string>, current: SnapshotWor
 export async function editSnapshotWords(actor: Actor, snapshotId: number, words: unknown): Promise<void> {
   const { row, writer } = await readable(actor, snapshotId, "id, dashboard_id, shown_at, frozen, words");
   if (!writer) throw new Forbidden();
+  // A Snapshot the seed made keeps its words (a landing page example): refused here, before any write.
+  await refuseSeeded(actor, "dashboard_snapshots", snapshotId);
   const frozen = row.frozen as Frozen;
   // Only the widgets this writer gets in the Snapshot (#193): a widget drawing a Metric they do not see keeps its words.
   const seen = await forReader(actor, frozen.widgets, frozen.data, frozen.themeId);
   const current = await readWords(actor.workspaceId, row);
-  const next = cleanWords(words, new Set(seen.widgets.map((w) => String(w.id))), current);
+  const next = cleanWords(actor, words, new Set(seen.widgets.map((w) => String(w.id))), current);
   if (JSON.stringify(next) === JSON.stringify(current)) return;
   await ensureBaseline("snapshot", snapshotId, actor.personId);
   const { error } = await db().from("dashboard_snapshots").update({ words: await sealedWords(actor.workspaceId, snapshotId, next) }).eq("id", snapshotId).eq("workspace_id", actor.workspaceId);
@@ -442,6 +457,7 @@ export async function showSnapshot(actor: Actor, snapshotId: number, opts: { wor
   const { row, writer } = await readable(actor, snapshotId, "id, dashboard_id, label, shown_at");
   if (!writer) throw new Forbidden();
   if (row.shown_at) return;
+  await refuseSeeded(actor, "dashboard_snapshots", snapshotId);
   // A Workflow shows only a draft nobody has written in (a Version exists once someone does), decided in the same statement
   // that shows it, so a word written meanwhile cannot slip in between; one written in is left for its writer.
   if (opts.workflowId) {
@@ -461,6 +477,8 @@ export async function showSnapshot(actor: Actor, snapshotId: number, opts: { wor
 export async function deleteSnapshot(actor: Actor, snapshotId: number): Promise<void> {
   const { row, role } = await readable(actor, snapshotId, "id, dashboard_id, label, shown_at");
   if (role !== "owner") throw new Forbidden();
+  // The seed's Snapshots are never deleted in the demo: refused here, before any write.
+  await refuseSeeded(actor, "dashboard_snapshots", snapshotId);
   const { error } = await db().from("dashboard_snapshots").update({ deleted_at: new Date().toISOString(), deleted_by: actor.personId, frozen: null, words: {} }).eq("id", snapshotId).eq("workspace_id", actor.workspaceId).is("deleted_at", null);
   if (error) throw new Error("The Snapshot could not be deleted.");
   // Its Versions held its words: they go with it.

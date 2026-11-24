@@ -8,7 +8,7 @@ import "server-only";
 // (`demo-visitor-words.ts`).
 import { cookies, headers } from "next/headers";
 import { DemoReadOnly, DemoStale } from "@ziffr/core/demo";
-import { checkDemoBudget } from "@ziffr/core/demo-budget";
+import { checkDemoBudget, type DemoRequester } from "@ziffr/core/demo-budget";
 import { demoAllows } from "@ziffr/core/demo-changes";
 import { visitingDemo } from "@ziffr/core/demo-visiting";
 import { DEMO_WORKSPACE_ID } from "@ziffr/core/team";
@@ -18,9 +18,9 @@ import { currentActor } from "./viewer";
 
 /** Runs a server action's work as the demo's rules ask: see the module's comment. `operation` is the action's key in
  * demo-changes.ts ("canvas-actions:placeWidget"); an action that is not open there gets no visit's scope. */
-export async function asVisitor<T>(operation: string, work: () => Promise<T>): Promise<T> {
+export async function asVisitor<T>(operation: string, work: (who: DemoRequester | null) => Promise<T>): Promise<T> {
   const actor = await currentActor();
-  if (actor.workspaceId !== DEMO_WORKSPACE_ID || !demoAllows(operation)) return work();
+  if (actor.workspaceId !== DEMO_WORKSPACE_ID || !demoAllows(operation)) return work(null);
   const jar = await cookies();
   const visit = visitIdOf(jar.get(DEMO_VISIT_COOKIE)?.value);
   if (!visit) throw new DemoReadOnly();
@@ -28,11 +28,13 @@ export async function asVisitor<T>(operation: string, work: () => Promise<T>): P
   // change is refused as stale rather than written into a demo the visitor has not seen.
   const generation = Number(jar.get(DEMO_GENERATION_COOKIE)?.value);
   if (!Number.isSafeInteger(generation) || generation < 0) throw new DemoStale();
-  await checkDemoBudget(actor, { visitId: visit, headers: await headers() });
-  return visitingDemo({ generation, visit }, work);
+  // `who` is handed to the work too: the one change that needs the visitor's network address (taking a Snapshot) asks for it.
+  const who: DemoRequester = { visitId: visit, headers: await headers() };
+  await checkDemoBudget(actor, who);
+  return visitingDemo({ generation, visit }, () => work(who));
 }
 
 /** `attempt` (a refusal answered as words) around `asVisitor`: how an opened server action is written. */
-export function attemptAsVisitor<T>(operation: string, work: () => Promise<T>) {
+export function attemptAsVisitor<T>(operation: string, work: (who: DemoRequester | null) => Promise<T>) {
   return attempt(() => asVisitor(operation, work));
 }

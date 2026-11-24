@@ -57,3 +57,14 @@ export const DEMO_DECK_STORE_MAX_BYTES = 512 * 1024;
 export function demoDeckStoreOk(store: string): boolean {
   return new TextEncoder().encode(store).length <= DEMO_DECK_STORE_MAX_BYTES;
 }
+
+/** Taking a Snapshot freezes a whole dashboard's numbers, so it is the demo's most expensive change (spec 0051, Limits:
+ * Expensive work, ticket 10): one at a time in the whole demo (a lease of `lockSeconds`, so a crash cannot hold it), a few
+ * for one visit and for one network address in a reset window (a visit's id is free to mint, so the address's share holds
+ * against a script), and what one keeps is bounded in bytes of its sealed frozen part. */
+export const DEMO_SNAPSHOT_LIMITS = {
+  perVisitPerWindow: 3,
+  perAddressPerWindow: 6,
+  lockSeconds: 90,
+  frozenBytes: 1024 * 1024,
+} as const;
