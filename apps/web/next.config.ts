@@ -18,7 +18,12 @@ const nextConfig: NextConfig = {
   // No framing (clickjacking), no type sniffing, and no full URLs to other sites (View Link tokens are in paths).
   // The Changes page was called Activity (#524); bookmarks and old links keep working, filter included.
   async redirects() {
-    return [{ source: "/activity", destination: "/changes", permanent: true }];
+    return [
+      { source: "/activity", destination: "/changes", permanent: true },
+      // View Designs and the Playground moved from Analyze into the Library in Workspace settings (#1030).
+      { source: "/analyze/designs", destination: "/settings/library", permanent: true },
+      { source: "/analyze/playground", destination: "/settings/library/playground", permanent: true },
+    ];
   },
   async headers() {
     return [{
