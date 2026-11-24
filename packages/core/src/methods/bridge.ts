@@ -8,6 +8,7 @@
 // the whole's own change is given and the parts do not add up to it, the rest is said as "not in these rows".
 import { fractionOf, lowestTerms, minus, nearest, plus, times, type Fraction } from "../exact";
 import { formatValue, type ValueUnit } from "../format";
+import { bridgeChart } from "../result-charts";
 import { emptyTakeaway, listOf, refusalTakeaway, sayIn, wideRefusal, type Takeaway, type TakeawayContext } from "../takeaways/takeaway";
 
 /** One part: its label, its value in the earlier and the later period (null where it has none), and its weight (1 unless it counts against the whole). */
@@ -81,5 +82,7 @@ export function bridgeTakeaway(name: string, parts: Part[], unit: ValueUnit, ctx
     notes,
     figures: [{ label: sayIn("numbers-change", {}, ctx), value: Math.abs(result.change), text: write(Math.abs(result.change)) }],
     numbers: [{ label: sayIn("numbers-method", {}, ctx), text: method }, { label: sayIn("numbers-change", {}, ctx), text: signed(result.change) }, ...result.parts.map((p) => ({ label: p.label, text: signed(p.change) }))],
+    // Each row's contribution, largest first, and the total: the very numbers of the sentence.
+    ...(ctx.charts ? { chart: [bridgeChart(name, unit, result.parts, result.change)] } : {}),
   };
 }

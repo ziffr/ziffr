@@ -2,13 +2,16 @@
 // The results of the Analysis Canvas (GLOSSARY: Analysis Canvas, Method, Takeaway; spec 0041): what a Method worked out, shown directly
 // under the canvas and not in the side panel, so the Metrics and their answer are read together. The newest comes first; the last three
 // are kept on the page (older ones are not, and nothing is saved until the person saves it as a widget). Each is a collapsible region
-// titled with its question and the Metrics it is about. Above the Takeaway sits a reserved place for the chart of the result (the next
-// ticket draws into it). A result carries only what the core gave this person: the Takeaway and the ids and names of Metrics they see.
+// titled with its question and the Metrics it is about. Above the Takeaway sits the chart of the result (ticket #1076), drawn from the very
+// numbers of its words; the words are its text alternative. A result carries only what the core gave this person: the Takeaway and the ids and names of Metrics they see.
 import { useEffect, useRef, useState, useTransition } from "react";
 import { toast } from "sonner";
 import { BookmarkPlus, ChevronDown, FileDown } from "lucide-react";
 import type { EntryView, PickerRun } from "@ziffr/core/analysis-picker";
 import { TakeawayView } from "@/components/takeaway-view";
+import { ResultCharts } from "@/views/result";
+import type { NumberStyle } from "@ziffr/core/number-style";
+import type { YearStart } from "@ziffr/core/periods";
 import { saveToPool } from "@/app/canvas-actions";
 import { told } from "@/lib/action-toast";
 import { TEMPLATES } from "@/views/templates";
@@ -54,7 +57,10 @@ function ResultActions({ item, pending, save }: { item: ResultItem; pending: boo
   );
 }
 
-function ResultCard({ item, focus }: { item: ResultItem; focus: boolean }) {
+/** How a result writes its numbers and names its periods: the Workspace's own. */
+export type Writing = { style: NumberStyle; yearStart: YearStart };
+
+function ResultCard({ item, focus, writing }: { item: ResultItem; focus: boolean; writing: Writing }) {
   const [open, setOpen] = useState(true);
   const [pending, start] = useTransition();
   const head = useRef<HTMLHeadingElement>(null);
@@ -88,9 +94,11 @@ function ResultCard({ item, focus }: { item: ResultItem; focus: boolean }) {
         </button>
       </h3>
       <div id={body} hidden={!open} className="space-y-3 px-3 pb-3">
-        {/* The chart of this result goes here, above the Takeaway (the next ticket); empty until then, and it takes no room. */}
-        <div data-result-chart />
-        <TakeawayView takeaway={item.done.takeaway} />
+        {/* The chart of this result, above its Takeaway: empty, and taking no room, where the Method has no picture. */}
+        <div data-result-chart>
+          <ResultCharts chart={item.done.takeaway.chart} describedBy={`${body}-words`} style={writing.style} yearStart={writing.yearStart} />
+        </div>
+        <TakeawayView id={`${body}-words`} takeaway={item.done.takeaway} />
         <ResultActions item={item} pending={pending} save={save} />
       </div>
     </section>
@@ -98,12 +106,12 @@ function ResultCard({ item, focus }: { item: ResultItem; focus: boolean }) {
 }
 
 /** The results under the canvas, newest first, each collapsible. Nothing is drawn until there is one. */
-export function Results({ items }: { items: ResultItem[] }) {
+export function Results({ items, writing }: { items: ResultItem[]; writing: Writing }) {
   if (items.length === 0) return null;
   return (
     <div className="space-y-3" role="region" aria-label="Results">
       <h2 className="text-sm font-semibold">{items.length === 1 ? "Result" : `Results (the last ${items.length}, newest first)`}</h2>
-      {items.map((item, i) => <ResultCard key={item.key} item={item} focus={i === 0} />)}
+      {items.map((item, i) => <ResultCard key={item.key} item={item} focus={i === 0} writing={writing} />)}
     </div>
   );
 }

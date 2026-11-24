@@ -14,6 +14,7 @@ import { MIN_PAIRS } from "../correlation";
 import { changes } from "../basis";
 import { formatNumber } from "../format";
 import { fit, type Fit } from "../methods/fit";
+import { chartUnit } from "../result-charts";
 import { MOST_METRICS, MOST_STEPS, planOf, whatIf, type NotReached, type Reached, type WhatIf, type WhatIfChange, type WhatIfLink } from "../methods/what-if";
 import type { Span } from "../periods";
 import type { Resolver } from "../display-periods";
@@ -167,6 +168,8 @@ export function whatIfTakeaway(start: Metric, metrics: Metric[], result: WhatIf,
     figures,
     numbers,
     rows,
+    // The change asked for and what each Metric it reaches does, in its own unit with its range, from the rows the sentences are written from: the Metrics are not on one scale, so each row has its own.
+    ...(ctx.charts ? { chart: [{ kind: "effects" as const, rows: [{ label: start.name, unit: chartUnit(start.name, start), effect: result.by, lo: null, hi: null, note: null }, ...said.map((r) => ({ label: r.name, unit: chartUnit(r.name, metricOf(r.name)), effect: r.effect, lo: r.lo, hi: r.hi, note: r.strengthText ?? text("numbers-kind-worked", ctx) }))] }] } : {}),
   };
 }
 

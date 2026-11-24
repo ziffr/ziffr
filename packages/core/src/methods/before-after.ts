@@ -17,6 +17,8 @@ import { readSeries } from "../basis";
 import { fractionOf, nearest, type Fraction } from "../exact";
 import { formatDate, formatNumber, type ValueUnit } from "../format";
 import { periodEnd, periodsBetween, type Span } from "../periods";
+import type { ChartPart } from "../result-chart";
+import { afterChart } from "../result-charts";
 import { checkSuitability, type Finding } from "../suitability";
 import { decimalsApart, plainValue, SHARE_UNIT, signedText, sizeText } from "../takeaways/sizes";
 import { answerTakeaway, refusalTakeaway, sayIn, type Figure, type NumberRow, withinBudget, type Takeaway, type TakeawayContext } from "../takeaways/takeaway";
@@ -145,7 +147,7 @@ export function afterDate(points: Point[], span: Span, date: string): AfterDate 
 
 /** One series said in words for `afterDateTakeaway`: the lines that refuse, or the sentence and the lines that go with it. */
 type Refused = { refusals: string[] };
-type Piece = { sentence: string; clear: boolean; counts: { before: number; after: number }; cautions: string[]; notes: string[]; numbers: NumberRow[]; figures: Figure[]; range: NonNullable<Takeaway["range"]> };
+type Piece = { chart?: ChartPart; sentence: string; clear: boolean; counts: { before: number; after: number }; cautions: string[]; notes: string[]; numbers: NumberRow[]; figures: Figure[]; range: NonNullable<Takeaway["range"]> };
 const refused = (x: Refused | Piece): x is Refused => "refusals" in x;
 
 // One series' Takeaway pieces: the date, the checks, the gap and its range written in the unit (or as a share of the trend).
@@ -195,6 +197,8 @@ function lookAt(name: string, points: Point[], span: Span, date: string, unit: V
   return {
     sentence,
     clear,
+    // Only the Metric asked about is drawn: its values with the day marked, and the two levels the sentence compares since that day.
+    ...(main && ctx.charts ? { chart: afterChart(name, unit, span, whole, later, date, result) } : {}),
     counts: { before: result.before, after: result.after },
     cautions,
     notes,
@@ -262,5 +266,6 @@ function afterDateTakeawayWithin(name: string, points: Point[], span: Span, date
     footer: sayIn("footer-before-after", {}, ctx),
     figures: main.figures,
     numbers,
+    ...(main.chart ? { chart: [main.chart] } : {}),
   };
 }

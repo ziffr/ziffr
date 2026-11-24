@@ -140,11 +140,11 @@ export const RUNNERS: Record<EntryId, Runner> = {
   /** Rank correlation, for skewed values. */
   rank: (w, p) => compared("numbers-method-spearman", w, [one(p, "first"), one(p, "second")], (span, [a, b]) => {
     const pair = pairOn(a, b, span);
-    return spearmanTakeaway(one(p, "first").name, one(p, "second").name, pair.a, pair.b, span, pair.basis, w.ctx);
+    return spearmanTakeaway(one(p, "first").name, one(p, "second").name, pair.a, pair.b, span, pair.basis, w.ctx, [one(p, "first"), one(p, "second")]);
   }),
   /** Partial correlation with the Metrics held the same. */
   partial: (w, p) => compared("numbers-method-partial", w, [one(p, "first"), one(p, "second"), ...p.slots.held], (span, [a, b, ...held]) =>
-    partialTakeaway({ a: one(p, "first").name, b: one(p, "second").name, held: p.slots.held.map((m) => m.name) }, a, b, held, span, w.ctx)),
+    partialTakeaway({ a: one(p, "first").name, b: one(p, "second").name, held: p.slots.held.map((m) => m.name) }, a, b, held, span, w.ctx, [one(p, "first"), one(p, "second")])),
   /** Lagged correlation: which delay fits best. */
   lag: (w, p) => compared("numbers-method-lag", w, [one(p, "first"), one(p, "second")], (span, [a, b]) => {
     const pair = pairOn(a, b, span);

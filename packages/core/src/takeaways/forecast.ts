@@ -13,6 +13,7 @@ import { bestForecast, LATEST_PERIODS } from "../methods/forecast-choice";
 import { SMOOTHING, type SeasonalPoint } from "../methods/holt-winters";
 import { Z80 } from "../methods/normal-curve";
 import { reachChance, type TargetEnds } from "../methods/reach-chance";
+import { forecastChart } from "../result-charts";
 import { backtest, type Candidate } from "../methods/track-record";
 import { periodsBetween, type Span } from "../periods";
 import { checkSuitability, minimumPeriods, SEASON_LENGTH, type Finding, type Rerun, type SuitabilityInputs } from "../suitability";
@@ -184,5 +185,7 @@ export function forecastTakeaway(metric: Metric, points: Point[], ctx: TakeawayC
     footer: text("footer-forecast"),
     figures,
     numbers,
+    // The picture is drawn from the points the sentence is written from: the same `best.points` and the same band (withTakeawayBand), so one range in the picture and in the words.
+    ...(ctx.charts ? { chart: [forecastChart({ name: metric.name, unit: metric, span, rows, ahead: best.points, ends: ask.ends, asked: target.period })] } : {}),
   };
 }

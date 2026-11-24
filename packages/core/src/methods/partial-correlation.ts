@@ -9,7 +9,8 @@
 // the Method says so, and gives no number.
 import { readSeries } from "../basis";
 import { fractionOf, lowestTerms, minus, nearest, over, plus, times, type Fraction } from "../exact";
-import { formatNumber } from "../format";
+import { formatNumber, type ValueUnit } from "../format";
+import { chartUnit, pairCharts, pairsOn } from "../result-charts";
 import { MIN_PAIRS } from "../correlation";
 import type { Span } from "../periods";
 import { checkSuitability } from "../suitability";
@@ -95,13 +96,13 @@ export function partialCorrelation(a: Point[], b: Point[], controls: Point[][]):
 /** The Takeaway of a partial correlation: `a` and `b` with `held` (named) held the same. The suitability checks run on the
  * periods all the series have (the fit's minimum for the Metrics weighed, 8 + 4 per Metric, and at most one Metric per 6
  * periods): a refusal says what is missing, a caution is said above the answer and keeps the strength below "strong". */
-export function partialTakeaway(names: { a: string; b: string; held: string[] }, a: Point[], b: Point[], controls: Point[][], span: Span, ctx: TakeawayContext): Takeaway {
+export function partialTakeaway(names: { a: string; b: string; held: string[] }, a: Point[], b: Point[], controls: Point[][], span: Span, ctx: TakeawayContext, units?: [ValueUnit, ValueUnit]): Takeaway {
   // Stryker disable next-line StringLiteral: the Method's name in the refusal that only a spent work allowance writes; the wording of that refusal is held by the test of withinBudget.
-  return onLatest("numbers-method-partial", ctx, span, [a, b, ...controls], ([ca, cb, ...cc]) => partialWithin(names, ca, cb, cc, span, ctx));
+  return onLatest("numbers-method-partial", ctx, span, [a, b, ...controls], ([ca, cb, ...cc]) => partialWithin(names, ca, cb, cc, span, ctx, units));
 }
 
 // The Takeaway itself, on the latest periods the series have in common.
-function partialWithin(names: { a: string; b: string; held: string[] }, a: Point[], b: Point[], controls: Point[][], span: Span, ctx: TakeawayContext): Takeaway {
+function partialWithin(names: { a: string; b: string; held: string[] }, a: Point[], b: Point[], controls: Point[][], span: Span, ctx: TakeawayContext, units?: [ValueUnit, ValueUnit]): Takeaway {
   const method = sayIn("numbers-method-partial", {}, ctx);
   // Values too wide to work out exactly are refused before the exact arithmetic is started (work-bound.ts).
   // Stryker disable next-line ArrayDeclaration,ArrowFunction: without these values the check below refuses with the same words; this only saves the exact work before it.
@@ -146,5 +147,7 @@ function partialWithin(names: { a: string; b: string; held: string[] }, a: Point
       { label: sayIn("numbers-pairs", {}, ctx), text: formatNumber(n, 0, ctx.style) },
       { label: sayIn("numbers-strength", {}, ctx), text: strengthText },
     ],
+    // The two Metrics over time on the periods every one of the Metrics has. No scatter: the link with the others held the same is not the one a plain scatter shows.
+    ...(ctx.charts && units ? { chart: pairCharts(chartUnit(names.a, units[0]), chartUnit(names.b, units[1]), span, pairsOn(common, xs, ys), "values", false) } : {}),
   };
 }

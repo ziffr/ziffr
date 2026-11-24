@@ -21,7 +21,7 @@ export function matrixTakeaway(metrics: Metric[], resolve: Resolver, opts: { yea
     const method = sayIn("numbers-method-pearson", {}, ctx);
     const pairs: Pair[] = metrics.flatMap((a, i) => metrics.slice(i + 1).map((b) => {
       const c = correlate(a, b, resolve, opts);
-      return { a, b, c, t: correlationTakeaway(a, b, c, ctx, { footer: false }) };
+      return { a, b, c, t: correlationTakeaway(a, b, c, ctx, { footer: false, chart: false }) };
     }));
     const answered = pairs.filter((p): p is Pair & { c: Extract<Correlation, { ok: true }> } => p.t.kind === "answer" && p.c.ok);
     if (answered.length === 0) return refusalTakeaway(method, [...new Set(pairs.map((p) => p.t.refusal!))].slice(0, 3));
@@ -35,6 +35,8 @@ export function matrixTakeaway(metrics: Metric[], resolve: Resolver, opts: { yea
         label: listOf([p.a.name, p.b.name], ctx),
         text: p.c.ok && p.t.kind === "answer" ? `${sayIn("numbers-r", {}, ctx)} ${formatNumber(p.c.r, 2, ctx.style)}, ${p.t.strengthText}, ${p.t.basis}` : p.t.refusal!,
       })),
+      // Every pair with its r and its word, as Show the numbers lists them; a pair that cannot be compared is an empty cell.
+      ...(ctx.charts ? { chart: [{ kind: "grid" as const, labels: metrics.map((m) => m.name), cells: pairs.map((p) => ({ row: metrics.indexOf(p.a), col: metrics.indexOf(p.b), r: p.c.ok && p.t.kind === "answer" ? p.c.r : null, word: p.t.kind === "answer" ? p.t.strengthText : null })) }] } : {}),
     };
   });
 }

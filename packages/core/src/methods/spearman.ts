@@ -13,6 +13,8 @@ import { checkSuitability, rankAssociation } from "../suitability";
 import { RANK_SPREAD, strengthOf, type StrengthWord } from "../takeaways/strength";
 
 export { RANK_SPREAD };
+import { chartUnit, pairCharts } from "../result-charts";
+import type { ValueUnit } from "../format";
 import { pairsAnswer, refusalTakeaway, sayIn, strengthWordIn, verdictLines, onLatest, type Takeaway, type TakeawayContext } from "../takeaways/takeaway";
 import type { Point } from "../types";
 
@@ -38,13 +40,13 @@ export function spearman(a: Point[], b: Point[]): SpearmanResult | null {
 /** The Takeaway of a rank correlation: the series are given on the basis the caller chose (values, or their changes with
  * growth removed); the suitability checks run on the pairs, a refusal says what is missing, a caution is said above the
  * answer and keeps the strength below "strong", and the footer is on once. */
-export function spearmanTakeaway(aName: string, bName: string, a: Point[], b: Point[], span: Span, basis: Basis, ctx: TakeawayContext): Takeaway {
+export function spearmanTakeaway(aName: string, bName: string, a: Point[], b: Point[], span: Span, basis: Basis, ctx: TakeawayContext, units?: [ValueUnit, ValueUnit]): Takeaway {
   // Stryker disable next-line StringLiteral: the Method's name in the refusal that only a spent work allowance writes; the wording of that refusal is held by the test of withinBudget.
-  return onLatest("numbers-method-spearman", ctx, span, [a, b], ([ca, cb]) => spearmanWithin(aName, bName, ca, cb, span, basis, ctx));
+  return onLatest("numbers-method-spearman", ctx, span, [a, b], ([ca, cb]) => spearmanWithin(aName, bName, ca, cb, span, basis, ctx, units));
 }
 
 // The Takeaway itself, on the latest periods the series have in common.
-function spearmanWithin(aName: string, bName: string, a: Point[], b: Point[], span: Span, basis: Basis, ctx: TakeawayContext): Takeaway {
+function spearmanWithin(aName: string, bName: string, a: Point[], b: Point[], span: Span, basis: Basis, ctx: TakeawayContext, units?: [ValueUnit, ValueUnit]): Takeaway {
   const method = sayIn("numbers-method-spearman", {}, ctx);
   const found = spearman(a, b);
   const pairs = found?.pairs ?? pairUp(readSeries(a), readSeries(b));
@@ -81,5 +83,7 @@ function spearmanWithin(aName: string, bName: string, a: Point[], b: Point[], sp
       { label: sayIn("numbers-basis", {}, ctx), text: basisPhrase },
       { label: sayIn("numbers-strength", {}, ctx), text: strengthText },
     ],
+    // The two Metrics over time and against each other: the very pairs the rank correlation was worked out on.
+    ...(ctx.charts && units ? { chart: pairCharts(chartUnit(aName, units[0]), chartUnit(bName, units[1]), span, pairs, basis) } : {}),
   };
 }

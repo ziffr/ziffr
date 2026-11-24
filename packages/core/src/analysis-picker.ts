@@ -181,7 +181,8 @@ export async function runPicker(actor: Actor, request: unknown): Promise<PickerR
   const slots = Object.fromEntries(Object.entries(slotIds.ids).map(([k, v]) => [k, v.map((i) => visible.get(i)!)]));
   const early = beside(entry, slots);
   if (early) return { ok: false, message: early };
-  const takeaway = runEntry(entry, world, { slots, settings: settings.settings });
+  // The picker asks for the picture of the result (result-chart.ts): drawn from the very numbers of the sentence, of the Metrics the person chose and sees.
+  const takeaway = runEntry(entry, { ...world, ctx: { ...world.ctx, charts: true } }, { slots, settings: settings.settings });
   const main = all.slice(0, entry.widget === "correlation" ? 2 : 1);
   return {
     ok: true,

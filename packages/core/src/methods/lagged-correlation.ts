@@ -11,6 +11,7 @@ import { formatNumber } from "../format";
 import { shiftPeriod, type Span } from "../periods";
 import { checkSuitability } from "../suitability";
 import { strengthOf } from "../takeaways/strength";
+import { lagChart } from "../result-charts";
 import { pairsAnswer, refusalTakeaway, sayIn, strengthWordIn, verdictLines, wideRefusal, onLatest, type Takeaway, type TakeawayContext } from "../takeaways/takeaway";
 import type { Point } from "../types";
 
@@ -102,5 +103,7 @@ function laggedWithin(aName: string, bName: string, a: Point[], b: Point[], span
       { label: sayIn("numbers-basis", {}, ctx), text: basisPhrase },
       { label: sayIn("numbers-strength", {}, ctx), text: strengthText },
     ],
+    // The correlation of every delay tried, the best marked: the very numbers the best delay was chosen from.
+    ...(ctx.charts ? { chart: [lagChart(aName, bName, span, found.lags, lag)] } : {}),
   };
 }

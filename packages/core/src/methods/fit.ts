@@ -280,6 +280,8 @@ export type Fit = {
   explained: number;
   /** The typical miss (the standard deviation of what the fit leaves over), in the target's unit. */
   miss: number;
+  /** What the fit expects the target to be in each of `rows`, in step with them (on the basis the fit was made on): the picture of the fit is drawn from these. */
+  fitted: number[];
   verdict: Verdict;
 };
 /** A fit that was not made, in words (Findings the Takeaway layer writes). It carries no number. */
@@ -571,7 +573,7 @@ function fitWithin(input: FitInput): Fit | Refused {
   const checked = inChanges(checkSuitability("fit", { ...base, misses, rerun: (left) => without(prep.rows, cols, left, top) }));
   // Crowded drivers are said above the answer, which then is never strong.
   const verdict = core.crowded.length > 0 ? { ...checked, cautions: [...checked.cautions, { case: "caution-crowded" as const, slots: { names: core.crowded.join(", ") } }] } : checked;
-  return { ok: true, basis: prep.basis, span, target: input.target.name, ...core, last: { y: prep.last.y, x: cols.map((c) => prep.last.x[c]) }, verdict };
+  return { ok: true, basis: prep.basis, span, target: input.target.name, ...core, fitted: misses.map((m) => m.level), last: { y: prep.last.y, x: cols.map((c) => prep.last.x[c]) }, verdict };
 }
 
 /** Each driver's share of what a fit explains (LMG), with what the fit found. */
