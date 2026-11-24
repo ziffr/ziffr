@@ -43,6 +43,8 @@ In the sidebar (see [Signing in and your own settings](17-your-settings.md#the-s
 
 ## Starting a Workspace
 
+A public demo (a Ziffr that is only a demo) has no sign-in, takes no new Workspaces and has no invitations: **Start a workspace** and invitation pages are never shown there, and a leftover sign-in in your browser is ignored and removed.
+
 After you sign in for the first time and belong to no Workspace yet, Ziffr opens **Start a workspace**, in the same plain column as the sign-in page: the Ziffr mark and a card with the form. **Start your trial**, an Invitation's page and the Setup Guide share that look.
 
 - Type the **Name of the workspace**, such as your name, your team or your company, and choose **Create workspace**. You become its Owner, and Ziffr opens it.
