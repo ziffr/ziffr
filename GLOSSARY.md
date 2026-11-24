@@ -307,7 +307,7 @@ A Dashboard a person keeps in the sidebar under Dashboards, for the ones they op
 _Avoid_: Favorite, bookmark, starred
 
 **Analysis Canvas**:
-A workspace where a user drops one or more metrics and runs analyses on them. One of them is marked as **the one to explain**: the Metric that Drivers, What moves B?, What does B need?, What if A changes? and Did it work? are about, kept with the canvas and independent of the order of the Metrics; the others are compared with it. Not a Target Range: that word is only for the range a Metric aims for.
+A workspace where a user drops one or more metrics and runs analyses on them. One of them is marked as **the one to explain**: the Metric that Drivers, What moves B?, What does B need?, What if A changes? and Did it work? are about, kept with the canvas and independent of the order of the Metrics; the others are compared with it. The answer of a Method appears under the canvas with a chart above its Takeaway: the numbers of the Takeaway drawn (the values over time, the fit, the delays, the rows), so the words and the picture never disagree; a Method that has nothing honest to draw shows no chart. Not a Target Range: that word is only for the range a Metric aims for.
 _Avoid_: Workbench, lab
 
 **Playground**:

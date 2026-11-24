@@ -80,8 +80,8 @@ function Rows({ chart: c, style }: { chart: BarsChart; style: NumberStyle }) {
         return (
           <li key={i} className={`grid grid-cols-[minmax(0,9rem)_minmax(0,1fr)_auto] items-center gap-2 ${b.tag === "total" ? "border-t border-[var(--color-rule-2)] pt-1.5 font-medium" : ""}`} data-label={b.label} data-value={b.value}>
             <span dir="auto" className="break-words text-xs">
-              {b.tag === "total" ? tagWords("total") : b.label}
-              {b.note ? <span className="block text-muted-foreground">{b.note}</span> : b.tag && b.tag !== "total" ? <span className="block text-muted-foreground">{tagWords(b.tag)}</span> : null}
+              {b.label === "" && b.tag ? tagWords(b.tag) : b.label}
+              {b.note ? <span className="block text-muted-foreground">{b.note}</span> : b.tag && b.label !== "" ? <span className="block text-muted-foreground">{tagWords(b.tag)}</span> : null}
             </span>
             <span className="relative block h-3 rounded-sm bg-[var(--color-band)]" aria-hidden>
               <span className="absolute inset-y-0 rounded-sm border border-[var(--color-data)]" style={{ width, ...side, background: fill }} />

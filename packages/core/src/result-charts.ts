@@ -127,13 +127,13 @@ export function usualChart(name: string, unit: ValueUnit, span: Span, rows: read
   });
 }
 
-/** What each row of a bridge added or took away, largest first, and the total change. */
-export function bridgeChart(name: string, unit: ValueUnit, parts: readonly { label: string; change: number; appeared: boolean; gone: boolean }[], change: number): ChartPart {
+/** What each row of a bridge added or took away, largest first, what the rows leave unexplained where the Metric's own change is more or less than they come to, and the total change. */
+export function bridgeChart(name: string, unit: ValueUnit, parts: readonly { label: string; change: number; appeared: boolean; gone: boolean }[], change: number, unexplained: number | null): ChartPart {
   return {
     kind: "bars",
     measure: "change",
     unit: chartUnit(name, unit),
     about: [name],
-    bars: [...parts.map((p) => ({ label: p.label, value: p.change, ...(p.appeared ? { tag: "appeared" as const } : p.gone ? { tag: "gone" as const } : {}) })), { label: "", value: change, tag: "total" as const }],
+    bars: [...parts.map((p) => ({ label: p.label, value: p.change, ...(p.appeared ? { tag: "appeared" as const } : p.gone ? { tag: "gone" as const } : {}) })), ...(unexplained ? [{ label: "", value: unexplained, tag: "unexplained" as const }] : []), { label: "", value: change, tag: "total" as const }],
   };
 }

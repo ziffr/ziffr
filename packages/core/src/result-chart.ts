@@ -68,7 +68,7 @@ export type ForecastChart = {
 export type ScatterChart = { kind: "scatter"; span: Span; x: ChartUnit; y: ChartUnit; changes: boolean; pairs: { period: string; x: number; y: number }[] };
 
 /** What a bar is, besides its label: the one the words are about, or a kind the screen says in its words. */
-export type BarTag = "best" | "top" | "appeared" | "gone" | "total";
+export type BarTag = "best" | "top" | "appeared" | "gone" | "total" | "unexplained";
 /** One bar: a label, a value, and where it has one the range it is likely between. `note` is a word the Takeaway wrote (a strength); a bar is never told apart by its colour alone. */
 export type ChartBar = { label: string; value: number; tag?: BarTag; note?: string | null };
 

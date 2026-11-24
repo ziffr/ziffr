@@ -83,6 +83,6 @@ export function bridgeTakeaway(name: string, parts: Part[], unit: ValueUnit, ctx
     figures: [{ label: sayIn("numbers-change", {}, ctx), value: Math.abs(result.change), text: write(Math.abs(result.change)) }],
     numbers: [{ label: sayIn("numbers-method", {}, ctx), text: method }, { label: sayIn("numbers-change", {}, ctx), text: signed(result.change) }, ...result.parts.map((p) => ({ label: p.label, text: signed(p.change) }))],
     // Each row's contribution, largest first, and the total: the very numbers of the sentence.
-    ...(ctx.charts ? { chart: [bridgeChart(name, unit, result.parts, result.change)] } : {}),
+    ...(ctx.charts ? { chart: [bridgeChart(name, unit, result.parts, result.change, result.unexplained)] } : {}),
   };
 }

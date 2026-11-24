@@ -60,5 +60,5 @@ export function barsTitle(c: BarsChart): string {
 
 /** What a bar's tag says, as words under its label (a bar is never told apart by colour alone). */
 export function tagWords(tag: NonNullable<BarsChart["bars"][number]["tag"]>): string {
-  return { best: "best delay", top: "named in the answer", appeared: "new", gone: "gone", total: "total change" }[tag];
+  return { best: "best delay", top: "named in the answer", appeared: "new", gone: "gone", total: "total change", unexplained: "not explained by the rows" }[tag];
 }
