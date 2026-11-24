@@ -5,7 +5,7 @@ import { axisLabels, compactValue, formatValue, niceAxis } from "@ziffr/core/for
 import type { NumberStyle } from "@ziffr/core/number-style";
 import type { MetricDescription, Point } from "@ziffr/core/types";
 import type { ForecastPoint } from "@ziffr/core/forecast";
-import { periodLabel, type Span, type YearStart } from "@ziffr/core/periods";
+import { periodLabel, shiftPeriod, type Span, type YearStart } from "@ziffr/core/periods";
 
 type Row = { period: string; value?: number; fc?: number; band?: [number, number]; partial?: number; target?: number };
 
@@ -25,6 +25,7 @@ export function MetricChart({
   partial,
   name,
   targetLine,
+  gaps = false,
 }: {
   metric: MetricDescription;
   points: Point[];
@@ -49,8 +50,19 @@ export function MetricChart({
   name?: (period: string) => string;
   /** Targets per point (a Target Series combined by a Display Period), drawn as a thin line. */
   targetLine?: Point[];
+  /** Draw a period that has no value as a gap in the line. */
+  gaps?: boolean;
 }) {
   const rows: Row[] = points.map((p) => ({ period: p.period, value: p.value }));
+  if (gaps) {
+    // A period with no value is a row without one, so the line breaks there (never a 0, never a line across).
+    const step = by ?? metric.period;
+    for (let i = rows.length - 1; i > 0; i--) {
+      const missing: Row[] = [];
+      for (let p = shiftPeriod(rows[i - 1].period, step, 1); p < rows[i].period && missing.length < 400; p = shiftPeriod(p, step, 1)) missing.push({ period: p });
+      rows.splice(i, 0, ...missing);
+    }
+  }
   if (toDate && rows.length > 1) {
     // The last stretch, to the span still running, is its own dotted line; the solid one ends before it.
     const cur = rows[rows.length - 1];

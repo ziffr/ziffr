@@ -104,14 +104,15 @@ export function changeChart(name: string, unit: ValueUnit, span: Span, rows: rea
 }
 
 /** The values before and after a day with the day marked, and the two levels the words compare over the periods since: where the trend pointed and where the Metric was. */
-export function afterChart(name: string, unit: ValueUnit, span: Span, whole: readonly Point[], later: readonly Point[], day: string, level: { expected: number; actual: number }): ChartPart {
+export function afterChart(name: string, unit: ValueUnit, span: Span, whole: readonly Point[], later: readonly Point[], day: string, level: { expected: number; actual: number }, straddle: Point | null = null): ChartPart {
   const [from, to] = [later[0].period, later[later.length - 1].period];
   return linesChart({
     about: "before-after",
     span,
     series: [{ name, unit: chartUnit(name, unit), role: "values", points: whole }],
     levels: [{ kind: "trend-pointed", value: level.expected, from, to }, { kind: "actual", value: level.actual, from, to }],
-    marks: [{ period: from, kind: "date", day }],
+    // A day inside a period is marked on that period (the one that holds it), not on the next.
+    marks: [{ period: straddle ? straddle.period : from, kind: "date", day }],
   });
 }
 

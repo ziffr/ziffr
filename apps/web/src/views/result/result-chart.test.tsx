@@ -118,4 +118,14 @@ describe("the chart of a result", () => {
     expect(text).toContain("+0.4 €");
     expect(text).toMatch(/[−-]0\.3 €/);
   });
+
+  it("draws a forecast's history with a gap where a period has no value: the line has two segments", async () => {
+    const chart = chartOf("forecast", { metric: [a] });
+    const f = chart[0] as ForecastChart;
+    f.history.splice(10, 1);
+    await draw([f]);
+    const solid = [...host.querySelectorAll("path.recharts-line-curve")].filter((p) => p.getAttribute("stroke") === "var(--color-data)" && !p.getAttribute("stroke-dasharray"));
+    expect(solid).toHaveLength(1);
+    expect((solid[0].getAttribute("d")!.match(/M/g) ?? []).length).toBe(2);
+  });
 });

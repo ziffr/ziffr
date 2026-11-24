@@ -97,5 +97,6 @@ function Rows({ chart: c, style }: { chart: BarsChart; style: NumberStyle }) {
 
 /** Bars of a result: see the file's header. */
 export function BarsView({ chart, style }: { chart: BarsChart; style: NumberStyle }) {
-  return chart.measure === "delay" || chart.measure === "share" ? <Columns chart={chart} style={style} /> : <Rows chart={chart} style={style} />;
+  if (chart.measure === "share") return <><Columns chart={chart} style={style} /><p className="m-0 mt-1 text-xs text-muted-foreground">Rows the sentence does not name are hatched.</p></>;
+  return chart.measure === "delay" ? <Columns chart={chart} style={style} /> : <Rows chart={chart} style={style} />;
 }

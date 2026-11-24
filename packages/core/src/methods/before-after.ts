@@ -198,7 +198,7 @@ function lookAt(name: string, points: Point[], span: Span, date: string, unit: V
     sentence,
     clear,
     // Only the Metric asked about is drawn: its values with the day marked, and the two levels the sentence compares since that day.
-    ...(main && ctx.charts ? { chart: afterChart(name, unit, span, whole, later, date, result) } : {}),
+    ...(main && ctx.charts ? { chart: afterChart(name, unit, span, whole, later, date, result, split.straddle) } : {}),
     counts: { before: result.before, after: result.after },
     cautions,
     notes,

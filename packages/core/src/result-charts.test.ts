@@ -109,7 +109,10 @@ describe("every picker result with a picture", () => {
     const t = run("reach-target", { metric: [R] });
     const c = part(t, "forecast");
     expect(c.target).toEqual({ min: 150, max: null });
-    expect(t.figures.find((f) => /lower|min|least/i.test(f.label))?.value ?? 150).toBe(150);
+    // The Target the sentence names is the one drawn.
+    expect(t.sentence).toContain("150");
+    expect(c.ahead.length).toBeGreaterThan(0);
+    expect(c.history).toHaveLength(36);
     // With a number of periods asked ahead, only that many are drawn and the last is the one in the sentence.
     const two = run("reach-target", { metric: [R] }, { ahead: 2 });
     expect(part(two, "forecast").ahead).toHaveLength(2);
@@ -137,12 +140,20 @@ describe("every picker result with a picture", () => {
     const lines = part(t, "lines");
     expect(lines.span).toBe("month");
     expect(lines.periods.every((p) => p.endsWith("-01"))).toBe(true);
+    // The lines hold the pairs the correlation was worked on, month by month.
+    const sc = part(t, "scatter");
+    expect(lines.lines[1].values.filter((v) => v !== null)).toEqual(sc.pairs.map((p) => p.y));
+    expect(sc.pairs.map((p) => p.period)).toEqual(lines.periods.filter((_, i) => lines.lines[0].values[i] !== null));
     // A missing month in the first Metric stays a gap in its line, and the scatter has no point for it.
     const holey = world({ series: { visits: series.visits.filter((_, i) => i !== 10), revenue: series.revenue }, metrics: [V, R] });
     const g = run("correlation", { first: [V], second: [R] }, {}, holey);
     const [gl, gs] = [part(g, "lines"), part(g, "scatter")];
     const at = gl.periods.indexOf(series.visits[10].period);
-    if (at >= 0) { expect(gl.lines[0].values[at]).toBeNull(); expect(gl.lines.every((l) => l.values.every((v) => v !== 0 || false))).toBe(true); }
+    expect(at).toBeGreaterThanOrEqual(0);
+    // Both lines break at the month that has no pair, and no zero stands in for it.
+    expect(gl.lines.map((l) => l.values[at])).toEqual([null, null]);
+    expect(gl.lines.every((l) => l.values.every((v) => v !== 0))).toBe(true);
+    expect(gl.lines[0].values.filter((v) => v !== null)).toHaveLength(gs.pairs.length);
     expect(gs.pairs.some((p) => p.period === series.visits[10].period)).toBe(false);
   });
 
@@ -208,7 +219,7 @@ describe("every picker result with a picture", () => {
 
   it("What does X need: the same fit, and the goal drawn is the goal asked, only where the fit is on levels", () => {
     const t = run("needs", { metric: [R], drivers: [V, P] }, { goal: 800 });
-    if (t.kind === "refusal") return;
+    expect(t.kind).toBe("answer");
     const lines = part(t, "lines");
     if (lines.about === "fit") expect(lines.levels).toEqual([{ kind: "goal", value: 800, from: lines.periods[0], to: lines.periods[lines.periods.length - 1] }]);
     else expect(lines.levels).toBeUndefined();
@@ -263,11 +274,38 @@ describe("every picker result with a picture", () => {
   });
 
   it("Did something change: nothing standing out draws the values alone", () => {
-    const t = run("change-point", { metric: [V] }, {}, world({ series: { ...series, visits: months("2024-01", series.visits.map((_, i) => 100 + (i % 3))) } }));
-    if (t.kind === "refusal") return;
+    const t = run("change-point", { metric: [V] }, {}, world({ series: { ...series, visits: months("2024-01", series.visits.map((_, i) => 100 + Math.round(Math.sin(i * 1.7) * 9))) } }));
+    expect(t.kind).toBe("answer");
     const lines = part(t, "lines");
     expect(lines.lines).toHaveLength(1);
     expect(lines.marks).toBeUndefined();
+  });
+
+  it("Did it work: a day inside a period is marked on the period that holds it, for month, week and quarter", () => {
+    const cases: [string, string, string, string][] = [["month", "2026-03-15", "2026-03-01", "2026-04-01"], ["week", "2026-03-04", "2026-03-02", "2026-03-09"], ["quarter", "2026-05-20", "2026-04-01", "2026-07-01"]];
+    for (const [period, day, holds, next] of cases) {
+      const m = metric({ id: 7, slug: "x", name: "X", period: period as never, target_min: null });
+      const step = period === "month" ? 1 : period === "quarter" ? 3 : 0;
+      const pts = Array.from({ length: 40 }, (_, i) => {
+        const d = period === "week" ? new Date(Date.UTC(2025, 6, 7 + 7 * i)) : new Date(Date.UTC(2024, step * i, 1));
+        return { period: d.toISOString().slice(0, 10), value: 100 + i * 2 + Math.round(Math.sin(i * 1.7) * 9) };
+      });
+      const w = world({ metrics: [m], series: { x: pts } });
+      const t = run("after-date", { metric: [m], beside: [] }, { date: day }, w);
+      expect(t.kind, period).toBe("answer");
+      const mark = part(t, "lines").marks![0];
+      expect(mark, period).toEqual({ period: holds, kind: "date", day });
+      expect(mark.period).not.toBe(next);
+    }
+  });
+
+  it("a series with a missing period is drawn with a gap in every chart of lines", () => {
+    const holey = world({ series: { ...series, revenue: series.revenue.filter((_, i) => i !== 15) } });
+    const t = run("usual", { metric: [R] }, {}, holey);
+    const lines = part(t, "lines");
+    const at = lines.periods.indexOf(series.revenue[15].period);
+    expect(lines.lines[0].values[at]).toBeNull();
+    expect(lines.lines[0].values.filter((v) => v === 0)).toHaveLength(0);
   });
 
   it("What is usual: the band is the usual range of the sentence and the median is the one in the numbers", () => {

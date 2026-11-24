@@ -10,5 +10,5 @@ import { described } from "./described";
 
 /** A forecast with its range, and the Target Range where there is one. */
 export function ForecastView({ chart: c, style, yearStart }: { chart: ForecastChart; style: NumberStyle; yearStart: YearStart }) {
-  return <MetricChart metric={described(c.unit, c.span, c.target)} points={c.history} forecast={c.ahead} height={260} yearStart={yearStart} numberStyle={style} />;
+  return <MetricChart metric={described(c.unit, c.span, c.target)} points={c.history} forecast={c.ahead} height={260} gaps yearStart={yearStart} numberStyle={style} />;
 }
