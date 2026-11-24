@@ -9,15 +9,16 @@ import { demoReadOnlyWords } from "@ziffr/core/demo";
 import { BUILT_IN_DESIGNS } from "@ziffr/core/built-in-designs";
 import { STANDARD_THEMES } from "@ziffr/core/standard-themes";
 import { themeToFile } from "@ziffr/core/theme-file";
-import { demoFingerprint, demoWalkIds } from "@ziffr/core/test/demo-walk";
+import { demoBackToSeed, demoFingerprint, demoFullSeed, demoGeneration, demoLatestId, demoOpenForVisitors, demoWalkIds } from "@ziffr/core/test/demo-walk";
 import { demoAllows, demoClassOf } from "@ziffr/core/demo-changes";
 
 vi.mock("server-only", () => ({}));
 vi.mock("next/cache", () => ({ revalidatePath: vi.fn(), revalidateTag: vi.fn() }));
 // A demo visit as Sara, the demo's Owner, who may try everything a role allows.
+const jar = vi.hoisted(() => ({ "ziffr-demo": { value: "1" }, "ziffr-viewer": { value: "sara" } } as Record<string, { value: string }>));
 vi.mock("next/headers", () => ({
-  cookies: async () => ({ get: (name: string) => ({ "ziffr-demo": { value: "1" }, "ziffr-viewer": { value: "sara" } } as Record<string, { value: string }>)[name], set: () => {}, delete: () => {}, getAll: () => [] }),
-  headers: async () => new Headers({ host: "ziffr.test" }),
+  cookies: async () => ({ get: (name: string) => jar[name], set: () => {}, delete: () => {}, getAll: () => [] }),
+  headers: async () => new Headers({ host: "ziffr.test", "x-forwarded-for": "203.0.113.9" }),
 }));
 
 const APP = join(__dirname);
@@ -50,7 +51,7 @@ const day = (n = 0) => new Date(Date.now() + n * 86400000).toISOString().slice(0
 // rows are checked all the same.
 // `blocked`: refused with the sentence and no row changes. `open`: succeeds and some row of the demo changes (none yet: a
 // later ticket of spec 0051 moves an action here and in demo-changes.ts together). The class must agree with demo-changes.ts.
-type Case = { blocked: (i: Ids) => unknown[] } | { open: (i: Ids) => unknown[] } | { reads: (i: Ids) => unknown[] } | { nothing: string; blocked: (i: Ids) => unknown[] } | { outside: string };
+type Case = { blocked: (i: Ids) => unknown[] } | { open: (i: Ids) => unknown[]; nothing?: string } | { reads: (i: Ids) => unknown[] } | { nothing: string; blocked: (i: Ids) => unknown[] } | { outside: string };
 const CASES: Record<string, Case> = {
   "access-actions:whoCanSee": { reads: (i) => ["dashboard", i.dashboard] },
   "access-actions:requestAccess": { blocked: (i) => ["dashboard", i.otherDashboard] },
@@ -78,15 +79,15 @@ const CASES: Record<string, Case> = {
   "calendar-link-actions:makeCalendarLink": { blocked: () => [{}] },
   "calendar-link-actions:setCalendarNoNames": { nothing: "nobody in the demo has a Calendar Link", blocked: () => [true] },
   "calendar-link-actions:revokeCalendarLink": { nothing: "nobody in the demo has a Calendar Link", blocked: () => [] },
-  "canvas-actions:placeWidget": { blocked: (i) => [i.dashboard, { type: "metric", id: i.metric }] },
-  "canvas-actions:saveDashboardText": { blocked: (i) => [i.dashboard, { name: "Renamed by a visitor" }] },
-  "canvas-actions:saveLayout": { blocked: (i) => [i.dashboard, [{ i: String(i.widget), x: 0, y: 0, w: 4, h: 3 }]] },
-  "canvas-actions:updateWidget": { blocked: (i) => [i.widget, { title: "Retitled" }] },
-  "canvas-actions:applyTemplate": { blocked: (i) => [i.widget, i.template, [[i.metric]]] },
-  "canvas-actions:removeWidget": { blocked: (i) => [i.widget] },
-  "canvas-actions:saveToPool": { blocked: (i) => [{ type: "widget", id: i.widget }, "Pooled"] },
-  "canvas-actions:deleteSavedWidget": { blocked: (i) => [i.savedWidget] },
-  "canvas-actions:createDashboardNamed": { blocked: () => ["Visitor dashboard"] },
+  "canvas-actions:placeWidget": { open: (i) => [i.dashboard, { type: "metric", id: i.metric }] },
+  "canvas-actions:saveDashboardText": { open: (i) => [i.dashboard, { name: "Renamed by a visitor" }] },
+  "canvas-actions:saveLayout": { open: (i) => [i.dashboard, [{ i: String(i.widget), x: 0, y: 0, w: 4, h: 3 }]] },
+  "canvas-actions:updateWidget": { open: (i) => [i.widget, { title: "Retitled" }] },
+  "canvas-actions:applyTemplate": { open: (i) => [i.widget, i.template, [[i.metric]]] },
+  "canvas-actions:removeWidget": { open: (i) => [i.widget] },
+  "canvas-actions:saveToPool": { open: (i) => [{ type: "widget", id: i.widget }, "Pooled"] },
+  "canvas-actions:deleteSavedWidget": { open: (i) => [i.savedWidget] },
+  "canvas-actions:createDashboardNamed": { open: () => ["Visitor dashboard"] },
   "canvas-actions:setShare": { blocked: (i) => ["dashboard", i.dashboard, "ben", "editor"] },
   "canvas-actions:setGroupShare": { blocked: (i) => ["dashboard", i.dashboard, i.group, "viewer"] },
   "canvas-actions:canvasAdd": { blocked: (i) => [[i.metric]] },
@@ -130,9 +131,9 @@ const CASES: Record<string, Case> = {
   "convert-actions:doneAddingToDeck": { reads: () => [] },
   // Onto a new deck: making it is the change refused.
   "convert-actions:addToDeck": { blocked: (i) => [i.widget, null, null] },
-  "dashboard-template-actions:createFromDashboardTemplate": { blocked: (i) => ["overview", "From a template", [[i.metric], [i.metric], [i.metric], [i.metric]]] },
+  "dashboard-template-actions:createFromDashboardTemplate": { open: (i) => ["overview", "From a template", [[i.metric], [i.metric], [i.metric], [i.metric]]] },
   "dashboard-template-actions:draftDashboardTemplate": { reads: (i) => [i.dashboard] },
-  "dashboard-template-actions:saveAsDashboardTemplate": { blocked: (i) => [{ dashboardId: i.dashboard, name: "Visitor template", description: "", labels: [] }] },
+  "dashboard-template-actions:saveAsDashboardTemplate": { open: (i) => [{ dashboardId: i.dashboard, name: "Visitor template", description: "", labels: [] }] },
   "deck-workflow-template-actions:saveAsDeckTemplate": { blocked: (i) => [{ deckId: i.deck, name: "Visitor deck template", description: "", labels: [], choices: {} }] },
   "deck-workflow-template-actions:createDeckFromTemplate": { nothing: "the demo has no Deck Templates", blocked: () => [1, "From a template", []] },
   "deck-workflow-template-actions:saveAsWorkflowTemplate": { blocked: (i) => [{ workflowId: i.workflow, name: "Visitor workflow template", description: "" }] },
@@ -162,7 +163,7 @@ const CASES: Record<string, Case> = {
   "feedback-prompt-actions:stopFeedbackPrompt": { nothing: "the card is never shown in the demo, and the core refuses a demo actor", blocked: () => ["never"] },
   "feedback-prompt-actions:sayWhatIsMissing": { nothing: "the card is never shown in the demo, and the core refuses a demo actor", blocked: () => ["More charts"] },
   "home-actions:setHome": { blocked: (i) => [i.dashboard] },
-  "home-actions:newDashboard": { blocked: () => [null, form({ name: "Visitor dashboard" })] },
+  "home-actions:newDashboard": { open: () => [null, form({ name: "Visitor dashboard" })] },
   "installation-actions:claimInstallation": { outside: "the Installation, not the demo Workspace" },
   "installation-actions:addInstallationAdmin": { outside: "the Installation, not the demo Workspace" },
   "installation-actions:removeInstallationAdmin": { outside: "the Installation, not the demo Workspace" },
@@ -295,17 +296,17 @@ const CASES: Record<string, Case> = {
   "team-actions:decideJoin": { nothing: "the demo has no requests to join", blocked: () => [1, true] },
   "team-actions:removeMemberWithHandover": { blocked: () => ["ben", "anna"] },
   "template-actions:saveSlideLayout": { blocked: (i) => [{ deckId: i.deck, shapes: [], name: "Layout", description: "", labels: [], choices: {} }] },
-  "template-actions:saveTemplate": { blocked: (i) => [{ widgetId: i.widget, name: "Visitor template", description: "", labels: [], choices: {} }] },
-  "template-actions:renameTemplate": { blocked: (i) => [i.template, "Renamed", ""] },
-  "template-actions:deleteTemplate": { blocked: (i) => [i.template] },
-  "theme-actions:saveTheme": { blocked: (i) => [i.theme, "Renamed theme", i.themeTokens, i.themeSlides] },
-  "theme-actions:duplicateTheme": { blocked: (i) => [i.theme] },
-  "theme-actions:addStandardTheme": { blocked: () => ["tokyo"] },
+  "template-actions:saveTemplate": { open: (i) => [{ widgetId: i.widget, name: "Visitor template", description: "", labels: [], choices: {} }] },
+  "template-actions:renameTemplate": { open: (i) => [i.template, "Renamed", ""] },
+  "template-actions:deleteTemplate": { open: (i) => [i.template] },
+  "theme-actions:saveTheme": { open: (i) => [i.theme, "Renamed theme", i.themeTokens, i.themeSlides] },
+  "theme-actions:duplicateTheme": { open: (i) => [i.theme] },
+  "theme-actions:addStandardTheme": { open: () => ["tokyo"] },
   "theme-actions:importTheme": { blocked: () => [JSON.stringify(themeToFile("Our look", STANDARD_THEMES[0].tokens, STANDARD_THEMES[0].slides))] },
   "theme-actions:themeLogoSource": { reads: (i) => [i.theme] },
-  "theme-actions:deleteTheme": { blocked: (i) => [i.otherTheme] },
+  "theme-actions:deleteTheme": { open: (i) => [i.otherTheme] },
   "theme-actions:setDefaultTheme": { blocked: (i) => [i.theme] },
-  "theme-actions:setDashboardTheme": { blocked: (i) => [i.dashboard, i.theme] },
+  "theme-actions:setDashboardTheme": { open: (i) => [i.dashboard, i.theme] },
   "theme-actions:setDeckTheme": { blocked: (i) => [i.deck, i.theme] },
   "setup/actions:saveAboutYou": { blocked: () => [{ profile: { industry: "retail" }, clock: { timeZone: "Europe/Berlin", runHour: 7 }, yearStart: 4 }] },
   "setup/actions:skipStep": { blocked: () => ["about"] },
@@ -319,9 +320,9 @@ const CASES: Record<string, Case> = {
   "try/start/actions:guideValue": { outside: "a Trial Workspace's guide, never the demo" },
   "try/start/actions:makeN8nKey": { outside: "a Trial Workspace's guide, never the demo" },
   "version-actions:listVersions": { reads: (i) => ["dashboard", i.dashboard] },
-  "version-actions:nameVersion": { nothing: "the demo has no Versions", blocked: () => [1, "Named"] },
-  "version-actions:restoreVersion": { nothing: "the demo has no Versions", blocked: () => [1] },
-  "version-actions:saveNamedVersion": { blocked: (i) => ["dashboard", i.dashboard, "A visitor's version"] },
+  "version-actions:nameVersion": { nothing: "the demo has no Versions", open: () => [1, "Named"] },
+  "version-actions:restoreVersion": { nothing: "the demo has no Versions", open: () => [1] },
+  "version-actions:saveNamedVersion": { open: (i) => ["dashboard", i.dashboard, "A visitor's version"] },
   "view-link-actions:listViewLinks": { reads: (i) => ["dashboard", i.dashboard] },
   "view-link-actions:createViewLink": { blocked: (i) => ["dashboard", i.dashboard, { label: "For the board", expires: day(7), frozen: false }] },
   "view-link-actions:shownSnapshots": { reads: (i) => [i.snapshotDashboard] },
@@ -349,13 +350,18 @@ const CASES: Record<string, Case> = {
 
 let before: Record<string, string>;
 beforeAll(async () => {
+  // The baseline is the demo as a full Demo Reset makes it (the SQL seed alone lacks Snapshots, the close and the Outbox).
+  await demoFullSeed();
   ids = (await demoWalkIds()) as Ids;
   before = await demoFingerprint();
 });
 
 afterAll(async () => {
   // Whatever any action did, the demo is as it was.
-  expect(await demoFingerprint()).toEqual(before);
+  // Two full seeds differ in what holds times or chance (Snapshots, Heads-up pairs, periods' states, the Audit Log): the rest is the seed.
+  const timed = ["audit_events", "dashboard_snapshots", "heads_up_pairs", "period_states"];
+  const without = (f: Record<string, string>) => Object.fromEntries(Object.entries(f).filter(([k]) => !timed.includes(k)));
+  expect(without(await demoFingerprint())).toEqual(without(before));
 });
 
 const exportsOf = async (file: string) => Object.entries(await import(file)).filter(([, v]) => typeof v === "function") as [string, (...a: unknown[]) => Promise<unknown>][];
@@ -381,7 +387,7 @@ describe("every server action in the demo", () => {
     expect(wrong).toEqual([]);
   });
 
-  it("refuses a change with the one sentence and saves nothing", async () => {
+  it("refuses a change with the one sentence and saves nothing, the open ones too while the setting is off", async () => {
     const sentence = demoReadOnlyWords();
     const wrong: string[] = [];
     for (const file of files) {
@@ -396,12 +402,107 @@ describe("every server action in the demo", () => {
           thrown = e;
         }
         const words = thrown instanceof Error ? thrown.message : (answer as { error?: unknown } | undefined)?.error;
-        if ("blocked" in c && !("nothing" in c) && words !== sentence) wrong.push(`${keyOf(file, name)}: ${thrown ? `threw ${String(words)}` : `answered ${JSON.stringify(answer)?.slice(0, 160)}`}`);
-        if ("open" in c && words === sentence) wrong.push(`${keyOf(file, name)}: open, but refused`);
+        // The setting is off here, so an open action is refused as a blocked one is: nothing opens without it (the next test opens it).
+        if (("blocked" in c || "open" in c) && !("nothing" in c) && words !== sentence) wrong.push(`${keyOf(file, name)}: ${thrown ? `threw ${String(words)}` : `answered ${JSON.stringify(answer)?.slice(0, 160)}`}`);
         // A read or a preview never meets the sentence: it changes nothing to be refused.
         if ("reads" in c && words === sentence) wrong.push(`${keyOf(file, name)}: a read refused as a change`);
       }
     }
     expect(wrong).toEqual([]);
   });
+});
+
+// With the setting in effect (a demo-only Installation, the Installation setting on, the reset job having opened the demo)
+// the actions the demo opens succeed for a visit and change the demo: the visitor's own dashboards, widgets, the Pool, Themes,
+// Versions and templates (spec 0051, ticket 9). Last in the file: a Demo Reset follows, so the ids above are gone, and the
+// demo is then as its seed was (the fingerprint test of afterAll).
+describe("with the setting in effect, a visit", () => {
+  const VISIT = "0123456789abcdef0123456789abcdef";
+  const ENV = ["ZIFFR_DEMO_ONLY", "ZIFFR_DEMO_CHANGES", "ZIFFR_DEMO_ADDRESS_KEY", "ZIFFR_PROXY_HOPS"] as const;
+  const savedEnv: Record<string, string | undefined> = {};
+  const call = async (key: string, ...args: unknown[]): Promise<unknown> => {
+    const [file, name] = key.split(":");
+    const fn = (await import(join(APP, file)))[name] as (...a: unknown[]) => Promise<unknown>;
+    try { return await fn(...args); } catch (e) {
+      // `redirect` ends a plain form's action by throwing: that is how it succeeds.
+      if (String((e as { digest?: unknown })?.digest ?? "").startsWith("NEXT_REDIRECT")) return "redirected";
+      throw e;
+    }
+  };
+  /** An answer that is a refusal, not a success. */
+  const refused = (r: unknown) => typeof r === "object" && r !== null && "error" in r;
+
+  beforeAll(async () => {
+    for (const n of ENV) savedEnv[n] = process.env[n];
+    Object.assign(process.env, { ZIFFR_DEMO_ONLY: "1", ZIFFR_DEMO_CHANGES: "1", ZIFFR_DEMO_ADDRESS_KEY: "k".repeat(40), ZIFFR_PROXY_HOPS: "1" });
+    await demoOpenForVisitors();
+    ids = (await demoWalkIds()) as Ids;
+    jar["ziffr-demo"] = { value: VISIT };
+    jar["ziffr-demo-gen"] = { value: String(await demoGeneration()) };
+  }, 180_000);
+
+  afterAll(async () => {
+    for (const n of ENV) { if (savedEnv[n] === undefined) delete process.env[n]; else process.env[n] = savedEnv[n]; }
+    jar["ziffr-demo"] = { value: "1" };
+    delete jar["ziffr-demo-gen"];
+    await demoBackToSeed();
+  }, 180_000);
+
+  it("makes, changes and removes its own dashboards, widgets, Pool, Themes, Versions and templates, as one made-up person", async () => {
+    const wrong: string[] = [];
+    const ok = async (key: string, ...args: unknown[]) => {
+      const r = await call(key, ...args);
+      if (refused(r)) wrong.push(`${key}: ${JSON.stringify(r)}`);
+      return r;
+    };
+    const m = ids.metric;
+    const dash = (await ok("canvas-actions:createDashboardNamed", "Visitor dashboard")) as number;
+    await ok("home-actions:newDashboard", null, form({ name: "Visitor dashboard 2" }));
+    await ok("dashboard-template-actions:createFromDashboardTemplate", "overview", "From a template", [[m], [m], [m], [m]]);
+    await ok("canvas-actions:placeWidget", dash, { type: "metric", id: m });
+    const widget = await demoLatestId("widgets", { dashboard_id: dash });
+    await ok("canvas-actions:updateWidget", widget, { title: "Retitled" });
+    await ok("canvas-actions:saveLayout", dash, [{ i: String(widget), x: 0, y: 0, w: 4, h: 3 }]);
+    await ok("canvas-actions:saveDashboardText", dash, { name: "Renamed by a visitor", intro: "A plain note." });
+    await ok("canvas-actions:saveToPool", { type: "widget", id: widget }, "Pooled");
+    const saved = await demoLatestId("widgets", { saved: true });
+    await ok("template-actions:saveTemplate", { widgetId: widget, name: "Visitor template", description: "", labels: [], choices: {} });
+    const template = await demoLatestId("team_templates", { kind: "widget" });
+    await ok("template-actions:renameTemplate", template, "Renamed", "");
+    await ok("canvas-actions:applyTemplate", widget, template, [[m]]);
+    await ok("dashboard-template-actions:saveAsDashboardTemplate", { dashboardId: dash, name: "Visitor dashboard template", description: "", labels: [] });
+    await ok("template-actions:deleteTemplate", await demoLatestId("team_templates", { kind: "dashboard" }));
+    await ok("template-actions:deleteTemplate", template);
+    await ok("canvas-actions:deleteSavedWidget", saved);
+    await ok("version-actions:saveNamedVersion", "dashboard", dash, "A visitor's version");
+    const version = await demoLatestId("versions", { object_type: "dashboard", object_id: dash });
+    await ok("version-actions:nameVersion", version, "Named again");
+    await ok("version-actions:restoreVersion", version);
+    await ok("theme-actions:duplicateTheme", ids.otherTheme);
+    const theme = await demoLatestId("themes", {});
+    await ok("theme-actions:saveTheme", theme, "My look", ids.otherThemeTokens, ids.otherThemeSlides);
+    await ok("theme-actions:setDashboardTheme", dash, theme);
+    await ok("theme-actions:addStandardTheme", "tokyo");
+    await ok("theme-actions:deleteTheme", theme);
+    await ok("canvas-actions:removeWidget", await demoLatestId("widgets", { dashboard_id: dash }));
+    expect(wrong).toEqual([]);
+  }, 180_000);
+
+  it("is refused, with the sentence, what the demo keeps blocked, and with the words of the demo what it protects", async () => {
+    const sentence = demoReadOnlyWords();
+    for (const [key, args] of [
+      ["theme-actions:setDefaultTheme", [ids.otherTheme]], ["theme-actions:importTheme", [JSON.stringify(themeToFile("Our look", STANDARD_THEMES[0].tokens, STANDARD_THEMES[0].slides))]],
+      ["design-actions:addViewDesign", [JSON.stringify(BUILT_IN_DESIGNS.number)]], ["canvas-actions:setShare", ["dashboard", ids.dashboard, "ben", "editor"]],
+      ["view-link-actions:createViewLink", ["dashboard", ids.dashboard, { label: "For the board", expires: day(7), frozen: false }]],
+    ] as [string, unknown[]][]) {
+      // A refusal is answered as words, or thrown by an action that does not catch it: the sentence either way.
+      const r = await call(key, ...args).catch((e: unknown) => ({ error: e instanceof Error ? e.message : String(e) })) as { error?: string };
+      expect(r?.error, key).toBe(sentence);
+    }
+    // The showcase and the seed's words: a refusal in the demo's own words, never a change.
+    const showcase = (await call("canvas-actions:placeWidget", ids.dashboard, { type: "metric", id: ids.metric })) as { error?: string };
+    expect(showcase?.error).toBe("Everyone sees this one as it is. Make your own to change it.");
+    const text = (await call("canvas-actions:createDashboardNamed", "see www.example.com")) as { error?: string };
+    expect(text?.error).toMatch(/link|address/i);
+  }, 180_000);
 });

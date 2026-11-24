@@ -8,7 +8,7 @@ import { insertSealed } from "./sealed-columns";
 import { assertCan, can, Forbidden, type Actor } from "./actor";
 import { visibleMetricIds } from "./access";
 import { BUILT_IN_DASHBOARD_TEMPLATES } from "./built-in-dashboard-templates";
-import { createDashboard } from "./dashboards";
+import { createDashboard, visitorTemplateWidgets } from "./dashboards";
 import { assertSeesMetrics } from "./sharing";
 import { fillsComplete, fromDashboardTemplate, tagFillable } from "./team-templates";
 import { tagSourceId } from "./tag-source";
@@ -96,7 +96,7 @@ export async function createDashboardFromBody(actor: Actor, t: Pick<DashboardTem
   assertCan(actor, "create");
   const fills = Array.isArray(fillsIn) ? fillsIn.map((f) => (Array.isArray(f) ? f.map(Number).filter(Number.isInteger).slice(0, 50) : [])) : [];
   if (!fillsComplete(t.slots, fills, tagFills)) throw new Forbidden();
-  const widgets = fromDashboardTemplate(t.body, fills.slice(0, t.slots.length), tagFills);
+  const widgets = await visitorTemplateWidgets(actor, fromDashboardTemplate(t.body, fills.slice(0, t.slots.length), tagFills));
   // A template keeps its widgets' View Designs: checked again as they become widgets (spec 0024).
   for (const w of widgets) assertSettingsDesigns(w.settings);
   await assertSeesMetrics(actor, widgets.flatMap((w) => widgetMetricIds(w.metric_ids, w.settings)));

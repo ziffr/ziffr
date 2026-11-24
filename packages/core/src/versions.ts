@@ -7,6 +7,10 @@ import { mapVersionWords, opening, openObject, sealing, sealObject } from "./sea
 import { workspaceCipher } from "./workspace-keys";
 import { openWorkflowRow } from "./workflow-rows";
 import { tagNamesOfMetric } from "./tag-rows";
+import { madeBySeed } from "./demo-seeded-rows";
+import { DemoLimit } from "./demo";
+import { DEMO_STORE_MAX } from "./demo-limits";
+import { visitHeaders } from "./demo-visit-scope";
 
 // Changes a program makes through an Access Key go through the same core functions as people's (spec 0014), and those
 // record Versions deep inside. Rather than thread a note through every signature, the key's call runs inside
@@ -114,17 +118,28 @@ export async function recordVersion(type: VersionType, id: number, author: strin
   if (last && JSON.stringify(await openVersionSnapshot(ws, type, id, last.version, last.snapshot)) === JSON.stringify(snapshot) && !opts.name && !opts.always) return;
   // Merge only into a plain edit: never into a named version, the baseline or a restore.
   // A key's note merges into a version with the same note, so a program's burst of changes is one version too.
+  // In a demo visit an automatic Version is a courtesy: one too large, or one the demo has no room for, is not recorded, and
+  // never fails the edit it follows. A named one is the visitor's own request, asked for (and counted) before this is called.
+  const inVisit = visitHeaders() !== null;
+  if (inVisit && !opts.name && new TextEncoder().encode(JSON.stringify(snapshot)).length > DEMO_STORE_MAX.versionSnapshotBytes) return;
   const sameNote = Boolean(noted && !given.message && last?.message === noted);
-  const fresh = last && last.author_id === author && !last.name && !opts.name && (sameNote || (!last.message && !opts.message)) && Date.now() - new Date(last.updated_at).getTime() < COALESCE_MS;
+  let fresh = last && last.author_id === author && !last.name && !opts.name && (sameNote || (!last.message && !opts.message)) && Date.now() - new Date(last.updated_at).getTime() < COALESCE_MS;
+  // A visitor's edit never merges into a Version the seed made: its words are the seed's (spec 0051), so it gets a Version of its own.
+  if (fresh && visitHeaders() !== null && await madeBySeed("versions", last?.id ?? 0)) fresh = false;
   if (fresh) {
     await db().from("versions").update({ snapshot: await sealedSnapshot(ws, type, id, last.version, snapshot), updated_at: new Date().toISOString(), message: opts.message ?? last.message }).eq("id", last.id);
     return;
   }
   const version = (last?.version ?? 0) + 1;
-  await db().from("versions").insert({
-    object_type: type, object_id: id, version, snapshot: await sealedSnapshot(ws, type, id, version, snapshot), author_id: author,
-    message: opts.message ?? null, name: opts.name ?? null,
-  });
+  try {
+    await db().from("versions").insert({
+      object_type: type, object_id: id, version, snapshot: await sealedSnapshot(ws, type, id, version, snapshot), author_id: author,
+      message: opts.message ?? null, name: opts.name ?? null,
+    });
+  } catch (e) {
+    if (inVisit && !opts.name && e instanceof DemoLimit) return;
+    throw e;
+  }
 }
 
 /** Before the first tracked change, keep the state as it was, so there is always something to go back to. */
@@ -132,7 +147,14 @@ export async function ensureBaseline(type: VersionType, id: number, author: stri
   const { count } = await db().from("versions").select("*", { count: "exact", head: true }).eq("object_type", type).eq("object_id", id);
   if (count) return;
   const loaded = await loadSnapshot(type, id);
-  if (loaded) await db().from("versions").insert({ object_type: type, object_id: id, version: 1, snapshot: await sealedSnapshot(loaded.ws, type, id, 1, loaded.snapshot), author_id: author, message: "Before version history" });
+  if (!loaded) return;
+  try {
+    await db().from("versions").insert({ object_type: type, object_id: id, version: 1, snapshot: await sealedSnapshot(loaded.ws, type, id, 1, loaded.snapshot), author_id: author, message: "Before version history" });
+  } catch (e) {
+    // The demo has no room for more Versions: the edit goes on without a baseline, it is never refused for one.
+    if (visitHeaders() !== null && e instanceof DemoLimit) return;
+    throw e;
+  }
 }
 
 /** Top-level fields that differ between two snapshots, in words a person can scan. */

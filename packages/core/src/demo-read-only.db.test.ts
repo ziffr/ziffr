@@ -4,7 +4,7 @@
 import { afterEach, describe, expect, it } from "vitest";
 import { db, seedingDemo } from "./db";
 import { visitingDemo } from "./demo-visiting";
-import { DemoReadOnly, demoReadOnlyWords } from "./demo";
+import { DemoReadOnly, DemoStale, demoReadOnlyWords } from "./demo";
 import { forgetStoredSettings } from "./settings-in-effect";
 import { DEMO_DIGEST, DEMO_READ_ONLY, DEMO_READ_ONLY_TRIAL, demoWordsForDigest } from "./demo-words";
 import { simulateMessage, simulatePromptAnswer } from "./demo-channels";
@@ -71,9 +71,9 @@ describe("the demo refuses every write", () => {
     expect((await db().from("demo_state").select("open_to_visitors").single()).data?.open_to_visitors).toBe(false);
   });
 
-  it("with every table closed today: the open list is empty", async () => {
-    const open = (await db().from("demo_open_tables").select("table_name")).data ?? [];
-    expect(open).toEqual([]);
+  it("with the tables of people, settings and everything that reaches outside never open", async () => {
+    const open = ((await db().from("demo_open_tables").select("table_name")).data ?? []).map((r) => r.table_name as string);
+    for (const t of ["workspaces", "profiles", "memberships", "contacts", "invitations", "view_links", "calendar_links", "access_keys", "feeds", "webhooks", "pack_installs", "audit_events"]) expect(open, t).not.toContain(t);
   });
 
   it("as one sentence, thrown, whether the query answers with an error or throws", async () => {
@@ -185,11 +185,11 @@ describe("a visit's header (spec 0051)", () => {
   }
   const turnOn = () => { process.env.ZIFFR_DEMO_CHANGES = "1"; process.env.ZIFFR_DEMO_ONLY = "1"; forgetStoredSettings(); };
 
-  it("changes nothing while the open list is empty: the write is refused as before, with the current Generation too", async () => {
+  it("changes nothing for a table that is not open: the write is refused as before, with the current Generation too", async () => {
     turnOn();
     const g = await generation();
     await visitingDemo({ generation: g, visit: VISIT }, async () => {
-      await expect(db().from("dashboards").update({ name: "x" }).eq("workspace_id", DEMO_WORKSPACE_ID)).rejects.toBeInstanceOf(DemoReadOnly);
+      await expect(db().from("profiles").update({ name: "x" }).eq("id", "sara")).rejects.toBeInstanceOf(DemoReadOnly);
       await expect(db().from("workspaces").update({ name: "x" }).eq("id", DEMO_WORKSPACE_ID).select("id").single()).rejects.toBeInstanceOf(DemoReadOnly);
       await expect(db().from("profiles").update({ name: "x" }).eq("id", "sara")).rejects.toBeInstanceOf(DemoReadOnly);
     });
@@ -197,11 +197,13 @@ describe("a visit's header (spec 0051)", () => {
     expect((await db().from("demo_state").select("changed_since_reset").single()).data?.changed_since_reset).toBe(false);
   });
 
-  it("is refused as before with an old Generation, or when the setting is off (the header is then not sent at all)", async () => {
+  it("is refused with an old Generation as stale (for an open table), or as before when the setting is off (the header is then not sent at all)", async () => {
     turnOn();
     const g = await generation();
     await visitingDemo({ generation: g - 1, visit: VISIT }, async () => {
-      await expect(db().from("dashboards").update({ name: "x" }).eq("workspace_id", DEMO_WORKSPACE_ID)).rejects.toBeInstanceOf(DemoReadOnly);
+      await expect(db().from("dashboards").update({ name: "x" }).eq("workspace_id", DEMO_WORKSPACE_ID)).rejects.toBeInstanceOf(DemoStale);
+      // A table that is not open is refused as the demo always was, whatever the Generation.
+      await expect(db().from("profiles").update({ name: "x" }).eq("id", "sara")).rejects.toBeInstanceOf(DemoReadOnly);
     });
     delete process.env.ZIFFR_DEMO_CHANGES;
     forgetStoredSettings();
