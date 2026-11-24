@@ -1,10 +1,12 @@
 // Where a sign-in link or provider sends the browser back to (ADR 0003): turn the code into a session, then go on.
 import { NextResponse, type NextRequest } from "next/server";
-import { authClient, DEMO_COOKIE, personFor } from "@/lib/auth";
+import { authClient, DEMO_COOKIE, demoOnly, personFor } from "@/lib/auth";
 import { recordSignIn } from "@ziffr/core/audit-log";
 import { safeNext, SITE_URL } from "@/lib/sign-in";
 
 export async function GET(req: NextRequest) {
+  // A demo-only Ziffr takes no sign-in: a link asked of Supabase Auth directly must not make or link a person or write the Audit Log. No query string is carried.
+  if (demoOnly()) return NextResponse.redirect(`${SITE_URL}/login`);
   const code = req.nextUrl.searchParams.get("code");
   const next = safeNext(req.nextUrl.searchParams.get("next"));
   if (code) {

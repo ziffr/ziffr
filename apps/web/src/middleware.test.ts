@@ -44,6 +44,14 @@ describe("the middleware and a real session", () => {
     expect(getClaims).toHaveBeenCalled();
   });
 
+  it("elsewhere sends a request without a session to /login, remembering where it was going", async () => {
+    getClaims.mockResolvedValueOnce({ data: { claims: null as never } });
+    const res = await middleware(new NextRequest("http://localhost:3000/metrics?x=1"));
+    const to = new URL(res.headers.get("location")!);
+    expect(to.pathname).toBe("/login");
+    expect(to.searchParams.get("next")).toBe("/metrics?x=1");
+  });
+
   it("elsewhere sends a stale session to the confirm page of the demo as before", async () => {
     const res = await middleware(withSession("/demo"));
     expect(new URL(res.headers.get("location")!).pathname).toBe("/demo/confirm");
