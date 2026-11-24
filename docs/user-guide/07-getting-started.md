@@ -1,4 +1,5 @@
 <!-- part: Understanding Ziffr -->
+<!-- screens: apps/web/src/app/setup/**, apps/web/src/components/privacy-statement.tsx -->
 # Getting started
 
 This chapter takes you from nothing to a team that sees its numbers each month. Plan about an hour for the first steps; the routine then runs by itself.
