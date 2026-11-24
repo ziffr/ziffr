@@ -4,9 +4,9 @@
 import { currentActor } from "@/lib/viewer";
 import { listPicker, runPicker } from "@ziffr/core/analysis-picker";
 
-/** The list of Methods, fitted to the Metrics on the canvas that the person sees. */
-export async function pickerList(canvasIds: number[]) {
-  return listPicker(await currentActor(), canvasIds);
+/** The list of Methods, fitted to the Metrics on the canvas that the person sees; the Slots that ask which Metric to explain start on `explains`. */
+export async function pickerList(canvasIds: number[], explains?: number | null) {
+  return listPicker(await currentActor(), canvasIds, explains);
 }
 
 /** Runs the Method the person picked, with the Metrics and settings they chose, through the Takeaway layer. */

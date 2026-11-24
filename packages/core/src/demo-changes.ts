@@ -244,6 +244,7 @@ const BLOCKED: Record<BlockedReason, readonly string[]> = {
     "canvas-actions:canvasAdd",
     "canvas-actions:canvasRemove",
     "canvas-actions:canvasSet",
+    "canvas-actions:canvasExplain",
     "canvas-actions:createDashboardNamed",
     "canvas-actions:deleteSavedWidget",
     "canvas-actions:markTaskDone",

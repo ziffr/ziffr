@@ -53,6 +53,28 @@ Ziffr now judges the chance rule on the effective number of months: n ÷ (1 + 2 
 
 Measured again, 3 % to 6 % of independent pairs are given a strength at 12 to 60 months for white noise, carry-over of 0.5, 0.8 and 0.95, and random walks (5 % to 6 %), as for white noise. Two limits remain. Metrics that both have a yearly season still get a strength in 11 % to 17 % of pairs at 12, 36 and 60 months: a yearly pattern does not fade the way a carry-over does, so counting the delays up to a third of the months cannot fully allow for it, and with 12 months a season cannot be seen at all. Treat a strength between two seasonal Metrics as what they share through the year, not as a link. And the correction only judges chance; it does not say that two Metrics are linked.
 
+## Correlation matrix
+
+Function: `correlate` in `packages/core/src/correlation.ts` for every pair; its Takeaway is `matrixTakeaway` in `packages/core/src/takeaways/matrix-takeaway.ts`.
+
+**What it answers.** How do these Metrics move together?
+
+**How it is worked out.** Each pair of the Metrics given (3 to 12, so at most 66 pairs) is worked out and worded as the Correlation of that pair is: the same basis rule, the same checks, the same strength word. The sentence is the one of the pair that moved together most closely, by the size of r. Under Show the numbers every pair is listed with its r, its strength word and what it was compared on, and a pair that cannot be compared is listed with its reason. The cautions of any pair are given, each naming its Metrics. It works out nothing of its own, and it draws no grid: the Correlation matrix widget on a dashboard does.
+
+**Use it when.** You have three or more Metrics and want to see which of them have gone up and down together, over a stretch of time.
+
+**Don't use it when.**
+
+- You want to know whether one named pair moves together: use Correlation for that pair, with its own sentence.
+- You want to know what moves one Metric when the others are held the same: use What moves B?
+- Some of the Metrics have hardly changed or have too few values: their pairs are listed with the reason, and the sentence is about the pairs that could be compared.
+
+**Minimums and checks.** At least 3 Metrics; each pair needs what Correlation needs (6 pairs of periods). The checks are Correlation's.
+
+**Worked example.** The Revenue and Visits of the Correlation example, with a third Metric, make three pairs; the sentence is the one of the pair with the largest r, and each pair's r equals what Correlation gives for it.
+
+**Reference.** The same as Correlation: each pair is `correlate`, so its r equals that reference.
+
 ## Drivers
 
 Function: `rankCorrelations` in `packages/core/src/correlation.ts`; its Takeaway is `driversTakeaway`.

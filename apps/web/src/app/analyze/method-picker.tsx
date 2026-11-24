@@ -14,7 +14,7 @@ import { saveToPool } from "@/app/canvas-actions";
 import { pickerList, pickerRun } from "@/app/picker-actions";
 import { told } from "@/lib/action-toast";
 import { TEMPLATES } from "@/views/templates";
-import { AskForm, startAnswers, type Answers } from "./picker-ask";
+import { AskForm, startAnswers, titleOf, type Answers } from "./picker-ask";
 import { PickerGroups } from "./picker-list";
 
 type Done = Extract<PickerRun, { ok: true }>;
@@ -46,11 +46,11 @@ function ResultActions({ entry, done, pending, save }: { entry: EntryView; done:
   );
 }
 
-function Result({ entry, done }: { entry: EntryView; done: Done }) {
+function Result({ entry, title, done }: { entry: EntryView; title: string; done: Done }) {
   const [pending, start] = useTransition();
   const save = () => {
     const template = done.widget!.template;
-    const name = window.prompt("Save to your widgets as:", entry.name);
+    const name = window.prompt("Save to your widgets as:", title);
     if (!name) return;
     start(async () => {
       const settings = { ...TEMPLATES[template].settings, ...(done.widget!.showTarget ? { showTarget: true } : {}) };
@@ -59,7 +59,7 @@ function Result({ entry, done }: { entry: EntryView; done: Done }) {
     });
   };
   return (
-    <div className="mt-3 space-y-2 rounded-[var(--radius-card)] border border-[var(--color-rule-2)] p-3" role="region" aria-label={`Result: ${entry.name}`}>
+    <div className="mt-3 space-y-2 rounded-[var(--radius-card)] border border-[var(--color-rule-2)] p-3" role="region" aria-label={`Result: ${title}`}>
       <TakeawayView takeaway={done.takeaway} />
       <ResultActions entry={entry} done={done} pending={pending} save={save} />
     </div>
@@ -73,6 +73,7 @@ function Open({ entry, list }: { entry: EntryView; list: PickerList }) {
   const [message, setMessage] = useState<string | null>(null);
   const [pending, start] = useTransition();
   const asked = useRef(0);
+  const title = titleOf(entry, answers, list.canvas);
   const run = () => start(async () => {
     const n = ++asked.current;
     const res = await pickerRun({ entry: entry.id, slots: answers.slots, settings: answers.settings });
@@ -83,30 +84,30 @@ function Open({ entry, list }: { entry: EntryView; list: PickerList }) {
   });
   return (
     <>
-      <AskForm entry={entry} canvas={list.canvas} answers={answers} onChange={(a) => { asked.current++; setAnswers(a); setDone(null); setMessage(null); }} onRun={run} pending={pending} />
+      <AskForm entry={entry} title={title} canvas={list.canvas} answers={answers} onChange={(a) => { asked.current++; setAnswers(a); setDone(null); setMessage(null); }} onRun={run} pending={pending} />
       {message && <p role="alert" className="mt-2 text-xs text-destructive">{message}</p>}
-      {done && <Result entry={entry} done={done} />}
+      {done && <Result entry={entry} title={title} done={done} />}
     </>
   );
 }
 
-/** The panel under the Recipes: the list of Methods for the Metrics on the canvas (`ids`), and the questions of the one chosen. */
-export function MethodPicker({ ids }: { ids: number[] }) {
+/** The front door of the Analysis Canvas: the list of Methods for the Metrics on the canvas (`ids`), and the questions of the one chosen. */
+export function MethodPicker({ ids, explains = null, title = "Choose a method" }: { ids: number[]; explains?: number | null; title?: string }) {
   const [list, setList] = useState<(PickerList & { key: string }) | null>(null);
   const [openId, setOpenId] = useState<EntryView["id"] | null>(null);
   const [failed, setFailed] = useState(false);
   const asked = useRef(0);
-  const key = ids.join(",");
+  const key = `${ids.join(",")}:${explains ?? ""}`;
   // The list is asked again when the canvas changes; an older answer that arrives late is dropped.
   useEffect(() => {
     const n = ++asked.current;
-    pickerList(ids).then((l) => { if (n === asked.current) { setList({ ...l, key }); setFailed(false); } }, () => { if (n === asked.current) setFailed(true); });
+    pickerList(ids, explains).then((l) => { if (n === asked.current) { setList({ ...l, key }); setFailed(false); } }, () => { if (n === asked.current) setFailed(true); });
     // eslint-disable-next-line react-hooks/exhaustive-deps -- `key` is the canvas
   }, [key]);
   return (
-    <section className="desk space-y-3 rounded-[var(--radius-card)] p-4" aria-label="Choose a method">
-      <h2 className="text-sm font-medium">Choose a method</h2>
-      <p className="text-xs text-muted-foreground">Pick by what you want to know. A Method that does not fit what is on the canvas stays here, greyed, with the reason. The Takeaway is worded and held to the same rules as a Recipe&rsquo;s.</p>
+    <section className="desk space-y-3 rounded-[var(--radius-card)] p-4" aria-label={title}>
+      <h2 className="text-sm font-medium">{title}</h2>
+      <p className="text-xs text-muted-foreground">Pick by what you want to know. A Method that does not fit what is on the canvas stays here, greyed, with the reason. What fits the Metrics on the canvas comes first.</p>
       {failed && <p role="alert" className="text-xs text-destructive">The list could not be loaded. Try again in a moment.</p>}
       {list?.notice && <p role="note" className="text-xs text-muted-foreground">{list.notice}</p>}
       {!list && !failed && <p className="text-xs text-muted-foreground">Loading the list…</p>}

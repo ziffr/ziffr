@@ -4,7 +4,7 @@ import { tagsLeftOffEntry } from "@ziffr/core/pack-tags";
 import { approvalQuestionForWeb } from "@ziffr/core/approval-question";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { KeyRound, Lock, MessageSquare, Sigma, Sparkles } from "lucide-react";
+import { KeyRound, Lock, MessageSquare, Sigma } from "lucide-react";
 import { getAllSeries, getAttainmentMethod, getBreakdowns, getLastValues, getNumberStyle, getProfiles, getSeriesValues, getYearStart } from "@/lib/data";
 import { ATTAINMENT_METHOD_LABEL, methodFor } from "@ziffr/core/attainment-method";
 import { CompareTable } from "@/components/compare-table";
@@ -35,13 +35,11 @@ import { mcpAddress } from "@/lib/remote-mcp";
 import { FeedControls, RemoveFeed } from "./feed-picker";
 import { formatNumber, formatPercent, formatValue, POLARITY_LABEL, RULE_LABEL, SOURCE_LABEL, targetText } from "@ziffr/core/format";
 import { FORECAST_MIN_POINTS } from "@ziffr/core/forecast";
-import { bestForecast, forecastTooWide, NO_FORECAST_WIDE } from "@ziffr/core/methods/forecast-choice";
+import { bestForecast, forecastTooWide, NO_FORECAST_WIDE, withTakeawayBand } from "@ziffr/core/methods/forecast-choice";
 import { SEASON_LENGTH } from "@ziffr/core/suitability";
-import { basisLabel, periodWord, rankCorrelations } from "@ziffr/core/correlation";
-import { correlationTakeaway } from "@ziffr/core/takeaways/takeaway";
-import { TakeawayView } from "@/components/takeaway-view";
-import { ANALYSES } from "@/analyses";
-import { ScatterView } from "@/views/scatter";
+import { rankCorrelations } from "@ziffr/core/correlation";
+import { AnalysisTab } from "./analysis-tab";
+import { readyFor } from "@ziffr/core/analysis-picker";
 import { PageHeader } from "@/components/page-header";
 import { Person } from "@/components/avatar";
 import { Badge } from "@/components/ui/badge";
@@ -132,6 +130,8 @@ export default async function MetricPage({ params, searchParams }: { params: Pro
   const all = series[slug] ?? [];
   const points = metric.period === "day" ? all.slice(-DAILY_WINDOW) : all;
   const fc = bestForecast(points, metric.period, SEASON_LENGTH[metric.period]);
+  // The band drawn on the chart is the range the forecast Takeaway writes for the same period: one range, in the picture and in the words.
+  const fcBand = fc ? withTakeawayBand(fc.points) : null;
   const last = all[all.length - 1];
   const prev = all[all.length - 2];
   const change = last && prev && prev.value !== 0 ? (last.value - prev.value) / Math.abs(prev.value) : null;
@@ -143,9 +143,11 @@ export default async function MetricPage({ params, searchParams }: { params: Pro
   const { ranked: correlations, leftOut } = rankCorrelations(metric, metrics.filter((m) => visible.has(m.id)), resolverFrom(metrics, series), { yearStart, basis: basisChoice });
   const notCombined = [...new Set(leftOut.filter((l) => l.why === "not-combined" || l.why === "too-much").map((l) => l.reason))];
   const partner = correlations.find((c) => c.metric.slug === sp.vs) ?? correlations[0];
+  // The analyses ready for this Metric are worked out only for its Analysis tab.
 
   if (!visible.has(metric.id)) return <NotShared metric={metric} owner={peopleById[metric.owner_id]} />;
   const actor = await currentActor();
+  const ready = tab === "analysis" ? await readyFor(actor, metric.id) : [];
   // Only a Metric this person sees is counted (the refusal above returns first); a number, never a person.
   void countView(actor, { kind: "metric", id: metric.id });
   const [actions, extras, dashboards, shares, groups, keyNames, choices, askable, profile, archivable, record, alertMe] = await Promise.all([
@@ -246,7 +248,7 @@ export default async function MetricPage({ params, searchParams }: { params: Pro
               No values yet. They arrive by {metric.sources.map((s) => SOURCE_LABEL[s]).join(" or ")}. <Link href="?tab=settings" className="underline">See who submits</Link>.
             </div>
           ) : (
-            <MetricWorkspace numberStyle={numberStyle} metric={metric} points={points} forecast={fc?.points ?? null} forecastNote={!fc && points.length > 0 ? (forecastTooWide(points) ? NO_FORECAST_WIDE : `Forecast once there are ${FORECAST_MIN_POINTS} ${metric.period}s of values`) : null} markers={markers} people={people} viewer={viewer} yearStart={yearStart} />
+            <MetricWorkspace numberStyle={numberStyle} metric={metric} points={points} forecast={fcBand} forecastNote={!fc && points.length > 0 ? (forecastTooWide(points) ? NO_FORECAST_WIDE : `Forecast once there are ${FORECAST_MIN_POINTS} ${metric.period}s of values`) : null} markers={markers} people={people} viewer={viewer} yearStart={yearStart} />
           )}
           <div className="grid gap-6 lg:grid-cols-2">
             <section className="stock rounded-[var(--radius-card)] p-5">
@@ -313,54 +315,7 @@ export default async function MetricPage({ params, searchParams }: { params: Pro
       )}
 
       {tab === "analysis" && (
-        <section className="stock rounded-[var(--radius-card)] p-5">
-          <h2 className="mb-4 flex items-center gap-2 font-medium"><Sparkles className="size-4 text-primary" /> Analyses</h2>
-          <div className="mb-5 flex flex-wrap gap-2">
-            {/* Analyses still to come are a preview for demo visitors only. */}
-            {ANALYSES.filter((a) => a.available || demo).map((a) => (
-              <span key={a.id} title={a.blurb} className={cn("flex items-center gap-1.5 rounded-[var(--radius-input)] border px-2.5 py-1 text-xs", a.available ? "stock font-medium" : "border-dashed text-muted-foreground")}>
-                {!a.available && <Lock aria-hidden className="size-3" />} {a.label}{!a.available && ", coming soon"}
-              </span>
-            ))}
-          </div>
-          <div className="grid gap-6 md:grid-cols-2">
-            <div>
-              <h3 className="text-sm font-medium">Forecast</h3>
-              {fc ? (
-                <p className="mt-1 text-sm text-muted-foreground">
-                  Trend {fc.trendPerPeriod >= 0 ? "+" : ""}{formatValue(metric, fc.trendPerPeriod, numberStyle)} per {metric.period}. Next {fc.points.length === 1 ? metric.period : `${fc.points.length} ${metric.period}s`}:{" "}
-                  <span className="font-medium text-foreground">{formatValue(metric, fc.points[fc.points.length - 1].value, numberStyle)}</span> expected by {periodLabel(fc.points[fc.points.length - 1].period, metric.period, yearStart)}
-                  {" "}(likely between {formatValue(metric, fc.points[fc.points.length - 1].lo, numberStyle)} and {formatValue(metric, fc.points[fc.points.length - 1].hi, numberStyle)}). Shown dashed on the chart.
-                </p>
-              ) : <p className="mt-1 text-sm text-muted-foreground">Needs at least {FORECAST_MIN_POINTS} values{points.length ? `; ${points.length} so far` : ""}.{metric.period === "year" ? ` A yearly Metric has one after ${FORECAST_MIN_POINTS} years.` : ""}</p>}
-            </div>
-            <div>
-              <h3 className="text-sm font-medium">Correlation</h3>
-              {partner ? (
-                <>
-                  <TakeawayView takeaway={correlationTakeaway(metric, partner.metric, partner.result, { style: numberStyle, yearStart })}>
-                    <BasisToggle byValue={byValue} at={at} partner={partner} />
-                  </TakeawayView>
-                  <div className="mt-2 flex flex-wrap gap-1.5">
-                    {correlations.slice(0, 5).map((c) => (
-                      <Link key={c.metric.id} href={at({ vs: c.metric.slug, ...keepBasis })} scroll={false} title={basisLabel(c.result)} className={cn("rounded-md border px-2 py-0.5 text-xs", c.metric.id === partner.metric.id ? "stock" : "hover:bg-muted")}>
-                        {c.metric.name} <span className="fig text-muted-foreground">{formatNumber(c.result.r, 2, numberStyle)}</span>
-                      </Link>
-                    ))}
-                  </div>
-                </>
-              ) : <p className="mt-1 text-sm text-muted-foreground">No other metric with enough shared history.</p>}
-              {notCombined.map((r) => <p key={r} className="mt-1 text-xs text-muted-foreground">{r}</p>)}
-              {!partner && <ShowTheNumbers byValue={byValue} at={at} partner={partner} />}
-            </div>
-          </div>
-          {partner && (
-            <div className="mt-4">
-              <p className="mb-1 text-xs text-muted-foreground">{partner.metric.name} (x) vs. {metric.name} (y), one dot per {periodWord(partner.result.period)}{changeNote(partner.result)}</p>
-              <ScatterView numberStyle={numberStyle} x={partner.metric} y={metric} pairs={partner.result.pairs.map((p) => ({ period: p.period, x: p.y, y: p.x }))} yearStart={yearStart} />
-            </div>
-          )}
-        </section>
+        <AnalysisTab metric={metric} ready={ready} points={points} forecast={fcBand} numberStyle={numberStyle} yearStart={yearStart} correlations={correlations} partner={partner} notCombined={notCombined} byValue={byValue} at={at} keepBasis={keepBasis} />
       )}
 
       {tab === "targets" && (
@@ -498,36 +453,11 @@ function Row({ k, children }: { k: string; children: React.ReactNode }) {
   );
 }
 
-/** The older comparison on the values as they are, a link that sets `?basis=values`; it goes inside a Takeaway's Show the numbers. */
-function BasisToggle({ byValue, at, partner }: { byValue: boolean; at: (extra: Record<string, string>) => string; partner?: { metric: { slug: string } } }) {
-  const href = at({ ...(partner ? { vs: partner.metric.slug } : {}), ...(byValue ? {} : { basis: "values" }) });
-  return (
-    <p className="mt-1">
-      Two Metrics that both grow look related even when nothing links them, so by default growth is removed. {byValue ? "Now compared on the values as they are. " : ""}
-      <Link href={href} scroll={false} className="underline">{byValue ? "Remove growth again" : "Compare on the values as they are"}</Link>
-    </p>
-  );
-}
-
-/** Show the numbers for a Correlation that has no partner yet: only the choice of what it is compared on. */
-function ShowTheNumbers({ byValue, at, partner }: { byValue: boolean; at: (extra: Record<string, string>) => string; partner?: { metric: { slug: string } } }) {
-  return (
-    <details className="mt-2 text-xs text-muted-foreground">
-      <summary className="cursor-pointer">Show the numbers</summary>
-      <BasisToggle byValue={byValue} at={at} partner={partner} />
-    </details>
-  );
-}
-
 /** The basis choice of a page's Correlation and the parameter that keeps it in a link. */
 function basisOf(byValue: boolean): ["values" | "auto", Record<string, string>] {
   return byValue ? ["values", { basis: "values" }] : ["auto", {}];
 }
 
-/** What a dot is when growth was removed: the change from the period before. */
-function changeNote(result: { basis: string; period: Parameters<typeof periodWord>[0] }): string {
-  return result.basis === "changes" ? `, each the change from the ${periodWord(result.period)} before` : "";
-}
 
 /** Whether the person may paste or upload values for the Metric: it takes the web form, is not computed, and they submit it. The core checks again when they paste. */
 function mayPaste(metric: { formula?: unknown; sources: string[] }, tokens: { submitter_id: string }[], personId: string): boolean {

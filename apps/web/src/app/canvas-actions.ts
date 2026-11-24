@@ -122,10 +122,18 @@ export async function canvasRemove(metricId: number) {
   });
 }
 
-/** Sets the Metrics on the viewer's Analysis Canvas. */
-export async function canvasSet(metricIds: number[]) {
+/** Sets the Metrics on the viewer's Analysis Canvas, and which of them is the one to explain where the caller names it. */
+export async function canvasSet(metricIds: number[], explains?: number | null) {
   return attempt(async () => {
-    await dash.canvasSet(await currentActor(), metricIds);
+    await dash.canvasSet(await currentActor(), metricIds, typeof explains === "number" ? explains : null);
+    done();
+  });
+}
+
+/** Marks which Metric on the viewer's Analysis Canvas is the one to explain; the order of the canvas does not change. */
+export async function canvasExplain(metricId: number) {
+  return attempt(async () => {
+    await dash.canvasExplain(await currentActor(), Number(metricId));
     done();
   });
 }
