@@ -158,6 +158,12 @@ Acts as the person, with their own sign-in, Slack or Telegram account or email a
 - `reopenSetupGuide` (setup-guide.ts): a person's own Setup line, for the app
 - `markSetupGuideSeen` (setup-guide.ts): that a person opened the guide, for the app
 - `chooseExploreOnMyOwn` (setup-guide.ts): the guide's starting point, for the app
+- `firstMetricStep` (setup-first-metric.ts): the Setup Guide's First Metric step for the viewer, in words; for the app's page only (spec 0052)
+- `setupFirstValue` (setup-first-metric.ts): the viewer's own progress of the First Metric loop, polled by the app's step; no program sets up a Workspace
+- `askForFirstMetric` (setup-first-metric.ts): Ask me now from the Setup Guide, by the viewer's own ways; a program cannot message a person (spec 0052)
+- `askMeForFirstMetric` (setup-first-metric.ts): the viewer becomes a Submitter of the guide's Metric they own, for the app; a program changes Submitters with set_submitters
+- `pickFirstMetric` (setup-first-metric.ts): the guide's choice of Metric, for the app
+- `sendFirstMetricValue` (setup-first-metric.ts): a value typed in the guide, for the app; a program sends values with submit_value
 - `setSetupFirstMetric` (setup-guide.ts): the Metric the guide tries both ways, for the app
 - `setUpGuideFromPack` (setup-from-pack.ts): the guide's first Metrics from an installed Pack, for the app (a program sets up from a Pack through the Packs page's own operation)
 - `adoptSetupFirstMetric` (setup-from-pack.ts): the Metric made from the Metric Catalog with the guide's return link becomes the guide's Metric, for the app

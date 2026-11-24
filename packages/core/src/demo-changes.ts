@@ -28,6 +28,7 @@ export type DemoClass =
 const READS: readonly string[] = [
   "access-actions:whoCanSee",
   "actions:simulateMessage",
+  "setup/first-metric-actions:checkFirstMetric",
   "canvas-actions:getHistory",
   "connector-actions:simulatePromptAnswer",
   "connector-actions:simulateReply",
@@ -151,6 +152,7 @@ const BLOCKED: Record<BlockedReason, readonly string[]> = {
   sends: [
     "connector-actions:connectSlack",
     "setup/ways-actions:connectSlackFromGuide",
+    "setup/first-metric-actions:askFirstMetric",
     "connector-actions:disconnectSlack",
     "connector-actions:emailRemindersAgain",
     "connector-actions:sendTestMessage",
@@ -189,6 +191,7 @@ const BLOCKED: Record<BlockedReason, readonly string[]> = {
     "setup/actions:saveAboutYou",
     "setup/actions:skipStep",
     "setup/actions:chooseExplore",
+    "setup/first-metric-actions:pickMetric",
     "retention-actions:applyRetentionToAll",
     "retention-actions:cancelMetricRetention",
     "retention-actions:previewRetention",
@@ -278,6 +281,8 @@ const BLOCKED: Record<BlockedReason, readonly string[]> = {
     "paste-actions:recordPaste",
     "series-actions:archiveMetric",
     "series-actions:askMeNow",
+    "setup/first-metric-actions:askMeForIt",
+    "setup/first-metric-actions:sendFirstValue",
     "series-actions:deleteMetric",
     "series-actions:handOverMetricTo",
     "series-actions:recordValue",
