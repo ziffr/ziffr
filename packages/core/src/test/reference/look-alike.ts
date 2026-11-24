@@ -244,7 +244,8 @@ export function referenceKinds(prepared: { span: Span; periods: string[]; ids: s
   const w = weightsOf(rows);
   if (w === null) return { refused: "constant" };
   const { merges, states } = wardFromScratch(rows, w);
-  const smallest = Math.max(3, Math.ceil(n / 6));
+  // A kind holds at least 3 periods up to 30 periods in the window, and above that at least a sixth of them (rounded up): 6 at 36, 10 at 60.
+  const smallest = n <= 30 ? 3 : Math.ceil(n / 6);
   const possible = [2, 3, 4].filter((c) => states.has(c) && states.get(c)!.every((k) => k.length >= smallest));
   const candidates = asked === null ? possible : possible.filter((c) => c <= asked);
   if (candidates.length === 0) return { refused: "no-split" };

@@ -12,7 +12,7 @@
 //  - the gap of two kinds: gap² = (dᵀd)² ÷ (dᵀSd) with d the difference of their means and S their pooled spread, a fraction (two kinds
 //    with no spread along d have an endless gap; two kinds with the same middle have a gap of 0); of a set of kinds, the smallest gap of
 //    any two;
-//  - the count: a count the person asks for is used as far as every kind holds at least max(3, ⌈n ÷ 6⌉) periods (else the largest smaller
+//  - the count: a count the person asks for is used as far as every kind holds at least 3 periods (above 30 periods ⌈n ÷ 6⌉) (else the largest smaller
 //    count that can be made); with none asked, the count of 2, 3 and 4 with the largest gap, the smaller on a tie;
 //  - what marks a kind: for each Metric, Cliff's count of the kind's periods against the others (how often a period of the kind is higher
 //    less how often lower, over all pairs), which reads "very high", "high", "low" or "very low" at 4/5 and 1/2; at most the two Metrics
@@ -31,7 +31,8 @@ export const LOOK_ALIKE = {
   most: 60,
   metrics: { fewest: 2, most: 6, periodsEach: 6 },
   counts: [2, 3, 4],
-  smallest: { least: 3, share: 6 },
+  /** The fewest periods a kind may hold: `least` (3) up to `short` (30) periods, above that a `share`th (a sixth) of the periods rounded up, `less` taken off it (none). */
+  smallest: { least: 3, share: 6, less: 0, short: 30 },
   /** Cliff's count at or above `high` reads "high", at or above `very` "very high" (and the same below zero), as fractions num ÷ den. */
   cliff: { high: { num: 1, den: 2 }, very: { num: 4, den: 5 } },
   /** A place in the season belongs to a kind with at least `places.least` of its periods and `places.share` of the periods there; a kind is seasonal with `season` of its periods in its places. */
@@ -203,6 +204,12 @@ function gapsOf(s: Scaled, kinds: readonly (readonly number[])[]): { gap: Gap; p
 
 // ---- the count of kinds ----
 
+/** The fewest periods a kind may hold in a window of n periods. */
+export function smallestKind(n: number): number {
+  const { least, share, less, short } = LOOK_ALIKE.smallest;
+  return n <= short ? least : Math.max(least, Math.ceil(n / share) - less);
+}
+
 /** The kinds a Look-alike settled on, before they are named: how many were asked for and shown, each period's kind number, the kinds' periods, the gaps and the joins. */
 type Choice = {
   ok: true;
@@ -225,7 +232,7 @@ type Choice = {
   merges: Merge[];
 };
 
-/** The count of kinds and the kinds: the count asked for (2 to 4) as far as every kind holds at least max(3, ⌈n ÷ 6⌉) periods, else the largest smaller count that can be made; with none asked, the count of 2, 3 and 4 whose kinds stand furthest apart (the largest gap), the smaller on a tie. */
+/** The count of kinds and the kinds: the count asked for (2 to 4) as far as every kind holds at least 3 periods (above 30 periods ⌈n ÷ 6⌉), else the largest smaller count that can be made; with none asked, the count of 2, 3 and 4 whose kinds stand furthest apart (the largest gap), the smaller on a tie. */
 export function choiceOf(prepared: Prepared, asked: number | null): Choice | LookAlikeRefusal {
   const solved = solve(prepared, asked);
   return solved.ok ? solved.choice : solved;
@@ -240,7 +247,7 @@ function solve(prepared: Prepared, asked: number | null): { ok: true; choice: Ch
   const s = scaled(prepared.values, n);
   if ("constant" in s) return { ok: false, why: "constant", metric: prepared.ids[s.constant] };
   const { merges, states } = ward(s);
-  const smallest = Math.max(LOOK_ALIKE.smallest.least, Math.ceil(n / LOOK_ALIKE.smallest.share));
+  const smallest = smallestKind(n);
   const feasible = LOOK_ALIKE.counts.filter((c) => states.get(c)?.every((k) => k.length >= smallest));
   const options = asked === null ? feasible : feasible.filter((c) => c <= asked);
   if (options.length === 0) return { ok: false, why: "no-split" };
