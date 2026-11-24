@@ -157,7 +157,7 @@ When a template lands, a panel beside the page, named after the template, asks f
 
 ### Words in a widget's title
 
-A Widget's **title** can use the same **Placeholders** as a Finding's words, such as "{metric}: {latest} ({change yoy})". The title then reads "Revenue: 120 € (up 20.0 %)" and stays right when the values move on. This works for every Widget, built-in Views and View Designs alike, on a dashboard, in a Snapshot (as of its day), on a View Link, when presenting and on a slide. You write a title where the dashboard offers it, in **Write** of a Snapshot and through the API or an assistant; the list under **Words that fill themselves in** (also in the Finding editor) says what each Placeholder becomes. {metric 2} is the Widget's second Metric. A Placeholder of a Metric the viewer may not see is left empty, so a shared page never shows a name or value they could not see otherwise; a word in braces that is not a Placeholder stays as written. A View Design can use Placeholders in its own texts too (see the View Design guide).
+A Widget's **title** can use the same **Placeholders** as a Finding's words, such as "{metric}: {latest} ({change yoy})". The title then reads "Revenue: 120 € (up 20.0 %)" and stays right when the values move on. This works for every Widget, built-in Views and View Designs alike, on a dashboard, in a Snapshot (as of its day), on a View Link, when presenting and on a slide. You write a title with **Title…** in the Widget's menu (in edit mode), in **Write** of a Snapshot and through the API or an assistant; the list under **Words that fill themselves in** (also in the Finding editor) says what each Placeholder becomes. {metric 2} is the Widget's second Metric. A Placeholder of a Metric the viewer may not see is left empty, so a shared page never shows a name or value they could not see otherwise; a word in braces that is not a Placeholder stays as written. A View Design can use Placeholders in its own texts too (see the View Design guide).
 
 ## A widget's menu
 
@@ -173,6 +173,7 @@ If a Widget's Metric has open questions or tasks, its title bar shows a speech b
 | **Change view** | The owner and Editors, in edit mode | Draws the Widget another way (see below). Not offered for Analyses. |
 | **Comparisons** | The owner and Editors, in edit mode, for Views | Which Comparisons the Widget shows (see below). |
 | **Show by** | The owner and Editors, in edit mode, for Number + sparkline, Line chart, Bars per period, History table and Forecast | Shows the Metric by a longer period, such as quarters or years (see below). |
+| **Title…** | The owner and Editors, in edit mode | Opens the Widget's title in a panel beside it: the field shows the default title greyed, and under it the title as it will read, with the Placeholders filled in. Leave it empty to get the default back. **Save title** keeps it. Not for a Free layout. |
 | **Edit Finding…** | The owner and Editors, in edit mode, for Findings | Opens the Finding editor (see [Findings](#findings)). |
 | **Edit layout…** | The owner and Editors, in edit mode, for a Free layout | Opens the layout editor (see [Free layout](#free-layout)). |
 | **Versions…** | Everyone | The Widget's own history of changes. |
