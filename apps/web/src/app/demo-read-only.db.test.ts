@@ -310,6 +310,8 @@ const CASES: Record<string, Case> = {
   "theme-actions:setDeckTheme": { blocked: (i) => [i.deck, i.theme] },
   "setup/actions:saveAboutYou": { blocked: () => [{ profile: { industry: "retail" }, clock: { timeZone: "Europe/Berlin", runHour: 7 }, yearStart: 4 }] },
   "setup/actions:skipStep": { blocked: () => ["about"] },
+  "setup/actions:chooseExplore": { blocked: () => [] },
+  "setup/actions:setUpFromPackInGuide": { nothing: "the demo has no installed Pack to set up from", blocked: () => [1, { metrics: ["orders"] }] },
   "setup/ways-actions:saveAskMeBy": { blocked: () => [["email"]] },
   "setup/ways-actions:connectSlackFromGuide": { blocked: () => [] },
   "try/start/actions:moveGuide": { outside: "a Trial Workspace's guide, never the demo" },

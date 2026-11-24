@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { PackSetupOptions } from "@ziffr/core/pack-setup";
-import { setupStart } from "./setup-defaults";
+import { dashboardNeeds, guideStart, setupStart } from "./setup-defaults";
 
 const options = (over: Partial<PackSetupOptions> = {}) => ({
   entries: [{ key: "a" }, { key: "b" }],
@@ -32,5 +32,34 @@ describe("setupStart", () => {
     expect(s.dashboard).toBe("");
     expect(s.workflow).toBe("");
     expect(s.approvers).toEqual([]);
+  });
+});
+
+describe("guideStart, what the Setup Guide ticks", () => {
+  const entry = (key: string, derived = false) => ({ key, derived, inputs: [] });
+  const opts = (over: Record<string, unknown> = {}) => ({
+    entries: [entry("a"), entry("agg", true), entry("b"), entry("c"), entry("d")],
+    dashboards: [{ key: "d1", slots: [{ label: "A", multiple: false, suggests: "a" }, { label: "B", multiple: false, suggests: "b" }] }],
+    workflows: [{ key: "w", approvers: 1 }],
+    people: [{ id: "me", name: "Me" }, { id: "x", name: "X" }],
+    ...over,
+  }) as unknown as PackSetupOptions;
+  it("ticks the first three Metrics that take values, never a Derived one", () => {
+    expect([...guideStart(opts(), "me").picked]).toEqual(["a", "b", "c"]);
+  });
+  it("ticks the first dashboard only when those Metrics fill all its Slots", () => {
+    expect(guideStart(opts(), "me").dashboard).toBe("d1");
+    const far = opts({ dashboards: [{ key: "d1", slots: [{ label: "D", multiple: false, suggests: "d" }] }] });
+    expect(guideStart(far, "me").dashboard).toBe("");
+    expect(dashboardNeeds(far, "d1")).toEqual(["d"]);
+    expect(dashboardNeeds(opts({ dashboards: [{ key: "d1", slots: [{ label: "?", multiple: false }] }] }), "d1")).toBeNull();
+    expect(dashboardNeeds(opts(), "nope")).toBeNull();
+  });
+  it("ticks the first Workflow with the person as its one Approver, and none that asks for several", () => {
+    const g = guideStart(opts(), "me");
+    expect([g.workflow, g.approvers]).toEqual(["w", ["me"]]);
+    expect(guideStart(opts({ workflows: [{ key: "w", approvers: 0 }] }), "me")).toMatchObject({ workflow: "w", approvers: [] });
+    expect(guideStart(opts({ workflows: [{ key: "w", approvers: 2 }] }), "me")).toMatchObject({ workflow: "", approvers: [] });
+    expect(guideStart(opts({ workflows: [], dashboards: [] }), "me")).toMatchObject({ workflow: "", dashboard: "" });
   });
 });

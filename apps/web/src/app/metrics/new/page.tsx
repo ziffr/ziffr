@@ -57,8 +57,11 @@ const BLANK: MetricDescription = {
 
 const field = "h-9 w-full rounded-[var(--radius-input)] border border-input bg-card px-2.5 text-sm";
 
-export default async function NewMetricPage({ searchParams }: { searchParams: Promise<{ catalog?: string; scratch?: string; copy?: string; derived?: string }> }) {
+export default async function NewMetricPage({ searchParams }: { searchParams: Promise<{ catalog?: string; scratch?: string; copy?: string; derived?: string; setup?: string }> }) {
   const sp = await searchParams;
+  // Opened from the Setup Guide's Starting point: a way back, and the new Metric becomes the guide's (spec 0052).
+  const guide = sp.setup === "1";
+  const qs = guide ? "&setup=1" : "";
   // The Metric Catalog and the form are for people who may create; the core refuses a Guest too.
   if (!can(await currentActor(), "create")) notFound();
   const items = (await metricCatalog(await currentActor())) as unknown as CatalogMetric[];
@@ -87,9 +90,10 @@ export default async function NewMetricPage({ searchParams }: { searchParams: Pr
     const fit = profile.industry ? { industry: profile.industry, segment: profile.segment, label: INDUSTRY_LABEL[profile.industry] } : null;
     return (
       <>
+        {guide && <Link href="/setup?step=start" className="mb-3 inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"><ArrowLeft className="size-4" /> Back to the Setup Guide</Link>}
         <PageHeader title="New metric" sub="Start from the Metric Catalog, or describe one from scratch. You can change everything afterwards." />
         <LimitNotes refusal={refusal} note={note} />
-        <Link href="/metrics/new?scratch=1" className="mb-3 flex items-center gap-3 rounded-[var(--radius-card)] border border-dashed border-[var(--color-rule-2)] p-4 hover:bg-muted/40">
+        <Link href={`/metrics/new?scratch=1${qs}`} className="mb-3 flex items-center gap-3 rounded-[var(--radius-card)] border border-dashed border-[var(--color-rule-2)] p-4 hover:bg-muted/40">
           <PenLine className="size-5 text-muted-foreground" />
           <div>
             <div className="font-medium">Start from scratch</div>
@@ -104,7 +108,7 @@ export default async function NewMetricPage({ searchParams }: { searchParams: Pr
           </div>
         </Link>
         <h2 className="mb-3 flex items-center gap-2 text-sm font-semibold text-muted-foreground"><BookOpen className="size-4" /> Metric Catalog</h2>
-        <CatalogBrowser items={items} fit={fit} money={moneyUnit(profile.currency)} numberStyle={numberStyle} />
+        <CatalogBrowser items={items} fit={fit} money={moneyUnit(profile.currency)} numberStyle={numberStyle} fromGuide={guide} />
       </>
     );
   }
@@ -119,7 +123,7 @@ export default async function NewMetricPage({ searchParams }: { searchParams: Pr
     <>
       {copy
         ? <Link href={`/metrics`} className="mb-3 inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"><ArrowLeft className="size-4" /> Metrics</Link>
-        : <Link href="/metrics/new" className="mb-3 inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"><ArrowLeft className="size-4" /> Catalog</Link>}
+        : <Link href={guide ? "/metrics/new?setup=1" : "/metrics/new"} className="mb-3 inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"><ArrowLeft className="size-4" /> Catalog</Link>}
       <PageHeader
         title={copy ? `Duplicate “${copy.original}”` : picked ? `New metric from “${picked.name}”` : "New metric"}
         sub={copy
@@ -130,6 +134,7 @@ export default async function NewMetricPage({ searchParams }: { searchParams: Pr
       <form action={createMetric} className="grid gap-6 lg:grid-cols-[1fr_20rem]">
         <input type="hidden" name="from_catalog_id" value={copy ? "" : picked?.id ?? ""} />
         <input type="hidden" name="duplicate_of" value={copy?.duplicateOf ?? ""} />
+        {guide && !copy && <input type="hidden" name="setup" value="1" />}
         <UnitProvider format={d.format} unit={d.unit} unitPosition={d.unit_position} decimals={d.decimals} money={money} numberStyle={numberStyle} maxDecimals={4} idPrefix="new">
         <div className="space-y-6">
           <Section title="What is it?">
