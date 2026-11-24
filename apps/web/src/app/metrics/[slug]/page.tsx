@@ -248,7 +248,7 @@ export default async function MetricPage({ params, searchParams }: { params: Pro
           ) : (
             <MetricWorkspace numberStyle={numberStyle} metric={metric} points={points} forecast={fcBand} forecastNote={!fc && points.length > 0 ? (forecastTooWide(points) ? NO_FORECAST_WIDE : `Forecast once there are ${FORECAST_MIN_POINTS} ${metric.period}s of values`) : null} markers={markers} people={people} viewer={viewer} yearStart={yearStart} />
           )}
-          <div className="grid gap-6 lg:grid-cols-2">
+          <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
             <section className="stock rounded-[var(--radius-card)] p-5">
               <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
                 <h2 className="font-medium">Comparisons</h2>
@@ -330,7 +330,7 @@ export default async function MetricPage({ params, searchParams }: { params: Pro
       )}
 
       {tab === "history" && (
-        <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
+        <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
           {!metric.formula && (
             <section className="stock rounded-[var(--radius-card)] p-5">
               {/* Paste history is offered to whoever submits for the Metric on the web form; the core checks again when they paste. */}
@@ -379,13 +379,13 @@ export default async function MetricPage({ params, searchParams }: { params: Pro
       )}
 
       {tab === "settings" && (
-        <div className="grid gap-6 lg:grid-cols-3">
+        <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
           <section className="stock rounded-[var(--radius-card)] p-5 text-sm">
             <div className="mb-3 flex items-center justify-between gap-2">
               <h2 className="font-medium">Description</h2>
               {canEdit && <EditDetails metric={metric} money={moneyUnit(profile.currency)} numberStyle={numberStyle} attainmentMethod={attainmentMethod} fixed={obs.length > 0 ? "values" : tSeries.length + pSeries.length > 0 ? "series" : null} />}
             </div>
-            <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-2">
+            <dl className="grid grid-cols-[auto_minmax(0,1fr)] gap-x-4 gap-y-2">
               <Row k="Owner"><span className="flex flex-wrap items-center gap-2"><Person p={peopleById[metric.owner_id]} />{!demo && <HandOver metricId={metric.id} name={metric.name} choices={await handOverChoices(actor, metric.id)} />}</span></Row>
               <Row k="Tags"><MetricTagsRow actor={actor} metricId={metric.id} /></Row>
               <Row k="Period">{PERIOD_LABEL[metric.period]}</Row>
