@@ -28,6 +28,15 @@ Ziffr is only useful if its numbers are right. So every calculation on values is
 - **Mutation testing** (Stryker, `packages/core/stryker.config.mjs`): it changes the calculation modules on purpose (a `<` into `<=`, a `+` into `-`) and runs the tests that cover each change. A change no test notices is a gap. The score must be at least 95 %.
 - **The catalogue's test** (`catalogue.test.ts`) fails when an exported function of a calculation module has no row in the catalogue, or a mutant left out of mutation testing has no reason written there.
 
+## Outside fixtures: Python and SciPy
+
+Some references are not in TypeScript at all. A script in `packages/core/src/test/reference/fixtures/` (`look-alike.py`, `methods.py`, `heads-up.py` and the others) works the results out in Python, from the spec and apart from the code, and writes them to a `.json` fixture beside it, with the version of each tool and the SHA-256 of the script's text. The Look-alike's script uses only the standard library's `fractions` for the exact part, and SciPy (`scipy.cluster.hierarchy.linkage`, Ward) only as a second opinion: it records where SciPy agreed, and names the cases it skipped because two costs of joining lay within 1e-9 of each other (SciPy's tie order is not Ziffr's written rule).
+
+- CI needs neither Python nor SciPy. The scripts are run by hand, offline: `python3 packages/core/src/test/reference/fixtures/look-alike.py` (a few minutes), and the fixture is committed with the script.
+- A test fails when the hash in the fixture is not the hash of the script, so a changed script means a new fixture in the same pull request.
+- The test then holds the code to the fixture, exactly where arithmetic allows (`methods/look-alike-fixture.test.ts`).
+- When the script and the code disagree, decide which is wrong against the spec, as under "When a test fails". The script stops without writing the fixture when SciPy disagrees on a case with no near tie.
+
 ## When they run
 
 - `pnpm test`, everything above except mutation testing, with a fixed seed (115) and 200 generated cases per combination. It runs in CI's `check` job on every pull request, merge-queue group and push, in `pnpm ci:local`, and in the hook before an agent finishes; about a minute on a laptop.
