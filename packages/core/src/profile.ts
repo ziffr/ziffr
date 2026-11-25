@@ -66,8 +66,9 @@ export async function updateMyProfile(actor: Actor, input: { name?: unknown; col
   if (error) throw new Error("Your profile could not be saved.");
 }
 
-/** The actor's own Appearance (GLOSSARY: Appearance); System when none was chosen. Nobody else's can be read. */
-export async function myAppearance(actor: Actor): Promise<Appearance> {
+/** The actor's own Appearance (GLOSSARY: Appearance); System when none was chosen. Nobody else's can be read. It needs only the
+ * person, so the page of someone signed in who has no Workspace yet is drawn in their choice too. */
+export async function myAppearance(actor: Pick<Actor, "personId">): Promise<Appearance> {
   const { data } = await db().from("profiles").select("appearance").eq("id", actor.personId).maybeSingle();
   return parseAppearance(data?.appearance);
 }

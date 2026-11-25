@@ -27,9 +27,9 @@ const html = (over: Partial<Parameters<typeof StartingPoint>[0]> = {}) => render
 
 describe("what a Pack brings", () => {
   it("says counts, the first names of the Metrics and an ellipsis when there are more", () => {
-    expect(whatYouGet(packs[0]!.brings)).toEqual(["13 Metrics (MRR, ARR, New MRR, …)", "2 Workflows", "1 dashboard"]);
-    expect(whatYouGet([{ kind: "metric", count: 2, names: ["A", "B"] }])).toEqual(["2 Metrics (A, B)"]);
-    expect(whatYouGet([{ kind: "metric", count: 1, names: ["A"] }, { kind: "view", count: 1, names: ["V"] }])).toEqual(["1 Metric (A)", "1 View Design"]);
+    expect(whatYouGet(packs[0]!.brings)).toEqual(["13 Metrics, e.g. MRR, ARR, New MRR", "2 Workflows", "1 Dashboard"]);
+    expect(whatYouGet([{ kind: "metric", count: 2, names: ["A", "B"] }])).toEqual(["2 Metrics, e.g. A, B"]);
+    expect(whatYouGet([{ kind: "metric", count: 1, names: ["A"] }, { kind: "view", count: 1, names: ["V"] }])).toEqual(["1 Metric, e.g. A", "1 View Design"]);
   });
 });
 
@@ -41,11 +41,11 @@ describe("the two choices", () => {
     expect(h).toContain("Start from a Pack");
   });
   it("shows the first three Packs ranked, each with its reason and what you get, and the rest behind See all", () => {
-    expect(h).toContain("Suggested for you");
-    expect(h).toContain("Suggested because of: your industry and your function");
-    expect(h).toContain("Suggested because of: your function");
+    expect(h).toContain("Packs suggested for you");
+    expect(h).toContain("Suggested because of your industry and your function.");
+    expect(h).toContain("Suggested because of your function.");
     expect(h.match(/What you get/g)).toHaveLength(3);
-    expect(h).toContain("13 Metrics (MRR, ARR, New MRR, …)");
+    expect(h).toContain("13 Metrics, e.g. MRR, ARR, New MRR");
     expect(h).toContain("See all 5 Packs");
     expect(h).not.toContain("FOUR");
     // Each shown Pack can be previewed and installed, by a click.
@@ -75,13 +75,15 @@ describe("installed Packs, Owners and Admins, trials and Metrics already there",
   it("a Pack that holds a Theme is for an Owner: an Admin sees why and cannot press Install", () => {
     const themed = [pack("ziffr/one", { needsOwner: true }), ...packs.slice(1)];
     const admin = html({ packs: themed, isOwner: false });
-    expect(admin).toContain("Holds a Theme: an Owner installs it.");
+    expect(admin).toContain("only an Owner can install this Pack");
     expect(admin).toMatch(/<button[^>]*disabled=""[^>]*>Install<\/button>/);
+    expect(html({ packs: themed, isOwner: true })).not.toContain("only an Owner can install this Pack");
     expect(html({ packs: themed, isOwner: true })).not.toMatch(/<button[^>]*disabled=""[^>]*>Install<\/button>/);
   });
   it("a trial starts with its Test Metric", () => {
-    expect(html({ trial: { testMetric: "Cups of coffee" }, ticked: true })).toContain("Your trial starts with Cups of coffee.");
-    expect(html()).not.toContain("Your trial starts with");
+    expect(html({ trial: { testMetric: "Cups of coffee" }, ticked: true })).toContain("is a sample Metric");
+    expect(html()).not.toContain("is a sample Metric");
+    expect(html({ functionLabel: "Finance" })).toContain("Ready-made Metrics for Finance");
   });
   it("a Workspace with Metrics already asks whether to start from a Pack anyway, and names the guide's first Metric", () => {
     expect(html({ metrics: 4 })).toContain("You have 4 Metrics. Start from a Pack anyway?");

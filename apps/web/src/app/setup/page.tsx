@@ -15,6 +15,7 @@ import { workspaceClock } from "@ziffr/core/workspace-clock";
 import { yearStartChoices } from "@ziffr/core/fiscal-year";
 import { myBusinessFunction } from "@ziffr/core/business-function";
 import { COUNTRIES, INDUSTRY_LABEL, REVENUE_LABEL, SEGMENT_LABEL, type WorkspaceProfile } from "@ziffr/core/workspace-profile";
+import { BUSINESS_FUNCTION_LABELS } from "@ziffr/pack/business-functions";
 import { StepBar } from "./step-bar";
 import { STEP_INFO } from "./step-info";
 import { AboutYouMember, AboutYouWorkspace } from "./about-you";
@@ -79,15 +80,15 @@ export default async function SetupPage({ searchParams }: { searchParams: Promis
     if (manages) {
       const [clock, year] = await Promise.all([workspaceClock(actor), yearStartChoices(actor)]);
       const countries = COUNTRIES.map((code) => ({ code, name: countryName(code) })).sort((a, b) => a.name.localeCompare(b.name, "en"));
-      body = <AboutYouWorkspace profile={profile} countries={countries} timeZone={clock.timeZone} runHour={clock.runHour} yearStart={year.yearStart} allowedMonths={year.allowed} whyMonths={year.why} businessFunction={fn} following={following} />;
+      body = <AboutYouWorkspace profile={profile} countries={countries} timeZone={clock.timeZone} runHour={clock.runHour} weekStart={clock.weekStart} yearStart={year.yearStart} allowedMonths={year.allowed} whyMonths={year.why} businessFunction={fn} following={following} />;
     } else {
       body = <AboutYouMember answers={answersOf(profile)} businessFunction={fn} following={following} />;
     }
   } else if (current === "start") {
-    const [packs, usage, trial, numberStyle] = await Promise.all([recommendedPacks(actor), metricsOfLimit(actor), trialEndsAt(actor.workspaceId), getNumberStyle()]);
+    const [packs, usage, trial, numberStyle, fn] = await Promise.all([recommendedPacks(actor), metricsOfLimit(actor), trialEndsAt(actor.workspaceId), getNumberStyle(), myBusinessFunction(actor)]);
     const step = guide.steps.find((x) => x.id === "start");
     // A trial starts with its Test Metric, so the step has nothing to ask; the Packs may still be installed.
-    body = <StartingPoint packs={packs} startingPoint={guide.startingPoint} metrics={usage.metrics} firstMetric={guide.firstMetric} trial={trial ? { testMetric: "Cups of coffee" } : null} isOwner={actor.role === "owner"} viewer={actor.personId} numberStyle={numberStyle} following={ids[Math.min(ids.indexOf("start") + 1, ids.length - 1)]} ticked={Boolean(step?.ticked)} />;
+    body = <StartingPoint packs={packs} startingPoint={guide.startingPoint} metrics={usage.metrics} firstMetric={guide.firstMetric} trial={trial ? { testMetric: "Cups of coffee" } : null} isOwner={actor.role === "owner"} viewer={actor.personId} numberStyle={numberStyle} functionLabel={fn ? BUSINESS_FUNCTION_LABELS[fn] : null} following={ids[Math.min(ids.indexOf("start") + 1, ids.length - 1)]} ticked={Boolean(step?.ticked)} />;
   } else if (current === "ways") {
     const slack = (SLACK_OUTCOMES as readonly string[]).includes(query.slack ?? "") ? SLACK_NOTICE[query.slack as (typeof SLACK_OUTCOMES)[number]] : null;
     body = <WaysInAndOutStep data={await waysInAndOut(actor)} following={ids[ids.indexOf("ways") + 1] ?? null} notice={slack} />;
@@ -109,7 +110,7 @@ export default async function SetupPage({ searchParams }: { searchParams: Promis
   return (
     <>
       <PageHeader title="Set up your Workspace" sub="A few short steps. Every one can be skipped, and you can go to Ziffr at any time.">
-        <Link href="/" className={buttonVariants({ variant: "ghost" })}>Go to Ziffr</Link>
+        <Link href="/" className={buttonVariants({ variant: "outline", size: "sm" })}>Go to Ziffr</Link>
       </PageHeader>
       <div className="max-w-3xl">
         <StepBar steps={guide.steps} current={current} />

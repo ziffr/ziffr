@@ -24,18 +24,18 @@ import type { NumberStyle } from "@ziffr/core/number-style";
 import type { GuidePackSetupResult } from "@ziffr/core/setup-from-pack";
 
 const KIND: Record<RecommendedPack["brings"][number]["kind"], [string, string]> = {
-  metric: ["Metric", "Metrics"], dashboard: ["dashboard", "dashboards"], deck: ["deck", "decks"], workflow: ["Workflow", "Workflows"],
+  metric: ["Metric", "Metrics"], dashboard: ["Dashboard", "Dashboards"], deck: ["Deck", "Decks"], workflow: ["Workflow", "Workflows"],
   view: ["View Design", "View Designs"], recipe: ["Analysis Recipe", "Analysis Recipes"], theme: ["Theme", "Themes"],
 };
 const SHOWN_NAMES = 3;
 
-/** What a Pack brings as short phrases: "13 Metrics (MRR, ARR, New MRR, …)", "2 Workflows", "1 dashboard". Counts and names from the Pack file only. */
+/** What a Pack brings, one phrase per line: "13 Metrics, e.g. MRR, ARR, New MRR", "2 Workflows", "1 Dashboard". Counts and names from the Pack file only. */
 export function whatYouGet(brings: RecommendedPack["brings"]): string[] {
   return brings.map((b) => {
     const label = `${b.count} ${KIND[b.kind][b.count === 1 ? 0 : 1]}`;
     if (b.kind !== "metric") return label;
     const names = b.names.slice(0, SHOWN_NAMES).join(", ");
-    return `${label} (${names}${b.count > SHOWN_NAMES ? ", …" : ""})`;
+    return `${label}, e.g. ${names}`;
   });
 }
 
@@ -49,6 +49,8 @@ type Props = {
   firstMetric: { id: number; name: string } | null;
   /** In a trial: the Test Metric's name; the step is ticked by itself. */
   trial: { testMetric: string } | null;
+  /** The viewer's own Business Function from About you, in words, to name in the Pack card; null when not answered. */
+  functionLabel?: string | null;
   /** Whether the viewer is an Owner (a Pack that holds a Theme is for Owners). */
   isOwner: boolean;
   viewer: string;
@@ -81,7 +83,7 @@ export function StartingPoint(p: Props) {
     <div className="space-y-6">
       {p.trial && (
         <p role="status" className="rounded-[var(--radius-card)] border border-border bg-card p-4 text-sm">
-          <strong className="font-medium">Your trial starts with {p.trial.testMetric}.</strong> This step is done. You can still install a Pack below, within the limits of the trial.
+          <strong className="font-medium">{p.trial.testMetric}</strong> is a sample Metric: a number Ziffr keeps and asks you for over time. We made it so you can try things, and you can delete it any time. This step is done; a Pack still fits within the trial&rsquo;s limits.
         </p>
       )}
       {!p.trial && p.metrics > 0 && p.startingPoint !== "pack" && (
@@ -98,22 +100,23 @@ export function StartingPoint(p: Props) {
         <div className="grid gap-3 sm:grid-cols-2">
           <div className="stock flex flex-col rounded-[var(--radius-card)] p-4">
             <p className="font-medium">Explore on my own</p>
-            <p className="mt-1 flex-1 text-sm text-muted-foreground">An empty Workspace. Describe your first Metric from the Metric Catalog or from scratch.</p>
-            <Button type="button" variant="outline" className="mt-3 self-start" disabled={pending} onClick={() => run(() => chooseExplore(), () => router.push("/metrics/new?setup=1"))}>
+            <p className="mt-1 flex-1 text-sm text-muted-foreground">{p.trial ? "Stay with the sample Metric and build your own step by step, from the Metric Catalog or from scratch." : "An empty Workspace. Describe your first Metric from the Metric Catalog or from scratch."}</p>
+            <Button type="button" variant="outline" className="mt-3 h-11 w-full sm:h-9 sm:w-auto sm:self-start" disabled={pending} onClick={() => run(() => chooseExplore(), () => router.push("/metrics/new?setup=1"))}>
               Explore on my own
             </Button>
           </div>
           <div className="stock flex flex-col rounded-[var(--radius-card)] p-4">
             <p className="font-medium">Start from a Pack</p>
-            <p className="mt-1 flex-1 text-sm text-muted-foreground">Ready-made Metrics, a dashboard and a Workflow that asks for them. You change everything afterwards.</p>
-            <a href="#guide-packs" className={buttonVariants({ variant: "outline", className: "mt-3 self-start" })}>Choose a Pack</a>
+            <p className="mt-1 flex-1 text-sm text-muted-foreground">Ready-made Metrics{p.functionLabel ? ` for ${p.functionLabel}` : " for your kind of work"}, plus a sample dashboard and a Workflow that asks for them. You can change everything afterwards, so it is a quick start.</p>
+            <a href="#guide-packs" className={buttonVariants({ variant: "outline", className: "mt-3 h-11 w-full sm:h-9 sm:w-auto sm:self-start" })}>Choose a Pack</a>
           </div>
         </div>
         <p role="alert" className="mt-2 min-h-5 text-sm text-destructive">{error}</p>
       </div>
 
       <section id="guide-packs" aria-labelledby="guide-packs-heading" className="space-y-3">
-        <h3 id="guide-packs-heading" className="text-base font-medium">{answered ? "Suggested for you" : "Ziffr’s own Packs"}</h3>
+        <h3 id="guide-packs-heading" className="text-base font-medium">{answered ? "Packs suggested for you" : "Ziffr’s own Packs"}</h3>
+        <p className="text-sm text-muted-foreground">A Pack gives you ready-made Metrics, a sample Dashboard and a Workflow that asks for them{answered ? " for the kind of work you chose" : ""}. Install one to start fast; you can change everything afterwards.</p>
         {!answered && <p className="text-sm text-muted-foreground">Answer About you to get suggestions. Until then they are in the order most Workspaces start in.</p>}
         <ul className="space-y-3">
           {list.map((pack) => <PackRow key={pack.id} pack={pack} p={p} />)}
@@ -176,19 +179,21 @@ function PackRow({ pack, p }: { pack: RecommendedPack; p: Props }) {
   const gets = whatYouGet(pack.brings);
   return (
     <li className="stock rounded-[var(--radius-card)] p-4 text-sm">
-      <div className="flex flex-wrap items-start justify-between gap-3">
+      {/* Phone: title, reason, description, what you get, then full-width buttons; side by side only from the small breakpoint. */}
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div className="min-w-0 flex-1">
-          <p className="font-medium">{pack.name}</p>
-          {pack.because.length > 0 && <p className="text-xs text-muted-foreground">Suggested because of: {becauseText(pack.because, 3)}</p>}
+          <p className="font-medium">{pack.name} <span className="font-normal text-muted-foreground">· Pack</span></p>
+          {pack.because.length > 0 && <p className="text-xs text-muted-foreground">Suggested because of {becauseText(pack.because, 3)}.</p>}
           <p className="mt-1 text-muted-foreground">{pack.summary}</p>
-          <p className="mt-2"><span className="text-xs font-medium">What you get</span><br /><span className="text-xs text-muted-foreground">{gets.join(" · ")}</span></p>
-          {pack.needsOwner && <p className="mt-1 text-xs text-muted-foreground">Holds a Theme: an Owner installs it.</p>}
+          <p className="mt-2 text-xs font-medium">What you get</p>
+          <ul className="list-disc pl-4 text-xs text-muted-foreground">{gets.map((g) => <li key={g}>{g}</li>)}</ul>
+          {blocked && <p className="mt-2 text-xs text-muted-foreground">Includes a Theme (a look for your Workspace); only an Owner can install this Pack.</p>}
         </div>
-        <div className="flex shrink-0 flex-wrap items-center gap-2">
-          {!pack.installed && <Button type="button" size="sm" variant="outline" disabled={pending} onClick={preview}>Preview</Button>}
-          {!pack.installed && <Button type="button" size="sm" disabled={pending || blocked} onClick={install}>Install</Button>}
+        <div className="flex shrink-0 flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
+          {!pack.installed && <Button type="button" size="sm" variant="outline" className="h-11 sm:h-8" disabled={pending} onClick={preview}>Preview</Button>}
+          {!pack.installed && <Button type="button" size="sm" className="h-11 sm:h-8" disabled={pending || blocked} onClick={install}>Install</Button>}
           {pack.installed && <span className="text-xs text-muted-foreground">Installed</span>}
-          {pack.installed && pack.installId !== null && !form && <Button type="button" size="sm" disabled={pending} onClick={openSetUp}>Set up from this Pack</Button>}
+          {pack.installed && pack.installId !== null && !form && <Button type="button" size="sm" className="h-11 sm:h-8" disabled={pending} onClick={openSetUp}>Set up from this Pack</Button>}
         </div>
       </div>
       {form && <SetUpHere options={form} viewer={p.viewer} following={p.following} onClose={() => setForm(null)} />}

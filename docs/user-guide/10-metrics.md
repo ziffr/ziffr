@@ -138,6 +138,8 @@ Owners, Admins and Members create Metrics. Guests create nothing: they see no **
 | **All** | Shows the whole catalog. |
 | A category, such as Finance | Shows only that category. Click it again to show all. |
 
+When you open the catalog from the Setup Guide (**Explore on my own**) and your Workspace has an industry, the Metrics written for your business come first under "For" and your industry, and every other Metric follows under **All other Metrics**; nothing is hidden. A line above the list says: pick single Metrics here, while a Pack gives you a set of Metrics, a sample dashboard and a Workflow that asks for them in one go.
+
 Each card shows the Metric's name, what it counts, its period, which way is good and its target. Click a card to open the form, already filled in. If nothing matches, try another word or start from scratch.
 
 ### The form

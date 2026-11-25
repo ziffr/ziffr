@@ -17,7 +17,8 @@ import {
 } from "@ziffr/core/workspace-profile";
 import { monthName, type YearStart } from "@ziffr/core/periods";
 
-const field = "block h-9 w-full rounded-[var(--radius-input)] border border-input bg-card px-2 text-sm disabled:opacity-70";
+// 44 px tall and 16 px text on a phone (a smaller text makes iPhone Safari zoom in on focus); the compact size from the small breakpoint.
+const field = "block h-11 w-full rounded-[var(--radius-input)] border border-input bg-card px-2 text-base disabled:opacity-70 sm:h-9 sm:text-sm";
 const SKIP = "Skip this question";
 
 /** A country or currency with the name it is shown by. */
@@ -53,9 +54,10 @@ function Footer({ pending, error, onSkip }: { pending: boolean; error: string | 
     <div className="space-y-3 pt-5">
       <PrivacyStatement />
       <p role="alert" className="min-h-5 text-sm text-destructive">{error}</p>
-      <div className="flex flex-wrap justify-end gap-2">
-        <Button type="button" variant="ghost" disabled={pending} onClick={onSkip}>Skip</Button>
-        <Button type="submit" disabled={pending}>Save and go on</Button>
+      {/* On a phone the two buttons fill the width, the main one first; from the small breakpoint they sit at the right. */}
+      <div className="flex flex-col-reverse gap-2 sm:flex-row sm:flex-wrap sm:justify-end">
+        <Button type="button" variant="ghost" className="h-11 sm:h-9" disabled={pending} onClick={onSkip}>Skip</Button>
+        <Button type="submit" className="h-11 sm:h-9" disabled={pending}>Save and go on</Button>
       </div>
     </div>
   );
@@ -80,8 +82,8 @@ function useStep(following: string) {
 }
 
 /** Owners and Admins: the Workspace's answers, the Workspace's day, and their own function. */
-export function AboutYouWorkspace({ profile, countries, timeZone, runHour, yearStart, allowedMonths, whyMonths, businessFunction, following }: {
-  profile: WorkspaceProfile; countries: Named[]; timeZone: string; runHour: number; yearStart: YearStart; allowedMonths: YearStart[]; whyMonths: string | null;
+export function AboutYouWorkspace({ profile, countries, timeZone, runHour, weekStart, yearStart, allowedMonths, whyMonths, businessFunction, following }: {
+  profile: WorkspaceProfile; countries: Named[]; timeZone: string; runHour: number; weekStart: 0 | 1; yearStart: YearStart; allowedMonths: YearStart[]; whyMonths: string | null;
   businessFunction: BusinessFunction | null; following: string;
 }) {
   const { pending, error, run } = useStep(following);
@@ -90,6 +92,8 @@ export function AboutYouWorkspace({ profile, countries, timeZone, runHour, yearS
   const [zone, setZone] = useState(timeZone);
   const [hour, setHour] = useState(runHour);
   const [month, setMonth] = useState<YearStart>(yearStart);
+  const [first, setFirst] = useState<0 | 1>(weekStart);
+  const [weekProposed, setWeekProposed] = useState(false);
   const [zones, setZones] = useState<string[]>(["UTC"]);
   const [proposed, setProposed] = useState<string | null>(null);
 
@@ -101,6 +105,13 @@ export function AboutYouWorkspace({ profile, countries, timeZone, runHour, yearS
     const mine = Intl.DateTimeFormat().resolvedOptions().timeZone;
     if (timeZone === "UTC" && mine && mine !== "UTC" && all.includes(mine)) { setZone(mine); setProposed(mine); }
   }, [timeZone]);
+  // While the Workspace still has the default Monday, this browser's locale may propose Sunday (the core checks the value again).
+  useEffect(() => {
+    if (weekStart !== 1) return;
+    const loc = new Intl.Locale(navigator.language) as Intl.Locale & { getWeekInfo?: () => { firstDay: number }; weekInfo?: { firstDay: number } };
+    const day = (loc.getWeekInfo?.() ?? loc.weekInfo)?.firstDay;
+    if (day === 7) { setFirst(0); setWeekProposed(true); }
+  }, [weekStart]);
 
   const set = (k: keyof WorkspaceProfile, v: string) => setP((old) => {
     const next = { ...old, [k]: v || null } as WorkspaceProfile;
@@ -119,7 +130,7 @@ export function AboutYouWorkspace({ profile, countries, timeZone, runHour, yearS
   );
   const hh = (h: number) => `${String(h).padStart(2, "0")}:00`;
   const save = () => {
-    const input: AboutYouInput = { profile: p, clock: { timeZone: zone, runHour: hour }, businessFunction: fn || null };
+    const input: AboutYouInput = { profile: p, clock: { timeZone: zone, runHour: hour, weekStart: first }, businessFunction: fn || null };
     if (month !== yearStart) input.yearStart = month;
     run(() => saveAboutYou(input), "Saved");
   };
@@ -155,6 +166,13 @@ export function AboutYouWorkspace({ profile, countries, timeZone, runHour, yearS
           <select id="about-hour" aria-describedby="about-hour-hint" value={hour} disabled={pending} onChange={(e) => setHour(Number(e.target.value))} className={field}>
             {Array.from({ length: 24 }, (_, h) => <option key={h} value={h}>{hh(h)}</option>)}
           </select>
+        </Row>
+        <Row id="about-week" label="The week starts on" hint="The first day of the week in the Schedule.">
+          <select id="about-week" aria-describedby="about-week-hint" value={first} disabled={pending} onChange={(e) => { setFirst(Number(e.target.value) === 0 ? 0 : 1); setWeekProposed(false); }} className={field}>
+            <option value={1}>Monday</option>
+            <option value={0}>Sunday</option>
+          </select>
+          {weekProposed && <p className="mt-1.5 text-xs text-muted-foreground">Proposed from this browser. Choose Monday if your team works that way.</p>}
         </Row>
         <Row id="about-year" label="Your year starts in" hint="Where quarters, half-years and years begin. January is the calendar year.">
           <select id="about-year" aria-describedby="about-year-hint" value={month} disabled={pending} onChange={(e) => setMonth(Number(e.target.value) as YearStart)} className={field}>
