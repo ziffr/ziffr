@@ -92,6 +92,8 @@ A Workspace that has Metrics already says "You have 4 Metrics. Start from a Pack
 
 ### Ways in and out
 
+Each of the last three steps opens with a sentence saying what it is, why you would do it and that you can skip it. On a phone their fields and buttons are 44 px tall with 16 px text (so Safari does not zoom in), the buttons fill the width with the main one on top and **Skip** under it, and cards, lists and links stack one to a line.
+
 This step asks two questions on one screen. **How should numbers come in?** lists the ways a number reaches Ziffr, one card each, with its state in words:
 
 | Way | What the card says | What you can press |

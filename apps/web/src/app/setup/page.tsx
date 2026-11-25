@@ -117,7 +117,7 @@ export default async function SetupPage({ searchParams }: { searchParams: Promis
         <section aria-labelledby="step-heading">
           <h2 id="step-heading" tabIndex={-1} className="text-lg font-medium">{current === "about" ? (manages ? "About you and your business" : "About you") : info.label}</h2>
           {current === "about" && <p className="mb-4 mt-1 text-sm text-muted-foreground">{manages ? "So we can suggest Metrics and Packs that fit. Every question is optional." : "So we can suggest what fits your work. Every question is optional."}</p>}
-          {current !== "about" && <div className="mb-4" />}
+          {current !== "about" && (info.intro ? <p className="mb-4 mt-1 text-sm text-muted-foreground">{info.intro}</p> : <div className="mb-4" />)}
           {body}
         </section>
       </div>
