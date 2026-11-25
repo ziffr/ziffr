@@ -108,8 +108,8 @@ export default async function SetupPage({ searchParams }: { searchParams: Promis
     );
   }
 
-  // The phone note comes once, before step 1, for someone who has not touched the guide yet.
-  const first = current === "about" && guide.steps.every((s) => !s.ticked && !s.skipped);
+  // The phone note comes once, before step 1, for someone who has not done or skipped About you yet (a trial ticks Starting point by itself, so only step 1 counts).
+  const first = current === "about" && guide.steps.some((s) => s.id === "about" && !s.ticked && !s.skipped);
   return (
     <PhoneNoteGate first={first}>
       <PageHeader title="Set up your Workspace" sub="A few short steps. Every one can be skipped, and you can go to Ziffr at any time.">
