@@ -321,16 +321,18 @@ function InteractiveFrame({ widget, data, targets, editable = false, className, 
           <HeaderStatusProvider value={setStatus}>
           <TakeawayHostProvider value={takeawayHost}>
           <ObservationDetailsProvider value={details}>
-          <div className={cn("flex items-center gap-2 px-4 pt-3 pb-1", dragHandle && "widget-drag cursor-grab active:cursor-grabbing")}>
-            {dragHandle && <GripVertical aria-hidden className="-ml-2 size-3.5 text-muted-foreground opacity-0 group-hover/widget:opacity-100" />}
-            <span className="widget-text-sm truncate font-semibold">{title}</span>
-            {status && <span className={cn("shrink-0", HEADER_FITS.showHeader)}><TargetChip {...status} /></span>}
-            {ms.length === 1 && <QuickLookButton slug={ms[0].slug} name={ms[0].name} className="inline-flex size-6 shrink-0 items-center justify-center rounded-md text-muted-foreground opacity-0 outline-none hover:bg-muted hover:text-foreground focus-visible:opacity-100 focus-visible:ring-2 focus-visible:ring-ring group-hover/widget:opacity-100 max-md:opacity-100" />}
+          <div className={cn("flex items-center gap-2 px-4 pt-3 pb-1 max-[420px]:flex-wrap", dragHandle && "widget-drag cursor-grab active:cursor-grabbing")}>
+            {dragHandle && <GripVertical aria-hidden className="-ml-2 size-3.5 max-[420px]:hidden text-muted-foreground opacity-0 group-hover/widget:opacity-100" />}
+            {/* On a small phone the title takes the first line (two lines at most) with the menu beside it, and the status chip and
+                buttons wrap under it, so no title is cut to "R..." (#1123). */}
+            <span className="widget-text-sm truncate font-semibold max-[420px]:order-1 max-[420px]:line-clamp-2 max-[420px]:min-w-0 max-[420px]:flex-[1_1_calc(100%-3.5rem)] max-[420px]:whitespace-normal max-[420px]:break-words">{title}</span>
+            {status && <span className={cn("shrink-0 max-[420px]:order-3", HEADER_FITS.showHeader)}><TargetChip {...status} /></span>}
+            {ms.length === 1 && <QuickLookButton slug={ms[0].slug} name={ms[0].name} className="inline-flex size-6 shrink-0 items-center justify-center rounded-md text-muted-foreground max-md:size-11 max-md:-my-2.5 max-[420px]:order-3 opacity-0 outline-none hover:bg-muted hover:text-foreground focus-visible:opacity-100 focus-visible:ring-2 focus-visible:ring-ring group-hover/widget:opacity-100 max-md:opacity-100" />}
             {/* It keeps drawing an Archived Metric's history, and says that no new values come (GLOSSARY: Archived Metric). */}
             {ms.some(isArchived) && <span title={ms.length > 1 ? "Some of its Metrics are archived: they take no new values." : "Its Metric is archived: it takes no new values."} className="widget-text-xs flex shrink-0 items-center gap-1 text-muted-foreground"><Archive aria-hidden className="size-[1.15em]" /> Archived</span>}
             {open > 0 && <OpenActionsButton slugs={ms.map((x) => x.slug)} count={open} label={openText} />}
             <DropdownMenu onOpenChange={(o) => { if (o) markWidgetMenuSeen(data.viewer); }}>
-              <DropdownMenuTrigger aria-label={`Options for ${title}`} className="-mr-1.5 ml-auto flex size-8 items-center justify-center rounded-[var(--radius-input)] text-muted-foreground opacity-60 group-hover/widget:opacity-100 hover:bg-muted focus-visible:opacity-100 data-popup-open:opacity-100" onMouseDown={(e) => e.stopPropagation()}>
+              <DropdownMenuTrigger aria-label={`Options for ${title}`} className="-mr-1.5 ml-auto flex size-8 max-md:size-11 max-md:-my-1.5 max-[420px]:order-2 items-center justify-center rounded-[var(--radius-input)] text-muted-foreground opacity-60 group-hover/widget:opacity-100 hover:bg-muted focus-visible:opacity-100 data-popup-open:opacity-100" onMouseDown={(e) => e.stopPropagation()}>
                 <MoreHorizontal className="size-4" />
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-56">{items(DM)}</DropdownMenuContent>

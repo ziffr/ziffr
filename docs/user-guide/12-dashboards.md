@@ -19,7 +19,7 @@ At the top, if you may create dashboards:
 
 | Option | What it does |
 | --- | --- |
-| **Name of the new dashboard** and **New dashboard** | Makes an empty dashboard with that name and opens it, ready to fill. If Ziffr refuses, for example because your role may no longer create, the reason shows below the field. |
+| **Dashboard name** and **New dashboard** | Makes an empty dashboard with that name and opens it, ready to fill. If Ziffr refuses, for example because your role may no longer create, the reason shows below the field. |
 | **From a template…** | Opens the **New dashboard** window, where you can start from a Dashboard Template (see [Creating a dashboard](#creating-a-dashboard)). |
 
 If there is no dashboard yet, the list says "No dashboards yet" and suggests naming one or asking a colleague to share theirs. A Guest sees no **New dashboard**, **From a template…** or **Create dashboard**, and the empty list says "Nothing has been shared with you yet. Ask whoever invited you."
@@ -125,7 +125,7 @@ A value that waits for **Approval** shows, marked "not approved yet" next to it,
 
 Changes are saved for everyone who opens the dashboard. Each one is recorded as a Version.
 
-On a narrow screen, such as a phone, the dashboard becomes one column in reading order, top to bottom and left to right. Widgets cannot be moved there. The toolbar is one row there: **Grid** and **Read**, **Share** and **⋯**; **⋯** opens a sheet from the bottom with the rest (**Home dashboard**, **Pinned**, **Snapshots**, **Present**, **Edit**, and the entries of the ⋯ menu), and the hint about a widget's ⋯ menu is left out.
+On a narrow screen, such as a phone, the dashboard becomes one column in reading order, top to bottom and left to right. Widgets cannot be moved there. The toolbar is one row there, also on the smallest phones, where **Grid** and **Read** show only their icons: **Grid** and **Read**, **Share** and **⋯**; **⋯** opens a sheet from the bottom with the rest (**Home dashboard**, **Pinned**, **Snapshots**, **Present**, **Edit**, and the entries of the ⋯ menu), and the hint about a widget's ⋯ menu is left out. A widget's title may take two lines; its status (such as **Too low**), the quick look and the comments button sit under it, and every button is at least 44 pixels to tap.
 
 ### The Pool
 
