@@ -33,6 +33,7 @@ import { teamSetup } from "@ziffr/core/team-setup";
 import { joinDomainOffer } from "@ziffr/core/invitations";
 import { signedIn } from "@/lib/auth";
 import { TeamStep } from "./team";
+import { PhoneNoteGate } from "./phone-note";
 
 const countryName = (c: string) => new Intl.DisplayNames(["en"], { type: "region" }).of(c) ?? c;
 
@@ -107,8 +108,10 @@ export default async function SetupPage({ searchParams }: { searchParams: Promis
     );
   }
 
+  // The phone note comes once, before step 1, for someone who has not touched the guide yet.
+  const first = current === "about" && guide.steps.every((s) => !s.ticked && !s.skipped);
   return (
-    <>
+    <PhoneNoteGate first={first}>
       <PageHeader title="Set up your Workspace" sub="A few short steps. Every one can be skipped, and you can go to Ziffr at any time.">
         <Link href="/" className={buttonVariants({ variant: "outline", size: "sm" })}>Go to Ziffr</Link>
       </PageHeader>
@@ -121,6 +124,6 @@ export default async function SetupPage({ searchParams }: { searchParams: Promis
           {body}
         </section>
       </div>
-    </>
+    </PhoneNoteGate>
   );
 }
