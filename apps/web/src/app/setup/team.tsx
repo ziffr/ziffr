@@ -14,11 +14,11 @@ import { isActionError, UNEXPECTED } from "@/lib/action-error";
 import { createGroup, createInviteLink, inviteMember, setDomainJoining, setMember } from "@/app/team-actions";
 import { askForMetric } from "./team-actions";
 import { skipStep } from "./actions";
+import { PHONE_BUTTON, PHONE_BUTTON_SM, PHONE_FIELD, PHONE_FOOTER } from "./phone";
 import { WORKSPACE_ROLE_ORDER, WORKSPACE_ROLE_WORDS } from "@ziffr/core/role-words";
 import type { WorkspaceRoleName } from "@ziffr/core/actor";
 import type { TeamSetup } from "@ziffr/core/team-setup";
 
-const FIELD = "h-9 rounded-[var(--radius-input)] border border-input bg-card px-2 text-sm disabled:opacity-70";
 
 /** The step. `domainOffer` is the company domain Domain Joining could be switched on for, from the Owner's verified address, or null. */
 export function TeamStep({ data, domainOffer }: { data: TeamSetup; domainOffer: string | null }) {
@@ -67,24 +67,25 @@ export function TeamStep({ data, domainOffer }: { data: TeamSetup; domainOffer: 
 
       <section aria-labelledby="team-invite">
         <h3 id="team-invite" className="text-base font-medium">Invite people</h3>
-        <p className="mb-3 mt-1 text-sm text-muted-foreground">Invite the people who send in numbers or look at them. You can invite more later on Members and Groups.</p>
-        <form className="flex flex-wrap items-end gap-2" onSubmit={(e) => { e.preventDefault(); run(async () => inviteMember({ email, role }), (r) => { setLink((r as { link: string }).link); setEmail(""); toast.success((r as { emailed: boolean }).emailed ? "Invitation emailed" : data.mailOn ? "Invitation made, but the email could not be sent: send the link yourself" : "Invitation made: send the link yourself, this Ziffr cannot email"); }); }}>
-          <label className="block text-xs text-muted-foreground">Email address<Input type="email" required value={email} onChange={(e) => setEmail(e.target.value)} placeholder="name@company.com" disabled={closed} className="mt-1 w-64" /></label>
-          <label className="block text-xs text-muted-foreground">as<select value={role} onChange={(e) => setRole(e.target.value as WorkspaceRoleName)} disabled={closed} className={`${FIELD} mt-1 block`}>{grantable.map((r) => <option key={r} value={r}>{WORKSPACE_ROLE_WORDS[r].label}</option>)}</select></label>
-          <Button type="submit" variant="outline" disabled={pending || closed}>Invite</Button>
-          {!data.trial.onTrial && <Button type="button" variant="ghost" disabled={pending} onClick={() => run(async () => createInviteLink("member"), (r) => setLink(r as string))}><Link2 aria-hidden /> Make a link for Members</Button>}
+        <p className="mb-3 mt-1 text-sm text-muted-foreground">Type an address and choose what the person may do. You can invite more later on Members and Groups.</p>
+        <form className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end sm:gap-2" onSubmit={(e) => { e.preventDefault(); run(async () => inviteMember({ email, role }), (r) => { setLink((r as { link: string }).link); setEmail(""); toast.success((r as { emailed: boolean }).emailed ? "Invitation emailed" : data.mailOn ? "Invitation made, but the email could not be sent: send the link yourself" : "Invitation made: send the link yourself, this Ziffr cannot email"); }); }}>
+          <label className="block text-sm text-muted-foreground sm:text-xs">Email address<Input type="email" required value={email} onChange={(e) => setEmail(e.target.value)} placeholder="name@company.com" disabled={closed} className="mt-1 h-11 w-full text-base sm:h-9 sm:w-64 sm:text-sm" /></label>
+          <label className="block text-sm text-muted-foreground sm:text-xs">Invite as<select value={role} onChange={(e) => setRole(e.target.value as WorkspaceRoleName)} disabled={closed} className={`${PHONE_FIELD} mt-1 block`}>{grantable.map((r) => <option key={r} value={r}>{WORKSPACE_ROLE_WORDS[r].label}</option>)}</select></label>
+          <Button type="submit" variant="outline" className={PHONE_BUTTON} disabled={pending || closed}>Invite</Button>
+          {!data.trial.onTrial && <Button type="button" variant="ghost" className={PHONE_BUTTON} disabled={pending} onClick={() => run(async () => createInviteLink("member"), (r) => setLink(r as string))}><Link2 aria-hidden /> Make a link for Members</Button>}
         </form>
-        {link && <p className="mt-3 text-sm">Send this link yourself, or copy it for later: <input readOnly value={link} onFocus={(e) => e.target.select()} aria-label="Invitation link" className={`${FIELD} w-full max-w-xl font-mono`} /></p>}
-        <dl className="mt-4 space-y-1 text-sm">
-          {WORKSPACE_ROLE_ORDER.map((r) => <div key={r} className="flex flex-wrap gap-x-2"><dt className="w-16 shrink-0 font-medium">{WORKSPACE_ROLE_WORDS[r].label}</dt><dd className="text-muted-foreground">{WORKSPACE_ROLE_WORDS[r].line}</dd></div>)}
+        {link && <p className="mt-3 text-sm">Send this link yourself, or copy it for later: <input readOnly value={link} onFocus={(e) => e.target.select()} aria-label="Invitation link" className={`${PHONE_FIELD} mt-2 block max-w-xl font-mono sm:w-full`} /></p>}
+        <p className="mt-4 text-sm font-medium">What each role may do</p>
+        <dl className="mt-1 space-y-1 text-sm">
+          {WORKSPACE_ROLE_ORDER.map((r) => <div key={r} className="flex flex-wrap gap-x-2"><dt className="w-full shrink-0 font-medium sm:w-16">{WORKSPACE_ROLE_WORDS[r].label}</dt><dd className="text-muted-foreground">{WORKSPACE_ROLE_WORDS[r].line}</dd></div>)}
         </dl>
       </section>
 
       {data.isOwner && !data.trial.onTrial && (
         <section aria-labelledby="team-domain">
           <h3 id="team-domain" className="text-base font-medium">Colleagues at your company</h3>
-          <label className="mt-2 flex items-center gap-2 text-sm">
-            <input type="checkbox" checked={Boolean(data.domain.on)} disabled={pending || (!data.domain.on && !domainOffer)} onChange={(e) => run(() => setDomainJoining(e.target.checked))} className="size-4 accent-[var(--color-ink)]" />
+          <label className="mt-2 flex min-h-11 items-center gap-3 text-sm sm:min-h-0 sm:gap-2">
+            <input type="checkbox" checked={Boolean(data.domain.on)} disabled={pending || (!data.domain.on && !domainOffer)} onChange={(e) => run(() => setDomainJoining(e.target.checked))} className="size-5 shrink-0 accent-[var(--color-ink)] sm:size-4" />
             {data.domain.on ? `People with an address at ${data.domain.on} may ask to join` : domainOffer ? `Let people with an address at ${domainOffer} ask to join` : "Domain Joining needs a verified company address, not a public mail provider"}
           </label>
           <p className="mt-1 text-sm text-muted-foreground">Each one still waits for you or an Admin to let them in.</p>
@@ -97,16 +98,16 @@ export function TeamStep({ data, domainOffer }: { data: TeamSetup; domainOffer: 
         {data.groups.map((g) => (
           <fieldset key={g.id} className="mb-3 text-sm">
             <legend className="font-medium">{g.name}</legend>
-            <div className="mt-1 flex flex-wrap gap-x-4 gap-y-1">
+            <div className="mt-1 flex flex-col sm:flex-row sm:flex-wrap sm:gap-x-4 sm:gap-y-1">
               {candidates.filter((p) => p.kind === "member").map((p) => (
-                <label key={p.id} className="flex items-center gap-1.5"><input type="checkbox" checked={g.members.includes(p.id)} disabled={pending} onChange={(e) => run(() => setMember(g.id, p.id, e.target.checked))} className="size-4 accent-[var(--color-ink)]" />{p.name}</label>
+                <label key={p.id} className="flex min-h-11 items-center gap-3 sm:min-h-0 sm:gap-1.5"><input type="checkbox" checked={g.members.includes(p.id)} disabled={pending} onChange={(e) => run(() => setMember(g.id, p.id, e.target.checked))} className="size-5 shrink-0 accent-[var(--color-ink)] sm:size-4" />{p.name}</label>
               ))}
             </div>
           </fieldset>
         ))}
-        <form className="flex max-w-sm gap-2" onSubmit={(e) => { e.preventDefault(); run(async () => createGroup(group), () => setGroup("")); }}>
-          <Input value={group} onChange={(e) => setGroup(e.target.value)} placeholder="e.g. Finance" aria-label="New Group name" />
-          <Button type="submit" variant="outline" disabled={pending || !group.trim()}>Add Group</Button>
+        <form className="flex max-w-sm flex-col gap-2 sm:flex-row" onSubmit={(e) => { e.preventDefault(); run(async () => createGroup(group), () => setGroup("")); }}>
+          <Input value={group} onChange={(e) => setGroup(e.target.value)} placeholder="e.g. Finance" aria-label="New Group name" className="h-11 text-base sm:h-9 sm:text-sm" />
+          <Button type="submit" variant="outline" className={PHONE_BUTTON} disabled={pending || !group.trim()}>Add Group</Button>
         </form>
       </section>
 
@@ -120,18 +121,18 @@ export function TeamStep({ data, domainOffer }: { data: TeamSetup; domainOffer: 
             {data.asks.map((a) => {
               const free = candidates.filter((p) => !a.submitters.some((s) => s.id === p.id) && !a.suggested.some((s) => s.id === p.id));
               return (
-                <li key={a.metricId} className="stock rounded-[var(--radius-card)] p-3 text-sm">
+                <li key={a.metricId} className="stock rounded-[var(--radius-card)] p-4 text-sm sm:p-3">
                   <p className="font-medium">{a.name}</p>
                   <p className="text-muted-foreground">{a.submitters.length ? `Asked: ${a.submitters.map((s) => s.name).join(", ")}` : "Nobody is asked yet."}</p>
-                  <div className="mt-2 flex flex-wrap items-center gap-2">
-                    {a.suggested.map((s) => <Button key={s.id} size="sm" variant="outline" disabled={pending} onClick={() => run(() => askForMetric(a.metricId, s.id))} aria-label={`Ask ${s.name} for ${a.name}`}>Suggested: {s.name} ({s.function})</Button>)}
+                  <div className="mt-2 flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
+                    {a.suggested.map((s) => <Button key={s.id} size="sm" variant="outline" className={`${PHONE_BUTTON_SM} h-auto min-h-11 whitespace-normal py-2 sm:h-auto sm:min-h-8 sm:py-1`} disabled={pending} onClick={() => run(() => askForMetric(a.metricId, s.id))} aria-label={`Ask ${s.name} for ${a.name}`}>Suggested: {s.name} ({s.function})</Button>)}
                     {free.length > 0 && (
                       <>
-                        <select aria-label={`Ask someone else for ${a.name}`} value={other[a.metricId] ?? ""} onChange={(e) => setOther({ ...other, [a.metricId]: e.target.value })} className={FIELD}>
+                        <select aria-label={`Ask someone else for ${a.name}`} value={other[a.metricId] ?? ""} onChange={(e) => setOther({ ...other, [a.metricId]: e.target.value })} className={PHONE_FIELD}>
                           <option value="">Ask someone else…</option>
                           {free.map((p) => <option key={p.id} value={p.id}>{p.name}{p.kind === "contact" ? " (Contact)" : ""}</option>)}
                         </select>
-                        <Button size="sm" variant="outline" disabled={pending || !other[a.metricId]} onClick={() => run(() => askForMetric(a.metricId, other[a.metricId]), () => setOther({ ...other, [a.metricId]: "" }))}>Ask</Button>
+                        <Button size="sm" variant="outline" className={PHONE_BUTTON_SM} disabled={pending || !other[a.metricId]} onClick={() => run(() => askForMetric(a.metricId, other[a.metricId]), () => setOther({ ...other, [a.metricId]: "" }))}>Ask</Button>
                       </>
                     )}
                   </div>
@@ -144,9 +145,9 @@ export function TeamStep({ data, domainOffer }: { data: TeamSetup; domainOffer: 
 
       <footer className="border-t border-border pt-4">
         <p role="alert" className="min-h-5 text-sm text-destructive">{error}</p>
-        <div className="mt-2 flex items-center justify-end gap-3">
-          <button type="button" disabled={pending} className="text-sm underline disabled:opacity-60" onClick={() => run(() => skipStep("team"), () => router.push("/"))}>Skip</button>
-          <Button type="button" disabled={pending} onClick={() => router.push("/")}>Go to Ziffr</Button>
+        <div className={`mt-2 ${PHONE_FOOTER}`}>
+          <Button type="button" variant="ghost" className={PHONE_BUTTON} disabled={pending} onClick={() => run(() => skipStep("team"), () => router.push("/"))}>Skip</Button>
+          <Button type="button" className={PHONE_BUTTON} disabled={pending} onClick={() => router.push("/")}>Go to Ziffr</Button>
         </div>
       </footer>
     </div>

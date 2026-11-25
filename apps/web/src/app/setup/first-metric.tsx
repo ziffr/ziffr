@@ -15,6 +15,7 @@ import { isActionError, UNEXPECTED } from "@/lib/action-error";
 import type { FirstMetricAsk, FirstMetricProgress, FirstMetricStep } from "@ziffr/core/setup-first-metric";
 import { askFirstMetric, askMeForIt, checkFirstMetric, pickMetric, sendFirstValue } from "./first-metric-actions";
 import { skipStep } from "./actions";
+import { PHONE_ACTIONS, PHONE_BUTTON, PHONE_BUTTON_SM, PHONE_FIELD, PHONE_FOOTER, PHONE_LINK_BUTTON, PHONE_TEXT_LINK } from "./phone";
 
 /** How often the step looks while it waits, and for how long, in milliseconds. */
 export const POLL_EVERY_MS = 5_000;
@@ -23,8 +24,6 @@ export const POLL_FOR_MS = 10 * 60_000;
 /** After this long without a Prompt reaching the person, "Didn't arrive?" opens by itself. */
 const OPEN_HELP_AFTER_MS = 3 * 60_000;
 
-const SELECT = "h-9 rounded-[var(--radius-input)] border border-input bg-card px-2 text-sm disabled:opacity-70";
-const LINK_BUTTON = "inline-flex h-8 items-center rounded-[var(--radius-input)] border border-input px-3 text-sm font-medium hover:bg-muted";
 
 type Line = { label: string; state: string; held: boolean; note: string | null; look: string; at: string | null };
 
@@ -97,9 +96,9 @@ export function FirstMetricStepView({ step, following }: { step: FirstMetricStep
   const ownChoices = step.choices.filter((c) => c.id !== m?.id);
 
   const picker = ownChoices.length > 0 && (
-    <label className="text-sm">
+    <label className="block text-sm sm:inline">
       <span className="sr-only">Another Metric</span>
-      <select aria-label="Another Metric" className={SELECT} value="" disabled={pending} onChange={(e) => e.target.value && run(() => pickMetric(Number(e.target.value)))}>
+      <select aria-label="Another Metric" className={PHONE_FIELD} value="" disabled={pending} onChange={(e) => e.target.value && run(() => pickMetric(Number(e.target.value)))}>
         <option value="">Another Metric</option>
         {ownChoices.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
       </select>
@@ -110,8 +109,8 @@ export function FirstMetricStepView({ step, following }: { step: FirstMetricStep
     return (
       <div className="space-y-4">
         <p className="text-sm">{step.trial ? "This trial has no Test Metric to try." : "There is no Metric to try yet."} Make one, and Ziffr asks you for it and takes your answer.</p>
-        <div className="flex flex-wrap items-center gap-3">
-          <Link href="/metrics/new?setup=1" className={LINK_BUTTON}>Make a Metric</Link>
+        <div className={`${PHONE_ACTIONS} sm:gap-3`}>
+          <Link href="/metrics/new?setup=1" className={PHONE_LINK_BUTTON}>Make a Metric</Link>
           {picker}
         </div>
         <Footer step="first_metric" following={following} pending={pending} run={run} done={false} />
@@ -121,7 +120,7 @@ export function FirstMetricStepView({ step, following }: { step: FirstMetricStep
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-wrap items-center justify-between gap-3">
+      <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
         <h3 className="text-base font-medium">Try {m.name} both ways{step.trial ? " (your trial’s Test Metric)" : ""}</h3>
         {picker}
       </div>
@@ -133,7 +132,7 @@ export function FirstMetricStepView({ step, following }: { step: FirstMetricStep
       {m.mine && !m.submitting && (
         <div className="stock rounded-[var(--radius-card)] p-3 text-sm">
           <p>You own {m.name}, but you are not one of the people who send its values. Add yourself, and Ziffr asks you for it.</p>
-          <Button className="mt-3" size="sm" disabled={pending} onClick={() => run(() => askMeForIt(), () => toast.success("You are asked for it now"))}>Ask me for it</Button>
+          <Button className={`mt-3 ${PHONE_BUTTON_SM}`} size="sm" disabled={pending} onClick={() => run(() => askMeForIt(), () => toast.success("You are asked for it now"))}>Ask me for it</Button>
         </div>
       )}
 
@@ -145,11 +144,11 @@ export function FirstMetricStepView({ step, following }: { step: FirstMetricStep
               1. Out: Ziffr asks you
             </h4>
             {step.ways.length > 0
-              ? <p className="text-muted-foreground">By {step.ways.map((w) => w.label).join(", then ")}, as you chose. <Link href="/setup?step=ways" className="underline">Change it</Link></p>
-              : <p className="text-muted-foreground">By the first way that reaches you, with your form link in it. <Link href="/setup?step=ways" className="underline">Choose how</Link></p>}
+              ? <p className="flex flex-col text-muted-foreground sm:block">By {step.ways.map((w) => w.label).join(", then ")}, as you chose. <Link href="/setup?step=ways" className={PHONE_TEXT_LINK}>Change it</Link></p>
+              : <p className="flex flex-col text-muted-foreground sm:block">By the first way that reaches you, with your form link in it. <Link href="/setup?step=ways" className={PHONE_TEXT_LINK}>Choose how</Link></p>}
             {step.quietBefore && !asked && <p role="status">{step.quietBefore}</p>}
-            <div className="flex flex-wrap items-center gap-3">
-              <Button disabled={pending || Boolean(step.cooldown && !just)} onClick={() => run(() => askFirstMetric(), (r) => { started.current = Date.now(); setJust({ ...(r as FirstMetricAsk), at: new Date().toISOString() }); setGaveUp(false); })}>Ask me now</Button>
+            <div className={`${PHONE_ACTIONS} sm:gap-3`}>
+              <Button className={PHONE_BUTTON} disabled={pending || Boolean(step.cooldown && !just)} onClick={() => run(() => askFirstMetric(), (r) => { started.current = Date.now(); setJust({ ...(r as FirstMetricAsk), at: new Date().toISOString() }); setGaveUp(false); })}>Ask me now</Button>
               {step.cooldown && !just && <span className="text-xs text-muted-foreground" role="status">{step.cooldown}</span>}
             </div>
             {asked && (
@@ -157,7 +156,7 @@ export function FirstMetricStepView({ step, following }: { step: FirstMetricStep
                 {lines.map((l, i) => (
                   <li key={i}>
                     <span className="font-medium">{lineWords(l)}</span> {l.state === "sent" || l.state === "queued" ? l.look : null}
-                    {l.state === "outbox" && <> <Link href="/connectors/outbox" className="underline">Open the Outbox</Link></>}
+                    {l.state === "outbox" && <> <Link href="/connectors/outbox" className={PHONE_TEXT_LINK}>Open the Outbox</Link></>}
                   </li>
                 ))}
                 {just?.held && <li>{just.held}</li>}
@@ -170,15 +169,15 @@ export function FirstMetricStepView({ step, following }: { step: FirstMetricStep
               {inn ? <CheckCircle2 aria-label="Done" className="size-4 text-[var(--color-success)]" /> : <Circle aria-label="Not done yet" className="size-4 text-muted-foreground" />}
               2. In: you answer
             </h4>
-            <p className="text-muted-foreground">Answer where it arrived{formCode ? <>, or <a href={`/submit/${formCode}`} target="_blank" rel="noreferrer" className="underline">open your form link</a> (it opens in a new tab)</> : ""}, or type the number here.</p>
-            <form className="flex flex-wrap items-center gap-2" onSubmit={(e) => { e.preventDefault(); if (!typed.trim()) return; run(() => sendFirstValue(typed), (r) => { const x = r as { ok: boolean; detail: string }; setSentWords(x.detail); if (x.ok) { setTyped(""); void look(); } }); }}>
+            <p className="text-muted-foreground">Answer where it arrived{formCode ? ", use your form link" : ""} or type the number here.{formCode && <> <a href={`/submit/${formCode}`} target="_blank" rel="noreferrer" className="flex min-h-11 w-fit items-center underline sm:ml-1 sm:inline-flex sm:min-h-0">Open your form link</a><span className="sr-only"> (opens in a new tab)</span></>}</p>
+            <form className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center" onSubmit={(e) => { e.preventDefault(); if (!typed.trim()) return; run(() => sendFirstValue(typed), (r) => { const x = r as { ok: boolean; detail: string }; setSentWords(x.detail); if (x.ok) { setTyped(""); void look(); } }); }}>
               <label className="sr-only" htmlFor="fm-value">Value for {m.name}</label>
-              <input id="fm-value" inputMode="decimal" autoComplete="off" value={typed} onChange={(e) => setTyped(e.target.value)} placeholder={m.unit || "Value"} className="h-9 w-40 rounded-[var(--radius-input)] border border-input bg-card px-2 text-sm" />
-              <Button type="submit" variant="outline" disabled={pending || !typed.trim()}>Send the value</Button>
+              <input id="fm-value" inputMode="decimal" autoComplete="off" value={typed} onChange={(e) => setTyped(e.target.value)} placeholder={m.unit || "Value"} className={`${PHONE_FIELD} sm:w-40`} />
+              <Button type="submit" variant="outline" className={PHONE_BUTTON} disabled={pending || !typed.trim()}>Send the value</Button>
             </form>
             {sentWords && <p role="status">{sentWords}</p>}
             {!inn && !gaveUp && <p className="text-muted-foreground" aria-live="polite">Waiting for your value…</p>}
-            {!inn && gaveUp && <p className="text-muted-foreground" aria-live="polite">Nothing has come in for ten minutes. <button type="button" className="underline" onClick={() => { started.current = Date.now(); setGaveUp(false); void look(); }}>Check again</button></p>}
+            {!inn && gaveUp && <p className="text-muted-foreground" aria-live="polite">Nothing has come in for ten minutes. <button type="button" className={PHONE_TEXT_LINK} onClick={() => { started.current = Date.now(); setGaveUp(false); void look(); }}>Check again</button></p>}
             {inn && !done && value && <p role="status">Your value arrived: {value.value} for {value.period}.{!out ? " Ask me now once, so Ziffr is seen to reach you too." : ""}</p>}
           </section>
 
@@ -188,9 +187,9 @@ export function FirstMetricStepView({ step, following }: { step: FirstMetricStep
 
           {asked && !done && (
             <details open={waited >= OPEN_HELP_AFTER_MS && !out} className="text-sm">
-              <summary className="cursor-pointer font-medium">Didn&rsquo;t arrive?</summary>
+              <summary className="flex min-h-11 cursor-pointer items-center font-medium sm:min-h-0">Didn&rsquo;t arrive?</summary>
               <ul className="mt-2 list-disc space-y-1 pl-5">
-                {step.checks.map((c, i) => <li key={i}>{c.text}{c.href && c.label ? <> <Link href={c.href} className="underline">{c.label}</Link></> : null}</li>)}
+                {step.checks.map((c, i) => <li key={i}>{c.text}{c.href && c.label ? <> <Link href={c.href} className="block py-3.5 underline sm:inline sm:py-0">{c.label}</Link></> : null}</li>)}
                 <li>Or skip the message: type the number above{formCode ? " or use your form link" : ""}.</li>
               </ul>
             </details>
@@ -208,9 +207,9 @@ function Footer({ step, following, pending, run, done }: { step: string; followi
   const router = useRouter();
   const go = () => router.push(following ? `/setup?step=${following}` : "/");
   return (
-    <div className="flex flex-wrap justify-end gap-2 border-t border-border pt-4">
-      {!done && <Button type="button" variant="ghost" disabled={pending} onClick={() => run(() => skipStep(step), go)}>Skip</Button>}
-      <Button type="button" disabled={pending || !done} onClick={go}>Go on</Button>
+    <div className={`${PHONE_FOOTER} border-t border-border pt-4`}>
+      {!done && <Button type="button" variant="ghost" className={PHONE_BUTTON} disabled={pending} onClick={() => run(() => skipStep(step), go)}>Skip</Button>}
+      <Button type="button" className={PHONE_BUTTON} disabled={pending || !done} onClick={go}>Go on</Button>
     </div>
   );
 }
