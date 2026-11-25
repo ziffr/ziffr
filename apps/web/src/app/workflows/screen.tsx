@@ -6,7 +6,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { toast } from "sonner";
-import { ArrowDown, ArrowUp, BellRing, Camera, CheckCheck, CircleUserRound, ListChecks, Lock, Megaphone, Plus, Play, ScanSearch, Send, Trash2, TriangleAlert } from "lucide-react";
+import { ArrowDown, ArrowLeft, ArrowUp, BellRing, Camera, CheckCheck, CircleUserRound, ListChecks, Lock, Megaphone, Plus, Play, ScanSearch, Send, Trash2, TriangleAlert } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
@@ -52,7 +52,7 @@ type Tok = { metric_id: number; submitter_id: string; stand_in_id: string | null
 /** When Workflows run in a real workspace, and its last run; null in the demo, which pretends a day instead. */
 type Schedule = { timeZone: string; runHour: number; today: string; hour: number; todayRan: boolean; lastRun: RunInfo | null; scheduled: boolean };
 
-export function WorkflowsScreen({ viewer, people, feeds = [], metrics, workflows, current, states, tokens, asOf, schedule, askingRun = null, canRun, yearStart, templates = [], canCreate = true, timelines = [], tellFacts = { groups: [], webhooks: [], steps: [] }, checklistPaused = null, dashboards = [], fillIns = [], numberStyle }: {
+export function WorkflowsScreen({ viewer, people, feeds = [], metrics, workflows, current, states, tokens, asOf, schedule, askingRun = null, canRun, yearStart, templates = [], picked = false, canCreate = true, timelines = [], tellFacts = { groups: [], webhooks: [], steps: [] }, checklistPaused = null, dashboards = [], fillIns = [], numberStyle }: {
   numberStyle: NumberStyle;
   /** Where the viewer may fill in for a submitter, by Metric (decided in the core, which checks again on saving). */
   fillIns?: FillInOffer[];
@@ -68,6 +68,8 @@ export function WorkflowsScreen({ viewer, people, feeds = [], metrics, workflows
   timelines?: PeriodTimeline[];
   /** The team's Workflow Templates (spec 0030). */
   templates?: WorkflowTemplateSummary[];
+  /** The address names a Workflow: on a phone its editor is a screen of its own, and the list is the screen before it. */
+  picked?: boolean;
   /** May make Workflows and templates: not a Guest. */
   canCreate?: boolean;
   yearStart: YearStart; schedule: Schedule | null; canRun: boolean; viewer: string; people: Profile[]; feeds?: { id: string; name: string }[]; metrics: (Pick<Metric, "id" | "name" | "slug" | "period" | "unit"> & { workflow_id: number | null; mine: boolean })[]; workflows: Workflow[]; current: Workflow | null; states: PeriodState[]; tokens: Tok[]; asOf: string }) {
@@ -96,7 +98,7 @@ export function WorkflowsScreen({ viewer, people, feeds = [], metrics, workflows
   return (
     <div className="grid gap-8 lg:grid-cols-[14rem_minmax(0,1fr)]">
       {dialog}
-      <nav aria-label="Workflows" className="space-y-1">
+      <nav aria-label="Workflows" className={cn("space-y-1", picked && "max-lg:hidden")}>
         {workflows.map((w) => (
           <Link key={w.id} href={`/workflows?id=${w.id}`} aria-current={w.id === current?.id ? "page" : undefined} className={cn("block rounded-[var(--radius-input)] px-2.5 py-2 text-sm hover:bg-muted", w.id === current?.id && "stock font-medium")}>
             {w.name}
@@ -108,8 +110,9 @@ export function WorkflowsScreen({ viewer, people, feeds = [], metrics, workflows
       </nav>
 
       {current && (
-        <div className="grid min-w-0 gap-8 xl:grid-cols-[minmax(0,1fr)_20rem]">
+        <div className={cn("grid min-w-0 gap-8 xl:grid-cols-[minmax(0,1fr)_20rem]", !picked && "max-lg:hidden")}>
           <section aria-label="Steps" className="min-w-0">
+            <Link href="/workflows" className="mb-3 inline-flex min-h-11 items-center gap-1 text-sm underline lg:hidden"><ArrowLeft aria-hidden className="size-4" /> All workflows</Link>
             <div className="flex flex-wrap items-end gap-3">
               <label className="min-w-0 flex-1">
                 <span className="mb-1 block text-xs font-medium">Name</span>
@@ -121,7 +124,7 @@ export function WorkflowsScreen({ viewer, people, feeds = [], metrics, workflows
               </label>
             </div>
 
-            <label className="mt-3 flex items-center gap-2 text-xs">
+            <label className="mt-3 flex items-center gap-2 text-xs max-sm:min-h-11">
               <input type="checkbox" checked={cfg.lockSummary === true} disabled={!canEdit} onChange={(e) => setCfg({ ...cfg, lockSummary: e.target.checked })} className="size-4 accent-[var(--color-ink)]" />
               Tell the owner when a period locks
             </label>
@@ -263,7 +266,7 @@ function StepFields({ s, people, submitters, tellFacts, dashboards, lockHeld, on
       {s.type === "check" && (
         <>
           <label className="flex items-center gap-1.5">changes more than {num(s.changePct, (n) => onChange({ ...s, changePct: n }), 1000)} %</label>
-          <label className="flex items-center gap-1.5"><input type="checkbox" checked={s.outsideTarget} onChange={(e) => onChange({ ...s, outsideTarget: e.target.checked })} className="size-4 accent-[var(--color-ink)]" /> or outside the target</label>
+          <label className="flex items-center gap-1.5 max-sm:min-h-11"><input type="checkbox" checked={s.outsideTarget} onChange={(e) => onChange({ ...s, outsideTarget: e.target.checked })} className="size-4 accent-[var(--color-ink)]" /> or outside the target</label>
         </>
       )}
       {s.type === "approve" && (
@@ -302,7 +305,7 @@ function StepFields({ s, people, submitters, tellFacts, dashboards, lockHeld, on
       {s.type === "tell" && <TellFields s={s} people={people} tellFacts={tellFacts} onChange={onChange} field={field} />}
       {s.type === "checklist" && <ChecklistFields s={s} people={people} tellFacts={tellFacts} onChange={onChange} field={field} />}
       {s.type === "send_snapshot" && <SnapshotFields s={s} people={people} dashboards={dashboards} tellFacts={tellFacts} onChange={onChange} field={field} />}
-      {s.type === "publish" && <label className="flex items-center gap-1.5"><input type="checkbox" checked={s.lock} disabled={lockHeld} onChange={(e) => onChange({ ...s, lock: e.target.checked })} className="size-4 accent-[var(--color-ink)]" /> lock the period once published{lockHeld && <span>(kept on: the Send Snapshot step waits for the lock)</span>}</label>}
+      {s.type === "publish" && <label className="flex items-center gap-1.5 max-sm:min-h-11"><input type="checkbox" checked={s.lock} disabled={lockHeld} onChange={(e) => onChange({ ...s, lock: e.target.checked })} className="size-4 accent-[var(--color-ink)]" /> lock the period once published{lockHeld && <span>(kept on: the Send Snapshot step waits for the lock)</span>}</label>}
     </div>
   );
 }
@@ -484,7 +487,7 @@ function AddMetrics({ workflow, metrics, workflows, pending, onAdd }: { workflow
       <ul className="max-h-60 space-y-1 overflow-auto">
         {offered.map((m) => (
           <li key={m.id}>
-            <label className="flex items-start gap-2">
+            <label className="flex items-start gap-2 max-sm:min-h-11">
               <input type="checkbox" className="mt-1" checked={picked.includes(m.id)} onChange={(e) => setPicked(e.target.checked ? [...picked, m.id] : picked.filter((x) => x !== m.id))} />
               <span>{m.name}{m.workflow_id !== null && <span className="text-xs text-muted-foreground"> (now on {workflows.find((w) => w.id === m.workflow_id)?.name ?? "another workflow"})</span>}</span>
             </label>

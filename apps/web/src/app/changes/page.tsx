@@ -47,11 +47,11 @@ export default async function ChangesPage({ searchParams }: { searchParams: Prom
 
   return (
     <>
-      <PageHeader title="Changes" sub="Every change to what people build, and every number that was replaced. Nothing here can be edited." />
+      <PageHeader title="Changes" sub="Every change people made, and every number that was replaced. It cannot be edited." />
       <nav aria-label="Filter by person" className="mb-4 flex flex-wrap gap-1 text-sm">
-        <Link href="/changes" aria-current={!sp.who ? "true" : undefined} className={cn("rounded-[var(--radius-input)] px-2.5 py-1 no-underline", !sp.who ? "stock font-medium" : "text-muted-foreground hover:bg-muted")}>Everyone</Link>
+        <Link href="/changes" aria-current={!sp.who ? "true" : undefined} className={cn("inline-flex min-h-11 items-center rounded-[var(--radius-input)] px-3 no-underline sm:min-h-0 sm:px-2.5 sm:py-1", !sp.who ? "stock font-medium" : "text-muted-foreground hover:bg-muted")}>Everyone</Link>
         {people.filter((p) => authors.has(p.id)).map((p) => (
-          <Link key={p.id} href={`/changes?who=${p.id}`} aria-current={sp.who === p.id ? "true" : undefined} className={cn("rounded-[var(--radius-input)] px-2.5 py-1 no-underline", sp.who === p.id ? "stock font-medium" : "text-muted-foreground hover:bg-muted")}>{p.name.split(" ")[0]}</Link>
+          <Link key={p.id} href={`/changes?who=${p.id}`} aria-current={sp.who === p.id ? "true" : undefined} className={cn("inline-flex min-h-11 items-center rounded-[var(--radius-input)] px-3 no-underline sm:min-h-0 sm:px-2.5 sm:py-1", sp.who === p.id ? "stock font-medium" : "text-muted-foreground hover:bg-muted")}>{p.name.split(" ")[0]}</Link>
         ))}
       </nav>
       {items.length === 0 ? (
@@ -61,7 +61,7 @@ export default async function ChangesPage({ searchParams }: { searchParams: Prom
           {items.map((i, n) => (
             <li key={n} className="flex flex-wrap items-baseline gap-x-3 gap-y-0.5 px-4 py-2.5 text-sm">
               <span className="font-medium">{i.kind === "value" ? "A value" : name(i.who)}</span>
-              {i.href ? <Link href={i.href} className="min-w-0 flex-1">{i.text}</Link> : <span className="min-w-0 flex-1">{i.text}</span>}
+              {i.href ? <Link href={i.href} className="inline-flex min-h-11 min-w-0 flex-1 items-center sm:min-h-0">{i.text}</Link> : <span className="min-w-0 flex-1">{i.text}</span>}
               {i.version && <span className="fig text-xs text-muted-foreground">v{i.version}</span>}
               <span className="text-xs text-muted-foreground">{formatDistanceToNow(new Date(i.at), { addSuffix: true })}</span>
             </li>

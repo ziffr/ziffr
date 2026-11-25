@@ -5,7 +5,7 @@ import { ConnectorsTabs } from "./tabs";
 export default function ConnectorsLayout({ children }: { children: React.ReactNode }) {
   return (
     <>
-      <PageHeader title="Connectors" sub="How Ziffr reaches people where they already work, and how their answers come back. Values arrive the same way." />
+      <PageHeader title="Connectors" sub="How Ziffr asks people for values in Slack, email or Telegram, and how their answers come back." />
       <ConnectorsTabs />
       {children}
     </>

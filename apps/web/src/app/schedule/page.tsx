@@ -147,7 +147,7 @@ export default async function SchedulePage({ searchParams }: { searchParams: Pro
   const actor = await currentActor();
   return (
     <>
-      <PageHeader title="Schedule" sub="What you have to do in this Workspace: values to submit by their Due Dates, Approvals waiting for you, and the Tasks and Questions assigned to you. Ask them from any widget’s ⋯ menu." />
+      <PageHeader title="Schedule" sub="What is waiting for you: values to send in, things to approve, and tasks and questions from other people." />
       <div className="space-y-6">
         <Choices label="View" current={view} options={VIEWS} make={(id) => href({}, { view: id === "todo" ? "" : id })} />
         {view === "todo" && <ToDo sp={sp} />}
