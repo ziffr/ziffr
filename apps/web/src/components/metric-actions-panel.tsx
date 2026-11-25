@@ -90,7 +90,7 @@ export function MetricActionsHost() {
 /** The "N open" mark in a Widget's header, as a button that opens the panel. */
 export function OpenActionsButton({ slugs, count, label }: { slugs: string[]; count: number; label: string }) {
   return (
-    <button type="button" title={label} aria-label={label} onClick={(e) => { e.stopPropagation(); openMetricActions(slugs); }} onMouseDown={(e) => e.stopPropagation()} className="widget-text-xs flex shrink-0 items-center gap-1 rounded-md px-1 text-muted-foreground outline-none hover:bg-muted hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring">
+    <button type="button" title={label} aria-label={label} onClick={(e) => { e.stopPropagation(); openMetricActions(slugs); }} onMouseDown={(e) => e.stopPropagation()} className="widget-text-xs flex shrink-0 items-center gap-1 rounded-md px-1 text-muted-foreground max-md:min-h-11 max-md:min-w-11 max-md:justify-center max-md:-my-2.5 max-[420px]:order-3 outline-none hover:bg-muted hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring">
       <MessageSquare aria-hidden className="size-[1.15em]" /><span className="fig">{count}</span>
     </button>
   );

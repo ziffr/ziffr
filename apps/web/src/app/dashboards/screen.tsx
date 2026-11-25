@@ -142,8 +142,8 @@ function DashboardCanvas({ data, dashboards, current, widgets, saved, shares, re
   // The Grid and Read switch: in the toolbar row on every screen, the one button besides Share that a phone keeps there.
   const viewToggle = current && (
     <div role="group" aria-label="View" className="flex gap-0.5 rounded-[var(--radius-input)] border border-[var(--border)] p-0.5">
-      <Link href={`/dashboards/${current.id}`} aria-current={!reading ? "page" : undefined} className={cn(buttonVariants({ variant: "ghost", size: "sm" }), !reading && "bg-[var(--muted)] font-medium")}><LayoutGrid aria-hidden /> Grid</Link>
-      <Link href={`/dashboards/${current.id}?view=read`} aria-current={reading ? "page" : undefined} className={cn(buttonVariants({ variant: "ghost", size: "sm" }), reading && "bg-[var(--muted)] font-medium")}><BookOpen aria-hidden /> Read</Link>
+      <Link href={`/dashboards/${current.id}`} aria-current={!reading ? "page" : undefined} className={cn(buttonVariants({ variant: "ghost", size: "sm" }), "max-md:h-11 max-[360px]:min-w-11 max-[360px]:justify-center", !reading && "bg-[var(--muted)] font-medium")}><LayoutGrid aria-hidden /> <span className="max-[360px]:sr-only">Grid</span></Link>
+      <Link href={`/dashboards/${current.id}?view=read`} aria-current={reading ? "page" : undefined} className={cn(buttonVariants({ variant: "ghost", size: "sm" }), "max-md:h-11 max-[360px]:min-w-11 max-[360px]:justify-center", reading && "bg-[var(--muted)] font-medium")}><BookOpen aria-hidden /> <span className="max-[360px]:sr-only">Read</span></Link>
     </div>
   );
   const pin = usePin({ dashboardId: current?.id ?? 0, name: current?.name ?? "", pinned, demo });
@@ -156,7 +156,7 @@ function DashboardCanvas({ data, dashboards, current, widgets, saved, shares, re
   const newDashboard = () => setNewOpen(true);
 
   return (
-    <div className={cn("grid gap-4", changing && "lg:grid-cols-[15rem_minmax(0,1fr)]")}>
+    <div className={cn("grid grid-cols-[minmax(0,1fr)] gap-4", changing && "lg:grid-cols-[15rem_minmax(0,1fr)]")}>
       {slotFill.dialog}
       {newOpen && <NewDashboardDialog open onOpenChange={setNewOpen} templates={dashboardTemplates} metrics={inUse(data.metrics).map((m) => ({ id: m.id, name: m.name }))} tags={data.tags} viewer={data.viewer} numberStyle={data.numberStyle} />}
       {savingTemplate && current && <SaveDashboardTemplateDialog dashboardId={current.id} dashboardName={current.name} metricName={(id) => data.metrics.find((m) => m.id === id)?.name} onClose={() => setSavingTemplate(false)} />}
